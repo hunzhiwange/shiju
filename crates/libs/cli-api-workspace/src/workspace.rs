@@ -7,7 +7,7 @@ use clap::Subcommand;
 use serde::Deserialize;
 use serde_json::json;
 use vw_api_file::file::{CopyFileRequest, DeleteFileRequest, MoveFileRequest};
-use vw_gateway_client::vw_api_types::git::{GitCommandRequest, GitCommitRequest, GitMergeRequest};
+use vw_api_git::{GitCommandRequest, GitCommitRequest, GitMergeRequest};
 
 use super::context::ApiContext;
 use super::input::read_json_input;

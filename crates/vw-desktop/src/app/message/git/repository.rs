@@ -84,7 +84,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                         let context = gateway_context(&path).await?;
                         crate::app::gateway_client()?
                             .git_repository(
-                                &vw_gateway_client::vw_api_types::git::GitRepositoryRequest {
+                                &vw_api_git::GitRepositoryRequest {
                                     project_id: context.project_id,
                                     worktree_id: context.worktree_id,
                                     limit,
@@ -151,7 +151,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                         let context = gateway_context(&path).await?;
                         crate::app::gateway_client()?
                             .git_history_detail(
-                                &vw_gateway_client::vw_api_types::git::GitHistoryDetailRequest {
+                                &vw_api_git::GitHistoryDetailRequest {
                                     project_id: context.project_id,
                                     worktree_id: context.worktree_id,
                                     sha: sha.clone(),
@@ -204,7 +204,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                 .and_then(|file| {
                     if matches!(
                         file.status,
-                        vw_gateway_client::vw_api_types::git::GitFileStatus::Deleted
+                        vw_api_git::GitFileStatus::Deleted
                     ) {
                         file.old_content.clone()
                     } else {
@@ -262,7 +262,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                             let context = gateway_context(&path).await?;
                             let response = crate::app::gateway_client()?
                                 .git_remote(
-                                    &vw_gateway_client::vw_api_types::git::GitRemoteRequest {
+                                    &vw_api_git::GitRemoteRequest {
                                         project_id: context.project_id,
                                         worktree_id: context.worktree_id,
                                         action,

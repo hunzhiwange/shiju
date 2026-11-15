@@ -1,7 +1,7 @@
 //! 项目和 worktree 范围内的 Git 历史及远端 API。
 use crate::app::agent::gateway::ApiError;
 use axum::{Json, Router, routing::post};
-use vw_api_types::git::{
+use vw_api_git::{
     GitHistoryDetailDto, GitHistoryDetailRequest, GitRemoteRequest, GitRemoteResponse,
     GitRepositoryDto, GitRepositoryRequest,
 };

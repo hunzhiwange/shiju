@@ -1,7 +1,7 @@
 //! libgit2 远端传输与安全快进；不调用 Git CLI，不强推、不自动合并或 stash。
 use git2::{Cred, CredentialType, FetchOptions, PushOptions, RemoteCallbacks, Repository};
 use std::time::{Duration, Instant};
-use vw_api_types::git::GitRemoteAction;
+use vw_api_git::GitRemoteAction;
 
 const NETWORK_TIMEOUT: Duration = Duration::from_secs(120);
 

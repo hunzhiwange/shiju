@@ -191,9 +191,9 @@ fn gateway_git2_partial_commit_preserves_unselected_changes() {
     request.message = "partial".to_string();
     request.selected_files = vec!["selected.txt".to_string()];
     request.selected_lines =
-        vec![vw_api_types::git::GitLineSelectionDto { path: "lines.txt".to_string(), line: 1 }];
+        vec![vw_api_git::GitLineSelectionDto { path: "lines.txt".to_string(), line: 1 }];
     request.selected_hunks =
-        vec![vw_api_types::git::GitHunkSelectionDto { path: "hunks.txt".to_string(), index: 0 }];
+        vec![vw_api_git::GitHunkSelectionDto { path: "hunks.txt".to_string(), index: 0 }];
 
     let response = commit_selected_blocking(repo.path_str(), &request).expect("partial commit");
     assert!(response.created);
@@ -547,15 +547,15 @@ fn collect_file_selections_merges_files_hunks_and_lines() {
         message: "commit".to_string(),
         stage_all: false,
         selected_files: vec!["src/lib.rs".to_string()],
-        selected_hunks: vec![vw_api_types::git::GitHunkSelectionDto {
+        selected_hunks: vec![vw_api_git::GitHunkSelectionDto {
             path: "src/lib.rs".to_string(),
             index: 2,
         }],
-        selected_lines: vec![vw_api_types::git::GitLineSelectionDto {
+        selected_lines: vec![vw_api_git::GitLineSelectionDto {
             path: "src/lib.rs".to_string(),
             line: 4,
         }],
-        selected_old_lines: vec![vw_api_types::git::GitLineSelectionDto {
+        selected_old_lines: vec![vw_api_git::GitLineSelectionDto {
             path: "old.rs".to_string(),
             line: 1,
         }],
@@ -591,16 +591,16 @@ fn collect_file_selections_deduplicates_each_selection_kind() {
     let mut request = empty_commit_request();
     request.selected_files = vec!["src/lib.rs".to_string(), "src/lib.rs".to_string()];
     request.selected_hunks = vec![
-        vw_api_types::git::GitHunkSelectionDto { path: "src/lib.rs".to_string(), index: 1 },
-        vw_api_types::git::GitHunkSelectionDto { path: "src/lib.rs".to_string(), index: 1 },
+        vw_api_git::GitHunkSelectionDto { path: "src/lib.rs".to_string(), index: 1 },
+        vw_api_git::GitHunkSelectionDto { path: "src/lib.rs".to_string(), index: 1 },
     ];
     request.selected_lines = vec![
-        vw_api_types::git::GitLineSelectionDto { path: "src/lib.rs".to_string(), line: 3 },
-        vw_api_types::git::GitLineSelectionDto { path: "src/lib.rs".to_string(), line: 3 },
+        vw_api_git::GitLineSelectionDto { path: "src/lib.rs".to_string(), line: 3 },
+        vw_api_git::GitLineSelectionDto { path: "src/lib.rs".to_string(), line: 3 },
     ];
     request.selected_old_lines = vec![
-        vw_api_types::git::GitLineSelectionDto { path: "src/lib.rs".to_string(), line: 5 },
-        vw_api_types::git::GitLineSelectionDto { path: "src/lib.rs".to_string(), line: 5 },
+        vw_api_git::GitLineSelectionDto { path: "src/lib.rs".to_string(), line: 5 },
+        vw_api_git::GitLineSelectionDto { path: "src/lib.rs".to_string(), line: 5 },
     ];
 
     let selections = collect_file_selections(&request).expect("deduplicated selections");
@@ -616,16 +616,16 @@ fn collect_file_selections_deduplicates_each_selection_kind() {
 fn collect_file_selections_validates_hunk_new_and_old_line_paths() {
     let mut hunk_request = empty_commit_request();
     hunk_request.selected_hunks =
-        vec![vw_api_types::git::GitHunkSelectionDto { path: "../hunk".to_string(), index: 0 }];
+        vec![vw_api_git::GitHunkSelectionDto { path: "../hunk".to_string(), index: 0 }];
     assert!(collect_file_selections(&hunk_request).is_err());
 
     let mut new_line_request = empty_commit_request();
     new_line_request.selected_lines =
-        vec![vw_api_types::git::GitLineSelectionDto { path: "/new-line".to_string(), line: 0 }];
+        vec![vw_api_git::GitLineSelectionDto { path: "/new-line".to_string(), line: 0 }];
     assert!(collect_file_selections(&new_line_request).is_err());
 
     let mut old_line_request = empty_commit_request();
-    old_line_request.selected_old_lines = vec![vw_api_types::git::GitLineSelectionDto {
+    old_line_request.selected_old_lines = vec![vw_api_git::GitLineSelectionDto {
         path: "nested/../old-line".to_string(),
         line: 0,
     }];
@@ -959,7 +959,7 @@ fn stage_selected_changes_stages_partial_line_selection() {
     std::fs::write(repo.path().join("tracked.txt"), "alpha\nnew\nomega\n").expect("tracked change");
     let mut request = empty_commit_request();
     request.selected_lines =
-        vec![vw_api_types::git::GitLineSelectionDto { path: "tracked.txt".to_string(), line: 1 }];
+        vec![vw_api_git::GitLineSelectionDto { path: "tracked.txt".to_string(), line: 1 }];
 
     stage_selected_changes(repo.path_str(), &request).expect("stage partial selection");
 

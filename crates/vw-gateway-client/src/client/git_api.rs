@@ -1,4 +1,4 @@
-use vw_api_types::git::{
+use vw_api_git::{
     GitCommandRequest, GitCommandResponse, GitCommitRequest, GitCommitResponse, GitMergeRequest,
     GitMergeResponse,
 };
@@ -8,20 +8,20 @@ use super::GatewayClient;
 impl GatewayClient {
     pub async fn git_repository(
         &self,
-        request: &vw_api_types::git::GitRepositoryRequest,
-    ) -> Result<vw_api_types::git::GitRepositoryDto, String> {
+        request: &vw_api_git::GitRepositoryRequest,
+    ) -> Result<vw_api_git::GitRepositoryDto, String> {
         self.post_json("/v1/git/repository", &[], request).await
     }
     pub async fn git_history_detail(
         &self,
-        request: &vw_api_types::git::GitHistoryDetailRequest,
-    ) -> Result<vw_api_types::git::GitHistoryDetailDto, String> {
+        request: &vw_api_git::GitHistoryDetailRequest,
+    ) -> Result<vw_api_git::GitHistoryDetailDto, String> {
         self.post_json("/v1/git/history/detail", &[], request).await
     }
     pub async fn git_remote(
         &self,
-        request: &vw_api_types::git::GitRemoteRequest,
-    ) -> Result<vw_api_types::git::GitRemoteResponse, String> {
+        request: &vw_api_git::GitRemoteRequest,
+    ) -> Result<vw_api_git::GitRemoteResponse, String> {
         let path = "/v1/git/remote";
         let builder =
             self.transport.client().post(format!("{}{}", self.transport.endpoint().base_url(), path)).json(request);

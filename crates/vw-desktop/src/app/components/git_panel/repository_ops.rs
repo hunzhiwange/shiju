@@ -1,5 +1,5 @@
 //! Git 面板的协议类型和界面状态；不执行仓库操作。
-pub use vw_gateway_client::vw_api_types::git::{
+pub use vw_api_git::{
     GitHistoryDetailDto as HistoryDetail, GitRemoteAction as RemoteAction,
     GitRepositoryDto as RepositorySnapshot,
 };

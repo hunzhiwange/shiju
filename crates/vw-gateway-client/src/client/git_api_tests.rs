@@ -3,7 +3,7 @@
 //! 用例保留“未创建提交”“已合并”等成功结果，并确保状态与解码错误不会被吞掉。
 
 use serde_json::json;
-use vw_api_types::git::{
+use vw_api_git::{
     GitCommandRequest, GitCommitRequest, GitHunkSelectionDto, GitLineSelectionDto, GitMergeRequest,
 };
 
@@ -188,7 +188,7 @@ async fn git_command_surfaces_response_decode_error() {
 
 #[tokio::test]
 async fn repository_history_and_remote_use_typed_gateway_endpoints() {
-    use vw_api_types::git::*;
+    use vw_api_git::*;
     let server = test_support::server(vec![
         (
             200,

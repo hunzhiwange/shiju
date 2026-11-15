@@ -16,7 +16,7 @@ use git2::{
     StatusOptions,
 };
 use similar::TextDiff;
-use vw_api_types::git::{
+use vw_api_git::{
     GitCommitDto, GitCommitRequest, GitCommitResponse, GitMergeRequest, GitMergeResponse,
 };
 

@@ -12,6 +12,8 @@ autotests = false
 doctest = false
 
 [dependencies]
+build-identity = { path = "../libs/build-identity", version = "0.6.0" }
+vw-api-git = { path = "../libs/api-git", version = "0.6.0" }
 config-plugins = { path = "../libs/config-plugins", version = "0.6.0" }
 gateway-app-read = { path = "../libs/gateway-app-read", version = "0.6.0" }
 runtime-time = { path = "../libs/runtime-time", version = "0.6.0" }

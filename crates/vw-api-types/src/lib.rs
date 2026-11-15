@@ -82,9 +82,6 @@ mod agent_scheduler_tests;
 #[cfg(test)]
 mod apps_usage_tests;
 #[cfg(test)]
-#[path = "git_tests.rs"]
-mod git_tests;
-#[cfg(test)]
 #[path = "knowledge_tests.rs"]
 mod knowledge_tests;
 #[cfg(test)]

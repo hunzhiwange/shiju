@@ -6,7 +6,7 @@ async fn repository_history_renders_chinese_in_both_themes() {
     use iced::advanced::renderer::Headless;
     use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
     use iced::{Font, Pixels, Rectangle, Size, Theme};
-    use vw_gateway_client::vw_api_types::git::{
+    use vw_api_git::{
         GitHistoryCommitDto as HistoryCommit, GitHistoryFileDto as HistoryFile,
     };
     let project = tempfile::tempdir().expect("temporary repository");
@@ -52,7 +52,7 @@ async fn repository_history_renders_chinese_in_both_themes() {
             files: vec![
                 HistoryFile {
                     path: "crates/中文模块.rs".into(),
-                    status: vw_gateway_client::vw_api_types::git::GitFileStatus::Modified,
+                    status: vw_api_git::GitFileStatus::Modified,
                     old_content: Some("fn main() {\n    // 旧内容\n}\n".into()),
                     new_content: Some("fn main() {\n    // 新的中文内容\n}\n".into()),
                     notice: None,
@@ -61,7 +61,7 @@ async fn repository_history_renders_chinese_in_both_themes() {
                 },
                 HistoryFile {
                     path: "crates/很长的新增文件路径/新增.rs".into(),
-                    status: vw_gateway_client::vw_api_types::git::GitFileStatus::Added,
+                    status: vw_api_git::GitFileStatus::Added,
                     old_content: Some(String::new()),
                     new_content: Some("新文件".into()),
                     notice: None,
@@ -70,7 +70,7 @@ async fn repository_history_renders_chinese_in_both_themes() {
                 },
                 HistoryFile {
                     path: "删除文件.txt".into(),
-                    status: vw_gateway_client::vw_api_types::git::GitFileStatus::Deleted,
+                    status: vw_api_git::GitFileStatus::Deleted,
                     old_content: Some("已删除".into()),
                     new_content: Some(String::new()),
                     notice: None,

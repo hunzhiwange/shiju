@@ -139,7 +139,7 @@ pub(super) async fn execute_selected_commit_via_gateway(
         crate::app::message::project::helpers::resolve_gateway_file_context(&project_path).await?;
     let client = crate::app::gateway_client()?;
     let response = client
-        .git_commit(&vw_gateway_client::vw_api_types::git::GitCommitRequest {
+        .git_commit(&vw_api_git::GitCommitRequest {
             project_id: context.project_id,
             worktree_id: context.worktree_id,
             message: request.message,
@@ -148,7 +148,7 @@ pub(super) async fn execute_selected_commit_via_gateway(
             selected_hunks: request
                 .selected_hunks
                 .into_iter()
-                .map(|(path, index)| vw_gateway_client::vw_api_types::git::GitHunkSelectionDto {
+                .map(|(path, index)| vw_api_git::GitHunkSelectionDto {
                     path,
                     index,
                 })
@@ -156,7 +156,7 @@ pub(super) async fn execute_selected_commit_via_gateway(
             selected_lines: request
                 .selected_lines
                 .into_iter()
-                .map(|(path, line)| vw_gateway_client::vw_api_types::git::GitLineSelectionDto {
+                .map(|(path, line)| vw_api_git::GitLineSelectionDto {
                     path,
                     line,
                 })
@@ -164,7 +164,7 @@ pub(super) async fn execute_selected_commit_via_gateway(
             selected_old_lines: request
                 .selected_old_lines
                 .into_iter()
-                .map(|(path, line)| vw_gateway_client::vw_api_types::git::GitLineSelectionDto {
+                .map(|(path, line)| vw_api_git::GitLineSelectionDto {
                     path,
                     line,
                 })
@@ -182,7 +182,7 @@ pub(super) async fn execute_selected_commit_via_gateway(
 
 pub(super) async fn execute_stage_all_via_gateway(directory: String) -> Result<(), String> {
     let response = crate::app::gateway_client()?
-        .git_command(&vw_gateway_client::vw_api_types::git::GitCommandRequest {
+        .git_command(&vw_api_git::GitCommandRequest {
             directory,
             args: vec!["add".to_string(), "--all".to_string()],
             timeout_secs: Some(30),

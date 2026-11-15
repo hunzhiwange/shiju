@@ -1,6 +1,6 @@
 use super::*;
 use git2::{Repository, Signature};
-use vw_api_types::git::{GitFileStatus, GitRemoteAction};
+use vw_api_git::{GitFileStatus, GitRemoteAction};
 
 fn commit(repo: &Repository, path: &str, contents: &str, message: &str) -> git2::Oid {
     std::fs::write(repo.workdir().unwrap().join(path), contents).unwrap();

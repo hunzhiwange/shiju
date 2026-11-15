@@ -51,7 +51,7 @@ async fn workspace_api_uses_file_search_and_git_routes() {
         .expect("file content");
     client.file_status_in_directory(Some("/repo with spaces")).await.expect("file status");
     client
-        .git_commit(&vw_api_types::git::GitCommitRequest {
+        .git_commit(&vw_api_git::GitCommitRequest {
             project_id: "project /one".into(),
             worktree_id: None,
             message: "ship it".to_string(),
@@ -64,7 +64,7 @@ async fn workspace_api_uses_file_search_and_git_routes() {
         .await
         .expect("git commit");
     client
-        .git_command(&vw_api_types::git::GitCommandRequest {
+        .git_command(&vw_api_git::GitCommandRequest {
             directory: "/repo with spaces".to_string(),
             args: vec!["status".to_string(), "--short".to_string()],
             timeout_secs: Some(5),
@@ -72,7 +72,7 @@ async fn workspace_api_uses_file_search_and_git_routes() {
         .await
         .expect("git command");
     client
-        .git_merge(&vw_api_types::git::GitMergeRequest {
+        .git_merge(&vw_api_git::GitMergeRequest {
             project_id: "project /one".into(),
             source_branch: "feature".to_string(),
             target_branch: "main".to_string(),

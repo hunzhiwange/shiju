@@ -1,5 +1,5 @@
 //! 网关内置 Git 库实现：提交对象读取，不访问客户端文件系统。
-use vw_api_types::git::{
+use vw_api_git::{
     GitHistoryCommitDto as HistoryCommit, GitHistoryDetailDto as HistoryDetail,
     GitHistoryFileDto as HistoryFile, GitRepositoryDto as RepositorySnapshot,
 };
@@ -117,12 +117,12 @@ pub(super) fn detail(path: &str, sha: &str) -> Result<HistoryDetail, String> {
                 BlobPair::Notice(notice) => (None, None, Some(notice), 0, 0),
             };
             let status = match delta.status() {
-                git2::Delta::Added => vw_api_types::git::GitFileStatus::Added,
-                git2::Delta::Deleted => vw_api_types::git::GitFileStatus::Deleted,
-                git2::Delta::Modified => vw_api_types::git::GitFileStatus::Modified,
-                git2::Delta::Renamed => vw_api_types::git::GitFileStatus::Renamed,
-                git2::Delta::Copied => vw_api_types::git::GitFileStatus::Copied,
-                git2::Delta::Typechange => vw_api_types::git::GitFileStatus::TypeChanged,
+                git2::Delta::Added => vw_api_git::GitFileStatus::Added,
+                git2::Delta::Deleted => vw_api_git::GitFileStatus::Deleted,
+                git2::Delta::Modified => vw_api_git::GitFileStatus::Modified,
+                git2::Delta::Renamed => vw_api_git::GitFileStatus::Renamed,
+                git2::Delta::Copied => vw_api_git::GitFileStatus::Copied,
+                git2::Delta::Typechange => vw_api_git::GitFileStatus::TypeChanged,
                 _ => return Err(git2::Error::from_str("unsupported historical file status")),
             };
             files.push(HistoryFile {

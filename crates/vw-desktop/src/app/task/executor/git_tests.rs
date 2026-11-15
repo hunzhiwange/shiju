@@ -46,7 +46,7 @@ fn git_command_status_accessors_return_stored_values() {
 
 #[test]
 fn git_command_output_converts_from_gateway_response() {
-    let response = vw_gateway_client::vw_api_types::git::GitCommandResponse {
+    let response = vw_api_git::GitCommandResponse {
         success: false,
         code: Some(128),
         stdout: "out".to_string(),

@@ -8,7 +8,7 @@ use super::process_utils::{
 };
 use super::state::{GIT_MAINTENANCE_COMMAND_TIMEOUT_SECS, TaskLogStream};
 use super::*;
-use vw_gateway_client::vw_api_types::git::{GitCommandRequest, GitCommandResponse};
+use vw_api_git::{GitCommandRequest, GitCommandResponse};
 
 #[derive(Debug, Clone)]
 pub(super) struct GitCommandStatus {

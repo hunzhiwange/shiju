@@ -62,7 +62,7 @@ fn remote_animation_advances_only_while_syncing() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn history_preview_uses_committed_snapshot_including_deleted_files() {
-    use vw_gateway_client::vw_api_types::git::{GitFileStatus, GitHistoryFileDto};
+    use vw_api_git::{GitFileStatus, GitHistoryFileDto};
     let mut app = crate::app::App::new().0;
     app.git_repository.detail = Some(HistoryDetail {
         message: String::new(),

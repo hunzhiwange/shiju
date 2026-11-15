@@ -2,7 +2,7 @@
 use super::super::utils::FileStatus;
 use crate::app::{App, DiffTheme, Message, message::GitMessage};
 use iced::Element;
-use vw_gateway_client::vw_api_types::git::{GitFileStatus, GitHistoryFileDto};
+use vw_api_git::{GitFileStatus, GitHistoryFileDto};
 
 pub(crate) fn view_history_diff(
     app: &App,

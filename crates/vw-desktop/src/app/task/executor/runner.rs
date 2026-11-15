@@ -1287,11 +1287,11 @@ fn gateway_git_merge_retry_delay(attempt: usize) -> std::time::Duration {
 #[cfg(not(target_arch = "wasm32"))]
 fn execute_gateway_git_merge_with_retry(
     client: &vw_gateway_client::GatewayClient,
-    request: &vw_gateway_client::vw_api_types::git::GitMergeRequest,
+    request: &vw_api_git::GitMergeRequest,
     source_branch: &str,
     target_branch: &str,
     sender: Option<&Sender<TaskLogStream>>,
-) -> Result<vw_gateway_client::vw_api_types::git::GitMergeResponse, String> {
+) -> Result<vw_api_git::GitMergeResponse, String> {
     let mut first_error: Option<String> = None;
     for attempt in 1..=GATEWAY_GIT_MERGE_MAX_ATTEMPTS {
         match super::block_on_gateway(client.git_merge(request)) {
@@ -1916,7 +1916,7 @@ fn execute_task_merge_blocking(
             Ok(context) => context,
             Err(error) => return (task_id, Err(error)),
         };
-        let request = vw_gateway_client::vw_api_types::git::GitMergeRequest {
+        let request = vw_api_git::GitMergeRequest {
             project_id: context.project_id,
             source_branch: source_branch.clone(),
             target_branch: target_branch.clone(),

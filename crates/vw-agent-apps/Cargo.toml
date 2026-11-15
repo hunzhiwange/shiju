@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-auth-codex = { path = "../libs/app-auth-codex" }
 app-auth-core = { path = "../libs/app-auth-core" }
 app-openclaw-config-rules = { path = "../libs/app-openclaw-config-rules" }
 app-config-write = { path = "../libs/app-config-write" }

@@ -2157,3 +2157,27 @@ app-auth-claude。`flow_tests.rs` 使用凭据存储及真实适配器，暂留�
 静态审阅：四个文件单一所有者、原导出路径接线、cfg 对照、TOML 直接依赖和路径
 检查及 git diff --check。未运行 Cargo、单元及实机测试，统一验收待授权：
 新库与直接调用者编译、迁移单测、三平台行为与锁文件一致性。
+
+## 任务 14 静态迁移结果
+
+`app-auth-codex` 接收 providers/codex_login_material 的 JWT claims 解析、
+用户身份提取，codex_device 的 workspace_id/token_subject，以及 codex_refresh
+的 should_adopt_cli_rotation。原位置重导出同一实现；私有身份辅助函数保持私有。
+依赖仅 base64、serde_json arbitrary_precision、chrono std；不依赖门面或登录服务。
+现有调用者 codex_device/refresh、codex_login_policy、apps/launch/account 保持接线。
+原包 lib.rs/auth 模块声明无需调整；这些纯规则原本无平台条件或资源路径。
+
+覆盖历史所有权表的延期：任务 13 留存 credential_file/credential_lease 至任务 15，
+且 Codex 使用 Copilot 的 read_json/utc_now/valid_token（任务 16）。因此不能整体
+迁移三个适配器。任务 22 必须在 15/16 完成后，将 codex_browser.rs、
+codex_device.rs、codex_refresh.rs 剩余实现和相邻三个独立测试文件归入
+app-auth-codex，提取真实共用基础函数至 app-auth-core；不得回依赖门面或 Copilot。
+refresh_tests 的 apps::launch 集成场景留给任务 22/32 编排验收。当前六个文件仍
+在原位置，原 test/unix/非 wasm 注册不变；没有复制实现或添加测试。任务 23
+继续接收原生登录分类逻辑，消费此包 identity 规则。旧包直接依赖仍有其它调用者，保留。
+
+静态证据：提取函数体与 HEAD 对照不变（只调整可见性/导入），单一实现与
+调用者检索、Python TOML 清单路径审阅、workspace 及直接依赖注册、差异空白检查。
+未运行 Cargo、单元及实机测试，统一验收待授权：新包与调用者编译、迁移单测、
+三平台条件、身份不匹配/轮换代际拒绝和锁文件一致性。本节完成仅指独立规则迁移，
+适配器延期由任务 22 接收，不能视为整个 Codex 运行时已经下沉。

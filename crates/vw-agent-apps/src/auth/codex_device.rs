@@ -395,20 +395,7 @@ async fn access_denied(response: Response) -> bool {
     read_json::<OAuthError>(response).await.is_ok_and(|error| error.error == "access_denied")
 }
 
-pub(super) fn workspace_id(claims: &Value) -> Option<&str> {
-    claims
-        .get("chatgpt_account_id")
-        .and_then(Value::as_str)
-        .or_else(|| claims.get("https://api.openai.com/auth")?.get("chatgpt_account_id")?.as_str())
-}
-
-pub(super) fn token_subject(claims: &Value) -> Option<&str> {
-    claims
-        .get("sub")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|subject| !subject.is_empty() && !subject.chars().any(char::is_control))
-}
+pub(super) use app_auth_codex::identity::{token_subject, workspace_id};
 
 /// Revalidate a persisted bundle's workspace and subject before provider consumption.
 pub fn managed_identity(auth: &Value) -> Result<String, AuthErrorCode> {

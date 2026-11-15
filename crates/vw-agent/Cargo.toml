@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+gateway-shiju-connector = { path = "../libs/gateway-shiju-connector", version = "0.6.0" }
 gateway-system = { path = "../libs/gateway-system", version = "0.6.0" }
 patch = { path = "../libs/patch", version = "0.6.0" }
 app-self-update = { path = "../libs/app-self-update", version = "0.6.0" }

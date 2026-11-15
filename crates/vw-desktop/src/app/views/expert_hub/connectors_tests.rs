@@ -10,7 +10,7 @@ use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
 use serde_json::json;
-fn connector(id: u64) -> vw_gateway_client::ShijuConnector {
+fn connector(id: u64) -> gateway_shiju_connector::ShijuConnector {
     serde_json::from_value(json!({"platform_id": id, "company_platform_id": id, "platform_code": "sample", "platform_name": format!("中文连接器 {id}"), "authorization_available": true, "account_binding_variables": [{"name": "token", "description": "授权密钥", "type": "password", "required": true}], "binding": {"third_party_account_id": "中文账号", "third_party_account_name": "测试用户", "binding_config": {}, "status": "enabled"}})).unwrap()
 }
 #[tokio::test(flavor = "multi_thread")]
@@ -49,7 +49,7 @@ async fn connector_chinese_modal_and_independent_waits_draw_in_both_themes() {
         app.expert_hub.connectors.begin(
             id,
             ConnectorWork::Authorizing {
-                challenge: vw_gateway_client::ShijuConnectorChallenge {
+                challenge: gateway_shiju_connector::ShijuConnectorChallenge {
                     flow_id: id.to_string().repeat(32),
                     authorization_url: "https://provider.example/authorize".into(),
                     poll_interval_seconds: 1,
@@ -64,7 +64,7 @@ async fn connector_chinese_modal_and_independent_waits_draw_in_both_themes() {
             let mut connector = connector(3);
             for index in 0..8 {
                 connector.account_binding_variables.push(
-                    vw_gateway_client::ShijuConnectorVariable {
+                    gateway_shiju_connector::ShijuConnectorVariable {
                         name: format!("field_{index}"),
                         description: format!("中文配置字段 {index}"),
                         kind: "string".into(),

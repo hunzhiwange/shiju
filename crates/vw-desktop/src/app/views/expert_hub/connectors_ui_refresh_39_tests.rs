@@ -13,7 +13,7 @@ use iced::{Event, Font, mouse};
 use iced::{Point, Rectangle, Renderer, Size, Theme, Vector};
 use iced_runtime::user_interface::{Cache, UserInterface};
 use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
-use vw_gateway_client::{ShijuConnector};
+use gateway_shiju_connector::{ShijuConnector};
 use gateway_shiju_app::{ShijuIamApiKeyDto};
 
 type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;

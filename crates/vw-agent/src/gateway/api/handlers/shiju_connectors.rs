@@ -8,7 +8,7 @@ use axum::{
     routing::{get, post, put},
 };
 use std::sync::Arc;
-use vw_gateway_client::{
+use gateway_shiju_connector::{
     ShijuConnector, ShijuConnectorAuthorizeRequest, ShijuConnectorBinding, ShijuConnectorChallenge,
     ShijuConnectorPoll, ShijuConnectorPollRequest, ShijuConnectorSaveRequest,
 };

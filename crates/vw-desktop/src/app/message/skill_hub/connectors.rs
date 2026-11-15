@@ -9,7 +9,7 @@ use crate::app::{
 };
 use iced::Task;
 use std::time::{Duration, Instant};
-use vw_gateway_client::{
+use gateway_shiju_connector::{
     ShijuConnector, ShijuConnectorAuthorizationStatus, ShijuConnectorBinding,
     ShijuConnectorChallenge, ShijuConnectorPoll,
 };
@@ -81,7 +81,7 @@ pub(crate) fn load(app: &mut App) -> Task<Message> {
     Task::perform(
         async move {
             let credential = credential.gateway_credential().map_err(|error| error.to_string())?;
-            config::gateway_client()?.shiju_connectors(&credential).await
+            gateway_shiju_connector::GatewayShijuConnectorClient::new(config::gateway_client()?.transport().clone()).shiju_connectors(&credential).await
         },
         move |result| message(ConnectorMessage::Loaded(generation, account_id, result)),
     )
@@ -193,7 +193,7 @@ pub(crate) fn update(app: &mut App, msg: ConnectorMessage) -> Task<Message> {
                 async move {
                     let credential =
                         credential.gateway_credential().map_err(|error| error.to_string())?;
-                    config::gateway_client()?.shiju_connector_save(&credential, &request).await
+                    gateway_shiju_connector::GatewayShijuConnectorClient::new(config::gateway_client()?.transport().clone()).shiju_connector_save(&credential, &request).await
                 },
                 move |result| message(ConnectorMessage::Saved(generation, account_id, id, result)),
             );
@@ -248,7 +248,7 @@ pub(crate) fn update(app: &mut App, msg: ConnectorMessage) -> Task<Message> {
                 async move {
                     let credential =
                         credential.gateway_credential().map_err(|error| error.to_string())?;
-                    config::gateway_client()?.shiju_connector_authorize(&credential, id).await
+                    gateway_shiju_connector::GatewayShijuConnectorClient::new(config::gateway_client()?.transport().clone()).shiju_connector_authorize(&credential, id).await
                 },
                 move |result| {
                     message(ConnectorMessage::Started(generation, account_id, id, result))
@@ -318,7 +318,7 @@ pub(crate) fn update(app: &mut App, msg: ConnectorMessage) -> Task<Message> {
                 async move {
                     let credential =
                         credential.gateway_credential().map_err(|error| error.to_string())?;
-                    config::gateway_client()?.shiju_connector_poll(&credential, &flow_id).await
+                    gateway_shiju_connector::GatewayShijuConnectorClient::new(config::gateway_client()?.transport().clone()).shiju_connector_poll(&credential, &flow_id).await
                 },
                 move |result| message(ConnectorMessage::Polled(generation, account_id, id, result)),
             );

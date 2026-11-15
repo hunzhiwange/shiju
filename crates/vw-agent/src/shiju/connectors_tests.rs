@@ -2,7 +2,7 @@
 use super::super::account_tests::fixture;
 use super::*;
 use serde_json::json;
-use vw_gateway_client::ShijuConnectorAuthorizationStatus;
+use gateway_shiju_connector::ShijuConnectorAuthorizationStatus;
 fn envelope(data: serde_json::Value) -> String {
     json!({"code": 200, "data": data}).to_string()
 }

@@ -22,7 +22,7 @@ fn app() -> App {
     app.account.replace_repository(repository);
     app
 }
-fn connector() -> vw_gateway_client::ShijuConnector {
+fn connector() -> gateway_shiju_connector::ShijuConnector {
     serde_json::from_value(json!({"platform_id": 1, "company_platform_id": 7, "platform_code": "sample", "platform_name": "中文连接器", "authorization_available": true, "account_binding_variables": [
         {"name": "token", "type": "password", "description": "密钥", "required": false},
         {"name": "region", "type": "string", "description": "区域", "required": true}],
@@ -70,7 +70,7 @@ fn authorization(app: &mut App, id: u64) -> u64 {
     app.expert_hub.connectors.begin(
         id,
         ConnectorWork::Authorizing {
-            challenge: vw_gateway_client::ShijuConnectorChallenge {
+            challenge: gateway_shiju_connector::ShijuConnectorChallenge {
                 flow_id: id.to_string().repeat(32),
                 authorization_url: "https://provider.example/authorize".into(),
                 poll_interval_seconds: 1,
@@ -130,7 +130,7 @@ fn connector_authorizations_start_and_cancel_independently() {
 }
 #[test]
 fn connector_approval_refresh_preserves_other_authorization_and_open_form() {
-    use vw_gateway_client::{ShijuConnectorAuthorizationStatus as Status, ShijuConnectorPoll};
+    use gateway_shiju_connector::{ShijuConnectorAuthorizationStatus as Status, ShijuConnectorPoll};
     let mut app = ready_app();
     let account_id = owner(&app);
     let first = authorization(&mut app, 7);
@@ -175,7 +175,7 @@ fn connector_modal_close_does_not_cancel_another_authorization() {
 }
 #[test]
 fn connector_expired_or_denied_flow_only_removes_its_own_wait() {
-    use vw_gateway_client::{ShijuConnectorAuthorizationStatus as Status, ShijuConnectorPoll};
+    use gateway_shiju_connector::{ShijuConnectorAuthorizationStatus as Status, ShijuConnectorPoll};
     for status in [Status::Denied, Status::Expired] {
         let mut app = ready_app();
         let account_id = owner(&app);
@@ -224,7 +224,7 @@ fn connector_save_failure_preserves_modal_and_other_waits() {
 }
 #[test]
 fn connector_logout_clears_all_waits_and_ignores_late_results() {
-    use vw_gateway_client::{ShijuConnectorAuthorizationStatus as Status, ShijuConnectorPoll};
+    use gateway_shiju_connector::{ShijuConnectorAuthorizationStatus as Status, ShijuConnectorPoll};
     let mut app = ready_app();
     let account_id = owner(&app);
     let first = authorization(&mut app, 7);

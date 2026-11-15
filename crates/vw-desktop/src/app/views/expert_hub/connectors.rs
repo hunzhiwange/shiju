@@ -20,7 +20,7 @@ use crate::app::{
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Element, Length, Theme};
-use vw_gateway_client::ShijuConnector;
+use gateway_shiju_connector::ShijuConnector;
 
 const GRID_COLUMNS: usize = 3;
 const CARD_GAP: u32 = 16;

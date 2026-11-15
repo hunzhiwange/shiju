@@ -3,7 +3,7 @@ use super::{ShijuAccountClient, ShijuAccountError, decode_response, endpoint};
 use reqwest::Method;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use vw_gateway_client::{
+use gateway_shiju_connector::{
     ShijuConnector, ShijuConnectorAuthorizeRequest, ShijuConnectorBinding, ShijuConnectorChallenge,
     ShijuConnectorPoll, ShijuConnectorSaveRequest,
 };

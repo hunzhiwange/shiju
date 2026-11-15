@@ -1,6 +1,8 @@
 //! 校验个人连接器传输路径、凭证头和可空变量列表。
 use super::*;
-use crate::client::{SHIJU_CREDENTIAL_HEADER, test_support};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::test_support;
+use gateway_shiju_account::SHIJU_CREDENTIAL_HEADER;
 use serde_json::json;
 #[test]
 fn connector_accepts_null_variables_without_binding() {
@@ -8,6 +10,7 @@ fn connector_accepts_null_variables_without_binding() {
     assert!(connector.account_binding_variables.is_empty());
     assert!(connector.binding.is_none());
 }
+#[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn connector_client_uses_sensitive_gateway_routes() {
     let flow = "a".repeat(32);

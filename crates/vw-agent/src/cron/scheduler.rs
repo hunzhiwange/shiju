@@ -1103,7 +1103,7 @@ pub(crate) async fn deliver_announcement(
                 .as_ref()
                 .ok_or_else(|| anyhow::anyhow!("slack channel not configured"))?;
             // 创建 Slack 通道实例
-            let channel = SlackChannel::new(
+            let channel = channel_slack::SlackChannel::new(
                 sl.bot_token.clone(),
                 sl.channel_id.clone(),
                 sl.allowed_users.clone(),

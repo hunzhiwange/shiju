@@ -119,7 +119,7 @@ pub use qq::QQChannel;
 #[cfg(not(target_arch = "wasm32"))]
 pub use signal::SignalChannel;
 #[cfg(not(target_arch = "wasm32"))]
-pub use slack::SlackChannel;
+pub use channel_slack::SlackChannel;
 #[cfg(not(target_arch = "wasm32"))]
 pub use telegram::TelegramChannel;
 pub use channel_types::{Channel, SendMessage};

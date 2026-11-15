@@ -25,7 +25,7 @@ use vw_gateway_client::{
     GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayStreamAttemptResult,
     GatewayWorkflowStreamEvent, PendingPermissionReplyDto,
 };
-use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta};
+use session_ui_types::{ChatSession, ChatSessionMeta};
 use vw_tui::{
     ChatWidget, ChatWidgetConfig, CustomTerminal, TerminalMode, TranscriptPager,
     TranscriptReflowState, V3Action, V3Attachment, V3AttachmentKind, V3DisplayEvent, V3Event,

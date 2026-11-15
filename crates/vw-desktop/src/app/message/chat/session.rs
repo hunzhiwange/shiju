@@ -439,7 +439,7 @@ fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> T
             if !matches {
                 return Err("会话历史已变化，请重新加载后重置".to_string());
             }
-            let delta = vw_shared::session::ui_types::SessionMessageDelta {
+            let delta = session_ui_types::SessionMessageDelta {
                 session_id: session_id.clone(),
                 expected_updated_ms: stored.updated_ms,
                 updated_ms: now.max(stored.updated_ms.saturating_add(1)),

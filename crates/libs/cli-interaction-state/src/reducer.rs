@@ -7,7 +7,7 @@
 
 use std::path::PathBuf;
 
-use vw_shared::session::ui_types::ChatSession;
+use session_ui_types::ChatSession;
 
 use super::selectors::derive_search_matches_with_cache;
 use super::{

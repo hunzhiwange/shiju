@@ -11,7 +11,7 @@ use crate::session::{
     GatewaySessionScopeBody, GatewaySessionSummarizeBody, GatewaySessionTitleGenerateBody,
     GatewaySessionTitleGenerateResponse, GatewaySessionTodoPutBody, GatewaySessionUiSummary,
 };
-use vw_shared::session::ui_types::{
+use session_ui_types::{
     ChatSession, ChatSessionMeta, SessionMessageDelta, SessionMessageRecord,
 };
 use todo_types::Todo;

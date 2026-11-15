@@ -1447,7 +1447,7 @@ fn handle_returns_none_for_message_owned_by_another_project_submodule() {
 #[test]
 fn bounded_session_open_and_prepend_keep_save_sequence_base() {
     use crate::app::message::project::{PreparedSessionOpenSource, ProjectMessage};
-    use vw_shared::session::ui_types::SessionMessageRecord;
+    use session_ui_types::SessionMessageRecord;
     let mut app = app();
     app.active_session_id = Some("paged".into());
     let generation = 0;

@@ -59,7 +59,7 @@ use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Space, button, column, container, row, text as iced_text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use std::borrow::Cow;
-use vw_shared::session::ui_types::ProcessingTiming;
+use session_ui_types::ProcessingTiming;
 
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::attachment::{

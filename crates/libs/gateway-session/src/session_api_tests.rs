@@ -10,8 +10,8 @@ use vw_api_session::session::{
     GatewaySessionTitleGenerateBody, GatewaySessionTodoItem, GatewaySessionTodoPutBody,
 };
 use vw_api_todo::todo::{TodoPriority, TodoStatus};
-use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
-use vw_shared::session::ui_types::{SessionMessageDelta, SessionMessageRecord};
+use session_ui_types::{ChatMessage, ChatRole, ChatSession};
+use session_ui_types::{SessionMessageDelta, SessionMessageRecord};
 
 use super::{session_diff_query, session_message_list_query, session_message_page_query};
 use crate::test_support;

@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use serde_json::{Value, json};
-use vw_shared::session::ui_types::{ChatSessionStep, TokenUsage, ToolTiming};
+use session_ui_types::{ChatSessionStep, TokenUsage, ToolTiming};
 
 use super::{MetricAvailability, TrajectoryRecordKind, TrajectoryUsage, project_trajectory};
 

@@ -11,7 +11,7 @@ use crate::session::processor::compact_tool_output;
 use crate::session::{agent_binding, compaction_checkpoint, message};
 use crate::{bus, id, storage};
 use serde_json::{Value, json};
-use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
+use session_ui_types::{ChatMessage, ChatRole, ChatSession};
 
 const FORK_SLUG_PREFIX: &str = "turn-fork-";
 

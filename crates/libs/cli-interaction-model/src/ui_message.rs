@@ -3,7 +3,7 @@
 //! 这里不直接复用 `ChatSession` 的扁平消息外形，而是为 CLI 新 TUI 定义更细粒度的
 //! `UiMessage` 主枚举，承接后续 event -> message 标准化与 grouped/collapsed 渲染。
 
-use vw_shared::session::ui_types as session_ui;
+use session_ui_types as session_ui;
 
 use super::attachment::UiAttachment;
 

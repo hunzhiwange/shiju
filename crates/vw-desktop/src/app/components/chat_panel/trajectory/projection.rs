@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use serde_json::Value;
-use vw_shared::session::ui_types::{ChatSessionStep, TokenUsage};
+use session_ui_types::{ChatSessionStep, TokenUsage};
 
 use super::model::{
     MetricAvailability, TrajectoryMetrics, TrajectoryProjection, TrajectoryRecord,

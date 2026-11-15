@@ -14,7 +14,7 @@ use serde_json::Value;
 
 use super::GatewaySessionClient;
 use gateway_http::directory_query;
-use vw_shared::session::ui_types::{
+use session_ui_types::{
     ChatSession, ChatSessionStep,
 };
 
@@ -33,7 +33,7 @@ struct ChatSessionWithRaw {
     pub agent_binding: Option<vw_api_chat_identity::SessionAgentIdentity>,
     pub title: String,
     #[serde(default)]
-    pub messages: Vec<vw_shared::session::ui_types::ChatMessage>,
+    pub messages: Vec<session_ui_types::ChatMessage>,
     #[serde(default)]
     pub message_ids: Vec<Option<String>>,
     #[serde(default)]

@@ -12,7 +12,7 @@ use {
     vw_api_transport::id::TenantScope,
 };
 use session_info::Info as AgentSessionInfo;
-use vw_shared::session::ui_types::{
+use session_ui_types::{
     ChatMessage, ChatSession, ChatSessionMeta, ChatSessionStep, ProcessingTiming,
     SessionMessageDelta, SessionMessagePage, SessionMessageRecord, SessionTodoItem, ThinkTiming,
     TokenUsage, ToolTiming,

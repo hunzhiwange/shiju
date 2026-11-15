@@ -10,7 +10,7 @@ use {
     vw_gateway_client::GatewayChatStreamRequest,
     vw_api_transport::id::SessionId,
 };
-use vw_shared::session::ui_types::{ChatMessage, ChatRole};
+use session_ui_types::{ChatMessage, ChatRole};
 
 /// 根据当前状态和提交快照构造 Gateway 请求，并在此收紧工具与权限选项。
 pub(crate) fn gateway_stream_request_from_state(

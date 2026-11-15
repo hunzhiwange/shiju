@@ -553,7 +553,7 @@ fn processing_timing_history_split_attaches_assistant_time_to_first_visible_row_
     assert_eq!(chat.len(), 2);
     assert_eq!(
         chat[0].processing_timing,
-        Some(vw_shared::session::ui_types::ProcessingTiming {
+        Some(session_ui_types::ProcessingTiming {
             started_ms: 10,
             completed_ms: Some(20),
             processing_elapsed_ms: Some(8),

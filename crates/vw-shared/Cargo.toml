@@ -8,6 +8,7 @@ description = "Shared utilities for VibeWindow crates"
 license = "MIT"
 
 [dependencies]
+session-ui-types = { path = "../libs/session-ui-types", version = "0.6.0" }
 session-info = { path = "../libs/session-info", version = "0.6.0" }
 message-types = { path = "../libs/message-types", version = "0.6.0" }
 auth-file-store = { path = "../libs/auth-file-store", version = "0.6.0" }

@@ -3,7 +3,7 @@
 
 use vw_agent::session::processor as legacy_processor;
 use cli_gateway_transport::gateway::GatewaySessionSeed;
-use vw_shared::session::ui_types as models;
+use session_ui_types as models;
 use serde_json::json;
 use std::path::PathBuf;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};

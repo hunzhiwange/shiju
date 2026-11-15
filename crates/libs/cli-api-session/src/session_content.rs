@@ -8,7 +8,7 @@ use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use vw_api_session::GatewaySessionMessageListQuery;
 use vw_api_session::session::GatewaySessionScopeBody;
-use vw_shared::session::ui_types::ChatSession;
+use session_ui_types::ChatSession;
 
 use cli_api_core::context::ApiContext;
 use cli_api_core::input::read_json_input;

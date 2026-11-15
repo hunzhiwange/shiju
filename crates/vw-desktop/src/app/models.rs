@@ -4,7 +4,7 @@
 //! 不改变任何运行时行为。
 
 /// 对外暴露当前模块需要复用的能力。
-pub use vw_shared::session::ui_types::{
+pub use session_ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, SessionTodoItem,
     ThinkTiming, TokenUsage, ToolTiming,
 };

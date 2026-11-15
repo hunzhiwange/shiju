@@ -1590,7 +1590,7 @@ fn processing_timing_stream_done_closes_active_and_background_cycles() {
     let active_id = "active-session".to_string();
     app.active_session_id = Some(active_id.clone());
     let mut active_assistant = message(ChatRole::Assistant, "answer");
-    active_assistant.processing_timing = Some(vw_shared::session::ui_types::ProcessingTiming {
+    active_assistant.processing_timing = Some(session_ui_types::ProcessingTiming {
         started_ms: 100,
         completed_ms: None,
         processing_elapsed_ms: None,
@@ -1612,7 +1612,7 @@ fn processing_timing_stream_done_closes_active_and_background_cycles() {
 
     let background_id = "background-session".to_string();
     let mut background_assistant = message(ChatRole::Assistant, "background answer");
-    background_assistant.processing_timing = Some(vw_shared::session::ui_types::ProcessingTiming {
+    background_assistant.processing_timing = Some(session_ui_types::ProcessingTiming {
         started_ms: 200,
         completed_ms: None,
         processing_elapsed_ms: None,
@@ -1713,7 +1713,7 @@ fn processing_timing_stream_error_closes_and_saves_background_cycle() {
     let active_id = "active-session".to_string();
     app.active_session_id = Some(active_id.clone());
     let mut active_assistant = message(ChatRole::Assistant, "active partial");
-    active_assistant.processing_timing = Some(vw_shared::session::ui_types::ProcessingTiming {
+    active_assistant.processing_timing = Some(session_ui_types::ProcessingTiming {
         started_ms: 250,
         completed_ms: None,
         processing_elapsed_ms: None,
@@ -1731,7 +1731,7 @@ fn processing_timing_stream_error_closes_and_saves_background_cycle() {
 
     let session_id = "background-session".to_string();
     let mut assistant = message(ChatRole::Assistant, "partial");
-    assistant.processing_timing = Some(vw_shared::session::ui_types::ProcessingTiming {
+    assistant.processing_timing = Some(session_ui_types::ProcessingTiming {
         started_ms: 300,
         completed_ms: None,
         processing_elapsed_ms: None,
@@ -1761,7 +1761,7 @@ fn processing_timing_post_tool_round_closes_old_cycle_and_starts_new_cycle() {
     app.active_session_id = Some(session_id.clone());
     app.project_path = Some("/repo".to_string());
     let mut assistant = message(ChatRole::Assistant, "tool round");
-    assistant.processing_timing = Some(vw_shared::session::ui_types::ProcessingTiming {
+    assistant.processing_timing = Some(session_ui_types::ProcessingTiming {
         started_ms: 400,
         completed_ms: None,
         processing_elapsed_ms: None,

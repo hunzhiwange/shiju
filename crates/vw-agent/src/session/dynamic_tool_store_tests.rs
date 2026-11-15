@@ -13,7 +13,7 @@ use {
     vw_api_transport::id::TenantScope,
 };
 use project_types::{Info, TimeInfo};
-use vw_shared::session::ui_types::ChatSession;
+use session_ui_types::ChatSession;
 
 struct VersionTool(&'static str);
 #[async_trait::async_trait]

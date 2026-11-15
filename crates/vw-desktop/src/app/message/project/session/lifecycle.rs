@@ -45,7 +45,7 @@ fn push_loaded_chat_message(
     model: Option<String>,
     think_timing: Vec<models::ThinkTiming>,
     message_id: Option<String>,
-    processing_timing: &mut Option<vw_shared::session::ui_types::ProcessingTiming>,
+    processing_timing: &mut Option<session_ui_types::ProcessingTiming>,
 ) {
     if content.trim().is_empty() && think_timing.is_empty() {
         return;
@@ -69,7 +69,7 @@ fn flush_loaded_text_message(
     model: Option<String>,
     think_timing: &mut Vec<models::ThinkTiming>,
     message_id: &Option<String>,
-    processing_timing: &mut Option<vw_shared::session::ui_types::ProcessingTiming>,
+    processing_timing: &mut Option<session_ui_types::ProcessingTiming>,
 ) {
     push_loaded_chat_message(
         chat,
@@ -282,12 +282,12 @@ fn message_model_label(info: &agent_message::Info) -> Option<String> {
 
 fn message_processing_timing(
     info: &agent_message::Info,
-) -> Option<vw_shared::session::ui_types::ProcessingTiming> {
+) -> Option<session_ui_types::ProcessingTiming> {
     let agent_message::Info::Assistant(info) = info else {
         return None;
     };
     let completed_ms = info.time.completed?;
-    Some(vw_shared::session::ui_types::ProcessingTiming {
+    Some(session_ui_types::ProcessingTiming {
         started_ms: info.time.created,
         completed_ms: Some(completed_ms),
         processing_elapsed_ms: info.time.processing_elapsed_ms,

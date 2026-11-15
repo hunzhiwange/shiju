@@ -15,4 +15,4 @@ pub use session_info as info;
 pub use session_paths as path;
 pub mod session_utils;
 pub mod ui_store;
-pub mod ui_types;
+pub use session_ui_types as ui_types;

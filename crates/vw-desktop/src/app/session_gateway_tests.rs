@@ -276,20 +276,20 @@ fn gateway_save_session_result_preserves_original_gateway_error() {
 
 #[test]
 fn desktop_ui_snapshot_omits_runtime_trajectory() {
-    let session = vw_shared::session::ui_types::ChatSession {
+    let session = session_ui_types::ChatSession {
         id: "session-1".to_string(),
         title: "Session".to_string(),
         messages: Vec::new(),
         message_ids: Vec::new(),
         calls: vec![serde_json::json!({"tool": "shell"})],
-        steps: vec![vw_shared::session::ui_types::ChatSessionStep {
+        steps: vec![session_ui_types::ChatSessionStep {
             index: 1,
             turn_id: Some("turn-1".to_string()),
             started_ms: 1,
             finished_ms: Some(2),
             start_snapshot_path: None,
             finish_snapshot_path: None,
-            usage: vw_shared::session::ui_types::TokenUsage::default(),
+            usage: session_ui_types::TokenUsage::default(),
             cost_usd: None,
             finish_reason: Some("stop".to_string()),
             model: Some("provider/model".to_string()),
@@ -309,7 +309,7 @@ fn desktop_ui_snapshot_omits_runtime_trajectory() {
 
 #[test]
 fn gateway_session_message_delta_payload_is_bounded() {
-    use vw_shared::session::ui_types::{
+    use session_ui_types::{
         ChatMessage, ChatRole, SessionMessageDelta, SessionMessageRecord,
     };
 
@@ -331,7 +331,7 @@ fn gateway_session_message_delta_payload_is_bounded() {
         truncate_after: None,
     };
     let bytes = serde_json::to_vec(&delta).unwrap();
-    let full_session = vw_shared::session::ui_types::ChatSession {
+    let full_session = session_ui_types::ChatSession {
         id: delta.session_id.clone(),
         title: "baseline".to_string(),
         messages: (0..10_000).map(|_| delta.upserts[0].message.clone()).collect(),
@@ -509,7 +509,7 @@ async fn session_message_delta_refreshes_count_for_conflict_and_gap() {
             gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port),
         )
         .unwrap();
-        let delta = vw_shared::session::ui_types::SessionMessageDelta {
+        let delta = session_ui_types::SessionMessageDelta {
             session_id: "s1".into(),
             expected_updated_ms: 10,
             updated_ms: 11,
@@ -548,7 +548,7 @@ async fn session_message_delta_rejects_invalid_requests_and_keeps_outages_retrya
             TenantScope::new("platform-test", "company-test").unwrap(),
         )
         .await;
-        let delta = vw_shared::session::ui_types::SessionMessageDelta {
+        let delta = session_ui_types::SessionMessageDelta {
             session_id: "s1".into(),
             expected_updated_ms: 10,
             updated_ms: 11,
@@ -577,7 +577,7 @@ async fn session_history_conflict_does_not_rebase_and_retry_wrong_rows() {
         TenantScope::new("platform-test", "company-test").unwrap(),
     )
     .await;
-    let delta = vw_shared::session::ui_types::SessionMessageDelta {
+    let delta = session_ui_types::SessionMessageDelta {
         session_id: "s1".into(),
         expected_updated_ms: 10,
         updated_ms: 11,

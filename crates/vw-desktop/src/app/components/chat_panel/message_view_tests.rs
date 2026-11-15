@@ -22,7 +22,7 @@ use iced::{Background, Color, Font, Length, Pixels, Rectangle, Size, Theme};
 use serde_json::Map;
 use std::borrow::Cow;
 use std::collections::HashSet;
-use vw_shared::session::ui_types::ProcessingTiming;
+use session_ui_types::ProcessingTiming;
 
 fn stale_plain_text_cache() -> ChatRenderCacheEntry {
     ChatRenderCacheEntry {

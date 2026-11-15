@@ -10,7 +10,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use serde_json::json;
 use vw_gateway_client::{GatewayChatStreamEvent, GatewayClient, GatewayEndpoint};
-use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
+use session_ui_types::{ChatMessage, ChatRole, ChatSession};
 use vw_tui::{V3Action, V3ApprovalDecision, V3Event, V3FileChange, V3UserInputAnswer};
 
 use super::app::V3GatewayApp;

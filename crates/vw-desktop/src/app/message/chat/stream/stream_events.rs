@@ -609,7 +609,7 @@ pub(super) fn mark_agent_stream_session_dirty(
         runtime.stream_save_generation = generation;
     }
     runtime.stream_save_revision = runtime.stream_save_revision.saturating_add(1);
-    let record = vw_shared::session::ui_types::SessionMessageRecord { seq_no, message_id, message };
+    let record = session_ui_types::SessionMessageRecord { seq_no, message_id, message };
     if let Some(existing) =
         runtime.stream_save_dirty_records.iter_mut().find(|dirty| dirty.seq_no == record.seq_no)
     {
@@ -652,7 +652,7 @@ fn save_latest_agent_stream_session(app: &mut App, session_id: &str) -> Task<Mes
     let generation = runtime.stream_save_generation;
     let revision = runtime.stream_save_revision;
     let updated_ms = now_ms().max(runtime.stream_save_expected_updated_ms.saturating_add(1));
-    let delta = vw_shared::session::ui_types::SessionMessageDelta {
+    let delta = session_ui_types::SessionMessageDelta {
         session_id: session_id.to_string(),
         expected_updated_ms: runtime.stream_save_expected_updated_ms,
         updated_ms,

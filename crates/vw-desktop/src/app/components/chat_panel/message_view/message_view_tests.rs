@@ -9,7 +9,7 @@ use crate::app::models::{ChatMessage, ChatRenderCacheEntry, ChatRole};
 use crate::app::{Message, message};
 use iced::Padding;
 use std::borrow::Cow;
-use vw_shared::session::ui_types::ProcessingTiming;
+use session_ui_types::ProcessingTiming;
 
 fn keep_message_view(element: iced::Element<'_, crate::app::Message>) {
     std::hint::black_box(element);

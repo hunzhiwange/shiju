@@ -486,7 +486,7 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) pending_compaction_status_index: Option<usize>,
     pub(crate) stream_save_generation: u64,
     pub(crate) stream_save_expected_updated_ms: u64,
-    pub(crate) stream_save_dirty_records: Vec<vw_shared::session::ui_types::SessionMessageRecord>,
+    pub(crate) stream_save_dirty_records: Vec<session_ui_types::SessionMessageRecord>,
     pub(crate) stream_save_in_flight: Option<(u64, u64, u64)>,
     /// 当前 assistant 尾消息的增量解析、高度和后台预热代次。
     pub(crate) stream_tail_state: StreamTailState,

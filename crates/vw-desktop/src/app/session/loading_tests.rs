@@ -248,7 +248,7 @@ fn reload_sessions_for_project_with_path_returns_runnable_task() {
     assert!(iced_runtime::task::into_stream(reload_task.collect()).is_some());
     assert!(app.project_sessions_loading.contains(&project_path));
 }
-use vw_shared::session::ui_types::SessionMessageRecord;
+use session_ui_types::SessionMessageRecord;
 
 fn bounded_summary(message_count: usize) -> vw_api_session::GatewaySessionUiSummary {
     vw_api_session::GatewaySessionUiSummary {
@@ -268,7 +268,7 @@ fn page_record(seq_no: u64) -> SessionMessageRecord {
         seq_no,
         message_id: Some(format!("message-{seq_no}")),
         message: ChatMessage {
-            role: vw_shared::session::ui_types::ChatRole::User,
+            role: session_ui_types::ChatRole::User,
             content: format!("message {seq_no}"),
             model: None,
             think_timing: Vec::new(),

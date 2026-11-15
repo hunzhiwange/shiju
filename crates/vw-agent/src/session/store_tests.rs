@@ -13,7 +13,7 @@ use project_types::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 use session_info::{
     Info as AgentSessionInfo, RevertInfo, ShareInfo, Summary, TimeInfo,
 };
-use vw_shared::session::ui_types::{
+use session_ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, ProcessingTiming,
     SessionMessageDelta, SessionMessageRecord, SessionTodoItem, ThinkTiming, TokenUsage,
     ToolTiming,

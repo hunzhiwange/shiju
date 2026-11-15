@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
+session-ui-types = { path = "../session-ui-types", version = "0.6.0" }
 todo-types = { path = "../todo-types", version = "0.6.0" }
 vw-api-session = { path = "../api-session", version = "0.6.0" }
 gateway-http = { path = "../gateway-http", version = "0.6.0" }

@@ -18,7 +18,7 @@
 use std::path::PathBuf;
 
 use serde_json::Value;
-use vw_shared::session::ui_types::{
+use session_ui_types::{
     self as session_ui, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep,
 };
 

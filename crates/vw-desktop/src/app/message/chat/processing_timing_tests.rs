@@ -22,7 +22,7 @@ fn processing_timing_starts_and_completes_one_tail_assistant_cycle() {
     assert!(!super::processing_timing::start_tail_assistant_processing(&mut messages, 110));
     assert_eq!(
         messages[1].processing_timing,
-        Some(vw_shared::session::ui_types::ProcessingTiming {
+        Some(session_ui_types::ProcessingTiming {
             started_ms: 100,
             completed_ms: None,
             processing_elapsed_ms: Some(0),
@@ -44,7 +44,7 @@ fn processing_timing_starts_and_completes_one_tail_assistant_cycle() {
     ));
     assert_eq!(
         messages[1].processing_timing,
-        Some(vw_shared::session::ui_types::ProcessingTiming {
+        Some(session_ui_types::ProcessingTiming {
             started_ms: 100,
             completed_ms: Some(175),
             processing_elapsed_ms: Some(90),

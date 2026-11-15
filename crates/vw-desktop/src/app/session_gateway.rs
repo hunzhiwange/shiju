@@ -40,7 +40,7 @@ use vw_gateway_client::{
     ShijuSkillPageDto, ShijuSkillReadmeDto, ShijuSkillSearchQuery, ShijuSkillTagCatalogDto,
     ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
 };
-use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta, SessionMessageDelta};
+use session_ui_types::{ChatSession, ChatSessionMeta, SessionMessageDelta};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SessionMessageDeltaSaveError {
@@ -320,7 +320,7 @@ pub(crate) async fn gateway_bounded_session_open_with_client(
     (
         vw_api_session::GatewaySessionUiSummary,
         vw_api_session::GatewaySessionMessagePage<
-            vw_shared::session::ui_types::SessionMessageRecord,
+            session_ui_types::SessionMessageRecord,
         >,
     ),
     String,
@@ -346,7 +346,7 @@ pub(crate) async fn gateway_session_message_page_before_with_client(
     cursor: String,
 ) -> Result<
     vw_api_session::GatewaySessionMessagePage<
-        vw_shared::session::ui_types::SessionMessageRecord,
+        session_ui_types::SessionMessageRecord,
     >,
     String,
 > {

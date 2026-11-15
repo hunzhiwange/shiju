@@ -6,7 +6,7 @@ use iced::Task;
 use std::time::Duration;
 use vw_gateway_client::GatewayClient;
 use session_info::Info;
-use vw_shared::session::ui_types::ChatSessionMeta;
+use session_ui_types::ChatSessionMeta;
 
 #[derive(Debug, Clone)]
 pub struct DraftPublication {

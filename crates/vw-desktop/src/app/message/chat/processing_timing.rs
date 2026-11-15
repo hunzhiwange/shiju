@@ -1,7 +1,7 @@
 //! 维护尾部助手消息的处理耗时与模型调用耗时记录。
 
 use crate::app::models::{ChatMessage, ChatRole};
-use vw_shared::session::ui_types::ProcessingTiming;
+use session_ui_types::ProcessingTiming;
 
 /// 仅为尚未计时的尾部助手消息启动处理计时。
 pub(super) fn start_tail_assistant_processing(

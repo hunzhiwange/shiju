@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/session-ui-types",
   "crates/libs/api-app-auth",
   "crates/libs/message-types",
   "crates/libs/auth-file-store",

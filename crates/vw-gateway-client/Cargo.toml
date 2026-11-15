@@ -8,6 +8,7 @@ description = "Gateway client types and helpers for VibeWindow"
 license = "MIT"
 
 [dependencies]
+session-ui-types = { path = "../libs/session-ui-types", version = "0.6.0" }
 vw-api-app-auth = { path = "../libs/api-app-auth", version = "0.6.0" }
 vw-api-knowledge = { path = "../libs/api-knowledge", version = "0.6.0" }
 vw-api-workflow = { path = "../libs/api-workflow", version = "0.6.0" }

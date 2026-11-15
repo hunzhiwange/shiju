@@ -14,7 +14,7 @@ use crate::session::message::{Part, ToolState, WithParts};
 use crate::session::session::Info;
 use vw_api_transport::id::TenantScope;
 use vw_api_session::session::{GatewaySessionMessagePage, GatewaySessionUiSummary};
-use vw_shared::session::ui_types::{ChatRole, SessionMessageRecord};
+use session_ui_types::{ChatRole, SessionMessageRecord};
 
 const PROMPTS: [&str; 3] = ["fork-retained-user", "fork-discarded-second", "fork-discarded-third"];
 const ANSWERS: [&str; 3] =

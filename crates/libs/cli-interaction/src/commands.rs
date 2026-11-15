@@ -2,7 +2,7 @@
 //!
 //! 本模块只描述命令及其当前可用性，不持有 Gateway client，也不执行副作用。
 
-use vw_shared::session::ui_types::ChatSessionMeta;
+use session_ui_types::ChatSessionMeta;
 use vw_tui::V3SelectionItem;
 
 use cli_interaction_model::background_task::TaskControlAction;

@@ -6,7 +6,7 @@ use std::thread;
 
 use serde_json::{Value, json};
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
-use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
+use session_ui_types::{ChatMessage, ChatRole, ChatSession};
 use vw_tui::{V3Action, V3ApprovalDecision};
 
 use super::app::{ActiveRunner, V3GatewayApp};

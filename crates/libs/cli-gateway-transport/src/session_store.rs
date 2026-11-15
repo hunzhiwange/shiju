@@ -11,7 +11,7 @@ use vw_api_session::{
     GatewaySessionSummarizeBody,
 };
 use session_info::Info;
-use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta};
+use session_ui_types::{ChatSession, ChatSessionMeta};
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway, normalize_optional_str_ref};
 

@@ -662,7 +662,7 @@ fn desktop_first_response_late_success_publishes_to_the_original_project_once() 
         parent_message_id: Some("user-id".into()),
         publication: Some(Box::new(super::draft::DraftPublication {
             info: session_info("draft", "", "/project/worktree"),
-            preview: Some(vw_shared::session::ui_types::ChatSessionMeta {
+            preview: Some(session_ui_types::ChatSessionMeta {
                 id: "draft".into(),
                 title: String::new(),
                 updated_ms: 20,

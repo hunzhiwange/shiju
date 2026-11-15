@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::json;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
-use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
+use session_ui_types::{ChatMessage, ChatRole, ChatSession};
 use vw_tui::V3Action;
 
 use super::app::{

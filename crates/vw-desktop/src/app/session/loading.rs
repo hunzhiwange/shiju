@@ -108,7 +108,7 @@ pub fn prepare_session_open(
 pub fn prepare_bounded_session_open(
     summary: vw_api_session::GatewaySessionUiSummary,
     page: vw_api_session::GatewaySessionMessagePage<
-        vw_shared::session::ui_types::SessionMessageRecord,
+        session_ui_types::SessionMessageRecord,
     >,
     show_reasoning_summary: bool,
 ) -> PreparedSessionOpen {
@@ -158,7 +158,7 @@ pub fn prepare_bounded_session_open(
 pub fn prepare_timeline_page(
     session_id: &str,
     page: vw_api_session::GatewaySessionMessagePage<
-        vw_shared::session::ui_types::SessionMessageRecord,
+        session_ui_types::SessionMessageRecord,
     >,
 ) -> TimelinePage {
     TimelinePage {

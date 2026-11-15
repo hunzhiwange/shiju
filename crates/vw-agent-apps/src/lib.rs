@@ -10,6 +10,7 @@ pub mod device_sync;
 
 pub mod apps;
 
+// Provider modes and publication are owned by app-providers.
 pub mod providers;
 
 pub mod auth;

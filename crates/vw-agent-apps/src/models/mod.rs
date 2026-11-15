@@ -36,10 +36,6 @@ mod fill_hermes_tests;
 mod fill_kimi_tests;
 #[cfg(test)]
 mod fill_opencode_tests;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod fill_pi_tests;
-#[cfg(test)]
-mod preset_catalog_tests;
 #[cfg(test)]
 mod preset_omp_tests;
 

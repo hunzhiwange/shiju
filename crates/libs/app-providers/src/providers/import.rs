@@ -42,7 +42,7 @@ pub fn strategy(
     })
 }
 /// Placeholder credentials must never become permanent catalog credentials.
-pub(super) fn reject_placeholders(
+pub fn reject_placeholders(
     bytes: &[u8],
 ) -> Result<(), super::live::write_guard::WriteError> {
     if [b"PROXY_MANAGED".as_slice(), b"CC_SWITCH_PENDING_KEY".as_slice()]

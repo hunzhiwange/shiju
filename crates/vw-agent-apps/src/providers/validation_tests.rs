@@ -1,6 +1,5 @@
 use super::{create::create, update::update};
 use serde_json::json;
-use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::create::AppProviderCreate;
 use vw_api_app_provider_base::update::AppProviderUpdate;
 use vw_api_app_identity::{AppId};

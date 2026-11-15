@@ -8,9 +8,8 @@ pub mod windows;
 mod windows_tests;
 pub use app_catalog::wsl;
 
-pub mod claude_desktop;
-#[cfg(all(test, unix))]
-mod claude_desktop_tests;
+pub use app_providers::desktop_presence as claude_desktop;
+
 
 pub mod report;
 #[cfg(test)]

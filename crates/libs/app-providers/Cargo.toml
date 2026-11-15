@@ -1,0 +1,46 @@
+[package]
+name = "app-providers"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+app-config-paths = { path = "../app-config-paths" }
+app-aggregation = { path = "../app-aggregation" }
+app-aggregation-catalog = { path = "../app-aggregation-catalog" }
+app-models = { path = "../app-models" }
+app-provider-environment = { path = "../app-provider-environment" }
+app-provider-native = { path = "../app-provider-native" }
+app-provider-login = { path = "../app-provider-login" }
+app-auth = { path = "../app-auth" }
+app-auth-codex = { path = "../app-auth-codex" }
+app-provider-core = { path = "../app-provider-core" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.6.0" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
+vw-api-app-provider-extended = { path = "../api-app-provider-extended", version = "0.6.0" }
+vw-api-app-provider-terminal = { path = "../api-app-provider-terminal", version = "0.6.0" }
+vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.6.0" }
+vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.6.0" }
+vw-api-model-catalog = { path = "../api-model-catalog", version = "0.6.0" }
+vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+app-model-catalog = { path = "../app-model-catalog" }
+app-provider-validation = { path = "../app-provider-validation" }
+app-provider-projection = { path = "../app-provider-projection" }
+tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
+reqwest = { version = "0.13", default-features = false, features = ["form", "json", "rustls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+toml = "0.9"
+toml_edit = "0.22"
+sha2 = "0.11"
+base64 = "0.23"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"
+tokio = { version = "1", features = ["io-util", "process", "time"] }
+
+[dev-dependencies]
+tempfile = "3"
+app-auth = { path = "../app-auth", features = ["test-support"] }

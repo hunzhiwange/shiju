@@ -2492,3 +2492,13 @@ fill_opencode 的导入修正随文件移动保留，独立于本任务提交暂
 - 任务 29 必须接收留存的 catalog_ack、catalog_generation、claude_publish、codex_publish、daemon_restart、exit_restore、lifecycle_restore、preview、resolve、stale_clients 及对应独立测试（含 claude_refresh、codex_resync 和 daemon_restart_desktop）。实际依赖为 providers::codex_catalog::{CodexFiles,CATALOG_FILENAME}、providers::mode_apply::{ClaudeMode,ModeApplyError,RouteRuntime}、providers::desktop_mapping::catalog 等尚未下沉适配器。模式应用触发与恢复编排随任务 29 的供应商服务落位；不把这些上层类型复制到下层，也不新增回调 trait 掩盖环。
 - codex_effort_tests 已由任务 27 在 app-aggregation-catalog 注册，本任务不重复搬迁。新包原始 member_keys/member_validation/codex_settings 注册条件保持原样；其所引用的 macOS 状态类型在非 macOS 目标的既有可编译性留待统一验收，不声称跨平台已通过。
 - 静态证据：15 个文件移动及 import 差异审阅、测试模块/path 完整性、公开符号与真实调用者检索、Python 3.9 标准库路径/依赖遍历（无 tomllib，TOML 区段人工审阅）、git diff --check。未运行 Cargo、rustc、单元及实机测试，Cargo.lock 未修改。统一验收待授权：新包与调用者编译、迁移定向测试、macOS 原生事务与恢复、Windows/Linux cfg 与锁文件一致性。
+
+
+## 任务 29 实际所有权（覆盖历史留存）
+
+- app-providers/src/providers 接收原 providers 除 Agy 启动及 validation 集成测试外的剩余实现和独立测试。mode_state、operations、live 仍由 app-auth 唯一实现。原模块重导出服务。
+- 收完任务 11 的 failover/universal_sync/catalog/delete/editor_merge/snippets 集成，任务 24 的 Claude Desktop、Gemini/Grok 表单及目录测试，任务 28 的 desktop_mapping、aggregation 剩余发布/恢复/预览/daemon_restart 实现及测试。models/preset_catalog_tests、fill_pi_tests 随调用者移入。
+- Agy validate/import 下沉；Scope、prepare/prepare_checked、Lease、catalog_lease、agy_files、agy_tests 和 validation_tests 启动集成留给任务 33 应用边界。reject_placeholders 因原 Agy 调用最小公开。
+- Desktop 发布 fixture 依赖上层 discovery::read；提前接收纯 discovery::claude_desktop 探测叶子与独立测试，原路径重导出。fixture 改用同一 probe 的 supported/app_bundles 判断，保留安装目录与断言。任务 33 不再搬该叶子。
+- sessions::activity 调用 process_table，故仅该跨包函数公开。显式 path 与测试模块均保留在新包内部，无门面回依赖；保留 serde_json arbitrary_precision、tokio macOS process/io-util 特性。
+- 静态审阅覆盖 TOML 路径、workspace 注册、模块树、cfg、调用者与差异。未运行 Cargo、单元及实机测试，统一验收待授权：新包及调用者编译、迁移定向测试、平台条件、Desktop 发布恢复及 Agy 启动集成；未修改 Cargo.lock。

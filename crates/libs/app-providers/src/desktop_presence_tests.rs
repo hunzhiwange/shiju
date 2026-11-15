@@ -1,4 +1,4 @@
-use super::claude_desktop::{DesktopPlatform, probe};
+use super::desktop_presence::{DesktopPlatform, probe};
 use std::{fs, path::Path};
 
 #[test]

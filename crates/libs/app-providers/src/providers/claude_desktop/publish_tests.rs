@@ -74,7 +74,6 @@ use super::publication::{
     DesktopInstallation, DesktopMode, DesktopPublicationError, DesktopTarget, get_status, run,
 };
 use crate::{
-    apps::discovery::read::{LocalReadEnvironment, read},
     providers::{
         desktop_mapping::catalog::{DesktopMappingMember, DesktopModelCatalog},
         live::commit::{AppState, HOOK, Phase},
@@ -97,19 +96,16 @@ impl Fixture {
 
     fn installation(&self) -> DesktopInstallation {
         let home = self.home.path().to_path_buf();
-        let observation = read(
-            APP,
-            &LocalReadEnvironment {
-                host_id: "local".into(),
-                applications: home.join("SystemApplications"),
-                home,
-                search_paths: vec![],
-            },
-        )
-        .unwrap()
-        .desktop
-        .unwrap();
-        DesktopInstallation::from(&observation)
+        let presence = crate::desktop_presence::probe(
+            crate::desktop_presence::DesktopPlatform::Macos,
+            &home,
+            &home.join("SystemApplications"),
+        ).unwrap();
+        match (presence.supported, presence.app_bundles.as_deref()) {
+            (true, Some([])) => DesktopInstallation::NotInstalled,
+            (true, Some(_)) => DesktopInstallation::Installed,
+            _ => DesktopInstallation::Unsupported,
+        }
     }
 
     fn profile_path(&self) -> PathBuf {

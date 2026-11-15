@@ -81,3 +81,9 @@ pub fn truncate_summary(text: &str, max_chars: usize) -> String {
     result
 }
 
+/// Parse numeric seconds/milliseconds or an RFC 3339 external-session timestamp.
+pub fn parse_timestamp_to_ms(value: &Value) -> Option<i64> {
+    if let Some(n) = value.as_i64() { return if n > 1_000_000_000_000 { Some(n) } else { n.checked_mul(1000) }; }
+    let text = value.as_str()?;
+    text.parse().ok().or_else(|| chrono::DateTime::parse_from_rfc3339(text).ok().map(|v| v.timestamp_millis()))
+}

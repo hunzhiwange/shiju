@@ -1061,8 +1061,8 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `sessions/providers/codex_parser_3.rs` | 240 | 45 |
 | `sessions/providers/codex_parser_4.rs` | 268 | 45 |
 | `sessions/providers/dsh.rs` | 276 | 50 |
-| `sessions/providers/gemini.rs` | 431 | 47 |
-| `sessions/providers/gemini_document.rs` | 93 | 47 |
+| `sessions/providers/gemini.rs` | 431 | 47 → `crates/libs/app-session-gemini/src/gemini.rs` |
+| `sessions/providers/gemini_document.rs` | 93 | 47 → `crates/libs/app-session-gemini/src/gemini_document.rs` |
 | `sessions/providers/grokbuild.rs` | 175 | 50 |
 | `sessions/providers/hermes.rs` | 332 | 49 |
 | `sessions/providers/hermes_sqlite.rs` | 403 | 49 |
@@ -2691,3 +2691,14 @@ app-session-claude/src 唯一拥有 claude.rs、claude_blocks.rs、claude_jsonl.
 静态证据：五个迁移文件与 HEAD 对比，仅两处基础库导入及 scan_session_file 可见性变化；三个 include 和 messages 相对路径均在新包内存在。Python 只读 TOML 解析确认 workspace 成员与门面直接路径依赖，递归检查五个生产依赖包路径存在、无环、无旧门面回依赖；serde_json arbitrary_precision 与 chrono std 特性保留。原路径/真实调用者和反向依赖检索已完成，git diff --check 通过。RustCodeGraph 未覆盖当前实现，改用源码检索，未更新索引。Cargo.lock 未触碰。
 
 未运行 Cargo、单元及实机测试，统一验收待授权：新包与直接调用者编译、Claude 扫描与消息解析定向测试、三平台行为及清单/锁文件一致性。静态迁移完成不表示编译或行为验收通过。
+
+
+## 任务 47：Gemini 会话解析静态迁移结果
+
+app-session-gemini/src 唯一拥有 gemini.rs 与 gemini_document.rs，原 providers::gemini 仅重导出。scan_sessions/load_messages 保持公开；is_session_file、parse_session_document、format_thoughts 与返回类型 MergedThoughts 因 usage、delete、content_file 的真实跨包调用最小公开。原 sessions/providers/mod.rs 和 lib.rs 已有公开模块接线，无需修改；网关扫描和消息调用路径保持。迁移源无独立测试、平台 cfg 或外部资源，document 相对模块路径保持同包。
+
+共享 parse_timestamp_to_ms 从 OpenCode 提前下沉 app-session-core::utils，函数体不变，OpenCode 原位置重导出供 opencode_blocks 继续调用；任务 49 接收 OpenCode 适配器时使用此基础函数，不再搬迁它。新 Gemini 包仅直接依赖 app-session-core、vw-api-external-session 和启用 arbitrary_precision 的 serde_json，不依赖其它解析器或旧门面。原包这些依赖仍有调用者，保持；跨适配器分发归任务 54，内容与用量编排分别归任务 53、62，无未闭合叶子符号。
+
+静态证据：两个迁移文件逐字对照 HEAD，仅基础库导入和必要可见性变化；时间戳函数原样移动。Python 3.9 无 tomllib，使用现有 pip._vendor.tomli 只读解析，核实 workspace 成员、门面直接路径依赖及五个生产依赖包路径存在、无环、无旧门面回依赖。导出、真实调用者、资源路径与无重复实现检索完成，git diff --check 通过。RustCodeGraph explore 已读取基线，最终接线以当前源码为准，未更新索引。Cargo.lock 未触碰。
+
+未运行 Cargo、单元及实机测试，统一验收待授权：新包、基础包与直接调用者编译，Gemini JSON/JSONL、工具块、思考引用、usage/delete 定向测试，共享时间戳行为、三平台路径安全与清单/锁文件一致性。静态迁移不代表编译或行为验收通过。

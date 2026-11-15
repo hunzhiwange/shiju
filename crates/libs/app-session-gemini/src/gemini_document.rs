@@ -7,7 +7,7 @@ use serde_json::Value;
 /// `loadConversationRecord` 回放：带 `sessionId` 的行是元数据；带 `id` 的行是消息，
 /// 同 id 后写覆盖先写（位置不变）；`{"$set": {...}}` 合并元数据，带 `messages` 时整体
 /// 替换消息；`{"$rewindTo": id}` 删掉该条及之后的消息，找不到 id 时清空。
-pub(crate) fn parse_session_document(data: &str) -> Option<Value> {
+pub fn parse_session_document(data: &str) -> Option<Value> {
     // 只有元数据一行的 `.jsonl` 也能整体解析成对象，补上空的 messages
     if let Ok(Value::Object(mut map)) = serde_json::from_str::<Value>(data) {
         map.entry("messages")

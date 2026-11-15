@@ -56,11 +56,7 @@ fn read_json(root: &Path, path: &Path) -> io::Result<Value> {
     serde_json::from_slice(&fs::read(path)?).map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "invalid OpenCode record"))
 }
 
-pub(super) fn parse_timestamp_to_ms(value: &Value) -> Option<i64> {
-    if let Some(n) = value.as_i64() { return if n > 1_000_000_000_000 { Some(n) } else { n.checked_mul(1000) }; }
-    let text = value.as_str()?;
-    text.parse().ok().or_else(|| chrono::DateTime::parse_from_rfc3339(text).ok().map(|v| v.timestamp_millis()))
-}
+pub(super) use app_session_core::utils::parse_timestamp_to_ms;
 
 pub fn scan_sessions(storage: &Path, identity: &ExternalSessionIdentity) -> io::Result<Vec<SessionMeta>> {
     if !storage.is_absolute() || identity.provider != SessionProvider::Opencode {

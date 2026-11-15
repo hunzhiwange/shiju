@@ -5,3 +5,5 @@ pub mod general;
 pub mod companion;
 pub mod help;
 pub mod headings;
+
+pub mod system_settings_themes;

@@ -24,3 +24,14 @@ pub(super) fn editor_overlay<'a>(app: &'a App, base: Element<'a, Message>) -> El
     let cancel = Message::Settings(SettingsMessage::Themes(ThemesMessage::CancelEdit));
     settings_modal_overlay(Some(base), cancel, container(editor::view(app)).padding(12))
 }
+
+fn inputs(app: &App) -> desktop_settings_appearance::system_settings_themes::View<'_, Message> {
+    desktop_settings_appearance::system_settings_themes::View {
+        desktop_locale: app.desktop_locale, app_theme: &app.app_theme,
+        active_custom_theme_id: &app.active_custom_theme_id,
+        themes_settings: &app.themes_settings,
+        map: |message| Message::Settings(SettingsMessage::Themes(message)),
+        none: Message::None,
+        help: |title, body, color, i18n| super::chat_panel::message_view::selectable_titled_text(title, body, color, i18n),
+    }
+}

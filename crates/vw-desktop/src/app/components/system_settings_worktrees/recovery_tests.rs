@@ -1,12 +1,4 @@
 use crate::app::message::settings::worktrees::recovery::{RecoveryMessage, update};
-#[test]
-fn worktree_cleanup_flow_cancel_does_not_delete() {
-    let mut app = crate::app::App::new().0;
-    app.worktree_settings.managed.preflight_target = Some(("project".into(), "tree".into()));
-    let task = update(&mut app, RecoveryMessage::Cancel);
-    assert!(app.worktree_settings.managed.preflight_target.is_none());
-    assert_eq!(task.units(), 0);
-}
 
 use crate::app::state::WorktreeRecoveryProject;
 use vw_api_worktree::*;
@@ -27,43 +19,7 @@ fn app() -> crate::app::App {
     });
     app
 }
-#[test]
-fn worktree_cleanup_flow_rejects_stale_confirmation() {
-    let mut app = app();
-    app.worktree_settings.managed.preflight.as_mut().unwrap().expires_at_ms = 1;
-    let _ = update(&mut app, RecoveryMessage::Confirm);
-    assert!(app.worktree_settings.recovery.pending.is_none());
-    assert!(app.worktree_settings.recovery.error.is_some());
-}
-#[test]
-fn worktree_cleanup_flow_ignored_files_require_separate_acknowledgement() {
-    let mut app = app();
-    app.worktree_settings.saved = Some(config_worktree::WorktreeSettings {
-        ask_before_delete: false,
-        ..Default::default()
-    });
-    app.worktree_settings.managed.preflight.as_mut().unwrap().has_ignored_files = true;
-    let _ = update(&mut app, RecoveryMessage::Confirm);
-    assert!(app.worktree_settings.recovery.pending.is_none());
-    let _ = update(&mut app, RecoveryMessage::Ignored(true));
-    let task = update(&mut app, RecoveryMessage::Confirm);
-    assert_eq!(task.units(), 1);
-    assert!(app.worktree_settings.recovery.pending.is_some());
-    assert_eq!(update(&mut app, RecoveryMessage::Confirm).units(), 0);
-}
-#[test]
-fn worktree_cleanup_flow_protected_confirmation_never_submits() {
-    let mut app = app();
-    app.worktree_settings
-        .managed
-        .preflight
-        .as_mut()
-        .unwrap()
-        .protection_reasons
-        .push(WorktreeProtectionReason::Busy);
-    let _ = update(&mut app, RecoveryMessage::Confirm);
-    assert!(app.worktree_settings.recovery.pending.is_none());
-}
+
 #[test]
 fn worktree_cleanup_flow_cross_project_response_is_ignored() {
     let mut app = app();

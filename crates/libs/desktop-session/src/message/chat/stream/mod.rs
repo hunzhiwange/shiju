@@ -50,3 +50,11 @@ pub mod todos;
 #[cfg(test)]
 mod stream_events_tests;
 pub mod save;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod snapshot_save;
+pub mod tool_session;
+
+#[cfg(test)]
+mod permission_tests;
+pub mod projection;

@@ -28,12 +28,10 @@ use crate::app::{App, Message, models};
 use iced::Task;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 use std::cell::RefCell;
-#[cfg(not(target_arch = "wasm32"))]
-use std::collections::{HashMap, HashSet};
 #[cfg(all(test, not(target_arch = "wasm32")))]
 use std::sync::Arc;
-#[cfg(not(target_arch = "wasm32"))]
-use std::sync::{LazyLock, Mutex};
+#[cfg(all(test, not(target_arch = "wasm32")))]
+use std::sync::Mutex;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 type SaveSessionHook = Arc<
@@ -96,147 +94,17 @@ fn gateway_save_session_for_stream(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-struct PendingSessionSave {
-    session: models::ChatSession,
-    directory: Option<String>,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum StreamSessionSaveResult {
-    Committed,
-    Coalesced,
-    Deferred(String),
-    Rejected(String),
-    PermanentlyFailed(String),
-    Blocked,
-}
+use desktop_session::message::chat::stream::snapshot_save::{StreamSessionSaveResult, STREAM_SESSION_SAVE_COORDINATOR};
 
 #[cfg(not(target_arch = "wasm32"))]
 fn stream_session_save_message(completed: Option<StreamSessionSaveResult>) -> Message {
-    match completed {
-        Some(StreamSessionSaveResult::Committed) => Message::Chat(ChatMessage::SessionSaveAck),
-        Some(
-            StreamSessionSaveResult::Coalesced
-            | StreamSessionSaveResult::Deferred(_)
-            | StreamSessionSaveResult::Blocked,
-        ) => Message::None,
-        Some(
-            StreamSessionSaveResult::Rejected(error)
-            | StreamSessionSaveResult::PermanentlyFailed(error),
-        ) => Message::Chat(ChatMessage::SessionSaveFailed(error)),
-        None => {
-            tracing::warn!(target: "vw_desktop", "stream session save task failed");
-            Message::Chat(ChatMessage::SessionSaveFailed("会话保存任务异常终止".to_string()))
-        }
+    use desktop_session::message::chat::stream::snapshot_save::{save_notification, SaveNotification};
+    match save_notification(completed) {
+        SaveNotification::Ack => Message::Chat(ChatMessage::SessionSaveAck),
+        SaveNotification::None => Message::None,
+        SaveNotification::Failed(error) => Message::Chat(ChatMessage::SessionSaveFailed(error)),
     }
 }
-
-#[cfg(not(target_arch = "wasm32"))]
-#[derive(Default)]
-struct StreamSessionSaveCoordinator {
-    state: Mutex<StreamSessionSaveState>,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[derive(Default)]
-struct StreamSessionSaveState {
-    sessions: HashMap<String, StreamSessionSaveSlot>,
-    blocked_sessions: HashSet<String>,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[derive(Default)]
-struct StreamSessionSaveSlot {
-    in_flight: bool,
-    pending: Option<PendingSessionSave>,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl StreamSessionSaveCoordinator {
-    fn save<F>(
-        &self,
-        session: models::ChatSession,
-        directory: Option<String>,
-        mut save: F,
-    ) -> StreamSessionSaveResult
-    where
-        F: FnMut(&models::ChatSession, Option<&str>) -> Result<Option<std::path::PathBuf>, String>,
-    {
-        let session_id = session.id.clone();
-        let mut current = PendingSessionSave { session, directory };
-        {
-            let mut state = self.state.lock().expect("stream session save lock");
-            if state.blocked_sessions.contains(&session_id) {
-                return StreamSessionSaveResult::Blocked;
-            }
-            let slot = state.sessions.entry(session_id.clone()).or_default();
-            if slot.in_flight {
-                slot.pending = Some(current);
-                return StreamSessionSaveResult::Coalesced;
-            }
-            slot.in_flight = true;
-            slot.pending = None;
-        }
-
-        loop {
-            let result = save(&current.session, current.directory.as_deref());
-            if let Err(error) = result {
-                let mut state = self.state.lock().expect("stream session save lock");
-                if error.contains("session history conflict") {
-                    if let Some(pending) =
-                        state.sessions.get_mut(&session_id).and_then(|slot| slot.pending.take())
-                    {
-                        current = pending;
-                        continue;
-                    }
-                    state.sessions.remove(&session_id);
-                    return StreamSessionSaveResult::Rejected(error);
-                }
-                if session_gateway::is_permanent_session_save_error(&error) {
-                    state.blocked_sessions.insert(session_id.clone());
-                    state.sessions.remove(&session_id);
-                    tracing::warn!(
-                        target: "vw_desktop",
-                        session_id = %session_id,
-                        "disabling stream session saves after permanent failure"
-                    );
-                    return StreamSessionSaveResult::PermanentlyFailed(error);
-                }
-                let slot = state
-                    .sessions
-                    .get_mut(&session_id)
-                    .expect("stream session save slot should remain registered");
-                slot.in_flight = false;
-                if slot.pending.is_none() {
-                    slot.pending = Some(current);
-                }
-                return StreamSessionSaveResult::Deferred(error);
-            }
-            let next = {
-                let mut state = self.state.lock().expect("stream session save lock");
-                let pending = state
-                    .sessions
-                    .get_mut(&session_id)
-                    .expect("stream session save slot should remain registered")
-                    .pending
-                    .take();
-                if pending.is_none() {
-                    state.sessions.remove(&session_id);
-                }
-                pending
-            };
-            let Some(pending) = next else {
-                return StreamSessionSaveResult::Committed;
-            };
-            current = pending;
-        }
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-static STREAM_SESSION_SAVE_COORDINATOR: LazyLock<StreamSessionSaveCoordinator> =
-    LazyLock::new(StreamSessionSaveCoordinator::default);
 
 /// 模块内可见函数，执行 save_session_task 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
@@ -302,9 +170,9 @@ pub(super) fn save_session_task(
 /// 模块内可见函数，执行 session_directory_for_save 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn session_directory_for_save(app: &App, session_id: &str) -> Option<String> {
-    app.known_session_directory(session_id)
-        .filter(|directory| !directory.trim().is_empty())
-        .or_else(|| app.project_path.clone().filter(|directory| !directory.trim().is_empty()))
+    desktop_session::message::chat::stream::projection::directory_for_save(
+        app.known_session_directory(session_id), app.project_path.as_deref(),
+    )
 }
 
 /// 模块内可见函数，执行 now_ms 对应的应用流程。
@@ -316,31 +184,21 @@ pub(super) fn now_ms() -> u64 {
 /// 模块内可见函数，执行 load_session_or_default 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn load_session_or_default(app: &App, id: String) -> models::ChatSession {
-    let (title, created_ms, updated_ms) = app
-        .sessions
-        .iter()
-        .find(|s| s.id == id)
-        .map(|s| (s.title.clone(), s.time.created, s.time.updated))
-        .unwrap_or_else(|| ("新会话".to_string(), now_ms(), 0));
-    let is_active_session = app.active_session_id.as_deref() == Some(id.as_str());
-    let (messages, message_ids, calls, steps) = if is_active_session {
-        (
-            app.chat.clone(),
-            app.chat_message_ids.clone(),
-            app.active_session_view_state.calls.clone(),
-            app.active_session_view_state.steps.clone(),
-        )
-    } else if let Some(cached_chat) = app.cached_chat_messages(&id) {
-        let messages = cached_chat.iter().cloned().collect::<Vec<_>>();
-        let message_ids = app
-            .cached_chat_message_ids(&id)
-            .filter(|ids| ids.len() == messages.len())
-            .unwrap_or_else(|| vec![None; messages.len()]);
-        (messages, message_ids, Vec::new(), Vec::new())
-    } else {
-        (Vec::new(), Vec::new(), Vec::new(), Vec::new())
-    };
-    models::ChatSession { id, title, messages, message_ids, calls, steps, created_ms, updated_ms }
+    use desktop_session::message::chat::stream::projection::{load_snapshot, ActiveSnapshot};
+    let active = (app.active_session_id.as_deref() == Some(id.as_str())).then(|| ActiveSnapshot {
+        messages: &app.chat,
+        message_ids: &app.chat_message_ids,
+        calls: &app.active_session_view_state.calls,
+        steps: &app.active_session_view_state.steps,
+    });
+    let cached = if active.is_none() {
+        app.cached_chat_messages(&id).map(|messages| (
+            messages.iter().cloned().collect(), app.cached_chat_message_ids(&id),
+        ))
+    } else { None };
+    let info = app.sessions.iter().find(|session| session.id == id);
+    let now = if info.is_none() { now_ms() } else { 0 };
+    load_snapshot(id, info, active, cached, now)
 }
 
 /// 将新增消息按顺序加入流式保存队列，避免快照保存失败后漏掉用户消息。
@@ -598,14 +456,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             match result {
                 Ok(info) => {
                     draft::apply_published_title(app, &info);
-                    for session in
-                        app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten())
-                    {
-                        if session.id == info.id {
-                            session.summary = info.summary.clone();
-                            session.time.updated = session.time.updated.max(info.time.updated);
-                        }
-                    }
+                    desktop_session::message::chat::stream::projection::apply_summary(
+                        app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten()),
+                        &info,
+                    );
                 }
                 Err(error) => tracing::warn!(%error, "failed to reload session summary"),
             }
@@ -616,15 +470,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 .session_runtime_states
                 .get(&session_id)
                 .and_then(|runtime| runtime.request_lifecycle.active_agent_request.as_ref());
-            if active_request.is_none_or(|request| request.id == id) {
-                for session in
-                    app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten())
-                {
-                    if session.id == session_id {
-                        session.summary = Some(summary.clone());
-                    }
-                }
-            }
+            desktop_session::message::chat::stream::projection::apply_diff_summary(
+                app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten()),
+                &session_id, &summary, id, active_request.map(|request| request.id),
+            );
             Task::none()
         }
         ChatMessage::AgentStreamDone(id, usage, assistant_message_id, parent_message_id) => {
@@ -733,34 +582,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     }
 }
 
-pub(crate) fn session_tool_created_session(
-    event: &gateway_chat_stream::GatewayChatToolEvent,
-) -> Option<(String, Option<String>)> {
-    use gateway_chat_stream::{GatewayChatToolEventKind, GatewayChatToolStatus};
-
-    if event.name != "SessionTool"
-        || event.kind != GatewayChatToolEventKind::Complete
-        || event.status != GatewayChatToolStatus::Completed
-    {
-        return None;
-    }
-    let output = event.payload.get("output")?.as_str()?;
-    let output: serde_json::Value = serde_json::from_str(output).ok()?;
-    if output.get("action").and_then(serde_json::Value::as_str) != Some("create") {
-        return None;
-    }
-    let session_id = output.get("session_id")?.as_str()?.trim().to_string();
-    if session_id.is_empty() {
-        return None;
-    }
-    let directory = output
-        .get("directory")
-        .and_then(serde_json::Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string);
-    Some((session_id, directory))
-}
+pub(crate) use desktop_session::message::chat::stream::tool_session::session_tool_created_session;
 
 fn handle_plan_run_session_waiting(app: &mut App, session_id: String) -> Task<Message> {
     let session_id = session_id.trim();
@@ -818,11 +640,7 @@ pub(super) fn stop_agent_stream(app: &mut App, session_id: &str) -> Task<Message
     Task::perform(
         async move {
             let client = crate::app::config::gateway_client()?;
-            if workflow {
-                gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone()).task_plan_run_stream_stop(&request_id).await
-            } else {
-                gateway_session::GatewaySessionClient::new(client.transport().clone()).chat_stream_stop(&request_id).await
-            }
+            desktop_session::message::chat::stream::projection::stop_stream(&client, &request_id, workflow).await
         },
         move |result| Message::Chat(ChatMessage::AgentStreamStopFinished(id, result)),
     )

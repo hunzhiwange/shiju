@@ -67,7 +67,7 @@ fn cc04_validation_preview_rejects_options_and_source_metadata_without_files() {
 
 #[test]
 fn cc04_validation_launch_rejects_unimplemented_options_before_creating_files() {
-    use crate::apps::launch::{provider::prepare_provider_launch, request::LaunchMaterial};
+    use app_launch::{provider::prepare_provider_launch, request::LaunchMaterial};
 use vw_api_app_provider_base::AppProviderWrite;
     let root = tempfile::tempdir().unwrap();
     let program = root.path().join("fixture");

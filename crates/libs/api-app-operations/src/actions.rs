@@ -1,4 +1,4 @@
-//! Review-only lifecycle contracts; execution recipes belong to vw-agent-apps.
+//! Review-only lifecycle contracts; execution recipes belong to app-operations.
 use vw_api_app_identity::{AppId, AppInstallationEnvironment, AppInstallationId, AppInstallationSource};
 use vw_api_transport::TaskId;
 use vw_api_task::TaskStatus;

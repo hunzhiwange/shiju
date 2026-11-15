@@ -2956,3 +2956,141 @@ app-diagnostics 唯一拥有 endpoints.rs、endpoints_tests.rs 及由 diagnostic
 模型预设直接连接 app-model-catalog::preset_catalog，地址簿与端点规则直接连接 app-provider-validation，不依赖整个供应商服务。除导入路径外实现和测试保持原样，候选顺序、去重、错误及只读授权边界均保持；无平台 cfg 或资源/include 路径变化。父包移除无人使用的 vw-api-app-diagnostics；toml_edit 仍供模型模板测试使用，其余依赖仍有调用。
 
 静态证据：迁移文件逐一对照、关键导出与真实调用者检索、Python 标准库 TOML 路径及依赖闭包无环审阅、git diff --check。未运行 Cargo、单元及实机测试，统一验收待授权：新包与直接调用者编译、迁移单测、各平台端点行为及清单锁文件一致性。Cargo.lock 未修改。
+
+
+## 任务72：薄门面与全覆盖静态收尾（2026-11-15）
+
+本节及 [实际文件所有权清单](agent-apps-ownership.tsv) 覆盖前文“未搬迁”等历史描述。
+原883文件基线按任务2—71迁移结果及各节明确更名/拆分规则追踪；实际新增文件也按当前包目录登记，
+每个实际实现仅登记一个所有者。历史 mod.rs 有的成为 lib.rs，有的保留为重导出；不能以同名文件数判断重复实现。
+原包 src 现有26个文件，只有文档、cfg、模块注册和重导出，无函数、结构体、枚举、impl、常量或测试实现。
+原路径供网关、桌面与宿主调用者继续使用。删除原包未被源码直接使用的第三方库和领域包依赖；
+保留导出实际使用的领域依赖。Cargo.lock 未修改，不表示新清单已经与锁文件一致。
+
+### 最后接收的实现与测试
+
+- models/discovery_agy、discovery_opencode、discovery_process 及两个独立测试归 app-model-discovery。
+  该包仅在 macOS 有实现与直接依赖。它依赖发现、启动和供应商验证的真实所有者；
+  不能放进 app-models，因为 app-launch → app-providers → app-models 会形成生产循环。
+- 六个 models 独立测试归 app-providers::models，保持对纯模型与供应商组合行为的覆盖。
+  providers/validation_tests 归 app-providers::providers::facade_validation_tests；其启动调用
+  改为 app-launch，并仅添加 dev-dependency，不制造生产回边。测试内容、断言及原 cfg 保留。
+- routing/target_model 及独立测试归 app-providers，因其直接使用 desktop_mapping 默认路由。
+  门面重导出原路径；media_sanitize 继续组合模型准备与纯路由修复两个真实所有者。
+- 无调用者的 providers 包内投影、字段与登录材料别名移除。auth 测试辅助别名随门面测试迁走后移除。
+
+### 规模与职责复核
+
+最大文件按真实职责拆为私有子模块：Codex 借用记录转换、命令输出、差异和图片；
+Claude 工具结果和回填；凭据数据形状；登录 URL 校验和登录材料；事务状态和目标校验；
+认证轮询记录；Kimi 文件操作；Hermes 声明归一化；OMP 配置投影。
+只在原所有者内部开放父模块必需的符号，保持现有对外入口和类型身份。
+app-auth-agy/agy_account.rs 为502行，属于约500行的边界，macOS适配已在子目录，保留内聚的宿主入口。
+app-settings-store 为既有外部调用方，不在原业务拆分范围，其633/1330行文件未改动。
+没有再次形成原217017行规模的聚合包；保留的服务包通过直接依赖组合领域实现。
+
+下表统计实际包内 src/tests Rust 文件（含独立测试）；直接依赖只列本地生产及构建依赖，
+平台列来自 TOML target 区段，不能视作跨平台编译已通过。当前包体量含测试，不能据总行数机械再拆 crate。
+
+| 包 | Rust文件 | 行数 | 本地直接生产依赖 | target区段 |
+| --- | ---: | ---: | --- | --- |
+| app-aggregation | 16 | 2256 | app-aggregation-catalog,app-auth,app-provider-native,app-routing-policy,vw-api-app-aggregation,vw-api-app-auth,vw-api-app-identity,vw-api-app-provider-environment,vw-api-transport | cfg(target_os = "macos") |
+| app-aggregation-catalog | 18 | 1856 | app-config-patch,app-config-paths,app-provider-core,app-provider-validation,vw-api-app-auth,vw-api-app-identity,vw-api-app-provider-environment,vw-api-chat-identity,vw-api-model-catalog | cfg(target_os = "macos") |
+| app-auth | 95 | 22770 | app-auth-agy,app-auth-claude,app-auth-codex,app-auth-copilot,app-auth-core,app-auth-dsh,app-auth-gemini,app-auth-kimi,app-auth-xai,app-catalog,app-config-patch,app-config-paths,app-config-write,app-provider-core,app-provider-projection,app-provider-validation,vw-api-app-aggregation,vw-api-app-auth,vw-api-app-identity,vw-api-app-provider-base,vw-api-app-provider-edit,vw-api-app-provider-environment,vw-api-app-provider-terminal,vw-api-task,vw-api-transport | cfg(target_os = "macos"),cfg(unix) |
+| app-auth-agy | 12 | 2393 | app-auth-core,app-config-paths,vw-api-app-auth,vw-api-transport | cfg(not(target_arch = "wasm32")),cfg(target_os = "macos") |
+| app-auth-claude | 4 | 380 | app-auth-core,app-config-write,vw-api-transport | cfg(target_os = "macos") |
+| app-auth-codex | 3 | 96 |  |  |
+| app-auth-copilot | 1 | 67 | vw-api-app-auth | cfg(not(target_arch = "wasm32")) |
+| app-auth-core | 8 | 1331 | app-provider-validation,vw-api-app-auth,vw-api-transport | cfg(not(target_arch = "wasm32")) |
+| app-auth-dsh | 4 | 799 | app-auth-core,vw-api-app-auth,vw-api-transport | cfg(target_os = "macos") |
+| app-auth-gemini | 2 | 83 | app-auth-core,vw-api-app-auth | cfg(not(target_arch = "wasm32")) |
+| app-auth-kimi | 3 | 153 | app-auth-core,vw-api-app-auth | cfg(not(target_arch = "wasm32")) |
+| app-auth-xai | 2 | 73 | app-auth-core,vw-api-app-auth | cfg(not(target_arch = "wasm32")) |
+| app-availability | 5 | 398 | app-aggregation,app-auth,app-availability-core,app-provider-core,app-routing-policy,vw-api-app-identity,vw-api-app-provider-base,vw-api-transport |  |
+| app-availability-core | 7 | 1026 | vw-api-app-failover,vw-api-app-identity,vw-api-transport | cfg(not(target_arch = "wasm32")) |
+| app-catalog | 9 | 799 | acp-agent-registry,vw-api-app-identity |  |
+| app-config-patch | 11 | 1992 | vw-api-hermes-memory | cfg(target_os = "macos") |
+| app-config-paths | 3 | 483 | vw-api-app-identity,vw-api-app-provider-environment,vw-api-transport | cfg(unix),cfg(target_os = "macos") |
+| app-config-write | 6 | 869 | vw-api-app-identity | cfg(target_os = "macos") |
+| app-data-backup | 23 | 3075 | app-config-paths,app-data-format,vw-api-app-operations,vw-api-transport | cfg(target_os = "macos") |
+| app-data-format | 14 | 1479 | vw-api-app-identity,vw-api-app-provider-base,vw-api-transport | cfg(unix) |
+| app-data-management | 15 | 1069 | app-auth,app-data-backup,app-data-format,vw-api-app-operations,vw-api-task | cfg(target_os = "macos") |
+| app-data-projection | 15 | 1769 | app-catalog,app-data-format,app-mcp-catalog,app-prompts,app-providers,app-skills,app-usage-store,vw-api-app-identity,vw-api-app-provider-base,vw-api-app-provider-edit,vw-api-app-provider-profiles,vw-api-mcp-management,vw-api-project-profiles,vw-api-transport,vw-api-usage | cfg(target_os = "macos") |
+| app-device-sync | 8 | 1067 | app-config-paths,app-skills,app-sync-core | cfg(target_os = "macos") |
+| app-diagnostics | 3 | 239 | app-model-catalog,app-provider-validation,vw-api-app-diagnostics,vw-api-app-identity |  |
+| app-discovery | 14 | 1455 | app-catalog,app-providers,vw-api-app-identity | cfg(unix) |
+| app-icons | 7 | 364 | vw-api-app-identity |  |
+| app-launch | 15 | 2702 | app-auth,app-catalog,app-config-paths,app-provider-validation,app-providers,vw-api-app-identity,vw-api-app-provider-base,vw-api-app-provider-profiles,vw-api-transport | cfg(unix),cfg(target_os = "macos") |
+| app-lifecycle | 21 | 2735 | app-auth,app-catalog,app-versions,vw-api-app-identity | cfg(unix) |
+| app-mcp | 31 | 6778 | app-auth,app-config-paths,app-mcp-catalog,app-provider-native,vw-api-app-identity,vw-api-app-provider-environment,vw-api-mcp-management,vw-api-transport | cfg(target_os = "macos") |
+| app-mcp-catalog | 6 | 632 | vw-api-mcp-management |  |
+| app-model-catalog | 32 | 3626 | app-provider-validation,app-routing-policy,vw-api-app-identity,vw-api-app-provider-base,vw-api-app-provider-edit,vw-api-app-provider-profiles,vw-api-model-catalog,vw-api-transport |  |
+| app-model-discovery | 6 | 683 | app-config-patch,app-config-paths,app-discovery,app-launch,app-providers,vw-api-app-identity,vw-api-app-provider-environment,vw-api-app-provider-profiles | cfg(target_os = "macos") |
+| app-models | 21 | 3707 | app-model-catalog,app-provider-validation,model-reasoning,provider-model-cache,provider-model-catalog,provider-model-discovery,vw-api-app-identity,vw-api-app-provider-base,vw-api-app-provider-edit,vw-api-app-provider-terminal,vw-api-model-catalog,vw-api-transport |  |
+| app-openclaw | 10 | 612 | app-openclaw-config-rules,app-provider-native,vw-api-transport | cfg(target_os = "macos") |
+| app-openclaw-config-rules | 5 | 279 | app-config-patch,app-config-write | cfg(target_os = "macos") |
+| app-operations | 6 | 21 | app-catalog,app-discovery,app-launch,app-lifecycle,app-uninstall,app-versions |  |
+| app-project-profiles | 12 | 981 | app-provider-validation,vw-api-app-provider-environment,vw-api-mcp-management,vw-api-project-profiles,vw-api-transport |  |
+| app-prompts | 19 | 1567 | app-auth,app-config-paths,app-lifecycle,vw-api-app-identity,vw-api-app-operations,vw-api-app-provider-environment,vw-api-transport,vw-api-types | cfg(target_os = "macos") |
+| app-provider-core | 20 | 1454 | app-config-patch,app-icons,app-provider-projection,app-provider-validation,vw-api-app-identity,vw-api-app-provider-base,vw-api-app-provider-edit |  |
+| app-provider-environment | 8 | 1568 | app-config-write,vw-api-app-identity,vw-api-app-provider-environment | cfg(target_os = "macos") |
+| app-provider-login | 7 | 1179 | app-auth-codex,app-config-write,vw-api-app-identity | cfg(target_os = "macos") |
+| app-provider-native | 29 | 6414 | app-auth,app-provider-core,app-provider-projection,app-provider-validation,vw-api-app-identity,vw-api-app-provider-base,vw-api-app-provider-edit,vw-api-app-provider-extended,vw-api-app-provider-terminal,vw-api-hermes-memory,vw-api-transport | cfg(target_os = "macos") |
+| app-provider-projection | 10 | 1634 | app-config-patch,app-provider-validation,vw-api-app-provider-edit |  |
+| app-provider-validation | 7 | 623 | vw-api-app-identity,vw-api-app-provider-base,vw-api-app-provider-edit |  |
+| app-providers | 77 | 14561 | app-aggregation,app-aggregation-catalog,app-auth,app-auth-codex,app-config-paths,app-model-catalog,app-models,app-provider-core,app-provider-environment,app-provider-login,app-provider-native,app-provider-projection,app-provider-validation,vw-api-app-auth,vw-api-app-identity,vw-api-app-provider-base,vw-api-app-provider-edit,vw-api-app-provider-environment,vw-api-app-provider-extended,vw-api-app-provider-profiles,vw-api-app-provider-terminal,vw-api-model-catalog,vw-api-transport | cfg(target_os = "macos") |
+| app-routing-policy | 22 | 2403 | vw-api-app-identity,vw-api-app-provider-base |  |
+| app-self-update | 4 | 1539 | update-types | cfg(not(target_arch = "wasm32")),cfg(target_arch = "wasm32") |
+| app-session-claude | 7 | 1875 | app-session-core,vw-api-external-session |  |
+| app-session-codex | 12 | 3296 | app-session-core,vw-api-external-session |  |
+| app-session-content | 7 | 904 | app-session-codex,app-session-core,app-session-gemini,vw-api-external-session |  |
+| app-session-core | 9 | 1216 | vw-api-external-session,vw-api-transport |  |
+| app-session-gemini | 3 | 526 | app-session-core,vw-api-external-session |  |
+| app-session-migration | 6 | 1349 | app-auth,app-config-paths,app-config-write,app-provider-validation,app-session-codex,app-session-core,vw-api-app-identity,vw-api-app-provider-environment,vw-api-external-session,vw-api-transport | cfg(target_os = "macos") |
+| app-session-native | 9 | 1766 | app-session-core,app-session-pi,vw-api-external-session |  |
+| app-session-pi | 4 | 1163 | app-session-core,vw-api-external-session |  |
+| app-session-sqlite | 6 | 1569 | app-session-core,vw-api-external-session |  |
+| app-session-terminal | 8 | 684 | app-launch | cfg(target_os = "macos") |
+| app-sessions | 31 | 2762 | app-launch,app-operations,app-providers,app-session-claude,app-session-codex,app-session-content,app-session-core,app-session-gemini,app-session-migration,app-session-native,app-session-pi,app-session-sqlite,app-session-terminal,vw-api-app-identity,vw-api-external-session,vw-api-transport | cfg(target_os = "macos") |
+| app-settings-store | 11 | 3410 | agent-database,app-availability,app-provider-validation,app-routing-policy,app-skills,vw-agent-apps,vw-api-app-failover,vw-api-app-identity,vw-api-transport | cfg(target_os = "macos"),cfg(all(not(target_arch = "wasm32"), target_os = "windows")),cfg(all(not(target_arch = "wasm32"), not(target_os = "windows"))) |
+| app-skill-catalog | 17 | 2158 | app-config-paths,vw-api-app-identity,vw-api-app-provider-environment,vw-api-transport |  |
+| app-skills | 38 | 4205 | app-auth,app-config-paths,app-skill-catalog,vw-api-app-identity,vw-api-app-provider-environment,vw-api-transport | cfg(target_os = "macos") |
+| app-sync-core | 10 | 1201 |  | cfg(unix) |
+| app-uninstall | 14 | 2060 | app-discovery,app-lifecycle,app-versions,vw-api-app-identity,vw-api-app-operations | cfg(unix) |
+| app-usage | 8 | 1117 | app-usage-codex,app-usage-core,app-usage-import,app-usage-store,provider-model-cache,provider-model-catalog,vw-api-transport,vw-api-usage | cfg(not(target_arch = "wasm32")) |
+| app-usage-balances | 11 | 1236 | app-provider-validation,app-usage-core,provider-model-discovery,vw-api-apps-usage | cfg(not(target_arch = "wasm32")) |
+| app-usage-codex | 6 | 1082 | app-auth,app-session-codex,app-usage-core,app-usage-store,vw-api-transport,vw-api-usage |  |
+| app-usage-coding | 21 | 4113 | app-provider-validation,app-usage-core,provider-model-discovery,vw-api-app-auth,vw-api-apps-usage,vw-api-transport | cfg(not(target_arch = "wasm32")) |
+| app-usage-core | 20 | 2099 | app-auth-core,app-models,app-provider-validation,vw-api-app-auth,vw-api-app-identity,vw-api-apps-usage,vw-api-transport,vw-api-usage |  |
+| app-usage-import | 22 | 3418 | app-session-core,app-session-gemini,app-session-native,app-session-sqlite,app-usage-core,app-usage-store,vw-api-external-session,vw-api-transport,vw-api-usage |  |
+| app-usage-scripts | 11 | 1592 | app-lifecycle,app-provider-validation,app-usage-core,vw-api-apps-usage | cfg(target_os = "macos") |
+| app-usage-store | 15 | 2610 | app-models,app-usage-core,vw-api-app-auth,vw-api-app-identity,vw-api-apps-usage,vw-api-transport,vw-api-usage |  |
+| app-usage-subscriptions | 17 | 4851 | app-auth,app-config-paths,app-discovery,app-launch,app-provider-validation,app-usage-coding,app-usage-core,vw-api-app-auth,vw-api-app-identity,vw-api-app-provider-environment,vw-api-apps-usage,vw-api-transport | cfg(target_os = "macos") |
+| app-versions | 5 | 719 | vw-api-app-identity |  |
+| app-workspace-memory | 15 | 1116 | app-auth,app-config-patch,app-config-write,app-lifecycle,app-provider-native,app-workspace-paths,vw-api-hermes-memory,vw-api-transport,vw-api-workspace-memory | cfg(target_os = "macos") |
+| app-workspace-paths | 2 | 387 | app-config-paths,app-config-write,vw-api-app-identity | cfg(target_os = "macos") |
+
+### 依赖、资源、外部路径及待验收
+
+Python 3.13 标准库 tomllib 解析实际 workspace 成员与递归 path 清单，共 444 包、
+2030 条去重生产路径边，另有 150 条 dev 声明（含 target 声明）。
+合并所有 target 的保守生产图无缺失路径、自环或循环，因此非平凡强连通分量为空。
+正常测试反向组合单独计数，未混入生产图。根清单没有 workspace.dependencies 继承路径。
+这些数量是审阅时快照；其它任务并发新增成员可能改变全仓计数。
+
+crates/libs 的旧门面命中逐条分类：app-settings-store 的两个 Rust 文件和 Cargo.toml
+是现存真实上层设置/技能迁移调用者，继续依赖门面不会形成返回边；api-app-operations/actions.rs
+只是一条历史职责注释，改为指向 app-operations。新迁移领域包没有旧门面依赖。
+JSON预设11份归 app-model-catalog/src/presets；schema_18.sql 归 app-data-format/src/fixtures；
+既有 MCP fixture、include! 分片、#[path] 独立测试继续位于实际所有者包内。
+新子模块使用普通 mod，不通过跨包 path/include 复用实现；独立测试没有删除，移动后的调用路径按所有者调整。
+所有权清单同时列出资源及执行期间新增模块，供授权验收逐项定位。
+
+静态证据：git diff --check、rg --files crates/vw-agent-apps/src、
+rg -n 'vw-agent-apps|vw_agent_apps' crates/libs，以及 Python 标准库清单/路径/生产图和规模审阅。
+RustCodeGraph status 可读，索引有前序迁移旧路径，未更新或构建，以当前源码核实。
+未运行任何 Cargo、rustc、单元测试、实机、网络或发布验证；静态完成不代表运行验收通过。
+全部待授权项目：所有新增领域包及网关/桌面/设置调用方目标编译；全部迁移定向单测及跨包测试访问；
+macOS/Windows/Linux 条件与非 wasm 边界；宏和 fixture/include 解析；真实配置发布、授权、
+凭据轮换、取消、恢复/回滚、用量和同步行为；清单与锁文件一致性及必要统一公共检查。
+前序已注明的非 macOS codex_catalog 引用也须在相应目标验收，不能以静态图无环替代。

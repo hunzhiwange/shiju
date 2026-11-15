@@ -5,13 +5,9 @@ use vw_api_app_provider_environment::paths::ConfigPathState;
 use vw_api_app_identity::{AppId};
 
 use super::discovery_process;
-use crate::{
-    apps::{
-        discovery::read::{LocalReadEnvironment, locate_cli},
-        launch::{host, request::LaunchMaterial},
-    },
-    providers::paths,
-};
+use app_discovery::read::{LocalReadEnvironment, locate_cli};
+use app_launch::{host, request::LaunchMaterial};
+use app_config_paths as paths;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct OpenCodeModelRef {

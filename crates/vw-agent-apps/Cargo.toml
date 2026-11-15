@@ -36,88 +36,20 @@ app-session-pi = { path = "../libs/app-session-pi" }
 app-skills = { path = "../libs/app-skills" }
 app-prompts = { path = "../libs/app-prompts" }
 app-mcp = { path = "../libs/app-mcp" }
-app-mcp-catalog = { path = "../libs/app-mcp-catalog" }
 app-operations = { path = "../libs/app-operations" }
 app-launch = { path = "../libs/app-launch" }
 app-providers = { path = "../libs/app-providers" }
-app-aggregation = { path = "../libs/app-aggregation" }
-app-aggregation-catalog = { path = "../libs/app-aggregation-catalog" }
 app-models = { path = "../libs/app-models" }
-app-provider-environment = { path = "../libs/app-provider-environment" }
-app-provider-native = { path = "../libs/app-provider-native" }
-app-provider-login = { path = "../libs/app-provider-login" }
 app-auth = { path = "../libs/app-auth" }
-app-auth-agy = { path = "../libs/app-auth-agy" }
-app-auth-claude = { path = "../libs/app-auth-claude" }
-app-auth-codex = { path = "../libs/app-auth-codex" }
-app-auth-copilot = { path = "../libs/app-auth-copilot" }
-app-auth-xai = { path = "../libs/app-auth-xai" }
-app-auth-kimi = { path = "../libs/app-auth-kimi" }
-app-auth-core = { path = "../libs/app-auth-core" }
-app-auth-dsh = { path = "../libs/app-auth-dsh" }
-app-auth-gemini = { path = "../libs/app-auth-gemini" }
 app-openclaw-config-rules = { path = "../libs/app-openclaw-config-rules" }
-app-config-write = { path = "../libs/app-config-write" }
-app-provider-core = { path = "../libs/app-provider-core" }
-vw-api-hermes-memory = { path = "../libs/api-hermes-memory", version = "0.6.0" }
-vw-api-workspace-memory = { path = "../libs/api-workspace-memory", version = "0.6.0" }
-vw-api-apps-usage = { path = "../libs/api-apps-usage", version = "0.6.0" }
-vw-api-usage = { path = "../libs/api-usage", version = "0.6.0" }
-vw-api-external-session = { path = "../libs/api-external-session", version = "0.6.0" }
-vw-api-app-failover = { path = "../libs/api-app-failover", version = "0.6.0" }
-vw-api-mcp-management = { path = "../libs/api-mcp-management", version = "0.6.0" }
-vw-api-app-aggregation = { path = "../libs/api-app-aggregation", version = "0.6.0" }
-vw-api-app-operations = { path = "../libs/api-app-operations", version = "0.6.0" }
-vw-api-app-provider-environment = { path = "../libs/api-app-provider-environment", version = "0.6.0" }
-vw-api-app-provider-edit = { path = "../libs/api-app-provider-edit", version = "0.6.0" }
-vw-api-app-provider-extended = { path = "../libs/api-app-provider-extended", version = "0.6.0" }
-vw-api-app-provider-terminal = { path = "../libs/api-app-provider-terminal", version = "0.6.0" }
-vw-api-app-provider-profiles = { path = "../libs/api-app-provider-profiles", version = "0.6.0" }
-vw-api-app-provider-base = { path = "../libs/api-app-provider-base", version = "0.6.0" }
-vw-api-model-catalog = { path = "../libs/api-model-catalog", version = "0.6.0" }
-vw-api-app-auth = { path = "../libs/api-app-auth", version = "0.6.0" }
-vw-api-task = { path = "../libs/api-task", version = "0.6.0" }
-provider-model-discovery = { path = "../libs/provider-model-discovery", version = "0.6.0" }
-vw-api-app-identity = { path = "../libs/api-app-identity", version = "0.6.0" }
-vw-api-chat-identity = { path = "../libs/api-chat-identity", version = "0.6.0" }
-vw-api-transport = { path = "../libs/api-transport", version = "0.6.0" }
 app-model-catalog = { path = "../libs/app-model-catalog" }
 app-routing-policy = { path = "../libs/app-routing-policy" }
 app-availability = { path = "../libs/app-availability" }
-app-config-patch = { path = "../libs/app-config-patch" }
-app-provider-validation = { path = "../libs/app-provider-validation" }
-app-provider-projection = { path = "../libs/app-provider-projection" }
-app-config-paths = { path = "../libs/app-config-paths" }
 app-icons = { path = "../libs/app-icons" }
-tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
-reqwest = { version = "0.13", default-features = false, features = ["form", "json", "rustls"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1", features = ["arbitrary_precision"] }
-rust_decimal = { version = "1", default-features = false, features = ["std"] }
-regex = "1"
-rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }
-zstd = "0.13"
-serde_yaml = "0.9"
-toml = "0.9"
-toml_edit = "0.22"
-semver = "1"
-sha2 = "0.11"
-chrono-tz = "0.10.4"
-tempfile = "3"
-vw-api-types = { path = "../vw-api-types" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+app-model-discovery = { path = "../libs/app-model-discovery" }
 app-usage-subscriptions = { path = "../libs/app-usage-subscriptions" }
-app-session-terminal = { path = "../libs/app-session-terminal" }
 app-openclaw = { path = "../libs/app-openclaw" }
 app-workspace-memory = { path = "../libs/app-workspace-memory" }
 app-workspace-paths = { path = "../libs/app-workspace-paths" }
-tokio = { version = "1", features = ["io-util", "process", "time"] }
-
-[target.'cfg(unix)'.dependencies]
-libc = "0.2"
-
-[dev-dependencies]
-app-auth = { path = "../libs/app-auth", features = ["test-support"] }
-png = "0.18"
-tokio = { version = "1", features = ["io-util", "net", "time"] }

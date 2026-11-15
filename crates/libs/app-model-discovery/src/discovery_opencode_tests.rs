@@ -6,7 +6,7 @@ use std::{
 };
 
 use super::discovery_opencode::{OpenCodeModelRef, discover};
-use crate::apps::discovery::read::LocalReadEnvironment;
+use app_discovery::read::LocalReadEnvironment;
 
 fn host_with_cli(script: &str) -> (tempfile::TempDir, LocalReadEnvironment) {
     let temp = tempfile::tempdir().unwrap();

@@ -44,3 +44,4 @@ tokio = { version = "1", features = ["io-util", "process", "time"] }
 [dev-dependencies]
 tempfile = "3"
 app-auth = { path = "../app-auth", features = ["test-support"] }
+app-launch = { path = "../app-launch" }

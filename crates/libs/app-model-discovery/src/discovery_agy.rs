@@ -7,13 +7,11 @@ use vw_api_app_provider_environment::paths::ConfigPathState;
 use vw_api_app_identity::{AppId};
 
 use super::discovery_process;
-use crate::{
-    apps::{
-        discovery::read::{LocalReadEnvironment, locate_cli},
-        launch::{host, request::LaunchMaterial},
-    },
-    providers::{agy, live::patch_json, paths},
-};
+use app_discovery::read::{LocalReadEnvironment, locate_cli};
+use app_launch::{host, request::LaunchMaterial};
+use app_providers::providers::agy;
+use app_config_patch::patch_json;
+use app_config_paths as paths;
 
 const SETTINGS_LIMIT: usize = 1024 * 1024;
 

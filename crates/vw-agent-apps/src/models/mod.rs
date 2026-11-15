@@ -1,13 +1,11 @@
 //! Native model catalog logic. Storage and native publication are owned by callers.
 
 #[cfg(target_os = "macos")]
-pub mod discovery_agy;
+pub use app_model_discovery::discovery_agy;
 #[cfg(not(target_arch = "wasm32"))]
 pub use app_models::discovery_http;
 #[cfg(target_os = "macos")]
-pub mod discovery_opencode;
-#[cfg(target_os = "macos")]
-mod discovery_process;
+pub use app_model_discovery::discovery_opencode;
 pub use app_models::discovery_url;
 pub use app_models::edits;
 pub use app_models::fill_codex;
@@ -21,23 +19,6 @@ pub use app_models::fill_pi;
 pub use app_models::fill_service;
 #[cfg(not(target_arch = "wasm32"))]
 pub use app_models::metadata;
-
-#[cfg(test)]
-mod codex_template_tests;
-#[cfg(test)]
-mod defaults_tests;
-#[cfg(all(test, target_os = "macos"))]
-mod discovery_agy_tests;
-#[cfg(all(test, target_os = "macos"))]
-mod discovery_opencode_tests;
-#[cfg(test)]
-mod fill_hermes_tests;
-#[cfg(test)]
-mod fill_kimi_tests;
-#[cfg(test)]
-mod fill_opencode_tests;
-#[cfg(test)]
-mod preset_omp_tests;
 
 pub use app_model_catalog::{
     capabilities, codex_projection, codex_template, identity, pi_thinking, preset_catalog,

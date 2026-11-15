@@ -6,7 +6,7 @@ use std::{
 };
 
 use super::discovery_agy::discover;
-use crate::apps::discovery::read::LocalReadEnvironment;
+use app_discovery::read::LocalReadEnvironment;
 use vw_api_app_provider_profiles::agy::AgyProfile;
 
 fn host_with_cli(script: &str) -> (tempfile::TempDir, LocalReadEnvironment) {

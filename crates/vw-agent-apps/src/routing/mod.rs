@@ -4,8 +4,6 @@ pub use app_routing_policy::{
     lifecycle_state, moonshot_schema, private_params, supports_app, thinking_options,
 };
 
-pub mod target_model;
-#[cfg(test)]
-mod target_model_tests;
+pub use app_providers::target_model;
 
 pub mod media_sanitize;

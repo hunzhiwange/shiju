@@ -1,8 +1,5 @@
-//! Native application business logic for VibeWindow.
-//!
-//! Domain implementations belong in this crate; storage and runtime adapters
-//! remain with callers. The preserved `upstream` snapshot is reference material
-//! and is not part of this library's module tree or build.
+//! Compatibility exports for application domain libraries.
+//! Implementations and tests live with their domain owners in crates/libs.
 
 pub use app_icons as icons;
 
@@ -21,7 +18,7 @@ pub mod usage;
 
 pub mod routing;
 
-// Catalog rules are owned by app-aggregation-catalog; this module retains service orchestration.
+// Aggregation services are owned by app-providers.
 pub mod aggregation;
 
 pub mod mcp;

@@ -144,3 +144,6 @@ mod hermes_catalog_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod openclaw_catalog_tests;
+
+#[cfg(test)]
+mod facade_validation_tests;

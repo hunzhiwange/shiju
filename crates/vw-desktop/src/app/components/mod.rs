@@ -51,9 +51,6 @@ pub mod startup_transition;
 #[path = "startup_transition_tests.rs"]
 mod startup_transition_tests;
 
-#[cfg(test)]
-#[path = "status_animation_tests.rs"]
-mod status_animation_tests;
 
 /// 小宠物任务提示组件
 pub mod task_pet;

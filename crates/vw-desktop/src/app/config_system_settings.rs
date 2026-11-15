@@ -11,17 +11,11 @@ use gateway_endpoint::GatewayEndpoint;
 
 use super::desktop::{PreferencesScope, preferences_scope};
 use super::gateway::{
-    gateway_client, gateway_client_endpoint, gateway_client_endpoint_from_config, run_gateway_call,
+    gateway_client_endpoint, gateway_client_endpoint_from_config,
     spawn_gateway_task,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum SystemSettingsSection {
-    Theme,
-    Timezone,
-    DialogueFlow,
-    GatewayClient,
-}
+pub use desktop_config::config_system_settings::SystemSettingsSection;
 
 impl App {
     pub(in crate::app) fn save_system_settings_fields(
@@ -33,7 +27,7 @@ impl App {
             gateway_client_endpoint(),
             section,
             fields,
-        )
+        ).map(super::desktop::preferences_message)
     }
 
     pub(in crate::app) fn queue_gateway_client_snapshot(
@@ -54,7 +48,7 @@ impl App {
             endpoint.clone(),
             SystemSettingsSection::GatewayClient,
             Map::from_iter([("gateway_client".to_string(), snapshot)]),
-        );
+        ).map(super::desktop::preferences_message);
         (endpoint, task)
     }
 
@@ -73,7 +67,7 @@ impl App {
     ) -> Task<Message> {
         let next = self
             .desktop_preferences_persistence
-            .finish_system_settings_save(scope.clone(), section);
+            .finish_system_settings_save(scope.clone(), section).map(super::desktop::preferences_message);
         if section == SystemSettingsSection::GatewayClient {
             if result.is_err()
                 && scope == preferences_scope(&gateway_client_endpoint())
@@ -109,148 +103,30 @@ impl App {
 
 async fn fetch_desktop_system_settings_via_gateway()
 -> Result<Option<AppSystemSettingsConfig>, String> {
-    let client = gateway_client()?;
-    client.desktop_system_settings_get::<AppSystemSettingsConfig>().await
+    config_access().fetch_desktop_system_settings_via_gateway().await
 }
 
-async fn patch_desktop_system_settings_via_gateway(
-    patch: &impl serde::Serialize,
-) -> Result<(), String> {
-    let client = gateway_client()?;
-    client.desktop_system_settings_patch(patch).await
-}
+pub(in crate::app) use desktop_config::config_system_settings::{normalize_editor_metrics, normalize_system_settings_config};
 
-pub(in crate::app) fn normalize_editor_metrics(
-    mut font_size: f32,
-    mut line_height: f32,
-    auto_line_height: bool,
-) -> (f32, f32) {
-    if !font_size.is_finite() || font_size <= 0.0 {
-        font_size = AppSystemSettingsConfig::default().editor_font_size;
-    }
-    if auto_line_height {
-        line_height = font_size * 1.4;
-    }
-    if !line_height.is_finite() || line_height <= 0.0 {
-        line_height = AppSystemSettingsConfig::default().editor_line_height;
-    }
-    (font_size, line_height)
-}
-
-pub(in crate::app) fn normalize_system_settings_config(
-    mut cfg: AppSystemSettingsConfig,
-) -> AppSystemSettingsConfig {
-    (cfg.editor_font_size, cfg.editor_line_height) = normalize_editor_metrics(
-        cfg.editor_font_size,
-        cfg.editor_line_height,
-        cfg.editor_auto_line_height,
-    );
-    cfg
-}
-
-// The gateway merges objects recursively. Null deletes an object key, while arrays
-// and scalars are replaced as a whole.
-fn retain_changed_settings(before: &Value, after: &mut Value) -> bool {
-    match (before, after) {
-        (Value::Object(before), Value::Object(after)) => {
-            for key in before.keys() {
-                after.entry(key.clone()).or_insert(Value::Null);
-            }
-            after.retain(|key, value| {
-                before.get(key).is_none_or(|previous| retain_changed_settings(previous, value))
-            });
-            !after.is_empty()
-        }
-        (before, after) => before != after,
+fn bootstrap_store() -> desktop_config::config_system_settings::BootstrapStore {
+    desktop_config::config_system_settings::BootstrapStore {
+        legacy_config_dir: crate::app::project_dirs().map(|d| d.config_dir().to_path_buf()),
     }
 }
-
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) fn gateway_client_bootstrap_cache_path() -> Option<std::path::PathBuf> {
-    if let Some(directory) =
-        std::env::var_os("VIBEWINDOW_CONFIG_DIR").filter(|value| !value.is_empty())
-    {
-        return Some(std::path::PathBuf::from(directory).join("gateway-client-bootstrap.json"));
-    }
-    std::env::var_os("HOME").map(std::path::PathBuf::from).map(|home| {
-        config_runtime_paths::home_config_dir(home).join("gateway-client-bootstrap.json")
-    })
+    bootstrap_store().gateway_client_bootstrap_cache_path()
 }
-
-#[cfg(not(target_arch = "wasm32"))]
-fn legacy_gateway_client_bootstrap_cache_path() -> Option<std::path::PathBuf> {
-    if std::env::var_os("VIBEWINDOW_CONFIG_DIR").is_some_and(|value| !value.is_empty()) {
-        return None;
-    }
-    crate::app::project_dirs().map(|d| d.config_dir().join("gateway-client-bootstrap.json"))
-}
-
-#[cfg(target_arch = "wasm32")]
-const GATEWAY_CLIENT_BOOTSTRAP_STORAGE_KEY: &str = "vibe-window.gateway-client-bootstrap";
-
-/// 模块内可见函数，执行 load_gateway_client_bootstrap_config 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn load_gateway_client_bootstrap_config() -> GatewayClientSystemSettingsConfig {
     #[cfg(test)]
-    if let Some(config) = WINDOW_TEST_BOOTSTRAP.get() {
-        return config.clone();
-    }
-    #[cfg(target_arch = "wasm32")]
-    {
-        return web_sys::window()
-            .and_then(|window| window.local_storage().ok().flatten())
-            .and_then(|storage| {
-                storage.get_item(GATEWAY_CLIENT_BOOTSTRAP_STORAGE_KEY).ok().flatten()
-            })
-            .and_then(|content| {
-                serde_json::from_str::<GatewayClientSystemSettingsConfig>(&content).ok()
-            })
-            .unwrap_or_default();
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    gateway_client_bootstrap_cache_path()
-        .and_then(|path| std::fs::read_to_string(path).ok())
-        .or_else(|| {
-            legacy_gateway_client_bootstrap_cache_path()
-                .and_then(|path| std::fs::read_to_string(path).ok())
-        })
-        .and_then(|content| {
-            serde_json::from_str::<GatewayClientSystemSettingsConfig>(&content).ok()
-        })
-        .unwrap_or_default()
+    if let Some(config) = WINDOW_TEST_BOOTSTRAP.get() { return config.clone(); }
+    bootstrap_store().load_gateway_client_bootstrap_config()
 }
-
-/// 保存供原生启动或浏览器重载使用的本机连接配置。
-pub(super) fn save_gateway_client_bootstrap_config(
-    config: &GatewayClientSystemSettingsConfig,
-) -> Result<(), String> {
+pub(super) fn save_gateway_client_bootstrap_config(config: &GatewayClientSystemSettingsConfig) -> Result<(), String> {
     #[cfg(test)]
     assert!(WINDOW_TEST_BOOTSTRAP.get().is_none(), "window fixture must not write bootstrap files");
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        let storage = web_sys::window()
-            .and_then(|window| window.local_storage().ok().flatten())
-            .ok_or("gateway bootstrap storage is unavailable")?;
-        let content = serde_json::to_string(config).map_err(|err| err.to_string())?;
-        storage
-            .set_item(GATEWAY_CLIENT_BOOTSTRAP_STORAGE_KEY, &content)
-            .map_err(|_| "gateway bootstrap storage write failed".to_string())
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let path = gateway_client_bootstrap_cache_path().ok_or("missing gateway bootstrap path")?;
-        let parent = path.parent().ok_or("missing gateway bootstrap directory")?;
-        std::fs::create_dir_all(parent).map_err(|err| err.to_string())?;
-        let mut file = tempfile::NamedTempFile::new_in(parent).map_err(|err| err.to_string())?;
-        serde_json::to_writer(file.as_file_mut(), config).map_err(|err| err.to_string())?;
-        file.persist(path).map_err(|err| err.to_string())?;
-        Ok(())
-    }
+    bootstrap_store().save_gateway_client_bootstrap_config(config)
 }
-
 /// 公开函数，执行 load_gateway_client_config 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub fn load_gateway_client_config() -> GatewayClientSystemSettingsConfig {
@@ -270,28 +146,7 @@ pub fn update_gateway_client_config(
 /// 公开函数，执行 load_system_settings_config_async 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub async fn load_system_settings_config_async() -> Result<AppSystemSettingsConfig, String> {
-    match fetch_desktop_system_settings_via_gateway().await {
-        Ok(Some(config)) => {
-            let mut config = normalize_system_settings_config(config);
-            config.gateway_client = load_gateway_client_bootstrap_config();
-            Ok(config)
-        }
-        Ok(None) => {
-            let mut config = normalize_system_settings_config(AppSystemSettingsConfig::default());
-            config.gateway_client = load_gateway_client_bootstrap_config();
-            Ok(config)
-        }
-        Err(err) => {
-            if gateway_http::is_gateway_unavailable_error(&err) {
-                tracing::debug!(target: "vw_desktop", error = %err, "failed to load desktop system settings via gateway");
-            } else {
-                tracing::warn!(target: "vw_desktop", error = %err, "failed to load desktop system settings via gateway");
-            }
-            let mut config = normalize_system_settings_config(AppSystemSettingsConfig::default());
-            config.gateway_client = load_gateway_client_bootstrap_config();
-            Ok(config)
-        }
-    }
+    config_access().load_system_settings_config_async().await
 }
 
 /// 公开函数，执行 update_system_settings_config_result_async 对应的应用流程。
@@ -299,20 +154,7 @@ pub async fn load_system_settings_config_async() -> Result<AppSystemSettingsConf
 pub async fn update_system_settings_config_result_async(
     update: impl FnOnce(&mut AppSystemSettingsConfig) + Send,
 ) -> Result<(), String> {
-    let mut cfg = load_system_settings_config_async().await?;
-    let before = serde_json::to_value(&cfg).map_err(|err| err.to_string())?;
-    update(&mut cfg);
-    cfg = normalize_system_settings_config(cfg);
-    let mut patch = serde_json::to_value(&cfg).map_err(|err| err.to_string())?;
-    if !retain_changed_settings(&before, &mut patch) {
-        return Ok(());
-    }
-    if patch.get("gateway_client").is_some() {
-        return Err(
-            "gateway connections must be saved through the desktop connection settings".into()
-        );
-    }
-    patch_desktop_system_settings_via_gateway(&patch).await
+    config_access().update_system_settings_config_result_async(update).await
 }
 
 /// 公开函数，执行 update_system_settings_config_async 对应的应用流程。
@@ -340,16 +182,7 @@ pub fn update_system_settings_config_async(
 /// 公开函数，执行 load_system_settings_config 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub fn load_system_settings_config() -> AppSystemSettingsConfig {
-    run_gateway_call(load_system_settings_config_async()).unwrap_or_else(|err| {
-        if gateway_http::is_gateway_unavailable_error(&err) {
-            tracing::debug!(target: "vw_desktop", error = %err, "failed to load desktop system settings via gateway");
-        } else {
-            tracing::warn!(target: "vw_desktop", error = %err, "failed to load desktop system settings via gateway");
-        }
-        let mut config = normalize_system_settings_config(AppSystemSettingsConfig::default());
-        config.gateway_client = load_gateway_client_bootstrap_config();
-        config
-    })
+    config_access().load_system_settings_config()
 }
 
 #[cfg(test)]
@@ -376,4 +209,9 @@ pub(crate) fn install_window_test_bootstrap(port: u16) {
     };
     config.set_servers(vec![server], "local".into());
     WINDOW_TEST_BOOTSTRAP.set(config).expect("install window test endpoint once");
+}
+
+fn config_access() -> desktop_config::ConfigAccess {
+    desktop_config::ConfigAccess::new(gateway_client_endpoint(), None)
+        .with_bootstrap_config(load_gateway_client_bootstrap_config())
 }

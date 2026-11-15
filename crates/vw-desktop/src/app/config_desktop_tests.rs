@@ -11,7 +11,7 @@ use std::thread::JoinHandle;
 use tempfile::TempDir;
 use config_ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
 
-const SOURCE: &str = include_str!("config_desktop.rs");
+const SOURCE: &str = concat!(include_str!("config_desktop.rs"), include_str!("../../../libs/desktop-config/src/config_desktop.rs"));
 
 #[derive(Debug, Clone)]
 pub(crate) struct RecordedRequest {

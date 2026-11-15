@@ -16,7 +16,7 @@ use config_ui::{
     AppSystemSettingsConfig, GatewayClientServerConfig, GatewayClientSystemSettingsConfig,
 };
 
-const SOURCE: &str = include_str!("config_system_settings.rs");
+const SOURCE: &str = concat!(include_str!("config_system_settings.rs"), include_str!("../../../libs/desktop-config/src/config_system_settings.rs"));
 static CONFIG_SYSTEM_SETTINGS_ENV_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
 pub(in crate::app) struct EnvGuard {
@@ -195,100 +195,6 @@ fn config_system_settings_tests_keeps_planned_coverage_targets() {
     ] {
         assert!(source_declares_symbol(name), "expected source to declare coverage target {name}");
     }
-}
-
-#[test]
-fn normalize_system_settings_config_replaces_invalid_font_size() {
-    let cfg = AppSystemSettingsConfig {
-        editor_font_size: f32::NAN,
-        editor_line_height: 99.0,
-        editor_auto_line_height: false,
-        ..AppSystemSettingsConfig::default()
-    };
-
-    let normalized = super::normalize_system_settings_config(cfg);
-
-    assert_eq!(normalized.editor_font_size, 16.0);
-    assert_eq!(normalized.editor_line_height, 99.0);
-}
-
-#[test]
-fn normalize_system_settings_config_replaces_non_positive_and_infinite_font_sizes() {
-    for editor_font_size in [0.0, -1.0, f32::INFINITY, f32::NEG_INFINITY] {
-        let cfg = AppSystemSettingsConfig {
-            editor_font_size,
-            editor_line_height: 24.0,
-            editor_auto_line_height: false,
-            ..AppSystemSettingsConfig::default()
-        };
-
-        let normalized = super::normalize_system_settings_config(cfg);
-
-        assert_eq!(normalized.editor_font_size, 16.0);
-        assert_eq!(normalized.editor_line_height, 24.0);
-    }
-}
-
-#[test]
-fn normalize_system_settings_config_auto_line_height_tracks_font_size() {
-    let cfg = AppSystemSettingsConfig {
-        editor_font_size: 15.0,
-        editor_line_height: 1.0,
-        editor_auto_line_height: true,
-        ..AppSystemSettingsConfig::default()
-    };
-
-    let normalized = super::normalize_system_settings_config(cfg);
-
-    assert_eq!(normalized.editor_font_size, 15.0);
-    assert_eq!(normalized.editor_line_height, 21.0);
-}
-
-#[test]
-fn normalize_system_settings_config_auto_line_height_uses_repaired_font_size() {
-    let cfg = AppSystemSettingsConfig {
-        editor_font_size: f32::NAN,
-        editor_line_height: 1.0,
-        editor_auto_line_height: true,
-        ..AppSystemSettingsConfig::default()
-    };
-
-    let normalized = super::normalize_system_settings_config(cfg);
-
-    assert_eq!(normalized.editor_font_size, 16.0);
-    assert_eq!(normalized.editor_line_height, 22.4);
-}
-
-#[test]
-fn normalize_system_settings_config_replaces_invalid_manual_line_height() {
-    for editor_line_height in [0.0, -1.0, f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
-        let cfg = AppSystemSettingsConfig {
-            editor_font_size: 16.0,
-            editor_line_height,
-            editor_auto_line_height: false,
-            ..AppSystemSettingsConfig::default()
-        };
-
-        let normalized = super::normalize_system_settings_config(cfg);
-
-        assert_eq!(normalized.editor_font_size, 16.0);
-        assert_eq!(normalized.editor_line_height, 19.6);
-    }
-}
-
-#[test]
-fn normalize_system_settings_config_replaces_overflowing_auto_line_height() {
-    let cfg = AppSystemSettingsConfig {
-        editor_font_size: f32::MAX,
-        editor_line_height: 1.0,
-        editor_auto_line_height: true,
-        ..AppSystemSettingsConfig::default()
-    };
-
-    let normalized = super::normalize_system_settings_config(cfg);
-
-    assert_eq!(normalized.editor_font_size, f32::MAX);
-    assert_eq!(normalized.editor_line_height, 19.6);
 }
 
 #[test]

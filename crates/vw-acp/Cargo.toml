@@ -13,6 +13,7 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
+config-acp-install = { path = "../libs/config-acp-install", version = "0.6.0" }
 acp-metrics = { path = "../libs/acp-metrics", version = "0.6.0" }
 acp-access-policy = { path = "../libs/acp-access-policy", version = "0.6.0" }
 vw-api-transport = { path = "../libs/api-transport", version = "0.6.0" }

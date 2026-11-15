@@ -2,7 +2,7 @@
 use crate::app::agent::gateway::ApiError;
 use axum::{Json, extract::Path};
 use std::sync::atomic::{AtomicBool, Ordering};
-use vw_config_types::acp_install::acp_install_command;
+use config_acp_install::acp_install_command;
 
 static INSTALLING: AtomicBool = AtomicBool::new(false);
 struct InstallGuard;

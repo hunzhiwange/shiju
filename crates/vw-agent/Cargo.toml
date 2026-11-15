@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+config-acp-install = { path = "../libs/config-acp-install", version = "0.6.0" }
 agent-database = { path = "../libs/agent-database", version = "0.6.0" }
 vw-api-transport = { path = "../libs/api-transport", version = "0.6.0" }
 gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }

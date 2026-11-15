@@ -1,6 +1,6 @@
 //! ACP 内置代理安装执行：固定来源、用户级 uv 引导与进程树清理。
 use std::process::Stdio;
-use vw_config_types::acp_install::acp_install_command;
+use config_acp_install::acp_install_command;
 
 /// 按网关所在平台安装内置代理，不接收任意命令、包名或 URL。
 pub async fn install_builtin_agent(agent: &str) -> Result<(), String> {

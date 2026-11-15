@@ -124,7 +124,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             if app.acp_settings.installing_agent.is_some() {
                 return Task::none();
             }
-            if vw_config_types::acp_install::acp_install_command(&agent).is_none() {
+            if config_acp_install::acp_install_command(&agent).is_none() {
                 return app.show_error_toast("该 ACP 暂无一键安装命令，请使用官方安装器");
             }
             app.acp_settings.installing_agent = Some(agent.clone());

@@ -210,7 +210,7 @@ fn built_in_agent_specs_prefer_local_adapter_binaries_when_available() {
 
 #[test]
 fn aionui_catalog_has_startup_and_gateway_install_specs() {
-    use vw_config_types::acp_install::{AcpInstallPlatform, acp_install_command_for_platform};
+    use config_acp_install::{AcpInstallPlatform, acp_install_command_for_platform};
     let specs = built_in_agent_specs();
     // 对照 AionUi 的 agent-skill-discovery.md 内置 ACP 清单。
     for name in [

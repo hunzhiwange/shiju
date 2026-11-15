@@ -223,7 +223,7 @@ fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Elem
     .height(Length::Shrink);
 
     let installation: Element<'_, Message> =
-        if vw_config_types::acp_install::acp_install_command(&agent).is_some() {
+        if config_acp_install::acp_install_command(&agent).is_some() {
             let installing = app.acp_settings.installing_agent.as_deref() == Some(agent.as_str());
             let title = tr("官方安装包 / 安装器");
             row![

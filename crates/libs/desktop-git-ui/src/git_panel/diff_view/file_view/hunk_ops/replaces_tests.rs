@@ -3,10 +3,11 @@
 
 use iced::Color;
 
-use crate::app::components::git_panel::diff_view::DiffRenderCtx;
-use crate::app::components::git_panel::utils::Lang;
-use crate::app::state::{GitDiffContextMenuState, GitDiffSelectedLine};
-use crate::app::{App, DiffTheme};
+use crate::git_panel::utils::Lang;
+use crate::git_panel::diff_view::GitDiffContextMenuState;
+use crate::git_panel::diff_view::test_support::GitDiffSelectedLine;
+use crate::DiffTheme;
+use crate::git_panel::diff_view::test_support::Fixture;
 
 fn palette() -> (Color, Color, Color, Color, Color) {
     (
@@ -20,7 +21,7 @@ fn palette() -> (Color, Color, Color, Color, Color) {
 
 // 只比较生成行数，以隔离替换分派规则与具体行控件的内部布局。
 fn render_count(
-    app: &App,
+    app: &Fixture,
     old_index: usize,
     old_len: usize,
     new_index: usize,
@@ -28,11 +29,11 @@ fn render_count(
     old_lines: &[&str],
     new_lines: &[&str],
 ) -> usize {
-    let ctx = DiffRenderCtx::new(app);
+    let ctx = app.render_ctx();
     let (add_line_bg, add_word_bg, del_line_bg, del_word_bg, hover) = palette();
 
     super::replaces::render_replace_ops(
-        app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         old_index,
@@ -58,33 +59,33 @@ fn render_count(
 
 #[test]
 fn should_compute_word_diff_requires_highlight_equal_lengths_changes_and_short_lines() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.show_git_diff_highlight = true;
 
-    assert!(super::replaces::should_compute_word_diff(&app, 1, 1, "let a = 1;", "let a = 2;"));
-    assert!(super::replaces::should_compute_word_diff(&app, 1, 1, "a", "b"));
-    assert!(!super::replaces::should_compute_word_diff(&app, 1, 2, "a", "b"));
-    assert!(!super::replaces::should_compute_word_diff(&app, 1, 1, "same", "same"));
-    assert!(!super::replaces::should_compute_word_diff(&app, 1, 1, &"a".repeat(513), "b"));
+    assert!(super::replaces::should_compute_word_diff(&app.view_state(), 1, 1, "let a = 1;", "let a = 2;"));
+    assert!(super::replaces::should_compute_word_diff(&app.view_state(), 1, 1, "a", "b"));
+    assert!(!super::replaces::should_compute_word_diff(&app.view_state(), 1, 2, "a", "b"));
+    assert!(!super::replaces::should_compute_word_diff(&app.view_state(), 1, 1, "same", "same"));
+    assert!(!super::replaces::should_compute_word_diff(&app.view_state(), 1, 1, &"a".repeat(513), "b"));
 
     app.show_git_diff_highlight = false;
-    assert!(super::replaces::should_compute_word_diff(&app, 1, 1, "a", "b"));
+    assert!(super::replaces::should_compute_word_diff(&app.view_state(), 1, 1, "a", "b"));
 }
 
 #[test]
 fn should_compute_word_diff_enforces_new_line_length_boundary() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.show_git_diff_highlight = true;
     let at_limit = "b".repeat(512);
     let over_limit = "b".repeat(513);
 
-    assert!(super::replaces::should_compute_word_diff(&app, 1, 1, "a", &at_limit));
-    assert!(!super::replaces::should_compute_word_diff(&app, 1, 1, "a", &over_limit));
+    assert!(super::replaces::should_compute_word_diff(&app.view_state(), 1, 1, "a", &at_limit));
+    assert!(!super::replaces::should_compute_word_diff(&app.view_state(), 1, 1, "a", &over_limit));
 }
 
 #[test]
 fn render_replace_ops_merge_view_emits_old_then_new_rows() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.merge_view = true;
 
     assert_eq!(
@@ -95,7 +96,7 @@ fn render_replace_ops_merge_view_emits_old_then_new_rows() {
 
 #[test]
 fn render_replace_ops_split_view_uses_max_old_new_count() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.merge_view = false;
 
     assert_eq!(
@@ -107,7 +108,7 @@ fn render_replace_ops_split_view_uses_max_old_new_count() {
 
 #[test]
 fn render_replace_ops_handles_equal_length_word_diff_and_missing_lines() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.show_git_diff_highlight = true;
     app.merge_view = false;
 
@@ -116,7 +117,7 @@ fn render_replace_ops_handles_equal_length_word_diff_and_missing_lines() {
 
 #[test]
 fn render_replace_ops_merge_view_zero_old_len_emits_only_new_rows() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.merge_view = true;
 
     assert_eq!(render_count(&app, 0, 0, 0, 2, &[], &["new a", "new b"]), 2);
@@ -124,7 +125,7 @@ fn render_replace_ops_merge_view_zero_old_len_emits_only_new_rows() {
 
 #[test]
 fn render_replace_ops_merge_view_zero_new_len_emits_only_old_rows() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.merge_view = true;
 
     assert_eq!(render_count(&app, 0, 2, 0, 0, &["old a", "old b"], &[]), 2);
@@ -132,7 +133,7 @@ fn render_replace_ops_merge_view_zero_new_len_emits_only_old_rows() {
 
 #[test]
 fn render_replace_ops_split_view_zero_old_len_emits_only_new_panes() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.merge_view = false;
 
     assert_eq!(render_count(&app, 0, 0, 0, 2, &[], &["new a", "new b"]), 2);
@@ -140,7 +141,7 @@ fn render_replace_ops_split_view_zero_old_len_emits_only_new_panes() {
 
 #[test]
 fn render_replace_ops_split_view_wraps_matching_context_menu_for_new_only_row() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.merge_view = false;
     app.git_diff_context_menu = Some(GitDiffContextMenuState {
         file: "src/lib.rs".to_string(),
@@ -149,11 +150,11 @@ fn render_replace_ops_split_view_wraps_matching_context_menu_for_new_only_row() 
         x: 12.0,
         y: 24.0,
     });
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = app.render_ctx();
     let (add_line_bg, add_word_bg, del_line_bg, del_word_bg, hover) = palette();
 
     let rows = super::replaces::render_replace_ops(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         0,
@@ -181,7 +182,7 @@ fn render_replace_ops_split_view_wraps_matching_context_menu_for_new_only_row() 
 
 #[test]
 fn render_replace_ops_split_view_zero_new_len_emits_only_old_panes() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.merge_view = false;
 
     assert_eq!(render_count(&app, 0, 2, 0, 0, &["old a", "old b"], &[]), 2);
@@ -189,7 +190,7 @@ fn render_replace_ops_split_view_zero_new_len_emits_only_old_panes() {
 
 #[test]
 fn render_replace_ops_zero_len_in_both_views_produces_no_rows() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
 
     app.merge_view = true;
     assert_eq!(render_count(&app, 0, 0, 0, 0, &[] as &[&str], &[] as &[&str]), 0);
@@ -200,7 +201,7 @@ fn render_replace_ops_zero_len_in_both_views_produces_no_rows() {
 
 #[test]
 fn render_replace_ops_covers_selected_staged_hovered_and_file_staged_branches() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.staged_old_lines_selected = vec![("src/lib.rs".to_string(), 0)];
     app.staged_lines_selected = vec![("src/lib.rs".to_string(), 0)];
     app.git_diff_selected_lines = vec![

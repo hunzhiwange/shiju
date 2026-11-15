@@ -27,65 +27,19 @@ use crate::app::assets::Icon;
 use crate::app::{App, DiffTheme, Message, message};
 
 use super::super::ui::small_plain_icon_button;
-use super::super::utils::{FileStatus, Lang, lang_for_file};
+use super::super::utils::FileStatus;
 use super::DiffRenderCtx;
 
-mod added_deleted;
 mod body;
-mod gaps;
-mod hunk_ops;
-mod standard;
-mod start_end;
 
-#[cfg(test)]
-#[path = "added_deleted_tests.rs"]
-mod added_deleted_tests;
-#[cfg(test)]
-#[path = "gaps_tests.rs"]
-mod gaps_tests;
 #[cfg(test)]
 #[path = "mod_tests.rs"]
 mod mod_tests;
 #[cfg(test)]
-#[path = "standard_tests.rs"]
-mod standard_tests;
-#[cfg(test)]
-#[path = "start_end_tests.rs"]
-mod start_end_tests;
-#[cfg(test)]
 mod tests;
 
-const DIFF_LINE_SELECT_WIDTH: f32 = 18.0;
-
-pub(super) fn diff_line_select_button(
-    selected: bool,
-    on: Message,
-    read_only: bool,
-) -> Element<'static, Message> {
-    if read_only {
-        // 分栏 diff 的行布局依赖控件的固有高度；隐藏暂存框时仍保留行高。
-        return container(Space::new().height(20)).width(DIFF_LINE_SELECT_WIDTH).into();
-    }
-    let glyph = if selected { "✓" } else { "" };
-    button(text(glyph).size(12))
-        .on_press(on)
-        .padding([2, 4])
-        .width(Length::Fixed(DIFF_LINE_SELECT_WIDTH))
-        .style(|theme: &iced::Theme, _status| iced::widget::button::Style {
-            background: None,
-            border: Border::default(),
-            text_color: theme.extended_palette().background.strong.text,
-            ..Default::default()
-        })
-        .into()
-}
-
-pub(super) fn diff_line_select_spacer() -> Element<'static, Message> {
-    container(Space::new().width(Length::Fill).height(Length::Shrink))
-        .width(Length::Fixed(DIFF_LINE_SELECT_WIDTH))
-        .into()
-}
-
+#[cfg(test)]
+use desktop_git_ui::git_panel::diff_view::file_view::{diff_line_select_button, diff_line_select_spacer};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FileLineSelectionState {
     None,

@@ -3,32 +3,24 @@
 //! 本模块负责 diff 行、行号、选区、上下文菜单和配色的局部组合。
 
 use iced::widget::{MouseArea, container, row, text};
-/// 重新导出 use iced::{Color, Element, Length}，让上层模块通过稳定路径访问。
 use iced::{Color, Element, Length};
 
-/// 重新导出 use crate::app::{App, DiffTheme, Message, message}，让上层模块通过稳定路径访问。
-use crate::app::{App, DiffTheme, Message, message};
+use crate::DiffTheme;
+use crate::git_panel::diff_view::{DiffViewState, DiffMessage as Message};
 
-/// 重新导出 use super::super::super::super::utils::{Lang, render_line_content}，让上层模块通过稳定路径访问。
 use super::super::super::super::utils::{Lang, render_line_content};
-/// 重新导出 use super::super::super::markers::{，让上层模块通过稳定路径访问。
 use super::super::super::markers::{
     LineMarkerKind, LineNumberTone, line_marker_cell_emphasis, line_number_cell_with_tone,
 };
-/// 重新导出 use super::super::super::selection::{is_diff_hovered, is_diff_selected}，让上层模块通过稳定路径访问。
 use super::super::super::selection::{is_diff_hovered, is_diff_selected};
-/// 重新导出 use super::super::super::wrap_diff_row_with_context_menu，让上层模块通过稳定路径访问。
 use super::super::super::wrap_diff_row_with_context_menu;
-/// 重新导出 use super::super::super::{，让上层模块通过稳定路径访问。
 use super::super::super::{
     DiffSplitPaneTone, diff_highlight_enabled, diff_line_number_with_background,
     diff_split_divider, diff_split_pane, diff_split_pane_with_background, diff_split_row,
     merge_diff_row, merge_diff_row_with_background, split_line_number_area,
 };
-/// 重新导出 use super::super::diff_line_select_button，让上层模块通过稳定路径访问。
 use super::super::diff_line_select_button;
-/// 重新导出 use crate::app::components::git_panel::diff_view::DiffRenderCtx，让上层模块通过稳定路径访问。
-use crate::app::components::git_panel::diff_view::DiffRenderCtx;
+use crate::git_panel::diff_view::DiffRenderCtx;
 
 /// 渲染 insert ops 对应的 diff 行、工具卡片或控件内容。
 ///
@@ -44,7 +36,7 @@ use crate::app::components::git_panel::diff_view::DiffRenderCtx;
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub fn render_insert_ops(
-    app: &App,
+    app: &DiffViewState<'_>,
     // render_ctx 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     render_ctx: &DiffRenderCtx<'_>,
     // file 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
@@ -84,17 +76,17 @@ pub fn render_insert_ops(
         let hovered_or_selected = hovered || selected;
         let new_num_area: Element<'static, Message> =
             MouseArea::new(line_number_cell_with_tone(new_num.clone(), LineNumberTone::Add))
-                .on_press(Message::Git(message::GitMessage::DiffDragSelectStart(
+                .on_press(Message::DiffDragSelectStart(
                     file.to_string(),
                     new_idx,
                     false,
                     (*content).to_string(),
-                )))
-                .on_enter(Message::Git(message::GitMessage::DiffDragSelectHover(
+                ))
+                .on_enter(Message::DiffDragSelectHover(
                     file.to_string(),
                     new_idx,
                     false,
-                )))
+                ))
                 .into();
         let new_num_area = diff_line_number_with_background(new_num_area, add_line_bg);
 
@@ -110,17 +102,17 @@ pub fn render_insert_ops(
         );
         let content_area: Element<'static, Message> =
             MouseArea::new(container(content_row).width(Length::Fill))
-                .on_press(Message::Git(message::GitMessage::DiffDragSelectStart(
+                .on_press(Message::DiffDragSelectStart(
                     file.to_string(),
                     new_idx,
                     false,
                     (*content).to_string(),
-                )))
-                .on_enter(Message::Git(message::GitMessage::DiffDragSelectHover(
+                ))
+                .on_enter(Message::DiffDragSelectHover(
                     file.to_string(),
                     new_idx,
                     false,
-                )))
+                ))
                 .into();
         let line_checked_base = render_ctx.selected_new_lines.contains(&(file, new_idx));
         let line_checked = render_ctx.is_new_line_staged(file, new_idx);
@@ -128,10 +120,10 @@ pub fn render_insert_ops(
             line_checked,
             if line_checked_base {
                 // Message 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Message::Git(message::GitMessage::ToggleStageLine(file.to_string(), new_idx, false))
+                Message::ToggleStageLine(file.to_string(), new_idx, false)
             } else {
                 // Message 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Message::Git(message::GitMessage::ToggleStageLine(file.to_string(), new_idx, true))
+                Message::ToggleStageLine(file.to_string(), new_idx, true)
             },
             render_ctx.read_only,
         );
@@ -153,16 +145,16 @@ pub fn render_insert_ops(
                 hovered_or_selected,
             );
             let wrapped = MouseArea::new(r)
-                .on_enter(Message::Git(message::GitMessage::DiffHoverEnter(
+                .on_enter(Message::DiffHoverEnter(
                     file.to_string(),
                     new_idx,
                     false,
-                )))
-                .on_exit(Message::Git(message::GitMessage::DiffHoverExit(
+                ))
+                .on_exit(Message::DiffHoverExit(
                     file.to_string(),
                     new_idx,
                     false,
-                )));
+                ));
             elems.push(wrap_diff_row_with_context_menu(
                 app,
                 file,
@@ -215,16 +207,16 @@ pub fn render_insert_ops(
                 hovered_or_selected,
             );
             let wrapped = MouseArea::new(r)
-                .on_enter(Message::Git(message::GitMessage::DiffHoverEnter(
+                .on_enter(Message::DiffHoverEnter(
                     file.to_string(),
                     new_idx,
                     false,
-                )))
-                .on_exit(Message::Git(message::GitMessage::DiffHoverExit(
+                ))
+                .on_exit(Message::DiffHoverExit(
                     file.to_string(),
                     new_idx,
                     false,
-                )));
+                ));
             elems.push(wrap_diff_row_with_context_menu(
                 app,
                 file,

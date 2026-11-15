@@ -22,7 +22,7 @@ fn colors() -> (Color, Color, Color, Color, Color) {
 }
 
 fn render_file(app: &App, status: FileStatus, contents: Option<(&str, &str)>, loading: bool) {
-    let ctx = DiffRenderCtx::new(app);
+    let ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(app);
     let (bg, add_line, add_word, del_line, del_word) = colors();
     let _view = super::view_file(
         app,
@@ -62,14 +62,14 @@ fn changed_diff_line_sets_collects_only_changed_lines() {
 fn file_line_selection_state_distinguishes_none_partial_all_and_file_stage() {
     let mut app = App::new().0;
     let changed = (HashSet::from([0, 1]), HashSet::from([0, 1]));
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
     assert_eq!(
         super::file_line_selection_state(&app, &ctx, "src/lib.rs", &changed),
         super::FileLineSelectionState::None
     );
 
     app.staged_lines_selected = vec![("src/lib.rs".to_string(), 0)];
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
     assert_eq!(
         super::file_line_selection_state(&app, &ctx, "src/lib.rs", &changed),
         super::FileLineSelectionState::Partial
@@ -78,7 +78,7 @@ fn file_line_selection_state_distinguishes_none_partial_all_and_file_stage() {
     app.staged_old_lines_selected =
         vec![("src/lib.rs".to_string(), 0), ("src/lib.rs".to_string(), 1)];
     app.staged_lines_selected = vec![("src/lib.rs".to_string(), 0), ("src/lib.rs".to_string(), 1)];
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
     assert_eq!(
         super::file_line_selection_state(&app, &ctx, "src/lib.rs", &changed),
         super::FileLineSelectionState::All
@@ -87,7 +87,7 @@ fn file_line_selection_state_distinguishes_none_partial_all_and_file_stage() {
     app.staged_old_lines_selected.clear();
     app.staged_lines_selected.clear();
     app.staged_files_selected = vec!["src/lib.rs".to_string()];
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
     assert_eq!(
         super::file_line_selection_state(&app, &ctx, "src/lib.rs", &changed),
         super::FileLineSelectionState::All
@@ -116,7 +116,7 @@ fn diff_line_select_controls_and_file_menu_build() {
         )),
         false,
     );
-    let _spacer = super::diff_line_select_spacer();
+    let _spacer = super::diff_line_select_spacer::<crate::app::Message>();
     let _menu = super::diff_file_actions_menu(
         config_ui::DesktopLocale::SimplifiedChinese,
         "src/lib.rs",

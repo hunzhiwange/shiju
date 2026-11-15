@@ -57,17 +57,17 @@ fn line_number_padding_and_cells_cover_tones() {
         7.0
     );
 
-    let _neutral = super::markers::line_number_cell("1".to_string());
-    let _add = super::markers::line_number_cell_with_tone(
+    let _neutral = super::markers::line_number_cell::<() >("1".to_string());
+    let _add = super::markers::line_number_cell_with_tone::<() >(
         "2".to_string(),
         super::markers::LineNumberTone::Add,
     );
-    let _delete = super::markers::line_number_cell_with_tone_offset(
+    let _delete = super::markers::line_number_cell_with_tone_offset::<() >(
         "3".to_string(),
         super::markers::LineNumberTone::Delete,
         3.0,
     );
-    let _empty = super::markers::empty_line_number_cell();
+    let _empty = super::markers::empty_line_number_cell::<() >();
 }
 
 #[test]
@@ -77,8 +77,8 @@ fn line_marker_cells_cover_add_delete_none_and_emphasis() {
         super::markers::LineMarkerKind::Add,
         super::markers::LineMarkerKind::Delete,
     ] {
-        let _plain = super::markers::line_marker_cell_emphasis(kind, false);
-        let _emphasized = super::markers::line_marker_cell_emphasis(kind, true);
+        let _plain = super::markers::line_marker_cell_emphasis::<() >(kind, false);
+        let _emphasized = super::markers::line_marker_cell_emphasis::<() >(kind, true);
     }
 }
 

@@ -1,16 +1,17 @@
 //! 验证新增与删除文件行在合并、分栏、暂存和上下文菜单状态下的渲染。
 //! 空行、Unicode 行和文件级暂存 fixture 用于确认行数与菜单节点不依赖文本宽度。
 
-use super::super::DiffRenderCtx;
 use super::added_deleted::{render_added_lines, render_deleted_lines};
-use crate::app::components::git_panel::utils::Lang;
-use crate::app::state::{GitDiffContextMenuState, GitDiffSelectedLine};
-use crate::app::{App, DiffTheme, Message};
+use crate::git_panel::utils::Lang;
+use crate::git_panel::diff_view::GitDiffContextMenuState;
+use crate::git_panel::diff_view::test_support::{Fixture, GitDiffSelectedLine};
+use crate::DiffTheme;
+use crate::git_panel::diff_view::DiffMessage as Message;
 use iced::advanced::widget::Tree;
 use iced::{Color, Element};
 
-fn app() -> App {
-    App::new().0
+fn app() -> Fixture {
+    Fixture::default()
 }
 
 fn tree_node_count(tree: &Tree) -> usize {
@@ -25,7 +26,7 @@ fn widget_shape(column: iced::widget::Column<'static, Message>) -> (usize, usize
     (rows.len(), node_count)
 }
 
-fn active_app(file: &str, merge_view: bool, is_old: bool) -> App {
+fn active_app(file: &str, merge_view: bool, is_old: bool) -> Fixture {
     let mut app = app();
     app.merge_view = merge_view;
     if is_old {
@@ -52,10 +53,10 @@ fn task_702_test_module_is_wired() {
 #[test]
 fn empty_added_and_deleted_inputs_render_no_rows() {
     let app = app();
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = app.render_ctx();
 
     let added = render_added_lines(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/empty.rs",
         &[],
@@ -70,7 +71,7 @@ fn empty_added_and_deleted_inputs_render_no_rows() {
         false,
     );
     let deleted = render_deleted_lines(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/empty.rs",
         &[],
@@ -94,9 +95,9 @@ fn added_lines_preserve_row_count_and_split_view_has_distinct_structure() {
     const LINES: &[&str] = &["", "let added = true;", "新增🙂"];
 
     let merge_app = active_app(FILE, true, false);
-    let merge_ctx = DiffRenderCtx::new(&merge_app);
+    let merge_ctx = merge_app.render_ctx();
     let merge = render_added_lines(
-        &merge_app,
+        &merge_app.view_state(),
         &merge_ctx,
         FILE,
         LINES,
@@ -112,9 +113,9 @@ fn added_lines_preserve_row_count_and_split_view_has_distinct_structure() {
     );
 
     let split_app = active_app(FILE, false, false);
-    let split_ctx = DiffRenderCtx::new(&split_app);
+    let split_ctx = split_app.render_ctx();
     let split = render_added_lines(
-        &split_app,
+        &split_app.view_state(),
         &split_ctx,
         FILE,
         LINES,
@@ -142,9 +143,9 @@ fn deleted_lines_preserve_row_count_and_split_view_has_distinct_structure() {
     const LINES: &[&str] = &["", "let deleted = true;", "删除🙂"];
 
     let merge_app = active_app(FILE, true, true);
-    let merge_ctx = DiffRenderCtx::new(&merge_app);
+    let merge_ctx = merge_app.render_ctx();
     let merge = render_deleted_lines(
-        &merge_app,
+        &merge_app.view_state(),
         &merge_ctx,
         FILE,
         LINES,
@@ -159,9 +160,9 @@ fn deleted_lines_preserve_row_count_and_split_view_has_distinct_structure() {
     );
 
     let split_app = active_app(FILE, false, true);
-    let split_ctx = DiffRenderCtx::new(&split_app);
+    let split_ctx = split_app.render_ctx();
     let split = render_deleted_lines(
-        &split_app,
+        &split_app.view_state(),
         &split_ctx,
         FILE,
         LINES,
@@ -188,10 +189,10 @@ fn file_level_staging_preserves_added_and_deleted_rows() {
     let mut app = app();
     app.merge_view = false;
     app.staged_files_selected.push(FILE.to_string());
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = app.render_ctx();
 
     let added = render_added_lines(
-        &app,
+        &app.view_state(),
         &ctx,
         FILE,
         &["staged addition"],
@@ -206,7 +207,7 @@ fn file_level_staging_preserves_added_and_deleted_rows() {
         false,
     );
     let deleted = render_deleted_lines(
-        &app,
+        &app.view_state(),
         &ctx,
         FILE,
         &["staged deletion"],
@@ -228,9 +229,9 @@ fn file_level_staging_preserves_added_and_deleted_rows() {
 fn matching_context_menu_adds_menu_nodes_for_added_and_deleted_rows() {
     const FILE: &str = "src/menu.rs";
     let closed_app = app();
-    let closed_ctx = DiffRenderCtx::new(&closed_app);
+    let closed_ctx = closed_app.render_ctx();
     let closed_added = render_added_lines(
-        &closed_app,
+        &closed_app.view_state(),
         &closed_ctx,
         FILE,
         &["added"],
@@ -245,7 +246,7 @@ fn matching_context_menu_adds_menu_nodes_for_added_and_deleted_rows() {
         false,
     );
     let closed_deleted = render_deleted_lines(
-        &closed_app,
+        &closed_app.view_state(),
         &closed_ctx,
         FILE,
         &["deleted"],
@@ -268,9 +269,9 @@ fn matching_context_menu_adds_menu_nodes_for_added_and_deleted_rows() {
         x: 12.0,
         y: 24.0,
     });
-    let added_ctx = DiffRenderCtx::new(&added_app);
+    let added_ctx = added_app.render_ctx();
     let opened_added = render_added_lines(
-        &added_app,
+        &added_app.view_state(),
         &added_ctx,
         FILE,
         &["added"],
@@ -293,9 +294,9 @@ fn matching_context_menu_adds_menu_nodes_for_added_and_deleted_rows() {
         x: 32.0,
         y: 64.0,
     });
-    let deleted_ctx = DiffRenderCtx::new(&deleted_app);
+    let deleted_ctx = deleted_app.render_ctx();
     let opened_deleted = render_deleted_lines(
-        &deleted_app,
+        &deleted_app.view_state(),
         &deleted_ctx,
         FILE,
         &["deleted"],

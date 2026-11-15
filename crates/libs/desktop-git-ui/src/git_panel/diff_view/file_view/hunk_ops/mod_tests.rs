@@ -4,9 +4,9 @@
 use iced::Color;
 use similar::DiffOp;
 
-use crate::app::components::git_panel::diff_view::DiffRenderCtx;
-use crate::app::components::git_panel::utils::Lang;
-use crate::app::{App, DiffTheme};
+use crate::git_panel::utils::Lang;
+use crate::DiffTheme;
+use crate::git_panel::diff_view::test_support::Fixture;
 
 fn palette() -> (Color, Color, Color, Color, Color, Color) {
     (
@@ -21,8 +21,8 @@ fn palette() -> (Color, Color, Color, Color, Color, Color) {
 
 #[test]
 fn render_hunk_ops_dispatches_all_diff_op_variants() {
-    let app = App::new().0;
-    let ctx = DiffRenderCtx::new(&app);
+    let app = Fixture::default();
+    let ctx = app.render_ctx();
     let (bg, add_line, add_word, del_line, del_word, hover) = palette();
     let group = vec![
         DiffOp::Equal { old_index: 0, new_index: 0, len: 1 },
@@ -32,7 +32,7 @@ fn render_hunk_ops_dispatches_all_diff_op_variants() {
     ];
 
     let rows = super::render_hunk_ops(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         &group,
@@ -58,12 +58,12 @@ fn render_hunk_ops_dispatches_all_diff_op_variants() {
 
 #[test]
 fn render_hunk_ops_tolerates_empty_groups_and_missing_lines() {
-    let app = App::new().0;
-    let ctx = DiffRenderCtx::new(&app);
+    let app = Fixture::default();
+    let ctx = app.render_ctx();
     let (bg, add_line, add_word, del_line, del_word, hover) = palette();
 
     let rows = super::render_hunk_ops(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         &[DiffOp::Equal { old_index: 5, new_index: 5, len: 2 }],
@@ -87,7 +87,7 @@ fn render_hunk_ops_tolerates_empty_groups_and_missing_lines() {
     assert_eq!(rows.len(), 2);
     assert!(
         super::render_hunk_ops(
-            &app,
+            &app.view_state(),
             &ctx,
             "src/lib.rs",
             &[],

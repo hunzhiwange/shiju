@@ -20,8 +20,9 @@
 use iced::widget::{MouseArea, container, row, text};
 use iced::{Background, Border, Color, Element, Length};
 
-use crate::app::assets::Icon;
-use crate::app::{App, DiffTheme, Message, message};
+use desktop_assets::assets::Icon;
+use crate::DiffTheme;
+use crate::git_panel::diff_view::{DiffViewState, DiffMessage as Message};
 
 use super::super::super::ui::small_plain_icon_button;
 use super::super::super::utils::{Lang, render_line_content};
@@ -37,7 +38,7 @@ use super::super::{
 use super::diff_line_select_spacer;
 use super::start_end::GapRange;
 
-pub(super) fn gap_summary_text_style(theme: &iced::Theme) -> iced::widget::text::Style {
+pub fn gap_summary_text_style(theme: &iced::Theme) -> iced::widget::text::Style {
     let ext = theme.extended_palette();
     let is_dark =
         theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
@@ -52,7 +53,7 @@ pub(super) fn gap_summary_text_style(theme: &iced::Theme) -> iced::widget::text:
     }
 }
 
-pub(super) fn gap_expand_container_style(theme: &iced::Theme) -> iced::widget::container::Style {
+pub fn gap_expand_container_style(theme: &iced::Theme) -> iced::widget::container::Style {
     let ext = theme.extended_palette();
     let is_dark =
         theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
@@ -79,7 +80,7 @@ fn gap_summary_chip(
 ) -> Element<'static, Message> {
     container(
         text(
-            crate::app::i18n::I18n::new(locale)
+            desktop_i18n::I18n::new(locale)
                 .format("%u 行未修改", &[hidden_count.into()])
                 .expect("valid gap count"),
         )
@@ -143,7 +144,7 @@ fn gap_summary_chip(
 /// - 复制选中内容
 /// - 展开上下文
 pub fn render_gap(
-    app: &App,
+    app: &DiffViewState<'_>,
     render_ctx: &DiffRenderCtx<'_>,
     file: &str,
     old_lines: &[&str],
@@ -198,17 +199,17 @@ pub fn render_gap(
                 new_num.clone(),
                 LineNumberTone::Neutral,
             ))
-            .on_press(Message::Git(message::GitMessage::DiffDragSelectStart(
+            .on_press(Message::DiffDragSelectStart(
                 file.to_string(),
                 new_idx,
                 false,
                 (*content).to_string(),
-            )))
-            .on_enter(Message::Git(message::GitMessage::DiffDragSelectHover(
+            ))
+            .on_enter(Message::DiffDragSelectHover(
                 file.to_string(),
                 new_idx,
                 false,
-            )))
+            ))
             .into();
 
         // 创建复制按钮（仅在有待复制内容时显示）
@@ -228,17 +229,17 @@ pub fn render_gap(
             // 创建内容区域（带鼠标交互）
             let content_area: Element<'static, Message> =
                 MouseArea::new(container(content_row).width(Length::Fill).padding([0, 2]))
-                    .on_press(Message::Git(message::GitMessage::DiffDragSelectStart(
+                    .on_press(Message::DiffDragSelectStart(
                         file.to_string(),
                         new_idx,
                         false,
                         (*content).to_string(),
-                    )))
-                    .on_enter(Message::Git(message::GitMessage::DiffDragSelectHover(
+                    ))
+                    .on_enter(Message::DiffDragSelectHover(
                         file.to_string(),
                         new_idx,
                         false,
-                    )))
+                    ))
                     .into();
 
             // 构建行布局：标记 | 复制按钮 | 旧行号 | 新行号 | 分隔符 | 内容
@@ -259,16 +260,16 @@ pub fn render_gap(
                 true,
                 (*content).to_string(),
                 MouseArea::new(r)
-                    .on_enter(Message::Git(message::GitMessage::DiffHoverEnter(
+                    .on_enter(Message::DiffHoverEnter(
                         file.to_string(),
                         old_idx,
                         true,
-                    )))
-                    .on_exit(Message::Git(message::GitMessage::DiffHoverExit(
+                    ))
+                    .on_exit(Message::DiffHoverExit(
                         file.to_string(),
                         old_idx,
                         true,
-                    )))
+                    ))
                     .into(),
             )
         } else {
@@ -307,33 +308,33 @@ pub fn render_gap(
             // 创建左侧内容区域（带鼠标交互）
             let left_area: Element<'static, Message> =
                 MouseArea::new(container(left_row).width(Length::Fill).padding([0, 2]))
-                    .on_press(Message::Git(message::GitMessage::DiffDragSelectStart(
+                    .on_press(Message::DiffDragSelectStart(
                         file.to_string(),
                         old_idx,
                         true,
                         (*content).to_string(),
-                    )))
-                    .on_enter(Message::Git(message::GitMessage::DiffDragSelectHover(
+                    ))
+                    .on_enter(Message::DiffDragSelectHover(
                         file.to_string(),
                         old_idx,
                         true,
-                    )))
+                    ))
                     .into();
 
             // 创建右侧内容区域（带鼠标交互）
             let right_area: Element<'static, Message> =
                 MouseArea::new(container(right_row).width(Length::Fill).padding([0, 2]))
-                    .on_press(Message::Git(message::GitMessage::DiffDragSelectStart(
+                    .on_press(Message::DiffDragSelectStart(
                         file.to_string(),
                         new_idx,
                         false,
                         (*content).to_string(),
-                    )))
-                    .on_enter(Message::Git(message::GitMessage::DiffDragSelectHover(
+                    ))
+                    .on_enter(Message::DiffDragSelectHover(
                         file.to_string(),
                         new_idx,
                         false,
-                    )))
+                    ))
                     .into();
 
             // 构建行布局：标记 | 复制按钮 | 旧行号 | 左侧内容 | 新行号 | 右侧内容
@@ -382,16 +383,16 @@ pub fn render_gap(
                 true,
                 (*content).to_string(),
                 MouseArea::new(r)
-                    .on_enter(Message::Git(message::GitMessage::DiffHoverEnter(
+                    .on_enter(Message::DiffHoverEnter(
                         file.to_string(),
                         old_idx,
                         true,
-                    )))
-                    .on_exit(Message::Git(message::GitMessage::DiffHoverExit(
+                    ))
+                    .on_exit(Message::DiffHoverExit(
                         file.to_string(),
                         old_idx,
                         true,
-                    )))
+                    ))
                     .into(),
             )
         }
@@ -424,30 +425,30 @@ pub fn render_gap(
                 iced::widget::Space::new().width(Length::Fill).height(Length::Shrink),
                 small_plain_icon_button(
                     Some(Icon::ChevronUp),
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("展开上方").to_owned(),
-                    Message::Git(message::GitMessage::ExpandContext(
+                    desktop_i18n::I18n::new(app.desktop_locale).__("展开上方").to_owned(),
+                    Message::ExpandContext(
                         file.to_string(),
                         range.gap_id,
-                        crate::app::message::git::ExpandDirection::Up,
-                    )),
+                        crate::git_panel::diff_view::ExpandDirection::Up,
+                    ),
                 ),
                 small_plain_icon_button(
                     Some(Icon::ChevronDown),
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("展开下方").to_owned(),
-                    Message::Git(message::GitMessage::ExpandContext(
+                    desktop_i18n::I18n::new(app.desktop_locale).__("展开下方").to_owned(),
+                    Message::ExpandContext(
                         file.to_string(),
                         range.gap_id,
-                        crate::app::message::git::ExpandDirection::Down,
-                    )),
+                        crate::git_panel::diff_view::ExpandDirection::Down,
+                    ),
                 ),
                 small_plain_icon_button(
                     Some(Icon::ArrowsFullscreen),
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("全部展开").to_owned(),
-                    Message::Git(message::GitMessage::ExpandContext(
+                    desktop_i18n::I18n::new(app.desktop_locale).__("全部展开").to_owned(),
+                    Message::ExpandContext(
                         file.to_string(),
                         range.gap_id,
-                        crate::app::message::git::ExpandDirection::All,
-                    )),
+                        crate::git_panel::diff_view::ExpandDirection::All,
+                    ),
                 ),
             ]
             .spacing(6)

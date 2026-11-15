@@ -482,7 +482,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         included_files.insert(f.clone());
     }
 
-    let render_ctx = diff_view::DiffRenderCtx::new(app);
+    let render_ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(app);
     let mut diff_files = diff_files_all.clone();
 
     // 统计各类文件数量，用于过滤选项面板显示

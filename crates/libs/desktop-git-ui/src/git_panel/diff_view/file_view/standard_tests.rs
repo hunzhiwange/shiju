@@ -3,24 +3,25 @@
 
 use iced::{Color, Length, Size};
 
-use crate::app::components::git_panel::diff_view::DiffRenderCtx;
-use crate::app::components::git_panel::utils::Lang;
-use crate::app::state::{GitDiffContextMenuState, GitDiffSelectedLine};
-use crate::app::{App, DiffTheme};
+use crate::git_panel::utils::Lang;
+use crate::git_panel::diff_view::GitDiffContextMenuState;
+use crate::git_panel::diff_view::test_support::GitDiffSelectedLine;
+use crate::DiffTheme;
+use crate::git_panel::diff_view::test_support::Fixture;
 
 const FILE: &str = "src/lib.rs";
 
 fn assert_closed_equal_row(
-    app: &App,
+    app: &Fixture,
     old_idx: usize,
     new_idx: usize,
     content: &str,
     lang: Lang,
     theme: DiffTheme,
 ) {
-    let ctx = DiffRenderCtx::new(app);
+    let ctx = app.render_ctx();
     let element = super::standard::render_equal_line(
-        app,
+        &app.view_state(),
         &ctx,
         FILE,
         old_idx,
@@ -39,14 +40,14 @@ fn assert_closed_equal_row(
 
 #[test]
 fn render_equal_line_builds_fill_width_closed_row_for_plain_content() {
-    let app = App::new().0;
+    let app = Fixture::default();
 
     assert_closed_equal_row(&app, 3, 7, "let value = 1;", Lang::Rust, DiffTheme::GitHub);
 }
 
 #[test]
 fn render_equal_line_handles_selected_and_hovered_old_and_new_sides() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.git_diff_selected_lines.push(GitDiffSelectedLine {
         file: FILE.to_string(),
         line: 3,
@@ -74,7 +75,7 @@ fn render_equal_line_handles_selected_and_hovered_old_and_new_sides() {
 
 #[test]
 fn render_equal_line_opens_context_menu_only_for_matching_new_side_line() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.git_diff_context_menu = Some(GitDiffContextMenuState {
         file: FILE.to_string(),
         line: 7,
@@ -82,9 +83,9 @@ fn render_equal_line_opens_context_menu_only_for_matching_new_side_line() {
         x: 12.0,
         y: 24.0,
     });
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = app.render_ctx();
     let open = super::standard::render_equal_line(
-        &app,
+        &app.view_state(),
         &ctx,
         FILE,
         3,
@@ -104,7 +105,7 @@ fn render_equal_line_opens_context_menu_only_for_matching_new_side_line() {
 
 #[test]
 fn render_equal_line_accepts_empty_unicode_and_large_line_indices() {
-    let app = App::new().0;
+    let app = Fixture::default();
 
     assert_closed_equal_row(&app, usize::MAX, usize::MAX - 1, "", Lang::Other, DiffTheme::GitHub);
     assert_closed_equal_row(&app, 0, 0, "let 值 = 🦀;", Lang::Rust, DiffTheme::Monokai);

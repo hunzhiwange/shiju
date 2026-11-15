@@ -4,16 +4,16 @@
 use iced::Color;
 use similar::DiffOp;
 
-use crate::app::components::git_panel::diff_view::DiffRenderCtx;
-use crate::app::components::git_panel::utils::Lang;
-use crate::app::{App, DiffTheme};
+use crate::git_panel::utils::Lang;
+use crate::DiffTheme;
+use crate::git_panel::diff_view::test_support::Fixture;
 
-fn render_count(app: &App, group: &[DiffOp], old_lines: &[&str], new_lines: &[&str]) -> usize {
-    let ctx = DiffRenderCtx::new(app);
+fn render_count(app: &Fixture, group: &[DiffOp], old_lines: &[&str], new_lines: &[&str]) -> usize {
+    let ctx = app.render_ctx();
     let hover = Color::from_rgba8(255, 210, 0, 0.22);
 
     super::render_hunk_ops(
-        app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         group,
@@ -44,7 +44,7 @@ fn task_706_test_module_is_wired() {
 
 #[test]
 fn render_hunk_ops_zero_length_variants_produce_no_rows_in_either_view() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     let group = [
         DiffOp::Equal { old_index: 0, new_index: 0, len: 0 },
         DiffOp::Delete { old_index: 0, old_len: 0, new_index: 0 },
@@ -61,7 +61,7 @@ fn render_hunk_ops_zero_length_variants_produce_no_rows_in_either_view() {
 
 #[test]
 fn render_hunk_ops_preserves_child_row_counts_across_view_modes() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     let group = [
         DiffOp::Equal { old_index: 4, new_index: 4, len: 2 },
         DiffOp::Delete { old_index: 6, old_len: 2, new_index: 6 },

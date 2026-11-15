@@ -3,23 +3,16 @@
 //! 本模块负责 diff 行、行号、选区、上下文菜单和配色的局部组合。
 
 use iced::widget::{MouseArea, container, row};
-/// 重新导出 use iced::{Color, Element, Length}，让上层模块通过稳定路径访问。
 use iced::{Color, Element, Length};
 
-/// 重新导出 use crate::app::{App, DiffTheme, Message, message}，让上层模块通过稳定路径访问。
-use crate::app::{App, DiffTheme, Message, message};
+use crate::DiffTheme;
+use crate::git_panel::diff_view::{DiffViewState, DiffMessage as Message};
 
-/// 重新导出 use super::super::super::utils::{Lang, render_line_content}，让上层模块通过稳定路径访问。
 use super::super::super::utils::{Lang, render_line_content};
-/// 重新导出 use super::super::markers::{LineMarkerKind, line_marker_cell_emphasis, line_number_cell}，让上层模块通过稳定路径访问。
 use super::super::markers::{LineMarkerKind, line_marker_cell_emphasis, line_number_cell};
-/// 重新导出 use super::super::selection::{is_diff_hovered, is_diff_selected}，让上层模块通过稳定路径访问。
 use super::super::selection::{is_diff_hovered, is_diff_selected};
-/// 重新导出 use super::super::wrap_diff_row_with_context_menu，让上层模块通过稳定路径访问。
 use super::super::wrap_diff_row_with_context_menu;
-/// 重新导出 use super::super::{DiffRenderCtx, diff_highlight_enabled}，让上层模块通过稳定路径访问。
 use super::super::{DiffRenderCtx, diff_highlight_enabled};
-/// 重新导出 use super::diff_line_select_spacer，让上层模块通过稳定路径访问。
 use super::diff_line_select_spacer;
 
 /// 渲染 equal line 对应的 diff 行、工具卡片或控件内容。
@@ -36,7 +29,7 @@ use super::diff_line_select_spacer;
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub fn render_equal_line(
-    app: &App,
+    app: &DiffViewState<'_>,
     // render_ctx 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     render_ctx: &DiffRenderCtx<'_>,
     // file 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
@@ -64,17 +57,17 @@ pub fn render_equal_line(
         || is_diff_hovered(app, file, new_idx, false);
     let new_num = (new_idx + 1).to_string();
     let new_num_area: Element<'static, Message> = MouseArea::new(line_number_cell(new_num.clone()))
-        .on_press(Message::Git(message::GitMessage::DiffDragSelectStart(
+        .on_press(Message::DiffDragSelectStart(
             file.to_string(),
             new_idx,
             false,
             content.to_string(),
-        )))
-        .on_enter(Message::Git(message::GitMessage::DiffDragSelectHover(
+        ))
+        .on_enter(Message::DiffDragSelectHover(
             file.to_string(),
             new_idx,
             false,
-        )))
+        ))
         .into();
 
     let content_row = render_line_content(
@@ -88,17 +81,17 @@ pub fn render_equal_line(
     );
     let content_area: Element<'static, Message> =
         MouseArea::new(container(content_row).width(Length::Fill).padding([0, 2]))
-            .on_press(Message::Git(message::GitMessage::DiffDragSelectStart(
+            .on_press(Message::DiffDragSelectStart(
                 file.to_string(),
                 new_idx,
                 false,
                 content.to_string(),
-            )))
-            .on_enter(Message::Git(message::GitMessage::DiffDragSelectHover(
+            ))
+            .on_enter(Message::DiffDragSelectHover(
                 file.to_string(),
                 new_idx,
                 false,
-            )))
+            ))
             .into();
     let r = row![
         line_marker_cell_emphasis(LineMarkerKind::None, hovered_or_selected),
@@ -115,16 +108,16 @@ pub fn render_equal_line(
         content.to_string(),
         // MouseArea 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         MouseArea::new(r)
-            .on_enter(Message::Git(message::GitMessage::DiffHoverEnter(
+            .on_enter(Message::DiffHoverEnter(
                 file.to_string(),
                 new_idx,
                 false,
-            )))
-            .on_exit(Message::Git(message::GitMessage::DiffHoverExit(
+            ))
+            .on_exit(Message::DiffHoverExit(
                 file.to_string(),
                 new_idx,
                 false,
-            )))
+            ))
             .into(),
     )
 }

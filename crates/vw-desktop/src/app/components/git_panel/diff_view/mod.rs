@@ -24,8 +24,6 @@
 //! - `styles`：差异行与分栏样式辅助
 //! - `text_diff`：自定义文本 diff 渲染
 
-use std::collections::HashSet;
-
 use crate::app::App;
 
 mod comment_editor;
@@ -43,17 +41,8 @@ mod text_diff;
 #[path = "header_tests.rs"]
 mod header_tests;
 #[cfg(test)]
-#[path = "markers_tests.rs"]
-mod markers_tests;
-#[cfg(test)]
 #[path = "mod_tests.rs"]
 mod mod_tests;
-#[cfg(test)]
-#[path = "selection_tests.rs"]
-mod selection_tests;
-#[cfg(test)]
-#[path = "styles_tests.rs"]
-mod styles_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
@@ -66,24 +55,14 @@ pub use text_diff::view_custom_text_diff;
 pub(crate) use comment_editor::diff_comment_editor;
 pub(super) use context_menu::wrap_diff_row_with_context_menu;
 pub(super) use styles::{
-    diff_highlight_enabled, diff_line_number_with_background, diff_split_divider, diff_split_pane,
+    diff_highlight_enabled, diff_split_divider, diff_split_pane,
     diff_split_pane_with_background, diff_split_row, merge_diff_row,
-    merge_diff_row_with_background, split_line_number_area,
+    split_line_number_area,
 };
 
-pub(super) struct DiffRenderCtx<'a> {
-    read_only: bool,
-    history_file: Option<(usize, String)>,
-    history_notice: Option<String>,
-    selected_new_lines: HashSet<(&'a str, usize)>,
-    selected_old_lines: HashSet<(&'a str, usize)>,
-    selected_diff_lines: HashSet<(&'a str, usize, bool)>,
-    selected_files: HashSet<&'a str>,
-}
-
-impl<'a> DiffRenderCtx<'a> {
-    pub(super) fn new(app: &'a App) -> Self {
-        Self {
+pub(super) use desktop_git_ui::git_panel::diff_view::{DiffRenderCtx, DiffSplitPaneTone, DIFF_LINE_NUMBER_WIDTH};
+    pub(crate) fn diff_render_ctx(app: &App) -> DiffRenderCtx<'_> {
+        DiffRenderCtx {
             read_only: false,
             history_file: None,
             history_notice: None,
@@ -106,54 +85,31 @@ impl<'a> DiffRenderCtx<'a> {
         }
     }
 
-    fn history(index: usize, key: String) -> Self {
-        Self {
-            read_only: true,
-            history_file: Some((index, key)),
-            history_notice: None,
-            selected_new_lines: HashSet::new(),
-            selected_old_lines: HashSet::new(),
-            selected_diff_lines: HashSet::new(),
-            selected_files: HashSet::new(),
-        }
+
+pub(crate) fn diff_view_state(app: &App) -> desktop_git_ui::git_panel::diff_view::DiffViewState<'_> {
+    desktop_git_ui::git_panel::diff_view::DiffViewState {
+        merge_view: app.merge_view, desktop_locale: app.desktop_locale,
+        expanded_hunks: &app.expanded_hunks, context_expansions: &app.context_expansions,
+        active_range: app.git_diff_drag_range.as_ref().or(app.git_diff_selected_range.as_ref()).or_else(|| app.git_diff_comment_draft.as_ref().map(|draft| &draft.range)),
+        hovered_line: app.git_diff_hovered_line.as_ref(), context_menu: app.git_diff_context_menu.as_ref(),
     }
-
-    fn is_file_staged(&self, file: &str) -> bool {
-        self.selected_files.contains(file)
-    }
-
-    fn is_new_line_staged(&self, file: &str, line: usize) -> bool {
-        self.is_file_staged(file) || self.selected_new_lines.contains(&(file, line))
-    }
-
-    fn is_old_line_staged(&self, file: &str, line: usize) -> bool {
-        self.is_file_staged(file) || self.selected_old_lines.contains(&(file, line))
-    }
-
-    fn is_diff_line_selected(&self, file: &str, line: usize, is_old: bool) -> bool {
-        self.selected_diff_lines.contains(&(file, line, is_old))
-    }
-}
-
-/// 差异标记列的宽度（像素）
-///
-/// 用于显示行状态标记（增加/删除/无变化）的列宽度
-const DIFF_MARKER_WIDTH: f32 = 8.0;
-pub(super) const DIFF_LINE_NUMBER_WIDTH: f32 = 46.0;
-const DIFF_SPLIT_DIVIDER_WIDTH: f32 = 8.0;
-
-#[derive(Clone, Copy)]
-pub(super) enum DiffSplitPaneTone {
-    Neutral,
-    Add,
-    Delete,
-    Empty,
 }
 
 fn map_diff_message(event: desktop_git_ui::git_panel::diff_view::DiffMessage) -> crate::app::Message {
     use desktop_git_ui::git_panel::diff_view::DiffMessage as Local;
     use crate::app::{Message, message::GitMessage};
     Message::Git(match event {
+        Local::DiffDragSelectStart(file, line, old, text) => GitMessage::DiffDragSelectStart(file, line, old, text),
+        Local::DiffDragSelectHover(file, line, old) => GitMessage::DiffDragSelectHover(file, line, old),
+        Local::DiffHoverEnter(file, line, old) => GitMessage::DiffHoverEnter(file, line, old),
+        Local::DiffHoverExit(file, line, old) => GitMessage::DiffHoverExit(file, line, old),
+        Local::ToggleStageLine(file, line, selected) => GitMessage::ToggleStageLine(file, line, selected),
+        Local::ToggleStageOldLine(file, line, selected) => GitMessage::ToggleStageOldLine(file, line, selected),
+        Local::ExpandContext(file, gap, direction) => GitMessage::ExpandContext(file, gap, match direction {
+            desktop_git_ui::git_panel::diff_view::ExpandDirection::Up => crate::app::message::git::ExpandDirection::Up,
+            desktop_git_ui::git_panel::diff_view::ExpandDirection::Down => crate::app::message::git::ExpandDirection::Down,
+            desktop_git_ui::git_panel::diff_view::ExpandDirection::All => crate::app::message::git::ExpandDirection::All,
+        }),
         Local::DiffCommentCancel => GitMessage::DiffCommentCancel,
         Local::DiffCommentSubmit => GitMessage::DiffCommentSubmit,
         Local::OpenDiffCommentDraft => GitMessage::OpenDiffCommentDraft,
@@ -167,3 +123,6 @@ fn map_diff_message(event: desktop_git_ui::git_panel::diff_view::DiffMessage) ->
         Local::OpenDiffContextMenu {file, line, is_old, text, x, y} => GitMessage::OpenDiffContextMenu {file, line, is_old, text, x, y},
     })
 }
+
+#[cfg(test)]
+use desktop_git_ui::git_panel::diff_view::{DIFF_MARKER_WIDTH, DIFF_SPLIT_DIVIDER_WIDTH};

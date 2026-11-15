@@ -4,7 +4,7 @@
 use iced::widget::{container, text};
 use iced::{Background, Color, Element, Theme};
 
-use crate::app::Message;
+use crate::git_panel::diff_view::DiffMessage as Message;
 
 #[test]
 fn task_715_test_module_is_wired() {
@@ -12,8 +12,8 @@ fn task_715_test_module_is_wired() {
     assert!(path.ends_with("styles_tests.rs"));
 }
 
-fn app() -> crate::app::App {
-    crate::app::App::new().0
+fn app() -> crate::git_panel::diff_view::test_support::Fixture {
+    crate::git_panel::diff_view::test_support::Fixture::default()
 }
 
 fn content(label: &'static str) -> Element<'static, Message> {
@@ -24,7 +24,7 @@ fn content(label: &'static str) -> Element<'static, Message> {
 fn diff_highlight_is_enabled_for_default_app() {
     let app = app();
 
-    assert!(super::styles::diff_highlight_enabled(&app));
+    assert!(super::styles::diff_highlight_enabled(&app.view_state()));
 }
 
 #[test]
@@ -64,7 +64,7 @@ fn explicit_background_builders_cover_plain_and_emphasized_paths() {
 
 #[test]
 fn divider_and_line_number_area_build_empty_and_interactive_variants() {
-    let _: Element<'static, Message> = super::styles::diff_split_divider();
+    let _: Element<'static, Message> = super::styles::diff_split_divider::<Message>();
     let _: Element<'static, Message> = super::styles::split_line_number_area(
         "src/lib.rs",
         None,

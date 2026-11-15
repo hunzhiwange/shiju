@@ -6,7 +6,7 @@ use crate::app::{App, DiffTheme, Message, message};
 
 use super::super::utils::{lang_for_file, render_line_content};
 use super::{
-    DiffRenderCtx, DiffSplitPaneTone, diff_highlight_enabled, diff_split_divider, diff_split_pane,
+    DiffSplitPaneTone, diff_highlight_enabled, diff_split_divider, diff_split_pane,
     diff_split_pane_with_background, diff_split_row, header, markers, selection,
     split_line_number_area, wrap_diff_row_with_context_menu,
 };
@@ -50,7 +50,7 @@ pub fn view_custom_text_diff(
     del_line_bg: Color,
     del_word_bg: Color,
 ) -> Element<'_, Message> {
-    let render_ctx = DiffRenderCtx::new(app);
+    let render_ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(app);
     let file_key = file.unwrap_or_else(|| title.clone());
     let lang = lang_for_file(&file_key);
     let diff = TextDiff::from_lines(&old_content, &new_content);

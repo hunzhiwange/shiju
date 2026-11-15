@@ -18,7 +18,7 @@ fn render_file(
     contents: Option<(&str, &str)>,
     loading: bool,
 ) {
-    let render_ctx = DiffRenderCtx::new(app);
+    let render_ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(app);
     let _view = super::view_file(
         app,
         &render_ctx,
@@ -77,7 +77,7 @@ fn file_line_selection_state_ignores_other_files_and_unchanged_lines() {
     app.staged_lines_selected =
         vec![("src/other.rs".to_string(), 7), ("src/lib.rs".to_string(), 100)];
     let changed = (HashSet::from([3]), HashSet::from([7]));
-    let render_ctx = DiffRenderCtx::new(&app);
+    let render_ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
 
     assert_eq!(
         super::file_line_selection_state(&app, &render_ctx, "src/lib.rs", &changed),
@@ -90,14 +90,14 @@ fn file_line_selection_state_counts_old_and_new_sides_independently() {
     let mut app = App::new().0;
     let changed = (HashSet::from([3]), HashSet::from([3]));
     app.staged_old_lines_selected.push(("src/lib.rs".to_string(), 3));
-    let render_ctx = DiffRenderCtx::new(&app);
+    let render_ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
     assert_eq!(
         super::file_line_selection_state(&app, &render_ctx, "src/lib.rs", &changed),
         super::FileLineSelectionState::Partial
     );
 
     app.staged_lines_selected.push(("src/lib.rs".to_string(), 3));
-    let render_ctx = DiffRenderCtx::new(&app);
+    let render_ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
     assert_eq!(
         super::file_line_selection_state(&app, &render_ctx, "src/lib.rs", &changed),
         super::FileLineSelectionState::All

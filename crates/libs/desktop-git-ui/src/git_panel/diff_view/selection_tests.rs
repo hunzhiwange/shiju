@@ -3,7 +3,8 @@
 
 use iced::Color;
 
-use crate::app::state::{GitDiffCommentDraft, GitDiffLineRange, GitDiffSelectedLine};
+use crate::git_panel::diff_view::{GitDiffCommentDraft, GitDiffLineRange};
+use crate::git_panel::diff_view::test_support::GitDiffSelectedLine;
 
 #[test]
 fn task_714_test_module_is_wired() {
@@ -11,8 +12,8 @@ fn task_714_test_module_is_wired() {
     assert!(path.ends_with("selection_tests.rs"));
 }
 
-fn app() -> crate::app::App {
-    crate::app::App::new().0
+fn app() -> crate::git_panel::diff_view::test_support::Fixture {
+    crate::git_panel::diff_view::test_support::Fixture::default()
 }
 
 fn range(file: &str, start: usize, end: usize, is_old: bool) -> GitDiffLineRange {
@@ -47,12 +48,12 @@ fn range_selection_checks_file_side_and_reversed_bounds() {
     let mut app = app();
     app.git_diff_selected_range = Some(range("src/lib.rs", 8, 4, false));
 
-    assert!(super::selection::is_range_selected(&app, "src/lib.rs", 4, false));
-    assert!(super::selection::is_range_selected(&app, "src/lib.rs", 6, false));
-    assert!(super::selection::is_range_selected(&app, "src/lib.rs", 8, false));
-    assert!(!super::selection::is_range_selected(&app, "src/lib.rs", 3, false));
-    assert!(!super::selection::is_range_selected(&app, "src/lib.rs", 6, true));
-    assert!(!super::selection::is_range_selected(&app, "src/main.rs", 6, false));
+    assert!(super::selection::is_range_selected(&app.view_state(), "src/lib.rs", 4, false));
+    assert!(super::selection::is_range_selected(&app.view_state(), "src/lib.rs", 6, false));
+    assert!(super::selection::is_range_selected(&app.view_state(), "src/lib.rs", 8, false));
+    assert!(!super::selection::is_range_selected(&app.view_state(), "src/lib.rs", 3, false));
+    assert!(!super::selection::is_range_selected(&app.view_state(), "src/lib.rs", 6, true));
+    assert!(!super::selection::is_range_selected(&app.view_state(), "src/main.rs", 6, false));
 }
 
 #[test]
@@ -60,20 +61,20 @@ fn range_selection_supports_forward_and_single_line_bounds() {
     let mut app = app();
     app.git_diff_selected_range = Some(range("src/lib.rs", 4, 8, false));
 
-    assert!(super::selection::is_range_selected(&app, "src/lib.rs", 4, false));
-    assert!(super::selection::is_range_selected(&app, "src/lib.rs", 8, false));
+    assert!(super::selection::is_range_selected(&app.view_state(), "src/lib.rs", 4, false));
+    assert!(super::selection::is_range_selected(&app.view_state(), "src/lib.rs", 8, false));
 
     app.git_diff_selected_range = Some(range("src/lib.rs", 6, 6, true));
-    assert!(super::selection::is_range_selected(&app, "src/lib.rs", 6, true));
-    assert!(!super::selection::is_range_selected(&app, "src/lib.rs", 5, true));
-    assert!(!super::selection::is_range_selected(&app, "src/lib.rs", 7, true));
+    assert!(super::selection::is_range_selected(&app.view_state(), "src/lib.rs", 6, true));
+    assert!(!super::selection::is_range_selected(&app.view_state(), "src/lib.rs", 5, true));
+    assert!(!super::selection::is_range_selected(&app.view_state(), "src/lib.rs", 7, true));
 }
 
 #[test]
 fn range_selection_is_inactive_without_a_range() {
     let app = app();
 
-    assert!(!super::selection::is_range_selected(&app, "src/lib.rs", 1, false));
+    assert!(!super::selection::is_range_selected(&app.view_state(), "src/lib.rs", 1, false));
 }
 
 #[test]
@@ -86,15 +87,15 @@ fn drag_range_has_priority_over_selected_range_and_comment_draft() {
     });
     app.git_diff_drag_range = Some(range("drag.rs", 20, 21, false));
 
-    assert!(super::selection::is_range_selected(&app, "drag.rs", 20, false));
-    assert!(!super::selection::is_range_selected(&app, "selected.rs", 2, false));
-    assert!(!super::selection::is_range_selected(&app, "draft.rs", 10, true));
+    assert!(super::selection::is_range_selected(&app.view_state(), "drag.rs", 20, false));
+    assert!(!super::selection::is_range_selected(&app.view_state(), "selected.rs", 2, false));
+    assert!(!super::selection::is_range_selected(&app.view_state(), "draft.rs", 10, true));
 
     app.git_diff_drag_range = None;
-    assert!(super::selection::is_range_selected(&app, "selected.rs", 2, false));
+    assert!(super::selection::is_range_selected(&app.view_state(), "selected.rs", 2, false));
 
     app.git_diff_selected_range = None;
-    assert!(super::selection::is_range_selected(&app, "draft.rs", 10, true));
+    assert!(super::selection::is_range_selected(&app.view_state(), "draft.rs", 10, true));
 }
 
 #[test]
@@ -108,11 +109,11 @@ fn diff_selected_combines_active_range_and_explicit_diff_lines() {
         text: "removed".to_string(),
     });
 
-    let render_ctx = super::DiffRenderCtx::new(&app);
+    let render_ctx = app.render_ctx();
 
-    assert!(super::selection::is_diff_selected(&app, &render_ctx, "src/lib.rs", 2, false));
-    assert!(super::selection::is_diff_selected(&app, &render_ctx, "src/lib.rs", 9, true));
-    assert!(!super::selection::is_diff_selected(&app, &render_ctx, "src/lib.rs", 9, false));
+    assert!(super::selection::is_diff_selected(&app.view_state(), &render_ctx, "src/lib.rs", 2, false));
+    assert!(super::selection::is_diff_selected(&app.view_state(), &render_ctx, "src/lib.rs", 9, true));
+    assert!(!super::selection::is_diff_selected(&app.view_state(), &render_ctx, "src/lib.rs", 9, false));
 }
 
 #[test]
@@ -120,15 +121,15 @@ fn hover_matches_file_line_and_side_only() {
     let mut app = app();
     app.git_diff_hovered_line = Some(("src/lib.rs".to_string(), 12, true));
 
-    assert!(super::selection::is_diff_hovered(&app, "src/lib.rs", 12, true));
-    assert!(!super::selection::is_diff_hovered(&app, "src/lib.rs", 12, false));
-    assert!(!super::selection::is_diff_hovered(&app, "src/lib.rs", 11, true));
-    assert!(!super::selection::is_diff_hovered(&app, "src/main.rs", 12, true));
+    assert!(super::selection::is_diff_hovered(&app.view_state(), "src/lib.rs", 12, true));
+    assert!(!super::selection::is_diff_hovered(&app.view_state(), "src/lib.rs", 12, false));
+    assert!(!super::selection::is_diff_hovered(&app.view_state(), "src/lib.rs", 11, true));
+    assert!(!super::selection::is_diff_hovered(&app.view_state(), "src/main.rs", 12, true));
 }
 
 #[test]
 fn hover_is_inactive_without_a_hovered_line() {
     let app = app();
 
-    assert!(!super::selection::is_diff_hovered(&app, "src/lib.rs", 12, true));
+    assert!(!super::selection::is_diff_hovered(&app.view_state(), "src/lib.rs", 12, true));
 }

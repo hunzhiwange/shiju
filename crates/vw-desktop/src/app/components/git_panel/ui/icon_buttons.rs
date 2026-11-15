@@ -4,7 +4,7 @@
 
 use iced::Element;
 /// 重新导出 use iced::widget::{Space, button}，让上层模块通过稳定路径访问。
-use iced::widget::{Space, button};
+use iced::widget::button;
 /// 重新导出 use iced::{Length, Theme}，让上层模块通过稳定路径访问。
 use iced::{Length, Theme};
 
@@ -16,7 +16,7 @@ use crate::app::assets::Icon;
 /// 重新导出 use super::shared::{，让上层模块通过稳定路径访问。
 use super::shared::{
     compact_outlined_button_style, icon_svg, icon_svg_sized, outlined_button_style,
-    small_plain_icon_button_style, subtle_button_style, themed_icon_svg, with_tooltip,
+    subtle_button_style, themed_icon_svg, with_tooltip,
 };
 
 /// 构建 icon button 控件，并绑定既有消息或样式。
@@ -192,23 +192,4 @@ pub fn small_icon_button(icon: Icon, tip: String, on: Message) -> Element<'stati
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn small_plain_icon_button(
-    icon: Option<Icon>,
-    // tip 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    tip: String,
-    // on 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    on: Message,
-) -> Element<'static, Message> {
-    let content: Element<'static, Message> = if let Some(icon) = icon {
-        icon_svg_sized(icon, 12.0).into()
-    } else {
-        // Space 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        Space::new().width(Length::Fixed(12.0)).height(Length::Fixed(12.0)).into()
-    };
-    let button = button(content)
-        .on_press(on)
-        .padding([2, 4])
-        .width(Length::Fixed(20.0))
-        .style(small_plain_icon_button_style);
-    with_tooltip(button, tip, true, 4.0)
-}
+pub use desktop_git_ui::git_panel::ui::small_plain_icon_button;

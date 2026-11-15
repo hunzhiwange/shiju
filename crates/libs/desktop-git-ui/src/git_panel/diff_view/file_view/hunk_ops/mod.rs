@@ -4,17 +4,13 @@
 
 use iced::{Color, Element};
 
-/// 重新导出 use crate::app::components::git_panel::diff_view::DiffRenderCtx，让上层模块通过稳定路径访问。
-use crate::app::components::git_panel::diff_view::DiffRenderCtx;
-/// 重新导出 use crate::app::{App, DiffTheme, Message}，让上层模块通过稳定路径访问。
-use crate::app::{App, DiffTheme, Message};
-/// 重新导出 use similar::DiffOp，让上层模块通过稳定路径访问。
+use crate::git_panel::diff_view::DiffRenderCtx;
+use crate::DiffTheme;
+use crate::git_panel::diff_view::{DiffViewState, DiffMessage as Message};
 use similar::DiffOp;
 
-/// 重新导出 use super::standard，让上层模块通过稳定路径访问。
 use super::standard;
-/// 重新导出 use crate::app::components::git_panel::utils::Lang，让上层模块通过稳定路径访问。
-use crate::app::components::git_panel::utils::Lang;
+use crate::git_panel::utils::Lang;
 
 /// deletes 子模块承载当前组件的一部分独立职责。
 mod deletes;
@@ -23,20 +19,6 @@ mod inserts;
 /// replaces 子模块承载当前组件的一部分独立职责。
 mod replaces;
 
-#[cfg(test)]
-#[path = "deletes_tests.rs"]
-mod deletes_tests;
-#[cfg(test)]
-#[path = "inserts_tests.rs"]
-mod inserts_tests;
-#[cfg(test)]
-#[path = "mod_tests.rs"]
-mod mod_tests;
-#[cfg(test)]
-#[path = "replaces_tests.rs"]
-mod replaces_tests;
-#[cfg(test)]
-mod tests;
 
 /// 渲染 hunk ops 对应的 diff 行、工具卡片或控件内容。
 ///
@@ -52,7 +34,7 @@ mod tests;
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub fn render_hunk_ops(
-    app: &App,
+    app: &DiffViewState<'_>,
     // render_ctx 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     render_ctx: &DiffRenderCtx<'_>,
     // file 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
@@ -184,3 +166,18 @@ pub fn render_hunk_ops(
     }
     col
 }
+
+#[cfg(test)]
+mod inserts_tests;
+
+#[cfg(test)]
+mod mod_tests;
+
+#[cfg(test)]
+mod replaces_tests;
+
+#[cfg(test)]
+mod tests;
+
+#[cfg(test)]
+mod deletes_tests;

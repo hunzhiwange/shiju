@@ -3,10 +3,10 @@
 
 use iced::Color;
 
-use crate::app::components::git_panel::diff_view::DiffRenderCtx;
-use crate::app::components::git_panel::utils::Lang;
-use crate::app::state::{GitDiffLineRange, GitDiffSelectedLine};
-use crate::app::{App, DiffTheme};
+use crate::git_panel::utils::Lang;
+use crate::git_panel::diff_view::{GitDiffLineRange, GitDiffSelectedLine};
+use crate::DiffTheme;
+use crate::git_panel::diff_view::test_support::Fixture;
 
 fn colors() -> (Color, Color, Color) {
     (
@@ -17,17 +17,17 @@ fn colors() -> (Color, Color, Color) {
 }
 
 fn render_count(
-    app: &App,
+    app: &Fixture,
     file: &str,
     new_index: usize,
     new_len: usize,
     new_lines: &[&str],
 ) -> usize {
-    let ctx = DiffRenderCtx::new(app);
+    let ctx = app.render_ctx();
     let (line_bg, word_bg, hover) = colors();
 
     super::inserts::render_insert_ops(
-        app,
+        &app.view_state(),
         &ctx,
         file,
         new_index,
@@ -48,7 +48,7 @@ fn render_count(
 
 #[test]
 fn render_insert_ops_returns_one_row_per_inserted_line_in_split_view() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.merge_view = false;
 
     assert_eq!(render_count(&app, "src/lib.rs", 0, 2, &["new one", "new two"]), 2);
@@ -56,7 +56,7 @@ fn render_insert_ops_returns_one_row_per_inserted_line_in_split_view() {
 
 #[test]
 fn render_insert_ops_returns_one_row_per_inserted_line_in_merge_view() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.merge_view = true;
 
     assert_eq!(render_count(&app, "src/lib.rs", 1, 2, &["keep", "new one", "new two"]), 2);
@@ -64,7 +64,7 @@ fn render_insert_ops_returns_one_row_per_inserted_line_in_merge_view() {
 
 #[test]
 fn render_insert_ops_tolerates_missing_source_lines_and_zero_len() {
-    let app = App::new().0;
+    let app = Fixture::default();
 
     assert_eq!(render_count(&app, "src/lib.rs", 3, 2, &["only"]), 2);
     assert_eq!(render_count(&app, "src/lib.rs", 0, 0, &["only"]), 0);
@@ -72,7 +72,7 @@ fn render_insert_ops_tolerates_missing_source_lines_and_zero_len() {
 
 #[test]
 fn render_insert_ops_covers_explicit_selection_and_line_staging() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.staged_lines_selected = vec![("src/lib.rs".to_string(), 0)];
     app.git_diff_selected_lines = vec![GitDiffSelectedLine {
         file: "src/lib.rs".to_string(),
@@ -86,7 +86,7 @@ fn render_insert_ops_covers_explicit_selection_and_line_staging() {
 
 #[test]
 fn render_insert_ops_covers_hover_and_file_staging_without_selection() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.git_diff_hovered_line = Some(("src/lib.rs".to_string(), 0, false));
     app.staged_files_selected = vec!["src/lib.rs".to_string()];
 
@@ -95,7 +95,7 @@ fn render_insert_ops_covers_hover_and_file_staging_without_selection() {
 
 #[test]
 fn render_insert_ops_handles_range_selection_empty_and_unicode_content() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.git_diff_selected_range =
         Some(GitDiffLineRange { file: "src/lib.rs".to_string(), start: 1, end: 2, is_old: false });
 

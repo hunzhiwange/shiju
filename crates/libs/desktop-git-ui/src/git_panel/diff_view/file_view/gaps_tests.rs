@@ -1,16 +1,16 @@
 //! 验证差异间隙的上下文展开、分栏边界、越界容错与主题样式。
 //! 仅匹配文件与间隙标识的展开状态生效，短范围和默认上下文边界不得多出控制行。
 
-use super::super::DiffRenderCtx;
 use super::gaps::{gap_expand_container_style, gap_summary_text_style, render_gap};
 use super::start_end::GapRange;
-use crate::app::components::git_panel::utils::Lang;
-use crate::app::state::GitDiffSelectedLine;
-use crate::app::{App, DiffTheme};
+use crate::git_panel::utils::Lang;
+use crate::git_panel::diff_view::test_support::GitDiffSelectedLine;
+use crate::DiffTheme;
+use crate::git_panel::diff_view::test_support::Fixture;
 use iced::{Background, Color, Theme};
 
-fn app() -> App {
-    App::new().0
+fn app() -> Fixture {
+    Fixture::default()
 }
 
 #[test]
@@ -22,9 +22,9 @@ fn task_703_test_module_is_wired() {
 #[test]
 fn render_gap_returns_empty_for_zero_length_range() {
     let app = app();
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = app.render_ctx();
     let elements = render_gap(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         &["a", "b"],
@@ -46,10 +46,10 @@ fn render_gap_covers_full_partial_merge_and_split_paths() {
     let old_lines = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
     app.context_expansions.insert(("src/lib.rs".to_string(), 7), (4, 4));
     app.git_diff_hovered_line = Some(("src/lib.rs".to_string(), 2, true));
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = app.render_ctx();
 
     let full = render_gap(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         &old_lines,
@@ -63,9 +63,9 @@ fn render_gap_covers_full_partial_merge_and_split_paths() {
     assert_eq!(full.len(), 4);
 
     app.context_expansions.clear();
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = app.render_ctx();
     let partial = render_gap(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         &old_lines,
@@ -79,9 +79,9 @@ fn render_gap_covers_full_partial_merge_and_split_paths() {
     assert_eq!(partial.len(), 7);
 
     app.merge_view = false;
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = app.render_ctx();
     let split = render_gap(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         &old_lines,
@@ -134,9 +134,9 @@ fn render_gap_exact_default_context_boundary_has_no_expand_row_in_both_views() {
     let old_lines = ["0", "1", "2", "3", "4", "5"];
 
     app.merge_view = true;
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = app.render_ctx();
     let merged = render_gap(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         &old_lines,
@@ -150,9 +150,9 @@ fn render_gap_exact_default_context_boundary_has_no_expand_row_in_both_views() {
     assert_eq!(merged.len(), 6);
 
     app.merge_view = false;
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = app.render_ctx();
     let split = render_gap(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         &old_lines,
@@ -173,9 +173,9 @@ fn render_gap_context_expansion_requires_matching_file_and_gap_id() {
     app.context_expansions.insert(("src/lib.rs".to_string(), 99), (20, 20));
     app.context_expansions.insert(("src/other.rs".to_string(), 12), (20, 20));
 
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = app.render_ctx();
     let unmatched = render_gap(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         &old_lines,
@@ -189,9 +189,9 @@ fn render_gap_context_expansion_requires_matching_file_and_gap_id() {
     assert_eq!(unmatched.len(), 7);
 
     app.context_expansions.insert(("src/lib.rs".to_string(), 12), (2, 1));
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = app.render_ctx();
     let matched = render_gap(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         &old_lines,
@@ -209,10 +209,10 @@ fn render_gap_context_expansion_requires_matching_file_and_gap_id() {
 fn render_gap_short_split_range_renders_each_out_of_bounds_line() {
     let mut app = app();
     app.merge_view = false;
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = app.render_ctx();
 
     let elements = render_gap(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         &["only"],
@@ -246,10 +246,10 @@ fn render_gap_split_view_uses_selection_and_hover_for_visible_rows() {
         },
     ];
     app.git_diff_hovered_line = Some(("src/lib.rs".to_string(), 6, false));
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = app.render_ctx();
 
     let elements = render_gap(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         &["0", "1", "2", "3", "4", "5", "6", "7"],
@@ -282,10 +282,10 @@ fn render_gap_handles_out_of_bounds_lines_and_selected_states() {
         },
     ];
     app.git_diff_hovered_line = Some(("src/lib.rs".to_string(), 12, false));
-    let ctx = DiffRenderCtx::new(&app);
+    let ctx = app.render_ctx();
 
     let empty = render_gap(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         &["only"],
@@ -299,7 +299,7 @@ fn render_gap_handles_out_of_bounds_lines_and_selected_states() {
     assert!(empty.is_empty());
 
     let elements = render_gap(
-        &app,
+        &app.view_state(),
         &ctx,
         "src/lib.rs",
         &["only"],

@@ -19,7 +19,7 @@ fn diff_render_ctx_snapshots_line_file_and_diff_selection() {
         text: "selected".to_string(),
     }];
 
-    let ctx = super::DiffRenderCtx::new(&app);
+    let ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
 
     assert!(ctx.is_file_staged("src/lib.rs"));
     assert!(ctx.is_new_line_staged("src/lib.rs", 2));
@@ -34,7 +34,7 @@ fn diff_render_ctx_snapshots_line_file_and_diff_selection() {
 #[test]
 fn diff_render_ctx_empty_app_has_empty_sets() {
     let app = App::new().0;
-    let ctx = super::DiffRenderCtx::new(&app);
+    let ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
 
     assert_eq!(ctx.selected_new_lines, HashSet::new());
     assert_eq!(ctx.selected_old_lines, HashSet::new());
@@ -62,7 +62,7 @@ fn diff_render_ctx_matches_line_selection_without_file_stage() {
         },
     ];
 
-    let ctx = super::DiffRenderCtx::new(&app);
+    let ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
 
     assert!(!ctx.is_file_staged("src/lib.rs"));
     assert!(ctx.is_new_line_staged("src/lib.rs", 2));
@@ -98,7 +98,7 @@ fn diff_render_ctx_deduplicates_inputs_into_sets() {
         },
     ];
 
-    let ctx = super::DiffRenderCtx::new(&app);
+    let ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
 
     assert_eq!(ctx.selected_files.len(), 1);
     assert_eq!(ctx.selected_new_lines.len(), 1);

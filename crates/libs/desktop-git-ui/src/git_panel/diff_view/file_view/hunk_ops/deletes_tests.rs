@@ -3,10 +3,10 @@
 
 use iced::Color;
 
-use crate::app::components::git_panel::diff_view::DiffRenderCtx;
-use crate::app::components::git_panel::utils::Lang;
-use crate::app::state::GitDiffSelectedLine;
-use crate::app::{App, DiffTheme};
+use crate::git_panel::utils::Lang;
+use crate::git_panel::diff_view::test_support::GitDiffSelectedLine;
+use crate::DiffTheme;
+use crate::git_panel::diff_view::test_support::Fixture;
 
 fn colors() -> (Color, Color, Color) {
     (
@@ -17,17 +17,17 @@ fn colors() -> (Color, Color, Color) {
 }
 
 fn render_count(
-    app: &App,
+    app: &Fixture,
     file: &str,
     old_index: usize,
     old_len: usize,
     old_lines: &[&str],
 ) -> usize {
-    let ctx = DiffRenderCtx::new(app);
+    let ctx = app.render_ctx();
     let (line_bg, word_bg, hover) = colors();
 
     super::deletes::render_delete_ops(
-        app,
+        &app.view_state(),
         &ctx,
         file,
         old_index,
@@ -49,7 +49,7 @@ fn render_count(
 
 #[test]
 fn render_delete_ops_returns_one_row_per_deleted_line_in_split_view() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.merge_view = false;
 
     assert_eq!(render_count(&app, "src/lib.rs", 0, 2, &["old one", "old two"]), 2);
@@ -57,7 +57,7 @@ fn render_delete_ops_returns_one_row_per_deleted_line_in_split_view() {
 
 #[test]
 fn render_delete_ops_returns_one_row_per_deleted_line_in_merge_view() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.merge_view = true;
 
     assert_eq!(render_count(&app, "src/lib.rs", 1, 2, &["keep", "old one", "old two"]), 2);
@@ -65,7 +65,7 @@ fn render_delete_ops_returns_one_row_per_deleted_line_in_merge_view() {
 
 #[test]
 fn render_delete_ops_tolerates_missing_source_lines_and_zero_len() {
-    let app = App::new().0;
+    let app = Fixture::default();
 
     assert_eq!(render_count(&app, "src/lib.rs", 4, 2, &["only"]), 2);
     assert_eq!(render_count(&app, "src/lib.rs", 0, 0, &["only"]), 0);
@@ -73,7 +73,7 @@ fn render_delete_ops_tolerates_missing_source_lines_and_zero_len() {
 
 #[test]
 fn render_delete_ops_handles_selected_and_hovered_rows_independently_at_nonzero_offset() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.merge_view = true;
     app.staged_old_lines_selected = vec![("src/lib.rs".to_string(), 1)];
     app.git_diff_selected_lines = vec![GitDiffSelectedLine {
@@ -89,7 +89,7 @@ fn render_delete_ops_handles_selected_and_hovered_rows_independently_at_nonzero_
 
 #[test]
 fn render_delete_ops_file_staging_does_not_require_line_staging() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.staged_files_selected = vec!["src/lib.rs".to_string()];
 
     assert!(app.staged_old_lines_selected.is_empty());
@@ -98,7 +98,7 @@ fn render_delete_ops_file_staging_does_not_require_line_staging() {
 
 #[test]
 fn render_delete_ops_emits_requested_rows_when_offset_reaches_missing_tail() {
-    let app = App::new().0;
+    let app = Fixture::default();
 
     assert_eq!(render_count(&app, "src/lib.rs", 1, 3, &["keep", "old one"]), 3);
 }

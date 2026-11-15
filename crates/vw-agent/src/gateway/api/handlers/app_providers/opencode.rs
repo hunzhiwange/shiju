@@ -5,7 +5,7 @@ use axum::{
     routing::{post, put},
 };
 use std::path::PathBuf;
-use vw_api_types::app_providers::opencode::*;
+use vw_api_app_provider_extended::opencode::*;
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
 pub(super) fn router() -> Router {

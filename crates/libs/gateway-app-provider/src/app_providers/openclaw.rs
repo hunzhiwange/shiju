@@ -1,7 +1,7 @@
 //! Fixed OpenClaw operations with sensitive headers and payload-free errors.
 use crate::AgentAppsReadError as Error;
 use super::GatewayAppProviderClient;
-use vw_api_types::app_providers::openclaw::*;
+use vw_api_app_provider_extended::openclaw::*;
 impl GatewayAppProviderClient {
     pub async fn openclaw_provider_save(
         &self,

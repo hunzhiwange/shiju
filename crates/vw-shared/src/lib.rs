@@ -31,7 +31,7 @@ pub mod project;
 pub mod provider;
 pub mod question;
 #[cfg(not(target_arch = "wasm32"))]
-pub use runtime_log;
+pub mod runtime_log;
 pub mod session;
 pub mod shell;
 pub mod snapshot;

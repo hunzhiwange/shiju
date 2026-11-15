@@ -3,7 +3,7 @@ use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vw_api_app_provider_base::create::ProviderSecretWrite;
-use vw_api_types::app_providers::openclaw::*;
+use vw_api_app_provider_extended::openclaw::*;
 use vw_api_app_identity::{AppId};
 
 use super::{WriteError, object_value, validate};

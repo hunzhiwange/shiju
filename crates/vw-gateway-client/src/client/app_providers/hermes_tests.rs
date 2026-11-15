@@ -1,5 +1,5 @@
 use super::*;
-use vw_api_types::app_providers::hermes::*;
+use vw_api_app_provider_extended::hermes::*;
 #[tokio::test]
 async fn cc04_hermes_sdk_rejects_path_identity_without_request() {
     let client = GatewayClient::new(crate::GatewayEndpoint::new("127.0.0.1", 1)).unwrap();

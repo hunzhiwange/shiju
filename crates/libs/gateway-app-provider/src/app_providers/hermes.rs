@@ -1,7 +1,7 @@
 //! Fixed Hermes operations with sensitive headers and payload-free errors.
 use crate::AgentAppsReadError as Error;
 use super::GatewayAppProviderClient;
-use vw_api_types::app_providers::hermes::*;
+use vw_api_app_provider_extended::hermes::*;
 impl GatewayAppProviderClient {
     pub async fn hermes_form_read(
         &self,

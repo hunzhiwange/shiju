@@ -2,7 +2,7 @@ use super::fill_hermes::{HermesModelFill, fill_hermes_model};
 use crate::providers::hermes::normalize_declaration;
 use serde_json::{Value, json};
 use {
-    vw_api_types::app_providers::hermes::HermesProfile,
+    vw_api_app_provider_extended::hermes::HermesProfile,
     vw_api_transport::common::TimestampMs,
     vw_api_model_catalog::ModelCapabilityState::Supported,
     vw_api_model_catalog::ModelMetadataDto,

@@ -2,7 +2,7 @@
 use super::live::write_guard::WriteError;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, ffi::OsStr, path::Path};
-use vw_api_types::{app_providers::hermes::*};
+use vw_api_app_provider_extended::{hermes::*};
 use vw_api_app_identity::{AppId};
 pub mod form;
 

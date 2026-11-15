@@ -6,7 +6,6 @@ license = "MIT"
 description = "CLI process initialization and command dispatch"
 
 [dependencies]
-runtime-log = { path = "../runtime-log", version = "0.6.0" }
 config-agent = { path = "../config-agent", version = "0.6.0" }
 cli-runtime-status = { path = "../cli-runtime-status", version = "0.6.0" }
 cli-security-commands = { path = "../cli-security-commands", version = "0.6.0" }

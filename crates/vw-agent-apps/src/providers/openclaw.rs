@@ -5,7 +5,7 @@ use super::live::{
 };
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, ffi::OsStr, path::Path};
-use vw_api_types::{app_providers::openclaw::*};
+use vw_api_app_provider_extended::{openclaw::*};
 use vw_api_app_identity::{AppId};
 #[path = "openclaw_form.rs"]
 pub mod form;

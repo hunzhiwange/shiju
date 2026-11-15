@@ -6,10 +6,10 @@ use iced::widget::text_editor;
 use vw_gateway_client::AgentAppsReadError;
 use vw_gateway_client::GatewayClient;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
-use vw_gateway_client::vw_api_types::app_providers::grok::GrokFormView;
-use vw_gateway_client::vw_api_types::app_providers::grok::GrokFormWrite;
-use vw_gateway_client::vw_api_types::app_providers::grok::GrokLiveResult;
-use vw_gateway_client::vw_api_types::app_providers::grok::GrokTarget;
+use vw_api_app_provider_extended::grok::GrokFormView;
+use vw_api_app_provider_extended::grok::GrokFormWrite;
+use vw_api_app_provider_extended::grok::GrokLiveResult;
+use vw_api_app_provider_extended::grok::GrokTarget;
 
 #[derive(Clone)]
 pub enum Field {

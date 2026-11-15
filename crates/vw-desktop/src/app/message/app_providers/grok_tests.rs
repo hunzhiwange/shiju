@@ -115,7 +115,7 @@ async fn cc04_ui_grok_validation_failure_preserves_draft() {
 
 #[test]
 fn cc04_ui_grok_stale_response_is_ignored() {
-    use vw_gateway_client::vw_api_types::app_providers::grok::GrokLiveResult;
+    use vw_api_app_provider_extended::grok::GrokLiveResult;
     let (_, scope) = client_scope(1);
     let mut state = ListState::default();
     let old_generation = state.begin(scope.clone());

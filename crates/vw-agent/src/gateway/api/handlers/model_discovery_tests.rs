@@ -12,7 +12,7 @@ use vw_api_app_identity::AppId;
 use vw_api_app_provider_base::AppProviderWrite;
 use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_app_provider_profiles::agy::AgyProfile;
-use vw_api_types::app_providers::opencode::OpenCodeProfile;
+use vw_api_app_provider_extended::opencode::OpenCodeProfile;
 use vw_api_transport::id::TaskId;
 use vw_api_transport::id::TenantScope;
 use vw_api_model_catalog::*;

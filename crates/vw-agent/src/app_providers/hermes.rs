@@ -1,7 +1,7 @@
 //! Hermes supplier rows in the existing provider namespace with compare-and-exchange saves.
 use super::*;
 use serde_json::{Value, json};
-use vw_api_types::app_providers::hermes::HermesProfile;
+use vw_api_app_provider_extended::hermes::HermesProfile;
 impl AppProviderStore {
     pub(crate) fn hermes_record(
         &self,

@@ -1,7 +1,7 @@
 use super::{live::patch_json::object_value, opencode::*};
 use serde_json::json;
 use std::os::unix::fs::PermissionsExt;
-use vw_api_types::app_providers::opencode::OpenCodeFormat;
+use vw_api_app_provider_extended::opencode::OpenCodeFormat;
 #[test]
 fn cc04_opencode_membership_preserves_other_providers() {
     let pre = br#"{/*keep*/"provider":{"other":{"options":{"apiKey":"fake"}}},"mcp":{"x":{}},"theme":"dark"}"#;

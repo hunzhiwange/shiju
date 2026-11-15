@@ -1,5 +1,5 @@
 use iced::widget::text_editor::Content;
-use vw_gateway_client::vw_api_types::app_providers::opencode::{
+use vw_api_app_provider_extended::opencode::{
     OpenCodeFormConfig, OpenCodeFormat,
 };
 

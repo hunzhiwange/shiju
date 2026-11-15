@@ -1,7 +1,7 @@
 //! Fixed OpenCode operations with sensitive headers and payload-free errors.
 use crate::AgentAppsReadError as Error;
 use super::GatewayAppProviderClient;
-use vw_api_types::app_providers::opencode::*;
+use vw_api_app_provider_extended::opencode::*;
 impl GatewayAppProviderClient {
     pub async fn opencode_provider_save(
         &self,

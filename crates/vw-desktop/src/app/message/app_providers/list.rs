@@ -29,11 +29,12 @@ use iced::Task;
 use vw_gateway_client::vw_api_types::{
     agent_apps::AppId,
     app_providers::{
-        dsh::DshLiveResult, hermes::HermesLiveResult, kimi::KimiLiveResult, mcode::McodeLiveResult,
-        omp::OmpLiveResult, openclaw::OpenClawLiveResult, opencode::OpenCodeLiveResult,
+        dsh::DshLiveResult, kimi::KimiLiveResult, mcode::McodeLiveResult,
+        omp::OmpLiveResult,
         pi::PiLiveResult,
     },
 };
+use vw_api_app_provider_extended::{hermes::HermesLiveResult, openclaw::OpenClawLiveResult, opencode::OpenCodeLiveResult};
 #[derive(Clone, Debug)]
 pub enum ListMessage {
     Leave(super::leave::Choice),

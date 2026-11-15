@@ -127,7 +127,7 @@ fn cc04_hermes_overlay_is_read_only_and_list_wins() {
     );
     assert!(state_fn(Some(duplicate)).read_only_members.is_empty());
 }
-fn state_fn(pre: Option<&[u8]>) -> vw_api_types::app_providers::hermes::HermesState {
+fn state_fn(pre: Option<&[u8]>) -> vw_api_app_provider_extended::hermes::HermesState {
     state(pre).unwrap()
 }
 #[test]

@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+vw-api-app-provider-extended = { path = "../libs/api-app-provider-extended", version = "0.6.0" }
 runtime-log = { path = "../libs/runtime-log", version = "0.6.0" }
 pasted-text-cache = { path = "../libs/pasted-text-cache", version = "0.6.0" }
 desktop-skill-hub = { path = "../libs/desktop-skill-hub", version = "0.6.0" }

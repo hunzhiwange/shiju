@@ -1,7 +1,7 @@
 //! Fixed OpenCode operations with sensitive headers and payload-free errors.
 use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
-use vw_api_types::app_providers::opencode::*;
+use vw_api_app_provider_extended::opencode::*;
 impl GatewayClient {
     pub async fn opencode_provider_save(
         &self,

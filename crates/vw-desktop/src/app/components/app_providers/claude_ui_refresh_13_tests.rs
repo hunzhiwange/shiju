@@ -25,9 +25,9 @@ use vw_api_app_provider_base::claude::ClaudeFormKind;
 use vw_api_app_provider_profiles::codex_catalog::CodexFormConfig;
 use vw_api_app_provider_profiles::codex_catalog::CodexModelMapping;
 use vw_api_app_provider_profiles::gemini::GeminiFormKind;
-use vw_gateway_client::vw_api_types::app_providers::grok::GrokFormConfig;
-use vw_gateway_client::vw_api_types::app_providers::opencode::OpenCodeFormConfig;
-use vw_gateway_client::vw_api_types::app_providers::opencode::OpenCodeFormat;
+use vw_api_app_provider_extended::grok::GrokFormConfig;
+use vw_api_app_provider_extended::opencode::OpenCodeFormConfig;
+use vw_api_app_provider_extended::opencode::OpenCodeFormat;
 
 const PROVIDERS: [(AppId, &str); 5] = [
     (AppId::Claude, "claude"),

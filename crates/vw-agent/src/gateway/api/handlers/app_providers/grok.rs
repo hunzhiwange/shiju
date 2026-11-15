@@ -5,7 +5,7 @@ use axum::{
     routing::{post, put},
 };
 use std::path::PathBuf;
-use vw_api_types::app_providers::grok::*;
+use vw_api_app_provider_extended::grok::*;
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
 

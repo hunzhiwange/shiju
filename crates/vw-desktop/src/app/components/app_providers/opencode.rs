@@ -15,7 +15,7 @@ use iced::{
     Element, Length,
     widget::{checkbox, column, text, text_editor, text_input},
 };
-use vw_gateway_client::vw_api_types::app_providers::opencode::OpenCodeFormat;
+use vw_api_app_provider_extended::opencode::OpenCodeFormat;
 
 pub(super) fn fields<'a>(
     form: &'a EditForm,

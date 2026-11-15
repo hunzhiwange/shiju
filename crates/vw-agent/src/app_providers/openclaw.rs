@@ -1,7 +1,7 @@
 //! OpenClaw supplier rows in the existing provider namespace with compare-and-exchange saves.
 use super::*;
 use serde_json::{Value, json};
-use vw_api_types::app_providers::openclaw::OpenClawProfile;
+use vw_api_app_provider_extended::openclaw::OpenClawProfile;
 impl AppProviderStore {
     pub(crate) fn openclaw_record(
         &self,

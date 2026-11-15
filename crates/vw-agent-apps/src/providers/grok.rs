@@ -2,7 +2,7 @@
 use super::live::write_guard::WriteError;
 use serde_json::{Value, json};
 use toml_edit::{DocumentMut, Item};
-use vw_api_types::app_providers::grok::*;
+use vw_api_app_provider_extended::grok::*;
 
 #[path = "grok_form.rs"]
 pub mod form;

@@ -6,7 +6,7 @@ use std::{fs, os::unix::fs::PermissionsExt};
 use toml_edit::DocumentMut;
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::app_providers::grok::*,
+    vw_api_app_provider_extended::grok::*,
     vw_api_transport::id::TenantScope,
 };
 fn third(name: &str) -> GrokProfile {

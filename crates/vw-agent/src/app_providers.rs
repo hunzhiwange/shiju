@@ -469,7 +469,7 @@ impl AppProviderStore {
         if app == AppId::OpenCode {
             if let Some(row) = self.opencode_record(tenant, id)? {
                 if let Some(profile) = row.get("opencode") {
-                    let profile: vw_api_types::app_providers::opencode::OpenCodeProfile =
+                    let profile: vw_api_app_provider_extended::opencode::OpenCodeProfile =
                         serde_json::from_value(profile.clone())
                             .map_err(|_| "invalid provider record")?;
                     return Ok(AppProviderSummary {
@@ -484,7 +484,7 @@ impl AppProviderStore {
         if app == AppId::OpenClaw {
             if let Some(row) = self.openclaw_record(tenant, id)? {
                 if let Some(profile) = row.get("openclaw") {
-                    let profile: vw_api_types::app_providers::openclaw::OpenClawProfile =
+                    let profile: vw_api_app_provider_extended::openclaw::OpenClawProfile =
                         serde_json::from_value(profile.clone())
                             .map_err(|_| "invalid provider record")?;
                     return Ok(AppProviderSummary {
@@ -499,7 +499,7 @@ impl AppProviderStore {
         if app == AppId::Hermes {
             if let Some(row) = self.hermes_record(tenant, id)? {
                 if let Some(profile) = row.get("hermes") {
-                    let profile: vw_api_types::app_providers::hermes::HermesProfile =
+                    let profile: vw_api_app_provider_extended::hermes::HermesProfile =
                         serde_json::from_value(profile.clone())
                             .map_err(|_| "invalid provider record")?;
                     return Ok(AppProviderSummary {
@@ -574,7 +574,7 @@ impl AppProviderStore {
         if app == AppId::GrokBuild {
             if let Some(row) = self.grok_record(tenant, id)? {
                 if let Some(profile) = row.get("grok") {
-                    let profile: vw_api_types::app_providers::grok::GrokProfile =
+                    let profile: vw_api_app_provider_extended::grok::GrokProfile =
                         serde_json::from_value(profile.clone())
                             .map_err(|_| "invalid provider record")?;
                     return Ok(AppProviderSummary {

@@ -1,5 +1,5 @@
 use iced::widget::text_editor::Content;
-use vw_gateway_client::vw_api_types::app_providers::grok::GrokFormConfig;
+use vw_api_app_provider_extended::grok::GrokFormConfig;
 
 #[derive(Clone)]
 pub(crate) struct Draft {

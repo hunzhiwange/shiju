@@ -1,7 +1,7 @@
 //! OpenCode supplier rows in the existing provider namespace with compare-and-exchange saves.
 use super::*;
 use serde_json::{Value, json};
-use vw_api_types::app_providers::opencode::OpenCodeProfile;
+use vw_api_app_provider_extended::opencode::OpenCodeProfile;
 impl AppProviderStore {
     /// Read all OpenCode profile inputs without initializing storage or exposing them over HTTP.
     pub(crate) fn opencode_revision_records(

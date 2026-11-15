@@ -30,7 +30,7 @@ fn cc04_import_uses_app_specific_support() {
 fn cc04_import_decodes_native_auth_without_copying_login_or_writing_files() {
     use super::{agy, codex_catalog, gemini, grok};
     use vw_api_app_provider_profiles::gemini::GeminiConfig;
-use vw_api_types::app_providers::grok::GrokConfig;
+use vw_api_app_provider_extended::grok::GrokConfig;
     let p = codex_catalog::import(
         Some(b"model='fixture'\n"),
         Some(br#"{"tokens":{"access_token":"fake-login"}}"#),

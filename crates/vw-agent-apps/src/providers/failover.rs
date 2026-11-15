@@ -7,8 +7,8 @@ use vw_api_app_provider_base::claude::ClaudeProfile;
 use vw_api_app_provider_profiles::codex_catalog::CodexProfile;
 use vw_api_app_provider_profiles::gemini::GeminiConfig;
 use vw_api_app_provider_profiles::gemini::GeminiProfile;
-use vw_api_types::app_providers::grok::GrokConfig;
-use vw_api_types::app_providers::grok::GrokProfile;
+use vw_api_app_provider_extended::grok::GrokConfig;
+use vw_api_app_provider_extended::grok::GrokProfile;
 use vw_api_app_identity::{AppId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

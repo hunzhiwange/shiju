@@ -1,7 +1,7 @@
 //! Fixed Grok operations with sensitive headers and payload-free errors.
 use crate::AgentAppsReadError as Error;
 use super::GatewayAppProviderClient;
-use vw_api_types::app_providers::grok::*;
+use vw_api_app_provider_extended::grok::*;
 impl GatewayAppProviderClient {
     pub async fn grok_provider_save(
         &self,

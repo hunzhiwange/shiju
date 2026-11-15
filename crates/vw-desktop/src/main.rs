@@ -76,15 +76,15 @@ fn configure_native_graphics_backend() {
 fn init_native_tracing() {
     let terminal_filter = native_tracing_filter();
     let file_filter = native_tracing_filter();
-    let runtime_log_dir = runtime_log::default_runtime_log_dir();
-    if let Err(err) = runtime_log::ensure_runtime_log_dir(&runtime_log_dir) {
+    let runtime_log_dir = vw_shared::runtime_log::default_runtime_log_dir();
+    if let Err(err) = vw_shared::runtime_log::ensure_runtime_log_dir(&runtime_log_dir) {
         eprintln!("failed to create runtime log directory {}: {err}", runtime_log_dir.display());
     }
 
     let terminal_layer = tracing_subscriber::fmt::layer().with_filter(terminal_filter);
     let file_layer = tracing_subscriber::fmt::layer()
         .with_ansi(false)
-        .with_writer(runtime_log::RuntimeLogMakeWriter::new(runtime_log_dir))
+        .with_writer(vw_shared::runtime_log::RuntimeLogMakeWriter::new(runtime_log_dir))
         .with_filter(file_filter);
     let subscriber = tracing_subscriber::registry().with(terminal_layer).with(file_layer);
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
@@ -94,7 +94,7 @@ fn init_native_tracing() {
         previous_hook(info);
     }));
     #[cfg(windows)]
-    if let Err(error) = native_crash::install(&runtime_log::default_runtime_log_dir()) {
+    if let Err(error) = native_crash::install(&vw_shared::runtime_log::default_runtime_log_dir()) {
         tracing::warn!(target: "vw_desktop", %error, "failed to install native crash diagnostics");
     }
 }

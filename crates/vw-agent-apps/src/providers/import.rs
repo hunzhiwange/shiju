@@ -59,11 +59,11 @@ pub enum NativeImport {
     Claude(vw_api_app_provider_base::claude::ClaudeProfile),
     Codex(vw_api_app_provider_profiles::codex_catalog::CodexProfile),
     Gemini(vw_api_app_provider_profiles::gemini::GeminiProfile),
-    Grok(vw_api_types::app_providers::grok::GrokProfile),
+    Grok(vw_api_app_provider_extended::grok::GrokProfile),
     Agy(vw_api_app_provider_profiles::agy::AgyProfile),
-    OpenCode(vw_api_types::app_providers::opencode::OpenCodeProfile),
-    OpenClaw(vw_api_types::app_providers::openclaw::OpenClawProfile),
-    Hermes(vw_api_types::app_providers::hermes::HermesProfile),
+    OpenCode(vw_api_app_provider_extended::opencode::OpenCodeProfile),
+    OpenClaw(vw_api_app_provider_extended::openclaw::OpenClawProfile),
+    Hermes(vw_api_app_provider_extended::hermes::HermesProfile),
     Pi(vw_api_app_provider_terminal::pi::PiProfile),
     Omp(vw_api_app_provider_terminal::omp::OmpProfile),
     Mcode(vw_api_app_provider_terminal::mcode::McodeProfile),
@@ -114,7 +114,7 @@ pub fn read(
             Some(p) => {
                 let id = if matches!(
                     p.config,
-                    vw_api_types::app_providers::grok::GrokConfig::Official {}
+                    vw_api_app_provider_extended::grok::GrokConfig::Official {}
                 ) {
                     "grokbuild-official"
                 } else {

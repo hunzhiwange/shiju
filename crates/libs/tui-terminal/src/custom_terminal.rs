@@ -915,3 +915,7 @@ impl ModifierDiff {
 #[cfg(test)]
 #[path = "custom_terminal_tests.rs"]
 pub(crate) mod tests;
+
+#[cfg(test)]
+#[path = "custom_terminal_cross_layer_tests.rs"]
+mod cross_layer_tests;

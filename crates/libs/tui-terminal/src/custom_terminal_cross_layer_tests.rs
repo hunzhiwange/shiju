@@ -1,6 +1,6 @@
-//! 保留依赖上层历史插入与超链接标记的既有断言。
+//! 终端重绘与历史插入、超链接输出的既有断言。
 
-use super::implementation::tests::CaptureBackend;
+use super::tests::CaptureBackend;
 use super::*;
 use pretty_assertions::assert_eq;
 use ratatui::layout::Rect;
@@ -50,7 +50,7 @@ fn terminal_draw_coalesces_wrapped_hyperlink_output() {
             ])
             .wrap(Wrap { trim: false })
             .render(area, frame.buffer_mut());
-            crate::terminal_hyperlinks::mark_url_hyperlink(frame.buffer_mut(), area, &auth_url);
+            tui_render::terminal_hyperlinks::mark_url_hyperlink(frame.buffer_mut(), area, &auth_url);
         })
         .expect("draw");
 

@@ -94,7 +94,7 @@ fn v3_chatwidget_renders_without_codex_app_state() {
         markdown: "The copied **ChatWidget** now owns UI state only.".into(),
     });
 
-    insta::with_settings!({snapshot_path => concat!(env!("CARGO_MANIFEST_DIR"), "/../../vw-tui/src/chatwidget/snapshots"), prepend_module_to_snapshot => false}, {
+    insta::with_settings!({snapshot_path => concat!(env!("CARGO_MANIFEST_DIR"), "/src/chatwidget/snapshots"), prepend_module_to_snapshot => false}, {
         insta::assert_snapshot!("vw_tui__chatwidget__rendering__tests__chatwidget_idle_layout", render_frame(&widget, 72, 14));
     });
 }
@@ -113,7 +113,7 @@ fn chatwidget_running_layout() {
     widget
         .set_status(V3ChatStatus::running("Working", Some("Preparing renderer snapshots".into())));
 
-    insta::with_settings!({snapshot_path => concat!(env!("CARGO_MANIFEST_DIR"), "/../../vw-tui/src/chatwidget/snapshots"), prepend_module_to_snapshot => false}, {
+    insta::with_settings!({snapshot_path => concat!(env!("CARGO_MANIFEST_DIR"), "/src/chatwidget/snapshots"), prepend_module_to_snapshot => false}, {
         insta::assert_snapshot!("vw_tui__chatwidget__rendering__tests__chatwidget_running_layout", render_frame_with_stable_spinner(&widget, 72, 16)
     );
     });
@@ -133,7 +133,7 @@ fn chatwidget_exec_and_status_layout() {
     }));
     widget.set_status(V3ChatStatus::running("Running command", Some("cargo test".into())));
 
-    insta::with_settings!({snapshot_path => concat!(env!("CARGO_MANIFEST_DIR"), "/../../vw-tui/src/chatwidget/snapshots"), prepend_module_to_snapshot => false}, {
+    insta::with_settings!({snapshot_path => concat!(env!("CARGO_MANIFEST_DIR"), "/src/chatwidget/snapshots"), prepend_module_to_snapshot => false}, {
         insta::assert_snapshot!("vw_tui__chatwidget__rendering__tests__chatwidget_exec_and_status_layout", render_frame_with_stable_spinner(&widget, 72, 17)
     );
     });
@@ -229,7 +229,7 @@ fn chatwidget_approval_overlay_layout() {
         ],
     ));
 
-    insta::with_settings!({snapshot_path => concat!(env!("CARGO_MANIFEST_DIR"), "/../../vw-tui/src/chatwidget/snapshots"), prepend_module_to_snapshot => false}, {
+    insta::with_settings!({snapshot_path => concat!(env!("CARGO_MANIFEST_DIR"), "/src/chatwidget/snapshots"), prepend_module_to_snapshot => false}, {
         insta::assert_snapshot!("vw_tui__chatwidget__rendering__tests__chatwidget_approval_overlay_layout", render_frame(&widget, 72, 20));
     });
 }

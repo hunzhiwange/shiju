@@ -55,8 +55,6 @@ unicode-width = "0.2"
 
 [dev-dependencies]
 tui-transcript = { path = "../libs/tui-transcript", version = "0.6.0", features = ["test-support"] }
-# custom_terminal 在测试态复用底层源码，需要其日志宏。
-tracing = "0.1"
 insta = "1.46.3"
 pretty_assertions = "1.4.1"
 vt100 = "0.16.2"

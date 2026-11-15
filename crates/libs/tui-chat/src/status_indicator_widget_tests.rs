@@ -20,10 +20,10 @@ fn status_indicator_keeps_working_and_narrow_layout() {
     let mut narrow = Buffer::empty(narrow_area);
     widget.render(narrow_area, &mut narrow);
 
-    insta::with_settings!({snapshot_path => concat!(env!("CARGO_MANIFEST_DIR"), "/../../vw-tui/src/snapshots"), prepend_module_to_snapshot => false}, {
+    insta::with_settings!({snapshot_path => concat!(env!("CARGO_MANIFEST_DIR"), "/src/snapshots"), prepend_module_to_snapshot => false}, {
         insta::assert_snapshot!("vw_tui__status_indicator_widget__tests__status_indicator_vibe_wide", format!("{wide:?}"));
     });
-    insta::with_settings!({snapshot_path => concat!(env!("CARGO_MANIFEST_DIR"), "/../../vw-tui/src/snapshots"), prepend_module_to_snapshot => false}, {
+    insta::with_settings!({snapshot_path => concat!(env!("CARGO_MANIFEST_DIR"), "/src/snapshots"), prepend_module_to_snapshot => false}, {
         insta::assert_snapshot!("vw_tui__status_indicator_widget__tests__status_indicator_vibe_narrow", format!("{narrow:?}"));
     });
 }

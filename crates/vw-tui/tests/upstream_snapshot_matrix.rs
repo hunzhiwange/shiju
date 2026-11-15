@@ -15,8 +15,10 @@ const V3_SNAPSHOT_COUNT: usize = 50;
 fn upstream_snapshot_matrix() {
     let crate_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let markdown_root = crate_root.join("../libs/tui-markdown");
+    let chat_root = crate_root.join("../libs/tui-chat");
     let mut snapshots = snapshot_files(&crate_root);
     snapshots.extend(snapshot_files(&markdown_root));
+    snapshots.extend(snapshot_files(&chat_root));
     let upstream = named_snapshots(&snapshots, "codex_tui__");
     let v3 = named_snapshots(&snapshots, "vw_tui__");
     let relocated = snapshot_files(&crate_root.join("upstream_snapshots"));

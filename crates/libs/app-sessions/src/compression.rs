@@ -1,6 +1,6 @@
 //! Codex owns rollout compression. Only its native feature flag is managed here.
 //! Call from the authorized host executor, under its lifecycle reservation.
-use crate::providers::{
+use app_providers::providers::{
     live::{
         commit::{PendingTarget, ProviderTransactions},
         patch_toml::TomlPatch,

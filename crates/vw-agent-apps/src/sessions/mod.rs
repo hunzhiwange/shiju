@@ -19,21 +19,21 @@ pub use app_session_content::turns;
 
 pub use app_session_content::markdown;
 
-pub mod catalog;
+pub use app_sessions::catalog;
 
-pub mod identity;
+pub use app_sessions::identity;
 
-pub mod delete;
-pub mod delete_batch;
+pub use app_sessions::delete;
+pub use app_sessions::delete_batch;
 
-pub mod resume;
-pub mod terminal;
-
-#[cfg(target_os = "macos")]
-pub mod maintenance;
+pub use app_sessions::resume;
+pub use app_sessions::terminal;
 
 #[cfg(target_os = "macos")]
-pub mod compression;
+pub use app_sessions::maintenance;
 
 #[cfg(target_os = "macos")]
-pub mod activity;
+pub use app_sessions::compression;
+
+#[cfg(target_os = "macos")]
+pub use app_sessions::activity;

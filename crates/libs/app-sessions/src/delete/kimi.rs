@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::sessions::{
+use crate::{
     cache::TranscriptCache,
     source::{SourceRegistry, ValidatedSource},
 };

@@ -1,5 +1,5 @@
 use super::hermes::delete_session;
-use crate::sessions::{cache::TranscriptCache, providers::hermes::scan_sessions, source::SourceRegistry};
+use crate::{cache::TranscriptCache, providers::hermes::scan_sessions, source::SourceRegistry};
 use std::{fs, io, path::PathBuf};
 use {
     vw_api_transport::ProjectId,

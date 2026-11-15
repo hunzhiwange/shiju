@@ -1,7 +1,7 @@
 //! Claude transcript and sibling sidecar deletion on the authorized host.
 use std::{fs, io, path::Path};
 use vw_api_external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
-use crate::sessions::{cache::TranscriptCache, providers, source::SourceRegistry};
+use crate::{cache::TranscriptCache, providers, source::SourceRegistry};
 
 /// The caller must hold its application lifecycle guard throughout this call.
 /// `is_active` must query trusted host runtime state under that guard, never a

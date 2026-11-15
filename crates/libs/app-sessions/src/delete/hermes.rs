@@ -1,6 +1,6 @@
 //! Hermes file-session deletion on the authorized execution host.
 use std::{fs, io, path::Path};
-use crate::sessions::{
+use crate::{
     cache::TranscriptCache,
     providers::hermes::parse_jsonl_session,
     source::{SourceRegistry, ValidatedSource},

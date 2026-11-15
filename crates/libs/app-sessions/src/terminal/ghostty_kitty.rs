@@ -1,5 +1,5 @@
 //! Resume-plan orchestration; terminal execution is owned by app-session-terminal.
-use crate::sessions::resume::ResumePlan;
+use crate::resume::ResumePlan;
 use std::process::Command;
 use vw_api_external_session::ExternalSessionIdentity;
 pub use app_session_terminal::ghostty_kitty::Terminal;

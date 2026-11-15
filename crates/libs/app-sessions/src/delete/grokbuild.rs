@@ -1,6 +1,6 @@
 //! Grok Build session-directory deletion on the authorized execution host.
 use std::{fs, io, io::Read, path::Path};
-use crate::sessions::{cache::TranscriptCache, source::{SourceRegistry, ValidatedSource}};
+use crate::{cache::TranscriptCache, source::{SourceRegistry, ValidatedSource}};
 use vw_api_external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
 
 /// Requires gateway authorization and explicit confirmation. The caller holds

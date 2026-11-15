@@ -1,0 +1,35 @@
+[package]
+name = "app-sessions"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+app-session-core = { path = "../app-session-core" }
+app-session-content = { path = "../app-session-content" }
+app-session-codex = { path = "../app-session-codex" }
+app-session-claude = { path = "../app-session-claude" }
+app-session-gemini = { path = "../app-session-gemini" }
+app-session-pi = { path = "../app-session-pi" }
+app-session-native = { path = "../app-session-native" }
+app-session-sqlite = { path = "../app-session-sqlite" }
+app-launch = { path = "../app-launch" }
+vw-api-external-session = { path = "../api-external-session" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-transport = { path = "../api-transport" }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }
+uuid = { version = "1.11", features = ["v4", "js"] }
+tempfile = "3"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-session-migration = { path = "../app-session-migration" }
+app-session-terminal = { path = "../app-session-terminal" }
+app-operations = { path = "../app-operations" }
+app-providers = { path = "../app-providers" }
+tokio = { version = "1", features = ["rt"] }
+libc = "0.2"
+toml_edit = "0.22"

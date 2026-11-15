@@ -1,4 +1,4 @@
-//! Resume-plan wrappers for app-session-terminal; orchestration belongs to task 54.
+//! Resume-plan wrappers for app-session-terminal; orchestrated by app-sessions.
 #[cfg(target_os = "macos")]
 pub mod custom;
 #[cfg(target_os = "macos")]

@@ -1,5 +1,5 @@
 //! Gemini transcript deletion, including the legacy JSON left by migration.
-use crate::sessions::{cache::TranscriptCache, providers, source::SourceRegistry};
+use crate::{cache::TranscriptCache, providers, source::SourceRegistry};
 use std::{fs, io};
 use vw_api_external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
 

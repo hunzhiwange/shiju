@@ -5,7 +5,7 @@ use super::{
     migration::{provider_refs, restore, unify},
     source::SourceRegistry,
 };
-use crate::apps::lifecycle::operations::{Operation, Phase, Progress};
+use app_operations::lifecycle::operations::{Operation, Phase, Progress};
 use std::{
     collections::BTreeSet,
     io,

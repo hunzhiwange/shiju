@@ -2757,3 +2757,11 @@ PiSessionContext、根目录解析、scan_sessions、load_messages 沿用原门�
 - Python 3.12 标准库 tomllib 核实新包、workspace 和门面清单、直接路径及 7 个本地传递包，无旧门面回依赖。系统 Python 不含 tomllib，改用已安装的 Python 3.12；未安装工具。RustCodeGraph status 可用，explore 长时间无输出后终止，迁移后路径不在旧图中，改用源码及调用者检索。
 - 六文件与 HEAD 逐字对照，仅替换 Gemini/Codex 具体包调用路径；无独立测试注册、平台 cfg 或 include 资源需搬迁。源码检索确认旧实现已移除、关键调用保持门面接线；git diff --check 通过。
 - 未运行 Cargo、单元及实机测试，静态审阅不代表编译或行为通过。统一验收待授权：新库与直接调用者编译、内容读取/缓存/图片/Markdown/轮次投影定向行为及 macOS/Windows/Linux 平台行为。
+
+
+## 任务 54：会话操作与维护迁移结果
+
+- 本节覆盖历史所有权表任务 54：app-sessions/src 唯一拥有 activity、catalog、compression、delete（含 14 个子文件及独立 hermes_tests）、delete_batch、maintenance、resume，以及任务 44 留存的 identity.rs 和任务 51 留存的 terminal/mod.rs、七个 launch_resume 包装，共 30 个原文件。原 sessions/mod.rs 仅重导出九个模块；lib.rs 既有 pub mod sessions 保持网关 catalog/delete/resume/compression/maintenance 和终端调用路径，无需重复导出。
+- catalog 的身份校验、删除分发、ResumePlan 与 native_resume_identity、维护编排全部收口；无未闭合符号需后继接收。source/cache/rollout 和解析器引用既有所有者；activity 引用 app-providers 的 process_table，compression 使用同包 providers 事务导出，maintenance 引用 app-operations 生命周期及 app-session-migration。无门面回依赖，不新增公开辅助 API。原包 uuid、rusqlite、tempfile、libc、toml_edit、tokio 仍有其它使用者，保留。
+- 静态证据：30 个迁移文件与 HEAD 原实现按导入替换逐字对照一致（terminal 模块说明同步所有权）；macOS cfg、Hermes 独立测试注册原样保留，无 include 或关联资源。新包 TOML 直接依赖、workspace 注册和门面路径通过读取审阅；使用环境现有 pip._vendor.tomli 解析（Python 标准库无 tomllib），并以标准库递归检查本地生产清单路径存在、无环及无旧门面依赖。toml_edit 保持 0.22，与事务补丁类型一致；目标相关依赖限 macOS。新包检索无 vw_agent_apps/vw-agent-apps，差异无空白错误。
+- 未运行 Cargo、单元及实机测试，统一验收待授权：app-sessions 与直接调用者编译、迁移的 Hermes 删除测试和会话操作行为、macOS/Windows/Linux 条件与原生恢复路径。静态审阅不代表编译或行为通过；Cargo.lock 未修改。

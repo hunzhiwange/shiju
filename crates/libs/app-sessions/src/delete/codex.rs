@@ -1,7 +1,7 @@
 //! Codex rollout deletion, including the native compressed/plain sibling.
 use std::{fs, io};
 use vw_api_external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
-use crate::sessions::{cache::TranscriptCache, providers, rollout, source::SourceRegistry};
+use crate::{cache::TranscriptCache, providers, rollout, source::SourceRegistry};
 
 /// The gateway must authorize deletion and confirm it explicitly. The caller
 /// holds its application lifecycle guard for the whole operation; `is_active`

@@ -3,7 +3,7 @@ use super::{
     providers::omp::{self, OmpSessionContext},
     source::SourceRegistry,
 };
-use crate::apps::launch::request::validate_launch_request;
+use app_launch::request::validate_launch_request;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -93,8 +93,8 @@ impl ResumePlan {
         &self,
         resolve_agy: impl FnOnce(&ExternalSessionIdentity, &mut Command) -> Result<(), String>,
     ) -> Result<Command, String> {
-        let mut command = crate::apps::launch::host::command(
-            crate::apps::launch::request::LaunchMaterial {
+        let mut command = app_launch::host::command(
+            app_launch::request::LaunchMaterial {
                 program: self.program.clone(),
                 cwd: self.cwd.clone(),
                 args: self.args.clone(),

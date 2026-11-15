@@ -21,7 +21,7 @@ pub fn is_active(identity: &ExternalSessionIdentity) -> io::Result<bool> {
         _ => return Err(io::Error::new(io::ErrorKind::Unsupported, "activity probe unsupported")),
     };
     let table = tokio::runtime::Handle::current()
-        .block_on(crate::aggregation::stale_clients::process_table())
+        .block_on(app_providers::aggregation::stale_clients::process_table())
         .ok_or_else(|| io::Error::other("host activity unavailable"))?;
     if table.trim().is_empty() {
         return Err(io::Error::other("empty host activity observation"));

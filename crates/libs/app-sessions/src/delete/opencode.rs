@@ -1,7 +1,7 @@
 //! OpenCode legacy storage deletion. SQLite is deliberately a separate operation.
 use std::{collections::BTreeSet, fs, io, path::{Path, PathBuf}};
 use serde_json::Value;
-use crate::sessions::{cache::TranscriptCache, source::{SourceRegistry, ValidatedSource}};
+use crate::{cache::TranscriptCache, source::{SourceRegistry, ValidatedSource}};
 use vw_api_external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
 
 /// Requires gateway authorization, explicit confirmation and a caller-held

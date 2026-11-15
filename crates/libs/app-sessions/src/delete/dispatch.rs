@@ -2,7 +2,7 @@
 use std::io;
 use vw_api_external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
 
-use crate::sessions::{cache::TranscriptCache, source::SourceRegistry};
+use crate::{cache::TranscriptCache, source::SourceRegistry};
 
 /// Delete only through the original application's supported implementation.
 /// Gateway authorization and explicit confirmation must precede this call. The

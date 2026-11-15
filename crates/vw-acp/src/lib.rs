@@ -56,7 +56,12 @@ mod queue_lease_store;
 mod queue_messages;
 mod queue_owner_env;
 mod queue_owner_turn_controller;
-mod queue_paths;
+mod queue_paths {
+    pub use acp_paths::queue_paths::*;
+
+    #[cfg(test)]
+    pub(crate) static TEST_HOME_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+}
 mod read_output_suppression;
 mod runtime_session_id;
 pub mod server;

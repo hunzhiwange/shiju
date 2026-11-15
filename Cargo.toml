@@ -26,6 +26,7 @@ members = [
   "crates/libs/command-arity",
   "crates/libs/canary-guard",
   "crates/libs/content-guard",
+  "crates/libs/acp-paths",
   "crates/libs/permission-engine",
   "crates/libs/goal-engine",
   "crates/libs/runtime-flags",

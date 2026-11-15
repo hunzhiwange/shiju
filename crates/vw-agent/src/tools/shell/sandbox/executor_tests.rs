@@ -6,7 +6,8 @@
 use std::any::Any;
 use std::path::{Path, PathBuf};
 
-use crate::app::agent::runtime::{NativeRuntime, RuntimeAdapter};
+use crate::app::agent::runtime::NativeRuntime;
+use runtime_types::RuntimeAdapter;
 #[cfg(target_os = "macos")]
 use crate::tools::shell::sandbox::NetworkPolicy;
 use crate::tools::shell::sandbox::SandboxConfig;

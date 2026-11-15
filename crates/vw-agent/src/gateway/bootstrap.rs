@@ -152,7 +152,7 @@ async fn serve_gateway(
         &config.workspace_dir,
         config.api_key.as_deref(),
     )?);
-    let runtime: Arc<dyn agent_runtime::RuntimeAdapter> =
+    let runtime: Arc<dyn runtime_types::RuntimeAdapter> =
         Arc::from(agent_runtime::create_runtime(&config.runtime)?);
     let security = Arc::new(SecurityPolicy::from_configs(
         &config.autonomy,

@@ -13,6 +13,7 @@ doctest = false
 
 [dependencies]
 runtime-types = { path = "../libs/runtime-types", version = "0.6.0" }
+runtime-types = { path = "../libs/runtime-types", version = "0.6.0" }
 gateway-shiju-skill = { path = "../libs/gateway-shiju-skill", version = "0.6.0" }
 gateway-shiju-app = { path = "../libs/gateway-shiju-app", version = "0.6.0" }
 gateway-shiju-account = { path = "../libs/gateway-shiju-account", version = "0.6.0" }

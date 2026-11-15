@@ -8,7 +8,8 @@
 
 use super::shell::ShellTool;
 use super::traits::{Tool, ToolCallResult, ToolResult, ToolSpec};
-use crate::app::agent::runtime::{RuntimeAdapter, native::NativeRuntime};
+use crate::app::agent::runtime::native::NativeRuntime;
+use runtime_types::RuntimeAdapter;
 use crate::app::agent::security::SecurityPolicy;
 use async_trait::async_trait;
 use serde::Deserialize;

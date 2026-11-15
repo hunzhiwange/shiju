@@ -1,0 +1,16 @@
+[package]
+name = "runtime-types"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+anyhow = "1"
+tokio = { version = "1", features = ["process"] }
+
+[dev-dependencies]
+anyhow = "1"
+tokio = { version = "1", features = ["rt", "macros", "process"] }

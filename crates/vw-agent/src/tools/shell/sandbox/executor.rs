@@ -10,7 +10,7 @@ use anyhow::Context;
 use anyhow::bail;
 use tokio::process::Command;
 
-use crate::app::agent::runtime::RuntimeAdapter;
+use runtime_types::RuntimeAdapter;
 #[cfg(target_os = "linux")]
 use crate::security::firejail::FirejailSandbox;
 #[cfg(target_os = "linux")]

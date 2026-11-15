@@ -6,7 +6,8 @@ use crate::app::agent::config::{
     BrowserConfig, Config, DelegateAgentConfig, HttpRequestConfig, MemoryConfig, WebFetchConfig,
 };
 use crate::app::agent::memory::{self, Memory};
-use crate::app::agent::runtime::{NativeRuntime, RuntimeAdapter};
+use crate::app::agent::runtime::NativeRuntime;
+use runtime_types::RuntimeAdapter;
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::tools::context::ToolUseContext;
 use crate::app::agent::tools::traits::{Tool, ToolResult};

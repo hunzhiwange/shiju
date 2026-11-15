@@ -17,7 +17,7 @@
 //! - 支持配置允许的工作区根路径白名单
 //! - 默认使用 `--init` 和 `--rm` 标志确保容器清理
 
-use super::traits::RuntimeAdapter;
+use runtime_types::RuntimeAdapter;
 use crate::app::agent::config::DockerRuntimeConfig;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};

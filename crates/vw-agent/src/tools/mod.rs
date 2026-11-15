@@ -268,7 +268,7 @@ use crate::app::agent::config::DelegateAgentConfig;
 #[cfg(test)]
 use crate::app::agent::memory::Memory;
 #[cfg(test)]
-use crate::app::agent::runtime::RuntimeAdapter;
+use runtime_types::RuntimeAdapter;
 #[cfg(test)]
 use crate::app::agent::security::SecurityPolicy;
 #[cfg(test)]

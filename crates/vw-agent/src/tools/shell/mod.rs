@@ -24,7 +24,7 @@
 //! ```rust,ignore
 //! use std::sync::Arc;
 //! use crate::app::agent::tools::shell::ShellTool;
-//! use crate::app::agent::runtime::RuntimeAdapter;
+//! use runtime_types::RuntimeAdapter;
 //! use crate::app::agent::security::SecurityPolicy;
 //!
 //! // 创建 Shell 工具实例
@@ -51,7 +51,7 @@ pub mod sed;
 pub mod session_tools;
 
 use super::traits::{Tool, ToolResult, ToolSpec};
-use crate::app::agent::runtime::RuntimeAdapter;
+use runtime_types::RuntimeAdapter;
 use crate::app::agent::security::SyscallAnomalyDetector;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy, ShellRedirectPolicy};
 use crate::tools::shell::ast::parse_command;

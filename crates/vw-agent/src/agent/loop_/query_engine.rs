@@ -210,7 +210,7 @@ impl QueryEngine {
             Arc::from(observability::create_observer(&config.observability));
         let observer = Arc::new(RecordingObserver::new(base_observer));
 
-        let runtime: Arc<dyn runtime::RuntimeAdapter> =
+        let runtime: Arc<dyn runtime_types::RuntimeAdapter> =
             Arc::from(runtime::create_runtime(&config.runtime)?);
 
         let security = Arc::new(SecurityPolicy::from_configs(

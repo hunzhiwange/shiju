@@ -8,7 +8,8 @@ use std::sync::Arc;
 
 use serde_json::json;
 use tempfile::TempDir;
-use vw_agent::runtime::{NativeRuntime, RuntimeAdapter};
+use vw_agent::runtime::NativeRuntime;
+use runtime_types::RuntimeAdapter;
 use vw_agent::security::{AutonomyLevel, SecurityPolicy};
 use vw_agent::tools::shell::ast::{ParsedCommand, parse_command};
 use vw_agent::tools::shell::security::SecurityPipeline;

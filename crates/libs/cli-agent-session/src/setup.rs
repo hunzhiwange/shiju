@@ -290,7 +290,7 @@ pub(crate) fn setup_cli(
     let observer: Arc<dyn Observer> = Arc::from(base_observer);
 
     // 创建运行时适配器，支持不同的执行环境（native/docker/wasm）
-    let runtime: Arc<dyn runtime::RuntimeAdapter> =
+    let runtime: Arc<dyn runtime_types::RuntimeAdapter> =
         Arc::from(runtime::create_runtime(&config.runtime)?);
 
     // 从配置构建安全策略，定义代理的行为边界

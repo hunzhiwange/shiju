@@ -16,7 +16,8 @@ mod tests {
     use super::*;
 
     use crate::app::agent::config::{AuditConfig, SyscallAnomalyConfig};
-    use crate::app::agent::runtime::{NativeRuntime, RuntimeAdapter};
+    use crate::app::agent::runtime::NativeRuntime;
+    use runtime_types::RuntimeAdapter;
     use crate::app::agent::security::{
         AutonomyLevel, SecurityPolicy, ShellRedirectPolicy, SyscallAnomalyDetector,
     };

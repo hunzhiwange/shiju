@@ -27,7 +27,7 @@
 //! }
 //! ```
 
-use super::traits::RuntimeAdapter;
+use runtime_types::RuntimeAdapter;
 use std::path::{Path, PathBuf};
 
 /// Native 运行时 —— 提供对宿主系统的完全访问能力

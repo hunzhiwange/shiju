@@ -29,7 +29,7 @@ pub mod traits;
 
 pub use docker::DockerRuntime;
 pub use native::NativeRuntime;
-pub use traits::RuntimeAdapter;
+pub use runtime_types::RuntimeAdapter;
 
 use crate::app::agent::config::RuntimeConfig;
 

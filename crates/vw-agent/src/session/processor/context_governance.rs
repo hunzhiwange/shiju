@@ -36,10 +36,9 @@ pub(crate) struct ContextCompactionDecision {
     pub(crate) needs_internal_compaction: bool,
 }
 
-pub(crate) use session_engine::compaction_budget::{
-    effective_input_window, summary_output_budget,
-    compaction_input_window, should_compact,
-};
+pub(crate) use session_engine::compaction_budget::{effective_input_window, should_compact};
+#[cfg(test)]
+pub(crate) use session_engine::compaction_budget::summary_output_budget;
 
 fn estimate_bytes_as_tokens(bytes: usize) -> u64 {
     (bytes as u64).saturating_add(ESTIMATED_CHARS_PER_TOKEN - 1) / ESTIMATED_CHARS_PER_TOKEN

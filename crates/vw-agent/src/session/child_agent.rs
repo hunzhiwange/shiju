@@ -11,7 +11,9 @@ use crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected;
 pub(crate) mod coordinator;
 // Child history projection is owned by session-engine.
 pub use session_engine::child_agent::run::{ChildAgentRunInput, ChildAgentRunResult, ChildAgentTerminalState, ForkTurns};
-pub(crate) use session_engine::child_agent::run::{task_summary, stream_request, visible_answer_from_execution_output, child_agent_handoff_from_output};
+pub(crate) use session_engine::child_agent::run::{task_summary, visible_answer_from_execution_output, child_agent_handoff_from_output};
+#[cfg(test)]
+pub(crate) use session_engine::child_agent::run::stream_request;
 type Host = crate::tools::context::AgentContextHost;
 pub(crate) type CreatedChildAgentRun = session_engine::child_agent::run::CreatedChildAgentRun<Host>;
 impl session_engine::child_agent::run::ChildHost for Host {

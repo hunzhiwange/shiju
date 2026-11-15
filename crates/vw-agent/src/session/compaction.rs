@@ -21,6 +21,8 @@ pub use session_engine::compaction::{ProcessInput, CreateInput, CompactionStats,
 type Host = crate::tools::context::AgentContextHost;
 impl session_engine::compaction::CompactionHost for Host {
     fn snapshot(session: &str) -> anyhow::Result<Option<super::ui_types::ChatSession>> {
+        #[cfg(target_arch = "wasm32")]
+        let _ = session;
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(project) = crate::project::instance::project() {
             return super::ui_store::load_session_scoped_for_tenant_fallible(&super::ui_store::current_tenant_scope(), session, Some(&project.id));

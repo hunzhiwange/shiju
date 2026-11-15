@@ -1,3 +1,4 @@
+use super::source_test_support::edit_source;
 use super::{
     preview::{Decision, Difference},
     skills::*,
@@ -29,16 +30,15 @@ fn fixture(directory: &str) -> (SourceScope, SourceSnapshot, tempfile::TempDir) 
         "name = 'fixture'\ndescription = 'anonymous'\n",
     )
     .unwrap();
-    let source = SourceSnapshot {
-        scope: scope.clone(),
-        summary: SourceSummary {
+    let source = SourceSnapshot::from_staged_parts(scope.clone(),
+        SourceSummary {
             format: SourceFormat::Sqlite,
             version: 24,
             main_sha256: [1; 32],
             wal_sha256: None,
             counts: BTreeMap::new(),
         },
-        records: vec![SourceRecord {
+        vec![SourceRecord {
             category: SourceCategory::Skills,
             origin: "skills".into(),
             fields: json!({
@@ -46,8 +46,7 @@ fn fixture(directory: &str) -> (SourceScope, SourceSnapshot, tempfile::TempDir) 
                 "installed_at": 123, "updated_at": 456, "enabled_claude": 1,
                 "repo_owner": "fixture-owner", "repo_name": "fixture-repository", "repo_branch": "main"
             }),
-        }],
-    };
+        }]);
     (scope, source, root)
 }
 
@@ -140,7 +139,9 @@ fn cc_data_11_skills_reject_archive_traversal() {
 #[test]
 fn cc_data_11_skills_batch_publication_rolls_back() {
     let (scope, mut source, resources) = fixture("fixture");
-    source.records[0].fields["enabled_claude"] = json!(false);
+    edit_source(&mut source, &scope, |_summary, records| {
+        records[0].fields["enabled_claude"] = json!(false);
+    });
     let plan = SkillsPreview::prepare(
         &scope,
         &source,

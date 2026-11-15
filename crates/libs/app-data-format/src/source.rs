@@ -102,6 +102,12 @@ pub struct SourceSnapshot {
     pub(super) records: Vec<SourceRecord>,
 }
 impl SourceSnapshot {
+    /// Build read-only staging from records already validated by a domain importer.
+    /// The caller supplies the authenticated scope; this grants no write authority.
+    pub fn from_staged_parts(scope: SourceScope, summary: SourceSummary, records: Vec<SourceRecord>) -> Self {
+        Self { scope, summary, records }
+    }
+
     pub fn summary(&self, scope: &SourceScope) -> Result<&SourceSummary, SourceError> {
         self.authorize(scope)?;
         Ok(&self.summary)

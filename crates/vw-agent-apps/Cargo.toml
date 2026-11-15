@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-data-format = { path = "../libs/app-data-format" }
 app-device-sync = { path = "../libs/app-device-sync" }
 app-usage = { path = "../libs/app-usage" }
 app-usage-import = { path = "../libs/app-usage-import" }

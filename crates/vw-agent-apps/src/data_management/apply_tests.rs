@@ -1,3 +1,4 @@
+use super::source_test_support::edit_source;
 use super::{apply::*, source::*, usage};
 use rusqlite::Connection;
 use serde_json::json;
@@ -19,16 +20,15 @@ fn fixture() -> (SourceScope, SourceSnapshot, Connection) {
         "fixture-user".into(),
     )
     .unwrap();
-    let source = SourceSnapshot {
-        scope: scope.clone(),
-        summary: SourceSummary {
+    let source = SourceSnapshot::from_staged_parts(scope.clone(),
+        SourceSummary {
             format: SourceFormat::Sqlite,
             version: 24,
             main_sha256: [16; 32],
             wal_sha256: None,
             counts: BTreeMap::new(),
         },
-        records: vec![SourceRecord {
+        vec![SourceRecord {
             category: SourceCategory::Usage,
             origin: "proxy_request_logs".into(),
             fields: json!({
@@ -38,8 +38,7 @@ fn fixture() -> (SourceScope, SourceSnapshot, Connection) {
                 "input_token_semantics":2, "total_cost_usd":"0.125",
                 "cost_multiplier":"1.0", "created_at":1, "status_code":200
             }),
-        }],
-    };
+        }]);
     let mut db = Connection::open_in_memory().unwrap();
     crate::usage::store::initialize_usage_store(&mut db).unwrap();
     (scope, source, db)
@@ -102,7 +101,9 @@ fn cc_data_16_apply_rejects_stale_preview() {
         Err(super::preview::PreviewError::Stale)
     ));
     let summary = source.summary(&scope).unwrap().clone();
-    source.summary.main_sha256 = [17; 32];
+    edit_source(&mut source, &scope, |summary, _records| {
+        summary.main_sha256 = [17; 32];
+    });
     let selected = [SourceCategory::Usage];
     assert!(matches!(
         apply_selected::<()>(&scope, &source, &summary, &selected, &selected, |_| panic!(

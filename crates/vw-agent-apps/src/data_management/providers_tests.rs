@@ -1,3 +1,4 @@
+use super::source_test_support::edit_source;
 use std::collections::BTreeMap;
 use serde_json::json;
 use {
@@ -8,11 +9,9 @@ use {
 use super::{providers::*, preview::{Decision, PreviewError}, source::*};
 fn fixture() -> (SourceScope, SourceSnapshot) {
     let scope = SourceScope::new(ProjectScope::new(TenantScope::new("fixture-platform", "fixture-company").unwrap(), ProjectId::from("fixture-project")).unwrap(), "fixture-host".into(), "fixture-user".into()).unwrap();
-    let source = SourceSnapshot {
-        scope: scope.clone(),
-        summary: SourceSummary { format: SourceFormat::Sqlite, version: 24, main_sha256: [9;32], wal_sha256: None, counts: BTreeMap::new() },
-        records: vec![SourceRecord { category: SourceCategory::Providers, origin: "providers".into(), fields: json!({"id":"fixture","app_type":"claude","name":"Anonymous","settings_config":{"env":{"ANTHROPIC_MODEL":"fixture-model"}},"is_current":1}) }],
-    };
+    let source = SourceSnapshot::from_staged_parts(scope.clone(),
+        SourceSummary { format: SourceFormat::Sqlite, version: 24, main_sha256: [9;32], wal_sha256: None, counts: BTreeMap::new() },
+        vec![SourceRecord { category: SourceCategory::Providers, origin: "providers".into(), fields: json!({"id":"fixture","app_type":"claude","name":"Anonymous","settings_config":{"env":{"ANTHROPIC_MODEL":"fixture-model"}},"is_current":1}) }]);
     (scope, source)
 }
 #[test]
@@ -45,14 +44,20 @@ fn cc_data_09_providers_rejects_stale_scope_and_invalid_batch() {
     let preview = prepare(&scope, &source, &[]).unwrap();
     let foreign = SourceScope::new(scope.project().clone(), "another-host".into(), "fixture-user".into()).unwrap();
     assert!(matches!(preview.resolve(&foreign, &source, &[], &[]),Err(PreviewError::Forbidden)));
-    source.records.push(SourceRecord { category: SourceCategory::Providers, origin:"providers".into(), fields:json!({"id":"invalid space"}) });
+    edit_source(&mut source, &scope, |_summary, records| {
+        records.push(SourceRecord { category: SourceCategory::Providers, origin:"providers".into(), fields:json!({"id":"invalid space"}) });
+    });
     assert!(prepare(&scope, &source, &[]).is_err());
 }
 #[test]
 fn cc_data_09_providers_does_not_copy_source_credentials() {
     let (scope, mut source) = fixture();
-    source.records[0].fields["settings_config"]["env"]["ANTHROPIC_BASE_URL"] = json!("https://fixture.invalid");
-    source.records[0].fields["settings_config"]["env"]["ANTHROPIC_AUTH_TOKEN"] = json!("anonymous-source-secret");
+    edit_source(&mut source, &scope, |_summary, records| {
+        records[0].fields["settings_config"]["env"]["ANTHROPIC_BASE_URL"] = json!("https://fixture.invalid");
+    });
+    edit_source(&mut source, &scope, |_summary, records| {
+        records[0].fields["settings_config"]["env"]["ANTHROPIC_AUTH_TOKEN"] = json!("anonymous-source-secret");
+    });
     // No account-owned target credential exists: reject the whole preparation.
     assert!(prepare(&scope, &source, &[]).is_err());
 }

@@ -36,12 +36,10 @@ pub fn stage_portable_package(
             records.push(SourceRecord { category, origin: "native_package".into(), fields });
         }
     }
-    Ok(SourceSnapshot {
-        scope: scope.clone(),
-        summary: SourceSummary {
+    Ok(SourceSnapshot::from_staged_parts(scope.clone(),
+        SourceSummary {
             format: SourceFormat::PortablePackage, version: 1,
             main_sha256: *digest, wal_sha256: None, counts,
         },
-        records,
-    })
+        records))
 }

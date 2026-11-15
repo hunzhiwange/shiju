@@ -15,14 +15,12 @@ fn fixture() -> (SourceScope, SourceSnapshot, ReferenceMap) {
     ).unwrap(), "fixture-host".into(), "fixture-user".into()).unwrap();
     let payload = json!({"providers":{"claude":"p"},"mcp":{"claude":["m"]},
         "skills":{"claude":["s"]},"prompts":{"claude":"r","codex":""}});
-    let source = SourceSnapshot {
-        scope: scope.clone(), summary: SourceSummary {
+    let source = SourceSnapshot::from_staged_parts(scope.clone(), SourceSummary {
             format: SourceFormat::Sqlite, version: 24, main_sha256: [13;32],
             wal_sha256: None, counts: BTreeMap::new(),
-        }, records: vec![SourceRecord { category: SourceCategory::Profiles,
+        }, vec![SourceRecord { category: SourceCategory::Profiles,
             origin: "profiles".into(), fields: json!({"id":"fixture-profile", "name":"Anonymous",
-                "payload":payload.to_string(), "sort_order":2, "created_at":1, "updated_at":2}) }],
-    };
+                "payload":payload.to_string(), "sort_order":2, "created_at":1, "updated_at":2}) }]);
     let maps = [("provider","p"),("mcp","m"),("skill","s"),("prompt","r")].into_iter()
         .map(|(category,id)| ((category.into(),"claude".into(),id.into()),format!("target-{id}"))).collect();
     (scope, source, maps)

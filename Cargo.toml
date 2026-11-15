@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/app-data-format",
   "crates/libs/app-device-sync",
   "crates/libs/app-sync-core",
   "crates/libs/app-usage",

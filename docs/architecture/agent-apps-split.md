@@ -647,12 +647,12 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `data_management/package_import.rs` | 47 | 69 |
 | `data_management/package_import_tests.rs` | 51 | 69 |
 | `data_management/periodic.rs` | 37 | 69 |
-| `data_management/portable_policy.rs` | 190 | 66 |
-| `data_management/portable_policy_tests.rs` | 88 | 66 |
+| `data_management/portable_policy.rs` → `app-data-format/src/portable_policy.rs` | 190 | 66 |
+| `data_management/portable_policy_tests.rs` → `app-data-format/src/portable_policy_tests.rs` | 88 | 66 |
 | `data_management/post_import.rs` | 72 | 69 |
 | `data_management/preferences.rs` | 92 | 68 |
-| `data_management/preview.rs` | 154 | 66 |
-| `data_management/preview_tests.rs` | 63 | 66 |
+| `data_management/preview.rs` → `app-data-format/src/preview.rs` | 154 | 66 |
+| `data_management/preview_tests.rs` → `app-data-format/src/preview_tests.rs` | 63 | 66 |
 | `data_management/profiles.rs` | 139 | 68 |
 | `data_management/profiles_tests.rs` | 60 | 68 |
 | `data_management/prompts.rs` | 70 | 68 |
@@ -668,17 +668,17 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `data_management/safety_snapshot.rs` | 249 | 67 |
 | `data_management/safety_snapshot_files.rs` | 134 | 67 |
 | `data_management/safety_snapshot_tests.rs` | 232 | 67 |
-| `data_management/shared_snapshot.rs` | 75 | 66 |
+| `data_management/shared_snapshot.rs` → `app-data-format/src/shared_snapshot.rs` | 75 | 66 |
 | `data_management/skills.rs` | 479 | 68 |
 | `data_management/skills_tests.rs` | 163 | 68 |
-| `data_management/source.rs` | 245 | 66 |
-| `data_management/source_files.rs` | 124 | 66 |
-| `data_management/source_json.rs` | 55 | 66 |
-| `data_management/source_tests.rs` | 175 | 66 |
-| `data_management/source_upgrade.rs` | 72 | 66 |
-| `data_management/source_upgrade_tests.rs` | 52 | 66 |
-| `data_management/sql_stage.rs` | 75 | 66 |
-| `data_management/sql_stage_tests.rs` | 73 | 66 |
+| `data_management/source.rs` → `app-data-format/src/source.rs` | 245 | 66 |
+| `data_management/source_files.rs` → `app-data-format/src/source_files.rs` | 124 | 66 |
+| `data_management/source_json.rs` → `app-data-format/src/source_json.rs` | 55 | 66 |
+| `data_management/source_tests.rs` → `app-data-format/src/source_tests.rs` | 175 | 66 |
+| `data_management/source_upgrade.rs` → `app-data-format/src/source_upgrade.rs` | 72 | 66 |
+| `data_management/source_upgrade_tests.rs` → `app-data-format/src/source_upgrade_tests.rs` | 52 | 66 |
+| `data_management/sql_stage.rs` → `app-data-format/src/sql_stage.rs` | 75 | 66 |
+| `data_management/sql_stage_tests.rs` → `app-data-format/src/sql_stage_tests.rs` | 73 | 66 |
 | `data_management/usage.rs` | 142 | 68 |
 | `data_management/usage_tests.rs` | 44 | 68 |
 | `device_sync/archive_extract.rs` | 151 | 64 → `app-sync-core/src/archive_extract.rs` |
@@ -2902,3 +2902,14 @@ app-usage 唯一拥有 logs、models_selection、models_sync、scan_jobs、scan_
 新包通过私有模块别名引用 core、store、codex、import 的真实所有者，叶子包不依赖扫描编排；models_selection/models_sync 和模型目录、缓存、Tokio 依赖保持非 wasm 条件。移除旧门面已无调用的 provider-model-cache/catalog 直接依赖，其余依赖仍有调用而保留。网关 external_sessions/usage_scan、usage/scan、usage/prices 和日志处理继续通过原 usage 路径调用，授权、事务、取消与错误语义保持。
 
 静态验收：git diff --check、迁移函数体对照、源码所有权/调用者检索及 Python 3.13 标准库 TOML 路径与72份清单依赖闭包审阅；无旧门面回依赖或循环。RustCodeGraph status/query 可读，ScanSchedule 仍指向迁移前位置；当前调用者以源码检索核实，不更新索引。未运行 Cargo、单元及实机测试，统一验收待授权；后续覆盖 app-usage、网关调用目标、迁移日志测试和各平台条件。
+
+
+### 任务66：数据包格式与暂存迁移结果
+
+app-data-format 唯一拥有 portable_policy、preview、shared_snapshot、source、source_files、source_json、source_upgrade、sql_stage 八个实现及五个独立测试文件；fixtures/schema_18.sql 随 source_upgrade_tests 原样迁移，include 相对路径不变。除 SourceSnapshot 新增构造入口外，13个迁移文件逐字保持；平台 cfg、错误、读取预算和 SQL 授权限制保持。
+
+data_management/mod.rs 原位置重导出五个公开模块，lib.rs 既有 pub mod data_management 继续提供入口。SourceSnapshot 字段保持包内可见，仅为仍在任务69的 package_import 提供 from_staged_parts：接收已验证记录和认证 scope，不提供可变记录入口。原领域测试改用该构造入口，原夹具修改通过独立 source_test_support 的作用域读取副本完成；该测试辅助文件由任务68/69随测试接收。备份实现归任务67，领域投影归任务68，恢复及 package_import 编排归任务69，本任务无叶子实现遗留。
+
+新包直接依赖 reqwest（仅 URL，关闭默认特性）、rusqlite bundled/hooks/limits、serde derive、serde_json arbitrary_precision、sha2、tempfile、uuid 和三个 API 类型包；libc 仅 unix 声明。旧包依赖均仍有直接调用而保留。网关 agent_apps/prompt_data_migration、mcp/data_migration、shared_snapshot 及原 data_management 调用者继续使用门面类型。
+
+静态证据：迁移文件与 HEAD 对照、测试及资源注册审阅、Python 标准库 TOML 路径和依赖闭包无环审阅、成员及直接依赖检索、无 vw-agent-apps 反向依赖、git diff --check。RustCodeGraph status/explore 可读，但索引仍有前序迁移旧位置，调用者以源码核实。未运行 Cargo、单元及实机测试，统一验收待授权：新包与直接调用者编译、迁移测试及领域夹具、三平台 no-follow 行为、SQL 限制及格式升级、清单锁文件一致性。Cargo.lock 未修改。

@@ -16,7 +16,7 @@ fn exercise(fail_restore: bool) {
     ).unwrap();
     let summary = SourceSummary { format: SourceFormat::Sqlite, version: 24,
         main_sha256: [17; 32], wal_sha256: None, counts: BTreeMap::new() };
-    let source = SourceSnapshot { scope: scope.clone(), summary: summary.clone(), records: vec![] };
+    let source = SourceSnapshot::from_staged_parts(scope.clone(), summary.clone(), vec![]);
     let targets = [
         SnapshotTarget { category: SnapshotCategory::Provider, object_id: "owner-provider".into() },
         SnapshotTarget { category: SnapshotCategory::Profile, object_id: "owner-profile".into() },

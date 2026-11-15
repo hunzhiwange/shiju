@@ -1,14 +1,5 @@
 //! Explicitly selected data sources; no domain writes or automatic discovery.
-pub mod source;
-mod source_files;
-mod source_json;
-
-#[cfg(test)]
-mod source_tests;
-
-pub mod portable_policy;
-#[cfg(test)]
-mod portable_policy_tests;
+pub use app_data_format::{portable_policy, preview, shared_snapshot, source, sql_stage};
 
 #[cfg(target_os = "macos")]
 pub mod safety_snapshot;
@@ -23,10 +14,6 @@ pub mod backup_create;
 mod backup_create_files;
 #[cfg(all(test, target_os = "macos"))]
 mod backup_create_tests;
-
-pub mod sql_stage;
-#[cfg(test)]
-mod sql_stage_tests;
 
 #[cfg(target_os = "macos")]
 pub mod backup_list;
@@ -43,20 +30,10 @@ pub mod backup_delete;
 #[cfg(all(test, target_os = "macos"))]
 mod backup_delete_tests;
 
-mod source_upgrade;
-#[cfg(test)]
-mod source_upgrade_tests;
-
 #[cfg(target_os = "macos")]
 pub mod locations;
 #[cfg(all(test, target_os = "macos"))]
 mod locations_tests;
-
-pub mod shared_snapshot;
-
-pub mod preview;
-#[cfg(test)]
-mod preview_tests;
 
 #[cfg(target_os = "macos")]
 pub mod retention;
@@ -137,3 +114,6 @@ mod backup_restore_tests;
 pub mod recovery;
 #[cfg(all(test, target_os = "macos"))]
 mod recovery_tests;
+
+#[cfg(test)]
+mod source_test_support;

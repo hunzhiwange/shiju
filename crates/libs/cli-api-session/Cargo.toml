@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
+vw-api-chat = { path = "../api-chat", version = "0.6.0" }
 vw-api-session = { path = "../api-session", version = "0.6.0" }
 gateway-session = { path = "../gateway-session", version = "0.6.0" }
 cli-api-core = { path = "../cli-api-core", version = "0.6.0" }

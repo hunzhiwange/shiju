@@ -312,7 +312,7 @@ async fn create_thread_inherits_verified_current_project() {
     })
     .await
     .expect("parent");
-    let executor = Arc::new(|_: String, _: vw_api_types::chat::GatewayChatStreamRequest| {
+    let executor = Arc::new(|_: String, _: vw_api_chat::chat::GatewayChatStreamRequest| {
         async {
             Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
                 output: String::new(),
@@ -445,7 +445,7 @@ async fn send_message_to_thread_rejects_busy_and_foreign_task() {
         )
         .expect("persist state");
     }
-    let executor = Arc::new(|_: String, _: vw_api_types::chat::GatewayChatStreamRequest| {
+    let executor = Arc::new(|_: String, _: vw_api_chat::chat::GatewayChatStreamRequest| {
         async {
             Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
                 output: String::new(),

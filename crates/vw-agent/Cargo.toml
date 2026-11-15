@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+vw-api-chat = { path = "../libs/api-chat", version = "0.6.0" }
 config-computer-control = { path = "../libs/config-computer-control", version = "0.6.0" }
 json-extract = { path = "../libs/json-extract", version = "0.6.0" }
 todo-types = { path = "../libs/todo-types", version = "0.6.0" }

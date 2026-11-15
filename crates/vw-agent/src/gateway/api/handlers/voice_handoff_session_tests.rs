@@ -51,7 +51,7 @@ async fn voice_task_12_existing_session_duplicate_uses_real_producer_once() {
     answer("前文答案");
     super::session::stream::collect_gateway_chat_stream(
         binding.directory.clone(),
-        vw_api_types::chat::GatewayChatStreamRequest {
+        vw_api_chat::chat::GatewayChatStreamRequest {
             session_id: Some(session.clone().into()),
             messages: vec![json!({"role":"user","content":"前文需求"})],
             ..Default::default()
@@ -107,7 +107,7 @@ async fn voice_task_12_existing_session_desktop_approval_rejection_prevents_writ
     answer("会话已准备好");
     super::session::stream::collect_gateway_chat_stream(
         binding.directory.clone(),
-        vw_api_types::chat::GatewayChatStreamRequest {
+        vw_api_chat::chat::GatewayChatStreamRequest {
             session_id: Some(session.clone().into()),
             messages: vec![json!({"role":"user","content":"准备语音交接验收"})],
             ..Default::default()

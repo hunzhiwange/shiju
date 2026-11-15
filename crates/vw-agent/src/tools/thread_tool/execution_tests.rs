@@ -47,7 +47,7 @@ async fn create_thread_registry_preserves_manual_model_in_background_request() {
     let (_, context) = parent_context(&project).await;
     let (request_tx, request_rx) = std::sync::mpsc::channel();
     let executor =
-        Arc::new(move |_: String, request: vw_api_types::chat::GatewayChatStreamRequest| {
+        Arc::new(move |_: String, request: vw_api_chat::chat::GatewayChatStreamRequest| {
             request_tx.send(request).expect("capture child request");
             async {
                 Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {

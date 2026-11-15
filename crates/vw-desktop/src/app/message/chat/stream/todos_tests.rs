@@ -5,8 +5,8 @@
 #![allow(unused_must_use)]
 use crate::app::App;
 
-fn todo(id: &str, status: &str) -> vw_shared::todo::Todo {
-    vw_shared::todo::Todo {
+fn todo(id: &str, status: &str) -> todo_types::Todo {
+    todo_types::Todo {
         id: id.to_string(),
         content: format!("todo {id}"),
         status: status.to_string(),

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
-use vw_shared::todo::{default_todo_priority, default_todo_status};
+use todo_types::{default_todo_priority, default_todo_status};
 
 use super::Todo;
 use super::normalize::normalize_todos;

@@ -548,7 +548,7 @@ fn collect_tool_texts(
             }
         }
         "todoread" => {
-            if let Ok(todos) = serde_json::from_str::<Vec<vw_shared::todo::Todo>>(output) {
+            if let Ok(todos) = serde_json::from_str::<Vec<todo_types::Todo>>(output) {
                 if todos.is_empty() {
                     tool_texts.push(i18n.__("暂无任务").to_string());
                 } else {

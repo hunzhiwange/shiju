@@ -6,7 +6,7 @@
 use serde_json::Value;
 use vw_gateway_client::vw_api_types::workflow::WorkflowPauseDto;
 use question_types as question;
-use vw_shared::todo::Todo;
+use todo_types::Todo;
 use vw_tui::{
     V3ApprovalChoice, V3ApprovalDecision, V3ApprovalKind, V3ApprovalRequest, V3UserInputOption,
     V3UserInputQuestion, V3UserInputRequest,

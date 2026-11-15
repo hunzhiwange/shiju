@@ -6,7 +6,7 @@ use super::todo_views::{
     tool_todowrite_compact_view,
 };
 use crate::app::App;
-use vw_shared::todo::Todo;
+use todo_types::Todo;
 
 fn app() -> App {
     App::new().0

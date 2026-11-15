@@ -7,7 +7,7 @@
 //! 测试使用 Mock 实现来隔离 `Memory` trait 的行为，避免依赖真实存储后端。
 
 use super::*;
-use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry};
+use agent_memory::{Memory, MemoryCategory, MemoryEntry};
 use std::sync::Arc;
 
 /// 空记忆 Mock 实现

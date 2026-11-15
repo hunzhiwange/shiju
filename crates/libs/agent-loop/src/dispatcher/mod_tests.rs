@@ -3,7 +3,7 @@
 
 use super::*;
 use model_types::ToolCall;
-use crate::app::agent::tools::ToolResult;
+use tool_types::ToolResult;
 use async_trait::async_trait;
 use serde_json::json;
 

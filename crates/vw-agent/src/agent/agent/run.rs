@@ -1,8 +1,6 @@
 use super::core::Agent;
 use crate::app::agent::config::Config;
-use crate::app::agent::observability::ObserverEvent;
 use anyhow::Result;
-use std::time::Instant;
 
 /// 运行代理会话的便捷函数
 ///
@@ -79,47 +77,7 @@ pub(super) async fn run_with_agent_factory(
     temperature: f64,
     agent_factory: impl FnOnce(&Config) -> Result<Agent>,
 ) -> Result<String> {
-    let mut effective_config = config;
-    if let Some(p) = provider_override {
-        effective_config.default_provider = Some(p);
-    }
-    if let Some(m) = model_override {
-        effective_config.default_model = Some(m);
-    }
-    effective_config.default_temperature = temperature;
-
-    if message.is_none() {
-        anyhow::bail!(
-            "Interactive CLI mode moved to vw-cli; provide a message or use the vw-cli binary"
-        );
-    }
-
-    let start = Instant::now();
-    let mut agent = agent_factory(&effective_config)?;
-
-    let provider_name =
-        effective_config.default_provider.as_deref().unwrap_or("openrouter").to_string();
-    let model_name = effective_config
-        .default_model
-        .as_deref()
-        .unwrap_or("anthropic/claude-sonnet-4-20250514")
-        .to_string();
-
-    agent.observer.record_event(&ObserverEvent::AgentStart {
-        provider: provider_name.clone(),
-        model: model_name.clone(),
-    });
-
-    let response = agent.run_single(message.as_deref().expect("checked above")).await?;
-    println!("{response}");
-
-    agent.observer.record_event(&ObserverEvent::AgentEnd {
-        provider: provider_name,
-        model: model_name,
-        duration: start.elapsed(),
-        tokens_used: None,
-        cost_usd: None,
-    });
-
-    Ok(response)
+    agent_loop::run::run_with_agent_factory(
+        config, message, provider_override, model_override, temperature, agent_factory,
+    ).await
 }

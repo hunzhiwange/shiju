@@ -2,7 +2,7 @@
 //! 临时工作区和伪提示段用于验证缺失文件、超长内容、Git 状态与段落失败。
 
 use super::*;
-use crate::app::agent::tools::{Tool, ToolResult};
+use tool_types::{Tool, ToolResult};
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
 
@@ -77,7 +77,7 @@ fn empty_context<'a>(workspace_dir: &'a Path, tools: &'a [Box<dyn Tool>]) -> Pro
         model_name: "test-model",
         tools,
         skills: &[],
-        skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode::Full,
+        skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Full,
         identity_config: None,
         dispatcher_instructions: "",
         timezone: chrono_tz::Asia::Shanghai,
@@ -280,7 +280,7 @@ fn base_and_task_plan_prompts_share_recursive_orchestration_policy() {
         None,
         None,
         true,
-        crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+        agent_config::schema::SkillsPromptInjectionMode::Compact,
         chrono_tz::Asia::Shanghai,
     );
     let planning = crate::task_plan_run::build_planning_prompt("workflow-1", "实现递归智能体编排");
@@ -335,11 +335,11 @@ fn base_and_task_plan_prompts_share_recursive_orchestration_policy() {
         );
     }
 
-    let workflow_context = crate::app::agent::tools::ToolRuntimeContext::new(
+    let workflow_context = tool_types::ToolRuntimeContext::new(
         "workflow-subtask-session",
         Some(temp.path().to_string_lossy().to_string()),
     );
-    let agent_tool = crate::app::agent::tools::tool_specs_for_context(&workflow_context)
+    let agent_tool = tool_types::tool_specs_for_context(&workflow_context)
         .into_iter()
         .find(|spec| spec.id == "AgentTool")
         .expect("default workflow/goal session toolset should include AgentTool");

@@ -22,7 +22,7 @@ use super::*;
 mod tests {
     use super::*;
 
-    use crate::app::agent::config::schema::{ClassificationRule, QueryClassificationConfig};
+    use config_routing::{ClassificationRule, QueryClassificationConfig};
 
     /// 构建测试用 [`QueryClassificationConfig`] 实例。
     ///

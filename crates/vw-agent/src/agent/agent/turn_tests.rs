@@ -358,7 +358,7 @@ async fn turn_timestamp_uses_configured_timezone() {
         provider.provider(),
         Box::new(StaticMemoryLoader { result: Ok(String::new()) }),
     );
-    agent.timezone = chrono_tz::UTC;
+    agent.fixture_timezone(chrono_tz::UTC);
 
     agent.turn("hi").await.expect("turn should succeed");
 
@@ -395,7 +395,7 @@ async fn turn_auto_save_records_user_message_without_blocking_response() {
         Box::new(StaticMemoryLoader { result: Ok(String::new()) }),
         AgentDefinitionConfig::default(),
     );
-    agent.auto_save = true;
+    agent.fixture_auto_save(true);
 
     let response = agent.turn("remember me").await.expect("turn should succeed");
 
@@ -436,7 +436,7 @@ async fn turn_routes_classified_message_to_hint_model() {
         provider.provider(),
         Box::new(StaticMemoryLoader { result: Ok(String::new()) }),
     );
-    agent.classification_config = crate::app::agent::config::QueryClassificationConfig {
+    agent.fixture_routing(crate::app::agent::config::QueryClassificationConfig {
         enabled: true,
         rules: vec![crate::app::agent::config::ClassificationRule {
             hint: "fast".to_string(),
@@ -446,9 +446,7 @@ async fn turn_routes_classified_message_to_hint_model() {
             max_length: None,
             priority: 10,
         }],
-    };
-    agent.available_hints = vec!["fast".to_string()];
-    agent.route_model_by_hint = route_model_by_hint;
+    }, vec!["fast".to_string()], route_model_by_hint);
 
     let response = agent.turn("quick summary").await.expect("turn should succeed");
 
@@ -518,7 +516,7 @@ async fn turn_with_stream_timestamp_uses_configured_timezone() {
         provider.provider(),
         Box::new(StaticMemoryLoader { result: Ok(String::new()) }),
     );
-    agent.timezone = chrono_tz::UTC;
+    agent.fixture_timezone(chrono_tz::UTC);
     let (tx, _rx) = tokio::sync::mpsc::channel(8);
 
     agent.turn_with_stream("hi", tx).await.expect("streaming turn should succeed");
@@ -539,7 +537,7 @@ async fn turn_with_stream_auto_saves_and_uses_memory_context() {
         Box::new(StaticMemoryLoader { result: Ok("[Memory context]\n".to_string()) }),
         AgentDefinitionConfig::default(),
     );
-    agent.auto_save = true;
+    agent.fixture_auto_save(true);
     let (tx, rx) = tokio::sync::mpsc::channel(8);
 
     let response =

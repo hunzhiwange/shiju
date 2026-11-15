@@ -30,7 +30,7 @@ use super::*;
 mod tests {
     use super::*;
 
-    use crate::app::agent::tools::traits::Tool;
+    use tool_types::traits::Tool;
     use async_trait::async_trait;
 
     /// 测试用工具结构体
@@ -96,8 +96,8 @@ mod tests {
         async fn execute(
             &self,
             _args: serde_json::Value,
-        ) -> anyhow::Result<crate::app::agent::tools::ToolResult> {
-            Ok(crate::app::agent::tools::ToolResult {
+        ) -> anyhow::Result<tool_types::ToolResult> {
+            Ok(tool_types::ToolResult {
                 success: true,
                 output: "ok".into(),
                 error: None,
@@ -142,7 +142,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &[],
-            skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
             timezone: chrono_tz::Asia::Shanghai,
@@ -193,7 +193,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &[],
-            skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "instr",
             timezone: chrono_tz::Asia::Shanghai,
@@ -231,13 +231,13 @@ mod tests {
         let tools: Vec<Box<dyn Tool>> = vec![];
 
         // 创建包含工具和指令的技能
-        let skills = vec![crate::app::agent::skills::Skill {
+        let skills = vec![agent_skills::types::Skill {
             name: "deploy".into(),
             description: "Release safely".into(),
             version: "1.0.0".into(),
             author: None,
             tags: vec![],
-            tools: vec![crate::app::agent::skills::SkillTool {
+            tools: vec![agent_skills::types::SkillTool {
                 name: "release_checklist".into(),
                 description: "Validate release readiness".into(),
                 kind: "shell".into(),
@@ -246,7 +246,7 @@ mod tests {
             }],
             prompts: vec!["Run smoke tests before deploy.".into()],
             location: None,
-            ..crate::app::agent::skills::Skill::default()
+            ..agent_skills::types::Skill::default()
         }];
 
         // 使用 Full 模式构建上下文
@@ -255,7 +255,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &skills,
-            skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
             timezone: chrono_tz::Asia::Shanghai,
@@ -290,13 +290,13 @@ mod tests {
         let tools: Vec<Box<dyn Tool>> = vec![];
 
         // 创建包含完整信息的技能（但在 Compact 模式下会被简化）
-        let skills = vec![crate::app::agent::skills::Skill {
+        let skills = vec![agent_skills::types::Skill {
             name: "deploy".into(),
             description: "Release safely".into(),
             version: "1.0.0".into(),
             author: None,
             tags: vec![],
-            tools: vec![crate::app::agent::skills::SkillTool {
+            tools: vec![agent_skills::types::SkillTool {
                 name: "release_checklist".into(),
                 description: "Validate release readiness".into(),
                 kind: "shell".into(),
@@ -305,7 +305,7 @@ mod tests {
             }],
             prompts: vec!["Run smoke tests before deploy.".into()],
             location: Some(Path::new("/tmp/workspace/skills/deploy/SKILL.md").to_path_buf()),
-            ..crate::app::agent::skills::Skill::default()
+            ..agent_skills::types::Skill::default()
         }];
 
         // 使用 Compact 模式构建上下文
@@ -314,7 +314,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &skills,
-            skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+            skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Compact,
             identity_config: None,
             dispatcher_instructions: "",
             timezone: chrono_tz::Asia::Shanghai,
@@ -352,7 +352,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &[],
-            skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "instr",
             timezone: chrono_tz::Asia::Shanghai,
@@ -383,7 +383,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &[],
-            skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
             timezone: chrono_tz::America::New_York,
@@ -427,13 +427,13 @@ mod tests {
         let tools: Vec<Box<dyn Tool>> = vec![];
 
         // 创建包含特殊字符的技能，用于测试 XML 转义功能
-        let skills = vec![crate::app::agent::skills::Skill {
+        let skills = vec![agent_skills::types::Skill {
             name: "code<review>&".into(), // 包含 XML 特殊字符
             description: "Review \"unsafe\" and 'risky' bits".into(), // 包含引号
             version: "1.0.0".into(),
             author: None,
             tags: vec![],
-            tools: vec![crate::app::agent::skills::SkillTool {
+            tools: vec![agent_skills::types::SkillTool {
                 name: "run\"linter\"".into(),              // 包含双引号
                 description: "Run <lint> & report".into(), // 包含多种特殊字符
                 kind: "shell&exec".into(),                 // 包含 & 符号
@@ -442,7 +442,7 @@ mod tests {
             }],
             prompts: vec!["Use <tool_call> and & keep output \"safe\"".into()], // 包含各种特殊字符
             location: None,
-            ..crate::app::agent::skills::Skill::default()
+            ..agent_skills::types::Skill::default()
         }];
 
         // 构建提示词上下文
@@ -451,7 +451,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &skills,
-            skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
             timezone: chrono_tz::Asia::Shanghai,

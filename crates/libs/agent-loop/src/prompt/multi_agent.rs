@@ -1,7 +1,7 @@
 //! 普通会话、AgentTool 子会话与 task-plan 子会话共享的递归编排策略。
 
 /// 每层父智能体都必须遵循的递归编排策略。
-pub(crate) fn recursive_orchestration_policy() -> &'static str {
+pub fn recursive_orchestration_policy() -> &'static str {
     "## Recursive Multi-Agent Orchestration\n\n\
      - Assess independent workstreams before delegation. Proactively delegate bounded work only when parallelism has clear benefit; handle tightly coupled work directly. Avoid unbounded recursive delegation.\n\
      - Agents use a shared directory: edits are immediately visible. Coordinate file ownership and preserve others' changes. Permissions are inherited constraints, never expanded by delegation.\n\
@@ -23,7 +23,7 @@ pub(crate) fn recursive_orchestration_policy() -> &'static str {
 }
 
 /// 目标验收器对递归后代证据使用的硬门禁。
-pub(crate) fn descendant_acceptance_policy() -> &'static str {
+pub fn descendant_acceptance_policy() -> &'static str {
     "## AgentTool 后代验收门禁\n\n\
      - 任何后代仍为 active、waiting、queued 或 running 时，目标尚未完成。\n\
      - 任何后代为 failed 或 cancelled，且没有后续成功补救与父会话明确处理时，目标尚未完成。\n\

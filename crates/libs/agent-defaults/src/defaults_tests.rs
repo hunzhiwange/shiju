@@ -57,19 +57,19 @@ fn agent_defaults_rejects_disabled_capabilities() {
             .is_err()
     );
     context.mcp.insert("missing".into(), true);
-    context.permission_ceiling = crate::permission::next::from_config(&json!({"bash":"deny"}));
+    context.permission_ceiling = permission_runtime::next::from_config(&json!({"bash":"deny"}));
     agent.defaults.permission = AgentDefault::Fixed(json!({"bash":"allow"}));
     let result =
         resolve(&agent, &DefaultSelection::default(), &DefaultSelection::default(), &context)
             .unwrap();
-    assert_eq!(result.permission_action("bash", "*"), crate::permission::next::Action::Deny);
+    assert_eq!(result.permission_action("bash", "*"), permission_runtime::next::Action::Deny);
 }
 
 #[test]
 fn agent_defaults_validates_inputs_and_permission_intersection() {
     let mut agent = AgentDefinitionConfig::default();
     let context = DefaultsContext {
-        permission_ceiling: crate::permission::next::from_config(
+        permission_ceiling: permission_runtime::next::from_config(
             &json!({"*":"allow", "bash":"ask"}),
         ),
         ..Default::default()
@@ -79,9 +79,9 @@ fn agent_defaults_validates_inputs_and_permission_intersection() {
     let explicit =
         DefaultSelection { permission: Some(json!({"bash":"deny"})), ..Default::default() };
     let result = resolve(&agent, &explicit, &inherited, &context).unwrap();
-    assert_eq!(result.permission_action("bash", "echo"), crate::permission::next::Action::Deny);
+    assert_eq!(result.permission_action("bash", "echo"), permission_runtime::next::Action::Deny);
     let result = resolve(&agent, &DefaultSelection::default(), &inherited, &context).unwrap();
-    assert_eq!(result.permission_action("bash", "echo"), crate::permission::next::Action::Ask);
+    assert_eq!(result.permission_action("bash", "echo"), permission_runtime::next::Action::Ask);
     agent.defaults.permission = AgentDefault::Fixed(json!({"bash":"invalid"}));
     assert!(resolve(&agent, &DefaultSelection::default(), &inherited, &context).is_err());
     agent.defaults.permission = AgentDefault::Inherit;

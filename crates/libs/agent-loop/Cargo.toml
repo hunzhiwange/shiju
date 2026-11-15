@@ -1,0 +1,58 @@
+[package]
+name = "agent-loop"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[features]
+test-support = ["dep:tempfile"]
+
+[dependencies]
+vw-api-tools = { path = "../api-tools", version = "0.6.0" }
+plugin-hooks = { path = "../plugin-hooks", version = "0.6.0" }
+session-port = { path = "../session-port", version = "0.6.0" }
+uuid = { version = "1", features = ["v4"] }
+tracing = "0.1"
+
+agent-multimodal = { path = "../agent-multimodal", version = "0.6.0" }
+agent-providers = { path = "../agent-providers", version = "0.6.0" }
+
+agent-approval = { path = "../agent-approval", version = "0.6.0" }
+agent-observability = { path = "../agent-observability", version = "0.6.0" }
+agent-security = { path = "../agent-security", version = "0.6.0" }
+agent-hooks = { path = "../agent-hooks", version = "0.6.0" }
+tokio-util = { version = "0.7", features = ["rt"] }
+
+agent-project = { path = "../agent-project", version = "0.6.0" }
+agent-provider = { path = "../agent-provider", version = "0.6.0" }
+session-engine = { path = "../session-engine", version = "0.6.0" }
+tool-context = { path = "../tool-context", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+
+agent-memory = { path = "../agent-memory", version = "0.6.0" }
+agent-skills = { path = "../agent-skills", version = "0.6.0" }
+agent-util = { path = "../agent-util", version = "0.6.0" }
+tool-assembly = { path = "../tool-assembly", version = "0.6.0" }
+chrono-tz = "0.10"
+
+regex = "1"
+tokio = { version = "1", features = ["sync", "macros"] }
+anyhow = "1"
+tempfile = { version = "3", optional = true }
+async-trait = "0.1"
+agent-config = { path = "../agent-config", version = "0.6.0" }
+observer-types = { path = "../observer-types", version = "0.6.0" }
+config-agent = { path = "../config-agent", version = "0.6.0" }
+config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }
+model-selection = { path = "../model-selection", version = "0.6.0" }
+model-types = { path = "../model-types", version = "0.6.0" }
+agent-defaults = { path = "../agent-defaults", version = "0.6.0" }
+serde_json = "1"
+tool-types = { path = "../tool-types", version = "0.6.0" }
+
+
+[dev-dependencies]
+tempfile = "3"

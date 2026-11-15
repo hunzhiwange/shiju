@@ -100,7 +100,7 @@ async fn codex_skills_core_agent_default_catalog_is_ephemeral_across_two_turns()
     agent.turn("first task").await.unwrap();
     agent.turn("continue task").await.unwrap();
     assert_eq!(
-        agent.skill_session.context_window_tokens, 100000,
+        agent.skill_context_window_tokens(), 100000,
         "fixture model limit must reach the catalog budget"
     );
     for request in provider.seen_messages() {
@@ -167,7 +167,7 @@ async fn codex_skills_core_agent_successful_skill_replays_after_trim_and_clear_d
     agent.turn("inspect changes").await.unwrap();
     agent.turn("continue task").await.unwrap();
     assert_eq!(
-        agent.skill_session.context_window_tokens, 100000,
+        agent.skill_context_window_tokens(), 100000,
         "fixture model limit must reach the catalog budget"
     );
     assert_eq!(agent.history().len(), 2);

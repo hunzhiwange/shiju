@@ -5,7 +5,7 @@
 
 use super::policy::ComputerControlPolicy;
 use super::native::locked_session::{self, LockState};
-use crate::security::pairing::constant_time_eq;
+use gateway_pairing::pairing::constant_time_eq;
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
@@ -96,13 +96,13 @@ impl ControlHost {
 
     /// Use this before considering a new interactive grant. Unknown state cannot
     /// authorize new targets; existing target grants and locked_use stay separate.
-    pub(crate) fn restricted_session(&self) -> bool {
+    pub fn restricted_session(&self) -> bool {
         self.refresh_lock() != LockState::Unlocked
     }
 
     /// Bounds an Office operation by live policy and the original lock state.
     /// Dropping the operation on error triggers its existing transport cleanup.
-    pub(crate) async fn guard_execution<T, F>(
+    pub async fn guard_execution<T, F>(
         &self,
         request: &ComputerControlRequest,
         operation: F,
@@ -269,7 +269,7 @@ impl ControlHost {
 
     /// Backend rechecks after each asynchronous Chrome boundary, including before
     /// returning page contents. The model cannot choose the OS user or mint grants.
-    pub(crate) fn recheck(&self, request: &ComputerControlRequest) -> Result<(), ControlErrorCode> {
+    pub fn recheck(&self, request: &ComputerControlRequest) -> Result<(), ControlErrorCode> {
         let state = self.refresh_lock();
         locked_session::require_execution(state, &request.target, &request.action)?;
         let sessions = self.sessions.lock();
@@ -311,7 +311,7 @@ impl ControlHost {
     /// Trusted tool code calls this only after a fresh scope-specific approval.
     /// The exact request, bytes, target, version and ID are bound; there is no wire
     /// flag that can grant authority and each session holds at most one permit.
-    pub(crate) fn approve_transfer(
+    pub fn approve_transfer(
         &self,
         request: &ComputerControlRequest,
     ) -> Result<(), ControlErrorCode> {

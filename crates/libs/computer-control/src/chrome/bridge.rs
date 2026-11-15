@@ -2,7 +2,7 @@
 //! Pairing proves transport readiness only. `serve` routes every action through
 //! ControlHost's one-use ticket, live policy, target/version and cancellation checks.
 use super::origin_policy::{DocumentBinding, canonical_origin};
-use crate::computer_control::host::{ControlHost, read_frame, write_frame};
+use crate::host::{ControlHost, read_frame, write_frame};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};

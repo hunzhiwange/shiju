@@ -170,7 +170,7 @@ impl OfficeTransport {
         state.sessions.disconnect_owner(owner);
     }
 
-    pub(crate) fn connected_documents(&self) -> Vec<OfficeSession> {
+    pub fn connected_documents(&self) -> Vec<OfficeSession> {
         let mut state = self.state.lock();
         let owners: Vec<_> = state.connections.values().map(|c| c.owner.clone()).collect();
         let mut documents = Vec::new();
@@ -179,7 +179,7 @@ impl OfficeTransport {
     }
 
     /// Trusted emergency stop cancels all document connections and pending pairings.
-    pub(crate) fn revoke_all(&self) {
+    pub fn revoke_all(&self) {
         let owners: Vec<_> = self.state.lock().connections.values().map(|c| c.owner.clone()).collect();
         for owner in owners { self.revoke(&owner); }
         self.state.lock().pairings.clear();
@@ -281,6 +281,7 @@ fn load_tls(directory: &Path) -> Result<tokio_rustls::TlsAcceptor> {
     use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
     let repository = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
+        .and_then(Path::parent)
         .and_then(Path::parent)
         .context("missing repository root")?;
     ensure!(

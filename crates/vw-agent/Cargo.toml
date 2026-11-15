@@ -167,6 +167,7 @@ agent-files = { path = "../libs/agent-files", version = "0.6.0" }
 agent-bus = { path = "../libs/agent-bus", version = "0.6.0" }
 agent-log = { path = "../libs/agent-log", version = "0.6.0" }
 agent-paths = { path = "../libs/agent-paths", version = "0.6.0" }
+computer-control = { path = "../libs/computer-control", version = "0.6.0" }
 agent-mcp = { path = "../libs/agent-mcp", version = "0.6.0" }
 agent-app-services = { path = "../libs/agent-app-services", version = "0.6.0" }
 agent-knowledge = { path = "../libs/agent-knowledge", version = "0.6.0" }

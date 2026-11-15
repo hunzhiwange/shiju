@@ -1,7 +1,7 @@
 //! Application-scoped observations for a trusted local host session.
 //! Observations never prompt. Only explicit trusted UI requests may ask macOS for access.
 
-use crate::computer_control::policy::ComputerControlPolicy;
+use crate::policy::ComputerControlPolicy;
 use base64::Engine;
 use parking_lot::{Mutex, RwLock};
 use serde::Serialize;

@@ -1,6 +1,6 @@
 use super::bridge::ChromeTarget;
 use super::origin_policy::{DocumentBinding, canonical_origin};
-use crate::computer_control::policy::{ComputerControlPolicy, ControlFeature, GrantScope};
+use crate::policy::{ComputerControlPolicy, ControlFeature, GrantScope};
 use vw_api_computer_control::*;
 use config_computer_control::{ComputerControlConfig, GrantDecision};
 
@@ -115,11 +115,11 @@ fn cc_control_10_native_app_cannot_bypass_chrome_site_denial() {
 }
 
 fn host_fixture() -> (
-    std::sync::Arc<crate::computer_control::host::ControlHost>,
+    std::sync::Arc<crate::host::ControlHost>,
     std::sync::Arc<parking_lot::RwLock<ComputerControlPolicy>>,
     ComputerControlRequest,
 ) {
-    use crate::computer_control::host::ControlHost;
+    use crate::host::ControlHost;
     use std::sync::{Arc, atomic::AtomicBool};
     let user = format!("uid:{}", unsafe { libc::geteuid() });
     let mut p = ComputerControlPolicy::new(ComputerControlConfig::default());
@@ -147,7 +147,7 @@ fn host_fixture() -> (
 async fn bridge_fixture(
     id: ControlSessionId,
 ) -> (super::bridge::ChromeBridge, tokio::net::UnixStream) {
-    use crate::computer_control::host::{read_frame, write_frame};
+    use crate::host::{read_frame, write_frame};
     use serde_json::{Value, json};
     let (native, mut extension) = tokio::net::UnixStream::pair().unwrap();
     let pairing =
@@ -157,7 +157,7 @@ async fn bridge_fixture(
     (pairing.await.unwrap(), extension)
 }
 async fn reply(extension: &mut tokio::net::UnixStream, expected: &str, data: serde_json::Value) {
-    use crate::computer_control::host::{read_frame, write_frame};
+    use crate::host::{read_frame, write_frame};
     use serde_json::{Value, json};
     let request: Value = read_frame(extension).await.unwrap();
     assert_eq!(request["action"], expected);
@@ -180,7 +180,7 @@ async fn cc_control_10_redirect_after_read_discards_page_content() {
 }
 #[tokio::test]
 async fn cc_control_10_revocation_during_enumeration_prevents_read() {
-    use crate::computer_control::host::{read_frame, write_frame};
+    use crate::host::{read_frame, write_frame};
     use serde_json::{Value, json};
     let (host, policy, request) = host_fixture();
     let (bridge, mut extension) = bridge_fixture(request.session_id.clone()).await;
@@ -277,7 +277,7 @@ fn cc_control_10_upload_rejects_paths_invalid_bytes_and_oversize() {
 
 #[tokio::test]
 async fn cc_control_10_cross_origin_download_cannot_use_site_or_transfer_grant() {
-    use crate::computer_control::host::read_frame;
+    use crate::host::read_frame;
     use serde_json::{Value, json};
     let (host, _, mut request) = host_fixture();
     request.action = ComputerControlAction::Chrome {

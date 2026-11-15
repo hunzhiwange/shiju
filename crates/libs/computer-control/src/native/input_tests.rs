@@ -1,6 +1,6 @@
 use super::macos_input::{InputEvent, InputPlatform};
 use super::*;
-use crate::computer_control::policy::GrantScope;
+use crate::policy::GrantScope;
 use config_computer_control::{ComputerControlConfig, GrantDecision};
 
 #[derive(Default)]

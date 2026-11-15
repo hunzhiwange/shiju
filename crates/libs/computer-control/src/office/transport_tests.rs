@@ -240,7 +240,7 @@ async fn cc_control_12_rejects_non_loopback_origin_and_insecure_key_permissions(
 async fn cc_control_12_node_webview_boundary_uses_real_verified_wss_and_rust_commands() {
     let host = host().await;
     let module = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../plugins/shiju-computer-control/office/shared/connection.mjs")
+        .join("../../../plugins/shiju-computer-control/office/shared/connection.mjs")
         .canonicalize()
         .unwrap();
     let script = r#"

@@ -1,5 +1,5 @@
 use super::bridge::{ChromeBridge, EXTENSION_ID};
-use crate::computer_control::host::{read_frame, write_frame};
+use crate::host::{read_frame, write_frame};
 use serde_json::{Value, json};
 use tokio::net::UnixStream;
 use vw_api_computer_control::ControlSessionId;
@@ -83,7 +83,7 @@ async fn cc_control_09_idle_disconnect_updates_availability() {
 
 #[tokio::test]
 async fn cc_control_09_authenticated_host_and_live_revocation() {
-    use crate::computer_control::{
+    use crate::{
         host::{ControlHost, HostMessage, HostReply},
         policy::{ComputerControlPolicy, ControlFeature, GrantScope},
     };
@@ -189,7 +189,7 @@ async fn cc_control_09_python_subprocess_split_frames_pair() {
     std::fs::copy(
         concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../scripts/computer_control/chrome_native_host.py"
+            "/../../../scripts/computer_control/chrome_native_host.py"
         ),
         &script,
     )
@@ -259,7 +259,7 @@ async fn cc_control_09_real_chrome_native_profile() {
     let mut driver = Command::new("python3")
         .arg(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../scripts/computer_control/test_chrome_native_host.py"
+            "/../../../scripts/computer_control/test_chrome_native_host.py"
         ))
         .arg("--live-driver")
         .stdout(Stdio::inherit())

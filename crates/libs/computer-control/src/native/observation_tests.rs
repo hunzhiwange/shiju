@@ -1,5 +1,5 @@
 use super::*;
-use crate::computer_control::policy::{ControlFeature, GrantScope};
+use crate::policy::{ControlFeature, GrantScope};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use config_computer_control::{ComputerControlConfig, GrantDecision};
 

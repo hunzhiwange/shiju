@@ -40,6 +40,10 @@ message-types = { path = "../message-types", version = "0.6.0" }
 session-ui-types = { path = "../session-ui-types", version = "0.6.0" }
 serde_json = "1"
 
+gateway-project-profile = { path = "../gateway-project-profile", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+tokio = { version = "1", features = ["time"] }
+
 [dev-dependencies]
 tempfile = "3"
 

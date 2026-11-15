@@ -8,6 +8,7 @@ use crate::app::message::project::helpers::{
     create_gateway_session_worktree, delete_gateway_worktree, reset_gateway_worktree,
 };
 use crate::app::{App, Message};
+use desktop_workspace::project_message::session_worktree;
 
 /// handle 处理当前模块对应的消息或状态转换。
 ///
@@ -22,15 +23,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             match options {
                 Ok(mut list) => {
-                    if let Some(last_directory) = app.new_session_last_directory.as_ref()
-                        && let Some(pos) =
-                            list.iter().position(|(directory, _)| directory == last_directory)
-                    {
-                        let item = list.remove(pos);
-                        let insert_at =
-                            if !list.is_empty() && list[0].1 == "主工作区" { 1 } else { 0 };
-                        list.insert(insert_at, item);
-                    }
+                    session_worktree::order_options(&mut list, app.new_session_last_directory.as_ref());
                     app.new_session_picker_options = list;
                 }
                 Err(e) => {
@@ -67,26 +60,13 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             if app.new_session_creating {
                 return Some(iced::Task::none());
             }
-            let requested_name = app.new_session_worktree_name.trim().to_string();
-            if requested_name.is_empty() {
-                app.set_localized_input_error(
-                    crate::app::i18n::input::ErrorField::General,
-                    "请输入 worktree 英文名称",
-                    vec![],
-                );
-                return Some(iced::Task::none());
-            }
-            let valid = requested_name
-                .chars()
-                .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-');
-            if !valid {
-                app.set_localized_input_error(
-                    crate::app::i18n::input::ErrorField::General,
-                    "worktree 名称仅支持小写英文、数字、连字符(-)",
-                    vec![],
-                );
-                return Some(iced::Task::none());
-            }
+            let requested_name = match session_worktree::requested_name(&app.new_session_worktree_name) {
+                Ok(name) => name,
+                Err(error) => {
+                    app.set_localized_input_error(crate::app::i18n::input::ErrorField::General, error, vec![]);
+                    return Some(iced::Task::none());
+                }
+            };
             app.new_session_creating = true;
             reset_new_session_picker_state(app);
             let project_path_clone = project_path.clone();
@@ -117,12 +97,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             })
         }
         ProjectMessage::ProjectCreateSessionDeleteWorktree(directory) => {
-            let is_primary = app
-                .new_session_picker_options
-                .iter()
-                .any(|(d, label)| d == &directory && label == "主工作区");
-            if is_primary || directory == app.new_session_picker_project.clone().unwrap_or_default()
-            {
+            if session_worktree::is_primary(&app.new_session_picker_options,
+                app.new_session_picker_project.as_deref(), &directory) {
                 app.set_localized_input_error(
                     crate::app::i18n::input::ErrorField::WorktreeDelete,
                     "主工作区禁止删除",
@@ -248,12 +224,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::none())
         }
         ProjectMessage::ProjectCreateSessionResetWorktree(directory) => {
-            let is_primary = app
-                .new_session_picker_options
-                .iter()
-                .any(|(d, label)| d == &directory && label == "主工作区");
-            if is_primary || directory == app.new_session_picker_project.clone().unwrap_or_default()
-            {
+            if session_worktree::is_primary(&app.new_session_picker_options,
+                app.new_session_picker_project.as_deref(), &directory) {
                 app.set_localized_input_error(
                     crate::app::i18n::input::ErrorField::WorktreeReset,
                     "主工作区禁止重置",

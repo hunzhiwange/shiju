@@ -8,3 +8,6 @@ pub mod operations;
 pub mod file_manager;
 
 pub mod project_message;
+
+pub mod profile_update;
+pub mod projects;

@@ -48,6 +48,7 @@ channel-imessage = { path = "../libs/channel-imessage", version = "0.6.0" }
 channel-clawdtalk = { path = "../libs/channel-clawdtalk", version = "0.6.0" }
 channel-cli = { path = "../libs/channel-cli", version = "0.6.0" }
 channel-support = { path = "../libs/channel-support", version = "0.6.0" }
+channel-linq = { path = "../libs/channel-linq", version = "0.6.0" }
 channel-whatsapp = { path = "../libs/channel-whatsapp", version = "0.6.0" }
 runtime-types = { path = "../libs/runtime-types", version = "0.6.0" }
 gateway-shiju-skill = { path = "../libs/gateway-shiju-skill", version = "0.6.0" }

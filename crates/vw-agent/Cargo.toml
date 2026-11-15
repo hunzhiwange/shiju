@@ -266,6 +266,7 @@ name = "acp_gemini_chat"
 path = "tests/acp_gemini_chat.rs"
 
 [dev-dependencies]
+gateway-model-provider = { path = "../libs/gateway-model-provider", version = "0.6.0" }
 gateway-files = { path = "../libs/gateway-files", version = "0.6.0" }
 gateway-http = { path = "../libs/gateway-http", version = "0.6.0" }
 provider-runtime-paths = { path = "../libs/provider-runtime-paths", version = "0.6.0" }

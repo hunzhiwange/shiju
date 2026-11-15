@@ -29,7 +29,10 @@ pub(crate) async fn load_session_capabilities(
     let mut default_model = None;
     let directory = runtime.directory_value();
 
-    match runtime.client().provider_list(directory.as_deref()).await {
+    let providers = gateway_model_provider::GatewayModelProviderClient::new(
+        runtime.client().transport().clone(),
+    );
+    match providers.provider_list(directory.as_deref()).await {
         Ok(response) => {
             let mut provider_defaults = response.default.into_iter().collect::<Vec<_>>();
             provider_defaults.sort_by(|(left, _), (right, _)| left.cmp(right));

@@ -356,14 +356,16 @@ async fn catalog_resolver_projection_keeps_gateway_picker_in_tenant() {
     let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
     let directory = dir.path().to_str().unwrap();
     for (tenant, alias) in [(fixture.tenant, ALIAS), (other.tenant, "另一租户的展示名")] {
-        let client = vw_gateway_client::GatewayClient::new(
-            gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)
-                .with_auth(gateway_endpoint::GatewayAuth {
-                    skey: Some("dynamic-acceptance-skey".into()),
-                })
-                .with_tenant_scope(tenant),
-        )
-        .unwrap();
+        let client = gateway_model_provider::GatewayModelProviderClient::new(
+            gateway_http::GatewayTransport::new(
+                gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)
+                    .with_auth(gateway_endpoint::GatewayAuth {
+                        skey: Some("dynamic-acceptance-skey".into()),
+                    })
+                    .with_tenant_scope(tenant),
+            )
+            .unwrap(),
+        );
         let list = client.provider_list(Some(directory)).await.unwrap();
         let provider = list.all.iter().find(|row| row.id == PROVIDER).unwrap();
         assert_eq!(provider.models[REQUEST_ID].name, alias);

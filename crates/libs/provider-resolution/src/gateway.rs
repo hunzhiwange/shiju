@@ -10,6 +10,7 @@ pub(crate) async fn load_state_impl(apply_enabled_filter: bool) -> State {
     let Ok(client) = config::gateway_client() else {
         return State { providers: HashMap::new() };
     };
+    let client = gateway_model_provider::GatewayModelProviderClient::new(client.transport().clone());
     let Ok(response) = client.provider_list(None).await else {
         return State { providers: HashMap::new() };
     };

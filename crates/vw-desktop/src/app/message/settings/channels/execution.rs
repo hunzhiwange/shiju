@@ -92,7 +92,9 @@ pub(super) fn load(app: &mut App, instance: String) -> Task<Message> {
                 })
                 .collect::<Vec<_>>();
             agents.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
-            let providers = client.provider_list(directory.as_deref()).await?;
+            let providers = gateway_model_provider::GatewayModelProviderClient::new(
+                client.transport().clone(),
+            ).provider_list(directory.as_deref()).await?;
             let mut models = providers
                 .all
                 .into_iter()

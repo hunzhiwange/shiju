@@ -47,9 +47,6 @@ pub mod status_animation;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod startup_transition;
 
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "startup_transition_tests.rs"]
-mod startup_transition_tests;
 
 
 /// 小宠物任务提示组件
@@ -115,9 +112,6 @@ pub(crate) mod cli_command_help;
 ///
 /// 引导用户安装和配置命令行工具的模态对话框。
 pub mod install_cli_modal;
-#[cfg(test)]
-#[path = "install_cli_modal_tests.rs"]
-mod install_cli_modal_tests;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod install_web_modal;
 
@@ -131,9 +125,6 @@ pub mod markdown_editor;
 ///
 /// 提供模型选择面板共用的右侧悬浮提示触发器和覆盖层封装。
 pub mod model_hover_tooltip;
-#[cfg(test)]
-#[path = "model_hover_tooltip_tests.rs"]
-mod model_hover_tooltip_tests;
 
 /// 通知组件
 ///
@@ -526,3 +517,7 @@ pub(crate) mod system_settings_data;
 
 
 pub(crate) mod system_settings_device_sync;
+
+#[cfg(all(test, not(target_arch="wasm32")))]
+#[path="install_cli_modal_tests.rs"]
+mod install_cli_modal_tests;

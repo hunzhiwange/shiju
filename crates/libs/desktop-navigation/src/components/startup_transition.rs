@@ -1,0 +1,53 @@
+//! 原生端本地服务启动期间的根视图。
+
+use iced::widget::{column, container, progress_bar, text};
+use iced::{Background, Element, Length, Theme};
+
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NativeStartupState { Starting, Ready }
+
+pub fn view<'a, Message: 'a>(
+    i18n: desktop_i18n::I18n,
+    state: &'a NativeStartupState,
+    animation_frame: usize,
+    theme: &'a Theme,
+) -> Element<'a, Message> {
+    let palette = theme.extended_palette();
+    let (title, detail) = match state {
+        NativeStartupState::Starting => (
+            desktop_i18n::__!(
+                i18n,
+                "%s 正在启动工作环境",
+                desktop_ui_controls::status_animation::spinner_frame(animation_frame)
+            )
+            .expect("valid startup template"),
+            i18n.__("服务就绪后将自动进入主界面"),
+        ),
+        NativeStartupState::Ready => {
+            (i18n.__("本地服务已就绪").to_string(), i18n.__("正在进入主界面"))
+        }
+    };
+    let phase = animation_frame % 40;
+    let progress = if phase < 20 { phase + 1 } else { 40 - phase } as f32 / 20.0;
+
+    let content = column![
+        text(title).size(24).color(palette.background.base.text),
+        text(detail).size(14).color(palette.background.base.text.scale_alpha(0.72)),
+        container(progress_bar(0.0..=1.0, progress).girth(Length::Fixed(4.0)))
+            .width(Length::Fixed(240.0)),
+    ]
+    .spacing(12)
+    .align_x(iced::Alignment::Center);
+
+    container(content)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .center_x(Length::Fill)
+        .center_y(Length::Fill)
+        .style(move |_| container::Style {
+            background: Some(Background::Color(palette.background.base.color)),
+            ..Default::default()
+        })
+        .into()
+}

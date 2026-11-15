@@ -2,18 +2,21 @@
 //! 缺失模型、未知目标和指针位置未就绪时应保留原内容而不是生成伪提示。
 
 use super::model_hover_tooltip::{
-    HoverAnchor, build_hover_tip, hover_anchor, hover_model_trigger, hover_text_trigger,
-    hover_tooltip_overlay,
+    HoverAnchor, hover_anchor, hover_model_trigger, hover_text_trigger,
+
 };
-use crate::app::state::{ModelPopoverHover, ModelSummary, ProviderModelsSummary};
-use crate::app::{App, Message};
+use super::model_hover_tooltip::{ModelPopoverHover, Input};
+use desktop_settings_providers::state::{ModelSummary, ProviderModelsSummary};
+type Message = ();
+struct Fixture { model_popover_hover: Option<ModelPopoverHover>, model_settings: Models }
+struct Models { providers: Vec<ProviderModelsSummary> }
 use iced::widget::{container, text};
 use iced::{Background, Color, Element, Theme};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-fn test_app() -> App {
-    App::new().0
+fn test_app() -> Fixture {
+    Fixture { model_popover_hover: None, model_settings: Models { providers: vec![] } }
 }
 
 fn keep(element: Element<'_, Message>) {
@@ -30,7 +33,7 @@ fn tooltip_style(_theme: &Theme) -> iced::widget::container::Style {
 
 fn hover_message(hover: Option<ModelPopoverHover>) -> Message {
     std::hint::black_box(hover);
-    Message::View(crate::app::message::view::ViewMessage::CloseModelPopover)
+    ()
 }
 
 fn exit_message() -> Message {
@@ -254,3 +257,7 @@ fn overlay_builds_model_tooltip_for_matching_provider_model() {
 
     keep(hover_tooltip_overlay(&app, text("content"), tooltip_style));
 }
+
+fn input(app: &Fixture) -> Input<'_> { Input { model_popover_hover: &app.model_popover_hover, providers: &app.model_settings.providers, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese } }
+fn build_hover_tip<'a>(app: &'a Fixture, style: fn(&Theme) -> iced::widget::container::Style) -> Option<Element<'a, Message>> { super::model_hover_tooltip::build_hover_tip(input(app), style) }
+fn hover_tooltip_overlay<'a>(app: &'a Fixture, content: impl Into<Element<'a, Message>>, style: fn(&Theme) -> iced::widget::container::Style) -> Element<'a, Message> { super::model_hover_tooltip::hover_tooltip_overlay(input(app), content, style) }

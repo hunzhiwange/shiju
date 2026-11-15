@@ -102,29 +102,7 @@ impl WorkspaceMode {
     }
 }
 
-/// 模型弹出窗口悬停状态
-///
-/// 表示在模型选择弹出窗口中的悬停项，
-/// 可以是具体的模型或纯文本提示。
-#[derive(Debug, Clone)]
-pub enum ModelPopoverHover {
-    /// 悬停在特定模型上
-    Model {
-        /// 提供者标识符
-        provider_id: String,
-        /// 模型标识符
-        model_id: String,
-        /// 悬停锚点，用于 tooltip 绝对定位
-        anchor: Option<crate::app::components::model_hover_tooltip::HoverAnchor>,
-    },
-    /// 悬停在文本上
-    Text {
-        /// 提示文本
-        text: String,
-        /// 悬停锚点，用于 tooltip 绝对定位
-        anchor: Option<crate::app::components::model_hover_tooltip::HoverAnchor>,
-    },
-}
+pub use desktop_navigation::components::model_hover_tooltip::ModelPopoverHover;
 
 /// 应用标签页
 ///

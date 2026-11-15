@@ -31,7 +31,7 @@ fn copy_text_hash_is_deterministic_and_content_sensitive() {
 
 #[test]
 fn view_builds_with_copy_action_for_uncopied_content() {
-    let mut app = App::new().0;
+    let mut app = Input { desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, last_copied_code_hash: None };
 
     keep_element(view(&app));
     app.last_copied_code_hash = Some(hash_copy_text("different content"));
@@ -40,7 +40,7 @@ fn view_builds_with_copy_action_for_uncopied_content() {
 
 #[test]
 fn view_builds_with_confirmation_for_matching_copy_hash() {
-    let mut app = App::new().0;
+    let mut app = Input { desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, last_copied_code_hash: None };
     app.last_copied_code_hash = Some(hash_copy_text(&about_copy_text()));
 
     keep_element(view(&app));

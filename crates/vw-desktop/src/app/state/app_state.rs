@@ -44,11 +44,7 @@ pub(crate) type UsageStepRawKey = SessionStepRawKey;
 pub(crate) type UsageStepRawPayloadResult = Result<Option<serde_json::Value>, String>;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum NativeStartupState {
-    Starting,
-    Ready,
-}
+pub(crate) use desktop_navigation::components::startup_transition::NativeStartupState;
 
 #[allow(dead_code)]
 pub struct App {

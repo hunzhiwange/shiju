@@ -1,6 +1,15 @@
 //! Render the actual bookmark and information dialogs without dispatching side effects.
 
 use super::*;
+const APP_NAME: &str = "VibeWindow";
+const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+const ABOUT_TITLE: &str = "关于识矩";
+const ABOUT_SUBTITLE: &str =
+    "Rust-first 的自主代理运行时，连接桌面端、CLI、网关服务和长驻守护进程。";
+const ABOUT_DESCRIPTION: &str = "项目包含桌面应用、命令行入口、HTTP/WebSocket 网关、任务与记忆管理、通信通道、模型/提供商解析、ACP 桥接和跨平台 WebView helper。";
+const AUTHOR_INFO: &str = "开发者：刘祥敏。";
+
+
 use crate::app::components::install_cli_modal;
 use crate::app::i18n::I18n;
 use crate::app::message::ViewMessage;

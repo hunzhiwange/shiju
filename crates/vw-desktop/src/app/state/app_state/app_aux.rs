@@ -1,27 +1,4 @@
-/// 通知消息
-///
-/// 表示应用程序中的一个通知消息，
-/// 包含消息 ID、内容和创建时间。
-#[derive(Debug, Clone)]
-pub struct Notification {
-    pub localized_message: Option<crate::app::i18n::format::Message>,
-    /// 通知的唯一标识符
-    pub id: usize,
-    /// 通知消息内容
-    pub message: String,
-    /// 通知创建时间
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-    pub created_at: web_time::SystemTime,
-}
-
-impl Notification {
-    pub fn render(&self, i18n: crate::app::i18n::I18n) -> String {
-        self.localized_message
-            .as_ref()
-            .map(|message| message.render(i18n).expect("valid notification template"))
-            .unwrap_or_else(|| self.message.clone())
-    }
-}
+pub use desktop_navigation::components::notification::Notification;
 
 pub use desktop_ui_controls::toast::{Toast, ToastKind};
 

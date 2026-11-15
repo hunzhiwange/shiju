@@ -52,6 +52,7 @@ members = [
   "crates/libs/app-skills",
   "crates/libs/app-prompts",
   "crates/libs/desktop-ui-controls",
+  "crates/libs/desktop-navigation",
   "crates/libs/desktop-settings-memory",
   "crates/libs/desktop-settings-cron",
   "crates/libs/desktop-settings-security",

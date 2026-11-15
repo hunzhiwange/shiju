@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-models = { path = "../libs/app-models" }
 app-provider-environment = { path = "../libs/app-provider-environment" }
 app-provider-native = { path = "../libs/app-provider-native" }
 app-provider-login = { path = "../libs/app-provider-login" }
@@ -44,7 +45,6 @@ vw-api-app-provider-base = { path = "../libs/api-app-provider-base", version = "
 vw-api-model-catalog = { path = "../libs/api-model-catalog", version = "0.6.0" }
 vw-api-app-auth = { path = "../libs/api-app-auth", version = "0.6.0" }
 vw-api-task = { path = "../libs/api-task", version = "0.6.0" }
-model-reasoning = { path = "../libs/model-reasoning", version = "0.6.0" }
 provider-model-discovery = { path = "../libs/provider-model-discovery", version = "0.6.0" }
 provider-model-cache = { path = "../libs/provider-model-cache", version = "0.6.0" }
 provider-model-catalog = { path = "../libs/provider-model-catalog", version = "0.6.0" }

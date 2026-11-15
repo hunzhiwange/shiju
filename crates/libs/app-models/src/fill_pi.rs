@@ -8,7 +8,7 @@ use super::{
     pi_thinking::{PiThinkingLevel, PiThinkingLevelMap},
     preset_pi::{PiPresetCompatValue, PiPresetProtocol},
 };
-use crate::providers::validation;
+use app_provider_validation::validation;
 use reqwest::Url;
 use serde::Deserialize;
 use serde_json::{Map, Value, json};

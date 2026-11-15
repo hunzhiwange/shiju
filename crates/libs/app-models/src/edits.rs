@@ -1,5 +1,5 @@
 //! Prepare scoped catalog edits for the caller's provider-record transaction.
-use crate::providers::{validate_identity, validation::endpoint};
+use app_provider_validation::{validate_identity, validation::endpoint};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

@@ -1,6 +1,6 @@
 //! Ordered model discovery candidates for an authorized provider deployment.
 
-use crate::providers::validation;
+use app_provider_validation::validation;
 use reqwest::Url;
 use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_app_provider_edit::endpoints::AppProviderEndpointKind;

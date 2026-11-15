@@ -2443,3 +2443,34 @@ scope/receipt 校验、HOME 锁、原始备份与恢复摘要证据均未变。
 源码/清单路径审阅并人工核对 TOML 区段，不安装工具。
 未运行 Cargo、单元及实机测试，统一验收待授权：新库与网关调用者编译、
 三个迁移测试族、macOS 清理恢复授权及 Windows/Linux 不支持分支。
+
+
+## 任务 26 静态迁移结果（2026-11-15）
+
+覆盖历史所有权表：app-models 接收 discovery_http、discovery_url、edits、
+fill_codex、fill_hermes、fill_kimi、fill_openclaw、fill_opencode、fill_pi、
+fill_service、metadata、vendor_fallback 共 12 个实现文件，以及 discovery_http、
+discovery_url、edits、fill_codex、fill_openclaw、fill_service、metadata、
+vendor_fallback 的 8 个独立测试文件。原 models/mod.rs 显式重导出公开模块；
+validate/codex_projection 仍从 app-model-catalog 在根导出。原 lib.rs 的 models
+声明已足够，不增加第二条入口。HTTP 校验直接依赖 app-provider-validation，
+预设与身份规则直接依赖 app-model-catalog，不引入门面或原生适配器依赖。
+
+延期接收：discovery_agy、discovery_opencode、discovery_process 及其两个测试
+依赖 apps::discovery::read::{LocalReadEnvironment,locate_cli} 与
+apps::launch::{host,request::LaunchMaterial}，留在门面由任务 36 接收（发现与
+启动分别在任务 32/35 下沉后闭合）；不复制类型、不增加回调抽象。
+defaults_tests、fill_hermes_tests、fill_kimi_tests、fill_opencode_tests、
+fill_pi_tests 调用原生供应商适配器，继续在门面独立注册，由任务 29 接收。
+它们只调用新包公开接口，不放宽内部 SavedCatalog、valid_limit 等可见性。
+
+静态证据：20 文件迁移，原实现删除；wasm32/macOS/test 条件保持，源码无
+include_str!/include_bytes! 资源路径。Python 标准库 tomllib 审阅新增清单和
+workspace 注册、直接路径存在性，并遍历本地路径依赖确认不回依赖
+vw-agent-apps。调用者 aggregation/membership_tests、usage/pricing 继续沿用
+models::edits；外部调用者继续使用原门面。移除门面已无真实引用的
+model-reasoning，provider-model-* 仍供 usage 使用。工作区原有 fill_pi 与
+fill_opencode 的导入修正随文件移动保留，独立于本任务提交暂存。
+
+待授权统一验收：新增库与直接调用者目标编译、迁移单测及 macOS/Windows/Linux
+行为。未运行 Cargo、单元及实机测试，Cargo.lock 未修改；静态审阅不代表行为通过。

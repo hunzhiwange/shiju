@@ -12,7 +12,7 @@ pub use provider_model_discovery::DiscoveredModel;
 use provider_model_discovery::{discover_catalog_models, is_real_bearer};
 
 use super::{discovery_url::build_models_url_candidates, user_agent_presets::custom_user_agent};
-use crate::providers::validation::{header_value, protected_header};
+use app_provider_validation::validation::{header_value, protected_header};
 
 /// Resolve these inputs from the authorized host and provider before calling discovery.
 /// A same-origin override is provider configuration. A cross-origin override must also

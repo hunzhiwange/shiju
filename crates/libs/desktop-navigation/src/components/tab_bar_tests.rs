@@ -3,16 +3,18 @@
 //! 标签夹具覆盖内部页过滤、悬停关闭层与 Unicode 截断，避免索引和显示错位。
 
 use super::*;
-use crate::app::message::ViewMessage;
-use crate::app::state::AppTab;
-use crate::app::{App, Message, Screen};
+
+
+use crate::components::top_bar::types::AppTab;
 use iced::advanced::renderer::Headless;
 use iced::advanced::widget::Tree;
 use iced::widget::button;
 use iced::{Background, Color, Font, Length, Pixels, Rectangle, Theme};
 
-fn test_app() -> App {
-    App::new().0
+fn test_app() -> State<'static> {
+ static TABS: std::sync::OnceLock<Vec<AppTab>> = std::sync::OnceLock::new();
+ static ACTIVE: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+ State { open_tabs: TABS.get_or_init(|| vec![tab("home", "首页", Screen::Home)]), active_tab_id: ACTIVE.get_or_init(|| Some("home".to_string())), hovered_tab_id: &None, screen: Screen::Home, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese }
 }
 
 fn element_tree(element: Element<'_, Message>) -> Tree {
@@ -49,18 +51,21 @@ fn view_filters_internal_tabs_and_omits_add_button_when_apps_is_open() {
     assert_eq!(empty_tree.children.len(), 2);
 
     let mut app = test_app();
-    app.open_tabs = vec![
+    let mut tabs = vec![
         tab("home", "Home", Screen::Home),
         tab("find:internal", "Find", Screen::Home),
         tab("project", "Project", Screen::Project),
     ];
-    app.hovered_tab_id = Some("project".to_string());
+    let hovered = Some("project".to_string());
+    app.open_tabs = &tabs;
+    app.hovered_tab_id = &hovered;
     let without_apps = element_tree(view(&app));
     assert_eq!(without_apps.children.len(), 3);
     assert_eq!(max_child_count(&without_apps.children[1]), 2);
 
-    app.open_tabs.retain(|tab| tab.id != "project");
-    app.open_tabs.push(tab("apps", "Apps", Screen::Apps));
+    tabs.retain(|tab| tab.id != "project");
+    tabs.push(tab("apps", "Apps", Screen::Apps));
+    app.open_tabs = &tabs;
     let with_apps = element_tree(view(&app));
     assert_eq!(with_apps.children.len(), 2);
 }
@@ -72,21 +77,21 @@ fn tab_button_close_layer_requires_hovered_non_home_tab() {
         "Home".to_string(),
         true,
         true,
-        Message::View(ViewMessage::TabSelected("home".to_string())),
+        Message::TabSelected("home".to_string()),
     ));
     let idle = element_tree(tab_btn(
         "project".to_string(),
         "Project".to_string(),
         false,
         false,
-        Message::View(ViewMessage::TabSelected("project".to_string())),
+        Message::TabSelected("project".to_string()),
     ));
     let hovered = element_tree(tab_btn(
         "project".to_string(),
         "Project".to_string(),
         false,
         true,
-        Message::View(ViewMessage::TabSelected("project".to_string())),
+        Message::TabSelected("project".to_string()),
     ));
 
     assert_eq!(max_child_count(&home), 1);
@@ -101,7 +106,7 @@ fn tab_button_keeps_shrink_width_and_full_height() {
         "Project".to_string(),
         false,
         false,
-        Message::View(ViewMessage::TabSelected("project".to_string())),
+        Message::TabSelected("project".to_string()),
     );
 
     assert_eq!(element.as_widget().size().width, Length::Shrink);

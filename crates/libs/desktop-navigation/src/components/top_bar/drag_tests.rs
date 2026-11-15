@@ -2,7 +2,7 @@
 //!
 //! 拖动测试区分可拖动空白与交互控件区域，避免点击控件时误触窗口移动。
 
-use crate::app::Message;
+use super::Message;
 use iced::advanced::widget::Tree;
 use iced::widget::{Space, mouse_area};
 use iced::{Element, Length};

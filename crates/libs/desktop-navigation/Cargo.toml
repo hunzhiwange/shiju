@@ -6,7 +6,10 @@ license = "MIT"
 [lib]
 doctest = false
 [dependencies]
-iced = { version = "0.14", features = ["image", "svg", "advanced"] }
+serde_json = "1"
+desktop-settings-network = { path = "../desktop-settings-network", version = "0.6.0" }
+desktop-settings-skills = { path = "../desktop-settings-skills", version = "0.6.0" }
+iced = { version = "0.14", features = ["image", "svg", "advanced", "canvas"] }
 desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
 desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
@@ -19,3 +22,6 @@ desktop-release = { path = "../desktop-release", version = "0.6.0" }
 update-types = { path = "../update-types", version = "0.6.0" }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 desktop-web-install = { path = "../desktop-web-install", version = "0.6.0" }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

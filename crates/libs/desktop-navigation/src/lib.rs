@@ -1,5 +1,7 @@
 pub mod ui_types;
 pub mod components {
+ pub mod tab_bar;
+ pub mod top_bar;
  pub mod about_modal;
  pub mod install_cli_modal;
  mod install_cli_modal_progress;

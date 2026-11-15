@@ -3,7 +3,7 @@
 use crate::app::config::update_runtime_config_async;
 use crate::app::{App, Message};
 use iced::Task;
-use vw_config_types::runtime::RuntimeConfig;
+use config_runtime::RuntimeConfig;
 
 use super::messages::{RuntimeMessage, SettingsMessage};
 

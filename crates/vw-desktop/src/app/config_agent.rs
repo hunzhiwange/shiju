@@ -8,6 +8,7 @@ use config_observability::ObservabilityConfig;
 use config_hooks::HooksConfig;
 use config_automation::{CronConfig, HeartbeatConfig, SchedulerConfig};
 use config_reliability::ReliabilityConfig;
+use config_runtime::RuntimeConfig;
 use iced::Task;
 use std::collections::{BTreeMap, HashMap};
 use vw_config_types::{
@@ -19,7 +20,6 @@ use vw_config_types::{
     proxy::ProxyConfig,
     reliability::ReliabilityConfig,
     routing::{EmbeddingRouteConfig, ModelRouteConfig, QueryClassificationConfig},
-    runtime::RuntimeConfig,
     security::{AutonomyConfig, IdentityConfig, SecurityConfig},
     skills::SkillsConfig,
     tools::{BrowserConfig, HttpRequestConfig, MultimodalConfig, WebSearchConfig},

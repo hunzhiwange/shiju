@@ -58,7 +58,7 @@ pub use vw_config_types::memory;
 pub use config_observability as observability;
 pub use config_reliability as reliability;
 pub use config_routing as routing;
-pub use vw_config_types::runtime;
+pub use config_runtime as runtime;
 
 // Re-export types for backward compatibility and ease of use
 pub use agent::*;

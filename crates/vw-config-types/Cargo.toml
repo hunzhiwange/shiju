@@ -8,6 +8,7 @@ description = "Configuration types for VibeWindow"
 license = "MIT"
 
 [dependencies]
+config-runtime = { path = "../libs/config-runtime", version = "0.6.0" }
 config-observability = { path = "../libs/config-observability", version = "0.6.0" }
 config-hooks = { path = "../libs/config-hooks", version = "0.6.0" }
 config-automation = { path = "../libs/config-automation", version = "0.6.0" }

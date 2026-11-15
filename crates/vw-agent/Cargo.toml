@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+config-runtime = { path = "../libs/config-runtime", version = "0.6.0" }
 vw-api-acp-model = { path = "../libs/api-acp-model", version = "0.6.0" }
 config-observability = { path = "../libs/config-observability", version = "0.6.0" }
 config-hooks = { path = "../libs/config-hooks", version = "0.6.0" }

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/config-runtime",
   "crates/libs/provider-auth-reader",
   "crates/libs/api-acp-model",
   "crates/libs/provider-config-reader",

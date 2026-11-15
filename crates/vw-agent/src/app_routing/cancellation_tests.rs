@@ -12,7 +12,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, gateway_inference::GatewayInferenceClient};
 
 const GUARD: Duration = Duration::from_secs(3);
 const REQUEST: &str = r#"{"model":"fixture","stream":true}"#;
@@ -184,11 +184,11 @@ async fn cc_route_022_sdk_cancel_and_credential_revocation_release_each_request_
     let (token, revoke) = fixture.issue();
     let capacity = fixture.listener.available_body_permits();
 
-    // The existing GatewayClient inference call stays pending before the
+    // The domain client inference call stays pending before the
     // first SSE output. Cancel the caller's task without changing the grant.
     let endpoint = GatewayEndpoint::new(fixture.address.ip().to_string(), fixture.address.port())
         .with_auth(GatewayAuth { skey: Some(token.clone()) });
-    let sdk = GatewayClient::new(endpoint).unwrap();
+    let sdk = GatewayInferenceClient::new(gateway_http::GatewayTransport::new(endpoint).unwrap());
     let request = tokio::spawn(async move {
         let payload = serde_json::from_str(REQUEST).unwrap();
         sdk.inference_openai_chat(&payload).await

@@ -12,8 +12,8 @@ use vw_api_agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_transport::id::ProjectId;
 
 use super::GatewayAgentRequest;
-use crate::client::test_support;
-use crate::endpoint::GatewayEndpoint;
+use crate::test_support;
+use gateway_endpoint::GatewayEndpoint;
 
 #[tokio::test]
 async fn inference_and_stream_clients_preserve_protocol_events() {
@@ -93,7 +93,7 @@ async fn inference_and_stream_clients_preserve_protocol_events() {
     server.join();
 
     let (endpoint, handshake) = websocket_server();
-    let client = crate::client::GatewayClient::new(endpoint).expect("WebSocket client");
+    let client = crate::GatewayInferenceClient::new(gateway_http::GatewayTransport::new(endpoint).expect("transport"));
     let mut socket = client.connect_chat_websocket().await.expect("connect chat WebSocket");
     socket.send_json(&json!({"type":"message","content":"hello"})).await.unwrap();
     let event = socket.next_event().await.unwrap().expect("text event");

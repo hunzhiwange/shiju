@@ -13,10 +13,11 @@ use {
 };
 use vw_api_task::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};
 use vw_gateway_client::{
-    GatewayAgentRequest, GatewayChatWebSocketEvent, GatewayJsonSseEvent,
+    GatewayJsonSseEvent,
     GatewayStreamAttemptResult, GatewayStreamEvent, GatewayStreamResume,
 };
 
+use gateway_inference::{GatewayInferenceClient, GatewayAgentRequest, GatewayChatWebSocketEvent};
 use cli_api_core::context::ApiContext;
 use cli_api_core::input::read_json_input;
 use cli_api_core::output;
@@ -111,13 +112,12 @@ pub async fn run(
         RealtimeCommands::Agent { input } => {
             let request = parse::<GatewayAgentRequest>(&input, stdin, "agent")?;
             let response =
-                context.client().inference_agent(&request).await.map_err(anyhow::Error::msg)?;
+                GatewayInferenceClient::new(context.client().transport().clone()).inference_agent(&request).await.map_err(anyhow::Error::msg)?;
             output::write_json(writer, &response, context.output_format())
         }
         RealtimeCommands::Openai { input } => {
             let request = read_json_input(&input, stdin)?;
-            let response = context
-                .client()
+            let response = GatewayInferenceClient::new(context.client().transport().clone())
                 .inference_openai_chat(&request)
                 .await
                 .map_err(anyhow::Error::msg)?;
@@ -125,18 +125,17 @@ pub async fn run(
         }
         RealtimeCommands::GatewayEvents { limit } => {
             let mut sink = JsonEventSink::new(writer, limit);
-            let result = context.client().stream_gateway_events(|event| sink.write(event)).await;
+            let result = GatewayInferenceClient::new(context.client().transport().clone()).stream_gateway_events(|event| sink.write(event)).await;
             sink.finish(result)
         }
         RealtimeCommands::GlobalEvents { limit } => {
             let mut sink = JsonEventSink::new(writer, limit);
-            let result = context.client().stream_global_events(|event| sink.write(event)).await;
+            let result = GatewayInferenceClient::new(context.client().transport().clone()).stream_global_events(|event| sink.write(event)).await;
             sink.finish(result)
         }
         RealtimeCommands::InstanceEvents { limit } => {
             let mut sink = JsonEventSink::new(writer, limit);
-            let result = context
-                .client()
+            let result = GatewayInferenceClient::new(context.client().transport().clone())
                 .stream_instance_events(context.directory(), |event| sink.write(event))
                 .await;
             sink.finish(result)
@@ -144,8 +143,7 @@ pub async fn run(
         RealtimeCommands::SchedulerEvents { project_id, after_cursor, limit } => {
             let scope = scheduler_scope(context, project_id)?;
             let mut sink = JsonEventSink::new(writer, limit);
-            let result = context
-                .client()
+            let result = GatewayInferenceClient::new(context.client().transport().clone())
                 .stream_agent_scheduler_events(&scope, after_cursor, |event| sink.write(event))
                 .await;
             sink.finish(result)
@@ -317,7 +315,7 @@ async fn run_websocket(
     if messages.is_empty() {
         bail!("WebSocket messages must not be empty");
     }
-    let mut socket = context.client().connect_chat_websocket().await.map_err(anyhow::Error::msg)?;
+    let mut socket = GatewayInferenceClient::new(context.client().transport().clone()).connect_chat_websocket().await.map_err(anyhow::Error::msg)?;
     for message in messages {
         socket.send_json(message).await.map_err(anyhow::Error::msg)?;
     }

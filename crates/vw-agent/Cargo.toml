@@ -351,6 +351,7 @@ name = "acp_gemini_chat"
 path = "tests/acp_gemini_chat.rs"
 
 [dev-dependencies]
+gateway-inference = { path = "../libs/gateway-inference", version = "0.6.0" }
 gateway-model-provider = { path = "../libs/gateway-model-provider", version = "0.6.0" }
 gateway-model-catalog = { path = "../libs/gateway-model-catalog", version = "0.6.0" }
 gateway-files = { path = "../libs/gateway-files", version = "0.6.0" }

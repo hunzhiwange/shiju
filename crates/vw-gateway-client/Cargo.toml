@@ -8,6 +8,7 @@ description = "Gateway client types and helpers for VibeWindow"
 license = "MIT"
 
 [dependencies]
+gateway-inference = { path = "../libs/gateway-inference", version = "0.6.0" }
 gateway-mcp-distribution = { path = "../libs/gateway-mcp-distribution", version = "0.6.0" }
 gateway-mcp-read = { path = "../libs/gateway-mcp-read", version = "0.6.0" }
 gateway-mcp-write = { path = "../libs/gateway-mcp-write", version = "0.6.0" }

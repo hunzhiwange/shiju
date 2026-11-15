@@ -8,11 +8,14 @@ use vw_agent_apps::{
         snapshot::SnapshotScope,
     },
 };
-use vw_api_types::{
-    mcp_management::{
-        McpCatalogScope, McpConnectionDefinition, McpCredentialRef, McpFailureCode, McpNativeStatus,
-    },
-    project_profiles::{ProjectProfileItemResult, ProjectProfilePayload},
+use {
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpCredentialRef,
+    vw_api_mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpNativeStatus,
+    vw_api_types::project_profiles::ProjectProfileItemResult,
+    vw_api_types::project_profiles::ProjectProfilePayload,
 };
 
 use super::{McpBindingTarget, McpCatalogStore};

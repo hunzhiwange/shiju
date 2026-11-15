@@ -2,7 +2,7 @@
 use super::*;
 use crate::app::message::settings::mcp_management_tools::{self as tools, ToolsMessage};
 use iced::widget::column;
-use vw_gateway_client::vw_api_types::mcp_management::*;
+use vw_api_mcp_management::*;
 
 pub(super) fn panel(app: &App) -> Element<'_, Message> {
     let mut body = column![

@@ -1,7 +1,7 @@
 //! Preserve managed native bindings when retiring a catalog entry.
 
 use serde::{Deserialize, Serialize};
-use vw_api_types::mcp_management::{
+use vw_api_mcp_management::{
     McpAppTarget, McpCatalogScope, McpCliBinding, McpFailureCode, McpRecordRef,
 };
 

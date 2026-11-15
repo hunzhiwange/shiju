@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use vw_api_types::mcp_management::{
+use vw_api_mcp_management::{
     McpBatchOutcome, McpCatalogScope, McpConnectionDefinition, McpCredentialRef,
     McpDistributionItem, McpDistributionOutcome, McpDistributionResult, McpRecordRef,
 };

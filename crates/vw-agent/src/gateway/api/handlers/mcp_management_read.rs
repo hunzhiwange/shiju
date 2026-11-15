@@ -19,13 +19,13 @@ use {
     vw_api_transport::TenantScope,
     vw_api_app_identity::AppId,
     vw_api_app_identity::AppInstallationId,
-    vw_api_types::mcp_management::McpCatalogResponse,
-    vw_api_types::mcp_management::McpCatalogScope,
-    vw_api_types::mcp_management::McpFailureCode,
-    vw_api_types::mcp_management::McpFailureResponse,
-    vw_api_types::mcp_management::McpNativePreview,
-    vw_api_types::mcp_management::McpPresetDraftView,
-    vw_api_types::mcp_management::McpPresetsResponse,
+    vw_api_mcp_management::McpCatalogResponse,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpFailureResponse,
+    vw_api_mcp_management::McpNativePreview,
+    vw_api_mcp_management::McpPresetDraftView,
+    vw_api_mcp_management::McpPresetsResponse,
 };
 
 use super::agent_apps;
@@ -246,12 +246,13 @@ fn native_preview(
         apps::discovery::read::resolve_cli_installation,
         mcp::import::{NativeMcpSource, read},
     };
-    use vw_api_types::{
-        mcp_management::{
-            McpAppTarget, McpConnectionDefinition, McpNativePreviewEntry, McpNativeStatus,
-            McpTransport,
-        },
-    };
+    use {
+    vw_api_mcp_management::McpAppTarget,
+    vw_api_mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpNativePreviewEntry,
+    vw_api_mcp_management::McpNativeStatus,
+    vw_api_mcp_management::McpTransport,
+};
     use vw_api_app_auth::{AuthErrorCode, AuthService};
 
     let target = McpAppTarget {

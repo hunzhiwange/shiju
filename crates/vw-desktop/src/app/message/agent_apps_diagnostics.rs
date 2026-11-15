@@ -4,7 +4,10 @@ use crate::app::{
     message::settings::{McpMessage, SettingsMessage, mcp_management_list as catalog},
 };
 use iced::Task;
-use vw_gateway_client::vw_api_types::{agent_apps_diagnostics::*, mcp_management::McpRecordId};
+use {
+    vw_gateway_client::vw_api_types::agent_apps_diagnostics::*,
+    vw_api_mcp_management::McpRecordId,
+};
 
 pub(crate) mod mcp_results;
 mod mcp_state;

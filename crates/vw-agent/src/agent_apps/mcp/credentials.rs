@@ -6,7 +6,7 @@ use vw_agent_apps::{
     mcp::validation::{SECRET_MASK, validate_connection},
     providers::validate_identity,
 };
-use vw_api_types::mcp_management::{
+use vw_api_mcp_management::{
     McpCatalogScope, McpConfigValue, McpConnectionDefinition, McpFailureCode, McpRecordId,
     McpRecordRef,
 };
@@ -138,9 +138,9 @@ mod execution {
     vw_api_transport::TenantScope,
     vw_api_app_auth::AuthErrorCode,
     vw_api_app_auth::AuthService,
-    vw_api_types::mcp_management::McpCatalogRecord,
-    vw_api_types::mcp_management::McpCredentialRef,
-    vw_api_types::mcp_management::McpTransport,
+    vw_api_mcp_management::McpCatalogRecord,
+    vw_api_mcp_management::McpCredentialRef,
+    vw_api_mcp_management::McpTransport,
 };
 
     /// Host-private transport inputs. Keep this out of serialized settings and diagnostics.

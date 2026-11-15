@@ -2,7 +2,11 @@
 use super::{McpMessage, SettingsMessage};
 use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;
-use vw_gateway_client::{AgentAppsReadError, GatewayClient, vw_api_types::mcp_management::*};
+use {
+    vw_gateway_client::AgentAppsReadError,
+    vw_gateway_client::GatewayClient,
+    vw_api_mcp_management::*,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Context {

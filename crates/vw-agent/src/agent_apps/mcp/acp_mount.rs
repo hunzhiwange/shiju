@@ -9,7 +9,7 @@ use acp_server::server::BackendError;
 use vw_api_transport::ProjectScope;
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpFailureCode,
 };
 
 use super::McpCatalogStore;

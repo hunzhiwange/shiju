@@ -10,16 +10,27 @@ use axum::http::{HeaderMap, StatusCode};
 use tokio::time::{Instant, timeout_at};
 use tokio_util::sync::CancellationToken;
 use vw_agent_apps::mcp::validation::validate_new_name;
-use vw_api_types::{
-    agent_apps_diagnostics::{
-        DiagnosticEvidenceSource, DiagnosticFailure, DiagnosticFailureCode, DiagnosticJobIdentity,
-        DiagnosticOutcome, DiagnosticPhase, DiagnosticProbeKind, DiagnosticReport,
-        DiagnosticResult, DiagnosticScope, DiagnosticTiming, McpHandshakeEvidence,
-    },
-    mcp_management::{
-        McpCatalogScope, McpConfigValue, McpConnectionCheckItem, McpConnectionDefinition,
-        McpConnectionOutcome, McpFailureCode, McpRecordId, McpTransport,
-    },
+use {
+    vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailure,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
+    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
+    vw_api_types::agent_apps_diagnostics::DiagnosticPhase,
+    vw_api_types::agent_apps_diagnostics::DiagnosticProbeKind,
+    vw_api_types::agent_apps_diagnostics::DiagnosticReport,
+    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
+    vw_api_types::agent_apps_diagnostics::DiagnosticTiming,
+    vw_api_types::agent_apps_diagnostics::McpHandshakeEvidence,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpConfigValue,
+    vw_api_mcp_management::McpConnectionCheckItem,
+    vw_api_mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpConnectionOutcome,
+    vw_api_mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpRecordId,
+    vw_api_mcp_management::McpTransport,
 };
 
 use super::{

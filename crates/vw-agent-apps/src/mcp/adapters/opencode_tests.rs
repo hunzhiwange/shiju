@@ -11,8 +11,8 @@ use serde_json::json;
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpConfigValue,
-    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpConfigValue,
+    vw_api_mcp_management::McpConnectionDefinition,
 };
 
 const ORIGINAL: &str = r#"{
@@ -134,7 +134,9 @@ fn cc_mcp_t15_same_name_keeps_user_configuration() {
 
 #[test]
 fn cc_mcp_t15_unrepresentable_fields_and_unresolved_credentials_leave_file_unchanged() {
-    use vw_api_types::{ mcp_management::McpCredentialRef};
+    use {
+    vw_api_mcp_management::McpCredentialRef,
+};
     use vw_api_app_auth::AuthService;
 
     let fixture = Fixture::new();

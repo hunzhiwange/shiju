@@ -15,16 +15,16 @@ use axum::{
 use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpBatchOutcome,
-    vw_api_types::mcp_management::McpCatalogScope,
-    vw_api_types::mcp_management::McpDeleteRequest,
-    vw_api_types::mcp_management::McpDistributionItem,
-    vw_api_types::mcp_management::McpDistributionOutcome,
-    vw_api_types::mcp_management::McpDistributionResult,
-    vw_api_types::mcp_management::McpFailureCode,
-    vw_api_types::mcp_management::McpNativeStatus,
-    vw_api_types::mcp_management::McpRecordId,
-    vw_api_types::mcp_management::McpRecordRef,
+    vw_api_mcp_management::McpBatchOutcome,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpDeleteRequest,
+    vw_api_mcp_management::McpDistributionItem,
+    vw_api_mcp_management::McpDistributionOutcome,
+    vw_api_mcp_management::McpDistributionResult,
+    vw_api_mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpNativeStatus,
+    vw_api_mcp_management::McpRecordId,
+    vw_api_mcp_management::McpRecordRef,
 };
 
 pub(super) async fn delete_catalog_record(
@@ -122,7 +122,7 @@ fn cleanup(
     scope: &McpCatalogScope,
     store: &McpCatalogStore,
     expected: &McpRecordRef,
-    target: &vw_api_types::mcp_management::McpAppTarget,
+    target: &vw_api_mcp_management::McpAppTarget,
 ) -> Result<(), McpFailureCode> {
     use crate::agent_apps::mcp::McpBindingTarget;
     use vw_agent_apps::{
@@ -195,7 +195,7 @@ fn cleanup(
     _: &McpCatalogScope,
     _: &McpCatalogStore,
     _: &McpRecordRef,
-    _: &vw_api_types::mcp_management::McpAppTarget,
+    _: &vw_api_mcp_management::McpAppTarget,
 ) -> Result<(), McpFailureCode> {
     Err(McpFailureCode::TargetUnavailable)
 }

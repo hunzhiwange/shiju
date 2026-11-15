@@ -22,7 +22,7 @@ use {
     vw_api_transport::TenantScope,
     vw_api_app_identity::AppId,
     vw_api_app_identity::AppInstallationId,
-    vw_api_types::mcp_management::*,
+    vw_api_mcp_management::*,
 };
 
 #[derive(Clone, Default)]

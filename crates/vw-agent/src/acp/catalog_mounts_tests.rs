@@ -7,9 +7,9 @@ use vw_agent_apps::mcp::catalog::McpCatalogDraft;
 use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpCatalogScope,
-    vw_api_types::mcp_management::McpConnectionDefinition,
-    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpFailureCode,
 };
 
 use super::{VibeWindowBackend, read_catalog_mounts};

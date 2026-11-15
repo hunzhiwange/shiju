@@ -1,13 +1,19 @@
 //! Reconcile saved MCP bindings for explicitly selected, authorized applications.
 
 use vw_agent_apps::apps::{catalog::catalog, lifecycle::operations::Operation};
-use vw_api_types::{
-    agent_apps::AppId,
-    mcp_management::{
-        McpAppTarget, McpBatchOutcome, McpCatalogScope, McpCliBinding, McpConnectionDefinition,
-        McpCredentialRef, McpDistributionItem, McpDistributionOutcome, McpDistributionResult,
-        McpFailureCode, McpRecordRef,
-    },
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_mcp_management::McpAppTarget,
+    vw_api_mcp_management::McpBatchOutcome,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpCliBinding,
+    vw_api_mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpCredentialRef,
+    vw_api_mcp_management::McpDistributionItem,
+    vw_api_mcp_management::McpDistributionOutcome,
+    vw_api_mcp_management::McpDistributionResult,
+    vw_api_mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpRecordRef,
 };
 
 use super::{

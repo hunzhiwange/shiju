@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use tower::ServiceExt;
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpCatalogScope,
 };
 
 use crate::{agent_apps::mcp::McpCatalogStore, global_database::GlobalDatabase};
@@ -125,7 +125,7 @@ async fn cc_mcp_t35_delete_revokes_each_target_and_retries_only_failures() {
             .unwrap()
             .installations
             .remove(0);
-        let target = vw_api_types::mcp_management::McpAppTarget {
+        let target = vw_api_mcp_management::McpAppTarget {
             app_id,
             installation_id: installation.id,
             target_host_id: "host".into(),
@@ -208,7 +208,7 @@ async fn cc_mcp_t35_delete_revokes_each_target_and_retries_only_failures() {
                 homepage: None,
                 documentation: None,
                 tags: vec![],
-                connection: vw_api_types::mcp_management::McpConnectionDefinition::Stdio {
+                connection: vw_api_mcp_management::McpConnectionDefinition::Stdio {
                     command: "fixture".into(),
                     args: vec![],
                     env: Default::default(),

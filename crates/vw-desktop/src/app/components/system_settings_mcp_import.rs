@@ -11,7 +11,10 @@ use iced::{
     Element, Length,
     widget::{button, column, row, text},
 };
-use vw_gateway_client::vw_api_types::{agent_apps::AppId, mcp_management::McpConnectionDefinition};
+use {
+    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_api_mcp_management::McpConnectionDefinition,
+};
 
 pub(crate) fn panel<'a>(app: &App, state: &'a ImportState) -> Element<'a, Message> {
     let idle = !state.importing && !state.loading;

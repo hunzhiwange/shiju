@@ -1,7 +1,7 @@
 //! Construction and validation of new managed MCP records.
 
 use reqwest::Url;
-use vw_api_types::mcp_management::{
+use vw_api_mcp_management::{
     McpCatalogRecord, McpCatalogScope, McpConnectionDefinition, McpFailureCode, McpRecordRef,
     McpTransport,
 };

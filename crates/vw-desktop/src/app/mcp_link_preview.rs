@@ -3,7 +3,7 @@ use crate::app::{App, Message, deep_links, message::settings::{GeneralSettingsMe
 use base64::{Engine as _, engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD}};
 use iced::{Element, Task, widget::{button, column, row, text}};
 use std::collections::BTreeMap;
-use vw_gateway_client::vw_api_types::mcp_management::*;
+use vw_api_mcp_management::*;
 
 pub(crate) fn parse(raw: &str, host: &str) -> Result<Vec<Result<McpCreateRequest, String>>, &'static str> {
     let invalid = "MCP 链接格式无效";

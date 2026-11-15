@@ -15,7 +15,7 @@ use serde::Deserialize;
 use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::*,
+    vw_api_mcp_management::*,
 };
 
 #[derive(Deserialize)]

@@ -83,7 +83,7 @@ async fn diagnostic_sdk_preserves_job_identity() {
         ),
         (
             DiagnosticStartRequest::Mcp {
-                server_ids: vec![vw_api_types::mcp_management::McpRecordId("server".into())],
+                server_ids: vec![vw_api_mcp_management::McpRecordId("server".into())],
             },
             DiagnosticProbeKind::Mcp,
         ),

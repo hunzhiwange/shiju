@@ -2,7 +2,7 @@
 
 use std::{collections::BTreeMap, path::Path};
 
-use {vw_api_transport::TenantScope, vw_api_app_identity::AppId, vw_api_types::mcp_management::McpAppTarget, vw_api_types::mcp_management::McpConnectionDefinition, vw_api_types::mcp_management::McpFailureCode};
+use {vw_api_transport::TenantScope, vw_api_app_identity::AppId, vw_api_mcp_management::McpAppTarget, vw_api_mcp_management::McpConnectionDefinition, vw_api_mcp_management::McpFailureCode};
 use vw_api_app_provider_environment::paths::ConfigPathState;
 
 use super::adapters::{

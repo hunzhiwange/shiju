@@ -1,6 +1,6 @@
 use super::validation::{ValidationError, parse_native, validate_new_name};
 use serde_json::json;
-use vw_api_types::mcp_management::{McpConnectionDefinition, McpRecordId};
+use vw_api_mcp_management::{McpConnectionDefinition, McpRecordId};
 
 #[test]
 fn cc_mcp_t04_native_default_preserves_stdio_arguments() {

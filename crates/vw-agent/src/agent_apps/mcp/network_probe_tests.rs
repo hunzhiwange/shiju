@@ -30,13 +30,13 @@ use {
     vw_api_types::agent_apps_diagnostics::DiagnosticResult,
     vw_api_types::agent_apps_diagnostics::DiagnosticScope,
     vw_api_transport::id::ProjectScope,
-    vw_api_types::mcp_management::McpCatalogRecord,
-    vw_api_types::mcp_management::McpCatalogScope,
-    vw_api_types::mcp_management::McpConfigValue,
-    vw_api_types::mcp_management::McpConnectionDefinition,
-    vw_api_types::mcp_management::McpFailureCode,
-    vw_api_types::mcp_management::McpRecordId,
-    vw_api_types::mcp_management::McpTransport,
+    vw_api_mcp_management::McpCatalogRecord,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpConfigValue,
+    vw_api_mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpRecordId,
+    vw_api_mcp_management::McpTransport,
 };
 
 use super::{

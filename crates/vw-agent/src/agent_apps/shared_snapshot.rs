@@ -124,10 +124,10 @@ fn project(scope: SnapshotScope<'_>, selected: &SnapshotSelection, root: &Path,
     for id in &selected.mcp {
         let raw = required(get(&mcp_namespace, id)?)?;
         #[derive(serde::Deserialize)]
-        struct Stored { record: vw_api_types::mcp_management::McpCatalogRecord }
+        struct Stored { record: vw_api_mcp_management::McpCatalogRecord }
         let stored: Stored = serde_json::from_str(&raw).map_err(|_| anyhow::anyhow!("invalid or retired MCP record"))?;
         ensure!(stored.record.record.id.0 == *id, "MCP identity mismatch");
-        ensure!(stored.record.scope == vw_api_types::mcp_management::McpCatalogScope::Project { scope: scope.project.clone() }, "MCP scope mismatch");
+        ensure!(stored.record.scope == vw_api_mcp_management::McpCatalogScope::Project { scope: scope.project.clone() }, "MCP scope mismatch");
         config.mcp.push(SharedMcp { id: id.clone(), name: stored.record.name,
             description: stored.record.description, tags: stored.record.tags });
     }

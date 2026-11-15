@@ -13,8 +13,8 @@ use tower::ServiceExt;
 use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpCatalogRecord,
-    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpCatalogRecord,
+    vw_api_mcp_management::McpCatalogScope,
 };
 
 use crate::{agent_apps::mcp::McpCatalogStore, global_database::GlobalDatabase};
@@ -116,7 +116,7 @@ async fn cc_mcp_t34_update_checks_revision_and_never_claims_native_sync() {
         homepage: None,
         documentation: None,
         tags: vec![],
-        connection: vw_api_types::mcp_management::McpConnectionDefinition::StreamableHttp {
+        connection: vw_api_mcp_management::McpConnectionDefinition::StreamableHttp {
             url: endpoint.clone(),
             headers: Default::default(),
         },

@@ -3,9 +3,12 @@ use super::source::{SourceCategory, SourceRecord};
 use crate::mcp::{catalog::McpCatalogDraft, validation::parse_native};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
-use vw_api_types::{
-    agent_apps::AppId,
-    mcp_management::{McpCatalogRecord, McpCatalogScope, McpConnectionDefinition, McpFailureCode},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_mcp_management::McpCatalogRecord,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpFailureCode,
 };
 
 pub struct MigrationMcpRecord {

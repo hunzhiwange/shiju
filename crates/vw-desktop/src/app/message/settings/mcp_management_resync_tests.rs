@@ -67,9 +67,10 @@ fn cc_mcp_t48_settings_exposes_resync_progress() {
 use super::mcp_management_resync::*;
 use super::{McpMessage, SettingsMessage, mcp_management_list as catalog};
 use iced::Task;
-use vw_gateway_client::{
-    mcp_management_distribution::*,
-    vw_api_types::{agent_apps::*, mcp_management::*},
+use {
+    vw_gateway_client::mcp_management_distribution::*,
+    vw_gateway_client::vw_api_types::agent_apps::*,
+    vw_api_mcp_management::*,
 };
 fn target() -> McpAppTarget {
     McpAppTarget {

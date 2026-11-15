@@ -13,7 +13,7 @@ use {
     vw_api_app_operations::AppActionExecutionResult,
     vw_api_app_identity::AppId,
     vw_api_app_operations::AppOperationPhase,
-    vw_gateway_client::vw_api_types::mcp_management::*,
+    vw_api_mcp_management::*,
     vw_api_task::TaskStatus,
 };
 

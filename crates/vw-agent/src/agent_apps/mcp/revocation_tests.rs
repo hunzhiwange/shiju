@@ -4,10 +4,10 @@ use serde_json::json;
 use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpCatalogScope,
-    vw_api_types::mcp_management::McpConnectionDefinition,
-    vw_api_types::mcp_management::McpFailureCode,
-    vw_api_types::mcp_management::McpRuntimeSelection,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpRuntimeSelection,
 };
 
 use super::{McpCatalogStore, catalog_create_tests::http_draft, runtime_tests::register_project};

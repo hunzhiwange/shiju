@@ -5,8 +5,8 @@ use acp_types::{McpCatalogMount, SessionMountRevision};
 use acp_server::server::BackendError;
 use {
     vw_api_transport::ProjectScope,
-    vw_api_types::mcp_management::McpCatalogScope,
-    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpFailureCode,
 };
 
 use crate::{

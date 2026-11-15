@@ -1,6 +1,6 @@
 //! Explicit discovery uses the same narrow permit, transport and cleanup as connection checks.
 use super::*;
-use vw_api_types::mcp_management::{McpToolDetails, McpToolDetailsRequest};
+use vw_api_mcp_management::{McpToolDetails, McpToolDetailsRequest};
 
 pub fn start_details(
     jobs: &DiagnosticJobs,

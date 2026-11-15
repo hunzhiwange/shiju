@@ -11,19 +11,19 @@ use vw_agent_apps::mcp::{
     import::NativeMcpSource,
 };
 use vw_agent_apps::providers::live::{commit::ProviderTransactions, write_guard::WriteError};
-use vw_api_types::{
-    mcp_management::McpAppTarget,
-    mcp_management::McpCatalogScope,
-    mcp_management::McpCliBinding,
-    mcp_management::McpConfigValue,
-    mcp_management::McpConnectionDefinition,
-    mcp_management::McpCredentialRef,
-    mcp_management::McpDistributionItem,
-    mcp_management::McpDistributionOutcome,
-    mcp_management::McpFailureCode,
-    mcp_management::McpNativeStatus,
-    mcp_management::McpRecordRef,
-    mcp_management::McpTransport,
+use {
+    vw_api_mcp_management::McpAppTarget,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpCliBinding,
+    vw_api_mcp_management::McpConfigValue,
+    vw_api_mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpCredentialRef,
+    vw_api_mcp_management::McpDistributionItem,
+    vw_api_mcp_management::McpDistributionOutcome,
+    vw_api_mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpNativeStatus,
+    vw_api_mcp_management::McpRecordRef,
+    vw_api_mcp_management::McpTransport,
 };
 use vw_api_app_identity::{AppInstallation, AppInstallationEnvironment};
 

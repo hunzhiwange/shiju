@@ -14,7 +14,7 @@ use vw_agent_apps::apps::discovery::read::{self, LocalReadEnvironment};
 use {
     vw_api_transport::TenantScope,
     vw_api_app_identity::AppId,
-    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpCatalogScope,
 };
 
 const ROOT: &str = "SHIJU_MCP_TASK52_ROOT";

@@ -6,7 +6,7 @@ use {
     vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
     vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
     vw_api_types::agent_apps_diagnostics::DiagnosticScopeQuery,
-    vw_api_types::mcp_management::McpRecordId,
+    vw_api_mcp_management::McpRecordId,
 };
 
 impl GatewayClient {
@@ -14,7 +14,7 @@ impl GatewayClient {
     pub async fn mcp_management_tools(
         &self,
         scope: &DiagnosticScopeQuery,
-        request: &vw_api_types::mcp_management::McpToolDetailsRequest,
+        request: &vw_api_mcp_management::McpToolDetailsRequest,
         token: &str,
     ) -> Result<DiagnosticJobIdentity, AgentAppsSettingsError> {
         self.mcp_probe_request(

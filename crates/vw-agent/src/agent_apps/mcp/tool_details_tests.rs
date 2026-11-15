@@ -13,7 +13,10 @@ use axum::{
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use vw_api_types::{agent_apps_diagnostics::DiagnosticResult, mcp_management::*};
+use {
+    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_mcp_management::*,
+};
 
 fn details_policy(fixture: &Fixture, permits: &[Value]) -> anyhow::Result<()> {
     fixture.policy(permits)?;

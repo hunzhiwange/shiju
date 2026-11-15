@@ -9,7 +9,7 @@ use crate::providers::{
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpConnectionDefinition,
 };
 
 const EXISTING: &str = r#"# user configuration
@@ -62,7 +62,7 @@ impl Fixture {
 
 #[test]
 fn cc_mcp_t14_grokbuild_projects_and_reverses_managed_lifecycle() {
-    use vw_api_types::mcp_management::McpConfigValue::Literal;
+    use vw_api_mcp_management::McpConfigValue::Literal;
 
     let fixture = Fixture::new(Some(EXISTING));
     let id = "managed.tools";
@@ -120,7 +120,7 @@ legacy_sse = { type = "sse", url = "https://example.invalid/events" }
     };
     assert!(matches!(
         headers.get("X-Mode"),
-        Some(vw_api_types::mcp_management::McpConfigValue::Literal { value }) if value == "fixture"
+        Some(vw_api_mcp_management::McpConfigValue::Literal { value }) if value == "fixture"
     ));
     drop(files);
 
@@ -132,9 +132,10 @@ legacy_sse = { type = "sse", url = "https://example.invalid/events" }
 
 #[test]
 fn cc_mcp_t14_grokbuild_rejects_lossy_transport_and_unresolved_values() {
-    use vw_api_types::{
-        mcp_management::{McpConfigValue, McpCredentialRef},
-    };
+    use {
+    vw_api_mcp_management::McpConfigValue,
+    vw_api_mcp_management::McpCredentialRef,
+};
     use vw_api_app_auth::AuthService;
 
     let fixture = Fixture::new(Some(EXISTING));

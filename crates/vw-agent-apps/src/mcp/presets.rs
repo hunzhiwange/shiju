@@ -1,7 +1,7 @@
 //! Built-in MCP presets and their disabled catalog drafts.
 
 use super::validation::{ValidationError, validate_connection, validate_new_name};
-use vw_api_types::mcp_management::{McpConnectionDefinition, McpRecordId};
+use vw_api_mcp_management::{McpConnectionDefinition, McpRecordId};
 
 pub struct McpPreset {
     pub id: &'static str,

@@ -226,7 +226,7 @@ pub(super) async fn submit(
 pub(super) enum SubmissionRequest {
     Diagnostic(DiagnosticStartRequest),
     McpConnectionChecks {
-        server_ids: Vec<vw_api_types::mcp_management::McpRecordId>,
+        server_ids: Vec<vw_api_mcp_management::McpRecordId>,
         generation: u64,
     },
 }
@@ -290,10 +290,10 @@ pub(super) async fn submit_request(
                 McpHandshakeStartError::Access(status) => status,
                 McpHandshakeStartError::Job(error) => job_status(error),
                 McpHandshakeStartError::Record(
-                    vw_api_types::mcp_management::McpFailureCode::PermissionDenied,
+                    vw_api_mcp_management::McpFailureCode::PermissionDenied,
                 ) => StatusCode::FORBIDDEN,
                 McpHandshakeStartError::Record(
-                    vw_api_types::mcp_management::McpFailureCode::StorageUnavailable,
+                    vw_api_mcp_management::McpFailureCode::StorageUnavailable,
                 ) => StatusCode::SERVICE_UNAVAILABLE,
                 McpHandshakeStartError::Record(_) => StatusCode::UNPROCESSABLE_ENTITY,
             });

@@ -3,7 +3,10 @@ use super::{McpMessage, SettingsMessage, mcp_management_list as catalog};
 use crate::app::{App, Message};
 use iced::{Task, widget::text_editor};
 use std::collections::BTreeMap;
-use vw_gateway_client::{GatewayClient, vw_api_types::mcp_management::*};
+use {
+    vw_gateway_client::GatewayClient,
+    vw_api_mcp_management::*,
+};
 
 #[derive(Clone)]
 pub(crate) struct Draft {

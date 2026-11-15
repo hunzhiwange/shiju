@@ -12,7 +12,7 @@ use std::{
 };
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpConnectionDefinition,
 };
 
 struct Fixture {
@@ -85,7 +85,7 @@ fn cc_mcp_t19_sse_writes_native_transport() {
 
 #[test]
 fn cc_mcp_t19_updates_and_revokes_only_the_managed_entry() {
-    use vw_api_types::mcp_management::McpConfigValue::Literal;
+    use vw_api_mcp_management::McpConfigValue::Literal;
 
     let fixture = Fixture::new(Some(
         r#"{
@@ -207,9 +207,10 @@ fn cc_mcp_t19_rejects_bad_maps_and_preserves_source_bytes() {
 
 #[test]
 fn cc_mcp_t19_rejects_unresolved_credentials_and_failed_preflight() {
-    use vw_api_types::{
-        mcp_management::{McpConfigValue, McpCredentialRef},
-    };
+    use {
+    vw_api_mcp_management::McpConfigValue,
+    vw_api_mcp_management::McpCredentialRef,
+};
     use vw_api_app_auth::AuthService;
 
     let fixture = Fixture::new(Some("{}"));

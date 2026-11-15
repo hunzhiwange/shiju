@@ -1,7 +1,7 @@
 //! Typed catalog mutations on the selected gateway; native writes stay on its execution host.
 use super::{AgentAppsSettingsError, GatewayClient};
 use serde::{Serialize, de::DeserializeOwned};
-use vw_api_types::mcp_management::{
+use vw_api_mcp_management::{
     McpCatalogRecord, McpCreateRequest, McpDeleteRequest, McpDistributionResult, McpRecordId,
     McpUpdateRequest,
 };

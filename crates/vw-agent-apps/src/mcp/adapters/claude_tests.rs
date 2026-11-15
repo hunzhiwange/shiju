@@ -157,7 +157,7 @@ fn cc_mcp_t11_invalid_entries_and_conflicts_are_structured() {
         }),
         Err(ClaudeMcpError::File(WriteError::Conflict))
     );
-    let unresolved: vw_api_types::mcp_management::McpConnectionDefinition =
+    let unresolved: vw_api_mcp_management::McpConnectionDefinition =
         serde_json::from_value(json!({
             "transport":"stdio","command":"fixture","env":{"TOKEN":{
                 "kind":"credential","reference":{"service":"claude_official","accountId":"fixture"}

@@ -11,7 +11,7 @@ use std::{collections::BTreeMap, fs, net::TcpListener, path::Path};
 use {
     vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
-    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpConnectionDefinition,
 };
 
 const BEFORE: &[u8] = b"# root comment\nmodel: 'keep'\nmcp_servers: # services\n  user: {command: 'keep'} # untouched\n";

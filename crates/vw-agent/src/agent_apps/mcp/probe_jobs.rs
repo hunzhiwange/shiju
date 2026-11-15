@@ -10,12 +10,12 @@ use {
     vw_api_types::agent_apps_diagnostics::DiagnosticProbeKind,
     vw_api_types::agent_apps_diagnostics::DiagnosticResult,
     vw_api_transport::id::TaskId,
-    vw_api_types::mcp_management::McpCatalogScope,
-    vw_api_types::mcp_management::McpConnectionCheckItem,
-    vw_api_types::mcp_management::McpConnectionDefinition,
-    vw_api_types::mcp_management::McpCredentialRef,
-    vw_api_types::mcp_management::McpFailureCode,
-    vw_api_types::mcp_management::McpRecordId,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpConnectionCheckItem,
+    vw_api_mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpCredentialRef,
+    vw_api_mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpRecordId,
 };
 
 use super::{

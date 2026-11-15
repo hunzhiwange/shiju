@@ -17,7 +17,7 @@ use crate::{
 };
 use serde_json::{Map, Value, json};
 use std::{collections::BTreeMap, ffi::OsStr, path::Path};
-use {vw_api_transport::TenantScope, vw_api_app_identity::AppId, vw_api_types::mcp_management::McpConfigValue, vw_api_types::mcp_management::McpConnectionDefinition};
+use {vw_api_transport::TenantScope, vw_api_app_identity::AppId, vw_api_mcp_management::McpConfigValue, vw_api_mcp_management::McpConnectionDefinition};
 use vw_api_app_provider_environment::paths::ConfigPathState;
 
 const SERVERS: &str = "mcpServers";

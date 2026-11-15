@@ -19,6 +19,7 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "que
 reqwest = { version = "0.13", features = ["json", "query"] }
 
 [dev-dependencies]
+vw-api-mcp-management = { path = "../api-mcp-management", version = "0.6.0" }
 vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

@@ -6,7 +6,7 @@ use iced::{
     Alignment, Element, Length,
     widget::{Space, button, checkbox, column, row, text, text_editor},
 };
-use vw_gateway_client::vw_api_types::mcp_management::McpConfigValue;
+use vw_api_mcp_management::McpConfigValue;
 
 /// Shared settings modal owns fixed header/footer and the 4px scrolling content area.
 pub(crate) fn connection_form_panel(

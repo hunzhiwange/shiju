@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use tower::ServiceExt;
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpCatalogScope,
 };
 
 use crate::{agent_apps::mcp::McpCatalogStore, global_database::GlobalDatabase};
@@ -120,7 +120,7 @@ async fn cc_mcp_t37_import_preserves_partial_results_and_authorization() {
     fs::create_dir_all(root.join(".codex")).unwrap();
     let native = root.join(".codex/config.toml");
     fs::write(&native, "[mcp_servers.shared]\ncommand = 'fixture'\n").unwrap();
-    let target = vw_api_types::mcp_management::McpAppTarget {
+    let target = vw_api_mcp_management::McpAppTarget {
         app_id: vw_api_app_identity::AppId::Codex,
         installation_id: vw_api_app_identity::AppInstallationId(
             "previous-installation".into(),
@@ -163,7 +163,7 @@ async fn cc_mcp_t37_import_preserves_partial_results_and_authorization() {
     assert_eq!(outcome("added")["record"]["id"], "added");
     assert_eq!(outcome("added")["record"]["revision"], 1);
     assert_eq!(outcome("shared")["record"]["revision"], 2);
-    let normalize = |mut records: Vec<vw_api_types::mcp_management::McpCatalogRecord>| {
+    let normalize = |mut records: Vec<vw_api_mcp_management::McpCatalogRecord>| {
         records.sort_by_key(|record| record.record.id.0.clone());
         records
     };

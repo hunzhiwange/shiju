@@ -1,6 +1,6 @@
 //! Typed reads from the selected gateway's managed MCP catalog.
 use super::{AgentAppsReadError, GatewayClient};
-use vw_api_types::mcp_management::{
+use vw_api_mcp_management::{
     McpAppTarget, McpCatalogResponse, McpNativePreview, McpPresetsResponse,
 };
 
@@ -8,9 +8,9 @@ impl GatewayClient {
     /// Read committed references for one explicitly authorized inbound ACP session.
     pub async fn mcp_management_acp_usage(
         &self,
-        query: &vw_api_types::mcp_management::McpAcpUsageQuery,
+        query: &vw_api_mcp_management::McpAcpUsageQuery,
         token: &str,
-    ) -> Result<vw_api_types::mcp_management::McpAcpUsage, AgentAppsReadError> {
+    ) -> Result<vw_api_mcp_management::McpAcpUsage, AgentAppsReadError> {
         self.agent_apps_read_request(
             "/v1/agent-apps/mcp/acp-mounts/query",
             &[

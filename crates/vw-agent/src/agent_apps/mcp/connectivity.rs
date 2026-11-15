@@ -5,7 +5,7 @@ use std::{future::pending, path::Path, time::Duration};
 use tokio::time::{Instant, timeout, timeout_at};
 use tokio_util::sync::CancellationToken;
 
-use vw_api_types::mcp_management::{
+use vw_api_mcp_management::{
     McpCatalogScope, McpConnectionDefinition, McpConnectionOutcome, McpCredentialRef,
     McpFailureCode, McpRecordId, McpRecordRef,
 };

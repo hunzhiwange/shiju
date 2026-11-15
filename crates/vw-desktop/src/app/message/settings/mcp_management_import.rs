@@ -2,13 +2,12 @@
 use super::{McpMessage, SettingsMessage, mcp_management_list as catalog};
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::{
-    GatewayClient,
-    mcp_management_distribution::*,
-    vw_api_types::{
-        agent_apps::{AppId, AppInstallationEnvironment},
-        mcp_management::*,
-    },
+use {
+    vw_gateway_client::GatewayClient,
+    vw_gateway_client::mcp_management_distribution::*,
+    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_gateway_client::vw_api_types::agent_apps::AppInstallationEnvironment,
+    vw_api_mcp_management::*,
 };
 
 #[derive(Clone)]

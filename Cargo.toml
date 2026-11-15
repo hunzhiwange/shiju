@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/api-mcp-management",
   "crates/libs/api-mcp-inspect",
   "crates/libs/api-app-routing",
   "crates/libs/api-app-aggregation",

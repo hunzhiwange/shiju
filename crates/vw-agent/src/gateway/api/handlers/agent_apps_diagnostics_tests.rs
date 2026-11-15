@@ -87,7 +87,7 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
         .map_err(anyhow::Error::msg)?;
     let project = vw_api_transport::ProjectScope::new(tenant.clone(), "project".into())?;
     let catalog = crate::agent_apps::mcp::McpCatalogStore::new(database.clone()).unwrap();
-    let mcp_scope = vw_api_types::mcp_management::McpCatalogScope::Project { scope: project };
+    let mcp_scope = vw_api_mcp_management::McpCatalogScope::Project { scope: project };
     let mcp_url = format!("{url}/mcp");
     let draft = |id: &str, connection| vw_agent_apps::mcp::catalog::McpCatalogDraft {
         id: id.into(),
@@ -103,7 +103,7 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
             &mcp_scope,
             draft(
                 "http",
-                vw_api_types::mcp_management::McpConnectionDefinition::StreamableHttp {
+                vw_api_mcp_management::McpConnectionDefinition::StreamableHttp {
                     url: mcp_url.clone(),
                     headers: Default::default(),
                 },
@@ -116,7 +116,7 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
             &mcp_scope,
             draft(
                 "sentinel",
-                vw_api_types::mcp_management::McpConnectionDefinition::Stdio {
+                vw_api_mcp_management::McpConnectionDefinition::Stdio {
                     command: "/usr/bin/touch".into(),
                     args: vec![marker.to_string_lossy().into_owned()],
                     env: Default::default(),

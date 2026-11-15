@@ -14,7 +14,10 @@ use crate::{
 };
 use serde_json::{Map, Value, json};
 use std::{collections::BTreeMap, ffi::OsStr};
-use vw_api_types::{mcp_management::McpConfigValue, mcp_management::McpConnectionDefinition};
+use {
+    vw_api_mcp_management::McpConfigValue,
+    vw_api_mcp_management::McpConnectionDefinition,
+};
 use vw_api_app_identity::{AppId};
 
 const PROFILE: &str = ".claude.json";

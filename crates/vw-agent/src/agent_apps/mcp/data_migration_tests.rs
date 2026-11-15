@@ -8,8 +8,8 @@ use vw_agent_apps::data_management::{
 use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
-    vw_api_types::mcp_management::McpCatalogScope,
-    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpFailureCode,
 };
 
 #[test]

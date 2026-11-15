@@ -16,8 +16,8 @@ use toml_edit::{Array, DocumentMut, Item, Table, value};
 use {
     vw_api_transport::TenantScope,
     vw_api_app_identity::AppId,
-    vw_api_types::mcp_management::McpConfigValue,
-    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpConfigValue,
+    vw_api_mcp_management::McpConnectionDefinition,
 };
 
 const SERVERS: &str = "mcp_servers";

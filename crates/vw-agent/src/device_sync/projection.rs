@@ -136,14 +136,14 @@ pub fn prompt_job<'a>(
 pub fn mcp_job<'a>(
     resync: impl Future<Output = Result<
         crate::agent_apps::mcp::McpResyncResult,
-        vw_api_types::mcp_management::McpFailureCode,
+        vw_api_mcp_management::McpFailureCode,
     >> + Send + 'a,
 ) -> ProjectionJob<'a> {
     ProjectionJob {
         target: ProjectionTarget::Mcp,
         refresh: Box::pin(async move {
             let report = resync.await.map_err(|_| ())?;
-            if report.outcome == vw_api_types::mcp_management::McpBatchOutcome::Succeeded {
+            if report.outcome == vw_api_mcp_management::McpBatchOutcome::Succeeded {
                 Ok(())
             } else {
                 Err(())

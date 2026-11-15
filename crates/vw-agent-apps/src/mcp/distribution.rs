@@ -5,10 +5,10 @@ use std::path::Path;
 use {
     vw_api_transport::TenantScope,
     vw_api_app_identity::AppId,
-    vw_api_types::mcp_management::McpAppTarget,
-    vw_api_types::mcp_management::McpConnectionDefinition,
-    vw_api_types::mcp_management::McpFailureCode,
-    vw_api_types::mcp_management::McpNativeStatus,
+    vw_api_mcp_management::McpAppTarget,
+    vw_api_mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpNativeStatus,
 };
 
 use super::{

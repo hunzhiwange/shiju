@@ -13,8 +13,8 @@ use serde_json::{Map, Value, json};
 use std::{collections::BTreeMap, ffi::OsStr, path::Path};
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpConfigValue,
-    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpConfigValue,
+    vw_api_mcp_management::McpConnectionDefinition,
 };
 
 const SECTION: &str = "mcp";

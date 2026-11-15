@@ -17,9 +17,12 @@ use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
 };
-use vw_api_types::{
-    agent_apps_diagnostics::{DiagnosticJobState, DiagnosticResult},
-    mcp_management::{McpConnectionDefinition, McpConnectionOutcome, McpFailureCode},
+use {
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
+    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpConnectionOutcome,
+    vw_api_mcp_management::McpFailureCode,
 };
 
 #[test]

@@ -10,12 +10,12 @@ use serde_json::json;
 
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpCatalogScope,
-    vw_api_types::mcp_management::McpConfigValue,
-    vw_api_types::mcp_management::McpConnectionDefinition,
-    vw_api_types::mcp_management::McpConnectionOutcome,
-    vw_api_types::mcp_management::McpCredentialRef,
-    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpConfigValue,
+    vw_api_mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpConnectionOutcome,
+    vw_api_mcp_management::McpCredentialRef,
+    vw_api_mcp_management::McpFailureCode,
 };
 
 use super::{

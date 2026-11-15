@@ -10,9 +10,10 @@ use iced::{
     Element, Length,
     widget::{checkbox, column, row, text},
 };
-use vw_gateway_client::vw_api_types::{
-    agent_apps::{AppId, AppInstallationEnvironment},
-    mcp_management::*,
+use {
+    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_gateway_client::vw_api_types::agent_apps::AppInstallationEnvironment,
+    vw_api_mcp_management::*,
 };
 
 pub(crate) fn panel(app: &App) -> Element<'_, Message> {

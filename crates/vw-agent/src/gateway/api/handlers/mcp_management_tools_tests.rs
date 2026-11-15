@@ -13,7 +13,7 @@ use acp_server::server::SessionBackend;
 use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpAcpUsage,
+    vw_api_mcp_management::McpAcpUsage,
 };
 const TOKEN: &str = "fixture-task50-authorized-session-reader";
 

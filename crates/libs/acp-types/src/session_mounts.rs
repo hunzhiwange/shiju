@@ -9,7 +9,7 @@ use std::{
 
 use agent_client_protocol::{ExtRequest, McpServer, Meta, SessionId};
 use serde::{Deserialize, Serialize, de::Error};
-use vw_api_types::mcp_management::{McpCatalogScope, McpRecordRef};
+use vw_api_mcp_management::{McpCatalogScope, McpRecordRef};
 
 pub const SESSION_MOUNTS_META_KEY: &str = "shiju.mounts";
 pub const SESSION_SKILL_MOUNTS_META_KEY: &str = "shiju.skillMounts";

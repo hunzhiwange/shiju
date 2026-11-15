@@ -1152,7 +1152,7 @@ fn managed_catalog_panel(app: &App) -> Element<'_, Message> {
 
 pub(crate) fn managed_catalog_content(
     result: Option<
-        &Result<vw_gateway_client::vw_api_types::mcp_management::McpCatalogResponse, String>,
+        &Result<vw_api_mcp_management::McpCatalogResponse, String>,
     >,
     loading: bool,
 ) -> Element<'_, Message> {

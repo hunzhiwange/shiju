@@ -60,7 +60,7 @@ pub fn preview_shared_snapshot(database: &GlobalDatabase, scope: SnapshotScope<'
         ensure!(identities.insert(("mcp",m.id.clone())) && selected.mcp.contains(&m.id), "duplicate or unselected MCP");
         edit(&format!("agent_apps.mcp.catalog.v1.project.{}",serde_json::to_string(scope.project.project_id())?), m.id.clone(), &mut |v| {
             ensure!(v["record"]["record"]["id"] == m.id, "receiving MCP identity mismatch");
-            ensure!(v["record"]["scope"] == serde_json::to_value(vw_api_types::mcp_management::McpCatalogScope::Project { scope: scope.project.clone() })?, "receiving MCP scope mismatch");
+            ensure!(v["record"]["scope"] == serde_json::to_value(vw_api_mcp_management::McpCatalogScope::Project { scope: scope.project.clone() })?, "receiving MCP scope mismatch");
             ensure!(!m.name.trim().is_empty() && m.name.len() <= 128, "invalid MCP name");
             let previous = v["record"].clone();
             v["record"]["name"] = m.name.clone().into();

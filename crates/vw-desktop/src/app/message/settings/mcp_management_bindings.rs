@@ -8,7 +8,7 @@ use {
     vw_gateway_client::mcp_management_distribution::McpBulkRequest,
     vw_api_transport::ProjectId,
     vw_api_app_identity::AppId,
-    vw_gateway_client::vw_api_types::mcp_management::*,
+    vw_api_mcp_management::*,
 };
 
 pub(crate) const APPS: [AppId; 14] = [

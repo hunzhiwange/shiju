@@ -19,8 +19,8 @@ use std::{
 };
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpConfigValue,
-    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpConfigValue,
+    vw_api_mcp_management::McpConnectionDefinition,
 };
 
 const PLUGIN: &str = "@deepseek-ai/dsh-mcp-client";

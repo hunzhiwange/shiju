@@ -32,7 +32,7 @@ async fn cc_mcp_t43_explicit_check_preserves_scope_and_credentials() {
     let result = client
         .mcp_management_check(
             &scope(),
-            &[vw_api_types::mcp_management::McpRecordId("docs".into())],
+            &[vw_api_mcp_management::McpRecordId("docs".into())],
             9,
             "fixture-grant",
         )
@@ -226,7 +226,7 @@ async fn cc_mcp_t43_redirect_does_not_forward_application_credentials() {
 #[tokio::test]
 async fn cc_mcp_t43_failed_job_and_per_service_failure_remain_distinct() {
     use vw_api_types::agent_apps_diagnostics::{DiagnosticJobState, DiagnosticResult};
-    use vw_api_types::mcp_management::{McpConnectionOutcome, McpFailureCode};
+    use vw_api_mcp_management::{McpConnectionOutcome, McpFailureCode};
     let mut body = snapshot("failed");
     body["state"]["error"] = json!({"phase":"handshake","code":"timeout"});
     body["results"][0]["item"]["outcome"] = json!({"status":"failed","code":"stale_revision"});

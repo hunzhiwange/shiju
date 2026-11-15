@@ -7,12 +7,14 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::time::Duration;
 use tokio::time::timeout;
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_diagnostics::{
-        DiagnosticFailureCode, DiagnosticJobState, DiagnosticOutcome, DiagnosticResult,
-    },
-    mcp_management::{McpConfigValue, McpConnectionDefinition},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
+    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
+    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_mcp_management::McpConfigValue,
+    vw_api_mcp_management::McpConnectionDefinition,
 };
 
 use vw_api_app_identity::{AppId};
@@ -44,7 +46,7 @@ fn diagnostic_mcp_stdio_cancellation_reaps_process_tree_handshake() -> anyhow::R
                 env.insert(
                     "TOKEN".into(),
                     McpConfigValue::Credential {
-                        reference: vw_api_types::mcp_management::McpCredentialRef {
+                        reference: vw_api_mcp_management::McpCredentialRef {
                             service: vw_api_app_auth::AuthService::CodexOauth,
                             account_id: "ungranted-account".into(),
                         },

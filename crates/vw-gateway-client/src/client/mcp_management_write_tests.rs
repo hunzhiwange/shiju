@@ -3,7 +3,7 @@ use crate::endpoint::GatewayAuth;
 use serde_json::json;
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::*,
+    vw_api_mcp_management::*,
 };
 
 fn create_request() -> McpCreateRequest {

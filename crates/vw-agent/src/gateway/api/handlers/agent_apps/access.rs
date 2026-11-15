@@ -19,10 +19,10 @@ use {
     vw_api_types::agent_apps_diagnostics::DiagnosticScope,
     vw_api_types::apps_usage::UsageSnapshotQuery,
     vw_api_transport::id::ProjectId,
-    vw_api_types::mcp_management::McpCatalogScope,
-    vw_api_types::mcp_management::McpConnectionDefinition,
-    vw_api_types::mcp_management::McpCredentialRef,
-    vw_api_types::mcp_management::McpRecordId,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpCredentialRef,
+    vw_api_mcp_management::McpRecordId,
 };
 
 #[derive(Deserialize)]
@@ -1406,10 +1406,10 @@ fn load(path: &Path) -> Result<Policy, ()> {
 pub(in super::super) fn authorize_mcp_catalog_write(
     path: Option<&Path>,
     headers: &HeaderMap,
-    scope: &vw_api_types::mcp_management::McpCatalogScope,
+    scope: &vw_api_mcp_management::McpCatalogScope,
     target: &str,
 ) -> Result<String, StatusCode> {
-    use vw_api_types::mcp_management::McpCatalogScope;
+    use vw_api_mcp_management::McpCatalogScope;
 
     let (tenant, project) = match scope {
         McpCatalogScope::Tenant { scope } => (scope, None),

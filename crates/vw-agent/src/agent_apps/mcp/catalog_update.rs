@@ -1,6 +1,6 @@
 //! Revision-checked updates of the private connection definition.
 
-use vw_api_types::mcp_management::{
+use vw_api_mcp_management::{
     McpCatalogRecord, McpCatalogScope, McpConnectionDefinition, McpFailureCode, McpRecordRef,
     McpTransport,
 };

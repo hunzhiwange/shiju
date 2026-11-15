@@ -13,9 +13,9 @@ use std::{
 use {
     vw_api_transport::TenantScope,
     vw_api_app_auth::AuthService,
-    vw_api_types::mcp_management::McpConfigValue,
-    vw_api_types::mcp_management::McpConnectionDefinition,
-    vw_api_types::mcp_management::McpCredentialRef,
+    vw_api_mcp_management::McpConfigValue,
+    vw_api_mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpCredentialRef,
 };
 
 struct Fixture {

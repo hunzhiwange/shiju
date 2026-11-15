@@ -4,7 +4,10 @@ use crate::app::message::{
     settings::{McpMessage, SettingsMessage, mcp_management_list as catalog},
 };
 use crate::app::{App, Message};
-use vw_gateway_client::vw_api_types::{agent_apps::*, mcp_management::*};
+use {
+    vw_gateway_client::vw_api_types::agent_apps::*,
+    vw_api_mcp_management::*,
+};
 
 fn setup() -> App {
     let mut app = App::new().0;

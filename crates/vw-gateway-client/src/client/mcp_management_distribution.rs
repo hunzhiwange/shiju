@@ -8,12 +8,12 @@ use {
     vw_api_app_operations::AppActionExecutionResult,
     vw_api_app_identity::AppId,
     vw_api_app_identity::AppInstallationId,
-    vw_api_types::mcp_management::McpAppTarget,
-    vw_api_types::mcp_management::McpDistributionResult,
-    vw_api_types::mcp_management::McpFailureCode,
-    vw_api_types::mcp_management::McpRecordId,
-    vw_api_types::mcp_management::McpRecordRef,
-    vw_api_types::mcp_management::McpResyncOperationStatus,
+    vw_api_mcp_management::McpAppTarget,
+    vw_api_mcp_management::McpDistributionResult,
+    vw_api_mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpRecordId,
+    vw_api_mcp_management::McpRecordRef,
+    vw_api_mcp_management::McpResyncOperationStatus,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

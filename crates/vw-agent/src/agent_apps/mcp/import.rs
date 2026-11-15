@@ -7,13 +7,13 @@ use vw_agent_apps::mcp::{
 };
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpAppTarget,
-    vw_api_types::mcp_management::McpCatalogRecord,
-    vw_api_types::mcp_management::McpCatalogScope,
-    vw_api_types::mcp_management::McpCliBinding,
-    vw_api_types::mcp_management::McpFailureCode,
-    vw_api_types::mcp_management::McpNativeStatus,
-    vw_api_types::mcp_management::McpRecordId,
+    vw_api_mcp_management::McpAppTarget,
+    vw_api_mcp_management::McpCatalogRecord,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpCliBinding,
+    vw_api_mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpNativeStatus,
+    vw_api_mcp_management::McpRecordId,
 };
 
 use super::{

@@ -8,12 +8,12 @@ use axum::{
 use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpCatalogRecord,
-    vw_api_types::mcp_management::McpCatalogScope,
-    vw_api_types::mcp_management::McpFailureCode,
-    vw_api_types::mcp_management::McpRecordId,
-    vw_api_types::mcp_management::McpRecordRef,
-    vw_api_types::mcp_management::McpUpdateRequest,
+    vw_api_mcp_management::McpCatalogRecord,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpRecordId,
+    vw_api_mcp_management::McpRecordRef,
+    vw_api_mcp_management::McpUpdateRequest,
 };
 
 use super::{

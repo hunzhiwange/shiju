@@ -8,7 +8,7 @@ use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
-    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpCatalogScope,
 };
 fn scope() -> McpCatalogScope {
     McpCatalogScope::Project {

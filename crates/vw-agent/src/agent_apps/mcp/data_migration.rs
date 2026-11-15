@@ -16,7 +16,7 @@ use vw_agent_apps::data_management::{
     preview::{Decision, ImportPreview, PreviewCandidate, PreviewError, build_preview},
     source::{SourceCategory, SourceScope, SourceSnapshot},
 };
-use vw_api_types::mcp_management::{
+use vw_api_mcp_management::{
     McpAppTarget, McpCatalogScope, McpCliBinding, McpFailureCode, McpNativeStatus,
 };
 

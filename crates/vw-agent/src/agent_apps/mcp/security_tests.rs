@@ -12,7 +12,7 @@ use std::{fs, os::unix::fs::PermissionsExt, path::Path, process::Command, time::
 use tower::ServiceExt;
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpCatalogScope,
 };
 
 const ENV: &str = "SHIJU_MCP_TASK51_ROOT";
@@ -305,7 +305,7 @@ async fn cc_mcp_t51_foreign_tenants_accounts_and_job_owners_cannot_cross_boundar
                 homepage: None,
                 documentation: None,
                 tags: vec![],
-                connection: vw_api_types::mcp_management::McpConnectionDefinition::StreamableHttp {
+                connection: vw_api_mcp_management::McpConnectionDefinition::StreamableHttp {
                     url: url.clone(),
                     headers: Default::default(),
                 },

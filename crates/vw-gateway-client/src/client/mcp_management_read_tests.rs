@@ -3,10 +3,10 @@ use crate::endpoint::GatewayAuth;
 use serde_json::json;
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpAppTarget,
-    vw_api_types::mcp_management::McpCatalogResponse,
-    vw_api_types::mcp_management::McpNativePreview,
-    vw_api_types::mcp_management::McpPresetsResponse,
+    vw_api_mcp_management::McpAppTarget,
+    vw_api_mcp_management::McpCatalogResponse,
+    vw_api_mcp_management::McpNativePreview,
+    vw_api_mcp_management::McpPresetsResponse,
 };
 
 #[tokio::test]
@@ -107,7 +107,7 @@ async fn cc_mcp_t40_native_without_account_preserves_unsupported_and_rejects_pri
     let server = test_support::server(vec![(200, native), (200, private)]);
     assert_eq!(
         server.client().mcp_management_native(&target, None, "fixture-grant").await.unwrap().status,
-        vw_api_types::mcp_management::McpNativeStatus::Unsupported
+        vw_api_mcp_management::McpNativeStatus::Unsupported
     );
     assert_eq!(
         server.take_request().path,

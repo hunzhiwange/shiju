@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 use std::{collections::BTreeSet, fmt};
 #[cfg(unix)]
 use std::{os::unix::fs::PermissionsExt, path::Path};
-use vw_api_types::mcp_management::{McpConfigValue, McpConnectionDefinition, McpRecordId};
+use vw_api_mcp_management::{McpConfigValue, McpConnectionDefinition, McpRecordId};
 
 /// Reserved placeholder in the JSON editor's public projection.
 pub const SECRET_MASK: &str = "••••••••";

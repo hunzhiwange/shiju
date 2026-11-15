@@ -3,9 +3,9 @@
 use vw_agent_apps::mcp::catalog::McpCatalogDraft;
 use {
     vw_api_transport::id::TenantScope,
-    vw_api_types::mcp_management::McpCatalogRecord,
-    vw_api_types::mcp_management::McpCatalogScope,
-    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpCatalogRecord,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpFailureCode,
 };
 
 use super::{

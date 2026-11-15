@@ -5,7 +5,10 @@ use super::{
 };
 use crate::app::{App, Message, message::agent_apps_diagnostics as diagnostics};
 use iced::Task;
-use vw_gateway_client::vw_api_types::{agent_apps_diagnostics::*, mcp_management::*};
+use {
+    vw_gateway_client::vw_api_types::agent_apps_diagnostics::*,
+    vw_api_mcp_management::*,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Context {

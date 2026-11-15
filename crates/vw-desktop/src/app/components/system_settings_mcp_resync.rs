@@ -11,7 +11,11 @@ use iced::{
     Element,
     widget::{checkbox, column, row, text},
 };
-use vw_gateway_client::vw_api_types::{agent_apps::{AppId}, mcp_management::{McpBatchOutcome, McpNativeStatus}};
+use {
+    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_api_mcp_management::McpBatchOutcome,
+    vw_api_mcp_management::McpNativeStatus,
+};
 use vw_api_task::TaskStatus;
 pub(crate) fn panel(app: &App) -> Element<'_, Message> {
     use crate::app::components::system_settings_common::*;

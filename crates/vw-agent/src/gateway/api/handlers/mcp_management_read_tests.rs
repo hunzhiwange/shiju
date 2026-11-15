@@ -18,8 +18,8 @@ use {
     vw_api_transport::TimestampMs,
     vw_api_app_identity::AppId,
     vw_api_app_auth::AuthService,
-    vw_api_types::mcp_management::McpCatalogScope,
-    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpConnectionDefinition,
 };
 
 use crate::{

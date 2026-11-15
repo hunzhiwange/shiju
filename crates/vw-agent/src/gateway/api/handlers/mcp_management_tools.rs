@@ -18,7 +18,7 @@ use {
     vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
     vw_api_types::agent_apps_diagnostics::DiagnosticScope,
     vw_api_types::agent_apps_diagnostics::DiagnosticScopeQuery,
-    vw_api_types::mcp_management::McpToolDetailsRequest,
+    vw_api_mcp_management::McpToolDetailsRequest,
 };
 
 pub(super) async fn submit(
@@ -53,7 +53,7 @@ pub(super) async fn submit(
             .map_err(|error| match error {
                 McpHandshakeStartError::Access(status) => access_error(status),
                 McpHandshakeStartError::Record(code) => {
-                    use vw_api_types::mcp_management::McpFailureCode;
+                    use vw_api_mcp_management::McpFailureCode;
                     let status = match code {
                         McpFailureCode::PermissionDenied => StatusCode::FORBIDDEN,
                         McpFailureCode::NotFound => StatusCode::NOT_FOUND,
@@ -81,9 +81,9 @@ pub(super) async fn read_acp(
     Extension(policy): Extension<PolicyFile>,
     Extension(tenant): Extension<TenantScope>,
     headers: HeaderMap,
-    Query(query): Query<vw_api_types::mcp_management::McpAcpUsageQuery>,
-) -> Result<Json<vw_api_types::mcp_management::McpAcpUsage>, McpHttpError> {
-    use vw_api_types::mcp_management::{McpAcpUsage, McpAcpUsageMount};
+    Query(query): Query<vw_api_mcp_management::McpAcpUsageQuery>,
+) -> Result<Json<vw_api_mcp_management::McpAcpUsage>, McpHttpError> {
+    use vw_api_mcp_management::{McpAcpUsage, McpAcpUsageMount};
     let project = ProjectScope::new(tenant, query.project_id)
         .map_err(|_| access_error(StatusCode::BAD_REQUEST))?;
     tokio::task::spawn_blocking({

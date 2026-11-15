@@ -9,11 +9,11 @@ use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};
 use {
     vw_api_transport::ProjectScope,
-    vw_api_types::mcp_management::McpCatalogScope,
-    vw_api_types::mcp_management::McpFailureCode,
-    vw_api_types::mcp_management::McpRecordRef,
-    vw_api_types::mcp_management::McpRuntimeSelection,
-    vw_api_types::mcp_management::McpTransport,
+    vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpRecordRef,
+    vw_api_mcp_management::McpRuntimeSelection,
+    vw_api_mcp_management::McpTransport,
 };
 
 use super::{McpCatalogStore, McpExecutionConnection, revocation::RuntimeSelectionLease};
@@ -93,9 +93,9 @@ impl McpCatalogStore {
         &self,
         project: &ProjectScope,
         scope: &McpCatalogScope,
-        id: &vw_api_types::mcp_management::McpRecordId,
-    ) -> Result<vw_api_types::mcp_management::McpRuntimeUsage, McpFailureCode> {
-        use vw_api_types::mcp_management::McpRuntimeUsage;
+        id: &vw_api_mcp_management::McpRecordId,
+    ) -> Result<vw_api_mcp_management::McpRuntimeUsage, McpFailureCode> {
+        use vw_api_mcp_management::McpRuntimeUsage;
         if !scope_belongs_to_project(scope, project) {
             return Err(McpFailureCode::PermissionDenied);
         }

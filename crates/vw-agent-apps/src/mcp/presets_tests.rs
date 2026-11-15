@@ -2,7 +2,7 @@ use super::{
     presets::{create_preset_draft, list_presets},
     validation::{ValidationError, validate_connection},
 };
-use vw_api_types::mcp_management::{McpConnectionDefinition, McpRecordId};
+use vw_api_mcp_management::{McpConnectionDefinition, McpRecordId};
 
 #[test]
 fn cc_mcp_t05_catalog_lists_five_snapshot_presets() {

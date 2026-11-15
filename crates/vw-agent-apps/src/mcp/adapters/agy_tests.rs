@@ -7,8 +7,8 @@ use serde_json::{Value, json};
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::mcp_management::McpConfigValue::Literal,
-    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_mcp_management::McpConfigValue::Literal,
+    vw_api_mcp_management::McpConnectionDefinition,
 };
 
 const EXISTING: &str = r#"{"extra":1,"mcpServers":{"user":{"command":"keep"}}}"#;

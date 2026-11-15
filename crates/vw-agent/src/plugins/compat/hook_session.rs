@@ -1,7 +1,7 @@
 //! Host-owned lifecycle, independent of individual turns.
 use crate::tools::ToolUseContext;
-use anyhow::{Result, ensure};
-use serde_json::{Value, json};
+use anyhow::Result;
+use serde_json::json;
 use std::{
     collections::HashMap,
     path::Path,
@@ -21,16 +21,7 @@ fn key(session: &str, root: &Path) -> String {
     ))
     .expect("session identity")
 }
-pub(crate) fn validate(input: &Value) -> Result<()> {
-    ensure!(
-        input["hook_event_name"] == "SessionStart"
-            && input["session_id"].as_str().is_some_and(|s| !s.trim().is_empty())
-            && input["cwd"].as_str().is_some_and(|s| Path::new(s).is_absolute())
-            && matches!(input["source"].as_str(), Some("startup" | "resume")),
-        "invalid session start input"
-    );
-    Ok(())
-}
+
 pub(crate) async fn start(context: Arc<ToolUseContext>, resumed: bool) -> Result<()> {
     let root =
         context.workspace_root().ok_or_else(|| anyhow::anyhow!("session requires directory"))?;
@@ -71,3 +62,5 @@ pub(crate) async fn close(session: &str, root: &Path) {
         .await;
     }
 }
+
+pub use plugin_hooks::hook_session::{validate};

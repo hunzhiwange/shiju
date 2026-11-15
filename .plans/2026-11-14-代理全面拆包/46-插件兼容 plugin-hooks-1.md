@@ -13,7 +13,7 @@
 - 旧路径引用复核线索（不是迁移前置）：任务 1 的 `crate::project::instance::directory`；任务 11 的 `crate::hooks::HookRunner::new`；任务 24 的 `crate::tools::mcp_common::server_name`；任务 52 的 `crate::tools::computer_control::NativeControlRuntime::shared`；任务 158 的 `crate::plugins::mcp_session_connections`；任务 190 的 `crate::tools::scope_tool_use_context`；任务 269 的 `crate::session::ui_store::current_tenant_scope`。已有真实实现/窄适配可保持调用；只有必须消费未交付新接口时，记录符号证据后增加局部依赖。
 - 执行时滚动调度，编号仅提供可行线性顺序；只等待本卡明确列出的前置完成并集成。在途旧编号按任务编号对照认领，禁止重复执行。
 
-状态：未开始
+状态：已阻塞
 
 目的：迁移，将本任务职责归入 `plugin-hooks`。
 
@@ -71,3 +71,46 @@
 - 检查：本任务全部来源已迁/明确为组合转发，生产实现不重复；类型/状态只有一个所有者；工厂注册和资源完整；后续文件已分配所有者。
 - 所需证据：真实迁移映射、最小依赖、窄端口调用者、cfg/feature、直接调用接线、测试/资源迁移清单及差异检查结果。仅静态证据，不能声称编译或行为通过。
 - 待统一验收：本任务来源的既有测试、直接调用集成、原支持平台与特性、涉及UI的渲染和外部能力；将具体路径及组合写提交正文，本轮全部禁止运行。
+
+
+## 2026-11-15 领域产物与精确交接
+
+遵从主会话最新指示：只使用当前 checkout；不改公共清单、父模块和直接调用者；不暂存、不提交；不运行 Cargo、测试或程序。领域产物已落盘，待主会话串行审阅接线；本卡尚非全部迁移完成。
+
+### 已迁映射及唯一所有者
+
+- 原 compat 下 hook_async、hook_matcher、hook_permission、hook_post_tool、hook_pre_tool、hook_trust_content 完整实现迁至 crates/libs/plugin-hooks/src 同名文件；原文件仅薄重导出。AsyncHooks/AsyncHookTurn 唯一所有者变为 plugin-hooks，不复制状态。
+- hook_command::{interpret,prepare_data_directory}；hook_compact::{validate,parse}；hook_mcp::expand；hook_model::{validate,token_usage}；hook_prompt::{validate,parse}；hook_session::validate；hook_stop::{validate,parse,outcome}；hook_subagent::{validate,contexts,parse} 共16个完整函数迁至新库同名模块，原模块重导出，其余宿主动作暂留。
+- hook_manifest 仍沿任务17现有 plugin-types::hook_manifest 重导出，本任务没有覆盖其变更；新库同名模块同样转发唯一类型。hook_stop::Outcome 仍为 agent_hooks::TurnEndOutcome，同一类型身份。
+- 无新增 feature/cfg；AsyncHooks 保持原 tokio JoinSet/限流/取消语义；路径审计及内容指纹保留原实现；Stop/Interrupt 解析及错误保持原行为。
+- 测试源码没有迁移或修改：原测试位于 compat/{t34_tests,t35_tests,t36_tests,t37_tests,t38_tests,t39_tests,t40_tests,t41_tests,t42_tests,t43_tests,t44_tests}.rs 等父模块测试族，仍经薄转发验证同一实现；没有外部资源路径变化。
+
+### 主会话公共接线
+
+1. 根 Cargo.toml workspace members 注册 crates/libs/plugin-hooks。
+2. crates/vw-agent/Cargo.toml 增加 plugin-hooks = { path = "../libs/plugin-hooks", version = "0.6.0" }。
+3. compat/mod.rs 现有所有模块声明原样保留，原模块已薄转发迁出符号，不需删父模块声明。hook_manifest 保留任务17的 plugin-types 转发。
+4. tools/context/mod.rs 的 AgentContextHost::AsyncHooks 原旧路径经 hook_async 重导出仍是唯一新类型，无需重写该关联类型；plugins/hook_handler.rs、plugins/hook_trust.rs 及 compat 原测试可保留现有导入。若改直引，hook_matcher、hook_async、hook_trust_content 及上述16函数一一对应 plugin_hooks::<同模块>::<同符号>，无需参数变化。
+5. 保留 hook_stop::emit 的 unix NativeControlRuntime::shared().stop_context 清理，保留 hook_mcp::execute 的 new_hook_runner() 隔离构造；均未删改。禁止改回 HookRunner::new() 或新建 Outcome 类型。
+
+### 未闭环宿主职责及具体前置
+
+本次不猜造端口或越界迁移任务24/158/190/269。剩余文件仍含真实业务宿主适配，不能宣称全卡迁完：
+- hook_command::{bind_input,retain_context} 读取宿主 current_tool_use_context，操作 ToolUseContext 与 plugin event；后续可用现有 tool_context::context::{ToolUseContext,current_tool_use_context}<H> 泛型继续下沉，事件须用 plugin_types::hooks::PluginHookEvent，不能复制类型。
+- hook_compact::{emit,context} 依赖项目目录、租户配置与 execution_hook_runner 工厂；context 的配置解析/工厂属于宿主，emit 可用既有 ContextHost 泛型下沉。
+- hook_session::{sessions,key,start,close} 持有静态 HashMap<String,Arc<宿主 ToolUseContext>>；租户 key 调用 session::ui_store::current_tenant_scope。现有 tool-context 是 ContextHost 泛型，没有可供本库直接持有的统一宿主类型。需要显式会话生命周期容器和宿主实例注入，保留 tenant/root/session 组合及全局唯一状态。
+- hook_prompt::submit、hook_model::emit、hook_subagent::{emit,emit_boundary} 仍使用宿主具体 ToolUseContext/HookRunner，可沿真实 ContextHost<HookRunner=agent_hooks::HookRunner> 泛型迁移；未新增万能回调。
+- hook_stop::emit 在执行前有 unix NativeControlRuntime 清理，后续拆出协议执行时须保留宿主清理顺序、abort_token biased select 与 Interrupt 3秒清理期限。
+- hook_mcp::execute 仍调用 tools::mcp_common::load_resolved_acp_config_from、mcp_tool::{discover_mcp_tool_specs,mcp_tool_id,McpTool}、plugins::mcp_session_connections、tools::execute_tool_from_registry，且授权来源核对依赖 compat::mcp_auth::hook_source_matches。它们是工具发现/授权/实际执行边界，不能用 JSON 回调伪迁移或让 plugin-hooks 反向依赖 vw-agent；须在其真实所有者交付后继续闭环。
+
+### 静态证据
+
+- 6个完整模块与HEAD字节对比（仅 pub(crate)→pub）一致；上述16个函数体逐一与HEAD比较（仅可见性调整）一致。
+- 定向 git diff --check 通过；新库 rg 无 vw-agent/vw_agent/crate::app/crate::tools/crate::plugins/crate::session 反向引用。
+- 最小依赖：agent-hooks（Outcome唯一类型）、plugin-types（manifest）、anyhow、serde_json、regex、sha2、hex、tokio(rt/sync)、tracing。
+- 当前 python3 无 tomllib，未成功执行静态 TOML 解析；清单逐项人工审阅，待主会话可用解析器复核。未运行 Cargo、单元测试及实机测试，待统一验收；不声称编译通过。
+
+
+## 独占集成提交窗口复核
+
+主会话现已授权本卡限定提交，覆盖上方“不暂存、不提交”的早期指示。根/宿主清单仅纳入 plugin-hooks 两行；独立索引提交，不收录共享索引或其他任务产物。主会话已完成根、宿主、新库3份 TOML 静态解析；早期 tomllib 缺失记录保留为历史证据。已复读全部拆分宿主适配及新库函数，移除 hook_session 迁移后不再使用的 Value 导入。保留已阻塞状态和全部未闭环职责。未运行 Cargo、单元测试及实机测试，待统一验收。

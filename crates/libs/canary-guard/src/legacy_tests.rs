@@ -1,4 +1,4 @@
-use vibe_agent::app::agent::security::canary_guard::{
+use super::{
     CANARY_END_MARKER, CANARY_START_MARKER, CanaryGuard,
 };
 

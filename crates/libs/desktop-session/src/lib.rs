@@ -34,3 +34,4 @@ pub mod message {
 }
 pub mod timeline_identity;
 pub mod session;
+pub mod session_gateway;

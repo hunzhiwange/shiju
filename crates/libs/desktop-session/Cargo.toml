@@ -8,7 +8,21 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-tokio = { version = "1", features = ["macros"] }
+desktop-settings-apps = { path = "../desktop-settings-apps", version = "0.6.0" }
+desktop-settings-skills = { path = "../desktop-settings-skills", version = "0.6.0" }
+gateway-app-skills = { path = "../gateway-app-skills", version = "0.6.0" }
+gateway-desktop-settings = { path = "../gateway-desktop-settings", version = "0.6.0" }
+gateway-shiju-account = { path = "../gateway-shiju-account", version = "0.6.0" }
+gateway-shiju-app = { path = "../gateway-shiju-app", version = "0.6.0" }
+gateway-shiju-skill = { path = "../gateway-shiju-skill", version = "0.6.0" }
+gateway-skill-market = { path = "../gateway-skill-market", version = "0.6.0" }
+gateway-task-pool = { path = "../gateway-task-pool", version = "0.6.0" }
+vw-api-agent-scheduler = { path = "../api-agent-scheduler", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-app-skills = { path = "../api-app-skills", version = "0.6.0" }
+vw-api-project = { path = "../api-project", version = "0.6.0" }
+vw-api-task = { path = "../api-task", version = "0.6.0" }
+tokio = { version = "1", features = ["macros", "rt", "time"] }
 gateway-project = { path = "../gateway-project", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 desktop-workspace = { path = "../desktop-workspace", version = "0.6.0" }
@@ -53,4 +67,5 @@ config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
 session-artifact-store = { path = "../session-artifact-store", version = "0.6.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util"] }
 arboard = "3.4"

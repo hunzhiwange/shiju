@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/api-app-failover",
   "crates/libs/api-app-diagnostics",
   "crates/libs/api-mcp-management",
   "crates/libs/api-mcp-inspect",

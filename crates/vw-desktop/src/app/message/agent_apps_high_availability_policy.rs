@@ -3,7 +3,7 @@ use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;
 use gateway_app_failover::AgentAppsHighAvailabilityError as Error;
 use vw_api_app_identity::AppId;
-use vw_api_types::agent_apps_high_availability::*;
+use vw_api_app_failover::*;
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct State {

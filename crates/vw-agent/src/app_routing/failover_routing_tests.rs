@@ -22,8 +22,8 @@ use vw_agent_apps::providers::{
     mode_state::StackState,
 };
 use vw_api_app_identity::AppId;
-use vw_api_types::agent_apps_high_availability::FailoverQueueScope;
-use vw_api_types::agent_apps_high_availability::FailoverQueueVersion;
+use vw_api_app_failover::FailoverQueueScope;
+use vw_api_app_failover::FailoverQueueVersion;
 use vw_api_app_provider_base::AppProviderSummary;
 use vw_api_transport::id::ProjectScope;
 use vw_api_transport::id::TenantScope;

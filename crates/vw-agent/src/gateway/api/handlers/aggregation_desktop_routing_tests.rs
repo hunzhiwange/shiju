@@ -312,7 +312,7 @@ use vw_api_app_provider_profiles::desktop_mapping::DesktopModelRoute;
         200
     );
     let current = f.tx.state(AppId::ClaudeDesktop).unwrap();
-    let scope = vw_api_types::agent_apps_high_availability::FailoverQueueScope {
+    let scope = vw_api_app_failover::FailoverQueueScope {
         project: ProjectScope::new(tenant(), "project".into()).unwrap(),
         target_host_id: "host".into(),
         app_id: AppId::ClaudeDesktop,

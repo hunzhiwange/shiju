@@ -430,7 +430,7 @@ pub(super) fn apps_attached(root: Option<PathBuf>, host: &str) -> Result<bool, C
 fn apps_attached_except(
     root: Option<PathBuf>,
     host: &str,
-    detached: &[vw_api_types::agent_apps_high_availability::FailoverQueueScope],
+    detached: &[vw_api_app_failover::FailoverQueueScope],
 ) -> Result<bool, ControlError> {
     let Some(root) = root else { return Ok(false) };
     let host = ExecutionHostId::new(host).map_err(|_| ControlError::Unavailable)?;

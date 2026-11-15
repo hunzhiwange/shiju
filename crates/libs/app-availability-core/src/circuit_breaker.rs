@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
-use vw_api_types::agent_apps_high_availability::{CircuitBreakerPolicy, FailoverHealthState};
+use vw_api_app_failover::{CircuitBreakerPolicy, FailoverHealthState};
 
 /// Result of a production attempt, classified by the authorized routing caller.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

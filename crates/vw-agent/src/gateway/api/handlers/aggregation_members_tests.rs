@@ -485,7 +485,7 @@ async fn aggregation_t40_active_changes_reject_failover_before_publication() {
     .unwrap();
     drop(guard);
     f.policy(true, true, true);
-    let scope = vw_api_types::agent_apps_high_availability::FailoverQueueScope {
+    let scope = vw_api_app_failover::FailoverQueueScope {
         project: scope("project"),
         target_host_id: "host".into(),
         app_id: AppId::Claude,

@@ -20,8 +20,8 @@ use vw_agent_apps::providers::{
     live::{commit::*, write_guard::lock_app},
 };
 use vw_api_app_identity::AppId;
-use vw_api_types::agent_apps_high_availability::FailoverQueueScope;
-use vw_api_types::agent_apps_high_availability::FailoverQueueVersion;
+use vw_api_app_failover::FailoverQueueScope;
+use vw_api_app_failover::FailoverQueueVersion;
 use vw_api_app_provider_base::AppProviderSummary;
 use vw_api_app_provider_base::claude::ClaudeConfig;
 use vw_api_app_provider_base::claude::ClaudeProfile;

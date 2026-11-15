@@ -3,7 +3,7 @@ use gateway_endpoint::GatewayAuth;
 use serde_json::json;
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_high_availability::*,
+    vw_api_app_failover::*,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };

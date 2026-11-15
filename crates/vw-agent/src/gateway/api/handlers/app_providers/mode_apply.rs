@@ -90,7 +90,7 @@ async fn apply(
                     )
                     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
                 };
-                let scope = vw_api_types::agent_apps_high_availability::FailoverQueueScope {
+                let scope = vw_api_app_failover::FailoverQueueScope {
                     project,
                     target_host_id: request.target_host_id.clone(),
                     app_id: app,

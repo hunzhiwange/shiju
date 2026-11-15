@@ -46,7 +46,7 @@ async fn ha_runtime_stream_completion_releases_probe_before_transport_eof() {
 
 #[tokio::test]
 async fn ha_first_byte_timeout_stops_silent_upstream_releases_probe() {
-    use vw_api_types::agent_apps_high_availability::FailoverHealthState;
+    use vw_api_app_failover::FailoverHealthState;
     for cancelled in [false, true] {
         let breaker = Arc::new(CircuitBreaker::default());
         let policy = CircuitBreakerPolicy {

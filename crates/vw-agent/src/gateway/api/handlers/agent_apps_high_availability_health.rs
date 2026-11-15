@@ -24,10 +24,10 @@ use vw_agent_apps::{
 };
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_high_availability::FailoverHealthResponse,
-    vw_api_types::agent_apps_high_availability::FailoverHealthState,
-    vw_api_types::agent_apps_high_availability::FailoverPolicy,
-    vw_api_types::agent_apps_high_availability::FailoverQueueScope,
+    vw_api_app_failover::FailoverHealthResponse,
+    vw_api_app_failover::FailoverHealthState,
+    vw_api_app_failover::FailoverPolicy,
+    vw_api_app_failover::FailoverQueueScope,
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::ProviderId,

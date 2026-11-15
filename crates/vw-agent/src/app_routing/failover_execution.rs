@@ -30,7 +30,7 @@ use vw_agent_apps::high_availability::{
     retry::{FailureCode, FailurePhase, ReplayEvidence, RetryBudget, RetryFailure, RetryStop},
     selection::{SelectionSnapshot, select},
 };
-use vw_api_types::{agent_apps_high_availability::CircuitBreakerPolicy};
+use vw_api_app_failover::CircuitBreakerPolicy;
 use vw_api_app_identity::{AppId};
 
 struct Candidate {
@@ -420,9 +420,9 @@ impl Plan {
                 .map_err(unavailable)?;
             if let Some(previous) = previous {
                 let reason = if connection_failed {
-                    vw_api_types::agent_apps_high_availability::FailoverFailureReason::Connection
+                    vw_api_app_failover::FailoverFailureReason::Connection
                 } else {
-                    vw_api_types::agent_apps_high_availability::FailoverFailureReason::Other
+                    vw_api_app_failover::FailoverFailureReason::Other
                 };
                 actual.failure_reason = Some(reason);
                 // Serialize state and event publication together. A late

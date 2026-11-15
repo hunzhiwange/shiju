@@ -4,7 +4,7 @@ use super::settings_store::GatewaySettingsStore;
 use crate::global_database::GlobalDatabase;
 use std::{num::NonZeroUsize, time::Duration};
 use vw_agent_apps::high_availability::health::HealthRegistry;
-use vw_api_types::agent_apps_high_availability::{
+use vw_api_app_failover::{
     CircuitBreakerPolicy, FailoverPolicy, FailoverQueueScope, RetryTimeoutPolicy,
 };
 
@@ -28,7 +28,7 @@ impl Default for FailoverRuntime {
 pub(crate) struct ActualRoute {
     pub(crate) version: u64,
     pub(crate) provider_id: Option<String>,
-    pub(crate) failure_reason: Option<vw_api_types::agent_apps_high_availability::FailoverFailureReason>,
+    pub(crate) failure_reason: Option<vw_api_app_failover::FailoverFailureReason>,
 }
 
 impl ActualRoute {

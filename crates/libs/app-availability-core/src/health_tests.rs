@@ -8,11 +8,11 @@ use std::{
 };
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy,
-    vw_api_types::agent_apps_high_availability::FailoverHealthState::Closed,
-    vw_api_types::agent_apps_high_availability::FailoverHealthState::HalfOpen,
-    vw_api_types::agent_apps_high_availability::FailoverHealthState::Open,
-    vw_api_types::agent_apps_high_availability::FailoverHealthState::Unknown,
+    vw_api_app_failover::CircuitBreakerPolicy,
+    vw_api_app_failover::FailoverHealthState::Closed,
+    vw_api_app_failover::FailoverHealthState::HalfOpen,
+    vw_api_app_failover::FailoverHealthState::Open,
+    vw_api_app_failover::FailoverHealthState::Unknown,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };

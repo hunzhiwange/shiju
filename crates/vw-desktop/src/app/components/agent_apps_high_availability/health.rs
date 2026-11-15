@@ -2,7 +2,7 @@
 use crate::app::{App, Message, message::agent_apps_health::{self, Event}};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, widget::{button, column, row, text}};
-use vw_gateway_client::vw_api_types::agent_apps_high_availability::FailoverHealthState;
+use vw_api_app_failover::FailoverHealthState;
 
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let state = &app.apps_catalog.failover_health;

@@ -101,7 +101,7 @@ impl RoutingListener {
     pub(crate) fn failover_health(
         &self,
         key: &vw_agent_apps::high_availability::health::HealthKey,
-        policy: &vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy,
+        policy: &vw_api_app_failover::CircuitBreakerPolicy,
         reset: bool,
     ) -> vw_agent_apps::high_availability::health::HealthSnapshot {
         self.auth.failover_health(key, policy, reset)
@@ -110,8 +110,8 @@ impl RoutingListener {
     #[cfg(target_os = "macos")]
     pub(crate) fn failover_route(
         &self,
-        scope: &vw_api_types::agent_apps_high_availability::FailoverQueueScope,
-    ) -> Result<vw_api_types::agent_apps_high_availability::FailoverRouteResponse, axum::http::StatusCode> {
+        scope: &vw_api_app_failover::FailoverQueueScope,
+    ) -> Result<vw_api_app_failover::FailoverRouteResponse, axum::http::StatusCode> {
         self.auth.failover_route(scope)
     }
 
@@ -157,7 +157,7 @@ impl RoutingListener {
     #[cfg(target_os = "macos")]
     pub(crate) async fn detach_aggregations(
         &self,
-    ) -> Result<Vec<vw_api_types::agent_apps_high_availability::FailoverQueueScope>, ListenerError>
+    ) -> Result<Vec<vw_api_app_failover::FailoverQueueScope>, ListenerError>
     {
         let context = self.aggregation_lifecycle.lock().clone();
         let Some(context) = context else {
@@ -212,7 +212,7 @@ impl RoutingListener {
     #[cfg(target_os = "macos")]
     pub(crate) fn with_provider<T>(
         &self,
-        scope: &vw_api_types::agent_apps_high_availability::FailoverQueueScope,
+        scope: &vw_api_app_failover::FailoverQueueScope,
         operation: impl FnOnce(
             &super::provider_publication::PublishedProvider,
             u64,
@@ -231,7 +231,7 @@ impl RoutingListener {
     #[cfg(target_os = "macos")]
     pub(crate) fn restore_provider(
         &self,
-        scope: &vw_api_types::agent_apps_high_availability::FailoverQueueScope,
+        scope: &vw_api_app_failover::FailoverQueueScope,
         commit: impl FnOnce() -> Result<(), super::RouteCommitError>,
     ) -> Result<(), axum::http::StatusCode> {
         let _permit = self.try_control().map_err(|_| axum::http::StatusCode::CONFLICT)?;
@@ -286,7 +286,7 @@ impl RoutingListener {
         let _permit = self.try_control().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
         let address = self.bound_address().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
         let binding = publication.binding.clone();
-        let scope = vw_api_types::agent_apps_high_availability::FailoverQueueScope {
+        let scope = vw_api_app_failover::FailoverQueueScope {
             project: binding.project().clone(),
             target_host_id: binding.host().into(),
             app_id: binding.app(),

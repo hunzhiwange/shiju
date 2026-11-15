@@ -1,7 +1,7 @@
 //! Single-target publication using the same scoped provider-record transaction.
 use super::*;
 use crate::app_routing::provider_publication::PublishedProvider;
-use vw_api_types::agent_apps_high_availability::FailoverQueueScope;
+use vw_api_app_failover::FailoverQueueScope;
 
 impl RecordPublicationContext {
     #[allow(clippy::too_many_arguments)]

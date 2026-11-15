@@ -1,5 +1,5 @@
 use super::{AgentAppsHighAvailabilityError, test_support};
-use vw_api_types::agent_apps_high_availability::FailoverQueueQuery;
+use vw_api_app_failover::FailoverQueueQuery;
 
 #[tokio::test]
 async fn failover_facade_preserves_http_error() {

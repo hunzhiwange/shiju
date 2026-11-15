@@ -3,10 +3,8 @@ use super::agent_apps_high_availability::{
     FailoverQueueMemberRequest, FailoverQueueQuery, FailoverQueueReorderRequest,
     FailoverQueueResponse, FailoverQueueScope, FailoverQueueVersion,
 };
-use crate::{
-    agent_apps::AppId,
-    id::{ProjectScope, TenantScope},
-};
+use vw_api_app_identity::AppId;
+use vw_api_transport::id::{ProjectScope, TenantScope};
 use serde_json::json;
 
 #[test]

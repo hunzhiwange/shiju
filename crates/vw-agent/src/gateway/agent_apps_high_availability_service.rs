@@ -7,7 +7,7 @@ use crate::{
 };
 use anyhow::{Result, ensure};
 use vw_agent_apps::providers::{claude::ClaudeFile, live::commit::Mode};
-use vw_api_types::agent_apps_high_availability::{FailoverQueueScope, FailoverQueueVersion};
+use vw_api_app_failover::{FailoverQueueScope, FailoverQueueVersion};
 
 fn mode_unavailable<T>(_: T) -> anyhow::Error {
     anyhow::anyhow!("application mode is unavailable")
@@ -151,7 +151,7 @@ pub fn select_candidates(
     root: &std::path::Path,
     scope: &FailoverQueueScope,
     health: &vw_agent_apps::high_availability::health::HealthRegistry,
-    policy: &vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy,
+    policy: &vw_api_app_failover::CircuitBreakerPolicy,
 ) -> Result<SelectedRouteCandidates> {
     use vw_agent_apps::high_availability::{
         health::{HealthAccount, HealthKey},

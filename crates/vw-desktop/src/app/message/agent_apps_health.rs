@@ -3,7 +3,7 @@ use crate::app::{App, Message, state::app_providers::list::Scope};
 use super::app_providers::list::{self, ListMessage};
 use iced::Task;
 use {
-    vw_api_types::agent_apps_high_availability::*,
+    vw_api_app_failover::*,
     vw_api_transport::id::ProviderId,
 };
 

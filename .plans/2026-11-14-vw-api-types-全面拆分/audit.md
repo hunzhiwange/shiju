@@ -2707,3 +2707,10 @@
 ## 任务23静态迁移记录
 
 模型目录定义与7个既有测试迁入 `crates/libs/api-model-catalog`；旧模块保留同一类型重导出。依赖 api-app-identity、api-chat-identity、api-transport；serde_json 仅用于测试。已同步 agent、agent-apps、desktop、gateway-client 及实际新增消费者 app-model-catalog、gateway-model-catalog 的导入与清单。未运行 Cargo、测试及实机验证。
+
+## 任务36静态迁移记录
+
+- 高可用 DTO、校验与三项既有测试迁入 `vw-api-app-failover`；旧模块显式重导出同一类型。
+- 依赖仅 serde、应用身份与 transport 身份；serde_json 仅用于测试，无运行时或旧门面反向依赖。
+- 实际消费者：vw-agent、vw-agent-apps、vw-desktop、vw-gateway-client、app-availability-core、gateway-app-failover；同步直接依赖和源码路径。
+- 静态核对 serde 属性、校验错误、独立测试注册与原断言，git diff --check 通过。未运行 Cargo、测试及实机验证；未来验收仍需覆盖序列化、拒绝输入与路由/健康观测。

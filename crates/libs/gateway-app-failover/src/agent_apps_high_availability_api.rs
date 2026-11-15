@@ -2,7 +2,7 @@
 use super::GatewayAppFailoverClient;
 use serde::{Serialize, de::DeserializeOwned};
 use {
-    vw_api_types::agent_apps_high_availability::*,
+    vw_api_app_failover::*,
     vw_api_transport::error::ApiErrorBody,
     vw_api_transport::id::ProviderId,
 };

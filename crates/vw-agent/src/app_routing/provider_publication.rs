@@ -20,7 +20,8 @@ use vw_agent_apps::providers::{
     mode_apply::{ClaudeMode, RouteScope},
     mode_state::observe,
 };
-use vw_api_types::{agent_apps::AppId, agent_apps_high_availability::FailoverQueueScope};
+use vw_api_types::agent_apps::AppId;
+use vw_api_app_failover::FailoverQueueScope;
 use vw_api_app_provider_environment::mode_apply::ModeApplyAction;
 use vw_api_app_provider_environment::mode_apply::ModeApplyResult;
 use vw_api_app_provider_environment::mode_apply::TargetPublication;

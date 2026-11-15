@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use vw_agent_apps::{
     high_availability::queue::Queue, providers::validate_identity, routing::supports_app,
 };
-use vw_api_types::agent_apps_high_availability::{FailoverQueueScope, FailoverQueueVersion};
+use vw_api_app_failover::{FailoverQueueScope, FailoverQueueVersion};
 
 use super::settings_store::{GatewaySettingPreimage, GatewaySettingsStore};
 use crate::global_database::GlobalDatabase;

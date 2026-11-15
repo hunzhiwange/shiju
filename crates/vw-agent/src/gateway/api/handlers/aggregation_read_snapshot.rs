@@ -88,7 +88,7 @@ pub(crate) fn load(
         rows.push((id, row));
         catalogs.push(catalog);
     }
-    let scope = vw_api_types::agent_apps_high_availability::FailoverQueueScope {
+    let scope = vw_api_app_failover::FailoverQueueScope {
         project: project.clone(),
         target_host_id: host.into(),
         app_id: app,

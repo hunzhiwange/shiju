@@ -22,8 +22,8 @@ use std::{
 };
 use vw_agent_apps::providers::live::{commit::*, write_guard::lock_app};
 use vw_api_app_identity::AppId;
-use vw_api_types::agent_apps_high_availability::FailoverQueueScope;
-use vw_api_types::agent_apps_high_availability::FailoverQueueVersion;
+use vw_api_app_failover::FailoverQueueScope;
+use vw_api_app_failover::FailoverQueueVersion;
 use vw_api_app_provider_base::claude::ClaudeConfig;
 use vw_api_app_provider_base::claude::ClaudeProfile;
 use vw_api_app_provider_environment::mode_apply::ModeApplyAction;
@@ -202,7 +202,7 @@ async fn ha_enable_requires_routing_mode_and_keeps_queue() -> anyhow::Result<()>
             health::{HealthAccount, HealthKey, HealthRegistry},
             selection::SelectionError,
         };
-        use vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy;
+        use vw_api_app_failover::CircuitBreakerPolicy;
         let health =
             HealthRegistry::new(std::num::NonZeroUsize::new(8).unwrap(), std::time::Duration::ZERO);
         let policy = CircuitBreakerPolicy {

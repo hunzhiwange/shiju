@@ -1,6 +1,6 @@
 use super::{AttemptOutcome, CircuitBreaker, CircuitPhase};
 use std::time::{Duration, Instant};
-use vw_api_types::agent_apps_high_availability::{CircuitBreakerPolicy, FailoverHealthState};
+use vw_api_app_failover::{CircuitBreakerPolicy, FailoverHealthState};
 
 #[test]
 fn ha_breaker_opens_only_for_provider_failures() {

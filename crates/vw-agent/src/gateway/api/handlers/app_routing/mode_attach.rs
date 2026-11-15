@@ -59,7 +59,7 @@ pub(crate) async fn attach_mode(
                 if root != provider_root {
                     return Err(StatusCode::CONFLICT);
                 }
-                let scope = vw_api_types::agent_apps_high_availability::FailoverQueueScope {
+                let scope = vw_api_app_failover::FailoverQueueScope {
                     project,
                     target_host_id: host,
                     app_id: app,

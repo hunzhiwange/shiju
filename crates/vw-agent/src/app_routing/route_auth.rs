@@ -391,7 +391,7 @@ impl RouteAuth {
     pub(super) fn failover_health(
         &self,
         key: &vw_agent_apps::high_availability::health::HealthKey,
-        policy: &vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy,
+        policy: &vw_api_app_failover::CircuitBreakerPolicy,
         reset: bool,
     ) -> vw_agent_apps::high_availability::health::HealthSnapshot {
         if reset {
@@ -403,15 +403,15 @@ impl RouteAuth {
     #[cfg(target_os = "macos")]
     pub(super) fn failover_route(
         &self,
-        scope: &vw_api_types::agent_apps_high_availability::FailoverQueueScope,
-    ) -> Result<vw_api_types::agent_apps_high_availability::FailoverRouteResponse, StatusCode> {
+        scope: &vw_api_app_failover::FailoverQueueScope,
+    ) -> Result<vw_api_app_failover::FailoverRouteResponse, StatusCode> {
         let _publication = self.publication.lock();
         let active = self.active.lock();
         let route = active.grants.values().find(|route| {
             route.binding.has_scope(&scope.project, &scope.target_host_id, scope.app_id)
                 && !route.cancelled.is_cancelled()
         });
-        let mut response = vw_api_types::agent_apps_high_availability::FailoverRouteResponse {
+        let mut response = vw_api_app_failover::FailoverRouteResponse {
             scope: scope.clone(),
             configured_provider_id: None,
             actual_provider_id: None,
@@ -582,7 +582,7 @@ impl RouteAuth {
     #[cfg(target_os = "macos")]
     pub(super) fn with_provider<T>(
         &self,
-        scope: &vw_api_types::agent_apps_high_availability::FailoverQueueScope,
+        scope: &vw_api_app_failover::FailoverQueueScope,
         operation: impl FnOnce(
             &super::provider_publication::PublishedProvider,
             u64,
@@ -608,7 +608,7 @@ impl RouteAuth {
     #[cfg(target_os = "macos")]
     pub(super) fn restore_provider(
         &self,
-        scope: &vw_api_types::agent_apps_high_availability::FailoverQueueScope,
+        scope: &vw_api_app_failover::FailoverQueueScope,
         commit: impl FnOnce() -> Result<(), RouteCommitError>,
     ) -> Result<(), StatusCode> {
         let _publication = self.publication.lock();

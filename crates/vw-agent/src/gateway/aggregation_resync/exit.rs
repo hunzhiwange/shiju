@@ -13,7 +13,7 @@ impl RecordPublicationContext {
         )
         .map_err(failed)?
         .ok_or(StatusCode::CONFLICT)?;
-        let scope = vw_api_types::agent_apps_high_availability::FailoverQueueScope {
+        let scope = vw_api_app_failover::FailoverQueueScope {
             project: self.project.clone(),
             target_host_id: self.host.clone(),
             app_id: self.app,

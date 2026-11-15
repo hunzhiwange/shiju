@@ -1,6 +1,6 @@
 use super::GatewayClient;
 use gateway_app_failover::{GatewayAppFailoverClient, AgentAppsHighAvailabilityError};
-use vw_api_types::agent_apps_high_availability::*;
+use vw_api_app_failover::*;
 use vw_api_transport::id::ProviderId;
 
 impl GatewayClient {

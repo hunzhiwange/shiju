@@ -4,7 +4,7 @@ use super::app_providers::list::{self, ListMessage};
 use iced::Task;
 use gateway_app_failover::{GatewayAppFailoverClient, AgentAppsHighAvailabilityError as Error};
 use {
-    vw_api_types::agent_apps_high_availability::*,
+    vw_api_app_failover::*,
     vw_api_transport::ProviderId,
 };
 #[derive(Clone, Debug, PartialEq, Eq)]

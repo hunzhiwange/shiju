@@ -29,8 +29,6 @@ use gateway_shiju_skill::{
 };
 
 pub(crate) mod connectors;
-#[cfg(test)]
-mod connectors_tests;
 pub(crate) mod knowledge;
 mod public;
 #[cfg(test)]
@@ -338,6 +336,9 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
 }
 fn map_domain(message: D) -> SkillHubMessage {
     match message {
+        D::Connectors(message) => SkillHubMessage::Connectors(message),
+        D::Knowledge(message) => SkillHubMessage::Knowledge(message),
+        D::Public(message) => SkillHubMessage::Public(message),
             D::Open => SkillHubMessage::Open,
             D::OpenShijuSkills => SkillHubMessage::OpenShijuSkills,
             D::OpenInstalledShijuSkills => SkillHubMessage::OpenInstalledShijuSkills,
@@ -426,6 +427,7 @@ fn with_domain<T>(app: &mut App, operation: impl FnOnce(&mut SkillUpdate<'_>) ->
             Screen::ShijuApps => HubPage::ShijuApps,
             _ => HubPage::Other,
         },
+        has_project_chat: app.open_tabs.iter().any(|tab| tab.project_path.as_deref() == app.project_path.as_deref() && tab.screen == Screen::Project),
         desktop_locale: app.desktop_locale,
         gateway,
         effects: Vec::new(),
@@ -437,6 +439,14 @@ fn apply_effects(app: &mut App, effects: Vec<Effect>) -> Task<Message> {
     let mut tasks = Vec::new();
     for effect in effects {
         tasks.push(match effect {
+            Effect::SelectExpertForChat(skill_id) => {
+                app.current_session_runtime_mut().tool_selector.select_manual_skill(&skill_id);
+                if let Some(tab) = app.open_tabs.iter().find(|tab| tab.project_path.as_deref() == app.project_path.as_deref() && tab.screen == Screen::Project) {
+                    app.active_tab_id = Some(tab.id.clone());
+                    app.screen = Screen::Project;
+                }
+                Task::none()
+            }
             Effect::OpenExpertHub => { open_expert_hub_tab(app); Task::none() }
             Effect::OpenSkills => { open_shiju_skills_tab(app); Task::none() }
             Effect::CloseAccountMenu => { app.account.menu_open = false; app.account.details_open = false; Task::none() }

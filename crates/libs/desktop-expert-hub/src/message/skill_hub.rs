@@ -80,6 +80,9 @@ pub fn update(app: &mut SkillUpdate<'_>, message: SkillHubMessage) -> Task<Messa
         return Task::none();
     }
     match message {
+        SkillHubMessage::Connectors(message) => super::connectors::update(app, message),
+        SkillHubMessage::Knowledge(message) => super::knowledge::update(app, message),
+        SkillHubMessage::Public(message) => super::public::update(app, message),
         SkillHubMessage::Open => {
             app.expert_hub.reset_navigation();
             open_expert_hub_tab(app);

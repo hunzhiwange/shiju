@@ -9,6 +9,7 @@ pub enum HubPage { ExpertHub, ShijuSkills, ShijuApps, Other }
 #[derive(Debug, Clone, Copy)]
 pub enum ToastKind { Info, Success, Warning, Error }
 pub enum Effect {
+    SelectExpertForChat(String),
     OpenExpertHub, OpenSkills, CloseAccountMenu,
     ClearAccount(Option<String>),
     EnsurePublic, SelectPublicSuites, EnsureConnectors, EnsureKnowledge,
@@ -28,6 +29,7 @@ pub struct SkillUpdate<'a> {
     pub project_path: &'a Option<String>,
     pub recent_projects: &'a [String],
     pub screen: HubPage,
+    pub has_project_chat: bool,
     pub desktop_locale: config_ui::DesktopLocale,
     pub gateway: crate::GatewayFactory,
     pub effects: Vec<Effect>,

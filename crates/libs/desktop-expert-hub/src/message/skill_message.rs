@@ -4,6 +4,9 @@ use super::*;
 #[allow(dead_code)]
 /// 专家中心技能目录、安装向导、版本操作与公共市场的消息集合。
 pub enum SkillHubMessage {
+    Connectors(crate::message::connectors::ConnectorMessage),
+    Knowledge(crate::message::knowledge::KnowledgeMessage),
+    Public(crate::message::public::PublicSkillMessage),
     Open,
     OpenShijuSkills,
     OpenInstalledShijuSkills,

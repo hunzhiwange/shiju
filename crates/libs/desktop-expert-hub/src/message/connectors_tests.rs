@@ -1,16 +1,23 @@
 //! 验证连接器账号隔离、取消、必填变量与密码处理。
 use super::connectors::*;
-use crate::app::{
-    App,
-    account::{AccountIdentity, AccountOrigin, AccountRepository, SecretSkey, VerifiedAccount},
-    skill_hub::{
-        LoadState,
-        connectors::{ConnectorForm, ConnectorWork},
-    },
-};
+use desktop_account::{AccountIdentity, AccountOrigin, AccountRepository, SecretSkey, VerifiedAccount};
+use desktop_skill_hub::skill_hub::{ExpertHubState, LoadState, connectors::{ConnectorForm, ConnectorWork}};
+#[derive(Default)]
+struct App { expert_hub: ExpertHubState, account: AccountRepository }
+fn invoke(app: &mut App, action: Option<ConnectorMessage>) {
+    let mut input = super::SkillUpdate {
+        expert_hub: &mut app.expert_hub, active_account: app.account.active_account(),
+        project_path: &None, recent_projects: &[], screen: super::HubPage::Other,
+        has_project_chat: false, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
+        gateway: || Err("fixture does not execute network tasks".into()), effects: Vec::new(),
+    };
+    let _ = match action { Some(message) => super::connectors::update(&mut input, message), None => super::connectors::load(&mut input) };
+}
+fn load(app: &mut App) { invoke(app, None); }
+fn update(app: &mut App, message: ConnectorMessage) { invoke(app, Some(message)); }
 use serde_json::json;
 fn app() -> App {
-    let (mut app, _) = App::new();
+    let mut app = App::default();
     let mut repository = AccountRepository::default();
     repository.upsert_verified(
         VerifiedAccount::from_parts(
@@ -19,7 +26,7 @@ fn app() -> App {
         ),
         AccountOrigin::BrowserLogin,
     );
-    app.account.replace_repository(repository);
+    app.account = repository;
     app
 }
 fn connector() -> gateway_shiju_connector::ShijuConnector {
@@ -246,7 +253,7 @@ fn connector_logout_clears_all_waits_and_ignores_late_results() {
 }
 #[test]
 fn connector_save_and_authorize_are_disabled_without_login() {
-    let (mut app, _) = App::new();
+    let mut app = App::default();
     let _ = load(&mut app);
     let _ = update(&mut app, ConnectorMessage::Authorize(7));
     assert!(matches!(app.expert_hub.connectors.list, LoadState::NeedsLogin));

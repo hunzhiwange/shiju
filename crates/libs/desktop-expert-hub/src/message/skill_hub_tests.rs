@@ -16,6 +16,7 @@ fn update_skill_hub(fixture: &mut Fixture, message: SkillHubMessage) -> Task<Mes
         project_path: &None,
         recent_projects: &[],
         screen: HubPage::ShijuSkills,
+        has_project_chat: false,
         desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
         gateway: unavailable_gateway,
         effects: Vec::new(),

@@ -3,6 +3,12 @@ pub mod state;
 pub mod message {
     pub mod knowledge_tool;
     pub mod skill_hub;
+    pub mod connectors;
+    pub mod knowledge;
+    pub mod public;
+    mod public_gateway;
+    #[cfg(test)]
+    mod connectors_tests;
     mod skill_gateway;
     mod skill_boundary;
     pub use skill_boundary::*;

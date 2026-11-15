@@ -25,7 +25,6 @@ fn cc_apps_node_requirement_gap_ranges() {
 }
 
 fn installation() -> vw_api_app_identity::AppInstallation {
-    use vw_api_types::agent_apps::*;
     AppInstallation {
         id: AppInstallationId("selected".into()),
         app_id: AppId::OpenClaw,
@@ -69,31 +68,6 @@ fn cc_apps_node_requirement_gap_instance_and_environment() {
     inst.app_id = AppId::OpenClaw;
     inst.real_path = Some("/native/openclaw".into());
     assert!(!applicable(&inst));
-}
-
-#[cfg(unix)]
-#[test]
-fn cc_apps_node_requirement_gap_real_sibling_reprobe() {
-    use std::os::unix::fs::PermissionsExt;
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("node");
-    let mut inst = installation();
-    inst.path = dir.path().join("openclaw").to_str().unwrap().into();
-    for version in ["24.16.0", "22.0.0"] {
-        std::fs::write(&path, format!("#!/bin/sh\nprintf 'v{version}\\n'\n")).unwrap();
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-        let candidate = node_candidate(&inst, None, |p| std::path::Path::new(p).is_file()).unwrap();
-        let probe = crate::apps::discovery::version::probe_local_version(
-            std::path::Path::new(&candidate),
-            Duration::from_secs(1),
-        )
-        .unwrap();
-        let result = evaluate_requirement(
-            &serde_json::json!({"engines":{"node":">=24.16.0"}}),
-            probe.version.as_deref().unwrap(),
-        );
-        assert_eq!(enforce(result).is_err(), version == "22.0.0");
-    }
 }
 
 #[tokio::test]

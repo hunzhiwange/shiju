@@ -2510,3 +2510,11 @@ fill_opencode 的导入修正随文件移动保留，独立于本任务提交暂
 - ProviderAuth/ProviderSnapshot 直接使用 app-provider-core；状态及 observe 使用 app-auth；准入使用 app-aggregation::failover_guard；路由支持使用 app-routing-policy。核心熔断包不依赖本包，原门面的核心包直接依赖改为编排包。
 - 保留原模块 cfg 和 selection_tests 相邻 path 注册，无资源引用。selection 原有无条件声明仍引用 macOS 限定的状态/准入模块，此既有平台条件问题留待授权统一验收，不声称非 macOS 可编译。
 - 静态证据：四个实现/测试文件及根模块迁移、导出与 gateway 调用者检索、Python 3.9 标准库清单路径及依赖环审阅（无 tomllib，TOML 区段人工核对）、git diff --check；无旧门面回依赖、无重复业务实现。未运行 Cargo、单元及实机测试，统一验收待授权：新包与直接调用者编译、迁移定向测试、平台 cfg 及锁文件一致性。Cargo.lock 未修改。
+
+
+## 任务 31 实际所有权
+
+- app-versions 接收 versions/latest.rs、node.rs 和相邻独立测试，显式 lib 模块树；原 apps::versions 重导出 latest/node，lifecycle::{local_node,process,wsl} 等调用路径保持不变，原 lib.rs 的 apps 声明无需修改。
+- 直接依赖仅 api-app-identity、reqwest（json/rustls）、serde_json（arbitrary_precision）、semver；测试使用 tokio macros/rt。原门面其它实现仍使用这些依赖，不移除。无平台专属直接依赖，无资源路径变化，原 cfg/path 测试注册保留。
+- 原 node_tests 的 Unix sibling reprobe 场景保留在门面 versions/node_probe_tests.rs，由任务 32 随 discovery::version 接收；使用公开 node_range_satisfied 核对探测版本是否满足原范围，私有 evaluate/enforce 的原有测试继续在新包覆盖。移除测试中多余的 vw_api_types 通配导入，安装类型全部来自 api-app-identity；不扩大业务符号可见性。
+- 静态证据：实现/测试搬迁及模块路径审阅、调用者检索、清单直接依赖与路径核对、差异空白检查；新包无门面回依赖，无重复业务实现。未运行 Cargo、单元及实机测试，统一验收待授权：新包及调用者编译、迁移测试、Unix 探测集成、Windows/WSL/macOS 条件及锁文件一致性。Cargo.lock 未修改。

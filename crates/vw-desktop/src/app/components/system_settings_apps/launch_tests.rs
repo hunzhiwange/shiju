@@ -241,7 +241,7 @@ fn cc_apps_desktop_launch_state_defaults_only_for_matching_private_local_grant()
     )
     .unwrap();
     let credentials =
-        vw_shared::local_apps::initialize(home.path(), "fixture-platform", "fixture-company")
+        local_app_auth::initialize(home.path(), "fixture-platform", "fixture-company")
             .unwrap();
     let directory =
         |tenant: &vw_api_transport::TenantScope, token: &str, project| {
@@ -268,7 +268,7 @@ fn cc_apps_desktop_launch_state_defaults_only_for_matching_private_local_grant()
     assert!(
         super::local::launch_directory(
             &remote,
-            vw_shared::local_apps::HOST_ID,
+            local_app_auth::HOST_ID,
             &credentials.token,
             None
         )

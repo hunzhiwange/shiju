@@ -80,7 +80,7 @@ fn option_label(key: &ShijuIamApiKeyDto) -> String {
 }
 
 fn application_name(app: &App, installation_id: &str) -> String {
-    let ShijuAppsLoadState::Loaded(apps) = &app.expert_hub.shiju_apps.mine else {
+    let ShijuAppsLoadState::Loaded(apps) = &app.shiju_apps.mine else {
         return crate::app::i18n::I18n::new(app.desktop_locale).__("识矩应用").to_string();
     };
     apps.apps
@@ -238,7 +238,7 @@ fn selection_control(
 
 fn binding_card<'a>(app: &App) -> iced::widget::Container<'a, Message> {
     let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
-    let state = &app.expert_hub.shiju_apps.launch;
+    let state = &app.shiju_apps.launch;
     let current_installation_id = installation_id(state).unwrap_or_default();
     let app_name = application_name(app, current_installation_id);
     let status_error = matches!(state, ShijuAppLaunchState::Error { .. });
@@ -300,15 +300,13 @@ fn binding_card<'a>(app: &App) -> iced::widget::Container<'a, Message> {
     match state {
         ShijuAppLaunchState::SelectingApiKey { error: Some(error), .. } => {
             content = content.push(settings_error_banner(
-                app.expert_hub
-                    .shiju_apps
+                app.shiju_apps
                     .render_launch_error(error, crate::app::i18n::I18n::new(app.desktop_locale)),
             ));
         }
         ShijuAppLaunchState::Error { message, .. } => {
             content = content.push(settings_error_banner(
-                app.expert_hub
-                    .shiju_apps
+                app.shiju_apps
                     .render_launch_error(message, crate::app::i18n::I18n::new(app.desktop_locale)),
             ));
         }
@@ -363,7 +361,7 @@ fn binding_card<'a>(app: &App) -> iced::widget::Container<'a, Message> {
 }
 
 pub(super) fn with_overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
-    if !is_visible(&app.expert_hub.shiju_apps.launch) {
+    if !is_visible(&app.shiju_apps.launch) {
         return base;
     }
     let close_message = Message::ShijuApps(cancel_action());

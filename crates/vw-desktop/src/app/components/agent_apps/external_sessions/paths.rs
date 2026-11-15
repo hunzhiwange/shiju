@@ -86,7 +86,7 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
 }
 
 pub(super) fn controls<'a>(state: &State, session: &'a SessionMeta) -> Element<'a, Message> {
-    let local = cfg!(target_os = "macos") && session.identity.target_host == vw_shared::local_apps::HOST_ID
+    let local = cfg!(target_os = "macos") && session.identity.target_host == local_app_auth::HOST_ID
         && crate::app::config::gateway_client().is_ok_and(|client| client.endpoint().is_loopback());
     let mut content = column![text(format!("来源应用：{:?} · 实例：{} · 执行主机：{}",
         session.identity.provider, session.identity.instance_id, session.identity.target_host))

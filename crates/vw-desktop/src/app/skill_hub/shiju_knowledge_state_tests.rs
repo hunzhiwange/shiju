@@ -40,7 +40,7 @@ fn shiju_knowledge_state_messages_reject_active_credential_change_and_redact() {
     let request = app.expert_hub.knowledge.begin_bases().unwrap();
     let msg = KnowledgeMessage::ReadLoaded(request, Ok(chunk("private-content", None)));
     assert!(!format!("{msg:?}").contains("private-content"));
-    app.expert_hub.clear_for_account(None);
+    app.clear_expert_hub_account(None);
     assert!(app.expert_hub.knowledge.bases.items.is_empty());
     assert!(app.expert_hub.knowledge.reader.is_none());
     assert!(app.expert_hub.knowledge.begin_bases().is_none());

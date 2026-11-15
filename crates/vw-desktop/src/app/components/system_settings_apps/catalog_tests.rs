@@ -256,7 +256,7 @@ fn local_apps_credentials_only_apply_to_current_connection_and_generation() {
             AppsCatalogMessage::LocalReady {
                 context,
                 generation,
-                result: Ok(vw_shared::local_apps::Credentials {
+                result: Ok(local_app_auth::Credentials {
                     token: "stale-local-credential".into(),
                 }),
             },
@@ -267,12 +267,12 @@ fn local_apps_credentials_only_apply_to_current_connection_and_generation() {
         AppsCatalogMessage::LocalReady {
             context,
             generation,
-            result: Ok(vw_shared::local_apps::Credentials {
+            result: Ok(local_app_auth::Credentials {
                 token: "current-local-credential".into(),
             }),
         },
     )));
-    assert_eq!(app.apps_catalog.host, vw_shared::local_apps::HOST_ID);
+    assert_eq!(app.apps_catalog.host, local_app_auth::HOST_ID);
     assert_eq!(app.apps_catalog.token, "current-local-credential");
     assert!(app.apps_catalog.loading);
     assert!(!app.apps_catalog.connection_open);

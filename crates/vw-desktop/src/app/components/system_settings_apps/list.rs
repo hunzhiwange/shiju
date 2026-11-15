@@ -62,7 +62,7 @@ pub(crate) fn view(state: &AppsCatalogState, i18n: I18n) -> Element<'_, Message>
     let installed =
         visible.iter().filter(|a| presentation::presence(a) == Presence::Installed).count();
     let missing = visible.iter().filter(|a| presentation::presence(a) == Presence::Missing).count();
-    let location = if state.host == vw_shared::local_apps::HOST_ID {
+    let location = if state.host == local_app_auth::HOST_ID {
         "本机"
     } else if state.host.is_empty() {
         "正在连接"
@@ -405,7 +405,7 @@ fn card<'a>(state: &'a AppsCatalogState, app: &'a CatalogRow) -> Element<'a, Mes
         .into()
     } else if presentation::presence(app) == Presence::Missing
         && app.entry.runtime_kinds.contains(&AppRuntimeKind::NativeCli)
-        && state.host == vw_shared::local_apps::HOST_ID
+        && state.host == local_app_auth::HOST_ID
         && local::available()
     {
         let environment = if cfg!(target_os = "macos") {

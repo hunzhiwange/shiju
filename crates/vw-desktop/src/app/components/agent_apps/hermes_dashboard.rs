@@ -68,7 +68,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     };
     let context = AgentAppsContext { gateway: client.endpoint().base_url(),
         tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
-    let local = client.endpoint().is_loopback() && app.apps_catalog.host == vw_shared::local_apps::HOST_ID;
+    let local = client.endpoint().is_loopback() && app.apps_catalog.host == local_app_auth::HOST_ID;
     let Some(project) = app.project_id.clone().filter(|id| !id.is_empty()) else {
         return app.show_error_toast("请先选择项目");
     };

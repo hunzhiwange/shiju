@@ -111,7 +111,7 @@ pub(super) fn router_with_runtime(
         )
         .layer(middleware::from_fn(move |mut request: Request, next: Next| async move {
             if local && let Some(tenant) = request.extensions().get::<TenantScope>() {
-                let path = vw_shared::local_apps::auth_policy_path(
+                let path = local_app_auth::auth_policy_path(
                     &crate::global::paths().home,
                     tenant.platform_id().as_ref(),
                     tenant.company_id().as_ref(),

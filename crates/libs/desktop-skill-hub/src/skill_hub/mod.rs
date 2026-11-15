@@ -32,3 +32,12 @@ mod package_version_cache_tests;
 mod shiju_knowledge_state_tests;
 #[cfg(test)]
 mod markdown_tests;
+
+mod public_market_state;
+mod installation_state;
+mod state;
+pub use public_market_state::*;
+pub use installation_state::*;
+pub use state::*;
+#[cfg(test)]
+mod state_tests;

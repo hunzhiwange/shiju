@@ -12,6 +12,6 @@ fn cc_data_44_locations_ui_shows_partial_cleanup() {
 #[test]
 fn cc_data_44_locations_ui_does_not_open_remote_path_locally() {
     assert!(!can_reveal(true, "remote-executor"));
-    assert!(!can_reveal(false, vw_shared::local_apps::HOST_ID));
-    assert!(can_reveal(true, vw_shared::local_apps::HOST_ID));
+    assert!(!can_reveal(false, local_app_auth::HOST_ID));
+    assert!(can_reveal(true, local_app_auth::HOST_ID));
 }

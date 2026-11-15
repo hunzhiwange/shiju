@@ -1627,6 +1627,8 @@ impl App {
             next_toast_id: 0,
             account: crate::app::state::AccountState::default(),
             #[cfg(not(target_arch = "wasm32"))]
+            shiju_apps: crate::app::shiju_apps::ShijuAppsState::default(),
+            #[cfg(not(target_arch = "wasm32"))]
             expert_hub: {
                 let local_version = crate::app::skill_hub::shiju_installation()
                     .ok()

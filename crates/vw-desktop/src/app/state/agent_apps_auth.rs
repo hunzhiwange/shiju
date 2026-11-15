@@ -42,9 +42,9 @@ pub(crate) struct Connection {
 }
 
 impl Connection {
-    pub fn local(credentials: vw_shared::local_apps::Credentials) -> Self {
+    pub fn local(credentials: local_app_auth::Credentials) -> Self {
         Self {
-            host: vw_shared::local_apps::HOST_ID.into(),
+            host: local_app_auth::HOST_ID.into(),
             token: credentials.token,
             ..Self::default()
         }
@@ -52,7 +52,7 @@ impl Connection {
 
     pub fn valid(&self) -> bool {
         self.valid_management()
-            || self.host == vw_shared::local_apps::HOST_ID
+            || self.host == local_app_auth::HOST_ID
                 && self.username.is_empty()
                 && self.password.is_empty()
                 && !self.token.trim().is_empty()

@@ -5,7 +5,7 @@ pub(crate) fn can_cleanup(location: &DataBackupLocation) -> bool {
     location.id != "database" && location.deletable
 }
 pub(crate) fn can_reveal(loopback: bool, host: &str) -> bool {
-    loopback && host == vw_shared::local_apps::HOST_ID
+    loopback && host == local_app_auth::HOST_ID
 }
 pub(crate) fn cleanup_summary(report: &DataBackupLocationDeletion) -> String {
     if report.undeleted_count > 0 {

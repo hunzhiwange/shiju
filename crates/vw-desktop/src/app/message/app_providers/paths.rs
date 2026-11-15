@@ -94,7 +94,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let state = &mut app.app_providers;
     let Some(form) = &mut state.paths else { return Task::none() };
     form.local_open =
-        client.endpoint().is_loopback() && scope.host == vw_shared::local_apps::HOST_ID;
+        client.endpoint().is_loopback() && scope.host == local_app_auth::HOST_ID;
     let (action, opening_folder) = match event {
         Event::PickFolder if form.pending.is_none() && form.local_open => {
             state.generation = state.generation.wrapping_add(1);

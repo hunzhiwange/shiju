@@ -58,7 +58,7 @@ pub(super) fn view(app: &App, target: ShijuAppDetailTarget) -> Element<'static, 
     let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     match target {
         ShijuAppDetailTarget::Store(index) => {
-            let ShijuAppsLoadState::Loaded(catalog) = &app.expert_hub.shiju_apps.store else {
+            let ShijuAppsLoadState::Loaded(catalog) = &app.shiju_apps.store else {
                 return shell(
                     i18n,
                     crate::app::i18n::I18n::new(app.desktop_locale).__("应用详情").to_string(),
@@ -146,7 +146,7 @@ pub(super) fn view(app: &App, target: ShijuAppDetailTarget) -> Element<'static, 
             )
         }
         ShijuAppDetailTarget::Mine(index) => {
-            let ShijuAppsLoadState::Loaded(apps) = &app.expert_hub.shiju_apps.mine else {
+            let ShijuAppsLoadState::Loaded(apps) = &app.shiju_apps.mine else {
                 return shell(
                     i18n,
                     crate::app::i18n::I18n::new(app.desktop_locale).__("我的应用详情").to_string(),

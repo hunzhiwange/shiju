@@ -22,7 +22,7 @@ pub mod auth;
 pub use build_identity;
 pub use ordered_id as id;
 pub mod json;
-pub mod local_apps;
+pub use local_app_auth as local_apps;
 pub mod message;
 pub use pasted_text_cache as pasted_text;
 pub mod patch;

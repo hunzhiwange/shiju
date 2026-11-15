@@ -30,7 +30,7 @@ pub enum AppsCatalogMessage {
     LocalReady {
         context: AgentAppsContext,
         generation: u64,
-        result: Result<vw_shared::local_apps::Credentials, String>,
+        result: Result<local_app_auth::Credentials, String>,
     },
     ConnectionOpen,
     ConnectionClose,
@@ -216,7 +216,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 Ok(credentials) => {
                     app.apps_catalog.model_diagnostics.invalidate_access();
                     app.apps_catalog.token = credentials.token;
-                    app.apps_catalog.host = vw_shared::local_apps::HOST_ID.into();
+                    app.apps_catalog.host = local_app_auth::HOST_ID.into();
                     return update(app, AppsCatalogMessage::Refresh);
                 }
                 Err(error) => {
@@ -332,7 +332,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             let host = app.apps_catalog.host.clone();
             let token = app.apps_catalog.token.clone();
             app.apps_catalog.connection_open = false;
-            let local = client.endpoint().is_loopback() && host == vw_shared::local_apps::HOST_ID;
+            let local = client.endpoint().is_loopback() && host == local_app_auth::HOST_ID;
             return Task::perform(catalog::load(client, host.clone(), token), move |result| {
                 Message::Settings(SettingsMessage::AppsCatalog(AppsCatalogMessage::Loaded {
                     context: context.clone(),

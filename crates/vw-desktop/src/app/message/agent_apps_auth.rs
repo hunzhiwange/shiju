@@ -76,7 +76,7 @@ pub enum Event {
     LocalReady {
         scope: Scope,
         generation: u64,
-        result: Result<vw_shared::local_apps::Credentials, String>,
+        result: Result<local_app_auth::Credentials, String>,
     },
     Loaded {
         scope: Scope,

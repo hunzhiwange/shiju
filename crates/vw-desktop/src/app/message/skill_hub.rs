@@ -1080,7 +1080,7 @@ fn active_shiju_account(app: &mut App) -> Option<(String, crate::app::account::S
         return None;
     };
     if app.expert_hub.account_id.as_deref() != Some(account_id.as_str()) {
-        app.expert_hub.clear_for_account(Some(account_id.clone()));
+        app.clear_expert_hub_account(Some(account_id.clone()));
     }
     Some((account_id, credential))
 }
@@ -1798,7 +1798,7 @@ fn open_skill_detail(app: &mut App, skill_id: u64) -> Task<Message> {
     let account_id = account.id().to_string();
     let credential = account.skill_hub_credential();
     if app.expert_hub.account_id.as_deref() != Some(account_id.as_str()) {
-        app.expert_hub.clear_for_account(Some(account_id.clone()));
+        app.clear_expert_hub_account(Some(account_id.clone()));
     }
     app.expert_hub.cancel_version_action();
     let generation = app.expert_hub.next_detail_generation();
@@ -1907,7 +1907,7 @@ fn start_skill_action(app: &mut App, skill_id: u64, action: SkillActionKind) -> 
     };
     let account_id = account.id().to_string();
     if app.expert_hub.account_id.as_deref() != Some(account_id.as_str()) {
-        app.expert_hub.clear_for_account(Some(account_id.clone()));
+        app.clear_expert_hub_account(Some(account_id.clone()));
     }
     let credential = account.skill_hub_credential();
     let Some(generation) = app.expert_hub.start_action(skill_id, action.clone()) else {
@@ -1965,7 +1965,7 @@ fn start_quick_upgrade(app: &mut App, skill_id: u64) -> Task<Message> {
     };
     let account_id = account.id().to_string();
     if app.expert_hub.account_id.as_deref() != Some(account_id.as_str()) {
-        app.expert_hub.clear_for_account(Some(account_id.clone()));
+        app.clear_expert_hub_account(Some(account_id.clone()));
         return Task::none();
     }
     let credential = account.skill_hub_credential();
@@ -2066,7 +2066,7 @@ fn start_version_action(app: &mut App, action: SkillVersionAction) -> Task<Messa
     };
     let account_id = account.id().to_string();
     if app.expert_hub.account_id.as_deref() != Some(account_id.as_str()) {
-        app.expert_hub.clear_for_account(Some(account_id.clone()));
+        app.clear_expert_hub_account(Some(account_id.clone()));
     }
     let credential = account.skill_hub_credential();
     let direction = action.direction;
@@ -2092,7 +2092,7 @@ fn confirm_version_action(app: &mut App) -> Task<Message> {
     };
     let account_id = account.id().to_string();
     if app.expert_hub.account_id.as_deref() != Some(account_id.as_str()) {
-        app.expert_hub.clear_for_account(Some(account_id));
+        app.clear_expert_hub_account(Some(account_id));
         return Task::none();
     }
     let credential = account.skill_hub_credential();
@@ -2193,7 +2193,7 @@ fn start_skill_cache_sync(app: &mut App, skill_id: u64, refresh_detail: bool) ->
         );
     };
     if app.expert_hub.account_id.as_deref() != Some(account_id.as_str()) {
-        app.expert_hub.clear_for_account(Some(account_id));
+        app.clear_expert_hub_account(Some(account_id));
         return Task::none();
     }
     let Some(generation) = app.expert_hub.start_cache_sync(skill_id, refresh_detail) else {
@@ -2326,7 +2326,7 @@ pub(super) fn dispatch_download_with(
 /// 账号切换后清除账号范围内的技能状态，并按当前页面重新加载。
 pub(crate) fn account_changed(app: &mut App) -> Task<Message> {
     let account_id = app.account.active_account().map(|account| account.id().to_string());
-    app.expert_hub.clear_for_account(account_id.clone());
+    app.clear_expert_hub_account(account_id.clone());
     if account_id.is_none() {
         if app.expert_hub.install_guide.open {
             app.expert_hub.install_guide.agent_package = LoadState::NeedsLogin;
@@ -2516,14 +2516,14 @@ fn load_current_tab(app: &mut App) -> Task<Message> {
         .map(|account| (account.id().to_string(), account.skill_hub_credential()));
     let Some((account_id, credential)) = active else {
         if app.expert_hub.account_id.is_some() {
-            app.expert_hub.clear_for_account(None);
+            app.clear_expert_hub_account(None);
         }
         mark_current_needs_login(app);
         return Task::none();
     };
 
     if app.expert_hub.account_id.as_deref() != Some(account_id.as_str()) {
-        app.expert_hub.clear_for_account(Some(account_id.clone()));
+        app.clear_expert_hub_account(Some(account_id.clone()));
     }
     let generation = app.expert_hub.next_request_generation();
     let tab = app.expert_hub.skill_tab;
@@ -2651,13 +2651,13 @@ fn load_marketplace_skills(app: &mut App) -> Task<Message> {
         .map(|account| (account.id().to_string(), account.skill_hub_credential()));
     let Some((account_id, credential)) = active else {
         if app.expert_hub.account_id.is_some() {
-            app.expert_hub.clear_for_account(None);
+            app.clear_expert_hub_account(None);
         }
         app.expert_hub.marketplace = LoadState::NeedsLogin;
         return Task::none();
     };
     if app.expert_hub.account_id.as_deref() != Some(account_id.as_str()) {
-        app.expert_hub.clear_for_account(Some(account_id.clone()));
+        app.clear_expert_hub_account(Some(account_id.clone()));
     }
     let generation = app.expert_hub.next_request_generation();
     app.expert_hub.marketplace = LoadState::Loading { generation };
@@ -2697,14 +2697,14 @@ fn load_installed_skills(app: &mut App, force: bool) -> Task<Message> {
         .map(|account| (account.id().to_string(), account.skill_hub_credential()));
     let Some((account_id, credential)) = active else {
         if app.expert_hub.account_id.is_some() {
-            app.expert_hub.clear_for_account(None);
+            app.clear_expert_hub_account(None);
         }
         app.expert_hub.installed = LoadState::NeedsLogin;
         return Task::none();
     };
 
     if app.expert_hub.account_id.as_deref() != Some(account_id.as_str()) {
-        app.expert_hub.clear_for_account(Some(account_id.clone()));
+        app.clear_expert_hub_account(Some(account_id.clone()));
     }
     if !force
         && matches!(app.expert_hub.installed, LoadState::Loading { .. } | LoadState::Loaded(_))

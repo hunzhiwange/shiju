@@ -49,7 +49,7 @@ impl NativeRequest {
         anyhow::ensure!(crate::project::store::ProjectStore::new(database)?.get(&scope)?.is_some(),
             "usage project outside tenant");
         // Only existing private desktop authorization may establish this local host.
-        anyhow::ensure!(vw_shared::local_apps::restore(&crate::global::paths().home,
+        anyhow::ensure!(local_app_auth::restore(&crate::global::paths().home,
             scope.platform_id().as_ref(), scope.company_id().as_ref())?.is_some(),
             "local usage host is not provisioned");
         Ok(Self {

@@ -70,7 +70,7 @@ impl Harness {
         if self.case % 6 == 3 {
             self.state.launch.selected = None;
         } else if self.case % 6 == 5 {
-            self.state.host = vw_shared::local_apps::HOST_ID.into();
+            self.state.host = local_app_auth::HOST_ID.into();
             self.state.launch.identities.clear();
             self.state.launch.selected =
                 Some(system_settings_apps::launch::LaunchChoice::ExistingConfiguration);

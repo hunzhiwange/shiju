@@ -98,7 +98,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Event::Move => { let (Some(current), Some(location)) = (&s.current, s.pending) else { return Task::none(); };
             Change::Move(SkillStorageMoveRequest { scope: scope.clone(), expected_version: current.version, location, targets: Vec::new() }) }
         Event::OpenDirectory => {
-            if !client.endpoint().is_loopback() || scope.target_host_id != vw_shared::local_apps::HOST_ID {
+            if !client.endpoint().is_loopback() || scope.target_host_id != local_app_auth::HOST_ID {
                 return app.show_error_toast("远程目标目录不可在本机打开");
             }
             let Some(current) = &s.current else { return Task::none(); };

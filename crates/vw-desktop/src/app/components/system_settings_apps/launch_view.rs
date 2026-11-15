@@ -118,7 +118,7 @@ pub(crate) fn overlay<'a>(
             .style(rounded_action_btn_style)
             .on_press_maybe((!state.busy).then_some(close.clone())),
         button(
-            text(if catalog.host == vw_shared::local_apps::HOST_ID {
+            text(if catalog.host == local_app_auth::HOST_ID {
                 "在本机启动"
             } else {
                 "在所选主机启动"

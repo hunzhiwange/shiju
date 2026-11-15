@@ -61,10 +61,10 @@ fn api_key(api_key_id: u64, key_name: &str, status: &str) -> ShijuIamApiKeyDto {
 
 fn app_with_lists() -> App {
     let (mut app, _) = App::new();
-    app.expert_hub.shiju_apps.store = ShijuAppsLoadState::Loaded(ShijuAppCatalogDto {
+    app.shiju_apps.store = ShijuAppsLoadState::Loaded(ShijuAppCatalogDto {
         apps: vec![catalog_app(true), catalog_app(false)],
     });
-    app.expert_hub.shiju_apps.mine = ShijuAppsLoadState::Loaded(ShijuAppListDto {
+    app.shiju_apps.mine = ShijuAppsLoadState::Loaded(ShijuAppListDto {
         apps: vec![installed_app(true), installed_app(false)],
     });
     app
@@ -81,12 +81,12 @@ fn shiju_apps_view_builds_store_mine_and_details() {
     );
 
     keep_element(shiju_apps::view(&app));
-    app.expert_hub.shiju_apps.tab = ShijuAppsTab::Store;
+    app.shiju_apps.tab = ShijuAppsTab::Store;
     keep_element(shiju_apps::view(&app));
 
-    app.expert_hub.shiju_apps.detail = Some(ShijuAppDetailTarget::Store(0));
+    app.shiju_apps.detail = Some(ShijuAppDetailTarget::Store(0));
     keep_element(shiju_apps::view(&app));
-    app.expert_hub.shiju_apps.detail = Some(ShijuAppDetailTarget::Mine(0));
+    app.shiju_apps.detail = Some(ShijuAppDetailTarget::Mine(0));
     keep_element(shiju_apps::view(&app));
 }
 
@@ -100,7 +100,7 @@ fn shiju_apps_view_exposes_loading_empty_error_and_login_states() {
         ShijuAppsLoadState::Error("目录加载失败".to_string()),
     ];
     for state in states {
-        app.expert_hub.shiju_apps.store = state;
+        app.shiju_apps.store = state;
         keep_element(shiju_apps::view(&app));
     }
 }
@@ -178,8 +178,8 @@ fn api_key_binding_overlay_appears_only_after_unconfigured_binding() {
     ];
 
     for state in states {
-        app.expert_hub.shiju_apps.launch = state;
-        assert!(shiju_apps::api_key_binding::is_visible(&app.expert_hub.shiju_apps.launch));
+        app.shiju_apps.launch = state;
+        assert!(shiju_apps::api_key_binding::is_visible(&app.shiju_apps.launch));
         let element = shiju_apps::view(&app);
         assert_eq!(
             element.as_widget().children().len(),
@@ -301,7 +301,7 @@ async fn shiju_apps_dark_chinese_render_path_is_safe() {
     let mut app = app_with_lists();
     for detail in [None, Some(ShijuAppDetailTarget::Store(0)), Some(ShijuAppDetailTarget::Mine(0))]
     {
-        app.expert_hub.shiju_apps.detail = detail;
+        app.shiju_apps.detail = detail;
         assert_draws(&app, Theme::Dark).await;
     }
 }
@@ -361,7 +361,7 @@ async fn api_key_binding_dark_and_light_render_paths_are_safe() {
     ];
 
     for state in states {
-        app.expert_hub.shiju_apps.launch = state;
+        app.shiju_apps.launch = state;
         assert_draws(&app, Theme::Dark).await;
         assert_draws(&app, Theme::Light).await;
     }

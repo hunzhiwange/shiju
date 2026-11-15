@@ -8,12 +8,12 @@ use {
 #[test]
 fn local_apps_generated_grant_uses_existing_authorization_and_rejects_other_scopes() {
     let home = tempfile::tempdir().unwrap();
-    let credential = vw_shared::local_apps::initialize(home.path(), "p", "c").unwrap();
-    let policy = vw_shared::local_apps::policy_path(home.path(), "p", "c");
+    let credential = local_app_auth::initialize(home.path(), "p", "c").unwrap();
+    let policy = local_app_auth::policy_path(home.path(), "p", "c");
     let mut headers = HeaderMap::new();
     headers.insert("x-agent-apps-token", HeaderValue::from_str(&credential.token).unwrap());
     let tenant = TenantScope::new("p", "c").unwrap();
-    let host = vw_shared::local_apps::HOST_ID;
+    let host = local_app_auth::HOST_ID;
     assert!(authorize(Some(&policy), &headers, &tenant, host).is_ok());
     assert!(authorize_preferences(Some(&policy), &headers, &tenant, host, None, true).is_ok());
     assert!(authorize_launch_session(Some(&policy), &headers, &tenant, host).is_ok());
@@ -63,7 +63,7 @@ async fn local_apps_default_router_loads_new_private_grant_without_restart_or_en
             StatusCode::SERVICE_UNAVAILABLE
         );
         let credentials =
-            vw_shared::local_apps::initialize(std::path::Path::new(&home), "p", "c").unwrap();
+            local_app_auth::initialize(std::path::Path::new(&home), "p", "c").unwrap();
         assert_eq!(
             app.clone().oneshot(request(&credentials.token)).await.unwrap().status(),
             StatusCode::OK
@@ -93,7 +93,7 @@ async fn verify_local_auth(home: &std::path::Path, app_token: &str) {
         AgentAppsAuthCredentials, AgentAppsAuthError, GatewayClient, vw_api_app_auth::{AuthErrorCode, AuthFlowId, AuthService}}};
 
     let router = crate::gateway::api::handlers::agent_apps_auth_read::router(None, "test", None);
-    let credential = vw_shared::local_apps::initialize_auth(home, "p", "c").unwrap();
+    let credential = local_app_auth::initialize_auth(home, "p", "c").unwrap();
     assert_eq!(credential.token, app_token);
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
     let port = listener.local_addr().unwrap().port();
@@ -109,7 +109,7 @@ async fn verify_local_auth(home: &std::path::Path, app_token: &str) {
     )
     .unwrap();
     let auth = AgentAppsAuthCredentials { username: "", password: "", principal_token: app_token };
-    let host = vw_shared::local_apps::HOST_ID;
+    let host = local_app_auth::HOST_ID;
     let service = AuthService::CodexOauth;
     assert!(client.agent_apps_auth_accounts(host, service, &auth).await.unwrap().is_empty());
     // An unknown flow reaches the authorized handler without calling a provider.
@@ -131,7 +131,7 @@ async fn verify_local_auth(home: &std::path::Path, app_token: &str) {
         }
         builder.body(Body::empty()).unwrap()
     };
-    let other = vw_shared::local_apps::initialize_auth(home, "p", "other").unwrap();
+    let other = local_app_auth::initialize_auth(home, "p", "other").unwrap();
     assert_ne!(other.token, app_token);
     for input in [
         request("192.0.2.1:1234", false, "c", app_token),

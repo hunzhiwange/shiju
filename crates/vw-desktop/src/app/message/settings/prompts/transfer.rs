@@ -67,7 +67,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let targets = state.transfer.targets.clone();
     if matches!(event, Event::Copy) && (id.is_none() || targets.is_empty()) { return Task::none(); }
     let path = state.preview.as_ref().and_then(|p| p.display_path.clone());
-    if matches!(event, Event::Reveal) && (!client.endpoint().is_loopback() || scope.target_host_id != vw_shared::local_apps::HOST_ID) {
+    if matches!(event, Event::Reveal) && (!client.endpoint().is_loopback() || scope.target_host_id != local_app_auth::HOST_ID) {
         return path.map(iced::clipboard::write).unwrap_or_else(Task::none);
     }
     state.mutating = true;

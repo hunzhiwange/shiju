@@ -80,21 +80,21 @@ pub(crate) fn update(app: &mut App, message: ShijuAppsMessage) -> Task<Message> 
     match message {
         ShijuAppsMessage::Open => {
             app.expert_hub.install_guide.close();
-            app.expert_hub.shiju_apps.tab = ShijuAppsTab::Mine;
+            app.shiju_apps.tab = ShijuAppsTab::Mine;
             open_shiju_apps_tab(app);
             ensure_current_tab_loaded(app)
         }
         ShijuAppsMessage::SelectTab(tab) => {
-            app.expert_hub.shiju_apps.tab = tab;
-            app.expert_hub.shiju_apps.detail = None;
+            app.shiju_apps.tab = tab;
+            app.shiju_apps.detail = None;
             ensure_current_tab_loaded(app)
         }
         ShijuAppsMessage::OpenDetail(target) => {
-            app.expert_hub.shiju_apps.detail = Some(target);
+            app.shiju_apps.detail = Some(target);
             Task::none()
         }
         ShijuAppsMessage::CloseDetail => {
-            app.expert_hub.shiju_apps.detail = None;
+            app.shiju_apps.detail = None;
             cancel_api_key_binding(app);
             Task::none()
         }
@@ -130,16 +130,16 @@ pub(crate) fn update(app: &mut App, message: ShijuAppsMessage) -> Task<Message> 
             load_current_tab(app)
         }
         ShijuAppsMessage::StoreLoaded { generation, account_id, result } => {
-            if app.expert_hub.shiju_apps.response_is_current(generation, &account_id) {
-                app.expert_hub.shiju_apps.store = result
+            if app.shiju_apps.response_is_current(generation, &account_id) {
+                app.shiju_apps.store = result
                     .map(ShijuAppsLoadState::Loaded)
                     .unwrap_or_else(ShijuAppsLoadState::Error);
             }
             Task::none()
         }
         ShijuAppsMessage::MineLoaded { generation, account_id, result } => {
-            if app.expert_hub.shiju_apps.response_is_current(generation, &account_id) {
-                app.expert_hub.shiju_apps.mine = result
+            if app.shiju_apps.response_is_current(generation, &account_id) {
+                app.shiju_apps.mine = result
                     .map(ShijuAppsLoadState::Loaded)
                     .unwrap_or_else(ShijuAppsLoadState::Error);
             }
@@ -163,7 +163,7 @@ fn open_shiju_apps_tab(app: &mut App) {
 
 fn prepare_installed_launch(app: &mut App, installation_id: String) -> Task<Message> {
     if !matches!(
-        app.expert_hub.shiju_apps.launch,
+        app.shiju_apps.launch,
         ShijuAppLaunchState::Idle | ShijuAppLaunchState::Error { .. }
     ) {
         return Task::none();
@@ -173,7 +173,7 @@ fn prepare_installed_launch(app: &mut App, installation_id: String) -> Task<Mess
 
 fn begin_binding_check(app: &mut App, installation_id: String) -> Task<Message> {
     let ready = matches!(
-        &app.expert_hub.shiju_apps.mine,
+        &app.shiju_apps.mine,
         ShijuAppsLoadState::Loaded(apps)
             if apps.apps.iter().any(|item| {
                 item.installation_id == installation_id
@@ -196,7 +196,7 @@ fn begin_binding_check(app: &mut App, installation_id: String) -> Task<Message> 
         );
     };
     let account_id = account.id().to_string();
-    if app.expert_hub.shiju_apps.account_id.as_deref() != Some(account_id.as_str()) {
+    if app.shiju_apps.account_id.as_deref() != Some(account_id.as_str()) {
         return app.show_localized_toast(
             crate::app::state::ToastKind::Error,
             "识矩应用账户已变化，请刷新后重试",
@@ -204,8 +204,8 @@ fn begin_binding_check(app: &mut App, installation_id: String) -> Task<Message> 
         );
     }
     let credential = account.skill_hub_credential();
-    let generation = app.expert_hub.shiju_apps.next_generation();
-    app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::CheckingBinding {
+    let generation = app.shiju_apps.next_generation();
+    app.shiju_apps.launch = ShijuAppLaunchState::CheckingBinding {
         generation,
         installation_id: installation_id.clone(),
     };
@@ -236,7 +236,7 @@ fn finish_binding_check(
     result: Result<ShijuAppApiKeyBindingDto, String>,
 ) -> Task<Message> {
     let current = launch_result_is_current(app, generation, account_id, installation_id)
-        && matches!(app.expert_hub.shiju_apps.launch, ShijuAppLaunchState::CheckingBinding { .. });
+        && matches!(app.shiju_apps.launch, ShijuAppLaunchState::CheckingBinding { .. });
     if !current {
         return Task::none();
     }
@@ -263,7 +263,7 @@ fn finish_binding_check(
 
     if !binding.personal.can_edit {
         let message = "当前应用的个人 API 密钥绑定不可修改".to_string();
-        app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::SelectingApiKey {
+        app.shiju_apps.launch = ShijuAppLaunchState::SelectingApiKey {
             generation,
             installation_id: installation_id.to_string(),
             can_edit: false,
@@ -271,7 +271,7 @@ fn finish_binding_check(
             selected_api_key_id: None,
             error: Some(message.clone()),
         };
-        app.expert_hub.shiju_apps.launch_feedback = Some((
+        app.shiju_apps.launch_feedback = Some((
             generation,
             message.clone(),
             crate::app::skill_hub::SkillHubError::localized(&message, vec![]),
@@ -300,7 +300,7 @@ fn load_api_keys(
         return Task::none();
     }
     let credential = account.skill_hub_credential();
-    app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::LoadingApiKeys {
+    app.shiju_apps.launch = ShijuAppLaunchState::LoadingApiKeys {
         generation,
         installation_id: installation_id.clone(),
         can_edit,
@@ -329,7 +329,7 @@ fn finish_api_key_load(
     installation_id: &str,
     result: Result<ShijuIamApiKeyListDto, String>,
 ) -> Task<Message> {
-    let can_edit = match &app.expert_hub.shiju_apps.launch {
+    let can_edit = match &app.shiju_apps.launch {
         ShijuAppLaunchState::LoadingApiKeys {
             generation: active_generation,
             installation_id: active_installation_id,
@@ -363,7 +363,7 @@ fn finish_api_key_load(
             (Vec::new(), None, Some(error), toast_message)
         }
     };
-    app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::SelectingApiKey {
+    app.shiju_apps.launch = ShijuAppLaunchState::SelectingApiKey {
         generation,
         installation_id: installation_id.to_string(),
         can_edit,
@@ -371,7 +371,7 @@ fn finish_api_key_load(
         selected_api_key_id,
         error: error.clone(),
     };
-    app.expert_hub.shiju_apps.launch_feedback = error.as_ref().filter(|_| !failed).map(|source| {
+    app.shiju_apps.launch_feedback = error.as_ref().filter(|_| !failed).map(|source| {
         (
             generation,
             source.clone(),
@@ -394,7 +394,7 @@ fn finish_api_key_load(
 fn select_api_key(app: &mut App, api_key_id: u64) {
     let ShijuAppLaunchState::SelectingApiKey {
         can_edit, api_keys, selected_api_key_id, error, ..
-    } = &mut app.expert_hub.shiju_apps.launch
+    } = &mut app.shiju_apps.launch
     else {
         return;
     };
@@ -405,7 +405,7 @@ fn select_api_key(app: &mut App, api_key_id: u64) {
 }
 
 fn refresh_api_keys(app: &mut App) -> Task<Message> {
-    let installation_id = match &app.expert_hub.shiju_apps.launch {
+    let installation_id = match &app.shiju_apps.launch {
         ShijuAppLaunchState::SelectingApiKey { installation_id, .. }
         | ShijuAppLaunchState::Error { installation_id, .. } => installation_id.clone(),
         _ => return Task::none(),
@@ -415,7 +415,7 @@ fn refresh_api_keys(app: &mut App) -> Task<Message> {
 
 fn save_api_key_binding(app: &mut App) -> Task<Message> {
     let (generation, installation_id, can_edit, api_keys, selected_api_key_id) =
-        match &app.expert_hub.shiju_apps.launch {
+        match &app.shiju_apps.launch {
             ShijuAppLaunchState::SelectingApiKey {
                 generation,
                 installation_id,
@@ -451,7 +451,7 @@ fn save_api_key_binding(app: &mut App) -> Task<Message> {
         );
     };
     let account_id = account.id().to_string();
-    if app.expert_hub.shiju_apps.account_id.as_deref() != Some(account_id.as_str()) {
+    if app.shiju_apps.account_id.as_deref() != Some(account_id.as_str()) {
         return app.show_localized_toast(
             crate::app::state::ToastKind::Error,
             "识矩应用账户已变化，请刷新后重试",
@@ -462,7 +462,7 @@ fn save_api_key_binding(app: &mut App) -> Task<Message> {
         return reject_api_key_save(app, "识矩应用授权状态已失效，请刷新后重试");
     }
     let credential = account.skill_hub_credential();
-    app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::SavingApiKeyBinding {
+    app.shiju_apps.launch = ShijuAppLaunchState::SavingApiKeyBinding {
         generation,
         installation_id: installation_id.clone(),
         can_edit,
@@ -494,10 +494,10 @@ fn save_api_key_binding(app: &mut App) -> Task<Message> {
 
 fn reject_api_key_save(app: &mut App, message: &str) -> Task<Message> {
     if let ShijuAppLaunchState::SelectingApiKey { generation, error, .. } =
-        &mut app.expert_hub.shiju_apps.launch
+        &mut app.shiju_apps.launch
     {
         *error = Some(message.to_string());
-        app.expert_hub.shiju_apps.launch_feedback = Some((
+        app.shiju_apps.launch_feedback = Some((
             *generation,
             message.to_string(),
             crate::app::skill_hub::SkillHubError::localized(message, vec![]),
@@ -513,7 +513,7 @@ fn finish_api_key_binding_save(
     installation_id: &str,
     result: Result<(), String>,
 ) -> Task<Message> {
-    let (can_edit, api_keys, selected_api_key_id) = match &app.expert_hub.shiju_apps.launch {
+    let (can_edit, api_keys, selected_api_key_id) = match &app.shiju_apps.launch {
         ShijuAppLaunchState::SavingApiKeyBinding {
             generation: active_generation,
             installation_id: active_installation_id,
@@ -537,7 +537,7 @@ fn finish_api_key_binding_save(
             installation_id.to_string(),
         ),
         Err(error) => {
-            app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::SelectingApiKey {
+            app.shiju_apps.launch = ShijuAppLaunchState::SelectingApiKey {
                 generation,
                 installation_id: installation_id.to_string(),
                 can_edit,
@@ -571,7 +571,7 @@ fn continue_installed_launch(
         );
     };
     let credential = account.skill_hub_credential();
-    app.expert_hub.shiju_apps.launch =
+    app.shiju_apps.launch =
         ShijuAppLaunchState::Preparing { generation, installation_id: installation_id.clone() };
     let requested_installation_id = installation_id.clone();
     Task::perform(
@@ -598,13 +598,13 @@ fn launch_result_is_current(
     account_id: &str,
     installation_id: &str,
 ) -> bool {
-    app.expert_hub.shiju_apps.launch_response_is_current(generation, account_id, installation_id)
+    app.shiju_apps.launch_response_is_current(generation, account_id, installation_id)
         && app.account.active_account().is_some_and(|account| account.id() == account_id)
 }
 
 fn set_launch_error(app: &mut App, generation: u64, installation_id: &str, message: String) {
-    app.expert_hub.shiju_apps.launch_feedback = None;
-    app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::Error {
+    app.shiju_apps.launch_feedback = None;
+    app.shiju_apps.launch = ShijuAppLaunchState::Error {
         generation,
         installation_id: installation_id.to_string(),
         message,
@@ -612,9 +612,9 @@ fn set_launch_error(app: &mut App, generation: u64, installation_id: &str, messa
 }
 
 fn cancel_api_key_binding(app: &mut App) {
-    if !matches!(app.expert_hub.shiju_apps.launch, ShijuAppLaunchState::Idle) {
-        app.expert_hub.shiju_apps.next_generation();
-        app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::Idle;
+    if !matches!(app.shiju_apps.launch, ShijuAppLaunchState::Idle) {
+        app.shiju_apps.next_generation();
+        app.shiju_apps.launch = ShijuAppLaunchState::Idle;
     }
 }
 
@@ -627,7 +627,7 @@ fn finish_installed_launch(
 ) -> Task<Message> {
     let current = launch_result_is_current(app, generation, account_id, installation_id)
         && matches!(
-            &app.expert_hub.shiju_apps.launch,
+            &app.shiju_apps.launch,
             ShijuAppLaunchState::Preparing {
                 generation: active_generation,
                 installation_id: active_installation_id,
@@ -652,7 +652,7 @@ fn finish_installed_launch(
     match crate::app::shiju_apps::launch_shiju_app(&target, installation_id) {
         Ok(child) => {
             app.independent_webview_children.push(child);
-            app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::Idle;
+            app.shiju_apps.launch = ShijuAppLaunchState::Idle;
             app.show_localized_toast(
                 crate::app::state::ToastKind::Success,
                 "识矩应用已安全打开",
@@ -662,7 +662,7 @@ fn finish_installed_launch(
         Err(error) => {
             let original = error.to_string();
             set_launch_error(app, generation, installation_id, original.clone());
-            app.expert_hub.shiju_apps.launch_feedback =
+            app.shiju_apps.launch_feedback =
                 Some((generation, original.clone(), error.clone()));
             let task = app.show_error_toast(original);
             if let Some(toast) = &mut app.active_toast {
@@ -689,13 +689,13 @@ fn finish_installed_launch(
 }
 
 fn ensure_current_tab_loaded(app: &mut App) -> Task<Message> {
-    let needs_load = match app.expert_hub.shiju_apps.tab {
+    let needs_load = match app.shiju_apps.tab {
         ShijuAppsTab::Store => !matches!(
-            app.expert_hub.shiju_apps.store,
+            app.shiju_apps.store,
             ShijuAppsLoadState::Loading { .. } | ShijuAppsLoadState::Loaded(_)
         ),
         ShijuAppsTab::Mine => !matches!(
-            app.expert_hub.shiju_apps.mine,
+            app.shiju_apps.mine,
             ShijuAppsLoadState::Loading { .. } | ShijuAppsLoadState::Loaded(_)
         ),
     };
@@ -708,27 +708,27 @@ fn load_current_tab(app: &mut App) -> Task<Message> {
         .active_account()
         .map(|account| (account.id().to_string(), account.skill_hub_credential()));
     let Some((account_id, credential)) = active else {
-        if app.expert_hub.shiju_apps.account_id.is_some() {
-            app.expert_hub.shiju_apps.clear_for_account(None);
+        if app.shiju_apps.account_id.is_some() {
+            app.shiju_apps.clear_for_account(None);
         }
-        match app.expert_hub.shiju_apps.tab {
+        match app.shiju_apps.tab {
             ShijuAppsTab::Store => {
-                app.expert_hub.shiju_apps.store = ShijuAppsLoadState::NeedsLogin;
+                app.shiju_apps.store = ShijuAppsLoadState::NeedsLogin;
             }
             ShijuAppsTab::Mine => {
-                app.expert_hub.shiju_apps.mine = ShijuAppsLoadState::NeedsLogin;
+                app.shiju_apps.mine = ShijuAppsLoadState::NeedsLogin;
             }
         }
         return Task::none();
     };
 
-    if app.expert_hub.shiju_apps.account_id.as_deref() != Some(account_id.as_str()) {
-        app.expert_hub.shiju_apps.clear_for_account(Some(account_id.clone()));
+    if app.shiju_apps.account_id.as_deref() != Some(account_id.as_str()) {
+        app.shiju_apps.clear_for_account(Some(account_id.clone()));
     }
-    let generation = app.expert_hub.shiju_apps.next_generation();
-    match app.expert_hub.shiju_apps.tab {
+    let generation = app.shiju_apps.next_generation();
+    match app.shiju_apps.tab {
         ShijuAppsTab::Store => {
-            app.expert_hub.shiju_apps.store = ShijuAppsLoadState::Loading { generation };
+            app.shiju_apps.store = ShijuAppsLoadState::Loading { generation };
             Task::perform(
                 async move {
                     let credential =
@@ -745,7 +745,7 @@ fn load_current_tab(app: &mut App) -> Task<Message> {
             )
         }
         ShijuAppsTab::Mine => {
-            app.expert_hub.shiju_apps.mine = ShijuAppsLoadState::Loading { generation };
+            app.shiju_apps.mine = ShijuAppsLoadState::Loading { generation };
             Task::perform(
                 async move {
                     let credential =

@@ -6,5 +6,5 @@ pub(crate) fn database() -> anyhow::Result<GlobalDatabase> {
 }
 
 pub(crate) fn local_host() -> anyhow::Result<String> {
-    Ok(vw_shared::local_apps::HOST_ID.to_owned())
+    Ok(local_app_auth::HOST_ID.to_owned())
 }

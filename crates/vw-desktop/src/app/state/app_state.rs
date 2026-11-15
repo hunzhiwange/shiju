@@ -1189,6 +1189,8 @@ pub struct App {
     pub(crate) account: AccountState,
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) expert_hub: crate::app::skill_hub::ExpertHubState,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) shiju_apps: crate::app::shiju_apps::ShijuAppsState,
     /// 工作流管理面板状态
     pub workflow_manager: crate::app::views::workflow_manager::WorkflowManagerState,
     /// 是否显示任务看板

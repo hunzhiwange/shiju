@@ -118,7 +118,7 @@ fn login_preferences(state: &State) -> Element<'_, Message> {
         );
     }
     if let Some(connection) = &state.connection {
-        let host = if connection.host == vw_shared::local_apps::HOST_ID {
+        let host = if connection.host == local_app_auth::HOST_ID {
             "本机"
         } else {
             connection.host.trim()

@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+local-app-auth = { path = "../libs/local-app-auth", version = "0.6.0" }
 gateway-mcp = { path = "../libs/gateway-mcp", version = "0.6.0" }
 gateway-aggregation-native = { path = "../libs/gateway-aggregation-native", version = "0.6.0" }
 gateway-aggregation-codex = { path = "../libs/gateway-aggregation-codex", version = "0.6.0" }

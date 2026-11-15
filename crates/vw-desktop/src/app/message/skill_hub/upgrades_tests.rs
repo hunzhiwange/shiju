@@ -124,7 +124,7 @@ fn function_upgrade_keeps_cache_retries_and_ignores_stale_results() {
         app.expert_hub.function_upgrade.is_some(),
         "cache retries work without remote upgrades"
     );
-    app.expert_hub.clear_for_account(None);
+    app.clear_expert_hub_account(None);
     assert!(app.expert_hub.function_upgrade.is_none());
     assert!(app.expert_hub.function_cache_retry.is_empty());
 }

@@ -73,7 +73,7 @@ fn tab_button(
 
 /// 组合应用页签、详情与密钥绑定覆盖层。
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
-    let content = if let Some(target) = app.expert_hub.shiju_apps.detail {
+    let content = if let Some(target) = app.shiju_apps.detail {
         detail::view(app, target)
     } else {
         let tabs = tab_specs().iter().fold(row!().spacing(8), |tabs, (label, tab)| {
@@ -81,17 +81,17 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
                 crate::app::i18n::I18n::new(app.desktop_locale),
                 label,
                 *tab,
-                app.expert_hub.shiju_apps.tab == *tab,
+                app.shiju_apps.tab == *tab,
             ))
         });
-        let body = match app.expert_hub.shiju_apps.tab {
+        let body = match app.shiju_apps.tab {
             ShijuAppsTab::Store => store::view(
                 crate::app::i18n::I18n::new(app.desktop_locale),
-                &app.expert_hub.shiju_apps.store,
+                &app.shiju_apps.store,
             ),
             ShijuAppsTab::Mine => mine::view(
                 crate::app::i18n::I18n::new(app.desktop_locale),
-                &app.expert_hub.shiju_apps.mine,
+                &app.shiju_apps.mine,
             ),
         };
 

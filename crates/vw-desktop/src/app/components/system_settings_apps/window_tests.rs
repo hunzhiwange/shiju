@@ -35,7 +35,7 @@ struct Harness {
 impl Harness {
     fn setup(&mut self) {
         self.state =
-            AppsCatalogState { host: vw_shared::local_apps::HOST_ID.into(), ..Default::default() };
+            AppsCatalogState { host: local_app_auth::HOST_ID.into(), ..Default::default() };
         for (id, name, installed) in [
             (AppId::Claude, "Claude Code", true),
             (AppId::Codex, "Codex", true),
@@ -57,7 +57,7 @@ impl Harness {
                         vec![AppInstallation {
                             id: AppInstallationId(format!("fixture-{id:?}")),
                             app_id: id,
-                            target_host_id: vw_shared::local_apps::HOST_ID.into(),
+                            target_host_id: local_app_auth::HOST_ID.into(),
                             environment: AppInstallationEnvironment::Macos,
                             path: format!("/隔离目录/应用/{id:?}"),
                             real_path: None,

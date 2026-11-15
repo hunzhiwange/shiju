@@ -230,7 +230,7 @@ fn connector_logout_clears_all_waits_and_ignores_late_results() {
     let first = authorization(&mut app, 7);
     let _ = authorization(&mut app, 8);
     app.expert_hub.connectors.form = Some(ConnectorForm::new(connector()));
-    app.expert_hub.clear_for_account(None);
+    app.clear_expert_hub_account(None);
     let _ = update(
         &mut app,
         ConnectorMessage::Polled(

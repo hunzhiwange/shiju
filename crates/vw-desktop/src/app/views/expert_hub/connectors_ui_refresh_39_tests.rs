@@ -402,7 +402,7 @@ async fn ui_refresh_39_preserves_values_and_disabled_states() {
     ];
     options.extend((100..125).map(|id| api_key(id, format!("測試密鑰 {id}"), "enabled")));
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
-    app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::SelectingApiKey {
+    app.shiju_apps.launch = ShijuAppLaunchState::SelectingApiKey {
         generation: 2,
         installation_id: "sample-install".into(),
         can_edit: true,
@@ -458,7 +458,7 @@ async fn ui_refresh_39_preserves_values_and_disabled_states() {
     drop(ui);
 
     if let ShijuAppLaunchState::SelectingApiKey { selected_api_key_id, error, .. } =
-        &mut app.expert_hub.shiju_apps.launch
+        &mut app.shiju_apps.launch
     {
         *selected_api_key_id = Some(29);
         *error = None;
@@ -498,7 +498,7 @@ async fn ui_refresh_39_preserves_values_and_disabled_states() {
             },
         ),
     ] {
-        app.expert_hub.shiju_apps.launch = state;
+        app.shiju_apps.launch = state;
         let mut ui = scene(shiju_apps::view(&app), &mut renderer, size);
         capture(&mut ui, &mut renderer, &Theme::Dark, size, name, Point::ORIGIN);
         let geometry = bounds(&mut ui, &renderer);

@@ -122,7 +122,7 @@ async fn desktop_gettext_area_14_binding_rejection_keeps_display_semantics() {
     use crate::app::message::shiju_apps::{self, ShijuAppsMessage};
     use crate::app::shiju_apps::ShijuAppLaunchState;
     let (mut app, _) = crate::app::App::new();
-    app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::SelectingApiKey {
+    app.shiju_apps.launch = ShijuAppLaunchState::SelectingApiKey {
         generation: 5,
         installation_id: "raw/%n".into(),
         can_edit: true,
@@ -133,7 +133,7 @@ async fn desktop_gettext_area_14_binding_rejection_keeps_display_semantics() {
     let _ = shiju_apps::update(&mut app, ShijuAppsMessage::SaveApiKeyBinding);
     let source = "请选择一个已启用的 IAM API 密钥";
     assert_eq!(
-        app.expert_hub.shiju_apps.render_launch_error(source, I18n::new(DesktopLocale::English)),
+        app.shiju_apps.render_launch_error(source, I18n::new(DesktopLocale::English)),
         "Select an enabled IAM API key"
     );
     assert_eq!(

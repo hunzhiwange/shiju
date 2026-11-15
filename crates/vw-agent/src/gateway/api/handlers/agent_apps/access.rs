@@ -964,7 +964,7 @@ pub(super) fn authorize_auth_flow_start(
 }
 
 pub(super) fn tenant_policy_path(tenant: &TenantScope) -> PathBuf {
-    vw_shared::local_apps::policy_path(
+    local_app_auth::policy_path(
         &crate::global::paths().home,
         tenant.platform_id().as_ref(),
         tenant.company_id().as_ref(),
@@ -2450,7 +2450,7 @@ pub(in super::super) fn usage_scan_targets(path: &Path) -> Result<Vec<(vw_api_tr
     let mut targets = Vec::new();
     for principal in &policy.principals {
         for grant in &principal.grants {
-            let Some(host) = policy.hosts.iter().find(|host| host.id == grant.host_id && host.id == vw_shared::local_apps::HOST_ID
+            let Some(host) = policy.hosts.iter().find(|host| host.id == grant.host_id && host.id == local_app_auth::HOST_ID
                 && host.online && matches!(host.binding, Binding::Local)) else { continue };
             let tenant = TenantScope::new(&grant.platform_id, &grant.company_id)
                 .map_err(|_| StatusCode::FORBIDDEN)?;

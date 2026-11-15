@@ -9,7 +9,6 @@ license = "MIT"
 
 [dependencies]
 ordered-id = { path = "../libs/ordered-id", version = "0.6.0" }
-ordered-id = { path = "../libs/ordered-id", version = "0.6.0" }
 session-text = { path = "../libs/session-text", version = "0.6.0" }
 session-ui-types = { path = "../libs/session-ui-types", version = "0.6.0" }
 session-info = { path = "../libs/session-info", version = "0.6.0" }

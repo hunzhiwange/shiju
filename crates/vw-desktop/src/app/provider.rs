@@ -6,7 +6,7 @@
 /// provider 子模块，拆分当前领域的局部职责。
 pub mod provider {
     /// 对外暴露当前模块需要复用的能力。
-    pub use vw_provider_resolver::provider::{
+    pub use provider_resolution::{
         default_model, get_model, get_provider, invalidate_cache, list, list_for_settings,
     };
     /// 对外暴露当前模块需要复用的能力。

@@ -1,6 +1,12 @@
 //! 知识库工作台的状态、消息与更新。
 pub mod state;
-pub mod message { pub mod knowledge_tool; }
+pub mod message {
+    pub mod knowledge_tool;
+    pub mod skill_hub;
+    mod skill_gateway;
+    mod skill_boundary;
+    pub use skill_boundary::*;
+}
 pub type GatewayFactory = fn() -> Result<gateway_http::GatewayTransport, String>;
 
 /// 一次领域更新实际使用的输入及同步反馈；不包含桌面全局状态。
@@ -60,3 +66,5 @@ async fn sleep(duration: std::time::Duration) {
         tokio::time::sleep(duration).await;
     }
 }
+
+pub mod skill_operations;

@@ -1,7 +1,7 @@
 use axum::extract::{Extension, Path, Query};
 use serde_json::{Map, Value, json};
 use vw_api_transport::id::TenantScope;
-use vw_config_types::channels::{
+use config_channel_services::{
     DingTalkConfig, FeishuConfig, QQConfig, QQReceiveMode, WeChatConfig, WeComConfig,
 };
 
@@ -100,7 +100,7 @@ fn five_channel_qr_credentials_match_runtime_config() {
             "wechat".to_string(),
             json!({
                 "bot_token": "wechat-token",
-                "base_url": vw_config_types::channels::DEFAULT_WECHAT_BASE_URL,
+                "base_url": config_channel_services::DEFAULT_WECHAT_BASE_URL,
             }),
         ),
     ]);

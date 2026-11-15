@@ -22,7 +22,7 @@ mod tests {
     };
     use tempfile::TempDir;
     use vw_api_transport::common::TimestampMs;
-    use vw_config_types::channels::{WeChatConfig, WeComConfig};
+    use config_channel_services::{WeChatConfig, WeComConfig};
 
     /// 创建用于测试的配置对象
     ///

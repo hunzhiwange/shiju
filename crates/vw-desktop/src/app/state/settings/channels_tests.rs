@@ -96,7 +96,7 @@ fn refresh_text_inputs_inserts_empty_group_reply_for_other_optional_group_config
             mention_only: None,
             group_reply: None,
         }),
-        lark: Some(vw_config_types::channels::LarkConfig {
+        lark: Some(config_channel_services::LarkConfig {
             app_id: "app".to_string(),
             app_secret: "secret".to_string(),
             encrypt_key: None,
@@ -105,26 +105,26 @@ fn refresh_text_inputs_inserts_empty_group_reply_for_other_optional_group_config
             mention_only: false,
             group_reply: None,
             use_feishu: false,
-            receive_mode: vw_config_types::channels::LarkReceiveMode::Websocket,
+            receive_mode: config_channel_services::LarkReceiveMode::Websocket,
             port: None,
             draft_update_interval_ms: 3000,
             max_draft_edits: 20,
         }),
-        feishu: Some(vw_config_types::channels::FeishuConfig {
+        feishu: Some(config_channel_services::FeishuConfig {
             app_id: "app".to_string(),
             app_secret: "secret".to_string(),
             encrypt_key: None,
             verification_token: None,
             allowed_users: Vec::new(),
             group_reply: None,
-            receive_mode: vw_config_types::channels::LarkReceiveMode::Websocket,
+            receive_mode: config_channel_services::LarkReceiveMode::Websocket,
             port: None,
             draft_update_interval_ms: 3000,
             max_draft_edits: 20,
         }),
         ..ChannelsSettingsState::default()
     };
-    state.feishu_instances.push(vw_config_types::channels::FeishuInstanceConfig {
+    state.feishu_instances.push(config_channel_services::FeishuInstanceConfig {
         id: "cn".to_string(),
         config: state.feishu.clone().expect("feishu fixture"),
     });

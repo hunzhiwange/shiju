@@ -8,7 +8,7 @@ use config_channel_types::{
     DiscordConfig, GroupReplyConfig, GroupReplyMode, IMessageConfig, MattermostConfig,
     SlackConfig, TelegramConfig, WebhookConfig,
 };
-use vw_config_types::channels::{
+use config_channel_services::{
     DingTalkConfig, DingTalkInstanceConfig, FeishuConfig, FeishuInstanceConfig, SignalConfig,
 };
 

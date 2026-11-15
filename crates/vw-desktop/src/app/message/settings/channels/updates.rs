@@ -6,7 +6,7 @@ use iced::Task;
 use iced::widget::text_editor;
 use serde_json::{Map, Value};
 use std::time::Duration;
-use vw_config_types::channels::{QQConfig, QQReceiveMode, WeChatConfig, WeComConfig};
+use config_channel_services::{QQConfig, QQReceiveMode, WeChatConfig, WeComConfig};
 use vw_gateway_client::{ChannelQrStatusDto, GatewayClient};
 
 use super::super::messages::{ChannelsMessage, SettingsMessage};

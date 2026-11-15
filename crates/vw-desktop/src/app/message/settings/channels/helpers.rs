@@ -2,7 +2,7 @@
 
 use crate::app::message::settings::util::parse_comma_or_newline_list;
 use config_channel_types::{GroupReplyConfig, GroupReplyMode};
-use vw_config_types::channels::{DingTalkConfig, FeishuConfig, LarkReceiveMode, QQReceiveMode};
+use config_channel_services::{DingTalkConfig, FeishuConfig, LarkReceiveMode, QQReceiveMode};
 
 pub(super) fn default_feishu_config() -> FeishuConfig {
     FeishuConfig {

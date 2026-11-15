@@ -1276,7 +1276,7 @@ async fn settings_help_gap_06_feishu_modes_keep_port_and_qr_controls() {
         return;
     }
     use iced::keyboard::key::Named;
-    use vw_config_types::channels::LarkReceiveMode;
+    use config_channel_services::LarkReceiveMode;
 
     let mut renderer = renderer().await;
     let mut app = fixture();

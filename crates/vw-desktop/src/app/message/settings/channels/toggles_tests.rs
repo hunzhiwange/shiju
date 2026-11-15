@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::app::App;
-use vw_config_types::channels::{LarkReceiveMode, QQReceiveMode};
+use config_channel_services::{LarkReceiveMode, QQReceiveMode};
 
 fn app() -> App {
     App::new().0

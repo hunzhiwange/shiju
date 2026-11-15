@@ -17,7 +17,7 @@
 //! 本模块实现了 `Channel` trait，作为 VibeWindow 代理系统的语音通道之一。
 //! 通过 Telnyx Call Control API 进行电话控制，支持双向语音交互。
 
-pub use vw_config_types::channels::clawdtalk::ClawdTalkConfig;
+pub use config_channel_services::clawdtalk::ClawdTalkConfig;
 
 use crate::app::agent::config::traits::ChannelConfig;
 

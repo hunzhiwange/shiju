@@ -18,7 +18,7 @@ use iced::widget::{button, checkbox, column, container, responsive, row, text};
 use iced::{Alignment, Element, Length};
 use std::borrow::Cow;
 use config_channel_types::GroupReplyConfig;
-use vw_config_types::channels::{LarkReceiveMode, QQReceiveMode};
+use config_channel_services::{LarkReceiveMode, QQReceiveMode};
 use vw_config_types::ui::DesktopLocale;
 
 const MULTILINE_EDITOR_HEIGHT: f32 = 92.0;

@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 use uuid::Uuid;
-use vw_config_types::channels::DEFAULT_WECHAT_BASE_URL;
+use config_channel_services::DEFAULT_WECHAT_BASE_URL;
 
 pub(crate) mod protocol;
 

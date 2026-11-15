@@ -4,7 +4,7 @@
 use super::*;
 use crate::app::App;
 use std::sync::Arc;
-use vw_config_types::channels::LarkReceiveMode;
+use config_channel_services::LarkReceiveMode;
 use vw_gateway_client::{
     ChannelQrFetchResponseDto, ChannelQrStatusDto, ChannelQrStatusResponseDto,
 };
@@ -441,7 +441,7 @@ fn wecom_delivery_modal_retains_replaces_and_clears_masked_credentials() {
     app.channels_settings.wecom =
         Some(WeComConfig { bot_id: "bot".into(), secret: "***MASKED***".into() });
     app.channels_settings.wecom_webhook =
-        Some(vw_config_types::channels::WeComWebhookConfig { webhook_url: "***MASKED***".into() });
+        Some(config_channel_services::WeComWebhookConfig { webhook_url: "***MASKED***".into() });
     for mode in [WeComDeliveryMode::Manual, WeComDeliveryMode::Webhook] {
         drop(update(
             &mut app,

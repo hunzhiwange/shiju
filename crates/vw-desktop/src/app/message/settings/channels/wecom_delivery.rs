@@ -3,7 +3,7 @@ use super::super::messages::{ChannelsMessage, SettingsMessage};
 use crate::app::state::{WeComDeliveryDraft, WeComDeliveryMode};
 use crate::app::{App, Message};
 use iced::Task;
-use vw_config_types::channels::{WeComConfig, WeComWebhookConfig};
+use config_channel_services::{WeComConfig, WeComWebhookConfig};
 
 type Credentials = (Option<WeComConfig>, Option<WeComWebhookConfig>);
 

@@ -1516,7 +1516,7 @@ fn cron_wecom_form_requires_credentials_and_explicit_target() {
     draft.delivery_channel = "wecom".into();
     draft.delivery_to = "user".into();
     assert!(validate_delivery(&app, &draft).is_err());
-    app.channels_settings.wecom = Some(vw_config_types::channels::WeComConfig {
+    app.channels_settings.wecom = Some(config_channel_services::WeComConfig {
         bot_id: "bot".into(),
         secret: "secret".into(),
     });
@@ -1531,7 +1531,7 @@ fn cron_wecom_form_requires_credentials_and_explicit_target() {
     // 对话机器人凭据不能替代群通知 Webhook。
     assert!(validate_delivery(&app, &draft).unwrap_err().contains("定时任务通知配置"));
     app.channels_settings.wecom = None;
-    app.channels_settings.wecom_webhook = Some(vw_config_types::channels::WeComWebhookConfig {
+    app.channels_settings.wecom_webhook = Some(config_channel_services::WeComWebhookConfig {
         webhook_url: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fixture".into(),
     });
     assert!(validate_delivery(&app, &draft).is_ok());

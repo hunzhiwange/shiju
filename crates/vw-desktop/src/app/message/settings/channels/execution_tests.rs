@@ -1,6 +1,7 @@
 //! 统一智能体选择下，提供商切换和页面预加载的真实消息行为。
 use super::*;
-use vw_config_types::channels::{ChannelExecutionConfig, WeChatConfig};
+use config_channel_services::WeChatConfig;
+use vw_config_types::channels::ChannelExecutionConfig;
 
 fn configured_app() -> (App, String, String) {
     let mut app = App::new().0;

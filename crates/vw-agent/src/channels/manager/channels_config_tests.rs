@@ -7,8 +7,8 @@ use crate::app::agent::config::schema::{
     QQReceiveMode, SignalConfig, SlackConfig, StreamMode, TelegramConfig, WatiConfig,
     WhatsAppConfig,
 };
-use vw_config_types::channels::clawdtalk::ClawdTalkConfig;
-use vw_config_types::channels::{DEFAULT_WECHAT_BASE_URL, WeChatConfig, WeComConfig};
+use config_channel_services::clawdtalk::ClawdTalkConfig;
+use config_channel_services::{DEFAULT_WECHAT_BASE_URL, WeChatConfig, WeComConfig};
 
 fn channel_names(channels: &[ConfiguredChannel]) -> Vec<&str> {
     channels.iter().map(|channel| channel.display_name.as_ref()).collect()

@@ -24,3 +24,7 @@ pub use wecom::*;
 #[cfg(test)]
 #[path = "chat_tests.rs"]
 mod channel_project_binding_tests;
+
+#[cfg(test)]
+#[path = "wecom_tests.rs"]
+mod wecom_aggregation_tests;

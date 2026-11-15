@@ -1,9 +1,9 @@
 //! 其他聊天与消息渠道配置的 agent 侧适配。
 //!
 //! 本模块集中为 Signal、WhatsApp、IRC 等非核心渠道补齐 `ChannelConfig`
-//! 元数据。实际字段定义仍来自 `vw_config_types`，这里仅负责稳定的用户可见名称与描述。
+//! 元数据。实际字段定义仍来自 `config_channel_services`，这里仅负责稳定的用户可见名称与描述。
 
-pub use vw_config_types::channels::other::*;
+pub use config_channel_services::other::*;
 
 use crate::app::agent::config::traits::ChannelConfig;
 

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use serde_json::{Map, Value};
-use vw_config_types::channels::DEFAULT_WECHAT_BASE_URL;
+use config_channel_services::DEFAULT_WECHAT_BASE_URL;
 
 use super::{ChannelQrStatus, ProviderFetch, ProviderPoll};
 use crate::app::agent::channels::wechat::protocol::{with_application_headers, with_json_headers};

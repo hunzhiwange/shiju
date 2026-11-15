@@ -3,8 +3,8 @@
 
 use crate::app::{App, Message};
 #[cfg(not(target_arch = "wasm32"))]
-use vw_config_types::channels::EmailConfig;
-use vw_config_types::channels::{
+use config_channel_services::EmailConfig;
+use config_channel_services::{
     IrcConfig, LinqConfig, NextcloudTalkConfig, WatiConfig, WhatsAppConfig,
 };
 
@@ -58,9 +58,9 @@ fn configure_extended_channels(app: &mut App) {
     });
     #[cfg(not(target_arch = "wasm32"))]
     {
-        app.channels_settings.email = Some(vw_config_types::channels::EmailConfig {
+        app.channels_settings.email = Some(config_channel_services::EmailConfig {
             allowed_senders: vec!["alice@example.com".to_string()],
-            ..vw_config_types::channels::EmailConfig::default()
+            ..config_channel_services::EmailConfig::default()
         });
     }
     app.channels_settings.irc = Some(IrcConfig {

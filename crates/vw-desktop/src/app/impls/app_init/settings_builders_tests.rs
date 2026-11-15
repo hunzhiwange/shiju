@@ -12,7 +12,7 @@ fn channel_default_project_reload_restores_bindings() {
 #[test]
 fn wecom_delivery_modal_loads_independent_webhook_without_prefilled_draft() {
     let cfg = vw_config_types::channels::ChannelsConfig {
-        wecom_webhook: Some(vw_config_types::channels::WeComWebhookConfig {
+        wecom_webhook: Some(config_channel_services::WeComWebhookConfig {
             webhook_url: "***MASKED***".into(),
         }),
         ..Default::default()

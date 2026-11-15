@@ -8,8 +8,8 @@ pub use vw_config_types::channels::chat::{ChannelsConfig, default_channel_messag
 
 use crate::app::agent::config::traits::ChannelConfig;
 use crate::app::agent::config::traits::ConfigHandle;
-use vw_config_types::channels::other::QQReceiveMode;
-use vw_config_types::channels::{WeChatConfig, WeComConfig};
+use config_channel_services::other::QQReceiveMode;
+use config_channel_services::{WeChatConfig, WeComConfig};
 
 impl ChannelConfig for WeComConfig {
     fn name() -> &'static str {

@@ -11,7 +11,7 @@ use crate::app::agent::config::schema::{
     SlackConfig, StreamMode, TelegramConfig, WatiConfig, WebhookConfig, WhatsAppConfig,
 };
 use crate::app::agent::config::{Config, DelegateAgentConfig};
-use vw_config_types::channels::ClawdTalkConfig;
+use config_channel_services::ClawdTalkConfig;
 
 fn secret(value: &str) -> Option<String> {
     Some(value.to_string())

@@ -2,17 +2,18 @@
 
 use crate::app::App;
 use std::collections::BTreeSet;
-use vw_config_types::channels::ClawdTalkConfig;
+use config_channel_services::ClawdTalkConfig;
 #[cfg(not(target_arch = "wasm32"))]
-use vw_config_types::channels::EmailConfig;
+use config_channel_services::EmailConfig;
 use config_channel_types::{
     DiscordConfig, IMessageConfig, MattermostConfig, SlackConfig, TelegramConfig, WebhookConfig,
 };
-use vw_config_types::channels::{
-    DEFAULT_CHANNEL_INSTANCE_ID, DingTalkInstanceConfig, FeishuInstanceConfig, IrcConfig,
-    LarkConfig, LarkReceiveMode, LinqConfig, NextcloudTalkConfig, NostrConfig, QQConfig,
-    QQReceiveMode, SignalConfig, WatiConfig, WeChatConfig, WeComConfig, WhatsAppConfig,
+use config_channel_services::{
+    DingTalkInstanceConfig, FeishuInstanceConfig, IrcConfig, LarkConfig, LarkReceiveMode,
+    LinqConfig, NextcloudTalkConfig, NostrConfig, QQConfig, QQReceiveMode, SignalConfig,
+    WatiConfig, WeChatConfig, WeComConfig, WhatsAppConfig,
 };
+use vw_config_types::channels::DEFAULT_CHANNEL_INSTANCE_ID;
 
 use super::helpers::{default_dingtalk_config, default_feishu_config};
 
@@ -180,7 +181,7 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
         "wechat" => {
             app.channels_settings.wechat = enabled.then(|| WeChatConfig {
                 bot_token: String::new(),
-                base_url: vw_config_types::channels::DEFAULT_WECHAT_BASE_URL.to_string(),
+                base_url: config_channel_services::DEFAULT_WECHAT_BASE_URL.to_string(),
             })
         }
         "nostr" => {

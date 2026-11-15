@@ -6,7 +6,7 @@ use super::{
     ChannelsConfig, DingTalkConfig, FeishuConfig, FeishuInstanceConfig, LarkConfig,
     LarkReceiveMode, TelegramConfig, WebhookConfig,
 };
-use vw_config_types::channels::{WeChatConfig, WeComConfig};
+use config_channel_services::{WeChatConfig, WeComConfig};
 
 fn feishu_config(app_id: &str, app_secret: &str) -> FeishuConfig {
     FeishuConfig {

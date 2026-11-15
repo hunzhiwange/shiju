@@ -16,10 +16,11 @@ use config_channel_types::{
     DiscordConfig, GroupReplyConfig, GroupReplyMode, IMessageConfig, MattermostConfig,
     SlackConfig, TelegramConfig, WebhookConfig,
 };
-use vw_config_types::channels::{
-    ClawdTalkConfig, DingTalkConfig, DingTalkInstanceConfig, FeishuConfig, FeishuInstanceConfig,
-    IrcConfig, LarkConfig, LarkReceiveMode, LinqConfig, NextcloudTalkConfig, NostrConfig,
-    QQConfig, QQReceiveMode, SignalConfig, WatiConfig, WhatsAppConfig,
+use config_channel_services::{
+    ClawdTalkConfig, DingTalkConfig, DingTalkInstanceConfig, FeishuConfig,
+    FeishuInstanceConfig, IrcConfig, LarkConfig, LarkReceiveMode, LinqConfig,
+    NextcloudTalkConfig, NostrConfig, QQConfig, QQReceiveMode, SignalConfig, WatiConfig,
+    WhatsAppConfig,
 };
 
 fn test_app() -> App {

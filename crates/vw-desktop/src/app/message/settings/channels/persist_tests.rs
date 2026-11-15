@@ -6,7 +6,7 @@
 use super::*;
 use crate::app::App;
 use crate::app::message::settings::channels::toggles;
-use vw_config_types::channels::{
+use config_channel_services::{
     DingTalkConfig, DingTalkInstanceConfig, FeishuConfig, FeishuInstanceConfig,
 };
 
@@ -21,11 +21,11 @@ mod channel_instance_settings {
 #[test]
 fn channel_default_project_saved_config_preserves_independent_bindings_and_secrets() {
     let mut settings = ChannelsSettingsState::default();
-    settings.qq = Some(vw_config_types::channels::QQConfig {
+    settings.qq = Some(config_channel_services::QQConfig {
         app_id: "app".into(),
         app_secret: "secret".into(),
         allowed_users: vec![],
-        receive_mode: vw_config_types::channels::QQReceiveMode::Webhook,
+        receive_mode: config_channel_services::QQReceiveMode::Webhook,
     });
     let feishu: FeishuConfig =
         serde_json::from_value(serde_json::json!({"app_id":"app", "app_secret":"secret"})).unwrap();
@@ -46,7 +46,7 @@ fn channel_default_project_saved_config_preserves_independent_bindings_and_secre
 #[test]
 fn channel_execution_settings_preserve_agent_and_model() {
     let mut settings = ChannelsSettingsState::default();
-    settings.wechat = Some(vw_config_types::channels::WeChatConfig {
+    settings.wechat = Some(config_channel_services::WeChatConfig {
         bot_token: "token".into(),
         base_url: "https://example.test".into(),
     });
@@ -67,7 +67,7 @@ fn channel_execution_settings_preserve_agent_and_model() {
 fn wecom_delivery_modal_persist_keeps_independent_webhook_and_mask() {
     let mut settings = ChannelsSettingsState::default();
     settings.wecom_webhook =
-        Some(vw_config_types::channels::WeComWebhookConfig { webhook_url: "***MASKED***".into() });
+        Some(config_channel_services::WeComWebhookConfig { webhook_url: "***MASKED***".into() });
     let config = build_channels_config_from_settings(&settings).unwrap();
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("channels.json");

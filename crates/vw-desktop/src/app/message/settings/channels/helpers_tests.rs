@@ -3,7 +3,7 @@
 
 use super::*;
 use config_channel_types::{GroupReplyConfig, GroupReplyMode};
-use vw_config_types::channels::{LarkReceiveMode, QQReceiveMode};
+use config_channel_services::{LarkReceiveMode, QQReceiveMode};
 
 #[test]
 fn default_feishu_config_uses_websocket_and_draft_defaults() {

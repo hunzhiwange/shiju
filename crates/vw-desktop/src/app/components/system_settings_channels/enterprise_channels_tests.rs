@@ -3,9 +3,10 @@
 
 use crate::app::{App, Message};
 use config_channel_types::{GroupReplyConfig, GroupReplyMode};
-use vw_config_types::channels::{
-    ClawdTalkConfig, DingTalkConfig, DingTalkInstanceConfig, FeishuConfig, FeishuInstanceConfig,
-    LarkConfig, LarkReceiveMode, NostrConfig, QQConfig, QQReceiveMode, WeChatConfig, WeComConfig,
+use config_channel_services::{
+    ClawdTalkConfig, DingTalkConfig, DingTalkInstanceConfig, FeishuConfig,
+    FeishuInstanceConfig, LarkConfig, LarkReceiveMode, NostrConfig, QQConfig, QQReceiveMode,
+    WeChatConfig, WeComConfig,
 };
 
 // 企业渠道实例由用例显式注入，避免其他渠道配置污染标题回退。
@@ -66,7 +67,7 @@ fn configure_enterprise_channels(app: &mut App) {
         Some(WeComConfig { bot_id: "wecom-bot".to_string(), secret: "wecom-secret".to_string() });
     app.channels_settings.wechat = Some(WeChatConfig {
         bot_token: "wechat-token".to_string(),
-        base_url: vw_config_types::channels::DEFAULT_WECHAT_BASE_URL.to_string(),
+        base_url: config_channel_services::DEFAULT_WECHAT_BASE_URL.to_string(),
     });
     app.channels_settings.nostr = Some(NostrConfig {
         private_key: "nsec".to_string(),

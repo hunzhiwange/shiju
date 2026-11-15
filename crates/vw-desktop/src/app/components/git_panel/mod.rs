@@ -33,6 +33,7 @@ use crate::app::{App, DiffTheme, Message, message};
 mod diff_view;
 mod filter_options;
 mod header;
+mod view_messages;
 mod left_panel;
 mod ops;
 mod repository;
@@ -56,9 +57,6 @@ mod mod_tests;
 mod ops_tests;
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
-#[path = "ui_tests.rs"]
-mod ui_tests;
 #[cfg(test)]
 #[path = "utils_tests.rs"]
 mod utils_tests;

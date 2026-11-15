@@ -5,8 +5,9 @@ use iced::theme::Palette;
 use iced::widget::button;
 use iced::{Background, Color, Theme};
 
-use crate::app::Message;
-use crate::app::assets::Icon;
+#[derive(Debug, Clone)]
+enum Message { None }
+use desktop_assets::assets::Icon;
 
 use super::shared::{
     compact_outlined_button_style, disabled_button_style, disabled_icon_svg,

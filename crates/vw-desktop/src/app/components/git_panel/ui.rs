@@ -6,16 +6,7 @@
 mod disabled_buttons;
 mod glyph_buttons;
 mod icon_buttons;
-mod shared;
 
-#[cfg(test)]
-mod disabled_buttons_tests;
-#[cfg(test)]
-mod glyph_buttons_tests;
-#[cfg(test)]
-mod icon_buttons_tests;
-#[cfg(test)]
-mod shared_tests;
 
 pub use disabled_buttons::{disabled_square_content_button_tiny, disabled_square_icon_button_tiny};
 pub use glyph_buttons::header_plain_glyph_button;

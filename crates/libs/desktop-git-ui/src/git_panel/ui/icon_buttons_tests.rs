@@ -3,8 +3,9 @@
 
 use iced::{Element, Length, Size};
 
-use crate::app::Message;
-use crate::app::assets::Icon;
+#[derive(Debug, Clone)]
+enum Message { None }
+use desktop_assets::assets::Icon;
 
 use super::icon_buttons::{
     icon_button, medium_icon_button, small_icon_button, small_plain_icon_button,

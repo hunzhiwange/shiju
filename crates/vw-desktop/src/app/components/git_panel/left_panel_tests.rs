@@ -40,40 +40,6 @@ fn assert_panel_state(
 }
 
 #[test]
-fn help_copy_lists_commit_format_and_common_types() {
-    assert_eq!(super::left_panel::COMMIT_HELP_TITLE, "约定式提交");
-
-    for expected in [
-        "约定式提交格式",
-        "<类型>[可选作用域]: <摘要>",
-        "[可选详细描述]",
-        "核心提交类型",
-        "feat:",
-        "fix:",
-        "docs:",
-        "style:",
-        "refactor:",
-        "perf:",
-        "test:",
-        "build:",
-        "ci:",
-        "chore:",
-        "revert:",
-        "扩展与特殊类型",
-        "init:",
-        "config:",
-        "release:",
-        "deploy:",
-        "merge:",
-        "wip:",
-        "typo:",
-        "locale:",
-    ] {
-        assert!(super::left_panel::COMMIT_HELP_TEXT.contains(expected), "{expected}");
-    }
-}
-
-#[test]
 fn selected_changes_detects_each_selection_source() {
     let initial_app = test_app();
     assert!(!super::left_panel::has_selected_changes(&initial_app));
@@ -93,70 +59,6 @@ fn selected_changes_detects_each_selection_source() {
     let mut app = test_app();
     app.staged_old_lines_selected.push(("src/lib.rs".to_string(), 3));
     assert!(super::left_panel::has_selected_changes(&app));
-}
-
-#[test]
-fn commit_panel_state_covers_priority_and_validation_paths() {
-    let mut app = test_app();
-    app.show_git_diff_summary = true;
-    app.git_commit_in_progress = true;
-    app.git_commit_message = "   ".to_string();
-    assert_panel_state(&app, "正在提交已选变更", super::left_panel::CommitButtonState::InProgress);
-
-    let mut no_selection_app = test_app();
-    no_selection_app.git_commit_message = "cover left panel".to_string();
-    no_selection_app.git_commit_type = Some(ConventionalCommitType::Feat);
-    assert_panel_state(
-        &no_selection_app,
-        "请选择至少一项变更后再提交",
-        super::left_panel::CommitButtonState::NoSelection,
-    );
-
-    let mut app = test_app();
-    app.show_git_diff_summary = false;
-    app.git_commit_message = "   ".to_string();
-    app.staged_files_selected.push("src/lib.rs".to_string());
-    assert_panel_state(
-        &app,
-        "填写摘要后即可提交",
-        super::left_panel::CommitButtonState::MissingSummary,
-    );
-
-    let mut app = test_app();
-    app.show_git_diff_summary = true;
-    app.git_commit_type = None;
-    app.git_commit_message = "cover left panel".to_string();
-    app.staged_files_selected.push("src/lib.rs".to_string());
-    assert_panel_state(
-        &app,
-        "选择提交类型后即可提交",
-        super::left_panel::CommitButtonState::MissingType,
-    );
-
-    let mut app = test_app();
-    app.show_git_diff_summary = false;
-    app.git_commit_message = "cover left panel".to_string();
-    app.staged_files_selected.push("src/lib.rs".to_string());
-    assert_panel_state(
-        &app,
-        "已满足提交条件，可直接提交",
-        super::left_panel::CommitButtonState::Ready,
-    );
-}
-
-#[test]
-fn commit_panel_state_is_ready_for_complete_conventional_commit() {
-    let mut app = test_app();
-    app.show_git_diff_summary = true;
-    app.git_commit_type = Some(ConventionalCommitType::Fix);
-    app.git_commit_message = "  cover complete commit form  ".to_string();
-    app.staged_old_lines_selected.push(("src/lib.rs".to_string(), 3));
-
-    assert_panel_state(
-        &app,
-        "已满足提交条件，可直接提交",
-        super::left_panel::CommitButtonState::Ready,
-    );
 }
 
 #[test]

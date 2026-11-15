@@ -106,3 +106,27 @@ pub fn small_plain_icon_button<Message: Clone + 'static>(
         .style(small_plain_icon_button_style);
     with_tooltip(button, tip, true, 4.0)
 }
+
+pub mod shared;
+pub mod disabled_buttons;
+pub mod glyph_buttons;
+pub mod icon_buttons;
+pub use disabled_buttons::*;
+pub use glyph_buttons::*;
+pub use icon_buttons::*;
+
+#[cfg(test)]
+#[path = "ui/disabled_buttons_tests.rs"]
+mod disabled_buttons_tests;
+
+#[cfg(test)]
+#[path = "ui/glyph_buttons_tests.rs"]
+mod glyph_buttons_tests;
+
+#[cfg(test)]
+#[path = "ui/icon_buttons_tests.rs"]
+mod icon_buttons_tests;
+
+#[cfg(test)]
+#[path = "ui/shared_tests.rs"]
+mod shared_tests;

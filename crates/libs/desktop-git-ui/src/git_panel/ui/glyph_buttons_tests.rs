@@ -4,7 +4,8 @@
 use iced::widget::button;
 use iced::{Background, Color, Element, Length, Size, Theme};
 
-use crate::app::Message;
+#[derive(Debug, Clone)]
+enum Message { None }
 
 use super::glyph_buttons::{
     header_plain_glyph_button, medium_glyph_button, medium_glyph_button_style,

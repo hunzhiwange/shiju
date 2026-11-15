@@ -16,3 +16,12 @@ desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
 desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 desktop-git = { path = "../desktop-git", version = "0.6.0" }
 vw-api-git = { path = "../api-git", version = "0.6.0" }
+
+chrono = "0.4"
+unicode-width = "0.2"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
+
+[dev-dependencies]
+tempfile = "3"

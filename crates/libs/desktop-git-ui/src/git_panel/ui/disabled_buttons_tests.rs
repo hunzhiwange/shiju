@@ -4,8 +4,9 @@
 use iced::widget::text;
 use iced::{Element, Length};
 
-use crate::app::Message;
-use crate::app::assets::Icon;
+#[derive(Debug, Clone)]
+enum Message { None }
+use desktop_assets::assets::Icon;
 
 use super::disabled_buttons::{
     disabled_icon_button, disabled_square_content_button, disabled_square_content_button_tiny,

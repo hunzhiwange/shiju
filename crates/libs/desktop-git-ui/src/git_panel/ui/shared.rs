@@ -7,14 +7,12 @@ use iced::Element;
 use iced::widget::svg::{self, Svg};
 /// 重新导出 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip}，让上层模块通过稳定路径访问。
 /// 重新导出 use iced::widget::{button, text}，让上层模块通过稳定路径访问。
-use iced::widget::{button, text};
+use iced::widget::button;
 /// 重新导出 use iced::{Background, Border, Color, Length}，让上层模块通过稳定路径访问。
 use iced::{Background, Border, Color, Length};
 
-/// 重新导出 use crate::app::Message，让上层模块通过稳定路径访问。
-use crate::app::Message;
-/// 重新导出 use crate::app::assets::{Icon, get_icon}，让上层模块通过稳定路径访问。
-use crate::app::assets::{Icon, get_icon};
+/// 重新导出 use desktop_assets::assets::{Icon, get_icon}，让上层模块通过稳定路径访问。
+use desktop_assets::assets::{Icon, get_icon};
 
 /// 处理 icon svg 对应的局部职责。
 ///
@@ -29,7 +27,7 @@ use crate::app::assets::{Icon, get_icon};
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn icon_svg(icon: Icon) -> Svg<'static> {
+pub(crate) fn icon_svg(icon: Icon) -> Svg<'static> {
     icon_svg_sized(icon, 18.0)
 }
 
@@ -46,7 +44,7 @@ pub(super) fn icon_svg(icon: Icon) -> Svg<'static> {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn icon_svg_sized(icon: Icon, size: f32) -> Svg<'static> { desktop_git_ui::git_panel::ui::icon_svg_sized(icon, size) }
+pub(crate) fn icon_svg_sized(icon: Icon, size: f32) -> Svg<'static> { super::icon_svg_sized(icon, size) }
 
 /// 处理 disabled icon svg 对应的局部职责。
 ///
@@ -61,7 +59,7 @@ pub(super) fn icon_svg_sized(icon: Icon, size: f32) -> Svg<'static> { desktop_gi
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn disabled_icon_svg(icon: Icon, size: f32) -> Svg<'static> {
+pub(crate) fn disabled_icon_svg(icon: Icon, size: f32) -> Svg<'static> {
     // Svg 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     Svg::new(get_icon(icon)).width(Length::Fixed(size)).height(Length::Fixed(size)).style(
         |theme: &iced::Theme, _status| svg::Style {
@@ -84,7 +82,7 @@ pub(super) fn disabled_icon_svg(icon: Icon, size: f32) -> Svg<'static> {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn themed_icon_svg(icon: Icon, size: f32) -> Svg<'static> {
+pub(crate) fn themed_icon_svg(icon: Icon, size: f32) -> Svg<'static> {
     icon_svg_sized(icon, size).style(|theme: &iced::Theme, _status| svg::Style {
         // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         color: Some(theme.extended_palette().background.strong.text),
@@ -104,7 +102,7 @@ pub(super) fn themed_icon_svg(icon: Icon, size: f32) -> Svg<'static> {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn with_tooltip<'a>(
+pub(crate) fn with_tooltip<'a, Message: Clone + 'a>(
     content: impl Into<Element<'a, Message>>,
     // tip 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     tip: String,
@@ -112,7 +110,7 @@ pub(super) fn with_tooltip<'a>(
     compact: bool,
     // gap 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     gap: f32,
-) -> Element<'a, Message> { desktop_git_ui::git_panel::ui::with_tooltip(content, tip, compact, gap) }
+) -> Element<'a, Message> { super::with_tooltip(content, tip, compact, gap) }
 
 /// 构建 outlined button style 控件，并绑定既有消息或样式。
 ///
@@ -127,7 +125,7 @@ pub(super) fn with_tooltip<'a>(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn outlined_button_style(
+pub(crate) fn outlined_button_style(
     theme: &iced::Theme,
     // status 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     status: button::Status,
@@ -170,7 +168,7 @@ pub(super) fn outlined_button_style(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn compact_outlined_button_style(
+pub(crate) fn compact_outlined_button_style(
     theme: &iced::Theme,
     // status 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     status: button::Status,
@@ -246,7 +244,7 @@ pub(super) fn compact_outlined_button_style(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn disabled_button_style(theme: &iced::Theme, radius: f32) -> button::Style {
+pub(crate) fn disabled_button_style(theme: &iced::Theme, radius: f32) -> button::Style {
     let palette = theme.extended_palette();
     button::Style {
         // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
@@ -279,7 +277,7 @@ pub(super) fn disabled_button_style(theme: &iced::Theme, radius: f32) -> button:
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn subtle_button_style(status: button::Status, radius: f32) -> button::Style {
+pub(crate) fn subtle_button_style(status: button::Status, radius: f32) -> button::Style {
     let background = match status {
         // button 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         button::Status::Hovered => Color::from_rgba8(235, 235, 235, 1.0),
@@ -309,11 +307,11 @@ pub(super) fn subtle_button_style(status: button::Status, radius: f32) -> button
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn small_plain_icon_button_style(
+pub(crate) fn small_plain_icon_button_style(
     theme: &iced::Theme,
     // status 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     status: button::Status,
-) -> button::Style { desktop_git_ui::git_panel::ui::small_plain_icon_button_style(theme, status, button) }
+) -> button::Style { super::small_plain_icon_button_style(theme, status) }
 
 /// 构建 header plain glyph button style 控件，并绑定既有消息或样式。
 ///
@@ -328,7 +326,7 @@ pub(super) fn small_plain_icon_button_style(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn header_plain_glyph_button_style(
+pub(crate) fn header_plain_glyph_button_style(
     theme: &iced::Theme,
     // status 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     status: button::Status,

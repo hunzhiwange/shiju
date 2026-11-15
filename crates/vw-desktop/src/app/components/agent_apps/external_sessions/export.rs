@@ -3,7 +3,7 @@ use super::{Event as ParentEvent, message, reader};
 use crate::app::{App, Message, components::system_settings_common::*};
 use iced::{Element, Task, widget::{button, row, text}};
 use std::path::PathBuf;
-use vw_gateway_client::AgentAppsReadError;
+use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
 
 #[derive(Clone, Copy, Debug)]
@@ -38,7 +38,7 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             let token = app.apps_catalog.token.clone();
             reader.exporting = true;
             Task::perform(async move {
-                msg(Event::Loaded(scope, destination, client.external_session_markdown(&request, &token).await))
+                msg(Event::Loaded(scope, destination, gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_session_markdown(&request, &token).await))
             }, |message| message)
         }
         Event::Loaded(other, destination, result) => {

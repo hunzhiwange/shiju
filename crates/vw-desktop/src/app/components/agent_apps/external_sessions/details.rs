@@ -6,7 +6,7 @@ use iced::{
     widget::{button, column, text},
 };
 use std::collections::BTreeSet;
-use vw_gateway_client::AgentAppsReadError;
+use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
 
 #[derive(Clone, Default)]
@@ -108,7 +108,7 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
                         serial,
                         reference,
                         offset,
-                        client.external_session_content(&request, &token).await,
+                        gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_session_content(&request, &token).await,
                     ))
                 },
                 |m| m,

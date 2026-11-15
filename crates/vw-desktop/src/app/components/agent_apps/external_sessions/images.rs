@@ -5,7 +5,7 @@ use iced::{
     Element, Length, Task,
     widget::{button, column, image, text},
 };
-use vw_gateway_client::AgentAppsReadError;
+use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
 
 #[derive(Clone, Default)]
@@ -100,7 +100,7 @@ pub(super) fn update(app: &mut App, value: Event) -> Task<Message> {
             let token = app.apps_catalog.token.clone();
             let task = Task::perform(
                 async move {
-                    let result = match client.external_session_image(&request, &token).await {
+                    let result = match gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_session_image(&request, &token).await {
                         Ok(response) => decode(response),
                         Err(error) => Err(error),
                     };

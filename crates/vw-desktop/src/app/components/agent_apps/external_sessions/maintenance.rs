@@ -2,7 +2,7 @@
 use super::{message, Scope};
 use crate::app::{App, Message, state::AgentAppsContext, components::system_settings_common::*};
 use iced::{Element, Length, Task, widget::{button, checkbox, column, container, row, text}};
-use vw_gateway_client::AgentAppsReadError;
+use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
 use vw_api_task::TaskStatus;
 
@@ -97,8 +97,8 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             let query = HistoryMaintenanceQuery { target: target.clone(), operation_id: progress.operation_id.clone() };
             maintenance.pending = true;
             return Task::perform(async move {
-                let result = if cancel { client.external_history_maintenance_cancel(&query, &token).await }
-                    else { client.external_history_maintenance_query(&query, &token).await };
+                let result = if cancel { gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_history_maintenance_cancel(&query, &token).await }
+                    else { gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_history_maintenance_query(&query, &token).await };
                 msg(Event::Progress(scope, target, result))
             }, |m| m);
         }
@@ -110,8 +110,8 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             maintenance.backups.clear();
             return Task::perform(async move {
                 let result = async {
-                    let options = client.external_history_options(&target, &token).await?;
-                    let backups = client.external_history_backups(&target, &token).await?;
+                    let options = gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_history_options(&target, &token).await?;
+                    let backups = gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_history_backups(&target, &token).await?;
                     Ok((options, backups))
                 }.await;
                 msg(Event::Loaded(scope, target, result))
@@ -123,7 +123,7 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             let (Some(target), Some(options)) = (maintenance.target.clone(), maintenance.options.clone()) else { return Task::none(); };
             maintenance.pending = true;
             return Task::perform(async move {
-                let result = client.external_history_options_set(&HistoryOptionsUpdate { target: target.clone(), options }, &token).await;
+                let result = gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_history_options_set(&HistoryOptionsUpdate { target: target.clone(), options }, &token).await;
                 msg(Event::Saved(scope, target, result))
             }, |m| m);
         }
@@ -150,7 +150,7 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             maintenance.uncertain = true;
             maintenance.progress = None;
             return Task::perform(async move {
-                let result = client.external_history_maintenance_submit(&HistoryMaintenanceRequest {
+                let result = gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_history_maintenance_submit(&HistoryMaintenanceRequest {
                     target: target.clone(), action, generation_id }, &token).await;
                 msg(Event::Progress(scope, target, result))
             }, |m| m);

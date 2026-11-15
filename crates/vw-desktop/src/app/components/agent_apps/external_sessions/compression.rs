@@ -2,7 +2,7 @@
 use super::{Scope, message};
 use crate::app::{App, Message, state::AgentAppsContext, components::system_settings_common::*};
 use iced::{Element, Length, Task, widget::{button, checkbox, column, container, row, text}};
-use vw_gateway_client::AgentAppsReadError;
+use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
 
 #[derive(Clone, Default)]
@@ -100,10 +100,10 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             return Task::perform(async move {
                 let result = async {
                     if let Some(enabled) = expected {
-                        client.external_session_compression_set(&SessionCompressionUpdate {
+                        gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_session_compression_set(&SessionCompressionUpdate {
                             target: target.clone(), enabled }, &token).await?;
                     }
-                    client.external_session_compression(&target, &token).await
+                    gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_session_compression(&target, &token).await
                 }.await;
                 msg(Event::Loaded(scope, target, request, expected, result))
             }, |m| m);

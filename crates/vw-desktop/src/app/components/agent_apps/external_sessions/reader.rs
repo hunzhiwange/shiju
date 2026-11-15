@@ -7,7 +7,7 @@ use iced::{
     futures::SinkExt,
     widget::{button, column, container, row, scrollable, text},
 };
-use vw_gateway_client::AgentAppsReadError;
+use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
 
 #[derive(Clone)]
@@ -212,7 +212,7 @@ fn start(app: &mut App, identity: ExternalSessionIdentity) -> Task<Message> {
     #[cfg(not(target_arch = "wasm32"))]
     let task = Task::run(
         iced::stream::channel(1, async move |mut output| {
-            match client.external_session_stream(&request, &token).await {
+            match gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_session_stream(&request, &token).await {
                 Ok(mut stream) => loop {
                     let chunk = stream.next_chunk().await;
                     let terminal = !matches!(

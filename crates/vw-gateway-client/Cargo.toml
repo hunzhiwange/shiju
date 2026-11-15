@@ -8,6 +8,7 @@ description = "Gateway client types and helpers for VibeWindow"
 license = "MIT"
 
 [dependencies]
+gateway-external-session = { path = "../libs/gateway-external-session", version = "0.6.0" }
 vw-api-voice = { path = "../libs/api-voice", version = "0.6.0" }
 vw-api-apps-usage = { path = "../libs/api-apps-usage", version = "0.6.0" }
 vw-api-usage = { path = "../libs/api-usage", version = "0.6.0" }

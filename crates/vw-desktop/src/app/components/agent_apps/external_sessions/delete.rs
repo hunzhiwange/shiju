@@ -3,7 +3,7 @@ use super::{message, Scope};
 use crate::app::{App, Message, components::system_settings_common::*, state::AgentAppsContext};
 use iced::{Element, Length, Task, widget::{button, column, container, row, scrollable, text}};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use vw_gateway_client::AgentAppsReadError;
+use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
 
 #[derive(Clone, Default)]
@@ -127,7 +127,7 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
                     let mut sessions: Vec<SessionMeta> = Vec::new();
                     let mut cursors = Vec::new();
                     loop {
-                        let page = client.external_sessions_catalog(&query, &token).await?;
+                        let page = gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_sessions_catalog(&query, &token).await?;
                         if page.truncated { return Err(AgentAppsReadError::Decode("catalog truncated".into())); }
                         for session in page.sessions {
                             if session.capabilities.delete && !sessions.iter().any(|old| old.identity == session.identity) {
@@ -161,7 +161,7 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
                 // The batch endpoint accepts at most 200 identities per request.
                 for chunk in requested.chunks(200) {
                     let requests: Vec<_> = chunk.iter().cloned().map(|identity| DeleteSessionRequest { identity }).collect();
-                    match client.external_sessions_delete(&requests, &token).await {
+                    match gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_sessions_delete(&requests, &token).await {
                         Ok(mut batch) => outcomes.append(&mut batch),
                         Err(_) => break, // Missing outcomes remain unconfirmed and selected.
                     }

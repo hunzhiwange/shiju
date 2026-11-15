@@ -2,7 +2,7 @@
 use super::{message, Scope};
 use crate::app::{App, Message, components::system_settings_common::*, state::AgentAppsContext};
 use iced::{Element, Length, Task, widget::{button, column, container, row, text}};
-use vw_gateway_client::AgentAppsReadError;
+use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
 
 #[derive(Clone, Default)]
@@ -109,10 +109,10 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             return Task::perform(async move {
                 let request = SessionResumeRequest { identity: identity.clone(), terminal };
                 if copy {
-                    let result = client.external_session_resume_command(&request, &token).await;
+                    let result = gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_session_resume_command(&request, &token).await;
                     return msg(Event::Command(scope, identity, generation, result));
                 }
-                let result = client.external_session_resume(&request, &token).await;
+                let result = gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_session_resume(&request, &token).await;
                 msg(Event::Finished(scope, identity, generation, result))
             }, |message| message);
         }

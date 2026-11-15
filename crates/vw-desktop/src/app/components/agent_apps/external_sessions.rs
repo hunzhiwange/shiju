@@ -23,7 +23,7 @@ mod export;
 mod maintenance;
 #[path = "external_sessions/compression.rs"]
 mod compression;
-use vw_gateway_client::AgentAppsReadError;
+use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
 
 #[derive(Clone, Default)]
@@ -193,6 +193,6 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         provider: None, instance_id: None, project_dir: None, search: String::new(), page_size: 20, cursor };
     let token = app.apps_catalog.token.clone();
     Task::perform(async move {
-        message(Event::Loaded(scope, client.external_sessions_catalog(&query, &token).await))
+        message(Event::Loaded(scope, gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_sessions_catalog(&query, &token).await))
     }, |message| message)
 }

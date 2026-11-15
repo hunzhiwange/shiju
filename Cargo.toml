@@ -90,6 +90,7 @@ members = [
   "crates/libs/channel-clawdtalk",
   "crates/libs/channel-cli",
   "crates/libs/channel-support",
+  "crates/libs/channel-wati",
   "crates/libs/channel-whatsapp",
   "crates/libs/runtime-types",
   "crates/libs/desktop-voice",

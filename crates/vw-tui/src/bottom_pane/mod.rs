@@ -32,8 +32,7 @@ pub(crate) use bottom_pane_view::BottomPaneView;
 pub(crate) use tui_widgets::action_required_title;
 #[path = "approval_overlay.rs"]
 pub(crate) mod approval_overlay;
-#[path = "chat_composer.rs"]
-mod chat_composer;
+use tui_composer::chat_composer;
 #[path = "command_popup.rs"]
 pub(crate) mod command_popup;
 #[cfg(test)]

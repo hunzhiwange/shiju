@@ -1,5 +1,5 @@
 ---
-source: crates/vw-tui/src/bottom_pane/chat_composer.rs
+source: crates/libs/tui-composer/src/chat_composer_tests.rs
 expression: "render(&queued, 80)"
 ---
 Buffer {

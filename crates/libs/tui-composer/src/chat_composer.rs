@@ -1,28 +1,22 @@
-//! 本模块集中实现 `chat_composer` 在底部面板中的职责。
-//! 关键声明 `PROMPT_PREFIX`、`ChatComposer`、`new`、`with_data` 共同界定本文件的对外交互面。
-//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
-//! 交互分支通过明确枚举或返回值向上层传递选择结果。
-//! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
-//! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
-
-//! VibeWindow 输入编辑器：通过显式行为边界复制了文本域的行为。编辑、Unicode 换行、Vim 模式、粘贴突发、本地草稿历史及光标处 `@token` 处理均保留在 UI 中。Enter、Tab、Esc、中断、历史记录和附件操作返回外部桥接的 [`V3Action`]；该模块从未发送应用事件或查找运行时状态。
-//! The VibeWindow composer: copied textarea behavior with an explicit action boundary.
+//! 本地输入组合器，返回 [`V3Action`]，不持有请求发送器或运行时。
+//! 普通 Enter 提交非空草稿或附件；任务运行时 Tab 将其加入队列。
+//! 带 Shift、Control 或 Alt 的 Enter 交给 TextArea 编辑并返回 InsertNewline；
+//! 实际换行遵循 TextArea 的按键映射与 Vim 模式。历史导航、附件、光标处
+//! `@token` 替换及失败提交恢复均保留在本地。
 //!
-//! Text editing, Unicode wrapping, Vim mode, paste bursts, and local draft history remain local
-//! to the UI.  Enter, Tab, Esc, interrupt, history, and attachment operations return
-//! [`V3Action`] for the outer bridge; this module never sends an app event or looks up runtime
-//! state.
+//! 粘贴内容直接插入 TextArea；此组合器未接入 PasteBurst，也没有
+//! `disable_paste_burst` 开关或由粘贴突发改变 Enter 提交行为的路径。
 
 use std::cell::RefCell;
 use std::ops::Range;
 
-use crate::bottom_pane::chat_composer_history::{ChatComposerHistory, HistoryEntry};
-use crate::bottom_pane::footer::{self, FooterMode, FooterProps};
-use crate::bottom_pane::footer_state::FooterState;
-use crate::bottom_pane::textarea::{TextArea, TextAreaState};
-use crate::render::renderable::Renderable;
-use crate::vibe::action::{V3Action, V3FooterData};
-use crate::vibe::event::V3Attachment;
+use crate::chat_composer_history::{ChatComposerHistory, HistoryEntry};
+use crate::footer::{self, FooterMode, FooterProps};
+use crate::footer_state::FooterState;
+use tui_input::textarea::{TextArea, TextAreaState};
+use tui_render::renderable::Renderable;
+use tui_contracts::action::{V3Action, V3FooterData};
+use tui_contracts::event::V3Attachment;
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -34,7 +28,7 @@ const PROMPT_PREFIX: &str = "› ";
 
 /// 一个没有请求发送器或运行时依赖的本地输入编辑器。
 /// A local composer with no request sender or runtime dependency.
-pub(crate) struct ChatComposer {
+pub struct ChatComposer {
     textarea: TextArea,
     textarea_state: RefCell<TextAreaState>,
     history: ChatComposerHistory,
@@ -46,11 +40,11 @@ pub(crate) struct ChatComposer {
 }
 
 impl ChatComposer {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self::with_data("Compose a ShiJu task".to_string(), V3FooterData::default())
     }
 
-    pub(crate) fn with_data(placeholder: String, footer_data: V3FooterData) -> Self {
+    pub fn with_data(placeholder: String, footer_data: V3FooterData) -> Self {
         Self {
             textarea: TextArea::new(),
             textarea_state: RefCell::new(TextAreaState::default()),
@@ -63,23 +57,23 @@ impl ChatComposer {
         }
     }
 
-    pub(crate) fn set_footer_data(&mut self, footer_data: V3FooterData) {
+    pub fn set_footer_data(&mut self, footer_data: V3FooterData) {
         self.footer_data = footer_data;
     }
 
-    pub(crate) fn footer_data(&self) -> &V3FooterData {
+    pub fn footer_data(&self) -> &V3FooterData {
         &self.footer_data
     }
 
-    pub(crate) fn set_placeholder(&mut self, placeholder: impl Into<String>) {
+    pub fn set_placeholder(&mut self, placeholder: impl Into<String>) {
         self.placeholder = placeholder.into();
     }
 
-    pub(crate) fn text(&self) -> &str {
+    pub fn text(&self) -> &str {
         self.textarea.text()
     }
 
-    pub(crate) fn replace_text(&mut self, text: &str) {
+    pub fn replace_text(&mut self, text: &str) {
         self.textarea.set_text_clearing_elements(text);
         self.textarea.set_cursor(text.len());
         self.footer.set_mode(if text.is_empty() {
@@ -90,13 +84,13 @@ impl ChatComposer {
     }
 
     /// Returns the editable file-search query immediately before the cursor.
-    pub(crate) fn active_file_search_query(&self) -> Option<&str> {
+    pub fn active_file_search_query(&self) -> Option<&str> {
         let range = self.file_search_token_range()?;
         self.textarea.text().get(range.start + '@'.len_utf8()..range.end)
     }
 
     /// Replaces the active `@token` without touching text after the cursor.
-    pub(crate) fn replace_file_search_token(&mut self, path: &str) -> bool {
+    pub fn replace_file_search_token(&mut self, path: &str) -> bool {
         let Some(range) = self.file_search_token_range() else {
             return false;
         };
@@ -122,33 +116,33 @@ impl ChatComposer {
         query.chars().all(is_file_search_char).then_some(token_start + at_offset..cursor)
     }
 
-    pub(crate) fn restore_submission(&mut self, text: &str, attachments: Vec<V3Attachment>) {
+    pub fn restore_submission(&mut self, text: &str, attachments: Vec<V3Attachment>) {
         self.replace_text(text);
         self.attachments = attachments;
     }
 
-    pub(crate) fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.textarea.is_empty()
     }
 
-    pub(crate) fn attachments(&self) -> &[V3Attachment] {
+    pub fn attachments(&self) -> &[V3Attachment] {
         &self.attachments
     }
 
-    pub(crate) fn set_task_running(&mut self, running: bool) {
+    pub fn set_task_running(&mut self, running: bool) {
         self.footer_data.is_task_running = running;
     }
 
-    pub(crate) fn set_queued_count(&mut self, queued_count: usize) {
+    pub fn set_queued_count(&mut self, queued_count: usize) {
         self.queued_count = queued_count;
     }
 
-    pub(crate) fn add_attachment(&mut self, attachment: V3Attachment) -> V3Action {
+    pub fn add_attachment(&mut self, attachment: V3Attachment) -> V3Action {
         self.attachments.push(attachment.clone());
         V3Action::Attach(attachment)
     }
 
-    pub(crate) fn remove_attachment(&mut self, index: usize) -> V3Action {
+    pub fn remove_attachment(&mut self, index: usize) -> V3Action {
         if index < self.attachments.len() {
             self.attachments.remove(index);
             V3Action::RemoveAttachment { index }
@@ -157,7 +151,7 @@ impl ChatComposer {
         }
     }
 
-    pub(crate) fn clear(&mut self) {
+    pub fn clear(&mut self) {
         self.textarea.set_text_clearing_elements("");
         self.attachments.clear();
         self.footer.set_mode(FooterMode::ComposerEmpty);
@@ -166,7 +160,7 @@ impl ChatComposer {
 
     /// 本地处理粘贴。粘贴的内容没有业务影响。
     /// Handle a paste locally.  Pasted text does not have a business side effect.
-    pub(crate) fn handle_paste(&mut self, pasted: String) -> V3Action {
+    pub fn handle_paste(&mut self, pasted: String) -> V3Action {
         if !pasted.is_empty() {
             self.textarea.insert_str(&pasted);
             self.footer.set_mode(FooterMode::ComposerHasDraft);
@@ -213,7 +207,7 @@ impl ChatComposer {
 
     /// 将终端的一个键转换为本地编辑或显式的 V3 操作。
     /// Turn one terminal key into a local edit or an explicit V3 action.
-    pub(crate) fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
+    pub fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
         if !matches!(event.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
             return V3Action::None;
         }
@@ -371,60 +365,5 @@ impl Renderable for ChatComposer {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::vibe::action::V3Action;
-    use insta::assert_snapshot;
-
-    fn key(code: KeyCode) -> KeyEvent {
-        KeyEvent::new(code, KeyModifiers::NONE)
-    }
-
-    fn render(composer: &ChatComposer, width: u16) -> String {
-        let height = composer.desired_height(width).max(1);
-        let mut buf = Buffer::empty(Rect::new(0, 0, width, height));
-        composer.render(Rect::new(0, 0, width, height), &mut buf);
-        format!("{buf:?}")
-    }
-
-    // 验证 `v3_composer_emits_actions_without_owning_runtime` 场景的触发条件与预期结果。
-    #[test]
-    fn v3_composer_emits_actions_without_owning_runtime() {
-        let mut composer = ChatComposer::new();
-        composer.handle_key_event(key(KeyCode::Char('h')));
-        composer.handle_key_event(key(KeyCode::Char('i')));
-        assert_eq!(
-            composer.handle_key_event(key(KeyCode::Enter)),
-            V3Action::Submit { text: "hi".into(), attachments: Vec::new() }
-        );
-
-        composer.set_task_running(true);
-        assert_eq!(composer.handle_key_event(key(KeyCode::Char('c'))), V3Action::None);
-        assert_eq!(
-            composer.handle_key_event(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)),
-            V3Action::Interrupt
-        );
-    }
-
-    // 验证 `composer_footer_snapshots` 场景的触发条件与预期结果。
-    #[test]
-    fn composer_footer_snapshots() {
-        let empty = ChatComposer::new();
-        assert_snapshot!("empty_40", render(&empty, 40));
-
-        let mut multiline = ChatComposer::new();
-        multiline.handle_paste("one\ntwo\nthree".into());
-        assert_snapshot!("multiline_80", render(&multiline, 80));
-
-        let mut working = ChatComposer::new();
-        working.set_task_running(true);
-        assert_snapshot!("working_120", render(&working, 120));
-
-        let mut queued = ChatComposer::new();
-        queued.set_task_running(true);
-        queued.handle_paste("queued".into());
-        assert_snapshot!("queued_80", render(&queued, 80));
-
-        assert_snapshot!("narrow_40", render(&empty, 12));
-    }
-}
+#[path = "chat_composer_tests.rs"]
+mod tests;

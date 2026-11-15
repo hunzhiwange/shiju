@@ -17,8 +17,7 @@ use iced::{
 /// 模块内可见函数，执行 close_input_context_menu 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn close_input_context_menu(app: &mut App) {
-    app.input_context_menu_open = false;
-    app.input_context_menu_pos = None;
+    app.input_context_menu.close();
 }
 
 /// 模块内可见函数，执行 sync_global_input_editor_if_needed 对应的应用流程。

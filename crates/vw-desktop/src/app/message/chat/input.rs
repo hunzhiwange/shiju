@@ -34,15 +34,7 @@ pub(crate) use file_search::{FileSearchResult, build_ranked_file_search_entries}
 use iced::Task;
 use std::time::Duration;
 
-const CHAT_MESSAGE_MEASURE_EPSILON_PX: f32 = 1.0;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ChatScrollUpdateOutcome {
-    pub(crate) visible_range: (usize, usize),
-    pub(crate) pending_chunk_starts: Vec<usize>,
-    pub(crate) measure_visible_messages: bool,
-    pub(crate) viewport_or_offset_changed: bool,
-}
+pub(crate) use desktop_session::message::chat::input::scroll::ChatScrollUpdateOutcome;
 
 fn git_quick_action_path(app: &App) -> Option<String> {
     crate::app::components::git_panel::git_repo_path_for_app(app)
@@ -784,36 +776,15 @@ pub(crate) fn apply_chat_scroll_changed(
         (app.chat_virtualizer.scroll_top_px() - absolute_offset_y.max(0.0)).abs() > 0.5;
     let viewport_changed =
         (app.chat_virtualizer.viewport_height_px() - next_viewport_h).abs() > 0.5;
-    // A small upward movement is still an explicit exit from tail following,
-    // even inside the relaxed follow threshold or a pending follow-up window.
-    // Content growth changes relative position without moving the viewport up.
-    let scrolled_up = !viewport_changed
-        && absolute_offset_y.max(0.0) + 1.0 < app.chat_virtualizer.scroll_top_px()
-        && next_offset_y < 0.999;
-    let scrolled_down =
-        !viewport_changed && absolute_offset_y > app.chat_virtualizer.scroll_top_px() + 1.0;
-    // Use the widget's actual scroll geometry, which may differ from estimated heights.
-    let remaining_px = if next_offset_y > 0.0 {
-        absolute_offset_y.max(0.0) * (1.0 - next_offset_y) / next_offset_y
-    } else {
-        f32::INFINITY
-    };
-    let near_tail = next_offset_y >= 0.975 || remaining_px <= 48.0;
+    let previous_scroll_top_px = app.chat_virtualizer.scroll_top_px();
     app.chat_virtualizer.set_viewport_height(next_viewport_h);
     let matches_turn_focus = app.chat_virtualizer.turn_focus_user_index().is_some()
         && (app.chat_virtualizer.scroll_top_px() - absolute_offset_y.max(0.0)).abs() <= 1.0;
-    let within_hold_window = super::now_ms() < app.chat_autoscroll_hold_until_ms;
-    let next_auto_scroll = if matches_turn_focus || scrolled_up {
-        false
-    } else if within_hold_window && app.chat_auto_scroll {
-        next_offset_y >= 0.82
-    } else if app.chat_auto_scroll {
-        next_offset_y >= 0.90
-    } else {
-        // Resume on a downward gesture near the tail. Layout callbacks at the
-        // position where the user just scrolled up must keep following paused.
-        next_offset_y >= 0.999 || (scrolled_down && near_tail)
-    };
+    let next_auto_scroll = desktop_session::message::chat::input::scroll::follows_tail(
+        previous_scroll_top_px, next_offset_y, absolute_offset_y,
+        viewport_changed, matches_turn_focus,
+        super::now_ms() < app.chat_autoscroll_hold_until_ms, app.chat_auto_scroll,
+    );
 
     if !next_auto_scroll {
         app.chat_autoscroll_generation = app.chat_autoscroll_generation.wrapping_add(1);
@@ -896,9 +867,11 @@ pub(crate) fn apply_chat_message_measurements(
             .or_else(|| app.chat_virtualizer.estimated_height(idx))
             .unwrap_or(0.0);
 
-        if (current - height).abs() <= CHAT_MESSAGE_MEASURE_EPSILON_PX {
+        let Some(height) = desktop_session::message::chat::input::scroll::changed_measured_height(
+            current, height,
+        ) else {
             continue;
-        }
+        };
 
         app.chat_message_measured_heights.insert(idx, height);
         app.chat_virtualizer.apply_measured_height(idx, height);

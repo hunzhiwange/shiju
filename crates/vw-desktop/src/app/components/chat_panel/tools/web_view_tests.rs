@@ -605,8 +605,8 @@ fn tool_web_view_renders_hovered_context_menu_with_cached_body_editor() {
     let msg_idx = 7;
     let tool_idx = 9;
     app.chat_tool_hovered_idx = Some((msg_idx as u64) << 32 | tool_idx as u64);
-    app.chat_context_menu_target = Some(chat_context_target_key(msg_idx, Some(tool_idx)));
-    app.chat_context_menu_pos = Some((24.0, 48.0));
+    app.chat_context_menu.target = Some(chat_context_target_key(msg_idx, Some(tool_idx)));
+    app.chat_context_menu.position = Some((24.0, 48.0));
     app.chat_tool_text_editors.insert(
         tool_text_key(msg_idx, tool_idx, 0),
         text_editor::Content::with_text("cached web body"),

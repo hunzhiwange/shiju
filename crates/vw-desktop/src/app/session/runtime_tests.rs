@@ -712,7 +712,7 @@ fn acp_model_source_ui_selection_waits_for_backend_confirmation() {
     app.current_session_runtime_mut().acp_agent = Some("claude".into());
     let _ = chat::update(&mut app, ChatMessage::AcpModelSourceSelected(AcpModelSource::CliLocal));
     assert_eq!(app.current_session_runtime().acp_model_source, AcpModelSource::SessionModel);
-    assert!(app.current_session_runtime().acp_source_pending.is_some());
+    assert!(app.current_session_runtime().acp_options_state.source_pending.is_some());
 }
 
 #[test]
@@ -731,8 +731,8 @@ fn acp_model_source_ui_round_trip_preserves_model_and_open_popover() {
     for source in [AcpModelSource::CliLocal, AcpModelSource::SessionModel] {
         let _ = chat::update(&mut app, ChatMessage::AcpModelSourceSelected(source));
         let runtime = app.current_session_runtime();
-        let update = runtime.acp_source_pending.clone().unwrap();
-        let request_id = runtime.acp_source_request_id.unwrap();
+        let update = runtime.acp_options_state.source_pending.clone().unwrap();
+        let request_id = runtime.acp_options_state.source_request_id.unwrap();
         let _ = chat::update(
             &mut app,
             ChatMessage::AcpModelSourceSaved {
@@ -764,7 +764,7 @@ fn acp_model_source_ui_unsupported_cli_uses_native_and_rejects_client_switch() {
     };
     let (mut app, _) = crate::app::App::new();
     app.current_session_runtime_mut().acp_agent = Some("cursor".into());
-    app.current_session_runtime_mut().acp_source_request_id = Some(0);
+    app.current_session_runtime_mut().acp_options_state.source_request_id = Some(0);
     let _ = chat::update(
         &mut app,
         ChatMessage::AcpSourceLoaded {
@@ -787,7 +787,7 @@ fn acp_model_source_ui_unsupported_cli_uses_native_and_rejects_client_switch() {
     let _ =
         chat::update(&mut app, ChatMessage::AcpModelSourceSelected(AcpModelSource::SessionModel));
     assert_eq!(app.current_session_runtime().acp_model_source, AcpModelSource::CliLocal);
-    assert!(app.current_session_runtime().acp_source_pending.is_none());
+    assert!(app.current_session_runtime().acp_options_state.source_pending.is_none());
 }
 
 #[test]
@@ -825,8 +825,8 @@ fn acp_model_source_ui_failure_preserves_confirmed_model_and_other_session() {
     let runtime = app.current_session_runtime_mut();
     runtime.acp_agent = Some("claude".into());
     runtime.model = "provider/nested/model".into();
-    runtime.acp_source_pending = Some(source_ui_update());
-    runtime.acp_source_request_id = Some(12);
+    runtime.acp_options_state.source_pending = Some(source_ui_update());
+    runtime.acp_options_state.source_request_id = Some(12);
     app.active_session_id = Some("source-b".into());
     let _ = chat::update(
         &mut app,
@@ -841,8 +841,8 @@ fn acp_model_source_ui_failure_preserves_confirmed_model_and_other_session() {
     let runtime = app.get_session_runtime("source-a");
     assert_eq!(runtime.acp_model_source, AcpModelSource::SessionModel);
     assert_eq!(runtime.model, "provider/nested/model");
-    assert!(runtime.acp_source_pending.is_none());
-    assert!(app.current_session_runtime().acp_source_pending.is_none());
+    assert!(runtime.acp_options_state.source_pending.is_none());
+    assert!(app.current_session_runtime().acp_options_state.source_pending.is_none());
     assert_eq!(app.active_session_id.as_deref(), Some("source-b"));
 }
 
@@ -854,8 +854,8 @@ fn acp_model_source_ui_confirmation_updates_only_originating_session() {
     app.active_session_id = Some("source-a".into());
     let runtime = app.current_session_runtime_mut();
     runtime.acp_agent = Some("claude".into());
-    runtime.acp_source_pending = Some(source_ui_update());
-    runtime.acp_source_request_id = Some(12);
+    runtime.acp_options_state.source_pending = Some(source_ui_update());
+    runtime.acp_options_state.source_request_id = Some(12);
     app.active_session_id = Some("source-b".into());
     let options = vw_api_acp_model::acp_session::AcpSessionOptions {
         acp_model_source: AcpModelSource::CliLocal,
@@ -901,7 +901,7 @@ fn acp_model_source_ui_busy_session_rejects_model_and_source_changes() {
     let _ = chat::update(&mut app, ChatMessage::AcpModelSourceSelected(AcpModelSource::CliLocal));
     assert_eq!(app.current_session_runtime().model, "provider/original");
     assert_eq!(app.current_session_runtime().acp_model_source, AcpModelSource::SessionModel);
-    assert!(app.current_session_runtime().acp_source_pending.is_none());
+    assert!(app.current_session_runtime().acp_options_state.source_pending.is_none());
 }
 
 #[test]
@@ -914,8 +914,8 @@ fn acp_model_source_ui_manual_model_draft_does_not_change_confirmed_model() {
     let _ = chat::update(&mut app, ChatMessage::AcpModelInputDraftChanged("provider/oth".into()));
     let runtime = app.current_session_runtime();
     assert_eq!(runtime.model, "provider/original");
-    assert_eq!(runtime.acp_model_input_draft.as_deref(), Some("provider/oth"));
-    assert!(runtime.acp_source_pending.is_none());
+    assert_eq!(runtime.acp_options_state.model_input_draft.as_deref(), Some("provider/oth"));
+    assert!(runtime.acp_options_state.source_pending.is_none());
 }
 
 #[test]
@@ -928,8 +928,8 @@ fn acp_model_source_ui_new_project_ignores_previous_project_confirmation() {
     app.project_path = Some("/new-project".into());
     let runtime = app.current_session_runtime_mut();
     runtime.acp_agent = Some("claude".into());
-    runtime.acp_source_pending = Some(source_ui_update());
-    runtime.acp_source_request_id = Some(12);
+    runtime.acp_options_state.source_pending = Some(source_ui_update());
+    runtime.acp_options_state.source_request_id = Some(12);
     let _ = chat::update(
         &mut app,
         ChatMessage::AcpModelSourceSaved {
@@ -944,7 +944,7 @@ fn acp_model_source_ui_new_project_ignores_previous_project_confirmation() {
         },
     );
     assert_eq!(app.current_session_runtime().acp_model_source, AcpModelSource::SessionModel);
-    assert!(app.current_session_runtime().acp_source_pending.is_none());
+    assert!(app.current_session_runtime().acp_options_state.source_pending.is_none());
     assert!(app.active_session_id.is_none());
 }
 

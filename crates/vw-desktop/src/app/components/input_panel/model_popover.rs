@@ -25,13 +25,13 @@ pub fn model_toggle_button(app: &App, auto_model: bool, model: &str, expanded: b
 pub fn model_popover_content<'a>(app: &'a App, auto_model: bool, model: &str) -> Element<'a, Message> {
     let runtime = app.current_session_runtime();
     let started = app.current_session_has_started();
-    let can_select = !started && !runtime.is_requesting && !runtime.acp_options_pending && runtime.acp_source_pending.is_none()
-        && (runtime.acp_agent.is_none() || runtime.acp_options.model_source_capabilities.iter().any(|c| matches!(c, AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel })));
+    let can_select = !started && !runtime.is_requesting && !runtime.acp_options_state.pending && runtime.acp_options_state.source_pending.is_none()
+        && (runtime.acp_agent.is_none() || runtime.acp_options_state.options.model_source_capabilities.iter().any(|c| matches!(c, AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel })));
     let input = shared::ModelPopoverInput {
         settings: &app.model_settings, i18n: crate::app::i18n::I18n::new(app.desktop_locale),
         cli_local: runtime.acp_agent.is_some() && runtime.acp_model_source == AcpModelSource::CliLocal,
         started, can_select, is_acp: runtime.acp_agent.is_some(),
-        input_model: runtime.acp_model_input_draft.as_deref().unwrap_or(model).to_owned(),
+        input_model: runtime.acp_options_state.model_input_draft.as_deref().unwrap_or(model).to_owned(),
     };
     shared::model_popover_content(input, auto_model, model, super::acp_options::source_controls(app), emit)
 }

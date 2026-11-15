@@ -324,8 +324,8 @@ pub fn build_input_editor<'a>(
     )
     .into();
 
-    let input = if let Some((x, y)) = app.input_context_menu_pos {
-        if app.input_context_menu_open {
+    let input = if let Some((x, y)) = app.input_context_menu.position {
+        if app.input_context_menu.open {
             PointBelowOverlay::new(
                 input,
                 input_context_menu(crate::app::i18n::I18n::new(app.desktop_locale)),

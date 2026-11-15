@@ -76,8 +76,8 @@ fn editor_height_clamps_between_minimum_and_maximum_lines() {
 #[test]
 fn build_input_editor_wraps_context_menu_when_open() {
     let mut app = crate::app::App::new().0;
-    app.input_context_menu_pos = Some((10.0, 20.0));
-    app.input_context_menu_open = true;
+    app.input_context_menu.position = Some((10.0, 20.0));
+    app.input_context_menu.open = true;
     let content = Content::with_text("hello\nworld");
 
     let (element, height) = build_input_editor(&app, &content, false, false);
@@ -89,8 +89,8 @@ fn build_input_editor_wraps_context_menu_when_open() {
 #[test]
 fn build_input_editor_ignores_context_menu_anchor_when_closed() {
     let mut app = crate::app::App::new().0;
-    app.input_context_menu_pos = Some((10.0, 20.0));
-    app.input_context_menu_open = false;
+    app.input_context_menu.position = Some((10.0, 20.0));
+    app.input_context_menu.open = false;
     let content = Content::with_text("one\ntwo\nthree\nfour\nfive");
 
     let (element, height) = build_input_editor(&app, &content, false, false);

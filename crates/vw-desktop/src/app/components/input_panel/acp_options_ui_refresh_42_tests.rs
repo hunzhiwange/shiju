@@ -81,8 +81,8 @@ fn fixture() -> App {
     });
     runtime.acp_agent = Some("codex".into());
     runtime.acp_model_source = AcpModelSource::SessionModel;
-    runtime.acp_options.connected = true;
-    runtime.acp_options.model_source_capabilities = vec![
+    runtime.acp_options_state.options.connected = true;
+    runtime.acp_options_state.options.model_source_capabilities = vec![
         AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel },
         AcpModelSourceCapability::Unsupported {
             source: AcpModelSource::CliLocal,
@@ -94,7 +94,7 @@ fn fixture() -> App {
     runtime.task_mode_subtasks = vec!["多行任務\nSecond line".into(), "Fallback editor".into()];
     runtime.task_mode_subtask_editors =
         vec![iced::widget::text_editor::Content::with_text(&runtime.task_mode_subtasks[0])];
-    runtime.acp_options.options = vec![AcpSessionOption {
+    runtime.acp_options_state.options.options = vec![AcpSessionOption {
         kind: AcpOptionKind::Config { id: CONFIG_ID.into() },
         name: "動態配置項目與較長的後端顯示名稱".into(),
         current: "fixture/backend-value-1".into(),
@@ -414,7 +414,7 @@ async fn ui_refresh_42_model_results_keep_groups_and_actions() {
     app.desktop_locale = DesktopLocale::English;
     app.model_settings.query = "model-13".into();
     for pending in [false, true] {
-        app.current_session_runtime_mut().acp_options_pending = pending;
+        app.current_session_runtime_mut().acp_options_state.pending = pending;
         let mut ui = scene(model_overlay(&app), &mut renderer, size);
         let group = label(&bounds(&mut ui, &renderer), "測試供應商");
         let row_y = group.y + group.height + 4.0 + 8.0 + 18.0;
@@ -569,10 +569,10 @@ async fn ui_refresh_42_preserves_values_and_disabled_states() {
         [(false, false, Theme::Light), (true, false, Theme::Dark), (false, true, Theme::Dark)]
     {
         let runtime = app.current_session_runtime_mut();
-        runtime.acp_options_open = true;
+        runtime.acp_options_state.open = true;
         runtime.is_requesting = requesting;
-        runtime.acp_options_pending = pending;
-        runtime.acp_options.access_status = Some(AcpAccessStatus {
+        runtime.acp_options_state.pending = pending;
+        runtime.acp_options_state.options.access_status = Some(AcpAccessStatus {
             requested: false,
             backend: "fixture".into(),
             version: None,
@@ -632,13 +632,13 @@ async fn ui_refresh_42_preserves_values_and_disabled_states() {
         ));
     }
     app.active_session_id = Some("fixture-b".into());
-    app.current_session_runtime_mut().acp_options_open = true;
+    app.current_session_runtime_mut().acp_options_state.open = true;
     let _ = chat::update(&mut app, ChatMessage::AcpOptionsClose);
-    assert!(!app.current_session_runtime().acp_options_open);
+    assert!(!app.current_session_runtime().acp_options_state.open);
     app.active_session_id = Some("fixture-a".into());
     let runtime = app.current_session_runtime();
-    assert!(runtime.acp_options_open && runtime.acp_options_pending);
-    assert_eq!(runtime.acp_options.options[0].current, "fixture/backend-value-1");
+    assert!(runtime.acp_options_state.open && runtime.acp_options_state.pending);
+    assert_eq!(runtime.acp_options_state.options.options[0].current, "fixture/backend-value-1");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -656,18 +656,18 @@ async fn ui_refresh_42_acp_permission_modes_reflect_grant_and_readback() {
         (true, true, AcpAccessSupport::Native, Theme::Light, "原生权限已确认"),
     ] {
         let runtime = app.current_session_runtime_mut();
-        runtime.acp_options_open = true;
+        runtime.acp_options_state.open = true;
         runtime.is_requesting = busy;
         runtime.full_access_enabled = full;
-        runtime.acp_options.access_status = Some(AcpAccessStatus {
+        runtime.acp_options_state.options.access_status = Some(AcpAccessStatus {
             requested: full,
             backend: "fixture".into(),
             version: Some("1.0".into()),
             support,
             explanation: "后端权限实测状态".into(),
         });
-        runtime.acp_options.options.truncate(1);
-        runtime.acp_options.options.push(AcpSessionOption {
+        runtime.acp_options_state.options.options.truncate(1);
+        runtime.acp_options_state.options.options.push(AcpSessionOption {
             kind: AcpOptionKind::Mode,
             name: "供应商原生模式".into(),
             current: "bypass".into(),
@@ -706,9 +706,9 @@ async fn ui_refresh_42_acp_effort_is_editable_between_turns() {
     }
     let mut app = fixture();
     let runtime = app.current_session_runtime_mut();
-    runtime.acp_options_open = true;
-    runtime.acp_options.connected = false;
-    runtime.acp_options.options[0].kind = AcpOptionKind::Config { id: "reasoning_effort".into() };
+    runtime.acp_options_state.open = true;
+    runtime.acp_options_state.options.connected = false;
+    runtime.acp_options_state.options.options[0].kind = AcpOptionKind::Config { id: "reasoning_effort".into() };
 
     let mut renderer = renderer().await;
     let base = container(Space::new()).width(Length::Fill).height(Length::Fill).into();
@@ -725,7 +725,7 @@ async fn ui_refresh_42_acp_effort_is_editable_between_turns() {
     };
     drop(ui);
     let _ = chat::update(&mut app, message);
-    assert!(app.current_session_runtime().acp_options_pending);
+    assert!(app.current_session_runtime().acp_options_state.pending);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -742,7 +742,7 @@ async fn help_rollout_09_session_model_source_keeps_status_visible() {
         app.desktop_locale = locale;
         app.app_theme = theme.clone();
         let runtime = app.current_session_runtime_mut();
-        runtime.acp_options_open = true;
+        runtime.acp_options_state.open = true;
         runtime.acp_model_source = AcpModelSource::SessionModel;
         let base = container(Space::new()).width(Length::Fill).height(Length::Fill).into();
         let mut ui = scene(with_modal(&app, base), &mut renderer, size);
@@ -841,7 +841,7 @@ pub(in crate::app::components::input_panel) async fn verify_effort_entry(test: &
     runtime.draft = None;
     runtime.acp_agent = Some("copilot".into());
     let kind = AcpOptionKind::Config { id: "reasoning_effort".into() };
-    runtime.acp_options.options[0].kind = kind.clone();
+    runtime.acp_options_state.options.options[0].kind = kind.clone();
     let mut renderer = renderer().await;
     let size = Size::new(1120, 700);
     let panel = || container(Space::new()).width(Length::Fill).height(Length::Fill).into();
@@ -858,7 +858,7 @@ pub(in crate::app::components::input_panel) async fn verify_effort_entry(test: &
         assert!(entry, "main input panel has no ACP options entry");
     }
     let _ = chat::update(&mut app, ChatMessage::AcpOptionsOpen);
-    assert!(app.current_session_runtime().acp_options_open);
+    assert!(app.current_session_runtime().acp_options_state.open);
 
     let selection = |value: &str| {
         ChatMessage::AcpOptionSelected(AcpSessionSelection {
@@ -866,16 +866,16 @@ pub(in crate::app::components::input_panel) async fn verify_effort_entry(test: &
             value: value.into(),
         })
     };
-    let options = app.current_session_runtime().acp_options;
+    let options = app.current_session_runtime().acp_options_state.options;
     let _ = chat::update(
         &mut app,
         ChatMessage::AcpOptionsLoaded { session_id: "fixture-a".into(), result: Ok(options) },
     );
     let _ = chat::update(&mut app, selection("not-advertised"));
-    assert!(!app.current_session_runtime().acp_options_pending);
+    assert!(!app.current_session_runtime().acp_options_state.pending);
     app.current_session_runtime_mut().is_requesting = true;
     let _ = chat::update(&mut app, selection(NEXT_VALUE));
-    assert!(!app.current_session_runtime().acp_options_pending);
+    assert!(!app.current_session_runtime().acp_options_state.pending);
     app.current_session_runtime_mut().is_requesting = false;
     {
         let mut ui = scene(with_modal(&app, panel()), &mut renderer, size);
@@ -893,7 +893,7 @@ pub(in crate::app::components::input_panel) async fn verify_effort_entry(test: &
         }
     }
     let _ = chat::update(&mut app, selection(NEXT_VALUE));
-    assert!(app.current_session_runtime().acp_options_pending);
+    assert!(app.current_session_runtime().acp_options_state.pending);
     {
         let mut ui = scene(with_modal(&app, panel()), &mut renderer, size);
         let body = bounds(&mut ui, &renderer).scrolls[0].1;
@@ -909,9 +909,9 @@ pub(in crate::app::components::input_panel) async fn verify_effort_entry(test: &
             result: Err("fixture rejection".into()),
         },
     );
-    assert!(!app.current_session_runtime().acp_options_pending);
+    assert!(!app.current_session_runtime().acp_options_state.pending);
     assert_eq!(
-        app.current_session_runtime().acp_options.options[0].current,
+        app.current_session_runtime().acp_options_state.options.options[0].current,
         "fixture/backend-value-1"
     );
     assert_eq!(app.active_toast.as_ref().unwrap().message, "fixture rejection");

@@ -11,41 +11,8 @@ pub use session_ui_types::{
 
 pub use desktop_chat_view::message_view::ParsedChatBlock;
 
-#[derive(Debug, Clone, Default)]
-/// 表示 ChatRenderCacheEntry 相关的应用状态或派生数据。
-pub struct ChatRenderCacheEntry {
-    pub(crate) revision_key:
-        Option<crate::app::components::chat_panel::message_view::RevisionRenderKey>,
-    pub content_hash: u64,
-    pub show_reasoning_summary: bool,
-    pub copy_content_hash: Option<u64>,
-    pub blocks: Vec<ParsedChatBlock>,
-    pub tool_block_metadata: Vec<Option<ToolBlockRenderMetadata>>,
-    pub has_special_blocks: bool,
-    pub special_text_blocks: Vec<String>,
-    pub(crate) tool_card_text_blocks: Vec<ToolCardTextSource>,
-    pub explore_summary_text_blocks: Vec<(usize, crate::app::i18n::chat::ExploreCounts)>,
-    pub display_text: String,
-    pub preview_text: String,
-    pub foldable: bool,
-    pub is_large_message: bool,
-    pub estimated_collapsed_height: f32,
-    pub estimated_expanded_height: f32,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct ToolBlockRenderMetadata {
-    pub name: Option<String>,
-    pub identity: Option<String>,
-}
+pub use desktop_chat_view::render_cache::{ChatRenderCacheEntry, ToolBlockRenderMetadata, ToolCardTextSource};
 
 #[cfg(test)]
 #[path = "models_tests.rs"]
 mod models_tests;
-
-/// Parsed tool payload cached independently of generated display text.
-#[derive(Debug, Clone)]
-pub(crate) struct ToolCardTextSource {
-    pub(crate) tool_name: String,
-    pub(crate) value: serde_json::Value,
-}

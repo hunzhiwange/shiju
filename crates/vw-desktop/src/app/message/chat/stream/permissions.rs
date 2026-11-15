@@ -215,7 +215,7 @@ pub(super) fn handle_toggle_full_access_permission(app: &mut App) -> Task<Messag
         runtime.full_access_overridden = true;
         runtime.full_access_initialized = true;
         runtime.full_access_saving = saved_session.is_some();
-        runtime.acp_options.access_status = None;
+        runtime.acp_options_state.options.access_status = None;
         (runtime.full_access_enabled, runtime.acp_agent.is_some(), saved_session)
     };
     if should_rebuild && let Some(session_id) = session_id {

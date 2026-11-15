@@ -15,8 +15,7 @@ use iced::{Task, widget::text_editor};
 /// 模块内可见函数，执行 handle_open_input_context_menu 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_open_input_context_menu(app: &mut App, x: f32, y: f32) -> Task<Message> {
-    app.input_context_menu_open = true;
-    app.input_context_menu_pos = Some((x, y));
+    app.input_context_menu.open(x, y);
     Task::none()
 }
 
@@ -30,7 +29,9 @@ pub(super) fn handle_close_input_context_menu(app: &mut App) -> Task<Message> {
 /// 模块内可见函数，执行 handle_copy_input_selection 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_copy_input_selection(app: &mut App) -> Task<Message> {
-    let selected = app.current_session_runtime_mut().input_editor.selection().unwrap_or_default();
+    let selected = desktop_session::message::chat::input::context_menus::copy_input_selection(
+        &app.current_session_runtime_mut().input_editor,
+    );
     close_input_context_menu(app);
     if selected.is_empty() { Task::none() } else { Task::done(Message::CopyCode(selected)) }
 }
@@ -38,17 +39,16 @@ pub(super) fn handle_copy_input_selection(app: &mut App) -> Task<Message> {
 /// 模块内可见函数，执行 handle_cut_input_selection 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_cut_input_selection(app: &mut App) -> Task<Message> {
-    let selected = app.current_session_runtime_mut().input_editor.selection().unwrap_or_default();
+    let selected = desktop_session::message::chat::input::context_menus::copy_input_selection(
+        &app.current_session_runtime_mut().input_editor,
+    );
     close_input_context_menu(app);
-
     if selected.is_empty() {
         return Task::none();
     }
-
-    {
-        let runtime = app.current_session_runtime_mut();
-        runtime.input_editor.perform(text_editor::Action::Edit(text_editor::Edit::Backspace));
-    }
+    desktop_session::message::chat::input::context_menus::cut_input_selection(
+        &mut app.current_session_runtime_mut().input_editor,
+    );
 
     sync_global_input_editor_if_needed(app);
     Task::done(Message::CopyCode(selected))
@@ -97,7 +97,7 @@ pub(super) fn handle_select_all_input(app: &mut App) -> Task<Message> {
     close_input_context_menu(app);
     {
         let runtime = app.current_session_runtime_mut();
-        runtime.input_editor.perform(text_editor::Action::SelectAll);
+        desktop_session::message::chat::input::context_menus::select_all_input(&mut runtime.input_editor);
     }
     sync_global_input_editor_if_needed(app);
     focus_input_editor(app)
@@ -112,18 +112,18 @@ pub(super) fn handle_open_message_context_menu(
     y: f32,
     text: String,
 ) -> Task<Message> {
-    app.chat_context_menu_target = Some(target);
-    app.chat_context_menu_pos = Some((x, y));
-    app.chat_context_menu_text = selected_chat_text_for_target(app, target).unwrap_or(text);
+    // Preserve target publication before selection resolution.
+    app.chat_context_menu.target = Some(target);
+    app.chat_context_menu.position = Some((x, y));
+    let text = selected_chat_text_for_target(app, target).unwrap_or(text);
+    app.chat_context_menu.open(target, x, y, text);
     Task::none()
 }
 
 /// 模块内可见函数，执行 handle_close_message_context_menu 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_close_message_context_menu(app: &mut App) -> Task<Message> {
-    app.chat_context_menu_target = None;
-    app.chat_context_menu_pos = None;
-    app.chat_context_menu_text.clear();
+    app.chat_context_menu.close();
     Task::none()
 }
 
@@ -158,10 +158,8 @@ pub(super) fn handle_search_context_menu_with_bing(app: &mut App) -> Task<Messag
 }
 
 fn handle_text_context_action(app: &mut App, action: TextContextAction) -> Task<Message> {
-    app.chat_context_menu_target = None;
-    app.chat_context_menu_pos = None;
     action
-        .message(std::mem::take(&mut app.chat_context_menu_text))
+        .message(app.chat_context_menu.take_text())
         .map(crate::app::components::text_editor_context_menu::text_context_message)
         .map_or_else(Task::none, Task::done)
 }

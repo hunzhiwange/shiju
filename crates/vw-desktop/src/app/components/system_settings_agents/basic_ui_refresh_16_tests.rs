@@ -1060,7 +1060,7 @@ async fn settings_help_gap_05_acp_model_capability_controls_choices() {
         if supported {
             let session = app.get_session_runtime_mut("fixture-session");
             session.acp_agent = Some("fixture".into());
-            session.acp_options.model_source_capabilities =
+            session.acp_options_state.options.model_source_capabilities =
                 vec![AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel }];
         }
         let mut scene = Scene::new(profile(&app), &mut renderer, width, 820);

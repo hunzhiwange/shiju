@@ -232,8 +232,8 @@ impl App {
             runtime.is_requesting
                 || runtime.active_agent_request.is_some()
                 || !runtime.queue.is_empty()
-                || (runtime.acp_options_pending && runtime.acp_source_request_id.is_none())
-                || runtime.acp_source_pending.is_some()
+                || (runtime.acp_options_state.pending && runtime.acp_options_state.source_request_id.is_none())
+                || runtime.acp_options_state.source_pending.is_some()
                 || runtime.fork_request_submitted
         });
         busy || match runtime.and_then(|runtime| runtime.fork_execution_started) {

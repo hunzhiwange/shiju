@@ -98,8 +98,8 @@ fn ready_to_send(app: &App) -> Result<(), &'static str> {
     }
     if runtime.full_access_saving
         || runtime.full_access_save_failed
-        || runtime.acp_source_pending.is_some()
-        || runtime.acp_options_pending
+        || runtime.acp_options_state.source_pending.is_some()
+        || runtime.acp_options_state.pending
         || (app.active_session_view_state.ui_preparing && !app.active_session_view_state.base_ready)
     {
         return Err("会话正在加载或保存权限，请处理聊天提示后重试。");

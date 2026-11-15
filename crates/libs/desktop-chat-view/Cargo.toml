@@ -16,3 +16,4 @@ desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
 desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
 config-ui = { path = "../config-ui", version = "0.6.0" }
 session-ui-types = { path = "../session-ui-types", version = "0.6.0" }
+desktop-session = { path = "../desktop-session", version = "0.6.0" }

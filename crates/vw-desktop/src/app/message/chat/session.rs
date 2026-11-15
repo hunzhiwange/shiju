@@ -892,7 +892,7 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
     // Installation checks can finish after a source save has started.
     if app
         .current_session_runtime_ref()
-        .is_some_and(|runtime| runtime.acp_source_pending.is_some() || runtime.acp_options_pending)
+        .is_some_and(|runtime| runtime.acp_options_state.source_pending.is_some() || runtime.acp_options_state.pending)
     {
         return app.show_error_toast("模型来源正在保存，请稍后发送");
     }
@@ -1033,8 +1033,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     }
     match message {
         ChatMessage::SendPressed => {
-            if app.current_session_runtime().acp_source_pending.is_some()
-                || app.current_session_runtime().acp_options_pending
+            if app.current_session_runtime().acp_options_state.source_pending.is_some()
+                || app.current_session_runtime().acp_options_state.pending
             {
                 return app.show_error_toast("模型来源正在保存，请稍后发送");
             }
@@ -1326,14 +1326,14 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     runtime.fork_agent_selected = true;
                     runtime.restore_model_from_history = false;
                 }
-                runtime.acp_model_input_draft = None;
-                runtime.acp_source_pending = None;
-                runtime.acp_source_request_id = None;
-                runtime.acp_options_open = false;
+                runtime.acp_options_state.model_input_draft = None;
+                runtime.acp_options_state.source_pending = None;
+                runtime.acp_options_state.source_request_id = None;
+                runtime.acp_options_state.open = false;
                 runtime.last_effective_acp_agent = None;
                 runtime.acp_rebuild_required = acp_agent.is_some();
-                runtime.acp_options = Default::default();
-                runtime.acp_options_pending = false;
+                runtime.acp_options_state.options = Default::default();
+                runtime.acp_options_state.pending = false;
                 runtime.acp_model_source = Default::default();
                 runtime.tool_selector.reset();
             }

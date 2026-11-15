@@ -1,0 +1,108 @@
+//! 处理聊天输入区的局部消息。
+//! 本模块将编辑器操作、文件检索和工具细节限制在输入面板边界内。
+
+#[derive(Debug, Clone)]
+pub enum ClipboardPastePayload {
+    Text(String),
+    AttachmentPath(String),
+    Empty,
+    Error(String),
+    LocalizedError { source: &'static str, arguments: Vec<desktop_i18n::format::Argument> },
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub type PersistClipboardImage = fn(u32, u32, &[u8]) -> Result<String, desktop_i18n::project::ProjectFeedback>;
+use iced::Task;
+
+/// 模块内可见函数，执行 read_clipboard_for_input 对应的应用流程。
+/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
+pub fn read_clipboard_for_input(
+    #[cfg(not(target_arch = "wasm32"))] persist_clipboard_image_attachment: PersistClipboardImage,
+) -> Task<ClipboardPastePayload> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        Task::perform(async move { read_native_clipboard_payload(persist_clipboard_image_attachment) }, |payload| payload)
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        iced::clipboard::read()
+            .map(|content| clipboard_text_payload(content))
+    }
+}
+
+fn clipboard_text_payload(content: Option<String>) -> ClipboardPastePayload {
+    match content {
+        Some(content) if !content.is_empty() => {
+            match pasted_text_cache::cache_large_pasted_text(&content) {
+                Ok(Some(path)) => {
+                    ClipboardPastePayload::AttachmentPath(path.to_string_lossy().into_owned())
+                }
+                Ok(None) => ClipboardPastePayload::Text(content),
+                Err(error) => ClipboardPastePayload::LocalizedError {
+                    source: "缓存粘贴文本失败：%s",
+                    arguments: vec![error.to_string().into()],
+                },
+            }
+        }
+        _ => ClipboardPastePayload::Empty,
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn clipboard_image_dimensions(width: usize, height: usize) -> Result<(u32, u32), &'static str> {
+    let width = u32::try_from(width).map_err(|_| "剪贴板图片宽度超出范围")?;
+    let height = u32::try_from(height).map_err(|_| "剪贴板图片高度超出范围")?;
+    Ok((width, height))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn clipboard_attachment_payload(
+    result: Result<String, desktop_i18n::project::ProjectFeedback>,
+) -> ClipboardPastePayload {
+    match result {
+        Ok(path) => ClipboardPastePayload::AttachmentPath(path),
+        Err(error) => ClipboardPastePayload::LocalizedError {
+            source: error.source,
+            arguments: error.arguments,
+        },
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn read_native_clipboard_payload(persist_clipboard_image_attachment: PersistClipboardImage) -> ClipboardPastePayload {
+    let mut clipboard = match arboard::Clipboard::new() {
+        Ok(clipboard) => clipboard,
+        Err(error) => {
+            return ClipboardPastePayload::LocalizedError {
+                source: "读取系统剪贴板失败：%s",
+                arguments: vec![error.to_string().into()],
+            };
+        }
+    };
+
+    if let Ok(image) = clipboard.get_image() {
+        let (width, height) = match clipboard_image_dimensions(image.width, image.height) {
+            Ok(dimensions) => dimensions,
+            Err(error) => return ClipboardPastePayload::Error(error.to_string()),
+        };
+
+        return clipboard_attachment_payload(persist_clipboard_image_attachment(
+            width,
+            height,
+            image.bytes.as_ref(),
+        ));
+    }
+
+    match clipboard.get_text() {
+        Ok(text) => clipboard_text_payload(Some(text)),
+        Err(arboard::Error::ContentNotAvailable) => ClipboardPastePayload::Empty,
+        Err(_) => ClipboardPastePayload::LocalizedError {
+            source: "读取系统剪贴板失败或访问被拒绝",
+            arguments: vec![],
+        },
+    }
+}
+#[cfg(test)]
+#[path = "clipboard_tests.rs"]
+mod clipboard_tests;

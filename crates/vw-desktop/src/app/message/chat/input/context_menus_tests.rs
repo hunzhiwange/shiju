@@ -38,21 +38,21 @@ fn input_context_menu_open_close_and_select_all_sync_editor() {
 
     handle_open_input_context_menu(&mut app, 12.0, 24.0);
 
-    assert!(app.input_context_menu_open);
-    assert_eq!(app.input_context_menu_pos, Some((12.0, 24.0)));
+    assert!(app.input_context_menu.open);
+    assert_eq!(app.input_context_menu.position, Some((12.0, 24.0)));
 
     handle_select_all_input(&mut app);
 
-    assert!(!app.input_context_menu_open);
-    assert_eq!(app.input_context_menu_pos, None);
+    assert!(!app.input_context_menu.open);
+    assert_eq!(app.input_context_menu.position, None);
     assert_eq!(app.current_session_runtime().input_editor.text(), "select me");
     assert_eq!(app.input_editor.text(), "select me");
 
     handle_open_input_context_menu(&mut app, 1.0, 2.0);
     handle_close_input_context_menu(&mut app);
 
-    assert!(!app.input_context_menu_open);
-    assert_eq!(app.input_context_menu_pos, None);
+    assert!(!app.input_context_menu.open);
+    assert_eq!(app.input_context_menu.position, None);
 }
 
 #[test]
@@ -63,8 +63,8 @@ fn input_context_menu_copy_cut_and_paste_handle_selection_state() {
 
     let _task = handle_copy_input_selection(&mut app);
 
-    assert!(!app.input_context_menu_open);
-    assert_eq!(app.input_context_menu_pos, None);
+    assert!(!app.input_context_menu.open);
+    assert_eq!(app.input_context_menu.position, None);
     assert_eq!(app.current_session_runtime().input_editor.text(), "copy me");
 
     app.current_session_runtime_mut().input_editor = selected_editor("cut me");
@@ -73,16 +73,16 @@ fn input_context_menu_copy_cut_and_paste_handle_selection_state() {
 
     let _task = handle_cut_input_selection(&mut app);
 
-    assert!(!app.input_context_menu_open);
-    assert_eq!(app.input_context_menu_pos, None);
+    assert!(!app.input_context_menu.open);
+    assert_eq!(app.input_context_menu.position, None);
     assert_eq!(app.current_session_runtime().input_editor.text(), "");
     assert_eq!(app.input_editor.text(), "");
 
     handle_open_input_context_menu(&mut app, 8.0, 9.0);
     let _task = handle_paste_into_input(&mut app);
 
-    assert!(!app.input_context_menu_open);
-    assert_eq!(app.input_context_menu_pos, None);
+    assert!(!app.input_context_menu.open);
+    assert_eq!(app.input_context_menu.position, None);
 }
 
 #[test]
@@ -93,8 +93,8 @@ fn input_context_menu_cut_without_selection_only_closes_menu() {
 
     let _task = handle_cut_input_selection(&mut app);
 
-    assert!(!app.input_context_menu_open);
-    assert_eq!(app.input_context_menu_pos, None);
+    assert!(!app.input_context_menu.open);
+    assert_eq!(app.input_context_menu.position, None);
     assert_eq!(app.current_session_runtime().input_editor.text(), "unchanged");
 }
 
@@ -106,8 +106,8 @@ fn input_context_menu_copy_without_selection_only_closes_menu() {
 
     let _task = handle_copy_input_selection(&mut app);
 
-    assert!(!app.input_context_menu_open);
-    assert_eq!(app.input_context_menu_pos, None);
+    assert!(!app.input_context_menu.open);
+    assert_eq!(app.input_context_menu.position, None);
     assert_eq!(app.current_session_runtime().input_editor.text(), "unchanged");
 }
 
@@ -146,18 +146,18 @@ fn message_context_menu_copy_append_and_search_trim_text() {
 
     handle_open_message_context_menu(&mut app, 42, 8.0, 9.0, "  rust lang  ".to_string());
 
-    assert_eq!(app.chat_context_menu_target, Some(42));
-    assert_eq!(app.chat_context_menu_pos, Some((8.0, 9.0)));
-    assert_eq!(app.chat_context_menu_text, "  rust lang  ");
+    assert_eq!(app.chat_context_menu.target, Some(42));
+    assert_eq!(app.chat_context_menu.position, Some((8.0, 9.0)));
+    assert_eq!(app.chat_context_menu.text, "  rust lang  ");
 
     let _task = handle_copy_context_menu_text(&mut app);
-    assert_eq!(app.chat_context_menu_target, None);
-    assert_eq!(app.chat_context_menu_pos, None);
-    assert!(app.chat_context_menu_text.is_empty());
+    assert_eq!(app.chat_context_menu.target, None);
+    assert_eq!(app.chat_context_menu.position, None);
+    assert!(app.chat_context_menu.text.is_empty());
 
-    app.chat_context_menu_text = " append me ".to_string();
+    app.chat_context_menu.text = " append me ".to_string();
     let _task = handle_append_context_menu_text(&mut app);
-    assert!(app.chat_context_menu_text.is_empty());
+    assert!(app.chat_context_menu.text.is_empty());
 
     for (handler, expected) in [
         (
@@ -167,20 +167,20 @@ fn message_context_menu_copy_append_and_search_trim_text() {
         (handle_search_context_menu_with_google, "https://www.google.com/search?q="),
         (handle_search_context_menu_with_bing, "https://www.bing.com/search?q="),
     ] {
-        app.chat_context_menu_text = "rust lang".to_string();
+        app.chat_context_menu.text = "rust lang".to_string();
         let _task = handler(&mut app);
         assert!(
-            app.chat_context_menu_text.is_empty(),
+            app.chat_context_menu.text.is_empty(),
             "expected {expected} search to clear menu text"
         );
     }
 
-    app.chat_context_menu_text = "   ".to_string();
+    app.chat_context_menu.text = "   ".to_string();
     let _task = handle_copy_context_menu_text(&mut app);
     let _task = handle_append_context_menu_text(&mut app);
-    app.chat_context_menu_text = "   ".to_string();
+    app.chat_context_menu.text = "   ".to_string();
     let _task = handle_search_context_menu_with_google(&mut app);
-    assert!(app.chat_context_menu_text.is_empty());
+    assert!(app.chat_context_menu.text.is_empty());
 }
 
 #[test]
@@ -190,7 +190,7 @@ fn message_context_menu_open_keeps_multiline_fallback_text() {
 
     handle_open_message_context_menu(&mut app, 42, 1.0, 2.0, fallback.clone());
 
-    assert_eq!(app.chat_context_menu_text, fallback);
+    assert_eq!(app.chat_context_menu.text, fallback);
 }
 
 #[test]
@@ -200,9 +200,9 @@ fn message_context_menu_prefers_active_text_selection_over_fallback_text() {
 
     handle_open_message_context_menu(&mut app, 0, 3.0, 4.0, "fallback".to_string());
 
-    assert_eq!(app.chat_context_menu_target, Some(0));
-    assert_eq!(app.chat_context_menu_pos, Some((3.0, 4.0)));
-    assert_eq!(app.chat_context_menu_text, "selected message");
+    assert_eq!(app.chat_context_menu.target, Some(0));
+    assert_eq!(app.chat_context_menu.position, Some((3.0, 4.0)));
+    assert_eq!(app.chat_context_menu.text, "selected message");
 }
 
 #[test]
@@ -213,7 +213,7 @@ fn markdown_context_menu_copies_selected_text() {
 
     handle_open_message_context_menu(&mut app, 0, 3.0, 4.0, "fallback".to_string());
 
-    assert_eq!(app.chat_context_menu_text, "可见选区");
+    assert_eq!(app.chat_context_menu.text, "可见选区");
 }
 
 #[test]
@@ -225,7 +225,7 @@ fn markdown_context_menu_falls_back_to_full_visible_text() {
 
     handle_open_message_context_menu(&mut app, 0, 1.0, 2.0, visible.clone());
 
-    assert_eq!(app.chat_context_menu_text, visible);
+    assert_eq!(app.chat_context_menu.text, visible);
 }
 
 #[test]
@@ -235,9 +235,9 @@ fn message_context_menu_close_and_reset_dialog_state_are_local() {
     handle_open_message_context_menu(&mut app, 7, 1.0, 2.0, "text".to_string());
     handle_close_message_context_menu(&mut app);
 
-    assert_eq!(app.chat_context_menu_target, None);
-    assert_eq!(app.chat_context_menu_pos, None);
-    assert!(app.chat_context_menu_text.is_empty());
+    assert_eq!(app.chat_context_menu.target, None);
+    assert_eq!(app.chat_context_menu.position, None);
+    assert!(app.chat_context_menu.text.is_empty());
 
     let anchor = crate::app::message::chat::ForkSessionAnchor {
         session_id: "source".into(),

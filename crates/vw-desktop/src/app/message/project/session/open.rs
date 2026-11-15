@@ -58,8 +58,8 @@ pub(crate) fn open_session_draft(
     runtime.fork_execution_started = None;
     runtime.fork_request_submitted = false;
     runtime.fork_agent_selected = false;
-    runtime.acp_source_pending = None;
-    runtime.acp_source_request_id = None;
+    runtime.acp_options_state.source_pending = None;
+    runtime.acp_options_state.source_request_id = None;
     runtime.draft = Some(crate::app::state::SessionDraft {
         project_path,
         directory: directory.clone(),

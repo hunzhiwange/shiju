@@ -303,7 +303,7 @@ fn acp_session_options_follow_capabilities_commit_only_acknowledged_values() {
     };
     let runtime = app.get_session_runtime_mut("options-a");
     runtime.acp_agent = Some("fixture".into());
-    runtime.acp_options = options.clone();
+    runtime.acp_options_state.options = options.clone();
     runtime.full_access_enabled = false;
     let _ = chat::update(
         &mut app,
@@ -312,8 +312,8 @@ fn acp_session_options_follow_capabilities_commit_only_acknowledged_values() {
             value: "code".into(),
         }),
     );
-    assert_eq!(app.get_session_runtime("options-a").acp_options, options);
-    assert!(app.get_session_runtime("options-a").acp_options_pending);
+    assert_eq!(app.get_session_runtime("options-a").acp_options_state.options, options);
+    assert!(app.get_session_runtime("options-a").acp_options_state.pending);
     let _ = chat::update(
         &mut app,
         message::ChatMessage::AcpOptionsLoaded {
@@ -321,8 +321,8 @@ fn acp_session_options_follow_capabilities_commit_only_acknowledged_values() {
             result: Err("backend rejected selection".into()),
         },
     );
-    assert_eq!(app.get_session_runtime("options-a").acp_options, options);
-    assert!(!app.get_session_runtime("options-a").acp_options_pending);
+    assert_eq!(app.get_session_runtime("options-a").acp_options_state.options, options);
+    assert!(!app.get_session_runtime("options-a").acp_options_state.pending);
     let mut confirmed = options.clone();
     confirmed.options[0].current = "code".into();
     app.active_session_id = Some("options-b".into());
@@ -333,9 +333,9 @@ fn acp_session_options_follow_capabilities_commit_only_acknowledged_values() {
             result: Ok(confirmed.clone()),
         },
     );
-    assert_eq!(app.get_session_runtime("options-a").acp_options, confirmed);
+    assert_eq!(app.get_session_runtime("options-a").acp_options_state.options, confirmed);
     assert!(!app.get_session_runtime("options-a").full_access_enabled);
-    assert_eq!(app.get_session_runtime("options-b").acp_options, AcpSessionOptions::default());
+    assert_eq!(app.get_session_runtime("options-b").acp_options_state.options, AcpSessionOptions::default());
 }
 
 #[test]
@@ -351,8 +351,8 @@ fn acp_session_options_follow_capabilities_reject_unadvertised_selection() {
             value: "invented".into(),
         }),
     );
-    assert!(!app.current_session_runtime().acp_options_pending);
-    assert!(app.current_session_runtime().acp_options.options.is_empty());
+    assert!(!app.current_session_runtime().acp_options_state.pending);
+    assert!(app.current_session_runtime().acp_options_state.options.options.is_empty());
 }
 
 #[tokio::test(flavor = "multi_thread")]

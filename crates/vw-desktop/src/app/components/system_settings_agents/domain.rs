@@ -87,7 +87,7 @@ pub(in crate::app::components) fn profile_input(app: &App) -> domain::basic_prof
 pub(in crate::app::components) fn defaults_input<'a>(app: &'a App, draft: &domain::state::DelegateAgentSettingsEntry) -> domain::defaults::Input<'a> {
     let model_source_available = domain::defaults::supports_fixed_model(&draft.runtime,
         app.session_runtime_states.values().map(|state|
-            (state.acp_agent.as_deref(), state.acp_options.model_source_capabilities.as_slice())));
+            (state.acp_agent.as_deref(), state.acp_options_state.options.model_source_capabilities.as_slice())));
     let models = app.agents_settings.provider_models.iter().flat_map(|provider| {
         let connected = app.agents_settings.providers.iter().any(|p| p.id == provider.id && p.connected);
         provider.models.iter().map(move |model| (provider.id.as_str(), model.id.as_str(), model.enabled, connected))

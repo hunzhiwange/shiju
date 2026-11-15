@@ -11,17 +11,10 @@ pub(super) fn handle_message_editor_action(
     idx: usize,
     act: text_editor::Action,
 ) -> Task<Message> {
-    if let Some(content) = app.chat_message_editors.get_mut(idx) {
-        match act {
-            text_editor::Action::Edit(_) => Task::none(),
-            other => {
-                content.perform(other);
-                Task::none()
-            }
-        }
-    } else {
-        Task::none()
-    }
+    desktop_session::message::chat::input::editor_actions::handle_message_editor_action(
+        &mut app.chat_message_editors, idx, act,
+    );
+    Task::none()
 }
 
 /// 模块内可见函数，执行 handle_special_text_editor_action 对应的应用流程。
@@ -32,18 +25,10 @@ pub(super) fn handle_special_text_editor_action(
     text_idx: usize,
     act: text_editor::Action,
 ) -> Task<Message> {
-    let key = ((msg_idx as u64) << 32) | (text_idx as u64);
-    if let Some(content) = app.chat_special_text_editors.get_mut(&key) {
-        match act {
-            text_editor::Action::Edit(_) => Task::none(),
-            other => {
-                content.perform(other);
-                Task::none()
-            }
-        }
-    } else {
-        Task::none()
-    }
+    desktop_session::message::chat::input::editor_actions::handle_special_text_editor_action(
+        &mut app.chat_special_text_editors, msg_idx, text_idx, act,
+    );
+    Task::none()
 }
 
 /// 模块内可见函数，执行 handle_tool_text_editor_action 对应的应用流程。
@@ -55,18 +40,10 @@ pub(super) fn handle_tool_text_editor_action(
     text_idx: usize,
     act: text_editor::Action,
 ) -> Task<Message> {
-    let key = ((msg_idx as u128) << 64) | ((tool_idx as u128) << 32) | (text_idx as u128);
-    if let Some(content) = app.chat_tool_text_editors.get_mut(&key) {
-        match act {
-            text_editor::Action::Edit(_) => Task::none(),
-            other => {
-                content.perform(other);
-                Task::none()
-            }
-        }
-    } else {
-        Task::none()
-    }
+    desktop_session::message::chat::input::editor_actions::handle_tool_text_editor_action(
+        &mut app.chat_tool_text_editors, msg_idx, tool_idx, text_idx, act,
+    );
+    Task::none()
 }
 
 /// 模块内可见函数，执行 handle_markdown_block_editor_action 对应的应用流程。
@@ -78,20 +55,10 @@ pub(super) fn handle_markdown_block_editor_action(
     block_idx: usize,
     act: text_editor::Action,
 ) -> Task<Message> {
-    let key = crate::app::components::chat_panel::message_view::markdown_block_key(
-        msg_idx, text_idx, block_idx,
+    desktop_session::message::chat::input::editor_actions::handle_markdown_block_editor_action(
+        &mut app.chat_markdown_block_editors, crate::app::components::chat_panel::message_view::markdown_block_key(msg_idx, text_idx, block_idx), act,
     );
-    if let Some(content) = app.chat_markdown_block_editors.get_mut(&key) {
-        match act {
-            text_editor::Action::Edit(_) => Task::none(),
-            other => {
-                content.perform(other);
-                Task::none()
-            }
-        }
-    } else {
-        Task::none()
-    }
+    Task::none()
 }
 
 /// 模块内可见函数，执行 handle_think_editor_action 对应的应用流程。
@@ -102,19 +69,12 @@ pub(super) fn handle_think_editor_action(
     think_idx: usize,
     act: text_editor::Action,
 ) -> Task<Message> {
-    let key = ((msg_idx as u64) << 32) | (think_idx as u64);
-    if let Some(content) = app.chat_think_editors.get_mut(&key) {
-        match act {
-            text_editor::Action::Edit(_) => Task::none(),
-            other => {
-                content.perform(other);
-                Task::none()
-            }
-        }
-    } else {
-        Task::none()
-    }
+    desktop_session::message::chat::input::editor_actions::handle_think_editor_action(
+        &mut app.chat_think_editors, msg_idx, think_idx, act,
+    );
+    Task::none()
 }
+
 #[cfg(test)]
 #[path = "editor_actions_tests.rs"]
 mod editor_actions_tests;

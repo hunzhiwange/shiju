@@ -4,8 +4,7 @@ use crate::app::{App, Message};
 use iced::Task;
 
 fn next_source_request_id() -> u64 {
-    static NEXT_REQUEST: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-    NEXT_REQUEST.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    desktop_session::message::chat::acp_options::next_source_request_id()
 }
 
 pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
@@ -15,8 +14,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 return Task::none();
             }
             let runtime = app.current_session_runtime_mut();
-            if !runtime.is_requesting && runtime.acp_source_pending.is_none() {
-                runtime.acp_model_input_draft = Some(value);
+            if runtime.acp_options_state.set_model_input_draft(value, runtime.is_requesting) {
                 app.invalidate_project_chat_preferences_read();
             }
             Task::none()
@@ -28,15 +26,15 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let Some(agent) = runtime.acp_agent.clone() else {
                 return Task::none();
             };
-            if runtime.acp_options_pending
-                || runtime.acp_source_pending.is_some()
+            if runtime.acp_options_state.pending
+                || runtime.acp_options_state.source_pending.is_some()
                 || runtime.is_requesting
             {
                 return Task::none();
             }
             let request_id = next_source_request_id();
-            runtime.acp_source_request_id = Some(request_id);
-            runtime.acp_options_pending = true;
+            runtime.acp_options_state.source_request_id = Some(request_id);
+            runtime.acp_options_state.pending = true;
             // A newly selected fork agent has no binding of its own yet. Reading the
             // inherited binding here would advertise the previous agent's capabilities.
             let draft_options = (session_id == "__empty__"
@@ -44,30 +42,15 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 || (runtime.fork_agent_selected
                     && !runtime.fork_request_submitted
                     && runtime.fork_execution_started == Some(false)))
-            .then(|| runtime.acp_options.clone());
+            .then(|| runtime.acp_options_state.options.clone());
             Task::perform(
                 async move {
                     let result = async {
                         let client = crate::app::gateway_client()?;
-                        let mut options = match draft_options {
-                            Some(options) => options,
-                            None => {
-                                gateway_session::GatewaySessionClient::new(client.transport().clone())
-                                    .acp_session_options(&session_id, directory.as_deref())
-                                    .await?
-                            }
-                        };
-                        if options.model_source_capabilities.is_empty() {
-                            let capabilities = gateway_session::GatewaySessionClient::new(client.transport().clone()).acp_model_source_capabilities(&agent).await?;
-                            if options.selected_model.is_none() && !options.connected {
-                                options.acp_model_source = capabilities.acp_model_source;
-                            }
-                            options.model_source_capabilities =
-                                capabilities.model_source_capabilities;
-                            options.verified_cli_release = capabilities.verified_cli_release;
-                            options.verified_platform = capabilities.verified_platform;
-                        }
-                        Ok(options)
+                        desktop_session::message::chat::acp_options::load_source_options(
+                            &gateway_session::GatewaySessionClient::new(client.transport().clone()),
+                            &session_id, directory.as_deref(), &agent, draft_options,
+                        ).await
                     }
                     .await;
                     ChatMessage::AcpSourceLoaded { session_id, request_id, agent, result }
@@ -80,16 +63,16 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 return Task::none();
             };
             if runtime.acp_agent.as_deref() != Some(&agent)
-                || runtime.acp_source_request_id != Some(request_id)
-                || runtime.acp_source_pending.is_some()
+                || runtime.acp_options_state.source_request_id != Some(request_id)
+                || runtime.acp_options_state.source_pending.is_some()
             {
                 return Task::none();
             }
-            runtime.acp_options_pending = false;
-            runtime.acp_source_request_id = None;
+            runtime.acp_options_state.pending = false;
+            runtime.acp_options_state.source_request_id = None;
             match result {
                 Ok(options) => {
-                    if runtime.acp_source_pending.is_none() && !runtime.is_requesting {
+                    if runtime.acp_options_state.source_pending.is_none() && !runtime.is_requesting {
                         runtime.acp_model_source = options.acp_model_source;
                         if let Some(selection) = &options.selected_model {
                             runtime.acp_model_source = selection.source;
@@ -106,7 +89,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                                 runtime.auto_model = model == "auto";
                             }
                         }
-                        runtime.acp_options = options;
+                        runtime.acp_options_state.options = options;
                     }
                     Task::none()
                 }
@@ -122,10 +105,10 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         } => {
             if session_id == "__empty__" && app.project_path != project_path {
                 if let Some(runtime) = app.session_runtime_states.get_mut(&session_id)
-                    && runtime.acp_source_request_id == Some(request_id)
+                    && runtime.acp_options_state.source_request_id == Some(request_id)
                 {
-                    runtime.acp_source_pending = None;
-                    runtime.acp_source_request_id = None;
+                    runtime.acp_options_state.source_pending = None;
+                    runtime.acp_options_state.source_request_id = None;
                 }
                 return Task::none();
             }
@@ -137,14 +120,14 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let Some(runtime) = app.session_runtime_states.get_mut(&session_id) else {
                 return Task::none();
             };
-            if runtime.acp_source_request_id.as_ref() != Some(&request_id)
-                || runtime.acp_source_pending.as_ref() != Some(&update)
+            if runtime.acp_options_state.source_request_id.as_ref() != Some(&request_id)
+                || runtime.acp_options_state.source_pending.as_ref() != Some(&update)
                 || runtime.acp_agent.as_deref() != Some(&update.agent)
             {
                 return Task::none();
             }
-            runtime.acp_source_pending = None;
-            runtime.acp_source_request_id = None;
+            runtime.acp_options_state.source_pending = None;
+            runtime.acp_options_state.source_request_id = None;
             match result {
                 Ok(options) => {
                     if options.acp_model_source != update.selection.source {
@@ -159,8 +142,8 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         runtime.auto_model = model == "auto";
                         runtime.task_mode_model = model.clone();
                     }
-                    runtime.acp_options = options;
-                    runtime.acp_model_input_draft = None;
+                    runtime.acp_options_state.options = options;
+                    runtime.acp_options_state.model_input_draft = None;
                     runtime.acp_rebuild_required = true;
                     runtime.restore_model_from_history = false;
                     let unstarted_fork = runtime.fork_execution_started == Some(false);
@@ -179,31 +162,19 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
         }
         ChatMessage::AcpOptionsClose => {
-            app.current_session_runtime_mut().acp_options_open = false;
+            app.current_session_runtime_mut().acp_options_state.open = false;
             Task::none()
         }
         ChatMessage::AcpOptionsLoaded { session_id, result } => {
             let Some(runtime) = app.session_runtime_states.get_mut(&session_id) else {
                 return Task::none();
             };
-            runtime.acp_options_pending = false;
-            match result {
-                Ok(options) => {
-                    runtime.acp_options = options;
-                    Task::none()
-                }
-                Err(error) => {
-                    // A failed control must not leave an earlier native success on screen.
-                    if let Some(status) = runtime.acp_options.access_status.as_mut() {
-                        status.support =
-                            vw_api_acp_model::acp_session::AcpAccessSupport::Failed;
-                        status.explanation =
-                            "会话选项切换或读取失败，请刷新或重试；当前能力尚未确认".into();
-                    }
-                    app.show_error_toast(error)
-                }
+            match runtime.acp_options_state.apply_loaded_options(result) {
+                Ok(()) => Task::none(),
+                Err(error) => app.show_error_toast(error),
             }
         }
+
         ChatMessage::AcpOptionsOpen | ChatMessage::AcpOptionSelected(_) => {
             let Some(session_id) = app.active_session_id.clone() else {
                 return Task::none();
@@ -212,8 +183,8 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let runtime = app.get_session_runtime_mut(&session_id);
             if runtime.acp_agent.is_none()
                 || runtime.is_requesting
-                || runtime.acp_options_pending
-                || runtime.acp_source_pending.is_some()
+                || runtime.acp_options_state.pending
+                || runtime.acp_options_state.source_pending.is_some()
             {
                 return Task::none();
             }
@@ -230,7 +201,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         );
                     }
                     if matches!(&selection.kind, AcpOptionKind::Mode)
-                        || !runtime.acp_options.options.iter().any(|option| {
+                        || !runtime.acp_options_state.options.options.iter().any(|option| {
                             option.kind == selection.kind
                                 && option.choices.iter().any(|choice| choice.id == selection.value)
                         })
@@ -240,11 +211,11 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     Some(selection)
                 }
                 _ => {
-                    runtime.acp_options_open = true;
+                    runtime.acp_options_state.open = true;
                     None
                 }
             };
-            runtime.acp_options_pending = true;
+            runtime.acp_options_state.pending = true;
             Task::perform(
                 async move {
                     let result = async {
@@ -281,7 +252,7 @@ pub(super) fn select_source(
     model: Option<String>,
 ) -> Task<Message> {
     use vw_api_acp_model::acp_model_source::{
-        AcpModelSource, AcpModelSourceCapability, AcpModelSourceUpdate, AcpSessionModelSelection,
+        AcpModelSource, AcpModelSourceUpdate, AcpSessionModelSelection,
     };
     let session_id = app.active_session_id.clone().unwrap_or_else(|| "__empty__".into());
     let directory = super::stream::session_directory_for_save(app, &session_id);
@@ -291,11 +262,11 @@ pub(super) fn select_source(
     let Some(agent) = runtime.acp_agent.clone() else {
         return Task::none();
     };
-    if runtime.is_requesting || runtime.acp_options_pending || runtime.acp_source_pending.is_some()
+    if runtime.is_requesting || runtime.acp_options_state.pending || runtime.acp_options_state.source_pending.is_some()
     {
         return app.show_error_toast("请等待当前请求结束后切换模型来源");
     }
-    if runtime.acp_options.model_source_capabilities.iter().any(|capability| {
+    if runtime.acp_options_state.options.model_source_capabilities.iter().any(|capability| {
         matches!(capability, vw_api_acp_model::acp_model_source::AcpModelSourceCapability::Unsupported { source: rejected, .. } if *rejected == source)
     }) {
         return app.show_error_toast("此智能体不支持所选模型来源");
@@ -310,33 +281,19 @@ pub(super) fn select_source(
             model: (source == AcpModelSource::SessionModel).then_some(model),
         },
     };
-    runtime.acp_source_pending = Some(update.clone());
-    runtime.acp_source_request_id = Some(request_id);
+    runtime.acp_options_state.source_pending = Some(update.clone());
+    runtime.acp_options_state.source_request_id = Some(request_id);
     let draft_options =
-        (session_id == "__empty__" || runtime.draft.is_some()).then(|| runtime.acp_options.clone());
+        (session_id == "__empty__" || runtime.draft.is_some()).then(|| runtime.acp_options_state.options.clone());
     app.invalidate_project_chat_preferences_read();
     Task::perform(
         async move {
             let result = async {
                 let client = crate::app::gateway_client()?;
-                let directory = directory.as_deref().ok_or("请先选择项目目录")?;
-                if let Some(mut options) = draft_options {
-                    if options.model_source_capabilities.is_empty() {
-                        let capabilities = gateway_session::GatewaySessionClient::new(client.transport().clone()).acp_model_source_capabilities(&update.agent).await?;
-                        options.model_source_capabilities = capabilities.model_source_capabilities;
-                        options.verified_cli_release = capabilities.verified_cli_release;
-                        options.verified_platform = capabilities.verified_platform;
-                    }
-                    if !options.model_source_capabilities.iter().any(|capability| {
-                        matches!(capability, AcpModelSourceCapability::Supported { source: supported } if *supported == source)
-                    }) {
-                        return Err("此智能体不支持所选模型来源".to_string());
-                    }
-                    options.acp_model_source = source;
-                    options.selected_model = Some(update.selection.clone());
-                    return Ok(options);
-                }
-                gateway_session::GatewaySessionClient::new(client.transport().clone()).acp_session_model_source(&session_id, Some(directory), &update).await
+                desktop_session::message::chat::acp_options::save_source_options(
+                    &gateway_session::GatewaySessionClient::new(client.transport().clone()),
+                    &session_id, directory.as_deref(), &update, draft_options,
+                ).await
             }
             .await;
             ChatMessage::AcpModelSourceSaved {

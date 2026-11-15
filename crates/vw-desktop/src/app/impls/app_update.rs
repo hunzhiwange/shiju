@@ -280,11 +280,11 @@ impl App {
             runtime.agent = None;
             runtime.agent_label = None;
             runtime.acp_model_source = Default::default();
-            runtime.acp_options = Default::default();
-            runtime.acp_options_pending = false;
-            runtime.acp_model_input_draft = None;
-            runtime.acp_source_pending = None;
-            runtime.acp_source_request_id = None;
+            runtime.acp_options_state.options = Default::default();
+            runtime.acp_options_state.pending = false;
+            runtime.acp_options_state.model_input_draft = None;
+            runtime.acp_options_state.source_pending = None;
+            runtime.acp_options_state.source_request_id = None;
         }
     }
 

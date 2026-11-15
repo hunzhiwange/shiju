@@ -208,9 +208,9 @@ impl App {
         self.chat_tool_file_hovered = None;
         self.chat_tool_hovered_idx = None;
         self.tool_detail_dialog = None;
-        self.chat_context_menu_target = None;
-        self.chat_context_menu_pos = None;
-        self.chat_context_menu_text.clear();
+        self.chat_context_menu.target = None;
+        self.chat_context_menu.position = None;
+        self.chat_context_menu.text.clear();
         self.chat_reset_menu_idx = None;
         self.chat_fork_dialog = None;
         self.show_agent_sessions_popover = false;

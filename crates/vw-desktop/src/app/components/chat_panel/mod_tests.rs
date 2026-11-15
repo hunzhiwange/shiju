@@ -627,9 +627,9 @@ fn chat_panel_context_menu_overlay_builds_closed_and_open_states() {
     let (mut app, _) = App::new();
     keep_element(chat_panel_context_menu_overlay(&app, iced::widget::text("content")));
 
-    app.chat_context_menu_target =
+    app.chat_context_menu.target =
         Some(crate::app::components::chat_panel::utils::chat_context_target_key(0, None));
-    app.chat_context_menu_pos = Some((12.0, 24.0));
+    app.chat_context_menu.position = Some((12.0, 24.0));
     keep_element(chat_panel_context_menu_overlay(&app, iced::widget::text("content")));
 }
 

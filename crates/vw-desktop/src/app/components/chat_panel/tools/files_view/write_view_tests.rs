@@ -335,9 +335,9 @@ fn build_write_tool_view_keeps_the_same_tree_when_context_menu_opens() {
         closed_element.as_widget().children().len()
     };
 
-    app.chat_context_menu_target =
+    app.chat_context_menu.target =
         Some(crate::app::components::chat_panel::utils::chat_context_target_key(1, Some(2)));
-    app.chat_context_menu_pos = Some((24.0, 32.0));
+    app.chat_context_menu.position = Some((24.0, 32.0));
     let view_ctx = view_context(&app, "tool write\n{}", None, false, false);
 
     let element =

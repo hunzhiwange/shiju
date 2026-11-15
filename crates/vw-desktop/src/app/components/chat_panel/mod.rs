@@ -189,8 +189,8 @@ fn chat_panel_context_menu_overlay<'a>(
     app: &'a App,
     content: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    let is_open = app.chat_context_menu_target.is_some();
-    let anchor = app.chat_context_menu_pos.unwrap_or((12.0, 26.0));
+    let is_open = app.chat_context_menu.target.is_some();
+    let anchor = app.chat_context_menu.position.unwrap_or((12.0, 26.0));
     let menu = chat_context_menu(crate::app::i18n::I18n::new(app.desktop_locale), is_open)
         .unwrap_or_else(|| Space::new().into());
 

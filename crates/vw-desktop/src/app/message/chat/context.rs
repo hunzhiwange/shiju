@@ -5,18 +5,11 @@ use super::ChatMessage;
 use crate::app::ui::chat;
 use crate::app::{App, Message};
 use iced::Task;
+use desktop_session::message::chat::context::{ContextInput, context_input_text};
 
+#[cfg(test)]
 fn mention_display_path(app: &App, path: &str) -> String {
-    if let Some(project_root) = &app.project_path {
-        std::path::Path::new(path)
-            .strip_prefix(project_root)
-            .ok()
-            .and_then(|p| p.to_str())
-            .unwrap_or(path)
-            .replace('\\', "/")
-    } else {
-        path.replace('\\', "/")
-    }
+    desktop_session::message::chat::context::mention_display_path(app.project_path.as_deref(), path)
 }
 
 /// 公开函数，执行 update 对应的应用流程。
@@ -24,12 +17,11 @@ fn mention_display_path(app: &App, path: &str) -> String {
 pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     match message {
         ChatMessage::InsertPosition(path, line, col) => {
-            let display_path = mention_display_path(app, &path);
+            let text = context_input_text(app.project_path.as_deref(), ContextInput::Position {
+                path: &path, line, column: col,
+            }).expect("position always produces context text");
             let runtime = app.current_session_runtime_mut();
-            chat::append_line(
-                &mut runtime.input_editor,
-                &chat::format_position(&display_path, line, col),
-            );
+            chat::append_line(&mut runtime.input_editor, &text);
             if app.active_session_id.is_none() {
                 let runtime = app.current_session_runtime();
                 app.input_editor = runtime.input_editor;
@@ -43,14 +35,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             if let Some((path, start_line, start_col, end_line, end_col)) =
                 app.preview_context_target.clone()
             {
-                let display_path = mention_display_path(app, &path);
-                let s = chat::format_selection_positions(
-                    &display_path,
-                    start_line,
-                    start_col,
-                    end_line,
-                    end_col,
-                );
+                let s = context_input_text(app.project_path.as_deref(), ContextInput::Selection {
+                    path: &path, start_line, start_column: start_col, end_line, end_column: end_col,
+                }).expect("selection always produces context text");
                 let runtime = app.current_session_runtime_mut();
                 chat::append_line(&mut runtime.input_editor, &s);
                 if app.active_session_id.is_none() {
@@ -83,7 +70,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::none()
         }
         ChatMessage::AppendText(text) => {
-            if !text.is_empty() {
+            if let Some(text) = context_input_text(None, ContextInput::Append(&text)) {
                 let runtime = app.current_session_runtime_mut();
                 chat::append_line(&mut runtime.input_editor, &text);
                 if app.active_session_id.is_none() {

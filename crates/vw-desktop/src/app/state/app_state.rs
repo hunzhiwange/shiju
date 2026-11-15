@@ -219,16 +219,8 @@ pub struct App {
     pub(crate) chat_stream_think_count: usize,
     /// 流式响应中自动展开的思考块索引
     pub(crate) chat_stream_think_open_idx: Option<usize>,
-    /// 当前打开的聊天右键菜单目标键
-    pub(crate) chat_context_menu_target: Option<u64>,
-    /// 聊天右键菜单在消息区域内的锚点位置
-    pub(crate) chat_context_menu_pos: Option<(f32, f32)>,
-    /// 聊天右键菜单关联的文本内容
-    pub(crate) chat_context_menu_text: String,
-    /// 输入框右键菜单是否显示
-    pub(crate) input_context_menu_open: bool,
-    /// 输入框右键菜单在编辑器区域内的锚点位置
-    pub(crate) input_context_menu_pos: Option<(f32, f32)>,
+    pub(crate) chat_context_menu: desktop_session::message::chat::input::context_menus::MessageContextMenuState,
+    pub(crate) input_context_menu: desktop_session::message::chat::input::context_menus::InputContextMenuState,
     /// 当前打开的“重置到此点”菜单消息索引
     pub(crate) chat_reset_menu_idx: Option<usize>,
     /// 分叉对话框及待提交的新会话输入

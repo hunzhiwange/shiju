@@ -183,8 +183,8 @@ fn apply_patch_view_renders_running_error_denied_and_empty_completed_states() {
 #[test]
 fn apply_patch_view_wraps_content_when_context_menu_is_open() {
     let mut app = App::new().0;
-    app.chat_context_menu_target = Some(chat_context_target_key(8, Some(9)));
-    app.chat_context_menu_pos = Some((24.0, 48.0));
+    app.chat_context_menu.target = Some(chat_context_target_key(8, Some(9)));
+    app.chat_context_menu.position = Some((24.0, 48.0));
 
     assert!(tool_apply_patch_view(&app, 8, 9, "tool apply_patch\n{}").is_some());
 }

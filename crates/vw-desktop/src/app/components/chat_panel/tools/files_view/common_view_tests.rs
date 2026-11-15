@@ -377,8 +377,8 @@ fn build_common_tool_view_uses_error_and_output_text_editors() {
 #[test]
 fn build_common_tool_view_wraps_open_context_menu() {
     let mut app = test_app();
-    app.chat_context_menu_target = Some(chat_context_target_key(0, Some(1)));
-    app.chat_context_menu_pos = Some((24.0, 36.0));
+    app.chat_context_menu.target = Some(chat_context_target_key(0, Some(1)));
+    app.chat_context_menu.position = Some((24.0, 36.0));
     let view_ctx = ctx(&app, "read", "completed", "result");
 
     keep_element(build_common_tool_view(&view_ctx, &state(1, false), iced::widget::column![]));

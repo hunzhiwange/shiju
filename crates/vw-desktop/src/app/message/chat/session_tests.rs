@@ -2067,7 +2067,7 @@ fn acp_model_source_ui_selection_preserves_native_and_provider_request_identity(
     let runtime = app.current_session_runtime();
     assert_eq!(runtime.acp_model_source, AcpModelSource::CliLocal);
     assert_eq!(runtime.model, "provider/custom-model");
-    assert!(runtime.acp_source_pending.is_none());
+    assert!(runtime.acp_options_state.source_pending.is_none());
 }
 
 #[test]
@@ -2138,7 +2138,7 @@ fn full_access_toggle_is_remembered_for_new_llm_sessions() {
 
 fn confirm_pending_model_source(app: &mut crate::app::App) {
     let runtime = app.current_session_runtime();
-    let update = runtime.acp_source_pending.unwrap();
+    let update = runtime.acp_options_state.source_pending.unwrap();
     let options = vw_api_acp_model::acp_session::AcpSessionOptions {
         acp_model_source: update.selection.source,
         selected_model: Some(update.selection.clone()),
@@ -2148,7 +2148,7 @@ fn confirm_pending_model_source(app: &mut crate::app::App) {
         app,
         super::ChatMessage::AcpModelSourceSaved {
             session_id: app.active_session_id.clone().unwrap_or_else(|| "__empty__".into()),
-            request_id: runtime.acp_source_request_id.unwrap(),
+            request_id: runtime.acp_options_state.source_request_id.unwrap(),
             project_path: app.project_path.clone(),
             update,
             result: Ok(options),
@@ -2446,7 +2446,7 @@ fn fork_selection_ui_switches_engines_preserving_history_and_input() {
             super::ChatMessage::SessionAgentSelected(Some(format!("acp-{backend}"))),
         );
         assert_eq!(app.current_session_runtime().acp_agent.as_deref(), Some(backend));
-        let request_id = app.current_session_runtime().acp_source_request_id.unwrap();
+        let request_id = app.current_session_runtime().acp_options_state.source_request_id.unwrap();
         let _ = crate::app::message::chat::update(
             &mut app,
             super::ChatMessage::AcpSourceLoaded {
@@ -2530,7 +2530,7 @@ fn fork_selection_ui_source_save_pending_blocks_send_and_started_changes() {
         &mut app,
         super::ChatMessage::AcpModelSourceSelected(AcpModelSource::CliLocal),
     );
-    assert!(app.current_session_runtime().acp_source_pending.is_some());
+    assert!(app.current_session_runtime().acp_options_state.source_pending.is_some());
     let _ = super::update(&mut app, super::ChatMessage::SendPressed);
     assert!(app.current_session_runtime().active_agent_request.is_none());
     let _ = super::update(
@@ -2545,13 +2545,13 @@ fn fork_selection_ui_source_save_pending_blocks_send_and_started_changes() {
     );
     assert!(app.current_session_runtime().active_agent_request.is_none());
     assert_eq!(app.current_session_runtime().input_editor.text(), "保留输入");
-    app.current_session_runtime_mut().acp_source_pending = None;
+    app.current_session_runtime_mut().acp_options_state.source_pending = None;
     app.current_session_runtime_mut().fork_execution_started = Some(true);
     let _ = super::update(
         &mut app,
         super::ChatMessage::AcpModelSourceSelected(AcpModelSource::CliLocal),
     );
-    assert!(app.current_session_runtime().acp_source_pending.is_none());
+    assert!(app.current_session_runtime().acp_options_state.source_pending.is_none());
 }
 
 #[test]
@@ -2564,8 +2564,8 @@ fn fork_selection_ui_discards_previous_agent_source_result() {
     let runtime = app.current_session_runtime_mut();
     runtime.fork_execution_started = Some(false);
     runtime.acp_agent = Some("codex".into());
-    runtime.acp_options_pending = true;
-    runtime.acp_source_request_id = Some(2);
+    runtime.acp_options_state.pending = true;
+    runtime.acp_options_state.source_request_id = Some(2);
     let _ = crate::app::message::chat::update(
         &mut app,
         super::ChatMessage::AcpSourceLoaded {
@@ -2579,7 +2579,7 @@ fn fork_selection_ui_discards_previous_agent_source_result() {
         },
     );
     assert_eq!(app.current_session_runtime().acp_model_source, AcpModelSource::SessionModel);
-    assert!(app.current_session_runtime().acp_options_pending);
+    assert!(app.current_session_runtime().acp_options_state.pending);
 }
 
 #[test]
@@ -2592,8 +2592,8 @@ fn fork_selection_ui_ignores_stale_source_after_returning_to_same_agent() {
     let runtime = app.current_session_runtime_mut();
     runtime.fork_execution_started = Some(false);
     runtime.acp_agent = Some("claude".into());
-    runtime.acp_options_pending = true;
-    runtime.acp_source_request_id = Some(2);
+    runtime.acp_options_state.pending = true;
+    runtime.acp_options_state.source_request_id = Some(2);
     let _ = crate::app::message::chat::update(
         &mut app,
         super::ChatMessage::AcpSourceLoaded {
@@ -2607,8 +2607,8 @@ fn fork_selection_ui_ignores_stale_source_after_returning_to_same_agent() {
         },
     );
     assert_eq!(app.current_session_runtime().acp_model_source, AcpModelSource::SessionModel);
-    assert_eq!(app.current_session_runtime().acp_source_request_id, Some(2));
-    assert!(app.current_session_runtime().acp_options_pending);
+    assert_eq!(app.current_session_runtime().acp_options_state.source_request_id, Some(2));
+    assert!(app.current_session_runtime().acp_options_state.pending);
 }
 
 #[test]
@@ -2619,9 +2619,9 @@ fn fork_selection_ui_closed_modal_waits_for_owned_options_read() {
     runtime.fork_execution_started = Some(false);
     runtime.acp_agent = Some("claude".into());
     let _ = crate::app::message::chat::update(&mut app, super::ChatMessage::AcpOptionsOpen);
-    assert!(app.current_session_runtime().acp_options_pending);
+    assert!(app.current_session_runtime().acp_options_state.pending);
     let _ = crate::app::message::chat::update(&mut app, super::ChatMessage::AcpOptionsClose);
-    assert!(!app.current_session_runtime().acp_options_open);
+    assert!(!app.current_session_runtime().acp_options_state.open);
     let _ = super::update(&mut app, super::ChatMessage::SessionAgentSelected(None));
     assert_eq!(app.current_session_runtime().acp_agent.as_deref(), Some("claude"));
     let _ = crate::app::message::chat::update(

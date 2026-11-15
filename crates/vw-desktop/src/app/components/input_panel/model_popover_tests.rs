@@ -174,8 +174,8 @@ async fn acp_model_source_ui_controls_render_chinese_labels_in_both_themes() {
             }
             app.current_session_runtime_mut().acp_model_source = source;
             for modal in [false, true] {
-                app.current_session_runtime_mut().acp_options_open = modal;
-                app.current_session_runtime_mut().acp_options.model_source_capabilities = vec![
+                app.current_session_runtime_mut().acp_options_state.open = modal;
+                app.current_session_runtime_mut().acp_options_state.options.model_source_capabilities = vec![
                     vw_api_acp_model::acp_model_source::AcpModelSourceCapability::Unsupported {
                         source: AcpModelSource::SessionModel,
                         reason: vw_api_acp_model::acp_model_source::AcpModelSourceRejectionReason::UnsupportedCli,

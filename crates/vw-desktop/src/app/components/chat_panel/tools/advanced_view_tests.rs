@@ -523,9 +523,9 @@ fn advanced_view_renders_running_and_planned_explicit_surfaces() {
 #[test]
 fn advanced_view_renders_empty_body_context_menu_and_browser_open() {
     let mut app = App::new().0;
-    app.chat_context_menu_target =
+    app.chat_context_menu.target =
         Some(crate::app::components::chat_panel::utils::chat_context_target_key(1, Some(3)));
-    app.chat_context_menu_pos = Some((24.0, 32.0));
+    app.chat_context_menu.position = Some((24.0, 32.0));
 
     assert!(
         tool_advanced_view(

@@ -13,3 +13,4 @@ pub mod presentation;
 mod global_status_tests;
 #[cfg(test)]
 mod tool_presentation_tests;
+pub mod render_cache;

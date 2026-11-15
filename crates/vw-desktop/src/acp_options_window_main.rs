@@ -68,7 +68,7 @@ impl Harness {
                             .update(Message::Ui(AppMessage::Chat(ChatMessage::AcpOptionsOpen)));
                     }
                     2 => {
-                        let option = &self.app.current_session_runtime().acp_options.options[0];
+                        let option = &self.app.current_session_runtime().acp_options_state.options.options[0];
                         return self.update(Message::Ui(AppMessage::Chat(
                             ChatMessage::AcpOptionSelected(AcpSessionSelection {
                                 kind: option.kind.clone(),
@@ -77,12 +77,12 @@ impl Harness {
                         )));
                     }
                     3 => {
-                        let mut options = self.app.current_session_runtime().acp_options;
+                        let mut options = self.app.current_session_runtime().acp_options_state.options;
                         options.options[0].current = "high".into();
                         self.load_options(options);
                     }
                     4 => {
-                        let mut options = self.app.current_session_runtime().acp_options;
+                        let mut options = self.app.current_session_runtime().acp_options_state.options;
                         options.options.clear();
                         options.connected = false;
                         self.load_options(options);
@@ -96,8 +96,8 @@ impl Harness {
                 drop(chat::update(&mut self.app, message));
                 if opening {
                     let runtime = self.app.current_session_runtime();
-                    assert!(runtime.acp_options_open && runtime.acp_options_pending);
-                    self.load_options(runtime.acp_options);
+                    assert!(runtime.acp_options_state.open && runtime.acp_options_state.pending);
+                    self.load_options(runtime.acp_options_state.options);
                 }
             }
             Message::Ui(_) => {}
@@ -153,7 +153,7 @@ fn main() {
             runtime.acp_agent = Some("copilot".into());
             runtime.acp_model_source =
                 vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel;
-            runtime.acp_options = AcpSessionOptions {
+            runtime.acp_options_state.options = AcpSessionOptions {
                 acp_model_source:
                     vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
                 model_source_capabilities: Vec::new(),

@@ -162,7 +162,7 @@ fn voice_task_17_local_changed_model_busy_draft_invalid_png_and_old_call_send_no
             4 => png = vec![1, 2, 3],
             5 => app.voice.local_conversation.as_mut().unwrap().call = rand::random(),
             6 => app.model_settings.providers[0].models[0].enabled = false,
-            7 => app.current_session_runtime_mut().acp_options_pending = true,
+            7 => app.current_session_runtime_mut().acp_options_state.pending = true,
             _ => unreachable!(),
         }
         let _ = screen::receive(&mut app, ticket, owner, Ok(png), true);

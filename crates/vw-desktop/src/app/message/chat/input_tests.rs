@@ -69,9 +69,9 @@ fn chat_message_context_menu_resolves_visible_text_and_rejects_stale_session() {
             message_idx: 0,
         },
     );
-    assert_eq!(app.chat_context_menu_text, "visible");
+    assert_eq!(app.chat_context_menu.text, "visible");
 
-    app.chat_context_menu_text.clear();
+    app.chat_context_menu.text.clear();
     let _ = super::update(
         &mut app,
         ChatMessage::OpenChatMessageContextMenu {
@@ -82,7 +82,7 @@ fn chat_message_context_menu_resolves_visible_text_and_rejects_stale_session() {
             message_idx: 0,
         },
     );
-    assert!(app.chat_context_menu_text.is_empty());
+    assert!(app.chat_context_menu.text.is_empty());
 }
 
 async fn collect_task_messages(task: iced::Task<Message>) -> Vec<Message> {

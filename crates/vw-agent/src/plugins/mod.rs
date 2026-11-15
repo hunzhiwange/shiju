@@ -65,13 +65,7 @@ pub use types::{
     PluginInterface, PluginManifest, PluginMcpServers, PluginPath,
 };
 
-
-#[cfg(test)]
-#[path = "mcp_tests.rs"]
-mod mcp_tests;
-
-
-
+// MCP loading tests live with the agent-plugins implementation.
 #[cfg(test)]
 #[path = "hook_handler_tests.rs"]
 mod hook_handler_tests;

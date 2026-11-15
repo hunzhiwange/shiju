@@ -32,9 +32,9 @@ impl GatewayClient {
     }
     async fn control_send<B: Serialize>(&self, method: reqwest::Method, resource: &str, body: Option<&B>) -> Result<reqwest::Response, ComputerControlApiError> {
         let transport = self.native_transport().map_err(|_| ComputerControlApiError::Transport)?;
-        let mut request = transport.request(method, format!("{}/v1/computer-control/{resource}", self.endpoint.base_url()));
+        let mut request = transport.request(method, format!("{}/v1/computer-control/{resource}", self.transport.endpoint().base_url()));
         if let Some(body) = body { request = request.json(body); }
-        let response = crate::http::apply_request_context(request, &self.endpoint).send().await.map_err(|_| ComputerControlApiError::Transport)?;
+        let response = crate::http::apply_request_context(request, self.transport.endpoint()).send().await.map_err(|_| ComputerControlApiError::Transport)?;
         if !response.status().is_success() { return Err(ComputerControlApiError::Http(response.status().as_u16())); }
         Ok(response)
     }

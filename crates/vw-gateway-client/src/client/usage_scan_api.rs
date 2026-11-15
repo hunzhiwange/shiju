@@ -117,13 +117,13 @@ impl GatewayClient {
         self.native_transport().map_err(UsageScanError::Transport)?;
         let project: &str = scope.project_id.as_ref();
         let query = vec![("project_id".into(), project.into()), ("target_host".into(), scope.target_host.clone())];
-        crate::stream::stream_json_sse(&self.endpoint, "/v1/usage/events", &query, |event| {
+        crate::stream::stream_json_sse(self.transport.endpoint(), "/v1/usage/events", &query, |event| {
             let decoded = serde_json::from_value::<UsageRevisionEvent>(event.data)
                 .map_err(|e| UsageScanError::Decode(e.to_string()))
                 .and_then(|event| {
                     if event.event_type != "usage-revision"
                         || event.scope.project_id() != &scope.project_id
-                        || event.scope.tenant_scope() != self.endpoint.tenant_scope()
+                        || event.scope.tenant_scope() != self.transport.endpoint().tenant_scope()
                         || event.target_host != scope.target_host {
                         return Err(UsageScanError::Decode("usage event scope or type mismatch".into()));
                     }
@@ -135,7 +135,7 @@ impl GatewayClient {
         }).await.map_err(UsageScanError::Transport)
     }
     fn validate_usage_scan_scope(&self, scope: &UsageScanScope) -> Result<(), UsageScanError> {
-        if !self.endpoint.auth.as_ref().and_then(|a| a.skey.as_deref()).is_some_and(|s| !s.trim().is_empty()) {
+        if !self.transport.endpoint().auth.as_ref().and_then(|a| a.skey.as_deref()).is_some_and(|s| !s.trim().is_empty()) {
             return Err(UsageScanError::Unauthenticated);
         }
         if scope.project_id.as_ref().trim().is_empty() || scope.target_host.trim().is_empty() {
@@ -145,7 +145,7 @@ impl GatewayClient {
     }
     async fn usage_scan_request<T: DeserializeOwned>(&self, method: reqwest::Method, path: &[&str], scope: &UsageScanScope, extra: Option<Value>) -> Result<T, UsageScanError> {
         self.validate_usage_scan_scope(scope)?;
-        let mut url = reqwest::Url::parse(&self.endpoint.base_url()).map_err(|e| UsageScanError::InvalidInput(e.to_string()))?;
+        let mut url = reqwest::Url::parse(self.transport.endpoint().base_url()).map_err(|e| UsageScanError::InvalidInput(e.to_string()))?;
         url.path_segments_mut().map_err(|_| UsageScanError::InvalidInput("invalid gateway URL".into()))?
             .pop_if_empty().extend(["v1", "usage"]).extend(path.iter().copied());
         let mut request = self.native_transport().map_err(UsageScanError::Transport)?.request(method.clone(), url);
@@ -156,7 +156,7 @@ impl GatewayClient {
             if let Some(Value::Object(fields)) = extra { body.as_object_mut().expect("scope object").extend(fields); }
             request = request.json(&body);
         }
-        let response = crate::http::apply_request_context(request, &self.endpoint).send().await.map_err(|e| UsageScanError::Transport(e.to_string()))?;
+        let response = crate::http::apply_request_context(request, self.transport.endpoint()).send().await.map_err(|e| UsageScanError::Transport(e.to_string()))?;
         let status = response.status();
         let bytes = response.bytes().await.map_err(|e| UsageScanError::Transport(e.to_string()))?;
         if !status.is_success() {

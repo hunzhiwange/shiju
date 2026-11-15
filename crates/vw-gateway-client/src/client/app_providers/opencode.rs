@@ -99,12 +99,11 @@ impl GatewayClient {
             let prefix = "/v1/app-providers/opencode";
             let method = reqwest::Method::from_bytes(method.as_bytes())
                 .map_err(|_| Error::Transport("invalid method".into()))?;
-            let request = self
-                .dynamic_host_client
-                .request(method, format!("{}{prefix}/{id}{action}", self.endpoint.base_url()))
+            let request = self.transport.dynamic_host_client()
+                .request(method, format!("{}{prefix}/{id}{action}", self.transport.endpoint().base_url()))
                 .header("x-agent-apps-token", credential)
                 .json(body);
-            let response = crate::http::apply_request_context(request, &self.endpoint)
+            let response = crate::http::apply_request_context(request, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|_| Error::Transport("OpenCode request failed".into()))?;

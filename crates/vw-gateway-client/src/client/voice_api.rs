@@ -43,14 +43,14 @@ impl Drop for CancelOnDrop {
 impl GatewayClient {
     /// Patch only the authenticated tenant's non-secret voice fields.
     pub async fn voice_settings_patch(&self, patch: &serde_json::Value) -> Result<(), String> {
-        if !self.endpoint.is_loopback() {
+        if !self.transport.endpoint().is_loopback() {
             return Err("当前语音传输仅支持本机网关。".into());
         }
         let response = apply_request_context(
-            self.dynamic_host_client
-                .patch(format!("{}/api/voice/config", self.endpoint.base_url()))
+            self.transport.dynamic_host_client()
+                .patch(format!("{}/api/voice/config", self.transport.endpoint().base_url()))
                 .json(patch),
-            &self.endpoint,
+            self.transport.endpoint(),
         )
         .send()
         .await
@@ -69,14 +69,14 @@ impl GatewayClient {
         futures_util::stream::BoxStream<'static, Result<Vec<u8>, VoiceApiError>>,
         VoiceApiError,
     > {
-        if !self.endpoint.is_loopback() {
+        if !self.transport.endpoint().is_loopback() {
             return Err(VoiceApiError::Service(VoiceErrorCode::UnsupportedCapability));
         }
         let response = apply_request_context(
-            self.dynamic_host_client
-                .post(format!("{}/api/voice/preview", self.endpoint.base_url()))
+            self.transport.dynamic_host_client()
+                .post(format!("{}/api/voice/preview", self.transport.endpoint().base_url()))
                 .json(&serde_json::json!({"voice":voice})),
-            &self.endpoint,
+            self.transport.endpoint(),
         )
         .send()
         .await
@@ -96,12 +96,12 @@ impl GatewayClient {
     }
     /// Fetch the authenticated tenant's non-secret voice configuration only.
     pub async fn voice_config<T: serde::de::DeserializeOwned>(&self) -> Result<T, VoiceApiError> {
-        if !self.endpoint.is_loopback() {
+        if !self.transport.endpoint().is_loopback() {
             return Err(VoiceApiError::Service(VoiceErrorCode::UnsupportedCapability));
         }
         let response = apply_request_context(
-            self.dynamic_host_client.get(format!("{}/api/voice/config", self.endpoint.base_url())),
-            &self.endpoint,
+            self.transport.dynamic_host_client().get(format!("{}/api/voice/config", self.transport.endpoint().base_url())),
+            self.transport.endpoint(),
         )
         .send()
         .await
@@ -138,18 +138,18 @@ impl GatewayClient {
         }
         // The shared endpoint currently supports HTTP only. Remote voice must
         // wait for TLS support in that transport instead of exposing recordings.
-        if !self.endpoint.is_loopback() {
+        if !self.transport.endpoint().is_loopback() {
             return Err(VoiceApiError::Service(VoiceErrorCode::UnsupportedCapability));
         }
-        let base = format!("{}/api/voice/transcriptions", self.endpoint.base_url());
+        let base = format!("{}/api/voice/transcriptions", self.transport.endpoint().base_url());
         let mut cancel = CancelOnDrop {
             request: Some(apply_request_context(
-                self.dynamic_host_client.delete(format!(
+                self.transport.dynamic_host_client().delete(format!(
                     "{}/{}",
                     base,
                     encode_id(metadata.request_id.as_ref())
                 )),
-                &self.endpoint,
+                self.transport.endpoint(),
             )),
         };
         let file = reqwest::multipart::Part::bytes(audio)
@@ -165,8 +165,8 @@ impl GatewayClient {
             )
             .part("file", file);
         let response = apply_request_context(
-            self.dynamic_host_client.post(base).multipart(form),
-            &self.endpoint,
+            self.transport.dynamic_host_client().post(base).multipart(form),
+            self.transport.endpoint(),
         )
         .send()
         .await
@@ -212,16 +212,16 @@ impl GatewayClient {
     ) -> Result<(), VoiceApiError> {
         // The shared endpoint currently supports HTTP only. Remote voice must
         // wait for TLS support in that transport instead of exposing recordings.
-        if !self.endpoint.is_loopback() {
+        if !self.transport.endpoint().is_loopback() {
             return Err(VoiceApiError::Service(VoiceErrorCode::UnsupportedCapability));
         }
         let response = apply_request_context(
-            self.dynamic_host_client.delete(format!(
+            self.transport.dynamic_host_client().delete(format!(
                 "{}/api/voice/transcriptions/{}",
-                self.endpoint.base_url(),
+                self.transport.endpoint().base_url(),
                 encode_id(request_id.as_ref())
             )),
-            &self.endpoint,
+            self.transport.endpoint(),
         )
         .send()
         .await

@@ -95,14 +95,14 @@ impl GatewayClient {
     async fn data_migration_bytes<B: Serialize>(&self, route: &str, input: &B, token: Option<&str>) -> Result<Vec<u8>, DataMigrationError> {
         use DataMigrationError as Error;
         let transport = self.native_transport().map_err(|_| Error::NativeTransportRequired)?;
-        let mut request = transport.post(format!("{}/v1/agent-apps/data/{route}", self.endpoint.base_url())).json(input);
+        let mut request = transport.post(format!("{}/v1/agent-apps/data/{route}", self.transport.endpoint().base_url())).json(input);
         if let Some(token) = token {
             let mut value = reqwest::header::HeaderValue::from_str(token).map_err(|_| Error::InvalidCredential)?;
             value.set_sensitive(true);
             request = request.header("x-agent-apps-token", value);
         }
         // Native transport disables redirects and retries and applies a bounded timeout.
-        let mut response = crate::http::apply_request_context(request, &self.endpoint)
+        let mut response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send().await.map_err(transport_error)?;
         let status = response.status();
         let limit = if status.is_success() { 64 * 1024 * 1024 } else { 16 * 1024 };

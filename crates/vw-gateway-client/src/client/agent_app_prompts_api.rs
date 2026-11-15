@@ -293,7 +293,7 @@ impl GatewayClient {
         let mut request = transport
             .request(
                 if body.is_some() { reqwest::Method::POST } else { reqwest::Method::GET },
-                format!("{}/v1/agent-apps/prompts{path}", self.endpoint.base_url()),
+                format!("{}/v1/agent-apps/prompts{path}", self.transport.endpoint().base_url()),
             )
             .header("x-agent-apps-token", credential);
         if let Some(body) = body {
@@ -304,7 +304,7 @@ impl GatewayClient {
                 request = request.query(&[("query", query)]);
             }
         }
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await
             .map_err(|_| E::Transport)?;

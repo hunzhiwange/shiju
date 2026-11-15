@@ -75,6 +75,7 @@ members = [
   "crates/libs/domain-matcher",
   "crates/libs/gateway-pairing",
   "crates/libs/gateway-endpoint",
+  "crates/libs/gateway-http",
   "crates/libs/git-discovery",
   "crates/libs/memory-algorithms",
   "crates/libs/memory-types",

@@ -101,19 +101,18 @@ impl GatewayClient {
             let prefix = "/v1/app-providers/kimi";
             let method = reqwest::Method::from_bytes(method.as_bytes())
                 .map_err(|_| Error::Transport("invalid method".into()))?;
-            let mut url = reqwest::Url::parse(&format!("{}{prefix}/", self.endpoint.base_url()))
+            let mut url = reqwest::Url::parse(&format!("{}{prefix}/", self.transport.endpoint().base_url()))
                 .map_err(|_| Error::Transport("invalid gateway endpoint".into()))?;
             url.path_segments_mut()
                 .map_err(|_| Error::Transport("invalid gateway endpoint".into()))?
                 .pop_if_empty()
                 .push(id)
                 .extend(action.trim_start_matches('/').split('/'));
-            let request = self
-                .dynamic_host_client
+            let request = self.transport.dynamic_host_client()
                 .request(method, url)
                 .header("x-agent-apps-token", credential)
                 .json(body);
-            let response = crate::http::apply_request_context(request, &self.endpoint)
+            let response = crate::http::apply_request_context(request, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|_| Error::Transport("Kimi request failed".into()))?;

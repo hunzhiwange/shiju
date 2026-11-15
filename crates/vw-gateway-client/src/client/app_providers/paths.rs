@@ -52,18 +52,18 @@ impl GatewayClient {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let base =
-                format!("{}{}/config", self.endpoint.base_url(), provider_collection_path(app));
+                format!("{}{}/config", self.transport.endpoint().base_url(), provider_collection_path(app));
             let mut credential = reqwest::header::HeaderValue::from_str(token)
                 .map_err(|_| Error::Transport("invalid application credential".into()))?;
             credential.set_sensitive(true);
-            let client = &self.dynamic_host_client;
+            let client = &self.transport.dynamic_host_client();
             let request = match request {
                 Request::Inspect => client.post(format!("{base}/paths")).json(body),
                 Request::Read => client.get(format!("{base}/directory")).query(body),
                 Request::Save => client.put(format!("{base}/directory")).json(body),
             }
             .header("x-agent-apps-token", credential);
-            let response = crate::http::apply_request_context(request, &self.endpoint)
+            let response = crate::http::apply_request_context(request, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|_| Error::Transport("configuration path request failed".into()))?;

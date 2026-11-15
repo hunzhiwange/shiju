@@ -135,14 +135,13 @@ impl GatewayClient {
         let mut token = HeaderValue::from_str(principal_token)
             .map_err(|_| AppsUsageReadError::InvalidPrincipalToken)?;
         token.set_sensitive(true);
-        let request = self
-            .dynamic_host_client
-            .get(format!("{}{path}", self.endpoint.base_url()))
+        let request = self.transport.dynamic_host_client()
+            .get(format!("{}{path}", self.transport.endpoint().base_url()))
             .query(selection)
             .header(CACHE_CONTROL, "no-cache, no-store")
             .header("x-agent-apps-token", token);
 
-        let response = apply_request_context(request, &self.endpoint)
+        let response = apply_request_context(request, self.transport.endpoint())
             .send()
             .await
             .map_err(|_| AppsUsageReadError::Transport)?;

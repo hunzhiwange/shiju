@@ -14,7 +14,7 @@ impl GatewayClient {
         &self,
         builder: reqwest::RequestBuilder,
     ) -> Result<T, String> {
-        let response = crate::http::apply_request_context(builder, &self.endpoint)
+        let response = crate::http::apply_request_context(builder, self.transport.endpoint())
             .send()
             .await
             .map_err(|_| "universal provider transport failed")?;
@@ -30,7 +30,7 @@ impl GatewayClient {
         request: &UniversalProviderWrite,
     ) -> Result<UniversalProviderSummary, String> {
         self.universal_response(
-            self.client.put(format!("{}{}", self.endpoint.base_url(), path(id)?)).json(request),
+            self.transport.client().put(format!("{}{}", self.transport.endpoint().base_url(), path(id)?)).json(request),
         )
         .await
     }
@@ -38,23 +38,23 @@ impl GatewayClient {
         &self,
         id: &str,
     ) -> Result<UniversalProviderSummary, String> {
-        self.universal_response(self.client.get(format!(
+        self.universal_response(self.transport.client().get(format!(
             "{}{}",
-            self.endpoint.base_url(),
+            self.transport.endpoint().base_url(),
             path(id)?
         )))
         .await
     }
     pub async fn universal_providers_list(&self) -> Result<Vec<UniversalProviderSummary>, String> {
         self.universal_response(
-            self.client.get(format!("{}/v1/universal-providers", self.endpoint.base_url())),
+            self.transport.client().get(format!("{}/v1/universal-providers", self.transport.endpoint().base_url())),
         )
         .await
     }
     pub async fn universal_provider_delete(&self, id: &str) -> Result<bool, String> {
-        self.universal_response(self.client.delete(format!(
+        self.universal_response(self.transport.client().delete(format!(
             "{}{}",
-            self.endpoint.base_url(),
+            self.transport.endpoint().base_url(),
             path(id)?
         )))
         .await

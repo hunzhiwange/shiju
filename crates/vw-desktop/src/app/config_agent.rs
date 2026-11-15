@@ -251,7 +251,7 @@ fn load_agent_config_via_gateway() -> Config {
     match result {
         Ok(config) => config,
         Err(err) => {
-            if vw_gateway_client::is_gateway_unavailable_error(&err) {
+            if gateway_http::is_gateway_unavailable_error(&err) {
                 tracing::debug!(target: "vw_desktop", error = %err, "failed to load agent config via gateway");
             } else {
                 tracing::warn!(target: "vw_desktop", error = %err, "failed to load agent config via gateway");
@@ -600,7 +600,7 @@ macro_rules! define_agent_config_update_async_fns {
 /// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
 pub fn load_gateway_config() -> GatewayConfig {
     load_gateway_config_result().unwrap_or_else(|err| {
-        if vw_gateway_client::is_gateway_unavailable_error(&err) {
+        if gateway_http::is_gateway_unavailable_error(&err) {
             tracing::debug!(target: "vw_desktop", error = %err, "failed to load gateway config via gateway");
         } else {
             tracing::warn!(target: "vw_desktop", error = %err, "failed to load gateway config via gateway");

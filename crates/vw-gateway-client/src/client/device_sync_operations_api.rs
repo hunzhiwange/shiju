@@ -121,14 +121,14 @@ impl GatewayClient {
         credential.set_sensitive(true);
         let transport = match transport { DeviceSyncTransport::Webdav => "webdav", DeviceSyncTransport::S3 => "s3" };
         let mut request = self.native_transport().map_err(|_| E::Transport)?.request(method,
-            format!("{}/v1/agent-apps/device-sync/{transport}/{operation}", self.endpoint.base_url()))
+            format!("{}/v1/agent-apps/device-sync/{transport}/{operation}", self.transport.endpoint().base_url()))
             .header("x-agent-apps-token", credential);
         if let Some((project, host)) = scope {
             if host.trim().is_empty() { return Err(E::InvalidInput); }
             request = request.query(&[("projectId", project.as_ref()), ("targetHostId", host)]);
         }
         if let Some(body) = body { request = request.json(body); }
-        let response = crate::http::apply_request_context(request, &self.endpoint).send().await.map_err(|_| E::Transport)?;
+        let response = crate::http::apply_request_context(request, self.transport.endpoint()).send().await.map_err(|_| E::Transport)?;
         let status = response.status().as_u16();
         let bytes = response.bytes().await.map_err(|_| E::Transport)?;
         if !(200..300).contains(&status) {

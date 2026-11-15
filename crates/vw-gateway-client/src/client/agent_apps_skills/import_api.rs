@@ -24,9 +24,9 @@ impl GatewayClient {
             .map_err(|_| SkillImportError::Transport)?;
         credential.set_sensitive(true);
         let request = self.native_transport().map_err(|_| SkillImportError::Transport)?
-            .post(format!("{}/v1/agent-apps/skills/import", self.endpoint.base_url()))
+            .post(format!("{}/v1/agent-apps/skills/import", self.transport.endpoint().base_url()))
             .json(query).header("x-agent-apps-token", credential);
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send().await.map_err(|_| SkillImportError::Transport)?;
         let status = response.status();
         let bytes = response.bytes().await.map_err(|_| SkillImportError::Transport)?;
@@ -41,9 +41,9 @@ impl GatewayClient {
             .map_err(|_| SkillImportError::Transport)?;
         credential.set_sensitive(true);
         let request = self.native_transport().map_err(|_| SkillImportError::Transport)?
-            .get(format!("{}/v1/agent-apps/skills/unmanaged", self.endpoint.base_url()))
+            .get(format!("{}/v1/agent-apps/skills/unmanaged", self.transport.endpoint().base_url()))
             .query(query).header("x-agent-apps-token", credential);
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send().await.map_err(|_| SkillImportError::Transport)?;
         let status = response.status();
         let bytes = response.bytes().await.map_err(|_| SkillImportError::Transport)?;

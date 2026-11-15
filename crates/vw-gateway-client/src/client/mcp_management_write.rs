@@ -54,7 +54,7 @@ impl GatewayClient {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let mut url =
-                reqwest::Url::parse(&format!("{}/v1/agent-apps/mcp", self.endpoint.base_url()))
+                reqwest::Url::parse(&format!("{}/v1/agent-apps/mcp", self.transport.endpoint().base_url()))
                     .map_err(|err| AgentAppsSettingsError::Transport(err.to_string()))?;
             if let Some(id) = id {
                 if id.0.is_empty() || matches!(id.0.as_str(), "." | "..") {
@@ -70,12 +70,11 @@ impl GatewayClient {
                 AgentAppsSettingsError::Transport("invalid application credential".into())
             })?;
             credential.set_sensitive(true);
-            let request = self
-                .dynamic_host_client
+            let request = self.transport.dynamic_host_client()
                 .request(method, url)
                 .header("x-agent-apps-token", credential)
                 .json(body);
-            let response = crate::http::apply_request_context(request, &self.endpoint)
+            let response = crate::http::apply_request_context(request, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|err| AgentAppsSettingsError::Transport(err.to_string()))?;

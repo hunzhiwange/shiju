@@ -98,8 +98,8 @@ impl GatewayClient {
             };
             let method = reqwest::Method::from_bytes(method.as_bytes())
                 .map_err(|_| Error::Transport("invalid operation method".into()))?;
-            let url = format!("{}/v1/app-providers/operations{path}", self.endpoint.base_url());
-            let mut request = self.dynamic_host_client.request(method, url);
+            let url = format!("{}/v1/app-providers/operations{path}", self.transport.endpoint().base_url());
+            let mut request = self.transport.dynamic_host_client().request(method, url);
             if let Some(token) = token {
                 let mut credential = reqwest::header::HeaderValue::from_str(token)
                     .map_err(|_| Error::Transport("invalid application credential".into()))?;
@@ -113,7 +113,7 @@ impl GatewayClient {
             } else {
                 request = request.query(&[("targetHostId", host)]);
             }
-            let response = crate::http::apply_request_context(request, &self.endpoint)
+            let response = crate::http::apply_request_context(request, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|_| Error::Transport("Provider operation request failed".into()))?;

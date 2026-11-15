@@ -398,7 +398,7 @@ pub fn load_app_config() -> serde_json::Value {
         Ok(value) if value.is_object() => value,
         Ok(_) => serde_json::json!({}),
         Err(err) => {
-            if vw_gateway_client::is_gateway_unavailable_error(&err) {
+            if gateway_http::is_gateway_unavailable_error(&err) {
                 tracing::debug!(target: "vw_desktop", error = %err, "failed to load desktop preferences via gateway");
             } else {
                 tracing::warn!(target: "vw_desktop", error = %err, "failed to load desktop preferences via gateway");
@@ -412,7 +412,7 @@ pub fn load_app_config() -> serde_json::Value {
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub fn save_app_config(v: &serde_json::Value) {
     if let Err(err) = run_gateway_call(save_app_config_async(v.clone())) {
-        if vw_gateway_client::is_gateway_unavailable_error(&err) {
+        if gateway_http::is_gateway_unavailable_error(&err) {
             tracing::debug!(target: "vw_desktop", error = %err, "failed to save desktop preferences via gateway");
         } else {
             tracing::warn!(target: "vw_desktop", error = %err, "failed to save desktop preferences via gateway");
@@ -463,7 +463,7 @@ pub fn load_project_chat_preferences(project_path: &str) -> Option<(String, bool
     match result {
         Ok(value) => value,
         Err(err) => {
-            if vw_gateway_client::is_gateway_unavailable_error(&err) {
+            if gateway_http::is_gateway_unavailable_error(&err) {
                 tracing::debug!(target: "vw_desktop", error = %err, project_path, "failed to load project chat preferences via gateway");
             } else {
                 tracing::warn!(target: "vw_desktop", error = %err, project_path, "failed to load project chat preferences via gateway");
@@ -616,7 +616,7 @@ fn load_tool_content(tool_type: &str) -> String {
     match result {
         Ok(content) => content,
         Err(err) => {
-            if vw_gateway_client::is_gateway_unavailable_error(&err) {
+            if gateway_http::is_gateway_unavailable_error(&err) {
                 tracing::debug!(target: "vw_desktop", error = %err, tool_type, "failed to load tool content via gateway");
             } else {
                 tracing::warn!(target: "vw_desktop", error = %err, tool_type, "failed to load tool content via gateway");

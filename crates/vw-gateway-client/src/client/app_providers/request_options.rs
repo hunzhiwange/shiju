@@ -51,12 +51,11 @@ impl GatewayClient {
             let path = super::provider_path(app, id).map_err(Error::Transport)?;
             let method = reqwest::Method::from_bytes(method.as_bytes())
                 .map_err(|_| Error::Transport("invalid method".into()))?;
-            let request = self
-                .dynamic_host_client
-                .request(method, format!("{}{path}{action}", self.endpoint.base_url()))
+            let request = self.transport.dynamic_host_client()
+                .request(method, format!("{}{path}{action}", self.transport.endpoint().base_url()))
                 .header("x-agent-apps-token", credential)
                 .json(body);
-            let response = crate::http::apply_request_context(request, &self.endpoint)
+            let response = crate::http::apply_request_context(request, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|_| Error::Transport("request options request failed".into()))?;

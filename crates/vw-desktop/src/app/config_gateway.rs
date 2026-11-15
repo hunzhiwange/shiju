@@ -208,7 +208,7 @@ pub fn load_tools_list_via_gateway() -> Vec<String> {
     match result {
         Ok(tools) => normalize_tool_ids(tools),
         Err(err) => {
-            if vw_gateway_client::is_gateway_unavailable_error(&err) {
+            if gateway_http::is_gateway_unavailable_error(&err) {
                 tracing::debug!(target: "vw_desktop", error = %err, "failed to load tools list via gateway");
             } else {
                 tracing::warn!(target: "vw_desktop", error = %err, "failed to load tools list via gateway");

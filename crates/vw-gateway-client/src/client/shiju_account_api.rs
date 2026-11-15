@@ -341,7 +341,7 @@ impl GatewayClient {
             tracing::error!(
                 target: "vw_gateway_client",
                 method = method.as_str(),
-                endpoint = %self.endpoint.describe(),
+                endpoint = %self.transport.endpoint().describe(),
                 path,
                 error = %message,
                 "SHIJU gateway response JSON decode failed"
@@ -376,10 +376,9 @@ impl GatewayClient {
     where
         B: Serialize,
     {
-        log_request::<()>(method.as_str(), &self.endpoint, path, query, None);
-        let mut request = self
-            .client
-            .request(method.clone(), format!("{}{}", self.endpoint.base_url(), path))
+        log_request::<()>(method.as_str(), self.transport.endpoint(), path, query, None);
+        let mut request = self.transport.client()
+            .request(method.clone(), format!("{}{}", self.transport.endpoint().base_url(), path))
             .query(query);
         if let Some(body) = body {
             request = request.json(body);
@@ -387,16 +386,16 @@ impl GatewayClient {
         if let Some(credential) = credential {
             request = request.header(SHIJU_CREDENTIAL_HEADER, credential.expose());
         }
-        let response = apply_request_context(request, &self.endpoint)
+        let response = apply_request_context(request, self.transport.endpoint())
             .send()
             .await
-            .map_err(|error| transport_error(method.as_str(), &self.endpoint, path, error))?;
+            .map_err(|error| transport_error(method.as_str(), self.transport.endpoint(), path, error))?;
         let status = response.status();
         if !status.is_success() {
             tracing::warn!(
                 target: "vw_gateway_client",
                 method = method.as_str(),
-                endpoint = %self.endpoint.describe(),
+                endpoint = %self.transport.endpoint().describe(),
                 path,
                 status = %status,
                 "SHIJU gateway request returned non-success status"
@@ -412,7 +411,7 @@ impl GatewayClient {
                 .unwrap_or_else(|| format!("SHIJU gateway request failed: {status}"));
             return Err(message);
         }
-        log_request_succeeded(method.as_str(), &self.endpoint, path);
+        log_request_succeeded(method.as_str(), self.transport.endpoint(), path);
         Ok(response)
     }
 }

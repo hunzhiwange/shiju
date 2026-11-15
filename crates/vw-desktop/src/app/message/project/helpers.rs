@@ -364,7 +364,7 @@ pub(crate) async fn refresh_file_index_with_fallback(project_path: &str) -> File
     match refresh_gateway_file_index(project_path).await {
         Ok(snapshot) => snapshot,
         Err(error) => {
-            if vw_gateway_client::is_gateway_unavailable_error(&error) {
+            if gateway_http::is_gateway_unavailable_error(&error) {
                 tracing::debug!(
                     target: "vw_desktop",
                     project_path,

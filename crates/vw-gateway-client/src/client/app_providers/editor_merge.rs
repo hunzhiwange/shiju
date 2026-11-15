@@ -44,16 +44,15 @@ impl GatewayClient {
             let mut credential = reqwest::header::HeaderValue::from_str(token)
                 .map_err(|_| Error::Transport("invalid application credential".into()))?;
             credential.set_sensitive(true);
-            let request = self
-                .dynamic_host_client
+            let request = self.transport.dynamic_host_client()
                 .post(format!(
                     "{}{}/{id}/editor/{action}",
-                    self.endpoint.base_url(),
+                    self.transport.endpoint().base_url(),
                     provider_collection_path(app)
                 ))
                 .header("x-agent-apps-token", credential)
                 .json(body);
-            let response = crate::http::apply_request_context(request, &self.endpoint)
+            let response = crate::http::apply_request_context(request, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|_| Error::Transport("editor request failed".into()))?;

@@ -231,17 +231,16 @@ impl GatewayClient {
             return Err("该后端需要手工准备服务，请查看安装帮助".into());
         }
         let path = format!("/v1/desktop/browser-install/{backend}");
-        let request = self
-            .client
-            .post(format!("{}{}", self.endpoint.base_url(), path))
+        let request = self.transport.client()
+            .post(format!("{}{}", self.transport.endpoint().base_url(), path))
             .json(&serde_json::json!({}));
         #[cfg(not(target_arch = "wasm32"))]
         let request = request.timeout(std::time::Duration::from_secs(630));
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await
-            .map_err(|err| crate::http::transport_error("POST", &self.endpoint, &path, err))?;
-        crate::http::parse_json_response("POST", &self.endpoint, &path, response).await
+            .map_err(|err| crate::http::transport_error("POST", self.transport.endpoint(), &path, err))?;
+        crate::http::parse_json_response("POST", self.transport.endpoint(), &path, response).await
     }
 
     /// 安装可能需要下载较大的包，使用独立请求超时。
@@ -250,17 +249,16 @@ impl GatewayClient {
             return Err("invalid ACP install name".into());
         }
         let path = format!("/v1/desktop/acp-install/{agent}");
-        let request = self
-            .client
-            .post(format!("{}{}", self.endpoint.base_url(), path))
+        let request = self.transport.client()
+            .post(format!("{}{}", self.transport.endpoint().base_url(), path))
             .json(&serde_json::json!({}));
         #[cfg(not(target_arch = "wasm32"))]
         let request = request.timeout(std::time::Duration::from_secs(310));
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await
-            .map_err(|err| crate::http::transport_error("POST", &self.endpoint, &path, err))?;
-        crate::http::parse_json_response("POST", &self.endpoint, &path, response).await
+            .map_err(|err| crate::http::transport_error("POST", self.transport.endpoint(), &path, err))?;
+        crate::http::parse_json_response("POST", self.transport.endpoint(), &path, response).await
     }
 
     pub async fn acp_diagnostic(&self, id: &str, config: &Value) -> Result<String, String> {
@@ -697,11 +695,10 @@ impl GatewayClient {
         if value.get("gateway_client").is_some() {
             // A rejected connection snapshot may be echoed in the response.
             // Keep both the payload and the server's error text out of logs and UI messages.
-            let request = self
-                .client
-                .patch(format!("{}/v1/global/config", self.endpoint.base_url()))
+            let request = self.transport.client()
+                .patch(format!("{}/v1/global/config", self.transport.endpoint().base_url()))
                 .json(&serde_json::json!({"app_ui": {"system_settings": value}}));
-            let response = apply_request_context(request, &self.endpoint)
+            let response = apply_request_context(request, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|_| "gateway connection sync request failed".to_string())?;

@@ -73,13 +73,13 @@ impl GatewayClient {
         self.usage_read(&["trends"], scope, query, interval).await
     }
     async fn usage_read<T: DeserializeOwned>(&self, resource: &[&str], scope: &UsageReadScope, query: &UsageQuery, interval: Option<UsageSeriesInterval>) -> Result<T, UsageReadError> {
-        if !self.endpoint.auth.as_ref().and_then(|a| a.skey.as_deref()).is_some_and(|key| !key.trim().is_empty()) {
+        if !self.transport.endpoint().auth.as_ref().and_then(|a| a.skey.as_deref()).is_some_and(|key| !key.trim().is_empty()) {
             return Err(UsageReadError::Unauthenticated);
         }
         if scope.project_id.as_ref().trim().is_empty() || scope.target_host.trim().is_empty() || scope.time_zone.trim().is_empty() {
             return Err(UsageReadError::InvalidInput("usage project, host and timezone are required".into()));
         }
-        let mut url = reqwest::Url::parse(&self.endpoint.base_url())
+        let mut url = reqwest::Url::parse(self.transport.endpoint().base_url())
             .map_err(|e| UsageReadError::InvalidInput(e.to_string()))?;
         url.path_segments_mut().map_err(|_| UsageReadError::InvalidInput("invalid gateway URL".into()))?
             .pop_if_empty().extend(["v1", "usage"]).extend(resource.iter().copied());
@@ -94,7 +94,7 @@ impl GatewayClient {
             pairs.push(("interval", match interval { UsageSeriesInterval::Hour => "hour", UsageSeriesInterval::Day => "day" }.into()));
         }
         let request = self.native_transport().map_err(UsageReadError::Transport)?.get(url).query(&pairs);
-        let response = crate::http::apply_request_context(request, &self.endpoint).send().await
+        let response = crate::http::apply_request_context(request, self.transport.endpoint()).send().await
             .map_err(|e| UsageReadError::Transport(e.to_string()))?;
         let status = response.status();
         let bytes = response.bytes().await.map_err(|e| UsageReadError::Transport(e.to_string()))?;

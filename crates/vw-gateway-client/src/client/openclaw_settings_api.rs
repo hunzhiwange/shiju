@@ -165,14 +165,14 @@ impl GatewayClient {
         let mut request = transport
             .request(
                 method,
-                format!("{}/v1/agent-apps/openclaw/settings/{resource}", self.endpoint.base_url()),
+                format!("{}/v1/agent-apps/openclaw/settings/{resource}", self.transport.endpoint().base_url()),
             )
             .query(scope)
             .header("x-agent-apps-token", credential);
         if let Some(body) = body {
             request = request.json(&body);
         }
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await
             .map_err(|_| E::Transport)?;

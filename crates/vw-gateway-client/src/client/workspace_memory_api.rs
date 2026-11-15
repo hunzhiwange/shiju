@@ -47,14 +47,14 @@ pub struct WorkspaceSearch {
 impl WorkspaceSearch {
     pub async fn poll(&mut self, token: &str) -> Result<WorkspaceSearchResponse, WorkspaceMemoryError> {
         if self.cancelled { return Err(WorkspaceMemoryError::Cancelled); }
-        self.client.workspace_request(reqwest::Method::GET, &format!("search/{}", self.id), &self.scope, token, None).await?
+        self.transport.client().workspace_request(reqwest::Method::GET, &format!("search/{}", self.id), &self.scope, token, None).await?
             .json().await.map_err(|_| WorkspaceMemoryError::Decode)
     }
     /// Stop local result consumption before sending cancellation. Failure may be
     /// retried with this handle; polling remains disabled even if DELETE fails.
     pub async fn cancel(&mut self, token: &str) -> Result<AppOperationStatus, WorkspaceMemoryError> {
         self.cancelled = true;
-        let response: WorkspaceSearchResponse = self.client.workspace_request(reqwest::Method::DELETE, &format!("search/{}", self.id), &self.scope, token, None).await?
+        let response: WorkspaceSearchResponse = self.transport.client().workspace_request(reqwest::Method::DELETE, &format!("search/{}", self.id), &self.scope, token, None).await?
             .json().await.map_err(|_| WorkspaceMemoryError::Decode)?;
         Ok(response.progress)
     }
@@ -104,10 +104,10 @@ impl GatewayClient {
         let mut credential = reqwest::header::HeaderValue::from_str(token).map_err(|_| E::InvalidInput)?;
         credential.set_sensitive(true);
         let mut request = self.native_transport().map_err(|_| E::Transport)?
-            .request(method, format!("{}/v1/agent-apps/openclaw/workspace/{resource}", self.endpoint.base_url()))
+            .request(method, format!("{}/v1/agent-apps/openclaw/workspace/{resource}", self.transport.endpoint().base_url()))
             .query(scope).header("x-agent-apps-token", credential);
         if let Some(body) = body { request = request.json(&body); }
-        let response = crate::http::apply_request_context(request, &self.endpoint).send().await.map_err(|_| E::Transport)?;
+        let response = crate::http::apply_request_context(request, self.transport.endpoint()).send().await.map_err(|_| E::Transport)?;
         if !response.status().is_success() { return Err(E::Http(response.status().as_u16())); }
         Ok(response)
     }

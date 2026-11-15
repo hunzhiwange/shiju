@@ -34,3 +34,19 @@
 允许命令（仓库根）：`git diff --check`、`git diff --stat`、`rg -n 'vw_gateway_client|pub use|mod |path =' crates/libs/gateway-http crates/vw-gateway-client`（门面任务改查原包）；阅读实际调用者并核对清单路径。rg 无匹配按搜索目的判断。
 
 后续另行授权统一验收：本卡来源中既有测试的全部行为、线协议方法/路径/查询/正文、错误类型与文案、空值/404、认证与租户隔离、原生/wasm cfg 及门面兼容。涉及流式接口另验 SSE 帧边界、断流/取消/恢复与 WebSocket 关闭；涉及宿主请求另验禁重定向/重试及授权拒绝。当前编译、测试、性能与实机均未验证，不宣称通过。
+
+## 本次静态交接
+
+状态：已完成（实现与静态审查；未运行 Cargo、测试及实机验证）。
+
+| 来源 | 唯一归属与接线 |
+| --- | --- |
+| http.rs 全部函数、常量与私有脱敏 helper | gateway-http/src/http.rs；原模块仅显式重导出 |
+| client/request_helpers.rs 全部 JSON helpers 与 blocking helper | gateway-http/src/request_helpers.rs；原模块仅显式转发 |
+| http_tests.rs | gateway-http/src/http_tests.rs，原断言保留 |
+| client/request_helpers_tests.rs | gateway-http/src/request_helpers_tests.rs，原断言保留 |
+| client/mod.rs 构造、native_transport、endpoint、三项状态 | gateway-http/src/lib.rs 的 GatewayTransport；门面显式持有 transport |
+| client/test_support.rs | 门面固件保留；传输库局部复制固件，工厂改用 GatewayTransport |
+
+前置 gateway-endpoint 已由 fee967d7f 落地，实际导入使用现有 vw-api-transport。
+所有尚未迁移业务 impl 显式使用传输访问器；原生直接宿主连接池访问保留独立访问器，不改变授权拒绝分支。四消费者重新搜索后，HTTP 函数直接调用仅桌面端的不可达分类，已改依赖 gateway-http；其余仍调用业务门面。保留 tracing target 的原字符串以兼容日志订阅，无反向 crate 依赖。Cargo.lock 未修改。

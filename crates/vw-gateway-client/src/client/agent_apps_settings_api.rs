@@ -220,9 +220,8 @@ impl GatewayClient {
         #[cfg(not(target_arch = "wasm32"))]
         {
             // This existing transport disables redirects and retry, including on ambiguous writes.
-            let mut request = self
-                .dynamic_host_client
-                .request(method, format!("{}/v1/agent-apps/{resource}", self.endpoint.base_url()))
+            let mut request = self.transport.dynamic_host_client()
+                .request(method, format!("{}/v1/agent-apps/{resource}", self.transport.endpoint().base_url()))
                 .query(&[("targetHostId", host)]);
             if let Some(token) = token {
                 request = request.header("x-agent-apps-token", token);
@@ -230,7 +229,7 @@ impl GatewayClient {
             if let Some(body) = body {
                 request = request.json(body);
             }
-            let response = crate::http::apply_request_context(request, &self.endpoint)
+            let response = crate::http::apply_request_context(request, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|err| AgentAppsSettingsError::Transport(err.to_string()))?;

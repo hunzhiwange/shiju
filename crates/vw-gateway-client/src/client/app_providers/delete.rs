@@ -16,12 +16,11 @@ impl GatewayClient {
         let mut credential = reqwest::header::HeaderValue::from_str(token)
             .map_err(|_| "invalid application credential")?;
         credential.set_sensitive(true);
-        let builder = self
-            .client
-            .delete(format!("{}{}", self.endpoint.base_url(), path))
+        let builder = self.transport.client()
+            .delete(format!("{}{}", self.transport.endpoint().base_url(), path))
             .header("x-agent-apps-token", credential)
             .json(request);
-        let response = crate::http::apply_request_context(builder, &self.endpoint)
+        let response = crate::http::apply_request_context(builder, self.transport.endpoint())
             .send()
             .await
             .map_err(|_| "application provider delete transport failed")?;

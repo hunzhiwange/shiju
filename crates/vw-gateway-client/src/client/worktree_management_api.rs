@@ -86,17 +86,16 @@ impl GatewayClient {
         id: &str,
     ) -> Result<OperationAck, String> {
         let path = format!("{}/retry-initialization", self.management_path(scope, Some(id))?);
-        let builder = self
-            .client
-            .post(format!("{}{}", self.endpoint.base_url(), path))
+        let builder = self.transport.client()
+            .post(format!("{}{}", self.transport.endpoint().base_url(), path))
             .json(&serde_json::json!({}));
         #[cfg(not(target_arch = "wasm32"))]
         let builder = builder.timeout(std::time::Duration::from_secs(270));
-        let response = crate::http::apply_request_context(builder, &self.endpoint)
+        let response = crate::http::apply_request_context(builder, self.transport.endpoint())
             .send()
             .await
-            .map_err(|error| crate::http::transport_error("POST", &self.endpoint, &path, error))?;
-        crate::http::parse_json_response("POST", &self.endpoint, &path, response).await
+            .map_err(|error| crate::http::transport_error("POST", self.transport.endpoint(), &path, error))?;
+        crate::http::parse_json_response("POST", self.transport.endpoint(), &path, response).await
     }
     pub async fn worktree_cleanup_proposal(
         &self,

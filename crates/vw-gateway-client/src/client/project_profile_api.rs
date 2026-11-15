@@ -177,7 +177,7 @@ impl GatewayClient {
     }
 
     async fn project_profile_response<T: DeserializeOwned>(&self, request: reqwest::RequestBuilder) -> Result<T, ProjectProfileApiError> {
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send().await.map_err(|e| ProjectProfileApiError::Transport(e.to_string()))?;
         let status = response.status();
         let bytes = response.bytes().await.map_err(|e| ProjectProfileApiError::Transport(e.to_string()))?;

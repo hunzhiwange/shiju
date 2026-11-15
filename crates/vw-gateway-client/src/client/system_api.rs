@@ -20,16 +20,16 @@ impl GatewayClient {
     pub async fn system_metrics(&self) -> Result<String, String> {
         const PATH: &str = "/v1/metrics";
 
-        log_request::<()>("GET", &self.endpoint, PATH, &[], None);
-        let request = self.client.get(format!("{}{}", self.endpoint.base_url(), PATH));
-        let response = apply_request_context(request, &self.endpoint)
+        log_request::<()>("GET", self.transport.endpoint(), PATH, &[], None);
+        let request = self.transport.client().get(format!("{}{}", self.transport.endpoint().base_url(), PATH));
+        let response = apply_request_context(request, self.transport.endpoint())
             .send()
             .await
-            .map_err(|error| transport_error("GET", &self.endpoint, PATH, error))?;
+            .map_err(|error| transport_error("GET", self.transport.endpoint(), PATH, error))?;
         if !response.status().is_success() {
-            return Err(response_error("GET", &self.endpoint, PATH, response).await);
+            return Err(response_error("GET", self.transport.endpoint(), PATH, response).await);
         }
-        log_request_succeeded("GET", &self.endpoint, PATH);
+        log_request_succeeded("GET", self.transport.endpoint(), PATH);
         response.text().await.map_err(|error| error.to_string())
     }
 

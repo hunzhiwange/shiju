@@ -13,11 +13,10 @@ impl GatewayClient {
         id: &str,
         value: &ProviderBasicWrite,
     ) -> Result<ProviderBasic, String> {
-        let request = self
-            .client
-            .put(format!("{}{}/basic", self.endpoint.base_url(), provider_path(app, id)?))
+        let request = self.transport.client()
+            .put(format!("{}{}/basic", self.transport.endpoint().base_url(), provider_path(app, id)?))
             .json(value);
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await
             .map_err(|_| "provider basic write transport failed")?;

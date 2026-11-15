@@ -213,7 +213,7 @@ fn sync_agent_scheduler_status_for_current_project(
 }
 
 fn agent_scheduler_gateway_unavailable(error: &str) -> bool {
-    vw_gateway_client::is_gateway_unavailable_error(error)
+    gateway_http::is_gateway_unavailable_error(error)
 }
 
 fn persist_task_metadata_patch_task(
@@ -2655,7 +2655,7 @@ pub fn update(
                 }
                 Err(error) => {
                     app.task_board_last_worktree_snapshot_at_ms = now_ms();
-                    if vw_gateway_client::is_gateway_unavailable_error(&error) {
+                    if gateway_http::is_gateway_unavailable_error(&error) {
                         tracing::debug!(
                             error = %error,
                             "worktree pool snapshot refresh skipped because gateway is unavailable"

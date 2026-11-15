@@ -125,10 +125,9 @@ impl GatewayClient {
         principal.set_sensitive(true);
 
         // Use the endpoint's tenant scope without its regular gateway credential.
-        let mut context = self.endpoint.clone();
+        let mut context = self.transport.endpoint().clone();
         context.auth = None;
-        let request = self
-            .dynamic_host_client
+        let request = self.transport.dynamic_host_client()
             .get(format!("{}/v1/agent-apps/auth/{resource}", context.base_url()))
             .query(&ScopeQuery { host_id, service, account_id })
             .header(CACHE_CONTROL, "no-cache, no-store")

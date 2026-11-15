@@ -43,7 +43,7 @@ pub(super) fn load_new_app_init() -> NewAppInit {
 
     #[cfg(not(target_arch = "wasm32"))]
     let global_acp_cfg = config::load_enabled_acp_config_result().unwrap_or_else(|err| {
-        if vw_gateway_client::is_gateway_unavailable_error(&err) {
+        if gateway_http::is_gateway_unavailable_error(&err) {
             tracing::debug!(target: "vw_desktop", error = %err, "failed to load ACP config via gateway");
         } else {
             tracing::warn!(target: "vw_desktop", error = %err, "failed to load ACP config via gateway");

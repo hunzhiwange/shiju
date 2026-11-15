@@ -87,7 +87,7 @@ impl GatewayClient {
     }
 
     fn aggregation_codex_url(&self, resource: &str) -> String {
-        format!("{}/v1/agent-apps/codex/aggregation/codex/{resource}", self.endpoint.base_url())
+        format!("{}/v1/agent-apps/codex/aggregation/codex/{resource}", self.transport.endpoint().base_url())
     }
 
     async fn aggregation_codex_response<T: DeserializeOwned>(
@@ -95,7 +95,7 @@ impl GatewayClient {
         request: reqwest::RequestBuilder,
         expected: reqwest::StatusCode,
     ) -> Result<T, AgentAppsSettingsError> {
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await
             .map_err(|_| AgentAppsSettingsError::Transport("Codex request failed".into()))?;

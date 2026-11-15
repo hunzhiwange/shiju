@@ -65,10 +65,10 @@ impl GatewayClient {
         let transport = self.native_transport().map_err(|_| E::Transport)?;
         let mut credential = reqwest::header::HeaderValue::from_str(token).map_err(|_| E::InvalidInput)?;
         credential.set_sensitive(true);
-        let mut request = transport.request(method, format!("{}/v1/agent-apps/hermes/{resource}", self.endpoint.base_url()))
+        let mut request = transport.request(method, format!("{}/v1/agent-apps/hermes/{resource}", self.transport.endpoint().base_url()))
             .query(scope).header("x-agent-apps-token", credential);
         if let Some(body) = body { request = request.json(&body); }
-        let response = crate::http::apply_request_context(request, &self.endpoint).send().await.map_err(|_| E::Transport)?;
+        let response = crate::http::apply_request_context(request, self.transport.endpoint()).send().await.map_err(|_| E::Transport)?;
         if !response.status().is_success() { return Err(E::Http(response.status().as_u16())); }
         response.json().await.map_err(|_| E::Decode)
     }

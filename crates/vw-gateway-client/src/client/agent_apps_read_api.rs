@@ -101,10 +101,10 @@ impl GatewayClient {
             ));
         }
         #[cfg(not(target_arch = "wasm32"))]
-        let transport = &self.dynamic_host_client;
+        let transport = &self.transport.dynamic_host_client();
         #[cfg(target_arch = "wasm32")]
-        let transport = &self.client;
-        let request = transport.get(format!("{}{path}", self.endpoint.base_url())).query(query);
+        let transport = &self.transport.client();
+        let request = transport.get(format!("{}{path}", self.transport.endpoint().base_url())).query(query);
         let request = if let Some(token) = token {
             let mut value = reqwest::header::HeaderValue::from_str(token).map_err(|_| {
                 AgentAppsReadError::Transport("invalid application credential".into())
@@ -114,7 +114,7 @@ impl GatewayClient {
         } else {
             request
         };
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await
             .map_err(|err| AgentAppsReadError::Transport(err.to_string()))?;

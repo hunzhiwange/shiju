@@ -177,8 +177,8 @@ impl GatewayClient {
         let pty_id = required_pty_id(pty_id)?;
         let mut url = reqwest::Url::parse(&format!(
             "ws://{}:{}/v1/pty/{}/connect",
-            self.endpoint.normalized_host(),
-            self.endpoint.port,
+            self.transport.endpoint().normalized_host(),
+            self.transport.endpoint().port,
             encode_path_segment(pty_id)
         ))
         .map_err(|error| format!("invalid PTY WebSocket URL: {error}"))?;
@@ -199,16 +199,15 @@ impl GatewayClient {
         let headers = request.headers_mut();
         headers.insert(
             PLATFORM_ID_HEADER,
-            HeaderValue::from_str(self.endpoint.tenant_scope().platform_id().as_ref())
+            HeaderValue::from_str(self.transport.endpoint().tenant_scope().platform_id().as_ref())
                 .map_err(|error| format!("invalid platform tenant header: {error}"))?,
         );
         headers.insert(
             COMPANY_ID_HEADER,
-            HeaderValue::from_str(self.endpoint.tenant_scope().company_id().as_ref())
+            HeaderValue::from_str(self.transport.endpoint().tenant_scope().company_id().as_ref())
                 .map_err(|error| format!("invalid company tenant header: {error}"))?,
         );
-        if let Some(skey) = self
-            .endpoint
+        if let Some(skey) = self.transport.endpoint()
             .auth
             .as_ref()
             .and_then(|auth| auth.skey.as_deref())

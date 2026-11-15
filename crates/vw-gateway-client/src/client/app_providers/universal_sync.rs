@@ -8,7 +8,7 @@ impl GatewayClient {
     ) -> Result<Vec<UniversalSyncResult>, String> {
         let path = super::universal::path(id)?;
         self.universal_response(
-            self.client.post(format!("{}{path}/sync", self.endpoint.base_url())).json(request),
+            self.transport.client().post(format!("{}{path}/sync", self.transport.endpoint().base_url())).json(request),
         )
         .await
     }

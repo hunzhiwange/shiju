@@ -10,11 +10,10 @@ impl GatewayClient {
         id: &str,
         request: &AppProviderEndpointChange,
     ) -> Result<Vec<AppProviderEndpoint>, String> {
-        let builder = self
-            .client
-            .post(format!("{}{}/endpoints", self.endpoint.base_url(), provider_path(app, id)?))
+        let builder = self.transport.client()
+            .post(format!("{}{}/endpoints", self.transport.endpoint().base_url(), provider_path(app, id)?))
             .json(request);
-        let response = crate::http::apply_request_context(builder, &self.endpoint)
+        let response = crate::http::apply_request_context(builder, self.transport.endpoint())
             .send()
             .await
             .map_err(|_| "application provider endpoint transport failed")?;
@@ -29,12 +28,12 @@ impl GatewayClient {
         app: AppId,
         id: &str,
     ) -> Result<Vec<AppProviderEndpoint>, String> {
-        let builder = self.client.get(format!(
+        let builder = self.transport.client().get(format!(
             "{}{}/endpoints",
-            self.endpoint.base_url(),
+            self.transport.endpoint().base_url(),
             provider_path(app, id)?
         ));
-        let response = crate::http::apply_request_context(builder, &self.endpoint)
+        let response = crate::http::apply_request_context(builder, self.transport.endpoint())
             .send()
             .await
             .map_err(|_| "application provider endpoint transport failed")?;

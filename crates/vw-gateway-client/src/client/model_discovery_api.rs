@@ -64,7 +64,7 @@ impl GatewayClient {
             let invalid_url = || Error::Transport("invalid model discovery URL".into());
             let mut url = reqwest::Url::parse(&format!(
                 "{}/v1/model-catalog/discoveries",
-                self.endpoint.base_url()
+                self.transport.endpoint().base_url()
             ))
             .map_err(|_| invalid_url())?;
             if let Some(id) = id {
@@ -73,8 +73,7 @@ impl GatewayClient {
             let mut credential = reqwest::header::HeaderValue::from_str(token)
                 .map_err(|_| Error::Transport("invalid application credential".into()))?;
             credential.set_sensitive(true);
-            let mut request = self
-                .dynamic_host_client
+            let mut request = self.transport.dynamic_host_client()
                 .request(method, url)
                 .header("x-agent-apps-token", credential)
                 .query(project)
@@ -82,7 +81,7 @@ impl GatewayClient {
             if let Some(input) = input {
                 request = request.json(input);
             }
-            let response = crate::http::apply_request_context(request, &self.endpoint)
+            let response = crate::http::apply_request_context(request, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|_| Error::Transport("model discovery request failed".into()))?;

@@ -214,8 +214,8 @@ impl GatewayClient {
     }
 
     fn usage_request(&self, method: Method, path: &str) -> RequestBuilder {
-        self.dynamic_host_client
-            .request(method, format!("{}{path}", self.endpoint.base_url()))
+        self.transport.dynamic_host_client()
+            .request(method, format!("{}{path}", self.transport.endpoint().base_url()))
             .header(CACHE_CONTROL, "no-cache, no-store")
     }
 
@@ -228,7 +228,7 @@ impl GatewayClient {
             .map_err(|_| AppsUsageWriteError::InvalidPrincipalToken)?;
         token.set_sensitive(true);
         let request = request.header("x-agent-apps-token", token);
-        let response = apply_request_context(request, &self.endpoint)
+        let response = apply_request_context(request, self.transport.endpoint())
             .send()
             .await
             .map_err(|_| AppsUsageWriteError::Transport)?;

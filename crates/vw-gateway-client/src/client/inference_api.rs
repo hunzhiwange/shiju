@@ -100,14 +100,14 @@ impl GatewayClient {
         &self,
         on_event: impl FnMut(crate::stream::GatewayJsonSseEvent) -> bool,
     ) -> Result<crate::stream::GatewayStreamAttemptResult, String> {
-        crate::stream::stream_json_sse(&self.endpoint, "/v1/events", &[], on_event).await
+        crate::stream::stream_json_sse(self.transport.endpoint(), "/v1/events", &[], on_event).await
     }
 
     pub async fn stream_global_events(
         &self,
         on_event: impl FnMut(crate::stream::GatewayJsonSseEvent) -> bool,
     ) -> Result<crate::stream::GatewayStreamAttemptResult, String> {
-        crate::stream::stream_json_sse(&self.endpoint, "/v1/global/event", &[], on_event).await
+        crate::stream::stream_json_sse(self.transport.endpoint(), "/v1/global/event", &[], on_event).await
     }
 
     pub async fn stream_instance_events(
@@ -119,7 +119,7 @@ impl GatewayClient {
             .filter(|value| !value.trim().is_empty())
             .map(|value| vec![("directory".to_string(), value.to_string())])
             .unwrap_or_default();
-        crate::stream::stream_json_sse(&self.endpoint, "/v1/event", &query, on_event).await
+        crate::stream::stream_json_sse(self.transport.endpoint(), "/v1/event", &query, on_event).await
     }
 
     pub async fn stream_agent_scheduler_events(
@@ -128,7 +128,7 @@ impl GatewayClient {
         after_cursor: Option<i64>,
         on_event: impl FnMut(crate::stream::GatewayJsonSseEvent) -> bool,
     ) -> Result<crate::stream::GatewayStreamAttemptResult, String> {
-        if scope.project_scope().tenant_scope() != self.endpoint.tenant_scope() {
+        if scope.project_scope().tenant_scope() != self.transport.endpoint().tenant_scope() {
             return Err("tenant scope does not match gateway endpoint tenant scope".to_string());
         }
         let path = format!(
@@ -138,7 +138,7 @@ impl GatewayClient {
         let query = after_cursor
             .map(|cursor| vec![("after_cursor".to_string(), cursor.to_string())])
             .unwrap_or_default();
-        crate::stream::stream_json_sse(&self.endpoint, &path, &query, on_event).await
+        crate::stream::stream_json_sse(self.transport.endpoint(), &path, &query, on_event).await
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -151,7 +151,7 @@ impl GatewayClient {
 };
 
         let url =
-            format!("ws://{}:{}/v1/ws/chat", self.endpoint.normalized_host(), self.endpoint.port);
+            format!("ws://{}:{}/v1/ws/chat", self.transport.endpoint().normalized_host(), self.transport.endpoint().port);
         let mut request = url
             .into_client_request()
             .map_err(|error| format!("invalid chat WebSocket request: {error}"))?;
@@ -159,16 +159,15 @@ impl GatewayClient {
         headers.insert("sec-websocket-protocol", HeaderValue::from_static("vibewindow.v1"));
         headers.insert(
             PLATFORM_ID_HEADER,
-            HeaderValue::from_str(self.endpoint.tenant_scope().platform_id().as_ref())
+            HeaderValue::from_str(self.transport.endpoint().tenant_scope().platform_id().as_ref())
                 .map_err(|error| format!("invalid platform tenant header: {error}"))?,
         );
         headers.insert(
             COMPANY_ID_HEADER,
-            HeaderValue::from_str(self.endpoint.tenant_scope().company_id().as_ref())
+            HeaderValue::from_str(self.transport.endpoint().tenant_scope().company_id().as_ref())
                 .map_err(|error| format!("invalid company tenant header: {error}"))?,
         );
-        if let Some(skey) = self
-            .endpoint
+        if let Some(skey) = self.transport.endpoint()
             .auth
             .as_ref()
             .and_then(|auth| auth.skey.as_deref())

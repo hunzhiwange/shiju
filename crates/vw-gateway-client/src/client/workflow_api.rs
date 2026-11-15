@@ -250,16 +250,15 @@ impl GatewayClient {
         expected_updated_at_ms: u64,
     ) -> Result<WorkflowRecord, String> {
         let path = workflow_application_path(uuid)?;
-        let request = self
-            .client
-            .put(format!("{}{}", self.endpoint.base_url(), path))
+        let request = self.transport.client()
+            .put(format!("{}{}", self.transport.endpoint().base_url(), path))
             .header("x-workflow-expected-updated-at-ms", expected_updated_at_ms)
             .json(body);
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await
-            .map_err(|e| crate::http::transport_error("PUT", &self.endpoint, &path, e))?;
-        crate::http::parse_json_response("PUT", &self.endpoint, &path, response).await
+            .map_err(|e| crate::http::transport_error("PUT", self.transport.endpoint(), &path, e))?;
+        crate::http::parse_json_response("PUT", self.transport.endpoint(), &path, response).await
     }
 
     /// Explicitly restore the seed using the version shown in the editor.
@@ -270,16 +269,15 @@ impl GatewayClient {
         confirmed: bool,
     ) -> Result<WorkflowRecord, String> {
         let path = format!("{}/restore-default", workflow_application_path(uuid)?);
-        let request = self
-            .client
-            .post(format!("{}{}", self.endpoint.base_url(), path))
+        let request = self.transport.client()
+            .post(format!("{}{}", self.transport.endpoint().base_url(), path))
             .header("x-workflow-expected-updated-at-ms", expected_updated_at_ms)
             .json(&serde_json::json!({"confirmed": confirmed}));
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await
-            .map_err(|e| crate::http::transport_error("POST", &self.endpoint, &path, e))?;
-        crate::http::parse_json_response("POST", &self.endpoint, &path, response).await
+            .map_err(|e| crate::http::transport_error("POST", self.transport.endpoint(), &path, e))?;
+        crate::http::parse_json_response("POST", self.transport.endpoint(), &path, response).await
     }
 
     /// 删除本地 Dify Workflow。
@@ -326,17 +324,17 @@ impl GatewayClient {
         body: &T,
         mut on_event: impl FnMut(GatewayWorkflowStreamEvent) -> bool,
     ) -> Result<(), String> {
-        log_request("POST", &self.endpoint, path, &[], Some(body));
-        let request = self.client.post(format!("{}{}", self.endpoint.base_url(), path)).json(body);
-        let response = apply_request_context(request, &self.endpoint)
+        log_request("POST", self.transport.endpoint(), path, &[], Some(body));
+        let request = self.transport.client().post(format!("{}{}", self.transport.endpoint().base_url(), path)).json(body);
+        let response = apply_request_context(request, self.transport.endpoint())
             .send()
             .await
-            .map_err(|err| transport_error("POST", &self.endpoint, path, err))?;
+            .map_err(|err| transport_error("POST", self.transport.endpoint(), path, err))?;
         if !response.status().is_success() {
-            return Err(response_error("POST", &self.endpoint, path, response).await);
+            return Err(response_error("POST", self.transport.endpoint(), path, response).await);
         }
 
-        log_request_succeeded("POST", &self.endpoint, path);
+        log_request_succeeded("POST", self.transport.endpoint(), path);
         let mut bytes_stream = response.bytes_stream();
         let mut sse_buffer = String::new();
         while let Some(chunk) = bytes_stream.next().await {

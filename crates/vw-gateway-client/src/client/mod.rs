@@ -8,9 +8,7 @@
 //! - `file_api`: 文件树与文件操作
 //! - `desktop_settings_api`: 桌面偏好与外部应用集成
 //!
-//! [`GatewayClient`] 本身只保存两类状态：
-//! - 目标网关端点配置
-//! - 复用的 `reqwest::Client`，宿主请求额外禁用重定向与重试
+//! [`GatewayClient`] 显式持有共享 HTTP 传输。
 
 #[cfg(not(target_arch = "wasm32"))]
 mod agent_apps_auth_accounts;
@@ -208,8 +206,6 @@ pub use self::workflow_api::{
     GatewayWorkflowStreamError, GatewayWorkflowStreamEvent, GatewayWorkflowStreamRequest,
 };
 use crate::endpoint::GatewayEndpoint;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::http::REQUEST_TIMEOUT_SECS;
 pub use provider_api::{
     ProviderAuthMethodDto, ProviderAuthMethodsResponse, ProviderListResponse,
     ProviderOAuthAuthorizationDto,
@@ -220,59 +216,21 @@ pub use provider_api::{
 /// 该类型是所有业务 API 的宿主。调用方创建一次后，可以重复复用，避免为每个请求重复构建 HTTP 客户端。
 #[derive(Debug, Clone)]
 pub struct GatewayClient {
-    endpoint: GatewayEndpoint,
-    client: reqwest::Client,
-    #[cfg(not(target_arch = "wasm32"))]
-    dynamic_host_client: reqwest::Client,
+    transport: gateway_http::GatewayTransport,
 }
 
 impl GatewayClient {
-    /// 使用给定端点创建客户端，并在原生平台上配置默认请求超时。
-    ///
-    /// # 错误
-    ///
-    /// 当底层 `reqwest::Client` 构建失败时，返回字符串化后的错误信息。
+    /// 使用共享传输创建兼容客户端。
     pub fn new(endpoint: GatewayEndpoint) -> Result<Self, String> {
-        #[cfg(not(target_arch = "wasm32"))]
-        let builder = || {
-            let builder = reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS));
-            if endpoint.is_loopback() { builder.no_proxy() } else { builder }
-        };
-        #[cfg(target_arch = "wasm32")]
-        let builder = reqwest::Client::builder;
-        #[cfg(not(target_arch = "wasm32"))]
-        let dynamic_host_client = builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .retry(reqwest::retry::never())
-            .build()
-            .map_err(|err| err.to_string())?;
-        let client = builder().build().map_err(|err| err.to_string())?;
-        Ok(Self {
-            endpoint,
-            client,
-            #[cfg(not(target_arch = "wasm32"))]
-            dynamic_host_client,
-        })
+        Ok(Self { transport: gateway_http::GatewayTransport::new(endpoint)? })
     }
 
-    // Browser fetch cannot enforce the native no-redirect/no-retry transport policy.
     fn native_transport(&self) -> Result<&reqwest::Client, String> {
-        #[cfg(target_arch = "wasm32")]
-        {
-            Err("authorized application requests require native transport".into())
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            Ok(&self.dynamic_host_client)
-        }
+        self.transport.native_transport()
     }
 
-    /// 返回当前客户端绑定的网关端点。
-    ///
-    /// 可用于日志、诊断或生成派生请求配置。
     pub fn endpoint(&self) -> &GatewayEndpoint {
-        &self.endpoint
+        self.transport.endpoint()
     }
 
     #[cfg(not(target_arch = "wasm32"))]

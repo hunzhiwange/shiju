@@ -11,8 +11,8 @@ use tracing::span::{Attributes, Id, Record};
 use tracing::subscriber::{Interest, Subscriber};
 use tracing::{Event, Metadata};
 
-use crate::client::test_support;
-use crate::endpoint::{GatewayAuth, GatewayEndpoint};
+use crate::test_support;
+use gateway_endpoint::{GatewayAuth, GatewayEndpoint};
 use {
     vw_api_transport::id::COMPANY_ID_HEADER,
     vw_api_transport::id::PLATFORM_ID_HEADER,

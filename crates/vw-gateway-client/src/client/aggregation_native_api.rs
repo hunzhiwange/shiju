@@ -56,10 +56,10 @@ impl GatewayClient {
             .map_err(Error::Transport)?
             .request(
                 method,
-                format!("{}/v1/app-providers/{app}/{id}{action}", self.endpoint.base_url()),
+                format!("{}/v1/app-providers/{app}/{id}{action}", self.transport.endpoint().base_url()),
             )
             .json(body);
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await
             .map_err(|_| Error::Transport("native directory request failed".into()))?;

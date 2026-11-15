@@ -25,7 +25,7 @@ impl GatewayClient {
         let path = format!("{}/hosts", tools_path(session_id)?);
         let request = self.host_request(Method::POST, &path, directory, None)?;
         let response = self.send_host_request("POST", &path, request).await?;
-        parse_json_response("POST", &self.endpoint, &path, response).await
+        parse_json_response("POST", self.transport.endpoint(), &path, response).await
     }
 
     /// Atomically replace the host catalog; the server remains the policy authority.
@@ -39,7 +39,7 @@ impl GatewayClient {
         let path = tools_path(session_id)?;
         let request = self.host_request(Method::PUT, &path, directory, Some(binding))?.json(body);
         let response = self.send_host_request("PUT", &path, request).await?;
-        parse_json_response("PUT", &self.endpoint, &path, response).await
+        parse_json_response("PUT", self.transport.endpoint(), &path, response).await
     }
 
     /// Submit once. A transport error has an unknown outcome: do not blindly retry it.
@@ -126,10 +126,10 @@ impl GatewayClient {
         binding: Option<&DynamicToolHostBinding>,
     ) -> Result<RequestBuilder, String> {
         let mut request = apply_request_context(
-            self.dynamic_host_client
-                .request(method, format!("{}{}", self.endpoint.base_url(), path))
+            self.transport.dynamic_host_client()
+                .request(method, format!("{}{}", self.transport.endpoint().base_url(), path))
                 .query(&directory_query(directory)),
-            &self.endpoint,
+            self.transport.endpoint(),
         );
         if let Some(binding) = binding {
             if binding.binding_token.is_empty() {
@@ -152,9 +152,9 @@ impl GatewayClient {
         let response = request
             .send()
             .await
-            .map_err(|error| transport_error(method, &self.endpoint, path, error))?;
+            .map_err(|error| transport_error(method, self.transport.endpoint(), path, error))?;
         if !response.status().is_success() {
-            return Err(response_error(method, &self.endpoint, path, response).await);
+            return Err(response_error(method, self.transport.endpoint(), path, response).await);
         }
         Ok(response)
     }

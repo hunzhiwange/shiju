@@ -26,9 +26,9 @@ impl GatewayClient {
         let transport = self.native_transport().map_err(|_| E::Transport)?;
         let mut credential = reqwest::header::HeaderValue::from_str(token).map_err(|_| E::InvalidInput)?;
         credential.set_sensitive(true);
-        let request = transport.request(method, format!("{}{BASE}/{resource}", self.endpoint.base_url()))
+        let request = transport.request(method, format!("{}{BASE}/{resource}", self.transport.endpoint().base_url()))
             .query(scope).header("x-agent-apps-token", credential);
-        let response = crate::http::apply_request_context(request, &self.endpoint).send().await.map_err(|_| E::Transport)?;
+        let response = crate::http::apply_request_context(request, self.transport.endpoint()).send().await.map_err(|_| E::Transport)?;
         if !response.status().is_success() { return Err(E::Http(response.status().as_u16())); }
         response.json().await.map_err(|_| E::Decode)
     }

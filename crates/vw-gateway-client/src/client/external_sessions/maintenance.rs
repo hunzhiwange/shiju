@@ -23,12 +23,11 @@ impl GatewayClient {
                 AgentAppsReadError::Transport("invalid application credential".into())
             })?;
             credential.set_sensitive(true);
-            let pending = self
-                .dynamic_host_client
-                .post(format!("{}/v1/external-sessions/maintenance", self.endpoint.base_url()))
+            let pending = self.transport.dynamic_host_client()
+                .post(format!("{}/v1/external-sessions/maintenance", self.transport.endpoint().base_url()))
                 .header("x-agent-apps-token", credential)
                 .json(request);
-            let response = crate::http::apply_request_context(pending, &self.endpoint)
+            let response = crate::http::apply_request_context(pending, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|e| AgentAppsReadError::Transport(e.to_string()))?;
@@ -61,15 +60,14 @@ impl GatewayClient {
                 AgentAppsReadError::Transport("invalid application credential".into())
             })?;
             credential.set_sensitive(true);
-            let pending = self
-                .dynamic_host_client
+            let pending = self.transport.dynamic_host_client()
                 .post(format!(
                     "{}/v1/external-sessions/maintenance/query",
-                    self.endpoint.base_url()
+                    self.transport.endpoint().base_url()
                 ))
                 .header("x-agent-apps-token", credential)
                 .json(request);
-            let response = crate::http::apply_request_context(pending, &self.endpoint)
+            let response = crate::http::apply_request_context(pending, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|e| AgentAppsReadError::Transport(e.to_string()))?;
@@ -102,15 +100,14 @@ impl GatewayClient {
                 AgentAppsReadError::Transport("invalid application credential".into())
             })?;
             credential.set_sensitive(true);
-            let pending = self
-                .dynamic_host_client
+            let pending = self.transport.dynamic_host_client()
                 .post(format!(
                     "{}/v1/external-sessions/maintenance/cancel",
-                    self.endpoint.base_url()
+                    self.transport.endpoint().base_url()
                 ))
                 .header("x-agent-apps-token", credential)
                 .json(request);
-            let response = crate::http::apply_request_context(pending, &self.endpoint)
+            let response = crate::http::apply_request_context(pending, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|e| AgentAppsReadError::Transport(e.to_string()))?;

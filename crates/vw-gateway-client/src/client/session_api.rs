@@ -480,19 +480,18 @@ impl GatewayClient {
         body: &Option<GatewaySessionForkBody>,
     ) -> Result<T, String> {
         let path = format!("{}/fork", session_path(session_id)?);
-        let builder = self
-            .client
-            .post(format!("{}{}", self.endpoint.base_url(), path))
+        let builder = self.transport.client()
+            .post(format!("{}{}", self.transport.endpoint().base_url(), path))
             .query(&directory_query(directory))
             .json(body);
         // A worktree fork must complete initialization before publishing the session.
         #[cfg(not(target_arch = "wasm32"))]
         let builder = builder.timeout(std::time::Duration::from_secs(270));
-        let response = crate::http::apply_request_context(builder, &self.endpoint)
+        let response = crate::http::apply_request_context(builder, self.transport.endpoint())
             .send()
             .await
-            .map_err(|error| crate::http::transport_error("POST", &self.endpoint, &path, error))?;
-        crate::http::parse_json_response("POST", &self.endpoint, &path, response).await
+            .map_err(|error| crate::http::transport_error("POST", self.transport.endpoint(), &path, error))?;
+        crate::http::parse_json_response("POST", self.transport.endpoint(), &path, response).await
     }
 
     /// 截断指定消息之后的会话历史。
@@ -523,10 +522,9 @@ impl GatewayClient {
 
         let path = format!("{}/summarize", session_path(session_id)?);
         let query = directory_query(directory);
-        log_request("POST", &self.endpoint, &path, &query, Some(body));
-        let request = self
-            .client
-            .post(format!("{}{}", self.endpoint.base_url(), path))
+        log_request("POST", self.transport.endpoint(), &path, &query, Some(body));
+        let request = self.transport.client()
+            .post(format!("{}{}", self.transport.endpoint().base_url(), path))
             .query(&query)
             .json(body);
         // Use the existing long-running model request transport budget. The server
@@ -534,11 +532,11 @@ impl GatewayClient {
         #[cfg(not(target_arch = "wasm32"))]
         let request = request
             .timeout(std::time::Duration::from_secs(crate::stream::STREAM_REQUEST_TIMEOUT_SECS));
-        let response = apply_request_context(request, &self.endpoint)
+        let response = apply_request_context(request, self.transport.endpoint())
             .send()
             .await
-            .map_err(|err| transport_error("POST", &self.endpoint, &path, err))?;
-        parse_json_response("POST", &self.endpoint, &path, response).await
+            .map_err(|err| transport_error("POST", self.transport.endpoint(), &path, err))?;
+        parse_json_response("POST", self.transport.endpoint(), &path, response).await
     }
 
     /// 覆盖写入会话待办列表。
@@ -576,7 +574,7 @@ impl GatewayClient {
         use crate::client::request_helpers::get_json_blocking;
 
         get_json_blocking(
-            &self.endpoint,
+            self.transport.endpoint(),
             &format!("/v1/session/{session_id}/todo"),
             &directory_query(directory),
         )

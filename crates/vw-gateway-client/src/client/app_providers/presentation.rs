@@ -31,11 +31,10 @@ impl GatewayClient {
         id: &str,
         request: &AppProviderPresentation,
     ) -> Result<AppProviderPresentation, String> {
-        let builder = self
-            .client
-            .put(format!("{}{}/presentation", self.endpoint.base_url(), provider_path(app, id)?))
+        let builder = self.transport.client()
+            .put(format!("{}{}/presentation", self.transport.endpoint().base_url(), provider_path(app, id)?))
             .json(request);
-        let response = crate::http::apply_request_context(builder, &self.endpoint)
+        let response = crate::http::apply_request_context(builder, self.transport.endpoint())
             .send()
             .await
             .map_err(|_| "application provider presentation transport failed")?;
@@ -52,12 +51,12 @@ impl GatewayClient {
         &self,
         app: AppId,
     ) -> Result<Vec<AppProviderPresentationEntry>, String> {
-        let builder = self.client.get(format!(
+        let builder = self.transport.client().get(format!(
             "{}{}/presentation/entries",
-            self.endpoint.base_url(),
+            self.transport.endpoint().base_url(),
             provider_collection_path(app)
         ));
-        let response = crate::http::apply_request_context(builder, &self.endpoint)
+        let response = crate::http::apply_request_context(builder, self.transport.endpoint())
             .send()
             .await
             .map_err(|_| "application provider presentation transport failed")?;

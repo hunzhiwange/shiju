@@ -92,7 +92,7 @@ impl GatewayClient {
     ) -> Result<T, AggregationOmoError> {
         let mut request = self.native_transport().map_err(AggregationOmoError::Transport)?.request(
             method,
-            format!("{}/v1/agent-apps/opencode/{resource}", self.endpoint.base_url()),
+            format!("{}/v1/agent-apps/opencode/{resource}", self.transport.endpoint().base_url()),
         );
         if let Some((host, project)) = scope {
             request = request.query(&[("targetHostId", host), ("projectId", project.as_ref())]);
@@ -100,7 +100,7 @@ impl GatewayClient {
         if let Some(body) = body {
             request = request.json(body);
         }
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await
             .map_err(|_| AggregationOmoError::Transport("OMO request failed".into()))?;

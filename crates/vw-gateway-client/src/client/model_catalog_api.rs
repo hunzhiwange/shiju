@@ -116,9 +116,8 @@ impl GatewayClient {
             let mut credential = reqwest::header::HeaderValue::from_str(token)
                 .map_err(|_| Error::Transport("invalid application credential".into()))?;
             credential.set_sensitive(true);
-            let mut request = self
-                .dynamic_host_client
-                .get(format!("{}/v1/model-catalog{resource}", self.endpoint.base_url()))
+            let mut request = self.transport.dynamic_host_client()
+                .get(format!("{}/v1/model-catalog{resource}", self.transport.endpoint().base_url()))
                 .header("x-agent-apps-token", credential)
                 .query(project)
                 .query(target);
@@ -128,7 +127,7 @@ impl GatewayClient {
             if let Some(page) = page {
                 request = request.query(page);
             }
-            let response = crate::http::apply_request_context(request, &self.endpoint)
+            let response = crate::http::apply_request_context(request, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|_| Error::Transport("model catalog request failed".into()))?;

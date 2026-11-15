@@ -13,7 +13,7 @@ impl GatewayClient {
         let request = self.native_transport().map_err(AgentAppsReadError::Transport)?
             .get(format!("{}/v1/agent-apps/data-backup-inventory", self.endpoint().base_url()))
             .query(&[("projectId", project.project_id().as_ref()), ("targetHostId", host)]);
-        let response = crate::http::apply_request_context(request, &self.endpoint).send().await
+        let response = crate::http::apply_request_context(request, self.transport.endpoint()).send().await
             .map_err(|e| AgentAppsReadError::Transport(e.to_string()))?;
         let status = response.status();
         let bytes = response.bytes().await.map_err(|e| AgentAppsReadError::Transport(e.to_string()))?;

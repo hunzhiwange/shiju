@@ -13,8 +13,8 @@ impl GatewayClient {
     ) -> Result<AppProviderSummary, String> {
         let path = provider_path(app, id)?;
         let builder =
-            self.client.patch(format!("{}{}", self.endpoint.base_url(), path)).json(request);
-        let response = crate::http::apply_request_context(builder, &self.endpoint)
+            self.transport.client().patch(format!("{}{}", self.transport.endpoint().base_url(), path)).json(request);
+        let response = crate::http::apply_request_context(builder, self.transport.endpoint())
             .send()
             .await
             .map_err(|_| "application provider update transport failed")?;

@@ -24,14 +24,14 @@ impl GatewayClient {
     ) -> Result<vw_api_types::git::GitRemoteResponse, String> {
         let path = "/v1/git/remote";
         let builder =
-            self.client.post(format!("{}{}", self.endpoint.base_url(), path)).json(request);
+            self.transport.client().post(format!("{}{}", self.transport.endpoint().base_url(), path)).json(request);
         #[cfg(not(target_arch = "wasm32"))]
         let builder = builder.timeout(std::time::Duration::from_secs(150));
-        let response = crate::http::apply_request_context(builder, &self.endpoint)
+        let response = crate::http::apply_request_context(builder, self.transport.endpoint())
             .send()
             .await
-            .map_err(|error| crate::http::transport_error("POST", &self.endpoint, path, error))?;
-        crate::http::parse_json_response("POST", &self.endpoint, path, response).await
+            .map_err(|error| crate::http::transport_error("POST", self.transport.endpoint(), path, error))?;
+        crate::http::parse_json_response("POST", self.transport.endpoint(), path, response).await
     }
 
     /// 通过网关触发一次 Git 提交。

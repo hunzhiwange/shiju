@@ -79,19 +79,19 @@ impl GatewayClient {
         self.usage_price_request(reqwest::Method::PUT, &["display"], scope, Some(body)).await
     }
     async fn usage_price_request<T: DeserializeOwned>(&self, method: reqwest::Method, path: &[&str], scope: &UsageScanScope, body: Option<Value>) -> Result<T, UsagePriceError> {
-        if !self.endpoint.auth.as_ref().and_then(|a| a.skey.as_deref()).is_some_and(|s| !s.trim().is_empty()) {
+        if !self.transport.endpoint().auth.as_ref().and_then(|a| a.skey.as_deref()).is_some_and(|s| !s.trim().is_empty()) {
             return Err(UsagePriceError::Unauthenticated);
         }
         if scope.project_id.as_ref().trim().is_empty() || scope.target_host.trim().is_empty() {
             return Err(UsagePriceError::InvalidInput("usage project and host required".into()));
         }
-        let mut url = reqwest::Url::parse(&self.endpoint.base_url()).map_err(|e| UsagePriceError::InvalidInput(e.to_string()))?;
+        let mut url = reqwest::Url::parse(self.transport.endpoint().base_url()).map_err(|e| UsagePriceError::InvalidInput(e.to_string()))?;
         url.path_segments_mut().map_err(|_| UsagePriceError::InvalidInput("invalid gateway URL".into()))?
             .pop_if_empty().extend(["v1", "usage"]).extend(path.iter().copied());
         // Price handlers authorize scope from query parameters for every HTTP method.
         let mut request = self.native_transport().map_err(UsagePriceError::Transport)?.request(method, url).query(scope);
         if let Some(body) = body { request = request.json(&body); }
-        let response = crate::http::apply_request_context(request, &self.endpoint).send().await.map_err(|e| UsagePriceError::Transport(e.to_string()))?;
+        let response = crate::http::apply_request_context(request, self.transport.endpoint()).send().await.map_err(|e| UsagePriceError::Transport(e.to_string()))?;
         let status = response.status();
         let bytes = response.bytes().await.map_err(|e| UsagePriceError::Transport(e.to_string()))?;
         if !status.is_success() {

@@ -24,9 +24,9 @@ impl GatewayClient {
             .map_err(|_| SkillDiscoveryError::Transport)?;
         credential.set_sensitive(true);
         let request = self.native_transport().map_err(|_| SkillDiscoveryError::Transport)?
-            .post(format!("{}/v1/agent-apps/skills/discover", self.endpoint.base_url()))
+            .post(format!("{}/v1/agent-apps/skills/discover", self.transport.endpoint().base_url()))
             .json(query).header("x-agent-apps-token", credential);
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send().await.map_err(|_| SkillDiscoveryError::Transport)?;
         let status = response.status();
         let bytes = response.bytes().await.map_err(|_| SkillDiscoveryError::Transport)?;

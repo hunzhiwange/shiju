@@ -89,7 +89,7 @@ impl GatewayClient {
             if path.iter().any(|segment| matches!(*segment, "" | "." | "..")) {
                 return Err(AppRoutingError::InvalidRequest);
             }
-            let mut url = reqwest::Url::parse(&self.endpoint.base_url())
+            let mut url = reqwest::Url::parse(self.transport.endpoint().base_url())
                 .map_err(|_| AppRoutingError::InvalidRequest)?;
             url.path_segments_mut()
                 .map_err(|_| AppRoutingError::InvalidRequest)?
@@ -100,11 +100,11 @@ impl GatewayClient {
                 .map_err(|_| AppRoutingError::InvalidRequest)?;
             token.set_sensitive(true);
             let mut request =
-                self.dynamic_host_client.request(method, url).header("x-agent-apps-token", token);
+                self.transport.dynamic_host_client().request(method, url).header("x-agent-apps-token", token);
             if let Some(body) = body {
                 request = request.json(body);
             }
-            let response = crate::http::apply_request_context(request, &self.endpoint)
+            let response = crate::http::apply_request_context(request, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|_| AppRoutingError::Transport)?;

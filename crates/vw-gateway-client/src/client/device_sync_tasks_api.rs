@@ -77,7 +77,7 @@ impl GatewayClient {
         task_id: &TaskId,
         token: &str,
     ) -> Result<reqwest::Response, DeviceSyncTasksError> {
-        if target.scope.tenant_scope() != self.endpoint.tenant_scope()
+        if target.scope.tenant_scope() != self.transport.endpoint().tenant_scope()
             || target.target_host_id.trim().is_empty()
         {
             return Err(DeviceSyncTasksError::InvalidTarget);
@@ -92,7 +92,7 @@ impl GatewayClient {
         let mut authorization = reqwest::header::HeaderValue::from_str(&format!("Bearer {token}"))
             .map_err(|_| DeviceSyncTasksError::InvalidToken)?;
         authorization.set_sensitive(true);
-        let mut url = Url::parse(&self.endpoint.base_url()).map_err(|_| DeviceSyncTasksError::InvalidTarget)?;
+        let mut url = Url::parse(self.transport.endpoint().base_url()).map_err(|_| DeviceSyncTasksError::InvalidTarget)?;
         url.path_segments_mut().map_err(|_| DeviceSyncTasksError::InvalidTarget)?
             .pop_if_empty().extend(["v1", "agent-apps", "device-sync", "tasks", id]);
         let client = self.native_transport().map_err(|_| DeviceSyncTasksError::Transport)?;
@@ -100,7 +100,7 @@ impl GatewayClient {
             ("projectId", target.scope.project_id().as_ref()),
             ("targetHostId", target.target_host_id.as_str()),
         ]);
-        apply_request_context(request, &self.endpoint)
+        apply_request_context(request, self.transport.endpoint())
             .header(reqwest::header::AUTHORIZATION, authorization)
             .header(reqwest::header::CACHE_CONTROL, "no-store")
             .send().await.map_err(|_| DeviceSyncTasksError::Transport)

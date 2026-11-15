@@ -36,10 +36,10 @@ impl GatewayClient {
         credential.set_sensitive(true);
         let get = method == reqwest::Method::GET;
         let request = self.native_transport().map_err(|_| SkillBackupError::Transport)?
-            .request(method, format!("{}/v1/agent-apps/skills/{path}", self.endpoint.base_url()))
+            .request(method, format!("{}/v1/agent-apps/skills/{path}", self.transport.endpoint().base_url()))
             .header("x-agent-apps-token", credential);
         let request = if get { request.query(payload) } else { request.json(payload) };
-        let response = crate::http::apply_request_context(request, &self.endpoint).send().await
+        let response = crate::http::apply_request_context(request, self.transport.endpoint()).send().await
             .map_err(|_| SkillBackupError::Transport)?;
         let status = response.status();
         if !status.is_success() { return Err(SkillBackupError::Http { status: status.as_u16() }); }

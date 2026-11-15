@@ -94,7 +94,7 @@ impl GatewayClient {
         token: &str,
     ) -> Result<T, AgentAppsSettingsError> {
         let mut url =
-            reqwest::Url::parse(&format!("{}/v1/agent-apps/diagnostics", self.endpoint.base_url()))
+            reqwest::Url::parse(&format!("{}/v1/agent-apps/diagnostics", self.transport.endpoint().base_url()))
                 .map_err(|err| AgentAppsSettingsError::Transport(err.to_string()))?;
         url.path_segments_mut()
             .map_err(|_| AgentAppsSettingsError::Transport("invalid gateway URL".into()))?
@@ -112,7 +112,7 @@ impl GatewayClient {
         if let Some(body) = body {
             request = request.json(body);
         }
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await
             .map_err(|err| AgentAppsSettingsError::Transport(err.to_string()))?;

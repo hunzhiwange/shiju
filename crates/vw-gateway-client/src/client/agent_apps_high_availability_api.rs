@@ -185,7 +185,7 @@ impl GatewayClient {
         let transport = self.native_transport().map_err(|_| Error::NativeTransportRequired)?;
         let mut request = transport.request(
             method,
-            format!("{}/v1/agent-apps/high-availability/{resource}", self.endpoint.base_url()),
+            format!("{}/v1/agent-apps/high-availability/{resource}", self.transport.endpoint().base_url()),
         ).query(scope);
         if let Some(provider_id) = provider_id {
             request = request.query(&[("providerId", provider_id.as_ref())]);
@@ -199,7 +199,7 @@ impl GatewayClient {
         if let Some(body) = body {
             request = request.json(body);
         }
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send().await.map_err(|_| Error::Transport)?;
         let status = response.status();
         let bytes = response.bytes().await.map_err(|_| Error::Transport)?;

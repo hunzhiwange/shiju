@@ -22,13 +22,12 @@ impl GatewayClient {
             let app = serde_json::to_value(app)
                 .map_err(|_| Error::Transport("invalid application".into()))?;
             let app = app.as_str().ok_or_else(|| Error::Transport("invalid application".into()))?;
-            let url = format!("{}/v1/app-providers/{app}/catalog/import", self.endpoint.base_url());
-            let request = self
-                .dynamic_host_client
+            let url = format!("{}/v1/app-providers/{app}/catalog/import", self.transport.endpoint().base_url());
+            let request = self.transport.dynamic_host_client()
                 .post(url)
                 .header("x-agent-apps-token", credential)
                 .json(body);
-            let response = crate::http::apply_request_context(request, &self.endpoint)
+            let response = crate::http::apply_request_context(request, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|_| Error::Transport("Provider import request failed".into()))?;

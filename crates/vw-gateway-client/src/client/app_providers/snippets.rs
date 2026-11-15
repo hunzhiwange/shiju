@@ -53,18 +53,18 @@ impl GatewayClient {
             credential.set_sensitive(true);
             let url = format!(
                 "{}{}/config/snippet",
-                self.endpoint.base_url(),
+                self.transport.endpoint().base_url(),
                 provider_collection_path(app)
             );
             let builder = match action {
-                "read" => self.dynamic_host_client.get(url).query(body),
-                "save" => self.dynamic_host_client.put(url).json(body),
-                "preview" => self.dynamic_host_client.post(format!("{url}/preview")).json(body),
-                "extract" => self.dynamic_host_client.post(format!("{url}/extract")).json(body),
+                "read" => self.transport.dynamic_host_client().get(url).query(body),
+                "save" => self.transport.dynamic_host_client().put(url).json(body),
+                "preview" => self.transport.dynamic_host_client().post(format!("{url}/preview")).json(body),
+                "extract" => self.transport.dynamic_host_client().post(format!("{url}/extract")).json(body),
                 _ => unreachable!(),
             }
             .header("x-agent-apps-token", credential);
-            let response = crate::http::apply_request_context(builder, &self.endpoint)
+            let response = crate::http::apply_request_context(builder, self.transport.endpoint())
                 .send()
                 .await
                 .map_err(|_| Error::Transport("snippet request failed".into()))?;

@@ -282,7 +282,7 @@ pub async fn load_system_settings_config_async() -> Result<AppSystemSettingsConf
             Ok(config)
         }
         Err(err) => {
-            if vw_gateway_client::is_gateway_unavailable_error(&err) {
+            if gateway_http::is_gateway_unavailable_error(&err) {
                 tracing::debug!(target: "vw_desktop", error = %err, "failed to load desktop system settings via gateway");
             } else {
                 tracing::warn!(target: "vw_desktop", error = %err, "failed to load desktop system settings via gateway");
@@ -341,7 +341,7 @@ pub fn update_system_settings_config_async(
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub fn load_system_settings_config() -> AppSystemSettingsConfig {
     run_gateway_call(load_system_settings_config_async()).unwrap_or_else(|err| {
-        if vw_gateway_client::is_gateway_unavailable_error(&err) {
+        if gateway_http::is_gateway_unavailable_error(&err) {
             tracing::debug!(target: "vw_desktop", error = %err, "failed to load desktop system settings via gateway");
         } else {
             tracing::warn!(target: "vw_desktop", error = %err, "failed to load desktop system settings via gateway");

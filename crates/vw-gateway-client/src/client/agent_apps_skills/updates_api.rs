@@ -33,11 +33,11 @@ impl GatewayClient {
         path: &str, body: Option<&Q>, scope: Option<&SkillReposQuery>, token: &str,
     ) -> Result<R, SkillUpdateError> {
         let client = self.native_transport().map_err(|_| SkillUpdateError::Transport)?;
-        let url = format!("{}/v1{path}", self.endpoint.base_url());
+        let url = format!("{}/v1{path}", self.transport.endpoint().base_url());
         let mut credential = reqwest::header::HeaderValue::from_str(token).map_err(|_| SkillUpdateError::Transport)?;
         credential.set_sensitive(true);
         let request = match body { Some(body) => client.post(url).json(body), None => client.get(url).query(&scope) };
-        let response = crate::http::apply_request_context(request.header("x-agent-apps-token", credential), &self.endpoint)
+        let response = crate::http::apply_request_context(request.header("x-agent-apps-token", credential), self.transport.endpoint())
             .send().await.map_err(|_| SkillUpdateError::Transport)?;
         if !response.status().is_success() {
             return Err(SkillUpdateError::Http { status: response.status().as_u16() });

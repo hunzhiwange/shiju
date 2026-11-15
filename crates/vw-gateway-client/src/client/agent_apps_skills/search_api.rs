@@ -26,9 +26,9 @@ impl GatewayClient {
             .map_err(|_| MarketSearchError::Transport)?;
         credential.set_sensitive(true);
         let request = self.native_transport().map_err(|_| MarketSearchError::Transport)?
-            .get(format!("{}/v1/agent-apps/skills/search", self.endpoint.base_url()))
+            .get(format!("{}/v1/agent-apps/skills/search", self.transport.endpoint().base_url()))
             .query(query).header("x-agent-apps-token", credential);
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send().await.map_err(|_| MarketSearchError::Transport)?;
         let status = response.status();
         let bytes = response.bytes().await.map_err(|_| MarketSearchError::Transport)?;

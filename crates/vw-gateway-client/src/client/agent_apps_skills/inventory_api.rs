@@ -32,7 +32,7 @@ impl GatewayClient {
     async fn read_skill_inventory<T: serde::de::DeserializeOwned>(&self,
         scope: &SkillReposQuery, token: &str, id: Option<&str>,
     ) -> Result<T, SkillInventoryError> {
-        let mut url = reqwest::Url::parse(&format!("{}/v1/agent-apps/skills", self.endpoint.base_url()))
+        let mut url = reqwest::Url::parse(&format!("{}/v1/agent-apps/skills", self.transport.endpoint().base_url()))
             .map_err(|_| SkillInventoryError::Transport)?;
         if let Some(id) = id {
             url.path_segments_mut().map_err(|_| SkillInventoryError::Transport)?.push(id);
@@ -42,7 +42,7 @@ impl GatewayClient {
         credential.set_sensitive(true);
         let request = self.native_transport().map_err(|_| SkillInventoryError::Transport)?
             .get(url).query(scope).header("x-agent-apps-token", credential);
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send().await.map_err(|_| SkillInventoryError::Transport)?;
         let status = response.status();
         if !status.is_success() { return Err(SkillInventoryError::Http { status: status.as_u16() }); }

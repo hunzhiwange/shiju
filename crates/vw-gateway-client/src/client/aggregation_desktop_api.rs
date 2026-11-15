@@ -20,7 +20,7 @@ impl GatewayClient {
             .map_err(AgentAppsSettingsError::Transport)?
             .get(format!(
                 "{}/v1/agent-apps/claude-desktop/profile/status",
-                self.endpoint.base_url()
+                self.transport.endpoint().base_url()
             ))
             .query(scope);
         self.aggregation_desktop_response(request).await
@@ -91,7 +91,7 @@ impl GatewayClient {
     ) -> Result<T, AgentAppsSettingsError> {
         let url = format!(
             "{}/v1/agent-apps/claude-desktop/aggregation/{action}",
-            self.endpoint.base_url()
+            self.transport.endpoint().base_url()
         );
         self.aggregation_desktop_response(
             self.native_transport()
@@ -115,7 +115,7 @@ impl GatewayClient {
         }
         Ok(format!(
             "{}/v1/app-providers/claude-desktop/{provider_id}/{resource}",
-            self.endpoint.base_url()
+            self.transport.endpoint().base_url()
         ))
     }
 
@@ -123,7 +123,7 @@ impl GatewayClient {
         &self,
         request: reqwest::RequestBuilder,
     ) -> Result<T, AgentAppsSettingsError> {
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await
             .map_err(|_| AgentAppsSettingsError::Transport("Desktop request failed".into()))?;

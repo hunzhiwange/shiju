@@ -24,9 +24,9 @@ impl GatewayClient {
             .map_err(|_| SkillInstallError::Transport)?;
         credential.set_sensitive(true);
         let request = self.native_transport().map_err(|_| SkillInstallError::Transport)?
-            .post(format!("{}/v1/agent-apps/skills/install", self.endpoint.base_url()))
+            .post(format!("{}/v1/agent-apps/skills/install", self.transport.endpoint().base_url()))
             .json(query).header("x-agent-apps-token", credential);
-        let response = crate::http::apply_request_context(request, &self.endpoint)
+        let response = crate::http::apply_request_context(request, self.transport.endpoint())
             .send().await.map_err(|_| SkillInstallError::Transport)?;
         let status = response.status();
         let bytes = response.bytes().await.map_err(|_| SkillInstallError::Transport)?;

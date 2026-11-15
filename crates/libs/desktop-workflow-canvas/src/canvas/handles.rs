@@ -139,7 +139,7 @@ pub(super) fn control_for_side(point: Point, side: WorkflowHandleSide, distance:
 }
 
 pub(super) fn edge_handle_label(
-    i18n: crate::app::i18n::I18n,
+    i18n: desktop_i18n::I18n,
     edge: &WorkflowEdge,
 ) -> Option<String> {
     let label = edge.source_handle.as_deref()?;

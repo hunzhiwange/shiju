@@ -78,7 +78,7 @@ fn code_node_description_hides_when_error_strategy_is_none() {
 
     assert!(
         node_description_text(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             &document,
             &code_node(None)
         )
@@ -86,7 +86,7 @@ fn code_node_description_hides_when_error_strategy_is_none() {
     );
     assert!(
         node_description_text(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             &document,
             &code_node(Some("none"))
         )
@@ -100,7 +100,7 @@ fn code_node_description_shows_error_strategy_summary() {
 
     assert_eq!(
         node_description_text(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             &document,
             &code_node(Some("default-value"))
         ),
@@ -108,7 +108,7 @@ fn code_node_description_shows_error_strategy_summary() {
     );
     assert_eq!(
         node_description_text(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             &document,
             &code_node(Some("fail-branch"))
         ),
@@ -206,14 +206,14 @@ fn group_and_plain_node_description_text_follow_state() {
         WorkflowDocument { nodes: vec![group.clone(), child], ..WorkflowDocument::default() };
 
     assert_eq!(
-        node_description_text(crate::app::i18n::I18n::new(Default::default()), &document, &group),
+        node_description_text(desktop_i18n::I18n::new(Default::default()), &document, &group),
         "包含 1 个子节点"
     );
 
     let empty_group = basic_node("empty-group", "loop", "Loop", "");
     assert_eq!(
         node_description_text(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             &WorkflowDocument::default(),
             &empty_group
         ),
@@ -223,7 +223,7 @@ fn group_and_plain_node_description_text_follow_state() {
     let described_group = basic_node("described", "loop", "Loop", "自定义描述");
     assert_eq!(
         node_description_text(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             &WorkflowDocument::default(),
             &described_group
         ),
@@ -232,7 +232,7 @@ fn group_and_plain_node_description_text_follow_state() {
 
     assert_eq!(
         node_description_text(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             &WorkflowDocument::default(),
             &basic_node("plain", "llm", "LLM", "节点描述")
         ),
@@ -240,7 +240,7 @@ fn group_and_plain_node_description_text_follow_state() {
     );
     assert!(
         node_description_text(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             &WorkflowDocument::default(),
             &basic_node("plain", "llm", "LLM", "")
         )
@@ -268,7 +268,7 @@ fn code_node_description_falls_back_for_invalid_and_unknown_strategies() {
 
         assert_eq!(
             node_description_text(
-                crate::app::i18n::I18n::new(Default::default()),
+                desktop_i18n::I18n::new(Default::default()),
                 &document,
                 &node
             ),
@@ -282,7 +282,7 @@ fn code_node_description_falls_back_for_invalid_and_unknown_strategies() {
         serde_yaml::from_str::<Value>("data:\n  error_strategy: '  fail-branch  '\n")
             .expect("yaml should parse");
     assert_eq!(
-        node_description_text(crate::app::i18n::I18n::new(Default::default()), &document, &trimmed),
+        node_description_text(desktop_i18n::I18n::new(Default::default()), &document, &trimmed),
         "异常时 异常分支"
     );
 }

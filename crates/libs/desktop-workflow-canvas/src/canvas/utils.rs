@@ -119,7 +119,7 @@ pub(super) fn start_variable_badge_text(value_type: &str) -> &'static str {
 }
 
 pub(super) fn node_description_text(
-    i18n: crate::app::i18n::I18n,
+    i18n: desktop_i18n::I18n,
     document: &WorkflowDocument,
     node: &WorkflowNode,
 ) -> String {
@@ -142,7 +142,7 @@ pub(super) fn node_description_text(
     }
 }
 
-fn code_node_description_text(i18n: crate::app::i18n::I18n, node: &WorkflowNode) -> String {
+fn code_node_description_text(i18n: desktop_i18n::I18n, node: &WorkflowNode) -> String {
     match code_node_error_strategy(node) {
         Some("default-value") => i18n.__("异常时 输出默认值").to_string(),
         Some("fail-branch") => i18n.__("异常时 异常分支").to_string(),
@@ -322,7 +322,7 @@ pub(crate) fn export_svg(document: &WorkflowDocument) -> String {
         );
 
         if let Some(label) =
-            edge_handle_label(crate::app::i18n::I18n::new(Default::default()), edge)
+            edge_handle_label(desktop_i18n::I18n::new(Default::default()), edge)
         {
             let badge_center = cubic_bezier_point(start, c1, c2, end, 0.5);
             let badge_width = (label.chars().count() as f32 * 8.0 + 18.0).clamp(30.0, 94.0);
@@ -363,7 +363,7 @@ pub(crate) fn export_svg(document: &WorkflowDocument) -> String {
         let desc_font_size = if rect.height > 140.0 { 12.0 } else { 11.0 };
         let desc_line_step = desc_font_size + 3.0;
         let description =
-            node_description_text(crate::app::i18n::I18n::new(Default::default()), document, node);
+            node_description_text(desktop_i18n::I18n::new(Default::default()), document, node);
         let title_x = rect.x + 14.0 + 24.0 + 12.0;
         let title_width = (rect.x + rect.width - title_x - 14.0).max(rect.width - 96.0);
         let title_max_chars = (title_width / (title_font_size * 0.63)).floor().max(8.0) as usize;

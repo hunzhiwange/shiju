@@ -140,7 +140,7 @@ pub(super) fn grid_spacing(zoom: f32) -> f32 {
 }
 
 pub(super) fn draw_edges(
-    i18n: crate::app::i18n::I18n,
+    i18n: desktop_i18n::I18n,
     frame: &mut Frame,
     document: &WorkflowDocument,
     pan: Vector,
@@ -354,7 +354,7 @@ pub(super) fn draft_plan(
 }
 
 pub(super) fn draw_nodes(
-    i18n: crate::app::i18n::I18n,
+    i18n: desktop_i18n::I18n,
     frame: &mut Frame,
     document: &WorkflowDocument,
     pan: Vector,
@@ -710,7 +710,7 @@ pub(super) fn draw_nodes(
 
 #[allow(dead_code)]
 pub(super) fn node_plan(
-    i18n: crate::app::i18n::I18n,
+    i18n: desktop_i18n::I18n,
     document: &WorkflowDocument,
     node: &WorkflowNode,
     pan: Vector,

@@ -333,7 +333,7 @@ pub fn view(i18n: crate::app::i18n::I18n, state: &WorkflowState) -> Element<'_, 
             .style(canvas_panel_style)
             .into()
     } else {
-        container(
+        let canvas: Element<'_, desktop_workflow_canvas::CanvasMessage> =
             iced::widget::canvas(WorkflowCanvas {
                 i18n,
                 document: &state.document,
@@ -344,8 +344,8 @@ pub fn view(i18n: crate::app::i18n::I18n, state: &WorkflowState) -> Element<'_, 
                 connection_draft: state.connection_draft.as_ref(),
             })
             .width(Length::Fill)
-            .height(Length::Fill),
-        )
+            .height(Length::Fill).into();
+        container(canvas.map(super::canvas::map_message))
         .width(Length::Fill)
         .height(Length::Fill)
         .style(canvas_panel_style)

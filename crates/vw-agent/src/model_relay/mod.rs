@@ -43,11 +43,9 @@ mod responses_tests;
 
 mod responses;
 mod responses_chat_request;
-#[cfg(test)]
-mod responses_chat_request_tests;
+// responses_chat_request tests live in model-protocol.
 pub(crate) mod responses_compaction;
-#[cfg(test)]
-mod responses_compaction_tests;
+// responses_compaction tests live in model-protocol.
 mod responses_stream;
 
 #[cfg(test)]
@@ -107,8 +105,7 @@ pub(crate) mod search_citations;
 mod search_citations_tests;
 
 mod responses_chat_result;
-#[cfg(test)]
-mod responses_chat_result_tests;
+// responses_chat_result tests live in model-protocol.
 
 mod responses_chat_stream;
 
@@ -119,21 +116,17 @@ mod responses_history_tests;
 mod tool_namespace;
 
 mod responses_anthropic_request;
-#[cfg(test)]
-mod responses_anthropic_request_tests;
+// responses_anthropic_request tests live in model-protocol.
 
 mod responses_anthropic_result;
-#[cfg(test)]
-mod responses_anthropic_result_tests;
+// responses_anthropic_result tests live in model-protocol.
 
 mod responses_anthropic_stream;
-#[cfg(test)]
-mod responses_anthropic_stream_tests;
+// responses_anthropic_stream tests live in model-protocol.
 
 pub(crate) mod reasoning_bridge;
 
-#[cfg(test)]
-mod reasoning_bridge_tests;
+// reasoning_bridge tests live in model-protocol.
 
 mod inline_think;
 

@@ -106,3 +106,19 @@ mod native_messages_tests;
 mod native_responses_tests;
 #[cfg(test)]
 mod messages_tests;
+
+// Responses bridge tests follow their production owners.
+#[cfg(test)]
+mod reasoning_bridge_tests;
+#[cfg(test)]
+mod responses_anthropic_request_tests;
+#[cfg(test)]
+mod responses_anthropic_result_tests;
+#[cfg(test)]
+mod responses_anthropic_stream_tests;
+#[cfg(test)]
+mod responses_chat_request_tests;
+#[cfg(test)]
+mod responses_chat_result_tests;
+#[cfg(test)]
+mod responses_compaction_tests;

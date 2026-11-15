@@ -8,6 +8,7 @@ description = "Gateway client types and helpers for VibeWindow"
 license = "MIT"
 
 [dependencies]
+gateway-task-lifecycle = { path = "../libs/gateway-task-lifecycle", version = "0.6.0" }
 gateway-scheduler = { path = "../libs/gateway-scheduler", version = "0.6.0" }
 gateway-knowledge = { path = "../libs/gateway-knowledge", version = "0.6.0" }
 gateway-workflow = { path = "../libs/gateway-workflow", version = "0.6.0" }

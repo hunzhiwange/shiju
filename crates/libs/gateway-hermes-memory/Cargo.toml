@@ -21,3 +21,16 @@ reqwest = { version = "0.13", features = ["json", "query", "stream"] }
 [dev-dependencies]
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[lib]
+doctest = false
+
+[target.'cfg(target_os = "macos")'.dependencies]
+axum = { version = "0.8.8", features = ["json"] }
+tokio = { version = "1", features = ["rt"] }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+app-provider-native = { path = "../app-provider-native", version = "0.6.0" }
+app-auth = { path = "../app-auth", version = "0.6.0" }
+app-config-write = { path = "../app-config-write", version = "0.6.0" }
+app-workspace-memory = { path = "../app-workspace-memory", version = "0.6.0" }
+app-workspace-paths = { path = "../app-workspace-paths", version = "0.6.0" }

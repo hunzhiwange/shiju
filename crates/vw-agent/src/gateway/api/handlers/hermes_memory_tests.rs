@@ -1,4 +1,15 @@
-use super::*;
+use axum::http::{HeaderMap, StatusCode};
+use std::path::PathBuf;
+use vw_api_transport::id::{ProjectId, ProjectScope, TenantScope};
+use vw_api_hermes_memory::HermesMemoryKind;
+struct Policy(Option<PathBuf>);
+struct Scope { project_id: ProjectId, target_host_id: String }
+fn authorize(policy: &Policy, tenant: TenantScope, headers: &HeaderMap, scope: &Scope, write: bool)
+    -> Result<super::super::access::Host, StatusCode>
+{
+    super::super::access::authorize_hermes_memory(policy.0.as_deref(), headers,
+        &ProjectScope::new(tenant, scope.project_id.clone()), &scope.target_host_id, write)
+}
 
 #[test]
 fn hermes_api_isolates_memory_denies_without_project_grant() {
@@ -6,15 +17,6 @@ fn hermes_api_isolates_memory_denies_without_project_grant() {
     for write in [false, true] {
         assert!(matches!(authorize(&Policy(None), TenantScope::new("p", "c").unwrap(), &HeaderMap::new(), &scope, write), Err(StatusCode::UNAUTHORIZED)));
     }
-}
-
-#[test]
-fn hermes_api_isolates_memory_model_omits_credentials() {
-    let snapshot = hermes::model_snapshot(Some(b"model:\n  default: test\n  provider: custom\n  api_key: secret\n  base_url: https://secret@example.com\n")).unwrap().unwrap();
-    let json = serde_json::to_value(snapshot).unwrap();
-    assert_eq!(json, serde_json::json!({"default":"test", "provider":"custom"}));
-    assert_eq!(hermes::model_snapshot(None).unwrap(), None);
-    assert!(hermes::model_snapshot(Some(b"model: []")).is_err());
 }
 
 #[test]

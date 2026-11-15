@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+ordered-id = { path = "../libs/ordered-id", version = "0.6.0" }
 vw-api-app-provider-base = { path = "../libs/api-app-provider-base", version = "0.6.0" }
 ordered-id = { path = "../libs/ordered-id", version = "0.6.0" }
 desktop-config = { path = "../libs/desktop-config", version = "0.6.0" }

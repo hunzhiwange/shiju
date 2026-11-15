@@ -528,6 +528,7 @@ members = [
   "crates/libs/domain-matcher",
   "crates/libs/gateway-pairing",
   "crates/libs/gateway-types",
+  "crates/libs/gateway-dynamic-tools",
   "crates/libs/gateway-worktree",
   "crates/libs/gateway-auth",
   "crates/libs/gateway-agent-apps",

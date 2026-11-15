@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/desktop-voice",
   "crates/libs/app-discovery",
   "crates/libs/gateway-desktop-settings",
   "crates/libs/app-versions",

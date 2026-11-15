@@ -325,6 +325,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             match crate::app::voice::conversation::Conversation::start(
                 endpoint.clone(),
                 session.to_owned(),
+                || crate::app::voice::preferences::Preferences::load().map(|p| p.microphone),
             ) {
                 Ok(conversation) => {
                     app.voice.conversation_error_reported = false;

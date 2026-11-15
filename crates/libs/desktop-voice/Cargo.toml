@@ -1,0 +1,38 @@
+[package]
+name = "desktop-voice"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[features]
+acceptance-fixture = ["dep:tokio-tungstenite"]
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+audio-capture = { path = "../audio-capture", version = "0.6.0" }
+audio-playback = { path = "../audio-playback", version = "0.6.0" }
+voice-permissions = { path = "../voice-permissions", version = "0.6.0" }
+config-voice = { path = "../config-voice", version = "0.6.0" }
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+gateway-http = { path = "../gateway-http", version = "0.6.0" }
+gateway-voice = { path = "../gateway-voice", version = "0.6.0" }
+vw-api-voice = { path = "../api-voice", version = "0.6.0" }
+base64 = "0.23"
+cpal = { version = "0.18.2", default-features = false }
+iced = { version = "0.14", features = ["tokio"] }
+rand = "0.10.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "macros", "sync", "time", "net", "io-util"] }
+tokio-tungstenite = { version = "0.29", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }
+
+[dev-dependencies]
+parking_lot = "0.12"
+tokio = { version = "1", features = ["rt-multi-thread"] }

@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::voice::capture::{CaptureBackend, CaptureError, CaptureSink};
+use crate::capture::{CaptureBackend, CaptureError, CaptureSink};
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
@@ -37,7 +37,7 @@ fn voice_task_11_conversation_end_releases_capture() {
 }
 #[test]
 fn voice_task_11_conversation_interrupt_stops_old_audio() {
-    let (mut playback, mut output) = crate::app::voice::playback::fixture(24000, 1);
+    let (mut playback, mut output) = crate::playback::fixture(24000, 1);
     playback.push_pcm(&[100, 10, 100, 10]).unwrap();
     let mut media = Media { capture: None, playback: Some(playback) };
     media.interrupt();
@@ -62,7 +62,7 @@ fn voice_task_11_captions_replace_deltas_and_ignore_repeated_final() {
 }
 #[test]
 fn voice_task_11_playback_progress_tracks_consumed_samples() {
-    let (mut playback, mut output) = crate::app::voice::playback::fixture(48000, 1);
+    let (mut playback, mut output) = crate::playback::fixture(48000, 1);
     playback.push_pcm(&[1; 96]).unwrap();
     assert!(playback.pending());
     output.render(&mut [0.0f32; 48]);
@@ -158,7 +158,7 @@ async fn voice_task_11_end_cancels_pending_gateway_connection() {
             }
         }
     });
-    let mut conversation = Conversation::start(endpoint, "chat".into()).unwrap();
+    let mut conversation = Conversation::start(endpoint, "chat".into(), || Ok(None)).unwrap();
     tokio::time::timeout(Duration::from_secs(5), waiting).await.unwrap().unwrap();
     conversation.end();
     assert!(!conversation.snapshot().microphone);

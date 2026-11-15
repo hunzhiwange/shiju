@@ -121,7 +121,7 @@ impl Drop for Owned {
 unsafe impl Send for Owned {}
 unsafe impl Sync for Owned {}
 
-pub(crate) struct NativeBackend {
+pub struct NativeBackend {
     application: Owned,
     window: Owned,
     element: Owned,
@@ -139,7 +139,7 @@ fn frontmost_pid() -> Result<i32, String> {
         Ok(msg_send![application, processIdentifier])
     }
 }
-pub(crate) fn capture() -> Result<Option<Target<NativeBackend>>, String> {
+pub fn capture() -> Result<Option<Target<NativeBackend>>, String> {
     let pid = frontmost_pid()?;
     if pid == std::process::id() as i32 {
         return Ok(None);

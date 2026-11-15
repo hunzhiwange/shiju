@@ -33,13 +33,9 @@ pub(crate) mod recordings_playback;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod hotkeys;
 
-#[cfg(target_os = "macos")]
-mod hotkeys_macos;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod insertion;
-#[cfg(target_os = "macos")]
-mod insertion_macos;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod screen_context;

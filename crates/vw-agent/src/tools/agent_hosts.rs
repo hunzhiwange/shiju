@@ -204,3 +204,39 @@ impl DelegateHost for ToolAgentHost {
         crate::agent::loop_::run_tool_call_loop(provider, history, tools, observer, provider_name, model, temperature, true, None, "delegate", multimodal, max_iterations, None, None, None, Some(security), &[]).await
     }
 }
+
+#[async_trait::async_trait]
+impl tool_agents::thread_tool::ThreadHost for ToolAgentHost {
+    async fn fork(scope: SessionScope, parent: &str, source: &str, message: Option<&str>) -> Result<session_info::Info> {
+        Ok(runtime::fork_visible_task_session(scope, parent, source, message).await?)
+    }
+    fn pinned(tenant: &TenantScope, project: &str) -> Result<std::collections::HashSet<String>> {
+        ui_store::load_pinned_threads(tenant, project)
+    }
+    fn pin(tenant: &TenantScope, project: &str, thread: &str, pinned: bool) -> Result<bool> {
+        ui_store::set_thread_pinned(tenant, project, thread, pinned)
+    }
+    async fn title(directory: PathBuf, tenant: TenantScope, id: String, title: String) -> Result<session_info::Info> {
+        Ok(crate::project::instance::provide(directory, None, move || {
+            let id = id.clone();
+            let title = title.clone();
+            Box::pin(async move {
+                ui_store::with_tenant_scope(tenant, async move {
+                    crate::session::session::update(&id, |info| info.title = title).await
+                }).await
+            })
+        }).await??)
+    }
+    async fn archive(directory: PathBuf, tenant: TenantScope, id: String, archived: bool) -> Result<session_info::Info> {
+        Ok(crate::project::instance::provide(directory, None, move || {
+            let id = id.clone();
+            Box::pin(async move {
+                ui_store::with_tenant_scope(tenant, async move {
+                    crate::session::session::update(&id, |info| {
+                        info.time.archived = archived.then(crate::session::session::now_ms);
+                    }).await
+                }).await
+            })
+        }).await??)
+    }
+}

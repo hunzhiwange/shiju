@@ -3,3 +3,4 @@ pub mod ports;
 pub mod agent_tool;
 pub mod delegate;
 pub mod session_tool;
+pub mod thread_tool;

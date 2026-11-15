@@ -3,7 +3,7 @@ use super::{
     SendMessageToThreadTool, SetThreadArchivedTool, SetThreadPinnedTool, SetThreadTitleTool,
     WaitThreadsTool,
 };
-use crate::app::agent::tools::traits::Tool;
+use tool_types::Tool;
 use crate::session::runtime::{CreateSessionInput, SessionScope, create_session, load_session};
 use crate::session::task_session::TaskSessionCoordinator;
 use futures_util::FutureExt;

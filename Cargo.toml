@@ -534,6 +534,7 @@ members = [
   "crates/libs/gateway-types",
   "crates/libs/gateway-provider",
   "crates/libs/gateway-permission",
+  "crates/libs/gateway-question",
   "crates/libs/gateway-memory",
   "crates/libs/gateway-integrations",
   "crates/libs/gateway-global",

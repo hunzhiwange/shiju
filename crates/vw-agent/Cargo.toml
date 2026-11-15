@@ -357,6 +357,7 @@ gateway-types = { path = "../libs/gateway-types", version = "0.6.0" }
 gateway-provider = { path = "../libs/gateway-provider", version = "0.6.0" }
 gateway-pty = { path = "../libs/gateway-pty", version = "0.6.0" }
 gateway-permission = { path = "../libs/gateway-permission", version = "0.6.0" }
+gateway-question = { path = "../libs/gateway-question", version = "0.6.0" }
 gateway-memory = { path = "../libs/gateway-memory", version = "0.6.0" }
 gateway-integrations = { path = "../libs/gateway-integrations", version = "0.6.0" }
 gateway-misc = { path = "../libs/gateway-misc", version = "0.6.0" }

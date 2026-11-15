@@ -1,6 +1,13 @@
 // 覆盖提问请求的创建、回答、拒绝及缺失项处理。
 
 use super::*;
+
+struct TestHost;
+impl QuestionHost for TestHost {
+    fn current_tenant_scope() -> vw_api_transport::TenantScope {
+        vw_api_transport::TenantScope::default()
+    }
+}
 use axum::body::Body;
 use axum::extract::Path;
 use axum::http::{Method, Request, StatusCode};
@@ -10,7 +17,7 @@ use tower::ServiceExt;
 // 回答与拒绝均使用待处理问题夹具，确保一次性消费语义和缺失项结果稳定。
 #[test]
 fn router_builds_with_app_state() {
-    let _: axum::Router<()> = router();
+    let _: axum::Router<()> = router::<(), TestHost>();
 }
 
 #[test]
@@ -50,7 +57,7 @@ fn question_reply_request_rejects_missing_or_flat_answers() {
 
 #[tokio::test]
 async fn question_routes_enforce_registered_methods() {
-    let app: axum::Router<()> = router();
+    let app: axum::Router<()> = router::<(), TestHost>();
 
     for (method, uri) in [
         (Method::POST, "/question"),
@@ -75,7 +82,7 @@ async fn question_routes_enforce_registered_methods() {
 
 #[tokio::test]
 async fn question_reply_route_rejects_body_without_answers() {
-    let response = router::<()>()
+    let response = router::<(), TestHost>()
         .oneshot(
             Request::builder()
                 .method(Method::POST)
@@ -106,7 +113,7 @@ fn question_info(label: &str) -> question::Info {
 
 async fn pending_request_id(session_id: &str) -> String {
     loop {
-        let Json(items) = question_list().await;
+        let Json(items) = question_list::<TestHost>().await;
         if let Some(item) = items.iter().find(|item| item.session_id == session_id) {
             break item.id.clone();
         }
@@ -121,11 +128,11 @@ async fn question_list_and_reply_complete_pending_request() {
         session_id: session_id.clone(),
         questions: vec![question_info("Continue")],
         tool: None,
-    }));
+    }, TestHost::current_tenant_scope()));
 
     let request_id = pending_request_id(&session_id).await;
 
-    let Json(ok) = question_reply(
+    let Json(ok) = question_reply::<TestHost>(
         Path(request_id),
         Json(QuestionReplyRequest { answers: vec![vec!["Yes".to_string()]] }),
     )
@@ -144,10 +151,10 @@ async fn question_reply_accepts_empty_answers() {
         session_id: session_id.clone(),
         questions: vec![question_info("Continue")],
         tool: None,
-    }));
+    }, TestHost::current_tenant_scope()));
 
     let request_id = pending_request_id(&session_id).await;
-    let Json(ok) = question_reply(Path(request_id), Json(QuestionReplyRequest { answers: vec![] }))
+    let Json(ok) = question_reply::<TestHost>(Path(request_id), Json(QuestionReplyRequest { answers: vec![] }))
         .await
         .expect("empty reply should succeed");
     assert!(ok);
@@ -158,7 +165,7 @@ async fn question_reply_accepts_empty_answers() {
 
 #[tokio::test]
 async fn question_reply_unknown_request_is_idempotent() {
-    let Json(ok) = question_reply(
+    let Json(ok) = question_reply::<TestHost>(
         Path("missing-question".to_string()),
         Json(QuestionReplyRequest { answers: vec![vec!["ignored".to_string()]] }),
     )
@@ -175,10 +182,10 @@ async fn question_reject_pending_request_resolves_ask_with_rejected_error() {
         session_id: session_id.clone(),
         questions: vec![question_info("Continue")],
         tool: None,
-    }));
+    }, TestHost::current_tenant_scope()));
 
     let request_id = pending_request_id(&session_id).await;
-    let Json(ok) = question_reject(Path(request_id)).await.expect("reject should succeed");
+    let Json(ok) = question_reject::<TestHost>(Path(request_id)).await.expect("reject should succeed");
     assert!(ok);
 
     let err = ask_task.await.expect("ask task should join").expect_err("ask should reject");
@@ -187,7 +194,7 @@ async fn question_reject_pending_request_resolves_ask_with_rejected_error() {
 
 #[tokio::test]
 async fn question_reject_unknown_request_is_idempotent() {
-    let Json(ok) = question_reject(Path("missing-question".to_string()))
+    let Json(ok) = question_reject::<TestHost>(Path("missing-question".to_string()))
         .await
         .expect("unknown reject should still succeed");
 

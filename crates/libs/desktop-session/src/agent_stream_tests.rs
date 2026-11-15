@@ -3,7 +3,7 @@
 //! 事件夹具覆盖增量、工具、权限、错误和终止序列，重点检查乱序与重复事件的幂等性。
 
 // 保留计划任务 846 的既定覆盖面。
-const SOURCE: &str = include_str!("agent_stream.rs");
+const SOURCE: &str = concat!(include_str!("agent_stream.rs"), include_str!("agent_stream/reconnect.rs"), include_str!("agent_stream/workflow.rs"), include_str!("agent_stream/plan_run.rs"));
 
 const _: () = assert!(
     super::PLAN_RUN_DELTA_FLUSH_INTERVAL.as_secs() == 10
@@ -268,10 +268,10 @@ fn chat_tool_event_keeps_legacy_tool_content() {
     });
 
     let message = super::chat_tool_message(7, &payload).expect("desktop tool message");
-    let crate::app::Message::Chat(crate::app::message::chat::ChatMessage::AgentToolLifecycle(
+    let super::StreamMessage::AgentToolLifecycle(
         request_id,
         event,
-    )) = message
+    ) = message
     else {
         panic!("expected dedicated tool lifecycle message");
     };
@@ -287,9 +287,8 @@ fn compaction_status_event_json_maps_both_lifecycle_phases() {
     for (phase, completed) in [("started", false), ("completed", true)] {
         let payload = serde_json::json!({"type": "chat.compaction", "phase": phase});
         let message = super::chat_compaction_message(7, &payload).expect("compaction message");
-        let crate::app::Message::Chat(
-            crate::app::message::chat::ChatMessage::AgentCompactionStatus(request_id, actual),
-        ) = message
+        let
+            super::StreamMessage::AgentCompactionStatus(request_id, actual) = message
         else {
             panic!("expected compaction status message");
         };
@@ -315,28 +314,28 @@ fn session_tool_create_event_requests_visible_session_refresh() {
     });
 
     let message = super::chat_tool_message(8, &payload).expect("desktop tool message");
-    let crate::app::Message::Chat(crate::app::message::chat::ChatMessage::AgentToolLifecycle(
+    let super::StreamMessage::AgentToolLifecycle(
         _,
         event,
-    )) = message
+    ) = message
     else {
         panic!("expected dedicated tool lifecycle message");
     };
 
     assert_eq!(
-        crate::app::message::chat::stream::session_tool_created_session(&event),
+        crate::message::chat::stream::session_tool_created_session(&event),
         Some(("task-visible-1".to_string(), Some("/project".to_string())))
     );
 
     let mut failed = event.clone();
     failed.status = gateway_chat_stream::GatewayChatToolStatus::Failed;
-    assert!(crate::app::message::chat::stream::session_tool_created_session(&failed).is_none());
+    assert!(crate::message::chat::stream::session_tool_created_session(&failed).is_none());
     let mut other_action = event;
     other_action.payload["output"] = serde_json::Value::String(
         "{\"action\":\"send\",\"session_id\":\"task-visible-1\"}".to_string(),
     );
     assert!(
-        crate::app::message::chat::stream::session_tool_created_session(&other_action).is_none()
+        crate::message::chat::stream::session_tool_created_session(&other_action).is_none()
     );
 }
 
@@ -525,7 +524,7 @@ fn gateway_stream_retries_incomplete_attempts_until_terminal() {
         allowed_tools: None,
         require_agent_tool: false,
         acp_force_new_session: false,
-        acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
+        acp_history_mode: crate::message::chat::request::AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
         full_access_enabled: Some(false),
         resume_history_only: false,
@@ -556,7 +555,7 @@ fn autonomous_agent_tool_request_does_not_add_desktop_prompt_or_requirement() {
         allowed_tools: Some(vec!["AgentTool".to_string(), "shell".to_string()]),
         require_agent_tool: false,
         acp_force_new_session: false,
-        acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
+        acp_history_mode: crate::message::chat::request::AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
         full_access_enabled: Some(false),
         resume_history_only: false,
@@ -880,29 +879,29 @@ fn workflow_node_tool_block_exposes_usage_metadata() {
 #[test]
 fn workflow_history_context_filters_empty_messages_and_keeps_order() {
     let history = vec![
-        crate::app::models::ChatMessage {
-            role: crate::app::models::ChatRole::System,
+        session_ui_types::ChatMessage {
+            role: session_ui_types::ChatRole::System,
             content: " system rules ".to_string(),
             model: None,
             think_timing: Vec::new(),
             processing_timing: None,
         },
-        crate::app::models::ChatMessage {
-            role: crate::app::models::ChatRole::User,
+        session_ui_types::ChatMessage {
+            role: session_ui_types::ChatRole::User,
             content: "   ".to_string(),
             model: None,
             think_timing: Vec::new(),
             processing_timing: None,
         },
-        crate::app::models::ChatMessage {
-            role: crate::app::models::ChatRole::Assistant,
+        session_ui_types::ChatMessage {
+            role: session_ui_types::ChatRole::Assistant,
             content: " answer ".to_string(),
             model: None,
             think_timing: Vec::new(),
             processing_timing: None,
         },
-        crate::app::models::ChatMessage {
-            role: crate::app::models::ChatRole::Tool,
+        session_ui_types::ChatMessage {
+            role: session_ui_types::ChatRole::Tool,
             content: " tool output ".to_string(),
             model: None,
             think_timing: Vec::new(),
@@ -918,8 +917,8 @@ fn workflow_history_context_filters_empty_messages_and_keeps_order() {
 
 #[test]
 fn workflow_history_context_truncates_large_context_from_tail() {
-    let history = vec![crate::app::models::ChatMessage {
-        role: crate::app::models::ChatRole::User,
+    let history = vec![session_ui_types::ChatMessage {
+        role: session_ui_types::ChatRole::User,
         content: "x".repeat(super::WORKFLOW_HISTORY_MAX_CHARS + 64),
         model: None,
         think_timing: Vec::new(),
@@ -1360,7 +1359,7 @@ fn parse_usage_supports_gateway_and_desktop_shapes() {
     assert_eq!(desktop.cached_tokens, 5);
     assert_eq!(desktop.reasoning_tokens, 6);
 
-    assert_eq!(super::parse_usage(None), crate::app::models::TokenUsage::default());
+    assert_eq!(super::parse_usage(None), session_ui_types::TokenUsage::default());
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1499,7 +1498,7 @@ fn agent_stream_wrapper_returns_stream_without_polling() {
         allowed_tools: None,
         require_agent_tool: false,
         acp_force_new_session: false,
-        acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
+        acp_history_mode: crate::message::chat::request::AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
         full_access_enabled: Some(false),
         resume_history_only: false,
@@ -1508,7 +1507,7 @@ fn agent_stream_wrapper_returns_stream_without_polling() {
         history: Vec::new(),
     };
 
-    let stream = super::agent_stream(&req);
+    let stream = super::agent_stream(&req, desktop_config::ConfigAccess::new(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1), None), gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1));
     drop(stream);
 }
 
@@ -2008,7 +2007,7 @@ fn plan_run_started_messages_register_planning_and_execution_sessions() {
             .expect("subtask registration message");
 
     match planning_message {
-        super::Message::Chat(super::message::ChatMessage::PlanRunSessionStarted {
+        super::StreamMessage::PlanRunSessionStarted {
             title_feedback: _,
             parent_request_id,
             parent_session_id,
@@ -2016,7 +2015,7 @@ fn plan_run_started_messages_register_planning_and_execution_sessions() {
             title,
             directory,
             query,
-        }) => {
+        } => {
             assert_eq!(parent_request_id, 42);
             assert_eq!(parent_session_id, "main");
             assert_eq!(session_id, "task-2-plan");
@@ -2028,13 +2027,13 @@ fn plan_run_started_messages_register_planning_and_execution_sessions() {
     }
 
     match subtask_message {
-        super::Message::Chat(super::message::ChatMessage::PlanRunSessionStarted {
+        super::StreamMessage::PlanRunSessionStarted {
             title_feedback: _,
             session_id,
             title,
             query,
             ..
-        }) => {
+        } => {
             assert_eq!(session_id, "task-2-sub-9");
             assert_eq!(title, "子任务 · sub-9");
             assert_eq!(query, "子任务 · sub-9");
@@ -2178,7 +2177,7 @@ async fn workflow_mode_without_project_root_emits_error_without_network() {
         allowed_tools: None,
         require_agent_tool: false,
         acp_force_new_session: false,
-        acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
+        acp_history_mode: crate::message::chat::request::AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
         full_access_enabled: Some(false),
         resume_history_only: false,
@@ -2187,11 +2186,11 @@ async fn workflow_mode_without_project_root_emits_error_without_network() {
         history: Vec::new(),
     };
 
-    let mut stream = super::agent_stream(&req);
+    let mut stream = super::agent_stream(&req, desktop_config::ConfigAccess::new(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1), None), gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1));
     let message = stream.next().await.expect("workflow root validation message");
 
     match message {
-        super::Message::Chat(super::message::ChatMessage::AgentStreamError(id, error)) => {
+        super::StreamMessage::AgentStreamError(id, error) => {
             assert_eq!(id, 43);
             assert_eq!(error, "启用工作流执行需要先选择项目根目录");
         }
@@ -2219,7 +2218,7 @@ fn sample_agent_request(
         allowed_tools: None,
         require_agent_tool: false,
         acp_force_new_session: false,
-        acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
+        acp_history_mode: crate::message::chat::request::AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
         full_access_enabled: Some(false),
         resume_history_only: false,
@@ -2512,15 +2511,14 @@ fn parse_usage_defaults_invalid_and_partial_values() {
     assert_eq!(partial.reasoning_tokens, 0);
 
     let invalid_desktop = super::parse_usage(Some(&serde_json::json!({"input_tokens": "invalid"})));
-    assert_eq!(invalid_desktop, crate::app::models::TokenUsage::default());
+    assert_eq!(invalid_desktop, session_ui_types::TokenUsage::default());
 }
 
 #[test]
 fn recovery_notice_gateway_payload_keeps_request_and_rejects_other_session() {
     let payload = serde_json::json!({"type":"chat.model_recovery", "session_id":"notice", "phase":"waiting", "attempt":1, "max_attempts":3, "wait_ms":500, "reason":"配置暂时不可读", "next_action":"检查模型配置"});
-    let Some(crate::app::Message::Chat(
-        crate::app::message::chat::ChatMessage::AgentModelRecovery(id, event),
-    )) = super::chat_model_recovery_message(42, "notice", &payload)
+    let Some(
+        super::StreamMessage::AgentModelRecovery(id, event)) = super::chat_model_recovery_message(42, "notice", &payload)
     else {
         panic!("expected recovery message");
     };

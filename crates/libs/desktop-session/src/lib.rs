@@ -41,3 +41,6 @@ pub mod session;
 pub mod session_gateway;
 
 pub mod external_open;
+
+pub mod agent_stream;
+pub mod agent_stream_events;

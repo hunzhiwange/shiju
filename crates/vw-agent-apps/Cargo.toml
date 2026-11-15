@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-diagnostics = { path = "../libs/app-diagnostics" }
 app-project-profiles = { path = "../libs/app-project-profiles" }
 app-data-management = { path = "../libs/app-data-management" }
 app-data-projection = { path = "../libs/app-data-projection" }
@@ -64,7 +65,6 @@ vw-api-apps-usage = { path = "../libs/api-apps-usage", version = "0.6.0" }
 vw-api-usage = { path = "../libs/api-usage", version = "0.6.0" }
 vw-api-external-session = { path = "../libs/api-external-session", version = "0.6.0" }
 vw-api-app-failover = { path = "../libs/api-app-failover", version = "0.6.0" }
-vw-api-app-diagnostics = { path = "../libs/api-app-diagnostics", version = "0.6.0" }
 vw-api-mcp-management = { path = "../libs/api-mcp-management", version = "0.6.0" }
 vw-api-app-aggregation = { path = "../libs/api-app-aggregation", version = "0.6.0" }
 vw-api-app-operations = { path = "../libs/api-app-operations", version = "0.6.0" }

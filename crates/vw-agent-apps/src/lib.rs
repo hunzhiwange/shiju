@@ -28,7 +28,7 @@ pub mod mcp;
 
 pub mod high_availability;
 
-pub mod diagnostics;
+pub use app_diagnostics as diagnostics;
 
 pub use app_skills as skills;
 

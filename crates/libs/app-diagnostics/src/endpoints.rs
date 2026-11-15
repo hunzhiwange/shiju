@@ -1,8 +1,6 @@
 //! Read-only endpoint candidates for one authorized provider.
-use crate::{
-    models::preset_catalog::{claude_preset, codex_preset, gemini_grok_preset},
-    providers::{endpoints, validation},
-};
+use app_model_catalog::preset_catalog::{claude_preset, codex_preset, gemini_grok_preset};
+use app_provider_validation::{endpoints, validation};
 use serde_json::Value;
 use toml_edit::{DocumentMut, Item};
 use vw_api_app_diagnostics::DiagnosticEndpointSource;

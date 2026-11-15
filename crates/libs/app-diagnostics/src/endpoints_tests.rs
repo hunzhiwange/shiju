@@ -1,5 +1,5 @@
 use super::endpoints::{EndpointCandidate, collect};
-use crate::providers::endpoints;
+use app_provider_validation::endpoints;
 use serde_json::json;
 use vw_api_app_diagnostics::DiagnosticEndpointSource::self;
 use vw_api_app_diagnostics::DiagnosticEndpointSource::Custom;

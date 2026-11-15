@@ -698,9 +698,9 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `device_sync/webdav_transport.rs` | 237 | 65 → `app-device-sync/src/webdav_transport.rs` |
 | `device_sync/webdav_transport/download.rs` | 147 | 65 → `app-device-sync/src/webdav_transport/download.rs` |
 | `device_sync/webdav_url.rs` | 52 | 64 → `app-sync-core/src/webdav_url.rs` |
-| `diagnostics/endpoints.rs` | 135 | 71 |
-| `diagnostics/endpoints_tests.rs` | 95 | 71 |
-| `diagnostics/mod.rs` | 5 | 71 |
+| `diagnostics/endpoints.rs` → `app-diagnostics/src/endpoints.rs` | 135 | 71 |
+| `diagnostics/endpoints_tests.rs` → `app-diagnostics/src/endpoints_tests.rs` | 95 | 71 |
+| `diagnostics/mod.rs` → `app-diagnostics/src/lib.rs` | 5 | 71 |
 | `hermes_dashboard.rs` | 86 | 37（已迁入 app-workspace-memory） |
 | `hermes_dashboard_tests.rs` | 63 | 37（已迁入 app-workspace-memory） |
 | `hermes_memory.rs` | 63 | 37（已迁入 app-workspace-memory） |
@@ -1502,7 +1502,7 @@ models/presets 全部 11 个 JSON 归任务 9；data_management/fixtures/schema_
 | `data_management/usage.rs` → `app-data-projection/src/usage.rs` | `crate::usage::import_store::load_imported_usage`<br>`crate::usage::import_store::replace_imported_usage_in_transaction`<br>`crate::usage::store::{self, StoredUsageRecord, UsageSourceIdentity}` |
 | `data_management/usage_tests.rs` → `app-data-projection/src/usage_tests.rs` | `crate::usage::store::initialize_usage_store` |
 | `device_sync/skill_update.rs` | `crate::providers::paths::open_beneath`<br>`crate::skills::{     copy_deploy::{binding_fingerprint, CopyBinding, CopyDeploy}` |
-| `diagnostics/endpoints_tests.rs` | `crate::providers::endpoints` |
+| `diagnostics/endpoints_tests.rs` → `app-diagnostics/src/endpoints_tests.rs` | `crate::providers::endpoints` |
 | `hermes_memory.rs` | `crate::workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory}` |
 | `hermes_memory_limits.rs` | `crate::providers::{     hermes::HermesFiles,     live::{         commit::{AppState, ProviderTransactions}` |
 | `hermes_memory_tests.rs` | `crate::workspace_paths::PathError` |
@@ -2947,3 +2947,12 @@ app-project-profiles 唯一拥有 project_profiles 的全部12个文件，mod.rs
 仅 apply_provider 的身份校验从旧门面改为直接连接 app-provider-validation，原门面本就重导出同一函数。其余源码逐文件与 HEAD 对照一致。直接依赖为 anyhow、uuid、app-provider-validation 及四个 API 包；移除父包已无 Rust 调用者的 uuid 和 vw-api-project-profiles，其余依赖仍有调用。无独立测试、cfg 或资源/include 路径需要迁移，无新增公开私有 API。
 
 静态证据：12个文件逐一对照、调用者/导出及无反向依赖检索、Python 3.13 标准库 TOML 路径与13包依赖闭包无环审阅通过。本任务差异空白检查通过；全工作区 git diff --check 提示既有无关 crates/vw-agent/src/config/mod.rs 文件末空行，未改动。未运行 Cargo、单元及实机测试，统一验收待授权：新包及直接调用者编译、各平台配置快照/应用/自动保存行为与清单锁文件一致性。Cargo.lock 未修改。
+
+
+### 任务71：应用诊断（静态完成）
+
+app-diagnostics 唯一拥有 endpoints.rs、endpoints_tests.rs 及由 diagnostics/mod.rs 迁移的 lib.rs。EndpointCandidate 与 collect 保持公开，门面通过 pub use app_diagnostics as diagnostics 保留原调用路径；网关 agent_apps_diagnostics.rs 继续经门面收集端点，诊断 jobs/endpoints 与 executors/speedtest 保持同一 EndpointCandidate 类型。根模块只有模块与独立测试注册，无遗留编排或后继移交。
+
+模型预设直接连接 app-model-catalog::preset_catalog，地址簿与端点规则直接连接 app-provider-validation，不依赖整个供应商服务。除导入路径外实现和测试保持原样，候选顺序、去重、错误及只读授权边界均保持；无平台 cfg 或资源/include 路径变化。父包移除无人使用的 vw-api-app-diagnostics；toml_edit 仍供模型模板测试使用，其余依赖仍有调用。
+
+静态证据：迁移文件逐一对照、关键导出与真实调用者检索、Python 标准库 TOML 路径及依赖闭包无环审阅、git diff --check。未运行 Cargo、单元及实机测试，统一验收待授权：新包与直接调用者编译、迁移单测、各平台端点行为及清单锁文件一致性。Cargo.lock 未修改。

@@ -13,3 +13,6 @@ pub mod session;
 pub mod session_events;
 pub mod runtime_state;
 pub mod session_turn;
+
+#[cfg(test)]
+mod root_contract_tests;

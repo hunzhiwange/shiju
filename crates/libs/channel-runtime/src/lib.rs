@@ -8,3 +8,6 @@ mod commands;
 pub use commands::ChannelCommands;
 mod health_state;
 pub use health_state::ChannelHealthState;
+
+#[cfg(test)]
+mod root_contract_tests;

@@ -28,3 +28,11 @@ mod basic_channels_tests;
 mod common_tests;
 #[cfg(test)]
 mod execution_tests;
+
+pub mod enterprise_channels;
+pub mod extended_channels;
+pub mod wecom_delivery_modal;
+#[cfg(test)]
+mod enterprise_channels_tests;
+#[cfg(test)]
+mod extended_channels_tests;

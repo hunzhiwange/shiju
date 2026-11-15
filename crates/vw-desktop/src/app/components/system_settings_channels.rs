@@ -12,10 +12,6 @@ mod extended_channels;
 #[cfg(test)]
 mod wecom_delivery_modal_tests;
 
-#[cfg(test)]
-mod enterprise_channels_tests;
-#[cfg(test)]
-mod extended_channels_tests;
 
 use crate::app::{App, Message};
 use crate::app::state::ChannelsSettingsTab;

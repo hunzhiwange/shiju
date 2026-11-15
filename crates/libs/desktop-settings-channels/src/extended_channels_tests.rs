@@ -1,7 +1,7 @@
 //! 验证扩展消息渠道的启停状态、可选凭据与数值边界。
 //! 邮件渠道额外覆盖 TLS 与端口边界，其他渠道保持各自可选字段。
 
-use crate::app::{App, Message};
+use crate::{test_support::Fixture as App, messages::Message};
 #[cfg(not(target_arch = "wasm32"))]
 use config_channel_services::EmailConfig;
 use config_channel_services::{
@@ -18,13 +18,13 @@ fn keep_element(element: iced::Element<'_, Message>) {
 }
 
 fn render_extended_channels(app: &App) {
-    keep_element(super::extended_channels::whatsapp_panel(app));
-    keep_element(super::extended_channels::linq_panel(app));
-    keep_element(super::extended_channels::wati_panel(app));
-    keep_element(super::extended_channels::nextcloud_talk_panel(app));
+    keep_element(super::extended_channels::whatsapp_panel(app.view()));
+    keep_element(super::extended_channels::linq_panel(app.view()));
+    keep_element(super::extended_channels::wati_panel(app.view()));
+    keep_element(super::extended_channels::nextcloud_talk_panel(app.view()));
     #[cfg(not(target_arch = "wasm32"))]
-    keep_element(super::extended_channels::email_panel(app));
-    keep_element(super::extended_channels::irc_panel(app));
+    keep_element(super::extended_channels::email_panel(app.view()));
+    keep_element(super::extended_channels::irc_panel(app.view()));
 }
 
 fn configure_extended_channels(app: &mut App) {
@@ -144,11 +144,11 @@ fn extended_panels_build_with_optional_credentials_absent() {
     });
     app.channels_settings.refresh_text_inputs();
 
-    keep_element(super::extended_channels::whatsapp_panel(&app));
-    keep_element(super::extended_channels::linq_panel(&app));
-    keep_element(super::extended_channels::wati_panel(&app));
-    keep_element(super::extended_channels::nextcloud_talk_panel(&app));
-    keep_element(super::extended_channels::irc_panel(&app));
+    keep_element(super::extended_channels::whatsapp_panel(app.view()));
+    keep_element(super::extended_channels::linq_panel(app.view()));
+    keep_element(super::extended_channels::wati_panel(app.view()));
+    keep_element(super::extended_channels::nextcloud_talk_panel(app.view()));
+    keep_element(super::extended_channels::irc_panel(app.view()));
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -163,7 +163,7 @@ fn email_panel_builds_numeric_boundaries_and_tls_states() {
         ..EmailConfig::default()
     });
     app.channels_settings.refresh_text_inputs();
-    keep_element(super::extended_channels::email_panel(&app));
+    keep_element(super::extended_channels::email_panel(app.view()));
 
     let config = app.channels_settings.email.as_mut().expect("email config");
     config.imap_port = u16::MAX;
@@ -171,5 +171,5 @@ fn email_panel_builds_numeric_boundaries_and_tls_states() {
     config.smtp_tls = true;
     config.idle_timeout_secs = 86_400;
     app.channels_settings.refresh_text_inputs();
-    keep_element(super::extended_channels::email_panel(&app));
+    keep_element(super::extended_channels::email_panel(app.view()));
 }

@@ -21,3 +21,4 @@ gateway-channel-qr = { path = "../gateway-channel-qr", version = "0.6.0" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+base64 = "0.23"

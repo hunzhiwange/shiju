@@ -1,7 +1,7 @@
 //! 验证企业消息渠道的配置面板、实例标题与可选凭据路径。
 //! 飞书和钉钉的仅实例配置用于确认名称回退且不臆造缺失凭据。
 
-use crate::app::{App, Message};
+use crate::{test_support::Fixture as App, messages::Message};
 use config_channel_types::{GroupReplyConfig, GroupReplyMode};
 use config_channel_services::{
     ClawdTalkConfig, DingTalkConfig, DingTalkInstanceConfig, FeishuConfig,
@@ -92,24 +92,24 @@ fn enterprise_channels_tests_are_wired() {
 #[test]
 fn enterprise_panels_build_disabled_and_expanded_enabled_states() {
     let mut app = test_app();
-    keep_element(super::enterprise_channels::lark_panel(&app));
-    keep_element(super::enterprise_channels::feishu_panel(&app));
-    keep_element(super::enterprise_channels::dingtalk_panel(&app));
-    keep_element(super::enterprise_channels::qq_panel(&app));
-    keep_element(super::enterprise_channels::wecom_panel(&app));
-    keep_element(super::enterprise_channels::wechat_panel(&app));
-    keep_element(super::enterprise_channels::nostr_panel(&app));
-    keep_element(super::enterprise_channels::clawdtalk_panel(&app));
+    keep_element(super::enterprise_channels::lark_panel(app.view()));
+    keep_element(super::enterprise_channels::feishu_panel(app.view()));
+    keep_element(super::enterprise_channels::dingtalk_panel(app.view()));
+    keep_element(super::enterprise_channels::qq_panel(app.view()));
+    keep_element(super::enterprise_channels::wecom_panel(app.view()));
+    keep_element(super::enterprise_channels::wechat_panel(app.view()));
+    keep_element(super::enterprise_channels::nostr_panel(app.view()));
+    keep_element(super::enterprise_channels::clawdtalk_panel(app.view()));
 
     configure_enterprise_channels(&mut app);
-    keep_element(super::enterprise_channels::lark_panel(&app));
-    keep_element(super::enterprise_channels::feishu_panel(&app));
-    keep_element(super::enterprise_channels::dingtalk_panel(&app));
-    keep_element(super::enterprise_channels::qq_panel(&app));
-    keep_element(super::enterprise_channels::wecom_panel(&app));
-    keep_element(super::enterprise_channels::wechat_panel(&app));
-    keep_element(super::enterprise_channels::nostr_panel(&app));
-    keep_element(super::enterprise_channels::clawdtalk_panel(&app));
+    keep_element(super::enterprise_channels::lark_panel(app.view()));
+    keep_element(super::enterprise_channels::feishu_panel(app.view()));
+    keep_element(super::enterprise_channels::dingtalk_panel(app.view()));
+    keep_element(super::enterprise_channels::qq_panel(app.view()));
+    keep_element(super::enterprise_channels::wecom_panel(app.view()));
+    keep_element(super::enterprise_channels::wechat_panel(app.view()));
+    keep_element(super::enterprise_channels::nostr_panel(app.view()));
+    keep_element(super::enterprise_channels::clawdtalk_panel(app.view()));
 }
 
 #[test]
@@ -128,19 +128,19 @@ fn channel_qr_panels_build_real_image_path_with_non_ascii_labels() {
     app.channels_settings.qr_flow.expires_at = Some("2026-10-20T12:00:00Z".to_string());
     app.channels_settings.qr_flow.credentials_ready = true;
 
-    keep_element(super::enterprise_channels::wecom_panel(&app));
+    keep_element(super::enterprise_channels::wecom_panel(app.view()));
 }
 
 #[test]
 fn enterprise_panels_build_configured_state() {
     let mut app = test_app();
     configure_enterprise_channels(&mut app);
-    keep_element(super::enterprise_channels::lark_panel(&app));
-    keep_element(super::enterprise_channels::feishu_panel(&app));
-    keep_element(super::enterprise_channels::dingtalk_panel(&app));
-    keep_element(super::enterprise_channels::qq_panel(&app));
-    keep_element(super::enterprise_channels::nostr_panel(&app));
-    keep_element(super::enterprise_channels::clawdtalk_panel(&app));
+    keep_element(super::enterprise_channels::lark_panel(app.view()));
+    keep_element(super::enterprise_channels::feishu_panel(app.view()));
+    keep_element(super::enterprise_channels::dingtalk_panel(app.view()));
+    keep_element(super::enterprise_channels::qq_panel(app.view()));
+    keep_element(super::enterprise_channels::nostr_panel(app.view()));
+    keep_element(super::enterprise_channels::clawdtalk_panel(app.view()));
 }
 
 #[test]
@@ -171,10 +171,10 @@ fn enterprise_panels_build_when_optional_credentials_are_absent() {
         .webhook_secret = None;
     app.channels_settings.refresh_text_inputs();
 
-    keep_element(super::enterprise_channels::lark_panel(&app));
-    keep_element(super::enterprise_channels::feishu_panel(&app));
-    keep_element(super::enterprise_channels::qq_panel(&app));
-    keep_element(super::enterprise_channels::clawdtalk_panel(&app));
+    keep_element(super::enterprise_channels::lark_panel(app.view()));
+    keep_element(super::enterprise_channels::feishu_panel(app.view()));
+    keep_element(super::enterprise_channels::qq_panel(app.view()));
+    keep_element(super::enterprise_channels::clawdtalk_panel(app.view()));
 }
 
 #[test]
@@ -215,7 +215,7 @@ fn feishu_panel_builds_instance_only_state_with_named_and_fallback_titles() {
     app.channels_settings.refresh_text_inputs();
 
     assert!(app.channels_settings.feishu.is_none());
-    keep_element(super::enterprise_channels::feishu_panel(&app));
+    keep_element(super::enterprise_channels::feishu_panel(app.view()));
 }
 
 #[test]
@@ -242,5 +242,5 @@ fn dingtalk_panel_builds_instance_only_state_with_named_and_fallback_titles() {
     app.channels_settings.refresh_text_inputs();
 
     assert!(app.channels_settings.dingtalk.is_none());
-    keep_element(super::enterprise_channels::dingtalk_panel(&app));
+    keep_element(super::enterprise_channels::dingtalk_panel(app.view()));
 }

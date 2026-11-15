@@ -24,5 +24,9 @@ mod mod_tests;
 #[path = "tests/schedule.rs"]
 mod schedule_acceptance_tests;
 
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "tests/commands.rs"]
+mod commands_acceptance_tests;
+
 #[cfg(test)]
 mod active_runs_tests;

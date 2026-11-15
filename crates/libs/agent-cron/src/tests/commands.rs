@@ -12,13 +12,13 @@
 //! - **错误处理**：验证无效输入（无更新字段、不存在的任务）的错误返回
 //! - **安全检查**：验证命令执行的安全策略
 
-use crate::app::agent::config::Config;
-use crate::app::agent::cron::CronJobPatch;
-use crate::app::agent::cron::{
+use agent_config::runtime::Config;
+use crate::CronJobPatch;
+use crate::{
     CronCommands, CronJob, Schedule, add_shell_job, get_job, handle_command, list_jobs, pause_job,
     remove_job, resume_job, update_job,
 };
-use crate::app::agent::security::SecurityPolicy;
+use agent_security::SecurityPolicy;
 use anyhow::Result;
 use tempfile::TempDir;
 

@@ -84,3 +84,7 @@ pub fn create_consolidation_job_with_schedule(
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "../tests/consolidation.rs"]
+mod acceptance_tests;

@@ -18,12 +18,12 @@
 //! | `create_consolidation_job_prompt_contains_key_instructions` | 提示词关键内容 |
 //! | `create_consolidation_job_with_custom_schedule_applies_tz` | 自定义时区 |
 
-use crate::app::agent::config::Config;
-use crate::app::agent::cron::consolidation::{
+use agent_config::runtime::Config;
+use crate::consolidation::{
     CONSOLIDATION_JOB_NAME, DEFAULT_SCHEDULE_EXPR, create_consolidation_job,
     create_consolidation_job_with_schedule,
 };
-use crate::app::agent::cron::{JobType, Schedule, SessionTarget};
+use crate::{JobType, Schedule, SessionTarget};
 use tempfile::TempDir;
 
 /// 创建用于测试的配置实例

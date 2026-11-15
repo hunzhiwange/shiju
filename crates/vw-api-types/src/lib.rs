@@ -85,9 +85,6 @@ mod apps_usage_tests;
 #[path = "knowledge_tests.rs"]
 mod knowledge_tests;
 #[cfg(test)]
-#[path = "project_tests.rs"]
-mod project_tests;
-#[cfg(test)]
 #[path = "provider_tests.rs"]
 mod provider_tests;
 #[cfg(test)]

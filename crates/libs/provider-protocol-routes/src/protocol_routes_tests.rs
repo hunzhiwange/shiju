@@ -1,5 +1,5 @@
 use crate::protocol_routes::*;
-use model_protocols::*;
+use vw_shared::provider::protocols::*;
 
 const CAPS: &[RouteCapability] = &[RouteCapability::Text, RouteCapability::Tools];
 

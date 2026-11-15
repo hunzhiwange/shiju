@@ -6,7 +6,7 @@ use provider_protocol_routes::{
     ConversionSupport, EndpointGrant, ProtocolRoute, RouteBinding, RouteCapability, RouteRequest,
     select_route,
 };
-use model_protocols::{
+use vw_shared::provider::protocols::{
     ModelProtocol, ProtocolAuthentication, ProtocolEndpoint, ProtocolEvidence,
     ProtocolEvidenceKind, ProtocolModelScope,
 };

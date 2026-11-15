@@ -1,25 +1,5 @@
-use crate::{ProtocolEndpoint, deserialize_protocols};
-use serde::{Deserialize, Serialize};
+use super::ApiInfo;
 use serde_json::{Value, json};
-
-// Minimal wire carrier keeps these protocol tests independent of provider state.
-#[derive(Serialize, Deserialize)]
-struct ApiInfo {
-    id: String,
-    url: String,
-    #[serde(default = "default_adapter")]
-    adapter: String,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_protocols"
-    )]
-    protocols: Option<Vec<ProtocolEndpoint>>,
-}
-
-fn default_adapter() -> String {
-    "openai-compatible".to_string()
-}
 
 fn api(protocols: Value) -> Value {
     json!({"id":"model-a", "url":"https://example.test/v1", "protocols": protocols})

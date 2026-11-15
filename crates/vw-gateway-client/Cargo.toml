@@ -8,6 +8,7 @@ description = "Gateway client types and helpers for VibeWindow"
 license = "MIT"
 
 [dependencies]
+vw-api-project = { path = "../libs/api-project", version = "0.6.0" }
 vw-api-worktree = { path = "../libs/api-worktree", version = "0.6.0" }
 gateway-app-lifecycle = { path = "../libs/gateway-app-lifecycle", version = "0.6.0" }
 gateway-app-auth = { path = "../libs/gateway-app-auth", version = "0.6.0" }

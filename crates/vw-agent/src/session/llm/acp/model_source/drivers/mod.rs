@@ -153,8 +153,8 @@ pub(in crate::session::llm::acp) fn verified_release(agent: &str) -> Option<&'st
 fn source_protocol(
     agent: &str,
     api: &crate::provider::provider::ApiInfo,
-) -> anyhow::Result<model_protocols::ModelProtocol> {
-    use model_protocols::ModelProtocol as P;
+) -> anyhow::Result<vw_shared::provider::protocols::ModelProtocol> {
+    use vw_shared::provider::protocols::ModelProtocol as P;
     Ok(match agent {
         "amp-acp" | "claude" => P::Messages,
         "codex" | "kiro" | "grok" => P::Responses,

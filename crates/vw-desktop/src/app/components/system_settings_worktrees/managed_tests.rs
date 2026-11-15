@@ -1,5 +1,5 @@
 use crate::app::state::{ManagedWorktreeGroup, ManagedWorktreesState};
-use vw_gateway_client::vw_api_types::project::ProjectDto;
+use vw_api_project::ProjectDto;
 
 fn project(id: &str) -> ProjectDto {
     serde_json::from_value(serde_json::json!({

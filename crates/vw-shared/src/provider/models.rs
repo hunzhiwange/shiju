@@ -64,9 +64,9 @@ pub struct ModelProviderInfo {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "model_protocols::deserialize_protocols"
+        deserialize_with = "super::protocols::deserialize_protocols"
     )]
-    pub protocols: Option<Vec<model_protocols::ProtocolEndpoint>>,
+    pub protocols: Option<Vec<super::protocols::ProtocolEndpoint>>,
     /// 原始 SDK 身份；不等同于已支持的运行时协议。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub npm: Option<String>,
@@ -86,9 +86,9 @@ pub struct Model {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "model_protocols::deserialize_protocols"
+        deserialize_with = "super::protocols::deserialize_protocols"
     )]
-    pub protocols: Option<Vec<model_protocols::ProtocolEndpoint>>,
+    pub protocols: Option<Vec<super::protocols::ProtocolEndpoint>>,
     #[serde(default)]
     pub id: String,
     /// 原厂目录条目的指向，保留原样。部署身份仍由所属供应商与模型 ID 决定。
@@ -139,9 +139,9 @@ pub struct Provider {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "model_protocols::deserialize_protocols"
+        deserialize_with = "super::protocols::deserialize_protocols"
     )]
-    pub protocols: Option<Vec<model_protocols::ProtocolEndpoint>>,
+    pub protocols: Option<Vec<super::protocols::ProtocolEndpoint>>,
     /// 来源目录 SDK 声明，独立保留显式 adapter。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub npm: Option<String>,

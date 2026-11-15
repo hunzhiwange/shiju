@@ -8,7 +8,6 @@ description = "Provider and model resolver for VibeWindow"
 license = "MIT"
 
 [dependencies]
-model-protocols = { path = "../libs/model-protocols", version = "0.6.0" }
 provider-resolution = { path = "../libs/provider-resolution", version = "0.6.0" }
 provider-auth-reader = { path = "../libs/provider-auth-reader", version = "0.6.0" }
 provider-config-reader = { path = "../libs/provider-config-reader", version = "0.6.0" }

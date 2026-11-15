@@ -275,7 +275,7 @@ impl RelayBackend for ProviderRelayBackend {
             )?;
             if !matches!(
                 route.endpoint.authentication,
-                model_protocols::ProtocolAuthentication::None {}
+                vw_shared::provider::protocols::ProtocolAuthentication::None {}
             ) {
                 bearer(&info)?;
             }
@@ -319,7 +319,7 @@ impl RelayBackend for ProviderRelayBackend {
         let native = source == P::Messages && !route.conversion_required;
         let key = if matches!(
             route.endpoint.authentication,
-            model_protocols::ProtocolAuthentication::None {}
+            vw_shared::provider::protocols::ProtocolAuthentication::None {}
         ) {
             String::new()
         } else {

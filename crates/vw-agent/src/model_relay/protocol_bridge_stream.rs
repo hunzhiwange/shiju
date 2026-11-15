@@ -7,7 +7,7 @@ use futures_util::StreamExt;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use tokio_util::sync::CancellationToken;
-use model_protocols::ModelProtocol as P;
+use vw_shared::provider::ModelProtocol as P;
 const LIMIT: usize = 4 * 1024 * 1024;
 const BAD: StatusCode = StatusCode::BAD_GATEWAY;
 

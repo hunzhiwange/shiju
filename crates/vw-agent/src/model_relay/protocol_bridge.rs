@@ -2,7 +2,7 @@
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
-use model_protocols::ModelProtocol;
+use vw_shared::provider::ModelProtocol;
 
 #[path = "protocol_bridge_response.rs"]
 mod decode;

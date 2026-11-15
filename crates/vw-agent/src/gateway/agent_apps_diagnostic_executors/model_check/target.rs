@@ -175,7 +175,7 @@ impl ModelTarget {
     pub(super) fn select_protocol(&self, source: GenerationProtocol) -> Result<()> {
         use crate::model_relay::routing;
         use vw_provider_resolver::protocol_routes::RouteCapability;
-        use model_protocols::{
+        use vw_shared::provider::protocols::{
             ProtocolAuthentication, ProtocolEndpoint, ProtocolEvidence, ProtocolEvidenceKind,
             ProtocolModelScope,
         };

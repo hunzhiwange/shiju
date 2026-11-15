@@ -71,7 +71,7 @@ fn cc_route_048_safety_is_refusal_and_never_executes_tools() {
     }
     let body = json!({"promptFeedback":{"blockReason":"SAFETY"}});
     assert!(
-        super::protocol_bridge::response(model_protocols::ModelProtocol::Gemini, &body)
+        super::protocol_bridge::response(vw_shared::provider::ModelProtocol::Gemini, &body)
             .is_err()
     );
     let result = convert(&body, "m").unwrap();

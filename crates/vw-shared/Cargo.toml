@@ -8,7 +8,6 @@ description = "Shared utilities for VibeWindow crates"
 license = "MIT"
 
 [dependencies]
-model-protocols = { path = "../libs/model-protocols", version = "0.6.0" }
 session-paths = { path = "../libs/session-paths", version = "0.6.0" }
 build-identity = { path = "../libs/build-identity", version = "0.6.0" }
 runtime-time = { path = "../libs/runtime-time", version = "0.6.0" }

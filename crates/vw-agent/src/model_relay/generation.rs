@@ -11,7 +11,7 @@ use super::transport::{
 };
 use crate::provider::provider::ApiInfo;
 
-pub(crate) use model_protocols::ModelProtocol as GenerationProtocol;
+pub(crate) use vw_shared::provider::ModelProtocol as GenerationProtocol;
 
 /// Transport operations for the shared protocol identity.
 pub(crate) trait GenerationTransport {
@@ -81,10 +81,10 @@ impl GenerationTransport for GenerationProtocol {
 
 /// Authentication belongs to the selected endpoint, never to a source protocol.
 pub(crate) fn endpoint_headers(
-    endpoint: &model_protocols::ProtocolEndpoint,
+    endpoint: &vw_shared::provider::protocols::ProtocolEndpoint,
     credential: &str,
 ) -> Result<header::HeaderMap, StatusCode> {
-    use model_protocols::ProtocolAuthentication as A;
+    use vw_shared::provider::protocols::ProtocolAuthentication as A;
     let mut headers = header::HeaderMap::new();
     let invalid = StatusCode::UNPROCESSABLE_ENTITY;
     let pair = match &endpoint.authentication {

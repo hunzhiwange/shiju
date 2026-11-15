@@ -1,5 +1,5 @@
 use crate::app::message::settings::worktrees::environment::{EnvironmentMessage as Event, apply};
-fn project(id: &str) -> vw_gateway_client::vw_api_types::project::ProjectDto {
+fn project(id: &str) -> vw_api_project::ProjectDto {
     serde_json::from_value(serde_json::json!({
         "id":id,"name":format!("中文项目-{id}"),"directory":format!("/项目/{id}"),
         "display_path":format!("/项目/{id}"),"status":"ready","created_at_ms":1,"updated_at_ms":2,
@@ -256,8 +256,8 @@ async fn worktree_environment_ui_paginates_and_sends_only_project_patch() {
     });
     let projects = load_projects(&client, vec![]).await.unwrap();
     assert_eq!(projects.iter().map(|p| p.id.as_ref()).collect::<Vec<_>>(), ["a", "b"]);
-    let patch = vw_gateway_client::vw_api_types::project::UpdateProjectRequest {
-        commands: Some(vw_gateway_client::vw_api_types::project::CommandsUpdateDto {
+    let patch = vw_api_project::UpdateProjectRequest {
+        commands: Some(vw_api_project::CommandsUpdateDto {
             start: Some(command),
         }),
         ..Default::default()

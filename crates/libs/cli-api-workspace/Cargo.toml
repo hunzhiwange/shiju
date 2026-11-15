@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
+vw-api-project = { path = "../api-project", version = "0.6.0" }
 vw-api-worktree = { path = "../api-worktree", version = "0.6.0" }
 vw-api-git = { path = "../api-git", version = "0.6.0" }
 vw-api-file = { path = "../api-file", version = "0.6.0" }

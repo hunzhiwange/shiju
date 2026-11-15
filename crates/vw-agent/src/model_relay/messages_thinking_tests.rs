@@ -8,7 +8,7 @@ async fn model_protocol_015_http_tool_round_and_sse_preserve_reasoning() {
 #[test]
 fn model_protocol_015_selector_exposes_thinking_and_replay() {
     use provider_protocol_routes::RouteCapability as C;
-    use model_protocols::ModelProtocol as P;
+    use vw_shared::provider::protocols::ModelProtocol as P;
     let routes = routing::relay_conversions(false);
     let route = routes.iter().find(|r| r.source == P::Messages).unwrap();
     assert!(route.capabilities.contains(&C::Thinking));

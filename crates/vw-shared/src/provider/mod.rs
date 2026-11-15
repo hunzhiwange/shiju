@@ -10,8 +10,7 @@
 //! - `types`：对外暴露的提供商与模型协议类型
 
 pub mod models;
-/// Historical protocol module path.
-pub use model_protocols as protocols;
+pub mod protocols;
 pub mod reasoning;
 pub mod state;
 pub mod types;
@@ -24,3 +23,7 @@ pub use types::*;
 
 /// 默认适配器辅助函数。
 pub use types::default_adapter;
+
+#[cfg(test)]
+#[path = "protocols_tests.rs"]
+mod protocols_tests;

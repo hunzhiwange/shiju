@@ -1,6 +1,6 @@
 use super::*;
 use serde_json::json;
-use model_protocols::ModelProtocol as P;
+use vw_shared::provider::ModelProtocol as P;
 
 fn turn() -> Value {
     json!({"model":"bound-api","max_tokens":128,"stream":true,"stream_options":{"include_usage":true},"messages":[

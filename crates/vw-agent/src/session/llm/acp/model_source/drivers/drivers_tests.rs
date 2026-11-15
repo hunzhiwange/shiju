@@ -2,7 +2,7 @@ use super::*;
 use crate::{
     config::schema::AcpAgentConfig, model_relay::RelayIdentity, provider::provider::ApiInfo,
 };
-use model_protocols::{ModelProtocol as P, ProtocolEndpoint};
+use vw_shared::provider::protocols::{ModelProtocol as P, ProtocolEndpoint};
 
 fn profile(adapter: &str) -> AcpLaunchProfile {
     let mut profile = AcpLaunchProfile::new(
@@ -28,7 +28,7 @@ fn profile(adapter: &str) -> AcpLaunchProfile {
 }
 
 fn endpoint(protocol: P) -> ProtocolEndpoint {
-    use model_protocols::*;
+    use vw_shared::provider::protocols::*;
     ProtocolEndpoint {
         protocol,
         url: match protocol {
@@ -122,7 +122,7 @@ fn model_protocol_013_four_sources_prefer_catalog_native_and_share_relay_convers
 
 #[test]
 fn model_protocol_013_model_scope_authentication_and_capability_refusals_are_sanitized() {
-    use model_protocols::{ProtocolAuthentication, ProtocolModelScope};
+    use vw_shared::provider::protocols::{ProtocolAuthentication, ProtocolModelScope};
     for (index, expected) in [
         (0, "ModelNotApplicable"),
         (1, "UnsupportedAuthentication"),

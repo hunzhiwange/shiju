@@ -9,7 +9,7 @@ use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
 };
-use vw_gateway_client::vw_api_types::project::{
+use vw_api_project::{
     ListProjectsRequest, ProjectStatus, ResolveProjectRequest, UpdateProjectRequest,
 };
 use vw_api_worktree::{

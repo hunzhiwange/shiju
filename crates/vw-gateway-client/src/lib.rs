@@ -185,7 +185,7 @@ pub use vw_api_types::knowledge::{
     KnowledgeIndexJobStatus, KnowledgeIndexingMode, KnowledgeMatchType, KnowledgeRetrievalMode,
     KnowledgeRetrieveRequest, KnowledgeRetrieveResponse, KnowledgeRuntimeStatus,
 };
-pub use vw_api_types::project::{
+pub use vw_api_project::{
     ListProjectChangeRecordsRequest, ListProjectChangeRecordsResponse, ProjectChangeRecordDto,
 };
 pub use vw_api_types::workflow::{

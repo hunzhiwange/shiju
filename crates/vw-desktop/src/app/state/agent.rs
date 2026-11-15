@@ -619,23 +619,7 @@ pub(crate) struct ActiveSessionViewState {
 /// 会话原始 LLM 载荷的稳定读取键。
 pub(crate) type SessionStepRawKey = (String, String, u32);
 
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub(crate) struct ToolDetailDialog {
-    pub(crate) msg_idx: usize,
-    pub(crate) tool_idx: usize,
-    pub(crate) title: String,
-    pub(crate) content: String,
-    pub(crate) editor: text_editor::Content,
-    pub(crate) editor_id: Id,
-    pub(crate) undo_stack: Vec<String>,
-    pub(crate) redo_stack: Vec<String>,
-    pub(crate) context_menu_open: bool,
-    pub(crate) context_menu_pos: Option<(f32, f32)>,
-    pub(crate) scroll_top_line: f32,
-    pub(crate) scroll_remainder: f32,
-    pub(crate) viewport_height: f32,
-}
+pub(crate) use desktop_session::message::chat::input::tool_detail::ToolDetailDialog;
 
 impl Default for SessionRuntimeState {
     fn default() -> Self {

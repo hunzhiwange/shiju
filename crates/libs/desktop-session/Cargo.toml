@@ -8,6 +8,16 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+desktop-chat-tools = { path = "../desktop-chat-tools", version = "0.6.0" }
+serde_json = "1"
+web-time = "1"
+desktop-editor = { path = "../desktop-editor", version = "0.6.0" }
+desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
+desktop-task-model = { path = "../desktop-task-model", version = "0.6.0" }
+session-ui-types = { path = "../session-ui-types", version = "0.6.0" }
+runtime-time = { path = "../runtime-time", version = "0.6.0" }
+vw-api-chat-identity = { path = "../api-chat-identity", version = "0.6.0" }
+
 iced = { version = "0.14", features = ["image", "svg", "advanced"] }
 desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
 pasted-text-cache = { path = "../pasted-text-cache", version = "0.6.0" }

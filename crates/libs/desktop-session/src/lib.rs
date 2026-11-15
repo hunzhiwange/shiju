@@ -4,7 +4,21 @@ pub mod message {
         pub mod acp_options;
         pub mod context;
         pub mod fork;
+        pub mod processing_timing;
+        #[cfg(test)]
+        mod processing_timing_tests;
         pub mod input {
+            pub mod file_search;
+            pub mod shared;
+            pub mod slash_palette;
+            pub mod task_mode;
+            pub mod tool_detail;
+            #[cfg(test)]
+            mod file_search_tests;
+            #[cfg(test)]
+            mod shared_tests;
+            #[cfg(test)]
+            mod slash_palette_tests;
             pub mod editor_actions;
             pub mod clipboard;
             pub mod context_menus;

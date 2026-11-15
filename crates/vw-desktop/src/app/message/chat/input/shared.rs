@@ -4,10 +4,6 @@
 use crate::app::components::chat_panel::message_view::{
     build_render_cache_entry, deduped_tool_last_indices,
 };
-use crate::app::components::chat_panel::tools::{
-    is_explore_tool, pending_permission_targets_message, pending_permission_targets_tool_call,
-    tool_identity_from_raw, tool_name_from_raw,
-};
 use crate::app::{App, Message, models};
 use iced::{
     Task,
@@ -34,32 +30,6 @@ pub(super) fn focus_input_editor(app: &App) -> Task<Message> {
     operation::focus(app.input_editor_id.clone())
 }
 
-/// 模块内可见函数，执行 preferred_chat_message_index_by_id 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn preferred_chat_message_index_by_id(
-    chat: &[models::ChatMessage],
-    message_ids: &[Option<String>],
-    message_id: &str,
-) -> Option<usize> {
-    let mut first_match = None;
-
-    for (idx, candidate) in message_ids.iter().enumerate() {
-        if candidate.as_deref() != Some(message_id) {
-            continue;
-        }
-
-        if first_match.is_none() {
-            first_match = Some(idx);
-        }
-
-        if chat.get(idx).is_some_and(|message| message.role == models::ChatRole::Tool) {
-            return Some(idx);
-        }
-    }
-
-    first_match
-}
-
 /// 模块内可见函数，执行 permission_target_tool_anchor_fraction 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn permission_target_tool_anchor_fraction(
@@ -68,75 +38,10 @@ pub(super) fn permission_target_tool_anchor_fraction(
     message_id: Option<&str>,
     show_reasoning_summary: bool,
 ) -> Option<f32> {
-    if !pending_permission_targets_message(request, message_id) {
-        return None;
-    }
-
-    if message.role == models::ChatRole::Tool {
-        return Some(0.30);
-    }
-
-    if message.role != models::ChatRole::Assistant {
-        return None;
-    }
-
-    let (_, visible_for_copy, _) = crate::app::ui::chat::split_think(&message.content);
-    let render_cache =
-        build_render_cache_entry(&message.content, &visible_for_copy, 0, show_reasoning_summary);
-    let tool_last = deduped_tool_last_indices(&render_cache.blocks);
-    let mut visible_tools: Vec<Vec<usize>> = Vec::new();
-    let mut pending_explore_group: Vec<usize> = Vec::new();
-
-    for (block_idx, block) in render_cache.blocks.iter().enumerate() {
-        let models::ParsedChatBlock::Tool { raw } = block else {
-            if !pending_explore_group.is_empty() {
-                visible_tools.push(std::mem::take(&mut pending_explore_group));
-            }
-            continue;
-        };
-
-        let Some(tool_name) = tool_name_from_raw(raw) else {
-            if !pending_explore_group.is_empty() {
-                visible_tools.push(std::mem::take(&mut pending_explore_group));
-            }
-            continue;
-        };
-        if is_explore_tool(&tool_name) {
-            pending_explore_group.push(block_idx);
-            continue;
-        }
-
-        if !pending_explore_group.is_empty() {
-            visible_tools.push(std::mem::take(&mut pending_explore_group));
-        }
-        if let Some(identity) = tool_identity_from_raw(raw)
-            && tool_last.get(&identity).copied() != Some(block_idx)
-        {
-            continue;
-        }
-
-        visible_tools.push(vec![block_idx]);
-    }
-
-    if !pending_explore_group.is_empty() {
-        visible_tools.push(pending_explore_group);
-    }
-
-    if visible_tools.is_empty() {
-        return Some(0.50);
-    }
-
-    let target_tool_idx = visible_tools.iter().position(|group| {
-        group.iter().any(|block_idx| {
-            let Some(models::ParsedChatBlock::Tool { raw }) = render_cache.blocks.get(*block_idx)
-            else {
-                return false;
-            };
-            pending_permission_targets_tool_call(request, message_id, raw)
-        })
-    })?;
-    let step = 1.0 / (visible_tools.len() as f32 + 1.0);
-    Some((step * (target_tool_idx as f32 + 1.0)).clamp(0.22, 0.78))
+ let (_, visible_for_copy, _) = crate::app::ui::chat::split_think(&message.content);
+ let render_cache = build_render_cache_entry(&message.content, &visible_for_copy, 0, show_reasoning_summary);
+ let tool_last = deduped_tool_last_indices(&render_cache.blocks);
+ desktop_chat_view::permission_anchor::permission_target_tool_anchor_fraction(message, request, message_id, &render_cache.blocks, &tool_last)
 }
 
 fn locate_chat_message_idx(
@@ -216,3 +121,5 @@ pub(super) fn locate_chat_message_index(app: &mut App, target_idx: usize) -> Tas
     let message_id = app.chat_message_ids.get(target_idx).cloned().flatten();
     locate_chat_message_idx(app, target_idx, message_id.as_deref())
 }
+
+pub(super) use desktop_session::message::chat::input::shared::preferred_chat_message_index_by_id;

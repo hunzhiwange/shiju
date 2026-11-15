@@ -18,3 +18,5 @@ config-ui = { path = "../config-ui", version = "0.6.0" }
 session-ui-types = { path = "../session-ui-types", version = "0.6.0" }
 desktop-session = { path = "../desktop-session", version = "0.6.0" }
 session-info = { path = "../session-info", version = "0.6.0" }
+
+gateway-interaction = { path = "../gateway-interaction", version = "0.6.0" }

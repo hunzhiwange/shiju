@@ -18,4 +18,3 @@ fn git_workspace_status_returns_empty_files_for_non_dirty_states() {
     assert_eq!(GitWorkspaceStatus::ReadyClean.modified_files(), &[] as &[String]);
     assert_eq!(GitWorkspaceStatus::Unavailable.modified_files(), &[] as &[String]);
 }
-

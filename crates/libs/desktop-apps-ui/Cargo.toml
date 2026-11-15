@@ -6,6 +6,7 @@ license = "MIT"
 [lib]
 doctest = false
 [dependencies]
+serde = { version = "1", features = ["derive"] }
 desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 desktop-provider-apps = { path = "../desktop-provider-apps", version = "0.6.0" }
 iced = { version = "0.14", features = ["image", "svg", "advanced", "tokio"] }

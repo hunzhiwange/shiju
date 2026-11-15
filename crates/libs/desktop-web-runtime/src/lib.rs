@@ -11,6 +11,8 @@ pub mod webview_runtime;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod mcp_app_panel;
 
+pub mod state;
+
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod plugin_compat_t30_tests;
 

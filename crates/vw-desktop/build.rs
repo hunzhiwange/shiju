@@ -6,32 +6,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-fn generate_app_state_struct(manifest_dir: &Path, out_dir: &Path) {
-    let fragments = [
-        "core_fields.rs",
-        "chrome_fields.rs",
-        "git_fields.rs",
-        "settings_preview_fields.rs",
-        "tool_fields.rs",
-    ];
-    let fragments_dir = manifest_dir.join("src/app/state/app_state");
-    let mut generated = String::from("#[allow(dead_code)]\npub struct App {\n");
-
-    for fragment in fragments {
-        let path = fragments_dir.join(fragment);
-        println!("cargo:rerun-if-changed={}", path.display());
-        let content = fs::read_to_string(&path).expect("read app_state fragment");
-        generated.push_str(&content);
-        if !content.ends_with('\n') {
-            generated.push('\n');
-        }
-    }
-
-    generated.push_str("}\n");
-    fs::write(out_dir.join("app_state_generated.rs"), generated)
-        .expect("write app_state generated include");
-}
-
 fn png_dimensions(data: &[u8]) -> Option<(u32, u32)> {
     const PNG_SIGNATURE: &[u8; 8] = b"\x89PNG\r\n\x1a\n";
     if data.len() < 24 || &data[..8] != PNG_SIGNATURE {
@@ -153,6 +127,5 @@ fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR"));
 
     embed_windows_icon(&manifest_dir, &out_dir);
-    generate_app_state_struct(&manifest_dir, &out_dir);
 
 }

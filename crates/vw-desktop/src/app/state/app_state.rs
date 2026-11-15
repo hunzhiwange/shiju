@@ -168,9 +168,9 @@ pub struct App {
     /// 聊天消息持久化高度缓存
     pub(crate) chat_message_estimated_heights: Vec<f32>,
     /// 聊天虚拟滚动统一状态源
-    pub(crate) chat_virtualizer: crate::app::components::chat_panel::virtualizer::ChatVirtualizer,
+    pub(crate) chat_virtualizer: desktop_chat_view::virtualizer::ChatVirtualizer,
     /// 聊天消息高度索引
-    pub(crate) chat_height_index: crate::app::components::chat_panel::height_index::ChatHeightIndex,
+    pub(crate) chat_height_index: desktop_chat_view::height_index::ChatHeightIndex,
     /// 聊天消息测量高度缓存
     pub(crate) chat_message_measured_heights: HashMap<usize, f32>,
     /// 聊天消息编辑器列表（用于消息编辑）
@@ -463,7 +463,7 @@ pub struct App {
     /// 最近访问会话的可移动视图工作集缓存
     pub(crate) session_view_cache: crate::app::session::SessionViewCache,
     /// 当前会话的有界历史页与活动消息覆盖层。
-    pub(crate) paged_chat_timeline: Option<crate::app::session::chat_timeline::PagedChatTimeline>,
+    pub(crate) paged_chat_timeline: Option<desktop_session::session::chat_timeline::PagedChatTimeline>,
     /// 会话消息 ID 缓存（会话 ID -> 消息 ID 列表）
     pub(crate) session_chat_message_id_cache: HashMap<String, Vec<Option<String>>>,
     /// 会话历史重置边界（会话 ID -> 重置时保留的消息 ID 列表）
@@ -660,7 +660,7 @@ pub struct App {
     /// Git 变更文件列表当前对应的仓库路径
     pub(crate) git_changed_files_repo_path: Option<String>,
     /// Git diff 文件元数据缓存
-    pub(crate) git_diff_file_metas: Vec<crate::app::components::git_panel::DiffFileMeta>,
+    pub(crate) git_diff_file_metas: Vec<desktop_git_ui::git_panel::ops::DiffFileMeta>,
     /// Git diff 文件元数据是否正在加载
     pub(crate) git_diff_file_metas_loading: bool,
     /// Git diff 文件元数据当前对应的仓库路径
@@ -758,7 +758,7 @@ pub struct App {
     /// 设置标签页
     pub(crate) settings_tab: SettingsTab,
     /// 系统设置标签页
-    pub(crate) system_settings_tab: crate::app::components::system_settings::SystemTab,
+    pub(crate) system_settings_tab: desktop_settings_shell::SystemTab,
     /// 常规配置页内标签
     pub(crate) general_settings_tab: GeneralSettingsTab,
     /// 独立的原生归档聊天元数据与查询状态。
@@ -767,7 +767,7 @@ pub struct App {
     /// 系统设置分类搜索词
     pub(crate) system_settings_query: String,
     /// 当前打开的系统设置帮助标签页
-    pub(crate) system_settings_help_tab: Option<crate::app::components::system_settings::SystemTab>,
+    pub(crate) system_settings_help_tab: Option<desktop_settings_shell::SystemTab>,
     /// 顶栏网关服务弹窗的当前标签页
     pub(crate) top_bar_gateway_tab: TopBarGatewayTab,
     /// 提供者设置状态

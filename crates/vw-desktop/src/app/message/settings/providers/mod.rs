@@ -2,7 +2,6 @@
 
 pub(crate) mod catalog_api;
 pub(crate) mod discovery;
-mod helpers;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod managed_shiju;
 pub(crate) mod metadata_fill;
@@ -27,9 +26,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 
 #[cfg(test)]
 mod tests;
-
-#[cfg(test)]
-mod catalog_api_tests;
 
 #[cfg(test)]
 mod model_edits_api_tests;

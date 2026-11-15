@@ -2,13 +2,17 @@
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::*;
-use crate::app::App;
-use crate::app::message::settings::types::ProvidersLoaded;
-use crate::app::state::{ModelCatalogEntry, ProviderSummary};
+
+use crate::provider_message::ProvidersLoaded;
+use crate::provider_state::{ModelCatalogEntry, ProviderSummary};
 use std::collections::HashMap;
 
-fn app() -> App {
-    App::new().0
+#[derive(Default)]
+struct Fixture { provider_settings: ProviderSettingsState, model_settings: crate::state::ModelSettingsState }
+fn app() -> Fixture { Fixture::default() }
+fn update(app: &mut Fixture, message: SettingsMessage) -> Task<Message> {
+    let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 8080);
+    super::update(&mut app.provider_settings, &mut app.model_settings, endpoint.clone(), desktop_config::ConfigAccess::new(endpoint, None), false, message).0
 }
 
 fn catalog_item(provider_id: &str, provider_name: &str) -> ModelCatalogEntry {
@@ -416,7 +420,7 @@ fn custom_model_modal_adds_edits_closes_and_removes_models() {
 
 #[test]
 fn custom_provider_model_filter_and_enable_toggle_update_state() {
-    use crate::app::state::CustomProviderModelFilter;
+    use crate::provider_state::CustomProviderModelFilter;
 
     let mut app = app();
     app.provider_settings.custom.models = vec![

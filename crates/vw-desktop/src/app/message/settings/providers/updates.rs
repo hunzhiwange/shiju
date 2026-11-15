@@ -1,769 +1,150 @@
-//! 处理模型提供商设置子模块的目录、认证和连接状态。
-
-use crate::app::i18n::settings_models::messages::Feedback;
-use crate::app::{
-    App, Message,
-    state::{
-        CustomProviderDraft, CustomProviderModelDraft, CustomProviderModelFilter,
-        CustomProviderModelModalState, CustomProviderModelTab, CustomProviderTab,
-        ProviderConnectState, ProviderHeaderDraft, SHIJU_OFFICIAL_PROVIDER_NAME,
-        is_shiju_official_provider_id,
-    },
-};
-use iced::Task;
-
+//! Map desktop settings messages to provider-owned updates and effects.
+use crate::app::{App, Message};
 use super::super::messages::SettingsMessage;
-use super::helpers::{is_valid_provider_id, summarize_providers};
-use super::models::{
-    connect_provider, current_provider_api_key, disconnect_provider,
-    discover_custom_provider_models, load_custom_provider_draft, merge_discovered_model_drafts,
-    save_custom_provider, validate_model_drafts,
-};
-use super::tasks::{
-    load_catalog_task, refresh_task, save_popular_providers_task, sync_remote_task,
-};
-
-fn reset_models_sync_state(app: &mut App) {
-    app.provider_settings.models_syncing = false;
-    app.provider_settings.models_sync_progress = 0.0;
-    app.provider_settings.models_sync_label = String::new().into();
-}
-
-fn replace_popular_patterns(app: &mut App, patterns: Vec<String>) {
-    app.provider_settings.popular_patterns =
-        patterns.into_iter().filter(|pattern| !is_shiju_official_provider_id(pattern)).collect();
-}
-
-fn model_modal_state(
-    edit_index: Option<usize>,
-    model: Option<CustomProviderModelDraft>,
-) -> CustomProviderModelModalState {
-    let model = model.unwrap_or_default();
-    CustomProviderModelModalState {
-        active_tab: CustomProviderModelTab::default(),
-        edit_index,
-        model_id: model.model_id,
-        display_name: model.display_name,
-        family: model.family,
-        context_limit: model.context_limit,
-        input_limit: model.input_limit,
-        output_limit: model.output_limit,
-        reasoning: model.reasoning,
-        tool_call: model.tool_call,
-        temperature: model.temperature,
-        attachment: model.attachment,
-        interleaved: model.interleaved,
-        input_modalities: model.input_modalities,
-        output_modalities: model.output_modalities,
-        inherited_capabilities: model.inherited_capabilities,
-        original_model_id: model.original_model_id,
+use desktop_settings_providers::provider_message::{SettingsMessage as Local, Message as Effect};
+use iced::Task;
+fn map(effect: Effect) -> Message {
+    match effect {
+        Effect::Settings(message) => Message::Settings(match message {
+            Local::ProvidersRefresh => SettingsMessage::ProvidersRefresh,
+            Local::ProviderModelsSyncRemote => SettingsMessage::ProviderModelsSyncRemote,
+            Local::ProviderModelsSyncTick => SettingsMessage::ProviderModelsSyncTick,
+            Local::ProviderModelsSyncDone(v0) => SettingsMessage::ProviderModelsSyncDone(v0),
+            Local::ProvidersRefreshed(v0) => SettingsMessage::ProvidersRefreshed(v0),
+            Local::ProviderConnectOpen(v0) => SettingsMessage::ProviderConnectOpen(v0),
+            Local::ProviderConnectClose => SettingsMessage::ProviderConnectClose,
+            Local::ProviderConnectApiKeyChanged(v0) => SettingsMessage::ProviderConnectApiKeyChanged(v0),
+            Local::ProviderConnectSubmit => SettingsMessage::ProviderConnectSubmit,
+            Local::ProviderConnectDone(v0) => SettingsMessage::ProviderConnectDone(v0),
+            Local::ProviderDisconnectRequested(v0) => SettingsMessage::ProviderDisconnectRequested(v0),
+            Local::ProviderDisconnectCanceled => SettingsMessage::ProviderDisconnectCanceled,
+            Local::ProviderDisconnectConfirmed(v0) => SettingsMessage::ProviderDisconnectConfirmed(v0),
+            Local::ProviderDisconnectDone(v0) => SettingsMessage::ProviderDisconnectDone(v0),
+            Local::ProviderDisconnect(v0) => SettingsMessage::ProviderDisconnect(v0),
+            Local::CustomProviderOpen => SettingsMessage::CustomProviderOpen,
+            Local::CustomProviderEditOpen(v0) => SettingsMessage::CustomProviderEditOpen(v0),
+            Local::CustomProviderEditLoaded(v0) => SettingsMessage::CustomProviderEditLoaded(v0),
+            Local::CustomProviderClose => SettingsMessage::CustomProviderClose,
+            Local::CustomProviderTabSelected(v0) => SettingsMessage::CustomProviderTabSelected(v0),
+            Local::CustomProviderIdChanged(v0) => SettingsMessage::CustomProviderIdChanged(v0),
+            Local::CustomProviderNameChanged(v0) => SettingsMessage::CustomProviderNameChanged(v0),
+            Local::CustomProviderBaseUrlChanged(v0) => SettingsMessage::CustomProviderBaseUrlChanged(v0),
+            Local::CustomProviderApiKeyChanged(v0) => SettingsMessage::CustomProviderApiKeyChanged(v0),
+            Local::CustomProviderHeaderAdd => SettingsMessage::CustomProviderHeaderAdd,
+            Local::CustomProviderHeaderRemove(v0) => SettingsMessage::CustomProviderHeaderRemove(v0),
+            Local::CustomProviderHeaderKeyChanged(v0, v1) => SettingsMessage::CustomProviderHeaderKeyChanged(v0, v1),
+            Local::CustomProviderHeaderValueChanged(v0, v1) => SettingsMessage::CustomProviderHeaderValueChanged(v0, v1),
+            Local::CustomProviderModelOpen(v0) => SettingsMessage::CustomProviderModelOpen(v0),
+            Local::CustomProviderModelClose => SettingsMessage::CustomProviderModelClose,
+            Local::CustomProviderModelTabSelected(v0) => SettingsMessage::CustomProviderModelTabSelected(v0),
+            Local::CustomProviderModelModalIdChanged(v0) => SettingsMessage::CustomProviderModelModalIdChanged(v0),
+            Local::CustomProviderModelModalNameChanged(v0) => SettingsMessage::CustomProviderModelModalNameChanged(v0),
+            Local::CustomProviderModelModalFamilyChanged(v0) => SettingsMessage::CustomProviderModelModalFamilyChanged(v0),
+            Local::CustomProviderModelModalContextLimitChanged(v0) => SettingsMessage::CustomProviderModelModalContextLimitChanged(v0),
+            Local::CustomProviderModelModalInputLimitChanged(v0) => SettingsMessage::CustomProviderModelModalInputLimitChanged(v0),
+            Local::CustomProviderModelModalOutputLimitChanged(v0) => SettingsMessage::CustomProviderModelModalOutputLimitChanged(v0),
+            Local::CustomProviderModelModalReasoningChanged(v0) => SettingsMessage::CustomProviderModelModalReasoningChanged(v0),
+            Local::CustomProviderModelModalToolCallChanged(v0) => SettingsMessage::CustomProviderModelModalToolCallChanged(v0),
+            Local::CustomProviderModelModalTemperatureChanged(v0) => SettingsMessage::CustomProviderModelModalTemperatureChanged(v0),
+            Local::CustomProviderModelModalAttachmentChanged(v0) => SettingsMessage::CustomProviderModelModalAttachmentChanged(v0),
+            Local::CustomProviderModelModalInterleavedChanged(v0) => SettingsMessage::CustomProviderModelModalInterleavedChanged(v0),
+            Local::CustomProviderModelModalInputModalityToggled(v0, v1) => SettingsMessage::CustomProviderModelModalInputModalityToggled(v0, v1),
+            Local::CustomProviderModelModalOutputModalityToggled(v0, v1) => SettingsMessage::CustomProviderModelModalOutputModalityToggled(v0, v1),
+            Local::CustomProviderModelModalSave => SettingsMessage::CustomProviderModelModalSave,
+            Local::CustomProviderModelRemove(v0) => SettingsMessage::CustomProviderModelRemove(v0),
+            Local::CustomProviderModelEnabledToggled(v0, v1) => SettingsMessage::CustomProviderModelEnabledToggled(v0, v1),
+            Local::CustomProviderModelFilterSelected(v0) => SettingsMessage::CustomProviderModelFilterSelected(v0),
+            Local::CustomProviderModelsDiscover => SettingsMessage::CustomProviderModelsDiscover,
+            Local::CustomProviderModelsDiscovered { provider_id, result } => SettingsMessage::CustomProviderModelsDiscovered { provider_id, result },
+            Local::CustomProviderSave => SettingsMessage::CustomProviderSave,
+            Local::CustomProviderSaveDone(v0) => SettingsMessage::CustomProviderSaveDone(v0),
+            Local::PopularProviderRemove(v0) => SettingsMessage::PopularProviderRemove(v0),
+            Local::PopularProvidersSaved(v0) => SettingsMessage::PopularProvidersSaved(v0),
+            Local::ProviderCatalogOpen => SettingsMessage::ProviderCatalogOpen,
+            Local::ProviderCatalogClose => SettingsMessage::ProviderCatalogClose,
+            Local::ProviderCatalogQueryChanged(v0) => SettingsMessage::ProviderCatalogQueryChanged(v0),
+            Local::ProviderCatalogLoaded(v0) => SettingsMessage::ProviderCatalogLoaded(v0),
+            Local::ProviderCatalogAddToPopular(v0) => SettingsMessage::ProviderCatalogAddToPopular(v0),
+        }),
+        // These effects are consumed synchronously by update.
+        Effect::Warning(_) | Effect::SyncAccount => unreachable!("synchronous provider effect"),
     }
 }
-
-fn toggle_modality(
-    slot: &mut Option<Vec<String>>,
-    modality: String,
-    enabled: bool,
-    inherited: Option<&[String]>,
-) {
-    let values = slot.get_or_insert_with(|| {
-        inherited.map(ToOwned::to_owned).unwrap_or_else(|| vec!["text".to_string()])
-    });
-    if enabled {
-        if !values.iter().any(|value| value == &modality) {
-            values.push(modality);
-        }
-    } else {
-        values.retain(|value| value != &modality);
-    }
-}
-
-/// 处理 `update` 对应的用户输入、异步结果或状态转换。
-///
-/// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
-/// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
-    match message {
-        SettingsMessage::ProvidersRefresh => {
-            app.provider_settings.loading = true;
-            app.provider_settings.connect_error = None;
-            app.provider_settings.save_error = None;
-            app.provider_settings.disconnect_confirm_provider_id = None;
-            refresh_task()
-        }
-        SettingsMessage::ProviderModelsSyncRemote => {
-            if app.provider_settings.loading || app.provider_settings.models_syncing {
-                return Task::none();
-            }
-            app.provider_settings.connect_error = None;
-            app.provider_settings.save_error = None;
-            app.provider_settings.disconnect_confirm_provider_id = None;
-            app.provider_settings.models_syncing = true;
-            app.provider_settings.models_sync_progress = 0.08;
-            app.provider_settings.models_sync_label =
-                Feedback::owned("正在从 models.dev 拉取模型目录…", vec![]);
-            sync_remote_task()
-        }
-        SettingsMessage::ProviderModelsSyncTick => {
-            if !app.provider_settings.models_syncing {
-                return Task::none();
-            }
-            let next = (app.provider_settings.models_sync_progress + 0.07).min(0.9);
-            app.provider_settings.models_sync_progress = next;
-            app.provider_settings.models_sync_label = if next < 0.35 {
-                Feedback::owned("正在从 models.dev 拉取模型目录…", vec![])
-            } else if next < 0.7 {
-                Feedback::owned("正在写入本地缓存…", vec![])
-            } else {
-                Feedback::owned("正在刷新提供商视图…", vec![])
-            };
-            Task::none()
-        }
-        SettingsMessage::ProviderModelsSyncDone(res) => match res {
-            Ok((providers, patterns, configured, catalog)) => {
-                app.model_settings.providers =
-                    super::super::models::summarize_models(providers.clone());
-                app.provider_settings.providers = summarize_providers(providers);
-                if configured {
-                    replace_popular_patterns(app, patterns);
-                }
-                if !catalog.is_empty() {
-                    app.provider_settings.catalog_items = catalog;
-                }
-                app.provider_settings.catalog_loading = false;
-                reset_models_sync_state(app);
-                Task::none()
-            }
-            Err(e) => {
-                app.provider_settings.save_error = Some((e).into());
-                app.provider_settings.catalog_loading = false;
-                reset_models_sync_state(app);
-                Task::none()
-            }
-        },
-        SettingsMessage::ProvidersRefreshed(res) => match res {
-            Ok((providers, patterns, configured, catalog)) => {
-                app.provider_settings.loading = false;
-                app.model_settings.providers =
-                    super::super::models::summarize_models(providers.clone());
-                app.provider_settings.providers = summarize_providers(providers);
-                if configured {
-                    replace_popular_patterns(app, patterns);
-                }
-                if !catalog.is_empty() {
-                    app.provider_settings.catalog_items = catalog;
-                }
-                app.provider_settings.catalog_loading = false;
-                Task::none()
-            }
-            Err(e) => {
-                app.provider_settings.loading = false;
-                app.provider_settings.save_error = Some((e).into());
-                app.provider_settings.catalog_loading = false;
-                Task::none()
-            }
-        },
-        SettingsMessage::ProviderConnectOpen(provider_id) => {
-            if is_shiju_official_provider_id(&provider_id) {
-                app.provider_settings.connect_modal = None;
-                #[cfg(not(target_arch = "wasm32"))]
-                if app.account.active_account().is_none() {
-                    return app.show_warning_toast(
-                        Feedback::owned("请先登录识矩账户，模型将自动配置", vec![])
-                            .display(app.desktop_locale),
-                    );
-                }
-                #[cfg(not(target_arch = "wasm32"))]
-                return super::managed_shiju::sync(app);
-                #[cfg(target_arch = "wasm32")]
-                return app.show_warning_toast("请在桌面端登录识矩账户并配置模型");
-            }
-            let provider_name = app
-                .provider_settings
-                .catalog_items
-                .iter()
-                .find(|p| p.provider_id == provider_id)
-                .map(|p| p.provider_name.clone())
-                .or_else(|| {
-                    app.provider_settings
-                        .providers
-                        .iter()
-                        .find(|p| p.id == provider_id)
-                        .map(|p| p.name.clone())
-                })
-                .unwrap_or_else(|| {
-                    if is_shiju_official_provider_id(&provider_id) {
-                        SHIJU_OFFICIAL_PROVIDER_NAME.to_string()
-                    } else {
-                        provider_id.clone()
-                    }
-                });
-            let api_key = current_provider_api_key(&provider_id).unwrap_or_default();
-            app.provider_settings.connect_modal =
-                Some(ProviderConnectState { provider_id, provider_name, api_key });
-            app.provider_settings.connect_error = None;
-            app.provider_settings.catalog_open = false;
-            app.provider_settings.custom_model_modal = None;
-            app.provider_settings.custom_provider_modal_open = false;
-            app.provider_settings.custom_editing_provider_id = None;
-            app.provider_settings.disconnect_confirm_provider_id = None;
-            Task::none()
-        }
-        SettingsMessage::ProviderConnectClose => {
-            app.provider_settings.connect_modal = None;
-            app.provider_settings.connect_error = None;
-            Task::none()
-        }
-        SettingsMessage::ProviderConnectApiKeyChanged(v) => {
-            if let Some(m) = &mut app.provider_settings.connect_modal {
-                m.api_key = v;
-            }
-            Task::none()
-        }
-        SettingsMessage::ProviderConnectSubmit => {
-            let Some(m) = app.provider_settings.connect_modal.clone() else {
-                return Task::none();
-            };
-            if is_shiju_official_provider_id(&m.provider_id) {
-                #[cfg(not(target_arch = "wasm32"))]
-                return super::managed_shiju::sync(app);
-                #[cfg(target_arch = "wasm32")]
-                return app.show_warning_toast("请在桌面端登录识矩账户并配置模型");
-            }
-            if m.api_key.trim().is_empty() {
-                app.provider_settings.connect_error =
-                    Some(Feedback::owned("请输入 API 密钥", vec![]));
-                return Task::none();
-            }
-            app.provider_settings.loading = true;
-            app.provider_settings.connect_error = None;
-            Task::perform(connect_provider(m.provider_id, m.api_key), |res| {
-                Message::Settings(SettingsMessage::ProviderConnectDone(res))
-            })
-        }
-        SettingsMessage::ProviderConnectDone(res) => match res {
-            Ok((providers, patterns, configured, catalog)) => {
-                app.provider_settings.loading = false;
-                app.model_settings.providers =
-                    super::super::models::summarize_models(providers.clone());
-                app.provider_settings.providers = summarize_providers(providers);
-                if configured {
-                    replace_popular_patterns(app, patterns);
-                }
-                if !catalog.is_empty() {
-                    app.provider_settings.catalog_items = catalog;
-                }
-                app.provider_settings.connect_modal = None;
-                app.provider_settings.connect_error = None;
-                Task::none()
-            }
-            Err(e) => {
-                app.provider_settings.loading = false;
-                app.provider_settings.connect_error = Some((e).into());
-                Task::none()
-            }
-        },
-        SettingsMessage::ProviderDisconnectRequested(provider_id) => {
-            app.provider_settings.disconnect_confirm_provider_id = Some(provider_id);
-            Task::none()
-        }
-        SettingsMessage::ProviderDisconnectCanceled => {
-            app.provider_settings.disconnect_confirm_provider_id = None;
-            Task::none()
-        }
-        SettingsMessage::ProviderDisconnectConfirmed(provider_id) => {
-            app.provider_settings.disconnect_confirm_provider_id = None;
-            app.provider_settings.loading = true;
-            app.provider_settings.connect_error = None;
-            Task::perform(disconnect_provider(provider_id), |res| {
-                Message::Settings(SettingsMessage::ProviderDisconnectDone(res))
-            })
-        }
-        SettingsMessage::ProviderDisconnect(provider_id) => {
-            app.provider_settings.disconnect_confirm_provider_id = None;
-            app.provider_settings.loading = true;
-            app.provider_settings.connect_error = None;
-            Task::perform(disconnect_provider(provider_id), |res| {
-                Message::Settings(SettingsMessage::ProviderDisconnectDone(res))
-            })
-        }
-        SettingsMessage::ProviderDisconnectDone(res) => match res {
-            Ok((providers, patterns, configured, catalog)) => {
-                app.provider_settings.loading = false;
-                app.model_settings.providers =
-                    super::super::models::summarize_models(providers.clone());
-                app.provider_settings.providers = summarize_providers(providers);
-                if configured {
-                    replace_popular_patterns(app, patterns);
-                }
-                if !catalog.is_empty() {
-                    app.provider_settings.catalog_items = catalog;
-                }
-                app.provider_settings.disconnect_confirm_provider_id = None;
-                Task::none()
-            }
-            Err(e) => {
-                app.provider_settings.loading = false;
-                app.provider_settings.save_error = Some((e).into());
-                app.provider_settings.disconnect_confirm_provider_id = None;
-                Task::none()
-            }
-        },
-        SettingsMessage::CustomProviderOpen => {
-            app.provider_settings.custom_provider_modal_open = true;
-            app.provider_settings.custom_provider_tab = CustomProviderTab::default();
-            app.provider_settings.custom_editing_provider_id = None;
-            app.provider_settings.custom_models_discovering = false;
-            app.provider_settings.custom_models_filter = CustomProviderModelFilter::default();
-            app.provider_settings.custom = CustomProviderDraft::default();
-            app.provider_settings.save_error = None;
-            app.provider_settings.connect_modal = None;
-            app.provider_settings.connect_error = None;
-            app.provider_settings.catalog_open = false;
-            app.provider_settings.custom_model_modal = None;
-            app.provider_settings.disconnect_confirm_provider_id = None;
-            Task::none()
-        }
-        SettingsMessage::CustomProviderEditOpen(provider_id) => {
-            app.provider_settings.loading = true;
-            app.provider_settings.custom_provider_tab = CustomProviderTab::default();
-            app.provider_settings.custom_models_discovering = false;
-            app.provider_settings.custom_models_filter = CustomProviderModelFilter::default();
-            app.provider_settings.save_error = None;
-            app.provider_settings.connect_modal = None;
-            app.provider_settings.connect_error = None;
-            app.provider_settings.catalog_open = false;
-            app.provider_settings.custom_model_modal = None;
-            app.provider_settings.custom_provider_modal_open = false;
-            app.provider_settings.custom_editing_provider_id = None;
-            Task::perform(load_custom_provider_draft(provider_id), |res| {
-                Message::Settings(SettingsMessage::CustomProviderEditLoaded(res))
-            })
-        }
-        SettingsMessage::CustomProviderEditLoaded(res) => match res {
-            Ok(draft) => {
-                app.provider_settings.loading = false;
-                app.provider_settings.custom_models_discovering = false;
-                app.provider_settings.custom_editing_provider_id = Some(draft.provider_id.clone());
-                app.provider_settings.custom = draft;
-                app.provider_settings.custom_provider_tab = CustomProviderTab::default();
-                app.provider_settings.custom_provider_modal_open = true;
-                Task::none()
-            }
-            Err(e) => {
-                app.provider_settings.loading = false;
-                app.provider_settings.custom_models_discovering = false;
-                app.provider_settings.save_error = Some((e).into());
-                Task::none()
-            }
-        },
-        SettingsMessage::CustomProviderClose => {
-            app.provider_settings.custom_provider_modal_open = false;
-            app.provider_settings.custom_editing_provider_id = None;
-            app.provider_settings.custom_models_discovering = false;
-            app.provider_settings.save_error = None;
-            Task::none()
-        }
-        SettingsMessage::CustomProviderTabSelected(tab) => {
-            app.provider_settings.custom_provider_tab = tab;
-            Task::none()
-        }
-        SettingsMessage::CustomProviderIdChanged(v) => {
-            app.provider_settings.custom.provider_id = v;
-            Task::none()
-        }
-        SettingsMessage::CustomProviderNameChanged(v) => {
-            app.provider_settings.custom.display_name = v;
-            Task::none()
-        }
-        SettingsMessage::CustomProviderBaseUrlChanged(v) => {
-            app.provider_settings.custom.base_url = v;
-            Task::none()
-        }
-        SettingsMessage::CustomProviderApiKeyChanged(v) => {
-            app.provider_settings.custom.api_key = v;
-            Task::none()
-        }
-        SettingsMessage::CustomProviderHeaderAdd => {
-            app.provider_settings.custom.headers.push(ProviderHeaderDraft::default());
-            Task::none()
-        }
-        SettingsMessage::CustomProviderHeaderRemove(idx) => {
-            if app.provider_settings.custom.headers.len() > 1
-                && idx < app.provider_settings.custom.headers.len()
-            {
-                app.provider_settings.custom.headers.remove(idx);
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderHeaderKeyChanged(idx, v) => {
-            if let Some(h) = app.provider_settings.custom.headers.get_mut(idx) {
-                h.key = v;
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderHeaderValueChanged(idx, v) => {
-            if let Some(h) = app.provider_settings.custom.headers.get_mut(idx) {
-                h.value = v;
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelOpen(edit_index) => {
-            let model =
-                edit_index.and_then(|i| app.provider_settings.custom.models.get(i).cloned());
-            app.provider_settings.custom_model_modal = Some(model_modal_state(edit_index, model));
-            app.provider_settings.save_error = None;
-            app.provider_settings.catalog_open = false;
-            app.provider_settings.connect_modal = None;
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelClose => {
-            app.provider_settings.custom_model_modal = None;
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelTabSelected(tab) => {
-            if let Some(model) = &mut app.provider_settings.custom_model_modal {
-                model.active_tab = tab;
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelModalIdChanged(v) => {
-            if let Some(m) = &mut app.provider_settings.custom_model_modal {
-                m.model_id = v;
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelModalNameChanged(v) => {
-            if let Some(m) = &mut app.provider_settings.custom_model_modal {
-                m.display_name = v;
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelModalFamilyChanged(v) => {
-            if let Some(m) = &mut app.provider_settings.custom_model_modal {
-                m.family = v;
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelModalContextLimitChanged(v) => {
-            if let Some(m) = &mut app.provider_settings.custom_model_modal {
-                m.context_limit = v;
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelModalInputLimitChanged(v) => {
-            if let Some(m) = &mut app.provider_settings.custom_model_modal {
-                m.input_limit = v;
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelModalOutputLimitChanged(v) => {
-            if let Some(m) = &mut app.provider_settings.custom_model_modal {
-                m.output_limit = v;
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelModalReasoningChanged(v) => {
-            if let Some(m) = &mut app.provider_settings.custom_model_modal {
-                m.reasoning = Some(v);
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelModalToolCallChanged(v) => {
-            if let Some(m) = &mut app.provider_settings.custom_model_modal {
-                m.tool_call = Some(v);
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelModalTemperatureChanged(v) => {
-            if let Some(m) = &mut app.provider_settings.custom_model_modal {
-                m.temperature = Some(v);
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelModalAttachmentChanged(v) => {
-            if let Some(m) = &mut app.provider_settings.custom_model_modal {
-                m.attachment = Some(v);
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelModalInterleavedChanged(v) => {
-            if let Some(m) = &mut app.provider_settings.custom_model_modal {
-                m.interleaved = Some(v);
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelModalInputModalityToggled(modality, enabled) => {
-            if let Some(m) = &mut app.provider_settings.custom_model_modal {
-                let inherited = m
-                    .inherited_capabilities
-                    .as_ref()
-                    .map(|capabilities| capabilities.input_modalities.clone());
-                toggle_modality(&mut m.input_modalities, modality, enabled, inherited.as_deref());
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelModalOutputModalityToggled(modality, enabled) => {
-            if let Some(m) = &mut app.provider_settings.custom_model_modal {
-                let inherited = m
-                    .inherited_capabilities
-                    .as_ref()
-                    .map(|capabilities| capabilities.output_modalities.clone());
-                toggle_modality(&mut m.output_modalities, modality, enabled, inherited.as_deref());
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelModalSave => {
-            let Some(m) = app.provider_settings.custom_model_modal.clone() else {
-                return Task::none();
-            };
-            let model_id = m.model_id.trim().to_string();
-            if model_id.is_empty() {
-                app.provider_settings.save_error =
-                    Some(Feedback::owned("模型 ID 不能为空", vec![]));
-                return Task::none();
-            }
-            let new_model = CustomProviderModelDraft {
-                model_id,
-                display_name: m.display_name.trim().to_string(),
-                family: m.family.trim().to_string(),
-                context_limit: m.context_limit.trim().to_string(),
-                input_limit: m.input_limit.trim().to_string(),
-                output_limit: m.output_limit.trim().to_string(),
-                reasoning: m.reasoning,
-                tool_call: m.tool_call,
-                temperature: m.temperature,
-                attachment: m.attachment,
-                interleaved: m.interleaved,
-                input_modalities: m.input_modalities,
-                output_modalities: m.output_modalities,
-                inherited_capabilities: m.inherited_capabilities,
-                enabled: m
-                    .edit_index
-                    .and_then(|index| app.provider_settings.custom.models.get(index))
-                    .map(|model| model.enabled)
-                    .unwrap_or(true),
-                from_catalog: m
-                    .edit_index
-                    .and_then(|index| app.provider_settings.custom.models.get(index))
-                    .map(|model| model.from_catalog)
-                    .unwrap_or(false),
-                original_model_id: m.original_model_id,
-            };
-            if app
-                .provider_settings
-                .custom
-                .models
-                .iter()
-                .enumerate()
-                .filter(|(index, _)| Some(*index) != m.edit_index)
-                .any(|(_, model)| model.model_id.trim() == new_model.model_id)
-            {
-                app.provider_settings.save_error =
-                    Some(Feedback::owned("模型 ID 已存在：%s", vec![new_model.model_id.clone()]));
-                return Task::none();
-            }
-            let mut next_models = app.provider_settings.custom.models.clone();
-            if let Some(i) = m.edit_index {
-                if i >= next_models.len() {
-                    app.provider_settings.custom_model_modal = None;
-                    return Task::none();
-                }
-                next_models[i] = new_model.clone();
-            } else {
-                next_models.push(new_model.clone());
-            }
-            if let Err(error) = validate_model_drafts(&next_models) {
-                app.provider_settings.save_error = Some((error).into());
-                return Task::none();
-            }
-            if let Some(i) = m.edit_index {
-                app.provider_settings.custom.models[i] = new_model;
-            } else {
-                app.provider_settings.custom.models.push(new_model);
-            }
-            app.provider_settings.save_error = None;
-            app.provider_settings.custom_model_modal = None;
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelRemove(idx) => {
-            if let Some(model) = app.provider_settings.custom.models.get_mut(idx) {
-                if model.from_catalog {
-                    model.enabled = false;
-                } else {
-                    app.provider_settings.custom.models.remove(idx);
-                }
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelEnabledToggled(idx, enabled) => {
-            if let Some(model) = app.provider_settings.custom.models.get_mut(idx) {
-                model.enabled = enabled;
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelFilterSelected(filter) => {
-            app.provider_settings.custom_models_filter = filter;
-            Task::none()
-        }
-        SettingsMessage::CustomProviderModelsDiscover => {
-            if !app.provider_settings.custom_provider_modal_open
-                || app.provider_settings.custom_models_discovering
-            {
-                return Task::none();
-            }
-            app.provider_settings.custom_models_discovering = true;
-            app.provider_settings.save_error = None;
-            let draft = app.provider_settings.custom.clone();
-            let provider_id = draft.provider_id.clone();
-            Task::perform(discover_custom_provider_models(draft), move |result| {
-                Message::Settings(SettingsMessage::CustomProviderModelsDiscovered {
-                    provider_id: provider_id.clone(),
-                    result,
-                })
-            })
-        }
-        SettingsMessage::CustomProviderModelsDiscovered { provider_id, result } => {
-            if app.provider_settings.custom.provider_id.trim() != provider_id {
-                return Task::none();
-            }
-            app.provider_settings.custom_models_discovering = false;
-            if !app.provider_settings.custom_provider_modal_open {
-                return Task::none();
-            }
-            match result {
-                Ok(models) => {
-                    merge_discovered_model_drafts(&mut app.provider_settings.custom.models, models);
-                    app.provider_settings.save_error = None;
-                }
-                Err(error) => {
-                    app.provider_settings.save_error = Some((error).into());
-                }
-            }
-            Task::none()
-        }
-        SettingsMessage::CustomProviderSave => {
-            if app.provider_settings.custom_models_discovering {
-                return Task::none();
-            }
-            let draft = app.provider_settings.custom.clone();
-            let provider_id = draft.provider_id.trim().to_string();
-            if !is_valid_provider_id(&provider_id) {
-                app.provider_settings.save_error =
-                    Some(Feedback::owned("提供商 ID 仅支持小写字母、数字、连字符或下划线", vec![]));
-                return Task::none();
-            }
-            let base_url = draft.base_url.trim().to_string();
-            if base_url.is_empty() {
-                app.provider_settings.save_error =
-                    Some(Feedback::owned("基础 URL 不能为空", vec![]));
-                return Task::none();
-            }
-
-            if let Err(error) = validate_model_drafts(&draft.models) {
-                app.provider_settings.save_error = Some((error).into());
-                return Task::none();
-            }
-
-            app.provider_settings.loading = true;
-            app.provider_settings.save_error = None;
-            Task::perform(save_custom_provider(draft), |res| {
-                Message::Settings(SettingsMessage::CustomProviderSaveDone(res))
-            })
-        }
-        SettingsMessage::CustomProviderSaveDone(res) => match res {
-            Ok((providers, patterns, configured, catalog)) => {
-                app.provider_settings.loading = false;
-                app.provider_settings.custom_models_discovering = false;
-                app.model_settings.providers =
-                    super::super::models::summarize_models(providers.clone());
-                app.provider_settings.providers = summarize_providers(providers);
-                if configured {
-                    replace_popular_patterns(app, patterns);
-                }
-                if !catalog.is_empty() {
-                    app.provider_settings.catalog_items = catalog;
-                }
-                app.provider_settings.custom = CustomProviderDraft::default();
-                app.provider_settings.custom_editing_provider_id = None;
-                app.provider_settings.save_error = None;
-                app.provider_settings.custom_provider_modal_open = false;
-                Task::perform(
-                    async { provider_resolution::invalidate_cache().await },
-                    |_| Message::Settings(SettingsMessage::ProvidersRefresh),
-                )
-            }
-            Err(e) => {
-                app.provider_settings.loading = false;
-                app.provider_settings.custom_models_discovering = false;
-                app.provider_settings.save_error = Some((e).into());
-                Task::none()
-            }
-        },
-        SettingsMessage::PopularProviderRemove(idx) => {
-            if app
-                .provider_settings
-                .popular_patterns
-                .get(idx)
-                .is_some_and(|pattern| is_shiju_official_provider_id(pattern))
-            {
-                return Task::none();
-            }
-            if idx < app.provider_settings.popular_patterns.len() {
-                app.provider_settings.popular_patterns.remove(idx);
-            }
-            app.provider_settings.save_error = None;
-            save_popular_providers_task(app.provider_settings.popular_patterns.clone())
-        }
-        SettingsMessage::PopularProvidersSaved(res) => {
-            if let Err(e) = res {
-                app.provider_settings.save_error = Some((e).into());
-            }
-            Task::none()
-        }
-        SettingsMessage::ProviderCatalogOpen => {
-            app.provider_settings.catalog_open = true;
-            app.provider_settings.catalog_query.clear();
-            app.provider_settings.save_error = None;
-            app.provider_settings.connect_modal = None;
-            app.provider_settings.custom_model_modal = None;
-            app.provider_settings.custom_provider_modal_open = false;
-            app.provider_settings.catalog_loading = app.provider_settings.catalog_items.is_empty();
-            load_catalog_task()
-        }
-        SettingsMessage::ProviderCatalogClose => {
-            app.provider_settings.catalog_open = false;
-            Task::none()
-        }
-        SettingsMessage::ProviderCatalogQueryChanged(v) => {
-            app.provider_settings.catalog_query = v;
-            Task::none()
-        }
-        SettingsMessage::ProviderCatalogLoaded(res) => match res {
-            Ok(items) => {
-                app.provider_settings.catalog_items = items;
-                app.provider_settings.catalog_loading = false;
-                Task::none()
-            }
-            Err(e) => {
-                app.provider_settings.catalog_loading = false;
-                app.provider_settings.save_error = Some((e).into());
-                Task::none()
-            }
-        },
-        SettingsMessage::ProviderCatalogAddToPopular(provider_id) => {
-            if is_shiju_official_provider_id(&provider_id) {
-                return Task::none();
-            }
-            if !app.provider_settings.popular_patterns.iter().any(|s| s == &provider_id) {
-                app.provider_settings.popular_patterns.push(provider_id);
-            }
-            app.provider_settings.save_error = None;
-            save_popular_providers_task(app.provider_settings.popular_patterns.clone())
-        }
+    let message = match message {
+        SettingsMessage::ProvidersRefresh => Local::ProvidersRefresh,
+        SettingsMessage::ProviderModelsSyncRemote => Local::ProviderModelsSyncRemote,
+        SettingsMessage::ProviderModelsSyncTick => Local::ProviderModelsSyncTick,
+        SettingsMessage::ProviderModelsSyncDone(v0) => Local::ProviderModelsSyncDone(v0),
+        SettingsMessage::ProvidersRefreshed(v0) => Local::ProvidersRefreshed(v0),
+        SettingsMessage::ProviderConnectOpen(v0) => Local::ProviderConnectOpen(v0),
+        SettingsMessage::ProviderConnectClose => Local::ProviderConnectClose,
+        SettingsMessage::ProviderConnectApiKeyChanged(v0) => Local::ProviderConnectApiKeyChanged(v0),
+        SettingsMessage::ProviderConnectSubmit => Local::ProviderConnectSubmit,
+        SettingsMessage::ProviderConnectDone(v0) => Local::ProviderConnectDone(v0),
+        SettingsMessage::ProviderDisconnectRequested(v0) => Local::ProviderDisconnectRequested(v0),
+        SettingsMessage::ProviderDisconnectCanceled => Local::ProviderDisconnectCanceled,
+        SettingsMessage::ProviderDisconnectConfirmed(v0) => Local::ProviderDisconnectConfirmed(v0),
+        SettingsMessage::ProviderDisconnectDone(v0) => Local::ProviderDisconnectDone(v0),
+        SettingsMessage::ProviderDisconnect(v0) => Local::ProviderDisconnect(v0),
+        SettingsMessage::CustomProviderOpen => Local::CustomProviderOpen,
+        SettingsMessage::CustomProviderEditOpen(v0) => Local::CustomProviderEditOpen(v0),
+        SettingsMessage::CustomProviderEditLoaded(v0) => Local::CustomProviderEditLoaded(v0),
+        SettingsMessage::CustomProviderClose => Local::CustomProviderClose,
+        SettingsMessage::CustomProviderTabSelected(v0) => Local::CustomProviderTabSelected(v0),
+        SettingsMessage::CustomProviderIdChanged(v0) => Local::CustomProviderIdChanged(v0),
+        SettingsMessage::CustomProviderNameChanged(v0) => Local::CustomProviderNameChanged(v0),
+        SettingsMessage::CustomProviderBaseUrlChanged(v0) => Local::CustomProviderBaseUrlChanged(v0),
+        SettingsMessage::CustomProviderApiKeyChanged(v0) => Local::CustomProviderApiKeyChanged(v0),
+        SettingsMessage::CustomProviderHeaderAdd => Local::CustomProviderHeaderAdd,
+        SettingsMessage::CustomProviderHeaderRemove(v0) => Local::CustomProviderHeaderRemove(v0),
+        SettingsMessage::CustomProviderHeaderKeyChanged(v0, v1) => Local::CustomProviderHeaderKeyChanged(v0, v1),
+        SettingsMessage::CustomProviderHeaderValueChanged(v0, v1) => Local::CustomProviderHeaderValueChanged(v0, v1),
+        SettingsMessage::CustomProviderModelOpen(v0) => Local::CustomProviderModelOpen(v0),
+        SettingsMessage::CustomProviderModelClose => Local::CustomProviderModelClose,
+        SettingsMessage::CustomProviderModelTabSelected(v0) => Local::CustomProviderModelTabSelected(v0),
+        SettingsMessage::CustomProviderModelModalIdChanged(v0) => Local::CustomProviderModelModalIdChanged(v0),
+        SettingsMessage::CustomProviderModelModalNameChanged(v0) => Local::CustomProviderModelModalNameChanged(v0),
+        SettingsMessage::CustomProviderModelModalFamilyChanged(v0) => Local::CustomProviderModelModalFamilyChanged(v0),
+        SettingsMessage::CustomProviderModelModalContextLimitChanged(v0) => Local::CustomProviderModelModalContextLimitChanged(v0),
+        SettingsMessage::CustomProviderModelModalInputLimitChanged(v0) => Local::CustomProviderModelModalInputLimitChanged(v0),
+        SettingsMessage::CustomProviderModelModalOutputLimitChanged(v0) => Local::CustomProviderModelModalOutputLimitChanged(v0),
+        SettingsMessage::CustomProviderModelModalReasoningChanged(v0) => Local::CustomProviderModelModalReasoningChanged(v0),
+        SettingsMessage::CustomProviderModelModalToolCallChanged(v0) => Local::CustomProviderModelModalToolCallChanged(v0),
+        SettingsMessage::CustomProviderModelModalTemperatureChanged(v0) => Local::CustomProviderModelModalTemperatureChanged(v0),
+        SettingsMessage::CustomProviderModelModalAttachmentChanged(v0) => Local::CustomProviderModelModalAttachmentChanged(v0),
+        SettingsMessage::CustomProviderModelModalInterleavedChanged(v0) => Local::CustomProviderModelModalInterleavedChanged(v0),
+        SettingsMessage::CustomProviderModelModalInputModalityToggled(v0, v1) => Local::CustomProviderModelModalInputModalityToggled(v0, v1),
+        SettingsMessage::CustomProviderModelModalOutputModalityToggled(v0, v1) => Local::CustomProviderModelModalOutputModalityToggled(v0, v1),
+        SettingsMessage::CustomProviderModelModalSave => Local::CustomProviderModelModalSave,
+        SettingsMessage::CustomProviderModelRemove(v0) => Local::CustomProviderModelRemove(v0),
+        SettingsMessage::CustomProviderModelEnabledToggled(v0, v1) => Local::CustomProviderModelEnabledToggled(v0, v1),
+        SettingsMessage::CustomProviderModelFilterSelected(v0) => Local::CustomProviderModelFilterSelected(v0),
+        SettingsMessage::CustomProviderModelsDiscover => Local::CustomProviderModelsDiscover,
+        SettingsMessage::CustomProviderModelsDiscovered { provider_id, result } => Local::CustomProviderModelsDiscovered { provider_id, result },
+        SettingsMessage::CustomProviderSave => Local::CustomProviderSave,
+        SettingsMessage::CustomProviderSaveDone(v0) => Local::CustomProviderSaveDone(v0),
+        SettingsMessage::PopularProviderRemove(v0) => Local::PopularProviderRemove(v0),
+        SettingsMessage::PopularProvidersSaved(v0) => Local::PopularProvidersSaved(v0),
+        SettingsMessage::ProviderCatalogOpen => Local::ProviderCatalogOpen,
+        SettingsMessage::ProviderCatalogClose => Local::ProviderCatalogClose,
+        SettingsMessage::ProviderCatalogQueryChanged(v0) => Local::ProviderCatalogQueryChanged(v0),
+        SettingsMessage::ProviderCatalogLoaded(v0) => Local::ProviderCatalogLoaded(v0),
+        SettingsMessage::ProviderCatalogAddToPopular(v0) => Local::ProviderCatalogAddToPopular(v0),
+        _ => return Task::none(),
+    };
+    let (task, effect) = desktop_settings_providers::provider_update::update(
+        &mut app.provider_settings, &mut app.model_settings,
+        crate::app::config::gateway_client_endpoint(), super::models::access(),
+        app.account.active_account().is_some(), message,
+    );
+    let effect = match effect {
+        Some(Effect::Warning(text)) => app.show_warning_toast(text.display(app.desktop_locale)),
+        #[cfg(not(target_arch = "wasm32"))]
+        Some(Effect::SyncAccount) => super::managed_shiju::sync(app),
+        #[cfg(target_arch = "wasm32")]
+        Some(Effect::SyncAccount) => Task::none(),
         _ => Task::none(),
-    }
+    };
+    Task::batch([task.map(map), effect])
 }
-#[cfg(test)]
-#[path = "updates_tests.rs"]
-mod updates_tests;

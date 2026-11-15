@@ -1,10 +1,4 @@
-use crate::app::state::{
-    AgentAppsContext,
-    app_providers::{
-        list::Scope,
-        model_catalog::{CatalogContext, CatalogForm},
-    },
-};
+use desktop_provider_apps::{AgentAppsContext, Scope, state::model_catalog::{CatalogContext, CatalogForm}};
 use {
     vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,

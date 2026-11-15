@@ -9,10 +9,10 @@ use serde_json::json;
 #[test]
 fn task_builders_schedule_runtime_work() {
     let tasks = [
-        refresh_task(),
-        sync_remote_task(),
-        load_catalog_task(),
-        save_popular_providers_task(vec!["OpenAI".to_string()]),
+        refresh_task(endpoint(), config()),
+        sync_remote_task(endpoint(), config()),
+        load_catalog_task(endpoint()),
+        save_popular_providers_task(config(), vec!["OpenAI".to_string()]),
     ];
 
     for task in tasks {
@@ -135,3 +135,6 @@ fn popular_providers_patch_preserves_order_duplicates_and_characters() {
 fn popular_providers_patch_represents_empty_selection_as_array() {
     assert_eq!(popular_providers_patch(Vec::new()), json!({"popular_providers": []}));
 }
+
+fn endpoint() -> GatewayEndpoint { GatewayEndpoint::new("127.0.0.1", 8080) }
+fn config() -> ConfigAccess { ConfigAccess::new(endpoint(), None) }

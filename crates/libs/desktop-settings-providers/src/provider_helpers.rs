@@ -3,10 +3,10 @@
 #[cfg(test)]
 use model_catalog_types as raw_model_provider;
 #[cfg(test)]
-use crate::app::state::ModelCatalogEntry;
-use crate::app::i18n::settings_models::messages::Feedback;
-use crate::app::message::settings::util::is_provider_connected;
-use crate::app::state::ProviderSummary;
+use crate::provider_state::ModelCatalogEntry;
+use desktop_i18n::settings_models::messages::Feedback;
+use crate::models::is_provider_connected;
+use crate::provider_state::ProviderSummary;
 use model_types as model_provider;
 
 /// 处理 `summarize_providers` 对应的用户输入、异步结果或状态转换。
@@ -37,7 +37,7 @@ pub fn summarize_providers(
 }
 
 #[cfg(test)]
-#[path = "helpers_tests.rs"]
+#[path = "provider_helpers_tests.rs"]
 mod helpers_tests;
 
 /// 处理 `is_valid_provider_id` 对应的用户输入、异步结果或状态转换。
@@ -54,4 +54,4 @@ pub fn is_valid_provider_id(s: &str) -> bool {
 }
 
 
-pub use desktop_settings_providers::provider_catalog::*;
+pub use crate::provider_catalog::*;

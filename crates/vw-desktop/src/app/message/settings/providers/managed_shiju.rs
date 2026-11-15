@@ -3,23 +3,12 @@
 use crate::app::config;
 use crate::app::i18n::settings_models::messages::Feedback;
 use crate::app::message::account::AccountMessage;
-use crate::app::state::SHIJU_OFFICIAL_PROVIDER_ID;
 use crate::app::{App, Message};
 use iced::Task;
 use std::time::Duration;
 use gateway_shiju_account::ShijuModelTokenDto;
-use auth_file_store as auth;
 
-fn save_token(path: &std::path::Path, token: &ShijuModelTokenDto) -> Result<(), Feedback> {
-    if token.endpoint_url != "https://router.shiju.cloud/v1"
-        || !token.key.expose().bytes().all(|byte| (33..=126).contains(&byte))
-    {
-        return Err(Feedback::owned("识矩模型授权响应无效", vec![]));
-    }
-    let info = auth_types::Info::Api(auth_types::ApiInfo { key: token.key.expose().to_string() });
-    auth::set_to(path, SHIJU_OFFICIAL_PROVIDER_ID, &info)
-        .map_err(|_| Feedback::owned("识矩模型凭据保存失败，请检查认证文件权限", vec![]))
-}
+use desktop_settings_providers::managed_shiju::save_token;
 
 /// 登录、启动恢复、切换账号及退出时统一撤销旧模型凭据。
 pub(crate) fn sync(app: &mut App) -> Task<Message> {
@@ -39,20 +28,9 @@ pub(crate) fn reset(app: &mut App, generation: u64) -> Task<Message> {
         return Task::none();
     }
     let path = super::models::auth_filepath();
-    if auth::get_from(&path, SHIJU_OFFICIAL_PROVIDER_ID).is_some() {
-        if auth::remove_from(&path, SHIJU_OFFICIAL_PROVIDER_ID).is_err() {
-            return app.show_error_toast(
-                Feedback::owned("无法清理识矩模型凭据，请检查认证文件权限", vec![])
-                    .display(app.desktop_locale),
-            );
-        }
+    if let Err(error) = desktop_settings_providers::managed_shiju::reset_credentials(&path, &mut app.provider_settings) {
+        return app.show_error_toast(error.display(app.desktop_locale));
     }
-    for provider in &mut app.provider_settings.providers {
-        if provider.id == SHIJU_OFFICIAL_PROVIDER_ID {
-            provider.connected = false;
-        }
-    }
-    app.provider_settings.connect_modal = None;
     let Some(account) = app.account.active_account() else {
         return super::tasks::refresh_task();
     };
@@ -97,17 +75,7 @@ pub(crate) fn token_loaded(
         return app.show_error_toast(error.display(app.desktop_locale));
     }
     Task::perform(
-        async move {
-            config::patch_full_agent_config_async(serde_json::json!({
-                "providers": {"shiju": {
-                    "name": "识矩", "api": token.endpoint_url,
-                    "adapter": "openai-compatible", "env": []
-                }}
-            }))
-            .await
-            .map_err(config::server_config_unreachable_error)?;
-            Ok(())
-        },
+        desktop_settings_providers::managed_shiju::configure(super::models::access(), token),
         move |result| Message::Account(AccountMessage::ModelsConfigured { generation, result }),
     )
 }

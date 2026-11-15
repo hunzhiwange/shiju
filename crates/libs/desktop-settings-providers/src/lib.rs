@@ -35,3 +35,15 @@ mod connected_tests;
 mod custom_provider_tests;
 #[cfg(test)]
 mod provider_view_test_support;
+
+pub mod provider_helpers;
+pub mod provider_message;
+pub mod provider_refresh;
+pub mod provider_update;
+pub mod catalog_api;
+pub mod discovery;
+pub mod metadata_fill;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod managed_shiju;
+#[cfg(test)]
+mod catalog_api_tests;

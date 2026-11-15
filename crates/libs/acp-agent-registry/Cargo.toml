@@ -8,7 +8,6 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-shell-command = { path = "../shell-command", version = "0.6.0", features = ["shell-tokio"] }
 acp-types = { path = "../acp-types", version = "0.6.0" }
 acp-access-policy = { path = "../acp-access-policy", version = "0.6.0" }
 acp-host-io = { path = "../acp-host-io", version = "0.6.0" }

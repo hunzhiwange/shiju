@@ -1,7 +1,7 @@
 //! 直接验证真实状态转换，覆盖分页范围、账号隔离与续读重试。
 use super::{LoadState, knowledge::*};
 use desktop_account::SecretSkey;
-use gateway_shiju_knowledge::*;
+use vw_gateway_client::*;
 
 fn state() -> KnowledgeState {
     let mut state = KnowledgeState::default();

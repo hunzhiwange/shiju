@@ -31,8 +31,8 @@ pub(super) fn agent_browser_command() -> tokio::process::Command {
 
 /// npm 的 JS 入口绕过 Windows 的批处理 shim，所有路径均按独立参数传递。
 fn npm_entry() -> Result<PathBuf, String> {
-    let npm = shell_command::resolve_executable("npm")
-        .or_else(|| shell_command::resolve_executable("npm.cmd"))
+    let npm = vw_shared::shell::resolve_executable("npm")
+        .or_else(|| vw_shared::shell::resolve_executable("npm.cmd"))
         .ok_or("请先在网关主机安装 Node.js 22 或更高版本（含 npm），再重试")?;
     let npm = npm.canonicalize().map_err(|_| "无法定位 npm")?;
     if npm.extension().is_some_and(|ext| ext == "js") {

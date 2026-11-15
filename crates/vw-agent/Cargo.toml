@@ -19,7 +19,6 @@ storage-types = { path = "../libs/storage-types", version = "0.6.0" }
 session-port = { path = "../libs/session-port", version = "0.6.0" }
 channel-types = { path = "../libs/channel-types", version = "0.6.0" }
 runtime-types = { path = "../libs/runtime-types", version = "0.6.0" }
-runtime-types = { path = "../libs/runtime-types", version = "0.6.0" }
 gateway-shiju-skill = { path = "../libs/gateway-shiju-skill", version = "0.6.0" }
 gateway-shiju-app = { path = "../libs/gateway-shiju-app", version = "0.6.0" }
 gateway-shiju-account = { path = "../libs/gateway-shiju-account", version = "0.6.0" }
@@ -34,7 +33,6 @@ patch = { path = "../libs/patch", version = "0.6.0" }
 app-self-update = { path = "../libs/app-self-update", version = "0.6.0" }
 desktop-release = { path = "../libs/desktop-release", version = "0.6.0" }
 update-types = { path = "../libs/update-types", version = "0.6.0" }
-shell-command = { path = "../libs/shell-command", version = "0.6.0", features = ["shell-tokio"] }
 app-openclaw-config-rules = { path = "../libs/app-openclaw-config-rules" }
 local-app-auth = { path = "../libs/local-app-auth", version = "0.6.0" }
 vw-api-hermes-dashboard = { path = "../libs/api-hermes-dashboard", version = "0.6.0" }
@@ -373,9 +371,9 @@ path = "tests/model_protocol_015_messages.rs"
 name = "acp_gemini_chat"
 path = "tests/acp_gemini_chat.rs"
 
-gateway-host-tools = { path = "../libs/gateway-host-tools", version = "0.6.0" }
 [dev-dependencies]
 agent-approval = { path = "../libs/agent-approval", version = "0.6.0", features = ["test-support"] }
+gateway-host-tools = { path = "../libs/gateway-host-tools", version = "0.6.0" }
 gateway-inference = { path = "../libs/gateway-inference", version = "0.6.0" }
 gateway-model-provider = { path = "../libs/gateway-model-provider", version = "0.6.0" }
 gateway-model-catalog = { path = "../libs/gateway-model-catalog", version = "0.6.0" }

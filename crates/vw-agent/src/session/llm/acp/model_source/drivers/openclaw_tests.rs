@@ -127,7 +127,7 @@ fn openclaw_gateway_resolves_cli_and_interpreter_with_desktop_path() {
     let home = tempfile::tempdir().unwrap();
     let bin = home.path().join("profile-bin");
     std::fs::create_dir(&bin).unwrap();
-    let python = shell_command::resolve_executable("python3").expect("Python fixture runtime");
+    let python = vw_shared::shell::resolve_executable("python3").expect("Python fixture runtime");
     for (name, source) in [
         ("openclaw", "#!/usr/bin/env vw-openclaw-runtime-fixture\n".to_owned()),
         (

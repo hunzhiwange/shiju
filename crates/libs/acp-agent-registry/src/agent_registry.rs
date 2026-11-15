@@ -8,7 +8,7 @@ use std::{
     collections::{BTreeMap, HashMap},
     path::PathBuf,
 };
-use shell_command::{resolve_executable, shell_profile_env_var};
+use vw_shared::shell::{resolve_executable, shell_profile_env_var};
 
 use acp_types::types::AcpAgentConfig;
 

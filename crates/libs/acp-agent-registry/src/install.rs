@@ -12,7 +12,7 @@ pub async fn install_builtin_agent(agent: &str) -> Result<(), String> {
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(300);
     if program == "uv"
         && installed_uv().is_none()
-        && shell_command::resolve_executable("uv").is_none()
+        && vw_shared::shell::resolve_executable("uv").is_none()
     {
         // uv 会自行准备所需 Python；使用官方用户级安装器，无需用户复制命令。
         let (bootstrap, args) = if cfg!(windows) {
@@ -48,7 +48,7 @@ pub async fn install_builtin_agent(agent: &str) -> Result<(), String> {
 
 pub(super) async fn ensure_uv(deadline: tokio::time::Instant) -> Result<String, String> {
     if let Some(path) = installed_uv().or_else(|| {
-        shell_command::resolve_executable("uv").map(|path| path.to_string_lossy().into_owned())
+        vw_shared::shell::resolve_executable("uv").map(|path| path.to_string_lossy().into_owned())
     }) {
         return Ok(path);
     }

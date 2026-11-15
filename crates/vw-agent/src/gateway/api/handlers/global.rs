@@ -222,5 +222,5 @@ fn acp_command_installed(command: &str) -> bool {
     if matches!(name.as_str(), "npx" | "npx.cmd" | "npx.exe" | "npx.bat" | "uvx" | "uvx.exe") {
         return false;
     }
-    shell_command::resolve_executable(command).is_some()
+    vw_shared::shell::resolve_executable(command).is_some()
 }

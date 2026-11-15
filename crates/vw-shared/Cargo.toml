@@ -10,7 +10,6 @@ license = "MIT"
 [dependencies]
 app-self-update = { path = "../libs/app-self-update", version = "0.6.0" }
 desktop-release = { path = "../libs/desktop-release", version = "0.6.0" }
-shell-command = { path = "../libs/shell-command", version = "0.6.0" }
 local-app-auth = { path = "../libs/local-app-auth", version = "0.6.0" }
 runtime-log = { path = "../libs/runtime-log", version = "0.6.0" }
 pasted-text-cache = { path = "../libs/pasted-text-cache", version = "0.6.0" }
@@ -39,9 +38,10 @@ question-types = { path = "../libs/question-types", version = "0.6.0" }
 permission-types = { path = "../libs/permission-types", version = "0.6.0" }
 snapshot-types = { path = "../libs/snapshot-types", version = "0.6.0" }
 patch = { path = "../libs/patch", version = "0.6.0" }
+tokio = { version = "1", features = ["process"], optional = true }
 
 [features]
-shell-tokio = ["shell-command/shell-tokio"]
+shell-tokio = ["dep:tokio"]
 
 [dev-dependencies]
 tempfile = "3"

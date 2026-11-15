@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::ffi::OsString;
 use tokio::process::Command;
 #[cfg(not(windows))]
-use shell_command::tokio_command;
+use vw_shared::shell::tokio_command;
 
 #[cfg(test)]
 #[path = "spawn_command_options_tests.rs"]

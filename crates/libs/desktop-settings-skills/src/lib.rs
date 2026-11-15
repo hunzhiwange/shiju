@@ -4,6 +4,8 @@ pub mod prompts;
 pub mod types;
 #[derive(Clone, Debug)]
 pub enum Event {
+    PluginsSetEnabledRequested { plugin_id: String, enabled: bool },
+    PluginsDeleteRequested(String), PluginsSelected(String), PluginsUpdateOpen(String), PluginsRefresh, PluginsInstallOpen,
     None,
     CopyText(String),
     SkillsDirectoryScopeChanged(types::SkillsDirectoryScope),
@@ -102,3 +104,18 @@ pub type HelpRenderer<E> = for<'a, 'theme> fn(
 mod browser_detail;
 mod browser_discovery;
 mod browser_widgets;
+
+pub mod import_modal;
+pub mod install_view;
+pub mod jobs_view;
+pub mod market_view;
+pub mod repo_modal;
+pub mod storage_modal;
+pub mod updates_view;
+pub mod plugin_state;
+pub mod plugin_install;
+pub mod plugin_install_modal;
+
+pub mod plugins;
+pub mod help;
+#[cfg(test)] mod help_tests;

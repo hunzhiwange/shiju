@@ -3,59 +3,10 @@ use crate::app::{App, Message, message::SettingsMessage, state::AgentAppsContext
 use iced::Task;
 use vw_api_app_skills::{bindings_api::*, repos_api::SkillReposQuery, storage_api::*};
 
-#[derive(Clone, Debug, Default)]
-pub(crate) struct State {
-    pub open: bool,
-    pub busy: bool,
-    pub current: Option<SkillStorageResponse>,
-    pub pending: Option<SkillStorageLocation>,
-    pub results: Vec<String>,
-    pub error: Option<String>,
-    generation: u64,
-    catalog: u64,
-    context: Option<AgentAppsContext>,
-    scope: Option<SkillReposQuery>,
-}
-#[derive(Clone, Debug)]
-pub(crate) enum Event {
-    Open, Close, Refresh, Select(SkillStorageLocation), Mode(SkillBindingMode), Move, Resync, OpenDirectory,
-    Completed(u64, Result<Readback, String>),
-}
-#[derive(Clone, Debug)]
-pub(crate) enum Readback {
-    Storage(SkillStorageResponse),
-    Move(SkillStorageMoveResponse),
-    Sync(SkillBindingsResponse),
-    Opened,
-}
+pub(crate) use desktop_settings_skills::storage_modal::{State, Event, Readback};
 pub(crate) enum Change { OpenDirectory(String), Read, Mode(SkillStoragePatch), Move(SkillStorageMoveRequest), Resync(SkillResyncRequest) }
 pub(crate) fn message(event: Event) -> Message { Message::Settings(SettingsMessage::SkillsStorage(event)) }
-impl State {
-    fn accept(&mut self, result: Readback) -> Result<(), String> {
-        match result {
-            Readback::Opened => {},
-            Readback::Storage(value) if Some(&value.scope) == self.scope.as_ref() => self.current = Some(value),
-            Readback::Move(value) if Some(&value.storage.scope) == self.scope.as_ref() => {
-                self.results = value.migrated.iter().map(|id| format!("已迁移：{id}")).chain(
-                    value.skipped.iter().map(|id| format!("已跳过：{id}"))).collect();
-                self.results.extend(value.errors.iter().cloned());
-                if !value.switched || !value.errors.is_empty() {
-                    return Err("迁移未完成，保留原主副本位置；请刷新确认执行端状态".into());
-                }
-                self.current = Some(value.storage);
-                self.pending = None;
-            }
-            Readback::Sync(value) if Some(&value.scope) == self.scope.as_ref() => {
-                self.results = value.results.iter().map(|item| format!("{} / {}：{:?}", item.target.installation_id, item.directory, item.status)).collect();
-                if value.results.iter().any(|item| item.status == SkillBindingStatus::Failed) {
-                    return Err("部分同步失败，请检查逐项结果".into());
-                }
-            }
-            _ => return Err("响应作用域不匹配，请刷新".into()),
-        }
-        Ok(())
-    }
-}
+
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let s = &mut app.skills_settings.storage;
     if matches!(event, Event::Close) {
@@ -143,7 +94,3 @@ pub(crate) fn open_local(home: &str, path: &str) -> Result<(), ()> {
 pub(crate) fn open_local(_: &str, _: &str) -> Result<(), ()> {
     Err(())
 }
-
-#[cfg(test)]
-#[path = "storage_modal_tests.rs"]
-mod tests;

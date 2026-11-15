@@ -1,23 +1,24 @@
 //! All replies are bound to gateway, catalog generation, editor generation and target.
-use crate::app::{App, Message, state::AgentAppsContext};
-use crate::app::components::system_settings_prompts::pi_files::{State, kind};
+use super::{Input, Event as Message};
+use desktop_provider_apps::AgentAppsContext;
+use crate::prompts::pi_files::{State, kind};
 use iced::{Task, widget::text_editor};
 use gateway_app_prompts::{AgentAppPromptsError};
 use gateway_app_prompt_resources::{PiPromptResourcesScope, PiPromptFileSnapshot};
 #[derive(Clone, Debug)]
-pub(crate) enum Event {
+pub enum Event {
     Open, Close, Select(usize), Edit(text_editor::Action), Read, Save, Delete, AcceptRevision,
     Reply(AgentAppsContext, u64, u64, usize, bool, Result<PiPromptFileSnapshot, String>),
 }
 fn message(event: Event) -> Message { super::message(super::Event::PiFile(event)) }
-pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
-    let client = match crate::app::config::gateway_client() { Ok(client) => client, Err(error) => return app.show_error_toast(error) };
+pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
+    let client = match app.client.clone() { Ok(client) => client, Err(error) => return crate::prompts::update::Input::show_error_toast(error) };
     let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
-    let catalog = app.apps_catalog.generation;
-    let state = &mut app.apps_catalog.prompts.pi_files;
+    let catalog = app.generation;
+    let state = &mut app.prompts.pi_files;
     if let Event::Reply(request, request_catalog, generation, index, write, result) = event {
         if context != request || catalog != request_catalog || generation != state.generation || !state.open || index > 1
-            || state.scope.as_ref().is_none_or(|scope| scope.target_host_id != app.apps_catalog.host || Some(scope.project_id.as_ref()) != app.project_id.as_deref()) || !state.files[index].busy { return Task::none(); }
+            || state.scope.as_ref().is_none_or(|scope| scope.target_host_id != app.host || Some(scope.project_id.as_ref()) != app.project_id.as_deref()) || !state.files[index].busy { return Task::none(); }
         let file = &mut state.files[index];
         file.busy = false;
         match result {
@@ -34,20 +35,20 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             Err(error) => {
                 if write { file.blocked = true; }
                 file.error = Some(error.clone());
-                return app.show_error_toast(error);
+                return crate::prompts::update::Input::show_error_toast(error);
             }
         }
         return Task::none();
     }
     if matches!(event, Event::Open) {
-        if app.apps_catalog.context.as_ref() != Some(&context) || app.apps_catalog.token.is_empty() { return app.show_error_toast("请先连接应用管理"); }
-        let Some(project) = app.project_id.as_deref().filter(|id| !id.is_empty()) else { return app.show_error_toast("请先选择项目"); };
-        let scope = PiPromptResourcesScope { project_id: project.into(), target_host_id: app.apps_catalog.host.clone() };
+        if app.context.as_ref() != Some(&context) || app.token.is_empty() { return crate::prompts::update::Input::show_error_toast("请先连接应用管理"); }
+        let Some(project) = app.project_id.as_deref().filter(|id| !id.is_empty()) else { return crate::prompts::update::Input::show_error_toast("请先选择项目"); };
+        let scope = PiPromptResourcesScope { project_id: project.into(), target_host_id: app.host.clone() };
         let same = state.scope.as_ref().is_some_and(|s| s.project_id == scope.project_id && s.target_host_id == scope.target_host_id);
         if !same { *state = State { generation: state.generation.wrapping_add(1), ..State::default() }; }
         state.scope = Some(scope); state.open = true;
     } else if !state.open { return Task::none(); }
-    if state.scope.as_ref().is_none_or(|scope| scope.target_host_id != app.apps_catalog.host || Some(scope.project_id.as_ref()) != app.project_id.as_deref()) { state.open = false; return Task::none(); }
+    if state.scope.as_ref().is_none_or(|scope| scope.target_host_id != app.host || Some(scope.project_id.as_ref()) != app.project_id.as_deref()) { state.open = false; return Task::none(); }
     if state.files.iter().any(|file| file.busy) { return Task::none(); }
     let mut write = false;
     let mut delete = false;
@@ -66,7 +67,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             delete = matches!(event, Event::Delete);
             if delete && !file.confirm_delete { file.confirm_delete = true; return Task::none(); }
             if delete && !file.base.as_ref().is_some_and(|s| s.exists) { return Task::none(); }
-            if !delete && (file.draft.text().trim().is_empty() || file.draft.text().len() > 1024 * 1024) { return app.show_error_toast("内容不能为空且不能超过 1 MiB"); }
+            if !delete && (file.draft.text().trim().is_empty() || file.draft.text().len() > 1024 * 1024) { return crate::prompts::update::Input::show_error_toast("内容不能为空且不能超过 1 MiB"); }
             if !delete && state.selected == 1 && file.base.as_ref().is_some_and(|s| !s.exists) && !file.confirm_override { file.confirm_override = true; return Task::none(); }
             write = true;
         }
@@ -81,7 +82,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     file.busy = true; file.latest = None; file.confirm_delete = false; file.confirm_override = false;
     let revision = file.base.as_ref().map(|s| s.revision.clone()).unwrap_or_default();
     let content = file.draft.text();
-    let token = app.apps_catalog.token.clone();
+    let token = app.token.clone();
     let client = gateway_app_prompt_resources::GatewayAppPromptResourcesClient::new(client.transport().clone());
     Task::perform(async move {
         let result = if delete {

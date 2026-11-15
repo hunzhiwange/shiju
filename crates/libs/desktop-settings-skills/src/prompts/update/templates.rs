@@ -1,45 +1,46 @@
 //! Requests and replies remain bound to the connected project, host and generation.
-use crate::app::{App, Message, state::AgentAppsContext};
-use crate::app::components::system_settings_prompts::templates::{State, Draft};
+use super::{Input, Event as Message};
+use desktop_provider_apps::AgentAppsContext;
+use crate::prompts::templates::{State, Draft};
 use iced::{Task, widget::text_editor};
 use gateway_app_prompts::{AgentAppPromptsError};
 use gateway_app_prompt_resources::{PiPromptResourcesScope, PiPromptTemplate};
 
 #[derive(Debug, Clone)]
-pub(crate) enum Event {
+pub enum Event {
     Open, Close, Load, Edit(Option<String>), Cancel, Slug(String), Body(text_editor::Action),
     Save, Delete(String), Undo, Copy(String),
     Reply(AgentAppsContext, u64, u64, Result<Reply, String>),
 }
 #[derive(Debug, Clone)]
-pub(crate) enum Reply { List(Vec<PiPromptTemplate>), Saved(PiPromptTemplate), Deleted(PiPromptTemplate) }
-pub(crate) fn message(event: Event) -> Message { super::message(super::Event::Template(event)) }
-pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
-    let client = match crate::app::config::gateway_client() { Ok(c) => c, Err(e) => return app.show_error_toast(e) };
+pub enum Reply { List(Vec<PiPromptTemplate>), Saved(PiPromptTemplate), Deleted(PiPromptTemplate) }
+pub fn message(event: Event) -> Message { super::message(super::Event::Template(event)) }
+pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
+    let client = match app.client.clone() { Ok(c) => c, Err(e) => return crate::prompts::update::Input::show_error_toast(e) };
     let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
-    let catalog = app.apps_catalog.generation;
-    let state = &mut app.apps_catalog.prompts.templates;
+    let catalog = app.generation;
+    let state = &mut app.prompts.templates;
     if let Event::Reply(request, request_catalog, generation, result) = event {
         if request != context || catalog != request_catalog || generation != state.generation || !state.open || !state.busy
-            || state.scope.as_ref().is_none_or(|s| s.target_host_id != app.apps_catalog.host || Some(s.project_id.as_ref()) != app.project_id.as_deref()) { return Task::none(); }
+            || state.scope.as_ref().is_none_or(|s| s.target_host_id != app.host || Some(s.project_id.as_ref()) != app.project_id.as_deref()) { return Task::none(); }
         state.busy = false;
         match result {
             Ok(Reply::List(entries)) => { state.entries = entries; state.loaded = true; }
             Ok(Reply::Saved(entry)) => { state.entries.retain(|e| e.slug != entry.slug && state.draft.as_ref().and_then(|d| d.original.as_ref()).is_none_or(|o| o.slug != e.slug)); state.entries.push(entry); state.draft = None; state.undo = None; }
             Ok(Reply::Deleted(entry)) => { state.entries.retain(|e| e.slug != entry.slug); state.undo = Some(entry); }
-            Err(error) => { state.error = Some(error.clone()); return app.show_error_toast(error); }
+            Err(error) => { state.error = Some(error.clone()); return crate::prompts::update::Input::show_error_toast(error); }
         }
         state.entries.sort_by(|a, b| a.slug.cmp(&b.slug));
         return Task::none();
     }
-    if app.apps_catalog.context.as_ref() != Some(&context) || app.apps_catalog.token.is_empty() { return app.show_error_toast("请先连接应用管理"); }
+    if app.context.as_ref() != Some(&context) || app.token.is_empty() { return crate::prompts::update::Input::show_error_toast("请先连接应用管理"); }
     if matches!(event, Event::Open) {
-        let Some(project) = app.project_id.as_deref().filter(|p| !p.is_empty()) else { return app.show_error_toast("请先选择项目"); };
-        let scope = PiPromptResourcesScope { project_id: project.into(), target_host_id: app.apps_catalog.host.clone() };
+        let Some(project) = app.project_id.as_deref().filter(|p| !p.is_empty()) else { return crate::prompts::update::Input::show_error_toast("请先选择项目"); };
+        let scope = PiPromptResourcesScope { project_id: project.into(), target_host_id: app.host.clone() };
         if state.scope.as_ref().is_none_or(|s| s.project_id != scope.project_id || s.target_host_id != scope.target_host_id) { *state = State { generation: state.generation.wrapping_add(1), ..State::default() }; }
         state.scope = Some(scope); state.open = true;
     }
-    if !state.open || state.busy || state.scope.as_ref().is_none_or(|s| s.target_host_id != app.apps_catalog.host || Some(s.project_id.as_ref()) != app.project_id.as_deref()) { return Task::none(); }
+    if !state.open || state.busy || state.scope.as_ref().is_none_or(|s| s.target_host_id != app.host || Some(s.project_id.as_ref()) != app.project_id.as_deref()) { return Task::none(); }
     match &event {
         Event::Close => { state.open = false; return Task::none(); }
         Event::Cancel => { state.draft = None; state.error = None; return Task::none(); }
@@ -67,7 +68,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     state.busy = true; state.error = None; state.delete = None;
     state.generation = state.generation.wrapping_add(1);
     let generation = state.generation;
-    let token = app.apps_catalog.token.clone();
+    let token = app.token.clone();
     let draft = draft.map(|d| {
         let content = if d.edited { d.body.text() } else { d.original.as_ref().map(|e| e.content.clone()).unwrap_or_default() };
         (d.slug, d.original, content)

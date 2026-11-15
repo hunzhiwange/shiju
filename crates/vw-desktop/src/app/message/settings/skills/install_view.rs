@@ -3,28 +3,7 @@ use crate::app::{App, Message, message::SettingsMessage, state::AgentAppsContext
 use iced::Task;
 use vw_api_app_skills::{inventory_api::*, install_api::*, repos_api::SkillReposQuery};
 
-#[derive(Debug, Clone, Default)]
-pub(crate) struct State {
-    pub open: bool,
-    pub busy: bool,
-    pub inventory: Option<SkillInventoryResponse>,
-    pub selected: Option<String>,
-    pub repo: String,
-    pub selection: String,
-    pub directory: String,
-    pub error: Option<String>,
-    generation: u64,
-    context: Option<AgentAppsContext>,
-    scope: Option<SkillReposQuery>,
-    catalog: u64,
-}
-#[derive(Debug, Clone)]
-pub(crate) enum Event {
-    Open, Close, Refresh, Select(String), Repo(String), Selection(String), Directory(String), Install,
-    Loaded(u64, Result<SkillInventoryResponse, String>),
-    Installed(u64, Result<(), String>),
-    Submitted(u64, Result<InstallSkillResponse, String>),
-}
+pub(crate) use desktop_settings_skills::install_view::{State, Event};
 pub(crate) fn message(event: Event) -> Message { Message::Settings(SettingsMessage::SkillsInstall(event)) }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     if matches!(event, Event::Install) && app.skills_settings.jobs.task_id.is_some()

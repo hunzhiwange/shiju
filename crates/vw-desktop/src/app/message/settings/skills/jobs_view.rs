@@ -7,28 +7,8 @@ use {
     vw_api_transport::id::TaskId,
 };
 
-#[derive(Debug, Clone, Default)]
-pub(crate) struct State {
-    pub open: bool,
-    pub busy: bool,
-    pub snapshot: Option<SkillJobResponse>,
-    pub error: Option<String>,
-    pub task_id: Option<TaskId>,
-    context: Option<AgentAppsContext>,
-    scope: Option<SkillReposQuery>,
-    generation: u64,
-    notified: bool,
-}
-#[derive(Debug, Clone)]
-pub(crate) enum Event {
-    Open, Close, Refresh, Cancel,
-    Loaded(u64, Result<SkillJobResponse, String>),
-    Poll(u64),
-}
+pub(crate) use desktop_settings_skills::jobs_view::{State, Event, terminal};
 pub(crate) fn message(e: Event) -> Message { Message::Settings(SettingsMessage::SkillsJobs(e)) }
-pub(crate) fn terminal(phase: SkillJobPhase) -> bool {
-    matches!(phase, SkillJobPhase::Completed | SkillJobPhase::Failed | SkillJobPhase::Interrupted)
-}
 pub(crate) fn submitted(app: &mut App, scope: SkillReposQuery, id: TaskId) -> Task<Message> {
     let Ok(client) = crate::app::config::gateway_client() else { return Task::none(); };
     let generation = app.skills_settings.jobs.generation.wrapping_add(1);

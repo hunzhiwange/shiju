@@ -50,3 +50,17 @@ pub struct SkillsCatalogItem {
     pub source: String,
     pub source_path: Option<String>,
 }
+
+#[derive(Debug, Clone)]
+pub struct PluginCatalogItem {
+    pub id: String,
+    pub display_name: String,
+    pub version: String,
+    pub description: String,
+    pub enabled: bool,
+    pub component_count: usize,
+    pub source_path: Option<String>,
+    pub dependency_checks: Vec<gateway_desktop_settings::DesktopPluginDependencyDto>,
+    pub origin: gateway_desktop_settings::DesktopPluginSourceDto,
+    pub hook_review: String,
+}

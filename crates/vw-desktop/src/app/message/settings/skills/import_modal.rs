@@ -1,38 +1,10 @@
 //! Unmanaged imports use server selections and explicit application choices.
 use crate::app::{App, Message, message::SettingsMessage, state::AgentAppsContext};
 use iced::Task;
-use vw_api_types::agent_apps::AppId;
-use vw_api_app_skills::import_api::*;
 
-pub(crate) const APPS: &[AppId] = &[AppId::Claude, AppId::Codex, AppId::Gemini,
-    AppId::GrokBuild, AppId::OpenCode, AppId::Hermes, AppId::Pi, AppId::Mcode,
-    AppId::Kimi, AppId::Dsh, AppId::Agy, AppId::Omp];
-#[derive(Debug, Clone, Default)]
-pub(crate) struct State {
-    pub open: bool,
-    pub busy: bool,
-    pub apps: Vec<AppId>,
-    pub selected: Vec<String>,
-    pub report: Option<UnmanagedSkillsResponse>,
-    pub outcomes: Vec<(String, Result<(), String>)>,
-    pub error: Option<String>,
-    generation: u64,
-    context: Option<AgentAppsContext>,
-    catalog: u64,
-    project: Option<String>,
-    host: String,
-}
-#[derive(Debug, Clone)]
-pub(crate) enum Event {
-    Open, Close, App(AppId, bool), Select(String, bool), Scan, Import,
-    Completed(u64, Vec<(String, Result<(), String>)>, Result<UnmanagedSkillsResponse, String>),
-}
+pub(crate) use desktop_settings_skills::import_modal::{State, Event, APPS, eligible};
 pub(crate) fn message(event: Event) -> Message {
     Message::Settings(SettingsMessage::SkillsImport(event))
-}
-pub(crate) fn eligible(row: &UnmanagedSkillItem) -> bool {
-    !row.managed && !row.conflict && !row.external_link && row.selection_id.is_some()
-        && row.content_hash.is_some()
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let state = &mut app.skills_settings.import;

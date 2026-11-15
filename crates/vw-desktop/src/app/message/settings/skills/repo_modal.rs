@@ -4,30 +4,8 @@ use crate::app::session_gateway::{gateway_skill_repos_request, gateway_skill_rep
 use iced::Task;
 use vw_api_app_skills::repos_api::*;
 
-#[derive(Debug, Clone, Default)]
-pub(crate) struct State {
-    pub open: bool,
-    pub busy: bool,
-    pub identity: String,
-    pub source_link: String,
-    pub source_preview: Option<super::deeplink::Request>,
-    pub branch: String,
-    pub snapshot: Option<SkillReposResponse>,
-    pub error: Option<String>,
-    generation: u64,
-    directory: Option<String>,
-    context: Option<crate::app::state::AgentAppsContext>,
-    project: Option<String>,
-    host: String,
-}
-#[derive(Debug, Clone)]
-pub(crate) enum Event {
-    Open, Close, Identity(String), Branch(String), Refresh, Add,
-    Toggle(usize), Remove(usize),
-    SourceLink(String), PreviewSource, CancelSource, ConfirmSource,
-    Completed { generation: u64, added: bool, result: Result<SkillReposResponse, String> },
-}
-fn message(event: Event) -> Message {
+pub(crate) use desktop_settings_skills::repo_modal::{State, Event};
+pub(crate) fn message(event: Event) -> Message {
     Message::Settings(SettingsMessage::SkillRepositories(event))
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {

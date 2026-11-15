@@ -5,19 +5,7 @@ use super::*;
 /// 管理技能系统的配置，包括开放技能目录和提示注入模式。
 pub use desktop_settings_skills::types::{SkillsSettingsTab, SkillsDirectoryScope, SkillsCatalogKind, SkillsSelectedDetail, SkillsCatalogItem};
 
-#[derive(Debug, Clone)]
-pub(crate) struct PluginCatalogItem {
-    pub(crate) id: String,
-    pub(crate) display_name: String,
-    pub(crate) version: String,
-    pub(crate) description: String,
-    pub(crate) enabled: bool,
-    pub(crate) component_count: usize,
-    pub(crate) source_path: Option<String>,
-    pub(crate) dependency_checks: Vec<gateway_desktop_settings::DesktopPluginDependencyDto>,
-    pub(crate) origin: gateway_desktop_settings::DesktopPluginSourceDto,
-    pub(crate) hook_review: String,
-}
+pub use desktop_settings_skills::types::PluginCatalogItem;
 
 #[derive(Debug, Clone)]
 pub(crate) struct SkillsSettingsState {

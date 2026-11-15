@@ -6,51 +6,7 @@
 use crate::app::{App, Message, message};
 use iced::Element;
 
-pub(super) fn help_text(locale: config_ui::DesktopLocale) -> &'static str {
-    crate::app::i18n::I18n::new(locale).__(r#"技能配置说明
-
-一、作用
-- skills 用于控制技能系统加载来源与系统提示词注入方式。
-- 当前页面上半部分保留配置项，下半部分通过 gateway service 展示技能目录与来源。
-- 该配置影响上下文长度与技能可见性。
-
-二、页面结构
-1) 技能
-- 技能页支持“项目目录 / 全部目录”切换，并按项目目录、父级目录、全局目录、内置技能分层显示。
-- 点击左侧技能卡片后，会弹出详情窗口展示对应 `SKILL.md`，若没有则回退显示 `SKILL.toml`。
-- 对本地技能可直接执行启用、禁用、删除；对内置技能可在打开项目后安装到当前项目目录。
-
-2) 插件
-- 在独立的插件页管理插件。
-
-3) 系统配置
-- 项目技能默认加载与注入模式配置集中在这里。
-- 这些配置不会移除内置技能列表。
-
-三、字段含义
-1) auto_load_project_skills
-- 类型：布尔（true / false）
-- true（默认）：委托代理自动加载项目及父级 `skills`、`.agents/skills`。
-- false：委托代理仅加载自身 `allowed_skills` 明确选择的技能。
-
-2) prompt_injection_mode
-- 类型："compact" | "full"
-- compact（默认）：仅注入技能元信息，按需加载，节省上下文。
-- full：注入完整技能文本，兼容旧行为，但会增加上下文占用。
-
-四、示例
-{
-  "skills": {
-    "auto_load_project_skills": true,
-    "prompt_injection_mode": "compact"
-  }
-}
-
-五、启用/禁用说明
-- 本地技能通过技能目录下的 `SKILL.disabled` 标记文件控制启用状态。
-- 禁用后仍会在目录页显示，但运行时会跳过加载，便于后续重新启用。
-"#)
-}
+pub(super) use desktop_settings_skills::help::help_text;
 
 /// 构建或处理 `view_overlays` 对应的界面片段与交互数据。
 ///

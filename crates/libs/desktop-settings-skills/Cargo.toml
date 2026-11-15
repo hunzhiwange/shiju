@@ -22,3 +22,10 @@ gateway-desktop-settings = { path = "../gateway-desktop-settings", version = "0.
 vw-api-app-skills = { path = "../api-app-skills", version = "0.6.0" }
 iced = { version = "0.14", features = ["image", "svg", "advanced", "canvas"] }
 desktop-platform = { path = "../desktop-platform", version = "0.6.0" }
+desktop-provider-apps = { path = "../desktop-provider-apps", version = "0.6.0" }
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
+local-app-auth = { path = "../local-app-auth", version = "0.6.0" }
+tokio = { version = "1", features = ["rt", "fs"] }
+rfd = { version = "0.17", features = ["file-handle-inner"] }
+
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }

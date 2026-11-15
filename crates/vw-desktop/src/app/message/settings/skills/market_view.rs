@@ -1,29 +1,8 @@
 //! Read-only discovery and market search share one request generation.
 use crate::app::{App, Message, message::SettingsMessage, state::AgentAppsContext};
 use iced::Task;
-use vw_api_app_skills::{discovery_api::*, search_api::*};
 
-#[derive(Debug, Clone)]
-pub(crate) enum Results { Discovery(DiscoverSkillsResponse), Search(MarketSearchResponse) }
-#[derive(Debug, Clone, Default)]
-pub(crate) struct State {
-    pub open: bool,
-    pub busy: bool,
-    pub query: String,
-    pub results: Option<Results>,
-    pub error: Option<String>,
-    generation: u64,
-    context: Option<AgentAppsContext>,
-    catalog: u64,
-    project: Option<String>,
-    host: String,
-    version: u64,
-}
-#[derive(Debug, Clone)]
-pub(crate) enum Event {
-    Open, Close, Query(String), Refresh,
-    Completed(u64, Result<Results, String>),
-}
+pub(crate) use desktop_settings_skills::market_view::{Results, State, Event};
 pub(crate) fn message(event: Event) -> Message {
     Message::Settings(SettingsMessage::SkillsMarket(event))
 }

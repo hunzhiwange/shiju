@@ -31,6 +31,12 @@ fn context(app: &App) -> BrowserContext<'_> {
 }
 pub(super) fn message(event: Event) -> Message {
     Message::Settings(match event {
+        Event::PluginsDeleteRequested(v) => SettingsMessage::PluginsDeleteRequested(v),
+        Event::PluginsSelected(v) => SettingsMessage::PluginsSelected(v),
+        Event::PluginsUpdateOpen(v) => SettingsMessage::PluginsUpdateOpen(v),
+        Event::PluginsRefresh => SettingsMessage::PluginsRefresh,
+        Event::PluginsInstallOpen => SettingsMessage::PluginsInstallOpen,
+        Event::PluginsSetEnabledRequested { plugin_id, enabled } => SettingsMessage::PluginsSetEnabledRequested { plugin_id, enabled },
         Event::None => return Message::None,
         Event::CopyText(text) => return Message::CopyCode(text),
         Event::SkillsDirectoryScopeChanged(v) => SettingsMessage::SkillsDirectoryScopeChanged(v),

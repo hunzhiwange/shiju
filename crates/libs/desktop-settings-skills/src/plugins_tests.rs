@@ -2,8 +2,8 @@
 //!
 //! 插件夹具组合加载、空、筛选、选中、忙碌和禁用状态，覆盖详情面板回退。
 
-use crate::app::App;
-use crate::app::state::PluginCatalogItem;
+
+use crate::types::PluginCatalogItem;
 
 fn plugin(
     id: &str,
@@ -163,15 +163,15 @@ fn plugin_detail_panel_builds_empty_busy_and_disabled_variants() {
 
 #[test]
 fn plugins_view_builds_loading_empty_filtered_and_selected_fallback_states() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
 
     app.skills_settings.plugin_loading = true;
-    let _ = super::view(&app);
+    let _ = super::view(app.view());
 
     app.skills_settings.plugin_loading = false;
     app.skills_settings.plugin_status_message = Some("加载失败".to_string());
     app.skills_settings.plugin_status_is_error = true;
-    let _ = super::view(&app);
+    let _ = super::view(app.view());
 
     app.skills_settings.plugin_catalog = vec![
         plugin("alpha-plugin", "Alpha Plugin", true, Some("/tmp/alpha")),
@@ -179,8 +179,14 @@ fn plugins_view_builds_loading_empty_filtered_and_selected_fallback_states() {
     ];
     app.skills_settings.query = "alpha".to_string();
     app.skills_settings.selected_plugin_id = Some("missing-plugin".to_string());
-    let _ = super::view(&app);
+    let _ = super::view(app.view());
 
     app.skills_settings.query = "nothing".to_string();
-    let _ = super::view(&app);
+    let _ = super::view(app.view());
 }
+
+struct Fixture { skills_settings: Settings, theme: iced::Theme }
+impl Default for Fixture { fn default() -> Self { Self { skills_settings: Settings::default(), theme: iced::Theme::Dark } } }
+#[derive(Default)]
+struct Settings { translation: Option<desktop_i18n::format::Message>, plugin_loading: bool, plugin_status_message: Option<String>, plugin_status_is_error: bool, plugin_catalog: Vec<PluginCatalogItem>, query: String, selected_plugin_id: Option<String> }
+impl Fixture { fn view(&self) -> super::ViewState<'_> { super::ViewState { desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &self.theme, query: &self.skills_settings.query, plugin_catalog: &self.skills_settings.plugin_catalog, selected_plugin_id: &self.skills_settings.selected_plugin_id, plugin_loading: self.skills_settings.plugin_loading, plugin_status_message: &self.skills_settings.plugin_status_message, plugin_status_message_translation: &self.skills_settings.translation, plugin_status_is_error: self.skills_settings.plugin_status_is_error } } }

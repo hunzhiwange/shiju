@@ -530,6 +530,7 @@ pub enum SettingsMessage {
     SkillsProjectSelected(String),
     SkillsRefresh,
     SkillsLoaded(SkillsLoaded),
+    PluginInstallEffect(desktop_settings_skills::plugin_install::Event),
     PluginsInstallOpen,
     PluginsUpdateOpen(String),
     PluginsInstallSourceChanged(String),

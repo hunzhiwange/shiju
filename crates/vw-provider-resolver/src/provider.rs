@@ -9,7 +9,7 @@
 //! 最终对外暴露 provider 列表、模型查询、默认模型推导与缓存失效能力。
 
 use provider_state_cache as cache;
-use crate::config;
+use provider_config_reader as config;
 use provider_model_cache as models;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;

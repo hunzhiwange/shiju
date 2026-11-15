@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/provider-config-reader",
   "crates/libs/api-mcp-network",
   "crates/libs/config-observability",
   "crates/libs/config-hooks",

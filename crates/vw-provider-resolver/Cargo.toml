@@ -8,15 +8,13 @@ description = "Provider and model resolver for VibeWindow"
 license = "MIT"
 
 [dependencies]
+provider-config-reader = { path = "../libs/provider-config-reader", version = "0.6.0" }
 provider-model-cache = { path = "../libs/provider-model-cache", version = "0.6.0" }
-gateway-config = { path = "../libs/gateway-config", version = "0.6.0" }
 provider-model-catalog = { path = "../libs/provider-model-catalog", version = "0.6.0" }
 provider-request-identity = { path = "../libs/provider-request-identity", version = "0.6.0" }
 provider-state-cache = { path = "../libs/provider-state-cache", version = "0.6.0" }
 provider-runtime-paths = { path = "../libs/provider-runtime-paths", version = "0.6.0" }
 provider-protocol-routes = { path = "../libs/provider-protocol-routes", version = "0.6.0" }
-gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }
-gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }
 provider-errors = { path = "../libs/provider-errors", version = "0.6.0" }
 anyhow = "1"
 once_cell = "1"
@@ -26,7 +24,6 @@ tokio = { version = "1", default-features = false, features = ["rt", "sync", "ti
 tracing = "0.1"
 strsim = "0.11"
 vw-shared = { path = "../vw-shared", version = "0.6.0" }
-vw-config-types = { path = "../vw-config-types", version = "0.6.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
@@ -34,8 +31,6 @@ tokio = { version = "1", default-features = false, features = ["rt-multi-thread"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 reqwest = { version = "0.13", features = ["json"] }
-vw-gateway-client = { path = "../vw-gateway-client", version = "0.6.0" }
-web-sys = { version = "0.3", features = ["Window", "Location"] }
 
 [dev-dependencies]
 config-runtime-paths = { path = "../libs/config-runtime-paths", version = "0.6.0" }

@@ -567,7 +567,7 @@ impl App {
             crate::app::i18n::editor::refresh(self);
         }
         #[cfg(target_arch = "wasm32")]
-        vw_provider_resolver::config::set_wasm_gateway_endpoint({
+        provider_config_reader::set_wasm_gateway_endpoint({
             let active = system.gateway_client.active_server();
             let host = {
                 let value = active.host.trim();

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use super::Info;
+use auth_types::Info;
 
 /// 解析鉴权文件路径，优先兼容旧目录，其次使用当前数据目录。
 pub fn resolve_filepath(home: &Path, data: &Path) -> PathBuf {

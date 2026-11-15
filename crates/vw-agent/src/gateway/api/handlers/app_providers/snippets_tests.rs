@@ -70,7 +70,8 @@ async fn cc04_snippets_sdk_api_sqlite_sanitizes_and_preserves_live() {
     let live = std::fs::read(&file).unwrap();
     let read = SnippetRead { target_host_id: "host".into() };
     assert!(
-        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_snippet_get(AppId::Claude, &read, TOKEN)
+        f.client
+            .app_provider_snippet_get(AppId::Claude, &read, TOKEN)
             .await
             .unwrap()
             .content
@@ -78,7 +79,8 @@ async fn cc04_snippets_sdk_api_sqlite_sanitizes_and_preserves_live() {
     );
     let settings = json!({"env":{"ANTHROPIC_API_KEY":"fixture-key","AWS_REGION":"fixture-region","DISABLE_TELEMETRY":"1"},"model":"old","hooks":{"keep":false}});
     let extracted = f
-        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_extract(
+        .client
+        .app_provider_snippet_extract(
             AppId::Claude,
             &SnippetExtract {
                 target_host_id: "host".into(),
@@ -91,7 +93,8 @@ async fn cc04_snippets_sdk_api_sqlite_sanitizes_and_preserves_live() {
     let expected = json!({"env":{"DISABLE_TELEMETRY":"1"},"hooks":{"keep":false}});
     assert_eq!(serde_json::from_str::<Value>(&extracted.content.unwrap()).unwrap(), expected);
     let saved = f
-        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_save(
+        .client
+        .app_provider_snippet_save(
             AppId::Claude,
             &SnippetWrite { target_host_id: "host".into(), content: settings.to_string() },
             TOKEN,
@@ -101,7 +104,7 @@ async fn cc04_snippets_sdk_api_sqlite_sanitizes_and_preserves_live() {
     assert_eq!(serde_json::from_str::<Value>(saved.content.as_ref().unwrap()).unwrap(), expected);
     assert!(!f.raw().unwrap().contains("fixture-key"));
     assert_eq!(
-        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_snippet_get(AppId::Claude, &read, TOKEN).await.unwrap(),
+        f.client.app_provider_snippet_get(AppId::Claude, &read, TOKEN).await.unwrap(),
         saved
     );
     let reopened = crate::app_providers::AppProviderStore::new(
@@ -115,13 +118,15 @@ async fn cc04_snippets_sdk_api_sqlite_sanitizes_and_preserves_live() {
     for (p, c) in [("p", "b"), ("q", "a")] {
         let other = f.scoped(p, c);
         assert!(
-            gateway_app_provider::GatewayAppProviderClient::new(other.transport().clone()).app_provider_snippet_get(AppId::Claude, &read, TOKEN)
+            other
+                .app_provider_snippet_get(AppId::Claude, &read, TOKEN)
                 .await
                 .unwrap()
                 .content
                 .is_none()
         );
-        gateway_app_provider::GatewayAppProviderClient::new(other.transport().clone()).app_provider_snippet_save(
+        other
+            .app_provider_snippet_save(
                 AppId::Claude,
                 &SnippetWrite { target_host_id: "host".into(), content: "{\"other\":true}".into() },
                 TOKEN,
@@ -129,7 +134,7 @@ async fn cc04_snippets_sdk_api_sqlite_sanitizes_and_preserves_live() {
             .await
             .unwrap();
         assert_eq!(
-            gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_snippet_get(AppId::Claude, &read, TOKEN).await.unwrap(),
+            f.client.app_provider_snippet_get(AppId::Claude, &read, TOKEN).await.unwrap(),
             saved
         );
     }
@@ -143,7 +148,8 @@ async fn cc04_snippets_sdk_api_sqlite_sanitizes_and_preserves_live() {
         )
         .unwrap();
     let from_saved = f
-        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_extract(
+        .client
+        .app_provider_snippet_extract(
             AppId::Claude,
             &SnippetExtract {
                 target_host_id: "host".into(),
@@ -155,7 +161,8 @@ async fn cc04_snippets_sdk_api_sqlite_sanitizes_and_preserves_live() {
         .unwrap();
     assert_eq!(from_saved, saved);
     assert!(
-        gateway_app_provider::GatewayAppProviderClient::new(f.scoped("p", "b").transport().clone()).app_provider_snippet_extract(
+        f.scoped("p", "b")
+            .app_provider_snippet_extract(
                 AppId::Claude,
                 &SnippetExtract {
                     target_host_id: "host".into(),
@@ -167,7 +174,8 @@ async fn cc04_snippets_sdk_api_sqlite_sanitizes_and_preserves_live() {
             .is_err()
     );
     let cleared = f
-        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_save(
+        .client
+        .app_provider_snippet_save(
             AppId::Claude,
             &SnippetWrite { target_host_id: "host".into(), content: "  ".into() },
             TOKEN,
@@ -182,7 +190,8 @@ async fn cc04_snippets_sdk_api_sqlite_sanitizes_and_preserves_live() {
 async fn cc04_snippets_denial_invalid_input_and_corruption_have_no_side_effects() {
     let f = Fixture::new().await;
     let read = SnippetRead { target_host_id: "host".into() };
-    gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_snippet_save(
+    f.client
+        .app_provider_snippet_save(
             AppId::Claude,
             &SnippetWrite { target_host_id: "host".into(), content: "{\"keep\":true}".into() },
             TOKEN,
@@ -211,7 +220,8 @@ async fn cc04_snippets_denial_invalid_input_and_corruption_have_no_side_effects(
         [(&f.client, "bad", "{}"), (&f.client, TOKEN, "[broken"), (&f.client, TOKEN, "[]")]
     {
         assert!(
-            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_save(
+            client
+                .app_provider_snippet_save(
                     AppId::Claude,
                     &SnippetWrite { target_host_id: "host".into(), content: content.into() },
                     token
@@ -222,7 +232,8 @@ async fn cc04_snippets_denial_invalid_input_and_corruption_have_no_side_effects(
         assert_eq!(f.raw(), before);
     }
     assert!(
-        gateway_app_provider::GatewayAppProviderClient::new(f.scoped("p", "read").transport().clone()).app_provider_snippet_save(
+        f.scoped("p", "read")
+            .app_provider_snippet_save(
                 AppId::Claude,
                 &SnippetWrite { target_host_id: "host".into(), content: "{}".into() },
                 TOKEN
@@ -231,7 +242,7 @@ async fn cc04_snippets_denial_invalid_input_and_corruption_have_no_side_effects(
             .is_err()
     );
     assert!(
-        gateway_app_provider::GatewayAppProviderClient::new(f.scoped("p", "none").transport().clone()).app_provider_snippet_get(AppId::Claude, &read, TOKEN).await.is_err()
+        f.scoped("p", "none").app_provider_snippet_get(AppId::Claude, &read, TOKEN).await.is_err()
     );
     assert_eq!(f.raw(), before);
     let store = GatewaySettingsStore::new(f.db.clone()).unwrap();
@@ -244,7 +255,7 @@ async fn cc04_snippets_denial_invalid_input_and_corruption_have_no_side_effects(
                 .to_string(),
         )
         .unwrap();
-    let safe = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_snippet_get(AppId::Claude, &read, TOKEN).await.unwrap();
+    let safe = f.client.app_provider_snippet_get(AppId::Claude, &read, TOKEN).await.unwrap();
     assert_eq!(
         serde_json::from_str::<Value>(&safe.content.unwrap()).unwrap(),
         json!({"keep":true})
@@ -258,7 +269,8 @@ async fn cc04_snippets_denial_invalid_input_and_corruption_have_no_side_effects(
         )
         .unwrap();
     let err = f
-        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_get(AppId::Claude, &read, TOKEN)
+        .client
+        .app_provider_snippet_get(AppId::Claude, &read, TOKEN)
         .await
         .unwrap_err()
         .to_string();
@@ -323,7 +335,7 @@ async fn cc04_ui_snippets_preview_uses_read_grant_and_leaves_storage_untouched()
         content: json!({"theme":"中文主题","model":"fixture-model","env":{"ANTHROPIC_API_KEY":"fake-key"}}).to_string(),
     };
     let preview =
-        gateway_app_provider::GatewayAppProviderClient::new(read_only.transport().clone()).app_provider_snippet_preview(AppId::Claude, &request, TOKEN).await.unwrap();
+        read_only.app_provider_snippet_preview(AppId::Claude, &request, TOKEN).await.unwrap();
     assert_eq!(
         serde_json::from_str::<Value>(&preview.content.unwrap()).unwrap(),
         json!({"theme":"中文主题"})
@@ -333,7 +345,7 @@ async fn cc04_ui_snippets_preview_uses_read_grant_and_leaves_storage_untouched()
         [(&read_only, &invalid, 400), (&f.scoped("p", "none"), &request, 403)]
     {
         assert!(matches!(
-            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_preview(AppId::Claude, payload, TOKEN).await,
+            client.app_provider_snippet_preview(AppId::Claude, payload, TOKEN).await,
             Err(vw_gateway_client::AgentAppsReadError::Http {
                 status: actual, body: Value::Null
             }) if actual == status
@@ -341,7 +353,8 @@ async fn cc04_ui_snippets_preview_uses_read_grant_and_leaves_storage_untouched()
     }
     let read = SnippetRead { target_host_id: "host".into() };
     assert!(
-        gateway_app_provider::GatewayAppProviderClient::new(read_only.transport().clone()).app_provider_snippet_get(AppId::Claude, &read, TOKEN)
+        read_only
+            .app_provider_snippet_get(AppId::Claude, &read, TOKEN)
             .await
             .unwrap()
             .content

@@ -20,7 +20,7 @@ pub(crate) async fn project(
     id: String,
     apps: Vec<AppId>,
 ) -> Result<Vec<UniversalSyncResult>, String> {
-    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).universal_provider_sync(&id, &UniversalSyncRequest { apps }).await
+    client.universal_provider_sync(&id, &UniversalSyncRequest { apps }).await
 }
 
 #[derive(Clone, Debug)]
@@ -170,7 +170,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         async move {
             match projection {
                 Some((id, apps)) => project(client, id, apps).await.map(Outcome::Projected),
-                None => gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).universal_providers_list().await.map(Outcome::Listed),
+                None => client.universal_providers_list().await.map(Outcome::Listed),
             }
         },
         move |result| message(Event::Completed { scope: scope.clone(), generation, result }),

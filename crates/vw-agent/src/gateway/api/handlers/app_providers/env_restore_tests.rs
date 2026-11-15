@@ -93,7 +93,8 @@ mod execution {
                 .with_tenant_scope(TenantScope::new("p", "a").unwrap()),
         )
         .unwrap();
-        let diagnosis = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_diagnose(
+        let diagnosis = client
+            .provider_env_diagnose(
                 AppId::Claude,
                 &EnvDiagnoseRequest { target_host_id: "host".into() },
                 TOKEN,
@@ -108,7 +109,8 @@ mod execution {
             .cleanup
             .clone()
             .unwrap();
-        let cleaned = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_clean(
+        let cleaned = client
+            .provider_env_clean(
                 AppId::Claude,
                 &EnvCleanRequest { target_host_id: "host".into(), selections: vec![selection] },
                 TOKEN,
@@ -121,37 +123,37 @@ mod execution {
         let saved_before = fs::read(&backup).unwrap();
         let mut request =
             EnvRestoreRequest { target_host_id: "read-only".into(), backup_id: cleaned.backup_id };
-        denied(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_restore(AppId::Claude, &request, TOKEN).await, 403);
+        denied(client.provider_env_restore(AppId::Claude, &request, TOKEN).await, 403);
         request.target_host_id = "alias".into();
-        denied(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_restore(AppId::Claude, &request, TOKEN).await, 409);
+        denied(client.provider_env_restore(AppId::Claude, &request, TOKEN).await, 409);
         request.target_host_id = "host".into();
-        denied(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_restore(AppId::Claude, &request, "wrong-token").await, 401);
+        denied(client.provider_env_restore(AppId::Claude, &request, "wrong-token").await, 401);
         let foreign = GatewayClient::new(
             GatewayEndpoint::new("127.0.0.1", port)
                 .with_tenant_scope(TenantScope::new("p", "b").unwrap()),
         )
         .unwrap();
-        denied(gateway_app_provider::GatewayAppProviderClient::new(foreign.transport().clone()).provider_env_restore(AppId::Claude, &request, TOKEN).await, 403);
-        denied(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_restore(AppId::Omp, &request, TOKEN).await, 422);
-        denied(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_restore(AppId::Codex, &request, TOKEN).await, 409);
+        denied(foreign.provider_env_restore(AppId::Claude, &request, TOKEN).await, 403);
+        denied(client.provider_env_restore(AppId::Omp, &request, TOKEN).await, 422);
+        denied(client.provider_env_restore(AppId::Codex, &request, TOKEN).await, 409);
         let mut forged = request.clone();
         forged.backup_id = "../outside".into();
-        denied(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_restore(AppId::Claude, &forged, TOKEN).await, 400);
+        denied(client.provider_env_restore(AppId::Claude, &forged, TOKEN).await, 400);
         forged.backup_id = "0".repeat(64);
-        denied(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_restore(AppId::Claude, &forged, TOKEN).await, 409);
+        denied(client.provider_env_restore(AppId::Claude, &forged, TOKEN).await, 409);
         assert_eq!(fs::read_to_string(&path).unwrap(), replacement);
         assert_eq!(fs::read(&backup).unwrap(), saved_before);
-        let result = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_restore(AppId::Claude, &request, TOKEN).await.unwrap();
+        let result = client.provider_env_restore(AppId::Claude, &request, TOKEN).await.unwrap();
         assert_eq!(
             result.items,
             vec![EnvRestoreItem { file: UserShellFile::Zshrc, status: EnvRestoreStatus::Restored }]
         );
         assert_eq!(fs::read_to_string(&path).unwrap(), content);
         assert!(!serde_json::to_string(&result).unwrap().contains("secret"));
-        let retry = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_restore(AppId::Claude, &request, TOKEN).await.unwrap();
+        let retry = client.provider_env_restore(AppId::Claude, &request, TOKEN).await.unwrap();
         assert_eq!(retry.items[0].status, EnvRestoreStatus::AlreadyRestored);
         fs::write(&path, "OTHER=external\n").unwrap();
-        let stale = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_restore(AppId::Claude, &request, TOKEN).await.unwrap();
+        let stale = client.provider_env_restore(AppId::Claude, &request, TOKEN).await.unwrap();
         assert_eq!(stale.items[0].status, EnvRestoreStatus::Conflict);
         assert_eq!(fs::read_to_string(&path).unwrap(), "OTHER=external\n");
         assert_eq!(fs::read_dir(private.path().join("environment-backups")).unwrap().count(), 1);

@@ -10,7 +10,37 @@ impl GatewayClient {
         query: &ModeStateQuery,
         token: &str,
     ) -> Result<ProviderModeStatus, Error> {
-        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
-            .provider_mode_state(app, query, token).await
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = (app, query, token);
+            Err(Error::Transport("Provider mode requires native transport".into()))
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mut credential = reqwest::header::HeaderValue::from_str(token)
+                .map_err(|_| Error::Transport("invalid application credential".into()))?;
+            credential.set_sensitive(true);
+            let app = serde_json::to_value(app)
+                .map_err(|_| Error::Transport("invalid application".into()))?;
+            let app = app.as_str().ok_or_else(|| Error::Transport("invalid application".into()))?;
+            let request = self.transport.dynamic_host_client()
+                .get(format!("{}/v1/app-providers/{app}/mode/state", self.transport.endpoint().base_url()))
+                .header("x-agent-apps-token", credential)
+                .query(query);
+            let response = crate::http::apply_request_context(request, self.transport.endpoint())
+                .send()
+                .await
+                .map_err(|_| Error::Transport("Provider mode request failed".into()))?;
+            if !response.status().is_success() {
+                return Err(Error::Http {
+                    status: response.status().as_u16(),
+                    body: serde_json::Value::Null,
+                });
+            }
+            response
+                .json()
+                .await
+                .map_err(|_| Error::Decode("invalid Provider mode response".into()))
+        }
     }
 }

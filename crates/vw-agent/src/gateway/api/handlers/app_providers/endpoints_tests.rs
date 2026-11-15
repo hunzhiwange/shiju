@@ -113,28 +113,31 @@ async fn cc04_endpoints_sdk_api_persistence_and_isolation() {
             .with_tenant_scope(tenant.clone()),
     )
     .unwrap();
-    let added = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_endpoint_change(AppId::Claude, "a", &input()).await;
-    let used = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_endpoint_change(
+    let added = client.app_provider_endpoint_change(AppId::Claude, "a", &input()).await;
+    let used = client
+        .app_provider_endpoint_change(
             AppId::Claude,
             "a",
             &Change::MarkUsed { url: "https://relay.example.test/v1/".into(), kind: Kind::BaseUrl },
         )
         .await;
     let full_url = "https://relay.example.test/custom/messages/";
-    let full = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_endpoint_change(
+    let full = client
+        .app_provider_endpoint_change(
             AppId::Claude,
             "a",
             &Change::Add { url: full_url.into(), kind: Kind::FullUrl },
         )
         .await;
-    let full_removed = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_endpoint_change(
+    let full_removed = client
+        .app_provider_endpoint_change(
             AppId::Claude,
             "a",
             &Change::Remove { url: full_url.into(), kind: Kind::FullUrl },
         )
         .await;
-    let listed = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_endpoints(AppId::Claude, "a").await;
-    let existing = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_get(AppId::Claude, "presentation").await;
+    let listed = client.app_provider_endpoints(AppId::Claude, "a").await;
+    let existing = client.app_provider_get(AppId::Claude, "presentation").await;
     server.abort();
     let _ = server.await;
     let full = full.unwrap();

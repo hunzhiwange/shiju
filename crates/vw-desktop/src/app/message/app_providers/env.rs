@@ -235,7 +235,8 @@ async fn execute(
     token: String,
 ) -> Result<Outcome, AgentAppsReadError> {
     match work {
-        Work::Diagnose => gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_diagnose(
+        Work::Diagnose => client
+            .provider_env_diagnose(
                 scope.app,
                 &EnvDiagnoseRequest { target_host_id: scope.host },
                 &token,
@@ -243,7 +244,7 @@ async fn execute(
             .await
             .map(Outcome::Diagnosis),
         Work::Clean(request) => {
-            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_clean(scope.app, &request, &token).await.map(Outcome::Cleaned)
+            client.provider_env_clean(scope.app, &request, &token).await.map(Outcome::Cleaned)
         }
         Work::Restore(request) => {
             restore(client, scope, request, token).await.map(Outcome::Restored)
@@ -257,7 +258,7 @@ pub(super) async fn restore(
     request: EnvRestoreRequest,
     token: String,
 ) -> Result<EnvRestoreResult, AgentAppsReadError> {
-    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_restore(scope.app, &request, &token).await
+    client.provider_env_restore(scope.app, &request, &token).await
 }
 
 fn scroll_top() -> Task<Message> {

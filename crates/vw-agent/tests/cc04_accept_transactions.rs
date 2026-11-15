@@ -165,7 +165,8 @@ impl Drop for ImmutableFile {
 }
 
 async fn direct_provider(client: &GatewayClient, app: AppId) -> String {
-    let state = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_mode_state(
+    let state = client
+        .provider_mode_state(
             app,
             &ModeStateQuery {
                 target_host_id: HOST.into(),
@@ -312,7 +313,7 @@ async fn cc04_accept_transactions_concurrent_edit_preserves_external_data() {
     assert_eq!(result.live, ClaudeLiveResult::Applied);
     let open = EditorOpen { target_host_id: HOST.into() };
     let editor =
-        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_editor_open(AppId::Claude, "active", &open, TOKEN).await.unwrap();
+        client.app_provider_editor_open(AppId::Claude, "active", &open, TOKEN).await.unwrap();
     assert!(editor.current);
     assert!(!serde_json::to_string(&editor).unwrap().contains("fixture-claude-key"));
 
@@ -341,27 +342,27 @@ async fn cc04_accept_transactions_concurrent_edit_preserves_external_data() {
     };
     let state = fixture.path("private/provider-live/aG9zdA/claude.state.json");
     let before = fs::read(&state).unwrap();
-    let record = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_get(AppId::Claude, "active").await.unwrap();
-    let denied = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_editor_save(AppId::Claude, "active", &edit, READER).await;
+    let record = client.app_provider_get(AppId::Claude, "active").await.unwrap();
+    let denied = client.app_provider_editor_save(AppId::Claude, "active", &edit, READER).await;
     assert!(matches!(denied, Err(AgentAppsReadError::Http { status: 403, .. })));
     assert_eq!(fs::read(&settings).unwrap(), external_bytes);
     assert_eq!(fs::read(&state).unwrap(), before);
-    assert_eq!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_get(AppId::Claude, "active").await.unwrap(), record);
+    assert_eq!(client.app_provider_get(AppId::Claude, "active").await.unwrap(), record);
 
     let conflict =
-        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_editor_save(AppId::Claude, "active", &edit, TOKEN).await.unwrap();
+        client.app_provider_editor_save(AppId::Claude, "active", &edit, TOKEN).await.unwrap();
     assert!(!conflict.saved);
     assert_eq!(conflict.conflicts, vec![vec!["theme".to_string()]]);
     assert_eq!(fs::read(&settings).unwrap(), external_bytes);
     edit.choice = EditorChoice::KeepTheirs;
     edit.resolution = Some(conflict.resolution.expect("conflict resolution token"));
     assert!(
-        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_editor_save(AppId::Claude, "active", &edit, TOKEN).await.unwrap().saved
+        client.app_provider_editor_save(AppId::Claude, "active", &edit, TOKEN).await.unwrap().saved
     );
     external["includeCoAuthoredBy"] = json!(false);
     assert_eq!(fixture.read_json(".claude/settings.json"), external);
     assert_eq!(external["env"]["ANTHROPIC_AUTH_TOKEN"], "fixture-claude-key");
-    assert_eq!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_get(AppId::Claude, "active").await.unwrap(), record);
+    assert_eq!(client.app_provider_get(AppId::Claude, "active").await.unwrap(), record);
     assert_eq!(direct_provider(&client, AppId::Claude).await, "active");
     assert!(!fixture.path("private/provider-live/aG9zdA/claude.pending.json").exists());
     assert_private(&settings);

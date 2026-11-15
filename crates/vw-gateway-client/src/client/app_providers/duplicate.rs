@@ -1,4 +1,4 @@
-use super::GatewayClient;
+use super::{GatewayClient, provider_path};
 use vw_api_types::{
     agent_apps::AppId,
     app_providers::{AppProviderSummary, duplicate::AppProviderDuplicate},
@@ -12,7 +12,17 @@ impl GatewayClient {
         id: &str,
         request: &AppProviderDuplicate,
     ) -> Result<AppProviderSummary, String> {
-        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
-            .app_provider_duplicate(app, id, request).await
+        let path = format!("{}/duplicate", provider_path(app, id)?);
+        let builder =
+            self.transport.client().post(format!("{}{}", self.transport.endpoint().base_url(), path)).json(request);
+        let response = crate::http::apply_request_context(builder, self.transport.endpoint())
+            .send()
+            .await
+            .map_err(|_| "application provider duplicate transport failed")?;
+        let status = response.status();
+        if !status.is_success() {
+            return Err(format!("application provider duplicate failed: {}", status.as_u16()));
+        }
+        response.json().await.map_err(|_| "invalid application provider duplicate response".into())
     }
 }

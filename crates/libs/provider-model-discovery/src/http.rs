@@ -74,7 +74,7 @@ pub struct DiscoveredModel {
 /// 判断凭据是否可用于远端 Bearer 认证。
 pub fn is_real_bearer(value: &str) -> bool {
     let value = value.trim();
-    !value.is_empty() && value != vw_shared::auth::OAUTH_DUMMY_KEY
+    !value.is_empty() && value != auth_types::OAUTH_DUMMY_KEY
 }
 
 /// 从 API 基址派生 `/models`，并发现 OpenAI 兼容模型 id。

@@ -204,9 +204,9 @@ pub(crate) async fn execute(
                 .0
                 .as_str();
             if matches!(action, Action::Poll) {
-                gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_aggregation_operation_get(id, &query).await
+                client.provider_aggregation_operation_get(id, &query).await
             } else {
-                gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_aggregation_operation_cancel(id, &query).await
+                client.provider_aggregation_operation_cancel(id, &query).await
             }
             .map(Reply::Operation)
             .map_err(|e| match e {

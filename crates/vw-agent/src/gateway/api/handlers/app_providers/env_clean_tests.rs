@@ -92,7 +92,8 @@ mod execution {
                 .with_tenant_scope(TenantScope::new("p", "a").unwrap()),
         )
         .unwrap();
-        let diagnosis = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_diagnose(
+        let diagnosis = client
+            .provider_env_diagnose(
                 AppId::Claude,
                 &EnvDiagnoseRequest { target_host_id: "host".into() },
                 TOKEN,
@@ -112,24 +113,24 @@ mod execution {
             target_host_id: "read-only".into(),
             selections: vec![selection.clone()],
         };
-        denied(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_clean(AppId::Claude, &request, TOKEN).await, 403);
+        denied(client.provider_env_clean(AppId::Claude, &request, TOKEN).await, 403);
         request.target_host_id = "alias".into();
-        denied(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_clean(AppId::Claude, &request, TOKEN).await, 409);
+        denied(client.provider_env_clean(AppId::Claude, &request, TOKEN).await, 409);
         request.target_host_id = "host".into();
-        denied(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_clean(AppId::Claude, &request, "invalid").await, 401);
+        denied(client.provider_env_clean(AppId::Claude, &request, "invalid").await, 401);
         let foreign = GatewayClient::new(
             GatewayEndpoint::new("127.0.0.1", port)
                 .with_tenant_scope(TenantScope::new("p", "b").unwrap()),
         )
         .unwrap();
-        denied(gateway_app_provider::GatewayAppProviderClient::new(foreign.transport().clone()).provider_env_clean(AppId::Claude, &request, TOKEN).await, 403);
-        denied(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_clean(AppId::Omp, &request, TOKEN).await, 422);
+        denied(foreign.provider_env_clean(AppId::Claude, &request, TOKEN).await, 403);
+        denied(client.provider_env_clean(AppId::Omp, &request, TOKEN).await, 422);
         let mut forged = request.clone();
         forged.selections[0].base_digest = "forged".into();
-        denied(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_clean(AppId::Claude, &forged, TOKEN).await, 409);
+        denied(client.provider_env_clean(AppId::Claude, &forged, TOKEN).await, 409);
         assert_eq!(fs::read_to_string(&path).unwrap(), content);
         assert_eq!(fs::read_dir(private.path()).unwrap().count(), 0);
-        let result = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_clean(AppId::Claude, &request, TOKEN).await.unwrap();
+        let result = client.provider_env_clean(AppId::Claude, &request, TOKEN).await.unwrap();
         assert_eq!(result.removed_definitions, 1);
         assert_eq!(
             fs::read_to_string(&path).unwrap(),
@@ -145,9 +146,10 @@ mod execution {
         assert_eq!(saved["files"][0]["original"], content);
         assert_eq!(fs::metadata(backup).unwrap().permissions().mode() & 0o777, 0o600);
         assert!(!serde_json::to_string(&result).unwrap().contains("secret"));
-        denied(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_clean(AppId::Claude, &request, TOKEN).await, 409);
+        denied(client.provider_env_clean(AppId::Claude, &request, TOKEN).await, 409);
         // A newly diagnosed definition cannot be removed using a stale file base.
-        let diagnosis = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_diagnose(
+        let diagnosis = client
+            .provider_env_diagnose(
                 AppId::Claude,
                 &EnvDiagnoseRequest { target_host_id: "host".into() },
                 TOKEN,
@@ -167,7 +169,7 @@ mod execution {
                 .unwrap(),
         ];
         fs::write(&path, "ANTHROPIC_API_KEY=external-edit\n").unwrap();
-        denied(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_clean(AppId::Claude, &request, TOKEN).await, 409);
+        denied(client.provider_env_clean(AppId::Claude, &request, TOKEN).await, 409);
         assert_eq!(fs::read_to_string(&path).unwrap(), "ANTHROPIC_API_KEY=external-edit\n");
         assert_eq!(fs::read_dir(private.path().join("environment-backups")).unwrap().count(), 1);
         server.abort();

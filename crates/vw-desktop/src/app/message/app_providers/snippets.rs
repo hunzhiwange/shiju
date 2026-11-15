@@ -56,7 +56,8 @@ pub(crate) async fn save(
     token: &str,
     content: String,
 ) -> Result<ConfigSnippet, String> {
-    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_save(
+    client
+        .app_provider_snippet_save(
             scope.app,
             &SnippetWrite { target_host_id: scope.host.clone(), content },
             token,
@@ -200,14 +201,16 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     Task::perform(
         async move {
             match operation {
-                Operation::Read => gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_get(
+                Operation::Read => client
+                    .app_provider_snippet_get(
                         scope.app,
                         &SnippetRead { target_host_id: scope.host },
                         &token,
                     )
                     .await
                     .map_err(error_label),
-                Operation::Extract => gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_extract(
+                Operation::Extract => client
+                    .app_provider_snippet_extract(
                         scope.app,
                         &SnippetExtract {
                             target_host_id: scope.host,
@@ -219,7 +222,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                     )
                     .await
                     .map_err(error_label),
-                Operation::Preview => gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_preview(
+                Operation::Preview => client
+                    .app_provider_snippet_preview(
                         scope.app,
                         &SnippetWrite { target_host_id: scope.host, content },
                         &token,

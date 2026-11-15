@@ -6,7 +6,8 @@ pub(crate) async fn load(
     scope: Scope,
     token: String,
 ) -> Result<Snapshot, String> {
-    let (catalog, presentation) = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_presented_catalog(scope.app, &scope.host, &token)
+    let (catalog, presentation) = client
+        .app_provider_presented_catalog(scope.app, &scope.host, &token)
         .await
         .map_err(|_| "无法读取供应商列表与排序".to_string())?;
     Ok(Snapshot { catalog, presentation })
@@ -17,7 +18,7 @@ pub(crate) async fn save(
     id: String,
     value: AppProviderPresentation,
 ) -> Result<AppProviderPresentation, String> {
-    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_presentation_set(scope.app, &id, &value).await
+    client.app_provider_presentation_set(scope.app, &id, &value).await
 }
 #[cfg(test)]
 #[path = "list_tests.rs"]

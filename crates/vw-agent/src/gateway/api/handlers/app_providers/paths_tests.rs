@@ -51,7 +51,7 @@ async fn cc04_paths_sdk_api_execution_home_and_permission_boundary() {
         target_host_id: "host".into(),
         directory_override: Some("~/custom".into()),
     };
-    let result = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_paths(AppId::Omp, &request, TOKEN).await.unwrap();
+    let result = client.app_provider_paths(AppId::Omp, &request, TOKEN).await.unwrap();
     assert_eq!(result.directory, root.path().join("custom").to_str().unwrap());
     assert!(
         result
@@ -65,12 +65,12 @@ async fn cc04_paths_sdk_api_execution_home_and_permission_boundary() {
     {
         request.target_host_id = host.into();
         assert!(
-            matches!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_paths(AppId::Omp, &request, TOKEN).await.unwrap_err(), vw_gateway_client::AgentAppsReadError::Http {status: actual, ..} if actual == status)
+            matches!(client.app_provider_paths(AppId::Omp, &request, TOKEN).await.unwrap_err(), vw_gateway_client::AgentAppsReadError::Http {status: actual, ..} if actual == status)
         );
     }
     request.target_host_id = "host".into();
     assert!(matches!(
-        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_paths(AppId::Omp, &request, "invalid").await.unwrap_err(),
+        client.app_provider_paths(AppId::Omp, &request, "invalid").await.unwrap_err(),
         vw_gateway_client::AgentAppsReadError::Http { status: 401, .. }
     ));
     let foreign = GatewayClient::new(
@@ -79,12 +79,12 @@ async fn cc04_paths_sdk_api_execution_home_and_permission_boundary() {
     )
     .unwrap();
     assert!(matches!(
-        gateway_app_provider::GatewayAppProviderClient::new(foreign.transport().clone()).app_provider_paths(AppId::Omp, &request, TOKEN).await.unwrap_err(),
+        foreign.app_provider_paths(AppId::Omp, &request, TOKEN).await.unwrap_err(),
         vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }
     ));
     request.directory_override = Some("/outside-authorization".into());
     assert!(matches!(
-        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_paths(AppId::Omp, &request, TOKEN).await.unwrap_err(),
+        client.app_provider_paths(AppId::Omp, &request, TOKEN).await.unwrap_err(),
         vw_gateway_client::AgentAppsReadError::Http { status: 400, .. }
     ));
     assert_eq!(std::fs::read_to_string(&path).unwrap(), "fixture-secret");

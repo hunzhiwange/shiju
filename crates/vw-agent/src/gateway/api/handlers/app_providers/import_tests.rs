@@ -81,7 +81,7 @@ async fn cc04_import_sdk_api_keeps_existing_catalog_and_native_files() {
     for &(app, path, bytes) in files {
         write(f.root.path(), path, bytes);
         let result =
-            gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(app, &f.request(ImportTrigger::Startup), TOKEN).await.unwrap();
+            f.client.provider_import(app, &f.request(ImportTrigger::Startup), TOKEN).await.unwrap();
         assert_eq!(result.imported, 1, "{app:?}");
         assert_eq!(std::fs::read(f.root.path().join(path)).unwrap(), bytes);
         assert_eq!(serde_json::to_value(&result).unwrap(), json!({"imported":1}));
@@ -90,14 +90,16 @@ async fn cc04_import_sdk_api_keeps_existing_catalog_and_native_files() {
         // Invalid native files prove the startup skip occurs before reading them.
         write(f.root.path(), path, b"invalid-native");
         assert_eq!(
-            gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(app, &f.request(ImportTrigger::Startup), TOKEN)
+            f.client
+                .provider_import(app, &f.request(ImportTrigger::Startup), TOKEN)
                 .await
                 .unwrap()
                 .imported,
             0
         );
         assert_eq!(
-            gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(app, &f.request(ImportTrigger::Manual), TOKEN)
+            f.client
+                .provider_import(app, &f.request(ImportTrigger::Manual), TOKEN)
                 .await
                 .unwrap()
                 .imported,
@@ -132,14 +134,16 @@ async fn cc04_import_incremental_pi_preserves_saved_row_and_rejects_generic_desk
         br#"{"providers":{"one":{"apiKey":"fake-old","models":[]}},"defaults":{"keep":true}}"#,
     );
     assert_eq!(
-        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(AppId::Pi, &f.request(ImportTrigger::Startup), TOKEN)
+        f.client
+            .provider_import(AppId::Pi, &f.request(ImportTrigger::Startup), TOKEN)
             .await
             .unwrap()
             .imported,
         0
     );
     assert_eq!(
-        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(AppId::Pi, &f.request(ImportTrigger::Manual), TOKEN)
+        f.client
+            .provider_import(AppId::Pi, &f.request(ImportTrigger::Manual), TOKEN)
             .await
             .unwrap()
             .imported,
@@ -149,7 +153,8 @@ async fn cc04_import_incremental_pi_preserves_saved_row_and_rejects_generic_desk
     let native = br#"{"providers":{"one":{"apiKey":"fake-new","models":[]},"two":{"apiKey":"fake-two","models":[]}},"defaults":{"keep":true}}"#;
     write(f.root.path(), path, native);
     assert_eq!(
-        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(AppId::Pi, &f.request(ImportTrigger::Manual), TOKEN)
+        f.client
+            .provider_import(AppId::Pi, &f.request(ImportTrigger::Manual), TOKEN)
             .await
             .unwrap()
             .imported,
@@ -160,7 +165,8 @@ async fn cc04_import_incremental_pi_preserves_saved_row_and_rejects_generic_desk
     assert_eq!(std::fs::read(f.root.path().join(path)).unwrap(), native);
     for app in [AppId::ClaudeDesktop, AppId::Dsh] {
         let e = f
-            .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_import(app, &f.request(ImportTrigger::Manual), TOKEN)
+            .client
+            .provider_import(app, &f.request(ImportTrigger::Manual), TOKEN)
             .await
             .unwrap_err();
         assert!(!format!("{e:?}").contains("fake-"));
@@ -174,7 +180,8 @@ async fn cc04_import_denies_before_catalog_or_native_side_effects() {
     let f = Fixture::new().await;
     write(f.root.path(), ".gemini/.env", b"GEMINI_API_KEY=fake-key\n");
     assert!(
-        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(AppId::Gemini, &f.request(ImportTrigger::Manual), "wrong-token")
+        f.client
+            .provider_import(AppId::Gemini, &f.request(ImportTrigger::Manual), "wrong-token")
             .await
             .is_err()
     );
@@ -184,7 +191,8 @@ async fn cc04_import_denies_before_catalog_or_native_side_effects() {
         policy["principals"][0]["grants"][0][missing] = json!(false);
         std::fs::write(&policy_path, policy.to_string()).unwrap();
         assert!(
-            gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(AppId::Gemini, &f.request(ImportTrigger::Manual), TOKEN)
+            f.client
+                .provider_import(AppId::Gemini, &f.request(ImportTrigger::Manual), TOKEN)
                 .await
                 .is_err()
         );
@@ -223,7 +231,8 @@ async fn cc04_import_existing_nondefault_official_card_blocks_startup() {
     write(f.root.path(), ".gemini/antigravity-cli/settings.json", br#"{"model":"Display Name"}"#);
     let before = f.record(AppId::Agy, "saved");
     assert_eq!(
-        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(AppId::Agy, &f.request(ImportTrigger::Startup), TOKEN)
+        f.client
+            .provider_import(AppId::Agy, &f.request(ImportTrigger::Startup), TOKEN)
             .await
             .unwrap()
             .imported,
@@ -240,7 +249,8 @@ async fn cc04_import_omp_uses_native_yaml_without_changing_defaults() {
     // OMP's read owner resolves its own default directory, rather than a generic live snapshot.
     write(f.root.path(), ".omp/agent/models.yml", bytes);
     let result = f
-        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_import(AppId::Omp, &f.request(ImportTrigger::Manual), TOKEN)
+        .client
+        .provider_import(AppId::Omp, &f.request(ImportTrigger::Manual), TOKEN)
         .await
         .unwrap();
     assert_eq!(result.imported, 1);
@@ -253,14 +263,16 @@ async fn cc04_import_grok_manual_official_is_separate_from_startup() {
     let f = Fixture::new().await;
     write(f.root.path(), ".grok/config.toml", b"# native official\n");
     assert_eq!(
-        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(AppId::GrokBuild, &f.request(ImportTrigger::Startup), TOKEN)
+        f.client
+            .provider_import(AppId::GrokBuild, &f.request(ImportTrigger::Startup), TOKEN)
             .await
             .unwrap()
             .imported,
         0
     );
     assert_eq!(
-        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(AppId::GrokBuild, &f.request(ImportTrigger::Manual), TOKEN)
+        f.client
+            .provider_import(AppId::GrokBuild, &f.request(ImportTrigger::Manual), TOKEN)
             .await
             .unwrap()
             .imported,
@@ -269,7 +281,8 @@ async fn cc04_import_grok_manual_official_is_separate_from_startup() {
     let before = f.record(AppId::GrokBuild, "grokbuild-official");
     assert_eq!(before["grok"]["config"]["kind"], "official");
     assert_eq!(
-        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(AppId::GrokBuild, &f.request(ImportTrigger::Manual), TOKEN)
+        f.client
+            .provider_import(AppId::GrokBuild, &f.request(ImportTrigger::Manual), TOKEN)
             .await
             .unwrap()
             .imported,
@@ -282,14 +295,16 @@ async fn cc04_import_grok_manual_official_is_separate_from_startup() {
     let native = b"[models]\ndefault='fixture'\n[model.fixture]\nmodel='fixture'\nname='fixture'\nbase_url='https://relay.example/v1'\napi_key='fake-key'\napi_backend='chat_completions'\ncontext_window=32000\n";
     write(f.root.path(), ".grok/config.toml", native);
     assert_eq!(
-        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(AppId::GrokBuild, &f.request(ImportTrigger::Startup), TOKEN)
+        f.client
+            .provider_import(AppId::GrokBuild, &f.request(ImportTrigger::Startup), TOKEN)
             .await
             .unwrap()
             .imported,
         0
     );
     assert_eq!(
-        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(AppId::GrokBuild, &f.request(ImportTrigger::Manual), TOKEN)
+        f.client
+            .provider_import(AppId::GrokBuild, &f.request(ImportTrigger::Manual), TOKEN)
             .await
             .unwrap()
             .imported,

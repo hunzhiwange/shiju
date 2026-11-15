@@ -85,14 +85,15 @@ async fn cc04_delete_sdk_http_rejects_members_and_deletes_only_unused_rows() {
     let request = AppProviderDelete { target_host_id: "host".into() };
     for app in [AppId::Kimi, AppId::OpenCode] {
         let before = rows(&db);
-        let error = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_delete(app, "used", &request, TOKEN).await.unwrap_err();
+        let error = client.app_provider_delete(app, "used", &request, TOKEN).await.unwrap_err();
         assert!(error.contains("409"));
         assert!(!error.contains("fixture-secret"));
         assert_eq!(rows(&db), before);
-        assert!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_delete(app, "unused", &request, TOKEN).await.unwrap().deleted);
+        assert!(client.app_provider_delete(app, "unused", &request, TOKEN).await.unwrap().deleted);
         assert_eq!(rows(&db).len(), before.len() - 1);
         assert!(
-            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_delete(app, "unused", &request, TOKEN)
+            client
+                .app_provider_delete(app, "unused", &request, TOKEN)
                 .await
                 .unwrap_err()
                 .contains("404")

@@ -8,7 +8,7 @@ use std::fs;
 use serde_json::json;
 
 use super::{all_from, get_from, remove_from, resolve_filepath, set_to, write_auth_file};
-use crate::auth::{ApiInfo, Info, OauthInfo, WellKnownInfo};
+use auth_types::{ApiInfo, Info, OauthInfo, WellKnownInfo};
 
 fn api_info(key: &str) -> Info {
     Info::Api(ApiInfo { key: key.to_string() })

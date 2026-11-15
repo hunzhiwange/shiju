@@ -308,7 +308,7 @@ async fn cc04_api_security_nested_secrets_never_reach_responses() {
         request_options: None,
     };
     let before = tree(f.root.path());
-    let view = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_preview(AppId::Claude, &req, TOKEN).await.unwrap();
+    let view = f.client.app_provider_preview(AppId::Claude, &req, TOKEN).await.unwrap();
     safe(&serde_json::to_string(&view).unwrap());
     assert_eq!(view.settings["hooks"][0]["headers"]["aUtHoRiZaTiOn"], "[redacted]");
     assert_eq!(view.settings["hooks"][0]["headers"]["Cookie"], "[redacted]");
@@ -330,12 +330,12 @@ async fn cc04_api_security_reads_errors_and_progress_are_safe() {
             trigger: vw_api_types::app_providers::import::ImportTrigger::Manual,
         },
     };
-    let first = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_start(&request, TOKEN).await.unwrap();
+    let first = f.client.provider_operation_start(&request, TOKEN).await.unwrap();
     safe(&serde_json::to_string(&first).unwrap());
     let id = first.operation_id.0;
     let last = tokio::time::timeout(std::time::Duration::from_secs(5), async {
         loop {
-            let progress = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_get(&id, "host", TOKEN).await.unwrap();
+            let progress = f.client.provider_operation_get(&id, "host", TOKEN).await.unwrap();
             safe(&serde_json::to_string(&progress).unwrap());
             if !matches!(progress.status, TaskStatus::Queued | TaskStatus::Running) {
                 break progress;

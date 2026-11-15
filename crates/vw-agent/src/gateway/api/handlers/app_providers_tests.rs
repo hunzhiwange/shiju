@@ -133,11 +133,12 @@ async fn cc_apps_provider_launch_isolation_sdk_http_sqlite_projection_process_ro
             .with_auth(GatewayAuth { skey: Some("secret".into()) }),
     )
     .unwrap();
-    let summary = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_save(AppId::Claude, "selected", &profile("fixture-key-only"))
+    let summary = client
+        .app_provider_save(AppId::Claude, "selected", &profile("fixture-key-only"))
         .await
         .unwrap();
     assert!(summary.configured);
-    assert_eq!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_get(AppId::Claude, "selected").await.unwrap(), summary);
+    assert_eq!(client.app_provider_get(AppId::Claude, "selected").await.unwrap(), summary);
     let root = tempfile::tempdir().unwrap();
     let program = root.path().join("claude");
     std::fs::write(&program,"#!/bin/sh\ntest \"$ANTHROPIC_API_KEY\" = fixture-key-only || exit 22\nprintf 'selected' > actual-provider\nprintf '%s' \"$CLAUDE_CONFIG_DIR\" > private-path\n").unwrap();

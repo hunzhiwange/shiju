@@ -123,7 +123,8 @@ async fn cc04_update_sdk_api_preserves_metadata_and_native_files() {
             .with_tenant_scope(tenant("a")),
     )
     .unwrap();
-    let summary = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_update(
+    let summary = client
+        .app_provider_update(
             AppId::Claude,
             "fixture",
             &AppProviderUpdate { name: Some("edited".into()), ..Default::default() },
@@ -134,13 +135,14 @@ async fn cc04_update_sdk_api_preserves_metadata_and_native_files() {
     assert!(!serde_json::to_string(&summary).unwrap().contains("fixture-secret"));
     expected["name"] = "edited".into();
     assert_eq!(serde_json::from_str::<serde_json::Value>(&raw(&db)).unwrap(), expected);
-    assert_eq!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_get(AppId::Claude, "fixture").await.unwrap(), summary);
+    assert_eq!(client.app_provider_get(AppId::Claude, "fixture").await.unwrap(), summary);
     let rotated: AppProviderUpdate = serde_json::from_value(serde_json::json!({"apiKey":{"action":"replace","value":"fixture-rotated"},"model":"rotated-model"})).unwrap();
-    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_update(AppId::Claude, "fixture", &rotated).await.unwrap();
+    client.app_provider_update(AppId::Claude, "fixture", &rotated).await.unwrap();
     expected["apiKey"] = "fixture-rotated".into();
     expected["model"] = "rotated-model".into();
     assert_eq!(serde_json::from_str::<serde_json::Value>(&raw(&db)).unwrap(), expected);
-    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_update(AppId::Claude, "fixture", &AppProviderUpdate::default())
+    client
+        .app_provider_update(AppId::Claude, "fixture", &AppProviderUpdate::default())
         .await
         .unwrap();
     assert_eq!(serde_json::from_str::<serde_json::Value>(&raw(&db)).unwrap(), expected);

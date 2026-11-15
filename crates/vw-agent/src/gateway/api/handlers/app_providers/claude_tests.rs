@@ -118,16 +118,16 @@ async fn cc04_ui_paths_saved_directory_is_used_by_native_activation_and_import()
     let mut denied = update.clone();
     denied.target_host_id = "other-host".into();
     assert!(matches!(
-        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_directory_save(AppId::Claude, &denied, TOKEN).await,
+        f.client.app_provider_directory_save(AppId::Claude, &denied, TOKEN).await,
         Err(AgentAppsReadError::Http { status: 403, .. })
     ));
     assert!(!f.root.path().join("private/provider-live").exists());
-    let stored = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_directory_save(AppId::Claude, &update, TOKEN).await.unwrap();
+    let stored = f.client.app_provider_directory_save(AppId::Claude, &update, TOKEN).await.unwrap();
     assert_eq!(stored.paths.directory, directory.to_str().unwrap());
     assert_eq!(stored.paths.files[0].state, ConfigPathState::Absent);
 
     let new_client = GatewayClient::new(f.client.endpoint().clone()).unwrap();
-    let stored = gateway_app_provider::GatewayAppProviderClient::new(new_client.transport().clone()).app_provider_directory(AppId::Claude, &host, TOKEN).await.unwrap();
+    let stored = new_client.app_provider_directory(AppId::Claude, &host, TOKEN).await.unwrap();
     assert_eq!(stored.directory_override.as_deref(), directory.to_str());
     let first = f.request(
         ClaudeConfig::ThirdParty {
@@ -162,7 +162,7 @@ async fn cc04_ui_paths_saved_directory_is_used_by_native_activation_and_import()
         action: DirectoryOverride::Reset {},
     };
     assert!(matches!(
-        gateway_app_provider::GatewayAppProviderClient::new(new_client.transport().clone()).app_provider_directory_save(AppId::Claude, &reset, TOKEN).await,
+        new_client.app_provider_directory_save(AppId::Claude, &reset, TOKEN).await,
         Err(AgentAppsReadError::Http { status: 409, .. })
     ));
     assert_eq!(std::fs::read(f.file()).unwrap(), original);

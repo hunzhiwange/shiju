@@ -154,7 +154,8 @@ async fn cc04_icons_sdk_api_persistence_and_reference_copies() {
                 .unwrap()
                 .existed
         );
-        let selected = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_icon_change(
+        let selected = client
+            .app_provider_icon_change(
                 AppId::Claude,
                 "fixture",
                 &Change::Select { icon_id: added.icon.id.clone() },
@@ -168,7 +169,8 @@ async fn cc04_icons_sdk_api_persistence_and_reference_copies() {
         )
         .unwrap();
         assert!(
-            gateway_app_provider::GatewayAppProviderClient::new(other.transport().clone()).app_provider_icon_change(
+            other
+                .app_provider_icon_change(
                     AppId::Claude,
                     "fixture",
                     &Change::Select { icon_id: added.icon.id.clone() }
@@ -188,11 +190,12 @@ async fn cc04_icons_sdk_api_persistence_and_reference_copies() {
         );
         icons.custom_icon_delete(&added.icon.id).await.unwrap();
         assert!(icons.custom_icons_list().await.unwrap().is_empty());
-        assert_eq!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_icon(AppId::Claude, "fixture").await.unwrap(), selected);
+        assert_eq!(client.app_provider_icon(AppId::Claude, "fixture").await.unwrap(), selected);
         let store = AppProviderStore::new(GlobalDatabase::for_home(root.path()).unwrap()).unwrap();
         assert_eq!(store.get_icon(&tenant, AppId::Claude, "fixture").unwrap(), selected);
         assert!(
-            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_icon_change(
+            client
+                .app_provider_icon_change(
                     AppId::Claude,
                     "fixture",
                     &Change::Select { icon_id: added.icon.id }
@@ -201,7 +204,8 @@ async fn cc04_icons_sdk_api_persistence_and_reference_copies() {
                 .unwrap_err()
                 .contains("404")
         );
-        let cleared = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_icon_change(AppId::Claude, "fixture", &Change::Clear)
+        let cleared = client
+            .app_provider_icon_change(AppId::Claude, "fixture", &Change::Clear)
             .await
             .unwrap();
         assert!(cleared.data.is_none());

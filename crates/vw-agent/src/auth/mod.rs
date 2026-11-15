@@ -9,7 +9,7 @@ pub mod openai_oauth;
 #[path = "openai_oauth_tests.rs"]
 mod openai_oauth_tests;
 
-pub use vw_shared::auth::{ApiInfo, Info, OAUTH_DUMMY_KEY, OauthInfo, WellKnownInfo};
+pub use auth_types::{ApiInfo, Info, OAUTH_DUMMY_KEY, OauthInfo, WellKnownInfo};
 
 use crate::app::agent::global;
 use std::collections::HashMap;

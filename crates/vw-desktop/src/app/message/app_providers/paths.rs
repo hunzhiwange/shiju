@@ -227,14 +227,16 @@ async fn execute(
     action: Option<DirectoryOverride>,
 ) -> Result<ProviderDirectoryStatus, AgentAppsReadError> {
     if let Some(action) = action {
-        return gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_directory_save(
+        return client
+            .app_provider_directory_save(
                 scope.app,
                 &ProviderDirectoryUpdate { target_host_id: scope.host, action },
                 &token,
             )
             .await;
     }
-    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_directory(
+    client
+        .app_provider_directory(
             scope.app,
             &ProviderDirectoryQuery { target_host_id: scope.host },
             &token,

@@ -262,7 +262,8 @@ impl Fixture {
         .unwrap()
     }
     async fn apply(&self, action: ModeApplyAction) -> ModeApplyResult {
-        gateway_app_provider::GatewayAppProviderClient::new(self.client.transport().clone()).provider_mode_apply(
+        self.client
+            .provider_mode_apply(
                 AppId::Claude,
                 &ModeApplyRequest { target_host_id: "host".into(), project_id: None, action },
                 TOKEN,
@@ -340,7 +341,8 @@ async fn cc04_mode_apply_denial_unavailable_and_failed_readiness_do_not_write() 
             (TOKEN, "foreign", 403),
         ] {
             let error = f
-                .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_mode_apply(
+                .client
+                .provider_mode_apply(
                     AppId::Claude,
                     &ModeApplyRequest {
                         target_host_id: host.into(),
@@ -369,7 +371,8 @@ async fn cc04_mode_apply_write_grant_foreign_owner_and_unsupported_input_are_rej
         [(AppId::Codex, proxy("route"), 422), (AppId::Claude, proxy("../bad"), 400)]
     {
         let error = f
-            .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_mode_apply(
+            .client
+            .provider_mode_apply(
                 app,
                 &ModeApplyRequest { target_host_id: "host".into(), project_id: None, action },
                 TOKEN,
@@ -388,7 +391,8 @@ async fn cc04_mode_apply_write_grant_foreign_owner_and_unsupported_input_are_rej
     denied["principals"][0]["grants"][0]["provider_config_write"] = json!(false);
     std::fs::write(&policy, serde_json::to_vec(&denied).unwrap()).unwrap();
     let error = f
-        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_mode_apply(
+        .client
+        .provider_mode_apply(
             AppId::Claude,
             &ModeApplyRequest {
                 target_host_id: "host".into(),
@@ -424,7 +428,8 @@ async fn cc04_mode_apply_write_grant_foreign_owner_and_unsupported_input_are_rej
     drop(guard);
     let before = std::fs::read(&state_path).unwrap();
     let error = f
-        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_mode_apply(
+        .client
+        .provider_mode_apply(
             AppId::Claude,
             &ModeApplyRequest {
                 target_host_id: "host".into(),

@@ -69,7 +69,7 @@ async fn cc04_ui_edit_sdk_basic_create_update_copy_preserves_executor_fields() {
         .with_tenant_scope(tenant.clone());
     let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();
     let mut request = input();
-    let created = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_basic_write(AppId::Claude, "one", &request).await.unwrap();
+    let created = client.app_provider_basic_write(AppId::Claude, "one", &request).await.unwrap();
     assert_eq!(created, request.fields);
     let raw = settings.get(&tenant, "app_providers.records", "\"claude\":one").unwrap().unwrap();
     let mut stored: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -82,7 +82,7 @@ async fn cc04_ui_edit_sdk_basic_create_update_copy_preserves_executor_fields() {
     request.action = BasicOperation::Update;
     request.api_key = ProviderSecretWrite::Keep;
     request.fields.name = "更新中文".into();
-    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_basic_write(AppId::Claude, "one", &request).await.unwrap();
+    client.app_provider_basic_write(AppId::Claude, "one", &request).await.unwrap();
     let reopened = AppProviderStore::new(GlobalDatabase::for_home(root.path()).unwrap()).unwrap();
     assert_eq!(reopened.basic(&tenant, AppId::Claude, "one").unwrap().name, "更新中文");
     let updated: serde_json::Value = serde_json::from_str(
@@ -92,12 +92,12 @@ async fn cc04_ui_edit_sdk_basic_create_update_copy_preserves_executor_fields() {
     assert_eq!(updated["apiKey"], "fixture-secret");
     assert_eq!(updated["meta"], stored["meta"]);
     assert_eq!(updated["model"], "fixture-model");
-    let view = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_basic(AppId::Claude, "one").await.unwrap();
+    let view = client.app_provider_basic(AppId::Claude, "one").await.unwrap();
     assert!(!serde_json::to_string(&view).unwrap().contains("fixture-secret"));
     request.action = BasicOperation::Copy { source_id: "one".into() };
     request.fields.name = "复制中文".into();
-    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_basic_write(AppId::Claude, "copy", &request).await.unwrap();
-    assert_eq!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_basic(AppId::Claude, "copy").await.unwrap().name, "复制中文");
+    client.app_provider_basic_write(AppId::Claude, "copy", &request).await.unwrap();
+    assert_eq!(client.app_provider_basic(AppId::Claude, "copy").await.unwrap().name, "复制中文");
     let copied: serde_json::Value = serde_json::from_str(
         &settings.get(&tenant, "app_providers.records", "\"claude\":copy").unwrap().unwrap(),
     )

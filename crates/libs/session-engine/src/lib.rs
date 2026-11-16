@@ -75,3 +75,6 @@ mod utils_tests;
 pub mod tool_file_links;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native_call_collector;
+
+#[cfg(test)]
+mod host_split_7_tests;

@@ -62,7 +62,12 @@ fn session_info(id: &str, title: &str, directory: &str) -> session_info::Info {
         share: None,
         title: title.to_string(),
         version: "0.0.0".to_string(),
-        time: session_info::TimeInfo { created: 10, updated: 20, compacting: None, archived: None },
+        time: session_info::TimeInfo {
+            created: 10,
+            updated: 20,
+            compacting: None,
+            archived: None,
+        },
         permission: None,
         fork_execution_started: None,
         revert: None,
@@ -79,11 +84,7 @@ fn newest_open_thinking_text_ignores_visible_answer() {
         processing_timing: None,
     }];
 
-    let detail = newest_open_thinking_text(
-        messages
-            .iter()
-            .map(|message| (message.role == ChatRole::Assistant, message.content.as_str())),
-    );
+    let detail = newest_open_thinking_text(messages.iter().map(|message| (message.role == ChatRole::Assistant, message.content.as_str())));
 
     assert_eq!(detail, Some("分析实现路径".to_string()));
 }
@@ -98,11 +99,7 @@ fn newest_open_thinking_text_returns_none_without_open_think() {
         processing_timing: None,
     }];
 
-    let detail = newest_open_thinking_text(
-        messages
-            .iter()
-            .map(|message| (message.role == ChatRole::Assistant, message.content.as_str())),
-    );
+    let detail = newest_open_thinking_text(messages.iter().map(|message| (message.role == ChatRole::Assistant, message.content.as_str())));
 
     assert_eq!(detail, None);
 }
@@ -133,15 +130,7 @@ fn newest_open_thinking_text_skips_user_and_uses_newest_open_assistant() {
         },
     ];
 
-    assert_eq!(
-        newest_open_thinking_text(
-            messages
-                .iter()
-                .map(|message| (message.role == ChatRole::Assistant, message.content.as_str()))
-        )
-        .as_deref(),
-        Some("newest analysis")
-    );
+    assert_eq!(newest_open_thinking_text(messages.iter().map(|message| (message.role == ChatRole::Assistant, message.content.as_str()))).as_deref(), Some("newest analysis"));
 }
 
 #[test]
@@ -150,8 +139,7 @@ fn sync_task_pet_from_runtime_adds_updates_completes_and_sorts_items() {
     app.session_state.session_runtime_states.clear();
     app.session_state.sessions.push(session_info("s1", "  Session Title  ", "/tmp/project-one"));
     app.session_state.active_session_id = Some("s1".to_string());
-    app.chat_view.chat =
-        vec![chat_message(ChatRole::Assistant, "<think>正在检查文件\ntool read\nresult")];
+    app.chat_view.chat = vec![chat_message(ChatRole::Assistant, "<think>正在检查文件\ntool read\nresult")];
 
     let mut runtime = SessionRuntimeState::default();
     runtime.request_lifecycle.is_requesting = true;
@@ -168,8 +156,7 @@ fn sync_task_pet_from_runtime_adds_updates_completes_and_sorts_items() {
     assert_eq!(app.pet_state.task_pet_items[0].detail, "正在检查文件");
     assert_eq!(app.pet_state.task_pet_items[0].project.as_deref(), Some("project-one"));
 
-    let runtime =
-        app.session_state.session_runtime_states.get_mut("s1").expect("runtime should exist");
+    let runtime = app.session_state.session_runtime_states.get_mut("s1").expect("runtime should exist");
     runtime.request_lifecycle.active_agent_request =
         Some(agent_request(8, "s1", "replacement query", Some("/tmp/project-two")));
     app.chat_view.chat.clear();
@@ -181,12 +168,7 @@ fn sync_task_pet_from_runtime_adds_updates_completes_and_sorts_items() {
     assert_eq!(app.pet_state.task_pet_items[0].detail, "正在检查文件");
     assert_eq!(app.pet_state.task_pet_items[0].project.as_deref(), Some("project-two"));
 
-    app.session_state
-        .session_runtime_states
-        .get_mut("s1")
-        .expect("runtime should exist")
-        .request_lifecycle
-        .is_requesting = false;
+    app.session_state.session_runtime_states.get_mut("s1").expect("runtime should exist").request_lifecycle.is_requesting = false;
     app.sync_task_pet_from_runtime();
 
     assert_eq!(app.task_pet_active_count(), 0);
@@ -194,8 +176,7 @@ fn sync_task_pet_from_runtime_adds_updates_completes_and_sorts_items() {
 
     let mut other = SessionRuntimeState::default();
     other.request_lifecycle.is_requesting = true;
-    other.request_lifecycle.active_agent_request =
-        Some(agent_request(10, "s2", "newer task", None));
+    other.request_lifecycle.active_agent_request = Some(agent_request(10, "s2", "newer task", None));
     app.session_state.session_runtime_states.insert("s2".to_string(), other);
     app.sync_task_pet_from_runtime();
 
@@ -256,16 +237,8 @@ fn mini_companion_stack_prioritizes_running_tasks() {
         app.session_state.session_runtime_states.insert(format!("session-{id}"), runtime);
     }
     app.sync_task_pet_from_runtime();
-    assert_eq!(
-        app.pet_state.task_pet_items.iter().map(|i| i.request_id).collect::<Vec<_>>(),
-        [3, 2, 1, 99]
-    );
-    app.session_state
-        .session_runtime_states
-        .get_mut("session-3")
-        .unwrap()
-        .request_lifecycle
-        .is_requesting = false;
+    assert_eq!(app.pet_state.task_pet_items.iter().map(|i| i.request_id).collect::<Vec<_>>(), [3, 2, 1, 99]);
+    app.session_state.session_runtime_states.get_mut("session-3").unwrap().request_lifecycle.is_requesting = false;
     app.sync_task_pet_from_runtime();
     assert_eq!(app.pet_state.task_pet_items[0].request_id, 2);
     assert_eq!(app.pet_state.task_pet_items[2].status, TaskPetStatus::Completed);

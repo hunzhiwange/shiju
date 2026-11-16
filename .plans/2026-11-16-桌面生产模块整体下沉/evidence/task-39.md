@@ -40,7 +40,7 @@
 |`crates/vw-desktop/src/app/i18n/gettext_area_7_tests.rs`|176|176|176|保留原测试/装配，待拆分局部夹具并核对跨域契约|
 |`crates/vw-desktop/src/app/i18n/gettext_area_9_tests.rs`|50|50|50|保留原测试/装配，待拆分局部夹具并核对跨域契约|
 |`crates/vw-desktop/src/app/i18n/macro.rs`|6|6|0|删除原挂载，实现/断言迁往下表领域测试或共享宏|
-|`crates/vw-desktop/src/app/i18n/mod.rs`|40|40|35|已改接领域；仍存宿主部分见具体缺口|
+|`crates/vw-desktop/src/app/i18n/mod.rs`|40|40|34|已改接领域；仍存宿主部分见具体缺口|
 |`crates/vw-desktop/src/app/i18n/other.rs`|20|19|15|已改接领域；仍存宿主部分见具体缺口|
 |`crates/vw-desktop/src/app/i18n/project_tests.rs`|28|28|28|保留原测试/装配，待拆分局部夹具并核对跨域契约|
 |`crates/vw-desktop/src/app/i18n/settings_models_tests.rs`|222|222|222|保留原测试/装配，待拆分局部夹具并核对跨域契约|
@@ -92,8 +92,8 @@
 |`crates/vw-desktop/src/app/state/app_state/workspace_task_fields_tests.rs`|9|9|9|原断言原位保留；需完成领域归属审计|
 |`crates/vw-desktop/src/app/state/app_state_tests.rs`|9|9|9|原断言原位保留；需完成领域归属审计|
 |`crates/vw-desktop/src/app/state/knowledge.rs`|2|2|2|多数为领域重导出/类型参数装配；需完成逐字段残留审计|
-|`crates/vw-desktop/src/app/state/pet.rs`|241|237|273|已改接领域；仍存宿主部分见具体缺口|
-|`crates/vw-desktop/src/app/state/pet_tests.rs`|292|292|319|已改接领域；仍存宿主部分见具体缺口|
+|`crates/vw-desktop/src/app/state/pet.rs`|241|237|226|已改接领域；仍存宿主部分见具体缺口|
+|`crates/vw-desktop/src/app/state/pet_tests.rs`|292|292|292|已改接领域；仍存宿主部分见具体缺口|
 |`crates/vw-desktop/src/app/state/plugin_install.rs`|1|1|1|多数为领域重导出/类型参数装配；需完成逐字段残留审计|
 |`crates/vw-desktop/src/app/state/presentation.rs`|15|19|19|多数为领域重导出/类型参数装配；需完成逐字段残留审计|
 |`crates/vw-desktop/src/app/state/presentation_tests.rs`|9|9|9|原断言原位保留；需完成领域归属审计|
@@ -109,11 +109,11 @@
 |`crates/vw-desktop/src/app/state/settings/cron_history.rs`|2|2|2|多数为领域重导出/类型参数装配；需完成逐字段残留审计|
 |`crates/vw-desktop/src/app/state/settings/cron_schedule_draft.rs`|2|2|2|多数为领域重导出/类型参数装配；需完成逐字段残留审计|
 |`crates/vw-desktop/src/app/state/settings/cron_templates.rs`|3|3|3|多数为领域重导出/类型参数装配；需完成逐字段残留审计|
-|`crates/vw-desktop/src/app/state/settings/infrastructure.rs`|78|44|44|已改接领域；仍存宿主部分见具体缺口|
+|`crates/vw-desktop/src/app/state/settings/infrastructure.rs`|78|44|42|已改接领域；仍存宿主部分见具体缺口|
 |`crates/vw-desktop/src/app/state/settings/infrastructure_tests.rs`|31|31|0|删除原挂载，实现/断言迁往下表领域测试或共享宏|
-|`crates/vw-desktop/src/app/state/settings/provider_model.rs`|42|40|36|已改接领域；仍存宿主部分见具体缺口|
+|`crates/vw-desktop/src/app/state/settings/provider_model.rs`|42|40|38|已改接领域；仍存宿主部分见具体缺口|
 |`crates/vw-desktop/src/app/state/settings/provider_model_tests.rs`|24|24|0|删除原挂载，实现/断言迁往下表领域测试或共享宏|
-|`crates/vw-desktop/src/app/state/settings/runtime.rs`|62|62|30|已改接领域；仍存宿主部分见具体缺口|
+|`crates/vw-desktop/src/app/state/settings/runtime.rs`|62|62|26|已改接领域；仍存宿主部分见具体缺口|
 |`crates/vw-desktop/src/app/state/settings/runtime_tests.rs`|29|29|0|删除原挂载，实现/断言迁往下表领域测试或共享宏|
 |`crates/vw-desktop/src/app/state/settings/worktrees.rs`|4|4|4|多数为领域重导出/类型参数装配；需完成逐字段残留审计|
 |`crates/vw-desktop/src/app/state/settings.rs`|54|54|54|多数为领域重导出/类型参数装配；需完成逐字段残留审计|
@@ -125,7 +125,7 @@
 |`crates/vw-desktop/src/app/ui_types.rs`|115|115|115|多数为领域重导出/类型参数装配；需完成逐字段残留审计|
 |`crates/vw-desktop/src/app/ui_types_tests.rs`|4|4|4|原断言原位保留；需完成领域归属审计|
 
-任务归属文件按 splitlines：本次前 2899，本次后 2676，宿主净减少 223 行（包含测试与注释，非纯生产净减少）。未以行数作为完成条件。
+任务归属文件按 splitlines：本次前 2899，本次后 2597，宿主净减少 302 行（包含测试与注释，非纯生产净减少）。未以行数作为完成条件。
 
 ## 旧测试与完整断言映射
 

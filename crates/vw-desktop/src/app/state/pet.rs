@@ -8,6 +8,7 @@ pub(crate) use desktop_task_board::pet_state::{TaskPetItem, TaskPetStatus};
 
 use desktop_task_board::pet_interaction::{self, *};
 
+
 impl App {
     fn task_pet_state(&mut self) -> TaskPetState<'_> {
         TaskPetState {
@@ -45,18 +46,11 @@ impl App {
     }
 
     pub(crate) fn task_pet_preview_scale(&self) -> f32 {
-        desktop_task_board::pet_interaction::task_pet_preview_scale(
-            &self.pet_state.task_pet_scale,
-            &self.pet_state.task_pet_size_draft,
-        )
+        desktop_task_board::pet_interaction::task_pet_preview_scale(&self.pet_state.task_pet_scale, &self.pet_state.task_pet_size_draft)
     }
 
     pub(crate) fn task_pet_avatar_bounds(&self) -> f32 {
-        desktop_task_board::pet_interaction::task_pet_avatar_bounds(
-            &self.pet_state.task_pet_avatar_kind,
-            &self.pet_state.task_pet_scale,
-            &self.pet_state.task_pet_size_draft,
-        )
+        desktop_task_board::pet_interaction::task_pet_avatar_bounds(&self.pet_state.task_pet_avatar_kind, &self.pet_state.task_pet_scale, &self.pet_state.task_pet_size_draft)
     }
 
     pub(crate) fn resize_task_pet_preview(
@@ -72,34 +66,21 @@ impl App {
             (self.pet_state.task_pet_position.x + previous_size.width - size.width).max(0.0),
             (self.pet_state.task_pet_position.y + previous_size.height - size.height).max(0.0),
         );
-        iced::window::resize(id, size)
-            .chain(iced::window::move_to(id, self.pet_state.task_pet_position))
+        iced::window::resize(id, size).chain(iced::window::move_to(id, self.pet_state.task_pet_position))
     }
 
     pub fn task_pet_window_size(&self) -> iced::Size {
-        desktop_task_board::pet_interaction::task_pet_window_size(
-            &self.pet_state.task_pet_avatar_kind,
-            &self.pet_state.task_pet_expand_progress,
-            &self.pet_state.task_pet_items,
-            &self.pet_state.task_pet_reply_request_id,
-            &self.pet_state.task_pet_scale,
-            &self.pet_state.task_pet_size_draft,
-        )
+        desktop_task_board::pet_interaction::task_pet_window_size(&self.pet_state.task_pet_avatar_kind, &self.pet_state.task_pet_expand_progress, &self.pet_state.task_pet_items, &self.pet_state.task_pet_reply_request_id, &self.pet_state.task_pet_scale, &self.pet_state.task_pet_size_draft)
     }
 
     pub(crate) fn task_pet_render_collapsed(&self) -> bool {
-        desktop_task_board::pet_interaction::task_pet_render_collapsed(
-            &self.pet_state.task_pet_collapsed,
-            &self.pet_state.task_pet_expand_progress,
-        )
+        desktop_task_board::pet_interaction::task_pet_render_collapsed(&self.pet_state.task_pet_collapsed, &self.pet_state.task_pet_expand_progress)
     }
 
     /// 从运行时请求重建宠物条目，同时保留仍有效的完成项与交互选择。
     pub(crate) fn sync_task_pet_from_runtime(&mut self) {
         let previous_size = self.task_pet_window_size();
-        let active = self
-            .session_state
-            .session_runtime_states
+        let active = self.session_state.session_runtime_states
             .values()
             .filter_map(|runtime| {
                 if !runtime.request_lifecycle.is_requesting {
@@ -113,15 +94,7 @@ impl App {
             })
             .collect::<Vec<_>>();
 
-        pet_interaction::sync_items(
-            &mut self.pet_state.task_pet_items,
-            active
-                .into_iter()
-                .map(|(request, snapshot)| {
-                    (request.id, request.session.clone(), request.root.clone(), snapshot)
-                })
-                .collect(),
-        );
+        pet_interaction::sync_items(&mut self.pet_state.task_pet_items, active.into_iter().map(|(request, snapshot)| (request.id, request.session.clone(), request.root.clone(), snapshot)).collect());
         if self.task_pet_window_size() != previous_size {
             self.request_task_pet_resize();
         }
@@ -172,17 +145,11 @@ impl App {
     }
 
     pub(crate) fn task_pet_is_walking(&self) -> bool {
-        desktop_task_board::pet_interaction::task_pet_is_walking(
-            &self.pet_state.task_pet_dragging,
-            &self.pet_state.task_pet_walk_until_ms,
-            crate::app::time::now_ms(),
-        )
+        desktop_task_board::pet_interaction::task_pet_is_walking(&self.pet_state.task_pet_dragging, &self.pet_state.task_pet_walk_until_ms, crate::app::time::now_ms())
     }
 
     pub(crate) fn task_pet_facing_left(&self) -> bool {
-        desktop_task_board::pet_interaction::task_pet_facing_left(
-            &self.pet_state.task_pet_drag_direction,
-        )
+        desktop_task_board::pet_interaction::task_pet_facing_left(&self.pet_state.task_pet_drag_direction)
     }
 
     pub(crate) fn set_task_pet_robot_hovered(&mut self, hovered: bool) {
@@ -225,38 +192,24 @@ impl App {
 
     fn task_pet_snapshot_for_request(&self, request: &AgentRequest) -> TaskPetSnapshot {
         let title = self.task_pet_session_title(&request.session, &request.query);
-        let from_active_chat =
-            self.session_state
-                .active_session_id
-                .as_ref()
-                .filter(|session_id| *session_id == &request.session)
-                .and_then(|_| {
-                    newest_open_thinking_text(self.chat_view.chat.iter().map(|message| {
-                        (message.role == ChatRole::Assistant, message.content.as_str())
-                    }))
-                });
-        let from_cached =
-            self.session_state.session_chat_cache.get(&request.session).and_then(|messages| {
-                newest_open_thinking_text(
-                    messages.iter().map(|message| {
-                        (message.role == ChatRole::Assistant, message.content.as_str())
-                    }),
-                )
-            });
+        let from_active_chat = self.session_state.active_session_id
+            .as_ref()
+            .filter(|session_id| *session_id == &request.session)
+            .and_then(|_| newest_open_thinking_text(self.chat_view.chat.iter().map(|message| (message.role == ChatRole::Assistant, message.content.as_str()))));
+        let from_cached = self.session_state.session_chat_cache
+            .get(&request.session)
+            .and_then(|messages| newest_open_thinking_text(messages.iter().map(|message| (message.role == ChatRole::Assistant, message.content.as_str()))));
         let detail = from_active_chat.or(from_cached);
         TaskPetSnapshot { title, detail }
     }
 
     fn task_pet_session_title(&self, session_id: &str, fallback: &str) -> String {
-        let title = self
-            .session_state
-            .sessions
+        let title = self.session_state.sessions
             .iter()
             .find(|session| session.id == session_id)
             .map(|session| session.title.trim())
             .or_else(|| {
-                self.workspace_state
-                    .project_sessions
+                self.workspace_state.project_sessions
                     .values()
                     .flat_map(|sessions| sessions.iter())
                     .find(|session| session.id == session_id)

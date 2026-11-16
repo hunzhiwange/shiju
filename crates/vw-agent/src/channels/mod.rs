@@ -338,7 +338,7 @@ include!("channel_project_scope_tests.rs");
 include!("scope_delivery_tests.rs");
 
 #[cfg(test)]
-#[path = "runtime_command/project_commands_tests.rs"]
+#[path = "../../../libs/channel-runtime/src/runtime_command/project_commands_tests.rs"]
 mod channel_project_select_tests;
 
 #[cfg(test)]

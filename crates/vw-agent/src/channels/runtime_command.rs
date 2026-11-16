@@ -17,8 +17,10 @@ mod task_mode;
 #[cfg(test)]
 mod handler_tests;
 #[cfg(test)]
+#[path = "../../../libs/channel-runtime/src/runtime_command/session_commands_tests.rs"]
 pub(crate) mod session_commands_tests;
 #[cfg(test)]
+#[path = "../../../libs/channel-runtime/src/runtime_command/task_mode_tests.rs"]
 mod task_mode_tests;
 
 #[allow(unused_imports)]

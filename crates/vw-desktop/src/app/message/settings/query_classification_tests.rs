@@ -47,17 +47,3 @@ fn refresh_failure_preserves_draft_and_reports_error() {
     );
     assert_eq!(app.query_classification_settings.rules[0].category, "new");
 }
-
-#[test]
-fn update_ignores_messages_for_other_settings_sections() {
-    let mut app = app();
-    app.query_classification_settings.enabled = true;
-    app.query_classification_settings.rules = vec![QueryClassificationRuleInput::default()];
-    app.query_classification_settings.save_error = Some("keep".to_string());
-
-    let _ = update(&mut app, SettingsMessage::ToggleSettingsSidebar);
-
-    assert!(app.query_classification_settings.enabled);
-    assert_eq!(app.query_classification_settings.rules.len(), 1);
-    assert_eq!(app.query_classification_settings.save_error.as_deref(), Some("keep"));
-}

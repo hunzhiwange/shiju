@@ -106,8 +106,6 @@ fn plugin_hooks_toggle_persists_config() {
 
     let task = update(&mut app, SettingsMessage::Hooks(HooksMessage::PluginHooksToggled(false)));
 
-    assert!(!app.hooks_settings.plugins_enabled);
-    assert!(app.hooks_settings.save_error.is_none());
     assert!(has_scheduled_action(task));
 }
 

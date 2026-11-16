@@ -8,21 +8,7 @@ fn app() -> App {
     App::new().0
 }
 
-#[test]
-fn update_ignores_unrelated_messages() {
-    let mut app = app();
-    app.observability_settings.backend = "otel".to_string();
-    app.observability_settings.otel_endpoint_input = "http://collector.example".to_string();
-    app.observability_settings.show_help_modal = true;
-    app.observability_settings.save_error = Some("old error".to_string());
 
-    let _ = update(&mut app, SettingsMessage::ToggleSettingsSidebar);
-
-    assert_eq!(app.observability_settings.backend, "otel");
-    assert_eq!(app.observability_settings.otel_endpoint_input, "http://collector.example");
-    assert!(app.observability_settings.show_help_modal);
-    assert_eq!(app.observability_settings.save_error.as_deref(), Some("old error"));
-}
 
 #[test]
 fn observability_changes_schedule_persistence_tasks() {

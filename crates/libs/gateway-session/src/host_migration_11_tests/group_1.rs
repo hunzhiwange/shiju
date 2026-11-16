@@ -110,11 +110,11 @@ fn compaction_lifecycle_events_encode_stable_gateway_payloads() {
     };
 
     assert_eq!(
-        encode(session_engine::processor_events::CompactionPhase::Started),
+        encode(session_port::CompactionPhase::Started),
         serde_json::json!({"type": "chat.compaction", "phase": "started"})
     );
     assert_eq!(
-        encode(session_engine::processor_events::CompactionPhase::Completed),
+        encode(session_port::CompactionPhase::Completed),
         serde_json::json!({"type": "chat.compaction", "phase": "completed"})
     );
     assert!(assistant_text.is_empty());
@@ -132,11 +132,11 @@ fn gateway_stream_preserves_existing_tool_payloads() {
         "output": "/workspace"
     });
 
-    let event = session_engine::processor_events::StreamEvent::Tool(session_engine::processor_events::ToolEvent {
+    let event = session_engine::processor_events::StreamEvent::Tool(session_port::ToolEvent {
         call_id: "call-1".to_string(),
         name: "shell".to_string(),
-        kind: session_engine::processor_events::ToolEventKind::Complete,
-        status: session_engine::processor_events::ToolCallStatus::Completed,
+        kind: session_port::ToolEventKind::Complete,
+        status: session_port::ToolCallStatus::Completed,
         occurred_ms: 123,
         payload: payload.clone(),
     });
@@ -180,11 +180,11 @@ fn gateway_tool_event_preserves_step_and_payload() {
         "input": "{\"command\":\"pwd\"}"
     });
     let start = stream_payload_for_non_done_event(
-        session_engine::processor_events::StreamEvent::Tool(session_engine::processor_events::ToolEvent {
+        session_engine::processor_events::StreamEvent::Tool(session_port::ToolEvent {
             call_id: "call-1".to_string(),
             name: "shell".to_string(),
-            kind: session_engine::processor_events::ToolEventKind::Start,
-            status: session_engine::processor_events::ToolCallStatus::Running,
+            kind: session_port::ToolEventKind::Start,
+            status: session_port::ToolCallStatus::Running,
             occurred_ms: 100,
             payload: start_payload.clone(),
         }),
@@ -202,11 +202,11 @@ fn gateway_tool_event_preserves_step_and_payload() {
         "output": "/workspace"
     });
     let complete = stream_payload_for_non_done_event(
-        session_engine::processor_events::StreamEvent::Tool(session_engine::processor_events::ToolEvent {
+        session_engine::processor_events::StreamEvent::Tool(session_port::ToolEvent {
             call_id: "call-1".to_string(),
             name: "shell".to_string(),
-            kind: session_engine::processor_events::ToolEventKind::Complete,
-            status: session_engine::processor_events::ToolCallStatus::Completed,
+            kind: session_port::ToolEventKind::Complete,
+            status: session_port::ToolCallStatus::Completed,
             occurred_ms: 123,
             payload: complete_payload.clone(),
         }),

@@ -22,8 +22,6 @@ pub struct PromptInput {
 }
 
 pub trait StreamHost: crate::message_host::MessageHost {
-    fn child_agent_handoff_from_output(output: &str) -> String;
-    fn task_summary(prompt: &str) -> String;
     type ToolContext: Send + 'static;
     type Approval: Send + 'static;
     fn tool_context() -> Self::ToolContext;
@@ -41,7 +39,6 @@ pub trait StreamHost: crate::message_host::MessageHost {
     ) -> impl Future<Output = T> + Send;
     fn now_ms() -> u64;
     fn is_successful_finish_reason(reason: Option<&str>) -> bool;
-    fn first_response_source(content: &str) -> String;
     fn delegated_model_ref(config: &config_agent::DelegateAgentConfig) -> Option<String>;
     fn agent(
         name: &str,
@@ -113,47 +110,4 @@ pub trait StreamHost: crate::message_host::MessageHost {
         preview: String,
         model: Option<String>,
     );
-    fn load_session_scoped_for_tenant_fallible(
-        tenant: &TenantScope,
-        id: &str,
-        scope: Option<&str>,
-    ) -> anyhow::Result<Option<session_ui_types::ChatSession>>;
-    fn load_agent_session_scoped_for_tenant(
-        tenant: &TenantScope,
-        id: &str,
-        scope: Option<&str>,
-    ) -> Option<session_info::Info>;
-    fn load_visible_task_states(
-        tenant: &TenantScope,
-        project: &str,
-    ) -> anyhow::Result<
-        std::collections::HashMap<String, session_port::task_session::TaskSessionSnapshot>,
-    >;
-    fn commit_first_response(
-        tenant: &TenantScope,
-        project: &str,
-        commit: session_store::FirstResponseCommit<'_>,
-    ) -> anyhow::Result<bool>;
-    fn save_agent_session_scoped_for_tenant(
-        tenant: &TenantScope,
-        info: &session_info::Info,
-        scope: Option<&str>,
-    ) -> Option<std::path::PathBuf>;
-    fn save_session_ui_scoped_for_tenant(
-        tenant: &TenantScope,
-        session: &session_ui_types::ChatSession,
-        scope: Option<&str>,
-        preserve: bool,
-    ) -> anyhow::Result<std::path::PathBuf>;
-    fn commit_session_ui_snapshot_scoped_for_tenant(
-        tenant: &TenantScope,
-        session: &session_ui_types::ChatSession,
-        scope: Option<&str>,
-        raw: &[session_port::llm_raw::LlmRawArtifact],
-        steps: &[session_store::LlmRawStepKey],
-    ) -> anyhow::Result<std::path::PathBuf>;
-    fn reserve_pending_session(
-        tenant: &TenantScope,
-        info: &session_info::Info,
-    ) -> anyhow::Result<session_info::Info>;
 }

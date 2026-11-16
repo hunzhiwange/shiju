@@ -49,9 +49,6 @@ impl StreamHost for Host {
     fn is_successful_finish_reason(reason: Option<&str>) -> bool {
         crate::session::runtime::is_successful_finish_reason(reason)
     }
-    fn first_response_source(content: &str) -> String {
-        crate::session::title::first_response_source(content)
-    }
     fn delegated_model_ref(config: &config_agent::DelegateAgentConfig) -> Option<String> {
         crate::agent::resolve_model_ref(config)
             .map(|model| format!("{}/{}", model.provider_id, model.model_id))
@@ -143,75 +140,6 @@ impl StreamHost for Host {
             runtime, tenant, context, session, preview, model,
         )
     }
-    fn load_session_scoped_for_tenant_fallible(
-        tenant: &TenantScope,
-        id: &str,
-        scope: Option<&str>,
-    ) -> anyhow::Result<Option<session_ui_types::ChatSession>> {
-        crate::session::ui_store::load_session_scoped_for_tenant_fallible(tenant, id, scope)
-    }
-    fn load_agent_session_scoped_for_tenant(
-        tenant: &TenantScope,
-        id: &str,
-        scope: Option<&str>,
-    ) -> Option<session_info::Info> {
-        crate::session::ui_store::load_agent_session_scoped_for_tenant(tenant, id, scope)
-    }
-    fn load_visible_task_states(
-        tenant: &TenantScope,
-        project: &str,
-    ) -> anyhow::Result<
-        std::collections::HashMap<String, session_port::task_session::TaskSessionSnapshot>,
-    > {
-        crate::session::ui_store::load_visible_task_states(tenant, project)
-    }
-    fn commit_first_response(
-        tenant: &TenantScope,
-        project: &str,
-        commit: session_store::FirstResponseCommit<'_>,
-    ) -> anyhow::Result<bool> {
-        crate::session::ui_store::commit_first_response(tenant, project, commit)
-    }
-    fn save_agent_session_scoped_for_tenant(
-        tenant: &TenantScope,
-        info: &session_info::Info,
-        scope: Option<&str>,
-    ) -> Option<std::path::PathBuf> {
-        crate::session::ui_store::save_agent_session_scoped_for_tenant(tenant, info, scope)
-    }
-    fn save_session_ui_scoped_for_tenant(
-        tenant: &TenantScope,
-        session: &session_ui_types::ChatSession,
-        scope: Option<&str>,
-        preserve: bool,
-    ) -> anyhow::Result<std::path::PathBuf> {
-        crate::session::ui_store::save_session_ui_scoped_for_tenant(
-            tenant, session, scope, preserve,
-        )
-    }
-    fn commit_session_ui_snapshot_scoped_for_tenant(
-        tenant: &TenantScope,
-        session: &session_ui_types::ChatSession,
-        scope: Option<&str>,
-        raw: &[session_port::llm_raw::LlmRawArtifact],
-        steps: &[session_store::LlmRawStepKey],
-    ) -> anyhow::Result<std::path::PathBuf> {
-        crate::session::ui_store::commit_session_ui_snapshot_scoped_for_tenant(
-            tenant, session, scope, raw, steps,
-        )
-    }
-    fn reserve_pending_session(
-        tenant: &TenantScope,
-        info: &session_info::Info,
-    ) -> anyhow::Result<session_info::Info> {
-        crate::session::ui_store::reserve_pending_session(tenant, info)
-    }
-    fn child_agent_handoff_from_output(output: &str) -> String {
-        crate::session::child_agent::child_agent_handoff_from_output(output)
-    }
-    fn task_summary(prompt: &str) -> String {
-        crate::session::child_agent::task_summary(prompt)
-    }
     fn start_prompt(
         tenant: TenantScope,
         context: Self::ToolContext,
@@ -249,10 +177,10 @@ impl StreamHost for Host {
 use gateway_session::stream as domain;
 
 #[cfg(test)]
-use super::{raw_commit, shared::with_tenant_instance};
+use super::shared::with_tenant_instance;
 use crate::gateway::instance::InstanceQuery;
 #[cfg(test)]
-use crate::{project::instance, session as agent_session, snapshot};
+use crate::{project::instance, session as agent_session};
 #[cfg(test)]
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -372,7 +300,7 @@ pub(crate) fn reserve_stream_agent_session(
     directory: &str,
     created_ms: u64,
 ) -> anyhow::Result<()> {
-    domain::reserve_stream_agent_session::<Host>(
+    domain::reserve_stream_agent_session(
         tenant, project_id, session_id, directory, created_ms,
     )
 }
@@ -471,80 +399,8 @@ async fn start_gateway_chat_producer(
     .await
 }
 
-#[cfg(test)]
-#[allow(clippy::too_many_arguments)]
-fn prepare_stream_history(
-    history_messages: Vec<Value>,
-    resume_history_only: bool,
-    preserve_structured_prompt: bool,
-) -> PreparedStreamHistory {
-    domain::prepare_stream_history::<Host>(
-        history_messages,
-        resume_history_only,
-        preserve_structured_prompt,
-    )
-}
 
-#[cfg(test)]
-#[allow(clippy::too_many_arguments)]
-async fn persist_stream_chat_turn_for_agent(
-    session_id: &str,
-    query: &str,
-    assistant_text: &str,
-    model: Option<&str>,
-    usage: &ui_models::TokenUsage,
-    finish_reason: Option<&str>,
-    preallocated_ids: Option<&StreamTurnMessageIds>,
-    extra_assistant_parts: &[message::Part],
-    message_agent: &str,
-    assistant_error: Option<message::AssistantError>,
-    processing_time: Option<message::AssistantTime>,
-) -> Result<(String, String, Option<agent_session::session::Summary>), ApiError> {
-    domain::persist_stream_chat_turn_for_agent::<Host>(
-        session_id,
-        query,
-        assistant_text,
-        model,
-        usage,
-        finish_reason,
-        preallocated_ids,
-        extra_assistant_parts,
-        message_agent,
-        assistant_error,
-        processing_time,
-    )
-    .await
-}
 
-#[cfg(test)]
-#[allow(clippy::too_many_arguments)]
-fn commit_stream_session_trajectory(
-    tenant: &TenantScope,
-    scope: Option<&str>,
-    session_id: &str,
-    query: &str,
-    assistant_text: &str,
-    model: Option<&str>,
-    ids: &StreamTurnMessageIds,
-    recorder: &StreamTrajectoryRecorder,
-    created_ms: u64,
-    completed_ms: u64,
-    first_response_preview: Option<&str>,
-) -> anyhow::Result<Option<String>> {
-    domain::commit_stream_session_trajectory::<Host>(
-        tenant,
-        scope,
-        session_id,
-        query,
-        assistant_text,
-        model,
-        ids,
-        recorder,
-        created_ms,
-        completed_ms,
-        first_response_preview,
-    )
-}
 
 #[cfg(test)]
 #[allow(clippy::too_many_arguments)]

@@ -573,7 +573,7 @@ pub fn normalize_tool_ids(tools: Vec<String>) -> Option<Vec<String>> {
     (!normalized.is_empty()).then_some(normalized)
 }
 
-pub fn prepare_stream_history<H: StreamHost>(
+pub fn prepare_stream_history(
     history_messages: Vec<Value>,
     resume_history_only: bool,
     preserve_structured_prompt: bool,
@@ -594,7 +594,7 @@ pub fn prepare_stream_history<H: StreamHost>(
 
         if idx + 1 == total_messages && role == "user" {
             query = normalized_content;
-            preview = gateway_content_to_title_source::<H>(source);
+            preview = gateway_content_to_title_source(source);
             continue;
         }
 
@@ -625,14 +625,14 @@ pub fn prepare_stream_history<H: StreamHost>(
     {
         query = history.remove(last_user_idx).content;
         if let Some(content) = prior_user_content {
-            preview = gateway_content_to_title_source::<H>(content);
+            preview = gateway_content_to_title_source(content);
         }
     }
 
     PreparedStreamHistory { history, query, preview }
 }
 
-pub(crate) fn gateway_content_to_title_source<H: StreamHost>(content: &Value) -> String {
+pub(crate) fn gateway_content_to_title_source(content: &Value) -> String {
     let text = match content {
         Value::String(text) => std::borrow::Cow::Borrowed(text.as_str()),
         Value::Array(blocks) => std::borrow::Cow::Owned(
@@ -645,7 +645,7 @@ pub(crate) fn gateway_content_to_title_source<H: StreamHost>(content: &Value) ->
         ),
         _ => return String::new(),
     };
-    H::first_response_source(&text)
+    session_engine::title::first_response_source(&text)
 }
 
 pub(crate) fn gateway_content_to_prompt_text(content: &Value, preserve_structured: bool) -> String {
@@ -1442,13 +1442,13 @@ pub async fn start_gateway_chat_producer<H: StreamHost>(
                     })?;
                 (
                     gateway_content_to_prompt_text(&message["content"], preserve_structured_prompt),
-                    gateway_content_to_title_source::<H>(&message["content"]),
+                    gateway_content_to_title_source(&message["content"]),
                 )
             };
             (history, query, preview, Some(persisted))
         }
         None => {
-            let PreparedStreamHistory { history, query, preview } = prepare_stream_history::<H>(
+            let PreparedStreamHistory { history, query, preview } = prepare_stream_history(
                 messages,
                 resume_history_only,
                 preserve_structured_prompt,
@@ -1462,7 +1462,7 @@ pub async fn start_gateway_chat_producer<H: StreamHost>(
         let session_id = stream_session_id.clone();
         let directory = root_dir.clone();
         agent_database::run_isolated(move || {
-            reserve_stream_agent_session::<H>(
+            reserve_stream_agent_session(
                 &reservation_tenant,
                 &project_id,
                 &session_id,
@@ -1720,7 +1720,7 @@ pub async fn start_gateway_chat_producer<H: StreamHost>(
                                         && H::is_successful_finish_reason(
                                             assistant_finish_reason.as_deref(),
                                         );
-                                    match commit_stream_session_trajectory::<H>(
+                                    match commit_stream_session_trajectory(
                                         &tenant,
                                         app_session_scope.as_deref(),
                                         &stream_session_id,
@@ -1835,7 +1835,7 @@ pub async fn start_gateway_chat_producer<H: StreamHost>(
                             {
                                 summary_update = summary;
                                 if let Some(ids) = stream_message_ids.as_ref()
-                                    && let Err(persist_error) = commit_stream_session_trajectory::<H>(
+                                    && let Err(persist_error) = commit_stream_session_trajectory(
                                         &tenant,
                                         app_session_scope.as_deref(),
                                         &stream_session_id,
@@ -2338,8 +2338,8 @@ pub fn commit_collected_child_agent_turn<H: StreamHost>(
     let recorder = StreamTrajectoryRecorder::new(assistant_id.clone());
     let ids = StreamTurnMessageIds::new(assistant_id, user_id);
     let now = H::now_ms();
-    let preview = H::first_response_source(prompt);
-    commit_stream_session_trajectory::<H>(
+    let preview = session_engine::title::first_response_source(prompt);
+    commit_stream_session_trajectory(
         &tenant,
         Some(&project.id),
         session_id,
@@ -2356,7 +2356,10 @@ pub fn commit_collected_child_agent_turn<H: StreamHost>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn persist_stream_chat_turn_for_agent<H: StreamHost>(
+/// Persist a turn and return its history guard so summary updates remain serialized.
+#[allow(clippy::too_many_arguments)]
+pub async fn persist_stream_messages(
+    now: u64,
     session_id: &str,
     query: &str,
     assistant_text: &str,
@@ -2368,9 +2371,8 @@ pub async fn persist_stream_chat_turn_for_agent<H: StreamHost>(
     message_agent: &str,
     assistant_error: Option<message::AssistantError>,
     processing_time: Option<message::AssistantTime>,
-) -> Result<(String, String, Option<session_info::Summary>), ApiError> {
+) -> Result<(String, String, tokio::sync::OwnedMutexGuard<()>), ApiError> {
     let model_ref = split_stream_model_ref(model);
-    let now = H::now_ms();
     let assistant_time = processing_time.unwrap_or(message::AssistantTime {
         created: now,
         completed: Some(now),
@@ -2459,6 +2461,26 @@ pub async fn persist_stream_chat_turn_for_agent<H: StreamHost>(
     for part in extra_assistant_parts {
         message::update_part(part).await.map_err(|err| ApiError::internal(err.to_string()))?;
     }
+    Ok((assistant_id, user_id, _history))
+}
+
+pub async fn persist_stream_chat_turn_for_agent<H: StreamHost>(
+    session_id: &str,
+    query: &str,
+    assistant_text: &str,
+    model: Option<&str>,
+    usage: &ui_models::TokenUsage,
+    finish_reason: Option<&str>,
+    preallocated_ids: Option<&StreamTurnMessageIds>,
+    extra_assistant_parts: &[message::Part],
+    message_agent: &str,
+    assistant_error: Option<message::AssistantError>,
+    processing_time: Option<message::AssistantTime>,
+) -> Result<(String, String, Option<session_info::Summary>), ApiError> {
+    let (assistant_id, user_id, _history) = persist_stream_messages(
+        H::now_ms(), session_id, query, assistant_text, model, usage, finish_reason,
+        preallocated_ids, extra_assistant_parts, message_agent, assistant_error, processing_time,
+    ).await?;
     let summary =
         if !extra_assistant_parts.iter().any(|part| !matches!(part, message::Part::Tool(_))) {
             None
@@ -2542,7 +2564,7 @@ pub fn upsert_stream_ui_message(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn commit_stream_session_trajectory<H: StreamHost>(
+pub fn commit_stream_session_trajectory(
     tenant: &TenantScope,
     scope: Option<&str>,
     session_id: &str,
@@ -2573,7 +2595,7 @@ pub fn commit_stream_session_trajectory<H: StreamHost>(
         );
     }
 
-    let mut session = H::load_session_scoped_for_tenant_fallible(tenant, session_id, scope)?
+    let mut session = session_store::ui_store::load_session_scoped_for_tenant_fallible(tenant, session_id, scope)?
         .unwrap_or_else(|| ui_models::ChatSession {
             id: session_id.to_string(),
             title: String::new(),
@@ -2632,23 +2654,23 @@ pub fn commit_stream_session_trajectory<H: StreamHost>(
 
     let project_id =
         scope.ok_or_else(|| anyhow::anyhow!("stream session is missing project scope"))?;
-    let mut info = H::load_agent_session_scoped_for_tenant(tenant, session_id, scope)
+    let mut info = session_store::ui_store::load_agent_session_scoped_for_tenant(tenant, session_id, scope)
         .ok_or_else(|| anyhow::anyhow!("stream session reservation is missing"))?;
     if info.is_first_response_pending()
         && let Some(preview) = first_response_preview
-        && (!info.is_agent_tool() || !H::child_agent_handoff_from_output(assistant_text).is_empty())
+        && (!info.is_agent_tool() || !session_engine::child_agent::run::child_agent_handoff_from_output(assistant_text).is_empty())
     {
         let task_title = if info.is_visible_task() {
-            H::load_visible_task_states(tenant, project_id)?
+            session_store::ui_store::load_visible_task_states(tenant, project_id)?
                 .remove(session_id)
                 .filter(|task| Some(task.parent_session_id.as_str()) == info.parent_id.as_deref())
                 .and_then(|task| task.title)
         } else if info.is_agent_tool() && !preview.is_empty() {
-            Some(H::task_summary(preview))
+            Some(session_engine::child_agent::run::task_summary(preview))
         } else {
             None
         };
-        let published = H::commit_first_response(
+        let published = session_store::ui_store::commit_first_response(
             tenant,
             project_id,
             session_store::FirstResponseCommit {
@@ -2668,12 +2690,12 @@ pub fn commit_stream_session_trajectory<H: StreamHost>(
 
     info.time.updated = info.time.updated.max(session.updated_ms);
     session.title.clone_from(&info.title);
-    H::save_agent_session_scoped_for_tenant(tenant, &info, scope)
+    session_store::ui_store::save_agent_session_scoped_for_tenant(tenant, &info, scope)
         .ok_or_else(|| anyhow::anyhow!("failed to update stream session metadata"))?;
     if claims.is_empty() {
-        H::save_session_ui_scoped_for_tenant(tenant, &session, scope, true)?;
+        session_store::ui_store::save_session_ui_scoped_for_tenant(tenant, &session, scope, true)?;
     } else {
-        H::commit_session_ui_snapshot_scoped_for_tenant(
+        session_store::ui_store::commit_session_ui_snapshot_scoped_for_tenant(
             tenant,
             &session,
             scope,
@@ -2685,7 +2707,7 @@ pub fn commit_stream_session_trajectory<H: StreamHost>(
     Ok(None)
 }
 
-pub fn reserve_stream_agent_session<H: StreamHost>(
+pub fn reserve_stream_agent_session(
     tenant: &TenantScope,
     project_id: &str,
     session_id: &str,
@@ -2712,6 +2734,6 @@ pub fn reserve_stream_agent_session<H: StreamHost>(
         fork_execution_started: None,
         revert: None,
     };
-    H::reserve_pending_session(tenant, &info)?;
+    session_store::ui_store::reserve_pending_session(tenant, &info)?;
     Ok(())
 }

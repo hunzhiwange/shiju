@@ -24,13 +24,13 @@ Net host reduction approximately 27%, BELOW 70%; requires closing-task review, n
 | `gateway_chat_persists_and_reports_session_git_line_counts` | 112 | Host: agent_session::processor::enqueue_test_llm_stream, agent_session::processor::test_llm_stream_guard, crate::config::update, crate::session::llm::, crate::session::llm::recovery_test_support::RecoveryConfig::new, crate::session::ui_store::current_tenant_scope, crate::session::ui_store::load_agent_session_scoped_for_tenant, crate::session::ui_store::resolve_session_scope_id_for_tenant, crate::test_support::global_async_env_lock |
 | `codex_skills_defaults_gateway_main_and_child_preload_before_first_request` | 86 | Host: agent_session::llm::StreamEvent::Delta, agent_session::llm::StreamEvent::Done, agent_session::processor::enqueue_test_llm_stream, agent_session::processor::llm_runner::take_test_llm_stream_tool_ids, agent_session::processor::take_test_llm_messages, agent_session::processor::test_llm_stream_guard, crate::config::update_project, crate::session::llm::recovery_test_support::RecoveryConfig::new, crate::session::ui_store::current_tenant_scope, crate::test_support::global_async_env_lock |
 | `codex_skills_defaults_gateway_empty_defaults_replace_untrusted_request_allowance` | 13 | gateway_session::host_migration_11_tests::group_1::codex_skills_defaults_gateway_empty_defaults_replace_untrusted_request_allowance |
-| `codex_skills_transport_gateway_preserves_directory_and_untrusted_body_roles` | 20 | Host: real Host-bound entry or direct fixture for retained integration tests |
+| `codex_skills_transport_gateway_preserves_directory_and_untrusted_body_roles` | 20 | gateway_session::host_migration_11_tests::group_4::codex_skills_transport_gateway_preserves_directory_and_untrusted_body_roles |
 | `forced_child_model_overrides_parent_selection` | 15 | Host: real Host-bound entry or direct fixture for retained integration tests |
 | `incomplete_forced_child_binding_is_ignored` | 14 | Host: real Host-bound entry or direct fixture for retained integration tests |
 | `child_soft_preference_does_not_bypass_profile_fit` | 12 | Host: real Host-bound entry or direct fixture for retained integration tests |
-| `prepare_stream_history_maps_roles_tool_results_and_last_user_query` | 28 | Host: real Host-bound entry or direct fixture for retained integration tests |
-| `prepare_stream_history_promotes_last_prior_user_unless_resume_history_only` | 18 | Host: real Host-bound entry or direct fixture for retained integration tests |
-| `prepare_stream_history_accepts_structured_attachment_blocks` | 24 | Host: real Host-bound entry or direct fixture for retained integration tests |
+| `prepare_stream_history_maps_roles_tool_results_and_last_user_query` | 28 | gateway_session::host_migration_11_tests::group_4::prepare_stream_history_maps_roles_tool_results_and_last_user_query |
+| `prepare_stream_history_promotes_last_prior_user_unless_resume_history_only` | 18 | gateway_session::host_migration_11_tests::group_4::prepare_stream_history_promotes_last_prior_user_unless_resume_history_only |
+| `prepare_stream_history_accepts_structured_attachment_blocks` | 24 | gateway_session::host_migration_11_tests::group_4::prepare_stream_history_accepts_structured_attachment_blocks |
 | `stream_payload_for_non_done_event_encodes_delta_step_finish_and_error_state` | 78 | gateway_session::host_migration_11_tests::group_1::stream_payload_for_non_done_event_encodes_delta_step_finish_and_error_state |
 | `compaction_lifecycle_events_encode_stable_gateway_payloads` | 29 | gateway_session::host_migration_11_tests::group_1::compaction_lifecycle_events_encode_stable_gateway_payloads |
 | `gateway_stream_preserves_existing_tool_payloads` | 35 | gateway_session::host_migration_11_tests::group_1::gateway_stream_preserves_existing_tool_payloads |
@@ -64,12 +64,12 @@ Net host reduction approximately 27%, BELOW 70%; requires closing-task review, n
 | `make_docs_workspace` | 8 | Host: real Host-bound entry or direct fixture for retained integration tests |
 | `chat_stream_rejects_missing_workspace_without_retryable_status` | 16 | Host: real Host-bound entry or direct fixture for retained integration tests |
 | `native_workflow_gateway_persists_bound_graph_without_llm_artifacts` | 72 | Host: crate::session::llm::recovery_test_support::RecoveryConfig::new, crate::session::ui_store::current_tenant_scope, crate::session::ui_store::load_session_scoped_for_tenant, crate::session::ui_store::resolve_session_scope_id_for_tenant, crate::test_support::global_async_env_lock |
-| `stream_trajectory_commit_rejects_llm_without_raw_artifacts` | 35 | Host: agent_session::processor::StreamEvent::StepFinish, crate::session::ui_store::current_tenant_scope, crate::session::ui_store::resolve_session_scope_id |
+| `stream_trajectory_commit_rejects_llm_without_raw_artifacts` | 35 | gateway_session::host_migration_11_tests::group_4::stream_trajectory_commit_rejects_llm_without_raw_artifacts |
 | `collect_gateway_chat_stream_runs_docs_request_and_persists_done_message_ids` | 31 | Host: agent_session::message::messages |
 | `gateway_first_turn_registers_parent_before_thread_tool_use` | 47 | Host: crate::session::ui_store::current_tenant_scope, crate::session::ui_store::load_agent_session_scoped_for_tenant, crate::session::ui_store::resolve_session_scope_id_for_tenant |
-| `stream_trajectory_commit_persists_steps_tools_and_raw_without_ui_save` | 102 | Host: agent_session::processor::StreamEvent::StepFinish, agent_session::processor::StreamEvent::StepStart, agent_session::processor::StreamEvent::Tool, agent_session::processor::ToolCallStatus::Completed, agent_session::processor::ToolEvent, agent_session::processor::ToolEventKind::Complete, crate::session::llm_raw::LlmRawArtifact::from_full_raw_rounds, crate::session::ui_store::current_tenant_scope, crate::session::ui_store::load_agent_session_scoped_for_tenant, crate::session::ui_store::load_llm_raw_turn_step_scoped_for_tenant, crate::session::ui_store::load_session_meta_scoped_for_tenant, crate::session::ui_store::load_session_scoped_for_tenant, crate::session::ui_store::resolve_session_scope_id |
-| `stream_processing_elapsed_persists_and_reloads_explicit_request_bounds` | 50 | Host: agent_session::message::AssistantTime, agent_session::message::Info::Assistant, agent_session::message::get, crate::project::instance::provide |
-| `persist_stream_turn_uses_request_start_for_user_timestamp` | 50 | Host: agent_session::message::AssistantTime, agent_session::message::Info::User, agent_session::message::Part::Text, agent_session::message::messages, crate::project::instance::provide |
+| `stream_trajectory_commit_persists_steps_tools_and_raw_without_ui_save` | 102 | gateway_session::host_migration_11_tests::group_4::stream_trajectory_commit_persists_steps_tools_and_raw_without_ui_save |
+| `stream_processing_elapsed_persists_and_reloads_explicit_request_bounds` | 50 | gateway_session::host_migration_11_tests::group_5::stream_processing_elapsed_persists_and_reloads_explicit_request_bounds |
+| `persist_stream_turn_uses_request_start_for_user_timestamp` | 50 | gateway_session::host_migration_11_tests::group_5::persist_stream_turn_uses_request_start_for_user_timestamp |
 | `chat_stream_returns_sse_response_for_docs_request` | 68 | Host: crate::app::agent::gateway::api::handlers::resumable_stream::STREAM_REQUEST_ID_HEADER |
 | `pending_stream_ui_session` | 24 | gateway_session::host_migration_11_tests::group_2::pending_stream_ui_session |
 | `stream_ui_commit_replaces_current_draft_despite_tool_markers_or_partial_text` | 35 | gateway_session::host_migration_11_tests::group_2::stream_ui_commit_replaces_current_draft_despite_tool_markers_or_partial_text |
@@ -88,10 +88,10 @@ Net host reduction approximately 27%, BELOW 70%; requires closing-task review, n
 | `agent_session_identity_survives_profile_edits` | 129 | Host: agent_session::llm::StreamEvent::Delta, agent_session::llm::StreamEvent::Done, agent_session::processor::enqueue_test_llm_stream, agent_session::processor::take_test_llm_messages, agent_session::processor::test_llm_stream_guard, agent_session::session::fork, crate::config::get_current, crate::config::update, crate::permission::next::Action::Deny, crate::session::agent_binding::apply_to_config, crate::session::agent_binding::load, crate::session::capability_policy::native_agent_defaults, crate::session::llm::recovery_test_support::RecoveryConfig::new, crate::session::ui_config::set_config_field_result, crate::session::ui_store::current_tenant_scope, crate::test_support::global_async_env_lock |
 | `agent_session_identity_derives_backend_and_rejects_conflicts` | 31 | Host: crate::session::llm::recovery_test_support::RecoveryConfig::new, crate::session::ui_store::current_tenant_scope, crate::test_support::global_async_env_lock |
 | `acp_background_approval_gateway_uses_turn_grant_after_agent_resolution` | 46 | Host: crate::session::agent_binding::confirmed_full_access, crate::session::llm::recovery_test_support::RecoveryConfig::new, crate::session::ui_store::current_tenant_scope, crate::test_support::global_async_env_lock |
-| `agent_model_inheritance_preserves_explicit_source_in_processor_options` | 23 | Host: real Host-bound entry or direct fixture for retained integration tests |
-| `acp_model_source_rejects_invalid_and_conflicting_runtime_options` | 17 | Host: real Host-bound entry or direct fixture for retained integration tests |
+| `agent_model_inheritance_preserves_explicit_source_in_processor_options` | 23 | gateway_session::host_migration_11_tests::group_4::agent_model_inheritance_preserves_explicit_source_in_processor_options |
+| `acp_model_source_rejects_invalid_and_conflicting_runtime_options` | 17 | gateway_session::host_migration_11_tests::group_4::acp_model_source_rejects_invalid_and_conflicting_runtime_options |
 | `agent_config_cleanup_full_access_gateway_freezes_defaults_and_session_choice` | 44 | Host: crate::config::update, crate::session::llm::recovery_test_support::RecoveryConfig::new, crate::session::ui_store::current_tenant_scope, crate::test_support::global_async_env_lock |
-| `native_tool_search_core_loop_gateway_encodes_typed_model_calls` | 25 | Host: agent_session::processor::StreamEvent::ModelToolCalls, crate::session::llm::ToolCall, crate::session::llm::ToolCallKind::Search |
+| `native_tool_search_core_loop_gateway_encodes_typed_model_calls` | 25 | gateway_session::host_migration_11_tests::group_4::native_tool_search_core_loop_gateway_encodes_typed_model_calls |
 | `native_tool_search_core_loop_gateway_history_reaches_model_as_native_item` | 32 | Host: crate::session::llm::native_tools::NativeHistoryItem, crate::session::processor::llm_messages::session_message_to_llm_message, crate::session::session::Message, crate::session::session::Role::Tool, crate::session::session::Role::User |
 | `agent_model_inheritance_acp_new_and_reopened_sessions_preserve_priority` | 101 | Host: crate::config::update, crate::session::llm::recovery_test_support::RecoveryConfig::new, crate::session::ui_store::current_tenant_scope, crate::test_support::global_async_env_lock |
 | `gateway_first_response_replays_the_same_session_and_rejects_other_directories` | 61 | Host: crate::app::agent::gateway::api::handlers::resumable_stream::STREAM_REQUEST_ID_HEADER, crate::session::llm::recovery_test_support::RecoveryConfig::new, crate::session::ui_store, crate::test_support::global_async_env_lock |
@@ -173,3 +173,40 @@ Host is the concrete StreamHost/MessageHost implementation. current_tenant_scope
 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib gateway::api::handlers::session::stream::stream_tests -- --test-threads=1` (confirm actual fully-qualified prefix with real --list first; expected 42 retained tests). Verify all 36 migrated names disappear from host list, not a zero-test pass. Every retained name is in the table for exact filtering.
 
 Static checks only: module registration, equivalent type sources, diff and assertions. All compilation/behavior checks unrun.
+
+## Recovery pass (supersedes earlier retained-boundary decisions)
+
+Read evidence/final.md and evidence/remaining-host.json: task 11 originally retained 2788 lines, whole-plan gate remained open. This pass removes the unnecessary StreamHost binding from prepare_stream_history, gateway_content_to_title_source, commit_stream_session_trajectory and reserve_stream_agent_session. Existing production callers now reach these concrete domain functions directly. Store operations directly use the SAME session_store::ui_store functions formerly re-exported by host; title and child-agent helpers directly use the SAME session_engine functions. Removed 11 trait methods and matching native implementations; no permission, tenant selection or resource capture moved or bypassed.
+
+persist_stream_messages is a real production writer extracted from persist_stream_chat_turn_for_agent, which still captures the native clock and invokes summary IO. The returned OwnedMutexGuard preserves the original history lock across summary refresh. Both timestamp tests use this writer and real agent_project::instance and session_engine::message persistence. Test clock is explicit 9000; asserted request timing remains 1000/1250 and 1000/9000 respectively. No mock Host, fake storage, path mount or reverse dependency added.
+
+Additional tests migrated (all prior assertions retained):
+- `codex_skills_transport_gateway_preserves_directory_and_untrusted_body_roles`
+- `prepare_stream_history_maps_roles_tool_results_and_last_user_query`
+- `prepare_stream_history_promotes_last_prior_user_unless_resume_history_only`
+- `prepare_stream_history_accepts_structured_attachment_blocks`
+- `stream_trajectory_commit_rejects_llm_without_raw_artifacts`
+- `stream_trajectory_commit_persists_steps_tools_and_raw_without_ui_save`
+- `agent_model_inheritance_preserves_explicit_source_in_processor_options`
+- `acp_model_source_rejects_invalid_and_conflicting_runtime_options`
+- `native_tool_search_core_loop_gateway_encodes_typed_model_calls`
+- `stream_processing_elapsed_persists_and_reloads_explicit_request_bounds`
+- `persist_stream_turn_uses_request_start_for_user_timestamp`
+
+Previous event tests now use public session_port types rather than private imports inside processor_events. ToolCall remains the public processor_events re-export; Search kind is deserialized from its stable serialized value to avoid adding a dependency solely for a test enum.
+
+Current physical source counts:
+- Host stream.rs: 422 lines.
+- Host stream_tests.rs: 1830 lines.
+- Domain test host_migration_11_tests.rs: 11 lines.
+- Domain test group_1.rs: 450 lines.
+- Domain test group_2.rs: 443 lines.
+- Domain test group_3.rs: 140 lines.
+- Domain test group_4.rs: 295 lines.
+- Domain test group_5.rs: 103 lines.
+
+Cumulative host reduction: 1566/3818 (41.0%); current 2252 lines. Still below 70%; do not count this task as meeting the gate. Domain migration filter now expects 47 tests; host stream_tests expects 31. All Cargo/build/behavior checks remain UNRUN per explicit instruction. Static source/diff checks only.
+
+Remaining host responsibilities: real configured processor streams, skill preload/collaboration delivery, tool file/git mutations, approval grants, trusted binding config mutation, workflow applications router integration, title provider failure/retry, replay and cancellation. Three delegated model tests still use native model selection through Host. The mapping table above lists exact remaining dependencies. The native_tool_search history integration also still checks model SDK conversion and requires its owning runtime fixtures. These are explicit continuing candidates; the remaining 70% gap is not resolved by this pass.
+
+Future commands remain the same precise package/lib filters above, now expected 47 domain tests and 31 retained host tests; verify actual list and zero failures when authorized. No compile or behavior pass claimed.

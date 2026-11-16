@@ -423,11 +423,11 @@ fn stream_ui_commit_does_not_claim_another_turns_identical_answer() {
 
 #[test]
 fn shell_session_running_update_retains_gateway_metadata_without_finishing() {
-    let event = session_engine::processor_events::ToolEvent {
+    let event = session_port::ToolEvent {
         call_id: "bash-call".into(),
         name: "bash".into(),
-        kind: session_engine::processor_events::ToolEventKind::Update,
-        status: session_engine::processor_events::ToolCallStatus::Running,
+        kind: session_port::ToolEventKind::Update,
+        status: session_port::ToolCallStatus::Running,
         occurred_ms: 10,
         payload: serde_json::json!({"status":"running", "metadata":{"process_id":"owned", "next_cursor":3, "state":"running"}}),
     };
@@ -438,6 +438,6 @@ fn shell_session_running_update_retains_gateway_metadata_without_finishing() {
     let session_engine::processor_events::StreamEvent::Tool(event) = mapped else { panic!("tool event") };
     assert_eq!(event.payload["metadata"]["process_id"], "owned");
     assert_eq!(event.payload["metadata"]["next_cursor"], 3);
-    assert_eq!(event.status, session_engine::processor_events::ToolCallStatus::Running);
+    assert_eq!(event.status, session_port::ToolCallStatus::Running);
     assert_eq!(recorder.steps[0].tool_timings[0].finished_ms, None);
 }

@@ -3,7 +3,8 @@ use super::*;
 #[test]
 fn streamed_acp_tool_part_retains_display_title_and_input() {
     use session_engine::message::{Part, ToolState};
-    use session_engine::processor_events::{StreamEvent, ToolCallStatus, ToolEvent, ToolEventKind};
+    use session_engine::processor_events::StreamEvent;
+    use session_port::{ToolCallStatus, ToolEvent, ToolEventKind};
 
     let mut recorder = StreamTrajectoryRecorder::new("assistant".into());
     recorder.record(&StreamEvent::Tool(ToolEvent {
@@ -30,7 +31,8 @@ fn streamed_acp_tool_part_retains_display_title_and_input() {
 
 #[test]
 fn recovery_event_preserves_status_without_assistant_content() {
-    use session_engine::processor_events::{ModelRecovery, RecoveryPhase, StreamEvent};
+    use session_engine::processor_events::StreamEvent;
+    use session_port::{ModelRecovery, RecoveryPhase};
     for (phase, name) in [
         (RecoveryPhase::Waiting, "waiting"),
         (RecoveryPhase::Recovered, "recovered"),

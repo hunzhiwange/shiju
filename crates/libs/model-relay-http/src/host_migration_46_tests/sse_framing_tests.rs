@@ -16,7 +16,7 @@ fn cc_route_033_sse_framing_expected_behavior() {
 async fn cc_route_033_resident_tail_requires_terminal_and_preserves_json() {
     use axum::body::{Body, to_bytes};
     use tokio_util::sync::CancellationToken;
-    for (format, _, valid) in super::stream_observer::tests::samples() {
+    for (format, _, valid) in super::stream_observer_tests::samples() {
         let protocol = match format {
             "openai_chat" => GenerationProtocol::Chat,
             "anthropic" => GenerationProtocol::Messages,
@@ -49,7 +49,7 @@ async fn cc_route_033_loopback_http_tail_and_truncation() {
     use axum::body::{Body, to_bytes};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio_util::sync::CancellationToken;
-    let (_, _, valid) = super::stream_observer::tests::samples().remove(0);
+    let (_, _, valid) = super::stream_observer_tests::samples().remove(0);
     for wire in
         [valid.trim_end_matches('\n').to_owned(), valid.rsplit_once("data:").unwrap().0.to_owned()]
     {

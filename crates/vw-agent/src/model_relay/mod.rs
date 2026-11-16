@@ -1,10 +1,9 @@
 //! Loopback-only model transport boundary. Never enters the session/tool execution loop.
 mod binding;
 mod server;
-pub(crate) mod upstream;
 pub use binding::{RelayBinding, RelayIdentity};
 pub use server::{RelayBackend, RelayRequest, RelayServer};
-pub use upstream::upstream_http_client;
+pub use model_transport::upstream_http_client;
 // Binding unit tests live in model-transport.
 #[cfg(test)]
 mod server_tests;
@@ -60,8 +59,6 @@ mod kiro;
 
 pub(crate) mod stream_observer;
 
-#[cfg(test)]
-mod sse_framing_tests;
 
 pub(crate) mod sse_framing;
 
@@ -78,8 +75,6 @@ pub(crate) mod messages_chat_request;
 
 pub(crate) mod messages_chat_result;
 
-#[cfg(test)]
-mod messages_chat_stream_tests;
 
 pub(crate) mod messages_gemini_request;
 
@@ -97,8 +92,6 @@ pub(crate) mod gemini_shadow;
 
 
 pub(crate) mod hosted_search;
-#[cfg(test)]
-mod hosted_search_tests;
 
 pub(crate) mod search_citations;
 // Search citation tests live in model-protocol.
@@ -131,7 +124,6 @@ mod inline_think;
 pub(crate) mod late_arguments;
 
 
-pub(crate) mod xai_responses;
 // xAI Responses tests live in model-protocol.
 
 pub(crate) mod signature_rectify;
@@ -148,15 +140,12 @@ pub(crate) mod codex_oauth_transport;
 
 pub(crate) mod quota_gate;
 
-pub(crate) mod xai_oauth_transport;
 
 pub(crate) mod gemini_oauth_transport;
 
 pub(crate) mod compaction;
 
 pub(crate) mod compaction_v2;
-#[cfg(test)]
-mod compaction_v2_tests;
 
 pub(crate) mod models;
 

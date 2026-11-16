@@ -1,7 +1,6 @@
-use super::{StreamObserver, validated_body};
-use crate::model_relay::generation::GenerationProtocol;
+use model_protocol::stream_observer::{StreamObserver, validated_body};
+use model_protocol::generation::GenerationProtocol;
 use axum::body::{Body, to_bytes};
-use serde_json::{Value, json};
 use tokio_util::sync::CancellationToken;
 
 
@@ -112,7 +111,8 @@ fn shared_stream_observer_rejects_illegal_end_and_model_changes() {
 
 #[tokio::test]
 async fn shared_stream_observer_native_converters_preserve_client_model_mapping() {
-    use crate::model_relay::{RelayIdentity, gemini_stream, messages_stream, responses_stream};
+    use model_transport::RelayIdentity;
+    use model_protocol::{gemini_stream, messages_stream, responses_stream};
     for (format, _, wire) in samples().into_iter().filter(|(format, _, _)| *format != "openai_chat")
     {
         let response = source(wire.clone()).await;
@@ -196,6 +196,6 @@ async fn shared_stream_observer_native_converters_preserve_client_model_mapping(
     }
 }
 
-#[path = "../../../libs/app-diagnostics-runtime/src/diagnostic_stream_fixtures.rs"]
+#[path = "diagnostic_stream_fixtures.rs"]
 mod diagnostic_stream_fixtures;
 pub(crate) use diagnostic_stream_fixtures::{samples, source};

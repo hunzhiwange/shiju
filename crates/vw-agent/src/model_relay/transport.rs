@@ -10,12 +10,9 @@ impl ProviderRelayBackend {
     }
 }
 
-pub(super) use model_transport::credential::credential;
 
 pub(crate) use model_protocol::endpoint_urls::chat_url;
 
-#[cfg(test)]
-pub(super) use super::messages_thinking_config::configure_disabled as configure_messages_chat;
 
 pub(crate) use model_protocol::endpoint_urls::official_deepseek_messages_url;
 

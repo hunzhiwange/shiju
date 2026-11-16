@@ -113,20 +113,20 @@ mod compat_t61_tests;
 mod compat_t64_tests;
 
 #[cfg(test)]
+mod host_migration_37_tests;
+
+#[cfg(test)]
 mod host_migration_39_tests;
 
 #[cfg(test)]
-mod host_migration_37_tests;
+mod host_migration_36_tests;
 
 #[cfg(test)]
 mod host_migration_38_tests;
 
 pub mod dependencies;
-
 pub mod mcp_auth;
-
 pub mod mcp_oauth_flow;
-
 pub mod mcp_oauth_tokens;
 
 pub mod package_acceptance;

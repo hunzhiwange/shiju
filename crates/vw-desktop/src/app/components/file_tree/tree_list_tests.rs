@@ -206,7 +206,7 @@ pub(super) fn alignment_app() -> App {
             .map(str::to_owned)
             .to_vec();
     let files = app
-        .git_changed_files
+        .git.git_changed_files
         .iter()
         .map(|path| format!("/tree-fixture/{path}"))
         .collect::<Vec<_>>();

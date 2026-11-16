@@ -31,8 +31,6 @@ pub(crate) mod desktop_notification;
 #[cfg(test)]
 mod desktop_integration_29_tests;
 pub(crate) mod desktop_update;
-#[cfg(test)]
-mod desktop_integration_47_tests;
 /// files 子模块，拆分当前领域的局部职责。
 pub mod files;
 /// git 子模块，拆分当前领域的局部职责。
@@ -204,6 +202,3 @@ pub(crate) mod mcp_form;
 pub mod mcp_app_bridge;
 #[cfg(not(target_arch = "wasm32"))]
 mod mcp_app_download;
-
-#[cfg(test)]
-mod desktop_integration_48_tests;

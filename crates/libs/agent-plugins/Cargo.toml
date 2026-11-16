@@ -53,14 +53,11 @@ acp-config = { path = "../acp-config", version = "0.6.0" }
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 
 mcp-client = { path = "../mcp-client", version = "0.6.0" }
-
 rmcp = { version = "0.8.0", features = ["client"] }
-
 tokio-util = "0.7.18"
-
 agent-question = { path = "../agent-question", version = "0.6.0" }
 
-tool-mcp = { path = "../tool-mcp", version = "0.6.0" }
+tool-services = { path = "../tool-services", version = "0.6.0" }
 
 agent-security = { path = "../agent-security", version = "0.6.0" }
 
@@ -68,8 +65,16 @@ agent-multimodal = { path = "../agent-multimodal", version = "0.6.0" }
 
 permission-types = { path = "../permission-types", version = "0.6.0" }
 
+permission-runtime = { path = "../permission-runtime", version = "0.6.0" }
+
+question-types = { path = "../question-types", version = "0.6.0" }
+
+config-agent = { path = "../config-agent", version = "0.6.0" }
+
+walkdir = "2"
+
+tool-mcp = { path = "../tool-mcp", version = "0.6.0" }
+
 acp-types = { path = "../acp-types", version = "0.6.0" }
-
 agent-bus = { path = "../agent-bus", version = "0.6.0" }
-
 tokio = { version = "1", features = ["test-util", "rt-multi-thread"] }

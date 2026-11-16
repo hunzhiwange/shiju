@@ -801,24 +801,24 @@ dependencies = [
 name = "agent-gateway"
 version = "0.6.0"
 dependencies = [
- "gateway-files",
- "gateway-http",
- "gateway-endpoint",
- "vw-api-file",
  "agent-commands",
+ "vw-api-file",
+ "gateway-endpoint",
+ "gateway-http",
+ "gateway-files",
  "gateway-tools",
  "gateway-status",
  "agent-memory",
  "agent-doctor",
- "gateway-global",
- "gateway-integrations",
- "agent-bus",
- "secret-store",
- "config-runtime-paths",
- "config-gateway",
- "rusqlite",
- "vw-api-hermes-memory",
  "gateway-misc",
+ "vw-api-hermes-memory",
+ "rusqlite",
+ "config-gateway",
+ "config-runtime-paths",
+ "secret-store",
+ "agent-bus",
+ "gateway-integrations",
+ "gateway-global",
  "agent-app-services",
  "agent-approval",
  "agent-config",
@@ -4688,6 +4688,8 @@ dependencies = [
  "channel-wecom",
  "channel-whatsapp",
  "channel-whatsapp-web",
+ "chrono",
+ "chrono-tz 0.10.4",
  "clap",
  "config-agent",
  "config-agent-profile",
@@ -4768,7 +4770,6 @@ dependencies = [
  "agent-util",
  "anyhow",
  "async-trait",
- "async-trait",
  "channel-types",
  "chrono-tz 0.10.4",
  "config-channels",
@@ -4788,7 +4789,6 @@ dependencies = [
  "session-port",
  "session-store",
  "sha2 0.11.0",
- "tempfile",
  "tempfile",
  "tokio",
  "tokio-util",
@@ -6933,20 +6933,25 @@ dependencies = [
 name = "desktop-chat-view"
 version = "0.6.0"
 dependencies = [
- "config-agent-profile",
  "config-agent",
- "desktop-settings-skills",
- "desktop-settings-agents",
+ "config-agent-profile",
  "config-ui",
  "desktop-assets",
  "desktop-chat-tools",
+ "desktop-file-tree",
  "desktop-i18n",
  "desktop-session",
+ "desktop-settings-agents",
+ "desktop-settings-skills",
  "desktop-ui-controls",
  "desktop-web-runtime",
+ "directories 6.0.0",
+ "gateway-chat-stream",
  "gateway-interaction",
  "git2",
  "iced",
+ "iced_runtime",
+ "image",
  "once_cell",
  "pulldown-cmark 0.13.4",
  "question-types",
@@ -7444,7 +7449,6 @@ dependencies = [
 name = "desktop-settings-apps"
 version = "0.6.0"
 dependencies = [
- "web-time",
  "config-ui",
  "desktop-apps-ui",
  "desktop-assets",
@@ -7480,6 +7484,7 @@ dependencies = [
  "vw-api-task",
  "vw-api-transport",
  "vw-gateway-client",
+ "web-time",
 ]
 
 [[package]]
@@ -7618,6 +7623,12 @@ dependencies = [
 name = "desktop-settings-network"
 version = "0.6.0"
 dependencies = [
+ "urlencoding",
+ "tempfile",
+ "image",
+ "iced_runtime",
+ "desktop-settings-appearance",
+ "desktop-chat-view",
  "chrono",
  "config-aggregate",
  "config-gateway",
@@ -7625,11 +7636,9 @@ dependencies = [
  "config-tools",
  "config-ui",
  "desktop-assets",
- "desktop-chat-view",
  "desktop-config",
  "desktop-i18n",
  "desktop-settings-agents",
- "desktop-settings-appearance",
  "desktop-ui-controls",
  "gateway-config",
  "gateway-desktop-settings",
@@ -7637,18 +7646,14 @@ dependencies = [
  "gateway-interaction",
  "hex",
  "iced",
- "iced_runtime",
- "image",
  "pinyin",
  "rand 0.10.3",
  "reqwest 0.13.4",
  "serde_json",
  "sha2 0.11.0",
- "tempfile",
  "tokio",
  "tracing",
  "url",
- "urlencoding",
  "vw-api-transport",
  "vw-config-types",
  "vw-gateway-client",
@@ -9364,8 +9369,9 @@ version = "0.6.0"
 dependencies = [
  "rmcp",
  "reqwest 0.12.28",
- "gateway-app-auth",
  "agent-gateway",
+ "gateway-app-auth",
+ "libc",
  "agent-app-services",
  "agent-client-protocol",
  "agent-database",
@@ -9393,7 +9399,6 @@ dependencies = [
  "gateway-app-lifecycle",
  "gateway-types",
  "hex",
- "libc",
  "local-app-auth",
  "mcp-client",
  "model-transport",
@@ -10070,9 +10075,6 @@ dependencies = [
 name = "gateway-dynamic-tools"
 version = "0.6.0"
 dependencies = [
- "session-store",
- "session-engine",
- "agent-gateway",
  "axum",
  "futures-util",
  "gateway-types",
@@ -14289,7 +14291,6 @@ dependencies = [
  "tokio-util",
  "vw-api-transport",
 ]
-
 
 [[package]]
 name = "model-relay-state"

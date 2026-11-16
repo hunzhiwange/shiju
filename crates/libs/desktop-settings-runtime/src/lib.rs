@@ -32,10 +32,10 @@ mod desktop_split_02_tests;
 mod desktop_split_29_tests;
 
 #[cfg(test)]
-mod host_module_20_tests;
+mod host_module_17_tests;
 
 #[cfg(test)]
-mod host_module_17_tests;
+mod host_module_20_tests;
 
 #[cfg(test)]
 mod host_module_39_runtime_tests;

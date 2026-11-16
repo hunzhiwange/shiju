@@ -42,3 +42,6 @@ mod loop_suite_tests;
 
 #[cfg(test)]
 mod host_migration_27_tests;
+
+#[cfg(test)]
+mod host_migration_26_tests;

@@ -58,7 +58,7 @@ pub async fn run(
     model_override: Option<String>,
     temperature: f64,
 ) -> Result<String> {
-    run_with_agent_factory(
+    agent_loop::run::run_with_agent_factory(
         config,
         message,
         provider_override,
@@ -67,17 +67,4 @@ pub async fn run(
         Agent::from_config,
     )
     .await
-}
-
-pub(super) async fn run_with_agent_factory(
-    config: Config,
-    message: Option<String>,
-    provider_override: Option<String>,
-    model_override: Option<String>,
-    temperature: f64,
-    agent_factory: impl FnOnce(&Config) -> Result<Agent>,
-) -> Result<String> {
-    agent_loop::run::run_with_agent_factory(
-        config, message, provider_override, model_override, temperature, agent_factory,
-    ).await
 }

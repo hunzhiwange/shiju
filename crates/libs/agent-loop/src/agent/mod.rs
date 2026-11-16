@@ -51,5 +51,5 @@ impl<H: AgentHost> crate::run::RunAgent for Agent<H> {
     }
 }
 
-#[cfg(feature = "test-support")]
+#[cfg(any(test, feature = "test-support"))]
 pub mod test_support;

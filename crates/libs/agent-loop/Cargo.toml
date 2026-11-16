@@ -11,6 +11,7 @@ doctest = false
 test-support = ["dep:tempfile"]
 
 [dependencies]
+parking_lot = "0.12"
 serde = { version = "1", features = ["derive"] }
 permission-runtime = { path = "../permission-runtime", version = "0.6.0" }
 message-types = { path = "../message-types", version = "0.6.0" }
@@ -65,5 +66,6 @@ config-reliability = { path = "../config-reliability", version = "0.6.0" }
 
 
 [dev-dependencies]
+permission-types = { path = "../permission-types", version = "0.6.0" }
 tempfile = "3"
 tokio = { version = "1", features = ["test-util", "rt"] }

@@ -320,13 +320,13 @@ impl<H: super::AgentHost> Agent<H> {
     pub fn bind_skill_runtime_config(&mut self, config: std::sync::Arc<agent_config::runtime::Config>) {
         self.skill_session.config = Some(config);
     }
-    #[cfg(feature = "test-support")]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn skill_context_window_tokens(&self) -> usize { self.skill_session.context_window_tokens }
-    #[cfg(feature = "test-support")]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn fixture_auto_save(&mut self, enabled: bool) { self.auto_save = enabled; }
-    #[cfg(feature = "test-support")]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn fixture_timezone(&mut self, timezone: chrono_tz::Tz) { self.timezone = timezone; }
-    #[cfg(feature = "test-support")]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn fixture_routing(&mut self, classification: agent_config::schema::QueryClassificationConfig, hints: Vec<String>, routes: std::collections::HashMap<String,String>) {
         self.classification_config = classification;
         self.available_hints = hints;

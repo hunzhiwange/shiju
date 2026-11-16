@@ -225,3 +225,7 @@ impl plugin_mcp::mcp_portable_overlay::OverlayHost for OverlaySource {
         super::legacy_manifest::parse_legacy_manifest(root, path, bytes)
     }
 }
+
+#[cfg(test)]
+#[path = "compat_t15_tests.rs"]
+mod compat_t15_tests;

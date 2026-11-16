@@ -1,18 +1,7 @@
-//! Scoped native application storage.
+//! Scoped native application storage and compatibility service exports.
 pub mod mcp;
-pub mod store;
-
-pub mod auth_accounts;
-pub mod usage_settings;
-
-pub mod prompts_store;
-
+pub use agent_app_services::{
+    auth_accounts, preferences_import, prompts_store, store, usage_settings,
+};
 #[cfg(target_os = "macos")]
-pub mod shared_snapshot;
-#[cfg(target_os = "macos")]
-pub mod shared_snapshot_import;
-
-pub mod preferences_import;
-
-#[cfg(target_os = "macos")]
-pub(crate) mod data_import;
+pub use agent_app_services::{shared_snapshot, shared_snapshot_import};

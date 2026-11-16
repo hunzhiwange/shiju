@@ -1,5 +1,5 @@
-use super::*;
-use crate::global_database::{GlobalDatabase, test_support::PostgresTestDatabase};
+use agent_app_services::auth_accounts::*;
+use agent_database::{GlobalDatabase, test_support::PostgresTestDatabase};
 use vw_api_transport::{TimestampMs, id::TenantScope};
 use vw_api_app_auth::{AuthErrorCode, AuthService};
 use vw_agent_apps::auth::credential_file::{AccountCredential, CredentialFileStore};
@@ -44,7 +44,7 @@ fn auth6_remove_store_postgres() {
 
 #[cfg(target_os = "macos")]
 fn assert_scoped_account_removal(open: impl Fn() -> GlobalDatabase) {
-    use crate::app_providers::AppProviderStore;
+    use crate::AppProviderStore;
 
     let credentials = private_credentials_root();
     let root = credentials.path();
@@ -91,7 +91,7 @@ fn assert_scoped_account_removal(open: impl Fn() -> GlobalDatabase) {
 #[cfg(target_os = "macos")]
 #[test]
 fn auth6_remove_store_rolls_back_on_sqlite_and_file_errors() {
-    use crate::app_providers::AppProviderStore;
+    use crate::AppProviderStore;
     let home = tempfile::tempdir().unwrap();
     let database = GlobalDatabase::for_home(home.path()).unwrap();
     let credentials = private_credentials_root();

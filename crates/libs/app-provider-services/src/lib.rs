@@ -819,3 +819,6 @@ pub trait RecordPublication: Send + Sync {
 }
 
 pub mod account_access;
+
+#[cfg(all(test, target_os = "macos"))]
+mod host_migration_49_tests;

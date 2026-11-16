@@ -31,3 +31,6 @@ mod host_split_5_tests;
 mod test_host;
 #[cfg(test)]
 mod host_split_6_tests;
+
+#[cfg(test)]
+mod host_migration_51_tests;

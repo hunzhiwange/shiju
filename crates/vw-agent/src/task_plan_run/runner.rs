@@ -3,8 +3,6 @@ use async_trait::async_trait;
 use serde_json::{Map, Value, json};
 use std::path::Path;
 pub use task_plan_runner::{SessionRunRequest, SessionRunner};
-#[cfg(test)]
-pub(super) use task_plan_runner::runner::prepare_plan_directory;
 /// 默认实现：走 gateway/session processor。
 #[derive(Debug, Default, Clone)]
 pub struct GatewaySessionRunner {

@@ -11,8 +11,6 @@ mod runner;
 mod schedule;
 mod session_bind;
 
-#[cfg(test)]
-pub(crate) use control::PlanRunControlRegistry;
 pub(crate) use control::global_plan_run_control_registry;
 pub use model::{PlanTaskEntry, PlanTasksDocument, load_tasks_json, parse_tasks_json};
 pub use prompts::{
@@ -52,7 +50,3 @@ pub use goal::{
     GoalTaskFilesState, build_goal_continuation_prompt, goal_turn_session_id,
     inspect_goal_task_files,
 };
-
-#[cfg(test)]
-#[path = "control_tests.rs"]
-mod control_tests;

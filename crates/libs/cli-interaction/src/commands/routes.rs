@@ -273,6 +273,7 @@ pub(super) fn route_settings_target(item_id: &str) -> Result<CommandRoute, Strin
         "delegate" => SettingsTarget::DelegateAgent,
         "full_access" => SettingsTarget::FullAccess,
         "subagents" => SettingsTarget::SubagentMode,
+        "vim" => SettingsTarget::Vim,
         _ => return Err(format!("unknown session setting: {item_id}")),
     };
     Ok(CommandRoute::OpenSettingsTarget(target))

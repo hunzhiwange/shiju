@@ -81,6 +81,19 @@ impl ChatComposer {
         &self.footer_data
     }
 
+    /// Vim is a local editor preference; changing it preserves the draft.
+    pub fn set_vim_enabled(&mut self, enabled: bool) {
+        if self.textarea.is_vim_enabled() != enabled {
+            self.flush_pending_input();
+            self.paste_burst.clear_after_explicit_paste();
+            self.textarea.set_vim_enabled(enabled);
+        }
+    }
+
+    pub fn is_vim_enabled(&self) -> bool {
+        self.textarea.is_vim_enabled()
+    }
+
     pub fn set_placeholder(&mut self, placeholder: impl Into<String>) {
         self.placeholder = placeholder.into();
     }
@@ -404,6 +417,23 @@ impl ChatComposer {
                 V3Action::Cancel
             };
         }
+        if event.code == KeyCode::Esc && self.textarea.is_vim_enabled() {
+            self.flush_pending_input();
+            self.paste_burst.clear_after_explicit_paste();
+            self.textarea.input(event);
+            return V3Action::None;
+        }
+        // Normal-mode commands must never be buffered as pasted text or
+        // interpreted as history/help shortcuts. Enter retains submit policy.
+        if self.textarea.is_vim_normal_mode()
+            && event.code != KeyCode::Enter
+            && !(event.code == KeyCode::Tab && self.footer_data.is_task_running)
+        {
+            self.flush_pending_input();
+            self.paste_burst.clear_after_explicit_paste();
+            self.textarea.input(event);
+            return V3Action::None;
+        }
         if event.code == KeyCode::Esc {
             return if self.footer_data.is_task_running {
                 self.flush_pending_input();
@@ -482,7 +512,11 @@ impl ChatComposer {
                 .modifiers
                 .intersects(KeyModifiers::SHIFT | KeyModifiers::CONTROL | KeyModifiers::ALT)
             {
-                self.textarea.input(event);
+                if self.textarea.is_vim_normal_mode() {
+                    self.textarea.insert_str("\n");
+                } else {
+                    self.textarea.input(event);
+                }
                 self.footer.set_mode(FooterMode::ComposerHasDraft);
                 return V3Action::InsertNewline;
             }

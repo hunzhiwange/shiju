@@ -403,6 +403,15 @@ impl ChatWidget {
         Some((message.text, message.attachments))
     }
 
+    /// Session-local editor preference, independent of Gateway persistence.
+    pub fn set_vim_enabled(&mut self, enabled: bool) {
+        self.bottom_pane.composer_mut().set_vim_enabled(enabled);
+    }
+
+    pub fn is_vim_enabled(&self) -> bool {
+        self.bottom_pane.composer().is_vim_enabled()
+    }
+
     /// 返回当前输入草稿，供宿主拥有的编辑器集成使用。
     /// Returns the current composer draft for host-owned editor integration.
     #[must_use]

@@ -68,6 +68,7 @@ pub(crate) enum CommandRoute {
     ApplyDelegateAgent(Option<String>),
     ApplyFullAccess(bool),
     ApplySubagentMode(bool),
+    ApplyVim(bool),
     QueryMemory { query: Option<String> },
     ConfirmMemoryStore { key: String, content: String },
     ConfirmMemoryDelete { key: String },
@@ -97,6 +98,7 @@ pub(crate) enum SettingsTarget {
     DelegateAgent,
     FullAccess,
     SubagentMode,
+    Vim,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -288,6 +290,11 @@ pub(crate) fn route_selection(surface: &str, item_id: &str) -> Result<CommandRou
             "standard" => Ok(CommandRoute::ApplyFullAccess(false)),
             "full" => Ok(CommandRoute::ApplyFullAccess(true)),
             _ => Err(format!("unknown full-access setting: {item_id}")),
+        },
+        "session_settings_vim" => match item_id {
+            "disabled" => Ok(CommandRoute::ApplyVim(false)),
+            "enabled" => Ok(CommandRoute::ApplyVim(true)),
+            _ => Err(format!("unknown Vim setting: {item_id}")),
         },
         SETTINGS_SUBAGENT_SURFACE => match item_id {
             "disabled" => Ok(CommandRoute::ApplySubagentMode(false)),

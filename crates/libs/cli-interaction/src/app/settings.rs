@@ -43,7 +43,11 @@ impl V3GatewayApp {
             fast: self.state.session_options.fast,
             theme: self.state.theme_name.clone(),
             permission_mode: self.state.session_options.permission_mode,
-            vim_mode: cli_interaction_model::vim::VimMode::Disabled,
+            vim_mode: if self.widget.is_vim_enabled() {
+                cli_interaction_model::vim::VimMode::Normal
+            } else {
+                cli_interaction_model::vim::VimMode::Disabled
+            },
         }
     }
 
@@ -62,6 +66,7 @@ impl V3GatewayApp {
                     SettingKey::AcpBackend => "acp",
                     SettingKey::FullAccess => "full_access",
                     SettingKey::SubagentMode => "subagents",
+                    SettingKey::Vim => "vim",
                     SettingKey::Effort => "effort",
                     SettingKey::Permissions => "permissions",
                     _ => return None,
@@ -93,6 +98,15 @@ impl V3GatewayApp {
             SettingsTarget::DelegateAgent => self.open_delegate_picker(),
             SettingsTarget::FullAccess => self.open_access_picker(),
             SettingsTarget::SubagentMode => self.open_subagent_picker(),
+            SettingsTarget::Vim => {
+                let enabled = self.widget.is_vim_enabled();
+                self.widget.show_selection_overlay(
+                    "session_settings_vim",
+                    "Vim 编辑（仅当前终端）",
+                    vec![setting_item("disabled", "关闭", !enabled),
+                         setting_item("enabled", "开启", enabled)],
+                );
+            }
         }
     }
 
@@ -298,6 +312,7 @@ impl V3GatewayApp {
             return Ok(());
         }
 
+        self.widget.set_vim_enabled(values.vim_mode != cli_interaction_model::vim::VimMode::Disabled);
         self.state.session_options.model.clone_from(&values.model);
         self.state.status.model_name.clone_from(&values.model);
         self.state.session_options.effort = values.effort;

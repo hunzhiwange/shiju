@@ -309,6 +309,10 @@ impl ActiveRunner {
                     app.apply_full_access(enabled);
                     RunnerControl::Continue
                 }
+                CommandRoute::ApplyVim(enabled) => {
+                    app.widget.set_vim_enabled(enabled);
+                    RunnerControl::Continue
+                }
                 CommandRoute::ApplySubagentMode(enabled) => {
                     app.apply_subagent_mode(enabled);
                     RunnerControl::Continue

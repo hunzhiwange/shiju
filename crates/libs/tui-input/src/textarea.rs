@@ -297,7 +297,7 @@ impl TextArea {
     /// insert semantics. Pending operators are cleared in both directions so a
     /// toggle cannot leave the next keypress interpreted as the second half of
     /// an old `d` or `y` command.
-    pub(crate) fn set_vim_enabled(&mut self, enabled: bool) {
+    pub fn set_vim_enabled(&mut self, enabled: bool) {
         self.vim_enabled = enabled;
         self.vim_pending = VimPending::None;
         self.vim_mode = if enabled { VimMode::Normal } else { VimMode::Insert };
@@ -305,7 +305,7 @@ impl TextArea {
 
     /// 是否当前启用了模态 Vim 编辑模式。
     /// Return whether modal Vim editing is currently enabled.
-    pub(crate) fn is_vim_enabled(&self) -> bool {
+    pub fn is_vim_enabled(&self) -> bool {
         self.vim_enabled
     }
 
@@ -315,7 +315,7 @@ impl TextArea {
     /// Composer-level handlers use this to decide whether Up/Down should be
     /// offered to history navigation only after normal-mode movement reaches a
     /// text boundary.
-    pub(crate) fn is_vim_normal_mode(&self) -> bool {
+    pub fn is_vim_normal_mode(&self) -> bool {
         self.vim_enabled && self.vim_mode == VimMode::Normal
     }
 

@@ -65,41 +65,6 @@ pub(crate) mod agent {
     pub use crate::util;
 }
 
-/// 应用配置桥接模块。
-///
-/// 该模块将桌面/UI 配置读写暴露到 `crate::app::config` 路径，实际存储
-/// 与序列化逻辑仍由 session UI 配置模块负责。
-pub(crate) mod config {
-    /// 读取当前应用配置。
-    ///
-    /// # 返回值
-    ///
-    /// 返回序列化为 `serde_json::Value` 的配置快照；读取失败时由底层
-    /// 配置模块决定默认值或错误表示。
-    pub fn load_app_config() -> serde_json::Value {
-        crate::session::ui_config::load_app_config(&vw_api_transport::TenantScope::default())
-    }
-
-    /// 设置单个配置字段。
-    ///
-    /// # 参数
-    ///
-    /// - `key`: 要更新的配置键。
-    /// - `value`: 写入该键的 JSON 值。
-    ///
-    /// # 错误处理
-    ///
-    /// 本函数保持历史 fire-and-forget 语义，不向调用方返回错误；失败
-    /// 行为由底层 UI 配置模块处理。
-    pub fn set_config_field(key: &str, value: serde_json::Value) {
-        crate::session::ui_config::set_config_field(
-            &vw_api_transport::TenantScope::default(),
-            key,
-            value,
-        )
-    }
-}
-
 /// 启动与网关任务池的兼容导出。
 pub(crate) use task_file_store::bootstrap_task as task;
 

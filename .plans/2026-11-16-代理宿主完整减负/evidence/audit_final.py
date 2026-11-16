@@ -71,7 +71,7 @@ dump('after-files.json', dict(method='pathlib read_text splitlines; cfg union; p
                              original=original, host=list(host.values()),
                              new_host=new_host, migration_named_domain_files=domain,
                              domain_inventory_limit='Only host_migration named files; not a complete migration destination map'))
-dump('remaining-host.json', dict(status='blocked', host_lines=total, limit=35000,
+dump('remaining-host.json', dict(status='physical_gate_passed' if total <= 35000 else 'physical_gate_failed', host_lines=total, limit=35000,
                                 excess=max(0, total - 35000), baseline_lines=sum(baseline.values()),
                                 net_physical_reduction=sum(baseline.values()) - total,
                                 owner_totals=dict(sorted(totals.items())), files=remaining,

@@ -10,6 +10,25 @@ static GLOBAL_PATHS_ENV_LOCK: std::sync::OnceLock<std::sync::Mutex<()>> =
     std::sync::OnceLock::new();
 
 #[test]
+fn config_bridge_sets_and_loads_unique_field() {
+    let home = tempfile::tempdir().expect("temporary home");
+    let database = GlobalDatabase::for_home(home.path()).expect("global database");
+    let store = GatewaySettingsStore::new(database).expect("gateway settings store");
+    let key = format!("app_tests_bridge_{}", std::process::id());
+    let tenant = TenantScope::default();
+
+    set_config_field_with_store_result(
+        Ok(store.clone()),
+        &tenant,
+        &key,
+        serde_json::json!({"enabled": true}),
+    );
+    let config = load_app_config_from_store_result(Ok(store), &tenant);
+
+    assert_eq!(config[&key]["enabled"], true);
+}
+
+#[test]
 fn ui_config_round_trips_through_gateway_settings() {
     let home = tempfile::tempdir().expect("temporary home");
     let database = GlobalDatabase::for_home(home.path()).expect("global database");

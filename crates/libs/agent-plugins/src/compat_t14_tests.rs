@@ -1,9 +1,8 @@
 //! 旧版 MCP 原包经实际文件、发现和合并入口加载。
 
-use crate::plugins::PluginDiscoveryOptions;
-use crate::plugins::mcp::{
+use crate::PluginDiscoveryOptions;
+use crate::mcp::{
     load_plugin_mcp_declarations_from_path, load_plugin_mcp_servers_from_path,
-    merge_enabled_plugin_mcp_servers,
 };
 use agent_client_protocol::McpServer;
 use serde_json::{Value, json};
@@ -46,7 +45,7 @@ fn codex_plugin_compat_t14_loads_wrapped_and_inline_servers() {
     let root = plugin(&workspace, "file-pack", Some(json!("./servers.json")));
     fs::write(
         root.join("servers.json"),
-        include_bytes!("../../../testdata/plugin_compat/t14/wrapped.json"),
+        include_bytes!("../../../vw-agent/testdata/plugin_compat/t14/wrapped.json"),
     )
     .unwrap();
     plugin(
@@ -129,7 +128,7 @@ fn codex_plugin_compat_t14_retains_valid_siblings_and_normalized_aliases() {
         ["bad-one", "bad-two"]
     );
     assert_eq!(outcome.servers.len(), 1, "invalid siblings must not erase normalized declarations");
-    let super::mcp_legacy::PluginMcpDeclaration::Legacy { name, config } = &outcome.servers[0]
+    let plugin_mcp::mcp_legacy::PluginMcpDeclaration::Legacy { name, config } = &outcome.servers[0]
     else {
         panic!("named declaration expected")
     };
@@ -355,4 +354,15 @@ fn codex_plugin_compat_t14_reaudits_implicit_default_links() {
             assert_eq!(fs::read(outside).unwrap(), b"private-fixture-payload");
         }
     }
+}
+
+// These synchronous fixtures have no tool context or turn snapshot; use the same
+// real discovery branch as the host selection callback without a context.
+fn merge_enabled_plugin_mcp_servers(
+    servers: &mut Vec<McpServer>,
+    options: &PluginDiscoveryOptions,
+) -> anyhow::Result<()> {
+    crate::mcp::merge_enabled_plugin_mcp_servers(servers, options, &|options| {
+        Ok((crate::discover_plugins(options)?, options.clone()))
+    })
 }

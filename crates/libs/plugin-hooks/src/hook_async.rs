@@ -68,3 +68,7 @@ impl Drop for AsyncHookTurn {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "hook_async_tests.rs"]
+mod tests;

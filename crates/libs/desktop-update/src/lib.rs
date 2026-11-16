@@ -13,3 +13,6 @@ pub mod cli_install;
 pub mod panel;
 
 pub mod notifications;
+
+#[cfg(test)]
+mod desktop_split_03_tests;

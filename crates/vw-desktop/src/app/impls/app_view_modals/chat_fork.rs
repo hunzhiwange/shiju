@@ -12,9 +12,6 @@ pub(crate) fn with_chat_fork_dialog<'a>(app: &App, root: Element<'a, Message>) -
     }, root)
 }
 
-#[cfg(test)]
-#[path = "chat_fork_tests.rs"]
-mod chat_fork_tests;
 
 #[cfg(test)]
 #[path = "chat_fork_ui_refresh_32_tests.rs"]

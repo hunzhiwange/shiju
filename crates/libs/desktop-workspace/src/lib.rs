@@ -34,3 +34,6 @@ pub mod project_edit_view;
 
 #[cfg(test)]
 mod desktop_split_02_tests;
+
+#[cfg(test)]
+mod desktop_split_03_tests;

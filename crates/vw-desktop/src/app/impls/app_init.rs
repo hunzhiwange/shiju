@@ -31,7 +31,3 @@ pub(in crate::app) mod startup;
 pub(super) use desktop_settings_agents::acp::sort_acp_agents;
 pub(super) use desktop_workspace::basic::display_name_for_path;
 pub(super) use desktop_apps_ui::bookmark::load_web_bookmarks;
-
-#[cfg(test)]
-#[path = "app_init_tests.rs"]
-mod app_init_tests;

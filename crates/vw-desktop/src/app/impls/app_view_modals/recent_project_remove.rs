@@ -9,7 +9,3 @@ pub(crate) fn with_recent_project_remove_confirm<'a>(app: &'a App, root: Element
         })
     }, root)
 }
-
-#[cfg(test)]
-#[path = "recent_project_remove_tests.rs"]
-mod recent_project_remove_tests;

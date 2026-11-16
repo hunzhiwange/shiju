@@ -24,64 +24,6 @@ fn startup_cli_service_result_controls_main_interface_gate() {
 }
 
 #[test]
-fn sort_acp_agent_names_keeps_codex_first_and_sorts_remaining_names() {
-    let names = vec!["zeta".to_string(), "codex".to_string(), "alpha".to_string()];
-
-    assert_eq!(sort_acp_agent_names(names), ["codex", "alpha", "zeta"]);
-}
-
-#[test]
-fn apply_external_apps_state_selects_available_priority_and_keeps_finder_available() {
-    let mut app = test_app();
-    app.open_external_app = ExternalOpenApp::VSCode;
-
-    app.apply_external_apps_state(
-        Some(RuntimePlatform::MacOs),
-        vec![
-            ("cursor".to_string(), false),
-            ("zed".to_string(), true),
-            ("unknown".to_string(), true),
-        ],
-    );
-
-    assert_eq!(app.open_external_platform, Some(RuntimePlatform::MacOs));
-    assert_eq!(app.open_external_app, ExternalOpenApp::Zed);
-    assert_eq!(app.open_external_exists.get(&ExternalOpenApp::Finder), Some(&true));
-    assert_eq!(app.open_external_exists.get(&ExternalOpenApp::Cursor), Some(&false));
-}
-
-#[test]
-fn apply_external_apps_state_preserves_current_app_when_still_available() {
-    let mut app = test_app();
-    app.open_external_platform = Some(RuntimePlatform::Linux);
-    app.open_external_app = ExternalOpenApp::Cursor;
-
-    app.apply_external_apps_state(None, vec![("cursor".to_string(), true)]);
-
-    assert_eq!(app.open_external_platform, Some(RuntimePlatform::Linux));
-    assert_eq!(app.open_external_app, ExternalOpenApp::Cursor);
-}
-
-#[test]
-fn apply_external_apps_state_falls_back_when_duplicate_marks_current_unavailable() {
-    let mut app = test_app();
-    app.open_external_app = ExternalOpenApp::Cursor;
-
-    app.apply_external_apps_state(
-        Some(RuntimePlatform::Linux),
-        vec![
-            ("cursor".to_string(), true),
-            ("cursor".to_string(), false),
-            ("trae".to_string(), false),
-        ],
-    );
-
-    assert_eq!(app.open_external_app, ExternalOpenApp::Finder);
-    assert_eq!(app.open_external_exists.get(&ExternalOpenApp::Cursor), Some(&false));
-    assert_eq!(app.open_external_exists.get(&ExternalOpenApp::Finder), Some(&true));
-}
-
-#[test]
 fn apply_project_chat_preferences_preserves_active_session_and_updates_draft() {
     let mut app = test_app();
     app.active_session_id = Some("active".into());

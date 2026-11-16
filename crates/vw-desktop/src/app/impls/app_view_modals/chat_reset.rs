@@ -9,7 +9,3 @@ pub(crate) fn with_chat_reset_dialog<'a>(app: &App, root: Element<'a, Message>) 
         })
     }, root)
 }
-
-#[cfg(test)]
-#[path = "chat_reset_tests.rs"]
-mod chat_reset_tests;

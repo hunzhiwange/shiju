@@ -124,7 +124,7 @@ pub(crate) fn tooltip_content_style() -> iced::widget::container::Style {
 ///     true, // 文件已修改，显示高亮
 /// );
 /// ```
-pub fn icon_button<'a, Message: Clone + 'a>(
+pub fn icon_button<'a, Message: Clone + 'static>(
     icon: Icon,
     tip: &'a str,
     position: TooltipPosition,
@@ -172,7 +172,7 @@ pub fn icon_button<'a, Message: Clone + 'a>(
 /// - **项目屏幕**：返回空工具栏（仅包含间距布局）
 /// - **其他屏幕**：显示完整工具栏
 ///
-pub fn view<'a, Message: Clone + 'a>(
+pub fn view<'a, Message: Clone + 'static>(
     is_project: bool,
     i18n: desktop_i18n::I18n,
     on_save: Option<Message>,

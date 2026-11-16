@@ -1,5 +1,6 @@
 //! Internal code variables helpers.
 use super::*;
+use iced::widget::column;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct WorkflowCodePickerOption {
@@ -169,7 +170,7 @@ pub(super) fn code_error_strategy_options(i18n: desktop_i18n::I18n) -> [Workflow
 }
 
 pub(super) fn code_picker_option(
-    pub(super) value: &str,
+    value: &str,
     options: &[WorkflowCodePickerOption],
 ) -> Option<WorkflowCodePickerOption> {
     options.iter().copied().find(|option| option.value == value)

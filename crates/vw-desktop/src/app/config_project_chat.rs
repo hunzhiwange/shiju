@@ -30,7 +30,7 @@ impl App {
         for (model, auto_model, acp_agent) in read.selections {
             self.apply_project_chat_preferences(model, auto_model, acp_agent);
         }
-        read.task.map(super::desktop::preferences_message)
+        read.task.map(crate::app::config::desktop::preferences_message)
     }
 
     pub(crate) fn project_chat_preferences_loaded(
@@ -65,7 +65,7 @@ impl App {
                 (self.session_state.model.clone(), self.session_state.auto_model, self.session_state.acp_agent.clone()),
                 (model, auto_model, self.session_state.acp_agent.clone()),
             )
-            .map(super::desktop::preferences_message)
+            .map(crate::app::config::desktop::preferences_message)
     }
 
     pub(crate) fn save_automatic_model_preference(&mut self) -> Task<Message> {
@@ -76,7 +76,7 @@ impl App {
                 gateway_client_endpoint(),
                 (self.session_state.model.clone(), self.session_state.auto_model, self.session_state.acp_agent.clone()),
             )
-            .map(super::desktop::preferences_message)
+            .map(crate::app::config::desktop::preferences_message)
     }
 
     pub(crate) fn apply_bootstrap_chat_preferences(&mut self, cfg: &Value) {
@@ -96,7 +96,7 @@ impl App {
     ) -> Task<Message> {
         let persistence = &mut self.desktop_preferences_persistence;
         let next =
-            persistence.project_chat.finished(scope).map(super::desktop::preferences_message);
+            persistence.project_chat.finished(scope).map(crate::app::config::desktop::preferences_message);
         persistence.notify_if_idle();
         match result {
             Ok(()) => next,

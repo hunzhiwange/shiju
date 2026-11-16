@@ -5,7 +5,7 @@ use iced::widget::{Space, button, column, container, row, text};
 use iced::{Element, Font, Length, Theme};
 
 use super::widgets::{icon_svg, menu_container_style, workspace_mode_button_style};
-use desktop_assets::Icon;
+use desktop_assets::assets::Icon;
 use desktop_ui_controls::overlays::BelowOverlay;
 use super::types::WorkspaceMode;
 #[derive(Debug, Clone)]

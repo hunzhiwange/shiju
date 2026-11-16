@@ -66,7 +66,7 @@ pub fn connection_form_panel(
         body = body.push(if draft.saving {
             editor
         } else {
-            editor.on_action(|action| message(FormMessage::Editor(action)))
+            editor.on_action(move |action| message(FormMessage::Editor(action)))
         });
     } else {
         body = body.push(form_field(

@@ -1,4 +1,5 @@
 use crate::state::*;
+use iced::widget::text_editor;
 use config_agent::{builtin_agent_config, builtin_agent_keys};
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum AgentConfigTab {

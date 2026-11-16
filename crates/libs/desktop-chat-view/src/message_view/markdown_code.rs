@@ -37,7 +37,7 @@ pub fn is_package_command(line: &str) -> bool {
         }))
 }
 
-pub fn code_block_view<'a, M: Clone + 'a>(
+pub fn code_block_view<'a, M: Clone + 'static>(
     i18n: I18n,
     copied: bool,
     on_copy: impl Fn() -> M + 'a,

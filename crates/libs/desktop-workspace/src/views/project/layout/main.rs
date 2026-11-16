@@ -26,7 +26,7 @@ pub struct MainLayout {
     pub show_diff: bool,
     pub show_file_manager: bool,
 }
-pub fn main_area<'a, Message: Clone + 'a>(state: MainLayout, chat: Element<'a, Message>, preview: Element<'a, Message>, mut files: impl FnMut() -> Element<'a, Message>, split_drag: Message, file_drag: Message, spacing: f32, content_pad: f32) -> Element<'a, Message> {
+pub fn main_area<'a, Message: Clone + 'static>(state: MainLayout, chat: Element<'a, Message>, preview: Element<'a, Message>, mut files: impl FnMut() -> Element<'a, Message>, split_drag: Message, file_drag: Message, spacing: f32, content_pad: f32) -> Element<'a, Message> {
     let chat_panel = container(chat)
         .width(Length::Fill)
         .height(Length::Fill);

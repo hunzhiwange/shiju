@@ -25,7 +25,7 @@ pub fn overlay<'a, C: Clone + 'a, M: Clone + 'static>(
     rows: &'a [super::catalog::CatalogRow],
     base: Element<'a, M>,
     heading: impl Fn(&'static str, &'static str, u16) -> Element<'a, M>,
-    event: impl Fn(PreferencesMessage<C>) -> M + Copy + 'a,
+    event: impl Fn(PreferencesMessage<C>) -> M + Copy + 'static,
 ) -> Element<'a, M> {
     if !state.open {
         return base;

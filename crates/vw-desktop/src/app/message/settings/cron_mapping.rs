@@ -1,5 +1,5 @@
 //! 壳消息与领域消息的逐项映射。
-use super::messages::SettingsMessage as Host;
+use crate::app::message::settings::messages::SettingsMessage as Host;
 use desktop_settings_cron::update::messages::{SettingsMessage as Local, Message};
 pub(in crate::app::message::settings) fn event(event: Host) -> Local { match event {
 Host::HeartbeatEnabledToggled(v0) => Local::HeartbeatEnabledToggled(v0),
@@ -20,7 +20,7 @@ Host::CronPickerConfirm => Local::CronPickerConfirm,
 Host::CronPickerCancel => Local::CronPickerCancel,
 Host::CronScheduleDraftChanged { editing, draft } => Local::CronScheduleDraftChanged { editing, draft },
 Host::CronSchedulePreview { editing } => Local::CronSchedulePreview { editing },
-Host::CronSchedulePreviewLoaded { editing, revision, result, gateway_cron } => Local::CronSchedulePreviewLoaded { editing, revision, result, gateway_cron },
+Host::CronSchedulePreviewLoaded { editing, revision, result } => Local::CronSchedulePreviewLoaded { editing, revision, result },
 Host::CronEnabledToggled(v0) => Local::CronEnabledToggled(v0),
 Host::CronMaxRunHistoryChanged(v0) => Local::CronMaxRunHistoryChanged(v0),
 Host::CronTabSelected(v0) => Local::CronTabSelected(v0),
@@ -133,7 +133,7 @@ Local::CronPickerConfirm => Host::CronPickerConfirm,
 Local::CronPickerCancel => Host::CronPickerCancel,
 Local::CronScheduleDraftChanged { editing, draft } => Host::CronScheduleDraftChanged { editing, draft },
 Local::CronSchedulePreview { editing } => Host::CronSchedulePreview { editing },
-Local::CronSchedulePreviewLoaded { editing, revision, result, gateway_cron } => Host::CronSchedulePreviewLoaded { editing, revision, result, gateway_cron },
+Local::CronSchedulePreviewLoaded { editing, revision, result } => Host::CronSchedulePreviewLoaded { editing, revision, result },
 Local::CronEnabledToggled(v0) => Host::CronEnabledToggled(v0),
 Local::CronMaxRunHistoryChanged(v0) => Host::CronMaxRunHistoryChanged(v0),
 Local::CronTabSelected(v0) => Host::CronTabSelected(v0),

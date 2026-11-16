@@ -3,6 +3,7 @@
 //! 各提供商夹具只启用自身条件字段，未知提供商则保留通用接口配置入口。
 
 use super::*;
+use iced::widget::column;
 use crate::messages::*;
 use crate::Message;
 use iced::Element;

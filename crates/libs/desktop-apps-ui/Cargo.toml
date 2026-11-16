@@ -6,6 +6,11 @@ license = "MIT"
 [lib]
 doctest = false
 [dependencies]
+gateway-aggregation-codex = { path = "../gateway-aggregation-codex", version = "0.6.0" }
+serde_yaml = "0.9"
+gateway-app-provider = { path = "../gateway-app-provider", version = "0.6.0" }
+gateway-http = { path = "../gateway-http", version = "0.6.0" }
+vw-api-app-provider-terminal = { path = "../api-app-provider-terminal", version = "0.6.0" }
 serde = { version = "1", features = ["derive"] }
 desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 desktop-provider-apps = { path = "../desktop-provider-apps", version = "0.6.0" }

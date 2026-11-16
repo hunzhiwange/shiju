@@ -107,7 +107,7 @@ pub fn modal<'a>(s: &'a crate::provider_state::ProviderSettingsState, style: Vie
                 style,
                 provider_id_label,
                 connection_text(locale, "作为配置中的稳定标识，编辑模式下保持只读。"),
-                || {
+                move || {
                     container(settings_value_badge(s.custom.provider_id.as_str()))
                         .width(Length::Fill)
                 },
@@ -177,7 +177,7 @@ pub fn modal<'a>(s: &'a crate::provider_state::ProviderSettingsState, style: Vie
                     style.locale,
                     "登录识矩账户后自动配置模型，无需填写模型密钥。",
                 ),
-                || {
+                move || {
                     text(connection_text(style.locale, "密钥由账户管理，不显示明文"))
                         .style(settings_muted_text_style)
                 },

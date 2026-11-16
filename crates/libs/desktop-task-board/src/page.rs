@@ -14,7 +14,7 @@ pub struct PageSlots<'a, M> { pub header: Element<'a, M>, pub board: Option<Elem
 ///
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
-pub fn view<'a, M: Clone + 'a>(app: PageView, slots: impl Fn(Option<Length>) -> Element<'a, M> + 'a) -> Element<'a, M> {
+pub fn view<'a, M: Clone + 'static>(app: PageView, slots: impl Fn(Option<Length>) -> Element<'a, M> + 'a) -> Element<'a, M> {
     if app.task_board_create_modal_open {
         responsive(move |size| {
             let width = if size.width < 800.0 {
@@ -30,7 +30,7 @@ pub fn view<'a, M: Clone + 'a>(app: PageView, slots: impl Fn(Option<Length>) -> 
     }
 }
 
-pub fn build_view<'a, M: Clone + 'a>(app: PageView, create_width: Option<Length>, slots: PageSlots<'a, M>) -> Element<'a, M> {
+pub fn build_view<'a, M: Clone + 'static>(app: PageView, create_width: Option<Length>, slots: PageSlots<'a, M>) -> Element<'a, M> {
     let header = slots.header;
     let content = if app.task_board_worktree_pixel_office {
         column![header].spacing(0).width(Length::Fill).height(Length::Fill)
@@ -139,7 +139,7 @@ pub struct PageBuilders<'a, M> {
     pub close_logs: M,
     pub close_settings: M,
 }
-pub fn assemble<'a, M: Clone + 'a>(input: PageView, builders: PageBuilders<'a, M>) -> Element<'a, M> {
+pub fn assemble<'a, M: Clone + 'static>(input: PageView, builders: PageBuilders<'a, M>) -> Element<'a, M> {
     view(input, move |width| build_view(input, width, PageSlots {
         header: (builders.header)(),
         board: (!input.task_board_worktree_pixel_office).then(|| (builders.board)()),

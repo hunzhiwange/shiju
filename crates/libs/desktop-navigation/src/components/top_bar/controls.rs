@@ -4,7 +4,7 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use super::widgets::{icon_button, icon_toggle_button};
-use desktop_assets::Icon;
+use desktop_assets::assets::Icon;
 use super::types::WorkspaceMode;
 use super::Message;
 use crate::ui_types::Screen;

@@ -15,14 +15,14 @@ fn event(value: Event) -> Message {
     message(ParentEvent::Details(value))
 }
 
-pub(super) fn update(state: &mut super::State, connection: &Connection, notice: &mut Option<Notice>, event: Event) -> Task<Message> {
+pub(super) fn update(state: &mut super::State, connection: &Connection, notice: &mut Option<Notice>, value: Event) -> Task<Message> {
     let Some(scope) = reader::current_scope(state, connection) else {
         return Task::none();
     };
     let Some(reader) = &mut state.reader else {
         return Task::none();
     };
-    match event {
+    match value {
         Event::Process => reader.details.process_open = !reader.details.process_open,
         Event::Toggle(m, b) => {
             if !reader.details.expanded.remove(&(m, b)) {

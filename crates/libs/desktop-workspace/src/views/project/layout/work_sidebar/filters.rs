@@ -1,3 +1,4 @@
+use iced::widget::column;
 use super::*;
 
 pub(super) fn filter_active(app: &ViewInput<'_>) -> bool {

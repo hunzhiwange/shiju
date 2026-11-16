@@ -21,6 +21,7 @@ pub(in crate::app::components) fn event(event: Event) -> Message {
         Event::OpenSkills => Message::Settings(SettingsMessage::AgentConfigTab(
             AgentConfigTabMessage::Selected(AgentConfigTab::Skills),
         )),
+        Event::Selection(session, index, text_index, text) => desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage::selection(session, index, text_index, text),
         Event::None => Message::None,
         Event::RefreshMcp => Message::Settings(SettingsMessage::Mcp(McpMessage::InspectRefresh)),
         Event::OpenMcp => Message::Settings(SettingsMessage::AgentConfigTab(
@@ -54,7 +55,7 @@ pub(in crate::app::components) fn event(event: Event) -> Message {
 }
 
 pub(in crate::app::components) fn icon(agent: &str, size: f32) -> iced::Element<'static, Event> {
-    desktop_ui_controls::icons::acp_agent_icon(agent, size).map(|_| Event::None)
+    desktop_ui_controls::icons::acp_agent_icon::<Message>(agent, size).map(|_| Event::None)
 }
 
 pub(in crate::app::components) fn defaults_input<'a>(

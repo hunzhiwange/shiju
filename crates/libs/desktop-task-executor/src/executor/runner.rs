@@ -1218,7 +1218,7 @@ fn resolve_gateway_git_context(endpoint: fn() -> vw_gateway_client::GatewayEndpo
         return Ok(GatewayGitContext { project_id: project.id });
     }
 
-    let project_scope = vw_api_transport::ProjectScopeDto::new(endpoint().tenant_scope().clone(), project.id.clone()).map_err(|error| error.to_string())?;
+    let project_scope = vw_api_transport::ProjectScope::new(endpoint().tenant_scope().clone(), project.id.clone()).map_err(|error| error.to_string())?;
     let worktree_id = super::block_on_gateway(gateway_project::GatewayProjectClient::new(client.transport().clone()).project_worktrees(&project_scope))?
         .items
         .into_iter()

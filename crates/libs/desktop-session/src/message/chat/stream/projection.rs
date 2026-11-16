@@ -13,14 +13,14 @@ pub fn apply_summary<'a>(sessions: impl Iterator<Item = &'a mut Info>, info: &In
 pub fn apply_diff_summary<'a>(
     sessions: impl Iterator<Item = &'a mut Info>,
     session_id: &str,
-    summary: &str,
+    summary: &session_info::Summary,
     request_id: u64,
     active_request_id: Option<u64>,
 ) {
     if active_request_id.is_none_or(|id| id == request_id) {
         for session in sessions {
             if session.id == session_id {
-                session.summary = Some(summary.to_string());
+                session.summary = Some(summary.clone());
             }
         }
     }

@@ -4,6 +4,7 @@ use std::sync::{LazyLock, RwLock};
 use std::sync::{Mutex, MutexGuard};
 
 use anyhow::{Result, anyhow, bail};
+#[path = "registry/definitions.rs"]
 mod definitions;
 pub use definitions::{
     OwnedStatusDefinition, OwnedStatusTransition, OwnedTaskWorkflow, StatusOutcome, TaskWorkflow,

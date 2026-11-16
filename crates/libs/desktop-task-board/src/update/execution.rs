@@ -261,7 +261,7 @@ pub fn update(
                         }
                         return error_toast(error);
                     }
-                    return command(
+                    return self::command(
                         path,
                         task,
                         (*app.task_board_settings).workflow_id.clone(),

@@ -245,8 +245,7 @@ pub fn prepare(
         let valid = identity == current
             && state.identity.as_ref() == Some(current)
             && state.delete_generation == Some(*generation)
-            && app
-                .archived_chats
+            && state
                 .project_delete
                 .as_ref()
                 .and_then(|b| b.targets.get(b.next))
@@ -261,7 +260,7 @@ pub fn prepare(
         }
     }
     let was_running = state.delete_generation.is_some();
-    apply(&mut state, &message, current);
+    apply(state, &message, current);
     if matches!(message, ArchivedChatsMessage::ProjectDeleteRetry) {
         return ProjectDeletePlan::default();
     }

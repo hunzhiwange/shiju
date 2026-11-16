@@ -89,7 +89,7 @@ fn apply(app: &mut App, effect: Effect) -> Task<Message> {
         Effect::Discard(action) => {
             desktop_git_ui::message_git::diff::discard(
                 app.navigation_tabs.project_path.as_deref(),
-                app.terminal.shell,
+                match app.terminal.shell { desktop_terminal::Shell::Bash => desktop_git::Shell::Bash, desktop_terminal::Shell::Zsh => desktop_git::Shell::Zsh },
                 action,
             );
             Task::none()

@@ -7,7 +7,7 @@ pub enum Event { RecentRemoveConfirmed(String), RecentRemoveCanceled }
 use desktop_ui_controls::toast::confirm_dialog;
 use iced::Element;
 
-pub fn with_recent_project_remove_confirm<'a, Message: Clone + 'a>(
+pub fn with_recent_project_remove_confirm<'a, Message: Clone + 'static>(
     path: Option<&String>, recent_projects: &[String], recent_projects_edits: &[String], recent_projects_meta: &[crate::project_message::edit_meta::RecentProjectMeta], locale: config_ui::DesktopLocale,
     emit: impl Fn(Event) -> Message + Copy + 'a,
     root_content: Element<'a, Message>,

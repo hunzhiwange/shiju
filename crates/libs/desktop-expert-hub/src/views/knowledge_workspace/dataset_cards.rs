@@ -1,4 +1,5 @@
 use super::*;
+use iced::widget::column;
 
 pub(super) fn dataset_item<'a>(app: ViewInput<'a>, dataset: &'a KnowledgeDatasetDto) -> Element<'a, Message> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);

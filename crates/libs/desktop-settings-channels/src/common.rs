@@ -602,7 +602,7 @@ pub fn panel<'a>(
     enabled: bool,
     body: Element<'a, Message>,
 ) -> Element<'a, Message> { panel_mapped(app, id, title, description, enabled, body, std::convert::identity) }
-pub fn panel_mapped<'a, M: Clone + 'a>(
+pub fn panel_mapped<'a, M: Clone + 'static>(
     app: ViewState<'a>,
     id: &'static str,
     title: &'static str,
@@ -616,7 +616,7 @@ pub fn panel_mapped<'a, M: Clone + 'a>(
     if !enabled {
         help = Cow::Owned(format!("{help}\n\n{}", tr(locale, "启用后显示该通道的详细配置表单。")));
     }
-    let heading = settings_group_heading_with_help(I18n::new(locale), app.app_theme, title, help);
+    let heading = settings_group_heading_with_help(I18n::new(locale), app.app_theme, title, help).map(map);
     let header = row![
         container(heading).width(Length::Fill),
         checkbox(enabled)

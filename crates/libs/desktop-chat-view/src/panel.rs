@@ -14,7 +14,7 @@ pub enum Message { ScrollToBottom, LocateChatMessageIndex(usize) }
 const MAX_USER_QUESTION_MARKERS: usize = 40;
 pub const CONVERSATION_READING_COLUMN_MAX_WIDTH: f32 = 880.0;
 
-pub fn chat_message_column<'a, Message: 'a>() -> iced::widget::Column<'a, Message> {
+pub fn chat_message_column<'a, Message: Clone + 'static>() -> iced::widget::Column<'a, Message> {
     column![]
         .spacing(CHAT_MESSAGE_GAP)
         .width(Length::Fill)
@@ -22,7 +22,7 @@ pub fn chat_message_column<'a, Message: 'a>() -> iced::widget::Column<'a, Messag
 }
 
 // Spacers must not participate in the message column's inter-message spacing.
-pub fn chat_virtual_content<'a, Message: 'a>(
+pub fn chat_virtual_content<'a, Message: Clone + 'static>(
     messages: iced::widget::Column<'a, Message>,
     top: f32,
     bottom: f32,
@@ -406,7 +406,7 @@ pub fn user_question_nav_overlay<'a>(
         .align_y(iced::alignment::Vertical::Center)
         .into()
 }
-pub fn empty_fullscreen_controls<'a, Message: Clone + 'a>(i18n: desktop_i18n::I18n, fullscreen: bool, half_fullscreen: bool, show_half: bool, toggle_full: Message, toggle_half: Message) -> Element<'a, Message> {
+pub fn empty_fullscreen_controls<'a, Message: Clone + 'static>(i18n: desktop_i18n::I18n, fullscreen: bool, half_fullscreen: bool, show_half: bool, toggle_full: Message, toggle_half: Message) -> Element<'a, Message> {
     let fullscreen_icon =
         if fullscreen { Icon::FullscreenExit } else { Icon::Fullscreen };
     let fullscreen_label = if fullscreen {
@@ -443,18 +443,18 @@ pub fn empty_fullscreen_controls<'a, Message: Clone + 'a>(i18n: desktop_i18n::I1
 
 
 /// 固定页头与状态栏，正文由宿主选择会话或轨迹内容。
-pub fn started_view<'a, Message: 'a>(header: Element<'a, Message>, body: Element<'a, Message>, status: Element<'a, Message>) -> iced::widget::Column<'a, Message> {
+pub fn started_view<'a, Message: Clone + 'static>(header: Element<'a, Message>, body: Element<'a, Message>, status: Element<'a, Message>) -> iced::widget::Column<'a, Message> {
     column![header, body, status].spacing(6).width(Length::Fill).height(Length::Fill)
 }
 /// 空会话和准备中的会话共享阅读列与全屏控件布局。
-pub fn placeholder_view<'a, Message: 'a>(content: Element<'a, Message>, controls: Element<'a, Message>, status: Element<'a, Message>) -> Element<'a, Message> {
+pub fn placeholder_view<'a, Message: Clone + 'static>(content: Element<'a, Message>, controls: Element<'a, Message>, status: Element<'a, Message>) -> Element<'a, Message> {
     iced::widget::column![
         iced::widget::stack![
             conversation_reading_column(content, Padding { top: 0.0, right: 18.0, bottom: 0.0, left: 18.0 }).height(Length::Fill), controls
         ].width(Length::Fill).height(Length::Fill), status
     ].width(Length::Fill).height(Length::Fill).into()
 }
-pub fn todo_overlay<'a, Message: 'a>(panel: Element<'a, Message>) -> Element<'a, Message> {
+pub fn todo_overlay<'a, Message: Clone + 'static>(panel: Element<'a, Message>) -> Element<'a, Message> {
     container(iced::widget::opaque(panel))
         .padding(Padding { top: 14.0, right: 22.0, bottom: 0.0, left: 0.0 })
         .width(Length::Fill).height(Length::Fill)
@@ -477,7 +477,7 @@ pub struct ConversationInput<'a> {
     pub reasoning_summary: bool,
 }
 
-pub fn conversation_window<'a, M: Clone + 'a>(
+pub fn conversation_window<'a, M: Clone + 'static>(
     input: ConversationInput<'a>,
     mut render: impl FnMut(
         usize,
@@ -503,7 +503,7 @@ pub fn conversation_window<'a, M: Clone + 'a>(
         let target = input.timeline.and_then(|timeline| timeline.target_at(i));
         let revision = target.as_ref().map(|target| {
             crate::render_cache::RevisionRenderKey::new(
-                target.key,
+                target.key.clone(),
                 target.revision,
                 input.width,
                 input.dark,
@@ -559,7 +559,7 @@ pub fn conversation_body<'a, M: 'a>(
 }
 
 /// A single context overlay owns closing and anchoring for the conversation.
-pub fn context_menu_overlay<'a, M: Clone + 'a>(
+pub fn context_menu_overlay<'a, M: Clone + 'static>(
     content: impl Into<Element<'a, M>>,
     menu: Element<'a, M>,
     open: bool,
@@ -606,7 +606,7 @@ pub fn panel_phase(
         PanelPhase::Empty
     }
 }
-pub fn status_reading_column<'a, M: 'a>(
+pub fn status_reading_column<'a, M: Clone + 'static>(
     recovery: Element<'a, M>,
     status: Element<'a, M>,
 ) -> Element<'a, M> {

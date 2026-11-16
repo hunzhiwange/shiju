@@ -191,7 +191,7 @@ pub(super) fn reply_button(
         .into()
 }
 
-pub(super) fn reply_input(i18n: desktop_i18n::I18n, value: &str) -> Element<'a, Message> {
+pub(super) fn reply_input<'a>(i18n: desktop_i18n::I18n, value: &'a str) -> Element<'a, Message> {
     row![
         text_input(i18n.__("继续说点什么..."), value)
             .on_input(|next| Message::TaskPetReplyInputChanged(next))

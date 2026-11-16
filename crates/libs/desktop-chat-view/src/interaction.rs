@@ -27,9 +27,9 @@ pub struct State {
     /// 轨迹账本搜索文本。
     pub trajectory_search_text: String,
     /// 轨迹详情选择与标签状态。
-    pub trajectory_details: crate::trajectory::TrajectoryDetailsState,
+    pub trajectory_details: crate::trajectory::model::TrajectoryDetailsState,
     /// Duration、Turns 与 Calls 的瞬时轨迹控制状态。
-    pub trajectory_controls: crate::trajectory::TrajectoryControlsState,
+    pub trajectory_controls: crate::trajectory::model::TrajectoryControlsState,
     /// 正在补载的轨迹原始步骤载荷。
     pub trajectory_raw_loading:
         HashSet<desktop_session::message::chat::trajectory::SessionStepRawKey>,
@@ -65,8 +65,8 @@ impl State {
             chat_stream_think_count: 0,
             chat_stream_think_open_idx: None,
             trajectory_search_text: String::new(),
-            trajectory_details: crate::trajectory::TrajectoryDetailsState::default(),
-            trajectory_controls: crate::trajectory::TrajectoryControlsState::default(),
+            trajectory_details: crate::trajectory::model::TrajectoryDetailsState::default(),
+            trajectory_controls: crate::trajectory::model::TrajectoryControlsState::default(),
             trajectory_raw_loading: std::collections::HashSet::new(),
             trajectory_raw_attempts: std::collections::HashMap::new(),
             trajectory_raw_errors: std::collections::HashMap::new(),

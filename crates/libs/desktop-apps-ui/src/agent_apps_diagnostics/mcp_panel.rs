@@ -22,7 +22,7 @@ use iced::{
     widget::{button, column, row, text},
 };
 
-pub fn view<'a, Choice: Clone + PartialEq + std::fmt::Display + 'static, M: Clone + 'a>(
+pub fn view<'a, Choice: Clone + PartialEq + std::fmt::Display + 'static, M: Clone + 'static>(
     state: Panel<'a, Choice>,
     message: impl Fn(Event<Choice>) -> M + Copy + 'a,
     results: Element<'a, M>,

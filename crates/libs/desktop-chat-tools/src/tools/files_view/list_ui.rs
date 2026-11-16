@@ -21,7 +21,7 @@ use super::super::types::ChangeFile;
 
 const EDIT_TOGGLE_SLOT_WIDTH: f32 = 18.0;
 
-pub(super) fn build_file_list_column<'a, Host: Clone + 'a>(
+pub(super) fn build_file_list_column<'a, Host: Clone + 'static>(
     app: &FilesInput<'a>,
     render_state: &super::FileListState,
     view_ctx: &super::FilesViewContext<'a>,
@@ -194,7 +194,7 @@ pub(super) fn edit_file_expand_key(msg_idx: usize, tool_idx: usize, path: &str) 
     format!("{msg_idx}:{tool_idx}:{path}")
 }
 
-pub(super) fn edit_file_change_block<'a, Host: Clone + 'a>(
+pub(super) fn edit_file_change_block<'a, Host: Clone + 'static>(
     app: &FilesInput<'a>,
     msg_idx: usize,
     tool_idx: usize,
@@ -259,11 +259,11 @@ pub(super) fn edit_file_change_block<'a, Host: Clone + 'a>(
         .into()
 }
 
-pub(super) fn edit_file_name_link<'a, Host: Clone + 'a>(abs: &str, file_name: String) -> Element<'a, Message<Host>> {
+pub(super) fn edit_file_name_link<'a, Host: Clone + 'static>(abs: &str, file_name: String) -> Element<'a, Message<Host>> {
     file_name_link(&file_name, abs)
 }
 
-pub(super) fn edit_verb_text<'a, Host: Clone + 'a>(verb: &'static str) -> Element<'a, Message<Host>> {
+pub(super) fn edit_verb_text<'a, Host: Clone + 'static>(verb: &'static str) -> Element<'a, Message<Host>> {
     text(verb)
         .size(14)
         .style(move |theme: &Theme| {
@@ -282,7 +282,7 @@ pub(super) fn edit_verb_text<'a, Host: Clone + 'a>(verb: &'static str) -> Elemen
         .into()
 }
 
-pub(super) fn external_diff_button<'a, Host: Clone + 'a>(
+pub(super) fn external_diff_button<'a, Host: Clone + 'static>(
     i18n: desktop_i18n::I18n,
     on_press: Message<Host>,
 ) -> Element<'a, Message<Host>> {
@@ -293,7 +293,7 @@ pub(super) fn external_diff_button<'a, Host: Clone + 'a>(
         .into()
 }
 
-pub(super) fn view_changes_toggle_button<'a, Host: Clone + 'a>(
+pub(super) fn view_changes_toggle_button<'a, Host: Clone + 'static>(
     expanded: bool,
     on_press: Message<Host>,
 ) -> Element<'a, Message<Host>> {
@@ -311,7 +311,7 @@ pub(super) fn view_changes_toggle_button<'a, Host: Clone + 'a>(
     .into()
 }
 
-pub(super) fn view_changes_pill<'a, Host: Clone + 'a>(i18n: desktop_i18n::I18n) -> Element<'a, Message<Host>> {
+pub(super) fn view_changes_pill<'a, Host: Clone + 'static>(i18n: desktop_i18n::I18n) -> Element<'a, Message<Host>> {
     text(i18n.__("查看变更")).size(14).into()
 }
 
@@ -349,7 +349,7 @@ pub(super) fn tool_file_hover_key(msg_idx: usize, tool_idx: usize, abs: &str) ->
     format!("{msg_idx}:{tool_idx}:{abs}")
 }
 
-pub(super) fn tool_file_left<'a, Host: Clone + 'a>(
+pub(super) fn tool_file_left<'a, Host: Clone + 'static>(
     verb: &'static str,
     file_name: Element<'a, Message<Host>>,
     light: bool,
@@ -414,7 +414,7 @@ pub(super) fn edit_result_label(tool_name: &str, is_running: bool, is_error: boo
     }
 }
 
-pub(super) fn edit_change_counts<'a, Host: Clone + 'a>(adds: usize, dels: usize) -> Element<'a, Message<Host>> {
+pub(super) fn edit_change_counts<'a, Host: Clone + 'static>(adds: usize, dels: usize) -> Element<'a, Message<Host>> {
     row![
         text(format!("+{}", adds)).size(14).font(bold_font()).style(|theme: &Theme| {
             iced::widget::text::Style { color: Some(theme.extended_palette().success.base.color) }

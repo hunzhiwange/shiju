@@ -1,6 +1,7 @@
+use desktop_ui_controls::system_settings_common::tabs::settings_compact_tab_button;
 use crate::help::{settings_hover_help_label};
 use desktop_ui_controls::system_settings_common::{
-    SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_compact_tab_button,
+    SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
     settings_divider, settings_error_banner, settings_group_card,
     settings_muted_text_style, settings_responsive_row, settings_section_content,
     settings_text_input,
@@ -77,10 +78,10 @@ pub fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSettingsTa
 }
 
 pub fn global_settings_content(app: ViewState<'_>) -> Element<'_, Message> {
-    let s = &app.channels_settings;
+    let s = app.channels_settings;
 
     let content = column![
-        settings_responsive_row(tr(app.desktop_locale, "CLI 通道"), "", || {
+        settings_responsive_row(tr(app.desktop_locale, "CLI 通道"), "", move || {
             checkbox(s.cli)
                 .label(tr(app.desktop_locale, "启用 CLI 通道"))
                 .text_size(SETTINGS_CONTROL_TEXT_SIZE)
@@ -90,7 +91,7 @@ pub fn global_settings_content(app: ViewState<'_>) -> Element<'_, Message> {
                 .style(settings_checkbox_style)
         }),
         settings_divider(),
-        settings_responsive_row(tr(app.desktop_locale, "项目目录"), "", || {
+        settings_responsive_row(tr(app.desktop_locale, "项目目录"), "", move || {
             settings_text_input(
                 tr(app.desktop_locale, "留空时按 workspace 推断"),
                 &s.project_dir_input,
@@ -334,7 +335,7 @@ pub fn channel_tabs(
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn view<'a, M: Clone + 'a>(app: ViewState<'a>, selected_panel: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
+pub fn view<'a, M: Clone + 'static>(app: ViewState<'a>, selected_panel: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
     let locale = app.desktop_locale;
     let i18n = I18n::new(locale);
     let enabled = enabled_channels(app);
@@ -365,17 +366,17 @@ pub fn view<'a, M: Clone + 'a>(app: ViewState<'a>, selected_panel: Element<'a, M
             description,
         )
         .wrap();
-        settings_group_card(container(heading).padding([14, 0]))
+        Element::from(settings_group_card(container(heading).padding([14, 0]))).map(map)
     };
     let mut content = column![
-        settings_hover_help_label(
+        Element::from(settings_hover_help_label(
             i18n,
             app.app_theme,
             page_title,
             text(page_title).size(18),
             tr(locale, "集中配置 CLI 与外部消息通道的接入参数。")
         )
-        .wrap(),
+        .wrap()).map(map),
         section(
             tr(locale, "已启用通道"),
             tr(locale, "快速查看当前已打开的入口，便于核对多通道部署状态。")

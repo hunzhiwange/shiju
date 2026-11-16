@@ -96,7 +96,7 @@ fn context(app: &Fixture) -> crate::BrowserContext<'_> {
     crate::BrowserContext {
         help,
         desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        app_theme: app.app_theme,
         project_path: &app.project_path,
         recent_projects: &app.recent_projects,
         skills_settings: crate::BrowserState {
@@ -120,7 +120,7 @@ fn config_context(app: &Fixture) -> crate::page::ConfigContext<'_> {
     crate::page::ConfigContext {
         help,
         desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        app_theme: app.app_theme,
         directory_provider: s.directory_provider,
         auto_load_project_skills: s.auto_load_project_skills,
         prompt_injection_mode: s.prompt_injection_mode,
@@ -178,7 +178,7 @@ fn with_plugin_install<'a>(app: &'a Fixture, base: Element<'a, Message>) -> Elem
     match &app.skills_settings.plugin_install {
         Some(form) => crate::plugin_install_modal::view(
             app.desktop_locale,
-            &app.app_theme,
+            app.app_theme,
             base,
             form,
             Message::Plugin,
@@ -192,7 +192,7 @@ mod plugins {
         let s = &app.skills_settings;
         crate::plugins::view(crate::plugins::ViewState {
             desktop_locale: app.desktop_locale,
-            app_theme: &app.app_theme,
+            app_theme: app.app_theme,
             query: &s.query,
             plugin_catalog: &s.plugin_catalog,
             selected_plugin_id: &s.selected_plugin_id,

@@ -44,7 +44,7 @@ fn permission_modal_queue(
 
 /// 模块内可见函数，执行 with_permission_modal 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub fn with_permission_modal<'a, Message: Clone + 'a>(
+pub fn with_permission_modal<'a, Message: Clone + 'static>(
     request: Option<&gateway_interaction::PendingPermissionRequestDto>,
     queued: &[gateway_interaction::PendingPermissionRequestDto],
     locale: config_ui::DesktopLocale,
@@ -301,7 +301,7 @@ fn permission_request_selector_label_localized(
     truncate_chars(&format!("{} · {}", prefix, summary), 80).to_string()
 }
 
-fn permission_meta_line<'a, Message: 'a>(
+fn permission_meta_line<'a, Message: Clone + 'static>(
     label: &'a str,
     value: &str,
 ) -> iced::widget::Row<'a, Message> {
@@ -368,7 +368,7 @@ fn permission_arguments_preview(
     Some(trimmed.to_owned())
 }
 
-fn permission_detail_block<'a, Message: 'a>(
+fn permission_detail_block<'a, Message: Clone + 'static>(
     label: &'a str,
     value: String,
 ) -> iced::widget::Column<'a, Message> {

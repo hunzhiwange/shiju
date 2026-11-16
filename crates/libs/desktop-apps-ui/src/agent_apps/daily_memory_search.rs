@@ -113,7 +113,7 @@ pub(crate) fn update(
     match event {
         Event::Open => {
             state.open = true;
-            return iced::widget::text_input::focus("daily-memory-search");
+            return iced::widget::operation::focus("daily-memory-search");
         }
         Event::Close => {
             state.close();

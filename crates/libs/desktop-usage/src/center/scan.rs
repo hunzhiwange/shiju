@@ -137,7 +137,7 @@ fn action(label: &'static str, event: Event, enabled: bool) -> Element<'static, 
     button(text(label).size(13)).padding([6, 10]).style(rounded_action_btn_style)
         .on_press_maybe(enabled.then(|| message(event))).into()
 }
-pub fn overlay<'a, M: Clone + 'a>(state: &'a State, current: Option<Identity>, base: Element<'a, M>, map: fn(Outcome<Event>) -> M) -> Element<'a, M> {
+pub fn overlay<'a, M: Clone + 'static>(state: &'a State, current: Option<Identity>, base: Element<'a, M>, map: fn(Outcome<Event>) -> M) -> Element<'a, M> {
 
     if !state.open { return base; }
     let ready = !state.pending && state.scope.as_ref() == current.as_ref();

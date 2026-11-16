@@ -51,7 +51,7 @@ use super::common::button_style_secondary;
 /// let settings_modal = build_task_settings_modal(&app);
 /// // 将 settings_modal 添加到 UI 树中进行渲染
 /// ```
-pub fn build_task_settings_modal<'a, M: Clone + 'a>(app: SettingsView<'a>, map_message: fn(TaskBoardMessage) -> M, help: impl FnOnce(desktop_i18n::I18n, &Theme, &'static str, &'static str) -> Element<'a, M>) -> Element<'a, M> {
+pub fn build_task_settings_modal<'a, M: Clone + 'static>(app: SettingsView<'a>, map_message: fn(TaskBoardMessage) -> M, help: impl FnOnce(desktop_i18n::I18n, &Theme, &'static str, &'static str) -> Element<'a, M>) -> Element<'a, M> {
     fn field_row<'a, M: 'a>(
         label: &'a str,
         control: impl Into<Element<'a, M>>,

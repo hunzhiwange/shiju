@@ -4,6 +4,7 @@ use crate::app::App;
 use crate::app::components::system_settings::SystemTab;
 
 pub use desktop_settings_shell::search::SystemSettingsSearchTarget;
+pub use desktop_settings_security::SettingsTabDescriptor;
 
 pub type SystemSettingsSearchEntry =
     desktop_settings_network::system_settings_search::SystemSettingsSearchEntry<

@@ -95,7 +95,7 @@ pub fn file_search_overlay(
     query: &str,
     project_root: Option<&str>,
     selected_index: usize,
-    scroll_id: scrollable::Id,
+    scroll_id: iced::widget::Id,
 ) -> Element<'static, Message> {
     let highlighted_query = highlighted_file_search_query(query);
 

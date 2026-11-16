@@ -72,7 +72,7 @@ fn settings_hover_help_label<'a>(
     i18n: I18n, theme: &Theme, title: &'a str, label: iced::widget::Text<'a>,
     description: impl Into<std::borrow::Cow<'a, str>>,
 ) -> iced::widget::Row<'a, Message> {
-    desktop_ui_controls::system_settings_common::settings_hover_help_label(
+    desktop_ui_controls::system_settings_common::help::settings_hover_help_label(
         label,
         desktop_chat_view::message_view::markdown_selection::selectable_titled_text(
             title, description, Some(theme.palette().text), i18n,

@@ -1,5 +1,6 @@
 //! Legacy server editing modal.
 use super::*;
+use iced::widget::column;
 pub(crate) fn server_form_heading(locale: DesktopLocale, editing: bool) -> (&'static str, &'static str) {
     if editing {
         (
@@ -36,7 +37,7 @@ pub fn new_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessage) -> M
     let timeout_input =
         input("30", &s.new_server.timeout_input, McpMessage::NewServerTimeoutChanged);
     let transport =
-        settings_select(McpNewServerTransport::ALL, Some(s.new_server.transport), |value| {
+        settings_select(McpNewServerTransport::ALL, Some(s.new_server.transport), move |value| {
             event(McpMessage::NewServerTransportChanged(value))
         })
         .width(Length::Fill);
@@ -98,7 +99,7 @@ pub fn new_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessage) -> M
         row![
             checkbox(s.new_server.enabled)
                 .label(tr(locale, "启用"))
-                .on_toggle(|value| {
+                .on_toggle(move |value| {
                     event(McpMessage::NewServerEnabledToggled(
                         value,
                     ))
@@ -106,7 +107,7 @@ pub fn new_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessage) -> M
                 .style(settings_checkbox_style),
             checkbox(s.new_server.required)
                 .label(tr(locale, "必需"))
-                .on_toggle(|value| {
+                .on_toggle(move |value| {
                     event(McpMessage::NewServerRequiredToggled(
                         value,
                     ))

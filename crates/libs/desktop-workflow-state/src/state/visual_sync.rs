@@ -8,7 +8,7 @@ mod data_nodes;
 mod input_nodes;
 mod integration_nodes;
 
-pub(super) fn apply_visual_draft_to_yaml(
+pub(crate) fn apply_visual_draft_to_yaml(
     block_type: &str,
     raw_data_yaml: &str,
     visual_draft: Option<&WorkflowNodeVisualDraft>,

@@ -24,7 +24,7 @@ fn pending_permission_badge_style(theme: &Theme) -> iced::widget::container::Sty
     }
 }
 
-fn pending_permission_tool_badge<'a, M: Clone + 'a>(
+fn pending_permission_tool_badge<'a, M: Clone + 'static>(
     label: String,
     on_press: Option<M>,
 ) -> Element<'a, M> {
@@ -58,7 +58,7 @@ fn pending_permission_tool_badge<'a, M: Clone + 'a>(
     }
 }
 
-pub fn wrap_pending_permission_tool_card<'a, M: Clone + 'a>(
+pub fn wrap_pending_permission_tool_card<'a, M: Clone + 'static>(
     content: Element<'a, M>,
     label: String,
     on_press: Option<M>,

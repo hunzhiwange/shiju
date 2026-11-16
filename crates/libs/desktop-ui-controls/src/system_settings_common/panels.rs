@@ -349,7 +349,7 @@ impl<Message: Clone> Widget<Message, Theme, Renderer> for ModalEscape<Message> {
     ) {
     }
 
-    fn update<Message: Clone + 'static>(
+    fn update(
         &mut self,
         _: &mut Tree,
         event: &iced::Event,
@@ -715,7 +715,7 @@ pub fn settings_success_banner_style(theme: &Theme) -> iced::widget::container::
 
 pub fn settings_page_heading_with_help<
     'a,
-    Message: crate::selectable_text::markdown_selection::SelectionMessage + 'a,
+    Message: crate::selectable_text::markdown_selection::SelectionMessage + 'static,
 >(
     i18n: desktop_i18n::I18n,
     theme: &Theme,
@@ -735,7 +735,7 @@ pub fn settings_page_heading_with_help<
 pub fn settings_group_heading_with_help<
     'a,
     'theme,
-    Message: crate::selectable_text::markdown_selection::SelectionMessage + 'a,
+    Message: crate::selectable_text::markdown_selection::SelectionMessage + 'static,
 >(
     i18n: desktop_i18n::I18n,
     theme: impl Into<Option<&'theme Theme>>,
@@ -754,7 +754,7 @@ pub fn settings_group_heading_with_help<
 }
 pub fn settings_flexible_row_with_help<
     'a,
-    Message: crate::selectable_text::markdown_selection::SelectionMessage + 'a,
+    Message: crate::selectable_text::markdown_selection::SelectionMessage + 'static,
 >(
     i18n: desktop_i18n::I18n,
     theme: &Theme,

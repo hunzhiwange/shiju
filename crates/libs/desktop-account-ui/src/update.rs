@@ -154,10 +154,10 @@ fn refresh_monthly_quota(account: &mut AccountState, services: &Services) -> Tas
     if matches!(account.monthly_quota, MonthlyQuotaState::Loading(_)) {
         return Task::none();
     }
-    let Some(account) = account.active_account() else {
+    let Some(active) = account.active_account() else {
         return Task::none();
     };
-    let skey = account.skill_hub_credential();
+    let skey = active.skill_hub_credential();
     let generation = account.monthly_quota_generation;
     let previous = match account.monthly_quota {
         MonthlyQuotaState::Ready(quota) => Some(quota),
@@ -686,8 +686,8 @@ pub fn update(
                 return Task::none();
             }
             let mut repository = account.repository().clone();
-            if let Err(error) = repository.activate(&id) {
-                return error(effects, error.to_string());
+            if let Err(cause) = repository.activate(&id) {
+                return error(effects, cause.to_string());
             }
             account.cancel_profile_editor();
             account.cancel_password_editor();
@@ -699,8 +699,8 @@ pub fn update(
                 return Task::none();
             }
             let mut repository = account.repository().clone();
-            if let Err(error) = repository.remove(&id) {
-                return error(effects, error.to_string());
+            if let Err(cause) = repository.remove(&id) {
+                return error(effects, cause.to_string());
             }
             account.cancel_profile_editor();
             account.cancel_password_editor();

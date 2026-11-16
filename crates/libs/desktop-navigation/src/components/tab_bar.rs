@@ -27,7 +27,7 @@
 //! let tab_bar_element = tab_bar::view(&app);
 //! ```
 
-use desktop_assets::{self as assets, Icon};
+use desktop_assets::assets::{self, Icon};
 
 use super::top_bar::types::AppTab;
 use crate::ui_types::Screen;

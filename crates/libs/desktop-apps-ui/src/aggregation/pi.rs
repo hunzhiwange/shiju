@@ -3,9 +3,10 @@ use vw_api_transport::ProjectId;
 use vw_api_app_aggregation::*;
 use iced::widget::text_editor;
 use gateway_aggregation_native::AggregationApiError;
-use vw_gateway_client::vw_api_app_provider_terminal::pi::PiProfile;
+use vw_api_app_provider_terminal::pi::PiProfile;
 #[derive(Clone)]
 pub enum Event {
+    None,
     Open,
     Close,
     Refresh,

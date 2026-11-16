@@ -89,7 +89,7 @@ fn format_drop_mention_path(
     }
 }
 
-fn join_drop_mentions(mentions: &[String]) -> String {
+pub fn join_drop_mentions(mentions: &[String]) -> String {
     mentions.iter().map(|mention| format!("{} ", file_mention(mention))).collect()
 }
 

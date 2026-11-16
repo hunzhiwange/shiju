@@ -530,10 +530,10 @@ pub enum SettingsMessage<SettingsTab, SearchTarget, AppsCatalog, AppProviders> {
     SkillsMarket(desktop_settings_skills::market_view::Event),
     SkillRepositories(desktop_settings_skills::repo_modal::Event),
     SkillsImport(desktop_settings_skills::import_modal::Event),
-    SkillsBackups(desktop_settings_skills::backup_modal::Event),
+    SkillsBackups(desktop_settings_skills::update::backup_modal::Event),
     SkillsStorage(desktop_settings_skills::storage_modal::Event),
-    SkillsBindings(desktop_settings_skills::bindings_view::Event),
-    SkillsClaudeConfig(desktop_settings_skills::claude_view::Event),
+    SkillsBindings(desktop_settings_skills::update::bindings_view::Event),
+    SkillsClaudeConfig(desktop_settings_skills::update::claude_view::Event),
     SkillsHelpOpen,
     SkillsHelpClose,
 }

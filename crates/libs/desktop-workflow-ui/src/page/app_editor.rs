@@ -9,7 +9,7 @@ pub(super) fn build_app_editor_modal(
         state,
         Message::WorkflowTool,
         |i18n, title, label, description| {
-            desktop_ui_controls::system_settings_common::settings_hover_help_label(
+            desktop_ui_controls::system_settings_common::help::settings_hover_help_label(
                 label,
                 desktop_chat_view::message_view::markdown_selection::selectable_titled_text(
                     title,

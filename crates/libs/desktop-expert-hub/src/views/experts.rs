@@ -12,7 +12,7 @@ use crate::message::public::PublicSkillMessage;
 
 
 
-pub fn view<'a, M: Clone + 'a>(
+pub fn view<'a, M: Clone + 'static>(
     locale: config_ui::DesktopLocale,
     keyword: &'a str,
     content: Element<'a, M>,

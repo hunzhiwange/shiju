@@ -30,7 +30,7 @@ pub fn follows_tail(
         absolute_offset_y.max(0.0) * (1.0 - next_offset_y) / next_offset_y
     } else {
         f32::INFINITY
-    }
+    };
     let near_tail = next_offset_y >= 0.975 || remaining_px <= 48.0;
     if matches_turn_focus || scrolled_up {
         false

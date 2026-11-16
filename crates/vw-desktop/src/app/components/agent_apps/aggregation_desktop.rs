@@ -14,7 +14,7 @@ pub(crate) fn overlay<'a>(
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let fields = desktop_provider_apps::components::desktop::mapping_fields(form, help.provider_help())
-        .into_iter().map(crate::app::components::app_providers::edit::map).collect();
+        .into_iter().map(|field| field.map(crate::app::components::app_providers::edit::map)).collect();
     desktop_apps_ui::aggregation::desktop_view::overlay(
         form,
         fields,

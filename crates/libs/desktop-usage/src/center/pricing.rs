@@ -175,15 +175,15 @@ fn action(label: &'static str, event: Event, enabled: bool) -> Element<'static, 
     button(text(label)).padding([8, 14]).style(rounded_action_btn_style)
         .on_press_maybe(enabled.then(|| message(event))).into()
 }
-pub fn overlay<'a, M: Clone + 'a>(state: &'a State, _current: Option<Identity>, base: Element<'a, M>, map: fn(Outcome<Event>) -> M) -> Element<'a, M> {
+pub fn overlay<'a, M: Clone + 'static>(state: &'a State, _current: Option<Identity>, base: Element<'a, M>, map: fn(Outcome<Event>) -> M) -> Element<'a, M> {
 
     if !state.open { return base; }
     let enabled = !state.busy;
     let mut body = column![text("USD / 百万 Token；未知成本不等于零。自动价格的手工编辑会成为自定义覆盖。")].spacing(10);
     for (index, price) in state.prices.iter().enumerate() {
-        body = body.push(row![text(format!("{} · {} · 输入 {} / 输出 {} / 缓存读 {} / 创建 {}", price.price.model_id, if price.is_custom { "自定义" } else { "自动" }, price.price.input_cost_per_million, price.price.output_cost_per_million, price.price.cache_read_cost_per_million, price.price.cache_creation_cost_per_million)).width(Length::Fill), action("编辑", Event::Edit(index), enabled), action("删除", Event::Delete(price.price.model_id.to_string()), enabled)].spacing(8));
+        body = body.push(row![text(format!("{} · {} · 输入 {} / 输出 {} / 缓存读 {} / 创建 {}", price.price.model_id.as_ref(), if price.is_custom { "自定义" } else { "自动" }, price.price.input_cost_per_million, price.price.output_cost_per_million, price.price.cache_read_cost_per_million, price.price.cache_creation_cost_per_million)).width(Length::Fill), action("编辑", Event::Edit(index), enabled), action("删除", Event::Delete(price.price.model_id.0.clone()), enabled)].spacing(8));
         if state.pending_delete.as_deref() == Some(price.price.model_id.as_ref()) {
-            body = body.push(action("确认删除", Event::ConfirmDelete(price.price.model_id.to_string()), enabled));
+            body = body.push(action("确认删除", Event::ConfirmDelete(price.price.model_id.0.clone()), enabled));
         }
     }
     body = body.push(action("新增价格", Event::New, enabled));

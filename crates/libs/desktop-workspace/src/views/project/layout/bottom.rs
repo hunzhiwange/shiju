@@ -62,7 +62,7 @@ use super::super::badge_styles::panel_style_no_border;
 ///
 /// 当用户按下垂直调整手柄时，会发送 `TerminalMessage::DragStarted` 消息，
 /// 用于启动拖动调整终端高度的操作。
-pub fn bottom_panel<'a, Message: Clone + 'a>(visible: bool, height: f32, content: Element<'a, Message>, drag_started: Message) -> Element<'a, Message> {
+pub fn bottom_panel<'a, Message: Clone + 'static>(visible: bool, height: f32, content: Element<'a, Message>, drag_started: Message) -> Element<'a, Message> {
     // 检查终端面板是否可见
     if visible {
         // 确保终端高度不为负数，最小为0.0

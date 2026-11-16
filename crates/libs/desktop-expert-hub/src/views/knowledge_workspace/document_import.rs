@@ -1,4 +1,5 @@
 use super::*;
+use iced::widget::column;
 
 pub(super) fn build_detail<'a>(app: ViewInput<'a>, size: Size) -> Element<'a, Message> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);

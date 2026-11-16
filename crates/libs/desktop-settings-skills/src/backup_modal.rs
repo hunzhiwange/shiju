@@ -14,7 +14,7 @@ pub fn view<'a, M: Clone + 'static>(
         return base;
     }
     let control = |label: String, event| {
-        button(label)
+        button(text(label))
             .padding([8, 10])
             .style(rounded_action_btn_style)
             .on_press_maybe((!s.busy).then_some(message(event)))

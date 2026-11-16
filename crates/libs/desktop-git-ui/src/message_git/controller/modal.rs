@@ -159,7 +159,6 @@ pub fn update(
             Task::none()
         }
         GitMessage::CopyModalCodeEditorEvent(event) => app
-            .git
             .git_copy_modal_code_editor
             .update(&event)
             .map(|next| GitMessage::CopyModalCodeEditorEvent(next)),

@@ -12,7 +12,7 @@ use desktop_workflow_state::state::{
 };
 use crate::message::WorkflowMessage;
 type Message = WorkflowMessage;
-use desktop_assets::{self as assets, Icon};
+use desktop_assets::assets::{self, Icon};
 use desktop_ui_controls::overlays::PointBelowOverlay;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,

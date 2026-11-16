@@ -20,7 +20,7 @@ pub(super) fn is_sensitive_run_preview_key(key: &str) -> bool {
 pub(super) fn workflow_run_preview_value(
     i18n: desktop_i18n::I18n,
     key: &str,
-    pub(super) value: &serde_json::Value,
+    value: &serde_json::Value,
 ) -> Option<String> {
     if value.is_null() {
         return None;
@@ -64,7 +64,7 @@ pub(super) fn is_time_run_preview_key(key: &str) -> bool {
 pub(super) fn format_run_preview_duration(
     i18n: desktop_i18n::I18n,
     key: &str,
-    pub(super) value: &serde_json::Value,
+    value: &serde_json::Value,
 ) -> Option<String> {
     let raw = json_number_as_f64(value)?;
     if !raw.is_finite() || raw < 0.0 {

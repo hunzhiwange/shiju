@@ -868,7 +868,7 @@ async fn settings_help_gap_13_mcp_edit_heading_moves_preservation_rule() {
     assert_help_card(
         &mut ui,
         &mut renderer,
-        (size, &app.app_theme, locale),
+        (size, app.app_theme, locale),
         "编辑 MCP 服务器",
         rule,
     );

@@ -61,11 +61,11 @@ pub struct State<R, S> {
     /// 最近访问会话的可移动视图工作集缓存
     pub session_view_cache: super::view_cache::SessionViewCache<S>,
     /// 当前会话的有界历史页与活动消息覆盖层。
-    pub paged_chat_timeline: Option<desktop_session::session::chat_timeline::PagedChatTimeline>,
+    pub paged_chat_timeline: Option<crate::session::chat_timeline::PagedChatTimeline>,
     /// 会话消息 ID 缓存（会话 ID -> 消息 ID 列表）
     pub session_chat_message_id_cache: HashMap<String, Vec<Option<String>>>,
     /// 会话历史重置边界（会话 ID -> 重置时保留的消息 ID 列表）
-    pub session_history_reset_boundaries: desktop_session::session::cache::HistoryResetBoundaries,
+    pub session_history_reset_boundaries: crate::session::cache::HistoryResetBoundaries,
     /// 会话运行时状态映射（会话 ID -> 运行时状态）
     pub session_runtime_states: HashMap<String, super::agent::SessionRuntimeState<R>>,
     /// 持久化的会话推理强度；缺省表示使用模型默认值。
@@ -75,14 +75,14 @@ pub struct State<R, S> {
     /// 已归档的会话 ID 集合
     pub archived_session_ids: HashSet<String>,
     pub chat_context_menu:
-        desktop_session::message::chat::input::context_menus::MessageContextMenuState,
+        crate::message::chat::input::context_menus::MessageContextMenuState,
     pub input_context_menu:
-        desktop_session::message::chat::input::context_menus::InputContextMenuState,
+        crate::message::chat::input::context_menus::InputContextMenuState,
     /// 当前打开的“重置到此点”菜单消息索引
     pub chat_reset_menu_idx: Option<usize>,
     /// 分叉对话框及待提交的新会话输入
     pub chat_fork_dialog: Option<crate::message::chat::fork::ForkSessionDialog>,
-    pub input_popovers: desktop_session::message::chat::input::popovers::InputPopoverState,
+    pub input_popovers: crate::message::chat::input::popovers::InputPopoverState,
     pub quick_message_handoff: Option<crate::message::chat::git_handoff::QuickMessageHandoffState>,
     /// 输入编辑器 ID
     pub input_editor_id: Id,

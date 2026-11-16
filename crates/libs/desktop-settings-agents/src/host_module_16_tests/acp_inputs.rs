@@ -51,7 +51,7 @@ pub(super) fn view(app: &AcpPageFixture) -> Element<'_, Message> {
         help: super::selectable_help,
         state: &app.acp_settings,
         locale: app.desktop_locale,
-        theme: &app.app_theme,
+        theme: app.app_theme,
         frame: 0,
         icon: |agent, size| desktop_ui_controls::icons::acp_agent_icon(agent, size),
     })
@@ -82,7 +82,7 @@ pub(super) mod mcp {
             Message::Mcp,
             &app.mcp_settings,
             app.desktop_locale,
-            &app.app_theme,
+            app.app_theme,
             std::array::from_fn(|_| iced::widget::Space::new().into()),
             help,
         )
@@ -95,7 +95,7 @@ pub(super) mod mcp {
             Message::Mcp,
             &app.mcp_settings,
             app.desktop_locale,
-            &app.app_theme,
+            app.app_theme,
             help,
             base,
         )

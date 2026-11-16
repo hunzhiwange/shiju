@@ -95,7 +95,7 @@ fn task_button(task: &WorkTaskItem, render: &dyn Fn(&WorkTaskItem) -> TaskPresen
 }
 
 /// Shared right-click and anchored-menu layout for a sidebar task.
-pub fn session_context_menu<'a, M: Clone + 'a>(
+pub fn session_context_menu<'a, M: Clone + 'static>(
     content: Element<'a, M>, right_click: impl Fn(Point) -> M + 'a,
     menu: Option<(Element<'a, M>, Point)>, close: M,
 ) -> Element<'a, M> {

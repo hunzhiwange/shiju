@@ -4,7 +4,7 @@ use super::render_snapshot::{Action, MessageViewSnapshot};
 use desktop_chat_tools::tool_text_support::ToolTextTarget;
 use desktop_i18n::I18n;
 use iced::{Color, Element};
-pub fn message_text_body<'a, M: Clone + 'a>(
+pub fn message_text_body<'a, M: Clone + 'static>(
     app: &MessageViewSnapshot<'a, M>,
     content: String,
     user: bool,
@@ -12,7 +12,7 @@ pub fn message_text_body<'a, M: Clone + 'a>(
     let emit = app.emit.clone();
     super::text::message_text_body(content, user).map(move |event| emit(Action::Text(event)))
 }
-pub fn message_editor_body<'a, M: Clone + 'a>(
+pub fn message_editor_body<'a, M: Clone + 'static>(
     app: &MessageViewSnapshot<'a, M>,
     idx: usize,
     color: Color,
@@ -22,7 +22,7 @@ pub fn message_editor_body<'a, M: Clone + 'a>(
         .map(|v| v.map(move |event| emit(Action::Text(event))))
 }
 pub use message_editor_body as user_message_editor_body;
-pub fn session_control_selection_card<'a, M: Clone + 'a>(
+pub fn session_control_selection_card<'a, M: Clone + 'static>(
     app: &MessageViewSnapshot<'a, M>,
     i18n: I18n,
     selection: super::text::SessionControlSelection,
@@ -31,7 +31,7 @@ pub fn session_control_selection_card<'a, M: Clone + 'a>(
     super::text::session_control_selection_card(i18n, selection)
         .map(move |event| emit(Action::Text(event)))
 }
-pub fn think_block_view_with_streaming<'a, M: Clone + 'a>(
+pub fn think_block_view_with_streaming<'a, M: Clone + 'static>(
     app: &MessageViewSnapshot<'a, M>,
     msg: usize,
     idx: usize,
@@ -96,7 +96,7 @@ pub fn tool_explore_summary_view<'a, M>(
 ) -> Option<Element<'a, M>> {
     (app.tools.explore)(msg, group, items, running, closed)
 }
-pub fn markdown_body_view<'a, M: SelectionMessage + 'a>(
+pub fn markdown_body_view<'a, M: SelectionMessage + 'static>(
     app: &MessageViewSnapshot<'a, M>,
     msg: usize,
     idx: usize,
@@ -129,13 +129,4 @@ pub fn markdown_body_view<'a, M: SelectionMessage + 'a>(
         }),
     };
     super::markdown_body::markdown_body_view(&view, msg, idx, blocks)
-}
-
-pub fn message_text_body<'a, M: Clone + 'a>(
-    app: &MessageViewSnapshot<'a, M>,
-    text: String,
-    user: bool,
-) -> Element<'a, M> {
-    let emit = app.emit.clone();
-    super::text::message_text_body(text, user).map(move |event| emit(Action::Text(event)))
 }

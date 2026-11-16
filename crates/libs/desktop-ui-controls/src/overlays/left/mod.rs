@@ -388,7 +388,8 @@ where
     }
 }
 
-mod widget;
+#[path = "widget.rs"]
+mod widget_impl;
 mod point_widget;
 mod overlay_element;
 use overlay_element::{LeftOverlayElement, PointLeftOverlayElement};

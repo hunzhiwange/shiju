@@ -91,3 +91,10 @@ pub fn session_lock_tooltip<'a>(content: impl Into<iced::Element<'a, crate::sele
  container(text(i18n.__("会话开始后无法更改。如需更换，请新建会话。")).size(12).style(|_: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) })).padding([6,8]).style(tooltip_dark_style),
  iced::widget::tooltip::Position::Top).gap(6).into() } else { content.into() }
 }
+
+fn selector_text_color(theme: &Theme, highlighted: bool) -> Color {
+    theme.palette().text.scale_alpha(match (is_dark_theme(theme), highlighted) {
+        (true, true) => 0.97, (false, true) => 0.95,
+        (true, false) => 0.92, (false, false) => 0.88,
+    })
+}

@@ -91,7 +91,7 @@ pub(super) fn handle_input_area_drag_drop(app: &mut App) -> Task<Message> {
         let runtime = app.current_session_runtime_mut();
         crate::app::ui::chat::insert_at_cursor(
             &mut runtime.input_editor,
-            &join_drop_mentions(&mentions),
+            &desktop_session::message::chat::input::file_search::join_drop_mentions(&mentions),
         );
 
         sync_global_input_editor_if_needed(app);

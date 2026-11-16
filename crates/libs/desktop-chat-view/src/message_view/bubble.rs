@@ -34,7 +34,7 @@ fn is_recent_copy<M>(app: &MessageViewSnapshot<'_, M>, hash: u64) -> bool {
 fn resolve_visible_text_and_copy_hash<'a, M>(
     app: &MessageViewSnapshot<'a, M>,
     idx: usize,
-    content: &'a str,
+    content: &str,
     hash: u64,
     cache: &crate::render_cache::ChatRenderCacheEntry,
 ) -> (Cow<'a, str>, u64) {
@@ -94,11 +94,11 @@ pub fn open_chat_message_context_menu_action(
     }
 }
 
-pub fn message_view_with_runtime<'a, M: SelectionMessage + 'a>(
+pub fn message_view_with_runtime<'a, M: SelectionMessage + 'static>(
     app: &MessageViewSnapshot<'a, M>,
     idx: usize,
     role: ChatRole,
-    content: &'a str,
+    content: &str,
     think_timing: &'a [session_ui_types::ThinkTiming],
     processing_timing: Option<&ProcessingTiming>,
     message_meta: Option<Cow<'a, str>>,

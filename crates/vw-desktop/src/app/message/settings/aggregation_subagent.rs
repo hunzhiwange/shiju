@@ -32,6 +32,7 @@ fn current(app: &App) -> Result<(GatewayClient, Context), String> {
     ))
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
+    if matches!(event, Event::None) { return Task::none(); }
     let (client, context) = match current(app) {
         Ok(value) => value,
         Err(error) => {

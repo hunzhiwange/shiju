@@ -55,7 +55,7 @@ fn placeholder_chip_style(theme: &Theme) -> iced::widget::container::Style {
 /// 执行 session_loading_placeholder 对应的模块功能。
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
-pub fn session_loading_placeholder<'a, Message: 'a>(label: &'a str) -> Element<'a, Message> {
+pub fn session_loading_placeholder<'a, Message: Clone + 'static>(label: &'a str) -> Element<'a, Message> {
     let skeleton_line = |width: f32, height: f32, emphasized: bool| {
         container(Space::new().width(Length::Fixed(width)).height(Length::Fixed(height))).style(
             move |theme: &Theme| {
@@ -214,7 +214,7 @@ pub fn session_loading_placeholder<'a, Message: 'a>(label: &'a str) -> Element<'
 /// 执行 empty_session_placeholder 对应的模块功能。
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
-pub fn empty_session_placeholder<'a, Message: 'a>(input: EmptySessionInput) -> Element<'a, Message> {
+pub fn empty_session_placeholder<'a, Message: Clone + 'static>(input: EmptySessionInput) -> Element<'a, Message> {
     let logo = container(
         Image::new(assets::get_image(Icon::Logo))
             .width(Length::Fixed(96.0))

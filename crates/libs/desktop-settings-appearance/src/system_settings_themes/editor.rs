@@ -307,7 +307,7 @@ fn field_row_with_help<'a, Message: Clone + 'static>(
 ) -> Element<'a, Message> {
     settings_flexible_row_with_help(app.help,
         I18n::new(app.desktop_locale),
-        &app.app_theme,
+        app.app_theme,
         label,
         description,
         156.0,
@@ -403,22 +403,16 @@ fn color_picker_popover<'a, Message: Clone + 'static>(
         ThemeColorPickerTarget::Chrome(_) => i18n.__("选择控件颜色"),
     };
 
+    use desktop_ui_controls::color_picker::Message as PickerMessage;
+    let none = app.none.clone();
     let picker = render_color_picker(
-        current,
-        app.themes_settings.color_picker_format,
-        false,
-        move |color| {
-            map(ThemesMessage::ColorPickerColorChanged(
-                format_theme_hex(color),
-            ))
-        },
-        move |format| {
-            map(ThemesMessage::ColorPickerFormatChanged(
-                format,
-            ))
-        },
-        { let none = app.none.clone(); move || none.clone() },
-    );
+        current, app.themes_settings.color_picker_format, false,
+        PickerMessage::ColorChanged, PickerMessage::FormatChanged, || PickerMessage::None,
+    ).map(move |message| match message {
+        PickerMessage::ColorChanged(color) => map(ThemesMessage::ColorPickerColorChanged(format_theme_hex(color))),
+        PickerMessage::FormatChanged(format) => map(ThemesMessage::ColorPickerFormatChanged(format)),
+        _ => none.clone(),
+    });
     let confirm = button(text(i18n.__("确定")).size(13))
         .on_press(map(ThemesMessage::ColorPickerClosed))
         .padding([6, 16])
@@ -518,6 +512,7 @@ fn chrome_color_row<'a, Message: Clone + 'static>(
 }
 
 fn chrome_row<'a, Message: Clone + 'static>(
+    app: &View<'_, Message>,
     label: &'static str,
     description: &'static str,
     field: ThemeChromeField,
@@ -627,7 +622,7 @@ fn background_asset_card<'a, Message: Clone + 'static>(app: &View<'_, Message>, 
     theme_form_group(
         settings_group_heading_with_help(app.help,
             i18n,
-            &app.app_theme,
+            app.app_theme,
             i18n.__("窗口背景"),
             i18n.__("主窗口壁纸；默认透明度供分区未单独设置时回退。"),
         ),
@@ -645,6 +640,7 @@ fn background_asset_card<'a, Message: Clone + 'static>(app: &View<'_, Message>, 
                 ),
             ),
             chrome_row(
+                app,
                 i18n.__("默认透明度"),
                 i18n.__("0–255；分区未单独设置时回退到此值；有壁纸/分区图时留空使用默认半透明。"),
                 ThemeChromeField::PanelAlpha,
@@ -673,7 +669,7 @@ fn zone_asset_card<'a, Message: Clone + 'static>(
 ) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
     theme_form_group(
-        settings_group_heading_with_help(app.help, i18n, &app.app_theme, title, description),
+        settings_group_heading_with_help(app.help, i18n, app.app_theme, title, description),
         [
             field_row_with_help(
                 app,
@@ -682,6 +678,7 @@ fn zone_asset_card<'a, Message: Clone + 'static>(
                 asset_picker_control(app, app.desktop_locale, relative, source, pick, clear),
             ),
             chrome_row(
+                app,
                 i18n.__("透明度"),
                 i18n.__("0–255；仅本分区。"),
                 alpha_field,
@@ -829,7 +826,7 @@ fn assets_tab<'a, Message: Clone + 'static>(app: &View<'_, Message>, draft: &'a 
         theme_form_group(
             settings_group_heading_with_help(app.help,
                 i18n,
-                &app.app_theme,
+                app.app_theme,
                 i18n.__("资源"),
                 i18n.__("封面用于画廊；背景与聊天分区图供运行时铺图。"),
             ),
@@ -904,7 +901,7 @@ fn chrome_tab<'a, Message: Clone + 'static>(app: &View<'a, Message>, draft: &'a 
         column![
             settings_group_heading_with_help(app.help,
                 i18n,
-                &app.app_theme,
+                app.app_theme,
                 i18n.__("控件皮肤"),
                 i18n.__("可选覆盖。"),
             ),
@@ -991,7 +988,7 @@ fn preview_tab<'a, Message: Clone + 'static>(app: &View<'_, Message>, draft: &'a
     column![
         settings_group_heading_with_help(app.help,
             i18n,
-            &app.app_theme,
+            app.app_theme,
             i18n.__("预览"),
             i18n.__("暗黑草稿下请确保文字可读。"),
         ),
@@ -1091,7 +1088,7 @@ pub fn view<'a, Message: Clone + 'static>(app: &View<'a, Message>) -> Element<'a
     } else {
         i18n.__("按 Tab 分段编辑命名、配色、资源与控件皮肤，预览后保存到本地仓库。").into()
     };
-    let heading = settings_group_heading_with_help(app.help, i18n, &app.app_theme, title, description);
+    let heading = settings_group_heading_with_help(app.help, i18n, app.app_theme, title, description);
     let heading = if is_bundled_preset {
         column![heading, text(i18n.__("预设不可删除。")).size(13).style(settings_muted_text_style),]
             .spacing(6)

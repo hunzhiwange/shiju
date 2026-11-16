@@ -139,7 +139,9 @@ pub fn update(state: &mut State, connection: Connection, event: Event, notice: &
 /// Search shortcuts are scoped to the daily-memory list, outside its editor.
 pub fn subscription(state: &State) -> iced::Subscription<Message> {
     if !state.open || state.filename.is_some() { return iced::Subscription::none(); }
-    iced::keyboard::on_key_press(|key, modifiers| {
+    iced::event::listen_with(|event, status, _| {
+        if status == iced::event::Status::Captured { return None; }
+        let iced::Event::Keyboard(iced::keyboard::Event::KeyPressed { key, modifiers, .. }) = event else { return None; };
         use iced::keyboard::{Key, key::Named};
         let event = match key {
             Key::Character(c) if modifiers.command() && c.eq_ignore_ascii_case("f") => super::daily_memory_search::Event::Open,

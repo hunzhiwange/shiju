@@ -549,7 +549,7 @@ pub fn session_tool_selector_popover(input: SelectorInput<'_>) -> Element<'stati
                             let selected = runtime.tool_selector.is_manual_tool_selected(&tool_id);
                             let tool_label = format!(
                                 "{} · {}",
-                                desktop_i18n::other::tool_name(i18n, &tool_id),
+                                i18n.__(&tool_id),
                                 tool_id
                             );
                             let check: Element<'_, Message> = if selected {

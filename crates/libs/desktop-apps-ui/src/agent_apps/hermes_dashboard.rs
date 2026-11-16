@@ -121,7 +121,7 @@ pub fn update(
                     state.progress = format!("启动进度：{:?}", op.phase);
                     match op.status {
                         TaskStatus::Queued | TaskStatus::Running => {
-                            state.operation = Some(op.operation_id.to_string())
+                            state.operation = Some(op.operation_id.0.clone())
                         }
                         TaskStatus::Completed => state.operation = None,
                         TaskStatus::Cancelled => {

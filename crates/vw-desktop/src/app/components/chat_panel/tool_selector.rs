@@ -28,6 +28,6 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> iced::Element<'_, Mess
  inventory_empty: app.agents_settings.available_tools.is_empty(),
  started: app.current_session_has_started(),
  acp_installed: &app.acp_settings.installed,
- agent_icon: |backend, size| crate::app::components::input_panel::icons::acp_agent_icon(backend, size).map(|_| unreachable!("identity icon emits no messages")),
+ agent_icon: |backend, size| crate::app::components::input_panel::icons::acp_agent_icon::<Message>(backend, size).map(|_| unreachable!("identity icon emits no messages")),
  }).map(map_message)
 }

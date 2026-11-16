@@ -28,7 +28,7 @@ use iced::{Element, Length};
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn build_content_base<'a, External: Clone + 'a>(tab: Option<ContentTab<'a>>, active_path: bool, i18n: desktop_i18n::I18n, empty: Element<'a, Message<External>>, #[cfg(not(target_arch = "wasm32"))] overlay: Element<'a, Message<External>>) -> Element<'a, Message<External>> {
+pub fn build_content_base<'a, External: Clone + 'static>(tab: Option<ContentTab<'a>>, active_path: bool, i18n: desktop_i18n::I18n, empty: Element<'a, Message<External>>, #[cfg(not(target_arch = "wasm32"))] overlay: Element<'a, Message<External>>) -> Element<'a, Message<External>> {
     if active_path {
         if let Some(tab) = tab {
             let ext = std::path::Path::new(tab.path)

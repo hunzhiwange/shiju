@@ -31,7 +31,7 @@ pub fn overlay<'a, M: Clone + 'static, C: Clone + 'a>(
     let mut body = column![
         text(format!(
             "目标应用：{:?} · 主机：{} · 项目：{}",
-            scope.app_id, scope.target_host_id, scope.project_id
+            scope.app_id, scope.target_host_id, scope.project_id.as_ref()
         )),
         text(format!("来源应用：{:?}", draft.payload.source_app)),
         text(&draft.payload.name).size(18),

@@ -301,7 +301,7 @@ pub fn view<'a>(app: ViewState<'a>) -> Element<'a, Message> {
         column![
             settings_group_heading_with_help(
                 I18n::new(locale),
-                &app.app_theme,
+                app.app_theme,
                 tr(locale, "插件"),
                 tr(locale, "原包来源、依赖观察与信任状态；文件存在不代表运行兼容。"),
             ),

@@ -381,7 +381,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let queue_panel = (supplement == Supplement::Queue).then(||
         queue_panel::queue_panel(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), queue, is_requesting));
     let content = desktop_chat_input::input_panel::layout::Content {
-        attachment_strip, file_refs, task_mode_form, input, divider, bottom_bar,
+        attachment_strip, file_refs, task_mode_form, input, divider: divider.into(), bottom_bar,
         context_card: selected_context_card(app), todo_panel, queue_panel,
     };
 
@@ -401,7 +401,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         app.appearance.active_theme_skin.as_ref(), &app.appearance.app_theme,
     );
     let fit = app.appearance.active_theme_skin.as_ref().and_then(|skin|
-        crate::app::theme_catalog::PanelImageFit::parse(skin.chrome.chat_input_image_fit.as_deref())
+        crate::app::theme_catalog::PanelImageFit::parse(skin.chrome.chat_input_image_fit.as_deref()).ok()
     ).unwrap_or_default();
     let running_agent_sessions = agent_sessions::cached_running_agent_sessions(app);
     desktop_chat_input::input_panel::layout::view(

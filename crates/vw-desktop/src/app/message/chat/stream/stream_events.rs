@@ -1319,7 +1319,7 @@ pub(super) fn handle_agent_model_recovery(
         return Task::none();
     };
     if !domain::model_recovery_matches(
-        app.get_session_runtime(&session_id),
+        &app.get_session_runtime(&session_id),
         id,
         &session_id,
         &event,

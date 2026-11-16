@@ -34,7 +34,7 @@ pub struct ViewInput<'a> {
     pub git_custom_diff_title: &'a String,
     pub git_diff_contents_loading: &'a HashSet<String>,
     pub git_diff_file_metas: &'a Vec<DiffFileMeta>,
-    pub git_diff_scroll_id: &'a iced::widget::scrollable::Id,
+    pub git_diff_scroll_id: &'a iced::widget::Id,
     pub git_filter_deleted: bool,
     pub git_filter_excluded: bool,
     pub git_filter_included: bool,

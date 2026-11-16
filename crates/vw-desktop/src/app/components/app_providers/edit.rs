@@ -2,7 +2,7 @@ use super::list::Help;
 use crate::app::{Message,state::app_providers::edit::EditForm};
 use iced::Element;
 use super::super::system_settings_common::*;
-pub(super) fn map(event: desktop_provider_apps::Message) -> Message {
+pub(crate) fn map(event: desktop_provider_apps::Message) -> Message {
     use desktop_provider_apps::Message as E;
     use crate::app::message::app_providers as events;
     match event {

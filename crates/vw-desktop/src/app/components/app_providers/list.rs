@@ -11,7 +11,7 @@ pub(crate) struct Help<'a> {
 }
 
 impl<'a> Help<'a> {
-    pub(super) fn provider_help(self) -> desktop_provider_apps::components::help::Help<'a> {
+    pub(crate) fn provider_help(self) -> desktop_provider_apps::components::help::Help<'a> {
         desktop_provider_apps::components::help::Help {
             i18n: self.i18n,
             theme: self.theme,
@@ -37,7 +37,7 @@ impl<'a> Help<'a> {
 
 pub(crate) fn overlay<'a>(
     state: &'a ListState,
-    help: Help<'_>,
+    help: Help<'a>,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let Some(scope) = &state.scope else {

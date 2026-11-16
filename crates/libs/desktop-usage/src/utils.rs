@@ -160,7 +160,7 @@ pub fn icon_svg(icon: Icon) -> Svg<'static> {
 /// ```ignore
 /// let btn = icon_btn(Icon::Copy, "复制内容", Message::CopyCode(text));
 /// ```
-pub fn icon_btn<'a, Message: Clone + 'a>(icon: Icon, tip: &'a str, msg: Message) -> iced::Element<'a, Message> {
+pub fn icon_btn<'a, Message: Clone + 'static>(icon: Icon, tip: &'a str, msg: Message) -> iced::Element<'a, Message> {
     // 创建图标按钮，设置尺寸、内边距和样式
     let btn = button(icon_svg(icon).style(|theme: &Theme, _status| icon_svg_style(theme)))
         .on_press(msg)

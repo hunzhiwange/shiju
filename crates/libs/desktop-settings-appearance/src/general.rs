@@ -1,7 +1,7 @@
 use crate::general_fields::{self, GeneralSettingField};
 use desktop_ui_controls::settings_navigation::GeneralSettingsTab;
 use desktop_ui_controls::system_settings_common::*;
-use crate::headings::*;
+use crate::headings::{HelpRenderer, settings_flexible_row_with_help, settings_group_heading_with_help, settings_page_heading_with_help};
 use desktop_i18n::I18n;
 use config_ui::PreviewAutoSaveMode;
 use desktop_theme::{theme_store_from_home, to_iced_theme};
@@ -76,7 +76,7 @@ pub const GENERAL_TABS: &[TabDescriptor<GeneralSettingsTab>] = &[
     ),
 ];
 
-fn general_field_with_help<'a, S, Message: Clone + 'a>(
+fn general_field_with_help<'a, S, Message: Clone + 'static>(
     app: &View<'_, S>,
     help: HelpRenderer<Message>,
     field: &GeneralSettingField,
@@ -87,7 +87,7 @@ fn general_field_with_help<'a, S, Message: Clone + 'a>(
     settings_flexible_row_with_help(
         help,
         i18n,
-        &app.app_theme,
+        app.app_theme,
         i18n.__(field.label),
         description,
         GENERAL_CONTROL_WIDTH,
@@ -96,7 +96,7 @@ fn general_field_with_help<'a, S, Message: Clone + 'a>(
     .id(field.id)
 }
 
-fn interface_field_row<'a, S, Message: Clone + 'a>(
+fn interface_field_row<'a, S, Message: Clone + 'static>(
     app: &View<'_, S>,
     help: HelpRenderer<Message>,
     field: &GeneralSettingField,
@@ -210,7 +210,7 @@ pub fn view<'a, S: Clone + Copy + PartialEq + std::fmt::Display + 'static, Messa
             settings_group_heading_with_help(
         help,
                 i18n,
-                &app.app_theme,
+                app.app_theme,
                 i18n.__("界面"),
                 i18n.__("应用外观与预览行为。"),
             ),
@@ -308,7 +308,7 @@ pub fn view<'a, S: Clone + Copy + PartialEq + std::fmt::Display + 'static, Messa
         GeneralSettingsTab::Terminal => column![
             settings_group_heading_with_help(
         help,
-                i18n, &app.app_theme, i18n.__("终端"), i18n.__("默认 Shell、主题与字体。")
+                i18n, app.app_theme, i18n.__("终端"), i18n.__("默认 Shell、主题与字体。")
             ),
             settings_group_card(
                 column![
@@ -360,7 +360,7 @@ pub fn view<'a, S: Clone + Copy + PartialEq + std::fmt::Display + 'static, Messa
         settings_page_heading_with_help(
         help,
             i18n,
-            &app.app_theme,
+            app.app_theme,
             i18n.__("常规"),
             i18n.__("通过标签切换界面、终端、编辑器与主题配置。"),
         ),

@@ -27,7 +27,7 @@ fn refresh_task(access: desktop_config::ConfigAccess) -> Task<Message> {
 
 fn apply_snapshot(app: &mut Update, snapshot: AcpSettingsSnapshot) {
     #[cfg(not(target_arch = "wasm32"))]
-    app.snapshot_applied = true;
+    { app.snapshot_applied = true; }
     app.state.diagnostic_results.retain(|agent, _| {
         app.state.catalog.get(agent).zip(snapshot.catalog.get(agent)).is_some_and(
             |(old, new)| old.command == new.command && old.args == new.args && old.env == new.env,
@@ -256,7 +256,7 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
         }
         AcpMessage::RestoreDefaultArguments | AcpMessage::RestoreDefaultEnvironment => {
             let Some(defaults) = app
-                .acp_settings
+                .state
                 .editing_agent
                 .as_ref()
                 .and_then(|agent| app.state.defaults.get(agent))

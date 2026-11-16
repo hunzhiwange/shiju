@@ -114,7 +114,7 @@ fn heading<'a>(
     size: u16,
 ) -> Element<'a, Message> {
     desktop_ui_controls::system_settings_common::help::settings_hover_help_label(
-        text(i18n.__(title)).size(size),
+        text(i18n.__(title)).size(size as f32),
         desktop_ui_controls::selectable_text::markdown_selection::selectable_titled_text(
             title,
             i18n.__(description),
@@ -180,6 +180,7 @@ pub fn view_overlays<'a>(
 }
 pub mod launch {
     use super::*;
+use iced::widget::column;
     pub use domain::launch::{LaunchChoice, LaunchState};
     pub type LaunchMessage = domain::launch::LaunchMessage<Context>;
     pub fn overlay<'a>(
@@ -199,6 +200,7 @@ pub mod launch {
 }
 pub mod preferences {
     use super::*;
+use iced::widget::column;
     pub use domain::preferences::PreferencesState;
     pub fn visible_rows(state: &AppsCatalogState) -> Vec<&CatalogRow> {
         domain::preferences::visible_rows(&view_state(state))
@@ -222,6 +224,7 @@ pub mod preferences {
 }
 pub mod lifecycle {
     use super::*;
+use iced::widget::column;
     pub use domain::lifecycle::*;
     pub fn overlay<'a>(
         state: &'a LifecycleState,
@@ -268,6 +271,7 @@ pub fn preferences_route(
 
 pub mod details {
     use super::*;
+use iced::widget::column;
     pub fn view<'a>(state: &'a AppsCatalogState, row: &'a CatalogRow) -> Element<'a, Message> {
         domain::details::view(
             &view_state(state),

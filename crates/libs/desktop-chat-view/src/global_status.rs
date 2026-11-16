@@ -120,7 +120,7 @@ pub fn chat_global_status(
     None
 }
 
-pub fn chat_global_status_view<'a, Message: 'a>(
+pub fn chat_global_status_view<'a, Message: Clone + 'static>(
     chat: &[ChatMessage], is_requesting: bool, usage: &TokenUsage,
     locale: config_ui::DesktopLocale, frame: usize, elapsed_ms: u64,
 ) -> Element<'a, Message> {
@@ -235,7 +235,7 @@ pub fn think_pulse_color(_frame: usize) -> Color {
     THINK_PULSE_ACCENT
 }
 
-fn think_pulse_indicator<'a, Message: 'a>(frame: usize) -> Element<'a, Message> {
+fn think_pulse_indicator<'a, Message: Clone + 'static>(frame: usize) -> Element<'a, Message> {
     let color = think_pulse_color(frame);
     let (slot_size, glyph_size) = think_pulse_geometry(frame);
     container(
@@ -264,7 +264,7 @@ pub fn compact_activity_geometry(_frame: usize) -> (f32, f32) {
     (COMPACT_ACTIVITY_SLOT_SIZE, COMPACT_ACTIVITY_ICON_SIZE)
 }
 
-fn compact_activity_indicator<'a, Message: 'a>(visual: ToolVisual, frame: usize) -> Element<'a, Message> {
+fn compact_activity_indicator<'a, Message: Clone + 'static>(visual: ToolVisual, frame: usize) -> Element<'a, Message> {
     let (slot_size, icon_size) = compact_activity_geometry(frame);
     let indicator: Element<'a, Message> = if visual.is_animated {
         activity_spinner(frame, icon_size)

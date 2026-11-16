@@ -11,7 +11,7 @@ pub enum Event {
     ProjectToolsMenuClosed, RecentProjectDeleteRequested(usize), RecentProjectDeleteCanceled,
     RecentProjectDeleteConfirmed(usize), OpenFolderPressed, RecentProjectQueryChanged(String),
 }
-pub type Avatar<Host> = for<'a> fn(&str, &str, Option<&str>, Option<&str>, f32) -> Element<'a, Host>;
+pub type Avatar<Host> = for<'a> fn(&'a str, &'a str, Option<&'a str>, Option<&'a str>, f32) -> Element<'a, Host>;
 pub type Help<Host> = for<'a> fn(I18n, &Theme, &'a str, &'a str, f32, Element<'a, Host>) -> iced::widget::Container<'a, Host>;
 pub struct ViewState<'a> {
     pub project_path: &'a Option<String>,

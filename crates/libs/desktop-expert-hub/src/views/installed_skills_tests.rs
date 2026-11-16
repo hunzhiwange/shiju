@@ -84,6 +84,6 @@ async fn installed_skills_render_local_provider_and_suite_cards_with_confirmatio
 
 fn view<'a>(app: &ViewInput<'a>) -> iced::Element<'a, Message> {
  let i18n = desktop_i18n::I18n::new(app.desktop_locale);
- let header = super::installed_skills::header(i18n, move || desktop_ui_controls::system_settings_common::settings_hover_help_label(iced::widget::text(i18n.__("我安装的技能")).size(25), iced::widget::text(i18n.__("管理当前目录范围内可启用、关闭或卸载的本地技能")).into()), Message::SkillHub(crate::message::skill_hub::SkillHubMessage::Public(crate::message::public::PublicSkillMessage::CloseInstalled)));
+ let header = super::installed_skills::header(i18n, move || desktop_ui_controls::system_settings_common::help::settings_hover_help_label(iced::widget::text(i18n.__("我安装的技能")).size(25), iced::widget::text(i18n.__("管理当前目录范围内可启用、关闭或卸载的本地技能")).into()), Message::SkillHub(crate::message::skill_hub::SkillHubMessage::Public(crate::message::public::PublicSkillMessage::CloseInstalled)));
  super::installed_skills::view(app, header, |message| message)
 }

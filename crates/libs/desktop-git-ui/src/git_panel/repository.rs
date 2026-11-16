@@ -1,4 +1,5 @@
 //! 历史日志和只读文件手风琴；所有仓库数据由网关提供。
+use desktop_assets::assets::Icon;
 use super::repository_ops::{RemoteAction, remote_action_label};
 use desktop_ui_controls::system_settings_common::{
     icon_svg, primary_action_btn_style, rounded_action_btn_style, settings_muted_text_style,

@@ -3,7 +3,7 @@ use desktop_provider_apps::AgentAppsContext;
 use iced::Task;
 use {
     vw_api_transport::ProjectScope,
-    vw_gateway_client::vw_api_app_operations::data_management::*,
+    vw_api_app_operations::data_management::*,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]

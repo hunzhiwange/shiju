@@ -48,7 +48,7 @@ pub fn overlay_icon_button_style(theme: &Theme, status: button::Status) -> butto
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn preview_control_tooltip<'a, Message: Clone + 'a>(
+pub fn preview_control_tooltip<'a, Message: Clone + 'static>(
     content: Element<'a, Message>,
     label: &'a str,
 ) -> Element<'a, Message> {

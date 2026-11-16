@@ -1,10 +1,11 @@
+use desktop_ui_controls::system_settings_common::help::settings_selectable_help_label as settings_hover_help_label;
 use crate::{fields::*, state::*, messages::{MemoryMessage, PageMessage}};
 use desktop_ui_controls::system_settings_common::*;
 use desktop_i18n::{I18n, settings_runtime::text as runtime_text};
 use iced::{Element, Length};
-use iced::widget::{button, column};
+use iced::widget::{button, column, text};
 pub use crate::memory_tabs::{SettingsTabDescriptor, MEMORY_TABS, QDRANT_TAB, memory_tab_label};
-pub fn view<'a, E: Clone + 'a>(s: &'a MemorySettingsState, storage: &'a StorageSettingsState, locale: config_ui::DesktopLocale, theme: &iced::Theme, embedding_routes: Element<'a, PageMessage<E>>) -> Element<'a, PageMessage<E>> {
+pub fn view<'a, E: desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage + 'static>(s: &'a MemorySettingsState, storage: &'a StorageSettingsState, locale: config_ui::DesktopLocale, theme: &iced::Theme, embedding_routes: Element<'a, PageMessage<E>>) -> Element<'a, PageMessage<E>> {
     let i18n = I18n::new(locale);
 
     let backend_pick = settings_select(

@@ -423,7 +423,8 @@ where
 }
 
 
-mod widget;
+#[path = "widget.rs"]
+mod widget_impl;
 
 #[cfg(test)]
 mod tests;

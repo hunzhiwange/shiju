@@ -4,7 +4,7 @@ use iced::Task;
 use gateway_app_data::{DataBackupPreview, PreviewDataBackupRequest, DataRecoveryDiagnosis, DataTargetHealth, DataBackupRestoreStatus, DataRestoreProgress};
 use {
     vw_api_transport::ProjectScope,
-    vw_gateway_client::vw_api_app_operations::data_management::*,
+    vw_api_app_operations::data_management::*,
 };
 
 #[derive(Clone, Default)]

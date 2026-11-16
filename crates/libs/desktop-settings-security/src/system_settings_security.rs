@@ -18,7 +18,7 @@
 //! 通过 [`view`] 函数创建安全设置界面的 UI 元素，该函数返回一个 Iced 框架的 `Element`。
 
 use desktop_ui_controls::system_settings_common::*;
-use crate::security_help::*;
+use crate::security_help::{settings_hover_help_label, settings_page_heading_with_help, settings_group_heading_with_help, settings_flexible_row_with_help, with_settings_help_modal};
 use crate::security_state::*;
 use crate::security_message::{Message};
 use desktop_i18n::settings_security::text as security_text;
@@ -298,7 +298,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
     let backend_selected =
         backend_options.iter().find(|option| option.value == s.sandbox_backend_input).cloned();
     let help_btn =
-        settings_help_button(locale, Message::SecurityHelpOpen);
+        settings_help_button_with_locale(locale, Message::SecurityHelpOpen);
     let sandbox_enabled_row = field_row_with_help(
         app,
         security_text(locale, "沙箱启用"),

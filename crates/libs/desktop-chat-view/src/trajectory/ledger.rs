@@ -118,7 +118,7 @@ pub fn build_ledger_groups<'a>(
     groups
 }
 
-pub fn trajectory_ledger<'a, Message: Clone + 'a>(
+pub fn trajectory_ledger<'a, Message: Clone + 'static>(
     i18n: desktop_i18n::I18n,
     projection: &TrajectoryProjection,
     query: &str,
@@ -191,7 +191,7 @@ pub fn trajectory_ledger<'a, Message: Clone + 'a>(
         .into()
 }
 
-pub(crate) fn ledger_group_header<'a, Message: Clone + 'a>(
+pub(crate) fn ledger_group_header<'a, Message: Clone + 'static>(
     title: impl Into<String>,
     turn_index: Option<u32>,
     collapsed: bool,
@@ -218,7 +218,7 @@ pub(crate) fn ledger_group_header<'a, Message: Clone + 'a>(
         .into()
 }
 
-pub(crate) fn ledger_tool_group_button<'a, Message: Clone + 'a>(
+pub(crate) fn ledger_tool_group_button<'a, Message: Clone + 'static>(
     i18n: desktop_i18n::I18n,
     step_index: u32,
     collapsed: bool,
@@ -241,7 +241,7 @@ const fn fold_arrow(collapsed: bool) -> &'static str {
     if collapsed { "▸" } else { "▾" }
 }
 
-fn record_row<'a, Message: Clone + 'a>(
+fn record_row<'a, Message: Clone + 'static>(
     i18n: desktop_i18n::I18n,
     row_state: LedgerRecord<'_>,
     on_select: &impl Fn(String) -> Message,

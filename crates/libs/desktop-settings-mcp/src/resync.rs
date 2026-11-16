@@ -1,5 +1,6 @@
 //! Resynchronization progress and confirmation presentation.
 use crate::toolbar_button;
+use gateway_mcp_distribution::McpResyncRequest;
 use desktop_ui_controls::system_settings_common::*;
 use iced::{Element, widget::{checkbox, column, row, text}};
 use vw_api_app_identity::AppId;

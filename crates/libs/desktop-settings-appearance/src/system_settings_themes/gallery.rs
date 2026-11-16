@@ -487,13 +487,13 @@ pub fn view<'a, Message: Clone + 'static>(app: &View<'a, Message>) -> Element<'a
     let mut body = column![
         settings_page_heading_with_help(app.help,
             i18n,
-            &app.app_theme,
+            app.app_theme,
             i18n.__("主题"),
             i18n.__("浏览内置、预设与自定义主题，应用或管理本地主题包。"),
         ),
         settings_group_heading_with_help(app.help,
             i18n,
-            &app.app_theme,
+            app.app_theme,
             i18n.__("主题画廊"),
             format!(
                 "{}\n{}",

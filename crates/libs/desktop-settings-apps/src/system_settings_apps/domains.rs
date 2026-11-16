@@ -1,11 +1,11 @@
+//! Domain shortcuts reuse the settings navigation dispatcher and its refresh behavior.
 #[derive(Clone, Copy)]
 pub enum Target { Mcp, Skills, Plugins, General, #[cfg(not(target_arch = "wasm32"))] Auth }
-//! Domain shortcuts reuse the settings navigation dispatcher and its refresh behavior.
 use desktop_ui_controls::system_settings_common::*;
 use iced::widget::{button, column, row, text};
 use iced::Element;
 
-pub fn view<'a, M: Clone + 'a>(external_sessions: Element<'a, M>, event: impl Fn(Target) -> M + Copy + 'a) -> Element<'a, M> {
+pub fn view<'a, M: Clone + 'static>(external_sessions: Element<'a, M>, event: impl Fn(Target) -> M + Copy + 'static) -> Element<'a, M> {
     let mut shortcuts = row![].spacing(8);
     for (label, target) in [
         ("MCP", Target::Mcp),

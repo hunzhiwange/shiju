@@ -108,7 +108,7 @@ pub fn status(state: &State, current: Option<Identity>) -> String {
 fn action(label: &'static str, event: Event, enabled: bool) -> Element<'static, Outcome<Event>> {
     button(text(label)).padding([8, 14]).style(rounded_action_btn_style).on_press_maybe(enabled.then(|| message(event))).into()
 }
-pub fn overlay<'a, M: Clone + 'a>(state: &'a State, current: Option<Identity>, base: Element<'a, M>, map: fn(Outcome<Event>) -> M) -> Element<'a, M> {
+pub fn overlay<'a, M: Clone + 'static>(state: &'a State, current: Option<Identity>, base: Element<'a, M>, map: fn(Outcome<Event>) -> M) -> Element<'a, M> {
 
     if !state.open { return base; }
     let enabled = !state.busy;

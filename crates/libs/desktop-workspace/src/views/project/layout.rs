@@ -33,7 +33,7 @@ pub mod work_resources;
 pub mod work_sidebar;
 
 /// Compose the code workspace from domain surfaces and host-owned cross-domain content.
-pub fn code_workspace<'a, M: Clone + 'a>(
+pub fn code_workspace<'a, M: Clone + 'static>(
     left: Element<'a, M>,
     resize: Option<Element<'a, M>>,
     main: Element<'a, M>,

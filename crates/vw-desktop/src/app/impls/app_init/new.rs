@@ -243,7 +243,7 @@ impl App {
             runtime_settings: settings::build_runtime_settings(&full_agent_cfg),
 
             // ========== 技能设置 ==========
-            skills_settings: settings::build_skills_settings(&full_agent_cfg.skills),
+            skills_settings: desktop_settings_skills::update::state::build_skills_settings(&full_agent_cfg.skills),
 
             web_search_settings: settings::build_web_search_settings(&full_agent_cfg),
 

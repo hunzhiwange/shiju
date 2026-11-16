@@ -8,7 +8,7 @@ use iced::widget::{Image, button, container, text};
 use iced::{Background, Border, Color, ContentFit, Element, Length, Theme, Vector};
 
 
-use desktop_assets::{self as assets, Icon};
+use desktop_assets::assets::{self, Icon};
 use desktop_ui_controls::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style,
 };

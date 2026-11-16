@@ -1,4 +1,5 @@
 use super::*;
+use iced::widget::column;
 
 pub(super) const CONTROL_WIDTH: f32 = 240.0;
 pub(super) const LIST_EDITOR_MAX_HEIGHT: f32 = 176.0;

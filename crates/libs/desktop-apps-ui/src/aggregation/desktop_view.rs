@@ -7,7 +7,7 @@ use iced::{
 };
 use vw_api_app_aggregation::DesktopInstallation;
 use vw_api_app_aggregation::DesktopProfileMode;
-pub fn overlay<'a, Message: Clone + 'a>(
+pub fn overlay<'a, Message: Clone + 'static>(
     form: &'a Form,
     mapping_fields: Vec<Element<'a, Message>>,
     message: fn(Event) -> Message,

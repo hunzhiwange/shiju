@@ -4,14 +4,14 @@ use iced::widget::{button, column, container, row, text};
 use iced::{Element, Length};
 #[derive(Clone)]
 pub enum ConnectionMessage { Close, HostInput(String), TokenInput(String), Refresh }
-pub fn overlay<'a, M: Clone + 'a>(host: &'a str, token: &'a str, base: Element<'a, M>, message: impl Fn(ConnectionMessage) -> M + Copy + 'a) -> Element<'a, M> {
+pub fn overlay<'a, M: Clone + 'static>(host: &'a str, token: &'a str, base: Element<'a, M>, message: impl Fn(ConnectionMessage) -> M + Copy + 'static) -> Element<'a, M> {
     let ready = !host.trim().is_empty() && !token.is_empty();
     let close = message(ConnectionMessage::Close);
     let host = settings_text_input("管理员登记的主机 ID", host)
-        .on_input(|value| message(ConnectionMessage::HostInput(value)));
+        .on_input(move |value| message(ConnectionMessage::HostInput(value)));
     let token = settings_text_input("应用管理令牌", token)
         .secure(true)
-        .on_input(|value| message(ConnectionMessage::TokenInput(value)));
+        .on_input(move |value| message(ConnectionMessage::TokenInput(value)));
     let connect = button(text("加载应用").size(SETTINGS_CONTROL_TEXT_SIZE))
         .padding([8, 16])
         .style(primary_action_btn_style)

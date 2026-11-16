@@ -718,7 +718,7 @@ where
         )
     }
 }
-impl<'a, Message: Clone + 'a, ThemeT, RendererT> From<PreviewOverlayHost<'a, Message, ThemeT, RendererT>>
+impl<'a, Message: Clone + 'static, ThemeT, RendererT> From<PreviewOverlayHost<'a, Message, ThemeT, RendererT>>
     for IcedElement<'a, Message, ThemeT, RendererT>
 where
     RendererT: iced::advanced::Renderer + 'a,

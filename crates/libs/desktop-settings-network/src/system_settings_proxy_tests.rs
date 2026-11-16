@@ -3,6 +3,7 @@
 //! 作用域稳定值与显示标签分开校验，避免持久化键被用户文案变化带偏。
 
 use super::*;
+use iced::widget::column;
 
 use iced::Element;
 use iced::advanced::widget::Tree;

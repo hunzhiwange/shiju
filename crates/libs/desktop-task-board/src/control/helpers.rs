@@ -251,7 +251,7 @@ pub(super) fn worktree_log_preview_lines(
         .iter()
         .rev()
         .filter_map(|entry| {
-            let line = desktop_i18n::tasks::log_message(
+            let line = desktop_task_model::i18n::log_message(
                 desktop_i18n::I18n::new(app.desktop_locale),
                 entry,
             )

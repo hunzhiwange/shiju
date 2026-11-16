@@ -1,3 +1,4 @@
+use super::types;
 #[derive(Debug, Clone)]
 pub enum Message {
  TabSelected(String), TabClosed(String), TabHovered(Option<String>), OpenApps,

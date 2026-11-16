@@ -1,5 +1,6 @@
+use desktop_ui_controls::system_settings_common::help::settings_hover_help_label;
 use desktop_i18n::I18n;
-use desktop_ui_controls::system_settings_common::{primary_action_btn_style, settings_close_button, settings_hover_help_label, settings_modal_header, settings_modal_layout, settings_modal_overlay};
+use desktop_ui_controls::system_settings_common::{primary_action_btn_style, settings_close_button, settings_modal_header, settings_modal_layout, settings_modal_overlay};
 use iced::widget::{button, container, text};
 use iced::{Element, Length};
 pub fn build_settings_overlay<'a, Message: Clone + 'static>(

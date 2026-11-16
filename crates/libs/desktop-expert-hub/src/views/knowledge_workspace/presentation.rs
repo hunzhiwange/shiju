@@ -1,4 +1,5 @@
 use super::*;
+use iced::widget::column;
 
 pub(super) fn chrome_style(theme: &Theme) -> iced::widget::container::Style {
     let palette = theme.extended_palette();

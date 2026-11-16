@@ -29,7 +29,7 @@ fn can_add_web_bookmark(title: &str, url: &str) -> bool {
     !title.trim().is_empty() && !url.trim().is_empty()
 }
 
-fn bookmark_field<'a, M: Clone + 'a>(
+fn bookmark_field<'a, M: Clone + 'static>(
     label: &'a str,
     value: &'a str,
     on_input: fn(String) -> Event,
@@ -49,7 +49,7 @@ fn bookmark_field<'a, M: Clone + 'a>(
     .into()
 }
 
-pub fn edit_web_bookmark_modal<'a, M: Clone + 'a>(input: Input<'a, M>) -> Option<(Element<'a, M>, M)> {
+pub fn edit_web_bookmark_modal<'a, M: Clone + 'static>(input: Input<'a, M>) -> Option<(Element<'a, M>, M)> {
     let idx = input.editing_web_bookmark.unwrap_or(0);
     let i18n = input.i18n;
     let message = input.message;
@@ -152,7 +152,7 @@ pub fn edit_web_bookmark_modal<'a, M: Clone + 'a>(input: Input<'a, M>) -> Option
     Some((container(card).padding(12).into(), close))
 }
 
-pub fn add_web_bookmark_modal<'a, M: Clone + 'a>(input: Input<'a, M>) -> Option<(Element<'a, M>, M)> {
+pub fn add_web_bookmark_modal<'a, M: Clone + 'static>(input: Input<'a, M>) -> Option<(Element<'a, M>, M)> {
     let i18n = input.i18n;
     let message = input.message;
     let close = (message)(Event::ToggleWebLinksMenu);

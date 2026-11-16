@@ -23,7 +23,7 @@ use iced::{Background, Border, Color, Element, Theme, Length};
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn copy_tooltip_content<'a, Message: 'a>(label: &'a str) -> Element<'a, Message> {
+pub fn copy_tooltip_content<'a, Message: Clone + 'static>(label: &'a str) -> Element<'a, Message> {
     container(text(label).size(11)).padding([4, 8]).style(copy_tooltip_style).into()
 }
 

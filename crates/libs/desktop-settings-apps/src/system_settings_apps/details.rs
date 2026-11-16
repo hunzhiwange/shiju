@@ -13,7 +13,7 @@ pub fn view<'a, M: Clone + 'static>(
     app: &'a catalog::CatalogRow,
     cross_domain: Element<'a, M>,
     manual_guidance: &'a str,
-    message: impl Fn(Action) -> M + Copy + 'a,
+    message: impl Fn(Action) -> M + Copy + 'static,
 ) -> Element<'a, M> {
     let mut details = column![
         text("运行状态").size(15),

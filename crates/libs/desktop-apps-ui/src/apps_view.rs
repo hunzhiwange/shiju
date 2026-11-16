@@ -2,7 +2,7 @@
 use desktop_ui_controls::system_settings_common::{settings_panel_style, settings_modal_overlay};
 use iced::{Element, Length};
 use iced::widget::{container, column, scrollable};
-pub fn view<'a, M: Clone + 'a>(header: Element<'a, M>, grid: Element<'a, M>, active_modal: Option<(Element<'a, M>, M)>) -> Element<'a, M> {
+pub fn view<'a, M: Clone + 'static>(header: Element<'a, M>, grid: Element<'a, M>, active_modal: Option<(Element<'a, M>, M)>) -> Element<'a, M> {
     // 构建基础内容容器
     // 包含头部和磁贴网格的垂直布局
     let header_panel: Element<'a, M> =

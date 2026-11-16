@@ -93,7 +93,7 @@ pub fn card<'a>(state: ToolsView<'a>, catalog: Option<&'a Result<McpCatalogRespo
         )
         .push(
             settings_text_input("入站 ACP 会话ID", &state.acp_session)
-                .on_input(|value| message(ToolsMessage::AcpSessionChanged(value))),
+                .on_input(move |value| message(ToolsMessage::AcpSessionChanged(value))),
         )
         .push(toolbar_button(
             if state.acp_loading { "读取中..." } else { "读取 ACP 挂载" },

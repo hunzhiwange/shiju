@@ -118,7 +118,7 @@ fn update_task(state: &mut ProviderSettingsState, models: &mut ModelSettingsStat
         SettingsMessage::ProviderModelsSyncDone(res) => match res {
             Ok((providers, patterns, configured, catalog)) => {
                 models.providers =
-                    super::crate::provider_models::summarize_models(providers.clone());
+                    crate::models::summarize_models(providers.clone());
                 state.providers = summarize_providers(providers);
                 if configured {
                     replace_popular_patterns(state, patterns);
@@ -141,7 +141,7 @@ fn update_task(state: &mut ProviderSettingsState, models: &mut ModelSettingsStat
             Ok((providers, patterns, configured, catalog)) => {
                 state.loading = false;
                 models.providers =
-                    super::crate::provider_models::summarize_models(providers.clone());
+                    crate::models::summarize_models(providers.clone());
                 state.providers = summarize_providers(providers);
                 if configured {
                     replace_popular_patterns(state, patterns);
@@ -238,7 +238,7 @@ fn update_task(state: &mut ProviderSettingsState, models: &mut ModelSettingsStat
             Ok((providers, patterns, configured, catalog)) => {
                 state.loading = false;
                 models.providers =
-                    super::crate::provider_models::summarize_models(providers.clone());
+                    crate::models::summarize_models(providers.clone());
                 state.providers = summarize_providers(providers);
                 if configured {
                     replace_popular_patterns(state, patterns);
@@ -284,7 +284,7 @@ fn update_task(state: &mut ProviderSettingsState, models: &mut ModelSettingsStat
             Ok((providers, patterns, configured, catalog)) => {
                 state.loading = false;
                 models.providers =
-                    super::crate::provider_models::summarize_models(providers.clone());
+                    crate::models::summarize_models(providers.clone());
                 state.providers = summarize_providers(providers);
                 if configured {
                     replace_popular_patterns(state, patterns);
@@ -668,7 +668,7 @@ fn update_task(state: &mut ProviderSettingsState, models: &mut ModelSettingsStat
                 state.loading = false;
                 state.custom_models_discovering = false;
                 models.providers =
-                    super::crate::provider_models::summarize_models(providers.clone());
+                    crate::models::summarize_models(providers.clone());
                 state.providers = summarize_providers(providers);
                 if configured {
                     replace_popular_patterns(state, patterns);

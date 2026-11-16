@@ -35,7 +35,7 @@ pub fn session_rename_old_title<'a>(sessions: &'a [session_info::Info], project_
         .unwrap_or("")
 }
 
-pub fn with_session_rename<'a, Message: Clone + 'a>(
+pub fn with_session_rename<'a, Message: Clone + 'static>(
     session_id: Option<&str>, value: &'a str, sessions: &'a [session_info::Info], project_sessions: &'a std::collections::HashMap<String, Vec<session_info::Info>>, locale: config_ui::DesktopLocale,
     emit: impl Fn(Event) -> Message + Copy + 'a,
     root_content: Element<'a, Message>,
@@ -58,7 +58,7 @@ pub fn with_session_rename<'a, Message: Clone + 'a>(
     )
 }
 
-fn rename_dialog<'a, Message: Clone + 'a>(
+fn rename_dialog<'a, Message: Clone + 'static>(
     i18n: I18n,
     title: &'a str,
     old_name: &'a str,

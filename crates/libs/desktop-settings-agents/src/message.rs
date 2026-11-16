@@ -138,6 +138,7 @@ pub enum AcpMessage {
 }
 #[derive(Debug, Clone)]
 pub enum Event {
+    Selection(String, usize, usize, Option<String>),
     OpenUrlExternal(String),
     AppendText(String),
     CopyText(String),
@@ -147,4 +148,14 @@ pub enum Event {
     OpenMcp,
     OpenSkills,
     None,
+}
+
+impl desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage for Event {
+    fn none() -> Self { Self::None }
+    fn copy(text: String) -> Self { Self::CopyText(text) }
+    fn context(effect: desktop_ui_controls::text_editor_context_menu::TextContextEffect) -> Self {
+        use desktop_ui_controls::text_editor_context_menu::TextContextEffect;
+        match effect { TextContextEffect::Copy(text) => Self::CopyText(text), TextContextEffect::Append(text) => Self::AppendText(text), TextContextEffect::OpenUrl(url) => Self::OpenUrlExternal(url) }
+    }
+    fn selection(session: String, index: usize, text_index: usize, text: Option<String>) -> Self { Self::Selection(session, index, text_index, text) }
 }

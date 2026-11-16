@@ -6,7 +6,7 @@ use super::styles::MESSAGE_TEXT_SIZE;
 use desktop_chat_tools::tool_text_support::ToolTextTarget;
 use desktop_chat_tools::tool_text_support::chat_text_font_name;
 use iced::Element;
-pub fn assistant_api_error_view<'a, M: Clone + 'a>(
+pub fn assistant_api_error_view<'a, M: Clone + 'static>(
     app: &MessageViewSnapshot<'a, M>,
     msg_idx: usize,
     text_idx: Option<usize>,

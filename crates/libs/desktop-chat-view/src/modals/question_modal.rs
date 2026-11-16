@@ -103,7 +103,7 @@ fn question_option_button_style(
 
 /// 模块内可见函数，执行 with_question_modal 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub fn with_question_modal<'a, Message: Clone + 'a>(
+pub fn with_question_modal<'a, Message: Clone + 'static>(
     request: Option<&question_types::Request>,
     answers: &[Vec<String>],
     custom: &[String],

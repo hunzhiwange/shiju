@@ -113,11 +113,11 @@ fn build_worktree_room_scene<'a>(
         let status_text = if task.status == TaskStatus::Running {
             format!(
                 "{} {}",
-                desktop_i18n::tasks::status_label(i18n, task.status),
+                desktop_task_model::i18n::status_label(i18n, task.status),
                 running_dots(now_ms)
             )
         } else {
-            desktop_i18n::tasks::status_label(i18n, task.status)
+            desktop_task_model::i18n::status_label(i18n, task.status)
         };
         let mut task_row = row![
             text(task_id_label).size(11).style(move |theme: &Theme| {
@@ -442,6 +442,7 @@ pub(super) fn build_worktree_pixel_card<'a>(
     app: &ControlView<'a>,
     slot: &'a WorktreeSlotSnapshot,
 ) -> Element<'a, Message> {
+    let expanded = app.task_board_worktree_panel_expanded;
     let room_plate = worktree_room_plate(&slot.id, slot.state);
     let recycle_btn =
         button(text(desktop_i18n::I18n::new(app.desktop_locale).__("回收")).size(10))
@@ -488,7 +489,7 @@ pub(super) fn build_worktree_pixel_card<'a>(
         iced::widget::container::Style {
             background: Some(Background::Color(bg)),
             border: Border {
-                width: if app.task_board_worktree_panel_expanded
+                width: if expanded
                     || slot.state == WorktreeState::Busy
                 {
                     2.0

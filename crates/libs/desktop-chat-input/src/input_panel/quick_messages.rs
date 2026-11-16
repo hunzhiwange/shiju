@@ -428,7 +428,7 @@ fn shiju_trigger_tooltip(
         .spacing(5),
     )
     .padding([9, 11])
-    .style(styles::tooltip_dark_style)
+    .style(desktop_ui_controls::tooltip::tooltip_dark_style)
     .into()
 }
 
@@ -504,7 +504,7 @@ fn shiju_tooltip(row: &ShijuMenuRow<'_>) -> Element<'static, Message> {
             .wrapping(iced::widget::text::Wrapping::Word),
     )
     .padding([9, 11])
-    .style(styles::tooltip_dark_style)
+    .style(desktop_ui_controls::tooltip::tooltip_dark_style)
     .into()
 }
 

@@ -204,7 +204,7 @@ pub fn view<'a>(app: &View<'a>, help: HelpRenderer<Message>) -> Element<'a, Mess
         settings_page_heading_with_help(
             help,
             i18n,
-            &app.app_theme,
+            app.app_theme,
             i18n.__("快捷消息"),
             i18n.__("配置聊天输入框上方的常用消息、摘要接力与 Git 动作。")
         ),

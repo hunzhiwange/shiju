@@ -29,7 +29,7 @@ pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
         let header = installed_skills::header(
             i18n,
             move || {
-                desktop_ui_controls::system_settings_common::settings_hover_help_label(
+                desktop_ui_controls::system_settings_common::help::settings_hover_help_label(
                     iced::widget::text(title).size(25).font(iced::Font {
                         weight: iced::font::Weight::Bold,
                         ..Default::default()

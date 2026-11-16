@@ -384,9 +384,9 @@ fn build_header_row<'a>(
     if let Some(status) = task.map(|value| value.status) {
         let (status_color, status_bg_color) = task_status_tag_colors(status);
         let status_text = if status == desktop_task_model::TaskStatus::Running {
-            format!("{} {}", desktop_i18n::tasks::status_label(i18n, status), running_dots(now))
+            format!("{} {}", desktop_task_model::i18n::status_label(i18n, status), running_dots(now))
         } else {
-            desktop_i18n::tasks::status_label(i18n, status)
+            desktop_task_model::i18n::status_label(i18n, status)
         };
         let status_tag = container(text(status_text).size(10))
             .height(Length::Fixed(20.0))

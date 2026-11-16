@@ -144,7 +144,7 @@ fn action(label: &'static str, event: Event, enabled: bool) -> Element<'static, 
 pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
     overlay_with_base(state, base, |event| event)
 }
-pub fn overlay_with_base<'a, M: Clone + 'a>(state: &'a State, base: Element<'a, M>, map: fn(Event) -> M) -> Element<'a, M> {
+pub fn overlay_with_base<'a, M: Clone + 'static>(state: &'a State, base: Element<'a, M>, map: fn(Event) -> M) -> Element<'a, M> {
     if !state.open { return base; }
     let mut body = column![text("家族规则及价格转换由执行主机处理；选择修改后请保存，再同步。")].spacing(10);
     if let Some(draft) = &state.draft {

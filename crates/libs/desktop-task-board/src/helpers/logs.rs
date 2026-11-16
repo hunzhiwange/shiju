@@ -270,7 +270,7 @@ pub fn restore_task_logs_scroll(app: &mut TaskLogsState<'_>, target_top_line: f3
 
     let delta = target_top_line as i32;
     if delta != 0 {
-        *app.task_board_logs_editor
+        app.task_board_logs_editor
             .perform(iced::widget::text_editor::Action::Scroll { lines: delta });
     }
 

@@ -6,7 +6,7 @@ pub enum Event {
 SkillsProjectSelected(String),
 SkillsRefresh,
 PluginsRefresh,
-PluginsLoaded(Vec<DesktopPluginCatalogEntryDto>),
+PluginsLoaded(Result<Vec<DesktopPluginCatalogEntryDto>, String>),
 PluginsSelected(String),
 PluginsSetEnabledRequested {
         plugin_id: String,
@@ -25,7 +25,7 @@ PluginsDeleteCompleted {
 SkillsTabChanged(SkillsSettingsTab),
 SkillsDetailClosed,
 SkillsDetailRequested(String),
-SkillsLoaded(Vec<DesktopSkillCatalogEntryDto>),
+SkillsLoaded(Result<Vec<DesktopSkillCatalogEntryDto>, String>),
 SkillsDetailLoaded {
         skill_id: String,
         result: Result<DesktopSkillDetailDto, String>,

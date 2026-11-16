@@ -85,7 +85,7 @@ pub(super) fn apply_bootstrap_agent_config(
     apply_section!(scheduler_settings, build_scheduler_settings(full_agent_cfg));
     apply_section!(hooks_settings, build_hooks_settings(full_agent_cfg));
     apply_section!(runtime_settings, build_runtime_settings(full_agent_cfg));
-    apply_section!(skills_settings, build_skills_settings(&full_agent_cfg.skills));
+    apply_section!(skills_settings, desktop_settings_skills::update::state::build_skills_settings(&full_agent_cfg.skills));
     apply_section!(web_search_settings, build_web_search_settings(full_agent_cfg));
     apply_section!(browser_settings, build_browser_settings(full_agent_cfg));
     apply_section!(http_request_settings, build_http_request_settings(full_agent_cfg));

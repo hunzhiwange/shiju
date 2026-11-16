@@ -90,6 +90,7 @@ use if_else_helpers::*;
 use node_validation::*;
 use start_variable_drafts::*;
 pub use start_variable_validation::*;
+pub(crate) use visual_sync::apply_visual_draft_to_yaml;
 use visual_sync::*;
 use yaml_helpers::*;
 

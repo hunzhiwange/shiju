@@ -51,7 +51,7 @@ pub fn update(state: &mut StorageSettingsState, storage_message: StorageMessage)
         StorageMessage::TlsToggled(value) => {
             state.tls = value;
         }
-        StorageMessage::Save => {}
+        StorageMessage::Save | StorageMessage::None | StorageMessage::HelpCopy(_) | StorageMessage::HelpAppend(_) | StorageMessage::HelpOpenUrl(_) | StorageMessage::HelpSelection(..) => {}
     }
 
 }

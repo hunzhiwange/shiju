@@ -279,10 +279,10 @@ pub fn tool_todowrite_compact_view<'a>(
                 row![
                     text(symbol).size(14).style(|theme: &Theme| iced::widget::text::Style {
                         color: Some(chat_secondary_text_color(theme)),
-                    },
+                    }),
                     text(content_text).size(14).style(|theme: &Theme| iced::widget::text::Style {
                         color: Some(chat_secondary_text_color(theme)),
-                    }
+                    })
                 ]
                 .spacing(8)
                 .align_y(Alignment::Center),
@@ -427,10 +427,10 @@ pub fn tool_todos_view<'a>(
                 row![
                     text(symbol).size(14).style(|theme: &Theme| iced::widget::text::Style {
                         color: Some(chat_secondary_text_color(theme)),
-                    },
+                    }),
                     text(todo.content.clone()).size(14).style(|theme: &Theme| {
                         iced::widget::text::Style { color: Some(chat_secondary_text_color(theme)) }
-                    }
+                    })
                 ]
                 .spacing(8)
                 .align_y(Alignment::Center),

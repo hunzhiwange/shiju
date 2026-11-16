@@ -7,7 +7,7 @@ use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{button, container, row, scrollable, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme, Vector};
 
-use desktop_assets::Icon;
+use desktop_assets::assets::Icon;
 use desktop_ui_controls::system_settings_common::settings_panel_style;
 #[derive(Debug, Clone)]
 pub enum Message { OpenFolderPressed, OpenProjectPressed, OpenApps, HomeAppsBarScrollChanged(f32) }

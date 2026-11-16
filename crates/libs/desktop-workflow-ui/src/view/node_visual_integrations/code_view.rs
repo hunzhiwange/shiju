@@ -1,5 +1,6 @@
 //! Code node configuration panel.
 use super::*;
+use iced::widget::column;
 
 /// 构建 code visual section 对应的界面元素。
 ///

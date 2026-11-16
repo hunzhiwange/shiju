@@ -206,7 +206,7 @@ pub fn flatten_visible_slash_entries(
     sections.iter().flat_map(|section| section.entries.iter().cloned()).collect()
 }
 
-fn mcp_candidates_from_editor(editor_text: &str) -> Vec<(usize, bool, SlashPaletteCandidate)> {
+pub fn mcp_candidates_from_editor(editor_text: &str) -> Vec<(usize, bool, SlashPaletteCandidate)> {
     let Ok(value) = serde_json::from_str::<Value>(editor_text) else {
         return Vec::new();
     };

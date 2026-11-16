@@ -41,7 +41,7 @@ use super::ui::{
 
 const COMMIT_FOCUS_SCOPE: &str = "git-commit-form";
 
-pub fn traverse_commit_focus<Message: 'static>(reverse: bool) -> iced::Task<Message> {
+pub fn traverse_commit_focus<Message: Send + 'static>(reverse: bool) -> iced::Task<Message> {
     let id = Id::from(COMMIT_FOCUS_SCOPE);
     if reverse {
         operate(scope(id, focusable::focus_previous::<()>())).discard()

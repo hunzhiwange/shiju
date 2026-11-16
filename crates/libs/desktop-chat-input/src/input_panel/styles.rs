@@ -159,3 +159,5 @@ pub fn selector_pill_button_style(
 pub use desktop_chat_tools::selector_style::selectable_list_button_style;
 
 pub use desktop_chat_tools::selector_style::popover_style;
+
+pub use desktop_ui_controls::tooltip::tooltip_dark_style;

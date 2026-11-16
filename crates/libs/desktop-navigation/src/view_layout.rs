@@ -30,7 +30,7 @@ pub fn global_command(key: &iced::keyboard::Key, modifiers: iced::keyboard::Modi
 mod tests;
 
 /// Display a translated error over the current window contents.
-pub fn with_error<'a, M: Clone + 'a>(content: iced::Element<'a, M>, i18n: desktop_i18n::I18n, error: String, close: M) -> iced::Element<'a, M> {
+pub fn with_error<'a, M: Clone + 'static>(content: iced::Element<'a, M>, i18n: desktop_i18n::I18n, error: String, close: M) -> iced::Element<'a, M> {
             use iced::widget::{button, column, container, row, text};
             use iced::{Background, Border, Color, Length};
 
@@ -100,7 +100,7 @@ pub fn with_error<'a, M: Clone + 'a>(content: iced::Element<'a, M>, i18n: deskto
 pub mod drag;
 
 /// Keep notification placement independent of the current page.
-pub fn with_notifications<'a, M: Clone + 'a>(
+pub fn with_notifications<'a, M: Clone + 'static>(
     main_view: iced::Element<'a, M>,
     notifications: iced::Element<'a, M>,
 ) -> iced::Element<'a, M> {
@@ -117,7 +117,7 @@ pub fn with_notifications<'a, M: Clone + 'a>(
 }
 
 /// Always mount the toast layer so changes preserve widget tree identity.
-pub fn with_toast<'a, M: Clone + 'a>(
+pub fn with_toast<'a, M: Clone + 'static>(
     content: iced::Element<'a, M>,
     toast: iced::Element<'a, M>,
     toast_bottom: u16,
@@ -130,7 +130,7 @@ pub fn with_toast<'a, M: Clone + 'a>(
         )
         .width(iced::Length::Fill)
         .height(iced::Length::Shrink)
-        .padding(iced::Padding::default().top(0).right(12).bottom(toast_bottom).left(0))
+        .padding(iced::Padding::default().top(0).right(12).bottom(toast_bottom as f32).left(0))
     ]
     .width(iced::Length::Fill)
     .height(iced::Length::Fill)
@@ -140,7 +140,7 @@ pub fn with_toast<'a, M: Clone + 'a>(
 }
 
 /// Cover the window with the selected theme image behind its contents.
-pub fn with_wallpaper<'a, M: Clone + 'a>(
+pub fn with_wallpaper<'a, M: Clone + 'static>(
     content: iced::Element<'a, M>,
     path: Option<&std::path::PathBuf>,
 ) -> iced::Element<'a, M> {

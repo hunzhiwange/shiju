@@ -350,5 +350,5 @@ pub fn cloud_error(state: &mut State) -> Option<String> {
     }
     let error = state.conversation.as_ref()?.snapshot().error?;
     state.conversation_error_reported = true;
-    Some(error)
+    Some(error.to_owned())
 }

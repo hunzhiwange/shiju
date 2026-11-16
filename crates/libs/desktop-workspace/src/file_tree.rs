@@ -14,7 +14,7 @@ pub fn remove_local_file_tree_path(files: &mut Vec<String>, path: &str, recursiv
 }
 
 pub fn unique_name_for_target(
-    dst_dir: &std::path::{Component, Path},
+    dst_dir: &std::path::Path,
     name: &str,
     existing: &HashSet<String>,
 ) -> String {
@@ -22,7 +22,7 @@ pub fn unique_name_for_target(
     if !existing.contains(&original) {
         return original;
     }
-    let path = std::path::{Component, Path}::new(name);
+    let path = std::path::Path::new(name);
     let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or(name);
     let ext = path.extension().and_then(|s| s.to_str());
     for i in 1..=999 {
@@ -49,7 +49,7 @@ pub fn replace_path_prefix(target: &str, old_path: &str, new_path: &str) -> Opti
 }
 
 pub fn path_display_name(path: &str) -> String {
-    std::path::{Component, Path}::new(path)
+    std::path::Path::new(path)
         .file_name()
         .and_then(|name| name.to_str())
         .filter(|name| !name.is_empty())

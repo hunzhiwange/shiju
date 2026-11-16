@@ -2,6 +2,7 @@
 //! 健康状态按服务器键隔离，删除目标缺失时覆盖层需安全退回基础视图。
 
 use super::*;
+use iced::widget::column;
 
 use crate::server_health_key;
 use crate::state::GatewayClientServerDraft;

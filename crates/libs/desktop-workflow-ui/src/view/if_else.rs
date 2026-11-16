@@ -104,9 +104,9 @@ pub fn build_if_else_case_card<'a>(
         if let Some(error) =
             validation.localized_error_for(i18n, &format!("if_else.cases[{index}].conditions"))
         {
-            text(error).size(12).style(|theme: &Theme| iced::widget::text::Style {
+            Element::<Message>::from(text(error).size(12).style(|theme: &Theme| iced::widget::text::Style {
                 color: Some(theme.extended_palette().danger.base.color),
-            }).into()
+            }))
         } else {
             container(Space::new().width(1).height(1)).into()
         },

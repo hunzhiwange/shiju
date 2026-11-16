@@ -3,6 +3,7 @@
 //! 该模块对各类节点可视化草稿与高级 YAML 输入做字段级校验并生成错误列表。
 
 use super::*;
+use crate::state::apply_visual_draft_to_yaml;
 
 pub fn validate_node_editor_draft(
     block_type: &str,

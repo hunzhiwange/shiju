@@ -49,7 +49,7 @@ impl<'a, Message, Theme, Renderer> MeasuredChatMessage<'a, Message, Theme, Rende
 impl<'a, Message, Theme, Renderer> From<MeasuredChatMessage<'a, Message, Theme, Renderer>>
     for Element<'a, Message, Theme, Renderer>
 where
-    Message: 'a,
+    Message: Clone + 'static,
     Theme: 'a,
     Renderer: iced::advanced::Renderer + 'a,
 {

@@ -1,5 +1,6 @@
 //! Configured and runtime server cards.
 use super::*;
+use iced::widget::column;
 pub fn configured_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessage) -> Message,
     locale: DesktopLocale,
     server: ConfiguredMcpServerRow,

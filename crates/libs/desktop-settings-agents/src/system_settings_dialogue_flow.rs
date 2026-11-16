@@ -19,7 +19,7 @@ fn field_row<'a>(
 ) -> Element<'a, Message> {
     settings_flexible_row_with_help(app.help_text,
         I18n::new(app.desktop_locale),
-        &app.app_theme,
+        app.app_theme,
         label,
         description,
         112.0,
@@ -83,7 +83,7 @@ pub fn view<'a>(app: &View<'a>) -> Element<'a, Message> {
     let mut col = column![
         settings_page_heading_with_help(app.help_text,
             i18n,
-            &app.app_theme,
+            app.app_theme,
             i18n.__("对话流"),
             i18n.__("配置时间线中的推理摘要、工具展开和跟进行为。")
         ),

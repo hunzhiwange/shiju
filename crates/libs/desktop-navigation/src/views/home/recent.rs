@@ -5,7 +5,7 @@
 use iced::widget::{Image, Space, button, column, container, row, scrollable, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme, Vector};
 
-use desktop_assets::{self as assets, Icon};
+use desktop_assets::assets::{self, Icon};
 use desktop_ui_controls::system_settings_common::settings_panel_style;
 use desktop_workspace::project_message::edit_meta::RecentProjectMeta;
 

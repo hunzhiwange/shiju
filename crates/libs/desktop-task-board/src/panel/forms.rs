@@ -1,5 +1,6 @@
 //! 任务字段、导入内容与提交选项。
 use super::*;
+use iced::widget::column;
 
 pub(super) fn build_priority_field<'a>(app: PanelView<'a>, is_edit_mode: bool) -> iced::Element<'a, Message> {
     let priority_msg = if is_edit_mode {
@@ -20,12 +21,12 @@ pub(super) fn build_priority_field<'a>(app: PanelView<'a>, is_edit_mode: bool) -
 }
 
 pub(super) fn build_task_split_mode_selector(app: PanelView<'_>, is_edit_mode: bool) -> iced::Element<'_, Message> {
-    let selected = desktop_i18n::tasks::SplitOption(
+    let selected = desktop_task_model::i18n::SplitOption(
         app.task_board_draft.task_split_mode,
         app.desktop_locale,
     );
     let options = TaskSplitMode::all()
-        .map(|mode| desktop_i18n::tasks::SplitOption(mode, app.desktop_locale))
+        .map(|mode| desktop_task_model::i18n::SplitOption(mode, app.desktop_locale))
         .to_vec();
     settings_select(options, Some(selected), move |mode| {
         Message::TaskBoard(if is_edit_mode {
@@ -40,12 +41,12 @@ pub(super) fn build_task_split_mode_selector(app: PanelView<'_>, is_edit_mode: b
 }
 
 pub fn build_bulk_task_split_selector(app: PanelView<'_>) -> iced::Element<'_, Message> {
-    let selected = desktop_i18n::tasks::SplitOption(
+    let selected = desktop_task_model::i18n::SplitOption(
         app.task_board_bulk_task_split_mode,
         app.desktop_locale,
     );
     let options = TaskSplitMode::all()
-        .map(|mode| desktop_i18n::tasks::SplitOption(mode, app.desktop_locale))
+        .map(|mode| desktop_task_model::i18n::SplitOption(mode, app.desktop_locale))
         .to_vec();
     settings_select(options, Some(selected), |mode| {
         Message::TaskBoard(TaskBoardMessage::UpdateBulkTaskSplitMode(mode.0))

@@ -7,7 +7,7 @@ use super::gateway::{
 use crate::app::{App, Message};
 use iced::Task;
 use serde_json::{Map, Value};
-pub use desktop_config::config_desktop::{DesktopPreferencesPersistence, PreferencesScope, preferences_scope, ChatModelPreferences, ProjectPreferencesScope};
+pub use desktop_config::config_desktop::{PatchTarget, DesktopPreferencesPersistence, PreferencesScope, preferences_scope, ChatModelPreferences, ProjectPreferencesScope};
 #[path = "config_project_chat.rs"]
 mod project_chat;
 pub(super) fn preferences_message(message: desktop_config::config_desktop::PreferencesMessage) -> Message {

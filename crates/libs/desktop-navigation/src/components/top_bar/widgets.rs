@@ -3,7 +3,7 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
-use desktop_assets::{self as assets, Icon};
+use desktop_assets::assets::{self, Icon};
 use super::Message;
 use iced::widget::svg::{self, Svg};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
@@ -107,7 +107,7 @@ pub fn icon_tooltip_style(theme: &Theme) -> iced::widget::container::Style {
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn icon_button<'a, M: Clone + 'a>(
+pub fn icon_button<'a, M: Clone + 'static>(
     icon: Icon,
     tip: &'a str,
     position: TooltipPosition,
@@ -129,7 +129,7 @@ pub fn icon_button<'a, M: Clone + 'a>(
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn icon_toggle_button<'a, M: Clone + 'a>(
+pub fn icon_toggle_button<'a, M: Clone + 'static>(
     icon: Icon,
     tip: &'a str,
     position: TooltipPosition,
@@ -152,7 +152,7 @@ pub fn icon_toggle_button<'a, M: Clone + 'a>(
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn icon_toggle_button_opt<'a, M: Clone + 'a>(
+pub fn icon_toggle_button_opt<'a, M: Clone + 'static>(
     icon: Icon,
     tip: &'a str,
     position: TooltipPosition,
@@ -274,7 +274,7 @@ pub fn menu_container_style(theme: &Theme) -> iced::widget::container::Style {
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn menu_container<'a, M: Clone + 'a>(content: Element<'a, M>) -> Element<'a, M> {
+pub fn menu_container<'a, M: Clone + 'static>(content: Element<'a, M>) -> Element<'a, M> {
     container(content).padding(4).width(Length::Fixed(220.0)).style(menu_container_style).into()
 }
 
@@ -320,7 +320,7 @@ pub fn menu_item_button_style(
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn menu_item_btn_with_action<'a, M: Clone + 'a>(
+pub fn menu_item_btn_with_action<'a, M: Clone + 'static>(
     label: &'a str,
     shortcut: Option<&'a str>,
     msg: Option<M>,
@@ -368,7 +368,7 @@ pub fn menu_separator_style(theme: &Theme) -> iced::widget::container::Style {
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn menu_separator<'a, M: Clone + 'a>() -> Element<'a, M> {
+pub fn menu_separator<'a, M: Clone + 'static>() -> Element<'a, M> {
     container(
         container(Space::new().width(Length::Fill).height(Length::Fixed(1.0)))
             .style(menu_separator_style),
@@ -390,7 +390,7 @@ pub fn menu_separator<'a, M: Clone + 'a>() -> Element<'a, M> {
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn menu_item_icon_btn_with_action<'a, M: Clone + 'a>(
+pub fn menu_item_icon_btn_with_action<'a, M: Clone + 'static>(
     icon: Element<'a, M>,
     label: &'a str,
     shortcut: Option<&'a str>,
@@ -432,7 +432,7 @@ pub fn menu_item_icon_btn<'a>(icon: Element<'a, Message>, label: &'a str, shortc
 }
 
 /// Menu trigger shared by the desktop adapter and navigation menus.
-pub fn menu_btn_with_actions<'a, M: Clone + 'a>(
+pub fn menu_btn_with_actions<'a, M: Clone + 'static>(
     label: &'a str,
     is_active: bool,
     on_press: M,

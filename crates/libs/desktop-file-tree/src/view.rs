@@ -5,7 +5,7 @@ use iced::{Background, Color, Element, Length, Theme};
 
 use desktop_ui_controls::status_animation::spinner_frame;
 use crate::{FileTreeView, Message, message};
-use desktop_assets::Icon;
+use desktop_assets::assets::Icon;
 use crate::{icons, tree_list, find_results};
 use crate::widgets::RightClickArea;
 

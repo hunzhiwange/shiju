@@ -13,7 +13,7 @@ use super::widgets::{
      menu_separator, menu_separator_style,
 };
 use super::Message;
-use desktop_assets::Icon;
+use desktop_assets::assets::Icon;
 
 
 fn assert_size(element: &Element<'_, Message>, width: Length, height: Length) {

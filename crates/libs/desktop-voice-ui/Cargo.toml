@@ -6,6 +6,7 @@ license = "MIT"
 [lib]
 doctest = false
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+desktop-chat-view = { path = "../desktop-chat-view", version = "0.6.0" }
 desktop-voice = { path = "../desktop-voice", version = "0.6.0" }
 audio-capture = { path = "../audio-capture", version = "0.6.0" }
 voice-recordings = { path = "../voice-recordings", version = "0.6.0" }

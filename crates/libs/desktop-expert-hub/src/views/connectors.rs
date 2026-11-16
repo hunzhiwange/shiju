@@ -7,7 +7,7 @@ use crate::message::connectors::ConnectorMessage;
 use desktop_skill_hub::skill_hub::{ExpertHubSection, LoadState, connectors::{ConnectorForm, ConnectorWork}};
 /// 宿主提供原有可选择帮助文本及其选择/复制消息。
 pub type HelpRenderer<M> = for<'a> fn(&'a str, std::borrow::Cow<'a, str>, Option<iced::Color>, I18n) -> Element<'a, M>;
-fn help_label<'a, M: Clone + 'a>(render: HelpRenderer<M>, i18n: I18n, theme: &Theme, title: &'a str, label: iced::widget::Text<'a>, description: impl Into<std::borrow::Cow<'a, str>>) -> iced::widget::Row<'a, M> {
+fn help_label<'a, M: Clone + 'static>(render: HelpRenderer<M>, i18n: I18n, theme: &Theme, title: &'a str, label: iced::widget::Text<'a>, description: impl Into<std::borrow::Cow<'a, str>>) -> iced::widget::Row<'a, M> {
     desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label, render(title, description.into(), Some(theme.palette().text), i18n))
 }
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -87,7 +87,7 @@ pub fn view<'a, M: Clone + 'static>(app: &ViewInput<'a>, help: HelpRenderer<M>, 
     column![header, body].spacing(18).width(Length::Fill).height(Length::Fill).into()
 }
 // 始终三列；末行补空位，内容两侧留出 4px 滚动条及间距。
-pub fn card_grid<'a, M: Clone + 'a>(
+pub fn card_grid<'a, M: Clone + 'static>(
     app: &ViewInput<'a>,
     connectors: &'a [ShijuConnector],
     message: fn(ConnectorMessage) -> M,
@@ -105,7 +105,7 @@ pub fn card_grid<'a, M: Clone + 'a>(
     }
     container(grid).padding([4, SCROLLABLE_SIDE_PADDING]).width(Length::Fill).into()
 }
-fn connector_card<'a, M: Clone + 'a>(app: &ViewInput<'a>, connector: &'a ShijuConnector, message: fn(ConnectorMessage) -> M) -> Element<'a, M> {
+fn connector_card<'a, M: Clone + 'static>(app: &ViewInput<'a>, connector: &'a ShijuConnector, message: fn(ConnectorMessage) -> M) -> Element<'a, M> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let id = connector.company_platform_id;
     let operation = app.expert_hub.connectors.work.get(&id);
@@ -188,7 +188,7 @@ fn connector_card<'a, M: Clone + 'a>(app: &ViewInput<'a>, connector: &'a ShijuCo
     }
     container(content).padding(16).width(Length::FillPortion(1)).style(styles::card_style).into()
 }
-fn status<'a, M: Clone + 'a>(label: &'a str) -> Element<'a, M> {
+fn status<'a, M: Clone + 'static>(label: &'a str) -> Element<'a, M> {
     container(text(label).size(16)).center_x(Length::Fill).center_y(Length::Fill).into()
 }
 
@@ -243,14 +243,14 @@ pub fn binding_modal<'a, M: Clone + 'static>(app: &ViewInput<'a>, help: HelpRend
     Some((close, container(card).padding(12).into()))
 }
 
-fn field<'a, M: Clone + 'a>(
+fn field<'a, M: Clone + 'static>(
     label: impl Into<Element<'a, M>>,
     control: impl Into<Element<'a, M>>,
 ) -> Element<'a, M> {
     column![label.into(), control.into()].spacing(6).padding([12, 0]).width(Length::Fill).into()
 }
 
-fn binding_form<'a, M: Clone + 'a>(
+fn binding_form<'a, M: Clone + 'static>(
     i18n: I18n,
     theme: &Theme,
     form: &'a ConnectorForm,

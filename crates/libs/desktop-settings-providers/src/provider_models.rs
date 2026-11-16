@@ -571,7 +571,7 @@ pub(crate) fn custom_provider_patch_from_draft(
     Ok((provider_id, serde_json::Value::Object(root)))
 }
 
-fn validate_model_drafts(
+pub(crate) fn validate_model_drafts(
     models: &[crate::provider_state::CustomProviderModelDraft],
 ) -> Result<(), Feedback> {
     let mut ids = HashSet::new();

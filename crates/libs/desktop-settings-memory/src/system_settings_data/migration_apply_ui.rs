@@ -118,7 +118,7 @@ pub fn view<'a>(state: &'a State, preview: &'a DataImportPreview) -> Element<'a,
         }
         let retry = progress.committed && matches!(&progress.result, Some(DataOperationResult::Partial { errors }) if errors.iter().any(|e| e.code == DataManagementErrorCode::ProjectionFailed));
         for (label, event, enabled) in [("刷新进度", Event::Refresh, true), ("请求取消", Event::Cancel, progress.result.is_none() && !progress.cancel_requested), ("重试失败投影", Event::Retry, retry)] {
-            body = body.push(button(text(label)).padding([8, 14]).style(rounded_action_btn_style).on_press_maybe((enabled && !state.busy).then(|| message(event))));
+            body = body.push(button(text(label)).padding([8, 14]).style(rounded_action_btn_style).on_press_maybe((enabled && !state.busy).then_some(event)));
         }
     } else {
         body = body.push(button(text(if state.busy { "提交中…" } else { "确认迁入 / 重试提交" })).padding([8, 14]).style(primary_action_btn_style)

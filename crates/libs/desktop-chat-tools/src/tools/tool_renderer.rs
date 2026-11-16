@@ -93,7 +93,7 @@ pub struct ViewInput<'a> {
     pub file_hovered: Option<&'a str>,
 }
 #[allow(clippy::too_many_arguments)]
-pub fn view<'a, M: Clone + 'a>(
+pub fn view<'a, M: Clone + 'static>(
     input: &ViewInput<'a>,
     m: usize,
     t: usize,

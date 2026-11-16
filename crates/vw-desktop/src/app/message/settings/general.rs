@@ -159,9 +159,9 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             if requests.is_empty() && !links {
                 return Task::none();
             }
-            if crate::app::provider_link_preview::pending().is_some()
-                || crate::app::mcp_link_preview::pending().is_some()
-                || crate::app::prompt_link_preview::pending().is_some()
+            if desktop_platform::provider_link_preview::pending().is_some()
+                || desktop_platform::mcp_link_preview::pending().is_some()
+                || desktop_platform::prompt_link_preview::pending().is_some()
             {
                 app.navigation_panels.show_settings = true;
             }

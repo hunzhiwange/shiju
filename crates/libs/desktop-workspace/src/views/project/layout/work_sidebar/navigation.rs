@@ -1,3 +1,4 @@
+use iced::widget::column;
 use super::*;
 
 pub(super) fn navigation_icon(icon: Icon) -> svg::Svg<'static> {

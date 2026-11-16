@@ -11,6 +11,9 @@ pub(crate) mod run;
 pub(crate) mod video_edit;
 #[derive(Debug, Clone)]
 pub enum Effect {
+    TextContext(desktop_ui_controls::text_editor_context_menu::TextContextEffect),
+    TextSelection(String, usize, usize, Option<String>),
+    None,
     Error(String),
     Warning(String),
     Success(String),

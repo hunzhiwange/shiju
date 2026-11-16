@@ -1,4 +1,5 @@
 use super::*;
+use iced::widget::column;
 
 pub(super) fn document_row<'a>(app: ViewInput<'a>, document: &'a KnowledgeDocumentDto) -> Element<'a, Message> {
     let chunking_mode = app
@@ -386,5 +387,3 @@ pub(super) fn document_status_badge<'a>(
         .style(move |theme: &Theme| document_status_badge_style(theme, document))
         .into()
 }
-
-#[cfg(test)]

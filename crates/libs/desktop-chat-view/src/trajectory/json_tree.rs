@@ -242,7 +242,7 @@ pub fn json_tree_scroll_direction() -> Direction {
     )
 }
 
-pub fn json_tree<'a, Message: Clone + 'a>(
+pub fn json_tree<'a, Message: Clone + 'static>(
     i18n: desktop_i18n::I18n,
     value: &Value,
     collapsed_paths: &HashSet<String>,

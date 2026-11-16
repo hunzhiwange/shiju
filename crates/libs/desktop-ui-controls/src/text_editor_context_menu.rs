@@ -48,6 +48,7 @@ pub enum TextContextAction {
 }
 
 /// 调用方负责将文本操作映射到应用消息。
+#[derive(Debug, Clone)]
 pub enum TextContextEffect {
     Copy(String),
     Append(String),

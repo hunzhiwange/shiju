@@ -220,7 +220,7 @@ pub fn build_render_cache_entry(
 pub fn resolve_visible_text_and_copy_hash<'a>(
     visible_text: Option<&'a str>,
     copy_hash: Option<u64>,
-    content: &'a str,
+    content: &str,
     current_content_hash: u64,
     render_cache: &models::ChatRenderCacheEntry,
 ) -> (Cow<'a, str>, u64) {

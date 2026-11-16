@@ -82,7 +82,7 @@ pub fn build_timeline(
     TrajectoryTimeline { blocks, summary: build_timeline_summary(projection) }
 }
 
-pub fn trajectory_timeline<'a, Message: Clone + 'a>(
+pub fn trajectory_timeline<'a, Message: Clone + 'static>(
     i18n: desktop_i18n::I18n,
     projection: &TrajectoryProjection,
     duration_mode: TrajectoryDurationMode,
@@ -171,7 +171,7 @@ pub fn trajectory_timeline<'a, Message: Clone + 'a>(
         .into()
 }
 
-pub fn timeline_toolbar<'a, Message: Clone + 'a>(
+pub fn timeline_toolbar<'a, Message: Clone + 'static>(
     i18n: desktop_i18n::I18n,
     summary: TimelineSummary,
     duration_mode: TrajectoryDurationMode,
@@ -252,7 +252,7 @@ pub fn format_timeline_duration(duration_ms: MetricAvailability<u64>) -> String 
     }
 }
 
-fn toolbar_button<'a, Message: Clone + 'a>(
+fn toolbar_button<'a, Message: Clone + 'static>(
     label: &'static str,
     value: String,
     active: bool,

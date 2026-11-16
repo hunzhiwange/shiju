@@ -1,7 +1,7 @@
 //! MCP diagnostic identity and lifecycle; no production connection ownership.
 use {
     vw_gateway_client::GatewayClient,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_app_diagnostics::*,
     vw_api_mcp_management::McpConnectionOutcome,
     vw_api_mcp_management::McpRecordId,

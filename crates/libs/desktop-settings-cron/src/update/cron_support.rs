@@ -195,7 +195,7 @@ pub(super) fn schedule_kind_from_api(
 }
 
 pub(super) fn job_type_from_api(job: &gateway_cron::CronJobDto) -> CronAddJobType {
-    if desktop_settings_cron::system_settings_cron::job_is_agent(job) {
+    if crate::system_settings_cron::job_is_agent(job) {
         CronAddJobType::Agent
     } else {
         CronAddJobType::Shell

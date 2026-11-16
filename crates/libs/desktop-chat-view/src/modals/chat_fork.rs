@@ -16,7 +16,7 @@ use desktop_i18n::I18n;
 use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
-pub fn with_chat_fork_dialog<'a, Message: Clone + 'a>(
+pub fn with_chat_fork_dialog<'a, Message: Clone + 'static>(
     dialog: Option<&desktop_session::message::chat::fork::ForkSessionDialog>, project_is_git_repo: bool, locale: config_ui::DesktopLocale,
     emit: impl Fn(Event) -> Message + Copy + 'a,
     root_content: Element<'a, Message>,

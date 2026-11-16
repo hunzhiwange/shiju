@@ -11,7 +11,7 @@ pub fn action_button<'a, M: Clone + 'static>(
     label: &'a str,
     request: AppActionPreviewRequest,
     enabled: bool,
-    event: impl Fn(Action) -> M + Copy + 'a,
+    event: impl Fn(Action) -> M + Copy + 'static,
 ) -> Element<'a, M> {
     button(text(label))
         .padding([8, 16])
@@ -19,7 +19,7 @@ pub fn action_button<'a, M: Clone + 'static>(
         .on_press_maybe(enabled.then_some(event(Action::Preview(request))))
         .into()
 }
-pub fn progress<'a, M: Clone + 'static>(state: &'a LifecycleState, event: impl Fn(Action) -> M + Copy + 'a) -> Element<'a, M> {
+pub fn progress<'a, M: Clone + 'static>(state: &'a LifecycleState, event: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
     let mut content = column![].spacing(8);
     if let Some(request) = &state.request {
         content = content.push(
@@ -81,7 +81,7 @@ pub fn overlay<'a, M: Clone + 'static>(
     host: &'a str,
     base: Element<'a, M>,
     guidance: &'a str,
-    event: impl Fn(Action) -> M + Copy + 'a,
+    event: impl Fn(Action) -> M + Copy + 'static,
 ) -> Element<'a, M> {
     let Some(preview) = &state.preview else {
         return base;

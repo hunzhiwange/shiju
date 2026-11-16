@@ -39,7 +39,7 @@ use crate::card_style::{
 /// 执行 tool_apply_patch_view 对应的模块功能。
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
-pub fn tool_apply_patch_view<'a, Host: Clone + 'a>(
+pub fn tool_apply_patch_view<'a, Host: Clone + 'static>(
     app: &CardInput<'a>,
     msg_idx: usize,
     tool_idx: usize,

@@ -13,7 +13,7 @@ pub fn overlay<'a, C: Clone + 'a, M: Clone + 'static>(
     host: &'a str,
     base: Element<'a, M>,
     heading: impl Fn(&'static str, &'static str, u16) -> Element<'a, M>,
-    event: impl Fn(LaunchMessage<C>) -> M + Copy + 'a,
+    event: impl Fn(LaunchMessage<C>) -> M + Copy + 'static,
 ) -> Element<'a, M> {
     let Some(request) = &state.request else {
         return base;

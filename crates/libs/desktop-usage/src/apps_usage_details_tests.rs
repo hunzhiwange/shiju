@@ -44,7 +44,7 @@ pub(crate) struct Scene<'a, M = Message> {
     texts: Texts,
 }
 
-impl<'a, M: Clone + 'a> Scene<'a, M> {
+impl<'a, M: Clone + 'static> Scene<'a, M> {
     pub(crate) fn new(element: Element<'a, M>, renderer: &mut Renderer) -> Self {
         let mut ui = UserInterface::build(element, Size::new(640.0, 700.0), Cache::new(), renderer);
         let mut texts = Texts::default();

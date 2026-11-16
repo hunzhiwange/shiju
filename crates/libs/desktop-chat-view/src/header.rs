@@ -158,7 +158,7 @@ pub fn session_workspace_badge<'a>(app: &HeaderInput<'_>) -> Option<Element<'a, 
     )
 }
 
-pub fn header_icon_button<'a, Message: Clone + 'a>(
+pub fn header_icon_button<'a, Message: Clone + 'static>(
     icon: Icon,
     tooltip_label: &'static str,
     msg: Message,

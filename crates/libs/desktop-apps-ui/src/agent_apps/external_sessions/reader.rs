@@ -170,7 +170,7 @@ fn start(state: &mut super::State, connection: &Connection, notice: &mut Option<
         loading: true,
         failed: false,
         total: 0,
-        offset: AbsoluteOffset::default(),
+        offset: AbsoluteOffset::<f32>::default(),
         abort: Some(abort.abort_on_drop()),
         generation: state.generation,
         details: details::State::default(),
@@ -180,7 +180,7 @@ fn start(state: &mut super::State, connection: &Connection, notice: &mut Option<
     });
     Task::batch([
         task,
-        iced::widget::operation::scroll_to("external-session-reader", AbsoluteOffset::default()),
+        iced::widget::operation::scroll_to("external-session-reader", AbsoluteOffset::<f32>::default()),
     ])
 }
 
@@ -385,7 +385,7 @@ pub(super) fn navigate(state: &mut super::State, event: &Event) -> Option<Task<E
         Event::Find(value) => {
             if let Some(reader) = &mut state.reader {
                 find::update(reader, value);
-                reader.offset = AbsoluteOffset::default();
+                reader.offset = AbsoluteOffset::<f32>::default();
                 return Some(iced::widget::operation::scroll_to(
                     "external-session-reader",
                     reader.offset,
@@ -415,7 +415,7 @@ pub(super) fn navigate(state: &mut super::State, event: &Event) -> Option<Task<E
                     reader.images.cancel();
                     reader.images = images::State::default();
                     reader.active = index;
-                    reader.offset = AbsoluteOffset::default();
+                    reader.offset = AbsoluteOffset::<f32>::default();
                     return Some(iced::widget::operation::scroll_to(
                         "external-session-reader",
                         reader.offset,

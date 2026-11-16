@@ -373,7 +373,7 @@ pub fn view_overlays<'a, M: Clone + 'static>(app: &ViewData<'a>, dialog: Element
 
     let help_text = I18n::new(app.desktop_locale).__(help_text).to_string();
     let (copy_icon, copy_tip) = desktop_ui_controls::system_settings_common::settings_help_copy_state(app.last_copied_code_hash, &help_text);
-    desktop_ui_controls::system_settings_common::with_settings_help_modal(
+    desktop_ui_controls::system_settings_common::help::with_settings_help_modal(
         dialog,
         I18n::new(app.desktop_locale).__("定时任务配置帮助").to_string(),
         help_text.clone(),

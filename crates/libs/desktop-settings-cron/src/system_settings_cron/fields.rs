@@ -1,4 +1,5 @@
 use super::*;
+use iced::widget::column;
 
 pub(super) fn field_row<'a>(
     label: &'static str,

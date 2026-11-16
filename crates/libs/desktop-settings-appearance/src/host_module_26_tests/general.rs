@@ -20,7 +20,7 @@ fn general_field_with_help<'a>(
     crate::headings::settings_flexible_row_with_help(
         help,
         i18n,
-        &app.app_theme,
+        app.app_theme,
         i18n.__(field.label),
         description,
         280.0,
@@ -581,7 +581,7 @@ mod tab_appearance {
         let idle = capture_at_size(
             &mut ui,
             &mut renderer,
-            &app.app_theme,
+            app.app_theme,
             mouse::Cursor::Unavailable,
             size,
         );
@@ -594,7 +594,7 @@ mod tab_appearance {
             )
             .is_empty()
         );
-        let opened = capture_at_size(&mut ui, &mut renderer, &app.app_theme, cursor, size);
+        let opened = capture_at_size(&mut ui, &mut renderer, app.app_theme, cursor, size);
         if let Some(directory) = std::env::var_os("SHIJU_HELP_ROLLOUT_03_SCREENSHOTS") {
             let directory = std::path::PathBuf::from(directory);
             idle.save(directory.join(format!("{name}-idle.png"))).unwrap();

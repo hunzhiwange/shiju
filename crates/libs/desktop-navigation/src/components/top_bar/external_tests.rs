@@ -1,6 +1,6 @@
 use super::external::*;
 use super::types::*;
-use desktop_assets::Icon;
+use desktop_assets::assets::Icon;
 #[test]
 fn file_manager_label_falls_back_and_uses_platform_label() {
     assert_eq!(file_manager_label(None), "File Manager");

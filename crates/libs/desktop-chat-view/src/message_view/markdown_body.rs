@@ -41,7 +41,7 @@ use iced::widget::rich_text;
 use iced::widget::text::{LineHeight, Wrapping};
 use iced::{Color, Font};
 /// 渲染单个 Markdown 块为可划选元素。
-fn markdown_block_view<'a, M: SelectionMessage + 'a>(
+fn markdown_block_view<'a, M: SelectionMessage + 'static>(
     view: &MarkdownView<'a, M>,
     block_idx: usize,
     section: &'a [MarkdownBlock],
@@ -94,7 +94,7 @@ fn markdown_block_view<'a, M: SelectionMessage + 'a>(
         move |target| (links.open)(target),
     );
 
-    desktop_chat_view::message_view::markdown::decorate_block(
+    crate::message_view::markdown::decorate_block(
         block,
         editor,
         body_color,
@@ -103,7 +103,7 @@ fn markdown_block_view<'a, M: SelectionMessage + 'a>(
 }
 
 /// 保留相邻普通块的连续选区，代码块、表格和链接块使用独立视图。
-pub fn markdown_body_view<'a, M: SelectionMessage + 'a>(
+pub fn markdown_body_view<'a, M: SelectionMessage + 'static>(
     view: &MarkdownView<'a, M>,
     msg_idx: usize,
     text_idx: usize,
@@ -162,7 +162,7 @@ pub fn markdown_body_view<'a, M: SelectionMessage + 'a>(
     )
 }
 
-pub fn table_view<'a, M: SelectionMessage + 'a>(
+pub fn table_view<'a, M: SelectionMessage + 'static>(
     data: &'a MarkdownTable,
     theme: &Theme,
     body_color: Color,

@@ -6,6 +6,7 @@ use vw_api_app_identity::AppId;
 use vw_api_transport::id::ProjectId;
 pub(crate) fn message(event: Event) -> Message { list::message(ListMessage::PiDirectory(event)) }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
+    if matches!(event, Event::None) { return Task::none(); }
     let Some(scope) = app.app_providers.scope.clone().filter(|s| s.app == AppId::Pi) else {
         return Task::none();
     };

@@ -199,7 +199,7 @@ pub fn build_header_tabs<'a>(tabs_data: impl IntoIterator<Item = (&'a str, &'a s
         // 构建标签页内容：文件图标 + 标题 + 关闭按钮
         let tab_content = row![
             // 文件图标容器，固定宽度 16px
-            container(file_tab_icon_svg(file_icon_for(title))).width(Length::Fixed(16.0)),
+            container(file_tab_icon_svg(file_icon_for(&title))).width(Length::Fixed(16.0)),
             // 标题文本容器，宽度自适应收缩
             container(text(title).size(13))
                 .width(Length::Fill)

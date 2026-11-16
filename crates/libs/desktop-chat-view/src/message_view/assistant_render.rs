@@ -65,7 +65,7 @@ pub fn count_visible_non_explore_tool_cards(
 }
 
 pub(crate) use super::permission_card::should_highlight_pending_permission_tool;
-fn wrap_pending_permission_tool_card<'a, M: Clone + 'a>(
+fn wrap_pending_permission_tool_card<'a, M: Clone + 'static>(
     app: &MessageViewSnapshot<'a, M>,
     content: Element<'a, M>,
     label: String,
@@ -80,7 +80,7 @@ pub(crate) use super::assistant_body::{
     deduped_tool_last_indices, deduped_tool_last_indices_with_metadata,
 };
 
-fn push_explore_summary<'a, M: SelectionMessage + 'a>(
+fn push_explore_summary<'a, M: SelectionMessage + 'static>(
     mut body: Column<'a, M>,
     app: &MessageViewSnapshot<'a, M>,
     idx: usize,
@@ -102,7 +102,7 @@ fn push_explore_summary<'a, M: SelectionMessage + 'a>(
     body
 }
 
-fn flush_command_summary<'a, M: SelectionMessage + 'a>(
+fn flush_command_summary<'a, M: SelectionMessage + 'static>(
     mut body: Column<'a, M>,
     app: &MessageViewSnapshot<'a, M>,
     idx: usize,
@@ -115,7 +115,7 @@ fn flush_command_summary<'a, M: SelectionMessage + 'a>(
     body
 }
 
-fn push_special_text_block<'a, M: SelectionMessage + 'a>(
+fn push_special_text_block<'a, M: SelectionMessage + 'static>(
     body: Column<'a, M>,
     app: &MessageViewSnapshot<'a, M>,
     idx: usize,
@@ -152,7 +152,7 @@ fn push_special_text_block<'a, M: SelectionMessage + 'a>(
     body.push(message_text_body(app, text, false))
 }
 
-pub fn render_assistant_body<'a, M: SelectionMessage + 'a, T, U, V, W>(
+pub fn render_assistant_body<'a, M: SelectionMessage + 'static, T, U, V, W>(
     app: &MessageViewSnapshot<'a, M>,
     idx: usize,
     think_timing: &'a [models::ThinkTiming],

@@ -6,6 +6,9 @@ use iced::{Task, widget::text_editor};
 pub fn update(app: &mut App, message: WorkflowMessage) -> Task<Message> {
     if let WorkflowMessage::HostEffect(effect) = message {
         return match *effect {
+            Effect::None => Task::none(),
+            Effect::TextContext(effect) => Task::done(desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage::context(effect)),
+            Effect::TextSelection(session, index, text_index, text) => Task::done(desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage::selection(session, index, text_index, text)),
             Effect::Error(error) => app.show_error_toast(error),
             Effect::Warning(error) => app.show_warning_toast(error),
             Effect::Success(message) => app.show_success_toast(message),

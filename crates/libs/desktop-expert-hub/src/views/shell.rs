@@ -39,7 +39,7 @@ pub fn section_tabs<M: Clone + 'static>(locale: config_ui::DesktopLocale, select
 }
 
 
-pub fn view<'a, M: Clone + 'a>(tabs: Element<'a, M>, body: Element<'a, M>) -> Element<'a, M> {
+pub fn view<'a, M: Clone + 'static>(tabs: Element<'a, M>, body: Element<'a, M>) -> Element<'a, M> {
     container(column![tabs, body].spacing(24))
         .width(Length::Fill).height(Length::Fill).padding([24, 28]).into()
 }

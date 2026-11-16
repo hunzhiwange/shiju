@@ -1,7 +1,7 @@
 use iced::{Color, Background, Border, Theme};
 use iced::widget::{container, text};
 use iced::widget::container::Style as ContainerStyle;
-use super::badge_styles::is_dark_theme;
+pub use super::badge_styles::is_dark_theme;
 pub fn session_row_highlight_color(theme: &Theme) -> Color {
     let is_dark = is_dark_theme(theme);
     if is_dark {

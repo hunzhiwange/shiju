@@ -1,6 +1,6 @@
 use super::*;
 use iced::widget::{column, row};
-use desktop_ui_controls::system_settings_common::settings_hover_help_label;
+use desktop_ui_controls::system_settings_common::help::settings_selectable_help_label as settings_hover_help_label;
 use iced::widget::mouse_area;
 
 pub fn build_start_visual_section<'a>(

@@ -21,7 +21,7 @@ pub fn chat_secondary_subtle_text_color(theme: &Theme) -> Color {
     }
 }
 pub fn bold_font() -> iced::Font { iced::Font { weight: iced::font::Weight::Bold, ..Default::default() } }
-pub fn icon_svg(icon: Icon) -> Svg<'static> { Svg::new(assets::get_icon(icon)).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)) }
+pub fn icon_svg<'a>(icon: Icon) -> Svg<'a> { Svg::new(assets::get_icon(icon)).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)) }
 pub use crate::text_layout::truncate_chars;
 pub fn chat_secondary_muted_text_color(theme: &Theme) -> Color {
     if is_dark_theme(theme) {
@@ -109,7 +109,7 @@ pub fn file_button_style(
     style.border.radius = 10.0.into();
     style
 }
-pub fn additions_pill<'a, Message: 'a>(count: usize) -> Element<'a, Message> {
+pub fn additions_pill<'a, Message: 'static>(count: usize) -> Element<'a, Message> {
     let label = format!("+{}", count);
     iced::widget::container(text(label).size(11))
         .padding([2, 8])
@@ -129,7 +129,7 @@ pub fn additions_pill<'a, Message: 'a>(count: usize) -> Element<'a, Message> {
         })
         .into()
 }
-pub fn deletions_pill<'a, Message: 'a>(count: usize) -> Element<'a, Message> {
+pub fn deletions_pill<'a, Message: 'static>(count: usize) -> Element<'a, Message> {
     let label = format!("-{}", count);
     iced::widget::container(text(label).size(11))
         .padding([2, 8])
@@ -149,7 +149,7 @@ pub fn deletions_pill<'a, Message: 'a>(count: usize) -> Element<'a, Message> {
         })
         .into()
 }
-pub fn change_pills<'a, Message: 'a>(adds: usize, dels: usize) -> Element<'a, Message> {
+pub fn change_pills<'a, Message: 'static>(adds: usize, dels: usize) -> Element<'a, Message> {
     // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     iced::widget::row![additions_pill(adds), deletions_pill(dels)]
         .spacing(6)

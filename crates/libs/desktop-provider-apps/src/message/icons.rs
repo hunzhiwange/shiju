@@ -94,8 +94,9 @@ pub async fn execute(
         }
     };
     // Both reads matter after deletion: the row is gone, but saved provider images are copies.
+    let providers = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone());
     let (rows, current) =
-        tokio::join!(icons.custom_icons_list(), gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_icon(app, &provider));
+        tokio::join!(icons.custom_icons_list(), providers.app_provider_icon(app, &provider));
     Ok(Outcome::Refreshed { rows, current, deleted })
 }
 

@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+serde_json = "1"
 desktop-chat-view = { path = "../desktop-chat-view", version = "0.6.0" }
 iced = { version = "0.14", features = ["advanced", "svg"] }
 similar = "2"

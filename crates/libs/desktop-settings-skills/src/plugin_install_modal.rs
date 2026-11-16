@@ -10,7 +10,7 @@ use crate::plugin_install::Event as SettingsMessage;
 use crate::plugin_state::{PluginInstallForm, PluginInstallPhase};
 use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Element};
-pub fn view<'a, M: Clone + 'static>(
+pub fn view<'a, M: desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage + 'static>(
     locale: config_ui::DesktopLocale, theme: &iced::Theme,
     base: Element<'a, M>,
     form: &'a PluginInstallForm,

@@ -32,6 +32,7 @@ pub fn start_functions(app: &mut SkillUpdate<'_>) -> Task<Message> {
     app.expert_hub.action_generation = app.expert_hub.action_generation.wrapping_add(1);
     let generation = app.expert_hub.action_generation;
     app.expert_hub.function_upgrade = Some(generation);
+    let gateway = app.gateway;
     Task::perform(
         async move {
             let credential = credential
@@ -55,12 +56,12 @@ pub fn start_functions(app: &mut SkillUpdate<'_>) -> Task<Message> {
             // 顺序执行，避免多个 CLI 同时重建同一索引。
             for skill_id in skill_ids {
                 let remote = async {
-                    let detail = gateway_shiju_skill_detail_async(&credential, skill_id).await?;
+                    let detail = gateway_shiju_skill_detail_async(gateway, &credential, skill_id).await?;
                     if detail.id != skill_id || detail.current_version_id == 0 {
                         return Err(SkillHubError::from("技能升级详情或版本无效"));
                     }
                     gateway_shiju_skill_remote_install_version_async(
-                        &credential,
+                        gateway, &credential,
                         skill_id,
                         detail.current_version_id,
                     )

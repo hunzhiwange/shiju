@@ -275,7 +275,7 @@ pub fn update<U: Usage>(state: &mut State<U>, notice: &mut Option<Notice>, effec
                 }
                 Err(error) => {
                     binding.error = Some(error);
-                    return error(notice, error);
+                    return crate::error(notice, error);
                 }
             }
         }

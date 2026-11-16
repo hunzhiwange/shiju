@@ -92,7 +92,7 @@ pub fn help<'a>(
 pub fn inputs(app: &Fixture) -> themes::View<'_, Message> {
     themes::View {
         desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        app_theme: app.app_theme,
         themes_settings: &app.themes_settings,
         active_custom_theme_id: &app.active_custom_theme_id,
         map: |v| Message::Settings(SettingsMessage::Themes(v)),
@@ -129,7 +129,7 @@ pub fn editor_fields(app: &Fixture, width: f32) -> Element<'_, Message> {
     })
 }
 pub fn view(app: &Fixture) -> Element<'_, Message> {
-    crate::editor::view(app.desktop_locale, &app.app_theme, editor_fields(app, 250.0), help)
+    crate::editor::view(app.desktop_locale, app.app_theme, editor_fields(app, 250.0), help)
 }
 pub mod editor {
     pub use crate::system_settings_themes::editor::*;
@@ -174,7 +174,7 @@ impl Default for Terminal {
 pub fn general_view(app: &Fixture) -> Element<'_, Message> {
     let inputs = crate::general::View {
         desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        app_theme: app.app_theme,
         shell: app.terminal.shell,
         shell_options: desktop_terminal::shell::Shell::all().to_vec(),
         font_family: &app.terminal.font_family,
@@ -191,7 +191,7 @@ pub fn general_view(app: &Fixture) -> Element<'_, Message> {
     let page = match app.general_settings_tab {
         desktop_ui_controls::settings_navigation::GeneralSettingsTab::Editor => crate::editor::content(
             app.desktop_locale,
-            &app.app_theme,
+            app.app_theme,
             editor_fields(app, 250.0),
             help,
         ),

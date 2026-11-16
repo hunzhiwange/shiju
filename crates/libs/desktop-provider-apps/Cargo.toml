@@ -8,6 +8,8 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+url = "2"
+tempfile = "3"
 vw-api-task = { path = "../api-task", version = "0.6.0" }
 gateway-aggregation-desktop = { path = "../gateway-aggregation-desktop", version = "0.6.0" }
 vw-api-app-aggregation = { path = "../api-app-aggregation", version = "0.6.0" }

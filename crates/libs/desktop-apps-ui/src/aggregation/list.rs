@@ -189,14 +189,14 @@ pub fn update(
     }
     *counter = counter.wrapping_add(1);
     let generation = *counter;
-    let mut form = Form::new(selection.clone(), generation);
+    let mut draft = Form::new(selection.clone(), generation);
     if !supported(selection.scope.app) {
-        form.loading = false;
-        form.error = Some("此应用或平台不支持聚合目录");
-        (*form) = Some(form);
+        draft.loading = false;
+        draft.error = Some("此应用或平台不支持聚合目录");
+        (*form) = Some(draft);
         return Task::none();
     }
-    (*form) = Some(form);
+    (*form) = Some(draft);
     let token = token.to_owned();
     Task::perform(load(client, selection.clone(), token), move |result| {
         message(Event::Loaded { selection: selection.clone(), generation, result })

@@ -3,12 +3,14 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
+use desktop_ui_controls::system_settings_common::help::settings_selectable_help_label as settings_hover_help_label;
+
 use desktop_ui_controls::number_input::NumberInput;
-use desktop_ui_controls::system_settings_common::{SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_field_label, settings_hover_help_label, settings_muted_text_style, settings_text_input};
+use desktop_ui_controls::system_settings_common::{SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_field_label, settings_muted_text_style, settings_text_input};
 use desktop_i18n::I18n;
 use iced::widget::{checkbox, column, container, row, text};
 use iced::{Alignment, Element, Length};
-pub fn field_row_with_help<'a, Message: Clone + 'a>(
+pub fn field_row_with_help<'a, Message: desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage + 'static>(
     locale: config_ui::DesktopLocale,
     theme: &iced::Theme,
     label: &'static str,
@@ -29,7 +31,7 @@ pub fn field_row_with_help<'a, Message: Clone + 'a>(
     aligned_field_row(column![heading], control)
 }
 
-pub(crate) fn aligned_field_row<'a, Message: Clone + 'a>(
+pub(crate) fn aligned_field_row<'a, Message: desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage + 'static>(
     labels: iced::widget::Column<'a, Message>,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
@@ -46,7 +48,7 @@ pub(crate) fn aligned_field_row<'a, Message: Clone + 'a>(
     .into()
 }
 
-pub fn text_row_with_help<'a, Message: Clone + 'a>(
+pub fn text_row_with_help<'a, Message: desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage + 'static>(
     locale: config_ui::DesktopLocale,
     theme: &iced::Theme,
     label: &'static str,
@@ -63,7 +65,7 @@ pub fn text_row_with_help<'a, Message: Clone + 'a>(
     )
 }
 
-pub fn bool_row<'a, Message: Clone + 'a>(
+pub fn bool_row<'a, Message: desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage + 'static>(
     locale: config_ui::DesktopLocale,
     theme: &iced::Theme,
     label: &'static str,
@@ -88,7 +90,7 @@ pub(crate) fn parse_bounded_number(value: &str, min: f32, max: f32) -> f32 {
     value.parse::<f32>().unwrap_or(min).clamp(min, max)
 }
 
-pub fn number_row<'a, Message: Clone + 'a>(
+pub fn number_row<'a, Message: desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage + 'static>(
     label: &'static str,
     value: String,
     suffix: &'static str,

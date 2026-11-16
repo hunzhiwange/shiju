@@ -231,7 +231,7 @@ fn toolbar(app: &ViewInput<'_>, count: usize) -> Element<'static, Message> {
 }
 
 /// 展示本地技能目录，并只允许选择具有可管理来源路径的条目。
-pub fn view<'a, M: Clone + 'a>(app: &ViewInput<'a>, header: Element<'a, M>, map: impl Fn(Message) -> M + Copy + 'a) -> Element<'a, M> {
+pub fn view<'a, M: Clone + 'static>(app: &ViewInput<'a>, header: Element<'a, M>, map: impl Fn(Message) -> M + Copy + 'a) -> Element<'a, M> {
     let state = &app.expert_hub.public_market;
     let installed = match &state.installed {
         LoadState::Loaded(items) => items
@@ -344,7 +344,7 @@ pub fn delete_confirmation<'a>(
     Some((cancel, container(card).padding(12).into()))
 }
 
-pub fn header<'a, M: Clone + 'a>(i18n: desktop_i18n::I18n, heading: impl Fn() -> iced::widget::Row<'a, M> + 'a, close: M) -> Element<'a, M> {
+pub fn header<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n, heading: impl Fn() -> iced::widget::Row<'a, M> + 'a, close: M) -> Element<'a, M> {
     responsive(move |size| {
         let heading = heading();
         let back = button(text(i18n.__("返回市场")).size(12))

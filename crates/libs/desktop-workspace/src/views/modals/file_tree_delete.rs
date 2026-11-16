@@ -12,7 +12,7 @@ use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Space, button, column, container, row, scrollable, text};
 use iced::{Element, Length};
 
-pub fn with_file_tree_delete_confirm<'a, Message: Clone + 'a>(
+pub fn with_file_tree_delete_confirm<'a, Message: Clone + 'static>(
     paths: Option<&'a [String]>, locale: config_ui::DesktopLocale,
     emit: impl Fn(Event) -> Message + Copy + 'a,
     root_content: Element<'a, Message>,

@@ -1,4 +1,5 @@
 use super::*;
+use iced::widget::column;
 
 pub(super) fn build_dataset_catalog_view(app: ViewInput<'_>) -> Element<'_, Message> {
     column![build_dataset_catalog_header(app), build_dataset_list_panel(app)]

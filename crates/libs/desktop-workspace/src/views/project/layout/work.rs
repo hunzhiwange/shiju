@@ -11,7 +11,7 @@ pub work_resource_fullscreen: bool,
 pub work_resource_half_fullscreen: bool,
 pub work_split_ratio: f32,
 }
-pub fn build_work_layout<'a, Message: Clone + 'a>(state: WorkLayout, left_sidebar: Element<'a, Message>, chat: Element<'a, Message>, resources: Element<'a, Message>, overlay: Element<'a, Message>, bottom: Option<Element<'a, Message>>, split_drag: Message, sidebar_drag: Message, corner_radius:f32, spacing:f32) -> Element<'a, Message> {
+pub fn build_work_layout<'a, Message: Clone + 'static>(state: WorkLayout, left_sidebar: Element<'a, Message>, chat: Element<'a, Message>, resources: Element<'a, Message>, overlay: Element<'a, Message>, bottom: Option<Element<'a, Message>>, split_drag: Message, sidebar_drag: Message, corner_radius:f32, spacing:f32) -> Element<'a, Message> {
     let chat = container(chat)
         .width(Length::Fill)
         .height(Length::Fill)

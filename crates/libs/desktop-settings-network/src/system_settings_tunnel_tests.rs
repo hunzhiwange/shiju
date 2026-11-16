@@ -3,6 +3,7 @@
 //! 提供商值按精确稳定键匹配，未知或近似输入必须回退到未选择状态。
 
 use super::*;
+use iced::widget::column;
 use crate::messages::*;
 use crate::Message;
 use iced::Element;

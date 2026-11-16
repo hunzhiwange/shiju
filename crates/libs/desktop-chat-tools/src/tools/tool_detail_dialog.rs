@@ -306,7 +306,7 @@ pub(crate) fn wheel_interceptor<'a, Message, ThemeT, RendererT>(
     on_scroll: impl Fn(mouse::ScrollDelta) -> Message + 'a,
 ) -> Element<'a, Message, ThemeT, RendererT>
 where
-    Message: 'a,
+    Message: 'static,
     ThemeT: 'a,
     RendererT: iced::advanced::Renderer + 'a,
 {

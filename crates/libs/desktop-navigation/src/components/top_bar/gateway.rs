@@ -1,7 +1,7 @@
 //! 顶栏网关服务弹窗。
 
 use super::widgets::{color_with_alpha, icon_svg, menu_item_btn};
-use desktop_assets::Icon;
+use desktop_assets::assets::Icon;
 use desktop_ui_controls::overlays::BelowOverlay;
 use super::{Message, Menu as MenuType};
 use super::types::TopBarGatewayTab;

@@ -5,7 +5,7 @@ use iced::{
     Element, Length,
     widget::{button, column, row, text},
 };
-pub fn modal<'a, Message: Clone + 'a>(
+pub fn modal<'a, Message: Clone + 'static>(
     base: Element<'a, Message>,
     map: fn(OnboardingEvent) -> Message,
     statuses: [PermissionStatus; 3],

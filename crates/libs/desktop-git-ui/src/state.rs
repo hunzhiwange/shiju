@@ -8,7 +8,7 @@ use crate::{
     },
 };
 use desktop_workspace::workspace_state::{ChatTextDiff, GitDiffFileMenuState, GitDiffSelectedLine};
-use iced::widget::{scrollable::Id, text_editor};
+use iced::widget::{Id, text_editor};
 use std::collections::{HashMap, HashSet};
 pub struct State {
     pub git_repository: RepositoryState,
@@ -72,7 +72,7 @@ pub struct State {
     pub git_changed_files: Vec<String>,
     pub git_changed_files_loading: bool,
     pub git_changed_files_repo_path: Option<String>,
-    pub git_diff_file_metas: Vec<desktop_git_ui::git_panel::ops::DiffFileMeta>,
+    pub git_diff_file_metas: Vec<crate::git_panel::ops::DiffFileMeta>,
     pub git_diff_file_metas_loading: bool,
     pub git_diff_file_metas_repo_path: Option<String>,
     pub git_diff_contents: HashMap<String, (String, String)>,

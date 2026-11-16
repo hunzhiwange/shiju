@@ -127,7 +127,7 @@ pub(super) fn common_tool_context_menu_message<Host: Clone>(
     }
 }
 
-pub(super) fn build_common_tool_view<'a, Host: Clone + 'a>(
+pub(super) fn build_common_tool_view<'a, Host: Clone + 'static>(
     view_ctx: &FilesViewContext<'a>,
     render_state: &FileListState,
     list_column: iced::widget::Column<'a, Message<Host>>,

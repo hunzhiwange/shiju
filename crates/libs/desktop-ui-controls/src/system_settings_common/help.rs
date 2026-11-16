@@ -76,7 +76,7 @@ pub fn settings_help_copy_state(
         (Icon::Copy, "复制帮助")
     }
 }
-pub fn settings_hover_help_label<'a, Message: Clone + 'a>(
+pub fn settings_hover_help_label<'a, Message: Clone + 'static>(
     label: Text<'a>,
     content: Element<'a, Message>,
 ) -> Row<'a, Message> {
@@ -128,7 +128,7 @@ pub fn settings_selectable_help_label<'a, 'theme, Message>(
     description: impl Into<std::borrow::Cow<'a, str>>,
 ) -> Row<'a, Message>
 where
-    Message: crate::selectable_text::markdown_selection::SelectionMessage + 'a,
+    Message: crate::selectable_text::markdown_selection::SelectionMessage + 'static,
 {
     let color = theme.into().map(|theme| theme.palette().text);
     settings_hover_help_label(

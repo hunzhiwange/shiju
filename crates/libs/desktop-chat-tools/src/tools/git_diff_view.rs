@@ -435,7 +435,7 @@ pub(super) fn secondary_text(theme: &Theme, dark_alpha: f32, light_alpha: f32) -
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn diff_pill<'a, Host: Clone + 'a>(i18n: desktop_i18n::I18n) -> Element<'a, Message<Host>> {
+fn diff_pill<'a, Host: Clone + 'static>(i18n: desktop_i18n::I18n) -> Element<'a, Message<Host>> {
     container(text(i18n.__("查看 Diff")).size(14).style(|theme: &Theme| {
         iced::widget::text::Style {
             // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
@@ -517,7 +517,7 @@ pub(super) fn git_diff_title(preview: &GitDiffPreview) -> String {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn git_diff_body<'a, Host: Clone + 'a>(
+pub(super) fn git_diff_body<'a, Host: Clone + 'static>(
     app: &ResultInput<'_>,
     // previews 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     previews: &[GitDiffPreview],
@@ -625,7 +625,7 @@ pub(super) fn git_diff_body<'a, Host: Clone + 'a>(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn tool_git_diff_view<'a, Host: Clone + 'a>(
+pub fn tool_git_diff_view<'a, Host: Clone + 'static>(
     app: &ResultInput<'_>,
     // msg_idx 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     msg_idx: usize,

@@ -9,6 +9,7 @@ use crate::slice_view_fixture::Fixture;
 use crate::message::TaskBoardMessage as Message;
 
 use super::*;
+use iced::widget::column;
 
 const EPSILON: f32 = 0.000_01;
 

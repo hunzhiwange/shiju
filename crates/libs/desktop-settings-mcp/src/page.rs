@@ -357,7 +357,7 @@ pub fn view<'a, Message: Clone + 'static>(event: fn(McpMessage) -> Message, s: &
   }
 ]"#,
                     )
-                    .on_action(|action| {
+                    .on_action(move |action| {
                         event(McpMessage::EditorAction(action))
                     })
                     .padding(SETTINGS_CONTROL_PADDING)

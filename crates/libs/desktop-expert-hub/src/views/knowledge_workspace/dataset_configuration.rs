@@ -1,4 +1,5 @@
 use super::*;
+use iced::widget::column;
 
 pub(super) fn build_chunking_mode_section(app: ViewInput<'_>) -> Element<'_, Message> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);

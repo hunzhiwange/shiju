@@ -209,7 +209,6 @@ impl ChatUi<'_> {
             .filter(|chunk_start_idx| {
                 !self.prepared_chat_ui_chunks.contains(chunk_start_idx)
                     && !self
-                        .active_session_view_state
                         .preparing_chat_ui_chunks
                         .contains(chunk_start_idx)
             })

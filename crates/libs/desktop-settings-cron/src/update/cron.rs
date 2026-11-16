@@ -271,12 +271,11 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             app.cron_settings.save_error = None;
             app.cron_settings.save_error_translation = None;
             app.cron_settings.action_status = None;
-            let history = super::cron_history::reconcile(app);
             if tab == CronSettingsTab::Jobs {
                 app.cron_settings.jobs_loading = true;
-                Task::batch([refresh_cron_jobs_task(app), history])
+                refresh_cron_jobs_task(app)
             } else {
-                history
+                Task::none()
             }
         }
         SettingsMessage::CronListFilterChanged(filter) => {
@@ -1075,7 +1074,7 @@ pub fn validate_delivery(
     app: &Inputs<'_>,
     draft: &crate::state::CronJobDraft,
 ) -> Result<(), String> {
-    desktop_settings_cron::delivery::validate(
+    crate::delivery::validate(
         draft,
         app.delivery,
     )

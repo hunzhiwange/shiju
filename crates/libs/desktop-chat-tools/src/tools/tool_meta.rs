@@ -201,7 +201,7 @@ pub fn tool_header_label(tool_name: &str) -> String {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn tool_icon_badge<'a, Message: 'a>(tool_name: &str, visual: ToolVisual) -> Element<'a, Message> {
+pub fn tool_icon_badge<'a, Message: 'static>(tool_name: &str, visual: ToolVisual) -> Element<'a, Message> {
     let icon = icon_svg(tool_icon(tool_name))
         .width(Length::Fixed(tool_icon_badge_size(tool_name)))
         .height(Length::Fixed(tool_icon_badge_size(tool_name)))
@@ -235,7 +235,7 @@ pub fn tool_icon_badge<'a, Message: 'a>(tool_name: &str, visual: ToolVisual) -> 
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn tool_header_title<'a, Message: 'a>(
+pub fn tool_header_title<'a, Message: 'static>(
     tool_name: &str,
     // title 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     title: impl Into<String>,
@@ -260,7 +260,7 @@ pub fn tool_header_title<'a, Message: 'a>(
 }
 
 /// 构建固定 16px 的工具生命周期状态槽。
-pub fn tool_status_badge<'a, Message: 'a>(visual: ToolVisual) -> Element<'a, Message> {
+pub fn tool_status_badge<'a, Message: 'static>(visual: ToolVisual) -> Element<'a, Message> {
     let icon = icon_svg(visual.icon)
         .width(Length::Fixed(11.0))
         .height(Length::Fixed(11.0))
@@ -275,7 +275,7 @@ pub fn tool_status_badge<'a, Message: 'a>(visual: ToolVisual) -> Element<'a, Mes
 }
 
 /// 构建基础工具统一活动头部：类型、动作、摘要、状态与动作入口。
-pub fn tool_activity_header<'a, Message: 'a>(
+pub fn tool_activity_header<'a, Message: 'static>(
     tool_name: &str,
     title: impl Into<String>,
     summary: impl Into<String>,

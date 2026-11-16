@@ -16,8 +16,8 @@ pub(crate) fn collect_local_attachments(
     desktop_workspace::project_message::attachments::collect_local_attachments(
         &app.session_state.files,
         app.navigation_tabs.project_path.as_deref(),
-        app.multimodal_settings.max_images,
-        app.multimodal_settings.max_image_size_mb,
+        app.multimodal_settings.max_images as usize,
+        app.multimodal_settings.max_image_size_mb as usize,
         picked,
     )
 }

@@ -53,7 +53,7 @@ mod standard_tests;
 #[cfg(test)]
 mod start_end_tests;
 
-use desktop_assets::Icon;
+use desktop_assets::assets::Icon;
 use crate::DiffTheme;
 use super::DiffMessage as Message;
 use crate::git_panel::ui::small_plain_icon_button;

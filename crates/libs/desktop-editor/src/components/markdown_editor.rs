@@ -137,7 +137,7 @@ fn mode_button_style(
 /// ```ignore
 /// let switch = mode_switch(MarkdownViewMode::Edit, |m| Message::ChangeMode(m));
 /// ```
-pub fn mode_switch<'a, Message: Clone + 'a>(
+pub fn mode_switch<'a, Message: Clone + 'static>(
     i18n: desktop_i18n::I18n,
     mode: MarkdownViewMode,
     on_change: fn(MarkdownViewMode) -> Message,
@@ -207,7 +207,7 @@ pub fn view<'a, Message, Viewer>(
     on_editor_action: fn(text_editor::Action) -> Message,
 ) -> Element<'a, Message>
 where
-    Message: Clone + 'a,
+    Message: Clone + 'static,
     Viewer: markdown::Viewer<'a, Message> + 'a,
 {
     // 创建文本编辑器组件，配置占位符、动作回调、高度、字体和语法高亮

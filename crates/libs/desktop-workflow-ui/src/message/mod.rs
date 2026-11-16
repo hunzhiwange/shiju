@@ -360,3 +360,10 @@ pub fn workflow_run_stream(
         },
     ))
 }
+
+impl desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage for WorkflowMessage {
+    fn none() -> Self { Self::HostEffect(Box::new(crate::controller::Effect::None)) }
+    fn copy(text: String) -> Self { Self::context(desktop_ui_controls::text_editor_context_menu::TextContextEffect::Copy(text)) }
+    fn context(effect: desktop_ui_controls::text_editor_context_menu::TextContextEffect) -> Self { Self::HostEffect(Box::new(crate::controller::Effect::TextContext(effect))) }
+    fn selection(session: String, index: usize, text_index: usize, text: Option<String>) -> Self { Self::HostEffect(Box::new(crate::controller::Effect::TextSelection(session, index, text_index, text))) }
+}

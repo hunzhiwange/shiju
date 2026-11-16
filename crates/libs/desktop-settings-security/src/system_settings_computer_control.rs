@@ -28,7 +28,7 @@ fn action(label: &'static str, event: Event, enabled: bool) -> Element<'static, 
     button(text(label).size(13)).padding([8, 14]).style(rounded_action_btn_style)
         .on_press_maybe(enabled.then(|| message(event))).into()
 }
-pub fn view(state: &ComputerControlSettingsState, identity: &ControlIdentity) -> Element<'_, Event> {
+pub fn view<'a>(state: &'a ComputerControlSettingsState, identity: &ControlIdentity) -> Element<'a, Event> {
     if state.identity.as_ref() != Some(identity) {
         return column![text("电脑操控"), text("网关已变化，请重新加载状态"), action("加载状态", Event::Refresh, true)].spacing(14).into();
     }

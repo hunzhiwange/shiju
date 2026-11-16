@@ -103,7 +103,7 @@ pub(super) fn snapshot(app: &App) -> MessageViewSnapshot<'_, Message> {
             let (text, items) =
                 crate::app::components::input_panel::attachment::parse_attachment_markers(raw);
             desktop_chat_view::message_view::render_snapshot::AttachmentView {
-                text,
+                text: text.into_owned(),
                 has_attachments: !items.is_empty(),
                 preview: Rc::new(move || {
                     crate::app::components::input_panel::attachment::attachment_preview_strip(

@@ -1,7 +1,7 @@
 //! 工作流应用编辑器视图，负责应用名称、图标、描述和请求限制的表单渲染。
 
 use crate::message::WorkflowMessage;
-use desktop_assets::{self as assets, Icon};
+use desktop_assets::assets::{self, Icon};
 use desktop_ui_controls::system_settings_common::*;
 use desktop_workflow_state::state::{self, WorkflowState};
 use iced::widget::{Row, Space, Text, button, container, svg, text, text_input};

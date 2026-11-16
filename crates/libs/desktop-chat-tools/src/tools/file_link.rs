@@ -12,7 +12,7 @@ pub fn file_name_only(path: &str) -> String {
     Path::new(path).file_name().and_then(|value| value.to_str()).unwrap_or(path).to_string()
 }
 
-pub fn file_name_link<'a, Host: Clone + 'a>(display_path: &str, full_path: &str) -> Element<'a, Message<Host>> {
+pub fn file_name_link<'a, Host: Clone + 'static>(display_path: &str, full_path: &str) -> Element<'a, Message<Host>> {
     let file_name = file_name_only(display_path);
     let open_path = full_path.to_string();
     let link = rich_text([span(file_name).underline(true).link(open_path)])
@@ -25,7 +25,7 @@ pub fn file_name_link<'a, Host: Clone + 'a>(display_path: &str, full_path: &str)
     Tooltip::new(link, file_path_tooltip(full_path.to_string()), TooltipPosition::Top).gap(6).into()
 }
 
-pub fn file_path_tooltip<'a, Host: Clone + 'a>(full_path: String) -> Element<'a, Message<Host>> {
+pub fn file_path_tooltip<'a, Host: Clone + 'static>(full_path: String) -> Element<'a, Message<Host>> {
     container(text(full_path).size(12))
         .padding([6, 8])
         .style(|_theme: &Theme| iced::widget::container::Style {

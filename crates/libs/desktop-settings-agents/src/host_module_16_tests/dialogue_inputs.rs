@@ -47,7 +47,7 @@ pub(super) fn view(app: &DialogueFixture) -> Element<'_, Message> {
         dialogue_flow_settings_save_message: &app.dialogue_flow_settings_save_message,
         dialogue_flow_settings_translation: &app.dialogue_flow_settings_translation,
         desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        app_theme: app.app_theme,
         help_text: |i18n, theme, title, label, body| {
             desktop_ui_controls::system_settings_common::help::settings_hover_help_label(
                 label,
@@ -71,7 +71,7 @@ pub(super) mod quick {
     use super::*;
     use desktop_settings_appearance::quick_messages as domain;
     pub fn view(app: &DialogueFixture) -> Element<'_, Message> {
-        domain::view(&domain::View { quick_messages: &app.quick_messages, desktop_locale: app.desktop_locale, app_theme: &app.app_theme },
+        domain::view(&domain::View { quick_messages: &app.quick_messages, desktop_locale: app.desktop_locale, app_theme: app.app_theme },
             |title, body, color, i18n| desktop_chat_view::message_view::markdown_selection::selectable_titled_text::<Message>(title, body, color, i18n).map(|event| match event { Message::CopyCode(text) => domain::Message::CopyCode(text), _ => domain::Message::None }))
             .map(|event| match event { domain::Message::None => Message::None, domain::Message::CopyCode(text) => Message::CopyCode(text), other => Message::Quick(other) })
     }

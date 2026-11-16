@@ -28,7 +28,7 @@ pub fn view(available: bool) -> Element<'static, Event> {
         .on_press_maybe(available.then_some(Event::Open)).into()
 }
 
-pub fn overlay<'a, E: Clone + 'a>(state: ViewState<'a>, visible: bool, base: Element<'a, E>) -> Element<'a, OverlayEvent<E>> {
+pub fn overlay<'a, E: Clone + 'static>(state: ViewState<'a>, visible: bool, base: Element<'a, E>) -> Element<'a, OverlayEvent<E>> {
     if !visible { return base.map(OverlayEvent::External); }
     let close = message(Event::Close);
     let header = settings_modal_header(text("导出脱敏配置").size(18), settings_close_button(close.clone()));

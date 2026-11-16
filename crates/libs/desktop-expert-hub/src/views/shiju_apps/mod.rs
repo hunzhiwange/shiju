@@ -71,7 +71,7 @@ fn tab_button(
 }
 
 /// 组合应用页签、详情与密钥绑定覆盖层。
-pub fn view<'a, M: Clone + 'a>(app: &ViewInput<'a>, tabs: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
+pub fn view<'a, M: Clone + 'static>(app: &ViewInput<'a>, tabs: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
     let content = if let Some(target) = app.shiju_apps.detail {
         detail::view(app, target)
     } else {

@@ -390,7 +390,7 @@ pub enum Message {
 TrajectoryDetailsClosed,
 TrajectoryDetailsTabSelected(TrajectoryDetailsTab),
 TrajectoryDetailsJsonToggled(String),
-TrajectoryDetailsJsonCopied(String),
+TrajectoryDetailsJsonCopied(serde_json::Value),
 TrajectoryDetailsEditorAction(usize, text_editor::Action),
 TrajectoryDetailsContextMenuOpened { index: usize, x: f32, y: f32 },
 TrajectoryDetailsContextMenuClosed,

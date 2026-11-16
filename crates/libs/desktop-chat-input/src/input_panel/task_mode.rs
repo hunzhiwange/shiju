@@ -60,9 +60,10 @@ pub struct Input<'a> {
 }
 use vw_api_chat_identity::ReasoningEffortDto;
 
+use desktop_ui_controls::system_settings_common::help::settings_hover_help_label;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
-    settings_field_label, settings_hover_help_label, settings_panel_style, settings_select,
+    settings_field_label, settings_panel_style, settings_select,
     settings_text_editor_style, settings_text_input_style,
 };
 

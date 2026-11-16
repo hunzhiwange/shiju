@@ -34,7 +34,7 @@ pub struct ViewParts<'a, External> {
     #[cfg(not(target_arch = "wasm32"))]
     pub lsp_badge: Option<Element<'a, ViewMessage<External>>>,
 }
-pub fn view<'a, External: Clone + 'a>(input: ViewInput<'a>, parts: ViewParts<'a, External>) -> Element<'a, ViewMessage<External>> {
+pub fn view<'a, External: Clone + 'static>(input: ViewInput<'a>, parts: ViewParts<'a, External>) -> Element<'a, ViewMessage<External>> {
     let ViewParts { header_tabs, header_tools, tools, content, menu_ui,
         #[cfg(not(target_arch = "wasm32"))] lsp_badge } = parts;
     let header_trace_nav: Element<'a, ViewMessage<External>> = {
@@ -132,7 +132,7 @@ pub fn view<'a, External: Clone + 'a>(input: ViewInput<'a>, parts: ViewParts<'a,
     host
 }
 
-fn fullscreen_controls<'a, External: Clone + 'a>(fullscreen: bool, i18n: desktop_i18n::I18n) -> Element<'a, ViewMessage<External>> {
+fn fullscreen_controls<'a, External: Clone + 'static>(fullscreen: bool, i18n: desktop_i18n::I18n) -> Element<'a, ViewMessage<External>> {
     let half_button: Element<'a, ViewMessage<External>> = preview_control_tooltip(
         button(
             svg::Svg::new(desktop_assets::assets::get_icon(Icon::LayoutTextWindow))

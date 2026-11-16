@@ -1,4 +1,5 @@
 use super::*;
+use iced::widget::column;
 
 pub(super) fn build_documents_table(app: ViewInput<'_>) -> Element<'_, Message> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
@@ -458,5 +459,3 @@ pub(super) fn document_page_nav_button(label: &'static str, page: Option<usize>)
     .style(knowledge_toolbar_button_style)
     .into()
 }
-
-#[cfg(test)]

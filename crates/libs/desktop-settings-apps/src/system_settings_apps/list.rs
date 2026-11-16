@@ -27,12 +27,12 @@ fn pill<'a, M: 'a>(label: impl Into<String>, tone: Tone) -> Element<'a, M> {
 fn icon(icon: Icon, size: f32) -> svg::Svg<'static> {
     icon_svg(icon, size).style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
 }
-fn action<'a, M: Clone + 'a>(
+fn action<'a, M: Clone + 'static>(
     label: &'a str,
     glyph: Icon,
     event: Action,
     enabled: bool,
-    message: impl Fn(Action) -> M + Copy + 'a,
+    message: impl Fn(Action) -> M + Copy + 'static,
 ) -> Element<'a, M> {
     button(
         row![icon(glyph, 14.), text(label).size(SETTINGS_CONTROL_TEXT_SIZE)]
@@ -45,7 +45,7 @@ fn action<'a, M: Clone + 'a>(
     .into()
 }
 
-pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn(&'static str, &'static str) -> Element<'a, M>, local_available: bool, domains: Element<'a, M>, routing: Element<'a, M>, mut details: Option<Element<'a, M>>, message: impl Fn(Action) -> M + Copy + 'a) -> Element<'a, M> {
+pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn(&'static str, &'static str) -> Element<'a, M>, local_available: bool, domains: Element<'a, M>, routing: Element<'a, M>, mut details: Option<Element<'a, M>>, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
     let visible = preferences::visible_rows(state);
     let installed =
         visible.iter().filter(|a| presentation::presence(a) == Presence::Installed).count();
@@ -194,7 +194,7 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
     settings_section_content(content).into()
 }
 
-fn empty<'a, M: 'a>(title: &'a str, description: &'a str, glyph: Icon) -> Element<'a, M> {
+fn empty<'a, M: 'static>(title: &'a str, description: &'a str, glyph: Icon) -> Element<'a, M> {
     container(
         column![
             container(icon(glyph, 26.)).padding(16).style(settings_icon_tile_style),
@@ -267,7 +267,7 @@ fn brand<M: 'static>(app: AppId) -> Element<'static, M> {
         .into()
 }
 
-fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, app: &'a CatalogRow, local_available: bool, details: Option<Element<'a, M>>, message: impl Fn(Action) -> M + Copy + 'a) -> Element<'a, M> {
+fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, app: &'a CatalogRow, local_available: bool, details: Option<Element<'a, M>>, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
     let installed = presentation::presence(app) == Presence::Installed;
     let expanded = state.expanded == Some(app.entry.id);
     let busy = state.loading

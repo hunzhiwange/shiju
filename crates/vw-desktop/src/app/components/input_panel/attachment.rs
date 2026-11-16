@@ -14,7 +14,7 @@ fn map_message(message: shared::Message) -> Message {
 pub fn attachment_button(app: &App) -> Element<'_, Message> {
     shared::attachment_button(
         crate::app::i18n::I18n::new(app.general_settings.desktop_locale), &app.session_state.files,
-        app.multimodal_settings.max_images, app.multimodal_settings.max_image_size_mb,
+        app.multimodal_settings.max_images as usize, app.multimodal_settings.max_image_size_mb as usize,
         super::styles::round_icon_button_style,
     ).map(map_message)
 }

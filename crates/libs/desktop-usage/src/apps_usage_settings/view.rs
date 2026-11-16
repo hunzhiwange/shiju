@@ -8,7 +8,7 @@ use super::Message;
 use desktop_ui_controls::system_settings_common::*;
 use gateway_app_usage::AppsUsageDisplay;
 
-pub fn overlay<'a, M: Clone + 'a>(editor: &'a Editor, scope: Option<Scope>, base: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
+pub fn overlay<'a, M: Clone + 'static>(editor: &'a Editor, scope: Option<Scope>, base: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
     let Some(modal) = editor.modal
         .as_ref()
         .filter(|modal| scope.as_ref() == Some(&modal.scope))
@@ -18,7 +18,7 @@ pub fn overlay<'a, M: Clone + 'a>(editor: &'a Editor, scope: Option<Scope>, base
     modal_view(&modal.phase, &modal.selection, base, map)
 }
 
-pub(super) fn modal_view<'a, M: Clone + 'a>(
+pub(super) fn modal_view<'a, M: Clone + 'static>(
     phase: &'a Phase,
     selection: &vw_api_apps_usage::apps_usage::UsageSnapshotQuery,
     base: Element<'a, M>, map: fn(Message) -> M,

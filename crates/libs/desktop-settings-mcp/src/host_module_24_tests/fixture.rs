@@ -171,6 +171,7 @@ impl Fixture {
 }
 pub mod catalog {
     use super::*;
+use iced::widget::column;
     pub use crate::management_list::CatalogMessage;
     pub fn context(f: &Fixture) -> Option<Context> {
         let client = client();
@@ -209,6 +210,7 @@ pub mod catalog {
 }
 pub mod imports {
     use super::*;
+use iced::widget::column;
     pub use crate::management_import::*;
     pub fn targets(f: &Fixture) -> Vec<McpAppTarget> {
         let context = catalog::context(f);
@@ -244,6 +246,7 @@ pub mod imports {
 }
 pub mod resync {
     use super::*;
+use iced::widget::column;
     pub use crate::management_resync::{
         ResyncFailure, ResyncMessage, ResyncResult, ResyncState, locked,
     };
@@ -272,6 +275,7 @@ pub mod resync {
 }
 pub mod probe {
     use super::*;
+use iced::widget::column;
     pub use crate::diagnostic_context::Context;
     pub use desktop_apps_ui::agent_apps_diagnostics::{
         mcp::McpDiagnosticMessage,
@@ -313,6 +317,7 @@ pub fn invalidate(f: &mut Fixture) -> Task<McpMessage> {
 }
 pub mod tools {
     use super::*;
+use iced::widget::column;
     pub use crate::management_tools::{Context, ToolsMessage};
     pub fn visible(f: &Fixture) -> Option<&crate::management_tools::ToolsState> {
         crate::management_tools::visible(&f.state.tools, probe::context(f).as_ref())
@@ -438,6 +443,7 @@ pub fn overlay<'a>(f: &'a Fixture, dialog: Element<'a, McpMessage>) -> Element<'
 
 pub mod form {
     use super::*;
+use iced::widget::column;
     pub use crate::management_form::*;
     pub fn update(f: &mut Fixture, event: FormMessage) -> Task<McpMessage> {
         let mut input = f.input();
@@ -449,6 +455,7 @@ pub mod form {
 }
 pub mod bindings {
     use super::*;
+use iced::widget::column;
     pub use crate::management_bindings::*;
     pub fn update(f: &mut Fixture, event: BindingsMessage) -> Task<McpMessage> {
         let mut input = f.input();

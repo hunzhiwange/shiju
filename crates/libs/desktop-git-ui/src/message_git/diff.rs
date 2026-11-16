@@ -173,7 +173,7 @@ pub fn diff_drag_select_end(
     let Some(range) = (*git_diff_drag_range).take() else {
         return Effect::None;
     };
-    let range = normalize_range(range);
+    let range = super::shared::normalize_range(range);
 
     let now = web_time::Instant::now();
     if range.start == range.end {

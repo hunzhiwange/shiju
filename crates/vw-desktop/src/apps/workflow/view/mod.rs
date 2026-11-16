@@ -10,7 +10,7 @@ pub fn view(
             PageMessage::WorkflowTool(message) => Message::WorkflowTool(message),
             PageMessage::None => Message::None,
             PageMessage::CopyCode(text) => Message::CopyCode(text),
-            Pagecrate::app::components::text_editor_context_menu::text_context_message(effect) => {
+            PageMessage::TextContext(effect) => {
                 crate::app::components::text_editor_context_menu::text_context_message(effect)
             }
             PageMessage::View(ViewMessage::OpenUrlExternal(url)) => {

@@ -23,7 +23,7 @@ pub fn panel<'a>(state: ImportView<'a>, targets: Vec<McpAppTarget>, preview_labe
             .push(text("仅保存当前租户目录定义；链接指定的应用与 enabled 不授予执行或分发权限。连接参数已隐藏。"));
         for (index, entry) in state.link_drafts.iter().enumerate() {
             body = body.push(text(format!("第 {} 项 · {}", index + 1,
-                if entry.is_ok() { "等待确认" } else { "格式不支持，确认后列为失败" }))));
+                if entry.is_ok() { "等待确认" } else { "格式不支持，确认后列为失败" })));
         }
     } else if let Some(draft) = &state.draft {
         let transport = match draft.connection {

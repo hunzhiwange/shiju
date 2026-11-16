@@ -5,6 +5,7 @@ use super::state::{
     WorkflowVariableSelectorDraft,
 };
 use super::*;
+use iced::widget::slider;
 use desktop_ui_controls::system_settings_common::{
     settings_field_label, settings_group_card, settings_toggle,
 };

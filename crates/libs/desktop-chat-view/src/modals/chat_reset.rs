@@ -14,7 +14,7 @@ use desktop_i18n::I18n;
 use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
-pub fn with_chat_reset_dialog<'a, Message: Clone + 'a>(
+pub fn with_chat_reset_dialog<'a, Message: Clone + 'static>(
     msg_idx: Option<usize>, chat_len: usize, locale: config_ui::DesktopLocale,
     emit: impl Fn(Event) -> Message + Copy + 'a,
     root_content: Element<'a, Message>,

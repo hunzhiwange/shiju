@@ -4,7 +4,7 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use super::widgets::{icon_svg, icon_toggle_button_opt, menu_container, menu_item_icon_btn};
-use desktop_assets::{self as assets, Icon};
+use desktop_assets::assets::{self, Icon};
 use desktop_ui_controls::overlays::BelowOverlay;
 use super::Menu as MenuType;
 use super::types::{ExternalOpenApp, RuntimePlatform};

@@ -101,7 +101,7 @@ pub struct FileListState {
 /// 3. 应用文件过滤器（针对搜索类工具）
 /// 4. 处理文件列表截断（超过上限时显示部分）
 /// 5. 根据工具类型构建相应的视图布局
-pub fn tool_files_view<'a, Host: Clone + 'a>(
+pub fn tool_files_view<'a, Host: Clone + 'static>(
     app: &FilesInput<'a>,
     msg_idx: usize,
     tool_idx: usize,

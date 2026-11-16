@@ -75,7 +75,7 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
 pub(super) fn controls<'a>(state: &super::State, reader: &reader::State) -> Element<'a, Message> {
     let enabled = !reader.exporting && state.page.as_ref().is_some_and(|page|
         page.sessions.iter().any(|s| s.identity == reader.identity && s.capabilities.export_markdown));
-    let mut controls = row![].spacing(8).wrap();
+    let mut controls = row![].spacing(8);
     for (label, destination, single) in [
         ("复制本轮 Markdown", Destination::Clipboard, true),
         ("复制整段 Markdown", Destination::Clipboard, false),
@@ -86,7 +86,7 @@ pub(super) fn controls<'a>(state: &super::State, reader: &reader::State) -> Elem
             .on_press_maybe((enabled && (!single || reader.turns.get(reader.active).is_some()))
                 .then(|| msg(Event::Start(destination, single)))));
     }
-    controls.into()
+    controls.wrap().into()
 }
 
 #[derive(Clone, Copy, Debug)]

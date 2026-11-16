@@ -243,8 +243,8 @@ pub fn update(
         let blocked =
             matches!(&result, Ok(Reply::Preview(p)) if p.issues.iter().any(|i| i.blocking));
         finish(form, result);
-        let notice = form.notice.clone();
-        return match notice {
+        let feedback = form.notice.clone();
+        return match feedback {
             Some(n) if failed => super::error(notice, n),
             Some(n) if blocked => super::warning(notice, n),
             Some(n) => super::info(notice, n),

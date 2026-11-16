@@ -476,7 +476,7 @@ fn parse_blocks(raw: &str) -> Vec<RenderBlock<'_>> {
 }
 
 /// Speech consumes the same finalized prose blocks as the chat renderer.
-pub(crate) fn assistant_speech_text(raw: &str) -> String {
+pub fn assistant_speech_text(raw: &str) -> String {
     use super::markdown::{MarkdownBlockKind, parse_markdown_blocks};
     let mut prose = Vec::new();
     for block in owned_blocks_from_raw(raw) {

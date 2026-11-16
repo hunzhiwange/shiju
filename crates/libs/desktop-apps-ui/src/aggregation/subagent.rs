@@ -107,6 +107,7 @@ impl Form {
 }
 #[derive(Clone)]
 pub enum Event {
+    None,
     Open,
     Close,
     Refresh,

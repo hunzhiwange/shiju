@@ -543,7 +543,7 @@ impl Editor {
         on_event: impl Fn(iced_code_editor::Message) -> Message + 'a,
     ) -> Element<'a, Message, iced::Theme, iced::Renderer>
     where
-        Message: Clone + 'a,
+        Message: Clone + 'static,
     {
         self.inner.view().map(on_event)
     }

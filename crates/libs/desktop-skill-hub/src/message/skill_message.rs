@@ -161,7 +161,7 @@ pub enum SkillHubMessage {
         generation: u64,
         account_id: String,
         skill_id: u64,
-        result: Result<SkillCacheSyncReport, desktop_skill_hub::skill_hub::SkillCacheSyncError>,
+        result: Result<SkillCacheSyncReport, crate::skill_hub::SkillCacheSyncError>,
     },
     RetrySkillCacheSync,
     DownloadVersion(u64),

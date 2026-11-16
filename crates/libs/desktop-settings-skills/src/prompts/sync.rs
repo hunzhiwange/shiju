@@ -70,7 +70,7 @@ pub fn overlay<'a, M: Clone + 'static, C: Clone + 'a>(
     if let Some(report) = &state.report {
         body = body.push(text(format!(
             "操作 {} · {:?} · 已返回 {} 个目标",
-            report.operation.operation_id,
+            report.operation.operation_id.as_ref(),
             report.operation.status,
             report.targets.len()
         )));

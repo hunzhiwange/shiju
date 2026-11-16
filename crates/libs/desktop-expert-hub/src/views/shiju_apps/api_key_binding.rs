@@ -360,7 +360,7 @@ fn binding_card<'a>(app: &ViewInput<'_>) -> iced::widget::Container<'a, Message>
         .height(Length::Fixed(560.0))
 }
 
-pub fn with_overlay<'a, M: Clone + 'a>(app: &ViewInput<'_>, base: Element<'a, M>, map: impl Fn(Message) -> M + 'a) -> Element<'a, M> {
+pub fn with_overlay<'a, M: Clone + 'static>(app: &ViewInput<'_>, base: Element<'a, M>, map: impl Fn(Message) -> M + 'a) -> Element<'a, M> {
     if !is_visible(&app.shiju_apps.launch) {
         return base;
     }

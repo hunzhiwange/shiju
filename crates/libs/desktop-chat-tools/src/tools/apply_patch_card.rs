@@ -9,7 +9,7 @@ use super::types::ChangeFile;
 use super::apply_patch_preview::find_apply_patch_change;
 #[cfg(not(target_arch = "wasm32"))]
 use super::apply_patch_preview::parse_unified_diff_change_files;
-fn view_changes_pill<'a, Host: Clone + 'a>(i18n: desktop_i18n::I18n) -> Element<'a, Message<Host>> {
+fn view_changes_pill<'a, Host: Clone + 'static>(i18n: desktop_i18n::I18n) -> Element<'a, Message<Host>> {
     container(text(i18n.__("查看变更")).size(14).style(|theme: &Theme| {
         let is_dark = theme.palette().background.r
             + theme.palette().background.g
@@ -47,7 +47,7 @@ fn view_changes_pill<'a, Host: Clone + 'a>(i18n: desktop_i18n::I18n) -> Element<
     .into()
 }
 
-pub(super) fn view_changes_toggle_button<'a, Host: Clone + 'a>(expanded: bool, on_press: Message<Host>) -> Element<'a, Message<Host>> {
+pub(super) fn view_changes_toggle_button<'a, Host: Clone + 'static>(expanded: bool, on_press: Message<Host>) -> Element<'a, Message<Host>> {
     button(
         icon_svg(if expanded { Icon::ChevronDown } else { Icon::ChevronRight })
             .width(Length::Fixed(10.0))
@@ -62,7 +62,7 @@ pub(super) fn view_changes_toggle_button<'a, Host: Clone + 'a>(expanded: bool, o
     .into()
 }
 
-pub(super) fn external_diff_button<'a, Host: Clone + 'a>(
+pub(super) fn external_diff_button<'a, Host: Clone + 'static>(
     i18n: desktop_i18n::I18n,
     on_press: Message<Host>,
 ) -> Element<'a, Message<Host>> {
@@ -146,7 +146,7 @@ pub(crate) fn apply_patch_secondary_text(
     }
 }
 
-pub(crate) fn apply_patch_change_totals<'a, Host: Clone + 'a>(adds: usize, dels: usize) -> Element<'a, Message<Host>> {
+pub(crate) fn apply_patch_change_totals<'a, Host: Clone + 'static>(adds: usize, dels: usize) -> Element<'a, Message<Host>> {
     row![
         text(format!("+{}", adds)).size(14).font(bold_font()).style(|theme: &Theme| {
             iced::widget::text::Style { color: Some(theme.extended_palette().success.base.color) }
@@ -188,7 +188,7 @@ pub(crate) fn apply_patch_file_button_style(
     }
 }
 
-pub(super) fn apply_patch_file_icon<'a, Host: Clone + 'a>(icon: Icon) -> Element<'a, Message<Host>> {
+pub(super) fn apply_patch_file_icon<'a, Host: Clone + 'static>(icon: Icon) -> Element<'a, Message<Host>> {
     container(icon_svg(icon).width(Length::Fixed(13.0)).height(Length::Fixed(13.0)).style(
         |_theme: &Theme, _status| svg::Style { color: Some(Color::from_rgb8(0xF4, 0x72, 0x42)) },
     ))
@@ -254,7 +254,7 @@ pub(crate) fn apply_patch_header_file_icon(path: &str) -> Icon {
     }
 }
 
-pub(super) fn preview_eye_button<'a, Host: Clone + 'a>(abs: String) -> Element<'a, Message<Host>> {
+pub(super) fn preview_eye_button<'a, Host: Clone + 'static>(abs: String) -> Element<'a, Message<Host>> {
     let eye = icon_svg(Icon::Eye).width(Length::Fixed(12.0)).height(Length::Fixed(12.0)).style(
         |theme: &Theme, _status| {
             let is_dark = theme.palette().background.r

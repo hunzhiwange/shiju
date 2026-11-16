@@ -102,7 +102,7 @@ pub(super) fn write_tool_context_menu_message<Host: Clone>(
     }
 }
 
-pub(super) fn build_write_tool_view<'a, Host: Clone + 'a>(
+pub(super) fn build_write_tool_view<'a, Host: Clone + 'static>(
     view_ctx: &FilesViewContext<'a>,
     render_state: &FileListState,
     list_column: iced::widget::Column<'a, Message<Host>>,

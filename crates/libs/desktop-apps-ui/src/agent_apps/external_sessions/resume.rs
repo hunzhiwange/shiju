@@ -102,7 +102,7 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
 pub(super) fn view<'a>(state: &'a super::State, base: Element<'a, Message>) -> Element<'a, Message> {
     let Some(identity) = &state.resume.identity else { return base; };
     let close = msg(Event::Close);
-    let mut choices = row![].spacing(8).wrap();
+    let mut choices = row![].spacing(8);
     for (terminal, label) in [
         (SessionTerminal::Terminal, "Terminal"), (SessionTerminal::Iterm2, "iTerm2"),
         (SessionTerminal::Ghostty, "Ghostty"), (SessionTerminal::Kitty, "Kitty"),
@@ -119,7 +119,7 @@ pub(super) fn view<'a>(state: &'a super::State, base: Element<'a, Message>) -> E
         row![text("恢复外部会话").size(18), settings_close_button(close.clone())].spacing(12),
         text(format!("目标主机：{}", identity.target_host)),
         text("选择目标主机终端；自定义终端须由主机管理员预先授权。").style(settings_muted_text_style),
-        choices,
+        choices.wrap(),
         button(text("复制恢复命令")).padding([8, 12]).style(rounded_action_btn_style)
             .on_press_maybe((!state.resume.busy).then(|| msg(Event::Copy))),
         text("命令仅适用于目标主机；依赖账号凭据的恢复不可复制。").style(settings_muted_text_style),

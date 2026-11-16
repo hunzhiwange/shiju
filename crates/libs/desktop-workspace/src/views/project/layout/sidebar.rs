@@ -4,7 +4,7 @@ use super::super::handles::HResizeHandle;
 use super::styles::left_rail_style;
 use super::chrome::overlay_divider;
 /// 在两种侧栏状态下提供同一应用工作区入口，沿用设置页的连接与加载流程。
-pub fn workspace_rail<'a, Message: Clone + 'a>(projects: Element<'a, Message>, open: Message, external: Message) -> Element<'a, Message> {
+pub fn workspace_rail<'a, Message: Clone + 'static>(projects: Element<'a, Message>, open: Message, external: Message) -> Element<'a, Message> {
     let entry = button(text("工作区").size(12))
         .padding([8, 6])
         .style(desktop_ui_controls::system_settings_common::rounded_action_btn_style)
@@ -30,7 +30,7 @@ pub fn workspace_rail<'a, Message: Clone + 'a>(projects: Element<'a, Message>, o
 ///
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
-pub fn sidebar_group<'a, Message: Clone + 'a>(show_settings: bool, rail: Element<'a, Message>, projects_panel: Element<'a, Message>, drag: Message, settings_panel_width: f32, left_rail_width: f32, session_panel_width_scale: f32) -> (Element<'a, Message>, Option<Element<'a, Message>>) {
+pub fn sidebar_group<'a, Message: Clone + 'static>(show_settings: bool, rail: Element<'a, Message>, projects_panel: Element<'a, Message>, drag: Message, settings_panel_width: f32, left_rail_width: f32, session_panel_width_scale: f32) -> (Element<'a, Message>, Option<Element<'a, Message>>) {
     if show_settings {
         let projects_list = rail;
 
@@ -84,7 +84,7 @@ pub fn sidebar_group<'a, Message: Clone + 'a>(show_settings: bool, rail: Element
 ///
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
-pub fn hover_overlay_layout<'a, Message: Clone + 'a>(left_sidebar: Element<'a, Message>, right_column: Element<'a, Message>, hover_panel: Option<Element<'a, Message>>, close: Message, settings_panel_width: f32, left_rail_width: f32, session_panel_width_scale: f32, spacing: f32) -> Element<'a, Message> {
+pub fn hover_overlay_layout<'a, Message: Clone + 'static>(left_sidebar: Element<'a, Message>, right_column: Element<'a, Message>, hover_panel: Option<Element<'a, Message>>, close: Message, settings_panel_width: f32, left_rail_width: f32, session_panel_width_scale: f32, spacing: f32) -> Element<'a, Message> {
     if let Some(hover_sessions_panel) = hover_panel {
         let panel_width = ((settings_panel_width-left_rail_width)*session_panel_width_scale).max(0.0);
         let left_group = mouse_area(

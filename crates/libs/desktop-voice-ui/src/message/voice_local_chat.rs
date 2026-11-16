@@ -131,7 +131,7 @@ pub fn model_completed<'a>(chat: &mut State, id: u64, session: &str, messages: i
     if chat.request != Some(id) || chat.session != session || chat.stage != Stage::WaitingModel { return Ok(iced::Task::none()); }
     chat.request = None;
     let prose = messages.skip(chat.watermark).filter(|(assistant, _)| *assistant).last()
-        .map(|(_, content)| desktop_voice::local_conversation::speech_text(content)).unwrap_or_default();
+        .map(|(_, content)| if content.len() > 65_536 { String::new() } else { desktop_chat_view::message_view::parse::assistant_speech_text(content) }).unwrap_or_default();
     if prose.is_empty() { return Err("回复没有可朗读的正文，请查看聊天。".into()); }
     let spoken = desktop_voice::local_conversation::spoken_prefix(&prose);
     chat.notice = (spoken != prose).then(|| "长回复仅朗读开头，完整内容请查看聊天。".into());

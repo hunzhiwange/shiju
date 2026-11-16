@@ -32,7 +32,7 @@ pub fn view(available: bool) -> Element<'static, Event> {
     button(text("恢复与损坏诊断")).padding([8, 14]).style(rounded_action_btn_style)
         .on_press_maybe(available.then_some(Event::Open)).into()
 }
-pub fn overlay<'a, E: Clone + 'a>(state: ViewState<'a>, visible: bool, base: Element<'a, E>) -> Element<'a, OverlayEvent<E>> {
+pub fn overlay<'a, E: Clone + 'static>(state: ViewState<'a>, visible: bool, base: Element<'a, E>) -> Element<'a, OverlayEvent<E>> {
     if !visible { return base.map(OverlayEvent::External); }
     let close = message(Event::Close);
     let header = settings_modal_header(text("恢复与损坏诊断").size(18), settings_close_button(close.clone()));

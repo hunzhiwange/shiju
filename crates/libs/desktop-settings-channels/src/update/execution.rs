@@ -52,7 +52,7 @@ pub fn load(app: &mut ChannelsSettingsState, services: &Services, instance: Stri
             return super::error_toast(error);
         }
     };
-    let state = &mut app;
+    let state = app;
     let generation = state.begin_execution_choices(&scope, &instance);
     let project = state.instance_default_projects.get(&instance).cloned();
     let fallback = state.project_dir_input.trim().to_string();

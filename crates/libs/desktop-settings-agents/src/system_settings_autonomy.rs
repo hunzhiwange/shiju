@@ -225,7 +225,7 @@ fn bool_row<'a>(
 pub fn view<'a>(app: &View<'a>) -> Element<'a, Message> {
     let s = app.autonomy_settings;
     let i18n = I18n::new(app.desktop_locale);
-    let theme = &app.app_theme;
+    let theme = app.app_theme;
     let available_tools = app.available_tools;
     let help_btn = settings_help_button(
         app.desktop_locale,

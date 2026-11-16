@@ -109,7 +109,7 @@ impl Form {
             if !declaration.is_object() {
                 return Err("模型声明必须为 YAML 对象".into());
             }
-            let profile = vw_gateway_client::vw_api_app_provider_terminal::omp::OmpProfile {
+            let profile = vw_api_app_provider_terminal::omp::OmpProfile {
                 name: self.name.trim().into(),
                 declaration,
             };

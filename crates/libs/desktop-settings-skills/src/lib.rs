@@ -8,6 +8,9 @@ pub enum Event {
     PluginsDeleteRequested(String), PluginsSelected(String), PluginsUpdateOpen(String), PluginsRefresh, PluginsInstallOpen,
     None,
     CopyText(String),
+    AppendText(String),
+    OpenUrl(String),
+    Selection(String, usize, usize, Option<String>),
     SkillsDirectoryScopeChanged(types::SkillsDirectoryScope),
     SkillsRefresh,
     SkillsInstallBuiltInRequested(String),
@@ -141,3 +144,13 @@ mod host_module_23_tests;
 
 #[cfg(test)]
 mod host_module_36_tests;
+
+impl desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage for Event {
+    fn none() -> Self { Self::None }
+    fn copy(text: String) -> Self { Self::CopyText(text) }
+    fn context(effect: desktop_ui_controls::text_editor_context_menu::TextContextEffect) -> Self {
+        use desktop_ui_controls::text_editor_context_menu::TextContextEffect;
+        match effect { TextContextEffect::Copy(text) => Self::CopyText(text), TextContextEffect::Append(text) => Self::AppendText(text), TextContextEffect::OpenUrl(url) => Self::OpenUrl(url) }
+    }
+    fn selection(session: String, index: usize, text_index: usize, text: Option<String>) -> Self { Self::Selection(session, index, text_index, text) }
+}

@@ -4,7 +4,7 @@ use crate::presentation::is_dark_theme;
 use iced::widget::{Space, button, column, container, row, text as iced_text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
-pub fn approval_badge_view<'a, M: Clone + 'a>(
+pub fn approval_badge_view<'a, M: Clone + 'static>(
     label: String,
     on_press: Option<M>,
     font: iced::Font,
@@ -107,7 +107,7 @@ use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 const MESSAGE_META_TEXT_SIZE: f32 = 13.0;
 pub const COMPACT_ACTION_BUTTON_RADIUS: f32 = 5.0;
 
-pub fn icon_action_button<'a, M: Clone + 'a>(
+pub fn icon_action_button<'a, M: Clone + 'static>(
     icon: Icon,
     tooltip: Element<'a, M>,
     on_press: M,

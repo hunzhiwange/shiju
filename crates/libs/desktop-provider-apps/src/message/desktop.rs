@@ -354,7 +354,7 @@ pub fn update(state: &mut State, current: Option<(GatewayClient, Scope)>, token:
 }
 
 fn scroll_top() -> Task<Message> {
-    iced::widget::operation::snap_to(
+    iced::widget::operation::snap_to::<Message>(
         iced::widget::Id::new("desktop-provider-form"),
         iced::widget::scrollable::RelativeOffset { x: Some(0.0), y: Some(0.0) },
     )

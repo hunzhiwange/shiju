@@ -47,10 +47,10 @@ async fn webhook_idempotency_skips_duplicate_provider_calls() {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
@@ -64,7 +64,7 @@ async fn webhook_idempotency_skips_duplicate_provider_calls() {
 
     // 第一次请求：应该正常处理并调用 provider
     let body = Ok(Json(WebhookBody { message: "hello".into() }));
-    let first: Response = crate::app::agent::gateway::webhook::handle_webhook(
+    let first: Response = super::webhook::handle_webhook(
         State(state.clone()),
         test_connect_info(),
         headers.clone(),
@@ -76,7 +76,7 @@ async fn webhook_idempotency_skips_duplicate_provider_calls() {
 
     // 第二次请求：使用相同的幂等键，应返回幂等响应而不调用 provider
     let body = Ok(Json(WebhookBody { message: "hello".into() }));
-    let second: Response = crate::app::agent::gateway::webhook::handle_webhook(
+    let second: Response = super::webhook::handle_webhook(
         State(state),
         test_connect_info(),
         headers,
@@ -127,10 +127,10 @@ async fn webhook_rejects_public_traffic_without_auth_layers() {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
@@ -141,7 +141,7 @@ async fn webhook_rejects_public_traffic_without_auth_layers() {
     // 使用公共连接信息发送请求（模拟来自公网的流量）
     let body: Result<Json<WebhookBody>, JsonRejection> =
         Ok(Json(WebhookBody { message: "hello".into() }));
-    let response: Response = crate::app::agent::gateway::webhook::handle_webhook(
+    let response: Response = super::webhook::handle_webhook(
         State(state),
         test_public_connect_info(),
         HeaderMap::new(),
@@ -190,10 +190,10 @@ async fn webhook_autosave_stores_distinct_keys_per_request() {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
@@ -205,7 +205,7 @@ async fn webhook_autosave_stores_distinct_keys_per_request() {
 
     // 第一个请求
     let body1 = Ok(Json(WebhookBody { message: "hello one".into() }));
-    let first: Response = crate::app::agent::gateway::webhook::handle_webhook(
+    let first: Response = super::webhook::handle_webhook(
         State(state.clone()),
         test_connect_info(),
         headers.clone(),
@@ -217,7 +217,7 @@ async fn webhook_autosave_stores_distinct_keys_per_request() {
 
     // 第二个请求（内容不同）
     let body2 = Ok(Json(WebhookBody { message: "hello two".into() }));
-    let second: Response = crate::app::agent::gateway::webhook::handle_webhook(
+    let second: Response = super::webhook::handle_webhook(
         State(state),
         test_connect_info(),
         headers,
@@ -308,16 +308,16 @@ async fn webhook_secret_hash_rejects_missing_header() {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
         hook_runtime: None,
         channels: std::sync::Arc::new(parking_lot::Mutex::new(
-            crate::app::agent::gateway::state::GatewayChannels {
+            GatewayChannels {
                 webhook_disabled: false,
                 runtimes: Default::default(),
                 webhook_secret_hash: Some(Arc::from(hash_webhook_secret(&secret))),
@@ -337,7 +337,7 @@ async fn webhook_secret_hash_rejects_missing_header() {
     // 发送不带 X-Webhook-Secret 头的请求
     let body: Result<Json<WebhookBody>, JsonRejection> =
         Ok(Json(WebhookBody { message: "hello".into() }));
-    let response: Response = crate::app::agent::gateway::webhook::handle_webhook(
+    let response: Response = super::webhook::handle_webhook(
         State(state),
         test_connect_info(),
         HeaderMap::new(),
@@ -387,16 +387,16 @@ async fn webhook_secret_hash_rejects_invalid_header() {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
         hook_runtime: None,
         channels: std::sync::Arc::new(parking_lot::Mutex::new(
-            crate::app::agent::gateway::state::GatewayChannels {
+            GatewayChannels {
                 webhook_disabled: false,
                 runtimes: Default::default(),
                 webhook_secret_hash: Some(Arc::from(hash_webhook_secret(&valid_secret))),
@@ -420,7 +420,7 @@ async fn webhook_secret_hash_rejects_invalid_header() {
     // 发送请求
     let body: Result<Json<WebhookBody>, JsonRejection> =
         Ok(Json(WebhookBody { message: "hello".into() }));
-    let response: Response = crate::app::agent::gateway::webhook::handle_webhook(
+    let response: Response = super::webhook::handle_webhook(
         State(state),
         test_connect_info(),
         headers,
@@ -469,16 +469,16 @@ async fn webhook_secret_hash_accepts_valid_header() {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
         hook_runtime: None,
         channels: std::sync::Arc::new(parking_lot::Mutex::new(
-            crate::app::agent::gateway::state::GatewayChannels {
+            GatewayChannels {
                 webhook_disabled: false,
                 runtimes: Default::default(),
                 webhook_secret_hash: Some(Arc::from(hash_webhook_secret(&secret))),
@@ -502,7 +502,7 @@ async fn webhook_secret_hash_accepts_valid_header() {
     // 发送请求
     let body: Result<Json<WebhookBody>, JsonRejection> =
         Ok(Json(WebhookBody { message: "hello".into() }));
-    let response: Response = crate::app::agent::gateway::webhook::handle_webhook(
+    let response: Response = super::webhook::handle_webhook(
         State(state),
         test_connect_info(),
         headers,

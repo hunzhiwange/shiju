@@ -64,16 +64,16 @@ async fn qq_webhook_returns_not_found_when_not_configured() {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
         hook_runtime: None,
         channels: std::sync::Arc::new(parking_lot::Mutex::new(
-            crate::app::agent::gateway::state::GatewayChannels {
+            GatewayChannels {
                 webhook_disabled: false,
                 runtimes: Default::default(),
                 webhook_secret_hash: None,
@@ -160,16 +160,16 @@ async fn qq_webhook_validation_returns_signed_challenge() {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
         hook_runtime: None,
         channels: std::sync::Arc::new(parking_lot::Mutex::new(
-            crate::app::agent::gateway::state::GatewayChannels {
+            GatewayChannels {
                 webhook_disabled: false,
                 runtimes: Default::default(),
                 webhook_secret_hash: None,

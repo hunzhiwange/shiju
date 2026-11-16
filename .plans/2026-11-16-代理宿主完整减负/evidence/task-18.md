@@ -372,3 +372,47 @@
 - `ws/mod.rs → mod_tests.rs::parse_ws_private_event_prefers_explicit_name_over_result_tool_id`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
 - `ws/mod.rs → mod_tests.rs::parse_ws_delta_event_maps_empty_hint_to_none_and_bad_duration_to_none`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
 - `ws/mod.rs → mod_tests.rs::websocket_upgrade_requires_real_hyper_upgrade_extension`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+
+
+## 深度恢复（本节覆盖上文已过期的保留结论）
+
+读取 final.md、remaining-host.json 的任务18条目后，继续迁出剩余 HTTP ingress acceptance 及独立运行时策略。原 tests/mod.rs 432 行夹具随整组断言下沉，原四个 path 挂载全部消除，未删断言。
+
+领域 ingress 使用真实 generic AppState<(), GatewayChannels, ()>，真实鉴权、QQ signed challenge、Nextcloud HMAC、内存与幂等入口。聊天边界仅使用原 MockProvider；通过现有 WebhookChat 端口注入 provider，不复制鉴权/去重/落盘算法。拒绝或验证握手的通道用例传入 panic runtime/dispatch，若策略错误进入执行立即失败。AgentHost 的聊天端口亦 panic，require_auth 委托真实领域鉴权。测试不再声称覆盖 QueryEngine；原 webhook_tests、agent_tests 的真实宿主绑定验收仍在原模块。
+
+运行时 bind/start/serve/shutdown 用例迁到领域 runtime 模块，注入空业务 Router 与真实 SyncLifecycle（服务代码原接口）；保留 runtime_tests::local_import_runtime_supplies_real_peer_address 验证真实宿主 local import 注册和 loopback 地址。移除宿主仅为这些策略测试提供的 serve_until/start_until 两个转发，生产 serve/start/runtime_router 不变。
+
+- `crates/vw-agent/src/gateway/tests/mod.rs`：432 → 0 行。
+- `crates/vw-agent/src/gateway/runtime.rs`：54 → 33 行。
+- `crates/libs/agent-gateway/src/runtime_tests.rs::runtime_entrypoints_are_available` → `host_migration_18_tests::runtime::runtime_entrypoints_are_available`。
+- `crates/libs/agent-gateway/src/runtime_tests.rs::bind_prefer_uses_requested_available_port` → `host_migration_18_tests::runtime::bind_prefer_uses_requested_available_port`。
+- `crates/libs/agent-gateway/src/runtime_tests.rs::bind_prefer_rejects_occupied_requested_port` → `host_migration_18_tests::runtime::bind_prefer_rejects_occupied_requested_port`。
+- `crates/libs/agent-gateway/src/runtime_tests.rs::bind_prefer_rejects_invalid_host` → `host_migration_18_tests::runtime::bind_prefer_rejects_invalid_host`。
+- `crates/libs/agent-gateway/src/runtime_tests.rs::bind_prefer_zero_port_prefers_4099_then_falls_back_when_occupied` → `host_migration_18_tests::runtime::bind_prefer_zero_port_prefers_4099_then_falls_back_when_occupied`。
+- `crates/libs/agent-gateway/src/runtime_tests.rs::start_binds_service_and_returns_actual_address` → `host_migration_18_tests::runtime::start_binds_service_and_returns_actual_address`。
+- `crates/libs/agent-gateway/src/runtime_tests.rs::start_until_uses_custom_shutdown_future` → `host_migration_18_tests::runtime::start_until_uses_custom_shutdown_future`。
+- `crates/libs/agent-gateway/src/runtime_tests.rs::start_until_keeps_service_running_until_shutdown_is_requested` → `host_migration_18_tests::runtime::start_until_keeps_service_running_until_shutdown_is_requested`。
+- `crates/libs/agent-gateway/src/runtime_tests.rs::start_returns_bind_error_for_occupied_requested_port` → `host_migration_18_tests::runtime::start_returns_bind_error_for_occupied_requested_port`。
+- `crates/libs/agent-gateway/src/runtime_tests.rs::start_until_returns_bind_error_without_polling_shutdown` → `host_migration_18_tests::runtime::start_until_returns_bind_error_without_polling_shutdown`。
+- `crates/libs/agent-gateway/src/runtime_tests.rs::serve_returns_actual_address_after_graceful_shutdown` → `host_migration_18_tests::runtime::serve_returns_actual_address_after_graceful_shutdown`。
+- `crates/libs/agent-gateway/src/runtime_tests.rs::serve_until_returns_address_when_shutdown_future_panics` → `host_migration_18_tests::runtime::serve_until_returns_address_when_shutdown_future_panics`。
+- `crates/libs/agent-gateway/src/runtime_tests.rs::serve_returns_bind_error_for_occupied_port` → `host_migration_18_tests::runtime::serve_returns_bind_error_for_occupied_port`。
+- `crates/libs/agent-gateway/src/runtime_tests.rs::local_import_runtime_supplies_real_peer_address` → 宿主原路径（真实 local import peer）。
+- `crates/libs/agent-gateway/src/host_acceptance_tests/nextcloud.rs::nextcloud_talk_webhook_returns_not_found_when_not_configured` → `host_migration_18_tests::ingress::nextcloud::nextcloud_talk_webhook_returns_not_found_when_not_configured`，原断言保留。
+- `crates/libs/agent-gateway/src/host_acceptance_tests/nextcloud.rs::nextcloud_talk_webhook_rejects_invalid_signature` → `host_migration_18_tests::ingress::nextcloud::nextcloud_talk_webhook_rejects_invalid_signature`，原断言保留。
+- `crates/libs/agent-gateway/src/host_acceptance_tests/qq.rs::qq_webhook_returns_not_found_when_not_configured` → `host_migration_18_tests::ingress::qq::qq_webhook_returns_not_found_when_not_configured`，原断言保留。
+- `crates/libs/agent-gateway/src/host_acceptance_tests/qq.rs::qq_webhook_validation_returns_signed_challenge` → `host_migration_18_tests::ingress::qq::qq_webhook_validation_returns_signed_challenge`，原断言保留。
+- `crates/libs/agent-gateway/src/host_acceptance_tests/webhook.rs::webhook_idempotency_skips_duplicate_provider_calls` → `host_migration_18_tests::ingress::webhook_policy::webhook_idempotency_skips_duplicate_provider_calls`，原断言保留。
+- `crates/libs/agent-gateway/src/host_acceptance_tests/webhook.rs::webhook_rejects_public_traffic_without_auth_layers` → `host_migration_18_tests::ingress::webhook_policy::webhook_rejects_public_traffic_without_auth_layers`，原断言保留。
+- `crates/libs/agent-gateway/src/host_acceptance_tests/webhook.rs::webhook_autosave_stores_distinct_keys_per_request` → `host_migration_18_tests::ingress::webhook_policy::webhook_autosave_stores_distinct_keys_per_request`，原断言保留。
+- `crates/libs/agent-gateway/src/host_acceptance_tests/webhook.rs::webhook_secret_hash_is_deterministic_and_nonempty` → `host_migration_18_tests::ingress::webhook_policy::webhook_secret_hash_is_deterministic_and_nonempty`，原断言保留。
+- `crates/libs/agent-gateway/src/host_acceptance_tests/webhook.rs::webhook_secret_hash_rejects_missing_header` → `host_migration_18_tests::ingress::webhook_policy::webhook_secret_hash_rejects_missing_header`，原断言保留。
+- `crates/libs/agent-gateway/src/host_acceptance_tests/webhook.rs::webhook_secret_hash_rejects_invalid_header` → `host_migration_18_tests::ingress::webhook_policy::webhook_secret_hash_rejects_invalid_header`，原断言保留。
+- `crates/libs/agent-gateway/src/host_acceptance_tests/webhook.rs::webhook_secret_hash_accepts_valid_header` → `host_migration_18_tests::ingress::webhook_policy::webhook_secret_hash_accepts_valid_header`，原断言保留。
+- `crates/libs/agent-gateway/src/host_acceptance_tests/agent.rs::agent_endpoint_requires_bearer_token_when_pairing_enabled` → `host_migration_18_tests::ingress::agent_auth::agent_endpoint_requires_bearer_token_when_pairing_enabled`，原断言保留。
+
+按 remaining-host 的18号原文件集，恢复前 1210 行，当前 757 行，本次净减 453 行。真实宿主 router/bootstrap 注册、state 具体类型、OpenAI/WS/聊天闭包仍保留；这些剩余端口不能用模拟实现替代。原始1588行范围仍未达到70%门槛，继续可迁项为协议跨目录测试的纯解析分支及具体提示/技能构建的领域入口，须由收口继续核算，不宣称整轮通过。
+
+未来 `python3 scripts/cargo_slot.py cargo test -p agent-gateway --lib host_migration_18_tests -- --test-threads=1` 预期 109 个测试（静态属性计数）。宿主未来精确过滤 `local_import_runtime_supplies_real_peer_address` 预期1条。禁止零测试当通过。
+
+静态核对：无残留 gateway::tests 引用；新模块无 crate::app/宿主 path/include；git diff --check 限本任务文件通过。Cargo、编译、运行测试均未执行。

@@ -47,8 +47,6 @@ mod runtime;
 pub(crate) mod settings_store;
 pub mod sse;
 mod state;
-#[cfg(test)]
-mod tests;
 mod types;
 mod util;
 mod webhook;

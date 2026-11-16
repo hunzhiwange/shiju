@@ -62,11 +62,11 @@ async fn agent_endpoint_requires_bearer_token_when_pairing_enabled() {
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
         // 各通道配置均为 None（本测试不需要）
         // 使用空操作观察器（不记录日志）
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         // 工具注册表为空（本测试不需要工具）
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
@@ -79,7 +79,7 @@ async fn agent_endpoint_requires_bearer_token_when_pairing_enabled() {
         Ok(Json(AgentBody { message: "hello".into() }));
 
     // 调用 agent 处理器，模拟不带认证头的 HTTP 请求
-    let unauthorized: Response = crate::app::agent::gateway::agent::handle_agent(
+    let unauthorized: Response = super::agent::handle_agent(
         State(state),
         test_connect_info(),
         HeaderMap::new(), // 空的头部，不包含认证信息

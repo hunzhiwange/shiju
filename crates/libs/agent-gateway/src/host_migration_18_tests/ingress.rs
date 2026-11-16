@@ -1,50 +1,14 @@
-//! 网关模块测试套件
-//!
-//! 本模块提供网关（Gateway）功能的全面测试覆盖，包括：
-//! - 认证与授权机制测试
-//! - 速率限制与配额管理测试
-//! - 配对机制与安全绑定测试
-//! - 内存/存储相关功能测试
-//! - Webhook 与回调处理测试
-//! - 各类通道集成测试（QQ、WhatsApp、Nextcloud 等）
-//!
-//! ## 测试架构
-//!
-//! 本模块使用 Mock 对象模式隔离依赖，提供：
-//! - `MockMemory`: 最小化内存存储实现，用于基础测试
-//! - `MockProvider`: 模拟 AI 提供者，用于聊天接口测试
-//! - `TrackingMemory`: 跟踪型内存实现，用于验证存储调用行为
-//!
-//! ## 子模块
-//!
-//! - `agent`: 代理相关测试
-//! - `allowlist`: 白名单机制测试
-//! - `auth`: 认证逻辑测试
-//! - `basics`: 基础功能测试
-//! - `client_key`: 客户端密钥测试
-//! - `idempotency`: 幂等性保证测试
-//! - `memory_keys`: 内存键管理测试
-//! - `metrics`: 指标收集测试
-//! - `nextcloud`: Nextcloud 集成测试
-//! - `node_control`: 节点控制测试
-//! - `pairing`: 配对机制测试
-//! - `qq`: QQ 通道测试
-//! - `rate_limiter`: 速率限制器测试
-//! - `sanitize`: 输入净化测试
-//! - `state`: 状态管理测试
-//! - `webhook`: Webhook 处理测试
-//! - `whatsapp_signature`: WhatsApp 签名验证测试
-
 use super::*;
+use gateway_types::{AgentBody, WebhookBody};
+use crate::channel_runtime::GatewayChannels;
+type AppState = gateway_types::AppState<(), GatewayChannels, ()>;
 
-pub(crate) use crate::app::agent::channels::{
-    LinqChannel, NextcloudTalkChannel, QQChannel, WatiChannel, WhatsAppChannel,
-};
-pub(crate) use crate::app::agent::config::Config;
-pub(crate) use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry};
+use channel_nextcloud_talk::NextcloudTalkChannel;
+use channel_qq::QQChannel;
+pub(crate) use agent_config::runtime::Config;
+pub(crate) use memory_types::memory::{Memory, MemoryCategory, MemoryEntry};
 pub(crate) use model_types::Provider;
-pub(crate) use crate::app::agent::security::pairing::PairingGuard;
-pub(crate) use crate::app::agent::tools::Tool;
+pub(crate) use gateway_pairing::pairing::PairingGuard;
 use async_trait::async_trait;
 use axum::extract::ConnectInfo;
 use axum::http::HeaderValue;
@@ -418,15 +382,10 @@ fn test_public_connect_info() -> ConnectInfo<SocketAddr> {
     ConnectInfo(SocketAddr::from(([203, 0, 113, 10], 30_300)))
 }
 
-// ============================================================================
-// 测试子模块声明
-// ============================================================================
 
-#[path = "../../../../libs/agent-gateway/src/host_acceptance_tests/agent.rs"]
-mod agent;
-#[path = "../../../../libs/agent-gateway/src/host_acceptance_tests/nextcloud.rs"]
+mod ports;
+use ports::{agent, handlers, webhook};
+mod agent_auth;
 mod nextcloud;
-#[path = "../../../../libs/agent-gateway/src/host_acceptance_tests/qq.rs"]
 mod qq;
-#[path = "../../../../libs/agent-gateway/src/host_acceptance_tests/webhook.rs"]
-mod webhook;
+mod webhook_policy;

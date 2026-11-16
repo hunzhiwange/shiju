@@ -810,3 +810,7 @@ pub fn install_host(host: Host) {
 fn host() -> &'static Host {
     HOST.get().expect("provider host must be installed before catalog access")
 }
+
+#[cfg(test)]
+#[path = "provider_local_tests.rs"]
+mod provider_local_tests;

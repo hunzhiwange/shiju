@@ -2,8 +2,6 @@
 #[cfg(test)]
 use crate::config;
 #[cfg(test)]
-use agent_auth as auth;
-#[cfg(test)]
 use std::sync::Arc;
 #[cfg(test)]
 use std::collections::HashMap;

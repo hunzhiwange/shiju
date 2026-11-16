@@ -1,7 +1,10 @@
 //! 测试批量工具执行的结果规范化、权限错误、取消与调度分组。
 //! 可配置工具夹具区分权限失败、执行错误、失败结果和并发调度属性。
 
+// This suite is compiled by vw-agent: context() retains AgentContextHost and its
+// MCP session readiness boundary. Do not bind it to a permissive test host.
 use super::*;
+use tool_services::scheduler::PendingToolCall;
 use crate::observability::NoopObserver;
 use crate::observability::traits::ObserverMetric;
 use async_trait::async_trait;

@@ -16,9 +16,7 @@ pub(crate) async fn team_runtime_instructions(session_id: &str, enabled: bool) -
     session_engine::system::team_runtime_instructions::<super::session_io::NativeSessionIo>(session_id, enabled).await
 }
 #[cfg(test)]
-use session_engine::system_prompt::resolve_cwd;
-#[cfg(test)]
-use session_engine::system::{environment_text, yes_no_en, platform, today_date_string, detect_git_from_dir, resolve_is_git};
+use session_engine::system::{detect_git_from_dir, resolve_is_git};
 #[cfg(test)]
 const PROMPT_UNIFIED: &str = include_str!("../../../libs/session-engine/src/prompt/unified.txt");
 #[cfg(test)]

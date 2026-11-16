@@ -261,3 +261,7 @@ pub fn resolve_cwd(root: Option<&str>) -> String {
     // 回退到系统当前目录
     std::env::current_dir().ok().map(|p| p.to_string_lossy().to_string()).unwrap_or_default()
 }
+
+#[cfg(test)]
+#[path = "system_prompt_tests.rs"]
+mod system_prompt_tests;

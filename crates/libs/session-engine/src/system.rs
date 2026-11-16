@@ -428,3 +428,7 @@ pub async fn team_runtime_instructions<H: crate::session_io::SessionIo>(session_
         "## Current Team Runtime\nSession ID: {session_id}; role: {role}. Remaining shared child execution slots: {remaining} (snapshot; scheduling may change). The primary agent does not consume a child slot. Use list_agents for current team relationships. All agents share the working directory and must respect their own filtered tools and permissions."
     )
 }
+
+#[cfg(test)]
+#[path = "system_tests.rs"]
+mod system_tests;

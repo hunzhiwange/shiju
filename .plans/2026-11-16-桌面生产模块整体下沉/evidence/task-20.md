@@ -42,3 +42,13 @@
 独立 rustfmt 仅新增文件；本任务 diff --check 已检查。尚无编译、运行、字体整形或截图验证证据。以后须用户授权才能执行：
 `python3 scripts/cargo_slot.py cargo test -p desktop-settings-runtime --lib host_module_20_tests -- --test-threads=1`
 以及统一阶段宿主 `cargo check -p vw-desktop --lib`（同槽位入口）。
+
+## 继续执行后的补充审查
+
+继续执行时补齐查询分类无关消息测试的 QueryClassificationRuleInput 导入，并将本任务两个 dev 依赖同步到 Cargo.lock 的 desktop-settings-runtime 唯一包条目；没有执行 Cargo。
+
+Hooks 混合用例进一步按断言拆开：host_module_20_tests::hooks_update 下同名 hooks_tab_loads_catalog_and_audit、hook_trust_result_refreshes_and_toasts、hook_load_failure_preserves_last_good_data 接收原来的 catalog/audit/loading/error/mutation 状态断言，并验证真实领域 Effect。宿主删除这些已迁的状态断言，保留 tab 消息调度、网关任务、toast、刷新消息及异域枚举过滤契约。原成功/失败状态断言均保留，未弱化。领域测试夹具中的未使用 endpoint 常量和输入定位方法已移除。
+
+先前提交 1e185504f 已删除任务文件；此次补充审查不重新创建任务卡。所有修改继续仅做静态检查，未编译、未测试、未执行截图。
+
+当前18个来源合计 2167 行，较2551行基线净减 384 行；生产净减仍为0，无新增宿主文件。

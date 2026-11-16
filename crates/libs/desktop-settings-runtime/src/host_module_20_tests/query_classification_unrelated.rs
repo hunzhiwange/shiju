@@ -1,5 +1,6 @@
 use crate::messages::SettingsMessage;
 use crate::query_classification::update;
+use crate::state::QueryClassificationRuleInput;
 #[test]
 fn update_ignores_messages_for_other_settings_sections() {
     let mut app = crate::state::QueryClassificationSettingsState::default();

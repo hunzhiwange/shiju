@@ -7641,6 +7641,7 @@ dependencies = [
  "config-tools",
  "config-ui",
  "desktop-assets",
+ "desktop-chat-view",
  "desktop-i18n",
  "desktop-settings-providers",
  "desktop-ui-controls",
@@ -7649,6 +7650,7 @@ dependencies = [
  "iced_runtime",
  "image",
  "serde_json",
+ "tempfile",
  "tokio",
 ]
 

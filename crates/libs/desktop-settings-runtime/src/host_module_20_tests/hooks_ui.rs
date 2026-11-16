@@ -174,14 +174,6 @@ impl Geometry {
             .unwrap_or_else(|| panic!("missing label {value}: {:?}", self.labels))
             .1
     }
-
-    fn input(&self, value: &str) -> iced::Rectangle {
-        self.inputs
-            .iter()
-            .find(|(input, _)| input == value)
-            .unwrap_or_else(|| panic!("missing fixture input {value}"))
-            .1
-    }
 }
 
 fn geometry(ui: &mut Ui<'_>, renderer: &Renderer) -> Geometry {
@@ -228,7 +220,6 @@ fn wheel(ui: &mut Ui<'_>, renderer: &mut Renderer, point: Point) -> Vec<Message>
     )
 }
 
-const ENDPOINT: &str = "https://telemetry.invalid/otlp";
 const TRACE_PATH: &str =
     "/fixture/追蹤資料/abcdefghijklmnopqrstuvwxyz/abcdefghijklmnopqrstuvwxyz/trace.jsonl";
 const COMMAND: &str = "/fixture/插件/abcdefghijklmnopqrstuvwxyz/abcdefghijklmnopqrstuvwxyz/review";

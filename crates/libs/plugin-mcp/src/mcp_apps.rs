@@ -59,3 +59,7 @@ pub fn validate_resource(uri: &str, raw: &Value) -> Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "mcp_apps_tests.rs"]
+mod tests;

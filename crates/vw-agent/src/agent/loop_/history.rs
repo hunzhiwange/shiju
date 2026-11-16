@@ -14,5 +14,5 @@ pub(crate) async fn compact_history_with_internal_service(history: &mut Vec<Chat
     agent_loop::history::compact_history_with_internal_service::<HistoryHost>(history, session, model, reliability, limit).await
 }
 #[cfg(test)]
-#[path = "../../../../libs/agent-loop/src/history_tests.rs"]
+#[path = "history_tests.rs"]
 mod history_tests;

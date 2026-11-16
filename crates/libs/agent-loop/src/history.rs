@@ -191,3 +191,7 @@ pub trait HistoryHost {
     async fn summarize(session: String, source: Vec<serde_json::Value>, model: String, reliability: config_reliability::ReliabilityConfig, limit: agent_provider::provider::ModelLimit) -> Result<String, String>;
     async fn emit(session: &str, thread: &str, model: &str, automatic: bool, post: bool) -> Result<()>;
 }
+
+#[cfg(test)]
+#[path = "history_tests.rs"]
+mod history_tests;

@@ -56,6 +56,19 @@ impl NativeBackend for OsBoundary {
     }
 }
 fn fixture(allowed: bool) -> (Arc<NativeControlRuntime>, Arc<OsBoundary>, Vec<Box<dyn Tool>>) {
+    let (runtime, os, tools, _) = fixture_with_policy(allowed);
+    (runtime, os, tools)
+}
+
+// Keep the authority supplied to the runtime; revocation must use that same policy.
+fn fixture_with_policy(
+    allowed: bool,
+) -> (
+    Arc<NativeControlRuntime>,
+    Arc<OsBoundary>,
+    Vec<Box<dyn Tool>>,
+    Arc<RwLock<ComputerControlPolicy>>,
+) {
     let policy = Arc::new(RwLock::new(ComputerControlPolicy::new(Default::default())));
     if allowed {
         policy
@@ -70,12 +83,12 @@ fn fixture(allowed: bool) -> (Arc<NativeControlRuntime>, Arc<OsBoundary>, Vec<Bo
     let os = Arc::new(OsBoundary::default());
     let boundary = os.clone();
     let runtime = NativeControlRuntime::with_factory(
-        policy,
+        policy.clone(),
         Arc::new(move |_, _, _, _, _, _| Ok(boundary.clone())),
     );
     let tools: Vec<Box<dyn Tool>> =
         vec![Box::new(ComputerControlTool::new(runtime.clone(), Some("chat".into())))];
-    (runtime, os, tools)
+    (runtime, os, tools, policy)
 }
 fn args(action: serde_json::Value) -> serde_json::Value {
     json!({"target":{"kind":"native_app","bundle_id":"com.example.fixture","process_id":42},"action":action})
@@ -174,7 +187,7 @@ async fn cc_control_07_global_inputs_do_not_overlap_across_sessions() {
 }
 #[tokio::test]
 async fn cc_control_07_revocation_and_cross_session_prevent_input() {
-    let (runtime, os, tools) = fixture(true);
+    let (_, os, tools, policy) = fixture_with_policy(true);
     let input = args(json!({"action":"native_input","input":{"kind":"activate"}}));
     assert!(
         execute_tool_from_registry(&tools, "computer_control", input.clone(), context("foreign"))
@@ -184,8 +197,7 @@ async fn cc_control_07_revocation_and_cross_session_prevent_input() {
     execute_tool_from_registry(&tools, "computer_control", input.clone(), context("chat"))
         .await
         .unwrap();
-    runtime
-        .policy
+    policy
         .write()
         .set_enabled(
             &format!("uid:{}", unsafe { libc::geteuid() }),

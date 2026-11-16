@@ -22,28 +22,10 @@ use iced::Element;
 #[cfg(test)] use self::common::enabled_channels;
 use config_ui::DesktopLocale;
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
-#[cfg(test)] use desktop_settings_channels::overview::{CHANNEL_TAB_COLUMNS, CHINA_CHANNEL_CARD_COLUMNS, CHANNEL_TAB_GROUPS, ChannelTabGroup, channel_tab_group, china_channel_icon};
 fn view_state(app: &App) -> desktop_settings_channels::ViewState<'_> { desktop_settings_channels::ViewState { channels_settings: &app.channels_settings, desktop_locale: app.desktop_locale, app_theme: &app.app_theme } }
 fn map_message(message: desktop_settings_channels::messages::Message) -> Message { use desktop_settings_channels::messages as domain; match message { domain::Message::None => Message::None, domain::Message::Settings(domain::SettingsMessage::Channels(message)) => Message::Settings(crate::app::message::settings::SettingsMessage::Channels(message)), } }
-pub(super) fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSettingsTab>> { desktop_settings_channels::overview::channel_tab_descriptors(super) }
+pub(super) fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSettingsTab>> { desktop_settings_channels::overview::channel_tab_descriptors() }
 fn global_settings_content(app: &App) -> Element<'_, Message> { desktop_settings_channels::overview::global_settings_content(view_state(app)).map(map_message) }
-#[cfg(test)]
-fn china_channel_card(
-    locale: DesktopLocale,
-    descriptor: &SettingsTabDescriptor<ChannelsSettingsTab>,
-    active_tab: ChannelsSettingsTab,
-) -> Element<'static, Message> { desktop_settings_channels::overview::china_channel_card(locale, descriptor, active_tab).map(map_message) }
-#[cfg(test)]
-fn china_channel_cards(
-    locale: DesktopLocale,
-    descriptors: &[&SettingsTabDescriptor<ChannelsSettingsTab>],
-    active_tab: ChannelsSettingsTab,
-) -> Element<'static, Message> { desktop_settings_channels::overview::china_channel_cards(locale, descriptors, active_tab).map(map_message) }
-#[cfg(test)]
-fn channel_tabs(
-    locale: DesktopLocale,
-    active_tab: ChannelsSettingsTab,
-) -> Element<'static, Message> { desktop_settings_channels::overview::channel_tabs(locale, active_tab).map(map_message) }
 pub fn view(app: &App) -> Element<'_, Message> {
     let selected_panel: Element<'_, Message> = match app.channels_settings.active_tab {
         ChannelsSettingsTab::Global => global_settings_content(app),

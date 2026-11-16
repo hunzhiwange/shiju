@@ -1,4 +1,11 @@
 use super::*;
+use domain::history::run_key;
+fn view(app: &Fixture) -> Element<'_, Message> {
+    domain::history::view(&data(app))
+}
+fn with_details<'a>(app: &'a Fixture, base: Element<'a, Message>) -> Element<'a, Message> {
+    domain::history::with_details(&data(app), base, |m| m)
+}
 use gateway_cron::CronHistoryRunDto;
 fn run(status: &str, id: i64) -> CronHistoryRunDto {
     CronHistoryRunDto {
@@ -54,7 +61,7 @@ async fn cron_history_renders_chinese_long_lists_and_details() {
 
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -62,7 +69,7 @@ async fn cron_history_renders_chinese_long_lists_and_details() {
         Renderer::new(Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"))
             .await
             .unwrap();
-    let mut app = App::new().0;
+    let mut app = test_app();
     app.cron_settings.jobs = ["job-00000000", "job-00000001"]
         .map(|id| {
             serde_json::from_value(serde_json::json!({

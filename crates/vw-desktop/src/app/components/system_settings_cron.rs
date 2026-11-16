@@ -17,7 +17,6 @@ pub(crate) mod date_time;
 #[cfg(test)] mod list;
 #[cfg(test)] pub(crate) mod templates;
 #[cfg(test)] use list::{job_row, jobs_tab};
-#[cfg(test)] use domain::job_is_agent;
 
 const fn tab(index: usize) -> SettingsTabDescriptor<CronSettingsTab> {
     let item = domain::CRON_TABS[index];
@@ -154,5 +153,3 @@ fn config_tab(app: &App) -> Element<'_,Message> { domain::config_tab(&data(app))
 #[path = "system_settings_cron_tests.rs"] mod system_settings_cron_tests;
 #[cfg(test)]
 #[path = "system_settings_cron_ui_refresh_27_tests.rs"] mod ui_refresh_27_tests;
-
-#[cfg(test)] fn with_edit_modal<'a>(app: &'a App, base: Element<'a,Message>) -> Element<'a,Message> { domain::with_edit_modal(&data(app), base, map) }

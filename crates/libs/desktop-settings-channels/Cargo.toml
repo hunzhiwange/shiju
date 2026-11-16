@@ -36,3 +36,8 @@ url = "2"
 [dev-dependencies]
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+iced_runtime = "0.14"
+desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
+tempfile = "3"
+image = "0.25.9"

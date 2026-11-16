@@ -24,3 +24,8 @@ chrono-tz = "0.10"
 [dev-dependencies]
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+iced_runtime = "0.14"
+tempfile = "3"
+serde_json = "1"
+image = "0.25"

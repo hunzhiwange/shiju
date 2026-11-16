@@ -257,35 +257,6 @@ fn layout(
 }
 
 #[tokio::test]
-async fn ui_refresh_17_channel_card_content_fits_and_is_vertically_centered() {
-    let mut renderer = renderer().await;
-    let descriptor = channel_tab_descriptors()
-        .into_iter()
-        .find(|descriptor| descriptor.tab == ChannelsSettingsTab::DingTalk)
-        .unwrap();
-    let mut card =
-        china_channel_card(DesktopLocale::English, &descriptor, ChannelsSettingsTab::Global);
-    // 640px content, page gutters and two gaps between three cards.
-    let width = (640.0 - 24.0 - 24.0) / 3.0;
-    let node = layout(&mut card, &renderer, Size::new(width, 120.0));
-    let card_layout = iced::advanced::Layout::new(&node);
-    let content = card_layout.children().next().unwrap();
-    for item in content.children() {
-        assert!((item.bounds().center_y() - card_layout.bounds().center_y()).abs() < 0.5);
-    }
-    let mut ui = UserInterface::build(card, Size::new(width, 120.0), Cache::new(), &mut renderer);
-    let geometry = geometry(&mut ui, &renderer);
-    for (label, text_size) in [("DingTalk", 15), ("Configuration", 12)] {
-        let bounds = geometry.label(label);
-        let text_width =
-            layout(&mut text(label).size(text_size).into(), &renderer, Size::new(640.0, 120.0))
-                .size()
-                .width;
-        assert!(bounds.x + text_width <= node.size().width - 8.0, "{label}: {bounds:?}");
-    }
-}
-
-#[tokio::test]
 async fn ui_refresh_17_layout_and_interaction() {
     use iced::keyboard::key::Named;
     let mut renderer = renderer().await;

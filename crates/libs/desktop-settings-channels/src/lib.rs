@@ -42,3 +42,6 @@ pub mod update;
 pub mod save_feedback;
 
 pub mod app_init;
+
+#[cfg(test)]
+mod desktop_split_15_tests;

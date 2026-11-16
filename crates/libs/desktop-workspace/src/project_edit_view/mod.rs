@@ -177,3 +177,6 @@ impl Fixture {
     fn new() -> Self { Self { project_editor: Editor::default(), desktop_locale: config_ui::DesktopLocale::default(), app_theme: iced::Theme::Dark, workflow_manager: LifecycleStatus { loading: false, loaded: false, error: None } } }
     fn view(&self) -> View<'_> { View { project_editor: &self.project_editor, desktop_locale: self.desktop_locale, app_theme: &self.app_theme, workflow_manager: LifecycleStatus { loading: self.workflow_manager.loading, loaded: self.workflow_manager.loaded, error: self.workflow_manager.error }, help: |title, body, _, _| iced::widget::column![iced::widget::text(title), iced::widget::text(body)].into() } }
 }
+
+#[cfg(test)]
+mod host_module_38_tests;

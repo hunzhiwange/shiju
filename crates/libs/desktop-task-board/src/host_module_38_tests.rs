@@ -2,31 +2,20 @@
 //!
 //! 动画帧与方向按周期边界取样，任务卡片覆盖运行、完成、悬停和回复状态。
 
-use super::*;
-use crate::app::state::{TaskPetAvatarKind, TaskPetItem, TaskPetStatus};
-use crate::app::{App, Message};
+use super::{Fixture, task_item};
+use crate::pet_view::PetMessage as Message;
+fn window(input: &Fixture) -> iced::Element<'_, Message> {
+    crate::task_pet::window(input.view())
+}
+use crate::pet_state::{TaskPetAvatarKind, TaskPetStatus};
 
 use iced::{Color, Theme};
-use crate::app::message;
 
-fn test_app() -> App {
-    App::new().0
+fn test_app() -> Fixture {
+    Fixture::default()
 }
 
-fn task_item(request_id: u64, status: TaskPetStatus) -> TaskPetItem {
-    TaskPetItem {
-        request_id,
-        session_id: format!("session-{request_id}"),
-        title: "正在处理一个较长的任务标题用于截断".to_string(),
-        detail: "正在读取文件并整理上下文，稍后继续执行".to_string(),
-        detail_feedback: None,
-        project: Some("vibe-window".to_string()),
-        status,
-        last_click_at: None,
-    }
-}
-
-async fn mini_click(app: &App, point: iced::Point) -> Vec<Message> {
+async fn mini_click(app: &Fixture, point: iced::Point) -> Vec<Message> {
     mini_interact(
         app,
         point,
@@ -38,13 +27,13 @@ async fn mini_click(app: &App, point: iced::Point) -> Vec<Message> {
     .await
 }
 
-async fn mini_interact(app: &App, point: iced::Point, events: &[iced::Event]) -> Vec<Message> {
+async fn mini_interact(app: &Fixture, point: iced::Point, events: &[iced::Event]) -> Vec<Message> {
     use iced::advanced::{clipboard, renderer::Headless};
     use iced::mouse;
     use iced_runtime::user_interface::{Cache, UserInterface};
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -100,15 +89,9 @@ async fn mini_interact(app: &App, point: iced::Point, events: &[iced::Event]) ->
 async fn mini_companion_toolbar_actions_do_not_start_drag() {
     let app = test_app();
     let messages = mini_click(&app, iced::Point::new(65.0, 127.0)).await;
-    assert!(matches!(
-        messages.as_slice(),
-        [Message::View(message::ViewMessage::TaskPetWriteMessage)]
-    ));
+    assert!(matches!(messages.as_slice(), [Message::TaskPetWriteMessage]));
     let messages = mini_click(&app, iced::Point::new(116.0, 127.0)).await;
-    assert!(matches!(
-        messages.as_slice(),
-        [Message::View(message::ViewMessage::TaskPetToggleCollapsed)]
-    ));
+    assert!(matches!(messages.as_slice(), [Message::TaskPetToggleCollapsed]));
 }
 
 #[tokio::test]
@@ -116,10 +99,7 @@ async fn mini_companion_none_renders_toolbar() {
     let mut app = test_app();
     app.task_pet_avatar_kind = TaskPetAvatarKind::None;
     let messages = mini_click(&app, iced::Point::new(65.0, 127.0)).await;
-    assert!(matches!(
-        messages.as_slice(),
-        [Message::View(message::ViewMessage::TaskPetWriteMessage)]
-    ));
+    assert!(matches!(messages.as_slice(), [Message::TaskPetWriteMessage]));
     assert!(mini_click(&app, iced::Point::new(80.0, 45.0)).await.is_empty());
 }
 
@@ -135,35 +115,25 @@ async fn mini_companion_stack_has_bounded_depth() {
         assert!(size.height > empty_size.height);
         assert!(size.height <= empty_size.height + 96.0);
         let messages = mini_click(&app, iced::Point::new(70.0, 180.0)).await;
-        assert!(messages.iter().any(|m| matches!(m, Message::View(message::ViewMessage::TaskPetItemClicked(id)) if *id == count)));
+        assert!(
+            messages.iter().any(|m| matches!(m, Message::TaskPetItemClicked(id) if *id == count))
+        );
         // Exposed rear layers are decorative: they must not navigate or intercept clicks.
         let messages = mini_click(&app, iced::Point::new(70.0, size.height - 18.0)).await;
         if count > 1 {
-            assert!(
-                !messages.iter().any(|m| matches!(
-                    m,
-                    Message::View(message::ViewMessage::TaskPetItemClicked(_))
-                ))
-            );
+            assert!(!messages.iter().any(|m| matches!(m, Message::TaskPetItemClicked(_))));
         }
     }
     let many_size = app.task_pet_window_size();
     app.task_pet_items.truncate(3);
     assert_eq!(app.task_pet_window_size(), many_size);
     let front = app.task_pet_items[0].request_id;
-    app.open_task_pet_reply(front);
+    app.task_pet_reply_request_id = Some(front);
+    app.task_pet_hovered_request_id = Some(front);
     app.task_pet_reply_input = "请继续处理中文任务".into();
     let messages = mini_click(&app, iced::Point::new(280.0, 256.0)).await;
-    assert!(
-        messages
-            .iter()
-            .any(|m| matches!(m, Message::View(message::ViewMessage::TaskPetReplySubmit)))
-    );
-    assert!(
-        !messages
-            .iter()
-            .any(|m| matches!(m, Message::View(message::ViewMessage::TaskPetItemClicked(_))))
-    );
+    assert!(messages.iter().any(|m| matches!(m, Message::TaskPetReplySubmit)));
+    assert!(!messages.iter().any(|m| matches!(m, Message::TaskPetItemClicked(_))));
 }
 
 #[tokio::test]
@@ -176,11 +146,7 @@ async fn mini_companion_expanded_cards_keep_actions_and_scroll() {
     for count in [1, 3] {
         app.task_pet_items = (1..=count).map(|id| task_item(id, TaskPetStatus::Running)).collect();
         let messages = mini_click(&app, iced::Point::new(70.0, 180.0)).await;
-        assert!(
-            messages
-                .iter()
-                .any(|m| matches!(m, Message::View(message::ViewMessage::TaskPetItemClicked(1))))
-        );
+        assert!(messages.iter().any(|m| matches!(m, Message::TaskPetItemClicked(1))));
     }
     app.task_pet_items = (1..=20)
         .map(|id| {
@@ -199,9 +165,9 @@ async fn mini_companion_expanded_cards_keep_actions_and_scroll() {
         let messages = mini_click(&app, point).await;
         assert!(
             messages.iter().any(|m| match expected {
-                0 => matches!(m, Message::View(message::ViewMessage::TaskPetRemove(1))),
-                1 => matches!(m, Message::View(message::ViewMessage::TaskPetReplyPressed(1))),
-                _ => matches!(m, Message::View(message::ViewMessage::TaskPetItemClicked(2))),
+                0 => matches!(m, Message::TaskPetRemove(1)),
+                1 => matches!(m, Message::TaskPetReplyPressed(1)),
+                _ => matches!(m, Message::TaskPetItemClicked(2)),
             }),
             "missing action {expected}: {messages:?}"
         );
@@ -219,12 +185,24 @@ async fn mini_companion_expanded_cards_keep_actions_and_scroll() {
     )
     .await;
     assert!(
-        messages.iter().any(
-            |m| matches!(m, Message::View(message::ViewMessage::TaskPetItemClicked(id)) if *id > 3)
-        ),
+        messages.iter().any(|m| matches!(m, Message::TaskPetItemClicked(id) if *id > 3)),
         "scroll should expose later cards: {messages:?}"
     );
-    app.open_task_pet_reply(1);
+    app.task_pet_reply_request_id = Some(1);
+    app.task_pet_hovered_request_id = Some(1);
     app.task_pet_reply_input = "请继续处理中文长标题对应的任务".into();
     mini_click(&app, iced::Point::new(5.0, 5.0)).await;
+}
+
+impl Fixture {
+    fn task_pet_window_size(&self) -> iced::Size {
+        crate::pet_interaction::task_pet_window_size(
+            &self.task_pet_avatar_kind,
+            &self.task_pet_expand_progress,
+            &self.task_pet_items,
+            &self.task_pet_reply_request_id,
+            &1.0,
+            &None,
+        )
+    }
 }

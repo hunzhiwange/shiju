@@ -3,11 +3,9 @@
 
 use super::{App, ForkSessionTarget, Message, with_chat_fork_dialog};
 use crate::app::i18n::I18n;
-use crate::app::impls::app_view_modals::{
-    with_chat_reset_dialog, with_file_tree_delete_confirm, with_session_rename,
-};
 use crate::app::message::{ChatMessage, ProjectMessage};
 use crate::app::models::{ChatMessage as TranscriptMessage, ChatRole};
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use iced::advanced::{
     Layout, clipboard, layout,
     renderer::{Headless, Style},
@@ -17,7 +15,6 @@ use iced::keyboard::{self, Key, key::Named};
 use iced::widget::{button, container};
 use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
 type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
 
@@ -214,15 +211,6 @@ fn label(geometry: &Geometry, value: &str) -> Rectangle {
         .1
 }
 
-fn assert_fits(geometry: &Geometry, size: Size<u32>) {
-    for (value, bounds) in geometry.labels.iter().chain(&geometry.inputs) {
-        assert!(bounds.width > 0.0 && bounds.height > 0.0, "{value}: {bounds:?}");
-        assert!(bounds.x >= 0.0 && bounds.y >= 0.0, "{value}: {bounds:?}");
-        assert!(bounds.x + bounds.width <= size.width as f32 + 0.1, "{value}: {bounds:?}");
-        assert!(bounds.y + bounds.height <= size.height as f32 + 0.1, "{value}: {bounds:?}");
-    }
-}
-
 fn find_layout<'a>(
     layout: Layout<'a>,
     matches: impl Fn(Rectangle) -> bool + Copy,
@@ -231,29 +219,6 @@ fn find_layout<'a>(
         return Some(layout);
     }
     layout.children().find_map(|child| find_layout(child, matches))
-}
-
-fn assert_control_alignment(
-    mut view: Element<'_, Message>,
-    renderer: &Renderer,
-    size: Size<u32>,
-    input: Option<Rectangle>,
-) -> Point {
-    let mut tree = Tree::new(view.as_widget());
-    let limits = layout::Limits::new(Size::ZERO, Size::new(size.width as f32, size.height as f32));
-    let node = view.as_widget_mut().layout(&mut tree, renderer, &limits);
-    let layout = Layout::new(&node);
-    let close = find_layout(layout, |bounds| bounds.width == 28.0 && bounds.height == 28.0)
-        .expect("close button");
-    let icon = find_layout(close, |bounds| bounds.width == 12.0 && bounds.height == 12.0)
-        .expect("close icon");
-    assert!((close.bounds().center_y() - icon.bounds().center_y()).abs() < 0.5);
-    if let Some(input) = input {
-        let field = find_layout(layout, |bounds| bounds == input).expect("input field");
-        let glyphs = field.children().next().expect("input text");
-        assert!((glyphs.bounds().center_y() - input.center_y()).abs() < 0.5);
-    }
-    close.bounds().center()
 }
 
 fn prepare_chat(app: &mut App) {
@@ -733,379 +698,7 @@ fn assert_fork_readback(
     );
 }
 
-const DRAFT: &str = "新草稿・新檔案・draft";
 const VIEW_SIZE: Size<u32> = Size::new(420, 480);
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn fork_desktop_layout_and_interaction() {
-    if !isolated("fork_desktop_layout_and_interaction") {
-        return;
-    }
-    let mut app = fixture();
-    prepare_chat(&mut app);
-    let mut renderer = renderer().await;
-
-    app.project_is_git_repo = false;
-    {
-        let mut fork = scene(with_chat_fork_dialog(&app, root()), &mut renderer, VIEW_SIZE);
-        let bounds = geometry(&mut fork, &renderer);
-        let i18n = I18n::new(app.desktop_locale);
-        label(&bounds, i18n.__("在当前目录中打开新会话"));
-        assert!(!bounds.labels.iter().any(|(label, _)| label == i18n.__("分叉到新工作树")));
-    }
-    app.project_is_git_repo = true;
-
-    for (locale, size, language) in [
-        (DesktopLocale::SimplifiedChinese, VIEW_SIZE, "zh-cn"),
-        (DesktopLocale::TraditionalChinese, Size::new(640, 540), "zh-tw"),
-        (DesktopLocale::English, Size::new(960, 600), "en"),
-    ] {
-        app.desktop_locale = locale;
-        let i18n = I18n::new(locale);
-        for (theme, mode) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
-            let mut fork = scene(with_chat_fork_dialog(&app, root()), &mut renderer, size);
-            let bounds = geometry(&mut fork, &renderer);
-            assert_fits(&bounds, size);
-            let local = label(&bounds, i18n.__("在当前目录中打开新会话")).center();
-            let worktree = label(&bounds, i18n.__("分叉到新工作树")).center();
-            let idle = capture(
-                &mut fork,
-                &mut renderer,
-                &theme,
-                size,
-                &format!("{language}-{mode}-fork"),
-                mouse::Cursor::Unavailable,
-            );
-            for (point, target) in [(local, "local"), (worktree, "worktree")] {
-                let cursor = mouse::Cursor::Available(point);
-                assert!(
-                    send(
-                        &mut fork,
-                        &mut renderer,
-                        cursor,
-                        &[
-                            Event::Mouse(mouse::Event::CursorMoved { position: point }),
-                            Event::Mouse(mouse::Event::WheelScrolled {
-                                delta: mouse::ScrollDelta::Lines { x: 0.0, y: -1.0 },
-                            }),
-                        ]
-                    )
-                    .is_empty()
-                );
-                assert!(
-                    capture(
-                        &mut fork,
-                        &mut renderer,
-                        &theme,
-                        size,
-                        &format!("{language}-{mode}-fork-{target}"),
-                        cursor,
-                    ) != idle
-                );
-            }
-            assert!(
-                send(
-                    &mut fork,
-                    &mut renderer,
-                    mouse::Cursor::Unavailable,
-                    &[Event::Mouse(mouse::Event::CursorLeft),]
-                )
-                .is_empty()
-            );
-            assert!(
-                capture(
-                    &mut fork,
-                    &mut renderer,
-                    &theme,
-                    size,
-                    &format!("{language}-{mode}-fork-idle"),
-                    mouse::Cursor::Unavailable,
-                ) == idle
-            );
-            assert!(click(&mut fork, &mut renderer, Point::new(5.0, 5.0)).is_empty());
-            assert!(key(&mut fork, &mut renderer, Key::Named(Named::Enter), None).is_empty());
-            assert!(matches!(
-                click(&mut fork, &mut renderer, local).as_slice(),
-                [Message::Chat(ChatMessage::ForkSessionAt {
-                    anchor,
-                    target: ForkSessionTarget::Local
-                })] if anchor.user_message_id == "second-turn"
-            ));
-            assert!(matches!(
-                click(&mut fork, &mut renderer, worktree).as_slice(),
-                [Message::Chat(ChatMessage::ForkSessionAt {
-                    anchor,
-                    target: ForkSessionTarget::NewWorktree
-                })] if anchor.user_message_id == "second-turn"
-            ));
-            let cancel = label(&bounds, i18n.__("取消")).center();
-            assert!(matches!(
-                click(&mut fork, &mut renderer, cancel).as_slice(),
-                [Message::Chat(ChatMessage::CloseForkSessionDialog)]
-            ));
-
-            let close = assert_control_alignment(
-                with_chat_fork_dialog(&app, root()),
-                &renderer,
-                size,
-                None,
-            );
-            assert!(matches!(
-                click(&mut fork, &mut renderer, close).as_slice(),
-                [Message::Chat(ChatMessage::CloseForkSessionDialog)]
-            ));
-
-            let mut reset = scene(with_chat_reset_dialog(&app, root()), &mut renderer, size);
-            let bounds = geometry(&mut reset, &renderer);
-            assert_fits(&bounds, size);
-            capture(
-                &mut reset,
-                &mut renderer,
-                &theme,
-                size,
-                &format!("{language}-{mode}-reset"),
-                mouse::Cursor::Unavailable,
-            );
-            assert!(key(&mut reset, &mut renderer, Key::Named(Named::Enter), None).is_empty());
-            assert!(click(&mut reset, &mut renderer, Point::new(5.0, 5.0)).is_empty());
-            let confirm = label(&bounds, i18n.__("确认")).center();
-            assert!(matches!(
-                click(&mut reset, &mut renderer, confirm).as_slice(),
-                [Message::Chat(ChatMessage::ResetSessionToMessage { msg_idx: 1 })]
-            ));
-            let cancel = label(&bounds, i18n.__("取消")).center();
-            assert!(matches!(
-                click(&mut reset, &mut renderer, cancel).as_slice(),
-                [Message::Chat(ChatMessage::CloseResetMenu)]
-            ));
-        }
-    }
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ui_refresh_32_preserves_values_and_disabled_states() {
-    if !isolated("ui_refresh_32_preserves_values_and_disabled_states") {
-        return;
-    }
-    let mut app = fixture();
-    let mut renderer = renderer().await;
-    let long_title = "长會話名稱example".repeat(28);
-    let project_dir = tempfile::tempdir().unwrap();
-    app.session_rename_id = Some("session-fixture".into());
-    app.session_rename_value = DRAFT.into();
-    let session = serde_json::from_value(serde_json::json!({
-        "id": "session-fixture", "slug": "fixture", "projectID": "fixture",
-        "directory": project_dir.path(), "title": long_title, "version": "1",
-        "time": {"created": 1, "updated": 2}
-    }))
-    .unwrap();
-    app.sessions = vec![session];
-
-    for (locale, size, language) in [
-        (DesktopLocale::SimplifiedChinese, VIEW_SIZE, "zh-cn"),
-        (DesktopLocale::TraditionalChinese, Size::new(640, 540), "zh-tw"),
-        (DesktopLocale::English, Size::new(960, 600), "en"),
-    ] {
-        app.desktop_locale = locale;
-        let i18n = I18n::new(locale);
-        for (theme, mode) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
-            {
-                let (view, kind) = (with_session_rename(&app, root()), "session");
-                let mut ui = scene(view, &mut renderer, size);
-                let bounds = geometry(&mut ui, &renderer);
-                assert_fits(&bounds, size);
-                let [(value, input)] = bounds.inputs.as_slice() else {
-                    panic!("expected one input")
-                };
-                assert_eq!(value, DRAFT);
-                let view = with_session_rename(&app, root());
-                assert_control_alignment(view, &renderer, size, Some(*input));
-                if kind == "session" {
-                    let [(viewport, translation)] = bounds.scroll.as_slice() else {
-                        panic!("expected a scrollable session title");
-                    };
-                    assert_eq!(translation.y, 0.0);
-                    assert!(
-                        send(
-                            &mut ui,
-                            &mut renderer,
-                            mouse::Cursor::Available(viewport.center()),
-                            &[Event::Mouse(mouse::Event::WheelScrolled {
-                                delta: mouse::ScrollDelta::Lines { x: 0.0, y: -1.0 },
-                            }),]
-                        )
-                        .is_empty()
-                    );
-                    let after = geometry(&mut ui, &renderer);
-                    assert!(after.scroll[0].1.y > 0.0);
-                    assert_eq!(after.inputs, bounds.inputs);
-                    assert_eq!(
-                        label(&after, i18n.__("会话重命名")),
-                        label(&bounds, i18n.__("会话重命名"))
-                    );
-                    assert_eq!(label(&after, i18n.__("确定")), label(&bounds, i18n.__("确定")));
-                    capture(
-                        &mut ui,
-                        &mut renderer,
-                        &theme,
-                        size,
-                        &format!("{language}-{mode}-session-scrolled"),
-                        mouse::Cursor::Unavailable,
-                    );
-                    assert!(
-                        send(
-                            &mut ui,
-                            &mut renderer,
-                            mouse::Cursor::Available(viewport.center()),
-                            &[Event::Mouse(mouse::Event::WheelScrolled {
-                                delta: mouse::ScrollDelta::Lines { x: 0.0, y: 8.0 },
-                            }),]
-                        )
-                        .is_empty()
-                    );
-                }
-                assert!(key(&mut ui, &mut renderer, Key::Named(Named::Enter), None).is_empty());
-                assert!(click(&mut ui, &mut renderer, Point::new(5.0, 5.0)).is_empty());
-                assert!(
-                    click(
-                        &mut ui,
-                        &mut renderer,
-                        Point::new(input.x + input.width - 8.0, input.center_y())
-                    )
-                    .is_empty()
-                );
-                capture(
-                    &mut ui,
-                    &mut renderer,
-                    &theme,
-                    size,
-                    &format!("{language}-{mode}-{kind}"),
-                    mouse::Cursor::Unavailable,
-                );
-                let changed = key(&mut ui, &mut renderer, Key::Character("x".into()), Some("x"));
-                assert!(matches!((kind, changed.as_slice()),
-                    ("session", [Message::Project(ProjectMessage::SessionRenameChanged(value))])
-                        if value == &format!("{DRAFT}x")));
-                let messages = key(&mut ui, &mut renderer, Key::Named(Named::Enter), None);
-                assert!(matches!(
-                    (kind, messages.as_slice()),
-                    ("session", [Message::Project(ProjectMessage::SessionRenameSave)])
-                ));
-                let save = label(&bounds, i18n.__("确定")).center();
-                let messages = click(&mut ui, &mut renderer, save);
-                assert!(matches!(
-                    (kind, messages.as_slice()),
-                    ("session", [Message::Project(ProjectMessage::SessionRenameSave)])
-                ));
-                let cancel = label(&bounds, i18n.__("取消")).center();
-                let messages = click(&mut ui, &mut renderer, cancel);
-                assert!(matches!(
-                    (kind, messages.as_slice()),
-                    ("session", [Message::Project(ProjectMessage::SessionRenameCancel)])
-                ));
-            }
-        }
-    }
-
-    app.chat.clear();
-    app.active_session_id = None;
-    app.chat_reset_menu_idx = Some(1);
-    app.file_tree_interaction.file_tree_rename_path = None;
-    app.session_rename_id = None;
-    for view in [
-        with_chat_fork_dialog(&app, root()),
-        with_chat_reset_dialog(&app, root()),
-        with_session_rename(&app, root()),
-    ] {
-        let mut ui = scene(view, &mut renderer, VIEW_SIZE);
-        let bounds = geometry(&mut ui, &renderer);
-        assert!(bounds.inputs.is_empty());
-        assert_eq!(bounds.labels.len(), 1);
-        let underlay = label(&bounds, "underlay").center();
-        assert!(matches!(
-            click(&mut ui, &mut renderer, underlay).as_slice(),
-            [Message::CloseError]
-        ));
-    }
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ui_refresh_32_escape_cancels_only_the_visible_modal() {
-    if !isolated("ui_refresh_32_escape_cancels_only_the_visible_modal") {
-        return;
-    }
-    let mut app = fixture();
-    prepare_chat(&mut app);
-    app.file_tree_interaction.file_tree_rename_path = Some("/fixture/original.txt".into());
-    app.file_tree_interaction.file_tree_rename_value = DRAFT.into();
-    app.session_rename_id = Some("session-fixture".into());
-    app.session_rename_value = DRAFT.into();
-    let mut renderer = renderer().await;
-
-    for (view, kind) in [
-        (with_chat_fork_dialog(&app, with_chat_reset_dialog(&app, root())), "fork"),
-        (with_chat_reset_dialog(&app, root()), "reset"),
-        (with_session_rename(&app, root()), "session"),
-    ] {
-        let mut ui = scene(view, &mut renderer, VIEW_SIZE);
-        if let Some((_, input)) = geometry(&mut ui, &renderer).inputs.first() {
-            assert!(click(&mut ui, &mut renderer, input.center()).is_empty());
-        }
-        let messages = key(&mut ui, &mut renderer, Key::Named(Named::Escape), None);
-        assert!(
-            matches!(
-                (kind, messages.as_slice()),
-                ("fork", [Message::Chat(ChatMessage::CloseForkSessionDialog)])
-                    | ("reset", [Message::Chat(ChatMessage::CloseResetMenu)])
-                    | ("session", [Message::Project(ProjectMessage::SessionRenameCancel)])
-            ),
-            "Escape did not cancel {kind}"
-        );
-    }
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn file_tree_delete_confirmation_draws_and_routes_actions() {
-    if !isolated("file_tree_delete_confirmation_draws_and_routes_actions") {
-        return;
-    }
-    let mut app = fixture();
-    app.desktop_locale = DesktopLocale::SimplifiedChinese;
-    let path = "/fixture/项目/待删除的文件.txt";
-    app.file_tree_interaction.file_tree_pending_delete =
-        Some(("/fixture/项目".into(), vec![path.into(), "/fixture/项目/另一个文件.txt".into()]));
-    let i18n = I18n::new(app.desktop_locale);
-    let mut renderer = renderer().await;
-
-    for theme in [Theme::Light, Theme::Dark] {
-        let mut ui = scene(with_file_tree_delete_confirm(&app, root()), &mut renderer, VIEW_SIZE);
-        let bounds = geometry(&mut ui, &renderer);
-        assert_fits(&bounds, VIEW_SIZE);
-        label(&bounds, path);
-        label(&bounds, "/fixture/项目/另一个文件.txt");
-        capture(
-            &mut ui,
-            &mut renderer,
-            &theme,
-            VIEW_SIZE,
-            "file-tree-delete",
-            mouse::Cursor::Unavailable,
-        );
-        assert!(key(&mut ui, &mut renderer, Key::Named(Named::Enter), None).is_empty());
-        assert!(matches!(
-            click(&mut ui, &mut renderer, label(&bounds, i18n.__("删除")).center()).as_slice(),
-            [Message::Project(ProjectMessage::FileTreeDeleteConfirmed)]
-        ));
-        assert!(matches!(
-            click(&mut ui, &mut renderer, label(&bounds, i18n.__("取消")).center()).as_slice(),
-            [Message::Project(ProjectMessage::FileTreeDeleteCanceled)]
-        ));
-        assert!(matches!(
-            key(&mut ui, &mut renderer, Key::Named(Named::Escape), None).as_slice(),
-            [Message::Project(ProjectMessage::FileTreeDeleteCanceled)]
-        ));
-    }
-}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_32_invalid_file_name_feedback_keeps_inline_editor() {
@@ -1129,7 +722,10 @@ async fn ui_refresh_32_invalid_file_name_feedback_keeps_inline_editor() {
         panic!("expected exactly one save message");
     };
     let _ = app.update(message.clone());
-    assert_eq!(app.file_tree_interaction.file_tree_rename_path.as_deref(), Some("/fixture/original.txt"));
+    assert_eq!(
+        app.file_tree_interaction.file_tree_rename_path.as_deref(),
+        Some("/fixture/original.txt")
+    );
     assert_eq!(app.file_tree_interaction.file_tree_rename_value, "../wrong");
     let toast = app.active_toast.as_ref().expect("invalid file name must be visible");
     assert!(matches!(toast.kind, crate::app::state::ToastKind::Error));
@@ -1149,50 +745,6 @@ async fn ui_refresh_32_invalid_file_name_feedback_keeps_inline_editor() {
             .iter()
             .any(|(value, _)| value.contains("Invalid file name"))
     );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn todo_continuation_status_draws_centered_in_both_themes() {
-    if !isolated("todo_continuation_status_draws_centered_in_both_themes") {
-        return;
-    }
-    use crate::app::components::chat_panel::message_view::{TODO_CONTINUATION_TEXT, message_view};
-    let mut app = fixture();
-    let cache = crate::app::models::ChatRenderCacheEntry::default();
-    let mut renderer = renderer().await;
-    let size = Size::new(480, 64);
-    for (locale, language) in
-        [(DesktopLocale::SimplifiedChinese, "zh"), (DesktopLocale::English, "en")]
-    {
-        app.desktop_locale = locale;
-        for (theme, mode) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
-            let view = message_view(
-                &app,
-                0,
-                ChatRole::System,
-                TODO_CONTINUATION_TEXT,
-                &[],
-                None,
-                None,
-                &cache,
-                false,
-            );
-            let mut ui = scene(view, &mut renderer, size);
-            let bounds = geometry(&mut ui, &renderer);
-            let text = label(&bounds, I18n::new(locale).__(TODO_CONTINUATION_TEXT));
-            assert!((text.center().x - 240.0).abs() < 1.0);
-            assert_fits(&bounds, size);
-            let pixels = capture(
-                &mut ui,
-                &mut renderer,
-                &theme,
-                size,
-                &format!("todo-continuation-{language}-{mode}"),
-                mouse::Cursor::Unavailable,
-            );
-            assert!(pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]));
-        }
-    }
 }
 
 #[tokio::test(flavor = "multi_thread")]

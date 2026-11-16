@@ -1,67 +1,100 @@
-//! Exercise the permission and confirmation dialogs through Iced's headless layout, event and draw paths.
 #![cfg(not(target_arch = "wasm32"))]
-
-use super::confirm_dialog;
-use crate::app::i18n::I18n;
-use crate::app::message::{ChatMessage, ProjectMessage, SkillHubMessage};
-use crate::app::skill_hub::SkillCacheSyncState;
-use crate::app::state::ToastKind;
-use crate::app::{App, Message};
+#![allow(dead_code, unused_imports)]
+use crate::modals::{permission_modal, question_modal};
+use desktop_ui_controls::toast::{Toast, ToastKind};
+use permission_modal::Event as Permission;
+use question_modal::Event as Question;
+#[derive(Debug, Clone)]
+enum Message {
+    Permission(Permission),
+    Question(Question),
+}
+type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
+#[derive(Default)]
+struct Requests {
+    desktop_locale: DesktopLocale,
+    active_toast: Option<Toast>,
+    next_id: usize,
+    permission_modal_request: Option<gateway_interaction::PendingPermissionRequestDto>,
+    permission_modal_requests: Vec<gateway_interaction::PendingPermissionRequestDto>,
+    question_modal_request: Option<question_types::Request>,
+    question_modal_request_id: Option<String>,
+    question_modal_answers: Vec<Vec<String>>,
+    question_modal_custom: Vec<String>,
+}
+fn fixture() -> Requests {
+    Requests::default()
+}
+impl Requests {
+    fn show_toast(&mut self, kind: ToastKind, text: impl Into<String>) {
+        desktop_ui_controls::toast::show_toast(
+            &mut self.active_toast,
+            &mut self.next_id,
+            kind,
+            text.into(),
+        );
+    }
+    fn view(&self) -> Element<'_, Message> {
+        let root = Space::new().into();
+        let feedback = || {
+            self.active_toast.as_ref().map(|_| {
+                desktop_ui_controls::toast::view(
+                    self.active_toast.as_ref(),
+                    self.desktop_locale,
+                    None,
+                )
+            })
+        };
+        let root = permission_modal::with_permission_modal(
+            self.permission_modal_request.as_ref(),
+            &self.permission_modal_requests,
+            self.desktop_locale,
+            feedback(),
+            Message::Permission,
+            root,
+        );
+        question_modal::with_question_modal(
+            self.question_modal_request.as_ref(),
+            &self.question_modal_answers,
+            &self.question_modal_custom,
+            self.desktop_locale,
+            feedback(),
+            Message::Question,
+            root,
+        )
+    }
+    fn update(&mut self, event: Message) {
+        let Message::Question(Question::QuestionOptionToggled(idx, label)) = event else {
+            panic!("unexpected event")
+        };
+        desktop_session::message::chat::stream::questions::handle_question_option_toggled(
+            &mut desktop_session::message::chat::stream::questions::QuestionState {
+                question_modal_request_id: &mut self.question_modal_request_id,
+                question_modal_request: &mut self.question_modal_request,
+                question_modal_answers: &mut self.question_modal_answers,
+                question_modal_custom: &mut self.question_modal_custom,
+            },
+            idx,
+            label,
+        );
+    }
+}
+use config_ui::DesktopLocale;
+use desktop_i18n::I18n;
 use iced::advanced::{
     Layout, clipboard, layout,
     renderer::{Headless, Style},
     widget::{Id, Operation, Tree, operation},
 };
 use iced::keyboard::{self, Key, key::Named};
+use iced::widget::Space;
 use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
-
-type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
-
-fn isolated(test: &str) -> bool {
-    const CHILD: &str = "SHIJU_UI_REFRESH_33_CHILD";
-    if std::env::var_os(CHILD).is_some() {
-        return true;
-    }
-    let home = tempfile::tempdir().unwrap();
-    let config = GatewayClientSystemSettingsConfig {
-        host: "[".into(),
-        servers: Vec::new(),
-        ..Default::default()
-    };
-    std::fs::write(
-        home.path().join("gateway-client-bootstrap.json"),
-        serde_json::to_vec(&config).unwrap(),
-    )
-    .unwrap();
-    let output = std::process::Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", &format!("{}::{test}", module_path!().split_once("::").unwrap().1)])
-        .env(CHILD, "1")
-        .env("HOME", home.path())
-        .env("VIBEWINDOW_CONFIG_DIR", home.path())
-        .env("VIBEWINDOW_WORKSPACE", home.path())
-        .current_dir(home.path())
-        .output()
-        .unwrap();
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(
-        output.status.success() && stdout.contains("1 passed; 0 failed"),
-        "{stdout}\n{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    false
-}
-
-fn fixture() -> App {
-    assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");
-    App::new().0
-}
 
 async fn renderer() -> Renderer {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -274,54 +307,7 @@ const NARROW: Size<u32> = Size::new(420, 480);
 const TITLE: &str = "权限审查 · 權限審查 · Permission review";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn toast_text_wraps_as_needed_and_leaves_room_for_retry() {
-    if !isolated("toast_text_wraps_as_needed_and_leaves_room_for_retry") {
-        return;
-    }
-    let mut app = fixture();
-    app.desktop_locale = DesktopLocale::SimplifiedChinese;
-    let mut renderer = renderer().await;
-    let _ = app.show_localized_toast(ToastKind::Success, "已删除", vec![]);
-    let mut ui = scene(app.view(), &mut renderer, NARROW);
-    let short = label(&geometry(&mut ui, &renderer), "操作已完成 · 已删除");
-    assert!(short.height < 20.0, "{short:?}");
-    for (theme, name) in [(Theme::Light, "light-short-toast"), (Theme::Dark, "dark-short-toast")] {
-        capture(&mut ui, &mut renderer, &theme, NARROW, name, mouse::Cursor::Unavailable);
-    }
-    drop(ui);
-
-    let path = "/fixture/".to_owned() + &"filename".repeat(16);
-    let _ = app.show_toast(ToastKind::Error, path.clone());
-    let mut ui = scene(app.view(), &mut renderer, NARROW);
-    let long = label(&geometry(&mut ui, &renderer), &format!("操作失败 · {path}"));
-    assert!(long.height > short.height && long.x + long.width <= NARROW.width as f32, "{long:?}");
-    capture(
-        &mut ui,
-        &mut renderer,
-        &Theme::Dark,
-        NARROW,
-        "dark-long-toast",
-        mouse::Cursor::Unavailable,
-    );
-    drop(ui);
-
-    app.expert_hub.cache_sync =
-        SkillCacheSyncState::PendingRetry { skill_id: 7, refresh_detail: false };
-    let _ = app.show_toast(ToastKind::Warning, format!("本地缓存待同步：{path}"));
-    let mut ui = scene(app.view(), &mut renderer, NARROW);
-    let retry = label(&geometry(&mut ui, &renderer), "重试");
-    assert!(retry.width > 0.0 && retry.x + retry.width <= NARROW.width as f32, "{retry:?}");
-    assert!(matches!(
-        click(&mut ui, &mut renderer, retry.center()).as_slice(),
-        [Message::SkillHub(SkillHubMessage::RetrySkillCacheSync)]
-    ));
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_33_layout_and_interaction() {
-    if !isolated("ui_refresh_33_layout_and_interaction") {
-        return;
-    }
     let mut app = fixture();
     let mut renderer = renderer().await;
     let current = permission("fixture-current", TITLE);
@@ -369,7 +355,7 @@ async fn ui_refresh_33_layout_and_interaction() {
                 assert!(click(&mut ui, &mut renderer, selected.center()).is_empty());
                 assert!(matches!(
                     click(&mut ui, &mut renderer, label(&bounds, i18n.__("下一项")).center()).as_slice(),
-                    [Message::Chat(ChatMessage::PermissionSelectRequest(id))] if id == "fixture-next"
+                    [Message::Permission(Permission::PermissionSelectRequest(id))] if id == "fixture-next"
                 ));
                 for key_name in [Named::Enter, Named::Escape] {
                     assert!(key(&mut ui, &mut renderer, Key::Named(key_name), None).is_empty());
@@ -408,88 +394,23 @@ async fn ui_refresh_33_layout_and_interaction() {
                 assert!(matches!(
                     click(&mut ui, &mut renderer, label(&bounds, i18n.__("始终允许")).center())
                         .as_slice(),
-                    [Message::Chat(ChatMessage::PermissionApproveAlways)]
+                    [Message::Permission(Permission::PermissionApproveAlways)]
                 ));
                 assert!(matches!(
                     click(&mut ui, &mut renderer, label(&bounds, i18n.__("全部始终允许")).center())
                         .as_slice(),
-                    [Message::Chat(ChatMessage::PermissionApproveAllAlways)]
+                    [Message::Permission(Permission::PermissionApproveAllAlways)]
                 ));
                 assert!(matches!(
                     click(&mut ui, &mut renderer, approve.center()).as_slice(),
-                    [Message::Chat(ChatMessage::PermissionApproveOnce)]
+                    [Message::Permission(Permission::PermissionApproveOnce)]
                 ));
                 assert!(matches!(
                     click(&mut ui, &mut renderer, reject.center()).as_slice(),
-                    [Message::Chat(ChatMessage::PermissionReject)]
+                    [Message::Permission(Permission::PermissionReject)]
                 ));
             }
         }
-    }
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ui_refresh_33_confirmation_preserves_messages() {
-    if !isolated("ui_refresh_33_confirmation_preserves_messages") {
-        return;
-    }
-    const PATH: &str = "/fixture/測試";
-    let mut app = fixture();
-    app.recent_projects = vec![PATH.into()];
-    let mut renderer = renderer().await;
-    for (theme, mode) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
-        app.recent_project_remove_confirm_path = Some(PATH.into());
-        let dialog = confirm_dialog(
-            "移除項目 · Remove fixture",
-            "移除虚构记录。 Remove the fixture record. ".repeat(24),
-            "Remove fixture",
-            "Cancel",
-            Message::Project(ProjectMessage::RecentRemoveConfirmed(PATH.into())),
-            Message::Project(ProjectMessage::RecentRemoveCanceled),
-        );
-        let mut ui = scene(dialog, &mut renderer, NARROW);
-        let bounds = geometry(&mut ui, &renderer);
-        capture(
-            &mut ui,
-            &mut renderer,
-            &theme,
-            NARROW,
-            &format!("{mode}-confirm"),
-            mouse::Cursor::Unavailable,
-        );
-        let confirm = label(&bounds, "Remove fixture");
-        let cancel = label(&bounds, "Cancel");
-        let (viewport, _) = bounds.scroll[0];
-        assert!(
-            send(
-                &mut ui,
-                &mut renderer,
-                mouse::Cursor::Available(viewport.center()),
-                &[Event::Mouse(mouse::Event::WheelScrolled {
-                    delta: mouse::ScrollDelta::Lines { x: 0.0, y: -10.0 },
-                })],
-            )
-            .is_empty()
-        );
-        let after = geometry(&mut ui, &renderer);
-        assert!(after.scroll[0].1.y > 0.0);
-        assert_eq!(confirm, label(&after, "Remove fixture"));
-        assert_eq!(cancel, label(&after, "Cancel"));
-        for key_name in [Named::Enter, Named::Escape] {
-            assert!(key(&mut ui, &mut renderer, Key::Named(key_name), None).is_empty());
-        }
-        assert!(matches!(
-            click(&mut ui, &mut renderer, confirm.center()).as_slice(),
-            [Message::Project(ProjectMessage::RecentRemoveConfirmed(path))] if path == PATH
-        ));
-        let messages = click(&mut ui, &mut renderer, cancel.center());
-        assert!(matches!(
-            messages.as_slice(),
-            [Message::Project(ProjectMessage::RecentRemoveCanceled)]
-        ));
-        let _ = app.update(messages.into_iter().next().unwrap());
-        assert!(app.recent_project_remove_confirm_path.is_none());
-        assert_eq!(app.recent_projects, [PATH]);
     }
 }
 
@@ -503,9 +424,6 @@ fn question_option(label: &str, preview: Option<&str>) -> question_types::Option
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_33_preserves_values_and_disabled_states() {
-    if !isolated("ui_refresh_33_preserves_values_and_disabled_states") {
-        return;
-    }
     const SINGLE: &str = "单选 · 單選 · Single";
     const MULTI: &str = "多选 · 多選 · Multiple";
     const A: &str = "一 · One";
@@ -602,7 +520,7 @@ async fn ui_refresh_33_preserves_values_and_disabled_states() {
             );
             assert!(matches!(
                 click(&mut ui, &mut renderer, close).as_slice(),
-                [Message::Chat(ChatMessage::QuestionReject)]
+                [Message::Question(Question::QuestionReject)]
             ));
             assert!(
                 click(
@@ -615,27 +533,27 @@ async fn ui_refresh_33_preserves_values_and_disabled_states() {
             let changed = key(&mut ui, &mut renderer, Key::Character("x".into()), Some("x"));
             assert!(matches!(
                 changed.as_slice(),
-                [Message::Chat(ChatMessage::QuestionCustomChanged(0, value))] if value == &format!("{DRAFT}x")
+                [Message::Question(Question::QuestionCustomChanged(0, value))] if value == &format!("{DRAFT}x")
             ));
             for name in [Named::Enter, Named::Escape] {
                 assert!(
                     !key(&mut ui, &mut renderer, Key::Named(name), None).iter().any(
-                        |message| matches!(message, Message::Chat(ChatMessage::QuestionSubmit))
+                        |message| matches!(message, Message::Question(Question::QuestionSubmit))
                     )
                 );
             }
             assert!(matches!(
                 click(&mut ui, &mut renderer, submit.center()).as_slice(),
-                [Message::Chat(ChatMessage::QuestionSubmit)]
+                [Message::Question(Question::QuestionSubmit)]
             ));
             assert!(matches!(
                 click(&mut ui, &mut renderer, cancel.center()).as_slice(),
-                [Message::Chat(ChatMessage::QuestionReject)]
+                [Message::Question(Question::QuestionReject)]
             ));
             let single = click(&mut ui, &mut renderer, option);
             assert!(matches!(
                 single.as_slice(),
-                [Message::Chat(ChatMessage::QuestionOptionToggled(0, value))] if value == B
+                [Message::Question(Question::QuestionOptionToggled(0, value))] if value == B
             ));
             drop(ui);
             let _ = app.update(single.into_iter().next().unwrap());
@@ -663,7 +581,7 @@ async fn ui_refresh_33_preserves_values_and_disabled_states() {
             let multi = click(&mut ui, &mut renderer, label(&after, D).center() - translation);
             assert!(matches!(
                 multi.as_slice(),
-                [Message::Chat(ChatMessage::QuestionOptionToggled(1, value))] if value == D
+                [Message::Question(Question::QuestionOptionToggled(1, value))] if value == D
             ));
             drop(ui);
             let _ = app.update(multi.into_iter().next().unwrap());
@@ -678,7 +596,7 @@ async fn ui_refresh_33_preserves_values_and_disabled_states() {
     assert!(submit.y + submit.height < NARROW.height as f32);
     assert!(matches!(
         click(&mut ui, &mut renderer, submit.center()).as_slice(),
-        [Message::Chat(ChatMessage::QuestionSubmit)]
+        [Message::Question(Question::QuestionSubmit)]
     ));
     capture(
         &mut ui,

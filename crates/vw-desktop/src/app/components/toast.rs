@@ -25,7 +25,3 @@ pub(crate) fn modal_with_feedback<'a>(
 ) -> Container<'a, Message> {
     shared::modal_with_feedback(card, app.active_toast.as_ref().map(|_| view(app)))
 }
-
-#[cfg(test)]
-#[path = "toast_ui_refresh_33_tests.rs"]
-mod toast_ui_refresh_33_tests;

@@ -52,3 +52,6 @@ mod host_module_8_tests;
 
 #[cfg(test)]
 mod host_module_9_tests;
+
+#[cfg(test)]
+mod host_module_38_tests;

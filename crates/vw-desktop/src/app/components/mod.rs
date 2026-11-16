@@ -386,9 +386,6 @@ pub mod terminal_panel;
 ///
 /// 应用程序顶部的工具栏，包含窗口控制、全局操作等。
 pub mod top_bar;
-#[cfg(test)]
-#[path = "top_bar_tests.rs"]
-mod top_bar_tests;
 
 pub(crate) mod account_status;
 /// 通用小部件集合

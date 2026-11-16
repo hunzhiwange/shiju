@@ -10,7 +10,3 @@ pub(crate) fn with_session_rename<'a>(app: &'a App, root: Element<'a, Message>) 
         })
     }, root)
 }
-
-#[cfg(test)]
-#[path = "rename_tests.rs"]
-mod rename_tests;

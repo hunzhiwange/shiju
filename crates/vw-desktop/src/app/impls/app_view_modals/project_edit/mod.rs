@@ -88,5 +88,3 @@ fn domain_view(app: &App) -> domain::View<'_> {
         help: |title, body, color, i18n| desktop_chat_view::message_view::markdown_selection::selectable_titled_text::<HelpMessage>(title, body, color, i18n).map(|event| event.0),
     }
 }
-#[cfg(test)]
-mod general_tab;

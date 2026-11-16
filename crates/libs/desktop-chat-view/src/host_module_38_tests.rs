@@ -198,3 +198,12 @@ fn with_permission_modal_limits_long_pending_request_list() {
 
     std::hint::black_box(element);
 }
+
+mod feedback_dialogs;
+
+mod session_dialogs;
+
+mod todo_status;
+
+#[path = "host_module_38_tests/question_modal_tests.rs"]
+mod question_modal_tests;

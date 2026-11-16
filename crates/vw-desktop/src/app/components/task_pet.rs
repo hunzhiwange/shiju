@@ -46,7 +46,3 @@ pub fn window(app: &App) -> iced::Element<'_, Message> {
 pub(super) fn avatar_preview(avatar: TaskPetAvatarKind, size: f32) -> iced::Element<'static, Message> {
     desktop_task_board::task_pet::avatar_preview(avatar, size).map(map)
 }
-
-#[cfg(test)]
-#[path = "task_pet_tests.rs"]
-mod task_pet_tests;

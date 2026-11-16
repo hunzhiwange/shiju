@@ -293,3 +293,6 @@ impl Fixture {
         }
     }
 }
+
+#[path="host_module_38_tests.rs"]
+mod host_module_38_tests;

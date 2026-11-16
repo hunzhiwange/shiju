@@ -11,7 +11,3 @@ pub(crate) fn with_question_modal<'a>(app: &App, root: Element<'a, Message>) -> 
         })
     }, root)
 }
-
-#[cfg(test)]
-#[path = "question_modal_tests.rs"]
-mod question_modal_tests;

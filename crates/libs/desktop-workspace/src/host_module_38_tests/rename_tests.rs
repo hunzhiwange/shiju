@@ -1,4 +1,4 @@
-//! 重命名行为已迁入 desktop-workspace；此处保留宿主测试入口契约。
+//! 重命名行为已迁入 desktop-workspace；保留原测试入口契约。
 
 #[test]
 fn rename_tests_module_is_wired() {

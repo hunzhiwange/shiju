@@ -31,3 +31,5 @@ desktop-web-install = { path = "../desktop-web-install", version = "0.6.0" }
 iced_runtime = "0.14"
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+image = "0.25.9"
+desktop-settings-appearance = { path = "../desktop-settings-appearance", version = "0.6.0" }

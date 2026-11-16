@@ -1,6 +1,46 @@
-//! Render the actual bookmark and information dialogs without dispatching side effects.
-
-use super::*;
+#![allow(dead_code)]
+use super::navigation_fixture::{Fixture, help};
+use crate::components::{
+    about_modal,
+    message::{Message as InstallMessage, ViewMessage},
+};
+use config_ui::DesktopLocale;
+use desktop_i18n::I18n;
+use iced::advanced::widget::{Id, Operation, operation};
+use iced::advanced::{clipboard, renderer::Headless};
+use iced::keyboard::{self, Key, key::Named};
+use iced::{Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
+use iced_runtime::user_interface::{Cache, UserInterface};
+#[derive(Debug, Clone)]
+enum Message {
+    About(about_modal::Message),
+    Install(InstallMessage),
+}
+fn fixture() -> Fixture {
+    Fixture::default()
+}
+fn view(input: &Fixture) -> iced::Element<'_, Message> {
+    about_modal::view(&about_modal::Input {
+        desktop_locale: input.desktop_locale,
+        last_copied_code_hash: None,
+    })
+    .map(Message::About)
+}
+mod install_cli_modal {
+    use super::*;
+    pub fn view_app_update(input: &Fixture) -> iced::Element<'_, Message> {
+        input.view().map(Message::Install)
+    }
+    pub fn view_localized<'a>(
+        i18n: I18n,
+        title: &'a str,
+        body: &'a str,
+    ) -> iced::Element<'a, Message> {
+        crate::components::install_cli_modal::view_localized(i18n, title, body, help)
+            .map(Message::Install)
+    }
+}
+type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
 const APP_NAME: &str = "VibeWindow";
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 const ABOUT_TITLE: &str = "关于识矩";
@@ -9,63 +49,10 @@ const ABOUT_SUBTITLE: &str =
 const ABOUT_DESCRIPTION: &str = "项目包含桌面应用、命令行入口、HTTP/WebSocket 网关、任务与记忆管理、通信通道、模型/提供商解析、ACP 桥接和跨平台 WebView helper。";
 const AUTHOR_INFO: &str = "开发者：刘祥敏。";
 
-
-use crate::app::components::install_cli_modal;
-use crate::app::i18n::I18n;
-use crate::app::message::ViewMessage;
-use crate::app::views::apps;
-use iced::advanced::widget::{Id, Operation, operation};
-use iced::advanced::{clipboard, renderer::Headless};
-use iced::keyboard::{self, Key, key::Named};
-use iced::{Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
-use iced_runtime::user_interface::{Cache, UserInterface};
-use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
-
-type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
-
-fn isolated(test: &str) -> bool {
-    const CHILD: &str = "SHIJU_UI_REFRESH_41_CHILD";
-    if std::env::var_os(CHILD).is_some() {
-        return true;
-    }
-    let home = tempfile::tempdir().unwrap();
-    let config = GatewayClientSystemSettingsConfig {
-        host: "[".into(),
-        servers: Vec::new(),
-        ..Default::default()
-    };
-    std::fs::write(
-        home.path().join("gateway-client-bootstrap.json"),
-        serde_json::to_vec(&config).unwrap(),
-    )
-    .unwrap();
-    let test = format!("{}::{test}", module_path!().split_once("::").unwrap().1);
-    let output = std::process::Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", &test])
-        .env(CHILD, "1")
-        .env("VIBEWINDOW_CONFIG_DIR", home.path())
-        .env("VIBEWINDOW_WORKSPACE", home.path())
-        .current_dir(home.path())
-        .output()
-        .unwrap();
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(
-        output.status.success() && stdout.contains("1 passed; 0 failed"),
-        "{stdout}\n{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    false
-}
-
-fn fixture() -> App {
-    assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");
-    App::new().0
-}
-
 async fn renderer() -> Renderer {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -263,9 +250,6 @@ fn assert_fixed_controls(title: Rectangle, body: Rectangle, action: Rectangle, s
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_41_layout_and_interaction() {
-    if !isolated("ui_refresh_41_layout_and_interaction") {
-        return;
-    }
     let mut app = fixture();
     let mut renderer = renderer().await;
     for (width, locale, theme) in [
@@ -293,11 +277,11 @@ async fn ui_refresh_41_layout_and_interaction() {
         );
         assert!(matches!(
             click(&mut ui, &mut renderer, copy.center()).as_slice(),
-            [Message::CopyCode(value)] if value == &expected
+            [Message::About(about_modal::Message::CopyCode(value))] if value == &expected
         ));
         assert!(matches!(
             click(&mut ui, &mut renderer, close.center()).as_slice(),
-            [Message::View(ViewMessage::ToggleAboutModal)]
+            [Message::About(about_modal::Message::Close)]
         ));
         drop(ui);
 
@@ -317,13 +301,13 @@ async fn ui_refresh_41_layout_and_interaction() {
         assert_fixed_controls(title, body, check, size);
         assert!(matches!(
             click(&mut ui, &mut renderer, check.center()).as_slice(),
-            [Message::View(ViewMessage::CheckCliToolUpdate)]
+            [Message::Install(InstallMessage::View(ViewMessage::CheckCliToolUpdate))]
         ));
         let install = position(&controls.labels, i18n.__("安装 CLI"));
         assert_inside(install, viewport(size));
         assert!(matches!(
             click(&mut ui, &mut renderer, install.center()).as_slice(),
-            [Message::View(ViewMessage::RunInstallCliTool)]
+            [Message::Install(InstallMessage::View(ViewMessage::RunInstallCliTool))]
         ));
 
         // A narrow view must keep the shared source menu inside the overlay.
@@ -354,9 +338,9 @@ async fn ui_refresh_41_layout_and_interaction() {
             }
             assert!(matches!(
                 key(&mut ui, &mut renderer, Key::Named(Named::Enter), None).as_slice(),
-                [Message::View(ViewMessage::AppUpdateSourceSelected(
+                [Message::Install(InstallMessage::View(ViewMessage::AppUpdateSourceSelected(
                     desktop_release::UpdateSource::Github
-                ))]
+                )))]
             ));
         }
 
@@ -370,188 +354,31 @@ async fn ui_refresh_41_layout_and_interaction() {
         assert!(body.contains(service));
         assert!(matches!(
             click(&mut ui, &mut renderer, service).as_slice(),
-            [Message::View(ViewMessage::CliCommandsTabSelected(
-                super::super::cli_command_help::CliCommandsTab::Service
-            ))]
+            [Message::Install(InstallMessage::View(ViewMessage::CliCommandsTabSelected(
+                crate::components::cli_command_help::CliCommandsTab::Service
+            )))]
         ));
         let copy = position(&scrolled.labels, i18n.__("复制")).center() - offset;
         assert!(body.contains(copy));
         assert!(matches!(
             click(&mut ui, &mut renderer, copy).as_slice(),
-            [Message::CopyCode(command)] if command == "shiju --help"
+            [Message::Install(InstallMessage::CopyCode(command))] if command == "shiju --help"
         ));
         let close = position(&scrolled.labels, i18n.__("关闭"));
         assert!(matches!(
             click(&mut ui, &mut renderer, close.center()).as_slice(),
-            [Message::View(ViewMessage::CloseInstallCliModal)]
+            [Message::Install(InstallMessage::View(ViewMessage::CloseInstallCliModal))]
         ));
     }
 }
 
-fn assert_input_center(
-    mut view: Element<'_, Message>,
-    renderer: &Renderer,
-    input: Rectangle,
-    size: Size<u32>,
-) {
-    fn find(
-        layout: iced::advanced::Layout<'_>,
-        input: Rectangle,
-    ) -> Option<iced::advanced::Layout<'_>> {
-        if layout.bounds() == input {
-            Some(layout)
-        } else {
-            layout.children().find_map(|child| find(child, input))
-        }
-    }
-
-    let mut tree = iced::advanced::widget::Tree::new(view.as_widget());
-    let node = view.as_widget_mut().layout(
-        &mut tree,
-        renderer,
-        &iced::advanced::layout::Limits::new(Size::ZERO, viewport(size).size()),
-    );
-    let layout = find(iced::advanced::Layout::new(&node), input).expect("bookmark input layout");
-    let label = layout.children().next().expect("input text layout").bounds();
-    assert!((input.center_y() - label.center_y()).abs() < 0.5, "{input:?} {label:?}");
-}
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ui_refresh_41_preserves_values_and_disabled_states() {
-    if !isolated("ui_refresh_41_preserves_values_and_disabled_states") {
-        return;
-    }
+async fn ui_refresh_41_cli_preserves_values_and_disabled_states() {
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::TraditionalChinese;
     let i18n = I18n::new(app.desktop_locale);
     let mut renderer = renderer().await;
-    app.web_navigation.show_web_links_menu = true;
     let size = Size::new(420, 520);
-    let mut ui = scene(apps::view(&app), &mut renderer, size);
-    let add = position(&bounds(&mut ui, &renderer).labels, i18n.__("添加"));
-    assert!(click(&mut ui, &mut renderer, add.center()).is_empty());
-    capture(&mut ui, &mut renderer, &Theme::Dark, size, "bookmark-empty", add.center());
-    drop(ui);
-
-    app.web_navigation.web_bookmark_title_input = "專案書籤".into();
-    app.web_navigation.web_bookmark_url_input = format!("https://example.test/{}", "project/".repeat(24));
-    app.web_navigation.web_bookmark_width_input = "640".into();
-    app.web_navigation.web_bookmark_height_input = "480".into();
-    let mut ui = scene(apps::view(&app), &mut renderer, size);
-    capture(&mut ui, &mut renderer, &Theme::Dark, size, "bookmark-add", Point::ORIGIN);
-    let controls = bounds(&mut ui, &renderer);
-    let (body, _) = controls.body.unwrap();
-    for value in [
-        &app.web_navigation.web_bookmark_title_input,
-        &app.web_navigation.web_bookmark_url_input,
-        &app.web_navigation.web_bookmark_width_input,
-        &app.web_navigation.web_bookmark_height_input,
-    ] {
-        let input = position(&controls.inputs, value);
-        assert_inside(input, Rectangle { x: body.x + 7.0, width: body.width - 14.0, ..body });
-        assert_input_center(apps::view(&app), &renderer, input, size);
-    }
-    assert!(matches!(
-        click(&mut ui, &mut renderer, position(&controls.labels, i18n.__("添加")).center())
-            .as_slice(),
-        [Message::View(ViewMessage::WebBookmarkAddSave)]
-    ));
-    assert!(matches!(
-        click(&mut ui, &mut renderer, position(&controls.labels, i18n.__("取消")).center())
-            .as_slice(),
-        [Message::View(ViewMessage::ToggleWebLinksMenu)]
-    ));
-    drop(ui);
-
-    app.web_navigation.editing_web_bookmark = Some(3);
-    app.web_navigation.edit_web_bookmark_title_input = app.web_navigation.web_bookmark_title_input.clone();
-    app.web_navigation.edit_web_bookmark_url_input = app.web_navigation.web_bookmark_url_input.clone();
-    app.web_navigation.edit_web_bookmark_cookie_configs_editor = iced::widget::text_editor::Content::with_text(
-        r#"[{"name":"fixture","domain":"example.test"}]"#,
-    );
-    let mut ui = scene(apps::view(&app), &mut renderer, size);
-    capture(&mut ui, &mut renderer, &Theme::Light, size, "bookmark-edit", Point::ORIGIN);
-    let controls = bounds(&mut ui, &renderer);
-    let (body, _) = controls.body.expect("bookmark form scroll viewport");
-    assert!(
-        body.height < size.height as f32,
-        "the modal footer needs space outside the scroll viewport"
-    );
-    let title = position(&controls.labels, i18n.__("编辑网址"));
-    let save = position(&controls.labels, i18n.__("保存"));
-    let cancel = position(&controls.labels, i18n.__("取消"));
-    let url = position(&controls.inputs, &app.web_navigation.edit_web_bookmark_url_input);
-    let name = position(&controls.inputs, &app.web_navigation.edit_web_bookmark_title_input);
-    assert_fixed_controls(title, body, save, size);
-    assert!(click(&mut ui, &mut renderer, name.center()).is_empty());
-    assert!(key(&mut ui, &mut renderer, Key::Named(Named::End), None).is_empty());
-    assert!(matches!(
-        key(&mut ui, &mut renderer, Key::Character("A".into()), Some("A")).as_slice(),
-        [Message::View(ViewMessage::WebBookmarkEditTitleChanged(value))]
-            if value == &format!("{}A", app.web_navigation.edit_web_bookmark_title_input)
-    ));
-    assert!(click(&mut ui, &mut renderer, url.center()).is_empty());
-    assert!(key(&mut ui, &mut renderer, Key::Named(Named::End), None).is_empty());
-    assert!(matches!(
-        key(&mut ui, &mut renderer, Key::Character("x".into()), Some("x")).as_slice(),
-        [Message::View(ViewMessage::WebBookmarkEditUrlChanged(value))]
-            if value == &format!("{}x", app.web_navigation.edit_web_bookmark_url_input)
-    ));
-    for key_name in [Named::Enter, Named::Escape] {
-        assert!(key(&mut ui, &mut renderer, Key::Named(key_name), None).is_empty());
-    }
-    assert!(scroll(&mut ui, &mut renderer, body.center(), -800.0).is_empty());
-    let scrolled = bounds(&mut ui, &renderer);
-    let offset = scrolled.body.unwrap().1;
-    assert!(offset.y > 0.0);
-    assert_eq!(position(&scrolled.labels, i18n.__("编辑网址")), title);
-    assert_eq!(position(&scrolled.labels, i18n.__("保存")), save);
-    assert_eq!(position(&scrolled.labels, i18n.__("取消")), cancel);
-    let example = position(&scrolled.labels, i18n.__("插入例子")).center() - offset;
-    assert!(body.contains(example));
-    capture(&mut ui, &mut renderer, &Theme::Light, size, "bookmark-edit-scrolled", example);
-    assert!(matches!(
-        click(&mut ui, &mut renderer, example).as_slice(),
-        [Message::View(ViewMessage::WebBookmarkEditCookieConfigsInsertExample)]
-    ));
-    assert!(matches!(
-        click(&mut ui, &mut renderer, save.center()).as_slice(),
-        [Message::View(ViewMessage::WebBookmarkEditSave)]
-    ));
-    assert!(matches!(
-        click(&mut ui, &mut renderer, cancel.center()).as_slice(),
-        [Message::View(ViewMessage::WebBookmarkEditCancel)]
-    ));
-    let delete = position(&scrolled.labels, i18n.__("删除"));
-    assert!(matches!(
-        click(&mut ui, &mut renderer, delete.center()).as_slice(),
-        [Message::View(ViewMessage::WebBookmarkRemove(3))]
-    ));
-    let editor = *scrolled.focus.last().expect("cookie editor");
-    let with_cookie =
-        capture(&mut ui, &mut renderer, &Theme::Light, size, "cookie-content", Point::ORIGIN);
-    drop(ui);
-
-    app.web_navigation.edit_web_bookmark_cookie_configs_editor = iced::widget::text_editor::Content::new();
-    let mut ui = scene(apps::view(&app), &mut renderer, size);
-    assert!(scroll(&mut ui, &mut renderer, body.center(), -800.0).is_empty());
-    let empty_cookie =
-        capture(&mut ui, &mut renderer, &Theme::Light, size, "cookie-empty", Point::ORIGIN);
-    let width = size.width as usize;
-    let x = (editor.x + editor.width).ceil() as usize + 1;
-    let right = (body.x + body.width - 8.0).floor() as usize;
-    let y = (editor.y - offset.y).ceil() as usize + 1;
-    assert!(x < right);
-    for row in y..y + 42 {
-        let strip = ((row * width + x) * 4)..((row * width + right) * 4);
-        assert_eq!(
-            &with_cookie[strip.clone()],
-            &empty_cookie[strip],
-            "cookie text spills outside its editor at row {row}"
-        );
-    }
-    drop(ui);
-
     app.update_panel.cli_install_modal_title = "安装 CLI 命令工具".into();
     app.update_panel.cli_install_modal_message = "正在请求所选来源的最新 CLI 版本...".into();
     app.update_panel.cli_install_modal_is_checking_update = true;

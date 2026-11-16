@@ -33,3 +33,6 @@ pub mod icons;
 pub mod selectable_text;
 
 pub mod settings_navigation;
+
+#[cfg(test)]
+mod host_module_38_tests;

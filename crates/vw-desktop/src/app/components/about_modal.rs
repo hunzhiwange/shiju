@@ -8,6 +8,3 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
         Event::CopyCode(text) => Message::CopyCode(text),
     })
 }
-
-#[cfg(test)]
-#[path="about_modal_ui_refresh_41_tests.rs"] mod ui_refresh_41_tests;

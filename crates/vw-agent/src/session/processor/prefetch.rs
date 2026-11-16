@@ -2,7 +2,7 @@
 use std::{collections::HashSet, path::{Path, PathBuf}};
 use crate::tools::ToolRuntimeContext;
 pub(crate) use session_engine::prefetch::{block_on, app_session_scope_from_root, app_session_scope_from_root_async};
-struct AgentPrefetchHost;
+pub(super) struct AgentPrefetchHost;
 impl session_engine::prefetch::PrefetchHost for AgentPrefetchHost {
     type Context = ToolRuntimeContext;
     fn root(ctx: &Self::Context) -> Option<&str> { ctx.root.as_deref() }

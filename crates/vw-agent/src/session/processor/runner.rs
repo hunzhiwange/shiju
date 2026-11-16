@@ -1,248 +1,82 @@
-//! 会话处理主循环模块。
-//!
-//! 本模块承接原先位于入口文件中的完整执行编排逻辑，
-//! 负责初始化上下文、驱动 LLM 循环、处理工具调用并在结束时发出终态事件。
-
-use super::artifacts;
-use super::context_governance;
-use super::helpers::{
-    allowed_tool_ids_for_request_from_specs, is_acp_request, response_preview, tool_call_preview,
-};
-use super::llm_messages;
-use super::llm_runner;
-use super::prefetch;
-use super::todo_updates;
-use super::todos;
-use super::tools_exec;
-use super::turn_policy::ChatTurnPolicy;
+//! Project scope composition and thin compatibility bindings for session-engine.
+use super::runner_host::AgentRunnerHost;
 #[cfg(test)]
 use super::types::CompactionPhase;
-use super::types::{Request, ResolvedRequestModel, StreamEvent, ToolSessionState};
-use super::utils;
-use crate::app::agent::config;
-use crate::app::agent::tools::{ToolRuntimeContext, ToolUseContext};
+use super::types::{Request, StreamEvent};
+#[cfg(test)]
+use super::types::{ResolvedRequestModel, ToolSessionState};
+#[cfg(test)]
+use super::{llm_runner, tools_exec};
 use crate::session::prompt;
-use crate::session::session::{Message, Role, Session};
+#[cfg(test)]
+use crate::session::session::{Role, Session};
+#[cfg(test)]
 use crate::session::ui_types as models;
-use serde_json::{Value, json};
+#[cfg(test)]
+use crate::tools::ToolRuntimeContext;
+use crate::tools::ToolUseContext;
+use serde_json::Value;
+#[cfg(test)]
+use session_engine::helpers::is_acp_request;
+#[cfg(test)]
+use session_engine::runner::{
+    EMPTY_RESPONSE_ERR, EMPTY_RESPONSE_RETRY_LIMIT, EMPTY_RESPONSE_RETRY_PROMPT,
+};
+pub(crate) use session_engine::runner_protocol::provider_request_options;
+#[cfg(test)]
+use session_engine::runner_protocol::{
+    delegated_skill_policy_resolution, prepare_context_before_llm_step,
+};
+#[cfg(test)]
 use std::collections::{BTreeSet, HashSet};
-use std::path::PathBuf;
-
-const EMPTY_RESPONSE_ERR: &str = "模型未返回内容";
-const EMPTY_RESPONSE_RETRY_PROMPT: &str =
-    "上一步模型输出为空，已自动重试。请继续当前任务并返回非空答复。";
-const EMPTY_RESPONSE_RETRY_LIMIT: usize = 4;
-
-struct RunnerCheckpointHost;
-impl session_engine::runner_protocol::RunnerCheckpointHost for RunnerCheckpointHost {
-    fn restore_skills(session: &str, agent: &str, history: &[Value]) -> Result<Vec<crate::skills::InvokedSkillRecord>, String> {
-        prompt::block_on(crate::session::skill_checkpoint::restore(session, agent, history))
-    }
-    fn save_skills(session: &str, agent: &str, history: &[Value], records: &[crate::skills::InvokedSkillRecord]) -> Result<(), String> {
-        prompt::block_on(crate::session::skill_checkpoint::save(session, agent, history, records))
-    }
-    fn save_context(session: &str, source: &[Value], summary: &str, retained_user: Option<Value>) -> Result<(), String> {
-        prompt::block_on(crate::session::compaction_checkpoint::save(session, source, summary, retained_user))
-    }
-    fn compact_hook(session: &str, conversation: &str, model: &str, automatic: bool, completed: bool) -> Result<(), String> {
-        prompt::block_on(crate::plugins::hook_compact::emit(session, conversation, model, automatic, completed)).map_err(|error| error.to_string())
-    }
-}
-impl session_engine::compaction_summary::SummaryHost for RunnerCheckpointHost {
-    fn run_llm_step(session_id: &str, messages: &[Value], system: &[String], model: Option<String>, options: &Value, available_tools: &[crate::tools::ToolSpec], allowed_tools: &HashSet<String>, on_event: &mut dyn FnMut(StreamEvent) -> bool, cancellation: Option<&tokio_util::sync::CancellationToken>) -> Result<llm_runner::LlmStep, String> {
-        llm_runner::run_llm_step(session_id, messages, system, model, options, available_tools, allowed_tools, on_event, cancellation)
-    }
-}
-
+#[cfg(test)]
 #[derive(Default)]
 struct DesktopSessionProtocol(session_engine::runner_protocol::DesktopSessionProtocol);
+#[cfg(test)]
 impl std::ops::Deref for DesktopSessionProtocol {
     type Target = session_engine::runner_protocol::DesktopSessionProtocol;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
+#[cfg(test)]
 impl std::ops::DerefMut for DesktopSessionProtocol {
-    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
+#[cfg(test)]
 impl DesktopSessionProtocol {
-    fn new(skills: Vec<crate::skills::Skill>, agent_id: impl Into<String>, context_window_tokens: usize) -> Self {
-        Self(session_engine::runner_protocol::DesktopSessionProtocol::new(skills, agent_id, context_window_tokens))
+    fn new(
+        skills: Vec<crate::skills::Skill>,
+        agent_id: impl Into<String>,
+        context_window_tokens: usize,
+    ) -> Self {
+        Self(session_engine::runner_protocol::DesktopSessionProtocol::new(
+            skills,
+            agent_id,
+            context_window_tokens,
+        ))
     }
-    fn prepare_native_skill_context(&mut self, req: &Request, history: &[Value], skill_policy: Option<&crate::session::capability_policy::CapabilityPolicyResolution>, agents_referenced_skills: &BTreeSet<String>, user_referenced_skills: &BTreeSet<String>) -> Result<(), String> {
-        self.0.prepare_native_skill_context::<RunnerCheckpointHost>(&req.session, &req.options, history, skill_policy, agents_referenced_skills, user_referenced_skills)
-    }
-    fn consume_tool_output(&mut self, tool_name: &str, output: &tools_exec::ToolProtocolOutput, llm_messages: &mut Vec<Value>) {
-        self.0.consume_tool_output(tool_name, &output.extra_messages, llm_messages)
-    }
-    fn persist_checkpoint(&self, session: &str, history: &[Value]) -> Result<(), String> {
-        self.0.persist_checkpoint::<RunnerCheckpointHost>(session, history)
-    }
-    fn consume_invoked_skills(&mut self, context: &ToolUseContext, session: &Session) -> Result<(), String> {
-        self.0.consume_invoked_skills::<RunnerCheckpointHost>(context.take_invoked_skills(), session)
-    }
-}
-use session_engine::runner_protocol::{prepare_context_before_llm_step, delegated_skill_policy_resolution, option_string_values};
-pub(crate) use session_engine::runner_protocol::provider_request_options;
-use session_engine::runner_protocol::compact_transient_history_for_request as engine_compact_transient_history_for_request;
-fn compact_transient_history_for_request(session_id: &str, checkpoint_source: &[Value], llm_messages: &mut Vec<Value>, model: &str, reliability: &crate::config::ReliabilityConfig, on_event: &mut impl FnMut(StreamEvent) -> bool, cancellation: Option<&tokio_util::sync::CancellationToken>, model_limit: &crate::provider::provider::ModelLimit) -> Result<bool, String> {
-    engine_compact_transient_history_for_request::<RunnerCheckpointHost>(session_id, checkpoint_source, llm_messages, model, reliability, on_event, cancellation, model_limit)
-}
-fn request_provider_retry_policy(req: &Request) -> (u32, u64) {
-    (req.reliability.provider_retries, req.reliability.provider_backoff_ms)
-}
-
-fn request_full_access_enabled(options: &Value) -> bool {
-    options.get("full_access").and_then(Value::as_bool).unwrap_or(false)
-}
-
-fn with_request_model_context(
-    mut context: ToolUseContext,
-    request_model: Option<&str>,
-) -> ToolUseContext {
-    let Some(request_model) = request_model.map(str::trim).filter(|value| !value.is_empty()) else {
-        return context;
-    };
-    if let Some((provider, model)) = request_model.split_once('/')
-        && !provider.trim().is_empty()
-        && !model.trim().is_empty()
-    {
-        context =
-            context.with_provider(provider.trim().to_string()).with_model(model.trim().to_string());
-    } else {
-        context = context.with_model(request_model.to_string());
-    }
-    context
-}
-
-fn is_auto_model_request(model: Option<&str>) -> bool {
-    model.map(str::trim).is_none_or(|model| model.is_empty() || model.eq_ignore_ascii_case("auto"))
-}
-
-fn request_needs_image_input(req: &Request) -> bool {
-    use crate::app::agent::multimodal::parse_image_markers;
-
-    !parse_image_markers(&req.query).1.is_empty()
-        || req.history.iter().any(|message| !parse_image_markers(&message.content).1.is_empty())
-}
-
-fn resolve_request_model(
-    req: &Request,
-    config: &crate::config::Config,
-) -> Result<ResolvedRequestModel, String> {
-    let acp_requested = is_acp_request(&req.options);
-    let cli_local = acp_requested
-        && crate::session::llm::acp_model_source(&req.options)?
-            == vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal;
-    if cli_local {
-        let model = req
-            .options
-            .get("acp_agent")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|model| !model.is_empty())
-            .unwrap_or("acp");
-        return Ok(ResolvedRequestModel::new(
-            format!("acp/{model}"),
-            crate::app::agent::provider::provider::ModelLimit {
-                context: 8192,
-                input: None,
-                output: 4096,
-            },
-        ));
-    }
-
-    let providers = prompt::block_on(crate::app::agent::provider::provider::list())
-        .map_err(crate::session::llm::catalog_error_string)?;
-    let candidates = providers
-        .values()
-        .flat_map(|info| info.models.values())
-        .filter(|model| !crate::session::llm::is_acp_model(model))
-        .cloned()
-        .collect::<Vec<_>>();
-    let selected = if is_auto_model_request(req.model.as_deref()) {
-        let needs_image_input = request_needs_image_input(req);
-        let agent_key = req.options.get("agent").and_then(Value::as_str).map(str::trim);
-        let soft_preference = agent_key
-            .and_then(|key| config.agents.get(key))
-            .filter(|agent| !agent.provider.trim().is_empty() && !agent.model.trim().is_empty())
-            .map(|agent| crate::session::llm::ModelReference::new(&agent.provider, &agent.model));
-        let candidates_for_selection = candidates
-            .iter()
-            .map(|model| crate::session::llm::ModelCandidate {
-                provider_id: &model.provider_id,
-                model,
-            })
-            .collect::<Vec<_>>();
-        let decision = crate::session::llm::select_auto_model(
-            &crate::session::llm::AutoModelSelectionRequest {
-                message: &req.query,
-                required_context: 0,
-                needs_tools: true,
-                needs_image_input,
-                needs_attachments: needs_image_input,
-                soft_preference,
-                query_classification: config.query_classification.clone(),
-                model_routes: config.model_routes.clone(),
-            },
-            &candidates_for_selection,
+    fn prepare_native_skill_context(
+        &mut self,
+        req: &Request,
+        history: &[Value],
+        skill_policy: Option<&crate::session::capability_policy::CapabilityPolicyResolution>,
+        agents_referenced_skills: &BTreeSet<String>,
+        user_referenced_skills: &BTreeSet<String>,
+    ) -> Result<(), String> {
+        self.0.prepare_native_skill_context::<AgentRunnerHost>(
+            &req.session,
+            &req.options,
+            history,
+            skill_policy,
+            agents_referenced_skills,
+            user_referenced_skills,
         )
-        .map_err(|error| error.to_string())?;
-        candidates
-            .into_iter()
-            .find(|model| {
-                model.provider_id == decision.model.provider && model.id == decision.model.model
-            })
-            .ok_or_else(|| "Auto 模型选择结果不在 active 候选中".to_string())?
-    } else {
-        let requested = req.model.as_deref().expect("non-auto request has a model").trim();
-        let matches = candidates
-            .into_iter()
-            .filter(|candidate| {
-                if let Some((provider, model)) = requested.split_once('/') {
-                    candidate.provider_id == provider && candidate.id == model
-                } else {
-                    candidate.id == requested
-                }
-            })
-            .collect::<Vec<_>>();
-        match matches.as_slice() {
-            [model] => model.clone(),
-            [] => return Err(format!("未找到模型：{requested}")),
-            _ => return Err(format!("模型ID存在歧义：{requested}，请使用 provider/model")),
-        }
-    };
-
-    Ok(ResolvedRequestModel::new(
-        format!("{}/{}", selected.provider_id, selected.id),
-        selected.limit,
-    ))
-}
-
-fn enabled_identity_files_for_agent(
-    config: &crate::config::Config,
-    agent_key: Option<&str>,
-) -> Vec<String> {
-    let agent_key = agent_key.map(str::trim).filter(|key| !key.is_empty()).unwrap_or("main");
-    config
-        .agents
-        .get(agent_key)
-        .map(|agent| agent.enabled_identity_files.clone())
-        .unwrap_or_default()
-}
-
-fn ensure_persistent_request_message_id(req: &mut Request) -> Result<(), String> {
-    if req.persist_app_session_artifacts && req.assistant_message_id.is_none() {
-        req.assistant_message_id = Some(
-            crate::id::ascending(crate::id::Prefix::Message, None)
-                .map_err(|error| error.to_string())?,
-        );
     }
-    Ok(())
 }
 
-/// 执行会话处理主循环。
-///
-/// 本函数保留原有入口签名，对外仍通过 `processor::run` 暴露；
-/// 这里仅将实现迁移至独立文件，方便后续按职责维护。
 pub fn run(req: Request, on_event: impl FnMut(StreamEvent) -> bool + Send + 'static) {
     run_with_persisted_history(req, None, on_event);
 }
@@ -284,1044 +118,53 @@ pub(crate) fn run_with_persisted_history(
 }
 
 fn run_in_project(
-    mut req: Request,
+    req: Request,
     persisted_history: Option<Vec<Value>>,
-    mut on_event: impl FnMut(StreamEvent) -> bool + Send + 'static,
+    on_event: impl FnMut(StreamEvent) -> bool + Send + 'static,
 ) {
-    if let Err(message) = ensure_persistent_request_message_id(&mut req) {
-        on_event(StreamEvent::Error(message));
-        return;
-    }
-    let mut session = Session::new(req.session.clone());
-    let mut raw_rounds = Vec::new();
-    let is_acp = is_acp_request(&req.options);
-    let app_session_scope = req.app_session_scope.as_deref();
-
-    let agent_key = req.options.get("agent").and_then(Value::as_str).map(ToOwned::to_owned);
-    let mut config = match prompt::block_on(config::get_current()) {
-        Ok(config) => config,
-        Err(error) => {
-            on_event(StreamEvent::Error(format!("Failed to load request config: {error}")));
-            return;
-        }
-    };
-    if let Err(error) =
-        prompt::block_on(crate::session::agent_binding::apply_to_config(&req.session, &mut config))
-    {
-        on_event(StreamEvent::Error(error.to_string()));
-        return;
-    }
-    let native_defaults = if !is_acp {
-        match prompt::block_on(crate::session::capability_policy::native_agent_defaults(
-            &config,
-            agent_key.as_deref().unwrap_or("main"),
-            req.model.as_deref(),
-            std::path::Path::new(req.root.as_deref().unwrap_or(".")),
-        )) {
-            Ok(defaults) => defaults,
-            Err(error) => {
-                on_event(StreamEvent::Error(error.to_string()));
-                return;
-            }
-        }
-    } else {
-        None
-    };
-    if let Some(defaults) = &native_defaults {
-        if let Some(model) = &defaults.effective.model {
-            req.model = Some(format!("{}/{}", model.provider, model.model));
-        }
-        if defaults.skills_fixed
-            || !defaults.effective.skills.is_empty()
-            || defaults.skill_policy == config_agent::DelegateCapabilityPolicy::Strict
-        {
-            let inherited_strict =
-                req.options.get("delegate_skill_policy").and_then(Value::as_str) == Some("strict");
-            let inherited = if req.options.get("delegate_allowed_skills").is_some() {
-                option_string_values(&req.options, "delegate_allowed_skills")
-            } else {
-                option_string_values(&req.options, "delegate_default_allowed_skills")
-            };
-            let boundary = defaults
-                .allowed_skills
-                .iter()
-                .filter(|id| !inherited_strict || inherited.contains(id))
-                .cloned()
-                .collect::<Vec<_>>();
-            req.options["delegate_allowed_skills"] = serde_json::json!(boundary);
-            if inherited_strict
-                && defaults.effective.skills.iter().any(|id| !inherited.contains(id))
-            {
-                on_event(StreamEvent::Error(
-                    "Default skill is outside the inherited strict boundary".into(),
-                ));
-                return;
-            }
-            req.options["delegate_default_allowed_skills"] =
-                serde_json::json!(defaults.effective.skills);
-            if !inherited_strict {
-                req.options["delegate_skill_policy"] = serde_json::json!(defaults.skill_policy);
-            }
-        }
-    }
-    let model_selected_by_auto = !is_acp && is_auto_model_request(req.model.as_deref());
-    let (provider_retries, provider_backoff_ms) = request_provider_retry_policy(&req);
-    let mut initial_budget =
-        super::recovery::RetryBudget::new(provider_retries, provider_backoff_ms);
-    let selected_model =
-        match initial_budget.run(is_acp, req.abort_token.as_ref(), &mut on_event, |_| {
-            resolve_request_model(&req, &config)
-        }) {
-            Ok(model) => model,
-            Err(message) => {
-                on_event(StreamEvent::Error(message));
-                return;
-            }
-        };
-    req.model = Some(selected_model.model.clone());
-
-    session.messages = req
-        .history
-        .iter()
-        .map(|message| Message {
-            role: match message.role {
-                models::ChatRole::User => Role::User,
-                models::ChatRole::Assistant => Role::Assistant,
-                models::ChatRole::System => Role::System,
-                models::ChatRole::Developer => Role::Developer,
-                models::ChatRole::Tool => Role::Tool,
-            },
-            content: message.content.clone(),
-        })
-        .collect();
-
-    let persisted_history_len = persisted_history.as_ref().map_or(0, |_| session.messages.len());
-    let checkpoint_source = persisted_history
-        .clone()
-        .unwrap_or_else(|| llm_messages::session_messages_to_llm_messages(&session));
-    let restored_context = match prompt::block_on(crate::session::compaction_checkpoint::restore(
-        &req.session,
-        &checkpoint_source,
-    )) {
-        Ok(history) => history,
-        Err(error) => {
-            on_event(StreamEvent::Error(error));
-            return;
-        }
-    };
-    let skill_workspace = req
-        .root
-        .as_deref()
-        .map(PathBuf::from)
-        .or_else(|| std::env::current_dir().ok())
-        .unwrap_or_else(|| PathBuf::from("."));
-    let mut plugin_config = config.clone();
-    plugin_config.workspace_dir = skill_workspace.clone();
-    let mut plugin_turn =
-        match crate::plugins::session_snapshot::PluginTurnSnapshot::capture(&plugin_config) {
-            Ok(snapshot) => snapshot,
-            Err(error) => {
-                on_event(StreamEvent::Error(format!("Plugin turn admission failed: {error:#}")));
-                return;
-            }
-        };
-    let mut tool_use_context = with_request_model_context(
-        ToolUseContext::new(req.session.clone(), req.root.clone()).inherit_delegated_authority(),
-        selected_model.step_event_model(),
-    )
-    .with_session_skills(req.session_skills.clone())
-    .with_auto_model_selection(model_selected_by_auto)
-    .with_turn_id(
-        req.assistant_message_id.clone().unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
-    );
-    if let Some(name) = agent_key.as_deref() {
-        tool_use_context = tool_use_context.with_agent_name(name);
-    }
-    if let Some(defaults) = native_defaults {
-        if defaults.mcp_fixed {
-            tool_use_context = tool_use_context
-                .with_native_mcp_selection(defaults.effective.mcp.iter().cloned().collect());
-        }
-        if defaults.permission_fixed {
-            tool_use_context = tool_use_context.with_native_permission(defaults.effective);
-        }
-    }
-    tool_use_context = tool_use_context.with_plugin_snapshot(plugin_turn.data.clone());
-    plugin_turn.own_async_hooks(tool_use_context.async_hooks.clone());
-    let delegated_skill_policy = match req.options.get("delegate_skill_policy") {
-        Some(value) => match serde_json::from_value::<
-            config_agent::DelegateCapabilityPolicy,
-        >(value.clone())
-        {
-            Ok(policy) => Some(policy),
-            Err(error) => {
-                on_event(StreamEvent::Error(format!("无效的技能能力策略：{error}")));
-                return;
-            }
-        },
-        None => None,
-    };
-    if let Some(policy) = delegated_skill_policy {
-        tool_use_context = tool_use_context.with_delegate_skill_policy(
-            policy,
-            if req.options.get("delegate_allowed_skills").is_some() {
-                option_string_values(&req.options, "delegate_allowed_skills")
-            } else {
-                option_string_values(&req.options, "delegate_default_allowed_skills")
-            },
-        );
-    }
-    if let Some(runner) = plugin_turn.data.hooks.clone() {
-        tool_use_context = tool_use_context.with_hook_runner(runner);
-    }
-    let trusted_user_selected_skills =
-        option_string_values(&req.options, "delegate_trusted_user_selected_skills");
-    if !trusted_user_selected_skills.is_empty() {
-        tool_use_context =
-            tool_use_context.with_trusted_user_selected_skills(trusted_user_selected_skills);
-    }
-    if let Some(channel_name) = req.channel_name.clone() {
-        tool_use_context = tool_use_context.with_channel(channel_name);
-    }
-    if let Some(approval) = req.approval.clone() {
-        tool_use_context = tool_use_context.with_approval(approval);
-    }
-    if let Some(non_cli_approval_context) = req.non_cli_approval_context.clone() {
-        tool_use_context = tool_use_context.with_non_cli_approval_context(non_cli_approval_context);
-    }
-    if let Some(message_id) = req.assistant_message_id.clone() {
-        tool_use_context = tool_use_context.with_message_id(message_id);
-    }
-    if let Some(abort_token) = req.abort_token.clone() {
-        tool_use_context = tool_use_context.with_abort_token(abort_token);
-    }
-    let full_access_enabled = request_full_access_enabled(&req.options);
-    tool_use_context = tool_use_context.with_full_access_enabled(full_access_enabled);
-    if full_access_enabled {
-        tool_use_context = tool_use_context.with_bypass_non_cli_approval_for_turn(true);
-    }
-    if let Some(root) = req.root.as_deref() {
-        crate::plugins::mcp_app_execution::revoke(&req.session, std::path::Path::new(root));
-    }
-    if let Err(error) = prompt::block_on(crate::plugins::hook_session::start(
-        std::sync::Arc::new(tool_use_context.clone()),
-        !req.history.is_empty(),
-    )) {
-        on_event(StreamEvent::Error(error.to_string()));
-        return;
-    }
-    let _async_hook_turn = tool_use_context.async_hooks.turn_guard();
-    if let Err(error) = prompt::block_on(crate::plugins::hook_prompt::submit(
-        std::sync::Arc::new(tool_use_context.clone()),
-        &req.query,
-    )) {
-        on_event(StreamEvent::Error(error.to_string()));
-        return;
-    }
-    let mut ctx = ToolRuntimeContext::new(req.session.clone(), req.root.clone())
-        .with_tool_use_context(tool_use_context)
-        .with_session_tools(req.session_tools.clone());
-    let _interrupt = InterruptGuard(ctx.tool_use_context().clone());
-    let mut tool_state = ToolSessionState::default();
-    let skills = crate::tools::scope_tool_use_context_sync(ctx.tool_use_context().clone(), || {
-        crate::skills::load_session_skills(&skill_workspace, &config, &req.session_skills, false)
-    });
-    let skills = match skills {
-        Ok(skills) => skills,
-        Err(error) => {
-            on_event(StreamEvent::Error(format!("Session skill sources unavailable: {error}")));
-            return;
-        }
-    };
-    let skill_policy_resolution = delegated_skill_policy_resolution(&skills, &req.options);
-    let skills = if let Some(resolution) = skill_policy_resolution.as_ref() {
-        skills
-            .into_iter()
-            .filter(|skill| {
-                resolution.visible_ids.contains(&skill.invocation_name().trim().to_lowercase())
-            })
-            .collect()
-    } else {
-        skills
-    };
-    let mut session_protocol = DesktopSessionProtocol::new(
-        skills,
-        agent_key.as_deref().unwrap_or("main"),
-        usize::try_from(selected_model.limit.context).unwrap_or(usize::MAX),
-    );
-    session_protocol.persisted_history = persisted_history.unwrap_or_default();
-    session_protocol.persisted_history_len = persisted_history_len;
-    #[cfg(not(target_arch = "wasm32"))]
-    for message in &checkpoint_source {
-        if message["role"] == "native"
-            && let Some(content) = message["content"].as_str()
-            && let Ok(crate::session::llm::native_tools::NativeHistoryItem::ToolSearchCall(call)) =
-                serde_json::from_str(content)
-            && let Some(id) = call.call_id
-        {
-            session_protocol.native_call_ids.insert(id);
-        }
-    }
-
-    if should_handle_docs_request_locally(&req.query) {
-        handle_docs_request(&mut session, &ctx, &mut on_event);
-        return;
-    }
-
-    let turn_policy = ChatTurnPolicy::from_config(&config, agent_key.as_deref());
-    let enabled_identity_files = enabled_identity_files_for_agent(&config, agent_key.as_deref());
-    let mut base_system = prompt::system_with_agent_metadata(
-        selected_model.step_event_model(),
-        req.root.as_deref(),
-        agent_key.as_deref(),
-        &enabled_identity_files,
-    );
-    let agents_referenced_skills =
-        crate::app::agent::tools::skill::explicitly_referenced_skill_names(
-            &session_protocol.skills,
-            base_system
-                .instruction_context()
-                .iter()
-                .map(|instruction| instruction.content.as_str()),
-        );
-    let user_referenced_skills = crate::app::agent::tools::skill::explicitly_referenced_skill_names(
-        &session_protocol.skills,
-        std::iter::once(req.query.as_str()),
-    );
-    let mut explicitly_requested_skills = agents_referenced_skills.clone();
-    explicitly_requested_skills.extend(user_referenced_skills.iter().cloned());
-    if crate::app::agent::tools::skill::user_explicitly_requests_skill_use(&req.query) {
-        explicitly_requested_skills.extend(
-            crate::app::agent::tools::skill::user_invocable_skill_names(&session_protocol.skills),
-        );
-    }
-    let tool_use_context = ctx
-        .tool_use_context()
-        .as_ref()
-        .clone()
-        .with_explicitly_requested_skills(explicitly_requested_skills);
-    ctx = ctx.with_tool_use_context(tool_use_context);
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        session_protocol.skills = crate::tools::skill::accessible_skills(
-            std::mem::take(&mut session_protocol.skills),
-            Some(ctx.tool_use_context().as_ref()),
-        );
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    if crate::workflow::native::run_video_command(
-        &req,
-        &ctx,
-        &session_protocol.skills,
-        &mut on_event,
-    ) || crate::workflow::native::run_bound_command(&req, &ctx, &mut on_event)
-    {
-        return;
-    }
-    if let Err(message) = session_protocol.prepare_native_skill_context(
-        &req,
-        &checkpoint_source,
-        skill_policy_resolution.as_ref(),
-        &agents_referenced_skills,
-        &user_referenced_skills,
-    ) {
-        on_event(StreamEvent::Error(message));
-        return;
-    }
-    // AGENTS.md 和用户显式点名的技能必须先进入可信工具上下文，再生成工具目录。
-    // 否则 deny 规则会提前从 skill 工具描述中移除这些技能，模型只能看到一个
-    // 无法执行的协议要求。
-    let live_catalog =
-        crate::tools::current_tool_use_context().and_then(|context| context.live_tool_catalog());
-    let live_catalog = if let Some(catalog) = live_catalog {
-        Some(catalog)
-    } else {
-        let tools = crate::tools::execution_tools_for_context(&ctx);
-        let catalog = std::sync::Arc::new(crate::tools::catalog::ToolCatalog::default());
-        let ids = tools.iter().map(|tool| tool.spec().id).collect::<Vec<_>>();
-        if let Err(error) =
-            catalog.replace(tools.into_iter().map(std::sync::Arc::from).collect(), ids)
-        {
-            on_event(StreamEvent::Error(format!(
-                "failed to initialize request tool catalog: {error}"
-            )));
-            return;
-        }
-        Some(catalog)
-    };
-    let mcp_connections = crate::tools::mcp_connections_for_context(&ctx);
-    let mut catalog_snapshot = live_catalog.as_ref().map(|catalog| catalog.snapshot());
-    #[cfg(not(target_arch = "wasm32"))]
-    if let Some(snapshot) = catalog_snapshot.take() {
-        match crate::session::runtime::dynamic_hosts::request_catalog(
-            &ctx.tool_use_context(),
-            snapshot,
-        ) {
-            Ok(snapshot) => catalog_snapshot = Some(snapshot),
-            Err(error) => {
-                on_event(StreamEvent::Error(error.to_string()));
-                return;
-            }
-        }
-    }
-    if let Some(snapshot) = &catalog_snapshot {
-        ctx = tools_exec::with_request_tool_catalog(&ctx, &req.session_tools, snapshot);
-    }
-    let available_tool_specs = catalog_snapshot
-        .as_ref()
-        .map(|snapshot| snapshot.specs())
-        .unwrap_or_else(|| crate::app::agent::tools::tool_specs_for_context(&ctx))
-        .into_iter()
-        // Exclude worker-ineligible tools before required-tool expansion.
-        .filter(|spec| agent_key.as_deref().unwrap_or("main") == "main" || spec.id != "AgentTool")
-        .filter(|spec| ctx.tool_use_context().delegated_tool_is_allowed(&spec.id))
-        .collect::<Vec<_>>();
-    let mut allowed_tools =
-        allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options);
-    let mut discovery = std::sync::Arc::new(crate::tools::tool_search::ToolDiscoverySession::new(
-        available_tool_specs.into_iter().filter(|spec| allowed_tools.contains(&spec.id)).collect(),
-    ));
-    ctx = ctx.clone().with_tool_use_context(
-        ctx.tool_use_context().as_ref().clone().with_tool_discovery(discovery.clone()),
-    );
-    let prompt_tool_ids = allowed_tools.iter().cloned().collect::<Vec<_>>();
-    base_system = base_system.with_runtime_context_and_modes(
-        selected_model.step_event_model(),
-        req.root.as_deref(),
-        &prompt_tool_ids,
-        crate::session::system::RuntimePromptModes::from_options(&req.options),
-    );
-    if is_acp {
-        req.options["acp_allowed_tools"] =
-            serde_json::json!(allowed_tools.iter().cloned().collect::<Vec<_>>());
-    }
-    if !base_system.visible_instruction_paths.is_empty()
-        && !on_event(StreamEvent::ContextLoaded {
-            paths: base_system.visible_instruction_paths.clone(),
-        })
-    {
-        return;
-    }
-
-    let prefetch_start = session.messages.len();
-    prefetch::prefetch_seed_context(
-        &mut session,
-        &req.query,
-        &ctx,
-        &allowed_tools,
-        &mut tool_state,
-    );
-    session_protocol.hidden_prefetch = prefetch_start..session.messages.len();
-    utils::ingest_user_query(
-        &mut session,
-        &req.query,
-        &ctx,
-        &allowed_tools,
-        &mut on_event,
-        &mut tool_state,
-    );
-
-    let primary_system_prompt = req
-        .options
-        .get("chat_system_prompt")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(ToOwned::to_owned);
-    let mut llm_messages = restored_context;
-    let history_len = checkpoint_source.len();
-    let mut current_messages = checkpoint_source;
-    llm_messages::extend_llm_messages_from_session_range(
-        &mut current_messages,
-        &session,
-        prefetch_start,
-    );
-    llm_messages.extend_from_slice(&current_messages[history_len..]);
-    if let Err(error) = session_protocol
-        .persist_checkpoint(&req.session, &session_protocol.checkpoint_history(&session))
-    {
-        on_event(StreamEvent::Error(error));
-        return;
-    }
-    let checkpoint_source = current_messages;
-    if let Some(source) = llm_messages::input_source_from_options(&req.options) {
-        llm_messages::annotate_current_user_source(&mut llm_messages, source);
-    }
-    let mut image_turn =
-        match build_image_turn_context_for_request(&req, &session, &config, &mut on_event) {
-            Ok(ctx) => ctx,
-            Err(message) => {
-                tracing::warn!(
-                    target: "vw_agent",
-                    session_id = %req.session,
-                    error = %message,
-                    "failed to build image turn context"
-                );
-                session.push(Role::System, message.clone());
-                on_event(StreamEvent::Error(message));
-                return;
-            }
-        };
-    if let Some(ctx_images) = image_turn.as_mut() {
-        ctx.tool_use_context().set_image_asset_scope(&ctx_images.scope);
-        ctx_images.rewrite_json_messages(&mut llm_messages);
-        let store = crate::app::agent::multimodal::assets::ImageAssetStore::from_global_paths();
-        if let Err(error) = ctx_images.register_session_refs(&store, &req.session) {
-            tracing::warn!(
-                target: "vw_agent",
-                session_id = %req.session,
-                error = %error,
-                "failed to register image asset session refs"
-            );
-        }
-    }
-
-    let mut stop_hook_active = false;
-    let mut initial_budget = Some(initial_budget);
-    let mut step = 0usize;
-    let mut step_index: u32 = 0;
-    let mut total_usage = models::TokenUsage::default();
-    let mut empty_response_retries = 0usize;
-    let model_limit = selected_model.limit.clone();
-    let mut observed_input_tokens: Option<i64> = None;
-    let mut internal_compaction_attempted = false;
-
-    loop {
-        if let Err(error) =
-            crate::session::child_agent::coordinator::global_child_agent_coordinator()
-                .deliver_model_events(ctx.tool_use_context().as_ref(), &mut llm_messages)
-        {
-            on_event(StreamEvent::Error(error.to_string()));
-            return;
-        }
-        // Definitions and executors change together, only before the next model request.
-        if let Some(catalog) = &live_catalog {
-            if let Err(error) = prompt::block_on(mcp_connections.refresh_tool_catalog(catalog)) {
-                tracing::warn!("MCP catalog refresh remains pending: {error}");
-            }
-            let snapshot = catalog.snapshot();
-            #[cfg(not(target_arch = "wasm32"))]
-            let snapshot = match crate::session::runtime::dynamic_hosts::request_catalog(
-                &ctx.tool_use_context(),
-                snapshot,
-            ) {
-                Ok(snapshot) => snapshot,
-                Err(error) => {
-                    on_event(StreamEvent::Error(error.to_string()));
-                    return;
-                }
-            };
-            if catalog_snapshot
-                .as_ref()
-                .is_none_or(|previous| !std::sync::Arc::ptr_eq(previous, &snapshot))
-            {
-                let specs = snapshot
-                    .specs()
-                    .into_iter()
-                    .filter(|spec| {
-                        agent_key.as_deref().unwrap_or("main") == "main" || spec.id != "AgentTool"
-                    })
-                    .filter(|spec| ctx.tool_use_context().delegated_tool_is_allowed(&spec.id))
-                    .collect::<Vec<_>>();
-                allowed_tools = allowed_tool_ids_for_request_from_specs(&specs, &req.options);
-                discovery = std::sync::Arc::new(discovery.rebase(
-                    specs.into_iter().filter(|spec| allowed_tools.contains(&spec.id)).collect(),
-                ));
-                catalog_snapshot = Some(snapshot);
-            }
-        }
-        let is_last_step = step >= turn_policy.max_iterations;
-        let empty_tools = HashSet::<String>::new();
-        let mut system = base_system.runtime_parts(primary_system_prompt.as_deref(), is_last_step);
-        let team = prompt::block_on(crate::session::system::team_runtime_instructions(
-            &req.session,
-            !is_last_step && allowed_tools.contains("AgentTool"),
-        ));
-        if !team.is_empty() {
-            system.push(team);
-        }
-        let tool_specs_for_context =
-            if is_last_step { Vec::new() } else { discovery.exposed_specs() };
-        let exposed_tools =
-            tool_specs_for_context.iter().map(|spec| spec.id.clone()).collect::<HashSet<_>>();
-        let tools_for_step = &exposed_tools;
-        if step_index > 0
-            && (tools_for_step.contains("skill")
-                || !session_protocol
-                    .skill_state
-                    .invoked_records(&session_protocol.agent_id)
-                    .is_empty())
-        {
-            // 工具可能修改技能元数据；每个请求重新经过加载器和同一能力策略。
-            let skills = crate::skills::load_session_skills(
-                &skill_workspace,
-                &config,
-                &req.session_skills,
-                false,
-            );
-            let skills = match skills {
-                Ok(skills) => skills,
-                Err(error) => {
-                    on_event(StreamEvent::Error(format!(
-                        "Session skill sources unavailable: {error}"
-                    )));
-                    return;
-                }
-            };
-            session_protocol.skills = if let Some(resolution) =
-                delegated_skill_policy_resolution(&skills, &req.options)
-            {
-                skills
-                    .into_iter()
-                    .filter(|skill| {
-                        resolution
-                            .visible_ids
-                            .contains(&skill.invocation_name().trim().to_lowercase())
-                    })
-                    .collect()
-            } else {
-                skills
-            };
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            session_protocol.skills = crate::tools::skill::accessible_skills(
-                std::mem::take(&mut session_protocol.skills),
-                Some(ctx.tool_use_context().as_ref()),
-            );
-        }
-        let request_ctx = if let Some(snapshot) = &catalog_snapshot {
-            tools_exec::with_request_tool_catalog(&ctx, &req.session_tools, snapshot)
-        } else {
-            ctx.clone()
-        };
-        let step_ctx = request_ctx.clone().with_tool_use_context(
-            request_ctx
-                .tool_use_context()
-                .as_ref()
-                .clone()
-                .with_tool_discovery(discovery.clone())
-                .with_tool_exposure_snapshot(exposed_tools.iter().cloned()),
-        );
-
-        let (provider_retries, provider_backoff_ms) = request_provider_retry_policy(&req);
-        tracing::debug!(
-            target: "vw_agent",
-            session_id = %req.session,
-            step_index = step_index.saturating_add(1),
-            provider_retries,
-            provider_backoff_ms,
-            is_acp,
-            max_iterations = turn_policy.max_iterations,
-            "session processor selected retry budget"
-        );
-        step_index = step_index.saturating_add(1);
-
-        let pending_reloads = ctx.tool_use_context().peek_pending_image_reloads();
-        if let Some(image_ctx) = image_turn.as_ref() {
-            image_ctx.attach_pending_reloads_to_json(&mut llm_messages, &pending_reloads);
-        }
-
-        // The preflight estimate must match the tool definitions that the
-        // LLM step will actually receive. In particular, OCR's nested request
-        // disables tools and should not spend its input budget on every local
-        // tool schema.
-        let assembled_messages = match session_protocol.assemble(
-            &llm_messages,
-            base_system.instruction_context(),
-            !is_acp && tools_for_step.contains("skill"),
-        ) {
-            Ok(messages) => messages,
-            Err(message) => {
-                on_event(StreamEvent::Error(message));
-                return;
-            }
-        };
-        let mut provider_messages = assembled_messages.messages;
-        provider_messages.extend(
-            ctx.tool_use_context()
-                .take_hook_contexts()
-                .into_iter()
-                .map(|text| json!({"role":"user", "content":text})),
-        );
-        let message_sources = assembled_messages.message_sources;
-        let compaction = match prepare_context_before_llm_step(
-            &mut provider_messages,
-            &system,
-            &tool_specs_for_context,
-            &model_limit,
-            observed_input_tokens,
-            is_acp,
-        ) {
-            Ok(result) => result,
-            Err(message) => {
-                tracing::warn!(
-                    target: "vw_agent",
-                    session_id = %req.session,
-                    step_index,
-                    context_limit = model_limit.context,
-                    input_limit = context_governance::effective_input_window(&model_limit),
-                    "session processor stopped before llm step because context compaction was insufficient"
-                );
-                on_event(StreamEvent::Error(message));
-                return;
-            }
-        };
-        if compaction.needs_internal_compaction && !internal_compaction_attempted {
-            tracing::info!(
-                target: "vw_agent",
-                session_id = %req.session,
-                step_index,
-                before_tokens = compaction.before_tokens,
-                after_tokens = compaction.after_tokens,
-                context_limit = model_limit.context,
-                input_limit = context_governance::effective_input_window(&model_limit),
-                "session processor requires internal compaction before llm step"
-            );
-            match crate::tools::scope_tool_use_context_sync(ctx.tool_use_context().clone(), || {
-                compact_transient_history_for_request(
-                    &req.session,
-                    &checkpoint_source,
-                    &mut llm_messages,
-                    &selected_model.model,
-                    &req.reliability,
-                    &mut on_event,
-                    req.abort_token.as_ref(),
-                    &model_limit,
-                )
-            }) {
-                Ok(true) => {
-                    internal_compaction_attempted = true;
-                    observed_input_tokens = None;
-                    session_protocol.0.skill_state.reset_catalog(&session_protocol.0.agent_id);
-                    continue;
-                }
-                Ok(false) => {
-                    // Reaching the proactive threshold is not an overflow. A
-                    // first turn has nothing to summarize and may still fit.
-                    if compaction.before_tokens
-                        > context_governance::effective_input_window(&model_limit)
-                    {
-                        on_event(StreamEvent::Error(
-                            "当前请求超过模型输入窗口，且没有可压缩的历史；请缩短输入或减少附件"
-                                .to_string(),
-                        ));
-                        return;
-                    }
-                }
-                Err(error) => {
-                    on_event(StreamEvent::Error(error));
-                    return;
-                }
-            }
-        }
-
-        if internal_compaction_attempted
-            && compaction.before_tokens > context_governance::effective_input_window(&model_limit)
-        {
-            on_event(StreamEvent::Error(
-                "internal compaction did not reduce the request below the model input window"
-                    .to_string(),
-            ));
-            return;
-        }
-
-        if !on_event(StreamEvent::StepStart {
-            step_index,
-            created_ms: utils::now_ms(),
-            model: Some(selected_model.model.clone()),
-        }) {
-            return;
-        }
-
-        let provider_options = provider_request_options(&req.options);
-        let mut retry_budget = initial_budget.take().unwrap_or_else(|| {
-            super::recovery::RetryBudget::new(provider_retries, provider_backoff_ms)
-        });
-        let step_out =
-            match crate::tools::scope_tool_use_context_sync(ctx.tool_use_context().clone(), || {
-                llm_runner::run_llm_step_with_budget(
-                    &req.session,
-                    &provider_messages,
-                    &system,
-                    Some(selected_model.model.clone()),
-                    &provider_options,
-                    &tool_specs_for_context,
-                    tools_for_step,
-                    &mut on_event,
-                    &mut retry_budget,
-                    req.abort_token.as_ref(),
-                )
-            }) {
-                Ok(output) => {
-                    if let Some(image_ctx) = image_turn.as_mut() {
-                        if !pending_reloads.is_empty() {
-                            ctx.tool_use_context().clear_pending_image_reloads();
-                        }
-                        if !image_ctx.has_first_success() || !pending_reloads.is_empty() {
-                            image_ctx.mark_first_success();
-                            image_ctx.rewrite_json_messages(&mut llm_messages);
-                        }
-                    }
-                    // A successful primary request permits a fresh compaction after later
-                    // tool results grow the context. Consecutive failed attempts stay bounded.
-                    internal_compaction_attempted = false;
-                    output
-                }
-                Err(message) => {
-                    if !is_acp
-                        && llm_runner::is_request_too_long_error(&message, &provider_messages)
-                        && !internal_compaction_attempted
-                    {
-                        match crate::tools::scope_tool_use_context_sync(
-                            ctx.tool_use_context().clone(),
-                            || {
-                                compact_transient_history_for_request(
-                                    &req.session,
-                                    &checkpoint_source,
-                                    &mut llm_messages,
-                                    &selected_model.model,
-                                    &req.reliability,
-                                    &mut on_event,
-                                    req.abort_token.as_ref(),
-                                    &model_limit,
-                                )
-                            },
-                        ) {
-                            Ok(true) => {
-                                internal_compaction_attempted = true;
-                                observed_input_tokens = None;
-                                session_protocol
-                                    .skill_state
-                                    .reset_catalog(&session_protocol.agent_id);
-                                continue;
-                            }
-                            Ok(false) => {
-                                on_event(StreamEvent::Error(message));
-                                return;
-                            }
-                            Err(error) => {
-                                on_event(StreamEvent::Error(format!(
-                                    "{message}; internal compaction failed: {error}"
-                                )));
-                                return;
-                            }
-                        }
-                    }
-                    if handle_step_error(
-                        &mut session,
-                        &mut llm_messages,
-                        &mut empty_response_retries,
-                        &mut step,
-                        &mut on_event,
-                        message,
-                    ) {
-                        continue;
-                    }
-                    return;
-                }
-            };
-
-        artifacts::persist_step_ai_call_payload(
-            &req,
-            &session,
-            &total_usage,
-            &step_out,
-            step_index,
-            app_session_scope.as_deref(),
-        );
-
-        let finished_ms = utils::now_ms();
-        if let Some(raw_payload) = artifacts::persist_llm_raw_step_payload(
-            &req,
-            &ctx.session,
-            step_index,
-            &provider_messages,
-            &message_sources,
-            &selected_model.model,
-            &system,
-            &tool_specs_for_context,
-            &step_out,
-        ) {
-            let Some(turn_id) = req.assistant_message_id.as_deref() else {
-                let message =
-                    "cannot buffer raw LLM step without a preallocated assistant message id";
-                tracing::error!(target: "vw_agent", session_id = %ctx.session, step_index, "{message}");
-                on_event(StreamEvent::Error(message.to_string()));
-                return;
-            };
-            raw_rounds.push(raw_payload);
-            let raw_artifact = match crate::session::llm_raw::LlmRawArtifact::from_full_raw_rounds(
-                turn_id,
-                &raw_rounds,
-            ) {
-                Ok(mut artifact) => {
-                    let round = artifact.rounds.pop().expect("raw artifact must contain its round");
-                    artifact.rounds = vec![round];
-                    artifact
-                }
-                Err(error) => {
-                    tracing::error!(target: "vw_agent", session_id = %ctx.session, step_index, error = %error, "failed to construct raw LLM artifact");
-                    on_event(StreamEvent::Error(
-                        "failed to construct raw LLM artifact".to_string(),
-                    ));
-                    return;
-                }
-            };
-            if !on_event(StreamEvent::LlmRawArtifact(raw_artifact)) {
-                return;
-            }
-        }
-
-        if !on_event(StreamEvent::StepFinish {
-            step_index,
-            finished_ms,
-            usage: step_out.usage.clone(),
-            finish_reason: step_out.finish_reason.clone(),
-            model: Some(selected_model.model.clone()),
-        }) {
-            return;
-        }
-
-        total_usage.input_tokens += step_out.usage.input_tokens;
-        total_usage.output_tokens += step_out.usage.output_tokens;
-        total_usage.cached_tokens += step_out.usage.cached_tokens;
-        total_usage.reasoning_tokens += step_out.usage.reasoning_tokens;
-        observed_input_tokens = Some(step_out.usage.input_tokens);
-
-        let step_text_preview = response_preview(&step_out.text);
-        tracing::debug!(
-            target: "vw_agent",
-            session_id = %req.session,
-            step_index,
-            is_acp,
-            is_last_step,
-            tool_call_count = step_out.tool_calls.len(),
-            tool_calls = %step_out
-                .tool_calls
-                .iter()
-                .map(|call| tool_call_preview(&call.name, &call.arguments))
-                .collect::<Vec<_>>()
-                .join(", "),
-            finish_reason = step_out.finish_reason.as_deref().unwrap_or(""),
-            text_preview = %step_text_preview,
-            "session processor received llm step result"
-        );
-
-        if !step_out.tool_calls.is_empty() {
-            if !on_event(StreamEvent::ModelToolCalls(step_out.tool_calls.clone())) {
-                return;
-            }
-            if super::should_execute_structured_tool_calls_locally(&req.options) {
-                empty_response_retries = 0;
-                let ran_todo_update = handle_structured_tool_calls(
-                    &req,
-                    &mut session,
-                    &step_ctx,
-                    tools_for_step,
-                    &base_system.content,
-                    &mut llm_messages,
-                    &mut total_usage,
-                    &mut on_event,
-                    &mut tool_state,
-                    &mut session_protocol,
-                    &step_out,
-                    &step_text_preview,
-                    turn_policy.parallel_tools,
-                    is_last_step,
-                    step_index,
-                );
-                if let Err(error) = session_protocol
-                    .consume_invoked_skills(ctx.tool_use_context().as_ref(), &session)
-                {
-                    on_event(StreamEvent::Error(error));
-                    return;
-                }
-                if !on_event(StreamEvent::PostToolRound { step_index }) {
-                    return;
-                }
-                step += 1;
-                if ran_todo_update {
-                    step += 1;
-                }
-                continue;
-            }
-
-            tracing::warn!(
-                target: "vw_agent",
-                session_id = %req.session,
-                step_index,
-                tool_call_count = step_out.tool_calls.len(),
-                "session processor ignored structured tool calls emitted by ACP request"
-            );
-        }
-
-        let should_continue = handle_assistant_text_branch(
-            &req,
-            &mut session,
-            &step_ctx,
-            tools_for_step,
-            &mut llm_messages,
-            &mut total_usage,
-            &mut on_event,
-            &mut tool_state,
-            &mut empty_response_retries,
-            &mut step,
-            &step_out,
-            &step_text_preview,
-            &empty_tools,
-            is_last_step,
-            step_index,
-            app_session_scope.as_deref(),
-            &mut stop_hook_active,
-        );
-        if let Err(error) =
-            session_protocol.consume_invoked_skills(ctx.tool_use_context().as_ref(), &session)
-        {
-            on_event(StreamEvent::Error(error));
-            return;
-        }
-        if should_continue {
-            continue;
-        }
-        return;
-    }
+    session_engine::runner::run::<AgentRunnerHost>(req, persisted_history, on_event)
 }
 
+#[cfg(test)]
+fn request_provider_retry_policy(req: &Request) -> (u32, u64) {
+    session_engine::runner::request_provider_retry_policy::<AgentRunnerHost>(req)
+}
+fn request_full_access_enabled(options: &Value) -> bool {
+    session_engine::runner::request_full_access_enabled(options)
+}
+fn with_request_model_context(
+    context: ToolUseContext,
+    request_model: Option<&str>,
+) -> ToolUseContext {
+    session_engine::runner::with_request_model_context::<AgentRunnerHost>(context, request_model)
+}
+#[cfg(test)]
+fn resolve_request_model(
+    req: &Request,
+    config: &crate::config::Config,
+) -> Result<ResolvedRequestModel, String> {
+    session_engine::runner::resolve_request_model::<AgentRunnerHost>(req, config)
+}
+#[cfg(test)]
+fn enabled_identity_files_for_agent(
+    config: &crate::config::Config,
+    agent_key: Option<&str>,
+) -> Vec<String> {
+    session_engine::runner::enabled_identity_files_for_agent(config, agent_key)
+}
+#[cfg(test)]
 fn should_handle_docs_request_locally(query: &str) -> bool {
-    utils::is_docs_request(query)
+    session_engine::runner::should_handle_docs_request_locally(query)
 }
-
+#[cfg(test)]
 fn handle_docs_request(
     session: &mut Session,
     ctx: &ToolRuntimeContext,
     on_event: &mut impl FnMut(StreamEvent) -> bool,
 ) {
-    match utils::list_docs(ctx.root.as_ref()) {
-        Ok(files) => {
-            let mut out = String::new();
-            out.push_str(
-                "<think>\n思考中\n任务分解：\n- 读取 docs 目录\n- 整理文件列表\n</think>\n\n",
-            );
-            out.push_str("docs 目录下的文件：\n");
-            for path in files {
-                out.push_str("- ");
-                out.push_str(&path);
-                out.push('\n');
-            }
-            session.push(Role::Assistant, out.clone());
-            if !on_event(StreamEvent::Delta(out)) {
-                return;
-            }
-            on_event(StreamEvent::Done(models::TokenUsage::default()));
-        }
-        Err(message) => {
-            session.push(Role::System, message.clone());
-            on_event(StreamEvent::Error(message));
-        }
-    }
+    session_engine::runner::handle_docs_request::<AgentRunnerHost>(session, ctx, on_event)
 }
-
+#[cfg(test)]
 fn handle_step_error(
     session: &mut Session,
     llm_messages: &mut Vec<Value>,
@@ -1330,39 +173,16 @@ fn handle_step_error(
     on_event: &mut impl FnMut(StreamEvent) -> bool,
     message: String,
 ) -> bool {
-    if message.trim() != EMPTY_RESPONSE_ERR {
-        session.push(Role::System, message.clone());
-        on_event(StreamEvent::Error(message));
-        return false;
-    }
-
-    *empty_response_retries = empty_response_retries.saturating_add(1);
-    if *empty_response_retries <= EMPTY_RESPONSE_RETRY_LIMIT {
-        session.push(
-            Role::System,
-            format!(
-                "{}，自动重试中（{}/{}）",
-                EMPTY_RESPONSE_ERR, empty_response_retries, EMPTY_RESPONSE_RETRY_LIMIT
-            ),
-        );
-        llm_messages.push(json!({
-            "role": "system",
-            "content": EMPTY_RESPONSE_RETRY_PROMPT
-        }));
-        *step += 1;
-        return true;
-    }
-
-    let final_message = format!(
-        "{}，自动重试 {} 次后仍为空，任务终止",
-        EMPTY_RESPONSE_ERR, EMPTY_RESPONSE_RETRY_LIMIT
-    );
-    session.push(Role::System, final_message.clone());
-    on_event(StreamEvent::Error(final_message));
-    false
+    session_engine::runner::handle_step_error(
+        session,
+        llm_messages,
+        empty_response_retries,
+        step,
+        on_event,
+        message,
+    )
 }
-
-#[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 fn handle_structured_tool_calls(
     req: &Request,
     session: &mut Session,
@@ -1380,210 +200,25 @@ fn handle_structured_tool_calls(
     is_last_step: bool,
     step_index: u32,
 ) -> bool {
-    let structured_tool_call_count = step_out.tool_calls.len();
-    let ordinary_calls = step_out
-        .tool_calls
-        .iter()
-        .filter(|call| call.kind == crate::session::llm::ToolCallKind::Function)
-        .cloned()
-        .collect::<Vec<_>>();
-    if !ordinary_calls.is_empty() {
-        llm_messages.push(utils::tool_calls_to_assistant_message(
-            &ordinary_calls,
-            &step_out.reasoning_content,
-        ));
-    }
-    todos::maybe_mark_todo_in_progress(session, ctx, tool_state);
-
-    let step_has_todowrite = step_out
-        .tool_calls
-        .iter()
-        .any(|call| crate::app::agent::tools::is_todo_write_tool_id(&call.name));
-    let non_todo_runs_before = tool_state.non_todo_tool_runs;
-    let tool_context = |tool_call_id: &str| {
-        if let Some(message_id) = req.assistant_message_id.as_deref() {
-            ctx.clone().with_tool_use_context(
-                ctx.tool_use_context()
-                    .as_ref()
-                    .clone()
-                    .with_message_id(message_id.to_string())
-                    .with_tool_call_id(tool_call_id.to_string()),
-            )
-        } else {
-            ctx.clone().with_tool_use_context(
-                ctx.tool_use_context().as_ref().clone().with_tool_call_id(tool_call_id.to_string()),
-            )
-        }
-    };
-
-    let mut call_index = 0;
-    while call_index < step_out.tool_calls.len() {
-        let call = &step_out.tool_calls[call_index];
-        if call.kind == crate::session::llm::ToolCallKind::Search {
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                use crate::session::llm::native_tools::NativeHistoryItem;
-                if !session_protocol.native_call_ids.insert(call.id.clone()) {
-                    on_event(StreamEvent::Error(
-                        "native search call_id was already executed".into(),
-                    ));
-                    call_index += 1;
-                    continue;
-                }
-                let arguments = serde_json::from_str(&call.arguments)
-                    .unwrap_or_else(|_| Value::String(call.arguments.clone()));
-                let history_call = NativeHistoryItem::ToolSearchCall(aisdk::core::ToolSearchCall {
-                    id: None,
-                    call_id: Some(call.id.clone()),
-                    status: Some("completed".into()),
-                    execution: aisdk::core::ToolSearchExecution::Client,
-                    arguments,
-                    encrypted_content: None,
-                });
-                llm_messages.push(llm_messages::native_protocol_message(history_call.clone()));
-                let result = if is_last_step || !allowed_tools.contains(&call.name) {
-                    Err(anyhow::anyhow!("native search is not exposed for this request"))
-                } else {
-                    tools_exec::run_native_search_and_record(
-                        session,
-                        call,
-                        &tool_context(&call.id),
-                        on_event,
-                        tool_state,
-                    )
-                };
-                let output = match result {
-                    Ok(output) => output,
-                    Err(error) => {
-                        on_event(StreamEvent::Error(error.to_string()));
-                        NativeHistoryItem::ToolSearchOutput(aisdk::core::ToolSearchOutput {
-                            id: None,
-                            call_id: Some(call.id.clone()),
-                            status: "failed".into(),
-                            execution: aisdk::core::ToolSearchExecution::Client,
-                            tools: Vec::new(),
-                        })
-                    }
-                };
-                tools_exec::record_native_history_pair(
-                    session,
-                    history_call,
-                    output.clone(),
-                    on_event,
-                );
-                llm_messages.push(llm_messages::native_protocol_message(output));
-            }
-            #[cfg(target_arch = "wasm32")]
-            on_event(StreamEvent::Error("native search requires a non-wasm target".into()));
-            call_index += 1;
-            continue;
-        }
-        let content = if is_last_step {
-            format!(
-                "tool unavailable: maximum tool iteration budget reached; \
-                 `{}` was not rejected by the permission policy",
-                call.name
-            )
-        } else if !allowed_tools.contains(call.name.as_str()) {
-            format!("tool denied: {}", call.name)
-        } else if tools_exec::is_agent_tool(&call.name) {
-            let group_start = call_index;
-            while call_index < step_out.tool_calls.len() {
-                let grouped_call = &step_out.tool_calls[call_index];
-                if !tools_exec::is_agent_tool(&grouped_call.name)
-                    || !allowed_tools.contains(grouped_call.name.as_str())
-                {
-                    break;
-                }
-                call_index += 1;
-            }
-            let grouped_calls = &step_out.tool_calls[group_start..call_index];
-            let planned = grouped_calls
-                .iter()
-                .map(|grouped_call| {
-                    tools_exec::AgentToolPlannedCall::new(
-                        &grouped_call.name,
-                        &grouped_call.arguments,
-                        tool_context(&grouped_call.id),
-                    )
-                })
-                .collect::<Vec<_>>();
-            let current_agent = req
-                .options
-                .get("agent")
-                .and_then(Value::as_str)
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .unwrap_or("main");
-            let max_parallel = if parallel_tools {
-                crate::app::agent::tools::agent_tool_parallel_limit_for_context(ctx, current_agent)
-            } else {
-                1
-            };
-            let contents = tools_exec::run_agent_tools_and_record(
-                session,
-                &planned,
-                max_parallel,
-                true,
-                on_event,
-                tool_state,
-            );
-            for (grouped_call, content) in grouped_calls.iter().zip(contents) {
-                llm_messages.push(utils::tool_result_to_message(&grouped_call.id, &content));
-            }
-            continue;
-        } else {
-            let output = tools_exec::run_tool_and_record_with_protocol(
-                session,
-                &call.name,
-                &call.arguments,
-                &tool_context(&call.id),
-                true,
-                on_event,
-                tool_state,
-            );
-            if let Some(output) = output {
-                session_protocol.consume_tool_output(&call.name, &output, llm_messages);
-                output.content_for_model
-            } else {
-                String::new()
-            }
-        };
-        llm_messages.push(utils::tool_result_to_message(&call.id, &content));
-        call_index += 1;
-    }
-
-    let non_todo_runs_after = tool_state.non_todo_tool_runs;
-    let ran_todo_update = non_todo_runs_after > non_todo_runs_before
-        && !step_has_todowrite
-        && todo_updates::maybe_update_todos_after_work(
-            session,
-            ctx,
-            req.model.clone(),
-            base_system,
-            allowed_tools,
-            llm_messages,
-            total_usage,
-            on_event,
-            tool_state,
-            &req.reliability,
-        );
-    tracing::debug!(
-        target: "vw_agent",
-        session_id = %req.session,
+    session_engine::runner::handle_structured_tool_calls::<AgentRunnerHost>(
+        req,
+        session,
+        ctx,
+        allowed_tools,
+        base_system,
+        llm_messages,
+        total_usage,
+        on_event,
+        tool_state,
+        &mut session_protocol.0,
+        step_out,
+        step_text_preview,
+        parallel_tools,
+        is_last_step,
         step_index,
-        tool_call_count = structured_tool_call_count,
-        step_has_todowrite,
-        non_todo_runs_before,
-        non_todo_runs_after,
-        ran_todo_update,
-        text_preview = %step_text_preview,
-        "session processor continuing after structured tool calls"
-    );
-    ran_todo_update
+    )
 }
-
-#[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 fn handle_assistant_text_branch(
     req: &Request,
     session: &mut Session,
@@ -1603,217 +238,27 @@ fn handle_assistant_text_branch(
     app_session_scope: Option<&str>,
     stop_hook_active: &mut bool,
 ) -> bool {
-    let mut ran_tool = false;
-    let session_message_count_before_tool_parse = session.messages.len();
-    let assistant_text = utils::ingest_assistant_answer(
-        session,
-        &step_out.text,
-        ctx,
-        empty_tools,
-        on_event,
-        &mut ran_tool,
-        tool_state,
-    );
-    let assistant_text_preview = response_preview(&assistant_text);
-    tracing::info!(
-        target: "vw_agent",
-        session_id = %req.session,
-        step_index,
-        ran_inline_tool = ran_tool,
-        assistant_text_preview = %assistant_text_preview,
-        raw_text_preview = %step_text_preview,
-        "session processor evaluated assistant text branch"
-    );
-
-    if ran_tool {
-        *empty_response_retries = 0;
-        llm_messages::extend_llm_messages_from_session_range(
-            llm_messages,
-            session,
-            session_message_count_before_tool_parse,
-        );
-
-        let inline_text = assistant_text.trim();
-        if !inline_text.is_empty() {
-            session.push(Role::Assistant, inline_text.to_string());
-            llm_messages.push(utils::assistant_message_with_reasoning(
-                inline_text,
-                &step_out.reasoning_content,
-            ));
-        }
-
-        tracing::info!(
-            target: "vw_agent",
-            session_id = %req.session,
-            step_index,
-            assistant_text_preview = %assistant_text_preview,
-            "session processor continuing after inline tool execution parsed from assistant text"
-        );
-        if !on_event(StreamEvent::PostToolRound { step_index }) {
-            return false;
-        }
-        *step += 1;
-        return true;
-    }
-
-    let text = assistant_text.trim();
-    if text.is_empty() {
-        return handle_empty_assistant_text(
-            req,
-            session,
-            llm_messages,
-            on_event,
-            empty_response_retries,
-            step,
-            &step_out.reasoning_content,
-            is_last_step,
-            step_index,
-        );
-    }
-
-    *empty_response_retries = 0;
-    match tools_exec::integrate_agent_tool_children(
-        ctx.tool_use_context().as_ref(),
-        llm_messages,
-        tool_state,
-        req.abort_token.as_ref(),
-        is_last_step,
-    ) {
-        Ok(true) if is_last_step => {
-            on_event(StreamEvent::Error(
-                "Maximum tool iterations reached: child results remain unintegrated".into(),
-            ));
-            return false;
-        }
-        Ok(true) => {
-            *step += 1;
-            return true;
-        }
-        Ok(false) => {}
-        Err(error) => {
-            on_event(StreamEvent::Error(error.to_string()));
-            return false;
-        }
-    }
-    session.push(Role::Assistant, text.to_string());
-    llm_messages.push(utils::assistant_message_with_reasoning(text, &step_out.reasoning_content));
-
-    if is_last_step {
-        tracing::info!(
-            target: "vw_agent",
-            session_id = %req.session,
-            step_index,
-            is_last_step = true,
-            final_text_preview = %response_preview(text),
-            "session processor accepted final-step assistant response and completed turn"
-        );
-        match prompt::block_on(crate::plugins::hook_stop::emit(
-            ctx.tool_use_context().clone(),
-            false,
-            *stop_hook_active,
-            Some(text),
-        )) {
-            Ok(outcome) if !outcome.contexts.is_empty() => {
-                on_event(StreamEvent::Error(
-                    "Stop hook continuation exceeded maximum tool iterations".into(),
-                ));
-                return false;
-            }
-            Ok(_) => {}
-            Err(error) => {
-                on_event(StreamEvent::Error(error.to_string()));
-                return false;
-            }
-        }
-        if req.abort_token.as_ref().is_some_and(|token| token.is_cancelled()) {
-            return false;
-        }
-        artifacts::persist_final_ai_call_payload(
-            req,
-            session,
-            total_usage,
-            text,
-            app_session_scope,
-            true,
-        );
-        on_event(StreamEvent::Done(total_usage.clone()));
-        return false;
-    }
-
-    tracing::info!(
-        target: "vw_agent",
-        session_id = %req.session,
-        step_index,
-        final_text_preview = %response_preview(text),
-        "session processor accepted assistant response without tool calls"
-    );
-
-    // TodoWrite 可用时强制续轮：未完成 todo 不得提前结束，避免模型“口头完成”后意外退出。
-    let enforce_todos =
-        allowed_tools.iter().any(|name| crate::app::agent::tools::is_todo_write_tool_id(name));
-    let incomplete = enforce_todos && todos::has_incomplete_todos(ctx);
-
-    if enforce_todos && incomplete {
-        let message = "任务未完成：todo 列表仍有未完成项，请继续推进直至全部完成，再输出最终答复。"
-            .to_string();
-        tracing::info!(
-            target: "vw_agent",
-            session_id = %req.session,
-            step_index,
-            "session processor continuing because enforce_todos found incomplete items"
-        );
-        session.push(Role::User, message.clone());
-        llm_messages.push(json!({ "role": "user", "content": message.clone() }));
-        if !on_event(StreamEvent::TodoContinuation) {
-            return false;
-        }
-        *step += 1;
-        return true;
-    }
-
-    tracing::info!(
-        target: "vw_agent",
-        session_id = %req.session,
-        step_index,
-        final_text_preview = %response_preview(text),
-        "session processor completed turn with assistant response"
-    );
-    match prompt::block_on(crate::plugins::hook_stop::emit(
-        ctx.tool_use_context().clone(),
-        false,
-        *stop_hook_active,
-        Some(text),
-    )) {
-        Ok(outcome) if !outcome.contexts.is_empty() => {
-            for message in outcome.contexts {
-                session.push(Role::User, message.clone());
-                llm_messages.push(json!({"role":"user", "content":message}));
-            }
-            *stop_hook_active = true;
-            *step += 1;
-            return true;
-        }
-        Ok(_) => {}
-        Err(error) => {
-            on_event(StreamEvent::Error(error.to_string()));
-            return false;
-        }
-    }
-    if req.abort_token.as_ref().is_some_and(|token| token.is_cancelled()) {
-        return false;
-    }
-    artifacts::persist_final_ai_call_payload(
+    session_engine::runner::handle_assistant_text_branch::<AgentRunnerHost>(
         req,
         session,
+        ctx,
+        allowed_tools,
+        llm_messages,
         total_usage,
-        text,
+        on_event,
+        tool_state,
+        empty_response_retries,
+        step,
+        step_out,
+        step_text_preview,
+        empty_tools,
+        is_last_step,
+        step_index,
         app_session_scope,
-        req.persist_app_session_artifacts,
-    );
-    on_event(StreamEvent::Done(total_usage.clone()));
-    false
+        stop_hook_active,
+    )
 }
-
+#[cfg(test)]
 fn handle_empty_assistant_text(
     req: &Request,
     session: &mut Session,
@@ -1825,163 +270,51 @@ fn handle_empty_assistant_text(
     is_last_step: bool,
     step_index: u32,
 ) -> bool {
-    *empty_response_retries = empty_response_retries.saturating_add(1);
-    if is_last_step {
-        tracing::info!(
-            target: "vw_agent",
-            session_id = %req.session,
-            step_index,
-            is_last_step,
-            empty_response_retries,
-            "session processor saw empty final-step assistant text"
-        );
-    } else {
-        tracing::info!(
-            target: "vw_agent",
-            session_id = %req.session,
-            step_index,
-            is_last_step,
-            empty_response_retries,
-            "session processor saw empty non-final assistant text"
-        );
-    }
-
-    if *empty_response_retries > EMPTY_RESPONSE_RETRY_LIMIT {
-        let final_message = format!(
-            "{}，自动重试 {} 次后仍为空，任务终止",
-            EMPTY_RESPONSE_ERR, EMPTY_RESPONSE_RETRY_LIMIT
-        );
-        session.push(Role::System, final_message.clone());
-        on_event(StreamEvent::Error(final_message));
-        return false;
-    }
-
-    session.push(
-        Role::System,
-        format!(
-            "{}，自动重试中（{}/{}）",
-            EMPTY_RESPONSE_ERR, empty_response_retries, EMPTY_RESPONSE_RETRY_LIMIT
-        ),
-    );
-    llm_messages.push(utils::assistant_message_with_reasoning("", reasoning_content));
-    llm_messages.push(json!({
-        "role": "system",
-        "content": EMPTY_RESPONSE_RETRY_PROMPT
-    }));
-    *step += 1;
-    true
+    session_engine::runner::handle_empty_assistant_text::<AgentRunnerHost>(
+        req,
+        session,
+        llm_messages,
+        on_event,
+        empty_response_retries,
+        step,
+        reasoning_content,
+        is_last_step,
+        step_index,
+    )
 }
-
+#[cfg(test)]
 fn build_image_turn_context_for_request(
     req: &Request,
     session: &Session,
     config: &crate::config::Config,
     on_event: &mut impl FnMut(StreamEvent) -> bool,
 ) -> Result<Option<crate::app::agent::multimodal::context::ImageTurnContext>, String> {
-    use crate::app::agent::multimodal::DISABLE_OCR_OPTION;
-    use crate::app::agent::multimodal::assets::{ImageAssetScope, ImageAssetStore};
-    use crate::app::agent::multimodal::context::ImageTurnContext;
-    use crate::app::agent::multimodal::ocr::SessionImageTextExtractor;
-    use crate::app::agent::multimodal::{contains_image_markers, parse_image_markers};
-    use model_types::ChatMessage;
-
-    // OCR itself is routed through the local gateway. Its nested request still
-    // contains the image marker, so it must reach the configured vision model
-    // without entering this preprocessing path again.
-    if req.options.get(DISABLE_OCR_OPTION).and_then(Value::as_bool) == Some(true) {
-        return Ok(None);
-    }
-
-    let resume_history_only =
-        req.options.get("desktop_resume_history_only").and_then(Value::as_bool).unwrap_or(false);
-
-    let history: Vec<ChatMessage> = session
-        .messages
-        .iter()
-        .filter(|message| {
-            matches!(message.role, Role::User | Role::Assistant | Role::System | Role::Developer)
-        })
-        .map(|message| match message.role {
-            Role::User => ChatMessage::user(&message.content),
-            Role::Assistant => ChatMessage::assistant(&message.content),
-            Role::System => ChatMessage::system(&message.content),
-            Role::Developer => {
-                ChatMessage { role: "developer".into(), content: message.content.clone() }
-            }
-            Role::Tool => ChatMessage::assistant(&message.content),
-        })
-        .collect();
-
-    if !contains_image_markers(&history) && parse_image_markers(&req.query).1.is_empty() {
-        return Ok(None);
-    }
-
-    // ACP 在协商后的 prompt 能力边界校验图片，不查询普通供应商模型目录。
-    if is_acp_request(&req.options) {
-        return Ok(None);
-    }
-    let extractor = SessionImageTextExtractor::new();
-    let model_ref = req.model.as_deref().ok_or("图片请求缺少已选择的模型")?;
-    let Some(multimodal_config) =
-        prompt::block_on(crate::app::agent::multimodal::ocr::image_preprocessing_config(
-            &config.multimodal,
-            model_ref,
-            &extractor,
-        ))
-        .map_err(|error| format!("图片处理配置无效：{error}"))?
-    else {
-        return Ok(None);
-    };
-    if !on_event(StreamEvent::Delta("<think>正在识别图片，请稍候…</think>\n\n".to_string()))
-    {
-        return Err("图片识别已取消".to_string());
-    }
-
-    // 当前轮用户内容：非 resume 时取最后一条 user；resume 时全部按历史处理。
-    let (history_messages, current_user_content) = if resume_history_only {
-        (history, None)
-    } else {
-        let mut prior = history;
-        let current = prior
-            .iter()
-            .rposition(|message| message.role == "user")
-            .map(|index| prior.remove(index).content);
-        (prior, current)
-    };
-
-    let scope =
-        ImageAssetScope::from_request_context(req.app_session_scope.as_deref(), &req.session)
-            .map_err(|error| format!("invalid image asset scope: {error}"))?;
-    let store = ImageAssetStore::from_global_paths();
-    match prompt::block_on(ImageTurnContext::build(
-        &store,
-        scope,
-        &history_messages,
-        current_user_content.as_deref(),
-        resume_history_only,
-        &multimodal_config,
-        req.model.as_deref(),
-        &extractor,
-    )) {
-        Ok(ctx) if !ctx.images.is_empty() => Ok(Some(ctx)),
-        Ok(_) => Ok(None),
-        Err(error) => Err(format!("image OCR preprocessing failed: {error}")),
-    }
+    session_engine::runner::build_image_turn_context_for_request::<AgentRunnerHost>(
+        req, session, config, on_event,
+    )
 }
-
 #[cfg(test)]
-#[path = "runner_tests.rs"]
-mod runner_tests;
-
-/// The synchronous session runner exits through many error and cancellation branches.
-struct InterruptGuard(std::sync::Arc<ToolUseContext>);
-impl Drop for InterruptGuard {
-    fn drop(&mut self) {
-        if self.0.abort_token().is_some_and(|token| token.is_cancelled())
-            && prompt::block_on(crate::plugins::hook_stop::emit(self.0.clone(), true, false, None))
-                .is_err()
-        {
-            tracing::warn!("interrupt hook failed");
-        }
-    }
+fn compact_transient_history_for_request(
+    session_id: &str,
+    checkpoint_source: &[Value],
+    llm_messages: &mut Vec<Value>,
+    model: &str,
+    reliability: &crate::config::ReliabilityConfig,
+    on_event: &mut impl FnMut(StreamEvent) -> bool,
+    cancellation: Option<&tokio_util::sync::CancellationToken>,
+    model_limit: &crate::provider::provider::ModelLimit,
+) -> Result<bool, String> {
+    session_engine::runner_protocol::compact_transient_history_for_request::<AgentRunnerHost>(
+        session_id,
+        checkpoint_source,
+        llm_messages,
+        model,
+        reliability,
+        on_event,
+        cancellation,
+        model_limit,
+    )
 }
+#[cfg(test)]
+#[path = "../../../../libs/session-engine/tests/host_suites/runner_tests.rs"]
+mod runner_tests;

@@ -42,6 +42,7 @@ mod prefetch;
 mod prompting;
 mod recovery;
 mod runner;
+mod runner_host;
 mod todo_updates;
 mod todos;
 mod tools_exec;

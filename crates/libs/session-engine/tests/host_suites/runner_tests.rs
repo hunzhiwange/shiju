@@ -2686,12 +2686,12 @@ fn codex_plugin_compat_t10_compaction_restores_qualified_invocation_arguments() 
     std::fs::create_dir_all(source.join("skills/review")).unwrap();
     std::fs::write(
         source.join(".codex-plugin/plugin.json"),
-        include_bytes!("../../../testdata/plugin_compat/t10/plugin.json"),
+        include_bytes!("../../../../vw-agent/testdata/plugin_compat/t10/plugin.json"),
     )
     .unwrap();
     std::fs::write(
         source.join("skills/review/SKILL.md"),
-        include_bytes!("../../../testdata/plugin_compat/t10/SKILL.md"),
+        include_bytes!("../../../../vw-agent/testdata/plugin_compat/t10/SKILL.md"),
     )
     .unwrap();
     for market in ["first", "second"] {
@@ -3223,7 +3223,7 @@ fn dynamic_tools_processor_replacement_revokes_loaded_tool() {
     });
 }
 
-#[path = "../../../../libs/session-engine/tests/host_suites/mcp_catalog_refresh_tests.rs"]
+#[path = "mcp_catalog_refresh_tests.rs"]
 mod mcp_catalog_refresh_tests;
 
 fn native_desktop_stream(id: &str, query: &str) {

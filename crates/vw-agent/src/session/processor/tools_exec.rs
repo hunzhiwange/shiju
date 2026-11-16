@@ -22,7 +22,7 @@ use super::utils::{
     compact_tool_output, compact_tool_output_for_ui, maybe_inject_file_link, now_ms,
     sanitize_tool_input, sanitize_tool_input_for_ui, tool_fingerprint,
 };
-use crate::app::agent::tools::traits::ToolExtraMessage;
+// Tool protocol output is owned by session-engine.
 use crate::app::agent::tools::{self, ToolCallError, ToolRuntimeContext};
 use crate::app::agent::tools::{is_todo_read_tool_id, is_todo_write_tool_id};
 use crate::session::child_agent::coordinator::global_child_agent_coordinator;
@@ -48,13 +48,7 @@ pub(crate) fn with_request_tool_catalog(
 
 const FULL_SESSION_OUTPUT_TOOLS: &[&str] = &["apply_patch", "write", "file_write", "file_edit"];
 
-/// 工具执行后仅供下一轮模型请求消费的协议数据。
-#[derive(Debug, Clone, Default)]
-pub(crate) struct ToolProtocolOutput {
-    pub(crate) success: bool,
-    pub(crate) content_for_model: String,
-    pub(crate) extra_messages: Vec<ToolExtraMessage>,
-}
+pub(crate) use session_engine::runner_types::ToolProtocolOutput;
 
 fn string_value(value: &str) -> serde_json::Value {
     serde_json::Value::String(value.to_string())
@@ -605,38 +599,8 @@ fn agent_tool_snapshot_payload(
 }
 
 /// Wait at the final-answer boundary, then deliver each unconsumed result to the model.
-pub(crate) fn integrate_agent_tool_children(
-    context: &tools::ToolUseContext,
-    messages: &mut Vec<serde_json::Value>,
-    tool_state: &super::ToolSessionState,
-    cancellation: Option<&tokio_util::sync::CancellationToken>,
-    budget_exhausted: bool,
-) -> anyhow::Result<bool> {
-    let coordinator = global_child_agent_coordinator();
-    loop {
-        if cancellation.is_some_and(|token| token.is_cancelled()) {
-            coordinator
-                .cancel_descendants(context.session(), &tool_state.agent_background_children)?;
-            anyhow::bail!("执行已取消：子任务结果尚未整合");
-        }
-        if budget_exhausted
-            && coordinator
-                .descendant_snapshots(context.session(), &[])?
-                .iter()
-                .any(|task| !task.state.is_terminal())
-        {
-            anyhow::bail!("Maximum tool iterations reached: child tasks remain unfinished");
-        }
-        let outcome = coordinator.wait_for_descendants_blocking(
-            context.session(),
-            &[],
-            Duration::from_millis(100),
-        )?;
-        if !outcome.timed_out {
-            break;
-        }
-    }
-    coordinator.deliver_model_events(context, messages)
+pub(crate) fn integrate_agent_tool_children(context: &tools::ToolUseContext, messages: &mut Vec<serde_json::Value>, tool_state: &super::ToolSessionState, cancellation: Option<&tokio_util::sync::CancellationToken>, budget_exhausted: bool) -> anyhow::Result<bool> {
+ session_engine::runner::integrate_agent_tool_children::<super::runner_host::AgentRunnerHost>(context, messages, tool_state, cancellation, budget_exhausted)
 }
 
 #[cfg(test)]

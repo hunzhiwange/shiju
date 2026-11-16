@@ -3,15 +3,7 @@
 use std::path::{Path, PathBuf};
 
 /// 执行 is_docs_request 操作，并返回调用方需要的结果。
-pub(crate) fn is_docs_request(query: &str) -> bool {
-    let q = query.to_lowercase();
-    if !q.contains("docs") {
-        return false;
-    }
-    let list = q.contains("文件列表") || q.contains("文件 列表") || q.contains("列表");
-    let read = q.contains("读取") || q.contains("查看") || q.contains("列出");
-    list && read
-}
+pub(crate) fn is_docs_request(query: &str) -> bool { session_engine::runner::should_handle_docs_request_locally(query) }
 
 /// 执行 list_docs 操作，并返回调用方需要的结果。
 pub(crate) fn list_docs(root: Option<&String>) -> Result<Vec<String>, String> {

@@ -9,7 +9,7 @@ pub(crate) use session_engine::llm_runner::{LlmStep, is_prompt_too_long_error, i
 use session_engine::llm_runner::{collect_llm_step_from_stream, emit_stream_event, is_acp_request, llm_step_retry_allowed, llm_error_message, is_acp_retryable_error, provider_retry_backoff_ms, STREAM_CONSUMER_STOPPED_ERR};
 #[cfg(test)]
 use super::types::{ToolCallStatus, ToolEventKind};
-struct AgentLlmStreamHost;
+pub(super) struct AgentLlmStreamHost;
 impl session_engine::llm_runner::LlmStreamHost for AgentLlmStreamHost {
     fn spawn(session_id: String, messages: Vec<Value>, system: Vec<String>, model: Option<String>, options: Value, tools: std::collections::HashMap<String, ToolSpec>, abort_rx: tokio::sync::watch::Receiver<bool>, tx: std::sync::mpsc::Sender<llm::StreamEvent>) -> std::thread::JoinHandle<()> {
         spawn_llm_stream_thread(session_id, messages, system, model, options, tools, abort_rx, tx)

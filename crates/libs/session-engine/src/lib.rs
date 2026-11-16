@@ -37,5 +37,13 @@ pub mod tool_parsing;
 pub mod prefetch;
 pub mod prompting;
 pub mod runner_protocol;
+pub mod runner;
+pub mod runner_host;
+pub mod runner_types;
+pub mod runner_messages;
+pub mod runner_ingest;
+pub mod runner_todos;
+pub mod runner_todo_updates;
+pub mod turn_policy;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native_call_collector;

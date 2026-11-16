@@ -98,19 +98,6 @@ async fn codex_plugin_compat_t42_emits_events_around_compaction() {
     }
 }
 #[tokio::test]
-async fn codex_plugin_compat_t42_preserves_isolation() {
-    let root = tempfile::tempdir().unwrap();
-    let state = tempfile::tempdir().unwrap();
-    let ctx = fixture(root.path(), state.path(), "owner");
-    crate::tools::scope_tool_use_context(ctx.clone(), async {
-        assert!(super::hook_compact::emit("other", "turn", "fixture", false, false).await.is_err());
-    })
-    .await;
-    assert!(!state.path().join("events").exists());
-    assert!(ctx.take_hook_contexts().is_empty());
-}
-
-#[tokio::test]
 async fn codex_plugin_compat_t42_applies_stop_at_the_correct_boundary() {
     for post in [false, true] {
         let root = tempfile::tempdir().unwrap();

@@ -35,48 +35,6 @@ fn fixture_output(
     )
 }
 #[tokio::test]
-async fn codex_plugin_compat_t43_binds_events_to_child_session() {
-    let root = tempfile::tempdir().unwrap();
-    let state = tempfile::tempdir().unwrap();
-    let ctx = fixture(root.path(), state.path(), "parent");
-    emit(Some(ctx.clone()), "parent", "child", "reviewer", None, false).await.unwrap();
-    emit(Some(ctx), "parent", "child", "reviewer", Some("handoff"), true).await.unwrap();
-    let events = std::fs::read_to_string(state.path().join("events"))
-        .expect("child lifecycle must reach plugin");
-    let events: Vec<Value> = events.lines().map(|s| serde_json::from_str(s).unwrap()).collect();
-    assert_eq!(events.len(), 2);
-    assert_eq!(events[0]["hook_event_name"], "SubagentStart");
-    assert_eq!(events[1]["hook_event_name"], "SubagentStop");
-    for event in &events {
-        assert_eq!(event["agent_id"], "child");
-        assert_eq!(event["session_id"], "parent");
-        assert_eq!(event["agent_type"], "reviewer");
-    }
-    assert_eq!(events[1]["last_assistant_message"], "handoff");
-    assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
-}
-
-#[tokio::test]
-async fn codex_plugin_compat_t43_preserves_isolation() {
-    let root = tempfile::tempdir().unwrap();
-    let state = tempfile::tempdir().unwrap();
-    let ctx = fixture(root.path(), state.path(), "parent");
-    assert!(emit(Some(ctx.clone()), "other", "child", "reviewer", None, false).await.is_err());
-    assert!(!state.path().join("events").exists());
-    let (a, b) = tokio::join!(
-        emit(Some(ctx.clone()), "parent", "child-a", "reviewer", None, false),
-        emit(Some(ctx.clone()), "parent", "child-b", "reviewer", None, false)
-    );
-    a.unwrap();
-    b.unwrap();
-    let events = std::fs::read_to_string(state.path().join("events"))
-        .expect("concurrent children must reach plugin");
-    assert!(events.contains("child-a"));
-    assert!(events.contains("child-b"));
-    assert!(ctx.take_hook_contexts().is_empty());
-}
-
-#[tokio::test]
 async fn codex_plugin_compat_t43_persistent_success_failure_and_cancellation() {
     use crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected;
     use crate::session::{

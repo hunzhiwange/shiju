@@ -123,14 +123,10 @@ pub(crate) mod hook_command;
 pub(crate) mod hook_async;
 
 pub(crate) mod hook_pre_tool;
-#[cfg(test)]
-mod t36_tests;
 
 pub(crate) mod hook_permission;
 
 pub(crate) mod hook_post_tool;
-#[cfg(test)]
-mod t38_tests;
 
 pub(crate) mod hook_prompt;
 

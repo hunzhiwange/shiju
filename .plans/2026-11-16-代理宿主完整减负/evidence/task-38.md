@@ -177,3 +177,21 @@
 `python3 scripts/cargo_slot.py cargo test -p agent-plugins --lib host_migration_38_tests -- --test-threads=1`：Unix 预期 34 条（非 Unix 受原 cfg(unix) 限制），必须 ran>0、failed=0。
 宿主未来逐个使用 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib plugins::compat::<上表保留模块>::<上表原名> -- --exact --test-threads=1`；ignored 窗口 fixture 由原生 harness 显式启动。迁出旧完整名需使用宿主 --list 证明消失，不能把零测试称为通过。
 静态核对：测试名逐条存在；每个迁移文件 assert 文本数量保持；include_str fixture 已复制到接收库自身 testdata；无 path/include 挂载宿主源码。未声称编译收益、行为通过或运行测试数。
+
+## 深度迁移补充（2026-11-16）
+本节覆盖上文 t36/t38、t42隔离、t43事件和 t57发布选择保留说明。读取 final.md/remaining-host.json 的任务38残留1658行后，复查真实入口，将9条完整用例继续迁入 agent-plugins::host_migration_38_tests。
+
+- t36: `codex_plugin_compat_t36_blocks_tool_before_side_effect` → 领域同名。
+
+- t38: `codex_plugin_compat_t38_preserves_isolation`, `codex_plugin_compat_t38_delivers_result_context_once`, `codex_plugin_compat_t38_captures_failed_large_result` → 领域同名。
+
+- t42: `codex_plugin_compat_t42_preserves_isolation` → 领域同名。
+
+- t43: `codex_plugin_compat_t43_binds_events_to_child_session`, `codex_plugin_compat_t43_preserves_isolation` → 领域同名。
+
+- t57: `codex_plugin_compat_t57_switches_version_at_turn_boundary`, `codex_plugin_compat_t57_defers_new_store_until_next_turn` → 领域同名。
+
+t36/t38 使用 tool-context::executor::execute_tool_from_registry 原工厂、tool-types::Tool 原接口；Host 的前后置和权限方法直接委托真实 HookRunner，未重写算法。真实文件副作用、拒绝、输入改写、失败大结果和上下文一次消费断言全部保留。t43 两条事件测试调用 plugin-hooks::hook_subagent::emit_boundary 原入口；真实 child_agent 持久化/成功失败取消与继续执行仍在宿主。t42 仅迁会话隔离，真实 compaction/checkpoint 两条保留。t57 两条发布锁/新增目录选择使用真实 PluginTurnSnapshot::capture/selection 和 upgrade::activate_plugin_upgrade；直接保留 snapshot data 克隆以证明数据不持有生命周期锁。配置 runner 端口为无 hooks，关闭连接端口为空因为此测试未打开 MCP；真实 MCP 进程退休、tenant、required hooks、异步关闭仍在宿主原测试。此两条不再证明 ToolUseContext 装配，由保留的其余 t57 覆盖。
+
+33个原来源目前剩余 1334 行；相对2688行净减 1354 行（50.4%）。本轮生产算法迁移仍为0，新增仅领域测试与窄端口接线；共享 fixture 不计生产收益。未达到70%，保留大头为真实网关/窗口、child_agent、compaction和跨领域turn/MCP集成，逐文件原保留原因除本节覆盖项仍有效。
+未来 agent-plugins --lib host_migration_38_tests 过滤：原34+新增9=43条（Unix，其他平台保留原cfg限制），必须非零；所有编译和行为检查未运行。静态检查原名称/断言、入口签名和差异，未运行Cargo、构建或测试。

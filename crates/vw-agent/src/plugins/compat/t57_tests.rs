@@ -21,57 +21,6 @@ fn options(c: &Config) -> PluginDiscoveryOptions {
     super::super::mcp::plugin_mcp_discovery_options(c)
 }
 #[test]
-fn codex_plugin_compat_t57_switches_version_at_turn_boundary() {
-    let temp = tempfile::tempdir().unwrap();
-    let c = config(temp.path());
-    let store = c.workspace_dir.join("plugins");
-    let source = temp.path().join("original");
-    package(&source, "1");
-    install_plugin_from_marketplace(source.to_str().unwrap(), &store, "alpha").unwrap();
-    package(&source, "2");
-    let prepared =
-        prepare_plugin_upgrade(source.to_str().unwrap(), &store, "fixture@alpha").unwrap();
-    let turn = PluginTurnSnapshot::capture(&c).unwrap();
-    let context = Arc::new(
-        ToolUseContext::new("turn", Some(c.workspace_dir.to_string_lossy().into_owned()))
-            .with_plugin_snapshot(turn.data.clone()),
-    );
-    let (started_tx, started_rx) = std::sync::mpsc::channel();
-    let (done_tx, done_rx) = std::sync::mpsc::channel();
-    let worker = std::thread::spawn(move || {
-        started_tx.send(()).unwrap();
-        let r = activate_plugin_upgrade(prepared);
-        done_tx.send(r.map(|_| ())).unwrap();
-    });
-    started_rx.recv().unwrap();
-    let waiting = done_rx.recv_timeout(Duration::from_millis(150));
-    let discovery = crate::tools::scope_tool_use_context_sync(context.clone(), || {
-        discover_for_runtime(&options(&c))
-    })
-    .unwrap();
-    let old = load_plugin_manifest(&store.join("fixture@alpha")).unwrap().version;
-    drop(turn);
-    assert!(waiting.is_err(), "upgrade must wait for active turn instead of replacing its package");
-    assert_eq!(old.as_deref(), Some("1"));
-    assert_eq!(discovery.enabled[0].manifest.version.as_deref(), Some("1"));
-    done_rx.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
-    worker.join().unwrap();
-    // Persistent MCP/context clones contain data only; they must not keep a lifecycle lease.
-    drop(context);
-    let next = PluginTurnSnapshot::capture(&c).unwrap();
-    let next_context =
-        Arc::new(ToolUseContext::new("next", None).with_plugin_snapshot(next.data.clone()));
-    let d = crate::tools::scope_tool_use_context_sync(next_context, || {
-        discover_for_runtime(&options(&c))
-    })
-    .unwrap();
-    assert_eq!(d.enabled[0].manifest.version.as_deref(), Some("2"));
-    assert_eq!(
-        fs::read_to_string(source.join("skills/review/SKILL.md")).unwrap(),
-        "---\nname: review\ndescription: Review fixture\n---\nOriginal fixture body\n"
-    );
-}
-#[test]
 fn codex_plugin_compat_t57_rejects_invalid_input() {
     let root = tempfile::tempdir().unwrap();
     let mut c = config(root.path());
@@ -225,39 +174,6 @@ async fn codex_plugin_compat_t57_joins_cancelled_work_before_releasing_turn() {
     );
     assert!(hooks.is_closed());
     assert!(hooks.schedule(async {}).is_err());
-}
-#[test]
-fn codex_plugin_compat_t57_defers_new_store_until_next_turn() {
-    let root = tempfile::tempdir().unwrap();
-    let c = config(root.path());
-    let turn = PluginTurnSnapshot::capture(&c).unwrap();
-    let context =
-        Arc::new(ToolUseContext::new("owner", None).with_plugin_snapshot(turn.data.clone()));
-    let source = root.path().join("source");
-    package(&source, "1");
-    install_plugin_from_marketplace(
-        source.to_str().unwrap(),
-        &c.workspace_dir.join("plugins"),
-        "alpha",
-    )
-    .unwrap();
-    assert!(
-        crate::tools::scope_tool_use_context_sync(context, || discover_for_runtime(&options(&c)))
-            .unwrap()
-            .installed
-            .is_empty()
-    );
-    drop(turn);
-    let next = PluginTurnSnapshot::capture(&c).unwrap();
-    let context =
-        Arc::new(ToolUseContext::new("next", None).with_plugin_snapshot(next.data.clone()));
-    assert_eq!(
-        crate::tools::scope_tool_use_context_sync(context, || discover_for_runtime(&options(&c)))
-            .unwrap()
-            .installed
-            .len(),
-        1
-    );
 }
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

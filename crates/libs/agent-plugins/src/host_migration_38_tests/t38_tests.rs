@@ -1,11 +1,11 @@
 use serde_json::json;
 #[test]
 fn codex_plugin_compat_t38_preserves_isolation() {
-    assert!(crate::tools::ToolUseContext::default().take_hook_contexts().is_empty());
+    assert!(super::tools::ToolUseContext::default().take_hook_contexts().is_empty());
 }
 struct Marker(std::path::PathBuf);
 #[async_trait::async_trait]
-impl crate::tools::Tool for Marker {
+impl super::tools::Tool for Marker {
     fn name(&self) -> &str {
         "marker"
     }
@@ -15,29 +15,29 @@ impl crate::tools::Tool for Marker {
     fn parameters_schema(&self) -> serde_json::Value {
         json!({"type":"object"})
     }
-    async fn execute(&self, args: serde_json::Value) -> anyhow::Result<crate::tools::ToolResult> {
+    async fn execute(&self, args: serde_json::Value) -> anyhow::Result<super::tools::ToolResult> {
         std::fs::write(&self.0, args.to_string())?;
-        Ok(crate::tools::ToolResult { success: true, output: "written".into(), error: None })
+        Ok(super::tools::ToolResult { success: true, output: "written".into(), error: None })
     }
 }
 
 #[cfg(unix)]
 #[tokio::test]
 async fn codex_plugin_compat_t38_delivers_result_context_once() {
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
-    use crate::tools::{ToolUseContext, execute_tool_from_registry};
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::tools::{ToolUseContext, execute_tool_from_registry};
     use std::sync::Arc;
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let marker = state.path().join("marker");
-    let tools: Vec<Box<dyn crate::tools::Tool>> = vec![Box::new(Marker(marker.clone()))];
+    let tools: Vec<Box<dyn super::tools::Tool>> = vec![Box::new(Marker(marker.clone()))];
     for decision in ["allow", "deny"] {
         let output = json!({"hookSpecificOutput":{"hookEventName":"PostToolUse","permissionDecision":decision,"permissionDecisionReason":"fixture denied","updatedInput":{"value":"rewritten"},"additionalContext":"fixture context"}});
         let manifest: CodexHooksManifest = serde_json::from_value(json!({"hooks":{"PostToolUse":[{"hooks":[{"type":"command","command":format!("cat >/dev/null; printf '%s' '{}'", output)}]}]}})).unwrap();
         let mut trust =
             PluginHookTrustStore::load_or_default(&state.path().join("trust.json")).unwrap();
         trust.trust_codex_hooks("fixture", root.path(), &manifest).unwrap();
-        let mut runner = crate::hooks::new_hook_runner();
+        let mut runner = super::hooks::new_hook_runner();
         for handler in codex_handlers("fixture", root.path(), &manifest, &trust).unwrap() {
             runner.register(handler);
         }
@@ -74,8 +74,8 @@ async fn codex_plugin_compat_t38_delivers_result_context_once() {
 #[cfg(unix)]
 #[tokio::test]
 async fn codex_plugin_compat_t38_captures_failed_large_result() {
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
-    use crate::tools::{ToolResult, ToolUseContext, scope_tool_use_context};
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::tools::{ToolResult, ToolUseContext, scope_tool_use_context};
     let package = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let manifest: CodexHooksManifest = serde_json::from_value(json!({"hooks":{"PostToolUse":[{"hooks":[{"type":"command","command":"cat > \"$PLUGIN_DATA/input.json\"; printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"captured\"}}'"}]}]}})).unwrap();

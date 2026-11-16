@@ -3,6 +3,8 @@ mod host;
 mod tools {
  pub type ToolUseContext = tool_context::context::ToolUseContext<super::host::Host>;
  pub use tool_context::context::scope_tool_use_context;
+ pub use tool_types::{Tool, ToolResult};
+ pub use tool_context::executor::execute_tool_from_registry;
 }
 mod hooks {
  pub use agent_hooks::{HookResult, HookRunner};
@@ -45,3 +47,22 @@ mod t40_tests;
 mod t41_tests;
 mod t44_tests;
 mod platform_tests;
+
+mod t36_tests;
+
+mod t38_tests;
+
+mod t43_tests;
+
+mod hook_subagent {
+ pub async fn emit(context: Option<std::sync::Arc<super::tools::ToolUseContext>>, parent: &str, child: &str, agent: &str, output: Option<&str>, stop: bool) -> anyhow::Result<Vec<String>> {
+  plugin_hooks::hook_subagent::emit_boundary::<super::host::Host>(context, parent, child, agent, output, stop.then_some(false)).await
+ }
+}
+mod hook_compact {
+ pub async fn emit(session: &str, turn: &str, model: &str, auto: bool, post: bool) -> anyhow::Result<()> { plugin_hooks::hook_compact::emit::<super::host::Host>(session, turn, model, auto, post).await }
+}
+
+mod t42_tests;
+
+mod t57_tests;

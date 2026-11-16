@@ -596,3 +596,7 @@ pub struct Host {
     pub verified_release: fn(&str) -> Option<&'static str>,
     pub capabilities: fn(&str) -> Vec<vw_api_acp_model::acp_model_source::AcpModelSourceCapability>,
 }
+
+#[cfg(test)]
+#[path = "host_migration_20_tests/controls.rs"]
+mod host_migration_20_tests;

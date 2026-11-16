@@ -37,3 +37,6 @@ pub fn is_acp_session_changed_error(err: &Error) -> bool {
         _ => false,
     }
 }
+
+#[cfg(test)]
+mod host_migration_20_tests;

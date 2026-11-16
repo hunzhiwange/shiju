@@ -2,8 +2,16 @@
 
 use std::sync::Arc;
 
-use super::*;
-use crate::app::agent::session::message;
+use super::super::*;
+use super::ParsedAcpOptions;
+use super::super::options::AcpReplayStrategy;
+use super::super::cache::CachedAcpClient;
+use super::super::session::CachedAcpClientEntry;
+use acp_client::AcpClient;
+use acp_types::AcpJsonRpcMessage;
+use parking_lot::Mutex;
+use tokio::sync::mpsc;
+use message_types as message;
 
 fn unknown_error(message: &str) -> Error {
     Error::Api(message::AssistantError::Unknown { message: message.to_string() })

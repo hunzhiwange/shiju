@@ -53,7 +53,5 @@ pub(crate) async fn do_stream_request_acp(model: &provider::Model, info: &provid
 }
 pub(super) use llm_runtime::acp::request::validate_session_model;
 #[cfg(test)]
-use llm_runtime::acp::request::apply_default_mode;
-#[cfg(test)]
 #[path = "request_tests.rs"]
 mod request_tests;

@@ -1,4 +1,8 @@
-use super::*;
+use super::super::options::AcpReplayStrategy;
+use serde_json::json;
+fn build_request_content(messages: &serde_json::Value, fresh: bool, strategy: AcpReplayStrategy, recent: usize) -> Result<acp_types::PromptInput, String> {
+    super::super::content::build_request_content(messages, fresh, strategy, recent, super::super::replay::build_request_prompt)
+}
 use agent_client_protocol::ContentBlock;
 
 #[test]

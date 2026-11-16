@@ -1,3 +1,6 @@
+//! 宿主契约：滚动/测量 widget Task 与兼容字段、流式事件到缓存和保存任务的映射，
+//! 以及延迟消息的会话/代际校验；纯载荷和跟随期限规则已迁入 desktop-session。
+
 //! 验证聊天模块键值编码、会话操作类型和自动滚动节流行为。
 //!
 //! 自动滚动测试使用明确时钟窗口，确保跟随模式、节流期限和兼容字段同步更新。
@@ -5,30 +8,6 @@
 #[test]
 fn tests_module_is_wired() {
     assert!(module_path!().ends_with("tests"));
-}
-
-#[test]
-fn clipboard_payload_variants_are_constructible() {
-    let payloads = [
-        super::ClipboardPastePayload::Text("text".to_string()),
-        super::ClipboardPastePayload::AttachmentPath("/tmp/a.png".to_string()),
-        super::ClipboardPastePayload::Empty,
-        super::ClipboardPastePayload::Error("boom".to_string()),
-    ];
-
-    assert_eq!(payloads.len(), 4);
-}
-
-#[test]
-fn arm_autoscroll_hold_enables_follow_mode_and_extends_deadline() {
-    let (mut app, _task) = crate::app::App::new();
-    app.chat_auto_scroll = false;
-    app.chat_autoscroll_hold_until_ms = 0;
-
-    super::arm_autoscroll_hold(&mut app);
-
-    assert!(app.chat_auto_scroll);
-    assert!(app.chat_autoscroll_hold_until_ms >= super::AUTOSCROLL_HOLD_MS);
 }
 
 #[test]

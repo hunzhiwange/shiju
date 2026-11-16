@@ -1,3 +1,6 @@
+//! 宿主契约：会话偏好与全局字段同步、缓存/历史恢复、队列到 AgentRequest 的投影、
+//! 异步会话身份校验和网关任务接线；这些断言跨越会话状态与 App 调度边界。
+
 #![allow(unused_must_use)]
 #[test]
 fn session_tests_module_is_wired() {

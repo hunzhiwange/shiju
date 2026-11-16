@@ -30,7 +30,3 @@ pub fn context_input_text(project_path: Option<&str>, input: ContextInput<'_>) -
         ContextInput::Append(text) => (!text.is_empty()).then(|| text.to_owned()),
     }
 }
-
-#[cfg(test)]
-#[path = "context_tests.rs"]
-mod context_tests;

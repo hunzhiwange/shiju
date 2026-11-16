@@ -47,3 +47,6 @@ pub mod agent_stream_events;
 
 #[cfg(test)]
 mod desktop_split_02_tests;
+
+#[cfg(test)]
+mod desktop_split_23_tests;

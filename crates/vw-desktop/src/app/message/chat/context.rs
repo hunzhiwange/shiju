@@ -7,11 +7,6 @@ use crate::app::{App, Message};
 use iced::Task;
 use desktop_session::message::chat::context::{ContextInput, context_input_text};
 
-#[cfg(test)]
-fn mention_display_path(app: &App, path: &str) -> String {
-    desktop_session::message::chat::context::mention_display_path(app.project_path.as_deref(), path)
-}
-
 /// 公开函数，执行 update 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {

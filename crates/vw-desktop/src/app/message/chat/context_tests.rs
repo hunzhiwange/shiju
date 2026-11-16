@@ -1,3 +1,6 @@
+//! 宿主契约：Append/Insert 消息将局部文本投影至活动 runtime 与兼容编辑器，
+//! 并关闭预览菜单或接线 Editor Copy/clipboard Task；路径规则在 desktop_split_23_tests。
+
 //! 验证聊天上下文路径显示、文本追加和预览编辑状态同步。
 //!
 //! 预览夹具区分项目内外路径和活动会话，文本追加不得覆盖旧编辑器的独立状态。
@@ -36,30 +39,6 @@ fn preview_tab(path: &str, content: &str) -> PreviewTab {
 #[test]
 fn context_tests_module_is_wired() {
     assert!(module_path!().ends_with("context_tests"));
-}
-
-#[test]
-fn mention_display_path_makes_project_paths_relative() {
-    let (mut app, _) = crate::app::App::new();
-    app.project_path = Some("/workspace".to_string());
-
-    assert_eq!(super::mention_display_path(&app, "/workspace/src/main.rs"), "src/main.rs");
-    assert_eq!(super::mention_display_path(&app, "/workspace"), "");
-}
-
-#[test]
-fn mention_display_path_preserves_outside_path_and_normalizes_separators() {
-    let (mut app, _) = crate::app::App::new();
-    app.project_path = Some("/workspace".to_string());
-
-    assert_eq!(super::mention_display_path(&app, r"C:\repo\src\main.rs"), "C:/repo/src/main.rs");
-}
-
-#[test]
-fn mention_display_path_without_project_normalizes_separators() {
-    let (app, _) = crate::app::App::new();
-
-    assert_eq!(super::mention_display_path(&app, r"src\nested\lib.rs"), "src/nested/lib.rs");
 }
 
 #[test]

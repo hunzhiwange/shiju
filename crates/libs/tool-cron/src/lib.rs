@@ -16,3 +16,6 @@ pub use cron_update::CronUpdateTool;
 
 #[cfg(test)]
 mod host_migration_33_tests;
+
+#[cfg(any(test, feature = "test-support"))]
+pub mod history_test_support;

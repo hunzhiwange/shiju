@@ -299,3 +299,24 @@ Excel 真实 TLS、WebSocket、transport、策略过期、取消和文档审批�
 真实宿主 list 验证迁出函数消失亦未执行；本任务不宣称整轮35000行门槛达标。
 
 Shell 生产适配亦移至 tool-assembly::shell_permission，真实调用由 AgentContextHost 经薄导出接回；原 shell 决策断言同组迁出。最终净减70.9%，宿主721行（含具体协调器242行及兼容入口）。
+
+## 第三轮：真实手动运行历史矩阵
+
+按 task-59-recovery-priorities.json 的 owner=33 候选，迁移 cron_run/tests.rs 全部四条用例的配置夹具、真实工具调用、存储与运行中/取消断言到 tool-cron::history_test_support。宿主129→13行，净减116行；四个原 tokio 测试名称、属性及顺序保留，只注入原 execute_job_now 函数，仍经具体宿主 scheduler 走真实执行与当前上下文。新领域驱动不宣称独立测试，也不计入此前67条领域自注册测试。
+
+| 原宿主测试（tools::cron_run::tests） | 领域完整驱动（tool_cron::history_test_support） |
+|---|---|
+| force_runs_job_and_records_history | force_runs_job_and_records_history |
+| shell_run_requires_approval_for_medium_risk | shell_run_requires_approval_for_medium_risk |
+| cron_history_manual_run_is_visible_until_completion | cron_history_manual_run_is_visible_until_completion |
+| cron_history_cancelled_manual_run_leaves_no_history | cron_history_cancelled_manual_run_leaves_no_history |
+
+原来的9个 assert!、6个 assert_eq! 已静态核对数量一致；没有删除安全拒绝、持久化、取消、时间戳断言。真实本机 HTTP 屏障沿用 agent-cron 原测试夹具相同实现，在 tool-cron 局部持有；没有引入回执模拟或执行替身。修复原用例遗留的宿主 active_runs_tests 路径引用：屏障在领域模块内，snapshot/list_runs 直接调用 agent-cron 真实存储。await 与 drop 的顺序保持。其它任务拥有的 agent-cron 测试来源未改写。
+
+新增 test-support 只承载这四个实际宿主调用者所需的驱动；tempfile/tokio 可选依赖仅由该 feature 开启，lib 自注册模块。vw-agent 以 dev-dependency 开启 feature，原生产依赖不扩大。tool-cron 锁条目原已包含 tempfile/tokio，无新依赖包，无需改动 Cargo.lock；其它任务的锁文件改动未纳入。
+
+所有 Cargo、构建、单元测试及实机验证均未运行；静态检查为模块路径、依赖、四个调用者/驱动、断言数量与 git diff --check。未来原生验证：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib tools::cron_run::tests -- --test-threads=1`，预期非零4条，需真实Shell/curl可用。领域驱动不可单独过滤成零测试充当通过。
+
+本任务原39路径累计2474→605行，净减1869行（75.5%）；本轮新增领域支持模块以实际文件行数为准，全部为测试驱动及夹具，无新生产迁移收益。原编号任务此前已清理，本轮未重建任务文件。
+
+本轮领域支持模块 140 行，宿主四条入口13行。

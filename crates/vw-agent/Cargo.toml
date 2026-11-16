@@ -535,6 +535,7 @@ channel-wecom = { path = "../libs/channel-wecom", version = "0.6.0", features = 
 task-scheduler = { path = "../libs/task-scheduler", version = "0.6.0", features = ["test-support"] }
 
 [dev-dependencies]
+tool-cron = { path = "../libs/tool-cron", version = "0.6.0", features = ["test-support"] }
 gateway-cron = { path = "../libs/gateway-cron", version = "0.6.0", features = ["test-support"] }
 agent-app-services = { path = "../libs/agent-app-services", version = "0.6.0", features = ["test-support"] }
 plugin-mcp = { path = "../libs/plugin-mcp", version = "0.6.0", features = ["test-support"] }

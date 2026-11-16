@@ -10760,6 +10760,8 @@ dependencies = [
  "gateway-instance",
  "gateway-resumable-stream",
  "gateway-types",
+ "llm-runtime",
+ "parking_lot",
  "ordered-id",
  "permission-types",
  "runtime-time",

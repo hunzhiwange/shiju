@@ -108,3 +108,35 @@ UiHost::reserve 使用最小 Info 夹具注入真实 reserve_pending_session；s
 新依赖：agent-paths 由 dev 提升为 native production；tower(util) 仅用于真实 Axum 中间件测试。无反向 vw-agent 依赖，无宿主 path/include。
 
 未来 `python3 scripts/cargo_slot.py cargo test -p gateway-session --lib host_migration_12_tests -- --test-threads=1` 预期28条（26 UI + 2 tenant）。原25条映射不变，新增迁出的3条名称如上。宿主 `session_tenant_scope_*` 与整个 ui_ops_tests 模块未来 list 应消失，不能将零测试报告为通过。保留原宿主其它测试完整名称与上文映射不变。静态 diff --check 已核对；所有Cargo、构建及测试均未运行。
+
+## 第三轮完整场景拆分（现状以本节为准）
+
+读取最新 final.md 优先恢复项4及 remaining-host.json。本轮不运行任何 Cargo/构建/测试。
+
+`gateway_session::fork_acceptance`：610 行，全部为 feature=test-support 验收/夹具，默认生产算法增加0行。
+- 原 `session_fork_before_turn_keeps_only_complete_earlier_turns` → `fork_acceptance::session_fork_before_turn_keeps_only_complete_earlier_turns` 完整场景；宿主同名测试仅以真实端口调用，测试属性保留。
+- 原 `session_fork_before_turn_rejects_invalid_boundaries_before_creating_targets` → `fork_acceptance::session_fork_before_turn_rejects_invalid_boundaries_before_creating_targets` 完整场景；宿主同名测试仅以真实端口调用，测试属性保留。
+- 原 `session_fork_before_turn_rolls_back_staged_history_and_worktree_on_write_failure` → `fork_acceptance::session_fork_before_turn_rolls_back_staged_history_and_worktree_on_write_failure` 完整场景；宿主同名测试仅以真实端口调用，测试属性保留。
+- 原 `fork_selection_locks_when_own_request_starts` → `fork_acceptance::fork_selection_locks_when_own_request_starts` 完整场景；宿主同名测试仅以真实端口调用，测试属性保留。
+`gateway_session::stream_persistence_acceptance`：188 行，全部为 feature=test-support 验收/夹具，默认生产算法增加0行。
+- 原 `persist_stream_chat_turn_creates_user_and_assistant_messages` → `stream_persistence_acceptance::persist_stream_chat_turn_creates_user_and_assistant_messages` 完整场景；宿主同名测试仅以真实端口调用，测试属性保留。
+- 原 `persist_stream_chat_turn_reuses_preallocated_message_ids` → `stream_persistence_acceptance::persist_stream_chat_turn_reuses_preallocated_message_ids` 完整场景；宿主同名测试仅以真实端口调用，测试属性保留。
+- 原 `persist_stream_chat_turn_stores_extra_assistant_patch_parts` → `stream_persistence_acceptance::persist_stream_chat_turn_stores_extra_assistant_patch_parts` 完整场景；宿主同名测试仅以真实端口调用，测试属性保留。
+
+四个fork场景保留真实Router HTTP、Git仓库/工作树、SQLite失败触发器、消息/part/绑定、回滚和模型HTTP/SSE服务端夹具。由现有 SessionHost、StreamHost 和 fn()->Router 注入实际宿主实例启动、工作树清理、请求处理；没有新增Host trait、假持久化实现或AppState副本。request回调每次由宿主读取当前tenant构造真实router，保留跨租户拒绝。binding_store调用显式传原home/tenant；权限分支、工具状态/ID映射、分支清理、失败后重试与执行锁断言保持。大模型请求场景宿主保留全局环境锁及prompt::ensure_host，然后调用领域完整场景，恢复配置沿用同一llm_runtime夹具。
+
+三条persist_stream_chat_turn场景使用实际StreamHost调用同一领域持久化入口，没有用纯store入口替代外部summary行为；用户/助手模型、缓存token、预分配ID和Patch断言全部保留。
+
+- 宿主 `session/turn_fork_tests.rs`：324 行。
+- 宿主 `session/ui_ops.rs`：25 行。
+- 宿主 `session/ui_ops_tests.rs`：0 行。
+- 宿主 `session.rs`：126 行。
+- 宿主 `session_tests.rs`：153 行。
+
+累计宿主3317 → 628行，净减2689行（81.1%）。本轮相对1298行再减670行。
+
+剩余turn_fork中的request/fork/history/persist_turn/git/repository/worktree_cleanup仍由三类真实宿主集成使用：fork_history_ui_reads_the_persisted_prefix验证热/冷AppState引擎缓存与持久化一致；worktree_environment_fork_waits_for_setup_and_rejects_failure验证真实config、bus事件、setup失败不发布；fork_selection_before_start_survives_reload验证实际agent lookup和agent_binding::prepare admission。保留这些真实宿主边界；不是以缺少mock为由保留已迁出的领域算法。fork_acp_tests属于其它来源挂载，未挪动。
+
+依赖：仅test-support新增optional uuid/tower/agent-storage/llm-runtime/parking_lot（沿用原版依赖）；两模块通过本库feature自行注册。宿主已启用test-support，保持7条真实宿主薄调用。没有path/include宿主源码、没有新增生产调用绕行。
+
+未来仍先执行28条领域自注册：`python3 scripts/cargo_slot.py cargo test -p gateway-session --lib host_migration_12_tests -- --test-threads=1`。上述7条验收通过原宿主完整名称分别运行：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib <原完整名称> -- --test-threads=1`，每条预期1；不得在领域包过滤这些普通pub async函数并把零测试当作通过。全部编译/行为未验证。静态本任务diff --check无空白错误；不将其它任务文件空白问题计作本任务失败或修改它们。

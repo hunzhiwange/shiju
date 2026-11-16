@@ -78,3 +78,9 @@ pub mod native_ui;
 
 #[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
 pub mod child_acceptance;
+
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod fork_acceptance;
+
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod stream_persistence_acceptance;

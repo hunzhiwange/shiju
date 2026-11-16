@@ -32,3 +32,6 @@ mod view_test_fixture;
 pub mod model_info;
 
 pub mod panel;
+
+#[cfg(test)]
+mod desktop_split_30_tests;

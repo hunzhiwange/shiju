@@ -1,3 +1,4 @@
+// 宿主保留项目元数据保存及 Iced 延迟任务与截止时间回写契约；间隔边界在 desktop-task-board 独立测试。
 // 验证任务看板设置持久化、期限计算与边界清理。
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
@@ -68,37 +69,6 @@ fn save_settings_creates_project_meta_for_new_project_path() {
 
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
 // 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
-#[test]
-fn interval_accessors_clamp_lower_middle_and_upper_values() {
-    let (mut app, _task) = crate::app::App::new();
-
-    app.task_board_settings.refresh_interval_seconds = 0;
-    app.task_board_settings.scheduler_tick_interval_seconds = 0;
-    app.task_board_settings.auto_promote_tick_interval_seconds = 0;
-    app.task_board_settings.pr_submitted_stall_timeout_seconds = 0;
-    assert_eq!(task_board_refresh_interval_secs(&app), 1);
-    assert_eq!(scheduler_tick_interval_secs(&app), 1);
-    assert_eq!(auto_promote_tick_interval_secs(&app), 1);
-    assert_eq!(pr_submitted_stall_timeout_secs(&app), 300);
-
-    app.task_board_settings.refresh_interval_seconds = 45;
-    app.task_board_settings.scheduler_tick_interval_seconds = 15;
-    app.task_board_settings.auto_promote_tick_interval_seconds = 90;
-    app.task_board_settings.pr_submitted_stall_timeout_seconds = 600;
-    assert_eq!(task_board_refresh_interval_secs(&app), 45);
-    assert_eq!(scheduler_tick_interval_secs(&app), 15);
-    assert_eq!(auto_promote_tick_interval_secs(&app), 90);
-    assert_eq!(pr_submitted_stall_timeout_secs(&app), 600);
-
-    app.task_board_settings.refresh_interval_seconds = u64::MAX;
-    app.task_board_settings.scheduler_tick_interval_seconds = u64::MAX;
-    app.task_board_settings.auto_promote_tick_interval_seconds = u64::MAX;
-    app.task_board_settings.pr_submitted_stall_timeout_seconds = u32::MAX;
-    assert_eq!(task_board_refresh_interval_secs(&app), 3600);
-    assert_eq!(scheduler_tick_interval_secs(&app), 60);
-    assert_eq!(auto_promote_tick_interval_secs(&app), 3600);
-    assert_eq!(pr_submitted_stall_timeout_secs(&app), 3600);
-}
 
 #[test]
 fn scheduler_deadline_is_preserved_while_still_in_the_future() {

@@ -1,3 +1,4 @@
+// 宿主保留网关空操作、草稿投影、选择状态与合并队列任务接线；元数据转换在 desktop-task-board 独立测试。
 // 验证任务看板批量选择对状态、归档与删除项的过滤。
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
@@ -12,19 +13,6 @@ fn task(id: &str, status: TaskStatus) -> Task {
 
 // 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
 // 完成、失败与过期响应均按当前场景的既定契约处理。
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #[tokio::test(flavor = "multi_thread")]
 async fn empty_bulk_command_short_circuits_without_gateway_access() {
@@ -49,80 +37,6 @@ async fn empty_gateway_bulk_wrappers_short_circuit_without_gateway_access() {
         Ok(())
     );
 }
-
-#[test]
-fn task_metadata_patch_trims_workflow_and_copies_task_fields() {
-    let mut task = task("T-metadata", TaskStatus::Pending);
-    task.prompt = "First line\nSecond line".to_string();
-    task.priority = 42;
-    task.order = 7;
-    task.model = "provider/model".to_string();
-    task.agent = Some("reviewer".to_string());
-    task.acp_agent = Some("codex".to_string());
-    task.assignee = "Alice".to_string();
-    task.description = "description".to_string();
-    task.task_split_mode = TaskSplitMode::Enabled;
-    task.auto_promote_delay_ms = Some(5_000);
-
-    let patch = super::task_metadata_patch_for_gateway(&task, "  dev_lifecycle  ");
-
-    assert_eq!(patch.title.as_deref(), Some("First line"));
-    assert_eq!(patch.priority, Some(42));
-    assert_eq!(patch.order_no, Some(7));
-    assert_eq!(patch.model.as_deref(), Some("provider/model"));
-    assert_eq!(patch.agent.as_deref(), Some("reviewer"));
-    assert_eq!(patch.acp_agent.as_deref(), Some("codex"));
-    assert_eq!(patch.prompt.as_deref(), Some(task.prompt.as_str()));
-    assert_eq!(patch.workflow_id.as_deref(), Some("dev_lifecycle"));
-    assert!(patch.status_key.is_some());
-    assert!(patch.status.is_some());
-    assert!(patch.status_role.is_some());
-    assert_eq!(
-        patch.metadata_merge,
-        Some(serde_json::json!({
-            "assignee": "Alice",
-            "description": "description",
-            "subtasks": [],
-            "auto_promote_delay_ms": 5_000,
-            "task_split_mode": "enabled",
-        }))
-    );
-    assert!(patch.metadata_remove_keys.is_empty());
-}
-
-#[test]
-fn task_metadata_patch_copies_error_pause_and_worktree_fields() {
-    let mut task = task("T-worktree", TaskStatus::PrSubmitted);
-    task.last_error = Some("merge conflict".to_string());
-    task.pause_reason = Some("manual review".to_string());
-    task.merge_source_branch = Some("feature/a".to_string());
-    task.merge_target_branch = Some("main".to_string());
-    task.selected_worktree_path = Some("/repo/worktree".to_string());
-    task.selected_worktree_slot_id = Some("slot-1".to_string());
-    task.selected_worktree_branch = Some("feature/a".to_string());
-
-    let patch = super::task_metadata_patch_for_gateway(&task, "workflow");
-
-    assert_eq!(patch.last_error.as_deref(), Some("merge conflict"));
-    assert_eq!(patch.pause_reason.as_deref(), Some("manual review"));
-    assert_eq!(patch.merge_source_branch.as_deref(), Some("feature/a"));
-    assert_eq!(patch.merge_target_branch.as_deref(), Some("main"));
-    assert_eq!(patch.selected_worktree_path.as_deref(), Some("/repo/worktree"));
-    assert_eq!(patch.selected_worktree_slot_id.as_deref(), Some("slot-1"));
-    assert_eq!(patch.selected_worktree_branch.as_deref(), Some("feature/a"));
-}
-
-#[test]
-fn task_metadata_patch_uses_id_and_default_workflow_for_empty_inputs() {
-    let task = task("T-fallback-title", TaskStatus::Pool);
-
-    let patch = super::task_metadata_patch_for_gateway(&task, "   ");
-
-    assert_eq!(patch.title.as_deref(), Some("T-fallback-title"));
-    assert_eq!(patch.workflow_id.as_deref(), Some(crate::app::task::DEFAULT_TASK_WORKFLOW_ID));
-}
-
-
 
 #[test]
 fn reset_bulk_operation_inputs_copies_draft_and_recent_choices() {

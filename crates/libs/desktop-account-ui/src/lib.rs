@@ -7,3 +7,6 @@ pub mod update;
 pub mod view;
 
 pub mod account_details;
+
+#[cfg(test)]
+mod desktop_split_30_tests;

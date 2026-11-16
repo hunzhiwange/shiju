@@ -29,34 +29,7 @@ struct ShutdownStreamRequest {
     kind: ShutdownStreamKind,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-/// 关闭请求中需要分别处理的主窗口与任务宠物窗口。
-pub(crate) struct CloseRequestedWindows {
-    /// 发起关闭的主窗口；若请求来自宠物窗口则为空。
-    pub(crate) main_window_id: Option<iced::window::Id>,
-    /// 发起关闭的任务宠物窗口；关闭它不会退出主应用。
-    pub(crate) task_pet_window_id: Option<iced::window::Id>,
-}
-
-/// 将窗口关闭请求分类为退出应用或仅关闭任务宠物。
-pub(crate) fn close_requested_windows(
-    main_window_id: Option<iced::window::Id>,
-    task_pet_window_id: Option<iced::window::Id>,
-    requested_window_id: iced::window::Id,
-) -> CloseRequestedWindows {
-    if main_window_id == Some(requested_window_id) {
-        return CloseRequestedWindows {
-            main_window_id,
-            task_pet_window_id: task_pet_window_id.filter(|id| *id != requested_window_id),
-        };
-    }
-
-    if task_pet_window_id == Some(requested_window_id) {
-        return CloseRequestedWindows { main_window_id: None, task_pet_window_id };
-    }
-
-    CloseRequestedWindows { main_window_id: None, task_pet_window_id: None }
-}
+pub(crate) use desktop_navigation::window_lifecycle::close_requested_windows;
 
 /// 原子式标记关闭流程；已开始关闭时返回 `false` 防止重复清理。
 pub(crate) fn begin_shutdown(shutdown_requested: &mut bool) -> bool {
@@ -573,7 +546,6 @@ fn restart_application() -> Result<(), String> {
 fn restart_application() -> Result<(), String> {
     Err("当前平台不支持重启应用".to_string())
 }
-
 
 #[cfg(test)]
 #[path = "settings_tests.rs"]

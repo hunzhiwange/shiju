@@ -43,6 +43,3 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
 #[cfg(test)]
 #[path = "usage_tests.rs"]
 mod usage_tests;
-
-#[cfg(test)]
-fn turn_id_for_step(app: &App, step_index: u32) -> String { domain::turn_id_for_step(&app.active_session_view_state.steps, step_index) }

@@ -1,3 +1,4 @@
+// 宿主保留关闭清理、配置持久化和更新任务投影；窗口关闭请求分类已迁入 desktop-navigation。
 // 验证窗口关闭请求、关停幂等性与设置标签刷新。
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
@@ -8,65 +9,6 @@ fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
 
     assert!(module.ends_with("settings_tests"));
-}
-
-#[test]
-fn main_window_close_request_closes_task_pet_too() {
-    let main_window_id = iced::window::Id::unique();
-    let task_pet_window_id = iced::window::Id::unique();
-
-    let windows = super::close_requested_windows(
-        Some(main_window_id),
-        Some(task_pet_window_id),
-        main_window_id,
-    );
-
-    assert_eq!(windows.main_window_id, Some(main_window_id));
-    assert_eq!(windows.task_pet_window_id, Some(task_pet_window_id));
-}
-
-#[test]
-fn task_pet_close_request_only_closes_task_pet() {
-    let main_window_id = iced::window::Id::unique();
-    let task_pet_window_id = iced::window::Id::unique();
-
-    let windows = super::close_requested_windows(
-        Some(main_window_id),
-        Some(task_pet_window_id),
-        task_pet_window_id,
-    );
-
-    assert_eq!(windows.main_window_id, None);
-    assert_eq!(windows.task_pet_window_id, Some(task_pet_window_id));
-}
-
-#[test]
-fn unknown_window_close_request_closes_nothing() {
-    let main_window_id = iced::window::Id::unique();
-    let task_pet_window_id = iced::window::Id::unique();
-
-    let windows = super::close_requested_windows(
-        Some(main_window_id),
-        Some(task_pet_window_id),
-        iced::window::Id::unique(),
-    );
-
-    assert_eq!(windows.main_window_id, None);
-    assert_eq!(windows.task_pet_window_id, None);
-}
-
-#[test]
-fn shared_window_id_is_closed_only_once() {
-    let shared_window_id = iced::window::Id::unique();
-
-    let windows = super::close_requested_windows(
-        Some(shared_window_id),
-        Some(shared_window_id),
-        shared_window_id,
-    );
-
-    assert_eq!(windows.main_window_id, Some(shared_window_id));
-    assert_eq!(windows.task_pet_window_id, None);
 }
 
 #[test]
@@ -399,8 +341,6 @@ fn install_and_update_requests_prepare_modal_state_before_async_work_runs() {
     assert!(!app.cli_install_modal_is_checking_update);
 }
 
-
-
 #[test]
 fn restart_failure_is_exposed_without_exiting() {
     use crate::app::message::view::ViewMessage;
@@ -411,8 +351,6 @@ fn restart_failure_is_exposed_without_exiting() {
 
     assert_eq!(app.error_message.as_deref(), Some("restart denied"));
 }
-
-
 
 #[test]
 fn app_update_result_controls_install_action_for_each_outcome() {
@@ -547,8 +485,6 @@ fn menu_hover_only_switches_an_already_open_menu() {
     assert_eq!(app.active_menu, Some(MenuType::View));
 }
 
-
-
 #[test]
 fn app_update_download_survives_close_and_blocks_duplicate_and_source_change() {
     use crate::app::message::ViewMessage;
@@ -594,8 +530,6 @@ fn app_update_save_failure_keeps_selection_and_shows_unsaved_toast() {
     assert!(app.active_toast.as_ref().unwrap().message.contains("未保存"));
 }
 
-
-
 #[tokio::test(flavor = "multi_thread")]
 async fn app_update_download_consumes_checked_snapshot_without_refetching_latest() {
     use crate::app::message::ViewMessage;
@@ -624,8 +558,6 @@ async fn app_update_download_consumes_checked_snapshot_without_refetching_latest
         _ => panic!("expected snapshot validation failure"),
     }
 }
-
-
 
 #[test]
 fn terminal_modes_toggle_preserves_session_and_height_across_mode_roundtrip() {

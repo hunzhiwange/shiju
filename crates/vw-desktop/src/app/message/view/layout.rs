@@ -11,33 +11,7 @@ use desktop_navigation::view_layout::{
     MIN_WORK_SIDEBAR_WIDTH, MAX_WORK_SIDEBAR_WIDTH, MIN_WORK_SPLIT_RATIO, MAX_WORK_SPLIT_RATIO,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum WindowClosedOutcome {
-    Continue,
-    Exit,
-}
-
-pub(crate) fn mark_window_closed(
-    main_window_id: &mut Option<iced::window::Id>,
-    task_pet_window_id: &mut Option<iced::window::Id>,
-    closed_window_id: iced::window::Id,
-) -> WindowClosedOutcome {
-    if *main_window_id == Some(closed_window_id) {
-        *main_window_id = None;
-        *task_pet_window_id = None;
-        return WindowClosedOutcome::Exit;
-    }
-
-    if *task_pet_window_id == Some(closed_window_id) {
-        *task_pet_window_id = None;
-    }
-
-    if main_window_id.is_none() && task_pet_window_id.is_none() {
-        WindowClosedOutcome::Exit
-    } else {
-        WindowClosedOutcome::Continue
-    }
-}
+pub(crate) use desktop_navigation::window_lifecycle::{WindowClosedOutcome, mark_window_closed};
 
 /// 执行 update 对应的领域操作。
 ///

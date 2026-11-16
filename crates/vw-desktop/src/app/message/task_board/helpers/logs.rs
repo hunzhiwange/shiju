@@ -36,9 +36,6 @@ pub(crate) fn restore_task_logs_scroll(app: &mut crate::app::App, target_top_lin
 pub(crate) fn scroll_task_logs_to_bottom(app: &mut crate::app::App) {
  desktop_task_board::helpers::logs::scroll_task_logs_to_bottom(&mut logs_state(app))
 }
-#[cfg(test)]
-#[path = "logs_tests.rs"]
-mod logs_tests;
 
 fn logs_state(app: &mut crate::app::App) -> desktop_task_board::helpers::logs::TaskLogsState<'_> {
     desktop_task_board::helpers::logs::TaskLogsState {

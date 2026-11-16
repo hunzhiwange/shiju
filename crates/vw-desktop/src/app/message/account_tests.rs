@@ -1,3 +1,4 @@
+// 宿主保留账户结果对技能准备、额度、密钥同步和网关消息的装配契约；消息脱敏与通知枚举已迁入 desktop-account-ui。
 //! 验证账户登录、资料与密码编辑消息的校验、脱敏和竞态处理。
 //!
 //! 账户仓库夹具使用专用秘密类型，调试输出与失败通知必须保持脱敏。
@@ -115,24 +116,6 @@ fn account_me(name: &str, username: &str) -> ShijuAccountMeDto {
             role_code: "default".to_string(),
         }],
     }
-}
-
-#[test]
-fn manual_input_message_debug_is_redacted() {
-    let message = AccountMessage::ManualInputChanged(ManualSkeyInput::new("secret-value"));
-    assert!(!format!("{message:?}").contains("secret-value"));
-}
-
-#[test]
-fn account_notice_covers_all_persisted_actions() {
-    let notices = [
-        AccountNotice::ManualLogin,
-        AccountNotice::BrowserLogin,
-        AccountNotice::Switch,
-        AccountNotice::SignOut,
-        AccountNotice::Delete,
-    ];
-    assert_eq!(notices.len(), 5);
 }
 
 #[test]

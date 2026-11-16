@@ -40,3 +40,8 @@ mod desktop_split_03_tests;
 
 #[cfg(test)]
 mod desktop_split_18_tests;
+
+pub mod window_lifecycle;
+
+#[cfg(test)]
+mod desktop_split_30_tests;

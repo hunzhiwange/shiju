@@ -33,3 +33,9 @@ config-memory = { path = "../config-memory", version = "0.6.0" }
 
 [dev-dependencies]
 tempfile = "3"
+iced_runtime = "0.14"
+image = "0.25.9"
+desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
+desktop-settings-providers = { path = "../desktop-settings-providers", version = "0.6.0" }
+desktop-chat-view = { path = "../desktop-chat-view", version = "0.6.0" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

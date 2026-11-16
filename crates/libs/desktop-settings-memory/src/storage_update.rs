@@ -55,3 +55,14 @@ pub fn update(state: &mut StorageSettingsState, storage_message: StorageMessage)
     }
 
 }
+
+/// Apply an edit, validate the complete draft and update its save feedback.
+/// The host owns the actual persistence port.
+pub fn prepare_save(state: &mut StorageSettingsState, message: StorageMessage) -> Option<config_memory::StorageConfig> {
+    update(state, message);
+    let mut storage = config_memory::StorageConfig::default();
+    match config(state, &mut storage) {
+        Ok(()) => { state.save_error = None; Some(storage) }
+        Err(error) => { state.save_error = Some(error); None }
+    }
+}

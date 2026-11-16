@@ -13,3 +13,4 @@ pub mod mcp;
 pub mod agents;
 pub mod factory;
 pub mod runtime;
+pub mod hooks;

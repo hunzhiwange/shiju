@@ -1,6 +1,6 @@
 //! Host composition for trusted plugin hooks and execution context admission.
 use std::sync::Arc;
-use anyhow::{Result, bail};
+use anyhow::Result;
 use crate::config::Config;
 use super::HookRunner;
 use super::builtin::CommandAuditStore;
@@ -22,19 +22,7 @@ pub fn build_hook_runtime(config: &Config) -> Result<HookRuntime> { HookRuntime:
 
 /// Build execution gates, retaining process-pinned requirements across config edits.
 pub(crate) fn execution_hook_runner(config: &Config) -> Result<Option<Arc<HookRunner>>> {
-    let mut config = config.clone();
-    let mut required = config.hooks.required.clone();
-    if let Some(value) = std::env::var_os("VW_REQUIRED_EXECUTION_HOOKS") {
-        let value =
-            value.into_string().map_err(|_| anyhow::anyhow!("invalid required hook identity"))?;
-        for name in value.split(',') {
-            if name.is_empty() {
-                bail!("invalid required hook identity");
-            }
-            required.push(name.to_owned());
-        }
-    }
-    config.hooks.required = required;
+    let config = tool_assembly::hooks::execution_config(config)?;
     Ok(HookRuntime::build(&config)?.runner_snapshot())
 }
 
@@ -52,16 +40,7 @@ pub(crate) async fn authorize_model_request(config: &Config, model: &str) -> Res
                 || std::env::var_os("VW_REQUIRED_EXECUTION_HOOKS").is_some(),
         )
     };
-    if let Some(runner) = runner {
-        match runner.run_before_llm_call(Vec::new(), model.to_owned()).await {
-            super::HookResult::Cancel(reason) => bail!("model request denied by hook: {reason}"),
-            super::HookResult::Continue((messages, selected)) => {
-                if !messages.is_empty() || selected != model {
-                    bail!("model admission hooks cannot rewrite the request");
-                }
-            }
-        }
-    }
+    tool_assembly::hooks::authorize_model_request(runner, model).await?;
     Ok(required)
 }
 

@@ -19,6 +19,7 @@ model-types = { path = "../model-types", version = "0.6.0" }
 tool-web = { path = "../tool-web", version = "0.6.0" }
 tool-catalog = { path = "../tool-catalog", version = "0.6.0" }
 agent-config = { path = "../agent-config", version = "0.6.0" }
+agent-hooks = { path = "../agent-hooks", version = "0.6.0" }
 agent-security = { path = "../agent-security", version = "0.6.0" }
 plugin-mcp = { path = "../plugin-mcp", version = "0.6.0" }
 tool-mcp = { path = "../tool-mcp", version = "0.6.0" }

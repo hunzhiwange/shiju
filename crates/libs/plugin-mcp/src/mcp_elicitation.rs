@@ -300,3 +300,7 @@ async fn request_url(
         _ => Err(invalid()),
     }
 }
+
+#[cfg(test)]
+#[path = "mcp_elicitation_tests.rs"]
+mod tests;

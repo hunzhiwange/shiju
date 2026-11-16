@@ -110,12 +110,6 @@ async fn codex_plugin_compat_t24_preserves_isolation() {
     assert_eq!(first["result"]["content"]["age"], 24);
     assert_eq!(second["result"]["content"]["age"], 42);
     assert!(crate::plugins::mcp_client_info().capabilities.elicitation.is_none());
-
-    let schema =
-        json!({"type":"object","properties":{"age":{"type":"integer"}},"required":["age"]});
-    assert!(super::mcp_elicitation::validate(&schema, &json!({"age":24,"foreign":true})).is_err());
-    assert!(super::mcp_elicitation::validate(&schema, &json!({})).is_err());
-    assert!(super::mcp_elicitation::validate(&schema, &json!({"age":"24"})).is_err());
 }
 
 #[tokio::test(start_paused = true)]
@@ -141,31 +135,6 @@ async fn codex_plugin_compat_t24_timeout_removes_pending_form() {
     tokio::time::advance(std::time::Duration::from_secs(121)).await;
     assert_eq!(task.await.unwrap().unwrap().action, rmcp::model::ElicitationAction::Cancel);
     assert!(!question::list().iter().any(|q| q.session_id == "t24-timeout"));
-}
-
-#[test]
-fn codex_plugin_compat_t24_validates_primitive_constraints() {
-    let schema = json!({"properties":{
-        "name":{"type":"string","minLength":2,"maxLength":4},
-        "enabled":{"type":"boolean"},"choice":{"type":"string","enum":["a","b"]},
-        "ratio":{"type":"number","minimum":0,"maximum":1}
-    },"required":["name"]});
-    assert!(
-        super::mcp_elicitation::validate(
-            &schema,
-            &json!({"name":"中文","enabled":true,"choice":"a","ratio":0.5})
-        )
-        .is_ok()
-    );
-    for invalid in [
-        json!({"name":"x"}),
-        json!({"name":"longer"}),
-        json!({"name":"ok","enabled":"true"}),
-        json!({"name":"ok","choice":"c"}),
-        json!({"name":"ok","ratio":2}),
-    ] {
-        assert!(super::mcp_elicitation::validate(&schema, &invalid).is_err());
-    }
 }
 
 #[tokio::test]

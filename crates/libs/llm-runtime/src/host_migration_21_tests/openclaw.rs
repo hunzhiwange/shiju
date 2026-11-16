@@ -1,5 +1,15 @@
-use super::*;
-use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
+#![allow(unused_imports)]
+use crate::acp::model_source::profile::AcpLaunchProfile;
+use std::{collections::HashMap, io::Write, path::Path};
+use serde_json::json;
+use model_reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
+fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
+    crate::acp::model_source::drivers::openclaw::configure(profile, endpoint, "")
+}
+use agent_config::schema::AcpAgentConfig;
+use model_transport::RelayIdentity;
+use model_types::ApiInfo;
+
 
 fn profile() -> AcpLaunchProfile {
     profile_with_command("/not-installed/openclaw")
@@ -9,7 +19,7 @@ fn profile_with_command(command: &str) -> AcpLaunchProfile {
     AcpLaunchProfile::new(
         &AcpAgentConfig { command: command.into(), args: vec!["acp".into()], ..Default::default() },
         RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
+            tenant: vw_api_transport::TenantScope::default(),
             project: "project".into(),
             session: "session".into(),
             provider: "provider".into(),
@@ -151,7 +161,7 @@ fn openclaw_gateway_resolves_cli_and_interpreter_with_desktop_path() {
     let output = std::process::Command::new(std::env::current_exe().unwrap())
         .args([
             "--exact",
-            "session::llm::acp::model_source::drivers::openclaw::tests::openclaw_gateway_resolves_cli_and_interpreter_with_desktop_path",
+            "host_migration_21_tests::openclaw::openclaw_gateway_resolves_cli_and_interpreter_with_desktop_path",
             "--nocapture",
         ])
         .env(CHILD, "1")

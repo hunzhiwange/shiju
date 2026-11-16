@@ -1,5 +1,13 @@
-use super::*;
-use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
+#![allow(unused_imports)]
+use crate::acp::model_source::profile::AcpLaunchProfile;
+use std::{collections::HashMap, io::Write, path::Path};
+use serde_json::json;
+use model_reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
+use crate::acp::model_source::drivers::droid::*;
+use agent_config::schema::AcpAgentConfig;
+use model_transport::RelayIdentity;
+use model_types::ApiInfo;
+
 
 fn profile() -> AcpLaunchProfile {
     AcpLaunchProfile::new(
@@ -9,7 +17,7 @@ fn profile() -> AcpLaunchProfile {
             ..Default::default()
         },
         RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
+            tenant: vw_api_transport::TenantScope::default(),
             project: "droid-fixture".into(),
             session: "isolated".into(),
             provider: "fixture".into(),

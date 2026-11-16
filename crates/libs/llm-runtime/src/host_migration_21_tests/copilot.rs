@@ -1,5 +1,11 @@
-use super::*;
-use crate::model_relay::RelayIdentity;
+#![allow(unused_imports)]
+use crate::acp::model_source::profile::AcpLaunchProfile;
+use std::{collections::HashMap, io::Write, path::Path};
+use serde_json::json;
+use model_reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
+use crate::acp::model_source::drivers::copilot::*;
+use model_transport::RelayIdentity;
+
 
 #[test]
 fn acp_model_source_copilot_private_byok_launch_and_revocation() {
@@ -17,7 +23,7 @@ fn acp_model_source_copilot_selected_effort_preserves_bound_model() {
 }
 
 fn verify_private_byok_launch(reasoning: bool, declared_effort: bool) {
-    let config = crate::config::schema::AcpAgentConfig {
+    let config = agent_config::schema::AcpAgentConfig {
         command: "copilot".into(),
         args: vec!["--acp".into(), "--stdio".into()],
         ..Default::default()
@@ -25,7 +31,7 @@ fn verify_private_byok_launch(reasoning: bool, declared_effort: bool) {
     let mut profile = AcpLaunchProfile::new(
         &config,
         RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
+            tenant: vw_api_transport::TenantScope::default(),
             project: "p".into(),
             session: format!("copilot-reasoning-{reasoning}-{declared_effort}"),
             provider: "provider".into(),
@@ -43,7 +49,7 @@ fn verify_private_byok_launch(reasoning: bool, declared_effort: bool) {
                 values: ["low", "high", "none", "unsupported", "high"].map(str::to_owned).to_vec(),
             }]);
     }
-    profile.model_api = Some(crate::provider::provider::ApiInfo {
+    profile.model_api = Some(model_types::ApiInfo {
         protocols: None,
         id: "chosen".into(),
         adapter: "openai-compatible".into(),
@@ -91,7 +97,7 @@ fn acp_model_source_copilot_conflicting_account_environment_is_rejected() {
     for key in
         ["COPILOT_HOME", "COPILOT_PROVIDER_API_KEY_COMMAND", "GH_COPILOT_TOKEN", "GITHUB_TOKEN"]
     {
-        let config = crate::config::schema::AcpAgentConfig {
+        let config = agent_config::schema::AcpAgentConfig {
             command: "copilot".into(),
             args: vec!["--acp".into(), "--stdio".into()],
             env: std::collections::HashMap::from([(key.into(), "conflicting".into())]),
@@ -100,7 +106,7 @@ fn acp_model_source_copilot_conflicting_account_environment_is_rejected() {
         let mut profile = AcpLaunchProfile::new(
             &config,
             RelayIdentity {
-                tenant: crate::session::ui_store::current_tenant_scope(),
+                tenant: vw_api_transport::TenantScope::default(),
                 project: "p".into(),
                 session: "s".into(),
                 provider: "provider".into(),

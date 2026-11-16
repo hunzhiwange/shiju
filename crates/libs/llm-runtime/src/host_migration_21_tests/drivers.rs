@@ -1,14 +1,23 @@
-use super::*;
-use crate::{
-    config::schema::AcpAgentConfig, model_relay::RelayIdentity, provider::provider::ApiInfo,
-};
+#![allow(unused_imports)]
+use crate::acp::model_source::profile::AcpLaunchProfile;
+use std::{collections::HashMap, io::Write, path::Path};
+use serde_json::json;
+use model_reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
+use crate::acp::model_source::drivers::{launch_route, source_protocol};
+fn configure(agent: &str, profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
+    crate::acp::model_source::drivers::configure(agent, profile, endpoint, "")
+}
+use agent_config::schema::AcpAgentConfig;
+use model_transport::RelayIdentity;
+use model_types::ApiInfo;
 use model_protocols::{ModelProtocol as P, ProtocolEndpoint};
+
 
 fn profile(adapter: &str) -> AcpLaunchProfile {
     let mut profile = AcpLaunchProfile::new(
         &AcpAgentConfig::default(),
         RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
+            tenant: vw_api_transport::TenantScope::default(),
             project: "project".into(),
             session: "session:codex".into(),
             provider: "provider".into(),
@@ -41,7 +50,7 @@ fn endpoint(protocol: P) -> ProtocolEndpoint {
         }
         .into(),
         deployment: "selected".into(),
-        authentication: crate::model_relay::routing::default_authentication(protocol),
+        authentication: model_transport::routing_selection::default_authentication(protocol),
         models: ProtocolModelScope::Models { ids: vec!["selected-model".into()] },
         evidence: vec![ProtocolEvidence {
             kind: ProtocolEvidenceKind::Configuration,

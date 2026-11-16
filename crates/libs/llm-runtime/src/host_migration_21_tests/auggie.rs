@@ -1,20 +1,28 @@
-use super::*;
-use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
+#![allow(unused_imports)]
+use crate::acp::model_source::profile::AcpLaunchProfile;
+use std::{collections::HashMap, io::Write, path::Path};
+use serde_json::json;
+use model_reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
+use crate::acp::model_source::drivers::auggie::*;
+use agent_config::schema::AcpAgentConfig;
+use model_transport::RelayIdentity;
+use model_types::ApiInfo;
+
 
 #[test]
-fn cursor_rejects_remote_endpoints_and_conflicting_launches_before_writing_files() {
+fn auggie_rejects_remote_endpoints_and_conflicting_launches_before_writing_files() {
     for (endpoint, args, env, expected) in [
-        ("https://example.invalid/", vec!["acp"], HashMap::new(), "loopback"),
-        ("http://127.0.0.1:1234/", vec!["acp", "--model", "other"], HashMap::new(), "arguments"),
+        ("https://example.invalid/", vec!["--acp"], HashMap::new(), "loopback"),
+        ("http://127.0.0.1:1234/", vec!["--acp", "--model", "other"], HashMap::new(), "arguments"),
         (
             "http://127.0.0.1:1234/",
-            vec!["acp"],
-            HashMap::from([("CURSOR_API_KEY".into(), "private-fixture-token".into())]),
+            vec!["--acp"],
+            HashMap::from([("AUGMENT_API_TOKEN".into(), "private-fixture-token".into())]),
             "conflicting",
         ),
     ] {
         let config = AcpAgentConfig {
-            command: "cursor".into(),
+            command: "auggie".into(),
             args: args.into_iter().map(str::to_owned).collect(),
             env,
             ..Default::default()
@@ -22,7 +30,7 @@ fn cursor_rejects_remote_endpoints_and_conflicting_launches_before_writing_files
         let mut profile = AcpLaunchProfile::new(
             &config,
             RelayIdentity {
-                tenant: crate::session::ui_store::current_tenant_scope(),
+                tenant: vw_api_transport::TenantScope::default(),
                 project: "fixture".into(),
                 session: "fixture".into(),
                 provider: "fixture".into(),

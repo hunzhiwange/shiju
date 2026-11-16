@@ -1,5 +1,13 @@
-use super::*;
-use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
+#![allow(unused_imports)]
+use crate::acp::model_source::profile::AcpLaunchProfile;
+use std::{collections::HashMap, io::Write, path::Path};
+use serde_json::json;
+use model_reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
+use crate::acp::model_source::drivers::kilocode::*;
+use agent_config::schema::AcpAgentConfig;
+use model_transport::RelayIdentity;
+use model_types::ApiInfo;
+
 
 #[test]
 fn acp_model_source_kilocode_creates_revocable_private_model_configuration() {
@@ -10,7 +18,7 @@ fn acp_model_source_kilocode_creates_revocable_private_model_configuration() {
             ..Default::default()
         },
         RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
+            tenant: vw_api_transport::TenantScope::default(),
             project: "project".into(),
             session: "session".into(),
             provider: "provider".into(),
@@ -39,7 +47,7 @@ fn configured_profile(config: AcpAgentConfig) -> AcpLaunchProfile {
     AcpLaunchProfile::new(
         &config,
         RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
+            tenant: vw_api_transport::TenantScope::default(),
             project: "project".into(),
             session: "session".into(),
             provider: "provider".into(),

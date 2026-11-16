@@ -22,3 +22,6 @@ pub use events::StreamEvent;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod native_tools_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_21_tests;

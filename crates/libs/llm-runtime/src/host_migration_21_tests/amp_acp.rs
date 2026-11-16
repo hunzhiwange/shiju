@@ -1,5 +1,13 @@
-use super::*;
-use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
+#![allow(unused_imports)]
+use crate::acp::model_source::profile::AcpLaunchProfile;
+use std::{collections::HashMap, io::Write, path::Path};
+use serde_json::json;
+use model_reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
+use crate::acp::model_source::drivers::amp_acp::*;
+use agent_config::schema::AcpAgentConfig;
+use model_transport::RelayIdentity;
+use model_types::ApiInfo;
+
 
 fn profile(args: &[&str]) -> AcpLaunchProfile {
     let mut launch = AcpLaunchProfile::new(
@@ -9,7 +17,7 @@ fn profile(args: &[&str]) -> AcpLaunchProfile {
             ..Default::default()
         },
         RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
+            tenant: vw_api_transport::TenantScope::default(),
             project: "amp_acp-fixture".into(),
             session: "isolated".into(),
             provider: "fixture".into(),
@@ -44,7 +52,7 @@ fn acp_onboarding_amp_acp_model_binding_is_private_and_conflicts_fail_closed() {
     let mut launch = profile(&[]);
     assert!(configure(&mut launch, "https://example.test").is_err());
     let mut config = profile(&[]).config().clone();
-    config.env.remove(crate::session::llm::acp::model_source::profile::REFERENCE_ENV);
+    config.env.remove(crate::acp::model_source::profile::REFERENCE_ENV);
     config.env.insert("SHIJU_AMP_MODEL".into(), "other".into());
     let identity = profile(&[]).binding.identity().clone();
     let mut launch = AcpLaunchProfile::new(&config, identity).unwrap();

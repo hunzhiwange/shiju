@@ -1,13 +1,11 @@
-use super::{
+use crate::{
     RouteCommitError, RoutingListener, SharedTransport, VerifiedRouteBinding,
     aggregation_routing::{AggregationModel, AggregationPublication, AggregationTarget},
     dispatch::JsonTarget,
     failover_routing::FailoverPublication,
 };
-use crate::{
-    gateway::agent_apps_high_availability_store::FailoverQueueStore,
-    global_database::GlobalDatabase,
-};
+use crate::failover_store::FailoverQueueStore;
+use agent_database::GlobalDatabase;
 use axum::{Json, Router, http::StatusCode, routing::post};
 use serde_json::{Value, json};
 use std::{ffi::OsStr, time::Duration};
@@ -118,7 +116,7 @@ async fn aggregation_t12_listener_preserves_queue_and_resumes_ordered_selection(
         stack_tenant: Some(tenant.clone()),
         ..Default::default()
     };
-    let listener = RoutingListener::with_database(crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home).unwrap());
+    let listener = RoutingListener::with_database(GlobalDatabase::for_home(root.path()).unwrap());
     let address = listener.start(0).unwrap();
     let native = tempfile::tempdir().unwrap();
     let mut guard = lock_app(AppId::Codex, native.path()).unwrap();
@@ -245,72 +243,5 @@ async fn aggregation_t12_listener_preserves_queue_and_resumes_ordered_selection(
     for (_, task) in upstreams {
         task.abort();
         assert!(task.await.unwrap_err().is_cancelled());
-    }
-}
-
-#[tokio::test]
-async fn aggregation_t12_queue_publication_rejects_unauthorized_scope() {
-    use crate::gateway::api::handlers::app_routing::{RoutingControl, configure_with_policy};
-    use axum::{
-        Extension,
-        body::Body,
-        http::{HeaderMap, Request},
-        routing::get,
-    };
-    use sha2::{Digest, Sha256};
-    use std::{os::unix::fs::PermissionsExt, sync::Arc};
-    use tower::ServiceExt;
-    let root = tempfile::tempdir().unwrap();
-    std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
-    let path = root.path().join("policy.json");
-    let policy = json!({
-        "hosts": [{"id":"host", "online":true, "binding":"local", "home":root.path(),
-            "search_paths":[], "applications":root.path().join("Applications"), "credential_root":root.path()}],
-        "principals": [{"id":"manager", "token_sha256":hex::encode(Sha256::digest("fixture-queue-publication-manager-token")),
-            "grants":[{"platform_id":"platform", "company_id":"company", "host_id":"host",
-                "routing_read":true, "routing_manage":true, "provider_config_write":true,
-                "routing_apps":[{"project_id":"project", "app_id":"codex"}]}]}]
-    });
-    std::fs::write(&path, policy.to_string()).unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
-    let listener = Arc::new(RoutingListener::with_database(crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home).unwrap()));
-    let (send, mut receive) = mpsc::unbounded_channel();
-    let router = configure_with_policy(
-        Router::new().route(
-            "/",
-            get(move |Extension(control): Extension<RoutingControl>| async move {
-                send.send(control).unwrap();
-            }),
-        ),
-        &listener,
-        path,
-        crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home).unwrap(),
-    )
-    .await;
-    assert_eq!(router.oneshot(Request::new(Body::empty())).await.unwrap().status(), StatusCode::OK);
-    let control = receive.try_recv().unwrap();
-    let tenant = TenantScope::new("platform", "company").unwrap();
-    let mut headers = HeaderMap::new();
-    headers
-        .insert("x-agent-apps-token", "fixture-queue-publication-manager-token".parse().unwrap());
-    for (tenant, project, host) in [
-        (TenantScope::new("platform", "other").unwrap(), "project", "host"),
-        (tenant.clone(), "other", "host"),
-        (tenant.clone(), "project", "other"),
-    ] {
-        let scope = ProjectScope::new(tenant, project.into()).unwrap();
-        assert_eq!(
-            control
-                .publish_failover_route(
-                    &headers,
-                    &scope,
-                    host,
-                    None,
-                    |_, _| panic!("unauthorized preparation"),
-                    |_, _, _, _, _| panic!("unauthorized commit")
-                )
-                .err(),
-            Some(StatusCode::FORBIDDEN)
-        );
     }
 }

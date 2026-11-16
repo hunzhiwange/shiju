@@ -141,3 +141,8 @@ fn test_samples() -> Vec<(&'static str, &'static str, String)> {
 
 #[cfg(all(test, target_os = "macos"))]
 mod host_migration_13_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod host_migration_57_tests;
+
+pub mod gateway_owner;

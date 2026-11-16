@@ -1,5 +1,5 @@
-use super::{dispatch::JsonTarget, VerifiedRouteBinding};
-use crate::app_routing::{RoutingListener, SharedTransport};
+use app_routing_services::{dispatch::JsonTarget, VerifiedRouteBinding};
+use app_routing_services::{RoutingListener, SharedTransport};
 use axum::{Json, Router, http::StatusCode, routing::post};
 use serde_json::{Value, json};
 use std::time::Duration;
@@ -20,12 +20,13 @@ fn test_listener() -> RoutingListener {
 
 #[tokio::test]
 async fn aggregation_t11_published_revision_routes_and_revokes_exact_targets() {
-    use crate::{
-        app_routing::{
+    use {
+        app_routing_services::{
             RouteCommitError,
             aggregation_routing::{AggregationModel, AggregationPublication, AggregationTarget},
         },
-        gateway::api::handlers::app_routing::{RoutingControl, configure_with_policy},
+        crate::server::lifecycle_api::RoutingControl,
+        super::configure_with_policy,
     };
     use axum::{
         Extension,

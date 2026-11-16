@@ -12,7 +12,3 @@ pub(crate) mod gateway_owner;
 
 #[cfg(all(test, target_os = "macos"))]
 mod gateway_owner_tests;
-#[cfg(all(test, target_os = "macos"))]
-mod failover_routing_tests;
-#[cfg(all(test, target_os = "macos"))]
-mod aggregation_routing_tests;

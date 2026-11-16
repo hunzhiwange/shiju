@@ -2,7 +2,7 @@
 pub enum GeneralSettingsMessage {
     LocaleSelected(config_ui::DesktopLocale),
     LocaleSaved(config_ui::DesktopLocale, Result<(), String>),
-    TabSelected(desktop_settings_shell::GeneralSettingsTab),
+    TabSelected(desktop_ui_controls::settings_navigation::GeneralSettingsTab),
     TimezoneSelected(String),
     TaskCompletionNotificationToggled(bool),
     TaskCompletionNotificationSaved(bool, Result<(), String>),

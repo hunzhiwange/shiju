@@ -20,7 +20,7 @@ pub enum SettingsMessage {
     Themes(ThemesMessage),
 }
 pub struct Fixture {
-    pub general_settings_tab: desktop_settings_shell::GeneralSettingsTab,
+    pub general_settings_tab: desktop_ui_controls::settings_navigation::GeneralSettingsTab,
     pub chat_timezone: String,
     pub terminal: Terminal,
     pub preview_auto_save_mode: config_ui::PreviewAutoSaveMode,
@@ -38,7 +38,7 @@ pub struct Fixture {
 impl Default for Fixture {
     fn default() -> Self {
         Self {
-            general_settings_tab: desktop_settings_shell::GeneralSettingsTab::Interface,
+            general_settings_tab: desktop_ui_controls::settings_navigation::GeneralSettingsTab::Interface,
             chat_timezone: "Asia/Shanghai".into(),
             terminal: Terminal::default(),
             preview_auto_save_mode: config_ui::PreviewAutoSaveMode::Off,
@@ -189,13 +189,13 @@ pub fn general_view(app: &Fixture) -> Element<'_, Message> {
         general_settings_tab: app.general_settings_tab,
     };
     let page = match app.general_settings_tab {
-        desktop_settings_shell::GeneralSettingsTab::Editor => crate::editor::content(
+        desktop_ui_controls::settings_navigation::GeneralSettingsTab::Editor => crate::editor::content(
             app.desktop_locale,
             &app.app_theme,
             editor_fields(app, 250.0),
             help,
         ),
-        desktop_settings_shell::GeneralSettingsTab::Themes => {
+        desktop_ui_controls::settings_navigation::GeneralSettingsTab::Themes => {
             crate::system_settings_themes::gallery::view(&self::inputs(app))
         }
         _ => iced::widget::Space::new().into(),

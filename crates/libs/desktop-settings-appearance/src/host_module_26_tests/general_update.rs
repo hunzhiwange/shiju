@@ -1,5 +1,5 @@
 use crate::general_update::*;
-use desktop_settings_shell::GeneralSettingsTab;
+use desktop_ui_controls::settings_navigation::GeneralSettingsTab;
 #[test]
 fn tab_selection_updates_general_settings_content() {
     let mut tab = GeneralSettingsTab::Interface;

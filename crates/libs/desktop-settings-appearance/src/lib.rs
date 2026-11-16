@@ -21,3 +21,5 @@ mod desktop_split_16_tests;
 
 #[cfg(test)]
 mod host_module_26_tests;
+
+pub mod general_fields;

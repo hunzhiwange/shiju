@@ -12,30 +12,7 @@ use iced::widget::{
 };
 use iced::{Alignment, Border, Element, Font, Length, Padding, Theme, font};
 
-pub const GROUPS: &[(&str, &[SystemTab])] = {
-    use SystemTab::*;
-    &[
-        (
-            "应用与项目",
-            &[
-                General,
-                Apps,
-                #[cfg(not(target_arch = "wasm32"))]
-                ComputerControl,
-                #[cfg(not(target_arch = "wasm32"))]
-                Auth,
-                #[cfg(not(target_arch = "wasm32"))]
-                Voice,
-                Projects,
-                Worktrees,
-                ArchivedChats,
-            ],
-        ),
-        ("模型与智能体", &[Providers, Models, Agents, Memory]),
-        ("网络与集成", &[GatewayClient, Gateway, WebSearch]),
-        ("运行与安全", &[Cron, Security, Autonomy, Hooks, Observability]),
-    ]
-};
+pub use desktop_ui_controls::settings_navigation::GROUPS;
 
 pub struct NavigationEntry<Message> { pub label: &'static str, pub parent_label: Option<std::borrow::Cow<'static, str>>, pub tab: SystemTab, pub active: bool, pub on_press: Message }
 pub struct NavigationGroup<Message> { pub label: Option<&'static str>, pub entries: Vec<NavigationEntry<Message>> }

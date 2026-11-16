@@ -4,7 +4,7 @@ use crate::Message;
 use crate::Message as SettingsMessage;
 use crate::messages::*;
 use crate::state::*;
-use desktop_settings_shell::SystemTab;
+use desktop_ui_controls::settings_navigation::SystemTab;
 use iced::Element;
 
 struct NetworkFixture {

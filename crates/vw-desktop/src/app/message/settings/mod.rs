@@ -12,12 +12,13 @@ pub(crate) mod apps_usage_events;
 pub(crate) mod archived_chats;
 mod autonomy;
 mod browser;
+mod channels;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod computer_control;
-mod channels;
 mod cron;
 pub(crate) mod cron_history;
 pub(crate) use cron::validate_delivery as validate_cron_delivery;
+pub(crate) mod backup_inventory;
 mod dialogue_flow;
 mod embedding_routes;
 mod gateway;
@@ -54,7 +55,6 @@ mod sessions;
 pub(crate) mod skills;
 mod storage;
 mod tabs;
-pub(crate) mod backup_inventory;
 mod themes;
 mod tunnel;
 mod types;
@@ -91,122 +91,88 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
     let save_error = raw_error.as_ref().map(server_config_unreachable_error);
 
     match tag {
-        "heartbeat" => {
-            desktop_settings_cron::save_feedback::heartbeat_saved(
-                &mut app.heartbeat_settings,
-                save_error,
-            )
-        }
+        "heartbeat" => desktop_settings_cron::save_feedback::heartbeat_saved(
+            &mut app.heartbeat_settings,
+            save_error,
+        ),
         "cron" => {
-            desktop_settings_cron::save_feedback::cron_saved(
-                &mut app.cron_settings,
-                save_error,
-            )
+            desktop_settings_cron::save_feedback::cron_saved(&mut app.cron_settings, save_error)
         }
-        "scheduler" => {
-            desktop_settings_cron::save_feedback::scheduler_saved(
-                &mut app.scheduler_settings,
-                save_error,
-            )
-        }
-        "reliability" => {
-            desktop_settings_runtime::save_feedback::reliability_saved(
-                &mut app.reliability_settings,
-                save_error,
-            )
-        }
-        "memory" => {
-            desktop_settings_memory::save_feedback::memory_saved(
-                &mut app.memory_settings,
-                save_error,
-            )
-        }
-        "security" => {
-            desktop_settings_security::save_feedback::security_saved(
-                &mut app.security_settings,
-                save_error,
-            )
-        }
-        "channels_config" => {
-            desktop_settings_channels::save_feedback::channels_config_saved(
-                &mut app.channels_settings,
-                save_error,
-            )
-        }
-        "observability" => {
-            desktop_settings_runtime::save_feedback::observability_saved(
-                &mut app.observability_settings,
-                save_error,
-            )
-        }
-        "storage" => {
-            desktop_settings_memory::save_feedback::storage_saved(
-                &mut app.storage_settings,
-                save_error,
-            )
-        }
-        "proxy" => {
-            desktop_settings_network::save_feedback::proxy_saved(
-                &mut app.proxy_settings,
-                save_error,
-            )
-        }
-        "browser" => {
-            desktop_settings_network::save_feedback::browser_saved(
-                &mut app.browser_settings,
-                save_error,
-            )
-        }
-        "http_request" => {
-            desktop_settings_network::save_feedback::http_request_saved(
-                &mut app.http_request_settings,
-                save_error,
-            )
-        }
-        "multimodal" => {
-            desktop_settings_runtime::save_feedback::multimodal_saved(
-                &mut app.multimodal_settings,
-                save_error,
-            )
-        }
-        "web_search" => {
-            desktop_settings_network::save_feedback::web_search_saved(
-                &mut app.web_search_settings,
-                save_error,
-            )
-        }
-        "tunnel" => {
-            desktop_settings_network::save_feedback::tunnel_saved(
-                &mut app.tunnel_settings,
-                save_error,
-            )
-        }
-        "hooks" => {
-            desktop_settings_runtime::save_feedback::hooks_saved(
-                &mut app.hooks_settings,
-                save_error,
-            )
-        }
-        "skills" => {
-            desktop_settings_skills::save_feedback::skills_saved(
-                &mut app.skills_settings,
-                save_error,
-            )
-        }
-        "runtime" => {
-            desktop_settings_runtime::save_feedback::runtime_saved(
-                &mut app.runtime_settings,
-                save_error,
-            )
-        }
+        "scheduler" => desktop_settings_cron::save_feedback::scheduler_saved(
+            &mut app.scheduler_settings,
+            save_error,
+        ),
+        "reliability" => desktop_settings_runtime::save_feedback::reliability_saved(
+            &mut app.reliability_settings,
+            save_error,
+        ),
+        "memory" => desktop_settings_memory::save_feedback::memory_saved(
+            &mut app.memory_settings,
+            save_error,
+        ),
+        "security" => desktop_settings_security::save_feedback::security_saved(
+            &mut app.security_settings,
+            save_error,
+        ),
+        "channels_config" => desktop_settings_channels::save_feedback::channels_config_saved(
+            &mut app.channels_settings,
+            save_error,
+        ),
+        "observability" => desktop_settings_runtime::save_feedback::observability_saved(
+            &mut app.observability_settings,
+            save_error,
+        ),
+        "storage" => desktop_settings_memory::save_feedback::storage_saved(
+            &mut app.storage_settings,
+            save_error,
+        ),
+        "proxy" => desktop_settings_network::save_feedback::proxy_saved(
+            &mut app.proxy_settings,
+            save_error,
+        ),
+        "browser" => desktop_settings_network::save_feedback::browser_saved(
+            &mut app.browser_settings,
+            save_error,
+        ),
+        "http_request" => desktop_settings_network::save_feedback::http_request_saved(
+            &mut app.http_request_settings,
+            save_error,
+        ),
+        "multimodal" => desktop_settings_runtime::save_feedback::multimodal_saved(
+            &mut app.multimodal_settings,
+            save_error,
+        ),
+        "web_search" => desktop_settings_network::save_feedback::web_search_saved(
+            &mut app.web_search_settings,
+            save_error,
+        ),
+        "tunnel" => desktop_settings_network::save_feedback::tunnel_saved(
+            &mut app.tunnel_settings,
+            save_error,
+        ),
+        "hooks" => desktop_settings_runtime::save_feedback::hooks_saved(
+            &mut app.hooks_settings,
+            save_error,
+        ),
+        "skills" => desktop_settings_skills::save_feedback::skills_saved(
+            &mut app.skills_settings,
+            save_error,
+        ),
+        "runtime" => desktop_settings_runtime::save_feedback::runtime_saved(
+            &mut app.runtime_settings,
+            save_error,
+        ),
         "model_routes" => desktop_settings_providers::save_feedback::model_routes_saved(
-            &mut app.model_routes_settings.save_error, raw_error,
+            &mut app.model_routes_settings.save_error,
+            raw_error,
         ),
         "embedding_routes" => desktop_settings_providers::save_feedback::embedding_routes_saved(
-            &mut app.embedding_routes_settings, raw_error,
+            &mut app.embedding_routes_settings,
+            raw_error,
         ),
         "gateway" => desktop_settings_network::save_feedback::gateway_saved(
-            &mut app.gateway_settings, raw_error,
+            &mut app.gateway_settings,
+            raw_error,
         ),
         "query_classification" => {
             desktop_settings_runtime::save_feedback::query_classification_saved(
@@ -214,12 +180,10 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
                 save_error,
             )
         }
-        "autonomy" => {
-            desktop_settings_security::save_feedback::autonomy_saved(
-                &mut app.autonomy_settings,
-                save_error,
-            )
-        }
+        "autonomy" => desktop_settings_security::save_feedback::autonomy_saved(
+            &mut app.autonomy_settings,
+            save_error,
+        ),
         _ => {}
     }
 }
@@ -241,96 +205,91 @@ fn update_config_panel(
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
-    match message {
-        SettingsMessage::DeviceSyncWebdav(event) => device_sync_webdav::update(app,event),
-        SettingsMessage::DeviceSyncS3(event) => device_sync_s3::update(app,event),
-        SettingsMessage::MigrationPreview(event) => crate::app::components::system_settings_data::migration_preview_ui::update(app, event),
-        SettingsMessage::DataBackups(event) => data_management::backup_list_ui::update(app, event),
-        SettingsMessage::DataRecovery(event) => data_management::recovery_ui::update(app, event),
-        SettingsMessage::DataExport(event) => data_management::export_ui::update(app, event),
-        SettingsMessage::BackupInventory(event) => backup_inventory::update(app, event),
+    use desktop_settings_shell::messages::SettingsRoute;
+    match message.route() {
+        SettingsRoute::DeviceSyncWebdav(event) => device_sync_webdav::update(app, event),
+        SettingsRoute::DeviceSyncS3(event) => device_sync_s3::update(app, event),
+        SettingsRoute::MigrationPreview(event) => {
+            crate::app::components::system_settings_data::migration_preview_ui::update(app, event)
+        }
+        SettingsRoute::DataBackups(event) => data_management::backup_list_ui::update(app, event),
+        SettingsRoute::DataRecovery(event) => data_management::recovery_ui::update(app, event),
+        SettingsRoute::DataExport(event) => data_management::export_ui::update(app, event),
+        SettingsRoute::BackupInventory(event) => backup_inventory::update(app, event),
         #[cfg(not(target_arch = "wasm32"))]
-        SettingsMessage::ComputerControl(event) => computer_control::update(app, event),
+        SettingsRoute::ComputerControl(event) => computer_control::update(app, event),
         #[cfg(not(target_arch = "wasm32"))]
-        SettingsMessage::Voice(event) => voice::update(app, event),
-        SettingsMessage::ArchivedChats(message) => archived_chats::update(app, message),
-        SettingsMessage::Worktrees(message) => worktrees::update(app, message),
-        SettingsMessage::AppsCatalog(message) => apps_catalog::update(app, message),
+        SettingsRoute::Voice(event) => voice::update(app, event),
+        SettingsRoute::ArchivedChats(message) => archived_chats::update(app, message),
+        SettingsRoute::Worktrees(message) => worktrees::update(app, message),
+        SettingsRoute::AppsCatalog(message) => apps_catalog::update(app, message),
         #[cfg(not(target_arch = "wasm32"))]
-        SettingsMessage::AgentAppsAuth(event) => {
+        SettingsRoute::AgentAppsAuth(event) => {
             crate::app::message::agent_apps_auth::update(app, event)
         }
-        SettingsMessage::AppProviderEffect(effect) => {
+        SettingsRoute::AppProviderEffect(effect) => {
             crate::app::message::app_providers::provider_update::effect(app, effect)
         }
-        SettingsMessage::AppProviderEdit(message) => {
+        SettingsRoute::AppProviderEdit(message) => {
             crate::app::message::app_providers::edit::update(app, message)
         }
-        SettingsMessage::AppProviders(message) => {
+        SettingsRoute::AppProviders(message) => {
             crate::app::message::app_providers::list::update(app, message)
         }
-        SettingsMessage::TabSelected(_)
-        | SettingsMessage::SystemTabSelected(_)
-        | SettingsMessage::SystemSearchTargetSelected(_)
-        | SettingsMessage::ModelConfigTab(_)
-        | SettingsMessage::AgentConfigTab(_)
-        | SettingsMessage::SystemTabQueryChanged(_)
-        | SettingsMessage::SystemHelpOpen(_)
-        | SettingsMessage::SystemHelpClose
-        | SettingsMessage::ToggleSettingsSidebar => tabs::update(app, message),
-        SettingsMessage::General(_) => general::update(app, message),
-        SettingsMessage::EmbeddingRoutes(_) => {
+        SettingsRoute::TabSelected(message) => tabs::update(app, message),
+        SettingsRoute::General(message) => general::update(app, message),
+        SettingsRoute::EmbeddingRoutes(message) => {
             update_config_panel(app, message, "embedding_routes_settings", embedding_routes::update)
         }
-        SettingsMessage::Hooks(_) => {
+        SettingsRoute::Hooks(message) => {
             update_config_panel(app, message, "hooks_settings", hooks::update)
         }
-        SettingsMessage::Storage(_) => {
+        SettingsRoute::Storage(message) => {
             update_config_panel(app, message, "storage_settings", storage::update)
         }
-        SettingsMessage::ModelRoutes(_) => {
+        SettingsRoute::ModelRoutes(message) => {
             update_config_panel(app, message, "model_routes_settings", model_routes::update)
         }
-        SettingsMessage::QueryClassification(_) => update_config_panel(
+        SettingsRoute::QueryClassification(message) => update_config_panel(
             app,
             message,
             "query_classification_settings",
             query_classification::update,
         ),
-        SettingsMessage::Runtime(_) => {
+        SettingsRoute::Runtime(message) => {
             update_config_panel(app, message, "runtime_settings", runtime::update)
         }
-        SettingsMessage::Browser(_) => {
+        SettingsRoute::Browser(message) => {
             update_config_panel(app, message, "browser_settings", browser::update)
         }
-        SettingsMessage::WebSearch(_) => {
+        SettingsRoute::WebSearch(message) => {
             update_config_panel(app, message, "web_search_settings", web_search::update)
         }
-        SettingsMessage::HttpRequest(_) => {
+        SettingsRoute::HttpRequest(message) => {
             update_config_panel(app, message, "http_request_settings", http_request::update)
         }
-        SettingsMessage::Memory(_) => {
+        SettingsRoute::Memory(message) => {
             update_config_panel(app, message, "memory_settings", memory::update)
         }
-        SettingsMessage::Channels(_) => {
+        SettingsRoute::Channels(message) => {
             update_config_panel(app, message, "channels_settings", channels::update)
         }
-        SettingsMessage::Multimodal(_) => {
+        SettingsRoute::Multimodal(message) => {
             update_config_panel(app, message, "multimodal_settings", multimodal::update)
         }
-        SettingsMessage::Acp(_) => acp::update(app, message),
-        SettingsMessage::Mcp(_) => mcp::update(app, message),
-        SettingsMessage::GatewayClient(_) => gateway_client::update(app, message),
-        SettingsMessage::Gateway(_) => {
+        SettingsRoute::Acp(message) => acp::update(app, message),
+        SettingsRoute::Mcp(message) => mcp::update(app, message),
+        SettingsRoute::GatewayClient(message) => gateway_client::update(app, message),
+        SettingsRoute::Gateway(message) => {
             update_config_panel(app, message, "gateway_settings", gateway::update)
         }
-        SettingsMessage::Tunnel(_) => {
+        SettingsRoute::Tunnel(message) => {
             update_config_panel(app, message, "tunnel_settings", tunnel::update)
         }
-        SettingsMessage::Themes(_) => themes::update(app, message),
-        SettingsMessage::Agents(_) => agents::update(app, message),
-        SettingsMessage::QuickMessages(_) => quick_messages::update(app, message),
-        SettingsMessage::AgentConfigSaved { tag, result } => {
+        SettingsRoute::Themes(message) => themes::update(app, message),
+        SettingsRoute::Agents(message) => agents::update(app, message),
+        SettingsRoute::QuickMessages(message) => quick_messages::update(app, message),
+        SettingsRoute::AgentConfigSaved { tag, result } => {
             if tag == "agent" {
                 agents::handle_agents_config_saved(app, result)
             } else {
@@ -338,358 +297,41 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Task::none()
             }
         }
-        SettingsMessage::ProvidersRefresh
-        | SettingsMessage::ProvidersRefreshed(_)
-        | SettingsMessage::ProviderModelsSyncRemote
-        | SettingsMessage::ProviderModelsSyncTick
-        | SettingsMessage::ProviderModelsSyncDone(_)
-        | SettingsMessage::ProviderConnectOpen(_)
-        | SettingsMessage::ProviderConnectClose
-        | SettingsMessage::ProviderConnectApiKeyChanged(_)
-        | SettingsMessage::ProviderConnectSubmit
-        | SettingsMessage::ProviderConnectDone(_)
-        | SettingsMessage::ProviderDisconnectRequested(_)
-        | SettingsMessage::ProviderDisconnectCanceled
-        | SettingsMessage::ProviderDisconnectConfirmed(_)
-        | SettingsMessage::ProviderDisconnect(_)
-        | SettingsMessage::ProviderDisconnectDone(_)
-        | SettingsMessage::CustomProviderOpen
-        | SettingsMessage::CustomProviderEditOpen(_)
-        | SettingsMessage::CustomProviderEditLoaded(_)
-        | SettingsMessage::CustomProviderClose
-        | SettingsMessage::CustomProviderTabSelected(_)
-        | SettingsMessage::CustomProviderIdChanged(_)
-        | SettingsMessage::CustomProviderNameChanged(_)
-        | SettingsMessage::CustomProviderBaseUrlChanged(_)
-        | SettingsMessage::CustomProviderApiKeyChanged(_)
-        | SettingsMessage::CustomProviderHeaderAdd
-        | SettingsMessage::CustomProviderHeaderRemove(_)
-        | SettingsMessage::CustomProviderHeaderKeyChanged(_, _)
-        | SettingsMessage::CustomProviderHeaderValueChanged(_, _)
-        | SettingsMessage::CustomProviderModelOpen(_)
-        | SettingsMessage::CustomProviderModelClose
-        | SettingsMessage::CustomProviderModelTabSelected(_)
-        | SettingsMessage::CustomProviderModelModalIdChanged(_)
-        | SettingsMessage::CustomProviderModelModalNameChanged(_)
-        | SettingsMessage::CustomProviderModelModalFamilyChanged(_)
-        | SettingsMessage::CustomProviderModelModalContextLimitChanged(_)
-        | SettingsMessage::CustomProviderModelModalInputLimitChanged(_)
-        | SettingsMessage::CustomProviderModelModalOutputLimitChanged(_)
-        | SettingsMessage::CustomProviderModelModalReasoningChanged(_)
-        | SettingsMessage::CustomProviderModelModalToolCallChanged(_)
-        | SettingsMessage::CustomProviderModelModalTemperatureChanged(_)
-        | SettingsMessage::CustomProviderModelModalAttachmentChanged(_)
-        | SettingsMessage::CustomProviderModelModalInterleavedChanged(_)
-        | SettingsMessage::CustomProviderModelModalInputModalityToggled(_, _)
-        | SettingsMessage::CustomProviderModelModalOutputModalityToggled(_, _)
-        | SettingsMessage::CustomProviderModelModalSave
-        | SettingsMessage::CustomProviderModelRemove(_)
-        | SettingsMessage::CustomProviderModelEnabledToggled(_, _)
-        | SettingsMessage::CustomProviderModelFilterSelected(_)
-        | SettingsMessage::CustomProviderModelsDiscover
-        | SettingsMessage::CustomProviderModelsDiscovered { .. }
-        | SettingsMessage::CustomProviderSave
-        | SettingsMessage::CustomProviderSaveDone(_)
-        | SettingsMessage::PopularProviderRemove(_)
-        | SettingsMessage::PopularProvidersSaved(_)
-        | SettingsMessage::ProviderCatalogOpen
-        | SettingsMessage::ProviderCatalogClose
-        | SettingsMessage::ProviderCatalogQueryChanged(_)
-        | SettingsMessage::ProviderCatalogLoaded(_)
-        | SettingsMessage::ProviderCatalogAddToPopular(_) => providers::update(app, message),
-        SettingsMessage::ModelsRefresh
-        | SettingsMessage::ModelsRefreshed(_)
-        | SettingsMessage::ModelsSetAll(_)
-        | SettingsMessage::ProviderModelsSetAll(_, _)
-        | SettingsMessage::ProviderModelsReset(_)
-        | SettingsMessage::ProviderModelsResetCompleted(_, _)
-        | SettingsMessage::ProviderModelsExpansionToggled(_)
-        | SettingsMessage::ModelStatusesSaved(_, _)
-        | SettingsMessage::ModelQueryChanged(_)
-        | SettingsMessage::ModelToggle(_, _, _)
-        | SettingsMessage::ModelDetailOpen(_, _)
-        | SettingsMessage::ModelDetailClose
-        | SettingsMessage::ModelDetailToggleRaw => models::update(app, message),
-        SettingsMessage::PluginInstallEffect(_)
-        | SettingsMessage::PluginsInstallOpen
-        | SettingsMessage::PluginsUpdateOpen(_)
-        | SettingsMessage::PluginsInstallSourceChanged(_)
-        | SettingsMessage::PluginsInstallPrepare
-        | SettingsMessage::PluginsInstallPrepared { .. }
-        | SettingsMessage::PluginsInstallConfirm
-        | SettingsMessage::PluginsInstallCompleted { .. }
-        | SettingsMessage::PluginsInstallClose
-        | SettingsMessage::PluginsPreviewDiscarded(_) => plugin_install::update(app, message),
-        SettingsMessage::SkillsDirectoryProviderChanged(_)
-        | SettingsMessage::SkillsProjectAutoLoadToggled(_)
-        | SettingsMessage::SkillsPromptInjectionModeChanged(_)
-        | SettingsMessage::SkillsSave => {
+        SettingsRoute::ProvidersRefresh(message) => providers::update(app, message),
+        SettingsRoute::ModelsRefresh(message) => models::update(app, message),
+        SettingsRoute::PluginInstallEffect(message) => plugin_install::update(app, message),
+        SettingsRoute::SkillsDirectoryProviderChanged(message) => {
             update_config_panel(app, message, "skills_settings", skills::update)
         }
-        SettingsMessage::SkillsProjectSelected(_)
-        | SettingsMessage::SkillsRefresh
-        | SettingsMessage::SkillsLoaded(_)
-        | SettingsMessage::PluginsRefresh
-        | SettingsMessage::PluginsLoaded(_)
-        | SettingsMessage::PluginsSelected(_)
-        | SettingsMessage::PluginsSetEnabledRequested { .. }
-        | SettingsMessage::PluginsSetEnabledCompleted { .. }
-        | SettingsMessage::PluginsDeleteRequested(_)
-        | SettingsMessage::PluginsDeleteCompleted { .. }
-        | SettingsMessage::SkillsTabChanged(_)
-        | SettingsMessage::SkillsDetailClosed
-        | SettingsMessage::SkillsDetailRequested(_)
-        | SettingsMessage::SkillsDetailLoaded { .. }
-        | SettingsMessage::SkillsQueryChanged(_)
-        | SettingsMessage::SkillsDirectoryScopeChanged(_)
-        | SettingsMessage::SkillsCreateNewRequested
-        | SettingsMessage::SkillsCreateNewCompleted(_)
-        | SettingsMessage::SkillsCopyInstallCommand
-        | SettingsMessage::SkillsInstallBuiltInRequested(_)
-        | SettingsMessage::SkillsInstallBuiltInCompleted(_)
-        | SettingsMessage::SkillsSetEnabledRequested { .. }
-        | SettingsMessage::SkillsSetEnabledCompleted { .. }
-        | SettingsMessage::SkillsDeleteRequested(_)
-        | SettingsMessage::SkillsDeleteCompleted { .. }
-        | SettingsMessage::SkillsBackups(_)
-        | SettingsMessage::SkillsStorage(_)
-        | SettingsMessage::SkillsBindings(_)
-        | SettingsMessage::SkillsClaudeConfig(_)
-        | SettingsMessage::SkillsJobs(_)
-        | SettingsMessage::SkillsUpdates(_)
-        | SettingsMessage::SkillsInstall(_)
-        | SettingsMessage::SkillsMarket(_)
-        | SettingsMessage::SkillsImport(_)
-        | SettingsMessage::SkillRepositories(_)
-        | SettingsMessage::SkillsHelpOpen
-        | SettingsMessage::SkillsHelpClose => skills::update(app, message),
-        SettingsMessage::DialogueFlowPermissionRefresh
-        | SettingsMessage::DialogueFlowPermissionLoaded(_)
-        | SettingsMessage::DialogueFlowPermissionReset
-        | SettingsMessage::DialogueFlowUiSettingsLoaded(..)
-        | SettingsMessage::DialogueFlowUiSettingsSave
-        | SettingsMessage::DialogueFlowUiSettingsSaved(_)
-        | SettingsMessage::DialogueFlowShowReasoningSummaryToggled(_)
-        | SettingsMessage::DialogueFlowExpandShellToolSectionToggled(_)
-        | SettingsMessage::DialogueFlowExpandEditToolSectionToggled(_) => {
+        SettingsRoute::SkillsProjectSelected(message) => skills::update(app, message),
+        SettingsRoute::DialogueFlowPermissionRefresh(message) => {
             dialogue_flow::update(app, message)
         }
-        SettingsMessage::RecentProjectQueryChanged(_)
-        | SettingsMessage::RecentProjectDeleteRequested(_)
-        | SettingsMessage::RecentProjectDeleteCanceled
-        | SettingsMessage::RecentProjectDeleteConfirmed(_)
-        | SettingsMessage::ProjectEnableWorktreeToggled(_, _)
-        | SettingsMessage::ProjectWorktreeSaved(_) => projects::update(app, message),
-        SettingsMessage::SessionDelete(_) | SettingsMessage::SessionCopy(_) => {
-            sessions::update(app, message)
-        }
-        SettingsMessage::HeartbeatEnabledToggled(_)
-        | SettingsMessage::HeartbeatIntervalChanged(_)
-        | SettingsMessage::HeartbeatMessageChanged(_)
-        | SettingsMessage::HeartbeatTargetChanged(_)
-        | SettingsMessage::HeartbeatToChanged(_)
-        | SettingsMessage::HeartbeatSave
-        | SettingsMessage::HeartbeatHelpOpen
-        | SettingsMessage::HeartbeatHelpClose => {
+        SettingsRoute::RecentProjectQueryChanged(message) => projects::update(app, message),
+        SettingsRoute::SessionDelete(message) => sessions::update(app, message),
+        SettingsRoute::HeartbeatEnabledToggled(message) => {
             update_config_panel(app, message, "heartbeat_settings", heartbeat::update)
         }
-        SettingsMessage::CronHistory(event) => cron_history::update(app, event),
-        SettingsMessage::CronFullAccessConfirm { .. }
-        | SettingsMessage::CronFullAccessCancel { .. }
-        | SettingsMessage::CronPickerOpen { .. }
-        | SettingsMessage::CronPickerNavigate(_)
-        | SettingsMessage::CronPickerDate(_)
-        | SettingsMessage::CronPickerTime { .. }
-        | SettingsMessage::CronPickerConfirm
-        | SettingsMessage::CronPickerCancel
-        | SettingsMessage::CronScheduleDraftChanged { .. }
-        | SettingsMessage::CronSchedulePreview { .. }
-        | SettingsMessage::CronSchedulePreviewLoaded { .. }
-        | SettingsMessage::CronEnabledToggled(_)
-        | SettingsMessage::CronMaxRunHistoryChanged(_)
-        | SettingsMessage::CronTabSelected(_)
-        | SettingsMessage::CronTemplatesToggled(_)
-        | SettingsMessage::CronTemplateSelected(_)
-        | SettingsMessage::CronListFilterChanged(_)
-        | SettingsMessage::CronBatchModeToggled(_)
-        | SettingsMessage::CronJobsRefresh
-        | SettingsMessage::CronJobsLoaded(_)
-        | SettingsMessage::CronJobSelectionToggled(_, _)
-        | SettingsMessage::CronJobDetailsToggled(_, _)
-        | SettingsMessage::CronJobsSelectAllToggled(_)
-        | SettingsMessage::CronJobRunsOpen(_)
-        | SettingsMessage::CronJobRunsLoaded(_, _)
-        | SettingsMessage::CronJobRunsEditorAction(_)
-        | SettingsMessage::CronJobRunsClose
-        | SettingsMessage::CronJobEditStarted(_)
-        | SettingsMessage::CronJobEditCanceled
-        | SettingsMessage::CronJobEditNameChanged(_)
-        | SettingsMessage::CronJobEditJobTypeChanged(_)
-        | SettingsMessage::CronJobEditScheduleKindChanged(_)
-        | SettingsMessage::CronJobEditScheduleChanged(_)
-        | SettingsMessage::CronJobEditFrequencyChanged(_)
-        | SettingsMessage::CronJobEditAtChanged(_)
-        | SettingsMessage::CronJobEditEveryMsChanged(_)
-        | SettingsMessage::CronJobEditCommandChanged(_)
-        | SettingsMessage::CronJobEditCommandEditorAction(_)
-        | SettingsMessage::CronJobEditPromptChanged(_)
-        | SettingsMessage::CronJobEditPromptEditorAction(_)
-        | SettingsMessage::CronJobEditAgentChanged(_)
-        | SettingsMessage::CronJobEditAcpAgentChanged(_)
-        | SettingsMessage::CronJobEditProjectPathChanged(_)
-        | SettingsMessage::CronJobEditModelProviderChanged(_)
-        | SettingsMessage::CronJobEditModelChanged(_)
-        | SettingsMessage::CronJobEditWakeToggled(_)
-        | SettingsMessage::CronJobEditFallbacksChanged(_)
-        | SettingsMessage::CronJobEditFullAccessToggled(_)
-        | SettingsMessage::CronJobEditTaskPoolToggled(_)
-        | SettingsMessage::CronJobEditDeliveryEnabledToggled(_)
-        | SettingsMessage::CronJobEditDeliveryChannelChanged(_)
-        | SettingsMessage::CronJobEditDeliveryToChanged(_)
-        | SettingsMessage::CronJobEditDeliveryBestEffortToggled(_)
-        | SettingsMessage::CronJobEditDeleteAfterRunToggled(_)
-        | SettingsMessage::CronJobEditSave
-        | SettingsMessage::CronJobEnabledChanged(_, _)
-        | SettingsMessage::CronJobDelete(_)
-        | SettingsMessage::CronSelectedJobsEnable
-        | SettingsMessage::CronSelectedJobsDisable
-        | SettingsMessage::CronSelectedJobsDelete
-        | SettingsMessage::CronAddNameChanged(_)
-        | SettingsMessage::CronAddJobTypeChanged(_)
-        | SettingsMessage::CronAddScheduleKindChanged(_)
-        | SettingsMessage::CronAddScheduleChanged(_)
-        | SettingsMessage::CronAddFrequencyChanged(_)
-        | SettingsMessage::CronAddAtChanged(_)
-        | SettingsMessage::CronAddEveryMsChanged(_)
-        | SettingsMessage::CronAddCommandChanged(_)
-        | SettingsMessage::CronAddCommandEditorAction(_)
-        | SettingsMessage::CronAddPromptChanged(_)
-        | SettingsMessage::CronAddPromptEditorAction(_)
-        | SettingsMessage::CronAddSessionTargetChanged(_)
-        | SettingsMessage::CronAddAgentChanged(_)
-        | SettingsMessage::CronAddAcpAgentChanged(_)
-        | SettingsMessage::CronAddProjectPathChanged(_)
-        | SettingsMessage::CronAddModelProviderChanged(_)
-        | SettingsMessage::CronAddModelChanged(_)
-        | SettingsMessage::CronAddWakeToggled(_)
-        | SettingsMessage::CronAddFallbacksChanged(_)
-        | SettingsMessage::CronAddFullAccessToggled(_)
-        | SettingsMessage::CronAddTaskPoolToggled(_)
-        | SettingsMessage::CronAddDeliveryEnabledToggled(_)
-        | SettingsMessage::CronAddDeliveryChannelChanged(_)
-        | SettingsMessage::CronAddDeliveryToChanged(_)
-        | SettingsMessage::CronAddDeliveryBestEffortToggled(_)
-        | SettingsMessage::CronAddDeleteAfterRunToggled(_)
-        | SettingsMessage::CronAddSubmit
-        | SettingsMessage::CronEditorSaveCompleted { .. }
-        | SettingsMessage::CronJobMutationCompleted(_)
-        | SettingsMessage::CronSave
-        | SettingsMessage::CronHelpOpen
-        | SettingsMessage::CronHelpClose => {
+        SettingsRoute::CronHistory(event) => cron_history::update(app, event),
+        SettingsRoute::CronFullAccessConfirm(message) => {
             update_config_panel(app, message, "cron_settings", cron::update)
         }
-        SettingsMessage::SchedulerEnabledToggled(_)
-        | SettingsMessage::SchedulerMaxTasksChanged(_)
-        | SettingsMessage::SchedulerMaxConcurrentChanged(_)
-        | SettingsMessage::SchedulerSave
-        | SettingsMessage::SchedulerHelpOpen
-        | SettingsMessage::SchedulerHelpClose => {
+        SettingsRoute::SchedulerEnabledToggled(message) => {
             update_config_panel(app, message, "scheduler_settings", scheduler::update)
         }
-        SettingsMessage::ReliabilityProviderRetriesChanged(_)
-        | SettingsMessage::ReliabilityProviderBackoffMsChanged(_)
-        | SettingsMessage::ReliabilityChannelInitialBackoffSecsChanged(_)
-        | SettingsMessage::ReliabilityChannelMaxBackoffSecsChanged(_)
-        | SettingsMessage::ReliabilitySchedulerPollSecsChanged(_)
-        | SettingsMessage::ReliabilitySchedulerRetriesChanged(_)
-        | SettingsMessage::ReliabilitySave
-        | SettingsMessage::ReliabilityHelpOpen
-        | SettingsMessage::ReliabilityHelpClose => {
+        SettingsRoute::ReliabilityProviderRetriesChanged(message) => {
             update_config_panel(app, message, "reliability_settings", reliability::update)
         }
-        SettingsMessage::SecurityBashSecurityEnabledToggled(_)
-        | SettingsMessage::SecurityBashPolicyCheckToggled(_, _)
-        | SettingsMessage::SecurityBashValidatorCheckToggled(_, _)
-        | SettingsMessage::SecurityTabSelected(_)
-        | SettingsMessage::SecurityListDraftChanged(_, _)
-        | SettingsMessage::SecurityListAdd(_)
-        | SettingsMessage::SecurityListRemoveRequested(_, _)
-        | SettingsMessage::SecurityListRemoveConfirmed(_, _)
-        | SettingsMessage::SecurityListRemoveCanceled
-        | SettingsMessage::SecuritySandboxEnabledChanged(_)
-        | SettingsMessage::SecuritySandboxBackendChanged(_)
-        | SettingsMessage::SecurityResourcesMaxMemoryMbChanged(_)
-        | SettingsMessage::SecurityResourcesMaxCpuTimeSecondsChanged(_)
-        | SettingsMessage::SecurityResourcesMaxSubprocessesChanged(_)
-        | SettingsMessage::SecurityResourcesMemoryMonitoringToggled(_)
-        | SettingsMessage::SecurityAuditEnabledToggled(_)
-        | SettingsMessage::SecurityAuditLogPathChanged(_)
-        | SettingsMessage::SecurityAuditMaxSizeMbChanged(_)
-        | SettingsMessage::SecurityAuditSignEventsToggled(_)
-        | SettingsMessage::SecurityOtpEnabledToggled(_)
-        | SettingsMessage::SecurityOtpMethodChanged(_)
-        | SettingsMessage::SecurityOtpTokenTtlSecsChanged(_)
-        | SettingsMessage::SecurityOtpCacheValidSecsChanged(_)
-        | SettingsMessage::SecurityEstopEnabledToggled(_)
-        | SettingsMessage::SecurityEstopStateFileChanged(_)
-        | SettingsMessage::SecurityEstopRequireOtpToResumeToggled(_)
-        | SettingsMessage::SecuritySyscallAnomalyEnabledToggled(_)
-        | SettingsMessage::SecuritySyscallAnomalyStrictModeToggled(_)
-        | SettingsMessage::SecuritySyscallAnomalyAlertOnUnknownSyscallToggled(_)
-        | SettingsMessage::SecuritySyscallAnomalyMaxDeniedEventsPerMinuteChanged(_)
-        | SettingsMessage::SecuritySyscallAnomalyMaxTotalEventsPerMinuteChanged(_)
-        | SettingsMessage::SecuritySyscallAnomalyMaxAlertsPerMinuteChanged(_)
-        | SettingsMessage::SecuritySyscallAnomalyAlertCooldownSecsChanged(_)
-        | SettingsMessage::SecuritySyscallAnomalyLogPathChanged(_)
-        | SettingsMessage::SecurityCanaryTokensToggled(_)
-        | SettingsMessage::SecuritySemanticGuardToggled(_)
-        | SettingsMessage::SecuritySemanticGuardCollectionChanged(_)
-        | SettingsMessage::SecuritySemanticGuardThresholdChanged(_)
-        | SettingsMessage::SecuritySave
-        | SettingsMessage::SecurityHelpOpen
-        | SettingsMessage::SecurityHelpClose => {
+        SettingsRoute::SecurityBashSecurityEnabledToggled(message) => {
             update_config_panel(app, message, "security_settings", security::update)
         }
-        SettingsMessage::AutonomyTabSelected(_)
-        | SettingsMessage::AutonomyLevelChanged(_)
-        | SettingsMessage::AutonomyWorkspaceOnlyToggled(_)
-        | SettingsMessage::AutonomyListDraftChanged(_, _)
-        | SettingsMessage::AutonomyListAdd(_)
-        | SettingsMessage::AutonomyListRemoveRequested(_, _)
-        | SettingsMessage::AutonomyListRemoveConfirmed(_, _)
-        | SettingsMessage::AutonomyListRemoveCanceled
-        | SettingsMessage::AutonomyMaxActionsPerHourChanged(_)
-        | SettingsMessage::AutonomyMaxCostPerDayCentsChanged(_)
-        | SettingsMessage::AutonomyRequireApprovalForMediumRiskToggled(_)
-        | SettingsMessage::AutonomyBlockHighRiskCommandsToggled(_)
-        | SettingsMessage::AutonomyShellRedirectPolicyChanged(_)
-        | SettingsMessage::AutonomyNonCliApprovalApproversChanged(_)
-        | SettingsMessage::AutonomyNonCliNaturalLanguageApprovalModeChanged(_)
-        | SettingsMessage::AutonomyNonCliNaturalLanguageApprovalModeByChannelChanged(_)
-        | SettingsMessage::AutonomySave
-        | SettingsMessage::AutonomyHelpOpen
-        | SettingsMessage::AutonomyHelpClose => {
+        SettingsRoute::AutonomyTabSelected(message) => {
             update_config_panel(app, message, "autonomy_settings", autonomy::update)
         }
-        SettingsMessage::ObservabilityBackendChanged(_)
-        | SettingsMessage::ObservabilityOtelEndpointChanged(_)
-        | SettingsMessage::ObservabilityOtelServiceNameChanged(_)
-        | SettingsMessage::ObservabilityRuntimeTraceModeChanged(_)
-        | SettingsMessage::ObservabilityRuntimeTracePathChanged(_)
-        | SettingsMessage::ObservabilityRuntimeTraceMaxEntriesChanged(_)
-        | SettingsMessage::ObservabilityHelpOpen
-        | SettingsMessage::ObservabilityHelpClose => {
+        SettingsRoute::ObservabilityBackendChanged(message) => {
             update_config_panel(app, message, "observability_settings", observability::update)
         }
-        SettingsMessage::ProxyEnabledToggled(_)
-        | SettingsMessage::ProxyScopeTextChanged(_)
-        | SettingsMessage::ProxyHttpChanged(_)
-        | SettingsMessage::ProxyHttpsChanged(_)
-        | SettingsMessage::ProxyAllChanged(_)
-        | SettingsMessage::ProxyNoProxyChanged(_)
-        | SettingsMessage::ProxyServicesChanged(_)
-        | SettingsMessage::ProxyHelpOpen
-        | SettingsMessage::ProxyHelpClose => {
+        SettingsRoute::ProxyEnabledToggled(message) => {
             update_config_panel(app, message, "proxy_settings", proxy::update)
         }
     }
@@ -697,14 +339,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 
 pub(crate) mod aggregation_omp;
 
-
 pub(crate) mod aggregation_desktop;
 
 pub(crate) mod aggregation_subagent;
 
 #[cfg(test)]
 mod mcp_management_resync_tests;
-
 
 #[cfg(test)]
 mod mcp_management_tools_tests;
@@ -719,5 +359,5 @@ pub(crate) mod data_management;
 
 pub(crate) mod device_sync_preview;
 
-pub(crate) mod device_sync_webdav;
 pub(crate) mod device_sync_s3;
+pub(crate) mod device_sync_webdav;

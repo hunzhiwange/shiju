@@ -31,3 +31,5 @@ mod desktop_split_18_tests;
 pub mod icons;
 
 pub mod selectable_text;
+
+pub mod settings_navigation;

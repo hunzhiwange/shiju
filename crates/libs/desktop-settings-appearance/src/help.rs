@@ -1,4 +1,4 @@
-use desktop_settings_shell::SystemTab;
+use desktop_ui_controls::settings_navigation::SystemTab;
 use desktop_ui_controls::system_settings_common::help::{settings_help_button_with_locale, settings_help_copy_state, with_settings_help_modal};
 use iced::Element;
 const GENERAL_HELP: &str = r#"常规设置说明

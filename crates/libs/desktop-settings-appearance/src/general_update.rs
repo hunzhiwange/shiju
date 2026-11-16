@@ -28,12 +28,12 @@ pub async fn save_quick_messages(
 
 /// Local tab selection; the caller schedules the gallery refresh effect.
 pub fn select_tab(
-    current: &mut desktop_settings_shell::GeneralSettingsTab,
+    current: &mut desktop_ui_controls::settings_navigation::GeneralSettingsTab,
     error: &mut Option<String>,
-    tab: desktop_settings_shell::GeneralSettingsTab,
+    tab: desktop_ui_controls::settings_navigation::GeneralSettingsTab,
 ) -> bool {
     *current = tab;
-    if tab == desktop_settings_shell::GeneralSettingsTab::Themes {
+    if tab == desktop_ui_controls::settings_navigation::GeneralSettingsTab::Themes {
         *error = None;
         true
     } else {

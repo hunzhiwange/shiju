@@ -36,6 +36,3 @@ pub fn with_settings_help_modal<'a>(
         close_message,
     )
 }
-#[cfg(test)]
-#[path = "help_ui_refresh_03_tests.rs"]
-mod help_ui_refresh_03_tests;

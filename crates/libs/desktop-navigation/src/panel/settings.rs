@@ -10,7 +10,7 @@ use crate::{
     ui_types::SettingsTab,
 };
 use desktop_chat_input::popovers::Visibility;
-use desktop_settings_shell::SystemTab;
+use desktop_ui_controls::settings_navigation::SystemTab;
 pub struct State {
     pub show_settings: bool,
     pub settings_tab: SettingsTab,

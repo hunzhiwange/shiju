@@ -50,7 +50,10 @@ pub(super) fn system_tab_matches_query(tab: SystemTab, query: &str) -> bool {
         SystemTab::General => {
             descriptors_match(super::system_settings_general::GENERAL_TABS, &needle)
         }
-        SystemTab::Models => super::system_settings_models::MODEL_TABS.iter().any(|descriptor| descriptor.label.to_lowercase().contains(&needle) || descriptor.keywords.iter().any(|text| text.to_lowercase().contains(&needle))),
+        SystemTab::Models => super::system_settings_models::MODEL_TABS.iter().any(|descriptor| {
+            descriptor.label.to_lowercase().contains(&needle)
+                || descriptor.keywords.iter().any(|text| text.to_lowercase().contains(&needle))
+        }),
         SystemTab::Cron => descriptors_match(super::system_settings_cron::CRON_TABS, &needle),
         SystemTab::Agents => {
             descriptors_match(super::system_settings_agents::AGENT_CONFIG_TABS, &needle)
@@ -196,24 +199,7 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
     }
 }
 
-pub(super) fn tabbed_page_owns_save_error(active_tab: SystemTab) -> bool {
-    matches!(
-        active_tab,
-        SystemTab::Models
-            | SystemTab::Cron
-            | SystemTab::Agents
-            | SystemTab::Channels
-            | SystemTab::Memory
-            | SystemTab::Autonomy
-            | SystemTab::Security
-            | SystemTab::Gateway
-            | SystemTab::WebSearch
-            | SystemTab::HttpRequest
-            | SystemTab::Browser
-            | SystemTab::Proxy
-            | SystemTab::Tunnel
-    )
-}
+pub(super) use desktop_settings_shell::tabbed_page_owns_save_error;
 
 pub(crate) use desktop_settings_shell::SETTINGS_CONTENT_SCROLL;
 #[cfg(test)]
@@ -225,17 +211,25 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         SystemTab::ComputerControl => super::system_settings_computer_control::view(app),
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Voice => super::system_settings_voice::view(app),
-        SystemTab::Apps => super::system_settings_data::recovery_ui::overlay(app, super::system_settings_data::export_ui::overlay(app, column![
-            super::system_settings_apps::view(
-                &app.apps_catalog,
-                crate::app::i18n::I18n::new(app.desktop_locale),
+        SystemTab::Apps => super::system_settings_data::recovery_ui::overlay(
+            app,
+            super::system_settings_data::export_ui::overlay(
+                app,
+                column![
+                    super::system_settings_apps::view(
+                        &app.apps_catalog,
+                        crate::app::i18n::I18n::new(app.desktop_locale),
+                    ),
+                    crate::app::components::system_settings_data::migration_preview_ui::view(app),
+                    crate::app::message::settings::backup_inventory::view(app),
+                    super::system_settings_data::export_ui::view(app),
+                    super::system_settings_data::backup_list_ui::view(app),
+                    super::system_settings_data::recovery_ui::view(app),
+                ]
+                .spacing(12)
+                .into(),
             ),
-            crate::app::components::system_settings_data::migration_preview_ui::view(app),
-            crate::app::message::settings::backup_inventory::view(app),
-            super::system_settings_data::export_ui::view(app),
-            super::system_settings_data::backup_list_ui::view(app),
-            super::system_settings_data::recovery_ui::view(app),
-        ].spacing(12).into())),
+        ),
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Auth => super::system_settings_auth::view(app),
         SystemTab::General => crate::app::components::system_settings_general::view(app),
@@ -245,7 +239,9 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         SystemTab::ArchivedChats => super::system_settings_archived_chats::view(app),
         SystemTab::Worktrees => super::system_settings_worktrees::view(app),
         SystemTab::Providers => {
-            use super::system_settings_common::{rounded_action_btn_style, settings_muted_text_style};
+            use super::system_settings_common::{
+                rounded_action_btn_style, settings_muted_text_style,
+            };
             use iced::widget::{button, text};
 
             column![
@@ -320,8 +316,8 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
                     | crate::app::state::CronSettingsTab::History
             ));
     #[cfg(not(target_arch = "wasm32"))]
-    let owns_scroll = owns_scroll
-        || matches!(active_tab, SystemTab::Auth | SystemTab::ComputerControl);
+    let owns_scroll =
+        owns_scroll || matches!(active_tab, SystemTab::Auth | SystemTab::ComputerControl);
     let owns_scroll = owns_scroll || active_tab_help_modal_open(app, active_tab);
     desktop_settings_shell::content_page(content_column, active_tab == SystemTab::Cron, owns_scroll)
 }
@@ -333,30 +329,12 @@ fn settings_shell(
     help_tab: SystemTab,
 ) -> Element<'_, Message> {
     if app.mobile_layout.mode() == crate::app::state::LayoutMode::Mobile {
-        use super::system_settings_common::{rounded_action_btn_style, settings_muted_text_style};
-        use iced::widget::{button, text};
-        let back = button(text("返回分类"))
-            .padding([10, 12])
-            .style(rounded_action_btn_style)
-            .on_press(Message::View(message::ViewMessage::MobileBack));
-        let mut header = row![back].spacing(8).align_y(Alignment::Center);
-        if let Some(help) = system_settings_help::help_button(app.desktop_locale, help_tab) {
-            header = header.push(help);
-        }
-        let mut page = column![header, settings_content(app, active_tab)]
-            .spacing(8).width(Length::Fill).height(Length::Fill);
-        if active_tab == SystemTab::GatewayClient {
-            // Gateway edits already validate and persist through the existing settings chain.
-            // Keep retry reachable even when the form is scrolled or the keyboard is open.
-            page = page.push(column![
-                text("有效输入自动保存；保存不代表已连接。连接失败时检查地址、认证及浏览器跨域配置。")
-                    .size(12).style(settings_muted_text_style),
-                button(text("刷新连接 / 重试"))
-                    .padding([10, 12]).style(rounded_action_btn_style)
-                    .on_press(Message::GatewayHealthTick),
-            ].spacing(6));
-        }
-        return page.into();
+        return desktop_settings_shell::mobile_shell(
+            settings_content(app, active_tab),
+            system_settings_help::help_button(app.desktop_locale, help_tab),
+            Message::View(message::ViewMessage::MobileBack),
+            (active_tab == SystemTab::GatewayClient).then_some(Message::GatewayHealthTick),
+        );
     }
     let close_message = Message::View(message::ViewMessage::ToggleSystemSettings);
     let mut actions = row![super::system_settings_device_sync::entry_points()]
@@ -369,7 +347,12 @@ fn settings_shell(
         .align_right(Length::Fill)
         .padding([8, 12]);
 
-    desktop_settings_shell::shell(width, actions.into(), settings_content(app, active_tab), |sidebar_width| navigation::view(app, sidebar_width))
+    desktop_settings_shell::shell(
+        width,
+        actions.into(),
+        settings_content(app, active_tab),
+        |sidebar_width| navigation::view(app, sidebar_width),
+    )
 }
 
 /// 渲染全屏设置、分类导航及当前分类的浮层。
@@ -504,7 +487,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         let provider_help = provider_help.with_usage(app);
         dialog = super::app_providers::list::overlay(&app.app_providers, provider_help, dialog);
         if crate::app::message::agent_apps_high_availability::can_show(app) {
-            dialog = super::agent_apps_high_availability::queue::overlay(&app.app_providers.failover, dialog);
+            dialog = super::agent_apps_high_availability::queue::overlay(
+                &app.app_providers.failover,
+                dialog,
+            );
         }
         if crate::app::message::agent_apps_diagnostics::model::can_show(app) {
             dialog = super::agent_apps_diagnostics::model_panel::overlay(

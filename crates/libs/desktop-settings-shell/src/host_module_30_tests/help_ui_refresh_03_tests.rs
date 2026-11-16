@@ -1,17 +1,17 @@
-// 宿主契约：统一控件经真实 SettingsMessage 发布取消、时区与禁用态事件；
-// 上下文帮助使用宿主可选择文本，后两项另覆盖复制状态和提供商草稿/错误装配。
-use super::super::{settings_modal_card, settings_modal_overlay, settings_select};
-use crate::app::Message;
+use super::support::{Message, SettingsMessage};
+use desktop_ui_controls::system_settings_common::{
+    settings_modal_card, settings_modal_overlay, settings_select,
+};
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, Shell, clipboard, layout, widget::Tree};
 use iced::widget::{container, text};
 use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Vector, mouse};
 
-use super::super::{
+use crate::messages::GeneralSettingsMessage;
+use desktop_ui_controls::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_error_banner,
     settings_modal_header, settings_modal_layout, settings_row, settings_toggle,
 };
-use crate::app::message::{GeneralSettingsMessage, SettingsMessage};
 use iced::advanced::{overlay, renderer, widget};
 use iced::keyboard::{self, Key, key::Named};
 use iced::widget::{button, column, row};
@@ -235,13 +235,15 @@ impl widget::Operation for FormContents {
 
 #[tokio::test]
 async fn help_rollout_01_renders_contextual_help() {
-    use super::super::{settings_flexible_row_with_help, settings_group_heading_with_help};
-    use crate::app::i18n::I18n;
     use config_ui::DesktopLocale;
+    use desktop_i18n::I18n;
+    use desktop_ui_controls::system_settings_common::{
+        settings_flexible_row_with_help, settings_group_heading_with_help,
+    };
 
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -341,7 +343,7 @@ async fn ui_refresh_03_layout_and_interaction_keeps_actions_fixed() {
     let form = column![select, body].spacing(12);
     let header = settings_modal_header(
         text("配置範例 / Settings").size(16),
-        super::settings_close_button(cancel()),
+        desktop_ui_controls::system_settings_common::help::settings_close_button(cancel()),
     );
     let actions = row![
         button(text("取消")).on_press(cancel()).padding([8, 14]).style(rounded_action_btn_style),
@@ -498,7 +500,8 @@ async fn ui_refresh_03_preserves_values_and_disabled_states() {
 fn ui_refresh_03_renders_localized_help_and_keeps_copy_and_close() {
     use config_ui::DesktopLocale;
 
-    crate::app::config::with_editor_settings_gateway(|mut app, _, _| {
+    {
+        let mut app = Fixture::default();
         iced::futures::executor::block_on(async {
             for (locale, name, theme, title, body) in [
                 (
@@ -529,11 +532,12 @@ fn ui_refresh_03_renders_localized_help_and_keeps_copy_and_close() {
                 )
                 .repeat(30);
                 let mut scene = Scene::new(
-                    super::with_settings_help_modal(
-                        &app,
+                    desktop_ui_controls::system_settings_common::help::localized_settings_help_modal(
+                        app.desktop_locale, None,
                         full_window(text("Settings")),
                         title,
                         help.clone(),
+                        Message::CopyCode,
                         cancel(),
                     ),
                     420.0,
@@ -559,17 +563,17 @@ fn ui_refresh_03_renders_localized_help_and_keeps_copy_and_close() {
                 ));
             }
         });
-    });
+    };
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn ui_refresh_03_renders_model_draft_and_error_with_original_actions() {
-    use crate::app::components::system_settings_providers::custom_model_modal;
-    use crate::app::state::CustomProviderModelModalState;
     use config_ui::DesktopLocale;
+    use desktop_settings_providers::state::CustomProviderModelModalState;
 
-    crate::app::config::with_editor_settings_gateway(|mut app, _, _| {
+    {
+        let mut app = Fixture::default();
         iced::futures::executor::block_on(async {
             app.desktop_locale = DesktopLocale::TraditionalChinese;
             app.provider_settings.custom_model_modal = Some(CustomProviderModelModalState {
@@ -580,7 +584,7 @@ fn ui_refresh_03_renders_model_draft_and_error_with_original_actions() {
             });
             app.provider_settings.save_error = Some("範例模型儲存失敗，請重試。".into());
             let mut scene = Scene::new(
-                custom_model_modal::view_overlays(&app, full_window(text("Example providers"))),
+                model_overlays(&app, full_window(text("Example providers"))),
                 420.0,
                 460.0,
             )
@@ -610,5 +614,42 @@ fn ui_refresh_03_renders_model_draft_and_error_with_original_actions() {
                 [Message::Settings(SettingsMessage::CustomProviderModelModalSave)]
             ));
         });
-    });
+    };
+}
+
+#[derive(Default)]
+struct Fixture {
+    desktop_locale: config_ui::DesktopLocale,
+    provider_settings: desktop_settings_providers::provider_state::ProviderSettingsState,
+}
+fn model_overlays<'a>(app: &'a Fixture, base: Element<'a, Message>) -> Element<'a, Message> {
+    use desktop_settings_providers::{view_message as domain, view_style::ViewStyle};
+    desktop_settings_providers::custom_model_modal::view_overlays(
+        app.provider_settings.custom_model_modal.as_ref(),
+        app.provider_settings.save_error.as_ref(),
+        ViewStyle {
+            locale: app.desktop_locale,
+            theme: &Theme::Light,
+            help_text: |title, body, color, i18n| {
+                desktop_ui_controls::selectable_text::markdown_selection::selectable_titled_text::<
+                    Message,
+                >(title, body, color, i18n)
+                .map(|event| match event {
+                    Message::CopyCode(text) => domain::Message::CopyCode(text),
+                    _ => domain::Message::None,
+                })
+            },
+        },
+        base,
+        |event| match event {
+            domain::Message::Settings(domain::SettingsMessage::CustomProviderModelClose) => {
+                Message::Settings(SettingsMessage::CustomProviderModelClose)
+            }
+            domain::Message::Settings(domain::SettingsMessage::CustomProviderModelModalSave) => {
+                Message::Settings(SettingsMessage::CustomProviderModelModalSave)
+            }
+            domain::Message::CopyCode(text) => Message::CopyCode(text),
+            _ => Message::None,
+        },
+    )
 }

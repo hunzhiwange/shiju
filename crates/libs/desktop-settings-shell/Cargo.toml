@@ -12,4 +12,33 @@ iced = { version = "0.14", features = ["svg", "advanced"] }
 desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
 desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
-desktop-editor = { path = "../desktop-editor", version = "0.6.0" }
+config-security = { path = "../config-security", version = "0.6.0" }
+config-skills = { path = "../config-skills", version = "0.6.0" }
+desktop-config = { path = "../desktop-config", version = "0.6.0" }
+desktop-provider-apps = { path = "../desktop-provider-apps", version = "0.6.0" }
+desktop-settings-agents = { path = "../desktop-settings-agents", version = "0.6.0" }
+desktop-settings-appearance = { path = "../desktop-settings-appearance", version = "0.6.0" }
+desktop-settings-channels = { path = "../desktop-settings-channels", version = "0.6.0" }
+desktop-settings-cron = { path = "../desktop-settings-cron", version = "0.6.0" }
+desktop-settings-mcp = { path = "../desktop-settings-mcp", version = "0.6.0" }
+desktop-settings-memory = { path = "../desktop-settings-memory", version = "0.6.0" }
+desktop-settings-network = { path = "../desktop-settings-network", version = "0.6.0" }
+desktop-settings-providers = { path = "../desktop-settings-providers", version = "0.6.0" }
+desktop-settings-runtime = { path = "../desktop-settings-runtime", version = "0.6.0" }
+desktop-settings-security = { path = "../desktop-settings-security", version = "0.6.0" }
+desktop-settings-sessions = { path = "../desktop-settings-sessions", version = "0.6.0" }
+desktop-settings-skills = { path = "../desktop-settings-skills", version = "0.6.0" }
+desktop-settings-workspace = { path = "../desktop-settings-workspace", version = "0.6.0" }
+gateway-cron = { path = "../gateway-cron", version = "0.6.0" }
+gateway-desktop-settings = { path = "../gateway-desktop-settings", version = "0.6.0" }
+
+chrono = "0.4"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+desktop-settings-voice = { path = "../desktop-settings-voice", version = "0.6.0" }
+
+[dev-dependencies]
+config-ui = { path = "../config-ui", version = "0.6.0" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+image = "0.25.9"
+iced_runtime = "0.14"

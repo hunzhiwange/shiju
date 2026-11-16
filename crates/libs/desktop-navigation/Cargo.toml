@@ -6,7 +6,6 @@ license = "MIT"
 [lib]
 doctest = false
 [dependencies]
-desktop-settings-shell = { path = "../desktop-settings-shell", version = "0.6.0" }
 desktop-chat-input = { path = "../desktop-chat-input", version = "0.6.0" }
 desktop-workspace = { path = "../desktop-workspace", version = "0.6.0" }
 desktop-platform = { path = "../desktop-platform", version = "0.6.0" }

@@ -31,7 +31,7 @@ fn app_theme_options_include_local_custom_themes() {
 }
 
 use crate::general::{self, Action, View};
-use desktop_settings_shell::GeneralSettingsTab;
+use desktop_ui_controls::settings_navigation::GeneralSettingsTab;
 type Message = Action<&'static str>;
 fn test_app() -> View<'static, &'static str> {
     View {

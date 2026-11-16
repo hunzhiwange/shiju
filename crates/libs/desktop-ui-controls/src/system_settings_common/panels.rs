@@ -3,12 +3,12 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
-use super::utils::settings_field_label;
 use super::styles::{
     settings_modal_backdrop_style, settings_modal_card_style, settings_muted_text_style,
     settings_panel_style,
 };
 use super::theme::is_dark_theme;
+use super::utils::settings_field_label;
 use iced::advanced::{Layout, Widget, layout, renderer, widget::Tree};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{
@@ -66,14 +66,20 @@ pub fn settings_section_content_style(_theme: &Theme) -> iced::widget::container
 }
 
 /// 常规设置样式的页面标题与说明。
-pub fn settings_page_heading<'a, Message: Clone + 'a>(title: &'a str, description: &'a str) -> Element<'a, Message> {
+pub fn settings_page_heading<'a, Message: Clone + 'a>(
+    title: &'a str,
+    description: &'a str,
+) -> Element<'a, Message> {
     column![text(title).size(28), text(description).size(13).style(settings_muted_text_style)]
         .spacing(8)
         .into()
 }
 
 /// 圆角设置分组上方的标题与说明。
-pub fn settings_group_heading<'a, Message: Clone + 'a>(title: &'a str, description: &'a str) -> Element<'a, Message> {
+pub fn settings_group_heading<'a, Message: Clone + 'a>(
+    title: &'a str,
+    description: &'a str,
+) -> Element<'a, Message> {
     column![text(title).size(17), text(description).size(13).style(settings_muted_text_style)]
         .spacing(6)
         .into()
@@ -81,9 +87,7 @@ pub fn settings_group_heading<'a, Message: Clone + 'a>(title: &'a str, descripti
 
 /// 页面说明在问号卡片内显示，保留页面标题的字号。
 
-
 /// 分组说明在问号卡片内显示，保留分组标题的字号。
-
 
 /// 承载带分隔线的设置行，横向留白与行内间距独立。
 pub fn settings_group_card<'a, Message: Clone + 'a>(
@@ -140,7 +144,6 @@ pub fn settings_flexible_row<'a, Message: Clone + 'a>(
 }
 
 /// 字段说明使用问号，控件可继续显示错误和其它常驻提示。
-
 
 pub fn settings_flexible_row_with_label<'a, Message: Clone + 'a>(
     label: impl Into<Element<'a, Message>>,
@@ -509,7 +512,10 @@ pub fn settings_section_card<'a, Message: Clone + 'a>(
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn settings_page_intro<'a, Message: Clone + 'a>(title: &'a str, description: &'a str) -> Element<'a, Message> {
+pub fn settings_page_intro<'a, Message: Clone + 'a>(
+    title: &'a str,
+    description: &'a str,
+) -> Element<'a, Message> {
     row![text(title).size(18), text(description).size(12).style(settings_muted_text_style),]
         .spacing(12)
         .align_y(Alignment::Center)
@@ -546,7 +552,9 @@ pub fn settings_divider<Message: Clone + 'static>() -> Element<'static, Message>
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn settings_value_badge<Message: Clone + 'static>(value: impl ToString) -> Element<'static, Message> {
+pub fn settings_value_badge<Message: Clone + 'static>(
+    value: impl ToString,
+) -> Element<'static, Message> {
     container(text(value.to_string()).size(13))
         .padding([7, 12])
         .style(settings_value_badge_style)
@@ -703,4 +711,66 @@ pub fn settings_success_banner_style(theme: &Theme) -> iced::widget::container::
         },
         ..Default::default()
     }
+}
+
+pub fn settings_page_heading_with_help<
+    'a,
+    Message: crate::selectable_text::markdown_selection::SelectionMessage + 'a,
+>(
+    i18n: desktop_i18n::I18n,
+    theme: &Theme,
+    title: &'a str,
+    description: impl Into<Cow<'a, str>>,
+) -> Element<'a, Message> {
+    super::help::settings_selectable_help_label(
+        i18n,
+        theme,
+        title,
+        text(title).size(28),
+        description,
+    )
+    .wrap()
+    .into()
+}
+pub fn settings_group_heading_with_help<
+    'a,
+    'theme,
+    Message: crate::selectable_text::markdown_selection::SelectionMessage + 'a,
+>(
+    i18n: desktop_i18n::I18n,
+    theme: impl Into<Option<&'theme Theme>>,
+    title: &'a str,
+    description: impl Into<Cow<'a, str>>,
+) -> Element<'a, Message> {
+    super::help::settings_selectable_help_label(
+        i18n,
+        theme,
+        title,
+        text(title).size(17),
+        description,
+    )
+    .wrap()
+    .into()
+}
+pub fn settings_flexible_row_with_help<
+    'a,
+    Message: crate::selectable_text::markdown_selection::SelectionMessage + 'a,
+>(
+    i18n: desktop_i18n::I18n,
+    theme: &Theme,
+    label: &'a str,
+    description: impl Into<Cow<'a, str>>,
+    max_control_width: f32,
+    control: impl Into<Element<'a, Message>>,
+) -> iced::widget::Container<'a, Message> {
+    let label = super::help::settings_selectable_help_label(
+        i18n,
+        theme,
+        label,
+        settings_field_label(label),
+        description,
+    )
+    .width(Length::Fill)
+    .wrap();
+    settings_flexible_row_with_label(label, max_control_width, control)
 }

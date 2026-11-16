@@ -1,0 +1,183 @@
+{
+  "counting": "pathlib.read_text().splitlines(); baseline task=30; no new host files",
+  "baseline": 4291,
+  "current": 1808,
+  "net_reduction": 2483,
+  "production_candidate_reduction": 1083,
+  "new_host_files": [],
+  "message_variants": 380,
+  "route_groups": 56,
+  "files": [
+    {
+      "path": "crates/vw-desktop/src/app/components/system_settings.rs",
+      "lines": 545,
+      "production_candidate": true,
+      "task": 30,
+      "sha256": "52d8c2039e5389b4ae3d0f3acd223d44f904db2f18d983a48c693532ccaad279",
+      "current_lines": 553,
+      "net_reduction": -8
+    },
+    {
+      "path": "crates/vw-desktop/src/app/components/system_settings_common/help.rs",
+      "lines": 35,
+      "production_candidate": true,
+      "task": 30,
+      "sha256": "67081e3e2ad66eadbc0f24c9203e2fafc2bba932c754c4dc24d8835c98cda03e",
+      "current_lines": 38,
+      "net_reduction": -3
+    },
+    {
+      "path": "crates/vw-desktop/src/app/components/system_settings_common/help_tests.rs",
+      "lines": 32,
+      "production_candidate": false,
+      "task": 30,
+      "sha256": "0cd832e6688aeafb632db0fc91808339a0975f05528ba94f7e6fc2346567c454",
+      "current_lines": 0,
+      "net_reduction": 32
+    },
+    {
+      "path": "crates/vw-desktop/src/app/components/system_settings_common/help_ui_refresh_03_tests.rs",
+      "lines": 614,
+      "production_candidate": false,
+      "task": 30,
+      "sha256": "9865297d252df26b5ad2dc06de1386570971fdbf15626af30e7746266cd750fa",
+      "current_lines": 0,
+      "net_reduction": 614
+    },
+    {
+      "path": "crates/vw-desktop/src/app/components/system_settings_common/icons.rs",
+      "lines": 1,
+      "production_candidate": true,
+      "task": 30,
+      "sha256": "61437da1f90cb029c84d527e47683cf8eac1b1e7262ace3dddada5e1ccff272a",
+      "current_lines": 1,
+      "net_reduction": 0
+    },
+    {
+      "path": "crates/vw-desktop/src/app/components/system_settings_common/inputs.rs",
+      "lines": 1,
+      "production_candidate": true,
+      "task": 30,
+      "sha256": "a9b70a477a2a55c8b8c4972845f6a1f02cdf31bfe14cd8c1c5a0de1190aa7518",
+      "current_lines": 1,
+      "net_reduction": 0
+    },
+    {
+      "path": "crates/vw-desktop/src/app/components/system_settings_common/mod.rs",
+      "lines": 58,
+      "production_candidate": true,
+      "task": 30,
+      "sha256": "938a7bc95af1e5ea3e30e1401be60e6daed8dcd31087c8e45e12d374236d4174",
+      "current_lines": 55,
+      "net_reduction": 3
+    },
+    {
+      "path": "crates/vw-desktop/src/app/components/system_settings_common/panels.rs",
+      "lines": 184,
+      "production_candidate": true,
+      "task": 30,
+      "sha256": "7d19fcf2b073b1ede1cbb685993dadd604d79149c0c699446821284b4abc7cdd",
+      "current_lines": 1,
+      "net_reduction": 183
+    },
+    {
+      "path": "crates/vw-desktop/src/app/components/system_settings_common/select.rs",
+      "lines": 1,
+      "production_candidate": true,
+      "task": 30,
+      "sha256": "600a4846eaf45eae66769432e067bde829e32abf4ba7ce918488841ed7dca3f4",
+      "current_lines": 1,
+      "net_reduction": 0
+    },
+    {
+      "path": "crates/vw-desktop/src/app/components/system_settings_common/styles.rs",
+      "lines": 1,
+      "production_candidate": true,
+      "task": 30,
+      "sha256": "caacd8b62661fda430b07bddefa72693435068df39644e17161158cc06b06694",
+      "current_lines": 1,
+      "net_reduction": 0
+    },
+    {
+      "path": "crates/vw-desktop/src/app/components/system_settings_common/tab_appearance_tests.rs",
+      "lines": 540,
+      "production_candidate": false,
+      "task": 30,
+      "sha256": "4a16b461001c725ea9ebad5e30a153a19a509171704359f7c01f301c253d64fd",
+      "current_lines": 115,
+      "net_reduction": 425
+    },
+    {
+      "path": "crates/vw-desktop/src/app/components/system_settings_common/tabs.rs",
+      "lines": 1,
+      "production_candidate": true,
+      "task": 30,
+      "sha256": "293f734bb385b5ea31730481e7812489704cc9096fe6c196dd235db536b4cb41",
+      "current_lines": 1,
+      "net_reduction": 0
+    },
+    {
+      "path": "crates/vw-desktop/src/app/components/system_settings_common/theme.rs",
+      "lines": 1,
+      "production_candidate": true,
+      "task": 30,
+      "sha256": "d4ef176211a2d8180d808203b6280aa1fea7ab942a02837630d8303bf10e940d",
+      "current_lines": 1,
+      "net_reduction": 0
+    },
+    {
+      "path": "crates/vw-desktop/src/app/components/system_settings_common/utils.rs",
+      "lines": 1,
+      "production_candidate": true,
+      "task": 30,
+      "sha256": "29c30afa4ac8bb492bb2874814fe21894e5513d848a31fa20b0f0df1b2f67b3f",
+      "current_lines": 1,
+      "net_reduction": 0
+    },
+    {
+      "path": "crates/vw-desktop/src/app/components/system_settings_ui_refresh_04_tests.rs",
+      "lines": 965,
+      "production_candidate": false,
+      "task": 30,
+      "sha256": "a7ba8744d8e8e315de745054335e33b118c2ce433147b59d260ddd6ddd6f5181",
+      "current_lines": 636,
+      "net_reduction": 329
+    },
+    {
+      "path": "crates/vw-desktop/src/app/message/settings/messages.rs",
+      "lines": 541,
+      "production_candidate": true,
+      "task": 30,
+      "sha256": "609c9d5874e33b649377b2b83ecb3218362132f28c900a43c40d9ca8a3214a3d",
+      "current_lines": 15,
+      "net_reduction": 526
+    },
+    {
+      "path": "crates/vw-desktop/src/app/message/settings/mod.rs",
+      "lines": 733,
+      "production_candidate": true,
+      "task": 30,
+      "sha256": "09760f5a53ac79e5f15348068bbb398641e7aed1f070f3c0b26dca0d1b84d3bb",
+      "current_lines": 363,
+      "net_reduction": 370
+    },
+    {
+      "path": "crates/vw-desktop/src/app/message/settings/types.rs",
+      "lines": 14,
+      "production_candidate": true,
+      "task": 30,
+      "sha256": "fe9a98d6dc2418b1da6404becfea20200d4999f1e5f24ec4af2cebbc9ed8ad75",
+      "current_lines": 2,
+      "net_reduction": 12
+    },
+    {
+      "path": "crates/vw-desktop/src/app/message/settings/util.rs",
+      "lines": 23,
+      "production_candidate": true,
+      "task": 30,
+      "sha256": "486cd45d1de603b7c0c1ae8c84126421106ad71d2999161caf5c194b4c459d7c",
+      "current_lines": 23,
+      "net_reduction": 0
+    }
+  ]
+}

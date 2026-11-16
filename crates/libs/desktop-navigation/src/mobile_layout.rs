@@ -71,7 +71,7 @@ impl MobileLayoutState {
     }
 }
 
-use desktop_settings_shell::SystemTab;
+use desktop_ui_controls::settings_navigation::SystemTab;
 pub enum Message {
     Selected(LayoutPreference),
     DrawerToggled,

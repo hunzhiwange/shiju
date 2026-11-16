@@ -1,9 +1,8 @@
 //! Domain page, help, event, and native rendering assertions without App.
 use super::ui_fixture::{self, general_view as view, *};
 use config_ui::PreviewAutoSaveMode;
-use desktop_settings_shell::{
+use desktop_ui_controls::settings_navigation::{
     GeneralSettingsTab,
-    general_fields::{self, GeneralSettingField},
 };
 use desktop_terminal::shell::Shell;
 use iced::widget::text;
@@ -977,3 +976,5 @@ mod tab_appearance {
         }
     }
 }
+
+use crate::general_fields::{self, GeneralSettingField};

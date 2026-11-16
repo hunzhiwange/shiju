@@ -42,7 +42,7 @@ fn update(app: &mut PanelFixture, message: domain::Message) -> Option<domain::Ef
 #[test]
 fn system_settings_toggle_clears_help_and_flips_visibility() {
     use crate::panel::settings::Message as ViewMessage;
-    use desktop_settings_shell::SystemTab;
+    use desktop_ui_controls::settings_navigation::SystemTab;
 
     let mut app = PanelFixture::default();
     app.navigation_panels.show_system_settings = true;
@@ -60,7 +60,7 @@ fn system_settings_toggle_clears_help_and_flips_visibility() {
 fn opening_system_settings_tab_closes_transient_popovers() {
     use crate::components::top_bar::menus::MenuType;
     use crate::panel::settings::Message as ViewMessage;
-    use desktop_settings_shell::SystemTab;
+    use desktop_ui_controls::settings_navigation::SystemTab;
 
     let mut app = PanelFixture::default();
     app.navigation_panels.show_system_settings = false;

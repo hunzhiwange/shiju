@@ -1,4 +1,5 @@
-use desktop_settings_shell::{general_fields::{self, GeneralSettingField}, GeneralSettingsTab};
+use crate::general_fields::{self, GeneralSettingField};
+use desktop_ui_controls::settings_navigation::GeneralSettingsTab;
 use desktop_ui_controls::system_settings_common::*;
 use crate::headings::*;
 use desktop_i18n::I18n;

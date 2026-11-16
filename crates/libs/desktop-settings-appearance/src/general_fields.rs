@@ -1,7 +1,7 @@
 //! 常规设置的行标签和定位标识，由表单与搜索目录共用。
 
-use crate::GeneralSettingsTab;
 use desktop_editor::components::editor_settings_fields::fields as editor_fields;
+use desktop_ui_controls::settings_navigation::GeneralSettingsTab;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GeneralSettingField {
@@ -71,20 +71,18 @@ pub const TERMINAL_FONT: GeneralSettingField = GeneralSettingField {
     id: "general-settings-terminal-font",
     keywords: &[],
 };
-pub const TERMINAL_FONT_SIZE: GeneralSettingField =
-    GeneralSettingField {
-        label: "字体大小",
-        tab: GeneralSettingsTab::Terminal,
-        id: "general-settings-terminal-font-size",
-        keywords: &[],
-    };
-pub const EDITOR_FOLLOW_THEME: GeneralSettingField =
-    GeneralSettingField {
-        label: editor_fields::EDITOR_FOLLOW_THEME.label,
-        tab: GeneralSettingsTab::Editor,
-        id: editor_fields::EDITOR_FOLLOW_THEME.id,
-        keywords: &[],
-    };
+pub const TERMINAL_FONT_SIZE: GeneralSettingField = GeneralSettingField {
+    label: "字体大小",
+    tab: GeneralSettingsTab::Terminal,
+    id: "general-settings-terminal-font-size",
+    keywords: &[],
+};
+pub const EDITOR_FOLLOW_THEME: GeneralSettingField = GeneralSettingField {
+    label: editor_fields::EDITOR_FOLLOW_THEME.label,
+    tab: GeneralSettingsTab::Editor,
+    id: editor_fields::EDITOR_FOLLOW_THEME.id,
+    keywords: &[],
+};
 pub const EDITOR_THEME: GeneralSettingField = GeneralSettingField {
     label: editor_fields::EDITOR_THEME.label,
     tab: GeneralSettingsTab::Editor,
@@ -97,20 +95,18 @@ pub const EDITOR_FONT_SIZE: GeneralSettingField = GeneralSettingField {
     id: editor_fields::EDITOR_FONT_SIZE.id,
     keywords: &[],
 };
-pub const EDITOR_LINE_HEIGHT: GeneralSettingField =
-    GeneralSettingField {
-        label: editor_fields::EDITOR_LINE_HEIGHT.label,
-        tab: GeneralSettingsTab::Editor,
-        id: editor_fields::EDITOR_LINE_HEIGHT.id,
-        keywords: &[],
-    };
-pub const EDITOR_AUTO_LINE_HEIGHT: GeneralSettingField =
-    GeneralSettingField {
-        label: editor_fields::EDITOR_AUTO_LINE_HEIGHT.label,
-        tab: GeneralSettingsTab::Editor,
-        id: editor_fields::EDITOR_AUTO_LINE_HEIGHT.id,
-        keywords: &[],
-    };
+pub const EDITOR_LINE_HEIGHT: GeneralSettingField = GeneralSettingField {
+    label: editor_fields::EDITOR_LINE_HEIGHT.label,
+    tab: GeneralSettingsTab::Editor,
+    id: editor_fields::EDITOR_LINE_HEIGHT.id,
+    keywords: &[],
+};
+pub const EDITOR_AUTO_LINE_HEIGHT: GeneralSettingField = GeneralSettingField {
+    label: editor_fields::EDITOR_AUTO_LINE_HEIGHT.label,
+    tab: GeneralSettingsTab::Editor,
+    id: editor_fields::EDITOR_AUTO_LINE_HEIGHT.id,
+    keywords: &[],
+};
 #[cfg(not(target_arch = "wasm32"))]
 pub const EDITOR_LSP: GeneralSettingField = GeneralSettingField {
     label: editor_fields::EDITOR_LSP.label,

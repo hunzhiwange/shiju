@@ -26,9 +26,6 @@ pub async fn retry_environment(directory: String) -> Result<(), Error> {
     worktree_core::retry_environment(directory).await
 }
 #[cfg(all(test, not(target_arch = "wasm32")))]
-use worktree_core::testing::creation_policy;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "cleanup_flow_tests.rs"]
 mod cleanup_flow_tests;
 
@@ -39,10 +36,6 @@ mod cleanup_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "environment_tests.rs"]
 mod environment_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "management_e2e_tests.rs"]
-mod management_e2e_tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn remove(input: RemoveInput) -> Result<bool, Error> {

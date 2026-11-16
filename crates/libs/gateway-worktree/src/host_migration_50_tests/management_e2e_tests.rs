@@ -69,14 +69,14 @@ impl Fixture {
             ],
         );
         let tenant = TenantScope::default();
-        let (project, _) = crate::project::from_directory(&tenant, &primary).await.unwrap();
+        let (project, _) = agent_project::from_directory(&tenant, &primary).await.unwrap();
         let scope = ProjectScope::new(tenant.clone(), project.id.into()).unwrap();
         let settings = WorktreeSettings {
             keep_count: 1,
             root: temp.path().join("restored").to_string_lossy().into_owned(),
             ..Default::default()
         };
-        crate::config::update_global_for_tenant(&tenant, json!({"worktree_settings": settings}))
+        agent_config::runtime::update_global_for_tenant(&tenant, json!({"worktree_settings": settings}))
             .await
             .unwrap();
         Self { temp, primary, scope, settings }
@@ -87,7 +87,7 @@ impl Fixture {
         registry::register(&self.scope, &self.primary, &path).await.unwrap()
     }
     async fn call(&self, method: &str, suffix: &str, body: Value) -> (StatusCode, Value) {
-        let app = crate::gateway::api::handlers::project::router::<()>()
+        let app = crate::project_router::<()>()
             .layer(Extension(self.scope.tenant_scope().clone()));
         let response = app
             .oneshot(
@@ -117,28 +117,28 @@ async fn worktree_management_e2e_create_chat_delete_restore() {
     git(f.temp.path(), &["init", "--bare", remote.to_str().unwrap()]);
     git(&f.primary, &["remote", "add", "origin", remote.to_str().unwrap()]);
     git(&f.primary, &["push", "-u", "origin", "main"]);
-    crate::config::update_global_for_tenant(
+    agent_config::runtime::update_global_for_tenant(
         f.scope.tenant_scope(),
         json!({"worktree_settings": f.settings}),
     )
     .await
     .unwrap();
-    let loaded = crate::config::get_global_for_tenant(f.scope.tenant_scope()).await.unwrap();
+    let loaded = agent_config::runtime::get_global_for_tenant(f.scope.tenant_scope()).await.unwrap();
     assert_eq!(loaded.worktree_settings, f.settings);
-    crate::project::update(
+    agent_project::update(
         &f.scope,
-        crate::project::UpdateInput {
+        agent_project::UpdateInput {
             project_id: f.scope.project_id().as_ref().into(),
             name: None,
             icon: None,
-            commands: Some(crate::project::CommandsUpdate {
+            commands: Some(agent_project::CommandsUpdate {
                 start: Some(Some("echo configured > project-setup".into())),
             }),
         },
     )
     .await
     .unwrap();
-    let project = crate::project::get(&f.scope).await.unwrap().unwrap();
+    let project = agent_project::get(&f.scope).await.unwrap().unwrap();
     let root = super::creation_policy::prepare(&project, f.primary.to_str().unwrap(), &f.settings)
         .await
         .unwrap();
@@ -173,13 +173,13 @@ async fn worktree_management_e2e_create_chat_delete_restore() {
     assert_eq!(code, StatusCode::OK);
 
     for id in ["first", "second"] {
-        let session: crate::session::session::Info = serde_json::from_value(json!({
+        let session: session_info::Info = serde_json::from_value(json!({
             "id":id,"slug":id,"projectID":f.scope.project_id().as_ref(),
             "directory":old.directory,"title":format!("中文聊天-{id}"),"version":"test",
             "time":{"created":1,"updated":2}
         }))
         .unwrap();
-        crate::session::ui_store::save_agent_session_scoped_for_tenant(
+        session_store::ui_store::save_agent_session_scoped_for_tenant(
             f.scope.tenant_scope(),
             &session,
             Some(f.scope.project_id().as_ref()),
@@ -190,7 +190,7 @@ async fn worktree_management_e2e_create_chat_delete_restore() {
     let item =
         items["items"].as_array().unwrap().iter().find(|i| i["worktree"]["id"] == old.id).unwrap();
     assert_eq!(item["sessions"].as_array().unwrap().len(), 2);
-    crate::session::ui_store::set_thread_pinned(
+    session_store::ui_store::set_thread_pinned(
         f.scope.tenant_scope(),
         f.scope.project_id().as_ref(),
         "first",
@@ -201,7 +201,7 @@ async fn worktree_management_e2e_create_chat_delete_restore() {
         .call("POST", &format!("managed-worktrees/{}/deletion-preflight", old.id), json!({}))
         .await;
     assert!(!protected["protection_reasons"].as_array().unwrap().is_empty());
-    crate::session::ui_store::set_thread_pinned(
+    session_store::ui_store::set_thread_pinned(
         f.scope.tenant_scope(),
         f.scope.project_id().as_ref(),
         "first",
@@ -226,7 +226,7 @@ async fn worktree_management_e2e_create_chat_delete_restore() {
     let child = std::process::Command::new(std::env::current_exe().unwrap())
         .args([
             "--exact",
-            "worktree::worktree::management_e2e_tests::worktree_management_e2e_restart_restore",
+            "host_migration_50_tests::management_e2e_tests::worktree_management_e2e_restart_restore",
             "--ignored",
             "--nocapture",
         ])

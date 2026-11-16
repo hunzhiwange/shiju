@@ -181,3 +181,6 @@ fn settings(scope: &ProjectScope) -> HostFuture<'_, config_worktree::WorktreeSet
 
 #[cfg(test)]
 mod host_migration_17_tests;
+
+#[cfg(test)]
+mod host_migration_50_tests;

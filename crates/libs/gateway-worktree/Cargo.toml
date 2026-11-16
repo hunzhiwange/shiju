@@ -19,6 +19,12 @@ gateway-project = { path = "../gateway-project", version = "0.6.0" }
 agent-config = { path = "../agent-config", version = "0.6.0" }
 
 [dev-dependencies]
+worktree-core = { path = "../worktree-core", version = "0.6.0", features = ["test-support"] }
+session-info = { path = "../session-info", version = "0.6.0" }
+agent-paths = { path = "../agent-paths", version = "0.6.0" }
+agent-storage = { path = "../agent-storage", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+tokio-util = { version = "0.7.18", features = ["rt"] }
 agent-project = { path = "../agent-project", version = "0.6.0", features = ["test-support"] }
 agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
 session-store = { path = "../session-store", version = "0.6.0" }

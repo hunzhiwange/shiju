@@ -10,3 +10,16 @@ fn worktree_host_busy_snapshot_includes_busy_and_retry_only() {
     ]));
     assert_eq!(busy, HashSet::from(["busy".into(), "retry".into()]));
 }
+
+#[tokio::test]
+async fn worktree_host_router_mounts_cleanup_and_requires_tenant() {
+    use axum::{body::Body, http::{Request, StatusCode}};
+    use tower::ServiceExt;
+    let response = crate::gateway::api::handlers::project::router::<()>()
+        .oneshot(Request::builder()
+            .uri("/projects/missing/worktree-cleanup-status")
+            .body(Body::empty()).unwrap())
+        .await.unwrap();
+    assert_ne!(response.status(), StatusCode::NOT_FOUND);
+    assert!(!response.status().is_success());
+}

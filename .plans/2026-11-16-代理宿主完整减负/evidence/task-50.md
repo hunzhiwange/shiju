@@ -60,7 +60,7 @@ lib.rs 自注册 host_migration_50_tests；其子模块直接访问真实领域�
 |`top_level_reexports_worktree_types`|`worktree::tests::top_level_reexports_worktree_types`|
 |`worktree_cleanup_all_associated_sessions_protect_and_latest_title_wins`|`host_migration_50_tests::cleanup_tests::worktree_cleanup_all_associated_sessions_protect_and_latest_title_wins`|
 |`worktree_cleanup_fails_closed_when_protection_is_unknown`|`host_migration_50_tests::cleanup_tests::worktree_cleanup_fails_closed_when_protection_is_unknown`|
-|`worktree_cleanup_flow_automatic_partial_failure_is_recoverable`|`worktree::worktree::cleanup_flow_tests::worktree_cleanup_flow_automatic_partial_failure_is_recoverable`|
+|`worktree_cleanup_flow_automatic_partial_failure_is_recoverable`|gateway-worktree: `host_migration_50_tests::cleanup_flow_tests::worktree_cleanup_flow_automatic_partial_failure_is_recoverable`|
 |`worktree_cleanup_flow_binding_rejects_removal_without_changing_context`|`worktree::worktree::cleanup_flow_tests::worktree_cleanup_flow_binding_rejects_removal_without_changing_context`|
 |`worktree_cleanup_flow_binding_retains_lease_until_cleared`|`worktree::worktree::cleanup_flow_tests::worktree_cleanup_flow_binding_retains_lease_until_cleared`|
 |`worktree_cleanup_flow_cancelled_host_does_not_start_deletion`|`host_migration_50_tests::cleanup_flow_tests::worktree_cleanup_flow_cancelled_host_does_not_start_deletion`|
@@ -68,13 +68,13 @@ lib.rs 自注册 host_migration_50_tests；其子模块直接访问真实领域�
 |`worktree_cleanup_flow_legacy_execution_cannot_cross_removal`|`worktree::worktree::cleanup_flow_tests::worktree_cleanup_flow_legacy_execution_cannot_cross_removal`|
 |`worktree_cleanup_flow_rechecks_newly_busy_checkout`|`host_migration_50_tests::cleanup_flow_tests::worktree_cleanup_flow_rechecks_newly_busy_checkout`|
 |`worktree_cleanup_flow_reconciles_interrupted_execution`|`host_migration_50_tests::cleanup_flow_tests::worktree_cleanup_flow_reconciles_interrupted_execution`|
-|`worktree_cleanup_flow_rejects_settings_changes_and_stale_candidates`|`worktree::worktree::cleanup_flow_tests::worktree_cleanup_flow_rejects_settings_changes_and_stale_candidates`|
-|`worktree_cleanup_flow_restore_is_visible`|`worktree::worktree::cleanup_flow_tests::worktree_cleanup_flow_restore_is_visible`|
+|`worktree_cleanup_flow_rejects_settings_changes_and_stale_candidates`|gateway-worktree: `host_migration_50_tests::cleanup_flow_tests::worktree_cleanup_flow_rejects_settings_changes_and_stale_candidates`|
+|`worktree_cleanup_flow_restore_is_visible`|gateway-worktree: `host_migration_50_tests::cleanup_flow_tests::worktree_cleanup_flow_restore_is_visible`|
 |`worktree_cleanup_flow_runtime_and_detached_shell_hold_leases`|`worktree::worktree::cleanup_flow_tests::worktree_cleanup_flow_runtime_and_detached_shell_hold_leases`|
 |`worktree_cleanup_flow_session_creation_cannot_cross_removal`|`worktree::worktree::cleanup_flow_tests::worktree_cleanup_flow_session_creation_cannot_cross_removal`|
 |`worktree_cleanup_flow_snapshot_failure_keeps_checkout_and_can_retry`|`host_migration_50_tests::cleanup_flow_tests::worktree_cleanup_flow_snapshot_failure_keeps_checkout_and_can_retry`|
-|`worktree_cleanup_flow_status_is_queryable_during_removal`|`worktree::worktree::cleanup_flow_tests::worktree_cleanup_flow_status_is_queryable_during_removal`|
-|`worktree_cleanup_flow_waits_for_confirmation`|`worktree::worktree::cleanup_flow_tests::worktree_cleanup_flow_waits_for_confirmation`|
+|`worktree_cleanup_flow_status_is_queryable_during_removal`|gateway-worktree: `host_migration_50_tests::cleanup_flow_tests::worktree_cleanup_flow_status_is_queryable_during_removal`|
+|`worktree_cleanup_flow_waits_for_confirmation`|gateway-worktree: `host_migration_50_tests::cleanup_flow_tests::worktree_cleanup_flow_waits_for_confirmation`|
 |`worktree_cleanup_initialization_pool_external_and_unknown_are_protected`|`host_migration_50_tests::cleanup_tests::worktree_cleanup_initialization_pool_external_and_unknown_are_protected`|
 |`worktree_cleanup_keeps_pinned_busy_and_pool_worktrees`|`host_migration_50_tests::cleanup_tests::worktree_cleanup_keeps_pinned_busy_and_pool_worktrees`|
 |`worktree_cleanup_orders_by_last_use`|`host_migration_50_tests::cleanup_tests::worktree_cleanup_orders_by_last_use`|
@@ -96,8 +96,8 @@ lib.rs 自注册 host_migration_50_tests；其子模块直接访问真实领域�
 |`worktree_environment_runs_in_checkout_before_ready`|`host_migration_50_tests::environment_tests::worktree_environment_runs_in_checkout_before_ready`|
 |`worktree_environment_timeout_kills_descendants`|`host_migration_50_tests::environment_tests::worktree_environment_timeout_kills_descendants`|
 |`worktree_host_busy_snapshot_includes_busy_and_retry_only`|`worktree::worktree::cleanup_tests::worktree_host_busy_snapshot_includes_busy_and_retry_only`|
-|`worktree_management_e2e_create_chat_delete_restore`|`worktree::worktree::management_e2e_tests::worktree_management_e2e_create_chat_delete_restore`|
-|`worktree_management_e2e_restart_restore`|`worktree::worktree::management_e2e_tests::worktree_management_e2e_restart_restore`|
+|`worktree_management_e2e_create_chat_delete_restore`|gateway-worktree: `host_migration_50_tests::management_e2e_tests::worktree_management_e2e_create_chat_delete_restore`|
+|`worktree_management_e2e_restart_restore`|gateway-worktree: `host_migration_50_tests::management_e2e_tests::worktree_management_e2e_restart_restore`|
 |`worktree_recovery_restore_does_not_interpret_branch_names_as_options`|`host_migration_50_tests::recovery_restore_tests::worktree_recovery_restore_does_not_interpret_branch_names_as_options`|
 |`worktree_recovery_restore_failure_can_retry_and_preserves_snapshot`|`host_migration_50_tests::recovery_restore_tests::worktree_recovery_restore_failure_can_retry_and_preserves_snapshot`|
 |`worktree_recovery_restore_handles_path_conflict`|`host_migration_50_tests::recovery_restore_tests::worktree_recovery_restore_handles_path_conflict`|
@@ -112,7 +112,7 @@ lib.rs 自注册 host_migration_50_tests；其子模块直接访问真实领域�
 |`worktree_root_rejects_blank_project_worktree`|`host_migration_50_tests::worktree_native_tests::worktree_root_rejects_blank_project_worktree`|
 |`worktree_root_uses_shared_task_worktrees_directory`|`host_migration_50_tests::worktree_native_tests::worktree_root_uses_shared_task_worktrees_directory`|
 
-全量92条原用例均有唯一最终位置；新增1条宿主busy转换契约，总93条。完整测试名以前表为准，无旧新双挂载。
+全量92条原用例均有唯一最终位置；新增busy转换与实际路由挂载2条宿主契约，总94条。完整测试名以前表为准，无旧新双挂载。
 
 ## 逐文件行数及保留责任
 
@@ -121,23 +121,33 @@ lib.rs 自注册 host_migration_50_tests；其子模块直接访问真实领域�
 |worktree_native_tests.rs|72|0|全部迁入同名领域测试文件，宿主来源和挂载删除。|
 |worktree_ops_tests.rs|251|0|全部迁入同名领域测试文件，宿主来源和挂载删除。|
 |host_adapter.rs|47|47|WorktreeHost四方法、真实ProcessTree guard、busy_sessions、Once初始化，47行。|
-|cleanup_flow_tests.rs|666|522|仅HTTP确认/恢复/状态路由、runtime/detached shell租约、session创建、legacy loop、实际AgentContextHost绑定。isolated/git/Fixture::new/checkout/call、request、legacy_turn随真实调用保留。|
-|cleanup_tests.rs|208|12|12行真实Busy/Retry/Idle转换契约。|
+|cleanup_flow_tests.rs|666|317|仅runtime/detached shell租约、session创建、legacy loop、实际AgentContextHost绑定；isolated/git/Fixture::new/checkout、request、legacy_turn随调用保留。call/refresh和HTTP依赖移除。|
+|cleanup_tests.rs|208|25|12行真实Busy/Retry/Idle转换契约。|
 |mod.rs|40|40|公共入口文档及宿主模块注册，40行。|
 |environment_tests.rs|338|138|唯一创建失败→session::create_next拒绝→重试成功链，保留真实会话准入边界和必要真实Git/project夹具。|
 |tests.rs|13|13|13行顶层公共类型重导出契约。|
-|worktree.rs|68|56|真实宿主初始化包装和剩余薄边界测试注册。|
-|management_e2e_tests.rs|262|262|两条真实路由、session持久化/pin和重启子进程端到端链。|
+|worktree.rs|68|49|真实宿主初始化包装和剩余薄边界测试注册。|
+|management_e2e_tests.rs|262|0|完整迁至gateway-worktree，宿主来源及挂载删除。|
 |creation_policy_tests.rs|88|0|全部迁入同名领域测试文件，宿主来源和挂载删除。|
 
-宿主基线3225 → 首轮2053 → 当前1090行；本次再减963，总净减2135（66.2%）。领域本任务测试/夹具/适配器共2317行，生产新增0。宿主生产/装配/文档原159→143行，仅移除测试注册，非业务迁移。
+宿主基线3225 → 首轮2053 → 上轮1090 → 当前629行；累计净减2596行（80.5%）。领域生产算法新增0行；迁移的是测试、夹具和既有真实库端口装配。宿主生产/装配/文档原159→136行，仅移除测试注册，非业务迁移。
 
-仍未达到70%减量：保留HTTP与runtime完整边界导致；继续可迁项为边界用例内的领域布置（如自动清理失败/状态断言），需在不丢失跨层链验收的前提下提取最小场景入口。不能按删除断言、空快照或迁整套AgentContextHost来达标。交收口按本明细验收，不宣称整轮达标。
+本任务达到70%减量门槛，整轮门槛仍须由收口按当前物理统计判定。剩余629行全为实际跨层边界、其最小夹具及公共宿主装配。
 
 ## 静态证据和未来验证
 
-逐函数源码比较（非执行测试）：本轮映射38条；全局唯一归属93条。领域78条，宿主15条（含1条父进程显式调用的ignored重启用例）。git diff --check 通过。
+逐函数源码比较（非执行测试）：本轮映射38条；全局唯一归属94条。worktree-core领域78条，gateway-worktree领域7条，宿主9条（含1条父进程显式调用的ignored重启用例）。git diff --check 通过。
 
 未来：`python3 scripts/cargo_slot.py cargo test -p worktree-core --lib host_migration_50_tests -- --test-threads=1`，Unix预期78条非零（非Unix按cfg减少）。
 
 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib worktree:: -- --list`，确认前表领域旧名消失；按保留完整名逐个 --exact 验证宿主边界，ignored子用例由父用例注入环境执行。所有编译、测试结果、耗时和系统进程行为均未验证，不作通过声明。
+
+## 第三轮：完整HTTP归还真实路由所有者
+
+读取 final.md 当前恢复说明及 remaining-host.json（task50原2053行快照），以当前1090行续做。实际宿主 handlers::project::router 合并 gateway-project 与 worktree_management；后者仅安装真实Host再返回 gateway_worktree::project_router。迁移的7条用例URI全部归 gateway-worktree，因此直接使用其 project_router，完整保留Axum HTTP断言、真实数据库/租户/会话pin、确认删除、磁盘快照和重启子进程还原。
+
+复用该库已存在的 host_migration_17_tests::host_support，仅把其模块可见性调整为pub(super)，不复制新适配器、不模拟鉴权或存储。本任务新增模块自注册并补齐精确dev依赖。重启还原--exact改为host_migration_50_tests::management_e2e_tests::worktree_management_e2e_restart_restore，isolated继续按module_path自动算新名。源码逐函数替换比对7条迁入HTTP测试正文，所有原断言保持。
+
+宿主新增 `worktree::worktree::cleanup_tests::worktree_host_router_mounts_cleanup_and_requires_tenant`：真实项目router对清理URI无租户请求须拒绝且非404，覆盖实际路由合并和Host初始化边界。该新增契约代码尚未运行。原92条用例最终78条worktree-core、7条gateway-worktree、7条宿主；另新增2条宿主契约，共94条。
+
+未来新增精确入口：`python3 scripts/cargo_slot.py cargo test -p gateway-worktree --lib host_migration_50_tests -- --test-threads=1`，预期6条直接运行、1条ignored由父测试带环境执行，不可用ignored未执行充当通过。worktree-core仍预期78条；宿主列单和剩余原名逐条验证。未运行Cargo、构建、测试或系统进程；无编译和行为通过结论。

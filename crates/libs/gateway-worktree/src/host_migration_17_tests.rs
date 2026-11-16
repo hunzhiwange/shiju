@@ -257,4 +257,4 @@ async fn worktree_managed_ui_records_ready_checkout_use_in_scope() {
     );
 }
 
-mod host_support;
+pub(super) mod host_support;

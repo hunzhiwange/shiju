@@ -197,3 +197,6 @@ Physical classification before: host production/forwarding 261; host tests/fixtu
 - plugin-mcp: domain production delta 0; new tests/fixtures 95 lines.
 
 Shared mod.rs also has concurrent task changes; physical totals above reflect the working snapshot, not exclusive ownership of every removed registration line. Exclusive own net deletion must be recomputed from the commit diff during closure.
+
+
+Concurrent commit recovery temporarily removed domain registrations; final 87aa96fbc restores the task37 registrations/lock edges on the recovered HEAD. Receiving test files are tracked in final HEAD. Recompute exclusive net reduction from task changes at closure; transient intermediate HEAD counts are not acceptance evidence.

@@ -62,9 +62,21 @@ base64 = "0.23"
 hex = "0.4"
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
-tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util"] }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "test-util"] }
 
 [target.'cfg(target_os = "macos")'.dev-dependencies]
+agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
+app-routing-services = { path = "../app-routing-services", version = "0.6.0" }
+gateway-app-diagnostics = { path = "../gateway-app-diagnostics", version = "0.6.0" }
+gateway-app-settings = { path = "../gateway-app-settings", version = "0.6.0" }
+libc = "0.2"
+mcp-client = { path = "../mcp-client", version = "0.6.0" }
+plugin-mcp = { path = "../plugin-mcp", version = "0.6.0" }
+tool-mcp = { path = "../tool-mcp", version = "0.6.0" }
+tokio-util = { version = "0.7", features = ["rt"] }
+vw-api-app-failover = { path = "../api-app-failover", version = "0.6.0" }
+vw-api-tools = { path = "../api-tools", version = "0.6.0" }
+
 zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 gateway-app-usage = { path = "../gateway-app-usage", version = "0.6.0" }
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }

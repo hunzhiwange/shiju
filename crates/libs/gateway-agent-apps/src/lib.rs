@@ -52,3 +52,6 @@ mod agent_apps_auth_poll;
 pub mod agent_apps_auth_read;
 mod agent_apps_auth_remove;
 pub mod agent_apps_auth_start;
+
+#[cfg(all(test, target_os = "macos"))]
+mod host_migration_4_tests;

@@ -13,6 +13,7 @@ export function createImeBridge(canvas, emit) {
     let disposed = false;
     let transferring = false;
     let geometry = null;
+    let forwardedEdit = null;
 
     function on(node, name, handler, options) {
         node.addEventListener(name, handler, options);
@@ -23,6 +24,7 @@ export function createImeBridge(canvas, emit) {
         password.value = '';
         composing = false;
         lastCommit = null;
+        forwardedEdit = null;
     }
     function position() {
         if (!enabled || !geometry) return;
@@ -36,6 +38,27 @@ export function createImeBridge(canvas, emit) {
     }
     on(document, 'scroll', position, true);
     on(document.defaultView, 'resize', position);
+    const viewport = document.defaultView.visualViewport;
+    if (viewport) {
+        on(viewport, 'resize', position);
+        on(viewport, 'scroll', position);
+    }
+    function focusTarget() {
+        if (!enabled || disposed || document.visibilityState === 'hidden') return;
+        transferring = true;
+        target.focus({ preventScroll: true });
+        transferring = false;
+    }
+    // Run synchronously in a user gesture. A later animation-frame update cannot
+    // obtain keyboard permission on mobile Safari. Never cancel Iced's pointer event.
+    on(canvas, 'pointerup', event => {
+        if (event.pointerType === 'touch' || event.pointerType === 'pen') focusTarget();
+    });
+    on(canvas, 'click', focusTarget);
+    function editKey(key) {
+        canvas.dispatchEvent(new KeyboardEvent('keydown', { key }));
+        canvas.dispatchEvent(new KeyboardEvent('keyup', { key }));
+    }
     function commit(text) {
         emit('preedit', '');
         if (text) emit('commit', text);
@@ -68,12 +91,55 @@ export function createImeBridge(canvas, emit) {
             commit(text);
         });
         on(node, 'beforeinput', event => {
-            // A fresh edit must not be mistaken for the trailing composition input.
-            if (!event.isComposing && !event.inputType.includes('Composition')) lastCommit = null;
+            if (!enabled || node !== target) return;
+            const type = event.inputType || '';
+            // The keyboard can confirm composition with a paragraph event.
+            // Consume it without forwarding Enter (which may submit a message).
+            if (event.isComposing || composing || type.includes('Composition')) {
+                if ((type === 'insertParagraph' || type === 'insertLineBreak') && event.cancelable) event.preventDefault();
+                return;
+            }
+            const key = {
+                deleteContentBackward: 'Backspace',
+                deleteContentForward: 'Delete',
+                insertParagraph: 'Enter',
+                insertLineBreak: 'Enter',
+            }[type];
+            if (key) {
+                // These edits must be cancelled: the empty DOM proxy is not the
+                // widget's document, and an input event would apply the edit twice.
+                if (!event.cancelable) return;
+                event.preventDefault();
+                node.value = '';
+                const confirming = key === 'Enter' && lastCommit !== null;
+                lastCommit = null;
+                if (!confirming && forwardedEdit !== key) editKey(key);
+                forwardedEdit = null;
+                return;
+            }
+            // A fresh edit must not be mistaken for trailing composition input.
+            lastCommit = null;
+            forwardedEdit = null;
         });
         on(node, 'input', event => {
             if (!enabled || node !== target) { node.value = ''; return; }
             if (event.isComposing || composing) return;
+            // Some IME edits are non-cancelable. Apply their input notification
+            // through the same keyboard protocol, never as proxy text.
+            const key = {
+                deleteContentBackward: 'Backspace',
+                deleteContentForward: 'Delete',
+                insertParagraph: 'Enter',
+                insertLineBreak: 'Enter',
+            }[event.inputType];
+            if (key) {
+                node.value = '';
+                const confirming = key === 'Enter' && lastCommit !== null;
+                lastCommit = null;
+                if (!confirming && forwardedEdit !== key) editKey(key);
+                forwardedEdit = null;
+                return;
+            }
             const text = node.value;
             node.value = '';
             if (lastCommit !== null && text === lastCommit) { lastCommit = null; return; }
@@ -81,6 +147,7 @@ export function createImeBridge(canvas, emit) {
             commit(text);
         });
         on(node, 'keydown', event => {
+            if (!enabled || node !== target) return;
             // keyCode 229 covers older engines reporting the IME acceptance key.
             if (event.isComposing || composing || event.keyCode === 229) return;
             lastCommit = null;
@@ -97,12 +164,14 @@ export function createImeBridge(canvas, emit) {
                 ctrlKey: event.ctrlKey, metaKey: event.metaKey,
                 altKey: event.altKey, shiftKey: event.shiftKey,
             });
+            forwardedEdit = ['Backspace', 'Delete', 'Enter'].includes(event.key) ? event.key : null;
             canvas.dispatchEvent(forwarded);
             // Keep browser clipboard copy/cut handling out of the empty proxy.
             event.preventDefault();
         });
         on(node, 'keyup', event => {
-            if (!event.isComposing && !composing) canvas.dispatchEvent(new KeyboardEvent('keyup', event));
+            forwardedEdit = null;
+            if (enabled && node === target && !event.isComposing && !composing) canvas.dispatchEvent(new KeyboardEvent('keyup', event));
         });
         on(node, 'focus', () => { if (!transferring && enabled) emit('focus', ''); });
         on(node, 'blur', event => {
@@ -133,9 +202,7 @@ export function createImeBridge(canvas, emit) {
             position();
             // Never steal focus from another page control or an inactive tab.
             if (document.activeElement === canvas || document.activeElement === textarea || document.activeElement === password) {
-                transferring = true;
-                target.focus({ preventScroll: true });
-                transferring = false;
+                focusTarget();
             }
         },
         hasFocus() { return document.activeElement === textarea || document.activeElement === password || transferring; },

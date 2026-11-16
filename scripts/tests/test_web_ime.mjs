@@ -124,6 +124,85 @@ try {
         await page.keyboard.type('abc');
         assert.deepEqual(await page.evaluate(() => events), []);
     });
+    await test('mobile_touch_focus_respects_enabled_and_external_controls', async page => {
+        await page.evaluate(() => {
+            document.querySelector('#outside').focus();
+            bridge.update(true, 20, 40, 1, 20, false);
+        });
+        assert.equal(await page.evaluate(() => document.activeElement.id), 'outside');
+        await page.evaluate(() => canvas.dispatchEvent(new PointerEvent('pointerup', { pointerType: 'touch' })));
+        assert.equal(await page.evaluate(() => bridge.hasFocus()), true);
+        await page.evaluate(() => {
+            bridge.update(false, 0, 0, 0, 0, false);
+            document.querySelector('#outside').focus();
+            canvas.dispatchEvent(new PointerEvent('pointerup', { pointerType: 'touch' }));
+            canvas.click();
+        });
+        assert.equal(await page.evaluate(() => document.activeElement.id), 'outside');
+    });
+    await test('mobile_beforeinput_only_deletion_and_newline_forward_once', async page => {
+        const result = await page.evaluate(() => {
+            const keys = [];
+            canvas.addEventListener('keydown', e => keys.push(e.key));
+            const target = document.activeElement;
+            const cancelled = ['deleteContentBackward', 'deleteContentForward', 'insertParagraph', 'insertLineBreak'].map(inputType =>
+                !target.dispatchEvent(new InputEvent('beforeinput', { inputType, cancelable: true })));
+            return { keys, cancelled, commits: events.filter(e => e[0] === 'commit') };
+        });
+        assert.deepEqual(result, {
+            keys: ['Backspace', 'Delete', 'Enter', 'Enter'],
+            cancelled: [true, true, true, true], commits: [],
+        });
+    });
+    await test('mobile_keydown_and_beforeinput_do_not_repeat_edit', async page => {
+        assert.deepEqual(await page.evaluate(() => {
+            const keys = [];
+            canvas.addEventListener('keydown', e => keys.push(e.key));
+            const target = document.activeElement;
+            target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace' }));
+            target.dispatchEvent(new InputEvent('beforeinput', { inputType: 'deleteContentBackward', cancelable: true }));
+            target.dispatchEvent(new KeyboardEvent('keyup', { key: 'Backspace' }));
+            return keys;
+        }), ['Backspace']);
+    });
+    await test('mobile_composition_confirmation_does_not_submit', async page => {
+        const result = await page.evaluate(() => {
+            const keys = [];
+            canvas.addEventListener('keydown', e => keys.push(e.key));
+            const target = document.activeElement;
+            target.dispatchEvent(new CompositionEvent('compositionstart'));
+            target.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertParagraph', isComposing: true, cancelable: true }));
+            target.dispatchEvent(new CompositionEvent('compositionend', { data: '中文' }));
+            target.value = '中文';
+            target.dispatchEvent(new InputEvent('input', { inputType: 'insertCompositionText', data: '中文' }));
+            return { keys, commits: events.filter(e => e[0] === 'commit') };
+        });
+        assert.deepEqual(result, { keys: [], commits: [['commit', '中文']] });
+    });
+    await test('mobile_viewport_blur_and_dispose_release_listeners', async page => {
+        await page.evaluate(() => {
+            canvas.style.top = '100px';
+            visualViewport.dispatchEvent(new Event('resize'));
+        });
+        assert.equal(await page.evaluate(() => document.activeElement.getBoundingClientRect().y), 120);
+        await page.evaluate(() => {
+            document.activeElement.dispatchEvent(new CompositionEvent('compositionstart'));
+            document.activeElement.value = 'temporary';
+            document.querySelector('#outside').focus();
+        });
+        assert.equal(await page.locator('textarea').inputValue(), '');
+        await page.evaluate(() => {
+            window.oldProxy = document.querySelector('textarea');
+            bridge.dispose();
+            events.length = 0;
+            canvas.dispatchEvent(new PointerEvent('pointerup', { pointerType: 'touch' }));
+            canvas.click();
+            visualViewport.dispatchEvent(new Event('scroll'));
+            oldProxy.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertParagraph', cancelable: true }));
+        });
+        assert.deepEqual(await page.evaluate(() => events), []);
+        assert.equal(await page.evaluate(() => document.activeElement.id), 'outside');
+    });
     console.log(`${passed} browser tests passed`);
 } finally {
     await browser.close();

@@ -1,6 +1,6 @@
 use tempfile::tempdir;
 use crate::{
-    SyscallAnomalyAlert, SyscallAnomalyDetector, SyscallAnomalyKind,
+    SyscallAnomalyDetector, SyscallAnomalyKind,
     map_linux_x86_64_syscall, normalize_baseline, parse_syscall_signal,
 };
 use config_security::{AuditConfig, SyscallAnomalyConfig};

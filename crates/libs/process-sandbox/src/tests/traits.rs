@@ -1,7 +1,6 @@
 use std::process::Command;
 
-use vibe_agent::app::agent::security::Sandbox;
-use vibe_agent::app::agent::security::traits::NoopSandbox;
+use crate::{NoopSandbox, Sandbox};
 
 // 测试 NoopSandbox 的名称是否为 "none"
 #[test]

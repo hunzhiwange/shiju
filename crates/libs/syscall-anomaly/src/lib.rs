@@ -1009,3 +1009,7 @@ fn map_linux_x86_64_syscall(number: i64) -> Option<&'static str> {
 #[cfg(test)]
 #[path = "syscall_anomaly_tests.rs"]
 mod syscall_anomaly_tests;
+
+#[cfg(test)]
+#[path = "tests/syscall_anomaly.rs"]
+mod legacy_syscall_anomaly_tests;

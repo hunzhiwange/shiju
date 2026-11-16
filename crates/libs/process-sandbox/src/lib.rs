@@ -10,3 +10,7 @@ pub mod firejail;
 pub mod landlock;
 
 pub use traits::{NoopSandbox, Sandbox, SandboxBounds};
+
+#[cfg(test)]
+#[path = "tests/traits.rs"]
+mod legacy_traits_tests;

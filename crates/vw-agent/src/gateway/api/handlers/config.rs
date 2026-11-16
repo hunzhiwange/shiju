@@ -86,17 +86,6 @@ pub async fn handle_api_config_put(
 }
 
 #[cfg(test)]
-async fn config_patch_stateful(
-    tenant: Extension<TenantScope>,
-    State(state): State<AppState>,
-    Query(query): Query<InstanceQuery>,
-    headers: HeaderMap,
-    Json(patch): Json<Value>,
-) -> Result<Json<Value>, ApiError> {
-    gateway_config::handlers::config_patch_stateful::<ConfigHost>(tenant, State(state), Query(query), headers, Json(patch)).await
-}
-
-#[cfg(test)]
 async fn config_providers(
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,

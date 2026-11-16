@@ -579,3 +579,8 @@ features = ["fixture-support"]
 path = "../libs/gateway-misc"
 version = "0.6.0"
 features = ["test-support"]
+
+[dev-dependencies.gateway-config]
+path = "../libs/gateway-config"
+version = "0.6.0"
+features = ["host-test-support"]

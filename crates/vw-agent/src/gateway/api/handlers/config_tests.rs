@@ -1,7 +1,6 @@
 // 覆盖配置 API 的认证、租户隔离、项目覆盖与运行时更新。
 
 use super::*;
-use crate::gateway::instance::with_instance;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::NoneMemory;
 use model_types::Provider;
@@ -15,7 +14,6 @@ use std::time::Duration;
 use tempfile::TempDir;
 use vw_api_transport::id::TenantScope;
 
-use crate::global_database::GlobalDatabase;
 
 struct EnvGuard {
     key: &'static str,
@@ -94,11 +92,6 @@ fn state(config: config::Config, require_pairing: bool, tokens: &[String]) -> Ap
 
 fn instance_query(temp: &TempDir) -> Query<InstanceQuery> {
     Query(InstanceQuery { directory: Some(temp.path().to_string_lossy().to_string()) })
-}
-
-fn local_store(home: &std::path::Path) -> config::SystemConfigStore {
-    config::SystemConfigStore::new(GlobalDatabase::for_home(home).expect("global database"))
-        .expect("system config store")
 }
 
 async fn response_json(response: axum::response::Response) -> Value {
@@ -265,25 +258,7 @@ async fn config_put_hook_build_failure_is_atomic() {
     current.hooks.builtin.command_logger = true;
     current.hooks.plugins.enabled = false;
 
-    let broken_plugin = current.workspace_dir.join(".vibewindow/plugins/broken");
-    let manifest_path = broken_plugin.join(".vibewindow-plugin/plugin.json");
-    std::fs::create_dir_all(manifest_path.parent().expect("manifest parent"))
-        .expect("create manifest parent");
-    std::fs::write(
-        &manifest_path,
-        serde_json::to_vec_pretty(&serde_json::json!({
-            "name": "broken",
-            "version": "0.1.0",
-            "description": "broken runtime test plugin",
-            "hooks": "./hooks/hooks.json"
-        }))
-        .expect("manifest bytes"),
-    )
-    .expect("write plugin manifest");
-    let hooks_path = broken_plugin.join("hooks/hooks.json");
-    std::fs::create_dir_all(hooks_path.parent().expect("hooks parent"))
-        .expect("create hooks parent");
-    std::fs::write(&hooks_path, "{not json").expect("write broken hooks");
+    gateway_config::host_acceptance::write_broken_hook_plugin(&current);
 
     let mut state = state(current.clone(), false, &[]);
     let runtime = crate::app::agent::hooks::build_hook_runtime(&current).expect("hook runtime");
@@ -349,99 +324,30 @@ async fn manual_agent_save_updates_live_resolution_and_survives_instance_restart
     let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
     let tenant = TenantScope::new("save-test", "company").unwrap();
 
-    for project_override in [false, true] {
-        let project = home.path().join(if project_override { "project" } else { "global" });
-        std::fs::create_dir_all(&project).unwrap();
-        let directory = project.to_string_lossy().to_string();
-        let scoped_directory = directory.clone();
-        let scoped_tenant = tenant.clone();
-        crate::session::ui_store::with_tenant_scope(
-            tenant.clone(),
-            with_instance(directory.clone(), move || {
-                Box::pin(async move {
-                    let state = state(config::Config::default(), false, &[]);
-                    // 两次保存之间不销毁实例，先读旧值使历史缓存问题可被复现。
-                    for (provider, model) in [("before", "old-model"), ("after", "saved-model")] {
-                        let model_ref = format!("{provider}/{model}");
-                        let agents =
-                            serde_json::json!({"main": {"provider": provider, "model": model}});
-                        let mut patch = serde_json::json!({
-                            "default_provider": provider,
-                            "default_model": model_ref,
-                        });
-                        if project_override {
-                            // Agent definitions are tenant-global even when editing project defaults.
-                            let Json(saved) = config_patch_stateful(
-                                Extension(scoped_tenant.clone()),
-                                State(state.clone()),
-                                Query(InstanceQuery { directory: None }),
-                                HeaderMap::new(),
-                                Json(serde_json::json!({"agents": agents})),
-                            )
-                            .await?;
-                            assert_eq!(saved["agents"]["main"]["model"], model);
-                        } else {
-                            patch["agents"] = agents;
-                        }
-                        let Json(saved) = config_patch_stateful(
-                            Extension(scoped_tenant.clone()),
-                            State(state.clone()),
-                            Query(InstanceQuery {
-                                directory: project_override.then(|| scoped_directory.clone()),
-                            }),
-                            HeaderMap::new(),
-                            Json(patch),
-                        )
-                        .await?;
-                        assert_eq!(saved["agents"]["main"]["model"], model);
-                        let runtime = config::get_current().await.unwrap();
-                        assert_eq!(runtime.agents["main"].provider, provider);
-                        assert_eq!(runtime.agents["main"].model, model);
-                        let agent = crate::agent::get("main").await.expect("live main agent");
-                        let resolved = crate::agent::resolve_model_ref(&agent).unwrap();
-                        assert_eq!(resolved.provider_id, provider);
-                        assert_eq!(resolved.model_id, model);
-                        let default_model =
-                            crate::provider::provider::default_model().await.unwrap();
-                        assert_eq!(default_model.provider_id, provider);
-                        assert_eq!(default_model.model_id, model);
-                    }
-                    crate::project::instance::dispose().await;
-                    Ok(())
-                })
+    crate::session::ui_store::with_tenant_scope(
+        tenant.clone(),
+        gateway_config::host_acceptance::assert_manual_agent_save::<ConfigHost, _, _, _>(
+            tenant, home.path().to_path_buf(),
+            || state(config::Config::default(), false, &[]),
+            |provider, model, restarted| Box::pin(async move {
+                let agent = crate::agent::get("main").await.expect("live main agent");
+                if restarted {
+                    assert_eq!(agent.provider, provider);
+                    assert_eq!(agent.model, model);
+                } else {
+                    let resolved = crate::agent::resolve_model_ref(&agent).unwrap();
+                    assert_eq!(resolved.provider_id, provider);
+                    assert_eq!(resolved.model_id, model);
+                    let default_model = crate::provider::provider::default_model().await.unwrap();
+                    assert_eq!(default_model.provider_id, provider);
+                    assert_eq!(default_model.model_id, model);
+                }
+                Ok(())
             }),
-        )
-        .await
-        .unwrap();
+            || Box::pin(async { crate::project::instance::dispose().await; }),
+        ),
+    ).await;
 
-        // 从数据库创建新的实例，不能依赖上一实例或桌面草稿中的值。
-        crate::session::ui_store::with_tenant_scope(
-            tenant.clone(),
-            with_instance(directory.clone(), || {
-                Box::pin(async {
-                    let runtime = config::get_current().await.unwrap();
-                    assert_eq!(runtime.default_model.as_deref(), Some("after/saved-model"));
-                    let agent = crate::agent::get("main").await.unwrap();
-                    assert_eq!(agent.provider, "after");
-                    assert_eq!(agent.model, "saved-model");
-                    crate::project::instance::dispose().await;
-                    Ok(())
-                })
-            }),
-        )
-        .await
-        .unwrap();
-        let store = local_store(home.path());
-        if project_override {
-            let payload = store.get_project(&tenant, &directory).unwrap().unwrap();
-            let payload: Value = serde_json::from_str(&payload).unwrap();
-            assert!(payload.get("agents").is_none());
-            assert_eq!(payload["default_model"], "after/saved-model");
-        }
-        let payload = store.get(&tenant).unwrap().unwrap();
-        let payload: Value = serde_json::from_str(&payload).unwrap();
-        assert_eq!(payload["agents"]["main"]["model"], "saved-model");
-    }
 }
 
 // The same production guard entrypoint serves the actual host and the domain tests.

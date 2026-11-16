@@ -96,3 +96,16 @@
 复审后 `crates/libs/gateway-config/src/host_migration_8_tests/auth.rs`：55 行。
 
 宿主文件族最终 564 行，相对原1766行净减1202（68.1%），仍低于70%，原因如上。
+
+
+## task59 配置原子性/热重载恢复审查
+
+已读取 recovery-priorities.json 的 owner8 五个指定符号。`manual_agent_save_updates_live_resolution_and_survives_instance_restart` 的保存/读取/项目覆盖/SQLite断言及调用顺序迁至 `gateway_config::host_acceptance::assert_manual_agent_save`。原宿主用例仍注册，注入真实 ConfigHost、实际 live agent/provider 解析、真实实例 dispose；外层使用实际 with_tenant_scope 保证原先两个实例回调仍在同一租户范围。该场景是由真实宿主驱动的领域验收支持，不宣称增加独立库测试。默认关闭的 host-test-support 只由 vw-agent dev依赖启用；没有复制 AppState、模拟鉴权或生命周期。删除已无调用的宿主 config_patch_stateful 测试转发及 local_store 夹具。
+
+`config_put_hook_build_failure_is_atomic` 的损坏插件目录/manifest/hooks 文件夹具迁至 `write_broken_hook_plugin`，仍由实际宿主 loader 消费，文件内容保持原样。其 runner/engine 指针捕获与原子性断言、另两条保存失败/热重载真实断言保留在宿主，因这些检查必须观察实际 HookRuntime、真实聊天调用及缓存，无法将其改为空端口。`config_providers_returns_defaults_for_available_models` 同样保留真实目录实例和 catalog 调用；本次不以领域假列表代替。
+
+静态核对：7个宿主用例名及注册顺序不变；宿主文件加新支持文件的 assert/assert_eq/assert_ne 数量逐类等于修改前，未删除断言。生产默认配置行为未变；ConfigHost真实接线未变。新增支持模块通过 lib.rs feature自注册，agent-database optional依赖只为真实 SQLite 夹具启用（同名dev依赖原已存在，锁文件依赖集合不变）。
+
+恢复后 config_tests.rs 361 行、config.rs 98 行，宿主合计459；相对恢复前564行减少105行，相对原1766行净减1307（74.0%）。新增 host_acceptance.rs 127 行均为验收支持，不计生产迁移收益。
+
+未来仍运行前述31条领域用例与7条宿主用例（包括经feature接入的真实 manual_agent_save 验收），新支持模块不单独计测试。所有 Cargo、构建、单元与实机测试均未运行；只有源码/注册/断言数量/差异检查，不宣称编译或行为通过。编号任务文件已在前次完成清理，本次不复原；证据补记于本文件。

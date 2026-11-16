@@ -35,3 +35,11 @@ agent-database = { path = "../agent-database", version = "0.6.0" }
 agent-gateway = { path = "../agent-gateway", version = "0.6.0" }
 config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }
 config-gateway = { path = "../config-gateway", version = "0.6.0" }
+
+[features]
+host-test-support = ["dep:agent-database"]
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.agent-database]
+path = "../agent-database"
+version = "0.6.0"
+optional = true

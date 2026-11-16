@@ -956,3 +956,6 @@ impl<H: SkillHost> Tool for SkillTool<H> {
 
 #[cfg(test)]
 mod value_tests;
+
+#[cfg(test)]
+mod invocation_tests;

@@ -2,7 +2,7 @@
 //! 临时技能 fixture 同时提供目录与说明文件，用于约束元消息中的来源信息。
 
 use super::invocation::build_invocation_result;
-use crate::app::agent::skills::Skill;
+use agent_skills::Skill;
 use serde_json::json;
 use std::fs;
 use std::path::PathBuf;
@@ -90,9 +90,9 @@ fn skill_tool_rejects_model_disabled_and_path_scoped_skills() {
 
 #[test]
 fn codex_plugin_compat_t10_qualified_permission_preserves_legacy_denials() {
-    use crate::permission::next::{Action, from_config};
+    use permission_runtime::next::{Action, from_config};
     let (mut skill, root) = skill();
-    skill.plugin_source = Some(crate::skills::PluginSkillSource {
+    skill.plugin_source = Some(agent_skills::PluginSkillSource {
         plugin_id: "pack@first".into(),
         namespace: "pack".into(),
         root: root.clone(),

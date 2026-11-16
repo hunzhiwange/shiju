@@ -8,9 +8,7 @@ pub fn accessible_skills(skills: Vec<crate::skills::Skill>, context: Option<&sup
 }
 
 #[cfg(test)]
-use tool_services::skill::{skill_file_id, skill_is_explicitly_requested, skill_permission_rule};
-#[cfg(test)]
-use tool_services::skill::invocation;
+use tool_services::skill::{skill_file_id, skill_is_explicitly_requested};
 #[cfg(test)]
 fn block_on<F: std::future::Future + Send>(future: F) -> F::Output where F::Output: Send {
     tool_services::skill::block_on::<super::context::AgentContextHost, _>(future)
@@ -37,7 +35,3 @@ mod tests;
 #[cfg(test)]
 #[path = "../../../../libs/tool-services/src/skill/mod_tests.rs"]
 mod mod_tests;
-
-#[cfg(test)]
-#[path = "../../../../libs/tool-services/src/skill/invocation_tests.rs"]
-mod invocation_tests;

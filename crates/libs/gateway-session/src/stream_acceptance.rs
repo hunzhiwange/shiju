@@ -399,3 +399,64 @@ pub async fn task_pool_agent_rejects_unknown_or_disabled_definition<H: crate::st
     .await
     .unwrap();
 }
+
+pub async fn resolve_delegate_request_overrides_without_agent_returns_explicit_values<H: crate::stream_host::StreamHost>() {
+
+    let overrides = crate::stream::resolve_delegate_request_overrides::<H>(
+        Some("  ".to_string()),
+        Some(vec![" shell ".to_string(), "shell".to_string(), " ".to_string()]),
+        Some("provider/model".to_string()),
+    )
+    .await
+    .expect("overrides");
+
+    assert_eq!(overrides.agent, None);
+    assert_eq!(overrides.model.as_deref(), Some("provider/model"));
+    assert_eq!(overrides.allowed_tools, Some(vec!["shell".to_string()]));
+    assert_eq!(overrides.chat_system_prompt, None);
+    assert_eq!(overrides.temperature, None);
+    assert_eq!(overrides.top_p, None);
+}
+
+pub async fn resolve_delegate_request_overrides_rejects_unknown_agent<H: crate::stream_host::StreamHost>() {
+
+    let error = crate::stream::resolve_delegate_request_overrides::<H>(
+        Some("agent-that-does-not-exist-for-stream-tests".to_string()),
+        None,
+        None,
+    )
+    .await
+    .expect_err("unknown agent");
+
+    assert_eq!(error.status, axum::http::StatusCode::BAD_REQUEST);
+    assert!(error.to_string().contains("unknown agent:"));
+}
+
+pub async fn background_approval_options<H: crate::stream_host::StreamHost>() -> (String, String) {
+            let mut request = GatewayChatStreamRequest {
+                agent: Some("acp-codex".into()),
+                options: Some(serde_json::json!({"full_access":true})),
+                ..Default::default()
+            };
+            crate::stream::prepare_gateway_agent_request::<H>(&mut request, Some(false)).await.unwrap();
+            assert_eq!(request.acp_agent.as_deref(), Some("codex"));
+            let options = request.options.as_ref().unwrap();
+            assert_eq!(options["full_access"], false);
+            assert_eq!(options["acp_non_interactive_permissions"], "deny");
+
+            request.options = Some(serde_json::json!({
+                "acp_permission_mode":"deny-all",
+                "acp_non_interactive_permissions":"fail"
+            }));
+            crate::stream::prepare_gateway_agent_request::<H>(&mut request, Some(true)).await.unwrap();
+            let options = request.options.as_ref().unwrap();
+            assert_eq!(options["full_access"], true);
+            assert_eq!(options["acp_permission_mode"], "deny-all");
+            assert_eq!(options["acp_non_interactive_permissions"], "fail");
+            let session = request.session_id.as_ref().unwrap().to_string();
+            let project = agent_project::instance::project().unwrap();
+    (project.id, session)
+}
+
+mod projections;
+pub use projections::{video_template_ledger, task_agent_defaults, resumed_profile_selection};

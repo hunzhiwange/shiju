@@ -25,35 +25,12 @@ async fn codex_skills_defaults_gateway_main_and_child_preload_before_first_reque
 
 #[tokio::test]
 async fn resolve_delegate_request_overrides_without_agent_returns_explicit_values() {
-    let overrides = gateway_session::stream::resolve_delegate_request_overrides::<Host>(
-        Some("  ".to_string()),
-        Some(vec![" shell ".to_string(), "shell".to_string(), " ".to_string()]),
-        Some("provider/model".to_string()),
-    )
-    .await
-    .expect("overrides");
-
-    assert_eq!(overrides.agent, None);
-    assert_eq!(overrides.model.as_deref(), Some("provider/model"));
-    assert_eq!(overrides.allowed_tools, Some(vec!["shell".to_string()]));
-    assert_eq!(overrides.chat_system_prompt, None);
-    assert_eq!(overrides.temperature, None);
-    assert_eq!(overrides.top_p, None);
+    gateway_session::stream_acceptance::resolve_delegate_request_overrides_without_agent_returns_explicit_values::<Host>().await;
 }
-
 
 #[tokio::test]
 async fn resolve_delegate_request_overrides_rejects_unknown_agent() {
-    let error = gateway_session::stream::resolve_delegate_request_overrides::<Host>(
-        Some("agent-that-does-not-exist-for-stream-tests".to_string()),
-        None,
-        None,
-    )
-    .await
-    .expect_err("unknown agent");
-
-    assert_eq!(error.status, axum::http::StatusCode::BAD_REQUEST);
-    assert!(error.to_string().contains("unknown agent:"));
+    gateway_session::stream_acceptance::resolve_delegate_request_overrides_rejects_unknown_agent::<Host>().await;
 }
 
 #[tokio::test]
@@ -196,20 +173,7 @@ async fn video_edit_entry_gateway_unbound_projects_template_edit_menu_and_persis
         .unwrap()
         .collect::<Result<Vec<_>, _>>()
         .unwrap();
-    let runs = rows
-        .iter()
-        .map(|r| serde_json::from_str::<serde_json::Value>(r).unwrap())
-        .collect::<Vec<_>>();
-    assert!(
-        runs.iter()
-            .any(|r| r["source"]["path"] == a.canonicalize().unwrap().to_string_lossy().as_ref()
-                && r["template_sha256"] == initial.digest)
-    );
-    assert!(
-        runs.iter()
-            .any(|r| r["source"]["path"] == b.canonicalize().unwrap().to_string_lossy().as_ref()
-                && r["template_sha256"] == edited.digest)
-    );
+    gateway_session::stream_acceptance::video_template_ledger(&rows, &a, &b, &initial.digest, &edited.digest);
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -303,17 +267,7 @@ fn agent_session_identity_survives_profile_edits() {
                 }))
                 .await
                 .unwrap();
-                let mut resumed = GatewayChatStreamRequest {
-                    session_id: Some(session_id.clone().into()),
-                    agent: Some("main".into()),
-                    ..Default::default()
-                };
-                let overrides = gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut resumed, None).await.unwrap();
-                assert_eq!(overrides.chat_system_prompt.as_deref(), Some("ORIGINAL_BINDING_RULE"));
-                let mut switched = resumed.clone();
-                switched.model = Some("model-recovery/different".into());
-                let error = gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut switched, None).await.err().unwrap();
-                assert!(error.message.contains("changing a session model requires a new session"));
+                gateway_session::stream_acceptance::resumed_profile_selection::<Host>(&session_id).await;
                 let mut config = crate::config::get_current().await.unwrap();
                 crate::session::agent_binding::apply_to_config(&session_id, &mut config)
                     .await
@@ -367,30 +321,9 @@ async fn acp_background_approval_gateway_uses_turn_grant_after_agent_resolution(
     let tenant = crate::session::ui_store::current_tenant_scope();
     with_tenant_instance(tenant, workspace.path().to_string_lossy().into_owned(), || {
         Box::pin(async {
-            let mut request = GatewayChatStreamRequest {
-                agent: Some("acp-codex".into()),
-                options: Some(serde_json::json!({"full_access":true})),
-                ..Default::default()
-            };
-            gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut request, Some(false)).await.unwrap();
-            assert_eq!(request.acp_agent.as_deref(), Some("codex"));
-            let options = request.options.as_ref().unwrap();
-            assert_eq!(options["full_access"], false);
-            assert_eq!(options["acp_non_interactive_permissions"], "deny");
-
-            request.options = Some(serde_json::json!({
-                "acp_permission_mode":"deny-all",
-                "acp_non_interactive_permissions":"fail"
-            }));
-            gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut request, Some(true)).await.unwrap();
-            let options = request.options.as_ref().unwrap();
-            assert_eq!(options["full_access"], true);
-            assert_eq!(options["acp_permission_mode"], "deny-all");
-            assert_eq!(options["acp_non_interactive_permissions"], "fail");
-            let session = request.session_id.as_ref().unwrap().as_ref();
-            let project = instance::project().unwrap();
+            let (project, session) = gateway_session::stream_acceptance::background_approval_options::<Host>().await;
             assert!(
-                !crate::session::agent_binding::confirmed_full_access(&project.id, session)
+                !crate::session::agent_binding::confirmed_full_access(&project, &session)
                     .await
                     .unwrap()
             );
@@ -504,27 +437,19 @@ async fn task_pool_agent_uses_existing_definition_and_defaults() {
                     ..Default::default()
                 };
                 let resolved = gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut request, None).await.unwrap();
-                assert_eq!(resolved.agent.as_deref(), Some(agent));
                 let binding = crate::session::agent_binding::load(
                     request.session_id.as_ref().unwrap().as_ref(),
                 )
                 .await
                 .unwrap()
                 .unwrap();
-                assert_eq!(binding.agent, agent);
+                gateway_session::stream_acceptance::task_agent_defaults(agent, &resolved, &request, &binding);
                 if agent != "acp-codex" {
-                    if agent == "task-reviewer" {
-                        assert_eq!(resolved.model.as_deref(), Some("model-recovery/original"));
-                    }
-                    assert_eq!(binding.allowed_tools, vec!["read"]);
-                    assert_eq!(request.options.as_ref().unwrap()["full_access"], false);
                     let rules = crate::agent::permission_rules(agent).await.unwrap();
                     assert_eq!(
                         crate::permission::next::evaluate("shell", "*", &[rules]).action,
                         crate::permission::next::Action::Deny
                     );
-                } else {
-                    assert_eq!(request.acp_agent.as_deref(), Some("codex"));
                 }
             }
             Ok(())

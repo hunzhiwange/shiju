@@ -355,3 +355,25 @@ Remaining host function map (current exact declarations):
 | `task_pool_agent_rejects_unknown_or_disabled_definition` | 10 | crate::config::update, crate::session::llm::recovery_test_support::RecoveryConfig::new, crate::test_support::global_async_env_lock |
 
 Static checks: removed test-only forwarding remains absent, native adapter registered with cfg(test), acceptance modules registered native-only under test-support, native StreamEvent/queue and tool-id return types inspected, git diff --check clean for owned files. All Cargo/build/unit/device tests and test executable/listing remain NOT RUN. Future precise filters: gateway-session --lib host_migration_11_tests expects51, vw-agent --lib gateway::api::handlers::session::stream::stream_tests expects27 including thin native invocations; verify actual fully-qualified list when authorized. No new independent test registrations claimed for acceptance functions.
+
+## Fifth recovery pass (latest snapshot supersedes the stale owner1750 inventory)
+
+Re-read final.md and remaining-host inventory. Source already contained fourth-pass real native runtime acceptance; the 38000-line gap in the dispatch is an older snapshot. This pass splits the remaining concrete assertions without repeating earlier migration credit.
+
+- resolve_delegate_request_overrides_without_agent_returns_explicit_values and resolve_delegate_request_overrides_rejects_unknown_agent: full unchanged request assertions -> stream_acceptance, executed by original host tests with real Host.
+- acp_background_approval_gateway_uses_turn_grant_after_agent_resolution: request mutation/default/explicit permission-mode assertions -> background_approval_options. It returns the actual project/session ids; host still reads confirmed_full_access from the real trusted binding store and asserts the turn grant was not persisted.
+- task_pool_agent_uses_existing_definition_and_defaults: agent/model/backend/tool/full-access projection assertions -> task_agent_defaults, consuming actual resolved request and actual stored AgentBinding. Native host still loads that binding and evaluates the actual permission rules; no replaced permission or profile lookup.
+- video_edit_entry_gateway_unbound_projects_template_edit_menu_and_persistence: video_template_ledger consumes rows read from the actual production preparation ledger and canonical real source paths, preserving both source/template digest assertions. Native source permissions, actual template edits, HTTP router, transport and database reads stay in host.
+- agent_session_identity_survives_profile_edits: resumed_profile_selection contains original same-session rules/model conflict assertions, called after the native fork, trusted permission mutation and agent-disable update. Host still obtains and reapplies the actual stored config binding, resolves native capability defaults and checks revocation. No fork/publication/permission operation simulated.
+
+No new production algorithm or independent test registration claimed. Acceptance helpers still require original native test invocation; domain unit filter remains51, host filter27. Native history SDK conversion assertion remains in the host because its complete assertion matches the actual SDK Message enum, with no added SDK dependency merely for relocation. Remaining native test bodies now consist of actual git initialization, workflow route/edit and transport/database/path permission operations, actual fork/binding/config revocation operations, SDK integration and thin invocations. Every previous full-function mapping is retained; the partial mappings above supersede previous retained-body tables.
+
+Latest physical count:
+- stream.rs: 328 lines.
+- stream_tests.rs: 472 lines.
+- stream_acceptance_host.rs: 27 lines.
+- Parent test registration:4 lines. Total task host footprint 831; reduction 2987/3818 (78.2%).
+- Domain stream_acceptance.rs: 462 lines.
+- Domain stream_acceptance/projections.rs: 46 lines.
+
+Static verification: inspected remaining direct call sites and real return types; original host wrappers still invoke each extracted assertion, public helper registration is local under existing native test-support cfg, git diff --check clean. No Cargo, build, tests, test listing, device run or test binary invoked. Future commands/counts remain as above. The numbered task file was already deleted after prior committed completion and is not recreated for bookkeeping.

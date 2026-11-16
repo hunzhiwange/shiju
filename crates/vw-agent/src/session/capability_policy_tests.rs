@@ -1,5 +1,4 @@
 //! Native defaults integration coverage in the host.
-use config_agent::DelegateCapabilityPolicy;
 
 #[test]
 fn agent_native_defaults_mcp_selection_reaches_registered_tools_with_session_isolation() {

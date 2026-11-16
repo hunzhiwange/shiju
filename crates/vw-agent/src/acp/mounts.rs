@@ -1,6 +1,6 @@
 //! Native session skill sources, retaining their private directory lease.
 use crate::agent_apps::mcp::acp_mount::ResolvedCatalogMounts;
-use crate::session::runtime::{SessionScope, SessionToolset};
+use crate::session::runtime::SessionScope;
 use acp_server::server::{BackendError, BackendMountRequest};
 use acp_types::{SessionMountRevision, SessionSkillMount, SetSessionMountsResponse};
 

@@ -39,3 +39,9 @@ pub mod host_migration_53_catalog_contracts;
 pub mod prompt_approval;
 #[cfg(test)]
 mod host_migration_20_tests;
+
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod host_migration_53_overlay_contracts;
+
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod host_migration_53_model_contracts;

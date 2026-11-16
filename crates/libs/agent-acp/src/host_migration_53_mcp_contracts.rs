@@ -3,7 +3,7 @@ use std::sync::Arc;
 use agent_client_protocol::{EnvVariable, McpServer, McpServerStdio};
 use plugin_mcp::{connection_host::ConnectionHost, mcp_connections::McpSessionConnections};
 use crate::mcp::prepare_session_tools;
-fn fixture_server(root: &std::path::Path, env: Vec<EnvVariable>) -> McpServer {
+pub fn fixture_server(root: &std::path::Path, env: Vec<EnvVariable>) -> McpServer {
     let script = root.join("fixture_mcp.py");
     std::fs::write(
         &script,
@@ -67,4 +67,59 @@ pub async fn unsupported_or_failed_mcp_is_rejected_atomically(_root: &std::path:
         [McpServer::Stdio(McpServerStdio::new("broken", "vibewindow-missing-mcp-command"))];
     let failure = prepare_session_tools(&failed, Arc::new(McpSessionConnections::new(host))).await.expect_err("startup must fail");
     assert_eq!(failure.to_string(), "invalid backend request: MCP server 'broken' failed to start");
+}
+
+use crate::protocol::{VibeWindowBackend, Host};
+use acp_server::server::SessionBackend;
+use vw_api_transport::TenantScope;
+pub async fn loaded_session_rebuilds_requested_mcp_scope<H: Host + Default>() {
+    agent_project::instance::dispose_all().await;
+    let root = tempfile::TempDir::new().expect("temporary root");
+    let tenant =
+        TenantScope::new("acp-mcp-platform", "acp-mcp-company").expect("valid tenant scope");
+    let backend = VibeWindowBackend::<H>::new(tenant);
+    let created = SessionBackend::create_session_with_mcp(
+        &backend,
+        root.path().to_path_buf(),
+        vec![fixture_server(root.path(), Vec::new())],
+    )
+    .await
+    .expect("create with MCP");
+    assert_eq!(backend.session_tool_count(&created.id), Some(1));
+
+    SessionBackend::load_session_with_mcp(
+        &backend,
+        &created.id,
+        root.path().to_path_buf(),
+        Vec::new(),
+    )
+    .await
+    .expect("reload without MCP");
+    assert_eq!(backend.session_tool_count(&created.id), Some(0));
+    agent_project::instance::dispose_all().await;
+}
+
+
+pub async fn foreign_session_load_rejects_before_starting_mcp_processes<H: Host + Default>() {
+    let root = tempfile::TempDir::new().unwrap();
+    let owner = VibeWindowBackend::<H>::new(TenantScope::new("acp-load-platform", "owner").unwrap());
+    let created = owner.create_session(root.path().into()).await.unwrap();
+    let foreign = VibeWindowBackend::<H>::new(TenantScope::new("acp-load-platform", "foreign").unwrap());
+    let server = fixture_server(root.path(), Vec::new());
+    let script = root.path().join("fixture_mcp.py");
+    let contents = std::fs::read_to_string(&script).unwrap();
+    std::fs::write(
+        &script,
+        format!(
+            "from pathlib import Path\nPath(__file__).with_suffix('.started').touch()\n{contents}"
+        ),
+    )
+    .unwrap();
+    assert!(
+        foreign.load_session_with_mcp(&created.id, root.path().into(), vec![server]).await.is_err()
+    );
+    assert!(
+        !script.with_extension("started").exists(),
+        "MCP must not start for an unowned session"
+    );
 }

@@ -221,3 +221,43 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp::mount_acceptance
 本轮最后统计替代上文中间数字：宿主本族当前 1321 行，初始2331行累计净减 1010 行（43.3%）；本轮从2041行再减 720 行。独立测试文件当前 943 行；领域新增四个契约模块共 823 行，均计测试支持而非生产。原生产文件本轮未改变。
 
 未来 catalog 精确过滤（macOS，预期1项）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp::catalog_mounts_tests::cc_mcp_t29_read_mounts_checks_exact_identity_and_exposes_only_committed_references -- --exact --test-threads=1`。本轮静态 diff 空白核对与原断言宏/原名注册核对完成；未执行任何编译/行为验证。
+
+## 任务59最新 owner=53 具体恢复项
+
+读取 task-59-recovery-priorities.json（owner=53），明确请求的三个符号及 source-name conflict / explicit-clear / publication expectation 矩阵均由下述 overlay 契约接收。遵从 retain_real_boundary：原生文件读取/真实权限、真实MCP调用和 root backend prompt 编排仍执行实际宿主路径。已恢复编号任务卡用于本轮收尾，提交后删除。
+
+- `acp::mounts_tests::acp_server_skill_overlay_accepts_native_directory` → `agent_acp::host_migration_53_overlay_contracts::acp_server_skill_overlay_accepts_native_directory`；原名薄注册注入 NativeAcpHost。
+- `acp::mounts_tests::acp_server_skill_overlay_rejects_conflicts_and_failed_mcp_without_publishing` → `agent_acp::host_migration_53_overlay_contracts::acp_server_skill_overlay_rejects_conflicts_and_failed_mcp_without_publishing`；原名薄注册注入 NativeAcpHost。
+- `acp::mounts_tests::acp_server_skill_overlay_permission_change_revokes_read_and_invocation` → `agent_acp::host_migration_53_overlay_contracts::acp_server_skill_overlay_permission_change_revokes_read_and_invocation`；原名薄注册注入 NativeAcpHost。
+- `acp::mounts_tests::acp_server_skill_overlay_same_name_sources_are_isolated_and_explicit_empty_clears` → `agent_acp::host_migration_53_overlay_contracts::acp_server_skill_overlay_same_name_sources_are_isolated_and_explicit_empty_clears`；原名薄注册注入 NativeAcpHost。
+
+挂载原文件 364 → 214 行；断言宏 31 → 宿主 18 + 领域 13。Unix 权限用例在两侧保留 cfg(unix)。目录发现通过实际 load_session_skills 注入，领域仍验证 errors、来源正文隔离、清空、撤销和 publish 前失败；不使用替代目录或模拟授权。
+
+逐函数剩余宿主职责：
+
+- acp_server_skill_overlay_invokes_reads_attachment_and_rediscovers_without_full_access：真实 ToolUseContext/SkillTool/FileReadTool、两次目录发现和附件读、跨会话文件拒绝、禁用后的真实执行拒绝。
+- acp_server_skill_overlay_and_real_mcp_execute_in_one_prepared_session：真实 SkillTool 与 MCP stdio 的共同执行上下文，调用真实 tools/call 并读附件。
+- acp_server_skill_overlay_retains_native_skill_permission_denial：真实 delegated deny 规则到 SkillTool 执行的拒绝路径及错误信息。
+- source/request：只供上述三项真实宿主测试使用；领域来源夹具在本库自持，没有 path 加载宿主。
+
+完整模型映射：`acp::backend::models::tests::model_selection_reaches_runtime_and_preserves_other_sessions` → `agent_acp::host_migration_53_model_contracts::model_selection_reaches_runtime_and_preserves_other_sessions`；ids 夹具与模型顺序/禁用/空id/租户/其它会话/重连/恢复 auto 断言整体归领域。宿主保留 config.providers 的真实保存和 Request.model 到原生运行器的1项断言。原文件 83 → 22 行；断言宏 11 → 1 + 10，不复制 Config/App 状态。
+
+MCP 全映射补充：
+
+- `acp::mcp_tests::loaded_session_rebuilds_requested_mcp_scope` → `agent_acp::host_migration_53_mcp_contracts::loaded_session_rebuilds_requested_mcp_scope`，真实 NativeAcpHost 创建/重载、session_tool_count 的1→0断言整体领域持有。
+- `acp::mcp_tests::foreign_session_load_rejects_before_starting_mcp_processes` → 同领域模块同名函数，外租户载入前拒绝与真实进程 marker 不存在断言整体迁出。
+- fixture_server 在领域单一持有，宿主第一项真实 ToolRuntimeContext catalog 隔离用例也调用此夹具。其它原 MCP 两项薄测试继续注入真实 ConnectionHost。
+
+当前最后物理统计：宿主1321 → 1026 行，本轮净减 295 行；从2331基线累计净减 1305 行（56.0%），仍未达到70%，不宣称整轮门槛关闭。本轮生产实现未变化，迁出均为领域断言/夹具，仍经真实Host驱动，不计独立领域单测或编译提速。
+
+未来限定过滤：
+
+```sh
+python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp::mounts_tests:: -- --test-threads=1
+python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp::backend::models::tests::model_selection_reaches_runtime_and_preserves_other_sessions -- --exact --test-threads=1
+python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp::mcp_tests:: -- --test-threads=1
+```
+
+静态预期Unix为7、1、5项，非Unix挂载6项。原名/属性/关键断言计数及 git diff --check 做静态核对；所有编译、Cargo、单元/实机测试均未运行。lib.rs 最小 test-support 注册，沿用既有 optional tempfile 和 tokio/time；无新依赖、反向引用或跨目录宿主源码借用。
+
+静态终检修正：source/request 夹具在领域保留一份，宿主保留供三项真实执行验收使用的一份，消除重复定义；最后宿主总行数 1046，本轮净减 275，累计净减 1285（55.1%）。上述1026是夹具恢复前中间数字，以此为准。

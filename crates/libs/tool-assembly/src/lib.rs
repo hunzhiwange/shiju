@@ -35,11 +35,3 @@ pub mod domain_construction;
 #[cfg(any(test, feature = "test-support"))]
 #[doc(hidden)]
 pub mod host_migration_35_fixtures;
-
-#[cfg(any(test, feature = "test-support"))]
-#[doc(hidden)]
-pub mod host_migration_35_mcp_fixture;
-
-#[cfg(any(test, feature = "test-support"))]
-#[doc(hidden)]
-pub mod host_migration_35_factory_acceptance;

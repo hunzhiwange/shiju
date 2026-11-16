@@ -83,3 +83,6 @@ mod workflow_req_06_tests;
 
 #[cfg(test)]
 mod workflow_req_07_tests;
+
+#[cfg(test)]
+mod terminal_req_07_tests;

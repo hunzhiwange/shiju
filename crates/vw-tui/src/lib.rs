@@ -34,7 +34,7 @@ pub use tui_pager::TranscriptPager;
 pub use tui_terminal::resize_reflow_cap::{ResizeReflowCap, resize_reflow_max_rows};
 pub use status::{StatusHistoryCell, V3SessionDisplayData, V3TokenUsage};
 pub use tui_terminal::transcript_reflow::{TranscriptReflowState, TranscriptWidthChange};
-pub use tui_terminal_lifecycle::{TerminalMode, run_terminal, with_native_selection};
+pub use tui_terminal_lifecycle::{ExternalEditorSuspension, TerminalMode, run_terminal, with_native_selection};
 pub use vibe::action::{
     V3_NON_SECURITY_SELECTION_SURFACES, V3Action, V3ApprovalChoice, V3ApprovalDecision,
     V3ApprovalKind, V3ApprovalRequest, V3FileSearchMatch, V3FooterData, V3SelectionItem,

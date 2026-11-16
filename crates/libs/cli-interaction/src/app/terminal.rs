@@ -21,11 +21,11 @@ use super::{
     io,
 };
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Default)]
 pub(crate) struct TerminalBatchOutcome {
     pub(crate) processed: usize,
     pub(crate) quit: bool,
-    pub(crate) editor_terminal_suspended: bool,
+    pub(crate) editor_terminal_suspended: Option<vw_tui::ExternalEditorSuspension>,
 }
 
 pub(crate) fn apply_ready_terminal_events(
@@ -66,15 +66,17 @@ pub(crate) fn apply_ready_terminal_events(
             };
 
             let opens_editor = matches!(action, V3Action::OpenExternalEditor);
-            if opens_editor {
-                crossterm::terminal::disable_raw_mode()?;
-            }
+            let suspension = if opens_editor && !runner.editor_in_flight() {
+                Some(vw_tui::ExternalEditorSuspension::suspend(app.terminal_mode())?)
+            } else {
+                None
+            };
             let control = runner.execute_action(app, action);
-            if opens_editor {
+            if let Some(suspension) = suspension {
                 if runner.editor_in_flight() {
-                    outcome.editor_terminal_suspended = true;
+                    outcome.editor_terminal_suspended = Some(suspension);
                 } else {
-                    crossterm::terminal::enable_raw_mode()?;
+                    suspension.resume()?;
                 }
             }
             if control == RunnerControl::Quit {
@@ -101,14 +103,15 @@ pub(super) fn run_event_loop(mut app: V3GatewayApp) -> io::Result<()> {
     let mut terminal = V3Terminal::with_options(backend)?;
     let mut runner = ActiveRunner::new();
     runner.request_session_bootstrap(&mut app);
-    let mut editor_terminal_suspended = false;
+    let mut editor_terminal_suspended: Option<vw_tui::ExternalEditorSuspension> = None;
 
     loop {
         let background_work_remaining = runner.drain(&mut app);
-        if editor_terminal_suspended && !runner.editor_in_flight() {
-            crossterm::terminal::enable_raw_mode()?;
+        if !runner.editor_in_flight()
+            && let Some(suspension) = editor_terminal_suspended.take()
+        {
+            suspension.resume()?;
             terminal.clear()?;
-            editor_terminal_suspended = false;
         }
         if runner.editor_in_flight() {
             std::thread::sleep(Duration::from_millis(50));
@@ -129,10 +132,17 @@ pub(super) fn run_event_loop(mut app: V3GatewayApp) -> io::Result<()> {
             let outcome = apply_ready_terminal_events(&mut app, &mut runner, first_event, || {
                 if event::poll(Duration::ZERO)? { event::read().map(Some) } else { Ok(None) }
             })?;
-            editor_terminal_suspended |= outcome.editor_terminal_suspended;
+            if outcome.editor_terminal_suspended.is_some() {
+                editor_terminal_suspended = outcome.editor_terminal_suspended;
+            }
             if outcome.quit {
                 return Ok(());
             }
+        }
+
+        // The external editor owns stdout as well as stdin until completion.
+        if runner.editor_in_flight() {
+            continue;
         }
 
         if runner.native_copy_requested {

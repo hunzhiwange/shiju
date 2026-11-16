@@ -43,6 +43,7 @@ trait TerminalControl {
 }
 
 /// 对给定 writer 执行 Crossterm 终端控制命令。
+#[derive(Debug)]
 struct CrosstermControl<W> {
     writer: W,
 }
@@ -268,6 +269,65 @@ impl<C: TerminalControl> Drop for NativeSelection<C> {
     fn drop(&mut self) {
         let _ = self.restore();
     }
+}
+
+/// Releases terminal ownership while an asynchronous external editor runs.
+/// Drop restores the application modes on early returns and unwinding.
+#[derive(Debug)]
+pub struct ExternalEditorSuspension {
+    inner: EditorSuspension<CrosstermControl<Stdout>>,
+}
+
+impl ExternalEditorSuspension {
+    pub fn suspend(mode: TerminalMode) -> io::Result<Self> {
+        Ok(Self { inner: EditorSuspension::suspend(
+            CrosstermControl::new(io::stdout()), mode,
+        )? })
+    }
+
+    pub fn resume(mut self) -> io::Result<()> {
+        self.inner.restore()
+    }
+}
+
+#[derive(Debug)]
+struct EditorSuspension<C: TerminalControl> {
+    control: C,
+    mode: TerminalMode,
+    restored: bool,
+}
+
+impl<C: TerminalControl> EditorSuspension<C> {
+    fn suspend(control: C, mode: TerminalMode) -> io::Result<Self> {
+        // Arm rollback before the first write, including partial write failures.
+        let mut guard = Self { control, mode, restored: false };
+        guard.control.show_cursor()?;
+        guard.control.disable_mouse_capture()?;
+        guard.control.disable_bracketed_paste()?;
+        if mode == TerminalMode::Alternate {
+            guard.control.leave_alternate_screen()?;
+        }
+        guard.control.disable_raw_mode()?;
+        Ok(guard)
+    }
+
+    fn restore(&mut self) -> io::Result<()> {
+        if self.restored { return Ok(()); }
+        let mut error = None;
+        record_restore_result(&mut error, self.control.enable_raw_mode());
+        if self.mode == TerminalMode::Alternate {
+            record_restore_result(&mut error, self.control.enter_alternate_screen());
+        }
+        record_restore_result(&mut error, self.control.enable_bracketed_paste());
+        record_restore_result(&mut error, self.control.enable_mouse_capture());
+        record_restore_result(&mut error, self.control.hide_cursor());
+        self.restored = error.is_none();
+        error.map_or(Ok(()), Err)
+    }
+}
+
+impl<C: TerminalControl> Drop for EditorSuspension<C> {
+    fn drop(&mut self) { let _ = self.restore(); }
 }
 
 /// Concrete custom terminal used by the CLI host once v3 becomes the default entry.

@@ -48,10 +48,17 @@ impl ActiveRunner {
         self.editor_in_flight = true;
         let editor = Arc::clone(&self.editor);
         let sender = self.host_sender.clone();
-        std::thread::spawn(move || {
-            let result = editor(draft.as_str());
+        let spawn = std::thread::Builder::new().name("external-editor".into()).spawn(move || {
+            let result =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| editor(draft.as_str())))
+                    .unwrap_or_else(|_| Err("external editor worker panicked".to_string()));
             let _ = sender.send(HostMessage::EditorFinished(result));
         });
+        if let Err(error) = spawn {
+            // Use the same completion path so the draft stays intact and the
+            // event loop restores terminal ownership on the next drain.
+            let _ = self.host_sender.send(HostMessage::EditorFinished(Err(error.to_string())));
+        }
     }
 
     pub(super) fn start_file_search(&mut self, app: &V3GatewayApp, query: Option<String>) {

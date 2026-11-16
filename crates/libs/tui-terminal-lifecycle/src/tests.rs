@@ -152,3 +152,37 @@ fn workflow_req_06_selection_restores_after_panic() {
     assert!(!state.alternate);
     assert_eq!(state.restores, vec!["mouse", "screen"]);
 }
+
+fn editor_roundtrip(mode: TerminalMode, unwind: bool) {
+    let control = FakeControl::default();
+    let state = control.0.clone();
+    let _session = TerminalSession::enter(control.clone(), mode).unwrap();
+    let before = state.borrow().clone();
+    let operation = || {
+        let mut suspension = EditorSuspension::suspend(control, mode).unwrap();
+        assert!(!state.borrow().raw);
+        assert!(!state.borrow().mouse);
+        assert!(!state.borrow().paste);
+        assert!(!state.borrow().alternate);
+        assert!(!state.borrow().cursor_hidden);
+        if unwind { panic!("editor failed"); }
+        suspension.restore().unwrap();
+        suspension.restore().unwrap();
+    };
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(operation));
+    assert_eq!(result.is_err(), unwind);
+    let after = state.borrow();
+    assert_eq!(after.raw, before.raw);
+    assert_eq!(after.mouse, before.mouse);
+    assert_eq!(after.paste, before.paste);
+    assert_eq!(after.alternate, before.alternate);
+    assert_eq!(after.cursor_hidden, before.cursor_hidden);
+}
+#[test]
+fn terminal_req_07_inline_resume() { editor_roundtrip(TerminalMode::Inline, false); }
+#[test]
+fn terminal_req_07_alternate_resume() { editor_roundtrip(TerminalMode::Alternate, false); }
+#[test]
+fn terminal_req_07_inline_unwind() { editor_roundtrip(TerminalMode::Inline, true); }
+#[test]
+fn terminal_req_07_alternate_unwind() { editor_roundtrip(TerminalMode::Alternate, true); }

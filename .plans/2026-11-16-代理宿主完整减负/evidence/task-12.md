@@ -82,3 +82,29 @@ UiHost::reserve 使用最小 Info 夹具注入真实 reserve_pending_session；s
 `python3 scripts/cargo_slot.py cargo test -p gateway-session --lib host_migration_12_tests -- --test-threads=1`，预期 25 条非零测试。
 宿主保留用例使用上表完整名称：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib <name> -- --test-threads=1`，每条预期1；迁出25条应在未来宿主 --list 输出中消失（不以零测试作为通过）。
 静态 diff whitespace 检查已执行；Cargo check/test/list/fmt、编译、行为及渲染检查全部未运行；不宣称性能或构建收益。
+
+## 深度迁移补充（取代上文对应现状及计数）
+
+读取 final.md 与 evidence/remaining-host.json，本轮继续迁移，不将上轮保留说明作为领域归属判断。
+
+- ui_ops 原生 UiHost 的全部存储/绑定/reserve 方法 → gateway_session::native_ui::NativeUiHost<H>；生产路由直接绑定 gateway_session::ui_ops::<ui_ops::Host>，删除16个类型转换转发。宿主仅保留 MessageHost 实例 bootstrap/目录/租户端口。NativeUiHost 的 MessageHost 方法转交 H，保留原 with_tenant_instance bootstrap，不以无初始化的实例替代。
+- session_todo_get/session_todo_put 改用既有 MessageHost 实例边界，直接调用真实 session_engine::todo，与原宿主 SessionHost 方法调用目标一致；未增加测试专用 trait。
+- ui_snapshot_handlers_round_trip_scoped_sessions_and_metadata 整体迁至 host_migration_12_tests::ui，原断言与真实 todo/存储调用保留；原 ui_ops_tests.rs 及挂载删除，共享已有领域夹具。
+- session_tenant_scope 生产中间件 → native_ui；原宿主 router 真实调用该入口。租户并发隔离/缺失扩展拒绝两用例完整迁至 host_migration_12_tests::tenant，保留真实 Extension 提取、HTTP响应与任务局部作用域断言。
+
+- 宿主 `crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs`：现存 817 行。
+- 宿主 `crates/vw-agent/src/gateway/api/handlers/session/ui_ops.rs`：现存 25 行。
+- 宿主 `crates/vw-agent/src/gateway/api/handlers/session/ui_ops_tests.rs`：现存 0 行。
+- 宿主 `crates/vw-agent/src/gateway/api/handlers/session.rs`：现存 126 行。
+- 宿主 `crates/vw-agent/src/gateway/api/handlers/session_tests.rs`：现存 330 行。
+
+本组当前宿主共 1298 行；相对3317行基线净减 2019 行（60.9%）。本次继续减少 671 行。仍未达70%；主要残留是完整真实 fork/chat/worktree 验收817行和真实 router/stream 端口测试，未删除断言或假造门槛通过。继续可迁项：fork前三用例的真实路由请求与绑定/工作树端口尚需领域验收参数化，后三类验收仍依赖真实 AppState/chat_stream；三条流持久化用例需接入实际 StreamHost。
+
+- 领域 `crates/libs/gateway-session/src/native_ui.rs`：173 行，生产原生适配与请求中间件。
+- 领域 `crates/libs/gateway-session/src/host_migration_12_tests.rs`：42 行，测试/夹具，生产0行。
+- 领域 `crates/libs/gateway-session/src/host_migration_12_tests/ui.rs`：1655 行，测试/夹具，生产0行。
+- 领域 `crates/libs/gateway-session/src/host_migration_12_tests/tenant.rs`：46 行，测试/夹具，生产0行。
+
+新依赖：agent-paths 由 dev 提升为 native production；tower(util) 仅用于真实 Axum 中间件测试。无反向 vw-agent 依赖，无宿主 path/include。
+
+未来 `python3 scripts/cargo_slot.py cargo test -p gateway-session --lib host_migration_12_tests -- --test-threads=1` 预期28条（26 UI + 2 tenant）。原25条映射不变，新增迁出的3条名称如上。宿主 `session_tenant_scope_*` 与整个 ui_ops_tests 模块未来 list 应消失，不能将零测试报告为通过。保留原宿主其它测试完整名称与上文映射不变。静态 diff --check 已核对；所有Cargo、构建及测试均未运行。

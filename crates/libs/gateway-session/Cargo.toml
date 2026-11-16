@@ -25,6 +25,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+agent-paths = { path = "../agent-paths", version = "0.6.0" }
 tempfile = { version = "3", optional = true }
 vw-api-todo = { path = "../api-todo", version = "0.6.0", optional = true }
 tool-context = { path = "../tool-context", version = "0.6.0" }
@@ -70,10 +71,10 @@ vw-api-todo = { path = "../api-todo", version = "0.6.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-agent-storage = { path = "../agent-storage", version = "0.6.0" }
 agent-gateway = { path = "../agent-gateway", version = "0.6.0" }
+agent-storage = { path = "../agent-storage", version = "0.6.0" }
 tempfile = "3"
 uuid = { version = "1", features = ["v4"] }
-agent-paths = { path = "../agent-paths", version = "0.6.0" }
 config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
 session-paths = { path = "../session-paths", version = "0.6.0" }
+tower = { version = "0.5", features = ["util"] }

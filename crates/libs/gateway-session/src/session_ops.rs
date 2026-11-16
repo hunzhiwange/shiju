@@ -359,7 +359,7 @@ pub async fn session_children<H: SessionHost>(
 /// # 返回值
 ///
 /// 返回该会话保存的 TODO 项。
-pub async fn session_todo_get<H: SessionHost>(
+pub async fn session_todo_get<H: crate::message_host::MessageHost>(
     Path(session_id): Path<String>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
@@ -367,7 +367,7 @@ pub async fn session_todo_get<H: SessionHost>(
     let tenant = H::current_tenant_scope();
     let dir = H::resolve_directory(&query, &headers);
     let todos = H::with_tenant_instance(tenant, dir, move || {
-        Box::pin(async move { Ok(H::todo_get(&session_id).await) })
+        Box::pin(async move { Ok(session_engine::todo::get(&session_id).await) })
     })
     .await?;
     Ok(Json(todos))
@@ -383,7 +383,7 @@ pub async fn session_todo_get<H: SessionHost>(
 /// # 返回值
 ///
 /// 保存成功时返回 `true`。
-pub async fn session_todo_put<H: SessionHost>(
+pub async fn session_todo_put<H: crate::message_host::MessageHost>(
     Path(session_id): Path<String>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
@@ -393,7 +393,7 @@ pub async fn session_todo_put<H: SessionHost>(
     let dir = H::resolve_directory(&query, &headers);
     H::with_tenant_instance(tenant, dir, move || {
         Box::pin(async move {
-            H::todo_update(session_id, body.todos)
+            session_engine::todo::update(session_engine::todo::UpdateInput { session_id, todos: body.todos })
             .await
             .map_err(|e| ApiError::bad_request(e.to_string()))?;
             Ok(())

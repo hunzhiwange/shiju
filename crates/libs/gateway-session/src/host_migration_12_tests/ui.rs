@@ -5,6 +5,7 @@ use crate::ui_ops::*;
 use axum::Json;
 use session_ui_types as ui_models;
 use vw_api_transport::TenantScope;
+use vw_api_todo::todo::{TodoPriority, TodoStatus};
 use std::collections::BTreeSet;
 use gateway_instance::host::InstanceQuery;
 use session_store::ui_store;
@@ -15,7 +16,7 @@ use std::path::Path as FsPath;
 use std::sync::Once;
 use tempfile::TempDir;
 use vw_api_session::session::{
-    GatewaySessionMessagePageQuery, GatewaySessionScopeBody,
+    GatewaySessionMessagePageQuery, GatewaySessionScopeBody, GatewaySessionTodoItem, GatewaySessionTodoPutBody,
 };
 use session_info::{Info as AgentSessionInfo, TimeInfo as AgentSessionTimeInfo};
 
@@ -1469,4 +1470,186 @@ async fn session_history_ui_save_rejects_newer_incomplete_content_with_conflict(
         assert_eq!(loaded.messages.len(), 1);
         assert_eq!(loaded.messages[0].content, "original question");
     }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn ui_snapshot_handlers_round_trip_scoped_sessions_and_metadata() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    ui_store::set_session_scope(None);
+
+    let project_a = TempDir::new().expect("project A dir");
+    let project_b = TempDir::new().expect("project B dir");
+    let project_a_path = project_a.path();
+    let project_b_path = project_b.path();
+    let body_a = scoped_session("ui-round-trip", "Project A", "project-a", 20);
+    let body_b = scoped_session("ui-round-trip", "Project B", "project-b", 30);
+    save_runtime_session(project_a_path, &body_a);
+    save_runtime_session(project_b_path, &body_b);
+
+    let Json(saved_a) = session_ui_save::<Host>(
+        Path(body_a.id.clone()),
+        Query(query_for(project_a_path)),
+        HeaderMap::new(),
+        Json(body_a.clone()),
+    )
+    .await
+    .expect("project A session save should succeed");
+    let Json(saved_b) = session_ui_save::<Host>(
+        Path(body_b.id.clone()),
+        Query(query_for(project_b_path)),
+        HeaderMap::new(),
+        Json(body_b.clone()),
+    )
+    .await
+    .expect("project B session save should succeed");
+    assert!(saved_a && saved_b);
+
+    let Json(loaded_a) =
+        session_ui_get::<Host>(Path(body_a.id.clone()), Query(query_for(project_a_path)), HeaderMap::new())
+            .await
+            .expect("project A session get should succeed");
+    let Json(loaded_b) =
+        session_ui_get::<Host>(Path(body_b.id.clone()), Query(query_for(project_b_path)), HeaderMap::new())
+            .await
+            .expect("project B session get should succeed");
+    assert_eq!(loaded_a.expect("project A session").messages[0].content, "project-a");
+    assert_eq!(loaded_b.expect("project B session").messages[0].content, "project-b");
+
+    let Json(previews_a) =
+        session_ui_previews::<Host>(Query(InstanceQuery { directory: None }), headers_for(project_a_path))
+            .await
+            .expect("project A previews should load");
+    let Json(previews_b) =
+        session_ui_previews::<Host>(Query(InstanceQuery { directory: None }), headers_for(project_b_path))
+            .await
+            .expect("project B previews should load");
+    assert_eq!(previews_a[0].title, body_a.title);
+    assert_eq!(previews_a[0].last_content.as_deref(), Some("project-a"));
+    assert_eq!(previews_b[0].title, body_b.title);
+    assert_eq!(previews_b[0].last_content.as_deref(), Some("project-b"));
+
+    let scope_a = ui_store::resolve_session_scope_id(Some(&project_a_path.to_string_lossy()), None)
+        .expect("project A directory should resolve to a scope");
+    let scope_b = ui_store::resolve_session_scope_id(Some(&project_b_path.to_string_lossy()), None)
+        .expect("project B directory should resolve to a scope");
+    assert_ne!(scope_a, scope_b);
+
+    let todo_a = GatewaySessionTodoItem {
+        id: "todo-shared".to_string(),
+        content: "project-a-todo".to_string(),
+        status: TodoStatus::Pending,
+        priority: TodoPriority::Medium,
+    };
+    let todo_b = GatewaySessionTodoItem { content: "project-b-todo".to_string(), ..todo_a.clone() };
+    let Json(saved_todos_a) = crate::session_ops::session_todo_put::<Host>(
+        Path(body_a.id.clone()),
+        Query(query_for(project_a_path)),
+        HeaderMap::new(),
+        Json(GatewaySessionTodoPutBody { todos: vec![todo_a.clone()] }),
+    )
+    .await
+    .expect("project A todos should save");
+    let Json(saved_todos_b) = crate::session_ops::session_todo_put::<Host>(
+        Path(body_b.id.clone()),
+        Query(query_for(project_b_path)),
+        HeaderMap::new(),
+        Json(GatewaySessionTodoPutBody { todos: vec![todo_b.clone()] }),
+    )
+    .await
+    .expect("project B todos should save");
+    assert!(saved_todos_a && saved_todos_b);
+    let Json(todos_a) = crate::session_ops::session_todo_get::<Host>(
+        Path(body_a.id.clone()),
+        Query(query_for(project_a_path)),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("project A todos should load");
+    let Json(todos_b) = crate::session_ops::session_todo_get::<Host>(
+        Path(body_b.id.clone()),
+        Query(query_for(project_b_path)),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("project B todos should load");
+    let mut expected_todo_a = todo_a;
+    expected_todo_a.id = "1".to_string();
+    let mut expected_todo_b = todo_b;
+    expected_todo_b.id = "1".to_string();
+    assert_eq!(todos_a, vec![expected_todo_a]);
+    assert_eq!(todos_b, vec![expected_todo_b]);
+
+    let agent_a = agent_session("agent-shared", &scope_a, "Agent A", 20);
+    let agent_b = agent_session("agent-shared", &scope_b, "Agent B", 30);
+    ui_store::save_agent_session_scoped(&agent_a, Some(&scope_a))
+        .expect("project A agent metadata path");
+    ui_store::save_agent_session_scoped(&agent_b, Some(&scope_b))
+        .expect("project B agent metadata path");
+    assert_eq!(
+        ui_store::load_agent_session_scoped("agent-shared", Some(&scope_a))
+            .expect("project A agent metadata")
+            .title,
+        "Agent A"
+    );
+    assert_eq!(
+        ui_store::load_agent_session_scoped("agent-shared", Some(&scope_b))
+            .expect("project B agent metadata")
+            .title,
+        "Agent B"
+    );
+
+    ui_store::persist_llm_raw_step(
+        &body_a.id,
+        0,
+        &serde_json::json!({"messages": [{"role": "user", "content": "hello"}]}),
+        Some(&scope_a),
+    )
+    .expect("raw payload should persist");
+    let Json(with_raw) =
+        session_ui_get::<Host>(Path(body_a.id.clone()), Query(query_for(project_a_path)), HeaderMap::new())
+            .await
+            .expect("raw payload should load");
+    let steps = with_raw.expect("session with raw").steps;
+    assert_eq!(
+        steps[0].llm_raw.as_ref().expect("step raw payload")["messages"][0]["content"],
+        "hello"
+    );
+    ui_store::set_session_scope(Some(&scope_b));
+
+    let Json(meta) = session_ui_preview_meta::<Host>(
+        Path(body_b.id.clone()),
+        Query(InstanceQuery { directory: None }),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("preview meta should load");
+    assert_eq!(meta.expect("preview meta").title, body_b.title);
+
+    let Json(path) =
+        session_path_get::<Host>(Path(body_b.id.clone())).await.expect("session path should load");
+    let path = std::path::PathBuf::from(path.expect("session path"));
+    assert!(path.exists());
+    let connection = rusqlite::Connection::open(&path).expect("open shared database");
+    let scoped_rows: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM session_index
+             WHERE platform_id = ?1 AND company_id = ?2 AND session_id = ?3",
+            rusqlite::params![
+                vw_api_transport::DEFAULT_PLATFORM_ID,
+                vw_api_transport::DEFAULT_COMPANY_ID,
+                &body_a.id,
+            ],
+            |row| row.get(0),
+        )
+        .expect("count scoped session rows");
+    assert_eq!(scoped_rows, 2);
+    assert!(!old_project_database_path(&scope_a).exists());
+    assert!(!old_project_database_path(&scope_b).exists());
+
+    let Json(any_session) =
+        session_ui_get_any::<Host>(Path(body_b.id.clone())).await.expect("any session should load");
+    assert_eq!(any_session.expect("any session").title, body_b.title);
+
+    ui_store::set_session_scope(None);
 }

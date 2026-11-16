@@ -13,13 +13,12 @@ mod message_ops;
 mod raw_commit;
 mod session_ops;
 mod shared;
-pub(crate) mod stream;
 mod ui_ops;
+pub(crate) mod stream;
 
 use axum::Router;
-use axum::extract::{Extension, Request};
-use axum::middleware::{Next, from_fn};
-use axum::response::Response;
+use axum::middleware::from_fn;
+use gateway_session::native_ui::session_tenant_scope;
 use axum::routing::{get, patch, post};
 
 use crate::app::agent::gateway::AppState;
@@ -33,13 +32,12 @@ use session_ops::{
     ui_session_delete, ui_session_get, ui_session_list, ui_session_patch, ui_session_status,
 };
 use stream::{chat_stream, chat_stream_stop};
-use ui_ops::{
+use gateway_session::ui_ops::{
     session_archived_get, session_archived_put, session_path_get, session_scope_get,
     session_scope_put, session_step_llm_raw_get, session_ui_get, session_ui_get_any,
     session_ui_get_without_raw, session_ui_message_delta, session_ui_messages,
     session_ui_preview_meta, session_ui_previews, session_ui_save_request, session_ui_summary,
 };
-use vw_api_transport::id::TenantScope;
 
 /// 构建会话相关路由器
 ///
@@ -84,34 +82,27 @@ pub(crate) fn router() -> Router<AppState> {
             "/session/{session_id}/message/{message_id}/part/{part_id}",
             patch(session_message_part_patch).delete(session_message_part_delete),
         )
-        .route("/session/ui-previews", get(session_ui_previews))
-        .route("/session/archived", get(session_archived_get).put(session_archived_put))
-        .route("/session/scope", get(session_scope_get).put(session_scope_put))
-        .route("/session/{session_id}/ui", get(session_ui_get).put(session_ui_save_request))
-        .route("/session/{session_id}/ui/summary", get(session_ui_summary))
+        .route("/session/ui-previews", get(session_ui_previews::<ui_ops::Host>))
+        .route("/session/archived", get(session_archived_get::<ui_ops::Host>).put(session_archived_put::<ui_ops::Host>))
+        .route("/session/scope", get(session_scope_get::<ui_ops::Host>).put(session_scope_put::<ui_ops::Host>))
+        .route("/session/{session_id}/ui", get(session_ui_get::<ui_ops::Host>).put(session_ui_save_request::<ui_ops::Host>))
+        .route("/session/{session_id}/ui/summary", get(session_ui_summary::<ui_ops::Host>))
         .route(
             "/session/{session_id}/ui/messages",
-            get(session_ui_messages).patch(session_ui_message_delta),
+            get(session_ui_messages::<ui_ops::Host>).patch(session_ui_message_delta::<ui_ops::Host>),
         )
-        .route("/session/{session_id}/ui/without-raw", get(session_ui_get_without_raw))
+        .route("/session/{session_id}/ui/without-raw", get(session_ui_get_without_raw::<ui_ops::Host>))
         .route(
             "/session/{session_id}/turn/{turn_id}/step/{step_index}/llm-raw",
-            get(session_step_llm_raw_get),
+            get(session_step_llm_raw_get::<ui_ops::Host>),
         )
-        .route("/session/{session_id}/preview", get(session_ui_preview_meta))
-        .route("/session/{session_id}/path", get(session_path_get))
-        .route("/session/{session_id}/any", get(session_ui_get_any))
+        .route("/session/{session_id}/preview", get(session_ui_preview_meta::<ui_ops::Host>))
+        .route("/session/{session_id}/path", get(session_path_get::<ui_ops::Host>))
+        .route("/session/{session_id}/any", get(session_ui_get_any::<ui_ops::Host>))
         .route("/session/{session_id}/title", post(session_title_generate))
         .layer(from_fn(session_tenant_scope))
 }
 
-async fn session_tenant_scope(
-    Extension(tenant): Extension<TenantScope>,
-    request: Request,
-    next: Next,
-) -> Response {
-    crate::session::ui_store::with_tenant_scope(tenant, next.run(request)).await
-}
 
 #[cfg(test)]
 #[path = "session_tests.rs"]

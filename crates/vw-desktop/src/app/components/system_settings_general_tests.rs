@@ -1,11 +1,11 @@
+//! 宿主保留：选择 helper 检查领域动作到 Message 的映射；各页/组合检查 App 投影。
+//! 中文绘制及上下文帮助使用真实 selectable_text、字体、跨页弹窗和更新链，保留宿主渲染。
+//! 本地主题枚举、终端控件等宽断言已迁到领域库 desktop_split_16_tests。
 //! 验证通用设置的主题、终端、字体、自动保存与时区选项。
 //! 选择 helper 必须原样保留当前配置，自定义主题目录则补入可选项。
 
 use super::*;
 use crate::app::state::GeneralSettingsTab;
-use crate::app::theme_catalog::{
-    ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, ThemeStore, set_test_themes_root,
-};
 use crate::app::{App, PreviewAutoSaveMode, Shell, TerminalTheme, message};
 use iced::widget::text;
 
@@ -109,39 +109,7 @@ fn view_builds_each_general_settings_tab() {
     }
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn terminal_font_size_control_matches_the_other_terminal_fields() {
-    use iced::advanced::{Layout, layout, renderer::Headless, widget::Tree};
-    use iced::{Font, Pixels, Size};
 
-    let renderer =
-        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
-            .await
-            .expect("tiny-skia renderer");
-    let mut app = test_app();
-    app.general_settings_tab = GeneralSettingsTab::Terminal;
-
-    let mut element = view(&app);
-    let mut tree = Tree::new(element.as_widget());
-    let limits = layout::Limits::new(Size::ZERO, Size::new(900.0, 600.0));
-    let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
-    let terminal_tab = Layout::new(&node).children().nth(2).expect("terminal tab");
-    let section = terminal_tab.children().nth(1).expect("terminal section");
-    let fields = section.children().next().expect("terminal fields");
-
-    for field in fields.children().step_by(2) {
-        let row = field.children().next().expect("field row");
-        let wrapper = row.children().nth(1).expect("control wrapper");
-        let control = wrapper
-            .children()
-            .next()
-            .expect("bounded control")
-            .children()
-            .next()
-            .expect("terminal control");
-        assert_eq!(control.bounds().width, GENERAL_CONTROL_WIDTH);
-    }
-}
 
 #[test]
 fn font_size_helper_preserves_slider_boundaries_and_fraction() {
@@ -181,34 +149,7 @@ fn view_builds_supported_general_setting_combinations() {
     }
 }
 
-#[test]
-fn app_theme_options_include_local_custom_themes() {
-    let temp = tempfile::tempdir().expect("tempdir");
-    let store = ThemeStore::new(temp.path());
-    store
-        .save(&ThemeDefinition {
-            id: "mint-night".to_string(),
-            name: "Mint Night".to_string(),
-            tagline: None,
-            palette: ThemePaletteHex {
-                background: "#0b1220".to_string(),
-                text: "#e2e8f0".to_string(),
-                primary: "#34d399".to_string(),
-                success: "#22c55e".to_string(),
-                warning: "#f59e0b".to_string(),
-                danger: "#ef4444".to_string(),
-            },
-            assets: ThemeAssets::default(),
-            chrome: ThemeChrome::default(),
-        })
-        .expect("save custom theme");
-    set_test_themes_root(Some(temp.path().to_path_buf()));
 
-    let themes = app_theme_options(&test_app());
-    assert!(themes.iter().any(|theme| theme.to_string() == "Mint Night"));
-
-    set_test_themes_root(None);
-}
 
 #[tokio::test(flavor = "multi_thread")]
 async fn general_settings_render_chinese_in_light_and_dark_without_overflow() {

@@ -1,3 +1,5 @@
+// 宿主契约：统一控件经真实 SettingsMessage 发布取消、时区与禁用态事件；
+// 上下文帮助使用宿主可选择文本，后两项另覆盖复制状态和提供商草稿/错误装配。
 use super::super::{settings_modal_card, settings_modal_overlay, settings_select};
 use crate::app::Message;
 use iced::advanced::renderer::Headless;

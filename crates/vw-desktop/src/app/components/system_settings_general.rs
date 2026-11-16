@@ -6,7 +6,6 @@ use crate::app::components::system_settings::general_fields::{self, GeneralSetti
 use iced::Element;
 #[cfg(test)] use iced::Theme;
 #[cfg(all(test, not(target_arch = "wasm32")))] use iced::Length;
-#[cfg(test)] const GENERAL_CONTROL_WIDTH: f32 = 280.0;
 use desktop_settings_appearance::general as domain;
 pub(super) use domain::GENERAL_TABS;
 fn inputs(app: &App) -> domain::View<'_, Shell> {

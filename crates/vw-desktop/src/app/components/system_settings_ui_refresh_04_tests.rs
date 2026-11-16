@@ -1,3 +1,5 @@
+// 宿主契约：系统设置侧栏、搜索、帮助遮罩及编辑器/快捷消息跨页装配；
+// 点击后检查实际 App 更新、焦点与消息路由，保留真实宿主场景及字体资源。
 use super::*;
 use crate::app::components::system_settings_search::SystemSettingsSearchTarget;
 use crate::app::message::{SettingsMessage, ViewMessage};

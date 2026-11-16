@@ -1,3 +1,4 @@
+//! 宿主契约：last_copied_code_hash 经本地化帮助适配器投影为复制状态。
 //! 桌面帮助弹窗与 App 复制状态的组合测试。
 use crate::app::{App, Message};
 use iced::widget::text;

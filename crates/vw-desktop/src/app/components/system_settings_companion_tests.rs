@@ -1,3 +1,5 @@
+// 宿主契约：真实 avatar_preview 的字体与精灵渲染、ViewMessage 更新窗口状态、
+// 搜索导航路由，以及点击预览不触发窗口动作；不能用占位头像替代这些断言。
 use super::*;
 use crate::app::App;
 use crate::app::components::system_settings_search::{self, SystemSettingsSearchTarget};

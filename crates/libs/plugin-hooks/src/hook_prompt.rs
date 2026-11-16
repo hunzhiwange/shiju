@@ -81,3 +81,7 @@ pub async fn submit<H: HookHost>(context: Arc<ToolUseContext<H>>, prompt: &str) 
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "hook_prompt_tests.rs"]
+mod tests;

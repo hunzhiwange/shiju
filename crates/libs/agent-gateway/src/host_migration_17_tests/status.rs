@@ -1,12 +1,13 @@
 // 覆盖状态与健康接口的认证及运行时快照响应。
 
-use super::*;
-use crate::app::agent::config::Config;
-use crate::app::agent::config::schema::WebhookConfig;
-use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
-use crate::app::agent::memory::NoneMemory;
+use axum::response::IntoResponse;
+type AppState = gateway_types::AppState<(), (), ()>;
+use agent_config::runtime::Config;
+use agent_config::runtime_schema::WebhookConfig;
+use gateway_types::{GatewayRateLimiter, IdempotencyStore};
+use agent_memory::NoneMemory;
 use model_types::Provider;
-use crate::app::agent::security::pairing::PairingGuard;
+use gateway_pairing::pairing::PairingGuard;
 use axum::body::to_bytes;
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode, header};
@@ -48,10 +49,10 @@ fn state(require_pairing: bool, paired_tokens: &[&str]) -> AppState {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx,
         session_query_engines: Default::default(),
@@ -166,3 +167,6 @@ async fn health_accepts_valid_bearer_skey() {
     assert_eq!(response.status(), StatusCode::OK);
     assert!(response_json(response).await["health"].is_object());
 }
+
+async fn handle_api_status(state: State<AppState>, headers: HeaderMap) -> impl IntoResponse { gateway_status::handle_api_status(state, headers, crate::api::auth::require_auth).await }
+async fn handle_api_health(state: State<AppState>, headers: HeaderMap) -> impl IntoResponse { gateway_status::handle_api_health(state, headers, crate::api::auth::require_auth).await }

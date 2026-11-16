@@ -37,7 +37,3 @@ pub async fn handle_api_tools(state: State<AppState>, headers: HeaderMap) -> imp
 pub async fn handle_api_doctor(state: State<AppState>, headers: HeaderMap) -> impl IntoResponse {
     gateway_tools::handle_api_doctor::<_, _, _, ToolsHost>(state, headers).await
 }
-
-#[cfg(test)]
-#[path = "tools_tests.rs"]
-mod tools_tests;

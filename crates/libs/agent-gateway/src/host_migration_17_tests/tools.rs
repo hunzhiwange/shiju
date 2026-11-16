@@ -1,12 +1,13 @@
 // 覆盖工具目录和诊断接口的认证、排序与响应摘要。
 
-use super::*;
-use crate::app::agent::config::Config;
-use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
-use crate::app::agent::memory::NoneMemory;
+use axum::response::IntoResponse;
+type AppState = gateway_types::AppState<(), (), ()>;
+use agent_config::runtime::Config;
+use gateway_types::{GatewayRateLimiter, IdempotencyStore};
+use agent_memory::NoneMemory;
 use model_types::Provider;
-use crate::app::agent::security::pairing::PairingGuard;
-use crate::app::agent::tools::ToolSpec;
+use gateway_pairing::pairing::PairingGuard;
+use tool_types::ToolSpec;
 use axum::body::to_bytes;
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode, header};
@@ -45,7 +46,7 @@ fn state(require_pairing: bool, paired_tokens: &[&str]) -> AppState {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(vec![
             ToolSpec::new("unit_tool", "A unit test tool", serde_json::json!({"type": "object"}))
                 .with_display_name("Unit Tool")
@@ -53,7 +54,7 @@ fn state(require_pairing: bool, paired_tokens: &[&str]) -> AppState {
                 .with_read_only(true),
         ]),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx,
         session_query_engines: Default::default(),
@@ -180,3 +181,21 @@ async fn tool_handlers_accept_valid_pairing_bearer() {
 
     assert_eq!(response.status(), StatusCode::OK);
 }
+
+struct ToolsHost;
+impl gateway_tools::ToolsHost<(), (), ()> for ToolsHost {
+    type Diagnostic = agent_doctor::DiagResult;
+    fn require_auth(state: &AppState, headers: &HeaderMap) -> Result<(), (StatusCode, axum::Json<serde_json::Value>)> {
+        crate::api::auth::require_auth(state, headers)
+    }
+    fn diagnose(config: &agent_config::runtime::Config) -> Vec<Self::Diagnostic> { agent_doctor::diagnose(config) }
+    fn severity(result: &Self::Diagnostic) -> gateway_tools::Severity {
+        match result.severity {
+            agent_doctor::Severity::Ok => gateway_tools::Severity::Ok,
+            agent_doctor::Severity::Warn => gateway_tools::Severity::Warn,
+            agent_doctor::Severity::Error => gateway_tools::Severity::Error,
+        }
+    }
+}
+async fn handle_api_tools(state: State<AppState>, headers: HeaderMap) -> impl IntoResponse { gateway_tools::handle_api_tools::<_, _, _, ToolsHost>(state, headers).await }
+async fn handle_api_doctor(state: State<AppState>, headers: HeaderMap) -> impl IntoResponse { gateway_tools::handle_api_doctor::<_, _, _, ToolsHost>(state, headers).await }

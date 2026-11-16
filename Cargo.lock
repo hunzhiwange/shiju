@@ -773,6 +773,10 @@ dependencies = [
 name = "agent-gateway"
 version = "0.6.0"
 dependencies = [
+ "gateway-tools",
+ "gateway-status",
+ "agent-memory",
+ "agent-doctor",
  "gateway-global",
  "gateway-integrations",
  "agent-bus",

@@ -316,3 +316,19 @@ version = "0.6.0"
 [dev-dependencies.gateway-misc]
 path = "../gateway-misc"
 version = "0.6.0"
+
+[dev-dependencies.gateway-status]
+path = "../gateway-status"
+version = "0.6.0"
+
+[dev-dependencies.gateway-tools]
+path = "../gateway-tools"
+version = "0.6.0"
+
+[dev-dependencies.agent-memory]
+path = "../agent-memory"
+version = "0.6.0"
+
+[dev-dependencies.agent-doctor]
+path = "../agent-doctor"
+version = "0.6.0"

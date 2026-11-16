@@ -9,8 +9,6 @@ use agent_gateway::chat_host::{GatewayChatHost, GatewaySessionStats};
 use crate::agent::loop_::query_engine::{QueryEngine, QueryEngineSnapshot};
 use crate::session::session;
 use crate::config::Config;
-#[cfg(test)]
-use tool_types::Tool;
 struct Host;
 impl GatewayChatHost for Host {
     type Engine = QueryEngine;

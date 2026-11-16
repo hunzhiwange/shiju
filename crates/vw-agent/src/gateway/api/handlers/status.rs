@@ -9,7 +9,3 @@ pub async fn handle_api_status(state: State<AppState>, headers: HeaderMap) -> im
 pub async fn handle_api_health(state: State<AppState>, headers: HeaderMap) -> impl IntoResponse {
     gateway_status::handle_api_health(state, headers, super::super::auth::require_auth).await
 }
-
-#[cfg(test)]
-#[path = "status_tests.rs"]
-mod status_tests;

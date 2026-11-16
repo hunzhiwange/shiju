@@ -1,0 +1,4650 @@
+{
+  "method": "lexical cfg-union; no macro expansion; include_str/bytes are resources, not Rust compilation units",
+  "edges": [
+    {
+      "source": "crates/vw-agent/src/agent/loop_/execution.rs",
+      "line": 22,
+      "kind": "path",
+      "target": "crates/libs/agent-loop/src/execution_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/agent-loop/src/execution_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/agent/loop_/query_engine.rs",
+      "line": 25,
+      "kind": "path",
+      "target": "crates/libs/agent-loop/src/query_engine_test_binding.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/agent-loop/src/query_engine_test_binding.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/agent-loop/src/query_engine_test_binding.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/agent-loop/src/query_engine.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/agent-loop/src/query_engine_test_binding.rs",
+      "line": 4,
+      "kind": "path",
+      "target": "crates/libs/agent-loop/src/query_engine_tests.rs",
+      "attributes": [
+        "#[path = \"query_engine_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/agent-loop/src/query_engine_tests.rs",
+      "line": 1032,
+      "kind": "path",
+      "target": "crates/libs/agent-loop/src/query_engine_skills_tests.rs",
+      "attributes": [
+        "#[path = \"query_engine_skills_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/agent/loop_/tests/mod.rs",
+      "line": 58,
+      "kind": "path",
+      "target": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools.rs",
+      "attributes": [
+        "#[path = \"../../../../../libs/agent-loop/src/tests/loop_suite/loop_tools.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools.rs",
+      "line": 20,
+      "kind": "mod",
+      "target": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools/approvals.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools.rs",
+      "line": 21,
+      "kind": "mod",
+      "target": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools/multimodal.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools.rs",
+      "line": 22,
+      "kind": "mod",
+      "target": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools/native_mode.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools.rs",
+      "line": 23,
+      "kind": "mod",
+      "target": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools/parallel_execution.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools.rs",
+      "line": 24,
+      "kind": "mod",
+      "target": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools/recovery.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/agent/loop_/tests/mod.rs",
+      "line": 60,
+      "kind": "path",
+      "target": "crates/libs/agent-loop/src/tests/loop_suite/memory_context.rs",
+      "attributes": [
+        "#[path = \"../../../../../libs/agent-loop/src/tests/loop_suite/memory_context.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/agent/loop_/tests/mod.rs",
+      "line": 65,
+      "kind": "path",
+      "target": "crates/libs/agent-loop/src/tests/loop_suite/tool_instructions.rs",
+      "attributes": [
+        "#[path = \"../../../../../libs/agent-loop/src/tests/loop_suite/tool_instructions.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/agent/prompt/mod.rs",
+      "line": 6,
+      "kind": "path",
+      "target": "crates/libs/agent-loop/src/tests/prompt_host.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/agent-loop/src/tests/prompt_host.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/agent/mod.rs",
+      "line": 41,
+      "kind": "path",
+      "target": "crates/libs/agent-loop/src/tests/agent_facade_host.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/agent-loop/src/tests/agent_facade_host.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/agent/mod.rs",
+      "line": 44,
+      "kind": "path",
+      "target": "crates/libs/agent-loop/src/tests/agent_host_suite/mod.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/agent-loop/src/tests/agent_host_suite/mod.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/agent-loop/src/tests/agent_host_suite/mod.rs",
+      "line": 22,
+      "kind": "mod",
+      "target": "crates/libs/agent-loop/src/tests/agent_host_suite/helpers.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/agent-loop/src/tests/agent_host_suite/mod.rs",
+      "line": 23,
+      "kind": "mod",
+      "target": "crates/libs/agent-loop/src/tests/agent_host_suite/loop_history.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/agent-loop/src/tests/agent_host_suite/mod.rs",
+      "line": 24,
+      "kind": "mod",
+      "target": "crates/libs/agent-loop/src/tests/agent_host_suite/loop_memory.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/agent-loop/src/tests/agent_host_suite/mod.rs",
+      "line": 25,
+      "kind": "mod",
+      "target": "crates/libs/agent-loop/src/tests/agent_host_suite/loop_text.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/agent-loop/src/tests/agent_host_suite/mod.rs",
+      "line": 26,
+      "kind": "mod",
+      "target": "crates/libs/agent-loop/src/tests/agent_host_suite/loop_tools.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/agent-loop/src/tests/agent_host_suite/mod.rs",
+      "line": 27,
+      "kind": "mod",
+      "target": "crates/libs/agent-loop/src/tests/agent_host_suite/run_single.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/agent-loop/src/tests/agent_host_suite/mod.rs",
+      "line": 29,
+      "kind": "mod",
+      "target": "crates/libs/agent-loop/src/tests/agent_host_suite/tool_dispatcher.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/agent_apps/mcp/revocation_tests.rs",
+      "line": 163,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t18/http_server.py",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/whatsapp/mod.rs",
+      "line": 8,
+      "kind": "path",
+      "target": "crates/libs/channel-whatsapp/src/lib.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/channel-whatsapp/src/lib.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/channel-whatsapp/src/lib.rs",
+      "line": 272,
+      "kind": "path",
+      "target": "crates/libs/channel-whatsapp/src/mod_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"mod_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/channel-whatsapp/src/lib.rs",
+      "line": 276,
+      "kind": "path",
+      "target": "crates/libs/channel-whatsapp/src/test_support.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"test_support.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/manager/command.rs",
+      "line": 7,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/manager/command_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/channel-runtime/src/manager/command_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/manager/execution_binding.rs",
+      "line": 16,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/manager/execution_binding_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/channel-runtime/src/manager/execution_binding_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/manager/execution_control.rs",
+      "line": 11,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/manager/execution_control_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/channel-runtime/src/manager/execution_control_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/manager/health.rs",
+      "line": 7,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/manager/health_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/channel-runtime/src/manager/health_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/manager/message.rs",
+      "line": 24,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/manager/message_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/channel-runtime/src/manager/message_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/channel-runtime/src/manager/message_tests.rs",
+      "line": 367,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/manager/command_flow_tests.rs",
+      "attributes": [
+        "#[path = \"command_flow_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/manager/message_execution.rs",
+      "line": 24,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/manager/message_execution_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/channel-runtime/src/manager/message_execution_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/manager/message_helpers.rs",
+      "line": 6,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/manager/message_helpers_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/channel-runtime/src/manager/message_helpers_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/manager/message_response.rs",
+      "line": 33,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/manager/message_response_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/channel-runtime/src/manager/message_response_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/manager/reload.rs",
+      "line": 23,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/manager/reload_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/channel-runtime/src/manager/reload_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/manager/start.rs",
+      "line": 16,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/manager/start_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/channel-runtime/src/manager/start_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/manager/telegram.rs",
+      "line": 7,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/manager/telegram_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/channel-runtime/src/manager/telegram_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/manager/mod.rs",
+      "line": 45,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/manager/tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/channel-runtime/src/manager/tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/runtime_command.rs",
+      "line": 21,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/runtime_command/session_commands_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/channel-runtime/src/runtime_command/session_commands_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/runtime_command.rs",
+      "line": 24,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/runtime_command/task_mode_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/channel-runtime/src/runtime_command/task_mode_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/mod.rs",
+      "line": 342,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/runtime_command/project_commands_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/channel-runtime/src/runtime_command/project_commands_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/mod.rs",
+      "line": 357,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/manager/dispatch_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/channel-runtime/src/manager/dispatch_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/channels/mod.rs",
+      "line": 361,
+      "kind": "path",
+      "target": "crates/libs/channel-runtime/src/manager/dispatch_cancel_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/channel-runtime/src/manager/dispatch_cancel_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/plugins.rs",
+      "line": 89,
+      "kind": "path",
+      "target": "crates/libs/gateway-plugins/src/plugins_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-plugins/src/plugins_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/hooks.rs",
+      "line": 21,
+      "kind": "include",
+      "target": "crates/libs/gateway-hooks/src/hooks_tests.rs",
+      "attributes": [
+        "#[cfg(test)]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/instance.rs",
+      "line": 40,
+      "kind": "path",
+      "target": "crates/libs/gateway-instance/src/instance_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-instance/src/instance_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/mcp.rs",
+      "line": 14,
+      "kind": "path",
+      "target": "crates/libs/gateway-mcp/src/host_tests/mcp_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-mcp/src/host_tests/mcp_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/project.rs",
+      "line": 22,
+      "kind": "path",
+      "target": "crates/libs/gateway-project/src/project_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-project/src/project_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/provider.rs",
+      "line": 62,
+      "kind": "path",
+      "target": "crates/libs/gateway-provider/src/provider_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-provider/src/provider_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/pty.rs",
+      "line": 36,
+      "kind": "path",
+      "target": "crates/libs/gateway-pty/src/pty_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-pty/src/pty_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 277,
+      "kind": "include_str",
+      "target": "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/workflow.rs",
+      "line": 54,
+      "kind": "path",
+      "target": "crates/libs/gateway-workflow/src/server.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-workflow/src/server.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/workflow.rs",
+      "line": 57,
+      "kind": "path",
+      "target": "crates/libs/gateway-workflow/src/host_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-workflow/src/host_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/gateway-workflow/src/host_tests.rs",
+      "line": 1256,
+      "kind": "include_str",
+      "target": "crates/libs/workflow-engine/testdata/workflow/talking_head.yaml",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 103,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/update_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/update_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 114,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/duplicate_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/duplicate_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 120,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/presentation_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/presentation_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 126,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/endpoints_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/endpoints_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 132,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/icons_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/icons_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 137,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/universal_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/universal_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 142,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/universal_sync_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/universal_sync_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 148,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/paths_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/paths_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 153,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/preview_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/preview_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 157,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/validation_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/validation_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 162,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/editor_merge_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/editor_merge_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 168,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/snippets_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/snippets_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 184,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/gemini_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/gemini_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 190,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/grok_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/grok_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 198,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/desktop_mapping_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/desktop_mapping_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 203,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/hermes_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/hermes_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 207,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/openclaw_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/openclaw_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 211,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/opencode_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/opencode_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_pi_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_pi_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 219,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/pi_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/pi_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 224,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/omp_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/omp_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 229,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/mcode_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/mcode_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 234,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/kimi_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/kimi_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 239,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/dsh_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/dsh_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 246,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/import_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/import_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 251,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/mode_state_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/mode_state_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 256,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/mode_apply_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/mode_apply_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 261,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/env_diagnose_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/env_diagnose_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 266,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/env_clean_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/env_clean_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 271,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/env_restore_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/env_restore_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 276,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/operations_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/operations_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/app_providers.rs",
+      "line": 288,
+      "kind": "path",
+      "target": "crates/libs/gateway-app-providers/src/host_tests/request_options_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-app-providers/src/host_tests/request_options_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/mod.rs",
+      "line": 320,
+      "kind": "path",
+      "target": "crates/libs/gateway-mcp/src/host_tests/mcp_management_create_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-mcp/src/host_tests/mcp_management_create_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/mod.rs",
+      "line": 323,
+      "kind": "path",
+      "target": "crates/libs/gateway-mcp/src/host_tests/mcp_management_delete_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-mcp/src/host_tests/mcp_management_delete_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/mod.rs",
+      "line": 327,
+      "kind": "path",
+      "target": "crates/libs/gateway-mcp/src/host_tests/mcp_management_read_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-mcp/src/host_tests/mcp_management_read_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/mod.rs",
+      "line": 331,
+      "kind": "path",
+      "target": "crates/libs/gateway-mcp/src/host_tests/mcp_management_update_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-mcp/src/host_tests/mcp_management_update_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_members_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_members_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/gateway-aggregation/tests/host/aggregation_members_tests.rs",
+      "line": 513,
+      "kind": "path",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_members_client_tests.rs",
+      "attributes": [
+        "#[path = \"aggregation_members_client_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/gateway-aggregation/tests/host/aggregation_members_client_tests.rs",
+      "line": 240,
+      "kind": "path",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_members_ordinary_tests.rs",
+      "attributes": [
+        "#[path = \"aggregation_members_ordinary_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_omo_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_omo_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_read_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_read_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/voice.rs",
+      "line": 39,
+      "kind": "path",
+      "target": "crates/libs/gateway-voice/src/host_tests/voice_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-voice/src/host_tests/voice_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/voice.rs",
+      "line": 42,
+      "kind": "path",
+      "target": "crates/libs/gateway-voice/src/host_tests/voice_realtime_http_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-voice/src/host_tests/voice_realtime_http_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/mod.rs",
+      "line": 354,
+      "kind": "path",
+      "target": "crates/libs/gateway-voice/src/host_tests/voice_handoff_session_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-voice/src/host_tests/voice_handoff_session_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_codex_settings_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_codex_settings_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/gateway-aggregation/tests/host/aggregation_codex_settings_tests.rs",
+      "line": 2,
+      "kind": "path",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_codex_settings_fixture.rs",
+      "attributes": [
+        "#[path = \"aggregation_codex_settings_fixture.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_omp_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_omp_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_desktop_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_desktop_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/gateway-aggregation/tests/host/aggregation_desktop_tests.rs",
+      "line": 129,
+      "kind": "path",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_desktop_routing_tests.rs",
+      "attributes": [
+        "#[path = \"aggregation_desktop_routing_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/mod.rs",
+      "line": 372,
+      "kind": "path",
+      "target": "crates/libs/gateway-mcp/src/host_tests/mcp_management_bindings_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-mcp/src/host_tests/mcp_management_bindings_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/mod.rs",
+      "line": 382,
+      "kind": "path",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_resync_codex_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-aggregation/tests/host/aggregation_resync_codex_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/mod.rs",
+      "line": 393,
+      "kind": "path",
+      "target": "crates/libs/gateway-mcp/src/host_tests/mcp_management_import_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-mcp/src/host_tests/mcp_management_import_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/voice_settings.rs",
+      "line": 12,
+      "kind": "path",
+      "target": "crates/libs/gateway-voice/src/host_tests/voice_settings_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/gateway-voice/src/host_tests/voice_settings_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_publish_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_tests.rs",
+      "line": 436,
+      "kind": "path",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_client_tests.rs",
+      "attributes": [
+        "#[path = \"aggregation_publish_client_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_tests.rs",
+      "line": 439,
+      "kind": "path",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_operation_tests.rs",
+      "attributes": [
+        "#[path = \"aggregation_publish_operation_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_tests.rs",
+      "line": 442,
+      "kind": "path",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_failure_tests.rs",
+      "attributes": [
+        "#[path = \"aggregation_publish_failure_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_tests.rs",
+      "line": 445,
+      "kind": "path",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_lifecycle_tests.rs",
+      "attributes": [
+        "#[path = \"aggregation_lifecycle_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_tests.rs",
+      "line": 448,
+      "kind": "path",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_exit_tests.rs",
+      "attributes": [
+        "#[path = \"aggregation_exit_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/mod.rs",
+      "line": 405,
+      "kind": "path",
+      "target": "crates/libs/gateway-mcp/src/host_tests/mcp_management_resync_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-mcp/src/host_tests/mcp_management_resync_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/mod.rs",
+      "line": 411,
+      "kind": "path",
+      "target": "crates/libs/gateway-mcp/src/host_tests/mcp_management_probe_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-mcp/src/host_tests/mcp_management_probe_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_clients_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_clients_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/mod.rs",
+      "line": 423,
+      "kind": "path",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_restart_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-aggregation/tests/host/aggregation_restart_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/mod.rs",
+      "line": 434,
+      "kind": "path",
+      "target": "crates/libs/gateway-mcp/src/host_tests/mcp_management_tools_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, target_os = \"macos\"))]",
+        "#[path = \"../../../../../libs/gateway-mcp/src/host_tests/mcp_management_tools_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/bootstrap.rs",
+      "line": 418,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/bootstrap_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/agent-gateway/src/bootstrap_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/chat.rs",
+      "line": 73,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/chat_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/agent-gateway/src/chat_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/handlers.rs",
+      "line": 129,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/handlers_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/agent-gateway/src/handlers_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/instance.rs",
+      "line": 13,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/instance_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/agent-gateway/src/instance_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/node_control.rs",
+      "line": 7,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/node_control_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/agent-gateway/src/node_control_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/openai_compat/mod.rs",
+      "line": 10,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/openai_compat/tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/agent-gateway/src/openai_compat/tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/openai_compat/mod.rs",
+      "line": 14,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/openai_compat/mod_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/agent-gateway/src/openai_compat/mod_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/runtime.rs",
+      "line": 54,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/runtime_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/agent-gateway/src/runtime_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/tests/mod.rs",
+      "line": 426,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/host_acceptance_tests/agent.rs",
+      "attributes": [
+        "#[path = \"../../../../libs/agent-gateway/src/host_acceptance_tests/agent.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/tests/mod.rs",
+      "line": 428,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/host_acceptance_tests/auth.rs",
+      "attributes": [
+        "#[path = \"../../../../libs/agent-gateway/src/host_acceptance_tests/auth.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/tests/mod.rs",
+      "line": 430,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/host_acceptance_tests/basics.rs",
+      "attributes": [
+        "#[path = \"../../../../libs/agent-gateway/src/host_acceptance_tests/basics.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/tests/mod.rs",
+      "line": 432,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/host_acceptance_tests/client_key.rs",
+      "attributes": [
+        "#[path = \"../../../../libs/agent-gateway/src/host_acceptance_tests/client_key.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/tests/mod.rs",
+      "line": 434,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/host_acceptance_tests/memory_keys.rs",
+      "attributes": [
+        "#[path = \"../../../../libs/agent-gateway/src/host_acceptance_tests/memory_keys.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/tests/mod.rs",
+      "line": 436,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/host_acceptance_tests/metrics.rs",
+      "attributes": [
+        "#[path = \"../../../../libs/agent-gateway/src/host_acceptance_tests/metrics.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/tests/mod.rs",
+      "line": 438,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/host_acceptance_tests/nextcloud.rs",
+      "attributes": [
+        "#[path = \"../../../../libs/agent-gateway/src/host_acceptance_tests/nextcloud.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/tests/mod.rs",
+      "line": 440,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/host_acceptance_tests/node_control.rs",
+      "attributes": [
+        "#[path = \"../../../../libs/agent-gateway/src/host_acceptance_tests/node_control.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/tests/mod.rs",
+      "line": 442,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/host_acceptance_tests/pairing.rs",
+      "attributes": [
+        "#[path = \"../../../../libs/agent-gateway/src/host_acceptance_tests/pairing.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/tests/mod.rs",
+      "line": 444,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/host_acceptance_tests/qq.rs",
+      "attributes": [
+        "#[path = \"../../../../libs/agent-gateway/src/host_acceptance_tests/qq.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/tests/mod.rs",
+      "line": 446,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/host_acceptance_tests/state.rs",
+      "attributes": [
+        "#[path = \"../../../../libs/agent-gateway/src/host_acceptance_tests/state.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/tests/mod.rs",
+      "line": 448,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/host_acceptance_tests/webhook.rs",
+      "attributes": [
+        "#[path = \"../../../../libs/agent-gateway/src/host_acceptance_tests/webhook.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/webhook.rs",
+      "line": 76,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/webhook_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/agent-gateway/src/webhook_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/webhook_ingress/mod.rs",
+      "line": 15,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/webhook_ingress/tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/agent-gateway/src/webhook_ingress/tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/ws/mod.rs",
+      "line": 103,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/ws/mod_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/agent-gateway/src/ws/mod_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/mod.rs",
+      "line": 95,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/recovery_window_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/agent-gateway/src/recovery_window_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/mod.rs",
+      "line": 118,
+      "kind": "path",
+      "target": "crates/libs/agent-gateway/src/deepagents_window_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/agent-gateway/src/deepagents_window_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t07_tests.rs",
+      "line": 8,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t07/native.json",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t09_tests.rs",
+      "line": 7,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t09/plugin.json",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t09_tests.rs",
+      "line": 8,
+      "kind": "include_str",
+      "target": "crates/vw-agent/testdata/plugin_compat/t09/alpha/SKILL.md",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t09_tests.rs",
+      "line": 9,
+      "kind": "include_str",
+      "target": "crates/vw-agent/testdata/plugin_compat/t09/beta/SKILL.md",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t10_tests.rs",
+      "line": 13,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t10/plugin.json",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t10_tests.rs",
+      "line": 14,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t10/SKILL.md",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t11_tests.rs",
+      "line": 15,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t11/plugin.json",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t11_tests.rs",
+      "line": 16,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t11/review.md",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t11_tests.rs",
+      "line": 17,
+      "kind": "include_str",
+      "target": "crates/vw-agent/testdata/plugin_compat/t11/expected-skill.md",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t12_tests.rs",
+      "line": 44,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t12/SKILL.md",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t12_tests.rs",
+      "line": 48,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t12/openai.yaml",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t12_tests.rs",
+      "line": 107,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t12/openai.yaml",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t13_tests.rs",
+      "line": 49,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t13/SKILL.md",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t13_tests.rs",
+      "line": 245,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t13/SKILL.md",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t13_tests.rs",
+      "line": 277,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t13/SKILL.md",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t13_tests.rs",
+      "line": 333,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t13/SKILL.md",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t16_tests.rs",
+      "line": 24,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t16/server.py",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t16_tests.rs",
+      "line": 126,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t16/server.py",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t16_tests.rs",
+      "line": 151,
+      "kind": "include_str",
+      "target": "crates/vw-agent/testdata/plugin_compat/t16/server.py",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t18_tests.rs",
+      "line": 11,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t18/server.py",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t18_tests.rs",
+      "line": 230,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t18/http_server.py",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t21_tests.rs",
+      "line": 9,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t21/result.json",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t21_tests.rs",
+      "line": 20,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t21/server.py",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t21_tests.rs",
+      "line": 23,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t21/result.json",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t21_tests.rs",
+      "line": 239,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t21/http_server.py",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t23_tests.rs",
+      "line": 9,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t23/server.py",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t23_tests.rs",
+      "line": 127,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t23/http_server.py",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t29_tests.rs",
+      "line": 9,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t29/server.py",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t29_tests.rs",
+      "line": 13,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t29/resource.json",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t30_tests.rs",
+      "line": 12,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t30/server.py",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t30_tests.rs",
+      "line": 17,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t29/resource.json",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t33_tests.rs",
+      "line": 9,
+      "kind": "include_str",
+      "target": "crates/vw-agent/testdata/plugin_compat/t33/hooks.json",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t34_tests.rs",
+      "line": 128,
+      "kind": "include_str",
+      "target": "crates/vw-agent/testdata/plugin_compat/t34/capture.sh",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/plugins/compat/t57_tests.rs",
+      "line": 274,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t18/server.py",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/model_relay/stream_observer_tests.rs",
+      "line": 200,
+      "kind": "path",
+      "target": "crates/libs/app-diagnostics-runtime/src/diagnostic_stream_fixtures.rs",
+      "attributes": [
+        "#[path = \"../../../libs/app-diagnostics-runtime/src/diagnostic_stream_fixtures.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/provider/provider_tests.rs",
+      "line": 212,
+      "kind": "include_str",
+      "target": "crates/libs/model-state/assets/provider/cross_layer_unknown_model.json",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/provider/provider_tests.rs",
+      "line": 246,
+      "kind": "include_str",
+      "target": "crates/libs/model-state/assets/provider/cross_layer_explicit_model.json",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/instruction.rs",
+      "line": 12,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/instruction_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/session-engine/tests/host_suites/instruction_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/llm/messages.rs",
+      "line": 9,
+      "kind": "path",
+      "target": "crates/libs/llm-runtime/src/messages_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/llm-runtime/src/messages_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/llm/prompt.rs",
+      "line": 113,
+      "kind": "path",
+      "target": "crates/libs/llm-runtime/src/prompt_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/llm-runtime/src/prompt_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/llm/stream.rs",
+      "line": 34,
+      "kind": "path",
+      "target": "crates/libs/llm-runtime/tests/host_suites/stream_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/llm-runtime/tests/host_suites/stream_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/llm/stream.rs",
+      "line": 37,
+      "kind": "path",
+      "target": "crates/libs/llm-runtime/tests/host_suites/transport_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, not(target_arch = \"wasm32\")))]",
+        "#[path = \"../../../../libs/llm-runtime/tests/host_suites/transport_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/llm/mod.rs",
+      "line": 41,
+      "kind": "path",
+      "target": "crates/libs/llm-runtime/tests/host_suites/tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/llm-runtime/tests/host_suites/tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/llm/aisdk/convert.rs",
+      "line": 6,
+      "kind": "path",
+      "target": "crates/libs/llm-runtime/src/aisdk/host_tests/convert_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/llm-runtime/src/aisdk/host_tests/convert_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/llm-runtime/src/aisdk/host_tests/convert_tests.rs",
+      "line": 15,
+      "kind": "path",
+      "target": "crates/libs/llm-runtime/src/aisdk/convert_test_support.rs",
+      "attributes": [
+        "#[path = \"../convert_test_support.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/llm/aisdk/driver.rs",
+      "line": 28,
+      "kind": "path",
+      "target": "crates/libs/llm-runtime/src/aisdk/host_tests/driver_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, not(target_arch = \"wasm32\")))]",
+        "#[path = \"../../../../../libs/llm-runtime/src/aisdk/host_tests/driver_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/llm/aisdk/request.rs",
+      "line": 29,
+      "kind": "path",
+      "target": "crates/libs/llm-runtime/src/aisdk/host_tests/request_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, not(target_arch = \"wasm32\")))]",
+        "#[path = \"../../../../../libs/llm-runtime/src/aisdk/host_tests/request_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/llm/aisdk/stream.rs",
+      "line": 34,
+      "kind": "path",
+      "target": "crates/libs/llm-runtime/src/aisdk/host_tests/stream_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, not(target_arch = \"wasm32\")))]",
+        "#[path = \"../../../../../libs/llm-runtime/src/aisdk/host_tests/stream_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/llm-runtime/src/aisdk/host_tests/stream_tests.rs",
+      "line": 27,
+      "kind": "path",
+      "target": "crates/libs/llm-runtime/src/aisdk/stream_test_support.rs",
+      "attributes": [
+        "#[path = \"../stream_test_support.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/llm/aisdk/mod.rs",
+      "line": 27,
+      "kind": "path",
+      "target": "crates/libs/llm-runtime/src/aisdk/host_tests/native_search_acceptance_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, not(target_arch = \"wasm32\")))]",
+        "#[path = \"../../../../../libs/llm-runtime/src/aisdk/host_tests/native_search_acceptance_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/llm/aisdk/mod.rs",
+      "line": 31,
+      "kind": "path",
+      "target": "crates/libs/llm-runtime/src/aisdk/host_tests/model_catalog_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, not(target_arch = \"wasm32\")))]",
+        "#[path = \"../../../../../libs/llm-runtime/src/aisdk/host_tests/model_catalog_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/llm/recovery_test_support.rs",
+      "line": 10,
+      "kind": "path",
+      "target": "crates/libs/llm-runtime/src/recovery_test_support_tests.rs",
+      "attributes": [
+        "#[path = \"../../../../libs/llm-runtime/src/recovery_test_support_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/processor/artifacts.rs",
+      "line": 48,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/artifacts_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/session-engine/tests/host_suites/artifacts_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/processor/helpers.rs",
+      "line": 15,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/helpers_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/session-engine/tests/host_suites/helpers_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/processor/llm_runner.rs",
+      "line": 148,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/llm_runner_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/session-engine/tests/host_suites/llm_runner_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/session-engine/tests/host_suites/llm_runner_tests.rs",
+      "line": 19,
+      "kind": "path",
+      "target": "crates/libs/session-engine/src/llm_runner_test_support.rs",
+      "attributes": [
+        "#[path = \"../../src/llm_runner_test_support.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/processor/planning.rs",
+      "line": 24,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/planning_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/session-engine/tests/host_suites/planning_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/processor/prefetch.rs",
+      "line": 32,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/prefetch_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/session-engine/tests/host_suites/prefetch_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/processor/prompting.rs",
+      "line": 8,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/prompting_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/session-engine/tests/host_suites/prompting_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/processor/runner.rs",
+      "line": 293,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/runner_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/session-engine/tests/host_suites/runner_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/session-engine/tests/host_suites/runner_tests.rs",
+      "line": 2353,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t10/plugin.json",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/session-engine/tests/host_suites/runner_tests.rs",
+      "line": 2358,
+      "kind": "include_bytes",
+      "target": "crates/vw-agent/testdata/plugin_compat/t10/SKILL.md",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/session-engine/tests/host_suites/runner_tests.rs",
+      "line": 2875,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/mcp_catalog_refresh_tests.rs",
+      "attributes": [
+        "#[path = \"mcp_catalog_refresh_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/processor/todo_updates.rs",
+      "line": 18,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/todo_updates_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/session-engine/tests/host_suites/todo_updates_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/processor/todos.rs",
+      "line": 12,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/todos_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/session-engine/tests/host_suites/todos_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/processor/tools_exec.rs",
+      "line": 126,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/tools_exec_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/session-engine/tests/host_suites/tools_exec_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/processor/utils/file_links.rs",
+      "line": 7,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/file_links_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/session-engine/tests/host_suites/file_links_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/processor/utils/session_ingest.rs",
+      "line": 26,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/session_ingest_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../../libs/session-engine/tests/host_suites/session_ingest_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/processor/mod.rs",
+      "line": 71,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/processor_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/session-engine/tests/host_suites/processor_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/prompt.rs",
+      "line": 17,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/prompt_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/session-engine/tests/host_suites/prompt_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/revert.rs",
+      "line": 10,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/revert_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/session-engine/tests/host_suites/revert_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/runtime/mod.rs",
+      "line": 25,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/runtime/lifecycle_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/session-engine/tests/host_suites/runtime/lifecycle_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/runtime/mod.rs",
+      "line": 29,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/runtime/prompt_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/session-engine/tests/host_suites/runtime/prompt_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/system.rs",
+      "line": 21,
+      "kind": "include_str",
+      "target": "crates/libs/session-engine/src/prompt/unified.txt",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/system.rs",
+      "line": 24,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/system_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/session-engine/tests/host_suites/system_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/session/title.rs",
+      "line": 15,
+      "kind": "path",
+      "target": "crates/libs/session-engine/tests/host_suites/title_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/session-engine/tests/host_suites/title_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/agent_tool/mod.rs",
+      "line": 14,
+      "kind": "path",
+      "target": "crates/libs/tool-agents/src/agent_tool/tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/tool-agents/src/agent_tool/tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/agent_tool/mod.rs",
+      "line": 17,
+      "kind": "path",
+      "target": "crates/libs/tool-agents/src/agent_tool/communication_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/tool-agents/src/agent_tool/communication_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/apply_patch/mod.rs",
+      "line": 5,
+      "kind": "include",
+      "target": "crates/libs/tool-services/src/apply_patch/tests.rs",
+      "attributes": [
+        "#[cfg(test)]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/batch/mod.rs",
+      "line": 7,
+      "kind": "include",
+      "target": "crates/libs/tool-services/src/batch/tests.rs",
+      "attributes": [
+        "#[cfg(test)]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/computer_control.rs",
+      "line": 7,
+      "kind": "path",
+      "target": "crates/libs/tool-computer/src/computer_control/chrome_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/tool-computer/src/computer_control/chrome_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/mod.rs",
+      "line": 44,
+      "kind": "path",
+      "target": "crates/libs/tool-computer/src/computer_control_tests.rs",
+      "attributes": [
+        "#[cfg(all(test, unix))]",
+        "#[path = \"../../../libs/tool-computer/src/computer_control_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/delegate/mod.rs",
+      "line": 13,
+      "kind": "path",
+      "target": "crates/libs/tool-agents/src/delegate/tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/tool-agents/src/delegate/tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/delegate/mod.rs",
+      "line": 16,
+      "kind": "path",
+      "target": "crates/libs/tool-agents/src/delegate/host_execution_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/tool-agents/src/delegate/host_execution_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/tool-agents/src/delegate/host_execution_tests.rs",
+      "line": 4,
+      "kind": "path",
+      "target": "crates/libs/tool-agents/src/delegate/execution_tests.rs",
+      "attributes": [
+        "#[path = \"execution_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/delegate/mod.rs",
+      "line": 19,
+      "kind": "path",
+      "target": "crates/libs/tool-agents/src/delegate/host_agentic_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/tool-agents/src/delegate/host_agentic_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/tool-agents/src/delegate/host_agentic_tests.rs",
+      "line": 5,
+      "kind": "path",
+      "target": "crates/libs/tool-agents/src/delegate/agentic_tests.rs",
+      "attributes": [
+        "#[path = \"agentic_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/enter_worktree/mod.rs",
+      "line": 6,
+      "kind": "path",
+      "target": "crates/libs/tool-git/src/enter_worktree/tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/tool-git/src/enter_worktree/tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/exit_worktree/mod.rs",
+      "line": 6,
+      "kind": "path",
+      "target": "crates/libs/tool-git/src/exit_worktree/tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/tool-git/src/exit_worktree/tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/glob_search/mod.rs",
+      "line": 8,
+      "kind": "include",
+      "target": "crates/libs/tool-files/src/glob_search/mod.rs",
+      "attributes": [
+        "#[cfg(test)]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/glob_search/mod.rs",
+      "line": 10,
+      "kind": "include",
+      "target": "crates/libs/tool-files/src/glob_search/tests.rs",
+      "attributes": [
+        "#[cfg(test)]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/grep/mod.rs",
+      "line": 8,
+      "kind": "include",
+      "target": "crates/libs/tool-files/src/grep/mod.rs",
+      "attributes": [
+        "#[cfg(test)]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/tool-files/src/grep/mod.rs",
+      "line": 516,
+      "kind": "include_str",
+      "target": "crates/libs/tool-files/src/grep/grep.txt",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/grep/mod.rs",
+      "line": 10,
+      "kind": "include",
+      "target": "crates/libs/tool-files/src/grep/tests.rs",
+      "attributes": [
+        "#[cfg(test)]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/image_asset_read/mod.rs",
+      "line": 8,
+      "kind": "include",
+      "target": "crates/libs/tool-files/src/image_asset_read/mod.rs",
+      "attributes": [
+        "#[cfg(test)]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/image_asset_read/mod.rs",
+      "line": 10,
+      "kind": "include",
+      "target": "crates/libs/tool-files/src/image_asset_read/tests.rs",
+      "attributes": [
+        "#[cfg(test)]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/ls/mod.rs",
+      "line": 8,
+      "kind": "include",
+      "target": "crates/libs/tool-files/src/ls/mod.rs",
+      "attributes": [
+        "#[cfg(test)]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/libs/tool-files/src/ls/mod.rs",
+      "line": 367,
+      "kind": "include_str",
+      "target": "crates/libs/tool-files/src/ls/ls.txt",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/ls/mod.rs",
+      "line": 10,
+      "kind": "include",
+      "target": "crates/libs/tool-files/src/ls/tests.rs",
+      "attributes": [
+        "#[cfg(test)]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/mcp_inspect.rs",
+      "line": 12,
+      "kind": "path",
+      "target": "crates/libs/tool-mcp/src/mcp_inspect_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/tool-mcp/src/mcp_inspect_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/mcp_status/mod.rs",
+      "line": 8,
+      "kind": "path",
+      "target": "crates/libs/tool-mcp/src/mcp_status/tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/tool-mcp/src/mcp_status/tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/session_tool/mod.rs",
+      "line": 11,
+      "kind": "path",
+      "target": "crates/libs/tool-agents/src/session_tool/tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/tool-agents/src/session_tool/tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/skill/mod.rs",
+      "line": 33,
+      "kind": "path",
+      "target": "crates/libs/tool-services/src/skill/tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/tool-services/src/skill/tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/skill/mod.rs",
+      "line": 37,
+      "kind": "path",
+      "target": "crates/libs/tool-services/src/skill/mod_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/tool-services/src/skill/mod_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/thread_tool/mod.rs",
+      "line": 14,
+      "kind": "path",
+      "target": "crates/libs/tool-agents/src/thread_tool/tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/tool-agents/src/thread_tool/tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/thread_tool/mod.rs",
+      "line": 17,
+      "kind": "path",
+      "target": "crates/libs/tool-agents/src/thread_tool/execution_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../../libs/tool-agents/src/thread_tool/execution_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/mod.rs",
+      "line": 267,
+      "kind": "path",
+      "target": "crates/libs/tool-mcp/src/mcp_tool_tests.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"../../../libs/tool-mcp/src/mcp_tool_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/tools/client_tool_tests.rs",
+      "line": 1,
+      "kind": "include",
+      "target": "crates/libs/tool-services/src/client_tool_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/workflow/native_tests.rs",
+      "line": 350,
+      "kind": "include_str",
+      "target": "crates/vw-agent/testdata/workflow/talking_head_cloud.yaml",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/workflow/video_edit/e2e_test_cloud.rs",
+      "line": 43,
+      "kind": "include_str",
+      "target": "crates/vw-agent/testdata/workflow/video_edit/synthetic_300.json",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/workflow/video_edit/e2e_test_cloud.rs",
+      "line": 44,
+      "kind": "include_str",
+      "target": "crates/vw-agent/testdata/workflow/video_edit/synthetic_600.json",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/workflow/video_edit/e2e_test_cloud.rs",
+      "line": 51,
+      "kind": "include_str",
+      "target": "crates/vw-agent/testdata/workflow/video_edit/synthetic_cloud_receipt.json",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_codex_settings_fixture.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_codex_settings_fixture.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_desktop_routing_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_desktop_routing_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_exit_operation_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_exit_operation_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_exit_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_exit_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_members_client_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_members_client_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_members_ordinary_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_members_ordinary_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_publish_client_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_client_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_publish_failure_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_failure_tests.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/aggregation_publish_operation_tests.rs",
+      "line": 2,
+      "kind": "include",
+      "target": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_operation_tests.rs",
+      "attributes": [],
+      "exists": true
+    }
+  ],
+  "ownership": [
+    {
+      "path": "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json",
+      "owner_task": 10,
+      "kind": "resource",
+      "consumer_tasks": [
+        10
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/bootstrap_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/chat_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/deepagents_window_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/handlers_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/agent.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/auth.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/basics.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/client_key.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/memory_keys.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/metrics.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/nextcloud.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/node_control.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/pairing.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/qq.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/state.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/webhook.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/instance_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/node_control_tests.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/openai_compat/mod_tests.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/openai_compat/tests.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/recovery_window_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/runtime_tests.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/webhook_ingress/tests.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/webhook_tests.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/ws/mod_tests.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/execution_tests.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/query_engine.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/query_engine_skills_tests.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/query_engine_test_binding.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/query_engine_tests.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_facade_host.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_host_suite/helpers.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_host_suite/loop_history.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_host_suite/loop_memory.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_host_suite/loop_text.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_host_suite/loop_tools.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_host_suite/mod.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_host_suite/run_single.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_host_suite/tool_dispatcher.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools/approvals.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools/multimodal.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools/native_mode.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools/parallel_execution.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools/recovery.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/loop_suite/memory_context.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/loop_suite/tool_instructions.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/prompt_host.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/app-diagnostics-runtime/src/diagnostic_stream_fixtures.rs",
+      "owner_task": 46,
+      "kind": "source",
+      "consumer_tasks": [
+        46
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/command_flow_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/command_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/dispatch_cancel_tests.rs",
+      "owner_task": 43,
+      "kind": "source",
+      "consumer_tasks": [
+        43
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/dispatch_tests.rs",
+      "owner_task": 43,
+      "kind": "source",
+      "consumer_tasks": [
+        43
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/execution_binding_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/execution_control_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/health_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/message_execution_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/message_helpers_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/message_response_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/message_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/reload_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/start_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/telegram_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/runtime_command/project_commands_tests.rs",
+      "owner_task": 43,
+      "kind": "source",
+      "consumer_tasks": [
+        43
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/runtime_command/session_commands_tests.rs",
+      "owner_task": 40,
+      "kind": "source",
+      "consumer_tasks": [
+        40
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/runtime_command/task_mode_tests.rs",
+      "owner_task": 40,
+      "kind": "source",
+      "consumer_tasks": [
+        40
+      ]
+    },
+    {
+      "path": "crates/libs/channel-whatsapp/src/lib.rs",
+      "owner_task": 43,
+      "kind": "source",
+      "consumer_tasks": [
+        43
+      ]
+    },
+    {
+      "path": "crates/libs/channel-whatsapp/src/mod_tests.rs",
+      "owner_task": 43,
+      "kind": "source",
+      "consumer_tasks": [
+        43
+      ]
+    },
+    {
+      "path": "crates/libs/channel-whatsapp/src/test_support.rs",
+      "owner_task": 43,
+      "kind": "source",
+      "consumer_tasks": [
+        43
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_clients_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_codex_settings_fixture.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_codex_settings_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_desktop_routing_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_desktop_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_exit_operation_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_exit_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_lifecycle_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_members_client_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_members_ordinary_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_members_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_omo_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_omp_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_pi_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_client_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_failure_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_operation_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_read_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_restart_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_resync_codex_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/desktop_mapping_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/dsh_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/duplicate_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/editor_merge_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/endpoints_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/env_clean_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/env_diagnose_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/env_restore_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/gemini_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/grok_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/hermes_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/icons_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/import_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/kimi_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/mcode_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/mode_apply_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/mode_state_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/omp_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/openclaw_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/opencode_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/operations_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/paths_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/pi_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/presentation_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/preview_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/request_options_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/snippets_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/universal_sync_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/universal_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/update_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/validation_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-hooks/src/hooks_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-instance/src/instance_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_bindings_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_create_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_delete_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_import_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_probe_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_read_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_resync_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_tools_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_update_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-plugins/src/plugins_tests.rs",
+      "owner_task": 16,
+      "kind": "source",
+      "consumer_tasks": [
+        16
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-project/src/project_tests.rs",
+      "owner_task": 16,
+      "kind": "source",
+      "consumer_tasks": [
+        16
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-provider/src/provider_tests.rs",
+      "owner_task": 16,
+      "kind": "source",
+      "consumer_tasks": [
+        16
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-pty/src/pty_tests.rs",
+      "owner_task": 16,
+      "kind": "source",
+      "consumer_tasks": [
+        16
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-voice/src/host_tests/voice_handoff_session_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-voice/src/host_tests/voice_realtime_http_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-voice/src/host_tests/voice_settings_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-voice/src/host_tests/voice_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-workflow/src/host_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-workflow/src/server.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/convert_test_support.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/host_tests/convert_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/host_tests/driver_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/host_tests/model_catalog_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/host_tests/native_search_acceptance_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/host_tests/request_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/host_tests/stream_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/stream_test_support.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/messages_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/prompt_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/recovery_test_support_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/tests/host_suites/stream_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/tests/host_suites/tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/tests/host_suites/transport_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/model-state/assets/provider/cross_layer_explicit_model.json",
+      "owner_task": 56,
+      "kind": "resource",
+      "consumer_tasks": [
+        56
+      ]
+    },
+    {
+      "path": "crates/libs/model-state/assets/provider/cross_layer_unknown_model.json",
+      "owner_task": 56,
+      "kind": "resource",
+      "consumer_tasks": [
+        56
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/src/llm_runner_test_support.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/src/prompt/unified.txt",
+      "owner_task": 25,
+      "kind": "resource",
+      "consumer_tasks": [
+        25
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/artifacts_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/file_links_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/helpers_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/instruction_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/llm_runner_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/mcp_catalog_refresh_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/planning_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/prefetch_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/processor_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/prompt_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/prompting_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/revert_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/runner_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/runtime/lifecycle_tests.rs",
+      "owner_task": 25,
+      "kind": "source",
+      "consumer_tasks": [
+        25
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/runtime/prompt_tests.rs",
+      "owner_task": 25,
+      "kind": "source",
+      "consumer_tasks": [
+        25
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/session_ingest_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/system_tests.rs",
+      "owner_task": 25,
+      "kind": "source",
+      "consumer_tasks": [
+        25
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/title_tests.rs",
+      "owner_task": 25,
+      "kind": "source",
+      "consumer_tasks": [
+        25
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/todo_updates_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/todos_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/tools_exec_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/agent_tool/communication_tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/agent_tool/tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/delegate/agentic_tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/delegate/execution_tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/delegate/host_agentic_tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/delegate/host_execution_tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/delegate/tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/session_tool/tests.rs",
+      "owner_task": 35,
+      "kind": "source",
+      "consumer_tasks": [
+        35
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/thread_tool/execution_tests.rs",
+      "owner_task": 35,
+      "kind": "source",
+      "consumer_tasks": [
+        35
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/thread_tool/tests.rs",
+      "owner_task": 35,
+      "kind": "source",
+      "consumer_tasks": [
+        35
+      ]
+    },
+    {
+      "path": "crates/libs/tool-computer/src/computer_control/chrome_tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-computer/src/computer_control_tests.rs",
+      "owner_task": 35,
+      "kind": "source",
+      "consumer_tasks": [
+        35
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/glob_search/mod.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/glob_search/tests.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/grep/grep.txt",
+      "owner_task": 34,
+      "kind": "resource",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/grep/mod.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/grep/tests.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/image_asset_read/mod.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/image_asset_read/tests.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/ls/ls.txt",
+      "owner_task": 34,
+      "kind": "resource",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/ls/mod.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/ls/tests.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-git/src/enter_worktree/tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-git/src/exit_worktree/tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-mcp/src/mcp_inspect_tests.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-mcp/src/mcp_status/tests.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-mcp/src/mcp_tool_tests.rs",
+      "owner_task": 35,
+      "kind": "source",
+      "consumer_tasks": [
+        35
+      ]
+    },
+    {
+      "path": "crates/libs/tool-services/src/apply_patch/tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-services/src/batch/tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-services/src/client_tool_tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-services/src/skill/mod_tests.rs",
+      "owner_task": 35,
+      "kind": "source",
+      "consumer_tasks": [
+        35
+      ]
+    },
+    {
+      "path": "crates/libs/tool-services/src/skill/tests.rs",
+      "owner_task": 35,
+      "kind": "source",
+      "consumer_tasks": [
+        35
+      ]
+    },
+    {
+      "path": "crates/libs/workflow-engine/testdata/workflow/talking_head.yaml",
+      "owner_task": 17,
+      "kind": "resource",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/vw-agent/src/session/native_defaults_mcp_fixture.py",
+      "owner_task": 11,
+      "kind": "resource",
+      "consumer_tasks": [
+        11,
+        23
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t07/native.json",
+      "owner_task": 37,
+      "kind": "resource",
+      "consumer_tasks": [
+        37
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t09/alpha/SKILL.md",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t09/beta/SKILL.md",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t09/plugin.json",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t10/SKILL.md",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        22,
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t10/plugin.json",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        22,
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t11/expected-skill.md",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t11/plugin.json",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t11/review.md",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t12/SKILL.md",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t12/openai.yaml",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t13/SKILL.md",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t16/server.py",
+      "owner_task": 37,
+      "kind": "resource",
+      "consumer_tasks": [
+        37
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t18/http_server.py",
+      "owner_task": 48,
+      "kind": "resource",
+      "consumer_tasks": [
+        37,
+        48
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t18/server.py",
+      "owner_task": 37,
+      "kind": "resource",
+      "consumer_tasks": [
+        37,
+        38
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t21/http_server.py",
+      "owner_task": 37,
+      "kind": "resource",
+      "consumer_tasks": [
+        37
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t21/result.json",
+      "owner_task": 37,
+      "kind": "resource",
+      "consumer_tasks": [
+        37
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t21/server.py",
+      "owner_task": 37,
+      "kind": "resource",
+      "consumer_tasks": [
+        37
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t23/http_server.py",
+      "owner_task": 37,
+      "kind": "resource",
+      "consumer_tasks": [
+        37
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t23/server.py",
+      "owner_task": 37,
+      "kind": "resource",
+      "consumer_tasks": [
+        37
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t29/resource.json",
+      "owner_task": 39,
+      "kind": "resource",
+      "consumer_tasks": [
+        39
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t29/server.py",
+      "owner_task": 39,
+      "kind": "resource",
+      "consumer_tasks": [
+        39
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t30/server.py",
+      "owner_task": 39,
+      "kind": "resource",
+      "consumer_tasks": [
+        39
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t33/hooks.json",
+      "owner_task": 38,
+      "kind": "resource",
+      "consumer_tasks": [
+        38
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t34/capture.sh",
+      "owner_task": 38,
+      "kind": "resource",
+      "consumer_tasks": [
+        38
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/workflow/talking_head_cloud.yaml",
+      "owner_task": 45,
+      "kind": "resource",
+      "consumer_tasks": [
+        45
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/workflow/video_edit/synthetic_300.json",
+      "owner_task": 44,
+      "kind": "resource",
+      "consumer_tasks": [
+        44
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/workflow/video_edit/synthetic_600.json",
+      "owner_task": 44,
+      "kind": "resource",
+      "consumer_tasks": [
+        44
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/workflow/video_edit/synthetic_cloud_receipt.json",
+      "owner_task": 44,
+      "kind": "resource",
+      "consumer_tasks": [
+        44
+      ]
+    }
+  ],
+  "unresolved": [
+    {
+      "source": "crates/vw-agent/src/gateway/middleware.rs",
+      "line": 4,
+      "kind": "mod",
+      "target": "crates/vw-agent/src/gateway/middleware/middleware_tests/mod.rs",
+      "attributes": [
+        "#[cfg(test)]"
+      ],
+      "exists": false
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/router.rs",
+      "line": 227,
+      "kind": "mod",
+      "target": "crates/vw-agent/src/gateway/router/router_tests/mod.rs",
+      "attributes": [
+        "#[cfg(test)]"
+      ],
+      "exists": false
+    }
+  ]
+}

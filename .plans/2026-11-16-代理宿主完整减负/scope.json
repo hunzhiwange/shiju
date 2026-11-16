@@ -2591,5 +2591,1988 @@
     "crates/vw-agent/src/util/mod.rs",
     "crates/vw-agent/src/util/rpc.rs",
     "crates/vw-agent/src/util/signal.rs"
+  ],
+  "external_mounts": [
+    {
+      "path": "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json",
+      "owner_task": 10,
+      "kind": "resource",
+      "consumer_tasks": [
+        10
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/bootstrap_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/chat_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/deepagents_window_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/handlers_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/agent.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/auth.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/basics.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/client_key.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/memory_keys.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/metrics.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/nextcloud.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/node_control.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/pairing.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/qq.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/state.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/host_acceptance_tests/webhook.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/instance_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/node_control_tests.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/openai_compat/mod_tests.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/openai_compat/tests.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/recovery_window_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/runtime_tests.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/webhook_ingress/tests.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/webhook_tests.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/ws/mod_tests.rs",
+      "owner_task": 18,
+      "kind": "source",
+      "consumer_tasks": [
+        18
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/execution_tests.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/query_engine.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/query_engine_skills_tests.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/query_engine_test_binding.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/query_engine_tests.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_facade_host.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_host_suite/helpers.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_host_suite/loop_history.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_host_suite/loop_memory.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_host_suite/loop_text.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_host_suite/loop_tools.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_host_suite/mod.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_host_suite/run_single.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/agent_host_suite/tool_dispatcher.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools/approvals.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools/multimodal.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools/native_mode.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools/parallel_execution.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/loop_suite/loop_tools/recovery.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/loop_suite/memory_context.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/loop_suite/tool_instructions.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/agent-loop/src/tests/prompt_host.rs",
+      "owner_task": 29,
+      "kind": "source",
+      "consumer_tasks": [
+        29
+      ]
+    },
+    {
+      "path": "crates/libs/app-diagnostics-runtime/src/diagnostic_stream_fixtures.rs",
+      "owner_task": 46,
+      "kind": "source",
+      "consumer_tasks": [
+        46
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/command_flow_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/command_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/dispatch_cancel_tests.rs",
+      "owner_task": 43,
+      "kind": "source",
+      "consumer_tasks": [
+        43
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/dispatch_tests.rs",
+      "owner_task": 43,
+      "kind": "source",
+      "consumer_tasks": [
+        43
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/execution_binding_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/execution_control_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/health_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/message_execution_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/message_helpers_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/message_response_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/message_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/reload_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/start_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/telegram_tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/tests.rs",
+      "owner_task": 42,
+      "kind": "source",
+      "consumer_tasks": [
+        42
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/runtime_command/project_commands_tests.rs",
+      "owner_task": 43,
+      "kind": "source",
+      "consumer_tasks": [
+        43
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/runtime_command/session_commands_tests.rs",
+      "owner_task": 40,
+      "kind": "source",
+      "consumer_tasks": [
+        40
+      ]
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/runtime_command/task_mode_tests.rs",
+      "owner_task": 40,
+      "kind": "source",
+      "consumer_tasks": [
+        40
+      ]
+    },
+    {
+      "path": "crates/libs/channel-whatsapp/src/lib.rs",
+      "owner_task": 43,
+      "kind": "source",
+      "consumer_tasks": [
+        43
+      ]
+    },
+    {
+      "path": "crates/libs/channel-whatsapp/src/mod_tests.rs",
+      "owner_task": 43,
+      "kind": "source",
+      "consumer_tasks": [
+        43
+      ]
+    },
+    {
+      "path": "crates/libs/channel-whatsapp/src/test_support.rs",
+      "owner_task": 43,
+      "kind": "source",
+      "consumer_tasks": [
+        43
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_clients_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_codex_settings_fixture.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_codex_settings_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_desktop_routing_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_desktop_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_exit_operation_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_exit_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_lifecycle_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_members_client_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_members_ordinary_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_members_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_omo_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_omp_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_pi_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_client_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_failure_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_operation_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_publish_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_read_tests.rs",
+      "owner_task": 14,
+      "kind": "source",
+      "consumer_tasks": [
+        14
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_restart_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-aggregation/tests/host/aggregation_resync_codex_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/desktop_mapping_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/dsh_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/duplicate_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/editor_merge_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/endpoints_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/env_clean_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/env_diagnose_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/env_restore_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/gemini_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/grok_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/hermes_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/icons_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/import_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/kimi_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/mcode_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/mode_apply_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/mode_state_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/omp_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/openclaw_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/opencode_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/operations_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/paths_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/pi_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/presentation_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/preview_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/request_options_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/snippets_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/universal_sync_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/universal_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/update_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-app-providers/src/host_tests/validation_tests.rs",
+      "owner_task": 6,
+      "kind": "source",
+      "consumer_tasks": [
+        6
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-hooks/src/hooks_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-instance/src/instance_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_bindings_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_create_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_delete_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_import_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_probe_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_read_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_resync_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_tools_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_management_update_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-mcp/src/host_tests/mcp_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-plugins/src/plugins_tests.rs",
+      "owner_task": 16,
+      "kind": "source",
+      "consumer_tasks": [
+        16
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-project/src/project_tests.rs",
+      "owner_task": 16,
+      "kind": "source",
+      "consumer_tasks": [
+        16
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-provider/src/provider_tests.rs",
+      "owner_task": 16,
+      "kind": "source",
+      "consumer_tasks": [
+        16
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-pty/src/pty_tests.rs",
+      "owner_task": 16,
+      "kind": "source",
+      "consumer_tasks": [
+        16
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-voice/src/host_tests/voice_handoff_session_tests.rs",
+      "owner_task": 15,
+      "kind": "source",
+      "consumer_tasks": [
+        15
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-voice/src/host_tests/voice_realtime_http_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-voice/src/host_tests/voice_settings_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-voice/src/host_tests/voice_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-workflow/src/host_tests.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-workflow/src/server.rs",
+      "owner_task": 17,
+      "kind": "source",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/convert_test_support.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/host_tests/convert_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/host_tests/driver_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/host_tests/model_catalog_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/host_tests/native_search_acceptance_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/host_tests/request_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/host_tests/stream_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/stream_test_support.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/messages_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/prompt_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/recovery_test_support_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/tests/host_suites/stream_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/tests/host_suites/tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/llm-runtime/tests/host_suites/transport_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/model-state/assets/provider/cross_layer_explicit_model.json",
+      "owner_task": 56,
+      "kind": "resource",
+      "consumer_tasks": [
+        56
+      ]
+    },
+    {
+      "path": "crates/libs/model-state/assets/provider/cross_layer_unknown_model.json",
+      "owner_task": 56,
+      "kind": "resource",
+      "consumer_tasks": [
+        56
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/src/llm_runner_test_support.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/src/prompt/unified.txt",
+      "owner_task": 25,
+      "kind": "resource",
+      "consumer_tasks": [
+        25
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/artifacts_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/file_links_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/helpers_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/instruction_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/llm_runner_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/mcp_catalog_refresh_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/planning_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/prefetch_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/processor_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/prompt_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/prompting_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/revert_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/runner_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/runtime/lifecycle_tests.rs",
+      "owner_task": 25,
+      "kind": "source",
+      "consumer_tasks": [
+        25
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/runtime/prompt_tests.rs",
+      "owner_task": 25,
+      "kind": "source",
+      "consumer_tasks": [
+        25
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/session_ingest_tests.rs",
+      "owner_task": 24,
+      "kind": "source",
+      "consumer_tasks": [
+        24
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/system_tests.rs",
+      "owner_task": 25,
+      "kind": "source",
+      "consumer_tasks": [
+        25
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/title_tests.rs",
+      "owner_task": 25,
+      "kind": "source",
+      "consumer_tasks": [
+        25
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/todo_updates_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/todos_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/tools_exec_tests.rs",
+      "owner_task": 22,
+      "kind": "source",
+      "consumer_tasks": [
+        22
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/agent_tool/communication_tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/agent_tool/tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/delegate/agentic_tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/delegate/execution_tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/delegate/host_agentic_tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/delegate/host_execution_tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/delegate/tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/session_tool/tests.rs",
+      "owner_task": 35,
+      "kind": "source",
+      "consumer_tasks": [
+        35
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/thread_tool/execution_tests.rs",
+      "owner_task": 35,
+      "kind": "source",
+      "consumer_tasks": [
+        35
+      ]
+    },
+    {
+      "path": "crates/libs/tool-agents/src/thread_tool/tests.rs",
+      "owner_task": 35,
+      "kind": "source",
+      "consumer_tasks": [
+        35
+      ]
+    },
+    {
+      "path": "crates/libs/tool-computer/src/computer_control/chrome_tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-computer/src/computer_control_tests.rs",
+      "owner_task": 35,
+      "kind": "source",
+      "consumer_tasks": [
+        35
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/glob_search/mod.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/glob_search/tests.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/grep/grep.txt",
+      "owner_task": 34,
+      "kind": "resource",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/grep/mod.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/grep/tests.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/image_asset_read/mod.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/image_asset_read/tests.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/ls/ls.txt",
+      "owner_task": 34,
+      "kind": "resource",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/ls/mod.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-files/src/ls/tests.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-git/src/enter_worktree/tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-git/src/exit_worktree/tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-mcp/src/mcp_inspect_tests.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-mcp/src/mcp_status/tests.rs",
+      "owner_task": 34,
+      "kind": "source",
+      "consumer_tasks": [
+        34
+      ]
+    },
+    {
+      "path": "crates/libs/tool-mcp/src/mcp_tool_tests.rs",
+      "owner_task": 35,
+      "kind": "source",
+      "consumer_tasks": [
+        35
+      ]
+    },
+    {
+      "path": "crates/libs/tool-services/src/apply_patch/tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-services/src/batch/tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-services/src/client_tool_tests.rs",
+      "owner_task": 33,
+      "kind": "source",
+      "consumer_tasks": [
+        33
+      ]
+    },
+    {
+      "path": "crates/libs/tool-services/src/skill/mod_tests.rs",
+      "owner_task": 35,
+      "kind": "source",
+      "consumer_tasks": [
+        35
+      ]
+    },
+    {
+      "path": "crates/libs/tool-services/src/skill/tests.rs",
+      "owner_task": 35,
+      "kind": "source",
+      "consumer_tasks": [
+        35
+      ]
+    },
+    {
+      "path": "crates/libs/workflow-engine/testdata/workflow/talking_head.yaml",
+      "owner_task": 17,
+      "kind": "resource",
+      "consumer_tasks": [
+        17
+      ]
+    },
+    {
+      "path": "crates/vw-agent/src/session/native_defaults_mcp_fixture.py",
+      "owner_task": 11,
+      "kind": "resource",
+      "consumer_tasks": [
+        11,
+        23
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t07/native.json",
+      "owner_task": 37,
+      "kind": "resource",
+      "consumer_tasks": [
+        37
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t09/alpha/SKILL.md",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t09/beta/SKILL.md",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t09/plugin.json",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t10/SKILL.md",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        22,
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t10/plugin.json",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        22,
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t11/expected-skill.md",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t11/plugin.json",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t11/review.md",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t12/SKILL.md",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t12/openai.yaml",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t13/SKILL.md",
+      "owner_task": 36,
+      "kind": "resource",
+      "consumer_tasks": [
+        36
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t16/server.py",
+      "owner_task": 37,
+      "kind": "resource",
+      "consumer_tasks": [
+        37
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t18/http_server.py",
+      "owner_task": 48,
+      "kind": "resource",
+      "consumer_tasks": [
+        37,
+        48
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t18/server.py",
+      "owner_task": 37,
+      "kind": "resource",
+      "consumer_tasks": [
+        37,
+        38
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t21/http_server.py",
+      "owner_task": 37,
+      "kind": "resource",
+      "consumer_tasks": [
+        37
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t21/result.json",
+      "owner_task": 37,
+      "kind": "resource",
+      "consumer_tasks": [
+        37
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t21/server.py",
+      "owner_task": 37,
+      "kind": "resource",
+      "consumer_tasks": [
+        37
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t23/http_server.py",
+      "owner_task": 37,
+      "kind": "resource",
+      "consumer_tasks": [
+        37
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t23/server.py",
+      "owner_task": 37,
+      "kind": "resource",
+      "consumer_tasks": [
+        37
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t29/resource.json",
+      "owner_task": 39,
+      "kind": "resource",
+      "consumer_tasks": [
+        39
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t29/server.py",
+      "owner_task": 39,
+      "kind": "resource",
+      "consumer_tasks": [
+        39
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t30/server.py",
+      "owner_task": 39,
+      "kind": "resource",
+      "consumer_tasks": [
+        39
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t33/hooks.json",
+      "owner_task": 38,
+      "kind": "resource",
+      "consumer_tasks": [
+        38
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t34/capture.sh",
+      "owner_task": 38,
+      "kind": "resource",
+      "consumer_tasks": [
+        38
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/workflow/talking_head_cloud.yaml",
+      "owner_task": 45,
+      "kind": "resource",
+      "consumer_tasks": [
+        45
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/workflow/video_edit/synthetic_300.json",
+      "owner_task": 44,
+      "kind": "resource",
+      "consumer_tasks": [
+        44
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/workflow/video_edit/synthetic_600.json",
+      "owner_task": 44,
+      "kind": "resource",
+      "consumer_tasks": [
+        44
+      ]
+    },
+    {
+      "path": "crates/vw-agent/testdata/workflow/video_edit/synthetic_cloud_receipt.json",
+      "owner_task": 44,
+      "kind": "resource",
+      "consumer_tasks": [
+        44
+      ]
+    }
   ]
 }

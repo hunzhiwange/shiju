@@ -1,0 +1,2118 @@
+{
+  "ports": [
+    {
+      "path": "crates/vw-agent/src/acp/backend.rs",
+      "line": 269,
+      "declaration": "impl agent_acp::protocol::Host for NativeAcpHost {",
+      "owner_task": 53
+    },
+    {
+      "path": "crates/vw-agent/src/agent/agent/core.rs",
+      "line": 24,
+      "declaration": "impl agent_loop::agent::AgentHost for crate::agent::loop_::core::skills::NativeCoreSkillHost {",
+      "owner_task": 26
+    },
+    {
+      "path": "crates/vw-agent/src/agent/loop_/core/skills.rs",
+      "line": 11,
+      "declaration": "impl CoreSkillHost for NativeCoreSkillHost {",
+      "owner_task": 27
+    },
+    {
+      "path": "crates/vw-agent/src/agent/loop_/history.rs",
+      "line": 7,
+      "declaration": "impl agent_loop::history::HistoryHost for HistoryHost {",
+      "owner_task": 29
+    },
+    {
+      "path": "crates/vw-agent/src/agent/loop_/query_engine.rs",
+      "line": 10,
+      "declaration": "impl agent_loop::query_engine::QueryEngineHost for super::core::skills::NativeCoreSkillHost {",
+      "owner_task": 29
+    },
+    {
+      "path": "crates/vw-agent/src/agent/mod.rs",
+      "line": 58,
+      "declaration": "impl agent_loop::definitions::DefinitionHost for DefinitionHost {",
+      "owner_task": 29
+    },
+    {
+      "path": "crates/vw-agent/src/agent_apps/mcp/network_probe.rs",
+      "line": 32,
+      "declaration": "impl ProbeHost for NativeProbeHost {",
+      "owner_task": 48
+    },
+    {
+      "path": "crates/vw-agent/src/agent_apps/mcp/probe_jobs.rs",
+      "line": 12,
+      "declaration": "impl BatchHost for NativeBatchHost {",
+      "owner_task": 48
+    },
+    {
+      "path": "crates/vw-agent/src/agent_scheduler/runner/gateway_executor.rs",
+      "line": 22,
+      "declaration": "impl task_scheduler::runner::gateway_executor::GatewayExecutorHost for SchedulerGatewayHost {",
+      "owner_task": 55
+    },
+    {
+      "path": "crates/vw-agent/src/channels/manager/runtime_host.rs",
+      "line": 9,
+      "declaration": "impl ChannelHost for RuntimeHost {",
+      "owner_task": 42
+    },
+    {
+      "path": "crates/vw-agent/src/channels/manager/runtime_host.rs",
+      "line": 66,
+      "declaration": "impl channel_runtime::command_host::CommandHost for RuntimeHost {",
+      "owner_task": 42
+    },
+    {
+      "path": "crates/vw-agent/src/channels/manager/runtime_host.rs",
+      "line": 126,
+      "declaration": "impl channel_runtime::startup_host::ChannelStartupHost for RuntimeHost {",
+      "owner_task": 42
+    },
+    {
+      "path": "crates/vw-agent/src/channels/session_turn.rs",
+      "line": 24,
+      "declaration": "impl channel_support::session_turn::ChannelTurnHost for ChannelTurnHost {}",
+      "owner_task": 43
+    },
+    {
+      "path": "crates/vw-agent/src/channels/session_turn.rs",
+      "line": 27,
+      "declaration": "impl channel_support::session_turn::ChannelTurnHost for ChannelTurnHost {",
+      "owner_task": 43
+    },
+    {
+      "path": "crates/vw-agent/src/cron/scheduler.rs",
+      "line": 65,
+      "declaration": "impl agent_cron::scheduler::SchedulerHost for Host {",
+      "owner_task": 54
+    },
+    {
+      "path": "crates/vw-agent/src/cron/scheduler.rs",
+      "line": 344,
+      "declaration": "impl agent_cron::delivery::DeliveryHost for Host {",
+      "owner_task": 54
+    },
+    {
+      "path": "crates/vw-agent/src/daemon/mod.rs",
+      "line": 12,
+      "declaration": "impl agent_daemon::DaemonHost for DaemonServices {",
+      "owner_task": 59
+    },
+    {
+      "path": "crates/vw-agent/src/format/host.rs",
+      "line": 8,
+      "declaration": "impl FormatHost for ProjectFormatHost {",
+      "owner_task": 59
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/aggregation_desktop_record.rs",
+      "line": 24,
+      "declaration": "impl PublicationHost for Host {",
+      "owner_task": 13
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/aggregation_lifecycle.rs",
+      "line": 28,
+      "declaration": "impl app_routing_services::lifecycle_host::AggregationLifecycleHost for AggregationLifecycle {",
+      "owner_task": 13
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/aggregation_codex_settings.rs",
+      "line": 10,
+      "declaration": "impl gateway_aggregation::aggregation_codex_settings::SnapshotHost for SnapshotHost {}",
+      "owner_task": 14
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/aggregation_exit.rs",
+      "line": 6,
+      "declaration": "impl ExitHost for SnapshotHost { type State = gateway_app_providers::operations::State; }",
+      "owner_task": 14
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/aggregation_members.rs",
+      "line": 6,
+      "declaration": "impl gateway_aggregation::publication_host::Host for SnapshotHost { type Routing = (); }",
+      "owner_task": 14
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/aggregation_publish.rs",
+      "line": 6,
+      "declaration": "impl PublishHost for SnapshotHost { type State = gateway_app_providers::operations::State; }",
+      "owner_task": 14
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/aggregation_restart.rs",
+      "line": 8,
+      "declaration": "impl RestartHost for SnapshotHost { type State = gateway_app_providers::operations::State; }",
+      "owner_task": 14
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/app_providers/desktop_mapping.rs",
+      "line": 8,
+      "declaration": "impl DesktopMappingHost for Host {",
+      "owner_task": 6
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/app_providers/operations.rs",
+      "line": 5,
+      "declaration": "impl gateway_app_providers::operations::OperationHost for ScopedHost {",
+      "owner_task": 6
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/config.rs",
+      "line": 24,
+      "declaration": "impl gateway_config::host::ConfigHost for ConfigHost {",
+      "owner_task": 8
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/dynamic_tools.rs",
+      "line": 10,
+      "declaration": "impl DynamicToolsHost for SessionDynamicToolsHost {",
+      "owner_task": 14
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/file.rs",
+      "line": 21,
+      "declaration": "impl gateway_file::Host for FileHost {",
+      "owner_task": 14
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/git.rs",
+      "line": 6,
+      "declaration": "impl gateway_git::Host for GitHost {",
+      "owner_task": 15
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/instance.rs",
+      "line": 8,
+      "declaration": "impl InstanceHost for Host {",
+      "owner_task": 15
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/integrations.rs",
+      "line": 9,
+      "declaration": "impl gateway_integrations::IntegrationsHost for IntegrationsHost {",
+      "owner_task": 15
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/mcp_host.rs",
+      "line": 3,
+      "declaration": "impl gateway_mcp::server::host::McpHost for Host {",
+      "owner_task": 15
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/mcp_host.rs",
+      "line": 26,
+      "declaration": "impl gateway_mcp::server::host::ProbeHost for Host {",
+      "owner_task": 15
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/misc.rs",
+      "line": 8,
+      "declaration": "impl MiscHost for Host {",
+      "owner_task": 15
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/permission.rs",
+      "line": 9,
+      "declaration": "impl PermissionHost for Host {",
+      "owner_task": 16
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/plugins.rs",
+      "line": 20,
+      "declaration": "impl PluginHost for Host {",
+      "owner_task": 16
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/provider.rs",
+      "line": 9,
+      "declaration": "impl ProviderHost for Host {",
+      "owner_task": 16
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/pty.rs",
+      "line": 8,
+      "declaration": "impl PtyHost for Host {",
+      "owner_task": 16
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/question.rs",
+      "line": 5,
+      "declaration": "impl gateway_question::QuestionHost for QuestionHost {",
+      "owner_task": 16
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/acp_options.rs",
+      "line": 7,
+      "declaration": "impl gateway_session::acp_host::AcpHost for Host {",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/message_ops.rs",
+      "line": 20,
+      "declaration": "impl gateway_session::message_host::MessageHost for Host {",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/session_ops.rs",
+      "line": 18,
+      "declaration": "impl gateway_session::session_host::SessionHost for Host {",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/stream.rs",
+      "line": 8,
+      "declaration": "impl gateway_session::message_host::MessageHost for Host {",
+      "owner_task": 11
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/stream.rs",
+      "line": 31,
+      "declaration": "impl StreamHost for Host {",
+      "owner_task": 11
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/ui_ops.rs",
+      "line": 13,
+      "declaration": "impl gateway_session::message_host::MessageHost for Host {",
+      "owner_task": 12
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/ui_ops.rs",
+      "line": 40,
+      "declaration": "impl gateway_session::ui_host::UiHost for Host {",
+      "owner_task": 12
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/task_plan_run.rs",
+      "line": 11,
+      "declaration": "impl PlanRunHost for Host {",
+      "owner_task": 17
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/voice.rs",
+      "line": 7,
+      "declaration": "impl VoiceHost for Host {",
+      "owner_task": 17
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/chat.rs",
+      "line": 15,
+      "declaration": "impl GatewayChatHost for Host {",
+      "owner_task": 17
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/ws/mod.rs",
+      "line": 18,
+      "declaration": "impl agent_gateway::ws::GatewayWsHost for Host {",
+      "owner_task": 18
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/server.rs",
+      "line": 23,
+      "declaration": "impl model_relay_http::RelayHost for RelayContext {",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/hook_session.rs",
+      "line": 12,
+      "declaration": "impl plugin_hooks::host::HookHost for AgentContextHost {",
+      "owner_task": 38
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_auth.rs",
+      "line": 9,
+      "declaration": "impl plugin_mcp::source_host::SourceHost for Source {",
+      "owner_task": 37
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_connections.rs",
+      "line": 14,
+      "declaration": "impl ConnectionHost for PluginConnectionHost {",
+      "owner_task": 37
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_portable_overlay.rs",
+      "line": 8,
+      "declaration": "impl plugin_mcp::mcp_portable_overlay::OverlayHost for OverlaySource {",
+      "owner_task": 37
+    },
+    {
+      "path": "crates/vw-agent/src/pty/pty.rs",
+      "line": 8,
+      "declaration": "impl PtyHost for ProjectPtyHost {",
+      "owner_task": 59
+    },
+    {
+      "path": "crates/vw-agent/src/session/agent_binding.rs",
+      "line": 92,
+      "declaration": "impl session_engine::admission_host::AdmissionHost for AdmissionHost {",
+      "owner_task": 23
+    },
+    {
+      "path": "crates/vw-agent/src/session/child_agent.rs",
+      "line": 19,
+      "declaration": "impl session_engine::child_agent::run::ChildHost for Host {",
+      "owner_task": 19
+    },
+    {
+      "path": "crates/vw-agent/src/session/compaction.rs",
+      "line": 22,
+      "declaration": "impl session_engine::compaction::CompactionHost for Host {",
+      "owner_task": 23
+    },
+    {
+      "path": "crates/vw-agent/src/session/compaction_summary.rs",
+      "line": 17,
+      "declaration": "impl session_engine::compaction_summary::SummaryHost for SummaryHost {",
+      "owner_task": 23
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/config.rs",
+      "line": 17,
+      "declaration": "impl session_engine::acp_defaults::DefaultsHost for DefaultsHost {",
+      "owner_task": 20
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/request.rs",
+      "line": 13,
+      "declaration": "impl Host for RuntimeHost {",
+      "owner_task": 20
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/source_selection.rs",
+      "line": 2,
+      "declaration": "impl llm_runtime::acp::source_selection::SelectionHost for super::request::RuntimeHost {",
+      "owner_task": 20
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/aisdk/host.rs",
+      "line": 3,
+      "declaration": "impl llm_runtime::aisdk::host::Host for NativeHost {",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/stream.rs",
+      "line": 4,
+      "declaration": "impl llm_runtime::stream::Host for StreamHost {",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/vw-agent/src/session/processor/artifacts.rs",
+      "line": 8,
+      "declaration": "impl session_engine::artifacts::ArtifactHost for AgentArtifactHost {",
+      "owner_task": 22
+    },
+    {
+      "path": "crates/vw-agent/src/session/processor/helpers.rs",
+      "line": 5,
+      "declaration": "impl session_engine::helpers::HelperHost for AgentHelperHost {",
+      "owner_task": 22
+    },
+    {
+      "path": "crates/vw-agent/src/session/processor/llm_runner.rs",
+      "line": 11,
+      "declaration": "impl session_engine::llm_runner::LlmStreamHost for AgentLlmStreamHost {",
+      "owner_task": 22
+    },
+    {
+      "path": "crates/vw-agent/src/session/processor/planning.rs",
+      "line": 6,
+      "declaration": "impl session_engine::planning::PlanningHost for AgentPlanningHost {",
+      "owner_task": 22
+    },
+    {
+      "path": "crates/vw-agent/src/session/processor/prefetch.rs",
+      "line": 6,
+      "declaration": "impl session_engine::prefetch::PrefetchHost for AgentPrefetchHost {",
+      "owner_task": 22
+    },
+    {
+      "path": "crates/vw-agent/src/session/processor/runner_host.rs",
+      "line": 19,
+      "declaration": "impl session_engine::runner_host::RunnerHost for AgentRunnerHost {",
+      "owner_task": 22
+    },
+    {
+      "path": "crates/vw-agent/src/session/processor/runner_host.rs",
+      "line": 288,
+      "declaration": "impl session_engine::runner_protocol::RunnerCheckpointHost for AgentRunnerHost {",
+      "owner_task": 22
+    },
+    {
+      "path": "crates/vw-agent/src/session/processor/runner_host.rs",
+      "line": 334,
+      "declaration": "impl session_engine::compaction_summary::SummaryHost for AgentRunnerHost {",
+      "owner_task": 22
+    },
+    {
+      "path": "crates/vw-agent/src/session/processor/runner_host.rs",
+      "line": 360,
+      "declaration": "impl session_engine::helpers::HelperHost for AgentRunnerHost {",
+      "owner_task": 22
+    },
+    {
+      "path": "crates/vw-agent/src/session/processor/runner_host.rs",
+      "line": 368,
+      "declaration": "impl session_engine::artifacts::ArtifactHost for AgentRunnerHost {",
+      "owner_task": 22
+    },
+    {
+      "path": "crates/vw-agent/src/session/processor/tools_exec.rs",
+      "line": 128,
+      "declaration": "impl session_engine::tools_exec::ToolExecutionHost for crate::tools::context::AgentContextHost {",
+      "owner_task": 22
+    },
+    {
+      "path": "crates/vw-agent/src/session/prompt.rs",
+      "line": 4,
+      "declaration": "impl session_engine::prompt::PromptHost for Host {",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/vw-agent/src/session/session_io.rs",
+      "line": 3,
+      "declaration": "impl session_engine::session_lifecycle::LifecycleHost for NativeSessionIo {",
+      "owner_task": 25
+    },
+    {
+      "path": "crates/vw-agent/src/task_plan_run/runner.rs",
+      "line": 160,
+      "declaration": "impl task_plan_runner::PlanRunHost for Host {",
+      "owner_task": 51
+    },
+    {
+      "path": "crates/vw-agent/src/tools/agent_hosts.rs",
+      "line": 165,
+      "declaration": "impl AgentHost for ToolAgentHost {",
+      "owner_task": 33
+    },
+    {
+      "path": "crates/vw-agent/src/tools/agent_hosts.rs",
+      "line": 184,
+      "declaration": "impl SessionHost for ToolAgentHost {",
+      "owner_task": 33
+    },
+    {
+      "path": "crates/vw-agent/src/tools/agent_hosts.rs",
+      "line": 201,
+      "declaration": "impl DelegateHost for ToolAgentHost {",
+      "owner_task": 33
+    },
+    {
+      "path": "crates/vw-agent/src/tools/agent_hosts.rs",
+      "line": 209,
+      "declaration": "impl tool_agents::thread_tool::ThreadHost for ToolAgentHost {",
+      "owner_task": 33
+    },
+    {
+      "path": "crates/vw-agent/src/tools/context/mod.rs",
+      "line": 22,
+      "declaration": "impl ContextHost for AgentContextHost {",
+      "owner_task": 33
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_common/mod.rs",
+      "line": 94,
+      "declaration": "impl mcp_client::resolution::McpConfigHost for ScopedMcpConfigHost {",
+      "owner_task": 34
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_common/mod.rs",
+      "line": 118,
+      "declaration": "impl mcp_client::resolution::RuntimeMcpConfigHost for ScopedMcpConfigHost {",
+      "owner_task": 34
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_common/mod.rs",
+      "line": 138,
+      "declaration": "impl mcp_client::resolution::McpConfigHost for PluginOptionsMcpConfigHost<'_> {",
+      "owner_task": 34
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_common/mod.rs",
+      "line": 272,
+      "declaration": "impl mcp_client::client::ClientHost for AgentMcpHost {",
+      "owner_task": 34
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_tool.rs",
+      "line": 5,
+      "declaration": "impl tool_mcp::McpToolHost for super::context::AgentContextHost {",
+      "owner_task": 35
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mod.rs",
+      "line": 196,
+      "declaration": "impl tool_services::skill::SkillHost for context::AgentContextHost {",
+      "owner_task": 35
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mod.rs",
+      "line": 298,
+      "declaration": "impl tool_services::BatchHost for context::AgentContextHost {",
+      "owner_task": 35
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mod.rs",
+      "line": 306,
+      "declaration": "impl tool_files::FileToolHost for context::AgentContextHost {",
+      "owner_task": 35
+    },
+    {
+      "path": "crates/vw-agent/src/tools/toolset/mod.rs",
+      "line": 15,
+      "declaration": "impl tool_git::GitToolHost for super::context::AgentContextHost {",
+      "owner_task": 32
+    },
+    {
+      "path": "crates/vw-agent/src/tools/toolset/mod.rs",
+      "line": 172,
+      "declaration": "impl FactoryHost for super::context::AgentContextHost {",
+      "owner_task": 32
+    },
+    {
+      "path": "crates/vw-agent/src/tools/toolset/mod.rs",
+      "line": 473,
+      "declaration": "impl tool_assembly::runtime::RuntimeHost for super::context::AgentContextHost {",
+      "owner_task": 32
+    },
+    {
+      "path": "crates/vw-agent/src/workflow/native.rs",
+      "line": 17,
+      "declaration": "impl NativeCommandHost for NativeCommandAdapter<'_> {",
+      "owner_task": 45
+    },
+    {
+      "path": "crates/vw-agent/src/workflow/native_agent.rs",
+      "line": 23,
+      "declaration": "impl workflow_engine::native_tools::NativeToolHost for NativeTools {",
+      "owner_task": 45
+    },
+    {
+      "path": "crates/vw-agent/src/workflow/native_agent.rs",
+      "line": 47,
+      "declaration": "impl workflow_engine::native_agent::NativeAgentHost for NativeAgent {",
+      "owner_task": 45
+    },
+    {
+      "path": "crates/vw-agent/src/workflow/video_edit/entry.rs",
+      "line": 50,
+      "declaration": "impl VideoEntryHost for NativeVideoEntryHost<'_> {",
+      "owner_task": 44
+    },
+    {
+      "path": "crates/vw-agent/src/worktree/host_adapter.rs",
+      "line": 8,
+      "declaration": "impl Host for WorktreeHost {",
+      "owner_task": 50
+    }
+  ],
+  "process_global_candidates": [
+    {
+      "path": "crates/libs/agent-gateway/src/deepagents_window_tests.rs",
+      "line": 18,
+      "declaration": "Some(value) => std::env::set_var(key, value),",
+      "owner_task": 17
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/deepagents_window_tests.rs",
+      "line": 19,
+      "declaration": "None => std::env::remove_var(key),",
+      "owner_task": 17
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/deepagents_window_tests.rs",
+      "line": 32,
+      "declaration": "std::env::set_var(\"VW_MODEL_RECOVERY_TEST_ROOT\", &root);",
+      "owner_task": 17
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/deepagents_window_tests.rs",
+      "line": 33,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_TEST_ROOT\", &root);",
+      "owner_task": 17
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/deepagents_window_tests.rs",
+      "line": 34,
+      "declaration": "std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", \"1\");",
+      "owner_task": 17
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/command_tests.rs",
+      "line": 89,
+      "declaration": "unsafe { std::env::set_var(\"HOME\", home) };",
+      "owner_task": 42
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/command_tests.rs",
+      "line": 98,
+      "declaration": "std::env::set_var(\"HOME\", original);",
+      "owner_task": 42
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/command_tests.rs",
+      "line": 100,
+      "declaration": "std::env::remove_var(\"HOME\");",
+      "owner_task": 42
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/telegram_tests.rs",
+      "line": 17,
+      "declaration": "unsafe { std::env::set_var(\"HOME\", home) };",
+      "owner_task": 42
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/telegram_tests.rs",
+      "line": 26,
+      "declaration": "std::env::set_var(\"HOME\", original);",
+      "owner_task": 42
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/manager/telegram_tests.rs",
+      "line": 28,
+      "declaration": "std::env::remove_var(\"HOME\");",
+      "owner_task": 42
+    },
+    {
+      "path": "crates/libs/channel-whatsapp/src/test_support.rs",
+      "line": 3,
+      "declaration": "pub(crate) fn global_runtime_proxy_lock() -> &'static std::sync::Mutex<()> {",
+      "owner_task": 43
+    },
+    {
+      "path": "crates/libs/channel-whatsapp/src/test_support.rs",
+      "line": 4,
+      "declaration": "static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());",
+      "owner_task": 43
+    },
+    {
+      "path": "crates/libs/gateway-project/src/project_tests.rs",
+      "line": 46,
+      "declaration": "unsafe { std::env::set_var(\"PATH\", bin_dir.path()) };",
+      "owner_task": 16
+    },
+    {
+      "path": "crates/libs/gateway-project/src/project_tests.rs",
+      "line": 54,
+      "declaration": "Some(value) => unsafe { std::env::set_var(\"PATH\", value) },",
+      "owner_task": 16
+    },
+    {
+      "path": "crates/libs/gateway-project/src/project_tests.rs",
+      "line": 55,
+      "declaration": "None => unsafe { std::env::remove_var(\"PATH\") },",
+      "owner_task": 16
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/host_tests/native_search_acceptance_tests.rs",
+      "line": 364,
+      "declaration": "std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", \"1\");",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/host_tests/native_search_acceptance_tests.rs",
+      "line": 373,
+      "declaration": "Some(value) => std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", value),",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/aisdk/host_tests/native_search_acceptance_tests.rs",
+      "line": 374,
+      "declaration": "None => std::env::remove_var(\"VW_RECOVERY_WINDOW_HTTP\"),",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/prompt_tests.rs",
+      "line": 466,
+      "declaration": "Some(value) => std::env::set_var(key, value),",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/prompt_tests.rs",
+      "line": 467,
+      "declaration": "None => std::env::remove_var(key),",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/prompt_tests.rs",
+      "line": 475,
+      "declaration": "std::env::set_var(\"HOME\", home.path());",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/prompt_tests.rs",
+      "line": 476,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", home.path().join(\"config\"));",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/libs/llm-runtime/src/prompt_tests.rs",
+      "line": 477,
+      "declaration": "std::env::remove_var(\"VIBEWINDOW_WORKSPACE\");",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/instruction_tests.rs",
+      "line": 17,
+      "declaration": "static ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/instruction_tests.rs",
+      "line": 28,
+      "declaration": "std::env::set_var(key, value);",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/instruction_tests.rs",
+      "line": 36,
+      "declaration": "std::env::remove_var(key);",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/instruction_tests.rs",
+      "line": 46,
+      "declaration": "std::env::set_var(self.key, previous);",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/instruction_tests.rs",
+      "line": 48,
+      "declaration": "std::env::remove_var(self.key);",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/llm_runner_tests.rs",
+      "line": 32,
+      "declaration": "static TEST_LLM_MESSAGES: std::sync::LazyLock<std::sync::Mutex<RecordedMessages>> =",
+      "owner_task": 22
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/llm_runner_tests.rs",
+      "line": 58,
+      "declaration": "static TEST_LLM_STREAMS: std::sync::LazyLock<std::sync::Mutex<VecDeque<Vec<llm::StreamEvent>>>> =",
+      "owner_task": 22
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/llm_runner_tests.rs",
+      "line": 61,
+      "declaration": "static TEST_LLM_STREAM_TOOL_IDS: std::sync::LazyLock<std::sync::Mutex<Vec<Vec<String>>>> =",
+      "owner_task": 22
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/llm_runner_tests.rs",
+      "line": 64,
+      "declaration": "static TEST_LLM_STREAM_LOCK: std::sync::LazyLock<std::sync::Mutex<()>> =",
+      "owner_task": 22
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/llm_runner_tests.rs",
+      "line": 327,
+      "declaration": "static CHANNEL_CANCEL_STREAMS: std::sync::LazyLock<",
+      "owner_task": 22
+    },
+    {
+      "path": "crates/libs/session-engine/tests/host_suites/runtime/lifecycle_tests.rs",
+      "line": 15,
+      "declaration": "static LIFECYCLE_TEST_LOCK: Mutex<()> = Mutex::const_new(());",
+      "owner_task": 25
+    },
+    {
+      "path": "crates/libs/tool-git/src/exit_worktree/tests.rs",
+      "line": 18,
+      "declaration": "static TEST_HOME: OnceLock<PathBuf> = OnceLock::new();",
+      "owner_task": 33
+    },
+    {
+      "path": "crates/libs/tool-git/src/exit_worktree/tests.rs",
+      "line": 28,
+      "declaration": "std::env::set_var(\"HOME\", home);",
+      "owner_task": 33
+    },
+    {
+      "path": "crates/libs/tool-git/src/exit_worktree/tests.rs",
+      "line": 29,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_TEST_HOME\", home);",
+      "owner_task": 33
+    },
+    {
+      "path": "crates/vw-agent/src/agent/loop_/runner_tests.rs",
+      "line": 18,
+      "declaration": "fn env_lock() -> &'static Mutex<()> {",
+      "owner_task": 29
+    },
+    {
+      "path": "crates/vw-agent/src/agent/loop_/runner_tests.rs",
+      "line": 19,
+      "declaration": "static LOCK: OnceLock<Mutex<()>> = OnceLock::new();",
+      "owner_task": 29
+    },
+    {
+      "path": "crates/vw-agent/src/agent/loop_/runner_tests.rs",
+      "line": 31,
+      "declaration": "unsafe { std::env::set_var(key, value) };",
+      "owner_task": 29
+    },
+    {
+      "path": "crates/vw-agent/src/agent/loop_/runner_tests.rs",
+      "line": 39,
+      "declaration": "Some(value) => unsafe { std::env::set_var(self.key, value) },",
+      "owner_task": 29
+    },
+    {
+      "path": "crates/vw-agent/src/agent/loop_/runner_tests.rs",
+      "line": 40,
+      "declaration": "None => unsafe { std::env::remove_var(self.key) },",
+      "owner_task": 29
+    },
+    {
+      "path": "crates/vw-agent/src/app_routing/aggregation_routing_tests.rs",
+      "line": 14,
+      "declaration": "static HOME: std::sync::OnceLock<tempfile::TempDir> = std::sync::OnceLock::new();",
+      "owner_task": 57
+    },
+    {
+      "path": "crates/vw-agent/src/channels/config_tests.rs",
+      "line": 43,
+      "declaration": "static LOCK: OnceLock<Mutex<()>> = OnceLock::new();",
+      "owner_task": 42
+    },
+    {
+      "path": "crates/vw-agent/src/channels/config_tests.rs",
+      "line": 60,
+      "declaration": "std::env::remove_var(key);",
+      "owner_task": 42
+    },
+    {
+      "path": "crates/vw-agent/src/channels/config_tests.rs",
+      "line": 73,
+      "declaration": "std::env::set_var(key, value);",
+      "owner_task": 42
+    },
+    {
+      "path": "crates/vw-agent/src/channels/config_tests.rs",
+      "line": 75,
+      "declaration": "std::env::remove_var(key);",
+      "owner_task": 42
+    },
+    {
+      "path": "crates/vw-agent/src/config/schema/config_env_tests.rs",
+      "line": 91,
+      "declaration": "std::env::remove_var(key);",
+      "owner_task": 58
+    },
+    {
+      "path": "crates/vw-agent/src/config/schema/config_env_tests.rs",
+      "line": 101,
+      "declaration": "std::env::set_var(key, value);",
+      "owner_task": 58
+    },
+    {
+      "path": "crates/vw-agent/src/config/schema/config_env_tests.rs",
+      "line": 108,
+      "declaration": "std::env::remove_var(key);",
+      "owner_task": 58
+    },
+    {
+      "path": "crates/vw-agent/src/config/schema/config_env_tests.rs",
+      "line": 118,
+      "declaration": "std::env::set_var(key, value);",
+      "owner_task": 58
+    },
+    {
+      "path": "crates/vw-agent/src/config/schema/config_env_tests.rs",
+      "line": 120,
+      "declaration": "std::env::remove_var(key);",
+      "owner_task": 58
+    },
+    {
+      "path": "crates/vw-agent/src/cron/tests/scheduler.rs",
+      "line": 44,
+      "declaration": "static LOCK: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();",
+      "owner_task": 54
+    },
+    {
+      "path": "crates/vw-agent/src/cron/tests/scheduler.rs",
+      "line": 82,
+      "declaration": "std::env::remove_var(key);",
+      "owner_task": 54
+    },
+    {
+      "path": "crates/vw-agent/src/cron/tests/scheduler.rs",
+      "line": 95,
+      "declaration": "std::env::set_var(self.key, value);",
+      "owner_task": 54
+    },
+    {
+      "path": "crates/vw-agent/src/cron/tests/scheduler.rs",
+      "line": 98,
+      "declaration": "std::env::remove_var(self.key);",
+      "owner_task": 54
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/agent_apps/lifecycle_tests.rs",
+      "line": 26,
+      "declaration": "static WRITES: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());",
+      "owner_task": 2
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/config_tests.rs",
+      "line": 29,
+      "declaration": "std::env::set_var(key, value);",
+      "owner_task": 8
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/config_tests.rs",
+      "line": 37,
+      "declaration": "std::env::remove_var(key);",
+      "owner_task": 8
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/config_tests.rs",
+      "line": 47,
+      "declaration": "std::env::set_var(self.key, previous);",
+      "owner_task": 8
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/config_tests.rs",
+      "line": 49,
+      "declaration": "std::env::remove_var(self.key);",
+      "owner_task": 8
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/global_tests.rs",
+      "line": 34,
+      "declaration": "std::env::set_var(key, value);",
+      "owner_task": 15
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/global_tests.rs",
+      "line": 42,
+      "declaration": "std::env::remove_var(key);",
+      "owner_task": 15
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/global_tests.rs",
+      "line": 52,
+      "declaration": "std::env::set_var(self.key, previous);",
+      "owner_task": 15
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/global_tests.rs",
+      "line": 54,
+      "declaration": "std::env::remove_var(self.key);",
+      "owner_task": 15
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/integrations_tests.rs",
+      "line": 27,
+      "declaration": "std::env::set_var(\"HOME\", home);",
+      "owner_task": 15
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/integrations_tests.rs",
+      "line": 37,
+      "declaration": "std::env::set_var(\"HOME\", previous);",
+      "owner_task": 15
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/integrations_tests.rs",
+      "line": 39,
+      "declaration": "std::env::remove_var(\"HOME\");",
+      "owner_task": 15
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/misc_tests.rs",
+      "line": 203,
+      "declaration": "std::env::set_var(key, value);",
+      "owner_task": 15
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/misc_tests.rs",
+      "line": 212,
+      "declaration": "Some(value) => std::env::set_var(self.0, value),",
+      "owner_task": 15
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/misc_tests.rs",
+      "line": 213,
+      "declaration": "None => std::env::remove_var(self.0),",
+      "owner_task": 15
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/permission_tests.rs",
+      "line": 22,
+      "declaration": "std::env::set_var(key, value);",
+      "owner_task": 16
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/permission_tests.rs",
+      "line": 30,
+      "declaration": "std::env::remove_var(key);",
+      "owner_task": 16
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/permission_tests.rs",
+      "line": 40,
+      "declaration": "std::env::set_var(self.key, previous);",
+      "owner_task": 16
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/permission_tests.rs",
+      "line": 42,
+      "declaration": "std::env::remove_var(self.key);",
+      "owner_task": 16
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/plugins.rs",
+      "line": 28,
+      "declaration": "fn pending() -> &'static Mutex<HashMap<String, Pending<PluginUpgradePreview>>> {",
+      "owner_task": 16
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/plugins.rs",
+      "line": 29,
+      "declaration": "static PENDING: OnceLock<Mutex<HashMap<String, Pending<PluginUpgradePreview>>>> = OnceLock::new();",
+      "owner_task": 16
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 80,
+      "declaration": "Some(value) => std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", value),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 81,
+      "declaration": "None => std::env::remove_var(\"VW_RECOVERY_WINDOW_HTTP\"),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 89,
+      "declaration": "std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", \"1\");",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 637,
+      "declaration": "Some(value) => std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", value),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 638,
+      "declaration": "None => std::env::remove_var(\"VW_RECOVERY_WINDOW_HTTP\"),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 645,
+      "declaration": "std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", \"1\");",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 685,
+      "declaration": "Some(value) => std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", value),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 686,
+      "declaration": "None => std::env::remove_var(\"VW_RECOVERY_WINDOW_HTTP\"),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 693,
+      "declaration": "std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", \"1\");",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 769,
+      "declaration": "Some(value) => std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", value),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 770,
+      "declaration": "None => std::env::remove_var(\"VW_RECOVERY_WINDOW_HTTP\"),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 777,
+      "declaration": "std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", \"1\");",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 811,
+      "declaration": "Some(value) => std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", value),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 812,
+      "declaration": "None => std::env::remove_var(\"VW_RECOVERY_WINDOW_HTTP\"),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 819,
+      "declaration": "std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", \"1\");",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 853,
+      "declaration": "Some(value) => std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", value),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 854,
+      "declaration": "None => std::env::remove_var(\"VW_RECOVERY_WINDOW_HTTP\"),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 861,
+      "declaration": "std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", \"1\");",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 895,
+      "declaration": "Some(value) => std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", value),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 896,
+      "declaration": "None => std::env::remove_var(\"VW_RECOVERY_WINDOW_HTTP\"),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 903,
+      "declaration": "std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", \"1\");",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 937,
+      "declaration": "Some(value) => std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", value),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 938,
+      "declaration": "None => std::env::remove_var(\"VW_RECOVERY_WINDOW_HTTP\"),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 945,
+      "declaration": "std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", \"1\");",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 986,
+      "declaration": "Some(value) => std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", value),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 987,
+      "declaration": "None => std::env::remove_var(\"VW_RECOVERY_WINDOW_HTTP\"),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 994,
+      "declaration": "std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", \"1\");",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 1039,
+      "declaration": "Some(value) => std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", value),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 1040,
+      "declaration": "None => std::env::remove_var(\"VW_RECOVERY_WINDOW_HTTP\"),",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
+      "line": 1047,
+      "declaration": "std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", \"1\");",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/message_ops_tests.rs",
+      "line": 16,
+      "declaration": "static MESSAGE_OPS_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/message_ops_tests.rs",
+      "line": 23,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_TEST_HOME\", dir);",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/session_ops_tests.rs",
+      "line": 41,
+      "declaration": "static SESSION_OPS_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/session_ops_tests.rs",
+      "line": 48,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_TEST_HOME\", dir);",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/shared_tests.rs",
+      "line": 14,
+      "declaration": "static SHARED_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/shared_tests.rs",
+      "line": 22,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_TEST_HOME\", dir);",
+      "owner_task": 10
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+      "line": 393,
+      "declaration": "std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", previous);",
+      "owner_task": 12
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+      "line": 395,
+      "declaration": "std::env::remove_var(\"VW_RECOVERY_WINDOW_HTTP\");",
+      "owner_task": 12
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
+      "line": 401,
+      "declaration": "unsafe { std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", \"1\") };",
+      "owner_task": 12
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/ui_ops_tests.rs",
+      "line": 21,
+      "declaration": "static UI_OPS_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());",
+      "owner_task": 12
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/ui_ops_tests.rs",
+      "line": 28,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_TEST_HOME\", dir);",
+      "owner_task": 12
+    },
+    {
+      "path": "crates/vw-agent/src/lib.rs",
+      "line": 321,
+      "declaration": "pub(crate) fn global_env_lock() -> &'static Mutex<()> {",
+      "owner_task": 59
+    },
+    {
+      "path": "crates/vw-agent/src/lib.rs",
+      "line": 322,
+      "declaration": "static LOCK: OnceLock<Mutex<()>> = OnceLock::new();",
+      "owner_task": 59
+    },
+    {
+      "path": "crates/vw-agent/src/lib.rs",
+      "line": 326,
+      "declaration": "pub(crate) fn global_runtime_proxy_lock() -> &'static Mutex<()> {",
+      "owner_task": 59
+    },
+    {
+      "path": "crates/vw-agent/src/lib.rs",
+      "line": 327,
+      "declaration": "static LOCK: OnceLock<Mutex<()>> = OnceLock::new();",
+      "owner_task": 59
+    },
+    {
+      "path": "crates/vw-agent/src/lib.rs",
+      "line": 331,
+      "declaration": "pub(crate) fn global_async_env_lock() -> &'static tokio::sync::Mutex<()> {",
+      "owner_task": 59
+    },
+    {
+      "path": "crates/vw-agent/src/lib.rs",
+      "line": 332,
+      "declaration": "static LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());",
+      "owner_task": 59
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/chat_tests.rs",
+      "line": 20,
+      "declaration": "std::env::set_var(\"SHIJU_RELAY_CHAT_TEST_KEY\", v);",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/chat_tests.rs",
+      "line": 22,
+      "declaration": "None => std::env::remove_var(\"SHIJU_RELAY_CHAT_TEST_KEY\"),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/chat_tests.rs",
+      "line": 25,
+      "declaration": "Some(v) => std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", v),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/chat_tests.rs",
+      "line": 26,
+      "declaration": "None => std::env::remove_var(\"VIBEWINDOW_CONFIG_DIR\"),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/chat_tests.rs",
+      "line": 41,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", dir.path().join(\"config\"));",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/chat_tests.rs",
+      "line": 42,
+      "declaration": "std::env::set_var(\"SHIJU_RELAY_CHAT_TEST_KEY\", \"bound-secret\");",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/chat_tests.rs",
+      "line": 194,
+      "declaration": "std::env::remove_var(\"SHIJU_RELAY_CHAT_TEST_KEY\");",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/chat_tests.rs",
+      "line": 210,
+      "declaration": "std::env::set_var(\"SHIJU_RELAY_CHAT_TEST_KEY\", \"bound-secret\");",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/gemini_tests.rs",
+      "line": 22,
+      "declaration": "std::env::set_var(\"SHIJU_RELAY_GEMINI_TEST_KEY\", v);",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/gemini_tests.rs",
+      "line": 24,
+      "declaration": "None => std::env::remove_var(\"SHIJU_RELAY_GEMINI_TEST_KEY\"),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/gemini_tests.rs",
+      "line": 27,
+      "declaration": "Some(v) => std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", v),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/gemini_tests.rs",
+      "line": 28,
+      "declaration": "None => std::env::remove_var(\"VIBEWINDOW_CONFIG_DIR\"),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/gemini_tests.rs",
+      "line": 71,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", dir.path().join(\"config\"));",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/gemini_tests.rs",
+      "line": 72,
+      "declaration": "std::env::set_var(\"SHIJU_RELAY_GEMINI_TEST_KEY\", \"fixture-secret\");",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_request_http_tests.rs",
+      "line": 24,
+      "declaration": "std::env::set_var(\"SHIJU_PROTOCOL014_KEY\", value);",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_request_http_tests.rs",
+      "line": 26,
+      "declaration": "None => std::env::remove_var(\"SHIJU_PROTOCOL014_KEY\"),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_request_http_tests.rs",
+      "line": 29,
+      "declaration": "Some(value) => std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", value),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_request_http_tests.rs",
+      "line": 30,
+      "declaration": "None => std::env::remove_var(\"VIBEWINDOW_CONFIG_DIR\"),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_request_http_tests.rs",
+      "line": 40,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", dir.path().join(\"config\"));",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_request_http_tests.rs",
+      "line": 41,
+      "declaration": "std::env::set_var(\"SHIJU_PROTOCOL014_KEY\", \"fixture-only\");",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_tests.rs",
+      "line": 25,
+      "declaration": "std::env::set_var(\"SHIJU_RELAY_MESSAGES_TEST_KEY\", v);",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_tests.rs",
+      "line": 27,
+      "declaration": "None => std::env::remove_var(\"SHIJU_RELAY_MESSAGES_TEST_KEY\"),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_tests.rs",
+      "line": 30,
+      "declaration": "Some(v) => std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", v),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_tests.rs",
+      "line": 31,
+      "declaration": "None => std::env::remove_var(\"VIBEWINDOW_CONFIG_DIR\"),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_tests.rs",
+      "line": 46,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", dir.path().join(\"config\"));",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_tests.rs",
+      "line": 47,
+      "declaration": "std::env::set_var(\"SHIJU_RELAY_MESSAGES_TEST_KEY\", \"bound-secret\");",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_thinking_http_tests.rs",
+      "line": 24,
+      "declaration": "std::env::set_var(\"SHIJU_PROTOCOL015_KEY\", value);",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_thinking_http_tests.rs",
+      "line": 26,
+      "declaration": "None => std::env::remove_var(\"SHIJU_PROTOCOL015_KEY\"),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_thinking_http_tests.rs",
+      "line": 29,
+      "declaration": "Some(value) => std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", value),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_thinking_http_tests.rs",
+      "line": 30,
+      "declaration": "None => std::env::remove_var(\"VIBEWINDOW_CONFIG_DIR\"),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_thinking_http_tests.rs",
+      "line": 40,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", dir.path().join(\"config\"));",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/messages_thinking_http_tests.rs",
+      "line": 41,
+      "declaration": "std::env::set_var(\"SHIJU_PROTOCOL015_KEY\", \"fixture-only\");",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/responses_http_tests.rs",
+      "line": 25,
+      "declaration": "std::env::set_var(\"SHIJU_RELAY_RESPONSES_TEST_KEY\", v);",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/responses_http_tests.rs",
+      "line": 27,
+      "declaration": "None => std::env::remove_var(\"SHIJU_RELAY_RESPONSES_TEST_KEY\"),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/responses_http_tests.rs",
+      "line": 30,
+      "declaration": "Some(v) => std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", v),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/responses_http_tests.rs",
+      "line": 31,
+      "declaration": "None => std::env::remove_var(\"VIBEWINDOW_CONFIG_DIR\"),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/responses_http_tests.rs",
+      "line": 66,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", dir.path().join(\"config\"));",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/responses_http_tests.rs",
+      "line": 67,
+      "declaration": "std::env::set_var(\"SHIJU_RELAY_RESPONSES_TEST_KEY\", \"fixture-secret\");",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/responses_http_tests.rs",
+      "line": 161,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", dir.path().join(\"config\"));",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/responses_http_tests.rs",
+      "line": 162,
+      "declaration": "std::env::set_var(\"SHIJU_RELAY_RESPONSES_TEST_KEY\", \"fixture-secret\");",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/responses_http_tests.rs",
+      "line": 764,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", dir.path().join(\"config\"));",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/responses_http_tests.rs",
+      "line": 765,
+      "declaration": "std::env::set_var(\"SHIJU_RELAY_RESPONSES_TEST_KEY\", \"fixture-secret\");",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/server_tests.rs",
+      "line": 17,
+      "declaration": "unsafe { std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", dir.path().join(\"config\")) };",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/server_tests.rs",
+      "line": 153,
+      "declaration": "Some(v) => std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", v),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/server_tests.rs",
+      "line": 154,
+      "declaration": "None => std::env::remove_var(\"VIBEWINDOW_CONFIG_DIR\"),",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/server_tests.rs",
+      "line": 166,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", dir.path().join(\"config\"));",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/server_tests.rs",
+      "line": 399,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", dir.path().join(\"config\"));",
+      "owner_task": 46
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/transport_tests.rs",
+      "line": 192,
+      "declaration": "Some(value) => std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", value),",
+      "owner_task": 47
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/transport_tests.rs",
+      "line": 193,
+      "declaration": "None => std::env::remove_var(\"VIBEWINDOW_CONFIG_DIR\"),",
+      "owner_task": 47
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/transport_tests.rs",
+      "line": 208,
+      "declaration": "Some(value) => std::env::set_var(\"SHIJU_PROTOCOL012_TEST_KEY\", value),",
+      "owner_task": 47
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/transport_tests.rs",
+      "line": 209,
+      "declaration": "None => std::env::remove_var(\"SHIJU_PROTOCOL012_TEST_KEY\"),",
+      "owner_task": 47
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/transport_tests.rs",
+      "line": 220,
+      "declaration": "std::env::set_var(\"SHIJU_PROTOCOL012_TEST_KEY\", \"selected-account-secret\");",
+      "owner_task": 47
+    },
+    {
+      "path": "crates/vw-agent/src/model_relay/transport_tests.rs",
+      "line": 223,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", temp.path().join(\"config\"));",
+      "owner_task": 47
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/hook_session.rs",
+      "line": 14,
+      "declaration": "static SESSIONS: std::sync::OnceLock<plugin_hooks::hook_session::HookSessions<AgentContextHost>> = std::sync::OnceLock::new();",
+      "owner_task": 38
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/skills_tests.rs",
+      "line": 12,
+      "declaration": "fn env_lock() -> &'static Mutex<()> {",
+      "owner_task": 39
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/skills_tests.rs",
+      "line": 13,
+      "declaration": "static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();",
+      "owner_task": 39
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/skills_tests.rs",
+      "line": 30,
+      "declaration": "unsafe { std::env::set_var(key, value) };",
+      "owner_task": 39
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/skills_tests.rs",
+      "line": 36,
+      "declaration": "unsafe { std::env::remove_var(key) };",
+      "owner_task": 39
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/skills_tests.rs",
+      "line": 44,
+      "declaration": "unsafe { std::env::set_var(self.key, value) };",
+      "owner_task": 39
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/skills_tests.rs",
+      "line": 46,
+      "declaration": "unsafe { std::env::remove_var(self.key) };",
+      "owner_task": 39
+    },
+    {
+      "path": "crates/vw-agent/src/project/mod.rs",
+      "line": 8,
+      "declaration": "static BOOTSTRAPPED_WORKTREES: LazyLock<Mutex<HashSet<String>>> =",
+      "owner_task": 59
+    },
+    {
+      "path": "crates/vw-agent/src/provider/provider_tests.rs",
+      "line": 18,
+      "declaration": "unsafe { std::env::set_var(key, value) };",
+      "owner_task": 56
+    },
+    {
+      "path": "crates/vw-agent/src/provider/provider_tests.rs",
+      "line": 28,
+      "declaration": "unsafe { std::env::remove_var(&key) };",
+      "owner_task": 56
+    },
+    {
+      "path": "crates/vw-agent/src/provider/provider_tests.rs",
+      "line": 36,
+      "declaration": "Some(value) => unsafe { std::env::set_var(&self.key, value) },",
+      "owner_task": 56
+    },
+    {
+      "path": "crates/vw-agent/src/provider/provider_tests.rs",
+      "line": 37,
+      "declaration": "None => unsafe { std::env::remove_var(&self.key) },",
+      "owner_task": 56
+    },
+    {
+      "path": "crates/vw-agent/src/session/child_agent/entry_tests.rs",
+      "line": 21,
+      "declaration": "Some(v) => std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", v),",
+      "owner_task": 19
+    },
+    {
+      "path": "crates/vw-agent/src/session/child_agent/entry_tests.rs",
+      "line": 22,
+      "declaration": "None => std::env::remove_var(\"VW_RECOVERY_WINDOW_HTTP\"),",
+      "owner_task": 19
+    },
+    {
+      "path": "crates/vw-agent/src/session/child_agent/entry_tests.rs",
+      "line": 106,
+      "declaration": "std::env::set_var(\"VW_RECOVERY_WINDOW_HTTP\", \"1\");",
+      "owner_task": 19
+    },
+    {
+      "path": "crates/vw-agent/src/session/child_agent_tests.rs",
+      "line": 34,
+      "declaration": "unsafe { std::env::set_var(key, value) };",
+      "owner_task": 19
+    },
+    {
+      "path": "crates/vw-agent/src/session/child_agent_tests.rs",
+      "line": 46,
+      "declaration": "Some(value) => unsafe { std::env::set_var(&self.key, value) },",
+      "owner_task": 19
+    },
+    {
+      "path": "crates/vw-agent/src/session/child_agent_tests.rs",
+      "line": 47,
+      "declaration": "None => unsafe { std::env::remove_var(&self.key) },",
+      "owner_task": 19
+    },
+    {
+      "path": "crates/vw-agent/src/session/compaction_tests.rs",
+      "line": 9,
+      "declaration": "static COMPACTION_STORAGE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());",
+      "owner_task": 23
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/acceptance_tests.rs",
+      "line": 554,
+      "declaration": "static STATS: std::sync::LazyLock<parking_lot::Mutex<Value>> =",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/claude_tests.rs",
+      "line": 122,
+      "declaration": "Some(value) => std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", value),",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/claude_tests.rs",
+      "line": 123,
+      "declaration": "None => std::env::remove_var(\"VIBEWINDOW_CONFIG_DIR\"),",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/claude_tests.rs",
+      "line": 131,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", root.path().join(\"config\"));",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/codex_tests.rs",
+      "line": 195,
+      "declaration": "Some(value) => std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", value),",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/codex_tests.rs",
+      "line": 196,
+      "declaration": "None => std::env::remove_var(\"VIBEWINDOW_CONFIG_DIR\"),",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/codex_tests.rs",
+      "line": 204,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", root.path().join(\"config\"));",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/goose_tests.rs",
+      "line": 106,
+      "declaration": "Some(value) => std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", value),",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/goose_tests.rs",
+      "line": 107,
+      "declaration": "None => std::env::remove_var(\"VIBEWINDOW_CONFIG_DIR\"),",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/goose_tests.rs",
+      "line": 115,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", root.path().join(\"config\"));",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/kimi_tests.rs",
+      "line": 94,
+      "declaration": "Some(value) => std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", value),",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/kimi_tests.rs",
+      "line": 95,
+      "declaration": "None => std::env::remove_var(\"VIBEWINDOW_CONFIG_DIR\"),",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/kimi_tests.rs",
+      "line": 103,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", root.path().join(\"config\"));",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/kiro_tests.rs",
+      "line": 134,
+      "declaration": "Some(value) => std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", value),",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/kiro_tests.rs",
+      "line": 135,
+      "declaration": "None => std::env::remove_var(\"VIBEWINDOW_CONFIG_DIR\"),",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/kiro_tests.rs",
+      "line": 142,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", temp.path().join(\"config\"));",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/opencode_tests.rs",
+      "line": 176,
+      "declaration": "Some(value) => std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", value),",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/opencode_tests.rs",
+      "line": 177,
+      "declaration": "None => std::env::remove_var(\"VIBEWINDOW_CONFIG_DIR\"),",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/opencode_tests.rs",
+      "line": 185,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", root.path().join(\"config\"));",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/pi_tests.rs",
+      "line": 193,
+      "declaration": "Some(value) => std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", value),",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/pi_tests.rs",
+      "line": 194,
+      "declaration": "None => std::env::remove_var(\"VIBEWINDOW_CONFIG_DIR\"),",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/pi_tests.rs",
+      "line": 202,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", root.path().join(\"config\"));",
+      "owner_task": 21
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/profile_tests.rs",
+      "line": 67,
+      "declaration": "Some(value) => std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", value),",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/profile_tests.rs",
+      "line": 68,
+      "declaration": "None => std::env::remove_var(\"VIBEWINDOW_CONFIG_DIR\"),",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/model_source/profile_tests.rs",
+      "line": 76,
+      "declaration": "std::env::set_var(\"VIBEWINDOW_CONFIG_DIR\", root.path().join(\"config\"));",
+      "owner_task": 24
+    },
+    {
+      "path": "crates/vw-agent/src/session/llm/acp/session_tests.rs",
+      "line": 19,
+      "declaration": "static CACHE_LOCK: Mutex<()> = Mutex::const_new(());",
+      "owner_task": 20
+    },
+    {
+      "path": "crates/vw-agent/src/skills/cli_tests.rs",
+      "line": 14,
+      "declaration": "fn env_lock() -> &'static Mutex<()> {",
+      "owner_task": 52
+    },
+    {
+      "path": "crates/vw-agent/src/skills/cli_tests.rs",
+      "line": 15,
+      "declaration": "static LOCK: OnceLock<Mutex<()>> = OnceLock::new();",
+      "owner_task": 52
+    },
+    {
+      "path": "crates/vw-agent/src/skills/cli_tests.rs",
+      "line": 29,
+      "declaration": "unsafe { std::env::set_var(key, value) };",
+      "owner_task": 52
+    },
+    {
+      "path": "crates/vw-agent/src/skills/cli_tests.rs",
+      "line": 35,
+      "declaration": "unsafe { std::env::remove_var(key) };",
+      "owner_task": 52
+    },
+    {
+      "path": "crates/vw-agent/src/skills/cli_tests.rs",
+      "line": 44,
+      "declaration": "unsafe { std::env::set_var(self.key, value) };",
+      "owner_task": 52
+    },
+    {
+      "path": "crates/vw-agent/src/skills/cli_tests.rs",
+      "line": 46,
+      "declaration": "unsafe { std::env::remove_var(self.key) };",
+      "owner_task": 52
+    },
+    {
+      "path": "crates/vw-agent/src/skills/tests/helpers.rs",
+      "line": 48,
+      "declaration": "pub fn env_var_lock() -> &'static Mutex<()> {",
+      "owner_task": 52
+    },
+    {
+      "path": "crates/vw-agent/src/skills/tests/helpers.rs",
+      "line": 49,
+      "declaration": "static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();",
+      "owner_task": 52
+    },
+    {
+      "path": "crates/vw-agent/src/skills/tests/helpers.rs",
+      "line": 92,
+      "declaration": "unsafe { std::env::set_var(key, value) };",
+      "owner_task": 52
+    },
+    {
+      "path": "crates/vw-agent/src/skills/tests/helpers.rs",
+      "line": 126,
+      "declaration": "unsafe { std::env::remove_var(key) };",
+      "owner_task": 52
+    },
+    {
+      "path": "crates/vw-agent/src/skills/tests/helpers.rs",
+      "line": 149,
+      "declaration": "unsafe { std::env::set_var(self.key, value) };",
+      "owner_task": 52
+    },
+    {
+      "path": "crates/vw-agent/src/skills/tests/helpers.rs",
+      "line": 152,
+      "declaration": "unsafe { std::env::remove_var(self.key) };",
+      "owner_task": 52
+    },
+    {
+      "path": "crates/vw-agent/src/tools/excel_control_tests.rs",
+      "line": 25,
+      "declaration": "static CERTS: std::sync::OnceLock<tempfile::TempDir> = std::sync::OnceLock::new();",
+      "owner_task": 33
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_common/tests.rs",
+      "line": 33,
+      "declaration": "unsafe { std::env::set_var(key, value) };",
+      "owner_task": 34
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_common/tests.rs",
+      "line": 39,
+      "declaration": "unsafe { std::env::remove_var(key) };",
+      "owner_task": 34
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_common/tests.rs",
+      "line": 47,
+      "declaration": "unsafe { std::env::set_var(self.key, value) };",
+      "owner_task": 34
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_common/tests.rs",
+      "line": 49,
+      "declaration": "unsafe { std::env::remove_var(self.key) };",
+      "owner_task": 34
+    },
+    {
+      "path": "crates/vw-agent/src/tools/shell/tests.rs",
+      "line": 813,
+      "declaration": "unsafe { std::env::set_var(key, value) };",
+      "owner_task": 31
+    },
+    {
+      "path": "crates/vw-agent/src/tools/shell/tests.rs",
+      "line": 822,
+      "declaration": "Some(val) => unsafe { std::env::set_var(self.key, val) },",
+      "owner_task": 31
+    },
+    {
+      "path": "crates/vw-agent/src/tools/shell/tests.rs",
+      "line": 823,
+      "declaration": "None => unsafe { std::env::remove_var(self.key) },",
+      "owner_task": 31
+    },
+    {
+      "path": "crates/vw-agent/src/tools/word_control_tests.rs",
+      "line": 26,
+      "declaration": "static CERTS: std::sync::OnceLock<tempfile::TempDir> = std::sync::OnceLock::new();",
+      "owner_task": 35
+    },
+    {
+      "path": "crates/vw-agent/src/workflow/video_edit/entry_test_transport.rs",
+      "line": 19,
+      "declaration": "static EXTERNALS: LazyLock<Mutex<BTreeMap<String, ExternalFactory>>> =",
+      "owner_task": 44
+    },
+    {
+      "path": "crates/vw-agent/src/workflow/video_edit/entry_test_transport.rs",
+      "line": 26,
+      "declaration": "static SESSIONS: LazyLock<Mutex<HashSet<String>>> = LazyLock::new(Default::default);",
+      "owner_task": 44
+    },
+    {
+      "path": "crates/vw-agent/src/workflow/video_edit/entry_test_transport.rs",
+      "line": 53,
+      "declaration": "static PROJECTS: LazyLock<Arc<Mutex<BTreeMap<String, Vec<VideoProjectWrite>>>>> =",
+      "owner_task": 44
+    },
+    {
+      "path": "crates/vw-agent/src/worktree/host_adapter.rs",
+      "line": 36,
+      "declaration": "static INITIALIZED: std::sync::LazyLock<()> = std::sync::LazyLock::new(|| {",
+      "owner_task": 50
+    },
+    {
+      "path": "crates/vw-agent/src/worktree/recovery_restore_tests.rs",
+      "line": 12,
+      "declaration": "static GIT_PROCESS_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());",
+      "owner_task": 50
+    },
+    {
+      "path": "crates/vw-agent/src/worktree/worktree_native_tests.rs",
+      "line": 17,
+      "declaration": "static WORKTREE_PROJECT_CONTEXT_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());",
+      "owner_task": 50
+    }
+  ]
+}

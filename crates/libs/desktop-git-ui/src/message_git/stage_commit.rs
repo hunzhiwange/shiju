@@ -277,3 +277,6 @@ pub fn select_visible_file_lines(
     }
     super::shared::normalize_stage_line_selections(lines, old_lines);
 }
+
+mod update;
+pub use update::{Effect, UpdateInput, update};

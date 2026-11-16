@@ -168,9 +168,5 @@ mod refresh_tests;
 #[path = "shared_tests.rs"]
 mod shared_tests;
 
-#[cfg(test)]
-#[path = "stage_commit_tests.rs"]
-mod stage_commit_tests;
-
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod repository_tests;

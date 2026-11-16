@@ -3,8 +3,8 @@ use config_channel_services::{
     DingTalkConfig, FeishuConfig, QQConfig, QQReceiveMode, WeChatConfig, WeComConfig,
 };
 
-use crate::app::agent::channels::manager::collect_configured_channels;
-use crate::app::agent::config::Config;
+use crate::manager::channels_config::collect_configured_channels;
+use agent_config::runtime_schema::Config;
 
 fn qr_credential(
     credentials: &Map<String, Value>,
@@ -36,7 +36,7 @@ fn runtime_config_from_qr_credentials(credentials: &Map<String, Value>) -> Resul
         verification_token: None,
         allowed_users: Vec::new(),
         group_reply: None,
-        receive_mode: crate::app::agent::config::schema::LarkReceiveMode::Websocket,
+        receive_mode: config_channel_services::LarkReceiveMode::Websocket,
         port: None,
         draft_update_interval_ms: 3_000,
         max_draft_edits: 20,
@@ -78,7 +78,7 @@ fn five_channel_qr_credentials_match_runtime_config() {
     ]);
 
     let config = runtime_config_from_qr_credentials(&credentials).expect("valid QR credentials");
-    let names = collect_configured_channels(&config, "QR regression")
+    let names = collect_configured_channels(&config, vw_api_transport::TenantScope::new("qr", "regression").unwrap(), "QR regression")
         .into_iter()
         .map(|channel| channel.display_name)
         .collect::<Vec<_>>();

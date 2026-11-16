@@ -272,7 +272,7 @@ mod agent_apps_acceptance_tests;
 
 pub(crate) mod app_providers;
 
-// Real host routing, authentication, tenant isolation and launch contracts.
+// Real host routing and authentication contracts.
 #[cfg(test)]
 mod app_providers_tests;
 

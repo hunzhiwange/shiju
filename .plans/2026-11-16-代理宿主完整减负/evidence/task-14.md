@@ -274,3 +274,26 @@ python3 scripts/cargo_slot.py cargo test -p gateway-app-routing --lib host_migra
 预期 macOS 应用任务14非零数：8；诊断草稿：1；路由任务14：12。Postgres 用例需要现有环境。其它平台按 cfg 排除对应原生场景。
 宿主保留测试使用上表每条完整模块/函数名逐一过滤；未来还须通过宿主 `--list` 确认迁出条目消失，不能把零测试当成功。include 测试仍属于宿主目标，尚未计入领域自注册收益。
 静态核对：迁出模块取消原挂载；领域模块自注册；补充 gateway-app-routing 定向测试直接依赖；保留原断言及真实数据库/文件/HTTP/路由监听器。构建、行为、安全运行验收全部未运行。
+
+## 深度恢复（收口后续请求）
+
+读取 final.md 与 remaining-host.json：原任务残留 1039 行。此次继续迁移真实行为，并非仅移动存放路径。
+
+- app_providers_tests.rs 原 223 行、两条完整用例 → gateway-app-providers/src/host_migration_14_tests.rs。两条原名称与全部原断言保留：`cc_apps_provider_launch_isolation_api_write_read_auth_and_redaction`、`cc_apps_provider_launch_isolation_sdk_http_sqlite_projection_process_roundtrip`。直接注册在所属 crate 的 lib.rs。原 handler_router 改为 crate::router，鉴权与 tenant 中间件来自 agent-gateway；真实 PairingGuard 来自 gateway-pairing。数据库、SDK HTTP、真实脚本进程、私有目录清理与非本机平台拒绝断言保持；无 mock。新增 gateway-pairing 仅为 dev 依赖，锁文件对应边补齐。
+- 宿主 app_providers_tests.rs 仅留 `app_provider_host_route_requires_basic_auth`：使用真实 handler_router，验证真实组合入口基本鉴权、缺租户拒绝；不重复 provider 数据与投影断言。
+- channel_qr_tests.rs 原 87 行、`five_channel_qr_credentials_match_runtime_config` → channel-runtime/src/host_migration_14_tests.rs，领域 lib.rs 自注册。真实 collect_configured_channels 使用显式 TenantScope（原宿主适配器隐式提供），Config/LarkReceiveMode 使用真实所有者。保留五通道排序断言及原二维码配置转换夹具，原 channel_qr.rs 挂载删除。
+- 未迁生产算法：provider/通道实现此前已在领域库，本轮迁入完整领域测试和夹具，不计作新增生产迁移收益。宿主路由仍调用这些真实 crate router/collect 入口，无反向宿主依赖与 path/include 宿主源码。
+
+动态工具剩余的具体边界：`dynamic_tools.rs::SessionDynamicToolsHost` 绑定 NativeSessionIo 的 scope 验证、宿主 HostTools 客户端/搜索工具构造与上下文、SessionHost 注册鉴权和事件流。`dynamic_tools_tests` 前五条通过真实宿主 SessionHost 验证租户、目录、binding token、替换原子性与 SSE/真实工具调用；第六条通过宿主 scripted 模型和 Gateway chat observer 检验模型请求工具覆盖及原生产事件；第七条检验宿主消息持久化与正在执行的工具历史。直接迁往 gateway-dynamic-tools 会缺少 NativeSessionIo 与 HostTools，复制它们会扩大范围到会话/工具所有者；保留这些宿主端口验收，不以 mock 代替。后续若其所有者提供领域原生适配器，可继续拆解；这不是整个文件无需审查的声明。
+
+其它保留装配逐符号：aggregation_codex_settings::SnapshotHost/router 与 desktop::read_form/save_mapping 注入具体 snapshot 及数据库；members/omo/read::router 捕获真实 home 数据库；exit/publish/restart::router 注入唯一 provider operation registry；device_sync_jobs::router 注入真实 receive projection；backup_inventory::router 注入宿主权限；file::FileHost::bootstrap 调用真实 instance_bootstrap。纯 re-export 不算领域生产逻辑。原 include 宿主聚合套件仍保留旧挂载，此轮未宣称它们已迁移或改变运行归属。
+
+未来（本轮未运行）：
+```sh
+python3 scripts/cargo_slot.py cargo test -p gateway-app-providers --lib host_migration_14_tests -- --test-threads=1
+python3 scripts/cargo_slot.py cargo test -p channel-runtime --lib host_migration_14_tests -- --test-threads=1
+python3 scripts/cargo_slot.py cargo test -p vw-agent --lib app_provider_host_route_requires_basic_auth -- --test-threads=1
+```
+预期分别 2、1、1 条非零测试；数据库/平台依赖同原测试。静态核对直接 import、父模块注册、原挂载删除与 diff 空白；未运行 Cargo、构建、测试及实机验收，不声称通过。
+
+恢复后原61文件物理残留 743 行；相对2926行基线净减 2183 行（74.61%）。新增薄宿主用例计入该数；领域新增行数见 git diff。

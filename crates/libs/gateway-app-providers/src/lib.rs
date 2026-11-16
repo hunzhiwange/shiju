@@ -199,3 +199,6 @@ pub async fn save(
 
 #[cfg(test)]
 mod host_migration_6_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_14_tests;

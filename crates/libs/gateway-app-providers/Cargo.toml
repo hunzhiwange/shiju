@@ -53,3 +53,7 @@ base64 = "0.22"
 agent-gateway = { path = "../agent-gateway", version = "0.6.0" }
 tracing = "0.1"
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
+
+[dev-dependencies.gateway-pairing]
+path = "../gateway-pairing"
+version = "0.6.0"

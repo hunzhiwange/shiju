@@ -9646,6 +9646,7 @@ dependencies = [
 name = "gateway-app-providers"
 version = "0.6.0"
 dependencies = [
+ "gateway-pairing",
  "agent-app-services",
  "agent-database",
  "agent-paths",

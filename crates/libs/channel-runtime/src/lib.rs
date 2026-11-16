@@ -30,3 +30,6 @@ pub mod prompt;
 pub mod session_events;
 
 pub mod format;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_14_tests;

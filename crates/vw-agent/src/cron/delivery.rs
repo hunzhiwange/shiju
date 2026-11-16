@@ -2,17 +2,12 @@
 use super::DeliveryConfig;
 use crate::config::Config;
 use anyhow::{Result, bail};
-pub(crate) use agent_cron::delivery::failure_summary;
 
 pub(crate) fn validate(config: &Config, delivery: &DeliveryConfig) -> Result<()> {
     agent_cron::delivery::validate(&super::scheduler::Host, config, delivery)
 }
 pub(crate) async fn validate_saved(config: &Config, delivery: &DeliveryConfig) -> Result<()> {
     agent_cron::delivery::validate_saved(&super::scheduler::Host, config, delivery).await
-}
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) async fn send(config: &Config, channel: &str, target: &str, output: &str) -> Result<()> {
-    agent_cron::delivery::send(&super::scheduler::Host, config, channel, target, output).await
 }
 pub(crate) async fn apply_result(config: &Config, job: &super::CronJob, success: bool, output: &str) -> (bool, String) {
     agent_cron::delivery::apply_result(&super::scheduler::Host, config, job, success, output).await

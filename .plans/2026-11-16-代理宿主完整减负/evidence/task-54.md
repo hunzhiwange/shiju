@@ -160,3 +160,15 @@ agent-cron 新增原生目标通道依赖及测试配置类型依赖、tokio net
 保留职责：scheduler::Host接真实网关流、企微配置/认证端口和公告；run/execute_job_now为组合入口；process_due_jobs/run_agent_job/persist_job_result包装供真实宿主验收。delivery::latest_config/send_validated负责租户watcher及凭据连接；delivery_tests保留真实socket/密文/回执；wecom_acceptance_tests的state_with_config/request保留真实API和租户跨模块验收。scheduler_tests保留薄安全/不可用凭据契约。tests/scheduler剩余真实无密钥网关失败、旧启动快照覆盖和调度触发回执。未复制AppState、反向依赖或挂载宿主源码。
 
 仍不足70%，不能靠删除真实边界断言或压缩注释达标。已落实残留清单建议的结果/best_effort矩阵，并额外迁移真实任务池调用。未来沿用 python3 scripts/cargo_slot.py cargo test -p agent-cron --lib host_migration_54_tests -- --test-threads=1，预期35条非零且failed=0；宿主按上述保留完整名称过滤并list确认迁移消失。静态核对所有SchedulerHost实现、app::task真实导出、名称唯一和旧挂载删除；git diff --check无空白错误。所有Cargo、构建、编译、测试和实机均未运行，不声称通过。
+
+## 第四次恢复核对：清理失去调用者的旧投递入口
+
+重新读取最新final.md及remaining-host.json：整轮当前43584行、缺口8584行，优先恢复清单已无任务54；本任务上次统计978行。再次逐符号检查未把该统计当作无法迁移的豁免。
+
+普通通道生产迁出后，原cron::delivery::send和failure_summary重导出已无宿主调用者；本轮删除这两个过时入口，实际领域send和failure_summary及其真实调用均保留。公告通过agent-cron::announcement直接调用领域send；scheduler::persist_job_result经领域apply_result使用failure_summary，不再经过宿主转发。因此这是死转发清理，不另计生产算法迁出。
+
+继续拆分的边界审查：ChannelConfigWatcher::new不仅是领域读取，它初始化真实GlobalDatabase/SystemConfigStore、捕获当前租户并继承测试数据库上下文；cron::latest_config是该真实组合的错误脱敏边界。WeComRuntimeScope::from_config和connected_with_credentials虽由channel-wecom持有，宿主调用仍需要当前可信租户，且认证连接与运行时注册表验收保留真实socket。send_validated的webhook测试endpoint只存在于宿主测试cfg，不能让领域库依赖宿主测试源码或把它当生产配置。
+
+未继续搬走的具体断言：delivery_tests的持久密文损坏、配置重载及认证凭据变化；wecom_acceptance_tests的真实路由/租户保存/长输出分块回执；tests/scheduler的无密钥真实网关失败、启动旧快照被真实保存配置覆盖、手动和调度触发共享真实webhook路由；scheduler_tests的真实组合入口安全/不可用凭据拒绝。纯四组合状态矩阵、纯配置校验、零请求、普通通道及任务池测试已经自注册于agent-cron。此轮不删任何测试和断言，不创建仅为搬行数的框架。
+
+当前宿主973行，累计自2156行减少1183行（54.9%），仍不满足单组70%建议，保留此前逐符号/逐用例映射与减量缺口。领域本任务35条未来过滤命令和真实宿主薄用例名称不变。静态rg确认旧入口无调用者，git diff --check核对本次变更；所有Cargo、构建、编译、测试和实机继续未运行，不宣称通过。

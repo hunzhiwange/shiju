@@ -48,3 +48,8 @@ mod desktop_split_15_tests;
 
 #[cfg(test)]
 mod host_split_4_tests;
+
+#[cfg(test)]
+mod channel_render_fixture;
+#[cfg(test)]
+mod host_split_5_tests;

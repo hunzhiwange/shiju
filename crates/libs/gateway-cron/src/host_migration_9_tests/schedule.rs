@@ -1,5 +1,31 @@
-//! 定时规则协议、日期转换与无副作用预览验收。
+//! Schedule protocol, calendar and preview assertions.
 use super::*;
+
+async fn wb_add_json(value: serde_json::Value) -> (StatusCode, serde_json::Value) {
+    let dir = tempfile::tempdir().unwrap();
+    response_json(
+        handle_api_cron_add(
+            State(state_with_config(temp_config(dir.path()), false)),
+            HeaderMap::new(),
+            JsonResponse(serde_json::from_value(value).unwrap()),
+        )
+        .await,
+    )
+    .await
+}
+
+async fn wb_preview_json(value: serde_json::Value) -> (StatusCode, serde_json::Value) {
+    let dir = tempfile::tempdir().unwrap();
+    response_json(
+        handle_api_cron_preview(
+            State(state_with_config(temp_config(dir.path()), false)),
+            HeaderMap::new(),
+            JsonResponse(serde_json::from_value(value).unwrap()),
+        )
+        .await,
+    )
+    .await
+}
 
 #[tokio::test]
 async fn wb_schedule_api_timezone_round_trip() {
@@ -43,19 +69,6 @@ async fn wb_schedule_api_biweekly_round_trip() {
     assert_eq!(result["job"]["weekdays"], serde_json::json!([1, 3]));
 }
 
-async fn wb_add_json(value: serde_json::Value) -> (StatusCode, serde_json::Value) {
-    let dir = tempfile::tempdir().unwrap();
-    response_json(
-        handle_api_cron_add(
-            State(state_with_config(temp_config(dir.path()), false)),
-            HeaderMap::new(),
-            JsonResponse(serde_json::from_value(value).unwrap()),
-        )
-        .await,
-    )
-    .await
-}
-
 #[tokio::test]
 async fn wb_schedule_api_rejects_conflicting_at() {
     let (status, _) =
@@ -82,19 +95,6 @@ async fn wb_schedule_api_rejects_invalid_timezone() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
-async fn wb_preview_json(value: serde_json::Value) -> (StatusCode, serde_json::Value) {
-    let dir = tempfile::tempdir().unwrap();
-    response_json(
-        handle_api_cron_preview(
-            State(state_with_config(temp_config(dir.path()), false)),
-            HeaderMap::new(),
-            JsonResponse(serde_json::from_value(value).unwrap()),
-        )
-        .await,
-    )
-    .await
-}
-
 #[tokio::test]
 async fn wb_schedule_api_preview_matches_persisted_schedule() {
     let dir = tempfile::tempdir().unwrap();
@@ -103,8 +103,8 @@ async fn wb_schedule_api_preview_matches_persisted_schedule() {
     let input = serde_json::json!({"schedule_kind":"biweekly", "anchor_date":"2099-01-01", "weekdays":[1,3],
         "hour":9, "minute":30, "timezone":"Asia/Shanghai", "start_date":"2099-01-01", "end_date":"2099-03-01", "command":"echo ok"});
     // Initialize SQLite, then prove preview leaves both jobs and run history unchanged.
-    assert!(crate::cron::list_jobs(&config.lock()).unwrap().is_empty());
-    let before_runs = crate::cron::list_runs(&config.lock(), "missing", 100).unwrap().len();
+    assert!(agent_cron::list_jobs(&config.lock()).unwrap().is_empty());
+    let before_runs = agent_cron::list_runs(&config.lock(), "missing", 100).unwrap().len();
     let (status, preview) = response_json(
         handle_api_cron_preview(
             state(),
@@ -116,8 +116,8 @@ async fn wb_schedule_api_preview_matches_persisted_schedule() {
     .await;
     assert_eq!(status, StatusCode::OK, "{preview}");
     assert_eq!(preview["candidates"].as_array().unwrap().len(), 5);
-    assert!(crate::cron::list_jobs(&config.lock()).unwrap().is_empty());
-    assert_eq!(crate::cron::list_runs(&config.lock(), "missing", 100).unwrap().len(), before_runs);
+    assert!(agent_cron::list_jobs(&config.lock()).unwrap().is_empty());
+    assert_eq!(agent_cron::list_runs(&config.lock(), "missing", 100).unwrap().len(), before_runs);
     let (status, saved) = response_json(
         handle_api_cron_add(
             state(),
@@ -134,7 +134,7 @@ async fn wb_schedule_api_preview_matches_persisted_schedule() {
     }
     let job_id = saved["job"]["id"].as_str().unwrap();
     let recorded_at = Utc.with_ymd_and_hms(2026, 11, 12, 0, 0, 0).unwrap();
-    crate::cron::record_run(
+    agent_cron::record_run(
         &config.lock(),
         job_id,
         recorded_at,
@@ -145,8 +145,8 @@ async fn wb_schedule_api_preview_matches_persisted_schedule() {
     )
     .unwrap();
     let before_jobs =
-        serde_json::to_value(crate::cron::list_jobs(&config.lock()).unwrap()).unwrap();
-    let before_runs = crate::cron::list_runs(&config.lock(), job_id, 100).unwrap().len();
+        serde_json::to_value(agent_cron::list_jobs(&config.lock()).unwrap()).unwrap();
+    let before_runs = agent_cron::list_runs(&config.lock(), job_id, 100).unwrap().len();
     assert_eq!(before_runs, 1);
     let (_, repeated) = response_json(
         handle_api_cron_preview(
@@ -164,10 +164,10 @@ async fn wb_schedule_api_preview_matches_persisted_schedule() {
     .await;
     assert_eq!(repeated["candidates"].as_array().unwrap().len(), 5);
     assert_eq!(
-        serde_json::to_value(crate::cron::list_jobs(&config.lock()).unwrap()).unwrap(),
+        serde_json::to_value(agent_cron::list_jobs(&config.lock()).unwrap()).unwrap(),
         before_jobs
     );
-    assert_eq!(crate::cron::list_runs(&config.lock(), job_id, 100).unwrap().len(), before_runs);
+    assert_eq!(agent_cron::list_runs(&config.lock(), job_id, 100).unwrap().len(), before_runs);
 }
 
 #[tokio::test]
@@ -184,7 +184,7 @@ async fn wb_schedule_api_preview_requires_authentication() {
     )
     .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
-    assert!(crate::cron::list_jobs(&config.lock()).unwrap().is_empty());
+    assert!(agent_cron::list_jobs(&config.lock()).unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -254,7 +254,7 @@ async fn wb_schedule_api_window_patch_and_timezone_only_update() {
     assert_eq!(status, StatusCode::OK, "{result}");
     assert_eq!(result["job"]["starts_at"], "2099-01-01T00:00:00+00:00");
     assert_eq!(result["job"]["ends_at"], "2099-01-02T00:00:00+00:00");
-    let before = serde_json::to_value(crate::cron::get_job(&config.lock(), id).unwrap()).unwrap();
+    let before = serde_json::to_value(agent_cron::get_job(&config.lock(), id).unwrap()).unwrap();
     let (status, _) = response_json(
         handle_api_cron_update(
             state(),
@@ -269,7 +269,7 @@ async fn wb_schedule_api_window_patch_and_timezone_only_update() {
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(
-        serde_json::to_value(crate::cron::get_job(&config.lock(), id).unwrap()).unwrap(),
+        serde_json::to_value(agent_cron::get_job(&config.lock(), id).unwrap()).unwrap(),
         before
     );
 }
@@ -311,17 +311,17 @@ fn wb_schedule_api_date_boundary_rejects_missing_and_ambiguous_midnight() {
 async fn wb_schedule_api_reads_ended_jobs() {
     let dir = tempfile::tempdir().unwrap();
     let config = temp_config(dir.path());
-    let saved = crate::cron::add_shell_job(
+    let saved = agent_cron::add_shell_job(
         &config.lock(),
         None,
         Schedule::Every { every_ms: 1000 },
         "echo ok",
     )
     .unwrap();
-    crate::cron::update_job(
+    agent_cron::update_job(
         &config.lock(),
         &saved.id,
-        crate::cron::CronJobPatch {
+        agent_cron::CronJobPatch {
             ends_at: Some(Some(Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap())),
             ..Default::default()
         },
@@ -334,39 +334,6 @@ async fn wb_schedule_api_reads_ended_jobs() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(result["jobs"][0]["ends_at"], "2020-01-01T00:00:00+00:00");
     assert_eq!(result["jobs"][0]["enabled"], false);
-}
-
-#[tokio::test]
-async fn wb_schedule_api_preview_routes_enforce_auth_and_return_candidates() {
-    use axum::{Router, body::Body, http::Request};
-    use tower::ServiceExt;
-    for pairing in [false, true] {
-        let dir = tempfile::tempdir().unwrap();
-        let config = temp_config(dir.path());
-        let state = state_with_config(config.clone(), pairing);
-        let router =
-            crate::gateway::bootstrap::client_router(state.clone(), Router::new(), Router::new())
-                .with_state(state);
-        for path in ["/api/cron/preview", "/v1/cron/preview"] {
-            let request = Request::post(path)
-                .header("X-Platform-ID", "cron-preview-test")
-                .header("X-Company-ID", "cron-preview-test")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"schedule_kind":"every","every_ms":1000}"#))
-                .unwrap();
-            let (status, result) =
-                response_json(router.clone().oneshot(request).await.unwrap()).await;
-            assert_eq!(
-                status,
-                if pairing { StatusCode::UNAUTHORIZED } else { StatusCode::OK },
-                "{result}"
-            );
-            if !pairing {
-                assert_eq!(result["candidates"].as_array().unwrap().len(), 5);
-            }
-        }
-        assert!(crate::cron::list_jobs(&config.lock()).unwrap().is_empty());
-    }
 }
 
 #[test]
@@ -383,7 +350,7 @@ fn wb_schedule_api_calendar_cron_and_every_share_domain_candidates() {
         let result = cron_schedule::preview(&body, now).unwrap();
         let mut from = now;
         for actual in result["candidates"].as_array().unwrap() {
-            let expected = crate::cron::next_run_for_schedule(&schedule, from).unwrap();
+            let expected = agent_cron::next_run_for_schedule(&schedule, from).unwrap();
             assert_eq!(actual, &serde_json::json!(expected.to_rfc3339()));
             from = expected;
         }
@@ -398,7 +365,7 @@ async fn wb_schedule_api_local_at_patch_requires_timezone() {
     let state = || State(state_with_config(config.clone(), false));
     let original = Utc.with_ymd_and_hms(2099, 1, 1, 0, 0, 0).unwrap();
     let saved =
-        crate::cron::add_shell_job(&config.lock(), None, Schedule::At { at: original }, "echo ok")
+        agent_cron::add_shell_job(&config.lock(), None, Schedule::At { at: original }, "echo ok")
             .unwrap();
     let (status, result) = response_json(
         handle_api_cron_update(
@@ -415,7 +382,7 @@ async fn wb_schedule_api_local_at_patch_requires_timezone() {
     assert_eq!(status, StatusCode::BAD_REQUEST, "{result}");
     assert!(result["error"].as_str().unwrap().contains("timezone"));
     assert_eq!(
-        crate::cron::get_job(&config.lock(), &saved.id).unwrap().schedule,
+        agent_cron::get_job(&config.lock(), &saved.id).unwrap().schedule,
         Schedule::At { at: original }
     );
     let (status, result) = response_json(

@@ -40,7 +40,5 @@ pub async fn handle_api_cron_delete(State(state): State<AppState>, headers: Head
 }
 
 #[cfg(test)]
-use gateway_cron::handlers::{trimmed_optional, effective_schedule_kind, cron_job_json, cron_run_json, cron_add_delivery, cron_add_patch, cron_add_job_type, cron_add_body_log_fields, cron_add_schedule, cron_update_schedule, cron_schedule};
-#[cfg(test)]
 #[path = "cron_tests.rs"]
 mod cron_tests;

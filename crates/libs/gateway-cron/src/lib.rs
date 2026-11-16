@@ -23,3 +23,6 @@ pub mod handlers;
 pub mod requests;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod state;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_9_tests;

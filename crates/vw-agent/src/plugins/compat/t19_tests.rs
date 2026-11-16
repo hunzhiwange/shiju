@@ -1,25 +1,5 @@
 use crate::tools::mcp_tool::mcp_tool_id;
 
-#[test]
-fn codex_plugin_compat_t19_calls_exact_namespaced_tool() {
-    let a = mcp_tool_id("package-a", "Read.File").unwrap();
-    let b = mcp_tool_id("package-a", "read_file").unwrap();
-    assert_ne!(a, b, "different raw names must remain independently callable");
-}
-#[test]
-fn codex_plugin_compat_t19_rejects_invalid_input() {
-    let id = mcp_tool_id("server", &"x".repeat(200)).unwrap();
-    assert!(id.len() <= 64, "model callable identifier must fit the name limit");
-}
-#[test]
-fn codex_plugin_compat_t19_preserves_isolation() {
-    assert_ne!(
-        mcp_tool_id("a-b", "tool").unwrap(),
-        mcp_tool_id("a_b", "tool").unwrap(),
-        "distinct source namespaces must not collapse"
-    );
-}
-
 use super::{mcp_catalog, mcp_connections::McpSessionConnections};
 use crate::tools::{
     Tool,

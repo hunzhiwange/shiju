@@ -135,3 +135,10 @@ impl Default for State {
         }
     }
 }
+
+/// Decide whether project-home navigation must release the active session view.
+pub fn project_home(screen: crate::ui_types::Screen, has_project: bool, has_session: bool, workspace: &mut super::work_workspace::State) -> bool {
+ if screen != crate::ui_types::Screen::Project || !has_project { return false; }
+ workspace.work_resource_half_fullscreen = false;
+ has_session
+}

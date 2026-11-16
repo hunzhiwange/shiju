@@ -151,7 +151,7 @@ pub(crate) fn current(app: &App, id: AppId) -> Result<(GatewayClient, Scope), St
         context: crate::app::state::AgentAppsContext {
             gateway: client.endpoint().base_url(),
             tenant: client.endpoint().tenant_scope().clone(),
-            project: app.project_path.clone(),
+            project: app.navigation_tabs.project_path.clone(),
         },
         host: app.apps_catalog.host.clone(),
         app: id,

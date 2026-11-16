@@ -16,7 +16,7 @@ fn test_app() -> App {
 #[test]
 fn agent_unified_selection_catalog_launch_selects_profile_runtime() {
     let mut app = test_app();
-    app.project_path = Some("/tmp/unified-agent-fixture".into());
+    app.navigation_tabs.project_path = Some("/tmp/unified-agent-fixture".into());
     app.agents_settings.entries.push(crate::app::state::DelegateAgentSettingsEntry::from_config(
         "acp-codex",
         Some(config_agent::AgentDefinitionConfig {
@@ -38,9 +38,9 @@ fn session_entry_catalog_launch_preserves_profile_runtime() {
     use config_agent_profile::AgentRuntime;
     for runtime in [AgentRuntime::Native, AgentRuntime::Acp { backend: "codex".into() }] {
         let mut app = test_app();
-        app.show_settings = true;
-        app.show_system_settings = true;
-        app.screen = crate::app::Screen::Usage;
+        app.navigation_panels.show_settings = true;
+        app.navigation_panels.show_system_settings = true;
+        app.navigation_tabs.screen = crate::app::Screen::Usage;
         app.active_session_id = Some("catalog-old-session".into());
         app.current_session_runtime_mut().agent = Some("old-profile".into());
         let old_id = app.active_session_id.clone();
@@ -51,19 +51,19 @@ fn session_entry_catalog_launch_preserves_profile_runtime() {
                 Some(AgentDefinitionConfig { runtime: runtime.clone(), ..Default::default() }),
             ),
         );
-        app.project_path = None;
+        app.navigation_tabs.project_path = None;
         let _ = update(
             &mut app,
             SettingsMessage::Agents(AgentsMessage::CatalogLaunch("fixture-profile".into())),
         );
         assert!(!app.agents_settings.catalog_busy);
         assert!(app.active_toast.as_ref().unwrap().message.contains("请先打开项目"));
-        assert!(app.show_settings);
-        assert!(app.show_system_settings);
-        assert_eq!(app.screen, crate::app::Screen::Usage);
+        assert!(app.navigation_panels.show_settings);
+        assert!(app.navigation_panels.show_system_settings);
+        assert_eq!(app.navigation_tabs.screen, crate::app::Screen::Usage);
         assert_eq!(app.active_session_id, old_id);
         assert_eq!(app.current_session_runtime().agent, old_runtime.agent);
-        app.project_path = Some("/tmp/catalog-fixture".into());
+        app.navigation_tabs.project_path = Some("/tmp/catalog-fixture".into());
         let _ = update(
             &mut app,
             SettingsMessage::Agents(AgentsMessage::CatalogLaunch("fixture-profile".into())),
@@ -78,9 +78,9 @@ fn session_entry_catalog_launch_preserves_profile_runtime() {
                 AgentRuntime::Acp { .. } => Some("codex"),
             }
         );
-        assert!(!app.show_settings);
-        assert!(!app.show_system_settings);
-        assert_eq!(app.screen, crate::app::Screen::Project);
+        assert!(!app.navigation_panels.show_settings);
+        assert!(!app.navigation_panels.show_system_settings);
+        assert_eq!(app.navigation_tabs.screen, crate::app::Screen::Project);
         assert_eq!(
             app.session_runtime_states.get("catalog-old-session").unwrap().agent,
             old_runtime.agent

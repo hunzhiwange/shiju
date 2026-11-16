@@ -49,14 +49,14 @@ fn permission_directory_prefers_session_directory_and_filters_blank_fallbacks() 
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("s1".to_string());
     app.sessions = vec![session_info("s1", "/session")];
-    app.project_path = Some("/project".to_string());
+    app.navigation_tabs.project_path = Some("/project".to_string());
 
     assert_eq!(super::permission_directory(&app).as_deref(), Some("/session"));
 
     app.sessions[0].directory = "   ".to_string();
     assert_eq!(super::permission_directory(&app).as_deref(), Some("/project"));
 
-    app.project_path = Some("\t".to_string());
+    app.navigation_tabs.project_path = Some("\t".to_string());
     assert_eq!(super::permission_directory(&app), None);
 }
 

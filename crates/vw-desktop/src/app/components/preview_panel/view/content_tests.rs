@@ -45,8 +45,8 @@ fn content_tree(app: &App) -> Tree {
 #[test]
 fn content_shows_empty_selection_message_in_preview_screen() {
     let mut app = app();
-    app.screen = Screen::Preview;
-    app.active_preview_path = None;
+    app.navigation_tabs.screen = Screen::Preview;
+    app.navigation_tabs.active_preview_path = None;
 
     let tree = content_tree(&app);
 
@@ -56,13 +56,13 @@ fn content_shows_empty_selection_message_in_preview_screen() {
 #[test]
 fn content_selects_the_tab_matching_the_active_path() {
     let mut editor_app = app();
-    editor_app.active_preview_path = Some("/tmp/notes.txt".to_string());
-    editor_app.preview_tabs = vec![tab("/tmp/notes.txt", "notes")];
+    editor_app.navigation_tabs.active_preview_path = Some("/tmp/notes.txt".to_string());
+    editor_app.navigation_tabs.preview_tabs = vec![tab("/tmp/notes.txt", "notes")];
     let editor_tag = content_tree(&editor_app).tag;
 
     let mut app = app();
-    app.active_preview_path = Some("/tmp/selected.png".to_string());
-    app.preview_tabs = vec![
+    app.navigation_tabs.active_preview_path = Some("/tmp/selected.png".to_string());
+    app.navigation_tabs.preview_tabs = vec![
         tab("/tmp/first.txt", "first"),
         tab("/tmp/selected.png", ""),
         tab("/tmp/last.rs", "last"),
@@ -74,8 +74,8 @@ fn content_selects_the_tab_matching_the_active_path() {
 #[test]
 fn content_shows_empty_selection_message_when_project_changes_are_hidden() {
     let mut app = app();
-    app.screen = Screen::Project;
-    app.active_preview_path = None;
+    app.navigation_tabs.screen = Screen::Project;
+    app.navigation_tabs.active_preview_path = None;
     app.file_manager.file_manager_show_changes = false;
 
     let tree = content_tree(&app);
@@ -86,9 +86,9 @@ fn content_shows_empty_selection_message_when_project_changes_are_hidden() {
 #[test]
 fn content_uses_git_panel_when_changes_view_is_enabled() {
     let mut app = app();
-    app.active_preview_path = None;
+    app.navigation_tabs.active_preview_path = None;
     app.file_manager.file_manager_show_changes = true;
-    app.screen = Screen::Project;
+    app.navigation_tabs.screen = Screen::Project;
 
     let tree = content_tree(&app);
 

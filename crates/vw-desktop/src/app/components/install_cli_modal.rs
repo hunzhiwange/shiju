@@ -63,21 +63,21 @@ pub fn view_update_check_with_progress<'a>(
 pub fn view_app_update(app: &App) -> iced::Element<'_, Message> {
     shared::view_inner(
         crate::app::i18n::I18n::new(app.desktop_locale),
-        &app.cli_install_modal_title,
-        &app.cli_install_modal_message,
-        Some(&app.cli_install_modal_current_version),
-        Some(&app.cli_install_modal_server_version),
-        app.cli_install_modal_is_checking_update,
-        app.cli_install_modal_show_install_action,
-        app.cli_install_modal_use_app_update_action,
+        &app.update_panel.cli_install_modal_title,
+        &app.update_panel.cli_install_modal_message,
+        Some(&app.update_panel.cli_install_modal_current_version),
+        Some(&app.update_panel.cli_install_modal_server_version),
+        app.update_panel.cli_install_modal_is_checking_update,
+        app.update_panel.cli_install_modal_show_install_action,
+        app.update_panel.cli_install_modal_use_app_update_action,
         false,
-        app.app_update_progress.as_ref(),
+        app.update_panel.app_update_progress.as_ref(),
         app.last_copied_code_hash,
         Some(&app.desktop_update),
-        (!app.cli_install_modal_use_app_update_action).then(|| {
+        (!app.update_panel.cli_install_modal_use_app_update_action).then(|| {
             desktop_navigation::components::cli_command_help::view(
                 crate::app::i18n::I18n::new(app.desktop_locale),
-                app.cli_commands_tab,
+                app.navigation_panels.cli_commands_tab,
                 app.last_copied_code_hash,
                 help,
             )

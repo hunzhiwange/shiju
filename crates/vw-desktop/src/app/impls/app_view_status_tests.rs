@@ -51,8 +51,8 @@ fn status_bar_builds_ready_when_no_preview_tab_is_active() {
 #[test]
 fn status_bar_builds_ready_and_global_status_for_tab_without_server_key() {
     let (mut app, _) = crate::app::App::new();
-    app.active_preview_path = Some("/workspace/src/main.rs".to_string());
-    app.preview_tabs.push(preview_tab("/workspace/src/main.rs", None));
+    app.navigation_tabs.active_preview_path = Some("/workspace/src/main.rs".to_string());
+    app.navigation_tabs.preview_tabs.push(preview_tab("/workspace/src/main.rs", None));
 
     std::hint::black_box(super::status_bar(&app));
 
@@ -64,8 +64,8 @@ fn status_bar_builds_ready_and_global_status_for_tab_without_server_key() {
 #[test]
 fn status_bar_builds_ready_when_active_path_has_no_matching_tab() {
     let (mut app, _) = crate::app::App::new();
-    app.active_preview_path = Some("/workspace/src/missing.rs".to_string());
-    app.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
+    app.navigation_tabs.active_preview_path = Some("/workspace/src/missing.rs".to_string());
+    app.navigation_tabs.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
     app.lsp_status = Some("LSP: starting".to_string());
 
     std::hint::black_box(super::status_bar(&app));
@@ -75,8 +75,8 @@ fn status_bar_builds_ready_when_active_path_has_no_matching_tab() {
 #[test]
 fn status_bar_builds_active_tab_lsp_variants() {
     let (mut app, _) = crate::app::App::new();
-    app.active_preview_path = Some("/workspace/src/main.rs".to_string());
-    app.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
+    app.navigation_tabs.active_preview_path = Some("/workspace/src/main.rs".to_string());
+    app.navigation_tabs.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
 
     std::hint::black_box(super::status_bar(&app));
 
@@ -103,8 +103,8 @@ fn status_bar_builds_active_tab_lsp_variants() {
 #[test]
 fn status_bar_builds_global_status_when_server_has_no_progress_map() {
     let (mut app, _) = crate::app::App::new();
-    app.active_preview_path = Some("/workspace/src/main.rs".to_string());
-    app.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
+    app.navigation_tabs.active_preview_path = Some("/workspace/src/main.rs".to_string());
+    app.navigation_tabs.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
     app.lsp_status = Some("LSP: initializing".to_string());
 
     std::hint::black_box(super::status_bar(&app));
@@ -114,8 +114,8 @@ fn status_bar_builds_global_status_when_server_has_no_progress_map() {
 #[test]
 fn status_bar_builds_server_key_when_progress_map_is_empty() {
     let (mut app, _) = crate::app::App::new();
-    app.active_preview_path = Some("/workspace/src/main.rs".to_string());
-    app.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
+    app.navigation_tabs.active_preview_path = Some("/workspace/src/main.rs".to_string());
+    app.navigation_tabs.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
     app.lsp_progress.insert("rust-analyzer".to_string(), std::collections::HashMap::new());
 
     std::hint::black_box(super::status_bar(&app));
@@ -125,8 +125,8 @@ fn status_bar_builds_server_key_when_progress_map_is_empty() {
 #[test]
 fn status_bar_builds_running_progress_with_missing_optional_fields() {
     let (mut app, _) = crate::app::App::new();
-    app.active_preview_path = Some("/workspace/src/main.rs".to_string());
-    app.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
+    app.navigation_tabs.active_preview_path = Some("/workspace/src/main.rs".to_string());
+    app.navigation_tabs.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
     app.lsp_progress.insert(
         "rust-analyzer".to_string(),
         std::collections::HashMap::from([(
@@ -142,8 +142,8 @@ fn status_bar_builds_running_progress_with_missing_optional_fields() {
 #[test]
 fn status_bar_builds_overcomplete_progress_as_completion() {
     let (mut app, _) = crate::app::App::new();
-    app.active_preview_path = Some("/workspace/src/main.rs".to_string());
-    app.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
+    app.navigation_tabs.active_preview_path = Some("/workspace/src/main.rs".to_string());
+    app.navigation_tabs.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
     app.lsp_progress.insert(
         "rust-analyzer".to_string(),
         std::collections::HashMap::from([(

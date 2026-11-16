@@ -317,7 +317,7 @@ fn externally_created_session_does_not_replace_active_session() {
     let mut visible = session_info("visible-task", "Visible task", "/project");
     visible.parent_id = Some("main-session".to_string());
     visible.slug = session_info::Info::visible_task_slug("visible-task");
-    app.project_path = Some("/project".to_string());
+    app.navigation_tabs.project_path = Some("/project".to_string());
     app.active_session_id = Some("main-session".to_string());
     app.sessions = vec![session_info("main-session", "Main", "/project")];
     app.chat = vec![chat_message(ChatRole::User, "keep this chat")];
@@ -356,7 +356,7 @@ fn update_unhandled_message_leaves_chat_state_unchanged() {
 #[test]
 fn desktop_first_response_late_success_publishes_to_the_original_project_once() {
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some("/other".into());
+    app.navigation_tabs.project_path = Some("/other".into());
     app.active_session_id = Some("current".into());
     app.sessions = vec![session_info("current", "Current", "/other")];
     app.chat = vec![chat_message(ChatRole::User, "current chat")];

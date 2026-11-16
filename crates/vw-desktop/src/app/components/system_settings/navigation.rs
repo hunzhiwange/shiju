@@ -33,50 +33,50 @@ fn search_target_is_active(app: &App, target: SystemSettingsSearchTarget) -> boo
     match target {
         SystemSettingsSearchTarget::GeneralField(_) => false,
         SystemSettingsSearchTarget::TopLevel(tab) => {
-            tab == app.system_settings_tab
-                || (tab == SystemTab::WebSearch && is_network_tab(app.system_settings_tab))
+            tab == app.navigation_panels.system_settings_tab
+                || (tab == SystemTab::WebSearch && is_network_tab(app.navigation_panels.system_settings_tab))
         }
         SystemSettingsSearchTarget::General(tab) => {
-            app.system_settings_tab == SystemTab::General && app.general_settings_tab == tab
+            app.navigation_panels.system_settings_tab == SystemTab::General && app.general_settings_tab == tab
         }
         SystemSettingsSearchTarget::Models(tab) => {
-            app.system_settings_tab == SystemTab::Models && app.model_settings.active_tab == tab
+            app.navigation_panels.system_settings_tab == SystemTab::Models && app.model_settings.active_tab == tab
         }
         SystemSettingsSearchTarget::Cron(tab) => {
-            app.system_settings_tab == SystemTab::Cron && app.cron_settings.active_tab == tab
+            app.navigation_panels.system_settings_tab == SystemTab::Cron && app.cron_settings.active_tab == tab
         }
         SystemSettingsSearchTarget::Agents(tab) => {
-            app.system_settings_tab == SystemTab::Agents
+            app.navigation_panels.system_settings_tab == SystemTab::Agents
                 && app.agents_settings.active_config_tab == tab
         }
         SystemSettingsSearchTarget::Channels(tab) => {
-            app.system_settings_tab == SystemTab::Agents
+            app.navigation_panels.system_settings_tab == SystemTab::Agents
                 && app.agents_settings.active_config_tab
                     == crate::app::state::AgentConfigTab::Channels
                 && app.channels_settings.active_tab == tab
         }
         SystemSettingsSearchTarget::Memory(tab) => {
-            app.system_settings_tab == SystemTab::Memory && app.memory_settings.active_tab == tab
+            app.navigation_panels.system_settings_tab == SystemTab::Memory && app.memory_settings.active_tab == tab
         }
         SystemSettingsSearchTarget::Autonomy(tab) => {
-            app.system_settings_tab == SystemTab::Autonomy
+            app.navigation_panels.system_settings_tab == SystemTab::Autonomy
                 && app.autonomy_settings.active_tab == tab
         }
         SystemSettingsSearchTarget::Security(tab) => {
-            app.system_settings_tab == SystemTab::Security
+            app.navigation_panels.system_settings_tab == SystemTab::Security
                 && app.security_settings.active_tab == tab
         }
         SystemSettingsSearchTarget::Gateway(tab) => {
-            app.system_settings_tab == SystemTab::Gateway && app.gateway_settings.active_tab == tab
+            app.navigation_panels.system_settings_tab == SystemTab::Gateway && app.gateway_settings.active_tab == tab
         }
-        SystemSettingsSearchTarget::Network(tab) => app.system_settings_tab == tab,
+        SystemSettingsSearchTarget::Network(tab) => app.navigation_panels.system_settings_tab == tab,
         SystemSettingsSearchTarget::AgentMcp(tab) => {
-            app.system_settings_tab == SystemTab::Agents
+            app.navigation_panels.system_settings_tab == SystemTab::Agents
                 && app.agents_settings.active_config_tab == crate::app::state::AgentConfigTab::Mcp
                 && app.mcp_settings.active_tab == tab
         }
         SystemSettingsSearchTarget::AgentSkills(tab) => {
-            app.system_settings_tab == SystemTab::Agents
+            app.navigation_panels.system_settings_tab == SystemTab::Agents
                 && app.agents_settings.active_config_tab
                     == crate::app::state::AgentConfigTab::Skills
                 && app.skills_settings.active_tab == tab

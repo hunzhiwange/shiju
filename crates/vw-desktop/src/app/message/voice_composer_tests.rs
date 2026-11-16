@@ -129,7 +129,7 @@ fn voice_task_16_external_pending_remains_scoped_and_prevents_overwrite() {
 #[test]
 fn voice_task_11_local_start_never_opens_cloud_conversation() {
     let (mut app, _) = App::new();
-    app.project_path = Some("/repo".into());
+    app.navigation_tabs.project_path = Some("/repo".into());
     app.active_session_id = Some("local-voice-route".into());
     app.current_session_runtime_mut();
     assert_eq!(

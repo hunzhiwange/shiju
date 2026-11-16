@@ -39,7 +39,7 @@ fn update_picker(app: &mut App, event: Event) -> iced::Task<Message> {
         creating: &mut app.new_session_creating, confirm_delete: &mut app.new_session_confirm_delete_directory,
         force_delete: &mut app.new_session_force_delete_directory, delete_error: &mut app.new_session_delete_error,
         confirm_reset: &mut app.new_session_confirm_reset_directory, reset_error: &mut app.new_session_reset_error,
-    }, app.project_path.as_deref(), app.agent_stream_id, event);
+    }, app.navigation_tabs.project_path.as_deref(), app.agent_stream_id, event);
     let mut tasks = Vec::new();
     for effect in effects {
         match effect {

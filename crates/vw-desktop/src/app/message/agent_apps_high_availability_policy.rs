@@ -16,7 +16,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Err(error) => return app.show_error_toast(error),
     };
     let context = AgentAppsContext { gateway: client.endpoint().base_url(),
-        tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
+        tenant: client.endpoint().tenant_scope().clone(), project: app.navigation_tabs.project_path.clone() };
     let requested_app_exists = match &event {
         Event::Open(id) => app.apps_catalog.rows.iter().any(|row| row.entry.id == *id),
         _ => false,

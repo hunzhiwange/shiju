@@ -12,7 +12,7 @@ fn refresh_worktree_options_for_non_git_project_clears_state_without_error() {
     let temp = tempfile::TempDir::new().expect("tempdir");
     let project_path = temp.path().to_string_lossy().to_string();
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some(project_path.clone());
+    app.navigation_tabs.project_path = Some(project_path.clone());
     app.git.git_worktree_options = vec![GitWorktreeOption {
         directory: "/old".to_string(),
         label: "old".to_string(),

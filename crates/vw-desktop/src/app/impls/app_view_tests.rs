@@ -50,7 +50,7 @@ fn view_builds_for_primary_screens_without_modal_state() {
         Screen::ShijuSkills,
         Screen::ExpertHub,
     ] {
-        app.screen = screen;
+        app.navigation_tabs.screen = screen;
         let _element: iced::Element<'_, Message> = app.view();
     }
 }
@@ -58,7 +58,7 @@ fn view_builds_for_primary_screens_without_modal_state() {
 #[test]
 fn view_builds_preview_screen() {
     let mut app = test_app();
-    app.screen = Screen::Preview;
+    app.navigation_tabs.screen = Screen::Preview;
 
     std::hint::black_box(app.view());
 }
@@ -66,7 +66,7 @@ fn view_builds_preview_screen() {
 #[test]
 fn view_builds_workflow_tool_screen() {
     let mut app = test_app();
-    app.screen = Screen::WorkflowTool;
+    app.navigation_tabs.screen = Screen::WorkflowTool;
 
     std::hint::black_box(app.view());
 }
@@ -74,7 +74,7 @@ fn view_builds_workflow_tool_screen() {
 #[test]
 fn view_builds_with_settings_notifications_error_and_toast_overlays() {
     let mut app = test_app();
-    app.show_system_settings = true;
+    app.navigation_panels.show_system_settings = true;
     app.notifications_expanded = true;
     app.error_message = Some("failure".to_string());
     let _ = app.show_success_toast("saved");
@@ -121,8 +121,8 @@ async fn toast_show_replace_and_dismiss_preserve_acp_scroll_offsets_and_viewport
     }
 
     let mut app = test_app();
-    app.show_system_settings = true;
-    app.system_settings_tab = components::system_settings::SystemTab::Agents;
+    app.navigation_panels.show_system_settings = true;
+    app.navigation_panels.system_settings_tab = components::system_settings::SystemTab::Agents;
     app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Acp;
     for agent in ["claude", "gemini", "opencode", "codex", "openclaw", "copilot"] {
         app.acp_settings.catalog.insert(agent.into(), Default::default());
@@ -183,14 +183,14 @@ async fn toast_show_replace_and_dismiss_preserve_acp_scroll_offsets_and_viewport
 #[test]
 fn view_builds_with_about_cli_search_and_rename_overlays() {
     let mut app = test_app();
-    app.show_about_modal = true;
-    app.show_cli_install_modal = true;
-    app.cli_install_modal_show_update_action = true;
-    app.cli_install_modal_title = "CLI".to_string();
-    app.cli_install_modal_message = "Install".to_string();
-    app.cli_install_modal_current_version = "1.0.0".to_string();
-    app.cli_install_modal_server_version = "1.1.0".to_string();
-    app.cli_install_modal_show_install_action = true;
+    app.navigation_panels.show_about_modal = true;
+    app.update_panel.show_cli_install_modal = true;
+    app.update_panel.cli_install_modal_show_update_action = true;
+    app.update_panel.cli_install_modal_title = "CLI".to_string();
+    app.update_panel.cli_install_modal_message = "Install".to_string();
+    app.update_panel.cli_install_modal_current_version = "1.0.0".to_string();
+    app.update_panel.cli_install_modal_server_version = "1.1.0".to_string();
+    app.update_panel.cli_install_modal_show_install_action = true;
     app.search.show_search_overlay = true;
     app.file_tree_interaction.file_tree_rename_path = Some("src/lib.rs".to_string());
     app.file_tree_interaction.file_tree_rename_value = "main.rs".to_string();
@@ -203,10 +203,10 @@ fn view_builds_with_about_cli_search_and_rename_overlays() {
 #[test]
 fn view_builds_with_plain_cli_install_modal() {
     let mut app = test_app();
-    app.show_cli_install_modal = true;
-    app.cli_install_modal_show_update_action = false;
-    app.cli_install_modal_title = "Install CLI".to_string();
-    app.cli_install_modal_message = "Install the CLI to continue".to_string();
+    app.update_panel.show_cli_install_modal = true;
+    app.update_panel.cli_install_modal_show_update_action = false;
+    app.update_panel.cli_install_modal_title = "Install CLI".to_string();
+    app.update_panel.cli_install_modal_message = "Install the CLI to continue".to_string();
 
     std::hint::black_box(app.view());
 }
@@ -234,7 +234,7 @@ fn view_builds_with_project_edit_and_permission_modals_together() {
 #[test]
 fn view_builds_shiju_install_guide() {
     let mut app = test_app();
-    app.screen = Screen::ShijuSkills;
+    app.navigation_tabs.screen = Screen::ShijuSkills;
     app.expert_hub.skill_tab = crate::app::skill_hub::SkillTab::Install;
     app.expert_hub.install_guide.open = true;
 
@@ -250,7 +250,7 @@ fn project_shell_keeps_tab_bar_in_code_and_work_modes() {
     assert!(show_tab_bar(Screen::Home, WorkspaceMode::Work));
 
     let mut app = test_app();
-    app.screen = Screen::Project;
+    app.navigation_tabs.screen = Screen::Project;
     app.navigation_mode.workspace_mode = WorkspaceMode::Work;
     std::hint::black_box(app.view());
 }

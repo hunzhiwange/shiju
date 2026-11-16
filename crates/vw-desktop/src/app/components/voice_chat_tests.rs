@@ -19,7 +19,7 @@ async fn voice_moon_ui_local_keeps_chat_without_modal() {
     use iced::advanced::renderer::Headless;
     use iced_runtime::user_interface::{Cache, UserInterface};
     let (mut app, _) = App::new();
-    app.project_path = Some("/repo".into());
+    app.navigation_tabs.project_path = Some("/repo".into());
     app.active_session_id = Some("moon-ui".into());
     app.current_session_runtime_mut().acp_agent = None;
     let _ = crate::app::message::voice::update(&mut app, Event::ChatStart);

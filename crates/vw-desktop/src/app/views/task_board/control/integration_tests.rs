@@ -33,7 +33,7 @@ fn snapshot(slots: Vec<WorktreeSlotSnapshot>) -> WorktreePoolSnapshot {
 fn task_pool_office_capacity_and_all_employee_interactions_are_preserved() {
     let mut app = test_app();
     let project = tempfile::tempdir().unwrap();
-    app.project_path = Some(project.path().to_string_lossy().into_owned());
+    app.navigation_tabs.project_path = Some(project.path().to_string_lossy().into_owned());
     app.task_board_worktree_snapshot = Some(snapshot(vec![
         slot("idle", WorktreeState::Idle),
         slot("busy", WorktreeState::Busy),

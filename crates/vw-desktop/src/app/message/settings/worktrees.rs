@@ -33,7 +33,7 @@ pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Mess
     }
     let current = crate::app::state::worktree_identity(app);
     use desktop_settings_workspace::worktrees::{prepare, UpdatePlan};
-    let visible = app.system_settings_tab == crate::app::components::system_settings::SystemTab::Worktrees;
+    let visible = app.navigation_panels.system_settings_tab == crate::app::components::system_settings::SystemTab::Worktrees;
     let (policy, refresh, failed, saved) = match prepare(&mut app.worktree_settings, event, current.clone(), visible) {
         UpdatePlan::Ignore => return Task::none(),
         UpdatePlan::Refresh => return update(app, WorktreeSettingsMessage::Refresh),
@@ -119,7 +119,7 @@ pub(crate) fn gateway_changed(app: &mut App) -> Task<Message> {
         },
         ..Default::default()
     };
-    if app.system_settings_tab == crate::app::components::system_settings::SystemTab::Worktrees {
+    if app.navigation_panels.system_settings_tab == crate::app::components::system_settings::SystemTab::Worktrees {
         update(app, WorktreeSettingsMessage::Refresh)
     } else {
         Task::none()

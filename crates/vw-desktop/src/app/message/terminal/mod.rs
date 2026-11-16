@@ -17,7 +17,7 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         &mut app.terminal,
         &mut app.terminal_config_persistence,
         &app.app_theme,
-        app.project_path.as_deref(),
+        app.navigation_tabs.project_path.as_deref(),
         app.desktop_locale,
         app.cursor_position.y,
         &mut focused,
@@ -36,7 +36,7 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         tasks.push(match effect {
             #[cfg(not(target_arch = "wasm32"))]
             Effect::Focus => {
-                for tab in &mut app.preview_tabs {
+                for tab in &mut app.navigation_tabs.preview_tabs {
                     tab.editor.inner.lose_focus();
                 }
                 Task::none()

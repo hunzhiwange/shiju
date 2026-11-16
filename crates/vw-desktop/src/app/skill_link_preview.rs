@@ -11,7 +11,7 @@ pub(crate) fn handoff(app: &mut App, id: u64) -> Task<Message> {
     if app.skills_settings.repositories.open {
         return app.show_error_toast("请先关闭仓库管理弹窗");
     }
-    let Some(directory) = app.project_path.clone() else {
+    let Some(directory) = app.navigation_tabs.project_path.clone() else {
         return app.show_error_toast("请先打开项目，再预览技能链接");
     };
     let request = match parse(&link.url, directory, app.apps_catalog.host.clone()) {
@@ -32,7 +32,7 @@ pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
     use crate::app::components::system_settings_common::*;
     let Some(link) = pending() else { return base };
     let close = Message::Settings(SettingsMessage::General(GeneralSettingsMessage::SkillLinkRejected(link.id)));
-    let parsed = parse(&link.url, app.project_path.clone().unwrap_or_default(), app.apps_catalog.host.clone());
+    let parsed = parse(&link.url, app.navigation_tabs.project_path.clone().unwrap_or_default(), app.apps_catalog.host.clone());
     let valid = parsed.is_ok();
     let error = parsed.as_ref().err().map(|error| error.to_string());
     let content = desktop_platform::skill_link_preview::body(parsed).map(|_| unreachable!());
@@ -40,7 +40,7 @@ pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
     let body = if let Some(error) = error { body.push(settings_error_banner(error)) } else { body };
     let footer = row![
         button("继续确认仓库").padding([8, 10]).style(primary_action_btn_style)
-            .on_press_maybe((valid && app.project_path.is_some() && !app.skills_settings.repositories.open)
+            .on_press_maybe((valid && app.navigation_tabs.project_path.is_some() && !app.skills_settings.repositories.open)
                 .then_some(Message::Settings(SettingsMessage::General(GeneralSettingsMessage::SkillLinkPreview(link.id))))),
         button("拒绝链接").padding([8, 10]).style(rounded_action_btn_style).on_press(close.clone()),
     ].spacing(8);

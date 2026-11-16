@@ -32,7 +32,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
  _ => return Task::none(),
  };
  let mut input = domain::Update {
- endpoint: gateway_client_endpoint(), project_path: app.project_path.clone(),
+ endpoint: gateway_client_endpoint(), project_path: app.navigation_tabs.project_path.clone(),
  desktop_preferences_persistence: &mut app.desktop_preferences_persistence,
  dialogue_flow_permission_editor: &mut app.dialogue_flow_permission_editor,
  dialogue_flow_show_reasoning_summary: &mut app.dialogue_flow_show_reasoning_summary,

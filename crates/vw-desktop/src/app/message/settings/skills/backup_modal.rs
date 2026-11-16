@@ -15,7 +15,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             if restored {
                 app.skills_settings.install.inventory = None;
                 if app.skills_settings.install.open { tasks.push(super::install_view::update(app, super::install_view::Event::Refresh)); }
-                tasks.push(super::refresh_task(app.project_path.clone()));
+                tasks.push(super::refresh_task(app.navigation_tabs.project_path.clone()));
             }
             Task::batch(tasks)
         }

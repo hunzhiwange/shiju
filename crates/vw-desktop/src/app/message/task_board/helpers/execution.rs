@@ -11,7 +11,7 @@ pub(crate) fn flush_running_task_logs_throttled(
     force: bool,
     tick_started_at: web_time::Instant,
 ) {
-    let project_path = app.project_path.clone();
+    let project_path = app.navigation_tabs.project_path.clone();
     let mut logs = desktop_task_board::helpers::logs::TaskLogsState {
         task_board_logs_editor: &mut app.task_board_logs_editor,
         task_board_logs_auto_scroll: &mut app.task_board_logs_auto_scroll,
@@ -397,7 +397,7 @@ pub(crate) fn maybe_schedule_worktree_snapshot_refresh(
 ) -> iced::Task<crate::app::Message> {
     use crate::app::Message;
 
-    let project_path = app.project_path.clone();
+    let project_path = app.navigation_tabs.project_path.clone();
     let expanded = app.task_board_worktree_panel_expanded;
     if !snapshot_state(app).request(project_path.as_deref(), expanded, force, now_ms()) {
         return iced::Task::none();
@@ -438,7 +438,7 @@ pub(crate) fn recycle_assigned_task_worktree_for_removal(
     app: &crate::app::App,
     task_id: &str,
 ) -> iced::Task<crate::app::Message> {
-    let Some(project_path) = &app.project_path else {
+    let Some(project_path) = &app.navigation_tabs.project_path else {
         return iced::Task::none();
     };
 

@@ -33,13 +33,13 @@ async fn installer_update_linux_authorizes_install_and_allows_retry() {
     let _ = app.update(Message::View(ViewMessage::OpenAppUpdateModal));
     app.desktop_update.busy = true;
     let _ = app.update(Message::View(ViewMessage::AppUpdatePrepared(Ok(ready.clone()))));
-    assert!(app.cli_install_modal_message.contains("Ubuntu/Debian"));
-    assert!(app.cli_install_modal_message.contains("DEB"));
+    assert!(app.update_panel.cli_install_modal_message.contains("Ubuntu/Debian"));
+    assert!(app.update_panel.cli_install_modal_message.contains("DEB"));
 
     let error = "无法启动自动更新：authorization unavailable";
     app.desktop_update.busy = true;
     let _ = app.update(Message::View(ViewMessage::AppUpdateFinished(Err(error.to_string()))));
-    assert_eq!(app.cli_install_modal_title, "自动更新启动失败");
+    assert_eq!(app.update_panel.cli_install_modal_title, "自动更新启动失败");
     assert!(app.active_toast.is_some());
     assert!(!app.desktop_update.busy);
     assert!(!app.shutdown_requested);
@@ -101,8 +101,8 @@ async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
     let _ = app.update(Message::View(ViewMessage::OpenAppUpdateModal));
     app.desktop_update.busy = true;
     let _ = app.update(Message::View(ViewMessage::AppUpdatePrepared(Ok(ready.clone()))));
-    assert_eq!(app.cli_install_modal_title, "安装包已就绪");
-    assert!(app.cli_install_modal_message.contains(ready.path().to_str().unwrap()));
+    assert_eq!(app.update_panel.cli_install_modal_title, "安装包已就绪");
+    assert!(app.update_panel.cli_install_modal_message.contains(ready.path().to_str().unwrap()));
     let _ = app.update(Message::View(ViewMessage::CloseInstallCliModal));
     let _ = app.update(Message::View(ViewMessage::OpenAppUpdateModal));
     assert_eq!(app.desktop_update.ready.as_ref().unwrap().path(), ready.path());
@@ -112,9 +112,9 @@ async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
     std::fs::write(ready.path(), b"tampered").unwrap();
     let task = app.update(Message::View(ViewMessage::OpenAppInstaller));
     assert!(app.desktop_update.busy);
-    assert!(app.cli_install_modal_is_checking_update);
-    assert_eq!(app.cli_install_modal_title, "更新中…");
-    assert!(app.cli_install_modal_message.contains("正在校验安装包"));
+    assert!(app.update_panel.cli_install_modal_is_checking_update);
+    assert_eq!(app.update_panel.cli_install_modal_title, "更新中…");
+    assert!(app.update_panel.cli_install_modal_message.contains("正在校验安装包"));
     let duplicate = app.update(Message::View(ViewMessage::OpenAppInstaller));
     assert_eq!(duplicate.units(), 0);
     let mut stream = iced_runtime::task::into_stream(task).unwrap();
@@ -131,11 +131,11 @@ async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
         _ => panic!("tampered installer must fail before opening"),
     }
     assert!(!app.desktop_update.busy);
-    assert!(!app.cli_install_modal_is_checking_update);
+    assert!(!app.update_panel.cli_install_modal_is_checking_update);
     assert!(!app.shutdown_requested);
-    assert_eq!(app.cli_install_modal_title, "自动更新启动失败");
+    assert_eq!(app.update_panel.cli_install_modal_title, "自动更新启动失败");
     assert!(app.active_toast.is_some());
-    assert!(app.cli_install_modal_message.contains(ready.path().to_str().unwrap()));
+    assert!(app.update_panel.cli_install_modal_message.contains(ready.path().to_str().unwrap()));
     assert!(app.desktop_update.ready.is_some());
 
     // Retry the same retained file with an injected opener; never touch the system installer.
@@ -145,8 +145,8 @@ async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
     app.main_window_id = Some(iced::window::Id::unique());
     let _ = app.update(Message::View(ViewMessage::AppUpdateFinished(Ok(message))));
     assert!(app.shutdown_requested);
-    assert_eq!(app.cli_install_modal_title, "安装包已就绪");
-    assert!(!app.cli_install_modal_message.contains("更新完成"));
+    assert_eq!(app.update_panel.cli_install_modal_title, "安装包已就绪");
+    assert!(!app.update_panel.cli_install_modal_message.contains("更新完成"));
     assert!(ready.path().exists());
 
     // Draw every loading frame and the ready/retry controls in both themes.
@@ -166,11 +166,11 @@ async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
         (InstallerKind::Deb, iced::Theme::Light),
     ] {
         let (_root, ready) = fixture(kind);
-        app.cli_install_modal_message = ready.instructions();
+        app.update_panel.cli_install_modal_message = ready.instructions();
         app.desktop_update.ready = Some(ready);
         for frame in 0..=10 {
             app.desktop_update.busy = frame < 10;
-            app.cli_install_modal_is_checking_update = app.desktop_update.busy;
+            app.update_panel.cli_install_modal_is_checking_update = app.desktop_update.busy;
             app.status_animation_frame = frame;
             let mut element = crate::app::components::install_cli_modal::view_app_update(&app);
             let viewport = iced::Rectangle::with_size(iced::Size::new(960.0, 900.0));

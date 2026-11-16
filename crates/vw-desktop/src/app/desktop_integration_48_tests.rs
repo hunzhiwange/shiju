@@ -16,7 +16,7 @@ fn desktop_integration_48_preserves_expected_behavior() {
     app.desktop_update.release = Some(release.clone());
     let _ = view::update(&mut app, ViewMessage::RunAppUpdate);
     let (sender, receiver) = std::sync::mpsc::channel();
-    app.app_update_progress_rx = Some(receiver);
+    app.update_panel.app_update_progress_rx = Some(receiver);
     let mut progress = UpdateProgress {
         asset_name: "installer.dmg".into(),
         download_url: "https://example.invalid/installer.dmg".into(),
@@ -27,7 +27,7 @@ fn desktop_integration_48_preserves_expected_behavior() {
     };
     sender.send(progress.clone()).unwrap();
     let _ = view::update(&mut app, ViewMessage::AppUpdateProgressTick);
-    assert_eq!(app.app_update_progress, Some(progress.clone()));
+    assert_eq!(app.update_panel.app_update_progress, Some(progress.clone()));
     // Completion can beat the next tick, including a queue longer than its 48-event budget.
     for bytes in 18..=80 {
         progress.downloaded_bytes = bytes;
@@ -35,14 +35,14 @@ fn desktop_integration_48_preserves_expected_behavior() {
     }
     drop(sender);
     let _ = view::update(&mut app, ViewMessage::AppUpdatePrepared(Err("connection lost".into())));
-    assert_eq!(app.app_update_progress, Some(progress));
+    assert_eq!(app.update_panel.app_update_progress, Some(progress));
     assert!(!app.desktop_update.busy);
-    assert!(app.app_update_progress_rx.is_none());
-    assert!(app.cli_install_modal_show_install_action);
+    assert!(app.update_panel.app_update_progress_rx.is_none());
+    assert!(app.update_panel.cli_install_modal_show_install_action);
     assert_eq!(app.desktop_update.release, Some(release));
     let retry = view::update(&mut app, ViewMessage::RunAppUpdate);
     assert!(retry.units() > 0);
     assert!(app.desktop_update.busy);
-    assert!(app.app_update_progress.is_none());
-    assert!(app.app_update_progress_rx.is_some());
+    assert!(app.update_panel.app_update_progress.is_none());
+    assert!(app.update_panel.app_update_progress_rx.is_some());
 }

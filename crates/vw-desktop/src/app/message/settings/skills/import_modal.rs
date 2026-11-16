@@ -12,7 +12,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     match reduce(&mut app.skills_settings.import, &input, event) {
         Effect::None => Task::none(),
         Effect::Error(error) => app.show_error_toast(error),
-        Effect::Refresh => super::refresh_task(app.project_path.clone()),
+        Effect::Refresh => super::refresh_task(app.navigation_tabs.project_path.clone()),
         Effect::Request { generation, project, host, apps, selected } => {
             let token = app.apps_catalog.token.clone();
             Task::perform(crate::app::session_gateway::gateway_skills_import_request(

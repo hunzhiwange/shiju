@@ -17,16 +17,16 @@ pub(super) fn action(label: &str, message: ViewMessage) -> Element<'_, Message> 
 }
 
 pub fn view(app: &App) -> Element<'_, Message> {
-    let title = if app.show_system_settings { "设置" } else { "会话" };
+    let title = if app.navigation_panels.show_system_settings { "设置" } else { "会话" };
     let header = row![action("返回", ViewMessage::MobileBack),
         container(text(title)).width(Length::Fill).center_x(Length::Fill),
         action("项目", ViewMessage::MobileDrawerToggled)].spacing(4);
     let layouts = layout_selector(app);
     let content = if app.mobile_layout.drawer_open {
         navigation::view(app)
-    } else if app.show_system_settings {
+    } else if app.navigation_panels.show_system_settings {
         settings::view(app)
-    } else if matches!(app.screen, Screen::Home | Screen::Project) {
+    } else if matches!(app.navigation_tabs.screen, Screen::Home | Screen::Project) {
         chat::view(app)
     } else {
         column![text("此工具尚未适配手机，请切换桌面布局使用。"),

@@ -25,7 +25,7 @@ fn persist_result_task_via_gateway(
 
 pub(super) fn update(app: &mut crate::app::App, message: TaskBoardMessage) -> iced::Task<Message> {
     let mut state = ResultState {
-        project_path: &mut app.project_path,
+        project_path: &mut app.navigation_tabs.project_path,
         task_board_tasks: &mut app.task_board_tasks,
         task_board_executor: &mut app.task_board_executor,
         task_board_settings: &mut app.task_board_settings,

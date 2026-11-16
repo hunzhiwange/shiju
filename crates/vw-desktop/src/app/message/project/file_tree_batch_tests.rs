@@ -5,7 +5,7 @@ use iced::keyboard::Modifiers;
 
 fn selected_app() -> App {
     let mut app = App::new().0;
-    app.project_path = Some("/project".into());
+    app.navigation_tabs.project_path = Some("/project".into());
     app.set_file_index("/project", vec!["/project/a.txt".into(), "/project/z.txt".into()]);
     for path in ["/project/z.txt", "/project/a.txt"] {
         let _ = super::super::handle(
@@ -123,7 +123,7 @@ fn partial_delete_completion_only_clears_successful_selection_in_original_projec
         app.file_tree_interaction.file_tree_selection.paths.iter().cloned().collect::<Vec<_>>(),
         ["/project/z.txt"]
     );
-    app.project_path = Some("/other".into());
+    app.navigation_tabs.project_path = Some("/other".into());
     let selection = app.file_tree_interaction.file_tree_selection.paths.clone();
     let _ = super::super::handle(&mut app, complete);
     assert_eq!(app.file_tree_interaction.file_tree_selection.paths, selection);
@@ -229,7 +229,7 @@ async fn batch_delete_http_attempts_every_root_once_and_reports_partial_failure(
         deletes
     });
     let mut app = App::new().0;
-    app.project_path = Some(root.clone());
+    app.navigation_tabs.project_path = Some(root.clone());
     let paths = ["src", "src/a.txt", "b.txt", "c.txt"].map(|path| format!("{root}/{path}"));
     app.files = paths[1..].to_vec();
     app.file_tree_interaction.file_tree_pending_delete = Some((root.clone(), paths.to_vec()));

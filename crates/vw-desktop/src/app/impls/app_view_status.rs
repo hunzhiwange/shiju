@@ -6,7 +6,7 @@ pub(crate) use desktop_navigation::status_bar::STATUS_BAR_HEIGHT;
 pub(super) fn status_bar(app: &App) -> Element<'_, Message> {
     #[cfg(not(target_arch = "wasm32"))]
     let lsp_content = desktop_editor::status_bar::lsp_content(
-        app.active_preview_path.as_deref(), &app.preview_tabs, &app.lsp_progress,
+        app.navigation_tabs.active_preview_path.as_deref(), &app.navigation_tabs.preview_tabs, &app.lsp_progress,
         app.spinner_frame, app.desktop_locale, crate::app::i18n::editor::lsp_status(app),
     );
     #[cfg(target_arch = "wasm32")]

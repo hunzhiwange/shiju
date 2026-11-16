@@ -39,9 +39,9 @@ fn keep(element: iced::Element<'_, Message>) {
 #[test]
 fn view_builds_project_preview_with_tabs_and_content() {
     let mut app = app();
-    app.screen = Screen::Project;
-    app.active_preview_path = Some("/tmp/main.rs".to_string());
-    app.preview_tabs = vec![tab("/tmp/main.rs", None)];
+    app.navigation_tabs.screen = Screen::Project;
+    app.navigation_tabs.active_preview_path = Some("/tmp/main.rs".to_string());
+    app.navigation_tabs.preview_tabs = vec![tab("/tmp/main.rs", None)];
 
     keep(view(&app));
 }
@@ -49,7 +49,7 @@ fn view_builds_project_preview_with_tabs_and_content() {
 #[test]
 fn app_view_builds_preview_settings_overlay_when_enabled() {
     let mut app = app();
-    app.screen = Screen::Preview;
+    app.navigation_tabs.screen = Screen::Preview;
     app.show_preview_settings = true;
 
     keep(app.view());
@@ -58,7 +58,7 @@ fn app_view_builds_preview_settings_overlay_when_enabled() {
 #[test]
 fn view_builds_changes_layout_without_preview_header() {
     let mut app = app();
-    app.screen = Screen::Project;
+    app.navigation_tabs.screen = Screen::Project;
     app.file_manager.file_manager_show_changes = true;
 
     keep(view(&app));
@@ -67,8 +67,8 @@ fn view_builds_changes_layout_without_preview_header() {
 #[test]
 fn view_builds_preview_without_an_active_file() {
     let mut app = app();
-    app.screen = Screen::Preview;
-    app.active_preview_path = None;
+    app.navigation_tabs.screen = Screen::Preview;
+    app.navigation_tabs.active_preview_path = None;
     app.file_manager.file_manager_show_changes = false;
 
     keep(view(&app));
@@ -77,9 +77,9 @@ fn view_builds_preview_without_an_active_file() {
 #[test]
 fn view_builds_breadcrumb_when_active_file_has_no_matching_tab() {
     let mut app = app();
-    app.screen = Screen::Project;
-    app.project_path = Some("/tmp/project".to_string());
-    app.active_preview_path = Some("/tmp/project/src/missing.rs".to_string());
+    app.navigation_tabs.screen = Screen::Project;
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.active_preview_path = Some("/tmp/project/src/missing.rs".to_string());
 
     keep(view(&app));
 }
@@ -98,7 +98,7 @@ fn view_builds_context_menu_with_and_without_anchor() {
 #[test]
 fn view_builds_fullscreen_exit_controls() {
     let mut app = app();
-    app.screen = Screen::Project;
+    app.navigation_tabs.screen = Screen::Project;
     app.git.git_diff_fullscreen = true;
 
     keep(view(&app));
@@ -107,7 +107,7 @@ fn view_builds_fullscreen_exit_controls() {
 #[test]
 fn preview_fullscreen_controls_only_show_in_code_mode() {
     let mut app = app();
-    app.screen = Screen::Project;
+    app.navigation_tabs.screen = Screen::Project;
 
     app.navigation_mode.workspace_mode = WorkspaceMode::Code;
     assert!(show_fullscreen_controls(&app));
@@ -122,10 +122,10 @@ fn active_preview_lsp_badge_requires_matching_active_tab() {
     let mut app = app();
     assert!(super::active_preview_lsp_badge(&app).is_none());
 
-    app.active_preview_path = Some("/tmp/main.rs".to_string());
+    app.navigation_tabs.active_preview_path = Some("/tmp/main.rs".to_string());
     assert!(super::active_preview_lsp_badge(&app).is_none());
 
-    app.preview_tabs = vec![tab("/tmp/main.rs", Some("rust-analyzer"))];
+    app.navigation_tabs.preview_tabs = vec![tab("/tmp/main.rs", Some("rust-analyzer"))];
     assert!(super::active_preview_lsp_badge(&app).is_some());
 }
 
@@ -133,8 +133,8 @@ fn active_preview_lsp_badge_requires_matching_active_tab() {
 #[test]
 fn active_preview_lsp_badge_builds_working_state_from_progress() {
     let mut app = app();
-    app.active_preview_path = Some("/tmp/main.rs".to_string());
-    app.preview_tabs = vec![tab("/tmp/main.rs", Some("rust-analyzer"))];
+    app.navigation_tabs.active_preview_path = Some("/tmp/main.rs".to_string());
+    app.navigation_tabs.preview_tabs = vec![tab("/tmp/main.rs", Some("rust-analyzer"))];
     app.lsp_progress.insert(
         "rust-analyzer".to_string(),
         std::collections::HashMap::from([(

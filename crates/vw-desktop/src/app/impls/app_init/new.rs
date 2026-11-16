@@ -250,7 +250,6 @@ impl App {
         let mut app = Self {
             git: desktop_git_ui::state::State::new(cfg_show_git_diff_summary, cfg_show_git_diff_highlight),
             // ========== 基础状态 ==========
-            screen: Screen::Home,
             #[cfg(not(target_arch = "wasm32"))]
             startup_state: state::NativeStartupState::Starting,
             #[cfg(not(target_arch = "wasm32"))]
@@ -294,6 +293,86 @@ impl App {
                 work_sidebar_width: 292.0,
                 work_split_drag_start_ratio: 0.6,
             },
+            popover_visibility: Default::default(),
+            navigation_panels: desktop_navigation::panel::settings::State {
+                show_settings: cfg_show_settings,
+                settings_tab: SettingsTab::Sessions,
+                show_system_settings: false,
+                system_settings_tab: components::system_settings::SystemTab::General,
+                system_settings_help_tab: None,
+                active_menu: None,
+                show_about_modal: false,
+                auto_max_mode: cfg_auto_max_mode,
+                show_diff: true,
+                top_bar_gateway_tab: super::state::TopBarGatewayTab::default(),
+                cli_commands_tab: Default::default(),
+            },
+            usage_panel: desktop_usage::panel::State {
+                usage_model_info: None,
+                usage_step_expanded: std::collections::HashSet::new(),
+                usage_step_raw_payloads: std::collections::HashMap::new(),
+                usage_step_raw_loading: std::collections::HashSet::new(),
+                usage_step_raw_modal: None,
+            },
+            update_panel: desktop_update::panel::PanelState {
+                show_cli_install_modal: false,
+                cli_install_modal_title: String::new(),
+                cli_install_modal_message: String::new(),
+                cli_install_modal_current_version: String::new(),
+                cli_install_modal_server_version: String::new(),
+                cli_install_modal_show_update_action: false,
+                cli_install_modal_show_install_action: false,
+                cli_install_modal_use_app_update_action: false,
+                cli_install_modal_is_checking_update: false,
+                app_update_progress: None,
+                app_update_progress_rx: None,
+            },
+            navigation_tabs: desktop_navigation::panel::tabs::State {
+                apps_search_query: String::new(),
+                project_path: None,
+                project_preview_tabs: HashMap::new(),
+                preview_tabs: Vec::new(),
+                project_preview_active_path: HashMap::new(),
+                active_preview_path: None,
+                screen: Screen::Home,
+                active_tab_id: Some("home".to_string()),
+                preview_tab_menu_path: None,
+                preview_tab_menu_pos: None,
+                home_apps_bar_scroll_x: 0.0,
+                home_apps_bar_scroll_id: iced::widget::Id::new("home_apps_bar"),
+                open_tabs: vec![AppTab {
+                    id: "home".to_string(),
+                    title: "首页".to_string(),
+                    screen: Screen::Home,
+                    project_path: None,
+                }],
+                hovered_tab_id: None,
+            },
+            companion_navigation: desktop_navigation::panel::companion::State {
+                task_pet_visible: false,
+                task_pet_robot_hovered: false,
+                task_pet_context_menu_pos: None,
+            },
+            web_navigation: desktop_apps_ui::web::State {
+                web_bookmarks: cfg_web_bookmarks,
+                #[cfg(not(target_arch = "wasm32"))]
+                independent_webview_children: Vec::new(),
+                show_web_links_menu: false,
+                web_bookmark_title_input: String::new(),
+                web_bookmark_url_input: String::new(),
+                web_bookmark_width_input: String::new(),
+                web_bookmark_height_input: String::new(),
+                editing_web_bookmark: None,
+                edit_web_bookmark_title_input: String::new(),
+                edit_web_bookmark_url_input: String::new(),
+                edit_web_bookmark_width_input: String::new(),
+                edit_web_bookmark_height_input: String::new(),
+                edit_web_bookmark_cookie_configs_editor: iced::widget::text_editor::Content::new(),
+            },
+            external_navigation: desktop_navigation::panel::external::State {
+                open_external_app,
+                open_external_exists,
+            },
             navigation_sidebar: desktop_navigation::panel::work_sidebar::State {
                 work_sidebar_visible_tasks: state::WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS,
                 work_sidebar_visible_spaces: state::WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS,
@@ -315,7 +394,6 @@ impl App {
             work_browser: state::WorkBrowserState::default(),
             #[cfg(not(target_arch = "wasm32"))]
             work_browser_controller: crate::app::webview_runtime::WorkBrowserController::default(),
-            project_path: None,
             project_is_git_repo: false,
             project_id: None,
             project_path_input: String::new(),
@@ -390,12 +468,7 @@ impl App {
             trajectory_raw_loading: std::collections::HashSet::new(),
             trajectory_raw_attempts: std::collections::HashMap::new(),
             trajectory_raw_errors: std::collections::HashMap::new(),
-            usage_model_info: None,
             usage_center: Default::default(),
-            usage_step_expanded: std::collections::HashSet::new(),
-            usage_step_raw_payloads: std::collections::HashMap::new(),
-            usage_step_raw_loading: std::collections::HashSet::new(),
-            usage_step_raw_modal: None,
 
             // ========== 文件和分支管理 ==========
             project_updated_at_ms: None,
@@ -415,25 +488,10 @@ impl App {
             startup_resize_checked: false,
 
             // ========== 设置面板 ==========
-            show_settings: cfg_show_settings,
             settings_sidebar_collapsed: false,
-            show_system_settings: false,
-            show_about_modal: false,
-            show_cli_install_modal: false,
             #[cfg(not(target_arch = "wasm32"))]
             web_install: Default::default(),
-            cli_install_modal_title: String::new(),
-            cli_install_modal_message: String::new(),
-            cli_install_modal_current_version: String::new(),
-            cli_install_modal_server_version: String::new(),
-            cli_install_modal_show_update_action: false,
-            cli_install_modal_show_install_action: false,
-            cli_install_modal_use_app_update_action: false,
-            cli_install_modal_is_checking_update: false,
-            cli_commands_tab: Default::default(),
             desktop_update: crate::app::desktop_update::DesktopUpdate::from_config(&cfg),
-            app_update_progress: None,
-            app_update_progress_rx: None,
             question_modal_request_id: None,
             question_modal_request: None,
             question_modal_answers: vec![],
@@ -441,10 +499,7 @@ impl App {
             permission_modal_request_id: None,
             permission_modal_request: None,
             permission_modal_requests: vec![],
-            active_menu: None,
-            open_external_app,
             open_external_platform,
-            open_external_exists,
 
             // ========== 面板拖拽和尺寸 ==========
             file_manager: desktop_workspace::file_manager::FileManagerState {
@@ -455,19 +510,8 @@ impl App {
             status_animation_frame: 0,
 
             // ========== 弹出菜单和Popover ==========
-            show_model_popover: false,
-            show_mode_popover: false,
-            show_send_mode_popover: false,
-            show_file_popover: false,
-            show_acp_popover: false,
-            show_reasoning_effort_popover: false,
-            show_usage_popover: false,
-            show_session_tool_selector_popover: false,
-            show_session_actions_popover: false,
-            show_executor_popover: false,
             session_title_last_click: None,
             model_popover_hover: None,
-            auto_max_mode: cfg_auto_max_mode,
             last_call_log_path: None,
             last_session_snapshot_path: None,
 
@@ -507,9 +551,6 @@ impl App {
             task_pet_scale: 1.0,
             task_pet_size_draft: None,
             task_pet_size_pending: None,
-            task_pet_visible: false,
-            task_pet_robot_hovered: false,
-            task_pet_context_menu_pos: None,
             task_pet_items: Vec::new(),
             task_pet_hovered_request_id: None,
             task_pet_reply_request_id: None,
@@ -526,8 +567,6 @@ impl App {
             slash_palette_scroll_id: iced::widget::Id::new("slash_palette"),
             preview_scroll_id: iced::widget::Id::new("preview"),
             preview_tabs_scroll_id: iced::widget::Id::new("preview_tabs"),
-            home_apps_bar_scroll_x: 0.0,
-            home_apps_bar_scroll_id: iced::widget::Id::new("home_apps_bar"),
 
             // ========== 光标和窗口位置 ==========
             cursor_position: iced::Point::ORIGIN,
@@ -612,7 +651,6 @@ impl App {
             project_editor: Default::default(),
 
             // ========== Diff和终端 ==========
-            show_diff: true,
             terminal_config_persistence: Default::default(),
             terminal: TerminalState::new(
                 cfg_show_terminal,
@@ -644,14 +682,10 @@ impl App {
             // ========== Git状态 ==========
 
             // ========== 设置标签页 ==========
-            settings_tab: SettingsTab::Sessions,
-            system_settings_tab: components::system_settings::SystemTab::General,
             general_settings_tab: super::state::GeneralSettingsTab::default(),
             archived_chats: super::state::ArchivedChatsState::default(),
             worktree_settings: super::settings_builders::build_worktree_settings(),
             system_settings_query: String::new(),
-            system_settings_help_tab: None,
-            top_bar_gateway_tab: super::state::TopBarGatewayTab::default(),
             provider_settings: super::state::ProviderSettingsState::default(),
             model_settings: super::state::ModelSettingsState::default(),
             embedding_routes_settings: settings::build_embedding_routes_settings(
@@ -772,12 +806,6 @@ impl App {
             file_ref_hovered_index: None,
 
             // ========== 预览标签页 ==========
-            preview_tabs: Vec::new(),
-            active_preview_path: None,
-            project_preview_tabs: HashMap::new(),
-            project_preview_active_path: HashMap::new(),
-            preview_tab_menu_path: None,
-            preview_tab_menu_pos: None,
 
             // ========== LSP状态（仅非WASM平台） ==========
             #[cfg(not(target_arch = "wasm32"))]
@@ -835,30 +863,9 @@ impl App {
             knowledge: super::state::KnowledgeUiState::default(),
             workflow_state: crate::apps::workflow::state::WorkflowState::default(),
             // ========== 标签页管理 ==========
-            active_tab_id: Some("home".to_string()),
-            hovered_tab_id: None,
             hovered_recent_project: None,
-            open_tabs: vec![AppTab {
-                id: "home".to_string(),
-                title: "首页".to_string(),
-                screen: Screen::Home,
-                project_path: None,
-            }],
-            apps_search_query: String::new(),
-            web_bookmarks: cfg_web_bookmarks,
 
             // ========== Web书签编辑 ==========
-            show_web_links_menu: false,
-            web_bookmark_title_input: String::new(),
-            web_bookmark_url_input: String::new(),
-            web_bookmark_width_input: String::new(),
-            web_bookmark_height_input: String::new(),
-            editing_web_bookmark: None,
-            edit_web_bookmark_title_input: String::new(),
-            edit_web_bookmark_url_input: String::new(),
-            edit_web_bookmark_width_input: String::new(),
-            edit_web_bookmark_height_input: String::new(),
-            edit_web_bookmark_cookie_configs_editor: iced::widget::text_editor::Content::new(),
 
             // ========== 通知系统 ==========
             notifications: Vec::new(),
@@ -1007,8 +1014,6 @@ impl App {
             task_board_edit_submit_success: false,
 
             // ========== 独立WebView子窗口（仅非WASM平台） ==========
-            #[cfg(not(target_arch = "wasm32"))]
-            independent_webview_children: Vec::new(),
         };
 
         if let Some(runtime) = app.session_runtime_states.get_mut("__empty__") {

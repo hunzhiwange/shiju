@@ -1,6 +1,7 @@
-use super::*;
-use crate::app::desktop_update::SkippedRelease;
 use desktop_release::{DesktopRelease, UpdateSource};
+use desktop_update::app::desktop_update::SkippedRelease;
+use desktop_update::{app::desktop_update::DesktopUpdate, notifications as domain};
+use domain::Message as ViewMessage;
 
 fn release(version: &str) -> DesktopRelease {
     DesktopRelease { source: UpdateSource::Shiju, version: version.into(), assets: vec![] }
@@ -8,7 +9,7 @@ fn release(version: &str) -> DesktopRelease {
 
 #[test]
 fn automatic_update_is_silent_preserves_results_on_failure_and_rejects_stale_replies() {
-    let mut app = App::new().0;
+    let mut app = NotificationFixture::default();
     let _ = update(&mut app, ViewMessage::AutoCheckAppUpdate);
     let request = app.desktop_update.request;
     let _ = update(&mut app, ViewMessage::AutoCheckAppUpdate);
@@ -22,7 +23,7 @@ fn automatic_update_is_silent_preserves_results_on_failure_and_rejects_stale_rep
         ),
     );
     assert!(app.desktop_update.notification_release().is_some());
-    assert!(!app.show_cli_install_modal);
+    assert!(!app.update_panel.show_cli_install_modal);
     let _ = update(&mut app, ViewMessage::AutoCheckAppUpdate);
     let request = app.desktop_update.request;
     let _ = update(
@@ -49,11 +50,9 @@ fn automatic_update_is_silent_preserves_results_on_failure_and_rejects_stale_rep
     assert!(app.desktop_update.background_request.is_none());
 }
 
-
-
 #[test]
 fn skip_only_hides_notification_after_successful_save() {
-    let mut app = App::new().0;
+    let mut app = NotificationFixture::default();
     app.desktop_update.release = Some(release("99.0.0"));
     let _ = update(&mut app, ViewMessage::SkipAppUpdate);
     assert!(app.desktop_update.saving_skip);
@@ -69,7 +68,7 @@ fn skip_only_hides_notification_after_successful_save() {
 
 #[test]
 fn automatic_update_does_not_interrupt_manual_update_or_installation() {
-    let mut app = App::new().0;
+    let mut app = NotificationFixture::default();
     app.desktop_update.checking = true;
     let _ = update(&mut app, ViewMessage::AutoCheckAppUpdate);
     assert!(app.desktop_update.background_request.is_none());
@@ -77,4 +76,21 @@ fn automatic_update_does_not_interrupt_manual_update_or_installation() {
     app.desktop_update.busy = true;
     let _ = update(&mut app, ViewMessage::AutoCheckAppUpdate);
     assert!(app.desktop_update.background_request.is_none());
+}
+
+#[derive(Default)]
+struct NotificationFixture {
+    desktop_update: DesktopUpdate,
+    update_panel: desktop_update::panel::PanelState,
+}
+fn update(
+    app: &mut NotificationFixture,
+    message: domain::Message,
+) -> (iced::Task<domain::Message>, Option<domain::Effect>) {
+    domain::update(
+        &mut app.desktop_update,
+        app.update_panel.show_cli_install_modal,
+        env!("CARGO_PKG_VERSION"),
+        message,
+    )
 }

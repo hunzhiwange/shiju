@@ -6,7 +6,7 @@ fn wake_agent_scheduler_after_registering_pending(
     app: &crate::app::App,
     mapper: fn(Result<AgentSchedulerWakeResponse, String>) -> TaskBoardMessage,
 ) -> iced::Task<crate::app::Message> {
-    let Some(project_path) = app.project_path.clone() else {
+    let Some(project_path) = app.navigation_tabs.project_path.clone() else {
         return iced::Task::none();
     };
     if let Some(error) = taskboard::update::execution::agent_scheduler_lifecycle_error(&app.task_board_settings.workflow_id) {
@@ -48,7 +48,7 @@ pub(super) fn update(app: &mut crate::app::App, message: TaskBoardMessage) -> ic
     }
     let deadline = next_deadline_ms(scheduler_tick_interval_secs(app));
     let mut state = ExecutionState {
-        project_path: &mut app.project_path,
+        project_path: &mut app.navigation_tabs.project_path,
         task_board_settings: &mut app.task_board_settings,
         task_board_tasks: &mut app.task_board_tasks,
         task_board_executor: &mut app.task_board_executor,

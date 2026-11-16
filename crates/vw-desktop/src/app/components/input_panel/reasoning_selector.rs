@@ -6,7 +6,7 @@ fn input(app: &App) -> domain::ReasoningInput<'_> {
     domain::ReasoningInput {
         providers: &app.model_settings.providers,
         model: app.current_session_runtime_ref().map(|r| r.model.as_str()).unwrap_or(&app.model),
-        expanded: app.show_reasoning_effort_popover,
+        expanded: app.popover_visibility.reasoning_effort,
         i18n: crate::app::i18n::I18n::new(app.desktop_locale),
         session_id: app.active_session_id.as_deref(),
     }

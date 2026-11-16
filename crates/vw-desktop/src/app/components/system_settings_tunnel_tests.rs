@@ -18,7 +18,7 @@ async fn help_rollout_17_renders_contextual_help() {
     }
     let mut renderer = renderer().await;
     let mut app = test_app();
-    app.system_settings_tab = SystemTab::Tunnel;
+    app.navigation_panels.system_settings_tab = SystemTab::Tunnel;
     app.tunnel_settings.save_error = Some("Fixture tunnel connection failed".into());
     app.tunnel_settings.custom_start_command = "fixture-tunnel {port}".into();
 

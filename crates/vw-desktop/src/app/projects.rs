@@ -287,7 +287,7 @@ impl App {
 
     /// 切换工作模式空间，并把当前聊天作为新空间中的未提交会话继续保留。
     pub fn switch_work_space_preserving_chat(&mut self, path: String) -> Task<Message> {
-        if self.project_path.as_deref() == Some(path.as_str()) {
+        if self.navigation_tabs.project_path.as_deref() == Some(path.as_str()) {
             return Task::none();
         }
 
@@ -342,31 +342,31 @@ impl App {
     pub fn open_project(&mut self, path: String) -> Task<Message> {
         self.session_view_cache.navigation_generation += 1;
         // 如果 Apps 中间页标签存在，则移除
-        if let Some(pos) = self.open_tabs.iter().position(|t| t.id == "apps") {
-            self.open_tabs.remove(pos);
+        if let Some(pos) = self.navigation_tabs.open_tabs.iter().position(|t| t.id == "apps") {
+            self.navigation_tabs.open_tabs.remove(pos);
         }
         // 创建或切换到项目标签页
         let (tab_id, title) = desktop_workspace::projects::project_tab(&path);
-        if !self.open_tabs.iter().any(|t| t.id == tab_id) {
-            self.open_tabs.push(AppTab {
+        if !self.navigation_tabs.open_tabs.iter().any(|t| t.id == tab_id) {
+            self.navigation_tabs.open_tabs.push(AppTab {
                 id: tab_id.clone(),
                 title,
                 screen: Screen::Project,
                 project_path: Some(path.clone()),
             });
         }
-        self.active_tab_id = Some(tab_id);
+        self.navigation_tabs.active_tab_id = Some(tab_id);
 
         // 保存前一个项目的预览标签页与激活路径
-        let previous_project_path = self.project_path.clone();
+        let previous_project_path = self.navigation_tabs.project_path.clone();
         let project_changed = previous_project_path.as_deref() != Some(path.as_str());
         if let Some(prev_path) = &previous_project_path {
-            self.project_preview_tabs
-                .insert(prev_path.clone(), std::mem::take(&mut self.preview_tabs));
-            self.project_preview_active_path
-                .insert(prev_path.clone(), self.active_preview_path.take());
+            self.navigation_tabs.project_preview_tabs
+                .insert(prev_path.clone(), std::mem::take(&mut self.navigation_tabs.preview_tabs));
+            self.navigation_tabs.project_preview_active_path
+                .insert(prev_path.clone(), self.navigation_tabs.active_preview_path.take());
         }
-        self.project_path = Some(path.clone());
+        self.navigation_tabs.project_path = Some(path.clone());
         if project_changed {
             self.navigation_mode.work_current_project_menu = None;
             self.project_is_git_repo = false;
@@ -377,26 +377,26 @@ impl App {
         self.task_board_settings = desktop_workspace::projects::project_board_settings(&self.recent_projects_meta, &path);
 
         // 恢复当前项目的预览标签页与激活路径（若存在）
-        let tabs = self.project_preview_tabs.remove(&path).unwrap_or_default();
-        let active = self.project_preview_active_path.remove(&path).unwrap_or_default();
-        self.preview_tabs = tabs;
-        self.active_preview_path = active;
-        self.preview_tab_menu_path = None;
-        self.preview_tab_menu_pos = None;
+        let tabs = self.navigation_tabs.project_preview_tabs.remove(&path).unwrap_or_default();
+        let active = self.navigation_tabs.project_preview_active_path.remove(&path).unwrap_or_default();
+        self.navigation_tabs.preview_tabs = tabs;
+        self.navigation_tabs.active_preview_path = active;
+        self.navigation_tabs.preview_tab_menu_path = None;
+        self.navigation_tabs.preview_tab_menu_pos = None;
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(manager) = self.lsp_manager.as_mut() {
             manager.prestart_for_project(&path);
         }
         #[cfg(not(target_arch = "wasm32"))]
         if !self.lsp_disabled
-            && let Some(active_preview_path) = self.active_preview_path.clone()
+            && let Some(active_preview_path) = self.navigation_tabs.active_preview_path.clone()
         {
             let _ =
                 crate::app::message::preview::lsp::sync_lsp_for_path(self, &active_preview_path);
         }
 
         // 切换到该项目的终端状态
-        self.switch_project_terminal(previous_project_path, self.project_path.clone());
+        self.switch_project_terminal(previous_project_path, self.navigation_tabs.project_path.clone());
         let reap_task = crate::app::message::terminal::reap_retired_task(self);
         // 使离开前尚未完成的首次发送失效；重开同一项目保留已解析的身份。
         self.agent_stream_id = self.agent_stream_id.wrapping_add(1);
@@ -417,7 +417,7 @@ impl App {
 
         // 将路径加入最近项目列表；已存在项目保持原位，避免点击切换时侧栏跳动。
         ensure_recent_project(&mut self.recent_projects, path.clone());
-        self.screen = Screen::Project;
+        self.navigation_tabs.screen = Screen::Project;
         self.clear_expanded_files();
         self.refresh_search_panel_file_cache();
         self.refresh_file_search_cache();
@@ -459,7 +459,7 @@ impl App {
     /// - `selected_branch`: 当前所在分支名称
     /// - `branches`: 分支列表（清空后由后续逻辑填充）
     pub fn refresh_branches(&mut self) {
-        desktop_workspace::projects::refresh_branches(self.project_path.as_deref(),
+        desktop_workspace::projects::refresh_branches(self.navigation_tabs.project_path.as_deref(),
             &mut self.git.selected_branch, &mut self.git.branches, &mut self.project_updated_at_ms);
     }
 }

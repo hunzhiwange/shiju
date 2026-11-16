@@ -23,3 +23,6 @@ mod plugin_compat_t31_tests;
 mod plugin_compat_t64_tests;
 
 pub mod work_browser;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_module_15_tests;

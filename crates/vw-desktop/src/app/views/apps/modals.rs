@@ -33,18 +33,18 @@ fn input(app: &App, editing: bool) -> domain::Input<'_, Message> {
     let cookie_label = i18n.__("Cookie配置(JSON)");
     let help = format!("{}\n\n{}\n{}", i18n.__("支持按 JSON 为指定站点注入 Cookie。"), i18n.__("配置示例"), domain::WEB_BOOKMARK_COOKIE_CONFIG_EXAMPLE);
     domain::Input {
-        i18n, message, editing_web_bookmark: app.editing_web_bookmark,
+        i18n, message, editing_web_bookmark: app.web_navigation.editing_web_bookmark,
         heading: settings_group_heading_with_help(i18n, &app.app_theme, i18n.__(title), i18n.__(description)).into(),
         cookie_help: settings_hover_help_label(i18n, &app.app_theme, cookie_label, settings_field_label(cookie_label), help).wrap().into(),
-        edit_web_bookmark_cookie_configs_editor: &app.edit_web_bookmark_cookie_configs_editor,
-        web_bookmark_title_input: &app.web_bookmark_title_input,
-        web_bookmark_url_input: &app.web_bookmark_url_input,
-        web_bookmark_width_input: &app.web_bookmark_width_input,
-        web_bookmark_height_input: &app.web_bookmark_height_input,
-        edit_web_bookmark_title_input: &app.edit_web_bookmark_title_input,
-        edit_web_bookmark_url_input: &app.edit_web_bookmark_url_input,
-        edit_web_bookmark_width_input: &app.edit_web_bookmark_width_input,
-        edit_web_bookmark_height_input: &app.edit_web_bookmark_height_input,
+        edit_web_bookmark_cookie_configs_editor: &app.web_navigation.edit_web_bookmark_cookie_configs_editor,
+        web_bookmark_title_input: &app.web_navigation.web_bookmark_title_input,
+        web_bookmark_url_input: &app.web_navigation.web_bookmark_url_input,
+        web_bookmark_width_input: &app.web_navigation.web_bookmark_width_input,
+        web_bookmark_height_input: &app.web_navigation.web_bookmark_height_input,
+        edit_web_bookmark_title_input: &app.web_navigation.edit_web_bookmark_title_input,
+        edit_web_bookmark_url_input: &app.web_navigation.edit_web_bookmark_url_input,
+        edit_web_bookmark_width_input: &app.web_navigation.edit_web_bookmark_width_input,
+        edit_web_bookmark_height_input: &app.web_navigation.edit_web_bookmark_height_input,
     }
 }
 fn add_web_bookmark_modal(app: &App) -> Option<(Element<'_, Message>, Message)> {
@@ -54,8 +54,8 @@ fn edit_web_bookmark_modal(app: &App) -> Option<(Element<'_, Message>, Message)>
     domain::edit_web_bookmark_modal(input(app, true))
 }
 pub(super) fn active_modal(app: &App) -> Option<(Element<'_, Message>, Message)> {
-    if app.editing_web_bookmark.is_some() { edit_web_bookmark_modal(app) }
-    else if app.show_web_links_menu { add_web_bookmark_modal(app) }
+    if app.web_navigation.editing_web_bookmark.is_some() { edit_web_bookmark_modal(app) }
+    else if app.web_navigation.show_web_links_menu { add_web_bookmark_modal(app) }
     else { None }
 }
 #[cfg(test)]

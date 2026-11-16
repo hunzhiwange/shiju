@@ -159,7 +159,7 @@ async fn file_tree_external_drop_tasks_keep_each_source_and_project_after_switch
         imports
     });
     let mut app = App::new().0;
-    app.project_path = Some(root.clone());
+    app.navigation_tabs.project_path = Some(root.clone());
     app.lsp_disabled = true;
     app.file_tree_interaction.file_tree_operation_in_progress = true;
     app.file_tree_interaction.pending_drop_file_paths = vec!["/stale-hover".into()];
@@ -169,7 +169,7 @@ async fn file_tree_external_drop_tasks_keep_each_source_and_project_after_switch
         (root.clone(), root.clone()),
         (format!("{root}/branch"), format!("{root}/branch")),
     ] {
-        app.project_path = Some(project.clone());
+        app.navigation_tabs.project_path = Some(project.clone());
         tasks.push(
             super::super::file_tree::handle(
                 &mut app,
@@ -185,7 +185,7 @@ async fn file_tree_external_drop_tasks_keep_each_source_and_project_after_switch
     assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
     let _ = crate::app::message::view::update(&mut app, ViewMessage::HoveredFilesLeft);
     let _ = crate::app::message::view::update(&mut app, ViewMessage::GlobalMouseReleased);
-    app.project_path = Some("/other-project".into());
+    app.navigation_tabs.project_path = Some("/other-project".into());
     app.files = vec!["/other-project/keep".into()];
     for task in tasks {
         let mut replies = messages(task).await;

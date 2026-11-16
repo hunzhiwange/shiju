@@ -104,7 +104,7 @@ fn complete_quick_message_handoff(
             };
             let current_project_path =
                 crate::app::components::git_panel::git_repo_path_for_app(app)
-                    .or_else(|| app.project_path.clone());
+                    .or_else(|| app.navigation_tabs.project_path.clone());
             if current_project_path.as_deref() != Some(project_path.as_str()) {
                 app.quick_message_handoff = None;
                 app.git.git_commit_in_progress = false;
@@ -1051,7 +1051,7 @@ pub(super) fn complete_agent_stream(
     app.sync_task_pet_from_runtime();
 
     if is_active_session {
-        app.show_send_mode_popover = false;
+        app.popover_visibility.send_mode = false;
         app.finalize_stream_text();
         app.sync_active_session_from_chat();
     }
@@ -1072,7 +1072,7 @@ pub(super) fn complete_agent_stream(
                 .iter()
                 .find(|entry| entry.id == session_id)
                 .map(|entry| entry.directory.clone())
-                .or_else(|| app.project_path.clone())
+                .or_else(|| app.navigation_tabs.project_path.clone())
                 .map(|project_path| {
                     let session_id = session_id.clone();
                     Task::perform(
@@ -1112,7 +1112,7 @@ pub(super) fn complete_agent_stream(
             .iter()
             .find(|entry| entry.id == session_id)
             .map(|entry| entry.directory.clone())
-            .or_else(|| app.project_path.clone());
+            .or_else(|| app.navigation_tabs.project_path.clone());
         super::todos::load_input_panel_todos_task(session_id.clone(), directory)
     } else {
         Task::none()
@@ -1215,7 +1215,7 @@ pub(super) fn handle_agent_post_tool_round(
     };
 
     app.sync_task_pet_from_runtime();
-    app.show_send_mode_popover = false;
+    app.popover_visibility.send_mode = false;
     app.sync_active_session_from_chat();
     info!(
         target: "vw_desktop",
@@ -1301,7 +1301,7 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
     };
     app.sync_task_pet_from_runtime();
     if is_active_session {
-        app.show_send_mode_popover = false;
+        app.popover_visibility.send_mode = false;
     }
 
     let toast_task = app.show_error_toast(display_err.clone());

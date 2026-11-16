@@ -11,7 +11,7 @@ use crate::app::{App, Message, Screen, message};
 
 fn test_app(screen: Screen) -> App {
     let (mut app, _task) = App::new();
-    app.screen = screen;
+    app.navigation_tabs.screen = screen;
     app
 }
 
@@ -114,7 +114,7 @@ fn menu_sections_exclude_browser_and_follow_workspace_mode() {
 #[test]
 fn snapshot_includes_open_window_tabs_for_project_switch() {
     let mut app = test_app(Screen::Project);
-    app.open_tabs = vec![
+    app.navigation_tabs.open_tabs = vec![
         crate::app::AppTab {
             id: "home".into(),
             title: "首页".into(),
@@ -134,7 +134,7 @@ fn snapshot_includes_open_window_tabs_for_project_switch() {
             project_path: Some("/workspace/alpha".into()),
         },
     ];
-    app.active_tab_id = Some("project_a".into());
+    app.navigation_tabs.active_tab_id = Some("project_a".into());
 
     let snapshot = NativeMenuSnapshot::from_app(&app);
     assert_eq!(snapshot.open_window_tabs.len(), 2);

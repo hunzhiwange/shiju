@@ -62,7 +62,7 @@ async fn hooks_tab_loads_catalog_and_audit() {
     ))
     .await;
 
-    assert_eq!(app.system_settings_tab, SystemTab::Hooks);
+    assert_eq!(app.navigation_panels.system_settings_tab, SystemTab::Hooks);
     assert_eq!(messages.len(), 2);
     assert!(messages.iter().any(|message| matches!(
         message,

@@ -9,7 +9,7 @@ use super::*;
 #[test]
 fn save_settings_without_project_leaves_recent_projects_unchanged() {
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = None;
+    app.navigation_tabs.project_path = None;
     app.recent_projects_meta.clear();
 
     save_settings(&mut app);
@@ -20,7 +20,7 @@ fn save_settings_without_project_leaves_recent_projects_unchanged() {
 #[test]
 fn save_settings_updates_existing_project_meta() {
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/tmp/project-a".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project-a".to_string());
     app.task_board_settings.max_concurrent = 7;
     app.recent_projects_meta = vec![crate::app::state::RecentProjectMeta {
         path: "/tmp/project-a".to_string(),
@@ -44,7 +44,7 @@ fn save_settings_updates_existing_project_meta() {
 #[test]
 fn save_settings_creates_project_meta_for_new_project_path() {
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/tmp/project-b".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project-b".to_string());
     app.recent_projects_meta.clear();
     app.task_board_settings.max_concurrent = 3;
 

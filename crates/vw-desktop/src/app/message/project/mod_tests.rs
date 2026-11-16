@@ -19,12 +19,12 @@ fn test_module_is_wired() {
 #[test]
 fn update_returns_no_task_for_unhandled_start_deferred_tasks_message() {
     let (mut app, _task) = App::new();
-    let before_project_path = app.project_path.clone();
+    let before_project_path = app.navigation_tabs.project_path.clone();
 
     let _task = update(
         &mut app,
         ProjectMessage::StartDeferredTasks { project_path: "/tmp/project".to_string() },
     );
 
-    assert_eq!(app.project_path, before_project_path);
+    assert_eq!(app.navigation_tabs.project_path, before_project_path);
 }

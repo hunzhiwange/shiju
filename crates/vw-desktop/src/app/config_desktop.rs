@@ -30,7 +30,7 @@ impl App {
             cfg,
             &mut self.task_pet_avatar_kind,
             &mut self.task_pet_scale,
-            &mut self.task_pet_visible,
+            &mut self.companion_navigation.task_pet_visible,
         );
     }
 
@@ -38,7 +38,7 @@ impl App {
         let endpoint = gateway_client_endpoint();
         self.task_pet_size_pending = Some(preferences_scope(&endpoint));
         self.desktop_preferences_persistence.enqueue_companion_size(endpoint,
-            serde_json::json!({ "avatar": self.task_pet_avatar_kind, "scale": scale, "visible": self.task_pet_visible }))
+            serde_json::json!({ "avatar": self.task_pet_avatar_kind, "scale": scale, "visible": self.companion_navigation.task_pet_visible }))
             .map(super::desktop::preferences_message)
     }
 
@@ -48,7 +48,7 @@ impl App {
             serde_json::json!({
                 "avatar": self.task_pet_avatar_kind,
                 "scale": if self.task_pet_size_pending.is_some() { self.task_pet_preview_scale() } else { self.task_pet_scale },
-                "visible": self.task_pet_visible,
+                "visible": self.companion_navigation.task_pet_visible,
             }),
         )
     }

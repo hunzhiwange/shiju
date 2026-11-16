@@ -1,15 +1,11 @@
 use super::ViewMessage;
-use crate::app::{App, Message, Screen};
+use crate::app::{App, Message};
 use iced::Task;
 use desktop_navigation::panel::work_sidebar as domain;
 
 pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     if matches!(message, ViewMessage::WorkProjectHome) {
-        if !matches!(app.screen, Screen::Project) || app.project_path.is_none() {
-            return Task::none();
-        }
-        app.navigation_workspace.work_resource_half_fullscreen = false;
-        if app.active_session_id.is_some() {
+        if domain::project_home(app.navigation_tabs.screen, app.navigation_tabs.project_path.is_some(), app.active_session_id.is_some(), &mut app.navigation_workspace) {
             app.stash_active_session_view();
             app.active_session_id = None;
             // The stash may retain the view in place when it exceeds cache capacity.

@@ -17,14 +17,14 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
      };
    }
    if matches!(evt, iced_code_editor::Message::RevealInFileManager) {
-     if app.active_preview_path.as_ref().is_some_and(|path| app.preview_tabs.iter().any(|tab| tab.path == *path && tab.read_only)) { return Task::none(); }
-     return match app.active_preview_path.clone() {
+     if app.navigation_tabs.active_preview_path.as_ref().is_some_and(|path| app.navigation_tabs.preview_tabs.iter().any(|tab| tab.path == *path && tab.read_only)) { return Task::none(); }
+     return match app.navigation_tabs.active_preview_path.clone() {
        Some(path) => Task::done(Message::View(crate::app::message::ViewMessage::OpenPathInFinder(path))),
        None => app.show_localized_toast(crate::app::state::ToastKind::Error, "无法在文件管理器中显示：没有活动文件", vec![]),
      };
    }
  }
- if matches!(message, PreviewMessage::ContextMenuOpenForActiveEditor(..)) && app.active_preview_path.is_some() {
+ if matches!(message, PreviewMessage::ContextMenuOpenForActiveEditor(..)) && app.navigation_tabs.active_preview_path.is_some() {
    super::dismiss_preview_popup_menus(app);
    app.git.git_diff_context_menu = None;
  }
@@ -34,7 +34,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
  #[cfg(not(target_arch = "wasm32"))] let mut persist_lsp = None;
  #[cfg(not(target_arch = "wasm32"))] let mut notifications = Vec::new();
  let task = domain::update(
-    &mut app.active_preview_path,
+    &mut app.navigation_tabs.active_preview_path,
     &mut app.cursor_position,
     &mut app.editor_popover,
     #[cfg(not(target_arch = "wasm32"))]
@@ -66,9 +66,9 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
     &mut app.preview_context_target,
     #[cfg(not(target_arch = "wasm32"))]
     &mut app.preview_nav_popup,
-    &mut app.preview_tabs,
+    &mut app.navigation_tabs.preview_tabs,
     #[cfg(not(target_arch = "wasm32"))]
-    &mut app.project_path,
+    &mut app.navigation_tabs.project_path,
     &mut app.show_preview_context_menu,
     &mut app.show_preview_fullscreen_overlay,
     &mut focus_preview,

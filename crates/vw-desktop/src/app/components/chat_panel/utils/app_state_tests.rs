@@ -41,7 +41,7 @@ fn app_state_labels_fall_back_when_values_are_missing() {
 #[test]
 fn app_state_labels_return_current_values_when_present() {
     let mut app = App::new().0;
-    app.project_path = Some("/work/project".to_string());
+    app.navigation_tabs.project_path = Some("/work/project".to_string());
     app.git.selected_branch = Some("main".to_string());
     app.sessions = vec![session_info("stale", "Stale"), session_info("active", "Active")];
     app.active_session_id = Some("active".to_string());

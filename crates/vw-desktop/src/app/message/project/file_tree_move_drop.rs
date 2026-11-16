@@ -28,7 +28,7 @@ pub(super) fn submit(
     let sources = super::batch::top_level_paths(app.file_tree_interaction.dragging_file_paths.clone());
     // Consume even rejected tree targets, so the release cannot also reach chat.
     clear_drag(app);
-    if app.project_path.as_ref() != Some(&root) {
+    if app.navigation_tabs.project_path.as_ref() != Some(&root) {
         return Task::none();
     }
     let Some(moves) = desktop_workspace::file_tree::plan_move(&root, &directory, &app.files, sources) else {
@@ -105,20 +105,20 @@ pub(super) fn complete_batch(
     if moved_paths.is_empty() {
         return feedback;
     }
-    let current = app.project_path.as_ref() == Some(&root);
+    let current = app.navigation_tabs.project_path.as_ref() == Some(&root);
     for (source, target) in moved_paths {
         // Stored tabs belong to the originating project even after a project switch.
-        if let Some(tabs) = app.project_preview_tabs.get_mut(&root) {
+        if let Some(tabs) = app.navigation_tabs.project_preview_tabs.get_mut(&root) {
             update_tabs(tabs, &source, &target);
         }
-        if let Some(Some(path)) = app.project_preview_active_path.get_mut(&root)
+        if let Some(Some(path)) = app.navigation_tabs.project_preview_active_path.get_mut(&root)
             && let Some(updated) = replace_path_prefix(path, &source, &target)
         {
             *path = updated;
         }
         if current {
-            update_tabs(&mut app.preview_tabs, &source, &target);
-            if let Some(path) = &mut app.active_preview_path
+            update_tabs(&mut app.navigation_tabs.preview_tabs, &source, &target);
+            if let Some(path) = &mut app.navigation_tabs.active_preview_path
                 && let Some(updated) = replace_path_prefix(path, &source, &target)
             {
                 *path = updated;
@@ -129,7 +129,7 @@ pub(super) fn complete_batch(
     if current {
         app.file_tree_expanded_set = app.file_tree_expanded.iter().cloned().collect();
         #[cfg(not(target_arch = "wasm32"))]
-        if let Some(path) = app.active_preview_path.clone() {
+        if let Some(path) = app.navigation_tabs.active_preview_path.clone() {
             crate::app::message::preview::lsp::sync_lsp_for_path(app, &path);
         }
     }

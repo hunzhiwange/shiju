@@ -18,7 +18,7 @@ async fn repository_snapshot_preview_renders_chinese_in_both_themes() {
     ] {
         let mut app = crate::app::App::new().0;
         let path = remote_path.to_owned();
-        app.project_path = Some(path.clone());
+        app.navigation_tabs.project_path = Some(path.clone());
         app.app_theme = theme.clone();
         app.git.show_git_diff_highlight = true;
         app.git.merge_view = width == 520;
@@ -93,7 +93,7 @@ async fn repository_snapshot_preview_renders_chinese_in_both_themes() {
                 deletions: 1,
             }];
             app.git.git_diff_contents.insert(file.path.clone(), (old, new));
-            app.git.git_diff_file_metas_repo_path = app.project_path.clone();
+            app.git.git_diff_file_metas_repo_path = app.navigation_tabs.project_path.clone();
             app.set_single_expanded_file(file.path);
         }
         if name.starts_with("preview-") {
@@ -110,7 +110,7 @@ async fn repository_snapshot_preview_renders_chinese_in_both_themes() {
                 }
             }
             assert!(!app.git.show_git_copy_modal);
-            assert!(app.preview_tabs[0].read_only);
+            assert!(app.navigation_tabs.preview_tabs[0].read_only);
         } else if app.git.git_repository.history {
             app.git.git_repository.file_menu = Some(1);
         }

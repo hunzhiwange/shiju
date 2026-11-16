@@ -89,7 +89,7 @@ fn work_sidebar_shows_running_draft_until_history_is_available() {
     let directory = "/workspace/worktree";
     let id = "first-response";
     app.recent_projects = vec![path.into()];
-    app.project_path = Some(path.into());
+    app.navigation_tabs.project_path = Some(path.into());
     app.navigation_workspace.work_expanded_spaces.insert(path.into());
     let runtime = app.get_session_runtime_mut(id);
     runtime.draft = Some(crate::app::state::SessionDraft {
@@ -130,7 +130,7 @@ fn work_sidebar_hides_archived_task_and_shows_restored_task() {
     let mut app = App::new().0;
     let path = "/workspace/archive";
     app.recent_projects = vec![path.into()];
-    app.project_path = Some(path.into());
+    app.navigation_tabs.project_path = Some(path.into());
     let mut task = child_session("task", "root", "Task", path, 20);
     task.slug = Info::visible_task_slug(&task.slug);
     task.time.archived = Some(30);
@@ -152,7 +152,7 @@ fn work_sidebar_shows_visible_task_in_own_project() {
     let alpha = "/workspace/alpha";
     let beta = "/workspace/beta";
     app.recent_projects = vec![alpha.into(), beta.into()];
-    app.project_path = Some(alpha.into());
+    app.navigation_tabs.project_path = Some(alpha.into());
     app.navigation_workspace.work_expanded_spaces.insert(alpha.into());
     app.navigation_workspace.work_expanded_spaces.insert(beta.into());
 
@@ -215,7 +215,7 @@ fn work_sidebar_builds_workbuddy_sections_from_real_projects() {
         "/workspace/beta".into(),
         vec![session("middle", "Middle task", "/workspace/beta", 20)],
     );
-    app.project_path = Some("/workspace/alpha".into());
+    app.navigation_tabs.project_path = Some("/workspace/alpha".into());
     app.navigation_workspace.work_expanded_spaces.insert("/workspace/alpha".into());
     app.hovered_recent_project = Some("/workspace/alpha".into());
     app.project_tools_menu_path = Some("/workspace/alpha".into());
@@ -573,7 +573,7 @@ fn work_sidebar_filters_sessions_by_project_and_update_time() {
     let now = runtime_time::now_ms();
     app.recent_projects = vec!["/workspace/alpha".into(), "/workspace/beta".into()];
     app.recent_projects_edits.clear();
-    app.project_path = Some("/workspace/alpha".into());
+    app.navigation_tabs.project_path = Some("/workspace/alpha".into());
     app.project_sessions.insert(
         "/workspace/alpha".into(),
         vec![session("current", "当前项目", "/workspace/alpha", now)],
@@ -736,7 +736,7 @@ async fn work_sidebar_current_project_above_new_task_has_refresh_and_tools_butto
     let active = "/工作区/一个路径很长的项目/子目录/当前项目";
     app.recent_projects = vec!["/workspace/other".into(), active.into()];
     app.recent_projects_edits = vec!["Other project".into(), "自定义项目名称".into()];
-    app.project_path = Some(active.into());
+    app.navigation_tabs.project_path = Some(active.into());
     app.layout_drag.work_sidebar_width = 220.0;
 
     for (collapsed, tab, theme) in
@@ -897,7 +897,7 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
     app.navigation_sidebar.work_sidebar_collapsed = true;
     app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
     let project_path = "/workspace/project";
-    app.project_path = Some(project_path.into());
+    app.navigation_tabs.project_path = Some(project_path.into());
     app.recent_projects = vec![project_path.into()];
     app.project_sessions
         .insert(project_path.into(), vec![session("existing", "现有任务", project_path, 30)]);
@@ -1192,9 +1192,9 @@ async fn session_ui_projection_open_scroll_probe() {
             .expect("headless renderer");
     let mut app = App::new().0;
     let path = "/workspace/probe";
-    app.screen = crate::app::Screen::Project;
+    app.navigation_tabs.screen = crate::app::Screen::Project;
     app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
-    app.project_path = Some(path.into());
+    app.navigation_tabs.project_path = Some(path.into());
     app.recent_projects = vec![path.into()];
     app.active_session_id = Some("root".into());
     let mut sessions = vec![session("root", "中文会话", path, 1)];

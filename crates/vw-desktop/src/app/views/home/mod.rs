@@ -10,9 +10,9 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
         recent_projects: &app.recent_projects,
         recent_projects_edits: &app.recent_projects_edits,
         recent_projects_meta: &app.recent_projects_meta,
-        project_path: app.project_path.as_deref(),
+        project_path: app.navigation_tabs.project_path.as_deref(),
     };
-    desktop_navigation::views::home::view(&state, app.home_apps_bar_scroll_id.clone())
+    desktop_navigation::views::home::view(&state, app.navigation_tabs.home_apps_bar_scroll_id.clone())
         .map(|event| {
             use desktop_navigation::views::home::{Message as Home, header, recent};
             match event {

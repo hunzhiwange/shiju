@@ -81,7 +81,7 @@ impl App {
     /// 公开函数，执行 title 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub fn title(&self) -> String {
-        match self.screen {
+        match self.navigation_tabs.screen {
             Screen::Home => {
                 crate::app::i18n::I18n::new(self.desktop_locale).__("识矩 - 项目").to_string()
             }
@@ -135,7 +135,7 @@ impl App {
     /// 模块内可见函数，执行 current_file_index 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn current_file_index(&self) -> &[String] {
-        self.project_path
+        self.navigation_tabs.project_path
             .as_ref()
             .and_then(|path| self.file_index_cache.get(path).map(Vec::as_slice))
             .unwrap_or(&[])
@@ -146,14 +146,14 @@ impl App {
     pub(crate) fn current_file_tree_model(
         &self,
     ) -> Option<&crate::app::components::file_tree::model::FileTreeNode> {
-        self.project_path.as_ref().and_then(|path| self.file_tree_model_cache.get(path))
+        self.navigation_tabs.project_path.as_ref().and_then(|path| self.file_tree_model_cache.get(path))
     }
 
     /// 模块内可见函数，执行 refresh_search_panel_file_cache 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn refresh_search_panel_file_cache(&mut self) {
         let query = Self::normalize_file_search_query(&self.search.search_text);
-        let project_path = self.project_path.clone();
+        let project_path = self.navigation_tabs.project_path.clone();
 
         let Some(results) = desktop_workspace::basic::refresh_search_panel_file_results(
             self.current_file_index(), &query, project_path.as_deref(), self.file_index_revision,
@@ -176,7 +176,7 @@ impl App {
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn refresh_file_search_cache(&mut self) {
         let query = Self::normalize_file_search_query(&self.file_search_query);
-        let project_path = self.project_path.clone();
+        let project_path = self.navigation_tabs.project_path.clone();
 
         let Some(results) = desktop_session::message::chat::input::file_search::refresh_file_search_entries(
             self.current_file_index(), &query, project_path.as_deref(), self.file_index_revision,
@@ -217,7 +217,7 @@ impl App {
         self.file_index_cache.insert(path.to_string(), snapshot.files);
         self.file_tree_model_cache.insert(path.to_string(), snapshot.tree);
         self.file_index_revision = self.file_index_revision.wrapping_add(1);
-        if self.project_path.as_deref() == Some(path) {
+        if self.navigation_tabs.project_path.as_deref() == Some(path) {
             self.refresh_search_panel_file_cache();
             self.refresh_file_search_cache();
         }
@@ -232,7 +232,7 @@ impl App {
     /// 模块内可见函数，执行 can_open_external 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn can_open_external(&self, target: ExternalOpenApp) -> bool {
-        self.open_external_exists.get(&target).copied().unwrap_or(false)
+        self.external_navigation.open_external_exists.get(&target).copied().unwrap_or(false)
     }
 
     /// 公开函数，执行 push_notification 对应的应用流程。

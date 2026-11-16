@@ -12,7 +12,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     match reduce(&mut app.skills_settings.updates, &input, event) {
         Effect::None => Task::none(),
         Effect::Error(error) => app.show_error_toast(error),
-        Effect::Refresh => Task::batch(vec![update(app, Event::Refresh), super::refresh_task(app.project_path.clone())]),
+        Effect::Refresh => Task::batch(vec![update(app, Event::Refresh), super::refresh_task(app.navigation_tabs.project_path.clone())]),
         Effect::Request { g, scope, operation } => {
             let Ok(client) = crate::app::config::gateway_client() else { return Task::none(); };
             let token = app.apps_catalog.token.clone();

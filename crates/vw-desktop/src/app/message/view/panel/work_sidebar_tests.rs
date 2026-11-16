@@ -26,9 +26,9 @@ fn work_sidebar_toggle_preserves_session_list_width() {
 #[test]
 fn work_sidebar_project_home_leaves_the_session_without_leaving_the_project() {
     let mut app = App::new().0;
-    app.screen = Screen::Project;
-    app.project_path = Some("/workspace/project".into());
-    app.active_tab_id = Some("project_/workspace/project".into());
+    app.navigation_tabs.screen = Screen::Project;
+    app.navigation_tabs.project_path = Some("/workspace/project".into());
+    app.navigation_tabs.active_tab_id = Some("project_/workspace/project".into());
     app.active_session_id = Some("session-1".into());
     app.navigation_sidebar.work_sidebar_collapsed = true;
     app.navigation_sidebar.work_sidebar_tab = WorkSidebarTab::Spaces;
@@ -43,9 +43,9 @@ fn work_sidebar_project_home_leaves_the_session_without_leaving_the_project() {
 
     let _task = crate::app::message::view::update(&mut app, ViewMessage::WorkProjectHome);
 
-    assert_eq!(app.screen, Screen::Project);
-    assert_eq!(app.project_path.as_deref(), Some("/workspace/project"));
-    assert_eq!(app.active_tab_id.as_deref(), Some("project_/workspace/project"));
+    assert_eq!(app.navigation_tabs.screen, Screen::Project);
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/workspace/project"));
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("project_/workspace/project"));
     assert!(app.active_session_id.is_none());
     assert!(app.chat.is_empty());
     assert!(app.session_view_cache.contains("session-1"));

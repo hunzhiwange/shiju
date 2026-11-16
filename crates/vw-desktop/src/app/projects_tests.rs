@@ -63,7 +63,7 @@ fn open_project_immediately_moves_agent_settings_to_new_project_scope() {
 
     let _ = app.open_project("/repo/new".to_string());
 
-    assert_eq!(app.project_path.as_deref(), Some("/repo/new"));
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/repo/new"));
     assert_eq!(app.agents_settings.project_path.as_deref(), Some("/repo/new"));
     assert!(app.agents_settings.loading);
 }
@@ -242,12 +242,12 @@ fn late_project_read_preserves_a_manual_model_selection() {
 #[test]
 fn open_project_resets_git_capability_until_project_info_loads() {
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/repo/old".to_string());
+    app.navigation_tabs.project_path = Some("/repo/old".to_string());
     app.project_is_git_repo = true;
 
     let _ = app.open_project("/repo/new".to_string());
 
-    assert_eq!(app.project_path.as_deref(), Some("/repo/new"));
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/repo/new"));
     assert!(!app.project_is_git_repo);
 }
 
@@ -340,12 +340,12 @@ fn switch_project_terminal_creates_new_terminal_then_restores_cached_state() {
 #[test]
 fn open_project_removes_apps_tab_creates_project_tab_and_recent_edit_name() {
     let (mut app, _task) = crate::app::App::new();
-    app.open_tabs.clear();
-    app.project_path = None;
-    app.active_tab_id = None;
+    app.navigation_tabs.open_tabs.clear();
+    app.navigation_tabs.project_path = None;
+    app.navigation_tabs.active_tab_id = None;
     app.recent_projects.clear();
     app.recent_projects_edits.clear();
-    app.open_tabs.push(crate::app::AppTab {
+    app.navigation_tabs.open_tabs.push(crate::app::AppTab {
         id: "apps".to_string(),
         title: "Apps".to_string(),
         screen: crate::app::Screen::Apps,
@@ -357,11 +357,11 @@ fn open_project_removes_apps_tab_creates_project_tab_and_recent_edit_name() {
 
     let _ = app.open_project("/repo/alpha".to_string());
 
-    assert!(app.open_tabs.iter().all(|tab| tab.id != "apps"));
-    assert_eq!(app.project_path.as_deref(), Some("/repo/alpha"));
-    assert_eq!(app.screen, crate::app::Screen::Project);
-    assert_eq!(app.active_tab_id.as_deref(), Some("project_/repo/alpha"));
-    assert!(app.open_tabs.iter().any(|tab| {
+    assert!(app.navigation_tabs.open_tabs.iter().all(|tab| tab.id != "apps"));
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/repo/alpha"));
+    assert_eq!(app.navigation_tabs.screen, crate::app::Screen::Project);
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("project_/repo/alpha"));
+    assert!(app.navigation_tabs.open_tabs.iter().any(|tab| {
         tab.id == "project_/repo/alpha"
             && tab.title == "alpha"
             && tab.screen == crate::app::Screen::Project

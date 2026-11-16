@@ -15,7 +15,7 @@ pub(crate) fn focus_active_terminal(app: &mut App) -> Task<Message> {
     let tasks = vec![task.map(Message::Terminal)];
     for effect in effects {
         if let desktop_terminal::updates::Effect::Focus = effect {
-            for tab in &mut app.preview_tabs {
+            for tab in &mut app.navigation_tabs.preview_tabs {
                 tab.editor.inner.lose_focus();
             }
         }

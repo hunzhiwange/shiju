@@ -95,7 +95,7 @@ pub(super) fn system_tab_matches_query(tab: SystemTab, query: &str) -> bool {
 pub(super) fn active_tab_help_modal_open(app: &App, active_tab: SystemTab) -> bool {
     let help_tab = active_settings_help_tab(app, active_tab);
     crate::app::components::system_settings_help::help_open_for_tab(
-        app.system_settings_help_tab,
+        app.navigation_panels.system_settings_help_tab,
         help_tab,
     ) || match active_tab {
         SystemTab::Agents => match app.agents_settings.active_config_tab {
@@ -374,11 +374,11 @@ fn settings_shell(
 
 /// 渲染全屏设置、分类导航及当前分类的浮层。
 pub fn view(app: &App) -> Element<'_, Message> {
-    if !app.show_system_settings {
+    if !app.navigation_panels.show_system_settings {
         return container(column![]).into();
     }
 
-    let active_tab = app.system_settings_tab;
+    let active_tab = app.navigation_panels.system_settings_tab;
     let help_tab = active_settings_help_tab(app, active_tab);
     let shell = responsive(move |size| settings_shell(app, size.width, active_tab, help_tab));
     let modal_content =
@@ -394,7 +394,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         || (active_tab == SystemTab::General
             && app.general_settings_tab == GeneralSettingsTab::Themes);
     let editing_theme = themes_active && app.themes_settings.mode == ThemesSettingsMode::Edit;
-    let select_focus_available = app.system_settings_help_tab.is_none()
+    let select_focus_available = app.navigation_panels.system_settings_help_tab.is_none()
         && (active_tab == SystemTab::Editor
             || (active_tab == SystemTab::Autonomy && !app.autonomy_settings.show_help_modal)
             || (active_tab == SystemTab::Security && !app.security_settings.show_help_modal)
@@ -430,7 +430,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     // 为 Providers 标签页添加额外的浮层视图
     // 这些浮层用于显示自定义提供商、目录、连接等子对话框
-    if app.system_settings_tab == SystemTab::Providers {
+    if app.navigation_panels.system_settings_tab == SystemTab::Providers {
         dialog = crate::app::components::system_settings_providers::custom_provider::view_overlays(
             app, dialog,
         );
@@ -445,11 +445,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     // 为 Models 标签页添加额外的浮层视图
-    if app.system_settings_tab == SystemTab::Models {
+    if app.navigation_panels.system_settings_tab == SystemTab::Models {
         dialog = crate::app::components::system_settings_models::view_overlays(app, dialog);
     }
 
-    if app.system_settings_tab == SystemTab::Agents {
+    if app.navigation_panels.system_settings_tab == SystemTab::Agents {
         dialog = match app.agents_settings.active_config_tab {
             crate::app::state::AgentConfigTab::Agents => {
                 super::system_settings_agents::view_overlays(app, dialog)
@@ -470,17 +470,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
         };
     }
 
-    if app.system_settings_tab == SystemTab::Cron {
+    if app.navigation_panels.system_settings_tab == SystemTab::Cron {
         dialog = crate::app::components::system_settings_cron::view_overlays(app, dialog);
     }
 
     dialog = super::system_settings_channels::view_overlays(app, dialog);
 
-    if app.system_settings_tab == SystemTab::Autonomy {
+    if app.navigation_panels.system_settings_tab == SystemTab::Autonomy {
         dialog = crate::app::components::system_settings_autonomy::view_overlays(app, dialog);
     }
 
-    if app.system_settings_tab == SystemTab::Security {
+    if app.navigation_panels.system_settings_tab == SystemTab::Security {
         dialog = crate::app::components::system_settings_security::view_overlays(app, dialog);
     }
 
@@ -489,7 +489,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         dialog = super::system_settings_auth::overlay(&app.agent_apps_auth, dialog);
     }
 
-    if app.system_settings_tab == SystemTab::Apps {
+    if app.navigation_panels.system_settings_tab == SystemTab::Apps {
         dialog = super::system_settings_apps::view_overlays(
             &app.apps_catalog,
             crate::app::i18n::I18n::new(app.desktop_locale),
@@ -517,19 +517,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
             dialog = super::apps_usage_settings::overlay(app, dialog);
         }
     }
-    if app.system_settings_tab == SystemTab::GatewayClient {
+    if app.navigation_panels.system_settings_tab == SystemTab::GatewayClient {
         dialog = crate::app::components::system_settings_gateway_client::view_overlays(app, dialog);
     }
 
-    if app.system_settings_tab == SystemTab::Gateway {
+    if app.navigation_panels.system_settings_tab == SystemTab::Gateway {
         dialog = crate::app::components::system_settings_gateway::view_overlays(app, dialog);
     }
 
-    if app.system_settings_tab == SystemTab::Observability {
+    if app.navigation_panels.system_settings_tab == SystemTab::Observability {
         dialog = crate::app::components::system_settings_observability::view_overlays(app, dialog);
     }
 
-    if app.system_settings_tab == SystemTab::Proxy {
+    if app.navigation_panels.system_settings_tab == SystemTab::Proxy {
         dialog = crate::app::components::system_settings_proxy::view_overlays(app, dialog);
     }
 
@@ -542,7 +542,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         app,
         dialog,
         help_tab,
-        app.system_settings_help_tab,
+        app.navigation_panels.system_settings_help_tab,
     );
 
     let dialog = crate::app::message::app_providers::leave::overlay(app, dialog);

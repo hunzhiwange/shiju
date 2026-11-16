@@ -63,7 +63,7 @@ fn start_native_video_edit(app: &mut App) -> Task<Message> {
         Ok(command) => command,
         Err(e) => return app.show_error_toast(e),
     };
-    if app.project_path.is_none() {
+    if app.navigation_tabs.project_path.is_none() {
         return app.show_error_toast("请先打开原生项目，再从模板发起剪辑");
     }
     if app.acp_agent.is_some() || app.current_session_runtime().acp_agent.is_some() {
@@ -77,8 +77,8 @@ fn start_native_video_edit(app: &mut App) -> Task<Message> {
         return app.show_error_toast("会话中已有未发送草稿，请先处理后再启动剪辑");
     }
     app.workflow_state.video_edit.open = false;
-    app.screen = crate::app::Screen::Project;
-    app.active_tab_id = app.active_session_id.clone();
+    app.navigation_tabs.screen = crate::app::Screen::Project;
+    app.navigation_tabs.active_tab_id = app.active_session_id.clone();
     app.current_session_runtime_mut().input_editor = text_editor::Content::with_text(&command);
     app.input_editor = text_editor::Content::with_text(&command);
     crate::app::message::chat::update(app, crate::app::message::ChatMessage::SendPressed)

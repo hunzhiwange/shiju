@@ -15,8 +15,8 @@ fn fixture() -> App {
     let mut app = None;
     crate::app::config::with_editor_settings_gateway(|fixture, _, _| app = Some(fixture));
     let mut app = app.expect("isolated settings fixture");
-    app.show_system_settings = true;
-    app.system_settings_tab = SystemTab::General;
+    app.navigation_panels.show_system_settings = true;
+    app.navigation_panels.system_settings_tab = SystemTab::General;
     app.general_settings_tab = crate::app::state::GeneralSettingsTab::Interface;
     app
 }
@@ -323,7 +323,7 @@ async fn ui_refresh_04_preserves_values_and_disabled_states() {
     drop(scene);
     let Message::Settings(selected) = selected.into_iter().next().unwrap() else { unreachable!() };
     let _ = message::settings::update(&mut app, selected);
-    assert_eq!(app.system_settings_tab, SystemTab::Models);
+    assert_eq!(app.navigation_panels.system_settings_tab, SystemTab::Models);
     assert_eq!(app.model_settings.active_tab, ModelConfigTab::Multimodal);
 
     let mut scene = Scene::new(&app, 950, 760).await;
@@ -345,7 +345,7 @@ async fn ui_refresh_04_preserves_values_and_disabled_states() {
     drop(scene);
 
     app.system_settings_query.clear();
-    app.system_settings_tab = SystemTab::Apps;
+    app.navigation_panels.system_settings_tab = SystemTab::Apps;
     app.apps_catalog.loading = true;
     let mut scene = Scene::new(&app, 950, 760).await;
     scene.snapshot(&Theme::Light, mouse::Cursor::Unavailable, "apps-loading");
@@ -399,12 +399,12 @@ async fn ui_refresh_04_renders_each_page_and_preserves_help_close() {
         SystemTab::Browser,
     ]);
     for tab in tabs {
-        app.system_settings_tab = tab;
+        app.navigation_panels.system_settings_tab = tab;
         Scene::new(&app, 1270, 760).await.snapshot(&Theme::Light, mouse::Cursor::Unavailable, "");
     }
 
-    app.system_settings_tab = SystemTab::General;
-    app.system_settings_help_tab = Some(SystemTab::General);
+    app.navigation_panels.system_settings_tab = SystemTab::General;
+    app.navigation_panels.system_settings_help_tab = Some(SystemTab::General);
     app.app_theme = Theme::Dark;
     for (locale, name) in [
         (DesktopLocale::SimplifiedChinese, "zh"),
@@ -513,7 +513,7 @@ async fn help_rollout_27_quick_messages_renders_contextual_help() {
     }
 
     let mut app = fixture();
-    app.system_settings_tab = SystemTab::Agents;
+    app.navigation_panels.system_settings_tab = SystemTab::Agents;
     app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::QuickMessages;
     app.quick_messages.clear();
     for (locale, theme) in [
@@ -833,7 +833,7 @@ async fn settings_help_gap_01_editor_theme_and_lsp_keep_their_controls() {
         {
             app.desktop_locale = locale;
             app.app_theme = theme.clone();
-            app.system_settings_tab = tab;
+            app.navigation_panels.system_settings_tab = tab;
             app.editor_follow_system_theme = true;
             let i18n = I18n::new(locale);
             let field = general_fields::EDITOR_THEME;

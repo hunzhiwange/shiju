@@ -115,7 +115,7 @@ fn dispatch_queue_item(app: &mut App, item: QueueItem) -> Task<Message> {
                 runtime.request_lifecycle.clear_request();
             }
             app.sync_task_pet_from_runtime();
-            app.show_send_mode_popover = false;
+            app.popover_visibility.send_mode = false;
             start(app, item, false)
         }
         DispatchKind::Guide => {
@@ -214,7 +214,7 @@ fn reset_runtime_history_snapshots(
 }
 
 fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> Task<Message> {
-    let root = current_session_directory(app).or_else(|| app.project_path.clone());
+    let root = current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
     let retain_end = msg_idx.saturating_add(1);
     let retained_chat = app.chat.get(..retain_end).map(|slice| slice.to_vec()).unwrap_or_default();
     let retained_message_ids =
@@ -411,7 +411,7 @@ fn request_session_compaction_confirmation(
         );
     }
 
-    app.show_session_actions_popover = false;
+    app.popover_visibility.session_actions = false;
     app.session_menu_id = None;
     app.session_menu_anchor = None;
     let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
@@ -701,7 +701,7 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
         }));
     }
     let runtime = app.current_session_runtime();
-    let root = current_session_directory(app).or_else(|| app.project_path.clone());
+    let root = current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
     let acp_model_source = runtime.acp_model_source;
     let model = if runtime.auto_model
         || (runtime.acp_agent.is_some() && acp_model_source == AcpModelSource::CliLocal)
@@ -793,7 +793,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             send_current_session_input(app)
         }
         ChatMessage::NewSessionProjectResolved { project_path, stream_id, pending, result } => {
-            if app.project_path.as_deref() != Some(project_path.as_str())
+            if app.navigation_tabs.project_path.as_deref() != Some(project_path.as_str())
                 || app.agent_stream_id != stream_id
                 || app.active_session_id.is_some()
             {
@@ -911,7 +911,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 runtime.request_lifecycle.clear_request();
             }
             app.sync_task_pet_from_runtime();
-            app.show_send_mode_popover = false;
+            app.popover_visibility.send_mode = false;
             app.finalize_stream_text();
             app.sync_active_session_from_chat();
 
@@ -1089,9 +1089,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
             app.invalidate_project_chat_preferences_read();
             app.acp_agent = acp_agent.clone();
-            app.show_acp_popover = false;
-            app.show_reasoning_effort_popover = false;
-            app.show_session_tool_selector_popover = false;
+            app.popover_visibility.acp = false;
+            app.popover_visibility.reasoning_effort = false;
+            app.popover_visibility.session_tool_selector = false;
             if let Some(backend) = acp_agent {
                 Task::batch([
                     check_agent_installation(app, backend, None),
@@ -1144,8 +1144,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             );
             app.model = model.clone();
             app.auto_model = auto_model;
-            app.show_model_popover = false;
-            app.show_mode_popover = false;
+            app.popover_visibility.model = false;
+            app.popover_visibility.mode = false;
             app.reasoning_effort = app.current_session_runtime().reasoning_effort;
             let reasoning_task =
                 if reset_effort { persist_session_reasoning_effort(app) } else { Task::none() };
@@ -1223,27 +1223,27 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
         }
         ChatMessage::OpenSessionToolSelectorTab(tab) => {
-            let same_tab_open = app.show_session_tool_selector_popover
+            let same_tab_open = app.popover_visibility.session_tool_selector
                 && app.current_session_runtime().visible_session_tool_selector_tab() == tab;
             {
                 let runtime = app.current_session_runtime_mut();
                 runtime.tool_selector.select_tab(tab);
             }
             if same_tab_open {
-                app.show_session_tool_selector_popover = false;
+                app.popover_visibility.session_tool_selector = false;
                 return Task::none();
             }
 
-            app.show_session_tool_selector_popover = true;
-            app.show_model_popover = false;
-            app.show_mode_popover = false;
-            app.show_send_mode_popover = false;
-            app.show_file_popover = false;
-            app.show_acp_popover = false;
-            app.show_reasoning_effort_popover = false;
-            app.show_usage_popover = false;
-            app.show_session_actions_popover = false;
-            app.show_executor_popover = false;
+            app.popover_visibility.session_tool_selector = true;
+            app.popover_visibility.model = false;
+            app.popover_visibility.mode = false;
+            app.popover_visibility.send_mode = false;
+            app.popover_visibility.file = false;
+            app.popover_visibility.acp = false;
+            app.popover_visibility.reasoning_effort = false;
+            app.popover_visibility.usage = false;
+            app.popover_visibility.session_actions = false;
+            app.popover_visibility.executor = false;
 
             if tab == SessionToolSelectorTab::Agent {
                 let status = Task::perform(
@@ -1463,7 +1463,7 @@ use vw_api_session::{
             };
             let id = info.id.clone();
             let project_path = app
-                .project_path
+                .navigation_tabs.project_path
                 .clone()
                 .filter(|_| app.project_id.as_deref() == Some(info.project_id.as_str()))
                 .unwrap_or(project_path);
@@ -1518,7 +1518,7 @@ use vw_api_session::{
                 };
             }
             let Some(message_id) = message_id_for_index(app, msg_idx) else {
-                let root = current_session_directory(app).or_else(|| app.project_path.clone());
+                let root = current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
                 return recover_reset_message_ids_task(
                     gateway_endpoint(app),
                     session_id,
@@ -1526,7 +1526,7 @@ use vw_api_session::{
                     msg_idx,
                 );
             };
-            let root = current_session_directory(app).or_else(|| app.project_path.clone());
+            let root = current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
             let retain_end = msg_idx.saturating_add(1);
             let retained_chat =
                 app.chat.get(..retain_end).map(|slice| slice.to_vec()).unwrap_or_default();
@@ -1658,7 +1658,7 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
         app.invalidate_project_chat_preferences_read();
         let id = id::descending(id::Prefix::Session, None)
             .unwrap_or_else(|_| format!("ses_{}", stream_id));
-        let project_path = app.project_path.clone().unwrap_or_default();
+        let project_path = app.navigation_tabs.project_path.clone().unwrap_or_default();
         let inferred_project_id = app
             .project_id
             .clone()
@@ -1851,7 +1851,7 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
             local.message_ids = app.chat_message_ids.clone();
             local.updated_ms = now;
             let session_directory =
-                current_session_directory(app).or_else(|| app.project_path.clone());
+                current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
             // A bounded history page is not a complete replacement snapshot.
             if app
                 .session_runtime_states

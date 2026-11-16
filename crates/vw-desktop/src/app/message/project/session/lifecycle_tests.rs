@@ -441,7 +441,7 @@ fn session_created_inserts_unique_session_and_resets_active_chat_state() {
     let mut app = app();
     let info = session_info("s1", "First", "/tmp/project");
     app.new_session_creating = true;
-    app.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
     app.sessions = vec![info.clone()];
     app.chat.push(crate::app::models::ChatMessage {
         role: ChatRole::User,
@@ -492,7 +492,7 @@ fn discovered_child_session_does_not_replace_active_parent() {
     let parent = session_info("parent", "Parent", "/tmp/project");
     let mut child = session_info("child", "Child", "/tmp/project");
     child.parent_id = Some(parent.id.clone());
-    app.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
     app.active_session_id = Some(parent.id.clone());
     app.sessions = vec![parent];
     app.chat.push(crate::app::models::ChatMessage {
@@ -599,7 +599,7 @@ fn session_messages_loaded_keeps_reset_local_history_when_gateway_returns_stale_
 fn session_copied_adds_to_current_and_project_session_lists_without_duplicates() {
     let mut app = app();
     let info = session_info("s1", "Copy", "/tmp/project");
-    app.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
     app.sessions = vec![info.clone()];
 
     let _ = super::lifecycle::handle(
@@ -639,7 +639,7 @@ fn session_title_double_click_enters_rename_mode_and_closes_actions() {
     app.sessions = vec![session_info("s1", "First", "/tmp/project")];
     app.session_menu_id = Some("s1".to_string());
     app.session_menu_anchor = Some(iced::Point::new(1.0, 2.0));
-    app.show_session_actions_popover = true;
+    app.popover_visibility.session_actions = true;
 
     let _ = super::lifecycle::handle(
         &mut app,
@@ -654,7 +654,7 @@ fn session_title_double_click_enters_rename_mode_and_closes_actions() {
     assert_eq!(app.session_rename_value, "First");
     assert!(app.session_menu_id.is_none());
     assert!(app.session_menu_anchor.is_none());
-    assert!(!app.show_session_actions_popover);
+    assert!(!app.popover_visibility.session_actions);
 }
 
 #[test]

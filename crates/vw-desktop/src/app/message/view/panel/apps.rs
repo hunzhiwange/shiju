@@ -16,10 +16,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     };
     let effect = domain::update(
         domain::Context {
-            open_tabs: &mut app.open_tabs,
-            active_tab_id: &mut app.active_tab_id,
-            screen: &mut app.screen,
-            apps_search_query: &mut app.apps_search_query,
+            open_tabs: &mut app.navigation_tabs.open_tabs,
+            active_tab_id: &mut app.navigation_tabs.active_tab_id,
+            screen: &mut app.navigation_tabs.screen,
+            apps_search_query: &mut app.navigation_tabs.apps_search_query,
         },
         crate::apps::workflow::WORKFLOW_TOOL_TAB_ID,
         app.recent_projects.first().map(String::as_str),
@@ -29,10 +29,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         None => Task::none(),
         Some(domain::Effect::OpenUsage) => {
             app.usage_center.close();
-            app.usage_model_info = None;
-            app.usage_step_raw_payloads.clear();
-            app.usage_step_raw_loading.clear();
-            app.usage_step_raw_modal = None;
+            app.usage_panel.usage_model_info = None;
+            app.usage_panel.usage_step_raw_payloads.clear();
+            app.usage_panel.usage_step_raw_loading.clear();
+            app.usage_panel.usage_step_raw_modal = None;
             let runtime = app.current_session_runtime();
             let model = if runtime.auto_model { None } else { Some(runtime.model) };
             Task::perform(desktop_usage::model_info::load(model), |info| {

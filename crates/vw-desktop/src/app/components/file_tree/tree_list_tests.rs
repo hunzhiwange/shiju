@@ -8,7 +8,7 @@ fn file_tree_drop_release_and_cleanup_orders_leave_no_stale_state() {
     use crate::app::message::project::{self, ProjectMessage};
     for release_first in [true, false] {
         let mut app = App::new().0;
-        app.project_path = Some("/project".into());
+        app.navigation_tabs.project_path = Some("/project".into());
         let _ = project::update(
             &mut app,
             ProjectMessage::FileTreeInternalDragStart {
@@ -48,7 +48,7 @@ fn file_tree_drop_release_and_cleanup_orders_leave_no_stale_state() {
 fn file_tree_drop_chat_sources_and_busy_operations_do_not_enable_move_state() {
     use crate::app::message::project::{self, ProjectMessage};
     let mut app = App::new().0;
-    app.project_path = Some("/project".into());
+    app.navigation_tabs.project_path = Some("/project".into());
     let _ =
         project::update(&mut app, ProjectMessage::FileTreeDragStart("/project/file".into(), None));
     let _ = project::update(
@@ -200,7 +200,7 @@ impl<'a> RowScene<'a> {
 
 pub(super) fn alignment_app() -> App {
     let mut app = App::new().0;
-    app.project_path = Some("/tree-fixture".into());
+    app.navigation_tabs.project_path = Some("/tree-fixture".into());
     app.git.git_changed_files =
         ["root.md", "sp6/原始视频.mov", "sp7/.shiju/配置.json", "closed/child.txt"]
             .map(str::to_owned)

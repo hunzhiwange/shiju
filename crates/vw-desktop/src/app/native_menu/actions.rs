@@ -28,7 +28,7 @@ impl NativeMenuSnapshot {
     pub(crate) fn from_app(app: &App) -> Self {
         Self {
             locale: app.desktop_locale,
-            is_project: matches!(app.screen, Screen::Project),
+            is_project: matches!(app.navigation_tabs.screen, Screen::Project),
             workspace_mode: app.navigation_mode.workspace_mode,
             show_file_manager: app.file_manager.show_file_manager,
             file_manager_show_changes: app.file_manager.file_manager_show_changes,
@@ -38,7 +38,7 @@ impl NativeMenuSnapshot {
 }
 
 fn window_tab_entries(app: &App) -> Vec<WindowTabEntry> {
-    app.open_tabs
+    app.navigation_tabs.open_tabs
         .iter()
         .filter(|tab| !tab.id.starts_with("find:"))
         .map(|tab| WindowTabEntry {
@@ -49,7 +49,7 @@ fn window_tab_entries(app: &App) -> Vec<WindowTabEntry> {
                 tab.title.trim().is_empty()
                     && tab.project_path.as_deref().is_none_or(|path| path.trim().is_empty()),
             ),
-            active: app.active_tab_id.as_deref() == Some(tab.id.as_str()),
+            active: app.navigation_tabs.active_tab_id.as_deref() == Some(tab.id.as_str()),
         })
         .collect()
 }

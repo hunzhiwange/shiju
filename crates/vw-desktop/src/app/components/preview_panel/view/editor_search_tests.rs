@@ -68,9 +68,9 @@ async fn ecp06_search_overlay_preserves_editor_bounds() {
         iced::Renderer::new(iced::Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
     let mut app = App::new().0;
     app.file_manager.file_manager_show_changes = false;
-    app.screen = crate::app::Screen::Project;
-    app.preview_tabs = vec![tab("/tmp/a.rs", None)];
-    app.active_preview_path = Some("/tmp/a.rs".into());
+    app.navigation_tabs.screen = crate::app::Screen::Project;
+    app.navigation_tabs.preview_tabs = vec![tab("/tmp/a.rs", None)];
+    app.navigation_tabs.active_preview_path = Some("/tmp/a.rs".into());
     fn bounds(node: &layout::Node, out: &mut Vec<iced::Rectangle>) {
         out.push(node.bounds());
         for child in node.children() {
@@ -97,11 +97,11 @@ async fn ecp06_search_overlay_preserves_editor_bounds() {
     for message in
         [EditorMessage::OpenSearch, EditorMessage::OpenReplace, EditorMessage::CloseSearch]
     {
-        let content = app.preview_tabs[0].editor.content();
-        let cursor = app.preview_tabs[0].editor.cursor_position();
+        let content = app.navigation_tabs.preview_tabs[0].editor.content();
+        let cursor = app.navigation_tabs.preview_tabs[0].editor.cursor_position();
         let _ = editor::update(&mut app, message);
         assert_eq!(measure(&app, &mut renderer), closed);
-        assert_eq!(app.preview_tabs[0].editor.content(), content);
-        assert_eq!(app.preview_tabs[0].editor.cursor_position(), cursor);
+        assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), content);
+        assert_eq!(app.navigation_tabs.preview_tabs[0].editor.cursor_position(), cursor);
     }
 }

@@ -27,7 +27,7 @@ fn set_input_text(app: &mut App, text: &str) {
 #[test]
 fn app_ranked_file_search_results_use_refreshed_cache() {
     let mut app = test_app();
-    app.project_path = Some("/workspace".to_string());
+    app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.file_search_query = "main".to_string();
     app.set_file_index("/workspace", vec!["src/main.rs".to_string(), "src/lib.rs".to_string()]);
 
@@ -56,7 +56,7 @@ fn file_search_input_changed_toggles_visibility_and_resets_selection() {
 #[test]
 fn input_editor_actions_open_and_clear_file_search() {
     let mut app = test_app();
-    app.project_path = Some("/workspace".to_string());
+    app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.set_file_index("/workspace", vec!["src/main.rs".to_string(), "tests/input.rs".to_string()]);
 
     paste(&mut app, "@src".to_string());
@@ -103,7 +103,7 @@ fn input_editor_invalid_search_character_clears_active_search() {
 #[test]
 fn file_search_navigation_clamps_to_available_results() {
     let mut app = test_app();
-    app.project_path = Some("/workspace".to_string());
+    app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.file_search_query = "src".to_string();
     app.set_file_index(
         "/workspace",
@@ -131,7 +131,7 @@ fn file_search_navigation_clamps_to_available_results() {
 #[test]
 fn file_search_navigation_limits_selection_to_twenty_visible_results() {
     let mut app = test_app();
-    app.project_path = Some("/workspace".to_string());
+    app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.set_file_index("/workspace", (0..25).map(|index| format!("file-{index:02}.rs")).collect());
 
     for _ in 0..30 {
@@ -144,7 +144,7 @@ fn file_search_navigation_limits_selection_to_twenty_visible_results() {
 #[test]
 fn selecting_file_search_path_replaces_active_mention_or_appends() {
     let mut app = test_app();
-    app.project_path = Some("/workspace".to_string());
+    app.navigation_tabs.project_path = Some("/workspace".to_string());
 
     set_input_text(&mut app, "open @sr");
     handle_file_search_select(&mut app, "/workspace/src/main.rs".to_string());
@@ -162,7 +162,7 @@ fn selecting_file_search_path_replaces_active_mention_or_appends() {
 #[test]
 fn selecting_file_search_path_without_project_root_normalizes_backslashes() {
     let mut app = test_app();
-    app.project_path = None;
+    app.navigation_tabs.project_path = None;
     set_input_text(&mut app, "open @C");
 
     handle_file_search_select(&mut app, "C:\\workspace\\src\\main.rs".to_string());
@@ -177,7 +177,7 @@ fn selecting_file_search_path_without_project_root_normalizes_backslashes() {
 #[test]
 fn selecting_current_file_search_result_uses_selected_index() {
     let mut app = test_app();
-    app.project_path = Some("/workspace".to_string());
+    app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.file_search_query = "src".to_string();
     app.set_file_index("/workspace", vec!["src/a.rs".to_string(), "src/b.rs".to_string()]);
     set_input_text(&mut app, "@s");
@@ -222,7 +222,7 @@ fn input_area_drag_drop_inserts_mentions_and_clears_state() {
     std::fs::write(&file_path, "fn main() {}").expect("write temp file");
 
     let mut app = test_app();
-    app.project_path = Some(temp.path().to_string_lossy().to_string());
+    app.navigation_tabs.project_path = Some(temp.path().to_string_lossy().to_string());
     app.file_tree_interaction.pending_drop_file_paths = vec![file_path.to_string_lossy().to_string()];
     app.file_tree_interaction.pending_drop_file_position = Some((9, 2));
     app.file_tree_interaction.input_drop_hovered = true;
@@ -276,7 +276,7 @@ fn input_area_drag_drop_ignores_single_position_for_multiple_paths() {
     std::fs::create_dir(&directory_path).expect("create temp directory");
 
     let mut app = test_app();
-    app.project_path = Some(temp.path().to_string_lossy().to_string());
+    app.navigation_tabs.project_path = Some(temp.path().to_string_lossy().to_string());
     app.file_tree_interaction.pending_drop_file_paths =
         vec![file_path.to_string_lossy().to_string(), directory_path.to_string_lossy().to_string()];
     app.file_tree_interaction.pending_drop_file_position = Some((9, 2));

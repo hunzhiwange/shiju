@@ -258,7 +258,7 @@ fn assert_control_alignment(
 
 fn prepare_chat(app: &mut App) {
     app.active_session_id = Some("source".into());
-    app.project_path = Some("/fixture/source".into());
+    app.navigation_tabs.project_path = Some("/fixture/source".into());
     app.project_is_git_repo = true;
     app.sessions = vec![session_info("source", "/fixture/source")];
     app.chat = [ChatRole::User, ChatRole::Tool, ChatRole::User]
@@ -665,7 +665,7 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
             );
         } else {
             assert_eq!(app.active_session_id.as_deref(), Some(id));
-            assert_eq!(app.project_path.as_deref(), Some("/fixture/source"));
+            assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/fixture/source"));
             assert_eq!(app.known_session_directory(id).as_deref(), Some(directory));
             assert!(app.sessions.iter().any(|info| info.id == id));
             assert!(app.project_sessions["/fixture/source"].iter().any(|info| info.id == id));
@@ -702,7 +702,7 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
             };
             let _ = project::update(&mut app, loaded);
             assert_fork_readback(&mut requests, id, directory);
-            assert_eq!(app.project_path.as_deref(), Some("/fixture/source"));
+            assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/fixture/source"));
             if id == "first" {
                 assert!(app.chat.is_empty());
             } else {
@@ -1117,7 +1117,7 @@ async fn ui_refresh_32_invalid_file_name_feedback_keeps_inline_editor() {
     app.file_tree_interaction.file_tree_rename_path = Some("/fixture/original.txt".into());
     app.file_tree_interaction.file_tree_rename_value = "../wrong".into();
     let mut renderer = renderer().await;
-    app.project_path = Some("/fixture".into());
+    app.navigation_tabs.project_path = Some("/fixture".into());
     app.file_index_cache.insert("/fixture".into(), vec!["/fixture/original.txt".into()]);
     let mut ui = scene(crate::app::components::file_tree::view(&app), &mut renderer, VIEW_SIZE);
     let input = geometry(&mut ui, &renderer).inputs[0].1;
@@ -1213,7 +1213,7 @@ async fn fork_selection_reopen_gateway_reads_worktree_authority() {
     let (tx, mut requests) = tokio::sync::mpsc::unbounded_channel();
     let server =
         tokio::spawn(serve_fork_gateway(listener, "reopen", "/fixture/worktree", false, tx));
-    app.project_path = Some("/fixture/source".into());
+    app.navigation_tabs.project_path = Some("/fixture/source".into());
     app.active_session_id = Some("source".into());
     let mut cached = session_info("reopen", "/fixture/worktree");
     cached.fork_execution_started = Some(false);

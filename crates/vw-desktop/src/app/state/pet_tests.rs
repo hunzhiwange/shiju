@@ -189,8 +189,8 @@ fn sync_task_pet_from_runtime_adds_updates_completes_and_sorts_items() {
 fn mini_companion_none_keeps_controls() {
     let mut app = app();
     app.task_pet_avatar_kind = TaskPetAvatarKind::None;
-    app.task_pet_visible = true;
-    assert!(app.task_pet_visible);
+    app.companion_navigation.task_pet_visible = true;
+    assert!(app.companion_navigation.task_pet_visible);
     assert_eq!(app.task_pet_window_size(), iced::Size::new(160.0, 168.0));
     let _ = crate::app::components::task_pet::window(&app);
     app.toggle_task_pet_collapsed();

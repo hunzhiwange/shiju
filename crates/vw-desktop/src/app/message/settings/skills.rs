@@ -172,7 +172,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::SkillsHelpClose => Event::SkillsHelpClose,
         _ => return Task::none(),
     };
-    let effect = domain::update(&mut app.skills_settings, &app.project_path, event);
+    let effect = domain::update(&mut app.skills_settings, &app.navigation_tabs.project_path, event);
     execute(app, effect)
 }
 fn execute(app: &mut App, effect: Effect) -> Task<Message> {
@@ -218,7 +218,7 @@ fn update_input(app: &App) -> desktop_settings_skills::update::Input {
     let context = client.as_ref().ok().map(|client| crate::app::state::AgentAppsContext {
         gateway: client.endpoint().base_url(),
         tenant: client.endpoint().tenant_scope().clone(),
-        project: app.project_path.clone(),
+        project: app.navigation_tabs.project_path.clone(),
     });
     desktop_settings_skills::update::Input {
         connection_error: client.as_ref().err().map(ToString::to_string).unwrap_or_default(),
@@ -227,7 +227,7 @@ fn update_input(app: &App) -> desktop_settings_skills::update::Input {
         loopback: client.as_ref().is_ok_and(|client| client.endpoint().is_loopback()),
         context,
         project: app.project_id.clone(),
-        directory: app.project_path.clone(),
+        directory: app.navigation_tabs.project_path.clone(),
         host: app.apps_catalog.host.clone(),
         catalog: app.apps_catalog.generation,
         targets: app.apps_catalog.rows.iter().filter_map(|row| row.observation.as_ref().ok())

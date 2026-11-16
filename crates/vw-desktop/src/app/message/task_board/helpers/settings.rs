@@ -18,7 +18,7 @@ pub(crate) fn save_settings(app: &mut crate::app::App) {
         },
     };
 
-    if let Some(path) = &app.project_path {
+    if let Some(path) = &app.navigation_tabs.project_path {
         let path = path.clone();
         if let Some(m) = app.recent_projects_meta.iter_mut().find(|m| m.path == path) {
             m.task_board_settings = Some(app.task_board_settings.clone());

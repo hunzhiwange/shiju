@@ -46,7 +46,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let context = AgentAppsContext {
         gateway: client.endpoint().base_url(),
         tenant: client.endpoint().tenant_scope().clone(),
-        project: app.project_path.clone(),
+        project: app.navigation_tabs.project_path.clone(),
     };
     // A loaded response must still be checked when the current project is absent.
     let project = app.project_id.clone().unwrap_or_default();
@@ -116,7 +116,7 @@ fn update_compression(
     let context = AgentAppsContext {
         gateway: client.endpoint().base_url(),
         tenant: client.endpoint().tenant_scope().clone(),
-        project: app.project_path.clone(),
+        project: app.navigation_tabs.project_path.clone(),
     };
     let connection = desktop_apps_ui::Connection {
         client,

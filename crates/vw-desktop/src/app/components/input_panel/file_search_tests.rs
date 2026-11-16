@@ -32,7 +32,7 @@ fn file_search_overlay_empty_results_render_one_empty_state_row() {
 #[test]
 fn file_search_overlay_non_empty_results_render_each_ranked_entry() {
     let mut app = App::new().0;
-    app.project_path = Some("/repo".to_string());
+    app.navigation_tabs.project_path = Some("/repo".to_string());
     app.file_search_query = "main".to_string();
     app.file_search_selected_index = 1;
     app.set_file_index(
@@ -54,7 +54,7 @@ fn file_search_overlay_non_empty_results_render_each_ranked_entry() {
 #[test]
 fn file_search_overlay_includes_matching_parent_directory_rows() {
     let mut app = App::new().0;
-    app.project_path = Some("/repo".to_string());
+    app.navigation_tabs.project_path = Some("/repo".to_string());
     app.file_search_query = "src".to_string();
     app.set_file_index("/repo", vec!["/repo/src/main.rs".to_string()]);
 
@@ -65,7 +65,7 @@ fn file_search_overlay_includes_matching_parent_directory_rows() {
 #[test]
 fn file_search_overlay_limits_large_result_sets_to_twenty_rows() {
     let mut app = App::new().0;
-    app.project_path = Some("/repo".to_string());
+    app.navigation_tabs.project_path = Some("/repo".to_string());
     app.file_search_query = "file".to_string();
     app.set_file_index("/repo", (0..30).map(|i| format!("src/file_{i}.rs")).collect());
 

@@ -17,7 +17,7 @@ use iced::{Color, Font, Length, Pixels, Rectangle, Size, Theme};
 
 fn app() -> App {
     let mut app = App::new().0;
-    app.project_path = Some("/tmp/vibe-window".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/vibe-window".to_string());
     app
 }
 

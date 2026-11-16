@@ -38,7 +38,7 @@ fn task_board_does_not_touch_legacy_task_database() {
 #[test]
 fn non_git_project_schedules_logical_pool_refresh() {
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/tmp/non-git-project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/non-git-project".to_string());
     app.project_is_git_repo = false;
     app.task_board_worktree_snapshot_loading = false;
     app.task_board_worktree_snapshot = Some(crate::app::task::WorktreePoolSnapshot {
@@ -73,7 +73,7 @@ fn non_git_project_schedules_logical_pool_refresh() {
 #[test]
 fn git_project_still_schedules_worktree_snapshot_refresh() {
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/tmp/git-project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/git-project".to_string());
     app.project_is_git_repo = true;
     app.task_board_worktree_snapshot_loading = false;
 
@@ -101,7 +101,7 @@ fn task_pool_desktop_scheduler_prepares_logical_capacity_without_worktrees() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().to_string_lossy().into_owned();
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some(path.clone());
+    app.navigation_tabs.project_path = Some(path.clone());
     app.project_is_git_repo = false;
     app.task_board_settings.max_concurrent = 7;
     let task = super::schedule_worktree_pool_maintenance(&mut app, &path, 0);

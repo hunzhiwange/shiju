@@ -6,8 +6,8 @@ fn message(event: Event) -> Message {
     Message::Settings(super::SettingsMessage::Voice(event))
 }
 pub(crate) fn invalidate(app: &mut App) {
-    let visible = app.show_system_settings
-        && app.system_settings_tab == crate::app::components::system_settings::SystemTab::Voice;
+    let visible = app.navigation_panels.show_system_settings
+        && app.navigation_panels.system_settings_tab == crate::app::components::system_settings::SystemTab::Voice;
     desktop_settings_voice::invalidate(
         &mut app.voice.settings, &crate::app::gateway_client_endpoint(), visible,
     );

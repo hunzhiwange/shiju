@@ -6,7 +6,7 @@ pub use desktop_i18n::apps::*;
 pub(crate) fn refresh_hub_titles(app: &mut crate::app::App) {
     use crate::app::message::{shiju_apps, skill_hub};
     let i18n = I18n::new(app.desktop_locale);
-    for tab in &mut app.open_tabs {
+    for tab in &mut app.navigation_tabs.open_tabs {
         let source = match tab.id.as_str() {
             skill_hub::EXPERT_HUB_TAB_ID => skill_hub::EXPERT_HUB_TITLE,
             skill_hub::SHIJU_SKILLS_TAB_ID => skill_hub::SHIJU_SKILLS_TITLE,

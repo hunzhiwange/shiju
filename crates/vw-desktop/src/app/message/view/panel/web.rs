@@ -28,37 +28,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::WebBookmarkRemove(idx) => domain::Message::WebBookmarkRemove(idx),
         _ => return Task::none(),
     };
-    let mut state = domain::State {
-        web_bookmarks: std::mem::take(&mut app.web_bookmarks),
-        #[cfg(not(target_arch = "wasm32"))]
-        independent_webview_children: std::mem::take(&mut app.independent_webview_children),
-        show_web_links_menu: std::mem::take(&mut app.show_web_links_menu),
-        web_bookmark_title_input: std::mem::take(&mut app.web_bookmark_title_input),
-        web_bookmark_url_input: std::mem::take(&mut app.web_bookmark_url_input),
-        web_bookmark_width_input: std::mem::take(&mut app.web_bookmark_width_input),
-        web_bookmark_height_input: std::mem::take(&mut app.web_bookmark_height_input),
-        editing_web_bookmark: std::mem::take(&mut app.editing_web_bookmark),
-        edit_web_bookmark_title_input: std::mem::take(&mut app.edit_web_bookmark_title_input),
-        edit_web_bookmark_url_input: std::mem::take(&mut app.edit_web_bookmark_url_input),
-        edit_web_bookmark_width_input: std::mem::take(&mut app.edit_web_bookmark_width_input),
-        edit_web_bookmark_height_input: std::mem::take(&mut app.edit_web_bookmark_height_input),
-        edit_web_bookmark_cookie_configs_editor: std::mem::take(&mut app.edit_web_bookmark_cookie_configs_editor),
-    };
-    let effect = domain::update(&mut state, message);
-    { app.web_bookmarks = state.web_bookmarks; }
-    #[cfg(not(target_arch = "wasm32"))]
-    { app.independent_webview_children = state.independent_webview_children; }
-    { app.show_web_links_menu = state.show_web_links_menu; }
-    { app.web_bookmark_title_input = state.web_bookmark_title_input; }
-    { app.web_bookmark_url_input = state.web_bookmark_url_input; }
-    { app.web_bookmark_width_input = state.web_bookmark_width_input; }
-    { app.web_bookmark_height_input = state.web_bookmark_height_input; }
-    { app.editing_web_bookmark = state.editing_web_bookmark; }
-    { app.edit_web_bookmark_title_input = state.edit_web_bookmark_title_input; }
-    { app.edit_web_bookmark_url_input = state.edit_web_bookmark_url_input; }
-    { app.edit_web_bookmark_width_input = state.edit_web_bookmark_width_input; }
-    { app.edit_web_bookmark_height_input = state.edit_web_bookmark_height_input; }
-    { app.edit_web_bookmark_cookie_configs_editor = state.edit_web_bookmark_cookie_configs_editor; }
+    let effect = domain::update(&mut app.web_navigation, message);
     match effect {
         Some(domain::Effect::Save(bookmarks)) => app.save_desktop_preference("web_bookmarks", bookmarks),
         Some(domain::Effect::Error(message)) => app.show_localized_toast(crate::app::state::ToastKind::Error, message, vec![]),

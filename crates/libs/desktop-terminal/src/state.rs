@@ -220,6 +220,17 @@ pub struct TerminalState<S> {
 }
 
 impl<S: Copy + Into<&'static str>> TerminalState<S> {
+    /// Toggle the dock using its existing minimum opening height.
+    pub fn toggle_panel(&mut self) {
+        #[cfg(not(target_arch = "wasm32"))]
+        { self.content_menu = None; }
+        self.set_visible(!self.is_visible);
+        if self.is_visible && self.height < 160.0 { self.height = 200.0; }
+    }
+    pub fn finish_pointer_resize(&mut self) {
+        if self.is_dragging { self.is_dragging = false; self.drag_anchor_y = None; }
+    }
+
     /// Continue resizing outside the handle. False means this event only set the anchor.
     pub fn pointer_resize(&mut self, y: f32, window_height: f32) -> bool {
         let Some(anchor) = self.drag_anchor_y else {

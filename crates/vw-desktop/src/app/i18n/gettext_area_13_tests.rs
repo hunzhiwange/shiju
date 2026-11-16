@@ -132,22 +132,22 @@ async fn desktop_gettext_area_13_locale_selection_refreshes_tab_without_navigati
     use crate::app::message::{GeneralSettingsMessage, SettingsMessage};
     let (mut app, _) = crate::app::App::new();
     crate::apps::workflow::sync_top_tab(&mut app);
-    let active = app.active_tab_id.clone();
+    let active = app.navigation_tabs.active_tab_id.clone();
     app.desktop_locale_saving = true;
     let _ = crate::app::message::settings::update(
         &mut app,
         SettingsMessage::General(GeneralSettingsMessage::LocaleSelected(DesktopLocale::English)),
     );
-    assert_eq!(app.active_tab_id, active);
+    assert_eq!(app.navigation_tabs.active_tab_id, active);
     assert_eq!(
-        app.open_tabs.iter().find(|tab| tab.id == "workflow_tool").unwrap().title,
+        app.navigation_tabs.open_tabs.iter().find(|tab| tab.id == "workflow_tool").unwrap().title,
         "Workflows"
     );
     app.workflow_state.active_app_id = Some("raw".into());
     app.workflow_state.source_name = "用户/%s/%n".into();
     crate::apps::workflow::refresh_top_tab_title(&mut app);
     assert_eq!(
-        app.open_tabs.iter().find(|tab| tab.id == "workflow_tool").unwrap().title,
+        app.navigation_tabs.open_tabs.iter().find(|tab| tab.id == "workflow_tool").unwrap().title,
         "用户/%s/%n"
     );
 }

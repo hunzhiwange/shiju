@@ -95,7 +95,7 @@ fn acp_model_source_ui_round_trip_preserves_model_and_open_popover() {
     use crate::app::message::{ChatMessage, chat};
     use vw_api_acp_model::{acp_model_source::AcpModelSource, acp_session::AcpSessionOptions};
     let (mut app, _) = crate::app::App::new();
-    app.show_model_popover = true;
+    app.popover_visibility.model = true;
     let runtime = app.current_session_runtime_mut();
     runtime.acp_agent = Some("claude".into());
     runtime.model = "provider/selected-model".into();
@@ -122,7 +122,7 @@ fn acp_model_source_ui_round_trip_preserves_model_and_open_popover() {
         );
         assert_eq!(app.current_session_runtime().acp_model_source, source);
         assert_eq!(app.current_session_runtime().model, "provider/selected-model");
-        assert!(app.show_model_popover);
+        assert!(app.popover_visibility.model);
     }
 }
 
@@ -296,7 +296,7 @@ fn acp_model_source_ui_new_project_ignores_previous_project_confirmation() {
     use crate::app::message::{ChatMessage, chat};
     use vw_api_acp_model::{acp_model_source::AcpModelSource, acp_session::AcpSessionOptions};
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some("/new-project".into());
+    app.navigation_tabs.project_path = Some("/new-project".into());
     let runtime = app.current_session_runtime_mut();
     runtime.acp_agent = Some("claude".into());
     runtime.acp_options_state.source_pending = Some(source_ui_update());

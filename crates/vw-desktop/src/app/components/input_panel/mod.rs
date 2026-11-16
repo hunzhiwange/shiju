@@ -117,7 +117,7 @@ pub(super) fn session_tool_tab_button<'a>(
 ) -> Element<'a, Message> {
     let runtime = app.current_session_runtime();
     let active_tab = runtime.visible_session_tool_selector_tab();
-    let popover_open = app.show_session_tool_selector_popover;
+    let popover_open = app.popover_visibility.session_tool_selector;
     let highlight = (popover_open && active_tab == tab)
         || match tab {
             crate::app::state::SessionToolSelectorTab::Agent => runtime.agent.is_some(),
@@ -262,7 +262,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
 
     // ========== 构建模型选择按钮和弹出框 ==========
     let model_toggle =
-        model_popover::model_toggle_button(app, auto_model, &model, app.show_model_popover);
+        model_popover::model_toggle_button(app, auto_model, &model, app.popover_visibility.model);
 
     // 构建输入编辑器组件
     let (input, _editor_height) =
@@ -285,7 +285,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     // 组合模型按钮和弹出框为覆盖层组件
     let mobile = app.mobile_layout.mode() == crate::app::state::LayoutMode::Mobile;
     let model_btn: Element<'_, Message> = AboveOverlay::new(model_toggle, model_pop_content)
-        .show(app.show_model_popover)
+        .show(app.popover_visibility.model)
         .block_background_events(true)
         .gap(6.0)
         .on_close(Message::View(message::ViewMessage::CloseModelPopover))

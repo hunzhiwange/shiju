@@ -27,12 +27,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.project_profiles.invalidate();
-            if app.system_settings_tab == SystemTab::Worktrees {
+            if app.navigation_panels.system_settings_tab == SystemTab::Worktrees {
                 super::worktrees::recovery::invalidate(app);
             }
             app.apps_catalog.drag = Default::default();
-            app.settings_tab = tab;
-            app.system_settings_help_tab = None;
+            app.navigation_panels.settings_tab = tab;
+            app.navigation_panels.system_settings_help_tab = None;
             Task::none()
         }
         SettingsMessage::SystemTabSelected(tab) => {
@@ -47,11 +47,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 let _ = super::cron::update(app, SettingsMessage::CronJobEditCanceled);
             }
             app.cron_settings.show_cron_templates = false;
-            if app.system_settings_tab == SystemTab::Worktrees {
+            if app.navigation_panels.system_settings_tab == SystemTab::Worktrees {
                 super::worktrees::recovery::invalidate(app);
             }
             app.apps_catalog.drag = Default::default();
-            app.system_settings_tab = match tab {
+            app.navigation_panels.system_settings_tab = match tab {
                 SystemTab::Editor => {
                     app.general_settings_tab = crate::app::state::GeneralSettingsTab::Editor;
                     SystemTab::General
@@ -72,7 +72,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
                 _ => tab,
             };
-            app.system_settings_help_tab = None;
+            app.navigation_panels.system_settings_help_tab = None;
             #[cfg(not(target_arch = "wasm32"))]
             {
                 app.agent_apps_auth.form = None;
@@ -252,7 +252,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::ModelConfigTab(ModelConfigTabMessage::Selected(tab)) => {
             app.model_settings.active_tab = tab;
-            app.system_settings_help_tab = None;
+            app.navigation_panels.system_settings_help_tab = None;
             match tab {
                 crate::app::state::ModelConfigTab::Models => {
                     app.model_settings.loading = true;
@@ -273,7 +273,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(tab)) => {
             app.agents_settings.active_config_tab = tab;
-            app.system_settings_help_tab = None;
+            app.navigation_panels.system_settings_help_tab = None;
             match tab {
                 crate::app::state::AgentConfigTab::Acp => {
                     app.acp_settings.loading = true;
@@ -324,11 +324,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             )
         }
         SettingsMessage::SystemHelpOpen(tab) => {
-            app.system_settings_help_tab = Some(tab);
+            app.navigation_panels.system_settings_help_tab = Some(tab);
             Task::none()
         }
         SettingsMessage::SystemHelpClose => {
-            app.system_settings_help_tab = None;
+            app.navigation_panels.system_settings_help_tab = None;
             Task::none()
         }
         SettingsMessage::ToggleSettingsSidebar => {

@@ -187,8 +187,8 @@ async fn ui_refresh_21_renders_pages_and_narrow_help() {
         );
     }
     use crate::app::components::system_settings;
-    app.show_system_settings = true;
-    app.system_settings_tab = system_settings::SystemTab::Runtime;
+    app.navigation_panels.show_system_settings = true;
+    app.navigation_panels.system_settings_tab = system_settings::SystemTab::Runtime;
     app.runtime_settings.save_error = Some("Docker CPU 限制 必须大于 0".into());
     snapshot(
         system_settings::view(&app),
@@ -214,11 +214,11 @@ async fn ui_refresh_21_runtime_select_is_reachable_from_keyboard() {
     }
     let mut renderer = renderer().await;
     let mut app = fixture();
-    app.show_system_settings = true;
+    app.navigation_panels.show_system_settings = true;
     app.runtime_settings.kind = "native".into();
     app.agents_settings.active_config_tab = AgentConfigTab::Runtime;
     for tab in [SystemTab::Runtime, SystemTab::Agents] {
-        app.system_settings_tab = tab;
+        app.navigation_panels.system_settings_tab = tab;
         let mut ui = scene(system_settings::view(&app), &mut renderer, Size::new(960, 950));
         let cursor = mouse::Cursor::Unavailable;
         let mut focus = scope(Id::from(SELECT_FOCUS_SCOPE), focusable::focus_next::<()>());

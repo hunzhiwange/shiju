@@ -11,7 +11,7 @@ fn context(app: &App) -> BrowserContext<'_> {
         help,
         desktop_locale: app.desktop_locale,
         app_theme: &app.app_theme,
-        project_path: &app.project_path,
+        project_path: &app.navigation_tabs.project_path,
         recent_projects: &app.recent_projects,
         skills_settings: BrowserState {
             directory_provider: s.directory_provider,

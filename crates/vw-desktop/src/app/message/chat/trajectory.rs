@@ -116,7 +116,7 @@ pub(super) fn refresh_missing_raw_task(
     let missing = raw_state(app).missing(session_id, only_step_index);
 
     let mut tasks = Vec::with_capacity(missing.len());
-    let directory = app.known_session_directory(session_id).or_else(|| app.project_path.clone());
+    let directory = app.known_session_directory(session_id).or_else(|| app.navigation_tabs.project_path.clone());
     for key in missing {
         tasks.push(raw_load_task(key.0, key.1, key.2, directory.clone(), 1));
     }
@@ -135,7 +135,7 @@ fn retry_raw_load_task(
     if !raw_state(app).accepts(active_session_id.as_deref(), &key, attempt) {
         return Task::none();
     }
-    let directory = app.known_session_directory(&session_id).or_else(|| app.project_path.clone());
+    let directory = app.known_session_directory(&session_id).or_else(|| app.navigation_tabs.project_path.clone());
     raw_load_task(session_id, turn_id, step_index, directory, attempt)
 }
 

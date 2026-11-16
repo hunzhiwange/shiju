@@ -11,5 +11,5 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
     super::run_domain(app, |input| desktop_expert_hub::message::public::update(input, message))
 }
 pub(crate) fn selectable_expert_skill(app: &App) -> Result<String, &'static str> {
-    desktop_expert_hub::message::public::selectable_expert_skill(&app.expert_hub.public_market, app.project_path.as_deref(), app.open_tabs.iter().any(|tab| tab.project_path.as_deref() == app.project_path.as_deref() && tab.screen == crate::app::Screen::Project))
+    desktop_expert_hub::message::public::selectable_expert_skill(&app.expert_hub.public_market, app.navigation_tabs.project_path.as_deref(), app.navigation_tabs.open_tabs.iter().any(|tab| tab.project_path.as_deref() == app.navigation_tabs.project_path.as_deref() && tab.screen == crate::app::Screen::Project))
 }

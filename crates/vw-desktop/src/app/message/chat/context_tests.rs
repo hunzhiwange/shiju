@@ -95,7 +95,7 @@ fn append_text_to_empty_active_session_avoids_leading_newline_and_preserves_lega
 #[test]
 fn insert_position_uses_project_relative_path_and_closes_context_menu() {
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some("/workspace".to_string());
+    app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.current_session_runtime_mut().input_editor = text_editor::Content::with_text("prompt");
     app.show_preview_context_menu = true;
 
@@ -133,7 +133,7 @@ fn insert_position_normalizes_path_and_isolates_active_session() {
 #[test]
 fn insert_selection_positions_uses_context_target_when_present() {
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some("/workspace".to_string());
+    app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.current_session_runtime_mut().input_editor = text_editor::Content::with_text("prompt");
     app.preview_context_target = Some(("/workspace/src/lib.rs".to_string(), 1, 2, 3, 4));
     app.show_preview_context_menu = true;
@@ -189,8 +189,8 @@ fn insert_selected_without_active_preview_only_closes_menu() {
 #[test]
 fn insert_selected_without_matching_tab_only_closes_menu() {
     let (mut app, _) = crate::app::App::new();
-    app.active_preview_path = Some("/workspace/missing.rs".to_string());
-    app.preview_tabs = vec![preview_tab("/workspace/other.rs", "other")];
+    app.navigation_tabs.active_preview_path = Some("/workspace/missing.rs".to_string());
+    app.navigation_tabs.preview_tabs = vec![preview_tab("/workspace/other.rs", "other")];
     app.show_preview_context_menu = true;
 
     let task = super::update(&mut app, ChatMessage::InsertSelected);
@@ -203,8 +203,8 @@ fn insert_selected_without_matching_tab_only_closes_menu() {
 fn insert_selected_with_matching_tab_closes_menu_and_schedules_copy_chain() {
     let (mut app, _) = crate::app::App::new();
     let path = "/workspace/main.rs";
-    app.active_preview_path = Some(path.to_string());
-    app.preview_tabs = vec![preview_tab(path, "fn main() {}")];
+    app.navigation_tabs.active_preview_path = Some(path.to_string());
+    app.navigation_tabs.preview_tabs = vec![preview_tab(path, "fn main() {}")];
     app.show_preview_context_menu = true;
 
     let task = super::update(&mut app, ChatMessage::InsertSelected);

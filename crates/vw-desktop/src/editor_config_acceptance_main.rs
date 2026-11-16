@@ -33,7 +33,7 @@ impl Acceptance {
                 .join("\n")
         );
         let path = "/tmp/editor-config-acceptance.rs".to_owned();
-        app.preview_tabs = vec![PreviewTab {
+        app.navigation_tabs.preview_tabs = vec![PreviewTab {
             path: path.clone(),
             title: "editor-config-acceptance.rs".into(),
             content: content.clone(),
@@ -47,10 +47,10 @@ impl Acceptance {
             lsp_uri: None,
             lsp_language_id: None,
         }];
-        app.active_preview_path = Some(path);
+        app.navigation_tabs.active_preview_path = Some(path);
         app.app_theme = Theme::Light;
         app.editor_theme = Theme::Light;
-        for tab in &mut app.preview_tabs {
+        for tab in &mut app.navigation_tabs.preview_tabs {
             tab.editor.set_theme(Theme::Light);
         }
         app.file_manager.file_manager_show_changes = false;
@@ -64,7 +64,7 @@ impl Acceptance {
                     if self.app.app_theme == Theme::Light { Theme::Dark } else { Theme::Light };
                 self.app.app_theme = theme.clone();
                 self.app.editor_theme = theme.clone();
-                for tab in &mut self.app.preview_tabs {
+                for tab in &mut self.app.navigation_tabs.preview_tabs {
                     tab.editor.set_theme(theme.clone());
                 }
             }

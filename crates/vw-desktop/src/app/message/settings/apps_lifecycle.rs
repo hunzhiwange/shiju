@@ -11,7 +11,7 @@ pub(super) fn update(app: &mut App, message: LifecycleMessage) -> Task<Message> 
     let current = AgentAppsContext {
         gateway: client.endpoint().base_url(),
         tenant: client.endpoint().tenant_scope().clone(),
-        project: app.project_path.clone(),
+        project: app.navigation_tabs.project_path.clone(),
     };
     if crate::app::state::agent_apps::reset_if_context_changed(&mut app.apps_catalog, &current) { return Task::none(); }
     let host = app.apps_catalog.host.clone();

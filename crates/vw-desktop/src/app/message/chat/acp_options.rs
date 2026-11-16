@@ -85,7 +85,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             update,
             result,
         } => {
-            if session_id == "__empty__" && app.project_path != project_path {
+            if session_id == "__empty__" && app.navigation_tabs.project_path != project_path {
                 if let Some(runtime) = app.session_runtime_states.get_mut(&session_id)
                     && runtime.acp_options_state.source_request_id == Some(request_id)
                 {
@@ -194,7 +194,7 @@ pub(super) fn select_source(
 ) -> Task<Message> {
     let session_id = app.active_session_id.clone().unwrap_or_else(|| "__empty__".into());
     let directory = super::stream::session_directory_for_save(app, &session_id);
-    let project_path = app.project_path.clone();
+    let project_path = app.navigation_tabs.project_path.clone();
     let request_id = next_source_request_id();
     let runtime = app.get_session_runtime_mut(&session_id);
     let Some(agent) = runtime.acp_agent.clone() else {

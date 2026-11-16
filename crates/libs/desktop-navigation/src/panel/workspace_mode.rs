@@ -19,7 +19,7 @@ fn select_workspace_mode(app: &mut State, mode: WorkspaceMode) {
     app.code_projects_menu_open = false;
 }
 
-pub fn update(app: &mut State, message: Message) -> Option<WorkspaceMode> {
+pub fn update(app: &mut State, panels: &mut super::settings::State, message: Message) -> Option<WorkspaceMode> {
     match message {
         Message::ToggleWorkspaceModePopover => {
             app.show_workspace_mode_popover = !app.show_workspace_mode_popover;
@@ -33,6 +33,7 @@ pub fn update(app: &mut State, message: Message) -> Option<WorkspaceMode> {
         }
     }
 
+    if app.show_workspace_mode_popover { panels.close_menu(); }
     None
 }
 

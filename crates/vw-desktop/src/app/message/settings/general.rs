@@ -163,7 +163,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 || crate::app::mcp_link_preview::pending().is_some()
                 || crate::app::prompt_link_preview::pending().is_some()
             {
-                app.show_settings = true;
+                app.navigation_panels.show_settings = true;
             }
             let wake = app.reopen_main_window();
             if unsupported {
@@ -204,9 +204,9 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             if app.shutdown_requested {
                 return Task::none();
             }
-            app.show_system_settings = true;
-            app.system_settings_help_tab = None;
-            app.active_menu = None;
+            app.navigation_panels.show_system_settings = true;
+            app.navigation_panels.system_settings_help_tab = None;
+            app.navigation_panels.active_menu = None;
             app.apps_catalog.query.clear();
             let page = super::update(
                 app,

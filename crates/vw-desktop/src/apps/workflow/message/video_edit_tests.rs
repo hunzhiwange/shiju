@@ -4,7 +4,7 @@ use crate::app::App;
 fn video_edit_ui_start_uses_existing_native_chat_queue_and_permissions() {
     let mut app = App::new().0;
     app.acp_agent = None;
-    app.project_path = Some("/原生项目".into());
+    app.navigation_tabs.project_path = Some("/原生项目".into());
     app.active_session_id = Some("ses_video_ui".into());
     app.chat_send_behavior = crate::app::state::ChatSendBehavior::Queue;
     {

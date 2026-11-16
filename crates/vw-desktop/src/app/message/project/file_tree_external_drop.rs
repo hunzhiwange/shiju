@@ -11,7 +11,7 @@ pub(super) fn submit(
     directory: String,
 ) -> Task<Message> {
     super::move_drop::clear_drag(app);
-    if app.project_path.as_ref() != Some(&root)
+    if app.navigation_tabs.project_path.as_ref() != Some(&root)
         || !desktop_workspace::file_tree::valid_external_drop(&root, &source, &directory, &app.files)
     {
         return Task::none();
@@ -47,7 +47,7 @@ pub(super) fn complete(
         desktop_workspace::file_tree::FeedbackKind::Error => crate::app::state::ToastKind::Error,
     };
     let toast = app.show_localized_toast(kind, "%s", vec![detail.into()]);
-    let current = app.project_path.as_ref() == Some(&root);
+    let current = app.navigation_tabs.project_path.as_ref() == Some(&root);
     let refresh = Task::perform(
         async move {
             let snapshot = super::super::helpers::refresh_file_index_with_fallback(&root).await;

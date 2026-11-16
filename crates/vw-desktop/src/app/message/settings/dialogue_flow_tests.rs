@@ -26,7 +26,7 @@ fn has_scheduled_action(task: Task<Message>) -> bool {
 #[test]
 fn action_messages_schedule_follow_up_work() {
     let mut app = app();
-    app.project_path = None;
+    app.navigation_tabs.project_path = None;
 
     assert!(has_scheduled_action(
         update(&mut app, SettingsMessage::DialogueFlowPermissionRefresh,)

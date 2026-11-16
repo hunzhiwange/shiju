@@ -14,8 +14,7 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::WorkspaceModeSelected(mode) => domain::Message::WorkspaceModeSelected(mode),
         _ => return Task::none(),
     };
-    let result = domain::update(&mut app.navigation_mode, message);
-    if app.navigation_mode.show_workspace_mode_popover { app.active_menu = None; }
+    let result = domain::update(&mut app.navigation_mode, &mut app.navigation_panels, message);
     if let Some(mode) = result { return app.save_desktop_preference("workspace_mode", mode.as_str().into()); }
     Task::none()
 }

@@ -27,41 +27,29 @@ fn task_pet_view_messages_update_interaction_state() {
     let _ = super::update(&mut app, ViewMessage::TaskPetContextMenuOpened(12.0, 24.0));
 
     assert!(!app.task_pet_collapsed);
-    assert!(app.task_pet_robot_hovered);
+    assert!(app.companion_navigation.task_pet_robot_hovered);
     assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Beauty);
     assert_eq!(app.task_pet_hovered_request_id, Some(41));
     assert_eq!(app.task_pet_reply_request_id, Some(41));
     assert_eq!(app.task_pet_reply_input, " 继续执行 ");
-    assert_eq!(app.task_pet_context_menu_pos, Some((12.0, 24.0)));
+    assert_eq!(app.companion_navigation.task_pet_context_menu_pos, Some((12.0, 24.0)));
 
     let _ = super::update(&mut app, ViewMessage::TaskPetContextMenuClosed);
-    assert_eq!(app.task_pet_context_menu_pos, None);
+    assert_eq!(app.companion_navigation.task_pet_context_menu_pos, None);
 }
 
-#[test]
-fn task_pet_reply_pressed_again_closes_editor_and_clears_draft() {
-    use crate::app::message::view::ViewMessage;
 
-    let mut app = crate::app::App::new().0;
-    let _ = super::update(&mut app, ViewMessage::TaskPetReplyPressed(9));
-    let _ = super::update(&mut app, ViewMessage::TaskPetReplyInputChanged("draft".to_string()));
-
-    let _ = super::update(&mut app, ViewMessage::TaskPetReplyPressed(9));
-
-    assert_eq!(app.task_pet_reply_request_id, None);
-    assert!(app.task_pet_reply_input.is_empty());
-}
 
 #[test]
 fn update_routes_panel_layout_theme_and_activity_messages() {
     use crate::app::message::view::ViewMessage;
 
     let mut app = crate::app::App::new().0;
-    app.show_settings = false;
+    app.navigation_panels.show_settings = false;
 
-    assert!(!app.show_settings);
+    assert!(!app.navigation_panels.show_settings);
     let _ = super::update(&mut app, ViewMessage::ToggleSettingsPanel);
-    assert!(app.show_settings);
+    assert!(app.navigation_panels.show_settings);
 
     assert!(!app.layout_drag.dragging_settings);
     let _ = super::update(&mut app, ViewMessage::SettingsDragStarted);
@@ -159,7 +147,7 @@ fn system_settings_messages_hide_and_restore_running_work_browser() {
     use crate::app::webview_runtime::WebviewBounds;
 
     let mut app = crate::app::App::new().0;
-    app.screen = Screen::Project;
+    app.navigation_tabs.screen = Screen::Project;
     app.navigation_mode.workspace_mode = WorkspaceMode::Work;
     app.navigation_workspace.work_resource_mode = WorkResourceMode::Browser;
     app.window_size = (1_400.0, 900.0);
@@ -188,14 +176,14 @@ fn system_settings_messages_hide_and_restore_running_work_browser() {
         probe.lock().expect("work browser probe lock").protocol.clear();
 
         let _ = super::update(&mut app, open_message);
-        assert!(app.show_system_settings);
+        assert!(app.navigation_panels.show_system_settings);
         assert_eq!(
             String::from_utf8_lossy(&probe.lock().expect("work browser probe lock").protocol),
             "hide\n"
         );
 
         let _ = super::update(&mut app, ViewMessage::ToggleSystemSettings);
-        assert!(!app.show_system_settings);
+        assert!(!app.navigation_panels.show_system_settings);
         assert!(
             String::from_utf8_lossy(&probe.lock().expect("work browser probe lock").protocol)
                 .ends_with("show\n")
@@ -212,17 +200,17 @@ fn system_settings_messages_hide_and_restore_running_work_browser() {
 fn mini_companion_hidden_and_avatar_are_independent() {
     use crate::app::{App, message::ViewMessage, state::TaskPetAvatarKind};
     let mut app = App::new().0;
-    assert!(!app.task_pet_visible);
+    assert!(!app.companion_navigation.task_pet_visible);
     let _ = super::update(&mut app, ViewMessage::TaskPetAvatarSelected(TaskPetAvatarKind::None));
-    assert!(!app.task_pet_visible);
+    assert!(!app.companion_navigation.task_pet_visible);
     assert!(app.task_pet_window_id.is_none());
     let _ = super::update(&mut app, ViewMessage::TaskPetToggleWindow);
     let window = app.task_pet_window_id.unwrap();
-    assert!(app.task_pet_visible);
+    assert!(app.companion_navigation.task_pet_visible);
     let _ = super::update(&mut app, ViewMessage::TaskPetScaleChanged(1.25));
     assert_eq!(app.task_pet_window_id, Some(window));
     let _ = super::update(&mut app, ViewMessage::TaskPetToggleWindow);
-    assert!(!app.task_pet_visible);
+    assert!(!app.companion_navigation.task_pet_visible);
     // Iced 的 Closed 事件到达前仍保留窗口 ID。
     assert_eq!(app.task_pet_window_id, Some(window));
     let _ = super::update(&mut app, ViewMessage::WindowClosed(window));
@@ -238,10 +226,10 @@ fn mini_companion_close_request_keeps_window_until_closed() {
     let main = iced::window::Id::unique();
     let pet = iced::window::Id::unique();
     app.register_window_ids(main, Some(pet));
-    app.task_pet_visible = true;
+    app.companion_navigation.task_pet_visible = true;
     app.task_pet_avatar_kind = TaskPetAvatarKind::Handsome;
     let _ = super::update(&mut app, ViewMessage::CloseRequested(pet));
-    assert!(!app.task_pet_visible);
+    assert!(!app.companion_navigation.task_pet_visible);
     assert_eq!(app.task_pet_window_id, Some(pet));
     let _ = super::update(&mut app, ViewMessage::WindowClosed(pet));
     assert_eq!(app.main_window_id, Some(main));
@@ -268,7 +256,7 @@ fn mini_companion_show_is_idempotent() {
     let _ = super::update(&mut app, ViewMessage::TaskPetShowWindow);
     let id = app.task_pet_window_id.expect("native Mini opens");
     let _ = super::update(&mut app, ViewMessage::TaskPetShowWindow);
-    assert!(app.task_pet_visible);
+    assert!(app.companion_navigation.task_pet_visible);
     assert_eq!(app.task_pet_window_id, Some(id));
 }
 
@@ -293,7 +281,7 @@ fn mini_companion_hide_preserves_avatar_and_tasks() {
     let _ = super::update(&mut app, ViewMessage::TaskPetShowWindow);
     let id = app.task_pet_window_id.unwrap();
     let _ = super::update(&mut app, ViewMessage::TaskPetHideWindow);
-    assert!(!app.task_pet_visible);
+    assert!(!app.companion_navigation.task_pet_visible);
     let _ = super::update(&mut app, ViewMessage::WindowClosed(id));
     let _ = super::update(&mut app, ViewMessage::TaskPetShowWindow);
     assert_ne!(app.task_pet_window_id, Some(id));
@@ -316,7 +304,7 @@ fn mini_companion_show_while_closing_reopens_after_callback() {
     let _ = super::update(&mut app, ViewMessage::TaskPetShowWindow);
     assert_eq!(app.task_pet_window_id, Some(old));
     let _ = super::update(&mut app, ViewMessage::WindowClosed(old));
-    assert!(app.task_pet_visible);
+    assert!(app.companion_navigation.task_pet_visible);
     assert_ne!(app.task_pet_window_id, Some(old));
     assert!(app.task_pet_window_id.is_some());
     assert_eq!(app.main_window_id, Some(main));

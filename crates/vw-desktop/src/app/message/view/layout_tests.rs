@@ -50,11 +50,6 @@ fn task_pet_window_moved_updates_pet_position_without_moving_main_window() {
 // 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
 // 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 
-
-
-
-
-
 #[test]
 fn settings_drag_anchors_then_clamps_panel_width() {
     let mut app = test_app();
@@ -70,126 +65,10 @@ fn settings_drag_anchors_then_clamps_panel_width() {
     assert_eq!(app.layout_drag.settings_panel_width, 800.0);
 }
 
-
-
-
-
-#[test]
-fn terminal_drag_anchors_then_clamps_height_to_window() {
-    let mut app = test_app();
-    app.window_size = (800.0, 500.0);
-    app.terminal.is_dragging = true;
-    app.terminal.drag_anchor_y = None;
-    app.terminal.drag_start_height = 300.0;
-
-    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(10.0, 400.0));
-    assert_eq!(app.terminal.drag_anchor_y, Some(400.0));
-
-    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(10.0, 100.0));
-    assert_eq!(app.terminal.height, 400.0);
-
-    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(10.0, 1_000.0));
-    assert_eq!(app.terminal.height, 120.0);
-}
-
-#[test]
-fn task_board_drag_starts_only_after_threshold_is_exceeded() {
-    let mut app = test_app();
-    app.task_board_drag_pending =
-        Some(("task-1".to_owned(), crate::app::task::TaskStatus::Planning, iced::Point::ORIGIN));
-
-    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(3.0, 4.0));
-    assert!(app.task_board_drag_pending.is_some());
-    assert!(app.task_board_dragging.is_none());
-
-    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(6.0, 0.0));
-    assert!(app.task_board_drag_pending.is_none());
-    assert_eq!(
-        app.task_board_dragging,
-        Some(("task-1".to_owned(), crate::app::task::TaskStatus::Planning))
-    );
-}
-
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
 // 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
-#[test]
-fn window_resize_ignores_other_windows_and_clamps_main_dimensions() {
-    let mut app = test_app();
-    let main_window_id = iced::window::Id::unique();
-    app.main_window_id = Some(main_window_id);
-    app.window_size = (900.0, 700.0);
 
-    let _task = super::update(
-        &mut app,
-        super::ViewMessage::WindowResized(iced::window::Id::unique(), 0.0, -5.0),
-    );
-    assert_eq!(app.window_size, (900.0, 700.0));
-    assert!(!app.startup_resize_checked);
 
-    let _task =
-        super::update(&mut app, super::ViewMessage::WindowResized(main_window_id, 0.0, -5.0));
-    assert_eq!(app.window_size, (1.0, 1.0));
-    assert!(app.startup_resize_checked);
-}
-
-#[test]
-fn window_resize_during_fullscreen_settling_does_not_consume_startup_check() {
-    let mut app = test_app();
-    let main_window_id = iced::window::Id::unique();
-    app.main_window_id = Some(main_window_id);
-    app.fullscreen_layout_settling = true;
-
-    let _task =
-        super::update(&mut app, super::ViewMessage::WindowResized(main_window_id, 640.0, 480.0));
-
-    assert_eq!(app.window_size, (640.0, 480.0));
-    assert!(!app.startup_resize_checked);
-}
-
-#[test]
-fn hovered_file_paths_are_unique_and_blocked_during_internal_drag() {
-    let mut app = test_app();
-
-    let _task = super::update(&mut app, super::ViewMessage::HoveredFilePath("first.rs".to_owned()));
-    app.file_tree_interaction.pending_drop_file_position = Some((2, 3));
-    let _task = super::update(&mut app, super::ViewMessage::HoveredFilePath("first.rs".to_owned()));
-    app.file_tree_interaction.dragging_file_paths.push("internal.rs".to_owned());
-    let _task =
-        super::update(&mut app, super::ViewMessage::HoveredFilePath("blocked.rs".to_owned()));
-
-    assert_eq!(app.file_tree_interaction.pending_drop_file_paths, vec!["first.rs"]);
-    assert_eq!(app.file_tree_interaction.pending_drop_file_position, Some((2, 3)));
-}
-
-#[test]
-fn hovered_files_left_clears_external_hover_but_preserves_internal_drag() {
-    let mut app = test_app();
-    app.file_tree_interaction.pending_drop_file_paths = vec!["external.rs".to_owned()];
-    app.file_tree_interaction.pending_drop_file_position = Some((1, 2));
-    app.file_tree_interaction.input_drop_hovered = true;
-
-    let _task = super::update(&mut app, super::ViewMessage::HoveredFilesLeft);
-    assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
-    assert_eq!(app.file_tree_interaction.pending_drop_file_position, None);
-    assert!(!app.file_tree_interaction.input_drop_hovered);
-
-    app.file_tree_interaction.dragging_file_paths = vec!["internal.rs".to_owned()];
-    app.file_tree_interaction.pending_drop_file_paths = vec!["kept.rs".to_owned()];
-    app.file_tree_interaction.input_drop_hovered = true;
-    let _task = super::update(&mut app, super::ViewMessage::HoveredFilesLeft);
-    assert_eq!(app.file_tree_interaction.pending_drop_file_paths, vec!["kept.rs"]);
-    assert!(app.file_tree_interaction.input_drop_hovered);
-}
-
-#[test]
-fn fullscreen_layout_settled_clears_settling_flag() {
-    let mut app = test_app();
-    app.fullscreen_layout_settling = true;
-
-    let _task = super::update(&mut app, super::ViewMessage::FullscreenLayoutSettled);
-
-    assert!(!app.fullscreen_layout_settling);
-}
 
 #[test]
 fn global_release_resets_active_drag_state_without_file_manager_persistence() {
@@ -261,7 +140,7 @@ fn file_tree_move_drop_global_release_submits_once_without_chat_delivery() {
     use crate::app::message::{ProjectMessage as P, ViewMessage};
     for global_first in [true, false] {
         let mut app = test_app();
-        app.project_path = Some("/project".into());
+        app.navigation_tabs.project_path = Some("/project".into());
         let _ = crate::app::message::project::update(
             &mut app,
             P::FileTreeInternalDragStart {
@@ -293,7 +172,7 @@ fn file_tree_move_drop_global_release_submits_once_without_chat_delivery() {
 fn file_tree_move_drop_cursor_leave_cancels_without_pending_chat_files() {
     use crate::app::message::{ProjectMessage as P, ViewMessage};
     let mut app = test_app();
-    app.project_path = Some("/project".into());
+    app.navigation_tabs.project_path = Some("/project".into());
     let _ = crate::app::message::project::update(
         &mut app,
         P::FileTreeInternalDragStart {
@@ -314,7 +193,7 @@ async fn file_tree_move_drop_chat_release_orders_preserve_existing_delivery() {
     use iced::futures::StreamExt;
     for global_first in [true, false] {
         let mut app = test_app();
-        app.project_path = Some("/project".into());
+        app.navigation_tabs.project_path = Some("/project".into());
         let _ = crate::app::message::project::update(
             &mut app,
             P::FileTreeInternalDragStart {
@@ -347,7 +226,7 @@ async fn file_tree_move_drop_chat_release_orders_preserve_existing_delivery() {
 fn file_tree_external_drop_hover_left_and_release_never_import_or_leave_chat_paths() {
     use crate::app::message::ViewMessage as V;
     let mut app = test_app();
-    app.project_path = Some("/project".into());
+    app.navigation_tabs.project_path = Some("/project".into());
     app.file_tree_interaction.dragging_file_paths = vec!["/stale-internal-drag".into()];
     for message in [
         V::HoveredFilePath("/tmp/hover-only".into()),
@@ -380,17 +259,6 @@ fn terminal_resize_drag_continues_outside_handle_and_release_stops_updates() {
     assert_eq!(app.terminal.drag_anchor_y, None);
     let _ = super::update(&mut app, ViewMessage::PointerMoved(100.0, -200.0));
     assert_eq!(app.terminal.height, 120.0);
-}
-
-#[test]
-fn terminal_resize_tiny_window_keeps_height_within_window_limit() {
-    let mut app = test_app();
-    app.window_size = (640.0, 100.0);
-    app.terminal.is_dragging = true;
-    app.terminal.drag_anchor_y = Some(50.0);
-    app.terminal.drag_start_height = 120.0;
-    let _ = super::update(&mut app, super::ViewMessage::PointerMoved(10.0, -100.0));
-    assert_eq!(app.terminal.height, 80.0);
 }
 
 #[cfg(not(target_arch = "wasm32"))]

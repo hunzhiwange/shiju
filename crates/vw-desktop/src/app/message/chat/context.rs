@@ -12,7 +12,7 @@ use desktop_session::message::chat::context::{ContextInput, context_input_text};
 pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     match message {
         ChatMessage::InsertPosition(path, line, col) => {
-            let text = context_input_text(app.project_path.as_deref(), ContextInput::Position {
+            let text = context_input_text(app.navigation_tabs.project_path.as_deref(), ContextInput::Position {
                 path: &path, line, column: col,
             }).expect("position always produces context text");
             let runtime = app.current_session_runtime_mut();
@@ -30,7 +30,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             if let Some((path, start_line, start_col, end_line, end_col)) =
                 app.preview_context_target.clone()
             {
-                let s = context_input_text(app.project_path.as_deref(), ContextInput::Selection {
+                let s = context_input_text(app.navigation_tabs.project_path.as_deref(), ContextInput::Selection {
                     path: &path, start_line, start_column: start_col, end_line, end_column: end_col,
                 }).expect("selection always produces context text");
                 let runtime = app.current_session_runtime_mut();
@@ -44,8 +44,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::none()
         }
         ChatMessage::InsertSelected => {
-            if let Some(path) = app.active_preview_path.clone()
-                && let Some(tab) = app.preview_tabs.iter_mut().find(|t| t.path == path)
+            if let Some(path) = app.navigation_tabs.active_preview_path.clone()
+                && let Some(tab) = app.navigation_tabs.preview_tabs.iter_mut().find(|t| t.path == path)
             {
                 let copy_task =
                     tab.editor.inner.update(&iced_code_editor::Message::Copy).map(|e| {

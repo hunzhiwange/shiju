@@ -14,7 +14,7 @@ const VIEWPORT: Size = Size::new(760.0, 720.0);
 
 fn code_panel_snapshot(app: &App) -> (bool, bool, f32, bool, bool, bool) {
     (
-        app.show_diff,
+        app.navigation_panels.show_diff,
         app.file_manager.show_file_manager,
         app.layout_drag.split_ratio,
         app.chat_panel_fullscreen,
@@ -29,8 +29,8 @@ fn work_resource_panel_routes_overview_workspace_files_and_browser() {
     std::fs::create_dir(project.path().join("src")).expect("minimal source directory");
 
     let mut app = App::new().0;
-    app.screen = Screen::Project;
-    app.project_path = Some(project.path().to_string_lossy().into_owned());
+    app.navigation_tabs.screen = Screen::Project;
+    app.navigation_tabs.project_path = Some(project.path().to_string_lossy().into_owned());
     app.git.git_changed_files = vec!["src/lib.rs".into(), "README.md".into()];
 
     for (mode, expected) in [
@@ -58,10 +58,10 @@ fn work_resource_files_reuse_existing_file_manager_without_mutating_code_flags()
     std::fs::create_dir(project.path().join("src")).expect("minimal source directory");
 
     let mut app = App::new().0;
-    app.screen = Screen::Project;
-    app.project_path = Some(project.path().to_string_lossy().into_owned());
+    app.navigation_tabs.screen = Screen::Project;
+    app.navigation_tabs.project_path = Some(project.path().to_string_lossy().into_owned());
     app.navigation_workspace.work_resource_mode = WorkResourceMode::WorkspaceFiles;
-    app.show_diff = false;
+    app.navigation_panels.show_diff = false;
     app.file_manager.show_file_manager = false;
     app.layout_drag.split_ratio = 0.37;
     app.chat_panel_fullscreen = true;
@@ -83,8 +83,8 @@ async fn work_resource_panel_draws_all_modes_in_dark_and_light_themes() {
     let project = tempfile::tempdir().expect("temporary project should be created");
     std::fs::create_dir(project.path().join("src")).expect("minimal source directory");
     let mut app = App::new().0;
-    app.screen = Screen::Project;
-    app.project_path = Some(project.path().to_string_lossy().into_owned());
+    app.navigation_tabs.screen = Screen::Project;
+    app.navigation_tabs.project_path = Some(project.path().to_string_lossy().into_owned());
 
     for theme in [Theme::Dark, Theme::Light] {
         for mode in [

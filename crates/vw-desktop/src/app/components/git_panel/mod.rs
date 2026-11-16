@@ -11,7 +11,7 @@ fn input(app: &App) -> page::ViewContext<'_> {
         git: &app.git,
         app_theme: &app.app_theme,
         desktop_locale: app.desktop_locale,
-        project_path: &app.project_path,
+        project_path: &app.navigation_tabs.project_path,
         repo_path: git_repo_path_for_app(app),
         context_path: crate::app::message::git::git_context_path_for_app(app),
         code_mode: app.navigation_mode.workspace_mode == crate::app::state::WorkspaceMode::Code,
@@ -59,7 +59,7 @@ pub fn changed_files_in_repo(path: &str) -> Vec<String> {
     desktop_git_ui::git_panel::ops::get_changed_file_paths(path)
 }
 pub fn changed_files(app: &App) -> Vec<String> {
-    app.project_path.as_deref().map(changed_files_in_repo).unwrap_or_default()
+    app.navigation_tabs.project_path.as_deref().map(changed_files_in_repo).unwrap_or_default()
 }
 pub(crate) fn git_repo_path_for_app(app: &App) -> Option<String> {
     #[cfg(not(target_arch = "wasm32"))]
@@ -72,7 +72,7 @@ pub(crate) fn git_repo_path_for_app(app: &App) -> Option<String> {
         desktop_git_ui::git_panel::ops::git_repo_path(
             app.git.selected_git_worktree_directory.as_deref(),
             active,
-            app.project_path.as_deref(),
+            app.navigation_tabs.project_path.as_deref(),
         )
     }
     #[cfg(target_arch = "wasm32")]

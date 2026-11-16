@@ -171,7 +171,7 @@ pub(super) fn save_session_task(
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn session_directory_for_save(app: &App, session_id: &str) -> Option<String> {
     desktop_session::message::chat::stream::projection::directory_for_save(
-        app.known_session_directory(session_id), app.project_path.as_deref(),
+        app.known_session_directory(session_id), app.navigation_tabs.project_path.as_deref(),
     )
 }
 
@@ -619,7 +619,7 @@ fn handle_agent_stream_cancelled(app: &mut App, id: u64) -> Task<Message> {
     }
     app.sync_task_pet_from_runtime();
     if is_active_session {
-        app.show_send_mode_popover = false;
+        app.popover_visibility.send_mode = false;
         app.sync_active_session_from_chat();
     }
     save_task.chain(start_next(app, &session_id))

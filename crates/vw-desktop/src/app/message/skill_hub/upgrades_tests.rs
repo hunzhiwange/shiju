@@ -38,7 +38,7 @@ fn upgrade_entry_opens_installed_skills_and_closes_detail() {
     app.expert_hub.install_guide.open = true;
     app.expert_hub.skill_tab = SkillTab::Install;
     let _ = update(&mut app, SkillHubMessage::OpenInstalledShijuSkills);
-    assert_eq!(app.screen, Screen::ShijuSkills);
+    assert_eq!(app.navigation_tabs.screen, Screen::ShijuSkills);
     assert_eq!(app.expert_hub.skill_tab, SkillTab::Installed);
     assert!(!app.expert_hub.install_guide.open);
     assert!(app.expert_hub.detail.is_none());

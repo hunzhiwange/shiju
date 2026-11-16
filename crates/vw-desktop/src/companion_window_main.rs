@@ -56,7 +56,7 @@ fn boot() -> (App, Task<Message>) {
         ..Default::default()
     });
     app.register_window_ids(id, None);
-    app.task_pet_visible = true;
+    app.companion_navigation.task_pet_visible = true;
     let mini = app::message::view::sync_task_pet_window(&mut app);
     (app, Task::batch([open.map(|_| Message::None), mini]))
 }
@@ -247,13 +247,13 @@ fn scripted_scene(app: &mut App, scene: usize) -> Task<Message> {
             Some(V::TaskPetHideWindow)
         }
         23 => {
-            assert!(!app.task_pet_visible);
+            assert!(!app.companion_navigation.task_pet_visible);
             assert!(app.task_pet_window_id.is_none());
             return capture(app);
         }
         24 => Some(V::TaskPetShowWindow),
         25 => {
-            assert!(app.task_pet_visible);
+            assert!(app.companion_navigation.task_pet_visible);
             assert!(app.task_pet_window_id.is_some());
             return capture(app);
         }
@@ -290,7 +290,7 @@ fn scripted_scene(app: &mut App, scene: usize) -> Task<Message> {
         36 => return capture(app),
         37 => Some(V::TaskPetContextMenuOpened(15.0, 15.0)),
         38 => {
-            assert!(app.task_pet_context_menu_pos.is_some());
+            assert!(app.companion_navigation.task_pet_context_menu_pos.is_some());
             return capture(app);
         }
         39 => Some(V::TaskPetContextMenuClosed),

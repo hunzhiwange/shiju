@@ -58,3 +58,8 @@ pub fn size_save(draft: Option<f32>, pending: bool, scale: f32) -> SizeSave {
         Some(value) => SizeSave::Save(value),
     }
 }
+
+/// Commit the preview only after the matching preference transaction succeeds.
+pub fn commit_size(draft: &mut Option<f32>, scale: &mut f32, success: bool) {
+ if success && let Some(value) = draft.take() { *scale = value; }
+}

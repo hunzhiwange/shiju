@@ -37,7 +37,7 @@ impl App {
             task_pet_position: &mut self.task_pet_position,
             task_pet_reply_input: &mut self.task_pet_reply_input,
             task_pet_reply_request_id: &mut self.task_pet_reply_request_id,
-            task_pet_robot_hovered: &mut self.task_pet_robot_hovered,
+            task_pet_robot_hovered: &mut self.companion_navigation.task_pet_robot_hovered,
             task_pet_scale: &mut self.task_pet_scale,
             task_pet_size_draft: &mut self.task_pet_size_draft,
             task_pet_walk_until_ms: &mut self.task_pet_walk_until_ms,
@@ -68,7 +68,7 @@ impl App {
         &mut self,
         previous_size: iced::Size,
     ) -> iced::Task<crate::app::Message> {
-        self.task_pet_robot_hovered = false;
+        self.companion_navigation.task_pet_robot_hovered = false;
         let Some(id) = self.task_pet_window_id else {
             return iced::Task::none();
         };

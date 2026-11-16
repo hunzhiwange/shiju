@@ -362,8 +362,8 @@ mod rollout {
         }
         let mut renderer = renderer().await;
         let mut app = App::new().0;
-        app.show_system_settings = true;
-        app.system_settings_tab = SystemTab::Runtime;
+        app.navigation_panels.show_system_settings = true;
+        app.navigation_panels.system_settings_tab = SystemTab::Runtime;
         app.runtime_settings.docker_image = "fixture/image:1.0".into();
         app.runtime_settings.docker_read_only_rootfs = true;
         app.runtime_settings.save_error = Some("fixture runtime error".into());
@@ -414,8 +414,8 @@ mod rollout {
         }
         let mut renderer = renderer().await;
         let mut app = App::new().0;
-        app.show_system_settings = true;
-        app.system_settings_tab = SystemTab::Observability;
+        app.navigation_panels.show_system_settings = true;
+        app.navigation_panels.system_settings_tab = SystemTab::Observability;
         const ENDPOINT: &str = "https://collector.invalid/otlp";
         app.observability_settings.otel_endpoint_input = ENDPOINT.into();
         app.observability_settings.runtime_trace_max_entries = 25_000;
@@ -474,8 +474,8 @@ mod rollout {
         }
         let mut renderer = renderer().await;
         let mut app = App::new().0;
-        app.show_system_settings = true;
-        app.system_settings_tab = SystemTab::Cron;
+        app.navigation_panels.show_system_settings = true;
+        app.navigation_panels.system_settings_tab = SystemTab::Cron;
         app.cron_settings.active_tab = CronSettingsTab::Scheduler;
         app.scheduler_settings.enabled = false;
         app.scheduler_settings.max_tasks = 63;
@@ -536,8 +536,8 @@ mod rollout {
         }
         let mut renderer = renderer().await;
         let mut app = App::new().0;
-        app.show_system_settings = true;
-        app.system_settings_tab = SystemTab::Hooks;
+        app.navigation_panels.show_system_settings = true;
+        app.navigation_panels.system_settings_tab = SystemTab::Hooks;
         app.hooks_settings.command_logger = true;
         app.hooks_settings.catalog_error = Some("fixture catalog error".into());
         app.hooks_settings.catalog = vec![gateway_desktop_settings::HookCatalogEntryDto {

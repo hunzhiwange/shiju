@@ -7,7 +7,7 @@ use desktop_settings_memory::system_settings_data::migration_preview_ui as domai
 pub(super) fn target(app: &App) -> Option<DataManagementTarget> {
     let client = crate::app::config::gateway_client().ok()?;
     let context = crate::app::state::AgentAppsContext { gateway: client.endpoint().base_url(),
-        tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
+        tenant: client.endpoint().tenant_scope().clone(), project: app.navigation_tabs.project_path.clone() };
     if !app.apps_catalog.connection_open || app.apps_catalog.context.as_ref() != Some(&context)
         || app.apps_catalog.host.is_empty() || app.apps_catalog.token.is_empty() { return None; }
     Some(DataManagementTarget {

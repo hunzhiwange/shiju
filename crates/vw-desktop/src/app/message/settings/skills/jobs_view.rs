@@ -30,7 +30,7 @@ fn execute(app: &mut App, effect: desktop_settings_skills::update::jobs_view::Ef
             let notice = if success { app.show_success_toast("技能任务已完成") } else { app.show_error_toast("技能任务已结束，请核对最终状态及目标目录") };
             app.skills_settings.install.inventory = None;
             let inventory = if app.skills_settings.install.open { super::install_view::update(app, super::install_view::Event::Refresh) } else { Task::none() };
-            Task::batch([notice, inventory, super::refresh_task(app.project_path.clone())])
+            Task::batch([notice, inventory, super::refresh_task(app.navigation_tabs.project_path.clone())])
         }
         Effect::Request { g, scope, id, cancel } => {
             let token = app.apps_catalog.token.clone();

@@ -111,14 +111,14 @@ async fn file_tree_move_drop_http_counts_requests_for_both_release_orders_and_co
     });
     for scenario in 0..3 {
         let mut app = App::new().0;
-        app.project_path = Some(root.clone());
+        app.navigation_tabs.project_path = Some(root.clone());
         app.lsp_disabled = true;
         let source = format!("{root}/a.txt");
         let mut tab = super::preview_tab(&source);
         tab.content = "unsaved".into();
         tab.editor = crate::app::components::editor::Editor::new("unsaved", "txt");
         tab.is_dirty = true;
-        app.preview_tabs.push(tab);
+        app.navigation_tabs.preview_tabs.push(tab);
         let _ = super::super::handle(
             &mut app,
             P::FileTreeInternalDragStart {
@@ -177,12 +177,12 @@ async fn file_tree_move_drop_http_counts_requests_for_both_release_orders_and_co
         };
         let _ = super::super::handle(&mut app, reply);
         assert_eq!(
-            app.preview_tabs[0].path,
+            app.navigation_tabs.preview_tabs[0].path,
             if scenario < 2 { format!("{root}/dst/a.txt") } else { source }
         );
-        assert_eq!(app.preview_tabs[0].content, "unsaved");
-        assert!(app.preview_tabs[0].is_dirty);
-        assert_eq!(app.preview_tabs[0].editor.content(), "unsaved");
+        assert_eq!(app.navigation_tabs.preview_tabs[0].content, "unsaved");
+        assert!(app.navigation_tabs.preview_tabs[0].is_dirty);
+        assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), "unsaved");
         if scenario == 2 {
             assert!(app.active_toast.as_ref().unwrap().message.contains("destination exists"));
         }
@@ -190,7 +190,7 @@ async fn file_tree_move_drop_http_counts_requests_for_both_release_orders_and_co
         assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
     }
     let mut app = App::new().0;
-    app.project_path = Some(root.clone());
+    app.navigation_tabs.project_path = Some(root.clone());
     app.lsp_disabled = true;
     let sources = ["a.txt", "b.txt", "c.txt"].map(|path| format!("{root}/{path}"));
     app.set_file_index(&root, sources.to_vec());

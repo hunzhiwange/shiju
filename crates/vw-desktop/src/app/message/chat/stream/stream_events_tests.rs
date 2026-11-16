@@ -285,7 +285,7 @@ fn running_session_switch_preserves_history_on_terminal_without_delta() {
 // 生成的提交信息只有在请求、会话和工作树仍匹配时才能转成真实 Git 操作。
 async fn generated_git_commit_message_fills_form_then_dispatches_commit_action() {
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some("/workspace/project".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/project".to_string());
     app.quick_message_handoff = Some(QuickMessageHandoffState::WaitingForGitCommitMessage {
         request_id: 43,
         source_session_id: "session-1".to_string(),
@@ -352,7 +352,7 @@ async fn invalid_generated_git_commit_message_does_not_dispatch_commit() {
 #[tokio::test(flavor = "multi_thread")]
 async fn generated_git_commit_message_rejects_a_switched_worktree() {
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some("/workspace/other".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/other".to_string());
     app.quick_message_handoff = Some(QuickMessageHandoffState::WaitingForGitCommitMessage {
         request_id: 46,
         source_session_id: "session-1".to_string(),
@@ -406,7 +406,7 @@ fn session_info(
 fn plan_run_session_started_registers_without_leaving_parent() {
     let (mut app, _) = crate::app::App::new();
     let directory = "/workspace/demo";
-    app.project_path = Some(directory.to_string());
+    app.navigation_tabs.project_path = Some(directory.to_string());
     app.active_session_id = Some("main-session".to_string());
     app.sessions = vec![session_info("main-session", directory, None)];
     app.chat = vec![message(ChatRole::User, "主会话任务")];
@@ -476,7 +476,7 @@ fn plan_run_session_started_registers_without_leaving_parent() {
 fn plan_run_subtask_session_registers_streams_and_finishes_in_background() {
     let (mut app, _) = crate::app::App::new();
     let directory = "/workspace/demo";
-    app.project_path = Some(directory.to_string());
+    app.navigation_tabs.project_path = Some(directory.to_string());
     app.active_session_id = Some("main-session".to_string());
     app.sessions = vec![session_info("main-session", directory, None)];
     app.chat = vec![message(ChatRole::User, "主会话任务")];
@@ -1202,7 +1202,7 @@ fn stream_done_clears_active_request_and_applies_ids_and_usage() {
     app.active_session_id = Some(session_id.clone());
     app.chat = vec![message(ChatRole::User, "question"), message(ChatRole::Assistant, "answer")];
     app.chat_message_ids = vec![None, None];
-    app.show_send_mode_popover = true;
+    app.popover_visibility.send_mode = true;
     let runtime = app.get_session_runtime_mut(&session_id);
     runtime.request_lifecycle.is_requesting = true;
     runtime.request_lifecycle.active_agent_request = Some(agent_request(42, &session_id));
@@ -1238,7 +1238,7 @@ fn stream_done_clears_active_request_and_applies_ids_and_usage() {
     assert_eq!(app.chat_message_ids[1].as_deref(), Some("assistant-id"));
     assert_eq!(app.usage, usage);
     assert_eq!(app.active_session_view_state.steps[0].turn_id.as_deref(), Some("assistant-id"));
-    assert!(!app.show_send_mode_popover);
+    assert!(!app.popover_visibility.send_mode);
     let runtime = app.get_session_runtime(&session_id);
     assert!(!runtime.request_lifecycle.is_requesting);
     assert!(!runtime.has_unseen_success);
@@ -1351,7 +1351,7 @@ fn active_stream_error_appends_system_message_and_clears_request_state() {
     app.active_session_id = Some(session_id.clone());
     app.chat = vec![message(ChatRole::User, "question")];
     app.chat_message_ids = vec![Some("user-id".to_string())];
-    app.show_send_mode_popover = true;
+    app.popover_visibility.send_mode = true;
     let runtime = app.get_session_runtime_mut(&session_id);
     runtime.request_lifecycle.is_requesting = true;
     runtime.request_lifecycle.active_agent_request = Some(agent_request(42, &session_id));
@@ -1361,7 +1361,7 @@ fn active_stream_error_appends_system_message_and_clears_request_state() {
     assert_eq!(app.chat.last().map(|entry| entry.role), Some(ChatRole::System));
     assert_eq!(app.chat.last().map(|entry| entry.content.as_str()), Some("gateway failed"));
     assert_eq!(app.chat_message_ids, vec![Some("user-id".to_string()), None]);
-    assert!(!app.show_send_mode_popover);
+    assert!(!app.popover_visibility.send_mode);
     assert!(app.active_toast.is_some());
     let runtime = app.get_session_runtime(&session_id);
     assert!(!runtime.request_lifecycle.is_requesting);
@@ -1420,7 +1420,7 @@ fn processing_timing_post_tool_round_closes_old_cycle_and_starts_new_cycle() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();
     app.active_session_id = Some(session_id.clone());
-    app.project_path = Some("/repo".to_string());
+    app.navigation_tabs.project_path = Some("/repo".to_string());
     let mut assistant = message(ChatRole::Assistant, "tool round");
     assistant.processing_timing = Some(session_ui_types::ProcessingTiming {
         started_ms: 400,

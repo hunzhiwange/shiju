@@ -34,12 +34,12 @@ pub(in crate::app) fn update_at(
         controller,
     };
     let origin = Origin {
-        visible_apps: app.show_system_settings && app.system_settings_tab == SystemTab::Apps,
-        visible_auth: app.show_system_settings && app.system_settings_tab == SystemTab::Auth,
+        visible_apps: app.navigation_panels.show_system_settings && app.navigation_panels.system_settings_tab == SystemTab::Apps,
+        visible_auth: app.navigation_panels.show_system_settings && app.navigation_panels.system_settings_tab == SystemTab::Auth,
         provider_generation: app.app_providers.generation,
         provider_scope: app.app_providers.scope.as_ref(),
         form: app.app_providers.form.as_ref(),
-        project_path: &app.project_path,
+        project_path: &app.navigation_tabs.project_path,
         token: &app.apps_catalog.token,
         host: &app.apps_catalog.host,
         catalog_generation: app.apps_catalog.generation,
@@ -58,8 +58,8 @@ pub(in crate::app) fn update_at(
     )
     .map(message);
     if effects.opened {
-        app.system_settings_tab = SystemTab::Auth;
-        app.system_settings_help_tab = None;
+        app.navigation_panels.system_settings_tab = SystemTab::Auth;
+        app.navigation_panels.system_settings_help_tab = None;
     }
     if effects.saved {
         app.app_providers.usage.clear();

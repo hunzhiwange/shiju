@@ -364,8 +364,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let mut app = App::new().0; // Deliberately do not poll bootstrap or history tasks.
             app.active_session_id = Some(session.clone());
             app.current_session_runtime_mut();
-            app.show_system_settings = true;
-            app.system_settings_tab = app::components::system_settings::SystemTab::Voice;
+            app.navigation_panels.show_system_settings = true;
+            app.navigation_panels.system_settings_tab = app::components::system_settings::SystemTab::Voice;
             let mut state = Harness {
                 app,
                 snapshot: snapshot.clone(),

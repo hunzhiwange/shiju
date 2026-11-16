@@ -28,11 +28,11 @@ async fn history_preview_uses_committed_snapshot_including_deleted_files() {
         }
     }
     assert!(!app.git.show_git_copy_modal);
-    let tab = &app.preview_tabs[0];
+    let tab = &app.navigation_tabs.preview_tabs[0];
     assert_eq!(tab.content, "提交中的已删除内容");
     assert!(tab.read_only);
     assert!(tab.title.contains("aaaaaaaa"));
-    assert_eq!(app.active_preview_path.as_deref(), Some(tab.path.as_str()));
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some(tab.path.as_str()));
     let key = tab.path.clone();
     let _ = crate::app::message::preview::update(
         &mut app,
@@ -40,15 +40,15 @@ async fn history_preview_uses_committed_snapshot_including_deleted_files() {
             "changed".into(),
         )),
     );
-    assert_eq!(app.preview_tabs[0].editor.content(), "提交中的已删除内容");
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), "提交中的已删除内容");
     let _ = crate::app::message::editor::update(
         &mut app,
         crate::app::message::editor::EditorMessage::ClipboardContentReceived(Some(
             "changed".into(),
         )),
     );
-    assert_eq!(app.preview_tabs[0].editor.content(), "提交中的已删除内容");
-    app.preview_tabs[0].is_dirty = true;
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), "提交中的已删除内容");
+    app.navigation_tabs.preview_tabs[0].is_dirty = true;
     let task = crate::app::message::preview::update(
         &mut app,
         crate::app::message::PreviewMessage::SaveFilePath { path: key, notify: false },
@@ -67,8 +67,8 @@ fn non_git_project_skips_repository_requests_and_clears_history_error() {
     use crate::app::components::git_panel::repository_ops::RemoteAction;
     let project = tempfile::tempdir().expect("temporary project");
     let mut app = crate::app::App::new().0;
-    app.project_path = Some(project.path().to_string_lossy().into_owned());
-    app.git.git_repository.repo_path = app.project_path.clone();
+    app.navigation_tabs.project_path = Some(project.path().to_string_lossy().into_owned());
+    app.git.git_repository.repo_path = app.navigation_tabs.project_path.clone();
     app.git.git_repository.history = true;
     app.git.git_repository.loading = true;
     app.git.git_repository.error = Some("not a repository".into());

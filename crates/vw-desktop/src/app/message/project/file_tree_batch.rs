@@ -14,10 +14,10 @@ pub(super) async fn execute(operation: Operation) -> Result<(), String> {
 }
 
 pub(super) fn menu_paths(app: &App) -> Vec<String> {
-    let visible = app.project_path.as_deref().map(|root| {
+    let visible = app.navigation_tabs.project_path.as_deref().map(|root| {
         crate::app::components::file_tree::selection::visible_paths(app, root)
     }).unwrap_or_default();
-    app.file_tree_interaction.menu_paths(app.project_path.as_deref(), &visible)
+    app.file_tree_interaction.menu_paths(app.navigation_tabs.project_path.as_deref(), &visible)
 }
 
 pub(super) fn duplicate(app: &mut App, root: String, paths: Vec<String>) -> iced::Task<Message> {
@@ -36,7 +36,7 @@ pub(super) fn duplicate(app: &mut App, root: String, paths: Vec<String>) -> iced
 }
 
 pub(super) fn paste(app: &mut App, destination: &str) -> iced::Task<Message> {
-    let Some((root, clipboard, targets)) = app.file_tree_interaction.prepare_paste(app.project_path.as_deref(), &app.files, destination) else {
+    let Some((root, clipboard, targets)) = app.file_tree_interaction.prepare_paste(app.navigation_tabs.project_path.as_deref(), &app.files, destination) else {
         return iced::Task::none();
     };
     iced::Task::perform(
@@ -60,7 +60,7 @@ pub(super) fn paste(app: &mut App, destination: &str) -> iced::Task<Message> {
 }
 
 pub(super) fn delete(app: &mut App) -> iced::Task<Message> {
-    let Some((root, paths)) = app.file_tree_interaction.prepare_delete(app.project_path.as_deref(), &mut app.files) else {
+    let Some((root, paths)) = app.file_tree_interaction.prepare_delete(app.navigation_tabs.project_path.as_deref(), &mut app.files) else {
         return iced::Task::none();
     };
     iced::Task::perform(

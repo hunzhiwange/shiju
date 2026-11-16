@@ -9,7 +9,7 @@ async fn settings_tabs_core_appearance_network() {
         concat!(module_path!(), "::settings_tabs_core_appearance_network"),
         || App::new().0,
         |scene, app| {
-            app.system_settings_tab = SystemTab::WebSearch;
+            app.navigation_panels.system_settings_tab = SystemTab::WebSearch;
             app.web_search_settings.save_error = Some("Fixture web search error".into());
             app.http_request_settings.save_error = Some("Fixture HTTP error".into());
             let labels: Vec<_> = NETWORK_TABS
@@ -22,7 +22,7 @@ async fn settings_tabs_core_appearance_network() {
             let message = scene.check(app, view(app), &labels, 1);
             assert!(matches!(message, SettingsMessage::SystemTabSelected(SystemTab::HttpRequest)));
             let _ = settings::update(app, message);
-            assert_eq!(app.system_settings_tab, SystemTab::HttpRequest);
+            assert_eq!(app.navigation_panels.system_settings_tab, SystemTab::HttpRequest);
             assert!(app.http_request_settings.save_error.is_none());
             app.http_request_settings.save_error = Some("Fixture HTTP error".into());
             let after = scene.labels(view(app));

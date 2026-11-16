@@ -103,7 +103,7 @@ impl App {
         let tab_bar = components::tab_bar::view(self);
 
         // 根据当前屏幕状态选择对应的内容视图
-        let content: Element<'_, Message> = match self.screen {
+        let content: Element<'_, Message> = match self.navigation_tabs.screen {
             Screen::Home => views::home::view(self),
             Screen::Project => views::project::view(self),
             Screen::Preview => components::preview_panel::view(self),
@@ -133,12 +133,12 @@ impl App {
         // 当系统设置打开时，仅保留顶部菜单栏，其余区域全部由设置面板占满
         let main_view: Element<'_, Message> = if self.mobile_layout.mode() == crate::app::state::LayoutMode::Mobile {
             views::mobile::view(self)
-        } else if self.show_system_settings {
+        } else if self.navigation_panels.show_system_settings {
             iced::widget::column![top, components::system_settings::view(self)]
                 .width(iced::Length::Fill)
                 .height(iced::Length::Fill)
                 .into()
-        } else if show_tab_bar(self.screen, self.navigation_mode.workspace_mode) {
+        } else if show_tab_bar(self.navigation_tabs.screen, self.navigation_mode.workspace_mode) {
             // 组装主视图：垂直排列顶部栏、标签栏、内容区域和状态栏
             iced::widget::column![top, tab_bar, content, status_bar]
                 .width(iced::Length::Fill)
@@ -152,8 +152,8 @@ impl App {
         };
 
         let main_view = if self.show_preview_settings
-            && !self.show_system_settings
-            && matches!(self.screen, Screen::Project | Screen::Preview)
+            && !self.navigation_panels.show_system_settings
+            && matches!(self.navigation_tabs.screen, Screen::Project | Screen::Preview)
         {
             components::preview_panel::build_settings_overlay(self, main_view)
         } else {
@@ -190,23 +190,23 @@ impl App {
         };
 
         // 如果显示了"关于"模态框，则在根内容之上叠加
-        let root_content: Element<'_, Message> = if self.show_about_modal {
+        let root_content: Element<'_, Message> = if self.navigation_panels.show_about_modal {
             iced::widget::stack![root_content, components::about_modal::view(self)].into()
         } else {
             root_content
         };
 
         // 如果显示了 CLI 安装提示模态框，则在根内容之上叠加
-        let root_content: Element<'_, Message> = if self.show_cli_install_modal {
-            let modal = if self.cli_install_modal_use_app_update_action
-                || self.cli_install_modal_show_update_action
+        let root_content: Element<'_, Message> = if self.update_panel.show_cli_install_modal {
+            let modal = if self.update_panel.cli_install_modal_use_app_update_action
+                || self.update_panel.cli_install_modal_show_update_action
             {
                 components::install_cli_modal::view_app_update(self)
             } else {
                 components::install_cli_modal::view_localized(
                     crate::app::i18n::I18n::new(self.desktop_locale),
-                    &self.cli_install_modal_title,
-                    &self.cli_install_modal_message,
+                    &self.update_panel.cli_install_modal_title,
+                    &self.update_panel.cli_install_modal_message,
                 )
             };
             iced::widget::stack![root_content, modal].into()
@@ -258,8 +258,8 @@ impl App {
                 components::toast::view(self)
             };
             // Leave the creation panel's fixed actions below the toast.
-            let toast_bottom = if self.screen == Screen::TaskBoard
-                && !self.show_system_settings
+            let toast_bottom = if self.navigation_tabs.screen == Screen::TaskBoard
+                && !self.navigation_panels.show_system_settings
                 && self.task_board_create_modal_open
                 && !self.task_board_settings_modal_open
             {

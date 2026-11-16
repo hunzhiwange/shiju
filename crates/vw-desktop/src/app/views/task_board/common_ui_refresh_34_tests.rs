@@ -203,7 +203,7 @@ async fn ui_refresh_34_import_errors_are_visible() {
         return;
     }
     let mut app = fixture();
-    app.screen = Screen::TaskBoard;
+    app.navigation_tabs.screen = Screen::TaskBoard;
     app.desktop_locale = DesktopLocale::English;
     app.task_board_create_modal_open = true;
     app.task_board_is_import_mode = true;
@@ -392,7 +392,7 @@ async fn ui_refresh_34_preserves_values_and_disabled_states() {
         return;
     }
     let mut app = fixture();
-    app.project_path = None;
+    app.navigation_tabs.project_path = None;
     app.task_board_worktree_pixel_office = false;
     app.desktop_locale = DesktopLocale::English;
     app.task_board_create_modal_open = true;

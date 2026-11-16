@@ -41,7 +41,7 @@ pub(crate) fn sync_task_pet_window(app: &mut App) -> Task<Message> {
         Task::none()
     }
     #[cfg(not(target_arch = "wasm32"))]
-    match (app.task_pet_visible, app.task_pet_window_id) {
+    match (app.companion_navigation.task_pet_visible, app.task_pet_window_id) {
         (true, None) => {
             let (id, open) = iced::window::open(task_pet_window_settings(
                 app.task_pet_window_size(),
@@ -750,7 +750,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 || app.main_window_id.is_some_and(|id| id != window)
             {
                 Task::none()
-            } else if app.show_system_settings {
+            } else if app.navigation_panels.show_system_settings {
                 crate::app::components::system_settings::traverse_select_focus(reverse)
             } else if app.file_manager.file_manager_show_changes
                 && app.git.show_git_diff_summary
@@ -767,7 +767,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::ActivityAnimationTick => {
             app.advance_status_animation_frame();
-            if app.task_pet_visible
+            if app.companion_navigation.task_pet_visible
                 && let Some(window_id) = app.task_pet_window_id
                 && let Some((size, position)) = app.advance_task_pet_expand_animation()
             {
@@ -778,7 +778,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
         }
         ViewMessage::TaskPetToggleWindow => {
-            let intent = if app.task_pet_visible {
+            let intent = if app.companion_navigation.task_pet_visible {
                 ViewMessage::TaskPetHideWindow
             } else {
                 ViewMessage::TaskPetShowWindow
@@ -792,8 +792,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             #[cfg(not(target_arch = "wasm32"))]
             {
-                app.task_pet_context_menu_pos = None;
-                app.task_pet_visible = true;
+                desktop_navigation::panel::companion::update(&mut app.companion_navigation, desktop_navigation::panel::companion::Message::Show);
                 let open = sync_task_pet_window(app);
                 let focus =
                     app.task_pet_window_id.map_or_else(Task::none, iced::window::gain_focus);
@@ -801,9 +800,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
         }
         ViewMessage::TaskPetHideWindow => {
-            app.task_pet_context_menu_pos = None;
-            app.task_pet_visible = false;
-            app.task_pet_robot_hovered = false;
+            desktop_navigation::panel::companion::update(&mut app.companion_navigation, desktop_navigation::panel::companion::Message::Hide);
             Task::batch([sync_task_pet_window(app), app.save_task_pet_preferences()])
         }
         ViewMessage::CloseRequested(id) if app.task_pet_window_id == Some(id) => {
@@ -814,10 +811,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             sync_task_pet_window(app)
         }
         ViewMessage::TaskPetWriteMessage => {
-            app.task_pet_context_menu_pos = None;
-            app.show_system_settings = false;
-            app.show_settings = false;
-            app.screen = crate::app::Screen::Project;
+            desktop_navigation::panel::companion::update(&mut app.companion_navigation, desktop_navigation::panel::companion::Message::CloseContext);
+            app.navigation_panels.focus_chat();
+            app.navigation_tabs.show_project();
             #[cfg(not(target_arch = "wasm32"))]
             let focus = app.main_window_id.map_or_else(Task::none, |id| {
                 iced::window::minimize(id, false).chain(iced::window::gain_focus(id))
@@ -827,15 +823,15 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             focus.chain(iced::widget::operation::focus(app.input_editor_id.clone()))
         }
         ViewMessage::TaskPetContextMenuOpened(x, y) => {
-            app.task_pet_context_menu_pos = Some((x, y));
+            desktop_navigation::panel::companion::update(&mut app.companion_navigation, desktop_navigation::panel::companion::Message::OpenContext(x, y));
             Task::none()
         }
         ViewMessage::TaskPetContextMenuClosed => {
-            app.task_pet_context_menu_pos = None;
+            desktop_navigation::panel::companion::update(&mut app.companion_navigation, desktop_navigation::panel::companion::Message::CloseContext);
             Task::none()
         }
         ViewMessage::TaskPetToggleCollapsed => {
-            app.task_pet_context_menu_pos = None;
+            desktop_navigation::panel::companion::update(&mut app.companion_navigation, desktop_navigation::panel::companion::Message::CloseContext);
             app.toggle_task_pet_collapsed();
             Task::none()
         }
@@ -853,9 +849,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::TaskPetOpenSettings => {
-            app.task_pet_context_menu_pos = None;
+            desktop_navigation::panel::companion::update(&mut app.companion_navigation, desktop_navigation::panel::companion::Message::CloseContext);
             app.general_settings_tab = crate::app::state::GeneralSettingsTab::Companion;
-            app.system_settings_tab = crate::app::components::system_settings::SystemTab::General;
+            app.navigation_panels.prepare_companion_settings();
             let open = update(
                 app,
                 ViewMessage::OpenSystemSettingsTab(
@@ -904,11 +900,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::TaskPetSizeSaved(scope, result) => {
             if app.task_pet_size_pending.as_ref() == Some(&scope) {
                 app.task_pet_size_pending = None;
-                if result.is_ok()
-                    && let Some(scale) = app.task_pet_size_draft.take()
-                {
-                    app.task_pet_scale = scale;
-                }
+                desktop_task_board::task_pet::window::commit_size(&mut app.task_pet_size_draft, &mut app.task_pet_scale, result.is_ok());
             }
             app.desktop_preferences_saved(scope, result)
         }
@@ -1163,7 +1155,7 @@ fn handle_global_key(
             Task::none()
         };
     }
-    if app.screen == crate::app::Screen::WorkflowTool {
+    if app.navigation_tabs.screen == crate::app::Screen::WorkflowTool {
         if let Some(workflow_message) =
             workflow_key_message(&key, modifiers, app.workflow_state.selected_node_id.is_some())
         {

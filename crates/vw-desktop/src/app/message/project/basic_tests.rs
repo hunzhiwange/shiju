@@ -204,7 +204,7 @@ fn remove_attached_file_removes_every_duplicate_and_preserves_other_paths() {
 #[test]
 fn file_index_loaded_without_project_does_not_expose_cached_files() {
     let mut app = app();
-    app.project_path = None;
+    app.navigation_tabs.project_path = None;
 
     let task = super::handle(
         &mut app,
@@ -224,7 +224,7 @@ fn file_index_loaded_without_project_does_not_expose_cached_files() {
 #[test]
 fn file_index_loaded_for_project_sets_cached_files_without_changing_project() {
     let mut app = app();
-    app.project_path = Some("/workspace/project".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/project".to_string());
 
     let task = super::handle(
         &mut app,
@@ -238,14 +238,14 @@ fn file_index_loaded_for_project_sets_cached_files_without_changing_project() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.project_path.as_deref(), Some("/workspace/project"));
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/workspace/project"));
     assert_eq!(app.current_file_index(), ["/workspace/project/src/main.rs"]);
 }
 
 #[test]
 fn file_index_loaded_requests_refresh_when_project_exists_and_index_is_stale() {
     let mut app = app();
-    app.project_path = Some("/workspace/project".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/project".to_string());
 
     let task = super::handle(
         &mut app,
@@ -265,7 +265,7 @@ fn file_index_loaded_requests_refresh_when_project_exists_and_index_is_stale() {
 #[test]
 fn file_index_ready_sets_index_and_stops_refreshing() {
     let mut app = app();
-    app.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
     app.file_manager.file_manager_file_tree_refreshing = true;
 
     let task = super::handle(
@@ -283,7 +283,7 @@ fn file_index_ready_sets_index_and_stops_refreshing() {
 #[test]
 fn file_index_ready_without_active_refresh_only_sets_index() {
     let mut app = app();
-    app.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
     app.file_manager.file_manager_file_tree_refreshing = false;
 
     let task = super::handle(
@@ -318,7 +318,7 @@ fn toggle_tree_dir_toggles_expanded_state() {
 #[test]
 fn file_manager_show_changes_true_clears_active_preview_and_expands_changed_dirs() {
     let mut app = app();
-    app.active_preview_path = Some("/tmp/project/src/main.rs".to_string());
+    app.navigation_tabs.active_preview_path = Some("/tmp/project/src/main.rs".to_string());
     app.file_manager.show_file_manager = false;
     app.git.git_changed_files =
         vec!["src/main.rs".to_string(), "src/nested/lib.rs".to_string(), "README.md".to_string()];
@@ -329,7 +329,7 @@ fn file_manager_show_changes_true_clears_active_preview_and_expands_changed_dirs
     );
 
     assert!(app.file_manager.file_manager_show_changes);
-    assert!(app.active_preview_path.is_none());
+    assert!(app.navigation_tabs.active_preview_path.is_none());
     assert!(app.file_manager.show_file_manager);
     assert!(app.file_tree_expanded.contains(&"chg:src".to_string()));
     assert!(app.file_tree_expanded.contains(&"chg:src/nested".to_string()));
@@ -339,7 +339,7 @@ fn file_manager_show_changes_true_clears_active_preview_and_expands_changed_dirs
 #[tokio::test(flavor = "multi_thread")]
 async fn file_manager_show_changes_true_in_work_mode_reveals_workspace_files() {
     let mut app = app();
-    app.screen = crate::app::Screen::Project;
+    app.navigation_tabs.screen = crate::app::Screen::Project;
     app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
     app.navigation_workspace.work_resources_visible = false;
     app.navigation_workspace.work_resource_mode = crate::app::state::WorkResourceMode::Browser;
@@ -369,7 +369,7 @@ async fn file_manager_show_changes_true_in_work_mode_reveals_workspace_files() {
 #[test]
 fn file_manager_show_changes_false_preserves_preview_and_resets_find_selection() {
     let mut app = app();
-    app.active_preview_path = Some("/tmp/project/src/main.rs".to_string());
+    app.navigation_tabs.active_preview_path = Some("/tmp/project/src/main.rs".to_string());
     app.active_find_results_tab_id = Some("find-results".to_string());
     app.file_manager.show_file_manager = false;
 
@@ -380,7 +380,7 @@ fn file_manager_show_changes_false_preserves_preview_and_resets_find_selection()
 
     assert!(task.is_some());
     assert!(!app.file_manager.file_manager_show_changes);
-    assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/project/src/main.rs"));
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/tmp/project/src/main.rs"));
     assert!(app.active_find_results_tab_id.is_none());
     assert!(app.file_manager.show_file_manager);
 }
@@ -450,7 +450,7 @@ fn file_manager_refresh_file_tree_ignores_duplicate_refresh() {
 #[test]
 fn file_manager_refresh_file_tree_marks_refreshing_when_idle() {
     let mut app = app();
-    app.project_path = None;
+    app.navigation_tabs.project_path = None;
     app.file_manager.file_manager_file_tree_refreshing = false;
 
     let task = super::handle(
@@ -497,7 +497,7 @@ fn file_manager_refresh_animation_tick_wraps_frame_while_work_is_active() {
 #[test]
 fn open_changed_file_without_project_returns_none_task_only() {
     let mut app = app();
-    app.project_path = None;
+    app.navigation_tabs.project_path = None;
 
     let task = super::handle(
         &mut app,
@@ -505,16 +505,16 @@ fn open_changed_file_without_project_returns_none_task_only() {
     );
 
     assert!(task.is_some());
-    assert!(app.project_path.is_none());
+    assert!(app.navigation_tabs.project_path.is_none());
     assert!(app.file_manager.file_manager_show_changes);
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn open_changed_file_in_work_mode_reveals_workspace_changes_and_focuses_file() {
     let mut app = app();
-    app.screen = crate::app::Screen::Project;
+    app.navigation_tabs.screen = crate::app::Screen::Project;
     app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
-    app.project_path = Some("/workspace/project".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/project".to_string());
     app.navigation_workspace.work_resources_visible = false;
     app.navigation_workspace.work_resource_mode = crate::app::state::WorkResourceMode::Overview;
     app.navigation_workspace.work_chat_fullscreen = true;
@@ -559,9 +559,9 @@ async fn open_changed_file_in_work_mode_reveals_workspace_changes_and_focuses_fi
 #[test]
 fn open_changed_file_expands_collapsed_change_dirs_when_already_in_changes_view() {
     let mut app = app();
-    app.screen = crate::app::Screen::Project;
+    app.navigation_tabs.screen = crate::app::Screen::Project;
     app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
-    app.project_path = Some("/workspace/project".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/project".to_string());
     app.navigation_workspace.work_resources_visible = true;
     app.navigation_workspace.work_resource_mode = crate::app::state::WorkResourceMode::WorkspaceFiles;
     app.file_manager.file_manager_show_changes = true;
@@ -585,7 +585,7 @@ fn open_changed_file_expands_collapsed_change_dirs_when_already_in_changes_view(
 #[test]
 fn file_tree_add_to_chat_rejects_path_outside_project_without_mutating_search() {
     let mut app = app();
-    app.project_path = Some("/workspace/project".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/project".to_string());
     app.show_file_search = true;
     app.file_search_query = "main".to_string();
 
@@ -607,7 +607,7 @@ fn file_tree_add_to_chat_rejects_path_outside_project_without_mutating_search() 
 #[test]
 fn file_tree_add_to_chat_without_project_preserves_editor_and_search_state() {
     let mut app = app();
-    app.project_path = None;
+    app.navigation_tabs.project_path = None;
     app.show_file_search = true;
     app.file_search_query = "main".to_string();
     app.file_search_selected_index = 2;
@@ -631,7 +631,7 @@ fn file_tree_add_to_chat_without_project_preserves_editor_and_search_state() {
 #[test]
 fn file_tree_add_to_chat_inserts_relative_mention_and_resets_search_state() {
     let mut app = app();
-    app.project_path = Some("/workspace/project".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/project".to_string());
     app.show_file_search = true;
     app.file_search_query = "main".to_string();
     app.file_search_selected_index = 4;
@@ -656,7 +656,7 @@ fn file_tree_add_to_chat_inserts_relative_mention_and_resets_search_state() {
 #[test]
 fn start_deferred_tasks_rejects_stale_project_path() {
     let mut app = app();
-    app.project_path = Some("/workspace/current".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/current".to_string());
 
     let task = super::handle(
         &mut app,
@@ -666,7 +666,7 @@ fn start_deferred_tasks_rejects_stale_project_path() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.project_path.as_deref(), Some("/workspace/current"));
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/workspace/current"));
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
@@ -717,7 +717,7 @@ fn empty_directory_snapshot(
 fn file_tree_empty_directory_snapshot_refresh_updates_tree_and_search_without_attachments() {
     use crate::app::message::project::ProjectMessage;
     let mut app = app();
-    app.project_path = Some("/project".into());
+    app.navigation_tabs.project_path = Some("/project".into());
     app.files = vec!["/attached.txt".into()];
     app.file_manager.file_manager_file_tree_refreshing = true;
     let _ = super::handle(
@@ -756,7 +756,7 @@ fn file_tree_empty_directory_snapshot_refresh_updates_tree_and_search_without_at
 fn file_tree_empty_directory_old_project_result_only_updates_its_cache() {
     use crate::app::message::project::ProjectMessage;
     let mut app = app();
-    app.project_path = Some("/current".into());
+    app.navigation_tabs.project_path = Some("/current".into());
     app.set_file_index("/current", vec!["/current/file.txt".into()]);
     app.file_manager.file_manager_file_tree_refreshing = true;
     let results = app.search_panel_file_cache_results.clone();
@@ -771,7 +771,7 @@ fn file_tree_empty_directory_old_project_result_only_updates_its_cache() {
     assert_eq!(app.search_panel_file_cache_results, results);
     assert!(app.file_manager.file_manager_file_tree_refreshing);
     assert!(!app.current_file_tree_model().unwrap().children.contains_key("empty"));
-    app.project_path = Some("/old".into());
+    app.navigation_tabs.project_path = Some("/old".into());
     assert!(app.current_file_tree_model().unwrap().children.contains_key("empty"));
     assert_eq!(app.current_file_index(), ["/old/readme.txt"]);
 }
@@ -780,7 +780,7 @@ fn file_tree_empty_directory_old_project_result_only_updates_its_cache() {
 fn file_tree_empty_directory_directory_only_snapshot_is_cached_with_empty_file_index() {
     use crate::app::message::project::ProjectMessage;
     let mut app = app();
-    app.project_path = Some("/project".into());
+    app.navigation_tabs.project_path = Some("/project".into());
     let mut snapshot = empty_directory_snapshot("/project", "empty");
     snapshot.files.clear();
     snapshot.tree.files.clear();
@@ -796,7 +796,7 @@ fn file_tree_empty_directory_directory_only_snapshot_is_cached_with_empty_file_i
 #[test]
 fn file_tree_empty_directory_old_local_load_does_not_pollute_current_project() {
     let mut app = app();
-    app.project_path = Some("/current".into());
+    app.navigation_tabs.project_path = Some("/current".into());
     let _ = super::handle(
         &mut app,
         crate::app::message::project::ProjectMessage::FileIndexLoaded {

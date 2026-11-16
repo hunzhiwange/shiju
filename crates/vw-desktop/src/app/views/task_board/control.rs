@@ -13,7 +13,7 @@ pub fn build_control_buttons(app: &App) -> iced::Element<'_, Message> {
     control::build_control_buttons(&ControlView {
         desktop_locale: app.desktop_locale,
         window_size: app.window_size,
-        project_path: app.project_path.as_deref(),
+        project_path: app.navigation_tabs.project_path.as_deref(),
         task_board_tasks: &app.task_board_tasks,
         task_board_executor_running: app.task_board_executor_running,
         task_board_worktree_manual_action_kind: app.task_board_worktree_manual_action_kind,

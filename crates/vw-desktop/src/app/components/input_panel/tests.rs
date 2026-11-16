@@ -338,9 +338,9 @@ fn input_panel_view_renders_default_task_queue_and_overlay_states() {
 
     app.input_editor = iced::widget::text_editor::Content::with_text("@src/main.rs:1\nhello");
     app.files.push("/tmp/a.txt".to_string());
-    app.show_model_popover = true;
+    app.popover_visibility.model = true;
     app.show_file_search = true;
-    app.project_path = Some("/repo".to_string());
+    app.navigation_tabs.project_path = Some("/repo".to_string());
     app.file_search_query = "src".to_string();
     app.set_file_index("/repo", vec!["src/main.rs".to_string()]);
     let with_overlays = view(&app);
@@ -353,7 +353,7 @@ fn input_panel_view_renders_drag_hover_and_send_mode_state() {
     let mut app = crate::app::App::new().0;
     app.file_tree_interaction.dragging_file_paths = vec!["src/main.rs".to_string()];
     app.file_tree_interaction.input_drop_hovered = true;
-    app.show_send_mode_popover = true;
+    app.popover_visibility.send_mode = true;
     app.chat_send_behavior = ChatSendBehavior::StopAndSend;
 
     let element = view(&app);
@@ -463,7 +463,7 @@ fn input_panel_view_renders_matching_todos_at_input_bottom() {
 fn input_panel_view_renders_agent_sessions_entry_only_for_running_children() {
     let mut app = crate::app::App::new().0;
     app.active_session_id = Some("parent".to_string());
-    app.project_path = Some("/workspace/project".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/project".to_string());
 
     let empty = view(&app);
     assert_eq!(empty.as_widget().size().width, Length::Fill);

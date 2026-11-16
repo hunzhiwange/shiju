@@ -2,8 +2,8 @@ use super::*;
 fn app() -> App {
     let (mut app, _) = App::new();
     app.active_session_id = Some("voice-archive".into());
-    app.show_system_settings = true;
-    app.system_settings_tab = crate::app::components::system_settings::SystemTab::Voice;
+    app.navigation_panels.show_system_settings = true;
+    app.navigation_panels.system_settings_tab = crate::app::components::system_settings::SystemTab::Voice;
     app.current_session_runtime_mut().input_editor =
         iced::widget::text_editor::Content::with_text("原草稿");
     app

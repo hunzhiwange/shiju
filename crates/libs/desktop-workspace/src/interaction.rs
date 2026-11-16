@@ -30,6 +30,9 @@ pub struct InteractionState {
     pub file_tree_pending_delete: Option<(String, Vec<String>)>,
 }
 impl InteractionState {
+    /// Discard an unclaimed native file drop without resetting other drag state.
+    pub fn discard_pending_drop(&mut self) { self.pending_drop_file_paths.clear(); }
+
     pub fn hover_external_file(&mut self, path: String) {
         if self.dragging_file_paths.is_empty()
             && !self.pending_drop_file_paths.iter().any(|existing| existing == &path)

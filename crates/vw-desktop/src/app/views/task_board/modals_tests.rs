@@ -69,7 +69,7 @@ async fn task_board_modal_form_controls_render_and_apply_settings() {
         test_app,
         |scene, app| {
             let _ = app.update(Message::TaskBoard(TaskBoardMessage::OpenSettingsModal));
-            app.project_path = None;
+            app.navigation_tabs.project_path = None;
             let i18n = I18n::new(app.desktop_locale);
             let view = super::super::view;
 

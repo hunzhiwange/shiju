@@ -368,8 +368,8 @@ async fn ui_refresh_28_layout_and_interaction() {
         if *value > 25_000 && *value <= 100_000));
     drop(ui);
 
-    app.show_system_settings = true;
-    app.system_settings_tab = system_settings::SystemTab::Observability;
+    app.navigation_panels.show_system_settings = true;
+    app.navigation_panels.system_settings_tab = system_settings::SystemTab::Observability;
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
     app.observability_settings.save_error = Some(FAILURE.into());
     let size = Size::new(960, 840);

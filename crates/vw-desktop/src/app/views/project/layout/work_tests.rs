@@ -20,8 +20,8 @@ async fn work_layout_keeps_single_chat_surface_when_code_panels_are_enabled() {
             .await
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
-    app.show_settings = true;
-    app.show_diff = false;
+    app.navigation_panels.show_settings = true;
+    app.navigation_panels.show_diff = false;
     app.file_manager.show_file_manager = false;
     app.terminal.is_visible = false;
     app.chat_panel_fullscreen = false;
@@ -32,7 +32,7 @@ async fn work_layout_keeps_single_chat_surface_when_code_panels_are_enabled() {
         layout_signature(&mut element, &renderer)
     };
 
-    app.show_diff = true;
+    app.navigation_panels.show_diff = true;
     app.file_manager.show_file_manager = true;
     app.chat_panel_fullscreen = true;
     app.git.git_diff_fullscreen = true;
@@ -93,14 +93,14 @@ async fn work_layout_uses_fixed_work_sidebar_when_code_sidebar_state_changes() {
             .await
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
-    app.show_settings = false;
+    app.navigation_panels.show_settings = false;
 
     let collapsed = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
         layout_signature(&mut element, &renderer)
     };
 
-    app.show_settings = true;
+    app.navigation_panels.show_settings = true;
     let expanded = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
         layout_signature(&mut element, &renderer)
@@ -476,7 +476,7 @@ async fn terminal_fullscreen_toolbar_round_trips_workspace_layout() {
         for mode in [WorkspaceMode::Code, WorkspaceMode::Work] {
             app.app_theme = theme.clone();
             app.navigation_mode.workspace_mode = mode;
-            app.show_diff = true;
+            app.navigation_panels.show_diff = true;
             app.navigation_workspace.work_resources_visible = true;
 
             for _ in 0..2 {
@@ -488,7 +488,7 @@ async fn terminal_fullscreen_toolbar_round_trips_workspace_layout() {
                 let _ = app.update(restore);
                 terminal_toolbar_frame(&app, &mut renderer, size, 268, false);
                 assert_eq!(app.terminal.height, 240.0);
-                assert!(app.show_diff && app.navigation_workspace.work_resources_visible);
+                assert!(app.navigation_panels.show_diff && app.navigation_workspace.work_resources_visible);
             }
         }
     }

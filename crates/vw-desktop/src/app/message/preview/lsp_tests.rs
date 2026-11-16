@@ -52,8 +52,8 @@ fn install_lsp_events(
 fn lsp_results_rebind_overlay_to_active_preview() {
     let active_path = "/tmp/active.rs";
     let mut app = app();
-    app.active_preview_path = Some(active_path.to_string());
-    app.preview_tabs.push(preview_tab(active_path, "fn main() {}"));
+    app.navigation_tabs.active_preview_path = Some(active_path.to_string());
+    app.navigation_tabs.preview_tabs.push(preview_tab(active_path, "fn main() {}"));
     app.lsp_overlay_path = Some("/tmp/previous.rs".to_string());
     install_lsp_events(&mut app, [crate::app::lsp::LspEvent::Hover { text: "hover".to_string() }]);
 
@@ -176,7 +176,7 @@ fn drain_lsp_events_retains_empty_receiver_when_channel_is_open() {
 #[test]
 fn drain_lsp_events_handles_hover_completion_progress_and_log() {
     let mut app = app();
-    app.active_preview_path = Some("/tmp/main.rs".to_string());
+    app.navigation_tabs.active_preview_path = Some("/tmp/main.rs".to_string());
     install_lsp_events(
         &mut app,
         [
@@ -309,7 +309,7 @@ fn tick_when_disabled_only_advances_spinner() {
 fn tick_when_enabled_processes_lsp_events() {
     let mut app = app();
     app.lsp_disabled = false;
-    app.active_preview_path = Some("/tmp/main.rs".to_string());
+    app.navigation_tabs.active_preview_path = Some("/tmp/main.rs".to_string());
     install_lsp_events(
         &mut app,
         [crate::app::lsp::LspEvent::Hover { text: "hover docs".to_string() }],

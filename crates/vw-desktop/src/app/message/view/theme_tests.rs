@@ -80,7 +80,7 @@ fn app_theme_selected_with_preview_tabs_preserves_editor_data() {
     let mut app = test_app();
     app.app_theme = Theme::Light;
     app.editor_follow_system_theme = true;
-    app.preview_tabs = vec![
+    app.navigation_tabs.preview_tabs = vec![
         preview_tab("/tmp/first.txt", "first content"),
         preview_tab("/tmp/second.txt", "second content"),
     ];
@@ -88,10 +88,10 @@ fn app_theme_selected_with_preview_tabs_preserves_editor_data() {
     let _ = update(&mut app, ViewMessage::AppThemeSelected(Theme::Dark));
 
     assert_eq!(app.app_theme.to_string(), Theme::Dark.to_string());
-    assert_eq!(app.preview_tabs[0].path, "/tmp/first.txt");
-    assert_eq!(app.preview_tabs[0].editor.content(), "first content");
-    assert_eq!(app.preview_tabs[1].path, "/tmp/second.txt");
-    assert_eq!(app.preview_tabs[1].editor.content(), "second content");
+    assert_eq!(app.navigation_tabs.preview_tabs[0].path, "/tmp/first.txt");
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), "first content");
+    assert_eq!(app.navigation_tabs.preview_tabs[1].path, "/tmp/second.txt");
+    assert_eq!(app.navigation_tabs.preview_tabs[1].editor.content(), "second content");
 }
 
 #[test]

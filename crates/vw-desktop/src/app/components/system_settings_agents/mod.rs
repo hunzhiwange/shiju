@@ -109,7 +109,7 @@ pub(super) const AGENT_CONFIG_TABS: &[SettingsTabDescriptor<AgentConfigTab>] = &
 
 pub(super) fn agent_project_options(app: &App) -> Vec<String> {
     desktop_settings_agents::agents_view::agent_project_options(
-        app.project_path.as_deref(),
+        app.navigation_tabs.project_path.as_deref(),
         &app.recent_projects,
     )
 }

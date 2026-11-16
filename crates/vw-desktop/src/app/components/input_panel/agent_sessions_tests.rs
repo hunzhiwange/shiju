@@ -696,7 +696,7 @@ fn buffered_stream_tokens_reuse_projection_without_cloning_runtime() {
         ),
     );
     app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
-    app.project_path = Some("/workspace".into());
+    app.navigation_tabs.project_path = Some("/workspace".into());
     app.recent_projects = vec!["/workspace".into()];
     app.project_sessions
         .insert("/workspace".into(), vec![session("parent", None, "Parent", "/workspace")]);

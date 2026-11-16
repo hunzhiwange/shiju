@@ -7,7 +7,6 @@ use super::ViewMessage;
 use crate::app::{App, FocusArea, Message};
 use iced::Task;
 
-
 pub(crate) use desktop_navigation::window_lifecycle::{WindowClosedOutcome, mark_window_closed};
 
 /// 执行 update 对应的领域操作。
@@ -15,67 +14,8 @@ pub(crate) use desktop_navigation::window_lifecycle::{WindowClosedOutcome, mark_
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
+    if let Some(local) = mobile_message(&message) { return update_mobile(app, local); }
     match message {
-        ViewMessage::LayoutSelected(preference) => {
-            app.mobile_layout.select(preference);
-            Task::none()
-        }
-        ViewMessage::MobileDrawerToggled => {
-            app.mobile_layout.drawer_open = !app.mobile_layout.drawer_open;
-            Task::none()
-        }
-        ViewMessage::MobileBack => {
-            // Never dismiss approval dialogs or discard an unconfirmed session draft.
-            if app.question_modal_request.is_some() || app.permission_modal_request.is_some()
-                || app.new_session_picker_project.is_some() {
-                return Task::none();
-            }
-            if app.notifications_expanded {
-                app.notifications_expanded = false;
-            } else if app.mobile_layout.drawer_open {
-                app.mobile_layout.drawer_open = false;
-            } else if app.show_system_settings && app.mobile_layout.settings_detail {
-                app.mobile_layout.settings_detail = false;
-            } else if app.show_system_settings {
-                app.show_system_settings = false;
-            } else {
-                app.mobile_layout.drawer_open = true;
-            }
-            Task::none()
-        }
-        ViewMessage::MobileChat => {
-            app.show_system_settings = false;
-            app.mobile_layout.drawer_open = false;
-            app.screen = crate::app::Screen::Project;
-            Task::none()
-        }
-        ViewMessage::MobileSettings => {
-            app.show_system_settings = true;
-            app.mobile_layout.settings_detail = false;
-            app.mobile_layout.drawer_open = false;
-            Task::none()
-        }
-        ViewMessage::MobileSettingsTab(tab) => {
-            app.mobile_layout.settings_detail = true;
-            super::update(app, ViewMessage::OpenSystemSettingsTab(tab))
-        }
-        ViewMessage::MobileProjectSelected(path) => {
-            Task::batch([
-                Task::done(Message::Project(crate::app::message::ProjectMessage::OpenRecentPressed(path.clone()))),
-                Task::done(Message::Project(crate::app::message::ProjectMessage::ProjectLoadSessions(path))),
-            ])
-        }
-        ViewMessage::MobileSessionSelected(path, id) => {
-            app.mobile_layout.drawer_open = false;
-            app.show_system_settings = false;
-            Task::done(Message::Project(crate::app::message::ProjectMessage::OpenProjectSessionPressed(path, id)))
-        }
-        ViewMessage::MobileNewSession(path) => {
-            app.mobile_layout.drawer_open = false;
-            app.show_system_settings = false;
-            Task::done(Message::Project(crate::app::message::ProjectMessage::ProjectCreateSession(path)))
-        }
-
         ViewMessage::WindowMoved(window_id, x, y) => {
             if app.main_window_id == Some(window_id) {
                 app.window_position = (x, y);
@@ -101,11 +41,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             {
                 #[cfg(not(target_arch = "wasm32"))]
                 {
-                    for child in app.independent_webview_children.iter_mut() {
+                    for child in app.web_navigation.independent_webview_children.iter_mut() {
                         let child: &mut std::process::Child = child;
                         let _ = child.kill();
                     }
-                    app.independent_webview_children.clear();
+                    app.web_navigation.independent_webview_children.clear();
                 }
                 return iced::exit();
             }
@@ -156,27 +96,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 return Task::none();
             }
             app.mobile_layout.update_size(w, h);
-            let window_w = w.max(1.0);
-            let window_h = h.max(1.0);
-            app.window_size = (window_w, window_h);
-            if app.fullscreen_layout_settling
-                || app.is_chat_fullscreen()
-                || app.is_chat_half_fullscreen()
-                || app.git.git_diff_fullscreen
-                || app.git.git_diff_half_fullscreen
-            {
-                return Task::none();
-            }
-            if app.startup_resize_checked {
-                return Task::none();
-            }
-            app.startup_resize_checked = true;
-            #[cfg(not(target_arch = "wasm32"))]
-            if window_w > window_h * 2.0 {
-                return iced::window::resize::<Message>(
-                    window_id,
-                    iced::Size::new(window_w * 0.5, window_h),
-                );
+            let blocked = app.fullscreen_layout_settling || app.is_chat_fullscreen() || app.is_chat_half_fullscreen() || app.git.git_diff_fullscreen || app.git.git_diff_half_fullscreen;
+            if let Some(size) = desktop_navigation::window_lifecycle::resize_main_window(app.main_window_id, window_id, &mut app.window_size, &mut app.startup_resize_checked, blocked, w, h) {
+                return iced::window::resize::<Message>(window_id, size);
             }
             Task::none()
         }
@@ -198,7 +120,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     crate::app::message::knowledge_tool::KnowledgeToolMessage::ImportDroppedFiles,
                 );
             }
-            app.file_tree_interaction.pending_drop_file_paths.clear();
+            app.file_tree_interaction.discard_pending_drop();
             Task::none()
         }
         ViewMessage::HoveredFilesLeft => {
@@ -206,7 +128,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::FullscreenLayoutSettled => {
-            app.fullscreen_layout_settling = false;
+            desktop_navigation::window_lifecycle::settle_fullscreen_layout(&mut app.fullscreen_layout_settling);
             Task::none()
         }
         ViewMessage::WindowDragPressed => {
@@ -217,18 +139,14 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
         }
         ViewMessage::GlobalMouseReleased => {
-            app.task_board_drag_pending = None;
-            app.task_board_dragging = None;
+            desktop_task_board::drag::clear_pending_drag(&mut app.task_board_drag_pending, &mut app.task_board_dragging);
             let save = desktop_navigation::view_layout::drag::finish(&mut app.layout_drag, &mut app.navigation_workspace)
                 .map(|width| app.save_desktop_preference("file_manager_width", serde_json::json!(width)))
                 .unwrap_or_else(Task::none);
             if app.task_pet_dragging {
                 app.finish_task_pet_drag();
             }
-            if app.terminal.is_dragging {
-                app.terminal.is_dragging = false;
-                app.terminal.drag_anchor_y = None;
-            }
+            app.terminal.finish_pointer_resize();
             if app.git.git_diff_dragging {
                 return Task::batch([
                     save,
@@ -276,3 +194,34 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
 #[cfg(test)]
 #[path = "layout_tests.rs"]
 mod layout_tests;
+
+fn mobile_message(message: &ViewMessage) -> Option<desktop_navigation::mobile_layout::Message> {
+ use desktop_navigation::mobile_layout::Message as Local;
+ Some(match message {
+ ViewMessage::LayoutSelected(preference) => Local::Selected(*preference),
+ ViewMessage::MobileDrawerToggled => Local::DrawerToggled,
+ ViewMessage::MobileBack => Local::Back,
+ ViewMessage::MobileChat => Local::Chat,
+ ViewMessage::MobileSettings => Local::Settings,
+ ViewMessage::MobileSettingsTab(tab) => Local::SettingsTab(*tab),
+ ViewMessage::MobileProjectSelected(path) => Local::ProjectSelected(path.clone()),
+ ViewMessage::MobileSessionSelected(path, id) => Local::SessionSelected(path.clone(), id.clone()),
+ ViewMessage::MobileNewSession(path) => Local::NewSession(path.clone()),
+ _ => return None,
+ })
+}
+fn update_mobile(app: &mut App, message: desktop_navigation::mobile_layout::Message) -> Task<Message> {
+ use desktop_navigation::mobile_layout as domain;
+ let blocked = app.question_modal_request.is_some() || app.permission_modal_request.is_some() || app.new_session_picker_project.is_some();
+ let effect = domain::update(domain::Context { mobile: &mut app.mobile_layout, panels: &mut app.navigation_panels, tabs: &mut app.navigation_tabs, notifications_expanded: &mut app.notifications_expanded }, blocked, message);
+ match effect {
+ None => Task::none(),
+ Some(domain::Effect::OpenSettingsTab(tab)) => super::update(app, ViewMessage::OpenSystemSettingsTab(tab)),
+ Some(domain::Effect::OpenProject(path)) => Task::batch([
+ Task::done(Message::Project(crate::app::message::ProjectMessage::OpenRecentPressed(path.clone()))),
+ Task::done(Message::Project(crate::app::message::ProjectMessage::ProjectLoadSessions(path))),
+ ]),
+ Some(domain::Effect::OpenSession(path, id)) => Task::done(Message::Project(crate::app::message::ProjectMessage::OpenProjectSessionPressed(path, id))),
+ Some(domain::Effect::CreateSession(path)) => Task::done(Message::Project(crate::app::message::ProjectMessage::ProjectCreateSession(path))),
+ }
+}

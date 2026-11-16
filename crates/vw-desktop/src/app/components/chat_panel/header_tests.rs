@@ -13,7 +13,7 @@ fn test_app() -> App {
 fn active_header_app() -> App {
     let mut app = test_app();
     app.active_session_id = Some("active".to_string());
-    app.project_path = Some("/workspace/main".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/main".to_string());
     app.sessions.push(session("active", "/workspace/main"));
     app
 }
@@ -105,7 +105,7 @@ fn active_session_directory_returns_active_session_directory() {
 #[test]
 fn workspace_badge_state_labels_primary_named_and_fallback_workspaces() {
     let mut app = test_app();
-    app.project_path = Some("/workspace/main".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/main".to_string());
     app.active_session_id = Some("primary".to_string());
     app.sessions.push(session("primary", "/workspace/main"));
 
@@ -258,7 +258,7 @@ fn chat_header_view_keeps_container_shape_across_fullscreen_modes() {
     drop(normal);
 
     app.chat_panel_fullscreen = true;
-    app.show_session_actions_popover = true;
+    app.popover_visibility.session_actions = true;
     let fullscreen = chat_header_view(&app);
     assert!(!fullscreen.as_widget().children().is_empty());
 }
@@ -279,7 +279,7 @@ fn return_to_parent_session_pressed_emits_open_parent_when_parent_id_present() {
     let parent = session("parent-session", "/workspace/main");
     let mut child = session("child", "/workspace/main");
     child.parent_id = Some(parent.id.clone());
-    app.project_path = Some("/workspace/main".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/main".to_string());
     app.active_session_id = Some(parent.id.clone());
     app.sessions = vec![parent, child];
 
@@ -304,7 +304,7 @@ fn return_to_parent_session_pressed_emits_open_parent_when_parent_id_present() {
 #[test]
 fn return_to_parent_session_pressed_uses_project_sessions_cache_when_needed() {
     let mut app = test_app();
-    app.project_path = Some("/workspace/main".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/main".to_string());
     app.active_session_id = Some("child".to_string());
     let mut child = session("child", "/workspace/child");
     child.parent_id = Some("parent-session".to_string());

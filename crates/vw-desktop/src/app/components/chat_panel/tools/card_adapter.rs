@@ -3,7 +3,7 @@ use desktop_chat_tools::card_input::{CardInput, Message as Local};
 pub(super) fn input(app: &App) -> CardInput<'_> {
  CardInput { i18n: crate::app::i18n::I18n::new(app.desktop_locale), hovered: app.chat_tool_hovered_idx,
  expanded: &app.chat_tool_expanded, file_expanded: &app.chat_tool_file_expanded,
- project_path: app.project_path.as_deref(), text: super::super::tool_text_support::text_state(app) }
+ project_path: app.navigation_tabs.project_path.as_deref(), text: super::super::tool_text_support::text_state(app) }
 }
 pub(super) fn map(local: Local<Message>) -> Message { match local {
  Local::Diff(value) => value,

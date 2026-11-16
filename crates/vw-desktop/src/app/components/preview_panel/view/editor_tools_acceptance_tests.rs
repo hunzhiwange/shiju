@@ -68,9 +68,9 @@ async fn ecp07_popover_layout_is_stable_across_sizes() {
         iced::Renderer::new(iced::Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
     let mut app = App::new().0;
     app.file_manager.file_manager_show_changes = false;
-    app.screen = crate::app::Screen::Project;
-    app.preview_tabs = vec![tab("/tmp/a.rs", None)];
-    app.active_preview_path = Some("/tmp/a.rs".into());
+    app.navigation_tabs.screen = crate::app::Screen::Project;
+    app.navigation_tabs.preview_tabs = vec![tab("/tmp/a.rs", None)];
+    app.navigation_tabs.active_preview_path = Some("/tmp/a.rs".into());
     fn bounds(node: &layout::Node, out: &mut Vec<iced::Rectangle>) {
         out.push(node.bounds());
         for child in node.children() {
@@ -100,14 +100,14 @@ async fn ecp07_popover_layout_is_stable_across_sizes() {
             let closed = measure(&app, &mut renderer, size);
             assert!(!closed.is_empty());
             for kind in [EditorPopover::Actions, EditorPopover::Settings, EditorPopover::Help] {
-                let content = app.preview_tabs[0].editor.content();
-                let cursor = app.preview_tabs[0].editor.cursor_position();
+                let content = app.navigation_tabs.preview_tabs[0].editor.content();
+                let cursor = app.navigation_tabs.preview_tabs[0].editor.cursor_position();
                 let _ = editor::update(&mut app, EditorMessage::TogglePopover(kind));
                 assert_eq!(measure(&app, &mut renderer, size), closed, "{kind:?} at {size:?}");
                 let _ = editor::update(&mut app, EditorMessage::ClosePopover);
                 assert_eq!(measure(&app, &mut renderer, size), closed);
-                assert_eq!(app.preview_tabs[0].editor.content(), content);
-                assert_eq!(app.preview_tabs[0].editor.cursor_position(), cursor);
+                assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), content);
+                assert_eq!(app.navigation_tabs.preview_tabs[0].editor.cursor_position(), cursor);
             }
         }
     }

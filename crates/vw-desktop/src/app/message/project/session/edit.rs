@@ -57,7 +57,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
     let effects = edit::handle(&mut State {
         editor: &mut app.project_editor,
         hovered_recent_project: &mut app.hovered_recent_project,
-        project_path: &mut app.project_path,
+        project_path: &mut app.navigation_tabs.project_path,
         project_tools_menu_path: &mut app.project_tools_menu_path,
         project_worktree_enabled: &mut app.project_worktree_enabled,
         recent_project_remove_confirm_path: &mut app.recent_project_remove_confirm_path,

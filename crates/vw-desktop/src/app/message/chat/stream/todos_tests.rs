@@ -40,7 +40,7 @@ fn todo_list_directory_falls_back_to_project_path() {
     let (mut app, _task) = App::new();
     assert_eq!(super::todo_list_directory(&app), None);
 
-    app.project_path = Some("/project".to_string());
+    app.navigation_tabs.project_path = Some("/project".to_string());
     assert_eq!(super::todo_list_directory(&app).as_deref(), Some("/project"));
 }
 

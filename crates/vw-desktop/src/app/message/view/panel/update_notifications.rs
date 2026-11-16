@@ -18,7 +18,7 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::SkipAppUpdateSaved(a,b) => domain::Message::SkipAppUpdateSaved(a,b),
         _ => return Task::none(),
     };
-    let (task, effect) = domain::update(&mut app.desktop_update, app.show_cli_install_modal, env!("CARGO_PKG_VERSION"), message);
+    let (task, effect) = domain::update(&mut app.desktop_update, app.update_panel.show_cli_install_modal, env!("CARGO_PKG_VERSION"), message);
     let effect = match effect {
         Some(domain::Effect::SaveSkipped(skipped, patch)) => Task::perform(
             crate::app::config::save_app_config_async(patch),
@@ -31,6 +31,3 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     };
     Task::batch([task.map(map), effect])
 }
-#[cfg(test)]
-#[path = "update_notifications_tests.rs"]
-mod tests;

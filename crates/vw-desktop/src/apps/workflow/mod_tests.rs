@@ -15,7 +15,7 @@ fn sync_top_tab_replaces_apps_tab_and_updates_existing_workflow_tab() {
     let mut app = App::new().0;
     app.workflow_state.source_name = "当前工作流".to_string();
     app.workflow_state.active_app_id = Some("app".to_string());
-    app.open_tabs = vec![
+    app.navigation_tabs.open_tabs = vec![
         AppTab {
             id: "apps".to_string(),
             title: "应用".to_string(),
@@ -32,17 +32,17 @@ fn sync_top_tab_replaces_apps_tab_and_updates_existing_workflow_tab() {
 
     sync_top_tab(&mut app);
 
-    assert!(app.open_tabs.iter().all(|tab| tab.id != "apps"));
+    assert!(app.navigation_tabs.open_tabs.iter().all(|tab| tab.id != "apps"));
     let workflow_tab = app
-        .open_tabs
+        .navigation_tabs.open_tabs
         .iter()
         .find(|tab| tab.id == WORKFLOW_TOOL_TAB_ID)
         .expect("workflow tab should exist");
     assert_eq!(workflow_tab.title, "当前工作流");
     assert_eq!(workflow_tab.screen, Screen::WorkflowTool);
     assert!(workflow_tab.project_path.is_none());
-    assert_eq!(app.active_tab_id.as_deref(), Some(WORKFLOW_TOOL_TAB_ID));
-    assert_eq!(app.screen, Screen::WorkflowTool);
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some(WORKFLOW_TOOL_TAB_ID));
+    assert_eq!(app.navigation_tabs.screen, Screen::WorkflowTool);
 }
 
 #[test]
@@ -50,20 +50,20 @@ fn sync_top_tab_adds_workflow_tab_when_missing() {
     let mut app = App::new().0;
     app.workflow_state.source_name = "新建工作流".to_string();
     app.workflow_state.active_app_id = Some("app".to_string());
-    app.open_tabs.clear();
-    app.active_tab_id = Some("other".to_string());
-    app.screen = Screen::Apps;
+    app.navigation_tabs.open_tabs.clear();
+    app.navigation_tabs.active_tab_id = Some("other".to_string());
+    app.navigation_tabs.screen = Screen::Apps;
 
     sync_top_tab(&mut app);
 
-    assert_eq!(app.open_tabs.len(), 1);
-    let workflow_tab = &app.open_tabs[0];
+    assert_eq!(app.navigation_tabs.open_tabs.len(), 1);
+    let workflow_tab = &app.navigation_tabs.open_tabs[0];
     assert_eq!(workflow_tab.id, WORKFLOW_TOOL_TAB_ID);
     assert_eq!(workflow_tab.title, "新建工作流");
     assert_eq!(workflow_tab.screen, Screen::WorkflowTool);
     assert!(workflow_tab.project_path.is_none());
-    assert_eq!(app.active_tab_id.as_deref(), Some(WORKFLOW_TOOL_TAB_ID));
-    assert_eq!(app.screen, Screen::WorkflowTool);
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some(WORKFLOW_TOOL_TAB_ID));
+    assert_eq!(app.navigation_tabs.screen, Screen::WorkflowTool);
 }
 
 #[test]
@@ -72,11 +72,11 @@ fn ensure_initialized_starts_saved_apps_load_once() {
 
     let _ = ensure_initialized(&mut app);
     assert!(app.workflow_state.saved_apps_loading);
-    assert_eq!(app.active_tab_id.as_deref(), Some(WORKFLOW_TOOL_TAB_ID));
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some(WORKFLOW_TOOL_TAB_ID));
 
-    let tab_count = app.open_tabs.len();
+    let tab_count = app.navigation_tabs.open_tabs.len();
     let _ = ensure_initialized(&mut app);
-    assert_eq!(app.open_tabs.len(), tab_count);
+    assert_eq!(app.navigation_tabs.open_tabs.len(), tab_count);
 
     app.workflow_state.saved_apps_loading = false;
     app.workflow_state.saved_apps_loaded = true;
@@ -109,6 +109,6 @@ fn loaded_workflow_navigates_to_workflow_tab() {
     )
     .unwrap();
     let _ = update(&mut app, WorkflowMessage::OpenSavedAppFinished(Ok(loaded)));
-    assert_eq!(app.screen, Screen::WorkflowTool);
-    assert_eq!(app.active_tab_id.as_deref(), Some(WORKFLOW_TOOL_TAB_ID));
+    assert_eq!(app.navigation_tabs.screen, Screen::WorkflowTool);
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some(WORKFLOW_TOOL_TAB_ID));
 }

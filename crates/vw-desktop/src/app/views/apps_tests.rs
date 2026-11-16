@@ -17,7 +17,7 @@ fn view_without_active_modal_returns_scrollable_base_content() {
 #[test]
 fn view_with_add_bookmark_modal_stacks_overlay_above_base_content() {
     let mut app = App::new().0;
-    app.show_web_links_menu = true;
+    app.web_navigation.show_web_links_menu = true;
 
     assert_eq!(root_child_count(&app), 2);
 }
@@ -25,7 +25,7 @@ fn view_with_add_bookmark_modal_stacks_overlay_above_base_content() {
 #[test]
 fn view_with_edit_bookmark_modal_stacks_overlay_above_base_content() {
     let mut app = App::new().0;
-    app.editing_web_bookmark = Some(0);
+    app.web_navigation.editing_web_bookmark = Some(0);
 
     assert_eq!(root_child_count(&app), 2);
 }
@@ -33,8 +33,8 @@ fn view_with_edit_bookmark_modal_stacks_overlay_above_base_content() {
 #[test]
 fn view_with_both_modal_flags_keeps_single_modal_stack() {
     let mut app = App::new().0;
-    app.show_web_links_menu = true;
-    app.editing_web_bookmark = Some(0);
+    app.web_navigation.show_web_links_menu = true;
+    app.web_navigation.editing_web_bookmark = Some(0);
 
     assert_eq!(root_child_count(&app), 2);
 }

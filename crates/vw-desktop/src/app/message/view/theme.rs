@@ -23,7 +23,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             );
             if app.editor_follow_system_theme {
                 let editor_theme = app.effective_editor_theme();
-                for tab in app.preview_tabs.iter_mut() {
+                for tab in app.navigation_tabs.preview_tabs.iter_mut() {
                     tab.editor.set_theme(editor_theme.clone());
                 }
                 app.git.git_copy_modal_code_editor.set_theme(theme::from_iced_theme(&editor_theme));

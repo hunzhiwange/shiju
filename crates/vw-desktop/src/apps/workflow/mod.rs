@@ -25,16 +25,16 @@ pub(crate) use desktop_workflow_ui::view::node_editor::NODE_EDITOR_DSL_EDITOR_ID
 pub(crate) fn sync_top_tab(app: &mut App) {
     let title = app.workflow_state.display_title(crate::app::i18n::I18n::new(app.desktop_locale));
 
-    if let Some(pos) = app.open_tabs.iter().position(|t| t.id == "apps") {
-        app.open_tabs.remove(pos);
+    if let Some(pos) = app.navigation_tabs.open_tabs.iter().position(|t| t.id == "apps") {
+        app.navigation_tabs.open_tabs.remove(pos);
     }
 
-    if let Some(tab) = app.open_tabs.iter_mut().find(|t| t.id == WORKFLOW_TOOL_TAB_ID) {
+    if let Some(tab) = app.navigation_tabs.open_tabs.iter_mut().find(|t| t.id == WORKFLOW_TOOL_TAB_ID) {
         tab.title = title;
         tab.screen = Screen::WorkflowTool;
         tab.project_path = None;
     } else {
-        app.open_tabs.push(AppTab {
+        app.navigation_tabs.open_tabs.push(AppTab {
             id: WORKFLOW_TOOL_TAB_ID.to_string(),
             title,
             screen: Screen::WorkflowTool,
@@ -42,8 +42,8 @@ pub(crate) fn sync_top_tab(app: &mut App) {
         });
     }
 
-    app.active_tab_id = Some(WORKFLOW_TOOL_TAB_ID.to_string());
-    app.screen = Screen::WorkflowTool;
+    app.navigation_tabs.active_tab_id = Some(WORKFLOW_TOOL_TAB_ID.to_string());
+    app.navigation_tabs.screen = Screen::WorkflowTool;
 }
 
 pub fn ensure_initialized(app: &mut App) -> Task<Message> {
@@ -67,7 +67,7 @@ pub fn update(app: &mut App, message: WorkflowMessage) -> Task<Message> {
 }
 
 pub(crate) fn refresh_top_tab_title(app: &mut App) {
-    if let Some(tab) = app.open_tabs.iter_mut().find(|tab| tab.id == WORKFLOW_TOOL_TAB_ID) {
+    if let Some(tab) = app.navigation_tabs.open_tabs.iter_mut().find(|tab| tab.id == WORKFLOW_TOOL_TAB_ID) {
         tab.title =
             app.workflow_state.display_title(crate::app::i18n::I18n::new(app.desktop_locale));
     }

@@ -3,15 +3,15 @@ use crate::app::App;
 #[test]
 fn file_manager_view_construction_preserves_code_panel_preferences() {
     let mut app = App::new().0;
-    app.project_path = Some("/tmp/demo".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/demo".to_string());
     app.file_manager.show_file_manager = false;
-    app.show_diff = false;
+    app.navigation_panels.show_diff = false;
     app.layout_drag.split_ratio = 0.37;
     app.chat_panel_fullscreen = true;
     app.git.git_diff_fullscreen = true;
     let before = (
         app.file_manager.show_file_manager,
-        app.show_diff,
+        app.navigation_panels.show_diff,
         app.layout_drag.split_ratio,
         app.chat_panel_fullscreen,
         app.git.git_diff_fullscreen,
@@ -22,7 +22,7 @@ fn file_manager_view_construction_preserves_code_panel_preferences() {
     assert_eq!(
         (
             app.file_manager.show_file_manager,
-            app.show_diff,
+            app.navigation_panels.show_diff,
             app.layout_drag.split_ratio,
             app.chat_panel_fullscreen,
             app.git.git_diff_fullscreen,

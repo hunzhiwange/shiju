@@ -204,3 +204,6 @@ pub fn promote_pending_drag(
         }
     }
 }
+
+/// Release both pending and promoted drags when the global mouse capture ends.
+pub fn clear_pending_drag(pending: &mut Option<(String, desktop_task_model::TaskStatus, iced::Point)>, active: &mut Option<(String, desktop_task_model::TaskStatus)>) { *pending = None; *active = None; }

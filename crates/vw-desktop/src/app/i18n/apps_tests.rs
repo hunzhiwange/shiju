@@ -12,7 +12,7 @@ async fn desktop_gettext_area_14_hub_title_updates_after_locale_change() {
         app.desktop_locale = locale;
         super::apps::refresh_hub_titles(&mut app);
         let tab = app
-            .open_tabs
+            .navigation_tabs.open_tabs
             .iter()
             .find(|tab| tab.id == crate::app::message::skill_hub::EXPERT_HUB_TAB_ID)
             .unwrap();

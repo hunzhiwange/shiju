@@ -20,12 +20,12 @@ fn mini_companion_settings_selection_updates_preview_and_window() {
 #[test]
 fn mini_companion_settings_none_keeps_mini_visible() {
     let mut app = App::new().0;
-    app.task_pet_visible = true;
+    app.companion_navigation.task_pet_visible = true;
     let id = iced::window::Id::unique();
     app.task_pet_window_id = Some(id);
     let _ =
         view::update(&mut app, view::ViewMessage::TaskPetAvatarSelected(TaskPetAvatarKind::None));
-    assert!(app.task_pet_visible);
+    assert!(app.companion_navigation.task_pet_visible);
     assert_eq!(app.task_pet_window_id, Some(id));
     std::hint::black_box(content(&app));
 }
@@ -49,7 +49,7 @@ fn mini_companion_settings_search_reaches_page() {
         assert_eq!(app.general_settings_tab, GeneralSettingsTab::Companion);
     }
     let _ = view::update(&mut app, view::ViewMessage::TaskPetOpenSettings);
-    assert!(app.show_system_settings);
+    assert!(app.navigation_panels.show_system_settings);
     assert_eq!(app.general_settings_tab, GeneralSettingsTab::Companion);
 }
 
@@ -156,7 +156,7 @@ async fn mini_companion_settings_cards_render_and_emit_real_selection_events() {
     use crate::app::Message;
     let mut app = App::new().0;
     app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
-    app.task_pet_visible = true;
+    app.companion_navigation.task_pet_visible = true;
     let id = iced::window::Id::unique();
     app.task_pet_window_id = Some(id);
     for &(avatar, name, _) in &COMPANIONS {
@@ -170,7 +170,7 @@ async fn mini_companion_settings_cards_render_and_emit_real_selection_events() {
             }
         }
         assert_eq!(app.task_pet_avatar_kind, avatar);
-        assert!(app.task_pet_visible);
+        assert!(app.companion_navigation.task_pet_visible);
         assert_eq!(app.task_pet_window_id, Some(id));
         let (rendered, _) = scene(&app, 800.0, None).await;
         let selected = rendered.bounds("已选择");
@@ -197,7 +197,7 @@ async fn mini_companion_settings_cards_render_and_emit_real_selection_events() {
             assert!(bounds.x >= 0.0 && bounds.x + bounds.width <= width + 1.0);
         }
     }
-    app.task_pet_visible = false;
+    app.companion_navigation.task_pet_visible = false;
     let (rendered, messages) = scene(&app, 800.0, Some("显示 Mini")).await;
     assert!(rendered.bounds("显示 Mini").width > 0.0);
     assert!(matches!(messages.as_slice(), [Message::View(view::ViewMessage::TaskPetToggleWindow)]));
@@ -208,7 +208,7 @@ async fn mini_companion_settings_english_labels_render_without_actions_in_previe
     let mut app = App::new().0;
     app.desktop_locale = config_ui::DesktopLocale::English;
     app.task_pet_avatar_kind = TaskPetAvatarKind::Robot;
-    app.task_pet_visible = false;
+    app.companion_navigation.task_pet_visible = false;
     let (rendered, messages) = scene(&app, 520.0, Some("Mini toolbar")).await;
     assert!(messages.is_empty());
     assert!(rendered.bounds("Mini and companions").width > 0.0);

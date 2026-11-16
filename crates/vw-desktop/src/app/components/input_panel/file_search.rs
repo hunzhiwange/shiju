@@ -11,7 +11,7 @@ pub fn file_search_overlay(app: &crate::app::App) -> iced::Element<'_, crate::ap
         crate::app::i18n::I18n::new(app.desktop_locale),
         &entries,
         &app.file_search_query,
-        app.project_path.as_deref(),
+        app.navigation_tabs.project_path.as_deref(),
         app.file_search_selected_index,
         app.file_search_scroll_id.clone(),
     )

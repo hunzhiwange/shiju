@@ -38,7 +38,7 @@ fn launch(app: &mut App, target: gateway_shiju_app::ShijuAppLaunchDto, generatio
     #[cfg(not(target_arch = "wasm32"))]
     match crate::app::shiju_apps::launch_shiju_app(&target, installation_id) {
         Ok(child) => {
-            app.independent_webview_children.push(child);
+            app.web_navigation.independent_webview_children.push(child);
             app.shiju_apps.launch = ShijuAppLaunchState::Idle;
             app.show_localized_toast(
                 crate::app::state::ToastKind::Success,

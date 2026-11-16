@@ -6,6 +6,8 @@ license = "MIT"
 [lib]
 doctest = false
 [dependencies]
+desktop-settings-shell = { path = "../desktop-settings-shell", version = "0.6.0" }
+desktop-chat-input = { path = "../desktop-chat-input", version = "0.6.0" }
 desktop-workspace = { path = "../desktop-workspace", version = "0.6.0" }
 desktop-platform = { path = "../desktop-platform", version = "0.6.0" }
 serde_json = "1"
@@ -27,5 +29,6 @@ desktop-editor = { path = "../desktop-editor", version = "0.6.0" }
 desktop-web-install = { path = "../desktop-web-install", version = "0.6.0" }
 
 [dev-dependencies]
+iced_runtime = "0.14"
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

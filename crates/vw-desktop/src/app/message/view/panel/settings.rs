@@ -3,10 +3,9 @@
 use super::ViewMessage;
 use crate::app::message::settings::McpMessage;
 use crate::app::message::{ProjectMessage, SettingsMessage};
-use crate::app::state::WorkspaceMode;
-use crate::app::{App, Message, SettingsTab};
+use crate::app::{App, Message};
+use desktop_update::panel::{Effect, PanelMessage};
 use iced::Task;
-use desktop_update::panel::{PanelMessage, PanelState, Effect};
 #[cfg(not(target_arch = "wasm32"))]
 use std::ffi::OsString;
 
@@ -31,147 +30,16 @@ struct ShutdownStreamRequest {
 
 pub(crate) use desktop_navigation::window_lifecycle::close_requested_windows;
 
-/// 原子式标记关闭流程；已开始关闭时返回 `false` 防止重复清理。
-pub(crate) fn begin_shutdown(shutdown_requested: &mut bool) -> bool {
-    if *shutdown_requested {
-        return false;
-    }
-    *shutdown_requested = true;
-    true
-}
+pub(crate) use desktop_navigation::window_lifecycle::begin_shutdown;
 
 /// 处理设置、更新、项目与窗口生命周期相关的面板消息。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
+    if let Some(local) = navigation_message(&message) {
+        return update_navigation(app, local);
+    }
     match message {
-        ViewMessage::ToggleSettingsPanel => {
-            if app.navigation_mode.workspace_mode == WorkspaceMode::Work {
-                return Task::done(Message::View(ViewMessage::WorkSidebarToggled));
-            }
-            app.show_settings = !app.show_settings;
-            let save = app.save_desktop_preference("show_settings", app.show_settings.into());
-            if app.show_settings
-                && let Some(path) = app.project_path.as_deref().map(str::to_owned)
-                && !app.project_sessions.contains_key(&path)
-                && !app.project_sessions_loading.contains(&path)
-            {
-                app.project_sessions_loading.insert(path.clone());
-                let project_path_clone = path.clone();
-                let sessions = Task::perform(
-                    async move {
-                        let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
-                        crate::app::message::project::helpers::list_gateway_project_sessions(
-                            &client,
-                            &project_path_clone,
-                        )
-                        .await
-                    },
-                    |res| Message::Project(ProjectMessage::ProjectSessionsLoaded(path, res)),
-                );
-                return Task::batch([save, sessions]);
-            }
-            save
-        }
-        ViewMessage::ProjectFileNewSession => {
-            if let Some(path) = app.project_path.as_deref().map(str::to_owned) {
-                Task::done(Message::Project(ProjectMessage::ProjectCreateSession(path)))
-            } else {
-                Task::none()
-            }
-        }
-        ViewMessage::ProjectFileNewProject => {
-            Task::done(Message::Project(ProjectMessage::OpenFolderPressed))
-        }
-        ViewMessage::ProjectFileShowSessions => {
-            app.show_settings = true;
-            app.settings_tab = SettingsTab::Sessions;
-            app.save_desktop_preference("show_settings", true.into())
-        }
-        ViewMessage::ProjectFileShowProjects => {
-            app.show_settings = true;
-            app.settings_tab = SettingsTab::Projects;
-            app.save_desktop_preference("show_settings", true.into())
-        }
-        ViewMessage::ProjectFileSaveAll => {
-            app.show_preview_context_menu = false;
-            let tasks = app
-                .preview_tabs
-                .iter()
-                .filter(|tab| tab.is_dirty)
-                .map(|tab| {
-                    Task::done(Message::Preview(
-                        crate::app::message::PreviewMessage::SaveFilePath {
-                            path: tab.path.clone(),
-                            notify: false,
-                        },
-                    ))
-                })
-                .collect::<Vec<_>>();
-            if tasks.is_empty() { Task::none() } else { Task::batch(tasks) }
-        }
-        ViewMessage::ToggleSystemSettings => {
-            app.show_system_settings = !app.show_system_settings;
-            app.project_tools_menu_path = None;
-            app.system_settings_help_tab = None;
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                app.agent_apps_auth.form = None;
-                if app.show_system_settings
-                    && app.system_settings_tab
-                        == crate::app::components::system_settings::SystemTab::Auth
-                {
-                    return crate::app::message::agent_apps_auth::update(
-                        app,
-                        crate::app::message::agent_apps_auth::Event::Refresh,
-                    );
-                }
-            }
-            if app.show_system_settings {
-                Task::none()
-            } else {
-                crate::app::message::editor::metrics::commit(app, None)
-            }
-        }
-        ViewMessage::OpenAcpSettings => {
-            app.show_system_settings = true;
-            app.system_settings_help_tab = None;
-            app.active_menu = None;
-            app.show_acp_popover = false;
-            app.system_settings_tab = crate::app::components::system_settings::SystemTab::Agents;
-            Task::done(Message::Settings(SettingsMessage::AgentConfigTab(
-                crate::app::message::settings::AgentConfigTabMessage::Selected(
-                    crate::app::state::AgentConfigTab::Acp,
-                ),
-            )))
-        }
-        ViewMessage::OpenSystemSettingsTab(tab) => {
-            app.show_system_settings = true;
-            app.system_settings_help_tab = None;
-            app.active_menu = None;
-            app.show_model_popover = false;
-            app.show_mode_popover = false;
-            app.show_file_popover = false;
-            app.show_usage_popover = false;
-            app.show_session_tool_selector_popover = false;
-            Task::done(Message::Settings(SettingsMessage::SystemTabSelected(tab)))
-        }
-        ViewMessage::OpenSystemSettingsModelDetail(provider_id, model_id) => {
-            app.show_system_settings = true;
-            app.system_settings_help_tab = None;
-            app.active_menu = None;
-            app.show_model_popover = false;
-            app.show_mode_popover = false;
-            app.show_file_popover = false;
-            app.show_usage_popover = false;
-            app.system_settings_tab = crate::app::components::system_settings::SystemTab::Models;
-            app.model_settings.active_tab = crate::app::state::ModelConfigTab::Models;
-            Task::done(Message::Settings(SettingsMessage::ModelDetailOpen(provider_id, model_id)))
-        }
-        ViewMessage::ToggleAboutModal => {
-            app.show_about_modal = !app.show_about_modal;
-            Task::none()
-        }
         ViewMessage::RestartApp => {
-            app.active_menu = None;
+            app.navigation_panels.close_menu();
             #[cfg(not(target_arch = "wasm32"))]
             let (
                 editor_commit,
@@ -185,7 +53,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     return Task::none();
                 }
                 let commit = crate::app::message::editor::metrics::commit(app, None);
-                let (routing_commit, routing_saves) = crate::app::message::settings::routing_persistence::flush(app);
+                let (routing_commit, routing_saves) =
+                    crate::app::message::settings::routing_persistence::flush(app);
                 (
                     commit,
                     app.editor_config_persistence.wait_for_idle(),
@@ -234,56 +103,56 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 Task::none()
             }
         },
-        ViewMessage::CliCommandsTabSelected(tab) => {
-            app.cli_commands_tab = tab;
-            Task::none()
-        }
         ViewMessage::InstallCliTool => update_panel(app, PanelMessage::InstallCliTool),
         ViewMessage::RunInstallCliTool => update_panel(app, PanelMessage::RunInstallCliTool),
         ViewMessage::CheckCliToolUpdate => update_panel(app, PanelMessage::CheckCliToolUpdate),
-        ViewMessage::CheckCliToolUpdateFinished(v0, v1, v2) => update_panel(app, PanelMessage::CheckCliToolUpdateFinished(v0, v1, v2)),
+        ViewMessage::CheckCliToolUpdateFinished(v0, v1, v2) => {
+            update_panel(app, PanelMessage::CheckCliToolUpdateFinished(v0, v1, v2))
+        }
         ViewMessage::OpenAppUpdateModal => update_panel(app, PanelMessage::OpenAppUpdateModal),
-        ViewMessage::AppUpdateSourceSelected(v0) => update_panel(app, PanelMessage::AppUpdateSourceSelected(v0)),
-        ViewMessage::AppUpdateSourceSaved(v0) => update_panel(app, PanelMessage::AppUpdateSourceSaved(v0)),
+        ViewMessage::AppUpdateSourceSelected(v0) => {
+            update_panel(app, PanelMessage::AppUpdateSourceSelected(v0))
+        }
+        ViewMessage::AppUpdateSourceSaved(v0) => {
+            update_panel(app, PanelMessage::AppUpdateSourceSaved(v0))
+        }
         ViewMessage::CheckAppUpdate => update_panel(app, PanelMessage::CheckAppUpdate),
-        ViewMessage::CheckAppUpdateFinished(v0, v1, v2) => update_panel(app, PanelMessage::CheckAppUpdateFinished(v0, v1, v2)),
+        ViewMessage::CheckAppUpdateFinished(v0, v1, v2) => {
+            update_panel(app, PanelMessage::CheckAppUpdateFinished(v0, v1, v2))
+        }
         ViewMessage::RunAppUpdate => update_panel(app, PanelMessage::RunAppUpdate),
         ViewMessage::CancelAppUpdate => update_panel(app, PanelMessage::CancelAppUpdate),
         #[cfg(not(target_arch = "wasm32"))]
-        ViewMessage::AppUpdateDownloadPrepared(v0, v1) => update_panel(app, PanelMessage::AppUpdateDownloadPrepared(v0, v1)),
+        ViewMessage::AppUpdateDownloadPrepared(v0, v1) => {
+            update_panel(app, PanelMessage::AppUpdateDownloadPrepared(v0, v1))
+        }
         #[cfg(not(target_arch = "wasm32"))]
-        ViewMessage::AppUpdatePrepared(v0) => update_panel(app, PanelMessage::AppUpdatePrepared(v0)),
+        ViewMessage::AppUpdatePrepared(v0) => {
+            update_panel(app, PanelMessage::AppUpdatePrepared(v0))
+        }
         ViewMessage::OpenAppInstaller => update_panel(app, PanelMessage::OpenAppInstaller),
-        ViewMessage::OpenAppInstallerDirectory => update_panel(app, PanelMessage::OpenAppInstallerDirectory),
-        ViewMessage::AppInstallerDirectoryOpened(v0) => update_panel(app, PanelMessage::AppInstallerDirectoryOpened(v0)),
-        ViewMessage::AppUpdateProgressTick => update_panel(app, PanelMessage::AppUpdateProgressTick),
-        ViewMessage::AppUpdateFinished(v0) => update_panel(app, PanelMessage::AppUpdateFinished(v0)),
-        ViewMessage::InstallCliToolFinished(v0) => update_panel(app, PanelMessage::InstallCliToolFinished(v0)),
+        ViewMessage::OpenAppInstallerDirectory => {
+            update_panel(app, PanelMessage::OpenAppInstallerDirectory)
+        }
+        ViewMessage::AppInstallerDirectoryOpened(v0) => {
+            update_panel(app, PanelMessage::AppInstallerDirectoryOpened(v0))
+        }
+        ViewMessage::AppUpdateProgressTick => {
+            update_panel(app, PanelMessage::AppUpdateProgressTick)
+        }
+        ViewMessage::AppUpdateFinished(v0) => {
+            update_panel(app, PanelMessage::AppUpdateFinished(v0))
+        }
+        ViewMessage::InstallCliToolFinished(v0) => {
+            update_panel(app, PanelMessage::InstallCliToolFinished(v0))
+        }
         ViewMessage::CloseInstallCliModal => update_panel(app, PanelMessage::CloseInstallCliModal),
-        ViewMessage::ToggleDiffPanel => {
-            if app.navigation_mode.workspace_mode == WorkspaceMode::Work {
-                return Task::none();
-            }
-            app.show_diff = !app.show_diff;
-            Task::none()
-        }
-        ViewMessage::ToggleGitDiffSummary => {
-            app.git.show_git_diff_summary = !app.git.show_git_diff_summary;
-            app.save_desktop_preference("show_git_diff_summary", app.git.show_git_diff_summary.into())
-        }
         ViewMessage::ToggleTerminalPanel => {
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                app.terminal.content_menu = None;
-            }
-            app.terminal.set_visible(!app.terminal.is_visible);
-            if app.terminal.is_visible && app.terminal.height < 160.0 {
-                app.terminal.height = 200.0;
-            }
+            app.terminal.toggle_panel();
             if app.terminal.is_visible {
                 #[cfg(not(target_arch = "wasm32"))]
                 app.terminal.ensure_default_terminal(
-                    app.project_path.as_ref().map(std::path::PathBuf::from),
+                    app.navigation_tabs.project_path.as_ref().map(std::path::PathBuf::from),
                 );
 
                 #[cfg(not(target_arch = "wasm32"))]
@@ -296,14 +165,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 return Task::batch([save, focus]);
             }
             save
-        }
-        ViewMessage::FileManagerPanelVisible(b) => {
-            app.file_manager.show_file_manager = b;
-            if !b {
-                app.layout_drag.dragging_file_manager = false;
-                app.layout_drag.file_manager_drag_anchor_x = None;
-            }
-            app.save_desktop_preference("show_file_manager", b.into())
         }
         ViewMessage::OpenTerminalPressed => {
             if !crate::app::config::gateway_client_endpoint().is_loopback() {
@@ -319,50 +180,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             Task::none()
         }
-        ViewMessage::AutoMaxToggled(b) => {
-            app.auto_max_mode = b;
-            app.save_desktop_preference("auto_max_mode", b.into())
-        }
-        ViewMessage::ToggleMenu(menu) => {
-            if let Some(m) = menu {
-                if app.active_menu == Some(m) {
-                    app.active_menu = None;
-                } else {
-                    app.active_menu = Some(m);
-                }
-            } else {
-                app.active_menu = None;
-            }
-            Task::none()
-        }
-        ViewMessage::GatewayServicesTabSelected(tab) => {
-            app.top_bar_gateway_tab = tab;
-            if tab == crate::app::state::TopBarGatewayTab::Plugins
-                && app.skills_settings.plugin_catalog.is_empty()
-                && !app.skills_settings.plugin_loading
-            {
-                app.skills_settings.plugin_loading = true;
-                return Task::done(Message::Settings(SettingsMessage::PluginsRefresh));
-            }
-            if tab == crate::app::state::TopBarGatewayTab::Mcp
-                && !app.mcp_settings.loading
-                && !app.mcp_settings.saving
-            {
-                app.mcp_settings.loading = true;
-                app.mcp_settings.save_error = None;
-                return Task::done(Message::Settings(SettingsMessage::Mcp(McpMessage::Refresh)));
-            }
-            Task::none()
-        }
         ViewMessage::MenuAction(msg) => {
-            app.active_menu = None;
+            let _ = update_navigation(app, desktop_navigation::panel::settings::Message::MenuAction);
             Task::done(*msg)
-        }
-        ViewMessage::MenuHovered(menu) => {
-            if app.active_menu.is_some() {
-                app.active_menu = Some(menu);
-            }
-            Task::none()
         }
         _ => Task::none(),
     }
@@ -413,7 +233,8 @@ pub(crate) fn shutdown(app: &mut App, window_id: Option<iced::window::Id>) -> Ta
     let requests = take_shutdown_stream_requests(app);
     let editor_commit = crate::app::message::editor::metrics::commit(app, None);
     let editor_saves = app.editor_config_persistence.wait_for_idle();
-    let (routing_commit, routing_saves) = crate::app::message::settings::routing_persistence::flush(app);
+    let (routing_commit, routing_saves) =
+        crate::app::message::settings::routing_persistence::flush(app);
     let worktree_saves = crate::app::message::settings::wait_for_worktree_saves(app);
     let preference_saves = app.desktop_preferences_persistence.wait_for_idle();
     app.web_install.runtime.shutdown();
@@ -421,10 +242,10 @@ pub(crate) fn shutdown(app: &mut App, window_id: Option<iced::window::Id>) -> Ta
     if let Some(manager) = app.lsp_manager.as_mut() {
         manager.shutdown_all();
     }
-    for child in &mut app.independent_webview_children {
+    for child in &mut app.web_navigation.independent_webview_children {
         let _ = child.kill();
     }
-    app.independent_webview_children.clear();
+    app.web_navigation.independent_webview_children.clear();
 
     Task::batch([
         editor_commit,
@@ -515,10 +336,15 @@ async fn stop_shutdown_streams(requests: Vec<ShutdownStreamRequest>) {
         stops.spawn(async move {
             match request.kind {
                 ShutdownStreamKind::Chat => {
-                    let _ = gateway_session::GatewaySessionClient::new(client.transport().clone()).chat_stream_stop(&request.request_id).await;
+                    let _ = gateway_session::GatewaySessionClient::new(client.transport().clone())
+                        .chat_stream_stop(&request.request_id)
+                        .await;
                 }
                 ShutdownStreamKind::TaskPlanRun => {
-                    let _ = gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone()).task_plan_run_stream_stop(&request.request_id).await;
+                    let _ =
+                        gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone())
+                            .task_plan_run_stream_stop(&request.request_id)
+                            .await;
                 }
             }
         });
@@ -552,43 +378,34 @@ fn restart_application() -> Result<(), String> {
 mod settings_tests;
 
 fn update_panel(app: &mut App, message: PanelMessage) -> Task<Message> {
-    // Move the projection through the domain update without cloning strings or receivers.
-    let mut panel = PanelState {
-        show_cli_install_modal: std::mem::take(&mut app.show_cli_install_modal),
-        cli_install_modal_title: std::mem::take(&mut app.cli_install_modal_title),
-        cli_install_modal_message: std::mem::take(&mut app.cli_install_modal_message),
-        cli_install_modal_current_version: std::mem::take(&mut app.cli_install_modal_current_version),
-        cli_install_modal_server_version: std::mem::take(&mut app.cli_install_modal_server_version),
-        cli_install_modal_show_update_action: std::mem::take(&mut app.cli_install_modal_show_update_action),
-        cli_install_modal_show_install_action: std::mem::take(&mut app.cli_install_modal_show_install_action),
-        cli_install_modal_use_app_update_action: std::mem::take(&mut app.cli_install_modal_use_app_update_action),
-        cli_install_modal_is_checking_update: std::mem::take(&mut app.cli_install_modal_is_checking_update),
-        app_update_progress: std::mem::take(&mut app.app_update_progress),
-        app_update_progress_rx: std::mem::take(&mut app.app_update_progress_rx),
-    };
     let mut effects = Vec::new();
-    let task = desktop_update::panel::update(&mut panel, &mut app.desktop_update, &mut effects, env!("CARGO_PKG_VERSION"), #[cfg(not(target_arch = "wasm32"))] app.desktop_locale, message);
-    app.show_cli_install_modal = panel.show_cli_install_modal;
-    app.cli_install_modal_title = panel.cli_install_modal_title;
-    app.cli_install_modal_message = panel.cli_install_modal_message;
-    app.cli_install_modal_current_version = panel.cli_install_modal_current_version;
-    app.cli_install_modal_server_version = panel.cli_install_modal_server_version;
-    app.cli_install_modal_show_update_action = panel.cli_install_modal_show_update_action;
-    app.cli_install_modal_show_install_action = panel.cli_install_modal_show_install_action;
-    app.cli_install_modal_use_app_update_action = panel.cli_install_modal_use_app_update_action;
-    app.cli_install_modal_is_checking_update = panel.cli_install_modal_is_checking_update;
-    app.app_update_progress = panel.app_update_progress;
-    app.app_update_progress_rx = panel.app_update_progress_rx;
+    let task = desktop_update::panel::update(
+        &mut app.update_panel,
+        &mut app.desktop_update,
+        &mut effects,
+        env!("CARGO_PKG_VERSION"),
+        #[cfg(not(target_arch = "wasm32"))]
+        app.desktop_locale,
+        message,
+    );
     let mut tasks = vec![task.map(|message| Message::View(panel_message(message)))];
     for effect in effects {
         tasks.push(match effect {
-            Effect::CloseMenu => { app.active_menu = None; Task::none() }
+            Effect::CloseMenu => {
+                app.navigation_panels.close_menu();
+                Task::none()
+            }
             Effect::SaveSource(source) => Task::perform(
-                crate::app::config::save_app_config_async(crate::app::desktop_update::source_patch(source)),
+                crate::app::config::save_app_config_async(
+                    crate::app::desktop_update::source_patch(source),
+                ),
                 |result| Message::View(ViewMessage::AppUpdateSourceSaved(result)),
             ),
             Effect::Error(error) => app.show_error_toast(error),
-            Effect::Shutdown => { let window_id = app.main_window_id; shutdown(app, window_id) },
+            Effect::Shutdown => {
+                let window_id = app.main_window_id;
+                shutdown(app, window_id)
+            }
         });
     }
     Task::batch(tasks)
@@ -598,24 +415,183 @@ fn panel_message(message: PanelMessage) -> ViewMessage {
         PanelMessage::InstallCliTool => ViewMessage::InstallCliTool,
         PanelMessage::RunInstallCliTool => ViewMessage::RunInstallCliTool,
         PanelMessage::CheckCliToolUpdate => ViewMessage::CheckCliToolUpdate,
-        PanelMessage::CheckCliToolUpdateFinished(v0, v1, v2) => ViewMessage::CheckCliToolUpdateFinished(v0, v1, v2),
+        PanelMessage::CheckCliToolUpdateFinished(v0, v1, v2) => {
+            ViewMessage::CheckCliToolUpdateFinished(v0, v1, v2)
+        }
         PanelMessage::OpenAppUpdateModal => ViewMessage::OpenAppUpdateModal,
         PanelMessage::AppUpdateSourceSelected(v0) => ViewMessage::AppUpdateSourceSelected(v0),
         PanelMessage::AppUpdateSourceSaved(v0) => ViewMessage::AppUpdateSourceSaved(v0),
         PanelMessage::CheckAppUpdate => ViewMessage::CheckAppUpdate,
-        PanelMessage::CheckAppUpdateFinished(v0, v1, v2) => ViewMessage::CheckAppUpdateFinished(v0, v1, v2),
+        PanelMessage::CheckAppUpdateFinished(v0, v1, v2) => {
+            ViewMessage::CheckAppUpdateFinished(v0, v1, v2)
+        }
         PanelMessage::RunAppUpdate => ViewMessage::RunAppUpdate,
         PanelMessage::CancelAppUpdate => ViewMessage::CancelAppUpdate,
         #[cfg(not(target_arch = "wasm32"))]
-        PanelMessage::AppUpdateDownloadPrepared(v0, v1) => ViewMessage::AppUpdateDownloadPrepared(v0, v1),
+        PanelMessage::AppUpdateDownloadPrepared(v0, v1) => {
+            ViewMessage::AppUpdateDownloadPrepared(v0, v1)
+        }
         #[cfg(not(target_arch = "wasm32"))]
         PanelMessage::AppUpdatePrepared(v0) => ViewMessage::AppUpdatePrepared(v0),
         PanelMessage::OpenAppInstaller => ViewMessage::OpenAppInstaller,
         PanelMessage::OpenAppInstallerDirectory => ViewMessage::OpenAppInstallerDirectory,
-        PanelMessage::AppInstallerDirectoryOpened(v0) => ViewMessage::AppInstallerDirectoryOpened(v0),
+        PanelMessage::AppInstallerDirectoryOpened(v0) => {
+            ViewMessage::AppInstallerDirectoryOpened(v0)
+        }
         PanelMessage::AppUpdateProgressTick => ViewMessage::AppUpdateProgressTick,
         PanelMessage::AppUpdateFinished(v0) => ViewMessage::AppUpdateFinished(v0),
         PanelMessage::InstallCliToolFinished(v0) => ViewMessage::InstallCliToolFinished(v0),
         PanelMessage::CloseInstallCliModal => ViewMessage::CloseInstallCliModal,
+    }
+}
+
+fn navigation_message(
+    message: &ViewMessage,
+) -> Option<desktop_navigation::panel::settings::Message> {
+    use desktop_navigation::panel::settings::Message as Local;
+    Some(match message {
+        ViewMessage::ToggleSettingsPanel => Local::ToggleSettingsPanel,
+        ViewMessage::ProjectFileNewSession => Local::ProjectFileNewSession,
+        ViewMessage::ProjectFileNewProject => Local::ProjectFileNewProject,
+        ViewMessage::ProjectFileShowSessions => Local::ProjectFileShowSessions,
+        ViewMessage::ProjectFileShowProjects => Local::ProjectFileShowProjects,
+        ViewMessage::ProjectFileSaveAll => Local::ProjectFileSaveAll,
+        ViewMessage::ToggleSystemSettings => Local::ToggleSystemSettings,
+        ViewMessage::OpenAcpSettings => Local::OpenAcpSettings,
+        ViewMessage::OpenSystemSettingsTab(value) => Local::OpenSystemSettingsTab(*value),
+        ViewMessage::OpenSystemSettingsModelDetail(provider, model) => {
+            Local::OpenSystemSettingsModelDetail(provider.clone(), model.clone())
+        }
+        ViewMessage::ToggleAboutModal => Local::ToggleAboutModal,
+        ViewMessage::CliCommandsTabSelected(value) => Local::CliCommandsTabSelected(*value),
+        ViewMessage::ToggleDiffPanel => Local::ToggleDiffPanel,
+        ViewMessage::ToggleGitDiffSummary => Local::ToggleGitDiffSummary,
+        ViewMessage::FileManagerPanelVisible(value) => Local::FileManagerPanelVisible(*value),
+        ViewMessage::AutoMaxToggled(value) => Local::AutoMaxToggled(*value),
+        ViewMessage::ToggleMenu(value) => Local::ToggleMenu(*value),
+        ViewMessage::GatewayServicesTabSelected(value) => Local::GatewayServicesTabSelected(*value),
+        ViewMessage::MenuHovered(value) => Local::MenuHovered(*value),
+        _ => return None,
+    })
+}
+
+fn update_navigation(
+    app: &mut App,
+    message: desktop_navigation::panel::settings::Message,
+) -> Task<Message> {
+    use desktop_navigation::panel::settings as domain;
+    let effect = domain::update(
+        domain::Context {
+            state: &mut app.navigation_panels,
+            popovers: &mut app.popover_visibility,
+            drag: &mut app.layout_drag,
+            git_diff_summary: &mut app.git.show_git_diff_summary,
+            file_manager_visible: &mut app.file_manager.show_file_manager,
+            plugin_catalog_empty: app.skills_settings.plugin_catalog.is_empty(),
+            plugin_loading: app.skills_settings.plugin_loading,
+            mcp_loading: app.mcp_settings.loading,
+            mcp_saving: app.mcp_settings.saving,
+        },
+        app.navigation_mode.workspace_mode,
+        app.navigation_tabs.project_path.as_deref(),
+        message,
+    );
+    match effect {
+        None => Task::none(),
+        Some(domain::Effect::ToggleWorkSidebar) => {
+            Task::done(Message::View(ViewMessage::WorkSidebarToggled))
+        }
+        Some(domain::Effect::SavePreference(key, value)) => app.save_desktop_preference(key, value),
+        Some(domain::Effect::SettingsVisibilityChanged(visible)) => {
+            let save = app.save_desktop_preference("show_settings", visible.into());
+            if visible
+                && let Some(path) = app.navigation_tabs.project_path.clone()
+                && !app.project_sessions.contains_key(&path)
+                && !app.project_sessions_loading.contains(&path)
+            {
+                app.project_sessions_loading.insert(path.clone());
+                let directory = path.clone();
+                let sessions = Task::perform(
+                    async move {
+                        let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
+                        crate::app::message::project::helpers::list_gateway_project_sessions(
+                            &client, &directory,
+                        )
+                        .await
+                    },
+                    |result| Message::Project(ProjectMessage::ProjectSessionsLoaded(path, result)),
+                );
+                return Task::batch([save, sessions]);
+            }
+            save
+        }
+        Some(domain::Effect::CreateSession(path)) => {
+            Task::done(Message::Project(ProjectMessage::ProjectCreateSession(path)))
+        }
+        Some(domain::Effect::NewProject) => {
+            Task::done(Message::Project(ProjectMessage::OpenFolderPressed))
+        }
+        Some(domain::Effect::SaveAllFiles) => {
+            app.show_preview_context_menu = false;
+            Task::batch(
+                app.navigation_tabs
+                    .preview_tabs
+                    .iter()
+                    .filter(|tab| tab.is_dirty)
+                    .map(|tab| {
+                        Task::done(Message::Preview(
+                            crate::app::message::PreviewMessage::SaveFilePath {
+                                path: tab.path.clone(),
+                                notify: false,
+                            },
+                        ))
+                    })
+                    .collect::<Vec<_>>(),
+            )
+        }
+        Some(domain::Effect::SystemSettingsVisibilityChanged(visible)) => {
+            app.project_tools_menu_path = None;
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                app.agent_apps_auth.form = None;
+                if visible
+                    && app.navigation_panels.system_settings_tab
+                        == desktop_settings_shell::SystemTab::Auth
+                {
+                    return crate::app::message::agent_apps_auth::update(
+                        app,
+                        crate::app::message::agent_apps_auth::Event::Refresh,
+                    );
+                }
+            }
+            if visible {
+                Task::none()
+            } else {
+                crate::app::message::editor::metrics::commit(app, None)
+            }
+        }
+        Some(domain::Effect::OpenAcpSettings) => {
+            Task::done(Message::Settings(SettingsMessage::AgentConfigTab(
+                crate::app::message::settings::AgentConfigTabMessage::Selected(
+                    crate::app::state::AgentConfigTab::Acp,
+                ),
+            )))
+        }
+        Some(domain::Effect::SelectSystemTab(tab)) => {
+            Task::done(Message::Settings(SettingsMessage::SystemTabSelected(tab)))
+        }
+        Some(domain::Effect::OpenModelDetail(provider, model)) => {
+            app.model_settings.active_tab = crate::app::state::ModelConfigTab::Models;
+            Task::done(Message::Settings(SettingsMessage::ModelDetailOpen(provider, model)))
+        }
+        Some(domain::Effect::RefreshPlugins) => {
+            app.skills_settings.plugin_loading = true;
+            Task::done(Message::Settings(SettingsMessage::PluginsRefresh))
+        }
+        Some(domain::Effect::RefreshMcp) => {
+            app.mcp_settings.loading = true;
+            app.mcp_settings.save_error = None;
+            Task::done(Message::Settings(SettingsMessage::Mcp(McpMessage::Refresh)))
+        }
     }
 }

@@ -18,7 +18,7 @@ async fn collect_task_messages(task: iced::Task<Message>) -> Vec<Message> {
 #[tokio::test(flavor = "multi_thread")]
 async fn skills_project_selection_refreshes_current_and_opens_other_project() {
     let mut app = app();
-    app.project_path = Some("/repo/current".to_string());
+    app.navigation_tabs.project_path = Some("/repo/current".to_string());
 
     let messages = collect_task_messages(update(
         &mut app,
@@ -39,7 +39,7 @@ async fn skills_project_selection_refreshes_current_and_opens_other_project() {
 
     let _ = update(&mut app, SettingsMessage::SkillsProjectSelected("/repo/other".to_string()));
 
-    assert_eq!(app.project_path.as_deref(), Some("/repo/other"));
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/repo/other"));
     assert_eq!(app.agents_settings.project_path.as_deref(), Some("/repo/other"));
     assert!(app.agents_settings.loading);
 }

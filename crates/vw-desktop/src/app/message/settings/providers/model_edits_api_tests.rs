@@ -36,7 +36,7 @@ impl Fixture {
     pub(super) fn with(test: impl FnOnce(&mut Self)) {
         crate::app::config::with_editor_settings_gateway(|mut app, requests, responses| {
             app.project_id = Some("model-edit-fixture".into());
-            app.project_path = Some("/fixture/project".into());
+            app.navigation_tabs.project_path = Some("/fixture/project".into());
             app.apps_catalog.host = "fixture-mac".into();
             app.apps_catalog.token = "fixture-token".into();
             let (_, scope) = list::current(&app, AppId::Codex).unwrap();

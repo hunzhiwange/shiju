@@ -81,7 +81,7 @@ fn fixture() -> (App, tempfile::TempDir, DelegateAgentSettingsEntry) {
     assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");
     let root = tempfile::tempdir().unwrap();
     let mut app = App::new().0;
-    app.project_path = Some(root.path().to_string_lossy().into_owned());
+    app.navigation_tabs.project_path = Some(root.path().to_string_lossy().into_owned());
     app.agents_settings.config_ready = true;
     app.agents_settings.active_config_tab = AgentConfigTab::Agents;
     app.agents_settings.loading = false;
@@ -308,8 +308,8 @@ async fn agent_profile_modal_preserves_catalog_scroll() {
     let mut renderer = renderer().await;
     let (mut app, _root, draft) = fixture();
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
-    app.show_system_settings = true;
-    app.system_settings_tab = SystemTab::Agents;
+    app.navigation_panels.show_system_settings = true;
+    app.navigation_panels.system_settings_tab = SystemTab::Agents;
     app.agents_settings.entries = (0..16)
         .map(|index| DelegateAgentSettingsEntry {
             key: format!("fixture-{index}"),

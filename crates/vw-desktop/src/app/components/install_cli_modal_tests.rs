@@ -11,9 +11,9 @@ async fn app_update_modal_draws_chinese_selection_and_dynamic_path_in_both_theme
         version: "99.0.0".into(),
         assets: vec![],
     });
-    app.cli_install_modal_show_install_action = true;
-    app.cli_install_modal_title = "安装包已就绪".into();
-    app.cli_install_modal_message = "安装包路径：/tmp/下载目录/安装包.dmg；请完成系统安装。".into();
+    app.update_panel.cli_install_modal_show_install_action = true;
+    app.update_panel.cli_install_modal_title = "安装包已就绪".into();
+    app.update_panel.cli_install_modal_message = "安装包路径：/tmp/下载目录/安装包.dmg；请完成系统安装。".into();
     let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
@@ -29,8 +29,8 @@ async fn app_update_modal_draws_chinese_selection_and_dynamic_path_in_both_theme
         (Theme::Dark, false, CliCommandsTab::All),
         (Theme::Light, false, CliCommandsTab::All),
     ] {
-        app.cli_install_modal_use_app_update_action = app_update;
-        app.cli_commands_tab = tab;
+        app.update_panel.cli_install_modal_use_app_update_action = app_update;
+        app.navigation_panels.cli_commands_tab = tab;
         for mut element in
             [super::install_cli_modal::view_app_update(&app), super::top_bar::view(&app)]
         {
@@ -70,14 +70,14 @@ async fn settings_tabs_peripheral_appearance_cli_commands() {
         420,
         || App::new().0,
         |scene, app| {
-            app.show_cli_install_modal = true;
-            app.cli_install_modal_show_update_action = true;
-            app.cli_install_modal_show_install_action = true;
-            app.cli_install_modal_use_app_update_action = false;
-            app.cli_install_modal_is_checking_update = true;
-            app.cli_install_modal_title = "CLI 更新检测".into();
-            app.cli_install_modal_message = "下方命令可直接复制。".into();
-            app.cli_commands_tab = CliCommandsTab::Common;
+            app.update_panel.show_cli_install_modal = true;
+            app.update_panel.cli_install_modal_show_update_action = true;
+            app.update_panel.cli_install_modal_show_install_action = true;
+            app.update_panel.cli_install_modal_use_app_update_action = false;
+            app.update_panel.cli_install_modal_is_checking_update = true;
+            app.update_panel.cli_install_modal_title = "CLI 更新检测".into();
+            app.update_panel.cli_install_modal_message = "下方命令可直接复制。".into();
+            app.navigation_panels.cli_commands_tab = CliCommandsTab::Common;
             let i18n = I18n::new(app.desktop_locale);
             let tabs = ["常用命令", "服务管理", "全部命令"].map(|label| i18n.__(label));
             scene.save_preview(app, view_app_update(app), "cli-commands");
@@ -87,7 +87,7 @@ async fn settings_tabs_peripheral_appearance_cli_commands() {
                 Message::View(ViewMessage::CliCommandsTabSelected(CliCommandsTab::Service))
             ));
             let _ = app.update(message);
-            assert_eq!(app.cli_commands_tab, CliCommandsTab::Service);
+            assert_eq!(app.navigation_panels.cli_commands_tab, CliCommandsTab::Service);
             let copy = scene.click_message(view_app_update(app), i18n.__("复制"));
             assert!(
                 matches!(copy, Message::CopyCode(command) if command == "shiju service status")
@@ -101,7 +101,7 @@ async fn settings_tabs_peripheral_appearance_cli_commands() {
             let close = scene.click_message(view_app_update(app), i18n.__("关闭"));
             assert!(matches!(close, Message::View(ViewMessage::CloseInstallCliModal)));
             let _ = app.update(close);
-            assert!(!app.show_cli_install_modal);
+            assert!(!app.update_panel.show_cli_install_modal);
         },
     )
     .await;
@@ -126,13 +126,13 @@ async fn update_modals_hide_explanations_and_draw_hover_help_in_both_themes() {
     }
 
     let mut app = crate::app::App::new().0;
-    app.cli_install_modal_message = "当前已是最新版本。".into();
+    app.update_panel.cli_install_modal_message = "当前已是最新版本。".into();
     let mut renderer =
         iced::Renderer::new(Font::DEFAULT, 16.0.into(), Some("tiny-skia")).await.unwrap();
     for theme in [Theme::Light, Theme::Dark] {
         for app_update in [false, true] {
-            app.cli_install_modal_use_app_update_action = app_update;
-            app.cli_install_modal_title =
+            app.update_panel.cli_install_modal_use_app_update_action = app_update;
+            app.update_panel.cli_install_modal_title =
                 if app_update { "检测更新" } else { "CLI 更新检测" }.into();
             let mut ui = UserInterface::build(
                 super::install_cli_modal::view_app_update(&app),
@@ -150,7 +150,7 @@ async fn update_modals_hide_explanations_and_draw_hover_help_in_both_themes() {
                     && !label.contains("在终端运行；点击标签页切换")
             }));
             let bounds =
-                labels.0.iter().find(|(label, _)| label == &app.cli_install_modal_title).unwrap().1;
+                labels.0.iter().find(|(label, _)| label == &app.update_panel.cli_install_modal_title).unwrap().1;
             let point = Point::new(bounds.x + bounds.width + 15.0, bounds.center_y());
             let style = iced::advanced::renderer::Style { text_color: theme.palette().text };
             ui.draw(&mut renderer, &theme, &style, mouse::Cursor::Unavailable);

@@ -90,12 +90,12 @@ fn bootstrap_app_config_updates_known_fields_and_clamps_file_manager_width() {
     assert_eq!(app.model, "gpt-next");
     assert!(app.auto_model);
     assert_eq!(app.acp_agent.as_deref(), Some("codex"));
-    assert!(app.show_settings);
+    assert!(app.navigation_panels.show_settings);
     assert_eq!(app.navigation_mode.workspace_mode, crate::app::state::WorkspaceMode::Work);
     assert!(!app.navigation_sidebar.work_sidebar_collapsed);
     assert!(app.file_manager.show_file_manager);
     assert_eq!(app.layout_drag.file_manager_width, 600.0);
-    assert_eq!(app.open_external_app, ExternalOpenApp::Cursor);
+    assert_eq!(app.external_navigation.open_external_app, ExternalOpenApp::Cursor);
     assert_eq!(app.file_tree_expanded, ["src", "crates"]);
     assert!(app.file_tree_expanded_set.contains("src"));
 }
@@ -141,7 +141,7 @@ fn startup_app_config_loaded_uses_same_bootstrap_path() {
     assert!(app.navigation_sidebar.work_sidebar_collapsed);
     assert_eq!(app.layout_drag.file_manager_width, 200.0);
     assert_eq!(app.layout_drag.file_manager_start_width, 200.0);
-    assert_eq!(app.open_external_app, ExternalOpenApp::Zed);
+    assert_eq!(app.external_navigation.open_external_app, ExternalOpenApp::Zed);
 }
 
 #[test]
@@ -150,7 +150,7 @@ fn bootstrap_app_config_preserves_invalid_values_and_clamps_minimum_width() {
     app.model = "existing-model".to_string();
     app.auto_model = true;
     app.acp_agent = Some("existing-agent".to_string());
-    app.open_external_app = ExternalOpenApp::VSCode;
+    app.external_navigation.open_external_app = ExternalOpenApp::VSCode;
 
     let _ = app.update(Message::BootstrapAppConfig(Ok(json!({
         "model": 7,
@@ -169,14 +169,14 @@ fn bootstrap_app_config_preserves_invalid_values_and_clamps_minimum_width() {
     assert_eq!(app.model, "existing-model");
     assert!(app.auto_model);
     assert_eq!(app.acp_agent.as_deref(), Some("existing-agent"));
-    assert!(app.auto_max_mode);
-    assert!(app.show_settings);
+    assert!(app.navigation_panels.auto_max_mode);
+    assert!(app.navigation_panels.show_settings);
     assert!(app.file_manager.show_file_manager);
     assert!(app.file_manager.file_manager_show_changes);
     assert!(app.terminal.is_visible);
     assert_eq!(app.layout_drag.file_manager_width, 180.0);
     assert_eq!(app.layout_drag.file_manager_start_width, 180.0);
-    assert_eq!(app.open_external_app, ExternalOpenApp::VSCode);
+    assert_eq!(app.external_navigation.open_external_app, ExternalOpenApp::VSCode);
     assert_eq!(app.file_tree_expanded, ["src", "src"]);
     assert_eq!(app.file_tree_expanded_set.len(), 1);
 }
@@ -362,7 +362,7 @@ fn failed_bootstrap_results_preserve_existing_state() {
     app.model = "existing-model".to_string();
     app.acp_agents = vec!["existing-agent".to_string()];
     app.archived_session_ids = std::collections::HashSet::from(["existing-session".to_string()]);
-    app.open_external_app = ExternalOpenApp::Cursor;
+    app.external_navigation.open_external_app = ExternalOpenApp::Cursor;
 
     let _ = app.update(Message::BootstrapAppConfig(Err("app config unavailable".to_string())));
     let _ =
@@ -377,13 +377,13 @@ fn failed_bootstrap_results_preserve_existing_state() {
     assert_eq!(app.acp_agents, ["existing-agent"]);
     assert_eq!(app.archived_session_ids.len(), 1);
     assert!(app.archived_session_ids.contains("existing-session"));
-    assert_eq!(app.open_external_app, ExternalOpenApp::Cursor);
+    assert_eq!(app.external_navigation.open_external_app, ExternalOpenApp::Cursor);
 }
 
 #[test]
 fn update_loads_acp_agents_and_archived_sessions() {
     let mut app = test_app();
-    app.project_path = Some("/workspace/app".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/app".to_string());
 
     let _ = app.update(Message::BootstrapAcpAgentsLoaded(Ok(vec![
         "zeta".to_string(),
@@ -408,7 +408,7 @@ fn update_handles_external_apps_and_session_preview_errors() {
         apps: vec![("powershell".to_string(), true)],
     })));
     assert_eq!(app.open_external_platform, Some(RuntimePlatform::Windows));
-    assert_eq!(app.open_external_app, ExternalOpenApp::PowerShell);
+    assert_eq!(app.external_navigation.open_external_app, ExternalOpenApp::PowerShell);
 
     let _ = app.update(Message::SessionPreviewsLoaded(Err("offline".to_string())));
     assert!(app.session_previews.is_empty());
@@ -665,7 +665,7 @@ fn native_startup_rejects_an_old_snapshot_after_switching_tenants_and_back() {
 #[test]
 fn startup_model_backfills_an_open_project_until_the_project_has_its_own_choice() {
     let mut app = test_app();
-    app.project_path = Some("/workspace/project".into());
+    app.navigation_tabs.project_path = Some("/workspace/project".into());
     let _ = app.reload_project_chat_preferences(true);
     let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({"model": "restored"}))));
     assert_eq!(app.model, "restored");

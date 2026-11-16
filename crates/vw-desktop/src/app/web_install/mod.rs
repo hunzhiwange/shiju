@@ -7,7 +7,7 @@ use iced::Task;
 
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     if matches!(&event, Event::Open) {
-        app.active_menu = None;
+        app.navigation_panels.active_menu = None;
     }
     let (task, error) = desktop_web_install::update(
         &mut app.web_install,

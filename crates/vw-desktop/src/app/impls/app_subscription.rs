@@ -24,16 +24,16 @@ fn cron_history_subscription(app: &App) -> Subscription<Message> {
 
 fn needs_activity_animation_tick(app: &App, startup_transition_active: bool) -> bool {
     startup_transition_active
-        || (app.show_cli_install_modal
-            && app.cli_install_modal_use_app_update_action
+        || (app.update_panel.show_cli_install_modal
+            && app.update_panel.cli_install_modal_use_app_update_action
             && app.desktop_update.busy)
-        || (app.screen == Screen::Project && app.any_session_requesting())
+        || (app.navigation_tabs.screen == Screen::Project && app.any_session_requesting())
         || app.has_active_explore_summary_animation()
-        || (app.task_pet_visible
+        || (app.companion_navigation.task_pet_visible
             && app.task_pet_window_id.is_some()
             && (app.task_pet_avatar_kind != crate::app::state::TaskPetAvatarKind::None
                 || app.task_pet_expand_target.is_some()))
-        || ((app.show_settings || app.show_system_settings)
+        || ((app.navigation_panels.show_settings || app.navigation_panels.show_system_settings)
             && app.acp_settings.diagnostic_id.is_some())
 }
 
@@ -249,7 +249,7 @@ impl App {
                 Subscription::none()
             };
 
-        let task_board_ui_tick = if self.screen == Screen::TaskBoard {
+        let task_board_ui_tick = if self.navigation_tabs.screen == Screen::TaskBoard {
             iced::time::every(std::time::Duration::from_secs(1))
                 .map(|_| Message::TaskBoard(message::TaskBoardMessage::UiTick))
         } else {
@@ -260,9 +260,9 @@ impl App {
         let preview_lsp_tick = if self.lsp_disabled {
             Subscription::none()
         } else if self
-            .active_preview_path
+            .navigation_tabs.active_preview_path
             .as_ref()
-            .is_some_and(|path| self.preview_tabs.iter().any(|tab| tab.path == *path))
+            .is_some_and(|path| self.navigation_tabs.preview_tabs.iter().any(|tab| tab.path == *path))
         {
             iced::time::every(std::time::Duration::from_millis(33)).map(|_| Message::PreviewLspTick)
         } else {
@@ -274,7 +274,7 @@ impl App {
         let design_generation_stream_tick = Subscription::none();
 
         let provider_models_sync_tick =
-            if self.show_settings && self.provider_settings.models_syncing {
+            if self.navigation_panels.show_settings && self.provider_settings.models_syncing {
                 iced::time::every(std::time::Duration::from_millis(120))
                     .map(|_| Message::Settings(message::SettingsMessage::ProviderModelsSyncTick))
             } else {
@@ -291,7 +291,7 @@ impl App {
             Subscription::none()
         };
 
-        let app_update_progress_tick = if self.app_update_progress_rx.is_some() {
+        let app_update_progress_tick = if self.update_panel.app_update_progress_rx.is_some() {
             iced::time::every(std::time::Duration::from_millis(50))
                 .map(|_| Message::View(message::ViewMessage::AppUpdateProgressTick))
         } else {
@@ -299,7 +299,7 @@ impl App {
         };
 
         #[cfg(not(target_arch = "wasm32"))]
-        let work_browser_runtime_tick = if self.screen == Screen::Project
+        let work_browser_runtime_tick = if self.navigation_tabs.screen == Screen::Project
             && self.navigation_mode.workspace_mode == crate::app::state::WorkspaceMode::Work
             && self.navigation_workspace.work_resources_visible
             && self.navigation_workspace.work_resource_mode == crate::app::state::WorkResourceMode::Browser
@@ -329,7 +329,7 @@ impl App {
         let gateway_health_tick =
             iced::time::every(gateway_health_interval).map(|_| Message::GatewayHealthTick);
 
-        let usage_center_tick = if self.usage_center.open && self.screen == crate::app::Screen::Usage {
+        let usage_center_tick = if self.usage_center.open && self.navigation_tabs.screen == crate::app::Screen::Usage {
             iced::time::every(std::time::Duration::from_secs(60)).map(|_| {
                 Message::View(message::ViewMessage::UsageCenter(crate::app::views::usage::center::Event::Tick))
             })

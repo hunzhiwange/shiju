@@ -41,7 +41,6 @@ pub(crate) enum QuickMessageHandoffState {
 }
 
 pub(crate) type UsageStepRawKey = SessionStepRawKey;
-pub(crate) type UsageStepRawPayloadResult = Result<Option<serde_json::Value>, String>;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) use desktop_navigation::components::startup_transition::NativeStartupState;
@@ -53,8 +52,6 @@ pub struct App {
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) voice: crate::app::message::voice::State,
     pub(crate) session_ui_projection: crate::app::session::ui_projection::SessionUiProjection,
-    /// 当前显示的屏幕
-    pub(crate) screen: Screen,
     /// 原生端本地服务启动状态，用于门控主界面。
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) startup_state: NativeStartupState,
@@ -65,14 +62,20 @@ pub struct App {
     pub(crate) navigation_workspace: desktop_navigation::panel::work_workspace::State,
     pub(crate) navigation_mode: desktop_navigation::panel::workspace_mode::State,
     pub(crate) layout_drag: desktop_navigation::view_layout::drag::State,
+    pub(crate) popover_visibility: desktop_chat_input::popovers::Visibility,
+    pub(crate) navigation_panels: desktop_navigation::panel::settings::State,
+    pub(crate) usage_panel: desktop_usage::panel::State,
+    pub(crate) update_panel: desktop_update::panel::PanelState,
+    pub(crate) navigation_tabs: desktop_navigation::panel::tabs::State,
+    pub(crate) companion_navigation: desktop_navigation::panel::companion::State,
+    pub(crate) web_navigation: desktop_apps_ui::web::State,
+    pub(crate) external_navigation: desktop_navigation::panel::external::State,
     pub(crate) navigation_sidebar: desktop_navigation::panel::work_sidebar::State,
     /// 工作模式停靠浏览器的输入、错误与焦点状态
     pub(crate) work_browser: WorkBrowserState,
     /// 工作模式停靠浏览器的受控子进程
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) work_browser_controller: crate::app::webview_runtime::WorkBrowserController,
-    /// 当前项目路径
-    pub(crate) project_path: Option<String>,
     /// 当前项目是否为 Git 仓库（网关 ProjectInfo.vcs）
     pub(crate) project_is_git_repo: bool,
     /// 当前项目唯一标识符
@@ -197,16 +200,6 @@ pub struct App {
     pub(crate) trajectory_raw_attempts: HashMap<UsageStepRawKey, u8>,
     /// 轨迹原始步骤载荷的可恢复错误。
     pub(crate) trajectory_raw_errors: HashMap<UsageStepRawKey, String>,
-    /// 当前模型的使用信息
-    pub(crate) usage_model_info: Option<UsageModelInfo>,
-    /// 展开的使用量步骤索引集合
-    pub(crate) usage_step_expanded: HashSet<u32>,
-    /// 使用量步骤原始 LLM 载荷缓存
-    pub(crate) usage_step_raw_payloads: HashMap<UsageStepRawKey, UsageStepRawPayloadResult>,
-    /// 正在加载原始 LLM 载荷的使用量步骤
-    pub(crate) usage_step_raw_loading: HashSet<UsageStepRawKey>,
-    /// 使用量步骤原始记录弹窗
-    pub(crate) usage_step_raw_modal: Option<UsageStepRawModal>,
     /// 当前项目最近更新时间（毫秒时间戳）
     pub(crate) project_updated_at_ms: Option<u64>,
     /// 最近打开的项目路径列表
@@ -239,42 +232,12 @@ pub struct App {
     /// 主窗口是否已进入一次性关机流程
     pub(crate) shutdown_requested: bool,
     pub(crate) desktop_preferences_persistence: crate::app::config::DesktopPreferencesPersistence,
-    /// 是否显示设置面板
-    pub(crate) show_settings: bool,
     /// 设置侧边栏是否折叠
     pub(crate) settings_sidebar_collapsed: bool,
-    /// 是否显示系统设置面板
-    pub(crate) show_system_settings: bool,
-    /// 是否显示关于对话框
-    pub(crate) show_about_modal: bool,
-    /// 是否显示 CLI 安装对话框
-    pub(crate) show_cli_install_modal: bool,
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) web_install: crate::app::web_install::State,
-    /// CLI 安装对话框标题
-    pub(crate) cli_install_modal_title: String,
-    /// CLI 安装对话框消息内容
-    pub(crate) cli_install_modal_message: String,
-    /// CLI 更新检测对话框中的当前版本
-    pub(crate) cli_install_modal_current_version: String,
-    /// CLI 更新检测对话框中的服务器版本
-    pub(crate) cli_install_modal_server_version: String,
-    /// CLI 更新检测对话框是否显示检测按钮
-    pub(crate) cli_install_modal_show_update_action: bool,
-    /// CLI 更新检测对话框是否显示安装按钮
-    pub(crate) cli_install_modal_show_install_action: bool,
-    /// CLI 安装对话框是否使用应用自身更新动作
-    pub(crate) cli_install_modal_use_app_update_action: bool,
-    /// CLI 更新检测是否进行中
-    pub(crate) cli_install_modal_is_checking_update: bool,
-    pub(crate) cli_commands_tab: crate::app::components::cli_command_help::CliCommandsTab,
     /// 应用升级来源、检测快照与安装器交接状态
     pub(crate) desktop_update: crate::app::desktop_update::DesktopUpdate,
-    /// 应用自更新下载进度
-    pub(crate) app_update_progress: Option<update_types::UpdateProgress>,
-    /// 应用自更新下载进度接收器
-    pub(crate) app_update_progress_rx:
-        Option<std::sync::mpsc::Receiver<update_types::UpdateProgress>>,
     /// 问题对话框关联的请求 ID
     pub(crate) question_modal_request_id: Option<String>,
     /// 当前问题对话框承载的请求数据
@@ -289,42 +252,15 @@ pub struct App {
     pub(crate) permission_modal_request: Option<gateway_interaction::PendingPermissionRequestDto>,
     /// 当前轮询到的全部待审批权限请求
     pub(crate) permission_modal_requests: Vec<gateway_interaction::PendingPermissionRequestDto>,
-    /// 当前激活的菜单类型
-    pub(crate) active_menu: Option<message::view::MenuType>,
-    /// 默认使用的外部打开应用
-    pub(crate) open_external_app: ExternalOpenApp,
     /// 外部应用检测结果对应的运行时平台
     pub(crate) open_external_platform: Option<RuntimePlatform>,
-    /// 外部应用存在性检查结果缓存
-    pub(crate) open_external_exists: HashMap<ExternalOpenApp, bool>,
     pub(crate) file_manager: desktop_workspace::file_manager::FileManagerState,
     /// 通用状态动画帧
     pub(crate) status_animation_frame: usize,
-    /// 是否显示模型选择弹出框
-    pub(crate) show_model_popover: bool,
-    /// 是否显示模式选择弹出框
-    pub(crate) show_mode_popover: bool,
-    /// 是否显示文件选择弹出框
-    pub(crate) show_send_mode_popover: bool,
-    pub(crate) show_file_popover: bool,
-    /// 是否显示 ACP 选择弹出框
-    pub(crate) show_acp_popover: bool,
-    /// 是否显示推理强度选择弹出框
-    pub(crate) show_reasoning_effort_popover: bool,
-    /// 是否显示使用量弹出框
-    pub(crate) show_usage_popover: bool,
-    /// 是否显示会话工具选择弹出框
-    pub(crate) show_session_tool_selector_popover: bool,
-    /// 是否显示会话操作弹出框
-    pub(crate) show_session_actions_popover: bool,
-    /// 是否显示执行器选择弹出框
-    pub(crate) show_executor_popover: bool,
     /// 会话标题上次点击时间（用于双击检测）
     pub(crate) session_title_last_click: Option<web_time::Instant>,
     /// 模型选择弹出框中的悬停项
     pub(crate) model_popover_hover: Option<ModelPopoverHover>,
-    /// 是否启用自动最大化模式
-    pub(crate) auto_max_mode: bool,
     /// 最近一次调用的日志文件路径
     pub(crate) last_call_log_path: Option<String>,
     /// 最近一次会话快照文件路径
@@ -427,8 +363,6 @@ pub struct App {
     /// 会话重命名输入值
     pub(crate) session_rename_value: String,
     pub(crate) project_editor: desktop_workspace::project_message::edit::Editor,
-    /// 是否显示差异视图
-    pub(crate) show_diff: bool,
     /// 终端状态（主终端）
     pub terminal: TerminalState,
     /// 终端偏好设置写入队列；切换项目时仍持续保存。
@@ -500,12 +434,6 @@ pub struct App {
     /// 弹窗预览独立于持久化值；保存期间禁止重复提交和取消。
     pub(crate) task_pet_size_draft: Option<f32>,
     pub(crate) task_pet_size_pending: Option<crate::app::config::PreferencesScope>,
-    /// Mini 显示偏好，与头像选择独立。
-    pub(crate) task_pet_visible: bool,
-    /// 鼠标是否悬停在小宠物本体上
-    pub(crate) task_pet_robot_hovered: bool,
-    /// 小宠物右键菜单在窗口内的锚点位置
-    pub(crate) task_pet_context_menu_pos: Option<(f32, f32)>,
     /// 小宠物展示的任务条目
     pub(crate) task_pet_items: Vec<TaskPetItem>,
     /// 当前鼠标悬停的小宠物任务请求 ID
@@ -537,14 +465,6 @@ pub struct App {
     pub(crate) preview_scroll_id: Id,
     /// 预览标签页滚动容器 ID
     pub(crate) preview_tabs_scroll_id: Id,
-    /// 主页应用栏滚动 X 偏移
-    pub(crate) home_apps_bar_scroll_x: f32,
-    /// 主页应用栏滚动容器 ID
-    pub(crate) home_apps_bar_scroll_id: Id,
-    /// 设置标签页
-    pub(crate) settings_tab: SettingsTab,
-    /// 系统设置标签页
-    pub(crate) system_settings_tab: desktop_settings_shell::SystemTab,
     /// 常规配置页内标签
     pub(crate) general_settings_tab: GeneralSettingsTab,
     /// 独立的原生归档聊天元数据与查询状态。
@@ -552,10 +472,6 @@ pub struct App {
     pub(crate) worktree_settings: WorktreeSettingsState,
     /// 系统设置分类搜索词
     pub(crate) system_settings_query: String,
-    /// 当前打开的系统设置帮助标签页
-    pub(crate) system_settings_help_tab: Option<desktop_settings_shell::SystemTab>,
-    /// 顶栏网关服务弹窗的当前标签页
-    pub(crate) top_bar_gateway_tab: TopBarGatewayTab,
     /// 提供者设置状态
     pub(crate) provider_settings: ProviderSettingsState,
     /// 模型设置状态
@@ -675,18 +591,6 @@ pub struct App {
     pub(crate) tool_files_filter: String,
     /// 文件引用悬停的索引
     pub(crate) file_ref_hovered_index: Option<usize>,
-    /// 预览标签页列表
-    pub(crate) preview_tabs: Vec<PreviewTab>,
-    /// 当前活跃的预览路径
-    pub(crate) active_preview_path: Option<String>,
-    /// 按项目分组的预览标签页映射
-    pub(crate) project_preview_tabs: HashMap<String, Vec<PreviewTab>>,
-    /// 按项目分组的活跃预览路径映射
-    pub(crate) project_preview_active_path: HashMap<String, Option<String>>,
-    /// 预览标签页右键菜单的目标路径
-    pub(crate) preview_tab_menu_path: Option<String>,
-    /// 预览标签页右键菜单位置
-    pub(crate) preview_tab_menu_pos: Option<Point>,
     /// LSP 事件接收器（仅非 wasm32 平台）
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) lsp_events: Option<std::sync::mpsc::Receiver<LspEvent>>,
@@ -775,43 +679,8 @@ pub struct App {
     pub(crate) preview_auto_save_mode: crate::app::PreviewAutoSaveMode,
     /// 当前语言设置
     pub(crate) current_language: iced_code_editor::i18n::Language,
-    /// 当前活跃的标签页 ID
-    pub(crate) active_tab_id: Option<String>,
-    /// 悬停的标签页 ID
-    pub(crate) hovered_tab_id: Option<String>,
     /// 悬停的最近项目路径
     pub(crate) hovered_recent_project: Option<String>,
-    /// 打开的标签页列表
-    pub(crate) open_tabs: Vec<AppTab>,
-    /// 应用搜索查询
-    pub apps_search_query: String,
-    /// 网页书签列表
-    pub web_bookmarks: Vec<WebBookmark>,
-    /// 是否显示网页链接菜单
-    pub show_web_links_menu: bool,
-    /// 网页书签标题输入
-    pub web_bookmark_title_input: String,
-    /// 网页书签 URL 输入
-    pub web_bookmark_url_input: String,
-    /// 网页书签宽度输入
-    pub web_bookmark_width_input: String,
-    /// 网页书签高度输入
-    pub web_bookmark_height_input: String,
-    /// 正在编辑的网页书签索引
-    pub editing_web_bookmark: Option<usize>,
-    /// 编辑网页书签标题输入
-    pub edit_web_bookmark_title_input: String,
-    /// 编辑网页书签 URL 输入
-    pub edit_web_bookmark_url_input: String,
-    /// 编辑网页书签宽度输入
-    pub edit_web_bookmark_width_input: String,
-    /// 编辑网页书签高度输入
-    pub edit_web_bookmark_height_input: String,
-    /// 编辑网页书签 Cookie 配置编辑器
-    pub edit_web_bookmark_cookie_configs_editor: text_editor::Content,
-    /// 独立 WebView 子进程列表（仅非 wasm32 平台）
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) independent_webview_children: Vec<std::process::Child>,
     /// 加载动画帧索引
     pub spinner_frame: usize,
     /// 通知列表

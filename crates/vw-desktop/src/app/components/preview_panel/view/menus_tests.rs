@@ -79,7 +79,7 @@ fn menu_ui_builds_context_menu_for_matching_tab() {
     app.show_preview_context_menu = true;
     app.preview_context_target = Some(("/tmp/a.rs".to_string(), 1, 1, 2, 4));
     app.preview_context_menu_pos = Some((20.0, 30.0));
-    app.preview_tabs = vec![tab("/tmp/a.rs")];
+    app.navigation_tabs.preview_tabs = vec![tab("/tmp/a.rs")];
 
     keep(build_menu_ui(&app));
 }
@@ -90,7 +90,7 @@ fn menu_ui_uses_empty_context_items_for_missing_tab() {
     app.show_preview_context_menu = true;
     app.preview_context_target = Some(("/tmp/missing.rs".to_string(), 1, 1, 2, 4));
     app.preview_context_menu_pos = Some((20.0, 30.0));
-    app.preview_tabs = vec![tab("/tmp/a.rs")];
+    app.navigation_tabs.preview_tabs = vec![tab("/tmp/a.rs")];
 
     keep(build_menu_ui(&app));
 }

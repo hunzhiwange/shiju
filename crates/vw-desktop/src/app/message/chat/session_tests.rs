@@ -169,7 +169,7 @@ fn compact_action_requests_confirmation_without_sending_chat_or_creating_session
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();
     let directory = "/workspace/project";
-    app.project_path = Some(directory.to_string());
+    app.navigation_tabs.project_path = Some(directory.to_string());
     app.active_session_id = Some(session_id.clone());
     app.sessions = vec![session_info(&session_id, "Current", directory)];
     app.chat = vec![chat_message(crate::app::models::ChatRole::User, "实现快捷消息")];
@@ -303,7 +303,7 @@ fn git_commit_quick_action_asks_ai_for_title_and_summary_before_commit() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();
     let directory = "/workspace/project";
-    app.project_path = Some(directory.to_string());
+    app.navigation_tabs.project_path = Some(directory.to_string());
     app.active_session_id = Some(session_id.clone());
     app.sessions = vec![session_info(&session_id, "Current", directory)];
     app.git.staged_files_selected = vec!["src/lib.rs".to_string()];
@@ -339,7 +339,7 @@ fn git_commit_quick_action_asks_ai_for_title_and_summary_before_commit() {
 #[test]
 fn selected_git_commit_quick_action_requires_a_selection_before_ai_request() {
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some("/workspace/project".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/project".to_string());
 
     let _task = super::update(
         &mut app,
@@ -457,16 +457,16 @@ fn open_session_tool_selector_tab_selects_and_toggles_popover() {
     use crate::app::state::SessionToolSelectorTab;
 
     let (mut app, _task) = crate::app::App::new();
-    app.show_model_popover = true;
-    app.show_acp_popover = true;
+    app.popover_visibility.model = true;
+    app.popover_visibility.acp = true;
 
     let _ = super::update(
         &mut app,
         super::ChatMessage::OpenSessionToolSelectorTab(SessionToolSelectorTab::Agent),
     );
-    assert!(app.show_session_tool_selector_popover);
-    assert!(!app.show_model_popover);
-    assert!(!app.show_acp_popover);
+    assert!(app.popover_visibility.session_tool_selector);
+    assert!(!app.popover_visibility.model);
+    assert!(!app.popover_visibility.acp);
     assert_eq!(
         app.current_session_runtime().tool_selector.active_tab(),
         SessionToolSelectorTab::Agent
@@ -476,7 +476,7 @@ fn open_session_tool_selector_tab_selects_and_toggles_popover() {
         &mut app,
         super::ChatMessage::OpenSessionToolSelectorTab(SessionToolSelectorTab::Tools),
     );
-    assert!(app.show_session_tool_selector_popover);
+    assert!(app.popover_visibility.session_tool_selector);
     assert_eq!(
         app.current_session_runtime().tool_selector.active_tab(),
         SessionToolSelectorTab::Tools
@@ -486,7 +486,7 @@ fn open_session_tool_selector_tab_selects_and_toggles_popover() {
         &mut app,
         super::ChatMessage::OpenSessionToolSelectorTab(SessionToolSelectorTab::Tools),
     );
-    assert!(!app.show_session_tool_selector_popover);
+    assert!(!app.popover_visibility.session_tool_selector);
     assert_eq!(
         app.current_session_runtime().tool_selector.active_tab(),
         SessionToolSelectorTab::Tools
@@ -496,7 +496,7 @@ fn open_session_tool_selector_tab_selects_and_toggles_popover() {
         &mut app,
         super::ChatMessage::OpenSessionToolSelectorTab(SessionToolSelectorTab::Skills),
     );
-    assert!(app.show_session_tool_selector_popover);
+    assert!(app.popover_visibility.session_tool_selector);
     assert_eq!(
         app.current_session_runtime().tool_selector.active_tab(),
         SessionToolSelectorTab::Skills
@@ -854,7 +854,7 @@ fn fork_desktop_ignores_confirmation_after_switching_sessions() {
 fn reset_session_locally_marks_boundary_and_next_send_uses_trimmed_history() {
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("s1".to_string());
-    app.project_path = Some("/repo".to_string());
+    app.navigation_tabs.project_path = Some("/repo".to_string());
     app.sessions = vec![session_info("s1", "Session", "/repo")];
     app.chat = vec![
         chat_message(crate::app::models::ChatRole::User, "keep"),
@@ -891,10 +891,10 @@ fn reset_session_locally_marks_boundary_and_next_send_uses_trimmed_history() {
 #[test]
 fn preference_messages_update_runtime_and_global_chat_defaults() {
     let (mut app, _task) = crate::app::App::new();
-    app.show_model_popover = true;
-    app.show_mode_popover = true;
-    app.show_acp_popover = true;
-    app.show_reasoning_effort_popover = true;
+    app.popover_visibility.model = true;
+    app.popover_visibility.mode = true;
+    app.popover_visibility.acp = true;
+    app.popover_visibility.reasoning_effort = true;
     app.current_session_runtime_mut().task_mode_model = "manual-model".to_string();
 
     super::update(&mut app, super::ChatMessage::AutoModelToggled(true));
@@ -906,8 +906,8 @@ fn preference_messages_update_runtime_and_global_chat_defaults() {
     assert_eq!(app.model, "custom/model");
     assert!(!app.auto_model);
     assert_eq!(app.current_session_runtime().task_mode_model, "custom/model");
-    assert!(!app.show_model_popover);
-    assert!(!app.show_mode_popover);
+    assert!(!app.popover_visibility.model);
+    assert!(!app.popover_visibility.mode);
 
     super::update(&mut app, super::ChatMessage::ModelInputChanged("   ".to_string()));
     assert_eq!(app.model, "auto");
@@ -927,8 +927,8 @@ fn preference_messages_update_runtime_and_global_chat_defaults() {
     );
     assert_eq!(app.acp_agent.as_deref(), Some("agent-a"));
     assert_eq!(app.current_session_runtime().acp_agent.as_deref(), Some("agent-a"));
-    assert!(!app.show_acp_popover);
-    assert!(!app.show_reasoning_effort_popover);
+    assert!(!app.popover_visibility.acp);
+    assert!(!app.popover_visibility.reasoning_effort);
 
     super::update(&mut app, super::ChatMessage::AcpHistoryRecentCountChanged(" 200 ".to_string()));
     assert_eq!(app.acp_recent_count, 20);
@@ -1085,7 +1085,7 @@ fn cancel_pressed_ignores_idle_sessions_and_dispatches_next_queued_item_when_bus
         app.chat.last().map(|message| message.role),
         Some(crate::app::models::ChatRole::Assistant)
     );
-    assert!(!app.show_send_mode_popover);
+    assert!(!app.popover_visibility.send_mode);
 }
 
 #[test]
@@ -1197,7 +1197,7 @@ fn send_starts_turn_focused_on_new_user_message() {
 fn start_new_session_appends_user_message_without_a_gateway_snapshot() {
     let (mut app, _task) = crate::app::App::new();
     app.project_id = Some("project-1".to_string());
-    app.project_path = Some("/repo".to_string());
+    app.navigation_tabs.project_path = Some("/repo".to_string());
 
     let task = super::start(
         &mut app,
@@ -1322,7 +1322,7 @@ fn send_current_session_input_starts_existing_session_with_selected_context_and_
 #[test]
 fn expert_package_selection_is_consumed_once() {
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some("/repo".to_string());
+    app.navigation_tabs.project_path = Some("/repo".to_string());
     app.active_session_id = Some("expert-session".to_string());
     app.sessions = vec![session_info("expert-session", "Expert", "/repo")];
     let id = "skillhub--skillset--fixture-suite";
@@ -1674,7 +1674,7 @@ fn start_preserves_absolute_sequences_for_paged_history() {
 #[test]
 fn new_session_project_resolution_continues_first_send() {
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/repo".to_string());
+    app.navigation_tabs.project_path = Some("/repo".to_string());
     let item = queue_item("first question", crate::app::state::ChatSendBehavior::Queue);
     let task = super::start(&mut app, item.clone(), false);
     assert_eq!(task.units(), 1);
@@ -1702,7 +1702,7 @@ fn new_session_project_resolution_ignores_stale_responses() {
         [("/other", 7, None), ("/repo", 6, None), ("/repo", 7, Some("existing"))]
     {
         let (mut app, _task) = crate::app::App::new();
-        app.project_path = Some(path.to_string());
+        app.navigation_tabs.project_path = Some(path.to_string());
         app.agent_stream_id = 7;
         app.active_session_id = active_session.map(str::to_string);
         let _task = super::update(
@@ -1726,7 +1726,7 @@ fn new_session_project_resolution_ignores_stale_responses() {
 #[test]
 fn new_session_project_resolution_failure_preserves_attachments() {
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/repo".to_string());
+    app.navigation_tabs.project_path = Some("/repo".to_string());
     let mut item = queue_item("question", crate::app::state::ChatSendBehavior::Queue);
     item.attachments.push("/repo/file.txt".to_string());
     let stream_id = app.agent_stream_id;
@@ -1834,7 +1834,7 @@ fn agent_unified_selection_ignores_install_result_from_another_session() {
 fn acp_model_source_ui_selection_preserves_native_and_provider_request_identity() {
     use vw_api_acp_model::acp_model_source::AcpModelSource;
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some("/workspace".into());
+    app.navigation_tabs.project_path = Some("/workspace".into());
     app.project_id = Some("workspace".into());
     let runtime = app.current_session_runtime_mut();
     runtime.acp_agent = Some("claude".into());
@@ -1944,7 +1944,7 @@ fn confirm_pending_model_source(app: &mut crate::app::App) {
         super::ChatMessage::AcpModelSourceSaved {
             session_id: app.active_session_id.clone().unwrap_or_else(|| "__empty__".into()),
             request_id: runtime.acp_options_state.source_request_id.unwrap(),
-            project_path: app.project_path.clone(),
+            project_path: app.navigation_tabs.project_path.clone(),
             update,
             result: Ok(options),
         },
@@ -1971,7 +1971,7 @@ fn session_entry_recommendations_select_original_index() {
 fn desktop_first_response_keeps_unanswered_session_out_of_history() {
     let (mut app, _task) = crate::app::App::new();
     app.project_id = Some("project-1".to_string());
-    app.project_path = Some("/repo".to_string());
+    app.navigation_tabs.project_path = Some("/repo".to_string());
 
     super::start(
         &mut app,
@@ -1991,7 +1991,7 @@ fn desktop_first_response_failure_and_cancel_retry_on_the_same_id_until_success(
 
     let (mut app, _) = crate::app::App::new();
     app.project_id = Some("project-1".into());
-    app.project_path = Some("/repo".into());
+    app.navigation_tabs.project_path = Some("/repo".into());
 
     super::start(&mut app, queue_item("first attempt", Queue), false);
     let session_id = app.active_session_id.clone().unwrap();
@@ -2071,7 +2071,7 @@ fn session_history_survives_failed_publication_lookup_and_multiple_followups() {
     use crate::app::state::ChatSendBehavior::Queue;
     let (mut app, _) = crate::app::App::new();
     app.project_id = Some("project-1".into());
-    app.project_path = Some("/repo".into());
+    app.navigation_tabs.project_path = Some("/repo".into());
     for turn in 0..3 {
         super::start(&mut app, queue_item(&format!("question {turn}"), Queue), false);
         let request = app.current_session_runtime().request_lifecycle.active_agent_request.unwrap();
@@ -2099,7 +2099,7 @@ fn session_history_survives_failed_publication_lookup_and_multiple_followups() {
 #[test]
 fn session_history_missing_background_cache_does_not_start_an_empty_continuation() {
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some("/repo".into());
+    app.navigation_tabs.project_path = Some("/repo".into());
     app.sessions = vec![session_info("existing", "Existing", "/repo")];
     app.active_session_id = Some("active".into());
     app.chat = vec![chat_message(crate::app::models::ChatRole::User, "keep active")];
@@ -2113,7 +2113,7 @@ fn session_history_missing_background_cache_does_not_start_an_empty_continuation
 #[test]
 fn session_history_loaded_before_background_send_preserves_prior_turns() {
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some("/repo".into());
+    app.navigation_tabs.project_path = Some("/repo".into());
     app.sessions = vec![session_info("existing", "Existing", "/repo")];
     app.active_session_id = Some("active".into());
     app.chat = vec![chat_message(crate::app::models::ChatRole::User, "keep active")];
@@ -2184,7 +2184,7 @@ fn queue_guide_preserves_draft_history_across_repeated_handoffs() {
     use crate::app::state::ChatSendBehavior::Queue;
     let (mut app, _) = crate::app::App::new();
     app.project_id = Some("project-1".into());
-    app.project_path = Some("/repo".into());
+    app.navigation_tabs.project_path = Some("/repo".into());
     super::start(&mut app, queue_item("original question", Queue), false);
     let session_id = app.active_session_id.clone().unwrap();
 
@@ -2217,7 +2217,7 @@ fn queue_guide_preserves_draft_history_across_repeated_handoffs() {
 fn fork_selection_ui_switches_engines_preserving_history_and_input() {
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("fork".into());
-    app.project_path = Some("/repo".into());
+    app.navigation_tabs.project_path = Some("/repo".into());
     app.chat = vec![
         chat_message(crate::app::models::ChatRole::User, "继承问题"),
         chat_message(crate::app::models::ChatRole::Assistant, "继承回答"),
@@ -2262,7 +2262,7 @@ fn fork_selection_ui_switches_engines_preserving_history_and_input() {
     assert_eq!(app.chat.len(), 2);
     assert_eq!(app.current_session_runtime().input_editor.text(), "分叉输入");
     assert_eq!(app.files, ["/repo/file.txt"]);
-    assert_eq!(app.project_path.as_deref(), Some("/repo"));
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/repo"));
     app.current_session_runtime_mut().fork_execution_started = Some(true);
     let _ = super::update(
         &mut app,
@@ -2276,7 +2276,7 @@ fn fork_selection_ui_first_send_uses_latest_agent_source_and_history() {
     use vw_api_acp_model::acp_model_source::AcpModelSource;
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("fork".into());
-    app.project_path = Some("/repo".into());
+    app.navigation_tabs.project_path = Some("/repo".into());
     app.sessions = vec![session_info("fork", "fork", "/repo")];
     app.chat = vec![
         chat_message(crate::app::models::ChatRole::User, "继承问题"),

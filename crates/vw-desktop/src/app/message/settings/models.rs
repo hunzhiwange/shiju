@@ -82,7 +82,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         domain::ModelEffect::Refresh => models_refresh_task(),
         effect @ domain::ModelEffect::Save(_) => persist_status_effect(app, effect),
         effect @ domain::ModelEffect::Reset(_, _) => persist_status_effect(app, effect),
-        domain::ModelEffect::QueryChanged if app.show_model_popover => {
+        domain::ModelEffect::QueryChanged if app.popover_visibility.model => {
             iced::widget::operation::scroll_to(
                 iced::widget::Id::new(MODEL_POPOVER_SCROLL_ID),
                 iced::widget::scrollable::AbsoluteOffset { x: 0.0, y: 0.0 },

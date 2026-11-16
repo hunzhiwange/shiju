@@ -76,7 +76,7 @@ async fn task_contains_widget_action(task: Task<Message>) -> bool {
 fn input_changed_refreshes_cache_without_closing_overlay_for_blank_query() {
     let mut app = app();
     app.search.show_search_overlay = true;
-    app.project_path = Some("/workspace".to_string());
+    app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.set_file_index("/workspace", vec!["src/query.rs".to_string(), "src/other.rs".to_string()]);
 
     update(&mut app, SearchMessage::InputChanged("  query  ".to_string()));
@@ -95,7 +95,7 @@ fn input_changed_refreshes_cache_without_closing_overlay_for_blank_query() {
 #[tokio::test(flavor = "multi_thread")]
 async fn open_clears_previous_query_shows_overlay_and_focuses_input() {
     let mut app = app();
-    app.project_path = Some("/workspace".to_string());
+    app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.set_file_index("/workspace", vec!["src/lib.rs".to_string()]);
     app.search.search_text = "missing".to_string();
     app.refresh_search_panel_file_cache();

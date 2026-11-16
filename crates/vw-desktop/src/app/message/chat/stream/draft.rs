@@ -123,7 +123,7 @@ pub(super) fn publish(
     if !list.iter().any(|entry| entry.id == session_id) {
         list.insert(0, info.clone());
     }
-    if app.project_path.as_deref() == Some(draft.project_path.as_str())
+    if app.navigation_tabs.project_path.as_deref() == Some(draft.project_path.as_str())
         && !app.sessions.iter().any(|entry| entry.id == session_id)
     {
         app.sessions.insert(0, info.clone());

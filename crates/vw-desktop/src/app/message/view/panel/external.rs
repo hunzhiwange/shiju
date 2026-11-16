@@ -73,14 +73,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             ),
         },
         ViewMessage::OpenProjectInExternalPreferred => {
-            app.active_menu = None;
-            let Some(path) = app.project_path.as_deref().map(str::to_owned) else {
-                return Task::none();
-            };
-            let target = app.open_external_app;
-            if !can_open_external(app, target) {
-                return Task::none();
-            }
+            let Some(desktop_navigation::panel::external::OpenProject { path, target }) = app.external_navigation.preferred(&mut app.navigation_panels, app.navigation_tabs.project_path.as_deref()) else { return Task::none(); };
             Task::perform(
                 async move {
                     let result = open_project_external(&path, target).await;
@@ -90,15 +83,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             )
         }
         ViewMessage::OpenProjectInExternalWith(target) => {
-            app.active_menu = None;
-            app.open_external_app = target;
+            let open = app.external_navigation.select(&mut app.navigation_panels, app.navigation_tabs.project_path.as_deref(), target);
             let save = app.save_desktop_preference("open_external_app", target.as_str().into());
-            let Some(path) = app.project_path.as_deref().map(str::to_owned) else {
-                return save;
-            };
-            if !can_open_external(app, target) {
-                return save;
-            }
+            let Some(desktop_navigation::panel::external::OpenProject { path, target }) = open else { return save; };
             let open = Task::perform(
                 async move {
                     let result = open_project_external(&path, target).await;
@@ -109,8 +96,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::batch([save, open])
         }
         ViewMessage::CopyProjectPath => {
-            app.active_menu = None;
-            let Some(path) = app.project_path.as_deref().map(str::to_owned) else {
+            app.navigation_panels.close_menu();
+            let Some(path) = app.navigation_tabs.project_path.as_deref().map(str::to_owned) else {
                 return Task::none();
             };
             let path = std::path::Path::new(&path)
@@ -130,9 +117,6 @@ async fn open_project_external(path: &str, target: ExternalOpenApp) -> Result<()
     ).await
 }
 
-fn can_open_external(app: &App, target: ExternalOpenApp) -> bool {
-    app.open_external_exists.get(&target).copied().unwrap_or(false)
-}
 #[cfg(test)]
 #[path = "external_tests.rs"]
 mod external_tests;

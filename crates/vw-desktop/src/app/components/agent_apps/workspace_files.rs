@@ -37,7 +37,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let context = AgentAppsContext {
         gateway: client.endpoint().base_url(),
         tenant: client.endpoint().tenant_scope().clone(),
-        project: app.project_path.clone(),
+        project: app.navigation_tabs.project_path.clone(),
     };
     let Some(project) = app.project_id.clone().filter(|p| !p.is_empty()) else {
         return app.show_error_toast("请先选择项目");

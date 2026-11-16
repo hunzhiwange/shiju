@@ -31,7 +31,7 @@ fn search_view_content_len(app: &App) -> usize {
 fn view_groups_file_project_and_session_matches() {
     let mut app = App::new().0;
     app.search.search_text = "needle".to_string();
-    app.project_path = Some("/repo".to_string());
+    app.navigation_tabs.project_path = Some("/repo".to_string());
     app.set_file_index("/repo", vec!["src/needle.rs".to_string()]);
     app.recent_projects = vec!["/workspace/needle-project".to_string()];
     app.sessions = vec![session("session-1", "Needle session", "/workspace/demo")];

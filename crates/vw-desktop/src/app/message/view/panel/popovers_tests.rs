@@ -2,150 +2,39 @@
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::*;
-use crate::app::state::ModelPopoverHover;
 
 fn test_app() -> App {
     App::new().0
 }
 
 fn set_all_popovers(app: &mut App, visible: bool) {
-    app.show_model_popover = visible;
-    app.show_mode_popover = visible;
-    app.show_send_mode_popover = visible;
-    app.show_file_popover = visible;
-    app.show_acp_popover = visible;
-    app.show_reasoning_effort_popover = visible;
-    app.show_usage_popover = visible;
-    app.show_session_tool_selector_popover = visible;
-    app.show_session_actions_popover = visible;
-    app.show_executor_popover = visible;
+    app.popover_visibility.model = visible;
+    app.popover_visibility.mode = visible;
+    app.popover_visibility.send_mode = visible;
+    app.popover_visibility.file = visible;
+    app.popover_visibility.acp = visible;
+    app.popover_visibility.reasoning_effort = visible;
+    app.popover_visibility.usage = visible;
+    app.popover_visibility.session_tool_selector = visible;
+    app.popover_visibility.session_actions = visible;
+    app.popover_visibility.executor = visible;
 }
 
 fn visibility(app: &App) -> [bool; 10] {
     [
-        app.show_model_popover,
-        app.show_mode_popover,
-        app.show_send_mode_popover,
-        app.show_file_popover,
-        app.show_acp_popover,
-        app.show_reasoning_effort_popover,
-        app.show_usage_popover,
-        app.show_session_tool_selector_popover,
-        app.show_session_actions_popover,
-        app.show_executor_popover,
+        app.popover_visibility.model,
+        app.popover_visibility.mode,
+        app.popover_visibility.send_mode,
+        app.popover_visibility.file,
+        app.popover_visibility.acp,
+        app.popover_visibility.reasoning_effort,
+        app.popover_visibility.usage,
+        app.popover_visibility.session_tool_selector,
+        app.popover_visibility.session_actions,
+        app.popover_visibility.executor,
     ]
 }
 
-#[test]
-fn send_mode_popover_stays_closed_when_session_is_not_requesting() {
-    let mut app = test_app();
-    app.show_send_mode_popover = true;
-    app.show_model_popover = true;
-
-    let _ = update(&mut app, ViewMessage::ToggleSendModePopover);
-
-    assert!(!app.show_send_mode_popover);
-    assert!(app.show_model_popover);
-}
-
-// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
-// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
-#[test]
-fn opening_acp_popover_with_empty_inventory_requests_bootstrap_and_closes_peers() {
-    let mut app = test_app();
-    set_all_popovers(&mut app, true);
-    app.show_acp_popover = false;
-    app.acp_agents.clear();
-
-    let _bootstrap_task = update(&mut app, ViewMessage::ToggleAcpPopover);
-
-    assert_eq!(
-        visibility(&app),
-        [false, false, false, false, true, false, false, false, false, false]
-    );
-    assert!(app.acp_agents.is_empty());
-}
-
-#[test]
-fn close_popovers_clears_every_popover_and_model_hover() {
-    let mut app = test_app();
-    set_all_popovers(&mut app, true);
-    app.model_popover_hover =
-        Some(ModelPopoverHover::Text { text: "hovered".to_string(), anchor: None });
-
-    let _ = update(&mut app, ViewMessage::ClosePopovers);
-
-    assert_eq!(visibility(&app), [false; 10]);
-    assert!(app.model_popover_hover.is_none());
-}
-
-#[test]
-fn individual_close_messages_only_close_their_target() {
-    let cases = [
-        (ViewMessage::CloseModelPopover, 0),
-        (ViewMessage::CloseModePopover, 1),
-        (ViewMessage::CloseSendModePopover, 2),
-        (ViewMessage::CloseFilePopover, 3),
-        (ViewMessage::CloseAcpPopover, 4),
-        (ViewMessage::CloseReasoningEffortPopover, 5),
-        (ViewMessage::CloseUsagePopover, 6),
-        (ViewMessage::CloseExecutorPopover, 9),
-    ];
-
-    for (message, closed_index) in cases {
-        let mut app = test_app();
-        set_all_popovers(&mut app, true);
-
-        let _ = update(&mut app, message);
-
-        let mut expected = [true; 10];
-        expected[closed_index] = false;
-        assert_eq!(visibility(&app), expected);
-    }
-}
-
-// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
-// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
-#[test]
-fn closing_model_popover_also_clears_hover_details() {
-    let mut app = test_app();
-    app.show_model_popover = true;
-    app.model_popover_hover = Some(ModelPopoverHover::Model {
-        provider_id: "provider".to_string(),
-        model_id: "model".to_string(),
-        anchor: None,
-    });
-
-    let _ = update(&mut app, ViewMessage::CloseModelPopover);
-
-    assert!(!app.show_model_popover);
-    assert!(app.model_popover_hover.is_none());
-}
-
-#[test]
-fn model_hover_changed_replaces_and_clears_hover_state() {
-    let mut app = test_app();
-
-    let _ = update(
-        &mut app,
-        ViewMessage::ModelPopoverHoverChanged(Some(ModelPopoverHover::Text {
-            text: "details".to_string(),
-            anchor: None,
-        })),
-    );
-
-    let Some(ModelPopoverHover::Text { text, anchor }) = app.model_popover_hover.as_ref() else {
-        panic!("expected text hover state");
-    };
-    assert_eq!(text, "details");
-    assert!(anchor.is_none());
-
-    let _ = update(&mut app, ViewMessage::ModelPopoverHoverChanged(None));
-    assert!(app.model_popover_hover.is_none());
-}
-
-// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
-// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn unrelated_view_message_leaves_popover_state_unchanged() {
     let mut app = test_app();

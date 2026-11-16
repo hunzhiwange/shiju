@@ -11,6 +11,6 @@ pub(super) fn open(
     content: String,
 ) -> Task<Message> {
     let theme = app.effective_editor_theme();
-    desktop_editor::preview::snapshot::open(&mut app.preview_tabs, key.clone(), path, title, content, theme, app.current_font_size, app.current_line_height, app.desktop_locale);
+    desktop_editor::preview::snapshot::open(&mut app.navigation_tabs.preview_tabs, key.clone(), path, title, content, theme, app.current_font_size, app.current_line_height, app.desktop_locale);
     tab::update(app, PreviewMessage::Open(key))
 }

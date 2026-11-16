@@ -32,7 +32,7 @@ pub(super) fn scope(app: &App) -> Option<Scope> {
     Some(Scope {
         endpoint: endpoint.base_url(),
         tenant: serde_json::to_string(endpoint.tenant_scope()).ok()?,
-        project: app.project_path.clone(),
+        project: app.navigation_tabs.project_path.clone(),
         composer: match &app.active_session_id {
             Some(id) => Composer::Session(id.clone()),
             None => Composer::Draft(app.session_view_cache.navigation_generation),

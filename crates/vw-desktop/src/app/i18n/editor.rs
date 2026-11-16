@@ -3,7 +3,7 @@ pub use desktop_i18n::editor::*;
 
 pub fn refresh(app: &mut crate::app::App) {
     let language = language(app.desktop_locale);
-    for tab in &mut app.preview_tabs {
+    for tab in &mut app.navigation_tabs.preview_tabs {
         tab.editor.set_ui_language(language);
         tab.editor.configure_preview_context_menu(app.desktop_locale, true);
     }

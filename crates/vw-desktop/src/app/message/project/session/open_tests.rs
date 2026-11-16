@@ -18,7 +18,7 @@ fn app() -> crate::app::App {
 #[test]
 fn work_space_switch_carries_chat_and_input_draft_into_a_new_session() {
     let mut app = app();
-    app.project_path = Some("/workspace/alpha".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/alpha".to_string());
     app.active_session_id = Some("session-1".to_string());
     app.chat.push(crate::app::models::ChatMessage {
         role: crate::app::models::ChatRole::User,
@@ -38,7 +38,7 @@ fn work_space_switch_carries_chat_and_input_draft_into_a_new_session() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.project_path.as_deref(), Some("/workspace/beta"));
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/workspace/beta"));
     assert!(app.active_session_id.is_none());
     assert_eq!(app.chat.len(), 1);
     assert_eq!(app.chat[0].content, "保留这段聊天");
@@ -252,7 +252,7 @@ async fn open_requesting_session_prepares_restored_cached_state() {
     let mut target = session_info("target", 1, 1);
     target.directory = "/tmp/known-project".to_string();
     app.sessions = vec![target];
-    app.project_path = Some("/tmp/known-project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/known-project".to_string());
     app.active_session_id = Some("previous".to_string());
     app.chat = vec![chat_message("previous chat")];
     app.chat_message_ids = vec![Some("previous-message".to_string())];
@@ -275,7 +275,7 @@ async fn open_requesting_session_prepares_restored_cached_state() {
     );
 
     let messages = collect_task_messages(task.expect("session open should return a task")).await;
-    assert_eq!(app.project_path.as_deref(), Some("/tmp/known-project"));
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/tmp/known-project"));
     assert_eq!(app.active_session_id.as_deref(), Some("target"));
     assert_eq!(app.chat.len(), 1);
     assert_eq!(app.chat[0].content, "cached target chat");
@@ -309,7 +309,7 @@ async fn open_requesting_session_prepares_restored_cached_state() {
 #[test]
 fn open_project_session_restores_hot_view_without_prewarm() {
     let mut app = app();
-    app.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
     app.sessions = vec![session_info("a", 1, 1), session_info("b", 1, 1)];
     app.active_session_id = Some("a".to_string());
     app.chat = vec![chat_message("session a")];
@@ -359,7 +359,7 @@ fn open_project_session_restores_hot_view_without_prewarm() {
 #[test]
 fn hot_restore_preserves_virtual_window_and_scroll_anchor() {
     let mut app = app();
-    app.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
     app.sessions = vec![session_info("a", 1, 1), session_info("b", 1, 1)];
     app.active_session_id = Some("a".to_string());
     app.chat = (0..80).map(|idx| chat_message(&format!("message {idx}"))).collect();
@@ -746,7 +746,7 @@ fn open_project_session_uses_global_model_until_its_history_is_restored() {
     let mut target = session_info("target", 1, 1);
     target.directory = "/tmp/known-project".to_string();
     app.sessions = vec![target];
-    app.project_path = Some("/tmp/known-project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/known-project".to_string());
     app.active_session_id = Some("previous".to_string());
     app.model = "provider/previous-model".to_string();
     app.auto_model = false;
@@ -782,7 +782,7 @@ fn child_session_navigation_project_route_checks_persisted_source() {
     ] {
         let mut app = app();
         let path = "/tmp/known-project";
-        app.project_path = Some(path.into());
+        app.navigation_tabs.project_path = Some(path.into());
         app.input_popovers.recommended_prompt = true;
         app.active_session_id = Some("parent".into());
         let mut target = session_info("target", 0, 0);
@@ -811,7 +811,7 @@ fn child_session_navigation_missing_metadata_keeps_the_current_session() {
     use crate::app::message::project::ProjectMessage;
 
     let mut app = app();
-    app.project_path = Some("/tmp/known-project".into());
+    app.navigation_tabs.project_path = Some("/tmp/known-project".into());
     app.active_session_id = Some("parent".into());
     app.chat = vec![chat_message("父会话内容")];
 
@@ -832,7 +832,7 @@ fn child_session_navigation_resolution_rejects_internal_and_stale_results() {
 
     let mut app = app();
     let path = "/tmp/known-project";
-    app.project_path = Some(path.into());
+    app.navigation_tabs.project_path = Some(path.into());
     app.active_session_id = Some("parent".into());
     let _ = super::handle(
         &mut app,
@@ -856,11 +856,11 @@ fn child_session_navigation_resolution_rejects_internal_and_stale_results() {
     let _ = super::handle(&mut app, reply(info.clone(), generation - 1));
     assert_eq!(app.active_session_id.as_deref(), Some("parent"));
 
-    app.project_path = Some("/tmp/other-project".into());
+    app.navigation_tabs.project_path = Some("/tmp/other-project".into());
     let _ = super::handle(&mut app, reply(info.clone(), generation));
     assert_eq!(app.active_session_id.as_deref(), Some("parent"));
 
-    app.project_path = Some(path.into());
+    app.navigation_tabs.project_path = Some(path.into());
     let _ = super::handle(&mut app, reply(info, generation));
     assert_eq!(app.active_session_id.as_deref(), Some("uncached"));
 }
@@ -871,7 +871,7 @@ fn open_project_session_keeps_workflow_mode_for_root_session() {
     let mut root = session_info("root", 0, 0);
     root.directory = "/tmp/known-project".to_string();
     app.sessions = vec![root];
-    app.project_path = Some("/tmp/known-project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/known-project".to_string());
     app.get_session_runtime_mut("root").workflow_mode_enabled = true;
     app.get_session_runtime_mut("root").goal_mode_enabled = true;
 
@@ -1011,7 +1011,7 @@ fn recent_overlay_closed_clears_anchor_and_all_picker_state() {
 fn project_create_session_opens_picker_when_worktree_enabled() {
     let mut app = app();
     let path = "/tmp/project".to_string();
-    app.project_path = Some("/tmp/other-project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/other-project".to_string());
     app.project_worktree_enabled.insert(path.clone(), true);
     app.new_session_picker_options.push(("old".to_string(), "旧".to_string()));
     app.new_session_worktree_name = "old-name".to_string();
@@ -1023,7 +1023,7 @@ fn project_create_session_opens_picker_when_worktree_enabled() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.project_path.as_deref(), Some(path.as_str()));
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some(path.as_str()));
     assert_eq!(app.new_session_picker_project, Some(path));
     assert!(app.new_session_picker_options.is_empty());
     assert!(app.new_session_worktree_name.is_empty());
@@ -1034,7 +1034,7 @@ fn project_create_session_opens_picker_when_worktree_enabled() {
 fn desktop_first_response_project_create_session_opens_a_blank_draft() {
     let mut app = app();
     let path = "/tmp/project".to_string();
-    app.project_path = Some("/tmp/other-project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/other-project".to_string());
     app.project_worktree_enabled.insert(path.clone(), false);
     app.new_session_picker_project = Some(path.clone());
     app.new_session_picker_options = vec![(path.clone(), "Main".to_string())];
@@ -1047,7 +1047,7 @@ fn desktop_first_response_project_create_session_opens_a_blank_draft() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.project_path.as_deref(), Some(path.as_str()));
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some(path.as_str()));
     assert!(app.new_session_picker_project.is_none());
     assert!(app.new_session_picker_options.is_empty());
     assert!(app.new_session_worktree_name.is_empty());
@@ -1061,7 +1061,7 @@ fn desktop_first_response_project_create_session_opens_a_blank_draft() {
 #[test]
 fn project_create_session_ignores_duplicate_request_while_creation_is_running() {
     let mut app = app();
-    app.project_path = Some("/tmp/current".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/current".to_string());
     app.new_session_creating = true;
 
     let task = super::handle(
@@ -1072,7 +1072,7 @@ fn project_create_session_ignores_duplicate_request_while_creation_is_running() 
     );
 
     assert!(task.is_some());
-    assert_eq!(app.project_path.as_deref(), Some("/tmp/current"));
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/tmp/current"));
     assert!(app.new_session_creating);
 }
 
@@ -1098,7 +1098,7 @@ fn session_create_failure_clears_progress_and_shows_error() {
 #[test]
 fn project_info_loaded_ignores_error_and_stale_project_result() {
     let mut app = app();
-    app.project_path = Some("/tmp/current".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/current".to_string());
     app.project_id = Some("original-id".to_string());
     app.git.selected_branch = Some("original-branch".to_string());
     app.project_updated_at_ms = Some(7);
@@ -1125,7 +1125,7 @@ fn project_info_loaded_ignores_error_and_stale_project_result() {
 #[test]
 fn project_info_loaded_applies_current_project_identity_timestamp_and_branch() {
     let mut app = app();
-    app.project_path = Some("/tmp/current".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/current".to_string());
 
     let _ =
         super::handle(
@@ -1144,7 +1144,7 @@ fn project_info_loaded_applies_current_project_identity_timestamp_and_branch() {
 #[test]
 fn project_info_loaded_sets_non_git_capability_when_vcs_absent() {
     let mut app = app();
-    app.project_path = Some("/tmp/current".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/current".to_string());
     app.project_is_git_repo = true;
     app.task_board_worktree_snapshot_loading = true;
     app.task_board_last_worktree_snapshot_at_ms = 99;
@@ -1177,7 +1177,7 @@ fn project_info_loaded_sets_non_git_capability_when_vcs_absent() {
 #[test]
 fn project_info_loaded_maps_zero_timestamp_to_none_and_keeps_branch_when_missing() {
     let mut app = app();
-    app.project_path = Some("/tmp/current".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/current".to_string());
     app.git.selected_branch = Some("existing".to_string());
     app.project_updated_at_ms = Some(42);
 
@@ -1196,7 +1196,7 @@ fn project_info_loaded_maps_zero_timestamp_to_none_and_keeps_branch_when_missing
 #[test]
 fn project_info_loaded_updates_recent_project_icon_color_and_start_command() {
     let mut app = app();
-    app.project_path = Some("/tmp/current".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/current".to_string());
     app.recent_projects_meta = vec![recent_project_meta("/tmp/current", true, 60)];
     let mut loaded = loaded_project_info("/tmp/current", 11, Some("main"));
     loaded.info.icon = Some(project_types::Icon {
@@ -1222,7 +1222,7 @@ fn project_info_loaded_updates_recent_project_icon_color_and_start_command() {
 #[test]
 fn project_branches_loaded_ignores_stale_project_and_applies_current_project() {
     let mut app = app();
-    app.project_path = Some("/tmp/current".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/current".to_string());
     app.git.selected_branch = Some("main".to_string());
 
     let _ = super::handle(
@@ -1354,7 +1354,7 @@ fn fork_selection_reopen_projects_authoritative_state_for_both_directories() {
     for directory in ["/repo", "/repo-worktree"] {
         for started in [false, true] {
             let mut app = app();
-            app.project_path = Some("/repo".into());
+            app.navigation_tabs.project_path = Some("/repo".into());
             let mut info = session_info("fork", 0, 0);
             info.directory = directory.into();
             info.fork_execution_started = Some(started);
@@ -1409,7 +1409,7 @@ fn fork_selection_reopen_late_inherited_binding_keeps_explicit_native_selection(
 #[test]
 fn fork_selection_reopen_new_drafts_do_not_inherit_fork_authority() {
     let mut app = app();
-    app.project_path = Some("/repo".into());
+    app.navigation_tabs.project_path = Some("/repo".into());
     app.active_session_id = Some("fork".into());
     app.current_session_runtime_mut().fork_execution_started = Some(false);
     app.current_session_runtime_mut().fork_request_submitted = true;
@@ -1426,7 +1426,7 @@ fn fork_selection_reopen_new_drafts_do_not_inherit_fork_authority() {
 #[test]
 fn fork_selection_reopen_hot_cache_uses_fresh_authority() {
     let mut app = app();
-    app.project_path = Some("/repo".into());
+    app.navigation_tabs.project_path = Some("/repo".into());
     let mut info = session_info("fork", 0, 0);
     info.directory = "/repo".into();
     info.fork_execution_started = Some(false);

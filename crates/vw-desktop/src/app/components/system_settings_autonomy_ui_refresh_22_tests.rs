@@ -151,8 +151,8 @@ async fn ui_refresh_22_host_security_viewport() {
     let mut app = fixture();
     use crate::app::components::system_settings::{self, SystemTab};
     app.desktop_locale = DesktopLocale::English;
-    app.show_system_settings = true;
-    app.system_settings_tab = SystemTab::Security;
+    app.navigation_panels.show_system_settings = true;
+    app.navigation_panels.system_settings_tab = SystemTab::Security;
     app.security_settings.active_tab = SecuritySettingsTab::SandboxAndResources;
     app.security_settings.sandbox_enabled_input = "false".into();
     app.security_settings.sandbox_backend_input = "none".into();
@@ -171,7 +171,7 @@ async fn ui_refresh_22_host_security_viewport() {
         "narrow layout should fit the policy hint in five lines: {hint:?}"
     );
     drop(narrow);
-    app.system_settings_tab = SystemTab::Autonomy;
+    app.navigation_panels.system_settings_tab = SystemTab::Autonomy;
     app.autonomy_settings.active_tab = AutonomySettingsTab::Permissions;
     snapshot(
         system_settings::view(&app),
@@ -253,8 +253,8 @@ async fn ui_refresh_22_sandbox_select_keeps_policy_values_from_keyboard() {
     }
     let mut renderer = renderer().await;
     let mut app = fixture();
-    app.show_system_settings = true;
-    app.system_settings_tab = SystemTab::Security;
+    app.navigation_panels.show_system_settings = true;
+    app.navigation_panels.system_settings_tab = SystemTab::Security;
     app.security_settings.active_tab = SecuritySettingsTab::SandboxAndResources;
     let mut ui = scene(system_settings::view(&app), &mut renderer, Size::new(960, 800));
     // The first Tab focuses navigation search; the second reaches the current form.

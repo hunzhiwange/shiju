@@ -1,16 +1,22 @@
 //! Main-tab selection and per-project preview restoration.
-use std::collections::HashMap;
-use iced::{Task, Point};
-use iced::widget::Id;
-use crate::ui_types::Screen;
 use crate::components::top_bar::types::AppTab;
+use crate::ui_types::Screen;
 use desktop_editor::preview::PreviewTab;
+use iced::widget::Id;
+use iced::{Point, Task};
+use std::collections::HashMap;
 #[derive(Clone)]
 pub enum Message {
-    GoHome, HomeAppsBarScrollChanged(f32), HomeAppsBarPrev, HomeAppsBarNext,
-    TabSelected(String), TabClosed(String), TabHovered(Option<String>),
+    GoHome,
+    HomeAppsBarScrollChanged(f32),
+    HomeAppsBarPrev,
+    HomeAppsBarNext,
+    TabSelected(String),
+    TabClosed(String),
+    TabHovered(Option<String>),
 }
 pub struct State {
+    pub apps_search_query: String,
     pub project_path: Option<String>,
     pub project_preview_tabs: HashMap<String, Vec<PreviewTab>>,
     pub preview_tabs: Vec<PreviewTab>,
@@ -22,13 +28,36 @@ pub struct State {
     pub preview_tab_menu_pos: Option<Point>,
     pub home_apps_bar_scroll_x: f32,
     pub home_apps_bar_scroll_id: Id,
-    pub code_projects_menu_open: bool,
     pub open_tabs: Vec<AppTab>,
     pub hovered_tab_id: Option<String>,
 }
-pub fn update(app: &mut State, message: Message) -> Task<()> {
-    match message {
+pub enum Effect {
+    GoHome { previous_project_path: Option<String> },
+    TabSelected { id: String, previous_project_path: Option<String> },
+    TabClosed { previous_project_path: Option<String> },
+}
+pub struct Update {
+    pub task: Task<()>,
+    pub effect: Option<Effect>,
+}
+pub fn update(
+    app: &mut State,
+    code_projects_menu_open: &mut bool,
+    panels: &mut super::settings::State,
+    message: Message,
+) -> Update {
+    let previous_project_path = app.project_path.clone();
+    let effect = match &message {
+        Message::GoHome => Some(Effect::GoHome { previous_project_path }),
+        Message::TabSelected(id) => {
+            Some(Effect::TabSelected { id: id.clone(), previous_project_path })
+        }
+        Message::TabClosed(_) => Some(Effect::TabClosed { previous_project_path }),
+        _ => None,
+    };
+    let task = match message {
         Message::GoHome => {
+            panels.close_menu();
             let previous_project_path = app.project_path.as_deref().map(str::to_owned);
             if let Some(prev_path) = previous_project_path.clone() {
                 app.project_preview_tabs
@@ -53,7 +82,6 @@ pub fn update(app: &mut State, message: Message) -> Task<()> {
                 app.home_apps_bar_scroll_id.clone(),
                 iced::widget::scrollable::RelativeOffset { x: Some(x), y: None },
             )
-
         }
         Message::HomeAppsBarNext => {
             let x = (app.home_apps_bar_scroll_x + 0.25).min(1.0);
@@ -62,10 +90,9 @@ pub fn update(app: &mut State, message: Message) -> Task<()> {
                 app.home_apps_bar_scroll_id.clone(),
                 iced::widget::scrollable::RelativeOffset { x: Some(x), y: None },
             )
-
         }
         Message::TabSelected(id) => {
-            app.code_projects_menu_open = false;
+            *code_projects_menu_open = false;
             let previous_project_path = app.project_path.as_deref().map(str::to_owned);
             if let Some(prev_path) = previous_project_path.clone() {
                 app.project_preview_tabs
@@ -156,5 +183,12 @@ pub fn update(app: &mut State, message: Message) -> Task<()> {
             app.hovered_tab_id = id;
             Task::none()
         }
+    };
+    Update { task, effect }
+}
+
+impl State {
+    pub fn show_project(&mut self) {
+        self.screen = Screen::Project;
     }
 }

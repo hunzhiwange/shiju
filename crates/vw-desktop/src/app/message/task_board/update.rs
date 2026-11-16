@@ -15,7 +15,7 @@ mod execution_update;
 
 fn task_board_project_matches(app: &crate::app::App, project_path: &str) -> bool {
     taskboard::update::projection::task_board_project_matches(
-        app.project_path.as_deref(),
+        app.navigation_tabs.project_path.as_deref(),
         project_path,
     )
 }
@@ -43,7 +43,7 @@ fn persist_task_metadata_patch_task(
     task: Task,
     action_label: &'static str,
 ) -> iced::Task<crate::app::Message> {
-    let Some(project_path) = app.project_path.clone() else {
+    let Some(project_path) = app.navigation_tabs.project_path.clone() else {
         return iced::Task::none();
     };
     let workflow_id = app.task_board_settings.workflow_id.clone();
@@ -189,7 +189,7 @@ pub fn update(
         taskboard::update::local::LocalState {
             worktree_panel_expanded: &mut app.task_board_worktree_panel_expanded,
             worktree_pixel_office: &mut app.task_board_worktree_pixel_office,
-            project_path: app.project_path.as_deref(),
+            project_path: app.navigation_tabs.project_path.as_deref(),
             clear_prompt_after_create: &mut app.task_board_clear_prompt_after_create,
             close_after_create: &mut app.task_board_close_after_create,
             close_after_edit: &mut app.task_board_close_after_edit,
@@ -262,7 +262,7 @@ pub fn update(
                 return iced::Task::none();
             }
             let merge = matches!(&effect, BulkEffect::Merge(_));
-            let Some(path) = app.project_path.clone() else {
+            let Some(path) = app.navigation_tabs.project_path.clone() else {
                 return if merge {
                     iced::Task::done(Message::TaskBoard(TaskBoardMessage::ManualMergeQueueTick))
                 } else {
@@ -314,7 +314,7 @@ pub fn update(
         }
     };
 
-    let project_path = app.project_path.clone();
+    let project_path = app.navigation_tabs.project_path.clone();
     let message = match taskboard::update::manual_worktree::update_manual_worktree(
         taskboard::update::manual_worktree::ManualWorktreeState {
             task_board_worktree_action_log_rx: &mut app.task_board_worktree_action_log_rx,
@@ -362,7 +362,7 @@ pub fn update(
 
             if board_is_open {
                 app.show_task_board = false;
-                app.navigation_tabs.screen = if app.project_path.is_some() {
+                app.navigation_tabs.screen = if app.navigation_tabs.project_path.is_some() {
                     crate::app::Screen::Project
                 } else {
                     crate::app::Screen::Home
@@ -371,13 +371,13 @@ pub fn update(
                 return iced::Task::none();
             }
 
-            if app.project_path.is_none() {
+            if app.navigation_tabs.project_path.is_none() {
                 return iced::Task::none();
             }
 
             app.show_task_board = true;
             app.navigation_tabs.screen = crate::app::Screen::TaskBoard;
-            if let Some(project_path) = &app.project_path {
+            if let Some(project_path) = &app.navigation_tabs.project_path {
                 let path: String = project_path.clone();
                 return iced::Task::batch(vec![
                     maybe_schedule_worktree_snapshot_refresh(app, true),
@@ -389,7 +389,7 @@ pub fn update(
         }
         TaskBoardMessage::CloseBoard => {
             app.show_task_board = false;
-            app.navigation_tabs.screen = if app.project_path.is_some() {
+            app.navigation_tabs.screen = if app.navigation_tabs.project_path.is_some() {
                 crate::app::Screen::Project
             } else {
                 crate::app::Screen::Home
@@ -407,7 +407,7 @@ pub fn update(
                 &app.task_board_settings,
             );
             let refresh_snapshot = maybe_schedule_worktree_snapshot_refresh(app, false);
-            if let Some(project_path) = &app.project_path {
+            if let Some(project_path) = &app.navigation_tabs.project_path {
                 let path = project_path.clone();
                 return iced::Task::batch(vec![
                     refresh_snapshot,
@@ -425,7 +425,7 @@ pub fn update(
         }
 
         TaskBoardMessage::TaskStatusChanged { task_id, new_status } => {
-            if let Some(project_path) = &app.project_path {
+            if let Some(project_path) = &app.navigation_tabs.project_path {
                 let path = project_path.clone();
                 let task_id_clone = task_id.clone();
                 let workflow_id = app.task_board_settings.workflow_id.clone();
@@ -472,7 +472,7 @@ pub fn update(
                 return iced::Task::none();
             };
 
-            if let Some(project_path) = &app.project_path {
+            if let Some(project_path) = &app.navigation_tabs.project_path {
                 let path = project_path.clone();
                 let result_project_path = path.clone();
                 let task_for_result = task.clone();
@@ -534,7 +534,7 @@ pub fn update(
                 return iced::Task::none();
             };
 
-            if let Some(project_path) = &app.project_path {
+            if let Some(project_path) = &app.navigation_tabs.project_path {
                 let path = project_path.clone();
                 let result_project_path = path.clone();
                 let task_for_result = task.clone();
@@ -640,7 +640,7 @@ pub fn update(
                 &mut app.task_board_worktree_maintenance_in_flight,
                 &mut app.task_board_tasks,
                 app.project_is_git_repo,
-                app.project_path.is_some(),
+                app.navigation_tabs.project_path.is_some(),
                 result,
                 now_ms(),
             );
@@ -753,7 +753,7 @@ pub fn update(
             }
             let final_logs = app.task_board_executor.poll_task_logs_all(&task_id);
             app.task_board_executor.finish_task(&task_id);
-            let Some(project_path) = app.project_path.clone() else {
+            let Some(project_path) = app.navigation_tabs.project_path.clone() else {
                 return iced::Task::none();
             };
             let outcome = taskboard::update::rules::finish_planning(
@@ -894,7 +894,7 @@ fn apply_local_effect(
         LocalEffect::SyncLogs => {
             let viewing = app.task_board_viewing_logs.clone();
             sync_task_logs_editor(app, viewing.as_ref());
-            match (app.project_path.clone(), viewing) {
+            match (app.navigation_tabs.project_path.clone(), viewing) {
                 (Some(path), Some(task)) => {
                     sync_agent_scheduler_logs_for_project_path(path, vec![task.id])
                 }
@@ -942,7 +942,7 @@ fn apply_local_effect(
             }),
         ),
         LocalEffect::Persist(task) => {
-            let Some(path) = app.project_path.clone() else {
+            let Some(path) = app.navigation_tabs.project_path.clone() else {
                 return iced::Task::none();
             };
             let workflow_id = app.task_board_settings.workflow_id.clone();
@@ -955,7 +955,7 @@ fn apply_local_effect(
             )
         }
         LocalEffect::Create(task) => {
-            let Some(path) = app.project_path.clone() else {
+            let Some(path) = app.navigation_tabs.project_path.clone() else {
                 return iced::Task::none();
             };
             let result_project_path = path.clone();
@@ -975,7 +975,7 @@ fn apply_local_effect(
             )
         }
         LocalEffect::Delete(id) => {
-            let Some(path) = app.project_path.clone() else {
+            let Some(path) = app.navigation_tabs.project_path.clone() else {
                 return iced::Task::none();
             };
             let recycle = recycle_assigned_task_worktree_for_removal(app, &id);
@@ -986,7 +986,7 @@ fn apply_local_effect(
             iced::Task::batch([command, recycle])
         }
         LocalEffect::Archive(ids) => {
-            let Some(path) = app.project_path.clone() else {
+            let Some(path) = app.navigation_tabs.project_path.clone() else {
                 return iced::Task::none();
             };
             let recycle = recycle_assigned_task_worktrees_for_removal(app, &ids);
@@ -997,7 +997,7 @@ fn apply_local_effect(
             iced::Task::batch([command, recycle])
         }
         LocalEffect::Move(id, status, order_no) => {
-            let Some(path) = app.project_path.clone() else {
+            let Some(path) = app.navigation_tabs.project_path.clone() else {
                 return iced::Task::none();
             };
             let workflow_id = app.task_board_settings.workflow_id.clone();

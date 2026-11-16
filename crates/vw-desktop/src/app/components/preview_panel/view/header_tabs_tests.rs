@@ -51,7 +51,7 @@ fn header_tabs_keep_open_file_entry_last_for_empty_and_multiple_tabs() {
     keep(build_header_tabs(&empty_app));
 
     let mut populated_app = app();
-    populated_app.preview_tabs = vec![tab("/tmp/a.rs", false), tab("/tmp/b.ts", false)];
+    populated_app.navigation_tabs.preview_tabs = vec![tab("/tmp/a.rs", false), tab("/tmp/b.ts", false)];
     assert_eq!(header_tab_item_count(&populated_app), 3);
     keep(build_header_tabs(&populated_app));
 }

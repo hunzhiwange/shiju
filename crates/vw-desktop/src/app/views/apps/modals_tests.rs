@@ -23,8 +23,8 @@ fn active_modal_returns_none_without_modal_state() {
 #[test]
 fn active_modal_prefers_edit_modal_over_add_modal() {
     let mut app = new_app();
-    app.show_web_links_menu = true;
-    app.editing_web_bookmark = Some(2);
+    app.web_navigation.show_web_links_menu = true;
+    app.web_navigation.editing_web_bookmark = Some(2);
 
     let Some((_modal, close)) = super::active_modal(&app) else {
         panic!("expected edit modal");
@@ -35,7 +35,7 @@ fn active_modal_prefers_edit_modal_over_add_modal() {
 #[test]
 fn active_modal_returns_add_bookmark_close_message() {
     let mut app = new_app();
-    app.show_web_links_menu = true;
+    app.web_navigation.show_web_links_menu = true;
 
     let Some((_modal, close)) = super::active_modal(&app) else {
         panic!("expected add modal");
@@ -56,8 +56,8 @@ fn add_web_bookmark_modal_builds_for_incomplete_input() {
 #[test]
 fn add_web_bookmark_modal_builds_for_valid_input() {
     let mut app = new_app();
-    app.web_bookmark_title_input = "Example".into();
-    app.web_bookmark_url_input = "https://example.com".into();
+    app.web_navigation.web_bookmark_title_input = "Example".into();
+    app.web_navigation.web_bookmark_url_input = "https://example.com".into();
 
     let Some((_modal, close)) = super::add_web_bookmark_modal(&app) else {
         panic!("expected add modal");
@@ -68,7 +68,7 @@ fn add_web_bookmark_modal_builds_for_valid_input() {
 #[test]
 fn edit_web_bookmark_modal_builds_for_selected_bookmark() {
     let mut app = new_app();
-    app.editing_web_bookmark = Some(7);
+    app.web_navigation.editing_web_bookmark = Some(7);
 
     let Some((_modal, close)) = super::edit_web_bookmark_modal(&app) else {
         panic!("expected edit modal");
@@ -130,13 +130,13 @@ async fn help_rollout_04_bookmarks_render_contextual_help() {
     }
 
     let mut app = new_app();
-    app.show_web_links_menu = true;
-    app.web_bookmark_title_input = "Fixture bookmark".into();
-    app.web_bookmark_url_input = "https://example.invalid/fixture".into();
+    app.web_navigation.show_web_links_menu = true;
+    app.web_navigation.web_bookmark_title_input = "Fixture bookmark".into();
+    app.web_navigation.web_bookmark_url_input = "https://example.invalid/fixture".into();
     for mode in &HELP_LOCALES {
         app.desktop_locale = mode.0;
         app.app_theme = mode.1.clone();
-        app.editing_web_bookmark = None;
+        app.web_navigation.editing_web_bookmark = None;
         let add = verify_help(
             super::super::view(&app),
             "bookmark-add-help",
@@ -148,7 +148,7 @@ async fn help_rollout_04_bookmarks_render_contextual_help() {
         .await;
         assert!(matches!(add.as_slice(), [Message::View(ViewMessage::WebBookmarkAddSave)]));
 
-        app.editing_web_bookmark = Some(0);
+        app.web_navigation.editing_web_bookmark = Some(0);
         let edit = verify_help(
             super::super::view(&app),
             "bookmark-edit-help",
@@ -197,9 +197,9 @@ async fn settings_help_gap_18_cookie_example_pins_and_copies_static_text() {
             .await
             .unwrap();
     let mut app = new_app();
-    app.show_web_links_menu = true;
+    app.web_navigation.show_web_links_menu = true;
     const DRAFT: &str = "fixture-cookie-secret";
-    app.edit_web_bookmark_cookie_configs_editor =
+    app.web_navigation.edit_web_bookmark_cookie_configs_editor =
         iced::widget::text_editor::Content::with_text(DRAFT);
 
     for locale in [
@@ -219,7 +219,7 @@ async fn settings_help_gap_18_cookie_example_pins_and_copies_static_text() {
             for width in [420, 640] {
                 let size = Size::new(width, 650);
                 let viewport = Size::new(size.width as f32, size.height as f32);
-                app.editing_web_bookmark = None;
+                app.web_navigation.editing_web_bookmark = None;
                 let mut add = UserInterface::build(
                     super::super::view(&app),
                     viewport,
@@ -235,7 +235,7 @@ async fn settings_help_gap_18_cookie_example_pins_and_copies_static_text() {
                 }));
                 drop(add);
 
-                app.editing_web_bookmark = Some(0);
+                app.web_navigation.editing_web_bookmark = Some(0);
                 let mut edit = UserInterface::build(
                     super::super::view(&app),
                     viewport,

@@ -14,7 +14,7 @@ pub(super) fn build_code_review_view_from_diff(app: &App, files: Vec<String>, pa
 pub(super) fn git_diff_by_file(
     app: &App,
 ) -> (Vec<String>, std::collections::HashMap<String, String>) {
-    let Some(path) = &app.project_path else {
+    let Some(path) = &app.navigation_tabs.project_path else {
         return (vec![], std::collections::HashMap::new());
     };
     let records = crate::app::session_gateway::gateway_project_change_records(path);

@@ -16,22 +16,22 @@ fn test_module_is_wired() {
 #[test]
 fn update_routes_search_message_without_side_effects() {
     let mut app = crate::app::App::new().0;
-    app.active_preview_path = Some("/tmp/a.txt".to_string());
+    app.navigation_tabs.active_preview_path = Some("/tmp/a.txt".to_string());
 
     let _ = super::update(&mut app, super::PreviewMessage::SearchNext);
 
-    assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/a.txt"));
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/tmp/a.txt"));
 }
 
 // 宿主契约：核对 App 字段投影及 Select, update 的消息/任务接线。
 #[test]
 fn update_routes_tab_message_to_tab_handler() {
     let mut app = crate::app::App::new().0;
-    app.active_preview_path = Some("/tmp/a.txt".to_string());
+    app.navigation_tabs.active_preview_path = Some("/tmp/a.txt".to_string());
 
     let _ = super::update(&mut app, super::PreviewMessage::Select(String::new()));
 
-    assert!(app.active_preview_path.is_none());
+    assert!(app.navigation_tabs.active_preview_path.is_none());
 }
 
 // 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
@@ -52,7 +52,7 @@ fn update_routes_editor_message_to_editor_handler() {
 #[test]
 fn update_routes_editor_mouse_message_to_editor_handler() {
     let mut app = crate::app::App::new().0;
-    app.active_preview_path = Some("/tmp/a.rs".to_string());
+    app.navigation_tabs.active_preview_path = Some("/tmp/a.rs".to_string());
     app.lsp_overlay_path = Some("/tmp/a.rs".to_string());
     app.lsp_hover_hide_deadline = Some(std::time::Instant::now());
 

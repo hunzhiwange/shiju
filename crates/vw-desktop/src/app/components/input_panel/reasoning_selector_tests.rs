@@ -19,7 +19,7 @@ fn acp_session_options_follow_capabilities_ignore_legacy_reasoning_selection() {
         &mut app,
         message::ViewMessage::ToggleReasoningEffortPopover,
     );
-    assert!(app.show_reasoning_effort_popover);
+    assert!(app.popover_visibility.reasoning_effort);
     let _ = chat::update(
         &mut app,
         message::ChatMessage::ReasoningEffortSelected(Some(ReasoningEffortDto::Xhigh)),
@@ -46,7 +46,7 @@ fn acp_session_options_follow_capabilities_ignore_legacy_reasoning_selection() {
 #[test]
 fn acp_session_options_follow_capabilities_hide_unconnected_reasoning() {
     let (mut app, _task) = crate::app::App::new();
-    app.show_reasoning_effort_popover = true;
+    app.popover_visibility.reasoning_effort = true;
 
     assert!(reasoning_effort_selector(&app, Some("codex cli"), None).is_none());
     assert!(reasoning_effort_selector(&app, Some("unknown"), None).is_none());
@@ -202,10 +202,10 @@ fn acp_session_options_follow_capabilities_reject_unadvertised_selection() {
 fn reasoning_slider_keeps_popover_open_and_resets_to_default() {
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("reasoning-slider".into());
-    app.show_reasoning_effort_popover = true;
+    app.popover_visibility.reasoning_effort = true;
     for value in [Some(ReasoningEffortDto::Low), Some(ReasoningEffortDto::High), None] {
         let _ = chat::update(&mut app, message::ChatMessage::ReasoningEffortSelected(value));
-        assert!(app.show_reasoning_effort_popover);
+        assert!(app.popover_visibility.reasoning_effort);
         assert_eq!(app.current_session_runtime().reasoning_effort, value);
         assert_eq!(app.reasoning_effort, value);
     }
@@ -213,5 +213,5 @@ fn reasoning_slider_keeps_popover_open_and_resets_to_default() {
         &mut app,
         message::ViewMessage::CloseReasoningEffortPopover,
     );
-    assert!(!app.show_reasoning_effort_popover);
+    assert!(!app.popover_visibility.reasoning_effort);
 }

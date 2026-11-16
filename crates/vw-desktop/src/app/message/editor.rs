@@ -39,8 +39,8 @@ pub use desktop_editor::message::editor::EditorMessage;
 /// - 粘贴操作返回剪贴板读取任务
 /// - 其他操作通常返回 `Task::none()`
 pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
-    let read_only = app.active_preview_path.as_ref().is_some_and(|path|
-        app.preview_tabs.iter().any(|tab| tab.path == *path && tab.read_only));
+    let read_only = app.navigation_tabs.active_preview_path.as_ref().is_some_and(|path|
+        app.navigation_tabs.preview_tabs.iter().any(|tab| tab.path == *path && tab.read_only));
     if !desktop_editor::message::editor::prepare_message(
         app.shutdown_requested, read_only, &mut app.editor_popover, &message,
     ) { return Task::none(); }
@@ -63,8 +63,8 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
             Err(error) => app.show_error_toast(error),
         },
         EditorMessage::TogglePopover(kind) => {
-            let editor = app.preview_tabs.iter_mut()
-                .find(|tab| Some(&tab.path) == app.active_preview_path.as_ref())
+            let editor = app.navigation_tabs.preview_tabs.iter_mut()
+                .find(|tab| Some(&tab.path) == app.navigation_tabs.active_preview_path.as_ref())
                 .map(|tab| &mut tab.editor);
             desktop_editor::message::editor::open_popover(
                 editor, &mut app.editor_popover, &mut app.show_preview_context_menu,
@@ -115,7 +115,7 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
             app.current_language = lang;
 
             desktop_editor::message::editor::apply_language(
-                app.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
+                app.navigation_tabs.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
                 &mut app.git.git_copy_modal_code_editor, lang,
             );
             Task::none()
@@ -128,7 +128,7 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
             app.editor_follow_system_theme = false;
 
             desktop_editor::message::editor::apply_theme(
-                app.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
+                app.navigation_tabs.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
                 &mut app.git.git_copy_modal_code_editor, theme.clone(),
             );
 
@@ -143,7 +143,7 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
             let editor_theme = app.effective_editor_theme();
 
             desktop_editor::message::editor::apply_theme(
-                app.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
+                app.navigation_tabs.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
                 &mut app.git.git_copy_modal_code_editor, editor_theme.clone(),
             );
 
@@ -154,8 +154,8 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
 
         // 撤销操作（仅限当前激活的预览标签页）
         message => {
-            let editor = app.preview_tabs.iter_mut()
-                .find(|tab| Some(&tab.path) == app.active_preview_path.as_ref())
+            let editor = app.navigation_tabs.preview_tabs.iter_mut()
+                .find(|tab| Some(&tab.path) == app.navigation_tabs.active_preview_path.as_ref())
                 .map(|tab| &mut tab.editor);
             desktop_editor::message::editor::update(
                 editor, &mut app.editor_popover, &mut app.show_preview_settings, message,

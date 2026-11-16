@@ -16,7 +16,7 @@ pub(crate) fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Eleme
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     if matches!(event, Event::Close) { domain::close(&mut app.apps_catalog.daily_memory); return Task::none(); }
     let Ok(client) = crate::app::config::gateway_client() else { return app.show_error_toast("网关不可用，草稿已保留"); };
-    let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
+    let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.navigation_tabs.project_path.clone() };
     let Some(project) = app.project_id.clone().filter(|id| !id.is_empty()) else { return Task::none(); };
     let connection = Connection { client, context, catalog_context: app.apps_catalog.context.clone(), project,
         host: app.apps_catalog.host.clone(), generation: app.apps_catalog.generation, token: app.apps_catalog.token.clone() };

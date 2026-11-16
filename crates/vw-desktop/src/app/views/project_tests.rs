@@ -36,7 +36,7 @@ fn view_builds_with_non_finite_settings_width() {
 #[test]
 fn work_layout_project_view_routes_each_workspace_mode() {
     let (mut app, _task) = App::new();
-    app.show_diff = true;
+    app.navigation_panels.show_diff = true;
     app.file_manager.show_file_manager = true;
     app.terminal.is_visible = true;
 
@@ -48,7 +48,7 @@ fn work_layout_project_view_routes_each_workspace_mode() {
     assert!(!super::uses_work_layout(&app));
     std::hint::black_box(super::view(&app));
 
-    assert!(app.show_diff);
+    assert!(app.navigation_panels.show_diff);
     assert!(app.file_manager.show_file_manager);
     assert!(app.terminal.is_visible);
 }

@@ -151,7 +151,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             if is_double_click {
                 app.session_menu_id = None;
                 app.session_menu_anchor = None;
-                app.show_session_actions_popover = false;
+                app.popover_visibility.session_actions = false;
                 app.session_rename_id = Some(id.clone());
                 if let Some(s) = app.sessions.iter().find(|s| s.id == id) {
                     app.session_rename_value = s.title.clone();
@@ -162,7 +162,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::SessionRenamePressed(id) => {
             app.session_menu_id = None;
             app.session_menu_anchor = None;
-            app.show_session_actions_popover = false;
+            app.popover_visibility.session_actions = false;
             app.session_rename_id = Some(id.clone());
             if let Some(s) = app.sessions.iter().find(|s| s.id == id) {
                 app.session_rename_value = s.title.clone();
@@ -233,7 +233,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             app.session_menu_id = None;
             app.session_menu_anchor = None;
-            app.show_session_actions_popover = false;
+            app.popover_visibility.session_actions = false;
 
             if let Some(s) = app.sessions.iter_mut().find(|s| s.id == id) {
                 s.time.archived = Some(now_ms());
@@ -330,7 +330,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::SessionDeletePressed(id) => {
             app.session_menu_id = None;
             app.session_menu_anchor = None;
-            app.show_session_actions_popover = false;
+            app.popover_visibility.session_actions = false;
             #[cfg(not(target_arch = "wasm32"))]
             if let Some(runtime) = app.session_runtime_states.get(&id) {
                 for panel in &runtime.mcp_app_panels {
@@ -441,12 +441,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             ))
         }
         ProjectMessage::SessionCopied(info) => {
-            if app.project_path.as_ref() == Some(&info.directory)
+            if app.navigation_tabs.project_path.as_ref() == Some(&info.directory)
                 && !app.sessions.iter().any(|s| s.id == info.id)
             {
                 app.sessions.insert(0, info.clone());
             }
-            let sessions_key = app.project_path.clone().unwrap_or_else(|| info.directory.clone());
+            let sessions_key = app.navigation_tabs.project_path.clone().unwrap_or_else(|| info.directory.clone());
             if let Some(list) = app.project_sessions.get_mut(&sessions_key) {
                 if !list.iter().any(|s| s.id == info.id) {
                     list.insert(0, info.clone());
@@ -463,7 +463,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             if !app.sessions.iter().any(|s| s.id == info.id) {
                 app.sessions.insert(0, info.clone());
             }
-            let sessions_key = app.project_path.clone().unwrap_or_else(|| info.directory.clone());
+            let sessions_key = app.navigation_tabs.project_path.clone().unwrap_or_else(|| info.directory.clone());
             if let Some(list) = app.project_sessions.get_mut(&sessions_key) {
                 if !list.iter().any(|s| s.id == info.id) {
                     list.insert(0, info.clone());

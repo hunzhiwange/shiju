@@ -89,7 +89,7 @@ pub(super) fn model(app: &App) -> WorkSidebarModel {
  domain::model(&domain::ModelInput {
 recent_projects: &app.recent_projects,
 recent_projects_edits: &app.recent_projects_edits,
-project_path: &app.project_path,
+project_path: &app.navigation_tabs.project_path,
 project_sessions: &app.project_sessions,
 work_expanded_spaces: &app.navigation_workspace.work_expanded_spaces,
 work_sidebar_space_task_visible: &app.navigation_sidebar.work_sidebar_space_task_visible,
@@ -120,7 +120,7 @@ new_session_creating: app.new_session_creating,
 }}
 pub(super) fn view(app: &App) -> Element<'_, Message> {
  let model = cached_model(app);
- let card = app.project_path.as_deref().map(|path| container(
+ let card = app.navigation_tabs.project_path.as_deref().map(|path| container(
  desktop_workspace::views::project::components::sessions_panel::project_sessions_header_with_tools(
  crate::app::i18n::I18n::new(app.desktop_locale), domain::project_label(&app.recent_projects, &app.recent_projects_edits, path), path.to_owned(), false,
  desktop_workspace::views::project::components::sessions_panel::Message::HeaderToolsToggle,
@@ -133,7 +133,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
  let mut row = super::super::components::session_row::row_input(app, &task.id, task.details.title(), task.details.updated);
  row.pinned = app.session_ui_projection.pinned.contains(&(task.details.project_id().to_owned(), task.id.clone()));
  let menu = (app.session_menu_id.as_ref() == Some(&task.id)).then(|| {
- let path = app.known_session_directory(&task.id).or_else(|| app.project_path.clone()).unwrap_or_default();
+ let path = app.known_session_directory(&task.id).or_else(|| app.navigation_tabs.project_path.clone()).unwrap_or_default();
  let compacting = app.sessions.iter().chain(app.project_sessions.values().flatten()).find(|s| s.id == task.id).is_some_and(|s| s.time.compacting.is_some());
  (path, app.session_is_requesting(&task.id) || compacting, app.session_menu_anchor.unwrap_or(Point::ORIGIN))
  });
@@ -181,7 +181,7 @@ pub(super) fn task_session_context_menu(
     if app.session_menu_id.as_ref() == Some(&id) {
         let project_path = app
             .known_session_directory(&id)
-            .or_else(|| app.project_path.clone())
+            .or_else(|| app.navigation_tabs.project_path.clone())
             .unwrap_or_default();
         let compacting = app
             .sessions

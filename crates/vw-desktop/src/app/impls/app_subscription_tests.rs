@@ -357,7 +357,7 @@ fn subscription_builds_default_and_polling_states() {
 #[test]
 fn requesting_sessions_animate_on_conversation_screen_and_stop_when_idle() {
     let mut app = test_app();
-    app.screen = Screen::Project;
+    app.navigation_tabs.screen = Screen::Project;
     app.active_session_id = Some("active".to_string());
     assert!(!needs_activity_animation_tick(&app, false));
 
@@ -373,7 +373,7 @@ fn requesting_sessions_animate_on_conversation_screen_and_stop_when_idle() {
     app.session_runtime_states.insert("background".to_string(), background);
     // The session list still displays the background request's running indicator.
     assert!(needs_activity_animation_tick(&app, false));
-    app.screen = Screen::TaskBoard;
+    app.navigation_tabs.screen = Screen::TaskBoard;
     assert!(!needs_activity_animation_tick(&app, false));
     assert!(needs_activity_animation_tick(&app, true));
 }
@@ -422,7 +422,7 @@ fn subscription_builds_task_board_ui_tick() {
     app.terminal.is_visible = true;
     subscription_builds(&app);
 
-    app.screen = Screen::TaskBoard;
+    app.navigation_tabs.screen = Screen::TaskBoard;
     subscription_builds(&app);
 }
 
@@ -438,7 +438,7 @@ fn project_subscription_does_not_schedule_periodic_task_or_session_refresh() {
 fn subscription_builds_settings_ticks() {
     let mut app = test_app();
 
-    app.show_settings = true;
+    app.navigation_panels.show_settings = true;
     app.provider_settings.models_syncing = true;
     subscription_builds(&app);
 }
@@ -446,17 +446,17 @@ fn subscription_builds_settings_ticks() {
 #[test]
 fn acp_diagnostic_animation_ticks_only_while_settings_are_visible_and_test_is_running() {
     let mut app = test_app();
-    app.screen = crate::app::Screen::Home;
+    app.navigation_tabs.screen = crate::app::Screen::Home;
     app.task_pet_window_id = None;
-    app.show_settings = true;
+    app.navigation_panels.show_settings = true;
     app.acp_settings.diagnostic_id = Some("diagnostic".into());
     assert!(super::needs_activity_animation_tick(&app, false));
-    app.show_settings = false;
+    app.navigation_panels.show_settings = false;
     assert!(!super::needs_activity_animation_tick(&app, false));
-    app.show_system_settings = true;
+    app.navigation_panels.show_system_settings = true;
     assert!(super::needs_activity_animation_tick(&app, false));
-    app.show_system_settings = false;
-    app.show_settings = true;
+    app.navigation_panels.show_system_settings = false;
+    app.navigation_panels.show_settings = true;
     app.acp_settings.diagnostic_id = None;
     assert!(!super::needs_activity_animation_tick(&app, false));
 }
@@ -465,7 +465,7 @@ fn acp_diagnostic_animation_ticks_only_while_settings_are_visible_and_test_is_ru
 fn subscription_builds_workflow_and_update_progress_states() {
     let mut app = test_app();
     let (_progress_tx, progress_rx) = std::sync::mpsc::channel();
-    app.app_update_progress_rx = Some(progress_rx);
+    app.update_panel.app_update_progress_rx = Some(progress_rx);
     app.workflow_state.begin_saved_app_run(
         "workflow-1".to_string(),
         "hello".to_string(),
@@ -474,7 +474,7 @@ fn subscription_builds_workflow_and_update_progress_states() {
 
     subscription_builds(&app);
 
-    app.app_update_progress_rx = None;
+    app.update_panel.app_update_progress_rx = None;
     app.workflow_state.finish_saved_app_run();
     subscription_builds(&app);
 }
@@ -484,8 +484,8 @@ fn subscription_builds_workflow_and_update_progress_states() {
 fn subscription_builds_preview_lsp_enabled_and_disabled_states() {
     let mut app = test_app();
     let path = "/workspace/src/main.rs";
-    app.active_preview_path = Some(path.to_string());
-    app.preview_tabs.push(preview_tab(path));
+    app.navigation_tabs.active_preview_path = Some(path.to_string());
+    app.navigation_tabs.preview_tabs.push(preview_tab(path));
 
     app.lsp_disabled = false;
     subscription_builds(&app);
@@ -527,14 +527,14 @@ fn file_tree_external_drop_native_event_is_observed_without_hover() {
 #[test]
 fn mini_companion_hidden_stops_avatar_and_expansion_ticks() {
     let mut app = test_app();
-    app.screen = Screen::Home;
+    app.navigation_tabs.screen = Screen::Home;
     app.task_pet_window_id = Some(window_id());
-    app.task_pet_visible = true;
+    app.companion_navigation.task_pet_visible = true;
     assert!(needs_activity_animation_tick(&app, false));
-    app.task_pet_visible = false;
+    app.companion_navigation.task_pet_visible = false;
     app.task_pet_expand_target = Some(1.0);
     assert!(!needs_activity_animation_tick(&app, false));
-    app.task_pet_visible = true;
+    app.companion_navigation.task_pet_visible = true;
     app.task_pet_avatar_kind = crate::app::state::TaskPetAvatarKind::None;
     app.task_pet_expand_target = None;
     assert!(!needs_activity_animation_tick(&app, false));
@@ -548,16 +548,16 @@ fn cron_history_polling_stops_when_page_is_hidden() {
     use crate::app::state::CronSettingsTab;
     use iced::advanced::subscription::into_recipes;
     let mut app = test_app();
-    app.show_system_settings = true;
-    app.system_settings_tab = SystemTab::Cron;
+    app.navigation_panels.show_system_settings = true;
+    app.navigation_panels.system_settings_tab = SystemTab::Cron;
     app.cron_settings.active_tab = CronSettingsTab::History;
     assert_eq!(into_recipes(cron_history_subscription(&app)).len(), 1);
-    app.show_system_settings = false;
+    app.navigation_panels.show_system_settings = false;
     assert!(into_recipes(cron_history_subscription(&app)).is_empty());
-    app.show_system_settings = true;
+    app.navigation_panels.show_system_settings = true;
     app.cron_settings.active_tab = CronSettingsTab::Jobs;
     assert!(into_recipes(cron_history_subscription(&app)).is_empty());
     app.cron_settings.active_tab = CronSettingsTab::History;
-    app.system_settings_tab = SystemTab::General;
+    app.navigation_panels.system_settings_tab = SystemTab::General;
     assert!(into_recipes(cron_history_subscription(&app)).is_empty());
 }

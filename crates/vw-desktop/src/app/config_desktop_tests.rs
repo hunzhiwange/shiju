@@ -343,7 +343,7 @@ fn mini_companion_preferences_round_trip_preserves_other_fields() {
     let mut app = App::new().0;
     app.task_pet_avatar_kind = TaskPetAvatarKind::None;
     app.task_pet_scale = 1.5;
-    app.task_pet_visible = true;
+    app.companion_navigation.task_pet_visible = true;
     let save = app.save_task_pet_preferences();
     let messages = super::super::gateway::run_gateway_call(async {
         Ok(collect_preference_messages(save).await)
@@ -360,7 +360,7 @@ fn mini_companion_preferences_round_trip_preserves_other_fields() {
     let _ = restored.update(Message::StartupAppConfigLoaded(Ok(cfg)));
     assert_eq!(restored.task_pet_avatar_kind, TaskPetAvatarKind::None);
     assert_eq!(restored.task_pet_scale, 1.5);
-    assert!(restored.task_pet_visible);
+    assert!(restored.companion_navigation.task_pet_visible);
     assert!(restored.task_pet_window_id.is_some());
     assert_eq!(server.take_requests().len(), 2);
 }
@@ -372,14 +372,14 @@ fn mini_companion_late_load_keeps_local_edit() {
     let (_lock, _home, _guard) = temp_home();
     let mut app = App::new().0;
     app.task_pet_avatar_kind = TaskPetAvatarKind::Beauty;
-    app.task_pet_visible = false;
+    app.companion_navigation.task_pet_visible = false;
     let _save = app.save_task_pet_preferences();
     let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({
         "mini_companion": {"avatar":"robot", "scale":2.0, "visible":true}
     }))));
     assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Beauty);
     assert_eq!(app.task_pet_scale, 1.0);
-    assert!(!app.task_pet_visible);
+    assert!(!app.companion_navigation.task_pet_visible);
     assert!(app.task_pet_window_id.is_none());
 }
 
@@ -443,7 +443,7 @@ fn mini_companion_old_endpoint_snapshot_cannot_restore_visibility() {
         external_apps: None,
     };
     let _ = app.update(Message::StartupGatewaySnapshotLoaded(1, Box::new(snapshot)));
-    assert!(!app.task_pet_visible);
+    assert!(!app.companion_navigation.task_pet_visible);
     assert_eq!(app.task_pet_scale, 1.0);
     assert!(app.task_pet_window_id.is_none());
 }
@@ -470,11 +470,11 @@ fn mini_companion_queued_edits_save_latest_without_reopening_window() {
     });
     let (_lock, _home, _guard) = configure_gateway(server.port);
     let mut app = App::new().0;
-    app.task_pet_visible = true;
+    app.companion_navigation.task_pet_visible = true;
     let first = app.save_task_pet_preferences();
     app.task_pet_avatar_kind = TaskPetAvatarKind::None;
     assert!(iced_runtime::task::into_stream(app.save_task_pet_preferences()).is_none());
-    app.task_pet_visible = false;
+    app.companion_navigation.task_pet_visible = false;
     app.set_task_pet_scale(1.75).unwrap();
     assert!(iced_runtime::task::into_stream(app.save_task_pet_preferences()).is_none());
     let messages = super::super::gateway::run_gateway_call(async {
@@ -492,7 +492,7 @@ fn mini_companion_queued_edits_save_latest_without_reopening_window() {
     let done = app.update(messages.into_iter().next().unwrap());
     assert!(iced_runtime::task::into_stream(done).is_none());
     assert!(app.task_pet_window_id.is_none());
-    assert!(!app.task_pet_visible);
+    assert!(!app.companion_navigation.task_pet_visible);
     assert_eq!(server.take_requests().len(), 2);
 }
 
@@ -503,7 +503,7 @@ fn mini_companion_defaults_and_loaded_scale_are_bounded() {
     let mut app = App::new().0;
     assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Robot);
     assert_eq!(app.task_pet_scale, 1.0);
-    assert!(!app.task_pet_visible);
+    assert!(!app.companion_navigation.task_pet_visible);
     let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({
         "mini_companion":{"avatar":"unknown", "scale":99.0, "visible":false}
     }))));

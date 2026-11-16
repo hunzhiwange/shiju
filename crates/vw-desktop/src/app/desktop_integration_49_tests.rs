@@ -21,9 +21,9 @@ fn desktop_integration_49_preserves_expected_behavior() {
     assert!(!app.desktop_update.busy);
     assert!(app.desktop_update.ready.is_none());
     assert!(app.desktop_update.download_abort.is_none());
-    assert!(app.app_update_progress_rx.is_none());
-    assert!(app.cli_install_modal_show_install_action);
-    assert!(!app.cli_install_modal_is_checking_update);
+    assert!(app.update_panel.app_update_progress_rx.is_none());
+    assert!(app.update_panel.cli_install_modal_show_install_action);
+    assert!(!app.update_panel.cli_install_modal_is_checking_update);
     assert_eq!(app.desktop_update.release, Some(release));
 
     let retry = view::update(&mut app, ViewMessage::RunAppUpdate);
@@ -36,15 +36,15 @@ fn desktop_integration_49_preserves_expected_behavior() {
     );
     assert!(app.desktop_update.busy);
     assert!(app.desktop_update.download_abort.is_some());
-    assert!(app.app_update_progress_rx.is_some());
-    assert!(!app.cli_install_modal_message.contains("old download"));
+    assert!(app.update_panel.app_update_progress_rx.is_some());
+    assert!(!app.update_panel.cli_install_modal_message.contains("old download"));
     let _ = view::update(
         &mut app,
         ViewMessage::AppUpdateDownloadPrepared(retry_request, Err("retry failed".into())),
     );
     assert!(!app.desktop_update.busy);
     assert!(app.desktop_update.download_abort.is_none());
-    assert!(app.cli_install_modal_show_install_action);
+    assert!(app.update_panel.cli_install_modal_show_install_action);
     // Cancellation cannot interrupt an installer once download preparation has ended.
     app.desktop_update.busy = true;
     let _ = view::update(&mut app, ViewMessage::CancelAppUpdate);

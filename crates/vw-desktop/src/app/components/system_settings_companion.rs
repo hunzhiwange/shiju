@@ -5,7 +5,7 @@ use iced::Element;
 use desktop_settings_appearance::companion as domain;
 fn avatars() -> [TaskPetAvatarKind; 4] { [TaskPetAvatarKind::None, TaskPetAvatarKind::Robot, TaskPetAvatarKind::Beauty, TaskPetAvatarKind::Handsome] }
 pub fn content(app: &App) -> Element<'_, Message> {
- domain::content(&domain::View { desktop_locale: app.desktop_locale, task_pet_visible: app.task_pet_visible, task_pet_avatar_kind: app.task_pet_avatar_kind, preview_scale: app.task_pet_preview_scale() }, avatars(), map_message, super::task_pet::avatar_preview)
+ domain::content(&domain::View { desktop_locale: app.desktop_locale, task_pet_visible: app.companion_navigation.task_pet_visible, task_pet_avatar_kind: app.task_pet_avatar_kind, preview_scale: app.task_pet_preview_scale() }, avatars(), map_message, super::task_pet::avatar_preview)
 }
 fn map_message(action: domain::Action<TaskPetAvatarKind>) -> Message { Message::View(match action {
  domain::Action::TaskPetToggleWindow => ViewMessage::TaskPetToggleWindow,

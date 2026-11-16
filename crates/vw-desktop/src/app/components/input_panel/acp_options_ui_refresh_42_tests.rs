@@ -353,7 +353,7 @@ async fn ui_refresh_42_model_search_stays_visible_in_short_overlay() {
         return;
     }
     let mut app = fixture();
-    app.show_model_popover = true;
+    app.popover_visibility.model = true;
     let mut renderer = renderer().await;
     let size = Size::new(420, 300);
     let mut ui = scene(model_overlay(&app), &mut renderer, size);
@@ -652,7 +652,7 @@ async fn ui_refresh_42_acp_permission_modes_reflect_grant_and_readback() {
         return;
     }
     let mut app = fixture();
-    app.project_path = Some("/workspace".into());
+    app.navigation_tabs.project_path = Some("/workspace".into());
     let mut renderer = renderer().await;
     let size = Size::new(520, 560);
     for (full, busy, support, theme, expected) in [

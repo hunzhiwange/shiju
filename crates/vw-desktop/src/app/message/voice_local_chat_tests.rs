@@ -2,7 +2,7 @@ use super::*;
 use crate::app::message::chat::{self, ChatMessage};
 pub(super) fn app() -> App {
     let (mut app, _) = App::new();
-    app.project_path = Some("/repo".into());
+    app.navigation_tabs.project_path = Some("/repo".into());
     app.active_session_id = Some("local-turn".into());
     app.active_session_view_state.base_ready = true;
     app.active_session_view_state.ui_preparing = false;

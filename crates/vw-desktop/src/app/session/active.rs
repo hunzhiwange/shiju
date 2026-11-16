@@ -107,8 +107,8 @@ impl App {
         self.chat_reset_menu_idx = None;
         self.chat_fork_dialog = None;
         self.input_popovers.agent_sessions = false;
-        self.show_session_tool_selector_popover = false;
-        self.show_session_actions_popover = false;
+        self.popover_visibility.session_tool_selector = false;
+        self.popover_visibility.session_actions = false;
     }
 
     pub fn rebuild_active_session_message_meta(&mut self) {

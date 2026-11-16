@@ -59,7 +59,7 @@ fn lsp_tab_content_reports_disabled_state_first() {
     let mut app = test_app();
     app.lsp_disabled = true;
     app.lsp_status = Some("LSP ready".to_string());
-    app.preview_tabs.push(preview_tab_with_lsp(Some("rust-analyzer")));
+    app.navigation_tabs.preview_tabs.push(preview_tab_with_lsp(Some("rust-analyzer")));
 
     let rows = lsp_tab_content(&app);
 
@@ -82,8 +82,8 @@ fn lsp_tab_content_reports_empty_status_when_no_servers_exist() {
 fn lsp_tab_content_deduplicates_keys_and_appends_status() {
     let mut app = test_app();
     app.lsp_status = Some("LSP 已连接".to_string());
-    app.preview_tabs.push(preview_tab_with_lsp(Some("rust-analyzer")));
-    app.preview_tabs.push(preview_tab_with_lsp(Some("rust-analyzer")));
+    app.navigation_tabs.preview_tabs.push(preview_tab_with_lsp(Some("rust-analyzer")));
+    app.navigation_tabs.preview_tabs.push(preview_tab_with_lsp(Some("rust-analyzer")));
     app.lsp_progress.insert("rust-analyzer".to_string(), HashMap::new());
 
     let rows = lsp_tab_content(&app);

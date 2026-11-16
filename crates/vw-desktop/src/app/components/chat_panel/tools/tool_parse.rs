@@ -28,5 +28,5 @@ pub use desktop_chat_tools::tools::tool_parse::{
 };
 
 pub fn resolve_output_path(app: &crate::app::App, output_path: &str) -> String {
-    desktop_chat_tools::tools::tool_parse::resolve_output_path(app.project_path.as_deref(), output_path)
+    desktop_chat_tools::tools::tool_parse::resolve_output_path(app.navigation_tabs.project_path.as_deref(), output_path)
 }

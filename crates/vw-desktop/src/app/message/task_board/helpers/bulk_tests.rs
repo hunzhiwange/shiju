@@ -41,7 +41,7 @@ async fn empty_gateway_bulk_wrappers_short_circuit_without_gateway_access() {
 #[test]
 fn start_manual_merge_queue_task_without_project_clears_queue_and_notifies() {
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = None;
+    app.navigation_tabs.project_path = None;
     app.task_board_tasks = vec![task("T-merge", TaskStatus::PrSubmitted)];
     app.task_board_manual_merge_queue = vec!["T-merge".to_string()];
     app.notifications.clear();
@@ -56,7 +56,7 @@ fn start_manual_merge_queue_task_without_project_clears_queue_and_notifies() {
 #[test]
 fn manual_merge_without_eligible_task_does_not_notify() {
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some("/tmp/project".into());
+    app.navigation_tabs.project_path = Some("/tmp/project".into());
     app.task_board_tasks = vec![task("T-pending", TaskStatus::Pending)];
     app.task_board_manual_merge_queue = vec!["T-missing".into(), "T-pending".into()];
     app.notifications.clear();

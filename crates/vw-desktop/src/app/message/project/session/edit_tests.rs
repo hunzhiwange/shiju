@@ -139,7 +139,7 @@ fn project_accepts_custom_registered_workflow() {
     let _guard = RuntimeWorkflowGuard::with_workflows(vec![custom_workflow(workflow_id)]);
     let mut app = app();
     let path = "/tmp/project-custom-workflow".to_string();
-    app.project_path = Some(path.clone());
+    app.navigation_tabs.project_path = Some(path.clone());
     app.recent_projects = vec![path.clone()];
     app.project_editor.project_edit_path = Some(path.clone());
     app.project_editor.project_edit_name = "Project".to_string();
@@ -240,14 +240,14 @@ fn edit_runtime_success_is_silent_and_unhandled_message_is_delegated() {
         ),
     );
     assert!(delegated.is_none());
-    assert!(app.project_path.is_none());
+    assert!(app.navigation_tabs.project_path.is_none());
 }
 
 #[test]
 fn edit_save_updates_meta_worktree_and_resets_editor_state() {
     let mut app = app();
     let path = "/tmp/project".to_string();
-    app.project_path = Some(path.clone());
+    app.navigation_tabs.project_path = Some(path.clone());
     app.recent_projects = vec![path.clone()];
     app.recent_projects_edits = vec!["Old".to_string()];
     app.project_editor.project_edit_path = Some(path.clone());
@@ -298,7 +298,7 @@ fn recent_remove_pressed_allows_current_project_confirmation() {
     let current = "/tmp/current".to_string();
     app.recent_projects = vec![current.clone()];
     app.recent_projects_edits = vec!["Current".to_string()];
-    app.project_path = Some(current.clone());
+    app.navigation_tabs.project_path = Some(current.clone());
     app.project_tools_menu_path = Some(current.clone());
 
     let _ = super::handle(
@@ -321,7 +321,7 @@ fn recent_remove_confirmed_current_project_selects_first_remaining_project() {
     let next = "/tmp/next".to_string();
     app.recent_projects = vec![current.clone(), next.clone()];
     app.recent_projects_edits = vec!["Current".to_string(), "Next".to_string()];
-    app.project_path = Some(current.clone());
+    app.navigation_tabs.project_path = Some(current.clone());
     app.recent_project_remove_confirm_path = Some(current.clone());
 
     let _ = super::handle(
@@ -330,7 +330,7 @@ fn recent_remove_confirmed_current_project_selects_first_remaining_project() {
     );
 
     assert_eq!(app.recent_projects, vec![next.clone()]);
-    assert_eq!(app.project_path, Some(next));
+    assert_eq!(app.navigation_tabs.project_path, Some(next));
     assert!(app.recent_project_remove_confirm_path.is_none());
     assert!(app.active_toast.is_none());
 }

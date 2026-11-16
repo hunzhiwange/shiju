@@ -34,7 +34,7 @@ ProjectMessage::FileTreeFindTabMenuCloseAll => FindMessage::FileTreeFindTabMenuC
  state.active_find_results_tab_id = app.active_find_results_tab_id.take();
  state.find_results_tab_menu_id = app.find_results_tab_menu_id.take();
  state.find_results_tab_menu_pos = app.find_results_tab_menu_pos.take();
- let effects = desktop_workspace::project_message::find::handle(&mut state, app.project_path.as_deref(), files, message);
+ let effects = desktop_workspace::project_message::find::handle(&mut state, app.navigation_tabs.project_path.as_deref(), files, message);
  app.find_results_tabs = state.find_results_tabs;
  app.active_find_results_tab_id = state.active_find_results_tab_id;
  app.find_results_tab_menu_id = state.find_results_tab_menu_id;
@@ -46,22 +46,22 @@ ProjectMessage::FileTreeFindTabMenuCloseAll => FindMessage::FileTreeFindTabMenuC
  FindEffect::Search {tab_id,title,scope_path,query,replace_text,case_sensitive,whole_word,use_regex,files} => tasks.push(run_find_task(tab_id,title,scope_path,query,replace_text,case_sensitive,whole_word,use_regex,files)),
  FindEffect::Open {id,count} => {
   let open_tab_id = format!("find:{id}");
-  if !app.open_tabs.iter().any(|t| t.id == open_tab_id) {
-   app.open_tabs.push(AppTab {id: open_tab_id.clone(), title: format!("查找结果 {count}"), screen: Screen::Project, project_path: app.project_path.clone()});
+  if !app.navigation_tabs.open_tabs.iter().any(|t| t.id == open_tab_id) {
+   app.navigation_tabs.open_tabs.push(AppTab {id: open_tab_id.clone(), title: format!("查找结果 {count}"), screen: Screen::Project, project_path: app.navigation_tabs.project_path.clone()});
   }
-  app.active_tab_id = Some(open_tab_id); app.screen = Screen::Project;
+  app.navigation_tabs.active_tab_id = Some(open_tab_id); app.navigation_tabs.screen = Screen::Project;
   tasks.push(app.save_desktop_preference("show_file_manager", serde_json::Value::Bool(true)));
  },
  FindEffect::Close {id,closing_active_find,active_find} => {
   let open_tab_id = format!("find:{id}");
-  let closing_active_open = app.active_tab_id.as_deref() == Some(open_tab_id.as_str());
-  app.open_tabs.retain(|tab| tab.id != open_tab_id);
+  let closing_active_open = app.navigation_tabs.active_tab_id.as_deref() == Some(open_tab_id.as_str());
+  app.navigation_tabs.open_tabs.retain(|tab| tab.id != open_tab_id);
   if closing_active_find && let Some(active_find_id) = active_find.as_deref()
-   && let Some(tab) = app.open_tabs.iter().find(|tab| tab.id == format!("find:{active_find_id}")) {
-    app.active_tab_id = Some(tab.id.clone()); app.screen = tab.screen;
+   && let Some(tab) = app.navigation_tabs.open_tabs.iter().find(|tab| tab.id == format!("find:{active_find_id}")) {
+    app.navigation_tabs.active_tab_id = Some(tab.id.clone()); app.navigation_tabs.screen = tab.screen;
   } else if closing_active_open {
-   app.active_tab_id = app.open_tabs.last().map(|tab| tab.id.clone());
-   if let Some(tab) = app.active_tab_id.as_deref().and_then(|id| app.open_tabs.iter().find(|tab| tab.id == id)) { app.screen = tab.screen; }
+   app.navigation_tabs.active_tab_id = app.navigation_tabs.open_tabs.last().map(|tab| tab.id.clone());
+   if let Some(tab) = app.navigation_tabs.active_tab_id.as_deref().and_then(|id| app.navigation_tabs.open_tabs.iter().find(|tab| tab.id == id)) { app.navigation_tabs.screen = tab.screen; }
   }
  },
  FindEffect::Preview {path,line,column} => {

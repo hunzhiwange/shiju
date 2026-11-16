@@ -148,7 +148,7 @@ fn main() {
             app.app_theme = Theme::Light;
             app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
             app.active_session_id = Some("render-session".into());
-            app.project_path = Some(root.to_string_lossy().into_owned());
+            app.navigation_tabs.project_path = Some(root.to_string_lossy().into_owned());
             let runtime = app.get_session_runtime_mut("render-session");
             runtime.acp_agent = Some("copilot".into());
             runtime.acp_model_source =

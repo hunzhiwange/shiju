@@ -11,11 +11,11 @@ fn diagnostic_desktop_endpoint_selection_requires_save() {
     crate::app::config::with_settings_gateway(|_requests, _responses| {
         let mut app = App::new().0;
         app.project_id = Some("project".into());
-        app.project_path = Some("/fixture".into());
+        app.navigation_tabs.project_path = Some("/fixture".into());
         app.apps_catalog.host = "host".into();
         app.apps_catalog.token = "fixture-token".into();
-        app.show_system_settings = true;
-        app.system_settings_tab = crate::app::components::system_settings::SystemTab::Apps;
+        app.navigation_panels.show_system_settings = true;
+        app.navigation_panels.system_settings_tab = crate::app::components::system_settings::SystemTab::Apps;
         let (_, scope) =
             crate::app::message::app_providers::list::current(&app, AppId::Claude).unwrap();
         app.apps_catalog.context = Some(scope.context.clone());

@@ -237,7 +237,7 @@ fn project_panel_uses_path_fallback_for_unknown_or_blank_recent_names() {
     let mut app = test_app();
     app.recent_projects = vec!["/tmp/project".to_string()];
     app.recent_projects_edits = vec!["   ".to_string()];
-    app.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
 
     keep_element(project_sessions_panel(&app, Some("/tmp/project".to_string())));
     keep_element(project_sessions_panel(&app, Some("/tmp/unknown-project".to_string())));
@@ -252,7 +252,7 @@ fn plan_run_live_children_integrate_with_session_visibility() {
     const BATCH_TWO_ID: &str = "task-1-sub-2";
 
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some(DIRECTORY.to_string());
+    app.navigation_tabs.project_path = Some(DIRECTORY.to_string());
     app.active_session_id = Some(MAIN_ID.to_string());
 
     let mut main = session(MAIN_ID, "主会话", DIRECTORY, false);

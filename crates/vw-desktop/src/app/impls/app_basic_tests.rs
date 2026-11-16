@@ -144,14 +144,14 @@ fn title_covers_each_screen_and_pet_window_override() {
     ];
 
     for (screen, title) in expected {
-        app.screen = screen;
+        app.navigation_tabs.screen = screen;
         assert_eq!(app.title(), title);
     }
 
     let pet_window = iced::window::Id::unique();
     let main_window = iced::window::Id::unique();
     app.task_pet_window_id = Some(pet_window);
-    app.screen = Screen::Project;
+    app.navigation_tabs.screen = Screen::Project;
     assert_eq!(app.title_for_window(pet_window), "VibeWindow Pet");
     assert_eq!(app.title_for_window(main_window), "识矩 - 项目");
 }
@@ -159,7 +159,7 @@ fn title_covers_each_screen_and_pet_window_override() {
 #[test]
 fn file_index_cache_tracks_project_results_and_tree_model() {
     let mut app = new_app();
-    app.project_path = Some("/workspace".to_string());
+    app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.search.search_text = " SRC\\LIB ".to_string();
     app.file_search_query = "src".to_string();
 
@@ -187,7 +187,7 @@ fn file_index_cache_tracks_project_results_and_tree_model() {
     app.refresh_search_panel_file_cache();
     assert_eq!(app.cached_search_panel_file_results(), cached_results);
 
-    app.project_path = Some("/other".to_string());
+    app.navigation_tabs.project_path = Some("/other".to_string());
     assert!(app.current_file_index().is_empty());
     assert!(app.current_file_tree_model().is_none());
 }
@@ -195,7 +195,7 @@ fn file_index_cache_tracks_project_results_and_tree_model() {
 #[test]
 fn search_panel_file_cache_limits_to_first_eight_matches() {
     let mut app = new_app();
-    app.project_path = Some("/workspace".to_string());
+    app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.search.search_text = "src".to_string();
     app.set_file_index(
         "/workspace",
@@ -210,7 +210,7 @@ fn search_panel_file_cache_limits_to_first_eight_matches() {
 #[test]
 fn search_caches_keep_entries_when_cache_keys_match() {
     let mut app = new_app();
-    app.project_path = Some("/workspace".to_string());
+    app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.file_index_revision = 9;
 
     app.search.search_text = " SRC\\ ".to_string();
@@ -242,7 +242,7 @@ fn search_caches_invalidate_for_query_project_and_revision_changes() {
     app.file_index_cache
         .insert("/workspace".to_string(), vec!["src/lib.rs".to_string(), "README.md".to_string()]);
     app.file_index_cache.insert("/other".to_string(), vec!["src/library.rs".to_string()]);
-    app.project_path = Some("/workspace".to_string());
+    app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.file_index_revision = 10;
     app.search.search_text = " SRC\\LIB ".to_string();
     app.file_search_query = String::new();
@@ -254,7 +254,7 @@ fn search_caches_invalidate_for_query_project_and_revision_changes() {
     assert_eq!(app.cached_search_panel_file_results(), ["src/lib.rs"]);
     assert!(app.cached_file_search_entries().iter().any(|entry| entry.path == "src/lib.rs"));
 
-    app.project_path = Some("/other".to_string());
+    app.navigation_tabs.project_path = Some("/other".to_string());
     app.refresh_search_panel_file_cache();
     app.refresh_file_search_cache();
 
@@ -280,7 +280,7 @@ fn set_file_index_overwrites_existing_files_and_wraps_revision() {
     app.file_index_cache.clear();
     app.file_tree_model_cache.clear();
     app.file_index_cache.insert("/workspace".to_string(), vec!["old.rs".to_string()]);
-    app.project_path = Some("/workspace".to_string());
+    app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.search.search_text = "new".to_string();
     app.file_search_query = "new".to_string();
     app.file_index_revision = u64::MAX;
@@ -300,12 +300,12 @@ fn set_file_index_overwrites_existing_files_and_wraps_revision() {
 #[test]
 fn can_open_external_defaults_false_and_uses_cached_value() {
     let mut app = new_app();
-    app.open_external_exists.clear();
+    app.external_navigation.open_external_exists.clear();
 
     assert!(!app.can_open_external(ExternalOpenApp::VSCode));
 
-    app.open_external_exists.insert(ExternalOpenApp::VSCode, true);
-    app.open_external_exists.insert(ExternalOpenApp::Cursor, false);
+    app.external_navigation.open_external_exists.insert(ExternalOpenApp::VSCode, true);
+    app.external_navigation.open_external_exists.insert(ExternalOpenApp::Cursor, false);
     assert!(app.can_open_external(ExternalOpenApp::VSCode));
     assert!(!app.can_open_external(ExternalOpenApp::Cursor));
 }

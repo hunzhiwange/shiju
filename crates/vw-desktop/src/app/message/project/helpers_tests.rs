@@ -60,14 +60,14 @@ fn append_local_attachments_adds_only_new_valid_files() {
 #[test]
 fn find_session_project_path_falls_back_to_active_project() {
     let (mut app, _task) = App::new();
-    app.project_path = Some("/active/project".to_string());
+    app.navigation_tabs.project_path = Some("/active/project".to_string());
 
     assert_eq!(
         find_session_project_path(&app, "missing-session"),
         Some("/active/project".to_string())
     );
 
-    app.project_path = None;
+    app.navigation_tabs.project_path = None;
     assert_eq!(find_session_project_path(&app, "missing-session"), None);
 }
 
@@ -222,9 +222,9 @@ async fn file_tree_empty_directory_async_refresh_retains_originating_project() {
     fs::write(directory.path().join("readme.txt"), "content").unwrap();
     let root = directory.path().to_string_lossy().into_owned();
     let mut app = App::new().0;
-    app.project_path = Some(root.clone());
+    app.navigation_tabs.project_path = Some(root.clone());
     let task = refresh_file_index(&app);
-    app.project_path = Some("/different-project".into());
+    app.navigation_tabs.project_path = Some("/different-project".into());
     let messages = collect_task_messages(task).await;
     assert_eq!(messages.len(), 1);
     let crate::app::Message::Project(super::ProjectMessage::FileTreeSnapshotReady {

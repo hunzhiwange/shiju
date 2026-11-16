@@ -12,7 +12,7 @@ use vw_api_project::ProjectDto;
 pub(crate) use desktop_workspace::project_message::attachments::is_supported_image_attachment;
 pub(crate) fn collect_local_attachments(app: &App, picked: Vec<String>) -> (Vec<String>, Vec<ProjectFeedback>) {
     desktop_workspace::project_message::attachments::collect_local_attachments(
-        &app.files, app.project_path.as_deref(), app.multimodal_settings.max_images,
+        &app.files, app.navigation_tabs.project_path.as_deref(), app.multimodal_settings.max_images,
         app.multimodal_settings.max_image_size_mb, picked,
     )
 }
@@ -55,7 +55,7 @@ pub use desktop_workspace::project_message::data::FileTreeIndexSnapshot;
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 失败会被转换为界面可展示的状态或消息，避免在处理链路中静默丢失。
 pub(crate) fn refresh_file_index(app: &App) -> Task<Message> {
-    let Some(root) = app.project_path.clone() else {
+    let Some(root) = app.navigation_tabs.project_path.clone() else {
         return Task::none();
     };
     // 耗时或平台相关操作交给异步任务，避免阻塞界面消息循环。
@@ -128,7 +128,7 @@ pub(crate) fn find_session_project_path(app: &App, session_id: &str) -> Option<S
         .find_map(|(path, sessions)| {
             sessions.iter().any(|s| s.id == session_id).then(|| path.clone())
         })
-        .or_else(|| app.project_path.clone())
+        .or_else(|| app.navigation_tabs.project_path.clone())
 }
 
 /// now_ms 处理当前模块对应的消息或状态转换。

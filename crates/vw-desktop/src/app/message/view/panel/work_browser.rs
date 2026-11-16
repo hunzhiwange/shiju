@@ -14,10 +14,10 @@ fn map(message: domain::Message) -> Message { Message::View(match message {
 }) }
 fn placement(app: &App) -> domain::Placement {
     domain::Placement {
-        project_screen: app.screen == crate::app::Screen::Project,
+        project_screen: app.navigation_tabs.screen == crate::app::Screen::Project,
         work_mode: app.navigation_mode.workspace_mode == crate::app::state::WorkspaceMode::Work,
         browser_resource: app.navigation_workspace.work_resource_mode == crate::app::state::WorkResourceMode::Browser,
-        resources_visible: app.navigation_workspace.work_resources_visible, system_settings_open: app.show_system_settings,
+        resources_visible: app.navigation_workspace.work_resources_visible, system_settings_open: app.navigation_panels.show_system_settings,
         chat_fullscreen: app.navigation_workspace.work_chat_fullscreen, chat_half_fullscreen: app.navigation_workspace.work_chat_half_fullscreen,
         window_position: app.window_position, window_size: app.window_size,
         sidebar_collapsed: app.navigation_sidebar.work_sidebar_collapsed, sidebar_width: app.layout_drag.work_sidebar_width,
@@ -54,15 +54,11 @@ pub(super) fn sync_lifecycle(app: &mut App) -> Task<Message> {
     let error = domain::sync_lifecycle(&mut app.work_browser, #[cfg(not(target_arch = "wasm32"))] &mut app.work_browser_controller, &placement);
     finish(app, error)
 }
-#[cfg(test)]
-fn external_browser_message(address: &str) -> Option<Message> { domain::external_browser_message(address).map(map) }
 #[cfg(all(test, not(target_arch = "wasm32")))]
 fn sync_lifecycle_result(app: &mut App) -> Result<bool, String> {
     let placement = placement(app);
     domain::sync_lifecycle_result(&mut app.work_browser, &mut app.work_browser_controller, &placement)
 }
-#[cfg(test)]
-use domain::{BROWSER_CONTENT_TOP_INSET, RESOURCE_PANEL_HEADER_HEIGHT, BROWSER_TOOLBAR_MAX_HEIGHT, BROWSER_TOOLBAR_CONTENT_GAP};
 #[cfg(test)]
 const BROWSER_BOTTOM_INSET: f32 = crate::app::impls::STATUS_BAR_HEIGHT + domain::BROWSER_BOTTOM_GAP;
 #[cfg(test)]

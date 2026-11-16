@@ -115,8 +115,8 @@ mod trajectory_raw {
 
         assert!(!projection.records.is_empty());
         assert_eq!(app.active_session_view_state.step_llm_raw.get(&key), Some(&reconstructed));
-        assert!(!app.usage_step_raw_payloads.contains_key(&key));
-        let modal = app.usage_step_raw_modal.as_ref().expect("shared raw modal");
+        assert!(!app.usage_panel.usage_step_raw_payloads.contains_key(&key));
+        let modal = app.usage_panel.usage_step_raw_modal.as_ref().expect("shared raw modal");
         assert_eq!(
             serde_json::from_str::<serde_json::Value>(&modal.content).unwrap(),
             reconstructed
@@ -223,7 +223,7 @@ fn trajectory_snapshot_refresh_populates_raw_without_opening_usage_modal() {
     assert!(app.active_session_view_state.steps.iter().any(|step| step.index == 3));
     assert!(app.active_session_view_state.step_llm_raw.contains_key(&key));
     assert!(app.active_session_view_state.llm_raw_step_indices.contains(&key));
-    assert!(app.usage_step_raw_modal.is_none());
+    assert!(app.usage_panel.usage_step_raw_modal.is_none());
 }
 
 #[test]

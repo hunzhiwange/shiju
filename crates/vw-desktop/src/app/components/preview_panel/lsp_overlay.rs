@@ -30,11 +30,11 @@ pub(super) fn map_lsp_overlay_message(msg: iced_code_editor::LspOverlayMessage) 
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn lsp_overlay(app: &App) -> iced::Element<'_, Message> {
-    let editor = app.active_preview_path.as_ref().and_then(|path| {
-        app.preview_tabs.iter().find(|tab| &tab.path == path).map(|tab| &tab.editor.inner)
+    let editor = app.navigation_tabs.active_preview_path.as_ref().and_then(|path| {
+        app.navigation_tabs.preview_tabs.iter().find(|tab| &tab.path == path).map(|tab| &tab.editor.inner)
     });
     desktop_editor::components::preview_panel::lsp_overlay::lsp_overlay(
-        app.active_preview_path.as_deref(), app.lsp_overlay_path.as_deref(), editor,
+        app.navigation_tabs.active_preview_path.as_deref(), app.lsp_overlay_path.as_deref(), editor,
         &app.lsp_overlay, app.effective_editor_theme_ref(), app.current_font_size, app.current_line_height,
     ).map(map_lsp_overlay_message)
 }

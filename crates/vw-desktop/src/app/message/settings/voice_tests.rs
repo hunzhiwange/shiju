@@ -6,8 +6,8 @@ use config_voice::VoiceConfig;
 fn voice_task_13_route_change_cancels_activity_without_persisting() {
     use crate::app::voice::preferences::VoiceEngine;
     let (mut app, _) = App::new();
-    app.show_system_settings = true;
-    app.system_settings_tab = crate::app::components::system_settings::SystemTab::Voice;
+    app.navigation_panels.show_system_settings = true;
+    app.navigation_panels.system_settings_tab = crate::app::components::system_settings::SystemTab::Voice;
     let _ = update(&mut app, Event::Open);
     let _ = update(&mut app, Event::Loaded(1, Ok(Loaded {
         config: VoiceConfig::default(), local: Preferences::default(), devices: vec![],

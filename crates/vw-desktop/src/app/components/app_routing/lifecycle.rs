@@ -9,7 +9,7 @@ fn context(catalog: &AppsCatalogState) -> Option<Context> {
 pub(super) fn current(app: &App) -> Option<Context> {
     let current = context(&app.apps_catalog)?;
     let client = crate::app::config::gateway_client().ok()?;
-    let expected = crate::app::state::AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
+    let expected = crate::app::state::AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.navigation_tabs.project_path.clone() };
     (app.apps_catalog.context.as_ref() == Some(&expected)).then_some(current)
 }
 pub(crate) fn update(app: &mut App, event: Event) -> iced::Task<Message> {

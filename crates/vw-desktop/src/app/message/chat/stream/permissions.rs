@@ -13,7 +13,7 @@ fn permission_directory(app: &App) -> Option<String> {
         .as_deref()
         .and_then(|session_id| app.known_session_directory(session_id))
         .filter(|directory| !directory.trim().is_empty())
-        .or_else(|| app.project_path.clone().filter(|directory| !directory.trim().is_empty()))
+        .or_else(|| app.navigation_tabs.project_path.clone().filter(|directory| !directory.trim().is_empty()))
 }
 
 fn clear_permission_modal(app: &mut App) {

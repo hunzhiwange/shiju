@@ -64,7 +64,7 @@ fn projects_list_builds_with_hover_meta_and_project_attention() {
     app.recent_projects = vec![path.clone()];
     app.recent_projects_edits = vec!["Alpha".to_string()];
     app.recent_projects_meta = vec![recent_meta(&path, Some("A"), Some("#336699"))];
-    app.project_path = Some(path.clone());
+    app.navigation_tabs.project_path = Some(path.clone());
     app.hovered_recent_project = Some(path.clone());
     app.project_sessions.insert(path.clone(), vec![session_info(&session_id, &path)]);
 
@@ -87,7 +87,7 @@ fn projects_list_falls_back_to_current_sessions_for_attention() {
     app.recent_projects = vec![path.clone()];
     app.recent_projects_edits = vec![String::new()];
     app.recent_projects_meta = vec![recent_meta(&path, None, Some("not-a-color"))];
-    app.project_path = Some(path.clone());
+    app.navigation_tabs.project_path = Some(path.clone());
     app.sessions = vec![session_info(&session_id, &path)];
 
     let mut runtime = SessionRuntimeState::new();
@@ -108,7 +108,7 @@ fn projects_list_builds_with_queue_attention() {
 
     app.recent_projects = vec![path.clone()];
     app.recent_projects_edits = vec!["Queue Project".to_string()];
-    app.project_path = Some(path.clone());
+    app.navigation_tabs.project_path = Some(path.clone());
     app.project_sessions.insert(path.clone(), vec![session_info(&session_id, &path)]);
 
     let mut runtime = SessionRuntimeState::new();
@@ -177,7 +177,7 @@ fn projects_list_does_not_use_current_sessions_for_unselected_project() {
     let listed_path = "/tmp/listed".to_string();
     app.recent_projects = vec![listed_path.clone()];
     app.recent_projects_edits = vec![String::new()];
-    app.project_path = Some("/tmp/current".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/current".to_string());
     app.sessions = vec![session_info("current-session", "/tmp/current")];
 
     let mut runtime = SessionRuntimeState::new();

@@ -2,7 +2,7 @@ use crate::app::App;
 use desktop_chat_input::input_panel::usage as domain;
 pub(super) fn input(app: &App) -> domain::Input<'_> {
  domain::Input { steps: &app.active_session_view_state.steps, usage: &app.usage,
- model: app.usage_model_info.as_ref().map(|info| domain::Model {
+ model: app.usage_panel.usage_model_info.as_ref().map(|info| domain::Model {
  input_limit: info.input_limit as u64, context_limit: info.context_limit as u64,
  cost_input_per_million: info.cost_input_per_million, cost_output_per_million: info.cost_output_per_million,
  limit_is_default: info.limit_is_default }) }

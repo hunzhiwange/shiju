@@ -60,8 +60,8 @@ async fn collect_task_messages(task: iced::Task<crate::app::Message>) -> Vec<cra
 fn update_context_menu_and_fullscreen_flags_are_local() {
     let mut app = test_app();
     let path = "/tmp/main.rs".to_string();
-    app.active_preview_path = Some(path.clone());
-    app.preview_tabs = vec![tab(&path, "fn main() {}")];
+    app.navigation_tabs.active_preview_path = Some(path.clone());
+    app.navigation_tabs.preview_tabs = vec![tab(&path, "fn main() {}")];
 
     let _ = update(&mut app, PreviewMessage::ContextMenuOpenForActiveEditor(10.0, 20.0));
     assert!(app.show_preview_context_menu);
@@ -95,7 +95,7 @@ fn context_menu_open_preserves_valid_selection_and_requires_active_path() {
 
     let path = "/tmp/main.rs".to_string();
     let selection = (path.clone(), 2, 3, 4, 5);
-    app.active_preview_path = Some(path);
+    app.navigation_tabs.active_preview_path = Some(path);
     app.preview_context_target = Some(selection.clone());
 
     let _ = update(&mut app, PreviewMessage::ContextMenuOpenForActiveEditor(10.0, 20.0));
@@ -148,7 +148,7 @@ fn preview_context_menu_custom_actions_route_before_editor_update() {
 async fn preview_context_menu_reveal_routes_gateway_path_without_local_file_check() {
     let mut app = test_app();
     let path = "/gateway-only/project/文件.rs".to_string();
-    app.active_preview_path = Some(path.clone());
+    app.navigation_tabs.active_preview_path = Some(path.clone());
     let task = update(
         &mut app,
         PreviewMessage::EditorEvent(iced_code_editor::Message::RevealInFileManager),
@@ -164,8 +164,8 @@ async fn preview_context_menu_reveal_routes_gateway_path_without_local_file_chec
 fn update_editor_event_sets_focus_dirty_and_autosave_revision() {
     let mut app = test_app();
     let path = "/tmp/main.rs".to_string();
-    app.active_preview_path = Some(path.clone());
-    app.preview_tabs = vec![tab(&path, "")];
+    app.navigation_tabs.active_preview_path = Some(path.clone());
+    app.navigation_tabs.preview_tabs = vec![tab(&path, "")];
     app.preview_auto_save_mode = PreviewAutoSaveMode::AfterDelay;
 
     let _ = update(
@@ -174,12 +174,12 @@ fn update_editor_event_sets_focus_dirty_and_autosave_revision() {
     );
 
     assert_eq!(app.focus_area, FocusArea::Preview);
-    assert_eq!(app.preview_tabs[0].editor.content(), "");
-    assert!(!app.preview_tabs[0].is_dirty);
-    assert_eq!(app.preview_tabs[0].auto_save_revision, 0);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), "");
+    assert!(!app.navigation_tabs.preview_tabs[0].is_dirty);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].auto_save_revision, 0);
 
     let _ = update(&mut app, PreviewMessage::EditorEvent(iced_code_editor::Message::MouseRelease));
-    assert_eq!(app.preview_tabs[0].auto_save_revision, 0);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].auto_save_revision, 0);
 }
 
 
@@ -190,14 +190,14 @@ fn non_editing_editor_event_preserves_existing_dirty_state() {
     let path = "/tmp/main.rs".to_string();
     let mut dirty_tab = tab(&path, "unchanged");
     dirty_tab.is_dirty = true;
-    app.active_preview_path = Some(path);
-    app.preview_tabs = vec![dirty_tab];
+    app.navigation_tabs.active_preview_path = Some(path);
+    app.navigation_tabs.preview_tabs = vec![dirty_tab];
 
     let _ = update(&mut app, PreviewMessage::EditorEvent(iced_code_editor::Message::MouseRelease));
 
     assert_eq!(app.focus_area, FocusArea::Preview);
-    assert!(app.preview_tabs[0].is_dirty);
-    assert_eq!(app.preview_tabs[0].auto_save_revision, 0);
+    assert!(app.navigation_tabs.preview_tabs[0].is_dirty);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].auto_save_revision, 0);
 }
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -9,7 +9,7 @@ fn test_module_is_wired() {
 fn start_and_stop_execution_toggle_executor_state_and_scan_cursors() {
     let directory = tempfile::tempdir().unwrap();
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some(directory.path().to_string_lossy().into_owned());
+    app.navigation_tabs.project_path = Some(directory.path().to_string_lossy().into_owned());
     app.project_is_git_repo = true;
     app.task_board_executor_running = false;
     app.task_board_last_log_flush_at_ms = 99;
@@ -39,7 +39,7 @@ async fn task_pool_desktop_non_git_can_start_and_retry() {
     let gateway = DesktopRecordingGateway::start();
     let directory = tempfile::tempdir().unwrap();
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some(directory.path().to_string_lossy().into_owned());
+    app.navigation_tabs.project_path = Some(directory.path().to_string_lossy().into_owned());
     app.project_is_git_repo = false;
     let _ = super::update(&mut app, super::TaskBoardMessage::StartExecution);
     assert!(app.task_board_executor_running);
@@ -88,14 +88,14 @@ async fn task_pool_desktop_non_git_can_start_and_retry() {
 fn execution_and_periodic_ticks_return_without_touching_state_when_disabled() {
     let (mut app, _task) = crate::app::App::new();
     app.task_board_executor_running = false;
-    app.project_path = Some("/tmp/vibewindow-disabled-ticks".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/vibewindow-disabled-ticks".to_string());
 
     let _ = super::update(&mut app, super::TaskBoardMessage::ExecutionTick);
     let _ = super::update(&mut app, super::TaskBoardMessage::AutoCodeReviewTick);
     let _ = super::update(&mut app, super::TaskBoardMessage::AutoMergeTick);
 
     assert!(!app.task_board_executor_running);
-    assert_eq!(app.project_path.as_deref(), Some("/tmp/vibewindow-disabled-ticks"));
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/tmp/vibewindow-disabled-ticks"));
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn in_flight_status_tick_filters_project_and_status_then_dedupes_log() {
     use crate::app::task::{Task, TaskStatus};
 
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/tmp/vibewindow-command-status".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/vibewindow-command-status".to_string());
     let mut task = Task::new(1);
     task.id = "T-merge".to_string();
     task.status = TaskStatus::Pending;
@@ -164,12 +164,12 @@ fn simulate_step_finishes_missing_running_task_without_status_change() {
 fn auto_merge_tick_requires_project_even_when_executor_is_running() {
     let (mut app, _task) = crate::app::App::new();
     app.task_board_executor_running = true;
-    app.project_path = None;
+    app.navigation_tabs.project_path = None;
 
     let _ = super::update(&mut app, super::TaskBoardMessage::AutoMergeTick);
 
     assert!(app.task_board_executor_running);
-    assert!(app.project_path.is_none());
+    assert!(app.navigation_tabs.project_path.is_none());
 }
 
 #[test]
@@ -177,7 +177,7 @@ fn execute_task_without_project_marks_the_task_failed() {
     use crate::app::task::{Task, TaskStatus};
 
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = None;
+    app.navigation_tabs.project_path = None;
     let mut task = Task::new(1);
     task.id = "missing-project".to_string();
     task.status = TaskStatus::Pending;
@@ -198,7 +198,7 @@ fn manual_execute_deduplicates_agent_scheduler_start_log() {
     use crate::app::task::{Task, TaskStatus};
 
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/tmp/vibewindow-agent-scheduler-log-dedupe".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/vibewindow-agent-scheduler-log-dedupe".to_string());
     app.project_is_git_repo = true;
 
     let mut task = Task::new(1);
@@ -229,7 +229,7 @@ fn agent_scheduler_wake_response_does_not_reserve_desktop_running_slot() {
     use vw_api_agent_scheduler::AgentSchedulerWakeResponse;
 
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/tmp/vibewindow-execution-reserve-test".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/vibewindow-execution-reserve-test".to_string());
     app.task_board_executor_running = true;
     app.task_board_settings.max_concurrent = 1;
     app.task_board_worktree_maintenance_in_flight = true;
@@ -327,7 +327,7 @@ fn manual_execute_ignores_task_already_waiting_for_worktree() {
     use crate::app::task::{Task, TaskStatus};
 
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/tmp/vibewindow-manual-duplicate-test".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/vibewindow-manual-duplicate-test".to_string());
     app.project_is_git_repo = true;
 
     let mut task = Task::new(1);
@@ -355,7 +355,7 @@ fn task_pool_desktop_success_does_not_append_git_actions() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().to_string_lossy().into_owned();
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some(path.clone());
+    app.navigation_tabs.project_path = Some(path.clone());
     let mut task = crate::app::task::Task::new(1);
     task.status = crate::app::task::TaskStatus::Running;
     let id = task.id.clone();
@@ -493,7 +493,7 @@ impl Drop for DesktopRecordingGateway {
 fn task_pool_acceptance_capacity_and_employee_interactions_match_baseline() {
     let project = tempfile::tempdir().unwrap();
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some(project.path().display().to_string());
+    app.navigation_tabs.project_path = Some(project.path().display().to_string());
     app.task_board_worktree_desired_capacity = Some(17);
     let expanded = app.task_board_worktree_panel_expanded;
     let _ = crate::app::message::task_board::update(

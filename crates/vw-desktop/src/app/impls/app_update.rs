@@ -42,7 +42,7 @@ fn route_clipboard_shortcut(app: &App, kind: ClipboardShortcutKind) -> Task<Mess
 }
 
 fn copy_shortcut_without_input(app: &mut App) -> Task<Message> {
-    if app.screen == Screen::Project && app.git.show_git_copy_modal {
+    if app.navigation_tabs.screen == Screen::Project && app.git.show_git_copy_modal {
         if app.git.git_copy_modal_use_color {
             message::git::update(
                 app,
@@ -51,14 +51,14 @@ fn copy_shortcut_without_input(app: &mut App) -> Task<Message> {
         } else {
             Task::done(Message::CopyCode(app.git.git_copy_modal_editor.text()))
         }
-    } else if app.screen == Screen::Preview {
+    } else if app.navigation_tabs.screen == Screen::Preview {
         message::editor::update(app, message::EditorMessage::Copy)
-    } else if app.screen == Screen::Project
-        && app.show_diff
+    } else if app.navigation_tabs.screen == Screen::Project
+        && app.navigation_panels.show_diff
         && !app.git.git_diff_selected_lines.is_empty()
     {
         message::git::update(app, message::GitMessage::CopyDiffSelection)
-    } else if app.screen == Screen::Project
+    } else if app.navigation_tabs.screen == Screen::Project
         && let Some(selection) = &app.chat_markdown_selection
         && app.active_session_id.as_deref() == Some(selection.session_id.as_str())
     {
@@ -130,8 +130,8 @@ impl App {
 
     fn apply_external_apps_state(&mut self, platform: Option<RuntimePlatform>, apps: Vec<(String, bool)>) {
         desktop_navigation::external_apps_update::apply_external_apps_state(
-            &mut self.open_external_platform, &mut self.open_external_exists,
-            &mut self.open_external_app, platform, apps,
+            &mut self.open_external_platform, &mut self.external_navigation.open_external_exists,
+            &mut self.external_navigation.open_external_app, platform, apps,
         );
     }
 
@@ -155,8 +155,8 @@ impl App {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn load_startup_sessions(&mut self) -> Task<Message> {
-        if self.screen != Screen::Home
-            || self.project_path.is_some()
+        if self.navigation_tabs.screen != Screen::Home
+            || self.navigation_tabs.project_path.is_some()
             || self.active_session_id.is_some()
             || !self.sessions.is_empty()
         {
@@ -246,14 +246,14 @@ impl App {
         }
         if let Some(Ok(apps)) = snapshot.external_apps {
             let platform = apps.platform.as_deref().and_then(RuntimePlatform::from_gateway_str);
-            let selection = self.open_external_app;
+            let selection = self.external_navigation.open_external_app;
             self.apply_external_apps_state(platform, apps.apps);
             if self.desktop_preference_edited(&scope, "open_external_app") {
-                self.open_external_app = selection;
+                self.external_navigation.open_external_app = selection;
             }
         }
         if (agents_loaded || preferences_loaded)
-            && self.project_path.is_none()
+            && self.navigation_tabs.project_path.is_none()
             && self.active_session_id.is_none()
             && !self.task_board_create_modal_open
             && !self.show_task_board
@@ -303,8 +303,8 @@ impl App {
         }
         self.reasoning_effort = self.current_session_runtime().reasoning_effort;
         self.apply_bootstrap_chat_preferences(&cfg);
-        self.auto_max_mode =
-            cfg.get("auto_max_mode").and_then(|v| v.as_bool()).unwrap_or(self.auto_max_mode);
+        self.navigation_panels.auto_max_mode =
+            cfg.get("auto_max_mode").and_then(|v| v.as_bool()).unwrap_or(self.navigation_panels.auto_max_mode);
         if let Some(workspace_mode) = cfg
             .get("workspace_mode")
             .and_then(|value| value.as_str())
@@ -320,8 +320,8 @@ impl App {
             self.model_settings.input_collapsed_provider_ids =
                 ids.iter().filter_map(|id| id.as_str().map(str::to_owned)).collect();
         }
-        self.show_settings =
-            cfg.get("show_settings").and_then(|v| v.as_bool()).unwrap_or(self.show_settings);
+        self.navigation_panels.show_settings =
+            cfg.get("show_settings").and_then(|v| v.as_bool()).unwrap_or(self.navigation_panels.show_settings);
         self.file_manager.show_file_manager = cfg
             .get("show_file_manager")
             .and_then(|v| v.as_bool())
@@ -338,7 +338,7 @@ impl App {
             .and_then(|v| v.as_str())
             .and_then(Self::parse_external_open_app)
         {
-            self.open_external_app = target;
+            self.external_navigation.open_external_app = target;
         }
         if !self.layout_drag.dragging_file_manager
             && let Some(width) = cfg
@@ -381,7 +381,7 @@ impl App {
             self.new_session_last_directory = value.as_str().map(str::to_owned);
         }
         if cfg.get("web_bookmarks").is_some() {
-            self.web_bookmarks = super::app_init::load_web_bookmarks(&cfg);
+            self.web_navigation.web_bookmarks = super::app_init::load_web_bookmarks(&cfg);
         }
         for (key, setting) in [
             ("show_git_diff_summary", &mut self.git.show_git_diff_summary),
@@ -549,7 +549,7 @@ impl App {
             .unwrap_or_else(|| self.app_theme.clone());
         }
         let editor_theme = self.effective_editor_theme();
-        for tab in self.preview_tabs.iter_mut() {
+        for tab in self.navigation_tabs.preview_tabs.iter_mut() {
             tab.editor.set_theme(editor_theme.clone());
         }
         self.git.git_copy_modal_code_editor.set_theme(theme::from_iced_theme(&editor_theme));
@@ -1026,8 +1026,8 @@ impl App {
         }
 
         #[cfg(not(target_arch = "wasm32"))]
-        if !self.show_system_settings
-            || self.system_settings_tab != crate::app::components::system_settings::SystemTab::Auth
+        if !self.navigation_panels.show_system_settings
+            || self.navigation_panels.system_settings_tab != crate::app::components::system_settings::SystemTab::Auth
         {
             self.agent_apps_auth.login = None;
             self.agent_apps_auth.binding = None;

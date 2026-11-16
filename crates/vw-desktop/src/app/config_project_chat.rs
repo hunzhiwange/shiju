@@ -23,7 +23,7 @@ impl App {
     ) -> Task<Message> {
         let read = self.desktop_preferences_persistence.project_chat.reload(
             gateway_client_endpoint(),
-            self.project_path.clone(),
+            self.navigation_tabs.project_path.clone(),
             project_changed,
             (self.model.clone(), self.auto_model, self.acp_agent.clone()),
         );
@@ -42,7 +42,7 @@ impl App {
         if let Some((model, auto_model, acp_agent)) =
             self.desktop_preferences_persistence.project_chat.loaded(
                 &gateway_client_endpoint(),
-                self.project_path.as_deref(),
+                self.navigation_tabs.project_path.as_deref(),
                 scope,
                 revision,
                 result,
@@ -61,7 +61,7 @@ impl App {
         self.desktop_preferences_persistence
             .save_chat_model_preferences(
                 gateway_client_endpoint(),
-                self.project_path.clone(),
+                self.navigation_tabs.project_path.clone(),
                 (self.model.clone(), self.auto_model, self.acp_agent.clone()),
                 (model, auto_model, self.acp_agent.clone()),
             )

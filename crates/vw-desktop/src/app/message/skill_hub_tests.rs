@@ -272,12 +272,12 @@ fn expert_hub_navigation_follows_project_add_and_reuses_single_tab() {
         app.update(Message::SkillHub(SkillHubMessage::SelectSection(ExpertHubSection::Connectors)));
     let _ = app.update(Message::SkillHub(SkillHubMessage::Open));
 
-    let tabs = app.open_tabs.iter().filter(|tab| tab.id == "expert_hub").collect::<Vec<_>>();
+    let tabs = app.navigation_tabs.open_tabs.iter().filter(|tab| tab.id == "expert_hub").collect::<Vec<_>>();
     assert_eq!(tabs.len(), 1);
     assert_eq!(tabs[0].title, "专家·技能·连接器");
     assert_eq!(tabs[0].screen, Screen::ExpertHub);
-    assert_eq!(app.active_tab_id.as_deref(), Some("expert_hub"));
-    assert_eq!(app.screen, Screen::ExpertHub);
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("expert_hub"));
+    assert_eq!(app.navigation_tabs.screen, Screen::ExpertHub);
     assert_eq!(app.expert_hub.section, ExpertHubSection::Skills);
     assert_eq!(app.expert_hub.skill_tab, SkillTab::Marketplace);
 }
@@ -289,9 +289,9 @@ fn assert_skill_hub_routes_tabs_search_pages_and_account_changes() {
     assert_eq!(app.expert_hub.section, ExpertHubSection::Skills);
     assert!(matches!(app.expert_hub.marketplace, LoadState::Idle));
     let _task = app.update(Message::SkillHub(SkillHubMessage::OpenShijuSkills));
-    assert_eq!(app.screen, Screen::ShijuSkills);
-    assert_eq!(app.active_tab_id.as_deref(), Some("shiju_skills"));
-    let tabs = app.open_tabs.iter().filter(|tab| tab.id == "shiju_skills").collect::<Vec<_>>();
+    assert_eq!(app.navigation_tabs.screen, Screen::ShijuSkills);
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("shiju_skills"));
+    let tabs = app.navigation_tabs.open_tabs.iter().filter(|tab| tab.id == "shiju_skills").collect::<Vec<_>>();
     assert_eq!(tabs.len(), 1);
     assert_eq!(tabs[0].title, "识矩技能");
     assert_eq!(tabs[0].screen, Screen::ShijuSkills);
@@ -554,8 +554,8 @@ fn install_guide_routes_current_package_copy_download_and_direct_install() {
     let _load = app.update(Message::SkillHub(SkillHubMessage::OpenInstallGuide));
 
     assert!(!app.account.menu_open);
-    assert_eq!(app.screen, Screen::ShijuSkills);
-    assert_eq!(app.active_tab_id.as_deref(), Some("shiju_skills"));
+    assert_eq!(app.navigation_tabs.screen, Screen::ShijuSkills);
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("shiju_skills"));
     assert!(app.expert_hub.install_guide.open);
     assert_eq!(app.expert_hub.skill_tab, SkillTab::Install);
     assert_eq!(app.expert_hub.install_guide.current_package, ShijuPackageId::current());
@@ -610,7 +610,7 @@ fn project_scope_requires_open_project() {
     assert!(error.message.contains("项目"));
 
     let project = tempfile::tempdir().expect("project fixture");
-    app.project_path = Some(project.path().to_string_lossy().into_owned());
+    app.navigation_tabs.project_path = Some(project.path().to_string_lossy().into_owned());
     let _ = app.update(Message::SkillHub(SkillHubMessage::SelectShijuInstallScope(
         SkillInstallScope::Project,
     )));

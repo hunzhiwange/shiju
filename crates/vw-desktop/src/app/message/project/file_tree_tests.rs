@@ -140,7 +140,7 @@ fn rename_save_without_target_or_project_is_safely_ignored() {
 #[test]
 fn rename_save_with_project_queues_operation_and_clears_editor_state() {
     let mut app = app();
-    app.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
     app.file_tree_interaction.file_tree_rename_path = Some("/tmp/project/a.txt".to_string());
     app.file_tree_interaction.file_tree_rename_value = " b.txt ".to_string();
 
@@ -155,7 +155,7 @@ fn rename_save_with_project_queues_operation_and_clears_editor_state() {
 #[test]
 fn rename_unchanged_name_closes_editor_without_moving_file() {
     let mut app = app();
-    app.project_path = Some("/tmp/project".into());
+    app.navigation_tabs.project_path = Some("/tmp/project".into());
     app.files = vec!["/tmp/project/ACP验收.md".into()];
     app.file_tree_interaction.file_tree_rename_path = Some(app.files[0].clone());
     app.file_tree_interaction.file_tree_rename_value = "ACP验收.md".into();
@@ -171,10 +171,10 @@ fn rename_unchanged_name_closes_editor_without_moving_file() {
 #[test]
 fn rename_completed_updates_preview_paths_on_success() {
     let mut app = app();
-    app.project_path = Some("/tmp/project".to_string());
-    app.preview_tabs.push(preview_tab("/tmp/project/src/old.rs"));
-    app.preview_tabs.push(preview_tab("/tmp/project/src/old.rs/nested.txt"));
-    app.active_preview_path = Some("/tmp/project/src/old.rs".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/project/src/old.rs"));
+    app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/project/src/old.rs/nested.txt"));
+    app.navigation_tabs.active_preview_path = Some("/tmp/project/src/old.rs".to_string());
 
     let _ = super::handle(
         &mut app,
@@ -184,17 +184,17 @@ fn rename_completed_updates_preview_paths_on_success() {
         },
     );
 
-    assert_eq!(app.preview_tabs[0].path, "/tmp/project/src/new.rs");
-    assert_eq!(app.preview_tabs[1].path, "/tmp/project/src/new.rs/nested.txt");
-    assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/project/src/new.rs"));
+    assert_eq!(app.navigation_tabs.preview_tabs[0].path, "/tmp/project/src/new.rs");
+    assert_eq!(app.navigation_tabs.preview_tabs[1].path, "/tmp/project/src/new.rs/nested.txt");
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/tmp/project/src/new.rs"));
 }
 
 #[test]
 fn rename_completed_failure_preserves_paths_and_reports_error() {
     let mut app = app();
-    app.project_path = Some("/tmp/project".to_string());
-    app.preview_tabs.push(preview_tab("/tmp/project/src/old.rs"));
-    app.active_preview_path = Some("/tmp/project/src/old.rs".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/project/src/old.rs"));
+    app.navigation_tabs.active_preview_path = Some("/tmp/project/src/old.rs".to_string());
 
     let _ = super::handle(
         &mut app,
@@ -204,8 +204,8 @@ fn rename_completed_failure_preserves_paths_and_reports_error() {
         },
     );
 
-    assert_eq!(app.preview_tabs[0].path, "/tmp/project/src/old.rs");
-    assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/project/src/old.rs"));
+    assert_eq!(app.navigation_tabs.preview_tabs[0].path, "/tmp/project/src/old.rs");
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/tmp/project/src/old.rs"));
     assert_eq!(app.error_message.as_deref(), Some("重命名失败: denied"));
 }
 
@@ -228,7 +228,7 @@ fn file_tree_action_without_menu_path_is_ignored() {
 fn delete_action_keeps_file_until_confirmed() {
     let mut app = app();
     let target = "/tmp/project/src/main.rs";
-    app.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
     app.file_tree_interaction.file_tree_menu_path = Some(target.to_string());
     app.files = vec![target.to_string(), "/tmp/project/src/lib.rs".to_string()];
 
@@ -253,7 +253,7 @@ fn delete_action_keeps_file_until_confirmed() {
 fn delete_confirmation_removes_directory_subtree_before_gateway_completes() {
     let mut app = app();
     let target = "/tmp/project/src";
-    app.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
     app.file_tree_interaction.file_tree_menu_path = Some(target.to_string());
     app.files = vec![
         target.to_string(),
@@ -288,7 +288,7 @@ fn delete_confirmation_keeps_file_after_cancel_or_project_change() {
     app.files = vec![target.to_string()];
 
     for cancel in [true, false] {
-        app.project_path = Some(project.to_string());
+        app.navigation_tabs.project_path = Some(project.to_string());
         app.file_tree_interaction.file_tree_menu_path = Some(target.to_string());
         let _ = super::handle(&mut app, ProjectMessage::FileTreeAction(FileTreeAction::Delete));
         assert!(app.file_tree_interaction.file_tree_pending_delete.is_some());
@@ -296,7 +296,7 @@ fn delete_confirmation_keeps_file_after_cancel_or_project_change() {
         if cancel {
             let _ = super::handle(&mut app, ProjectMessage::FileTreeDeleteCanceled);
         } else {
-            app.project_path = Some("/tmp/other".to_string());
+            app.navigation_tabs.project_path = Some("/tmp/other".to_string());
         }
 
         let task = super::handle(&mut app, ProjectMessage::FileTreeDeleteConfirmed).unwrap();
@@ -337,7 +337,7 @@ fn copy_and_cut_actions_update_file_tree_clipboard() {
 #[test]
 fn find_in_folder_action_creates_active_find_tab_and_open_tab() {
     let mut app = app();
-    app.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
     app.file_tree_interaction.file_tree_menu_path = Some("/tmp/project/src".to_string());
 
     let _ = super::handle(
@@ -351,7 +351,7 @@ fn find_in_folder_action_creates_active_find_tab_and_open_tab() {
     assert_eq!(app.find_results_tabs[0].scope_path, "/tmp/project/src");
     assert_eq!(app.active_find_results_tab_id, Some(app.find_results_tabs[0].id.clone()));
     assert!(app.file_manager.show_file_manager);
-    assert!(app.active_tab_id.as_deref().is_some_and(|id| id.starts_with("find:")));
+    assert!(app.navigation_tabs.active_tab_id.as_deref().is_some_and(|id| id.starts_with("find:")));
 }
 
 #[test]
@@ -561,7 +561,7 @@ fn paste_and_delete_failures_show_error_toasts() {
 fn file_tree_move_drop_release_consumes_tree_source_once() {
     use crate::app::message::ProjectMessage as P;
     let mut app = app();
-    app.project_path = Some("/project".into());
+    app.navigation_tabs.project_path = Some("/project".into());
     let _ = super::handle(
         &mut app,
         P::FileTreeInternalDragStart {
@@ -582,14 +582,14 @@ fn file_tree_move_drop_release_consumes_tree_source_once() {
 fn file_tree_move_drop_completion_preserves_dirty_content_and_directory_boundaries() {
     use crate::app::message::ProjectMessage as P;
     let mut app = app();
-    app.project_path = Some("/project".into());
+    app.navigation_tabs.project_path = Some("/project".into());
     app.lsp_disabled = true;
     let mut tab = preview_tab("/project/src/nested/a.txt");
     tab.content = "unsaved".into();
     tab.editor = crate::app::components::editor::Editor::new("unsaved", "txt");
     tab.is_dirty = true;
-    app.preview_tabs = vec![tab, preview_tab("/project/src-other/a.txt")];
-    app.active_preview_path = Some("/project/src/nested/a.txt".into());
+    app.navigation_tabs.preview_tabs = vec![tab, preview_tab("/project/src-other/a.txt")];
+    app.navigation_tabs.active_preview_path = Some("/project/src/nested/a.txt".into());
     app.file_tree_expanded = vec!["src".into(), "src/nested".into(), "src-other".into()];
     app.file_tree_interaction.file_tree_operation_in_progress = true;
     let _ = super::handle(
@@ -601,12 +601,12 @@ fn file_tree_move_drop_completion_preserves_dirty_content_and_directory_boundari
             result: Ok(()),
         },
     );
-    assert_eq!(app.preview_tabs[0].path, "/project/dst/src/nested/a.txt");
-    assert_eq!(app.preview_tabs[0].content, "unsaved");
-    assert_eq!(app.preview_tabs[0].editor.content(), "unsaved");
-    assert!(app.preview_tabs[0].is_dirty);
-    assert_eq!(app.preview_tabs[1].path, "/project/src-other/a.txt");
-    assert_eq!(app.active_preview_path.as_deref(), Some("/project/dst/src/nested/a.txt"));
+    assert_eq!(app.navigation_tabs.preview_tabs[0].path, "/project/dst/src/nested/a.txt");
+    assert_eq!(app.navigation_tabs.preview_tabs[0].content, "unsaved");
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), "unsaved");
+    assert!(app.navigation_tabs.preview_tabs[0].is_dirty);
+    assert_eq!(app.navigation_tabs.preview_tabs[1].path, "/project/src-other/a.txt");
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/project/dst/src/nested/a.txt"));
     assert_eq!(app.file_tree_expanded, ["dst/src", "dst/src/nested", "src-other"]);
     assert!(app.file_tree_expanded_set.contains("dst/src/nested"));
 }
@@ -616,14 +616,14 @@ fn file_tree_move_drop_failure_and_old_project_leave_current_editor_and_drag_unt
     use crate::app::message::ProjectMessage as P;
     for result in [Ok(()), Err("destination exists".into())] {
         let mut app = app();
-        app.project_path = Some("/other".into());
+        app.navigation_tabs.project_path = Some("/other".into());
         let mut tab = preview_tab("/other/edit.txt");
         tab.content = "unsaved".into();
         tab.editor = crate::app::components::editor::Editor::new("unsaved", "txt");
         tab.is_dirty = true;
-        app.preview_tabs.push(tab);
+        app.navigation_tabs.preview_tabs.push(tab);
         app.file_tree_interaction.file_tree_drag_source = Some(("/other".into(), "/other/edit.txt".into()));
-        app.project_preview_tabs.insert("/project".into(), vec![preview_tab("/project/a.txt")]);
+        app.navigation_tabs.project_preview_tabs.insert("/project".into(), vec![preview_tab("/project/a.txt")]);
         let success = result.is_ok();
         let _ = super::handle(
             &mut app,
@@ -634,13 +634,13 @@ fn file_tree_move_drop_failure_and_old_project_leave_current_editor_and_drag_unt
                 result,
             },
         );
-        assert_eq!(app.preview_tabs[0].path, "/other/edit.txt");
-        assert_eq!(app.preview_tabs[0].content, "unsaved");
-        assert_eq!(app.preview_tabs[0].editor.content(), "unsaved");
-        assert!(app.preview_tabs[0].is_dirty);
+        assert_eq!(app.navigation_tabs.preview_tabs[0].path, "/other/edit.txt");
+        assert_eq!(app.navigation_tabs.preview_tabs[0].content, "unsaved");
+        assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), "unsaved");
+        assert!(app.navigation_tabs.preview_tabs[0].is_dirty);
         assert!(app.file_tree_interaction.file_tree_drag_source.is_some());
         assert_eq!(
-            app.project_preview_tabs["/project"][0].path,
+            app.navigation_tabs.project_preview_tabs["/project"][0].path,
             if success { "/project/dst/a.txt" } else { "/project/a.txt" }
         );
     }
@@ -658,7 +658,7 @@ fn file_tree_move_drop_rejects_invalid_targets_and_consumes_release() {
         "/project/file.txt",
     ] {
         let mut app = app();
-        app.project_path = Some("/project".into());
+        app.navigation_tabs.project_path = Some("/project".into());
         app.files = vec!["/project/file.txt".into()];
         let _ = super::handle(
             &mut app,
@@ -688,14 +688,14 @@ mod http_tests;
 fn file_tree_move_drop_unicode_conflict_preserves_unsaved_editor_and_active_path() {
     use crate::app::message::ProjectMessage as P;
     let mut app = app();
-    app.project_path = Some("/project".into());
+    app.navigation_tabs.project_path = Some("/project".into());
     app.lsp_disabled = true;
     let mut tab = preview_tab("/project/中文/草稿.txt");
     tab.content = "未保存的内容".into();
     tab.editor = crate::app::components::editor::Editor::new("未保存的内容", "txt");
     tab.is_dirty = true;
-    app.preview_tabs.push(tab);
-    app.active_preview_path = Some("/project/中文/草稿.txt".into());
+    app.navigation_tabs.preview_tabs.push(tab);
+    app.navigation_tabs.active_preview_path = Some("/project/中文/草稿.txt".into());
     app.file_tree_interaction.file_tree_operation_in_progress = true;
     let _ = super::handle(
         &mut app,
@@ -706,11 +706,11 @@ fn file_tree_move_drop_unicode_conflict_preserves_unsaved_editor_and_active_path
             result: Err("destination exists".into()),
         },
     );
-    assert_eq!(app.preview_tabs[0].path, "/project/中文/草稿.txt");
-    assert_eq!(app.preview_tabs[0].content, "未保存的内容");
-    assert_eq!(app.preview_tabs[0].editor.content(), "未保存的内容");
-    assert!(app.preview_tabs[0].is_dirty);
-    assert_eq!(app.active_preview_path.as_deref(), Some("/project/中文/草稿.txt"));
+    assert_eq!(app.navigation_tabs.preview_tabs[0].path, "/project/中文/草稿.txt");
+    assert_eq!(app.navigation_tabs.preview_tabs[0].content, "未保存的内容");
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), "未保存的内容");
+    assert!(app.navigation_tabs.preview_tabs[0].is_dirty);
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/project/中文/草稿.txt"));
     assert!(!app.file_tree_interaction.file_tree_operation_in_progress);
 }
 
@@ -718,7 +718,7 @@ fn file_tree_move_drop_unicode_conflict_preserves_unsaved_editor_and_active_path
 fn file_tree_move_drop_target_release_uses_current_source_and_is_consumed_once() {
     use crate::app::message::ProjectMessage as P;
     let mut app = app();
-    app.project_path = Some("/project".into());
+    app.navigation_tabs.project_path = Some("/project".into());
     // The target message is constructed before the source gesture begins.
     let release = P::FileTreeDropTargetReleased {
         project_path: "/project".into(),
@@ -746,7 +746,7 @@ fn modified_tree_clicks_select_files_and_directories_without_opening_them() {
     use crate::app::message::project::ProjectMessage;
     use iced::keyboard::Modifiers;
     let mut app = app();
-    app.project_path = Some("/project".to_string());
+    app.navigation_tabs.project_path = Some("/project".to_string());
     app.set_file_index("/project", vec!["/project/src/a.rs".into(), "/project/README.md".into()]);
     app.file_tree_expanded.clear();
     app.file_tree_expanded_set.clear();
@@ -764,7 +764,7 @@ fn modified_tree_clicks_select_files_and_directories_without_opening_them() {
     assert!(app.file_tree_interaction.file_tree_selection.contains("/project", "/project/src"));
     assert!(app.file_tree_interaction.file_tree_selection.contains("/project", "/project/README.md"));
     assert!(!app.is_file_tree_dir_expanded("src"));
-    assert!(app.active_preview_path.is_none());
+    assert!(app.navigation_tabs.active_preview_path.is_none());
     let _ = super::handle(
         &mut app,
         ProjectMessage::FileTreeSelected {
@@ -782,7 +782,7 @@ fn modified_tree_clicks_select_files_and_directories_without_opening_them() {
 fn tree_selection_rejects_old_project_and_invisible_rows() {
     use crate::app::message::project::ProjectMessage;
     let mut app = app();
-    app.project_path = Some("/project".into());
+    app.navigation_tabs.project_path = Some("/project".into());
     app.set_file_index("/project", vec!["/project/src/a.rs".into()]);
     app.file_tree_expanded.clear();
     app.file_tree_expanded_set.clear();

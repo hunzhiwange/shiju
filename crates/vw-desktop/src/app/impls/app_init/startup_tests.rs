@@ -251,7 +251,7 @@ fn native_startup_backfills_once_and_retries_only_failed_reads() {
         assert_eq!(app.chat_send_behavior, ChatSendBehavior::Guide);
         assert!(app.git.show_git_diff_summary);
         assert!(app.git.show_git_diff_highlight);
-        assert_eq!(app.web_bookmarks[0].title, "Remote");
+        assert_eq!(app.web_navigation.web_bookmarks[0].title, "Remote");
         assert!(app.task_board_worktree_pixel_office);
         assert!(!app.task_board_clear_prompt_after_create);
         assert_eq!(app.update(healthy()).units(), 0);

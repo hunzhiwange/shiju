@@ -214,7 +214,7 @@ async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
     assert_eq!(app.current_session_runtime().input_editor.text(), "继续推进\n仔细检查");
     assert!(collect_task_messages(fill_task).await.is_empty());
 
-    app.project_path = Some("/workspace/project".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/project".to_string());
     app.active_session_id = Some("session-1".to_string());
     app.sessions.push(session_info::Info {
         id: "session-1".to_string(),
@@ -252,7 +252,7 @@ async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
             if session_id == "session-1" && project_path == "/workspace/session-worktree"
     ));
 
-    app.project_path = None;
+    app.navigation_tabs.project_path = None;
     let missing_project_task = super::update(&mut app, ChatMessage::QuickMessageSelected(2));
     assert!(
         collect_task_messages(missing_project_task)
@@ -271,7 +271,7 @@ async fn quick_message_git_actions_reuse_panel_workflows_and_validate_empty_stat
     use config_ui::{QuickMessageConfig, QuickMessageGroup, QuickMessageKind};
 
     let (mut app, _) = crate::app::App::new();
-    app.project_path = Some("/workspace/project".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/project".to_string());
     app.quick_messages = [
         QuickMessageKind::RefreshGitChanges,
         QuickMessageKind::SelectAllGitChanges,

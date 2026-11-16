@@ -201,7 +201,7 @@ fn handle_input_editor_non_edit(app: &mut App, action: text_editor::Action) -> T
 }
 
 fn select_file_search_path(app: &mut App, path: &str) -> Task<Message> {
-    let rel_or_full_path = if let Some(project_root) = &app.project_path {
+    let rel_or_full_path = if let Some(project_root) = &app.navigation_tabs.project_path {
         std::path::Path::new(path)
             .strip_prefix(project_root)
             .ok()
@@ -238,7 +238,7 @@ fn drop_mention_paths(app: &App) -> Vec<String> {
         None
     };
 
-    format_drop_mentions(app.project_path.as_deref(), &dropped_paths, drop_position)
+    format_drop_mentions(app.navigation_tabs.project_path.as_deref(), &dropped_paths, drop_position)
 }
 
 fn collect_dropped_paths(app: &App) -> Vec<DroppedPath> {

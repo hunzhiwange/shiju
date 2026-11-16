@@ -10,7 +10,7 @@ fn session_loading_placeholder_produces_element_with_default_app() {
 fn session_loading_placeholder_produces_element_with_context() {
     let mut app = App::new().0;
     app.active_session_id = Some("test-id".into());
-    app.project_path = Some("/project".into());
+    app.navigation_tabs.project_path = Some("/project".into());
     app.git.selected_branch = Some("main".into());
     app.project_updated_at_ms = Some(1_000_000);
     let _element = session_loading_placeholder(&app);
@@ -25,7 +25,7 @@ fn empty_session_placeholder_produces_element_with_default_app() {
 #[test]
 fn empty_session_placeholder_produces_element_with_context() {
     let mut app = App::new().0;
-    app.project_path = Some("/project".into());
+    app.navigation_tabs.project_path = Some("/project".into());
     app.project_is_git_repo = true;
     app.git.selected_branch = Some("develop".into());
     app.project_updated_at_ms = Some(2_000_000);

@@ -43,8 +43,8 @@ fn commit_metrics_input(app: &mut App, message: EditorMessage) -> iced::Task<cra
 fn app_with_active_preview(content: &str) -> App {
     let mut app = test_app();
     let path = "/tmp/editor-test.txt";
-    app.active_preview_path = Some(path.to_string());
-    app.preview_tabs = vec![preview_tab(path, content)];
+    app.navigation_tabs.active_preview_path = Some(path.to_string());
+    app.navigation_tabs.preview_tabs = vec![preview_tab(path, content)];
     app
 }
 
@@ -73,14 +73,14 @@ fn toggle_settings_flips_preview_settings_panel() {
 fn font_size_changed_updates_auto_line_height() {
     let mut app = test_app();
     app.auto_adjust_line_height = true;
-    app.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
+    app.navigation_tabs.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
 
     let _ = commit_metrics_input(&mut app, EditorMessage::FontSizePreview(20.0));
 
     assert_eq!(app.current_font_size, 20.0);
     assert_eq!(app.current_line_height, 28.0);
-    assert_eq!(app.preview_tabs[0].editor.inner.font_size(), 20.0);
-    assert_eq!(app.preview_tabs[0].editor.inner.line_height(), 28.0);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.font_size(), 20.0);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.line_height(), 28.0);
     assert_eq!(app.git.git_copy_modal_code_editor.font_size(), 20.0);
     assert_eq!(app.git.git_copy_modal_code_editor.line_height(), 28.0);
 }
@@ -90,16 +90,16 @@ fn font_size_changed_without_auto_line_height_preserves_height_and_clamps_modal_
     let mut app = test_app();
     app.auto_adjust_line_height = false;
     app.current_line_height = 24.0;
-    app.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
-    let preview_line_height = app.preview_tabs[0].editor.inner.line_height();
+    app.navigation_tabs.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
+    let preview_line_height = app.navigation_tabs.preview_tabs[0].editor.inner.line_height();
     let modal_line_height = app.git.git_copy_modal_code_editor.line_height();
 
     let _ = commit_metrics_input(&mut app, EditorMessage::FontSizePreview(42.0));
 
     assert_eq!(app.current_font_size, 42.0);
     assert_eq!(app.current_line_height, 24.0);
-    assert_eq!(app.preview_tabs[0].editor.inner.font_size(), 42.0);
-    assert_eq!(app.preview_tabs[0].editor.inner.line_height(), preview_line_height);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.font_size(), 42.0);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.line_height(), preview_line_height);
     assert_eq!(app.git.git_copy_modal_code_editor.font_size(), 30.0);
     assert_eq!(app.git.git_copy_modal_code_editor.line_height(), modal_line_height);
 }
@@ -108,13 +108,13 @@ fn font_size_changed_without_auto_line_height_preserves_height_and_clamps_modal_
 fn line_height_changed_disables_auto_adjustment() {
     let mut app = test_app();
     app.auto_adjust_line_height = true;
-    app.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
+    app.navigation_tabs.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
 
     let _ = commit_metrics_input(&mut app, EditorMessage::LineHeightPreview(5.0));
 
     assert_eq!(app.current_line_height, 5.0);
     assert!(!app.auto_adjust_line_height);
-    assert_eq!(app.preview_tabs[0].editor.inner.line_height(), 10.0);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.line_height(), 10.0);
     assert_eq!(app.git.git_copy_modal_code_editor.line_height(), 10.0);
 }
 
@@ -124,13 +124,13 @@ fn toggle_auto_line_height_recomputes_when_enabled() {
     app.current_font_size = 15.0;
     app.current_line_height = 19.0;
     app.auto_adjust_line_height = false;
-    app.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
+    app.navigation_tabs.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
 
     let _ = update(&mut app, EditorMessage::ToggleAutoLineHeight(true));
 
     assert!(app.auto_adjust_line_height);
     assert_eq!(app.current_line_height, 21.0);
-    assert_eq!(app.preview_tabs[0].editor.inner.line_height(), 21.0);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.line_height(), 21.0);
     assert_eq!(app.git.git_copy_modal_code_editor.line_height(), 21.0);
 }
 
@@ -141,15 +141,15 @@ fn toggle_auto_line_height_off_keeps_current_height() {
     let mut app = test_app();
     app.current_font_size = 18.0;
     app.current_line_height = 25.0;
-    app.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
-    let preview_line_height = app.preview_tabs[0].editor.inner.line_height();
+    app.navigation_tabs.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
+    let preview_line_height = app.navigation_tabs.preview_tabs[0].editor.inner.line_height();
     let modal_line_height = app.git.git_copy_modal_code_editor.line_height();
 
     let _ = update(&mut app, EditorMessage::ToggleAutoLineHeight(false));
 
     assert!(!app.auto_adjust_line_height);
     assert_eq!(app.current_line_height, 25.0);
-    assert_eq!(app.preview_tabs[0].editor.inner.line_height(), preview_line_height);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.line_height(), preview_line_height);
     assert_eq!(app.git.git_copy_modal_code_editor.line_height(), modal_line_height);
 }
 
@@ -165,11 +165,11 @@ fn language_changed_updates_current_language() {
 #[test]
 fn language_changed_propagates_to_every_preview_editor() {
     let mut app = test_app();
-    app.preview_tabs = vec![preview_tab("/tmp/a.txt", "a"), preview_tab("/tmp/b.txt", "b")];
+    app.navigation_tabs.preview_tabs = vec![preview_tab("/tmp/a.txt", "a"), preview_tab("/tmp/b.txt", "b")];
 
     let _ = update(&mut app, EditorMessage::LanguageChanged(Language::English));
 
-    assert!(app.preview_tabs.iter().all(|tab| tab.editor.inner.language() == Language::English));
+    assert!(app.navigation_tabs.preview_tabs.iter().all(|tab| tab.editor.inner.language() == Language::English));
     assert_eq!(app.git.git_copy_modal_code_editor.language(), Language::English);
 }
 
@@ -197,7 +197,7 @@ fn toggle_follow_system_theme_updates_flag() {
 #[test]
 fn editor_actions_without_active_preview_are_noops() {
     let mut app = test_app();
-    app.active_preview_path = None;
+    app.navigation_tabs.active_preview_path = None;
 
     for message in [
         EditorMessage::OpenSearch,
@@ -215,7 +215,7 @@ fn editor_actions_without_active_preview_are_noops() {
         let _ = update(&mut app, message);
     }
 
-    assert_eq!(app.active_preview_path, None);
+    assert_eq!(app.navigation_tabs.active_preview_path, None);
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
@@ -223,8 +223,8 @@ fn editor_actions_without_active_preview_are_noops() {
 #[test]
 fn editor_actions_with_missing_active_tab_leave_other_tabs_unchanged() {
     let mut app = test_app();
-    app.active_preview_path = Some("/tmp/missing.txt".to_string());
-    app.preview_tabs = vec![preview_tab("/tmp/other.txt", "keep")];
+    app.navigation_tabs.active_preview_path = Some("/tmp/missing.txt".to_string());
+    app.navigation_tabs.preview_tabs = vec![preview_tab("/tmp/other.txt", "keep")];
 
     for message in [
         EditorMessage::OpenSearch,
@@ -240,23 +240,23 @@ fn editor_actions_with_missing_active_tab_leave_other_tabs_unchanged() {
         let _ = update(&mut app, message);
     }
 
-    assert_eq!(app.preview_tabs[0].editor.content(), "keep");
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), "keep");
 }
 
 #[test]
 fn clipboard_content_undo_and_redo_mutate_only_the_active_editor() {
     let mut app = app_with_active_preview("tail");
-    app.preview_tabs.push(preview_tab("/tmp/other.txt", "other"));
+    app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/other.txt", "other"));
 
     let _ = update(&mut app, EditorMessage::ClipboardContentReceived(Some("head ".to_string())));
-    assert_eq!(app.preview_tabs[0].editor.content(), "head tail");
-    assert_eq!(app.preview_tabs[1].editor.content(), "other");
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), "head tail");
+    assert_eq!(app.navigation_tabs.preview_tabs[1].editor.content(), "other");
 
     let _ = update(&mut app, EditorMessage::Undo);
-    assert_eq!(app.preview_tabs[0].editor.content(), "tail");
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), "tail");
 
     let _ = update(&mut app, EditorMessage::Redo);
-    assert_eq!(app.preview_tabs[0].editor.content(), "head tail");
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), "head tail");
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -280,18 +280,18 @@ fn editor_metrics_preview_commits_on_latest_deadline() {
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
     let mut app = app_with_active_preview("hello");
     app.auto_adjust_line_height = true;
-    let previous = app.preview_tabs[0].editor.inner.font_size();
+    let previous = app.navigation_tabs.preview_tabs[0].editor.inner.font_size();
     let first = update(&mut app, EditorMessage::FontSizePreview(18.0));
     let last = update(&mut app, EditorMessage::FontSizePreview(20.0));
     let (stale, latest) =
         runtime.block_on(async { tokio::join!(metric_deadline(first), metric_deadline(last)) });
 
     assert!(iced_runtime::task::into_stream(update(&mut app, stale)).is_none());
-    assert_eq!(app.preview_tabs[0].editor.inner.font_size(), previous);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.font_size(), previous);
 
     let _ = update(&mut app, latest);
-    assert_eq!(app.preview_tabs[0].editor.inner.font_size(), 20.0);
-    assert_eq!(app.preview_tabs[0].editor.inner.line_height(), 28.0);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.font_size(), 20.0);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.line_height(), 28.0);
     assert!(app.auto_adjust_line_height);
     assert!(
         iced_runtime::task::into_stream(update(&mut app, EditorMessage::CommitMetrics)).is_none()
@@ -315,14 +315,14 @@ fn editor_metrics_preview_preserves_latest_input_when_toggling_auto_or_closing()
     let _ = update(&mut app, EditorMessage::FontSizePreview(25.0));
     let _ = update(&mut app, EditorMessage::ToggleAutoLineHeight(false));
     assert_eq!(app.current_line_height, 35.0);
-    assert_eq!(app.preview_tabs[0].editor.inner.line_height(), 35.0);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.line_height(), 35.0);
     assert!(!app.auto_adjust_line_height);
 
     let _ = update(&mut app, EditorMessage::LineHeightPreview(39.0));
     let _ = update(&mut app, EditorMessage::ToggleSettings);
     assert!(!app.show_preview_settings);
     assert_eq!(app.current_line_height, 39.0);
-    assert_eq!(app.preview_tabs[0].editor.inner.line_height(), 39.0);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.line_height(), 39.0);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -345,19 +345,19 @@ fn editor_metrics_preview_commits_latest_once() {
                 tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
             app.auto_adjust_line_height = true;
             for index in 0..tabs {
-                app.preview_tabs
+                app.navigation_tabs.preview_tabs
                     .push(preview_tab(&format!("/tmp/editor-{index}.rs"), "fn main() {}"));
             }
             let history_content = "历史版本的只读内容 abcdefghijklmnopqrstuvwxyz\n".repeat(20_000);
             if history {
                 let mut tab = preview_tab("/tmp/history.rs", &history_content);
                 tab.read_only = true;
-                app.preview_tabs.push(tab);
+                app.navigation_tabs.preview_tabs.push(tab);
             }
-            app.active_preview_path = app.preview_tabs.first().map(|tab| tab.path.clone());
-            let target = app.preview_tabs.last().map(|tab| tab.path.clone());
+            app.navigation_tabs.active_preview_path = app.navigation_tabs.preview_tabs.first().map(|tab| tab.path.clone());
+            let target = app.navigation_tabs.preview_tabs.last().map(|tab| tab.path.clone());
             let read_metrics = |app: &App| {
-                app.preview_tabs
+                app.navigation_tabs.preview_tabs
                     .iter()
                     .map(|tab| &tab.editor.inner)
                     .chain(std::iter::once(&app.git.git_copy_modal_code_editor))
@@ -446,7 +446,7 @@ fn editor_metrics_preview_commits_latest_once() {
 
                     if let Some(path) = &target {
                         let _ = preview::update(&mut app, PreviewMessage::Select(path.clone()));
-                        assert_eq!(app.active_preview_path.as_ref(), Some(path));
+                        assert_eq!(app.navigation_tabs.active_preview_path.as_ref(), Some(path));
                     }
                     tokio::time::sleep(Duration::from_millis(100)).await;
                     responses.send(Some("{}".to_string())).unwrap();
@@ -475,8 +475,8 @@ fn editor_metrics_preview_commits_latest_once() {
                 }))
             );
             if history {
-                assert!(app.preview_tabs.last().unwrap().read_only);
-                assert_eq!(app.preview_tabs.last().unwrap().editor.content(), history_content);
+                assert!(app.navigation_tabs.preview_tabs.last().unwrap().read_only);
+                assert_eq!(app.navigation_tabs.preview_tabs.last().unwrap().editor.content(), history_content);
             }
             eprintln!(
                 "{sample}: max input update {:?}, release {release_time:?}, input/release layouts {input_layouts}/{release_layouts}, PATCHes {patch_count}, max PATCH {max_patch_time:?}",

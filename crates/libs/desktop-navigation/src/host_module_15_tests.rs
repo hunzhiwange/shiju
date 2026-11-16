@@ -147,3 +147,19 @@ fn work_sidebar_project_nav_hover_shows_create_entry_and_clears_on_collapse() {
 }
 
 mod layout;
+
+mod popovers;
+
+mod tabs;
+mod settings;
+
+mod update;
+
+mod geometry;
+mod file_hover;
+
+mod notifications;
+
+mod external;
+
+mod mobile;

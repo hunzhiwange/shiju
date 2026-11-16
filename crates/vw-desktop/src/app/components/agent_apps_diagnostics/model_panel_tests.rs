@@ -81,11 +81,11 @@ use vw_api_app_provider_base::AppProviderSummary;
             .unwrap();
         let mut app = App::new().0;
         app.project_id = Some("project".into());
-        app.project_path = Some("/fixture".into());
+        app.navigation_tabs.project_path = Some("/fixture".into());
         app.apps_catalog.host = "host".into();
         app.apps_catalog.token = "fixture-token".into();
-        app.show_system_settings = true;
-        app.system_settings_tab = crate::app::components::system_settings::SystemTab::Apps;
+        app.navigation_panels.show_system_settings = true;
+        app.navigation_panels.system_settings_tab = crate::app::components::system_settings::SystemTab::Apps;
         let (_, scope) =
             crate::app::message::app_providers::list::current(&app, AppId::Codex).unwrap();
         app.apps_catalog.context = Some(scope.context.clone());
@@ -175,7 +175,7 @@ use vw_api_app_provider_base::AppProviderSummary;
                 assert!(handle.is_aborted());
             }
             assert!(app.apps_catalog.model_diagnostics.open.is_none());
-            app.system_settings_tab = crate::app::components::system_settings::SystemTab::Apps;
+            app.navigation_panels.system_settings_tab = crate::app::components::system_settings::SystemTab::Apps;
             crate::app::state::agent_apps::begin(&mut app.apps_catalog, scope.context.clone());
             let task = app.update(model::message(Event::Open("provider".into())));
             let cancelled = snapshot(&expected, DiagnosticJobState::Cancelled {});

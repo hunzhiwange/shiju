@@ -422,15 +422,15 @@ fn with_domain<T>(app: &mut App, operation: impl FnOnce(&mut SkillUpdate<'_>) ->
     let mut input = SkillUpdate {
         expert_hub: &mut app.expert_hub,
         active_account: app.account.active_account(),
-        project_path: &app.project_path,
+        project_path: &app.navigation_tabs.project_path,
         recent_projects: &app.recent_projects,
-        screen: match app.screen {
+        screen: match app.navigation_tabs.screen {
             Screen::ExpertHub => HubPage::ExpertHub,
             Screen::ShijuSkills => HubPage::ShijuSkills,
             Screen::ShijuApps => HubPage::ShijuApps,
             _ => HubPage::Other,
         },
-        has_project_chat: app.open_tabs.iter().any(|tab| tab.project_path.as_deref() == app.project_path.as_deref() && tab.screen == Screen::Project),
+        has_project_chat: app.navigation_tabs.open_tabs.iter().any(|tab| tab.project_path.as_deref() == app.navigation_tabs.project_path.as_deref() && tab.screen == Screen::Project),
         desktop_locale: app.desktop_locale,
         gateway,
         effects: Vec::new(),
@@ -444,9 +444,9 @@ fn apply_effects(app: &mut App, effects: Vec<Effect>) -> Task<Message> {
         tasks.push(match effect {
             Effect::SelectExpertForChat(skill_id) => {
                 app.current_session_runtime_mut().tool_selector.select_manual_skill(&skill_id);
-                if let Some(tab) = app.open_tabs.iter().find(|tab| tab.project_path.as_deref() == app.project_path.as_deref() && tab.screen == Screen::Project) {
-                    app.active_tab_id = Some(tab.id.clone());
-                    app.screen = Screen::Project;
+                if let Some(tab) = app.navigation_tabs.open_tabs.iter().find(|tab| tab.project_path.as_deref() == app.navigation_tabs.project_path.as_deref() && tab.screen == Screen::Project) {
+                    app.navigation_tabs.active_tab_id = Some(tab.id.clone());
+                    app.navigation_tabs.screen = Screen::Project;
                 }
                 Task::none()
             }
@@ -491,21 +491,21 @@ pub(super) fn mine_query(app: &App) -> ShijuMaintainedSkillQuery { domain::mine_
 pub(super) fn marketplace_query(app: &App) -> ShijuSkillSearchQuery { domain::marketplace_query(&app.expert_hub) }
 
 pub(crate) fn open_expert_hub_tab(app: &mut App) {
-    if !app.open_tabs.iter().any(|tab| tab.id == EXPERT_HUB_TAB_ID) {
-        app.open_tabs.push(AppTab {
+    if !app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == EXPERT_HUB_TAB_ID) {
+        app.navigation_tabs.open_tabs.push(AppTab {
             id: EXPERT_HUB_TAB_ID.to_string(),
             title: crate::app::i18n::I18n::new(app.desktop_locale).__(EXPERT_HUB_TITLE).to_string(),
             screen: Screen::ExpertHub,
             project_path: None,
         });
     }
-    app.active_tab_id = Some(EXPERT_HUB_TAB_ID.to_string());
-    app.screen = Screen::ExpertHub;
+    app.navigation_tabs.active_tab_id = Some(EXPERT_HUB_TAB_ID.to_string());
+    app.navigation_tabs.screen = Screen::ExpertHub;
 }
 
 fn open_shiju_skills_tab(app: &mut App) {
-    if !app.open_tabs.iter().any(|tab| tab.id == SHIJU_SKILLS_TAB_ID) {
-        app.open_tabs.push(AppTab {
+    if !app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == SHIJU_SKILLS_TAB_ID) {
+        app.navigation_tabs.open_tabs.push(AppTab {
             id: SHIJU_SKILLS_TAB_ID.to_string(),
             title: crate::app::i18n::I18n::new(app.desktop_locale)
                 .__(SHIJU_SKILLS_TITLE)
@@ -514,6 +514,6 @@ fn open_shiju_skills_tab(app: &mut App) {
             project_path: None,
         });
     }
-    app.active_tab_id = Some(SHIJU_SKILLS_TAB_ID.to_string());
-    app.screen = Screen::ShijuSkills;
+    app.navigation_tabs.active_tab_id = Some(SHIJU_SKILLS_TAB_ID.to_string());
+    app.navigation_tabs.screen = Screen::ShijuSkills;
 }

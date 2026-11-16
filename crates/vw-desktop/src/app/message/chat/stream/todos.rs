@@ -31,7 +31,7 @@ fn todo_list_directory(app: &App) -> Option<String> {
         .and_then(|id| app.sessions.iter().find(|session| &session.id == id))
         .map(|session| session.directory.clone())
         .filter(|directory| !directory.trim().is_empty())
-        .or_else(|| app.project_path.clone())
+        .or_else(|| app.navigation_tabs.project_path.clone())
 }
 
 /// 模块内可见函数，执行 load_input_panel_todos_task 对应的应用流程。

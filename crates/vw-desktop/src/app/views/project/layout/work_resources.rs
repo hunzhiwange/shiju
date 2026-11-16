@@ -6,7 +6,7 @@ pub(super) fn body_kind(app: &App) -> ResourceBodyKind { mode(app.navigation_wor
 fn mode(mode: WorkResourceMode) -> ResourceBodyKind { match mode { WorkResourceMode::Overview => ResourceBodyKind::Overview, WorkResourceMode::WorkspaceFiles => ResourceBodyKind::WorkspaceFiles, WorkResourceMode::Browser => ResourceBodyKind::Browser } }
 pub(super) fn overview_model(app: &App) -> resources::OverviewModel {
     let title = resources::active_session_title(app.active_session_id.as_deref(), app.sessions.iter().chain(app.project_sessions.values().flat_map(|sessions| sessions.iter())).map(|s| (s.id.as_str(), s.title.as_str())),app.desktop_locale);
-    resources::overview_model(app.project_path.as_deref(),title,app.project_path.as_ref().and_then(|p| app.project_sessions.get(p)).map(Vec::len),app.sessions.iter().map(|s| s.directory.as_str()),app.git.git_changed_files.len(),app.git.selected_branch.as_deref(),crate::app::components::git_panel::git_repo_path_for_app(app).is_some(),app.desktop_locale)
+    resources::overview_model(app.navigation_tabs.project_path.as_deref(),title,app.navigation_tabs.project_path.as_ref().and_then(|p| app.project_sessions.get(p)).map(Vec::len),app.sessions.iter().map(|s| s.directory.as_str()),app.git.git_changed_files.len(),app.git.selected_branch.as_deref(),crate::app::components::git_panel::git_repo_path_for_app(app).is_some(),app.desktop_locale)
 }
 fn event(event: resources::ResourceEvent) -> Message { Message::View(match event {
     resources::ResourceEvent::ModeSelected(value) => ViewMessage::WorkResourceModeSelected(match value {ResourceBodyKind::Overview=>WorkResourceMode::Overview,ResourceBodyKind::WorkspaceFiles=>WorkResourceMode::WorkspaceFiles,ResourceBodyKind::Browser=>WorkResourceMode::Browser}),

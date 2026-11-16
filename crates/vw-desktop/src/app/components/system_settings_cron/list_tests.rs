@@ -105,11 +105,11 @@ async fn cron_list_fills_available_content_width() {
     }
     let mut renderer = renderer().await;
     let mut app = list_fixture();
-    app.show_system_settings = true;
+    app.navigation_panels.show_system_settings = true;
     app.cron_settings.batch_mode = true;
     let mut widths = Vec::new();
     for width in [1280, 1920] {
-        app.system_settings_tab = SystemTab::Cron;
+        app.navigation_panels.system_settings_tab = SystemTab::Cron;
         let size = Size::new(width, 900);
         let mut ui =
             scene(crate::app::components::system_settings::view(&app), &mut renderer, size);
@@ -138,7 +138,7 @@ async fn cron_list_fills_available_content_width() {
             mouse::Cursor::Unavailable,
         );
         drop(ui);
-        app.system_settings_tab = SystemTab::Agents;
+        app.navigation_panels.system_settings_tab = SystemTab::Agents;
         app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Heartbeat;
         let mut ui =
             scene(crate::app::components::system_settings::view(&app), &mut renderer, size);
@@ -171,8 +171,8 @@ async fn cron_list_render_theme_and_width_matrix() {
         for (width, height) in [(1920, 1080), (1280, 800), (760, 620)] {
             let mut app = list_fixture();
             app.app_theme = theme.clone();
-            app.show_system_settings = true;
-            app.system_settings_tab = SystemTab::Cron;
+            app.navigation_panels.show_system_settings = true;
+            app.navigation_panels.system_settings_tab = SystemTab::Cron;
             app.cron_settings.batch_mode = true;
             let mut job = app.cron_settings.jobs[0].clone();
             job.name = Some("中文长标题巡检任务🧭".repeat(12));
@@ -281,8 +281,8 @@ async fn cron_list_bulk_footer_stays_visible_when_scrolled() {
     }
     let mut renderer = renderer().await;
     let mut app = list_fixture();
-    app.show_system_settings = true;
-    app.system_settings_tab = SystemTab::Cron;
+    app.navigation_panels.show_system_settings = true;
+    app.navigation_panels.system_settings_tab = SystemTab::Cron;
     app.cron_settings.batch_mode = true;
     let base = app.cron_settings.jobs[0].clone();
     app.cron_settings.jobs = (0..30)
@@ -380,8 +380,8 @@ async fn cron_list_tabs_and_modals_preserve_width_and_scroll() {
     }
     let mut renderer = renderer().await;
     let mut app = list_fixture();
-    app.show_system_settings = true;
-    app.system_settings_tab = SystemTab::Cron;
+    app.navigation_panels.show_system_settings = true;
+    app.navigation_panels.system_settings_tab = SystemTab::Cron;
     for size in [Size::new(760, 620), Size::new(1920, 1080)] {
         let mut left = None;
         for tab in [CronSettingsTab::Jobs, CronSettingsTab::Config, CronSettingsTab::Scheduler] {

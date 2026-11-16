@@ -11,7 +11,7 @@ fn execution_success_uses_workflow_transition_to_completed() {
 
     // 普通任务直接完成，Git 与审核由显式任务或工作流执行。
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/tmp/vibewindow-exec-success-test".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/vibewindow-exec-success-test".to_string());
 
     let mut task = Task::new(1);
     task.id = "T-exec-success".to_string();
@@ -48,7 +48,7 @@ fn task_result_persistence_guards_local_status_until_ack() {
     use crate::app::task::{Task, TaskStatus};
 
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/tmp/vibewindow-persistence-guard-test".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/vibewindow-persistence-guard-test".to_string());
 
     let mut task = Task::new(1);
     task.id = "T-persistence-guard".to_string();
@@ -73,7 +73,7 @@ fn merge_success_uses_workflow_transition_to_completed() {
     use crate::app::task::{Task, TaskStatus};
 
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/tmp/vibewindow-merge-success-test".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/vibewindow-merge-success-test".to_string());
 
     let mut task = Task::new(1);
     task.id = "T-merge-success".to_string();
@@ -110,7 +110,7 @@ fn merge_failure_preserves_worktree_context() {
     use crate::app::task::{Task, TaskStatus};
 
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/tmp/vibewindow-merge-failure-test".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/vibewindow-merge-failure-test".to_string());
     app.task_board_settings.recycle_worktree_on_task_finish = true;
 
     let mut task = Task::new(1);
@@ -156,7 +156,7 @@ fn code_review_success_without_merge_metadata_pauses_and_recycles_worktree() {
     use crate::app::task::{Task, TaskStatus};
 
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/tmp/vibewindow-review-missing-metadata-test".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/vibewindow-review-missing-metadata-test".to_string());
 
     let mut task = Task::new(1);
     task.id = "T-review-missing-metadata".to_string();
@@ -192,7 +192,7 @@ fn code_review_timeout_error_uses_timeout_pause_reason() {
     use crate::app::task::{Task, TaskStatus};
 
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/tmp/vibewindow-review-timeout-test".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/vibewindow-review-timeout-test".to_string());
 
     let mut task = Task::new(1);
     task.id = "T-review-timeout".to_string();

@@ -68,7 +68,7 @@ async fn child_session_navigation_chinese_cards_render_and_only_open_details() {
 
     let mut app = App::new().0;
     app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
-    app.project_path = Some("/work/project".into());
+    app.navigation_tabs.project_path = Some("/work/project".into());
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
         for font in crate::fonts::load_all() {
@@ -290,7 +290,7 @@ fn legacy_boolean_tool_header_has_no_callers() {
 #[tokio::test(flavor = "multi_thread")]
 async fn specialized_tool_headers_dark_permission_and_failure_render_path_is_safe() {
     let mut app = App::new().0;
-    app.project_path = Some("/work/project".to_string());
+    app.navigation_tabs.project_path = Some("/work/project".to_string());
     app.chat_tool_hovered_idx = Some((40_u64 << 32) | 3);
     let payloads = [
         r#"tool AgentTool

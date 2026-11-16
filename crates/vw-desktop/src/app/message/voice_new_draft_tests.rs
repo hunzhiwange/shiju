@@ -4,7 +4,7 @@ use crate::app::message::ChatMessage;
 
 fn new_draft() -> App {
     let (mut app, _) = App::new();
-    app.project_path = Some("/voice-new-draft".into());
+    app.navigation_tabs.project_path = Some("/voice-new-draft".into());
     app.project_id = Some("voice-project".into());
     app.active_session_id = None;
     let runtime = app.current_session_runtime_mut();

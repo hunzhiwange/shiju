@@ -39,7 +39,7 @@ fn preview_rejects_unsupported_file_without_external_io() {
 #[tokio::test(flavor = "multi_thread")]
 async fn preview_and_copy_file_join_project_path_when_available() {
     let mut app = test_app();
-    app.project_path = Some("/workspace/repo".to_string());
+    app.navigation_tabs.project_path = Some("/workspace/repo".to_string());
     app.git.git_diff_file_menu =
         Some(crate::app::state::GitDiffFileMenuState { file: "src/lib.rs".to_string() });
 
@@ -79,7 +79,7 @@ fn fullscreen_toggles_reset_competing_chat_fullscreen_state() {
     assert!(!app.git.git_diff_half_fullscreen);
     assert!(!app.chat_panel_fullscreen);
     assert!(!app.chat_panel_half_fullscreen);
-    assert!(app.show_diff);
+    assert!(app.navigation_panels.show_diff);
     assert!(app.fullscreen_layout_settling);
 }
 
@@ -87,13 +87,13 @@ fn fullscreen_toggles_reset_competing_chat_fullscreen_state() {
 fn fullscreen_toggle_exits_without_reopening_diff() {
     let mut app = test_app();
     app.git.git_diff_fullscreen = true;
-    app.show_diff = false;
+    app.navigation_panels.show_diff = false;
 
     let _ = update(&mut app, GitMessage::ToggleFullscreen);
 
     assert!(!app.git.git_diff_fullscreen);
     assert!(!app.git.git_diff_half_fullscreen);
-    assert!(!app.show_diff);
+    assert!(!app.navigation_panels.show_diff);
     assert!(app.fullscreen_layout_settling);
 }
 
@@ -110,7 +110,7 @@ fn half_fullscreen_enters_and_exits_while_disabling_fullscreen() {
     assert!(!app.git.git_diff_fullscreen);
     assert!(!app.chat_panel_fullscreen);
     assert!(!app.chat_panel_half_fullscreen);
-    assert!(app.show_diff);
+    assert!(app.navigation_panels.show_diff);
     assert!(app.fullscreen_layout_settling);
 
     let _ = update(&mut app, GitMessage::ToggleHalfFullscreen);
@@ -121,8 +121,8 @@ fn half_fullscreen_enters_and_exits_while_disabling_fullscreen() {
 #[test]
 fn focus_file_resets_preview_state_and_opens_diff() {
     let mut app = test_app();
-    app.active_preview_path = Some("preview.rs".to_string());
-    app.show_diff = false;
+    app.navigation_tabs.active_preview_path = Some("preview.rs".to_string());
+    app.navigation_panels.show_diff = false;
     app.git.git_diff_file_menu =
         Some(crate::app::state::GitDiffFileMenuState { file: "old.rs".to_string() });
 
@@ -130,8 +130,8 @@ fn focus_file_resets_preview_state_and_opens_diff() {
 
     assert_eq!(app.git.git_focused_file.as_deref(), Some("focused.rs"));
     assert!(app.is_diff_file_expanded("focused.rs"));
-    assert!(app.active_preview_path.is_none());
-    assert!(app.show_diff);
+    assert!(app.navigation_tabs.active_preview_path.is_none());
+    assert!(app.navigation_panels.show_diff);
     assert!(app.git.git_diff_file_menu.is_none());
 }
 

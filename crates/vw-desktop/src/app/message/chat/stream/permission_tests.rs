@@ -42,13 +42,13 @@ fn session_info(id: &str, title: &str, directory: &str) -> session_info::Info {
 #[test]
 fn session_directory_for_save_prefers_known_session_directory_then_project_path() {
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/project".to_string());
+    app.navigation_tabs.project_path = Some("/project".to_string());
     app.sessions = vec![session_info("s1", "Session", "/session")];
 
     assert_eq!(super::session_directory_for_save(&app, "s1").as_deref(), Some("/session"));
     assert_eq!(super::session_directory_for_save(&app, "missing").as_deref(), Some("/project"));
 
-    app.project_path = Some("   ".to_string());
+    app.navigation_tabs.project_path = Some("   ".to_string());
     assert_eq!(super::session_directory_for_save(&app, "missing"), None);
 }
 

@@ -38,7 +38,7 @@ pub(crate) use desktop_session::message::chat::input::scroll::ChatScrollUpdateOu
 
 fn git_quick_action_path(app: &App) -> Option<String> {
     desktop_session::message::chat::input::interactions::git_quick_action_path(
-        crate::app::components::git_panel::git_repo_path_for_app(app), app.project_path.as_deref(),
+        crate::app::components::git_panel::git_repo_path_for_app(app), app.navigation_tabs.project_path.as_deref(),
     )
 }
 
@@ -101,7 +101,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 }
                 config_ui::QuickMessageKind::CreateNewSession => {
                     let Some(project_path) =
-                        app.project_path.clone().filter(|path| !path.trim().is_empty())
+                        app.navigation_tabs.project_path.clone().filter(|path| !path.trim().is_empty())
                     else {
                         return app.show_localized_toast(
                             crate::app::state::ToastKind::Warning,
@@ -125,7 +125,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         .known_session_directory(&session_id)
                         .filter(|path| !path.trim().is_empty())
                         .or_else(|| {
-                            app.project_path.clone().filter(|path| !path.trim().is_empty())
+                            app.navigation_tabs.project_path.clone().filter(|path| !path.trim().is_empty())
                         })
                     else {
                         return app.show_localized_toast(
@@ -140,7 +140,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     }))
                 }
                 config_ui::QuickMessageKind::RefreshGitChanges => {
-                    if app.project_path.as_deref().is_none_or(|path| path.trim().is_empty()) {
+                    if app.navigation_tabs.project_path.as_deref().is_none_or(|path| path.trim().is_empty()) {
                         return app.show_localized_toast(
                             crate::app::state::ToastKind::Warning,
                             "请先打开项目，再刷新 Git 变更",
@@ -333,7 +333,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::ScrollChanged { offset_y: rel_y, absolute_offset_y, viewport_h } => {
             let outcome = apply_chat_scroll_changed(app, rel_y, absolute_offset_y, viewport_h);
             let history_task = if rel_y <= 0.08 {
-                app.project_path.clone().zip(app.active_session_id.clone()).and_then(
+                app.navigation_tabs.project_path.clone().zip(app.active_session_id.clone()).and_then(
                     |(project_path, session_id)| {
                         let request = app.paged_chat_timeline.as_mut().and_then(|timeline| {
                             let cursor = timeline.before_cursor()?.to_owned();

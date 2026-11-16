@@ -25,8 +25,8 @@ fn test_module_is_wired() {
 #[test]
 fn sidebar_group_expanded_builds_resize_handle() {
     let mut app = test_app();
-    app.show_settings = true;
-    app.project_path = Some("/tmp/vibe-window-project".to_string());
+    app.navigation_panels.show_settings = true;
+    app.navigation_tabs.project_path = Some("/tmp/vibe-window-project".to_string());
     app.recent_projects = vec!["/tmp/vibe-window-project".to_string()];
     app.recent_projects_edits = vec!["Vibe Window".to_string()];
 
@@ -40,7 +40,7 @@ fn sidebar_group_expanded_builds_resize_handle() {
 #[test]
 fn sidebar_group_collapsed_hides_resize_handle() {
     let mut app = test_app();
-    app.show_settings = false;
+    app.navigation_panels.show_settings = false;
     app.recent_projects = vec!["/tmp/vibe-window-project".to_string()];
     app.recent_projects_edits = vec![String::new()];
 
@@ -97,7 +97,7 @@ fn hover_overlay_layout_with_hover_clamps_negative_panel_width() {
 #[test]
 fn sidebar_group_collapsed_empty_projects() {
     let mut app = test_app();
-    app.show_settings = false;
+    app.navigation_panels.show_settings = false;
 
     let (sidebar, resize_handle) = sidebar_group(&app, 320.0, 56.0, 0.5, 12.0);
 

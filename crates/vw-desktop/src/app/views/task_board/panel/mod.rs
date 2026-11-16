@@ -12,7 +12,7 @@ fn input(app: &App) -> desktop_task_board::panel::PanelView<'_> {
  app_theme: &app.app_theme,
  desktop_locale: app.desktop_locale,
  agents_settings: &app.agents_settings,
- project_path: &app.project_path,
+ project_path: &app.navigation_tabs.project_path,
  task_board_bulk_agent: &app.task_board_bulk_agent,
  task_board_bulk_task_split_mode: app.task_board_bulk_task_split_mode,
  task_board_detail_tab: app.task_board_detail_tab,

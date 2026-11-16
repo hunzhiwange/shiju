@@ -5,7 +5,7 @@ use iced::keyboard::Modifiers;
 
 fn selected_app() -> App {
     let mut app = App::new().0;
-    app.project_path = Some("/project".into());
+    app.navigation_tabs.project_path = Some("/project".into());
     app.lsp_disabled = true;
     app.set_file_index(
         "/project",
@@ -130,18 +130,18 @@ fn selected_drag_partial_completion_preserves_dirty_tabs_and_failed_selection() 
     let mut tab = super::super::file_tree_tests::preview_tab("/project/a.txt");
     tab.content = "unsaved".into();
     tab.is_dirty = true;
-    app.preview_tabs.push(tab);
-    app.active_preview_path = Some("/project/a.txt".into());
+    app.navigation_tabs.preview_tabs.push(tab);
+    app.navigation_tabs.active_preview_path = Some("/project/a.txt".into());
     let _ = complete_batch(
         &mut app,
         "/project".into(),
         vec![("/project/a.txt".into(), "/project/dst/a.txt".into())],
         vec!["b.txt: denied".into()],
     );
-    assert_eq!(app.preview_tabs[0].path, "/project/dst/a.txt");
-    assert_eq!(app.preview_tabs[0].content, "unsaved");
-    assert!(app.preview_tabs[0].is_dirty);
-    assert_eq!(app.active_preview_path.as_deref(), Some("/project/dst/a.txt"));
+    assert_eq!(app.navigation_tabs.preview_tabs[0].path, "/project/dst/a.txt");
+    assert_eq!(app.navigation_tabs.preview_tabs[0].content, "unsaved");
+    assert!(app.navigation_tabs.preview_tabs[0].is_dirty);
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/project/dst/a.txt"));
     assert!(app.file_tree_interaction.file_tree_selection.contains("/project", "/project/dst/a.txt"));
     assert!(app.file_tree_interaction.file_tree_selection.contains("/project", "/project/b.txt"));
     assert!(!app.file_tree_interaction.file_tree_selection.contains("/project", "/project/a.txt"));

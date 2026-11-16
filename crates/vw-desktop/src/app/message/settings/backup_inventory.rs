@@ -7,7 +7,7 @@ use desktop_settings_memory::backup_inventory::{self as domain};
 fn identity(app: &App) -> Option<Identity> {
     let client = crate::app::config::gateway_client().ok()?;
     let context = AgentAppsContext { gateway: client.endpoint().base_url(),
-        tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
+        tenant: client.endpoint().tenant_scope().clone(), project: app.navigation_tabs.project_path.clone() };
     if app.apps_catalog.context.as_ref() != Some(&context) || !app.apps_catalog.connection_open
         || app.apps_catalog.host.trim().is_empty() || app.apps_catalog.token.is_empty() { return None; }
     Some(Identity { gateway: context.gateway, tenant: context.tenant, project_path: context.project, project: app.project_id.clone().filter(|p| !p.trim().is_empty())?,

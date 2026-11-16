@@ -119,7 +119,7 @@ pub(crate) fn start_manual_merge_queue_task(
         &mut app.task_board_tasks,
         &app.task_board_executor.running_tasks,
         &mut app.task_board_manual_merge_queue,
-        app.project_path.is_some(),
+        app.navigation_tabs.project_path.is_some(),
     );
     let task = match effect {
         desktop_task_board::bulk::ManualMergeEffect::None => return iced::Task::none(),
@@ -129,7 +129,7 @@ pub(crate) fn start_manual_merge_queue_task(
         }
         desktop_task_board::bulk::ManualMergeEffect::Dispatch(task) => task,
     };
-    let Some(project_path) = app.project_path.clone() else {
+    let Some(project_path) = app.navigation_tabs.project_path.clone() else {
         return iced::Task::none();
     };
     let task_id = task.id.clone();

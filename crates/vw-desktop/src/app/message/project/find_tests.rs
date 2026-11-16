@@ -51,7 +51,7 @@ fn find_match(preview: &str) -> crate::app::state::FindInFolderMatch {
 #[test]
 fn find_in_project_without_project_path_does_not_create_tabs() {
     let mut app = app();
-    app.project_path = None;
+    app.navigation_tabs.project_path = None;
 
     let _ = super::handle(
         &mut app,
@@ -65,7 +65,7 @@ fn find_in_project_without_project_path_does_not_create_tabs() {
 #[test]
 fn find_in_project_creates_active_find_tab_and_open_tab() {
     let mut app = app();
-    app.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
 
     let _ = super::handle(
         &mut app,
@@ -76,14 +76,14 @@ fn find_in_project_creates_active_find_tab_and_open_tab() {
     assert_eq!(app.find_results_tabs[0].scope_path, "/tmp/project");
     assert_eq!(app.active_find_results_tab_id, Some(app.find_results_tabs[0].id.clone()));
     assert!(app.file_manager.show_file_manager);
-    assert!(app.active_tab_id.as_deref().is_some_and(|id| id.starts_with("find:")));
-    assert!(matches!(app.screen, crate::app::Screen::Project));
+    assert!(app.navigation_tabs.active_tab_id.as_deref().is_some_and(|id| id.starts_with("find:")));
+    assert!(matches!(app.navigation_tabs.screen, crate::app::Screen::Project));
 }
 
 #[test]
 fn find_scope_changed_resolves_project_relative_input_and_rejects_escape() {
     let mut app = app();
-    app.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
     app.find_results_tabs.push(find_tab("a"));
 
     let _ = super::handle(
@@ -237,7 +237,7 @@ fn find_completed_success_replaces_existing_matches_and_clears_running() {
 fn find_completed_reuses_existing_open_tab_without_duplication() {
     let mut app = app();
     app.find_results_tabs.push(find_tab("a"));
-    app.open_tabs.push(crate::app::AppTab {
+    app.navigation_tabs.open_tabs.push(crate::app::AppTab {
         id: "find:a".to_string(),
         title: "Existing results".to_string(),
         screen: crate::app::Screen::Project,
@@ -262,12 +262,12 @@ fn find_completed_reuses_existing_open_tab_without_duplication() {
         },
     );
 
-    assert_eq!(app.open_tabs.iter().filter(|tab| tab.id == "find:a").count(), 1);
+    assert_eq!(app.navigation_tabs.open_tabs.iter().filter(|tab| tab.id == "find:a").count(), 1);
     assert_eq!(
-        app.open_tabs.iter().find(|tab| tab.id == "find:a").unwrap().title,
+        app.navigation_tabs.open_tabs.iter().find(|tab| tab.id == "find:a").unwrap().title,
         "Existing results"
     );
-    assert_eq!(app.active_tab_id.as_deref(), Some("find:a"));
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("find:a"));
     assert_eq!(app.active_find_results_tab_id.as_deref(), Some("a"));
 }
 
@@ -322,8 +322,8 @@ fn match_selected_clamps_invalid_one_based_position_to_editor_origin() {
 #[test]
 fn tab_selected_existing_open_tab_keeps_the_active_workspace() {
     let mut app = app();
-    let active_tab_id = app.active_tab_id.clone();
-    app.open_tabs.push(crate::app::AppTab {
+    let active_tab_id = app.navigation_tabs.active_tab_id.clone();
+    app.navigation_tabs.open_tabs.push(crate::app::AppTab {
         id: "find:a".to_string(),
         title: "A".to_string(),
         screen: crate::app::Screen::Project,
@@ -336,14 +336,14 @@ fn tab_selected_existing_open_tab_keeps_the_active_workspace() {
     );
 
     assert_eq!(app.active_find_results_tab_id.as_deref(), Some("a"));
-    assert_eq!(app.active_tab_id, active_tab_id);
+    assert_eq!(app.navigation_tabs.active_tab_id, active_tab_id);
     assert!(app.file_manager.show_file_manager);
 }
 
 #[test]
 fn tab_selected_without_open_tab_preserves_active_open_tab() {
     let mut app = app();
-    let active_tab_id = app.active_tab_id.clone();
+    let active_tab_id = app.navigation_tabs.active_tab_id.clone();
 
     let _ = super::handle(
         &mut app,
@@ -353,7 +353,7 @@ fn tab_selected_without_open_tab_preserves_active_open_tab() {
     );
 
     assert_eq!(app.active_find_results_tab_id.as_deref(), Some("missing"));
-    assert_eq!(app.active_tab_id, active_tab_id);
+    assert_eq!(app.navigation_tabs.active_tab_id, active_tab_id);
     assert!(app.file_manager.show_file_manager);
 }
 
@@ -379,20 +379,20 @@ fn tab_closed_removes_find_and_open_tabs_and_selects_last() {
     let mut app = app();
     app.find_results_tabs.push(find_tab("a"));
     app.find_results_tabs.push(find_tab("b"));
-    app.open_tabs.push(crate::app::AppTab {
+    app.navigation_tabs.open_tabs.push(crate::app::AppTab {
         id: "find:a".to_string(),
         title: "A".to_string(),
         screen: crate::app::Screen::Project,
         project_path: Some("/tmp/project".to_string()),
     });
-    app.open_tabs.push(crate::app::AppTab {
+    app.navigation_tabs.open_tabs.push(crate::app::AppTab {
         id: "find:b".to_string(),
         title: "B".to_string(),
         screen: crate::app::Screen::Project,
         project_path: Some("/tmp/project".to_string()),
     });
     app.active_find_results_tab_id = Some("a".to_string());
-    app.active_tab_id = Some("find:a".to_string());
+    app.navigation_tabs.active_tab_id = Some("find:a".to_string());
 
     let _ = super::handle(
         &mut app,
@@ -404,11 +404,11 @@ fn tab_closed_removes_find_and_open_tabs_and_selects_last() {
         vec!["b"]
     );
     assert_eq!(
-        app.open_tabs.iter().map(|tab| tab.id.as_str()).collect::<Vec<_>>(),
+        app.navigation_tabs.open_tabs.iter().map(|tab| tab.id.as_str()).collect::<Vec<_>>(),
         vec!["home", "find:b"]
     );
     assert_eq!(app.active_find_results_tab_id.as_deref(), Some("b"));
-    assert_eq!(app.active_tab_id.as_deref(), Some("find:b"));
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("find:b"));
 }
 
 #[test]
@@ -416,20 +416,20 @@ fn tab_closed_nonactive_tab_preserves_active_selections() {
     let mut app = app();
     app.find_results_tabs.push(find_tab("a"));
     app.find_results_tabs.push(find_tab("b"));
-    app.open_tabs.push(crate::app::AppTab {
+    app.navigation_tabs.open_tabs.push(crate::app::AppTab {
         id: "find:a".to_string(),
         title: "A".to_string(),
         screen: crate::app::Screen::Project,
         project_path: Some("/tmp/project".to_string()),
     });
-    app.open_tabs.push(crate::app::AppTab {
+    app.navigation_tabs.open_tabs.push(crate::app::AppTab {
         id: "find:b".to_string(),
         title: "B".to_string(),
         screen: crate::app::Screen::Project,
         project_path: Some("/tmp/project".to_string()),
     });
     app.active_find_results_tab_id = Some("b".to_string());
-    app.active_tab_id = Some("find:b".to_string());
+    app.navigation_tabs.active_tab_id = Some("find:b".to_string());
 
     let _ = super::handle(
         &mut app,
@@ -437,9 +437,9 @@ fn tab_closed_nonactive_tab_preserves_active_selections() {
     );
 
     assert_eq!(app.active_find_results_tab_id.as_deref(), Some("b"));
-    assert_eq!(app.active_tab_id.as_deref(), Some("find:b"));
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("find:b"));
     assert!(app.find_results_tabs.iter().all(|tab| tab.id != "a"));
-    assert!(app.open_tabs.iter().all(|tab| tab.id != "find:a"));
+    assert!(app.navigation_tabs.open_tabs.iter().all(|tab| tab.id != "find:a"));
 }
 
 #[test]
@@ -448,7 +448,7 @@ fn tab_closed_without_open_tab_selects_last_remaining_find_tab() {
     app.find_results_tabs.push(find_tab("a"));
     app.find_results_tabs.push(find_tab("b"));
     app.active_find_results_tab_id = Some("a".to_string());
-    let active_tab_id = app.active_tab_id.clone();
+    let active_tab_id = app.navigation_tabs.active_tab_id.clone();
 
     let _ = super::handle(
         &mut app,
@@ -456,7 +456,7 @@ fn tab_closed_without_open_tab_selects_last_remaining_find_tab() {
     );
 
     assert_eq!(app.active_find_results_tab_id.as_deref(), Some("b"));
-    assert_eq!(app.active_tab_id, active_tab_id);
+    assert_eq!(app.navigation_tabs.active_tab_id, active_tab_id);
     assert_eq!(app.find_results_tabs.len(), 1);
 }
 
@@ -464,14 +464,14 @@ fn tab_closed_without_open_tab_selects_last_remaining_find_tab() {
 fn tab_closed_last_active_find_tab_clears_active_find_and_falls_back_to_last_open_tab() {
     let mut app = app();
     app.find_results_tabs.push(find_tab("a"));
-    app.open_tabs.push(crate::app::AppTab {
+    app.navigation_tabs.open_tabs.push(crate::app::AppTab {
         id: "find:a".to_string(),
         title: "A".to_string(),
         screen: crate::app::Screen::Project,
         project_path: Some("/tmp/project".to_string()),
     });
     app.active_find_results_tab_id = Some("a".to_string());
-    app.active_tab_id = Some("find:a".to_string());
+    app.navigation_tabs.active_tab_id = Some("find:a".to_string());
 
     let _ = super::handle(
         &mut app,
@@ -480,11 +480,11 @@ fn tab_closed_last_active_find_tab_clears_active_find_and_falls_back_to_last_ope
 
     assert!(app.find_results_tabs.is_empty());
     assert!(app.active_find_results_tab_id.is_none());
-    assert_eq!(app.active_tab_id.as_deref(), Some("home"));
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("home"));
 }
 
 fn add_find_open_tab(app: &mut crate::app::App, id: &str) {
-    app.open_tabs.push(crate::app::AppTab {
+    app.navigation_tabs.open_tabs.push(crate::app::AppTab {
         id: format!("find:{id}"),
         title: id.to_string(),
         screen: crate::app::Screen::Project,
@@ -530,7 +530,7 @@ fn find_tab_menu_close_current_syncs_active_find_and_top_level_tabs() {
     let mut app = app();
     set_find_tabs(&mut app);
     app.active_find_results_tab_id = Some("b".to_string());
-    app.active_tab_id = Some("find:b".to_string());
+    app.navigation_tabs.active_tab_id = Some("find:b".to_string());
     app.find_results_tab_menu_id = Some("b".to_string());
 
     let _ = super::handle(
@@ -543,8 +543,8 @@ fn find_tab_menu_close_current_syncs_active_find_and_top_level_tabs() {
         vec!["a", "c"]
     );
     assert_eq!(app.active_find_results_tab_id.as_deref(), Some("c"));
-    assert_eq!(app.active_tab_id.as_deref(), Some("find:c"));
-    assert!(app.open_tabs.iter().all(|tab| tab.id != "find:b"));
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("find:c"));
+    assert!(app.navigation_tabs.open_tabs.iter().all(|tab| tab.id != "find:b"));
     assert!(app.find_results_tab_menu_id.is_none());
 }
 
@@ -553,7 +553,7 @@ fn find_tab_menu_close_left_syncs_active_find_and_top_level_tabs() {
     let mut app = app();
     set_find_tabs(&mut app);
     app.active_find_results_tab_id = Some("a".to_string());
-    app.active_tab_id = Some("find:a".to_string());
+    app.navigation_tabs.active_tab_id = Some("find:a".to_string());
     app.find_results_tab_menu_id = Some("b".to_string());
 
     let _ = super::handle(
@@ -566,8 +566,8 @@ fn find_tab_menu_close_left_syncs_active_find_and_top_level_tabs() {
         vec!["b", "c"]
     );
     assert_eq!(app.active_find_results_tab_id.as_deref(), Some("c"));
-    assert_eq!(app.active_tab_id.as_deref(), Some("find:c"));
-    assert!(app.open_tabs.iter().all(|tab| tab.id != "find:a"));
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("find:c"));
+    assert!(app.navigation_tabs.open_tabs.iter().all(|tab| tab.id != "find:a"));
     assert!(app.find_results_tab_menu_id.is_none());
 }
 
@@ -576,7 +576,7 @@ fn find_tab_menu_close_right_syncs_active_find_and_top_level_tabs() {
     let mut app = app();
     set_find_tabs(&mut app);
     app.active_find_results_tab_id = Some("c".to_string());
-    app.active_tab_id = Some("find:c".to_string());
+    app.navigation_tabs.active_tab_id = Some("find:c".to_string());
     app.find_results_tab_menu_id = Some("b".to_string());
 
     let _ = super::handle(
@@ -591,8 +591,8 @@ fn find_tab_menu_close_right_syncs_active_find_and_top_level_tabs() {
         vec!["a", "b"]
     );
     assert_eq!(app.active_find_results_tab_id.as_deref(), Some("b"));
-    assert_eq!(app.active_tab_id.as_deref(), Some("find:b"));
-    assert!(app.open_tabs.iter().all(|tab| tab.id != "find:c"));
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("find:b"));
+    assert!(app.navigation_tabs.open_tabs.iter().all(|tab| tab.id != "find:c"));
     assert!(app.find_results_tab_menu_id.is_none());
 }
 
@@ -601,7 +601,7 @@ fn find_tab_menu_close_all_clears_all_find_state_and_top_level_tabs() {
     let mut app = app();
     set_find_tabs(&mut app);
     app.active_find_results_tab_id = Some("b".to_string());
-    app.active_tab_id = Some("find:b".to_string());
+    app.navigation_tabs.active_tab_id = Some("find:b".to_string());
     app.find_results_tab_menu_id = Some("b".to_string());
 
     let _ = super::handle(
@@ -611,8 +611,8 @@ fn find_tab_menu_close_all_clears_all_find_state_and_top_level_tabs() {
 
     assert!(app.find_results_tabs.is_empty());
     assert!(app.active_find_results_tab_id.is_none());
-    assert_eq!(app.active_tab_id.as_deref(), Some("home"));
-    assert!(app.open_tabs.iter().all(|tab| !tab.id.starts_with("find:")));
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("home"));
+    assert!(app.navigation_tabs.open_tabs.iter().all(|tab| !tab.id.starts_with("find:")));
     assert!(app.find_results_tab_menu_id.is_none());
     assert!(app.find_results_tab_menu_pos.is_none());
 }

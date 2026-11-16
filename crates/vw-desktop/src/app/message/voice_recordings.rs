@@ -6,7 +6,7 @@ use desktop_voice_ui::message::voice_recordings as domain;
 fn message(event: Event) -> Message { Message::Voice(super::voice::Event::Recordings(event)) }
 pub(crate) fn invalidate(app: &mut App) {
     let scope = super::voice::scope(app);
-    let visible = app.show_system_settings && app.system_settings_tab == crate::app::components::system_settings::SystemTab::Voice;
+    let visible = app.navigation_panels.show_system_settings && app.navigation_panels.system_settings_tab == crate::app::components::system_settings::SystemTab::Voice;
     domain::invalidate(&mut app.voice.recordings, scope, &crate::app::gateway_client_endpoint(), visible, crate::app::voice::recordings::path());
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {

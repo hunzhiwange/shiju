@@ -46,7 +46,7 @@ pub(crate) fn git_context_path_for_app(app: &App) -> Option<String> {
     desktop_git_ui::message_git::shared::git_context_path(
         app.git.selected_git_worktree_directory.as_deref(),
         active_directory,
-        app.project_path.as_deref(),
+        app.navigation_tabs.project_path.as_deref(),
     )
 }
 

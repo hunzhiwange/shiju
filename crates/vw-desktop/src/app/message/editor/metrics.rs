@@ -45,7 +45,7 @@ pub(crate) fn apply_snapshot(app: &mut App, size: f32, height: f32, auto: bool) 
 }
 
 fn apply_to_open_editors(app: &mut App, font_size: Option<f32>, line_height: Option<f32>) {
-    for tab in &mut app.preview_tabs {
+    for tab in &mut app.navigation_tabs.preview_tabs {
         apply(&mut tab.editor.inner, font_size, line_height);
     }
     apply(

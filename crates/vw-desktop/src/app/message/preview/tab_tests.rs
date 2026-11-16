@@ -56,17 +56,17 @@ async fn collect_task_messages(task: Task<Message>) -> Vec<Message> {
 fn open_existing_tab_focuses_preview_and_preserves_single_tab() {
     let mut app = app();
     app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Code;
-    app.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
+    app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
     app.file_manager.show_file_manager = true;
     app.file_manager.file_manager_show_changes = false;
-    app.screen = Screen::Project;
+    app.navigation_tabs.screen = Screen::Project;
 
     let task = update(&mut app, PreviewMessage::Open("/tmp/a.txt".to_string()));
 
-    assert_eq!(app.preview_tabs.len(), 1);
-    assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/a.txt"));
+    assert_eq!(app.navigation_tabs.preview_tabs.len(), 1);
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/tmp/a.txt"));
     assert!(matches!(app.focus_area, FocusArea::Preview));
-    assert!(app.show_diff);
+    assert!(app.navigation_panels.show_diff);
     assert!(!has_scheduled_action(task));
 }
 
@@ -75,62 +75,62 @@ fn open_existing_tab_focuses_preview_and_preserves_single_tab() {
 #[test]
 fn open_existing_tab_outside_project_creates_one_selected_top_level_tab() {
     let mut app = app();
-    app.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
+    app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
     app.file_manager.show_file_manager = true;
     app.file_manager.file_manager_show_changes = false;
-    app.screen = Screen::Home;
+    app.navigation_tabs.screen = Screen::Home;
 
     let _ = update(&mut app, PreviewMessage::Open("/tmp/a.txt".to_string()));
     let _ = update(&mut app, PreviewMessage::Open("/tmp/a.txt".to_string()));
 
     let preview_tabs =
-        app.open_tabs.iter().filter(|tab| tab.id == "preview:/tmp/a.txt").collect::<Vec<_>>();
+        app.navigation_tabs.open_tabs.iter().filter(|tab| tab.id == "preview:/tmp/a.txt").collect::<Vec<_>>();
     assert_eq!(preview_tabs.len(), 1);
     assert_eq!(preview_tabs[0].title, "a.txt");
     assert_eq!(preview_tabs[0].screen, Screen::Preview);
-    assert_eq!(app.active_tab_id.as_deref(), Some("preview:/tmp/a.txt"));
-    assert_eq!(app.screen, Screen::Preview);
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("preview:/tmp/a.txt"));
+    assert_eq!(app.navigation_tabs.screen, Screen::Preview);
 }
 
 #[test]
 fn open_new_instant_preview_creates_tab_and_only_schedules_preferences_save() {
     let mut app = app();
     app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Code;
-    app.screen = Screen::Project;
+    app.navigation_tabs.screen = Screen::Project;
     app.file_manager.show_file_manager = false;
     app.file_manager.file_manager_show_changes = true;
 
     let task = update(&mut app, PreviewMessage::Open("/tmp/image.png".to_string()));
 
-    assert_eq!(app.preview_tabs.len(), 1);
-    assert_eq!(app.preview_tabs[0].path, "/tmp/image.png");
-    assert_eq!(app.preview_tabs[0].title, "image.png");
-    assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/image.png"));
+    assert_eq!(app.navigation_tabs.preview_tabs.len(), 1);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].path, "/tmp/image.png");
+    assert_eq!(app.navigation_tabs.preview_tabs[0].title, "image.png");
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/tmp/image.png"));
     assert!(app.file_manager.show_file_manager);
     assert!(!app.file_manager.file_manager_show_changes);
-    assert!(app.show_diff);
+    assert!(app.navigation_panels.show_diff);
     assert_eq!(task.units(), 1);
 }
 
 #[test]
 fn open_new_text_preview_sets_loading_content_and_schedules_gateway_read() {
     let mut app = app();
-    app.screen = Screen::Project;
-    app.project_path = Some("/workspace/project".to_string());
+    app.navigation_tabs.screen = Screen::Project;
+    app.navigation_tabs.project_path = Some("/workspace/project".to_string());
 
     let task = update(&mut app, PreviewMessage::Open("src/lib.rs".to_string()));
 
-    assert_eq!(app.preview_tabs.len(), 1);
-    assert_eq!(app.preview_tabs[0].content, "加载中…");
-    assert!(!app.preview_tabs[0].truncated);
-    assert_eq!(app.active_preview_path.as_deref(), Some("src/lib.rs"));
+    assert_eq!(app.navigation_tabs.preview_tabs.len(), 1);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].content, "加载中…");
+    assert!(!app.navigation_tabs.preview_tabs[0].truncated);
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("src/lib.rs"));
     assert!(has_scheduled_action(task));
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn open_file_in_work_mode_reveals_workspace_files() {
     let mut app = app();
-    app.screen = Screen::Project;
+    app.navigation_tabs.screen = Screen::Project;
     app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
     app.navigation_workspace.work_resources_visible = false;
     app.navigation_workspace.work_resource_mode = crate::app::state::WorkResourceMode::Browser;
@@ -154,11 +154,11 @@ async fn open_file_in_work_mode_reveals_workspace_files() {
 #[test]
 fn select_empty_path_clears_active_preview() {
     let mut app = app();
-    app.active_preview_path = Some("/tmp/a.txt".to_string());
+    app.navigation_tabs.active_preview_path = Some("/tmp/a.txt".to_string());
 
     let task = update(&mut app, PreviewMessage::Select(String::new()));
 
-    assert!(app.active_preview_path.is_none());
+    assert!(app.navigation_tabs.active_preview_path.is_none());
     assert!(!has_scheduled_action(task));
 }
 
@@ -168,7 +168,7 @@ fn select_path_sets_active_preview_and_focus() {
 
     let task = update(&mut app, PreviewMessage::Select("/tmp/a.txt".to_string()));
 
-    assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/a.txt"));
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/tmp/a.txt"));
     assert!(matches!(app.focus_area, FocusArea::Preview));
     assert!(!has_scheduled_action(task));
 }
@@ -176,50 +176,50 @@ fn select_path_sets_active_preview_and_focus() {
 #[test]
 fn close_active_preview_selects_last_remaining_tab() {
     let mut app = app();
-    app.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
-    app.preview_tabs.push(preview_tab("/tmp/b.txt", "b"));
-    app.active_preview_path = Some("/tmp/a.txt".to_string());
+    app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
+    app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/b.txt", "b"));
+    app.navigation_tabs.active_preview_path = Some("/tmp/a.txt".to_string());
 
     let _ = update(&mut app, PreviewMessage::Close("/tmp/a.txt".to_string()));
 
-    assert_eq!(app.preview_tabs.len(), 1);
-    assert_eq!(app.preview_tabs[0].path, "/tmp/b.txt");
-    assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/b.txt"));
+    assert_eq!(app.navigation_tabs.preview_tabs.len(), 1);
+    assert_eq!(app.navigation_tabs.preview_tabs[0].path, "/tmp/b.txt");
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/tmp/b.txt"));
 }
 
 #[test]
 fn close_non_active_or_missing_preview_preserves_active_path() {
     let mut app = app();
-    app.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
-    app.preview_tabs.push(preview_tab("/tmp/b.txt", "b"));
-    app.active_preview_path = Some("/tmp/a.txt".to_string());
+    app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
+    app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/b.txt", "b"));
+    app.navigation_tabs.active_preview_path = Some("/tmp/a.txt".to_string());
 
     let _ = update(&mut app, PreviewMessage::Close("/tmp/b.txt".to_string()));
     let _ = update(&mut app, PreviewMessage::Close("/tmp/missing.txt".to_string()));
 
     assert_eq!(
-        app.preview_tabs.iter().map(|tab| tab.path.as_str()).collect::<Vec<_>>(),
+        app.navigation_tabs.preview_tabs.iter().map(|tab| tab.path.as_str()).collect::<Vec<_>>(),
         vec!["/tmp/a.txt"]
     );
-    assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/a.txt"));
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/tmp/a.txt"));
 }
 
 #[test]
 fn close_only_active_preview_clears_active_path() {
     let mut app = app();
-    app.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
-    app.active_preview_path = Some("/tmp/a.txt".to_string());
+    app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
+    app.navigation_tabs.active_preview_path = Some("/tmp/a.txt".to_string());
 
     let _ = update(&mut app, PreviewMessage::Close("/tmp/a.txt".to_string()));
 
-    assert!(app.preview_tabs.is_empty());
-    assert!(app.active_preview_path.is_none());
+    assert!(app.navigation_tabs.preview_tabs.is_empty());
+    assert!(app.navigation_tabs.active_preview_path.is_none());
 }
 
 #[test]
 fn open_loaded_updates_existing_tab_but_ignores_missing_path() {
     let mut app = app();
-    app.preview_tabs.push(preview_tab("/tmp/a.rs", "old"));
+    app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/a.rs", "old"));
 
     let _ = update(
         &mut app,
@@ -238,17 +238,17 @@ fn open_loaded_updates_existing_tab_but_ignores_missing_path() {
         },
     );
 
-    let tab = &app.preview_tabs[0];
+    let tab = &app.navigation_tabs.preview_tabs[0];
     assert_eq!(tab.content, "new");
     assert!(!tab.is_dirty);
     assert!(tab.truncated);
-    assert_eq!(app.preview_tabs.len(), 1);
+    assert_eq!(app.navigation_tabs.preview_tabs.len(), 1);
 }
 
 #[test]
 fn open_loaded_matching_pending_target_clears_navigation_and_schedules_goto() {
     let mut app = app();
-    app.preview_tabs.push(preview_tab("/tmp/a.txt", "old"));
+    app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/a.txt", "old"));
     app.pending_preview_goto = Some(("/tmp/a.txt".to_string(), 4, 7));
     app.preview_trace_navigating = true;
 
@@ -269,7 +269,7 @@ fn open_loaded_matching_pending_target_clears_navigation_and_schedules_goto() {
 #[tokio::test(flavor = "multi_thread")]
 async fn save_file_emits_save_for_active_path_and_none_without_active_path() {
     let mut app = app();
-    app.active_preview_path = Some("/tmp/a.txt".to_string());
+    app.navigation_tabs.active_preview_path = Some("/tmp/a.txt".to_string());
 
     let messages = collect_task_messages(update(&mut app, PreviewMessage::SaveFile)).await;
     assert!(matches!(
@@ -278,14 +278,14 @@ async fn save_file_emits_save_for_active_path_and_none_without_active_path() {
             if path == "/tmp/a.txt"
     ));
 
-    app.active_preview_path = None;
+    app.navigation_tabs.active_preview_path = None;
     assert!(!has_scheduled_action(update(&mut app, PreviewMessage::SaveFile)));
 }
 
 #[test]
 fn save_file_path_rejects_missing_or_clean_tab_without_io() {
     let mut app = app();
-    app.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
+    app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
     app.show_preview_context_menu = true;
 
     assert!(!has_scheduled_action(update(
@@ -306,7 +306,7 @@ fn save_file_path_dirty_tab_schedules_persist_and_closes_context_menu() {
     let mut app = app();
     let mut tab = preview_tab("/tmp/a.txt", "old");
     tab.is_dirty = true;
-    app.preview_tabs.push(tab);
+    app.navigation_tabs.preview_tabs.push(tab);
     app.show_preview_context_menu = true;
 
     let task = update(
@@ -324,7 +324,7 @@ fn save_file_finished_success_updates_matching_tab() {
     let mut tab = preview_tab("/tmp/a.txt", "old");
     tab.editor = crate::app::components::editor::Editor::new("saved", "text");
     tab.is_dirty = true;
-    app.preview_tabs.push(tab);
+    app.navigation_tabs.preview_tabs.push(tab);
 
     let task = update(
         &mut app,
@@ -336,9 +336,9 @@ fn save_file_finished_success_updates_matching_tab() {
         },
     );
 
-    assert_eq!(app.preview_tabs[0].content, "saved");
-    assert!(!app.preview_tabs[0].is_dirty);
-    assert!(!app.preview_tabs[0].editor.inner.is_modified());
+    assert_eq!(app.navigation_tabs.preview_tabs[0].content, "saved");
+    assert!(!app.navigation_tabs.preview_tabs[0].is_dirty);
+    assert!(!app.navigation_tabs.preview_tabs[0].editor.inner.is_modified());
     assert!(app.active_toast.is_none());
     assert!(!has_scheduled_action(task));
 }
@@ -349,7 +349,7 @@ fn save_file_finished_keeps_newer_editor_content_dirty() {
     let mut tab = preview_tab("/tmp/a.txt", "old");
     let _ = tab.editor.inner.update(&iced_code_editor::Message::Enter);
     tab.is_dirty = true;
-    app.preview_tabs.push(tab);
+    app.navigation_tabs.preview_tabs.push(tab);
 
     let _ = update(
         &mut app,
@@ -361,8 +361,8 @@ fn save_file_finished_keeps_newer_editor_content_dirty() {
         },
     );
 
-    assert!(app.preview_tabs[0].is_dirty);
-    assert!(app.preview_tabs[0].editor.inner.is_modified());
+    assert!(app.navigation_tabs.preview_tabs[0].is_dirty);
+    assert!(app.navigation_tabs.preview_tabs[0].editor.inner.is_modified());
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
@@ -404,7 +404,7 @@ async fn auto_save_delay_emits_save_only_for_matching_dirty_revision() {
     let mut tab = preview_tab("/tmp/a.txt", "a");
     tab.is_dirty = true;
     tab.auto_save_revision = 4;
-    app.preview_tabs.push(tab);
+    app.navigation_tabs.preview_tabs.push(tab);
     app.preview_auto_save_mode = PreviewAutoSaveMode::AfterDelay;
 
     let messages = collect_task_messages(update(
@@ -423,7 +423,7 @@ async fn auto_save_delay_emits_save_only_for_matching_dirty_revision() {
         &mut app,
         PreviewMessage::AutoSaveDelayElapsed { path: "/tmp/a.txt".to_string(), revision: 3 },
     )));
-    app.preview_tabs[0].is_dirty = false;
+    app.navigation_tabs.preview_tabs[0].is_dirty = false;
     assert!(!has_scheduled_action(update(
         &mut app,
         PreviewMessage::AutoSaveDelayElapsed { path: "/tmp/a.txt".to_string(), revision: 4 },
@@ -465,8 +465,8 @@ async fn window_unfocused_saves_only_active_dirty_tab_in_supported_mode() {
     let mut app = app();
     let mut tab = preview_tab("/tmp/a.txt", "a");
     tab.is_dirty = true;
-    app.preview_tabs.push(tab);
-    app.active_preview_path = Some("/tmp/a.txt".to_string());
+    app.navigation_tabs.preview_tabs.push(tab);
+    app.navigation_tabs.active_preview_path = Some("/tmp/a.txt".to_string());
     app.preview_auto_save_mode = PreviewAutoSaveMode::OnWindowChange;
 
     let messages = collect_task_messages(update(&mut app, PreviewMessage::WindowUnfocused)).await;
@@ -479,9 +479,9 @@ async fn window_unfocused_saves_only_active_dirty_tab_in_supported_mode() {
     app.preview_auto_save_mode = PreviewAutoSaveMode::AfterDelay;
     assert!(!has_scheduled_action(update(&mut app, PreviewMessage::WindowUnfocused)));
     app.preview_auto_save_mode = PreviewAutoSaveMode::OnFocusChange;
-    app.preview_tabs[0].is_dirty = false;
+    app.navigation_tabs.preview_tabs[0].is_dirty = false;
     assert!(!has_scheduled_action(update(&mut app, PreviewMessage::WindowUnfocused)));
-    app.active_preview_path = None;
+    app.navigation_tabs.active_preview_path = None;
     assert!(!has_scheduled_action(update(&mut app, PreviewMessage::WindowUnfocused)));
 }
 
@@ -495,7 +495,7 @@ fn path_segment_clicked_lists_directories_first_and_hides_dot_entries() {
         .expect("hidden fixture should be created");
     let mut app = app();
     app.show_preview_context_menu = true;
-    app.preview_tab_menu_path = Some("old".to_string());
+    app.navigation_tabs.preview_tab_menu_path = Some("old".to_string());
 
     let _ = update(
         &mut app,
@@ -513,7 +513,7 @@ fn path_segment_clicked_lists_directories_first_and_hides_dot_entries() {
         &[("z_dir".to_string(), true), ("a.txt".to_string(), false), ("B.txt".to_string(), false),]
     );
     assert!(!app.show_preview_context_menu);
-    assert!(app.preview_tab_menu_path.is_none());
+    assert!(app.navigation_tabs.preview_tab_menu_path.is_none());
 }
 
 #[test]
@@ -568,90 +568,90 @@ fn tab_right_click_replaces_other_preview_popups() {
 
     assert!(!app.show_preview_context_menu);
     assert!(app.preview_nav_popup.is_none());
-    assert_eq!(app.preview_tab_menu_path.as_deref(), Some("/tmp/a.txt"));
-    assert_eq!(app.preview_tab_menu_pos, Some(iced::Point::new(10.0, 20.0)));
+    assert_eq!(app.navigation_tabs.preview_tab_menu_path.as_deref(), Some("/tmp/a.txt"));
+    assert_eq!(app.navigation_tabs.preview_tab_menu_pos, Some(iced::Point::new(10.0, 20.0)));
 }
 
 #[test]
 fn tab_menu_close_clears_path_and_position() {
     let mut app = app();
-    app.preview_tab_menu_path = Some("/tmp/a.txt".to_string());
-    app.preview_tab_menu_pos = Some(iced::Point::new(1.0, 2.0));
+    app.navigation_tabs.preview_tab_menu_path = Some("/tmp/a.txt".to_string());
+    app.navigation_tabs.preview_tab_menu_pos = Some(iced::Point::new(1.0, 2.0));
 
     let _ = update(&mut app, PreviewMessage::TabMenuClose);
 
-    assert!(app.preview_tab_menu_path.is_none());
-    assert!(app.preview_tab_menu_pos.is_none());
+    assert!(app.navigation_tabs.preview_tab_menu_path.is_none());
+    assert!(app.navigation_tabs.preview_tab_menu_pos.is_none());
 }
 
 #[test]
 fn tab_menu_close_left_removes_tabs_before_target() {
     let mut app = app();
-    app.preview_tabs = vec![
+    app.navigation_tabs.preview_tabs = vec![
         preview_tab("/tmp/a.txt", "a"),
         preview_tab("/tmp/b.txt", "b"),
         preview_tab("/tmp/c.txt", "c"),
     ];
-    app.active_preview_path = Some("/tmp/a.txt".to_string());
+    app.navigation_tabs.active_preview_path = Some("/tmp/a.txt".to_string());
 
     let _ = update(&mut app, PreviewMessage::TabMenuCloseLeft("/tmp/b.txt".to_string()));
 
     assert_eq!(
-        app.preview_tabs.iter().map(|tab| tab.path.as_str()).collect::<Vec<_>>(),
+        app.navigation_tabs.preview_tabs.iter().map(|tab| tab.path.as_str()).collect::<Vec<_>>(),
         vec!["/tmp/b.txt", "/tmp/c.txt"]
     );
-    assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/b.txt"));
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/tmp/b.txt"));
 }
 
 #[test]
 fn tab_menu_close_right_removes_tabs_after_target() {
     let mut app = app();
-    app.preview_tabs = vec![
+    app.navigation_tabs.preview_tabs = vec![
         preview_tab("/tmp/a.txt", "a"),
         preview_tab("/tmp/b.txt", "b"),
         preview_tab("/tmp/c.txt", "c"),
     ];
-    app.active_preview_path = Some("/tmp/c.txt".to_string());
+    app.navigation_tabs.active_preview_path = Some("/tmp/c.txt".to_string());
 
     let _ = update(&mut app, PreviewMessage::TabMenuCloseRight("/tmp/b.txt".to_string()));
 
     assert_eq!(
-        app.preview_tabs.iter().map(|tab| tab.path.as_str()).collect::<Vec<_>>(),
+        app.navigation_tabs.preview_tabs.iter().map(|tab| tab.path.as_str()).collect::<Vec<_>>(),
         vec!["/tmp/a.txt", "/tmp/b.txt"]
     );
-    assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/b.txt"));
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/tmp/b.txt"));
 }
 
 #[test]
 fn tab_menu_close_missing_target_only_dismisses_menu() {
     let mut app = app();
-    app.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
-    app.active_preview_path = Some("/tmp/a.txt".to_string());
-    app.preview_tab_menu_path = Some("/tmp/missing.txt".to_string());
-    app.preview_tab_menu_pos = Some(iced::Point::new(1.0, 2.0));
+    app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
+    app.navigation_tabs.active_preview_path = Some("/tmp/a.txt".to_string());
+    app.navigation_tabs.preview_tab_menu_path = Some("/tmp/missing.txt".to_string());
+    app.navigation_tabs.preview_tab_menu_pos = Some(iced::Point::new(1.0, 2.0));
 
     let _ = update(&mut app, PreviewMessage::TabMenuCloseLeft("/tmp/missing.txt".to_string()));
 
-    assert_eq!(app.preview_tabs.len(), 1);
-    assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/a.txt"));
-    assert!(app.preview_tab_menu_path.is_none());
-    assert!(app.preview_tab_menu_pos.is_none());
+    assert_eq!(app.navigation_tabs.preview_tabs.len(), 1);
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/tmp/a.txt"));
+    assert!(app.navigation_tabs.preview_tab_menu_path.is_none());
+    assert!(app.navigation_tabs.preview_tab_menu_pos.is_none());
 }
 
 #[test]
 fn tab_menu_close_right_missing_target_only_dismisses_menu() {
     let mut app = app();
-    app.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
-    app.active_preview_path = Some("/tmp/a.txt".to_string());
-    app.preview_tab_menu_path = Some("/tmp/missing.txt".to_string());
-    app.preview_tab_menu_pos = Some(iced::Point::new(1.0, 2.0));
+    app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
+    app.navigation_tabs.active_preview_path = Some("/tmp/a.txt".to_string());
+    app.navigation_tabs.preview_tab_menu_path = Some("/tmp/missing.txt".to_string());
+    app.navigation_tabs.preview_tab_menu_pos = Some(iced::Point::new(1.0, 2.0));
 
     let _ = update(&mut app, PreviewMessage::TabMenuCloseRight("/tmp/missing.txt".to_string()));
 
-    assert_eq!(app.preview_tabs.len(), 1);
-    assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/a.txt"));
-    assert!(app.preview_tab_menu_path.is_none());
-    assert!(app.preview_tab_menu_pos.is_none());
+    assert_eq!(app.navigation_tabs.preview_tabs.len(), 1);
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/tmp/a.txt"));
+    assert!(app.navigation_tabs.preview_tab_menu_path.is_none());
+    assert!(app.navigation_tabs.preview_tab_menu_pos.is_none());
 }
 
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
@@ -659,15 +659,15 @@ fn tab_menu_close_right_missing_target_only_dismisses_menu() {
 #[test]
 fn tab_menu_close_all_clears_tabs_active_path_and_menu() {
     let mut app = app();
-    app.preview_tabs = vec![preview_tab("/tmp/a.txt", "a"), preview_tab("/tmp/b.txt", "b")];
-    app.active_preview_path = Some("/tmp/a.txt".to_string());
-    app.preview_tab_menu_path = Some("/tmp/a.txt".to_string());
-    app.preview_tab_menu_pos = Some(iced::Point::new(1.0, 2.0));
+    app.navigation_tabs.preview_tabs = vec![preview_tab("/tmp/a.txt", "a"), preview_tab("/tmp/b.txt", "b")];
+    app.navigation_tabs.active_preview_path = Some("/tmp/a.txt".to_string());
+    app.navigation_tabs.preview_tab_menu_path = Some("/tmp/a.txt".to_string());
+    app.navigation_tabs.preview_tab_menu_pos = Some(iced::Point::new(1.0, 2.0));
 
     let _ = update(&mut app, PreviewMessage::TabMenuCloseAll);
 
-    assert!(app.preview_tabs.is_empty());
-    assert!(app.active_preview_path.is_none());
-    assert!(app.preview_tab_menu_path.is_none());
-    assert!(app.preview_tab_menu_pos.is_none());
+    assert!(app.navigation_tabs.preview_tabs.is_empty());
+    assert!(app.navigation_tabs.active_preview_path.is_none());
+    assert!(app.navigation_tabs.preview_tab_menu_path.is_none());
+    assert!(app.navigation_tabs.preview_tab_menu_pos.is_none());
 }

@@ -54,3 +54,42 @@ pub fn close_requested_windows(
 
     CloseRequestedWindows { main_window_id: None, task_pet_window_id: None }
 }
+
+/// 原子式标记关闭流程；已开始关闭时返回 `false` 防止重复清理。
+pub fn begin_shutdown(shutdown_requested: &mut bool) -> bool {
+    if *shutdown_requested {
+        return false;
+    }
+    *shutdown_requested = true;
+    true
+}
+
+/// Normalize the main-window geometry and return the one-shot startup correction.
+pub fn resize_main_window(
+    main: Option<iced::window::Id>,
+    window: iced::window::Id,
+    size: &mut (f32, f32),
+    startup_checked: &mut bool,
+    blocked: bool,
+    width: f32,
+    height: f32,
+) -> Option<iced::Size> {
+    if main != Some(window) {
+        return None;
+    }
+    let width = width.max(1.0);
+    let height = height.max(1.0);
+    *size = (width, height);
+    if blocked || *startup_checked {
+        return None;
+    }
+    *startup_checked = true;
+    #[cfg(not(target_arch = "wasm32"))]
+    if width > height * 2.0 {
+        return Some(iced::Size::new(width * 0.5, height));
+    }
+    None
+}
+
+/// Finish the native layout-settling interval.
+pub fn settle_fullscreen_layout(settling: &mut bool) { *settling = false; }

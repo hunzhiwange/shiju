@@ -73,7 +73,7 @@ fn picker_close_and_name_change_update_state() {
 #[test]
 fn desktop_first_response_picking_existing_workspace_opens_a_scoped_draft() {
     let mut app = app();
-    app.project_path = Some("/tmp/project".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
     app.new_session_picker_project = Some("/tmp/project".to_string());
     app.new_session_picker_options =
         vec![("/tmp/project-wt".to_string(), "功能工作区".to_string())];

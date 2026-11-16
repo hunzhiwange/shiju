@@ -13,7 +13,7 @@ pub(crate) fn handoff(app: &mut App, id: u64) -> Task<Message> {
     if !mcp_management_import::open_link(app, drafts) {
         return app.show_error_toast("请先连接目标主机并关闭已有 MCP 导入弹窗");
     }
-    app.system_settings_tab = crate::app::components::system_settings::SystemTab::Agents;
+    app.navigation_panels.system_settings_tab = crate::app::components::system_settings::SystemTab::Agents;
     app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Mcp;
     let _ = deep_links::acknowledge(id);
     Task::none()

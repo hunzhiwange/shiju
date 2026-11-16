@@ -13,21 +13,21 @@ fn test_app() -> App {
 #[test]
 fn settings_message_routes_to_settings_update() {
     let mut app = test_app();
-    app.show_about_modal = false;
+    app.navigation_panels.show_about_modal = false;
 
     let _task = update(&mut app, ViewMessage::ToggleAboutModal);
 
-    assert!(app.show_about_modal);
+    assert!(app.navigation_panels.show_about_modal);
 }
 
 #[test]
 fn popover_message_routes_to_popovers_update() {
     let mut app = test_app();
-    app.show_mode_popover = false;
+    app.popover_visibility.mode = false;
 
     let _task = update(&mut app, ViewMessage::ToggleModePopover);
 
-    assert!(app.show_mode_popover);
+    assert!(app.popover_visibility.mode);
 }
 
 #[test]
@@ -36,7 +36,7 @@ fn tab_message_routes_to_tabs_update() {
 
     let _task = update(&mut app, ViewMessage::TabHovered(Some("usage".to_string())));
 
-    assert_eq!(app.hovered_tab_id.as_deref(), Some("usage"));
+    assert_eq!(app.navigation_tabs.hovered_tab_id.as_deref(), Some("usage"));
 }
 
 // 消息与任务边界：确认输入消息产生预期状态或返回任务。
@@ -47,9 +47,9 @@ fn app_message_routes_to_apps_update() {
 
     let _task = update(&mut app, ViewMessage::OpenApps);
 
-    assert_eq!(app.screen, Screen::Apps);
-    assert_eq!(app.active_tab_id.as_deref(), Some("apps"));
-    assert!(app.open_tabs.iter().any(|tab| tab.id == "apps"));
+    assert_eq!(app.navigation_tabs.screen, Screen::Apps);
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("apps"));
+    assert!(app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == "apps"));
 }
 
 #[test]
@@ -59,8 +59,8 @@ fn usage_message_routes_to_usage_update() {
 
     let _task = update(&mut app, ViewMessage::UsageStepToggled(7));
 
-    assert!(app.usage_step_expanded.contains(&7));
-    assert!(app.usage_step_raw_loading.is_empty());
+    assert!(app.usage_panel.usage_step_expanded.contains(&7));
+    assert!(app.usage_panel.usage_step_raw_loading.is_empty());
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn web_message_routes_to_web_update() {
     let _task =
         update(&mut app, ViewMessage::WebBookmarkTitleChanged("Rust reference".to_string()));
 
-    assert_eq!(app.web_bookmark_title_input, "Rust reference");
+    assert_eq!(app.web_navigation.web_bookmark_title_input, "Rust reference");
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
@@ -78,24 +78,24 @@ fn web_message_routes_to_web_update() {
 #[test]
 fn external_message_routes_to_external_update_without_project() {
     let mut app = test_app();
-    app.active_menu = Some(MenuType::OpenExternal);
-    app.project_path = None;
+    app.navigation_panels.active_menu = Some(MenuType::OpenExternal);
+    app.navigation_tabs.project_path = None;
 
     let _task = update(&mut app, ViewMessage::OpenProjectInExternalPreferred);
 
-    assert_eq!(app.active_menu, None);
-    assert!(app.project_path.is_none());
+    assert_eq!(app.navigation_panels.active_menu, None);
+    assert!(app.navigation_tabs.project_path.is_none());
 }
 
 #[test]
 fn replay_snapshot_message_is_ignored_by_panel_router() {
     let mut app = test_app();
-    app.show_about_modal = true;
+    app.navigation_panels.show_about_modal = true;
 
     let _task =
         update(&mut app, ViewMessage::ReplaySessionFromSnapshot("snapshot.json".to_string()));
 
-    assert!(app.show_about_modal);
+    assert!(app.navigation_panels.show_about_modal);
 }
 
 #[test]
@@ -120,9 +120,9 @@ fn close_request_routes_without_mutating_window_registration() {
 #[test]
 fn unrelated_message_is_ignored_by_panel_router() {
     let mut app = test_app();
-    app.show_about_modal = true;
+    app.navigation_panels.show_about_modal = true;
 
     let _task = update(&mut app, ViewMessage::ActivityAnimationTick);
 
-    assert!(app.show_about_modal);
+    assert!(app.navigation_panels.show_about_modal);
 }

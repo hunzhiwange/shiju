@@ -107,7 +107,7 @@ fn slash_palette_select_skill_toggles_manual_skill_and_clears_token() {
 #[test]
 fn slash_palette_and_file_search_are_mutually_exclusive() {
     let mut app = test_app();
-    app.project_path = Some("/workspace".to_string());
+    app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.set_file_index("/workspace", vec!["src/main.rs".to_string()]);
 
     let _ = paste(&mut app, "@src".to_string());

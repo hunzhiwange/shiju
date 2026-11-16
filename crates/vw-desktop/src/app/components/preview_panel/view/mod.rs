@@ -44,15 +44,15 @@ pub use menus::build_menu_ui;
 pub use settings::build_settings_overlay;
 
 fn show_fullscreen_controls(app: &App) -> bool {
-    matches!(app.screen, crate::app::Screen::Project)
+    matches!(app.navigation_tabs.screen, crate::app::Screen::Project)
         && matches!(app.navigation_mode.workspace_mode, crate::app::state::WorkspaceMode::Code)
 }
 
 pub fn view(app: &App) -> Element<'_, Message> {
     use desktop_editor::components::preview_panel::view::layout::{self, ViewInput, ViewParts, ViewMessage};
     #[cfg(not(target_arch = "wasm32"))]
-    let lsp_overlay_show = app.active_preview_path.is_some()
-        && app.lsp_overlay_path.as_ref() == app.active_preview_path.as_ref()
+    let lsp_overlay_show = app.navigation_tabs.active_preview_path.is_some()
+        && app.lsp_overlay_path.as_ref() == app.navigation_tabs.active_preview_path.as_ref()
         && (app.lsp_overlay.hover_visible || app.lsp_overlay.completion_visible);
     #[cfg(not(target_arch = "wasm32"))]
     tracing::debug!(
@@ -64,9 +64,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         app.preview_nav_popup.is_some()
     );
 
-    let tab = app.preview_tabs.iter().find(|tab| Some(&tab.path) == app.active_preview_path.as_ref());
+    let tab = app.navigation_tabs.preview_tabs.iter().find(|tab| Some(&tab.path) == app.navigation_tabs.active_preview_path.as_ref());
     layout::view(ViewInput {
-        active_path: app.active_preview_path.as_deref(), project_path: app.project_path.as_deref(),
+        active_path: app.navigation_tabs.active_preview_path.as_deref(), project_path: app.navigation_tabs.project_path.as_deref(),
         read_only_title: tab.filter(|tab| tab.read_only).map(|tab| tab.title.as_str()),
         show_fullscreen_controls: show_fullscreen_controls(app), fullscreen: app.git.git_diff_fullscreen,
         show_changes: app.file_manager.file_manager_show_changes, show_context_menu: app.show_preview_context_menu,
@@ -91,8 +91,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn active_preview_lsp_badge(app: &App) -> Option<Element<'_, Message>> {
-    let path = app.active_preview_path.as_deref()?;
-    let tab = app.preview_tabs.iter().find(|tab| tab.path == path)?;
+    let path = app.navigation_tabs.active_preview_path.as_deref()?;
+    let tab = app.navigation_tabs.preview_tabs.iter().find(|tab| tab.path == path)?;
     if tab.read_only {
         return None;
     }

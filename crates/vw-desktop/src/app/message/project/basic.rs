@@ -26,7 +26,7 @@ fn schedule_file_manager_refresh_tick() -> iced::Task<Message> {
 
 /// 工作模式下打开变更相关视图时，立刻切到「工作空间文件」并取消聊天独占。
 fn reveal_work_workspace_files(app: &mut App) -> Option<iced::Task<Message>> {
-    if !matches!(app.screen, Screen::Project) || app.navigation_mode.workspace_mode != WorkspaceMode::Work {
+    if !matches!(app.navigation_tabs.screen, Screen::Project) || app.navigation_mode.workspace_mode != WorkspaceMode::Work {
         return None;
     }
     let need_reveal = !app.navigation_workspace.work_resources_visible
@@ -197,23 +197,23 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::none())
         }
         ProjectMessage::FileIndexLoaded { project_path, result } => {
-            if app.project_path.as_deref() != Some(project_path.as_str()) {
+            if app.navigation_tabs.project_path.as_deref() != Some(project_path.as_str()) {
                 return Some(iced::Task::none());
             }
-            if let Some(path) = app.project_path.clone() {
+            if let Some(path) = app.navigation_tabs.project_path.clone() {
                 // 网关快照可能先于本地缓存读取到达，不能用纯文件列表覆盖目录树。
                 if !app.has_file_index(&path) {
                     app.set_file_index(&path, result.files);
                 }
             }
-            if result.needs_refresh && app.project_path.is_some() {
+            if result.needs_refresh && app.navigation_tabs.project_path.is_some() {
                 return Some(crate::app::message::project::helpers::refresh_file_index(app));
             }
             Some(iced::Task::none())
         }
         ProjectMessage::FileTreeSnapshotReady { project_path, snapshot } => {
             app.set_file_tree_snapshot(&project_path, snapshot);
-            if app.project_path.as_deref() != Some(project_path.as_str()) {
+            if app.navigation_tabs.project_path.as_deref() != Some(project_path.as_str()) {
                 return Some(iced::Task::none());
             }
             if app.file_manager.complete_tree_refresh() {
@@ -228,7 +228,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         // 处理文件索引就绪事件
         // 当文件索引构建完成后，将其设置到应用程序状态中
         ProjectMessage::FileIndexReady(files) => {
-            if let Some(path) = app.project_path.clone() {
+            if let Some(path) = app.navigation_tabs.project_path.clone() {
                 app.set_file_index(&path, files);
             }
             if app.file_manager.complete_tree_refresh() {
@@ -255,7 +255,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             if b {
                 // 当切换到"变更"模式时，清除活动预览选择，
                 // 以便右侧面板可以渲染 Git diff 面板而不是停留在已打开的预览标签页
-                app.active_preview_path = None;
+                app.navigation_tabs.active_preview_path = None;
             }
             let mut fields = Map::from_iter([
                 ("file_manager_show_changes".into(), Value::Bool(b)),
@@ -326,7 +326,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         // 处理将文件树项添加到聊天的事件
         // 在聊天输入框的光标位置插入文件引用（格式：@相对路径:行号:列号）
         ProjectMessage::FileTreeAddToChat { path, line, column } => {
-            if let Some(root) = &app.project_path
+            if let Some(root) = &app.navigation_tabs.project_path
                 && let Some(mention) = desktop_workspace::basic::file_mention(root, &path, line, column)
             {
                 // 关闭文件搜索弹窗
@@ -354,7 +354,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::none())
         }
         ProjectMessage::StartDeferredTasks { project_path } => {
-            if app.project_path.as_ref() != Some(&project_path) {
+            if app.navigation_tabs.project_path.as_ref() != Some(&project_path) {
                 return Some(iced::Task::none());
             }
             let info_task = load_project_info_task(project_path.clone());

@@ -16,7 +16,7 @@ pub(super) fn inputs(app: &App) -> desktop_file_tree::FileTreeView<'_> {
         file_index: app.current_file_index(),
         file_tree_model: app.current_file_tree_model(),
         desktop_locale: app.desktop_locale,
-        project_path: &app.project_path,
+        project_path: &app.navigation_tabs.project_path,
         find_results_tabs: &app.find_results_tabs,
         active_find_results_tab_id: &app.active_find_results_tab_id,
         find_results_tab_menu_id: &app.find_results_tab_menu_id,

@@ -301,12 +301,12 @@ async fn ui_refresh_41_layout_and_interaction() {
         ));
         drop(ui);
 
-        app.cli_install_modal_title = "安装 CLI 命令工具".into();
-        app.cli_install_modal_message =
+        app.update_panel.cli_install_modal_title = "安装 CLI 命令工具".into();
+        app.update_panel.cli_install_modal_message =
             format!("路径：/tmp/{}/shiju\nCLI setup fixture", "測試路徑/".repeat(24));
-        app.cli_install_modal_current_version = "1.2.3".into();
-        app.cli_install_modal_server_version = "1.2.4".into();
-        app.cli_install_modal_show_install_action = true;
+        app.update_panel.cli_install_modal_current_version = "1.2.3".into();
+        app.update_panel.cli_install_modal_server_version = "1.2.4".into();
+        app.update_panel.cli_install_modal_show_install_action = true;
         app.desktop_update.source = Some(desktop_release::UpdateSource::Shiju);
         let mut ui = scene(install_cli_modal::view_app_update(&app), &mut renderer, size);
         capture(&mut ui, &mut renderer, &theme, size, &format!("cli-{name}"), Point::ORIGIN);
@@ -425,7 +425,7 @@ async fn ui_refresh_41_preserves_values_and_disabled_states() {
     app.desktop_locale = DesktopLocale::TraditionalChinese;
     let i18n = I18n::new(app.desktop_locale);
     let mut renderer = renderer().await;
-    app.show_web_links_menu = true;
+    app.web_navigation.show_web_links_menu = true;
     let size = Size::new(420, 520);
     let mut ui = scene(apps::view(&app), &mut renderer, size);
     let add = position(&bounds(&mut ui, &renderer).labels, i18n.__("添加"));
@@ -433,19 +433,19 @@ async fn ui_refresh_41_preserves_values_and_disabled_states() {
     capture(&mut ui, &mut renderer, &Theme::Dark, size, "bookmark-empty", add.center());
     drop(ui);
 
-    app.web_bookmark_title_input = "專案書籤".into();
-    app.web_bookmark_url_input = format!("https://example.test/{}", "project/".repeat(24));
-    app.web_bookmark_width_input = "640".into();
-    app.web_bookmark_height_input = "480".into();
+    app.web_navigation.web_bookmark_title_input = "專案書籤".into();
+    app.web_navigation.web_bookmark_url_input = format!("https://example.test/{}", "project/".repeat(24));
+    app.web_navigation.web_bookmark_width_input = "640".into();
+    app.web_navigation.web_bookmark_height_input = "480".into();
     let mut ui = scene(apps::view(&app), &mut renderer, size);
     capture(&mut ui, &mut renderer, &Theme::Dark, size, "bookmark-add", Point::ORIGIN);
     let controls = bounds(&mut ui, &renderer);
     let (body, _) = controls.body.unwrap();
     for value in [
-        &app.web_bookmark_title_input,
-        &app.web_bookmark_url_input,
-        &app.web_bookmark_width_input,
-        &app.web_bookmark_height_input,
+        &app.web_navigation.web_bookmark_title_input,
+        &app.web_navigation.web_bookmark_url_input,
+        &app.web_navigation.web_bookmark_width_input,
+        &app.web_navigation.web_bookmark_height_input,
     ] {
         let input = position(&controls.inputs, value);
         assert_inside(input, Rectangle { x: body.x + 7.0, width: body.width - 14.0, ..body });
@@ -463,10 +463,10 @@ async fn ui_refresh_41_preserves_values_and_disabled_states() {
     ));
     drop(ui);
 
-    app.editing_web_bookmark = Some(3);
-    app.edit_web_bookmark_title_input = app.web_bookmark_title_input.clone();
-    app.edit_web_bookmark_url_input = app.web_bookmark_url_input.clone();
-    app.edit_web_bookmark_cookie_configs_editor = iced::widget::text_editor::Content::with_text(
+    app.web_navigation.editing_web_bookmark = Some(3);
+    app.web_navigation.edit_web_bookmark_title_input = app.web_navigation.web_bookmark_title_input.clone();
+    app.web_navigation.edit_web_bookmark_url_input = app.web_navigation.web_bookmark_url_input.clone();
+    app.web_navigation.edit_web_bookmark_cookie_configs_editor = iced::widget::text_editor::Content::with_text(
         r#"[{"name":"fixture","domain":"example.test"}]"#,
     );
     let mut ui = scene(apps::view(&app), &mut renderer, size);
@@ -480,22 +480,22 @@ async fn ui_refresh_41_preserves_values_and_disabled_states() {
     let title = position(&controls.labels, i18n.__("编辑网址"));
     let save = position(&controls.labels, i18n.__("保存"));
     let cancel = position(&controls.labels, i18n.__("取消"));
-    let url = position(&controls.inputs, &app.edit_web_bookmark_url_input);
-    let name = position(&controls.inputs, &app.edit_web_bookmark_title_input);
+    let url = position(&controls.inputs, &app.web_navigation.edit_web_bookmark_url_input);
+    let name = position(&controls.inputs, &app.web_navigation.edit_web_bookmark_title_input);
     assert_fixed_controls(title, body, save, size);
     assert!(click(&mut ui, &mut renderer, name.center()).is_empty());
     assert!(key(&mut ui, &mut renderer, Key::Named(Named::End), None).is_empty());
     assert!(matches!(
         key(&mut ui, &mut renderer, Key::Character("A".into()), Some("A")).as_slice(),
         [Message::View(ViewMessage::WebBookmarkEditTitleChanged(value))]
-            if value == &format!("{}A", app.edit_web_bookmark_title_input)
+            if value == &format!("{}A", app.web_navigation.edit_web_bookmark_title_input)
     ));
     assert!(click(&mut ui, &mut renderer, url.center()).is_empty());
     assert!(key(&mut ui, &mut renderer, Key::Named(Named::End), None).is_empty());
     assert!(matches!(
         key(&mut ui, &mut renderer, Key::Character("x".into()), Some("x")).as_slice(),
         [Message::View(ViewMessage::WebBookmarkEditUrlChanged(value))]
-            if value == &format!("{}x", app.edit_web_bookmark_url_input)
+            if value == &format!("{}x", app.web_navigation.edit_web_bookmark_url_input)
     ));
     for key_name in [Named::Enter, Named::Escape] {
         assert!(key(&mut ui, &mut renderer, Key::Named(key_name), None).is_empty());
@@ -532,7 +532,7 @@ async fn ui_refresh_41_preserves_values_and_disabled_states() {
         capture(&mut ui, &mut renderer, &Theme::Light, size, "cookie-content", Point::ORIGIN);
     drop(ui);
 
-    app.edit_web_bookmark_cookie_configs_editor = iced::widget::text_editor::Content::new();
+    app.web_navigation.edit_web_bookmark_cookie_configs_editor = iced::widget::text_editor::Content::new();
     let mut ui = scene(apps::view(&app), &mut renderer, size);
     assert!(scroll(&mut ui, &mut renderer, body.center(), -800.0).is_empty());
     let empty_cookie =
@@ -552,10 +552,10 @@ async fn ui_refresh_41_preserves_values_and_disabled_states() {
     }
     drop(ui);
 
-    app.cli_install_modal_title = "安装 CLI 命令工具".into();
-    app.cli_install_modal_message = "正在请求所选来源的最新 CLI 版本...".into();
-    app.cli_install_modal_is_checking_update = true;
-    app.cli_install_modal_show_install_action = true;
+    app.update_panel.cli_install_modal_title = "安装 CLI 命令工具".into();
+    app.update_panel.cli_install_modal_message = "正在请求所选来源的最新 CLI 版本...".into();
+    app.update_panel.cli_install_modal_is_checking_update = true;
+    app.update_panel.cli_install_modal_show_install_action = true;
     app.desktop_update.source = Some(desktop_release::UpdateSource::Github);
     app.desktop_update.busy = true;
     let mut ui = scene(install_cli_modal::view_app_update(&app), &mut renderer, size);

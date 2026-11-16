@@ -5,7 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [features]
-test-support = ["dep:tempfile", "dep:vw-api-todo", "dep:agent-env", "dep:agent-config", "dep:model-types", "dep:async-trait", "dep:uuid", "dep:tower", "dep:agent-storage", "dep:llm-runtime", "dep:parking_lot"]
+test-support = ["tokio/rt-multi-thread", "tokio/net", "tokio/time", "dep:url", "dep:rusqlite", "dep:reqwest", "dep:parking_lot", "dep:llm-runtime", "dep:tower", "dep:futures-util", "dep:hex", "dep:sha2", "dep:uuid", "dep:agent-storage", "dep:tempfile", "dep:vw-api-todo", "dep:agent-env", "dep:agent-config", "dep:model-types", "dep:async-trait"]
 
 [lib]
 doctest = false
@@ -22,14 +22,19 @@ vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 vw-api-acp-model = { path = "../api-acp-model", version = "0.6.0" }
 vw-api-chat-identity = { path = "../api-chat-identity", version = "0.6.0" }
 serde = { version = "1", features = ["derive"] }
-serde_jsonparking_lot = { version = "0.12", optional = true }
- = "1"
+serde_json = "1"
 
-[target.'cfllm-runtime = { path = "../llm-runtime", version = "0.6.0", optional = true }
-g(not(target_arch = "agent-storage = { path = "../agent-storage", version = "0.6.0", optional = true }
-wasm32"))'.detower = { version = "0.5", features = ["util"], optional = true }
-pendencies]
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+url = { version = "2", optional = true }
+reqwest = { version = "0.13", default-features = false, features = ["json", "query", "rustls"], optional = true }
+parking_lot = { version = "0.12", optional = true }
+llm-runtime = { path = "../llm-runtime", version = "0.6.0", optional = true }
 uuid = { version = "1", features = ["v4"], optional = true }
+sha2 = { version = "0.10", optional = true }
+hex = { version = "0.4", optional = true }
+futures-util = { version = "0.3", optional = true }
+tower = { version = "0.5", features = ["util"], optional = true }
+agent-storage = { path = "../agent-storage", version = "0.6.0", optional = true }
 agent-env = { path = "../agent-env", version = "0.6.0", optional = true }
 agent-config = { path = "../agent-config", version = "0.6.0", optional = true }
 model-types = { path = "../model-types", version = "0.6.0", optional = true }
@@ -87,3 +92,8 @@ uuid = { version = "1", features = ["v4"] }
 config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
 session-paths = { path = "../session-paths", version = "0.6.0" }
 tower = { version = "0.5", features = ["util"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
+rusqlite = { version = "0.37.0", features = ["bundled"], optional = true }
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
+rusqlite = { version = "0.37.0", optional = true }

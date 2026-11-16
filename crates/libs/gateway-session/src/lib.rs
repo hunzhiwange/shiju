@@ -87,3 +87,15 @@ pub mod stream_persistence_acceptance;
 
 #[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
 pub mod stream_acceptance;
+
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod profile_acceptance;
+
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod profile_acceptance_host;
+
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod acp_source_acceptance;
+
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod archived_acceptance;

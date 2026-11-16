@@ -160,3 +160,46 @@ message_ops 的原挂载仅承接签名契约；全部9条消息行为用例在�
 本轮该宿主文件 694→138 行，新增领域测试支持 611 行，额外净减 556 行；原14文件基线4200行，累计净减 1275 行。28条原纯领域单测注册不变，新增8条完整场景的断言/执行函数迁移，宿主38条注册数量不变（其中8条成为薄注入入口）。生产策略本轮迁移0行，新增feature支持不能算作生产策略收益。
 
 静态比对八个场景的断言宏数量及顺序一致（50处），类型路径改为真实所属库、函数调用显式传入 H；所有安全拒绝/跨项目/错误/消息边界断言保留。未执行任何 Cargo、构建或测试。未来通过原完整宿主名逐项精确运行这8条；未来check同时覆盖 gateway-session 的 test-support feature。旧的“整个生命周期用例必须保留宿主”说明由本节替代。其余文件逐符号与全测试映射仍见上文；当前累计减量仍不足70%，不能据此宣称整轮达标。
+
+## 第三轮收口恢复：profile 与 ACP source 完整主体迁移
+
+读取最新 final.md（51915行）后，按 profile serialization/default/backend projection 审查点，将整个 profile 场景主体、受控外部peer、配置/回执夹具、恢复子进程、持久化断言及撤权场景归入 gateway-session::profile_acceptance。拆成根模块、peer.rs、onboarding.rs；宿主只有真实ProfileAcceptanceHost实现及15条同名注册。新trait仅在test-support下，继承已有SessionHost/AcpHost，显式注入真实恢复配置、锁、请求配置、路由、缓存失效、chat与persist_turn；Admission使用原AdmissionHost关联类型，领域直接执行真实session_engine::admission::prepare。没有AppState复制或测试算法替身。
+
+ACP source两个场景主体归入acp_source_acceptance，由宿主传入原三个typed路由组成的Router。真实回环HTTP和持久化逻辑仍运行，Host::get/prepare_fork及AcpHost的load_binding/save_binding/agent直接引用原生产端口，fork首回合persist_turn调用原宿主流持久化入口。没有用模拟端口代替租户或权限验收。
+
+前述“保留整个profile/acp_source宿主文件”的理由在本节废止。注册数量、原ignore文案和硬编码子进程精确测试名保持；测试支持函数不冒充独立领域#[test]注册，不宣称编译负担/耗时收益。原完整注册名到目标逐项如下（宿主路径不变，目标函数名称相同）：
+- `agent_profile_acceptance_runs_selected_profile_end_to_end` → `gateway-session::profile_acceptance::agent_profile_acceptance_runs_selected_profile_end_to_end::<实际Host>`。
+- `agent_profile_acceptance_rejects_revoked_capabilities` → `gateway-session::profile_acceptance::agent_profile_acceptance_rejects_revoked_capabilities::<实际Host>`。
+- `agent_profile_acceptance_catalog_uses_request_tenant` → `gateway-session::profile_acceptance::agent_profile_acceptance_catalog_uses_request_tenant::<实际Host>`。
+- `agent_config_cleanup_global_profile_roundtrips_to_new_session` → `gateway-session::profile_acceptance::agent_config_cleanup_global_profile_roundtrips_to_new_session::<实际Host>`。
+- `acp_onboarding_autohand_builtin_profile_persists_and_runs` → `gateway-session::profile_acceptance::acp_onboarding_autohand_builtin_profile_persists_and_runs::<实际Host>`。
+- `acp_onboarding_deepagents_builtin_profile_persists_and_runs` → `gateway-session::profile_acceptance::acp_onboarding_deepagents_builtin_profile_persists_and_runs::<实际Host>`。
+- `acp_onboarding_dimcode_builtin_profile_persists_and_runs` → `gateway-session::profile_acceptance::acp_onboarding_dimcode_builtin_profile_persists_and_runs::<实际Host>`。
+- `acp_onboarding_dirac_builtin_profile_persists_and_runs` → `gateway-session::profile_acceptance::acp_onboarding_dirac_builtin_profile_persists_and_runs::<实际Host>`。
+- `acp_onboarding_glm_acp_agent_builtin_profile_persists_and_runs` → `gateway-session::profile_acceptance::acp_onboarding_glm_acp_agent_builtin_profile_persists_and_runs::<实际Host>`。
+- `acp_onboarding_grok_builtin_profile_persists_and_runs` → `gateway-session::profile_acceptance::acp_onboarding_grok_builtin_profile_persists_and_runs::<实际Host>`。
+- `acp_onboarding_nova_builtin_profile_persists_and_runs` → `gateway-session::profile_acceptance::acp_onboarding_nova_builtin_profile_persists_and_runs::<实际Host>`。
+- `acp_onboarding_nova_real_builtin_profile_persists_and_runs` → `gateway-session::profile_acceptance::acp_onboarding_nova_real_builtin_profile_persists_and_runs::<实际Host>`。
+- `acp_onboarding_sigit_builtin_profile_persists_and_runs` → `gateway-session::profile_acceptance::acp_onboarding_sigit_builtin_profile_persists_and_runs::<实际Host>`。
+- `acp_onboarding_sigit_real_builtin_profile_persists_and_runs` → `gateway-session::profile_acceptance::acp_onboarding_sigit_real_builtin_profile_persists_and_runs::<实际Host>`。
+- `acp_onboarding_amp_acp_builtin_profile_persists_and_runs` → `gateway-session::profile_acceptance::acp_onboarding_amp_acp_builtin_profile_persists_and_runs::<实际Host>`。
+- `acp_model_source_ui_http_persists_and_rejects_without_local_fallback` → `gateway-session::acp_source_acceptance::acp_model_source_ui_http_persists_and_rejects_without_local_fallback::<实际Host>`。
+- `acp_public_permission_options_reject_direct_put_and_chat_over_http` → `gateway-session::acp_source_acceptance::acp_public_permission_options_reject_direct_put_and_chat_over_http::<实际Host>`。
+
+`agent_profile_acceptance_tests.rs` 1082→67行，保留原真实Host注入/注册；完整执行和断言已迁移。
+
+`acp_source_tests.rs` 253→20行，保留原真实Host注入/注册；完整执行和断言已迁移。
+
+静态断言宏数量：profile 61→61，ACP source 17→17；拆分未删除断言。contracts.json相对新manifest改为../acp-agent-registry，Nova peer改为../../vw-acp/tests/fixtures，文件均存在。新增可选测试依赖只在现有test-support启用；Cargo.lock仅补实际库依赖。全部Cargo、编译、构建、测试和实机检查未运行。未来继续使用原17个完整宿主注册名精确过滤，ignored真实运行包场景需原授权和环境。剩余fork/archived场景及生产薄转发仍按前述逐符号清单保留，未作为本轮迁移收益。
+
+第三轮继续迁出 archived_delete_tests 的四个完整场景及 create/archive/read/save_ui/has_ui/delete 夹具至 archived_acceptance，原 persistence 下四条注册仅注入实际租户Router工厂和实际SQLite路径。create/reserve/update_any使用同一个真实SessionHost，UI读取写入使用实际session-store/agent-database，存储枚举使用agent-storage。注入真实Router保留HTTP鉴权/租户拒绝，触发器仍在同一个实际数据库注入删除失败，不模拟事务或history锁。tokio/net/time/rt-multi-thread仅由test-support启用；rusqlite保留Windows bundled差异。
+
+四条映射：
+- `persistence::archived_chat_delete_strict_enumeration_rejects_a_file_prefix` → `gateway-session::archived_acceptance::archived_chat_delete_strict_enumeration_rejects_a_file_prefix::<实际Host>(真实Router工厂,实际数据库路径)`。
+- `persistence::archived_chat_delete_http_removes_multilevel_tree_and_preserves_other_scopes` → `gateway-session::archived_acceptance::archived_chat_delete_http_removes_multilevel_tree_and_preserves_other_scopes::<实际Host>(真实Router工厂,实际数据库路径)`。
+- `persistence::archived_chat_delete_http_rejects_live_root_and_restore_while_waiting_for_history` → `gateway-session::archived_acceptance::archived_chat_delete_http_rejects_live_root_and_restore_while_waiting_for_history::<实际Host>(真实Router工厂,实际数据库路径)`。
+- `persistence::archived_chat_delete_storage_failure_keeps_root_and_allows_retry` → `gateway-session::archived_acceptance::archived_chat_delete_storage_failure_keeps_root_and_allows_retry::<实际Host>(真实Router工厂,实际数据库路径)`。
+
+archived_delete_tests.rs 254→31行；静态断言宏数量 26→26。该文件旧整文件保留理由被本节替代。未运行测试、编译或Cargo。
+
+相邻静态修复：提交前发现并行已提交的gateway-session清单把依赖插入serde_json和target表头中间（serde_jsonparking_lot / cfllm-runtime片段），本轮恢复完整表头及原依赖，保留已提交的llm-runtime/parking_lot测试依赖；没有执行Cargo解析。

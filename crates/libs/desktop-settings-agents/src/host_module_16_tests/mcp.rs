@@ -1,3 +1,4 @@
+//! Profile MCP selection, validation and modal rendering with local inputs.
 use super::profile_update::{ProfileFixture, defaults_input, dispatch, validation_error};
 use crate::{
     mcp,

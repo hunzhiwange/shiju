@@ -1,14 +1,19 @@
-//! Host contracts: selectable chat help, runtime/model/MCP projection, modal focus and host event mapping.
-use super::super::{defaults, identity, mcp, profile_modal, skills, tools};
-use crate::app::i18n::settings_extensions::text as tr;
-use crate::app::message::settings::{AgentsMessage as A, SettingsMessage as S};
-use crate::app::state::{
+//! Profile forms, catalog inputs and selectable help over local state.
+use super::profile_update::ProfileFixture;
+use super::{profile_inputs as inputs, profile_render as profile_modal};
+use crate::message::AgentsMessage as A;
+use crate::message::Event as Message;
+use crate::state::{
     AGENT_DETAIL_BASIC_TAB, AGENT_DETAIL_IDENTITY_TAB, AGENT_DETAIL_MCP_TAB,
     AGENT_DETAIL_SKILLS_TAB, AGENT_DETAIL_TOOLS_TAB, AGENT_TOOLS_BUILTIN_TAB,
     DelegateAgentSettingsEntry, ModelSummary, ProviderModelsSummary, ProviderSummary,
-    SkillsCatalogItem, SkillsCatalogKind, WorkspaceIdentityFileState,
+    SkillsCatalogItem, WorkspaceIdentityFileState,
 };
-use crate::app::{App, Message};
+use config_agent::DelegateCapabilityPolicy;
+use config_agent_profile::{AgentDefault, AgentModelReference};
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+use desktop_i18n::settings_extensions::text as tr;
+use desktop_settings_skills::types::SkillsCatalogKind;
 use iced::advanced::widget::{
     Id, Operation, operation::Focusable, operation::Scrollable, operation::TextInput,
 };
@@ -20,9 +25,6 @@ use iced::keyboard::{self, Key, key::Named};
 use iced::widget::{button, container, text_editor};
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use config_agent_profile::{AgentDefault, AgentModelReference};
-use config_agent::DelegateCapabilityPolicy;
-use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use vw_api_mcp_inspect::McpInspectResponse;
 
 const AGENT: &str = "fixture-agent";
@@ -66,7 +68,7 @@ fn isolated(test: &str) -> bool {
 async fn renderer() -> Renderer {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -75,9 +77,8 @@ async fn renderer() -> Renderer {
         .unwrap()
 }
 
-fn fixture() -> App {
-    assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");
-    let mut app = App::new().0;
+fn fixture() -> ProfileFixture {
+    let mut app = ProfileFixture::default();
     let mut draft = DelegateAgentSettingsEntry::from_config(AGENT, None);
     draft.label = "示例智慧體 / Example agent".into();
     draft.api_key_input = "fixture-secret".into();
@@ -95,7 +96,7 @@ fn fixture() -> App {
     settings.providers = vec![ProviderSummary {
         id: PROVIDER.into(),
         name: "Fixture provider".into(),
-        source_label: crate::app::i18n::settings_models::messages::Feedback::owned("配置", vec![]),
+        source_label: desktop_i18n::settings_models::messages::Feedback::owned("配置", vec![]),
         connected: true,
     }];
     settings.provider_models = vec![ProviderModelsSummary {
@@ -303,15 +304,13 @@ impl<'a> Scene<'a> {
     }
 }
 
-fn profile(app: &App) -> Element<'_, Message> {
+fn profile(app: &ProfileFixture) -> Element<'_, Message> {
     profile_modal::overlay(
         app,
-        container(
-            button("underlying action").on_press(Message::Settings(S::Agents(A::ProfileSave))),
-        )
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into(),
+        container(button("underlying action").on_press(Message::Agents(A::ProfileSave)))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into(),
     )
 }
 
@@ -351,7 +350,7 @@ async fn ui_refresh_16_layout_and_interaction() {
                 }
                 assert!(matches!(
                     scene.click_label(&mut renderer, tr(locale, label)).as_slice(),
-                    [Message::Settings(S::Agents(A::DetailTabSelected(selected)))] if selected == tab
+                    [Message::Agents(A::DetailTabSelected(selected))] if selected == tab
                 ));
                 let footer = geometry.label(tr(locale, "保存配置"));
                 scene.screenshot(
@@ -389,11 +388,11 @@ async fn ui_refresh_16_layout_and_interaction() {
                 }
                 assert!(matches!(
                     scene.click(&mut renderer, footer.center()).as_slice(),
-                    [Message::Settings(S::Agents(A::ProfileSave))]
+                    [Message::Agents(A::ProfileSave)]
                 ));
                 assert!(matches!(
                     scene.click_label(&mut renderer, tr(locale, "取消")).as_slice(),
-                    [Message::Settings(S::Agents(A::ProfileCancel))]
+                    [Message::Agents(A::ProfileCancel)]
                 ));
                 assert!(scene.click(&mut renderer, Point::new(5.0, 5.0)).is_empty());
             }
@@ -401,11 +400,11 @@ async fn ui_refresh_16_layout_and_interaction() {
         for width in [640, 960] {
             let draft = app.agents_settings.profile_modal.as_ref().unwrap();
             let views = [
-                (AGENT_DETAIL_BASIC_TAB, super::view(&app, draft, vec![])),
-                (AGENT_DETAIL_IDENTITY_TAB, identity::view(&app, draft)),
-                (AGENT_DETAIL_TOOLS_TAB, tools::view(&app, draft)),
-                (AGENT_DETAIL_SKILLS_TAB, skills::view(&app, draft)),
-                (AGENT_DETAIL_MCP_TAB, mcp::view(&app, draft)),
+                (AGENT_DETAIL_BASIC_TAB, inputs::basic(&app, draft, vec![])),
+                (AGENT_DETAIL_IDENTITY_TAB, inputs::identity(&app, draft)),
+                (AGENT_DETAIL_TOOLS_TAB, inputs::tools(&app, draft)),
+                (AGENT_DETAIL_SKILLS_TAB, inputs::skills(&app, draft)),
+                (AGENT_DETAIL_MCP_TAB, inputs::mcp(&app, draft)),
             ];
             for (tab, view) in views {
                 let mut scene = Scene::new(view, &mut renderer, width, 1850);
@@ -443,10 +442,10 @@ async fn ui_refresh_16_preserves_values_and_disabled_states() {
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
     {
         let draft = app.agents_settings.profile_modal.as_ref().unwrap();
-        let mut scene = Scene::new(defaults::view(&app, draft), &mut renderer, 420, 550);
+        let mut scene = Scene::new(inputs::defaults(&app, draft), &mut renderer, 420, 550);
         assert!(scene.click_label(&mut renderer, "强制使用所选模型").is_empty());
         assert!(matches!(scene.click_label(&mut renderer, "完全访问权限").as_slice(),
-            [Message::Settings(S::Agents(A::ProfileDefaultsChanged(value)))]
+            [Message::Agents(A::ProfileDefaultsChanged(value))]
             if value.full_access && value.permission == draft.defaults.permission));
         let trigger = scene.geometry(&renderer).focusable[0];
         assert_eq!(trigger.height, 38.0);
@@ -506,18 +505,18 @@ async fn ui_refresh_16_preserves_values_and_disabled_states() {
         assert!(scene.key(&mut renderer, Named::Enter).is_empty()); // focus survives Esc
         assert!(scene.key(&mut renderer, Named::ArrowDown).is_empty());
         assert!(matches!(scene.key(&mut renderer, Named::Enter).as_slice(),
-            [Message::Settings(S::Agents(A::ProfileModelChanged(AgentDefault::Fixed(model))))]
+            [Message::Agents(A::ProfileModelChanged(AgentDefault::Fixed(model)))]
             if model == &AgentModelReference { provider: PROVIDER.into(), model: MODEL.into() }));
     }
     {
         let draft = app.agents_settings.profile_modal.as_ref().unwrap();
-        let mut scene = Scene::new(mcp::view(&app, draft), &mut renderer, 420, 550);
+        let mut scene = Scene::new(inputs::mcp(&app, draft), &mut renderer, 420, 550);
         assert!(scene.click_label(&mut renderer, "服务-one（已启用）").is_empty());
         let mode = scene.geometry(&renderer).focusable[0];
         assert!(scene.click(&mut renderer, mode.center()).is_empty());
         assert!(scene.key(&mut renderer, Named::End).is_empty());
         assert!(matches!(scene.key(&mut renderer, Named::Enter).as_slice(),
-            [Message::Settings(S::Agents(A::ProfileDefaultsChanged(value)))]
+            [Message::Agents(A::ProfileDefaultsChanged(value))]
             if value.mcp == AgentDefault::Fixed(vec![])));
     }
     {
@@ -525,47 +524,47 @@ async fn ui_refresh_16_preserves_values_and_disabled_states() {
         draft.defaults.mcp = AgentDefault::Fixed(vec!["服务-one".into()]);
         draft.defaults.skills = AgentDefault::Fixed(vec!["skill-one".into()]);
         let draft = app.agents_settings.profile_modal.as_ref().unwrap();
-        let mut scene = Scene::new(mcp::view(&app, draft), &mut renderer, 420, 550);
+        let mut scene = Scene::new(inputs::mcp(&app, draft), &mut renderer, 420, 550);
         assert!(scene.click_label(&mut renderer, "服务-disabled（不可用）").is_empty());
         assert!(matches!(scene.click_label(&mut renderer, "服务-two（已启用）").as_slice(),
-            [Message::Settings(S::Agents(A::ProfileDefaultsChanged(value)))]
+            [Message::Agents(A::ProfileDefaultsChanged(value))]
             if value.mcp == AgentDefault::Fixed(vec!["服务-one".into(), "服务-two".into()])));
-        let mut scene = Scene::new(skills::view(&app, draft), &mut renderer, 420, 1000);
+        let mut scene = Scene::new(inputs::skills(&app, draft), &mut renderer, 420, 1000);
         assert!(scene.click_label(&mut renderer, "skill-denied").is_empty());
         assert!(matches!(scene.click_label(&mut renderer, "skill-two").as_slice(),
-            [Message::Settings(S::Agents(A::AllowedSkillToggled(id, skill, true)))]
+            [Message::Agents(A::AllowedSkillToggled(id, skill, true))]
             if id == AGENT && skill == "skill-two"));
         assert!(matches!(scene.click_label(&mut renderer, "skill-one").as_slice(),
-            [Message::Settings(S::Agents(A::AllowedSkillToggled(id, skill, false)))]
+            [Message::Agents(A::AllowedSkillToggled(id, skill, false))]
             if id == AGENT && skill == "skill-one"));
         let directory = scene.geometry(&renderer).focusable[1];
         assert!(scene.click(&mut renderer, directory.center()).is_empty());
         assert!(scene.key(&mut renderer, Named::Home).is_empty());
         assert!(matches!(
             scene.key(&mut renderer, Named::Enter).as_slice(),
-            [Message::Settings(S::Agents(A::SkillDirectorySelected(None)))]
+            [Message::Agents(A::SkillDirectorySelected(None))]
         ));
         assert!(scene.click(&mut renderer, directory.center()).is_empty());
         assert!(scene.key(&mut renderer, Named::End).is_empty());
         assert!(matches!(
             scene.key(&mut renderer, Named::Enter).as_slice(),
-            [Message::Settings(S::Agents(A::SkillDirectorySelected(Some(path))))]
+            [Message::Agents(A::SkillDirectorySelected(Some(path)))]
             if Some(path) == app.agents_settings.skill_directory.as_ref()
         ));
     }
     {
         let draft = app.agents_settings.profile_modal.as_ref().unwrap();
-        let mut scene = Scene::new(tools::view(&app, draft), &mut renderer, 640, 900);
+        let mut scene = Scene::new(inputs::tools(&app, draft), &mut renderer, 640, 900);
         for tool in ["screenshot", "http_request"] {
             let allowed = draft.allowed_tools.iter().any(|id| id == tool);
             assert!(matches!(scene.click_label(&mut renderer, tool).as_slice(),
-                [Message::Settings(S::Agents(A::AllowedToolToggled(id, value, next)))]
+                [Message::Agents(A::AllowedToolToggled(id, value, next))]
                 if id == AGENT && value == tool && *next != allowed));
         }
     }
     {
         let draft = app.agents_settings.profile_modal.as_ref().unwrap();
-        let mut scene = Scene::new(super::view(&app, draft, vec![]), &mut renderer, 640, 1850);
+        let mut scene = Scene::new(inputs::basic(&app, draft, vec![]), &mut renderer, 640, 1850);
         let geometry = scene.geometry(&renderer);
         let label = geometry.label("API 密钥");
         let (masked, api_key) = geometry
@@ -588,12 +587,12 @@ async fn ui_refresh_16_preserves_values_and_disabled_states() {
         }
         assert!(matches!(
             scene.click_label(&mut renderer, "启用智能体模式").as_slice(),
-            [Message::Settings(S::Agents(A::AgenticToggled(id, next)))]
+            [Message::Agents(A::AgenticToggled(id, next))]
                 if id == AGENT && *next != draft.agentic
         ));
         assert!(matches!(
             scene.click_label(&mut renderer, "启用上下文压缩").as_slice(),
-            [Message::Settings(S::Agents(A::CompactContextToggled(id, next)))]
+            [Message::Agents(A::CompactContextToggled(id, next))]
                 if id == AGENT && *next != draft.compact_context
         ));
         assert!(scene.click(&mut renderer, api_key.center()).is_empty());
@@ -601,25 +600,25 @@ async fn ui_refresh_16_preserves_values_and_disabled_states() {
         assert!(matches!(scene.events(&mut renderer, &[Event::InputMethod(
             iced::advanced::input_method::Event::Commit("追加".into())
         )], mouse::Cursor::Available(api_key.center())).as_slice(),
-            [Message::Settings(S::Agents(A::ApiKeyChanged(id, value)))]
+            [Message::Agents(A::ApiKeyChanged(id, value))]
             if id == AGENT && value == "fixture-secret追加"
         ));
     }
     app.agents_settings.active_prompt_tab = "AGENTS.md".into();
     {
         let draft = app.agents_settings.profile_modal.as_ref().unwrap();
-        let mut scene = Scene::new(identity::view(&app, draft), &mut renderer, 420, 760);
+        let mut scene = Scene::new(inputs::identity(&app, draft), &mut renderer, 420, 760);
         let original = draft.enabled_identity_files.iter().any(|file| file == "AGENTS.md");
         assert!(matches!(scene.click_label(&mut renderer, "启用后加载到提示词").as_slice(),
-            [Message::Settings(S::Agents(A::WorkspaceIdentityEnabledToggled {
+            [Message::Agents(A::WorkspaceIdentityEnabledToggled {
                 agent_key, file_name, enabled
-            }))] if agent_key == AGENT && file_name == "AGENTS.md" && *enabled != original
+            })] if agent_key == AGENT && file_name == "AGENTS.md" && *enabled != original
         ));
     }
     app.agents_settings.active_tools_list_tab = AGENT_TOOLS_BUILTIN_TAB.into();
     {
         let draft = app.agents_settings.profile_modal.as_ref().unwrap();
-        let mut scene = Scene::new(tools::view(&app, draft), &mut renderer, 640, 550);
+        let mut scene = Scene::new(inputs::tools(&app, draft), &mut renderer, 640, 550);
         assert!(scene.click_label(&mut renderer, "bash").is_empty());
     }
     app.agents_settings.active_detail_tab = AGENT_DETAIL_MCP_TAB.into();
@@ -638,11 +637,11 @@ async fn ui_refresh_16_preserves_values_and_disabled_states() {
     app.agents_settings.skill_catalog.clear();
     app.agents_settings.skill_catalog_loading = false;
     let draft = app.agents_settings.profile_modal.as_ref().unwrap();
-    let mut scene = Scene::new(skills::view(&app, draft), &mut renderer, 420, 800);
+    let mut scene = Scene::new(inputs::skills(&app, draft), &mut renderer, 420, 800);
     scene.geometry(&renderer).label("当前筛选范围暂无可用技能");
     assert!(matches!(
         scene.click_label(&mut renderer, "刷新技能").as_slice(),
-        [Message::Settings(S::Agents(A::SkillCatalogRefresh))]
+        [Message::Agents(A::SkillCatalogRefresh)]
     ));
     scene.screenshot(&mut renderer, &Theme::Dark, mouse::Cursor::Unavailable, "skills-empty");
 }
@@ -713,7 +712,7 @@ async fn help_rollout_08_renders_contextual_help() {
         app.desktop_locale = locale;
         app.app_theme = theme.clone();
         let draft = app.agents_settings.profile_modal.take();
-        let mut page = Scene::new(super::super::view(&app), &mut renderer, width, 840);
+        let mut page = Scene::new(inputs::agents(&app), &mut renderer, width, 840);
         assert_contextual_help(&mut page, &mut renderer, &theme, locale, "智能体配置", overview);
         assert_help_dismissed(&mut page, &mut renderer, &theme);
 
@@ -727,11 +726,11 @@ async fn help_rollout_08_renders_contextual_help() {
         assert_help_dismissed(&mut modal, &mut renderer, &theme);
         assert!(matches!(
             modal.click_label(&mut renderer, tr(locale, "保存配置")).as_slice(),
-            [Message::Settings(S::Agents(A::ProfileSave))]
+            [Message::Agents(A::ProfileSave)]
         ));
         assert!(matches!(
             modal.click_label(&mut renderer, tr(locale, "取消")).as_slice(),
-            [Message::Settings(S::Agents(A::ProfileCancel))]
+            [Message::Agents(A::ProfileCancel)]
         ));
     }
 }
@@ -750,7 +749,7 @@ async fn help_rollout_08_basic_help_uses_static_text() {
         app.desktop_locale = locale;
         app.app_theme = theme.clone();
         let draft = app.agents_settings.profile_modal.as_ref().unwrap();
-        let mut scene = Scene::new(super::view(&app, draft, vec![]), &mut renderer, width, 2200);
+        let mut scene = Scene::new(inputs::basic(&app, draft, vec![]), &mut renderer, width, 2200);
         for label in [
             "首次保存成功后，运行引擎及 ACP backend 不可修改。",
             "完全访问权限",
@@ -789,10 +788,8 @@ async fn help_rollout_08_basic_help_uses_static_text() {
             let messages = scene.click(&mut renderer, item);
             assert!(
                 match messages.as_slice() {
-                    [Message::CopyCode(text)] if index == 0.0 => text == description,
-                    [Message::View(crate::app::message::ViewMessage::OpenUrlExternal(actual))]
-                        if index == 3.0 =>
-                        actual == &url,
+                    [Message::CopyText(text)] if index == 0.0 => text == description,
+                    [Message::OpenUrlExternal(actual)] if index == 3.0 => actual == &url,
                     _ => false,
                 },
                 "{messages:?}"
@@ -844,7 +841,7 @@ async fn help_rollout_08_identity_and_tools_keep_controls_visible() {
             );
             assert_help_dismissed(&mut identity, &mut renderer, &theme);
         }
-        let mut tools = Scene::new(tools::view(&app, draft), &mut renderer, width, 1000);
+        let mut tools = Scene::new(inputs::tools(&app, draft), &mut renderer, width, 1000);
         tools.geometry(&renderer).label(tr(locale, "未选择的工具不可调用。"));
         assert_contextual_help(
             &mut tools,
@@ -863,7 +860,7 @@ async fn help_rollout_08_identity_and_tools_keep_controls_visible() {
         }
         assert!(matches!(
             tools.click_label(&mut renderer, tr(locale, "全选")).as_slice(),
-            [Message::Settings(S::Agents(A::AllowedToolsSelectAll(key)))] if key == AGENT
+            [Message::Agents(A::AllowedToolsSelectAll(key))] if key == AGENT
         ));
     }
 }
@@ -959,7 +956,7 @@ fn assert_modal_help(
     let messages =
         scene.click(renderer, Point::new(menu_x + 25.0, menu_y + 3.0 + item_height / 2.0));
     assert!(
-        matches!(messages.as_slice(), [Message::CopyCode(value)] if value == description),
+        matches!(messages.as_slice(), [Message::CopyText(value)] if value == description),
         "{locale:?} {title}: missing localized help copy, got {messages:?}"
     );
     assert!(scene.key(renderer, Named::Escape).is_empty());
@@ -1021,18 +1018,18 @@ async fn settings_help_gap_05_native_modal_moves_explanations_into_help() {
         let value = scroll_to(&mut scene, &mut renderer, geometry.label("0.70"));
         let slider = Point::new(value.x + 3.0, value.y - 16.0);
         assert!(matches!(scene.click(&mut renderer, slider).as_slice(),
-            [Message::Settings(S::Agents(A::TemperatureChanged(id, value)))]
+            [Message::Agents(A::TemperatureChanged(id, value))]
             if id == AGENT && (0.0..0.7).contains(value)));
 
         let delegation =
             scroll_to(&mut scene, &mut renderer, geometry.label(tr(locale, "允许作为子智能体")));
         let draft = app.agents_settings.profile_modal.as_ref().unwrap();
         assert!(matches!(scene.click(&mut renderer, delegation.center()).as_slice(),
-            [Message::Settings(S::Agents(A::AllowAsSubagentToggled(id, enabled)))]
+            [Message::Agents(A::AllowAsSubagentToggled(id, enabled))]
             if id == AGENT && *enabled != draft.allow_as_subagent));
         assert!(matches!(
             scene.click_label(&mut renderer, tr(locale, "保存配置")).as_slice(),
-            [Message::Settings(S::Agents(A::ProfileSave))]
+            [Message::Agents(A::ProfileSave)]
         ));
     }
 }
@@ -1040,9 +1037,7 @@ async fn settings_help_gap_05_native_modal_moves_explanations_into_help() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn settings_help_gap_05_acp_model_capability_controls_choices() {
     use config_agent_profile::AgentRuntime;
-    use vw_api_acp_model::acp_model_source::{
-        AcpModelSource, AcpModelSourceCapability,
-    };
+    use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
 
     if !isolated("settings_help_gap_05_acp_model_capability_controls_choices") {
         return;
@@ -1059,10 +1054,10 @@ async fn settings_help_gap_05_acp_model_capability_controls_choices() {
     let mut renderer = renderer().await;
     for (supported, width) in [(false, 420), (true, 960)] {
         if supported {
-            let session = app.get_session_runtime_mut("fixture-session");
-            session.acp_agent = Some("fixture".into());
-            session.acp_options_state.options.model_source_capabilities =
-                vec![AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel }];
+            app.capabilities.push((
+                Some("fixture".into()),
+                vec![AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel }],
+            ));
         }
         let mut scene = Scene::new(profile(&app), &mut renderer, width, 820);
         let geometry = scene.geometry(&renderer);
@@ -1110,12 +1105,12 @@ async fn settings_help_gap_05_acp_model_capability_controls_choices() {
         let messages = scene.key(&mut renderer, Named::Enter);
         if supported {
             assert!(matches!(messages.as_slice(),
-                [Message::Settings(S::Agents(A::ProfileModelChanged(AgentDefault::Fixed(model))))]
+                [Message::Agents(A::ProfileModelChanged(AgentDefault::Fixed(model)))]
                 if model.provider == PROVIDER && model.model == "model-19"));
         } else {
             assert!(matches!(
                 messages.as_slice(),
-                [Message::Settings(S::Agents(A::ProfileModelChanged(AgentDefault::Inherit)))]
+                [Message::Agents(A::ProfileModelChanged(AgentDefault::Inherit))]
             ));
         }
     }
@@ -1168,6 +1163,6 @@ async fn settings_help_gap_05_fixed_role_and_tool_controls_remain_visible() {
     );
     let toggle = scroll_to(&mut scene, &mut renderer, geometry.label("screenshot"));
     assert!(matches!(scene.click(&mut renderer, toggle.center()).as_slice(),
-        [Message::Settings(S::Agents(A::AllowedToolToggled(id, tool, true)))]
+        [Message::Agents(A::AllowedToolToggled(id, tool, true))]
         if id == AGENT && tool == "screenshot"));
 }

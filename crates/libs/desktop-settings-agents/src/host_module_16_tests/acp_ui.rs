@@ -1,15 +1,18 @@
 #![cfg(not(target_arch = "wasm32"))]
 
-use super::*;
-use crate::app::components::system_settings_mcp as mcp;
-use crate::app::state::{AcpDiagnosticStatus, McpNewServerTransport, McpSettingsTab};
+use super::acp_inputs::mcp;
+use super::acp_inputs::*;
+use crate::acp::{acp_description, setup_hint};
+use crate::acp_state::AcpDiagnosticStatus;
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+use desktop_settings_mcp::state::{McpNewServerTransport, McpSettingsTab};
+use iced::Element;
 use iced::advanced::{
     clipboard,
     renderer::{Headless, Style},
 };
 use iced::{Event, Font, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
 fn isolated(test: &str) -> bool {
     const CHILD: &str = "SHIJU_UI_REFRESH_18_CHILD";
@@ -45,9 +48,8 @@ fn isolated(test: &str) -> bool {
     false
 }
 
-fn fixture() -> App {
-    assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");
-    let mut app = App::new().0;
+fn fixture() -> AcpPageFixture {
+    let mut app = AcpPageFixture::default();
     app.acp_settings.catalog.clear();
     app.acp_settings.catalog.insert(
         "fixture-agent".into(),
@@ -72,7 +74,7 @@ fn fixture() -> App {
 async fn renderer() -> Renderer {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -363,7 +365,7 @@ async fn ui_refresh_18_layout_and_interaction() {
     if !isolated("ui_refresh_18_layout_and_interaction") {
         return;
     }
-    use crate::app::message::settings::{self, McpMessage};
+    use super::acp_inputs::{McpMessage, settings};
     use iced::keyboard::key::Named;
     let mut renderer = renderer().await;
     let mut app = fixture();
@@ -372,12 +374,9 @@ async fn ui_refresh_18_layout_and_interaction() {
     let mut ui = scene(mcp::view(&app), &mut renderer, size);
     let edit_server = geometry(&mut ui, &renderer).label("编辑").center();
     let messages = click(&mut ui, &mut renderer, edit_server);
-    assert!(matches!(
-        messages.as_slice(),
-        [Message::Settings(SettingsMessage::Mcp(McpMessage::ServerEditRequested(0)))]
-    ));
+    assert!(matches!(messages.as_slice(), [Message::Mcp(McpMessage::ServerEditRequested(0))]));
     drop(ui);
-    drop(settings::update(&mut app, SettingsMessage::Mcp(McpMessage::ServerEditRequested(0))));
+    drop(settings::update(&mut app, Message::Mcp(McpMessage::ServerEditRequested(0))));
     assert_eq!(app.mcp_settings.editing_server_index, Some(0), "{:?}", app.mcp_settings.save_error);
     assert!(app.mcp_settings.new_server_expanded);
     let mut ui = scene(mcp::view_overlays(&app, mcp::view(&app)), &mut renderer, size);
@@ -441,23 +440,18 @@ async fn ui_refresh_18_layout_and_interaction() {
     let messages = send(&mut ui, &mut renderer, no_cursor, &[key(Named::Enter)]);
     assert!(matches!(
         messages.as_slice(),
-        [Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerTransportChanged(
-            McpNewServerTransport::Http
-        )))]
+        [Message::Mcp(McpMessage::NewServerTransportChanged(McpNewServerTransport::Http))]
     ));
     let messages = click(&mut ui, &mut renderer, save.center());
-    assert!(matches!(
-        messages.as_slice(),
-        [Message::Settings(SettingsMessage::Mcp(McpMessage::SaveServerEdit))]
-    ));
+    assert!(matches!(messages.as_slice(), [Message::Mcp(McpMessage::SaveServerEdit)]));
     let cancel = positions.label("取消编辑").center();
     assert!(matches!(
         click(&mut ui, &mut renderer, cancel).as_slice(),
-        [Message::Settings(SettingsMessage::Mcp(McpMessage::ServerEditCanceled))]
+        [Message::Mcp(McpMessage::ServerEditCanceled)]
     ));
     drop(ui);
     let saved_json = app.mcp_settings.editor.text();
-    drop(settings::update(&mut app, SettingsMessage::Mcp(McpMessage::ServerEditCanceled)));
+    drop(settings::update(&mut app, Message::Mcp(McpMessage::ServerEditCanceled)));
     assert_eq!(app.mcp_settings.editor.text(), saved_json);
     assert!(app.mcp_settings.editing_server_index.is_none());
 
@@ -469,14 +463,14 @@ async fn ui_refresh_18_layout_and_interaction() {
     let cancel = positions.label("取消").center();
     assert!(matches!(
         click(&mut ui, &mut renderer, confirm).as_slice(),
-        [Message::Settings(SettingsMessage::Mcp(McpMessage::ConfirmDelete(0)))]
+        [Message::Mcp(McpMessage::ConfirmDelete(0))]
     ));
     assert!(matches!(
         click(&mut ui, &mut renderer, cancel).as_slice(),
-        [Message::Settings(SettingsMessage::Mcp(McpMessage::CancelDelete))]
+        [Message::Mcp(McpMessage::CancelDelete)]
     ));
     drop(ui);
-    drop(settings::update(&mut app, SettingsMessage::Mcp(McpMessage::CancelDelete)));
+    drop(settings::update(&mut app, Message::Mcp(McpMessage::CancelDelete)));
     assert_eq!(app.mcp_settings.editor.text(), saved_json);
 
     app.mcp_settings.active_tab = McpSettingsTab::Json;
@@ -494,14 +488,12 @@ async fn ui_refresh_18_layout_and_interaction() {
         &[Event::InputMethod(iced::advanced::input_method::Event::Commit("繁體值".into()))],
     );
     assert_eq!(messages.len(), 1);
-    let Message::Settings(SettingsMessage::Mcp(McpMessage::EditorAction(action))) =
-        messages.remove(0)
-    else {
+    let Message::Mcp(McpMessage::EditorAction(action)) = messages.remove(0) else {
         panic!("expected JSON editor action")
     };
     assert!(action.is_edit());
     drop(ui);
-    drop(settings::update(&mut app, SettingsMessage::Mcp(McpMessage::EditorAction(action))));
+    drop(settings::update(&mut app, Message::Mcp(McpMessage::EditorAction(action))));
     assert_eq!(app.mcp_settings.editor.text().matches("繁體值").count(), 2);
 }
 
@@ -510,7 +502,7 @@ async fn ui_refresh_18_preserves_values_and_disabled_states() {
     if !isolated("ui_refresh_18_preserves_values_and_disabled_states") {
         return;
     }
-    use crate::app::message::settings::{self, McpMessage};
+    use super::acp_inputs::{McpMessage, settings};
     let mut renderer = renderer().await;
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
@@ -518,7 +510,7 @@ async fn ui_refresh_18_preserves_values_and_disabled_states() {
     let mut ui = scene(view(&app), &mut renderer, size);
     let test = geometry(&mut ui, &renderer).label("测试连接").center();
     assert!(
-        matches!(click(&mut ui, &mut renderer, test).as_slice(), [Message::Settings(SettingsMessage::Acp(AcpMessage::TestAgent(agent)))] if agent == "fixture-agent")
+        matches!(click(&mut ui, &mut renderer, test).as_slice(), [Message::Acp(AcpMessage::TestAgent(agent))] if agent == "fixture-agent")
     );
     drop(ui);
     app.acp_settings.new_agent_expanded = true;
@@ -529,17 +521,17 @@ async fn ui_refresh_18_preserves_values_and_disabled_states() {
     assert!(edit(&mut ui, &mut renderer, name.center(), "禁止改名").is_empty());
     let command = positions.input("/示例路徑/bin/fixture-agent");
     assert!(
-        matches!(edit(&mut ui, &mut renderer, command.center(), " 新值").as_slice(), [Message::Settings(SettingsMessage::Acp(AcpMessage::NewAgentCommandChanged(value)))] if value == "/示例路徑/bin/fixture-agent 新值")
+        matches!(edit(&mut ui, &mut renderer, command.center(), " 新值").as_slice(), [Message::Acp(AcpMessage::NewAgentCommandChanged(value))] if value == "/示例路徑/bin/fixture-agent 新值")
     );
     let retry = positions.label("测试连接 / 重试").center();
     assert!(matches!(
         click(&mut ui, &mut renderer, retry).as_slice(),
-        [Message::Settings(SettingsMessage::Acp(AcpMessage::StartDiagnostic))]
+        [Message::Acp(AcpMessage::StartDiagnostic)]
     ));
     let save = positions.label("保存");
     assert!(matches!(
         click(&mut ui, &mut renderer, save.center()).as_slice(),
-        [Message::Settings(SettingsMessage::Acp(AcpMessage::AddAgent))]
+        [Message::Acp(AcpMessage::AddAgent)]
     ));
     let viewport_point = iced::Point::new(210.0, 360.0);
     scroll(&mut ui, &mut renderer, viewport_point, -550.0);
@@ -557,15 +549,15 @@ async fn ui_refresh_18_preserves_values_and_disabled_states() {
     assert!(scrolled.scroll_offset.y > 0.0);
     let value_point = value.center() - scrolled.scroll_offset;
     assert!(
-        matches!(edit(&mut ui, &mut renderer, value_point, "新值").as_slice(), [Message::Settings(SettingsMessage::Acp(AcpMessage::EnvironmentChanged(0, false, value)))] if value == "虚构的秘密新值")
+        matches!(edit(&mut ui, &mut renderer, value_point, "新值").as_slice(), [Message::Acp(AcpMessage::EnvironmentChanged(0, false, value))] if value == "虚构的秘密新值")
     );
     let cancel = scrolled.label("取消").center();
     assert!(matches!(
         click(&mut ui, &mut renderer, cancel).as_slice(),
-        [Message::Settings(SettingsMessage::Acp(AcpMessage::CancelEditor))]
+        [Message::Acp(AcpMessage::CancelEditor)]
     ));
     drop(ui);
-    drop(settings::update(&mut app, SettingsMessage::Acp(AcpMessage::CancelEditor)));
+    drop(settings::update(&mut app, Message::Acp(AcpMessage::CancelEditor)));
     assert!(!app.acp_settings.new_agent_expanded);
     assert!(app.acp_settings.diagnostic_id.is_none());
     assert_eq!(app.acp_settings.catalog["fixture-agent"].command, "/示例路徑/bin/fixture-agent");
@@ -584,12 +576,12 @@ async fn ui_refresh_18_preserves_values_and_disabled_states() {
     let url = &app.mcp_settings.new_server.url_input;
     assert!(!positions.inputs.iter().any(|(value, _)| value == "fixture-bin"));
     assert!(
-        matches!(edit(&mut ui, &mut renderer, positions.input(url).center(), "tail").as_slice(), [Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerUrlChanged(value)))] if value == &format!("{url}tail"))
+        matches!(edit(&mut ui, &mut renderer, positions.input(url).center(), "tail").as_slice(), [Message::Mcp(McpMessage::NewServerUrlChanged(value))] if value == &format!("{url}tail"))
     );
     let add = positions.label("新增服务器").center();
     assert!(matches!(
         click(&mut ui, &mut renderer, add).as_slice(),
-        [Message::Settings(SettingsMessage::Mcp(McpMessage::AddServer))]
+        [Message::Mcp(McpMessage::AddServer)]
     ));
     drop(ui);
     app.mcp_settings.saving = true;
@@ -598,7 +590,7 @@ async fn ui_refresh_18_preserves_values_and_disabled_states() {
     let close = geometry(&mut ui, &renderer).label("收起").center();
     assert!(matches!(
         click(&mut ui, &mut renderer, close).as_slice(),
-        [Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerPanelToggled))]
+        [Message::Mcp(McpMessage::NewServerPanelToggled)]
     ));
 }
 
@@ -694,11 +686,7 @@ async fn help_rollout_09_renders_contextual_help() {
                 assert!(
                     match messages.as_slice() {
                         [Message::CopyCode(text)] if index == 0.0 => text == description,
-                        [
-                            Message::View(crate::app::message::ViewMessage::OpenUrlExternal(
-                                actual,
-                            )),
-                        ] if index == 3.0 => actual == &url,
+                        [Message::OpenUrlExternal(actual)] if index == 3.0 => actual == &url,
                         _ => false,
                     },
                     "{messages:?}"
@@ -716,7 +704,7 @@ async fn help_rollout_09_renders_contextual_help() {
         );
         assert!(matches!(
             click(&mut form, &mut renderer, positions.label(i18n.__("取消")).center()).as_slice(),
-            [Message::Settings(SettingsMessage::Acp(AcpMessage::CancelEditor))]
+            [Message::Acp(AcpMessage::CancelEditor)]
         ));
         drop(form);
         app.acp_settings.new_agent_expanded = false;
@@ -744,9 +732,8 @@ async fn help_rollout_09_mcp_server_and_policy_help() {
     if !isolated("help_rollout_09_mcp_server_and_policy_help") {
         return;
     }
-    use crate::app::components::system_settings_agents;
-    use crate::app::message::settings::McpMessage;
-    use crate::app::state::{AGENT_DETAIL_MCP_TAB, AgentConfigTab, DelegateAgentSettingsEntry};
+    use super::acp_inputs::McpMessage;
+    use crate::state::DelegateAgentSettingsEntry;
     let mut app = fixture();
     let mut renderer = renderer().await;
     for (locale, theme, width) in [
@@ -756,7 +743,7 @@ async fn help_rollout_09_mcp_server_and_policy_help() {
     ] {
         app.desktop_locale = locale;
         app.app_theme = theme.clone();
-        let tr = |label| crate::app::i18n::settings_extensions::text(locale, label);
+        let tr = |label| desktop_i18n::settings_extensions::text(locale, label);
         let size = Size::new(width, 660);
         let context = (size, &theme, locale);
         app.mcp_settings.active_tab = McpSettingsTab::Servers;
@@ -775,7 +762,7 @@ async fn help_rollout_09_mcp_server_and_policy_help() {
         positions.label(tr("更改类型并保存会清除原有的 env 或 headers。"));
         assert!(matches!(
             click(&mut edit, &mut renderer, positions.label(tr("保存修改")).center()).as_slice(),
-            [Message::Settings(SettingsMessage::Mcp(McpMessage::SaveServerEdit))]
+            [Message::Mcp(McpMessage::SaveServerEdit)]
         ));
         drop(edit);
         app.mcp_settings.editing_server_index = None;
@@ -823,14 +810,20 @@ async fn help_rollout_09_mcp_server_and_policy_help() {
             }
             assert_help_card(&mut page, &mut renderer, context, title, description);
         }
-        app.agents_settings.config_ready = true;
-        app.agents_settings.active_config_tab = AgentConfigTab::Agents;
-        app.agents_settings.selected_agent = "fixture-agent".into();
-        app.agents_settings.profile_modal =
-            Some(DelegateAgentSettingsEntry::from_config("fixture-agent", None));
-        app.agents_settings.active_detail_tab = AGENT_DETAIL_MCP_TAB.into();
+        let mut profile = super::profile_update::ProfileFixture::default();
+        profile.desktop_locale = locale;
+        profile.app_theme = theme.clone();
         app.mcp_settings.inspect_loading = true;
-        let mut policy = scene(system_settings_agents::view(&app), &mut renderer, size);
+        profile.mcp_settings.inspect_loading = true;
+        let draft = DelegateAgentSettingsEntry::from_config("fixture-agent", None);
+        let element = super::profile_inputs::mcp(&profile, &draft).map(|event| match event {
+            crate::message::Event::RefreshMcp => Message::Mcp(McpMessage::InspectRefresh),
+            crate::message::Event::CopyText(text) => Message::CopyCode(text),
+            crate::message::Event::OpenUrlExternal(url) => Message::OpenUrlExternal(url),
+            crate::message::Event::None => Message::None,
+            other => panic!("unexpected profile event {other:?}"),
+        });
+        let mut policy = scene(element, &mut renderer, size);
         assert_help_card(
             &mut policy,
             &mut renderer,
@@ -846,10 +839,7 @@ async fn help_rollout_09_mcp_server_and_policy_help() {
         let refresh = positions.label(tr("刷新服务目录")).center() - positions.scroll_offset;
         let messages = click(&mut policy, &mut renderer, refresh);
         assert!(
-            matches!(
-                messages.as_slice(),
-                [Message::Settings(SettingsMessage::Mcp(McpMessage::InspectRefresh))]
-            ),
+            matches!(messages.as_slice(), [Message::Mcp(McpMessage::InspectRefresh)]),
             "{locale:?}: {messages:?}"
         );
     }
@@ -933,7 +923,7 @@ async fn settings_help_gap_13_mcp_add_and_edit_transport_fields() {
     if !isolated("settings_help_gap_13_mcp_add_and_edit_transport_fields") {
         return;
     }
-    use crate::app::message::settings::{self, McpMessage};
+    use super::acp_inputs::{McpMessage, settings};
     use iced::keyboard::key::Named;
 
     let mut app = fixture();
@@ -993,7 +983,7 @@ async fn settings_help_gap_13_mcp_add_and_edit_transport_fields() {
                     let url = &app.mcp_settings.new_server.url_input;
                     assert!(
                         matches!(edit(&mut ui, &mut renderer, positions.input(url).center(), "tail").as_slice(),
-                            [Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerUrlChanged(value)))]
+                            [Message::Mcp(McpMessage::NewServerUrlChanged(value))]
                             if value == &format!("{url}tail"))
                     );
                 }
@@ -1004,18 +994,14 @@ async fn settings_help_gap_13_mcp_add_and_edit_transport_fields() {
                 };
                 let messages = click(&mut ui, &mut renderer, positions.label(tr(submit)).center());
                 assert!(match messages.as_slice() {
-                    [Message::Settings(SettingsMessage::Mcp(McpMessage::SaveServerEdit))] =>
-                        editing,
-                    [Message::Settings(SettingsMessage::Mcp(McpMessage::AddServer))] => !editing,
+                    [Message::Mcp(McpMessage::SaveServerEdit)] => editing,
+                    [Message::Mcp(McpMessage::AddServer)] => !editing,
                     _ => false,
                 });
                 let messages = click(&mut ui, &mut renderer, positions.label(tr(cancel)).center());
                 assert!(match messages.as_slice() {
-                    [Message::Settings(SettingsMessage::Mcp(McpMessage::ServerEditCanceled))] =>
-                        editing,
-                    [
-                        Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerPanelToggled)),
-                    ] => !editing,
+                    [Message::Mcp(McpMessage::ServerEditCanceled)] => editing,
+                    [Message::Mcp(McpMessage::NewServerPanelToggled)] => !editing,
                     _ => false,
                 });
 
@@ -1037,16 +1023,13 @@ async fn settings_help_gap_13_mcp_add_and_edit_transport_fields() {
                         send(&mut ui, &mut renderer, cursor, &[key(Named::ArrowDown)]).is_empty()
                     );
                     let messages = send(&mut ui, &mut renderer, cursor, &[key(Named::Enter)]);
-                    let [
-                        Message::Settings(SettingsMessage::Mcp(
-                            message @ McpMessage::NewServerTransportChanged(_),
-                        )),
-                    ] = messages.as_slice()
+                    let [Message::Mcp(message @ McpMessage::NewServerTransportChanged(_))] =
+                        messages.as_slice()
                     else {
                         panic!("expected transport selection, got {messages:?}");
                     };
                     drop(ui);
-                    drop(settings::update(&mut app, SettingsMessage::Mcp(message.clone())));
+                    drop(settings::update(&mut app, Message::Mcp(message.clone())));
                 }
             }
         }
@@ -1095,17 +1078,17 @@ async fn settings_help_gap_13_acp_diagnostic_draft_and_install_help() {
                 positions.label(tr(if editing { "测试连接 / 重试" } else { "取消诊断" }));
             let messages = click(&mut form, &mut renderer, action.center());
             assert!(match messages.as_slice() {
-                [Message::Settings(SettingsMessage::Acp(AcpMessage::StartDiagnostic))] => editing,
-                [Message::Settings(SettingsMessage::Acp(AcpMessage::CancelDiagnostic))] => !editing,
+                [Message::Acp(AcpMessage::StartDiagnostic)] => editing,
+                [Message::Acp(AcpMessage::CancelDiagnostic)] => !editing,
                 _ => false,
             });
             assert!(matches!(
                 click(&mut form, &mut renderer, positions.label(tr("保存")).center()).as_slice(),
-                [Message::Settings(SettingsMessage::Acp(AcpMessage::AddAgent))]
+                [Message::Acp(AcpMessage::AddAgent)]
             ));
             assert!(matches!(
                 click(&mut form, &mut renderer, positions.label(tr("取消")).center()).as_slice(),
-                [Message::Settings(SettingsMessage::Acp(AcpMessage::CancelEditor))]
+                [Message::Acp(AcpMessage::CancelEditor)]
             ));
         }
 
@@ -1145,7 +1128,7 @@ async fn settings_help_gap_13_acp_diagnostic_draft_and_install_help() {
                 assert!(messages.is_empty());
             } else {
                 assert!(
-                    matches!(messages.as_slice(), [Message::Settings(SettingsMessage::Acp(AcpMessage::InstallAgent(agent)))] if agent == "codex")
+                    matches!(messages.as_slice(), [Message::Acp(AcpMessage::InstallAgent(agent))] if agent == "codex")
                 );
             }
         }

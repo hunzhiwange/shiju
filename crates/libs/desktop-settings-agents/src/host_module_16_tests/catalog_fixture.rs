@@ -35,5 +35,5 @@ impl CatalogFixture {
     }
 }
 fn icon(agent: &str, size: f32) -> iced::Element<'static, Event> {
-    desktop_chat_input::input_panel::icons::acp_agent_icon(agent, size)
+    desktop_ui_controls::icons::acp_agent_icon(agent, size)
 }

@@ -33,11 +33,6 @@ fn agent_runtime_creation_empty_directory_refreshes_and_failure_preserves_native
     );
     assert!(!app.acp_settings.loading);
     assert!(app.acp_settings.save_error.is_some());
-    dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged("codex".into()));
-    assert_eq!(
-        app.agents_settings.profile_modal.as_ref().unwrap().runtime,
-        config_agent_profile::AgentRuntime::Native
-    );
 }
 
 #[tokio::test(flavor = "multi_thread")]

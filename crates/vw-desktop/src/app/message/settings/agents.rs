@@ -3,7 +3,6 @@ use crate::app::{App, Message};
 use super::{AgentsMessage, SettingsMessage};
 use iced::Task;
 use desktop_settings_agents::{agents_update as domain, agents_update_message::{Message as Local, SettingsMessage as LocalSettings, Effect, ToastKind}};
-#[cfg(test)] use domain::build_agents_settings_patch;
 fn event(message: Local) -> Message { match message {
  Local::Settings(LocalSettings::Agents(message)) => Message::Settings(SettingsMessage::Agents(message)),
  Local::ConfigSaved { tag, result } => Message::Settings(SettingsMessage::AgentConfigSaved { tag, result }),

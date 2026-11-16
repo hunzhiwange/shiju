@@ -1,15 +1,13 @@
 //! Host contracts: profile update dispatch, session ACP capability projection and provider/MCP catalog validation.
 use crate::app::state::DelegateAgentSettingsEntry;
-use config_agent_profile::{AgentDefault, AgentDefaults, AgentRuntime};
 use config_agent::AgentDefinitionConfig;
+use config_agent_profile::{AgentDefault, AgentDefaults, AgentRuntime};
 
 #[test]
 fn agent_model_inheritance_verified_acp_models_survive_disconnect_and_reopen() {
     use crate::app::state::{ModelSummary, ProviderModelsSummary, ProviderSummary};
     use config_agent_profile::AgentModelReference;
-    use vw_api_acp_model::acp_model_source::{
-        AcpModelSource, AcpModelSourceCapability,
-    };
+    use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
     let mut app = crate::app::App::new().0;
     let model = AgentModelReference { provider: "provider".into(), model: "selected".into() };
     app.agents_settings.providers = vec![ProviderSummary {
@@ -63,9 +61,21 @@ fn agent_model_inheritance_verified_acp_models_survive_disconnect_and_reopen() {
         },
         DelegateAgentSettingsEntry::from_config("custom", Some(config)),
     ] {
-        assert_eq!(super::defaults::validation_error(&app, &draft), None);
+        assert_eq!(
+            desktop_settings_agents::defaults::validation_error(
+                &super::domain::defaults_input(&app, &draft),
+                &draft
+            ),
+            None
+        );
         app.session_runtime_states.get_mut("verified").unwrap().acp_agent = Some("other".into());
-        assert!(super::defaults::validation_error(&app, &draft).is_some());
+        assert!(
+            desktop_settings_agents::defaults::validation_error(
+                &super::domain::defaults_input(&app, &draft),
+                &draft
+            )
+            .is_some()
+        );
         app.session_runtime_states.get_mut("verified").unwrap().acp_agent = Some("codex".into());
     }
     app.agents_settings.provider_models[0].models[0].enabled = false;
@@ -83,8 +93,20 @@ fn agent_model_inheritance_verified_acp_models_survive_disconnect_and_reopen() {
             ..Default::default()
         }),
     );
-    assert!(super::defaults::validation_error(&app, &draft).is_some());
+    assert!(
+        desktop_settings_agents::defaults::validation_error(
+            &super::domain::defaults_input(&app, &draft),
+            &draft
+        )
+        .is_some()
+    );
     app.agents_settings.provider_models[0].models[0].enabled = true;
     app.agents_settings.providers[0].connected = false;
-    assert!(super::defaults::validation_error(&app, &draft).is_some());
+    assert!(
+        desktop_settings_agents::defaults::validation_error(
+            &super::domain::defaults_input(&app, &draft),
+            &draft
+        )
+        .is_some()
+    );
 }

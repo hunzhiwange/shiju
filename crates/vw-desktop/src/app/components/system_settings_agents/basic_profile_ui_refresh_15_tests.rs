@@ -1,25 +1,24 @@
 //! Host contracts: settings tab routing, ACP directory projection, profile overlay and host message dispatch.
-use super::super::{AGENT_CONFIG_TABS, catalog, profile_modal};
+use super::AGENT_CONFIG_TABS;
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{
-    AcpMessage, AgentConfigTabMessage, AgentsMessage as A, SettingsMessage as S,
+    AgentConfigTabMessage, AgentsMessage as A, SettingsMessage as S,
 };
 use crate::app::state::{AgentConfigTab, DelegateAgentSettingsEntry};
 use crate::app::{App, Message};
+use config_agent_profile::AgentRuntime;
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use iced::advanced::{
-    clipboard, input_method,
+    clipboard,
     renderer::{Headless, Style},
     widget::{
         Id, Operation,
         operation::{Focusable, Scrollable, TextInput},
     },
 };
-use iced::keyboard::{self, Key, key::Named};
-use iced::widget::{Space, text_editor};
-use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
+use iced::widget::text_editor;
+use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use config_agent_profile::AgentRuntime;
-use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
 const KEY: &str = "fixture-agent";
 const BACKEND: &str = "fixture-backend";
@@ -234,28 +233,9 @@ impl<'a> Scene<'a> {
     }
 }
 
-fn key(named: Named) -> Event {
-    let key = Key::Named(named);
-    Event::Keyboard(keyboard::Event::KeyPressed {
-        modified_key: key.clone(),
-        key,
-        physical_key: keyboard::key::Physical::Unidentified(
-            keyboard::key::NativeCode::Unidentified,
-        ),
-        location: keyboard::Location::Standard,
-        modifiers: keyboard::Modifiers::empty(),
-        text: None,
-        repeat: false,
-    })
-}
-
-fn profile(app: &App) -> Element<'_, Message> {
-    profile_modal::overlay(app, Space::new().width(Length::Fill).height(Length::Fill).into())
-}
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ui_refresh_15_layout_and_interaction() {
-    if !isolated("ui_refresh_15_layout_and_interaction") {
+async fn ui_refresh_15_host_tabs_and_errors() {
+    if !isolated("ui_refresh_15_host_tabs_and_errors") {
         return;
     }
     let mut renderer = renderer().await;
@@ -273,7 +253,7 @@ async fn ui_refresh_15_layout_and_interaction() {
         for (locale, locale_name) in LOCALES {
             app.desktop_locale = locale;
             for width in [640, 960] {
-                let mut page = Scene::new(super::super::view(&app), &mut renderer, width, 840);
+                let mut page = Scene::new(super::view(&app), &mut renderer, width, 840);
                 let geometry = page.geometry(&renderer);
                 for tab in AGENT_CONFIG_TABS {
                     let label = geometry.label(tr(locale, tab.label));
@@ -284,72 +264,6 @@ async fn ui_refresh_15_layout_and_interaction() {
                         if *actual == tab.tab
                     ));
                 }
-
-                let catalog_tab = geometry.label(tr(locale, "官方智能体"));
-                assert!(matches!(
-                    page.click(&mut renderer, catalog_tab.center()).as_slice(),
-                    [Message::Settings(S::Agents(A::CatalogTabSelected(true)))]
-                ));
-                let add = geometry.label(tr(locale, "新增智能体"));
-                assert!((add.center().y - catalog_tab.center().y).abs() < 0.5);
-                assert_eq!(geometry.inputs.len(), 1);
-                assert!(matches!(
-                    page.click(&mut renderer, add.center()).as_slice(),
-                    [Message::Settings(S::Agents(A::AddAgentOpened))]
-                ));
-                let edit = geometry.label(tr(locale, "编辑配置"));
-                let start = geometry.label(tr(locale, "开始会话"));
-                let copy = geometry.label(tr(locale, "复制"));
-                let disable = geometry.label(tr(locale, "停用智能体"));
-                let runtime = geometry.label(tr(locale, "运行设置"));
-                assert!(matches!(
-                    page.click(&mut renderer, copy.center()).as_slice(),
-                    [Message::Settings(S::Agents(A::CatalogCopy(id)))] if id == KEY
-                ));
-                assert!(matches!(
-                    page.click(&mut renderer, disable.center()).as_slice(),
-                    [Message::Settings(S::Agents(A::CatalogToggle(id, false)))] if id == KEY
-                ));
-                assert!(matches!(
-                    page.click(&mut renderer, runtime.center()).as_slice(),
-                    [Message::Settings(S::Agents(A::CatalogRuntimeSettings(id)))] if id == BACKEND
-                ));
-                assert!(matches!(
-                    page.click(&mut renderer, edit.center()).as_slice(),
-                    [Message::Settings(S::Agents(A::ProfileOpen(id)))] if id == KEY
-                ));
-                assert!(matches!(
-                    page.click(&mut renderer, start.center()).as_slice(),
-                    [Message::Settings(S::Agents(A::CatalogLaunch(id)))] if id == KEY
-                ));
-                let (scroll, content, _) = geometry.scrolls[0];
-                assert!(content.height > scroll.height);
-                let cursor = mouse::Cursor::Available(edit.center());
-                assert!(
-                    page.send(
-                        &mut renderer,
-                        &[Event::Mouse(mouse::Event::CursorMoved { position: edit.center() })],
-                        cursor
-                    )
-                    .is_empty()
-                );
-                page.screenshot(
-                    &mut renderer,
-                    &theme,
-                    cursor,
-                    &format!("catalog-{width}-{theme_name}-{locale_name}"),
-                );
-                assert!(
-                    page.send(
-                        &mut renderer,
-                        &[Event::Mouse(mouse::Event::WheelScrolled {
-                            delta: mouse::ScrollDelta::Pixels { x: 0.0, y: -80.0 },
-                        })],
-                        cursor
-                    )
-                    .is_empty()
-                );
-                assert!(page.geometry(&renderer).scrolls[0].2.y > 0.0);
             }
         }
     }
@@ -360,7 +274,7 @@ async fn ui_refresh_15_layout_and_interaction() {
             S::AgentConfigTab(AgentConfigTabMessage::Selected(tab.tab)),
         );
         assert_eq!(app.agents_settings.active_config_tab, tab.tab);
-        let mut page = Scene::new(super::super::view(&app), &mut renderer, 640, 840);
+        let mut page = Scene::new(super::view(&app), &mut renderer, 640, 840);
         page.screenshot(
             &mut renderer,
             &Theme::Light,
@@ -369,16 +283,9 @@ async fn ui_refresh_15_layout_and_interaction() {
         );
     }
 
-    app.agents_settings.active_config_tab = AgentConfigTab::Agents;
-    app.agents_settings.catalog_query = "no-match".into();
-    let mut empty = Scene::new(super::super::view(&app), &mut renderer, 640, 840);
-    empty.geometry(&renderer).label("No matching agents");
-    empty.screenshot(&mut renderer, &Theme::Dark, mouse::Cursor::Unavailable, "catalog-empty");
-    drop(empty);
-
     app.agents_settings.config_ready = false;
     app.agents_settings.save_error = Some("fixture load failed".into());
-    let mut unavailable = Scene::new(super::super::view(&app), &mut renderer, 640, 840);
+    let mut unavailable = Scene::new(super::view(&app), &mut renderer, 640, 840);
     let geometry = unavailable.geometry(&renderer);
     geometry.label("fixture load failed");
     assert!(geometry.inputs.is_empty());
@@ -477,193 +384,4 @@ async fn agent_profile_modal_preserves_catalog_scroll() {
         size: Size::new(1200, 740),
     };
     assert_eq!(catalog_scroll(&scene.geometry(&renderer)), before);
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ui_refresh_15_preserves_values_and_disabled_states() {
-    if !isolated("ui_refresh_15_preserves_values_and_disabled_states") {
-        return;
-    }
-    let mut renderer = renderer().await;
-    let (mut app, _root, draft) = fixture();
-    app.desktop_locale = DesktopLocale::English;
-
-    {
-        let mut fields = Scene::new(super::view(&app, &draft), &mut renderer, 420, 760);
-        let geometry = fields.geometry(&renderer);
-        assert_eq!(geometry.inputs[0].0, draft.label);
-        assert_eq!(geometry.inputs[1].0, draft.recommended_prompts[0]);
-        let up = geometry.label("Move up");
-        let down = geometry.label("Move down");
-        assert_eq!(geometry.inputs[0].1.width, geometry.inputs[1].1.width);
-        assert!(up.y > geometry.inputs[1].1.y + geometry.inputs[1].1.height);
-        assert!((up.center().y - down.center().y).abs() < 0.5);
-        let mut wide = Scene::new(super::view(&app, &draft), &mut renderer, 740, 760);
-        let wide = wide.geometry(&renderer);
-        let name_label = wide.label("Name");
-        let name_input = wide.inputs[0].1;
-        assert!(name_label.x + name_label.width < name_input.x);
-        assert!((name_label.center_y() - name_input.center_y()).abs() < 0.5);
-        for label in ["Move up", "Move down"] {
-            assert!((wide.label(label).center().y - wide.inputs[1].1.center().y).abs() < 0.5);
-        }
-        assert!(fields.click(&mut renderer, up.center()).is_empty());
-        assert!(matches!(
-            fields.click(&mut renderer, down.center()).as_slice(),
-            [Message::Settings(S::Agents(A::ProfilePromptMove(0, 1)))]
-        ));
-        let name = geometry.inputs[0].1.center();
-        assert!(fields.click(&mut renderer, name).is_empty());
-        assert!(matches!(
-            fields.send(&mut renderer, &[key(Named::End), Event::InputMethod(input_method::Event::Commit("追加".into()))],
-                mouse::Cursor::Available(name)).as_slice(),
-            [Message::Settings(S::Agents(A::ProfileNameChanged(value)))] if *value == format!("{}追加", draft.label)
-        ));
-
-        let runtime = *geometry.focusable.last().unwrap();
-        assert_eq!(runtime.height, 38.0);
-        assert!(fields.click(&mut renderer, runtime.center()).is_empty());
-        let overlay = fields.geometry(&renderer);
-        let (menu, content, _) = *overlay.scrolls.last().unwrap();
-        assert!(menu.y >= 0.0 && menu.y + menu.height <= 760.0);
-        assert!(menu.x >= 0.0 && menu.x + menu.width <= 420.0);
-        assert!(content.height > menu.height);
-        assert!(overlay.focused.contains(&runtime));
-        let mut hovers = Vec::new();
-        for offset in [18.0, 54.0] {
-            let point = Point::new(menu.center().x, menu.y + offset);
-            let cursor = mouse::Cursor::Available(point);
-            assert!(
-                fields
-                    .send(
-                        &mut renderer,
-                        &[Event::Mouse(mouse::Event::CursorMoved { position: point })],
-                        cursor
-                    )
-                    .is_empty()
-            );
-            hovers.push(fields.screenshot(
-                &mut renderer,
-                &Theme::Dark,
-                cursor,
-                &format!("runtime-menu-hover-{offset}"),
-            ));
-        }
-        assert!(hovers[0] != hovers[1], "hover must move between options");
-        let outside = Point::new(4.0, 4.0);
-        let cursor = mouse::Cursor::Available(outside);
-        assert!(
-            fields
-                .send(
-                    &mut renderer,
-                    &[Event::Mouse(mouse::Event::CursorMoved { position: outside })],
-                    cursor
-                )
-                .is_empty()
-        );
-        let cleared = fields.screenshot(&mut renderer, &Theme::Dark, cursor, "runtime-menu-clear");
-        assert!(cleared != hovers[1], "moving off the menu must clear its hover");
-        assert!(fields.send(&mut renderer, &[key(Named::Escape)], cursor).is_empty());
-        assert!(fields.geometry(&renderer).scrolls.is_empty());
-        assert!(fields.send(&mut renderer, &[key(Named::Enter)], cursor).is_empty());
-        assert!(matches!(
-            fields.send(&mut renderer, &[key(Named::End), key(Named::Enter)], cursor).as_slice(),
-            [Message::Settings(S::Agents(A::ProfileRuntimeChanged(value)))] if value == BACKEND
-        ));
-        assert!(matches!(
-            fields.click(&mut renderer, geometry.label("Refresh runtimes").center()).as_slice(),
-            [Message::Settings(S::Acp(AcpMessage::Refresh))]
-        ));
-    }
-
-    app.agents_settings.profile_modal = Some(draft.clone());
-    for (theme, theme_name) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
-        for (locale, locale_name) in LOCALES {
-            app.desktop_locale = locale;
-            let mut modal = Scene::new(profile(&app), &mut renderer, 420, 680);
-            let geometry = modal.geometry(&renderer);
-            let cancel = geometry.label(tr(locale, "取消"));
-            let save = geometry.label(tr(locale, "保存配置"));
-            let (body, content, _) = geometry.scrolls[0];
-            assert!(content.height > body.height);
-            assert!(body.y + body.height <= save.y);
-            assert!(save.x + save.width <= 420.0);
-            modal.screenshot(
-                &mut renderer,
-                &theme,
-                mouse::Cursor::Unavailable,
-                &format!("profile-new-{theme_name}-{locale_name}"),
-            );
-            assert!(
-                modal
-                    .send(
-                        &mut renderer,
-                        &[Event::Mouse(mouse::Event::WheelScrolled {
-                            delta: mouse::ScrollDelta::Pixels { x: 0.0, y: -120.0 },
-                        })],
-                        mouse::Cursor::Available(Point::new(body.x + 4.0, body.center().y))
-                    )
-                    .is_empty()
-            );
-            assert!(modal.geometry(&renderer).scrolls[0].2.y > 0.0);
-            assert_eq!(modal.geometry(&renderer).label(tr(locale, "保存配置")), save);
-            modal.screenshot(
-                &mut renderer,
-                &theme,
-                mouse::Cursor::Unavailable,
-                &format!("profile-scrolled-{theme_name}-{locale_name}"),
-            );
-            assert!(matches!(
-                modal.click(&mut renderer, save.center()).as_slice(),
-                [Message::Settings(S::Agents(A::ProfileSave))]
-            ));
-            assert!(matches!(
-                modal.click(&mut renderer, cancel.center()).as_slice(),
-                [Message::Settings(S::Agents(A::ProfileCancel))]
-            ));
-        }
-    }
-
-    app.agents_settings.profile_saving = true;
-    app.agents_settings.catalog_busy = true;
-    app.agents_settings.entries.push(draft.clone());
-    let mut busy = Scene::new(profile(&app), &mut renderer, 420, 680);
-    let geometry = busy.geometry(&renderer);
-    for label in ["Cancel", "Delete agent", "Saving…"] {
-        assert!(busy.click(&mut renderer, geometry.label(label).center()).is_empty());
-    }
-    busy.screenshot(&mut renderer, &Theme::Dark, mouse::Cursor::Unavailable, "profile-busy");
-    drop(busy);
-    let mut cards = Scene::new(catalog::grid(&app), &mut renderer, 640, 840);
-    let geometry = cards.geometry(&renderer);
-    for label in ["Edit", "Copy", "Disable", "Start session"] {
-        assert!(cards.click(&mut renderer, geometry.label(label).center()).is_empty());
-    }
-    drop(cards);
-
-    app.agents_settings.profile_saving = false;
-    app.agents_settings.entries.clear();
-    let mut builtin = DelegateAgentSettingsEntry::from_config("main", None);
-    builtin.runtime = AgentRuntime::Acp { backend: BACKEND.into() };
-    app.agents_settings.profile_modal = Some(builtin.clone());
-    let mut fixed = Scene::new(super::view(&app, &builtin), &mut renderer, 420, 760);
-    let geometry = fixed.geometry(&renderer);
-    let runtime = geometry.label("Fixed runtime: fixture-backend");
-    assert!(geometry.focusable.iter().all(|bounds| bounds.y + bounds.height <= runtime.y));
-    fixed.screenshot(&mut renderer, &Theme::Light, mouse::Cursor::Unavailable, "profile-fixed");
-    drop(fixed);
-
-    app.acp_agents.clear();
-    app.acp_settings.loading = true;
-    let mut loading = Scene::new(super::view(&app, &draft), &mut renderer, 420, 760);
-    let geometry = loading.geometry(&renderer);
-    geometry.label("Loading the ACP runtime catalog…");
-    assert!(loading.click(&mut renderer, geometry.label("Loading…").center()).is_empty());
-    loading.screenshot(&mut renderer, &Theme::Dark, mouse::Cursor::Unavailable, "profile-loading");
-    drop(loading);
-    app.acp_settings.loading = false;
-    app.acp_settings.save_error = Some("fixture runtime refresh failed".into());
-    let mut failure = Scene::new(super::view(&app, &draft), &mut renderer, 420, 760);
-    failure.geometry(&renderer).label("fixture runtime refresh failed");
-    failure.screenshot(&mut renderer, &Theme::Light, mouse::Cursor::Unavailable, "profile-failed");
 }

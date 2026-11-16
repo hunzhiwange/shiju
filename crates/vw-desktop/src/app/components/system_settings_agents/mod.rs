@@ -3,30 +3,22 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
-mod basic;
-pub(super) mod domain;
 #[cfg(test)]
-mod basic_profile;
-#[cfg(test)]
-mod catalog;
+#[path = "basic_profile_ui_refresh_15_tests.rs"]
+mod basic_profile_ui_refresh_15_tests;
 #[cfg(test)]
 mod catalog_tests;
 pub(crate) mod defaults;
+pub(super) mod domain;
 mod identity;
-mod mcp;
 mod profile_modal;
 mod shared;
-mod skills;
-#[cfg(test)]
-mod tools;
 
 #[cfg(test)]
 #[path = "mod_tests.rs"]
 mod mod_tests;
 
-use crate::app::components::system_settings_common::{
-    settings_error_banner, settings_tab_row,
-};
+use crate::app::components::system_settings_common::{settings_error_banner, settings_tab_row};
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentConfigTabMessage, SettingsMessage};
@@ -116,7 +108,10 @@ pub(super) const AGENT_CONFIG_TABS: &[SettingsTabDescriptor<AgentConfigTab>] = &
 ];
 
 pub(super) fn agent_project_options(app: &App) -> Vec<String> {
-    desktop_settings_agents::agents_view::agent_project_options(app.project_path.as_deref(), &app.recent_projects)
+    desktop_settings_agents::agents_view::agent_project_options(
+        app.project_path.as_deref(),
+        &app.recent_projects,
+    )
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
@@ -254,9 +249,12 @@ fn active_tab_save_error(app: &App) -> Option<&str> {
 }
 
 fn agents_view(app: &App) -> Element<'_, Message> {
- desktop_settings_agents::agents_view::agents_view(desktop_settings_agents::agents_view::Input {
- state: &app.agents_settings, catalog: domain::catalog_input(app), theme: &app.app_theme,
- }).map(domain::event)
+    desktop_settings_agents::agents_view::agents_view(desktop_settings_agents::agents_view::Input {
+        state: &app.agents_settings,
+        catalog: domain::catalog_input(app),
+        theme: &app.app_theme,
+    })
+    .map(domain::event)
 }
 
 #[cfg(test)]

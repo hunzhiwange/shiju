@@ -1,4 +1,4 @@
-//! Host contract: profile modal, directory dispatch and Chinese text shaping.
+//! Skill directory inputs and Chinese text shaping in the profile modal.
 use super::profile_update::{ProfileFixture, dispatch};
 use crate::message::AgentsMessage;
 use crate::state::SkillsCatalogItem;

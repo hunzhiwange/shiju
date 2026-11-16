@@ -14,7 +14,7 @@ impl AcpFixture {
             theme: &THEME,
             frame: self.status_animation_frame,
             icon: |agent, size| {
-                desktop_chat_input::input_panel::icons::acp_agent_icon::<Event>(agent, size)
+                desktop_ui_controls::icons::acp_agent_icon::<Event>(agent, size)
             },
         }
     }

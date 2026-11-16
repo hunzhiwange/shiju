@@ -5,6 +5,9 @@ use crate::{
 };
 #[derive(Default)]
 pub(super) struct ProfileFixture {
+    pub app_theme: iced::Theme,
+    pub capabilities:
+        Vec<(Option<String>, Vec<vw_api_acp_model::acp_model_source::AcpModelSourceCapability>)>,
     pub agents_settings: AgentsSettingsState,
     pub acp_agents: Vec<String>,
     pub mcp_settings: McpFixture,
@@ -349,13 +352,15 @@ pub(super) fn defaults_input<'a>(
     app: &'a ProfileFixture,
     draft: &crate::state::DelegateAgentSettingsEntry,
 ) -> crate::defaults::Input<'a> {
-    static THEME: iced::Theme = iced::Theme::Light;
     crate::defaults::catalog_input(
         &app.agents_settings,
         app.desktop_locale,
-        &THEME,
+        &app.app_theme,
         super::selectable_help,
-        matches!(draft.runtime, config_agent_profile::AgentRuntime::Native),
+        crate::defaults::supports_fixed_model(
+            &draft.runtime,
+            app.capabilities.iter().map(|(agent, caps)| (agent.as_deref(), caps.as_slice())),
+        ),
         app.mcp_settings.inspect.as_ref(),
         app.mcp_settings.inspect_loading,
         app.mcp_settings.inspect_error.as_ref(),
@@ -366,4 +371,17 @@ pub(super) fn validation_error(
     draft: &crate::state::DelegateAgentSettingsEntry,
 ) -> Option<String> {
     crate::defaults::validation_error(&defaults_input(app, draft), draft)
+}
+
+#[test]
+fn agent_runtime_empty_directory_keeps_native() {
+    let mut app = ProfileFixture::default();
+    app.agents_settings.config_ready = true;
+    dispatch(&mut app, AgentsMessage::AddAgentKeyChanged("empty-catalog".into()));
+    dispatch(&mut app, AgentsMessage::AddAgentRequested);
+    dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged("codex".into()));
+    assert_eq!(
+        app.agents_settings.profile_modal.as_ref().unwrap().runtime,
+        config_agent_profile::AgentRuntime::Native
+    );
 }

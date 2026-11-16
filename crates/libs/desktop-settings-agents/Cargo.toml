@@ -43,7 +43,9 @@ gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 [dev-dependencies]
 tempfile = "3"
 iced_runtime = "0.14"
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util"] }
 desktop-chat-view = { path = "../desktop-chat-view", version = "0.6.0" }
 image = "0.25.9"
-desktop-chat-input = { path = "../desktop-chat-input", version = "0.6.0" }
+urlencoding = "2"
+desktop-settings-appearance = { path = "../desktop-settings-appearance", version = "0.6.0" }
+desktop-settings-mcp = { path = "../desktop-settings-mcp", version = "0.6.0" }

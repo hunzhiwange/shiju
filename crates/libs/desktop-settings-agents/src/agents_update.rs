@@ -90,7 +90,7 @@ fn summarize_models(
     out
 }
 
-fn refresh_task(access: desktop_config::ConfigAccess, client: Client) -> Task<Message> {
+pub(crate) fn refresh_task(access: desktop_config::ConfigAccess, client: Client) -> Task<Message> {
     Task::batch([refresh_providers_task(access.clone(), client.clone()), refresh_tools_task(access.clone(), client.clone())])
 }
 
@@ -1000,7 +1000,7 @@ pub fn update(app: &mut Update<'_>, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         AgentsMessage::ProjectChanged(_) => {
-            // Update<'_>lication workspace changes never reload or retarget global definitions.
+            // Application workspace changes never reload or retarget global definitions.
             app.state.project_path = None;
             Task::none()
         }
@@ -1393,7 +1393,7 @@ pub fn update(app: &mut Update<'_>, message: SettingsMessage) -> Task<Message> {
             app.state.save_error = None;
             mark_agents_settings_dirty(app)
         }
-        AgentsMessage::AllowedToolsUpdate<'_>lyPreset(agent_key, preset_key) => {
+        AgentsMessage::AllowedToolsApplyPreset(agent_key, preset_key) => {
             let available_tools = app.state.available_tools.clone();
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 let preset_tools = tools_for_preset(&available_tools, &preset_key);

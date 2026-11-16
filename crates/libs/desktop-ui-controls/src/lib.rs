@@ -27,3 +27,5 @@ mod desktop_split_02_tests;
 
 #[cfg(test)]
 mod desktop_split_18_tests;
+
+pub mod icons;

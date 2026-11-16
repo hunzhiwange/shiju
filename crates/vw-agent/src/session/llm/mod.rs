@@ -80,6 +80,7 @@ pub(crate) use acp::{
 };
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "../../../../libs/llm-runtime/src/native_tools_tests.rs"]
 mod native_tools_tests;
 
 #[cfg(not(target_arch = "wasm32"))]

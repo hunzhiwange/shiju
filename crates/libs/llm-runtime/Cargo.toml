@@ -8,13 +8,18 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+agent-provider = { path = "../agent-provider", version = "0.6.0" }
+model-selection = { path = "../model-selection", version = "0.6.0" }
+permission-runtime = { path = "../permission-runtime", version = "0.6.0" }
+web-time = "1"
+tool-types = { path = "../tool-types", version = "0.6.0" }
 agent-skills = { path = "../agent-skills", version = "0.6.0" }
 config-skills = { path = "../config-skills", version = "0.6.0" }
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 parking_lot = "0.12"
-tokio = { version = "1", features = ["sync", "net", "time"] }
+tokio = { version = "1", features = ["sync", "net", "time", "rt-multi-thread", "macros"] }
 sha2 = "0.11"
 hex = "0.4"
 ring = "0.17.14"

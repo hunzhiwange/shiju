@@ -22,3 +22,7 @@ pub static LOGGER: LazyLock<log::Logger> = LazyLock::new(|| {
         m
     }))
 });
+
+#[cfg(test)]
+#[path = "logging_tests.rs"]
+mod logging_tests;

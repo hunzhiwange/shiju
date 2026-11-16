@@ -120,3 +120,7 @@ pub fn install(
     .map_err(|_| anyhow::anyhow!("npm download worker panicked"))??;
     install_archive(archive, destination, marketplace)
 }
+
+#[cfg(test)]
+#[path = "npm_archive_tests.rs"]
+mod tests;

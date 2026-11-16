@@ -1,5 +1,5 @@
-use super::npm_archive::install_archive;
-use crate::plugins::NpmPluginArchive;
+use super::install_archive;
+use plugin_types::NpmPluginArchive;
 use sha2::{Digest, Sha256};
 use std::io::Write;
 
@@ -61,7 +61,7 @@ fn codex_plugin_compat_t50_rejects_invalid_input() {
             .contains("package metadata mismatch")
     );
     assert!(
-        crate::plugins::install_plugin_from_source("npm:../bad@1.2.3", out.path())
+        crate::install_plugin_from_source("npm:../bad@1.2.3", out.path())
             .unwrap_err()
             .to_string()
             .contains("invalid npm package")
@@ -100,7 +100,7 @@ fn codex_plugin_compat_t50_preserves_isolation() {
     );
     assert!(!installed.installed_dir.join("SCRIPT_MUST_NOT_RUN").exists());
     let metadata =
-        super::identity::read_install_metadata(&installed.installed_dir, &installed.manifest)
+        plugin_install::identity::read_install_metadata(&installed.installed_dir, &installed.manifest)
             .unwrap()
             .unwrap();
     let source: serde_json::Value = serde_json::from_str(&metadata.source).unwrap();

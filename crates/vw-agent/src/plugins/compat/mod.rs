@@ -196,8 +196,6 @@ mod t48_tests;
 pub(crate) mod npm_source;
 
 pub(crate) mod npm_archive;
-#[cfg(test)]
-mod t50_tests;
 
 #[cfg(test)]
 mod t51_tests;

@@ -30,3 +30,6 @@ fn record_router() -> axum::Router {
 mod codex_tests;
 #[cfg(target_os = "macos")]
 mod delete_tests;
+
+#[cfg(target_os = "macos")]
+mod api_security_tests;

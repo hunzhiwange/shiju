@@ -206,3 +206,15 @@
 
 
 - `crates/vw-agent/src/gateway/api/handlers/app_providers.rs`：330 → 317 行。生产组合 router/save/PublicationInput/publication_store/sync_saved_provider；保留发布端口与其他任务测试挂载。
+
+## 深迁恢复（本节取代上轮保留理由）
+
+已读取 final.md、remaining-host.json：上轮本任务残留1507行。此次不运行 Cargo/构建/测试，所有编译与行为仍未验证。
+
+- `agy_tests.rs::cc04_agy_sdk_api_launch_uses_persistent_profile_and_denies_before_writes` → `gateway-agent-apps/src/host_migration_6_tests.rs`。整条保留SDK、真实HTTP、SQLite、PTTY、受控进程、租户/身份拒绝、lease删除保护及磁盘断言；terminal原函数完整迁移。lib.rs自注册，宿主launch旧挂载删除。未来 `python3 scripts/cargo_slot.py cargo test -p gateway-agent-apps --lib host_migration_6_tests -- --test-threads=1`，预期1条。
+- `api_security_tests.rs::{cc04_api_security_rejects_cross_scope_mutation,cc04_api_security_nested_secrets_never_reach_responses,cc04_api_security_reads_errors_and_progress_are_safe}` → `gateway-app-providers/src/host_migration_6_tests/api_security_tests.rs`，Logs/Subscriber全体方法、真实策略/文件/HTTP夹具随迁。原名称、断言保持。未来原领域过滤预期由42增至45条。
+- 宿主 `cc04_api_security_registered_routes_deny_missing_gateway_auth_before_storage` 保留：直接使用正式handler_router和真实Basic鉴权；夹具收缩为独立临时目录与真实数据库，保留全路由401、响应秘密检查与磁盘无改动断言，不再启动无关领域HTTP服务器。
+- 生产 macOS `claude::{router,router_with_policy,router_with_context}`、`codex_catalog::{router,router_with_policy}`、`pi/omp::{ScopedHost,router,router_with_policy}`、`desktop_mapping::{Host,inject,router,router_with_policy,compose}`、`operations::{ScopedHost,router_with_policy,router_with_editor}` → `gateway-app-routing/src/server/provider_composition/`各同名模块。宿主macOS直接重导出它们，安全矩阵也调用同一入口；非macOS保留原端口装配并调整嵌套可见性。发布inject使用真实RoutingControl，不新增mock，不改变授权范围。Desktop使用现有SnapshotHost，operations使用相同SnapshotHost的publish/exit/restart。依赖方向 routing→aggregation/providers；providers测试dev→routing，非反向宿主依赖。
+- 生产迁移未声称物理同等减量：非macOS仍保留端口实现。其他转发与真实PublicationInput/save/create/update装配保留原职责；catalog/claude/delete各一个正式宿主边界不重复迁。
+
+恢复后原52路径物理残留 911 行（4093基线，累计净减 3182，77.7%）；新领域文件见上述精确映射。静态git diff --check通过；无编译、性能或行为通过证据。Cargo.lock由统一恢复验证时解析新增dev依赖，不使用Cargo生成。

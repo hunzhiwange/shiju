@@ -22,3 +22,10 @@ impl ProviderPublication for PublicationHost {
 pub fn control(routing: Option<RoutingControl>) -> PublicationControl {
     PublicationControl(std::sync::Arc::new(PublicationHost(routing)))
 }
+
+/// Inject the current routing grant into provider writes at composition.
+pub async fn inject(routing: Option<axum::Extension<RoutingControl>>,
+    mut request: axum::extract::Request, next: axum::middleware::Next) -> axum::response::Response {
+    request.extensions_mut().insert(control(routing.map(|axum::Extension(c)| c)));
+    next.run(request).await
+}

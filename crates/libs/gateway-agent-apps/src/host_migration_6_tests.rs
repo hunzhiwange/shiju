@@ -59,14 +59,14 @@ printf '%s' "$dir" > proof
     let mut pv = json!({"principals":[{"id":"principal","token_sha256":hex::encode(Sha256::digest(TOKEN)),"grants":[{"platform_id":"p","company_id":"a","host_id":"host","provider_config_read":true,"provider_config_write":true,"launch":true,"identities":[{"appId":"agy","kind":"provider","id":"one"}]}]}],"hosts":[{"id":"host","online":true,"binding":"local","home":home,"credential_root":private,"search_paths":[bin],"applications":home.join("Applications")}]});
     std::fs::write(&policy, pv.to_string()).unwrap();
     std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600)).unwrap();
-    let db = crate::global_database::GlobalDatabase::for_home(home).unwrap();
+    let db = agent_database::GlobalDatabase::for_home(home).unwrap();
     let router = Router::new()
-        .merge(super::router_with_terminal(Some(policy.clone()), terminal))
-        .merge(crate::gateway::api::handlers::app_providers::agy::router_with_policy(Some(
+        .merge(crate::launch::router_with_terminal(Some(policy.clone()), terminal))
+        .merge(gateway_app_providers::agy::router_with_policy(Some(
             policy.clone(),
         )))
         .layer(Extension(db.clone()))
-        .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+        .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let server = tokio::spawn(async move {
@@ -184,14 +184,14 @@ use vw_api_app_provider_base::basic::ProviderBasic;
         revision: Some(public.revision.clone()),
     };
     let original = std::fs::read(path.join("antigravity-cli/settings.json")).unwrap();
-    let before = crate::app_providers::AppProviderStore::new(db.clone())
+    let before = app_provider_services::AppProviderStore::new(db.clone())
         .unwrap()
         .agy_record(&tenant, "one")
         .unwrap();
     edit.api_key = ProviderSecretWrite::Clear;
     assert!(providers.agy_form_update("one", &edit, TOKEN).await.is_err());
     assert_eq!(
-        crate::app_providers::AppProviderStore::new(db.clone())
+        app_provider_services::AppProviderStore::new(db.clone())
             .unwrap()
             .agy_record(&tenant, "one")
             .unwrap(),
@@ -266,7 +266,7 @@ use vw_api_app_provider_base::basic::ProviderBasic;
     assert!(providers.agy_form_create("two", &edit, TOKEN).await.is_err());
     assert!(providers.agy_form_delete("two", &target, TOKEN).await.is_err());
     assert!(
-        crate::app_providers::AppProviderStore::new(db)
+        app_provider_services::AppProviderStore::new(db)
             .unwrap()
             .agy_record(&tenant, "two")
             .unwrap()

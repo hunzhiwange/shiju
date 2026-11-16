@@ -30,3 +30,5 @@ pub mod mode_attach;
 
 mod router;
 pub use router::router;
+
+pub mod provider_composition;

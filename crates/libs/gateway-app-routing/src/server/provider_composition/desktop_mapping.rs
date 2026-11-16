@@ -1,0 +1,42 @@
+//! Host composition for scoped Desktop mapping publication.
+use agent_database::GlobalDatabase;
+use axum::{Extension, Router, http::StatusCode, response::Response};
+use vw_api_transport::TenantScope;
+
+use gateway_app_providers::desktop_mapping::{DesktopMappingControl, DesktopMappingHost};
+struct Host {
+    #[cfg(target_os = "macos")]
+    routing: Option<crate::server::lifecycle_api::RoutingControl>,
+}
+impl DesktopMappingHost for Host {
+    fn read_form(&self, policy: Option<&std::path::Path>, tenant: TenantScope,
+        db: Option<Extension<GlobalDatabase>>, headers: axum::http::HeaderMap, id: String,
+        query: vw_api_app_aggregation::AggregationQuery) -> Result<Response, StatusCode> {
+        gateway_aggregation::aggregation_desktop::read_form(crate::server::snapshot_host::SnapshotHost, policy, tenant, db, headers, id, query)
+    }
+    #[cfg(target_os = "macos")]
+    fn save_mapping(&self, policy: Option<&std::path::Path>, tenant: TenantScope,
+        db: Option<Extension<GlobalDatabase>>, headers: axum::http::HeaderMap, id: String,
+        request: vw_api_app_aggregation::DesktopMappingChange) -> Result<Response, StatusCode> {
+        gateway_aggregation::aggregation_desktop::save_mapping(crate::server::snapshot_host::SnapshotHost, policy, tenant, db, headers, id, request,
+            self.routing.clone().map(Extension))
+    }
+}
+async fn inject(
+    #[cfg(target_os = "macos")] routing: Option<Extension<crate::server::lifecycle_api::RoutingControl>>,
+    mut request: axum::extract::Request, next: axum::middleware::Next) -> Response {
+    request.extensions_mut().insert(DesktopMappingControl(std::sync::Arc::new(Host {
+        #[cfg(target_os = "macos")]
+        routing: routing.map(|Extension(c)| c),
+    })));
+    next.run(request).await
+}
+pub fn router() -> Router {
+    compose(gateway_app_providers::desktop_mapping::router())
+}
+pub fn router_with_policy(path: Option<std::path::PathBuf>) -> Router {
+    compose(gateway_app_providers::desktop_mapping::router_with_policy(path))
+}
+fn compose(router: Router) -> Router {
+    router.layer(axum::middleware::from_fn(inject))
+}

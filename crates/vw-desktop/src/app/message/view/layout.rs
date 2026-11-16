@@ -19,6 +19,66 @@ pub(crate) use desktop_navigation::window_lifecycle::{WindowClosedOutcome, mark_
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     match message {
+        ViewMessage::LayoutSelected(preference) => {
+            app.mobile_layout.select(preference);
+            Task::none()
+        }
+        ViewMessage::MobileDrawerToggled => {
+            app.mobile_layout.drawer_open = !app.mobile_layout.drawer_open;
+            Task::none()
+        }
+        ViewMessage::MobileBack => {
+            // Never dismiss approval dialogs or discard an unconfirmed session draft.
+            if app.question_modal_request.is_some() || app.permission_modal_request.is_some()
+                || app.new_session_picker_project.is_some() {
+                return Task::none();
+            }
+            if app.notifications_expanded {
+                app.notifications_expanded = false;
+            } else if app.mobile_layout.drawer_open {
+                app.mobile_layout.drawer_open = false;
+            } else if app.show_system_settings && app.mobile_layout.settings_detail {
+                app.mobile_layout.settings_detail = false;
+            } else if app.show_system_settings {
+                app.show_system_settings = false;
+            } else {
+                app.mobile_layout.drawer_open = true;
+            }
+            Task::none()
+        }
+        ViewMessage::MobileChat => {
+            app.show_system_settings = false;
+            app.mobile_layout.drawer_open = false;
+            app.screen = crate::app::Screen::Project;
+            Task::none()
+        }
+        ViewMessage::MobileSettings => {
+            app.show_system_settings = true;
+            app.mobile_layout.settings_detail = false;
+            app.mobile_layout.drawer_open = false;
+            Task::none()
+        }
+        ViewMessage::MobileSettingsTab(tab) => {
+            app.mobile_layout.settings_detail = true;
+            super::update(app, ViewMessage::OpenSystemSettingsTab(tab))
+        }
+        ViewMessage::MobileProjectSelected(path) => {
+            Task::batch([
+                Task::done(Message::Project(crate::app::message::ProjectMessage::OpenRecentPressed(path.clone()))),
+                Task::done(Message::Project(crate::app::message::ProjectMessage::ProjectLoadSessions(path))),
+            ])
+        }
+        ViewMessage::MobileSessionSelected(path, id) => {
+            app.mobile_layout.drawer_open = false;
+            app.show_system_settings = false;
+            Task::done(Message::Project(crate::app::message::ProjectMessage::OpenProjectSessionPressed(path, id)))
+        }
+        ViewMessage::MobileNewSession(path) => {
+            app.mobile_layout.drawer_open = false;
+            app.show_system_settings = false;
+            Task::done(Message::Project(crate::app::message::ProjectMessage::ProjectCreateSession(path)))
+        }
+
         ViewMessage::WindowMoved(window_id, x, y) => {
             if app.main_window_id == Some(window_id) {
                 app.window_position = (x, y);

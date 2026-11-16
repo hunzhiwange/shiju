@@ -98,7 +98,7 @@ impl App {
     /// ```
     pub fn view(&self) -> Element<'_, Message> {
         // 构建顶部栏组件
-        let top = components::top_bar::view(self);
+        let top: Element<'_, Message> = iced::widget::column![components::top_bar::view(self), views::mobile::layout_selector(self)].into();
         // 构建标签栏组件
         let tab_bar = components::tab_bar::view(self);
 
@@ -131,7 +131,9 @@ impl App {
         let status_bar: Element<'_, Message> = app_view_status::status_bar(self);
 
         // 当系统设置打开时，仅保留顶部菜单栏，其余区域全部由设置面板占满
-        let main_view: Element<'_, Message> = if self.show_system_settings {
+        let main_view: Element<'_, Message> = if self.mobile_layout.mode() == crate::app::state::LayoutMode::Mobile {
+            views::mobile::view(self)
+        } else if self.show_system_settings {
             iced::widget::column![top, components::system_settings::view(self)]
                 .width(iced::Length::Fill)
                 .height(iced::Length::Fill)

@@ -26,7 +26,7 @@ mod components;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 pub(crate) use components::project_list_action_order;
 mod handles;
-use components::new_session_picker_layer;
+pub(crate) use components::new_session_picker_layer;
 mod layout;
 pub(crate) use layout::WorkSidebarModel;
 mod styles;

@@ -56,3 +56,6 @@ pub mod workflow_manager;
 ///
 /// 提供应用使用统计、资源消耗监控等信息的展示视图。
 pub mod usage;
+
+/// 手机单列外壳。
+pub mod mobile;

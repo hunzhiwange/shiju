@@ -21,11 +21,13 @@ pub enum LayoutMode {
 pub struct MobileLayoutState {
     preference: LayoutPreference,
     logical_width: Option<f32>,
+    pub drawer_open: bool,
+    pub settings_detail: bool,
 }
 
 impl Default for MobileLayoutState {
     fn default() -> Self {
-        Self { preference: LayoutPreference::Auto, logical_width: None }
+        Self { preference: LayoutPreference::Auto, logical_width: None, drawer_open: false, settings_detail: false }
     }
 }
 

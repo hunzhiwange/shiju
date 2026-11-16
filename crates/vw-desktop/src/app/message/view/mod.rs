@@ -82,6 +82,15 @@ pub use desktop_navigation::components::top_bar::menus::MenuType;
 /// 消息通过 [`update`] 函数处理，并根据类型分发给对应的子模块。
 #[derive(Debug, Clone)]
 pub enum ViewMessage {
+    LayoutSelected(crate::app::state::LayoutPreference),
+    MobileDrawerToggled,
+    MobileBack,
+    MobileChat,
+    MobileSettings,
+    MobileSettingsTab(crate::app::components::system_settings::SystemTab),
+    MobileProjectSelected(String),
+    MobileSessionSelected(String, String),
+    MobileNewSession(String),
     /// 切换设置面板的显示/隐藏状态
     ToggleSettingsPanel,
     /// 创建新的会话
@@ -716,7 +725,16 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             if app.dragging_work_sidebar || app.dragging_work_split
     ) || matches!(
         &message,
-        ViewMessage::GlobalMouseReleased
+        ViewMessage::LayoutSelected(_)
+        | ViewMessage::MobileDrawerToggled
+        | ViewMessage::MobileBack
+        | ViewMessage::MobileChat
+        | ViewMessage::MobileSettings
+        | ViewMessage::MobileSettingsTab(_)
+        | ViewMessage::MobileProjectSelected(_)
+        | ViewMessage::MobileSessionSelected(_, _)
+        | ViewMessage::MobileNewSession(_)
+        | ViewMessage::GlobalMouseReleased
             if app.dragging_work_sidebar || app.dragging_work_split
     );
     let task = match message {
@@ -1097,7 +1115,16 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
 
         // 布局相关消息：包括窗口拖拽、调整大小、鼠标移动等
         // 这些消息统一委托给 layout 子模块处理
-        ViewMessage::GlobalMouseReleased
+        ViewMessage::LayoutSelected(_)
+        | ViewMessage::MobileDrawerToggled
+        | ViewMessage::MobileBack
+        | ViewMessage::MobileChat
+        | ViewMessage::MobileSettings
+        | ViewMessage::MobileSettingsTab(_)
+        | ViewMessage::MobileProjectSelected(_)
+        | ViewMessage::MobileSessionSelected(_, _)
+        | ViewMessage::MobileNewSession(_)
+        | ViewMessage::GlobalMouseReleased
         | ViewMessage::GlobalCursorLeft
         | ViewMessage::SettingsDragStarted
         | ViewMessage::FileManagerDragStarted

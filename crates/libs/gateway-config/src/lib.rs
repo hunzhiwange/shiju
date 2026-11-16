@@ -21,3 +21,6 @@ mod test_support;
 pub mod host;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod handlers;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_split_3_tests;

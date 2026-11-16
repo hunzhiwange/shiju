@@ -124,35 +124,6 @@ fn routers_build_for_stateless_and_stateful_config_routes() {
     let _ = stateful_router();
 }
 
-#[test]
-fn has_explicit_directory_detects_non_empty_query_or_header_values() {
-    let mut headers = HeaderMap::new();
-    let empty_query = InstanceQuery { directory: None };
-    assert!(!has_explicit_directory(&empty_query, &headers));
-
-    let blank_query = InstanceQuery { directory: Some("  ".to_string()) };
-    assert!(!has_explicit_directory(&blank_query, &headers));
-
-    let query = InstanceQuery { directory: Some("/tmp/project".to_string()) };
-    assert!(has_explicit_directory(&query, &headers));
-
-    headers.insert("x-directory", HeaderValue::from_static("  "));
-    assert!(!has_explicit_directory(&empty_query, &headers));
-
-    headers.insert("x-directory", HeaderValue::from_static("/tmp/project"));
-    assert!(has_explicit_directory(&empty_query, &headers));
-}
-
-#[test]
-fn has_explicit_directory_ignores_non_utf8_header_value() {
-    let query = InstanceQuery { directory: None };
-    let mut headers = HeaderMap::new();
-    let invalid = HeaderValue::from_bytes(&[0xff]).expect("non-utf8 header bytes");
-    headers.insert("x-directory", invalid);
-
-    assert!(!has_explicit_directory(&query, &headers));
-}
-
 // 读取接口分别验证无状态和有状态入口，确保二者返回相同的有效配置形状。
 #[tokio::test]
 async fn config_get_returns_serialized_instance_config() {
@@ -218,26 +189,6 @@ async fn config_get_without_directory_restores_the_requested_tenant_after_restar
         Some(123),
         "local gateway startup config must not replace the requested tenant"
     );
-}
-
-// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
-#[tokio::test]
-async fn config_patch_rejects_non_object_patch() {
-    let temp = TempDir::new().expect("temp dir");
-    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", temp.path().as_os_str());
-    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
-
-    let err = config_patch(
-        Extension(TenantScope::default()),
-        instance_query(&temp),
-        HeaderMap::new(),
-        Json(serde_json::json!("invalid-patch")),
-    )
-    .await
-    .expect_err("non-object patch should be rejected");
-
-    assert_eq!(err.status, StatusCode::BAD_REQUEST);
-    assert!(err.message.contains("config patch must be a JSON object"));
 }
 
 // 没有显式目录时补丁属于租户全局配置，不能被当前实例路径隐式改成项目覆盖。

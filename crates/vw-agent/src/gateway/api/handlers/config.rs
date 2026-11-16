@@ -143,7 +143,5 @@ async fn config_providers(
 }
 
 #[cfg(test)]
-use gateway_config::handlers::has_explicit_directory;
-#[cfg(test)]
 #[path = "config_tests.rs"]
 mod config_tests;

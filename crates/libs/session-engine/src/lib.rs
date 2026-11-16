@@ -1,6 +1,9 @@
 //! Session message persistence, event publication and history serialization.
 pub mod agent_binding;
 pub mod capability_policy;
+pub mod session_memory;
+pub mod context_governance;
+pub mod llm_messages;
 
 pub mod child_agent;
 pub mod context_injection;

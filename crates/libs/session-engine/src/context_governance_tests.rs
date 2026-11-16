@@ -1,9 +1,9 @@
 //! 验证上下文预算、历史裁剪、摘要请求与技能上下文恢复。
 
 use super::*;
-use crate::app::agent::provider::provider::{ModelLimit, resolve_model_limit};
-use crate::app::agent::tools::ToolSpec;
-use crate::session::session::{Message, Role, Session};
+use {model_types::ModelLimit, model_state::resolve_model_limit};
+use tool_types::ToolSpec;
+use crate::session_memory::{Message, Role, Session};
 use serde_json::json;
 
 fn limit(context: u64, input: Option<u64>, output: u64) -> ModelLimit {
@@ -304,7 +304,7 @@ fn compaction_requests_summary_when_system_alone_is_too_large() {
 
 #[test]
 fn invoked_skill_context_restore_replaces_stale_messages_and_preserves_updates() {
-    let replay = crate::app::agent::skills::InvokedSkillReplay {
+    let replay = agent_skills::invoked::InvokedSkillReplay {
         stable_id: "file:///skills/review/SKILL.md".to_string(),
         content: "<system-reminder>current skill body</system-reminder>".to_string(),
         allowed_tools: vec!["read".to_string()],

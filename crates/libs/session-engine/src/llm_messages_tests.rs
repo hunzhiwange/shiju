@@ -1,7 +1,7 @@
 //! 验证会话消息到 LLM 消息的映射及协议上下文插入顺序。
 
 use super::*;
-use crate::session::session::{Message, Role, Session};
+use crate::session_memory::{Message, Role, Session};
 use serde_json::json;
 
 fn message(role: Role, content: &str) -> Message {
@@ -84,7 +84,7 @@ fn extend_llm_messages_from_session_range_allows_start_past_end() {
 
 #[test]
 fn session_protocol_injects_agents_and_skills_on_every_desktop_step() {
-    let instructions = vec![crate::session::instruction::Resolved {
+    let instructions = vec![session_instructions::Resolved {
         filepath: "/workspace/AGENTS.md".to_string(),
         content: "Instructions from: /workspace/AGENTS.md\nFollow the protocol.".to_string(),
         sources: Vec::new(),
@@ -160,7 +160,7 @@ fn assemble_session_protocol_messages_tracks_context_sources() {
 #[test]
 // 代理指令紧邻当前用户轮次插入，减少被旧历史稀释的风险。
 fn session_protocol_places_agents_immediately_before_current_user_turn() {
-    let instructions = vec![crate::session::instruction::Resolved {
+    let instructions = vec![session_instructions::Resolved {
         filepath: "/workspace/AGENTS.md".to_string(),
         content: "Instructions from: /workspace/AGENTS.md\nCURRENT_PROTOCOL".to_string(),
         sources: Vec::new(),

@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+agent-multimodal = { path = "../agent-multimodal", version = "0.6.0" }
 agent-hooks = { path = "../agent-hooks", version = "0.6.0" }
 gateway-error = { path = "../gateway-error", version = "0.6.0" }
 vw-api-chat = { path = "../api-chat", version = "0.6.0" }

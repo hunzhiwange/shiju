@@ -57,6 +57,3 @@ pub(super) fn update(app: &mut crate::app::App, message: TaskBoardMessage) -> ic
     }
     iced::Task::batch(tasks)
 }
-#[cfg(test)]
-#[path = "execution_results_tests.rs"]
-mod execution_results_tests;

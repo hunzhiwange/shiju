@@ -7,22 +7,30 @@ fn test_module_is_wired() {
 
 #[test]
 fn execution_success_uses_workflow_transition_to_completed() {
-    use crate::app::task::{Task, TaskStatus};
+    use desktop_task_model::{Task, TaskStatus};
 
     // 普通任务直接完成，Git 与审核由显式任务或工作流执行。
-    let (mut app, _task) = crate::app::App::new();
-    app.navigation_tabs.project_path = Some("/tmp/vibewindow-exec-success-test".to_string());
+    let mut app = crate::update::execution_results::ResultState {
+        project_path: &mut None,
+        task_board_tasks: &mut Vec::new(),
+        task_board_executor: &mut Default::default(),
+        task_board_settings: &mut Default::default(),
+        task_board_tasks_pending_persistence: &mut Default::default(),
+        task_board_manual_merge_queue: &mut Default::default(),
+        effects: Vec::new(),
+    };
+    (*app.project_path) = Some("/tmp/vibewindow-exec-success-test".to_string());
 
     let mut task = Task::new(1);
     task.id = "T-exec-success".to_string();
     task.status = TaskStatus::Running;
-    task.execution_started_at_ms = Some(crate::app::time::now_ms());
-    app.task_board_tasks = vec![task];
+    task.execution_started_at_ms = Some(runtime_time::now_ms());
+    *app.task_board_tasks = vec![task];
     app.task_board_executor.running_tasks = vec!["T-exec-success".to_string()];
 
-    let _task = super::update(
+    let _task = crate::update::execution_results::update(
         &mut app,
-        super::TaskBoardMessage::TaskExecutionCompleted {
+        crate::message::TaskBoardMessage::TaskExecutionCompleted {
             project_path: "/tmp/vibewindow-exec-success-test".to_string(),
             task_id: "T-exec-success".to_string(),
             result: Ok("done".to_string()),
@@ -45,20 +53,28 @@ fn execution_success_uses_workflow_transition_to_completed() {
 
 #[test]
 fn task_result_persistence_guards_local_status_until_ack() {
-    use crate::app::task::{Task, TaskStatus};
+    use desktop_task_model::{Task, TaskStatus};
 
-    let (mut app, _task) = crate::app::App::new();
-    app.navigation_tabs.project_path = Some("/tmp/vibewindow-persistence-guard-test".to_string());
+    let mut app = crate::update::execution_results::ResultState {
+        project_path: &mut None,
+        task_board_tasks: &mut Vec::new(),
+        task_board_executor: &mut Default::default(),
+        task_board_settings: &mut Default::default(),
+        task_board_tasks_pending_persistence: &mut Default::default(),
+        task_board_manual_merge_queue: &mut Default::default(),
+        effects: Vec::new(),
+    };
+    (*app.project_path) = Some("/tmp/vibewindow-persistence-guard-test".to_string());
 
     let mut task = Task::new(1);
     task.id = "T-persistence-guard".to_string();
     task.status = TaskStatus::Running;
-    app.task_board_tasks = vec![task];
+    *app.task_board_tasks = vec![task];
     app.task_board_executor.running_tasks = vec!["T-persistence-guard".to_string()];
 
-    let _task = super::update(
+    let _task = crate::update::execution_results::update(
         &mut app,
-        super::TaskBoardMessage::TaskExecutionCompleted {
+        crate::message::TaskBoardMessage::TaskExecutionCompleted {
             project_path: "/tmp/vibewindow-persistence-guard-test".to_string(),
             task_id: "T-persistence-guard".to_string(),
             result: Ok("done".to_string()),
@@ -70,22 +86,30 @@ fn task_result_persistence_guards_local_status_until_ack() {
 
 #[test]
 fn merge_success_uses_workflow_transition_to_completed() {
-    use crate::app::task::{Task, TaskStatus};
+    use desktop_task_model::{Task, TaskStatus};
 
-    let (mut app, _task) = crate::app::App::new();
-    app.navigation_tabs.project_path = Some("/tmp/vibewindow-merge-success-test".to_string());
+    let mut app = crate::update::execution_results::ResultState {
+        project_path: &mut None,
+        task_board_tasks: &mut Vec::new(),
+        task_board_executor: &mut Default::default(),
+        task_board_settings: &mut Default::default(),
+        task_board_tasks_pending_persistence: &mut Default::default(),
+        task_board_manual_merge_queue: &mut Default::default(),
+        effects: Vec::new(),
+    };
+    (*app.project_path) = Some("/tmp/vibewindow-merge-success-test".to_string());
 
     let mut task = Task::new(1);
     task.id = "T-merge-success".to_string();
     task.status = TaskStatus::PrSubmitted;
     task.merge_source_branch = Some("vw/task/T-merge-success".to_string());
     task.merge_target_branch = Some("main".to_string());
-    app.task_board_tasks = vec![task];
+    *app.task_board_tasks = vec![task];
     app.task_board_executor.running_tasks = vec!["T-merge-success".to_string()];
 
-    let _task = super::update(
+    let _task = crate::update::execution_results::update(
         &mut app,
-        super::TaskBoardMessage::TaskMergeCompleted {
+        crate::message::TaskBoardMessage::TaskMergeCompleted {
             project_path: "/tmp/vibewindow-merge-success-test".to_string(),
             task_id: "T-merge-success".to_string(),
             result: Ok("merged".to_string()),
@@ -107,10 +131,18 @@ fn merge_success_uses_workflow_transition_to_completed() {
 
 #[test]
 fn merge_failure_preserves_worktree_context() {
-    use crate::app::task::{Task, TaskStatus};
+    use desktop_task_model::{Task, TaskStatus};
 
-    let (mut app, _task) = crate::app::App::new();
-    app.navigation_tabs.project_path = Some("/tmp/vibewindow-merge-failure-test".to_string());
+    let mut app = crate::update::execution_results::ResultState {
+        project_path: &mut None,
+        task_board_tasks: &mut Vec::new(),
+        task_board_executor: &mut Default::default(),
+        task_board_settings: &mut Default::default(),
+        task_board_tasks_pending_persistence: &mut Default::default(),
+        task_board_manual_merge_queue: &mut Default::default(),
+        effects: Vec::new(),
+    };
+    (*app.project_path) = Some("/tmp/vibewindow-merge-failure-test".to_string());
     app.task_board_settings.recycle_worktree_on_task_finish = true;
 
     let mut task = Task::new(1);
@@ -119,12 +151,12 @@ fn merge_failure_preserves_worktree_context() {
     task.merge_source_branch = Some("vw/task/T-merge-failure".to_string());
     task.merge_target_branch = Some("main".to_string());
     task.selected_worktree_path = Some("/tmp/vibewindow-merge-worktree".to_string());
-    app.task_board_tasks = vec![task];
+    *app.task_board_tasks = vec![task];
     app.task_board_executor.running_tasks = vec!["T-merge-failure".to_string()];
 
-    let _task = super::update(
+    let _task = crate::update::execution_results::update(
         &mut app,
-        super::TaskBoardMessage::TaskMergeCompleted {
+        crate::message::TaskBoardMessage::TaskMergeCompleted {
             project_path: "/tmp/vibewindow-merge-failure-test".to_string(),
             task_id: "T-merge-failure".to_string(),
             result: Err("fatal: Unable to create '.git/index.lock': File exists".to_string()),
@@ -153,20 +185,28 @@ fn merge_failure_preserves_worktree_context() {
 
 #[test]
 fn code_review_success_without_merge_metadata_pauses_and_recycles_worktree() {
-    use crate::app::task::{Task, TaskStatus};
+    use desktop_task_model::{Task, TaskStatus};
 
-    let (mut app, _task) = crate::app::App::new();
-    app.navigation_tabs.project_path = Some("/tmp/vibewindow-review-missing-metadata-test".to_string());
+    let mut app = crate::update::execution_results::ResultState {
+        project_path: &mut None,
+        task_board_tasks: &mut Vec::new(),
+        task_board_executor: &mut Default::default(),
+        task_board_settings: &mut Default::default(),
+        task_board_tasks_pending_persistence: &mut Default::default(),
+        task_board_manual_merge_queue: &mut Default::default(),
+        effects: Vec::new(),
+    };
+    (*app.project_path) = Some("/tmp/vibewindow-review-missing-metadata-test".to_string());
 
     let mut task = Task::new(1);
     task.id = "T-review-missing-metadata".to_string();
     task.status = TaskStatus::CodeReview;
-    app.task_board_tasks = vec![task];
+    *app.task_board_tasks = vec![task];
     app.task_board_executor.running_tasks = vec!["T-review-missing-metadata".to_string()];
 
-    let _task = super::update(
+    let _task = crate::update::execution_results::update(
         &mut app,
-        super::TaskBoardMessage::TaskCodeReviewCompleted {
+        crate::message::TaskBoardMessage::TaskCodeReviewCompleted {
             project_path: "/tmp/vibewindow-review-missing-metadata-test".to_string(),
             task_id: "T-review-missing-metadata".to_string(),
             result: Ok(r#"{"status":"ok"}"#.to_string()),
@@ -189,20 +229,28 @@ fn code_review_success_without_merge_metadata_pauses_and_recycles_worktree() {
 
 #[test]
 fn code_review_timeout_error_uses_timeout_pause_reason() {
-    use crate::app::task::{Task, TaskStatus};
+    use desktop_task_model::{Task, TaskStatus};
 
-    let (mut app, _task) = crate::app::App::new();
-    app.navigation_tabs.project_path = Some("/tmp/vibewindow-review-timeout-test".to_string());
+    let mut app = crate::update::execution_results::ResultState {
+        project_path: &mut None,
+        task_board_tasks: &mut Vec::new(),
+        task_board_executor: &mut Default::default(),
+        task_board_settings: &mut Default::default(),
+        task_board_tasks_pending_persistence: &mut Default::default(),
+        task_board_manual_merge_queue: &mut Default::default(),
+        effects: Vec::new(),
+    };
+    (*app.project_path) = Some("/tmp/vibewindow-review-timeout-test".to_string());
 
     let mut task = Task::new(1);
     task.id = "T-review-timeout".to_string();
     task.status = TaskStatus::CodeReview;
-    app.task_board_tasks = vec![task];
+    *app.task_board_tasks = vec![task];
     app.task_board_executor.running_tasks = vec!["T-review-timeout".to_string()];
 
-    let _task = super::update(
+    let _task = crate::update::execution_results::update(
         &mut app,
-        super::TaskBoardMessage::TaskCodeReviewCompleted {
+        crate::message::TaskBoardMessage::TaskCodeReviewCompleted {
             project_path: "/tmp/vibewindow-review-timeout-test".to_string(),
             task_id: "T-review-timeout".to_string(),
             result: Err("LLM RESPONSE TIMED OUT".to_string()),
@@ -220,4 +268,38 @@ fn code_review_timeout_error_uses_timeout_pause_reason() {
         entry.message.contains("代码审核模型响应超时")
             && entry.message.contains("等待网关运行时清理 worktree 槽位")
     }));
+}
+#[test]
+fn task_pool_desktop_success_does_not_append_git_actions() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().to_string_lossy().into_owned();
+    let mut app = crate::update::execution_results::ResultState {
+        project_path: &mut None,
+        task_board_tasks: &mut Vec::new(),
+        task_board_executor: &mut Default::default(),
+        task_board_settings: &mut Default::default(),
+        task_board_tasks_pending_persistence: &mut Default::default(),
+        task_board_manual_merge_queue: &mut Default::default(),
+        effects: Vec::new(),
+    };
+
+    (*app.project_path) = Some(path.clone());
+    let mut task = desktop_task_model::Task::new(1);
+    task.status = desktop_task_model::TaskStatus::Running;
+    let id = task.id.clone();
+    app.task_board_tasks.push(task);
+    let _ = crate::update::execution_results::update(
+        &mut app,
+        crate::message::TaskBoardMessage::TaskExecutionCompleted {
+            project_path: path,
+            task_id: id,
+            result: Ok("done".into()),
+        },
+    );
+    let task = &app.task_board_tasks[0];
+    assert_eq!(task.status, desktop_task_model::TaskStatus::Completed);
+    assert!(task.merge_source_branch.is_none());
+    assert!(task.merge_target_branch.is_none());
+    assert!(task.selected_worktree_path.is_none());
+    assert!(!directory.path().join(".git").exists());
 }

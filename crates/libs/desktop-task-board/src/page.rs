@@ -127,3 +127,28 @@ fn task_board_container_style(theme: &Theme) -> container::Style {
         ..Default::default()
     }
 }
+
+/// Lazy content factories keep responsive page assembly in the domain.
+pub struct PageBuilders<'a, M> {
+    pub header: Box<dyn Fn() -> Element<'a, M> + 'a>,
+    pub board: Box<dyn Fn() -> Element<'a, M> + 'a>,
+    pub drag: Box<dyn Fn() -> Element<'a, M> + 'a>,
+    pub panel: Box<dyn Fn(bool) -> Element<'a, M> + 'a>,
+    pub settings: Box<dyn Fn() -> Element<'a, M> + 'a>,
+    pub context_closed: M,
+    pub close_logs: M,
+    pub close_settings: M,
+}
+pub fn assemble<'a, M: Clone + 'a>(input: PageView, builders: PageBuilders<'a, M>) -> Element<'a, M> {
+    view(input, move |width| build_view(input, width, PageSlots {
+        header: (builders.header)(),
+        board: (!input.task_board_worktree_pixel_office).then(|| (builders.board)()),
+        drag: (builders.drag)(),
+        create_panel: width.is_some().then(|| (builders.panel)(false)),
+        detail_panel: (width.is_none() && input.viewing_logs).then(|| (builders.panel)(true)),
+        settings: input.task_board_settings_modal_open.then(|| (builders.settings)()),
+        context_closed: builders.context_closed.clone(),
+        close_logs: builders.close_logs.clone(),
+        close_settings: builders.close_settings.clone(),
+    }))
+}

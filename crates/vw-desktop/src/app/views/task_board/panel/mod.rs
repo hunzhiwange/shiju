@@ -48,14 +48,10 @@ fn map(message: desktop_task_board::panel::PanelMessage) -> Message {
  desktop_task_board::panel::PanelMessage::Selection { session_id, message_idx, text_idx, text } => Message::ChatMarkdownSelectionChanged { session_id, message_idx, text_idx, text } }
 }
 pub fn build_task_panel(app: &App, edit: bool) -> iced::Element<'_, Message> {
- use desktop_task_board::panel::{PanelSlots, PanelMessage};
- let controls = if edit { app.task_board_detail_tab != crate::app::state::TaskBoardDetailTab::Logs } else { !app.task_board_is_import_mode };
- let slots = PanelSlots {
- model: controls.then(|| desktop_task_board::model_selector::build_model_selector(model_selector::view(app), edit).map(PanelMessage::Model)),
- executor: controls.then(|| desktop_task_board::panel::executor_selector::build_executor_selector(executor_selector::input(app), edit).map(PanelMessage::TaskBoard)),
- reasoning: controls.then(|| reasoning_selector::domain_build(app, edit, false)).flatten().map(|e| e.map(PanelMessage::TaskBoard)),
- };
- desktop_task_board::panel::build_task_panel(input(app), edit, slots).map(map)
+ desktop_task_board::panel::build_with_controls(
+ input(app), edit, model_selector::view(app), executor_selector::input(app),
+ || reasoning_selector::domain_build(app, edit, false),
+ ).map(map)
 }
 pub(crate) fn build_bulk_task_split_selector(app: &App) -> iced::Element<'_, Message> { desktop_task_board::panel::build_bulk_task_split_selector(input(app)).map(map) }
 pub(crate) fn build_bulk_agent_selector(app: &App) -> iced::Element<'_, Message> { desktop_task_board::panel::build_bulk_agent_selector(input(app)).map(map) }

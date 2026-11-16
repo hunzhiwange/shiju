@@ -692,3 +692,29 @@ pub struct PanelSlots<'a> {
 
 #[cfg(test)]
 mod test_support;
+
+/// Assemble the domain-owned selectors with the task panel. The host supplies only
+/// catalogue projections and reasoning choices shared with chat.
+pub fn build_with_controls<'a>(
+    input: PanelView<'a>,
+    edit: bool,
+    model: crate::model_selector::SelectorView<'a>,
+    executor: executor_selector::ExecutorView<'a>,
+    reasoning: impl FnOnce() -> Option<Element<'a, TaskBoardMessage>>,
+) -> Element<'a, PanelMessage> {
+    let controls = if edit {
+        input.task_board_detail_tab != TaskBoardDetailTab::Logs
+    } else {
+        !input.task_board_is_import_mode
+    };
+    let slots = PanelSlots {
+        model: controls.then(|| {
+            crate::model_selector::build_model_selector(model, edit).map(PanelMessage::Model)
+        }),
+        executor: controls.then(|| {
+            executor_selector::build_executor_selector(executor, edit).map(PanelMessage::TaskBoard)
+        }),
+        reasoning: controls.then(reasoning).flatten().map(|view| view.map(PanelMessage::TaskBoard)),
+    };
+    build_task_panel(input, edit, slots)
+}

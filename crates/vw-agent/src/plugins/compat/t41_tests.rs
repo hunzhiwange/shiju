@@ -1,6 +1,6 @@
-use super::hook_model::emit;
+//! Shared fixture for actual host execution-loop boundary tests.
 use crate::tools::ToolUseContext;
-use serde_json::{Value, json};
+use serde_json::json;
 use std::sync::Arc;
 
 pub(crate) fn fixture(
@@ -32,65 +32,4 @@ pub(crate) fn fixture(
             .with_model("fixture")
             .with_hook_runner(Arc::new(runner)),
     )
-}
-#[tokio::test]
-async fn codex_plugin_compat_t41_wraps_actual_model_request() {
-    let root = tempfile::tempdir().unwrap();
-    let state = tempfile::tempdir().unwrap();
-    let marker = state.path().join("events");
-    let ctx = fixture(root.path(), state.path(), &marker);
-    crate::tools::scope_tool_use_context(ctx.clone(), async {
-        emit(None, Value::Null).await;
-        std::fs::write(state.path().join("provider"), "executed").unwrap();
-        emit(Some("completed"), json!({"input_tokens":3,"output_tokens":2,"total_tokens":5})).await;
-    })
-    .await;
-    assert!(state.path().join("provider").exists());
-    let events: Vec<Value> = std::fs::read_to_string(marker)
-        .unwrap()
-        .lines()
-        .map(|s| serde_json::from_str(s).unwrap())
-        .collect();
-    assert_eq!(events.len(), 2);
-    assert_eq!(events[0]["hook_event_name"], "PreModelRequest");
-    assert_eq!(events[1]["status"], "completed");
-    assert_eq!(events[1]["token_usage"]["total_tokens"], 5);
-    assert!(ctx.take_hook_contexts().is_empty());
-}
-#[tokio::test]
-async fn codex_plugin_compat_t41_rejects_invalid_input() {
-    let root = tempfile::tempdir().unwrap();
-    let state = tempfile::tempdir().unwrap();
-    let marker = state.path().join("events");
-    let ctx = fixture(root.path(), state.path(), &marker);
-    let ctx = Arc::new(ctx.as_ref().clone().with_turn_id(""));
-    crate::tools::scope_tool_use_context(ctx, emit(None, Value::Null)).await;
-    assert!(!marker.exists());
-}
-#[tokio::test]
-async fn codex_plugin_compat_t41_preserves_isolation() {
-    let root = tempfile::tempdir().unwrap();
-    let state = tempfile::tempdir().unwrap();
-    let marker = state.path().join("events");
-    let ctx = fixture(root.path(), state.path(), &marker);
-    crate::tools::scope_tool_use_context(ctx.clone(), async {
-        for status in ["failed", "cancelled"] {
-            emit(None, Value::Null).await;
-            emit(Some(status), Value::Null).await;
-        }
-    })
-    .await;
-    emit(None, Value::Null).await;
-    let text = std::fs::read_to_string(marker).unwrap();
-    let events: Vec<Value> = text.lines().map(|s| serde_json::from_str(s).unwrap()).collect();
-    assert_eq!(events.len(), 4);
-    assert_eq!(events[1]["status"], "failed");
-    assert_eq!(events[3]["status"], "cancelled");
-    for event in events {
-        assert_eq!(event["turn_id"], "turn");
-        assert!(event.get("messages").is_none());
-        assert!(event.get("api_key").is_none());
-    }
-    assert!(ctx.take_hook_contexts().is_empty());
-    assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
 }

@@ -1,19 +1,19 @@
 use super::hook_manifest::{CodexHookEvent as E, CodexHooksManifest};
 #[cfg(unix)]
-use crate::app::agent::hooks::HookResult;
-use crate::plugins::{PluginHookTrustStore, hook_handler::codex_handlers};
+use super::hooks::HookResult;
+use super::plugins::{PluginHookTrustStore, hook_handler::codex_handlers};
 #[cfg(unix)]
 use serde_json::json;
 
 fn manifest() -> CodexHooksManifest {
-    serde_json::from_str(include_str!("../../../testdata/plugin_compat/t33/hooks.json")).unwrap()
+    serde_json::from_str(include_str!("../../testdata/plugin_compat/t33/hooks.json")).unwrap()
 }
 #[cfg(unix)]
 #[tokio::test]
 async fn codex_plugin_compat_t33_executes_only_matching_handlers() {
     let root = tempfile::tempdir().unwrap();
     let fixture_context = std::sync::Arc::new(
-        crate::tools::ToolUseContext::new(
+        super::tools::ToolUseContext::new(
             "fixture-session",
             Some(root.path().to_str().unwrap().into()),
         )
@@ -22,7 +22,7 @@ async fn codex_plugin_compat_t33_executes_only_matching_handlers() {
         .with_model("fixture-model")
         .with_hook_input(serde_json::json!({})),
     );
-    crate::tools::scope_tool_use_context(fixture_context, async {
+    super::tools::scope_tool_use_context(fixture_context, async {
         let state = tempfile::tempdir().unwrap();
         let manifest = manifest();
         let mut trust =
@@ -48,11 +48,11 @@ async fn codex_plugin_compat_t33_executes_only_matching_handlers() {
         let groups = after.hooks.remove(&E::PreToolUse).unwrap();
         after.hooks.insert(E::PostToolUse, groups);
         trust.trust_codex_hooks("fixture", root.path(), &after).unwrap();
-        let mut runner = crate::hooks::new_hook_runner();
+        let mut runner = super::hooks::new_hook_runner();
         for handler in codex_handlers("fixture", root.path(), &after, &trust).unwrap() {
             runner.register(handler);
         }
-        let result = crate::app::agent::tools::ToolResult {
+        let result = tool_types::ToolResult {
             success: true,
             output: String::new(),
             error: None,

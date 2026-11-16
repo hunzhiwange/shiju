@@ -58,3 +58,11 @@ rmcp = { version = "0.8.0", features = ["client"] }
 tokio-util = "0.7.18"
 
 agent-question = { path = "../agent-question", version = "0.6.0" }
+
+tool-mcp = { path = "../tool-mcp", version = "0.6.0" }
+
+agent-security = { path = "../agent-security", version = "0.6.0" }
+
+agent-multimodal = { path = "../agent-multimodal", version = "0.6.0" }
+
+permission-types = { path = "../permission-types", version = "0.6.0" }

@@ -1,4 +1,4 @@
-use crate::plugins::{PluginHooksManifest, load_plugin_hook_source, load_plugin_manifest};
+use super::plugins::{PluginHooksManifest, load_plugin_hook_source, load_plugin_manifest};
 use serde_json::{Value, json};
 use std::fs;
 use std::path::Path;
@@ -29,8 +29,8 @@ fn package(root: &Path, portable: bool, inline: bool, hooks: &Value) {
 
 #[test]
 fn codex_plugin_compat_t32_runtime_requires_explicit_content_trust() {
-    use crate::app::agent::config::Config;
-    use crate::plugins::{
+    use agent_config::runtime::Config;
+    use super::plugins::{
         PluginHookTrustStore, plugin_hook_trust_file, trusted_plugin_hook_handlers,
     };
     let temp = tempfile::tempdir().unwrap();

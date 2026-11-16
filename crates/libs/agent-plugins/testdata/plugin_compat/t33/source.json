@@ -1,0 +1,10 @@
+{
+  "origin": "Repository-authored synthetic fixture; no third-party payload copied",
+  "license": "Repository license",
+  "reference": [
+    "codex-rs/hooks/src/engine/discovery.rs:append_matcher_groups",
+    "codex-rs/hooks/src/engine/matcher.rs:HookMatcher",
+    "codex-rs/hooks/src/events/common.rs:matcher_pattern_for_event"
+  ],
+  "expected": "Write dispatch appends abbc; Read-only group excluded; duplicate b retained; declaration order preserved"
+}

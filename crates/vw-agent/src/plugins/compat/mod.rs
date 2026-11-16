@@ -115,42 +115,28 @@ pub(crate) mod mcp_app_execution;
 mod t30_tests;
 
 pub(crate) mod hook_manifest;
-#[cfg(test)]
-mod t32_tests;
 
 pub(crate) mod hook_matcher;
-#[cfg(test)]
-mod t33_tests;
 
-#[cfg(test)]
-mod t34_tests;
 
 pub(crate) mod hook_command;
 
 pub(crate) mod hook_async;
-#[cfg(test)]
-mod t35_tests;
 
 pub(crate) mod hook_pre_tool;
 #[cfg(test)]
 mod t36_tests;
 
 pub(crate) mod hook_permission;
-#[cfg(test)]
-mod t37_tests;
 
 pub(crate) mod hook_post_tool;
 #[cfg(test)]
 mod t38_tests;
 
 pub(crate) mod hook_prompt;
-#[cfg(test)]
-mod t40_tests;
 
 pub(crate) mod hook_session;
 
-#[cfg(test)]
-mod t39_tests;
 
 pub(crate) mod hook_model;
 #[cfg(test)]
@@ -216,8 +202,6 @@ mod t62_tests;
 #[cfg(test)]
 mod t64_tests;
 
-#[cfg(test)]
-mod platform_tests;
 
 #[cfg(test)]
 mod closure_tests;

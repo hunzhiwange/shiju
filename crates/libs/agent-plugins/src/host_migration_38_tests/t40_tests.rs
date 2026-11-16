@@ -1,16 +1,16 @@
 use super::hook_prompt::submit;
-use crate::tools::ToolUseContext;
+use super::tools::ToolUseContext;
 use serde_json::json;
 use std::sync::Arc;
 
 fn fixture(root: &std::path::Path, state: &std::path::Path, command: &str) -> Arc<ToolUseContext> {
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
     let manifest: CodexHooksManifest = serde_json::from_value(json!({"hooks":{"UserPromptSubmit":[{"matcher":"never-matches", "hooks":[{"type":"command","command":command}]}]}})).unwrap();
     let mut trust = PluginHookTrustStore::load_or_default(&state.join("trust.json")).unwrap();
     trust.trust_codex_hooks("fixture", root, &manifest).unwrap();
     let handlers = codex_handlers("fixture", root, &manifest, &trust);
     assert!(handlers.is_ok(), "UserPromptSubmit must be registered: {:?}", handlers.as_ref().err());
-    let mut runner = crate::hooks::new_hook_runner();
+    let mut runner = super::hooks::new_hook_runner();
     for handler in handlers.unwrap() {
         runner.register(handler);
     }
@@ -78,7 +78,7 @@ async fn codex_plugin_compat_t40_preserves_isolation() {
 
 #[test]
 fn codex_plugin_compat_t40_requires_trusted_source() {
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let manifest: CodexHooksManifest = serde_json::from_value(

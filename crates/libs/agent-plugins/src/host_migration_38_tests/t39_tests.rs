@@ -1,5 +1,5 @@
 use super::hook_session::{close, start};
-use crate::tools::ToolUseContext;
+use super::tools::ToolUseContext;
 use serde_json::json;
 use std::sync::Arc;
 
@@ -16,7 +16,7 @@ async fn fixture_with_exit(
     marker: &std::path::Path,
     exit: i32,
 ) -> Arc<ToolUseContext> {
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
     let state = tempfile::tempdir().unwrap();
     let manifest: CodexHooksManifest = serde_json::from_value(json!({"hooks":{
         "SessionStart":[{"hooks":[{"type":"command","command":format!("cat >> '{}'; printf '\\n' >> '{}'; printf '%s' '{{\"hookSpecificOutput\":{{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"startup context\"}}}}'; exit {exit}",marker.display(),marker.display())}]}],
@@ -25,7 +25,7 @@ async fn fixture_with_exit(
     let mut trust =
         PluginHookTrustStore::load_or_default(&state.path().join("trust.json")).unwrap();
     trust.trust_codex_hooks("fixture", root, &manifest).unwrap();
-    let mut runner = crate::hooks::new_hook_runner();
+    let mut runner = super::hooks::new_hook_runner();
     for handler in codex_handlers("fixture", root, &manifest, &trust).unwrap() {
         runner.register(handler);
     }

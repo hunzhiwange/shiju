@@ -2,7 +2,7 @@ use serde_json::json;
 
 #[tokio::test]
 async fn codex_plugin_compat_t37_preserves_host_permission_denial() {
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let manifest: CodexHooksManifest = serde_json::from_value(json!({"hooks":{"PermissionRequest":[{"hooks":[{"type":"command","command":"cat >/dev/null; printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PermissionRequest\",\"decision\":{\"behavior\":\"deny\"}}}'"}]}]}})).unwrap();
@@ -17,8 +17,8 @@ async fn codex_plugin_compat_t37_preserves_host_permission_denial() {
 
 #[tokio::test]
 async fn codex_plugin_compat_t37_runs_real_command_in_own_turn() {
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
-    use crate::tools::{ToolUseContext, scope_tool_use_context};
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::tools::{ToolUseContext, scope_tool_use_context};
     use std::sync::Arc;
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
@@ -28,7 +28,7 @@ async fn codex_plugin_compat_t37_runs_real_command_in_own_turn() {
         let mut trust =
             PluginHookTrustStore::load_or_default(&state.path().join("trust.json")).unwrap();
         trust.trust_codex_hooks("fixture", root.path(), &manifest).unwrap();
-        let mut runner = crate::hooks::new_hook_runner();
+        let mut runner = super::hooks::new_hook_runner();
         for handler in codex_handlers("fixture", root.path(), &manifest, &trust).unwrap() {
             runner.register(handler);
         }
@@ -58,8 +58,8 @@ async fn codex_plugin_compat_t37_runs_real_command_in_own_turn() {
 
 #[tokio::test]
 async fn codex_plugin_compat_t37_real_command_timeout_fails_closed() {
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
-    use crate::tools::{ToolUseContext, scope_tool_use_context};
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::tools::{ToolUseContext, scope_tool_use_context};
     use std::sync::Arc;
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
@@ -67,7 +67,7 @@ async fn codex_plugin_compat_t37_real_command_timeout_fails_closed() {
     let mut trust =
         PluginHookTrustStore::load_or_default(&state.path().join("trust.json")).unwrap();
     trust.trust_codex_hooks("fixture", root.path(), &manifest).unwrap();
-    let mut runner = crate::hooks::new_hook_runner();
+    let mut runner = super::hooks::new_hook_runner();
     for handler in codex_handlers("fixture", root.path(), &manifest, &trust).unwrap() {
         runner.register(handler);
     }

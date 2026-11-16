@@ -1,7 +1,7 @@
 #[cfg(unix)]
 #[tokio::test]
 async fn codex_plugin_compat_t35_session_end_runs_async_declaration_synchronously() {
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let marker = state.path().join("finished");
@@ -22,7 +22,7 @@ async fn codex_plugin_compat_t35_session_end_runs_async_declaration_synchronousl
 #[cfg(unix)]
 #[tokio::test]
 async fn codex_plugin_compat_t35_async_command_cannot_revoke_decision() {
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let manifest: CodexHooksManifest = serde_json::from_value(serde_json::json!({
@@ -37,18 +37,18 @@ async fn codex_plugin_compat_t35_async_command_cannot_revoke_decision() {
     assert!(admitted.is_ok(), "async commands must be admitted: {:?}", admitted.as_ref().err());
     let handlers = admitted.unwrap();
     assert!(
-        matches!(handlers[0].before_tool_call("Read".into(), serde_json::json!({})).await, crate::hooks::HookResult::Cancel(reason) if reason.contains("active session context"))
+        matches!(handlers[0].before_tool_call("Read".into(), serde_json::json!({})).await, super::hooks::HookResult::Cancel(reason) if reason.contains("active session context"))
     );
     let context = std::sync::Arc::new(
-        crate::tools::ToolUseContext::default()
+        super::tools::ToolUseContext::default()
             .with_turn_id("turn")
             .with_tool_call_id("call")
             .with_model("model"),
     );
-    crate::tools::scope_tool_use_context(context.clone(), async {
+    super::tools::scope_tool_use_context(context.clone(), async {
         assert!(matches!(
             handlers[0].before_tool_call("Read".into(), serde_json::json!({})).await,
-            crate::hooks::HookResult::Continue(_)
+            super::hooks::HookResult::Continue(_)
         ));
         context.async_hooks.shutdown().await;
     })
@@ -58,7 +58,7 @@ async fn codex_plugin_compat_t35_async_command_cannot_revoke_decision() {
 #[cfg(unix)]
 #[tokio::test]
 async fn codex_plugin_compat_t35_finished_turn_kills_real_process() {
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let started = state.path().join("started");
@@ -72,12 +72,12 @@ async fn codex_plugin_compat_t35_finished_turn_kills_real_process() {
     trust.trust_codex_hooks("fixture", root.path(), &manifest).unwrap();
     let handlers = codex_handlers("fixture", root.path(), &manifest, &trust).unwrap();
     let context = std::sync::Arc::new(
-        crate::tools::ToolUseContext::default()
+        super::tools::ToolUseContext::default()
             .with_turn_id("finished")
             .with_tool_call_id("call")
             .with_model("model"),
     );
-    crate::tools::scope_tool_use_context(context.clone(), async {
+    super::tools::scope_tool_use_context(context.clone(), async {
         handlers[0].before_tool_call("Read".into(), serde_json::json!({})).await;
     })
     .await;
@@ -92,14 +92,14 @@ async fn codex_plugin_compat_t35_finished_turn_kills_real_process() {
     drop(context);
     tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
     assert!(!late.exists(), "cancelled hook process escaped its turn");
-    let next = crate::tools::ToolUseContext::default().with_turn_id("next");
+    let next = super::tools::ToolUseContext::default().with_turn_id("next");
     assert!(next.take_hook_contexts().is_empty());
 }
 
 #[cfg(unix)]
 #[tokio::test]
 async fn codex_plugin_compat_t35_delivers_only_to_original_live_turn() {
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let manifest: CodexHooksManifest = serde_json::from_value(serde_json::json!({"hooks":{"PreToolUse":[{"hooks":[{"type":"command","async":true,"command":"cat >/dev/null; printf '%s' '{\"continue\":false,\"hookSpecificOutput\":{\"additionalContext\":\"owned context\"}}'"}]}]}})).unwrap();
@@ -108,14 +108,14 @@ async fn codex_plugin_compat_t35_delivers_only_to_original_live_turn() {
     trust.trust_codex_hooks("fixture", root.path(), &manifest).unwrap();
     let handlers = codex_handlers("fixture", root.path(), &manifest, &trust).unwrap();
     let original =
-        crate::tools::ToolUseContext::default().with_turn_id("original").with_model("model");
+        super::tools::ToolUseContext::default().with_turn_id("original").with_model("model");
     let next = original.clone().with_turn_id("next");
     let _turn = original.async_hooks.turn_guard();
     let tool = std::sync::Arc::new(original.clone().with_tool_call_id("call"));
-    crate::tools::scope_tool_use_context(tool, async {
+    super::tools::scope_tool_use_context(tool, async {
         assert!(matches!(
             handlers[0].before_tool_call("Read".into(), serde_json::json!({})).await,
-            crate::hooks::HookResult::Continue(_)
+            super::hooks::HookResult::Continue(_)
         ));
     })
     .await;

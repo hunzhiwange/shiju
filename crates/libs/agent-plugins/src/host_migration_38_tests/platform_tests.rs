@@ -1,8 +1,8 @@
 //! Actual host command selection, without pretending to execute another platform.
 #[tokio::test]
 async fn codex_plugin_compat_t64_executes_host_hook_command() {
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
-    use crate::tools::{ToolUseContext, scope_tool_use_context};
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::tools::{ToolUseContext, scope_tool_use_context};
     use std::{fs, sync::Arc};
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("插件 hook package");
@@ -33,7 +33,7 @@ async fn codex_plugin_compat_t64_executes_host_hook_command() {
         handlers[0].before_tool_call("Read".into(), serde_json::json!({})),
     )
     .await;
-    assert!(matches!(result, crate::hooks::HookResult::Continue(_)), "{result:?}");
+    assert!(matches!(result, super::hooks::HookResult::Continue(_)), "{result:?}");
     let data =
         fs::read_dir(state.join("plugin-hook-data")).unwrap().next().unwrap().unwrap().path();
     let output = fs::read_to_string(data.join("result.txt")).unwrap();

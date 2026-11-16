@@ -3,15 +3,15 @@
 #[tokio::test]
 async fn codex_plugin_compat_t34_interprets_command_exit_protocol() {
     let fixture_context = std::sync::Arc::new(
-        crate::tools::ToolUseContext::default()
+        super::tools::ToolUseContext::default()
             .with_turn_id("fixture-turn")
             .with_tool_call_id("fixture-call")
             .with_model("fixture-model")
             .with_hook_input(serde_json::json!({})),
     );
-    crate::tools::scope_tool_use_context(fixture_context, async {
-        use crate::app::agent::hooks::HookResult;
-        use crate::plugins::{
+    super::tools::scope_tool_use_context(fixture_context, async {
+        use super::hooks::HookResult;
+        use super::plugins::{
             CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers,
         };
         let root = tempfile::tempdir().unwrap();
@@ -38,16 +38,16 @@ async fn codex_plugin_compat_t34_interprets_command_exit_protocol() {
 #[tokio::test]
 async fn codex_plugin_compat_t34_applies_updated_input() {
     let fixture_context = std::sync::Arc::new(
-        crate::tools::ToolUseContext::default()
+        super::tools::ToolUseContext::default()
             .with_turn_id("fixture-turn")
             .with_tool_call_id("fixture-call")
             .with_model("fixture-model")
             .with_hook_input(serde_json::json!({})),
     );
-    crate::tools::scope_tool_use_context(fixture_context, async {
+    super::tools::scope_tool_use_context(fixture_context, async {
 
-    use crate::app::agent::hooks::HookResult;
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::hooks::HookResult;
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let manifest: CodexHooksManifest = serde_json::from_value(serde_json::json!({
@@ -73,14 +73,14 @@ async fn codex_plugin_compat_t34_applies_updated_input() {
 #[tokio::test]
 async fn codex_plugin_compat_t34_spills_context_only_in_own_turn() {
     let fixture_context = std::sync::Arc::new(
-        crate::tools::ToolUseContext::default()
+        super::tools::ToolUseContext::default()
             .with_turn_id("fixture-turn")
             .with_tool_call_id("fixture-call")
             .with_model("fixture-model")
             .with_hook_input(serde_json::json!({})),
     );
-    crate::tools::scope_tool_use_context(fixture_context, async {
-        use crate::tools::{ToolUseContext, scope_tool_use_context};
+    super::tools::scope_tool_use_context(fixture_context, async {
+        use super::tools::{ToolUseContext, scope_tool_use_context};
         let state = tempfile::tempdir().unwrap();
         let context = std::sync::Arc::new(
             ToolUseContext::new("fixture-session", None).with_turn_id("turn-a"),
@@ -110,22 +110,22 @@ async fn codex_plugin_compat_t34_spills_context_only_in_own_turn() {
 #[tokio::test]
 async fn codex_plugin_compat_t34_receives_host_input_and_environment() {
     let fixture_context = std::sync::Arc::new(
-        crate::tools::ToolUseContext::default()
+        super::tools::ToolUseContext::default()
             .with_turn_id("fixture-turn")
             .with_tool_call_id("fixture-call")
             .with_model("fixture-model")
             .with_hook_input(serde_json::json!({})),
     );
-    crate::tools::scope_tool_use_context(fixture_context, async {
+    super::tools::scope_tool_use_context(fixture_context, async {
 
-    use crate::hooks::HookResult;
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
-    use crate::tools::{ToolUseContext, scope_tool_use_context};
+    use super::hooks::HookResult;
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::tools::{ToolUseContext, scope_tool_use_context};
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let workspace = tempfile::tempdir().unwrap();
     let manifest: CodexHooksManifest = serde_json::from_value(serde_json::json!({
-        "hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":include_str!("../../../testdata/plugin_compat/t34/capture.sh")}]}]}
+        "hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":include_str!("../../testdata/plugin_compat/t34/capture.sh")}]}]}
     })).unwrap();
     let mut trust =
         PluginHookTrustStore::load_or_default(&state.path().join("trust.json")).unwrap();
@@ -172,15 +172,15 @@ async fn codex_plugin_compat_t34_receives_host_input_and_environment() {
 #[tokio::test]
 async fn codex_plugin_compat_t34_bounds_command_runtime_and_output() {
     let fixture_context = std::sync::Arc::new(
-        crate::tools::ToolUseContext::default()
+        super::tools::ToolUseContext::default()
             .with_turn_id("fixture-turn")
             .with_tool_call_id("fixture-call")
             .with_model("fixture-model")
             .with_hook_input(serde_json::json!({})),
     );
-    crate::tools::scope_tool_use_context(fixture_context, async {
-        use crate::hooks::HookResult;
-        use crate::plugins::{
+    super::tools::scope_tool_use_context(fixture_context, async {
+        use super::hooks::HookResult;
+        use super::plugins::{
             CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers,
         };
         for (command, expected) in
@@ -210,7 +210,7 @@ async fn codex_plugin_compat_t34_bounds_command_runtime_and_output() {
 fn codex_plugin_compat_t34_rejects_missing_session_context() {
     let error = super::hook_command::bind_input(
         &mut serde_json::json!({}),
-        crate::plugins::PluginHookEvent::BeforeToolCall,
+        super::plugins::PluginHookEvent::BeforeToolCall,
     )
     .unwrap_err();
     assert_eq!(error.to_string(), "Codex hook requires active session context");
@@ -219,8 +219,8 @@ fn codex_plugin_compat_t34_rejects_missing_session_context() {
 #[cfg(unix)]
 #[tokio::test]
 async fn codex_plugin_compat_t34_model_hook_is_observation_only() {
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
-    use crate::tools::{ToolUseContext, scope_tool_use_context};
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::tools::{ToolUseContext, scope_tool_use_context};
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let manifest: CodexHooksManifest = serde_json::from_value(serde_json::json!({
@@ -239,7 +239,7 @@ async fn codex_plugin_compat_t34_model_hook_is_observation_only() {
         handlers[0].before_llm_call(Vec::new(), "fixture-model".into()),
     )
     .await;
-    assert!(matches!(result, crate::hooks::HookResult::Continue(_)));
+    assert!(matches!(result, super::hooks::HookResult::Continue(_)));
 }
 
 #[cfg(unix)]

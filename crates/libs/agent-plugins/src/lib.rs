@@ -117,3 +117,6 @@ mod host_migration_39_tests;
 
 #[cfg(test)]
 mod host_migration_37_tests;
+
+#[cfg(test)]
+mod host_migration_38_tests;

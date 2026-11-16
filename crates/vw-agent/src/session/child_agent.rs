@@ -55,8 +55,5 @@ Fut: Future<Output = Result<GatewayChatStreamCollected,ApiError>> + Send + 'stat
     session_engine::child_agent::run::run_created_with_stream_executor::<Host,_,_>(created,execute).await
 }
 #[cfg(test)]
-#[path = "child_agent/coordinator_tests.rs"]
-mod coordinator_tests;
-#[cfg(test)]
 #[path = "child_agent/entry_tests.rs"]
 mod entry_tests;

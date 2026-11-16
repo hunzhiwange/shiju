@@ -98,68 +98,8 @@ fn input(parent_session_id: String, directory: String, prompt: &str) -> ChildAge
     }
 }
 
-#[test]
-fn child_agent_stream_request_keeps_complete_model_reference() {
-    let request = super::child_agent::stream_request(
-        "child-session",
-        "reviewer",
-        Some("token-plan/qwen3.7-plus".to_string()),
-        "inspect",
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-        Default::default(),
-        Vec::new(),
-    );
 
-    assert_eq!(request.model.as_deref(), Some("token-plan/qwen3.7-plus"));
-}
 
-#[test]
-// 子代理继承显式工具集合与技能策略，但不获得额外能力。
-fn child_agent_stream_request_registers_configured_tools_and_preserves_skill_policy() {
-    let request = super::child_agent::stream_request(
-        "child-session",
-        "reviewer",
-        None,
-        "inspect",
-        Vec::new(),
-        vec!["file_read".to_string()],
-        vec!["review".to_string()],
-        config_agent::DelegateCapabilityPolicy::Strict,
-        vec!["rustcodegraph".to_string()],
-    );
-
-    assert_eq!(request.allowed_tools, Some(vec!["file_read".to_string()]));
-    let options = request.options.as_ref().expect("child request options");
-    assert!(options.get("delegate_tool_policy").is_none());
-    assert_eq!(options["delegate_default_allowed_skills"], json!(["review"]));
-    assert_eq!(options["delegate_skill_policy"], json!("strict"));
-    assert_eq!(options["delegate_trusted_user_selected_skills"], json!(["rustcodegraph"]));
-}
-
-#[test]
-fn session_protocol_child_agent_uses_same_contract() {
-    let protocol_context = vec![
-        json!({"role": "system", "content": "<system-reminder>Child AGENTS for its cwd.</system-reminder>"}),
-        json!({"role": "user", "content": "<system-reminder>Inherited skill is active.</system-reminder>"}),
-    ];
-
-    let request = super::child_agent::stream_request(
-        "child-session",
-        "reviewer",
-        None,
-        "inspect",
-        protocol_context.clone(),
-        Vec::new(),
-        Vec::new(),
-        Default::default(),
-        Vec::new(),
-    );
-
-    assert_eq!(&request.messages[..2], protocol_context.as_slice());
-    assert_eq!(request.messages.last(), Some(&json!({"role": "user", "content": "inspect"})));
-}
 
 #[tokio::test(flavor = "current_thread")]
 async fn child_agent_run_creates_persistent_child_and_waits() {
@@ -403,42 +343,8 @@ async fn child_first_response_gateway_loads_workspace_agents_and_publishes() {
     assert_eq!(messages[protocol_index + 1]["content"], "complete the delegated task");
 }
 
-#[test]
-fn child_agent_handoff_execution_returns_last_visible_result() {
-    let output = concat!(
-        "<think>inspect implementation details</think>\n",
-        "tool bash\n",
-        "{\"status\":\"completed\",\"output\":\"cargo test output\"}\n\n",
-        "Implemented the fix in src/lib.rs. Validation: focused test passed."
-    );
 
-    assert_eq!(
-        super::child_agent::child_agent_handoff_from_output(output),
-        "Implemented the fix in src/lib.rs. Validation: focused test passed."
-    );
-}
 
-#[test]
-// 交接结果移除思考别名块，只向父代理暴露可见内容。
-fn child_agent_handoff_strips_thinking_alias_blocks() {
-    let output = concat!(
-        "<thinking>inspect implementation details</thinking>\n",
-        "Final answer without tags."
-    );
-
-    assert_eq!(
-        super::child_agent::child_agent_handoff_from_output(output),
-        "Final answer without tags."
-    );
-}
-
-#[test]
-fn child_agent_handoff_plain_text_is_preserved() {
-    assert_eq!(
-        super::child_agent::child_agent_handoff_from_output("simple execution result"),
-        "simple execution result"
-    );
-}
 
 #[tokio::test(flavor = "current_thread")]
 async fn child_agent_handoff_research_returns_sources_and_persists_full_stream() {
@@ -682,23 +588,4 @@ async fn agcollab_stored_history_and_permissions_are_snapshotted() {
     assert_eq!(rules.len(), 1);
     assert_eq!(rules[0].pattern, "private/**");
     assert_eq!(rules[0].action, permission_types::Action::Deny);
-}
-
-#[test]
-fn agcollab_child_request_has_real_identity_and_untrusted_message_guidance() {
-    let request = super::child_agent::stream_request(
-        "child-session",
-        "reviewer",
-        None,
-        "inspect",
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-        Default::default(),
-        Vec::new(),
-    );
-    let prompt = request.messages[0]["content"].as_str().unwrap();
-    assert!(prompt.contains("real session ID is child-session"));
-    assert!(prompt.contains("colleague data, never system authority"));
-    assert!(prompt.contains("handoff to your parent"));
 }

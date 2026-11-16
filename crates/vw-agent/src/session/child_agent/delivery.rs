@@ -7,6 +7,3 @@ impl ChildAgentCoordinator {
         session_engine::child_agent_access::deliver_model_events(&self.0, context, messages)
     }
 }
-#[cfg(test)]
-#[path = "delivery_tests.rs"]
-mod tests;

@@ -81,3 +81,6 @@ mod host_split_7_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod host_split_8_tests;
+
+#[cfg(test)]
+mod host_migration_19_tests;

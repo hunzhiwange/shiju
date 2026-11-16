@@ -1,6 +1,6 @@
 # OpenAI Codex TUI 移植状态
 
-本表是 `src/lib.rs` 顶层模块的唯一删改清单。批次 5 已激活 Markdown、代码高亮、表格识别与流式文本状态；批次 6 已激活复制的 history/exec/diff/goal 展示，并以纯 `V3DisplayEvent` 做数据映射；批次 7 已激活纯本地 textarea、Unicode wrapping、Vim、paste burst 与草稿历史核心；批次 8 已激活无边框 `›` composer、排队预览、动态 footer 与纯 `V3Action` 动作边界；批次 9 已激活复制的通用选择列表、过滤、命令补全、文件结果、会话/主题选择，并以 `V3SelectionItem`/`V3Action` 隔离 VibeWindow 数据与动作；批次 10 已激活审批与用户问答 overlay，所有决定和答案均只输出 `V3Action`；批次 11 已原地裁剪并激活复制的 ChatWidget，只保留 committed history、active cell、live tail、bottom pane、status、input queue、overlay 与布局缓存；批次 12 已用纯 UI `V3Event` 激活 thinking/text/tool/turn 的流式归约，保留 copied exec cell 分组、中间帧、终帧、状态隐藏和中断终态；批次 14 已激活复制的 welcome、session header、working indicator 和 status card，由 CLI bridge 提供只读 VibeWindow 会话数据；批次 15 已激活 copied custom terminal、history insertion 与 resize reflow 状态机，并以纯 v3 transcript pager、终端生命周期和 CLI bridge 接入 committed/active cells。后续批次修改文件时必须同步本表。
+本表记录早期移植批次的历史处置，不再作为当前源码删除授权。批次 5 已激活 Markdown、代码高亮、表格识别与流式文本状态；批次 6 已激活复制的 history/exec/diff/goal 展示，并以纯 `V3DisplayEvent` 做数据映射；批次 7 已激活纯本地 textarea、Unicode wrapping、Vim、paste burst 与草稿历史核心；批次 8 已激活无边框 `›` composer、排队预览、动态 footer 与纯 `V3Action` 动作边界；批次 9 已激活复制的通用选择列表、过滤、命令补全、文件结果、会话/主题选择，并以 `V3SelectionItem`/`V3Action` 隔离 VibeWindow 数据与动作；批次 10 已激活审批与用户问答 overlay，所有决定和答案均只输出 `V3Action`；批次 11 已原地裁剪并激活复制的 ChatWidget，只保留 committed history、active cell、live tail、bottom pane、status、input queue、overlay 与布局缓存；批次 12 已用纯 UI `V3Event` 激活 thinking/text/tool/turn 的流式归约，保留 copied exec cell 分组、中间帧、终帧、状态隐藏和中断终态；批次 14 已激活复制的 welcome、session header、working indicator 和 status card，由 CLI bridge 提供只读 VibeWindow 会话数据；批次 15 已激活 copied custom terminal、history insertion 与 resize reflow 状态机，并以纯 v3 transcript pager、终端生命周期和 CLI bridge 接入 committed/active cells。后续批次修改文件时必须同步本表。
 
 ## 状态定义和删除门禁
 
@@ -198,3 +198,13 @@
 ## 2026-11-16 恢复待对接源码
 
 已恢复此前清理提交删除的 257 个 Rust 文件与 BUILD.bazel，作为能力对接审查来源。物理恢复不代表已进入编译图或已支持对应能力；后续按真实调用链与行为测试评估。保留清理期间补齐的依赖及有效测试接线修复。
+
+## 2026-11-16 终端能力接入与验收边界
+
+当前逐项来源、入口、测试资产及限制见 [终端能力矩阵](TERMINAL_CAPABILITY_MATRIX.md)。该矩阵覆盖需求 01–38；本轮仅补代码和静态记录，未运行 Cargo、单元测试、实机或最终回归，不能引用上面的历史通过记录宣称当前验收通过。
+
+- 已接入：粘贴缓冲/到期刷新、长文本、富历史、图片路径、反向搜索、显式 Vim 与编辑器生命周期适配均归现有领域库及 cli-interaction 入口；“接入”仅表示静态接线。
+- 参考保留：恢复的 app、配置/认证/更新业务、宠物、IDE、内联可视化和未采用候选源码不因未编译而删除。上方“已删除”是恢复前历史，恢复后物理存在性以当前源码为准。
+- 明确不支持或未启用：不复活 Codex 后端/认证/配置/更新协议；无 HTML 复制产品入口、无 WSL 图片外部命令回退；系统通知和窗口标题仅完成设计，未默认启用。自定义键位仅保留底层能力，不宣称完整配置入口。
+
+后续删除须另行完成能力映射与来源审查。本次保留全部恢复源码、快照及许可，未将历史审批/权限协议换为上游协议。

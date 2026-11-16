@@ -92,3 +92,6 @@ mod terminal_req_06_tests;
 
 #[cfg(test)]
 mod terminal_req_09_tests;
+
+#[cfg(test)]
+mod terminal_req_12_tests;

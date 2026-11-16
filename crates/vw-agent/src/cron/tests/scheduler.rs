@@ -13,7 +13,7 @@
 use crate::app::agent::config::Config;
 use crate::app::agent::cron;
 use crate::app::agent::cron::scheduler::{
-    deliver_if_configured, persist_job_result,
+    persist_job_result,
     process_due_jobs, run_agent_job,
 };
 use crate::app::agent::cron::{CronJob, DeliveryConfig, JobType, Schedule, SessionTarget};
@@ -27,7 +27,6 @@ use tokio::time::Duration;
 use tokio::{
     net::TcpListener,
 };
-use config_agent::DelegateAgentConfig;
 
 /// 获取测试环境全局锁
 ///
@@ -206,83 +205,6 @@ async fn full_access_agent_job_bypasses_readonly_security_gate() {
     assert!(!output.contains("read-only"));
 }
 
-#[tokio::test]
-async fn run_agent_job_delivers_task_pool_jobs_with_trimmed_agent_and_default_model() {
-    let tmp = TempDir::new().unwrap();
-    let mut config = test_config(&tmp).await;
-    config.agents.insert(
-        "planner".into(),
-        DelegateAgentConfig { enabled: true, ..DelegateAgentConfig::default() },
-    );
-    let mut job = test_job("");
-    job.job_type = JobType::Agent;
-    job.prompt = Some("Create the report".into());
-    job.name = Some("Daily".into());
-    job.agent = Some(" planner ".into());
-    job.acp_agent = Some(" codex ".into());
-    job.model = Some("   ".into());
-    job.task_pool = true;
-    let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
-
-    let (success, output) = run_agent_job(&config, &security, &job).await;
-
-    assert!(success);
-    assert!(output.contains("agent job delivered to task pool:"));
-    assert!(
-        config
-            .workspace_dir
-            .join(config_runtime_paths::HOME_CONFIG_DIR_NAME)
-            .join("tasks/_index.sqlite3")
-            .is_file()
-    );
-}
-
-#[tokio::test]
-async fn run_agent_job_reports_task_pool_delivery_failure_without_mutating_security_result() {
-    let tmp = TempDir::new().unwrap();
-    let config = Config {
-        workspace_dir: tmp.path().join("workspace-file"),
-        config_path: tmp.path().join("vibewindow.json"),
-        ..Config::default()
-    };
-    tokio::fs::write(&config.workspace_dir, "not a directory").await.unwrap();
-    let mut job = test_job("");
-    job.job_type = JobType::Agent;
-    job.prompt = Some("Create the report".into());
-    job.task_pool = true;
-    let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
-
-    let (success, output) = run_agent_job(&config, &security, &job).await;
-
-    assert!(!success);
-    assert!(output.contains("agent task pool delivery failed"));
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[tokio::test]
-async fn cron_wecom_delivery_none_makes_zero_webhook_requests() {
-    let tmp = TempDir::new().unwrap();
-    let config = test_config(&tmp).await;
-    let job =
-        cron::add_shell_job(&config, None, Schedule::Every { every_ms: 60_000 }, "echo result")
-            .unwrap();
-    let mut job = job;
-    job.delivery = DeliveryConfig {
-        mode: "none".into(),
-        channel: Some("wecom_webhook".into()),
-        to: Some("default".into()),
-        best_effort: false,
-    };
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let endpoint = format!("http://{}/", listener.local_addr().unwrap()).parse().unwrap();
-    crate::cron::delivery::TEST_WEBHOOK_ENDPOINT
-        .scope(endpoint, async {
-            deliver_if_configured(&config, &job, "result").await.unwrap();
-        })
-        .await;
-    assert!(tokio::time::timeout(Duration::from_millis(100), listener.accept()).await.is_err());
-}
-
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn cron_wecom_delivery_manual_and_due_shell_trigger_share_route_and_receipts() {
@@ -326,7 +248,7 @@ async fn cron_wecom_delivery_manual_and_due_shell_trigger_share_route_and_receip
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
-async fn persist_job_result_delivery_failure_wecom_respects_best_effort_for_shell_and_agent() {
+async fn persist_job_result_uses_saved_credentials_instead_of_launch_snapshot() {
     let tenant = vw_api_transport::TenantScope::new(
         "cron-best-effort-test",
         uuid::Uuid::new_v4().to_string(),
@@ -336,33 +258,16 @@ async fn persist_job_result_delivery_failure_wecom_respects_best_effort_for_shel
         let tmp = TempDir::new().unwrap();
         let config = test_config(&tmp).await;
         crate::config::schema::save_config_for_tenant(&config, &tenant).await.unwrap();
-        for job_type in [JobType::Shell, JobType::Agent] {
-            for best_effort in [false, true] {
-                let job = cron::add_shell_job(
-                    &config,
-                    None,
-                    Schedule::Every { every_ms: 60_000 },
-                    "echo result",
-                )
-                .unwrap();
-                let mut job = job;
-                job.job_type = job_type.clone();
-                job.delivery = DeliveryConfig {
-                    mode: "announce".into(),
-                    channel: Some("wecom".into()),
-                    to: Some("user".into()),
-                    best_effort,
-                };
-                let now = Utc::now();
-                assert_eq!(
-                    persist_job_result(&config, &job, true, "result", now, now).await,
-                    best_effort
-                );
-                let runs = cron::list_runs(&config, &job.id, 10).unwrap();
-                assert_eq!(runs[0].status, if best_effort { "ok" } else { "error" });
-                assert!(runs[0].output.as_deref().unwrap().contains("Bot ID"));
-            }
-        }
+        let mut stale = config.clone();
+        stale.channels_config.wecom = Some(serde_json::from_value(serde_json::json!({"bot_id":"stale", "secret":"stale-secret"})).unwrap());
+        let mut job = cron::add_shell_job(&config, None, Schedule::Every { every_ms: 60_000 }, "echo result").unwrap();
+        job.delivery = DeliveryConfig { mode: "announce".into(), channel: Some("wecom".into()), to: Some("user".into()), best_effort: false };
+        let now = Utc::now();
+        assert!(!persist_job_result(&stale, &job, true, "result", now, now).await);
+        let runs = cron::list_runs(&config, &job.id, 10).unwrap();
+        assert_eq!(runs[0].status, "error");
+        assert!(runs[0].output.as_deref().unwrap().contains("Bot ID"));
+        assert!(!runs[0].output.as_deref().unwrap().contains("stale-secret"));
     })
     .await;
 }

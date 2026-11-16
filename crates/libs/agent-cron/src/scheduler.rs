@@ -529,7 +529,7 @@ pub async fn run_agent_job(host: &dyn SchedulerHost,
             .clone()
             .filter(|value| !value.trim().is_empty())
             .unwrap_or_else(|| "auto".to_string());
-        return match host.deliver_agent_job_to_task_pool(&run_config, job, &prefixed_prompt, model).await
+        return match crate::task_pool::deliver_agent_job_to_task_pool(&run_config, job, &prefixed_prompt, model).await
         {
             Ok(output) => (true, output),
             Err(err) => (false, format!("agent task pool delivery failed: {err}")),
@@ -1036,7 +1036,6 @@ pub async fn run_job_command_with_timeout(
 /// 只注入真实宿主执行动作；轮询、重试与数据库事务属于本包。
 #[async_trait::async_trait]
 pub trait SchedulerHost: crate::delivery::DeliveryHost {
-    async fn deliver_agent_job_to_task_pool(&self, config: &Config, job: &CronJob, prompt: &str, model: String) -> Result<String>;
     #[cfg(not(target_arch = "wasm32"))]
     async fn run_gateway_agent_job(&self, config: &Config, job: &CronJob, prompt: &str, model_override: Option<String>) -> Result<String>;
     async fn deliver_announcement(&self, config: &Config, channel: &str, target: &str, output: &str) -> Result<()>;

@@ -272,3 +272,18 @@ async fn persist_job_result_success_deletes_one_shot_shell_job() {
     let lookup = cron::get_job(&config, &job.id);
     assert!(lookup.is_err());
 }
+
+#[test]
+fn task_pool_agents_trim_names_and_default_empty_main_agent() {
+    let mut job = test_job("");
+    job.agent = Some(" planner ".into());
+    job.acp_agent = Some(" codex ".into());
+    let agents = crate::execution::task_pool_agents(&job);
+    assert_eq!(agents.agent, "planner");
+    assert_eq!(agents.acp_agent.as_deref(), Some("codex"));
+    job.agent = Some("  ".into());
+    job.acp_agent = Some("  ".into());
+    let agents = crate::execution::task_pool_agents(&job);
+    assert_eq!(agents.agent, "main");
+    assert_eq!(agents.acp_agent, None);
+}

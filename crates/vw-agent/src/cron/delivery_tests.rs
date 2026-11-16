@@ -45,18 +45,6 @@ async fn cron_wecom_delivery_configuration_and_reload_fail_closed() {
         assert!(delivery::validate_saved(&config, &delivery).await.is_err());
         save(&config).await;
         delivery::validate_saved(&config, &delivery).await.unwrap(); // Does not require a live socket.
-        for channel in ["wecom", "wecom_webhook"] {
-            let mut d = delivery.clone();
-            d.channel = Some(channel.into());
-            d.to = Some(if channel == "wecom" { "user" } else { "default" }.into());
-            let mut broken = config.clone();
-            broken.channels_config.unavailable_channels.insert(format!("{channel}:default"));
-            assert!(delivery::validate(&broken, &d).is_err());
-            d.to = None;
-            assert!(delivery::validate(&config, &d).is_err());
-            d.mode = "none".into();
-            delivery::validate(&broken, &d).unwrap();
-        }
         let mut saved = config.clone();
         saved.channels_config.wecom = None;
         save(&saved).await;

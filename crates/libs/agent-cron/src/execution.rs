@@ -64,3 +64,15 @@ pub fn agent_model_candidates(
     }
     model_candidates
 }
+
+/// Task-pool identity normalization shared by the actual host adapter and domain assertions.
+pub struct TaskPoolAgents {
+    pub agent: String,
+    pub acp_agent: Option<String>,
+}
+
+pub fn task_pool_agents(job: &CronJob) -> TaskPoolAgents {
+    let agent = job.agent.as_deref().map(str::trim).filter(|value| !value.is_empty()).unwrap_or("main").to_string();
+    let acp_agent = job.acp_agent.as_deref().map(str::trim).filter(|value| !value.is_empty()).map(str::to_string);
+    TaskPoolAgents { agent, acp_agent }
+}

@@ -58,9 +58,6 @@ use agent_cron::scheduler::{cron_gateway_agent_request, format_gateway_agent_out
 pub(crate) struct Host;
 #[async_trait::async_trait]
 impl agent_cron::scheduler::SchedulerHost for Host {
-    async fn deliver_agent_job_to_task_pool(&self, config: &Config, job: &CronJob, prompt: &str, model: String) -> Result<String> {
-        deliver_agent_job_to_task_pool(config, job, prompt, model).await
-    }
     #[cfg(not(target_arch = "wasm32"))]
     async fn run_gateway_agent_job(&self, config: &Config, job: &CronJob, prompt: &str, model_override: Option<String>) -> Result<String> {
         run_gateway_agent_job(config, job, prompt, model_override).await
@@ -69,42 +66,6 @@ impl agent_cron::scheduler::SchedulerHost for Host {
         deliver_announcement(config, channel, target, output).await
     }
 }
-async fn deliver_agent_job_to_task_pool(
-    config: &Config,
-    job: &CronJob,
-    prompt: &str,
-    model: String,
-) -> anyhow::Result<String> {
-    let project_path = config.workspace_dir.to_string_lossy().to_string();
-    let prompt = prompt.to_string();
-    let agent = job
-        .agent
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .unwrap_or("main")
-        .to_string();
-    let acp_agent = job
-        .acp_agent
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string);
-
-    let task = tokio::task::spawn_blocking(move || {
-        let mut task = crate::app::task::Task::new(999);
-        task.prompt = prompt;
-        task.model = model;
-        task.agent = Some(agent);
-        task.acp_agent = acp_agent;
-        crate::app::task::create_task(&project_path, task)
-    })
-    .await
-    .map_err(|err| anyhow::anyhow!("task pool create task join failed: {err}"))??;
-
-    Ok(format!("agent job delivered to task pool: {}", task.id))
-}
-
 #[cfg(not(target_arch = "wasm32"))]
 async fn run_gateway_agent_job(
     config: &Config,
@@ -172,13 +133,6 @@ async fn persist_job_result(
     agent_cron::scheduler::persist_job_result(&Host, config, job, success, output, started_at, finished_at).await
 }
 
-pub(super) async fn deliver_if_configured(
-    config: &Config,
-    job: &CronJob,
-    output: &str,
-) -> Result<()> {
-    agent_cron::scheduler::deliver_if_configured(&Host, config, job, output).await
-}
 #[cfg(test)]
 #[path = "tests/scheduler.rs"]
 mod tests;

@@ -128,3 +128,35 @@ agent-cron 新增原生目标通道依赖及测试配置类型依赖、tokio net
 仍未达70%减量；主要剩余是上述真实宿主验收，混合领域断言已继续抽出普通发送器/持久化/活动历史整组。未将真实租户配置、网关、任务池或认证会话夹具复制到领域库。收口须继续审查真实薄边界，不将本证据视为整轮门槛通过。
 
 静态核对：8条新迁出名称唯一，其余原测试名仍存续，旧active_runs_tests挂载及execute_and_persist_job宿主包装消失，git diff --check 无空白错误。未来同一 `python3 scripts/cargo_slot.py cargo test -p agent-cron --lib host_migration_54_tests -- --test-threads=1` 预期29条，须取得非零且 failed=0；宿主按上表剩余原测试名运行。所有 Cargo、编译、构建、测试及实机检查仍明确未运行。
+
+## 第三轮恢复：真实任务池与企微策略
+
+重读final.md和remaining-host.json。确认app.rs的task只是task_file_store::bootstrap_task导出，因此迁移完整任务池适配器到agent-cron::task_pool；scheduler::run_agent_job现在直接调用它。删除SchedulerHost::deliver_agent_job_to_task_pool及所有实现，消除非必要Host端口。保持原Task::new(999)、spawn_blocking、prompt/model/agent/acp字段、SQLite create_task、join错误及成功文本。任务池agent/acp归一化位于execution::task_pool_agents，真实适配器消费其强类型结果。新增依赖task-file-store及测试依赖config-runtime-paths，Cargo.lock同步仅本包条目。
+
+原两条任务池测试完整迁移，继续验证真实SQLite落盘和文件路径错误；新增trim与空白默认main断言。best_effort的Shell/Agent四组合完整迁移到wecom_policy，配置读取端口提供快照，其余校验/投递错误摘要/持久化调用真实领域实现。宿主另保留uses_saved_credentials_instead_of_launch_snapshot：启动快照有旧凭据，真实已保存配置无凭据，断言失败、历史error、Bot ID错误及旧密钥不泄漏，不用假端口冒充配置重载。
+
+原configuration_and_reload_fail_closed纯配置循环迁移为独立领域测试；损坏密文/保存/重载/损坏JSON原断言仍留宿主。none模式用例保留原名和真实TcpListener超时零请求断言，移除只供宿主发送器使用的测试endpoint包裹，此模式不应进入发送器。删除失去调用者的宿主deliver_if_configured包装。
+
+本轮全用例映射：
+- `run_agent_job_delivers_task_pool_jobs_with_trimmed_agent_and_default_model` → `agent_cron::host_migration_54_tests::task_pool::run_agent_job_delivers_task_pool_jobs_with_trimmed_agent_and_default_model`。
+- `run_agent_job_reports_task_pool_delivery_failure_without_mutating_security_result` → `agent_cron::host_migration_54_tests::task_pool::run_agent_job_reports_task_pool_delivery_failure_without_mutating_security_result`。
+- `persist_job_result_delivery_failure_wecom_respects_best_effort_for_shell_and_agent` → `agent_cron::host_migration_54_tests::wecom_policy::persist_job_result_delivery_failure_wecom_respects_best_effort_for_shell_and_agent`。
+- `cron_wecom_delivery_none_makes_zero_webhook_requests` → `agent_cron::host_migration_54_tests::wecom_policy::cron_wecom_delivery_none_makes_zero_webhook_requests`。
+- `cron_wecom_delivery_configuration_validation_fails_closed` → `agent_cron::host_migration_54_tests::wecom_policy::cron_wecom_delivery_configuration_validation_fails_closed`。
+- 原配置重载测试内纯校验循环 → wecom_policy::cron_wecom_delivery_configuration_validation_fails_closed；原真实读取/密文断言保留。
+- 原best_effort宿主读取边界 → cron::scheduler::tests::persist_job_result_uses_saved_credentials_instead_of_launch_snapshot；四组合原名现属领域。
+- 新领域 execution::task_pool_agents_trim_names_and_default_empty_main_agent 验证真实生产入口。
+
+当前宿主978行（原2156，累计减1178，54.6%）；领域本任务测试共35条。
+- `delivery.rs`：71行。
+- `delivery_tests.rs`：202行。
+- `mod.rs`：35行。
+- `scheduler.rs`：158行。
+- `scheduler_tests.rs`：68行。
+- `tests/mod.rs`：7行。
+- `tests/scheduler.rs`：273行。
+- `wecom_acceptance_tests.rs`：164行。
+
+保留职责：scheduler::Host接真实网关流、企微配置/认证端口和公告；run/execute_job_now为组合入口；process_due_jobs/run_agent_job/persist_job_result包装供真实宿主验收。delivery::latest_config/send_validated负责租户watcher及凭据连接；delivery_tests保留真实socket/密文/回执；wecom_acceptance_tests的state_with_config/request保留真实API和租户跨模块验收。scheduler_tests保留薄安全/不可用凭据契约。tests/scheduler剩余真实无密钥网关失败、旧启动快照覆盖和调度触发回执。未复制AppState、反向依赖或挂载宿主源码。
+
+仍不足70%，不能靠删除真实边界断言或压缩注释达标。已落实残留清单建议的结果/best_effort矩阵，并额外迁移真实任务池调用。未来沿用 python3 scripts/cargo_slot.py cargo test -p agent-cron --lib host_migration_54_tests -- --test-threads=1，预期35条非零且failed=0；宿主按上述保留完整名称过滤并list确认迁移消失。静态核对所有SchedulerHost实现、app::task真实导出、名称唯一和旧挂载删除；git diff --check无空白错误。所有Cargo、构建、编译、测试和实机均未运行，不声称通过。

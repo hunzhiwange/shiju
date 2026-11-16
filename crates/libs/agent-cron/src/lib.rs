@@ -43,3 +43,5 @@ mod scheduler_acceptance_tests;
 mod host_migration_54_tests;
 
 pub mod announcement;
+
+mod task_pool;

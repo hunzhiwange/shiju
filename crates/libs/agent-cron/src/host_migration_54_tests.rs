@@ -86,7 +86,6 @@ impl crate::delivery::DeliveryHost for TestHost {
 }
 #[async_trait::async_trait]
 impl crate::scheduler::SchedulerHost for TestHost {
-    async fn deliver_agent_job_to_task_pool(&self, _: &Config, _: &CronJob, _: &str, _: String) -> anyhow::Result<String> { panic!("unexpected task pool call") }
     #[cfg(not(target_arch = "wasm32"))]
     async fn run_gateway_agent_job(&self, _: &Config, _: &CronJob, _: &str, _: Option<String>) -> anyhow::Result<String> { panic!("unexpected gateway call") }
     async fn deliver_announcement(&self, config: &Config, channel: &str, target: &str, output: &str) -> anyhow::Result<()> { crate::announcement::deliver_announcement(self, config, channel, target, output).await }
@@ -158,3 +157,9 @@ mod persistence;
 
 #[path = "host_migration_54_tests/announcement.rs"]
 mod announcement;
+
+#[path = "host_migration_54_tests/wecom_policy.rs"]
+mod wecom_policy;
+
+#[path = "host_migration_54_tests/task_pool.rs"]
+mod task_pool;

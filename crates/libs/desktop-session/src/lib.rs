@@ -62,3 +62,9 @@ mod desktop_split_25_tests;
 
 #[cfg(test)]
 mod host_split_6_tests;
+
+#[cfg(test)]
+mod test_messages;
+
+#[cfg(test)]
+mod host_split_7_tests;

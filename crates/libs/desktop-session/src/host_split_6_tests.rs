@@ -6,17 +6,8 @@ use crate::message::chat::stream::{
     },
     tail::StreamTailState,
 };
-use session_ui_types::{ChatMessage, ChatRole};
-
-fn message(role: ChatRole, content: &str) -> ChatMessage {
-    ChatMessage {
-        role,
-        content: content.to_string(),
-        model: None,
-        think_timing: Vec::new(),
-        processing_timing: None,
-    }
-}
+use crate::test_messages::message;
+use session_ui_types::ChatRole;
 
 #[test]
 fn buffered_tool_event_starts_on_its_own_line() {

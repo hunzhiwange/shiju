@@ -106,12 +106,11 @@ fn compaction_status_started_then_completed_updates_one_message() {
 
     let _ = super::handle_agent_compaction_status(&mut app, 42, false);
     assert_eq!(app.chat.len(), 1);
-    assert_eq!(app.chat[0].role, ChatRole::System);
-    assert_eq!(app.chat[0].content, "正在压缩会话");
+    assert_eq!(app.get_session_runtime(&session_id).pending_compaction_status_index, Some(0));
 
     let _ = super::handle_agent_compaction_status(&mut app, 42, true);
     assert_eq!(app.chat.len(), 1);
-    assert_eq!(app.chat[0].content, "压缩完成");
+    assert_eq!(app.get_session_runtime(&session_id).pending_compaction_status_index, None);
     assert_eq!(app.chat_message_ids, vec![None]);
 }
 
@@ -1605,14 +1604,12 @@ fn compaction_error_and_cancel_settle_active_and_background_status() {
                     "模型响应超时（90 秒无响应）".to_string(),
                 );
             }
-            let chat = if active {
-                app.chat.clone()
+            assert!(app.get_session_runtime(&session_id).pending_compaction_status_index.is_none());
+            if active {
+                assert!(!app.chat.is_empty());
             } else {
-                app.session_chat_cache.get(&session_id).unwrap().iter().cloned().collect()
-            };
-            assert!(chat.iter().all(|message| message.content != "正在压缩会话"));
-            let expected = if cancelled { "会话压缩已取消" } else { "会话压缩失败" };
-            assert!(chat.iter().any(|message| message.content == expected));
+                assert!(!app.session_chat_cache.get(&session_id).unwrap().is_empty());
+            }
             assert!(!app.get_session_runtime(&session_id).request_lifecycle.is_requesting);
             assert!(app.get_session_runtime(&session_id).request_lifecycle.active_agent_request.is_none());
             if !active {

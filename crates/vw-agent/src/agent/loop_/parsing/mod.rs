@@ -58,9 +58,7 @@ pub(crate) use tool_calls::{
 // XML 解析辅助函数的重导出
 // 仅对父模块（loop_）可见
 
-#[cfg(test)]
-#[path = "tests.rs"]
-mod tests;
+// 格式归一化测试随实现迁入 agent-loop。
 #[cfg(test)]
 #[path = "tool_calls_tests.rs"]
 mod tool_calls_tests;

@@ -49,6 +49,8 @@ config-agent = { path = "../config-agent", version = "0.6.0" }
 config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }
 model-selection = { path = "../model-selection", version = "0.6.0" }
 model-types = { path = "../model-types", version = "0.6.0" }
+model-protocol = { path = "../model-protocol", version = "0.6.0" }
+json-extract = { path = "../json-extract", version = "0.6.0" }
 agent-defaults = { path = "../agent-defaults", version = "0.6.0" }
 serde_json = "1"
 tool-types = { path = "../tool-types", version = "0.6.0" }

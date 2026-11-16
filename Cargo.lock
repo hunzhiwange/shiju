@@ -454,6 +454,9 @@ dependencies = [
 name = "agent-app-services"
 version = "0.6.0"
 dependencies = [
+ "tool-catalog",
+ "tool-types",
+ "plugin-mcp",
  "acp-server",
  "acp-types",
  "agent-client-protocol",

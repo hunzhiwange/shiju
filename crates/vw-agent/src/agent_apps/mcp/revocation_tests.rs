@@ -1,12 +1,10 @@
 use std::{fs, path::Path, sync::Arc, time::Duration};
 
-use serde_json::json;
 use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
     vw_api_mcp_management::McpCatalogScope,
     vw_api_mcp_management::McpConnectionDefinition,
-    vw_api_mcp_management::McpFailureCode,
     vw_api_mcp_management::McpRuntimeSelection,
 };
 
@@ -15,7 +13,7 @@ use crate::{
     global_database::GlobalDatabase,
     project::instance,
     session::ui_store::with_tenant_scope_sync,
-    tools::{Tool, ToolRuntimeContext, catalog::ToolCatalog, execution_tools_for_context},
+    tools::{Tool, ToolRuntimeContext, execution_tools_for_context},
 };
 
 fn connection(script: &Path, calls: &Path, label: &str) -> McpConnectionDefinition {
@@ -73,52 +71,9 @@ fn cc_mcp_t28_update_and_delete_revoke_cached_tools_without_interrupting_admitte
                     .find(|tool| tool.name() == id)
                     .map(Arc::from)
             };
-            let old = discover().expect("selected tool should be discovered");
-            assert!(runtime.block_on(old.call(json!({})))?.model_text().contains("first"));
-            let live = ToolCatalog::default();
-            live.replace(vec![old.clone()], [id.to_owned()])?;
-
-            let second = runtime.block_on(async {
-                let call = old.call(json!({"wait": true}));
-                let revoke = async {
-                    tokio::time::timeout(Duration::from_secs(5), async {
-                        while fs::read_to_string(&calls)?.lines().count() < 2 {
-                            tokio::time::sleep(Duration::from_millis(10)).await;
-                        }
-                        Ok::<_, std::io::Error>(())
-                    })
-                    .await??;
-                    let second = catalog
-                        .update_connection(&scope, &first, connection(&script, &calls, "second"))
-                        .unwrap()
-                        .record;
-                    let error = old.call(json!({})).await.expect_err(
-                        "a cached tool must reject a new call after its catalog revision changes",
-                    );
-                    assert!(format!("{error:#}").contains("runtime selection was revoked"));
-                    pool.refresh_tool_catalog(&live).await?;
-                    assert!(!live.snapshot().authorizes(id));
-                    fs::write(calls.with_extension("release"), "")?;
-                    Ok::<_, anyhow::Error>(second)
-                };
-                let (finished, second) = tokio::try_join!(call, revoke)?;
-                assert!(finished.model_text().contains("first"));
-                Ok::<_, anyhow::Error>(second)
-            })?;
-            assert!(discover().is_none());
-
-            select(second.clone());
-            let current = discover().expect("the newly selected revision should be discovered");
-            assert!(runtime.block_on(current.call(json!({})))?.model_text().contains("second"));
-            assert!(runtime.block_on(old.call(json!({}))).is_err());
-            live.replace(vec![current.clone()], [id.to_owned()])?;
-
-            catalog.delete(&scope, &second).unwrap();
-            assert!(runtime.block_on(current.call(json!({}))).is_err());
-            runtime.block_on(pool.refresh_tool_catalog(&live))?;
-            assert!(!live.snapshot().authorizes(id));
-            assert!(discover().is_none());
-            assert_eq!(fs::read_to_string(calls)?, "first\nfirst\nsecond\n");
+            agent_app_services::mcp::acceptance::revocation::update_delete(
+                &catalog, &scope, &project, &first, &script, &calls, &runtime, &pool, discover,
+            )?;
             crate::plugins::close_session_mcp_connections("revocation", &workspace);
             Ok(())
         })
@@ -184,35 +139,9 @@ fn cc_mcp_t28_disable_revokes_loopback_tools_until_a_fresh_selection() -> anyhow
                         .find(|tool| tool.name() == id)
                         .map(Arc::from)
                 };
-                let cached = discover().expect("selected loopback server should expose its tool");
-                let before = runtime.block_on(cached.call(json!({})))?;
-                assert!(before.is_success());
-                let live = ToolCatalog::default();
-                live.replace(vec![cached.clone()], [id.clone()])?;
-
-                assert_eq!(
-                    catalog.disable_for_runtime(&other, &scope, &selection),
-                    Err(McpFailureCode::PermissionDenied)
-                );
-                catalog.disable_for_runtime(&project, &scope, &selection).unwrap();
-                catalog.disable_for_runtime(&project, &scope, &selection).unwrap();
-                let error = runtime.block_on(cached.call(json!({}))).unwrap_err();
-                assert!(format!("{error:#}").contains("runtime selection was revoked"));
-                runtime.block_on(pool.refresh_tool_catalog(&live))?;
-                assert!(!live.snapshot().authorizes(&id));
-                assert!(discover().is_none());
-
-                catalog.select_for_runtime(&project, &scope, &selection).unwrap();
-                let fresh = discover().expect("reenabled server should expose a new executor");
-                let error = runtime.block_on(cached.call(json!({}))).unwrap_err();
-                assert!(format!("{error:#}").contains("runtime selection was revoked"));
-                let after = runtime.block_on(fresh.call(json!({})))?;
-                assert!(after.is_success());
-                assert_ne!(before.model_text(), after.model_text());
-                assert_eq!(fs::read_to_string(root.join("starts"))?.lines().count(), 2);
-
-                catalog.disable_for_runtime(&project, &scope, &selection).unwrap();
-                assert!(discover().is_none());
+                agent_app_services::mcp::acceptance::revocation::disable_reselect(
+                    &catalog, &scope, &project, &other, &selection, &root, &id, &runtime, &pool, discover,
+                )?;
                 runtime.block_on(child.kill())?;
             }
             crate::plugins::close_session_mcp_connections("disable", &workspace);

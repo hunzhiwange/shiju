@@ -247,3 +247,24 @@ host_scope_tests: 31 个断言宏文本一致；函数执行顺序保持
 |security_tests.rs|38|真实路由回调、子进程和日志脱敏薄入口|
 
 未运行任何Cargo、构建、格式化、单元或实机测试。静态差异检查不代表编译和行为通过。
+
+## 第四次恢复：实际工具驱动的选择投影与撤销状态矩阵
+
+已按 task-59-recovery-priorities.json owner=48 的 requested_split 处理，恢复编号文件用于本轮实施并在提交后删除。仓库没有 app-mcp-runtime 包，实际 MCP 选择与撤销服务位于 agent-app-services::mcp，本次契约归入该实际领域服务，未为计划中的概念名称另造 crate。
+
+|原测试/符号|领域契约|真实宿主边界|
+|---|---|---|
+|runtime_tests::cc_mcp_t27_selected_record_exposes_and_calls_the_real_tool|mcp::acceptance::projection::selected_record：CLI绑定不自动启用、选择后spec投影、真实结果文本断言|宿主创建真实绑定、租户/项目上下文；注入原tool_specs_for_context与execute_tool_call回调|
+|revocation_tests::cc_mcp_t28_update_and_delete_revoke_cached_tools_without_interrupting_admitted_call|mcp::acceptance::revocation::update_delete：更换记录、旧缓存拒绝、live目录撤销、已准入调用完成、新旧版本切换、删除和调用记录断言|宿主注入真实McpSessionConnections及真实execution_tools_for_context发现回调；Tool::call/refresh_tool_catalog仍执行真实服务，原try_join与文件释放时序保留|
+|revocation_tests::cc_mcp_t28_disable_revokes_loopback_tools_until_a_fresh_selection|mcp::acceptance::revocation::disable_reselect：外项目拒绝、重复禁用、旧缓存撤销、重新选择、新执行器结果与启动次数矩阵|宿主继续启动原HTTP/SSE进程、绑定项目上下文、传入实际发现回调及连接池、最终kill与close_session_mcp_connections|
+|runtime_tests::cc_mcp_t27_runtime_selection_keeps_project_and_acp_boundaries|此前runtime_scope::prepare_and_assert不变|真实原生/ACP配置加载、未触发网络与项目声明冲突边界不变|
+
+真实调用方向：原vw-agent单测 → agent-app-services::mcp::acceptance（test-support + macOS）→ 原McpCatalogStore、Tool、tool-catalog及plugin-mcp连接池；实际执行入口由宿主回调提供，没有模拟executor/tenant/account/job owner。未复制App/AppState或原宿主Rust源码，没有新增生产算法，本轮生产算法迁移数0。
+
+为上述真实调用增加领域test-support可选依赖plugin-mcp/tool-types/tool-catalog；宿主只在dev-dependencies启用该feature。静态依赖边扫描未发现plugin-mcp到agent-app-services生产依赖路径，领域不反向依赖vw-agent。Cargo.lock仅补agent-app-services这三个直接依赖，不更新无关包。
+
+静态核对原4条测试名称和所有断言宏文本多重集合一致（仅规格获取表达式改为实际回调，忽略空白）；已准入call与revoke的try_join、等待文件、旧call错误、池刷新、释放文件顺序照原代码移动。没有新增独立#[test]，这些是领域断言+宿主边界契约，不计独立单测或编译提速。
+
+未来验证仍运行前文4个原宿主完整名称，每个预期1条；其中前三条实际执行本次新契约，不能对acceptance过滤取得零测试便记为通过。此前领域7条与网关14条独立用例数量不变。本轮未运行任何Cargo、构建、格式化、单元/实机测试；仅源码/静态差异核对，编译及行为未验证。
+
+当前原文件族宿主852行，原3627行，净减2775行；不代表整轮35000行目标通过。

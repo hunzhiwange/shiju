@@ -536,6 +536,7 @@ channel-wecom = { path = "../libs/channel-wecom", version = "0.6.0", features = 
 task-scheduler = { path = "../libs/task-scheduler", version = "0.6.0", features = ["test-support"] }
 
 [dev-dependencies]
+agent-app-services = { path = "../libs/agent-app-services", version = "0.6.0", features = ["test-support"] }
 plugin-mcp = { path = "../libs/plugin-mcp", version = "0.6.0", features = ["test-support"] }
 session-engine = { path = "../libs/session-engine", version = "0.6.0", features = ["test-support"] }
 gateway-session = { path = "../libs/gateway-session", version = "0.6.0", features = ["test-support"] }

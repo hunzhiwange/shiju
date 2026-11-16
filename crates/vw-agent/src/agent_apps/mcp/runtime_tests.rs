@@ -13,7 +13,6 @@ use {
     vw_api_mcp_management::McpCatalogScope,
     vw_api_mcp_management::McpConnectionDefinition,
     vw_api_mcp_management::McpDistributionOutcome,
-    vw_api_mcp_management::McpRuntimeSelection,
 };
 
 use super::{
@@ -93,32 +92,11 @@ fn cc_mcp_t27_selected_record_exposes_and_calls_the_real_tool() -> anyhow::Resul
         instance::provide_context_sync(project_context, || -> anyhow::Result<()> {
             let context =
                 ToolRuntimeContext::new("managed-runtime", Some(workspace.display().to_string()));
-            assert!(
-                tool_specs_for_context(&context)
-                    .iter()
-                    .all(|spec| !spec.id.starts_with("mcp__selected__")),
-                "an active CLI binding must not enable the native runtime",
-            );
-
-            catalog
-                .select_for_runtime(
-                    &project,
-                    &scope,
-                    &McpRuntimeSelection { record: binding.record, project: project.clone() },
-                )
-                .unwrap();
-
-            let specs = tool_specs_for_context(&context);
-            let tool = specs
-                .iter()
-                .find(|spec| spec.id.starts_with("mcp__selected__"))
-                .expect("the selected catalog record must expose the real MCP tool");
-            let result = execute_tool_call(
-                &tool.id,
-                r#"{"message":"catalog-discovery-fixture"}"#,
-                &context,
+            agent_app_services::mcp::acceptance::projection::selected_record(
+                &catalog, &scope, &project, binding.record,
+                || tool_specs_for_context(&context),
+                |id, input| Ok(execute_tool_call(id, input, &context)?),
             )?;
-            assert!(result.model_text().contains("catalog-discovery-fixture|server-cwd"));
             Ok(())
         })
     })

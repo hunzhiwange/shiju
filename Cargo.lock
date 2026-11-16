@@ -10052,6 +10052,9 @@ dependencies = [
 name = "gateway-dynamic-tools"
 version = "0.6.0"
 dependencies = [
+ "session-store",
+ "session-engine",
+ "agent-gateway",
  "axum",
  "futures-util",
  "gateway-types",

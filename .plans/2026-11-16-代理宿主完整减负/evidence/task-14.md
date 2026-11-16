@@ -297,3 +297,19 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib app_provider_host_rou
 预期分别 2、1、1 条非零测试；数据库/平台依赖同原测试。静态核对直接 import、父模块注册、原挂载删除与 diff 空白；未运行 Cargo、构建、测试及实机验收，不声称通过。
 
 恢复后原61文件物理残留 743 行；相对2926行基线净减 2183 行（74.61%）。新增薄宿主用例计入该数；领域新增行数见 git diff。
+
+## 再次恢复：动态工具真实生产适配下沉
+
+本次重新读取 final.md（更新快照为宿主51915行，超额16915行）及 remaining-host.json（任务14原残留743行），不引用旧整轮缺口作为当前测量。
+
+`dynamic_tools.rs::SessionDynamicToolsHost` 整个生产实现迁入 `gateway-dynamic-tools/src/session.rs`：作用域验证、注册冲突识别/错误转换、token 鉴权、原子替换错误转换、调用流转发和响应所有权检查均由实际领域入口持有。真实调用是宿主 handler router → 7行动态工具组合函数 → `gateway_dynamic_tools::router::<SessionDynamicToolsHost<NativeSessionIo, HostTools>, S>` → 同一 session-engine::SessionHost。不是新增另一份未接线算法。直接依赖 session-engine/session-store/agent-gateway（目录解析既有所有者），不反向依赖 vw-agent；检查三者 Cargo.toml 无 gateway-dynamic-tools 反向直接依赖。泛型参数仅绑定当前实际调用需要的既有 SessionIo/HostTools trait，没有增加 trait/配置开关。
+
+宿主 `session/runtime/dynamic_hosts.rs::HostTools` 只从私有改为 pub(crate)，以供本 crate 组合路由传入；client_tool/search_tool 实现和上下文不移动、不克隆。SessionHost 的底层注册鉴权/replace/calls/respond 路径、403/404/409/500错误转换及SSE断开语义保持原代码。
+
+原 dynamic_tools_tests 七条完整用例、所有断言、真实 storage/SSE/执行器/模型流与活动历史验收继续注册在宿主；这些测试现在覆盖新的真实领域适配入口。保留原因逐条见上一节。未把它们谎称为领域自注册测试，也未以模拟宿主来冒充权限与历史验收。未来原过滤命令：
+```sh
+python3 scripts/cargo_slot.py cargo test -p vw-agent --lib gateway::api::handlers::dynamic_tools_tests -- --test-threads=1
+```
+预期7条非零；本次未运行。未来生产目标检查为 gateway-dynamic-tools --lib（通过同一测试编译后不重复）；未运行Cargo、构建、测试或实机。静态diff空白核对完成；尝试tomllib静态清单读取因当前Python无tomllib不可用，改读直接清单，未安装工具或执行Cargo替代。
+
+本次原动态工具入口50→7行；新增领域适配50行。当前原61来源残留700行，相对2926基线净减2226行（76.08%）。生产符号迁移与测试保留分别计量，不宣称构建收益。

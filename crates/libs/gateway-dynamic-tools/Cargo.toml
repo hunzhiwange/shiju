@@ -16,3 +16,15 @@ vw-api-tools = { path = "../api-tools", version = "0.6.0" }
 axum = { version = "0.8.8", features = ["json"] }
 futures-util = "0.3.32"
 serde = { version = "1", features = ["derive"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.session-engine]
+path = "../session-engine"
+version = "0.6.0"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.session-store]
+path = "../session-store"
+version = "0.6.0"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.agent-gateway]
+path = "../agent-gateway"
+version = "0.6.0"

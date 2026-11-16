@@ -5,7 +5,7 @@ use super::{
     RETRY_INITIAL_DELAY, RETRY_MAX_DELAY_NO_HEADERS, delay, header_value_case_insensitive,
     parse_json_message, pow_u64, retryable,
 };
-use crate::app::agent::session::message::AssistantError;
+use message_types::AssistantError;
 use std::collections::HashMap;
 
 #[test]

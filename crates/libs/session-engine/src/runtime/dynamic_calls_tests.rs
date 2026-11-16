@@ -3,7 +3,7 @@ use super::dynamic_calls::{
     ClientToolHost, ClientToolRequests, DynamicCallOwner, MAX_CLIENT_RESPONSE_BYTES,
     MAX_PENDING_CLIENT_CALLS,
 };
-use crate::tools::ToolSpec;
+use tool_types::ToolSpec;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;

@@ -20,6 +20,8 @@ pub mod compaction;
 pub mod compaction_checkpoint;
 pub mod skill_checkpoint;
 pub mod retry_delay;
+pub mod retry;
+pub mod runtime;
 pub mod replay_safety;
 pub mod fork_execution;
 pub mod binding_store;

@@ -27,8 +27,7 @@ mod lifecycle_tests;
 mod prompt_tests;
 
 pub mod dynamic_calls;
-#[cfg(test)]
-mod dynamic_calls_tests;
+// Dynamic callback tests live with the shared implementation.
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod dynamic_hosts;

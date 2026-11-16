@@ -245,3 +245,7 @@ fn settings_row_with_help<Help: Clone + 'static>(
     ).width(Length::Fill).wrap();
     settings_flexible_row_with_label(label, control_width, control)
 }
+
+#[cfg(test)]
+#[path = "editor_settings_fields_tests.rs"]
+mod tests;

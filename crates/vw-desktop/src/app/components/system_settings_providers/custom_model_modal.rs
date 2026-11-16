@@ -2,9 +2,13 @@ use crate::app::{App, Message};
 use iced::Element;
 use crate::app::components::system_settings_models::{map_view_message, view_style};
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
-    let Some(mm) = &app.provider_settings.custom_model_modal else { return dialog; };
-    let (close, card) = desktop_settings_providers::custom_model_modal::modal_card(mm, app.provider_settings.save_error.as_ref(), view_style(app));
-    crate::app::components::system_settings_common::settings_modal_overlay(Some(dialog), map_view_message(close), card.map(map_view_message))
+    desktop_settings_providers::custom_model_modal::view_overlays(
+        app.provider_settings.custom_model_modal.as_ref(),
+        app.provider_settings.save_error.as_ref(),
+        view_style(app),
+        dialog,
+        map_view_message,
+    )
 }
 #[cfg(test)]
 #[path = "custom_model_modal_ui_refresh_09_tests.rs"]

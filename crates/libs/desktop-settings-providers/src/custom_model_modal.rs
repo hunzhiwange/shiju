@@ -469,3 +469,20 @@ pub fn modal_card<'a>(mm: &'a crate::state::CustomProviderModelModalState, error
         .height(680);
     (close_message, card.into())
 }
+
+/// 将局部模型草稿叠加到调用方页面，并沿用调用方的消息映射。
+pub fn view_overlays<'a, M: Clone + 'a>(
+    modal: Option<&'a crate::state::CustomProviderModelModalState>,
+    error: Option<&'a desktop_i18n::settings_models::messages::Feedback>,
+    style: ViewStyle<'a>,
+    dialog: Element<'a, M>,
+    map_message: impl Fn(Message) -> M + Clone + 'a,
+) -> Element<'a, M> {
+    let Some(modal) = modal else { return dialog; };
+    let (close, card) = modal_card(modal, error, style);
+    settings_modal_overlay(Some(dialog), map_message(close), card.map(map_message))
+}
+
+#[cfg(test)]
+#[path = "custom_model_modal_tests.rs"]
+mod tests;

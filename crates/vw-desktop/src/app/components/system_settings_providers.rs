@@ -22,8 +22,6 @@ pub mod custom_model_modal;
 pub mod custom_provider;
 
 #[cfg(test)]
-mod custom_model_modal_tests;
-#[cfg(test)]
 mod custom_provider_tests;
 #[cfg(test)]
 #[path = "system_settings_providers_ui_refresh_08_tests.rs"]

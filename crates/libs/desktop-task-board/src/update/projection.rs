@@ -1,5 +1,5 @@
 //! 调度快照、日志与本地运行状态的任务投影。
-use desktop_task_model::{Task, TaskStatus, TaskLogEntry, SubTask, StatusRole};
+use desktop_task_model::{StatusRole, SubTask, Task, TaskLogEntry, TaskStatus};
 
 fn task_status_from_agent_scheduler_key(status_key: &str) -> Option<TaskStatus> {
     match status_key.trim() {
@@ -255,7 +255,8 @@ fn task_from_agent_scheduler_snapshot(
 
 pub fn mark_task_paused_after_worktree_preallocation_failure(task: &mut Task, error: String) {
     if let Some(started_at) = task.execution_started_at_ms {
-        task.last_execution_duration_ms = Some(crate::helpers::settings::now_ms().saturating_sub(started_at));
+        task.last_execution_duration_ms =
+            Some(crate::helpers::settings::now_ms().saturating_sub(started_at));
     }
     task.execution_started_at_ms = None;
     task.add_localized_log("[WORKTREE] 执行前预分配失败: %s", vec![(error).to_string().into()]);
@@ -293,7 +294,6 @@ pub fn merge_loaded_tasks_preserving_running_state(
 
     merged
 }
-
 
 /// 合并权威快照，保留尚未确认持久化的本地结果。
 /// 返回更新任务和需刷新日志的 ID；执行器清理保持原有时序。
@@ -343,7 +343,6 @@ pub fn apply_agent_scheduler_status(
 
     *tasks = next_tasks;
 
-
     (updated_tasks, updated_task_ids)
 }
 
@@ -351,7 +350,10 @@ pub fn apply_agent_scheduler_status(
 #[path = "projection_tests.rs"]
 mod tests;
 
-pub fn apply_agent_scheduler_logs(tasks: &mut [Task], responses: Vec<vw_api_agent_scheduler::AgentSchedulerTaskLogsResponse>) -> (Vec<Task>, Vec<String>) {
+pub fn apply_agent_scheduler_logs(
+    tasks: &mut [Task],
+    responses: Vec<vw_api_agent_scheduler::AgentSchedulerTaskLogsResponse>,
+) -> (Vec<Task>, Vec<String>) {
     let mut updated_tasks = Vec::new();
     let mut updated_task_ids = Vec::new();
 
@@ -387,4 +389,68 @@ pub fn scheduler_followup_ticks(workflow_id: &str, updated_tasks: &[Task]) -> (b
 
 pub fn task_board_project_matches(current_project_path: Option<&str>, project_path: &str) -> bool {
     current_project_path == Some(project_path)
+}
+
+/// 局部投影上下文，日志编辑器与缓存继续使用既有领域状态。
+pub struct BoardProjection<'a> {
+    pub logs: crate::helpers::logs::TaskLogsState<'a>,
+    pub executor: &'a mut desktop_task_executor::executor::state::TaskExecutorState,
+    pub pending: &'a mut std::collections::HashSet<String>,
+    pub selected: &'a mut std::collections::HashSet<String>,
+    pub loading: &'a mut bool,
+    pub settings: &'a mut desktop_task_model::TaskBoardSettings,
+}
+impl BoardProjection<'_> {
+    pub fn status(
+        &mut self,
+        response: vw_api_agent_scheduler::AgentSchedulerTaskBoardStatusResponse,
+    ) -> Vec<Task> {
+        let (updated, ids) = apply_agent_scheduler_status(
+            self.logs.task_board_tasks,
+            self.pending,
+            self.executor,
+            response,
+        );
+        *self.loading = false;
+        if !updated.is_empty() {
+            crate::bulk::prune_bulk_selection(self.logs.task_board_tasks, self.selected);
+            for id in ids {
+                crate::helpers::logs::sync_viewing_logs(&mut self.logs, &id);
+            }
+        }
+        updated
+    }
+    pub fn log_responses(
+        &mut self,
+        responses: Vec<vw_api_agent_scheduler::AgentSchedulerTaskLogsResponse>,
+    ) -> Vec<Task> {
+        let (updated, ids) = apply_agent_scheduler_logs(self.logs.task_board_tasks, responses);
+        for id in ids {
+            crate::helpers::logs::sync_viewing_logs(&mut self.logs, &id);
+        }
+        updated
+    }
+    pub fn loaded(&mut self, tasks: Vec<Task>) {
+        *self.logs.task_board_tasks = merge_loaded_tasks_preserving_running_state(
+            tasks,
+            self.logs.task_board_tasks,
+            &self.executor.running_tasks,
+            self.pending,
+        );
+        crate::helpers::logs::sync_task_log_cache_for_loaded_tasks(&mut self.logs);
+        *self.loading = false;
+        crate::bulk::prune_bulk_selection(self.logs.task_board_tasks, self.selected);
+        *self.settings = self.settings.clone().sanitized();
+    }
+    pub fn acknowledge(&mut self, task_id: &str, _result: &Result<(), String>) {
+        self.pending.remove(task_id);
+    }
+}
+
+pub fn scheduler_followups_for_runtime(
+    workflow_id: &str,
+    tasks: &[Task],
+    running: bool,
+) -> (bool, bool) {
+    if running { scheduler_followup_ticks(workflow_id, tasks) } else { (false, false) }
 }

@@ -5,6 +5,13 @@ use std::collections::{HashMap, HashSet};
 
 /// 本地交互更新借用的看板字段；不包含应用或跨域状态。
 pub struct LocalState<'a> {
+    pub worktree_panel_expanded: &'a mut bool,
+    pub worktree_pixel_office: &'a mut bool,
+    pub project_path: Option<&'a str>,
+    pub clear_prompt_after_create: &'a mut bool,
+    pub close_after_create: &'a mut bool,
+    pub close_after_edit: &'a mut bool,
+    pub settings: &'a desktop_task_model::TaskBoardSettings,
     pub logs_auto_scroll: &'a mut bool,
     pub editing_task_id: &'a mut Option<String>,
     pub detail_tab: &'a mut crate::message::TaskBoardDetailTab,
@@ -50,6 +57,21 @@ pub struct LocalState<'a> {
 pub enum LocalEffect {
     None,
     ViewLogs(Option<desktop_task_model::Task>),
+    Persist(desktop_task_model::Task),
+    OpenSession(String),
+    OpenLogs(desktop_task_model::Task),
+    SyncLogs,
+    Clipboard(String),
+    Import(Result<Vec<desktop_task_model::Task>, String>),
+    ImportLoaded(Result<(), String>),
+    Preference(&'static str, bool),
+    RefreshSnapshot,
+
+    Create(desktop_task_model::Task),
+    Delete(String),
+    Archive(Vec<String>),
+    Move(String, desktop_task_model::TaskStatus, Option<i64>),
+    ClearSuccess(bool),
 }
 
 /// 未消费的跨域消息交回桌面编排层。
@@ -59,6 +81,168 @@ pub fn update_local(
     main_agent_key: &str,
 ) -> Result<LocalEffect, TaskBoardMessage> {
     match message {
+        TaskBoardMessage::OpenTaskInSession { task_id } => {
+            if state.tasks.iter().any(|task| task.id == task_id) {
+                return Ok(LocalEffect::OpenSession(task_id));
+            }
+        }
+
+        TaskBoardMessage::ViewTaskLogs(id) => {
+            if let Some(task) = state.tasks.iter().find(|t| t.id == id).cloned() {
+                *state.logs_auto_scroll = true;
+                *state.detail_tab = crate::message::TaskBoardDetailTab::Logs;
+                return Ok(LocalEffect::OpenLogs(task));
+            }
+        }
+        TaskBoardMessage::SelectDetailTab(tab) => {
+            *state.detail_tab = tab;
+            if tab == crate::message::TaskBoardDetailTab::Logs {
+                *state.logs_auto_scroll = true;
+                return Ok(LocalEffect::SyncLogs);
+            }
+        }
+
+        TaskBoardMessage::ToggleClearPromptAfterCreate(value) => {
+            *state.clear_prompt_after_create = value;
+            return Ok(LocalEffect::Preference("task_board_clear_prompt_after_create", value));
+        }
+        TaskBoardMessage::ToggleCloseAfterCreate(value) => {
+            *state.close_after_create = value;
+            return Ok(LocalEffect::Preference("task_board_close_after_create", value));
+        }
+        TaskBoardMessage::ToggleCloseAfterEdit(value) => {
+            *state.close_after_edit = value;
+            return Ok(LocalEffect::Preference("task_board_close_after_edit", value));
+        }
+        TaskBoardMessage::ToggleWorktreePixelOffice(value) => {
+            *state.worktree_pixel_office = value;
+            return Ok(LocalEffect::Preference("task_board_worktree_pixel_office", value));
+        }
+        TaskBoardMessage::ToggleWorktreePanelExpanded => {
+            *state.worktree_panel_expanded = !*state.worktree_panel_expanded;
+            return Ok(LocalEffect::RefreshSnapshot);
+        }
+        TaskBoardMessage::CopyImportPromptTemplate => {
+            let priority = crate::draft::parse_priority_or_default(
+                &state.draft.priority,
+                state.settings.default_priority,
+            );
+            return Ok(LocalEffect::Clipboard(crate::draft::import_prompt_template(
+                *state.import_prompt_format,
+                priority,
+                &state.draft.model,
+                state.draft.acp_agent.as_deref(),
+            )));
+        }
+        TaskBoardMessage::ImportFileLoaded(result) => {
+            return Ok(LocalEffect::ImportLoaded(result.map(|content| {
+                *state.import_editor = text_editor::Content::with_text(&content);
+            })));
+        }
+        TaskBoardMessage::ImportTasksSubmitted => {
+            return Ok(LocalEffect::Import(crate::update::forms::tasks_from_import_content(
+                &state.import_editor.text(),
+                state.settings.default_priority,
+                state.draft,
+                crate::draft::initial_task_status_for_workflow_id(&state.settings.workflow_id),
+                main_agent_key,
+            )));
+        }
+
+        TaskBoardMessage::TaskCreated { project_path, task } => {
+            if !crate::update::projection::task_board_project_matches(
+                state.project_path,
+                &project_path,
+            ) {
+                return Ok(LocalEffect::None);
+            }
+            state.tasks.push(task);
+            crate::bulk::prune_bulk_selection(state.tasks, state.selected_tasks);
+            *state.create_submit_success = true;
+            if *state.clear_prompt_after_create {
+                state.draft.prompt.clear();
+                *state.prompt_editor = text_editor::Content::new();
+            }
+            if *state.close_after_create {
+                *state.create_modal_open = false;
+                *state.create_submit_success = false;
+                reset_draft(&mut state);
+            } else {
+                return Ok(LocalEffect::ClearSuccess(true));
+            }
+        }
+        TaskBoardMessage::EditingTaskSaved(result) => {
+            if result.is_ok() {
+                if *state.close_after_edit {
+                    *state.logs_auto_scroll = true;
+                    *state.editing_task_id = None;
+                    *state.edit_submit_success = false;
+                    return Ok(LocalEffect::ViewLogs(None));
+                }
+                *state.edit_submit_success = true;
+                return Ok(LocalEffect::ClearSuccess(false));
+            }
+        }
+        TaskBoardMessage::SaveEditingTask => {
+            if let Some(id) = state.editing_task_id.as_ref() {
+                if let Some(task) = state.tasks.iter_mut().find(|t| &t.id == id) {
+                    crate::update::forms::apply_task_draft(
+                        task,
+                        state.draft,
+                        main_agent_key,
+                        runtime_time::now_ms(),
+                    );
+                    return Ok(LocalEffect::Persist(task.clone()));
+                }
+            }
+        }
+        TaskBoardMessage::CreateTaskSubmitted => {
+            if let Some(task) = crate::update::forms::task_from_draft(
+                state.draft,
+                crate::draft::initial_task_status_for_workflow_id(&state.settings.workflow_id),
+                main_agent_key,
+            ) {
+                return Ok(LocalEffect::Create(task));
+            }
+        }
+        TaskBoardMessage::DuplicateTask(id) => {
+            if let Some(task) = state.tasks.iter().find(|t| t.id == id).cloned() {
+                return Ok(LocalEffect::Create(crate::update::forms::duplicate_task(
+                    task,
+                    crate::draft::initial_task_status_for_workflow_id(&state.settings.workflow_id),
+                )));
+            }
+        }
+        TaskBoardMessage::TaskDeleted(id) => {
+            state.selected_tasks.remove(&id);
+            return Ok(LocalEffect::Delete(id));
+        }
+        TaskBoardMessage::TaskArchived(id) => {
+            state.selected_tasks.remove(&id);
+            return Ok(LocalEffect::Archive(vec![id]));
+        }
+        TaskBoardMessage::ArchiveCompletedTasks => {
+            *state.context_menu = None;
+            return Ok(LocalEffect::Archive(crate::update::rules::completed_task_ids(state.tasks)));
+        }
+        TaskBoardMessage::DropOnStatus { to_status, insert_index } => {
+            if let Some((id, _)) = state.dragging.take() {
+                *state.drag_pending = None;
+                if let Some(index) = crate::update::rules::drop_insert_index(
+                    state.tasks,
+                    &id,
+                    to_status,
+                    insert_index,
+                ) {
+                    return Ok(LocalEffect::Move(
+                        id,
+                        to_status,
+                        Some(i64::try_from(index).unwrap_or(i64::MAX)),
+                    ));
+                }
+            }
+        }
+
         TaskBoardMessage::EditTask(task_id) => {
             if let Some(task) = state.tasks.iter().find(|t| t.id == task_id).cloned() {
                 *state.logs_auto_scroll = true;
@@ -351,4 +535,15 @@ fn reset_draft(state: &mut LocalState<'_>) {
         state.last_model.clone(),
         state.last_acp_agent.clone(),
     );
+}
+
+/// 关闭看板时清除暂态选择；路由和窗口归宿主所有。
+pub fn close_board(
+    loading: &mut bool,
+    active: &mut Option<desktop_task_model::TaskStatus>,
+    selected: &mut HashSet<String>,
+) {
+    *loading = false;
+    *active = None;
+    selected.clear();
 }

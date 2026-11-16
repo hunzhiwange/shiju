@@ -12,19 +12,6 @@ mod logs;
 mod review;
 mod settings;
 
-/// 执行 import_prompt_template 对应的领域操作。
-///
-/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub(crate) fn import_prompt_template(
-    format: TaskImportPromptFormat,
-    selected_priority: u32,
-    selected_model: &str,
-    selected_executor: Option<&str>,
-) -> String {
-    draft::import_prompt_template(format, selected_priority, selected_model, selected_executor)
-}
-
 /// 对外暴露当前模块需要复用的能力。
 pub(crate) use bulk::*;
 /// 对外暴露当前模块需要复用的能力。

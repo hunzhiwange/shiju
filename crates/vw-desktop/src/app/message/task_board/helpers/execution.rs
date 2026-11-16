@@ -6,82 +6,40 @@
 use super::*;
 
 pub(crate) use desktop_task_board::helpers::execution::*;
-pub(crate) fn push_worktree_action_log(app: &mut crate::app::App, line: String) {
-    desktop_task_board::helpers::worktree_logs::push_worktree_action_log(&mut worktree_logs_state(app), line)
-}
-
-pub(crate) fn clear_worktree_action_logs(app: &mut crate::app::App) {
-    desktop_task_board::helpers::worktree_logs::clear_worktree_action_logs(&mut worktree_logs_state(app))
-}
-
-pub(crate) fn finish_worktree_action_logs(app: &mut crate::app::App) {
-    desktop_task_board::helpers::worktree_logs::finish_worktree_action_logs(&mut worktree_logs_state(app))
-}
-
-pub(crate) fn poll_worktree_action_logs(app: &mut crate::app::App) {
-    desktop_task_board::helpers::worktree_logs::poll_worktree_action_logs(&mut worktree_logs_state(app))
-}
-
-pub(crate) fn flush_running_task_logs(
-    app: &mut crate::app::App,
-    tick_started_at: web_time::Instant,
-) {
-    let running = app.task_board_executor.running_tasks.clone();
-    if running.is_empty() {
-        app.task_board_log_scan_cursor = 0;
-        return;
-    }
-    if app.task_board_log_scan_cursor >= running.len() {
-        app.task_board_log_scan_cursor = 0;
-    }
-    let max_batch = TASK_RUNNING_LOG_SCAN_BATCH.min(running.len());
-    let viewing_task_id = app.task_board_viewing_logs.as_ref().map(|task| task.id.clone());
-    let mut scanned = 0usize;
-
-    while scanned < max_batch {
-        if scanned > 0
-            && tick_started_at.elapsed()
-                >= std::time::Duration::from_millis(TASK_EXECUTION_SCAN_BUDGET_MS)
-        {
-            break;
-        }
-        let idx = (app.task_board_log_scan_cursor + scanned) % running.len();
-        let task_id = running[idx].clone();
-        let task_logs = app.task_board_executor.poll_task_logs(&task_id);
-        if let Some(task) = app.task_board_tasks.iter_mut().find(|t| t.id == task_id) {
-            let mut plan_changed = false;
-            for log in &task_logs {
-                plan_changed |= append_task_log_stream(task, log);
-            }
-            if plan_changed && let Some(project_path) = app.project_path.as_deref() {
-                let _ = crate::app::task::write_task_plan_files(project_path, task);
-            }
-        }
-        if viewing_task_id.as_deref() == Some(task_id.as_str()) {
-            sync_viewing_logs(app, &task_id);
-        }
-        scanned += 1;
-    }
-    if scanned > 0 {
-        app.task_board_log_scan_cursor = (app.task_board_log_scan_cursor + scanned) % running.len();
-    }
-}
-
 pub(crate) fn flush_running_task_logs_throttled(
     app: &mut crate::app::App,
     force: bool,
     tick_started_at: web_time::Instant,
 ) {
-    let now = now_ms();
-    if !force
-        && now.saturating_sub(app.task_board_last_log_flush_at_ms) < TASK_LOG_FLUSH_INTERVAL_MS
-    {
-        return;
-    }
-    flush_running_task_logs(app, tick_started_at);
-    app.task_board_last_log_flush_at_ms = now;
+    let project_path = app.project_path.clone();
+    let mut logs = desktop_task_board::helpers::logs::TaskLogsState {
+        task_board_logs_editor: &mut app.task_board_logs_editor,
+        task_board_logs_auto_scroll: &mut app.task_board_logs_auto_scroll,
+        task_board_logs_scroll_top_line: &mut app.task_board_logs_scroll_top_line,
+        task_board_logs_scroll_remainder: &mut app.task_board_logs_scroll_remainder,
+        task_board_logs_viewport_height: &mut app.task_board_logs_viewport_height,
+        current_line_height: &mut app.current_line_height,
+        desktop_locale: &mut app.desktop_locale,
+        task_board_log_cache: &mut app.task_board_log_cache,
+        task_board_tasks: &mut app.task_board_tasks,
+        task_board_viewing_logs: &mut app.task_board_viewing_logs,
+        task_board_logs_context_menu_open: &mut app.task_board_logs_context_menu_open,
+        task_board_logs_context_menu_pos: &mut app.task_board_logs_context_menu_pos,
+    };
+    desktop_task_board::helpers::execution::flush_running_task_logs_throttled(
+        &mut logs,
+        &mut app.task_board_executor,
+        &mut app.task_board_log_scan_cursor,
+        &mut app.task_board_last_log_flush_at_ms,
+        force,
+        tick_started_at,
+        |task| {
+            if let Some(path) = project_path.as_deref() {
+                let _ = crate::app::task::write_task_plan_files(path, task);
+            }
+        },
+    );
 }
-
 pub(crate) fn schedule_worktree_action_log_tick() -> iced::Task<crate::app::Message> {
     crate::app::message::after(
         std::time::Duration::from_millis(TASK_BOARD_WORKTREE_ACTION_LOG_TICK_MS),
@@ -93,7 +51,8 @@ pub(crate) async fn resolve_task_board_project_id(
     project_path: &str,
 ) -> Result<vw_api_transport::ProjectId, String> {
     let client = crate::app::config::gateway_client()?;
-    let response = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(
+    let response = gateway_project::GatewayProjectClient::new(client.transport().clone())
+        .project_resolve(
             &crate::app::session_gateway::active_tenant_scope(),
             &vw_api_project::ResolveProjectRequest {
                 directory: project_path.to_string(),
@@ -117,7 +76,9 @@ pub(crate) fn sync_agent_scheduler_status(project_path: String) -> iced::Task<cr
         async move {
             let scope = resolve_task_board_scheduler_scope(&project_path).await?;
             let client = crate::app::config::gateway_client()?;
-            gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_status(&scope).await
+            gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
+                .agent_scheduler_status(&scope)
+                .await
         },
         move |result| {
             crate::app::Message::TaskBoard(TaskBoardMessage::AgentSchedulerStatusLoaded {
@@ -131,15 +92,16 @@ pub(crate) fn sync_agent_scheduler_status(project_path: String) -> iced::Task<cr
 async fn load_agent_scheduler_logs(
     project_id: vw_api_transport::ProjectId,
     task_ids: Vec<String>,
-) -> Result<
-    Vec<vw_api_agent_scheduler::AgentSchedulerTaskLogsResponse>,
-    String,
-> {
+) -> Result<Vec<vw_api_agent_scheduler::AgentSchedulerTaskLogsResponse>, String> {
     let client = crate::app::config::gateway_client()?;
     let scope = crate::app::session_gateway::active_agent_scheduler_scope(project_id)?;
     let mut responses = Vec::with_capacity(task_ids.len());
     for task_id in task_ids {
-        responses.push(gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_logs(&scope, &task_id).await?);
+        responses.push(
+            gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
+                .agent_scheduler_logs(&scope, &task_id)
+                .await?,
+        );
     }
     Ok(responses)
 }
@@ -209,7 +171,9 @@ pub(crate) fn sync_task_board_gateway_snapshot(
         async move {
             let scope = resolve_task_board_scheduler_scope(&project_path).await?;
             let client = crate::app::config::gateway_client()?;
-            gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_status(&scope).await
+            gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
+                .agent_scheduler_status(&scope)
+                .await
         },
         move |result| {
             crate::app::Message::TaskBoard(TaskBoardMessage::AgentSchedulerStatusLoaded {
@@ -228,7 +192,9 @@ pub(crate) async fn create_task_via_agent_scheduler(
     let request = agent_scheduler_create_task_request(&task, &workflow_id);
     let scope = resolve_task_board_scheduler_scope(&project_path).await?;
     let client = crate::app::config::gateway_client()?;
-    gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_create_task(&scope, &request).await?;
+    gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
+        .agent_scheduler_create_task(&scope, &request)
+        .await?;
     Ok(task)
 }
 
@@ -238,7 +204,9 @@ pub(crate) async fn register_pending_agent_scheduler_tasks(
     requests: &[vw_api_agent_scheduler::AgentSchedulerCreateTaskRequest],
 ) -> Result<(), String> {
     for request in requests {
-        gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_create_task(scope, request).await?;
+        gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
+            .agent_scheduler_create_task(scope, request)
+            .await?;
     }
     Ok(())
 }
@@ -260,26 +228,31 @@ pub(crate) fn send_agent_scheduler_command(
             let scope = resolve_task_board_scheduler_scope(&project_path).await?;
             let client = crate::app::config::gateway_client()?;
             let create_response =
-                gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_create_task(&scope, &create_request).await?;
+                gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
+                    .agent_scheduler_create_task(&scope, &create_request)
+                    .await?;
             if !should_send_agent_scheduler_command_after_create(
                 command,
                 &create_response.task.status,
             ) {
-                return gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_status(&scope).await;
+                return gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
+                    .agent_scheduler_status(&scope)
+                    .await;
             }
-            let command_result = gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
-                .agent_scheduler_command(
-                    &scope,
-	                    &vw_api_agent_scheduler::AgentSchedulerCommandRequest {
-	                        task_id: vw_api_transport::TaskId(task_id.clone()),
-                        command,
-                        dispatch_mode,
-                        max_concurrent,
-                        reason,
-                        payload: Default::default(),
-                    },
-                )
-                .await;
+            let command_result =
+                gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
+                    .agent_scheduler_command(
+                        &scope,
+                        &vw_api_agent_scheduler::AgentSchedulerCommandRequest {
+                            task_id: vw_api_transport::TaskId(task_id.clone()),
+                            command,
+                            dispatch_mode,
+                            max_concurrent,
+                            reason,
+                            payload: Default::default(),
+                        },
+                    )
+                    .await;
             let response = match command_result {
                 Ok(response) => response,
                 Err(command_error) => {
@@ -295,7 +268,9 @@ pub(crate) fn send_agent_scheduler_command(
             if !response.accepted {
                 return Err(format!("agent scheduler command {:?} was rejected", command));
             }
-            gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_status(&scope).await
+            gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
+                .agent_scheduler_status(&scope)
+                .await
         },
         move |result| {
             crate::app::Message::TaskBoard(TaskBoardMessage::AgentSchedulerStatusLoaded {
@@ -316,22 +291,14 @@ pub(crate) async fn cleanup_office_contexts(project_path: String) -> Result<usiz
     let project_id = resolve_task_board_project_id(&project_path).await?;
     let client = crate::app::config::gateway_client()?;
     let snapshot = gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone())
-        .task_pool_worktree_snapshot(
-            &vw_api_task::TaskPoolWorktreeSnapshotRequest { project_id },
-        )
+        .task_pool_worktree_snapshot(&vw_api_task::TaskPoolWorktreeSnapshotRequest { project_id })
         .await?;
     let snapshot = worktree_snapshot_from_gateway(snapshot);
     let mut count = 0;
-    for slot in snapshot.slots {
-        if matches!(
-            slot.state,
-            crate::app::task::WorktreeState::Tainted | crate::app::task::WorktreeState::Dead
-        ) {
-            let (_, result) =
-                recycle_worktree_slot_via_gateway(project_path.clone(), slot.id).await;
-            result?;
-            count += 1;
-        }
+    for slot_id in desktop_task_board::update::worktree::cleanup_slot_ids(&snapshot) {
+        let (_, result) = recycle_worktree_slot_via_gateway(project_path.clone(), slot_id).await;
+        result?;
+        count += 1;
     }
     Ok(count)
 }
@@ -344,12 +311,10 @@ pub(crate) async fn recycle_worktree_slot_via_gateway(
         let project_id = resolve_task_board_project_id(&project_path).await?;
         let client = crate::app::config::gateway_client()?;
         let response = gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone())
-            .task_pool_worktree_slot_recycle(
-                &vw_api_task::TaskPoolWorktreeSlotRecycleRequest {
-                    project_id,
-                    slot_id: slot_id.clone(),
-                },
-            )
+            .task_pool_worktree_slot_recycle(&vw_api_task::TaskPoolWorktreeSlotRecycleRequest {
+                project_id,
+                slot_id: slot_id.clone(),
+            })
             .await?;
         if response.recycled {
             Ok(())
@@ -370,13 +335,11 @@ async fn recycle_task_worktree_via_gateway(
         let project_id = resolve_task_board_project_id(&project_path).await?;
         let client = crate::app::config::gateway_client()?;
         let response = gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone())
-            .task_pool_worktree_recycle(
-                &vw_api_task::TaskPoolWorktreeRecycleRequest {
-                    project_id,
-                    task_id: vw_api_transport::TaskId(task_id.clone()),
-                    taint_reason,
-                },
-            )
+            .task_pool_worktree_recycle(&vw_api_task::TaskPoolWorktreeRecycleRequest {
+                project_id,
+                task_id: vw_api_transport::TaskId(task_id.clone()),
+                taint_reason,
+            })
             .await?;
         if response.recycled { Ok(()) } else { Err("gateway 未回收任务 worktree".to_string()) }
     }
@@ -392,31 +355,27 @@ pub(crate) fn schedule_worktree_pool_maintenance(
 ) -> iced::Task<crate::app::Message> {
     use crate::app::Message;
 
-    let desired_capacity = app
-        .task_board_worktree_desired_capacity
-        .unwrap_or(app.task_board_settings.max_concurrent)
-        .max(1) as usize;
-    if app.task_board_worktree_maintenance_in_flight
-        || app.task_board_worktree_manual_action_kind.is_some()
-    {
+    let Some(desired_capacity) = desktop_task_board::update::worktree::begin_maintenance(
+        &mut app.task_board_worktree_maintenance_in_flight,
+        app.task_board_worktree_manual_action_kind,
+        app.task_board_worktree_desired_capacity,
+        app.task_board_settings.max_concurrent,
+    ) else {
         return iced::Task::none();
-    }
-
-    app.task_board_worktree_maintenance_in_flight = true;
+    };
     let path = project_path.to_string();
     let result_project_path = path.clone();
     iced::Task::perform(
         async move {
             let project_id = resolve_task_board_project_id(&path).await?;
             let client = crate::app::config::gateway_client()?;
-            let response = gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone())
-                .task_pool_worktree_maintain(
-                    &vw_api_task::TaskPoolWorktreeMaintenanceRequest {
+            let response =
+                gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone())
+                    .task_pool_worktree_maintain(&vw_api_task::TaskPoolWorktreeMaintenanceRequest {
                         project_id,
                         desired_capacity: desired_capacity as u32,
-                    },
-                )
-                .await?;
+                    })
+                    .await?;
             Ok(WorktreePoolMaintenanceOutcome {
                 idle_count: response.idle_count as usize,
                 target_idle_count: response.target_idle_count as usize,
@@ -432,51 +391,31 @@ pub(crate) fn schedule_worktree_pool_maintenance(
     )
 }
 
-pub(crate) fn worktree_snapshot_refresh_interval_ms(app: &crate::app::App) -> u64 {
-    if app.task_board_worktree_panel_expanded {
-        TASK_BOARD_WORKTREE_SNAPSHOT_EXPANDED_INTERVAL_MS
-    } else {
-        TASK_BOARD_WORKTREE_SNAPSHOT_INTERVAL_MS
-    }
-}
-
 pub(crate) fn maybe_schedule_worktree_snapshot_refresh(
     app: &mut crate::app::App,
     force: bool,
 ) -> iced::Task<crate::app::Message> {
     use crate::app::Message;
 
-    let Some(project_path) = app.project_path.clone() else {
-        app.task_board_worktree_snapshot = None;
-        app.task_board_worktree_snapshot_loading = false;
-        app.task_board_last_worktree_snapshot_at_ms = 0;
+    let project_path = app.project_path.clone();
+    let expanded = app.task_board_worktree_panel_expanded;
+    if !snapshot_state(app).request(project_path.as_deref(), expanded, force, now_ms()) {
+        return iced::Task::none();
+    }
+    let Some(path) = project_path else {
         return iced::Task::none();
     };
-
-    if app.task_board_worktree_snapshot_loading {
-        return iced::Task::none();
-    }
-
-    let now = now_ms();
-    let interval_ms = worktree_snapshot_refresh_interval_ms(app);
-    if !force && now.saturating_sub(app.task_board_last_worktree_snapshot_at_ms) < interval_ms {
-        return iced::Task::none();
-    }
-
-    app.task_board_worktree_snapshot_loading = true;
-    let path = project_path.clone();
     let result_project_path = path.clone();
     iced::Task::perform(
         async move {
             let project_id = resolve_task_board_project_id(&path).await?;
             let client = crate::app::config::gateway_client()?;
-            let snapshot = gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone())
-                .task_pool_worktree_snapshot(
-                    &vw_api_task::TaskPoolWorktreeSnapshotRequest {
+            let snapshot =
+                gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone())
+                    .task_pool_worktree_snapshot(&vw_api_task::TaskPoolWorktreeSnapshotRequest {
                         project_id,
-                    },
-                )
-                .await?;
+                    })
+                    .await?;
             Ok(Some(worktree_snapshot_from_gateway(snapshot)))
         },
         move |result| {
@@ -486,22 +425,6 @@ pub(crate) fn maybe_schedule_worktree_snapshot_refresh(
             })
         },
     )
-}
-
-#[allow(dead_code)]
-pub(crate) fn apply_execution_timeouts(app: &mut crate::app::App, tick_started_at: web_time::Instant) -> (Vec<Task>, Vec<iced::Task<crate::app::Message>>) {
-    let locks = app.task_board_worktree_snapshot.as_ref().map(|s| s.merge_target_locks.clone()).unwrap_or_default();
-    let (changed, finished) = desktop_task_board::helpers::execution::apply_execution_timeouts(
-        &mut app.task_board_tasks, &app.task_board_settings, &app.task_board_executor.running_tasks,
-        &locks, app.project_path.as_deref(), &mut app.task_board_timeout_scan_cursor, tick_started_at);
-    for id in finished { app.task_board_executor.finish_task(&id); }
-    for task in &changed { sync_viewing_logs(app, &task.id); }
-    (changed, Vec::new())
-}
-
-#[allow(dead_code)]
-pub(crate) fn pick_next_code_review_task(app: &crate::app::App, exclude_ids: &[String]) -> Option<String> {
- desktop_task_board::helpers::execution::pick_next_code_review_task(&app.task_board_tasks, &app.task_board_settings, exclude_ids)
 }
 
 pub(crate) fn build_persist_tasks(
@@ -548,12 +471,12 @@ pub(crate) fn recycle_assigned_task_worktrees_for_removal(
 #[path = "execution_tests.rs"]
 mod execution_tests;
 
-fn worktree_logs_state(app: &mut crate::app::App) -> desktop_task_board::helpers::worktree_logs::WorktreeActionLogs<'_> {
-    desktop_task_board::helpers::worktree_logs::WorktreeActionLogs {
-        task_board_worktree_manual_action_kind: &mut app.task_board_worktree_manual_action_kind,
-        task_board_worktree_manual_confirm_kind: &mut app.task_board_worktree_manual_confirm_kind,
-        task_board_worktree_action_logs: &mut app.task_board_worktree_action_logs,
-        task_board_worktree_action_logs_visible_until_ms: &mut app.task_board_worktree_action_logs_visible_until_ms,
-        task_board_worktree_action_log_rx: &mut app.task_board_worktree_action_log_rx,
+pub(crate) fn snapshot_state(
+    app: &mut crate::app::App,
+) -> desktop_task_board::update::worktree::SnapshotState<'_> {
+    desktop_task_board::update::worktree::SnapshotState {
+        snapshot: &mut app.task_board_worktree_snapshot,
+        loading: &mut app.task_board_worktree_snapshot_loading,
+        last_refresh: &mut app.task_board_last_worktree_snapshot_at_ms,
     }
 }

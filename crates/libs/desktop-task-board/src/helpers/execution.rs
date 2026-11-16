@@ -511,3 +511,79 @@ pub(super) fn model_timeout_retry_wait_elapsed(
 mod execution_tests;
 
 pub use super::timeouts::{apply_execution_timeouts, pick_next_code_review_task};
+
+/// 轮询运行任务日志；计划文件写入通过窄回调交给宿主。
+pub fn flush_running_task_logs(
+    logs: &mut super::logs::TaskLogsState<'_>,
+    executor: &mut desktop_task_executor::executor::state::TaskExecutorState,
+    cursor: &mut usize,
+    tick_started_at: web_time::Instant,
+    mut on_plan_changed: impl FnMut(&Task),
+) {
+    let running = executor.running_tasks.clone();
+    if running.is_empty() {
+        (*cursor) = 0;
+        return;
+    }
+    if (*cursor) >= running.len() {
+        (*cursor) = 0;
+    }
+    let max_batch = TASK_RUNNING_LOG_SCAN_BATCH.min(running.len());
+    let viewing_task_id = logs.task_board_viewing_logs.as_ref().map(|task| task.id.clone());
+    let mut scanned = 0usize;
+
+    while scanned < max_batch {
+        if scanned > 0
+            && tick_started_at.elapsed()
+                >= std::time::Duration::from_millis(TASK_EXECUTION_SCAN_BUDGET_MS)
+        {
+            break;
+        }
+        let idx = ((*cursor) + scanned) % running.len();
+        let task_id = running[idx].clone();
+        let task_logs = executor.poll_task_logs(&task_id);
+        if let Some(task) = logs.task_board_tasks.iter_mut().find(|t| t.id == task_id) {
+            let mut plan_changed = false;
+            for log in &task_logs {
+                plan_changed |= append_task_log_stream(task, log);
+            }
+            if plan_changed { on_plan_changed(task); }
+        }
+        if viewing_task_id.as_deref() == Some(task_id.as_str()) {
+            super::logs::sync_viewing_logs(logs, &task_id);
+        }
+        scanned += 1;
+    }
+    if scanned > 0 {
+        (*cursor) = ((*cursor) + scanned) % running.len();
+    }
+
+}
+
+pub fn log_flush_due(last: u64, force: bool, now: u64) -> bool {
+    force || now.saturating_sub(last) >= TASK_LOG_FLUSH_INTERVAL_MS
+}
+
+/// 扫描超时并释放对应的本地运行标记。
+pub fn apply_execution_timeouts_and_finish(
+    tasks: &mut [Task], settings: &TaskBoardSettings,
+    executor: &mut desktop_task_executor::executor::state::TaskExecutorState,
+    locks: &[(String, String)], project_path: Option<&str>, cursor: &mut usize,
+    tick_started_at: web_time::Instant,
+) -> (Vec<Task>, Vec<iced::Task<crate::message::TaskBoardMessage>>) {
+    let (changed, finished) = apply_execution_timeouts(tasks, settings, &executor.running_tasks, locks, project_path, cursor, tick_started_at);
+    for id in finished { executor.finish_task(&id); }
+    (changed, Vec::new())
+}
+
+pub fn flush_running_task_logs_throttled(
+    logs: &mut super::logs::TaskLogsState<'_>,
+    executor: &mut desktop_task_executor::executor::state::TaskExecutorState,
+    cursor: &mut usize, last_flush: &mut u64, force: bool,
+    tick_started_at: web_time::Instant, on_plan_changed: impl FnMut(&Task),
+) {
+    let now = runtime_time::now_ms();
+    if !log_flush_due(*last_flush, force, now) { return; }
+    flush_running_task_logs(logs, executor, cursor, tick_started_at, on_plan_changed);
+    *last_flush = now;
+}

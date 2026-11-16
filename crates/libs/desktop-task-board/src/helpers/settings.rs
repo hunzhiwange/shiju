@@ -24,3 +24,14 @@ pub fn pr_submitted_stall_timeout_secs(settings: &TaskBoardSettings) -> u64 {
 #[cfg(test)]
 #[path = "settings_tests.rs"]
 mod settings_tests;
+
+pub fn scheduler_deadline(deadline: &mut u64, settings: &TaskBoardSettings) {
+    if *deadline <= now_ms() { *deadline = next_deadline_ms(scheduler_tick_interval_secs(settings)); }
+}
+pub fn fixed_deadline(deadline: &mut u64, interval_seconds: u64) {
+    *deadline = next_deadline_ms(interval_seconds);
+}
+
+pub fn refresh_deadline(deadline: &mut u64, settings: &TaskBoardSettings) {
+    fixed_deadline(deadline, task_board_refresh_interval_secs(settings));
+}

@@ -2,21 +2,11 @@
 
 use crate::app::Message;
 use crate::app::state::MAIN_AGENT_KEY;
-use crate::app::task::workflow::task_workflow_by_id;
 use desktop_task_board as taskboard;
 use taskboard::update::projection::*;
 
 use super::helpers::*;
 use super::*;
-
-macro_rules! dispatch_task_board_messages {
-    ($message:expr, $($pattern:pat => $body:block)*) => {
-        match $message {
-            $($pattern => $body,)*
-            _ => iced::Task::none(),
-        }
-    };
-}
 
 #[path = "update/execution_results.rs"]
 mod execution_results_update;
@@ -37,7 +27,11 @@ fn initial_task_status_for_app(app: &crate::app::App) -> TaskStatus {
 fn sync_agent_scheduler_status_for_current_project(
     app: &crate::app::App,
 ) -> iced::Task<crate::app::Message> {
-    app.project_path.clone().map(sync_agent_scheduler_status).unwrap_or_else(iced::Task::none)
+    app.navigation_tabs
+        .project_path
+        .clone()
+        .map(sync_agent_scheduler_status)
+        .unwrap_or_else(iced::Task::none)
 }
 
 fn agent_scheduler_gateway_unavailable(error: &str) -> bool {
@@ -66,54 +60,24 @@ fn apply_agent_scheduler_status(
     app: &mut crate::app::App,
     response: vw_api_agent_scheduler::AgentSchedulerTaskBoardStatusResponse,
 ) -> Vec<Task> {
-    let (updated_tasks, updated_task_ids) =
-        taskboard::update::projection::apply_agent_scheduler_status(
-            &mut app.task_board_tasks,
-            &app.task_board_tasks_pending_persistence,
-            &mut app.task_board_executor,
-            response,
-        );
-    app.task_board_loading = false;
-
-    if !updated_tasks.is_empty() {
-        prune_bulk_selection(app);
-        for task_id in updated_task_ids {
-            sync_viewing_logs(app, &task_id);
-        }
-    }
-
-    updated_tasks
+    projection_state(app).status(response)
 }
-
 fn apply_agent_scheduler_logs(
     app: &mut crate::app::App,
     responses: Vec<vw_api_agent_scheduler::AgentSchedulerTaskLogsResponse>,
 ) -> Vec<Task> {
-    let (updated_tasks, updated_task_ids) =
-        taskboard::update::projection::apply_agent_scheduler_logs(
-            &mut app.task_board_tasks,
-            responses,
-        );
-
-    for task_id in updated_task_ids {
-        sync_viewing_logs(app, &task_id);
-    }
-
-    updated_tasks
+    projection_state(app).log_responses(responses)
 }
 
 fn schedule_agent_scheduler_status_followup_ticks(
     app: &mut crate::app::App,
     updated_tasks: &[Task],
 ) -> iced::Task<crate::app::Message> {
-    if !app.task_board_executor_running {
-        return iced::Task::none();
-    }
-
     let (should_schedule_review, should_schedule_merge) =
-        taskboard::update::projection::scheduler_followup_ticks(
+        taskboard::update::projection::scheduler_followups_for_runtime(
             &app.task_board_settings.workflow_id,
             updated_tasks,
+            app.task_board_executor_running,
         );
     let mut tasks = Vec::new();
     if should_schedule_review {
@@ -124,10 +88,6 @@ fn schedule_agent_scheduler_status_followup_ticks(
     }
     iced::Task::batch(tasks)
 }
-
-#[cfg(test)]
-#[path = "update_tests.rs"]
-mod update_tests;
 
 /// 执行 update 对应的领域操作。
 ///
@@ -227,6 +187,13 @@ pub fn update(
 
     let message = match taskboard::update::local::update_local(
         taskboard::update::local::LocalState {
+            worktree_panel_expanded: &mut app.task_board_worktree_panel_expanded,
+            worktree_pixel_office: &mut app.task_board_worktree_pixel_office,
+            project_path: app.project_path.as_deref(),
+            clear_prompt_after_create: &mut app.task_board_clear_prompt_after_create,
+            close_after_create: &mut app.task_board_close_after_create,
+            close_after_edit: &mut app.task_board_close_after_edit,
+            settings: &app.task_board_settings,
             last_model: &mut app.task_board_last_model,
             create_modal_open: &mut app.task_board_create_modal_open,
             tasks: &mut app.task_board_tasks,
@@ -270,15 +237,101 @@ pub fn update(
         message,
         MAIN_AGENT_KEY,
     ) {
-        Ok(viewing_task) => {
-            if let taskboard::update::local::LocalEffect::ViewLogs(task) = viewing_task {
-                set_viewing_logs(app, task);
-            }
-            return iced::Task::none();
-        }
+        Ok(effect) => return apply_local_effect(app, effect),
         Err(message) => message,
     };
 
+    let bulk_model_options =
+        crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(
+            app,
+            &taskboard::bulk::normalized_bulk_model_input(&app.task_board_bulk_model_input),
+        );
+    let message = match taskboard::update::bulk::update_bulk(
+        bulk_state(app),
+        message,
+        &bulk_model_options,
+        MAIN_AGENT_KEY,
+    ) {
+        Err(message) => message,
+        Ok((effect, sync_logs)) => {
+            for id in sync_logs {
+                sync_viewing_logs(app, &id);
+            }
+            use taskboard::update::bulk::BulkEffect;
+            if matches!(&effect, BulkEffect::None) {
+                return iced::Task::none();
+            }
+            let merge = matches!(&effect, BulkEffect::Merge(_));
+            let Some(path) = app.project_path.clone() else {
+                return if merge {
+                    iced::Task::done(Message::TaskBoard(TaskBoardMessage::ManualMergeQueueTick))
+                } else {
+                    iced::Task::none()
+                };
+            };
+            let workflow_id = app.task_board_settings.workflow_id.clone();
+            let recycle = match &effect {
+                BulkEffect::Archive(ids) | BulkEffect::Delete(ids) => {
+                    recycle_assigned_task_worktrees_for_removal(app, ids)
+                }
+                _ => iced::Task::none(),
+            };
+            let action = iced::Task::perform(
+                async move {
+                    match effect {
+                        BulkEffect::None => return Ok(()),
+                        BulkEffect::Persist(tasks, label) => {
+                            persist_updated_tasks_via_gateway(&path, &tasks, label, &workflow_id)
+                                .await
+                        }
+                        BulkEffect::Merge(tasks) => {
+                            persist_updated_tasks_via_gateway(
+                                &path,
+                                &tasks,
+                                "手动批量合并入队",
+                                &workflow_id,
+                            )
+                            .await
+                        }
+                        BulkEffect::Archive(ids) => {
+                            send_archive_commands_via_gateway(&path, &ids).await
+                        }
+                        BulkEffect::Delete(ids) => delete_tasks_via_gateway(&path, &ids).await,
+                        BulkEffect::Move(ids, status) => {
+                            move_tasks_to_status_via_gateway(&path, &ids, status, &workflow_id)
+                                .await
+                        }
+                    }
+                },
+                |result| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(result)),
+            );
+            let tick = if merge {
+                iced::Task::done(Message::TaskBoard(TaskBoardMessage::ManualMergeQueueTick))
+            } else {
+                iced::Task::none()
+            };
+            return iced::Task::batch([action, recycle, tick]);
+        }
+    };
+
+    let project_path = app.project_path.clone();
+    let message = match taskboard::update::manual_worktree::update_manual_worktree(
+        taskboard::update::manual_worktree::ManualWorktreeState {
+            task_board_worktree_action_log_rx: &mut app.task_board_worktree_action_log_rx,
+            task_board_worktree_action_logs: &mut app.task_board_worktree_action_logs,
+            task_board_worktree_action_logs_visible_until_ms: &mut app
+                .task_board_worktree_action_logs_visible_until_ms,
+            task_board_worktree_manual_action_kind: &mut app.task_board_worktree_manual_action_kind,
+            task_board_worktree_manual_confirm_kind: &mut app
+                .task_board_worktree_manual_confirm_kind,
+            task_board_worktree_snapshot: &mut app.task_board_worktree_snapshot,
+        },
+        project_path,
+        message,
+    ) {
+        Err(message) => message,
+        Ok(effects) => return apply_worktree_effects(app, effects),
+    };
     match &message {
         TaskBoardMessage::StartExecution
         | TaskBoardMessage::StopExecution
@@ -341,14 +394,18 @@ pub fn update(
             } else {
                 crate::app::Screen::Home
             };
-            app.task_board_worktree_snapshot_loading = false;
-            app.task_board_bulk_active_status = None;
-            app.task_board_selected_tasks.clear();
+            taskboard::update::local::close_board(
+                &mut app.task_board_worktree_snapshot_loading,
+                &mut app.task_board_bulk_active_status,
+                &mut app.task_board_selected_tasks,
+            );
             iced::Task::none()
         }
         TaskBoardMessage::LoadTasks => {
-            app.task_board_next_refresh_at_ms =
-                next_deadline_ms(task_board_refresh_interval_secs(app));
+            taskboard::helpers::settings::refresh_deadline(
+                &mut app.task_board_next_refresh_at_ms,
+                &app.task_board_settings,
+            );
             let refresh_snapshot = maybe_schedule_worktree_snapshot_refresh(app, false);
             if let Some(project_path) = &app.project_path {
                 let path = project_path.clone();
@@ -363,17 +420,7 @@ pub fn update(
             if !task_board_project_matches(app, &project_path) {
                 return iced::Task::none();
             }
-            app.task_board_tasks = merge_loaded_tasks_preserving_running_state(
-                tasks,
-                &app.task_board_tasks,
-                &app.task_board_executor.running_tasks,
-                &app.task_board_tasks_pending_persistence,
-            );
-            sync_task_log_cache_for_loaded_tasks(app);
-            app.task_board_loading = false;
-            prune_bulk_selection(app);
-            app.task_board_settings =
-                sanitized_task_board_settings(app.task_board_settings.clone());
+            projection_state(app).loaded(tasks);
             iced::Task::none()
         }
 
@@ -405,173 +452,6 @@ pub fn update(
             iced::Task::none()
         }
 
-        TaskBoardMessage::TaskDeleted(task_id) => {
-            app.task_board_selected_tasks.remove(&task_id);
-            if let Some(project_path) = &app.project_path {
-                let path = project_path.clone();
-                let task_id_clone = task_id.clone();
-                let delete_task = iced::Task::perform(
-                    async move { delete_tasks_via_gateway(&path, &[task_id_clone]).await },
-                    |result| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(result)),
-                );
-                let worktree_task = recycle_assigned_task_worktree_for_removal(app, &task_id);
-                return iced::Task::batch(vec![delete_task, worktree_task]);
-            }
-            iced::Task::none()
-        }
-
-        TaskBoardMessage::DropOnStatus { to_status, insert_index } => {
-            let Some((task_id, _from_status)) = app.task_board_dragging.take() else {
-                return iced::Task::none();
-            };
-            app.task_board_drag_pending = None;
-
-            let Some(insert_at) = taskboard::update::rules::drop_insert_index(
-                &app.task_board_tasks,
-                &task_id,
-                to_status,
-                insert_index,
-            ) else {
-                return iced::Task::none();
-            };
-
-            if let Some(project_path) = &app.project_path {
-                let path = project_path.clone();
-                let task_id_clone = task_id.clone();
-                let workflow_id = app.task_board_settings.workflow_id.clone();
-                let order_no = Some(i64::try_from(insert_at).unwrap_or(i64::MAX));
-                let target_status = to_status;
-                return iced::Task::perform(
-                    async move {
-                        move_task_status_via_gateway(
-                            &path,
-                            &task_id_clone,
-                            to_status,
-                            &workflow_id,
-                            order_no,
-                        )
-                        .await
-                    },
-                    move |result| {
-                        Message::TaskBoard(TaskBoardMessage::MoveTaskStatusCompleted {
-                            target_status,
-                            result,
-                        })
-                    },
-                );
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::OpenTaskInSession { task_id } => {
-            if let Some(task) = app.task_board_tasks.iter().find(|t| t.id == task_id) {
-                let _prompt = if !task.prompt.is_empty() {
-                    task.prompt.clone()
-                } else {
-                    format!("执行任务: {}\n\n{}", task.id, task.description)
-                };
-
-                app.show_task_board = false;
-                return iced::Task::batch(vec![iced::Task::done(Message::TaskBoard(
-                    TaskBoardMessage::TaskStatusChanged {
-                        task_id: task_id.clone(),
-                        new_status: TaskStatus::Pending,
-                    },
-                ))]);
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::TaskArchived(task_id) => {
-            app.task_board_selected_tasks.remove(&task_id);
-            if let Some(project_path) = &app.project_path {
-                let path = project_path.clone();
-                let task_id_clone = task_id.clone();
-                let archive_gateway_command = iced::Task::perform(
-                    async move { send_archive_commands_via_gateway(&path, &[task_id_clone]).await },
-                    |result| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(result)),
-                );
-                let worktree_task = recycle_assigned_task_worktree_for_removal(app, &task_id);
-                return iced::Task::batch(vec![archive_gateway_command, worktree_task]);
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::ArchiveCompletedTasks => {
-            app.task_board_context_menu = None;
-            if let Some(project_path) = &app.project_path {
-                let task_ids = taskboard::update::rules::completed_task_ids(&app.task_board_tasks);
-                let path = project_path.clone();
-                let archive_ids = task_ids.clone();
-                let archive_gateway_command = iced::Task::perform(
-                    async move { send_archive_commands_via_gateway(&path, &archive_ids).await },
-                    |result| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(result)),
-                );
-                let worktree_task = recycle_assigned_task_worktrees_for_removal(app, &task_ids);
-                return iced::Task::batch(vec![archive_gateway_command, worktree_task]);
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::DuplicateTask(task_id) => {
-            let Some(source_task) = app.task_board_tasks.iter().find(|t| t.id == task_id).cloned()
-            else {
-                return iced::Task::none();
-            };
-
-            let copied_task = taskboard::update::forms::duplicate_task(
-                source_task,
-                initial_task_status_for_app(app),
-            );
-
-            if let Some(project_path) = &app.project_path {
-                let path = project_path.clone();
-                let result_project_path = path.clone();
-                let workflow_id = app.task_board_settings.workflow_id.clone();
-                return iced::Task::perform(
-                    async move { create_task_via_agent_scheduler(path, copied_task, workflow_id).await },
-                    move |result| match result {
-                        Ok(created_task) => Message::TaskBoard(TaskBoardMessage::TaskCreated {
-                            project_path: result_project_path.clone(),
-                            task: created_task,
-                        }),
-                        Err(e) => {
-                            eprintln!("Failed to duplicate task: {}", e);
-                            Message::None
-                        }
-                    },
-                );
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::CreateTaskSubmitted => {
-            let Some(task) = taskboard::update::forms::task_from_draft(
-                &app.task_board_draft,
-                initial_task_status_for_app(app),
-                MAIN_AGENT_KEY,
-            ) else {
-                return iced::Task::none();
-            };
-
-            if let Some(project_path) = &app.project_path {
-                let path = project_path.clone();
-                let result_project_path = path.clone();
-                let task_for_result = task.clone();
-                let workflow_id = app.task_board_settings.workflow_id.clone();
-                return iced::Task::perform(
-                    async move {
-                        create_task_via_agent_scheduler(path, task_for_result, workflow_id).await
-                    },
-                    move |result| match result {
-                        Ok(created_task) => Message::TaskBoard(TaskBoardMessage::TaskCreated {
-                            project_path: result_project_path.clone(),
-                            task: created_task,
-                        }),
-                        Err(e) => {
-                            eprintln!("Failed to create task: {}", e);
-                            Message::None
-                        }
-                    },
-                );
-            }
-            iced::Task::none()
-        }
         TaskBoardMessage::AddTaskFromInput(content) => {
             let task = {
                 let runtime = app.current_session_runtime();
@@ -689,110 +569,6 @@ pub fn update(
             }
             iced::Task::none()
         }
-        TaskBoardMessage::TaskCreated { project_path, task } => {
-            if !task_board_project_matches(app, &project_path) {
-                return iced::Task::none();
-            }
-            app.task_board_tasks.push(task);
-            prune_bulk_selection(app);
-            app.task_board_create_submit_success = true;
-            let mut post_create_tasks = Vec::new();
-            if app.task_board_clear_prompt_after_create {
-                app.task_board_draft.prompt.clear();
-                app.task_board_prompt_editor = iced::widget::text_editor::Content::new();
-            }
-            if app.task_board_close_after_create {
-                app.task_board_create_modal_open = false;
-                app.task_board_create_submit_success = false;
-                reset_create_draft(app);
-                return iced::Task::batch(post_create_tasks);
-            }
-            post_create_tasks.push(crate::app::message::after(
-                std::time::Duration::from_secs(2),
-                Message::TaskBoard(TaskBoardMessage::ClearCreateSubmitSuccess),
-            ));
-            iced::Task::batch(post_create_tasks)
-        }
-        TaskBoardMessage::ViewTaskLogs(task_id) => {
-            if let Some(task) = app.task_board_tasks.iter().find(|t| t.id == task_id).cloned() {
-                app.task_board_logs_auto_scroll = true;
-                app.task_board_detail_tab = TaskBoardDetailTab::Logs;
-                set_viewing_logs(app, Some(task));
-                flush_running_task_logs_throttled(app, true, web_time::Instant::now());
-                if let Some(project_path) = app.project_path.clone() {
-                    return sync_agent_scheduler_logs_for_project_path(project_path, vec![task_id]);
-                }
-            }
-            iced::Task::none()
-        }
-
-        TaskBoardMessage::SelectDetailTab(tab) => {
-            app.task_board_detail_tab = tab;
-            if tab == TaskBoardDetailTab::Logs {
-                app.task_board_logs_auto_scroll = true;
-                let viewing_task = app.task_board_viewing_logs.clone();
-                sync_task_logs_editor(app, viewing_task.as_ref());
-                if let (Some(project_path), Some(viewing_task)) =
-                    (app.project_path.clone(), viewing_task)
-                {
-                    return sync_agent_scheduler_logs_for_project_path(
-                        project_path,
-                        vec![viewing_task.id],
-                    );
-                }
-            }
-            iced::Task::none()
-        }
-
-        TaskBoardMessage::SaveEditingTask => {
-            if let Some(task_id) = &app.task_board_editing_task_id.clone()
-                && let Some(task) = app.task_board_tasks.iter_mut().find(|t| &t.id == task_id)
-            {
-                taskboard::update::forms::apply_task_draft(
-                    task,
-                    &app.task_board_draft,
-                    MAIN_AGENT_KEY,
-                    crate::app::time::now_ms(),
-                );
-                if let Some(project_path) = &app.project_path {
-                    let path = project_path.clone();
-                    let task_clone = task.clone();
-                    let workflow_id = app.task_board_settings.workflow_id.clone();
-                    return iced::Task::perform(
-                        async move {
-                            persist_updated_tasks_via_gateway(
-                                &path,
-                                &[task_clone],
-                                "保存任务编辑",
-                                &workflow_id,
-                            )
-                            .await
-                        },
-                        move |result| {
-                            Message::TaskBoard(TaskBoardMessage::EditingTaskSaved(result))
-                        },
-                    );
-                }
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::EditingTaskSaved(result) => {
-            if result.is_ok() {
-                if app.task_board_close_after_edit {
-                    set_viewing_logs(app, None);
-                    app.task_board_logs_auto_scroll = true;
-                    app.task_board_editing_task_id = None;
-                    app.task_board_edit_submit_success = false;
-                    return iced::Task::none();
-                }
-                app.task_board_edit_submit_success = true;
-                return crate::app::message::after(
-                    std::time::Duration::from_secs(2),
-                    Message::TaskBoard(TaskBoardMessage::ClearEditSubmitSuccess),
-                );
-            }
-            iced::Task::none()
-        }
 
         TaskBoardMessage::LogsViewerCloseContextMenu => {
             close_logs_context_menu(app);
@@ -824,792 +600,73 @@ pub fn update(
             );
             task
         }
-        TaskBoardMessage::ToggleClearPromptAfterCreate(enabled) => {
-            app.task_board_clear_prompt_after_create = enabled;
-            app.save_desktop_preference(
-                "task_board_clear_prompt_after_create",
-                serde_json::Value::Bool(enabled),
-            )
-        }
-        TaskBoardMessage::ToggleCloseAfterCreate(enabled) => {
-            app.task_board_close_after_create = enabled;
-            app.save_desktop_preference(
-                "task_board_close_after_create",
-                serde_json::Value::Bool(enabled),
-            )
-        }
-        TaskBoardMessage::ToggleCloseAfterEdit(enabled) => {
-            app.task_board_close_after_edit = enabled;
-            app.save_desktop_preference(
-                "task_board_close_after_edit",
-                serde_json::Value::Bool(enabled),
-            )
-        }
-        TaskBoardMessage::ToggleBulkSelectionMode(status) => {
-            app.task_board_context_menu = None;
-            if app.task_board_bulk_active_status == Some(status) {
-                deactivate_bulk_selection_mode(app);
-            } else {
-                deactivate_bulk_selection_mode(app);
-                app.task_board_bulk_active_status = Some(status);
-                reset_bulk_operation_inputs(app);
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::BulkSetPriorityInStatus(status) => {
-            app.task_board_context_menu = None;
-            let mut tasks = selected_tasks_for_status(app, status);
-            if tasks.is_empty() {
-                return iced::Task::none();
-            }
 
-            let priority = parse_priority_or_default(&app.task_board_bulk_priority_input, 999);
-            app.task_board_bulk_priority_input = priority.to_string();
-
-            taskboard::update::rules::set_bulk_priority(&mut tasks, priority);
-
-            let task_ids = tasks.iter().map(|task| task.id.clone()).collect::<Vec<_>>();
-            clear_selected_task_ids(app, &task_ids);
-
-            if let Some(project_path) = &app.project_path {
-                let path = project_path.clone();
-                let workflow_id = app.task_board_settings.workflow_id.clone();
-                return iced::Task::perform(
-                    async move {
-                        persist_updated_tasks_via_gateway(
-                            &path,
-                            &tasks,
-                            "批量设置优先级",
-                            &workflow_id,
-                        )
-                        .await
-                    },
-                    |result| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(result)),
-                );
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::BulkSetModelInStatus(status) => {
-            app.task_board_context_menu = None;
-            let mut tasks = selected_tasks_for_status(app, status);
-            if tasks.is_empty() {
-                return iced::Task::none();
-            }
-
-            let model = normalized_bulk_model_input(&app.task_board_bulk_model_input);
-            app.task_board_bulk_model_input = model.clone();
-            app.task_board_bulk_reasoning_effort = taskboard::update::model::validated_reasoning_effort(
-                app.task_board_bulk_acp_agent.as_deref(), app.task_board_bulk_reasoning_effort,
-                &crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &app.task_board_bulk_model_input),
-            );
-            app.task_board_last_model = model.clone();
-
-            taskboard::update::rules::set_bulk_model(&mut tasks, &model);
-
-            let task_ids = tasks.iter().map(|task| task.id.clone()).collect::<Vec<_>>();
-            clear_selected_task_ids(app, &task_ids);
-
-            if let Some(project_path) = &app.project_path {
-                let path = project_path.to_string();
-                let workflow_id = app.task_board_settings.workflow_id.clone();
-                return iced::Task::perform(
-                    async move {
-                        persist_updated_tasks_via_gateway(
-                            &path,
-                            &tasks,
-                            "批量设置模型",
-                            &workflow_id,
-                        )
-                        .await
-                    },
-                    |result| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(result)),
-                );
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::BulkSetAgentInStatus(status) => {
-            app.task_board_context_menu = None;
-            let mut tasks = selected_tasks_for_status(app, status);
-            if tasks.is_empty() {
-                return iced::Task::none();
-            }
-
-            let agent = taskboard::update::rules::normalized_bulk_agent(
-                &app.task_board_bulk_agent,
-                MAIN_AGENT_KEY,
-            );
-            app.task_board_bulk_agent = agent.clone();
-
-            taskboard::update::rules::set_bulk_agent(&mut tasks, &agent, MAIN_AGENT_KEY);
-
-            let task_ids = tasks.iter().map(|task| task.id.clone()).collect::<Vec<_>>();
-            clear_selected_task_ids(app, &task_ids);
-
-            if let Some(project_path) = &app.project_path {
-                let path = project_path.to_string();
-                let workflow_id = app.task_board_settings.workflow_id.clone();
-                return iced::Task::perform(
-                    async move {
-                        persist_updated_tasks_via_gateway(
-                            &path,
-                            &tasks,
-                            "批量设置代理",
-                            &workflow_id,
-                        )
-                        .await
-                    },
-                    |result| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(result)),
-                );
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::BulkSetExecutorInStatus { status, executor } => {
-            app.task_board_context_menu = None;
-            let mut tasks = selected_tasks_for_status(app, status);
-            if tasks.is_empty() {
-                return iced::Task::none();
-            }
-
-            app.task_board_bulk_acp_agent = executor.clone();
-            app.task_board_last_acp_agent = executor.clone();
-
-            taskboard::update::rules::set_bulk_executor(&mut tasks, executor.clone());
-
-            let task_ids = tasks.iter().map(|task| task.id.clone()).collect::<Vec<_>>();
-            clear_selected_task_ids(app, &task_ids);
-
-            if let Some(project_path) = &app.project_path {
-                let path = project_path.to_string();
-                let workflow_id = app.task_board_settings.workflow_id.clone();
-                return iced::Task::perform(
-                    async move {
-                        persist_updated_tasks_via_gateway(
-                            &path,
-                            &tasks,
-                            "批量设置 ACP 智能体",
-                            &workflow_id,
-                        )
-                        .await
-                    },
-                    |result| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(result)),
-                );
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::BulkSetReasoningEffortInStatus { status, reasoning_effort } => {
-            app.task_board_context_menu = None;
-            let task_ids = selected_task_ids_for_status(app, status);
-            if task_ids.is_empty() {
-                return iced::Task::none();
-            }
-
-            app.task_board_bulk_reasoning_effort = reasoning_effort;
-            let tasks = taskboard::update::rules::set_bulk_reasoning_effort(
-                &mut app.task_board_tasks,
-                &task_ids,
-                reasoning_effort,
-            );
-
-            for task_id in &task_ids {
-                sync_viewing_logs(app, task_id);
-            }
-            if app
-                .task_board_editing_task_id
-                .as_ref()
-                .is_some_and(|editing_task_id| task_ids.contains(editing_task_id))
-            {
-                app.task_board_draft.reasoning_effort = reasoning_effort;
-            }
-            clear_selected_task_ids(app, &task_ids);
-
-            if let Some(project_path) = &app.project_path {
-                let path = project_path.to_string();
-                let workflow_id = app.task_board_settings.workflow_id.clone();
-                return iced::Task::perform(
-                    async move {
-                        persist_updated_tasks_via_gateway(
-                            &path,
-                            &tasks,
-                            "批量设置推理强度",
-                            &workflow_id,
-                        )
-                        .await
-                    },
-                    |result| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(result)),
-                );
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::BulkSetTaskSplitModeInStatus { status, task_split_mode } => {
-            app.task_board_context_menu = None;
-            let task_ids = selected_task_ids_for_status(app, status);
-            if task_ids.is_empty() {
-                return iced::Task::none();
-            }
-
-            app.task_board_bulk_task_split_mode = task_split_mode;
-
-            let tasks = taskboard::update::rules::set_bulk_split_mode(
-                &mut app.task_board_tasks,
-                &task_ids,
-                task_split_mode,
-            );
-
-            for task_id in &task_ids {
-                sync_viewing_logs(app, task_id);
-            }
-            if app
-                .task_board_editing_task_id
-                .as_ref()
-                .is_some_and(|editing_task_id| task_ids.contains(editing_task_id))
-            {
-                app.task_board_draft.task_split_mode = task_split_mode;
-            }
-            clear_selected_task_ids(app, &task_ids);
-
-            if let Some(project_path) = &app.project_path {
-                let path = project_path.to_string();
-                let workflow_id = app.task_board_settings.workflow_id.clone();
-                return iced::Task::perform(
-                    async move {
-                        persist_updated_tasks_via_gateway(
-                            &path,
-                            &tasks,
-                            "批量设置任务拆分",
-                            &workflow_id,
-                        )
-                        .await
-                    },
-                    |result| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(result)),
-                );
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::BulkArchiveTasksInStatus(status) => {
-            app.task_board_context_menu = None;
-            let task_ids = selected_task_ids_for_status(app, status);
-            if task_ids.is_empty() {
-                return iced::Task::none();
-            }
-            clear_selected_task_ids(app, &task_ids);
-            if let Some(project_path) = &app.project_path {
-                let path = project_path.to_string();
-                let archive_ids = task_ids.clone();
-                let archive_gateway_command = iced::Task::perform(
-                    async move { send_archive_commands_via_gateway(&path, &archive_ids).await },
-                    |result| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(result)),
-                );
-                let worktree_task = recycle_assigned_task_worktrees_for_removal(app, &task_ids);
-                return iced::Task::batch(vec![archive_gateway_command, worktree_task]);
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::BulkDeleteTasksInStatus(status) => {
-            app.task_board_context_menu = None;
-            let task_ids = selected_task_ids_for_status(app, status);
-            if task_ids.is_empty() {
-                return iced::Task::none();
-            }
-            clear_selected_task_ids(app, &task_ids);
-            if let Some(project_path) = &app.project_path {
-                let path = project_path.to_string();
-                let delete_task_ids = task_ids.clone();
-                let delete_task = iced::Task::perform(
-                    async move { delete_tasks_via_gateway(&path, &delete_task_ids).await },
-                    |result| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(result)),
-                );
-                let worktree_task = recycle_assigned_task_worktrees_for_removal(app, &task_ids);
-                return iced::Task::batch(vec![delete_task, worktree_task]);
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::BulkMoveTasksInStatus { from_status, to_status } => {
-            app.task_board_context_menu = None;
-            if from_status == to_status {
-                return iced::Task::none();
-            }
-            let task_ids = selected_task_ids_for_status(app, from_status);
-            if task_ids.is_empty() {
-                return iced::Task::none();
-            }
-            clear_selected_task_ids(app, &task_ids);
-            if let Some(project_path) = &app.project_path {
-                let path = project_path.to_string();
-                let workflow_id = app.task_board_settings.workflow_id.clone();
-                return iced::Task::perform(
-                    async move {
-                        move_tasks_to_status_via_gateway(&path, &task_ids, to_status, &workflow_id)
-                            .await
-                    },
-                    |result| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(result)),
-                );
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::BulkMergeTasksInStatus(status) => {
-            app.task_board_context_menu = None;
-            if status != TaskStatus::PrSubmitted {
-                return iced::Task::none();
-            }
-            let mut tasks = selected_tasks_for_status(app, status);
-            if tasks.is_empty() {
-                return iced::Task::none();
-            }
-            let task_ids = taskboard::update::rules::prepare_manual_merge_queue(&mut tasks);
-            app.task_board_manual_merge_queue = task_ids.clone();
-            clear_selected_task_ids(app, &task_ids);
-
-            let mut actions = Vec::new();
-            if let Some(project_path) = &app.project_path {
-                let path = project_path.to_string();
-                let workflow_id = app.task_board_settings.workflow_id.clone();
-                actions.push(iced::Task::perform(
-                    async move {
-                        persist_updated_tasks_via_gateway(
-                            &path,
-                            &tasks,
-                            "手动批量合并入队",
-                            &workflow_id,
-                        )
-                        .await
-                    },
-                    |result| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(result)),
-                ));
-            }
-            actions
-                .push(iced::Task::done(Message::TaskBoard(TaskBoardMessage::ManualMergeQueueTick)));
-            iced::Task::batch(actions)
-        }
         TaskBoardMessage::ManualMergeQueueTick => start_manual_merge_queue_task(app),
         TaskBoardMessage::BulkActionCompleted(result) => {
+            let messages = taskboard::update::bulk::completion_messages(
+                app.task_board_manual_merge_queue.is_empty(),
+            );
             if let Err(error) = result {
                 app.push_notification(error);
             }
-            if app.task_board_manual_merge_queue.is_empty() {
-                iced::Task::done(Message::TaskBoard(TaskBoardMessage::LoadTasks))
-            } else {
-                iced::Task::none()
-            }
-        }
-        TaskBoardMessage::MoveTaskStatusCompleted { target_status, result } => {
-            if let Err(error) = result {
-                app.push_notification(error);
-                return iced::Task::done(Message::TaskBoard(TaskBoardMessage::LoadTasks));
-            }
-            let mut tasks = vec![iced::Task::done(Message::TaskBoard(TaskBoardMessage::LoadTasks))];
-            if target_status == TaskStatus::Pending && app.task_board_executor_running {
-                tasks.push(iced::Task::done(Message::TaskBoard(TaskBoardMessage::ExecutionTick)));
-            }
-            iced::Task::batch(tasks)
-        }
-        TaskBoardMessage::ToggleWorktreePixelOffice(enabled) => {
-            app.task_board_worktree_pixel_office = enabled;
-            app.save_desktop_preference(
-                "task_board_worktree_pixel_office",
-                serde_json::Value::Bool(enabled),
+            iced::Task::batch(
+                messages.into_iter().map(|message| iced::Task::done(Message::TaskBoard(message))),
             )
         }
-        TaskBoardMessage::CleanAllWorktreesPressed => {
-            let Some(project_path) = app.project_path.clone() else {
-                return iced::Task::none();
-            };
-            if app.task_board_worktree_manual_action_kind.is_some() {
-                return app.show_localized_toast(
-                    crate::app::state::ToastKind::Warning,
-                    "已有 worktree 操作进行中",
-                    vec![],
-                );
-            }
-            if app.task_board_worktree_manual_confirm_kind != Some("cleanup") {
-                app.task_board_worktree_manual_confirm_kind = Some("cleanup");
-                app.push_localized_notification(
-                    "一键清理风险较高，请再次点击“确认一键清理”继续，或点击“取消”返回",
-                    vec![],
-                );
-                app.notifications_expanded = true;
-                return iced::Task::none();
-            }
-            let (log_tx, log_rx) = std::sync::mpsc::channel();
-            app.task_board_worktree_manual_confirm_kind = None;
-            app.task_board_worktree_manual_action_kind = Some("cleanup");
-            app.task_board_worktree_action_logs.clear();
-            app.task_board_worktree_action_logs_visible_until_ms = None;
-            app.task_board_worktree_action_log_rx = Some(log_rx);
-            push_worktree_action_log(app, "准备开始一键清理...".to_string());
-            iced::Task::batch(vec![
-                iced::Task::perform(
-                    async move {
-                        drop(log_tx);
-                        cleanup_office_contexts(project_path).await
-                    },
-                    |result| {
-                        Message::TaskBoard(TaskBoardMessage::CleanAllWorktreesCompleted(result))
-                    },
-                ),
-                schedule_worktree_action_log_tick(),
-            ])
-        }
-        TaskBoardMessage::CleanAllWorktreesCompleted(result) => {
-            poll_worktree_action_logs(app);
-            match result {
-                Ok(count) => app.push_localized_notification(
-                    "已完成 worktree 一键清理，共处理 %s 个槽位",
-                    vec![count.to_string().into()],
-                ),
-                Err(error) => {
-                    push_worktree_action_log(app, error.clone());
-                    app.push_localized_notification(
-                        "worktree 一键清理有失败，请查看右下角通知：%s",
-                        vec![truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS).into()],
-                    );
-                    app.notifications_expanded = true;
-                }
-            }
-            finish_worktree_action_logs(app);
-            maybe_schedule_worktree_snapshot_refresh(app, true)
-        }
-        TaskBoardMessage::DeleteAllWorktreesPressed => {
-            let Some(_) = app.project_path.as_ref() else {
-                return iced::Task::none();
-            };
-            if app.task_board_worktree_manual_action_kind.is_some() {
-                return app.show_localized_toast(
-                    crate::app::state::ToastKind::Warning,
-                    "已有 worktree 操作进行中",
-                    vec![],
-                );
-            }
-            if app.task_board_worktree_manual_confirm_kind != Some("delete") {
-                app.task_board_worktree_manual_confirm_kind = Some("delete");
-                app.push_localized_notification("删除所有 worktree 风险极高，请再次点击“确认删除所有 worktree”继续，或点击“取消”返回", vec![]);
-                app.notifications_expanded = true;
-                return app.show_localized_toast(
-                    crate::app::state::ToastKind::Warning,
-                    "再次点击确认按钮才会删除 worktree",
-                    vec![],
-                );
-            }
-            let (_log_tx, log_rx) = std::sync::mpsc::channel();
-            app.task_board_worktree_manual_confirm_kind = None;
-            app.task_board_worktree_manual_action_kind = Some("delete");
-            app.task_board_worktree_action_logs.clear();
-            app.task_board_worktree_action_logs_visible_until_ms = None;
-            app.task_board_worktree_action_log_rx = Some(log_rx);
-            push_worktree_action_log(app, "准备开始删除所有 worktree...".to_string());
-            iced::Task::batch(vec![
-                iced::Task::perform(
-                    async {
-                        Err("办公室不直接删除目录；请配置显式删除任务或工作流".to_string())
-                    },
-                    |result| {
-                        Message::TaskBoard(TaskBoardMessage::DeleteAllWorktreesCompleted(result))
-                    },
-                ),
-                schedule_worktree_action_log_tick(),
-            ])
-        }
-        TaskBoardMessage::DeleteAllWorktreesCompleted(result) => {
-            poll_worktree_action_logs(app);
-            let toast_task = match result {
-                Ok(0) => {
-                    app.push_localized_notification("没有找到可删除的受管 worktree", vec![]);
-                    app.show_localized_toast(
-                        crate::app::state::ToastKind::Warning,
-                        "没有找到可删除的受管 worktree",
-                        vec![],
-                    )
-                }
-                Ok(count) => {
-                    app.push_localized_notification(
-                        "已删除所有 worktree，共处理 %s 个槽位",
-                        vec![(count).to_string().into()],
-                    );
-                    app.show_localized_toast(
-                        crate::app::state::ToastKind::Success,
-                        "已删除 %u 个 worktree",
-                        vec![count.into()],
-                    )
-                }
-                Err(error) => {
-                    push_worktree_action_log(app, error.clone());
-                    app.push_localized_notification(
-                        "删除所有 worktree 有失败，请查看右下角通知：%s",
-                        vec![
-                            (truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS))
-                                .to_string()
-                                .into(),
-                        ],
-                    );
-                    app.notifications_expanded = true;
-                    app.show_localized_toast(
-                        crate::app::state::ToastKind::Error,
-                        "删除所有 worktree 失败",
-                        vec![],
-                    )
-                }
-            };
-            finish_worktree_action_logs(app);
-            iced::Task::batch(vec![toast_task, maybe_schedule_worktree_snapshot_refresh(app, true)])
-        }
-        TaskBoardMessage::RecycleWorktreeSlotPressed { slot_id } => {
-            let Some(project_path) = app.project_path.clone() else {
-                return iced::Task::none();
-            };
-            if app.task_board_worktree_manual_action_kind.is_some() {
-                return app.show_localized_toast(
-                    crate::app::state::ToastKind::Warning,
-                    "已有 worktree 操作进行中",
-                    vec![],
-                );
-            }
-            if let Some(snapshot) = &app.task_board_worktree_snapshot
-                && let Some(slot) = snapshot.slots.iter().find(|slot| slot.id == slot_id)
-                && matches!(
-                    slot.state,
-                    crate::app::task::WorktreeState::Busy
-                        | crate::app::task::WorktreeState::Recycling
-                )
-            {
-                return app.show_localized_toast(
-                    crate::app::state::ToastKind::Warning,
-                    "该 worktree 正在使用中，暂不能回收",
-                    vec![],
-                );
-            }
-
-            let (_log_tx, log_rx) = std::sync::mpsc::channel();
-            app.task_board_worktree_manual_confirm_kind = None;
-            app.task_board_worktree_manual_action_kind = Some("slot_recycle");
-            app.task_board_worktree_action_logs.clear();
-            app.task_board_worktree_action_logs_visible_until_ms = None;
-            app.task_board_worktree_action_log_rx = Some(log_rx);
-            push_worktree_action_log(app, format!("准备回收 worktree 槽位 {}...", slot_id));
-            iced::Task::batch(vec![
-                iced::Task::perform(
-                    recycle_worktree_slot_via_gateway(project_path, slot_id.clone()),
-                    |(slot_id, result)| {
-                        Message::TaskBoard(TaskBoardMessage::WorktreeSlotRecycled {
-                            slot_id,
-                            result,
-                        })
-                    },
-                ),
-                schedule_worktree_action_log_tick(),
-            ])
-        }
-        TaskBoardMessage::WorktreeSlotRecycled { slot_id, result } => {
-            poll_worktree_action_logs(app);
-            let toast_task = match result {
-                Ok(()) => {
-                    app.push_localized_notification(
-                        "worktree 槽位已回收: %s",
-                        vec![(slot_id).to_string().into()],
-                    );
-                    app.show_localized_toast(
-                        crate::app::state::ToastKind::Success,
-                        "已回收 worktree %s",
-                        vec![slot_id.into()],
-                    )
-                }
-                Err(error) => {
-                    app.push_localized_notification(
-                        "worktree 槽位回收失败 slot=%s：%s",
-                        vec![
-                            (slot_id).to_string().into(),
-                            (truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS))
-                                .to_string()
-                                .into(),
-                        ],
-                    );
-                    app.notifications_expanded = true;
-                    app.show_localized_toast(
-                        crate::app::state::ToastKind::Error,
-                        "worktree 槽位回收失败",
-                        vec![],
-                    )
-                }
-            };
-            finish_worktree_action_logs(app);
-            iced::Task::batch(vec![toast_task, maybe_schedule_worktree_snapshot_refresh(app, true)])
-        }
-        TaskBoardMessage::CommitMergeAllWorktreesPressed => {
-            let Some(_) = app.project_path.as_ref() else {
-                return iced::Task::none();
-            };
-            if app.task_board_worktree_manual_action_kind.is_some() {
-                return app.show_localized_toast(
-                    crate::app::state::ToastKind::Warning,
-                    "已有 worktree 操作进行中",
-                    vec![],
-                );
-            }
-            if app.task_board_worktree_manual_confirm_kind != Some("merge") {
-                app.task_board_worktree_manual_confirm_kind = Some("merge");
-                app.push_localized_notification(
-                    "一键合并风险较高，请再次点击“确认一键合并”继续，或点击“取消”返回",
-                    vec![],
-                );
-                app.notifications_expanded = true;
-                return iced::Task::none();
-            }
-            let (_log_tx, log_rx) = std::sync::mpsc::channel();
-            app.task_board_worktree_manual_confirm_kind = None;
-            app.task_board_worktree_manual_action_kind = Some("merge");
-            app.task_board_worktree_action_logs.clear();
-            app.task_board_worktree_action_logs_visible_until_ms = None;
-            app.task_board_worktree_action_log_rx = Some(log_rx);
-            push_worktree_action_log(app, "准备开始一键合并...".to_string());
-            iced::Task::batch(vec![
-                iced::Task::perform(
-                    async {
-                        Err("办公室不直接合并分支；请配置显式 Git 任务或工作流".to_string())
-                    },
-                    |result| {
-                        Message::TaskBoard(TaskBoardMessage::CommitMergeAllWorktreesCompleted(
-                            result,
-                        ))
-                    },
-                ),
-                schedule_worktree_action_log_tick(),
-            ])
-        }
-        TaskBoardMessage::CommitMergeAllWorktreesCompleted(result) => {
-            poll_worktree_action_logs(app);
-            match result {
-                Ok(count) => app.push_localized_notification(
-                    "已完成 worktree 一键合并，共合并 %s 个分支",
-                    vec![count.to_string().into()],
-                ),
-                Err(error) => {
-                    push_worktree_action_log(app, error.clone());
-                    app.push_localized_notification(
-                        "worktree 一键合并有失败，请查看右下角通知：%s",
-                        vec![truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS).into()],
-                    );
-                    app.notifications_expanded = true;
-                }
-            }
-            finish_worktree_action_logs(app);
-            maybe_schedule_worktree_snapshot_refresh(app, true)
-        }
-        TaskBoardMessage::CancelWorktreeManualConfirm => {
-            let Some(kind) = app.task_board_worktree_manual_confirm_kind.take() else {
-                return iced::Task::none();
-            };
-            let action_label = match kind {
-                "cleanup" => "一键清理",
-                "delete" => "一键删除",
-                "merge" => "一键合并",
-                _ => "worktree 操作",
-            };
-            app.push_localized_notification(
-                "已取消 %s 确认，可重新发起操作",
-                vec![(action_label).to_string().into()],
+        TaskBoardMessage::MoveTaskStatusCompleted { target_status, result } => {
+            let messages = taskboard::update::bulk::move_completion_messages(
+                &result,
+                target_status,
+                app.task_board_executor_running,
             );
-            iced::Task::none()
-        }
-        TaskBoardMessage::WorktreeActionLogTick => {
-            poll_worktree_action_logs(app);
-            if app.task_board_worktree_action_log_rx.is_some() {
-                return schedule_worktree_action_log_tick();
+            if let Err(error) = result {
+                app.push_notification(error);
             }
-            if let Some(deadline_ms) = app.task_board_worktree_action_logs_visible_until_ms
-                && now_ms() >= deadline_ms
-            {
-                clear_worktree_action_logs(app);
-            }
-            iced::Task::none()
+            iced::Task::batch(
+                messages.into_iter().map(|message| iced::Task::done(Message::TaskBoard(message))),
+            )
         }
-        TaskBoardMessage::UiTick => {
-            poll_worktree_action_logs(app);
-            if app.task_board_worktree_action_log_rx.is_none()
-                && let Some(deadline_ms) = app.task_board_worktree_action_logs_visible_until_ms
-                && now_ms() >= deadline_ms
-            {
-                clear_worktree_action_logs(app);
-            }
-            iced::Task::batch(vec![maybe_schedule_worktree_snapshot_refresh(app, false)])
-        }
+
         TaskBoardMessage::WorktreePoolMaintained { project_path, result } => {
             if !task_board_project_matches(app, &project_path) {
                 return iced::Task::none();
             }
-            if !app.project_is_git_repo {
-                app.task_board_worktree_maintenance_in_flight = false;
-                app.task_board_worktree_snapshot = None;
-                app.task_board_worktree_snapshot_loading = false;
-                app.task_board_last_worktree_snapshot_at_ms = 0;
-                return iced::Task::none();
+            let effect = taskboard::update::worktree::SnapshotState {
+                snapshot: &mut app.task_board_worktree_snapshot,
+                loading: &mut app.task_board_worktree_snapshot_loading,
+                last_refresh: &mut app.task_board_last_worktree_snapshot_at_ms,
             }
-            app.task_board_worktree_maintenance_in_flight = false;
-            match result {
-                Ok(outcome) => {
-                    tracing::debug!(
-                        idle_count = outcome.idle_count,
-                        target_idle_count = outcome.target_idle_count,
-                        "gateway worktree pool maintenance completed"
-                    );
-                    if let Some(snapshot) = outcome.snapshot {
-                        app.task_board_worktree_snapshot_loading = false;
-                        app.task_board_last_worktree_snapshot_at_ms = now_ms();
-                        app.task_board_worktree_snapshot = Some(snapshot);
-                        iced::Task::none()
-                    } else {
-                        maybe_schedule_worktree_snapshot_refresh(app, true)
-                    }
+            .maintained(
+                &mut app.task_board_worktree_maintenance_in_flight,
+                &mut app.task_board_tasks,
+                app.project_is_git_repo,
+                app.project_path.is_some(),
+                result,
+                now_ms(),
+            );
+            match effect {
+                taskboard::update::worktree::MaintenanceEffect::None => iced::Task::none(),
+                taskboard::update::worktree::MaintenanceEffect::Refresh => {
+                    maybe_schedule_worktree_snapshot_refresh(app, true)
                 }
-                Err(error) => {
-                    tracing::warn!(error = %error, "gateway worktree pool maintenance failed");
-                    if let Some(project_path) = &app.project_path {
-                        let changed = taskboard::update::rules::log_worktree_maintenance_failure(
-                            &mut app.task_board_tasks,
-                            &error,
-                        );
-                        if changed {
-                            let persist_tasks =
-                                build_persist_tasks(project_path, &app.task_board_tasks);
-                            if !persist_tasks.is_empty() {
-                                return iced::Task::batch(persist_tasks);
-                            }
-                        }
-                    }
-                    iced::Task::none()
-                }
+                taskboard::update::worktree::MaintenanceEffect::Persist => app
+                    .navigation_tabs
+                    .project_path
+                    .as_deref()
+                    .map(|path| iced::Task::batch(build_persist_tasks(path, &app.task_board_tasks)))
+                    .unwrap_or_else(iced::Task::none),
             }
         }
+
         TaskBoardMessage::WorktreeSnapshotLoaded { project_path, result } => {
             if !task_board_project_matches(app, &project_path) {
                 return iced::Task::none();
             }
-            if !app.project_is_git_repo {
-                app.task_board_worktree_snapshot_loading = false;
-                app.task_board_worktree_snapshot = None;
-                app.task_board_last_worktree_snapshot_at_ms = 0;
-                return iced::Task::none();
-            }
-            app.task_board_worktree_snapshot_loading = false;
-            match result {
-                Ok(snapshot) => {
-                    app.task_board_last_worktree_snapshot_at_ms = now_ms();
-                    app.task_board_worktree_snapshot = snapshot;
-                }
-                Err(error) => {
-                    app.task_board_last_worktree_snapshot_at_ms = now_ms();
-                    if gateway_http::is_gateway_unavailable_error(&error) {
-                        tracing::debug!(
-                            error = %error,
-                            "worktree pool snapshot refresh skipped because gateway is unavailable"
-                        );
-                    } else {
-                        tracing::warn!(
-                            error = %error,
-                            "gateway worktree pool snapshot refresh failed"
-                        );
-                    }
-                }
-            }
+            let is_git = app.project_is_git_repo;
+            snapshot_state(app).loaded(is_git, result, now_ms());
             iced::Task::none()
         }
+
         TaskBoardMessage::TaskRemovalWorktreeRecycled { project_path, task_id, result } => {
             if !task_board_project_matches(app, &project_path) {
                 return iced::Task::none();
@@ -1625,10 +682,7 @@ pub fn update(
             }
             maybe_schedule_worktree_snapshot_refresh(app, true)
         }
-        TaskBoardMessage::ToggleWorktreePanelExpanded => {
-            app.task_board_worktree_panel_expanded = !app.task_board_worktree_panel_expanded;
-            maybe_schedule_worktree_snapshot_refresh(app, true)
-        }
+
         TaskBoardMessage::AgentSchedulerStatusLoaded { project_path, result } => {
             if !task_board_project_matches(app, &project_path) {
                 return iced::Task::none();
@@ -1665,7 +719,7 @@ pub fn update(
             if !task_board_project_matches(app, &project_path) {
                 return iced::Task::none();
             }
-            app.task_board_tasks_pending_persistence.remove(&task_id);
+            projection_state(app).acknowledge(&task_id, &result);
             let sync = sync_agent_scheduler_status_for_current_project(app);
             if let Err(error) = result {
                 return iced::Task::batch(vec![
@@ -1702,45 +756,19 @@ pub fn update(
             let Some(project_path) = app.project_path.clone() else {
                 return iced::Task::none();
             };
-            let mut task_to_persist: Option<Task> = None;
-            let mut execute_task_to_start: Option<Task> = None;
-            let mut plan_failed = false;
-
-            if let Some(task) = app.task_board_tasks.iter_mut().find(|t| t.id == task_id) {
-                match taskboard::update::rules::apply_planning_result(task, final_logs, result) {
-                    taskboard::update::rules::PlanningEffect::AllocateWorktree => {
-                        let _ = crate::app::task::write_task_plan_files(&project_path, task);
-
-                        match crate::app::task::assign_task_execution_worktree(
-                            &project_path,
-                            task,
-                            None,
-                        ) {
-                            Ok(assigned_worktree_path) => {
-                                taskboard::update::rules::start_planned_task(
-                                    task,
-                                    assigned_worktree_path,
-                                );
-                                let _ =
-                                    crate::app::task::write_task_plan_files(&project_path, task);
-                                execute_task_to_start = Some(task.clone());
-                                task_to_persist = Some(task.clone());
-                            }
-                            Err(error) => {
-                                mark_task_paused_after_worktree_preallocation_failure(task, error);
-                                plan_failed = true;
-                                task_to_persist = Some(task.clone());
-                            }
-                        }
-                    }
-                    taskboard::update::rules::PlanningEffect::PersistFailure => {
-                        plan_failed = true;
-                        task_to_persist = Some(task.clone());
-                    }
-                    taskboard::update::rules::PlanningEffect::Ignored => {}
-                }
-            }
-
+            let outcome = taskboard::update::rules::finish_planning(
+                &mut app.task_board_tasks,
+                &task_id,
+                final_logs,
+                result,
+                |task| {
+                    let _ = crate::app::task::write_task_plan_files(&project_path, task);
+                },
+                |task| crate::app::task::assign_task_execution_worktree(&project_path, task, None),
+            );
+            let task_to_persist = outcome.persist;
+            let execute_task_to_start = outcome.execute;
+            let plan_failed = outcome.failed;
             sync_viewing_logs(app, &task_id);
             let persist_task = task_to_persist
                 .clone()
@@ -1802,20 +830,7 @@ pub fn update(
                 schedule_scheduler_tick_with_deadline(app),
             ])
         }
-        TaskBoardMessage::CopyImportPromptTemplate => {
-            let selected_priority = parse_priority_or_default(
-                &app.task_board_draft.priority,
-                app.task_board_settings.default_priority,
-            );
-            let template = import_prompt_template(
-                app.task_board_import_prompt_format,
-                selected_priority,
-                &app.task_board_draft.model,
-                app.task_board_draft.acp_agent.as_deref(),
-            );
-            app.push_localized_notification("已复制导入提示词模板", vec![]);
-            iced::clipboard::write(template).map(|_: ()| Message::None)
-        }
+
         TaskBoardMessage::ImportFilePick => {
             #[cfg(not(target_arch = "wasm32"))]
             {
@@ -1848,66 +863,231 @@ pub fn update(
             }
             iced::Task::none()
         }
-        TaskBoardMessage::ImportFileLoaded(result) => {
-            match result {
-                Ok(content) => {
-                    app.task_board_import_editor =
-                        iced::widget::text_editor::Content::with_text(&content);
-                    app.push_localized_notification("已将文件内容填入导入表单", vec![]);
-                }
-                Err(err) => {
-                    app.push_notification(err);
-                }
-            }
-            iced::Task::none()
-        }
 
-        TaskBoardMessage::ImportTasksSubmitted => {
-            let content = app.task_board_import_editor.text().to_string();
-            let tasks_to_create = match taskboard::update::forms::tasks_from_import_content(
-                &content,
-                app.task_board_settings.default_priority,
-                &app.task_board_draft,
-                initial_task_status_for_app(app),
-                MAIN_AGENT_KEY,
-            ) {
-                Ok(tasks) => tasks,
-                Err(error) => {
-                    app.push_notification(error.clone());
-                    return app.show_error_toast(error);
-                }
-            };
-
-            if tasks_to_create.is_empty() {
-                return iced::Task::none();
-            }
-
-            if let Some(project_path) = &app.project_path {
-                let path = project_path.to_string();
-                let workflow_id = app.task_board_settings.workflow_id.clone();
-                let mut tasks = Vec::new();
-                for task in tasks_to_create {
-                    let p = path.clone();
-                    let result_project_path = p.clone();
-                    let task_workflow_id = workflow_id.clone();
-                    tasks.push(iced::Task::perform(
-                        async move { create_task_via_agent_scheduler(p, task, task_workflow_id).await },
-                        move |result| match result {
-                            Ok(created_task) => Message::TaskBoard(TaskBoardMessage::TaskCreated {
-                                project_path: result_project_path.clone(),
-                                task: created_task,
-                            }),
-                            Err(e) => {
-                                eprintln!("Failed to create task: {}", e);
-                                Message::None
-                            }
-                        },
-                    ));
-                }
-                return iced::Task::batch(tasks);
-            }
-            iced::Task::none()
-        }
         _ => iced::Task::none(),
+    }
+}
+
+fn apply_local_effect(
+    app: &mut crate::app::App,
+    effect: taskboard::update::local::LocalEffect,
+) -> iced::Task<Message> {
+    use taskboard::update::local::LocalEffect;
+    match effect {
+        LocalEffect::OpenSession(task_id) => {
+            app.show_task_board = false;
+            iced::Task::done(Message::TaskBoard(TaskBoardMessage::TaskStatusChanged {
+                task_id,
+                new_status: TaskStatus::Pending,
+            }))
+        }
+        LocalEffect::OpenLogs(task) => {
+            let id = task.id.clone();
+            set_viewing_logs(app, Some(task));
+            flush_running_task_logs_throttled(app, true, web_time::Instant::now());
+            app.navigation_tabs
+                .project_path
+                .clone()
+                .map(|path| sync_agent_scheduler_logs_for_project_path(path, vec![id]))
+                .unwrap_or_else(iced::Task::none)
+        }
+        LocalEffect::SyncLogs => {
+            let viewing = app.task_board_viewing_logs.clone();
+            sync_task_logs_editor(app, viewing.as_ref());
+            match (app.project_path.clone(), viewing) {
+                (Some(path), Some(task)) => {
+                    sync_agent_scheduler_logs_for_project_path(path, vec![task.id])
+                }
+                _ => iced::Task::none(),
+            }
+        }
+        LocalEffect::Preference(key, value) => {
+            app.save_desktop_preference(key, serde_json::Value::Bool(value))
+        }
+        LocalEffect::RefreshSnapshot => maybe_schedule_worktree_snapshot_refresh(app, true),
+        LocalEffect::Clipboard(template) => {
+            app.push_localized_notification("已复制导入提示词模板", vec![]);
+            iced::clipboard::write(template).map(|_: ()| Message::None)
+        }
+        LocalEffect::ImportLoaded(result) => {
+            match result {
+                Ok(()) => app.push_localized_notification("已将文件内容填入导入表单", vec![]),
+                Err(error) => app.push_notification(error),
+            }
+            iced::Task::none()
+        }
+        LocalEffect::Import(result) => match result {
+            Err(error) => {
+                app.push_notification(error.clone());
+                app.show_error_toast(error)
+            }
+            Ok(tasks) => iced::Task::batch(
+                tasks
+                    .into_iter()
+                    .map(|task| apply_local_effect(app, LocalEffect::Create(task)))
+                    .collect::<Vec<_>>(),
+            ),
+        },
+        LocalEffect::None => iced::Task::none(),
+        LocalEffect::ViewLogs(task) => {
+            set_viewing_logs(app, task);
+            iced::Task::none()
+        }
+        LocalEffect::ClearSuccess(create) => crate::app::message::after(
+            std::time::Duration::from_secs(2),
+            Message::TaskBoard(if create {
+                TaskBoardMessage::ClearCreateSubmitSuccess
+            } else {
+                TaskBoardMessage::ClearEditSubmitSuccess
+            }),
+        ),
+        LocalEffect::Persist(task) => {
+            let Some(path) = app.project_path.clone() else {
+                return iced::Task::none();
+            };
+            let workflow_id = app.task_board_settings.workflow_id.clone();
+            iced::Task::perform(
+                async move {
+                    persist_updated_tasks_via_gateway(&path, &[task], "保存任务编辑", &workflow_id)
+                        .await
+                },
+                |result| Message::TaskBoard(TaskBoardMessage::EditingTaskSaved(result)),
+            )
+        }
+        LocalEffect::Create(task) => {
+            let Some(path) = app.project_path.clone() else {
+                return iced::Task::none();
+            };
+            let result_project_path = path.clone();
+            let workflow_id = app.task_board_settings.workflow_id.clone();
+            iced::Task::perform(
+                async move { create_task_via_agent_scheduler(path, task, workflow_id).await },
+                move |result| match result {
+                    Ok(task) => Message::TaskBoard(TaskBoardMessage::TaskCreated {
+                        project_path: result_project_path.clone(),
+                        task,
+                    }),
+                    Err(e) => {
+                        eprintln!("Failed to create task: {}", e);
+                        Message::None
+                    }
+                },
+            )
+        }
+        LocalEffect::Delete(id) => {
+            let Some(path) = app.project_path.clone() else {
+                return iced::Task::none();
+            };
+            let recycle = recycle_assigned_task_worktree_for_removal(app, &id);
+            let command = iced::Task::perform(
+                async move { delete_tasks_via_gateway(&path, &[id]).await },
+                |r| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(r)),
+            );
+            iced::Task::batch([command, recycle])
+        }
+        LocalEffect::Archive(ids) => {
+            let Some(path) = app.project_path.clone() else {
+                return iced::Task::none();
+            };
+            let recycle = recycle_assigned_task_worktrees_for_removal(app, &ids);
+            let command = iced::Task::perform(
+                async move { send_archive_commands_via_gateway(&path, &ids).await },
+                |r| Message::TaskBoard(TaskBoardMessage::BulkActionCompleted(r)),
+            );
+            iced::Task::batch([command, recycle])
+        }
+        LocalEffect::Move(id, status, order_no) => {
+            let Some(path) = app.project_path.clone() else {
+                return iced::Task::none();
+            };
+            let workflow_id = app.task_board_settings.workflow_id.clone();
+            iced::Task::perform(
+                async move {
+                    move_task_status_via_gateway(&path, &id, status, &workflow_id, order_no).await
+                },
+                move |result| {
+                    Message::TaskBoard(TaskBoardMessage::MoveTaskStatusCompleted {
+                        target_status: status,
+                        result,
+                    })
+                },
+            )
+        }
+    }
+}
+
+fn apply_worktree_effects(
+    app: &mut crate::app::App,
+    effects: Vec<taskboard::update::manual_worktree::WorktreeEffect>,
+) -> iced::Task<Message> {
+    use taskboard::update::manual_worktree::WorktreeEffect;
+    let mut tasks = Vec::new();
+    for effect in effects {
+        let task = match effect {
+            WorktreeEffect::Notify(text, args) => {
+                app.push_localized_notification(text, args);
+                iced::Task::none()
+            }
+            WorktreeEffect::Toast(kind, text, args) => app.show_localized_toast(kind, text, args),
+            WorktreeEffect::ExpandNotifications => {
+                app.notifications_expanded = true;
+                iced::Task::none()
+            }
+            WorktreeEffect::Cleanup(path, sender) => iced::Task::perform(
+                async move {
+                    drop(sender);
+                    cleanup_office_contexts(path).await
+                },
+                |r| Message::TaskBoard(TaskBoardMessage::CleanAllWorktreesCompleted(r)),
+            ),
+            WorktreeEffect::Delete => iced::Task::perform(
+                async {
+                    Err("办公室不直接删除目录；请配置显式删除任务或工作流".to_string())
+                },
+                |r| Message::TaskBoard(TaskBoardMessage::DeleteAllWorktreesCompleted(r)),
+            ),
+            WorktreeEffect::Merge => iced::Task::perform(
+                async {
+                    Err("办公室不直接合并分支；请配置显式 Git 任务或工作流".to_string())
+                },
+                |r| Message::TaskBoard(TaskBoardMessage::CommitMergeAllWorktreesCompleted(r)),
+            ),
+            WorktreeEffect::Recycle(path, id) => iced::Task::perform(
+                recycle_worktree_slot_via_gateway(path, id),
+                |(slot_id, result)| {
+                    Message::TaskBoard(TaskBoardMessage::WorktreeSlotRecycled { slot_id, result })
+                },
+            ),
+            WorktreeEffect::Refresh(force) => maybe_schedule_worktree_snapshot_refresh(app, force),
+            WorktreeEffect::LogTick => schedule_worktree_action_log_tick(),
+        };
+        tasks.push(task);
+    }
+    iced::Task::batch(tasks)
+}
+
+fn projection_state(
+    app: &mut crate::app::App,
+) -> taskboard::update::projection::BoardProjection<'_> {
+    taskboard::update::projection::BoardProjection {
+        logs: desktop_task_board::helpers::logs::TaskLogsState {
+            task_board_logs_editor: &mut app.task_board_logs_editor,
+            task_board_logs_auto_scroll: &mut app.task_board_logs_auto_scroll,
+            task_board_logs_scroll_top_line: &mut app.task_board_logs_scroll_top_line,
+            task_board_logs_scroll_remainder: &mut app.task_board_logs_scroll_remainder,
+            task_board_logs_viewport_height: &mut app.task_board_logs_viewport_height,
+            current_line_height: &mut app.current_line_height,
+            desktop_locale: &mut app.desktop_locale,
+            task_board_log_cache: &mut app.task_board_log_cache,
+            task_board_tasks: &mut app.task_board_tasks,
+            task_board_viewing_logs: &mut app.task_board_viewing_logs,
+            task_board_logs_context_menu_open: &mut app.task_board_logs_context_menu_open,
+            task_board_logs_context_menu_pos: &mut app.task_board_logs_context_menu_pos,
+        },
+        executor: &mut app.task_board_executor,
+        pending: &mut app.task_board_tasks_pending_persistence,
+        selected: &mut app.task_board_selected_tasks,
+        loading: &mut app.task_board_loading,
+        settings: &mut app.task_board_settings,
     }
 }

@@ -1,9 +1,6 @@
 use desktop_task_model::{Task, TaskStatus, normalize_task_model_input};
 use std::collections::HashSet;
-pub fn visible_task_ids_for_status(
-    tasks: &[Task],
-    status: TaskStatus,
-) -> Vec<String> {
+pub fn visible_task_ids_for_status(tasks: &[Task], status: TaskStatus) -> Vec<String> {
     tasks
         .iter()
         .filter(|task| task.status == status && !task.deleted && !task.archived)
@@ -11,7 +8,8 @@ pub fn visible_task_ids_for_status(
         .collect()
 }
 pub fn selected_task_ids_for_status(
-    tasks: &[Task], selected: &HashSet<String>,
+    tasks: &[Task],
+    selected: &HashSet<String>,
     status: TaskStatus,
 ) -> Vec<String> {
     visible_task_ids_for_status(tasks, status)
@@ -32,18 +30,23 @@ pub fn clear_selected_task_ids(selected: &mut HashSet<String>, task_ids: &[Strin
         selected.remove(task_id);
     }
 }
-pub fn clear_selection_for_status(tasks: &[Task], selected: &mut HashSet<String>, status: TaskStatus) {
+pub fn clear_selection_for_status(
+    tasks: &[Task],
+    selected: &mut HashSet<String>,
+    status: TaskStatus,
+) {
     let task_ids = visible_task_ids_for_status(tasks, status);
     clear_selected_task_ids(selected, &task_ids);
 }
-pub fn selected_tasks_for_status(tasks: &[Task], selected: &HashSet<String>, status: TaskStatus) -> Vec<Task> {
+pub fn selected_tasks_for_status(
+    tasks: &[Task],
+    selected: &HashSet<String>,
+    status: TaskStatus,
+) -> Vec<Task> {
     tasks
         .iter()
         .filter(|task| {
-            task.status == status
-                && !task.deleted
-                && !task.archived
-                && selected.contains(&task.id)
+            task.status == status && !task.deleted && !task.archived && selected.contains(&task.id)
         })
         .cloned()
         .collect()
@@ -57,8 +60,7 @@ pub fn agent_scheduler_command_request(
     vw_api_agent_scheduler::AgentSchedulerCommandRequest {
         task_id: task_id.to_string().into(),
         command,
-        dispatch_mode:
-            vw_api_agent_scheduler::AgentSchedulerDispatchModeDto::Local,
+        dispatch_mode: vw_api_agent_scheduler::AgentSchedulerDispatchModeDto::Local,
         max_concurrent: None,
         reason: reason.into(),
         payload,
@@ -77,7 +79,11 @@ pub fn manual_merge_running(tasks: &[Task], running: &[String]) -> bool {
     })
 }
 
-pub fn pop_next_manual_merge_task(tasks: &[Task], running: &[String], queue: &mut Vec<String>) -> Option<Task> {
+pub fn pop_next_manual_merge_task(
+    tasks: &[Task],
+    running: &[String],
+    queue: &mut Vec<String>,
+) -> Option<Task> {
     while !queue.is_empty() {
         let task_id = queue.remove(0);
         if let Some(task) = tasks
@@ -141,4 +147,168 @@ pub fn task_metadata_patch_for_gateway(
         })),
         metadata_remove_keys: Vec::new(),
     }
+}
+
+pub enum ManualMergeEffect {
+    None,
+    MissingProject,
+    Dispatch(Task),
+}
+pub fn prepare_manual_merge(
+    tasks: &mut [Task],
+    running: &[String],
+    queue: &mut Vec<String>,
+    has_project: bool,
+) -> ManualMergeEffect {
+    if manual_merge_running(tasks, running) {
+        return ManualMergeEffect::None;
+    }
+    if !has_project {
+        queue.clear();
+        return ManualMergeEffect::MissingProject;
+    }
+    let Some(task) = pop_next_manual_merge_task(tasks, running, queue) else {
+        return ManualMergeEffect::None;
+    };
+    if let Some(existing) = tasks.iter_mut().find(|t| t.id == task.id) {
+        existing.add_localized_log("手动批量合并已发送 Agent Scheduler 合并命令", vec![]);
+    }
+    ManualMergeEffect::Dispatch(task)
+}
+
+fn metadata_patch_for_workflow(
+    task: &Task,
+    workflow_id: &str,
+) -> vw_api_agent_scheduler::AgentSchedulerTaskMetadataPatchDto {
+    task_metadata_patch_for_gateway(
+        task,
+        workflow_id,
+        crate::helpers::execution::agent_scheduler_status_key_for_task_status(
+            task.status,
+            workflow_id,
+        ),
+        crate::helpers::execution::agent_scheduler_status_for_task_status(task.status, workflow_id),
+        crate::helpers::execution::agent_scheduler_status_role_for_task_status(
+            task.status,
+            workflow_id,
+        ),
+    )
+}
+
+pub fn persist_updated_tasks_commands(
+    tasks: &[Task],
+    action_label: &str,
+    workflow_id: &str,
+) -> Vec<vw_api_agent_scheduler::AgentSchedulerCommandRequest> {
+    tasks
+        .iter()
+        .map(|task| {
+            agent_scheduler_command_request(
+                &task.id,
+                vw_api_agent_scheduler::AgentSchedulerCommandKindDto::UpdateMetadata,
+                Some(action_label.to_string()),
+                vw_api_agent_scheduler::AgentSchedulerCommandPayloadDto {
+                    metadata_update: Some(metadata_patch_for_workflow(task, workflow_id)),
+                    ..Default::default()
+                },
+            )
+        })
+        .collect::<Vec<_>>()
+}
+
+pub fn delete_tasks_commands(
+    task_ids: &[String],
+) -> Vec<vw_api_agent_scheduler::AgentSchedulerCommandRequest> {
+    task_ids
+        .iter()
+        .map(|task_id| {
+            agent_scheduler_command_request(
+                task_id,
+                vw_api_agent_scheduler::AgentSchedulerCommandKindDto::SoftDelete,
+                Some("删除任务".to_string()),
+                Default::default(),
+            )
+        })
+        .collect::<Vec<_>>()
+}
+
+pub fn archive_tasks_commands(
+    task_ids: &[String],
+) -> Vec<vw_api_agent_scheduler::AgentSchedulerCommandRequest> {
+    task_ids
+        .iter()
+        .map(|task_id| {
+            agent_scheduler_command_request(
+                task_id,
+                vw_api_agent_scheduler::AgentSchedulerCommandKindDto::Archive,
+                Some("归档任务".to_string()),
+                Default::default(),
+            )
+        })
+        .collect::<Vec<_>>()
+}
+
+pub fn move_task_status_commands(
+    task_id: &str,
+    target_status: TaskStatus,
+    workflow_id: &str,
+    order_no: Option<i64>,
+) -> Vec<vw_api_agent_scheduler::AgentSchedulerCommandRequest> {
+    let status_key = crate::helpers::execution::agent_scheduler_status_key_for_task_status(
+        target_status,
+        workflow_id,
+    );
+    let status = crate::helpers::execution::agent_scheduler_status_for_task_status(
+        target_status,
+        workflow_id,
+    );
+    let command = agent_scheduler_command_request(
+        task_id,
+        vw_api_agent_scheduler::AgentSchedulerCommandKindDto::Move,
+        Some("手动移动任务".to_string()),
+        vw_api_agent_scheduler::AgentSchedulerCommandPayloadDto {
+            move_task: Some(vw_api_agent_scheduler::AgentSchedulerMoveTaskPayloadDto {
+                from_status_key: None,
+                to_status_key: status_key,
+                to_status: Some(status),
+                order_no,
+            }),
+            ..Default::default()
+        },
+    );
+    vec![command]
+}
+
+pub fn move_tasks_to_status_commands(
+    task_ids: &[String],
+    target_status: TaskStatus,
+    workflow_id: &str,
+) -> Vec<vw_api_agent_scheduler::AgentSchedulerCommandRequest> {
+    let status_key = crate::helpers::execution::agent_scheduler_status_key_for_task_status(
+        target_status,
+        workflow_id,
+    );
+    let status = crate::helpers::execution::agent_scheduler_status_for_task_status(
+        target_status,
+        workflow_id,
+    );
+    task_ids
+        .iter()
+        .map(|task_id| {
+            agent_scheduler_command_request(
+                task_id,
+                vw_api_agent_scheduler::AgentSchedulerCommandKindDto::Move,
+                Some("批量移动任务".to_string()),
+                vw_api_agent_scheduler::AgentSchedulerCommandPayloadDto {
+                    move_task: Some(vw_api_agent_scheduler::AgentSchedulerMoveTaskPayloadDto {
+                        from_status_key: None,
+                        to_status_key: status_key.clone(),
+                        to_status: Some(status.clone()),
+                        order_no: None,
+                    }),
+                    ..Default::default()
+                },
+            )
+        })
+        .collect::<Vec<_>>()
 }

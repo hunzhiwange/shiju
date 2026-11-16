@@ -54,7 +54,7 @@ fn response(
 #[test]
 fn persistence_ack_releases_snapshot_guard() {
     for result in [Ok(()), Err("gateway unavailable".to_string())] {
-        let (mut app, _task) = crate::app::App::new();
+        let (mut app, _task) = super::fixture_pair();
         app.project_path = Some("/tmp/vibewindow-persistence-ack-test".to_string());
         let mut task = Task::new(1);
         task.id = "T-guarded".to_string();
@@ -62,15 +62,8 @@ fn persistence_ack_releases_snapshot_guard() {
         app.task_board_tasks = vec![task];
         app.task_board_tasks_pending_persistence.insert("T-guarded".to_string());
 
-        let _task = update(
-            &mut app,
-            TaskBoardMessage::TaskResultPersistenceCompleted {
-                project_path: "/tmp/vibewindow-persistence-ack-test".to_string(),
-                task_id: "T-guarded".to_string(),
-                result,
-            },
-        );
-        apply_agent_scheduler_status(&mut app, response("T-guarded", "running"));
+        projection_state(&mut app).acknowledge("T-guarded", &result);
+        projection_state(&mut app).status(response("T-guarded", "running"));
 
         assert!(!app.task_board_tasks_pending_persistence.contains("T-guarded"));
         assert_eq!(app.task_board_tasks[0].status, TaskStatus::Running);

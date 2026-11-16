@@ -260,3 +260,40 @@ pub fn apply_planning_result(
         }
     }
 }
+
+/// 规划结果的完整本地回写。文件与工作树分配只经过窄效果回调。
+pub struct PlanningCompletion {
+    pub persist: Option<Task>,
+    pub execute: Option<Task>,
+    pub failed: bool,
+}
+pub fn finish_planning(
+    tasks: &mut [Task], task_id: &str,
+    final_logs: Vec<desktop_task_executor::TaskLogStream>,
+    result: Result<desktop_task_executor::executor::runner::TaskPlanGenerationOutcome, String>,
+    mut write_plan: impl FnMut(&Task),
+    mut allocate_worktree: impl FnMut(&mut Task) -> Result<Option<String>, String>,
+) -> PlanningCompletion {
+    let mut outcome = PlanningCompletion { persist: None, execute: None, failed: false };
+    let Some(task) = tasks.iter_mut().find(|task| task.id == task_id) else { return outcome; };
+    match apply_planning_result(task, final_logs, result) {
+        PlanningEffect::AllocateWorktree => {
+            write_plan(task);
+            match allocate_worktree(task) {
+                Ok(path) => {
+                    start_planned_task(task, path);
+                    write_plan(task);
+                    outcome.execute = Some(task.clone());
+                }
+                Err(error) => {
+                    crate::update::projection::mark_task_paused_after_worktree_preallocation_failure(task, error);
+                    outcome.failed = true;
+                }
+            }
+            outcome.persist = Some(task.clone());
+        }
+        PlanningEffect::PersistFailure => { outcome.failed = true; outcome.persist = Some(task.clone()); }
+        PlanningEffect::Ignored => {}
+    }
+    outcome
+}

@@ -60,3 +60,6 @@ pub mod ui_ops;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod stream_value_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_11_tests;

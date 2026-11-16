@@ -268,8 +268,6 @@ use session_ui_types as ui_models;
 #[cfg(test)]
 use tokio::sync::{mpsc, mpsc::UnboundedReceiver};
 use vw_api_chat::chat::GatewayChatStreamRequest;
-#[cfg(test)]
-use vw_api_chat_identity::ReasoningEffortDto;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn collect_gateway_chat_stream(

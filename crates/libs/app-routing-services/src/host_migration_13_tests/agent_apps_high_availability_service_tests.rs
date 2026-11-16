@@ -1,15 +1,15 @@
-use super::{
-    agent_apps_high_availability_service::set_enabled,
-    agent_apps_high_availability_store::{
+use crate::{
+    high_availability_service::set_enabled,
+    failover_store::{
         FailoverQueueState, FailoverQueueStore, NAMESPACE, config_key,
     },
-    settings_store::GatewaySettingsStore,
 };
-use crate::{
-    app_providers::AppProviderStore,
-    app_routing::{RoutingListener, provider_publication},
-    global_database::GlobalDatabase,
+use {
+    app_provider_services::AppProviderStore,
+    crate::{RoutingListener, provider_publication},
+    agent_database::GlobalDatabase,
 };
+use app_settings_store::settings_store::GatewaySettingsStore;
 use axum::response::IntoResponse;
 use serde_json::{Value, json};
 use std::{
@@ -55,7 +55,7 @@ async fn ha_enable_requires_routing_mode_and_keeps_queue() -> anyhow::Result<()>
     )
     .unwrap();
     drop(guard);
-    let routing = RoutingListener::default();
+    let routing = RoutingListener::with_database(database.clone());
     let queues = FailoverQueueStore::new(database.clone())?;
     let before = queues.get(&scope)?;
     let update = |version, enabled| {
@@ -81,7 +81,7 @@ async fn ha_enable_requires_routing_mode_and_keeps_queue() -> anyhow::Result<()>
                     assert_eq!(body["model"], "fixture");
                     hits.fetch_add(1, Ordering::SeqCst);
                     if body["stream"] == true {
-                        let wire = crate::model_relay::stream_observer::tests::samples()
+                        let wire = crate::test_samples()
                             .into_iter().find(|(kind, _, _)| *kind == "anthropic").unwrap().2;
                         let chunks = wire.as_bytes().chunks(7)
                             .map(|chunk| Ok::<_, std::convert::Infallible>(axum::body::Bytes::copy_from_slice(chunk)))
@@ -153,7 +153,7 @@ async fn ha_enable_requires_routing_mode_and_keeps_queue() -> anyhow::Result<()>
         .json(&json!({"model":"fixture","stream":true,"messages":[{"role":"user","content":"hello"}]}))
         .send().await?;
     assert_eq!(streaming.status(), 200);
-    let expected = crate::model_relay::stream_observer::tests::samples()
+    let expected = crate::test_samples()
         .into_iter()
         .find(|(kind, _, _)| *kind == "anthropic")
         .unwrap()
@@ -213,7 +213,7 @@ async fn ha_enable_requires_routing_mode_and_keeps_queue() -> anyhow::Result<()>
             min_requests: 5,
         };
         let select = || {
-            super::agent_apps_high_availability_service::select_candidates(
+            crate::high_availability_service::select_candidates(
                 database.clone(),
                 &routing,
                 home.path(),
@@ -381,7 +381,7 @@ struct ProviderPreimageFixture {
     settings: GatewaySettingsStore,
     scope: FailoverQueueScope,
     providers: Vec<vw_agent_apps::providers::failover::ProviderSnapshot>,
-    preimages: Vec<super::settings_store::GatewaySettingPreimage>,
+    preimages: Vec<app_settings_store::settings_store::GatewaySettingPreimage>,
     replacement: String,
 }
 
@@ -514,7 +514,7 @@ fn ha_enable_requires_routing_mode_and_keeps_queue_sqlite_preimages() -> anyhow:
 
 #[test]
 fn ha_enable_requires_routing_mode_and_keeps_queue_postgres_preimages() -> anyhow::Result<()> {
-    let database = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
+    let database = agent_database::test_support::PostgresTestDatabase::from_environment()?;
     let fixture = ProviderPreimageFixture::new(database.database().clone())?;
     fixture.reject_stale()?;
     let mut writer = database.database().connect_postgres()?;

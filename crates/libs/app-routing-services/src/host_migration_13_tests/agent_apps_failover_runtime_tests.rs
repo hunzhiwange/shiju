@@ -1,12 +1,12 @@
-use super::{
-    agent_apps_high_availability_service::set_enabled,
-    agent_apps_high_availability_store::FailoverQueueStore,
-};
 use crate::{
-    app_providers::AppProviderStore,
-    app_routing::{RoutingListener, provider_publication},
-    config::SystemConfigStore,
-    global_database::GlobalDatabase,
+    high_availability_service::set_enabled,
+    failover_store::FailoverQueueStore,
+};
+use {
+    app_provider_services::AppProviderStore,
+    crate::{RoutingListener, provider_publication},
+    agent_config::runtime::SystemConfigStore,
+    agent_database::GlobalDatabase,
 };
 use axum::{Json, Router, http::StatusCode, routing::post};
 use serde_json::{Value, json};
@@ -53,12 +53,12 @@ async fn ha_runtime_uses_single_retry_owner() -> anyhow::Result<()> {
             &json!({"reliability":{"provider_retries":retries,"provider_backoff_ms":0}})
                 .to_string(),
         )?;
-        let mut policy = super::agent_apps_failover_runtime::policy(database.clone(), &scope)?;
+        let mut policy = crate::failover_runtime::policy(database.clone(), &scope)?;
         policy.retry_timeout.max_retries = retries as u8;
-        super::settings_store::GatewaySettingsStore::new(database.clone())?.upsert(
+        app_settings_store::settings_store::GatewaySettingsStore::new(database.clone())?.upsert(
             tenant,
-            super::agent_apps_high_availability_store::NAMESPACE,
-            &super::agent_apps_failover_runtime::policy_key(&scope)?,
+            crate::failover_store::NAMESPACE,
+            &crate::failover_runtime::policy_key(&scope)?,
             &serde_json::to_string(&policy)?,
         )?;
         let tx = ProviderTransactions::new(&root, ExecutionHostId::new("host").unwrap()).unwrap();
@@ -118,7 +118,7 @@ async fn ha_runtime_uses_single_retry_owner() -> anyhow::Result<()> {
                 )
                 .map_err(anyhow::Error::msg)?;
         }
-        let routing = RoutingListener::default();
+        let routing = RoutingListener::with_database(database.clone());
         let address = routing.start(0)?;
         provider_publication::apply(
             database.clone(),
@@ -153,7 +153,7 @@ async fn ha_runtime_uses_single_retry_owner() -> anyhow::Result<()> {
             .no_proxy()
             .timeout(std::time::Duration::from_secs(10))
             .build()?;
-        let identity = crate::model_relay::RelayIdentity {
+        let identity = model_transport::binding::RelayIdentity {
             tenant: tenant.clone(),
             project: "project".into(),
             session: "session".into(),
@@ -161,7 +161,7 @@ async fn ha_runtime_uses_single_retry_owner() -> anyhow::Result<()> {
             model: "fixture".into(),
             generation: 1,
         };
-        let relay = crate::model_relay::RelayBinding::new(
+        let relay = model_transport::binding::RelayBinding::new(
             identity.clone(),
             std::time::Duration::from_secs(60),
         )?;
@@ -296,7 +296,7 @@ async fn ha_switch_commits_once_without_client_config_write() -> anyhow::Result<
             model: Some("fixture".into()),
         }, None, true).map_err(anyhow::Error::msg)?;
     }
-    let routing = RoutingListener::default();
+    let routing = RoutingListener::with_database(database.clone());
     let (events, mut receiver) = tokio::sync::broadcast::channel(16);
     routing.set_failover_events(events);
     let address = routing.start(0)?;
@@ -367,7 +367,7 @@ async fn ha_switch_commits_once_without_client_config_write() -> anyhow::Result<
 
 #[test]
 fn ha_switch_old_version_cannot_roll_back_new_route() -> anyhow::Result<()> {
-    use super::agent_apps_failover_runtime::ActualRoute;
+    use crate::failover_runtime::ActualRoute;
     let mut actual = ActualRoute::default();
     assert_eq!(actual.commit(0, "beta", "alpha")?, Some("alpha".into()));
     assert_eq!(actual.commit(0, "alpha", "alpha")?, None);

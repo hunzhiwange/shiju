@@ -1,12 +1,12 @@
-use super::{
-    agent_apps_high_availability_service::set_enabled,
-    agent_apps_high_availability_store::FailoverQueueStore,
-};
 use crate::{
-    app_providers::AppProviderStore,
-    app_routing::{RoutingListener, provider_publication},
-    config::SystemConfigStore,
-    global_database::GlobalDatabase,
+    high_availability_service::set_enabled,
+    failover_store::FailoverQueueStore,
+};
+use {
+    app_provider_services::AppProviderStore,
+    crate::{RoutingListener, provider_publication},
+    agent_config::runtime::SystemConfigStore,
+    agent_database::GlobalDatabase,
 };
 use axum::http::StatusCode;
 use serde_json::{Value, json};
@@ -71,13 +71,13 @@ async fn exercise_timeouts(modes: &[&str]) -> anyhow::Result<()> {
             &json!({"reliability":{"provider_retries":retries,"provider_backoff_ms":0}})
                 .to_string(),
         )?;
-        let mut policy = super::agent_apps_failover_runtime::policy(database.clone(), &scope)?;
+        let mut policy = crate::failover_runtime::policy(database.clone(), &scope)?;
         policy.retry_timeout.max_retries = retries as u8;
         policy.circuit_breaker.failure_threshold = 1;
-        super::settings_store::GatewaySettingsStore::new(database.clone())?.upsert(
+        app_settings_store::settings_store::GatewaySettingsStore::new(database.clone())?.upsert(
             tenant,
-            super::agent_apps_high_availability_store::NAMESPACE,
-            &super::agent_apps_failover_runtime::policy_key(&scope)?,
+            crate::failover_store::NAMESPACE,
+            &crate::failover_runtime::policy_key(&scope)?,
             &serde_json::to_string(&policy)?,
         )?;
         let tx = ProviderTransactions::new(&root, ExecutionHostId::new("host").unwrap()).unwrap();
@@ -115,7 +115,7 @@ async fn exercise_timeouts(modes: &[&str]) -> anyhow::Result<()> {
                 )
                 .map_err(anyhow::Error::msg)?;
         }
-        let routing = RoutingListener::default();
+        let routing = RoutingListener::with_database(database.clone());
         let address = routing.start(0)?;
         provider_publication::apply(
             database.clone(),
@@ -151,15 +151,15 @@ async fn exercise_timeouts(modes: &[&str]) -> anyhow::Result<()> {
             saved.version,
             true,
         )?;
-        crate::app_routing::config_apply::RoutingConfigStore::new(
-            GlobalDatabase::for_home(&crate::global::paths().home)?,
+        crate::config_apply::RoutingConfigStore::new(
+            database.clone(),
             tenant.clone(),
             "host".into(),
         )?
         .save_app_timeouts(
             &scope.project,
             AppId::Claude,
-            crate::app_routing::config_apply::AppTimeouts {
+            crate::config_apply::AppTimeouts {
                 first_byte_timeout_secs: if mode == "retry_total" { 30 } else { 1 },
                 idle_timeout_secs: match mode {
                     "idle_zero_total" | "retry_total" => 0,
@@ -229,7 +229,7 @@ async fn exercise_timeouts(modes: &[&str]) -> anyhow::Result<()> {
                 mode,
                 "idle" | "idle_zero_total" | "active_total" | "retry_total" | "disconnect"
             ) {
-                let sample = crate::model_relay::stream_observer::tests::samples()
+                let sample = crate::test_samples()
                     .into_iter()
                     .find(|(kind, _, _)| *kind == "anthropic")
                     .unwrap()
@@ -290,7 +290,7 @@ async fn exercise_timeouts(modes: &[&str]) -> anyhow::Result<()> {
                     assert_closed(&mut socket).await?;
                 }
             } else if mode == "valid" {
-                let sample = crate::model_relay::stream_observer::tests::samples()
+                let sample = crate::test_samples()
                     .into_iter()
                     .find(|(kind, _, _)| *kind == "anthropic")
                     .unwrap()

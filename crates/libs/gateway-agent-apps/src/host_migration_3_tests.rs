@@ -34,3 +34,6 @@ mod agent_apps_auth_logout_tests;
 mod agent_apps_auth_read_tests;
 mod agent_apps_auth_security_tests;
 mod agent_apps_auth_start_tests;
+mod agent_apps_auth_cancel_tests;
+mod agent_apps_auth_poll_tests;
+mod agent_apps_auth_redaction_tests;

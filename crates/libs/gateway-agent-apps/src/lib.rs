@@ -61,3 +61,6 @@ mod host_migration_3_tests;
 
 #[cfg(all(test, unix))]
 mod host_migration_2_tests;
+
+#[cfg(test)]
+mod host_migration_13_tests;

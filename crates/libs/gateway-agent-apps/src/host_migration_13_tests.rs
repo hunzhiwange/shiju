@@ -1,4 +1,4 @@
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 use axum::{
     Extension, Router,
     body::{Body, to_bytes},
@@ -14,7 +14,7 @@ use {
 const PNG: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==";
 fn router(db: GlobalDatabase) -> Router {
     Router::new()
-        .nest("/v1", crate::gateway::router::handler_router())
+        .nest("/v1", crate::icons::router())
         .layer(Extension(db))
         .layer(Extension(TenantScope::new("p", "a").unwrap()))
 }
@@ -56,7 +56,7 @@ async fn cc_base_icon_api_add_sqlite_read_and_deduplicate() -> anyhow::Result<()
 }
 #[test]
 fn cc_base_icon_api_add_postgres_read_and_deduplicate() -> anyhow::Result<()> {
-    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
+    let fixture = agent_database::test_support::PostgresTestDatabase::from_environment()?;
     tokio::runtime::Runtime::new()?.block_on(add_and_deduplicate(fixture.database().clone()))
 }
 #[tokio::test]

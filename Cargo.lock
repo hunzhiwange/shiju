@@ -2609,6 +2609,7 @@ dependencies = [
 name = "app-routing-services"
 version = "0.6.0"
 dependencies = [
+ "agent-config",
  "agent-app-services",
  "agent-database",
  "agent-usage",

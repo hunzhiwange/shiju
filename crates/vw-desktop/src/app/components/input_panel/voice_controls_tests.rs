@@ -1,6 +1,7 @@
 use super::voice_controls::action;
 use crate::app::message::{voice::Event, voice_draft::Phase};
 
+// 宿主保留：语音草稿状态机与普通输入区宿主装配契约。
 #[tokio::test]
 async fn voice_ui_primary_dictation_remains_independent() {
     let app = crate::app::App::new().0;
@@ -9,6 +10,7 @@ async fn voice_ui_primary_dictation_remains_independent() {
     assert!(matches!(messages.as_slice(), [crate::app::Message::Voice(Event::Start)]));
 }
 
+// 宿主保留：语音草稿状态机与普通输入区宿主装配契约。
 #[tokio::test]
 async fn voice_ui_dictation_hover_does_not_finish() {
     use iced::advanced::{Layout, Shell, layout, renderer::Headless, widget::Tree};
@@ -49,6 +51,7 @@ async fn voice_ui_dictation_hover_does_not_finish() {
     assert!(matches!(messages.as_slice(), [crate::app::Message::Voice(Event::Cancel)]));
 }
 
+// 宿主保留：语音草稿状态机与普通输入区宿主装配契约。
 #[tokio::test]
 async fn voice_ui_dictation_shapes_chinese_in_both_themes() {
     use iced::advanced::renderer::{Headless, Style};
@@ -82,6 +85,7 @@ async fn voice_ui_dictation_shapes_chinese_in_both_themes() {
     }
 }
 
+// 宿主保留：语音草稿状态机与普通输入区宿主装配契约。
 #[test]
 fn voice_moon_ui_normal_composer_has_no_voice_panel() {
     let (app, _) = crate::app::App::new();

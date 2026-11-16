@@ -30,6 +30,7 @@ fn overlay_list_len(app: &App) -> usize {
         .len()
 }
 
+// 宿主保留：宿主技能目录排序分组及展开状态投影契约。
 #[test]
 fn slash_palette_overlay_renders_empty_state() {
     let mut app = App::new().0;
@@ -41,6 +42,7 @@ fn slash_palette_overlay_renders_empty_state() {
     assert_eq!(overlay_list_len(&app), 1);
 }
 
+// 宿主保留：宿主技能目录排序分组及展开状态投影契约。
 #[test]
 fn slash_palette_overlay_renders_section_headers_and_show_more() {
     let mut app = App::new().0;

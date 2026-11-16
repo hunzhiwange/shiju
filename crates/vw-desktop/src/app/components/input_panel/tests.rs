@@ -69,6 +69,7 @@ fn todo(id: &str, status: &str, content: &str) -> Todo {
     }
 }
 
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
 fn skill_title_uses_catalog_title_and_falls_back_to_id() {
     let mut app = crate::app::App::new().0;
@@ -78,6 +79,7 @@ fn skill_title_uses_catalog_title_and_falls_back_to_id() {
     assert_eq!(skill_title(&app, "missing"), "missing");
 }
 
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
 fn optional_selector_buttons_reflect_app_state() {
     let mut app = crate::app::App::new().0;
@@ -94,6 +96,7 @@ fn optional_selector_buttons_reflect_app_state() {
     }
 }
 
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
 fn input_panel_layouts_do_not_render_acp_history_interactions() {
     fn tree_shape(tree: &Tree) -> Vec<usize> {
@@ -147,6 +150,7 @@ fn input_panel_layouts_do_not_render_acp_history_interactions() {
     }
 }
 
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
 fn selected_context_card_is_absent_without_runtime_manual_context() {
     let app = crate::app::App::new().0;
@@ -154,6 +158,7 @@ fn selected_context_card_is_absent_without_runtime_manual_context() {
     assert!(selected_context_card(&app).is_none());
 }
 
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
 fn input_panel_view_falls_back_when_active_session_has_no_runtime() {
     let mut app = crate::app::App::new().0;
@@ -167,6 +172,7 @@ fn input_panel_view_falls_back_when_active_session_has_no_runtime() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[tokio::test(flavor = "multi_thread")]
 async fn input_panel_aligns_with_chat_column_on_wide_and_narrow_layouts() {
     const EXPECTED_MAX_WIDTH: f32 = 880.0;
@@ -212,6 +218,7 @@ async fn input_panel_aligns_with_chat_column_on_wide_and_narrow_layouts() {
     assert_eq!(narrow.x, expected_padding);
 }
 
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
 fn selected_context_card_renders_each_manual_selection_shape() {
     let mut app = crate::app::App::new().0;
@@ -232,6 +239,7 @@ fn selected_context_card_renders_each_manual_selection_shape() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[tokio::test(flavor = "multi_thread")]
 async fn expert_package_selection_is_visible_and_cancellable_in_both_themes() {
     use iced::advanced::{mouse, renderer};
@@ -297,6 +305,7 @@ async fn expert_package_selection_is_visible_and_cancellable_in_both_themes() {
     assert!(selected_context_card(&app).is_none());
 }
 
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
 fn selected_context_card_includes_multiple_shiju_functions() {
     let mut app = crate::app::App::new().0;
@@ -319,6 +328,7 @@ fn selected_context_card_includes_multiple_shiju_functions() {
     assert!(selected_context_card(&app).is_some());
 }
 
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
 fn input_panel_view_renders_default_task_queue_and_overlay_states() {
     let mut app = crate::app::App::new().0;
@@ -337,6 +347,7 @@ fn input_panel_view_renders_default_task_queue_and_overlay_states() {
     assert_eq!(with_overlays.as_widget().size().width, Length::Fill);
 }
 
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
 fn input_panel_view_renders_drag_hover_and_send_mode_state() {
     let mut app = crate::app::App::new().0;
@@ -350,6 +361,7 @@ fn input_panel_view_renders_drag_hover_and_send_mode_state() {
     assert_eq!(element.as_widget().size().width, Length::Fill);
 }
 
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
 fn input_panel_view_renders_app_level_acp_history_and_pending_drop_hover() {
     let mut app = crate::app::App::new().0;
@@ -367,6 +379,7 @@ fn input_panel_view_renders_app_level_acp_history_and_pending_drop_hover() {
     assert_eq!(element.as_widget().size().width, Length::Fill);
 }
 
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
 fn input_panel_view_renders_nonempty_queue_while_requesting() {
     let mut app = crate::app::App::new().0;
@@ -384,6 +397,7 @@ fn input_panel_view_renders_nonempty_queue_while_requesting() {
     assert_eq!(element.as_widget().size().width, Length::Fill);
 }
 
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
 fn input_panel_quick_message_strip_renders_in_standard_queue_and_todo_layouts() {
     let mut app = crate::app::App::new().0;
@@ -408,6 +422,7 @@ fn input_panel_quick_message_strip_renders_in_standard_queue_and_todo_layouts() 
     assert_eq!(view(&app).as_widget().size().width, Length::Fill);
 }
 
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
 fn input_panel_view_renders_task_mode_instead_of_nonempty_queue() {
     let mut app = crate::app::App::new().0;
@@ -423,6 +438,7 @@ fn input_panel_view_renders_task_mode_instead_of_nonempty_queue() {
     assert_eq!(element.as_widget().size().width, Length::Fill);
 }
 
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
 fn input_panel_view_renders_matching_todos_at_input_bottom() {
     let mut app = crate::app::App::new().0;
@@ -442,6 +458,7 @@ fn input_panel_view_renders_matching_todos_at_input_bottom() {
     assert_eq!(element.as_widget().size().width, Length::Fill);
 }
 
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
 fn input_panel_view_renders_agent_sessions_entry_only_for_running_children() {
     let mut app = crate::app::App::new().0;
@@ -468,6 +485,7 @@ fn input_panel_view_renders_agent_sessions_entry_only_for_running_children() {
     assert!(!with_running_child.as_widget().children().is_empty());
 }
 
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
 fn agent_unified_selection_prompt_preserves_existing_draft() {
     let (mut app, _) = crate::app::App::new();
@@ -493,6 +511,7 @@ fn agent_unified_selection_prompt_preserves_existing_draft() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn acp_effort_entry_follows_verified_session_choices() {
     super::acp_options::ui_refresh_42_tests::verify_effort_entry(concat!(

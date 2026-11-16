@@ -11,6 +11,7 @@ fn named_key(named: keyboard::key::Named) -> keyboard::Key {
 /// Custom composer bindings run even when Iced reports an unfocused editor.
 /// Exercise the real sibling widgets so terminal paste/Enter cannot send chat.
 #[cfg(not(target_arch = "wasm32"))]
+// 宿主保留：终端焦点与宿主输入编辑器事件路由契约。
 #[tokio::test(flavor = "multi_thread")]
 async fn terminal_focus_composer_does_not_capture_terminal_paste_or_enter() {
     use iced::advanced::renderer::Headless;

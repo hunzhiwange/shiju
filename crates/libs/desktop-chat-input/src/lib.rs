@@ -2,3 +2,6 @@
 pub mod input_panel;
 
 pub mod popovers;
+
+#[cfg(test)]
+mod desktop_split_07_tests;

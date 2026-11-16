@@ -1,5 +1,6 @@
 use super::*;
 use iced::advanced::widget::Tree;
+// 宿主保留：宿主推荐消息选择、草稿及关闭状态更新契约。
 #[tokio::test(flavor = "multi_thread")]
 async fn session_entry_recommendations_click_select_and_close() {
     use iced::advanced::renderer::Headless;

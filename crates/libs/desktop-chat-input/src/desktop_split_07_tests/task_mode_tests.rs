@@ -1,16 +1,36 @@
 //! 验证任务模式对子任务、执行器和运行时编辑器的布局回退。
 //! 执行器缺失、编辑器不足和单子任务用例用于约束降级与移动按钮状态。
 
-use super::task_mode::{
-    task_mode_form,
-};
-use crate::app::task::TaskSplitMode;
-use crate::app::{App, Message};
+use crate::input_panel::task_mode::{Input, Message, task_mode_form};
+use desktop_task_model::TaskSplitMode;
+
 use iced::Length;
 use vw_api_chat_identity::ReasoningEffortDto;
 
-fn test_app() -> App {
-    App::new().0
+struct Fixture {
+    acp_agents: Vec<String>,
+    show_executor_popover: bool,
+    theme: iced::Theme,
+    task_mode_subtasks: Vec<String>,
+    task_mode_subtask_editors: Vec<iced::widget::text_editor::Content>,
+}
+fn test_app() -> Fixture {
+    Fixture {
+        acp_agents: vec![],
+        show_executor_popover: false,
+        theme: iced::Theme::Dark,
+        task_mode_subtasks: vec![],
+        task_mode_subtask_editors: vec![],
+    }
+}
+fn input(fixture: &Fixture) -> Input<'_> {
+    Input {
+        i18n: desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        theme: &fixture.theme,
+        providers: &[],
+        agents: &fixture.acp_agents,
+        expanded: fixture.show_executor_popover,
+    }
 }
 
 fn keep(element: iced::Element<'_, Message>) {
@@ -28,7 +48,7 @@ fn disabled_task_mode_returns_placeholder_element() {
     let app = test_app();
 
     let element = task_mode_form(
-        &app,
+        input(&app),
         None,
         false,
         "5",
@@ -49,7 +69,7 @@ fn enabled_task_mode_builds_with_empty_default_executor_and_no_runtime_editors()
     app.show_executor_popover = true;
 
     keep(task_mode_form(
-        &app,
+        input(&app),
         None,
         true,
         "1",
@@ -66,7 +86,7 @@ fn enabled_task_mode_builds_with_selected_executor_and_runtime_editors() {
     let mut app = test_app();
     app.acp_agents = vec!["codex".to_string(), "claude".to_string()];
     {
-        let runtime = app.current_session_runtime_mut();
+        let runtime = &mut app;
         runtime.task_mode_subtasks = vec![
             "line one\nline two\nline three\nline four".to_string(),
             "single line".to_string(),
@@ -77,11 +97,11 @@ fn enabled_task_mode_builds_with_selected_executor_and_runtime_editors() {
             .map(|subtask| iced::widget::text_editor::Content::with_text(subtask))
             .collect();
     }
-    let runtime = app.current_session_runtime();
+    let runtime = &app;
 
     keep(task_mode_form(
-        &app,
-        Some(&runtime),
+        input(&app),
+        Some(&runtime.task_mode_subtask_editors),
         true,
         "99",
         "auto",
@@ -96,7 +116,7 @@ fn enabled_task_mode_builds_with_selected_executor_and_runtime_editors() {
 fn enabled_task_mode_builds_with_single_subtask_disabled_move_buttons() {
     let app = test_app();
     keep(task_mode_form(
-        &app,
+        input(&app),
         None,
         true,
         "10",
@@ -112,8 +132,17 @@ fn enabled_task_mode_builds_with_single_subtask_disabled_move_buttons() {
 fn enabled_task_mode_with_no_agents_or_subtasks_fills_available_width() {
     let app = test_app();
 
-    let element =
-        task_mode_form(&app, None, true, "", "", TaskSplitMode::FollowSystem, None, None, &[]);
+    let element = task_mode_form(
+        input(&app),
+        None,
+        true,
+        "",
+        "",
+        TaskSplitMode::FollowSystem,
+        None,
+        None,
+        &[],
+    );
 
     assert_eq!(element.as_widget().size().width, Length::Fill);
 }
@@ -125,7 +154,7 @@ fn enabled_task_mode_builds_when_selected_executor_is_not_in_agent_list() {
     let supported_task_modes = ["handoff".to_string(), "review".to_string(), "merge".to_string()];
 
     let element = task_mode_form(
-        &app,
+        input(&app),
         None,
         true,
         "3",
@@ -144,7 +173,7 @@ fn enabled_task_mode_falls_back_when_runtime_has_fewer_editors_than_subtasks() {
     let mut app = test_app();
     app.acp_agents = vec!["codex".to_string()];
     {
-        let runtime = app.current_session_runtime_mut();
+        let runtime = &mut app;
         runtime.task_mode_subtasks = vec![
             "rich editor\nsecond line".to_string(),
             "plain fallback".to_string(),
@@ -153,11 +182,11 @@ fn enabled_task_mode_falls_back_when_runtime_has_fewer_editors_than_subtasks() {
         runtime.task_mode_subtask_editors =
             vec![iced::widget::text_editor::Content::with_text(&runtime.task_mode_subtasks[0])];
     }
-    let runtime = app.current_session_runtime();
+    let runtime = &app;
 
     let element = task_mode_form(
-        &app,
-        Some(&runtime),
+        input(&app),
+        Some(&runtime.task_mode_subtask_editors),
         true,
         "2",
         "auto",

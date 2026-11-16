@@ -26,7 +26,3 @@ pub(crate) fn attachment_preview_strip(
 ) -> Element<'static, Message> {
     shared::attachment_preview_strip(i18n, items).map(map_message)
 }
-
-#[cfg(test)]
-#[path = "attachment_tests.rs"]
-mod tests;

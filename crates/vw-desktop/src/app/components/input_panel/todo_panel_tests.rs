@@ -2,10 +2,10 @@
 //! 会话匹配、数字和文本编号混排以及活动请求回退共同约束数据来源优先级。
 
 use super::todo_panel::{
-    TodoPanelSurface, compute_todo_data, read_todos_for_panel, todo_panel,
+    compute_todo_data, read_todos_for_panel,
 };
 use crate::app::state::AcpHistoryReplayMode;
-use crate::app::{AgentRequest, App, Message, TodoPanelPlacement};
+use crate::app::{AgentRequest, App, TodoPanelPlacement};
 use todo_types::Todo;
 
 fn test_app() -> App {
@@ -47,104 +47,26 @@ fn agent_request(query: &str) -> std::sync::Arc<AgentRequest> {
     })
 }
 
-fn keep(element: iced::Element<'_, Message>) {
-    std::hint::black_box(element);
-}
-
-#[test]
-fn task_740_test_module_is_wired() {
-    let path = std::path::Path::new(file!());
-    assert!(path.ends_with("todo_panel_tests.rs"));
-}
-
+// 宿主保留：宿主会话标识、活动请求查找与待办位置枚举契约。
 #[test]
 fn todo_panel_placement_labels_match_ui_options() {
     assert_eq!(TodoPanelPlacement::ChatTopRight.label(), "右上角");
     assert_eq!(TodoPanelPlacement::InputBottom.label(), "输入底部");
 }
 
-#[test]
-fn compute_todo_data_counts_completed_and_prefers_running_todo() {
-    let app = test_app();
-    let items = vec![
-        todo("2", "completed", "done"),
-        todo("1", "in_progress", "running task"),
-        todo("3", "pending", "later"),
-    ];
 
-    let data = compute_todo_data(&app, &items);
 
-    assert_eq!(data.total, 3);
-    assert_eq!(data.completed, 1);
-    assert_eq!(data.running_task, "running task");
-}
 
-#[test]
-fn compute_todo_data_uses_default_text_without_running_work() {
-    let app = test_app();
-    let items = vec![todo("1", "pending", "later"), todo("2", "completed", "done")];
 
-    let data = compute_todo_data(&app, &items);
 
-    assert_eq!(data.total, 2);
-    assert_eq!(data.completed, 1);
-    assert_eq!(data.running_task, "无执行中任务");
-}
 
-#[test]
-fn compute_todo_data_uses_trimmed_first_line_of_active_request() {
-    let mut app = test_app();
-    app.active_session_id = Some("session".to_string());
-    app.get_session_runtime_mut("session").request_lifecycle.active_agent_request =
-        Some(agent_request("  active request  \nignored second line"));
 
-    let data = compute_todo_data(&app, &[]);
 
-    assert_eq!(data.running_task, "active request");
-}
 
-#[test]
-fn compute_todo_data_rejects_blank_active_request_first_line() {
-    let mut app = test_app();
-    app.active_session_id = Some("session".to_string());
-    app.get_session_runtime_mut("session").request_lifecycle.active_agent_request =
-        Some(agent_request("   \nnonempty second line"));
 
-    let data = compute_todo_data(&app, &[]);
 
-    assert_eq!(data.running_task, "无执行中任务");
-}
 
-#[test]
-fn compute_todo_data_does_not_replace_blank_running_todo_with_active_request() {
-    let mut app = test_app();
-    app.active_session_id = Some("session".to_string());
-    app.get_session_runtime_mut("session").request_lifecycle.active_agent_request =
-        Some(agent_request("active request"));
-    let items = vec![todo("1", "in_progress", "")];
-
-    let data = compute_todo_data(&app, &items);
-
-    assert_eq!(data.running_task, "无执行中任务");
-}
-
-#[test]
-fn compute_todo_data_uses_first_running_todo_and_counts_only_exact_completed_status() {
-    let app = test_app();
-    let items = vec![
-        todo("1", "in_progress", "first"),
-        todo("2", "in_progress", "second"),
-        todo("3", "Completed", "wrong case"),
-        todo("4", "completed", "done"),
-    ];
-
-    let data = compute_todo_data(&app, &items);
-
-    assert_eq!(data.total, 4);
-    assert_eq!(data.completed, 1);
-    assert_eq!(data.running_task, "first");
-}
-
+// 宿主保留：宿主会话标识、活动请求查找与待办位置枚举契约。
 #[test]
 fn compute_todo_data_ignores_runtime_when_there_is_no_active_session() {
     let mut app = test_app();
@@ -155,6 +77,7 @@ fn compute_todo_data_ignores_runtime_when_there_is_no_active_session() {
     assert_eq!(data.running_task, "无执行中任务");
 }
 
+// 宿主保留：宿主会话标识、活动请求查找与待办位置枚举契约。
 #[test]
 fn read_todos_for_panel_returns_empty_when_session_does_not_match() {
     let mut app = test_app();
@@ -168,6 +91,7 @@ fn read_todos_for_panel_returns_empty_when_session_does_not_match() {
     assert_eq!(error, None);
 }
 
+// 宿主保留：宿主会话标识、活动请求查找与待办位置枚举契约。
 #[test]
 fn read_todos_for_panel_sorts_numeric_ids_before_text_ids() {
     let mut app = test_app();
@@ -189,6 +113,7 @@ fn read_todos_for_panel_sorts_numeric_ids_before_text_ids() {
     );
 }
 
+// 宿主保留：宿主会话标识、活动请求查找与待办位置枚举契约。
 #[test]
 fn read_todos_for_panel_reads_global_todos_when_both_sessions_are_absent() {
     let mut app = test_app();
@@ -203,6 +128,7 @@ fn read_todos_for_panel_reads_global_todos_when_both_sessions_are_absent() {
     );
 }
 
+// 宿主保留：宿主会话标识、活动请求查找与待办位置枚举契约。
 #[test]
 fn read_todos_for_panel_preserves_input_order_for_equal_numeric_ids() {
     let mut app = test_app();
@@ -221,56 +147,4 @@ fn read_todos_for_panel_preserves_input_order_for_equal_numeric_ids() {
         items.iter().map(|item| item.content.as_str()).collect::<Vec<_>>(),
         ["first", "zero padded", "plain"]
     );
-}
-
-#[test]
-fn todo_panel_builds_expanded_and_collapsed_surfaces() {
-    let items = vec![
-        todo("1", "completed", "done"),
-        todo("2", "in_progress", "running"),
-        todo("3", "pending", "later"),
-    ];
-    let mut app = test_app();
-    app.git_changed_files = vec!["src/main.rs".to_string(), "README.md".to_string()];
-    app.chat_todo_placement = TodoPanelPlacement::ChatTopRight;
-
-    app.chat_todo_expanded = true;
-    keep(todo_panel(&app, &items, 0, TodoPanelSurface::ChatTopRight));
-    keep(todo_panel(&app, &items, 1, TodoPanelSurface::InputBottom));
-    keep(todo_panel(&app, &items, 2, TodoPanelSurface::ChatTopRight));
-    keep(todo_panel(&app, &items, 3, TodoPanelSurface::InputBottom));
-
-    app.chat_todo_expanded = false;
-    keep(todo_panel(&app, &items, 0, TodoPanelSurface::ChatTopRight));
-    keep(todo_panel(&app, &items, 0, TodoPanelSurface::InputBottom));
-}
-
-#[test]
-fn todo_panel_builds_empty_expanded_list() {
-    let mut app = test_app();
-    app.chat_todo_expanded = true;
-
-    keep(todo_panel(&app, &[], 0, TodoPanelSurface::InputBottom));
-}
-
-#[test]
-fn todo_panel_builds_list_beyond_visible_row_limit() {
-    let mut app = test_app();
-    app.chat_todo_expanded = true;
-    let items = (1..=6)
-        .map(|id| todo(&id.to_string(), "pending", &format!("task {id}")))
-        .collect::<Vec<_>>();
-
-    keep(todo_panel(&app, &items, 0, TodoPanelSurface::InputBottom));
-}
-
-#[test]
-fn todo_panel_builds_collapsed_chat_badge_with_count_above_display_cap() {
-    let mut app = test_app();
-    app.chat_todo_expanded = false;
-    let items = (1..=120)
-        .map(|id| todo(&id.to_string(), "pending", &format!("task {id}")))
-        .collect::<Vec<_>>();
-
-    keep(todo_panel(&app, &items, u8::MAX, TodoPanelSurface::ChatTopRight));
 }

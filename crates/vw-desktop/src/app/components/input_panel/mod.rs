@@ -74,9 +74,6 @@ mod input_editor_tests;
 #[path = "model_popover_tests.rs"]
 mod model_popover_tests;
 #[cfg(test)]
-#[path = "queue_panel_tests.rs"]
-mod queue_panel_tests;
-#[cfg(test)]
 #[path = "reasoning_selector_tests.rs"]
 mod reasoning_selector_tests;
 #[cfg(test)]
@@ -85,9 +82,6 @@ mod send_controls_tests;
 #[cfg(test)]
 #[path = "slash_palette_tests.rs"]
 mod slash_palette_tests;
-#[cfg(test)]
-#[path = "task_mode_tests.rs"]
-mod task_mode_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

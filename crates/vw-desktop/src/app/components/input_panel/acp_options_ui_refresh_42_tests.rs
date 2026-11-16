@@ -346,6 +346,7 @@ fn model_overlay(app: &App) -> Element<'_, Message> {
     .into()
 }
 
+// 宿主保留：跨域 ACP 能力读回、设置更新与宿主浮层交互契约。
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_42_model_search_stays_visible_in_short_overlay() {
     if !isolated("ui_refresh_42_model_search_stays_visible_in_short_overlay") {
@@ -403,6 +404,7 @@ async fn ui_refresh_42_model_search_stays_visible_in_short_overlay() {
     ));
 }
 
+// 宿主保留：跨域 ACP 能力读回、设置更新与宿主浮层交互契约。
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_42_model_results_keep_groups_and_actions() {
     if !isolated("ui_refresh_42_model_results_keep_groups_and_actions") {
@@ -486,6 +488,7 @@ async fn ui_refresh_42_model_results_keep_groups_and_actions() {
     }
 }
 
+// 宿主保留：跨域 ACP 能力读回、设置更新与宿主浮层交互契约。
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_42_layout_and_interaction() {
     if !isolated("ui_refresh_42_layout_and_interaction") {
@@ -557,6 +560,7 @@ async fn ui_refresh_42_layout_and_interaction() {
     }
 }
 
+// 宿主保留：跨域 ACP 能力读回、设置更新与宿主浮层交互契约。
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_42_preserves_values_and_disabled_states() {
     if !isolated("ui_refresh_42_preserves_values_and_disabled_states") {
@@ -641,6 +645,7 @@ async fn ui_refresh_42_preserves_values_and_disabled_states() {
     assert_eq!(runtime.acp_options_state.options.options[0].current, "fixture/backend-value-1");
 }
 
+// 宿主保留：跨域 ACP 能力读回、设置更新与宿主浮层交互契约。
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_42_acp_permission_modes_reflect_grant_and_readback() {
     if !isolated("ui_refresh_42_acp_permission_modes_reflect_grant_and_readback") {
@@ -699,6 +704,7 @@ async fn ui_refresh_42_acp_permission_modes_reflect_grant_and_readback() {
     }
 }
 
+// 宿主保留：跨域 ACP 能力读回、设置更新与宿主浮层交互契约。
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_42_acp_effort_is_editable_between_turns() {
     if !isolated("ui_refresh_42_acp_effort_is_editable_between_turns") {
@@ -728,6 +734,7 @@ async fn ui_refresh_42_acp_effort_is_editable_between_turns() {
     assert!(app.current_session_runtime().acp_options_state.pending);
 }
 
+// 宿主保留：跨域 ACP 能力读回、设置更新与宿主浮层交互契约。
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn help_rollout_09_session_model_source_keeps_status_visible() {
     if !isolated("help_rollout_09_session_model_source_keeps_status_visible") {

@@ -3,6 +3,7 @@
 
 use super::file_search::file_search_overlay;
 use crate::app::App;
+use iced::Length;
 
 fn file_search_list_len(app: &App) -> usize {
     let overlay = file_search_overlay(app);
@@ -15,6 +16,7 @@ fn file_search_list_len(app: &App) -> usize {
         .len()
 }
 
+// 宿主保留：宿主文件索引、查询缓存与目录结果投影契约。
 #[test]
 fn file_search_overlay_empty_results_render_one_empty_state_row() {
     let mut app = App::new().0;
@@ -26,6 +28,7 @@ fn file_search_overlay_empty_results_render_one_empty_state_row() {
     assert_eq!(file_search_list_len(&app), 1);
 }
 
+// 宿主保留：宿主文件索引、查询缓存与目录结果投影契约。
 #[test]
 fn file_search_overlay_non_empty_results_render_each_ranked_entry() {
     let mut app = App::new().0;
@@ -47,6 +50,7 @@ fn file_search_overlay_non_empty_results_render_each_ranked_entry() {
     assert_eq!(file_search_list_len(&app), 2);
 }
 
+// 宿主保留：宿主文件索引、查询缓存与目录结果投影契约。
 #[test]
 fn file_search_overlay_includes_matching_parent_directory_rows() {
     let mut app = App::new().0;
@@ -57,6 +61,7 @@ fn file_search_overlay_includes_matching_parent_directory_rows() {
     assert_eq!(file_search_list_len(&app), 2);
 }
 
+// 宿主保留：宿主文件索引、查询缓存与目录结果投影契约。
 #[test]
 fn file_search_overlay_limits_large_result_sets_to_twenty_rows() {
     let mut app = App::new().0;

@@ -27,6 +27,7 @@ fn button_background(style: &iced::widget::button::Style) -> Color {
     }
 }
 
+// 宿主保留：宿主发送策略消息路由与语音状态装配契约。
 #[test]
 fn bottom_bar_places_workflow_after_full_access_and_before_session_tabs() {
     let controls = include_str!("../../../../../libs/desktop-chat-input/src/input_panel/send_controls.rs");
@@ -123,6 +124,7 @@ pub(super) async fn click_control(mut element: Element<'_, Message>) -> Vec<Mess
     messages
 }
 
+// 宿主保留：宿主发送策略消息路由与语音状态装配契约。
 #[tokio::test]
 async fn voice_ui_primary_empty_opens_chat() {
     let app = crate::app::App::new().0;
@@ -145,6 +147,7 @@ async fn voice_ui_primary_empty_opens_chat() {
         }
     }
 }
+// 宿主保留：宿主发送策略消息路由与语音状态装配契约。
 #[tokio::test]
 async fn voice_ui_primary_text_sends() {
     let app = crate::app::App::new().0;
@@ -155,6 +158,7 @@ async fn voice_ui_primary_text_sends() {
             .any(|m| matches!(m, Message::Chat(crate::app::message::ChatMessage::SendPressed)))
     );
 }
+// 宿主保留：宿主发送策略消息路由与语音状态装配契约。
 #[tokio::test]
 async fn voice_ui_primary_attachment_sends() {
     let mut app = crate::app::App::new().0;
@@ -166,6 +170,7 @@ async fn voice_ui_primary_attachment_sends() {
         [Message::Chat(crate::app::message::ChatMessage::SendPressed)]
     ));
 }
+// 宿主保留：宿主发送策略消息路由与语音状态装配契约。
 #[tokio::test]
 async fn voice_ui_primary_busy_preserves_send_behavior() {
     for behavior in

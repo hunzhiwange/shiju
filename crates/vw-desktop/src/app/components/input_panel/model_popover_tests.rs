@@ -18,127 +18,19 @@ fn model(id: &str, name: &str, enabled: bool) -> ModelSummary {
     }
 }
 
-fn model_with_caps(
-    id: &str,
-    name: &str,
-    enabled: bool,
-    toolcall: bool,
-    attachment: bool,
-) -> ModelSummary {
-    ModelSummary {
-        id: id.to_string(),
-        name: name.to_string(),
-        enabled,
-        toolcall,
-        attachment,
-        context_limit: 8_192,
-        detail: serde_json::json!({}),
-    }
-}
-
 fn provider(id: &str, name: &str, models: Vec<ModelSummary>) -> ProviderModelsSummary {
     ProviderModelsSummary { id: id.to_string(), name: name.to_string(), models }
 }
 
-#[test]
-fn model_toggle_button_uses_auto_label_and_expanded_state() {
-    let app = crate::app::App::new().0;
 
-    let auto = model_toggle_button(&app, true, "openai/gpt-4.1", false);
-    let expanded = model_toggle_button(&app, false, "openai/gpt-4.1", true);
 
-    assert_eq!(auto.as_widget().size().width, Length::Shrink);
-    assert_eq!(auto.as_widget().children().len(), 1);
-    assert_eq!(expanded.as_widget().size().width, Length::Shrink);
-    assert_eq!(expanded.as_widget().children().len(), 1);
-}
 
-#[test]
-fn model_toggle_button_resolves_provider_model_and_bare_model_names() {
-    let mut app = crate::app::App::new().0;
-    app.model_settings.providers = vec![provider(
-        "openai",
-        "OpenAI",
-        vec![model("gpt-4.1", "GPT 4.1", true), model("z-disabled", "Disabled", false)],
-    )];
 
-    let provider_model = model_toggle_button(&app, false, "openai/gpt-4.1", false);
-    let bare_model = model_toggle_button(&app, false, "gpt-4.1", false);
-    let fallback = model_toggle_button(&app, false, "custom/model", false);
-    let bare_fallback = model_toggle_button(&app, false, "unknown", false);
 
-    assert_eq!(provider_model.as_widget().size().width, Length::Shrink);
-    assert_eq!(bare_model.as_widget().size().width, Length::Shrink);
-    assert_eq!(fallback.as_widget().size().width, Length::Shrink);
-    assert_eq!(bare_fallback.as_widget().size().width, Length::Shrink);
-}
 
-#[test]
-fn model_popover_content_renders_loading_empty_and_filtered_states() {
-    let mut app = crate::app::App::new().0;
 
-    app.model_settings.loading = true;
-    let loading = model_popover_content(&app, true, "auto");
-    assert_eq!(loading.as_widget().size().width, Length::Fixed(320.0));
-    drop(loading);
 
-    app.model_settings.loading = false;
-    let empty = model_popover_content(&app, false, "missing");
-    assert_eq!(empty.as_widget().size().width, Length::Fixed(320.0));
-    drop(empty);
-
-    app.model_settings.providers = vec![
-        provider(
-            "openai",
-            "OpenAI",
-            vec![
-                model("gpt-4.1", "GPT 4.1", true),
-                model_with_caps("vision", "Vision Attachments", true, false, true),
-                model(
-                    "a-very-long-model-id",
-                    "A very long model display name that will be truncated",
-                    true,
-                ),
-            ],
-        ),
-        provider("disabled", "Disabled", vec![model("hidden", "Hidden", false)]),
-    ];
-    app.model_settings.query = String::new();
-    let unfiltered = model_popover_content(&app, true, "gpt-4.1");
-    assert_eq!(unfiltered.as_widget().size().width, Length::Fixed(320.0));
-    drop(unfiltered);
-
-    app.model_settings.query = "gpt".to_string();
-    let filtered = model_popover_content(&app, false, "openai/gpt-4.1");
-    assert_eq!(filtered.as_widget().size().width, Length::Fixed(320.0));
-    drop(filtered);
-
-    app.model_settings.query = "vision".to_string();
-    let capability_flags = model_popover_content(&app, false, "openai/vision");
-    assert_eq!(capability_flags.as_widget().size().width, Length::Fixed(320.0));
-    drop(capability_flags);
-
-    let bare_selected = model_popover_content(&app, false, "gpt-4.1");
-    assert_eq!(bare_selected.as_widget().size().width, Length::Fixed(320.0));
-    drop(bare_selected);
-
-    app.model_settings.query = "no-match".to_string();
-    let no_match = model_popover_content(&app, false, "openai/gpt-4.1");
-    assert_eq!(no_match.as_widget().size().width, Length::Fixed(320.0));
-}
-
-#[test]
-fn model_popover_content_keeps_available_models_visible_while_refreshing() {
-    let mut app = crate::app::App::new().0;
-    app.model_settings.loading = true;
-    app.model_settings.providers =
-        vec![provider("openai", "OpenAI", vec![model("gpt-4.1", "GPT 4.1", true)])];
-
-    let content = model_popover_content(&app, false, "openai/gpt-4.1");
-
-    assert_eq!(content.as_widget().size().width, Length::Fixed(320.0));
-}
-
+// 宿主保留：ACP 会话执行状态与来源控件的宿主交互契约。
 #[tokio::test(flavor = "multi_thread")]
 async fn acp_model_source_ui_controls_render_chinese_labels_in_both_themes() {
     use iced::advanced::Renderer as _;
@@ -251,6 +143,7 @@ impl iced::advanced::widget::Operation for ForkModelLabels {
     }
 }
 
+// 宿主保留：ACP 会话执行状态与来源控件的宿主交互契约。
 #[tokio::test(flavor = "multi_thread")]
 async fn fork_selection_popover_click_and_chinese_render_follow_execution_state() {
     use crate::app::{Message, message::ChatMessage};

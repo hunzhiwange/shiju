@@ -1,0 +1,22 @@
+# 源码静态清单；不是 cargo --list 输出，不证明编译、有效注册或测试通过。
+# 范围：任务2至8的19个具名用例；非全宿主测试清单。
+# task | candidate host test path | source | function line
+2 | session::prompt::prompt_tests::system_prompt_runtime_context_renders_model_directory_and_available_capabilities_once | crates/libs/session-engine/tests/host_suites/prompt_tests.rs | 67
+2 | session::prompt::prompt_tests::agents_context_base_system_excludes_instruction_content | crates/libs/session-engine/tests/host_suites/prompt_tests.rs | 91
+2 | session::prompt::prompt_tests::system_prompt_keeps_project_agents_independent_from_empty_identity_whitelist | crates/libs/session-engine/tests/host_suites/prompt_tests.rs | 22
+3 | gateway::api::handlers::config::config_tests::has_explicit_directory_detects_non_empty_query_or_header_values | crates/vw-agent/src/gateway/api/handlers/config_tests.rs | 128
+3 | gateway::api::handlers::config::config_tests::has_explicit_directory_ignores_non_utf8_header_value | crates/vw-agent/src/gateway/api/handlers/config_tests.rs | 147
+3 | gateway::api::handlers::config::config_tests::config_patch_rejects_non_object_patch | crates/vw-agent/src/gateway/api/handlers/config_tests.rs | 225
+4 | gateway::api::handlers::config::config_tests::handle_api_config_put_rejects_invalid_toml | crates/vw-agent/src/gateway/api/handlers/config_tests.rs | 659
+4 | gateway::api::handlers::config::config_tests::handle_api_config_put_rejects_type_mismatch_after_toml_parsing | crates/vw-agent/src/gateway/api/handlers/config_tests.rs | 674
+4 | gateway::api::handlers::config::config_tests::handle_api_config_put_rejects_invalid_config_without_mutating_runtime_state | crates/vw-agent/src/gateway/api/handlers/config_tests.rs | 701
+5 | task_plan_run::runner_tests::task_plan_run_root_cancellation_publishes_cancelled_once | crates/vw-agent/src/task_plan_run/runner_tests.rs | 632
+6 | task_plan_run::runner_tests::run_plan_emits_full_success_event_sequence | crates/vw-agent/src/task_plan_run/runner_tests.rs | 802
+6 | task_plan_run::runner_tests::run_plan_retries_failed_subtask_without_replanning | crates/vw-agent/src/task_plan_run/runner_tests.rs | 1163
+7 | session::compaction::compaction_tests::overflow_uses_fallback_for_unknown_and_respects_explicit_input | crates/vw-agent/src/session/compaction_tests.rs | 243
+7 | session::compaction::compaction_tests::overflow_uses_total_when_present_and_rounds_threshold | crates/vw-agent/src/session/compaction_tests.rs | 251
+7 | session::compaction::compaction_tests::overflow_falls_back_to_component_sum_and_input_limit | crates/vw-agent/src/session/compaction_tests.rs | 259
+7 | session::compaction::compaction_tests::overflow_treats_negative_counts_as_zero | crates/vw-agent/src/session/compaction_tests.rs | 267
+8 | session::compaction::compaction_tests::prune_stops_at_summary_messages | crates/vw-agent/src/session/compaction_tests.rs | 646
+8 | session::compaction::compaction_tests::prune_keeps_candidate_when_prunable_tokens_equal_minimum | crates/vw-agent/src/session/compaction_tests.rs | 696
+8 | session::compaction::compaction_tests::prune_stops_at_previously_compacted_tool | crates/vw-agent/src/session/compaction_tests.rs | 745

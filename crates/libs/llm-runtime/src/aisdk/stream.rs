@@ -624,7 +624,9 @@ pub async fn do_stream_request_aisdk_with_model<
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "stream_chunk_tests.rs"]
 mod stream_chunk_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "stream_failure_tests.rs"]
 mod stream_failure_tests;

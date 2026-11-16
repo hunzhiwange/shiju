@@ -4618,6 +4618,7 @@ dependencies = [
  "clap",
  "config-agent",
  "config-agent-profile",
+ "config-channel-services",
  "config-channels",
  "hex",
  "model-reasoning",

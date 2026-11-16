@@ -213,4 +213,5 @@ pub fn assistant_error_from_aisdk(
 }
 
 #[cfg(test)]
+#[path = "error_tests.rs"]
 mod error_tests;

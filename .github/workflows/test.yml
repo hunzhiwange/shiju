@@ -82,6 +82,8 @@ jobs:
             libxkbcommon-dev
       - run: cargo fetch --locked
       - run: cargo nextest run --profile ci --workspace --exclude vw-agent --exclude vw-desktop --lib
+      - name: Discover host library contracts
+        run: cargo nextest list --profile ci -p vw-agent --lib
       - run: cargo test -p vw-desktop --lib
       - run: cargo nextest run --profile ci --workspace --exclude vw-desktop --bins --tests
       - run: cargo test -p vw-desktop --bins --tests

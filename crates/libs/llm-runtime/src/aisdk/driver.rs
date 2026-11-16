@@ -241,3 +241,7 @@ pub async fn dispatch_stream_request(
     }
     send_model!(resolve_model(provider_id, model, bearer, &request_info))
 }
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "driver_tests.rs"]
+mod driver_tests;

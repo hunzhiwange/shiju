@@ -404,6 +404,11 @@ impl ChatWidget {
         self.transcript.history_len()
     }
 
+    /// Revision of the loaded transcript; lets the pager avoid copying unchanged history.
+    pub fn transcript_revision(&self) -> u64 {
+        self.transcript.content_revision()
+    }
+
     /// 返回按宽度渲染的已提交历史及可选活动/流式尾部；内联历史插入、尺寸重放和完整分页器共用该来源。
     /// Returns width-aware committed history plus the optional active/live tail.
     ///

@@ -20,3 +20,6 @@ pub use routes::{router_with_gateway, agent_scheduler_project_task_graph,
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "routes_tests.rs"]
 mod routes_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_5_tests;

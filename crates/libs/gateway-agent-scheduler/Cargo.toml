@@ -36,3 +36,13 @@ agent-project = { path = "../agent-project", version = "0.6.0", features = ["tes
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tower = { version = "0.5", features = ["util"] }
+
+uuid = { version = "1", features = ["v4"] }
+shell-command = { path = "../shell-command", version = "0.6.0" }
+tool-context = { path = "../tool-context", version = "0.6.0" }
+tool-types = { path = "../tool-types", version = "0.6.0" }
+permission-types = { path = "../permission-types", version = "0.6.0" }
+tokio-util = "0.7"
+vw-api-chat = { path = "../api-chat", version = "0.6.0" }
+session-port = { path = "../session-port", version = "0.6.0" }
+task-scheduler = { path = "../task-scheduler", version = "0.6.0", features = ["test-support"] }

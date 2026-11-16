@@ -15,40 +15,6 @@ fn configured_app() -> (App, String, String) {
 }
 
 #[test]
-fn channel_execution_loading_provider_changes_clear_models_and_keep_unified_agent() {
-    let (mut app, key, scope) = configured_app();
-    let a = AgentModelReference { provider: "a".into(), model: "model-a".into() };
-    let b = AgentModelReference { provider: "b".into(), model: "model-b".into() };
-    let generation = app.channels_settings.begin_execution_choices(&scope, &key);
-    app.channels_settings.finish_execution_choices(
-        &scope,
-        &key,
-        generation,
-        Ok(ChannelExecutionChoices {
-            agents: vec![("acp-codex".into(), "Codex".into())],
-            models: vec![a.clone(), b.clone()],
-        }),
-    );
-    app.channels_settings.instance_execution.insert(
-        key.clone(),
-        ChannelExecutionConfig { agent: Some("acp-codex".into()), model: Some(a.clone()) },
-    );
-    let _ = select_provider(&mut app, key.clone(), Some("a".into()));
-    assert_eq!(app.channels_settings.instance_execution[&key].model, Some(a.clone()));
-    let _ = select_provider(&mut app, key.clone(), Some("missing".into()));
-    assert_eq!(app.channels_settings.instance_execution[&key].model, Some(a));
-    let _ = select_provider(&mut app, key.clone(), Some("b".into()));
-    assert_eq!(app.channels_settings.execution_provider[&key], "b");
-    assert!(app.channels_settings.instance_execution[&key].model.is_none());
-    assert_eq!(app.channels_settings.instance_execution[&key].agent.as_deref(), Some("acp-codex"));
-    let _ = select_model(&mut app, key.clone(), Some(b.clone()));
-    assert_eq!(app.channels_settings.instance_execution[&key].model, Some(b));
-    let _ = select_provider(&mut app, key.clone(), None);
-    assert!(!app.channels_settings.execution_provider.contains_key(&key));
-    assert!(app.channels_settings.instance_execution[&key].model.is_none());
-}
-
-#[test]
 fn channel_execution_loading_starts_on_entry_and_restarts_after_project_change() {
     let (mut app, key, scope) = configured_app();
     let _ = load_active(&mut app);

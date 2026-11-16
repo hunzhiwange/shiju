@@ -7780,6 +7780,7 @@ dependencies = [
  "desktop-settings-skills",
  "desktop-settings-voice",
  "desktop-settings-workspace",
+ "desktop-task-board",
  "desktop-ui-controls",
  "gateway-cron",
  "gateway-desktop-settings",

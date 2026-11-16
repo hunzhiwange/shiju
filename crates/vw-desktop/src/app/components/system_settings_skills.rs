@@ -138,8 +138,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
     updates_view::view(app, dialog)
 }
 
-#[cfg(test)]
-mod help_tests;
+
 #[cfg(test)]
 #[path = "system_settings_skills_tests.rs"]
 mod system_settings_skills_tests;

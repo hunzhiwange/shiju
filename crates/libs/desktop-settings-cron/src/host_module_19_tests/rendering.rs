@@ -1256,8 +1256,6 @@ async fn cron_edit_form_omits_separate_acp_selector() {
     }
 }
 
-#[path = "system_settings_cron/list_tests.rs"]
-mod list_tests;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn cron_modal_renders_add_and_edit() {
@@ -1374,3 +1372,5 @@ async fn cron_template_acceptance_card_columns_and_selection() {
         }
     }
 }
+
+mod list_tests;

@@ -1,27 +1,26 @@
 //! 处理渠道设置子模块的状态变更、字段转换和持久化。
 
-use crate::state::ChannelsSettingsState;
 use super::{Effect as Message, Services};
+use crate::state::ChannelsSettingsState;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64_STANDARD};
+use config_channel_services::{QQConfig, QQReceiveMode, WeChatConfig, WeComConfig};
+use gateway_channel_qr::{ChannelQrStatusDto, GatewayChannelQrClient};
 use iced::Task;
 use iced::widget::text_editor;
 use serde_json::{Map, Value};
 use std::time::Duration;
-use config_channel_services::{QQConfig, QQReceiveMode, WeChatConfig, WeComConfig};
-use gateway_channel_qr::{ChannelQrStatusDto, GatewayChannelQrClient};
 
-use crate::messages::ChannelsMessage;
 use super::changes::{
     apply_bool_change, apply_number_change, apply_receive_mode_change, apply_text_change,
 };
 use super::persist::persist_channels_settings;
 use super::toggles::{add_channel_instance, remove_channel_instance, toggle_enabled};
+use crate::messages::ChannelsMessage;
 
 const MAX_QR_PNG_BYTES: usize = 1024 * 1024;
 
 fn qr_client(services: &Services) -> Result<GatewayChannelQrClient, String> {
-    services.client.clone()
-        .map(|client| GatewayChannelQrClient::new(client.transport().clone()))
+    services.client.clone().map(|client| GatewayChannelQrClient::new(client.transport().clone()))
 }
 
 fn qr_fetch_task(services: &Services, channel: String, generation: u64) -> Task<Message> {
@@ -44,7 +43,12 @@ fn qr_fetch_task(services: &Services, channel: String, generation: u64) -> Task<
     )
 }
 
-fn qr_poll_task(services: &Services, channel: String, handle: String, generation: u64) -> Task<Message> {
+fn qr_poll_task(
+    services: &Services,
+    channel: String,
+    handle: String,
+    generation: u64,
+) -> Task<Message> {
     let client = qr_client(services);
     let request_channel = channel.clone();
     Task::perform(
@@ -95,9 +99,7 @@ fn fill_confirmed_credentials(
     }
     match channel {
         "dingtalk" => {
-            let cfg = app
-                .dingtalk
-                .get_or_insert_with(super::helpers::default_dingtalk_config);
+            let cfg = app.dingtalk.get_or_insert_with(super::helpers::default_dingtalk_config);
             cfg.client_id = credential(credentials, "client_id")?;
             cfg.client_secret = credential(credentials, "client_secret")?;
             if cfg.allowed_users.is_empty() {
@@ -105,9 +107,7 @@ fn fill_confirmed_credentials(
             }
         }
         "feishu" => {
-            let cfg = app
-                .feishu
-                .get_or_insert_with(super::helpers::default_feishu_config);
+            let cfg = app.feishu.get_or_insert_with(super::helpers::default_feishu_config);
             cfg.app_id = credential(credentials, "app_id")?;
             cfg.app_secret = credential(credentials, "app_secret")?;
             if cfg.allowed_users.is_empty() {
@@ -159,8 +159,11 @@ fn finish_qr(app: &mut ChannelsSettingsState, status: ChannelQrStatusDto) {
 ///
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
-pub fn update(app: &mut ChannelsSettingsState, services: &Services, message: ChannelsMessage) -> Task<Message> {
-
+pub fn update(
+    app: &mut ChannelsSettingsState,
+    services: &Services,
+    message: ChannelsMessage,
+) -> Task<Message> {
     let reload_bindings = matches!(
         &message,
         ChannelsMessage::InstanceAdded(_)
@@ -200,7 +203,9 @@ pub fn update(app: &mut ChannelsSettingsState, services: &Services, message: Cha
         ChannelsMessage::ExecutionModelSelected { instance, model } => {
             super::execution::select_model(app, services, instance, model)
         }
-        ChannelsMessage::ProjectChoicesRequested(instance) => super::projects::load(app, services, instance),
+        ChannelsMessage::ProjectChoicesRequested(instance) => {
+            super::projects::load(app, services, instance)
+        }
         ChannelsMessage::ProjectChoicesLoaded { tenant, instance, generation, result } => {
             super::projects::loaded(app, services, tenant, instance, generation, result)
         }
@@ -335,8 +340,7 @@ pub fn update(app: &mut ChannelsSettingsState, services: &Services, message: Cha
                                 Some(iced::widget::image::Handle::from_bytes(bytes));
                             app.qr_flow.handle = Some(response.handle);
                             app.qr_flow.expires_at = Some(response.expires_at);
-                            app.qr_flow.status =
-                                Some(ChannelQrStatusDto::Pending);
+                            app.qr_flow.status = Some(ChannelQrStatusDto::Pending);
                             app.qr_flow.scan_observed = false;
                             schedule_qr_poll(channel, generation, Duration::from_secs(1))
                         }
@@ -429,8 +433,7 @@ pub fn update(app: &mut ChannelsSettingsState, services: &Services, message: Cha
                                 vec![],
                             )
                         } else {
-                            app.qr_flow.status =
-                                Some(ChannelQrStatusDto::Pending);
+                            app.qr_flow.status = Some(ChannelQrStatusDto::Pending);
                             schedule_qr_poll(channel, generation, Duration::from_secs(2))
                         }
                     }
@@ -454,5 +457,31 @@ pub fn update(app: &mut ChannelsSettingsState, services: &Services, message: Cha
             task
         }
     };
-    if reload_execution { Task::batch([task, super::execution::load_active(app, services)]) } else { task }
+    if reload_execution {
+        Task::batch([task, super::execution::load_active(app, services)])
+    } else {
+        task
+    }
+}
+
+/// The delivery editor owns its QR draft; execution reload is an explicit host effect.
+pub fn delivery_event(
+    state: &crate::state::ChannelsSettingsState,
+    message: &ChannelsMessage,
+) -> Option<(ChannelsMessage, bool)> {
+    match message {
+        ChannelsMessage::WeComDeliveryOpened(_)
+        | ChannelsMessage::WeComDeliveryClosed
+        | ChannelsMessage::WeComDeliveryChanged(_, _)
+        | ChannelsMessage::WeComDeliveryClearSecret
+        | ChannelsMessage::WeComDeliverySave
+        | ChannelsMessage::WeComDeliverySaved(_) => Some((message.clone(), false)),
+        ChannelsMessage::QrClosed if state.wecom_delivery.is_some() => {
+            Some((ChannelsMessage::WeComDeliveryClosed, false))
+        }
+        ChannelsMessage::QrSaveConfirmed if state.wecom_delivery.is_some() => {
+            Some((ChannelsMessage::WeComDeliverySave, true))
+        }
+        _ => None,
+    }
 }

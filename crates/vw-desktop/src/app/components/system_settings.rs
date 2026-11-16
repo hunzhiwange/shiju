@@ -14,10 +14,6 @@ use iced::{Alignment, Element, Length, Theme};
 pub(super) mod general_fields;
 mod navigation;
 
-#[cfg(test)]
-#[path = "system_settings_archived_chats_tests.rs"]
-mod archived_chats_tests;
-
 pub(crate) use desktop_settings_shell::reveal_field;
 
 pub(crate) use navigation::SETTINGS_NAVIGATION_SCROLL;

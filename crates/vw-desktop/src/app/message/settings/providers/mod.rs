@@ -27,8 +27,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 #[cfg(test)]
 mod model_edits_api_tests;
 
-#[cfg(test)]
-mod metadata_fill_tests;
+
 
 #[cfg(test)]
 mod discovery_tests;

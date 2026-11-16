@@ -1,4 +1,16 @@
-use super::*;
+use desktop_settings_channels::state::{
+    ChannelsSettingsState, WeComDeliveryDraft, WeComDeliveryMode,
+};
+use desktop_settings_cron::{state::CronSettingsState, system_settings_cron as cron};
+use iced::{
+    Length, Theme,
+    widget::{container, text},
+};
+#[derive(Clone)]
+enum Message {
+    None,
+}
+
 use iced::advanced::renderer::{Headless, Style};
 use iced_runtime::user_interface::{Cache, UserInterface};
 
@@ -8,41 +20,59 @@ async fn cron_wecom_form_renders_add_edit_and_configuration() {
         iced::Renderer::new(iced::Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
-    let mut app = App::new().0;
-    app.cron_settings.show_add_modal = true;
+    let mut state = CronSettingsState::default();
+    let mut channels = ChannelsSettingsState::default();
+    state.show_add_modal = true;
     for editing in [false, true] {
-        app.cron_settings.editing_job_id = editing.then(|| "fixture".into());
+        state.editing_job_id = editing.then(|| "fixture".into());
         for channel in ["wecom", "wecom_webhook"] {
-            let draft = if editing {
-                &mut app.cron_settings.edit_draft
-            } else {
-                &mut app.cron_settings.add_draft
-            };
+            let draft = if editing { &mut state.edit_draft } else { &mut state.add_draft };
             draft.delivery_enabled = true;
             draft.select_delivery_channel(channel.into());
-            app.cron_settings.save_error = Some("配置失败，请检查连接后重试。".repeat(20));
+            state.save_error = Some("配置失败，请检查连接后重试。".repeat(20));
             for theme in [Theme::Dark, Theme::Light] {
                 for (width, height) in [(800, 720), (480, 600)] {
                     for config in [false, true] {
-                        app.channels_settings.wecom_delivery =
-                            config.then(|| crate::app::state::WeComDeliveryDraft {
-                                mode: if channel == "wecom" {
-                                    WeComDeliveryMode::Manual
-                                } else {
-                                    WeComDeliveryMode::Webhook
-                                },
-                                ..Default::default()
-                            });
-                        let base = super::super::view_overlays(
-                            &app,
+                        channels.wecom_delivery = config.then(|| WeComDeliveryDraft {
+                            mode: if channel == "wecom" {
+                                WeComDeliveryMode::Manual
+                            } else {
+                                WeComDeliveryMode::Webhook
+                            },
+                            ..Default::default()
+                        });
+                        let data = cron::ViewData {
+                            cron_settings: &state,
+                            desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
+                            app_theme: &theme,
+                            project_path: None,
+                            recent_projects: &[],
+                            agents: Vec::new(),
+                            providers: Vec::new(),
+                            delivery: Default::default(),
+                            scheduler_error: None,
+                            last_copied_code_hash: None,
+                            help_content: |title, body, _, _| {
+                                iced::widget::column![text(title), text(body)].into()
+                            },
+                        };
+                        let base = cron::view_overlays(
+                            &data,
                             container(text("背景")).width(Length::Fill).height(Length::Fill).into(),
+                            |_| Message::None,
                         );
-                        let view = crate::app::components::system_settings_channels::view_overlays(
-                            &app, base,
+                        let view = desktop_settings_channels::wecom_delivery_modal::overlay(
+                            desktop_settings_channels::ViewState {
+                                channels_settings: &channels,
+                                desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
+                                app_theme: &theme,
+                            },
+                            base,
+                            |_| Message::None,
                         );
                         let mut ui = UserInterface::build(
                             view,

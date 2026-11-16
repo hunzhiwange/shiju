@@ -1,54 +1,24 @@
 // 宿主契约：可选择帮助菜单的 CopyCode/OpenUrlExternal 映射，以及提交校验错误投影。
 // 列表、目录、连接弹窗的局部渲染迁至 desktop_split_11_tests::providers。
-use super::{catalog, connect, connected, custom_provider};
+use super::{connect, custom_provider};
 use crate::app::message::SettingsMessage;
-use crate::app::state::{ModelCatalogEntry, ProviderConnectState, ProviderSummary};
+use crate::app::state::ProviderConnectState;
 use crate::app::{App, Message};
-use iced::advanced::renderer::Headless;
-use iced::advanced::{Layout, clipboard, layout, widget::Tree};
-use iced::keyboard::{self, Key, key::Named};
-use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse};
-use iced_runtime::user_interface::{Cache, UserInterface};
+use iced::keyboard::key::Named;
+use iced::{Element, Event, Point, Size, Theme, mouse};
+#[path = "../../../../libs/desktop-settings-providers/src/view_test_support.rs"]
+mod rendering;
 use config_ui::DesktopLocale;
+use rendering::{Scene, ime, key, modal_path, renderer};
 
 fn fixture() -> App {
     let mut app = None;
     crate::app::config::with_editor_settings_gateway(|fixture, _, _| app = Some(fixture));
     let mut app = app.expect("isolated settings fixture");
     app.desktop_locale = DesktopLocale::English;
-    let s = &mut app.provider_settings;
-    s.catalog_items = (0..14)
-        .map(|i| ModelCatalogEntry {
-            provider_id: format!("fixture-{i:02}-with-a-long-provider-identifier"),
-            provider_name: format!("Fixture {i:02} 虚构模型供應商 — A long provider display name"),
-            model_id: "fixture-model".into(),
-            model_name: "Fixture model".into(),
-        })
-        .collect();
-    s.providers = vec![ProviderSummary {
-        id: s.catalog_items[0].provider_id.clone(),
-        name: s.catalog_items[0].provider_name.clone(),
-        source_label: "Fixture source".into(),
-        connected: true,
-    }];
-    s.popular_patterns = vec![s.providers[0].id.clone(), "missing-fixture".into()];
+    rendering::seed_catalog(&mut app.provider_settings);
     app
 }
-
-async fn renderer() -> Renderer {
-    static FONTS: std::sync::Once = std::sync::Once::new();
-    FONTS.call_once(|| {
-        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
-            fonts.load_font(font);
-        }
-    });
-    Renderer::new(Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"))
-        .await
-        .unwrap()
-}
-
-
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn help_rollout_05_keeps_credentials_and_validation_outside_help() {
@@ -168,91 +138,10 @@ async fn help_rollout_05_keeps_credentials_and_validation_outside_help() {
     ));
 }
 
-
-
-
 fn background() -> Element<'static, Message> {
     iced::widget::button("Underlying settings")
         .width(iced::Length::Fill)
         .height(iced::Length::Fill)
         .on_press(Message::Settings(SettingsMessage::ProvidersRefresh))
         .into()
-}
-
-// Stack → active layer → centering container → inset → card → contents.
-fn modal_path(path: &[usize]) -> Vec<usize> {
-    [&[1, 1, 0, 0, 0][..], path].concat()
-}
-
-struct Scene<'a> {
-    ui: UserInterface<'a, Message, Theme, Renderer>,
-    layout: layout::Node,
-}
-
-impl<'a> Scene<'a> {
-    fn new(mut element: Element<'a, Message>, renderer: &mut Renderer, size: Size) -> Self {
-        let mut tree = Tree::new(element.as_widget());
-        let layout = element.as_widget_mut().layout(
-            &mut tree,
-            renderer,
-            &layout::Limits::new(Size::ZERO, size),
-        );
-        let ui = UserInterface::build(element, size, Cache::new(), renderer);
-        Self { ui, layout }
-    }
-
-    fn bounds(&self, path: &[usize]) -> Rectangle {
-        path.iter()
-            .fold(Layout::new(&self.layout), |layout, &index| {
-                layout
-                    .children()
-                    .nth(index)
-                    .unwrap_or_else(|| panic!("missing layout path {path:?}"))
-            })
-            .bounds()
-    }
-
-    fn send(&mut self, renderer: &mut Renderer, events: &[Event], point: Point) -> Vec<Message> {
-        let mut messages = Vec::new();
-        self.ui.update(
-            events,
-            mouse::Cursor::Available(point),
-            renderer,
-            &mut clipboard::Null,
-            &mut messages,
-        );
-        messages
-    }
-
-    fn click(&mut self, renderer: &mut Renderer, point: Point) -> Vec<Message> {
-        self.send(
-            renderer,
-            &[
-                Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
-                Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
-            ],
-            point,
-        )
-    }
-
-
-}
-
-fn key(key: Named) -> Event {
-    let key = Key::Named(key);
-    Event::Keyboard(keyboard::Event::KeyPressed {
-        modified_key: key.clone(),
-        key,
-        physical_key: keyboard::key::Physical::Unidentified(
-            keyboard::key::NativeCode::Unidentified,
-        ),
-        location: keyboard::Location::Standard,
-        modifiers: keyboard::Modifiers::empty(),
-        text: None,
-        repeat: false,
-    })
-}
-
-fn ime(text: &str) -> Event {
-    Event::InputMethod(iced::advanced::input_method::Event::Commit(text.into()))
 }

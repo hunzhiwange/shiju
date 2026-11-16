@@ -25,8 +25,8 @@ fn message(event: domain::Event) -> Message {
 }
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let s = &app.apps_catalog.device_sync_webdav;
-    let editable = !s.busy && !s.task_panel.is_busy();
     let state = domain::ViewState { busy: s.busy, draft: &s.draft, principal: &s.principal, secret_present: s.secret_present, auto_confirmation: s.auto_confirmation, task_busy: s.task_panel.is_busy(), clear_confirmation: s.clear_confirmation };
+    let editable = state.editable();
     let selection = super::selection::inventory(app);
     let selection = desktop_settings_memory::system_settings_device_sync::selection::view(selection, &s.selection, editable).map(domain::Event::Selection);
     domain::view(state, selection, s.preview.view().map(domain::Event::Preview), s.task_panel.view().map(domain::Event::TaskPanel)).map(message)

@@ -1,6 +1,6 @@
 #![cfg(not(target_arch = "wasm32"))]
-use crate::app::message::settings::worktrees::{WorktreeSettingsMessage as Event, apply};
-use crate::app::state::{WorktreeSettingsIdentity as Identity, WorktreeSettingsState as State};
+use crate::state::{WorktreeSettingsIdentity as Identity, WorktreeSettingsState as State};
+use crate::{messages::WorktreeSettingsMessage as Event, worktrees::apply};
 use config_worktree::WorktreeSettings;
 
 fn identity() -> Identity {
@@ -27,18 +27,18 @@ fn load(state: &mut State, current: &Identity, policy: WorktreeSettings) {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn worktree_settings_ui_renders_chinese_modal_in_both_themes() {
-    use super::system_settings_worktrees::{editor, page};
-    use crate::app::i18n::I18n;
+    use crate::system_settings_worktrees::{editor_with, page};
+    use config_ui::DesktopLocale;
+    use desktop_i18n::I18n;
     use iced::advanced::{
         clipboard,
         renderer::{Headless, Style},
     };
     use iced::{Font, Renderer, Size, Theme, mouse};
     use iced_runtime::user_interface::{Cache, UserInterface};
-    use config_ui::DesktopLocale;
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -59,7 +59,7 @@ async fn worktree_settings_ui_renders_chinese_modal_in_both_themes() {
             let i18n = I18n::new(locale);
             let size = Size::new(860.0, 700.0);
             let mut ui = UserInterface::build(
-                editor(&state, i18n, page(&state, i18n)),
+                editor_with(&state, i18n, page(&state, i18n, true), |message| message),
                 size,
                 Cache::new(),
                 &mut renderer,

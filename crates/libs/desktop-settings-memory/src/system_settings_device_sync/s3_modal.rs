@@ -42,7 +42,9 @@ pub enum Event {
     Preview(crate::system_settings_device_sync::preview::PreviewMessage),
     TaskPanel(super::task_panel::TaskPanelMessage),
 }
-fn message(event: Event) -> Event { event }
+fn message(event: Event) -> Event {
+    event
+}
 pub struct ViewState<'a> {
     pub busy: bool,
     pub draft: &'a vw_api_device_sync::device_sync_config::UpdateS3SyncConfigRequest,
@@ -52,6 +54,11 @@ pub struct ViewState<'a> {
     pub task_busy: bool,
     pub preview_busy: bool,
     pub preset: S3Preset,
+}
+impl ViewState<'_> {
+    pub fn editable(&self) -> bool {
+        !self.busy && !self.task_busy && !self.preview_busy
+    }
 }
 use desktop_ui_controls::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
@@ -89,9 +96,14 @@ fn toggle<'a>(
     control.into()
 }
 
-pub fn view<'a>(state: ViewState<'a>, selection: Element<'a, Event>, preview: Element<'a, Event>, task_panel: Element<'a, Event>) -> Element<'a, Event> {
+pub fn view<'a>(
+    state: ViewState<'a>,
+    selection: Element<'a, Event>,
+    preview: Element<'a, Event>,
+    task_panel: Element<'a, Event>,
+) -> Element<'a, Event> {
     let draft = state.draft;
-    let enabled = !state.busy && !state.preview_busy && !state.task_busy;
+    let enabled = state.editable();
     let secret = match &draft.secret {
         SyncSecretUpdate::Replace { value } => value.as_str(),
         _ => "",
@@ -159,10 +171,7 @@ pub fn view<'a>(state: ViewState<'a>, selection: Element<'a, Event>, preview: El
             .spacing(8),
         );
     }
-    body = body
-        .push(selection)
-        .push(preview)
-        .push(task_panel);
+    body = body.push(selection).push(preview).push(task_panel);
     let mut save = button(if state.busy { "处理中…" } else { "保存" })
         .padding([9, 16])
         .style(primary_action_btn_style);

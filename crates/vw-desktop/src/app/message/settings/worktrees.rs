@@ -1,5 +1,5 @@
 //! Worktree policy editor events and gateway effects.
-use crate::app::state::{WorktreeSettingsState, WorktreesTab};
+use crate::app::state::WorktreesTab;
 
 pub(crate) mod environment;
 mod managed;
@@ -101,24 +101,7 @@ pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Mess
 
 pub(crate) fn gateway_changed(app: &mut App) -> Task<Message> {
     recovery::invalidate(app);
-    let generation = app.worktree_settings.generation + 1;
-    app.worktree_settings = WorktreeSettingsState {
-        generation,
-        recovery: crate::app::state::WorktreeRecoveryState {
-            generation: app.worktree_settings.recovery.generation + 1,
-            ..Default::default()
-        },
-        environment: crate::app::state::WorktreeEnvironmentState {
-            generation: app.worktree_settings.environment.generation + 1,
-            list_generation: app.worktree_settings.environment.list_generation + 1,
-            ..Default::default()
-        },
-        managed: crate::app::state::ManagedWorktreesState {
-            generation: app.worktree_settings.managed.generation + 1,
-            ..Default::default()
-        },
-        ..Default::default()
-    };
+    desktop_settings_workspace::worktrees::gateway_changed(&mut app.worktree_settings);
     if app.navigation_panels.system_settings_tab == crate::app::components::system_settings::SystemTab::Worktrees {
         update(app, WorktreeSettingsMessage::Refresh)
     } else {

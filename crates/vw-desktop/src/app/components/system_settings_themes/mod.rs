@@ -4,10 +4,6 @@ pub mod editor;
 pub mod gallery;
 pub mod preview;
 
-#[cfg(test)]
-#[path = "gallery_tests.rs"]
-mod gallery_tests;
-
 use crate::app::message::settings::SettingsMessage;
 use crate::app::{App, Message};
 use iced::Element;

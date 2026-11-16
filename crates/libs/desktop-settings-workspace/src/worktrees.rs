@@ -1,4 +1,4 @@
-use crate::{state::*, messages::WorktreeSettingsMessage};
+use crate::{messages::WorktreeSettingsMessage, state::*};
 use config_worktree::WorktreeSettings;
 pub fn apply(
     state: &mut WorktreeSettingsState,
@@ -154,8 +154,12 @@ pub fn apply(
 }
 
 /// Persist the exact draft acknowledged by PATCH without requiring a follow-up GET.
-pub async fn save_policy(client: &vw_gateway_client::GatewayClient, policy: WorktreeSettings) -> Result<WorktreeSettings, String> {
-    gateway_config::GatewayConfigClient::new(client.transport().clone()).global_config_patch(&serde_json::json!({"worktree_settings":policy}))
+pub async fn save_policy(
+    client: &vw_gateway_client::GatewayClient,
+    policy: WorktreeSettings,
+) -> Result<WorktreeSettings, String> {
+    gateway_config::GatewayConfigClient::new(client.transport().clone())
+        .global_config_patch(&serde_json::json!({"worktree_settings":policy}))
         .await?;
     // PATCH acknowledged this exact draft. A follow-up GET must not turn
     // a committed save into an apparent failure if the connection drops.
@@ -163,13 +167,19 @@ pub async fn save_policy(client: &vw_gateway_client::GatewayClient, policy: Work
 }
 
 /// Read tenant policy and the gateway-owned default worktree root.
-pub async fn load_policy(client: &vw_gateway_client::GatewayClient) -> Result<(WorktreeSettings, String), String> {
-    let config = gateway_config::GatewayConfigClient::new(client.transport().clone()).global_config_get().await?;
+pub async fn load_policy(
+    client: &vw_gateway_client::GatewayClient,
+) -> Result<(WorktreeSettings, String), String> {
+    let config = gateway_config::GatewayConfigClient::new(client.transport().clone())
+        .global_config_get()
+        .await?;
     let policy = serde_json::from_value(
         config.get("worktree_settings").cloned().ok_or("网关未返回工作树设置。")?,
     )
     .map_err(|e| e.to_string())?;
-    let paths = gateway_system::GatewaySystemClient::new(client.transport().clone()).system_path(None).await?;
+    let paths = gateway_system::GatewaySystemClient::new(client.transport().clone())
+        .system_path(None)
+        .await?;
     let root = paths
         .get("task_worktrees_root")
         .and_then(|v| v.as_str())
@@ -186,7 +196,12 @@ pub enum UpdatePlan {
     Environment,
     Apply { policy: Option<WorktreeSettings>, refresh: bool, failed: bool, saved: bool },
 }
-pub fn prepare(state: &mut WorktreeSettingsState, event: WorktreeSettingsMessage, current: WorktreeSettingsIdentity, visible: bool) -> UpdatePlan {
+pub fn prepare(
+    state: &mut WorktreeSettingsState,
+    event: WorktreeSettingsMessage,
+    current: WorktreeSettingsIdentity,
+    visible: bool,
+) -> UpdatePlan {
     if matches!(event, WorktreeSettingsMessage::TabSelected(WorktreesTab::General)) {
         state.active_tab = WorktreesTab::General;
         return UpdatePlan::Refresh;
@@ -275,4 +290,26 @@ pub fn prepare(state: &mut WorktreeSettingsState, event: WorktreeSettingsMessage
     let saved = matches!(&event, WorktreeSettingsMessage::Saved { result: Ok(_), .. });
     let policy = apply(state, event, &current);
     UpdatePlan::Apply { policy, refresh, failed, saved }
+}
+
+/// Reset every request generation when gateway identity changes.
+pub fn gateway_changed(state: &mut crate::state::WorktreeSettingsState) {
+    let generation = state.generation + 1;
+    *state = crate::state::WorktreeSettingsState {
+        generation,
+        recovery: crate::state::WorktreeRecoveryState {
+            generation: state.recovery.generation + 1,
+            ..Default::default()
+        },
+        environment: crate::state::WorktreeEnvironmentState {
+            generation: state.environment.generation + 1,
+            list_generation: state.environment.list_generation + 1,
+            ..Default::default()
+        },
+        managed: crate::state::ManagedWorktreesState {
+            generation: state.managed.generation + 1,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
 }

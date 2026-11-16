@@ -22,3 +22,7 @@ pub mod search;
 
 #[cfg(test)]
 mod host_module_36_tests;
+
+
+#[cfg(test)]
+mod cron_render_test_support;

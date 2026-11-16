@@ -1,0 +1,986 @@
+[
+  {
+    "name": "ecp03_settings_surfaces_apply_identical_metrics_and_theme",
+    "from": "crates/vw-desktop/src/app/components/editor_settings_fields_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/editor_settings_fields_tests.rs"
+    ],
+    "old_assertions": 4,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/editor_settings_fields_tests.rs": 4
+    }
+  },
+  {
+    "name": "ecp03_closing_modal_commits_pending_metrics",
+    "from": "crates/vw-desktop/src/app/components/editor_settings_fields_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/editor_settings_fields_tests.rs"
+    ],
+    "old_assertions": 5,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/editor_settings_fields_tests.rs": 5
+    }
+  },
+  {
+    "name": "archived_chats_browse_navigation_is_searchable",
+    "from": "crates/vw-desktop/src/app/components/system_settings_archived_chats_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-shell/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-shell/src/host_module_36_tests.rs": 2
+    }
+  },
+  {
+    "name": "wecom_delivery_entries_map_to_domain_modal",
+    "from": "crates/vw-desktop/src/app/components/system_settings_channels/wecom_delivery_modal_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/system_settings_channels/wecom_delivery_modal_tests.rs"
+    ],
+    "old_assertions": 1,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/system_settings_channels/wecom_delivery_modal_tests.rs": 1
+    }
+  },
+  {
+    "name": "mini_companion_size_reset_restores_default",
+    "from": "crates/vw-desktop/src/app/components/system_settings_companion/size_modal_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/system_settings_companion/size_modal_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/system_settings_companion/size_modal_tests.rs": 2
+    }
+  },
+  {
+    "name": "mini_companion_size_modal_renders_themes_and_routes_cancel_reset",
+    "from": "crates/vw-desktop/src/app/components/system_settings_companion/size_modal_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-shell/src/host_module_36_companion_tests.rs"
+    ],
+    "old_assertions": 5,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-shell/src/host_module_36_companion_tests.rs": 5
+    }
+  },
+  {
+    "name": "mini_companion_settings_selection_updates_preview_and_window",
+    "from": "crates/vw-desktop/src/app/components/system_settings_companion_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/system_settings_companion_tests.rs"
+    ],
+    "old_assertions": 1,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/system_settings_companion_tests.rs": 1
+    }
+  },
+  {
+    "name": "mini_companion_settings_none_keeps_mini_visible",
+    "from": "crates/vw-desktop/src/app/components/system_settings_companion_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/system_settings_companion_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/system_settings_companion_tests.rs": 2
+    }
+  },
+  {
+    "name": "mini_companion_settings_search_reaches_page",
+    "from": "crates/vw-desktop/src/app/components/system_settings_companion_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/system_settings_companion_tests.rs"
+    ],
+    "old_assertions": 3,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/system_settings_companion_tests.rs": 3
+    }
+  },
+  {
+    "name": "mini_companion_settings_cards_render_and_emit_real_selection_events",
+    "from": "crates/vw-desktop/src/app/components/system_settings_companion_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-shell/src/host_module_36_companion_tests.rs"
+    ],
+    "old_assertions": 16,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-shell/src/host_module_36_companion_tests.rs": 13
+    },
+    "split_host_contract": {
+      "path": "crates/vw-desktop/src/app/components/system_settings_companion_tests.rs",
+      "name": "mini_companion_selection_events_preserve_window",
+      "assertions": 3
+    }
+  },
+  {
+    "name": "mini_companion_settings_english_labels_render_without_actions_in_preview",
+    "from": "crates/vw-desktop/src/app/components/system_settings_companion_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-shell/src/host_module_36_companion_tests.rs"
+    ],
+    "old_assertions": 6,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-shell/src/host_module_36_companion_tests.rs": 6
+    }
+  },
+  {
+    "name": "cc_control_19_save_failure_displays_error_and_requests_readback",
+    "from": "crates/vw-desktop/src/app/components/system_settings_computer_control_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/system_settings_computer_control_tests.rs"
+    ],
+    "old_assertions": 4,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/system_settings_computer_control_tests.rs": 4
+    }
+  },
+  {
+    "name": "cc_control_19_navigation_has_independent_entry",
+    "from": "crates/vw-desktop/src/app/components/system_settings_computer_control_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/system_settings_computer_control_tests.rs"
+    ],
+    "old_assertions": 3,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/system_settings_computer_control_tests.rs": 3
+    }
+  },
+  {
+    "name": "cc_control_19_toggle_waits_for_server_confirmation",
+    "from": "crates/vw-desktop/src/app/components/system_settings_computer_control_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-security/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 3,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-security/src/host_module_36_tests.rs": 3
+    }
+  },
+  {
+    "name": "cc_control_19_stop_failure_does_not_claim_success",
+    "from": "crates/vw-desktop/src/app/components/system_settings_computer_control_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/system_settings_computer_control_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/system_settings_computer_control_tests.rs": 2
+    }
+  },
+  {
+    "name": "cron_wecom_form_renders_add_edit_and_configuration",
+    "from": "crates/vw-desktop/src/app/components/system_settings_cron/delivery_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-shell/src/host_module_36_delivery_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-shell/src/host_module_36_delivery_tests.rs": 2
+    }
+  },
+  {
+    "name": "cron_list_summary_groups_and_direct_toggle",
+    "from": "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-cron/src/host_module_19_tests/rendering/list_tests.rs"
+    ],
+    "old_assertions": 4,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-cron/src/host_module_19_tests/rendering/list_tests.rs": 4
+    }
+  },
+  {
+    "name": "cron_list_batch_footer_stays_fixed_and_empty_group",
+    "from": "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-cron/src/host_module_19_tests/rendering/list_tests.rs"
+    ],
+    "old_assertions": 6,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-cron/src/host_module_19_tests/rendering/list_tests.rs": 6
+    }
+  },
+  {
+    "name": "cron_list_fills_available_content_width",
+    "from": "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs"
+    ],
+    "old_assertions": 9,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs": 9
+    }
+  },
+  {
+    "name": "cron_list_render_theme_and_width_matrix",
+    "from": "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs"
+    ],
+    "old_assertions": 8,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs": 8
+    }
+  },
+  {
+    "name": "cron_list_bulk_footer_stays_visible_when_scrolled",
+    "from": "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs"
+    ],
+    "old_assertions": 5,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs": 5
+    }
+  },
+  {
+    "name": "cron_list_controls_dispatch_correct_job_ids",
+    "from": "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-cron/src/host_module_19_tests/rendering/list_tests.rs"
+    ],
+    "old_assertions": 6,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-cron/src/host_module_19_tests/rendering/list_tests.rs": 6
+    }
+  },
+  {
+    "name": "cron_list_tabs_and_modals_preserve_width_and_scroll",
+    "from": "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs"
+    ],
+    "old_assertions": 6,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs": 6
+    }
+  },
+  {
+    "name": "wb_schedule_acceptance_cards_preserve_timezone_and_biweekly_rule",
+    "from": "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-cron/src/host_module_19_tests/rendering/list_tests.rs"
+    ],
+    "old_assertions": 0,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-cron/src/host_module_19_tests/rendering/list_tests.rs": 0
+    }
+  },
+  {
+    "name": "cron_templates_render_two_columns_and_select_template",
+    "from": "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-cron/src/host_module_19_tests/rendering/list_tests.rs"
+    ],
+    "old_assertions": 3,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-cron/src/host_module_19_tests/rendering/list_tests.rs": 3
+    }
+  },
+  {
+    "name": "cron_template_flow_cards_render_and_click_all_templates",
+    "from": "crates/vw-desktop/src/app/components/system_settings_cron/list_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-cron/src/host_module_19_tests/rendering/list_tests.rs"
+    ],
+    "old_assertions": 3,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-cron/src/host_module_19_tests/rendering/list_tests.rs": 3
+    }
+  },
+  {
+    "name": "multimodal_search_keywords_include_ocr_and_image_model",
+    "from": "crates/vw-desktop/src/app/components/system_settings_multimodal_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-shell/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-shell/src/host_module_36_tests.rs": 2
+    }
+  },
+  {
+    "name": "settings_tabs_core_appearance_network",
+    "from": "crates/vw-desktop/src/app/components/system_settings_network_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/system_settings_network_tests.rs"
+    ],
+    "old_assertions": 7,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/system_settings_network_tests.rs": 7
+    }
+  },
+  {
+    "name": "help_rollout_05_keeps_credentials_and_validation_outside_help",
+    "from": "crates/vw-desktop/src/app/components/system_settings_providers_ui_refresh_08_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/system_settings_providers_ui_refresh_08_tests.rs"
+    ],
+    "old_assertions": 12,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/system_settings_providers_ui_refresh_08_tests.rs": 12
+    }
+  },
+  {
+    "name": "catalog_extracts_unique_navigable_child_tabs_and_scoped_keywords",
+    "from": "crates/vw-desktop/src/app/components/system_settings_search_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/system_settings_search_tests.rs"
+    ],
+    "old_assertions": 8,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/system_settings_search_tests.rs": 8
+    }
+  },
+  {
+    "name": "search_results_show_secondary_pages_with_parent_paths",
+    "from": "crates/vw-desktop/src/app/components/system_settings_search_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-shell/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 5,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-shell/src/host_module_36_tests.rs": 5
+    }
+  },
+  {
+    "name": "search_matches_setting_labels_and_localizes_each_parent",
+    "from": "crates/vw-desktop/src/app/components/system_settings_search_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-shell/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 4,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-shell/src/host_module_36_tests.rs": 4
+    }
+  },
+  {
+    "name": "settings_tabs_core_appearance_security",
+    "from": "crates/vw-desktop/src/app/components/system_settings_security_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-shell/src/host_module_36_security_tests.rs"
+    ],
+    "old_assertions": 1,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-shell/src/host_module_36_security_tests.rs": 1
+    }
+  },
+  {
+    "name": "view_overlays_builds_hidden_and_visible_help_states",
+    "from": "crates/vw-desktop/src/app/components/system_settings_skills/help_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-skills/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 0,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-skills/src/host_module_36_tests.rs": 0
+    }
+  },
+  {
+    "name": "settings_tabs_editors_appearance_theme",
+    "from": "crates/vw-desktop/src/app/components/system_settings_themes/editor_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/components/system_settings_themes/editor_tests.rs"
+    ],
+    "old_assertions": 6,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/components/system_settings_themes/editor_tests.rs": 6
+    }
+  },
+  {
+    "name": "themes_are_nested_under_general_navigation",
+    "from": "crates/vw-desktop/src/app/components/system_settings_themes/gallery_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-shell/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-shell/src/host_module_36_tests.rs": 2
+    }
+  },
+  {
+    "name": "help_rollout_17_renders_contextual_help",
+    "from": "crates/vw-desktop/src/app/components/system_settings_tunnel_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-network/src/host_module_21_tests/tunnel_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-network/src/host_module_21_tests/tunnel_tests.rs": 2
+    }
+  },
+  {
+    "name": "worktree_settings_ui_renders_chinese_modal_in_both_themes",
+    "from": "crates/vw-desktop/src/app/components/system_settings_worktrees_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-workspace/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 1,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-workspace/src/host_module_36_tests.rs": 1
+    }
+  },
+  {
+    "name": "channel_execution_loading_provider_changes_clear_models_and_keep_unified_agent",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/execution_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 8,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs": 8
+    }
+  },
+  {
+    "name": "channel_execution_loading_starts_on_entry_and_restarts_after_project_change",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/execution_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/message/settings/channels/execution_tests.rs"
+    ],
+    "old_assertions": 4,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/message/settings/channels/execution_tests.rs": 4
+    }
+  },
+  {
+    "name": "project_choices_uses_managed_projects_names_and_order",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/projects_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 1,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs": 1
+    }
+  },
+  {
+    "name": "project_choices_uses_directory_name_when_managed_name_is_blank",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/projects_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 1,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs": 1
+    }
+  },
+  {
+    "name": "channel_execution_binding_is_removed_with_channel_instance",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/projects_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 1,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs": 1
+    }
+  },
+  {
+    "name": "channels_top_level_update_delegates_to_updates_module",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/message/settings/channels/tests.rs"
+    ],
+    "old_assertions": 1,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/message/settings/channels/tests.rs": 1
+    }
+  },
+  {
+    "name": "channels_top_level_update_ignores_non_channels_messages",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/message/settings/channels/tests.rs"
+    ],
+    "old_assertions": 3,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/message/settings/channels/tests.rs": 3
+    }
+  },
+  {
+    "name": "channel_update_ignores_non_channel_messages",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs": 2
+    }
+  },
+  {
+    "name": "channel_refresh_clears_error_and_tab_selection_updates_state",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs": 2
+    }
+  },
+  {
+    "name": "channel_scalar_updates_store_values_and_clamp_timeout",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 4,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs": 4
+    }
+  },
+  {
+    "name": "channel_text_update_mirrors_input_and_applies_field",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs": 2
+    }
+  },
+  {
+    "name": "channel_text_editor_edit_updates_editor_mirror_and_channel_field",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 4,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs": 4
+    }
+  },
+  {
+    "name": "channel_text_editor_non_edit_does_not_persist_or_change_text",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 3,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs": 3
+    }
+  },
+  {
+    "name": "channel_text_editor_missing_key_ignores_content_but_edit_still_persists",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 3,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs": 3
+    }
+  },
+  {
+    "name": "channel_typed_updates_apply_bool_number_and_receive_mode_normalization",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 3,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs": 3
+    }
+  },
+  {
+    "name": "channel_cli_toggle_rejects_disabling_the_last_entry",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs": 2
+    }
+  },
+  {
+    "name": "channel_qr_flow_stops_on_close_and_fills_confirmed_credentials",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 9,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs": 9
+    }
+  },
+  {
+    "name": "channel_qr_authorization_defaults_empty_allowed_users_and_preserves_restrictions",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 3,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs": 3
+    }
+  },
+  {
+    "name": "channel_qr_flow_ignores_failure_until_scan_is_observed",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs"
+    ],
+    "old_assertions": 4,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-channels/src/host_module_36_tests.rs": 4
+    }
+  },
+  {
+    "name": "wecom_delivery_modal_close_ignores_late_qr_and_preserves_cron_draft",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs": 2
+    }
+  },
+  {
+    "name": "wecom_delivery_modal_qr_credentials_stay_in_draft_until_saved",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs"
+    ],
+    "old_assertions": 5,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs": 5
+    }
+  },
+  {
+    "name": "wecom_delivery_modal_save_uses_real_config_api_and_retains_draft_on_failure",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs"
+    ],
+    "old_assertions": 13,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs": 13
+    }
+  },
+  {
+    "name": "wecom_delivery_modal_expired_retry_preserves_job_draft",
+    "from": "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs"
+    ],
+    "old_assertions": 4,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs": 4
+    }
+  },
+  {
+    "name": "test_module_is_wired",
+    "from": "crates/vw-desktop/src/app/message/settings/messages_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-shell/src/host_module_30_tests/messages_tests.rs"
+    ],
+    "old_assertions": 1,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-shell/src/host_module_30_tests/messages_tests.rs": 1
+    }
+  },
+  {
+    "name": "catalog_desktop_discovery_cancel_keeps_previous_catalog",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/discovery_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/discovery_tests.rs"
+    ],
+    "old_assertions": 8,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/discovery_tests.rs": 8
+    }
+  },
+  {
+    "name": "catalog_desktop_discovery_displays_real_phases_and_keeps_results_as_draft",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/discovery_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/discovery_tests.rs"
+    ],
+    "old_assertions": 8,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/discovery_tests.rs": 8
+    }
+  },
+  {
+    "name": "catalog_desktop_discovery_closing_before_start_reply_cancels_original_task",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/discovery_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/discovery_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/discovery_tests.rs": 2
+    }
+  },
+  {
+    "name": "catalog_desktop_discovery_host_change_releases_original_poll",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/discovery_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/message/settings/providers/discovery_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/message/settings/providers/discovery_tests.rs": 2
+    }
+  },
+  {
+    "name": "catalog_desktop_discovery_retry_ignores_a_previous_runs_completion",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/discovery_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/discovery_tests.rs"
+    ],
+    "old_assertions": 4,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/discovery_tests.rs": 4
+    }
+  },
+  {
+    "name": "catalog_desktop_discovery_rejects_cross_deployment_result_and_retries_after_failure",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/discovery_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/discovery_tests.rs"
+    ],
+    "old_assertions": 3,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/discovery_tests.rs": 3
+    }
+  },
+  {
+    "name": "catalog_desktop_discovery_unconfirmed_cancel_releases_poll_and_preserves_saved_models",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/discovery_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/discovery_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/discovery_tests.rs": 2
+    }
+  },
+  {
+    "name": "shiju_model_token_results_after_account_switch_or_logout_are_ignored",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/managed_shiju/tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/message/settings/providers/managed_shiju/tests.rs"
+    ],
+    "old_assertions": 4,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/message/settings/providers/managed_shiju/tests.rs": 4
+    }
+  },
+  {
+    "name": "shiju_model_connect_without_login_never_opens_manual_key_dialog",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/managed_shiju/tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/message/settings/providers/managed_shiju/tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/message/settings/providers/managed_shiju/tests.rs": 2
+    }
+  },
+  {
+    "name": "shiju_model_failures_retry_after_ten_seconds_and_ignore_superseded_attempts",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/managed_shiju/tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/message/settings/providers/managed_shiju/tests.rs"
+    ],
+    "old_assertions": 4,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/message/settings/providers/managed_shiju/tests.rs": 4
+    }
+  },
+  {
+    "name": "catalog_desktop_fill_ignores_fill_after_model_change",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/metadata_fill_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/metadata_fill_tests.rs"
+    ],
+    "old_assertions": 9,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/metadata_fill_tests.rs": 9
+    }
+  },
+  {
+    "name": "catalog_desktop_fill_displays_only_proposed_fields_with_their_sources",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/metadata_fill_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/metadata_fill_tests.rs"
+    ],
+    "old_assertions": 8,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/metadata_fill_tests.rs": 8
+    }
+  },
+  {
+    "name": "catalog_desktop_fill_keeps_draft_and_stays_quiet_offline",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/metadata_fill_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/metadata_fill_tests.rs"
+    ],
+    "old_assertions": 6,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/metadata_fill_tests.rs": 6
+    }
+  },
+  {
+    "name": "catalog_desktop_fill_ignores_preview_after_endpoint_or_host_change",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/metadata_fill_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/metadata_fill_tests.rs"
+    ],
+    "old_assertions": 5,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/metadata_fill_tests.rs": 5
+    }
+  },
+  {
+    "name": "catalog_desktop_fill_rejects_revision_changed_during_preview",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/metadata_fill_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/metadata_fill_tests.rs"
+    ],
+    "old_assertions": 4,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/metadata_fill_tests.rs": 4
+    }
+  },
+  {
+    "name": "catalog_desktop_fill_noop_never_shows_success",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/metadata_fill_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/metadata_fill_tests.rs"
+    ],
+    "old_assertions": 5,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/metadata_fill_tests.rs": 5
+    }
+  },
+  {
+    "name": "catalog_desktop_fill_commits_exact_revision_and_reports_only_real_changes",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/metadata_fill_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/metadata_fill_tests.rs"
+    ],
+    "old_assertions": 9,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/metadata_fill_tests.rs": 9
+    }
+  },
+  {
+    "name": "catalog_desktop_edits_retains_draft_after_save_error",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/model_edits_api_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/message/settings/providers/model_edits_api_tests.rs"
+    ],
+    "old_assertions": 6,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/message/settings/providers/model_edits_api_tests.rs": 6
+    }
+  },
+  {
+    "name": "catalog_desktop_edits_saves_unknown_model_alias_and_default_together",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/model_edits_api_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/model_edits_api_tests.rs"
+    ],
+    "old_assertions": 12,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/model_edits_api_tests.rs": 12
+    }
+  },
+  {
+    "name": "catalog_desktop_edits_clears_alias_using_displayed_revision_without_rewriting_metadata",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/model_edits_api_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/model_edits_api_tests.rs"
+    ],
+    "old_assertions": 8,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/model_edits_api_tests.rs": 8
+    }
+  },
+  {
+    "name": "catalog_desktop_edits_sets_and_clears_default_through_defaults_sdk",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/model_edits_api_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/model_edits_api_tests.rs"
+    ],
+    "old_assertions": 5,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/model_edits_api_tests.rs": 5
+    }
+  },
+  {
+    "name": "catalog_desktop_edits_refresh_keeps_only_fields_the_user_edited",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/model_edits_api_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/model_edits_api_tests.rs"
+    ],
+    "old_assertions": 5,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/model_edits_api_tests.rs": 5
+    }
+  },
+  {
+    "name": "catalog_desktop_edits_switching_endpoints_discards_previous_model_and_revision",
+    "from": "crates/vw-desktop/src/app/message/settings/providers/model_edits_api_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/model_edits_api_tests.rs"
+    ],
+    "old_assertions": 5,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-providers/src/host_module_36_tests/model_edits_api_tests.rs": 5
+    }
+  },
+  {
+    "name": "routing_refresh_and_shutdown_preserve_newer_edits_after_failed_save",
+    "from": "crates/vw-desktop/src/app/message/settings/routing_persistence_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/message/settings/routing_persistence_tests.rs"
+    ],
+    "old_assertions": 13,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/message/settings/routing_persistence_tests.rs": 13
+    }
+  },
+  {
+    "name": "unrelated_settings_message_leaves_security_state_unchanged",
+    "from": "crates/vw-desktop/src/app/message/settings/security_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/message/settings/security_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/message/settings/security_tests.rs": 2
+    }
+  },
+  {
+    "name": "test_module_is_wired",
+    "from": "crates/vw-desktop/src/app/message/settings/types_tests.rs",
+    "to": [
+      "crates/libs/desktop-settings-shell/src/host_module_30_tests/types_tests.rs"
+    ],
+    "old_assertions": 1,
+    "assertions_by_destination": {
+      "crates/libs/desktop-settings-shell/src/host_module_30_tests/types_tests.rs": 1
+    }
+  },
+  {
+    "name": "voice_task_13_route_change_cancels_activity_without_persisting",
+    "from": "crates/vw-desktop/src/app/message/settings/voice_tests.rs",
+    "to": [
+      "crates/vw-desktop/src/app/message/settings/voice_tests.rs"
+    ],
+    "old_assertions": 2,
+    "assertions_by_destination": {
+      "crates/vw-desktop/src/app/message/settings/voice_tests.rs": 2
+    }
+  }
+]

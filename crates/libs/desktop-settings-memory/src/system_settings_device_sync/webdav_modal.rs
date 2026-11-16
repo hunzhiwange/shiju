@@ -20,7 +20,9 @@ pub enum Event {
     Preview(crate::system_settings_device_sync::preview::PreviewMessage),
     TaskPanel(super::task_panel::TaskPanelMessage),
 }
-fn message(event: Event) -> Event { event }
+fn message(event: Event) -> Event {
+    event
+}
 pub struct ViewState<'a> {
     pub busy: bool,
     pub draft: &'a vw_api_device_sync::device_sync_config::UpdateWebDavSyncConfigRequest,
@@ -29,6 +31,11 @@ pub struct ViewState<'a> {
     pub auto_confirmation: bool,
     pub task_busy: bool,
     pub clear_confirmation: bool,
+}
+impl ViewState<'_> {
+    pub fn editable(&self) -> bool {
+        !self.busy && !self.task_busy
+    }
 }
 use desktop_ui_controls::system_settings_common::*;
 use iced::Element;
@@ -55,8 +62,13 @@ fn action(label: &'static str, event: Event, enabled: bool) -> Element<'static, 
         .style(rounded_action_btn_style)
         .into()
 }
-pub fn view<'a>(s: ViewState<'a>, selection: Element<'a, Event>, preview: Element<'a, Event>, task_panel: Element<'a, Event>) -> Element<'a, Event> {
-    let editable = !s.busy && !s.task_busy;
+pub fn view<'a>(
+    s: ViewState<'a>,
+    selection: Element<'a, Event>,
+    preview: Element<'a, Event>,
+    task_panel: Element<'a, Event>,
+) -> Element<'a, Event> {
+    let editable = s.editable();
     let password = match &s.draft.secret {
         SyncSecretUpdate::Replace { value } => value.as_str(),
         _ => "",
@@ -123,9 +135,7 @@ pub fn view<'a>(s: ViewState<'a>, selection: Element<'a, Event>, preview: Elemen
             .spacing(8),
         );
     }
-    body = body
-        .push(preview)
-        .push(task_panel);
+    body = body.push(preview).push(task_panel);
     let actions = row![
         action("取消", Event::Close, !s.busy),
         action("刷新", Event::Load, editable),

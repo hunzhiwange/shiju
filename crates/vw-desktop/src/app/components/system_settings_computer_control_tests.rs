@@ -49,16 +49,6 @@ fn cc_control_19_navigation_has_independent_entry() {
     assert!(system_tab_matches_query(SystemTab::ComputerControl, "电脑操控"));
 }
 #[test]
-fn cc_control_19_toggle_waits_for_server_confirmation() {
-    let mut app = App::new().0;
-    app.computer_control_settings = loaded_state();
-    app.computer_control_settings.identity = Some(ControlIdentity::from_endpoint(&crate::app::gateway_client_endpoint()));
-    let _task = update(&mut app, Event::Toggle(ControlSetting::Word, true));
-    assert!(app.computer_control_settings.saving);
-    assert!(!app.computer_control_settings.feature(ControlSetting::Word).unwrap().enabled);
-    assert!(app.computer_control_settings.feature(ControlSetting::Chrome).unwrap().enabled);
-}
-#[test]
 fn cc_control_19_stop_failure_does_not_claim_success() {
     let mut app = App::new().0;
     let identity = ControlIdentity::from_endpoint(&crate::app::gateway_client_endpoint());

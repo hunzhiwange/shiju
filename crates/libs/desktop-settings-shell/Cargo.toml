@@ -39,6 +39,7 @@ chrono = "0.4"
 desktop-settings-voice = { path = "../desktop-settings-voice", version = "0.6.0" }
 
 [dev-dependencies]
+desktop-task-board = { path = "../desktop-task-board", version = "0.6.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 image = "0.25.9"
 iced_runtime = "0.14"

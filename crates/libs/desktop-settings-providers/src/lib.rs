@@ -72,3 +72,15 @@ mod desktop_split_28_tests;
 mod host_module_17_tests;
 
 pub mod models_page;
+
+#[cfg(test)]
+mod host_module_36_tests;
+
+#[cfg(test)]
+mod view_test_support;
+
+#[cfg(test)]
+extern crate self as desktop_settings_providers;
+
+#[cfg(test)]
+mod model_test_fixture;

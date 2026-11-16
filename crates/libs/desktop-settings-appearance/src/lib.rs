@@ -23,3 +23,6 @@ mod desktop_split_16_tests;
 mod host_module_26_tests;
 
 pub mod general_fields;
+
+#[cfg(test)]
+mod companion_test_support;

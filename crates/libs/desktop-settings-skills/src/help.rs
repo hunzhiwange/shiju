@@ -43,3 +43,26 @@ pub fn help_text(locale: config_ui::DesktopLocale) -> &'static str {
 - 禁用后仍会在目录页显示，但运行时会跳过加载，便于后续重新启用。
 "#)
 }
+
+/// Local help visibility and rendering; copy/close are explicit host effects.
+pub fn view_overlays<'a, Message: Clone + 'static>(
+    visible: bool,
+    locale: config_ui::DesktopLocale,
+    copied: Option<u64>,
+    base: iced::Element<'a, Message>,
+    copy: fn(String) -> Message,
+    close: Message,
+) -> iced::Element<'a, Message> {
+    if !visible {
+        return base;
+    }
+    desktop_ui_controls::system_settings_common::help::localized_settings_help_modal(
+        locale,
+        copied,
+        base,
+        desktop_i18n::I18n::new(locale).__("Skills 配置帮助"),
+        help_text(locale),
+        copy,
+        close,
+    )
+}

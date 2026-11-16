@@ -47,8 +47,6 @@ pub mod status_animation;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod startup_transition;
 
-
-
 /// 小宠物任务提示组件
 pub mod task_pet;
 
@@ -438,9 +436,6 @@ pub(crate) mod aggregation_desktop;
 
 #[path = "agent_apps/aggregation_subagent.rs"]
 pub(crate) mod aggregation_subagent;
-
-#[cfg(test)]
-mod system_settings_worktrees_tests;
 
 #[cfg(test)]
 #[path = "editor_settings_fields_tests.rs"]

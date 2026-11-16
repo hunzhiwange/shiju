@@ -5,7 +5,6 @@ use crate::app::i18n::settings_models::messages::Feedback;
 use crate::app::message::account::AccountMessage;
 use crate::app::{App, Message};
 use iced::Task;
-use std::time::Duration;
 use gateway_shiju_account::ShijuModelTokenDto;
 
 use desktop_settings_providers::managed_shiju::save_token;
@@ -17,10 +16,8 @@ pub(crate) fn sync(app: &mut App) -> Task<Message> {
 }
 
 fn retry_task(generation: u64) -> Task<Message> {
-    // 沿用当前代次；切换账号、退出或手动重试会使旧定时任务失效。
-    Task::perform(async { tokio::time::sleep(Duration::from_secs(10)).await }, move |()| {
-        Message::Account(AccountMessage::ResetModels { generation })
-    })
+    desktop_settings_providers::managed_shiju::retry_task(generation)
+        .map(|generation| Message::Account(AccountMessage::ResetModels { generation }))
 }
 
 pub(crate) fn reset(app: &mut App, generation: u64) -> Task<Message> {

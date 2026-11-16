@@ -5,11 +5,9 @@ use super::{
     metadata_fill::Event as Fill,
     model_edits_api_tests::{Fixture, load, row},
 };
-use crate::app::state::app_providers::model_catalog::FillState;
+use desktop_provider_apps::state::model_catalog::FillState;
 use serde_json::{Value, json};
-use vw_api_model_catalog::{
-    ModelCatalogCacheStatus, ModelMetadataField, ModelMetadataSource,
-};
+use vw_api_model_catalog::{ModelCatalogCacheStatus, ModelMetadataField, ModelMetadataSource};
 
 const FIRST: &str = "Vendor/First";
 const SECOND: &str = "Vendor/Second";
@@ -20,11 +18,8 @@ fn models(fixture: &mut Fixture) {
     load(fixture, json!({"revision":"displayed","items":[first,second]}));
 }
 
-fn edit(fixture: &mut Fixture, model_id: &str) -> iced::Task<crate::app::Message> {
-    fixture.event(Event::EditModel {
-        generation: fixture.app.app_providers.generation,
-        model_id: model_id.into(),
-    })
+fn edit(fixture: &mut Fixture, model_id: &str) -> iced::Task<Event> {
+    fixture.event(Event::EditModel { generation: fixture.generation, model_id: model_id.into() })
 }
 
 #[test]
@@ -51,7 +46,7 @@ fn catalog_desktop_fill_ignores_fill_after_model_change() {
             matches!(fixture.form().fill, FillState::Loading(_)),
             "late preview must not replace the new model's pending preview"
         );
-        assert!(fixture.app.active_toast.is_none());
+        assert!(fixture.feedback.is_none());
         assert!(fixture.requests.try_recv().is_err());
     });
 }
@@ -114,7 +109,7 @@ fn catalog_desktop_fill_keeps_draft_and_stays_quiet_offline() {
         );
         assert_eq!(fixture.form().alias, "本地草稿");
         assert_eq!(fixture.form().catalog.as_ref().unwrap().revision, "displayed");
-        assert!(fixture.app.active_toast.is_none());
+        assert!(fixture.feedback.is_none());
         assert_eq!(fixture.event(Event::Fill(Fill::Commit)).units(), 0);
         assert!(fixture.requests.try_recv().is_err());
     });
@@ -129,7 +124,7 @@ fn catalog_desktop_fill_ignores_preview_after_endpoint_or_host_change() {
             let pending = fixture.run(task);
             let request = fixture.request("POST /v1/model-catalog/fill-preview?").unwrap();
             if switch_host {
-                fixture.app.apps_catalog.host = "another-mac".into();
+                fixture.current = Err("host changed".into());
             } else {
                 let _ = fixture.event(Event::Endpoint("https://new.example/v1".into()));
             }
@@ -138,12 +133,12 @@ fn catalog_desktop_fill_ignores_preview_after_endpoint_or_host_change() {
             }));
             let _ = fixture.finish(pending);
             if switch_host {
-                assert!(fixture.app.app_providers.model_catalog.is_none());
+                assert!(fixture.catalog.is_none());
             } else {
                 assert!(matches!(fixture.form().fill, FillState::Idle));
                 assert!(fixture.form().catalog.is_none());
             }
-            assert!(fixture.app.active_toast.is_none());
+            assert!(fixture.feedback.is_none());
             assert!(fixture.requests.try_recv().is_err());
         });
     }
@@ -159,7 +154,7 @@ fn catalog_desktop_fill_rejects_revision_changed_during_preview() {
         );
         assert_eq!(fixture.event(Event::Fill(Fill::Commit)).units(), 0);
         assert!(fixture.requests.try_recv().is_err());
-        assert!(fixture.app.active_toast.is_none());
+        assert!(fixture.feedback.is_none());
     });
 }
 
@@ -178,7 +173,7 @@ fn catalog_desktop_fill_noop_never_shows_success() {
         fixture.reply(json!({"revision":"displayed","changed":false}));
         let _ = fixture.finish(pending);
         assert!(matches!(fixture.form().fill, FillState::Notice("没有新增参数。")));
-        assert!(fixture.app.active_toast.is_none());
+        assert!(fixture.feedback.is_none());
         assert!(fixture.requests.try_recv().is_err());
     });
 }
@@ -204,7 +199,10 @@ fn catalog_desktop_fill_commits_exact_revision_and_reports_only_real_changes() {
             first["metadata"]["maxOutputTokens"] = json!(4096);
             let second = row(fixture, SECOND, Some("模型乙"));
             fixture.reply(json!({"revision":"saved","items":[first,second]}));
-            let _ = fixture.finish(pending);
+            let feedback = fixture.finish(pending);
+            if !silent {
+                fixture.feedback(feedback);
+            }
             let saved = fixture.form().catalog.as_ref().unwrap();
             assert_eq!(saved.revision, "saved");
             assert_eq!(saved.items[0].metadata.context_window, Some(8192));
@@ -212,7 +210,7 @@ fn catalog_desktop_fill_commits_exact_revision_and_reports_only_real_changes() {
             assert_eq!(saved.items[1].metadata.max_output_tokens, None);
             assert_eq!(fixture.form().alias, "保留别名草稿");
             assert!(matches!(fixture.form().fill, FillState::Notice("已补全空白参数。")));
-            assert_eq!(fixture.app.active_toast.is_none(), silent);
+            assert_eq!(fixture.feedback.is_none(), silent);
             assert!(fixture.requests.try_recv().is_err());
         });
     }

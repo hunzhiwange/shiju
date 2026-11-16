@@ -1,11 +1,11 @@
 //! 从项目管理列表加载工作项目，并在当前 Gateway 租户解析会话归属。
 use super::persist::{build_channels_config_from_settings, persist_channels_settings};
+use super::{Effect as Message, Services};
 use crate::messages::ChannelsMessage;
 use crate::state::ChannelsSettingsState;
-use super::{Effect as Message, Services};
 use iced::Task;
-use vw_gateway_client::GatewayClient;
 use vw_api_project::ResolveProjectRequest;
+use vw_gateway_client::GatewayClient;
 
 fn tenant(client: &GatewayClient) -> Result<String, String> {
     serde_json::to_string(client.endpoint().tenant_scope()).map_err(|err| err.to_string())
@@ -42,7 +42,11 @@ pub fn load_active(app: &mut ChannelsSettingsState, services: &Services) -> Task
     }
 }
 
-pub fn load(app: &mut ChannelsSettingsState, services: &Services, instance: String) -> Task<Message> {
+pub fn load(
+    app: &mut ChannelsSettingsState,
+    services: &Services,
+    instance: String,
+) -> Task<Message> {
     if let Err(error) = configured(app, &instance) {
         return super::error_toast(error);
     }
@@ -59,11 +63,13 @@ pub fn load(app: &mut ChannelsSettingsState, services: &Services, instance: Stri
             let client = client?;
             let mut projects = Vec::with_capacity(choices.len());
             for (directory, name) in choices {
-                let response = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(
-                        client.endpoint().tenant_scope(),
-                        &ResolveProjectRequest { directory, create_if_missing: true },
-                    )
-                    .await?;
+                let response =
+                    gateway_project::GatewayProjectClient::new(client.transport().clone())
+                        .project_resolve(
+                            client.endpoint().tenant_scope(),
+                            &ResolveProjectRequest { directory, create_if_missing: true },
+                        )
+                        .await?;
                 projects.push((response.project.id.0, name));
             }
             Ok(projects)
@@ -80,7 +86,8 @@ pub fn load(app: &mut ChannelsSettingsState, services: &Services, instance: Stri
 }
 
 pub fn loaded(
-    app: &mut ChannelsSettingsState, services: &Services,
+    app: &mut ChannelsSettingsState,
+    services: &Services,
     scope: String,
     instance: String,
     generation: u64,
@@ -103,7 +110,12 @@ pub fn loaded(
     Task::none()
 }
 
-pub fn select(app: &mut ChannelsSettingsState, services: &Services, instance: String, project: Option<String>) -> Task<Message> {
+pub fn select(
+    app: &mut ChannelsSettingsState,
+    services: &Services,
+    instance: String,
+    project: Option<String>,
+) -> Task<Message> {
     let context = configured(app, &instance).and_then(|()| {
         let client = services.client.clone()?;
         tenant(&client)
@@ -117,9 +129,7 @@ pub fn select(app: &mut ChannelsSettingsState, services: &Services, instance: St
             let save = persist_channels_settings(app, services).unwrap_or_else(Task::none);
             Task::batch([save, super::execution::load(app, services, instance)])
         }
-        Err(source) => {
-            super::localized_toast(super::ToastKind::Error, source, vec![])
-        }
+        Err(source) => super::localized_toast(super::ToastKind::Error, source, vec![]),
     }
 }
 
@@ -128,11 +138,42 @@ pub fn retain_configured_bindings(app: &mut ChannelsSettingsState) {
     if let Ok(config) = build_channels_config_from_settings(&app)
         && let Ok(profiles) = config.resolve_channel_instance_profiles()
     {
-        app
-            .instance_execution
+        app.instance_execution
             .retain(|key, _| profiles.iter().any(|profile| &profile.profile_ref == key));
-        app
-            .instance_default_projects
+        app.instance_default_projects
             .retain(|key, _| profiles.iter().any(|profile| &profile.profile_ref == key));
     }
+}
+
+/// Keep managed order and prefer edited names, then stored names, then directory names.
+pub fn project_choices<'a>(
+    projects: &[String],
+    edits: &[String],
+    metadata: impl IntoIterator<Item = (&'a str, &'a str)>,
+) -> Vec<(String, String)> {
+    let metadata: Vec<_> = metadata.into_iter().collect();
+    projects
+        .iter()
+        .enumerate()
+        .map(|(index, path)| {
+            let name = edits
+                .get(index)
+                .filter(|name| !name.trim().is_empty())
+                .cloned()
+                .or_else(|| {
+                    metadata
+                        .iter()
+                        .find(|(meta_path, name)| *meta_path == path.as_str() && !name.trim().is_empty())
+                        .map(|(_, name)| (*name).to_owned())
+                })
+                .unwrap_or_else(|| {
+                    std::path::Path::new(path)
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or(path)
+                        .to_owned()
+                });
+            (path.clone(), name)
+        })
+        .collect()
 }

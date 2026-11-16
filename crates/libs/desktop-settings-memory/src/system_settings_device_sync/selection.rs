@@ -75,6 +75,21 @@ pub struct SelectionRow {
     available: bool,
 }
 impl SelectionRow {
+    pub fn provider(app: AppId, id: String, name: &str) -> Self {
+        Self::new(format!("供应商 {app:?} · {name}"), Choice::Provider(app, id), true)
+    }
+    pub fn mcp(id: String, name: &str) -> Self {
+        Self::new(format!("MCP · {name}"), Choice::Mcp(id), true)
+    }
+    pub fn prompt(app: AppId, id: String, name: &str) -> Self {
+        Self::new(format!("规则 {app:?} · {name}"), Choice::Prompt(app, id), true)
+    }
+    pub fn skill(id: String, name: &str) -> Self {
+        Self::new(format!("技能 · {name}"), Choice::Skill(id), true)
+    }
+    pub fn repository(owner: String, name: String) -> Self {
+        Self::new(format!("技能仓库 · {owner}/{name}"), Choice::Repository(owner, name), true)
+    }
     pub fn new(label: String, choice: Choice, available: bool) -> Self {
         Self { label, choice, available }
     }

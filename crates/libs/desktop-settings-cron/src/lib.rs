@@ -26,3 +26,12 @@ mod desktop_split_29_tests;
 
 #[cfg(test)]
 mod host_module_19_tests;
+
+#[cfg(test)]
+mod job_test_fixture;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_module_36_native_picker;
+
+#[cfg(test)]
+extern crate self as desktop_settings_cron;

@@ -61,6 +61,3 @@ pub fn view(app: &App) -> Element<'_, Message> { desktop_settings_security::syst
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     desktop_settings_security::system_settings_security::host_overlays(&inputs(app), dialog, map)
 }
-#[cfg(test)]
-#[path = "system_settings_security_tests.rs"]
-mod tests;

@@ -1,24 +1,17 @@
-use crate::app::{App, Message};
-use crate::app::message::settings::{SettingsMessage, TunnelMessage};
-use crate::app::i18n::settings_extensions::text as tr;
-fn test_app() -> App { App::new().0 }
+use super::{Message, TunnelMessage};
+use desktop_i18n::settings_extensions::text as tr;
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn help_rollout_17_renders_contextual_help() {
-    use super::super::{
-        system_settings::SystemTab,
-        system_settings_network as network,
-        system_settings_proxy::system_settings_proxy_tests::rollout::{
-            MODES, Scene, isolated, renderer,
-        },
-    };
+    use super::proxy_tests::rollout::{MODES, Scene, isolated, renderer};
+    use super::{SystemTab, network};
 
     if !isolated(concat!(module_path!(), "::help_rollout_17_renders_contextual_help")) {
         return;
     }
     let mut renderer = renderer().await;
-    let mut app = test_app();
-    app.navigation_panels.system_settings_tab = SystemTab::Tunnel;
+    let mut app = super::NetworkFixture::default();
+    app.system_settings_tab = SystemTab::Tunnel;
     app.tunnel_settings.save_error = Some("Fixture tunnel connection failed".into());
     app.tunnel_settings.custom_start_command = "fixture-tunnel {port}".into();
 
@@ -68,7 +61,7 @@ async fn help_rollout_17_renders_contextual_help() {
                 scene.label(t("选择自动暴露网关到公网或私有网络的方式。"));
                 assert!(matches!(
                     scene.edit("fixture-tunnel {port}").as_slice(),
-                    [Message::Settings(SettingsMessage::Tunnel(TunnelMessage::CustomStartCommandChanged(value)))]
+                    [Message::Tunnel(TunnelMessage::CustomStartCommandChanged(value))]
                         if value == "fixture-tunnel {port"
                 ));
             }
@@ -77,9 +70,7 @@ async fn help_rollout_17_renders_contextual_help() {
                 let checkbox = scene.label(t("启用 funnel（关闭时使用 serve）")).center();
                 assert!(matches!(
                     scene.click(checkbox).as_slice(),
-                    [Message::Settings(SettingsMessage::Tunnel(
-                        TunnelMessage::TailscaleFunnelToggled(true)
-                    ))]
+                    [Message::Tunnel(TunnelMessage::TailscaleFunnelToggled(true))]
                 ));
             }
             if provider == "none" {

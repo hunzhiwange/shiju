@@ -90,3 +90,9 @@ mod tests;
 pub fn sync_inventory<'a>(state: &'a State, context: &Option<desktop_provider_apps::AgentAppsContext>, catalog: u64) -> Option<&'a vw_api_app_skills::inventory_api::SkillInventoryResponse> {
     (state.context.as_ref() == context.as_ref() && state.catalog == catalog).then_some(state.inventory.as_ref()).flatten()
 }
+
+/// Completed jobs and restored backups invalidate the same displayed inventory.
+pub fn invalidate_inventory(state: &mut State) -> bool {
+    state.inventory = None;
+    state.open
+}

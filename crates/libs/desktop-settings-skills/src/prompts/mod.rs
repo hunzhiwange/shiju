@@ -28,3 +28,5 @@ pub enum Event {
 }
 
 pub mod update;
+
+pub mod ui_route;

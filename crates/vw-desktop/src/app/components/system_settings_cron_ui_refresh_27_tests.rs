@@ -22,3 +22,24 @@ async fn settings_tabs_core_appearance_cron() {
     )
     .await;
 }
+
+#[path = "../../../../libs/desktop-settings-shell/src/cron_render_test_support.rs"]
+mod rendering;
+use iced::{Point, Size, mouse};
+use rendering::{Geometry, assert_fits, capture, click, frame, geometry, renderer, scene, wheel};
+impl rendering::TestMessage for Message {
+    fn is_none(&self) -> bool {
+        matches!(self, Message::None)
+    }
+}
+fn isolated(test: &str) -> bool {
+    rendering::isolated(&format!("{}::{test}", module_path!()))
+}
+#[path = "../../../../libs/desktop-settings-cron/src/job_test_fixture.rs"]
+mod job_fixture;
+#[path = "system_settings_cron/list_tests.rs"]
+mod list_tests;
+
+fn job_row<'a>(app: &'a App, job: &'a gateway_cron::CronJobDto) -> Element<'a, Message> {
+    domain::list::job_row(&data(app), job).map(map)
+}

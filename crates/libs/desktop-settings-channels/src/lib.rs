@@ -58,3 +58,6 @@ pub mod view;
 mod help;
 #[cfg(test)]
 mod host_module_18_tests;
+
+#[cfg(test)]
+mod host_module_36_tests;

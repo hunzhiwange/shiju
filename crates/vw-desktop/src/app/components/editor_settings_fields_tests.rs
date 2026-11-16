@@ -1,13 +1,12 @@
-// 保留宿主契约：共用设置表面接入 App 编辑消息、指标提交与模态关闭持久化；真实字体加载和渲染仍在宿主。
+// 保留宿主契约：共用设置表面接入 App 编辑消息、指标提交与模态关闭持久化；真实字体加载与绘制夹具归desktop-editor。
 use crate::app::message::editor::{self, EditorMessage};
 use crate::app::{App, Message};
-use iced::advanced::widget::{Id, Operation, operation};
-use iced::advanced::{clipboard, renderer::Headless};
-use iced::widget::{container, text};
-use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
-use iced_runtime::user_interface::{Cache, UserInterface};
 use config_ui::GatewayClientSystemSettingsConfig;
-type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
+use iced::widget::{container, text};
+use iced::{Element, Length, Point, Size, Theme};
+#[path = "../../../../libs/desktop-editor/src/settings_test_support.rs"]
+mod rendering;
+use rendering::{bounds, click, position, renderer, scene};
 
 fn isolated(test: &str) -> bool {
     const CHILD: &str = "SHIJU_ECP03_CHILD";
@@ -46,112 +45,6 @@ fn isolated(test: &str) -> bool {
 fn fixture() -> App {
     assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");
     App::new().0
-}
-
-async fn renderer() -> Renderer {
-    {
-        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
-            fonts.load_font(font);
-        }
-    }
-    Renderer::new(Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"))
-        .await
-        .unwrap()
-}
-
-fn scene<'a>(view: Element<'a, Message>, renderer: &mut Renderer, size: Size<u32>) -> Ui<'a> {
-    UserInterface::build(
-        view,
-        Size::new(size.width as f32, size.height as f32),
-        Cache::new(),
-        renderer,
-    )
-}
-
-fn send(ui: &mut Ui<'_>, renderer: &mut Renderer, point: Point, events: &[Event]) -> Vec<Message> {
-    let mut messages = Vec::new();
-    ui.update(
-        events,
-        mouse::Cursor::Available(point),
-        renderer,
-        &mut clipboard::Null,
-        &mut messages,
-    );
-    messages
-}
-
-fn click(ui: &mut Ui<'_>, renderer: &mut Renderer, point: Point) -> Vec<Message> {
-    send(
-        ui,
-        renderer,
-        point,
-        &[
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
-            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
-        ],
-    )
-}
-
-#[derive(Default)]
-struct Bounds {
-    labels: Vec<(String, Rectangle)>,
-    inputs: Vec<(String, Rectangle)>,
-    focus: Vec<Rectangle>,
-    body: Option<(Rectangle, Vector)>,
-    menu: Option<Rectangle>,
-}
-
-impl Operation for Bounds {
-    fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn Operation)) {
-        children(self);
-    }
-
-    fn text(&mut self, _: Option<&Id>, bounds: Rectangle, value: &str) {
-        self.labels.push((value.into(), bounds));
-    }
-
-    fn text_input(
-        &mut self,
-        _: Option<&Id>,
-        bounds: Rectangle,
-        input: &mut dyn operation::TextInput,
-    ) {
-        self.inputs.push((input.text().into(), bounds));
-    }
-
-    fn focusable(&mut self, _: Option<&Id>, bounds: Rectangle, _: &mut dyn operation::Focusable) {
-        self.focus.push(bounds);
-    }
-
-    fn scrollable(
-        &mut self,
-        id: Option<&Id>,
-        bounds: Rectangle,
-        _: Rectangle,
-        offset: Vector,
-        _: &mut dyn operation::Scrollable,
-    ) {
-        if id == Some(&Id::from("settings-select-menu")) {
-            self.menu = Some(bounds);
-        } else {
-            self.body = Some((bounds, offset));
-        }
-    }
-}
-
-fn bounds(ui: &mut Ui<'_>, renderer: &Renderer) -> Bounds {
-    let mut result = Bounds::default();
-    ui.operate(renderer, &mut result);
-    result
-}
-
-fn position(controls: &[(String, Rectangle)], value: &str) -> Rectangle {
-    controls
-        .iter()
-        .find(|(text, _)| text == value)
-        .unwrap_or_else(|| panic!("missing {value:?} in {controls:?}"))
-        .1
 }
 
 fn preview(app: &App) -> Element<'_, Message> {

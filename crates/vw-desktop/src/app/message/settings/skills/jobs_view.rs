@@ -28,8 +28,8 @@ fn execute(app: &mut App, effect: desktop_settings_skills::update::jobs_view::Ef
         Effect::Poll(g) => Task::perform(async move { tokio::time::sleep(std::time::Duration::from_secs(1)).await; g }, |g| message(Event::Poll(g))),
         Effect::Finished(success) => {
             let notice = if success { app.show_success_toast("技能任务已完成") } else { app.show_error_toast("技能任务已结束，请核对最终状态及目标目录") };
-            app.skills_settings.install.inventory = None;
-            let inventory = if app.skills_settings.install.open { super::install_view::update(app, super::install_view::Event::Refresh) } else { Task::none() };
+            let refresh_inventory = desktop_settings_skills::update::install_view::invalidate_inventory(&mut app.skills_settings.install);
+            let inventory = if refresh_inventory { super::install_view::update(app, super::install_view::Event::Refresh) } else { Task::none() };
             Task::batch([notice, inventory, super::refresh_task(app.navigation_tabs.project_path.clone())])
         }
         Effect::Request { g, scope, id, cancel } => {

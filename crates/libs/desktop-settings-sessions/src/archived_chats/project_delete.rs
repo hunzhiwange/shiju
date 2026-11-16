@@ -211,7 +211,9 @@ pub async fn delete_checked(
     client: vw_gateway_client::GatewayClient,
     row: Info,
 ) -> Result<Option<Vec<String>>, String> {
-    let latest: Info = gateway_session::GatewaySessionClient::new(client.transport().clone()).session_get(&row.id, Some(&row.directory)).await?;
+    let latest: Info = gateway_session::GatewaySessionClient::new(client.transport().clone())
+        .session_get(&row.id, Some(&row.directory))
+        .await?;
     if latest.id != row.id
         || latest.project_id != row.project_id
         || latest.directory != row.directory
@@ -220,5 +222,76 @@ pub async fn delete_checked(
     {
         return Ok(None);
     }
-    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_delete_archived(&row.id, Some(&row.directory)).await.map(|r| Some(r.deleted_ids))
+    gateway_session::GatewaySessionClient::new(client.transport().clone())
+        .session_delete_archived(&row.id, Some(&row.directory))
+        .await
+        .map(|r| Some(r.deleted_ids))
+}
+
+#[derive(Default)]
+pub struct ProjectDeletePlan {
+    pub committed: Option<Vec<String>>,
+    pub next: Option<(u64, Info)>,
+    pub summary: Option<(bool, String)>,
+}
+/// Accept only a current batch result, then describe host cache and gateway effects.
+pub fn prepare(
+    state: &mut ArchivedChatsState,
+    message: ArchivedChatsMessage,
+    current: &Identity,
+) -> ProjectDeletePlan {
+    let mut committed = None;
+    if let ArchivedChatsMessage::ProjectDeleted { identity, generation, id, result } = &message {
+        let valid = identity == current
+            && state.identity.as_ref() == Some(current)
+            && state.delete_generation == Some(*generation)
+            && app
+                .archived_chats
+                .project_delete
+                .as_ref()
+                .and_then(|b| b.targets.get(b.next))
+                .is_some_and(|r| &r.id == id);
+        if !valid {
+            return ProjectDeletePlan::default();
+        }
+        if let Ok(Some(ids)) = result
+            && ids.contains(id)
+        {
+            committed = Some(ids.clone());
+        }
+    }
+    let was_running = state.delete_generation.is_some();
+    apply(&mut state, &message, current);
+    if matches!(message, ArchivedChatsMessage::ProjectDeleteRetry) {
+        return ProjectDeletePlan::default();
+    }
+    if was_running && !matches!(message, ArchivedChatsMessage::ProjectDeleted { .. }) {
+        return ProjectDeletePlan::default();
+    }
+    let next = state.delete_generation.map(|generation| {
+        let batch = state.project_delete.as_ref().unwrap();
+        (generation, batch.targets[batch.next].clone())
+    });
+    let summary = if next.is_none() && was_running {
+        let batch = state.project_delete.as_ref().unwrap();
+        Some((
+            batch.failed.is_empty() && batch.skipped == 0,
+            format!(
+                "归档聊天删除结果：成功 {}，失败 {}，状态变化跳过 {}。",
+                batch.succeeded,
+                batch.failed.len(),
+                batch.skipped
+            ),
+        ))
+    } else {
+        None
+    };
+    ProjectDeletePlan { committed, next, summary }
+}
+pub fn add_reconcile_candidates(state: &mut ArchivedChatsState, candidates: Vec<String>) {
+    for id in candidates {
+        if !state.delete_reconcile_ids.contains(&id) {
+            state.delete_reconcile_ids.push(id);
+        }
+    }
 }

@@ -1,6 +1,6 @@
 //! Project only inventories belonging to the current catalog scope.
 use crate::app::App;
-use desktop_settings_memory::system_settings_device_sync::selection::{Choice, SelectionRow};
+use desktop_settings_memory::system_settings_device_sync::selection::SelectionRow;
 use vw_api_project_profiles::ProjectProfileScope;
 
 pub(super) fn inventory(app: &App) -> Vec<SelectionRow> {
@@ -11,22 +11,14 @@ pub(super) fn inventory(app: &App) -> Vec<SelectionRow> {
             if let Some(snapshot) = &app.app_providers.snapshot {
                 for row in &snapshot.catalog.rows {
                     let p = &row.provider;
-                    rows.push(SelectionRow::new(
-                        format!("供应商 {:?} · {}", p.app_id, p.name),
-                        Choice::Provider(p.app_id, p.id.clone()),
-                        true,
-                    ));
+                    rows.push(SelectionRow::provider(p.app_id, p.id.clone(), &p.name));
                 }
             }
         }
     }
     if let Some(Ok(catalog)) = crate::app::message::settings::mcp_management_list::visible(app) {
         for record in &catalog.records {
-            rows.push(SelectionRow::new(
-                format!("MCP · {}", record.name),
-                Choice::Mcp(record.record.id.0.clone()),
-                true,
-            ));
+            rows.push(SelectionRow::mcp(record.record.id.0.clone(), &record.name));
         }
     }
     let prompts = &app.apps_catalog.prompts;
@@ -36,11 +28,7 @@ pub(super) fn inventory(app: &App) -> Vec<SelectionRow> {
         {
             if let Some(catalog) = &prompts.catalog {
                 for entry in &catalog.entries {
-                    rows.push(SelectionRow::new(
-                        format!("规则 {:?} · {}", scope.app_id, entry.name),
-                        Choice::Prompt(scope.app_id, entry.id.clone()),
-                        true,
-                    ));
+                    rows.push(SelectionRow::prompt(scope.app_id, entry.id.clone(), &entry.name));
                 }
             }
         }
@@ -55,11 +43,7 @@ pub(super) fn inventory(app: &App) -> Vec<SelectionRow> {
         if matches(&inventory.scope) {
             for skill in &inventory.skills {
                 if skill.present {
-                    rows.push(SelectionRow::new(
-                        format!("技能 · {}", skill.name),
-                        Choice::Skill(skill.id.clone()),
-                        true,
-                    ));
+                    rows.push(SelectionRow::skill(skill.id.clone(), &skill.name));
                 }
             }
         }
@@ -68,11 +52,7 @@ pub(super) fn inventory(app: &App) -> Vec<SelectionRow> {
     {
         if matches(&inventory.scope) {
             for repo in &inventory.repos {
-                rows.push(SelectionRow::new(
-                    format!("技能仓库 · {}/{}", repo.owner, repo.name),
-                    Choice::Repository(repo.owner.clone(), repo.name.clone()),
-                    true,
-                ));
+                rows.push(SelectionRow::repository(repo.owner.clone(), repo.name.clone()));
             }
         }
     }

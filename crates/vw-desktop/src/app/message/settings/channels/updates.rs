@@ -29,14 +29,8 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
   };
  }
  // Delivery updates must mutate the draft before loading execution candidates.
- let delivery = match &message {
-  ChannelsMessage::WeComDeliveryOpened(_) | ChannelsMessage::WeComDeliveryClosed | ChannelsMessage::WeComDeliveryChanged(_, _) | ChannelsMessage::WeComDeliveryClearSecret | ChannelsMessage::WeComDeliverySave | ChannelsMessage::WeComDeliverySaved(_) => Some(message.clone()),
-  ChannelsMessage::QrClosed if app.channels_settings.wecom_delivery.is_some() => Some(ChannelsMessage::WeComDeliveryClosed),
-  ChannelsMessage::QrSaveConfirmed if app.channels_settings.wecom_delivery.is_some() => Some(ChannelsMessage::WeComDeliverySave),
-  _ => None,
- };
- if let Some(delivery) = delivery {
-  let reload = matches!(message, ChannelsMessage::QrSaveConfirmed);
+ let delivery = desktop_settings_channels::update::updates::delivery_event(&app.channels_settings, &message);
+ if let Some((delivery, reload)) = delivery {
   let task = super::wecom_delivery::update(app, delivery);
   return if reload { Task::batch([task, super::execution::load_active(app)]) } else { task };
  }

@@ -93,3 +93,45 @@ fn search_matches_setting_labels_and_localizes_each_parent() {
         .collect();
     assert_eq!(paths, ["Terminal > General", "Editor > General"]);
 }
+
+#[test]
+fn archived_chats_browse_navigation_is_searchable() {
+    let tab =
+        SystemTab::all().find(|tab| tab.to_string() == "已归档的聊天").expect("archive navigation");
+    assert!(tab_matches_query(tab, "archived"));
+    assert!(tab_matches_query(tab, "归档"));
+}
+
+#[test]
+fn themes_are_nested_under_general_navigation() {
+    assert!(
+        !SystemTab::all().any(|tab| tab == SystemTab::Themes),
+        "Themes should be nested under General"
+    );
+    assert_eq!(SystemTab::Themes.to_string(), "主题");
+}
+
+fn tab_matches_query(tab: SystemTab, query: &str) -> bool {
+    desktop_settings_network::system_settings_search::SystemSettingsSearchEntry::new(
+        tab.label(),
+        None,
+        crate::system_tab_keywords(tab),
+        tab,
+    )
+    .matches(query)
+}
+
+#[test]
+fn multimodal_search_keywords_include_ocr_and_image_model() {
+
+    assert!(tab_matches_query(SystemTab::Models, "OCR"));
+    assert!(tab_matches_query(SystemTab::Models, "图片模型"));
+}
+
+use crate::cron_render_test_support;
+#[path = "host_module_36_companion_tests.rs"]
+mod companion;
+#[path = "host_module_36_security_tests.rs"]
+mod security;
+#[path = "host_module_36_delivery_tests.rs"]
+mod delivery;

@@ -55,45 +55,7 @@ fn add_tab(app: &Fixture) -> Element<'_, Message> {
 fn with_edit_modal<'a>(app: &'a Fixture, base: Element<'a, Message>) -> Element<'a, Message> {
     domain::with_edit_modal(&data(app), base, |m| m)
 }
-pub(super) fn job(id: &str) -> CronJobDto {
-    CronJobDto {
-        timezone: None,
-        anchor_date: None,
-        weekdays: None,
-        hour: None,
-        minute: None,
-        starts_at: None,
-        ends_at: None,
-
-        id: id.to_string(),
-        name: None,
-        job_type: String::new(),
-        schedule_kind: "cron".to_string(),
-        expression: "0 9 * * *".to_string(),
-        at: None,
-        every_ms: None,
-        command: "echo ok".to_string(),
-        prompt: None,
-        model: None,
-        agent: None,
-        acp_agent: None,
-        project_path: None,
-        wake: false,
-        fallbacks: Vec::new(),
-        full_access: false,
-        task_pool: false,
-        delivery_mode: String::new(),
-        delivery_channel: None,
-        delivery_to: None,
-        delivery_best_effort: true,
-        delete_after_run: false,
-        next_run: "2026-06-12T01:02:03Z".to_string(),
-        last_run: None,
-        last_status: None,
-        last_output: None,
-        enabled: true,
-    }
-}
+pub(super) use crate::job_test_fixture::job;
 
 #[test]
 fn rows_and_forms_build_shell_agent_and_editing_states() {

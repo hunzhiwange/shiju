@@ -148,63 +148,7 @@ pub(crate) async fn registered_context()
     (temp, ctx, project)
 }
 
-#[tokio::test]
-pub(crate) async fn channel_project_scope_binding_priority_and_immutable_snapshot() {
-    let (_a, ctx, a) = registered_context().await;
-    let (_b, _, b) = registered_context().await;
-    let msg = channel_message(None);
-    let fallback = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
-    assert_eq!(fallback.scope.project, a.id);
-    assert_eq!(fallback.source, ChannelProjectSource::Workspace);
-    ctx.project_state
-        .lock()
-        .unwrap()
-        .config
-        .instance_default_projects
-        .insert("telegram:default".into(), b.id.clone());
-    let default = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
-    assert_eq!(default.scope.project, b.id);
-    assert_eq!(default.source, ChannelProjectSource::Instance);
-    ctx.project_state
-        .lock()
-        .unwrap()
-        .selections
-        .insert(ChannelChatScope::from_message(&msg, crate::session::ui_store::current_tenant_scope()), a.id.clone());
-    let explicit = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
-    assert_eq!(explicit.source, ChannelProjectSource::Chat);
-    assert_eq!(explicit.scope.project, a.id);
-    assert_eq!(default.scope.project, b.id);
-    ctx.project_state
-        .lock()
-        .unwrap()
-        .config
-        .instance_default_projects
-        .insert("telegram:default".into(), "missing".into());
-    assert_eq!(resolve_channel_message_snapshot(&ctx, &msg).await.unwrap().scope.project, a.id);
-}
 
-#[tokio::test]
-pub(crate) async fn channel_project_scope_invalid_binding_preserves_state() {
-    let (_a, ctx, _) = registered_context().await;
-    let msg = channel_message(None);
-    ctx.project_state
-        .lock()
-        .unwrap()
-        .config
-        .instance_default_projects
-        .insert("telegram:default".into(), "missing-project-for-scope".into());
-    append_sender_turn(&ctx, "keep", ChatMessage::user("keep"));
-    assert!(resolve_channel_message_snapshot(&ctx, &msg).await.is_err());
-    assert_eq!(ctx.conversation_histories.lock().unwrap()["keep"].len(), 1);
-    assert!(ctx.project_state.lock().unwrap().selections.is_empty());
-    ctx.project_state
-        .lock()
-        .unwrap()
-        .selections
-        .insert(ChannelChatScope::from_message(&msg, crate::session::ui_store::current_tenant_scope()), "missing-explicit".into());
-    ctx.project_state.lock().unwrap().config.instance_default_projects.clear();
-    assert!(resolve_channel_message_snapshot(&ctx, &msg).await.is_err());
-}
 
 #[tokio::test]
 pub(crate) async fn channel_project_scope_sessions_follow_snapshot_and_isolate_rooms() {
@@ -239,29 +183,6 @@ pub(crate) async fn channel_project_scope_sessions_follow_snapshot_and_isolate_r
     assert_eq!(session_a, resolve_or_create_sender_session_id(&a, &msg, None).await.unwrap());
 }
 
-#[tokio::test]
-pub(crate) async fn channel_project_scope_project_history_and_routes_are_independent() {
-    let (_a, ctx, _) = registered_context().await;
-    let (_b, _, b) = registered_context().await;
-    let msg = channel_message(None);
-    let a = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
-    ctx.project_state
-        .lock()
-        .unwrap()
-        .config
-        .instance_default_projects
-        .insert("telegram:default".into(), b.id);
-    let b = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
-    let mut route = get_route_selection(&ctx, &a.scope.key());
-    route.model = "chosen-model".into();
-    route.task_mode_enabled = true;
-    set_route_selection(&ctx, &a.scope.key(), route);
-    assert_ne!(get_route_selection(&ctx, &b.scope.key()).model, "chosen-model");
-    assert!(!get_route_selection(&ctx, &b.scope.key()).task_mode_enabled);
-    append_sender_turn(&ctx, &a.scope.key(), ChatMessage::user("keep a"));
-    clear_sender_history(&ctx, &b.scope.key());
-    assert_eq!(ctx.conversation_histories.lock().unwrap()[&a.scope.key()][0].content, "keep a");
-}
 
 #[tokio::test]
 pub(crate) async fn channel_project_scope_unavailable_directory_does_not_cache_fake_session() {
@@ -274,33 +195,11 @@ pub(crate) async fn channel_project_scope_unavailable_directory_does_not_cache_f
     assert!(resolve_channel_message_snapshot(&ctx, &msg).await.is_err());
 }
 
-#[tokio::test]
-pub(crate) async fn channel_project_scope_tenant_cannot_resolve_other_tenant_binding() {
-    let (_a, ctx, a) = registered_context().await;
-    let msg = channel_message(None);
-    ctx.project_state
-        .lock()
-        .unwrap()
-        .config
-        .instance_default_projects
-        .insert("telegram:default".into(), a.id);
-    let first = ChannelChatScope::from_message(&msg, crate::session::ui_store::current_tenant_scope());
-    crate::session::ui_store::with_tenant_scope(
-        vw_api_transport::TenantScope::new("scope-platform", "scope-company").unwrap(),
-        async {
-            assert_ne!(first, ChannelChatScope::from_message(&msg, crate::session::ui_store::current_tenant_scope()));
-            ctx.project_state.lock().unwrap().tenant =
-                crate::session::ui_store::current_tenant_scope();
-            assert!(resolve_channel_message_snapshot(&ctx, &msg).await.is_err());
-        },
-    )
-    .await;
-}
 
 #[tokio::test]
 pub(crate) async fn channel_project_scope_processor_uses_captured_directory() {
     if isolated_processor_fixture(
-        "channels::channel_project_scope_processor_uses_captured_directory",
+        "channels::session::session_tests::channel_project_scope_processor_uses_captured_directory",
     )
     .await
     {
@@ -410,7 +309,7 @@ async fn isolated_processor_fixture(test: &str) -> bool {
         .output()
         .unwrap();
     assert!(
-        output.status.success(),
+        output.status.success() && String::from_utf8_lossy(&output.stdout).contains("1 passed"),
         "isolated processor fixture failed: {}\n{}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)

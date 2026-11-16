@@ -52,6 +52,7 @@ tokio = { version = "1", features = ["fs", "rt-multi-thread", "time", "net"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
 tokio = { version = "1", features = ["io-util", "macros", "net", "rt", "sync", "time", "test-util", "rt-multi-thread"] }
 
 async-trait = "0.1"

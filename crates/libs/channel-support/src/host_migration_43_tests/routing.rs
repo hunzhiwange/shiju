@@ -42,7 +42,7 @@ fn route(provider: &str, model: &str, task_mode_enabled: bool) -> ChannelRouteSe
     }
 }
 
-fn context(workspace_dir: &Path) -> ChannelRuntimeContext {
+pub(super) fn context(workspace_dir: &Path) -> ChannelRuntimeContext {
     ChannelRuntimeContext {
         project_state: Default::default(),
         message_snapshot: None,

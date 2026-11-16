@@ -347,3 +347,64 @@ channel-runtime 新增生产 chrono-tz 声明（原 dev 已有，锁文件依赖
 外部挂载 `dispatch_tests.rs`：356 行，生产0行，全部真实宿主验收/夹具，保留函数：chat_with_system, new, blocking, feedback_blocking, sent_contents, release, wait_for_active_sends, max_active_sends, name, send, stop_typing, listen, context, message, registered_context, compute_max_in_flight_messages_clamps_to_configured_bounds, log_worker_join_result_ignores_success_and_records_join_errors, run_message_dispatch_loop_processes_runtime_commands_until_input_closes, run_message_dispatch_loop_limits_in_flight_workers, run_message_dispatch_loop_skips_interrupt_for_non_telegram_channel, run_message_dispatch_loop_keeps_distinct_telegram_senders_independent, run_message_dispatch_loop_stops_when_semaphore_closed_before_receive, run_message_dispatch_loop_does_not_interrupt_model_queries。
 
 外部挂载 `dispatch_cancel_tests.rs`：358 行，生产0行，全部真实宿主验收/夹具，保留函数：cancel_idle, channel_command_cancel_qq_idle_is_idempotent, channel_command_cancel_lark_idle_is_idempotent, channel_command_cancel_telegram_does_not_require_auto_interrupt, channel_command_cancel_invalid_arguments_preserve_state, channel_command_cancel_help_describes_scope, isolated_cancel_test, cancel_fixture, wait_cancel_flag, channel_command_cancel_bypasses_full_slots_and_cleans_before_new_session, channel_command_cancel_isolates_instance_room_thread_sender_and_tenant, channel_command_cancel_unconfirmed_exit_keeps_mutations_busy, channel_command_cancel_busy_commands_preserve_state_and_status_responds, channel_command_cancel_natural_completion_then_stop_is_idempotent, channel_command_cancel_waits_for_feedback_before_releasing_scope, channel_command_cancel_dropped_caller_still_drains_processor。
+
+## 深度迁移补充（本节覆盖前述旧保留结论）
+
+已读取 final.md 与 remaining-host.json 的 owner=43 残留。全轮门槛仍开放，本任务不声明全轮完成。
+
+- routing.rs：整个上下文投影、同步原生目录桥及 wasm 空目录分支归 channel-support::routing_context，宿主仅公开兼容重导出。真实宿主命令调用保持原命名进入该入口。依赖方向不变；既有 routing 算法不重复计收益。
+- session.rs::channel_prompt_event：完整 match 分支移入 channel-runtime::session_events，输入直接使用 session-engine::processor_events::StreamEvent，输出仍为 session-port::PromptEvent。原 processor 回调直接调用迁后的函数。无回调转移业务、无新增 Host trait。
+- 四个 scope 行为函数完整迁入 channel-support::host_migration_43_tests::scope，保留所有断言和真实 agent-project 存储。仅参数投影与类型路径调整，未用 mock 替代租户或文件访问。复用原 routing 测试 context 和 session 测试 channel_message 夹具；真实项目仍通过 agent_project::from_directory 注册。
+- 支撑库原生 dev-dependency 启用既有 agent-database/test-support，沿用现有线程数据库隔离路径，未改进程环境；无新增锁文件包或依赖边（该库本已有 agent-database 依赖）。宿主注册、processor reserve/discard 等真实端口保留。
+- 新增运行库两个事件投影测试，覆盖文本、终态成功/失败、模型工具调用过滤、步骤元数据、上下文路径、工具轮结束与待办续轮。未执行，不声称红绿证据。
+- 修复宿主 captured_directory 子进程过滤原先遗漏 session::session_tests 的完整名称，并要求子进程输出含 1 passed；防止零测试被 status.success 误认通过。属于验收挂载修复，未改处理器行为。
+
+### 本轮映射与注册
+
+- `channels::session::session_tests::channel_project_scope_binding_priority_and_immutable_snapshot` → `channel_support::host_migration_43_tests::scope::channel_project_scope_binding_priority_and_immutable_snapshot`，由 lib.rs → host_migration_43_tests.rs → scope.rs 自注册；原宿主定义/属性已删除。
+
+- `channels::session::session_tests::channel_project_scope_invalid_binding_preserves_state` → `channel_support::host_migration_43_tests::scope::channel_project_scope_invalid_binding_preserves_state`，由 lib.rs → host_migration_43_tests.rs → scope.rs 自注册；原宿主定义/属性已删除。
+
+- `channels::session::session_tests::channel_project_scope_project_history_and_routes_are_independent` → `channel_support::host_migration_43_tests::scope::channel_project_scope_project_history_and_routes_are_independent`，由 lib.rs → host_migration_43_tests.rs → scope.rs 自注册；原宿主定义/属性已删除。
+
+- `channels::session::session_tests::channel_project_scope_tenant_cannot_resolve_other_tenant_binding` → `channel_support::host_migration_43_tests::scope::channel_project_scope_tenant_cannot_resolve_other_tenant_binding`，由 lib.rs → host_migration_43_tests.rs → scope.rs 自注册；原宿主定义/属性已删除。
+
+- `crates/vw-agent/src/channels/routing.rs`：本轮 281 → 2 行。
+
+- `crates/vw-agent/src/channels/session.rs`：本轮 213 → 195 行。
+
+- `crates/vw-agent/src/channels/session_tests.rs`：本轮 419 → 318 行。
+
+### 当前仍保留的真实边界
+
+- `session.rs`：195 行；clear_sender_session_id, resolve_or_create_sender_session_id, owned_channel_sessions, create_channel_session, run_session_processor_for_channel, collect_channel_response, get, reserve, discard。
+
+- `session_tests.rs`：318 行；chat_with_system, channel_message, test_context, processor_request, run_session_processor_for_channel_accumulates_and_forwards_docs_output, run_session_processor_for_channel_propagates_docs_error, registered_context, channel_project_scope_sessions_follow_snapshot_and_isolate_rooms, channel_project_scope_unavailable_directory_does_not_cache_fake_session, channel_project_scope_processor_uses_captured_directory, channel_project_scope_memory_reads_only_matching_scope, channel_project_scope_snapshot_rejects_different_sender, isolated_processor_fixture。
+
+- `scope.rs`：27 行；resolve_channel_message_snapshot, scoped_history_key, channel_chat_gate。
+
+- `session_turn.rs`：61 行；take_committed_channel_reply, persist_channel_turn, lock_history, get, now_ms, first_response_source, load, commit_first, commit_snapshot, refresh, spawn_title。
+
+- `mod.rs`：334 行；。
+
+- `scope_delivery_tests.rs`：44 行；name, send, listen, channel_project_scope_instance_reply_and_route_stay_with_sender。
+
+- `mod_tests.rs`：35 行；root_module_reexports_core_channel_types, assert_channel, native_channel_reexports_are_constructible。
+
+- `prompt.rs`：20 行；build_workspace_protocol_messages。
+
+- `dispatch_tests.rs`：356 行；chat_with_system, new, blocking, feedback_blocking, sent_contents, release, wait_for_active_sends, max_active_sends, name, send, stop_typing, listen, context, message, registered_context, compute_max_in_flight_messages_clamps_to_configured_bounds, log_worker_join_result_ignores_success_and_records_join_errors, run_message_dispatch_loop_processes_runtime_commands_until_input_closes, run_message_dispatch_loop_limits_in_flight_workers, run_message_dispatch_loop_skips_interrupt_for_non_telegram_channel, run_message_dispatch_loop_keeps_distinct_telegram_senders_independent, run_message_dispatch_loop_stops_when_semaphore_closed_before_receive, run_message_dispatch_loop_does_not_interrupt_model_queries。
+
+- `dispatch_cancel_tests.rs`：358 行；cancel_idle, channel_command_cancel_qq_idle_is_idempotent, channel_command_cancel_lark_idle_is_idempotent, channel_command_cancel_telegram_does_not_require_auto_interrupt, channel_command_cancel_invalid_arguments_preserve_state, channel_command_cancel_help_describes_scope, isolated_cancel_test, cancel_fixture, wait_cancel_flag, channel_command_cancel_bypasses_full_slots_and_cleans_before_new_session, channel_command_cancel_isolates_instance_room_thread_sender_and_tenant, channel_command_cancel_unconfirmed_exit_keeps_mutations_busy, channel_command_cancel_busy_commands_preserve_state_and_status_responds, channel_command_cancel_natural_completion_then_stop_is_idempotent, channel_command_cancel_waits_for_feedback_before_releasing_scope, channel_command_cancel_dropped_caller_still_drains_processor。
+
+保留原因：session.rs 是具体 processor 启动与 task-local 项目/租户/测试数据库继承、请求工件 ID 和实际会话 I/O；session_tests 中的剩余场景必须调用真实 reserve/get/discard、处理器与流事件，registered_context/channel_message 被宿主命令/调度测试调用；session_turn.rs 是实际存储事务及标题调度端口；scope.rs 仅类型/函数公开兼容和当前租户注入；prompt.rs 仅宿主协议发现；mod.rs 含当前具体工厂/特性组合和其他编号模块注册。dispatch 两组和 scope_delivery 继续验收真实宿主实例选择、取消流和反馈完成顺序，不用模拟执行器替代。剩余 memory_reads 场景仍通过宿主真实消息路径，不能用纯键测试替换。
+
+### 当前静态证据与未来限定命令
+
+已核对共享输入/输出枚举、context API、真实项目存储调用与依赖方向；无领域到 vw-agent 的新依赖或源码 path/include 反挂载。git diff --check 在本任务路径无空白错误。所有 Cargo、构建及测试均未运行；没有编译或行为通过证据。
+
+- 未来 `python3 scripts/cargo_slot.py cargo test -p channel-support --lib host_migration_43_tests -- --test-threads=1`：静态预期 22 个，未运行。
+
+- 未来 `python3 scripts/cargo_slot.py cargo test -p channel-runtime --lib host_migration_43_tests -- --test-threads=1`：静态预期 27 个，未运行。
+
+- 未来宿主精确过滤 `channels::session::session_tests::channel_project_scope_processor_uses_captured_directory`，必须非零；其余真实处理器/事务场景按上述完整原名过滤。

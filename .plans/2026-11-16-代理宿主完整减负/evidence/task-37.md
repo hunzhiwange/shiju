@@ -337,3 +337,29 @@ python3 scripts/cargo_slot.py cargo test -p agent-plugins --lib host_migration_3
 ```
 
 Expected t58 = 5 on Unix (4 on other platforms); t26 = 1. Existing test37 mappings remain. All Cargo, builds and behavior tests remain unexecuted. Static caller/import/registration and diff checks only. No full-task completion claim about global line threshold.
+
+## Task59 step4 recovery: notification inspection contract
+
+Restored task37 after reading owner37 priority9 in task-59-recovery-priorities.json (1129 original host lines; t20 243 lines). Code complete, compilation/behavior NOT VERIFIED. No Cargo, build, unit or physical test commands run.
+
+### Symbol-by-symbol mapping
+
+- `codex_plugin_compat_t20_inspection_refreshes_only_notified_resource_and_prompt_catalogs` remains registered once in vw-agent::plugins::compat::t20_tests. The 24-line wrapper builds the real ToolUseContext/session, invokes the actual mcp_inspect entry and closes actual session connections. No permission, snapshot, admission or retirement port is substituted.
+- Initial resource/template/prompt names; two pages per catalog; unchanged cache counts `(2,2,2)`; resource notification changes both resource catalogs while retaining prompt counts `(4,4,2)`; prompt notification reaches `(4,4,4)` and updated prompt name: original assertions move verbatim in meaning to `plugin-mcp::catalog_test_support::assert_inspection_catalog_refresh`. Only actual inspection DTO fields project to a tuple; no cache or protocol algorithm is reimplemented.
+- `Service::{get_info,list_tools,call_tool,list_resources,list_resource_templates,list_prompts}` and their atomic counters, notification state, wait signals, pagination controls -> plugin-mcp::catalog_test_support::Service. They still execute real rmcp server handling over actual loopback sockets.
+- `Fixture::{start,with_service,changed,drop}`, real peer, listener task and stdio bridge server definition -> same support module. The contract returns Fixture to retain its lifetime through the host's close_session_mcp_connections, matching the old shutdown order.
+- `testdata/plugin_compat/t20/bridge.py` -> `crates/libs/plugin-mcp/testdata/catalog/bridge.py`, bytes unchanged. Only real owner path changes; subprocess I/O and loopback forwarding unchanged. No Rust host source loaded from domain.
+- Existing agent-plugins::host_migration_37_tests::t20_tests now imports this SAME Service/Fixture; the former duplicate service and connection code is removed. All its test names and assertions stay registered in their existing domain module.
+
+### Wiring / dependency direction
+
+plugin-mcp exports catalog_test_support only under cfg(test) or explicit test-support feature. Empty feature only exposes this concrete shared test implementation; vw-agent and agent-plugins enable it through dev-dependencies, leaving production feature activation unchanged. Existing rmcp/tokio/ACP dependencies suffice; dependency package edges already exist so no Cargo.lock changes are required. The retained caller runs actual scoped session inspection, preserving the existing context and admission path. This is **domain assertions plus real host boundary**, not a newly independent domain unit test and not measured compile savings.
+
+### Static evidence / future verification
+
+Host t20 243 -> 24 lines (219 fewer); domain t20 fixture duplicate removed, replaced by shared imports. No production algorithm migration benefit credited. All original 10 assertion macros retained in the contract. Parent host mod registration remains unchanged. Only shared Cargo.toml/lib.rs minimal feature/registration patches are committed; unrelated working changes excluded.
+
+Future authorized check (NOT RUN), expected one actual host test:
+`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib codex_plugin_compat_t20_inspection_refreshes_only_notified_resource_and_prompt_catalogs -- --test-threads=1`
+
+Existing domain tests continue under agent-plugins --lib host_migration_37_tests::t20_tests; expected 12 nonzero tests. Compile both feature consumers when validation is authorized; no zero-test or runtime-success claim. Static diff, literal resource paths, original assertion count and registration checks only.

@@ -7,6 +7,9 @@ license = "MIT"
 [lib]
 doctest = false
 
+[features]
+test-support = []
+
 [dependencies]
 session-port = { path = "../session-port", version = "0.6.0" }
 anyhow = "1"

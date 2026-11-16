@@ -312,3 +312,7 @@ pub fn connection_cancellation(
         .or_default()
         .child_token())
 }
+
+#[cfg(test)]
+#[path = "mcp_oauth_tokens_tests.rs"]
+mod tests;

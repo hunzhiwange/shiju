@@ -155,3 +155,69 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp::mounts_tests:: -
 剩余大头仍为真实 NativeAcpHost/SkillTool/FileReadTool/CLI 独立进程验收；继续可迁项是测试协议的纯修订/状态断言，而非把原生Host复制进领域。该恢复没有关闭整轮35000行门槛，交收口按本次实际数字验收。
 
 追加：mount_store::save 的完整真实租约校验与存储参数组装也归 agent-acp::mounts::save，宿主仅5行重导出。恢复当前总行数以宿主物理源码为准：2041行。
+
+## 再恢复：整组恢复、更新与验收领域契约
+
+再次读取 final.md 与 remaining-host.json，本任务在该快照残留2041行。新增三个 test-support 模块，由宿主原测试注册调用，不反向依赖或读取宿主源码：
+
+| 宿主原文件 | 领域接收模块 | 原行 | 现行 | 保留的真实端口 |
+|---|---|---:|---:|---|
+| mount_recovery_tests.rs | host_migration_53_recovery_contracts | 420 | 142 | 独立进程 worker、真实 SkillTool/ToolUseContext、检查点 project/tenant 上下文和原生目录查询 |
+
+完整用例映射：
+
+- `acp::mount_recovery_tests::recovery_process_worker` → `agent_acp::host_migration_53_recovery_contracts::recovery_process_worker`；宿主原名保留薄注册。
+- `acp::mount_recovery_tests::acp_mount_recovery_independent_processes_restore_and_clear` → `agent_acp::host_migration_53_recovery_contracts::acp_mount_recovery_independent_processes_restore_and_clear`；宿主原名保留薄注册。
+- `acp::mount_recovery_tests::acp_mount_recovery_replaced_source_rejected` → `agent_acp::host_migration_53_recovery_contracts::acp_mount_recovery_replaced_source_rejected`；宿主原名保留薄注册。
+- `acp::mount_recovery_tests::acp_mount_recovery_corrupt_and_foreign_records_rejected` → `agent_acp::host_migration_53_recovery_contracts::acp_mount_recovery_corrupt_and_foreign_records_rejected`；宿主原名保留薄注册。
+- `acp::mount_recovery_tests::acp_mount_recovery_persistence_failure_retains_old_revision` → `agent_acp::host_migration_53_recovery_contracts::acp_mount_recovery_persistence_failure_retains_old_revision`；宿主原名保留薄注册。
+- `acp::mount_recovery_tests::acp_mount_recovery_mcp_retransmission_and_no_credentials_on_disk` → `agent_acp::host_migration_53_recovery_contracts::acp_mount_recovery_mcp_retransmission_and_no_credentials_on_disk`；宿主原名保留薄注册。
+- `acp::mount_recovery_tests::acp_mount_recovery_explicit_load_replaces_and_clears` → `agent_acp::host_migration_53_recovery_contracts::acp_mount_recovery_explicit_load_replaces_and_clears`；宿主原名保留薄注册。
+- `acp::mount_recovery_tests::acp_mount_recovery_revoked_and_edited_sources_rejected` → `agent_acp::host_migration_53_recovery_contracts::acp_mount_recovery_revoked_and_edited_sources_rejected`；宿主原名保留薄注册。
+- `acp::mount_recovery_tests::acp_mount_recovery_committed_revision_survives_exit_before_publication` → `agent_acp::host_migration_53_recovery_contracts::acp_mount_recovery_committed_revision_survives_exit_before_publication`；宿主原名保留薄注册。
+
+静态断言宏计数 21 → 宿主 3 + 领域 18；这是迁移核对，不是运行证明。
+
+| mount_update_tests.rs | host_migration_53_update_contracts | 238 | 21 | NativeAcpHost 类型注入、原生目录查询 |
+
+完整用例映射：
+
+- `acp::mount_update_tests::acp_mount_update_rollback_replace_clear_and_revoke_real_processes` → `agent_acp::host_migration_53_update_contracts::acp_mount_update_rollback_replace_clear_and_revoke_real_processes`；宿主原名保留薄注册。
+- `acp::mount_update_tests::acp_mount_update_same_revision_has_one_winner` → `agent_acp::host_migration_53_update_contracts::acp_mount_update_same_revision_has_one_winner`；宿主原名保留薄注册。
+- `acp::mount_update_tests::acp_mount_update_protocol_blocks_prompt_load_and_second_update_during_prepare` → `agent_acp::host_migration_53_update_contracts::acp_mount_update_protocol_blocks_prompt_load_and_second_update_during_prepare`；宿主原名保留薄注册。
+
+静态断言宏计数 28 → 宿主 0 + 领域 28；这是迁移核对，不是运行证明。
+
+| mount_acceptance_tests.rs | host_migration_53_acceptance_contracts | 98 | 16 | 生产 CLI 仓库根路径和 NativeAcpHost 类型注入 |
+
+完整用例映射：
+
+- `acp::mount_acceptance_tests::acp_server_mount_acceptance_production_stdio_tools_update_and_restart` → `agent_acp::host_migration_53_acceptance_contracts::acp_server_mount_acceptance_production_stdio_tools_update_and_restart`；宿主原名保留薄注册。
+- `acp::mount_acceptance_tests::acp_server_mount_acceptance_tenant_and_same_directory_session_isolation` → `agent_acp::host_migration_53_acceptance_contracts::acp_server_mount_acceptance_tenant_and_same_directory_session_isolation`；宿主原名保留薄注册。
+- `acp::mount_acceptance_tests::isolation_worker` → `agent_acp::host_migration_53_acceptance_contracts::isolation_worker`；宿主原名保留薄注册。
+
+静态断言宏计数 12 → 宿主 0 + 领域 12；这是迁移核对，不是运行证明。
+
+当前宿主本族总计 1464 行；相对初始2331行累计减少 867 行（37.2%），仍未达到70%。
+
+完整迁入的职责包含：恢复各 phase 的修订与技能断言、替换/撤销/篡改/损坏记录拒绝、磁盘持久化失败回滚、凭证不落盘、磁盘提交后 publication 前退出；更新的原子回滚、真实进程退出、并发同修订唯一成功者、协议 busy 阻止 prompt/load/update；生产 CLI 的脚本结果断言与实际 tenant/session 隔离。所有 subprocess --exact 原宿主入口字符串与环境隔离变量保留。
+
+RecoveryPorts 仅在 test-support 下提供三个实际使用的测试端口（invoke_skill/checkpoint/skill_body）；关联 Host 是现有生产 protocol::Host，宿主注入 NativeAcpHost，无 mock，不复制 App/AppState。提交点恢复经同一个 NativeAcpHost::prepare_revision/save_mounts 调用，保持原生校验路径。领域 recovery 的 assert_native_call、fixture、record_path、mcp 夹具及所有编排均迁出；宿主仅保留进程 worker 和技能/检查点函数。
+
+依赖：tempfile/walkdir 为已有库的 optional 依赖，仅 test-support 打开；tokio/time 同样限定该 feature。锁文件仅追加 agent-acp 对应依赖。领域契约仍由宿主真实用例执行，不能称为 agent-acp --lib 自注册测试或编译减负；只是断言与夹具所有权归还。
+
+未来仅运行原过滤：
+
+```sh
+python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp::mount_recovery_tests:: -- --test-threads=1
+python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp::mount_update_tests:: -- --test-threads=1
+python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp::mount_acceptance_tests:: -- --test-threads=1
+```
+
+静态预期分别9、3、3项（包含隔离 worker；worker 无隔离变量返回与原先一致，父场景必须实际启动子进程）。acceptance 仍要求同槽位生产 shiju；禁止本轮执行。所有 Cargo、构建及测试均未运行，未声明通过。任务卡本轮未重建，原任务已删除，证据保留。剩余 mounts_tests 的实际 SkillTool/FileReadTool 权限、附件与宿主配置绑定尚需进一步拆分，不能整文件豁免；整轮门槛继续由收口核实。
+
+追加 catalog 完整契约迁移：`acp::catalog_mounts_tests::cc_mcp_t29_read_mounts_checks_exact_identity_and_exposes_only_committed_references` → `agent_acp::host_migration_53_catalog_contracts` 同名函数。宿主 158 → 15 行，只保留真实 home 与授权 read_catalog_mounts 端口及原名测试注册。目录数据库操作、真实项目创建、原生无ACP提交会话、篡改/外租户/旧revision/删除断言完整归领域；断言宏 19 → 0+19，并保留隔离子进程 --exact 原入口。新增 optional vw-agent-apps 是实际 McpCatalogDraft 类型依赖，不是 vw-agent 宿主反向依赖；随 test-support 启用，模块保持 macOS 条件。
+
+本轮最后统计替代上文中间数字：宿主本族当前 1321 行，初始2331行累计净减 1010 行（43.3%）；本轮从2041行再减 720 行。独立测试文件当前 943 行；领域新增四个契约模块共 823 行，均计测试支持而非生产。原生产文件本轮未改变。
+
+未来 catalog 精确过滤（macOS，预期1项）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp::catalog_mounts_tests::cc_mcp_t29_read_mounts_checks_exact_identity_and_exposes_only_committed_references -- --exact --test-threads=1`。本轮静态 diff 空白核对与原断言宏/原名注册核对完成；未执行任何编译/行为验证。

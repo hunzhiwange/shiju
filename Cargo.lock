@@ -438,13 +438,16 @@ dependencies = [
  "session-port",
  "session-store",
  "sha2 0.10.9",
+ "tempfile",
  "tokio",
  "tokio-util",
  "tool-assembly",
  "tool-context",
  "tool-types",
+ "vw-agent-apps",
  "vw-api-mcp-management",
  "vw-api-transport",
+ "walkdir",
 ]
 
 [[package]]

@@ -44,9 +44,12 @@ libc = "0.2"
 uuid = { version = "1.11", features = ["v4", "js"] }
 
 [dev-dependencies]
+futures-util = "0.3"
+rmcp = { version = "0.8.0", default-features = false, features = ["client"] }
+axum = { version = "0.8.8", features = ["json", "http1", "tokio"] }
 agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
 tempfile = "3"
-tokio = { version = "1", features = ["rt", "time", "net", "io-util", "sync", "macros"] }
+tokio = { version = "1", features = ["rt", "time", "net", "io-util", "sync", "macros", "test-util"] }
 uuid = { version = "1.11", features = ["v4", "js"] }
 vw-api-types = { path = "../../vw-api-types", version = "0.6.0" }
 

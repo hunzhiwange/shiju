@@ -22,10 +22,8 @@ use super::{
     McpCatalogStore,
     catalog_create_tests::{http_draft, with_database},
 };
-use crate::{
-    agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
-    global_database::run_sync_database,
-};
+use crate::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore};
+use agent_database::run_sync_database;
 
 #[test]
 fn cc_mcp_t30_stdio_discovers_tools_using_args_env_and_cwd() -> anyhow::Result<()> {
@@ -55,7 +53,7 @@ fn cc_mcp_t30_stdio_discovers_tools_using_args_env_and_cwd() -> anyhow::Result<(
         stale.revision += 1;
         assert_eq!(
             runtime.block_on(catalog.check_connection(
-                &super::connectivity::NativeConnectionCheckRuntime,
+                &FixtureRuntime,
 &scope,
                 &stale,
                 "local-fixture",
@@ -67,7 +65,7 @@ fn cc_mcp_t30_stdio_discovers_tools_using_args_env_and_cwd() -> anyhow::Result<(
         );
         assert!(!workdir.join("started").exists());
         let result = runtime.block_on(catalog.check_connection(
-            &super::connectivity::NativeConnectionCheckRuntime,
+            &FixtureRuntime,
 &scope,
             &saved.record,
             "local-fixture",
@@ -252,7 +250,7 @@ fn check_remote(mode: RemoteMode, expected: McpConnectionOutcome) -> anyhow::Res
 
             let denied = catalog
                 .check_connection(
-                    &super::connectivity::NativeConnectionCheckRuntime,
+                    &FixtureRuntime,
 &scope,
                     &saved.record,
                     owner.host,
@@ -268,7 +266,7 @@ fn check_remote(mode: RemoteMode, expected: McpConnectionOutcome) -> anyhow::Res
             assert_eq!(hits.load(Ordering::Relaxed), 0);
             let outcome = catalog
                 .check_connection(
-                    &super::connectivity::NativeConnectionCheckRuntime,
+                    &FixtureRuntime,
 &scope,
                     &saved.record,
                     owner.host,
@@ -397,5 +395,43 @@ async fn remote_post(
         StatusCode::ACCEPTED.into_response()
     } else {
         Json(message).into_response()
+    }
+}
+
+// Only the external client host port is supplied here. Catalog authorization,
+// credentials, deadlines, pagination and process cleanup use production code.
+struct FixtureHost;
+impl mcp_client::ClientHost for FixtureHost {
+    fn runtime_stdio_cwd(&self, server: &agent_client_protocol::McpServerStdio) -> anyhow::Result<Option<std::path::PathBuf>> {
+        super::runtime::managed_stdio_cwd(server)
+    }
+    fn http_headers<'a>(&'a self, _: &'a agent_client_protocol::McpServerHttp, _: Option<&'a mcp_client::FormOwner>)
+        -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<Option<reqwest_012::header::HeaderMap>>> + Send + 'a>> {
+        Box::pin(async { Ok(None) })
+    }
+    fn request_elicitation(&self, _: mcp_client::FormOwner, _: String,
+        _: rmcp::model::CreateElicitationRequestParam, _: tokio_util::sync::CancellationToken,
+        _: tokio_util::sync::CancellationToken, _: Option<serde_json::Value>)
+        -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<rmcp::model::CreateElicitationResult, rmcp::model::ErrorData>> + Send + '_>> {
+        Box::pin(async { Err(rmcp::model::ErrorData::internal_error("fixture has no interaction owner", None)) })
+    }
+}
+struct FixtureRuntime;
+struct FixturePeer(mcp_client::RunningMcpPeer);
+impl super::connection_runtime::CheckPeer for FixturePeer {
+    fn has_tools(&self) -> bool {
+        self.0.peer_info().is_some_and(|info| info.capabilities.tools.is_some())
+    }
+    async fn tool_count(&self) -> anyhow::Result<u32> {
+        Ok(mcp_client::catalog::list_tools(self.0.peer()).await?.len() as u32)
+    }
+    async fn cancel(self) { let _ = self.0.cancel().await; }
+}
+impl super::connection_runtime::ConnectionCheckRuntime for FixtureRuntime {
+    type Peer = FixturePeer;
+    async fn open(&self, server: agent_client_protocol::McpServer, timeout: std::time::Duration,
+        http_io: tokio_util::sync::CancellationToken, child: Option<&mut Option<mcp_client::ProbeChild>>,
+    ) -> anyhow::Result<FixturePeer> {
+        mcp_client::open_connection_check_peer(std::sync::Arc::new(FixtureHost), server, timeout, http_io, child, None).await.map(FixturePeer)
     }
 }

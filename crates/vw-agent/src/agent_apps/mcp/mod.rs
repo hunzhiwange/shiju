@@ -6,8 +6,6 @@ pub use agent_app_services::mcp::*;
 mod connection_probe_tests;
 #[cfg(not(target_arch = "wasm32"))]
 mod connectivity;
-#[cfg(all(test, target_os = "macos"))]
-mod connectivity_tests;
 #[cfg(target_os = "macos")]
 pub mod network_probe;
 #[cfg(all(test, target_os = "macos"))]

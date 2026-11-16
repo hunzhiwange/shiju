@@ -58,6 +58,11 @@ pub struct StreamInput {
 }
 
 pub use crate::StreamEvent;
+pub use crate::Error;
+pub use model_types::ToolCall;
+#[cfg(test)]
+#[path = "types_tests.rs"]
+mod types_tests;
 
 /// 提示流事件枚举
 ///

@@ -37,6 +37,7 @@ mod options;
 mod prompt;
 mod stream;
 #[cfg(test)]
+#[path = "../../../../libs/llm-runtime/tests/host_suites/tests.rs"]
 mod tests;
 mod types;
 

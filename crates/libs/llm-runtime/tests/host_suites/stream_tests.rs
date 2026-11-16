@@ -451,14 +451,14 @@ fn model_recovery_catalog_errors_keep_structured_classification() {
         config::Error::Io(std::io::ErrorKind::PermissionDenied.into()),
         config::Error::Json(serde_json::from_str::<Value>("{").unwrap_err()),
     ] {
-        let error = message::AssistantError::from(provider::CatalogError::Configuration(error));
+        let error = llm_runtime::catalog_error::assistant_error(provider::CatalogError::Configuration(error));
         assert!(!is_retryable_assistant_error(&error));
     }
-    let error = message::AssistantError::from(provider::CatalogError::Configuration(
+    let error = llm_runtime::catalog_error::assistant_error(provider::CatalogError::Configuration(
         config::Error::Storage(storage::Error::Io(std::io::ErrorKind::TimedOut.into())),
     ));
     assert!(is_retryable_assistant_error(&error));
-    let error = message::AssistantError::from(provider::CatalogError::ModelNotFound(
+    let error = llm_runtime::catalog_error::assistant_error(provider::CatalogError::ModelNotFound(
         provider::ModelNotFoundError {
             provider_id: "fixture".into(),
             model_id: "missing".into(),

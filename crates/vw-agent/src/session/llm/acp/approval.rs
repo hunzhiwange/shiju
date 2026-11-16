@@ -11,7 +11,7 @@ use crate::approval::{
     ACP_APPROVAL_CHANNEL, ApprovalManager, ApprovalResponse, PendingNonCliApprovalRequest,
 };
 
-pub(super) struct PromptApproval<'a> {
+pub(crate) struct PromptApproval<'a> {
     _binding: llm_runtime::acp::approval::PromptApproval<'a>,
 }
 

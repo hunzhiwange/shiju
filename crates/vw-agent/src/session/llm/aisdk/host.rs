@@ -1,5 +1,5 @@
 //! Host authorization preserves the application tenant, project and credential boundaries.
-pub(super) struct NativeHost;
+pub(crate) struct NativeHost;
 impl llm_runtime::aisdk::host::Host for NativeHost {
     fn begin_usage(&self, provider: &str, model: &str) -> Option<agent_usage::native::NativeRequest> {
         crate::usage_bridge::native::NativeRequest::begin(provider, model, None)

@@ -1,9 +1,9 @@
 //! 验证 LLM 请求、流事件、用量和错误类型的克隆与显示契约。
 
-use crate::app::agent::provider::provider;
-use crate::app::agent::session::message;
-use crate::app::agent::tools::ToolSpec;
-use crate::session::ui_types as models;
+use agent_provider::provider;
+use message_types as message;
+use tool_types::ToolSpec;
+use session_ui_types as models;
 use serde_json::json;
 use std::collections::HashMap;
 

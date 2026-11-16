@@ -5,7 +5,7 @@
 //! 通用转换工具分别维护，避免把传输与消息转换混在一个文件中。
 
 pub(super) mod convert;
-mod host;
+pub(crate) mod host;
 #[cfg(test)]
 mod driver;
 #[cfg(test)]

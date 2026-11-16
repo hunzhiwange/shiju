@@ -6,7 +6,7 @@ use agent_auth as auth;
 use std::{path::Path, sync::Arc};
 use serde_json::Value;
 
-pub(super) struct RuntimeHost;
+pub(crate) struct RuntimeHost;
 pub(super) fn desktop_context(context: &crate::tools::ToolUseContext) -> DesktopContext {
     DesktopContext { session: context.session().to_owned(), workspace: context.workspace_root(), full_access: context.full_access_enabled() }
 }

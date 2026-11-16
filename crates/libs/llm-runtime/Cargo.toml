@@ -48,6 +48,9 @@ vw-api-tools = { path = "../api-tools", version = "0.6.0" }
 vw-api-usage = { path = "../api-usage", version = "0.6.0" }
 acp-lifecycle = { path = "../acp-lifecycle", version = "0.6.0" }
 agent-auth = { path = "../agent-auth", version = "0.6.0" }
+agent-installation = { path = "../agent-installation", version = "0.6.0" }
+plugin-hooks = { path = "../plugin-hooks", version = "0.6.0" }
+storage-types = { path = "../storage-types", version = "0.6.0" }
 agent-env = { path = "../agent-env", version = "0.6.0" }
 agent-log = { path = "../agent-log", version = "0.6.0" }
 vw-api-chat-identity = { path = "../api-chat-identity", version = "0.6.0" }

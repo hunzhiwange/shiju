@@ -475,8 +475,6 @@ impl tool_assembly::runtime::RuntimeHost for super::context::AgentContextHost {
 }
 
 #[cfg(test)]
-use tool_assembly::toolset::parse_tool_input;
-#[cfg(test)]
 use tool_assembly::agents::{agent_tool_parallel_limit, enabled_delegate_agents};
 #[cfg(test)]
 fn enabled_delegate_agents_with_project_skills(agents: &HashMap<String, DelegateAgentConfig>, workspace: &Path, config: &Config) -> HashMap<String, DelegateAgentConfig> {

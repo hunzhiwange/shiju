@@ -95,3 +95,44 @@
 - 宿主保留完整测试过滤前缀：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib tools::toolset::mod_tests:: -- --test-threads=1`；逐项名称见上表，静态预期 30 条。
 - 迁出的 tools::toolset::tests::* 和上表 5 个 mod_tests 函数未来用宿主 --list 确认消失；零测试仅证明迁走，不能记为行为通过。
 - 全部编译和行为检查未运行。当前仅源码、注册、路径、依赖及 git diff --check 静态核对。
+
+## 深度恢复（覆盖前轮保留结论）
+
+读取 final.md 与 remaining-host.json：任务32原残留1460行。本轮将 factory/runtime 的选择和发现断言从具体应用装配分离；未更改生产算法。
+
+- 原宿主 `tools::toolset::mod_tests::runtime_context_and_scalar_parsing_cover_core_branches` → `tool_assembly::host_migration_32_tests::assembly::runtime_context_and_scalar_parsing_cover_core_branches`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::default_context_constructors_use_current_directory_roots` → `tool_assembly::host_migration_32_tests::assembly::default_context_constructors_use_current_directory_roots`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::default_tools_wrapper_uses_native_runtime` → `tool_assembly::host_migration_32_tests::assembly::default_tools_wrapper_uses_native_runtime`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::default_tools_with_runtime_omits_batch_when_runtime_has_no_capabilities` → `tool_assembly::host_migration_32_tests::assembly::default_tools_with_runtime_omits_batch_when_runtime_has_no_capabilities`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::all_tools_with_runtime_respects_optional_tool_configurations` → `tool_assembly::host_migration_32_tests::assembly::all_tools_with_runtime_respects_optional_tool_configurations`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::all_tools_with_runtime_registers_brave_search_without_ipc_tools` → `tool_assembly::host_migration_32_tests::assembly::all_tools_with_runtime_registers_brave_search_without_ipc_tools`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::all_tools_with_runtime_filters_delegate_agents` → `tool_assembly::host_migration_32_tests::assembly::all_tools_with_runtime_filters_delegate_agents`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::canonical_agent_tool_registers_when_delegate_agent_exists` → `tool_assembly::host_migration_32_tests::assembly::canonical_agent_tool_registers_when_delegate_agent_exists`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::tool_specs_for_context_registers_dynamic_mcp_tools_from_workspace_config` → `tool_assembly::host_migration_32_tests::assembly::tool_specs_for_context_registers_dynamic_mcp_tools_from_workspace_config`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::codex_discovery_tool_factory_registers_search_for_deferred_tools` → `tool_assembly::host_migration_32_tests::assembly::codex_discovery_tool_factory_registers_search_for_deferred_tools`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::codex_discovery_tool_factory_omits_search_without_deferred_tools` → `tool_assembly::host_migration_32_tests::assembly::codex_discovery_tool_factory_omits_search_without_deferred_tools`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::codex_discovery_tool_factory_searches_authorized_catalog_without_remote_calls` → `tool_assembly::host_migration_32_tests::assembly::codex_discovery_tool_factory_searches_authorized_catalog_without_remote_calls`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::codex_discovery_tool_factory_respects_disabled_and_denied_search` → `tool_assembly::host_migration_32_tests::assembly::codex_discovery_tool_factory_respects_disabled_and_denied_search`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::execution_environment_registers_agent_tool_from_loaded_config` → `tool_assembly::host_migration_32_tests::assembly::execution_environment_registers_agent_tool_from_loaded_config`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::default_config_registers_agent_tool_with_builtin_subagents` → `tool_assembly::host_migration_32_tests::assembly::default_config_registers_agent_tool_with_builtin_subagents`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::default_toolset_registers_thread_tools_without_delegate_agents` → `tool_assembly::host_migration_32_tests::assembly::default_toolset_registers_thread_tools_without_delegate_agents`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::execute_tool_call_runs_dynamic_mcp_tool_through_context_registry` → `tool_assembly::host_migration_32_tests::assembly::execute_tool_call_runs_dynamic_mcp_tool_through_context_registry`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::execute_tool_from_registry_uses_supplied_tool_list` → `tool_assembly::host_migration_32_tests::assembly::execute_tool_from_registry_uses_supplied_tool_list`；完整断言保留，工厂与上下文绑定领域 Host。
+- 原宿主 `tools::toolset::mod_tests::register_dynamic_mcp_tools_skips_disabled_servers_and_keeps_existing_tools` → `tool_assembly::host_migration_32_tests::assembly::register_dynamic_mcp_tools_skips_disabled_servers_and_keeps_existing_tools`；完整断言保留，工厂与上下文绑定领域 Host。
+
+构造端口Selected只提供标识，不实现工具算法，执行明确报错；仅验证领域调用了哪些构造请求。原 all_tools_wrapper_registers_default_network_tools 与 default_tools_include_native_capability_tools 留宿主验证真实装配，不能把端口测试视为真实工具执行验收。MCP使用独立WireHost、真实协议连接池和本地Python stdio服务；不依赖用户全局配置，无OAuth/审批替代。租户快照、项目技能文件发现、真实AgentTool状态、thread请求过滤、runtime桥接、bash进程生存继续保留宿主。
+
+- 宿主 `crates/vw-agent/src/tools/toolset/mod.rs`：485 行。
+- 宿主 `crates/vw-agent/src/tools/toolset/mod_tests.rs`：469 行。
+- 领域测试/夹具 `crates/libs/tool-assembly/src/host_migration_32_tests.rs`：157 行。
+- 领域测试/夹具 `crates/libs/tool-assembly/src/host_migration_32_tests/assembly.rs`：676 行。
+- 领域测试/夹具 `crates/libs/tool-assembly/src/host_migration_32_tests/factory_host.rs`：116 行。
+- 领域测试/夹具 `crates/libs/tool-assembly/src/host_migration_32_tests/host.rs`：50 行。
+- 领域测试/夹具 `crates/libs/tool-assembly/src/host_migration_32_tests/mcp_host.rs`：40 行。
+- 领域测试/夹具 `crates/libs/tool-assembly/src/host_migration_32_tests/security.rs`：142 行。
+
+生产代码未迁移；移除不再使用的宿主测试parse_tool_input导入，其余生产端口和真实调用方向同前。领域自注册assembly/factory_host/mcp_host，未新增依赖，沿用现有库依赖。删除迁出测试旧定义及其专用夹具，保留原模块挂载仅用于真实边界。
+
+未来领域命令仍为 `python3 scripts/cargo_slot.py cargo test -p tool-assembly --lib host_migration_32_tests -- --test-threads=1`，现静态预期30条；宿主同前过滤，现静态预期11条。全部编译、构建与行为检查未运行，只有源码及diff静态核对。
+
+宿主总计1691 → 954，净减737（43.6%）；仍不足70%。原因：生产485行主要为具体工具构造和宿主资源端口，测试保留真实宿主验收。后续可迁项仅剩混合真实技能发现中的纯合并断言及thread请求过滤（实际所有者不是tool-assembly）；不得将缺口宣称达标。

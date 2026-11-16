@@ -151,3 +151,7 @@ async fn arc_delegating_tool_forwards_v2_contract_methods() {
     assert_eq!(boxed.to_audit_input(&input), input);
     assert_eq!(boxed.spec().id, "echo");
 }
+
+mod assembly;
+mod mcp_host;
+mod factory_host;

@@ -21,3 +21,6 @@ pub enum GeneralSettingsTab {
 
 mod layout;
 pub use layout::*;
+
+#[cfg(test)]
+mod host_module_30_tests;

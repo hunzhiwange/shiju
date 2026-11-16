@@ -13,9 +13,6 @@ mod tabs;
 mod theme;
 mod utils;
 
-#[cfg(test)]
-#[path = "help_tests.rs"]
-mod help_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 pub(in crate::app) mod tab_appearance_tests;
 

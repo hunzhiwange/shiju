@@ -6927,10 +6927,6 @@ dependencies = [
 name = "desktop-chat-view"
 version = "0.6.0"
 dependencies = [
- "config-agent-profile",
- "config-agent",
- "desktop-settings-skills",
- "desktop-settings-agents",
  "config-ui",
  "desktop-assets",
  "desktop-chat-tools",
@@ -7097,7 +7093,6 @@ dependencies = [
 name = "desktop-git-ui"
 version = "0.6.0"
 dependencies = [
- "desktop-chat-tools",
  "chrono",
  "config-ui",
  "desktop-assets",

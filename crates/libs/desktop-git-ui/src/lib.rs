@@ -31,6 +31,3 @@ pub mod page;
 
 #[cfg(test)]
 mod test_support;
-
-#[cfg(test)]
-mod host_module_6_tests;

@@ -37,4 +37,3 @@ iced_runtime = "0.14"
 image = "0.25.9"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tempfile = "3"
-desktop-chat-tools = { path = "../desktop-chat-tools", version = "0.6.0" }

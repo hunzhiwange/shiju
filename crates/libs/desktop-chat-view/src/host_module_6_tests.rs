@@ -52,11 +52,3 @@ fn apply_chat_message_measurements(
     }
     changed
 }
-
-mod app_state_tests;
-mod empty_tests;
-mod label_fixture;
-mod panel_tests;
-mod selector_fixture;
-mod text_view_tests;
-mod tool_selector_tests;

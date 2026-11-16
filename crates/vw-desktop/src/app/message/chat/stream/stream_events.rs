@@ -12,6 +12,8 @@ use super::{now_ms, session_directory_for_save, start_next};
 use crate::app::message::ProjectMessage;
 use crate::app::message::chat::scroll_chat_to_bottom_task;
 use crate::app::message::chat::session as chat_session;
+#[cfg(test)]
+use crate::app::state::StreamTailState;
 use crate::app::state::{QuickMessageGitCommitAction, QuickMessageHandoffState};
 use crate::app::ui::chat;
 use crate::app::{App, Message, models};
@@ -133,6 +135,15 @@ fn prepare_scroll_for_active_stream_growth(app: &mut App) {
     app.sync_chat_scroll_compat_fields();
 }
 
+#[cfg(test)]
+pub(crate) fn append_stream_delta_for_performance_probe(
+    chat: &mut Vec<models::ChatMessage>,
+    delta: String,
+) -> usize {
+    let mut message_ids = vec![None; chat.len()];
+    let mut tail_state = StreamTailState::default();
+    append_stream_delta_to_tail(chat, &mut message_ids, delta, now_ms(), &mut tail_state)
+}
 
 fn finish_active_stream_tail_update(
     app: &mut App,

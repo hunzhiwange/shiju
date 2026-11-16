@@ -45,7 +45,3 @@ iced_runtime = "0.14"
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
 image = "0.25.9"
-desktop-settings-agents = { path = "../desktop-settings-agents", version = "0.6.0" }
-desktop-settings-skills = { path = "../desktop-settings-skills", version = "0.6.0" }
-config-agent = { path = "../config-agent", version = "0.6.0" }
-config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }

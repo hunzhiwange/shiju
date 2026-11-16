@@ -4,9 +4,11 @@
 use super::tool_meta::{
     tool_activity_header, tool_header_title, tool_status_badge, tool_visual_state,
 };
-use super::tool_renderer::render_shared_tool_view;
-use super::{App, Message};
+use super::tool_renderer::{
+    render_shared_tool_view,
+};
 use super::{CommandItem, tool_command_summary_view};
+use crate::app::{App, Message};
 use iced::advanced::renderer::Headless;
 use iced::advanced::widget::Tree;
 use iced::advanced::{Layout, layout, mouse, renderer};
@@ -15,7 +17,7 @@ use iced::{Color, Font, Length, Pixels, Rectangle, Size, Theme};
 
 fn app() -> App {
     let mut app = App::new().0;
-    app.project_path = Some("/tmp/vibe-window".to_string());
+    app.navigation_tabs.project_path = Some("/tmp/vibe-window".to_string());
     app
 }
 

@@ -1,11 +1,9 @@
 //! 验证工具选择器的查询匹配、作用域标签、尺寸限制与主题对比度。
 //! 搜索 fixture 混合空白、大小写和多个字段，确保命中规则宽松但预览尺寸受控。
 
-use super::selector_fixture::SelectorFixture as App;
-use super::selector_fixture::session_tool_selector_popover;
-use desktop_chat_tools::state::{SessionToolGroup, SessionToolSelectorTab};
-use desktop_settings_agents::state::DelegateAgentSettingsEntry;
-use desktop_settings_skills::types::{SkillsCatalogItem, SkillsCatalogKind, SkillsDirectoryScope};
+use super::tool_selector::{session_tool_selector_popover};
+use crate::app::App;
+use crate::app::state::{DelegateAgentSettingsEntry, SessionToolGroup, SessionToolSelectorTab, SkillsCatalogItem, SkillsCatalogKind, SkillsDirectoryScope};
 use iced::Length;
 use iced::advanced::widget::Tree;
 use iced::{Color, Theme};
@@ -182,7 +180,7 @@ fn selector_popover_renders_skills_tab_loading_and_empty_scope_states() {
 
 #[test]
 fn agent_unified_selection_lists_enabled_cli_without_promoting_delegate_roles() {
-    use desktop_settings_agents::state::DelegateAgentSettingsEntry;
+    use crate::app::state::DelegateAgentSettingsEntry;
     let cli = DelegateAgentSettingsEntry::from_config(
         "acp-codex",
         Some(config_agent::AgentDefinitionConfig {
@@ -220,12 +218,12 @@ fn selector_icon_rows(layout: iced::advanced::Layout<'_>) -> Vec<iced::Rectangle
 }
 
 async fn render_selector_icons(theme: Theme, click: bool) {
-    use config_agent::AgentDefinitionConfig;
-    use config_agent_profile::AgentRuntime;
-    use desktop_chat_tools::selector_input::Message;
+    use crate::app::{Message, message};
     use iced::advanced::renderer::Headless;
     use iced::advanced::{Layout, Shell, layout, mouse, renderer};
     use iced::{Event, Font, Pixels, Rectangle, Size};
+    use config_agent_profile::AgentRuntime;
+    use config_agent::AgentDefinitionConfig;
 
     let mut app = App::new().0;
     app.agents_settings.entries = [
@@ -340,13 +338,22 @@ async fn render_selector_icons(theme: Theme, click: bool) {
             assert_eq!(messages.len(), 1);
             assert!(matches!(
                 (&messages[0], tab),
-                (Message::SessionAgentSelected(None), SessionToolSelectorTab::Agent)
-                    | (Message::SessionManualToolSelected(_), SessionToolSelectorTab::Tools)
-                    | (Message::SessionSkillSelected(_), SessionToolSelectorTab::Skills)
+                (
+                    Message::Chat(message::ChatMessage::SessionAgentSelected(None)),
+                    SessionToolSelectorTab::Agent
+                ) | (
+                    Message::Chat(message::ChatMessage::SessionManualToolSelected(_)),
+                    SessionToolSelectorTab::Tools
+                ) | (
+                    Message::Chat(message::ChatMessage::SessionSkillSelected(_)),
+                    SessionToolSelectorTab::Skills
+                )
             ));
             drop(element);
-            let selection = messages.remove(0);
-            app.select(selection);
+            let Message::Chat(selection) = messages.remove(0) else {
+                panic!("expected selector message");
+            };
+            let _ = message::chat::update(&mut app, selection);
             let runtime = app.current_session_runtime();
             match tab {
                 SessionToolSelectorTab::Agent => assert!(runtime.agent.is_none()),
@@ -360,6 +367,7 @@ async fn render_selector_icons(theme: Theme, click: bool) {
         }
     }
 }
+
 
 #[tokio::test(flavor = "multi_thread")]
 async fn session_entry_selector_icons_preserve_selection() {

@@ -11,7 +11,7 @@ use super::todo_views::tool_todowrite_compact_view;
 use super::tool_renderer::render_shared_tool_view;
 use super::web_view::tool_web_view;
 use super::workflow_view::tool_workflow_view;
-use super::{App, Message, message};
+use crate::app::{App, Message, message};
 use iced::advanced::renderer::Headless;
 use iced::advanced::widget::Tree;
 use iced::advanced::{Layout, layout, mouse, renderer};
@@ -23,7 +23,7 @@ use serde_json::json;
 fn advanced_view_renders_empty_body_context_menu_and_browser_open() {
     let mut app = App::new().0;
     app.chat_context_menu.target =
-        Some(desktop_chat_view::utils::ui::chat_context_target_key(1, Some(3)));
+        Some(crate::app::components::chat_panel::utils::chat_context_target_key(1, Some(3)));
     app.chat_context_menu.position = Some((24.0, 32.0));
 
     assert!(
@@ -68,7 +68,7 @@ async fn child_session_navigation_chinese_cards_render_and_only_open_details() {
 
     let mut app = App::new().0;
     app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
-    app.project_path = Some("/work/project".into());
+    app.navigation_tabs.project_path = Some("/work/project".into());
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
         for font in crate::fonts::load_all() {
@@ -177,15 +177,15 @@ fn agent_tool_right_click_opens_full_result_detail() {
 #[test]
 fn specialized_tool_headers_use_shared_lifecycle_contract() {
     for (name, source) in [
-        ("advanced", include_str!("../../../desktop-chat-tools/src/tools/advanced_view.rs")),
-        ("apply_patch", include_str!("../../../desktop-chat-tools/src/tools/apply_patch_view.rs")),
-        ("git_diff", include_str!("../../../desktop-chat-tools/src/tools/git_diff_view.rs")),
-        ("mcp", include_str!("../../../desktop-chat-tools/src/tools/mcp_view.rs")),
-        ("question", include_str!("../../../desktop-chat-tools/src/tools/question_view.rs")),
-        ("skill", include_str!("../../../desktop-chat-tools/src/tools/skill_view.rs")),
-        ("todo", include_str!("../../../desktop-chat-tools/src/tools/todo_views.rs")),
-        ("web", include_str!("../../../desktop-chat-tools/src/tools/web_view.rs")),
-        ("workflow", include_str!("../../../desktop-chat-tools/src/tools/workflow_view.rs")),
+        ("advanced", include_str!("../../../../../../libs/desktop-chat-tools/src/tools/advanced_view.rs")),
+        ("apply_patch", include_str!("apply_patch_view.rs")),
+        ("git_diff", include_str!("../../../../../../libs/desktop-chat-tools/src/tools/git_diff_view.rs")),
+        ("mcp", include_str!("../../../../../../libs/desktop-chat-tools/src/tools/mcp_view.rs")),
+        ("question", include_str!("../../../../../../libs/desktop-chat-tools/src/tools/question_view.rs")),
+        ("skill", include_str!("skill_view.rs")),
+        ("todo", include_str!("todo_views.rs")),
+        ("web", include_str!("web_view.rs")),
+        ("workflow", include_str!("workflow_view.rs")),
     ] {
         assert!(
             source.contains("tool_activity_header("),
@@ -267,21 +267,18 @@ fn specialized_tool_headers_use_shared_lifecycle_contract() {
 
 #[test]
 fn legacy_boolean_tool_header_has_no_callers() {
-    assert!(
-        !include_str!("../../../desktop-chat-tools/src/tools/tool_meta.rs")
-            .contains("impl From<bool> for ToolVisual")
-    );
+    assert!(!include_str!("tool_meta.rs").contains("impl From<bool> for ToolVisual"));
 
     for (name, source) in [
-        ("advanced", include_str!("../../../desktop-chat-tools/src/tools/advanced_view.rs")),
-        ("apply_patch", include_str!("../../../desktop-chat-tools/src/tools/apply_patch_view.rs")),
-        ("git_diff", include_str!("../../../desktop-chat-tools/src/tools/git_diff_view.rs")),
-        ("mcp", include_str!("../../../desktop-chat-tools/src/tools/mcp_view.rs")),
-        ("question", include_str!("../../../desktop-chat-tools/src/tools/question_view.rs")),
-        ("skill", include_str!("../../../desktop-chat-tools/src/tools/skill_view.rs")),
-        ("todo", include_str!("../../../desktop-chat-tools/src/tools/todo_views.rs")),
-        ("web", include_str!("../../../desktop-chat-tools/src/tools/web_view.rs")),
-        ("workflow", include_str!("../../../desktop-chat-tools/src/tools/workflow_view.rs")),
+        ("advanced", include_str!("../../../../../../libs/desktop-chat-tools/src/tools/advanced_view.rs")),
+        ("apply_patch", include_str!("apply_patch_view.rs")),
+        ("git_diff", include_str!("../../../../../../libs/desktop-chat-tools/src/tools/git_diff_view.rs")),
+        ("mcp", include_str!("../../../../../../libs/desktop-chat-tools/src/tools/mcp_view.rs")),
+        ("question", include_str!("../../../../../../libs/desktop-chat-tools/src/tools/question_view.rs")),
+        ("skill", include_str!("skill_view.rs")),
+        ("todo", include_str!("todo_views.rs")),
+        ("web", include_str!("web_view.rs")),
+        ("workflow", include_str!("workflow_view.rs")),
     ] {
         assert!(
             !source.contains("tool_header_title("),
@@ -293,7 +290,7 @@ fn legacy_boolean_tool_header_has_no_callers() {
 #[tokio::test(flavor = "multi_thread")]
 async fn specialized_tool_headers_dark_permission_and_failure_render_path_is_safe() {
     let mut app = App::new().0;
-    app.project_path = Some("/work/project".to_string());
+    app.navigation_tabs.project_path = Some("/work/project".to_string());
     app.chat_tool_hovered_idx = Some((40_u64 << 32) | 3);
     let payloads = [
         r#"tool AgentTool

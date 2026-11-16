@@ -398,3 +398,30 @@ tool-assembly::host_migration_35_tests 注册 3 个序列化和 registry 子模�
 - vw-agent保留 `tools::word_control_tests::cc_control_16_factory_registers_word_with_shared_gateway_authority` 1例。原搜索/PowerShell挂载消失须以后续真实宿主list证明，未运行。
 
 本轮静态核对：测试名称/断言一对一，原源码挂载删除；接收模块在本库注册；源码依赖方向与差异检查。编译、行为、系统授权、真实进程及 Cargo.lock 重生成全部未执行。
+
+## 第三轮：真实默认工具断言与代理夹具
+
+按最新 final.md 的任务35具体候选继续检查。共享目录新增 domain_construction 后，默认工具中 shell/files/apply_patch 已由真实领域构造器持有，四个测试迁到 `tool-assembly::host_migration_32_tests::host_migration_35_defaults`，复用现有 Host 的 FileToolHost 端口：
+
+- default_tools_include_apply_patch_once
+- default_tools_names
+- apply_patch_spec_uses_v2_aliases
+- default_tools_specs_expose_bash_alias
+
+原完整名称及断言保留，宿主旧定义删除。它们只断言真实领域构造出的具体默认工具，不把 factory_host 的 Batch Selected receipt 当作真实 batch 行为；批处理描述/schema/spec 全集断言仍在真实宿主保留。接收模块自行注册，未用 path 挂载宿主源文件。静态核对顺便修正接收库 `PowerShellTool::<H>::<H>::new` 的重复泛型限定，统一为 `PowerShellTool::<H>::new`，避免 Windows 源码语法错误；未运行编译验证。
+
+三份完整 DelegateAgentConfig 夹具逐字段静态比对，除 mode/allow_as_subagent 外全部相同；将唯一配置来源迁到 tool-assembly::host_migration_35_fixtures::agent，参数仅为真实变化字段，所有显式字段值保留。模块仅 cfg(test/test-support) 可用，vw-agent 已有 dev-dependency 的 test-support 特性，无新增生产配置或依赖。域内新增 shared_agent_fixture_preserves_delegate_eligibility，使用真实 enabled_delegate_agents 验证三种原配置（all/true、primary/false、subagent/true）的 eligibility。该新增用例只是夹具策略检查，不能替代宿主工厂验证。
+
+四个实际 all_tools 代理场景保留原测试名和最终 AgentTool/delegate 断言，重复的临时目录/Memory/Config/default browser/runtime 构造集中为宿主 agent_factory_names；每次调用依旧创建独立真实临时目录与 markdown memory，不共享进程级状态或 mock 工具。
+
+宿主 `tools/tests/mod_tests.rs` 本轮586→364，净减222行。其中四个断言整函数迁移；其余减少来自代理夹具归属和重复真实宿主装配合并，不算新增生产迁移。生产装配不变。继续保留：browser启用/禁用两例（真实BrowserHost构造）、全工具description/schema/spec（真实具体Host工具）、registry默认/显式模型/紧凑工具面（真实宿主构造的完整目录）、MCP workspace注册/执行（真实配置和stdio）、四种AgentTool工厂场景；不能用显式fixture目录替换这些实际工厂断言。
+
+未来命令：
+
+- `python3 scripts/cargo_slot.py cargo test -p tool-assembly --lib host_migration_35_defaults -- --test-threads=1`：预期4例。
+- `python3 scripts/cargo_slot.py cargo test -p tool-assembly --lib host_migration_35_tests -- --test-threads=1`：预期22例（前21+夹具1）。
+- `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib tools::tests::all_tools_ -- --test-threads=1`：预期6例（browser2+代理4），均需非零并核对结果。
+
+全部 Cargo/构建/单元/实机验证仍未执行，仅源码比对、注册/调用依赖核对和 git diff --check。
+
+累计同41文件基线口径：2397→1143，净减1254（52.3%）。70%门槛仍未满足；本轮未通过删除场景或业务来凑比例。剩余主要为真实工厂/MCP配置stdio边界与具体Host端口/兼容入口，收口仍须核验整体目标。

@@ -155,3 +155,5 @@ async fn arc_delegating_tool_forwards_v2_contract_methods() {
 mod assembly;
 mod mcp_host;
 mod factory_host;
+
+mod host_migration_35_defaults;

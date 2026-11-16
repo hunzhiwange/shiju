@@ -31,3 +31,7 @@ mod host_migration_32_tests;
 pub mod shell_permission;
 
 pub mod domain_construction;
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub mod host_migration_35_fixtures;

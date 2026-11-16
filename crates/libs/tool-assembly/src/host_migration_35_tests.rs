@@ -30,3 +30,13 @@ mod registry;
 
 #[path = "host_migration_35_search.rs"]
 mod search;
+
+#[test]
+fn shared_agent_fixture_preserves_delegate_eligibility() {
+    for (mode, allowed) in [("all", true), ("primary", false), ("subagent", true)] {
+        let configured = std::collections::HashMap::from([(
+            "fixture".to_string(), crate::host_migration_35_fixtures::agent(mode, allowed),
+        )]);
+        assert_eq!(crate::agents::enabled_delegate_agents(&configured).contains_key("fixture"), allowed);
+    }
+}

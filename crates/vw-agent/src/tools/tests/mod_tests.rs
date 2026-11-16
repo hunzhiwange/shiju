@@ -114,12 +114,6 @@ fn mcp_toolset_context(workspace: &Path) -> ToolRuntimeContext {
     ToolRuntimeContext::new("mcp-toolset-test", Some(workspace.to_string_lossy().to_string()))
 }
 
-#[test]
-fn default_tools_include_apply_patch_once() {
-    let security = Arc::new(SecurityPolicy::default());
-    let tools = default_tools(security);
-    assert_eq!(tools.iter().filter(|tool| tool.name() == "apply_patch").count(), 1);
-}
 
 #[test]
 fn all_tools_excludes_browser_when_disabled() {
@@ -203,23 +197,6 @@ fn all_tools_includes_browser_when_enabled() {
     assert!(names.contains(&"Sleep"));
 }
 
-#[test]
-fn default_tools_names() {
-    let security = Arc::new(SecurityPolicy::default());
-    let tools = default_tools(security);
-    let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
-    assert!(names.contains(&"shell"));
-    assert!(names.contains(&"file_read"));
-    assert!(names.contains(&"file_edit"));
-    assert!(names.contains(&"file_write"));
-    assert!(names.contains(&"apply_patch"));
-    assert!(names.contains(&"ls"));
-    assert!(names.contains(&"glob"));
-    assert!(names.contains(&"grep"));
-    assert!(!names.contains(&"lsp"));
-    assert!(!names.contains(&"glob_search"));
-    assert!(!names.contains(&"content_search"));
-}
 
 #[test]
 fn default_tools_all_have_descriptions() {
@@ -241,18 +218,6 @@ fn default_tools_all_have_schemas() {
     }
 }
 
-#[test]
-fn apply_patch_spec_uses_v2_aliases() {
-    let security = Arc::new(SecurityPolicy::default());
-    let spec = default_tools(security)
-        .into_iter()
-        .find(|tool| tool.name() == "apply_patch")
-        .expect("apply_patch tool should exist")
-        .spec();
-
-    assert_eq!(spec.id, "apply_patch");
-    assert!(!spec.aliases.iter().any(|alias| alias == "edit"));
-}
 
 #[test]
 fn registry_specs_include_apply_patch_by_default() {
@@ -280,18 +245,6 @@ fn tool_spec_generation() {
     }
 }
 
-#[test]
-fn default_tools_specs_expose_bash_alias() {
-    let security = Arc::new(SecurityPolicy::default());
-    let spec = default_tools(security)
-        .into_iter()
-        .find(|tool| tool.name() == "shell")
-        .expect("shell tool should exist")
-        .spec();
-
-    assert_eq!(spec.id, "bash");
-    assert!(spec.aliases.iter().any(|alias| alias == "shell"));
-}
 
 #[test]
 fn registry_specs_expose_bash_and_compact_search_surface() {
@@ -350,237 +303,62 @@ fn mcp_toolset_tools_can_be_executed_from_registry() {
 
 #[test]
 fn all_tools_includes_agent_tool_when_agents_configured() {
-    let tmp = TempDir::new().unwrap();
-    let security = Arc::new(SecurityPolicy::default());
-    let mem_cfg = MemoryConfig { backend: "markdown".into(), ..MemoryConfig::default() };
-    let mem: Arc<dyn Memory> =
-        Arc::from(memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
-
-    let browser = BrowserConfig::default();
-    let http = crate::app::agent::config::HttpRequestConfig::default();
-    let cfg = test_config(&tmp);
 
     let mut agents = HashMap::new();
     agents.insert(
         "researcher".to_string(),
-        DelegateAgentConfig {
-            runtime: Default::default(),
-            recommended_prompts: Vec::new(),
-            defaults: Default::default(),
-            label: None,
-            description: None,
-            builtin: false,
-            mode: "all".to_string(),
-            enabled: true,
-            allow_as_subagent: true,
-            max_parallel_subagents: 4,
-            provider: "ollama".to_string(),
-            model: "llama3".to_string(),
-            force_model_selection: false,
-            system_prompt: None,
-            api_key: None,
-            temperature: None,
-            top_p: None,
-            identity_format: None,
-            hidden: false,
-            max_depth: 3,
-            agentic: false,
-            allowed_tools: Vec::new(),
-            skill_policy: Default::default(),
-            allowed_skills: Vec::new(),
-            enabled_identity_files: Vec::new(),
-            options: HashMap::new(),
-            permission: serde_json::Value::Null,
-            max_iterations: 10,
-            compact_context: false,
-            max_history_messages: 100,
-            parallel_tools: false,
-            steps: None,
-        },
+        tool_assembly::host_migration_35_fixtures::agent("all", true),
     );
 
-    let tools = all_tools(
-        Arc::new(Config::default()),
-        &security,
-        mem,
-        &browser,
-        &http,
-        &crate::app::agent::config::WebFetchConfig::default(),
-        tmp.path(),
-        &agents,
-        Some("delegate-test-credential"),
-        &cfg,
-        None,
-    );
-    let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
-    assert!(names.contains(&"AgentTool"));
-    assert!(!names.contains(&"delegate"));
+    let names = agent_factory_names(&agents, Some("delegate-test-credential"));
+    assert!(names.iter().any(|name| name == "AgentTool"));
+    assert!(!names.iter().any(|name| name == "delegate"));
 }
 
 #[test]
 fn all_tools_includes_default_agent_tool_when_no_agents() {
-    let tmp = TempDir::new().unwrap();
-    let security = Arc::new(SecurityPolicy::default());
-    let mem_cfg = MemoryConfig { backend: "markdown".into(), ..MemoryConfig::default() };
-    let mem: Arc<dyn Memory> =
-        Arc::from(memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
 
-    let browser = BrowserConfig::default();
-    let http = crate::app::agent::config::HttpRequestConfig::default();
-    let cfg = test_config(&tmp);
-
-    let tools = all_tools(
-        Arc::new(Config::default()),
-        &security,
-        mem,
-        &browser,
-        &http,
-        &crate::app::agent::config::WebFetchConfig::default(),
-        tmp.path(),
-        &HashMap::new(),
-        None,
-        &cfg,
-        None,
-    );
-    let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
-    assert!(names.contains(&"AgentTool"));
-    assert!(!names.contains(&"delegate"));
+    let names = agent_factory_names(&HashMap::new(), None);
+    assert!(names.iter().any(|name| name == "AgentTool"));
+    assert!(!names.iter().any(|name| name == "delegate"));
 }
 
 #[test]
 fn all_tools_includes_default_agent_tool_when_only_primary_agents() {
-    let tmp = TempDir::new().unwrap();
-    let security = Arc::new(SecurityPolicy::default());
-    let mem_cfg = MemoryConfig { backend: "markdown".into(), ..MemoryConfig::default() };
-    let mem: Arc<dyn Memory> =
-        Arc::from(memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
-
-    let browser = BrowserConfig::default();
-    let http = crate::app::agent::config::HttpRequestConfig::default();
-    let cfg = test_config(&tmp);
 
     let mut agents = HashMap::new();
     agents.insert(
         "main".to_string(),
-        DelegateAgentConfig {
-            runtime: Default::default(),
-            recommended_prompts: Vec::new(),
-            defaults: Default::default(),
-            label: None,
-            description: None,
-            builtin: false,
-            mode: "primary".to_string(),
-            enabled: true,
-            allow_as_subagent: false,
-            max_parallel_subagents: 4,
-            provider: "ollama".to_string(),
-            model: "llama3".to_string(),
-            force_model_selection: false,
-            system_prompt: None,
-            api_key: None,
-            temperature: None,
-            top_p: None,
-            identity_format: None,
-            hidden: false,
-            max_depth: 3,
-            agentic: false,
-            allowed_tools: Vec::new(),
-            skill_policy: Default::default(),
-            allowed_skills: Vec::new(),
-            enabled_identity_files: Vec::new(),
-            options: HashMap::new(),
-            permission: serde_json::Value::Null,
-            max_iterations: 10,
-            compact_context: false,
-            max_history_messages: 100,
-            parallel_tools: false,
-            steps: None,
-        },
+        tool_assembly::host_migration_35_fixtures::agent("primary", false),
     );
 
-    let tools = all_tools(
-        Arc::new(Config::default()),
-        &security,
-        mem,
-        &browser,
-        &http,
-        &crate::app::agent::config::WebFetchConfig::default(),
-        tmp.path(),
-        &agents,
-        None,
-        &cfg,
-        None,
-    );
-    let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
-    assert!(names.contains(&"AgentTool"));
-    assert!(!names.contains(&"delegate"));
+    let names = agent_factory_names(&agents, None);
+    assert!(names.iter().any(|name| name == "AgentTool"));
+    assert!(!names.iter().any(|name| name == "delegate"));
 }
 
 #[test]
 fn all_tools_registers_agent_tool_for_delegate_agents() {
-    let tmp = TempDir::new().unwrap();
-    let security = Arc::new(SecurityPolicy::default());
-    let mem_cfg = MemoryConfig { backend: "markdown".into(), ..MemoryConfig::default() };
-    let mem: Arc<dyn Memory> =
-        Arc::from(memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
-
-    let browser = BrowserConfig::default();
-    let http = crate::app::agent::config::HttpRequestConfig::default();
-    let cfg = test_config(&tmp);
 
     let mut agents = HashMap::new();
     agents.insert(
         "researcher".to_string(),
-        DelegateAgentConfig {
-            runtime: Default::default(),
-            recommended_prompts: Vec::new(),
-            defaults: Default::default(),
-            label: None,
-            description: None,
-            builtin: false,
-            mode: "all".to_string(),
-            enabled: true,
-            allow_as_subagent: true,
-            max_parallel_subagents: 4,
-            provider: "ollama".to_string(),
-            model: "llama3".to_string(),
-            force_model_selection: false,
-            system_prompt: None,
-            api_key: None,
-            temperature: None,
-            top_p: None,
-            identity_format: None,
-            hidden: false,
-            max_depth: 3,
-            agentic: false,
-            allowed_tools: Vec::new(),
-            skill_policy: Default::default(),
-            allowed_skills: Vec::new(),
-            enabled_identity_files: Vec::new(),
-            options: HashMap::new(),
-            permission: serde_json::Value::Null,
-            max_iterations: 10,
-            compact_context: false,
-            max_history_messages: 100,
-            parallel_tools: false,
-            steps: None,
-        },
+        tool_assembly::host_migration_35_fixtures::agent("all", true),
     );
 
-    let tools = all_tools(
-        Arc::new(Config::default()),
-        &security,
-        mem,
-        &browser,
-        &http,
-        &crate::app::agent::config::WebFetchConfig::default(),
-        tmp.path(),
-        &agents,
-        Some("delegate-test-credential"),
-        &cfg,
-        None,
-    );
-    let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
-    assert!(names.contains(&"AgentTool"));
-    assert!(!names.contains(&"delegate"));
+    let names = agent_factory_names(&agents, Some("delegate-test-credential"));
+    assert!(names.iter().any(|name| name == "AgentTool"));
+    assert!(!names.iter().any(|name| name == "delegate"));
+}
+
+fn agent_factory_names(agents: &HashMap<String, DelegateAgentConfig>, credential: Option<&str>) -> Vec<String> {
+    let tmp = TempDir::new().unwrap();
+    let security = Arc::new(SecurityPolicy::default());
+    let mem_cfg = MemoryConfig { backend: "markdown".into(), ..MemoryConfig::default() };
+    let mem: Arc<dyn Memory> = Arc::from(memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+    let cfg = test_config(&tmp);
+    all_tools(Arc::new(Config::default()), &security, mem, &BrowserConfig::default(),
+        &crate::app::agent::config::HttpRequestConfig::default(),
+        &crate::app::agent::config::WebFetchConfig::default(), tmp.path(), agents, credential, &cfg, None)
+        .iter().map(|tool| tool.name().to_string()).collect()
 }

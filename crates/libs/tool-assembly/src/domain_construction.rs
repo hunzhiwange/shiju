@@ -35,7 +35,7 @@ let syscall_detector = context.syscall_detector.expect("syscall detector");
         )) },
 #[cfg(all(not(target_arch = "wasm32"), target_os = "windows"))]
 ToolConstruction::PowerShellTool => { let security = context.security;
- Arc::new(PowerShellTool::<H>::<H>::new(security.clone())) },
+ Arc::new(PowerShellTool::<H>::new(security.clone())) },
 #[cfg(not(target_arch = "wasm32"))]
 ToolConstruction::FileReadTool => { let security = context.security;
  Arc::new(FileReadTool::<H>::new(security.clone())) },

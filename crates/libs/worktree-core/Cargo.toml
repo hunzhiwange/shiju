@@ -37,6 +37,9 @@ vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 vw-api-worktree = { path = "../api-worktree", version = "0.6.0" }
 
 [dev-dependencies]
+session-store = { path = "../session-store", version = "0.6.0" }
+session-engine = { path = "../session-engine", version = "0.6.0" }
+tool-shell = { path = "../tool-shell", version = "0.6.0" }
 agent-project = { path = "../agent-project", version = "0.6.0", features = ["test-support"] }
 agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
 tempfile = "3"

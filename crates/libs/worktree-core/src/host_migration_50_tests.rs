@@ -7,3 +7,8 @@ mod creation_policy_tests;
 mod worktree_native_tests;
 mod worktree_ops_tests;
 mod cleanup_tests;
+
+mod environment_tests;
+mod cleanup_flow_tests;
+mod host_support;
+use host_support::initialize_host;

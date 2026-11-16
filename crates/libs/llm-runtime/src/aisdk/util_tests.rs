@@ -4,7 +4,7 @@ use aisdk::core::language_model::{LanguageModelResponseContentType, Usage};
 use aisdk::core::{Message, UserContentPart};
 use serde_json::{Value, json};
 
-use crate::app::agent::provider::provider;
+use model_types as provider;
 
 use super::{
     StreamingToolCallState, assistant_text_with_reasoning, merge_tool_call_delta,

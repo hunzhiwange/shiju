@@ -106,4 +106,3 @@ pub(super) fn observe_first_delta_before_stream_continues(
 pub(super) fn usage(input_tokens: i64, output_tokens: i64) -> models::TokenUsage {
     models::TokenUsage { input_tokens, output_tokens, cached_tokens: 3, reasoning_tokens: 4 }
 }
-

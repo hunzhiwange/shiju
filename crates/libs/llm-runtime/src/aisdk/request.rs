@@ -283,3 +283,7 @@ pub async fn do_stream_request_aisdk(
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "request_credentials_tests.rs"]
 mod request_credentials_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "request_options_tests.rs"]
+mod request_options_tests;

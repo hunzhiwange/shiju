@@ -27,10 +27,10 @@ pub struct MarkdownView<'a, M> {
     pub session_id: Option<&'a str>,
     pub selected: bool,
     pub links: WorkspaceLinks<'a, M>,
-    pub editor_action: fn(usize, usize, usize, text_editor::Action) -> M,
+    pub editor_action: Rc<dyn Fn(usize, usize, usize, text_editor::Action) -> M + 'a>,
     pub code_block: Rc<dyn Fn(Option<&'a str>, &'a str, Element<'a, M>) -> Element<'a, M> + 'a>,
 }
-fn inline_spans<'a, M>(
+pub fn inline_spans<'a, M>(
     spans: &'a [Inline],
     theme: &Theme,
     links: &WorkspaceLinks<'_, M>,
@@ -109,7 +109,7 @@ pub fn markdown_body_view<'a, M: SelectionMessage + 'a>(
     text_idx: usize,
     blocks: &'a [MarkdownBlock],
 ) -> Element<'a, M> {
-    let editor_action = view.editor_action;
+    let editor_action = view.editor_action.clone();
     let mut body = column![].spacing(markdown_visual_contract().block_spacing).width(Length::Fill);
     if blocks.iter().all(MarkdownBlock::joins_prose) {
         let key = markdown_block_key(msg_idx, text_idx, 0);
@@ -162,7 +162,7 @@ pub fn markdown_body_view<'a, M: SelectionMessage + 'a>(
     )
 }
 
-fn table_view<'a, M: SelectionMessage + 'a>(
+pub fn table_view<'a, M: SelectionMessage + 'a>(
     data: &'a MarkdownTable,
     theme: &Theme,
     body_color: Color,

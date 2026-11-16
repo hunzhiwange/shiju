@@ -530,21 +530,21 @@ impl Geometry {
     }
 }
 
-struct Fragment {
+pub(crate) struct Fragment {
     geometry: Geometry,
-    bounds: Rectangle,
+    pub(crate) bounds: Rectangle,
     visible: Option<Rectangle>,
 }
 
-struct Fragments {
-    items: Vec<Fragment>,
+pub(crate) struct Fragments {
+    pub(crate) items: Vec<Fragment>,
     clip: Rectangle,
     translation: Vector,
     scroll: Option<(Rectangle, Vector)>,
 }
 
 impl Fragments {
-    fn new(clip: Rectangle) -> Self {
+    pub(crate) fn new(clip: Rectangle) -> Self {
         Self { items: Vec::new(), clip, translation: Vector::ZERO, scroll: None }
     }
 

@@ -51,18 +51,10 @@ clap = { version = "4.5", features = ["derive"] }
 acp-config = { path = "../acp-config", version = "0.6.0" }
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 
-tool-services = { path = "../tool-services", version = "0.6.0" }
+mcp-client = { path = "../mcp-client", version = "0.6.0" }
 
-agent-security = { path = "../agent-security", version = "0.6.0" }
+rmcp = { version = "0.8.0", features = ["client"] }
 
-agent-multimodal = { path = "../agent-multimodal", version = "0.6.0" }
+tokio-util = "0.7.18"
 
-permission-types = { path = "../permission-types", version = "0.6.0" }
-
-permission-runtime = { path = "../permission-runtime", version = "0.6.0" }
-
-question-types = { path = "../question-types", version = "0.6.0" }
-
-config-agent = { path = "../config-agent", version = "0.6.0" }
-
-walkdir = "2"
+agent-question = { path = "../agent-question", version = "0.6.0" }

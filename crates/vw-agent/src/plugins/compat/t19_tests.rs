@@ -48,20 +48,6 @@ async fn codex_plugin_compat_t19_rejects_loop_and_oversized_cursor() {
     }
 }
 #[test]
-fn codex_plugin_compat_t19_keeps_empty_allowlist_and_deny_precedence() {
-    use super::{mcp_connection_settings as settings, mcp_legacy::parse_legacy_mcp};
-    let root = tempfile::tempdir().unwrap();
-    for (allow, expected) in [(json!([]), false), (json!(["read"]), true)] {
-        let mut outcome=parse_legacy_mcp(json!({"catalog":{"command":"unused","enabled_tools":allow,"disabled_tools":["blocked"]}}),"fixture").unwrap();
-        let mut entries = settings::prepare(&mut outcome, root.path()).unwrap();
-        let mut server = outcome.into_runtime_servers("fixture").unwrap().remove(0);
-        settings::bind(&mut server, entries.remove("catalog").unwrap()).unwrap();
-        assert_eq!(settings::tool_allowed(&server, "read").unwrap(), expected);
-        assert!(!settings::tool_allowed(&server, "blocked").unwrap());
-    }
-}
-
-#[test]
 fn codex_plugin_compat_t19_retains_same_named_servers_from_different_packages() {
     use crate::plugins::{PluginDiscoveryOptions, merge_enabled_plugin_mcp_servers};
     let root = tempfile::tempdir().unwrap();

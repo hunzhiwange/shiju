@@ -197,5 +197,3 @@ Physical classification before: host production/forwarding 261; host tests/fixtu
 - plugin-mcp: domain production delta 0; new tests/fixtures 95 lines.
 
 Shared mod.rs also has concurrent task changes; physical totals above reflect the working snapshot, not exclusive ownership of every removed registration line. Exclusive own net deletion must be recomputed from the commit diff during closure.
-
-Exclusive committed source count (eb1950f90, baseline source paths): 4116 -> 3554; net 562 (13.7%). This excludes concurrent working-tree removals.

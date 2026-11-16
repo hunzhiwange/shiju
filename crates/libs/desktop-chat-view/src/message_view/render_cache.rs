@@ -5,12 +5,13 @@
 
 use std::borrow::Cow;
 
-
-use crate::render_cache as models;
 use super::ParsedChatBlock;
+use crate::render_cache as models;
 
+use super::cache_text_support::{
+    normalize_display_text, strip_internal_tool_trace, truncate_chars,
+};
 use super::cache_tools::{is_explore_tool, tool_identity_from_raw, tool_name_from_raw};
-use super::cache_text_support::{normalize_display_text, strip_internal_tool_trace, truncate_chars};
 use super::parse::{RenderBlock, borrowed_blocks, hash_chat_content, owned_blocks_from_raw};
 use super::text::estimate_text_height;
 use super::tool_summaries::{
@@ -46,6 +47,11 @@ pub fn build_render_cache_entry(
     copy_hash: u64,
     show_reasoning_summary: bool,
 ) -> models::ChatRenderCacheEntry {
+    #[cfg(test)]
+    {
+        crate::performance::record_full_content_parse(raw.len());
+        crate::performance::record_full_content_hash(raw.len());
+    }
     const FOLD_PREVIEW_CHARS: usize = 2400;
     const FOLDABLE_VISIBLE_CHARS: usize = 6000;
     const FOLDABLE_TOTAL_CHARS: usize = 9000;
@@ -152,9 +158,7 @@ pub fn build_render_cache_entry(
         tool_card_text_blocks
             .iter()
             .flat_map(|source| {
-                source.render(desktop_i18n::I18n::new(
-                    config_ui::DesktopLocale::SimplifiedChinese,
-                ))
+                source.render(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese))
             })
             .find(|text| !text.trim().is_empty())
             .or_else(|| {
@@ -222,16 +226,13 @@ pub fn resolve_visible_text_and_copy_hash<'a>(
 ) -> (Cow<'a, str>, u64) {
     let cache_is_fresh = render_cache.content_hash == current_content_hash;
 
-    if cache_is_fresh
-        && let (Some(visible_text), Some(copy_hash)) = (
-            visible_text,
-            copy_hash,
-        )
-    {
+    if cache_is_fresh && let (Some(visible_text), Some(copy_hash)) = (visible_text, copy_hash) {
         return (Cow::Borrowed(visible_text), copy_hash);
     }
 
     let (_, visible_text, _) = super::think::split_think(content);
+    #[cfg(test)]
+    crate::performance::record_full_content_hash(visible_text.len());
     let copy_hash = hash_chat_content(&visible_text);
     (Cow::Owned(visible_text), copy_hash)
 }
@@ -266,6 +267,8 @@ pub fn assistant_render_blocks<'a>(
     _is_streaming_assistant: bool,
 ) -> (Cow<'a, [ParsedChatBlock]>, bool) {
     if render_cache.content_hash != current_content_hash {
+        #[cfg(test)]
+        crate::performance::record_full_content_parse(content.len());
         let blocks = owned_blocks_from_raw(content);
         let has_special_blocks =
             blocks.iter().any(|block| !matches!(block, ParsedChatBlock::Text { .. }));

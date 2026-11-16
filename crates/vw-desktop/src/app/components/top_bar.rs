@@ -1,10 +1,10 @@
 //! 顶部菜单栏组件。
 
-pub(super) mod mapping;
 mod controls;
 mod drag;
 mod external;
 mod gateway;
+pub(super) mod mapping;
 pub(crate) mod menu_actions;
 pub(crate) mod menus;
 mod workspace_mode;
@@ -30,5 +30,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let drag_spacer = drag::drag_spacer();
     let workspace_mode = workspace_mode::selector(app);
 
-    desktop_navigation::components::top_bar::view(vec![traffic_light_spacer, workspace_mode, file_menu, edit_menu, view_menu, help_menu, drag_spacer, open_external_module, gateway_services, project_view_tools, settings])
+    desktop_navigation::components::top_bar::toolbar(
+        desktop_navigation::components::top_bar::Sections {
+            traffic_light_spacer,
+            workspace_mode,
+            file_menu,
+            edit_menu,
+            view_menu,
+            help_menu,
+            drag_spacer,
+            open_external_module,
+            gateway_services,
+            project_view_tools,
+            settings,
+        },
+    )
 }

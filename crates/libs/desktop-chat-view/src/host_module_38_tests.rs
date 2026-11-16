@@ -2,7 +2,36 @@
 //!
 //! 元数据夹具包含字符串、对象、空值与异常类型，确保标题摘要不会信任任意载荷。
 
-use super::*;
+use crate::modals::{permission_modal, question_modal};
+use iced::{Element, Length};
+type Message = ();
+#[derive(Default)]
+struct Requests {
+    permission_modal_request: Option<gateway_interaction::PendingPermissionRequestDto>,
+    permission_modal_requests: Vec<gateway_interaction::PendingPermissionRequestDto>,
+    question_modal_request: Option<question_types::Request>,
+}
+fn with_permission_modal<'a>(input: &Requests, root: Element<'a, Message>) -> Element<'a, Message> {
+    permission_modal::with_permission_modal(
+        input.permission_modal_request.as_ref(),
+        &input.permission_modal_requests,
+        config_ui::DesktopLocale::SimplifiedChinese,
+        None,
+        |_| (),
+        root,
+    )
+}
+fn with_question_modal<'a>(input: &Requests, root: Element<'a, Message>) -> Element<'a, Message> {
+    question_modal::with_question_modal(
+        input.question_modal_request.as_ref(),
+        &[],
+        &[],
+        config_ui::DesktopLocale::SimplifiedChinese,
+        None,
+        |_| (),
+        root,
+    )
+}
 use serde_json::{Map, json};
 
 fn request(id: &str) -> gateway_interaction::PendingPermissionRequestDto {
@@ -15,10 +44,6 @@ fn request(id: &str) -> gateway_interaction::PendingPermissionRequestDto {
         always: Vec::new(),
         tool: None,
     }
-}
-
-fn root() -> iced::Element<'static, Message> {
-    iced::widget::container(iced::widget::text("root")).into()
 }
 
 #[tokio::test]
@@ -53,11 +78,11 @@ async fn permission_and_question_modals_preserve_scroll_position() {
         }
     }
 
-    let mut app = App::new().0;
+    let mut app = Requests::default();
     let id = Id::unique();
-    let view = |app: &App| {
+    let view = |app: &Requests| {
         let base = scrollable(Space::new().width(Length::Fill).height(1600)).id(id.clone()).into();
-        with_permission_modal(app, super::super::with_question_modal(app, base))
+        with_permission_modal(app, with_question_modal(app, base))
     };
     let bounds = Size::new(1000.0, 700.0);
     let mut renderer =
@@ -106,7 +131,7 @@ async fn permission_and_question_modals_preserve_scroll_position() {
 
 #[test]
 fn with_permission_modal_builds_single_request_dialog_when_queue_is_empty() {
-    let mut app = App::new().0;
+    let mut app = Requests::default();
     app.permission_modal_request = Some(request("perm-1"));
 
     let element: iced::Element<'_, Message> = with_permission_modal(&app, root());
@@ -116,7 +141,7 @@ fn with_permission_modal_builds_single_request_dialog_when_queue_is_empty() {
 
 #[test]
 fn with_permission_modal_builds_single_and_multi_request_dialogs() {
-    let mut app = App::new().0;
+    let mut app = Requests::default();
     let mut first = request("perm-1");
     first.patterns = (0..10).map(|idx| format!("pattern-{idx}")).collect();
     first.always = vec!["pattern-0".to_string(), "pattern-1".to_string()];
@@ -139,7 +164,7 @@ fn with_permission_modal_builds_single_and_multi_request_dialogs() {
 #[test]
 fn with_permission_modal_builds_navigation_for_middle_and_last_requests() {
     let requests = vec![request("perm-1"), request("perm-2"), request("perm-3")];
-    let mut app = App::new().0;
+    let mut app = Requests::default();
     app.permission_modal_requests = requests.clone();
 
     app.permission_modal_request = Some(requests[1].clone());
@@ -153,7 +178,7 @@ fn with_permission_modal_builds_navigation_for_middle_and_last_requests() {
 
 #[test]
 fn with_permission_modal_falls_back_to_first_position_for_request_outside_queue() {
-    let mut app = App::new().0;
+    let mut app = Requests::default();
     app.permission_modal_request = Some(request("perm-current"));
     app.permission_modal_requests = vec![request("perm-1"), request("perm-2")];
 
@@ -165,7 +190,7 @@ fn with_permission_modal_falls_back_to_first_position_for_request_outside_queue(
 #[test]
 fn with_permission_modal_limits_long_pending_request_list() {
     let requests = (0..7).map(|idx| request(&format!("perm-{idx}"))).collect::<Vec<_>>();
-    let mut app = App::new().0;
+    let mut app = Requests::default();
     app.permission_modal_request = Some(requests[0].clone());
     app.permission_modal_requests = requests;
 

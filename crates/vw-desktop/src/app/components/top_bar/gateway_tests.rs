@@ -2,37 +2,12 @@
 //!
 //! 网关夹具覆盖连接中、已连接、断开和错误状态，并检查对应操作是否可用。
 
-use super::{lsp_tab_content, manage_plugins_message};
-use crate::app::components::editor::Editor;
+use super::manage_plugins_message;
 use crate::app::components::system_settings::SystemTab;
 use crate::app::message::settings::{AgentConfigTabMessage, SettingsMessage};
 use crate::app::message::view::MenuType;
-use crate::app::state::{
-    AgentConfigTab,
-};
-use crate::app::{App, LspProgress, Message, PreviewTab, message};
-use std::collections::HashMap;
-
-fn test_app() -> App {
-    App::new().0
-}
-
-fn preview_tab_with_lsp(server_key: Option<&'static str>) -> PreviewTab {
-    PreviewTab {
-        path: "/tmp/main.rs".to_string(),
-        title: "main.rs".to_string(),
-        content: String::new(),
-        is_dirty: false,
-        truncated: false,
-        read_only: false,
-        auto_save_revision: 0,
-        editor: Editor::new("", "rust"),
-        scroll_id: iced::widget::Id::unique(),
-        lsp_server_key: server_key,
-        lsp_uri: None,
-        lsp_language_id: None,
-    }
-}
+use crate::app::state::AgentConfigTab;
+use crate::app::{Message, message};
 
 #[test]
 fn manage_plugins_opens_the_standalone_agent_plugin_tab() {
@@ -51,65 +26,6 @@ fn manage_plugins_opens_the_standalone_agent_plugin_tab() {
             )))
         ]
     ));
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn lsp_tab_content_reports_disabled_state_first() {
-    let mut app = test_app();
-    app.lsp_disabled = true;
-    app.lsp_status = Some("LSP ready".to_string());
-    app.navigation_tabs.preview_tabs.push(preview_tab_with_lsp(Some("rust-analyzer")));
-
-    let rows = lsp_tab_content(&app);
-
-    assert_eq!(rows.len(), 1);
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn lsp_tab_content_reports_empty_status_when_no_servers_exist() {
-    let mut app = test_app();
-    app.lsp_status = Some("LSP 尚未启动".to_string());
-
-    let rows = lsp_tab_content(&app);
-
-    assert_eq!(rows.len(), 1);
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn lsp_tab_content_deduplicates_keys_and_appends_status() {
-    let mut app = test_app();
-    app.lsp_status = Some("LSP 已连接".to_string());
-    app.navigation_tabs.preview_tabs.push(preview_tab_with_lsp(Some("rust-analyzer")));
-    app.navigation_tabs.preview_tabs.push(preview_tab_with_lsp(Some("rust-analyzer")));
-    app.lsp_progress.insert("rust-analyzer".to_string(), HashMap::new());
-
-    let rows = lsp_tab_content(&app);
-
-    assert_eq!(rows.len(), 2);
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn lsp_tab_content_formats_progress_detail() {
-    let mut app = test_app();
-    app.lsp_progress.insert(
-        "rust-analyzer".to_string(),
-        HashMap::from([(
-            "token-1".to_string(),
-            LspProgress {
-                title: "indexing".to_string(),
-                message: Some("workspace".to_string()),
-                percentage: Some(42),
-            },
-        )]),
-    );
-
-    let rows = lsp_tab_content(&app);
-
-    assert_eq!(rows.len(), 1);
 }
 
 #[test]

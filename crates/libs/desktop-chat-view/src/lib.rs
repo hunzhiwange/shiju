@@ -87,3 +87,6 @@ mod host_module_5_tests;
 mod host_module_6_tests;
 
 pub mod preparation_tasks;
+
+#[cfg(test)]
+mod host_module_38_tests;

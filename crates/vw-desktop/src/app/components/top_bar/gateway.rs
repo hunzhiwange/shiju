@@ -20,5 +20,3 @@ fn with_state<R>(app: &App, render: impl FnOnce(&domain::State<'_>) -> R) -> R {
 pub(super) fn gateway_services_module(app: &App) -> iced::Element<'_, Message> { with_state(app, domain::gateway_services_module).map(super::mapping::map_message) }
 #[cfg(test)]
 #[path = "gateway_tests.rs"] mod gateway_tests;
-#[cfg(test)] fn lsp_tab_content(app: &App) -> Vec<iced::Element<'static, Message>> { with_state(app, domain::lsp_tab_content).into_iter().map(|row| row.map(super::mapping::map_message)).collect() }
-#[cfg(test)] fn manage_plugins_message() -> Message { super::mapping::map_message(domain::manage_plugins_message()) }

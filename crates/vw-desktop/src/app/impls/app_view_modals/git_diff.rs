@@ -7,7 +7,3 @@ pub(crate) fn with_git_diff_comment<'a>(app: &'a App, root: Element<'a, Message>
 pub(crate) fn with_git_diff_overlays<'a>(app: &'a App, root: Element<'a, Message>) -> Element<'a, Message> {
     desktop_git_ui::modal_overlays::with_git_diff_overlays(crate::app::components::git_panel::diff_comment_modal(app), crate::app::components::git_panel::discard_file_modal(app), root)
 }
-
-#[cfg(test)]
-#[path = "git_diff_tests.rs"]
-mod git_diff_tests;

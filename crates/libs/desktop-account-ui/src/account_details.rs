@@ -1,19 +1,18 @@
 //! 独立展示当前登录账户的公司与个人基础信息。
 
-use crate::state::AccountState;
 use crate::message::AccountMessage as Message;
+use crate::message::AccountMessage;
+use crate::state::AccountState;
+use crate::state::{AccountPasswordEditorState, AccountProfileEditorState};
 use config_ui::DesktopLocale;
 use desktop_account::{AccountPasswordField, AccountPasswordInput};
+use desktop_i18n::I18n;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_close_button, settings_divider, settings_error_banner,
     settings_field_label, settings_group_card, settings_modal_header, settings_modal_layout,
-    settings_muted_text_style, settings_text_input_style,
-    settings_value_badge,
+    settings_muted_text_style, settings_text_input_style, settings_value_badge,
 };
-use desktop_i18n::I18n;
-use crate::message::AccountMessage;
-use crate::state::{AccountPasswordEditorState, AccountProfileEditorState};
 use iced::widget::text::Wrapping;
 use iced::widget::{Space, button, column, container, row, text, text_input};
 use iced::{Alignment, Element, Length};
@@ -319,7 +318,10 @@ fn password_editor_body(account: &AccountState, locale: DesktopLocale) -> Elemen
     modal_card(header, form.into(), Some(submit.into()), 520)
 }
 
-pub fn details<'a>(account: &'a AccountState, locale: DesktopLocale) -> Option<Element<'a, Message>> {
+pub fn details<'a>(
+    account: &'a AccountState,
+    locale: DesktopLocale,
+) -> Option<Element<'a, Message>> {
     if !account.details_open {
         return None;
     }
@@ -393,3 +395,20 @@ pub fn details<'a>(account: &'a AccountState, locale: DesktopLocale) -> Option<E
 #[cfg(test)]
 #[path = "account_details_tests.rs"]
 mod account_details_tests;
+
+/// 将账户详情叠加在调用者内容上，并映射领域消息。
+pub fn with_account_details<'a, M: Clone + 'a>(
+    account: &'a AccountState,
+    locale: DesktopLocale,
+    root: Element<'a, M>,
+    map: impl Fn(Message) -> M + 'a,
+) -> Element<'a, M> {
+    match details(account, locale) {
+        Some(card) => desktop_ui_controls::system_settings_common::settings_modal_overlay(
+            Some(root),
+            map(AccountMessage::CloseDetails),
+            card.map(map),
+        ),
+        None => root,
+    }
+}

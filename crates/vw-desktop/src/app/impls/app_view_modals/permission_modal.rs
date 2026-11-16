@@ -12,7 +12,3 @@ pub(crate) fn with_permission_modal<'a>(app: &App, root: Element<'a, Message>) -
         })
     }, root)
 }
-
-#[cfg(test)]
-#[path = "permission_modal_tests.rs"]
-mod permission_modal_tests;

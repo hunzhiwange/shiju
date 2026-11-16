@@ -2,8 +2,26 @@
 //!
 //! 评论与丢弃草稿独立开关，验证双浮层同时存在时的包裹顺序。
 
-use super::*;
-use crate::app::state::{GitDiffCommentDraft, GitDiffLineRange};
+use crate::git_panel::diff_view::{GitDiffCommentDraft, GitDiffLineRange};
+use crate::modal_overlays;
+use crate::page::{self, Message};
+use crate::test_support::Fixture as App;
+fn with_git_diff_comment<'a>(
+    app: &'a App,
+    root: iced::Element<'a, Message>,
+) -> iced::Element<'a, Message> {
+    modal_overlays::with_git_diff_comment(page::diff_comment_modal(&app.view()), root)
+}
+fn with_git_diff_overlays<'a>(
+    app: &'a App,
+    root: iced::Element<'a, Message>,
+) -> iced::Element<'a, Message> {
+    modal_overlays::with_git_diff_overlays(
+        page::diff_comment_modal(&app.view()),
+        page::discard_file_modal(&app.view()),
+        root,
+    )
+}
 use iced::widget::text_editor;
 
 fn test_app() -> App {

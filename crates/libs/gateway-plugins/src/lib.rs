@@ -364,3 +364,6 @@ fn hook_review(manifest: &PluginManifest, config_dir: &Path, workspace: &Path) -
 fn install_dir_from_config(config: &Config) -> PathBuf {
     config_dir_from_config(config).join("plugins")
 }
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_16_tests;

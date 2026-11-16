@@ -29,3 +29,15 @@ tokio = { version = "1", features = ["rt"] }
 futures-util = "0.3.32"
 tokio-util = { version = "0.7.18", features = ["rt"] }
 uuid = { version = "1.11", features = ["v4", "js"] }
+
+[dev-dependencies]
+agent-gateway = { path = "../agent-gateway", version = "0.6.0" }
+gateway-agent-apps = { path = "../gateway-agent-apps", version = "0.6.0" }
+gateway-model-catalog = { path = "../gateway-model-catalog", version = "0.6.0" }
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+vw-api-app-provider-extended = { path = "../api-app-provider-extended", version = "0.6.0" }
+sha2 = "0.11"
+hex = "0.4"
+tempfile = "3"
+tokio = { version = "1", features = ["full"] }
+gateway-http = { path = "../gateway-http", version = "0.6.0" }

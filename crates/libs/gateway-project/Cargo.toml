@@ -46,3 +46,4 @@ serde_json = "1"
 [dev-dependencies]
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tempfile = "3"

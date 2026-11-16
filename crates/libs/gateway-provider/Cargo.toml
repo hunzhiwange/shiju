@@ -13,3 +13,7 @@ gateway-types = { path = "../gateway-types", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 axum = { version = "0.8.8", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt"] }

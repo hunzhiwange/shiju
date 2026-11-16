@@ -18,3 +18,6 @@ mod model_catalog_edits;
 #[cfg(target_os = "macos")]
 mod model_discovery;
 pub use model_catalog::router_with_policy;
+
+#[cfg(all(test, target_os = "macos"))]
+mod host_migration_16_tests;

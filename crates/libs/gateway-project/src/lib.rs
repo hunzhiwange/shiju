@@ -39,3 +39,6 @@ impl GatewayProjectClient {
 
 #[cfg(test)]
 mod test_support;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_16_tests;

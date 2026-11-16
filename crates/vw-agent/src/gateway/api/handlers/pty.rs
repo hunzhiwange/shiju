@@ -26,7 +26,7 @@ pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
 }
 
 #[cfg(test)]
-use gateway_pty::routes::{PtyConnectQuery, pty_list, pty_create, pty_get, pty_update, pty_remove};
+use gateway_pty::routes::{pty_list, pty_create, pty_get, pty_update, pty_remove};
 #[cfg(test)]
 use agent_pty as pty;
 #[cfg(test)]

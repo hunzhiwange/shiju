@@ -126,3 +126,6 @@ pub async fn provider_oauth_callback(
         .map_err(|e| ApiError::bad_request(e.to_string()))?;
     Ok(Json(true))
 }
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_16_tests;

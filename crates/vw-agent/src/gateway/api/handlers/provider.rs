@@ -39,8 +39,7 @@ pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
 
 #[cfg(test)]
 use gateway_provider::{
-    OAuthAuthorizeRequest, OAuthCallbackRequest, ProviderListResponse,
-    provider_auth_methods, provider_oauth_authorize, provider_oauth_callback,
+    ProviderListResponse,
 };
 #[cfg(test)]
 use agent_provider as provider;

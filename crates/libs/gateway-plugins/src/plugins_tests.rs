@@ -113,13 +113,6 @@ async fn plugin_mutation_handlers_reject_blank_ids_before_loading_config() {
 }
 
 #[test]
-fn plugin_text_helpers_trim_values_and_fall_back_for_empty_text() {
-    assert_eq!(super::non_empty_string(Some("  Plugin Name  ")), Some("Plugin Name".to_string()));
-    assert_eq!(super::non_empty_string(Some(" \t ")), None);
-    assert_eq!(super::non_empty_string(None), None);
-}
-
-#[test]
 fn codex_plugin_compat_t06_gateway_retains_exact_marketplace_ids() {
     let temp = tempfile::tempdir().unwrap();
     let package = temp.path().join("package");

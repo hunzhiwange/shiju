@@ -1,5 +1,5 @@
-use gateway_model_catalog::GatewayModelCatalogClient;
 //! Cross the SDK, SQLite, resolver and execution boundaries on macOS.
+use gateway_model_catalog::GatewayModelCatalogClient;
 
 use std::{
     fs,

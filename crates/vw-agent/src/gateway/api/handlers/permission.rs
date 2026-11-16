@@ -42,11 +42,9 @@ where S: Clone + Send + Sync + 'static,
 #[cfg(test)]
 use {
     axum::{Json, extract::{Extension, Path, Query}},
-    crate::{approval::{PendingNonCliApprovalRequest, PendingApprovalError, ApprovalResponse}, config,
-        config::schema::save_config, permission::next as permission_next},
+    crate::{config, approval::ApprovalResponse, permission::next as permission_next},
     instance::with_instance,
-    gateway_permission::{PermissionReplyRequest, permission_request_from_pending,
-        reply_pending_request, persist_non_cli_approval, map_pending_approval_error},
+    gateway_permission::{PermissionReplyRequest},
 };
 
 #[cfg(test)]

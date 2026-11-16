@@ -66,8 +66,6 @@ pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
 }
 pub(crate) fn stateful_router() -> Router<AppState> { gateway_plugins::stateful_router::<Host>() }
 
-#[cfg(test)]
-use gateway_plugins::non_empty_string;
 
 #[cfg(test)]
 fn collect_plugin_catalog(workspace: impl Into<PathBuf>, config: impl Into<PathBuf>, plugins_config: config_plugins::PluginsConfig) -> Result<Vec<DesktopPluginCatalogEntryDto>> { gateway_plugins::collect_plugin_catalog::<Host>(workspace, config, plugins_config) }

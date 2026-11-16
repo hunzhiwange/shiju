@@ -214,3 +214,6 @@ pub fn map_pending_approval_error(error: PendingApprovalError) -> ApiError {
         PendingApprovalError::RequesterMismatch => ApiError::bad_request("request actor mismatch"),
     }
 }
+
+#[cfg(test)]
+mod host_migration_16_tests;

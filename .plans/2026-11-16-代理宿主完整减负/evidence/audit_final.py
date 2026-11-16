@@ -90,4 +90,4 @@ dump('task-59-evidence-index.json', evidence)
 print(json.dumps(dict(original_files=len(original), unique_ownership=True,
                       host_files=len(host), host_lines=total, excess=total-35000,
                       residue_lines=totals[59], new_host_files=len(new_host),
-                      reverse_candidates=reverse), ensure_ascii=False, indent=2))
+                      reverse_candidates=len(reverse)), ensure_ascii=False, indent=2))

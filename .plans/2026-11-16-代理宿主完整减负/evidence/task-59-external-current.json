@@ -1,7 +1,7 @@
 {
   "method": "Static lib-reachable cfg-union source mounts; separate from host physical threshold; not measured compile time",
-  "source_files": 180,
-  "source_lines": 57503,
+  "source_files": 178,
+  "source_lines": 56490,
   "files": [
     {
       "path": "crates/libs/agent-gateway/src/bootstrap_tests.rs",
@@ -94,42 +94,6 @@
       ]
     },
     {
-      "path": "crates/libs/agent-gateway/src/openai_compat/mod_tests.rs",
-      "lines": 547,
-      "owner_task": 18,
-      "incoming": [
-        {
-          "source": "crates/vw-agent/src/gateway/openai_compat/mod.rs",
-          "line": 14,
-          "kind": "path",
-          "target": "crates/libs/agent-gateway/src/openai_compat/mod_tests.rs",
-          "attributes": [
-            "#[cfg(test)]",
-            "#[path = \"../../../../libs/agent-gateway/src/openai_compat/mod_tests.rs\"]"
-          ],
-          "exists": true
-        }
-      ]
-    },
-    {
-      "path": "crates/libs/agent-gateway/src/openai_compat/tests.rs",
-      "lines": 372,
-      "owner_task": 18,
-      "incoming": [
-        {
-          "source": "crates/vw-agent/src/gateway/openai_compat/mod.rs",
-          "line": 10,
-          "kind": "path",
-          "target": "crates/libs/agent-gateway/src/openai_compat/tests.rs",
-          "attributes": [
-            "#[cfg(test)]",
-            "#[path = \"../../../../libs/agent-gateway/src/openai_compat/tests.rs\"]"
-          ],
-          "exists": true
-        }
-      ]
-    },
-    {
       "path": "crates/libs/agent-gateway/src/recovery_window_tests.rs",
       "lines": 168,
       "owner_task": 17,
@@ -203,12 +167,12 @@
     },
     {
       "path": "crates/libs/agent-gateway/src/ws/mod_tests.rs",
-      "lines": 301,
+      "lines": 207,
       "owner_task": 18,
       "incoming": [
         {
           "source": "crates/vw-agent/src/gateway/ws/mod.rs",
-          "line": 103,
+          "line": 62,
           "kind": "path",
           "target": "crates/libs/agent-gateway/src/ws/mod_tests.rs",
           "attributes": [

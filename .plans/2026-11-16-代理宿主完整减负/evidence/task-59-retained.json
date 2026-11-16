@@ -1,13 +1,13 @@
 [
   {
     "path": "crates/vw-agent/src/app.rs",
-    "lines": 108,
-    "responsibility": "Internal compatibility namespace and default tenant UI config bridge",
+    "lines": 73,
+    "responsibility": "Internal runtime namespace and task bootstrap compatibility; unused config bridge removed",
     "status": "retained; no whole-file algorithm migration claimed"
   },
   {
     "path": "crates/vw-agent/src/app_tests.rs",
-    "lines": 20,
+    "lines": 10,
     "responsibility": "Existing stable domain compatibility exports",
     "status": "retained; no whole-file algorithm migration claimed"
   },
@@ -85,7 +85,7 @@
   },
   {
     "path": "crates/vw-agent/src/global_database_tests.rs",
-    "lines": 79,
+    "lines": 50,
     "responsibility": "Existing stable domain compatibility exports",
     "status": "retained; no whole-file algorithm migration claimed"
   },
@@ -115,7 +115,7 @@
   },
   {
     "path": "crates/vw-agent/src/knowledge/mod.rs",
-    "lines": 15,
+    "lines": 12,
     "responsibility": "Existing domain knowledge facade",
     "status": "retained; no whole-file algorithm migration claimed"
   },

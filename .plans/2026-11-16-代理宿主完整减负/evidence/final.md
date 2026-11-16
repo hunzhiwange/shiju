@@ -1,41 +1,49 @@
-# 任务59：最新静态收口与恢复清单
+# 任务59：本轮静态收口
 
-本报告替代旧67221行快照。当前宿主 **51915行**、971个Rust文件，基线135228行，净减83313行；距离35000行仍差 **16915行**。residue保留3317行。本次没有Cargo、构建、单元或实机测试；未来编译验证不是当前阻塞理由，也未声称编译提速。
+最新宿主 **43584行**（960个Rust文件），基线135228行，净减 **91644行**；35000行门槛仍差 **8584行**。本报告替代51915/67221等旧快照。原所有者本轮均已提交，当前未观察到领域会话运行。不是外部环境阻塞；本次未运行Cargo、构建、单元或实机测试，未来编译验证不是当前阻塞理由。
 
-## 本任务已落实
+## 本任务代码
 
-51个纯转发模块改为父模块直接领域别名，删除17个未注册memory文件和4个knowledge转发文件。生产算法新增迁移计数为零，不重复计已有领域算法。旧入口/领域目标/引用索引在 task-59-aliases.json、task-59-alias-callers.json；原可见性及外围cfg保留。必要相邻修复：router_tests显式路径，以及18条会话生命周期、9条项目作用域用例恢复测试属性，原断言未删。代码提交9c5a06db6；追加审计99ad057a3。
+- 51处纯转发改为现有父模块的直接领域别名；删除17个未注册memory文件和4个knowledge转发文件。保留原可见性、外围cfg及调用路径，不计为新领域算法。9c5a06db6。
+- router_tests显式挂载到真实现有文件；18条生命周期和9条项目作用域测试补回原测试属性，未删断言。9c5a06db6。
+- 删除无生产调用的crate私有app::config桥接；原测试移至session-store实际ui_config存储助手，用真实临时SQLite和显式默认租户，保留key/回读断言。a4f626226。
+- 调度器for_home延迟迁移用例及真实旧SQLite夹具归入现有task-scheduler::schema_tests；宿主保留共享数据库路径/权限及跨存储集成。4b1c44508。
+- 剩余residue 3243行：真实项目/租户/授权捕获、当前配置加载顺序、native资源清理、域错误至网关错误适配、稳定兼容入口及薄边界测试。逐符号索引见after-files.json，不以整个大文件“宿主耦合”批准保留。
 
-## 静态证据
+## 证据与实际命令
 
-- `python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_final.py`：1381个原始路径与scope集合相等、归属唯一；原路径before/after、符号/export/cfg在after-files.json；保留文件和原所有者在remaining-host.json。
-- `python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_registrations.py`：1134条cfg并集词法边，0个悬空，已删转发目标零引用。模块/路径/include证据在task-59-registrations.json。
-- `python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_test_candidates.py`：包含原外部挂载的4091条标准测试声明，{"retained_same_path": 2010, "unique_name_candidate": 2053, "owner_evidence_candidate": 28, "ambiguous": 0, "missing": 0}。逐条源路径、候选位置和所有者筛选见task-59-test-candidates.json；这是源码映射，不是宏展开、真实注册清单或语义等价证明。
-- `python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_domain_changes.py`：目标领域包baseline/current逐文件物理统计在task-59-domain-files.json，涵盖同包其它改动，不冒充本计划纯生产减量。唯一AppState名候选为基线已有gateway-types泛型契约，未发现新增同名状态复制候选。
-- 外部Rust源码挂载独立统计：180文件/57503行，见task-59-external-current.json。它们不计入宿主目录物理门槛，也不能仅因位于libs就声明领域独立测试注册；原所有者仍应按具体真实宿主边界核实。
-- `rg -n 'vw-agent|vw_agent|vw-agent/src' crates/libs --glob Cargo.toml --glob '*.rs'`及结构化字面路径扫描：CLI应用组合依赖和资源include单列；未见字面path/include反向挂载宿主Rust源码。动态宏表达式不在证明范围，未把广义搜索的vw-agent-apps和日志target误报为宿主依赖。
-- 本任务文件 `git diff --check` 无空白错误；不删除无法证明无用的Cargo依赖，不调整feature。各文件cfg原文可查，未冒充全平台编译通过。
+从仓库根执行以下Python静态脚本，均正常结束；未执行任何Rust工具：
 
-## 下一轮原所有者恢复顺序
+- `python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_final.py`：1381原路径与scope集合一致、唯一归属；逐路径before/after、声明、导出、cfg及所有者在after-files.json/remaining-host.json。
+- `python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_registrations.py`：1116条词法cfg并集边，零悬空、零已删别名/孤立目标引用。当前外部Rust挂载 **178文件/56490行**，独立列task-59-external-current.json，不混入宿主物理门槛，不将路径在libs视作独立领域单测。
+- `python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_test_candidates.py`：含原外部挂载，4159条基线标准测试声明，计数{"retained_same_path": 1995, "unique_name_candidate": 2136, "owner_evidence_candidate": 28, "ambiguous": 0, "missing": 0}。55条ignore属性无差异，见task-59-ignore-attributes.json；已覆盖test后附加属性，旧4091条统计已过时。名称/所有者候选映射不是宏展开或真实注册结果，也不证明全部断言语义等价。
+- `python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_domain_changes.py`：136目标包逐路径baseline/current物理统计，包含同包其它修改，不计作本计划纯生产减量。唯一AppState名候选为基线已有gateway-types泛型契约；未见新增同名状态复制候选。
+- `python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_alias_callers.py`：51处旧入口/领域目标/限定路径引用索引；词法引用不冒充编译解析，转发清理不重复计已有领域算法迁移。
+- `rg -n 'vw-agent|vw_agent|vw-agent/src' crates/libs --glob Cargo.toml --glob '*.rs'`：结构化候选保存在remaining-host.json。CLI应用组合依赖、资源include、vw-agent-apps和日志target分开；未见字面path/include反向挂载宿主Rust。动态宏表达式不在证明范围。
+- `git diff --check -- <task59文件>`：提交前通过。本轮不删除未经证明无用的依赖、不调整feature、不宣称全平台编译通过。
 
-这不是外部环境阻塞。按计划，领域缺口由原任务恢复；不在task59改写领域单体。task-59-recovery-priorities.json给出每个具体路径、现有符号/行号、拆分动作和必须保留的真实边界。下表行数为整个原任务的物理残留，**不是可删除行数承诺**。所列符号是继续拆分审查点，不能仅迁走测试文件再由宿主path挂载。
+测试支持新模块若仍由真实Host注入运行，归类为“领域断言+宿主边界”，不称独立领域测试。外部源码挂载和test-support都单列，未取得计时证据，不承诺编译提速。
 
-|优先级|任务|现存行数|可继续拆分的职责|必须保留的边界|
+## 已查实的一项本轮生产调用
+
+`vw-agent::cron::scheduler::run_agent_job` -> `agent_cron::scheduler::run_agent_job` -> `agent_cron::task_pool::deliver_agent_job_to_task_pool` -> `task_file_store::bootstrap_task::create_task`。实际分支在agent-cron/src/scheduler.rs:532，落盘调用task_pool.rs:21；任务54删除原多余Host转发。此项与本任务51处纯别名清理分开，不把现有任务池实现重复计成新迁移。其余原任务生产符号和真实调用按各task-N.md证据核对，尚未独立证明整轮完整语义映射闭合。
+
+## 下一轮原所有者恢复
+
+优先 **44、11、10、24、23**，随后 **53、15、48、37**。task-59-recovery-priorities.json已按最新文件重写，移除旧纯策略/已迁薄包装候选，列现存具体符号、路径/行号、拆分动作和真实保留边界。以下是当前整个原任务残留，不是可删除承诺；不能据此删除安全验收或复制AppState。
+
+|优先级|原任务|当前原宿主行数|继续拆分的职责|真实保留边界|
 |---|---:|---:|---|---|
-|1|11|2252|Move model selection and override assertions to gateway-session with its actual domain entry; remove test-only wrappers once callers migrate.|Retain real HTTP/SSE producer, trusted session identity and concrete runtime request wiring.|
-|2|37|2172|Separate MCP metadata merging, timeout classification and sanitized error assertions into plugin-mcp/agent-plugins tests; inject only explicit connection/process ports.|Retain actual host admission, current tool context, process shutdown and trust revocation integration.|
-|3|10|2925|Separate profile serialization/default/backend projection and persisted-session expectations into agent-profiles/gateway-session owners using real stores; keep a thin selected-profile HTTP route assertion.|Retain actual gateway profile choice, tenant admission and real ACP/native end-to-end execution.|
-|4|12|1298|Move persisted prefix, legal boundary and rollback state assertions into existing session fork/worktree domain tests using real stores; leave route extraction/admission checks.|Retain actual gateway tenant checks, real worktree setup failure and publication rollback integration.|
-|5|23|1535|Separate compaction persisted-history and message checkpoint assertions into session-engine; reuse real message store and domain processor.|Retain concrete provider/catalog binding, trusted tenant and actual persisted host request execution.|
-|6|53|2041|Separate recovery record decoding/ownership/revision and failure rollback into ACP mount domain suite; explicit filesystem/process publication ports only.|Retain real VibeWindowBackend dispatch, native skill permission/attachment access and real MCP restart integration.|
-|7|44|1663|Move cloud protocol classification, unique-instance selection and reconciliation ledger assertions into workflow-engine using actual ledger/transport; keep native authorization calls as host boundary.|Retain native tool permission/path/hook enforcement, actual session stream completion and final-save integration.|
-|8|48|1755|Split selected-record/project/account/job ownership matrix into app-mcp-runtime real storage tests; retain actual gateway credential extraction and ACP process invocation.|Retain actual HTTP authentication, cross-tenant denial and private execution boundary; do not simulate these as a replacement.|
-|9|24|1779|Review dynamic-tool acceptance matrix and split persistent policy/registration replacement assertions into session-engine real storage tests; keep real HTTP client/executor handshake.|Retain actual SDK/socket, trusted tenant and client executor tool invocation.|
-|10|50|1090|Move candidate stale/version comparison and persisted restore result assertions into existing worktree domain cleanup APIs.|Retain actual shell/runtime/session leases crossing removal and independent process restore.|
-|11|54|1131|Move job/delivery result mapping and best-effort status assertions into cron domain; inject existing task/delivery ports.|Retain actual authenticated webhook sockets, reload credentials and real scheduler route composition.|
-|12|38|1334|Split snapshot/revision validation and hook admission-result assertions into plugin-hooks/agent-plugins tests; preserve actual lifecycle ordering in host boundary.|Retain cancellation join-before-release and old MCP process retirement integration.|
-|13|35|1365|Review tool-spec exposure/discovery/search assertions in tools/tests/mod_tests.rs; move pure registry policy matrix to tool-catalog/tool-assembly without copying host context.|Retain concrete AgentContextHost registration, filesystem admission and actual host-built registry behavior.|
+|1|44|1663|Reconciliation ledger, terminal event/result expectations, cloud error/instance policy and shared transcript fixtures -> workflow-video-edit/workflow-engine actual entry; inject existing real native host execution for integration.|Keep actual native permission/path/hook denial and real gateway session publication; no simulated admission replacement.|
+|2|11|1750|Reuse new stream_acceptance real StreamHost contract to separate collaboration message projection, template/config snapshots, title retry and replay/cancellation assertion bodies and fixtures; original host still calls the real stream.|Keep real tool execution, first-response authorization/directory rejection and cancellation at the actual gateway boundary; do not credit wrappers as independent domain tests.|
+|3|10|1454|Remaining native/ACP fork history prefix/continuation and restart fixtures -> existing gateway-session fork acceptance contract, injected real process/stream/session ports.|Retain real independent process restart, actual gateway tenant routing, ACP/native first prompt and worktree publication calls.|
+|4|24|1639|Separate persisted registration, revocation/cancellation response matrix, replacement/spec matching and client fixtures with the actual dynamic-tool storage/handler owner. Keep a thin real SDK/gateway executor binding.|Preserve real HTTP credential/session/project admission and client executor checks. Real-runtime mount cases are host boundaries, not removable solely because they are large.|
+|5|23|1381|Split scripted model body assertions, exposure history and compaction checkpoint fixtures into actual session-engine/agent-loop acceptance support using existing real processor port.|Keep trusted tenant, real runtime tool/skill permission enforcement and host global config isolation; do not copy Request/AppState graphs.|
+|6|53|1321|Separate mount source-name conflict/explicit-clear/publication revision expectation matrices into existing ACP mount acceptance contracts with real backend injection.|Keep actual native file access, revoked permission denial and real MCP process invocation; root backend prompt orchestration is real host composition.|
+|7|15|1286|Move metadata/catalog/filter projection assertions and associated real storage fixtures to owning gateway catalog/misc domain handlers.|Keep actual host router registration, method mismatch/unknown-route checks and full root handler module assembly.|
+|8|48|1084|Separate selected record/spec projection and revocation state/result expectations into app-mcp-runtime actual service test support; host injects actual ACP/loopback execution.|Keep actual tenant, account and job owner authorization, admitted-call lifetime and cached real runtime revocation integration.|
+|9|37|1129|Split catalog notification refresh state/unchanged-catalog assertions into plugin MCP connection owner through actual connection service; narrow host inspection/context binding remains.|Keep actual runtime registration, session inspection and trusted plugin snapshot/permission checks.|
 
-优先恢复11、37、10、12、23、53；随后44、48、24、50、54、38、35。仅这些候选不能保证消除全部16915行缺口；原所有者须报告实际可迁部分与保留符号，调度者据新统计继续恢复，禁止以整文件“宿主耦合”豁免。生产真实调用完整语义映射仍需原所有者证据闭合，本任务只对其新增转发清理明确不计算法迁移。
+原所有者需要沿本轮已存在的真实Host/存储/协议入口继续拆分剩余断言与夹具，不新建单体或path借用原宿主测试；保留实际权限/租户/文件/进程/取消验收。候选含真实边界，不能保证仅这些任务就消除8584行，须据实际提交继续重算。任务59不越过原文件唯一归属替代其领域实现。
 
-任务59保留，直到物理门槛及归属缺口闭合。未运行验证不能写通过；未来获得授权后再用槽位入口列真实注册清单并按原任务过滤验证。
+保留任务59直到门槛及其余归属缺口闭合，不宣称整轮完成。未来获授权再运行槽位包裹的真实注册list及原任务过滤验证；本次没有此授权。

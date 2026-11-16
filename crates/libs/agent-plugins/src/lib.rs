@@ -99,3 +99,6 @@ mod compat_t17_auth_tests;
 
 #[cfg(test)]
 mod compat_t32_tests;
+
+#[cfg(test)]
+mod compat_t51_tests;

@@ -1,6 +1,5 @@
 //! Acceptance of existing persisted identity and lifecycle behavior; no production changes.
-use crate::plugins::install::{remove_installed_plugin, set_plugin_enabled};
-use crate::plugins::{PluginDiscoveryOptions, discover_plugins, install_plugin_from_marketplace};
+use crate::{PluginDiscoveryOptions, discover_plugins, install_plugin_from_marketplace};
 use std::{fs, path::Path};
 use config_plugins::PluginsConfig;
 const MANIFEST: &[u8] = br#"{"name":"fixture","version":"1.2.3"}"#;
@@ -50,7 +49,7 @@ fn codex_plugin_compat_t51_rejects_invalid_input() {
     let plugins = config.join("plugins");
     let installed =
         install_plugin_from_marketplace(source.to_str().unwrap(), &plugins, "alpha").unwrap();
-    fs::write(super::identity::metadata_path(&installed.installed_dir).unwrap(), b"{broken")
+    fs::write(plugin_install::identity::metadata_path(&installed.installed_dir).unwrap(), b"{broken")
         .unwrap();
     let restored = discover_plugins(&PluginDiscoveryOptions::new(
         temp.path().join("workspace"),
@@ -89,4 +88,22 @@ fn codex_plugin_compat_t51_preserves_isolation() {
     assert!(global.join("fixture@alpha").exists());
     assert!(global.join("fixture@beta").exists());
     assert_eq!(discover_plugins(&options).unwrap().enabled.len(), 2);
+}
+
+// Match the host adapters, including the real connection registry close callback.
+fn set_plugin_enabled(root: &Path, name: &str, enabled: bool) -> anyhow::Result<()> {
+    crate::install::set_plugin_enabled(
+        root,
+        name,
+        enabled,
+        &plugin_mcp::mcp_connection_sessions::close_plugin,
+    )
+}
+
+fn remove_installed_plugin(root: &Path, name: &str) -> anyhow::Result<()> {
+    crate::install::remove_installed_plugin(
+        root,
+        name,
+        &plugin_mcp::mcp_connection_sessions::close_plugin,
+    )
 }

@@ -9,8 +9,7 @@ use crate::app::agent::multimodal::assets::{ImageAssetId, ImageAssetScope};
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::hooks::HookRunner;
 use crate::app::agent::security::SecurityPolicy;
-#[cfg(test)]
-use crate::agent::loop_::approval::NonCliApprovalContext;
+
 use tool_context::host::ContextHost;
 pub use tool_context::context::{WorkflowState, WorktreeBindingState};
 pub use tool_context::{MAX_PENDING_IMAGE_RELOADS, PendingImageReloadQueue};
@@ -77,5 +76,3 @@ pub fn current_read_state_for_path(path: impl AsRef<Path>) -> Option<FileReadSta
 pub fn note_current_read_state(path: impl AsRef<Path>, bytes_read: usize, partial_view: bool, offset: Option<usize>, limit: Option<usize>, snapshot: Option<FileSnapshot>) -> Option<PathBuf> { tool_context::context::note_current_read_state::<AgentContextHost>(path, bytes_read, partial_view, offset, limit, snapshot) }
 pub fn invalidate_current_read_state(path: impl AsRef<Path>) -> Option<FileReadStateEntry> { tool_context::context::invalidate_current_read_state::<AgentContextHost>(path) }
 pub fn normalize_path_for_context(context: &ToolUseContext, path: impl AsRef<Path>) -> PathBuf { tool_context::context::normalize_path_for_context(context, path) }
-#[cfg(test)]
-mod tests;

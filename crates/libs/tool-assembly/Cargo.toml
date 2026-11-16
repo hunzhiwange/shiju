@@ -54,3 +54,8 @@ agent-paths = { path = "../agent-paths", version = "0.6.0" }
 tool-git = { path = "../tool-git", version = "0.6.0" }
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 acp-types = { path = "../acp-types", version = "0.6.0" }
+agent-defaults = { path = "../agent-defaults", version = "0.6.0" }
+permission-runtime = { path = "../permission-runtime", version = "0.6.0" }
+agent-approval = { path = "../agent-approval", version = "0.6.0" }
+config-security = { path = "../config-security", version = "0.6.0" }
+agent-observability = { path = "../agent-observability", version = "0.6.0" }

@@ -83,3 +83,4 @@ aisdk = { git = "https://github.com/hunzhiwange/aisdk.git", rev = "3401d28a7353c
 shell-command = { path = "../shell-command", version = "0.6.0" }
 tempfile = "3"
 uuid = { version = "1.11", features = ["v4", "js"] }
+async-trait = "0.1.89"

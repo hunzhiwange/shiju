@@ -256,3 +256,151 @@ fn dynamic_tools_contract_client_readonly_hint_cannot_grant_security_capability(
     assert!(matches!(decision, PermissionDecision::Deny { .. }));
     assert!(decision.reason().unwrap().contains("client-stable"));
 }
+
+#[tokio::test]
+async fn agent_config_cleanup_full_access_retains_native_permission_denials() {
+    use agent_defaults::{DefaultSelection, DefaultsContext, resolve};
+    use config_agent_profile::AgentDefault;
+    use config_agent::AgentDefinitionConfig;
+    for (selected, ceiling, allowed) in [
+        ("allow", "allow", true),
+        ("deny", "allow", false),
+        ("allow", "deny", false),
+        ("allow", "ask", false),
+        ("ask", "allow", false),
+    ] {
+        let mut agent = AgentDefinitionConfig::default();
+        agent.defaults.permission = AgentDefault::Fixed(json!({"read":selected}));
+        let effective = resolve(
+            &agent,
+            &DefaultSelection::default(),
+            &DefaultSelection::default(),
+            &DefaultsContext {
+                permission_ceiling: permission_runtime::next::from_config(&json!({"read":ceiling})),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let context = ToolUseContext::new("native-permission", None)
+            .with_full_access_enabled(true)
+            .with_bypass_non_cli_approval_for_turn(true)
+            .with_native_permission(Arc::new(effective));
+        let result =
+            finalize_tool_input(&tool("read", true, None), json!({"path":"fixture"}), &context)
+                .await;
+        assert_eq!(result.is_ok(), allowed, "selected={selected}, ceiling={ceiling}");
+    }
+}
+
+#[tokio::test]
+async fn agent_native_defaults_permission_honors_registered_tool_aliases() {
+    use agent_defaults::{DefaultSelection, DefaultsContext, resolve};
+    use config_agent_profile::AgentDefault;
+    use config_agent::AgentDefinitionConfig;
+    let mut agent = AgentDefinitionConfig::default();
+    agent.defaults.permission = AgentDefault::Fixed(json!({"*":"allow"}));
+    let effective = resolve(
+        &agent,
+        &DefaultSelection::default(),
+        &DefaultSelection::default(),
+        &DefaultsContext {
+            permission_ceiling: permission_runtime::next::from_config(
+                &json!({"*":"allow", "read":{"*.env":"deny"}}),
+            ),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let context =
+        ToolUseContext::new("native-alias", None).with_native_permission(Arc::new(effective));
+    let mut read = tool("file_read", true, None);
+    read.spec = read.spec.with_aliases(["read"]);
+    assert!(finalize_tool_input(&read, json!({"path":"secret.env"}), &context).await.is_err());
+}
+
+#[tokio::test]
+async fn agent_native_defaults_skill_permission_uses_registered_input() {
+    use agent_defaults::{DefaultSelection, DefaultsContext, resolve};
+    use config_agent_profile::AgentDefault;
+    use config_agent::AgentDefinitionConfig;
+    let mut agent = AgentDefinitionConfig::default();
+    agent.defaults.permission =
+        AgentDefault::Fixed(json!({"*":"allow", "skill":{"review":"deny"}}));
+    let effective = resolve(
+        &agent,
+        &DefaultSelection::default(),
+        &DefaultSelection::default(),
+        &DefaultsContext {
+            permission_ceiling: permission_runtime::next::from_config(&json!({"*":"allow"})),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let context = ToolUseContext::new("native-skill-permission", None)
+        .with_native_permission(Arc::new(effective));
+    let decision = resolve_permission_decision(
+        &tool("skill", true, None),
+        json!({"skill":"review"}),
+        &context,
+    )
+    .await;
+    assert!(
+        matches!(decision, PermissionDecision::Deny { reason, .. } if reason.contains("native agent permission"))
+    );
+}
+
+#[tokio::test]
+async fn codex_plugin_compat_t37_host_denial_precedes_hook_allow() {
+    struct AllowHook;
+    #[async_trait::async_trait]
+    impl agent_hooks::HookHandler for AllowHook {
+        fn name(&self) -> &str {
+            "fixture"
+        }
+        async fn permission_request(&self, _: &str, _: &Value) -> anyhow::Result<Option<bool>> {
+            Ok(Some(true))
+        }
+    }
+    let root = tempfile::tempdir().unwrap();
+    let mut security = SecurityPolicy::default();
+    security.workspace_dir = root.path().to_path_buf();
+    let mut runner = agent_hooks::new_hook_runner();
+    runner.register(Box::new(AllowHook));
+    let context = ToolUseContext::new("t37", None)
+        .with_security(Arc::new(security))
+        .with_hook_runner(Arc::new(runner));
+    let denied = resolve_permission_decision(
+        &tool("write", false, None),
+        json!({"path":"/etc/t37-outside"}),
+        &context,
+    )
+    .await;
+    assert!(matches!(denied, PermissionDecision::Deny { .. }));
+    let allowed = request_interactive_approval(
+        "marker",
+        PermissionDecision::ask("fixture", json!({"value":1})),
+        &context,
+    )
+    .await;
+    assert!(matches!(allowed, PermissionDecision::Allow { .. }));
+    assert_eq!(allowed.updated_input(), Some(&json!({"value":1})));
+}
+
+use crate::shell_permission::shell_security_decision;
+#[test]
+fn shell_security_decision_marks_approved_inputs_and_preserves_denials() {
+    let security = SecurityPolicy::default();
+    let allowed =
+        shell_security_decision("shell", json!({"command": "date"}), &security, "date", true);
+    assert_eq!(allowed.updated_input().unwrap()["approved"], json!(true));
+
+    let denied = shell_security_decision(
+        "shell",
+        json!({"command": "rm -rf /"}),
+        &security,
+        "rm -rf /",
+        false,
+    );
+    assert!(matches!(denied, PermissionDecision::Deny { .. } | PermissionDecision::Ask { .. }));
+    assert!(denied.updated_input().is_some());
+}

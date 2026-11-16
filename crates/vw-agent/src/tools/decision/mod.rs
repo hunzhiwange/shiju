@@ -5,13 +5,7 @@ use super::context::ToolUseContext;
 #[cfg(any(unix, test))]
 use serde_json::Value;
 #[cfg(test)]
-use super::{Tool, ToolSpec};
-#[cfg(test)]
-use crate::app::agent::security::SecurityPolicy;
-#[cfg(test)]
 use tool_context::decision::resolve_permission_decision;
-#[cfg(test)]
-use crate::tools::context::shell_policy::shell_security_decision;
 #[cfg(test)]
 async fn request_interactive_approval(name: &str, pending: PermissionDecision, context: &ToolUseContext) -> PermissionDecision { tool_context::decision::request_interactive_approval(name, pending, context).await }
 #[cfg(unix)]

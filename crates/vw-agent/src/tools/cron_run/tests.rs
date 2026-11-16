@@ -6,7 +6,7 @@
 use super::super::*;
 use super::execute_job_now;
 use crate::app::agent::config::Config;
-use crate::app::agent::cron::{add_job, list_runs, record_run};
+use crate::app::agent::cron::{add_job, list_runs};
 use crate::app::agent::security::AutonomyLevel;
 use serde_json::json;
 use tempfile::TempDir;
@@ -39,35 +39,9 @@ async fn force_runs_job_and_records_history() {
     assert_eq!(runs.len(), 1);
 }
 
-#[tokio::test]
-async fn errors_for_missing_job() {
-    let tmp = TempDir::new().unwrap();
-    let cfg = test_config(&tmp).await;
-    let tool = CronRunTool::new(cfg.clone(), test_security(&cfg), execute_job_now);
 
-    let result = tool.execute(json!({ "job_id": "missing-job-id" })).await.unwrap();
-    assert!(!result.success);
-    assert!(result.error.unwrap_or_default().contains("not found"));
-}
 
-#[tokio::test]
-async fn blocks_run_in_read_only_mode() {
-    let tmp = TempDir::new().unwrap();
-    let mut config = Config {
-        workspace_dir: tmp.path().join("workspace"),
-        config_path: tmp.path().join("vibewindow.json"),
-        ..Config::default()
-    };
-    config.autonomy.level = AutonomyLevel::ReadOnly;
-    std::fs::create_dir_all(&config.workspace_dir).unwrap();
-    let cfg = Arc::new(config);
-    let job = add_job(&cfg, "*/5 * * * *", "echo run-now").unwrap();
-    let tool = CronRunTool::new(cfg.clone(), test_security(&cfg), execute_job_now);
 
-    let result = tool.execute(json!({ "job_id": job.id })).await.unwrap();
-    assert!(!result.success);
-    assert!(result.error.unwrap_or_default().contains("read-only"));
-}
 
 #[tokio::test]
 async fn shell_run_requires_approval_for_medium_risk() {
@@ -94,26 +68,7 @@ async fn shell_run_requires_approval_for_medium_risk() {
     assert!(approved.success, "{:?}", approved.error);
 }
 
-#[tokio::test]
-async fn blocks_run_when_rate_limited() {
-    let tmp = TempDir::new().unwrap();
-    let mut config = Config {
-        workspace_dir: tmp.path().join("workspace"),
-        config_path: tmp.path().join("vibewindow.json"),
-        ..Config::default()
-    };
-    config.autonomy.level = AutonomyLevel::Full;
-    config.autonomy.max_actions_per_hour = 0;
-    std::fs::create_dir_all(&config.workspace_dir).unwrap();
-    let cfg = Arc::new(config);
-    let job = add_job(&cfg, "*/5 * * * *", "echo run-now").unwrap();
-    let tool = CronRunTool::new(cfg.clone(), test_security(&cfg), execute_job_now);
 
-    let result = tool.execute(json!({ "job_id": job.id })).await.unwrap();
-    assert!(!result.success);
-    assert!(result.error.unwrap_or_default().contains("Rate limit exceeded"));
-    assert!(list_runs(&cfg, &job.id, 10).unwrap().is_empty());
-}
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]

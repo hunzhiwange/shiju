@@ -9,3 +9,6 @@ pub use word_control::WordControlTool;
 
 #[cfg(test)]
 mod host_migration_35_tests;
+
+#[cfg(test)]
+mod host_migration_33_tests;

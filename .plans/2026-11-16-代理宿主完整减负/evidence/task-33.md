@@ -165,3 +165,137 @@
 
 `python3 scripts/cargo_slot.py cargo test -p tool-assembly --lib host_migration_33_tests -- --test-threads=1`，预期非零 37 条；编译/行为尚未验证。
 宿主保留用例按上表原完整模块名逐条过滤：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib tools::<模块>::<函数> -- --exact --test-threads=1`（按实际 lib list 确认前缀）。每条预期1；迁出用例未来用宿主 list 证明消失，不能以零执行测试当通过。
+
+## 深度恢复补充（替代前文保留结论及未来数量）
+
+全39路径重新核对：宿主 2474 → 721，净减 1753（70.9%）。已迁领域测试 67 条。未运行任何 Cargo、构建或测试；仅完成静态差异/名称/端口检查。
+
+生产调用新增实质下沉：build_agentic_tools 的可信能力解析与工具组合整函数归 session-engine::delegated_tools，AgentHost 现有调用经薄导出进入领域，原包装与9条宿主测试挂载删除。session-engine 已有 tool-services 依赖，补 async-trait dev 依赖。
+
+Excel 真实 TLS、WebSocket、transport、策略过期、取消和文档审批断言整体归 tool-office，保留原真实传输夹具，宿主仅留共享权限工厂注册一条。工具上下文的真实能力注入身份断言也已归 tool-assembly；真实 ApprovalManager、HookRunner、NoopObserver 并非模拟替代。原生 defaults/权限别名/技能输入及拒绝优先于 Hook 共4条断言使用真实 agent-defaults、permission-runtime、agent-hooks。Cron 缺失任务/只读/速率限制3条移至 tool-cron，注入会 panic 的执行端口证明拒绝不会下发；宿主仅留实际执行、审批后执行、运行中和取消历史整合。锁文件按实际依赖边补齐，未触发解析器。
+
+更新后的逐测试映射：
+- `crates/vw-agent/src/tools/catalog_tests.rs::dynamic_tools_catalog_replacement_pins_inflight_executor` → `crates/libs/tool-assembly/src/host_migration_33_tests/catalog.rs::dynamic_tools_catalog_replacement_pins_inflight_executor`
+- `crates/vw-agent/src/tools/catalog_tests.rs::dynamic_tools_catalog_rejects_duplicates_without_publication` → `crates/libs/tool-assembly/src/host_migration_33_tests/catalog.rs::dynamic_tools_catalog_rejects_duplicates_without_publication`
+- `crates/vw-agent/src/tools/catalog_tests.rs::dynamic_tools_catalog_revocation_does_not_restore_loaded_ids` → `crates/libs/tool-assembly/src/host_migration_33_tests/catalog.rs::dynamic_tools_catalog_revocation_does_not_restore_loaded_ids`
+- `crates/vw-agent/src/tools/catalog_tests.rs::dynamic_tools_catalog_rejects_reserved_client_names` → `crates/libs/tool-assembly/src/host_migration_33_tests/catalog.rs::dynamic_tools_catalog_rejects_reserved_client_names`
+- `crates/vw-agent/src/tools/catalog_tests.rs::dynamic_tools_catalog_same_number_from_another_catalog_is_rejected` → `crates/libs/tool-assembly/src/host_migration_33_tests/catalog.rs::dynamic_tools_catalog_same_number_from_another_catalog_is_rejected`
+- `crates/vw-agent/src/tools/catalog_tests.rs::dynamic_tools_catalog_session_and_context_share_snapshot_without_granting_metadata` → `crates/libs/tool-assembly/src/host_migration_33_tests/catalog.rs::dynamic_tools_catalog_session_and_context_share_snapshot_without_granting_metadata`
+- `crates/vw-agent/src/tools/context/tests.rs::default_workflow_state_is_unbound` → `crates/libs/tool-assembly/src/host_migration_33_tests/context.rs::default_workflow_state_is_unbound`
+- `crates/vw-agent/src/tools/context/tests.rs::context_preserves_session_and_root` → `crates/libs/tool-assembly/src/host_migration_33_tests/context.rs::context_preserves_session_and_root`
+- `crates/vw-agent/src/tools/context/tests.rs::workflow_transitions_reset_worktree` → `crates/libs/tool-assembly/src/host_migration_33_tests/context.rs::workflow_transitions_reset_worktree`
+- `crates/vw-agent/src/tools/context/tests.rs::task_local_context_is_visible_only_inside_scope` → `crates/libs/tool-assembly/src/host_migration_33_tests/context.rs::task_local_context_is_visible_only_inside_scope`
+- `crates/vw-agent/src/tools/context/tests.rs::normalize_path_uses_context_workspace_root` → `crates/libs/tool-assembly/src/host_migration_33_tests/context.rs::normalize_path_uses_context_workspace_root`
+- `crates/vw-agent/src/tools/context/tests.rs::default_and_debug_report_runtime_capability_presence` → `crates/libs/tool-assembly/src/host_migration_33_tests/context.rs::default_and_debug_report_runtime_capability_presence`
+- `crates/vw-agent/src/tools/context/tests.rs::builder_methods_expose_injected_runtime_capabilities` → `crates/libs/tool-assembly/src/host_migration_33_tests/context.rs::builder_methods_expose_injected_runtime_capabilities`
+- `crates/vw-agent/src/tools/context/tests.rs::trusted_user_skill_selections_survive_tool_call_context_cloning` → `crates/libs/tool-assembly/src/host_migration_33_tests/context.rs::trusted_user_skill_selections_survive_tool_call_context_cloning`
+- `crates/vw-agent/src/tools/context/tests.rs::shared_read_state_and_workflow_handles_are_reused` → `crates/libs/tool-assembly/src/host_migration_33_tests/context.rs::shared_read_state_and_workflow_handles_are_reused`
+- `crates/vw-agent/src/tools/context/tests.rs::scoped_read_state_helpers_note_get_and_invalidate_paths` → `crates/libs/tool-assembly/src/host_migration_33_tests/context.rs::scoped_read_state_helpers_note_get_and_invalidate_paths`
+- `crates/vw-agent/src/tools/cron_run/tests.rs::force_runs_job_and_records_history` → `crates/vw-agent/src/tools/cron_run/tests.rs::force_runs_job_and_records_history`
+- `crates/vw-agent/src/tools/cron_run/tests.rs::errors_for_missing_job` → `crates/libs/tool-cron/src/host_migration_33_tests.rs::errors_for_missing_job`
+- `crates/vw-agent/src/tools/cron_run/tests.rs::blocks_run_in_read_only_mode` → `crates/libs/tool-cron/src/host_migration_33_tests.rs::blocks_run_in_read_only_mode`
+- `crates/vw-agent/src/tools/cron_run/tests.rs::shell_run_requires_approval_for_medium_risk` → `crates/vw-agent/src/tools/cron_run/tests.rs::shell_run_requires_approval_for_medium_risk`
+- `crates/vw-agent/src/tools/cron_run/tests.rs::blocks_run_when_rate_limited` → `crates/libs/tool-cron/src/host_migration_33_tests.rs::blocks_run_when_rate_limited`
+- `crates/vw-agent/src/tools/cron_run/tests.rs::cron_history_manual_run_is_visible_until_completion` → `crates/vw-agent/src/tools/cron_run/tests.rs::cron_history_manual_run_is_visible_until_completion`
+- `crates/vw-agent/src/tools/cron_run/tests.rs::cron_history_cancelled_manual_run_leaves_no_history` → `crates/vw-agent/src/tools/cron_run/tests.rs::cron_history_cancelled_manual_run_leaves_no_history`
+- `crates/vw-agent/src/tools/decision/tests.rs::allow_and_ask_expose_updated_input_and_reason` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::allow_and_ask_expose_updated_input_and_reason`
+- `crates/vw-agent/src/tools/decision/tests.rs::finalize_allows_without_security_and_classifies_tool_permission_errors` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::finalize_allows_without_security_and_classifies_tool_permission_errors`
+- `crates/vw-agent/src/tools/decision/tests.rs::finalize_permission_decision_maps_allow_ask_and_denials` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::finalize_permission_decision_maps_allow_ask_and_denials`
+- `crates/vw-agent/src/tools/decision/tests.rs::deny_only_exposes_input_after_explicit_snapshot` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::deny_only_exposes_input_after_explicit_snapshot`
+- `crates/vw-agent/src/tools/decision/tests.rs::updated_input_snapshot_only_changes_denials` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::updated_input_snapshot_only_changes_denials`
+- `crates/vw-agent/src/tools/decision/tests.rs::security_decision_handles_readonly_rate_limit_and_blocked_paths` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::security_decision_handles_readonly_rate_limit_and_blocked_paths`
+- `crates/vw-agent/src/tools/decision/tests.rs::blocked_path_checks_string_and_array_fields` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::blocked_path_checks_string_and_array_fields`
+- `crates/vw-agent/src/tools/decision/tests.rs::shell_security_decision_marks_approved_inputs_and_preserves_denials` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::shell_security_decision_marks_approved_inputs_and_preserves_denials`
+- `crates/vw-agent/src/tools/decision/tests.rs::request_interactive_approval_denies_when_manager_is_missing_or_user_declines` → `crates/vw-agent/src/tools/decision/tests.rs::request_interactive_approval_denies_when_manager_is_missing_or_user_declines`
+- `crates/vw-agent/src/tools/decision/tests.rs::non_cli_bypass_records_approval_and_allows_pending_decision` → `crates/vw-agent/src/tools/decision/tests.rs::non_cli_bypass_records_approval_and_allows_pending_decision`
+- `crates/vw-agent/src/tools/decision/tests.rs::non_cli_approval_context_sends_prompt_and_waits_for_resolution` → `crates/vw-agent/src/tools/decision/tests.rs::non_cli_approval_context_sends_prompt_and_waits_for_resolution`
+- `crates/vw-agent/src/tools/decision/tests.rs::command_input_only_accepts_shell_tools_and_string_commands` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::command_input_only_accepts_shell_tools_and_string_commands`
+- `crates/vw-agent/src/tools/decision/tests.rs::approval_marker_only_changes_shell_object_inputs` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::approval_marker_only_changes_shell_object_inputs`
+- `crates/vw-agent/src/tools/decision/tests.rs::permission_reason_helpers_preserve_structured_context` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::permission_reason_helpers_preserve_structured_context`
+- `crates/vw-agent/src/tools/decision/tests.rs::classify_message_separates_denials_from_execution_failures` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::classify_message_separates_denials_from_execution_failures`
+- `crates/vw-agent/src/tools/decision/tests.rs::codex_plugin_compat_t37_host_denial_precedes_hook_allow` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::codex_plugin_compat_t37_host_denial_precedes_hook_allow`
+- `crates/vw-agent/src/tools/decision/tests.rs::agent_config_cleanup_full_access_retains_native_permission_denials` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::agent_config_cleanup_full_access_retains_native_permission_denials`
+- `crates/vw-agent/src/tools/decision/tests.rs::agent_native_defaults_permission_honors_registered_tool_aliases` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::agent_native_defaults_permission_honors_registered_tool_aliases`
+- `crates/vw-agent/src/tools/decision/tests.rs::agent_native_defaults_skill_permission_uses_registered_input` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::agent_native_defaults_skill_permission_uses_registered_input`
+- `crates/vw-agent/src/tools/decision/tests.rs::dynamic_tools_contract_client_readonly_hint_cannot_grant_security_capability` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::dynamic_tools_contract_client_readonly_hint_cannot_grant_security_capability`
+- `crates/vw-agent/src/tools/delegated_tools_tests.rs::build_agentic_tools_blocks_batch_even_when_selected` → `crates/libs/session-engine/src/host_migration_33_tests.rs::build_agentic_tools_blocks_batch_even_when_selected`
+- `crates/vw-agent/src/tools/delegated_tools_tests.rs::build_agentic_tools_empty_selection_keeps_builtin_and_blocks_recursive_tool` → `crates/libs/session-engine/src/host_migration_33_tests.rs::build_agentic_tools_empty_selection_keeps_builtin_and_blocks_recursive_tool`
+- `crates/vw-agent/src/tools/delegated_tools_tests.rs::build_agentic_tools_matches_tool_aliases` → `crates/libs/session-engine/src/host_migration_33_tests.rs::build_agentic_tools_matches_tool_aliases`
+- `crates/vw-agent/src/tools/delegated_tools_tests.rs::delegated_skill_tool_enforces_resolved_skill_capabilities` → `crates/libs/session-engine/src/host_migration_33_tests.rs::delegated_skill_tool_enforces_resolved_skill_capabilities`
+- `crates/vw-agent/src/tools/delegated_tools_tests.rs::strict_skill_policy_without_defaults_does_not_expose_skill` → `crates/libs/session-engine/src/host_migration_33_tests.rs::strict_skill_policy_without_defaults_does_not_expose_skill`
+- `crates/vw-agent/src/tools/delegated_tools_tests.rs::delegated_tool_ref_forwards_contract_and_execution` → `crates/libs/session-engine/src/host_migration_33_tests.rs::delegated_tool_ref_forwards_contract_and_execution`
+- `crates/vw-agent/src/tools/delegated_tools_tests.rs::filtered_skill_tool_exposes_sorted_trimmed_skill_contract` → `crates/libs/session-engine/src/host_migration_33_tests.rs::filtered_skill_tool_exposes_sorted_trimmed_skill_contract`
+- `crates/vw-agent/src/tools/delegated_tools_tests.rs::filtered_skill_tool_delegates_missing_and_blank_names` → `crates/libs/session-engine/src/host_migration_33_tests.rs::filtered_skill_tool_delegates_missing_and_blank_names`
+- `crates/vw-agent/src/tools/delegated_tools_tests.rs::delegated_tools_keep_command_lifecycle_without_restoring_optional_capabilities` → `crates/libs/session-engine/src/host_migration_33_tests.rs::delegated_tools_keep_command_lifecycle_without_restoring_optional_capabilities`
+- `crates/vw-agent/src/tools/excel_control_tests.rs::cc_control_14_no_session_discovers_empty_and_refuses_execution` → `crates/libs/tool-office/src/host_migration_33_tests.rs::cc_control_14_no_session_discovers_empty_and_refuses_execution`
+- `crates/vw-agent/src/tools/excel_control_tests.rs::cc_control_14_duplicate_titles_require_exact_document_and_generation` → `crates/libs/tool-office/src/host_migration_33_tests.rs::cc_control_14_duplicate_titles_require_exact_document_and_generation`
+- `crates/vw-agent/src/tools/excel_control_tests.rs::cc_control_14_switch_and_document_grant_both_gate_execution` → `crates/libs/tool-office/src/host_migration_33_tests.rs::cc_control_14_switch_and_document_grant_both_gate_execution`
+- `crates/vw-agent/src/tools/excel_control_tests.rs::cc_control_14_missing_capability_and_unknown_fields_are_rejected` → `crates/libs/tool-office/src/host_migration_33_tests.rs::cc_control_14_missing_capability_and_unknown_fields_are_rejected`
+- `crates/vw-agent/src/tools/excel_control_tests.rs::cc_control_14_write_returns_actual_readback_to_model` → `crates/libs/tool-office/src/host_migration_33_tests.rs::cc_control_14_write_returns_actual_readback_to_model`
+- `crates/vw-agent/src/tools/excel_control_tests.rs::cc_control_14_disconnect_and_repair_invalidate_old_generation` → `crates/libs/tool-office/src/host_migration_33_tests.rs::cc_control_14_disconnect_and_repair_invalidate_old_generation`
+- `crates/vw-agent/src/tools/excel_control_tests.rs::cc_control_14_foreign_executor_owner_cannot_discover_or_execute` → `crates/libs/tool-office/src/host_migration_33_tests.rs::cc_control_14_foreign_executor_owner_cannot_discover_or_execute`
+- `crates/vw-agent/src/tools/excel_control_tests.rs::cc_control_14_revocation_during_command_discards_result` → `crates/libs/tool-office/src/host_migration_33_tests.rs::cc_control_14_revocation_during_command_discards_result`
+- `crates/vw-agent/src/tools/excel_control_tests.rs::cc_control_14_invalid_rectangles_shapes_and_payloads_never_dispatch` → `crates/libs/tool-office/src/host_migration_33_tests.rs::cc_control_14_invalid_rectangles_shapes_and_payloads_never_dispatch`
+- `crates/vw-agent/src/tools/excel_control_tests.rs::cc_control_14_abort_invalidates_connection_and_discards_late_result` → `crates/libs/tool-office/src/host_migration_33_tests.rs::cc_control_14_abort_invalidates_connection_and_discards_late_result`
+- `crates/vw-agent/src/tools/excel_control_tests.rs::cc_control_14_factory_registers_excel_with_shared_gateway_authority` → `crates/vw-agent/src/tools/excel_control_tests.rs::cc_control_14_factory_registers_excel_with_shared_gateway_authority`
+- `crates/vw-agent/src/tools/excel_control_tests.rs::cc_control_14_malformed_readback_is_failure_and_closes_connection` → `crates/libs/tool-office/src/host_migration_33_tests.rs::cc_control_14_malformed_readback_is_failure_and_closes_connection`
+- `crates/vw-agent/src/tools/excel_control_tests.rs::cc_control_14_document_approval_is_scoped_and_explicit_deny_is_preserved` → `crates/libs/tool-office/src/host_migration_33_tests.rs::cc_control_14_document_approval_is_scoped_and_explicit_deny_is_preserved`
+- `crates/vw-agent/src/tools/external_directory/tests.rs::default_options_enforce_file_checks` → `crates/libs/tool-assembly/src/host_migration_33_tests/external_directory.rs::default_options_enforce_file_checks`
+- `crates/vw-agent/src/tools/external_directory/tests.rs::relative_paths_are_trimmed_joined_and_normalized` → `crates/libs/tool-assembly/src/host_migration_33_tests/external_directory.rs::relative_paths_are_trimmed_joined_and_normalized`
+- `crates/vw-agent/src/tools/external_directory/tests.rs::empty_target_is_ok` → `crates/libs/tool-assembly/src/host_migration_33_tests/external_directory.rs::empty_target_is_ok`
+- `crates/vw-agent/src/tools/external_directory/tests.rs::bypass_skips_checks` → `crates/libs/tool-assembly/src/host_migration_33_tests/external_directory.rs::bypass_skips_checks`
+- `crates/vw-agent/src/tools/external_directory/tests.rs::workspace_relative_path_is_allowed` → `crates/libs/tool-assembly/src/host_migration_33_tests/external_directory.rs::workspace_relative_path_is_allowed`
+- `crates/vw-agent/src/tools/external_directory/tests.rs::outside_workspace_is_denied_without_allowlist` → `crates/libs/tool-assembly/src/host_migration_33_tests/external_directory.rs::outside_workspace_is_denied_without_allowlist`
+- `crates/vw-agent/src/tools/external_directory/tests.rs::outside_file_denial_reports_parent_directory` → `crates/libs/tool-assembly/src/host_migration_33_tests/external_directory.rs::outside_file_denial_reports_parent_directory`
+- `crates/vw-agent/src/tools/external_directory/tests.rs::outside_file_denial_reports_original_path_when_parent_is_missing` → `crates/libs/tool-assembly/src/host_migration_33_tests/external_directory.rs::outside_file_denial_reports_original_path_when_parent_is_missing`
+- `crates/vw-agent/src/tools/external_directory/tests.rs::allowed_roots_path_is_allowed` → `crates/libs/tool-assembly/src/host_migration_33_tests/external_directory.rs::allowed_roots_path_is_allowed`
+- `crates/vw-agent/src/tools/external_directory/tests.rs::tool_output_directory_is_allowed_outside_workspace` → `crates/libs/tool-assembly/src/host_migration_33_tests/external_directory.rs::tool_output_directory_is_allowed_outside_workspace`
+
+更新后的全部保留文件及行数：
+- `crates/vw-agent/src/tools/agent_hosts.rs`：242 行；真实 ChildCoordinator/TaskCoordinator/Agent/Session/Thread 端口，协调器和外部生命周期状态不复制。
+- `crates/vw-agent/src/tools/agent_tool/mod.rs`：32 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/apply_patch/mod.rs`：6 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/batch/mod.rs`：8 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/browser/mod.rs`：3 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/browser_open/mod.rs`：3 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/catalog.rs`：2 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/client_tool.rs`：2 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/client_tool_tests.rs`：1 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/codesearch/mod.rs`：3 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/computer_control.rs`：7 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/config/mod.rs`：2 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/content_search/mod.rs`：2 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/context/mod.rs`：78 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/context/run_worktree.rs`：3 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/context/shell_policy.rs`：2 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/cron_add/mod.rs`：1 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/cron_list/mod.rs`：1 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/cron_remove/mod.rs`：1 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/cron_run/mod.rs`：12 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/cron_run/tests.rs`：129 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/cron_runs/mod.rs`：1 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/cron_update/mod.rs`：1 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/decision/mod.rs`：14 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/decision/tests.rs`：81 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/delegate/mod.rs`：19 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/delegated_tools.rs`：2 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/discovery.rs`：1 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/enter_worktree/mod.rs`：6 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/excel_control.rs`：4 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/excel_control_tests.rs`：35 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/executor/mod.rs`：2 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/exit_worktree/mod.rs`：6 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/external_directory/mod.rs`：6 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+- `crates/vw-agent/src/tools/file_edit/mod.rs`：3 行；保留具体宿主端口/公开兼容别名；测试仅保留真实审批等待、shell策略、Cron执行与共享Office工厂边界（旧保留理由以上方补充为准）。
+
+未来 `python3 scripts/cargo_slot.py cargo test -p tool-assembly --lib host_migration_33_tests -- --test-threads=1`：预期 43 条非零用例；均未执行。
+
+未来 `python3 scripts/cargo_slot.py cargo test -p tool-office --lib host_migration_33_tests -- --test-threads=1`：预期 12 条非零用例；均未执行。
+
+未来 `python3 scripts/cargo_slot.py cargo test -p session-engine --lib host_migration_33_tests -- --test-threads=1`：预期 9 条非零用例；均未执行。
+
+未来 `python3 scripts/cargo_slot.py cargo test -p tool-cron --lib host_migration_33_tests -- --test-threads=1`：预期 3 条非零用例；均未执行。
+
+真实宿主 list 验证迁出函数消失亦未执行；本任务不宣称整轮35000行门槛达标。
+
+Shell 生产适配亦移至 tool-assembly::shell_permission，真实调用由 AgentContextHost 经薄导出接回；原 shell 决策断言同组迁出。最终净减70.9%，宿主721行（含具体协调器242行及兼容入口）。

@@ -13,3 +13,6 @@ pub use cron_remove::CronRemoveTool;
 pub use cron_run::CronRunTool;
 pub use cron_runs::CronRunsTool;
 pub use cron_update::CronUpdateTool;
+
+#[cfg(test)]
+mod host_migration_33_tests;

@@ -1,11 +1,13 @@
 //! 验证委派工具筛选、技能能力约束与调用转发行为。
 //! 递归批处理始终禁用；技能工具按已解析能力裁剪并保持稳定名称、参数与执行转发。
 
-use super::*;
-use super::super::traits::ToolResult;
+use crate::delegated_tools::build_agentic_tools;
+use tool_types::Tool;
+use std::sync::Arc;
+use tool_types::ToolResult;
 use async_trait::async_trait;
 use serde_json::{Value, json};
-use crate::app::agent::config::{DelegateAgentConfig, DelegateCapabilityPolicy};
+use config_agent::{DelegateAgentConfig, DelegateCapabilityPolicy};
 
 fn delegated_config(
     allowed_tools: &[&str],

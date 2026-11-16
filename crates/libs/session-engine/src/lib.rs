@@ -96,3 +96,7 @@ mod host_migration_24_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod host_migration_25_tests;
+
+pub mod delegated_tools;
+#[cfg(test)]
+mod host_migration_33_tests;

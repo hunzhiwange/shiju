@@ -27,3 +27,5 @@ mod host_migration_35_tests;
 
 #[cfg(test)]
 mod host_migration_32_tests;
+
+pub mod shell_permission;

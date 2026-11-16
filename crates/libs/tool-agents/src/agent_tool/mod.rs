@@ -857,3 +857,6 @@ mod communication;
 mod input_test_support;
 #[cfg(test)]
 mod spec_input_tests;
+
+#[cfg(test)]
+mod communication_input_tests;

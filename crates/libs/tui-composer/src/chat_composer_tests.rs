@@ -1,6 +1,6 @@
 use super::*;
-use tui_contracts::action::V3Action;
 use insta::assert_snapshot;
+use tui_contracts::action::V3Action;
 
 fn key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)
@@ -17,10 +17,11 @@ fn render(composer: &ChatComposer, width: u16) -> String {
 #[test]
 fn v3_composer_emits_actions_without_owning_runtime() {
     let mut composer = ChatComposer::new();
-    composer.handle_key_event(key(KeyCode::Char('h')));
-    composer.handle_key_event(key(KeyCode::Char('i')));
+    let now = std::time::Instant::now();
+    composer.handle_key_event_at(key(KeyCode::Char('h')), now);
+    composer.handle_key_event_at(key(KeyCode::Char('i')), now);
     assert_eq!(
-        composer.handle_key_event(key(KeyCode::Enter)),
+        composer.handle_key_event_at(key(KeyCode::Enter), now + std::time::Duration::from_secs(1)),
         V3Action::Submit { text: "hi".into(), attachments: Vec::new() }
     );
 

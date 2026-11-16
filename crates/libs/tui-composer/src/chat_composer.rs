@@ -4,25 +4,27 @@
 //! 实际换行遵循 TextArea 的按键映射与 Vim 模式。历史导航、附件、光标处
 //! `@token` 替换及失败提交恢复均保留在本地。
 //!
-//! 粘贴内容直接插入 TextArea；此组合器未接入 PasteBurst，也没有
-//! `disable_paste_burst` 开关或由粘贴突发改变 Enter 提交行为的路径。
+//! 快速键流复用 PasteBurst 缓冲；粘贴窗口中的 Enter 插入换行。
+//! 调用者须在空闲时调用 flush_paste_burst_if_due 刷新悬挂输入。
 
 use std::cell::RefCell;
 use std::ops::Range;
+use std::time::Instant;
+use tui_input::paste_burst::{CharDecision, FlushResult, PasteBurst};
 
 use crate::chat_composer_history::{ChatComposerHistory, HistoryEntry};
 use crate::footer::{self, FooterMode, FooterProps};
 use crate::footer_state::FooterState;
-use tui_input::textarea::{TextArea, TextAreaState};
-use tui_render::renderable::Renderable;
-use tui_contracts::action::{V3Action, V3FooterData};
-use tui_contracts::event::V3Attachment;
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Stylize;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, StatefulWidgetRef, Widget};
+use tui_contracts::action::{V3Action, V3FooterData};
+use tui_contracts::event::V3Attachment;
+use tui_input::textarea::{TextArea, TextAreaState};
+use tui_render::renderable::Renderable;
 
 const PROMPT_PREFIX: &str = "› ";
 
@@ -37,6 +39,7 @@ pub struct ChatComposer {
     placeholder: String,
     attachments: Vec<V3Attachment>,
     queued_count: usize,
+    paste_burst: PasteBurst,
 }
 
 impl ChatComposer {
@@ -54,6 +57,7 @@ impl ChatComposer {
             placeholder,
             attachments: Vec::new(),
             queued_count: 0,
+            paste_burst: PasteBurst::default(),
         }
     }
 
@@ -74,6 +78,7 @@ impl ChatComposer {
     }
 
     pub fn replace_text(&mut self, text: &str) {
+        self.paste_burst.clear_after_explicit_paste();
         self.textarea.set_text_clearing_elements(text);
         self.textarea.set_cursor(text.len());
         self.footer.set_mode(if text.is_empty() {
@@ -152,6 +157,7 @@ impl ChatComposer {
     }
 
     pub fn clear(&mut self) {
+        self.paste_burst.clear_after_explicit_paste();
         self.textarea.set_text_clearing_elements("");
         self.attachments.clear();
         self.footer.set_mode(FooterMode::ComposerEmpty);
@@ -161,11 +167,38 @@ impl ChatComposer {
     /// 本地处理粘贴。粘贴的内容没有业务影响。
     /// Handle a paste locally.  Pasted text does not have a business side effect.
     pub fn handle_paste(&mut self, pasted: String) -> V3Action {
+        self.flush_pending_input();
+        self.paste_burst.clear_after_explicit_paste();
+        self.insert_pasted_text(&pasted);
+        V3Action::None
+    }
+
+    fn insert_pasted_text(&mut self, pasted: &str) {
         if !pasted.is_empty() {
-            self.textarea.insert_str(&pasted);
+            self.textarea.insert_str(pasted);
             self.footer.set_mode(FooterMode::ComposerHasDraft);
         }
-        V3Action::None
+    }
+
+    /// Flush a pending key or paste without resetting the Enter protection window.
+    pub fn flush_paste_burst_if_due(&mut self, now: Instant) -> bool {
+        match self.paste_burst.flush_if_due(now) {
+            FlushResult::Typed(ch) => {
+                self.insert_pasted_text(&ch.to_string());
+                true
+            }
+            FlushResult::Paste(text) => {
+                self.insert_pasted_text(&text);
+                true
+            }
+            FlushResult::None => false,
+        }
+    }
+
+    fn flush_pending_input(&mut self) {
+        if let Some(text) = self.paste_burst.flush_before_modified_input() {
+            self.insert_pasted_text(&text);
+        }
     }
 
     fn submit_or_queue(&mut self, queue: bool) -> V3Action {
@@ -208,12 +241,21 @@ impl ChatComposer {
     /// 将终端的一个键转换为本地编辑或显式的 V3 操作。
     /// Turn one terminal key into a local edit or an explicit V3 action.
     pub fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
+        self.handle_key_event_at(event, Instant::now())
+    }
+
+    /// Handle input at a supplied monotonic time, shared with idle flushing.
+    pub fn handle_key_event_at(&mut self, event: KeyEvent, now: Instant) -> V3Action {
         if !matches!(event.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
             return V3Action::None;
         }
 
+        self.flush_paste_burst_if_due(now);
+
         if event.code == KeyCode::Char('c') && event.modifiers.contains(KeyModifiers::CONTROL) {
             return if self.footer_data.is_task_running {
+                self.flush_pending_input();
+                self.paste_burst.clear_after_explicit_paste();
                 V3Action::Interrupt
             } else {
                 self.clear();
@@ -222,12 +264,77 @@ impl ChatComposer {
         }
         if event.code == KeyCode::Esc {
             return if self.footer_data.is_task_running {
+                self.flush_pending_input();
+                self.paste_burst.clear_after_explicit_paste();
                 V3Action::Interrupt
             } else {
                 self.clear();
                 V3Action::Cancel
             };
         }
+        let text_modifiers = !event.modifiers.intersects(
+            KeyModifiers::CONTROL
+                | KeyModifiers::ALT
+                | KeyModifiers::SUPER
+                | KeyModifiers::HYPER
+                | KeyModifiers::META,
+        );
+        if event.code == KeyCode::Enter
+            && text_modifiers
+            && self.paste_burst.newline_should_insert_instead_of_submit(now)
+        {
+            self.flush_pending_input();
+            self.insert_pasted_text("\n");
+            self.paste_burst.extend_window(now);
+            return V3Action::InsertNewline;
+        }
+        if let KeyCode::Char(ch) = event.code {
+            // Keep the empty-draft help shortcut immediate.
+            if text_modifiers && !(ch == '?' && self.is_empty() && !self.paste_burst.is_active()) {
+                let decision = if ch.is_ascii() {
+                    Some(self.paste_burst.on_plain_char(ch, now))
+                } else {
+                    if self.paste_burst.try_append_char_if_active(ch, now) {
+                        return V3Action::None;
+                    }
+                    self.flush_pending_input();
+                    self.paste_burst.on_plain_char_no_hold(now)
+                };
+                match decision {
+                    Some(CharDecision::RetainFirstChar) => return V3Action::None,
+                    Some(CharDecision::BufferAppend | CharDecision::BeginBufferFromPending) => {
+                        self.paste_burst.append_char_to_buffer(ch, now);
+                        return V3Action::None;
+                    }
+                    Some(CharDecision::BeginBuffer { retro_chars }) => {
+                        let cursor = self.textarea.cursor();
+                        if let Some(grab) = self.paste_burst.decide_begin_buffer(
+                            now,
+                            &self.textarea.text()[..cursor],
+                            usize::from(retro_chars),
+                        ) {
+                            if self
+                                .textarea
+                                .text_element_ranges()
+                                .any(|range| range.start < cursor && range.end > grab.start_byte)
+                            {
+                                self.paste_burst.clear_after_explicit_paste();
+                            } else {
+                                self.textarea.replace_range(grab.start_byte..cursor, "");
+                                self.paste_burst.append_char_to_buffer(ch, now);
+                                return V3Action::None;
+                            }
+                        }
+                    }
+                    None => {}
+                }
+                self.textarea.input(event);
+                self.footer.set_mode(FooterMode::ComposerHasDraft);
+                return V3Action::None;
+            }
+        }
+        self.flush_pending_input();
+        self.paste_burst.clear_window_after_non_char();
         if event.code == KeyCode::Enter {
             if event
                 .modifiers
@@ -367,3 +474,7 @@ impl Renderable for ChatComposer {
 #[cfg(test)]
 #[path = "chat_composer_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "terminal_req_01_tests.rs"]
+mod terminal_req_01_tests;

@@ -1,4 +1,5 @@
-use crate::{agent_apps::store::IconLibraryStore, global_database::GlobalDatabase};
+use agent_app_services::store::IconLibraryStore;
+use agent_database::GlobalDatabase;
 use axum::{
     Extension, Router,
     body::{Body, to_bytes},
@@ -21,7 +22,7 @@ fn verify(database: GlobalDatabase) -> anyhow::Result<()> {
     store.add_icon(&other, "其他公司", PNG, "fixed", 456).unwrap();
     let untouched = store.read_icons(&other)?;
     let app = Router::new()
-        .nest("/v1", crate::gateway::router::handler_router())
+        .nest("/v1", crate::icons::router())
         .layer(Extension(database))
         .layer(Extension(tenant.clone()));
     for id in ["missing", "fixed", "fixed"] {
@@ -48,6 +49,6 @@ fn cc_base_icon_api_delete_sqlite_idempotent_and_scoped() -> anyhow::Result<()> 
 }
 #[test]
 fn cc_base_icon_api_delete_postgres_idempotent_and_scoped() -> anyhow::Result<()> {
-    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
+    let fixture = agent_database::test_support::PostgresTestDatabase::from_environment()?;
     verify(fixture.database().clone())
 }

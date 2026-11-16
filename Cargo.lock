@@ -9556,6 +9556,9 @@ dependencies = [
 name = "gateway-app-routing"
 version = "0.6.0"
 dependencies = [
+ "vw-api-app-provider-profiles",
+ "vw-api-app-provider-base",
+ "tower",
  "agent-app-services",
  "agent-database",
  "agent-gateway",

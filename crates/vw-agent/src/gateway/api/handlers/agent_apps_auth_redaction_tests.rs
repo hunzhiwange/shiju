@@ -2,7 +2,7 @@ use super::{
     agent_apps_auth_start::Runtime,
     agent_apps_auth_start_tests::{BASIC, CLAUDE, FLOWS, Gateway, OWNER},
 };
-use agent_database::{GlobalDatabase, test_support::PostgresTestDatabase};
+use crate::global_database::{GlobalDatabase, test_support::PostgresTestDatabase};
 use axum::http::{StatusCode, header};
 use serde_json::{Value, json};
 use std::{

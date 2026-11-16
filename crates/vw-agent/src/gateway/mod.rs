@@ -14,13 +14,19 @@
 mod agent;
 pub(crate) mod agent_apps;
 pub mod agent_apps_diagnostic_executors;
-pub use agent_gateway::agent_apps_diagnostic_jobs as agent_apps_diagnostic_jobs;
+pub mod agent_apps_diagnostic_jobs;
 #[cfg(target_os = "macos")]
-pub(crate) use app_routing_services::failover_runtime as agent_apps_failover_runtime;
+pub(crate) mod agent_apps_failover_runtime;
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_failover_runtime_tests;
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_failover_timeouts_tests;
 #[cfg(target_os = "macos")]
-pub use agent_gateway::agent_apps_high_availability_service as agent_apps_high_availability_service;
-pub use app_routing_services::failover_store as agent_apps_high_availability_store;
-pub use app_settings_store::agent_apps_skills_store as agent_apps_skills_store;
+pub mod agent_apps_high_availability_service;
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_high_availability_service_tests;
+pub mod agent_apps_high_availability_store;
+pub mod agent_apps_skills_store;
 pub mod api;
 pub(crate) mod approval_state;
 mod bootstrap;

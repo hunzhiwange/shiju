@@ -1,6 +1,6 @@
 //! Controlled macOS acceptance: a standalone gateway owns routing without Iced.
-use super::app_routing::lifecycle_api_tests::{HOST, MANAGER, spawn_gateway, write_policy};
-use crate::{app_providers::AppProviderStore, global_database::GlobalDatabase};
+use crate::host_migration_7_tests::fixture::{HOST, MANAGER, spawn_gateway, write_policy};
+use {app_provider_services::AppProviderStore, agent_database::GlobalDatabase};
 use axum::{Json, Router, routing::post};
 use reqwest::{Client, Method, StatusCode};
 use serde_json::{Value, json};

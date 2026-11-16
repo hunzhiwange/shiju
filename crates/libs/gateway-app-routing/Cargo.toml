@@ -59,3 +59,13 @@ uuid = { version = "1.11", features = ["v4", "js"] }
 secret-store = { path = "../secret-store", version = "0.6.0" }
 anyhow = "1"
 tracing = "0.1"
+
+[dev-dependencies.tower]
+version = "0.5"
+features = ["util"]
+[dev-dependencies.vw-api-app-provider-base]
+path = "../api-app-provider-base"
+version = "0.6.0"
+[dev-dependencies.vw-api-app-provider-profiles]
+path = "../api-app-provider-profiles"
+version = "0.6.0"

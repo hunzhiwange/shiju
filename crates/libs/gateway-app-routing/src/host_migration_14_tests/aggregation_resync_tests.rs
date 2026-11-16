@@ -1,6 +1,7 @@
-use super::app_routing::{RoutingControl, configure_with_policy};
-use crate::{
-    app_providers::AppProviderStore, app_routing::RoutingListener, global_database::GlobalDatabase,
+use crate::server::lifecycle_api::RoutingControl;
+use super::configure_with_policy;
+use {
+    app_provider_services::AppProviderStore, app_routing_services::RoutingListener, agent_database::GlobalDatabase,
 };
 use axum::{
     Extension, Json, Router,
@@ -112,8 +113,8 @@ impl Fixture {
         let listener = Arc::new(RoutingListener::default());
         listener.start(0).unwrap();
         let (send_control, mut receive) = mpsc::unbounded_channel();
-        let router = super::aggregation_read::router_with_policy(Some(policy.clone()))
-            .merge(super::app_providers::claude::router_with_policy(Some(policy.clone())))
+        let router = gateway_aggregation::aggregation_read::router_with_policy(Some(policy.clone()))
+            .merge(gateway_app_providers::claude::router_with_policy(Some(policy.clone())).layer(middleware::from_fn(super::inject_publication)))
             .route(
                 "/__control",
                 get(move |Extension(control): Extension<RoutingControl>| {
@@ -126,7 +127,7 @@ impl Fixture {
         let router = configure_with_policy(router, &listener, policy.clone(), db.clone())
             .await
             .layer(Extension(db.clone()))
-            .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+            .layer(middleware::from_fn(agent_gateway::middleware::tenant_scope_middleware));
         router
             .clone()
             .oneshot(
@@ -269,7 +270,7 @@ async fn aggregation_t16_default_and_member_order_use_same_transaction() {
     let store = AppProviderStore::new(f.db.clone()).unwrap();
     let mut headers = HeaderMap::new();
     headers.insert("authorization", format!("Bearer {TOKEN}").parse().unwrap());
-    let configured = super::aggregation_resync::configure(
+    let configured = crate::server::record_resync::configure(
         store,
         &f.db,
         Some(&f.policy),
@@ -297,7 +298,7 @@ async fn aggregation_t16_default_and_member_order_use_same_transaction() {
         )
         .unwrap();
     assert_eq!(f.tx.state(AppId::Claude).unwrap().stack.members, vec!["beta", "alpha"]);
-    let (_, context) = super::aggregation_resync::configure_with_context(
+    let (_, context) = crate::server::record_resync::configure_with_context(
         AppProviderStore::new(f.db.clone()).unwrap(),
         &f.db,
         Some(&f.policy),

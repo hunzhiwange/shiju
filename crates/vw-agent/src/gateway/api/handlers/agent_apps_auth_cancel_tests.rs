@@ -4,8 +4,10 @@ use super::{
         BASIC, CLAUDE, CODEX, FLOWS, Gateway, OTHER, OWNER, PASTE, READER,
     },
 };
-use agent_app_services::auth_accounts::AuthAccountScope;
-use agent_database::{GlobalDatabase, test_support::PostgresTestDatabase};
+use crate::{
+    agent_apps::auth_accounts::AuthAccountScope,
+    global_database::{GlobalDatabase, test_support::PostgresTestDatabase},
+};
 use axum::http::{Method, StatusCode, header};
 use serde_json::{Value, json};
 use std::{fs, path::Path, sync::Arc, time::Instant};

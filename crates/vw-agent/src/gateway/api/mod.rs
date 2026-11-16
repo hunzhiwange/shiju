@@ -56,7 +56,7 @@
 /// 身份认证与授权子模块
 ///
 /// 提供 skey Bearer 验证等安全相关功能。
-pub use agent_gateway::api::auth as auth;
+pub mod auth;
 
 /// 核心 API 处理函数子模块
 ///
@@ -66,17 +66,17 @@ pub mod handlers;
 /// 第三方集成配置子模块
 ///
 /// 管理 Telegram、Slack、Discord 等外部通道的集成配置。
-pub use agent_gateway::api::integrations as integrations;
+pub mod integrations;
 
 /// 敏感信息管理子模块
 ///
 /// 提供密钥、凭证等敏感数据的安全存储与访问接口。
-pub use agent_gateway::api::secrets as secrets;
+pub mod secrets;
 
 /// API 数据类型定义子模块
 ///
 /// 定义 API 请求体、响应体及共享数据结构。
-pub use agent_gateway::api::types as types;
+pub mod types;
 
 /// 重新导出核心 API 处理函数
 ///

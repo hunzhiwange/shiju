@@ -9,7 +9,3 @@ pub(crate) fn router() -> Router {
 pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
     gateway_agent_apps::agent_apps_diagnostics::router_with_policy::<NativeProbeHost>(policy)
 }
-
-#[cfg(all(test, target_os = "macos"))]
-#[path = "agent_apps_diagnostics_endpoint_drafts_tests.rs"]
-mod endpoint_drafts_tests;

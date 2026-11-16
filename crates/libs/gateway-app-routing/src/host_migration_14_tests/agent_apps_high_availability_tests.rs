@@ -1,8 +1,8 @@
-use super::app_routing::lifecycle_api_tests::{HOST, MANAGER, spawn_gateway, write_policy};
-use crate::{
-    app_providers::AppProviderStore,
-    gateway::agent_apps_high_availability_store::FailoverQueueStore,
-    global_database::GlobalDatabase,
+use crate::host_migration_7_tests::fixture::{HOST, MANAGER, spawn_gateway, write_policy};
+use {
+    app_provider_services::AppProviderStore,
+    app_routing_services::failover_store::FailoverQueueStore,
+    agent_database::GlobalDatabase,
 };
 use reqwest::{Client, StatusCode};
 use serde_json::{Value, json};
@@ -352,9 +352,9 @@ async fn ha_api_queue_write_rejects_conflicts() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn ha_api_queue_write_rejects_conflicts_enabled() -> anyhow::Result<()> {
-    use crate::gateway::{
-        agent_apps_high_availability_store::{FailoverQueueState, NAMESPACE, config_key},
-        settings_store::GatewaySettingsStore,
+    use {
+        app_routing_services::failover_store::{FailoverQueueState, NAMESPACE, config_key},
+        app_settings_store::GatewaySettingsStore,
     };
     use std::os::unix::fs::PermissionsExt;
 use vw_api_app_provider_base::claude::ClaudeConfig;
@@ -492,7 +492,7 @@ use vw_api_app_provider_base::claude::ClaudeConfig;
 
 #[tokio::test]
 async fn ha_api_health_and_policy_are_scope_bound() -> anyhow::Result<()> {
-    use crate::gateway::agent_apps_failover_runtime;
+    use app_routing_services::failover_runtime as agent_apps_failover_runtime;
     use reqwest::Method;
     let home = tempfile::tempdir()?;
     let policy_file = home.path().join("access.json");

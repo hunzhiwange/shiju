@@ -5,3 +5,4 @@ mod endpoints;
 mod acceptance;
 mod probe_host;
 mod stream_fixtures;
+mod agent_apps_diagnostics_endpoint_drafts_tests;

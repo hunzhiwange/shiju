@@ -1,5 +1,5 @@
 //! Routing HTTP scenarios owned by the domain crate.
-mod fixture;
+pub(crate) mod fixture;
 mod config_api_tests;
 mod outbound_api_tests;
 mod outbound_probe_tests;

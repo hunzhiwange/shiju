@@ -228,7 +228,7 @@ mod dynamic_tools_tests;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod dynamic_tools;
 
-pub mod agent_apps_error;
+pub use gateway_agent_apps::agent_apps_error as agent_apps_error;
 // Icon error tests live with gateway-agent-apps.
 
 #[cfg(test)]
@@ -239,11 +239,7 @@ pub(crate) mod app_routing;
 
 pub(crate) mod agent_apps;
 
-#[cfg(all(test, target_os = "macos"))]
-mod agent_apps_high_availability_tests;
 
-#[cfg(all(test, target_os = "macos"))]
-mod agent_apps_ha_acceptance_tests;
 
 pub(crate) mod agent_apps_auth_read;
 #[cfg(all(test, target_os = "macos"))]
@@ -252,6 +248,8 @@ mod agent_apps_auth_read_tests;
 // agent_apps_auth_binding is owned by gateway-agent-apps.
 
 // agent_apps_auth_cancel is owned by gateway-agent-apps.
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_auth_cancel_tests;
 
 // agent_apps_auth_default is owned by gateway-agent-apps.
 
@@ -259,23 +257,23 @@ mod agent_apps_auth_read_tests;
 // agent_apps_auth_logout is owned by gateway-agent-apps.
 
 // agent_apps_auth_poll is owned by gateway-agent-apps.
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_auth_poll_tests;
 
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_auth_redaction_tests;
 
 // agent_apps_auth_remove is owned by gateway-agent-apps.
-#[cfg(all(test, target_os = "macos"))]
-mod agent_apps_auth_remove_tests;
 
 
 mod agent_apps_auth_start;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_start_tests;
 
-
 #[cfg(test)]
-mod agent_apps_rename_tests;
+mod agent_apps_add_tests;
 
-#[cfg(test)]
-mod agent_apps_delete_tests;
+
 
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_acceptance_tests;
@@ -318,14 +316,14 @@ mod aggregation_members_tests;
 mod aggregation_omo;
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_omo_tests;
-mod aggregation_omp;
-mod aggregation_pi;
+pub(crate) use gateway_aggregation::aggregation_omp as aggregation_omp;
+pub(crate) use gateway_aggregation::aggregation_pi as aggregation_pi;
 mod aggregation_read;
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_read_tests;
 
 #[cfg(target_os = "macos")]
-pub(crate) mod aggregation_read_snapshot;
+pub(crate) use gateway_aggregation::aggregation_read_snapshot as aggregation_read_snapshot;
 
 /// Authenticated recording transcription.
 pub(crate) mod voice;
@@ -354,8 +352,6 @@ mod aggregation_codex_settings;
 mod mcp_management_bindings_tests;
 
 
-#[cfg(all(test, target_os = "macos"))]
-mod aggregation_resync_tests;
 
 mod aggregation_desktop;
 
@@ -415,22 +411,22 @@ mod mcp_management_tools;
 #[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_tools_tests.rs"]
 mod mcp_management_tools_tests;
 
-pub(crate) mod agent_apps_skills;
+pub(crate) use gateway_agent_apps::agent_apps_skills as agent_apps_skills;
 
-pub(crate) use gateway_agent_app::agent_app_prompt_files as agent_app_prompt_files;
+pub(crate) mod agent_app_prompt_files;
 
-pub(crate) use gateway_agent_app::agent_app_prompts_read as agent_app_prompts_read;
+pub(crate) mod agent_app_prompts_read;
 
-pub(crate) use gateway_agent_app::agent_app_prompts_write as agent_app_prompts_write;
+pub(crate) mod agent_app_prompts_write;
 
-pub(crate) use gateway_agent_app::agent_app_prompts_activation as agent_app_prompts_activation;
+pub(crate) mod agent_app_prompts_activation;
 
-pub(crate) use gateway_agent_app::agent_app_prompt_templates as agent_app_prompt_templates;
+pub(crate) mod agent_app_prompt_templates;
 
 #[cfg(target_os = "macos")]
-pub(crate) use gateway_agent_app::agent_app_prompt_sync as agent_app_prompt_sync;
+pub(crate) mod agent_app_prompt_sync;
 
-pub(crate) use gateway_agent_app::agent_app_prompt_shared_import as agent_app_prompt_shared_import;
+pub(crate) mod agent_app_prompt_shared_import;
 
 pub(crate) mod computer_control;
 // Computer-control policy tests are registered by gateway-computer-control.
@@ -440,10 +436,9 @@ pub(crate) mod project_profiles;
 pub(crate) mod external_sessions;
 mod backup_inventory;
 
-pub(crate) mod agent_apps_data;
+pub(crate) use gateway_agent_apps::agent_apps_data as agent_apps_data;
 
 pub(crate) mod device_sync_jobs;
-mod device_sync_download;
 mod device_sync_projection;
 
 mod device_sync_config;

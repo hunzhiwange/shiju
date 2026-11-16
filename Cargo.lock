@@ -14159,7 +14159,7 @@ dependencies = [
  "model-transport",
  "parking_lot",
  "provider-protocol-routes",
- "reqwest",
+ "reqwest 0.13.4",
  "serde_json",
  "tempfile",
  "tokio",

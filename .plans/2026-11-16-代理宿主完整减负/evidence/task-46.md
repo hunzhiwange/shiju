@@ -145,7 +145,7 @@
   预期 32 条非零测试；未运行，无通过证据。
 - `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib model_relay:: -- --list`：确认上表迁走的完整名称不再挂载宿主；不能以零测试当成功。
 - 保留的宿主用例按上表名称逐个精确过滤（model_relay 对应模块路径）；真实 Gemini CLI 用例仍 ignored，需未来明确启用并取得供应商证据。
-- Cargo.lock 已有其它任务的工作区变更，本任务不覆盖；未来首次授权 Cargo 验证需更新 model-relay-http dev 依赖解析。
+- Cargo.lock 仅更新 model-relay-http 条目的直接依赖，保留其它任务暂存/工作区内容；reqwest 使用既有 0.13.4 版本限定，未执行依赖解析命令。
 
 ## 恢复轮静态证据
 

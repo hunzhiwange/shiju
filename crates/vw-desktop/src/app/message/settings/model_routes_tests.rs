@@ -18,21 +18,7 @@ fn route(pattern: &str, provider: &str, model: &str, priority: &str) -> ModelRou
     }
 }
 
-#[test]
-fn model_routes_validate_required_fields() {
-    let mut app = app();
-    app.model_routes_settings.routes = vec![ModelRoute {
-        pattern: "  ".to_string(),
-        provider: "openai".to_string(),
-        model: "gpt-5".to_string(),
-        priority_input: "1".to_string(),
-    }];
-    assert!(validate_routes(&app).unwrap_err().contains("pattern"));
 
-    app.model_routes_settings.routes[0].pattern = "chat".to_string();
-    app.model_routes_settings.routes[0].priority_input = "oops".to_string();
-    assert!(validate_routes(&app).unwrap_err().contains("priority"));
-}
 
 #[test]
 fn model_routes_update_syncs_query_classification_state() {

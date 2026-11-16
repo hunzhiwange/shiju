@@ -20547,7 +20547,6 @@ dependencies = [
  "permission-types",
  "serde",
  "serde_json",
- "tempfile",
  "tokio",
  "tokio-util",
  "tool-context",

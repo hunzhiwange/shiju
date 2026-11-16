@@ -149,3 +149,8 @@ impl<H: GitToolHost> Tool for EnterWorktreeTool<H> {
 impl<H: GitToolHost> Default for EnterWorktreeTool<H> {
     fn default() -> Self { Self::new() }
 }
+
+#[cfg(test)]
+mod value_test_host;
+#[cfg(test)]
+mod value_tests;

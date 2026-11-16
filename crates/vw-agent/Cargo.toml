@@ -536,8 +536,8 @@ channel-wecom = { path = "../libs/channel-wecom", version = "0.6.0", features = 
 task-scheduler = { path = "../libs/task-scheduler", version = "0.6.0", features = ["test-support"] }
 
 [dev-dependencies]
-workflow-video-edit = { path = "../libs/workflow-video-edit", version = "0.6.0", features = ["test-support"] }
 gateway-session = { path = "../libs/gateway-session", version = "0.6.0", features = ["test-support"] }
+workflow-video-edit = { path = "../libs/workflow-video-edit", version = "0.6.0", features = ["test-support"] }
 gateway-agent-scheduler = { path = "../libs/gateway-agent-scheduler", version = "0.6.0", features = ["test-support"] }
 session-store = { path = "../libs/session-store", version = "0.6.0", features = ["test-support"] }
 channel-runtime = { path = "../libs/channel-runtime", version = "0.6.0", features = ["test-support"] }
@@ -564,3 +564,8 @@ gateway-files = { path = "../libs/gateway-files", version = "0.6.0" }
 gateway-http = { path = "../libs/gateway-http", version = "0.6.0" }
 provider-runtime-paths = { path = "../libs/provider-runtime-paths", version = "0.6.0" }
 agent-database = { path = "../libs/agent-database", version = "0.6.0", features = ["test-support"] }
+
+[dev-dependencies.gateway-skill-market]
+path = "../libs/gateway-skill-market"
+version = "0.6.0"
+features = ["fixture-support"]

@@ -10898,6 +10898,11 @@ dependencies = [
 name = "gateway-skill-market"
 version = "0.6.0"
 dependencies = [
+ "zip",
+ "hex",
+ "sha2 0.11.0",
+ "ring",
+ "base64 0.22.1",
  "agent-skills",
  "async-trait",
  "axum",
@@ -11194,6 +11199,20 @@ dependencies = [
 name = "gateway-worktree"
 version = "0.6.0"
 dependencies = [
+ "git2",
+ "tower",
+ "tokio",
+ "uuid",
+ "serde_json",
+ "tempfile",
+ "anyhow",
+ "tool-shell",
+ "session-engine",
+ "session-store",
+ "agent-database",
+ "agent-project",
+ "agent-config",
+ "gateway-project",
  "axum",
  "config-worktree",
  "gateway-types",

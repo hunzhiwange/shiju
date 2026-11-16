@@ -15,10 +15,5 @@ pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
 }
 
 #[cfg(test)]
-fn router_with_registry<S: Clone + Send + Sync + 'static>(registry: Arc<agent_skills::marketplace::provider::SkillMarketProviderRegistry>) -> Router<S> {
-    gateway_skill_market::routes::router_with_registry(registry, Arc::new(RuntimeSkillMarketConfig))
-}
-
-#[cfg(test)]
 #[path = "skill_market_tests.rs"]
 mod skill_market_tests;

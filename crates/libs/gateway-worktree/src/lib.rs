@@ -154,3 +154,30 @@ async fn cleanup_status(
     }
     Ok(Json(report))
 }
+
+/// Compose project resolution and saved worktree settings using their domain owners.
+/// The caller installs the application's process/session protection host first.
+pub fn project_router<S: Clone + Send + Sync + 'static>() -> Router<S> {
+    router(WorktreeHost { context, settings })
+}
+use gateway_project::{load_project, project_context_directory, project_scope};
+fn context(tenant: TenantScope, project: String) -> HostFuture<'static, (ProjectScope, PathBuf)> {
+    Box::pin(async move {
+        let scope = project_scope(tenant, project)?;
+        let info = load_project(&scope).await?;
+        Ok((scope, project_context_directory(&info)?.into()))
+    })
+}
+
+fn settings(scope: &ProjectScope) -> HostFuture<'_, config_worktree::WorktreeSettings> {
+    Box::pin(async move {
+        Ok(agent_config::runtime::get_global_for_tenant(scope.tenant_scope())
+            .await
+            .map_err(|error| ApiError::bad_request(error.to_string()))?
+            .worktree_settings)
+    })
+}
+
+
+#[cfg(test)]
+mod host_migration_17_tests;

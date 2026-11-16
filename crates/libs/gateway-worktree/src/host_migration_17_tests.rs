@@ -1,6 +1,6 @@
-use super::*;
+use crate::*;
 use axum::extract::Extension;
-use crate::worktree::registry;
+use worktree_core::registry;
 use axum::{
     body::{Body, to_bytes},
     http::{Request, StatusCode},
@@ -18,7 +18,7 @@ async fn call(
     path: &str,
     body: Value,
 ) -> (StatusCode, Value) {
-    let app = super::super::project::router::<()>();
+    let app = { host_support::initialize_host(); crate::project_router::<()>() };
     let app = if let Some(tenant) = tenant { app.layer(Extension(tenant)) } else { app };
     let response = app
         .oneshot(
@@ -61,9 +61,9 @@ async fn worktree_management_deletion_requires_valid_confirmation() {
     let secondary = temp.path().join("secondary");
     git(&primary, &["worktree", "add", "-b", "feature", secondary.to_str().unwrap()]);
     let tenant = TenantScope::default();
-    let (project, _) = crate::project::from_directory(&tenant, &primary).await.unwrap();
+    let (project, _) = agent_project::from_directory(&tenant, &primary).await.unwrap();
     let scope = project_scope(tenant.clone(), project.id.clone()).unwrap();
-    crate::config::update_global_for_tenant(
+    agent_config::runtime::update_global_for_tenant(
         &tenant,
         json!({"worktree_settings":{"root":temp.path().join("restored"),"ask_before_delete":true}}),
     )
@@ -95,7 +95,7 @@ async fn worktree_management_deletion_requires_valid_confirmation() {
     }
     let mut other_project = project.clone();
     other_project.id = uuid::Uuid::new_v4().to_string();
-    crate::project::store_local_test_project(&other_project).unwrap();
+    agent_project::store_local_test_project(&other_project).unwrap();
     let other = format!(
         "/projects/{}/managed-worktrees/{}/deletion-preflight",
         other_project.id, record.id
@@ -235,7 +235,7 @@ async fn worktree_managed_ui_records_ready_checkout_use_in_scope() {
     let checkout = temp.path().join("checkout");
     git(&primary, &["worktree", "add", "-b", "existing", checkout.to_str().unwrap()]);
     let tenant = TenantScope::default();
-    let (project, _) = crate::project::from_directory(&tenant, &primary).await.unwrap();
+    let (project, _) = agent_project::from_directory(&tenant, &primary).await.unwrap();
     let scope = project_scope(tenant.clone(), project.id.clone()).unwrap();
     let record = registry::register(&scope, &primary, &checkout).await.unwrap();
     let target = format!("/projects/{}/managed-worktrees/{}/record-use", project.id, record.id);
@@ -256,3 +256,5 @@ async fn worktree_managed_ui_records_ready_checkout_use_in_scope() {
             .is_success()
     );
 }
+
+mod host_support;

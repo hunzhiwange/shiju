@@ -20,3 +20,8 @@ mod skill_market_api;
 mod skill_market_api_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod test_support;
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "fixture-support"))]
+pub mod expert_fixture;
+#[cfg(all(test, not(target_arch = "wasm32"), feature = "fixture-support"))]
+mod host_migration_17_tests;

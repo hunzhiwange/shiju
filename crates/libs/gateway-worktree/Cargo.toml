@@ -14,3 +14,20 @@ worktree-core = { path = "../worktree-core", version = "0.6.0" }
 config-worktree = { path = "../config-worktree", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 vw-api-worktree = { path = "../api-worktree", version = "0.6.0" }
+
+gateway-project = { path = "../gateway-project", version = "0.6.0" }
+agent-config = { path = "../agent-config", version = "0.6.0" }
+
+[dev-dependencies]
+agent-project = { path = "../agent-project", version = "0.6.0", features = ["test-support"] }
+agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
+session-store = { path = "../session-store", version = "0.6.0" }
+session-engine = { path = "../session-engine", version = "0.6.0" }
+tool-shell = { path = "../tool-shell", version = "0.6.0" }
+anyhow = "1"
+tempfile = "3"
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tower = { version = "0.5", features = ["util"] }
+git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }

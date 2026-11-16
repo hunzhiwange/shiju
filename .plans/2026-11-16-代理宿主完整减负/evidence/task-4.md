@@ -7,11 +7,11 @@
 | 来源 | 修改前行数 | 保留行数 |
 | --- | ---: | ---: |
 | agent_apps_diagnostics.rs | 15 | 15 |
-| agent_apps_diagnostics_tests.rs | 874 | 93 |
+| agent_apps_diagnostics_tests.rs | 874 | 92 |
 | agent_apps_diagnostics_acceptance_tests.rs | 555 | 88 |
 
 宿主生产15行保持不变：router / router_with_policy 绑定真实 NativeProbeHost；endpoint_drafts_tests 挂载由任务20所有，本任务不迁移。没有将既有生产下沉计作本轮成果。
-宿主测试1429行降为181行，净减1248行，超过来源1444行的70%。接收库新增测试与夹具1277行，生产新增0行。物理减量不代表编译或耗时收益。
+宿主测试1429行降为180行，净减1249行，超过来源1444行的70%。接收库新增测试与夹具1432行，生产新增0行。物理减量不代表编译或耗时收益。
 
 ## 全用例映射
 

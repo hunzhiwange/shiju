@@ -5,8 +5,8 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
-agent-service = { path = "../agent-service", version = "0.6.0" }
-agent-integrations = { path = "../agent-integrations", version = "0.6.0" }
+agent-cli-types = { path = "../agent-cli-types", version = "0.6.0" }
+config-security = { path = "../config-security", version = "0.6.0" }
 anyhow = "1"
 clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.5"

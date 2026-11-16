@@ -1,40 +1,8 @@
-//! # Agent 模块
+//! Agent 应用组合入口。
 //!
-//! 本模块是 VibeWindow 代理系统的核心库，提供自主代理的完整运行时能力。
-//!
-//! ## 模块职责
-//!
-//! - **编排与执行**：代理的核心调度、任务分类、研究与提示构建
-//! - **通道集成**：多平台消息通道（Telegram、Slack、Discord、WhatsApp 等）
-//! - **模型调用**：Provider trait 及各类 LLM/AI 模型适配器
-//! - **工具执行**：Shell、文件、检索、计划任务等工具面
-//! - **记忆系统**：多后端记忆层（Markdown、SQLite、Postgres、Vector 等）
-//! - **安全策略**：访问控制、隔离、泄漏检测、紧急停止
-//! - **运行时适配**：Native、Docker、WASM 等运行时环境
-//! - **观测性**：日志与观测后端聚合
-//! - **调度任务**：Cron 表达式驱动的定时任务存储与执行
-//! - **技能生态**：技能的加载、发现、审计与执行
-//!
-//! ## 扩展点
-//!
-//! 本模块采用 trait 驱动架构，核心扩展点包括：
-//! - [`model_types::Provider`] — 模型提供者接口
-//! - [`channels::Channel`] — 通道接口
-//! - [`tools::Tool`] — 工具接口
-//! - [`memory::Memory`] — 记忆存储接口
-//! - [`observability::Observer`] — 观测接口
-//! - [`runtime::RuntimeAdapter`] — 运行时适配接口
-//!
-//! ## 使用示例
-//!
-//! ```rust,no_run
-//! use vibe_window::Config;
-//!
-//! // 加载配置
-//! let config = Config::load().expect("Failed to load config");
-//!
-//! // 配置可通过 CLI 子命令进行管理
-//! ```
+//! 组装启动、运行时服务和宿主依赖，并保留公共兼容路径。
+//! 业务类型、状态及执行算法由 `crates/libs` 中的领域库持有。
+//! CLI 命令契约统一重导出自 `agent-cli-types`。
 
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(

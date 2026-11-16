@@ -27,7 +27,9 @@ mod mount_recovery_tests;
 #[cfg(test)]
 mod mount_acceptance_tests;
 
+#[cfg(not(target_arch = "wasm32"))]
 mod catalog_mounts;
+#[cfg(not(target_arch = "wasm32"))]
 pub use catalog_mounts::{CatalogMountSelection, CatalogMountSnapshot, read_catalog_mounts};
 #[cfg(all(test, target_os = "macos"))]
 mod catalog_mounts_tests;

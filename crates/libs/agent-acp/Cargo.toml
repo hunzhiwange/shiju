@@ -30,6 +30,14 @@ sha2 = "0.10"
 hex = "0.4"
 serde_json = "1"
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+anyhow = "1"
+agent-app-services = { path = "../agent-app-services", version = "0.6.0" }
+agent-database = { path = "../agent-database", version = "0.6.0" }
+session-store = { path = "../session-store", version = "0.6.0" }
+session-info = { path = "../session-info", version = "0.6.0" }
+vw-api-mcp-management = { path = "../api-mcp-management", version = "0.6.0" }
+
 [dev-dependencies]
 agent-approval = { path = "../agent-approval", version = "0.6.0", features = ["test-support"] }
 config-security = { path = "../config-security", version = "0.6.0" }

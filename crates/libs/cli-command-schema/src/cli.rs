@@ -18,14 +18,11 @@
 use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 
 use crate::parse_temperature;
-use vw_agent::channels::ChannelCommands;
-use vw_agent::cron::CronCommands;
-use agent_integrations::IntegrationCommands;
-use vw_agent::memory::cli::MemoryCommands;
-use vw_agent::plugins::PluginCommands;
-use vw_agent::security;
-use agent_service::ServiceCommands;
-use vw_agent::skill::SkillCommands;
+use agent_cli_types::{
+    ChannelCommands, CronCommands, IntegrationCommands, MemoryCommands, PluginCommands,
+    ServiceCommands, SkillCommands,
+};
+use config_security as security;
 
 use cli_gateway_commands::{ApiOptions, RootApiCommands, RootConfigCommands};
 

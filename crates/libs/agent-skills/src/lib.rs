@@ -28,6 +28,7 @@ pub mod source;
 pub mod marketplace;
 pub mod prompt;
 pub mod session_mounts;
+pub mod session_sources;
 pub mod shiju;
 
 #[cfg(test)]

@@ -2,83 +2,13 @@
 use crate::agent_apps::mcp::acp_mount::ResolvedCatalogMounts;
 use crate::session::runtime::{SessionScope, SessionToolset};
 use crate::{
-    config::Config,
-    skills::{
-        Skill, SkillLoadMode,
-        session_mounts::{SessionSkillBinding, SessionSkillView},
-    },
+    skills::session_mounts::{SessionSkillBinding, SessionSkillView},
 };
-use anyhow::{Result, ensure};
-use std::{path::Path, sync::Arc};
+use anyhow::Result;
 use acp_server::server::{BackendError, BackendMountRequest};
 use acp_types::{McpCatalogMount, SessionMountRevision, SessionSkillMount, SetSessionMountsResponse};
 
-/// Audited skill directories owned by one inbound session and retained across tool rounds.
-#[derive(Clone, Default)]
-pub struct SessionSkillSources {
-    view: Option<Arc<SessionSkillView>>,
-    mounts: Arc<Vec<SessionSkillMount>>,
-    revoked: Arc<std::sync::atomic::AtomicBool>,
-}
-impl std::fmt::Debug for SessionSkillSources {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SessionSkillSources").field("count", &self.mounts.len()).finish()
-    }
-}
-impl SessionSkillSources {
-    pub(super) fn revoke(&self) {
-        self.revoked.store(true, std::sync::atomic::Ordering::Release);
-    }
-    pub(crate) fn validate(&self) -> Result<()> {
-        ensure!(
-            !self.revoked.load(std::sync::atomic::Ordering::Acquire),
-            "session skill mounts revoked"
-        );
-        if let Some(view) = &self.view {
-            view.validate()?;
-        }
-        Ok(())
-    }
-    pub(crate) fn extend(
-        &self,
-        skills: Vec<Skill>,
-        config: &Config,
-        full: bool,
-    ) -> Result<Vec<Skill>> {
-        agent_skills::catalog::extend_session_skills(self, skills, &config.skills.security, full)
-    }
-    pub(crate) fn allows_read(&self, path: &Path) -> bool {
-        self.validate().is_ok()
-            && path.canonicalize().ok().is_some_and(|path| {
-                self.mounts.iter().any(|mount| {
-                    Path::new(&mount.path)
-                        .canonicalize()
-                        .ok()
-                        .is_some_and(|root| path.starts_with(root))
-                })
-            })
-    }
-    pub(super) fn fingerprint(&self) -> Option<&str> {
-        self.view.as_ref().map(|view| view.fingerprint())
-    }
-    pub(crate) fn mounts(&self) -> &[SessionSkillMount] {
-        &self.mounts
-    }
-}
-
-impl agent_skills::catalog::SessionSkillInventory for SessionSkillSources {
-    fn validate(&self) -> Result<()> {
-        SessionSkillSources::validate(self)
-    }
-
-    fn view(&self) -> Option<&SessionSkillView> {
-        self.view.as_deref()
-    }
-
-    fn mounts(&self) -> &[SessionSkillMount] {
-        &self.mounts
-    }
-}
+pub use agent_skills::session_sources::SessionSkillSources;
 
 pub(super) struct PreparedMounts {
     pub skills: SessionSkillSources,
@@ -130,14 +60,10 @@ pub(super) async fn prepare_revision(
             &config.skills.security,
         )
         .map_err(prepare_error)?;
-        SessionSkillSources {
-            view: Some(Arc::new(view)),
-            mounts: Arc::new(mounts.clone()),
-            revoked: Default::default(),
-        }
+        SessionSkillSources::new(view, mounts.clone())
     };
     skills
-        .extend(crate::skills::load_skills_with_config(scope.directory(), &config), &config, false)
+        .extend(crate::skills::load_skills_with_config(scope.directory(), &config), &config.skills.security, false)
         .map_err(prepare_error)?;
     let ResolvedCatalogMounts { leases, servers } = managed;
     request.mcp_servers.extend(servers);

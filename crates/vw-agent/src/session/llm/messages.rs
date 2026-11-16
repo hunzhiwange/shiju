@@ -9,3 +9,8 @@ pub fn build_system_messages(input: &super::types::StreamInput, is_codex: bool) 
 #[cfg(test)]
 #[path = "../../../../libs/llm-runtime/src/messages_tests.rs"]
 mod messages_tests;
+
+// These contracts require the real session prompt renderer installed by ensure_host.
+#[cfg(test)]
+#[path = "messages_system_tests.rs"]
+mod messages_system_tests;

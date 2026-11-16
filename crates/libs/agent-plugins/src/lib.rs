@@ -81,3 +81,6 @@ mod compat_t06_tests;
 
 #[cfg(test)]
 mod compat_t09_tests;
+
+#[cfg(test)]
+mod compat_t11_tests;

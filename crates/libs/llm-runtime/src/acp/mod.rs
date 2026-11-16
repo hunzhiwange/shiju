@@ -17,6 +17,8 @@ pub mod host;
 pub mod session;
 pub mod request;
 pub mod updates;
+pub mod skill_mounts;
+pub mod source_selection;
 use crate::Error;
 fn to_api_error(err: impl std::fmt::Display) -> Error {
     Error::Api(message_types::AssistantError::Unknown { message: format!("acp: {err}") })

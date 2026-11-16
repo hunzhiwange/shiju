@@ -56,7 +56,7 @@ async fn acp_skill_mount_lifecycle_content_removal_and_session_change_identity()
     }];
     let security = Default::default();
     let prepare = |session| {
-        super::MountedSkills::prepare(&mounts, project.path(), session, &security).unwrap().unwrap()
+        super::prepare(&mounts, project.path(), session, &security).unwrap().unwrap()
     };
     let first = prepare("lifecycle-first");
     let other = prepare("lifecycle-other");
@@ -91,19 +91,19 @@ async fn acp_skill_mount_lifecycle_content_removal_and_session_change_identity()
     std::fs::write(source.join("SKILL.disabled"), "").unwrap();
     assert!(updated.0.validate().is_err());
     assert!(
-        super::MountedSkills::prepare(&mounts, project.path(), "lifecycle-first", &security)
+        super::prepare(&mounts, project.path(), "lifecycle-first", &security)
             .is_err()
     );
     std::fs::remove_file(source.join("SKILL.disabled")).unwrap();
     assert!(
-        super::MountedSkills::prepare(&[], project.path(), "lifecycle-first", &security)
+        super::prepare(&[], project.path(), "lifecycle-first", &security)
             .unwrap()
             .is_none()
     );
     std::fs::remove_file(&file).unwrap();
     assert!(updated.0.validate().is_err());
     assert!(
-        super::MountedSkills::prepare(&mounts, project.path(), "lifecycle-first", &security)
+        super::prepare(&mounts, project.path(), "lifecycle-first", &security)
             .is_err()
     );
 }

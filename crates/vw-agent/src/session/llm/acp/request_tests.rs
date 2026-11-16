@@ -427,7 +427,7 @@ for line in sys.stdin:
         response = {'jsonrpc':'2.0','id':r['id'],'result':result}
     print(json.dumps(response), flush=True)
 "#).unwrap();
-    let view = super::super::skill_mounts::MountedSkills::prepare(
+    let view = super::super::skill_mounts::prepare(
         &parsed.skill_mounts,
         temp.path(),
         "mount-error",

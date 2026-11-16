@@ -8,6 +8,8 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+agent-skills = { path = "../agent-skills", version = "0.6.0" }
+config-skills = { path = "../config-skills", version = "0.6.0" }
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

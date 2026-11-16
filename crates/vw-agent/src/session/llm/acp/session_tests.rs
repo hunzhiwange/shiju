@@ -384,7 +384,7 @@ for line in sys.stdin:
 
 #[test]
 fn acp_skill_mount_outbound_cache_tracks_content_and_client_retains_view() {
-    use super::super::skill_mounts::MountedSkills;
+    use super::super::skill_mounts::prepare;
     let temp = tempfile::tempdir().unwrap();
     let directory = temp.path().join("selected");
     std::fs::create_dir(&directory).unwrap();
@@ -398,7 +398,7 @@ fn acp_skill_mount_outbound_cache_tracks_content_and_client_retains_view() {
         ..Default::default()
     };
     options.skill_view =
-        MountedSkills::prepare(&options.skill_mounts, temp.path(), "session", &Default::default())
+        prepare(&options.skill_mounts, temp.path(), "session", &Default::default())
             .unwrap();
     let cfg = acp_config("unused");
     let first = acp_client_cache_key("codex", &cfg, temp.path(), &options);
@@ -409,7 +409,7 @@ fn acp_skill_mount_outbound_cache_tracks_content_and_client_retains_view() {
     drop(view);
     std::fs::write(&source, "---\nname: selected\ndescription: fixture\n---\nsecond\n").unwrap();
     options.skill_view =
-        MountedSkills::prepare(&options.skill_mounts, temp.path(), "session", &Default::default())
+        prepare(&options.skill_mounts, temp.path(), "session", &Default::default())
             .unwrap();
     assert_ne!(first, acp_client_cache_key("codex", &cfg, temp.path(), &options));
     drop(options);

@@ -29,7 +29,7 @@ impl Host for RuntimeHost {
     fn project_id() -> Option<String> { crate::project::instance::project().map(|project| project.id) }
     fn bind_agent<'a>(session: &'a str, cfg: &'a mut config::schema::Config) -> HostFuture<'a, anyhow::Result<()>> { Box::pin(crate::session::agent_binding::apply_to_config(session, cfg)) }
     fn agent_defaults<'a>(cfg: &'a config::schema::Config, options: &'a Value, agent: &'a str, cwd: &'a Path, parsed: &'a mut ParsedAcpOptions, messages: &'a Value) -> HostFuture<'a, Result<Value, Error>> { Box::pin(super::config::apply_agent_defaults(cfg, options, agent, cwd, parsed, messages)) }
-    fn prepare_skills(mounts: &[acp_types::SessionSkillMount], cwd: &Path, session: &str, cfg: &config::schema::Config) -> Result<Option<Self::Skills>, Error> { Self::Skills::prepare(mounts, cwd, session, &cfg.skills.security) }
+    fn prepare_skills(mounts: &[acp_types::SessionSkillMount], cwd: &Path, session: &str, cfg: &config::schema::Config) -> Result<Option<Self::Skills>, Error> { super::skill_mounts::prepare(mounts, cwd, session, &cfg.skills.security) }
     fn reject_expanded(agent: &str, messages: &Value) -> Result<(), Error> { super::skill_mounts::reject_expanded_invocations(agent, messages) }
     fn scanner(agent: &str, cfg: &mut config::schema::AcpAgentConfig, skills: Option<&Self::Skills>) -> Result<(), Error> { super::skill_mounts::configure_native_scanner(agent, cfg, skills) }
     fn supplier(agent: &str, skills: Option<&Self::Skills>) -> Result<(), Error> { super::skill_mounts::prepare_supplier(agent, skills) }

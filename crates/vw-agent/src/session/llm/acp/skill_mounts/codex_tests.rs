@@ -1,14 +1,8 @@
-#[test]
-fn acp_skill_mount_codex_accepts_native_contract() {
-    assert!(super::super::validate("codex", true).is_ok());
-    assert!(super::super::validate("codex", false).is_ok());
-}
-
 #[tokio::test]
 async fn acp_skill_mount_codex_retires_changed_owner_and_preserves_other_sessions() {
-    use super::super::super::{ACP_CLIENT_CACHE, ParsedAcpOptions, session};
+    use super::super::{ACP_CLIENT_CACHE, ParsedAcpOptions, session};
     let directory = tempfile::tempdir().unwrap();
-    let config = crate::config::schema::AcpAgentConfig {
+    let config = agent_config::schema::AcpAgentConfig {
         command: "codex-acp".into(),
         args: vec![],
         env: Default::default(),

@@ -220,7 +220,7 @@
 - `background_agent_launch_preserves_running_lifecycle_in_session_output` → `原宿主挂载::tools_exec_tests::background_agent_launch_preserves_running_lifecycle_in_session_output（保留）`
 - `three_agent_tool_executions_start_in_parallel_and_keep_result_order` → `原宿主挂载::tools_exec_tests::three_agent_tool_executions_start_in_parallel_and_keep_result_order（保留）`
 - `configured_agent_tool_limit_caps_parallel_execution` → `原宿主挂载::tools_exec_tests::configured_agent_tool_limit_caps_parallel_execution（保留）`
-- `tool_classification_helpers_cover_todo_streaming_and_regular_tools` → `原宿主挂载::tools_exec_tests::tool_classification_helpers_cover_todo_streaming_and_regular_tools（保留）`
+- `tool_classification_helpers_cover_todo_streaming_and_regular_tools` → `session_engine::host_migration_22_tests::child_finalization_tests::tool_classification_helpers_cover_todo_streaming_and_regular_tools`
 - `run_tool_and_record_reports_parse_errors_for_streaming_tools_and_deduplicates` → `原宿主挂载::tools_exec_tests::run_tool_and_record_reports_parse_errors_for_streaming_tools_and_deduplicates（保留）`
 - `run_tool_and_record_delegates_batch_tool` → `原宿主挂载::tools_exec_tests::run_tool_and_record_delegates_batch_tool（保留）`
 - `run_tool_and_record_rewrites_initial_todowrite_completed_status_until_non_todo_work_exists` → `原宿主挂载::tools_exec_tests::run_tool_and_record_rewrites_initial_todowrite_completed_status_until_non_todo_work_exists（保留）`
@@ -240,8 +240,8 @@
 - `run_batch_tool_and_record_deduplicates_subtool_and_batch_messages` → `原宿主挂载::tools_exec_tests::run_batch_tool_and_record_deduplicates_subtool_and_batch_messages（保留）`
 - `run_batch_tool_and_record_rewrites_todowrite_only_before_non_todo_work` → `原宿主挂载::tools_exec_tests::run_batch_tool_and_record_rewrites_todowrite_only_before_non_todo_work（保留）`
 - `run_batch_tool_and_record_uses_existing_tokio_runtime_for_parallel_calls` → `原宿主挂载::tools_exec_tests::run_batch_tool_and_record_uses_existing_tokio_runtime_for_parallel_calls（保留）`
-- `agent_tool_finalization_emits_terminal_payloads_before_done` → `原宿主挂载::tools_exec_tests::agent_tool_finalization_emits_terminal_payloads_before_done（保留）`
-- `agent_tool_finalization_keeps_background_child_running_when_event_sink_closes` → `原宿主挂载::tools_exec_tests::agent_tool_finalization_keeps_background_child_running_when_event_sink_closes（保留）`
+- `agent_tool_finalization_emits_terminal_payloads_before_done` → `session_engine::host_migration_22_tests::child_finalization_tests::agent_tool_finalization_emits_terminal_payloads_before_done`
+- `agent_tool_finalization_keeps_background_child_running_when_event_sink_closes` → `session_engine::host_migration_22_tests::child_finalization_tests::agent_tool_finalization_keeps_background_child_running_when_event_sink_closes`
 - `shell_session_batch_records_real_independent_handles` → `原宿主挂载::tools_exec_tests::shell_session_batch_records_real_independent_handles（保留）`
 - `shell_session_failed_command_retains_stderr_and_exit_code` → `原宿主挂载::tools_exec_tests::shell_session_failed_command_retains_stderr_and_exit_code（保留）`
 - `codex_plugin_compat_t31_stream_preserves_app_without_content_blocks` → `原宿主挂载::tools_exec_tests::codex_plugin_compat_t31_stream_preserves_app_without_content_blocks（保留）`
@@ -251,10 +251,10 @@
 ### artifacts_tests.rs
 物理行 553→553；保留理由：请求投影、真实 UI 存储与 scoped project 写入；raw payload 纯构造场景本轮已整组迁出。
 
-- `step_and_final_ai_call_payloads_persist_to_scoped_session` → `原宿主挂载::artifacts_tests::step_and_final_ai_call_payloads_persist_to_scoped_session（保留）`
-- `ai_call_payloads_compact_repeated_context_before_persisting` → `原宿主挂载::artifacts_tests::ai_call_payloads_compact_repeated_context_before_persisting（保留）`
-- `ai_call_payloads_respect_persistence_guards` → `原宿主挂载::artifacts_tests::ai_call_payloads_respect_persistence_guards（保留）`
-- `final_ai_call_payload_uses_explicit_persist_decision` → `原宿主挂载::artifacts_tests::final_ai_call_payload_uses_explicit_persist_decision（保留）`
+- `step_and_final_ai_call_payloads_persist_to_scoped_session` → `session_engine::host_migration_22_tests::artifact_persistence_tests::step_and_final_ai_call_payloads_persist_to_scoped_session`
+- `ai_call_payloads_compact_repeated_context_before_persisting` → `session_engine::host_migration_22_tests::artifact_persistence_tests::ai_call_payloads_compact_repeated_context_before_persisting`
+- `ai_call_payloads_respect_persistence_guards` → `session_engine::host_migration_22_tests::artifact_persistence_tests::ai_call_payloads_respect_persistence_guards`
+- `final_ai_call_payload_uses_explicit_persist_decision` → `session_engine::host_migration_22_tests::artifact_persistence_tests::final_ai_call_payload_uses_explicit_persist_decision`
 - `raw_payload_builds_system_messages_output_and_tool_calls` → `session_engine::host_migration_22_tests::artifacts_tests::raw_payload_builds_system_messages_output_and_tool_calls`
 - `raw_payload_builds_message_sources_without_provider_metadata` → `session_engine::host_migration_22_tests::artifacts_tests::raw_payload_builds_message_sources_without_provider_metadata`
 - `raw_payload_builds_request_snapshot_and_tool_catalog` → `session_engine::host_migration_22_tests::artifacts_tests::raw_payload_builds_request_snapshot_and_tool_catalog`
@@ -267,7 +267,7 @@ runner_tests 的 mcp_catalog_refresh_tests 子模块仍随原宿主挂载保留�
 
 ## 未来验证
 
-`python3 scripts/cargo_slot.py cargo test -p session-engine --lib host_migration_22_tests -- --test-threads=1`：静态预期 51 个，必须非零。
+`python3 scripts/cargo_slot.py cargo test -p session-engine --lib host_migration_22_tests -- --test-threads=1`：静态预期 58 个（native；wasm 不注册4条持久化用例），必须非零。
 
 宿主保留项使用上表名称加 `session::processor::` 实际模块前缀作精确过滤，未来先 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib -- --list` 获取真实完整名。迁出项应在宿主列表消失；零测试不能作为通过。未新增 llm-runtime/agent-acp 测试，不运行其空过滤。
 
@@ -295,3 +295,36 @@ runner_tests 的 mcp_catalog_refresh_tests 子模块仍随原宿主挂载保留�
 
 宿主限定过滤：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib session::processor::artifacts::artifacts_tests -- --test-threads=1`，预期4条。
 领域限定过滤使用上文 host_migration_22_tests 命令；保留宿主薄边界和迁出列表需再用实际 --list 校验。所有命令本轮未运行。
+
+## 深度续执行（收口残留清单之后；本节替代前文保留状态与旧计数）
+
+读取 evidence/final.md 与 evidence/remaining-host.json；任务22原残留1123行。当前原19文件剩899行，本次再减224行；对1290基线累计净减391行（30.31%）。未达到70%，不能作为全局35000行门槛关闭依据。新变化全部是测试职责和冗余测试适配清理，未将旧领域算法记为新增生产收益。
+
+- artifacts.rs 28→0；旧 host_suites/artifacts_tests.rs 4条完整迁入 host_migration_22_tests::artifact_persistence_tests。真实 agent_project::store_local_test_project、session_store::ui_store 写入、读取和删除路径不变。显式系统提示输入替代宿主提示组合，断言未删；宿主 ArtifactHost 的真实提示/store 绑定仍在 runner_host.rs，不复制具体宿主。
+- session-engine dev-dependencies 为已有 agent-project 启用现成 test-support 隔离存储能力；没有添加新库或改变生产配置。父模块自注册 native 持久化测试，宿主 mod artifacts 和原跨目录挂载删除。
+- tools_exec.rs 的 agent_tool_snapshot_status、agent_tool_snapshot_payload、finalize_agent_tool_children_with 原本全部 cfg(test)，随两条 agent_tool_finalization 用例完整迁到 child_finalization_tests，使用真实领域 ChildAgentCoordinator，保留后台子代理不因 sink 关闭取消及终态先于 Done 的断言。这是测试逻辑归属变化，不冒充真实生产路径。
+- tool_classification_helpers_cover_todo_streaming_and_regular_tools 完整迁到同模块，直接调用现有生产分类函数。
+- runner.rs 的 DesktopSessionProtocol 测试包装、Deref/DerefMut 和 handle_structured_tool_calls 测试转发已删除；原用例直接使用领域类型并调用泛型入口，prepare_native_skill_context 显式传递原 req.session/req.options，未改输入语义。
+
+未来 `python3 scripts/cargo_slot.py cargo test -p session-engine --lib host_migration_22_tests -- --test-threads=1`：native 静态预期58例（新增7）；保留宿主命令必须按剩余用例过滤，前文 artifacts 宿主4例命令已失效，不可再使用。本轮只做源码/挂载/差异检查，全部编译、测试、构建和实机验证未运行。
+
+### 剩余宿主职责逐文件复核
+
+- `context_governance.rs`：2行；已有领域薄重导出，无策略分支；由直接调用者使用。所有者边界内无新算法可搬。
+- `helpers.rs`：13行；现有 registry 的具体 Host 选择与兼容入口，保留真实 registry 断言。
+- `llm_messages.rs`：2行；已有领域薄重导出，无策略分支；由直接调用者使用。所有者边界内无新算法可搬。
+- `llm_runner.rs`：140行；真实线程 runtime、project/tool-use/tenant/usage scope 捕获；脚本取消夹具只供真实宿主测试。
+- `mod.rs`：70行；处理器装配和剩余真实宿主测试挂载。
+- `planning.rs`：24行；真实 ToolRuntimeContext 执行端口与4条 TodoWrite 集成断言。
+- `prefetch.rs`：32行；真实权限规则、文件读取/二进制判定及 AgentPrefetchHost。
+- `prompting.rs`：5行；实际宿主 system prompt 输入组合。
+- `recovery.rs`：6行；已有领域薄重导出，无策略分支；由直接调用者使用。所有者边界内无新算法可搬。
+- `runner.rs`：77行；项目与 worktree lease/租户提供作用域；测试导入及领域类型别名。
+- `runner_admission.rs`：53行；真实 plugin-turn guard、hook start/submit、副作用撤销及 ToolRuntimeContext 装配。
+- `runner_host.rs`：375行；RunnerHost/Checkpoint/Summary/Artifact/Helper 具体端口：配置、审批、插件、模型流、项目租户、技能、发现快照与持久化绑定；领域 runner 持有策略。继续可拆候选是工具与技能端口绑定重复，必须避免拷入另一单体。
+- `todo_updates.rs`：18行；真实 RunnerHost 待办/模型接线与3条真实存储守卫。
+- `todos.rs`：12行；真实 RunnerHost 待办读写接线与6条存储/执行断言。
+- `tools_exec.rs`：27行；具体 ToolExecutionHost native discovery 实现及剩余宿主工具测试挂载。
+- `turn_policy.rs`：2行；已有领域薄重导出，无策略分支；由直接调用者使用。所有者边界内无新算法可搬。
+- `types.rs`：8行；具体 ApprovalManager/SessionSkillSources Request 别名。
+- `utils.rs`：33行；由任务23拥有子文件的兼容注册与重导出，不能删除其直接调用入口。

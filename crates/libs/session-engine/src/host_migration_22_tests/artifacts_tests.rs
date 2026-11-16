@@ -4,8 +4,8 @@ use model_types::ToolCall;
 use session_port::ui_types as models;
 use serde_json::{Value, json};
 fn unique_id(label: &str) -> String { format!("raw-{label}-{}", uuid::Uuid::new_v4()) }
-struct Request { stream: u64, session: String, root: Option<String>, model: Option<String>, options: Value, persist_app_session_artifacts: bool }
-fn request(session: &str, stream: u64, persist: bool) -> Request {
+pub(super) struct Request { pub(super) stream: u64, pub(super) session: String, pub(super) root: Option<String>, pub(super) model: Option<String>, pub(super) options: Value, pub(super) persist_app_session_artifacts: bool }
+pub(super) fn request(session: &str, stream: u64, persist: bool) -> Request {
     Request { stream, session: session.into(), root: Some("/tmp/project".into()), model: Some("test-model".into()), options: json!({"mode":"test"}), persist_app_session_artifacts: persist }
 }
 fn persist_llm_raw_step_payload(req: &Request, session: &str, index: u32, messages: &[Value], sources: &[Value], model: &str, system: &[String], tools: &[tool_types::ToolSpec], step: &LlmStep) -> Option<Value> {

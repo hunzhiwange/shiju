@@ -1,54 +1,24 @@
 //! 验证处理器消息与原始 AI 调用工件的构造和持久化守卫。
 
-use crate::project;
-use crate::session::llm::ToolCall;
-use crate::session::processor::Request;
-use crate::session::session::{Message, Role, Session};
-use crate::session::ui_store;
-use crate::session::ui_types as models;
+use agent_project as project;
+use model_types::ToolCall;
+use super::artifacts_tests::{Request, request};
+use crate::session_memory::{Message, Role, Session};
+use session_store::ui_store;
+use session_port::ui_types as models;
 use serde_json::json;
 use uuid::Uuid;
 
-use super::super::llm_runner::LlmStep;
-use super::{
-    persist_final_ai_call_payload, persist_step_ai_call_payload,
-};
+use crate::llm_step::LlmStep;
+
 
 fn unique_id(label: &str) -> String {
     format!("artifacts-test-{label}-{}", Uuid::new_v4())
 }
 
-fn project_scope() -> (tempfile::TempDir, String) {
-    let workspace = tempfile::tempdir().expect("project workspace should create");
-    let tenant = crate::app::agent::project::default_tenant_scope();
-    let (project, _) = super::super::prefetch::block_on(
-        crate::app::agent::project::from_directory(&tenant, workspace.path()),
-    )
-    .expect("project scope should resolve");
-    (workspace, project.id)
-}
 
-fn request(session_id: &str, stream: u64, persist: bool) -> Request {
-    Request {
-        stream,
-        session: session_id.to_string(),
-        query: "Explain the fixture".to_string(),
-        root: Some("/tmp/project".to_string()),
-        model: Some("test-model".to_string()),
-        reliability: crate::app::agent::config::ReliabilityConfig::default(),
-        options: json!({"mode": "test"}),
-        approval: None,
-        channel_name: None,
-        non_cli_approval_context: None,
-        assistant_message_id: None,
-        history: Vec::new(),
-        persist_app_session_artifacts: persist,
-        app_session_scope: None,
-        abort_token: None,
-        session_tools: crate::session::runtime::SessionToolset::default(),
-        session_skills: Default::default(),
-    }
-}
+
+
 
 fn usage(input: i64, output: i64, cached: i64, reasoning: i64) -> models::TokenUsage {
     models::TokenUsage {
@@ -110,19 +80,7 @@ fn register_scope_project(scope: &str) -> tempfile::TempDir {
     temp
 }
 
-fn register_ui_session(session_id: &str, scope: &str) {
-    let session = models::ChatSession {
-        id: session_id.to_string(),
-        title: "Raw payload fixture".to_string(),
-        messages: Vec::new(),
-        message_ids: Vec::new(),
-        calls: Vec::new(),
-        steps: Vec::new(),
-        created_ms: 1,
-        updated_ms: 1,
-    };
-    ui_store::save_session_scoped(&session, Some(scope)).expect("parent session should persist");
-}
+
 
 #[test]
 fn step_and_final_ai_call_payloads_persist_to_scoped_session() {
@@ -275,4 +233,23 @@ fn final_ai_call_payload_uses_explicit_persist_decision() {
     assert_eq!(loaded.calls[0]["usage"]["reasoning_tokens"], 10);
 
     ui_store::delete_session_scoped(&session_id, Some(&scope));
+}
+
+struct StoreHost;
+impl crate::artifacts::ArtifactHost for StoreHost {
+    fn build_prompt(session: &Session, _: Option<&str>, _: Option<&str>) -> String {
+        crate::prompting::build_prompt(session, "artifact storage contract", None)
+    }
+    fn persist_ai_call_payload(session: &str, stream: u64, payload: &serde_json::Value, scope: Option<&str>) {
+        let _ = ui_store::persist_ai_call_payload(session, stream, payload, scope);
+    }
+}
+fn projection(req: &Request) -> crate::artifacts::ArtifactRequest<'_> {
+    crate::artifacts::ArtifactRequest { stream: req.stream, session: &req.session, root: req.root.as_deref(), model: req.model.as_deref(), options: &req.options, persist_app_session_artifacts: req.persist_app_session_artifacts }
+}
+fn persist_step_ai_call_payload(req: &Request, session: &Session, total: &models::TokenUsage, step: &LlmStep, index: u32, scope: Option<&str>) {
+    crate::artifacts::persist_step_ai_call_payload::<StoreHost>(&projection(req), session, total, step, index, scope)
+}
+fn persist_final_ai_call_payload(req: &Request, session: &Session, total: &models::TokenUsage, answer: &str, scope: Option<&str>, persist: bool) {
+    crate::artifacts::persist_final_ai_call_payload::<StoreHost>(&projection(req), session, total, answer, scope, persist)
 }

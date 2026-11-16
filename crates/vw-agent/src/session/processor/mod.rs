@@ -27,7 +27,6 @@
 
 pub(crate) use super::session::{Role, Session};
 
-mod artifacts;
 pub(crate) mod context_governance;
 mod helpers;
 pub(crate) mod llm_messages;

@@ -114,7 +114,7 @@ fn workspace_skill_preload_is_native_only() {
     });
     let mut protocol = super::DesktopSessionProtocol::new(skills, "main", 20_000);
     protocol
-        .prepare_native_skill_context(&req, &history, None, &referenced, &referenced)
+        .prepare_native_skill_context::<super::AgentRunnerHost>(&req.session, &req.options, &history, None, &referenced, &referenced)
         .expect("ACP must leave skill loading to the adapter");
     let messages = protocol.assemble(&history, &instructions, false).expect("ACP protocol");
     assert_eq!(messages.len(), 2);
@@ -660,7 +660,7 @@ fn handle_structured_tool_calls_records_denied_result_for_unallowed_tool() {
         ..llm_step("")
     };
 
-    let ran_todo_update = super::handle_structured_tool_calls(
+    let ran_todo_update = session_engine::runner::handle_structured_tool_calls::<super::AgentRunnerHost>(
         &req,
         &mut session,
         &ctx,
@@ -714,7 +714,7 @@ fn handle_structured_tool_calls_denies_allowed_tool_on_last_step() {
         ..llm_step("")
     };
 
-    let ran_todo_update = super::handle_structured_tool_calls(
+    let ran_todo_update = session_engine::runner::handle_structured_tool_calls::<super::AgentRunnerHost>(
         &req,
         &mut session,
         &ctx,

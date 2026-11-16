@@ -283,22 +283,7 @@ fn configured_agent_tool_limit_caps_parallel_execution() {
 
 
 
-#[test]
-fn tool_classification_helpers_cover_todo_streaming_and_regular_tools() {
-    assert!(super::should_rewrite_todowrite("todowrite", 0));
-    assert!(!super::should_rewrite_todowrite("todowrite", 1));
-    assert!(!super::should_rewrite_todowrite("todoread", 0));
-    assert!(!super::should_rewrite_todowrite("bash", 0));
 
-    assert!(!super::is_non_todo_tool("todowrite"));
-    assert!(!super::is_non_todo_tool("todoread"));
-    assert!(super::is_non_todo_tool("bash"));
-    assert!(super::is_non_todo_tool("write"));
-
-    assert!(super::should_emit_running_tool(true, "file_read"));
-    assert!(!super::should_emit_running_tool(false, "file_read"));
-    assert!(!super::should_emit_running_tool(true, "todoread"));
-}
 
 
 
@@ -1013,87 +998,9 @@ async fn run_batch_tool_and_record_uses_existing_tokio_runtime_for_parallel_call
 }
 
 
-#[test]
-fn agent_tool_finalization_emits_terminal_payloads_before_done() {
-    let coordinator = crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
-    coordinator
-        .register("parent", "child", "researcher", "collect evidence")
-        .expect("child should register");
-    coordinator.mark_running("parent", "child").expect("child should start");
 
-    let finishing = coordinator.clone();
-    let worker = std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_millis(10));
-        finishing
-            .mark_succeeded("parent", "child", "findings with source")
-            .expect("child should finish");
-    });
 
-    let mut session = Session::new("parent".to_string());
-    let mut events = Vec::new();
-    assert!(super::finalize_agent_tool_children_with(
-        &coordinator,
-        "parent",
-        &mut session,
-        &mut |event| {
-            events.push(event);
-            true
-        },
-        &["child".to_string()],
-    ));
-    events.push(StreamEvent::Done(Default::default()));
-    worker.join().expect("worker should join");
 
-    let texts = events
-        .iter()
-        .map(|event| match event {
-            StreamEvent::Delta(text) => format!("delta:{text}"),
-            StreamEvent::Tool(event) => {
-                format!("delta:tool {}\n{}\n", event.name, event.payload)
-            }
-            StreamEvent::Done(_) => "done".to_string(),
-            _ => "other".to_string(),
-        })
-        .collect::<Vec<_>>();
-    assert!(texts[0].contains(r#""status":"completed""#));
-    assert!(texts[0].contains(r#""child_session_id":"child""#));
-    assert!(texts[0].contains("findings with source"));
-    assert_eq!(texts.last().map(String::as_str), Some("done"));
-    assert_eq!(session.messages.len(), 1);
-    assert_eq!(session.messages[0].role, Role::Tool);
-    assert!(session.messages[0].content.contains(r#""status":"completed""#));
-}
-
-#[test]
-// 事件接收端关闭不等于取消后台子代理，生命周期由协调器继续管理。
-fn agent_tool_finalization_keeps_background_child_running_when_event_sink_closes() {
-    let coordinator = crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
-    let cancellation = coordinator
-        .register("parent", "child", "researcher", "collect evidence")
-        .expect("child should register");
-    coordinator.mark_running("parent", "child").expect("child should start");
-
-    let mut session = Session::new("parent".to_string());
-    assert!(!super::finalize_agent_tool_children_with(
-        &coordinator,
-        "parent",
-        &mut session,
-        &mut |_event| false,
-        &["child".to_string()],
-    ));
-
-    let snapshots = coordinator
-        .snapshots("parent", &["child".to_string()])
-        .expect("child snapshot should remain available");
-    assert_eq!(
-        snapshots[0].state,
-        crate::session::child_agent::coordinator::ChildAgentTaskState::Running
-    );
-    assert!(
-        !cancellation.is_cancelled(),
-        "closing the parent event sink must not cancel a background child"
-    );
-}
 
 
 

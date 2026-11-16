@@ -80,6 +80,7 @@ mcp-client = { path = "../mcp-client", version = "0.6.0" }
 aisdk = { git = "https://github.com/hunzhiwange/aisdk.git", rev = "3401d28a7353c6e90cf4372f52c682cb2d02986b", package = "vibewindow-aisdk", version = ">=0.7.1", features = ["full"] }
 
 [dev-dependencies]
+agent-project = { path = "../agent-project", version = "0.6.0", features = ["test-support"] }
 shell-command = { path = "../shell-command", version = "0.6.0" }
 tempfile = "3"
 uuid = { version = "1.11", features = ["v4", "js"] }

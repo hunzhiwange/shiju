@@ -1747,3 +1747,7 @@ pub fn record_native_history_pair(
     ));
     session.push(crate::session_memory::Role::Tool, format!("tool tool_search\n{payload}\n"));
 }
+
+#[cfg(test)]
+#[path = "tools_exec_output_tests.rs"]
+mod output_tests;

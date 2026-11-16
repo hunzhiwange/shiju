@@ -1,93 +1,19 @@
 //! Typed protocol conversion. Parsing never changes tool exposure or grants.
 
-use std::collections::HashMap;
+// Native call state is owned by session-engine.
 
 use aisdk::core::{
-    LoadableToolSpec, Message, NativeToolSpec, ToolSearchCall, ToolSearchExecution,
+    LoadableToolSpec, Message, NativeToolSpec, ToolSearchExecution,
     ToolSearchOutput,
 };
-use serde::Deserialize;
+// Search argument decoding is owned by session-engine.
 use serde_json::Value;
 
 use super::types::{Error, ToolCall, ToolCallKind};
 use crate::tools::catalog::ToolCatalogSnapshot;
 use crate::tools::discovery::ToolDiscoveryCatalog;
 
-#[derive(Default)]
-pub(crate) struct NativeCallCollector {
-    calls: HashMap<String, ToolCall>,
-}
-
-impl NativeCallCollector {
-    /// Identical Available/Done notifications are one call. Conflicting identities fail closed.
-    pub(crate) fn record(&mut self, call: ToolCall) -> Result<Option<ToolCall>, Error> {
-        if let Some(previous) = self.calls.get(&call.id) {
-            if previous.kind != call.kind
-                || previous.namespace != call.namespace
-                || previous.name != call.name
-                || previous.arguments != call.arguments
-            {
-                return Err(protocol_error("conflicting tool call identity or arguments"));
-            }
-            return Ok(None);
-        }
-        self.calls.insert(call.id.clone(), call.clone());
-        Ok(Some(call))
-    }
-
-    pub(crate) fn search(
-        &mut self,
-        call: ToolSearchCall,
-        enabled: bool,
-    ) -> Result<Option<ToolCall>, Error> {
-        if !enabled {
-            return Err(protocol_error("native tool search is not authorized for this request"));
-        }
-        if call.execution != ToolSearchExecution::Client {
-            return Err(protocol_error("server tool search cannot execute locally"));
-        }
-        if call.status.as_deref().is_some_and(|status| status != "completed") {
-            return Err(protocol_error("native tool search is not completed"));
-        }
-        let id = call
-            .call_id
-            .filter(|id| !id.trim().is_empty())
-            .ok_or_else(|| protocol_error("native tool search requires call_id"))?;
-        parse_search_args(call.arguments.clone()).map_err(protocol_error)?;
-        self.record(ToolCall {
-            kind: ToolCallKind::Search,
-            namespace: None,
-            id,
-            name: "tool_search".into(),
-            arguments: call.arguments.to_string(),
-        })
-    }
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct SearchArgs {
-    query: String,
-    limit: Option<usize>,
-}
-
-fn parse_search_args(value: Value) -> anyhow::Result<SearchArgs> {
-    let args: SearchArgs = serde_json::from_value(value)?;
-    anyhow::ensure!(
-        !args.query.trim().is_empty(),
-        "query must contain a searchable word or character"
-    );
-    anyhow::ensure!(
-        args.limit
-            .is_none_or(|limit| (1..=crate::tools::discovery::MAX_SEARCH_LIMIT).contains(&limit)),
-        "invalid search limit"
-    );
-    Ok(args)
-}
-
-fn protocol_error(message: impl std::fmt::Display) -> Error {
-    Error::Api(crate::session::message::AssistantError::Unknown { message: message.to_string() })
-}
+pub(crate) use session_engine::native_call_collector::{NativeCallCollector, parse_search_args};
 
 /// Build a dedicated SDK result from a pinned runtime-authorized catalog only.
 /// This does not load tools: the next loop stage owns exposure updates.

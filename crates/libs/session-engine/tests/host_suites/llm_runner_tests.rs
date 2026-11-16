@@ -1357,7 +1357,7 @@ fn shell_outer_timeout_model_idle_does_not_cover_background_runtime() {
     let dir = tempfile::tempdir().unwrap();
     let scope =
         ShellProcessScope::new("idle-tenant".into(), dir.path(), "idle-session".into()).unwrap();
-    let host = ShellProcesses::new().unwrap();
+    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
     let caller = tokio::runtime::Runtime::new().unwrap();
     let started = caller
         .block_on(host.start(scope.clone(), || {

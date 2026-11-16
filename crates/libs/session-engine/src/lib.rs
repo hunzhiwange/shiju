@@ -27,3 +27,12 @@ pub mod admission;
 pub mod admission_host;
 
 pub mod message;
+pub mod llm_stream;
+pub mod llm_runner;
+pub mod processor_clock;
+pub mod artifacts;
+pub mod helpers;
+pub mod planning;
+pub mod tool_parsing;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod native_call_collector;

@@ -4,12 +4,7 @@ use crate::app::agent::session::llm;
 use serde_json::Value;
 
 /// 执行 now_ms 操作，并返回调用方需要的结果。
-pub(crate) fn now_ms() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis() as u64
-}
+pub(crate) use session_engine::processor_clock::now_ms;
 
 /// 执行 tool_calls_to_assistant_message 操作，并返回调用方需要的结果。
 pub(crate) fn tool_calls_to_assistant_message(

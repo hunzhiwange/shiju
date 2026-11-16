@@ -3223,7 +3223,7 @@ fn dynamic_tools_processor_replacement_revokes_loaded_tool() {
     });
 }
 
-#[path = "mcp_catalog_refresh_tests.rs"]
+#[path = "../../../../libs/session-engine/tests/host_suites/mcp_catalog_refresh_tests.rs"]
 mod mcp_catalog_refresh_tests;
 
 fn native_desktop_stream(id: &str, query: &str) {

@@ -8,6 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+llm-runtime = { path = "../llm-runtime", version = "0.6.0" }
+tool-catalog = { path = "../tool-catalog", version = "0.6.0" }
+config-tools = { path = "../config-tools", version = "0.6.0" }
 agent-multimodal = { path = "../agent-multimodal", version = "0.6.0" }
 agent-hooks = { path = "../agent-hooks", version = "0.6.0" }
 gateway-error = { path = "../gateway-error", version = "0.6.0" }

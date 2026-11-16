@@ -1,4 +1,9 @@
+// Hosted by vw-agent::tools::computer_control: these tests exercise its real
+// AgentContextHost approvals, executor audit and cancellation context.
 use super::*;
+use anyhow::Context;
+use std::path::PathBuf;
+use tokio_util::sync::CancellationToken;
 use tool_computer::chrome::authorize_site;
 use computer_control::chrome::origin_policy::canonical_origin;
 fn local_user() -> String { format!("uid:{}", unsafe { libc::geteuid() }) }

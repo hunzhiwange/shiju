@@ -24,7 +24,8 @@ tool-context = { path = "../tool-context", version = "0.6.0" }
 vw-api-tools = { path = "../api-tools", version = "0.6.0" }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["rt", "macros", "sync"] }
+tokio = { version = "1", features = ["rt", "macros"] }
 tokio-util = "0.7"
 permission-types = { path = "../permission-types", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+tempfile = "3"

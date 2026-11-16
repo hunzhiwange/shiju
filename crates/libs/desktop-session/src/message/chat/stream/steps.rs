@@ -232,6 +232,7 @@ pub async fn compute_step_cost(
 }
 
 #[cfg(test)]
+#[path = "steps_tests.rs"]
 mod steps_tests;
 
 pub fn start_llm_timer_at(lifecycle: &mut crate::message::chat::request::RequestLifecycle, now: web_time::Instant) {

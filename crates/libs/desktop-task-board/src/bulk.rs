@@ -98,6 +98,7 @@ pub fn pop_next_manual_merge_task(tasks: &[Task], running: &[String], queue: &mu
 }
 
 #[cfg(test)]
+#[path = "bulk_tests.rs"]
 mod bulk_tests;
 
 pub fn task_metadata_patch_for_gateway(

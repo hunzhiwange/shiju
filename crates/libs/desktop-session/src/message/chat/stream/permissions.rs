@@ -63,6 +63,7 @@ pub fn advance_permission_requests_after_reply(
 }
 
 #[cfg(test)]
+#[path = "permissions_tests.rs"]
 mod permissions_tests;
 
 pub struct PermissionState<'a> {

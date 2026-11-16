@@ -177,6 +177,7 @@ pub fn is_provider_connected(provider: &model_types::Info) -> bool {
 }
 
 #[cfg(test)]
+#[path = "models_tests.rs"]
 mod models_tests;
 
 /// 构建模型详情；调用方负责处理提供商或模型不存在的错误。

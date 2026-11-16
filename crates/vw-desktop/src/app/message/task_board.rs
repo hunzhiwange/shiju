@@ -35,3 +35,7 @@ pub(crate) use helpers::{import_prompt_template, sync_task_logs_editor};
 pub use message::TaskBoardMessage;
 pub(crate) use message::WorktreePoolMaintenanceOutcome;
 pub use update::update;
+
+#[cfg(test)]
+#[path = "task_board_tests.rs"]
+mod task_board_tests;

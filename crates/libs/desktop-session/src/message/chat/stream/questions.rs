@@ -106,4 +106,5 @@ answers
 }
 
 #[cfg(test)]
+#[path = "questions_tests.rs"]
 mod questions_tests;

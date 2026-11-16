@@ -471,3 +471,59 @@
 |[30](30-导航终端与其它消息.md)|`crates/vw-desktop/src/app/message/voice_recordings_tests.rs`|2|desktop-voice-ui|
 |[30](30-导航终端与其它消息.md)|`crates/vw-desktop/src/app/message/voice_screen_tests.rs`|1|desktop-voice-ui|
 |[30](30-导航终端与其它消息.md)|`crates/vw-desktop/src/app/message/voice_ui_tests.rs`|4|核查局部/装配边界|
+
+
+## 2026-11-16 最终静态核对
+
+用户明确要求本轮只写代码：未运行 Cargo、单元测试、实机测试或统一回归。以下为源码身份和接线证据，不是编译、断言执行、平台 cfg 激活或字体实际渲染通过证据。依用户覆盖要求清理编号及来源任务，不用文件删除表示验证通过。
+
+以创建清单的提交 `469b886a4` 为基线，`inventory.json` 每个 source 新增 `current_tests`，保留原任务、原文件和原函数身份；每个位置含当前路径、行号、实际函数名。行号仅为本次快照，后续编辑以函数名为准。
+
+- 原3508项身份：860项迁出、2643项原宿主保留、5项按领域一对多拆分、0项重复迁移入口。拆分后的函数全部登记，没有无法定位的源函数身份。原同名接线冒烟按任务目录及文件名消歧。
+- 宿主身份按原路径优先匹配，保留原装配测试；这不是对所有保留项均不可继续下沉的证明。各领域保留理由和断言变更以对应实现提交及现有审计记录为依据。自动函数定位不能证明断言等价、资源加载成功或无任何语义重复。
+- 同口径文本统计：宿主含 `#[test]` / `#[tokio::test]` / `#[async_std::test]` 的文件从467个到426个；测试属性从3508到2650；这些文件的整文件源码行数从134551到113502。整文件行数包含 fixture、注释和辅助函数，不是纯测试函数行数，不代表编译时间或 cfg 实际执行数量。
+- 领域库已在 workspace members；CI 先执行排除 vw-desktop 的 workspace lib，再单独执行 vw-desktop lib，bin/integration 亦有独立入口，因此无需修改 CI。是否能编译与运行留待后续统一验证。
+
+### 父入口修复
+
+下列同级测试文件原以普通 `mod` 声明，Rust 将搜索以生产文件名命名的子目录；现补显式 `#[path]`：
+
+- desktop-task-board：`bulk.rs`、`helpers/settings.rs`。
+- desktop-settings-providers：`models.rs`、`model_routes.rs`、`models_view.rs`。
+- desktop-session：`message/chat/stream/permissions.rs`、`questions.rs`、`steps.rs`。
+- 宿主：`app/components/system_settings_themes/editor.rs`。
+
+另给宿主 `app/message/task_board.rs` 补上 `task_board_tests.rs` 的 cfg(test) 入口。静态模块遍历覆盖576个映射目标文件，其中575个沿外部 mod 找到；`legacy_task_board_switches_exact_tests.rs` 由 lib.rs 的 include! 接入。该遍历忽略 cfg 求值且不是 Rust 编译器检查。
+
+### 任务24重复入口收尾
+
+初次扫描发现以下三个源身份同时在 `desktop-session/src/desktop_split_24_tests/editor_actions_tests.rs` 和 `desktop-session/src/message/chat/input/editor_actions_tests.rs` 声明，两个父入口均已接入：
+
+- `message_editor_ignores_edit_actions_and_applies_navigation_actions`
+- `special_tool_and_think_editors_use_stable_composite_keys`
+- `tool_and_think_editors_reject_edit_actions`
+
+任务24原会话已以 `1d860b0f0` 删除 desktop_split_24_tests 下这三项重复测试及父入口，并将原 special 测试的缺失键断言补入保留入口。本任务重读后确认三个原身份均只剩 message/chat/input 路径，未代改任务24实现。最终统计及 JSON 已刷新。
+
+### 此前3项迁移
+
+`desktop-settings-providers/src/custom_model_modal_tests.rs` 的 `overlays_return_base_add_modal_and_edit_modal`、`overlays_wrap_base_only_when_model_draft_exists` 由 custom_model_modal.rs 的 cfg(test) + path 接入。宿主模型浮层仍委派领域 view_overlays 并映射消息。`desktop-editor/src/components/editor_settings_fields_tests.rs::metrics_slider_previews_touch_and_wheel_and_commits_on_touch_release` 由同名生产模块 cfg(test) + path 接入，函数保留非 wasm cfg、真实 Headless 渲染与触摸/滚轮事件。此处仅核对源码，未执行3项测试。
+
+### 创建清单后新增身份
+
+以下12项排除基线已有领域库测试和原身份拆分后登记；函数更名或替代测试仍按新身份列出，不以新增项抵销任何丢失的旧身份。后续按所在包和具名函数定向验证；本轮均未执行。
+
+|归属任务|位置与函数|
+|---|---|
+|9|`crates/libs/desktop-file-tree/src/desktop_split_09_tests/tree_list_tests.rs::tree_rows_emit_selection_open_and_toggle_messages`|
+|9|`crates/libs/desktop-search/src/desktop_split_09_tests.rs::view_groups_file_project_and_session_matches`|
+|2|`crates/libs/desktop-session/src/desktop_split_02_tests.rs::tool_inventory_defaults_without_restrictions`|
+|1|`crates/libs/desktop-task-model/src/desktop_split_01_tests.rs::legacy_task_board_settings_ignore_removed_switches`|
+|20|`crates/libs/desktop-task-model/src/desktop_split_20_tests.rs::task_pool_employee_gateway_projection_preserves_run_identity`|
+|1|`crates/libs/desktop-update/src/desktop_split_01_tests.rs::desktop_integration_47_validates_update_sources`|
+|19|`crates/libs/desktop-workspace/src/desktop_split_19_tests/bottom_tests.rs::bottom_panel_builds_terminal_when_visible`|
+|9|`crates/vw-desktop/src/app/components/file_tree/mod_tests.rs::clipboard_modes_project_paste_availability`|
+|15|`crates/vw-desktop/src/app/components/system_settings_channels/wecom_delivery_modal_tests.rs::wecom_delivery_entries_map_to_domain_modal`|
+|27|`crates/vw-desktop/src/app/message/project/helpers_tests.rs::run_find_task_maps_request_and_localized_error_to_completion`|
+|29|`crates/vw-desktop/src/app/message/settings/mcp_tests.rs::configuration_refresh_maps_to_desktop_tasks`|
+|20|`crates/vw-desktop/src/app/views/task_board/panel/executor_selector_ui_refresh_35_tests.rs::ui_refresh_35_model_search_groups_and_bulk_selection_host_messages`|

@@ -42,6 +42,7 @@ pub fn validate_routes(input: &[ModelRoute]) -> Result<Vec<ModelRouteConfig>, Fe
 
 
 #[cfg(test)]
+#[path = "model_routes_tests.rs"]
 mod model_routes_tests;
 
 /// 保存所需的有效路由与跨页查询分类投影。

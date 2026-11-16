@@ -414,4 +414,5 @@ fn detail_row(label: String, value: String) -> Element<'static, Message> {
 }
 
 #[cfg(test)]
+#[path = "models_view_tests.rs"]
 mod models_view_tests;

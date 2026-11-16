@@ -22,4 +22,5 @@ pub fn pr_submitted_stall_timeout_secs(settings: &TaskBoardSettings) -> u64 {
 }
 
 #[cfg(test)]
+#[path = "settings_tests.rs"]
 mod settings_tests;

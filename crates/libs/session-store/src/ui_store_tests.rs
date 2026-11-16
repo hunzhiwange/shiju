@@ -12,9 +12,9 @@ use session_info::{
 };
 
 use super::*;
-use crate::global_database::GlobalDatabase;
-use crate::global_database::test_support::PostgresTestDatabase;
-use crate::project::store::ProjectStore;
+use agent_database::GlobalDatabase;
+use agent_database::test_support::PostgresTestDatabase;
+use agent_project::store::ProjectStore;
 
 #[test]
 fn pinned_thread_store_separates_tenants_and_projects() -> Result<()> {
@@ -659,7 +659,7 @@ fn unscoped_archive_wrappers_use_default_archive_key() {
 #[test]
 fn postgres_session_store_round_trips_todos_and_agent_metadata() -> Result<()> {
     let _global_state = GlobalStateGuard::new();
-    let postgres_fixture = crate::global_database::test_support::postgres_test_database!();
+    let postgres_fixture = agent_database::test_support::postgres_test_database!();
     let database = postgres_fixture.database().clone();
     let project_store = ProjectStore::new(database.clone())?;
     create_project(&project_store, Path::new("/work"), "postgres-session-project")?;
@@ -716,10 +716,10 @@ fn agent_session_identity_rejects_forged_ui_binding() {
         "created_ms":0, "updated_ms":0,
         "agent_binding":{"agent":"main", "acp_agent":"codex", "permission":{"*":"allow"}}
     });
-    assert!(crate::session::ui_types::decode_ui_session(body.clone()).is_err());
+    assert!(session_ui_types::decode_ui_session(body.clone()).is_err());
     let mut valid = body;
     valid.as_object_mut().unwrap().remove("agent_binding");
-    assert!(crate::session::ui_types::decode_ui_session(valid).is_ok());
+    assert!(session_ui_types::decode_ui_session(valid).is_ok());
 }
 
 #[test]

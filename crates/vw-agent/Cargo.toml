@@ -534,6 +534,7 @@ channel-wecom = { path = "../libs/channel-wecom", version = "0.6.0", features = 
 task-scheduler = { path = "../libs/task-scheduler", version = "0.6.0", features = ["test-support"] }
 
 [dev-dependencies]
+session-store = { path = "../libs/session-store", version = "0.6.0", features = ["test-support"] }
 channel-runtime = { path = "../libs/channel-runtime", version = "0.6.0", features = ["test-support"] }
 model-relay-http = { path = "../libs/model-relay-http", version = "0.6.0", features = ["acceptance-diagnostics"] }
 tool-git = { path = "../libs/tool-git", version = "0.6.0", features = ["test-support"] }

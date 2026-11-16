@@ -7,7 +7,21 @@ license = "MIT"
 [lib]
 doctest = false
 
+[features]
+test-support = ["agent-project/test-support"]
+
 [dependencies]
+agent-project = { path = "../agent-project", version = "0.6.0" }
+agent-paths = { path = "../agent-paths", version = "0.6.0" }
+app-settings-store = { path = "../app-settings-store", version = "0.6.0" }
+session-paths = { path = "../session-paths", version = "0.6.0" }
+session-artifact-store = { path = "../session-artifact-store", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+vw-api-acp-model = { path = "../api-acp-model", version = "0.6.0" }
+agent-multimodal = { path = "../agent-multimodal", version = "0.6.0" }
+worktree-core = { path = "../worktree-core", version = "0.6.0" }
+tracing = "0.1"
+tokio = { version = "1", features = ["rt", "macros"] }
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -22,6 +36,9 @@ tool-assembly = { path = "../tool-assembly", version = "0.6.0" }
 tool-types = { path = "../tool-types", version = "0.6.0" }
 runtime-time = { path = "../runtime-time", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
 rusqlite = { version = "0.37.0", features = ["bundled"] }

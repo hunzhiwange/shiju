@@ -2,8 +2,8 @@
 //! 更新单个配置字段必须保留同级键；畸形旧配置不得被新写入静默覆盖。
 
 use super::*;
-use crate::gateway::settings_store::GatewaySettingsStore;
-use crate::global_database::GlobalDatabase;
+use app_settings_store::settings_store::GatewaySettingsStore;
+use agent_database::GlobalDatabase;
 use vw_api_transport::id::TenantScope;
 
 static GLOBAL_PATHS_ENV_LOCK: std::sync::OnceLock<std::sync::Mutex<()>> =

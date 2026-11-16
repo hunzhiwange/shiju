@@ -2,9 +2,6 @@
 use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
 pub(super) use llm_runtime::acp::lifecycle::Selection;
 
-pub(super) fn session_identity(session: &str, directory: &str) -> String {
-    llm_runtime::acp::lifecycle::session_identity(&crate::session::ui_store::current_tenant_scope(), session, directory)
-}
 pub(super) fn try_lock(session: &str, directory: &str) -> Result<tokio::sync::OwnedMutexGuard<()>, String> {
     llm_runtime::acp::lifecycle::try_lock(&crate::session::ui_store::current_tenant_scope(), session, directory)
 }

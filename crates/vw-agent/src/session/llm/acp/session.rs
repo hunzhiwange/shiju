@@ -18,11 +18,6 @@ pub(super) fn get_cached_acp_client(agent: &str, cfg: &config::schema::AcpAgentC
     runtime::get_cached_acp_client::<super::request::RuntimeHost>(agent, cfg, cwd, parsed)
 }
 #[cfg(test)]
-pub(super) async fn stop_incompatible_cached_clients(agent: &str, cfg: &config::schema::AcpAgentConfig, cwd: &Path, parsed: &ParsedAcpOptions) -> Result<(), Error> {
-    runtime::stop_incompatible_cached_clients::<super::request::RuntimeHost>(agent, cfg, cwd, parsed).await
-}
-
-#[cfg(test)]
 fn acp_client_cache_key(agent: &str, cfg: &config::schema::AcpAgentConfig, cwd: &Path, parsed: &ParsedAcpOptions) -> String {
     runtime::acp_client_cache_key::<super::request::RuntimeHost>(agent, cfg, cwd, parsed)
 }

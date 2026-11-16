@@ -11,7 +11,7 @@ async fn fork_acp_empty_session_preserves_ephemeral_requests() {
         })).unwrap(),
     };
     crate::project::instance::provide_context(context, async {
-        assert!(ForkReplay::load("", "/workspace").await.unwrap().is_none());
+        assert!(load("", "/workspace").await.unwrap().is_none());
     })
     .await;
 }

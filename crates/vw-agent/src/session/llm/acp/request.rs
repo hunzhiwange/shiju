@@ -22,7 +22,7 @@ impl Host for RuntimeHost {
     fn worktree_lease(cwd: &Path) -> anyhow::Result<Option<Arc<std::fs::File>>> { Ok(crate::worktree::registry::use_lease(cwd)?.map(Arc::new)) }
     fn open_selection(session: &str, cwd: &str) -> anyhow::Result<llm_runtime::acp::lifecycle::Store> { super::lifecycle::Store::open(session, cwd) }
     fn fork_replay<'a>(session: &'a str, cwd: &'a str) -> HostFuture<'a, anyhow::Result<Option<llm_runtime::acp::fork_replay::ForkReplay>>> {
-        Box::pin(async move { Ok(super::fork_replay::ForkReplay::load(session, cwd).await?.map(super::fork_replay::ForkReplay::into_runtime)) })
+        Box::pin(super::fork_replay::load(session, cwd))
     }
     fn model_source(options: &Value) -> Result<vw_api_acp_model::acp_model_source::AcpModelSource, String> { super::super::prompt::acp_model_source(options) }
     fn config() -> HostFuture<'static, anyhow::Result<config::schema::Config>> { Box::pin(async { Ok(config::get_current().await?) }) }

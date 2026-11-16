@@ -35,3 +35,7 @@ pub mod host_migration_53_acceptance_contracts;
 
 #[cfg(all(feature = "test-support", target_os = "macos"))]
 pub mod host_migration_53_catalog_contracts;
+
+pub mod prompt_approval;
+#[cfg(test)]
+mod host_migration_20_tests;

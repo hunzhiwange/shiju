@@ -190,3 +190,35 @@ CacheHost 现在为前置请求提供无工具上下文、无 worktree/fork、�
 llm-runtime 既有同过滤命令新增3条，迁移族预期39条（Unix）；均未运行。宿主真实 list 待未来授权后确认上述3条和skills用例消失。新增测试 dev 依赖 acp-client 与 lock 声明；无生产接口新增或算法迁移收益。
 
 第二轮宿主剩余 786 行，较原2096行净减 1310 行（62.5%），本轮较1082行净减 296。仍不足70%，按上文真实集成边界逐项保留供收口审查。静态 diff --check 已核对，所有编译/行为/测试继续未运行。
+
+
+## 第三轮深迁移（覆盖前文对应保留理由与计数）
+
+重新读取 final.md 与 remaining-host.json；任务20快照残留786行。整条 acp_local_blank_anchor_resumes_existing_session 现归 llm-runtime::acp::host_migration_20_tests::routing，同名函数和全部断言保留，宿主原函数删除。真实 Python 子进程和测试子进程隔离机制保留：验证协议拒绝时原锚点不变、成功恢复后 generation 归零、复用原 sessionId、new/resume/prompt 次数。不运行任何测试子进程或实际协议进程。
+
+REQUEST_CONFIG task-local 提供独立输入配置，CacheHost 调用真实 MountedSkills、scanner、supplier、mount validation 与 PromptApproval 实现；没有绑定代理的用例明确断言 agent 缺失，再返回原 messages，不代替默认值策略。审批确认固定不可用，usage 观察为空；这些是外部端口的受限夹具，不验证真实审批或用量。领域 selection store 为真实临时数据库，记录恢复仍走真实 acp-storage，不重写算法。原真实项目 Config 更新及 provide_context 在领域用例中移除；宿主另一条 unverified_driver 用例继续覆盖真实项目配置写入→宿主读取→请求拒绝，不以模拟端口声称该边界通过。
+
+真实生产迁移：原 approval.rs::PendingApproval::drop → agent-acp::prompt_approval::PendingPromptApproval::drop；宿主 PromptApproval::bind 通过 new/request 实际持有 guard。request_id/requester/channel/reply_target 的拒绝范围与清理顺序原样保留。领域公共入口仅为当前调用提供持有和只读请求访问，无新 trait 或配置；复用 agent-acp 已有 agent-approval 依赖。宿主的 context 筛选、取消令牌、凭证清洗、请求身份与等待仍保留，不把这部分计作迁移收益。
+
+新增领域测试（agent-acp::host_migration_20_tests，预期2条）：pending_prompt_drop_rejects_request_and_clears_resolution、pending_prompt_drop_clears_already_resolved_request。覆盖 pending 与已确认决议两种释放状态，不删除原断言。未来命令 `python3 scripts/cargo_slot.py cargo test -p agent-acp --lib host_migration_20_tests -- --test-threads=1`。llm-runtime 原过滤新增1条，任务迁移族Unix预期40条；session-engine预期2条。不以零测试计通过，未来真实 list 核对旧宿主名称消失。
+
+当前逐文件保留行数：
+- `approval.rs`：78行。
+- `config.rs`：32行。
+- `config_tests.rs`：58行。
+- `controls.rs`：26行。
+- `controls_tests.rs`：51行。
+- `fork_replay.rs`：14行。
+- `fork_replay_tests.rs`：17行。
+- `lifecycle.rs`：17行。
+- `mod.rs`：56行。
+- `replay.rs`：2行。
+- `request.rs`：57行。
+- `request_tests.rs`：125行。
+- `session.rs`：26行。
+- `session_tests.rs`：46行。
+- `source_selection.rs`：12行。
+- `updates.rs`：6行。
+宿主当前共623行，较原2096行净减1473行（70.3%），本轮减163行。生产清理 guard 转移而非新算法；测试收益与生产收益分列，不宣称编译耗时改善。本组净减已超过70%；整轮是否达标仍由收口实际统计。源码/注册/直接调用与git diff --check静态核对，所有Cargo、构建、测试、实机验证未运行。
+
+删除经宿主全源码 rg 核对无调用的 session_identity 和 stop_incompatible_cached_clients 包装；ForkReplay 去除仅为类型转接存在的 struct、into_runtime、Deref/DerefMut，请求端口直接返回领域 ForkReplay，空session原测试改调同一宿主load函数。真实项目/fork校验与数据库注入保持原顺序，不计为新增算法。

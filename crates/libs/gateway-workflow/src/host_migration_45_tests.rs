@@ -1,8 +1,7 @@
 //! 真实数据库合同：初始化不可覆盖编辑，应用 API 与原生入口共享记录。
-use super::{store, templates::*};
-use crate::{
-    gateway::api::handlers::workflow::applications_router, global_database::GlobalDatabase,
-};
+use workflow_core::{store, templates::*};
+use crate::server::applications_router;
+use agent_database::GlobalDatabase;
 use axum::{
     Extension, Router,
     body::{Body, to_bytes},
@@ -19,7 +18,7 @@ use {
 };
 
 fn yaml(sentinel: &str, parallel: &str) -> String {
-    super::video_edit::DEFAULT_VIDEO_EDIT_YAML
+    workflow_template_contract::DEFAULT_YAML
         .replace("max_parallel: 5", &format!("max_parallel: {parallel}"))
         .replace("给出简洁的全片编辑简报", sentinel)
 }
@@ -49,7 +48,7 @@ async fn video_edit_template_sqlite_contract() {
 #[test]
 fn video_edit_template_postgres_contract() {
     // 同步 PostgreSQL 夹具自带运行时，在 Tokio 外创建、重开和清理。
-    let fixture = crate::global_database::test_support::postgres_test_database_unit!();
+    let fixture = agent_database::test_support::postgres_test_database_unit!();
     let runtime = tokio::runtime::Runtime::new().unwrap();
     runtime.block_on(contract(fixture.database().clone()));
     let reopened = fixture.reopen().unwrap();
@@ -257,7 +256,7 @@ async fn request(
 #[tokio::test]
 async fn video_edit_template_applications_api_shares_snapshot_and_checks_versions() {
     let tenant = TenantScope::new("video-template-api", uuid::Uuid::new_v4().to_string()).unwrap();
-    let database = GlobalDatabase::for_home(&crate::global::paths().home).unwrap();
+    let database = GlobalDatabase::for_home(&agent_paths::paths().home).unwrap();
     let seed = seed();
     let router: Router =
         applications_router().layer(Extension(tenant.clone())).layer(Extension(seed.clone()));

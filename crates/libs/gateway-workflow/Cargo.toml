@@ -34,3 +34,12 @@ vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 axum = { version = "0.8.8", features = ["json"] }
 tokio = { version = "1", features = ["rt", "sync", "time"] }
 tokio-stream = "0.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
+workflow-template-contract = { path = "../workflow-template-contract", version = "0.6.0" }
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
+hex = "0.4"
+sha2 = "0.11"
+rusqlite = "0.37.0"

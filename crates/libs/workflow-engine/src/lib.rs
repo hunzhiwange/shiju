@@ -39,3 +39,6 @@ pub mod native_command;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod video_providers;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_45_tests;

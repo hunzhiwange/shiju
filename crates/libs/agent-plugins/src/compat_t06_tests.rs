@@ -1,16 +1,13 @@
 //! 真实安装、发现与生命周期入口的来源身份验收。
 
-use super::identity::metadata_path;
-use crate::plugins::install::{
-    install_plugin_from_marketplace, install_plugin_from_source, remove_installed_plugin,
-    set_plugin_enabled,
-};
-use crate::plugins::{PluginDiscoveryOptions, PluginIdentity, discover_plugins};
+use plugin_install::identity::metadata_path;
+use crate::install::{install_plugin_from_marketplace, install_plugin_from_source};
+use crate::{PluginDiscoveryOptions, PluginIdentity, discover_plugins};
 use std::fs;
 use std::path::Path;
 use config_plugins::PluginsConfig;
 
-const PACKAGE: &[u8] = include_bytes!("../../../testdata/plugin_compat/t06/plugin.json");
+const PACKAGE: &[u8] = include_bytes!("../../../vw-agent/testdata/plugin_compat/t06/plugin.json");
 
 fn source(root: &Path) -> &str {
     fs::create_dir_all(root.join(".vibewindow-plugin")).unwrap();
@@ -288,4 +285,22 @@ fn codex_plugin_compat_t06_rejects_local_marketplace_key_collisions_across_sourc
             .unwrap_err();
     assert!(error.to_string().contains("ambiguous local and marketplace plugin identity"));
     assert_eq!(fs::read(package.join(".vibewindow-plugin/plugin.json")).unwrap(), PACKAGE);
+}
+
+// Preserve the host lifecycle wiring: its close callback is a plugin-mcp re-export.
+fn set_plugin_enabled(root: &Path, name: &str, enabled: bool) -> anyhow::Result<()> {
+    crate::install::set_plugin_enabled(
+        root,
+        name,
+        enabled,
+        &plugin_mcp::mcp_connection_sessions::close_plugin,
+    )
+}
+
+fn remove_installed_plugin(root: &Path, name: &str) -> anyhow::Result<()> {
+    crate::install::remove_installed_plugin(
+        root,
+        name,
+        &plugin_mcp::mcp_connection_sessions::close_plugin,
+    )
 }

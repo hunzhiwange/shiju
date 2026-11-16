@@ -37,9 +37,7 @@ pub(super) mod transaction_install;
 
 // t05 tests follow their implementation in agent-plugins.
 
-#[cfg(test)]
-#[path = "t06_tests.rs"]
-mod t06_tests;
+// t06 tests follow their implementation in agent-plugins.
 
 #[cfg(test)]
 #[path = "t07_tests.rs"]

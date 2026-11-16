@@ -20,7 +20,6 @@ fn global_async_env_lock() -> &'static tokio::sync::Mutex<()> {
 #[derive(Clone)]
 struct TestState { config: Arc<Mutex<config::Config>>, pairing: Arc<PairingGuard> }
 fn state(config: config::Config, require_pairing: bool, tokens: &[String]) -> TestState {
-    assert!(!require_pairing, "real authentication is covered by host tests");
     TestState { config: Arc::new(Mutex::new(config)), pairing: Arc::new(PairingGuard::new(require_pairing, tokens)) }
 }
 #[derive(Clone)]
@@ -30,7 +29,9 @@ impl ConfigHost for TestHost {
     type HookCandidate = ();
     fn config(state: &TestState) -> &Mutex<config::Config> { &state.config }
     fn pairing(state: &TestState) -> &PairingGuard { &state.pairing }
-    fn require_auth(_: &TestState, _: &HeaderMap) -> Result<(), (StatusCode, Json<Value>)> { Ok(()) }
+    fn require_auth(state: &TestState, headers: &HeaderMap) -> Result<(), (StatusCode, Json<Value>)> {
+        agent_gateway::api::auth::require_pairing_auth(&state.pairing, headers)
+    }
     fn mask_sensitive_fields(config: &config::Config) -> config::Config { agent_gateway::api::secrets::mask_sensitive_fields(config) }
     fn hydrate_config_for_save(incoming: config::Config, current: &config::Config) -> config::Config { agent_gateway::api::secrets::hydrate_config_for_save(incoming, current) }
     fn resolve_directory(query: &InstanceQuery, headers: &HeaderMap) -> String {
@@ -103,3 +104,4 @@ mod read;
 mod patch;
 mod profiles;
 mod runtime;
+mod auth;

@@ -72,3 +72,27 @@
 当前全部编译/行为检查未运行。静态核对37个原名称一一映射、28迁出/9保留，无丢失或重名；生产路由调用仍使用同一 ConfigHost，接收库注册和依赖显式存在。补充原宿主测试缺失的 with_instance 导入，使保留的实例生命周期用例显式使用真实入口。
 
 - `crates/libs/gateway-config/src/host_migration_8_tests/runtime.rs`：新增 323 行，全部测试。
+
+
+## 专项残留复审补充（取代上文28/9数量）
+
+复审进一步迁出3条鉴权用例至 `gateway_config::host_migration_8_tests::auth`：
+- `handle_api_config_get_requires_auth_when_pairing_is_enabled`
+- `handle_api_config_put_rejects_unauthorized_before_parsing_body`
+- `handle_api_config_get_accepts_valid_bearer_token_when_pairing_is_enabled`
+
+本次没有模拟认证。将 agent-gateway::api::auth 原真实策略提取为 `require_pairing_auth(&PairingGuard, &HeaderMap)`；原 `require_auth` 与宿主 ConfigHost、领域 TestHost 均调用该同一生产入口，校验/错误内容保持原样。直接复用真实 PairingGuard，未复制 AppState。现有 gateway-pairing 生产依赖已存在，无需新依赖或 Cargo.lock 改动。
+
+原三条用例全部原断言随迁；宿主新增薄用例 `config_host_enforces_pairing_before_parsing_put` 验证实际 ConfigHost 和真实 PUT 接线，保持先认证后解析的安全边界。现接收库31条，宿主7条（6条原用例+1条新契约），原37条名称均保留且唯一。静态比较本次原9个名称全部存在，断言数未减少；新增2条宿主契约断言。
+
+未来领域过滤 `host_migration_8_tests` 预期31条；宿主 `gateway::api::handlers::config::config_tests` 预期7条。补充 `python3 scripts/cargo_slot.py cargo test -p agent-gateway --lib api::auth::auth_tests -- --test-threads=1`，以 --list 确认实际非零数量。全部命令仍未运行，编译/行为未验证。
+
+继续保留的领域/宿主边界：router 双形态注册；provider 目录上下文真实装配；三条 HookRuntime 和聊天缓存的发布/失败原子性；manual_agent_save 的实际 live agent/provider 解析与实例销毁重启。后四条需要真实宿主依赖，不能移到空端口 fixture 冒充同等覆盖；复审没有复制这些状态或删断言。
+
+复审后 `crates/vw-agent/src/gateway/api/handlers/config.rs`：109 行。
+
+复审后 `crates/vw-agent/src/gateway/api/handlers/config_tests.rs`：455 行。
+
+复审后 `crates/libs/gateway-config/src/host_migration_8_tests/auth.rs`：55 行。
+
+宿主文件族最终 564 行，相对原1766行净减1202（68.1%），仍低于70%，原因如上。

@@ -8,7 +8,6 @@ use model_types::Provider;
 use crate::app::agent::security::pairing::PairingGuard;
 use axum::body::to_bytes;
 use axum::extract::{Extension, Query};
-use axum::http::{HeaderValue, header};
 use parking_lot::Mutex;
 use std::ffi::{OsStr, OsString};
 use std::sync::Arc;
@@ -93,13 +92,6 @@ fn state(config: config::Config, require_pairing: bool, tokens: &[String]) -> Ap
     }
 }
 
-fn bearer_headers(token: &str) -> HeaderMap {
-    let mut headers = HeaderMap::new();
-    let value = format!("Bearer {token}");
-    headers.insert(header::AUTHORIZATION, HeaderValue::from_str(&value).unwrap());
-    headers
-}
-
 fn instance_query(temp: &TempDir) -> Query<InstanceQuery> {
     Query(InstanceQuery { directory: Some(temp.path().to_string_lossy().to_string()) })
 }
@@ -138,35 +130,7 @@ async fn config_providers_returns_defaults_for_available_models() {
 }
 
 // 旧版配置端点继续执行配对认证，并在输出前统一遮蔽密钥。
-#[tokio::test]
-async fn handle_api_config_get_requires_auth_when_pairing_is_enabled() {
-    let token = "paired-token".to_string();
-    let response = handle_api_config_get(
-        State(state(config::Config::default(), true, std::slice::from_ref(&token))),
-        Extension(TenantScope::default()),
-        HeaderMap::new(),
-    )
-    .await
-    .into_response();
 
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-    assert!(response_json(response).await["error"].as_str().unwrap().contains("Unauthorized"));
-}
-
-#[tokio::test]
-async fn handle_api_config_put_rejects_unauthorized_before_parsing_body() {
-    let token = "paired-token".to_string();
-    let response = handle_api_config_put(
-        State(state(config::Config::default(), true, std::slice::from_ref(&token))),
-        Extension(TenantScope::default()),
-        HeaderMap::new(),
-        "not = valid = toml".to_string(),
-    )
-    .await
-    .into_response();
-
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-}
 
 #[tokio::test]
 async fn handle_api_config_put_reports_config_save_failure_without_mutating_runtime_state() {
@@ -373,23 +337,6 @@ async fn config_put_hook_build_failure_is_atomic() {
     assert!(!current.config_path.exists());
 }
 
-#[tokio::test]
-async fn handle_api_config_get_accepts_valid_bearer_token_when_pairing_is_enabled() {
-    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
-    let temp = TempDir::new().expect("temp dir");
-    let _home = EnvGuard::set("HOME", temp.path().as_os_str());
-    let token = "paired-token".to_string();
-    let response = handle_api_config_get(
-        State(state(config::Config::default(), true, std::slice::from_ref(&token))),
-        Extension(TenantScope::default()),
-        bearer_headers(&token),
-    )
-    .await
-    .into_response();
-
-    assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(response_json(response).await["format"], "toml");
-}
 
 #[tokio::test]
 async fn manual_agent_save_updates_live_resolution_and_survives_instance_restart() {
@@ -495,4 +442,14 @@ async fn manual_agent_save_updates_live_resolution_and_survives_instance_restart
         let payload: Value = serde_json::from_str(&payload).unwrap();
         assert_eq!(payload["agents"]["main"]["model"], "saved-model");
     }
+}
+
+// The same production guard entrypoint serves the actual host and the domain tests.
+#[tokio::test]
+async fn config_host_enforces_pairing_before_parsing_put() {
+    let token = "paired-token".to_string();
+    let state = state(config::Config::default(), true, &[token]);
+    assert!(<ConfigHost as gateway_config::host::ConfigHost>::require_auth(&state, &HeaderMap::new()).is_err());
+    let response = handle_api_config_put(State(state), Extension(TenantScope::default()), HeaderMap::new(), "not = valid = toml".into()).await.into_response();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }

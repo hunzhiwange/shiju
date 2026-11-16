@@ -27,7 +27,7 @@ impl gateway_config::host::ConfigHost for ConfigHost {
     fn config(state: &AppState) -> &parking_lot::Mutex<config::Config> { &state.config }
     fn pairing(state: &AppState) -> &crate::security::pairing::PairingGuard { &state.pairing }
     fn require_auth(state: &AppState, headers: &HeaderMap) -> Result<(), (StatusCode, Json<Value>)> {
-        super::super::auth::require_auth(state, headers)
+        agent_gateway::api::auth::require_pairing_auth(&state.pairing, headers)
     }
     fn mask_sensitive_fields(config: &config::Config) -> config::Config {
         super::super::secrets::mask_sensitive_fields(config)

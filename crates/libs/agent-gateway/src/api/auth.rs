@@ -21,12 +21,20 @@ pub fn require_auth<S, C, H>(
     state: &AppState<S, C, H>,
     headers: &HeaderMap,
 ) -> Result<(), (StatusCode, Json<serde_json::Value>)> {
-    if !state.pairing.auth_enabled() {
+    require_pairing_auth(&state.pairing, headers)
+}
+
+/// Authenticate configuration and REST handlers against their actual pairing guard.
+pub fn require_pairing_auth(
+    pairing: &gateway_pairing::pairing::PairingGuard,
+    headers: &HeaderMap,
+) -> Result<(), (StatusCode, Json<serde_json::Value>)> {
+    if !pairing.auth_enabled() {
         return Ok(());
     }
 
     let skey = extract_auth_skey(headers).unwrap_or("");
-    if state.pairing.is_authenticated(skey) {
+    if pairing.is_authenticated(skey) {
         Ok(())
     } else {
         Err((

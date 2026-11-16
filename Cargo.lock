@@ -9751,9 +9751,13 @@ version = "0.6.0"
 dependencies = [
  "acp-agent-registry",
  "agent-config",
+ "agent-database",
+ "agent-gateway",
  "agent-provider",
  "axum",
  "config-agent",
+ "config-agent-profile",
+ "config-gateway",
  "gateway-endpoint",
  "gateway-http",
  "gateway-pairing",

@@ -29,3 +29,9 @@ parking_lot = "0.12"
 toml = "0.9"
 config-agent = { path = "../config-agent", version = "0.6.0" }
 acp-agent-registry = { path = "../acp-agent-registry", version = "0.6.0" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+agent-database = { path = "../agent-database", version = "0.6.0" }
+agent-gateway = { path = "../agent-gateway", version = "0.6.0" }
+config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }
+config-gateway = { path = "../config-gateway", version = "0.6.0" }

@@ -69,3 +69,6 @@ agent-storage = { path = "../agent-storage", version = "0.6.0" }
 agent-gateway = { path = "../agent-gateway", version = "0.6.0" }
 tempfile = "3"
 uuid = { version = "1", features = ["v4"] }
+agent-paths = { path = "../agent-paths", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+session-paths = { path = "../session-paths", version = "0.6.0" }

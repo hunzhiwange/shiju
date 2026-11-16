@@ -41,6 +41,7 @@ desktop-skill-hub = { path = "../desktop-skill-hub", version = "0.6.0" }
 desktop-voice-ui = { path = "../desktop-voice-ui", version = "0.6.0" }
 
 [dev-dependencies]
+iced_runtime = "0.14"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 image = "0.25"
 model-state = { path = "../model-state", version = "0.6.0" }

@@ -29,29 +29,13 @@ pub(super) fn handle_close_input_context_menu(app: &mut App) -> Task<Message> {
 /// 模块内可见函数，执行 handle_copy_input_selection 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_copy_input_selection(app: &mut App) -> Task<Message> {
-    let selected = desktop_session::message::chat::input::context_menus::copy_input_selection(
-        &app.current_session_runtime_mut().input_editor,
-    );
-    close_input_context_menu(app);
-    if selected.is_empty() { Task::none() } else { Task::done(Message::CopyCode(selected)) }
+    apply_input_menu(app, desktop_chat_input::input_panel::input_menu::Action::Copy)
 }
 
 /// 模块内可见函数，执行 handle_cut_input_selection 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_cut_input_selection(app: &mut App) -> Task<Message> {
-    let selected = desktop_session::message::chat::input::context_menus::copy_input_selection(
-        &app.current_session_runtime_mut().input_editor,
-    );
-    close_input_context_menu(app);
-    if selected.is_empty() {
-        return Task::none();
-    }
-    desktop_session::message::chat::input::context_menus::cut_input_selection(
-        &mut app.current_session_runtime_mut().input_editor,
-    );
-
-    sync_global_input_editor_if_needed(app);
-    Task::done(Message::CopyCode(selected))
+    apply_input_menu(app, desktop_chat_input::input_panel::input_menu::Action::Cut)
 }
 
 /// 模块内可见函数，执行 handle_paste_into_input 对应的应用流程。
@@ -94,13 +78,7 @@ pub(super) fn handle_clipboard_paste_resolved(
 /// 模块内可见函数，执行 handle_select_all_input 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_select_all_input(app: &mut App) -> Task<Message> {
-    close_input_context_menu(app);
-    {
-        let runtime = app.current_session_runtime_mut();
-        desktop_session::message::chat::input::context_menus::select_all_input(&mut runtime.input_editor);
-    }
-    sync_global_input_editor_if_needed(app);
-    focus_input_editor(app)
+    apply_input_menu(app, desktop_chat_input::input_panel::input_menu::Action::SelectAll)
 }
 
 /// 模块内可见函数，执行 handle_open_message_context_menu 对应的应用流程。
@@ -218,3 +196,16 @@ pub(super) fn handle_close_reset_menu(app: &mut App) -> Task<Message> {
 #[cfg(test)]
 #[path = "context_menus_tests.rs"]
 mod context_menus_tests;
+
+fn apply_input_menu(app: &mut App, action: desktop_chat_input::input_panel::input_menu::Action) -> Task<Message> {
+    use desktop_chat_input::input_panel::input_menu::{self, Effect};
+    let mut menu = std::mem::take(&mut app.input_context_menu);
+    let outcome = input_menu::update(&mut menu, &mut app.current_session_runtime_mut().input_editor, action);
+    app.input_context_menu = menu;
+    if outcome.sync_editor { sync_global_input_editor_if_needed(app); }
+    match outcome.effect {
+        Effect::None => Task::none(),
+        Effect::Copy(text) => Task::done(Message::CopyCode(text)),
+        Effect::Focus => focus_input_editor(app),
+    }
+}

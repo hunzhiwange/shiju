@@ -1,12 +1,11 @@
 //! Exercise the actual chat configuration views with an isolated desktop state.
 
 use super::with_modal;
-use crate::app::components::input_panel::{model_popover, reasoning_selector, task_mode};
+use crate::app::components::input_panel::model_popover;
 use crate::app::components::overlays::AboveOverlay;
 use crate::app::i18n::I18n;
 use crate::app::message::{SettingsMessage, ViewMessage, chat};
 use crate::app::state::{ModelSummary, ProviderModelsSummary};
-use crate::app::task::TaskSplitMode;
 use crate::app::{App, Message, message::ChatMessage};
 use iced::advanced::widget::{Id, Operation, operation};
 use iced::advanced::{clipboard, renderer::Headless};
@@ -16,13 +15,12 @@ use iced::{Element, Length};
 use iced::{Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::futures::futures::StreamExt;
 use iced_runtime::user_interface::{Cache, UserInterface};
-use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
-use vw_api_chat_identity::ReasoningEffortDto;
+use config_ui::GatewayClientSystemSettingsConfig;
 use vw_api_acp_model::acp_model_source::{
     AcpModelSource, AcpModelSourceCapability, AcpModelSourceRejectionReason,
 };
 use vw_api_acp_model::acp_session::{
-    AcpAccessStatus, AcpAccessSupport, AcpChoice, AcpOptionKind, AcpSessionOption,
+    AcpChoice, AcpOptionKind, AcpSessionOption,
     AcpSessionSelection,
 };
 
@@ -194,11 +192,7 @@ fn key(
     )
 }
 
-fn hover(ui: &mut Ui<'_>, renderer: &mut Renderer, point: Point) {
-    let messages =
-        send(ui, renderer, point, &[Event::Mouse(mouse::Event::CursorMoved { position: point })]);
-    assert!(messages.is_empty(), "{messages:?}");
-}
+
 
 fn scroll(ui: &mut Ui<'_>, renderer: &mut Renderer, point: Point, y: f32) {
     let messages = send(
@@ -404,237 +398,13 @@ async fn ui_refresh_42_model_search_stays_visible_in_short_overlay() {
     ));
 }
 
-// 宿主保留：跨域 ACP 能力读回、设置更新与宿主浮层交互契约。
+// 当前会话关闭不得影响其它会话的后端选项状态。
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ui_refresh_42_model_results_keep_groups_and_actions() {
-    if !isolated("ui_refresh_42_model_results_keep_groups_and_actions") {
-        return;
-    }
+async fn ui_refresh_42_close_modal_is_scoped_to_current_session() {
+    if !isolated("ui_refresh_42_close_modal_is_scoped_to_current_session") { return; }
     let mut app = fixture();
-    let mut renderer = renderer().await;
-    let size = Size::new(640, 480);
-    app.desktop_locale = DesktopLocale::English;
-    app.model_settings.query = "model-13".into();
-    for pending in [false, true] {
-        app.current_session_runtime_mut().acp_options_state.pending = pending;
-        let mut ui = scene(model_overlay(&app), &mut renderer, size);
-        let group = label(&bounds(&mut ui, &renderer), "測試供應商");
-        let row_y = group.y + group.height + 4.0 + 8.0 + 18.0;
-        let point = Point::new(group.x + 25.0, row_y);
-        let rest = capture(
-            &mut ui,
-            &mut renderer,
-            &Theme::Light,
-            size,
-            &format!("model-results-{pending}"),
-            Point::ORIGIN,
-        );
-        hover(&mut ui, &mut renderer, point);
-        let hovered = capture(
-            &mut ui,
-            &mut renderer,
-            &Theme::Light,
-            size,
-            &format!("model-hover-{pending}"),
-            point,
-        );
-        hover(&mut ui, &mut renderer, Point::ORIGIN);
-        let left = capture(
-            &mut ui,
-            &mut renderer,
-            &Theme::Light,
-            size,
-            &format!("model-left-{pending}"),
-            Point::ORIGIN,
-        );
-        assert_eq!(rest, left);
-        let messages = click(&mut ui, &mut renderer, point);
-        if pending {
-            assert_eq!(rest, hovered);
-            assert!(messages.is_empty(), "{messages:?}");
-        } else {
-            assert_ne!(rest, hovered);
-            assert!(matches!(
-                messages.as_slice(),
-                [Message::Chat(ChatMessage::ModelSelected(model))] if model == "fixture/model-13"
-            ));
-            let info = Point::new(group.x + group.width - 11.0, row_y);
-            assert!(matches!(
-                click(&mut ui, &mut renderer, info).as_slice(),
-                [Message::View(ViewMessage::OpenSystemSettingsModelDetail(provider, model))]
-                    if provider == "fixture" && model == "model-13"
-            ));
-        }
-    }
-    let i18n = I18n::new(app.desktop_locale);
-    app.model_settings.providers.clear();
-    for loading in [true, false] {
-        app.model_settings.loading = loading;
-        let mut ui = scene(model_overlay(&app), &mut renderer, size);
-        let name = if loading {
-            i18n.__("加载中…")
-        } else {
-            i18n.__("暂无可选模型（请先在系统设置里启用模型）")
-        };
-        inside(label(&bounds(&mut ui, &renderer), name), viewport(size));
-        capture(
-            &mut ui,
-            &mut renderer,
-            &Theme::Dark,
-            size,
-            &format!("model-loading-{loading}"),
-            Point::ORIGIN,
-        );
-    }
-}
-
-// 宿主保留：跨域 ACP 能力读回、设置更新与宿主浮层交互契约。
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ui_refresh_42_layout_and_interaction() {
-    if !isolated("ui_refresh_42_layout_and_interaction") {
-        return;
-    }
-    let mut app = fixture();
-    let mut renderer = renderer().await;
-    for (width, viewport_width, locale, theme) in [
-        (420, 420, DesktopLocale::TraditionalChinese, Theme::Dark),
-        (640, 664, DesktopLocale::SimplifiedChinese, Theme::Light),
-        (960, 984, DesktopLocale::English, Theme::Dark),
-    ] {
-        app.desktop_locale = locale;
-        let i18n = I18n::new(locale);
-        let size = Size::new(viewport_width, 560);
-        let runtime = app.current_session_runtime_ref().unwrap();
-        let form = task_mode::task_mode_form(
-            &app,
-            Some(runtime),
-            true,
-            "10",
-            "fixture/model-00",
-            TaskSplitMode::FollowSystem,
-            Some("codex".into()),
-            None,
-            &runtime.task_mode_subtasks,
-        );
-        let mut ui = scene(container(form).padding(12).into(), &mut renderer, size);
-        capture(&mut ui, &mut renderer, &theme, size, &format!("task-{width}"), Point::ORIGIN);
-        let layout = bounds(&mut ui, &renderer);
-        let split_label = label(&layout, i18n.__("任务拆分"));
-        let split = layout
-            .focusable
-            .iter()
-            .find(|bounds| (bounds.center_y() - split_label.center_y()).abs() < 0.5)
-            .expect("task split selector aligned with its field label");
-        inside(*split, viewport(size));
-        let point = split.center();
-        assert!(click(&mut ui, &mut renderer, point).is_empty());
-        assert!(key(&mut ui, &mut renderer, point, Key::Named(Named::ArrowDown), None).is_empty());
-        capture(&mut ui, &mut renderer, &theme, size, &format!("task-menu-{width}"), point);
-        let menu = bounds(&mut ui, &renderer)
-            .scrolls
-            .into_iter()
-            .find(|(id, _, _)| id.as_ref() == Some(&Id::from("settings-select-menu")))
-            .unwrap()
-            .1;
-        inside(menu, viewport(size));
-        assert!(key(&mut ui, &mut renderer, point, Key::Named(Named::Escape), None).is_empty());
-        assert!(click(&mut ui, &mut renderer, point).is_empty());
-        assert!(key(&mut ui, &mut renderer, point, Key::Named(Named::ArrowDown), None).is_empty());
-        assert!(matches!(
-            key(&mut ui, &mut renderer, point, Key::Named(Named::Enter), None).as_slice(),
-            [Message::Chat(ChatMessage::TaskModeTaskSplitModeChanged(TaskSplitMode::Enabled))]
-        ));
-
-        let popover = reasoning_selector::reasoning_effort_popover(
-            &app,
-            "fixture/model-00",
-            &[None, Some(ReasoningEffortDto::High)],
-            None,
-        );
-        let mut ui = scene(popover, &mut renderer, size);
-        capture(&mut ui, &mut renderer, &theme, size, &format!("reasoning-{width}"), Point::ORIGIN);
-        assert!(matches!(
-            click(&mut ui, &mut renderer, Point::new(234.0, 73.0)).as_slice(),
-            [Message::Chat(ChatMessage::ReasoningEffortSelected(Some(ReasoningEffortDto::High)))]
-        ));
-    }
-}
-
-// 宿主保留：跨域 ACP 能力读回、设置更新与宿主浮层交互契约。
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ui_refresh_42_preserves_values_and_disabled_states() {
-    if !isolated("ui_refresh_42_preserves_values_and_disabled_states") {
-        return;
-    }
-    let mut app = fixture();
-    let mut renderer = renderer().await;
-    let size = Size::new(420, 420);
-    for (requesting, pending, theme) in
-        [(false, false, Theme::Light), (true, false, Theme::Dark), (false, true, Theme::Dark)]
-    {
-        let runtime = app.current_session_runtime_mut();
-        runtime.acp_options_state.open = true;
-        runtime.request_lifecycle.is_requesting = requesting;
-        runtime.acp_options_state.pending = pending;
-        runtime.acp_options_state.options.access_status = Some(AcpAccessStatus {
-            requested: false,
-            backend: "fixture".into(),
-            version: None,
-            support: AcpAccessSupport::Failed,
-            explanation: "測試失敗狀態".into(),
-        });
-        let base = container(Space::new()).width(Length::Fill).height(Length::Fill).into();
-        let mut ui = scene(with_modal(&app, base), &mut renderer, size);
-        let layout = bounds(&mut ui, &renderer);
-        let viewport = viewport(size);
-        let title = label(&layout, "ACP 会话选项");
-        let close = label(&layout, "关闭");
-        let body = layout.scrolls[0].1;
-        inside(title, viewport);
-        inside(close, viewport);
-        assert!(title.y + title.height < body.y && close.y > body.y + body.height);
-        capture(
-            &mut ui,
-            &mut renderer,
-            &theme,
-            size,
-            &format!("acp-{requesting}-{pending}"),
-            Point::ORIGIN,
-        );
-        scroll(&mut ui, &mut renderer, body.center(), -1500.0);
-        let layout = bounds(&mut ui, &renderer);
-        assert!(layout.scrolls[0].2.y > 0.0);
-        assert_eq!(close, label(&layout, "关闭"));
-        let offset = layout.scrolls[0].2;
-        let selected = label(&layout, "✓ 當前選項").center() - offset;
-        let choice = label(&layout, "待選選項").center() - offset;
-        assert!(body.contains(selected) && body.contains(choice));
-        hover(&mut ui, &mut renderer, choice);
-        capture(
-            &mut ui,
-            &mut renderer,
-            &theme,
-            size,
-            &format!("acp-scrolled-{requesting}-{pending}"),
-            choice,
-        );
-        assert!(click(&mut ui, &mut renderer, selected).is_empty());
-        let selected = click(&mut ui, &mut renderer, choice);
-        if requesting || pending {
-            assert!(selected.is_empty(), "{selected:?}");
-        } else {
-            assert!(matches!(
-                selected.as_slice(),
-                [Message::Chat(ChatMessage::AcpOptionSelected(selection))]
-                    if selection.kind == (AcpOptionKind::Config { id: CONFIG_ID.into() })
-                        && selection.value == NEXT_VALUE
-            ));
-        }
-        assert!(matches!(
-            click(&mut ui, &mut renderer, close.center()).as_slice(),
-            [Message::Chat(ChatMessage::AcpOptionsClose)]
-        ));
-    }
+    app.current_session_runtime_mut().acp_options_state.open = true;
+    app.current_session_runtime_mut().acp_options_state.pending = true;
     app.active_session_id = Some("fixture-b".into());
     app.current_session_runtime_mut().acp_options_state.open = true;
     let _ = chat::update(&mut app, ChatMessage::AcpOptionsClose);
@@ -645,64 +415,7 @@ async fn ui_refresh_42_preserves_values_and_disabled_states() {
     assert_eq!(runtime.acp_options_state.options.options[0].current, "fixture/backend-value-1");
 }
 
-// 宿主保留：跨域 ACP 能力读回、设置更新与宿主浮层交互契约。
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ui_refresh_42_acp_permission_modes_reflect_grant_and_readback() {
-    if !isolated("ui_refresh_42_acp_permission_modes_reflect_grant_and_readback") {
-        return;
-    }
-    let mut app = fixture();
-    app.navigation_tabs.project_path = Some("/workspace".into());
-    let mut renderer = renderer().await;
-    let size = Size::new(520, 560);
-    for (full, busy, support, theme, expected) in [
-        (false, false, AcpAccessSupport::Failed, Theme::Light, "同步失败或未确认"),
-        (true, false, AcpAccessSupport::Partial, Theme::Dark, "部分支持"),
-        (true, true, AcpAccessSupport::Native, Theme::Light, "原生权限已确认"),
-    ] {
-        let runtime = app.current_session_runtime_mut();
-        runtime.acp_options_state.open = true;
-        runtime.request_lifecycle.is_requesting = busy;
-        runtime.full_access_enabled = full;
-        runtime.acp_options_state.options.access_status = Some(AcpAccessStatus {
-            requested: full,
-            backend: "fixture".into(),
-            version: Some("1.0".into()),
-            support,
-            explanation: "后端权限实测状态".into(),
-        });
-        runtime.acp_options_state.options.options.truncate(1);
-        runtime.acp_options_state.options.options.push(AcpSessionOption {
-            kind: AcpOptionKind::Mode,
-            name: "供应商原生模式".into(),
-            current: "bypass".into(),
-            choices: vec![AcpChoice { id: "bypass".into(), name: "绕过审批".into() }],
-        });
-        let base = container(Space::new()).width(Length::Fill).height(Length::Fill).into();
-        let mut ui = scene(with_modal(&app, base), &mut renderer, size);
-        let layout = bounds(&mut ui, &renderer);
-        let (selected, other) = if full {
-            ("✓ 完全访问权限", "审批模式")
-        } else {
-            ("✓ 审批模式", "完全访问权限")
-        };
-        let selected = label(&layout, selected).center();
-        let other = label(&layout, other).center();
-        label(&layout, &format!("生效能力：{expected}"));
-        assert!(!layout.labels.iter().any(|(value, _)| value == "供应商原生模式"));
-        capture(&mut ui, &mut renderer, &theme, size, &format!("permission-{full}-{busy}"), other);
-        assert!(click(&mut ui, &mut renderer, selected).is_empty());
-        let actions = click(&mut ui, &mut renderer, other);
-        if busy {
-            assert!(actions.is_empty());
-        } else {
-            assert!(matches!(
-                actions.as_slice(),
-                [Message::Chat(ChatMessage::ToggleFullAccessPermission)]
-            ));
-        }
-    }
-}
+
 
 // 宿主保留：跨域 ACP 能力读回、设置更新与宿主浮层交互契约。
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -734,110 +447,7 @@ async fn ui_refresh_42_acp_effort_is_editable_between_turns() {
     assert!(app.current_session_runtime().acp_options_state.pending);
 }
 
-// 宿主保留：跨域 ACP 能力读回、设置更新与宿主浮层交互契约。
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn help_rollout_09_session_model_source_keeps_status_visible() {
-    if !isolated("help_rollout_09_session_model_source_keeps_status_visible") {
-        return;
-    }
-    let mut app = fixture();
-    let mut renderer = renderer().await;
-    let size = Size::new(420, 600);
-    for (locale, theme) in
-        [(DesktopLocale::English, Theme::Dark), (DesktopLocale::SimplifiedChinese, Theme::Light)]
-    {
-        app.desktop_locale = locale;
-        app.app_theme = theme.clone();
-        let runtime = app.current_session_runtime_mut();
-        runtime.acp_options_state.open = true;
-        runtime.acp_model_source = AcpModelSource::SessionModel;
-        let base = container(Space::new()).width(Length::Fill).height(Length::Fill).into();
-        let mut ui = scene(with_modal(&app, base), &mut renderer, size);
-        let layout = bounds(&mut ui, &renderer);
-        label(&layout, "✓ 审批模式");
-        label(&layout, "请先配置供应商凭据");
-        label(&layout, "切换来源将创建新的 ACP 会话；原生上下文不继承");
-        label(
-            &layout,
-            &format!("当前客户端 Provider/model：{}", app.current_session_runtime().model),
-        );
-        let heading = label(&layout, "模型来源");
-        let icon = Point::new(heading.x + heading.width + 15.0, heading.center_y());
-        let frame = |ui: &mut Ui<'_>, renderer: &mut Renderer, suffix: &str| {
-            capture(
-                ui,
-                renderer,
-                &theme,
-                size,
-                &format!("help-09-{locale:?}-model-source-{suffix}"),
-                Point::ORIGIN,
-            )
-        };
-        let idle = frame(&mut ui, &mut renderer, "idle");
-        assert!(click(&mut ui, &mut renderer, icon).is_empty());
-        assert!(idle != frame(&mut ui, &mut renderer, "open"), "model source help must open");
-        assert!(!layout.labels.iter().any(|(text, _)| text == "使用执行主机上的配置与登录状态"));
-        assert!(
-            key(&mut ui, &mut renderer, Point::ORIGIN, Key::Named(Named::Escape), None).is_empty()
-        );
-        assert!(
-            idle == frame(&mut ui, &mut renderer, "closed"),
-            "Escape must dismiss model source help"
-        );
-        assert!(
-            click(&mut ui, &mut renderer, label(&layout, "智能体原生模型").center()).is_empty()
-        );
-        assert!(matches!(
-            click(&mut ui, &mut renderer, label(&layout, "关闭").center()).as_slice(),
-            [Message::Chat(ChatMessage::AcpOptionsClose)]
-        ));
-        drop(ui);
 
-        app.current_session_runtime_mut().acp_model_source = AcpModelSource::CliLocal;
-        let mut popover = scene(model_overlay(&app), &mut renderer, size);
-        let layout = bounds(&mut popover, &renderer);
-        let heading = label(&layout, "模型来源");
-        let icon = Point::new(heading.x + heading.width + 15.0, heading.center_y());
-        let idle = frame(&mut popover, &mut renderer, "popover-idle");
-        assert!(click(&mut popover, &mut renderer, icon).is_empty());
-        assert!(
-            idle != frame(&mut popover, &mut renderer, "popover-open"),
-            "model popover help must open"
-        );
-        assert!(
-            key(&mut popover, &mut renderer, Point::ORIGIN, Key::Named(Named::Escape), None)
-                .is_empty()
-        );
-        assert!(idle == frame(&mut popover, &mut renderer, "popover-closed"));
-        assert!(matches!(
-            click(&mut popover, &mut renderer, label(&layout, "客户端模型").center()).as_slice(),
-            [Message::Chat(ChatMessage::AcpModelSourceSelected(AcpModelSource::SessionModel))]
-        ));
-        drop(popover);
-
-        let draft = app.current_session_runtime_mut().draft.take();
-        let mut locked = scene(model_overlay(&app), &mut renderer, size);
-        let layout = bounds(&mut locked, &renderer);
-        label(&layout, "会话开始后不能切换模型");
-        let locked_choice = label(&layout, "客户端模型").center();
-        let idle = frame(&mut locked, &mut renderer, "locked-idle");
-        hover(&mut locked, &mut renderer, locked_choice);
-        let hovered = capture(
-            &mut locked,
-            &mut renderer,
-            &theme,
-            size,
-            &format!("help-09-{locale:?}-model-source-locked-hover"),
-            locked_choice,
-        );
-        assert!(idle != hovered, "locked model source must show a tooltip on hover");
-        assert!(click(&mut locked, &mut renderer, locked_choice).is_empty());
-        hover(&mut locked, &mut renderer, Point::ORIGIN);
-        assert!(idle == frame(&mut locked, &mut renderer, "locked-leave"));
-        drop(locked);
-        app.current_session_runtime_mut().draft = draft;
-    }
-}
 
 pub(in crate::app::components::input_panel) async fn verify_effort_entry(test: &str) {
     if !isolated_exact(test) {

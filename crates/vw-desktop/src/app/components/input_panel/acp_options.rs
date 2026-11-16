@@ -11,7 +11,7 @@ fn emit(action: shared::Action) -> Message {
         shared::Action::AcpModelSourceSelected(source) => ChatMessage::AcpModelSourceSelected(source),
     })
 }
-fn state<'a>(app: &App, runtime: &'a crate::app::state::SessionRuntimeState) -> shared::OptionsState<'a> {
+pub(super) fn state<'a>(app: &App, runtime: &'a crate::app::state::SessionRuntimeState) -> shared::OptionsState<'a> {
     shared::OptionsState {
         i18n: I18n::new(app.desktop_locale), acp_agent: runtime.acp_agent.as_deref(),
         acp_options: &runtime.acp_options_state.options, acp_model_source: runtime.acp_model_source,
@@ -44,10 +44,7 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
     let input = state(app, runtime);
     let can_change = super::send_controls::has_permission_context(app) && !runtime.request_lifecycle.is_requesting
         && !runtime.full_access_saving && !runtime.acp_options_state.pending && runtime.acp_options_state.source_pending.is_none();
-    let permission = super::send_controls::acp_permission_modes(runtime.full_access_enabled, can_change);
-    let access = shared::access_status(&input, permission);
-    let source = source_controls_for(app, runtime);
-    shared::with_modal(&input, input.i18n, app.current_session_has_started(), base, access, source, emit)
+    shared::with_session_modal(&input, app.current_session_has_started(), base, can_change, source_controls_for(app, runtime), emit, super::send_controls::map)
 }
 #[cfg(test)]
 #[path = "acp_options_ui_refresh_42_tests.rs"]

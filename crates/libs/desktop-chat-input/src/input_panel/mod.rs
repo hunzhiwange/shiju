@@ -77,3 +77,7 @@ pub mod panel;
 #[cfg(test)]
 mod panel_tests;
 pub mod layout;
+
+pub mod suggestions;
+pub mod quick_actions;
+pub mod input_menu;

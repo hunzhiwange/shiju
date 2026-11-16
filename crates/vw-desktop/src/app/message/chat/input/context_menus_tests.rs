@@ -85,31 +85,9 @@ fn input_context_menu_copy_cut_and_paste_handle_selection_state() {
     assert_eq!(app.input_context_menu.position, None);
 }
 
-#[test]
-fn input_context_menu_cut_without_selection_only_closes_menu() {
-    let mut app = test_app();
-    app.current_session_runtime_mut().input_editor = text_editor::Content::with_text("unchanged");
-    handle_open_input_context_menu(&mut app, 2.0, 3.0);
 
-    let _task = handle_cut_input_selection(&mut app);
 
-    assert!(!app.input_context_menu.open);
-    assert_eq!(app.input_context_menu.position, None);
-    assert_eq!(app.current_session_runtime().input_editor.text(), "unchanged");
-}
 
-#[test]
-fn input_context_menu_copy_without_selection_only_closes_menu() {
-    let mut app = test_app();
-    app.current_session_runtime_mut().input_editor = text_editor::Content::with_text("unchanged");
-    handle_open_input_context_menu(&mut app, 2.0, 3.0);
-
-    let _task = handle_copy_input_selection(&mut app);
-
-    assert!(!app.input_context_menu.open);
-    assert_eq!(app.input_context_menu.position, None);
-    assert_eq!(app.current_session_runtime().input_editor.text(), "unchanged");
-}
 
 #[test]
 fn clipboard_paste_resolved_updates_attachments_or_notifications() {

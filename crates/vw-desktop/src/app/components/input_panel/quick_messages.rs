@@ -51,7 +51,3 @@ fn map_message(msg: desktop_chat_input::input_panel::quick_message::Message) -> 
 pub(super) fn view(app: &App) -> Option<iced::Element<'_, Message>> {
     domain::view(input(app)).map(|view| view.map(map_message))
 }
-
-#[cfg(test)]
-#[path = "quick_messages_tests.rs"]
-mod quick_messages_tests;

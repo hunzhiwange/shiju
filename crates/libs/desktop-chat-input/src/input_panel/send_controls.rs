@@ -802,3 +802,25 @@ pub fn bottom_bar<'a, Message: Clone + 'a>(
         .padding(iced::Padding { top: 3.0, right: 12.0, bottom: 6.0, left: 12.0 })
         .into()
 }
+
+/// 只接受当前会话目录与项目目录，不借用宿主状态。
+pub fn has_permission_context(session_directory: Option<&str>, project_directory: Option<&str>) -> bool {
+    session_directory.is_some_and(|directory| !directory.trim().is_empty())
+        || project_directory.is_some_and(|directory| !directory.trim().is_empty())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn voice_available(voice: &desktop_voice_ui::message::voice::State) -> bool {
+    use desktop_voice_ui::message::voice_draft::Phase;
+    !voice.chat_active() && !matches!(voice.draft.phase, Phase::Recording | Phase::Transcribing)
+}
+pub fn voice_session_available(task_mode: bool, workflow_mode: bool, acp: bool) -> bool {
+    !task_mode && !workflow_mode && !acp
+}
+
+pub fn has_sendable_input(text: &str, has_attachments: bool) -> bool {
+    !text.trim().is_empty() || has_attachments
+}
+pub fn permission_change_allowed(has_context: bool, saving: bool, draft: bool, requesting: bool) -> bool {
+    has_context && !saving && (!draft || !requesting)
+}

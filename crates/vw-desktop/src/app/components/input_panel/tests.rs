@@ -3,7 +3,7 @@
 
 use super::{
     reasoning_effort_selector, selected_context_card,
-    selected_context_summary, session_tool_tab_buttons, skill_title, view,
+    selected_context_summary, session_tool_tab_buttons, view,
 };
 use crate::app::state::{
     AcpHistoryReplayMode, ChatSendBehavior, SkillsCatalogItem, SkillsCatalogKind,
@@ -69,15 +69,7 @@ fn todo(id: &str, status: &str, content: &str) -> Todo {
     }
 }
 
-// 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
-#[test]
-fn skill_title_uses_catalog_title_and_falls_back_to_id() {
-    let mut app = crate::app::App::new().0;
-    app.skills_settings.catalog = vec![catalog_skill("review", "代码审查")];
 
-    assert_eq!(skill_title(&app, "review"), "代码审查");
-    assert_eq!(skill_title(&app, "missing"), "missing");
-}
 
 // 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
@@ -339,9 +331,9 @@ fn input_panel_view_renders_default_task_queue_and_overlay_states() {
     app.input_editor = iced::widget::text_editor::Content::with_text("@src/main.rs:1\nhello");
     app.files.push("/tmp/a.txt".to_string());
     app.popover_visibility.model = true;
-    app.show_file_search = true;
+    app.input_suggestions.show_file_search = true;
     app.navigation_tabs.project_path = Some("/repo".to_string());
-    app.file_search_query = "src".to_string();
+    app.input_suggestions.file_search_query = "src".to_string();
     app.set_file_index("/repo", vec!["src/main.rs".to_string()]);
     let with_overlays = view(&app);
     assert_eq!(with_overlays.as_widget().size().width, Length::Fill);

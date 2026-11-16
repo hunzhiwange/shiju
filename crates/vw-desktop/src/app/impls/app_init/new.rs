@@ -524,10 +524,6 @@ impl App {
             search_panel_file_cache_project_path: None,
             search_panel_file_cache_revision: 0,
             search_panel_file_cache_results: Vec::new(),
-            file_search_cache_query: String::new(),
-            file_search_cache_project_path: None,
-            file_search_cache_revision: 0,
-            file_search_cache_entries: Vec::new(),
             input_editor: iced::widget::text_editor::Content::new(),
             last_copied_code_hash: None,
             last_copy_time: None,
@@ -786,16 +782,7 @@ impl App {
             },
 
             // ========== 文件搜索 ==========
-            file_search_query: String::new(),
-            show_file_search: false,
-            file_search_anchor: None,
-            file_search_selected_index: 0,
-
-            // ========== Slash 快捷选择 ==========
-            slash_palette_query: String::new(),
-            show_slash_palette: false,
-            slash_palette_selected_index: 0,
-            slash_palette_expanded_kinds: std::collections::BTreeSet::new(),
+            input_suggestions: Default::default(),
 
             // ========== 查找结果标签页 ==========
             find_results_tabs: Vec::new(),
@@ -803,7 +790,6 @@ impl App {
             find_results_tab_menu_id: None,
             find_results_tab_menu_pos: None,
             tool_files_filter: String::new(),
-            file_ref_hovered_index: None,
 
             // ========== 预览标签页 ==========
 

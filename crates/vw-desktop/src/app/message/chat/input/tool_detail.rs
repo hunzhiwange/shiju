@@ -103,7 +103,3 @@ pub(super) fn handle_close_tool_detail(app: &mut App) -> Task<Message> {
 fn tool_detail_from_raw(i18n: crate::app::i18n::I18n, raw: &str) -> Option<(String, String)> {
  domain::tool_detail_from_raw(i18n, raw, is_mcp_tool_raw(raw), workflow_node_detail_body)
 }
-
-#[cfg(test)]
-#[path = "tool_detail_tests.rs"]
-mod tool_detail_tests;

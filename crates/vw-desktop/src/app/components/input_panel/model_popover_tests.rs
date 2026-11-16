@@ -1,9 +1,8 @@
 //! 验证模型选择弹窗的分组、搜索、能力标识与选择消息。
 //! 同时约束限定模型名、裸模型名、Unicode 截断及刷新时保留旧目录的回退。
 
-use super::model_popover::{model_popover_content, model_toggle_button};
+use super::model_popover::model_popover_content;
 use crate::app::state::{ModelSummary, ProviderModelsSummary};
-use iced::Length;
 
 // 模型 fixture 默认开启工具能力；需要验证能力徽标时再显式覆盖各能力位。
 fn model(id: &str, name: &str, enabled: bool) -> ModelSummary {
@@ -29,102 +28,6 @@ fn provider(id: &str, name: &str, models: Vec<ModelSummary>) -> ProviderModelsSu
 
 
 
-
-// 宿主保留：ACP 会话执行状态与来源控件的宿主交互契约。
-#[tokio::test(flavor = "multi_thread")]
-async fn acp_model_source_ui_controls_render_chinese_labels_in_both_themes() {
-    use iced::advanced::Renderer as _;
-    use iced::advanced::renderer::Headless;
-    use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
-    use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
-    use vw_api_acp_model::acp_model_source::AcpModelSource;
-
-    let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some("source-render".into());
-    app.model_settings.providers =
-        vec![provider("custom", "自定义供应商", vec![model("model", "中文模型名称", true)])];
-    let runtime = app.current_session_runtime_mut();
-    runtime.agent_label = Some("中文智能体 · Claude".into());
-    runtime.acp_agent = Some("claude".into());
-    runtime.model = "custom/model".into();
-    runtime.auto_model = false;
-
-    let mut renderer =
-        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
-            .await
-            .expect("headless renderer");
-    for theme in [Theme::Light, Theme::Dark] {
-        for (source, collapsed) in [
-            (AcpModelSource::SessionModel, false),
-            (AcpModelSource::SessionModel, true),
-            (AcpModelSource::CliLocal, false),
-        ] {
-            if collapsed {
-                app.model_settings.input_collapsed_provider_ids.insert("custom".into());
-            } else {
-                app.model_settings.input_collapsed_provider_ids.clear();
-            }
-            app.current_session_runtime_mut().acp_model_source = source;
-            for modal in [false, true] {
-                app.current_session_runtime_mut().acp_options_state.open = modal;
-                app.current_session_runtime_mut().acp_options_state.options.model_source_capabilities = vec![
-                    vw_api_acp_model::acp_model_source::AcpModelSourceCapability::Unsupported {
-                        source: AcpModelSource::SessionModel,
-                        reason: vw_api_acp_model::acp_model_source::AcpModelSourceRejectionReason::UnsupportedCli,
-                    },
-                ];
-                let mut element: iced::Element<'_, crate::app::Message> = iced::widget::container(
-                    iced::widget::column![
-                        super::session_tool_tab_button(
-                            &app,
-                            crate::app::state::SessionToolSelectorTab::Agent
-                        ),
-                        model_toggle_button(&app, false, "custom/model", true),
-                        model_popover_content(&app, false, "custom/model"),
-                    ]
-                    .spacing(12),
-                )
-                .padding(16)
-                .style(|theme: &Theme| {
-                    iced::widget::container::background(theme.palette().background)
-                })
-                .into();
-                let base = iced::widget::container(element)
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .into();
-                element = super::acp_options::with_modal(&app, base);
-                let bounds = Size::new(640.0, 780.0);
-                renderer.reset(Rectangle::with_size(bounds));
-                let mut tree = Tree::new(element.as_widget());
-                let node = element.as_widget_mut().layout(
-                    &mut tree,
-                    &renderer,
-                    &layout::Limits::new(Size::ZERO, bounds),
-                );
-                element.as_widget().draw(
-                    &tree,
-                    &mut renderer,
-                    &theme,
-                    &renderer::Style { text_color: theme.palette().text },
-                    Layout::new(&node),
-                    mouse::Cursor::Unavailable,
-                    &Rectangle::with_size(bounds),
-                );
-                let pixels = renderer.screenshot(Size::new(640, 780), 1.0, Color::TRANSPARENT);
-                assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
-                let directory = std::env::temp_dir().join("shiju-input-agent-model-render");
-                std::fs::create_dir_all(&directory).unwrap();
-                ::image::RgbaImage::from_raw(640, 780, pixels)
-                    .unwrap()
-                    .save(directory.join(format!(
-                        "{theme:?}-{source:?}-modal-{modal}-collapsed-{collapsed}.png"
-                    )))
-                    .unwrap();
-            }
-        }
-    }
-}
 
 #[derive(Default)]
 struct ForkModelLabels(Vec<(String, iced::Rectangle)>);

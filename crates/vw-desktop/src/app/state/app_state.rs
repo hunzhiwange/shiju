@@ -269,14 +269,6 @@ pub struct App {
     pub(crate) search_panel_file_cache_revision: u64,
     /// 全局搜索面板文件结果缓存
     pub(crate) search_panel_file_cache_results: Vec<String>,
-    /// 输入框文件搜索缓存查询
-    pub(crate) file_search_cache_query: String,
-    /// 输入框文件搜索缓存项目路径
-    pub(crate) file_search_cache_project_path: Option<String>,
-    /// 输入框文件搜索缓存索引版本
-    pub(crate) file_search_cache_revision: u64,
-    /// 输入框文件搜索缓存结果
-    pub(crate) file_search_cache_entries: Vec<crate::app::message::chat::input::FileSearchResult>,
     /// 会话信息列表
     pub(crate) sessions: Vec<session_info::Info>,
     /// 会话预览映射（会话 ID -> 预览文本），缓存避免每帧查 DB
@@ -549,23 +541,7 @@ pub struct App {
     /// 展开的文件树路径集合（用于快速查询）
     pub(crate) file_tree_expanded_set: HashSet<String>,
     pub(crate) file_tree_interaction: desktop_workspace::interaction::InteractionState,
-    /// 文件搜索查询文本
-    pub(crate) file_search_query: String,
-    /// 是否显示文件搜索面板
-    pub(crate) show_file_search: bool,
-    /// 文件搜索面板的锚点位置（X，Y）
-    pub(crate) file_search_anchor: Option<(f32, f32)>,
-    /// 文件搜索结果中选中的索引
-    pub(crate) file_search_selected_index: usize,
-    /// Slash 面板查询文本（不含前导 `/`）
-    pub(crate) slash_palette_query: String,
-    /// 是否显示 Slash 快捷选择面板
-    pub(crate) show_slash_palette: bool,
-    /// Slash 面板可见条目中的选中索引
-    pub(crate) slash_palette_selected_index: usize,
-    /// Slash 面板已展开的类别
-    pub(crate) slash_palette_expanded_kinds:
-        std::collections::BTreeSet<crate::app::state::SlashPaletteKind>,
+    pub(crate) input_suggestions: desktop_chat_input::input_panel::suggestions::State,
     /// 在文件夹中查找的结果标签页列表
     pub(crate) find_results_tabs: Vec<FindInFolderTab>,
     /// 当前活跃的查找结果标签页 ID
@@ -576,8 +552,6 @@ pub struct App {
     pub(crate) find_results_tab_menu_pos: Option<Point>,
     /// 工具文件过滤器文本
     pub(crate) tool_files_filter: String,
-    /// 文件引用悬停的索引
-    pub(crate) file_ref_hovered_index: Option<usize>,
     /// LSP 事件接收器（仅非 wasm32 平台）
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) lsp_events: Option<std::sync::mpsc::Receiver<LspEvent>>,

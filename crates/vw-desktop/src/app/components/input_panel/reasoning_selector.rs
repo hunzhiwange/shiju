@@ -1,7 +1,6 @@
 use crate::app::{App, Message, message};
 use vw_api_chat_identity::ReasoningEffortDto;
 use desktop_chat_input::input_panel::reasoning_selector as domain;
-pub(crate) use domain::{reasoning_effort_label, localized_reasoning_effort_label, reasoning_effort_options};
 fn input(app: &App) -> domain::ReasoningInput<'_> {
     domain::ReasoningInput {
         providers: &app.model_settings.providers,
@@ -24,9 +23,4 @@ pub(crate) fn model_reasoning_effort_options(app: &App, model: &str) -> Vec<Opti
 }
 pub(super) fn reasoning_effort_selector<'a>(app: &'a App, agent: Option<&str>, current: Option<ReasoningEffortDto>) -> Option<iced::Element<'a, Message>> {
     domain::reasoning_effort_selector(input(app), agent, current).map(|view| view.map(map_message))
-}
-
-#[cfg(test)]
-pub(super) fn reasoning_effort_popover<'a>(app: &'a App, model: &str, options: &[Option<ReasoningEffortDto>], current: Option<ReasoningEffortDto>) -> iced::Element<'a, Message> {
-    domain::reasoning_effort_popover(input(app), model, options, current).map(map_message)
 }

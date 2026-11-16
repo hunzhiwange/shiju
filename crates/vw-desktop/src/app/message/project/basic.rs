@@ -330,10 +330,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 && let Some(mention) = desktop_workspace::basic::file_mention(root, &path, line, column)
             {
                 // 关闭文件搜索弹窗
-                app.show_file_search = false;
-                app.file_search_query.clear();
+                app.input_suggestions.clear_files();
                 app.refresh_file_search_cache();
-                app.file_search_selected_index = 0;
                 // 获取当前会话的运行时并插入文件引用
                 let runtime = app.current_session_runtime_mut();
                 // 将光标移动到文档末尾

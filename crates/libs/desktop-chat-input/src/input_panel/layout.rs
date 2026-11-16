@@ -62,7 +62,6 @@ pub fn content<'a, Message: 'a>(parts: Content<'a, Message>) -> Element<'a, Mess
 
 /// 输入面板外壳所需的局部快照及跨领域子视图。
 pub struct Surface<'a, Message> {
-    pub content: Element<'a, Message>,
     pub file_search: Element<'a, Message>,
     pub slash_palette: Element<'a, Message>,
     pub show_file_search: bool,
@@ -85,13 +84,14 @@ pub struct SurfaceMessages<Message> {
     pub native_drop: fn(std::path::PathBuf) -> Message,
 }
 
-pub fn surface<'a, Message: Clone + 'a>(
+pub fn view<'a, Message: Clone + 'a>(
+    content_parts: Content<'a, Message>,
     parts: Surface<'a, Message>,
     messages: SurfaceMessages<Message>,
 ) -> Element<'a, Message> {
     use desktop_ui_controls::overlays::AboveOverlay;
     use iced::widget::container;
-    let content = AboveOverlay::new(parts.content, parts.file_search)
+    let content = AboveOverlay::new(content(content_parts), parts.file_search)
         .show(parts.show_file_search)
         .gap(6.0)
         .on_close(messages.close_file_search);
@@ -128,4 +128,110 @@ pub fn surface<'a, Message: Clone + 'a>(
         iced::Padding { top: 0.0, right: 2.0, bottom: 0.0, left: 2.0 },
     )
     .into()
+}
+
+/// 局部控件布局；跨域子视图由宿主投影后传入。
+pub struct Controls<'a, Message> {
+    pub agent_tab_btn: Element<'a, Message>,
+    pub skills_tab_btn: Element<'a, Message>,
+    pub workflow_btn: Element<'a, Message>,
+    pub model_btn: Element<'a, Message>,
+    pub usage_btn: Element<'a, Message>,
+    pub attach_btn: Element<'a, Message>,
+    pub send: Element<'a, Message>,
+    pub tools_tab_btn: Option<Element<'a, Message>>,
+    pub acp_btn: Option<Element<'a, Message>>,
+    pub reasoning_btn: Option<Element<'a, Message>>,
+    pub permission_btn: Option<Element<'a, Message>>,
+    pub pool_btn: Option<Element<'a, Message>>,
+    pub cancel: Option<Element<'a, Message>>,
+    pub mobile_model_content: Element<'a, Message>,
+}
+pub fn controls<'a, Message: Clone + 'a>(
+    parts: Controls<'a, Message>,
+    mobile: bool,
+    expanded: bool,
+    task_mode_enabled: bool,
+    toggle_model: Message,
+    close_popovers: Message,
+) -> Element<'a, Message> {
+    use desktop_ui_controls::overlays::AboveOverlay;
+    use iced::widget::container;
+    let Controls {
+        agent_tab_btn,
+        skills_tab_btn,
+        workflow_btn,
+        model_btn,
+        usage_btn,
+        attach_btn,
+        send,
+        tools_tab_btn,
+        acp_btn,
+        reasoning_btn,
+        permission_btn,
+        pool_btn,
+        cancel,
+        mobile_model_content,
+    } = parts;
+    if mobile {
+        // 复用已有弹层状态与消息，布局切换不产生第二份草稿或请求状态。
+        let mut options = iced::widget::row![agent_tab_btn, skills_tab_btn]
+            .spacing(8)
+            .align_y(iced::Alignment::Center);
+        if let Some(control) = tools_tab_btn {
+            options = options.push(control);
+        }
+        if let Some(control) = acp_btn {
+            options = options.push(control);
+        }
+        if let Some(control) = reasoning_btn {
+            options = options.push(control);
+        }
+        if let Some(control) = permission_btn {
+            options = options.push(control);
+        }
+        options = options.push(workflow_btn).push(usage_btn);
+        let menu =
+            container(column![options.wrap(), mobile_model_content].spacing(8).width(Length::Fill))
+                .padding(7)
+                .width(Length::Fixed(334.0))
+                .style(|theme| super::surface_styles::input_card_style(theme, false, None));
+        let toggle = iced::widget::button(iced::widget::text("模型与工具").size(12))
+            .padding([10, 12])
+            .height(44)
+            .style(desktop_ui_controls::system_settings_common::rounded_action_btn_style)
+            .on_press(toggle_model);
+        let toggle: Element<'_, Message> = AboveOverlay::new(toggle, menu)
+            .show(expanded)
+            .block_background_events(true)
+            .gap(6.0)
+            .on_close(close_popovers)
+            .into();
+        super::panel::mobile_controls(toggle, attach_btn, pool_btn, cancel, send)
+    } else {
+        super::send_controls::bottom_bar(
+            Some(agent_tab_btn),
+            tools_tab_btn,
+            Some(skills_tab_btn),
+            acp_btn,
+            reasoning_btn,
+            permission_btn,
+            workflow_btn,
+            model_btn,
+            usage_btn,
+            attach_btn,
+            pool_btn,
+            cancel,
+            Some(send),
+            task_mode_enabled,
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Supplement { Todo, Queue, None }
+pub fn supplement(has_todos: bool, todos_at_input: bool, has_queue: bool, task_mode: bool) -> Supplement {
+    if has_todos && todos_at_input { Supplement::Todo }
+    else if has_queue && !task_mode { Supplement::Queue }
+    else { Supplement::None }
 }

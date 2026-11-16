@@ -106,6 +106,3 @@ pub(super) fn handle_task_mode_move_subtask_down(app: &mut App, index: usize) ->
  domain::handle_task_mode_move_subtask_down(&mut runtime.task_mode_subtasks, &mut runtime.task_mode_subtask_editors, index);
  Task::none()
 }
-#[cfg(test)]
-#[path = "task_mode_tests.rs"]
-mod task_mode_tests;

@@ -70,138 +70,32 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let Some(item) = app.quick_messages.get(index).cloned() else {
                 return Task::none();
             };
-            match item.kind {
-                config_ui::QuickMessageKind::Message => {
-                    if item.text.trim().is_empty() {
-                        return app.show_localized_toast(
-                            crate::app::state::ToastKind::Warning,
-                            "快捷消息内容不能为空",
-                            vec![],
-                        );
-                    }
-                    app.current_session_runtime_mut().input_editor =
-                        iced::widget::text_editor::Content::with_text(&item.text);
+            use desktop_chat_input::input_panel::quick_actions::{self, Effect};
+            let project = app.navigation_tabs.project_path.clone();
+            let session = app.active_session_id.clone();
+            let directory = session.as_deref().and_then(|id| app.known_session_directory(id));
+            let git_path = git_quick_action_path(app);
+            let has_git_changes = !app.git.git_changed_files.is_empty();
+            let effect = quick_actions::apply(&item, quick_actions::Context {
+                project: project.as_deref(), session: session.as_deref(), session_directory: directory.as_deref(),
+                git_path: git_path.as_deref(), has_git_changes,
+            });
+            match effect {
+                Effect::Draft { text, send } => {
+                    quick_actions::apply_draft(&mut app.current_session_runtime_mut().input_editor, &text, send);
                     shared::sync_global_input_editor_if_needed(app);
-                    Task::done(Message::Chat(ChatMessage::SendPressed))
-                }
-                config_ui::QuickMessageKind::FillInput => {
-                    if item.text.trim().is_empty() {
-                        return app.show_localized_toast(
-                            crate::app::state::ToastKind::Warning,
-                            "快捷消息内容不能为空",
-                            vec![],
-                        );
-                    }
-                    crate::app::ui::chat::append_line(
-                        &mut app.current_session_runtime_mut().input_editor,
-                        &item.text,
-                    );
-                    shared::sync_global_input_editor_if_needed(app);
-                    Task::none()
-                }
-                config_ui::QuickMessageKind::CreateNewSession => {
-                    let Some(project_path) =
-                        app.navigation_tabs.project_path.clone().filter(|path| !path.trim().is_empty())
-                    else {
-                        return app.show_localized_toast(
-                            crate::app::state::ToastKind::Warning,
-                            "请先打开项目，再创建新会话",
-                            vec![],
-                        );
-                    };
-                    Task::done(Message::Project(message::ProjectMessage::ProjectCreateSession(
-                        project_path,
-                    )))
-                }
-                config_ui::QuickMessageKind::SummarizeAndCreateNewSession => {
-                    let Some(session_id) = app.active_session_id.clone() else {
-                        return app.show_localized_toast(
-                            crate::app::state::ToastKind::Warning,
-                            "当前没有可压缩的会话",
-                            vec![],
-                        );
-                    };
-                    let Some(project_path) = app
-                        .known_session_directory(&session_id)
-                        .filter(|path| !path.trim().is_empty())
-                        .or_else(|| {
-                            app.navigation_tabs.project_path.clone().filter(|path| !path.trim().is_empty())
-                        })
-                    else {
-                        return app.show_localized_toast(
-                            crate::app::state::ToastKind::Warning,
-                            "当前会话没有可用的项目目录",
-                            vec![],
-                        );
-                    };
-                    Task::done(Message::Chat(ChatMessage::CompactSessionRequested {
-                        session_id,
-                        project_path,
-                    }))
-                }
-                config_ui::QuickMessageKind::RefreshGitChanges => {
-                    if app.navigation_tabs.project_path.as_deref().is_none_or(|path| path.trim().is_empty()) {
-                        return app.show_localized_toast(
-                            crate::app::state::ToastKind::Warning,
-                            "请先打开项目，再刷新 Git 变更",
-                            vec![],
-                        );
-                    }
-                    Task::done(Message::Project(message::ProjectMessage::FileManagerRefreshChanges))
-                }
-                config_ui::QuickMessageKind::SelectAllGitChanges => {
-                    if app.git.git_changed_files.is_empty() {
-                        return app.show_localized_toast(
-                            crate::app::state::ToastKind::Warning,
-                            "当前没有可选择的 Git 变更",
-                            vec![],
-                        );
-                    }
-                    Task::done(Message::Git(message::GitMessage::SelectAllVisibleFileLines(
-                        app.git.git_changed_files.clone(),
-                    )))
-                }
-                config_ui::QuickMessageKind::InvertGitSelection => {
-                    if app.git.git_changed_files.is_empty() {
-                        return app.show_localized_toast(
-                            crate::app::state::ToastKind::Warning,
-                            "当前没有可反选的 Git 变更",
-                            vec![],
-                        );
-                    }
-                    Task::done(Message::Git(message::GitMessage::InvertVisibleFileLines(
-                        app.git.git_changed_files.clone(),
-                    )))
-                }
-                config_ui::QuickMessageKind::StageAllGitChanges => {
-                    Task::done(Message::Git(message::GitMessage::StageAll))
-                }
-                config_ui::QuickMessageKind::StageAllAndCommitGitChanges => {
-                    let Some(project_path) = git_quick_action_path(app) else {
-                        return app.show_localized_toast(
-                            crate::app::state::ToastKind::Warning,
-                            "请先打开项目，再暂存并提交 Git 变更",
-                            vec![],
-                        );
-                    };
-                    Task::done(Message::Chat(ChatMessage::GenerateGitCommitMessage {
-                        project_path,
-                        action: crate::app::state::QuickMessageGitCommitAction::StageAllAndCommit,
-                    }))
-                }
-                config_ui::QuickMessageKind::CommitSelectedGitChanges => {
-                    let Some(project_path) = git_quick_action_path(app) else {
-                        return app.show_localized_toast(
-                            crate::app::state::ToastKind::Warning,
-                            "请先打开项目，再提交已选 Git 变更",
-                            vec![],
-                        );
-                    };
-                    Task::done(Message::Chat(ChatMessage::GenerateGitCommitMessage {
-                        project_path,
-                        action: crate::app::state::QuickMessageGitCommitAction::CommitSelected,
-                    }))
-                }
+                    if send { Task::done(Message::Chat(ChatMessage::SendPressed)) } else { Task::none() }
+                },
+                Effect::Warning(source) => app.show_localized_toast(crate::app::state::ToastKind::Warning, source, vec![]),
+                Effect::CreateSession(path) => Task::done(Message::Project(message::ProjectMessage::ProjectCreateSession(path))),
+                Effect::Compact { session, project } => Task::done(Message::Chat(ChatMessage::CompactSessionRequested { session_id: session, project_path: project })),
+                Effect::RefreshGit => Task::done(Message::Project(message::ProjectMessage::FileManagerRefreshChanges)),
+                Effect::SelectGit => Task::done(Message::Git(message::GitMessage::SelectAllVisibleFileLines(app.git.git_changed_files.clone()))),
+                Effect::InvertGit => Task::done(Message::Git(message::GitMessage::InvertVisibleFileLines(app.git.git_changed_files.clone()))),
+                Effect::StageGit => Task::done(Message::Git(message::GitMessage::StageAll)),
+                Effect::CommitGit { project, stage_all } => Task::done(Message::Chat(ChatMessage::GenerateGitCommitMessage {
+                    project_path: project, action: if stage_all { crate::app::state::QuickMessageGitCommitAction::StageAllAndCommit } else { crate::app::state::QuickMessageGitCommitAction::CommitSelected },
+                })),
             }
         }
         ChatMessage::RecommendedPromptMenuChanged(open) => {
@@ -639,7 +533,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             file_search::handle_remove_file_reference(app, file_path)
         }
         ChatMessage::FileReferenceHoverChanged(value) => {
-            app.file_ref_hovered_index = value;
+            app.input_suggestions.file_ref_hovered_index = value;
             Task::none()
         }
         ChatMessage::ToolFilesFilterChanged(value) => {

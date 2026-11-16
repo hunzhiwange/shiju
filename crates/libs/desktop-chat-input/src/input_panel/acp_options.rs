@@ -288,3 +288,9 @@ pub fn access_status<'a, Message: Clone + 'static>(
         )
         .into()
 }
+
+pub fn with_session_modal<'a, Message: Clone + 'static>(runtime: &OptionsState<'a>, started: bool, base: Element<'a, Message>, can_change: bool, source: Element<'a, Message>, emit: fn(Action) -> Message, emit_send: fn(super::send_message::Message) -> Message) -> Element<'a, Message> {
+    let permission = super::send_controls::acp_permission_modes(runtime.full_access_enabled, can_change).map(emit_send);
+    let access = access_status(runtime, permission);
+    with_modal(runtime, runtime.i18n, started, base, access, source, emit)
+}

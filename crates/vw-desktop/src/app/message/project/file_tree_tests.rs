@@ -431,7 +431,7 @@ fn relative_copy_delete_and_add_to_chat_handle_missing_project_root() {
         ),
     );
     assert!(add_to_chat.is_some());
-    assert!(!app.show_file_search);
+    assert!(!app.input_suggestions.show_file_search);
 }
 
 #[test]

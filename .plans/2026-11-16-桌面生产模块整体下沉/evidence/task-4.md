@@ -1,29 +1,44 @@
-# 任务4阶段证据（尚未完成）
+# 任务4：聊天输入与快捷操作
 
-当前仅完成输入面板外壳与文件引用编辑入口下沉，不满足整项验收，不删除任务卡。
+静态交付完成。未运行 Cargo、编译、单元测试、实机、窗口绘制或回归。阶段提交 `a8cfe9061` 保留；本次补齐整体接线、状态和夹具归属。
 
-## 已接通生产调用链
+## 生产入口与状态
 
-- 宿主 input_panel::view → desktop_chat_input::input_panel::layout::surface：覆盖层、拖放组件、主题容器、背景图片、上方子视图顺序、聊天阅读列归领域；宿主投影主题/拖放状态并明确映射文件搜索关闭、斜杠关闭、拖放和原生路径消息。
-- 宿主 handle_remove_file_reference → input_panel::file_references::remove_file_reference：完整提及匹配、反向删除、保留路径内部空白、光标移到文尾归领域；宿主保留当前会话选择、全局草稿同步和悬停重置。
-- 依赖均为已有 desktop-editor、desktop-ui-controls、desktop-theme、desktop-chat-view，无新增依赖或反向引用宿主。
+- `input_panel::layout::view` 接收 `Content`、`Surface` 局部快照和明确消息，拥有正文组合、文件/斜杠覆盖层、拖放外壳、主题背景及聊天阅读列。`controls` 拥有移动/桌面控件栏，`supplement` 决定待办/队列优先级。宿主只投影会话、跨域子视图和系统消息。
+- `suggestions::State` 拥有文件搜索、斜杠、引用悬停和查询缓存共12个字段；App 持有真实领域类型。编辑、互斥切换、导航、路径选择、尾部斜杠清理、候选构建和缓存刷新均经局部入口。`file_search_anchor` 无调用者，删除。
+- 编辑结果经 `Effects` 映射至 Iced 焦点、滚动、技能刷新及索引刷新；`SelectionEffect` 明确映射模型、智能体、工具、技能与 MCP 操作。排名、提及和 token 解析继续调用既有 desktop-session/desktop-editor 实现，没有平行算法。
+- `input_menu::update` 接收已有领域菜单状态和编辑器，返回复制/焦点与同步效果；原生剪贴板及图片持久化仍是宿主系统端口。文件引用删除复用真实提及解析，保留中文及引用内部空白。
+- `quick_actions` 校验快捷消息、空草稿推荐、目录与 Git 操作，返回明确的会话/Git/发送/警告效果；宿主映射至 Project、Git、TaskBoard、Settings、Voice 等既有入口。推荐选择的真实 `chat/session.rs` 调用者已接通（其共享文件变化随并行工作区提交归入现有历史，不重复覆盖）。
+- 模型选择资格、发送/语音资格、权限资格、标题和页签高亮归已有领域视图模块；ACP 弹窗访问状态和权限控件组合归库。现有状态转换继续复用 desktop-session 的任务模式、菜单、只读编辑器、详情及输入弹窗类型。
 
-## 原断言映射
+## 测试与夹具
 
-原 message/chat/input/file_search_tests.rs 的 remove_file_reference_deletes_mention_and_compacts_whitespace、remove_file_reference_removes_all_matching_mentions、removing_chinese_file_keeps_other_quoted_path_whitespace 三个文本结果断言，分别同名迁入 host_module_4_tests。第一个用例的悬停断言保留为宿主 remove_file_reference_clears_host_hover。没有删除断言或复制大型 App 夹具。
+新注册 `host_module_4_tests` 及其子模块，静态可定位 45 个测试声明（不是执行通过数）。迁入文件/斜杠列表、编辑建议与互斥、引用删除、只读 Markdown、任务模式、子会话行、控件布局、发送、语音、推荐消息、模型结果、中文模型绘制、任务/推理表单布局、ACP 权限/滚动/来源帮助等整组局部用例。真实 renderer、键鼠事件、字体加载、截图、明暗主题及原有断言保留；UI 驱动三次重复后在本组测试内共享，原隔离用例保留独立进程边界。
 
-## 未完成范围
+[逐函数、状态字段与旧断言映射](task-4-audit.json) 以固定基线 `68454160b04fde8ffa3ea2dd4396b1648a751c3e` 为来源，覆盖 165 个原测试名、622 个断言起点，无未定位归属；JSON 的 destinations 表记录当前文件/函数/行号。断言起点按源码宏统计，不代表独立运行用例数或动态循环展开次数。
 
-- 输入编辑、搜索、斜杠与菜单完整局部 Update/状态归属仍需迁移；shared 中聊天定位保留代码尚需逐函数审计。
-- 整体 view 的移动控件栏及局部策略仍在宿主；其余子模块当前多为状态投影/消息映射，仍需逐项确认。
-- agent_sessions、ACP、model_popover、quick_messages、reasoning、send_controls、todo、voice 及整体输入面板 App 测试夹具尚未整组迁入领域。
-- 尚未完成所有来源逐函数、字段组和断言清单；不能把本次阶段减量视为任务完成。
+拆分契约逐项保留：引用删除的悬停重置在宿主 `remove_file_reference_clears_host_hover`；编辑与斜杠的焦点写回由同一真实处理器及 `editor_actions_clear_host_focus` 覆盖；控件顺序/图标归领域，页签消息映射保留宿主；ACP 滚动/禁用矩阵归领域，跨会话关闭保留 `ui_refresh_42_close_modal_is_scoped_to_current_session`。模块挂载烟测保持原名；原 usage 两个宿主文件仅含迁移说明、没有断言，移除空挂载。
 
-## 静态统计
+宿主仅保留真实跨域契约：PTY 终端焦点隔离、分叉选择与 Toast 组合、ACP 后端确认/拒绝及模型查询 WidgetOperation、子会话实时事件/缓存失效、当前会话/全局草稿同步、原生附件持久化、Project/Git 消息工作流、整体快照投影与聊天虚拟化/分块预热。每个当前宿主函数在清单有保留理由；不以 App 夹具继续实现局部算法。
 
-baseline.json task=4：8726 行，其中生产候选 3105 行；当前原来源 8662 行，其中生产候选 3060 行；相对基线减少 64 行，生产候选减少 45 行。此值包含本任务开始前已有迁移，不全部归因本次。本次没有新建宿主文件。
+## 依赖与公共接线
 
-## 验证
+生产依赖方向保持不变，没有反向引用 App、宿主路径或 include 加载。只为迁入的真实 UI 测试增加已有 `iced_runtime = 0.14` 开发依赖，并对 Cargo.lock 的 desktop-chat-input 条目补齐同一现有包。未运行 Cargo 解析或锁文件刷新。
 
-仅对本次文件进行差异/注册/依赖方向源码核对与 git diff --check。按用户禁测要求未运行 Cargo、编译、测试或绘制，不能声称行为通过。
-以后授权命令：`python3 scripts/cargo_slot.py cargo test -p desktop-chat-input --lib host_module_4_tests -- --test-threads=1`。
+已接通 App 字段和初始化、app_basic 查询缓存、项目文件树/添加到聊天的真实调用者、输入视图与 ChatMessage 分支；直接调用者测试只替换领域字段路径，保留原断言。没有新建宿主替代源码。
+
+## 静态减量（splitlines，含注释与空行）
+
+| 固定来源口径 | 基线 | 当前 | 宿主净减少 |
+| --- | ---: | ---: | ---: |
+| 全部来源 | 8726 | 6793 | 1933 |
+| 按 baseline 分类的生产候选 | 3105 | 2621 | 484 |
+
+生产候选是文件名初筛，包含显式 cfg(test) 挂载/测试转导：本次同时清理了无调用的测试专用包装和空挂载；上表 484 不能宣称全部为可执行生产逻辑减少。测试文件减少独立于生产候选列，不混算生产迁出。共享接线文件不计入该固定来源减量；新建宿主文件为0。主要真实生产变化见上面的完整调用链，不用行数代替职责验收。
+
+## 当前验证及以后命令
+
+- 本任务差异执行 `git diff --check`；源码静态核对 mod/cfg、12个领域字段的调用者和依赖方向。
+- 对本任务来源、领域库和直接共享调用者共 145 个 Rust 文件用独立 rustfmt 的 stdout 模式解析，语法解析错误 0。没有写回无关文件；这不是类型检查。
+- 当前未编译、未测试，类型/生命周期以及真实字体、平台权限和绘制结果仍未经运行验证。没有通过数或编译提速结论。
+- 仅以后用户授权：`python3 scripts/cargo_slot.py cargo test -p desktop-chat-input --lib host_module_4_tests -- --test-threads=1`。此前轮次的既有领域测试仍按其原注册过滤执行；宿主剩余契约需另获授权后聚焦验证。以后宿主目标检查为 `python3 scripts/cargo_slot.py cargo check -p vw-desktop --lib`。

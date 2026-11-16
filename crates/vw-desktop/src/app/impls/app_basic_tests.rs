@@ -161,7 +161,7 @@ fn file_index_cache_tracks_project_results_and_tree_model() {
     let mut app = new_app();
     app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.search.search_text = " SRC\\LIB ".to_string();
-    app.file_search_query = "src".to_string();
+    app.input_suggestions.file_search_query = "src".to_string();
 
     app.set_file_index(
         "/workspace",
@@ -219,11 +219,11 @@ fn search_caches_keep_entries_when_cache_keys_match() {
     app.search_panel_file_cache_revision = 9;
     app.search_panel_file_cache_results = vec!["kept-panel-result".to_string()];
 
-    app.file_search_query = " SRC\\ ".to_string();
-    app.file_search_cache_query = "src/".to_string();
-    app.file_search_cache_project_path = Some("/workspace".to_string());
-    app.file_search_cache_revision = 9;
-    app.file_search_cache_entries =
+    app.input_suggestions.file_search_query = " SRC\\ ".to_string();
+    app.input_suggestions.file_search_cache_query = "src/".to_string();
+    app.input_suggestions.file_search_cache_project_path = Some("/workspace".to_string());
+    app.input_suggestions.file_search_cache_revision = 9;
+    app.input_suggestions.file_search_cache_entries =
         vec![FileSearchResult { path: "kept-file-result".to_string(), is_dir: true }];
 
     app.refresh_search_panel_file_cache();
@@ -245,7 +245,7 @@ fn search_caches_invalidate_for_query_project_and_revision_changes() {
     app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.file_index_revision = 10;
     app.search.search_text = " SRC\\LIB ".to_string();
-    app.file_search_query = String::new();
+    app.input_suggestions.file_search_query = String::new();
 
     app.refresh_search_panel_file_cache();
     app.refresh_file_search_cache();
@@ -269,7 +269,7 @@ fn search_caches_invalidate_for_query_project_and_revision_changes() {
 
     assert_eq!(app.search_panel_file_cache_revision, 11);
     assert_eq!(app.cached_search_panel_file_results(), ["src/lib_new.rs"]);
-    assert_eq!(app.file_search_cache_revision, 11);
+    assert_eq!(app.input_suggestions.file_search_cache_revision, 11);
     assert!(app.cached_file_search_entries().iter().any(|entry| entry.path == "src/lib_new.rs"));
     assert!(!app.cached_file_search_entries().iter().any(|entry| entry.path == "src/library.rs"));
 }
@@ -282,7 +282,7 @@ fn set_file_index_overwrites_existing_files_and_wraps_revision() {
     app.file_index_cache.insert("/workspace".to_string(), vec!["old.rs".to_string()]);
     app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.search.search_text = "new".to_string();
-    app.file_search_query = "new".to_string();
+    app.input_suggestions.file_search_query = "new".to_string();
     app.file_index_revision = u64::MAX;
 
     app.set_file_index("/workspace", vec!["src/new.rs".to_string()]);
@@ -292,7 +292,7 @@ fn set_file_index_overwrites_existing_files_and_wraps_revision() {
     assert!(app.current_file_tree_model().is_some());
     assert_eq!(app.search_panel_file_cache_revision, 0);
     assert_eq!(app.cached_search_panel_file_results(), ["src/new.rs"]);
-    assert_eq!(app.file_search_cache_revision, 0);
+    assert_eq!(app.input_suggestions.file_search_cache_revision, 0);
     assert!(app.cached_file_search_entries().iter().any(|entry| entry.path == "src/new.rs"));
     assert!(!app.cached_file_search_entries().iter().any(|entry| entry.path == "old.rs"));
 }

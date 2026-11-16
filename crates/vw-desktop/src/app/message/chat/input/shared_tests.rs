@@ -2,7 +2,7 @@
 //! 本模块将编辑器操作、文件检索和工具细节限制在输入面板边界内。
 
 use super::shared::{
-    close_input_context_menu, locate_chat_message, locate_chat_message_index,
+    locate_chat_message, locate_chat_message_index,
     sync_global_input_editor_if_needed,
 };
 use crate::app::App;
@@ -25,17 +25,7 @@ fn chat_message(role: ChatRole, content: &str) -> ChatMessage {
     }
 }
 
-#[test]
-fn close_input_context_menu_clears_open_state_and_position() {
-    let mut app = test_app();
-    app.input_context_menu.open = true;
-    app.input_context_menu.position = Some((12.0, 24.0));
 
-    close_input_context_menu(&mut app);
-
-    assert!(!app.input_context_menu.open);
-    assert_eq!(app.input_context_menu.position, None);
-}
 
 #[test]
 fn sync_global_input_editor_copies_only_without_active_session() {

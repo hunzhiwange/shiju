@@ -205,3 +205,19 @@ pub fn mobile_controls<'a, Message: 'a>(
     actions = actions.push(container(send).padding(6));
     actions.padding([4, 7]).width(Length::Fill).into()
 }
+
+/// 先采用已配置目录的标题，再回退市场目录和原始标识。
+pub fn skill_title<'a>(skill_id: &str, mut titles: impl Iterator<Item = (&'a str, &'a str)>) -> String {
+    titles.find(|(id, _)| *id == skill_id).map(|(_, title)| title.to_owned()).unwrap_or_else(|| skill_id.to_owned())
+}
+
+pub fn session_tool_tab_highlight(tab: SessionToolSelectorTab, popover_open: bool, active_tab: SessionToolSelectorTab, agent_selected: bool, selector: &desktop_chat_tools::state::SessionToolSelectorState) -> bool {
+    (popover_open && active_tab == tab) || match tab {
+        SessionToolSelectorTab::Agent => agent_selected,
+        SessionToolSelectorTab::Tools => !selector.selected_manual_tools().is_empty(),
+        SessionToolSelectorTab::Skills => !selector.selected_manual_skills().is_empty() || !selector.selected_shiju_skills().is_empty(),
+    }
+}
+pub fn agent_label<'a>(key: &str, selected_label: Option<&str>, mut labels: impl Iterator<Item = (&'a str, &'a str)>) -> String {
+    selected_label.map(str::to_owned).or_else(|| labels.find(|(id, _)| *id == key).map(|(_, label)| label.to_owned())).unwrap_or_else(|| key.to_owned())
+}

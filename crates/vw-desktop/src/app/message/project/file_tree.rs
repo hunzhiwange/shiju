@@ -319,9 +319,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             return Some(iced::Task::none());
                         }
                         // 关闭文件搜索面板
-                        app.show_file_search = false;
-                        app.file_search_query.clear();
-                        app.file_search_selected_index = 0;
+                        app.input_suggestions.clear_files();
 
                         // 获取当前会话的运行时并移动光标到文档末尾
                         let runtime = app.current_session_runtime_mut();

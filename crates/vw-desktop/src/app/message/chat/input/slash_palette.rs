@@ -7,97 +7,37 @@ use super::shared::{focus_input_editor, sync_global_input_editor_if_needed};
 use crate::app::state::tool_display_name;
 use crate::app::{App, FocusArea, Message, message};
 use iced::Task;
-use iced::widget::text_editor;
 
 pub(crate) fn clear_slash_palette_state(app: &mut App) {
-    app.show_slash_palette = false;
-    app.slash_palette_query.clear();
-    app.slash_palette_selected_index = 0;
-    app.slash_palette_expanded_kinds.clear();
+    app.input_suggestions.clear_slash();
 }
 
 pub(crate) fn collect_slash_palette_candidates(app: &App) -> SlashPaletteCandidates {
-    let skills = app
-        .skills_settings
-        .catalog
-        .iter()
-        .map(|skill| SlashPaletteCandidate {
-            id: skill.id.clone(),
-            label: if skill.title.trim().is_empty() {
-                skill.id.clone()
-            } else {
-                skill.title.clone()
-            },
-            description: {
-                let desc = skill.description.trim();
-                (!desc.is_empty()).then(|| desc.to_string())
-            },
-        })
-        .collect();
-
     let runtime = app.current_session_runtime();
-    let tools = if runtime.acp_agent.is_none() {
-        app.session_tool_inventory(&runtime)
-            .base_tools
-            .into_iter()
-            .filter(|tool_id| !tool_id.trim().is_empty())
-            .map(|tool_id| {
-                let label = tool_display_name(&tool_id);
-                SlashPaletteCandidate { id: tool_id, label, description: None }
-            })
-            .collect()
-    } else {
-        Vec::new()
-    };
-
-    let mcps = mcp_candidates_from_editor(&app.mcp_settings.editor.text())
-        .into_iter()
-        .map(|(_, _, candidate)| candidate)
-        .collect();
-
-    if app.current_session_has_started() {
-        return SlashPaletteCandidates { skills, tools, mcps, ..Default::default() };
-    }
-
-    let mut models = vec![SlashPaletteCandidate {
-        id: "auto".to_string(),
-        label: "Auto".to_string(),
-        description: Some("自动选择模型".to_string()),
-    }];
-    for provider in &app.model_settings.providers {
-        for model in &provider.models {
-            if !model.enabled {
-                continue;
-            }
-            let id = format!("{}/{}", provider.id, model.id);
-            models.push(SlashPaletteCandidate {
-                id,
-                label: model.name.clone(),
-                description: Some(provider.name.clone()),
-            });
-        }
-    }
-
-    let acps = app
-        .agents_settings
-        .entries
-        .iter()
-        .filter(|entry| entry.can_start_session())
-        .map(|entry| SlashPaletteCandidate {
-            id: entry.key.clone(),
-            label: entry.label.clone(),
-            description: Some(entry.description.clone()),
-        })
-        .collect();
-
-    SlashPaletteCandidates { skills, tools, mcps, models, acps }
+    let skills = app.skills_settings.catalog.iter().map(|skill| SlashPaletteCandidate {
+        id: skill.id.clone(), label: skill.title.clone(), description: Some(skill.description.clone()),
+    }).collect();
+    // 工具目录及智能体启动能力由其真实领域入口提供。
+    let tools = if runtime.acp_agent.is_none() { app.session_tool_inventory(&runtime).base_tools.into_iter().map(|id| {
+        let label = tool_display_name(&id);
+        SlashPaletteCandidate { id, label, description: None }
+    }).collect() } else { Vec::new() };
+    let acps = app.agents_settings.entries.iter().filter(|entry| entry.can_start_session()).map(|entry| SlashPaletteCandidate {
+        id: entry.key.clone(), label: entry.label.clone(), description: Some(entry.description.clone()),
+    }).collect();
+    desktop_chat_input::input_panel::suggestions::candidates(
+        desktop_chat_input::input_panel::suggestions::CandidateInput {
+            skills, tools, acps, providers: &app.model_settings.providers,
+            mcp_editor: &app.mcp_settings.editor.text(), started: app.current_session_has_started(), acp: runtime.acp_agent.is_some(),
+        },
+    )
 }
 
 pub(crate) fn ranked_slash_palette_sections(app: &App) -> Vec<SlashPaletteSection> {
     build_ranked_slash_sections(
-        &app.slash_palette_query,
+        &app.input_suggestions.slash_palette_query,
         &collect_slash_palette_candidates(app),
-        &app.slash_palette_expanded_kinds,
+        &app.input_suggestions.slash_palette_expanded_kinds,
     )
 }
 
@@ -105,7 +45,7 @@ fn visible_slash_entries(app: &App) -> Vec<SlashPaletteEntry> {
     flatten_visible_slash_entries(&ranked_slash_palette_sections(app))
 }
 
-fn scroll_slash_palette_to_top(app: &App) -> Task<Message> {
+pub(super) fn scroll_slash_palette_to_top(app: &App) -> Task<Message> {
     iced::widget::operation::snap_to(
         app.slash_palette_scroll_id.clone(),
         iced::widget::scrollable::RelativeOffset { x: Some(0.0), y: Some(0.0) },
@@ -116,7 +56,7 @@ fn scroll_slash_palette_to_top(app: &App) -> Task<Message> {
 fn scroll_slash_palette_to_selected(app: &App) -> Task<Message> {
     let sections = ranked_slash_palette_sections(app);
     let (selected_row, total_rows) =
-        slash_palette_scroll_row(&sections, app.slash_palette_selected_index);
+        slash_palette_scroll_row(&sections, app.input_suggestions.slash_palette_selected_index);
     let y = slash_palette_scroll_relative_y(selected_row, total_rows);
     iced::widget::operation::snap_to(
         app.slash_palette_scroll_id.clone(),
@@ -126,29 +66,8 @@ fn scroll_slash_palette_to_selected(app: &App) -> Task<Message> {
 }
 
 pub(crate) fn open_slash_palette(app: &mut App, query: &str) -> Task<Message> {
-    let query_changed = app.slash_palette_query != query;
-    app.show_slash_palette = true;
-    app.slash_palette_query = query.to_string();
-    app.slash_palette_selected_index = 0;
-    clear_file_search_only(app);
-
-    let focus_task = focus_input_editor(app);
-    let refresh_skills = if app.skills_settings.catalog.is_empty() && !app.skills_settings.loading {
-        Task::done(Message::Settings(message::SettingsMessage::SkillsRefresh))
-    } else {
-        Task::none()
-    };
-    if query_changed {
-        Task::batch(vec![focus_task, scroll_slash_palette_to_top(app), refresh_skills])
-    } else {
-        Task::batch(vec![focus_task, refresh_skills])
-    }
-}
-
-fn clear_file_search_only(app: &mut App) {
-    app.show_file_search = false;
-    app.file_search_query.clear();
-    app.file_search_selected_index = 0;
+    let effects = app.input_suggestions.open_slash(query, app.skills_settings.catalog.is_empty(), app.skills_settings.loading);
+    super::file_search::apply_suggestion_effects(app, effects)
 }
 
 pub(super) fn handle_slash_palette_closed(app: &mut App) -> Task<Message> {
@@ -157,17 +76,14 @@ pub(super) fn handle_slash_palette_closed(app: &mut App) -> Task<Message> {
 }
 
 pub(super) fn handle_slash_palette_navigate_up(app: &mut App) -> Task<Message> {
-    if app.slash_palette_selected_index > 0 {
-        app.slash_palette_selected_index -= 1;
-    }
+    let total = visible_slash_entries(app).len();
+    app.input_suggestions.navigate_slash(false, total);
     scroll_slash_palette_to_selected(app)
 }
 
 pub(super) fn handle_slash_palette_navigate_down(app: &mut App) -> Task<Message> {
-    let entries = visible_slash_entries(app);
-    if app.slash_palette_selected_index < entries.len().saturating_sub(1) {
-        app.slash_palette_selected_index += 1;
-    }
+    let total = visible_slash_entries(app).len();
+    app.input_suggestions.navigate_slash(true, total);
     scroll_slash_palette_to_selected(app)
 }
 
@@ -175,13 +91,13 @@ pub(super) fn handle_slash_palette_expand_kind(
     app: &mut App,
     kind: SlashPaletteKind,
 ) -> Task<Message> {
-    app.slash_palette_expanded_kinds.insert(kind);
+    app.input_suggestions.slash_palette_expanded_kinds.insert(kind);
     Task::none()
 }
 
 pub(super) fn handle_slash_palette_select_current(app: &mut App) -> Task<Message> {
     let entries = visible_slash_entries(app);
-    let Some(entry) = entries.get(app.slash_palette_selected_index).cloned() else {
+    let Some(entry) = entries.get(app.input_suggestions.slash_palette_selected_index).cloned() else {
         return Task::none();
     };
     apply_slash_palette_entry(app, entry)
@@ -201,50 +117,43 @@ pub(super) fn handle_slash_palette_select(
 }
 
 fn clear_slash_token_from_input(app: &mut App) {
-    let text = {
-        let runtime = app.current_session_runtime();
-        clear_trailing_slash_token(&runtime.input_editor.text())
-    };
-    let runtime = app.current_session_runtime_mut();
-    runtime.input_editor = text_editor::Content::with_text(&text);
-    runtime.input_editor.perform(text_editor::Action::Move(text_editor::Motion::DocumentEnd));
+    let mut state = std::mem::take(&mut app.input_suggestions);
+    state.clear_slash_token(&mut app.current_session_runtime_mut().input_editor);
+    app.input_suggestions = state;
     sync_global_input_editor_if_needed(app);
-    clear_slash_palette_state(app);
     app.focus_area = FocusArea::None;
 }
 
 fn apply_slash_palette_entry(app: &mut App, entry: SlashPaletteEntry) -> Task<Message> {
     clear_slash_token_from_input(app);
     let focus = focus_input_editor(app);
-    let apply = match entry.kind {
-        SlashPaletteKind::Model => crate::app::message::chat::session::update(
+    use desktop_chat_input::input_panel::suggestions::{selection_effect, SelectionEffect};
+    let apply = match selection_effect(entry) {
+        SelectionEffect::Model(id) => crate::app::message::chat::session::update(
             app,
-            message::ChatMessage::ModelSelected(entry.id),
+            message::ChatMessage::ModelSelected(id),
         ),
-        SlashPaletteKind::Acp => {
-            let agent = if entry.id.trim().is_empty() { None } else { Some(entry.id) };
+        SelectionEffect::Agent(agent) => {
             crate::app::message::chat::session::update(
                 app,
                 message::ChatMessage::SessionAgentSelected(agent),
             )
         }
-        SlashPaletteKind::Tool => crate::app::message::chat::session::update(
+        SelectionEffect::Tool(id) => crate::app::message::chat::session::update(
             app,
-            message::ChatMessage::SessionManualToolSelected(entry.id),
+            message::ChatMessage::SessionManualToolSelected(id),
         ),
-        SlashPaletteKind::Skill => crate::app::message::chat::session::update(
+        SelectionEffect::Skill(id) => crate::app::message::chat::session::update(
             app,
-            message::ChatMessage::SessionSkillSelected(entry.id),
+            message::ChatMessage::SessionSkillSelected(id),
         ),
-        SlashPaletteKind::Mcp => apply_mcp_toggle(app, &entry.id),
+        SelectionEffect::Mcp(id) => apply_mcp_toggle(app, &id),
     };
     Task::batch(vec![focus, apply])
 }
 
 fn apply_mcp_toggle(app: &mut App, server_name: &str) -> Task<Message> {
-    let servers = mcp_candidates_from_editor(&app.mcp_settings.editor.text());
-    let Some((index, enabled, _)) =
-        servers.into_iter().find(|(_, _, candidate)| candidate.id == server_name)
+    let Some((index, enabled)) = desktop_chat_input::input_panel::suggestions::mcp_toggle(&app.mcp_settings.editor.text(), server_name)
     else {
         app.push_localized_notification(
             "未找到 MCP 服务器：%s",
@@ -253,7 +162,7 @@ fn apply_mcp_toggle(app: &mut App, server_name: &str) -> Task<Message> {
         return Task::none();
     };
     Task::done(Message::Settings(message::SettingsMessage::Mcp(
-        message::settings::McpMessage::ServerEnabledToggled(index, !enabled),
+        message::settings::McpMessage::ServerEnabledToggled(index, enabled),
     )))
 }
 

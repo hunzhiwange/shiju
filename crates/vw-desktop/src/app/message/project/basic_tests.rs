@@ -586,8 +586,8 @@ fn open_changed_file_expands_collapsed_change_dirs_when_already_in_changes_view(
 fn file_tree_add_to_chat_rejects_path_outside_project_without_mutating_search() {
     let mut app = app();
     app.navigation_tabs.project_path = Some("/workspace/project".to_string());
-    app.show_file_search = true;
-    app.file_search_query = "main".to_string();
+    app.input_suggestions.show_file_search = true;
+    app.input_suggestions.file_search_query = "main".to_string();
 
     let task = super::handle(
         &mut app,
@@ -599,8 +599,8 @@ fn file_tree_add_to_chat_rejects_path_outside_project_without_mutating_search() 
     );
 
     assert!(task.is_some());
-    assert!(app.show_file_search);
-    assert_eq!(app.file_search_query, "main");
+    assert!(app.input_suggestions.show_file_search);
+    assert_eq!(app.input_suggestions.file_search_query, "main");
     assert!(app.current_session_runtime().input_editor.text().is_empty());
 }
 
@@ -608,9 +608,9 @@ fn file_tree_add_to_chat_rejects_path_outside_project_without_mutating_search() 
 fn file_tree_add_to_chat_without_project_preserves_editor_and_search_state() {
     let mut app = app();
     app.navigation_tabs.project_path = None;
-    app.show_file_search = true;
-    app.file_search_query = "main".to_string();
-    app.file_search_selected_index = 2;
+    app.input_suggestions.show_file_search = true;
+    app.input_suggestions.file_search_query = "main".to_string();
+    app.input_suggestions.file_search_selected_index = 2;
 
     let task = super::handle(
         &mut app,
@@ -622,9 +622,9 @@ fn file_tree_add_to_chat_without_project_preserves_editor_and_search_state() {
     );
 
     assert!(task.is_some());
-    assert!(app.show_file_search);
-    assert_eq!(app.file_search_query, "main");
-    assert_eq!(app.file_search_selected_index, 2);
+    assert!(app.input_suggestions.show_file_search);
+    assert_eq!(app.input_suggestions.file_search_query, "main");
+    assert_eq!(app.input_suggestions.file_search_selected_index, 2);
     assert!(app.current_session_runtime().input_editor.text().is_empty());
 }
 
@@ -632,9 +632,9 @@ fn file_tree_add_to_chat_without_project_preserves_editor_and_search_state() {
 fn file_tree_add_to_chat_inserts_relative_mention_and_resets_search_state() {
     let mut app = app();
     app.navigation_tabs.project_path = Some("/workspace/project".to_string());
-    app.show_file_search = true;
-    app.file_search_query = "main".to_string();
-    app.file_search_selected_index = 4;
+    app.input_suggestions.show_file_search = true;
+    app.input_suggestions.file_search_query = "main".to_string();
+    app.input_suggestions.file_search_selected_index = 4;
 
     let task = super::handle(
         &mut app,
@@ -646,9 +646,9 @@ fn file_tree_add_to_chat_inserts_relative_mention_and_resets_search_state() {
     );
 
     assert!(task.is_some());
-    assert!(!app.show_file_search);
-    assert!(app.file_search_query.is_empty());
-    assert_eq!(app.file_search_selected_index, 0);
+    assert!(!app.input_suggestions.show_file_search);
+    assert!(app.input_suggestions.file_search_query.is_empty());
+    assert_eq!(app.input_suggestions.file_search_selected_index, 0);
     assert_eq!(app.current_session_runtime().input_editor.text(), "@src/main.rs:3:5 ");
     assert_eq!(app.focus_area, crate::app::FocusArea::None);
 }

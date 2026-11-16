@@ -351,3 +351,15 @@ pub fn model_popover_content<'a, Message: Clone + 'static>(
     .max_height(520)
     .into()
 }
+
+/// 模型选择必须服从后端能力与当前请求状态。
+pub fn can_select_model(runtime: &super::acp_options::OptionsState<'_>, started: bool) -> bool {
+    use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
+    !started && !runtime.is_requesting && !runtime.acp_options_pending && !runtime.source_pending
+        && (runtime.acp_agent.is_none() || runtime.acp_options.model_source_capabilities.iter().any(|c| matches!(c, AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel })))
+}
+
+pub fn with_model_popover<'a, Message: Clone + 'a>(toggle: Element<'a, Message>, content: Element<'a, Message>, expanded: bool, close: Message) -> Element<'a, Message> {
+    desktop_ui_controls::overlays::AboveOverlay::new(toggle, content)
+        .show(expanded).block_background_events(true).gap(6.0).on_close(close).into()
+}

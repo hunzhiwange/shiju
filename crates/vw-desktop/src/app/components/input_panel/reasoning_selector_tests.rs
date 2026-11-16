@@ -2,8 +2,7 @@
 //! 未指定等级和不支持推理的模型用于确认选择器的隐藏与回退规则。
 
 use super::reasoning_selector::{
-    reasoning_effort_label,
-    reasoning_effort_options, reasoning_effort_selector,
+    reasoning_effort_selector,
 };
 use crate::app::message::chat;
 use crate::app::{Message, message};

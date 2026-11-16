@@ -10,9 +10,9 @@ pub fn file_search_overlay(app: &crate::app::App) -> iced::Element<'_, crate::ap
     desktop_chat_input::input_panel::file_search::file_search_overlay(
         crate::app::i18n::I18n::new(app.desktop_locale),
         &entries,
-        &app.file_search_query,
+        &app.input_suggestions.file_search_query,
         app.navigation_tabs.project_path.as_deref(),
-        app.file_search_selected_index,
+        app.input_suggestions.file_search_selected_index,
         app.file_search_scroll_id.clone(),
     )
     .map(super::slice_message)

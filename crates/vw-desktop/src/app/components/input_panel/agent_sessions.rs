@@ -4,7 +4,7 @@ use crate::app::session::AgentChildSession;
 use iced::Element;
 use desktop_chat_input::input_panel::agent_sessions as shared;
 #[cfg(test)]
-pub(super) use shared::{agent_session_status_label, agent_session_tooltip_text, agent_sessions_badge_label};
+pub(super) use shared::{agent_session_status_label, agent_session_tooltip_text};
 fn emit(action: shared::Action) -> Message {
     Message::Chat(match action {
         shared::Action::StopPlanRun(task) => message::ChatMessage::StopPlanRun(task),
@@ -32,10 +32,6 @@ pub(crate) fn running_agent_sessions(app: &App) -> Vec<AgentChildSession> {
 }
 #[cfg(test)]
 pub(super) fn agent_session_stop_message(child: &AgentChildSession) -> Option<Message> { shared::agent_session_stop_message(child).map(emit) }
-#[cfg(test)]
-pub(super) fn agent_session_row<'a>(app: &App, child: &AgentChildSession) -> Element<'a, Message> {
-    shared::agent_session_row(crate::app::i18n::I18n::new(app.desktop_locale), app.status_animation_frame, child, emit)
-}
 #[cfg(test)]
 pub(super) fn agent_sessions_popover<'a>(app: &App, children: &[AgentChildSession]) -> Element<'a, Message> {
     shared::agent_sessions_popover(crate::app::i18n::I18n::new(app.desktop_locale), app.status_animation_frame, children, emit)

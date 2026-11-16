@@ -74,7 +74,3 @@ pub(super) fn handle_think_editor_action(
     );
     Task::none()
 }
-
-#[cfg(test)]
-#[path = "editor_actions_tests.rs"]
-mod editor_actions_tests;

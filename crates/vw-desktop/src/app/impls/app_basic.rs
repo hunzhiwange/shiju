@@ -175,18 +175,9 @@ impl App {
     /// 模块内可见函数，执行 refresh_file_search_cache 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn refresh_file_search_cache(&mut self) {
-        let query = Self::normalize_file_search_query(&self.file_search_query);
-        let project_path = self.navigation_tabs.project_path.clone();
-
-        let Some(results) = desktop_session::message::chat::input::file_search::refresh_file_search_entries(
-            self.current_file_index(), &query, project_path.as_deref(), self.file_index_revision,
-            &self.file_search_cache_query, self.file_search_cache_project_path.as_deref(), self.file_search_cache_revision,
-        ) else { return; };
-
-        self.file_search_cache_query = query;
-        self.file_search_cache_project_path = project_path;
-        self.file_search_cache_revision = self.file_index_revision;
-        self.file_search_cache_entries = results;
+        let mut state = std::mem::take(&mut self.input_suggestions);
+        state.refresh_file_cache(self.current_file_index(), self.navigation_tabs.project_path.as_deref(), self.file_index_revision);
+        self.input_suggestions = state;
     }
 
     /// 模块内可见函数，执行 cached_file_search_entries 对应的应用流程。
@@ -194,7 +185,7 @@ impl App {
     pub(crate) fn cached_file_search_entries(
         &self,
     ) -> &[crate::app::message::chat::input::FileSearchResult] {
-        &self.file_search_cache_entries
+        &self.input_suggestions.file_search_cache_entries
     }
 
     /// 模块内可见函数，执行 set_file_index 对应的应用流程。

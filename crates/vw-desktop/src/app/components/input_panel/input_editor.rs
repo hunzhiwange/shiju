@@ -1,7 +1,7 @@
 fn state(app: &crate::app::App) -> desktop_chat_input::input_panel::input_editor::EditorState {
     desktop_chat_input::input_panel::input_editor::EditorState {
-        show_slash_palette: app.show_slash_palette,
-        show_file_search: app.show_file_search,
+        show_slash_palette: app.input_suggestions.show_slash_palette,
+        show_file_search: app.input_suggestions.show_file_search,
         input_editor_id: app.input_editor_id.clone(),
         i18n: crate::app::i18n::I18n::new(app.desktop_locale),
         context_menu_position: app.input_context_menu.position,

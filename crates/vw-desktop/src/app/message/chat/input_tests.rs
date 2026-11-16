@@ -620,7 +620,7 @@ fn simple_input_flags_update_directly() {
     let _ = super::update(&mut app, ChatMessage::InputAreaDragHoverChanged(true));
     assert!(app.file_tree_interaction.input_drop_hovered);
     let _ = super::update(&mut app, ChatMessage::FileReferenceHoverChanged(Some(2)));
-    assert_eq!(app.file_ref_hovered_index, Some(2));
+    assert_eq!(app.input_suggestions.file_ref_hovered_index, Some(2));
     let _ = super::update(&mut app, ChatMessage::ToolFilesFilterChanged("rs".to_string()));
     assert_eq!(app.tool_files_filter, "rs");
     let _ = super::update(&mut app, ChatMessage::FullscreenOverlayEntered);

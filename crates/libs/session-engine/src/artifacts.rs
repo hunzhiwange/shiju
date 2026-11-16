@@ -254,3 +254,7 @@ pub fn persist_final_ai_call_payload<H: ArtifactHost>(
         app_session_scope,
     );
 }
+
+#[cfg(test)]
+#[path = "artifacts_tests.rs"]
+mod artifacts_tests;

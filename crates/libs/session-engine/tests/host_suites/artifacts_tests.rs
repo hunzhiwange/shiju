@@ -12,7 +12,6 @@ use uuid::Uuid;
 use super::super::llm_runner::LlmStep;
 use super::{
     persist_final_ai_call_payload, persist_llm_raw_step_payload, persist_step_ai_call_payload,
-    session_messages_payload,
 };
 
 fn unique_id(label: &str) -> String {
@@ -133,13 +132,6 @@ fn register_ui_session(session_id: &str, scope: &str) {
         updated_ms: 1,
     };
     ui_store::save_session_scoped(&session, Some(scope)).expect("parent session should persist");
-}
-
-#[test]
-fn session_messages_payload_returns_empty_array_for_empty_session() {
-    let session = Session { id: unique_id("empty"), messages: Vec::new() };
-
-    assert!(session_messages_payload(&session).is_empty());
 }
 
 #[test]

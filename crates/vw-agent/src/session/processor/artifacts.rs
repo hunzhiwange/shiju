@@ -4,8 +4,6 @@ use super::llm_runner::LlmStep;
 use crate::session::session::Session;
 use crate::session::ui_types as models;
 use serde_json::Value;
-#[cfg(test)]
-use session_engine::artifacts::session_messages_payload;
 struct AgentArtifactHost;
 impl session_engine::artifacts::ArtifactHost for AgentArtifactHost {
     fn build_prompt(session: &Session, model: Option<&str>, root: Option<&str>) -> String {

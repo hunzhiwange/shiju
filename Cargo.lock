@@ -20700,6 +20700,7 @@ dependencies = [
 name = "tool-assembly"
 version = "0.6.0"
 dependencies = [
+ "tool-browser",
  "tool-services",
  "tool-memory",
  "tool-shell",

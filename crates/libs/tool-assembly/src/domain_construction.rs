@@ -2,6 +2,11 @@
 use crate::factory::{ToolConstruction, ConstructionContext};
 use crate::Tool;
 use std::sync::Arc;
+use tool_services::{config::ConfigTool, schedule::ScheduleTool, sleep::SleepTool, todo::{TodoReadTool, TodoWriteTool}};
+#[cfg(not(target_arch = "wasm32"))]
+use tool_services::screenshot::ScreenshotTool;
+#[cfg(not(target_arch = "wasm32"))]
+use tool_browser::{BrowserTool, ComputerUseConfig, browser_open::BrowserOpenTool};
 use tool_shell::ShellTool;
 use tool_shell::shell::session_tools::{BashWaitTool, BashCancelTool};
 #[cfg(target_os = "windows")]
@@ -118,6 +123,128 @@ ToolConstruction::MemoryRecallTool => { let memory = context.memory.expect("full
 ToolConstruction::MemoryForgetTool => { let security = context.security;
 let memory = context.memory.expect("full factory memory");
  Arc::new(tool_memory::MemoryForgetTool::new(memory.clone(), security.clone())) },
+
+ToolConstruction::ConfigTool => { let security = context.security;
+let config = context.config.expect("full factory config");
+ Arc::new(ConfigTool::new(config.clone(), security.clone())) },
+ToolConstruction::ScheduleTool => { let security = context.security;
+let root_config = context.root_config.expect("root config");
+ Arc::new(ScheduleTool::new(security.clone(), root_config.clone())) },
+ToolConstruction::SleepTool => {
+ Arc::new(SleepTool::new()) },
+ToolConstruction::TodoReadToolScoped => { let session_id = context.session_id.expect("session");
+let project_scope = context.project_scope.clone();
+ Arc::new(TodoReadTool::new_scoped(session_id.to_string(), project_scope.clone())) },
+ToolConstruction::TodoWriteToolScoped => { let security = context.security;
+let session_id = context.session_id.expect("session");
+let project_scope = context.project_scope.clone();
+ Arc::new(TodoWriteTool::new_scoped(
+        session_id.to_string(),
+        project_scope,
+        security.clone(),
+    )) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::BrowserOpenTool => { let security = context.security;
+let browser_config = context.browser_config.expect("browser config");
+ Arc::new(BrowserOpenTool::new(
+                security.clone(),
+                browser_config.allowed_domains.clone(),
+                browser_config.browser_open.clone(),
+            )) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::BrowserToolWithBackend => {
+let security = context.security;
+let browser_config = context.browser_config.expect("browser config");
+ Arc::new(BrowserTool::new_with_backend(
+            security.clone(),
+            browser_config.allowed_domains.clone(),
+            browser_config.session_name.clone(),
+            browser_config.backend.clone(),
+            browser_config.native_headless,
+            browser_config.native_webdriver_url.clone(),
+            browser_config.native_chrome_path.clone(),
+            ComputerUseConfig {
+                endpoint: browser_config.computer_use.endpoint.clone(),
+                api_key: browser_config.computer_use.api_key.clone(),
+                timeout_ms: browser_config.computer_use.timeout_ms,
+                allow_remote_endpoint: browser_config.computer_use.allow_remote_endpoint,
+                window_allowlist: browser_config.computer_use.window_allowlist.clone(),
+                max_coordinate_x: browser_config.computer_use.max_coordinate_x,
+                max_coordinate_y: browser_config.computer_use.max_coordinate_y,
+            },
+        )) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::ScreenshotTool => { let security = context.security;
+ Arc::new(ScreenshotTool::new(security.clone())) },
+
+_ => return None,
+ }; Some(result)
+}
+
+/// Thread metadata and execution keep the application's existing typed host.
+pub fn construct_thread_tool<H: tool_agents::thread_tool::ThreadHost>(tool: &ToolConstruction, context: &ConstructionContext<'_>) -> Option<Arc<dyn Tool>> {
+ use tool_agents::thread_tool::*;
+ let result: Arc<dyn Tool> = match tool {
+ToolConstruction::CreateThreadTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(CreateThreadTool::<H>::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )) },
+ToolConstruction::ForkThreadTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(ForkThreadTool::<H>::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )) },
+ToolConstruction::HandoffThreadTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(HandoffThreadTool::<H>::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )) },
+ToolConstruction::ListThreadsTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(ListThreadsTool::<H>::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )) },
+ToolConstruction::ReadThreadTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(ReadThreadTool::<H>::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )) },
+ToolConstruction::WaitThreadsTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(WaitThreadsTool::<H>::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )) },
+ToolConstruction::SendMessageToThreadTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(SendMessageToThreadTool::<H>::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )) },
+ToolConstruction::SetThreadTitleTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(SetThreadTitleTool::<H>::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )) },
+ToolConstruction::SetThreadArchivedTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(SetThreadArchivedTool::<H>::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )) },
+ToolConstruction::SetThreadPinnedTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(SetThreadPinnedTool::<H>::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )) },
 
 _ => return None,
  }; Some(result)

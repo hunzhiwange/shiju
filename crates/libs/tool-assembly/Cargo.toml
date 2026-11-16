@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+tempfile = { version = "3", optional = true }
 anyhow = "1"
 async-trait = "0.1.89"
 serde = { version = "1", features = ["derive"] }
@@ -48,9 +49,11 @@ tool-shell = { path = "../tool-shell", version = "0.6.0" }
 tool-memory = { path = "../tool-memory", version = "0.6.0" }
 tool-services = { path = "../tool-services", version = "0.6.0" }
 
+tool-browser = { path = "../tool-browser", version = "0.6.0" }
+
 [features]
 default = []
-test-support = []
+test-support = ["dep:tempfile"]
 
 [dev-dependencies]
 tempfile = "3"

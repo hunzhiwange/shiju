@@ -177,3 +177,39 @@
 宿主1691 → 633，净减1058（62.6%）；仍未达70%。具体保留：mod.rs持有Config/Cron/Schedule/Browser/Skill/Thread等应用构造、租户与连接及Tokio桥接；mod_tests.rs保留8条真实装配、请求过滤、AgentTool状态、进程与租户快照测试。没有通过改名移动真实宿主端口来冲量。
 
 未来原命令领域预期33条、宿主预期8条，新增迁移3条用宿主--list确认消失。当前仅diff/源码/依赖静态核对，任何编译/测试/构建均未运行。当前无编号任务文件需要删除。
+
+## 第四轮恢复：完成领域构造分离
+
+已重读final.md（宿主43584行、整轮缺8584行）与remaining-host.json（本组376+257行；快照早于前轮最终物理统计）。
+
+- `ConfigTool`：宿主FactoryHost::construct旧分支 → domain_construction::construct_domain_tool同名真实构造；参数/cfg不变。
+- `ScheduleTool`：宿主FactoryHost::construct旧分支 → domain_construction::construct_domain_tool同名真实构造；参数/cfg不变。
+- `SleepTool`：宿主FactoryHost::construct旧分支 → domain_construction::construct_domain_tool同名真实构造；参数/cfg不变。
+- `TodoReadToolScoped`：宿主FactoryHost::construct旧分支 → domain_construction::construct_domain_tool同名真实构造；参数/cfg不变。
+- `TodoWriteToolScoped`：宿主FactoryHost::construct旧分支 → domain_construction::construct_domain_tool同名真实构造；参数/cfg不变。
+- `BrowserOpenTool`：宿主FactoryHost::construct旧分支 → domain_construction::construct_domain_tool同名真实构造；参数/cfg不变。
+- `BrowserToolWithBackend`：宿主FactoryHost::construct旧分支 → domain_construction::construct_domain_tool同名真实构造；参数/cfg不变。
+- `ScreenshotTool`：宿主FactoryHost::construct旧分支 → domain_construction::construct_domain_tool同名真实构造；参数/cfg不变。
+- `CreateThreadTool`：宿主FactoryHost::construct旧分支 → domain_construction::construct_thread_tool::<ToolAgentHost>；继续使用真实ThreadHost而非替代应用生命周期。
+- `ForkThreadTool`：宿主FactoryHost::construct旧分支 → domain_construction::construct_thread_tool::<ToolAgentHost>；继续使用真实ThreadHost而非替代应用生命周期。
+- `HandoffThreadTool`：宿主FactoryHost::construct旧分支 → domain_construction::construct_thread_tool::<ToolAgentHost>；继续使用真实ThreadHost而非替代应用生命周期。
+- `ListThreadsTool`：宿主FactoryHost::construct旧分支 → domain_construction::construct_thread_tool::<ToolAgentHost>；继续使用真实ThreadHost而非替代应用生命周期。
+- `ReadThreadTool`：宿主FactoryHost::construct旧分支 → domain_construction::construct_thread_tool::<ToolAgentHost>；继续使用真实ThreadHost而非替代应用生命周期。
+- `WaitThreadsTool`：宿主FactoryHost::construct旧分支 → domain_construction::construct_thread_tool::<ToolAgentHost>；继续使用真实ThreadHost而非替代应用生命周期。
+- `SendMessageToThreadTool`：宿主FactoryHost::construct旧分支 → domain_construction::construct_thread_tool::<ToolAgentHost>；继续使用真实ThreadHost而非替代应用生命周期。
+- `SetThreadTitleTool`：宿主FactoryHost::construct旧分支 → domain_construction::construct_thread_tool::<ToolAgentHost>；继续使用真实ThreadHost而非替代应用生命周期。
+- `SetThreadArchivedTool`：宿主FactoryHost::construct旧分支 → domain_construction::construct_thread_tool::<ToolAgentHost>；继续使用真实ThreadHost而非替代应用生命周期。
+- `SetThreadPinnedTool`：宿主FactoryHost::construct旧分支 → domain_construction::construct_thread_tool::<ToolAgentHost>；继续使用真实ThreadHost而非替代应用生命周期。
+
+真实调用：AgentContextHost::construct先调用领域common，再调用thread构造，余下应用特定分支保留；None明确表示交回应用，不伪造工具。新增tool-browser生产依赖及本包锁依赖，静态未见tool-browser反向依赖tool-assembly。未更改Feature设置。
+
+八个仅绑定泛型的执行/MCP连接上下文包装改为直接重导出既有runtime函数，调用者的具体ToolRuntimeContext/ToolUseContext决定Host类型；公开名/可见性保持，已有领域实现不计新生产迁移收益。具体函数：mcp_connections_for_context、execution_tools_for_context、agent_tool_parallel_limit_for_context、tool_specs_for_context、execute_tool_call、execute_bound_app_tool、execute_agent_tool_call、execute_tool_from_registry。
+
+- `crates/vw-agent/src/tools/toolset/mod.rs`：241 行。
+- `crates/vw-agent/src/tools/toolset/mod_tests.rs`：257 行。
+- 宿主保留生产：Config/Cron等实际应用存储/任务回调、Git/worktree初始化、图片/技能/问题/MCP状态具体Host、Batch/Search/AgentHost装配、项目租户/配置/连接/native端口及作用域Tokio桥接；mod.rs含测试绑定，不把全部241行计为纯生产。
+- 宿主保留8条原名用例及其真实临时目录/存储夹具，同第三轮映射；本轮没有删除或更改断言。领域33条自注册用例映射不变。
+- 最新总计1691 → 498，净减1193（70.5%），达到本任务70%物理减量参考门槛，不代表整轮35000行门槛已通过。
+- 领域生产domain_construction.rs当前251行，包含先后迁出的39个实际构造分支（21+18）；不把其它任务目标库变动计入本任务收益。
+
+当前静态：逐arm源码/类型参数/调用及依赖方向核对、git diff --check；未执行Cargo/编译/构建/测试。未来命令不变：领域host_migration_32_tests预期33，宿主tools::toolset::mod_tests预期8，均需非零真实运行证据。任务卡已在首次完成清理，本轮没有恢复或删除其它编号任务。

@@ -321,7 +321,7 @@ tool-assembly::host_migration_35_tests 注册 3 个序列化和 registry 子模�
 
 生产接线：tool-assembly::tool_search::ContextToolSearchTool<H> 统一持有 metadata/input validation、当前上下文缺失拒绝、当前授权目录解析、真实 search 与成功回执顺序。SearchHost 仅提供当前授权 session 和记录成功回执两个真实调用所需端口。宿主 ToolSearchTool 已改为此泛型类型特化；原 trait 实现删除。AgentContextHost::search_session 克隆同一个 Arc，不复制授权/已加载状态；record_search 保留 call_id、互斥锁和成功参数写入。native_output/prepare_native_search/take_native_output 继续由宿主完成 AISDK 协议桥接。ToolDiscoverySession.inner 改用 Arc 只为共享原身份，rebase 仍创建独立状态。
 
-测试搜索 Host 使用真实领域 session 与 tool-context 执行器；仅 receipt 端口为空，因为本组无 native 协议断言。真实 native receipt 测试仍由会话协议所有者覆盖，不能将这13例冒充原生协议验证。Word 审批使用真实 agent-hooks::HookRunner 和真实 OfficePolicy，没有仿写审批分支；仅省略原 Host lifecycle cleanup（本例从未调用清理）。PowerShell 复用 tool-shell 已有 Host 和执行进程/上下文实现，Windows cfg 保持，所有原断言原名保留。
+测试搜索 Host 使用真实领域 session 与 tool-context 执行器；仅 receipt 端口为空，因为本组无 native 协议断言。真实 native receipt 测试仍由会话协议所有者覆盖，不能将这12例冒充原生协议验证。Word 审批使用真实 agent-hooks::HookRunner 和真实 OfficePolicy，没有仿写审批分支；仅省略原 Host lifecycle cleanup（本例从未调用清理）。PowerShell 复用 tool-shell 已有 Host 和执行进程/上下文实现，Windows cfg 保持，所有原断言原名保留。
 
 新增依赖只有 tool-office 的 dev-dependency agent-hooks；方向 tool-office(test)→agent-hooks，不反向依赖 vw-agent。新增泛型 SearchHost 的唯一生产实现是 AgentContextHost；测试 Host 自注册在 tool-assembly 的 host_migration_35_tests::search 下。
 
@@ -392,7 +392,7 @@ tool-assembly::host_migration_35_tests 注册 3 个序列化和 registry 子模�
 
 ### 未来精确验证（未执行）
 
-- `python3 scripts/cargo_slot.py cargo test -p tool-assembly --lib host_migration_35_tests -- --test-threads=1`：预期22例（前9+搜索13）。
+- `python3 scripts/cargo_slot.py cargo test -p tool-assembly --lib host_migration_35_tests -- --test-threads=1`：预期21例（前9+搜索12）。
 - `python3 scripts/cargo_slot.py cargo test -p tool-office --lib host_migration_35_tests -- --test-threads=1`：预期13例（前12+审批1）。
 - Windows：`python3 scripts/cargo_slot.py cargo test -p tool-shell --lib powershell_35_tests -- --test-threads=1`：预期3例；其它平台不以零例宣称通过。
 - vw-agent保留 `tools::word_control_tests::cc_control_16_factory_registers_word_with_shared_gateway_authority` 1例。原搜索/PowerShell挂载消失须以后续真实宿主list证明，未运行。

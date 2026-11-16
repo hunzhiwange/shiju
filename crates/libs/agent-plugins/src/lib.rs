@@ -128,3 +128,5 @@ pub mod mcp_auth;
 pub mod mcp_oauth_flow;
 
 pub mod mcp_oauth_tokens;
+
+pub mod package_acceptance;

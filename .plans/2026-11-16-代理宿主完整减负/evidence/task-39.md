@@ -146,3 +146,21 @@ CLI、依赖和技能沿用首轮同一生产领域服务。无反向依赖或�
 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib plugins::hook_handler_tests::plugin_hook_host_registers_and_cancels -- --exact`：Unix 预期1。另保留 t30、t61 SkillTool、t64 真实宿主过滤，未来 --list 核对迁出声明在宿主消失，零测试不算通过。
 
 静态检查：原测试名称映射、模块自注册、include_bytes 资源路径和差异空白检查；未运行 Cargo、单元、网络、平台、性能或实机检查，无编译收益结论。
+
+## 再恢复：真实宿主注入的包验收驱动（本节覆盖前述残留行数）
+
+重新读取更新的 final.md/remaining-host.json；整轮门槛仍未闭合。沿用仓库 fork_acceptance/stream_acceptance 的实际宿主注入模式，未创建模拟宿主。
+
+- `compat/t61_tests.rs::codex_plugin_compat_t61_public_skill_lifecycle_and_upgrade` 保留原测试注册，改为调用 `agent_plugins::package_acceptance::skill::lifecycle`。公共归档加载、安装/禁用/升级/卸载、技能成功/注入消息及源哈希断言迁入领域驱动。宿主闭包仍创建真实 SecurityPolicy、SkillTool、ToolUseContext，保留 full_access、会话名和真实技能加载/连接撤销；领域不接管权限。
+- `compat/t64_tests.rs::codex_plugin_compat_t64_uses_platform_command_and_unicode_paths` 保留原测试注册，改调 `agent_plugins::package_acceptance::platform::unicode_paths`。Unicode 路径、安装包摘要、不变性和禁用/卸载断言归领域。宿主闭包仍构建真实 PluginConnectionHost、真实协议发现和 McpTool，保留 specs.len()==1、真实工具调用及 shutdown；合并服务器仍用真实运行时快照入口。
+- `package_acceptance.rs` 自注册上述模块，接收明确 fixture 路径；共享只读归档/digest 夹具。生产库的现有 tempfile/tar/flate2/sha2/hex 依赖已足够，无依赖新增。无宿主反向依赖或 Rust 源码借挂。
+
+这些是由宿主测试实际调用的验收驱动，不能算新的独立领域测试或生产业务算法迁移。领域42条测试数量不变；两条原宿主测试名称、注册、断言与真实执行入口保持，不是删除宿主验收。t30仍是审批和租户绑定的真实全过程；本轮不改其安全检查。
+
+当前22个来源共 405 行；累计净减 1563 行（79.4%）。新增包验收驱动及夹具 112 行（全为验收支持，不计业务生产收益）。
+
+未来验证（本轮均未运行）：
+`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib plugins::compat::t61_tests::codex_plugin_compat_t61_public_skill_lifecycle_and_upgrade -- --exact`，预期1；
+`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib plugins::compat::t64_tests::codex_plugin_compat_t64_uses_platform_command_and_unicode_paths -- --exact`，预期1。
+两者分别验证真实 SkillTool 和 MCP 平台执行；不因断言已迁入驱动就对 agent-plugins 过滤声称执行了这两个场景。
+源码静态核对：旧断言、真实执行端口、宿主注册、领域导出、差异空白。未运行 Cargo、构建、单元、实机、网络或任何测试可执行文件。没有编译/行为通过结论。

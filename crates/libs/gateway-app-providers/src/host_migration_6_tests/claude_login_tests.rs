@@ -46,7 +46,7 @@ fn register(f: &Fixture, k: &Keychain) -> PathBuf {
     std::fs::write(&f.policy, policy.to_string()).unwrap();
     let root = f.root.path().join("private");
     let accounts =
-        crate::agent_apps::auth_accounts::AuthAccountStore::new(f.db.clone(), &root).unwrap();
+        agent_app_services::auth_accounts::AuthAccountStore::new(f.db.clone(), &root).unwrap();
     accounts.register_claude_directory(&tenant, "host", "existing").unwrap();
     let credentials =
         vw_agent_apps::auth::credential_file::CredentialFileStore::new(&root).unwrap();
@@ -82,7 +82,7 @@ async fn cc04_claude_login_sdk_api_applies_bound_account_and_archives_original()
     assert_eq!(k.read(None).unwrap().unwrap(), secret("target"));
     assert_eq!(f.live()["hooks"], json!({"x":true}));
     assert!(f.live()["env"].get("ANTHROPIC_AUTH_TOKEN").is_none());
-    let accounts = crate::agent_apps::auth_accounts::AuthAccountStore::new(
+    let accounts = agent_app_services::auth_accounts::AuthAccountStore::new(
         f.db.clone(),
         &f.root.path().join("private"),
     )

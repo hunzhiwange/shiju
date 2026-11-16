@@ -15,9 +15,9 @@ async fn cc04_codex_sdk_api_profile_refusal_is_redacted_and_readonly() {
     let router = Router::new()
         .nest(
             "/v1",
-            super::preview::router_with_policy(Some(super::preview_tests::policy(root.path()))),
+            super::preview::router_with_policy(Some(policy(root.path()))),
         )
-        .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+        .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let server = tokio::spawn(async move {
@@ -72,4 +72,25 @@ async fn cc04_codex_sdk_api_profile_refusal_is_redacted_and_readonly() {
     ));
     server.abort();
     let _ = server.await;
+}
+
+use sha2::{Digest, Sha256};
+use std::{path::Path, os::unix::fs::PermissionsExt};
+pub(super) fn policy(root: &Path) -> std::path::PathBuf {
+    std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let path = root.join("access.json");
+    let value = serde_json::json!({
+        "principals":[{"id":"reader","token_sha256":hex::encode(Sha256::digest(TOKEN)),
+            "grants":[{"platform_id":"p","company_id":"a","host_id":"host","provider_config_read":true},
+                      {"platform_id":"p","company_id":"a","host_id":"metadata-only"},
+                      {"platform_id":"p","company_id":"a","host_id":"offline","provider_config_read":true},
+                      {"platform_id":"p","company_id":"a","host_id":"remote","provider_config_read":true}]}],
+        "hosts":[{"id":"host","online":true,"binding":"local","home":root,"search_paths":[],"applications":root.join("Applications")},
+                 {"id":"metadata-only","online":true,"binding":"local","home":root,"search_paths":[],"applications":root.join("Applications")},
+                 {"id":"offline","online":false,"binding":"local","home":root,"search_paths":[],"applications":root.join("Applications")},
+                 {"id":"remote","online":true,"binding":"remote","home":root,"search_paths":[],"applications":root.join("Applications")}]
+    });
+    std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    path
 }

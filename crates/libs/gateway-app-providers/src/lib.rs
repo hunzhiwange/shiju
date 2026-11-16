@@ -196,3 +196,6 @@ pub async fn save(
         Err(_) => error("application provider storage unavailable"),
     }
 }
+
+#[cfg(test)]
+mod host_migration_6_tests;

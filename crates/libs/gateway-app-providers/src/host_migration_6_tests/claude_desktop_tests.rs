@@ -1,4 +1,5 @@
-use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
+use app_settings_store::settings_store::GatewaySettingsStore;
+use agent_database::GlobalDatabase;
 use axum::{Extension, Router, middleware};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -40,7 +41,7 @@ impl Fixture {
         std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600)).unwrap();
         let router = super::claude_desktop::router_with_policy(Some(policy.clone()))
             .layer(Extension(db.clone()))
-            .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+            .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
         let server = tokio::spawn(async move {

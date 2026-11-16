@@ -1,7 +1,6 @@
-use crate::{
-    app_providers::AppProviderStore, gateway::settings_store::GatewaySettingsStore,
-    global_database::GlobalDatabase,
-};
+use app_provider_services::AppProviderStore;
+use app_settings_store::settings_store::GatewaySettingsStore;
+use agent_database::GlobalDatabase;
 use axum::{
     Extension,
     body::Body,
@@ -36,11 +35,11 @@ fn input() -> ProviderBasicWrite {
     }
 }
 fn router(db: GlobalDatabase) -> axum::Router {
-    crate::gateway::router::handler_router()
+    super::record_router()
         .layer(Extension(db))
-        .layer(axum::middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware))
+        .layer(axum::middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware))
         .layer(axum::middleware::from_fn(|req, next| async {
-            crate::gateway::middleware::basic_auth_middleware_with_credentials(
+            agent_gateway::middleware::basic_auth_middleware_with_credentials(
                 req,
                 next,
                 Some("secret"),
@@ -57,9 +56,9 @@ async fn cc04_ui_edit_sdk_basic_create_update_copy_preserves_executor_fields() {
     let settings = GatewaySettingsStore::new(db.clone()).unwrap();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
-    let routes = crate::gateway::router::handler_router()
+    let routes = super::record_router()
         .layer(Extension(db.clone()))
-        .layer(axum::middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+        .layer(axum::middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware));
     let server = tokio::spawn(async move {
         axum::serve(listener, axum::Router::new().nest("/v1", routes)).await.unwrap();
     });

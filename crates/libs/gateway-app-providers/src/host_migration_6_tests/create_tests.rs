@@ -12,7 +12,8 @@ fn request() -> AppProviderCreate {
         add_to_live: false,
     }
 }
-use crate::{app_providers::AppProviderStore, global_database::GlobalDatabase};
+use app_provider_services::AppProviderStore;
+use agent_database::GlobalDatabase;
 use axum::{
     Extension,
     body::{Body, to_bytes},
@@ -21,11 +22,11 @@ use axum::{
 use tower::ServiceExt;
 use vw_api_transport::id::TenantScope;
 fn router(db: GlobalDatabase, company: &str) -> axum::Router {
-    crate::gateway::router::handler_router()
+    super::record_router()
         .layer(Extension(db))
         .layer(Extension(TenantScope::new("p", company).unwrap()))
         .layer(axum::middleware::from_fn(|req, next| async {
-            crate::gateway::middleware::basic_auth_middleware_with_credentials(
+            agent_gateway::middleware::basic_auth_middleware_with_credentials(
                 req,
                 next,
                 Some("secret"),
@@ -60,7 +61,7 @@ async fn cc04_create_api_rejects_unauthorized_and_duplicates_without_mutation() 
     assert_eq!(response.status(), StatusCode::CREATED);
     let bytes = to_bytes(response.into_body(), 65536).await.unwrap();
     assert!(!String::from_utf8_lossy(&bytes).contains("fixture-private-key"));
-    let settings = crate::gateway::settings_store::GatewaySettingsStore::new(db.clone()).unwrap();
+    let settings = app_settings_store::settings_store::GatewaySettingsStore::new(db.clone()).unwrap();
     let before = settings.list(&tenant, "app_providers.records").unwrap();
     let snapshot = || {
         let connection = db.connect_sqlite().unwrap();
@@ -105,9 +106,9 @@ async fn cc04_create_sdk_api_persists_without_native_file_changes() {
     let db = GlobalDatabase::for_home(&root.path().join("database")).unwrap();
     let app = axum::Router::new().nest(
         "/v1",
-        crate::gateway::router::handler_router()
+        super::record_router()
             .layer(Extension(db.clone()))
-            .layer(axum::middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware)),
+            .layer(axum::middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware)),
     );
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();

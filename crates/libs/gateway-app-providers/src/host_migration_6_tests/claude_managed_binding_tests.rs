@@ -1,8 +1,6 @@
 use super::*;
-use crate::{
-    agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
-    app_providers::{AppProviderStore, ClaudeBindingHost, NativeAccountRemoval},
-};
+use agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore};
+use app_provider_services::{AppProviderStore, ClaudeBindingHost, NativeAccountRemoval};
 use vw_agent_apps::auth::credential_file::CredentialFileStore;
 use {
     vw_api_transport::TimestampMs,

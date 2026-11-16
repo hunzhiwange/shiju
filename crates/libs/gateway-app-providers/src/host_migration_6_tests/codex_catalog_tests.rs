@@ -1,4 +1,5 @@
-use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
+use app_settings_store::settings_store::GatewaySettingsStore;
+use agent_database::GlobalDatabase;
 use axum::{Extension, Router, middleware};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -34,9 +35,9 @@ impl Fixture {
         let policy = root.path().join("access.json");
         std::fs::write(&policy,json!({"principals":[{"id":"codex","token_sha256":hex::encode(Sha256::digest(TOKEN)),"grants":[{"platform_id":"p","company_id":"a","host_id":"host","provider_config_read":true,"provider_config_write":true}]}],"hosts":[{"id":"host","online":true,"binding":"local","home":root.path(),"credential_root":private,"search_paths":[],"applications":root.path().join("Applications")}]}).to_string()).unwrap();
         std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600)).unwrap();
-        let router = super::codex_catalog::router_with_policy(Some(policy.clone()))
+        let router = super::codex_catalog::router_with_policy(Some(policy.clone()), gateway_app_routing::server::provider_publication_host::control(None))
             .layer(Extension(db.clone()))
-            .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+            .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
         let server = tokio::spawn(async move {
@@ -169,7 +170,7 @@ async fn cc04_codex_catalog_sdk_api_denial_and_profile_failure_keep_native_files
 
 #[test]
 fn cc04_codex_catalog_saved_revisions_are_deployment_and_tenant_scoped() {
-    use crate::model_catalog::ModelCatalogStore;
+    use model_catalog::ModelCatalogStore;
     use vw_api_model_catalog::ModelCatalogIdentity;
     let root = tempfile::tempdir().unwrap();
     let store = ModelCatalogStore::new(GlobalDatabase::for_home(root.path()).unwrap()).unwrap();
@@ -446,10 +447,8 @@ use vw_api_app_provider_base::basic::ProviderBasic;
 
 #[tokio::test]
 async fn auth6_remove_codex_reference_is_private_and_global_switch_is_rejected() {
-    use crate::{
-        agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
-        app_providers::AppProviderStore,
-    };
+    use agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore};
+    use app_provider_services::AppProviderStore;
     use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
     use vw_agent_apps::auth::credential_file::{AccountCredential, CredentialFileStore};
     use {

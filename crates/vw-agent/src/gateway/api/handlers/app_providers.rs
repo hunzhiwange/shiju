@@ -93,9 +93,6 @@ mod catalog_tests;
 mod catalog;
 
 mod create;
-#[cfg(test)]
-#[path = "app_providers/create_tests.rs"]
-mod create_tests;
 
 mod update;
 #[cfg(test)]
@@ -171,12 +168,7 @@ pub(super) mod claude;
 #[cfg(all(test, target_os = "macos"))]
 mod claude_tests;
 
-#[cfg(all(test, target_os = "macos"))]
-mod codex_tests;
-
 pub(super) mod codex_catalog;
-#[cfg(all(test, target_os = "macos"))]
-mod codex_catalog_tests;
 
 mod gemini;
 #[cfg(all(test, target_os = "macos"))]
@@ -188,9 +180,6 @@ mod grok;
 #[cfg(all(test, target_os = "macos"))]
 #[path = "../../../../../libs/gateway-app-providers/src/host_tests/grok_tests.rs"]
 mod grok_tests;
-
-#[cfg(all(test, target_os = "macos"))]
-mod claude_desktop_tests;
 
 pub(super) mod desktop_mapping;
 #[cfg(all(test, target_os = "macos"))]
@@ -279,8 +268,6 @@ mod operations_tests;
 mod api_security_tests;
 
 mod basic;
-#[cfg(test)]
-mod basic_tests;
 
 mod request_options;
 #[cfg(all(test, target_os = "macos"))]

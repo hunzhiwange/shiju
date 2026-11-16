@@ -2,11 +2,12 @@
 
 // 公网客户端与回环地址分开构造，用于确认指标端点不会因关闭配对而放宽。
 use super::*;
-use crate::app::agent::config::Config;
-use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
-use crate::app::agent::memory::NoneMemory;
+type AppState = gateway_types::AppState<(), (), ()>;
+use agent_config::runtime::Config;
+use gateway_types::{GatewayRateLimiter, IdempotencyStore};
+use memory_types::memory::NoneMemory;
 use model_types::Provider;
-use crate::app::agent::security::pairing::PairingGuard;
+use gateway_pairing::pairing::PairingGuard;
 use axum::body::to_bytes;
 use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
@@ -44,7 +45,7 @@ fn state_with_pairing(pairing: PairingGuard) -> AppState {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1_000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
         multimodal: Default::default(),
@@ -71,8 +72,8 @@ async fn body_text(response: Response) -> String {
 
 #[tokio::test]
 async fn health_returns_status_auth_flags_and_runtime_snapshot() {
-    crate::app::agent::health::mark_component_ok("gateway-health-test");
-    let build_id = crate::app::agent::health::initialize_runtime_build_id().unwrap();
+    agent_health::mark_component_ok("gateway-health-test");
+    let build_id = agent_health::initialize_runtime_build_id().unwrap();
     let state = state_with_pairing(PairingGuard::new(true, &[]));
 
     let response = handle_health(State(state)).await.into_response();
@@ -143,10 +144,10 @@ async fn metrics_requires_valid_bearer_skey_when_auth_is_enabled() {
 
 #[tokio::test]
 async fn metrics_renders_prometheus_backend_when_enabled() {
-    let prom = Arc::new(crate::app::agent::observability::PrometheusObserver::new());
-    crate::app::agent::observability::Observer::record_event(
+    let prom = Arc::new(observer_prometheus::PrometheusObserver::new());
+    observer_types::Observer::record_event(
         prom.as_ref(),
-        &crate::app::agent::observability::ObserverEvent::HeartbeatTick,
+        &observer_types::ObserverEvent::HeartbeatTick,
     );
 
     let mut state = state_with_pairing(PairingGuard::new(false, &[]));

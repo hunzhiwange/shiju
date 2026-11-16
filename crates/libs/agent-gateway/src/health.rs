@@ -175,3 +175,7 @@ pub async fn handle_metrics<E: Clone + Send + Sync + 'static, C: Clone + Send + 
 
     (StatusCode::OK, [(header::CONTENT_TYPE, PROMETHEUS_CONTENT_TYPE)], body).into_response()
 }
+
+#[cfg(test)]
+#[path = "health_tests.rs"]
+mod health_tests;

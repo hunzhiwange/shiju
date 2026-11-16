@@ -330,3 +330,12 @@ impl Draft {
         }
     }
 }
+
+pub fn panel(draft: &Draft) -> iced::Element<'_, crate::connection::FormMessage> {
+    crate::connection::connection_form_panel(crate::connection::ConnectionDraft {
+        editing: draft.record.is_some(), json: draft.json, saving: draft.saving,
+        id: &draft.id, name: &draft.name, transport: &draft.transport, command: &draft.command,
+        args: &draft.args, values: &draft.values, cwd: &draft.cwd, url: &draft.url,
+        editor: &draft.editor, error: &draft.error, presets: &draft.presets,
+    })
+}

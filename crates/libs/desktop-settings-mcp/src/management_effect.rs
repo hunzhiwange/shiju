@@ -1,1 +1,1 @@
-pub enum Effect { Error(String), Success(String), Refresh }
+pub enum Effect { Info(String), Error(String), Success(String), Refresh }

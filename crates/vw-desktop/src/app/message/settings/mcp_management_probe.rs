@@ -19,27 +19,14 @@ pub(crate) fn invalidate(app: &mut App) -> Task<Message> {
     if app.mcp_settings.diagnostics.context.is_none() {
         return Task::none();
     }
-    let on_page = app.show_system_settings
-        && app.system_settings_tab == SystemTab::Agents
+    let on_page = app.navigation_panels.show_system_settings
+        && app.navigation_panels.system_settings_tab == SystemTab::Agents
         && app.agents_settings.active_config_tab == AgentConfigTab::Mcp;
     let changed =
         diagnostics::context(app).as_ref() != app.mcp_settings.diagnostics.context.as_ref();
     let mutating = app.mcp_settings.bindings.running
         || app.mcp_settings.saving
         || app.mcp_settings.connection_form.as_ref().is_some_and(|d| d.saving);
-    if on_page && !changed && !mutating {
-        return Task::none();
-    }
-    let state = &mut app.mcp_settings.diagnostics;
-    let active = state.active();
-    let context = state.context.take();
-    let job = state.job.take();
-    let transport = state.transport.take();
-    state.terminal = true;
-    state.targets.clear();
-    state.error = None;
-    if active && let (Some(context), Some(job), Some(transport)) = (context, job, transport) {
-        return cleanup(transport, context, job);
-    }
-    Task::none()
+    desktop_settings_mcp::management_probe::invalidate(&mut app.mcp_settings.diagnostics, on_page, changed, mutating)
+        .map(|result| diagnostics::message(Event::Cleaned(result)))
 }

@@ -146,23 +146,6 @@ fn response() -> McpImportResponse {
         }],
     }
 }
-#[test]
-fn cc_mcp_t47_results_preserve_conflicts_imported_and_unchanged_items() {
-    let labels = result_labels(response(), &target()).unwrap().join("\n");
-    assert!(labels.contains("new · 已导入"));
-    assert!(labels.contains("existing · 已导入，无需变更"));
-    assert!(labels.contains("conflict · 冲突，未覆盖"));
-    assert!(labels.contains("merged · 已合并"));
-    let mut malformed = response();
-    malformed.sources[0].target.target_host_id = "other".into();
-    assert!(result_labels(malformed, &target()).is_err());
-    let mut malformed = response();
-    malformed.sources[0].code = Some(McpFailureCode::Conflict);
-    assert!(result_labels(malformed, &target()).is_err());
-    let mut malformed = response();
-    malformed.sources.clear();
-    assert!(result_labels(malformed, &target()).is_err());
-}
 fn run(
     task: Task<Message>,
     runtime: &tokio::runtime::Runtime,

@@ -4,20 +4,7 @@ use crate::app::message::settings::mcp_management_form::{Draft, FormMessage, mes
 use desktop_settings_mcp::connection as ui;
 use iced::Element;
 pub(crate) fn connection_form_panel(draft: &Draft) -> Element<'_, Message> {
-    ui::connection_form_panel(ui::ConnectionDraft {
-        editing: draft.record.is_some(), json: draft.json, saving: draft.saving,
-        id: &draft.id,
-        name: &draft.name,
-        transport: &draft.transport,
-        command: &draft.command,
-        args: &draft.args,
-        values: &draft.values,
-        cwd: &draft.cwd,
-        url: &draft.url,
-        editor: &draft.editor,
-        error: &draft.error,
-        presets: &draft.presets,
-    }).map(|event| message(match event {
+    desktop_settings_mcp::management_form::panel(draft).map(|event| message(match event {
         ui::FormMessage::Close => FormMessage::Close,
         ui::FormMessage::Field(field, value) => FormMessage::Field(field, value),
         ui::FormMessage::Json(value) => FormMessage::Json(value),

@@ -66,3 +66,7 @@
 - 仅以后用户授权时的定向命令（现在严禁运行）：`python3 scripts/cargo_slot.py cargo test -p desktop-settings-mcp --lib host_module_24_tests -- --test-threads=1`。模块至少一个有效用例，迁移清单全部断言受覆盖，failed=0；若既有测试不迁入计划模块，则在证据写明其真实完整过滤命令，不运行空过滤冒充成功。
 - 以后宿主目标检查：`python3 scripts/cargo_slot.py cargo check -p vw-desktop --lib`；由统一验证阶段按实际代码版本合并执行，本轮不执行。原生UI与系统权限验收须另行获用户要求，不自动启动。
 - 模拟策略：领域状态与转换用真实实现和临时存储；只有外部网关、原生窗口/剪贴板等边界使用已有最小确定性端口，不mock被测算法。
+
+## 当前实施进度
+
+生产 reducer、局部聚合状态及部分整组测试已迁入领域。尚有 tools/probe/resync/import 的领域测试与大型 App 夹具未迁完；完整审计未完成，禁止按完成删除。详见 evidence/task-24.md。本轮未执行任何 Cargo 或测试。

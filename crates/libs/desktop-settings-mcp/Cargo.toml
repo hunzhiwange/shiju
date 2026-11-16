@@ -43,5 +43,8 @@ js-sys = "0.3"
 web-sys = { version = "0.3", features = ["Window"] }
 
 [dev-dependencies]
+desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
+iced_runtime = "0.14"
+
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }

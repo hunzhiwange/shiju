@@ -341,3 +341,12 @@ mod desktop_split_14_tests;
 
 #[cfg(test)]
 mod desktop_split_29_tests;
+
+pub mod management_state;
+pub mod management_update;
+pub mod management_form_update;
+pub mod management_import_update;
+pub mod management_bindings_update;
+
+#[cfg(test)]
+mod host_module_24_tests;

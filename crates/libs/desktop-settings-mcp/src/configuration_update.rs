@@ -392,3 +392,8 @@ pub fn update(app: &mut crate::state::State, message: Message) -> Effect {
         }
     }
 }
+
+// Managed definitions share the configuration domain; gateway clients retain authorization.
+pub use crate::management_bindings_update as bindings;
+pub use crate::management_form_update as form;
+pub use crate::management_import_update as import;

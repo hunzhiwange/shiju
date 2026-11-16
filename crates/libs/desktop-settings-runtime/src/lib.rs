@@ -39,3 +39,6 @@ mod host_module_17_tests;
 
 #[cfg(test)]
 mod host_module_39_runtime_tests;
+
+#[cfg(test)]
+mod host_module_39_locale_tests;

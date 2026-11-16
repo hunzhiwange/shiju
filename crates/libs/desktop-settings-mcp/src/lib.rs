@@ -353,3 +353,6 @@ mod host_module_24_tests;
 
 #[cfg(test)]
 mod host_module_39_infrastructure_tests;
+
+#[cfg(test)]
+mod host_module_39_locale_tests;

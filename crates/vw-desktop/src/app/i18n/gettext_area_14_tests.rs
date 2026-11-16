@@ -17,62 +17,6 @@ async fn desktop_gettext_area_14_launch_feedback_switches_language() {
     }
 }
 
-#[test]
-fn desktop_gettext_area_14_cache_error_keeps_semantics_until_render() {
-    let error = crate::app::skill_hub::SkillCacheSyncError::new("识矩 CLI 不能是符号链接");
-    let message = super::format::Message::nested(
-        "服务端已更新，本地缓存待同步：%s，请重试".into(),
-        vec![error.message()],
-    );
-    let en = message.render(I18n::new(DesktopLocale::English)).unwrap();
-    assert!(en.contains("Shiju CLI cannot be a symbolic link"));
-    let tw = message.render(I18n::new(DesktopLocale::TraditionalChinese)).unwrap();
-    assert!(tw.contains("識矩 CLI 不可為符號連結"));
-    let raw = super::format::Message::literal("raw/%n/%s/中文".into());
-    assert_eq!(raw.render(I18n::new(DesktopLocale::English)).unwrap(), "raw/%n/%s/中文");
-}
-
-#[test]
-fn desktop_gettext_area_14_status_display_preserves_stable_identifier() {
-    let status = crate::app::skill_hub::MineSkillStatus::PendingReview;
-    assert_eq!(status.as_str(), "pending_review");
-    for (locale, expected) in [
-        (DesktopLocale::SimplifiedChinese, "待审核"),
-        (DesktopLocale::TraditionalChinese, "待審核"),
-        (DesktopLocale::English, "Pending review"),
-    ] {
-        assert_eq!(I18n::new(locale).__(status.label()), expected);
-        assert_eq!(status.as_str(), "pending_review");
-    }
-}
-
-#[test]
-fn desktop_gettext_area_14_launch_error_metadata_rejects_stale_generation() {
-    use crate::app::shiju_apps::{ShijuAppLaunchState, ShijuAppsState};
-    let source = "当前账户没有已启用的 IAM API 密钥";
-    let mut state = ShijuAppsState::default();
-    state.launch = ShijuAppLaunchState::Error {
-        generation: 7,
-        installation_id: "raw/%n".into(),
-        message: source.into(),
-    };
-    state.launch_feedback =
-        Some((7, source.into(), crate::app::skill_hub::SkillHubError::localized(source, vec![])));
-    assert_eq!(
-        state.render_launch_error(source, I18n::new(DesktopLocale::English)),
-        "No enabled IAM API keys for this account"
-    );
-    assert_eq!(
-        state.render_launch_error(source, I18n::new(DesktopLocale::TraditionalChinese)),
-        "目前帳戶沒有已啟用的 IAM API 金鑰"
-    );
-    state.launch_feedback =
-        Some((6, source.into(), crate::app::skill_hub::SkillHubError::localized(source, vec![])));
-    assert_eq!(state.render_launch_error(source, I18n::new(DesktopLocale::English)), source);
-    let raw = "服务错误/%n/%s/中文";
-    assert_eq!(state.render_launch_error(raw, I18n::new(DesktopLocale::English)), raw);
-}
-
 #[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_14_binding_rejection_keeps_display_semantics() {
     use crate::app::message::shiju_apps::{self, ShijuAppsMessage};
@@ -93,7 +37,8 @@ async fn desktop_gettext_area_14_binding_rejection_keeps_display_semantics() {
         "Select an enabled IAM API key"
     );
     assert_eq!(
-        app.toast_state.active_toast
+        app.toast_state
+            .active_toast
             .as_ref()
             .unwrap()
             .localized_message

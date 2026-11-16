@@ -73,3 +73,6 @@ fn desktop_gettext_area_18_generated_session_titles_preserve_renames() {
         "用户/%s/%n"
     );
 }
+
+#[path = "host_module_39_locale_tests.rs"]
+mod locale;

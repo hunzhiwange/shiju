@@ -65,3 +65,6 @@ mod host_module_16_tests;
 
 /// Explicit native acceptance fixtures.
 pub mod acceptance;
+
+#[cfg(test)]
+mod host_module_39_locale_tests;

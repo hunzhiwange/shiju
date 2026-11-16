@@ -1,32 +1,16 @@
 use super::I18n;
 use config_ui::DesktopLocale;
-#[tokio::test(flavor = "multi_thread")]
-async fn desktop_gettext_area_13_message_feedback_switches_language() {
-    use crate::apps::workflow::{self, WorkflowMessage};
-    let (mut app, _) = crate::app::App::new();
-    let _ = workflow::update(
-        &mut app,
-        WorkflowMessage::DeleteSavedAppFinished(Ok("raw/%s/%n/中文".into())),
-    );
-    for (locale, expected) in [
-        (DesktopLocale::SimplifiedChinese, "已删除应用"),
-        (DesktopLocale::TraditionalChinese, "已刪除應用"),
-        (DesktopLocale::English, "Application deleted"),
-    ] {
-        assert_eq!(app.workflow_state.status_text(I18n::new(locale)).as_deref(), Some(expected));
-    }
-    let raw = "服务错误 中文 %s %n";
-    let _ = workflow::update(
-        &mut app,
-        WorkflowMessage::DeleteSavedAppFinished(Err(raw.to_string().into())),
-    );
-    assert_eq!(app.workflow_state.error_message.as_deref(), Some(raw));
-}
 
 #[test]
 fn desktop_gettext_area_13_catalog_covers_display_calls_and_descriptors() {
-    let en = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/en.json")).unwrap();
-    let tw = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/zh-TW.json")).unwrap();
+    let en = super::catalog::parse_catalog(include_str!(
+        "../../../../libs/desktop-i18n/src/locales/en.json"
+    ))
+    .unwrap();
+    let tw = super::catalog::parse_catalog(include_str!(
+        "../../../../libs/desktop-i18n/src/locales/zh-TW.json"
+    ))
+    .unwrap();
     let literal = regex::Regex::new(r#"(?:\.__|\.format|i18n::format::Message::new|workflow::Feedback::new)\(\s*("(?:[^"\\]|\\.)*")"#).unwrap();
     let check = |key: &str| {
         assert!(en.contains_key(key), "missing English: {key}");
@@ -44,12 +28,12 @@ fn desktop_gettext_area_13_catalog_covers_display_calls_and_descriptors() {
         include_str!("../../apps/workflow/canvas/mod.rs"),
         include_str!("../../../../libs/desktop-workflow-canvas/src/canvas/render.rs"),
         include_str!("../../../../libs/desktop-workflow-canvas/src/canvas/utils.rs"),
-        include_str!("../../apps/workflow/message/app.rs"),
-        include_str!("../../apps/workflow/message/canvas.rs"),
-        include_str!("../../apps/workflow/message/document.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/message/app.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/message/canvas.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/message/document.rs"),
         include_str!("../../apps/workflow/message/mod.rs"),
-        include_str!("../../apps/workflow/message/node.rs"),
-        include_str!("../../apps/workflow/message/run.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/message/node.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/message/run.rs"),
         include_str!("../../apps/workflow/mod.rs"),
         include_str!("../../../../libs/desktop-workflow-model/src/model/creation.rs"),
         include_str!("../../../../libs/desktop-workflow-model/src/model/defaults.rs"),
@@ -66,40 +50,70 @@ fn desktop_gettext_area_13_catalog_covers_display_calls_and_descriptors() {
         include_str!("../../../../libs/desktop-workflow-state/src/state/if_else_helpers.rs"),
         include_str!("../../apps/workflow/state/mod.rs"),
         include_str!("../../../../libs/desktop-workflow-state/src/state/node_editor_branches.rs"),
-        include_str!("../../../../libs/desktop-workflow-state/src/state/node_editor_integrations.rs"),
+        include_str!(
+            "../../../../libs/desktop-workflow-state/src/state/node_editor_integrations.rs"
+        ),
         include_str!("../../../../libs/desktop-workflow-state/src/state/node_editor_start.rs"),
         include_str!("../../../../libs/desktop-workflow-state/src/state/node_ops.rs"),
         include_str!("../../../../libs/desktop-workflow-state/src/state/node_validation.rs"),
         include_str!("../../../../libs/desktop-workflow-state/src/state/start_variable_drafts.rs"),
-        include_str!("../../../../libs/desktop-workflow-state/src/state/start_variable_validation.rs"),
+        include_str!(
+            "../../../../libs/desktop-workflow-state/src/state/start_variable_validation.rs"
+        ),
         include_str!("../../../../libs/desktop-workflow-state/src/state/variables.rs"),
         include_str!("../../../../libs/desktop-workflow-state/src/state/visual_sync.rs"),
-        include_str!("../../../../libs/desktop-workflow-state/src/state/visual_sync/input_nodes.rs"),
+        include_str!(
+            "../../../../libs/desktop-workflow-state/src/state/visual_sync/input_nodes.rs"
+        ),
         include_str!("../../../../libs/desktop-workflow-state/src/state/visual_sync/data_nodes.rs"),
-        include_str!("../../../../libs/desktop-workflow-state/src/state/visual_sync/integration_nodes.rs"),
+        include_str!(
+            "../../../../libs/desktop-workflow-state/src/state/visual_sync/integration_nodes.rs"
+        ),
         include_str!("../../../../libs/desktop-workflow-state/src/state/yaml_helpers.rs"),
-        include_str!("../../apps/workflow/view/app_editor.rs"),
-        include_str!("../../apps/workflow/view/app_list.rs"),
-        include_str!("../../apps/workflow/view/canvas_shell.rs"),
-        include_str!("../../apps/workflow/view/data_nodes.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/app_editor.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/app_list.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/canvas_shell.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/data_nodes.rs"),
         include_str!("../../../../libs/desktop-workflow-ui/src/view/header.rs"),
-        include_str!("../../apps/workflow/view/http_request.rs"),
-        include_str!("../../apps/workflow/view/if_else.rs"),
-        include_str!("../../apps/workflow/view/menu.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/http_request.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/if_else.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/menu.rs"),
         include_str!("../../apps/workflow/view/mod.rs"),
-        include_str!("../../apps/workflow/view/next_step.rs"),
-        include_str!("../../apps/workflow/view/node_editor.rs"),
-        include_str!("../../apps/workflow/view/node_editor_fields.rs"),
-        include_str!("../../apps/workflow/view/node_visual.rs"),
-        include_str!("../../apps/workflow/view/node_visual_integrations.rs"),
-        include_str!("../../apps/workflow/view/run_preview.rs"),
-        include_str!("../../apps/workflow/view/start_inputs.rs"),
-        include_str!("../../apps/workflow/view/start_meta.rs"),
-        include_str!("../../apps/workflow/view/start_panel.rs"),
-        include_str!("../../apps/workflow/view/styles.rs"),
-        include_str!("../../apps/workflow/view/toolbar.rs"),
-        include_str!("../../apps/workflow/view/variables.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/next_step.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/node_editor.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/node_editor_fields.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/node_visual.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/node_visual_integrations.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/run_preview.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/start_inputs.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/start_meta.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/start_panel.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/styles.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/toolbar.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/variables.rs"),
         include_str!("../../../../libs/desktop-i18n/src/workflow.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/app_editor.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/app_list.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/canvas_shell.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/data_nodes.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/http_request.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/if_else.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/menu.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/mod.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/next_step.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/node_editor.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/node_editor_fields.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/node_visual.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/node_visual_integrations.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/run_preview.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/start_inputs.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/start_meta.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/start_panel.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/styles.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/tests.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/toolbar.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/variables.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/page/video_edit.rs"),
     ] {
         for capture in literal.captures_iter(source) {
             let key: String = serde_json::from_str(&capture[1]).unwrap();
@@ -116,7 +130,8 @@ async fn desktop_gettext_area_13_save_failure_toast_keeps_nested_error_semantics
     let (mut app, _) = crate::app::App::new();
     let error = super::workflow::Feedback::new("写入工作流文件失败: %s", vec!["用户/%s/%n".into()]);
     let _ = workflow::update(&mut app, WorkflowMessage::SaveActiveAppFinished(Err(error)));
-    let message = app.toast_state.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
+    let message =
+        app.toast_state.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
     assert_eq!(
         message.render(I18n::new(DesktopLocale::English)).unwrap(),
         "Save failed\nFailed to write workflow file: 用户/%s/%n"
@@ -149,28 +164,5 @@ async fn desktop_gettext_area_13_locale_selection_refreshes_tab_without_navigati
     assert_eq!(
         app.navigation_tabs.open_tabs.iter().find(|tab| tab.id == "workflow_tool").unwrap().title,
         "用户/%s/%n"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn desktop_gettext_area_13_lifecycle_validation_keeps_template_and_identifier() {
-    use crate::app::views::workflow_manager::{self, WorkflowManagerMessage};
-    let (mut app, _) = crate::app::App::new();
-    for message in [
-        WorkflowManagerMessage::StartNew,
-        WorkflowManagerMessage::DraftIdChanged("用户/%s/%n".into()),
-        WorkflowManagerMessage::DraftLabelChanged(String::new()),
-        WorkflowManagerMessage::SaveDraft,
-    ] {
-        let _ = workflow_manager::update_app(&mut app, message);
-    }
-    let message = app.toast_state.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
-    assert_eq!(
-        message.render(I18n::new(DesktopLocale::English)).unwrap(),
-        "Custom workflow label is required: 用户/%s/%n"
-    );
-    assert_eq!(
-        message.render(I18n::new(DesktopLocale::TraditionalChinese)).unwrap(),
-        "自訂工作流 label 不能為空: 用户/%s/%n"
     );
 }

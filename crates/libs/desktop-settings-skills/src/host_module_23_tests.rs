@@ -247,3 +247,6 @@ fn copy_install_command_emits_the_documented_template() {
         matches!(update(&mut state, &None, Event::SkillsCopyInstallCommand), Effect::Copy(command) if command == INSTALL_COMMAND_TEMPLATE)
     );
 }
+
+#[cfg(test)]
+mod host_module_39_render;

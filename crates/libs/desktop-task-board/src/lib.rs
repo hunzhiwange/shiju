@@ -54,3 +54,6 @@ pub mod state;
 
 #[cfg(test)]
 mod host_module_31_tests;
+
+#[cfg(test)]
+mod host_module_39_tests;

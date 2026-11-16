@@ -1,4 +1,3 @@
-use super::settings_extensions::{domain_label, operation_error, text};
 use config_ui::DesktopLocale;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -47,36 +46,11 @@ async fn desktop_gettext_area_6_search_preserves_chinese_navigation() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn desktop_gettext_area_6_mcp_validation_keeps_semantic_error() {
-    use crate::app::message::settings::{McpMessage, SettingsMessage};
-    let (mut app, _) = crate::app::App::new();
-    app.mcp_settings.editor = iced::widget::text_editor::Content::with_text("{");
-    let _ =
-        crate::app::message::settings::update(&mut app, SettingsMessage::Mcp(McpMessage::Format));
-    let message = app.mcp_settings.save_error_translation.as_ref().unwrap();
-    assert!(
-        message
-            .render(super::I18n::new(DesktopLocale::English))
-            .unwrap()
-            .starts_with("JSON parse failed: ")
-    );
-    assert!(
-        message
-            .render(super::I18n::new(DesktopLocale::TraditionalChinese))
-            .unwrap()
-            .starts_with("JSON 解析失敗：")
-    );
-}
-
-#[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_6_settings_render_three_locales_in_both_themes() {
     use iced::advanced::renderer::Headless;
     use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
     use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
     let (mut app, _) = crate::app::App::new();
-    app.agents_settings.config_ready = true;
-    app.agents_settings.available_tools =
-        vec!["file_read".into(), "bash".into(), "web_search".into()];
     app.mcp_settings.new_server_expanded = true;
     for locale in [
         DesktopLocale::SimplifiedChinese,
@@ -85,40 +59,8 @@ async fn desktop_gettext_area_6_settings_render_three_locales_in_both_themes() {
     ] {
         app.general_settings.desktop_locale = locale;
         for theme in [Theme::Dark, Theme::Light] {
-            for region in [
-                "tunnel",
-                "web-search",
-                "agents",
-                "agent-tools",
-                "agent-skills",
-                "agent-identity",
-                "channels",
-                "mcp",
-                "skills",
-                "plugins",
-            ] {
-                app.agents_settings.active_tools_list_tab =
-                    crate::app::state::AGENT_TOOLS_BUILTIN_TAB.to_owned();
-                app.agents_settings.active_detail_tab = match region {
-                    "agent-tools" => "tools",
-                    "agent-skills" => "skills",
-                    "agent-identity" => "identity",
-                    _ => "basic",
-                }
-                .to_string();
-                let mut element = match region {
-                    "web-search" => crate::app::components::system_settings_web_search::view(&app),
-                    "agents" | "agent-tools" | "agent-skills" | "agent-identity" => {
-                        crate::app::components::system_settings_agents::view(&app)
-                    }
-                    "channels" => crate::app::components::system_settings_channels::view(&app),
-                    "mcp" => crate::app::components::system_settings_mcp::view(&app),
-                    "skills" => crate::app::components::system_settings_skills::view(&app),
-                    "plugins" => {
-                        crate::app::components::system_settings_skills::plugins::view(&app)
-                    }
-                    _ => crate::app::components::system_settings_tunnel::view(&app),
-                };
+            for region in ["mcp"] {
+                let mut element = crate::app::components::system_settings_mcp::view(&app);
                 let mut renderer = <iced::Renderer as Headless>::new(
                     Font::DEFAULT,
                     Pixels(16.0),

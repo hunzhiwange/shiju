@@ -142,3 +142,35 @@ impl State {
         }
     }
 }
+
+impl State {
+    pub fn interaction<'a>(
+        &'a mut self,
+        robot_hovered: &'a mut bool,
+        window_size: (f32, f32),
+        now_ms: u64,
+    ) -> crate::pet_interaction::TaskPetState<'a> {
+        crate::pet_interaction::TaskPetState {
+            task_pet_avatar_kind: &mut self.task_pet_avatar_kind,
+            task_pet_collapsed: &mut self.task_pet_collapsed,
+            task_pet_dismissed_request_ids: &mut self.task_pet_dismissed_request_ids,
+            task_pet_drag_anchor: &mut self.task_pet_drag_anchor,
+            task_pet_drag_direction: &mut self.task_pet_drag_direction,
+            task_pet_drag_start: &mut self.task_pet_drag_start,
+            task_pet_dragging: &mut self.task_pet_dragging,
+            task_pet_expand_progress: &mut self.task_pet_expand_progress,
+            task_pet_expand_target: &mut self.task_pet_expand_target,
+            task_pet_hovered_request_id: &mut self.task_pet_hovered_request_id,
+            task_pet_items: &mut self.task_pet_items,
+            task_pet_position: &mut self.task_pet_position,
+            task_pet_reply_input: &mut self.task_pet_reply_input,
+            task_pet_reply_request_id: &mut self.task_pet_reply_request_id,
+            task_pet_robot_hovered: robot_hovered,
+            task_pet_scale: &mut self.task_pet_scale,
+            task_pet_size_draft: &mut self.task_pet_size_draft,
+            task_pet_walk_until_ms: &mut self.task_pet_walk_until_ms,
+            window_size,
+            now_ms,
+        }
+    }
+}

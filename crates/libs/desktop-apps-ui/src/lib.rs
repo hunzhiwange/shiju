@@ -58,3 +58,6 @@ mod host_module_35_tests;
 
 #[cfg(test)]
 mod host_module_38_tests;
+
+#[cfg(test)]
+mod host_module_39_locale_tests;

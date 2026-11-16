@@ -78,3 +78,6 @@ pub mod views;
 
 #[cfg(test)]
 mod desktop_split_13_tests;
+
+#[cfg(test)]
+mod host_module_39_locale_tests;

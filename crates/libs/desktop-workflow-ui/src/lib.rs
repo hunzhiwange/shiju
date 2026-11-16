@@ -20,3 +20,6 @@ pub mod page;
 mod host_module_12_tests;
 
 pub mod canvas_message;
+
+#[cfg(test)]
+mod host_module_39_locale_tests;

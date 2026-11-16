@@ -96,3 +96,6 @@ mod desktop_split_02_tests;
 
 #[cfg(test)]
 mod host_module_21_tests;
+
+#[cfg(test)]
+mod host_module_39_locale_tests;

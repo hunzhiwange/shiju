@@ -6,3 +6,5 @@ mod editor_search_tests;
 mod fixture;
 mod settings_tests;
 mod preview_editor_tests;
+
+mod host_module_39_locale_tests;

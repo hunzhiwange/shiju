@@ -1,4 +1,3 @@
-use super::I18n;
 use config_ui::DesktopLocale;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -31,32 +30,5 @@ async fn desktop_gettext_area_16_locale_event_updates_existing_and_new_editors()
         let _ = preview::update(&mut app, PreviewMessage::Open(path.clone()));
         let tab = app.navigation_tabs.preview_tabs.iter().find(|tab| tab.path == path).unwrap();
         assert_eq!(tab.editor.inner.language(), expected);
-    }
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn desktop_gettext_area_16_preview_loading_and_failure_switch_at_display_time() {
-    use crate::app::message::{PreviewMessage, preview};
-    let (mut app, _) = crate::app::App::new();
-    let path = "/tmp/原始%s.txt";
-    let _ = preview::update(&mut app, PreviewMessage::Open(path.into()));
-    assert_eq!(
-        app.preview_state.preview_messages[path].render(I18n::new(DesktopLocale::English)).unwrap(),
-        "Loading…"
-    );
-    let raw = "服务器/%s/%n/原始";
-    let _ = preview::update(
-        &mut app,
-        PreviewMessage::OpenFailed { path: path.into(), error: raw.into() },
-    );
-    for (locale, prefix) in [
-        (DesktopLocale::SimplifiedChinese, "读取失败："),
-        (DesktopLocale::TraditionalChinese, "讀取失敗："),
-        (DesktopLocale::English, "Read failed: "),
-    ] {
-        assert_eq!(
-            app.preview_state.preview_messages[path].render(I18n::new(locale)).unwrap(),
-            format!("{prefix}{raw}\n")
-        );
     }
 }

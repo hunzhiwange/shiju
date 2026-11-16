@@ -66,3 +66,6 @@ mod profile_render;
 mod profile_ui;
 mod profile_update;
 mod skills;
+
+#[cfg(test)]
+mod host_module_39_render;

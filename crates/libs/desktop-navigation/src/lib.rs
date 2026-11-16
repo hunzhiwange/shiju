@@ -78,3 +78,6 @@ mod host_module_41_cache_tests;
 pub mod global_events;
 #[cfg(test)]
 mod host_module_41_event_tests;
+
+#[cfg(test)]
+mod host_module_39_locale_tests;

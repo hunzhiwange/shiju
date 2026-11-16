@@ -762,3 +762,8 @@ pub fn tool_display_name(tool_id: &str) -> String {
             .join(" "),
     }
 }
+
+pub fn localized_tool_name(i18n: desktop_i18n::I18n, id: &str) -> String {
+    let source = tool_display_name(id);
+    if source == id { source } else { i18n.__(&source).to_owned() }
+}

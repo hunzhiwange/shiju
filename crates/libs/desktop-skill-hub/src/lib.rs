@@ -5,3 +5,6 @@ pub use skill_hub::*;
 pub mod message;
 pub mod skill_operations;
 pub type GatewayFactory = fn() -> Result<gateway_http::GatewayTransport, String>;
+
+#[cfg(test)]
+mod host_module_39_locale_tests;

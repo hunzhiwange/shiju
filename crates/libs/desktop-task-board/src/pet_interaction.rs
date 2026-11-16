@@ -468,3 +468,33 @@ pub fn newest_open_thinking_text<'a>(
         }
     })
 }
+
+pub fn preview_position(position: Point, previous: iced::Size, size: iced::Size) -> Point {
+    Point::new(
+        (position.x + previous.width - size.width).max(0.0),
+        (position.y + previous.height - size.height).max(0.0),
+    )
+}
+
+pub fn session_title<'a>(
+    session_id: &str,
+    fallback: &str,
+    sessions: impl IntoIterator<Item = (&'a str, &'a str)>,
+    project_sessions: impl IntoIterator<Item = (&'a str, &'a str)>,
+) -> String {
+    let title = sessions
+        .into_iter()
+        .find(|(id, _)| *id == session_id)
+        .map(|(_, title)| title.trim())
+        .or_else(|| {
+            project_sessions
+                .into_iter()
+                .find(|(id, _)| *id == session_id)
+                .map(|(_, title)| title.trim())
+        })
+        .filter(|title| !title.is_empty());
+    match title {
+        Some(title) => task_pet_title(title),
+        None => task_pet_title(fallback.trim()),
+    }
+}

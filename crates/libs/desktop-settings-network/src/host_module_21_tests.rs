@@ -250,3 +250,6 @@ impl Default for NetworkFixture {
 }
 
 mod tunnel_tests;
+
+#[cfg(test)]
+mod host_module_39_render;

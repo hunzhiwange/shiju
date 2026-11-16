@@ -11,28 +11,11 @@ use desktop_task_board::pet_interaction::{self, *};
 
 impl App {
     fn task_pet_state(&mut self) -> TaskPetState<'_> {
-        TaskPetState {
-            task_pet_avatar_kind: &mut self.pet_state.task_pet_avatar_kind,
-            task_pet_collapsed: &mut self.pet_state.task_pet_collapsed,
-            task_pet_dismissed_request_ids: &mut self.pet_state.task_pet_dismissed_request_ids,
-            task_pet_drag_anchor: &mut self.pet_state.task_pet_drag_anchor,
-            task_pet_drag_direction: &mut self.pet_state.task_pet_drag_direction,
-            task_pet_drag_start: &mut self.pet_state.task_pet_drag_start,
-            task_pet_dragging: &mut self.pet_state.task_pet_dragging,
-            task_pet_expand_progress: &mut self.pet_state.task_pet_expand_progress,
-            task_pet_expand_target: &mut self.pet_state.task_pet_expand_target,
-            task_pet_hovered_request_id: &mut self.pet_state.task_pet_hovered_request_id,
-            task_pet_items: &mut self.pet_state.task_pet_items,
-            task_pet_position: &mut self.pet_state.task_pet_position,
-            task_pet_reply_input: &mut self.pet_state.task_pet_reply_input,
-            task_pet_reply_request_id: &mut self.pet_state.task_pet_reply_request_id,
-            task_pet_robot_hovered: &mut self.companion_navigation.task_pet_robot_hovered,
-            task_pet_scale: &mut self.pet_state.task_pet_scale,
-            task_pet_size_draft: &mut self.pet_state.task_pet_size_draft,
-            task_pet_walk_until_ms: &mut self.pet_state.task_pet_walk_until_ms,
-            window_size: self.window_size,
-            now_ms: crate::app::time::now_ms(),
-        }
+        self.pet_state.interaction(
+            &mut self.companion_navigation.task_pet_robot_hovered,
+            self.window_size,
+            crate::app::time::now_ms(),
+        )
     }
 
     /// 注册主窗口与宠物窗口标识，并初始化宠物窗口位置。
@@ -62,11 +45,13 @@ impl App {
             return iced::Task::none();
         };
         let size = self.task_pet_window_size();
-        self.pet_state.task_pet_position = iced::Point::new(
-            (self.pet_state.task_pet_position.x + previous_size.width - size.width).max(0.0),
-            (self.pet_state.task_pet_position.y + previous_size.height - size.height).max(0.0),
+        self.pet_state.task_pet_position = pet_interaction::preview_position(
+            self.pet_state.task_pet_position,
+            previous_size,
+            size,
         );
-        iced::window::resize(id, size).chain(iced::window::move_to(id, self.pet_state.task_pet_position))
+        iced::window::resize(id, size)
+            .chain(iced::window::move_to(id, self.pet_state.task_pet_position))
     }
 
     pub fn task_pet_window_size(&self) -> iced::Size {
@@ -204,20 +189,19 @@ impl App {
     }
 
     fn task_pet_session_title(&self, session_id: &str, fallback: &str) -> String {
-        let title = self.session_state.sessions
-            .iter()
-            .find(|session| session.id == session_id)
-            .map(|session| session.title.trim())
-            .or_else(|| {
-                self.workspace_state.project_sessions
-                    .values()
-                    .flat_map(|sessions| sessions.iter())
-                    .find(|session| session.id == session_id)
-                    .map(|session| session.title.trim())
-            })
-            .filter(|title| !title.is_empty())
-            .unwrap_or_else(|| fallback.trim());
-        task_pet_title(title)
+        pet_interaction::session_title(
+            session_id,
+            fallback,
+            self.session_state
+                .sessions
+                .iter()
+                .map(|session| (session.id.as_str(), session.title.as_str())),
+            self.workspace_state
+                .project_sessions
+                .values()
+                .flatten()
+                .map(|session| (session.id.as_str(), session.title.as_str())),
+        )
     }
 }
 

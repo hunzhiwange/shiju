@@ -155,7 +155,7 @@ fn project_file_settings_actions_toggle_panels_tabs_and_loading_state() {
     use crate::app::message::view::ViewMessage;
 
     let mut app = crate::app::App::new().0;
-    app.workspace_mode = crate::app::state::WorkspaceMode::Code;
+    app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Code;
     app.project_path = Some("/tmp/project".to_string());
     app.show_settings = false;
 
@@ -184,7 +184,7 @@ fn panel_visibility_and_menu_actions_update_only_local_state() {
     use crate::app::message::view::{MenuType, ViewMessage};
 
     let mut app = crate::app::App::new().0;
-    app.workspace_mode = crate::app::state::WorkspaceMode::Code;
+    app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Code;
 
     let initial_diff = app.show_diff;
     let _ = super::update(&mut app, ViewMessage::ToggleDiffPanel);
@@ -194,12 +194,12 @@ fn panel_visibility_and_menu_actions_update_only_local_state() {
     let _ = super::update(&mut app, ViewMessage::ToggleGitDiffSummary);
     assert_eq!(app.git.show_git_diff_summary, !initial_summary);
 
-    app.dragging_file_manager = true;
-    app.file_manager_drag_anchor_x = Some(42.0);
+    app.layout_drag.dragging_file_manager = true;
+    app.layout_drag.file_manager_drag_anchor_x = Some(42.0);
     let _ = super::update(&mut app, ViewMessage::FileManagerPanelVisible(false));
     assert!(!app.file_manager.show_file_manager);
-    assert!(!app.dragging_file_manager);
-    assert_eq!(app.file_manager_drag_anchor_x, None);
+    assert!(!app.layout_drag.dragging_file_manager);
+    assert_eq!(app.layout_drag.file_manager_drag_anchor_x, None);
 
     let _ = super::update(&mut app, ViewMessage::AutoMaxToggled(true));
     assert!(app.auto_max_mode);
@@ -224,7 +224,7 @@ fn work_mode_ignores_code_only_review_toggle() {
     use crate::app::state::WorkspaceMode;
 
     let mut app = crate::app::App::new().0;
-    app.workspace_mode = WorkspaceMode::Work;
+    app.navigation_mode.workspace_mode = WorkspaceMode::Work;
     app.show_diff = false;
     app.terminal.is_visible = false;
 

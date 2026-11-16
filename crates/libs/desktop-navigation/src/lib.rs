@@ -45,3 +45,6 @@ pub mod window_lifecycle;
 
 #[cfg(test)]
 mod desktop_split_30_tests;
+
+#[cfg(test)]
+mod host_module_15_tests;

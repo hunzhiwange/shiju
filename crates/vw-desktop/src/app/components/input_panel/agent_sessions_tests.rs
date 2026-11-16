@@ -695,7 +695,7 @@ fn buffered_stream_tokens_reuse_projection_without_cloning_runtime() {
             agent_tool_event("running", "parent", "child", "writer", "task"),
         ),
     );
-    app.workspace_mode = crate::app::state::WorkspaceMode::Work;
+    app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
     app.project_path = Some("/workspace".into());
     app.recent_projects = vec!["/workspace".into()];
     app.project_sessions

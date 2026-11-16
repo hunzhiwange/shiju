@@ -116,3 +116,22 @@ pub fn update(app: &mut State, message: Message) -> Option<bool> {
 
     None
 }
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            work_sidebar_visible_tasks: WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS,
+            work_sidebar_visible_spaces: WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS,
+            work_sidebar_space_task_visible: HashMap::new(),
+            work_sidebar_project_nav_hovered: false,
+            work_sidebar_filter_open: false,
+            work_sidebar_more_open: false,
+            work_sidebar_collapsed: false,
+            work_sidebar_filter_scope: WorkSidebarFilterScope::default(),
+            work_sidebar_filter_status: WorkSidebarFilterStatus::default(),
+            work_sidebar_filter_time: WorkSidebarFilterTime::default(),
+            work_sidebar_tab: WorkSidebarTab::default(),
+            work_space_picker_open: false,
+        }
+    }
+}

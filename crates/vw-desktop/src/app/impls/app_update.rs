@@ -310,10 +310,10 @@ impl App {
             .and_then(|value| value.as_str())
             .and_then(crate::app::state::WorkspaceMode::parse)
         {
-            self.workspace_mode = workspace_mode;
+            self.navigation_mode.workspace_mode = workspace_mode;
         }
         if let Some(collapsed) = cfg.get("work_sidebar_collapsed").and_then(|v| v.as_bool()) {
-            self.work_sidebar_collapsed = collapsed;
+            self.navigation_sidebar.work_sidebar_collapsed = collapsed;
         }
         if let Some(ids) = cfg.get("input_model_collapsed_provider_ids").and_then(|v| v.as_array())
         {
@@ -340,14 +340,14 @@ impl App {
         {
             self.open_external_app = target;
         }
-        if !self.dragging_file_manager
+        if !self.layout_drag.dragging_file_manager
             && let Some(width) = cfg
                 .get("file_manager_width")
                 .and_then(|v| v.as_f64())
                 .map(|v| (v as f32).clamp(180.0, 600.0))
         {
-            self.file_manager_width = width;
-            self.file_manager_start_width = width;
+            self.layout_drag.file_manager_width = width;
+            self.layout_drag.file_manager_start_width = width;
         }
         if let Some(paths) = cfg.get("file_tree_expanded").and_then(serde_json::Value::as_array) {
             self.file_tree_expanded =

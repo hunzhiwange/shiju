@@ -334,7 +334,7 @@ pub(crate) fn refresh_virtualization_metrics(app: &mut App) {
 fn empty_fullscreen_controls(app: &App) -> Element<'_, Message> {
     desktop_chat_view::panel::empty_fullscreen_controls(
         crate::app::i18n::I18n::new(app.desktop_locale), app.is_chat_fullscreen(), app.is_chat_half_fullscreen(),
-        header::show_half_fullscreen_control(app.workspace_mode),
+        header::show_half_fullscreen_control(app.navigation_mode.workspace_mode),
         Message::Chat(message::ChatMessage::ToggleFullscreen), Message::Chat(message::ChatMessage::ToggleHalfFullscreen),
     )
 }

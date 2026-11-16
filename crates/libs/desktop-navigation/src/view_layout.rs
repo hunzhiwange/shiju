@@ -95,3 +95,6 @@ pub fn with_error<'a, M: Clone + 'a>(content: iced::Element<'a, M>, i18n: deskto
             ]
             .into()
 }
+
+#[path = "view_layout_drag.rs"]
+pub mod drag;

@@ -8,7 +8,7 @@ use crate::app::App;
 fn layout(app: &App) -> PreviewTabsLayout {
     PreviewTabsLayout {
         window_width: app.window_size.0, show_file_manager: app.file_manager.show_file_manager,
-        file_manager_width: app.file_manager_width, show_diff: app.show_diff, split_ratio: app.split_ratio,
+        file_manager_width: app.layout_drag.file_manager_width, show_diff: app.show_diff, split_ratio: app.layout_drag.split_ratio,
     }
 }
 pub(super) fn should_show_preview_tabs_scrollbar(app: &App) -> bool {

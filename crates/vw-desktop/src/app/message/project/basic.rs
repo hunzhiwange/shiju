@@ -26,20 +26,20 @@ fn schedule_file_manager_refresh_tick() -> iced::Task<Message> {
 
 /// 工作模式下打开变更相关视图时，立刻切到「工作空间文件」并取消聊天独占。
 fn reveal_work_workspace_files(app: &mut App) -> Option<iced::Task<Message>> {
-    if !matches!(app.screen, Screen::Project) || app.workspace_mode != WorkspaceMode::Work {
+    if !matches!(app.screen, Screen::Project) || app.navigation_mode.workspace_mode != WorkspaceMode::Work {
         return None;
     }
-    let need_reveal = !app.work_resources_visible
-        || app.work_resource_mode != WorkResourceMode::WorkspaceFiles
-        || app.work_chat_fullscreen
-        || app.work_chat_half_fullscreen;
+    let need_reveal = !app.navigation_workspace.work_resources_visible
+        || app.navigation_workspace.work_resource_mode != WorkResourceMode::WorkspaceFiles
+        || app.navigation_workspace.work_chat_fullscreen
+        || app.navigation_workspace.work_chat_half_fullscreen;
     if !need_reveal {
         return None;
     }
-    app.work_resources_visible = true;
-    app.work_resource_mode = WorkResourceMode::WorkspaceFiles;
-    app.work_chat_fullscreen = false;
-    app.work_chat_half_fullscreen = false;
+    app.navigation_workspace.work_resources_visible = true;
+    app.navigation_workspace.work_resource_mode = WorkResourceMode::WorkspaceFiles;
+    app.navigation_workspace.work_chat_fullscreen = false;
+    app.navigation_workspace.work_chat_half_fullscreen = false;
     Some(iced::Task::done(Message::View(
         crate::app::message::ViewMessage::WorkResourceModeSelected(
             WorkResourceMode::WorkspaceFiles,

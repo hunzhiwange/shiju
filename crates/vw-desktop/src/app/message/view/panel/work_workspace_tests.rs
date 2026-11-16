@@ -23,15 +23,15 @@ fn code_layout_snapshot(app: &App) -> CodeLayoutSnapshot {
     CodeLayoutSnapshot {
         show_diff: app.show_diff,
         show_file_manager: app.file_manager.show_file_manager,
-        split_ratio: app.split_ratio,
+        split_ratio: app.layout_drag.split_ratio,
         chat_panel_fullscreen: app.chat_panel_fullscreen,
         chat_panel_half_fullscreen: app.chat_panel_half_fullscreen,
         git_diff_fullscreen: app.git.git_diff_fullscreen,
         show_preview_fullscreen_overlay: app.show_preview_fullscreen_overlay,
         terminal_visible: app.terminal.is_visible,
         terminal_height: app.terminal.height,
-        settings_panel_width: app.settings_panel_width,
-        file_manager_width: app.file_manager_width,
+        settings_panel_width: app.layout_drag.settings_panel_width,
+        file_manager_width: app.layout_drag.file_manager_width,
     }
 }
 
@@ -40,51 +40,51 @@ fn work_workspace_messages_preserve_code_layout_preferences() {
     let mut app = App::new().0;
     app.show_diff = false;
     app.file_manager.show_file_manager = false;
-    app.split_ratio = 0.37;
+    app.layout_drag.split_ratio = 0.37;
     app.chat_panel_fullscreen = true;
     app.chat_panel_half_fullscreen = true;
     app.git.git_diff_fullscreen = true;
     app.show_preview_fullscreen_overlay = true;
     app.terminal.is_visible = true;
     app.terminal.height = 333.0;
-    app.settings_panel_width = 451.0;
-    app.file_manager_width = 287.0;
+    app.layout_drag.settings_panel_width = 451.0;
+    app.layout_drag.file_manager_width = 287.0;
     let code_layout = code_layout_snapshot(&app);
 
     let _task = update_panel(
         &mut app,
         ViewMessage::WorkResourceModeSelected(WorkResourceMode::WorkspaceFiles),
     );
-    assert_eq!(app.work_resource_mode, WorkResourceMode::WorkspaceFiles);
-    assert!(app.work_resources_visible);
+    assert_eq!(app.navigation_workspace.work_resource_mode, WorkResourceMode::WorkspaceFiles);
+    assert!(app.navigation_workspace.work_resources_visible);
     let _task =
         update_panel(&mut app, ViewMessage::WorkResourceModeSelected(WorkResourceMode::Browser));
-    assert_eq!(app.work_resource_mode, WorkResourceMode::Browser);
+    assert_eq!(app.navigation_workspace.work_resource_mode, WorkResourceMode::Browser);
 
     let _task = update_panel(&mut app, ViewMessage::WorkSplitRatioChanged(0.1));
-    assert_eq!(app.work_split_ratio, 0.25);
+    assert_eq!(app.navigation_workspace.work_split_ratio, 0.25);
     let _task = update_panel(&mut app, ViewMessage::WorkSplitRatioChanged(0.9));
-    assert_eq!(app.work_split_ratio, 0.75);
+    assert_eq!(app.navigation_workspace.work_split_ratio, 0.75);
     let _task = update_panel(&mut app, ViewMessage::WorkSplitRatioChanged(0.55));
-    assert_eq!(app.work_split_ratio, 0.55);
+    assert_eq!(app.navigation_workspace.work_split_ratio, 0.55);
 
-    app.work_chat_fullscreen = true;
-    app.work_chat_half_fullscreen = true;
+    app.navigation_workspace.work_chat_fullscreen = true;
+    app.navigation_workspace.work_chat_half_fullscreen = true;
     let _task = update_panel(&mut app, ViewMessage::WorkResourceHalfFullscreenToggled);
-    assert!(app.work_resource_half_fullscreen);
-    assert!(!app.work_resource_fullscreen);
-    assert!(!app.work_chat_fullscreen);
-    assert!(!app.work_chat_half_fullscreen);
+    assert!(app.navigation_workspace.work_resource_half_fullscreen);
+    assert!(!app.navigation_workspace.work_resource_fullscreen);
+    assert!(!app.navigation_workspace.work_chat_fullscreen);
+    assert!(!app.navigation_workspace.work_chat_half_fullscreen);
 
     let _task = update_panel(&mut app, ViewMessage::WorkResourceFullscreenToggled);
-    assert!(app.work_resource_fullscreen);
-    assert!(!app.work_resource_half_fullscreen);
-    assert!(!app.work_chat_fullscreen);
+    assert!(app.navigation_workspace.work_resource_fullscreen);
+    assert!(!app.navigation_workspace.work_resource_half_fullscreen);
+    assert!(!app.navigation_workspace.work_chat_fullscreen);
     let _task = update_panel(&mut app, ViewMessage::WorkResourceFullscreenToggled);
-    assert!(!app.work_resource_fullscreen);
+    assert!(!app.navigation_workspace.work_resource_fullscreen);
     let _task =
         update_panel(&mut app, ViewMessage::WorkResourceModeSelected(WorkResourceMode::Overview));
-    assert_eq!(app.work_resource_mode, WorkResourceMode::Overview);
+    assert_eq!(app.navigation_workspace.work_resource_mode, WorkResourceMode::Overview);
 
     assert_eq!(code_layout_snapshot(&app), code_layout);
 }

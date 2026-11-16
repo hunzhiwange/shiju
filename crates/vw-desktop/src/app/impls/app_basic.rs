@@ -11,11 +11,11 @@ use crate::app::state::ToastKind;
 
 impl App {
     pub(crate) fn is_chat_fullscreen(&self) -> bool {
-        self.workspace_mode.chat_fullscreen(self.chat_panel_fullscreen, self.work_chat_fullscreen)
+        self.navigation_mode.workspace_mode.chat_fullscreen(self.chat_panel_fullscreen, self.navigation_workspace.work_chat_fullscreen)
     }
 
     pub(crate) fn is_chat_half_fullscreen(&self) -> bool {
-        self.workspace_mode.chat_fullscreen(self.chat_panel_half_fullscreen, self.work_chat_half_fullscreen)
+        self.navigation_mode.workspace_mode.chat_fullscreen(self.chat_panel_half_fullscreen, self.navigation_workspace.work_chat_half_fullscreen)
     }
 
     fn normalize_file_search_query(query: &str) -> String {

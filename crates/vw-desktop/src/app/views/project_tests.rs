@@ -6,7 +6,7 @@ use crate::app::state::WorkspaceMode;
 
 fn render_project_view_with_settings_width(settings_panel_width: f32) {
     let (mut app, _task) = App::new();
-    app.settings_panel_width = settings_panel_width;
+    app.layout_drag.settings_panel_width = settings_panel_width;
 
     let element = super::view(&app);
 
@@ -40,11 +40,11 @@ fn work_layout_project_view_routes_each_workspace_mode() {
     app.file_manager.show_file_manager = true;
     app.terminal.is_visible = true;
 
-    app.workspace_mode = WorkspaceMode::Work;
+    app.navigation_mode.workspace_mode = WorkspaceMode::Work;
     assert!(super::uses_work_layout(&app));
     std::hint::black_box(super::view(&app));
 
-    app.workspace_mode = WorkspaceMode::Code;
+    app.navigation_mode.workspace_mode = WorkspaceMode::Code;
     assert!(!super::uses_work_layout(&app));
     std::hint::black_box(super::view(&app));
 

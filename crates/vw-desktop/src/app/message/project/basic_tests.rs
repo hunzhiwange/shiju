@@ -340,10 +340,10 @@ fn file_manager_show_changes_true_clears_active_preview_and_expands_changed_dirs
 async fn file_manager_show_changes_true_in_work_mode_reveals_workspace_files() {
     let mut app = app();
     app.screen = crate::app::Screen::Project;
-    app.workspace_mode = crate::app::state::WorkspaceMode::Work;
-    app.work_resources_visible = false;
-    app.work_resource_mode = crate::app::state::WorkResourceMode::Browser;
-    app.work_chat_fullscreen = true;
+    app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
+    app.navigation_workspace.work_resources_visible = false;
+    app.navigation_workspace.work_resource_mode = crate::app::state::WorkResourceMode::Browser;
+    app.navigation_workspace.work_chat_fullscreen = true;
     app.git.git_changed_files = vec!["src/main.rs".to_string()];
 
     let task = super::handle(
@@ -353,9 +353,9 @@ async fn file_manager_show_changes_true_in_work_mode_reveals_workspace_files() {
     .expect("task");
 
     assert!(app.file_manager.file_manager_show_changes);
-    assert!(app.work_resources_visible);
-    assert_eq!(app.work_resource_mode, crate::app::state::WorkResourceMode::WorkspaceFiles);
-    assert!(!app.work_chat_fullscreen);
+    assert!(app.navigation_workspace.work_resources_visible);
+    assert_eq!(app.navigation_workspace.work_resource_mode, crate::app::state::WorkResourceMode::WorkspaceFiles);
+    assert!(!app.navigation_workspace.work_chat_fullscreen);
     assert!(collect_task_messages(task).await.iter().any(|message| {
         matches!(
             message,
@@ -513,11 +513,11 @@ fn open_changed_file_without_project_returns_none_task_only() {
 async fn open_changed_file_in_work_mode_reveals_workspace_changes_and_focuses_file() {
     let mut app = app();
     app.screen = crate::app::Screen::Project;
-    app.workspace_mode = crate::app::state::WorkspaceMode::Work;
+    app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
     app.project_path = Some("/workspace/project".to_string());
-    app.work_resources_visible = false;
-    app.work_resource_mode = crate::app::state::WorkResourceMode::Overview;
-    app.work_chat_fullscreen = true;
+    app.navigation_workspace.work_resources_visible = false;
+    app.navigation_workspace.work_resource_mode = crate::app::state::WorkResourceMode::Overview;
+    app.navigation_workspace.work_chat_fullscreen = true;
     app.file_manager.file_manager_show_changes = false;
     app.file_manager.show_file_manager = false;
     app.git.git_changed_files = vec!["src/nested/lib.rs".to_string(), "README.md".to_string()];
@@ -530,9 +530,9 @@ async fn open_changed_file_in_work_mode_reveals_workspace_changes_and_focuses_fi
     )
     .expect("task");
 
-    assert!(app.work_resources_visible);
-    assert_eq!(app.work_resource_mode, crate::app::state::WorkResourceMode::WorkspaceFiles);
-    assert!(!app.work_chat_fullscreen);
+    assert!(app.navigation_workspace.work_resources_visible);
+    assert_eq!(app.navigation_workspace.work_resource_mode, crate::app::state::WorkResourceMode::WorkspaceFiles);
+    assert!(!app.navigation_workspace.work_chat_fullscreen);
     assert!(app.file_manager.file_manager_show_changes);
     assert!(app.file_manager.show_file_manager);
     assert!(app.file_tree_expanded.contains(&"chg:src".to_string()));
@@ -560,10 +560,10 @@ async fn open_changed_file_in_work_mode_reveals_workspace_changes_and_focuses_fi
 fn open_changed_file_expands_collapsed_change_dirs_when_already_in_changes_view() {
     let mut app = app();
     app.screen = crate::app::Screen::Project;
-    app.workspace_mode = crate::app::state::WorkspaceMode::Work;
+    app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
     app.project_path = Some("/workspace/project".to_string());
-    app.work_resources_visible = true;
-    app.work_resource_mode = crate::app::state::WorkResourceMode::WorkspaceFiles;
+    app.navigation_workspace.work_resources_visible = true;
+    app.navigation_workspace.work_resource_mode = crate::app::state::WorkResourceMode::WorkspaceFiles;
     app.file_manager.file_manager_show_changes = true;
     app.file_manager.show_file_manager = true;
     app.git.git_changed_files = vec!["src/nested/lib.rs".to_string()];

@@ -32,7 +32,7 @@ fn ordered_tree_shape(trees: &[Tree]) -> Vec<(Tag, usize)> {
 fn view_builds_single_row_with_all_toolbar_sections() {
     let mut app = test_app();
     app.screen = Screen::Project;
-    app.workspace_mode = WorkspaceMode::Code;
+    app.navigation_mode.workspace_mode = WorkspaceMode::Code;
     let element = super::top_bar::view(&app);
 
     assert_eq!(
@@ -48,14 +48,14 @@ fn view_builds_single_row_with_all_toolbar_sections() {
 fn work_top_bar_keeps_all_global_menus_and_project_tools() {
     let mut code_app = test_app();
     code_app.screen = Screen::Project;
-    code_app.workspace_mode = WorkspaceMode::Code;
+    code_app.navigation_mode.workspace_mode = WorkspaceMode::Code;
     let code_element = super::top_bar::view(&code_app);
     let code_children = code_element.as_widget().children();
     let code_structure = ordered_tree_shape(&code_children);
 
     let mut work_app = test_app();
     work_app.screen = Screen::Project;
-    work_app.workspace_mode = WorkspaceMode::Work;
+    work_app.navigation_mode.workspace_mode = WorkspaceMode::Work;
     let work_element = super::top_bar::view(&work_app);
     let work_children = work_element.as_widget().children();
     let work_structure = ordered_tree_shape(&work_children);
@@ -69,7 +69,7 @@ fn work_top_bar_keeps_all_global_menus_and_project_tools() {
 fn workspace_mode_selector_keeps_code_controls() {
     let mut app = test_app();
     app.screen = Screen::Project;
-    app.workspace_mode = WorkspaceMode::Code;
+    app.navigation_mode.workspace_mode = WorkspaceMode::Code;
 
     let element = super::top_bar::view(&app);
 

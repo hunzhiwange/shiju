@@ -16,7 +16,7 @@ fn code_panel_snapshot(app: &App) -> (bool, bool, f32, bool, bool, bool) {
     (
         app.show_diff,
         app.file_manager.show_file_manager,
-        app.split_ratio,
+        app.layout_drag.split_ratio,
         app.chat_panel_fullscreen,
         app.git.git_diff_fullscreen,
         app.show_preview_fullscreen_overlay,
@@ -38,7 +38,7 @@ fn work_resource_panel_routes_overview_workspace_files_and_browser() {
         (WorkResourceMode::WorkspaceFiles, ResourceBodyKind::WorkspaceFiles),
         (WorkResourceMode::Browser, ResourceBodyKind::Browser),
     ] {
-        app.work_resource_mode = mode;
+        app.navigation_workspace.work_resource_mode = mode;
         assert_eq!(work_resources::body_kind(&app), expected);
         let _ = work_resources::view(&app, 12.0);
     }
@@ -60,10 +60,10 @@ fn work_resource_files_reuse_existing_file_manager_without_mutating_code_flags()
     let mut app = App::new().0;
     app.screen = Screen::Project;
     app.project_path = Some(project.path().to_string_lossy().into_owned());
-    app.work_resource_mode = WorkResourceMode::WorkspaceFiles;
+    app.navigation_workspace.work_resource_mode = WorkResourceMode::WorkspaceFiles;
     app.show_diff = false;
     app.file_manager.show_file_manager = false;
-    app.split_ratio = 0.37;
+    app.layout_drag.split_ratio = 0.37;
     app.chat_panel_fullscreen = true;
     app.git.git_diff_fullscreen = true;
     app.show_preview_fullscreen_overlay = true;
@@ -92,7 +92,7 @@ async fn work_resource_panel_draws_all_modes_in_dark_and_light_themes() {
             WorkResourceMode::WorkspaceFiles,
             WorkResourceMode::Browser,
         ] {
-            app.work_resource_mode = mode;
+            app.navigation_workspace.work_resource_mode = mode;
             let mut element = work_resources::view(&app, 12.0);
             let limits = layout::Limits::new(Size::ZERO, VIEWPORT);
             let mut tree = Tree::new(element.as_widget());

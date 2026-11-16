@@ -67,7 +67,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         session_menu_anchor: &mut app.session_menu_anchor,
         session_menu_id: &mut app.session_menu_id,
         task_board_settings: &mut app.task_board_settings,
-        work_current_project_menu: &mut app.work_current_project_menu,
+        work_current_project_menu: &mut app.navigation_mode.work_current_project_menu,
     }, event);
     let mut tasks = Vec::new();
     for effect in effects {

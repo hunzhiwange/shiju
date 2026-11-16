@@ -272,7 +272,7 @@ fn code_projects_rail_renders_titles_and_opens_the_four_column_grid() {
     app.recent_projects_edits.push(seventh_name);
 
     for theme in [Theme::Light, Theme::Dark] {
-        app.code_projects_menu_open = false;
+        app.navigation_mode.code_projects_menu_open = false;
         let mut ui = UserInterface::build(rail(&app), size, Cache::new(), &mut renderer);
         let style = Style { text_color: theme.palette().text };
         let first_project = Point::new(28.0, 26.0);
@@ -289,7 +289,7 @@ fn code_projects_rail_renders_titles_and_opens_the_four_column_grid() {
         );
         drop(ui);
 
-        app.code_projects_menu_open = true;
+        app.navigation_mode.code_projects_menu_open = true;
         let mut ui = UserInterface::build(rail(&app), size, Cache::new(), &mut renderer);
         for point in [gap, last_project] {
             assert!(

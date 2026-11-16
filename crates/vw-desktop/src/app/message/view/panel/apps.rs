@@ -1,135 +1,55 @@
-//! 处理应用面板导航，并为模型用量查询选择匹配的提供商。
-
+//! Application navigation effects are assembled with their owning domains here.
 use super::ViewMessage;
-use crate::app::{App, Message, Screen};
+use crate::app::{App, Message};
+use desktop_navigation::panel::apps as domain;
 use iced::Task;
-
-/// 处理应用面板导航和模型用量刷新消息。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
-    match message {
-        ViewMessage::OpenApps => {
-            let id = "apps".to_string();
-            if !app.open_tabs.iter().any(|t| t.id == id) {
-                app.open_tabs.push(crate::app::AppTab {
-                    id: id.clone(),
-                    title: "应用".to_string(),
-                    screen: Screen::Apps,
-                    project_path: None,
-                });
-            }
-            app.active_tab_id = Some(id);
-            app.screen = Screen::Apps;
-            Task::none()
-        }
-        ViewMessage::OpenUsage => {
+    let local = match message {
+        ViewMessage::OpenApps => domain::Message::OpenApps,
+        ViewMessage::OpenUsage => domain::Message::OpenUsage,
+        ViewMessage::OpenKnowledge => domain::Message::OpenKnowledge,
+        ViewMessage::OpenWorkflowTool => domain::Message::OpenWorkflowTool,
+        ViewMessage::OpenWorkflowManager => domain::Message::OpenWorkflowManager,
+        ViewMessage::AppsOpenMostRecent => domain::Message::AppsOpenMostRecent,
+        ViewMessage::AppsSearchChanged(value) => domain::Message::AppsSearchChanged(value),
+        _ => return Task::none(),
+    };
+    let effect = domain::update(
+        domain::Context {
+            open_tabs: &mut app.open_tabs,
+            active_tab_id: &mut app.active_tab_id,
+            screen: &mut app.screen,
+            apps_search_query: &mut app.apps_search_query,
+        },
+        crate::apps::workflow::WORKFLOW_TOOL_TAB_ID,
+        app.recent_projects.first().map(String::as_str),
+        local,
+    );
+    match effect {
+        None => Task::none(),
+        Some(domain::Effect::OpenUsage) => {
             app.usage_center.close();
-            let id = "usage".to_string();
-            let insert_at =
-                if app.open_tabs.first().map(|t| t.id.as_str()) == Some("home") { 1 } else { 0 };
-            if let Some(pos) = app.open_tabs.iter().position(|t| t.id == id) {
-                let tab = app.open_tabs.remove(pos);
-                let i = insert_at.min(app.open_tabs.len());
-                app.open_tabs.insert(i, tab);
-            } else {
-                let i = insert_at.min(app.open_tabs.len());
-                app.open_tabs.insert(
-                    i,
-                    crate::app::AppTab {
-                        id: id.clone(),
-                        title: "用量".to_string(),
-                        screen: Screen::Usage,
-                        project_path: None,
-                    },
-                );
-            }
-            app.active_tab_id = Some(id);
-            app.screen = Screen::Usage;
             app.usage_model_info = None;
             app.usage_step_raw_payloads.clear();
             app.usage_step_raw_loading.clear();
             app.usage_step_raw_modal = None;
             let runtime = app.current_session_runtime();
             let model = if runtime.auto_model { None } else { Some(runtime.model) };
-            Task::perform(
-                desktop_usage::model_info::load(model),
-                |info| Message::View(ViewMessage::UsageModelInfoLoaded(info)),
-            )
+            Task::perform(desktop_usage::model_info::load(model), |info| {
+                Message::View(ViewMessage::UsageModelInfoLoaded(info))
+            })
         }
-        ViewMessage::OpenKnowledge => {
-            let id = "knowledge".to_string();
-            if let Some(pos) = app.open_tabs.iter().position(|t| t.id == "apps") {
-                app.open_tabs.remove(pos);
-            }
-            if !app.open_tabs.iter().any(|t| t.id == id) {
-                app.open_tabs.push(crate::app::AppTab {
-                    id: id.clone(),
-                    title: "知识库".to_string(),
-                    screen: Screen::Knowledge,
-                    project_path: None,
-                });
-            }
-            app.active_tab_id = Some(id);
-            app.screen = Screen::Knowledge;
+        Some(domain::Effect::OpenKnowledge) => {
             crate::app::message::knowledge_tool::ensure_loaded(app)
         }
-        ViewMessage::OpenWorkflowTool => {
-            let id = crate::apps::workflow::WORKFLOW_TOOL_TAB_ID.to_string();
-            if let Some(pos) = app.open_tabs.iter().position(|t| t.id == "apps") {
-                app.open_tabs.remove(pos);
-            }
-            if !app.open_tabs.iter().any(|t| t.id == id) {
-                app.open_tabs.push(crate::app::AppTab {
-                    id: id.clone(),
-                    title: "工作流".to_string(),
-                    screen: Screen::WorkflowTool,
-                    project_path: None,
-                });
-            }
-            app.active_tab_id = Some(id);
-            app.screen = Screen::WorkflowTool;
-            crate::apps::workflow::ensure_initialized(app)
-        }
-        ViewMessage::OpenWorkflowManager => {
-            let id = "workflow_manager".to_string();
-            if let Some(pos) = app.open_tabs.iter().position(|t| t.id == "apps") {
-                app.open_tabs.remove(pos);
-            }
+        Some(domain::Effect::OpenWorkflowTool) => crate::apps::workflow::ensure_initialized(app),
+        Some(domain::Effect::OpenWorkflowManager) => {
             app.workflow_manager =
                 crate::app::views::workflow_manager::WorkflowManagerState::default();
-            let refresh_task =
-                crate::app::views::workflow_manager::load_lifecycle_workflows_task(true);
-            if !app.open_tabs.iter().any(|t| t.id == id) {
-                app.open_tabs.push(crate::app::AppTab {
-                    id: id.clone(),
-                    title: "任务编排".to_string(),
-                    screen: Screen::WorkflowManager,
-                    project_path: None,
-                });
-            }
-            app.active_tab_id = Some(id);
-            app.screen = Screen::WorkflowManager;
-            refresh_task
+            crate::app::views::workflow_manager::load_lifecycle_workflows_task(true)
         }
-        ViewMessage::AppsOpenMostRecent => {
-            if let Some(path) = app.recent_projects.first().cloned() {
-                // Close apps tab immediately
-                if let Some(pos) = app.open_tabs.iter().position(|t| t.id == "apps") {
-                    app.open_tabs.remove(pos);
-                }
-                app.active_tab_id = app.open_tabs.last().map(|t| t.id.clone());
-
-                return Task::perform(async {}, move |_| {
-                    Message::Project(
-                        crate::app::message::project::ProjectMessage::OpenRecentPressed(path),
-                    )
-                });
-            }
-            Task::none()
-        }
-        ViewMessage::AppsSearchChanged(v) => {
-            app.apps_search_query = v;
-            Task::none()
-        }
-        _ => Task::none(),
+        Some(domain::Effect::OpenRecent(path)) => Task::perform(async {}, move |_| {
+            Message::Project(crate::app::message::project::ProjectMessage::OpenRecentPressed(path))
+        }),
     }
 }

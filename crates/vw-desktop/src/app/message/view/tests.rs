@@ -63,10 +63,10 @@ fn update_routes_panel_layout_theme_and_activity_messages() {
     let _ = super::update(&mut app, ViewMessage::ToggleSettingsPanel);
     assert!(app.show_settings);
 
-    assert!(!app.dragging_settings);
+    assert!(!app.layout_drag.dragging_settings);
     let _ = super::update(&mut app, ViewMessage::SettingsDragStarted);
-    assert!(app.dragging_settings);
-    assert_eq!(app.settings_drag_start_width, app.settings_panel_width);
+    assert!(app.layout_drag.dragging_settings);
+    assert_eq!(app.layout_drag.settings_drag_start_width, app.layout_drag.settings_panel_width);
 
     let _ = super::update(&mut app, ViewMessage::AppThemeSelected(iced::Theme::Light));
     assert_eq!(app.app_theme, iced::Theme::Light);
@@ -160,8 +160,8 @@ fn system_settings_messages_hide_and_restore_running_work_browser() {
 
     let mut app = crate::app::App::new().0;
     app.screen = Screen::Project;
-    app.workspace_mode = WorkspaceMode::Work;
-    app.work_resource_mode = WorkResourceMode::Browser;
+    app.navigation_mode.workspace_mode = WorkspaceMode::Work;
+    app.navigation_workspace.work_resource_mode = WorkResourceMode::Browser;
     app.window_size = (1_400.0, 900.0);
     let probe = std::sync::Arc::new(std::sync::Mutex::new(WorkBrowserProtocolProbe {
         running: true,

@@ -484,7 +484,7 @@ fn chat_scroll_semantics_toggle_think_preserves_manual_anchor() {
 #[test]
 fn fullscreen_toggles_clear_competing_git_fullscreen_modes() {
     let (mut app, _) = crate::app::App::new();
-    app.workspace_mode = crate::app::state::WorkspaceMode::Code;
+    app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Code;
     app.git.git_diff_fullscreen = true;
     app.git.git_diff_half_fullscreen = true;
 
@@ -500,7 +500,7 @@ fn fullscreen_toggles_clear_competing_git_fullscreen_modes() {
 #[test]
 fn half_fullscreen_toggles_clear_fullscreen_mode() {
     let (mut app, _) = crate::app::App::new();
-    app.workspace_mode = crate::app::state::WorkspaceMode::Code;
+    app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Code;
     app.chat_panel_fullscreen = true;
 
     let _ = super::update(&mut app, ChatMessage::ToggleHalfFullscreen);
@@ -513,18 +513,18 @@ fn half_fullscreen_toggles_clear_fullscreen_mode() {
 #[test]
 fn work_half_fullscreen_toggles_are_mutually_exclusive_and_preserve_code_state() {
     let (mut app, _) = crate::app::App::new();
-    app.workspace_mode = crate::app::state::WorkspaceMode::Work;
+    app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
     app.chat_panel_fullscreen = true;
     app.chat_panel_half_fullscreen = false;
-    app.work_resource_fullscreen = true;
-    app.work_resource_half_fullscreen = true;
+    app.navigation_workspace.work_resource_fullscreen = true;
+    app.navigation_workspace.work_resource_half_fullscreen = true;
 
     let _ = super::update(&mut app, ChatMessage::ToggleHalfFullscreen);
 
-    assert!(app.work_chat_half_fullscreen);
-    assert!(!app.work_chat_fullscreen);
-    assert!(!app.work_resource_fullscreen);
-    assert!(!app.work_resource_half_fullscreen);
+    assert!(app.navigation_workspace.work_chat_half_fullscreen);
+    assert!(!app.navigation_workspace.work_chat_fullscreen);
+    assert!(!app.navigation_workspace.work_resource_fullscreen);
+    assert!(!app.navigation_workspace.work_resource_half_fullscreen);
     assert!(!app.is_chat_fullscreen());
     assert!(app.is_chat_half_fullscreen());
     assert!(app.chat_panel_fullscreen);
@@ -532,10 +532,10 @@ fn work_half_fullscreen_toggles_are_mutually_exclusive_and_preserve_code_state()
 
     let _ = super::update(&mut app, ChatMessage::ToggleFullscreen);
 
-    assert!(app.work_chat_fullscreen);
+    assert!(app.navigation_workspace.work_chat_fullscreen);
     assert!(app.is_chat_fullscreen());
     assert!(!app.is_chat_half_fullscreen());
-    assert!(!app.work_chat_half_fullscreen);
+    assert!(!app.navigation_workspace.work_chat_half_fullscreen);
     assert!(app.chat_panel_fullscreen);
     assert!(!app.chat_panel_half_fullscreen);
 }

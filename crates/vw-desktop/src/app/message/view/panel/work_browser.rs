@@ -15,16 +15,16 @@ fn map(message: domain::Message) -> Message { Message::View(match message {
 fn placement(app: &App) -> domain::Placement {
     domain::Placement {
         project_screen: app.screen == crate::app::Screen::Project,
-        work_mode: app.workspace_mode == crate::app::state::WorkspaceMode::Work,
-        browser_resource: app.work_resource_mode == crate::app::state::WorkResourceMode::Browser,
-        resources_visible: app.work_resources_visible, system_settings_open: app.show_system_settings,
-        chat_fullscreen: app.work_chat_fullscreen, chat_half_fullscreen: app.work_chat_half_fullscreen,
+        work_mode: app.navigation_mode.workspace_mode == crate::app::state::WorkspaceMode::Work,
+        browser_resource: app.navigation_workspace.work_resource_mode == crate::app::state::WorkResourceMode::Browser,
+        resources_visible: app.navigation_workspace.work_resources_visible, system_settings_open: app.show_system_settings,
+        chat_fullscreen: app.navigation_workspace.work_chat_fullscreen, chat_half_fullscreen: app.navigation_workspace.work_chat_half_fullscreen,
         window_position: app.window_position, window_size: app.window_size,
-        sidebar_collapsed: app.work_sidebar_collapsed, sidebar_width: app.work_sidebar_width,
+        sidebar_collapsed: app.navigation_sidebar.work_sidebar_collapsed, sidebar_width: app.layout_drag.work_sidebar_width,
         sidebar_rail_width: crate::app::state::WORK_SIDEBAR_RAIL_WIDTH,
         terminal_visible: app.terminal.is_visible, terminal_fullscreen: app.terminal.is_fullscreen,
-        terminal_height: app.terminal.height, split_ratio: app.work_split_ratio,
-        resource_fullscreen: app.work_resource_fullscreen, resource_half_fullscreen: app.work_resource_half_fullscreen,
+        terminal_height: app.terminal.height, split_ratio: app.navigation_workspace.work_split_ratio,
+        resource_fullscreen: app.navigation_workspace.work_resource_fullscreen, resource_half_fullscreen: app.navigation_workspace.work_resource_half_fullscreen,
         top_bar_height: crate::app::components::top_bar::TOP_BAR_HEIGHT,
         status_bar_height: crate::app::impls::STATUS_BAR_HEIGHT,
     }

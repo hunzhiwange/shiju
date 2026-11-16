@@ -44,7 +44,7 @@ pub(crate) fn begin_shutdown(shutdown_requested: &mut bool) -> bool {
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     match message {
         ViewMessage::ToggleSettingsPanel => {
-            if app.workspace_mode == WorkspaceMode::Work {
+            if app.navigation_mode.workspace_mode == WorkspaceMode::Work {
                 return Task::done(Message::View(ViewMessage::WorkSidebarToggled));
             }
             app.show_settings = !app.show_settings;
@@ -261,7 +261,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::InstallCliToolFinished(v0) => update_panel(app, PanelMessage::InstallCliToolFinished(v0)),
         ViewMessage::CloseInstallCliModal => update_panel(app, PanelMessage::CloseInstallCliModal),
         ViewMessage::ToggleDiffPanel => {
-            if app.workspace_mode == WorkspaceMode::Work {
+            if app.navigation_mode.workspace_mode == WorkspaceMode::Work {
                 return Task::none();
             }
             app.show_diff = !app.show_diff;
@@ -300,8 +300,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::FileManagerPanelVisible(b) => {
             app.file_manager.show_file_manager = b;
             if !b {
-                app.dragging_file_manager = false;
-                app.file_manager_drag_anchor_x = None;
+                app.layout_drag.dragging_file_manager = false;
+                app.layout_drag.file_manager_drag_anchor_x = None;
             }
             app.save_desktop_preference("show_file_manager", b.into())
         }

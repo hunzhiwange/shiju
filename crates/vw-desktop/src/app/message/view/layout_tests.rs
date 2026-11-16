@@ -49,116 +49,30 @@ fn task_pet_window_moved_updates_pet_position_without_moving_main_window() {
 
 // 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
 // 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
-#[test]
-fn drag_start_messages_capture_current_dimensions_and_reset_anchors() {
-    let mut app = test_app();
-    app.split_ratio = 0.65;
-    app.split_drag_anchor_x = Some(1.0);
-    app.settings_panel_width = 420.0;
-    app.settings_drag_anchor_x = Some(2.0);
-    app.file_manager_width = 310.0;
-    app.file_manager_drag_anchor_x = Some(3.0);
 
-    let _task = super::update(&mut app, super::ViewMessage::SplitDragStarted);
-    let _task = super::update(&mut app, super::ViewMessage::SettingsDragStarted);
-    let _task = super::update(&mut app, super::ViewMessage::FileManagerDragStarted);
 
-    assert!(app.dragging_split);
-    assert_eq!(app.split_drag_anchor_x, None);
-    assert_eq!(app.split_drag_start_ratio, 0.65);
-    assert!(app.dragging_settings);
-    assert_eq!(app.settings_drag_anchor_x, None);
-    assert_eq!(app.settings_drag_start_width, 420.0);
-    assert!(app.dragging_file_manager);
-    assert_eq!(app.file_manager_drag_anchor_x, None);
-    assert_eq!(app.file_manager_start_width, 310.0);
-}
 
-#[test]
-fn work_drag_start_messages_capture_sidebar_width_and_split_ratio() {
-    let mut app = test_app();
-    app.work_sidebar_width = 340.0;
-    app.work_sidebar_drag_anchor_x = Some(1.0);
-    app.work_split_ratio = 0.55;
-    app.work_split_drag_anchor_x = Some(2.0);
 
-    let _task = super::update(&mut app, super::ViewMessage::WorkSidebarDragStarted);
-    let _task = super::update(&mut app, super::ViewMessage::WorkSplitDragStarted);
 
-    assert!(app.dragging_work_sidebar);
-    assert_eq!(app.work_sidebar_drag_anchor_x, None);
-    assert_eq!(app.work_sidebar_drag_start_width, 340.0);
-    assert!(app.dragging_work_split);
-    assert_eq!(app.work_split_drag_anchor_x, None);
-    assert_eq!(app.work_split_drag_start_ratio, 0.55);
-}
-
-#[test]
-fn work_drag_pointer_updates_sidebar_width_and_chat_split() {
-    let mut app = test_app();
-    app.window_size = (1_200.0, 800.0);
-    app.work_sidebar_width = 300.0;
-    app.work_split_ratio = 0.6;
-
-    let _task = super::update(&mut app, super::ViewMessage::WorkSidebarDragStarted);
-    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(100.0, 10.0));
-    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(-1_000.0, 10.0));
-    assert_eq!(app.work_sidebar_width, 220.0);
-    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(1_000.0, 10.0));
-    assert_eq!(app.work_sidebar_width, 520.0);
-
-    app.dragging_work_sidebar = false;
-    let _task = super::update(&mut app, super::ViewMessage::WorkSplitDragStarted);
-    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(100.0, 10.0));
-    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(1_000.0, 10.0));
-    assert_eq!(app.work_split_ratio, 0.75);
-    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(-1_000.0, 10.0));
-    assert_eq!(app.work_split_ratio, 0.25);
-}
 
 #[test]
 fn settings_drag_anchors_then_clamps_panel_width() {
     let mut app = test_app();
-    app.settings_panel_width = 400.0;
+    app.layout_drag.settings_panel_width = 400.0;
     let _task = super::update(&mut app, super::ViewMessage::SettingsDragStarted);
 
     let _task = super::update(&mut app, super::ViewMessage::PointerMoved(100.0, 10.0));
-    assert_eq!(app.settings_drag_anchor_x, Some(100.0));
-    assert_eq!(app.settings_panel_width, 400.0);
+    assert_eq!(app.layout_drag.settings_drag_anchor_x, Some(100.0));
+    assert_eq!(app.layout_drag.settings_panel_width, 400.0);
 
     let _task = super::update(&mut app, super::ViewMessage::PointerMoved(600.0, 20.0));
     assert_eq!(app.cursor_position, iced::Point::new(600.0, 20.0));
-    assert_eq!(app.settings_panel_width, 800.0);
+    assert_eq!(app.layout_drag.settings_panel_width, 800.0);
 }
 
-#[test]
-fn file_manager_drag_anchors_then_clamps_inverse_delta() {
-    let mut app = test_app();
-    app.file_manager_width = 300.0;
-    let _task = super::update(&mut app, super::ViewMessage::FileManagerDragStarted);
 
-    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(500.0, 10.0));
-    assert_eq!(app.file_manager_drag_anchor_x, Some(500.0));
-    assert_eq!(app.file_manager_width, 300.0);
 
-    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(100.0, 20.0));
-    assert_eq!(app.file_manager_width, 600.0);
-}
 
-#[test]
-fn split_drag_uses_window_width_and_clamps_ratio() {
-    let mut app = test_app();
-    app.split_ratio = 0.6;
-    app.window_size = (1_000.0, 700.0);
-    let _task = super::update(&mut app, super::ViewMessage::SplitDragStarted);
-
-    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(100.0, 10.0));
-    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(1_000.0, 10.0));
-    assert_eq!(app.split_ratio, 0.8);
-
-    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(-1_000.0, 10.0));
-    assert_eq!(app.split_ratio, 0.2);
-}
 
 #[test]
 fn terminal_drag_anchors_then_clamps_height_to_window() {
@@ -280,13 +194,13 @@ fn fullscreen_layout_settled_clears_settling_flag() {
 #[test]
 fn global_release_resets_active_drag_state_without_file_manager_persistence() {
     let mut app = test_app();
-    app.dragging_settings = true;
-    app.settings_drag_anchor_x = Some(10.0);
-    app.dragging_split = true;
-    app.dragging_work_sidebar = true;
-    app.work_sidebar_drag_anchor_x = Some(30.0);
-    app.dragging_work_split = true;
-    app.work_split_drag_anchor_x = Some(40.0);
+    app.layout_drag.dragging_settings = true;
+    app.layout_drag.settings_drag_anchor_x = Some(10.0);
+    app.layout_drag.dragging_split = true;
+    app.layout_drag.dragging_work_sidebar = true;
+    app.layout_drag.work_sidebar_drag_anchor_x = Some(30.0);
+    app.navigation_workspace.dragging_work_split = true;
+    app.navigation_workspace.work_split_drag_anchor_x = Some(40.0);
     app.terminal.is_dragging = true;
     app.terminal.drag_anchor_y = Some(20.0);
     app.task_board_drag_pending =
@@ -297,13 +211,13 @@ fn global_release_resets_active_drag_state_without_file_manager_persistence() {
 
     assert!(app.task_board_drag_pending.is_none());
     assert!(app.task_board_dragging.is_none());
-    assert!(!app.dragging_settings);
-    assert_eq!(app.settings_drag_anchor_x, None);
-    assert!(!app.dragging_split);
-    assert!(!app.dragging_work_sidebar);
-    assert_eq!(app.work_sidebar_drag_anchor_x, None);
-    assert!(!app.dragging_work_split);
-    assert_eq!(app.work_split_drag_anchor_x, None);
+    assert!(!app.layout_drag.dragging_settings);
+    assert_eq!(app.layout_drag.settings_drag_anchor_x, None);
+    assert!(!app.layout_drag.dragging_split);
+    assert!(!app.layout_drag.dragging_work_sidebar);
+    assert_eq!(app.layout_drag.work_sidebar_drag_anchor_x, None);
+    assert!(!app.navigation_workspace.dragging_work_split);
+    assert_eq!(app.navigation_workspace.work_split_drag_anchor_x, None);
     assert!(!app.terminal.is_dragging);
     assert_eq!(app.terminal.drag_anchor_y, None);
 }
@@ -525,7 +439,7 @@ fn shutdown_waits_for_pending_layout_preferences() {
         };
 
         let _ = super::update(&mut app, ViewMessage::FileManagerDragStarted);
-        app.file_manager_width = 320.0;
+        app.layout_drag.file_manager_width = 320.0;
         let first = run_save(super::update(&mut app, ViewMessage::GlobalMouseReleased));
         capture_patch(json!({"file_manager_width": 320.0}));
 
@@ -534,7 +448,7 @@ fn shutdown_waits_for_pending_layout_preferences() {
         let queued = panel::update(&mut app, ViewMessage::FileManagerPanelVisible(true));
         assert!(iced_runtime::task::into_stream(queued).is_none());
         let _ = super::update(&mut app, ViewMessage::FileManagerDragStarted);
-        app.file_manager_width = 340.0;
+        app.layout_drag.file_manager_width = 340.0;
         let queued = super::update(&mut app, ViewMessage::GlobalMouseReleased);
         assert!(iced_runtime::task::into_stream(queued).is_none());
 

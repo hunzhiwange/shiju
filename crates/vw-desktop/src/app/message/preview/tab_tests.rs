@@ -55,7 +55,7 @@ async fn collect_task_messages(task: Task<Message>) -> Vec<Message> {
 #[test]
 fn open_existing_tab_focuses_preview_and_preserves_single_tab() {
     let mut app = app();
-    app.workspace_mode = crate::app::state::WorkspaceMode::Code;
+    app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Code;
     app.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
     app.file_manager.show_file_manager = true;
     app.file_manager.file_manager_show_changes = false;
@@ -95,7 +95,7 @@ fn open_existing_tab_outside_project_creates_one_selected_top_level_tab() {
 #[test]
 fn open_new_instant_preview_creates_tab_and_only_schedules_preferences_save() {
     let mut app = app();
-    app.workspace_mode = crate::app::state::WorkspaceMode::Code;
+    app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Code;
     app.screen = Screen::Project;
     app.file_manager.show_file_manager = false;
     app.file_manager.file_manager_show_changes = true;
@@ -131,18 +131,18 @@ fn open_new_text_preview_sets_loading_content_and_schedules_gateway_read() {
 async fn open_file_in_work_mode_reveals_workspace_files() {
     let mut app = app();
     app.screen = Screen::Project;
-    app.workspace_mode = crate::app::state::WorkspaceMode::Work;
-    app.work_resources_visible = false;
-    app.work_resource_mode = crate::app::state::WorkResourceMode::Browser;
-    app.work_chat_fullscreen = true;
-    app.work_chat_half_fullscreen = true;
+    app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
+    app.navigation_workspace.work_resources_visible = false;
+    app.navigation_workspace.work_resource_mode = crate::app::state::WorkResourceMode::Browser;
+    app.navigation_workspace.work_chat_fullscreen = true;
+    app.navigation_workspace.work_chat_half_fullscreen = true;
 
     let task = update(&mut app, PreviewMessage::Open("/tmp/image.png".to_string()));
 
-    assert!(app.work_resources_visible);
-    assert_eq!(app.work_resource_mode, crate::app::state::WorkResourceMode::WorkspaceFiles);
-    assert!(!app.work_chat_fullscreen);
-    assert!(!app.work_chat_half_fullscreen);
+    assert!(app.navigation_workspace.work_resources_visible);
+    assert_eq!(app.navigation_workspace.work_resource_mode, crate::app::state::WorkResourceMode::WorkspaceFiles);
+    assert!(!app.navigation_workspace.work_chat_fullscreen);
+    assert!(!app.navigation_workspace.work_chat_half_fullscreen);
     assert!(collect_task_messages(task).await.iter().any(|message| {
         matches!(
             message,

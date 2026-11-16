@@ -27,7 +27,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         preview_tab_menu_pos: std::mem::take(&mut app.preview_tab_menu_pos),
         home_apps_bar_scroll_x: app.home_apps_bar_scroll_x,
         home_apps_bar_scroll_id: app.home_apps_bar_scroll_id.clone(),
-        code_projects_menu_open: app.code_projects_menu_open,
+        code_projects_menu_open: app.navigation_mode.code_projects_menu_open,
         open_tabs: std::mem::take(&mut app.open_tabs),
         hovered_tab_id: std::mem::take(&mut app.hovered_tab_id),
     };
@@ -43,7 +43,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     app.preview_tab_menu_pos = state.preview_tab_menu_pos;
     app.home_apps_bar_scroll_x = state.home_apps_bar_scroll_x;
     app.home_apps_bar_scroll_id = state.home_apps_bar_scroll_id;
-    app.code_projects_menu_open = state.code_projects_menu_open;
+    app.navigation_mode.code_projects_menu_open = state.code_projects_menu_open;
     app.open_tabs = state.open_tabs;
     app.hovered_tab_id = state.hovered_tab_id;
     let effect = match message {

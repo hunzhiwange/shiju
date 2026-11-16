@@ -55,13 +55,13 @@ async fn work_layout_renders_matching_backgrounds_in_dark_and_light_themes() {
             .await
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
-    app.workspace_mode = WorkspaceMode::Work;
+    app.navigation_mode.workspace_mode = WorkspaceMode::Work;
     app.active_theme_skin = None;
     app.terminal.is_visible = false;
-    app.work_sidebar_collapsed = false;
-    app.work_sidebar_width = 280.0;
-    app.work_resources_visible = true;
-    app.work_resource_mode = WorkResourceMode::Overview;
+    app.navigation_sidebar.work_sidebar_collapsed = false;
+    app.layout_drag.work_sidebar_width = 280.0;
+    app.navigation_workspace.work_resources_visible = true;
+    app.navigation_workspace.work_resource_mode = WorkResourceMode::Overview;
 
     for theme in [Theme::Dark, Theme::Light] {
         app.app_theme = theme.clone();
@@ -74,7 +74,7 @@ async fn work_layout_renders_matching_backgrounds_in_dark_and_light_themes() {
             let offset = (size.height as usize / 2 * size.width as usize + x) * 4;
             &pixels[offset..offset + 4]
         };
-        let sidebar_edge = app.work_sidebar_width as usize;
+        let sidebar_edge = app.layout_drag.work_sidebar_width as usize;
         let sidebar = pixel_at(sidebar_edge - 3);
         let divider = pixel_at(sidebar_edge + 2);
         let chat = pixel_at(sidebar_edge + HResizeHandle::HIT_WIDTH as usize + 12);
@@ -116,21 +116,21 @@ async fn work_resource_panel_split_ratio_and_fullscreen_have_independent_layouts
             .await
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
-    app.work_resources_visible = true;
-    app.work_split_ratio = 0.25;
+    app.navigation_workspace.work_resources_visible = true;
+    app.navigation_workspace.work_split_ratio = 0.25;
     let narrow_chat = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
         layout_signature(&mut element, &renderer)
     };
 
-    app.work_split_ratio = 0.75;
+    app.navigation_workspace.work_split_ratio = 0.75;
     let wide_chat = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
         layout_signature(&mut element, &renderer)
     };
     assert_ne!(narrow_chat, wide_chat, "work split ratio must resize the two work surfaces");
 
-    app.work_resource_fullscreen = true;
+    app.navigation_workspace.work_resource_fullscreen = true;
     let resource_fullscreen = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
         layout_signature(&mut element, &renderer)
@@ -145,15 +145,15 @@ async fn work_resource_fullscreen_hides_sidebar_and_restores_right_half() {
             .await
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
-    app.work_resources_visible = true;
-    app.work_resource_fullscreen = true;
+    app.navigation_workspace.work_resources_visible = true;
+    app.navigation_workspace.work_resource_fullscreen = true;
 
     let fullscreen = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
         layout_signature(&mut element, &renderer)
     };
 
-    app.work_sidebar_collapsed = true;
+    app.navigation_sidebar.work_sidebar_collapsed = true;
     let fullscreen_with_collapsed_sidebar = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
         layout_signature(&mut element, &renderer)
@@ -163,7 +163,7 @@ async fn work_resource_fullscreen_hides_sidebar_and_restores_right_half() {
         "resource fullscreen must occupy the work area without the sidebar"
     );
 
-    app.work_resource_fullscreen = false;
+    app.navigation_workspace.work_resource_fullscreen = false;
     let restored = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
         layout_signature(&mut element, &renderer)
@@ -181,15 +181,15 @@ async fn work_half_fullscreen_keeps_sidebar_and_selects_one_surface() {
             .await
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
-    app.work_resources_visible = true;
+    app.navigation_workspace.work_resources_visible = true;
 
-    app.work_resource_half_fullscreen = true;
+    app.navigation_workspace.work_resource_half_fullscreen = true;
     let resource_half = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
         layout_signature(&mut element, &renderer)
     };
 
-    app.work_sidebar_collapsed = true;
+    app.navigation_sidebar.work_sidebar_collapsed = true;
     let resource_half_collapsed_sidebar = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
         layout_signature(&mut element, &renderer)
@@ -199,9 +199,9 @@ async fn work_half_fullscreen_keeps_sidebar_and_selects_one_surface() {
         "resource half fullscreen must keep the work sidebar"
     );
 
-    app.work_sidebar_collapsed = false;
-    app.work_resource_half_fullscreen = false;
-    app.work_chat_half_fullscreen = true;
+    app.navigation_sidebar.work_sidebar_collapsed = false;
+    app.navigation_workspace.work_resource_half_fullscreen = false;
+    app.navigation_workspace.work_chat_half_fullscreen = true;
     let chat_half = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
         layout_signature(&mut element, &renderer)
@@ -219,14 +219,14 @@ async fn work_layout_chat_fullscreen_hides_sidebar_and_resources() {
             .await
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
-    app.work_resources_visible = true;
+    app.navigation_workspace.work_resources_visible = true;
 
     let regular = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
         layout_signature(&mut element, &renderer)
     };
 
-    app.work_chat_fullscreen = true;
+    app.navigation_workspace.work_chat_fullscreen = true;
     let fullscreen = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
         layout_signature(&mut element, &renderer)
@@ -243,13 +243,13 @@ async fn work_layout_hidden_resources_leave_chat_as_the_only_right_surface() {
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
 
-    assert!(!app.work_resources_visible);
+    assert!(!app.navigation_workspace.work_resources_visible);
     let hidden = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
         layout_signature(&mut element, &renderer)
     };
 
-    app.work_chat_half_fullscreen = true;
+    app.navigation_workspace.work_chat_half_fullscreen = true;
     let chat_only = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
         layout_signature(&mut element, &renderer)
@@ -265,13 +265,13 @@ async fn work_layout_drag_handles_emit_sidebar_and_chat_split_messages() {
             .await
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
-    app.work_resources_visible = true;
+    app.navigation_workspace.work_resources_visible = true;
 
     let mut sidebar_element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
     let sidebar_messages = press_at(
         &mut sidebar_element,
         &renderer,
-        Point::new(app.work_sidebar_width + HResizeHandle::HIT_WIDTH / 2.0, 400.0),
+        Point::new(app.layout_drag.work_sidebar_width + HResizeHandle::HIT_WIDTH / 2.0, 400.0),
     );
     assert!(
         sidebar_messages.iter().any(|message| {
@@ -279,10 +279,10 @@ async fn work_layout_drag_handles_emit_sidebar_and_chat_split_messages() {
         })
     );
 
-    let right_width = VIEWPORT.width - app.work_sidebar_width - HResizeHandle::HIT_WIDTH;
-    let split_x = app.work_sidebar_width
+    let right_width = VIEWPORT.width - app.layout_drag.work_sidebar_width - HResizeHandle::HIT_WIDTH;
+    let split_x = app.layout_drag.work_sidebar_width
         + HResizeHandle::HIT_WIDTH
-        + (right_width - HResizeHandle::HIT_WIDTH) * app.work_split_ratio
+        + (right_width - HResizeHandle::HIT_WIDTH) * app.navigation_workspace.work_split_ratio
         + HResizeHandle::HIT_WIDTH / 2.0;
     let mut split_element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
     let split_messages = press_at(&mut split_element, &renderer, Point::new(split_x, 400.0));
@@ -422,8 +422,8 @@ async fn terminal_modes_work_fullscreen_temporarily_hides_terminal_and_restores_
     );
     assert_ne!(hidden, shown);
     for chat in [false, true] {
-        app.work_chat_fullscreen = chat;
-        app.work_resource_fullscreen = !chat;
+        app.navigation_workspace.work_chat_fullscreen = chat;
+        app.navigation_workspace.work_resource_fullscreen = !chat;
         let visible = layout_signature(
             &mut super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0),
             &renderer,
@@ -436,8 +436,8 @@ async fn terminal_modes_work_fullscreen_temporarily_hides_terminal_and_restores_
         assert_eq!(visible, hidden);
         app.terminal.is_visible = true;
     }
-    app.work_chat_fullscreen = false;
-    app.work_resource_fullscreen = false;
+    app.navigation_workspace.work_chat_fullscreen = false;
+    app.navigation_workspace.work_resource_fullscreen = false;
     assert_eq!(
         shown,
         layout_signature(
@@ -475,9 +475,9 @@ async fn terminal_fullscreen_toolbar_round_trips_workspace_layout() {
     for theme in [Theme::Light, Theme::Dark] {
         for mode in [WorkspaceMode::Code, WorkspaceMode::Work] {
             app.app_theme = theme.clone();
-            app.workspace_mode = mode;
+            app.navigation_mode.workspace_mode = mode;
             app.show_diff = true;
-            app.work_resources_visible = true;
+            app.navigation_workspace.work_resources_visible = true;
 
             for _ in 0..2 {
                 let enter = terminal_toolbar_frame(&app, &mut renderer, size, 268, true)
@@ -488,7 +488,7 @@ async fn terminal_fullscreen_toolbar_round_trips_workspace_layout() {
                 let _ = app.update(restore);
                 terminal_toolbar_frame(&app, &mut renderer, size, 268, false);
                 assert_eq!(app.terminal.height, 240.0);
-                assert!(app.show_diff && app.work_resources_visible);
+                assert!(app.show_diff && app.navigation_workspace.work_resources_visible);
             }
         }
     }
@@ -520,7 +520,7 @@ fn terminal_toolbar_frame(
     );
     eprintln!(
         "{:?} / {:?}: terminal header y={header_y}, content={expected_content:?}",
-        app.workspace_mode, app.app_theme
+        app.navigation_mode.workspace_mode, app.app_theme
     );
 
     let mut ui = UserInterface::build(view, size, Cache::new(), renderer);

@@ -78,7 +78,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     // 设置面板宽度：检查是否为有限值，如果是则限制在 200-800 像素范围内
     // 如果是无限值（如初始状态），则使用默认值 370.0 像素
-    let settings_panel_width = desktop_workspace::views::project::composition::settings_panel_width(app.settings_panel_width);
+    let settings_panel_width = desktop_workspace::views::project::composition::settings_panel_width(app.layout_drag.settings_panel_width);
 
     // 构建基础布局：包含左侧导航栏、会话面板和设置面板的主布局结构
     let work_layout = uses_work_layout(app);
@@ -121,7 +121,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 }
 
 fn uses_work_layout(app: &App) -> bool {
-    app.workspace_mode == WorkspaceMode::Work
+    app.navigation_mode.workspace_mode == WorkspaceMode::Work
 }
 #[cfg(test)]
 #[path = "project_tests.rs"]

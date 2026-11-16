@@ -7,9 +7,6 @@ use super::ViewMessage;
 use crate::app::{App, FocusArea, Message};
 use iced::Task;
 
-use desktop_navigation::view_layout::{
-    MIN_WORK_SIDEBAR_WIDTH, MAX_WORK_SIDEBAR_WIDTH, MIN_WORK_SPLIT_RATIO, MAX_WORK_SPLIT_RATIO,
-};
 
 pub(crate) use desktop_navigation::window_lifecycle::{WindowClosedOutcome, mark_window_closed};
 
@@ -130,70 +127,19 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             Task::none()
         }
-        ViewMessage::SplitDragStarted => {
-            app.dragging_split = true;
-            app.split_drag_anchor_x = None;
-            app.split_drag_start_ratio = app.split_ratio;
-            Task::none()
-        }
-        ViewMessage::WorkSidebarDragStarted => {
-            app.dragging_work_sidebar = true;
-            app.work_sidebar_drag_anchor_x = None;
-            app.work_sidebar_drag_start_width = app.work_sidebar_width;
-            Task::none()
-        }
-        ViewMessage::WorkSplitDragStarted => {
-            app.dragging_work_split = true;
-            app.work_split_drag_anchor_x = None;
-            app.work_split_drag_start_ratio = app.work_split_ratio;
-            Task::none()
-        }
-        ViewMessage::SettingsDragStarted => {
-            app.dragging_settings = true;
-            app.settings_drag_anchor_x = None;
-            app.settings_drag_start_width = app.settings_panel_width;
-            Task::none()
-        }
-        ViewMessage::FileManagerDragStarted => {
-            app.dragging_file_manager = true;
-            app.file_manager_drag_anchor_x = None;
-            app.file_manager_start_width = app.file_manager_width;
-            Task::none()
-        }
-        ViewMessage::PointerMoved(x, y) => {
-            app.cursor_position = iced::Point::new(x, y);
-            if app.dragging_settings {
-                let Some(value) = desktop_navigation::view_layout::drag_value(
-                    &mut app.settings_drag_anchor_x, x, app.settings_drag_start_width, 1.0, 150.0, 800.0,
-                ) else { return Task::none(); };
-                app.settings_panel_width = value;
-            }
-            if app.dragging_file_manager {
-                let Some(value) = desktop_navigation::view_layout::drag_value(
-                    &mut app.file_manager_drag_anchor_x, x, app.file_manager_start_width, -1.0, 180.0, 600.0,
-                ) else { return Task::none(); };
-                app.file_manager_width = value;
-            }
-            if app.dragging_split {
-                let Some(value) = desktop_navigation::view_layout::drag_value(
-                    &mut app.split_drag_anchor_x, x, app.split_drag_start_ratio, app.window_size.0.max(1.0), 0.2, 0.8,
-                ) else { return Task::none(); };
-                app.split_ratio = value;
-            }
-            if app.dragging_work_sidebar {
-                let Some(value) = desktop_navigation::view_layout::drag_value(
-                    &mut app.work_sidebar_drag_anchor_x, x, app.work_sidebar_drag_start_width, 1.0, MIN_WORK_SIDEBAR_WIDTH, MAX_WORK_SIDEBAR_WIDTH,
-                ) else { return Task::none(); };
-                app.work_sidebar_width = value;
-            }
-            if app.dragging_work_split {
-                let rail_width = if app.work_sidebar_collapsed { crate::app::state::WORK_SIDEBAR_RAIL_WIDTH } else { 0.0 };
-                let available_width = (app.window_size.0 - app.work_sidebar_width - rail_width).max(1.0);
-                let Some(value) = desktop_navigation::view_layout::drag_value(
-                    &mut app.work_split_drag_anchor_x, x, app.work_split_drag_start_ratio, available_width, MIN_WORK_SPLIT_RATIO, MAX_WORK_SPLIT_RATIO,
-                ) else { return Task::none(); };
-                app.work_split_ratio = value;
-            }
+        message @ (ViewMessage::SplitDragStarted | ViewMessage::WorkSidebarDragStarted | ViewMessage::WorkSplitDragStarted | ViewMessage::SettingsDragStarted | ViewMessage::FileManagerDragStarted | ViewMessage::PointerMoved(_, _)) => {
+            use desktop_navigation::view_layout::drag as domain;
+            let local = match message {
+                ViewMessage::SplitDragStarted => domain::Message::SplitDragStarted,
+                ViewMessage::WorkSidebarDragStarted => domain::Message::WorkSidebarDragStarted,
+                ViewMessage::WorkSplitDragStarted => domain::Message::WorkSplitDragStarted,
+                ViewMessage::SettingsDragStarted => domain::Message::SettingsDragStarted,
+                ViewMessage::FileManagerDragStarted => domain::Message::FileManagerDragStarted,
+                ViewMessage::PointerMoved(x, y) => { app.cursor_position = iced::Point::new(x, y); domain::Message::PointerMoved(x, y) },
+                _ => unreachable!(),
+            };
+            if !domain::update(&mut app.layout_drag, &mut app.navigation_workspace, app.navigation_sidebar.work_sidebar_collapsed, app.window_size.0, local) { return Task::none(); }
+            let domain::Message::PointerMoved(x, y) = local else { return Task::none(); };
             if app.task_pet_dragging {
                 app.drag_task_pet_to(x, y);
             }
@@ -273,31 +219,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::GlobalMouseReleased => {
             app.task_board_drag_pending = None;
             app.task_board_dragging = None;
-            if app.dragging_settings {
-                app.dragging_settings = false;
-                app.settings_drag_anchor_x = None;
-            }
-            let save = if app.dragging_file_manager {
-                app.dragging_file_manager = false;
-                app.file_manager_drag_anchor_x = None;
-                app.save_desktop_preference(
-                    "file_manager_width",
-                    serde_json::json!(app.file_manager_width),
-                )
-            } else {
-                Task::none()
-            };
-            if app.dragging_split {
-                app.dragging_split = false;
-            }
-            if app.dragging_work_sidebar {
-                app.dragging_work_sidebar = false;
-                app.work_sidebar_drag_anchor_x = None;
-            }
-            if app.dragging_work_split {
-                app.dragging_work_split = false;
-                app.work_split_drag_anchor_x = None;
-            }
+            let save = desktop_navigation::view_layout::drag::finish(&mut app.layout_drag, &mut app.navigation_workspace)
+                .map(|width| app.save_desktop_preference("file_manager_width", serde_json::json!(width)))
+                .unwrap_or_else(Task::none);
             if app.task_pet_dragging {
                 app.finish_task_pet_drag();
             }

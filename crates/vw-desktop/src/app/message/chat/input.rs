@@ -400,7 +400,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             shared::locate_chat_message_index(app, target_idx)
         }
         ChatMessage::ToggleFullscreen => {
-            match app.workspace_mode {
+            match app.navigation_mode.workspace_mode {
                 WorkspaceMode::Code => {
                     app.chat_panel_fullscreen = !app.chat_panel_fullscreen;
                     app.chat_panel_half_fullscreen = false;
@@ -410,11 +410,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     }
                 }
                 WorkspaceMode::Work => {
-                    app.work_chat_fullscreen = !app.work_chat_fullscreen;
-                    app.work_chat_half_fullscreen = false;
-                    if app.work_chat_fullscreen {
-                        app.work_resource_fullscreen = false;
-                        app.work_resource_half_fullscreen = false;
+                    app.navigation_workspace.work_chat_fullscreen = !app.navigation_workspace.work_chat_fullscreen;
+                    app.navigation_workspace.work_chat_half_fullscreen = false;
+                    if app.navigation_workspace.work_chat_fullscreen {
+                        app.navigation_workspace.work_resource_fullscreen = false;
+                        app.navigation_workspace.work_resource_half_fullscreen = false;
                     }
                 }
             }
@@ -425,7 +425,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             )
         }
         ChatMessage::ToggleHalfFullscreen => {
-            match app.workspace_mode {
+            match app.navigation_mode.workspace_mode {
                 WorkspaceMode::Code => {
                     app.chat_panel_half_fullscreen = !app.chat_panel_half_fullscreen;
                     app.chat_panel_fullscreen = false;
@@ -435,11 +435,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     }
                 }
                 WorkspaceMode::Work => {
-                    app.work_chat_half_fullscreen = !app.work_chat_half_fullscreen;
-                    app.work_chat_fullscreen = false;
-                    if app.work_chat_half_fullscreen {
-                        app.work_resource_fullscreen = false;
-                        app.work_resource_half_fullscreen = false;
+                    app.navigation_workspace.work_chat_half_fullscreen = !app.navigation_workspace.work_chat_half_fullscreen;
+                    app.navigation_workspace.work_chat_fullscreen = false;
+                    if app.navigation_workspace.work_chat_half_fullscreen {
+                        app.navigation_workspace.work_resource_fullscreen = false;
+                        app.navigation_workspace.work_resource_half_fullscreen = false;
                     }
                 }
             }

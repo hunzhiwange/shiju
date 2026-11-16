@@ -251,7 +251,7 @@ fn project_shell_keeps_tab_bar_in_code_and_work_modes() {
 
     let mut app = test_app();
     app.screen = Screen::Project;
-    app.workspace_mode = WorkspaceMode::Work;
+    app.navigation_mode.workspace_mode = WorkspaceMode::Work;
     std::hint::black_box(app.view());
 }
 

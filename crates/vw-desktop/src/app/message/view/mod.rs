@@ -718,11 +718,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             | ViewMessage::WorkBrowserRuntimeTick
     ) || matches!(
         &message,
-        ViewMessage::ToggleTerminalPanel if app.workspace_mode == crate::app::state::WorkspaceMode::Work
+        ViewMessage::ToggleTerminalPanel if app.navigation_mode.workspace_mode == crate::app::state::WorkspaceMode::Work
     ) || matches!(
         &message,
         ViewMessage::PointerMoved(_, _)
-            if app.dragging_work_sidebar || app.dragging_work_split
+            if app.layout_drag.dragging_work_sidebar || app.navigation_workspace.dragging_work_split
     ) || matches!(
         &message,
         ViewMessage::LayoutSelected(_)
@@ -735,7 +735,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::MobileSessionSelected(_, _)
         | ViewMessage::MobileNewSession(_)
         | ViewMessage::GlobalMouseReleased
-            if app.dragging_work_sidebar || app.dragging_work_split
+            if app.layout_drag.dragging_work_sidebar || app.navigation_workspace.dragging_work_split
     );
     let task = match message {
         #[cfg(not(target_arch = "wasm32"))]

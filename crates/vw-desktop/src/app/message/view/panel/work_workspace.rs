@@ -13,29 +13,7 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::WorkSplitRatioChanged(ratio) => domain::Message::WorkSplitRatioChanged(ratio),
         _ => return Task::none(),
     };
-    let mut state = domain::State {
-        work_resource_mode: std::mem::take(&mut app.work_resource_mode),
-        work_resources_visible: std::mem::take(&mut app.work_resources_visible),
-        dragging_work_split: std::mem::take(&mut app.dragging_work_split),
-        work_split_drag_anchor_x: std::mem::take(&mut app.work_split_drag_anchor_x),
-        work_resource_fullscreen: std::mem::take(&mut app.work_resource_fullscreen),
-        work_resource_half_fullscreen: std::mem::take(&mut app.work_resource_half_fullscreen),
-        work_split_ratio: std::mem::take(&mut app.work_split_ratio),
-        work_chat_fullscreen: std::mem::take(&mut app.work_chat_fullscreen),
-        work_chat_half_fullscreen: std::mem::take(&mut app.work_chat_half_fullscreen),
-        work_expanded_spaces: std::mem::take(&mut app.work_expanded_spaces),
-    };
-    domain::update(&mut state, message);
-    app.work_resource_mode = state.work_resource_mode;
-    app.work_resources_visible = state.work_resources_visible;
-    app.dragging_work_split = state.dragging_work_split;
-    app.work_split_drag_anchor_x = state.work_split_drag_anchor_x;
-    app.work_resource_fullscreen = state.work_resource_fullscreen;
-    app.work_resource_half_fullscreen = state.work_resource_half_fullscreen;
-    app.work_split_ratio = state.work_split_ratio;
-    app.work_chat_fullscreen = state.work_chat_fullscreen;
-    app.work_chat_half_fullscreen = state.work_chat_half_fullscreen;
-    app.work_expanded_spaces = state.work_expanded_spaces;
+    domain::update(&mut app.navigation_workspace, message);
     Task::none()
 }
 

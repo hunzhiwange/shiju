@@ -90,7 +90,7 @@ fn work_sidebar_shows_running_draft_until_history_is_available() {
     let id = "first-response";
     app.recent_projects = vec![path.into()];
     app.project_path = Some(path.into());
-    app.work_expanded_spaces.insert(path.into());
+    app.navigation_workspace.work_expanded_spaces.insert(path.into());
     let runtime = app.get_session_runtime_mut(id);
     runtime.draft = Some(crate::app::state::SessionDraft {
         project_path: path.into(),
@@ -153,8 +153,8 @@ fn work_sidebar_shows_visible_task_in_own_project() {
     let beta = "/workspace/beta";
     app.recent_projects = vec![alpha.into(), beta.into()];
     app.project_path = Some(alpha.into());
-    app.work_expanded_spaces.insert(alpha.into());
-    app.work_expanded_spaces.insert(beta.into());
+    app.navigation_workspace.work_expanded_spaces.insert(alpha.into());
+    app.navigation_workspace.work_expanded_spaces.insert(beta.into());
 
     let mut visible = child_session("visible", "alpha-root", "Visible", alpha, 20);
     visible.slug = Info::visible_task_slug(&visible.slug);
@@ -216,7 +216,7 @@ fn work_sidebar_builds_workbuddy_sections_from_real_projects() {
         vec![session("middle", "Middle task", "/workspace/beta", 20)],
     );
     app.project_path = Some("/workspace/alpha".into());
-    app.work_expanded_spaces.insert("/workspace/alpha".into());
+    app.navigation_workspace.work_expanded_spaces.insert("/workspace/alpha".into());
     app.hovered_recent_project = Some("/workspace/alpha".into());
     app.project_tools_menu_path = Some("/workspace/alpha".into());
 
@@ -300,7 +300,7 @@ fn work_sidebar_projects_runtime_status_for_main_tasks_only() {
             child_session("running-child", "running", "运行中的子任务", "/workspace/alpha", 40),
         ],
     );
-    app.work_expanded_spaces.insert("/workspace/alpha".into());
+    app.navigation_workspace.work_expanded_spaces.insert("/workspace/alpha".into());
     app.get_session_runtime_mut("running").request_lifecycle.is_requesting = true;
     app.get_session_runtime_mut("running-child").request_lifecycle.is_requesting = true;
 
@@ -510,8 +510,8 @@ fn work_sidebar_paginates_tasks_and_spaces_from_ten_in_steps_of_five() {
     assert_eq!(initial.spaces.len(), 10);
     assert_eq!(initial.space_total, 13);
 
-    app.work_sidebar_visible_tasks += 5;
-    app.work_sidebar_visible_spaces += 5;
+    app.navigation_sidebar.work_sidebar_visible_tasks += 5;
+    app.navigation_sidebar.work_sidebar_visible_spaces += 5;
     let loaded = work_sidebar::model(&app);
     assert_eq!(loaded.tasks.len(), 13);
     assert_eq!(loaded.spaces.len(), 13);
@@ -525,7 +525,7 @@ fn work_sidebar_paginates_expanded_space_tasks_from_twenty() {
     app.project_sessions.clear();
     let path = "/workspace/alpha".to_string();
     app.recent_projects.push(path.clone());
-    app.work_expanded_spaces.insert(path.clone());
+    app.navigation_workspace.work_expanded_spaces.insert(path.clone());
     app.project_sessions.insert(
         path.clone(),
         (0..25)
@@ -547,7 +547,7 @@ fn work_sidebar_paginates_expanded_space_tasks_from_twenty() {
     assert_eq!(initial.spaces[0].sessions[0].id, "session-00");
     assert_eq!(initial.spaces[0].sessions[19].id, "session-19");
 
-    app.work_sidebar_space_task_visible.insert(path, 40);
+    app.navigation_sidebar.work_sidebar_space_task_visible.insert(path, 40);
     let loaded = work_sidebar::model(&app);
     assert_eq!(loaded.spaces[0].sessions.len(), 25);
     assert_eq!(loaded.spaces[0].session_total, 25);
@@ -588,14 +588,14 @@ fn work_sidebar_filters_sessions_by_project_and_update_time() {
         )],
     );
 
-    app.work_sidebar_filter_scope = WorkSidebarFilterScope::CurrentProject;
+    app.navigation_sidebar.work_sidebar_filter_scope = WorkSidebarFilterScope::CurrentProject;
     let current_project = work_sidebar::model(&app);
     assert_eq!(current_project.tasks.len(), 1);
     assert_eq!(current_project.spaces.len(), 1);
     assert_eq!(current_project.spaces[0].label, "alpha");
 
-    app.work_sidebar_filter_scope = WorkSidebarFilterScope::All;
-    app.work_sidebar_filter_time = WorkSidebarFilterTime::LastSevenDays;
+    app.navigation_sidebar.work_sidebar_filter_scope = WorkSidebarFilterScope::All;
+    app.navigation_sidebar.work_sidebar_filter_time = WorkSidebarFilterTime::LastSevenDays;
     let recent = work_sidebar::model(&app);
     assert_eq!(recent.tasks.len(), 1);
     assert_eq!(recent.spaces.len(), 1);
@@ -616,7 +616,7 @@ fn work_sidebar_filters_sessions_by_runtime_status() {
     );
     app.get_session_runtime_mut("running").request_lifecycle.is_requesting = true;
 
-    app.work_sidebar_filter_status = WorkSidebarFilterStatus::InProgress;
+    app.navigation_sidebar.work_sidebar_filter_status = WorkSidebarFilterStatus::InProgress;
     let running = work_sidebar::model(&app);
     assert_eq!(
         running
@@ -630,7 +630,7 @@ fn work_sidebar_filters_sessions_by_runtime_status() {
         ["running"]
     );
 
-    app.work_sidebar_filter_status = WorkSidebarFilterStatus::Completed;
+    app.navigation_sidebar.work_sidebar_filter_status = WorkSidebarFilterStatus::Completed;
     let completed = work_sidebar::model(&app);
     assert_eq!(
         completed
@@ -737,13 +737,13 @@ async fn work_sidebar_current_project_above_new_task_has_refresh_and_tools_butto
     app.recent_projects = vec!["/workspace/other".into(), active.into()];
     app.recent_projects_edits = vec!["Other project".into(), "自定义项目名称".into()];
     app.project_path = Some(active.into());
-    app.work_sidebar_width = 220.0;
+    app.layout_drag.work_sidebar_width = 220.0;
 
     for (collapsed, tab, theme) in
         [(false, WorkSidebarTab::Tasks, Theme::Light), (true, WorkSidebarTab::Spaces, Theme::Dark)]
     {
-        app.work_sidebar_collapsed = collapsed;
-        app.work_sidebar_tab = tab;
+        app.navigation_sidebar.work_sidebar_collapsed = collapsed;
+        app.navigation_sidebar.work_sidebar_tab = tab;
         let mut sidebar = work_sidebar::view(&app);
         draw(&mut sidebar, &mut renderer, &theme);
 
@@ -828,7 +828,7 @@ async fn work_sidebar_current_project_above_new_task_has_refresh_and_tools_butto
         drop(overlay);
         drop(sidebar);
         let _ = crate::app::message::project::update(&mut app, edit.clone());
-        assert!(app.work_current_project_menu.is_none());
+        assert!(app.navigation_mode.work_current_project_menu.is_none());
         assert_eq!(app.project_editor.project_edit_path.as_deref(), Some(active));
     }
 }
@@ -862,7 +862,7 @@ async fn work_sidebar_replaces_search_row_with_compact_header() {
     let node = sidebar.as_widget_mut().layout(&mut tree, &renderer, &limits);
     let column = Layout::new(&node).child(1).child(0);
 
-    assert_eq!(app.work_sidebar_tab, WorkSidebarTab::Tasks);
+    assert_eq!(app.navigation_sidebar.work_sidebar_tab, WorkSidebarTab::Tasks);
     assert_eq!(
         column.children().count(),
         3,
@@ -878,7 +878,7 @@ async fn work_sidebar_uses_resizable_width_from_app_state() {
             .await
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
-    app.work_sidebar_width = 420.0;
+    app.layout_drag.work_sidebar_width = 420.0;
     let mut sidebar = work_sidebar::view(&app);
     let limits = layout::Limits::new(Size::ZERO, Size::new(520.0, 800.0));
     let mut tree = Tree::new(sidebar.as_widget());
@@ -894,7 +894,7 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
             .await
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
-    app.work_sidebar_collapsed = true;
+    app.navigation_sidebar.work_sidebar_collapsed = true;
     app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
     let project_path = "/workspace/project";
     app.project_path = Some(project_path.into());
@@ -910,7 +910,7 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
     let root = Layout::new(&node);
     let rail = root.child(0).child(0);
     let sessions = root.child(1).child(0);
-    assert_eq!(root.child(1).bounds().width, app.work_sidebar_width);
+    assert_eq!(root.child(1).bounds().width, app.layout_drag.work_sidebar_width);
     assert_eq!(sessions.children().count(), 3, "navigation, tabs, and session list");
     let controls = rail.children();
     let mut actions = controls.map(|control| {
@@ -1050,17 +1050,17 @@ async fn work_sidebar_draws_dark_chinese_without_monospace_panic() {
         vec![session("cn", "中文任务标题\r\n下一步", "/workspace/chinese", 30)],
     );
     app.get_session_runtime_mut("cn").request_lifecycle.is_requesting = true;
-    app.work_sidebar_more_open = true;
+    app.navigation_sidebar.work_sidebar_more_open = true;
     app.session_menu_id = Some("cn".into());
     app.session_menu_anchor = Some(Point::new(120.0, 180.0));
     let mut element = work_sidebar::view(&app);
     draw(&mut element, &mut renderer, &Theme::Dark);
     drop(element);
 
-    app.work_sidebar_more_open = false;
-    app.work_sidebar_tab = WorkSidebarTab::Spaces;
+    app.navigation_sidebar.work_sidebar_more_open = false;
+    app.navigation_sidebar.work_sidebar_tab = WorkSidebarTab::Spaces;
     app.status_animation_frame = 1;
-    app.work_expanded_spaces.insert("/workspace/chinese".into());
+    app.navigation_workspace.work_expanded_spaces.insert("/workspace/chinese".into());
     app.hovered_recent_project = Some("/workspace/chinese".into());
     app.project_tools_menu_path = Some("/workspace/chinese".into());
     let mut space_menu = work_sidebar::view(&app);
@@ -1193,7 +1193,7 @@ async fn session_ui_projection_open_scroll_probe() {
     let mut app = App::new().0;
     let path = "/workspace/probe";
     app.screen = crate::app::Screen::Project;
-    app.workspace_mode = crate::app::state::WorkspaceMode::Work;
+    app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
     app.project_path = Some(path.into());
     app.recent_projects = vec![path.into()];
     app.active_session_id = Some("root".into());
@@ -1344,7 +1344,7 @@ fn sidebar_navigation_hover_and_menus_reuse_session_projection() {
         let _ = crate::app::message::view::update(&mut app, event);
         assert!(std::sync::Arc::ptr_eq(&snapshot, &work_sidebar::cached_model(&app)));
     }
-    assert!(!app.work_sidebar_project_nav_hovered);
-    assert!(!app.work_sidebar_filter_open);
-    assert!(!app.work_sidebar_more_open);
+    assert!(!app.navigation_sidebar.work_sidebar_project_nav_hovered);
+    assert!(!app.navigation_sidebar.work_sidebar_filter_open);
+    assert!(!app.navigation_sidebar.work_sidebar_more_open);
 }

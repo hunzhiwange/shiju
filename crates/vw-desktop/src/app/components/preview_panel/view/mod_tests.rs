@@ -109,10 +109,10 @@ fn preview_fullscreen_controls_only_show_in_code_mode() {
     let mut app = app();
     app.screen = Screen::Project;
 
-    app.workspace_mode = WorkspaceMode::Code;
+    app.navigation_mode.workspace_mode = WorkspaceMode::Code;
     assert!(show_fullscreen_controls(&app));
 
-    app.workspace_mode = WorkspaceMode::Work;
+    app.navigation_mode.workspace_mode = WorkspaceMode::Work;
     assert!(!show_fullscreen_controls(&app));
 }
 

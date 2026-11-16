@@ -62,69 +62,15 @@ pub struct App {
     pub(crate) startup_started_at: std::time::Instant,
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) startup_configuration: crate::app::impls::StartupConfiguration,
-    /// 当前项目工作区的界面呈现模式
-    pub(crate) workspace_mode: WorkspaceMode,
-    /// 工作模式右侧资源区的呈现模式
-    pub(crate) work_resource_mode: WorkResourceMode,
-    /// 是否展示工作模式右侧工作空间模块
-    pub(crate) work_resources_visible: bool,
-    /// 工作模式对话区占可用内容宽度的比例
-    pub(crate) work_split_ratio: f32,
-    /// 工作模式左栏宽度
-    pub(crate) work_sidebar_width: f32,
-    /// 工作模式的导航是否收进图标栏
-    pub(crate) work_sidebar_collapsed: bool,
-    /// 工作模式左栏过滤弹层是否打开
-    pub(crate) work_sidebar_filter_open: bool,
-    /// 工作模式左栏“更多”应用菜单是否打开
-    pub(crate) work_sidebar_more_open: bool,
-    /// 工作模式当前项目工具菜单打开时对应的项目路径
-    pub(crate) work_current_project_menu: Option<String>,
-    /// 工作模式左栏“项目”导航项是否悬停（展开态显示新建入口）
-    pub(crate) work_sidebar_project_nav_hovered: bool,
-    /// 工作模式左栏项目范围过滤
-    pub(crate) work_sidebar_filter_scope: WorkSidebarFilterScope,
-    /// 工作模式左栏会话运行状态过滤
-    pub(crate) work_sidebar_filter_status: WorkSidebarFilterStatus,
-    /// 工作模式左栏更新时间过滤
-    pub(crate) work_sidebar_filter_time: WorkSidebarFilterTime,
-    /// 工作模式左栏当前任务/空间标签
-    pub(crate) work_sidebar_tab: WorkSidebarTab,
-    /// 工作模式左栏当前可见任务数量
-    pub(crate) work_sidebar_visible_tasks: usize,
-    /// 工作模式左栏当前可见空间数量
-    pub(crate) work_sidebar_visible_spaces: usize,
-    /// 工作模式输入区空间选择器是否打开
-    pub(crate) work_space_picker_open: bool,
-    /// 是否正在拖动工作模式左栏
-    pub(crate) dragging_work_sidebar: bool,
-    /// 工作模式左栏拖动起始 X 坐标
-    pub(crate) work_sidebar_drag_anchor_x: Option<f32>,
-    /// 工作模式左栏拖动起始宽度
-    pub(crate) work_sidebar_drag_start_width: f32,
-    /// 是否正在拖动工作模式聊天/资源分割条
-    pub(crate) dragging_work_split: bool,
-    /// 工作模式聊天/资源分割条拖动起始 X 坐标
-    pub(crate) work_split_drag_anchor_x: Option<f32>,
-    /// 工作模式聊天/资源分割条拖动起始比例
-    pub(crate) work_split_drag_start_ratio: f32,
-    /// 工作模式资源区是否全屏
-    pub(crate) work_resource_fullscreen: bool,
-    /// 工作模式资源区是否保留左栏并独占右侧
-    pub(crate) work_resource_half_fullscreen: bool,
-    /// 工作模式聊天区是否独占整个工作内容
-    pub(crate) work_chat_fullscreen: bool,
-    /// 工作模式聊天区是否保留左栏并独占右侧
-    pub(crate) work_chat_half_fullscreen: bool,
+    pub(crate) navigation_workspace: desktop_navigation::panel::work_workspace::State,
+    pub(crate) navigation_mode: desktop_navigation::panel::workspace_mode::State,
+    pub(crate) layout_drag: desktop_navigation::view_layout::drag::State,
+    pub(crate) navigation_sidebar: desktop_navigation::panel::work_sidebar::State,
     /// 工作模式停靠浏览器的输入、错误与焦点状态
     pub(crate) work_browser: WorkBrowserState,
     /// 工作模式停靠浏览器的受控子进程
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) work_browser_controller: crate::app::webview_runtime::WorkBrowserController,
-    /// 工作模式左栏中按真实项目路径展开的空间
-    pub(crate) work_expanded_spaces: HashSet<String>,
-    /// 工作模式左栏各空间当前可见任务数量（项目路径 -> 可见条数）
-    pub(crate) work_sidebar_space_task_visible: HashMap<String, usize>,
     /// 当前项目路径
     pub(crate) project_path: Option<String>,
     /// 当前项目是否为 Git 仓库（网关 ProjectInfo.vcs）
@@ -275,14 +221,6 @@ pub struct App {
     pub(crate) agent_stream_id: u64,
     /// 请求队列
     pub(crate) queue: Vec<QueueItem>,
-    /// 主分割面板比例
-    pub(crate) split_ratio: f32,
-    /// 是否正在拖动主分割面板
-    pub(crate) dragging_split: bool,
-    /// 主分割面板拖动起始 X 坐标
-    pub(crate) split_drag_anchor_x: Option<f32>,
-    /// 主分割面板拖动起始比例
-    pub(crate) split_drag_start_ratio: f32,
     /// 窗口尺寸（宽，高）
     pub(crate) window_size: (f32, f32),
     /// 当前会话的布局选择，独立于工作区模式与桌面面板尺寸。
@@ -359,22 +297,6 @@ pub struct App {
     pub(crate) open_external_platform: Option<RuntimePlatform>,
     /// 外部应用存在性检查结果缓存
     pub(crate) open_external_exists: HashMap<ExternalOpenApp, bool>,
-    /// 设置面板宽度
-    pub(crate) settings_panel_width: f32,
-    /// 是否正在拖动设置面板
-    pub(crate) dragging_settings: bool,
-    /// 设置面板拖动起始 X 坐标
-    pub(crate) settings_drag_anchor_x: Option<f32>,
-    /// 设置面板拖动起始宽度
-    pub(crate) settings_drag_start_width: f32,
-    /// 文件管理器面板宽度
-    pub(crate) file_manager_width: f32,
-    /// 是否正在拖动文件管理器面板
-    pub(crate) dragging_file_manager: bool,
-    /// 文件管理器面板拖动起始 X 坐标
-    pub(crate) file_manager_drag_anchor_x: Option<f32>,
-    /// 文件管理器面板拖动起始宽度
-    pub(crate) file_manager_start_width: f32,
     pub(crate) file_manager: desktop_workspace::file_manager::FileManagerState,
     /// 通用状态动画帧
     pub(crate) status_animation_frame: usize,
@@ -382,8 +304,6 @@ pub struct App {
     pub(crate) show_model_popover: bool,
     /// 是否显示模式选择弹出框
     pub(crate) show_mode_popover: bool,
-    /// 是否显示代码/工作界面模式弹出框
-    pub(crate) show_workspace_mode_popover: bool,
     /// 是否显示文件选择弹出框
     pub(crate) show_send_mode_popover: bool,
     pub(crate) show_file_popover: bool,
@@ -861,7 +781,6 @@ pub struct App {
     pub(crate) hovered_tab_id: Option<String>,
     /// 悬停的最近项目路径
     pub(crate) hovered_recent_project: Option<String>,
-    pub(crate) code_projects_menu_open: bool,
     /// 打开的标签页列表
     pub(crate) open_tabs: Vec<AppTab>,
     /// 应用搜索查询

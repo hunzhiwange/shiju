@@ -30,15 +30,15 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
     let opening = if let PreviewMessage::Open(path) = &message { Some(path.clone()) } else { None };
     domain::prepare_popover(&mut app.editor_popover, &message);
     let reveal_work_resources = opening.is_some() && matches!(app.screen, Screen::Project)
-        && app.workspace_mode == WorkspaceMode::Work
-        && (!app.work_resources_visible || app.work_resource_mode != WorkResourceMode::WorkspaceFiles || app.work_chat_fullscreen || app.work_chat_half_fullscreen);
+        && app.navigation_mode.workspace_mode == WorkspaceMode::Work
+        && (!app.navigation_workspace.work_resources_visible || app.navigation_workspace.work_resource_mode != WorkResourceMode::WorkspaceFiles || app.navigation_workspace.work_chat_fullscreen || app.navigation_workspace.work_chat_half_fullscreen);
     let mut save_task = Task::none();
     if opening.is_some() {
         if reveal_work_resources {
-            app.work_resources_visible = true;
-            app.work_resource_mode = WorkResourceMode::WorkspaceFiles;
-            app.work_chat_fullscreen = false;
-            app.work_chat_half_fullscreen = false;
+            app.navigation_workspace.work_resources_visible = true;
+            app.navigation_workspace.work_resource_mode = WorkResourceMode::WorkspaceFiles;
+            app.navigation_workspace.work_chat_fullscreen = false;
+            app.navigation_workspace.work_chat_half_fullscreen = false;
         }
         let mut fields = Map::new();
         if app.file_manager.file_manager_show_changes { app.file_manager.file_manager_show_changes = false; fields.insert("file_manager_show_changes".into(), Value::Bool(false)); }

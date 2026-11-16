@@ -300,9 +300,9 @@ impl App {
 
         #[cfg(not(target_arch = "wasm32"))]
         let work_browser_runtime_tick = if self.screen == Screen::Project
-            && self.workspace_mode == crate::app::state::WorkspaceMode::Work
-            && self.work_resources_visible
-            && self.work_resource_mode == crate::app::state::WorkResourceMode::Browser
+            && self.navigation_mode.workspace_mode == crate::app::state::WorkspaceMode::Work
+            && self.navigation_workspace.work_resources_visible
+            && self.navigation_workspace.work_resource_mode == crate::app::state::WorkResourceMode::Browser
         {
             iced::time::every(std::time::Duration::from_millis(100))
                 .map(|_| Message::View(message::ViewMessage::WorkBrowserRuntimeTick))

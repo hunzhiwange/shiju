@@ -59,8 +59,8 @@ impl BrowserProcess for NavigationProcess {
 fn visible_work_browser_app() -> App {
     let mut app = App::new().0;
     app.screen = Screen::Project;
-    app.workspace_mode = WorkspaceMode::Work;
-    app.work_resource_mode = WorkResourceMode::Browser;
+    app.navigation_mode.workspace_mode = WorkspaceMode::Work;
+    app.navigation_workspace.work_resource_mode = WorkResourceMode::Browser;
     app.window_size = (1_400.0, 900.0);
     app
 }
@@ -70,7 +70,7 @@ fn terminal_fullscreen_keeps_native_browser_above_dock_and_hides_it_when_expande
     use crate::app::message::TerminalMessage;
 
     let mut app = visible_work_browser_app();
-    app.work_resources_visible = true;
+    app.navigation_workspace.work_resources_visible = true;
     app.work_browser.closed = false;
     app.work_browser.address = "https://example.com/".into();
     app.terminal.set_visible(false);

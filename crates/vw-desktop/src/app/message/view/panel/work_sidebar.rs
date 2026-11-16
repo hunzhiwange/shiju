@@ -8,7 +8,7 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         if !matches!(app.screen, Screen::Project) || app.project_path.is_none() {
             return Task::none();
         }
-        app.work_resource_half_fullscreen = false;
+        app.navigation_workspace.work_resource_half_fullscreen = false;
         if app.active_session_id.is_some() {
             app.stash_active_session_view();
             app.active_session_id = None;
@@ -40,33 +40,7 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::WorkSpacePickerClosed => domain::Message::WorkSpacePickerClosed,
         _ => return Task::none(),
     };
-    let mut state = domain::State {
-        work_sidebar_visible_tasks: std::mem::take(&mut app.work_sidebar_visible_tasks),
-        work_sidebar_visible_spaces: std::mem::take(&mut app.work_sidebar_visible_spaces),
-        work_sidebar_space_task_visible: std::mem::take(&mut app.work_sidebar_space_task_visible),
-        work_sidebar_project_nav_hovered: std::mem::take(&mut app.work_sidebar_project_nav_hovered),
-        work_sidebar_filter_open: std::mem::take(&mut app.work_sidebar_filter_open),
-        work_sidebar_more_open: std::mem::take(&mut app.work_sidebar_more_open),
-        work_sidebar_collapsed: std::mem::take(&mut app.work_sidebar_collapsed),
-        work_sidebar_filter_scope: std::mem::take(&mut app.work_sidebar_filter_scope),
-        work_sidebar_filter_status: std::mem::take(&mut app.work_sidebar_filter_status),
-        work_sidebar_filter_time: std::mem::take(&mut app.work_sidebar_filter_time),
-        work_sidebar_tab: std::mem::take(&mut app.work_sidebar_tab),
-        work_space_picker_open: std::mem::take(&mut app.work_space_picker_open),
-    };
-    let result = domain::update(&mut state, message);
-    app.work_sidebar_visible_tasks = state.work_sidebar_visible_tasks;
-    app.work_sidebar_visible_spaces = state.work_sidebar_visible_spaces;
-    app.work_sidebar_space_task_visible = state.work_sidebar_space_task_visible;
-    app.work_sidebar_project_nav_hovered = state.work_sidebar_project_nav_hovered;
-    app.work_sidebar_filter_open = state.work_sidebar_filter_open;
-    app.work_sidebar_more_open = state.work_sidebar_more_open;
-    app.work_sidebar_collapsed = state.work_sidebar_collapsed;
-    app.work_sidebar_filter_scope = state.work_sidebar_filter_scope;
-    app.work_sidebar_filter_status = state.work_sidebar_filter_status;
-    app.work_sidebar_filter_time = state.work_sidebar_filter_time;
-    app.work_sidebar_tab = state.work_sidebar_tab;
-    app.work_space_picker_open = state.work_space_picker_open;
+    let result = domain::update(&mut app.navigation_sidebar, message);
     if let Some(collapsed) = result { return app.save_desktop_preference("work_sidebar_collapsed", collapsed.into()); }
     Task::none()
 }

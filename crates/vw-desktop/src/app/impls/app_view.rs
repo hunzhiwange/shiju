@@ -138,7 +138,7 @@ impl App {
                 .width(iced::Length::Fill)
                 .height(iced::Length::Fill)
                 .into()
-        } else if show_tab_bar(self.screen, self.workspace_mode) {
+        } else if show_tab_bar(self.screen, self.navigation_mode.workspace_mode) {
             // 组装主视图：垂直排列顶部栏、标签栏、内容区域和状态栏
             iced::widget::column![top, tab_bar, content, status_bar]
                 .width(iced::Length::Fill)

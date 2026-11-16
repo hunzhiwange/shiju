@@ -72,7 +72,7 @@ fn startup_agent_config_reload_rehydrates_gateway_backed_settings() {
 #[test]
 fn bootstrap_app_config_updates_known_fields_and_clamps_file_manager_width() {
     let mut app = test_app();
-    app.work_sidebar_collapsed = true;
+    app.navigation_sidebar.work_sidebar_collapsed = true;
 
     let _ = app.update(Message::BootstrapAppConfig(Ok(json!({
         "model": "gpt-next",
@@ -91,10 +91,10 @@ fn bootstrap_app_config_updates_known_fields_and_clamps_file_manager_width() {
     assert!(app.auto_model);
     assert_eq!(app.acp_agent.as_deref(), Some("codex"));
     assert!(app.show_settings);
-    assert_eq!(app.workspace_mode, crate::app::state::WorkspaceMode::Work);
-    assert!(!app.work_sidebar_collapsed);
+    assert_eq!(app.navigation_mode.workspace_mode, crate::app::state::WorkspaceMode::Work);
+    assert!(!app.navigation_sidebar.work_sidebar_collapsed);
     assert!(app.file_manager.show_file_manager);
-    assert_eq!(app.file_manager_width, 600.0);
+    assert_eq!(app.layout_drag.file_manager_width, 600.0);
     assert_eq!(app.open_external_app, ExternalOpenApp::Cursor);
     assert_eq!(app.file_tree_expanded, ["src", "crates"]);
     assert!(app.file_tree_expanded_set.contains("src"));
@@ -103,13 +103,13 @@ fn bootstrap_app_config_updates_known_fields_and_clamps_file_manager_width() {
 #[test]
 fn workspace_mode_bootstrap_preserves_current_mode_for_invalid_values() {
     let mut app = test_app();
-    app.workspace_mode = crate::app::state::WorkspaceMode::Work;
+    app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
 
     let _ = app.update(Message::BootstrapAppConfig(Ok(json!({
         "workspace_mode": "unsupported"
     }))));
 
-    assert_eq!(app.workspace_mode, crate::app::state::WorkspaceMode::Work);
+    assert_eq!(app.navigation_mode.workspace_mode, crate::app::state::WorkspaceMode::Work);
 }
 
 #[test]
@@ -120,13 +120,13 @@ fn workspace_mode_bootstrap_accepts_work_mode() {
         "workspace_mode": "work"
     }))));
 
-    assert_eq!(app.workspace_mode, crate::app::state::WorkspaceMode::Work);
+    assert_eq!(app.navigation_mode.workspace_mode, crate::app::state::WorkspaceMode::Work);
 }
 
 #[test]
 fn startup_app_config_loaded_uses_same_bootstrap_path() {
     let mut app = test_app();
-    app.work_sidebar_collapsed = false;
+    app.navigation_sidebar.work_sidebar_collapsed = false;
 
     let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({
         "model": "startup-model",
@@ -138,9 +138,9 @@ fn startup_app_config_loaded_uses_same_bootstrap_path() {
 
     assert_eq!(app.model, "startup-model");
     assert!(app.auto_model);
-    assert!(app.work_sidebar_collapsed);
-    assert_eq!(app.file_manager_width, 200.0);
-    assert_eq!(app.file_manager_start_width, 200.0);
+    assert!(app.navigation_sidebar.work_sidebar_collapsed);
+    assert_eq!(app.layout_drag.file_manager_width, 200.0);
+    assert_eq!(app.layout_drag.file_manager_start_width, 200.0);
     assert_eq!(app.open_external_app, ExternalOpenApp::Zed);
 }
 
@@ -174,8 +174,8 @@ fn bootstrap_app_config_preserves_invalid_values_and_clamps_minimum_width() {
     assert!(app.file_manager.show_file_manager);
     assert!(app.file_manager.file_manager_show_changes);
     assert!(app.terminal.is_visible);
-    assert_eq!(app.file_manager_width, 180.0);
-    assert_eq!(app.file_manager_start_width, 180.0);
+    assert_eq!(app.layout_drag.file_manager_width, 180.0);
+    assert_eq!(app.layout_drag.file_manager_start_width, 180.0);
     assert_eq!(app.open_external_app, ExternalOpenApp::VSCode);
     assert_eq!(app.file_tree_expanded, ["src", "src"]);
     assert_eq!(app.file_tree_expanded_set.len(), 1);

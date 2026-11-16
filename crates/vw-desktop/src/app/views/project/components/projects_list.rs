@@ -19,7 +19,7 @@ pub fn projects_list<'a>(app: &App, collapsed_hover_mode: bool) -> iced::Element
  let input = domain::Input {
  recent_projects: &app.recent_projects, recent_projects_edits: &app.recent_projects_edits,
  recent_projects_meta: &app.recent_projects_meta, project_path: &app.project_path,
- hovered_recent_project: &app.hovered_recent_project, code_projects_menu_open: app.code_projects_menu_open,
+ hovered_recent_project: &app.hovered_recent_project, code_projects_menu_open: app.navigation_mode.code_projects_menu_open,
  desktop_locale: app.desktop_locale,
  project_attention: app.recent_projects_edits.iter().enumerate().map(|(index, _)| {
  let path = app.recent_projects.get(index).map(String::as_str).unwrap_or("");

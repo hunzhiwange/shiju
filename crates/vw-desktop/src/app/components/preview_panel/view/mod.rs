@@ -45,7 +45,7 @@ pub use settings::build_settings_overlay;
 
 fn show_fullscreen_controls(app: &App) -> bool {
     matches!(app.screen, crate::app::Screen::Project)
-        && matches!(app.workspace_mode, crate::app::state::WorkspaceMode::Code)
+        && matches!(app.navigation_mode.workspace_mode, crate::app::state::WorkspaceMode::Code)
 }
 
 pub fn view(app: &App) -> Element<'_, Message> {

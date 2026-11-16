@@ -13,5 +13,3 @@ pub(crate) async fn emit(
 ) -> Result<Outcome> {
     plugin_hooks::hook_stop::emit::<crate::tools::context::AgentContextHost>(context, interrupt, active, message).await
 }
-
-pub use plugin_hooks::hook_stop::{validate, parse, outcome};

@@ -128,3 +128,7 @@ pub async fn emit<H: HookHost>(
     }
     Ok(Outcome::default())
 }
+
+#[cfg(test)]
+#[path = "hook_stop_tests.rs"]
+mod tests;

@@ -8,12 +8,10 @@ use iced::Task;
 #[path = "model_routes_tests.rs"]
 mod model_routes_tests;
 
-fn queue_valid_routes(app: &mut App) -> Task<Message> {
-    let Some(projection) =
-        desktop_settings_providers::model_routes::prepare_routes(&mut app.model_routes_settings)
-    else {
-        return Task::none();
-    };
+fn queue_valid_routes(
+    app: &mut App,
+    projection: desktop_settings_providers::model_routes::RouteProjection,
+) -> Task<Message> {
     let rules = projection.rules;
     app.query_classification_settings.enabled = !rules.is_empty();
     app.query_classification_settings.rules = rules
@@ -100,12 +98,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
                 _ => unreachable!("persistence messages handled above"),
             };
-            desktop_settings_providers::model_routes::edit_routes(
-                &mut app.model_routes_settings.routes,
+            let Some(projection) = desktop_settings_providers::model_routes::edit_draft(
+                &mut app.model_routes_settings,
                 message,
-            );
+            ) else {
+                return Task::none();
+            };
+            queue_valid_routes(app, projection)
         }
     }
-    app.model_routes_settings.persistence.edited();
-    queue_valid_routes(app)
 }

@@ -58,45 +58,6 @@ fn model_routes_update_syncs_query_classification_state() {
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
-fn invalid_route_edits_update_fields_and_expose_validation_errors() {
-    let mut app = app();
-    app.model_routes_settings.routes = vec![ModelRoute::default()];
-
-    let _ = update(
-        &mut app,
-        SettingsMessage::ModelRoutes(ModelRoutesMessage::ProviderChanged(0, "openai".to_string())),
-    );
-    assert_eq!(app.model_routes_settings.routes[0].provider, "openai");
-    assert_eq!(app.model_routes_settings.save_error.as_deref(), Some("第 1 条路由缺少 pattern"));
-
-    let _ = update(
-        &mut app,
-        SettingsMessage::ModelRoutes(ModelRoutesMessage::PatternChanged(0, "chat".to_string())),
-    );
-    assert_eq!(app.model_routes_settings.routes[0].pattern, "chat");
-    assert_eq!(app.model_routes_settings.save_error.as_deref(), Some("第 1 条路由缺少 model"));
-
-    app.model_routes_settings.routes[0].provider.clear();
-    let _ = update(
-        &mut app,
-        SettingsMessage::ModelRoutes(ModelRoutesMessage::ModelChanged(0, "gpt-5".to_string())),
-    );
-    assert_eq!(app.model_routes_settings.routes[0].model, "gpt-5");
-    assert_eq!(app.model_routes_settings.save_error.as_deref(), Some("第 1 条路由缺少 provider"));
-
-    app.model_routes_settings.routes[0].provider = "openai".to_string();
-    let _ = update(
-        &mut app,
-        SettingsMessage::ModelRoutes(ModelRoutesMessage::PriorityChanged(0, "high".to_string())),
-    );
-    assert_eq!(app.model_routes_settings.routes[0].priority_input, "high");
-    assert_eq!(
-        app.model_routes_settings.save_error.as_deref(),
-        Some("第 1 条路由的 priority 不是有效数字")
-    );
-}
-
-#[test]
 fn remove_route_updates_existing_rows_and_ignores_out_of_range_indexes() {
     let mut app = app();
     app.model_routes_settings.routes = vec![
@@ -107,19 +68,15 @@ fn remove_route_updates_existing_rows_and_ignores_out_of_range_indexes() {
 
     let _ = update(&mut app, SettingsMessage::ModelRoutes(ModelRoutesMessage::RemoveRoute(9)));
 
-    assert_eq!(app.model_routes_settings.routes.len(), 2);
     assert!(app.query_classification_settings.enabled);
 
     let _ = update(&mut app, SettingsMessage::ModelRoutes(ModelRoutesMessage::RemoveRoute(0)));
 
-    assert_eq!(app.model_routes_settings.routes.len(), 1);
-    assert_eq!(app.model_routes_settings.routes[0].pattern, "code");
     assert_eq!(app.query_classification_settings.rules.len(), 1);
     assert_eq!(app.query_classification_settings.rules[0].category, "code");
 
     let _ = update(&mut app, SettingsMessage::ModelRoutes(ModelRoutesMessage::RemoveRoute(0)));
 
-    assert!(app.model_routes_settings.routes.is_empty());
     assert!(!app.query_classification_settings.enabled);
     assert!(app.query_classification_settings.rules.is_empty());
 }

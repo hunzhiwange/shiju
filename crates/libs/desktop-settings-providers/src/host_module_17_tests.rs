@@ -235,3 +235,13 @@ fn invalid_routes_block_persistence_and_valid_routes_clear_feedback() {
     assert_eq!(projection.rules[0].priority, 7);
     assert_eq!(projection.patch["model_routes"][0]["provider"], "provider");
 }
+
+mod custom_values;
+
+mod models_ui;
+
+mod routes_ui;
+
+mod routes_update;
+
+mod provider_projection;

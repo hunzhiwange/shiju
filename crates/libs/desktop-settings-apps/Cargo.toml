@@ -43,3 +43,4 @@ vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version 
 tempfile = "3"
 iced_runtime = "0.14"
 image = "0.25"
+desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }

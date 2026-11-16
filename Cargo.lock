@@ -7380,6 +7380,7 @@ version = "0.6.0"
 dependencies = [
  "desktop-apps-ui",
  "desktop-assets",
+ "desktop-i18n",
  "desktop-provider-apps",
  "desktop-ui-controls",
  "directories 5.0.1",
@@ -7395,6 +7396,8 @@ dependencies = [
  "gateway-endpoint",
  "gateway-http",
  "iced",
+ "iced_runtime",
+ "image",
  "local-app-auth",
  "rand 0.8.8",
  "serde_json",
@@ -7638,6 +7641,8 @@ dependencies = [
  "desktop-ui-controls",
  "gateway-desktop-settings",
  "iced",
+ "iced_runtime",
+ "image",
  "serde_json",
  "tokio",
 ]

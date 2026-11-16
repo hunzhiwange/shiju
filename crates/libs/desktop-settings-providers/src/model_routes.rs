@@ -175,3 +175,13 @@ pub fn prepare_routes(
     state.save_error = None;
     Some(project_routes(&state.routes))
 }
+
+/// Apply one route edit, mark its revision, and expose only a valid persistence projection.
+pub fn edit_draft(
+    state: &mut crate::state::ModelRoutesSettingsState,
+    message: crate::view_message::ModelRoutesMessage,
+) -> Option<RouteProjection> {
+    edit_routes(&mut state.routes, message);
+    state.persistence.edited();
+    prepare_routes(state)
+}

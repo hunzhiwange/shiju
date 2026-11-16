@@ -699,8 +699,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 
 pub(crate) mod aggregation_omp;
 
-#[cfg(test)]
-mod aggregation_desktop_tests;
 
 pub(crate) mod aggregation_desktop;
 

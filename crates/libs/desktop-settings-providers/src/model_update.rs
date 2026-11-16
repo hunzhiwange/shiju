@@ -154,7 +154,7 @@ pub fn update(state: &mut crate::state::ModelSettingsState, message: ModelMessag
 
 /// Prepare optimistic model persistence and report whether selection must return to automatic mode.
 /// The host owns persistence of the session selection preference.
-pub fn prepare_status_save(
+fn prepare_status_save(
     state: &mut crate::state::ModelSettingsState,
     changes: &[ModelStatusChange],
     automatic: bool,

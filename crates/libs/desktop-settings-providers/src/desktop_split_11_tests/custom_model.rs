@@ -14,7 +14,7 @@ use iced::widget::button;
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
 
-fn fixture() -> App {
+pub(crate) fn fixture() -> App {
     let mut app = App::new().0;
     app.desktop_locale = DesktopLocale::English;
     let settings = &mut app.provider_settings;
@@ -36,7 +36,7 @@ fn fixture() -> App {
     app
 }
 
-async fn renderer() -> Renderer {
+pub(crate) async fn renderer() -> Renderer {
     static FONTS: std::sync::Once = std::sync::Once::new();
     FONTS.call_once(|| {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
@@ -49,7 +49,7 @@ async fn renderer() -> Renderer {
         .expect("tiny-skia renderer")
 }
 
-fn view(app: &App) -> Element<'_, Message> {
+pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let background = button("Underlying settings")
         .width(Length::Fill)
         .height(Length::Fill)
@@ -57,14 +57,18 @@ fn view(app: &App) -> Element<'_, Message> {
     view_overlays(app, custom_provider::view_overlays(app, background.into()))
 }
 
-struct Scene<'a> {
-    ui: UserInterface<'a, Message, Theme, Renderer>,
+pub(crate) struct Scene<'a> {
+    pub(crate) ui: UserInterface<'a, Message, Theme, Renderer>,
     layout: layout::Node,
     size: Size<u32>,
 }
 
 impl<'a> Scene<'a> {
-    fn new(mut element: Element<'a, Message>, renderer: &mut Renderer, size: Size<u32>) -> Self {
+    pub(crate) fn new(
+        mut element: Element<'a, Message>,
+        renderer: &mut Renderer,
+        size: Size<u32>,
+    ) -> Self {
         let bounds = Size::new(size.width as f32, size.height as f32);
         let mut tree = Tree::new(element.as_widget());
         let node = element.as_widget_mut().layout(
@@ -76,7 +80,7 @@ impl<'a> Scene<'a> {
         Self { ui, layout: node, size }
     }
 
-    fn bounds(&self, path: &[usize]) -> Rectangle {
+    pub(crate) fn bounds(&self, path: &[usize]) -> Rectangle {
         path.iter()
             .fold(Layout::new(&self.layout), |node, &index| {
                 node.children().nth(index).unwrap_or_else(|| panic!("missing layout {path:?}"))
@@ -84,7 +88,7 @@ impl<'a> Scene<'a> {
             .bounds()
     }
 
-    fn send(
+    pub(crate) fn send(
         &mut self,
         renderer: &mut Renderer,
         events: &[Event],
@@ -95,7 +99,7 @@ impl<'a> Scene<'a> {
         messages
     }
 
-    fn capture(
+    pub(crate) fn capture(
         &mut self,
         renderer: &mut Renderer,
         theme: &Theme,
@@ -128,7 +132,13 @@ impl<'a> Scene<'a> {
     }
 }
 
-fn screenshot(app: &App, renderer: &mut Renderer, theme: &Theme, size: Size<u32>, name: &str) {
+pub(crate) fn screenshot(
+    app: &App,
+    renderer: &mut Renderer,
+    theme: &Theme,
+    size: Size<u32>,
+    name: &str,
+) {
     let mut scene = Scene::new(view(app), renderer, size);
     scene.capture(renderer, theme, mouse::Cursor::Unavailable, name);
 }
@@ -275,25 +285,30 @@ fn narrow<'a>(app: &'a App, renderer: &mut Renderer) -> Scene<'a> {
     Scene::new(view(app), renderer, Size::new(420, 620))
 }
 
-fn modal(path: &[usize]) -> Vec<usize> {
+pub(crate) fn modal(path: &[usize]) -> Vec<usize> {
     // Stack, active layer, centering container, inset, card, contents.
     [&[1, 1, 0, 0, 0][..], path].concat()
 }
 
-fn group(path: &[usize]) -> Vec<usize> {
+pub(crate) fn group(path: &[usize]) -> Vec<usize> {
     modal(&[&[1, 0, 0, 1, 0][..], path].concat())
 }
 
-fn scalar_control(field: usize, path: &[usize]) -> Vec<usize> {
+pub(crate) fn scalar_control(field: usize, path: &[usize]) -> Vec<usize> {
     group(&[&[field, 0, 1][..], path].concat())
 }
 
-fn cursor(bounds: Rectangle) -> mouse::Cursor {
+pub(crate) fn cursor(bounds: Rectangle) -> mouse::Cursor {
     mouse::Cursor::Available(bounds.center())
 }
 
 impl Scene<'_> {
-    fn scroll(&mut self, renderer: &mut Renderer, body: Rectangle, distance: f32) -> f32 {
+    pub(crate) fn scroll(
+        &mut self,
+        renderer: &mut Renderer,
+        body: Rectangle,
+        distance: f32,
+    ) -> f32 {
         let wheel = Event::Mouse(mouse::Event::WheelScrolled {
             delta: mouse::ScrollDelta::Pixels { x: 0.0, y: -distance },
         });
@@ -303,7 +318,7 @@ impl Scene<'_> {
         offset.0
     }
 
-    fn click(&mut self, renderer: &mut Renderer, point: Point) -> Vec<Message> {
+    pub(crate) fn click(&mut self, renderer: &mut Renderer, point: Point) -> Vec<Message> {
         self.send(
             renderer,
             &[
@@ -314,7 +329,12 @@ impl Scene<'_> {
         )
     }
 
-    fn edit(&mut self, renderer: &mut Renderer, bounds: Rectangle, value: &str) -> Vec<Message> {
+    pub(crate) fn edit(
+        &mut self,
+        renderer: &mut Renderer,
+        bounds: Rectangle,
+        value: &str,
+    ) -> Vec<Message> {
         assert!(self.click(renderer, bounds.center()).is_empty());
         self.send(
             renderer,
@@ -347,7 +367,7 @@ impl Operation for ScrollOffset {
     }
 }
 
-fn key(key: Named) -> Event {
+pub(crate) fn key(key: Named) -> Event {
     let key = Key::Named(key);
     Event::Keyboard(keyboard::Event::KeyPressed {
         modified_key: key.clone(),

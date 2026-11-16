@@ -1,55 +1,12 @@
 //! 组合模型设置子页，并将领域消息与弹窗映射到桌面壳。
 
-use crate::app::components::system_settings_common::{settings_error_banner, settings_tab_button, settings_tab_row, settings_modal_overlay};
-use crate::app::components::system_settings_search::SettingsTabDescriptor;
-use crate::app::i18n::settings_models::text as model_text;
+use crate::app::components::system_settings_common::settings_modal_overlay;
 use crate::app::message::settings::{ModelConfigTabMessage, SettingsMessage};
 use crate::app::state::ModelConfigTab;
 use crate::app::{App, Message};
-use iced::widget::column;
-use iced::{Element, Length};
+use iced::Element;
 
-pub(super) const MODEL_TABS: &[SettingsTabDescriptor<ModelConfigTab>] = &[
-    SettingsTabDescriptor::new(
-        ModelConfigTab::Models,
-        "模型",
-        &[
-            "models",
-            "搜尋模型",
-            "搜索模型",
-            "模型详情",
-            "提供商",
-            "模型 id",
-            "上下文窗口",
-            "最大输出",
-            "温度",
-        ],
-    ),
-    SettingsTabDescriptor::new(
-        ModelConfigTab::ModelRoutes,
-        "模型路由",
-        &["model routes", "模型路由", "routing", "匹配模式", "pattern", "priority", "优先级"],
-    ),
-    SettingsTabDescriptor::new(
-        ModelConfigTab::QueryClassification,
-        "模型分类",
-        &["model classification", "模型分類", "classification", "rules", "查询分类", "规则"],
-    ),
-    SettingsTabDescriptor::new(
-        ModelConfigTab::Multimodal,
-        "多模态",
-        &[
-            "multimodal",
-            "image",
-            "vision",
-            "图片模型",
-            "OCR",
-            "文字提取",
-            "远程抓取",
-            "remote fetch",
-        ],
-    ),
-];
+pub(super) use desktop_settings_providers::models_page::MODEL_TABS;
 
 pub(super) fn active_tab_save_error(app: &App) -> Option<&str> {
     match app.model_settings.active_tab {
@@ -65,17 +22,6 @@ pub(super) fn active_tab_save_error(app: &App) -> Option<&str> {
 /// 渲染模型配置页及其内部标签。
 pub fn view(app: &App) -> Element<'_, Message> {
     let active_tab = app.model_settings.active_tab;
-    let tabs = settings_tab_row(MODEL_TABS.iter().map(|descriptor| {
-        settings_tab_button(
-            model_text(app.desktop_locale, descriptor.label),
-            descriptor.tab == active_tab,
-            Some(Message::Settings(SettingsMessage::ModelConfigTab(
-                ModelConfigTabMessage::Selected(descriptor.tab),
-            ))),
-        )
-        .into()
-    }))
-    .wrap();
     let content = match active_tab {
         ModelConfigTab::Models => main_view(app),
         ModelConfigTab::ModelRoutes => {
@@ -87,9 +33,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ModelConfigTab::Multimodal => crate::app::components::system_settings_multimodal::view(app),
     };
 
-    let mut sections = column![tabs].spacing(16).width(Length::Fill);
-    if let Some(error) = active_tab_save_error(app) {
-        let message = match app.model_settings.active_tab {
+    let error = if let Some(error) = active_tab_save_error(app) {
+        match app.model_settings.active_tab {
             ModelConfigTab::Models => {
                 app.model_settings.save_error.as_ref().map(|e| e.display(app.desktop_locale))
             }
@@ -108,13 +53,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     .unwrap_or_else(|| error.to_string()),
             ),
             _ => Some(error.to_string()),
-        };
-        if let Some(message) = message {
-            sections = sections.push(settings_error_banner(message));
         }
-    }
-
-    sections.push(content).into()
+    } else {
+        None
+    };
+    desktop_settings_providers::models_page::view(
+        active_tab,
+        app.desktop_locale,
+        content,
+        error,
+        |tab| {
+            Message::Settings(SettingsMessage::ModelConfigTab(ModelConfigTabMessage::Selected(tab)))
+        },
+    )
 }
 
 /// 委派模型目录视图。
@@ -123,7 +74,9 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
         .map(map_view_message)
 }
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
-    let Some(mm) = &app.model_settings.detail_modal else { return dialog; };
+    let Some(mm) = &app.model_settings.detail_modal else {
+        return dialog;
+    };
     let (close, card) = desktop_settings_providers::models_view::detail_card(mm, view_style(app));
     settings_modal_overlay(Some(dialog), map_view_message(close), card.map(map_view_message))
 }
@@ -136,6 +89,7 @@ pub(crate) fn map_view_message(message: domain::Message) -> crate::app::Message 
  domain::Message::CopyCode(text) => Message::CopyCode(text),
  domain::Message::None => Message::None,
  domain::Message::Settings(message) => Message::Settings(match message {
+        domain::SettingsMessage::ModelConfigTab(message) => SettingsMessage::ModelConfigTab(message),
         domain::SettingsMessage::CustomProviderApiKeyChanged(v0) => SettingsMessage::CustomProviderApiKeyChanged(v0),
         domain::SettingsMessage::CustomProviderBaseUrlChanged(v0) => SettingsMessage::CustomProviderBaseUrlChanged(v0),
         domain::SettingsMessage::CustomProviderClose => SettingsMessage::CustomProviderClose,
@@ -209,15 +163,26 @@ pub(crate) fn map_view_message(message: domain::Message) -> crate::app::Message 
 
 pub(crate) fn view_style(app: &App) -> desktop_settings_providers::view_style::ViewStyle<'_> {
     desktop_settings_providers::view_style::ViewStyle {
-        locale: app.desktop_locale, theme: &app.app_theme, help_text: help_text,
+        locale: app.desktop_locale,
+        theme: &app.app_theme,
+        help_text,
     }
 }
-pub(crate) fn help_text<'a>(title: &'a str, body: std::borrow::Cow<'a, str>, color: Option<iced::Color>, i18n: crate::app::i18n::I18n) -> iced::Element<'a, desktop_settings_providers::view_message::Message> {
-    crate::app::components::chat_panel::message_view::selectable_titled_text(title, body, color, i18n)
-        .map(|message| match message {
-            Message::CopyCode(text) => desktop_settings_providers::view_message::Message::CopyCode(text),
-            _ => desktop_settings_providers::view_message::Message::None,
-        })
+pub(crate) fn help_text<'a>(
+    title: &'a str,
+    body: std::borrow::Cow<'a, str>,
+    color: Option<iced::Color>,
+    i18n: crate::app::i18n::I18n,
+) -> iced::Element<'a, desktop_settings_providers::view_message::Message> {
+    crate::app::components::chat_panel::message_view::selectable_titled_text(
+        title, body, color, i18n,
+    )
+    .map(|message| match message {
+        Message::CopyCode(text) => {
+            desktop_settings_providers::view_message::Message::CopyCode(text)
+        }
+        _ => desktop_settings_providers::view_message::Message::None,
+    })
 }
 
 #[cfg(test)]

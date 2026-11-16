@@ -6,10 +6,7 @@ use crate::app::{App, Message};
 use iced::Task;
 
 use super::messages::SettingsMessage;
-#[cfg(test)]
-use super::types::ModelStatusChange;
 
-pub(super) use desktop_settings_providers::models::summarize_models;
 fn persist_status_effect(
     app: &mut App,
     effect: desktop_settings_providers::models::ModelEffect,

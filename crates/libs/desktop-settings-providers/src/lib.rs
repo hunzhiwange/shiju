@@ -70,3 +70,5 @@ mod desktop_split_28_tests;
 
 #[cfg(test)]
 mod host_module_17_tests;
+
+pub mod models_page;

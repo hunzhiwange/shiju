@@ -4,6 +4,7 @@ use crate::provider_state::{CustomProviderTab, CustomProviderModelFilter};
 pub enum ModelRoutesMessage { AddRoute, RemoveRoute(usize), PatternChanged(usize,String), ProviderChanged(usize,String), ModelChanged(usize,String), PriorityChanged(usize,String) }
 #[derive(Debug, Clone)]
 pub enum SettingsMessage {
+    ModelConfigTab(crate::settings_message::ModelConfigTabMessage),
     CustomProviderApiKeyChanged(String),
     CustomProviderBaseUrlChanged(String),
     CustomProviderClose,

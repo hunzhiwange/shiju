@@ -1,11 +1,8 @@
-use crate::app::state::{
-    AgentAppsContext,
-    app_providers::{desktop::Form, list::Scope},
-};
+use desktop_provider_apps::{AgentAppsContext, Scope, state::desktop::Form};
 use std::io::{Read, Write};
 use vw_api_app_aggregation::*;
 use vw_api_app_provider_profiles::desktop_mapping::DesktopModelRoute;
-use {gateway_endpoint::{GatewayEndpoint}, vw_api_app_identity::AppId};
+use {gateway_endpoint::GatewayEndpoint, vw_api_app_identity::AppId};
 fn fixture(
     path: &'static str,
     status: u16,
@@ -95,7 +92,7 @@ fn fixture_sequence(
 fn scoped_form(scope: Scope) -> Form {
     let mut form = Form::new("fixture".into());
     let mut session =
-        super::aggregation_desktop::Session::new(super::aggregation_desktop::Binding {
+        crate::aggregation::desktop::Session::new(crate::aggregation::desktop::Binding {
             scope,
             project: "fixture-project".into(),
             access: 7,
@@ -112,8 +109,7 @@ fn scoped_form(scope: Scope) -> Form {
     });
     form.aggregation = Some(session);
     form.mapping_editable = true;
-    form.mapping.mode =
-        vw_api_app_provider_profiles::desktop_mapping::DesktopMappingMode::Proxy;
+    form.mapping.mode = vw_api_app_provider_profiles::desktop_mapping::DesktopMappingMode::Proxy;
     form.create = false;
     form.name = "中文模型供应商".into();
     form.mapping.routes.insert(
@@ -138,7 +134,7 @@ async fn aggregation_t63_draws_chinese_mapping_in_light_and_dark() {
     use iced_runtime::user_interface::{Cache, UserInterface};
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -151,13 +147,16 @@ async fn aggregation_t63_draws_chinese_mapping_in_light_and_dark() {
             .await
             .expect("renderer");
     for (name, theme) in [("light", Theme::Light), ("dark", Theme::Dark)] {
-        let help = crate::app::components::app_providers::list::Help::new(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-            &theme,
-        );
-        let element = crate::app::components::app_providers::desktop::overlay(
+        let help = desktop_provider_apps::components::help::Help {
+            i18n: desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            theme: &theme,
+            render: |_, body, _, _| iced::widget::text(body).into(),
+        };
+        let element = desktop_apps_ui::aggregation::desktop_view::overlay(
             &form,
-            help,
+            desktop_provider_apps::components::desktop::mapping_fields(&form, help),
+            |_| desktop_provider_apps::Message::None,
+            desktop_provider_apps::Message::None,
             Space::new().width(iced::Length::Fill).height(iced::Length::Fill).into(),
         );
         let size = Size::new(1000, 900);

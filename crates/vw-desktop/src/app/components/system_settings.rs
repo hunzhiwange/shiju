@@ -50,7 +50,7 @@ pub(super) fn system_tab_matches_query(tab: SystemTab, query: &str) -> bool {
         SystemTab::General => {
             descriptors_match(super::system_settings_general::GENERAL_TABS, &needle)
         }
-        SystemTab::Models => descriptors_match(super::system_settings_models::MODEL_TABS, &needle),
+        SystemTab::Models => super::system_settings_models::MODEL_TABS.iter().any(|descriptor| descriptor.label.to_lowercase().contains(&needle) || descriptor.keywords.iter().any(|text| text.to_lowercase().contains(&needle))),
         SystemTab::Cron => descriptors_match(super::system_settings_cron::CRON_TABS, &needle),
         SystemTab::Agents => {
             descriptors_match(super::system_settings_agents::AGENT_CONFIG_TABS, &needle)

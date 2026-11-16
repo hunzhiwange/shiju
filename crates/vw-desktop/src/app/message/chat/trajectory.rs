@@ -3,7 +3,6 @@
 use super::ChatMessage;
 use desktop_chat_view::trajectory::update::{self as trajectory_update, Message as UiMessage};
 use crate::app::state::ChatPanelMode;
-use crate::app::state::SessionStepRawKey;
 use crate::app::{App, Message};
 use iced::Task;
 

@@ -2,6 +2,7 @@
 pub mod message {
     pub mod chat {
         pub mod events;
+        pub mod routing;
         pub mod orchestration;
         #[cfg(test)]
         mod orchestration_tests;
@@ -85,3 +86,6 @@ mod host_module_3_tests;
 
 #[cfg(test)]
 mod host_module_7_tests;
+
+#[cfg(test)]
+mod host_module_37_tests;

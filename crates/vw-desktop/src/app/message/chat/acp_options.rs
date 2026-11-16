@@ -14,7 +14,10 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 return Task::none();
             }
             let runtime = app.current_session_runtime_mut();
-            if runtime.acp_options_state.set_model_input_draft(value, runtime.request_lifecycle.is_requesting) {
+            if runtime
+                .acp_options_state
+                .set_model_input_draft(value, runtime.request_lifecycle.is_requesting)
+            {
                 app.invalidate_project_chat_preferences_read();
             }
             Task::none()
@@ -23,34 +26,23 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let session_id = app.active_session_id.clone().unwrap_or_else(|| "__empty__".into());
             let directory = super::stream::session_directory_for_save(app, &session_id);
             let runtime = app.get_session_runtime_mut(&session_id);
-            let Some(agent) = runtime.acp_agent.clone() else {
+            let Some((agent, request_id, draft_options)) =
+                runtime.begin_acp_source_refresh(&session_id)
+            else {
                 return Task::none();
             };
-            if runtime.acp_options_state.pending
-                || runtime.acp_options_state.source_pending.is_some()
-                || runtime.request_lifecycle.is_requesting
-            {
-                return Task::none();
-            }
-            let request_id = next_source_request_id();
-            runtime.acp_options_state.source_request_id = Some(request_id);
-            runtime.acp_options_state.pending = true;
-            // A newly selected fork agent has no binding of its own yet. Reading the
-            // inherited binding here would advertise the previous agent's capabilities.
-            let draft_options = (session_id == "__empty__"
-                || runtime.draft.is_some()
-                || (runtime.fork_agent_selected
-                    && !runtime.fork_request_submitted
-                    && runtime.fork_execution_started == Some(false)))
-            .then(|| runtime.acp_options_state.options.clone());
             Task::perform(
                 async move {
                     let result = async {
                         let client = crate::app::gateway_client()?;
                         desktop_session::message::chat::acp_options::load_source_options(
                             &gateway_session::GatewaySessionClient::new(client.transport().clone()),
-                            &session_id, directory.as_deref(), &agent, draft_options,
-                        ).await
+                            &session_id,
+                            directory.as_deref(),
+                            &agent,
+                            draft_options,
+                        )
+                        .await
                     }
                     .await;
                     ChatMessage::AcpSourceLoaded { session_id, request_id, agent, result }
@@ -62,18 +54,8 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let Some(runtime) = app.session_runtime_states.get_mut(&session_id) else {
                 return Task::none();
             };
-            match runtime.acp_options_state.apply_source_loaded(
-                request_id, runtime.acp_agent.as_deref() == Some(&agent), runtime.request_lifecycle.is_requesting, result,
-            ) {
-                Ok(Some(confirmed)) => {
-                    runtime.acp_model_source = confirmed.source;
-                    if let Some((model, auto_model)) = confirmed.model {
-                        runtime.model = model;
-                        runtime.auto_model = auto_model;
-                    }
-                    Task::none()
-                }
-                Ok(None) => Task::none(),
+            match runtime.apply_acp_source_loaded(request_id, &agent, result) {
+                Ok(()) => Task::none(),
                 Err(error) => app.show_error_toast(error),
             }
         }
@@ -102,21 +84,16 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let Some(runtime) = app.session_runtime_states.get_mut(&session_id) else {
                 return Task::none();
             };
-            if !runtime.acp_options_state.source_save_matches(request_id, &update, runtime.acp_agent.as_deref()) {
+            if !runtime.acp_options_state.source_save_matches(
+                request_id,
+                &update,
+                runtime.acp_agent.as_deref(),
+            ) {
                 return Task::none();
             }
             match runtime.acp_options_state.apply_source_saved(&update, result) {
                 Ok(confirmed) => {
-                    let boundary = runtime.acp_model_source != confirmed.source;
-                    runtime.acp_model_source = confirmed.source;
-                    if let Some((model, auto_model)) = confirmed.model {
-                        runtime.model = model.clone();
-                        runtime.auto_model = auto_model;
-                        runtime.task_mode_model = model;
-                    }
-                    runtime.acp_rebuild_required = true;
-                    runtime.restore_model_from_history = false;
-                    let unstarted_fork = runtime.fork_execution_started == Some(false);
+                    let (boundary, unstarted_fork) = runtime.confirm_acp_source_saved(confirmed);
                     app.sync_active_session_preferences();
                     if boundary && active {
                         app.show_info_toast(if unstarted_fork {
@@ -163,9 +140,15 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 _ => None,
             };
             match runtime.acp_options_state.begin_option(selection.as_ref()) {
-                Ok(true) => {},
+                Ok(true) => {}
                 Ok(false) => return Task::none(),
-                Err(source) => return app.show_localized_toast(crate::app::state::ToastKind::Warning, source, vec![]),
+                Err(source) => {
+                    return app.show_localized_toast(
+                        crate::app::state::ToastKind::Warning,
+                        source,
+                        vec![],
+                    );
+                }
             }
             Task::perform(
                 async move {
@@ -173,8 +156,11 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         let client = crate::app::gateway_client()?;
                         desktop_session::message::chat::acp_options::load_or_select_options(
                             &gateway_session::GatewaySessionClient::new(client.transport().clone()),
-                            &session_id, directory.as_deref(), selection.as_ref(),
-                        ).await
+                            &session_id,
+                            directory.as_deref(),
+                            selection.as_ref(),
+                        )
+                        .await
                     }
                     .await;
                     ChatMessage::AcpOptionsLoaded { session_id, result }
@@ -200,13 +186,20 @@ pub(super) fn select_source(
     let Some(agent) = runtime.acp_agent.clone() else {
         return Task::none();
     };
-    let model = model.unwrap_or_else(|| if runtime.auto_model { "auto".into() } else { runtime.model.clone() });
-    let update = match runtime.acp_options_state.begin_source(request_id, agent, source, model, runtime.request_lifecycle.is_requesting) {
+    let model = model
+        .unwrap_or_else(|| if runtime.auto_model { "auto".into() } else { runtime.model.clone() });
+    let update = match runtime.acp_options_state.begin_source(
+        request_id,
+        agent,
+        source,
+        model,
+        runtime.request_lifecycle.is_requesting,
+    ) {
         Ok(update) => update,
         Err(error) => return app.show_error_toast(error),
     };
-    let draft_options =
-        (session_id == "__empty__" || runtime.draft.is_some()).then(|| runtime.acp_options_state.options.clone());
+    let draft_options = (session_id == "__empty__" || runtime.draft.is_some())
+        .then(|| runtime.acp_options_state.options.clone());
     app.invalidate_project_chat_preferences_read();
     Task::perform(
         async move {
@@ -214,8 +207,12 @@ pub(super) fn select_source(
                 let client = crate::app::gateway_client()?;
                 desktop_session::message::chat::acp_options::save_source_options(
                     &gateway_session::GatewaySessionClient::new(client.transport().clone()),
-                    &session_id, directory.as_deref(), &update, draft_options,
-                ).await
+                    &session_id,
+                    directory.as_deref(),
+                    &update,
+                    draft_options,
+                )
+                .await
             }
             .await;
             ChatMessage::AcpModelSourceSaved {

@@ -9,3 +9,5 @@ pub mod cloud_fixture;
 pub mod gateway_contracts;
 pub mod cloud_contracts;
 pub mod planning_fixture;
+pub mod gateway_acceptance;
+pub mod template_fixture;

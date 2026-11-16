@@ -404,3 +404,25 @@
 - `planning_fixture.rs`：103行。
 
 静态复核37个宿主测试名称未改变；45个领域自注册测试未变。必要编译与行为检查全部未运行。未达到70%来源减量：剩余真实session发布/取消恢复和原生权限/hook/进程准入保留在宿主；逐断言边界见上述表，不以门槛压力删覆盖。后续收口应重新统计整体缺口。
+
+## 继续收口：完整网关场景契约与模板存储夹具
+
+最新宿主1309行，累计净减2509行（65.7%），本轮较1409行再减100行。45个领域注册测试、37个宿主注册测试名称静态守恒。未运行任何Cargo、构建、测试或实机验证。
+
+`test_support/gateway_acceptance.rs` 通过现有真实输入端口进一步持有完整场景，宿主无App/配置复制，仅实现 install、ledger、run、run_cancelled 四个当前真实消费者需要的方法。场景中的外部注册guard通过Box保活，正常返回或panic仍沿原生命周期释放。
+
+| 原宿主完整测试 | 新领域场景契约（同名） | 真实宿主保留 |
+|---|---|---|
+| `video_edit_e2e_long_transcripts_reach_done_and_reload` | `gateway_acceptance::video_edit_e2e_long_transcripts_reach_done_and_reload` | 原tokio测试名、环境锁和RecoveryConfig；真实NativeGatewayAcceptance调用 |
+| `video_edit_e2e_quota_invalid_segment_and_fake_preview_never_done` | `gateway_acceptance::video_edit_e2e_quota_invalid_segment_and_fake_preview_never_done` | 原tokio测试名、环境锁和RecoveryConfig；真实NativeGatewayAcceptance调用 |
+| `video_edit_e2e_accepted_timeout_reconciles_without_duplicate_post` | `gateway_acceptance::video_edit_e2e_accepted_timeout_reconciles_without_duplicate_post` | 原tokio测试名、环境锁和RecoveryConfig；真实NativeGatewayAcceptance调用 |
+| `video_edit_e2e_independent_requests_have_distinct_run_budgets` | `gateway_acceptance::video_edit_e2e_independent_requests_have_distinct_run_budgets` | 原tokio测试名、环境锁和RecoveryConfig；真实NativeGatewayAcceptance调用 |
+| `video_edit_e2e_cancelled_restart_reconciles_and_never_resubmits` | `gateway_acceptance::video_edit_e2e_cancelled_restart_reconciles_and_never_resubmits` | 原tokio测试名、环境锁和RecoveryConfig；真实NativeGatewayAcceptance调用 |
+
+NativeGatewayAcceptance::run 仍执行真实 collect_gateway_chat_stream_with_observer；成功继续调用原 success（持久化快照、步骤timing、finish_reason、跨租户不可读全部保留），失败仍断言实际Result::Err和chat.error/no done。run_cancelled仍在宿主启动真实取消token、等待asset.done再取消和调用真实collect_video_edit_test_stream；领域负责真实ledger清理等待和下一真实session重启后的不重复断言。不是模拟准入，也不是独立领域单测，不宣称编译提速。
+
+模板测试 `video_edit_e2e_template_edit_changes_next_native_model_request` 的真实store edit/seed/load/save/digest/cross-tenant隔离及恢复，迁至 `template_fixture::{edit,TemplateEdit::restore}`；宿主仍从真实global路径和当前tenant取输入，真实网关调用后按原顺序恢复，再检查真实model.prompt与ledger摘要。使用现有workflow-core存储，未引入依赖。
+
+本轮未触碰其它权限/hook/进程验收用例；37个宿主测试均继续注册，迁入的验收函数经真实宿主注入运行，不能重复计数。
+
+最新e2e_tests.rs 307行；其余来源行数/逐符号去向同前轮。当前e2e残留明确为全局配置隔离、真实HTTP请求/结果、session快照发布、真实权限拒绝、数据库最终保存失败trigger与取消collector；不以大文件耦合整体豁免。未来按上述五个完整原名与模板原名逐条精确过滤，预期各1；领域注册仍45测。静态差异空白与原测试名称守恒已核对，编译行为未验证。

@@ -8,9 +8,6 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-desktop-file-tree = { path = "../desktop-file-tree", version = "0.6.0" }
-directories = "6"
-gateway-chat-stream = { path = "../gateway-chat-stream", version = "0.6.0" }
 question-types = { path = "../question-types", version = "0.6.0" }
 runtime-time = { path = "../runtime-time", version = "0.6.0" }
 iced = { version = "0.14", features = ["image", "svg", "advanced"] }
@@ -41,6 +38,5 @@ web-time = "1.1.0"
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 
 [dev-dependencies]
-iced_runtime = "0.14"
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt"] }

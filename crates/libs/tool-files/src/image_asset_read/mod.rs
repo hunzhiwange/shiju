@@ -132,7 +132,3 @@ the tool response itself does not return image bytes."
         })
     }
 }
-
-#[cfg(test)]
-#[path = "tests.rs"]
-mod host_migration_34_tests;

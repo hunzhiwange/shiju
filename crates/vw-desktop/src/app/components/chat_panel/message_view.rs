@@ -1,18 +1,89 @@
-//! Host snapshot assembly and cross-domain message routing.
+//! 消息视图渲染模块
+//!
+//! 本模块负责将聊天消息渲染为 Iced UI 元素。主要功能包括：
+//! - 解析消息内容中的特殊区块（思考块、工具调用块、文本块）
+//! - 渲染不同角色（用户、助手、系统）的消息气泡
+//! - 处理消息的交互功能（复制、展开/折叠思考块、编辑器集成）
+//!
+//! ## 主要组件
+//!
+//! - [`message_view`]: 消息视图的主入口函数，负责完整消息气泡的渲染
+//! - [`think_block_view`]: 渲染可展开/折叠的思考块
+//! - [`assistant_api_error_view`]: 渲染 API 错误信息的特殊视图
+//!
+//! ## 内容解析
+//!
+//! 消息内容可能包含以下特殊区块：
+//! - `<think ...>...</think`>: 思考块，显示 AI 的推理过程
+//! - `tool ...`: 工具调用块，记录 AI 执行的工具操作
+
+mod assistant_body;
+mod assistant_error;
+mod markdown;
+mod markdown_code;
 mod markdown_links;
+mod markdown_rich;
 mod markdown_selection;
 pub(in crate::app::components) use markdown_selection::selectable_titled_text;
 mod parse;
 pub(crate) use parse::assistant_speech_text;
 mod render_cache;
 mod styles;
+mod text;
+mod think_block;
+mod tool_summaries;
 
-use crate::app::models::{self, ChatRole};
-use crate::app::{App, Message};
-use iced::Element;
+#[cfg(test)]
+mod assistant_body_tests;
+#[cfg(test)]
+mod assistant_error_tests;
+#[cfg(test)]
+mod markdown_tests;
+#[cfg(test)]
+mod message_view_tests;
+#[cfg(test)]
+mod think_block_tests;
+
+use iced::widget::{button, column, container, row, text as iced_text};
+use iced::{Alignment, Element, Length, Theme};
 use session_ui_types::ProcessingTiming;
 use std::borrow::Cow;
-mod snapshot;
+
+use crate::app::assets::Icon;
+use crate::app::components::input_panel::attachment::{
+    attachment_preview_strip, parse_attachment_markers,
+};
+use crate::app::components::widgets::RightClickArea;
+use crate::app::models::{self, ChatRole};
+use crate::app::{App, Message, message};
+
+use self::assistant_body::render_assistant_body;
+use self::render_cache::resolve_visible_text_and_copy_hash;
+use self::styles::{
+    ASSISTANT_HEADER_BODY_SPACING, MESSAGE_META_TEXT_SIZE, PROCESSING_DURATION_TEXT_SIZE,
+    message_meta_text_color, processing_duration_text_color,
+};
+use self::text::{
+    message_text_body, session_control_selection_card, split_session_control_selection,
+    task_session_visible_text, user_message_editor_body, user_message_preview,
+};
+
+use super::selectable_text::{SelectableTextPolicy, selectable_text_policy};
+use super::tool_text_support::{chat_text_font, selected_chat_text_for_message};
+use super::tools::{
+    pending_permission_badge_label, pending_permission_request_badge_label,
+    pending_permission_request_for_message, pending_permission_targets_message,
+};
+use super::utils::{
+    chat_context_target_key, copy_tooltip_content, icon_svg, is_recent_copy, normalize_display_text,
+};
+
+pub(crate) use self::assistant_body::deduped_tool_last_indices;
+#[cfg(test)]
+pub(crate) use self::assistant_body::should_highlight_pending_permission_tool;
+pub(crate) use self::markdown::{
+    MarkdownBlock, markdown_block_key, markdown_editor_text, parse_markdown_blocks,
+};
 pub(crate) use self::parse::hash_chat_content;
 pub(crate) use self::render_cache::{
     RevisionRenderKey, assistant_render_blocks, build_render_cache_entry,
@@ -22,38 +93,73 @@ pub(crate) use self::styles::{
     compaction_status_card_style, compaction_status_text_color, message_surface_contract,
     message_surface_style,
 };
-pub(crate) use desktop_chat_view::message_view::assistant_body::deduped_tool_last_indices;
-pub(crate) use desktop_chat_view::message_view::contracts::*;
-pub(crate) use desktop_chat_view::message_view::markdown::{
-    MarkdownBlock, markdown_block_key, markdown_editor_text, parse_markdown_blocks,
-};
+pub(crate) use self::text::estimate_message_height_rough;
 #[cfg(test)]
-pub(crate) use desktop_chat_view::message_view::permission_card::should_highlight_pending_permission_tool;
-pub(crate) use desktop_chat_view::message_view::text::estimate_message_height_rough;
+pub(crate) use self::text::should_prefer_plain_think_body;
 #[cfg(test)]
-pub(crate) use desktop_chat_view::message_view::text::should_prefer_plain_think_body;
-#[cfg(test)]
-pub(crate) use desktop_chat_view::message_view::think_block::{
+pub(crate) use self::think_block::{
     should_render_think_block, think_block_default_expanded, think_block_resolved_expanded,
 };
 #[cfg(test)]
-pub(crate) use desktop_chat_view::message_view::tool_summaries::explore_summary_text_blocks;
+pub(crate) use self::tool_summaries::explore_summary_text_blocks;
 #[cfg(test)]
-pub(crate) use desktop_chat_view::message_view::tool_summaries::summarize_explore_items;
+pub(crate) use self::tool_summaries::summarize_explore_items;
 #[cfg(test)]
-pub(crate) use desktop_chat_view::message_view::tool_summaries::tool_card_text_blocks;
+pub(crate) use self::tool_summaries::tool_card_text_blocks;
+pub(crate) use desktop_chat_view::message_view::contracts::*;
 
 pub(crate) fn chat_message_action_text(
     app: &App,
     idx: usize,
     prefer_selection: bool,
 ) -> Option<String> {
-    desktop_chat_view::message_view::bubble::chat_message_action_text(
-        &snapshot::snapshot(app),
-        idx,
-        prefer_selection,
-    )
+    if prefer_selection && let Some(selected) = selected_chat_text_for_message(app, idx) {
+        return Some(selected);
+    }
+
+    let message = app.chat.get(idx)?;
+    let task_session_content = if message.role == ChatRole::User {
+        task_session_visible_text(&message.content)
+    } else {
+        Cow::Borrowed(message.content.as_str())
+    };
+    let content = task_session_content.as_ref();
+    let content_hash = hash_chat_content(content);
+    let fallback_cache = models::ChatRenderCacheEntry::default();
+    let render_cache = app.chat_render_cache.get(&idx).unwrap_or(&fallback_cache);
+    let (visible_text, _) =
+        resolve_visible_text_and_copy_hash(app, idx, content, content_hash, render_cache);
+
+    if prefer_selection && visible_text.trim().is_empty() {
+        Some(content.to_string())
+    } else {
+        Some(visible_text.into_owned())
+    }
 }
+
+fn copy_chat_message_action(session_id: &str, message_idx: usize) -> Message {
+    Message::CopyChatMessage { session_id: session_id.to_string(), message_idx }
+}
+
+fn open_chat_message_context_menu_action(
+    target: u64,
+    point: iced::Point,
+    session_id: &str,
+    message_idx: usize,
+) -> Message {
+    Message::Chat(message::ChatMessage::OpenChatMessageContextMenu {
+        target,
+        x: point.x,
+        y: point.y,
+        session_id: session_id.to_string(),
+        message_idx,
+    })
+}
+
+/// 渲染消息视图（主入口函数）
+///
+/// 创建完整的消息气泡 UI，包括消息内容、元信息（模型名称、时间）和操作按钮（复制）。
+/// 根据消息角色（用户/助手/系统）采用不同的布局和样式。
 pub fn message_view<'a>(
     app: &'a App,
     idx: usize,
@@ -63,11 +169,10 @@ pub fn message_view<'a>(
     processing_timing: Option<&ProcessingTiming>,
     message_meta: Option<Cow<'a, str>>,
     render_cache: &'a models::ChatRenderCacheEntry,
-    heavy: bool,
+    _enable_heavy_tool_content: bool,
 ) -> Element<'a, Message> {
-    let requesting = app
-        .current_session_runtime_ref()
-        .is_some_and(|runtime| runtime.request_lifecycle.is_requesting);
+    let is_requesting =
+        app.current_session_runtime_ref().is_some_and(|runtime| runtime.request_lifecycle.is_requesting);
     message_view_with_runtime(
         app,
         idx,
@@ -77,11 +182,12 @@ pub fn message_view<'a>(
         processing_timing,
         message_meta,
         render_cache,
-        heavy,
-        requesting,
+        _enable_heavy_tool_content,
+        is_requesting,
         None,
     )
 }
+
 pub(crate) fn message_view_with_runtime<'a>(
     app: &'a App,
     idx: usize,
@@ -91,55 +197,437 @@ pub(crate) fn message_view_with_runtime<'a>(
     processing_timing: Option<&ProcessingTiming>,
     message_meta: Option<Cow<'a, str>>,
     render_cache: &'a models::ChatRenderCacheEntry,
-    heavy: bool,
-    requesting: bool,
-    revision: Option<&RevisionRenderKey>,
+    _enable_heavy_tool_content: bool,
+    is_requesting: bool,
+    expected_revision_key: Option<&RevisionRenderKey>,
 ) -> Element<'a, Message> {
-    desktop_chat_view::message_view::bubble::message_view_with_runtime(
-        &snapshot::snapshot(app),
-        idx,
-        role,
+    if role == ChatRole::System
+        && (compaction_status_card_contract(content).is_some() || content == TODO_CONTINUATION_TEXT)
+    {
+        return container(
+            container(
+                iced_text(crate::app::i18n::I18n::new(app.desktop_locale).__(content).to_string())
+                    .size(MESSAGE_META_TEXT_SIZE)
+                    .style(|theme: &Theme| iced::widget::text::Style {
+                        color: Some(compaction_status_text_color(theme)),
+                    }),
+            )
+            .padding([8, 14])
+            .style(compaction_status_card_style),
+        )
+        .width(Length::Fill)
+        .height(Length::Fixed(44.0))
+        .align_x(iced::alignment::Horizontal::Center)
+        .align_y(iced::alignment::Vertical::Center)
+        .into();
+    }
+    if role == ChatRole::System
+        && let Some((_, event)) =
+            app.current_session_runtime_ref().and_then(|runtime| runtime.model_recovery.as_ref())
+        && content == model_recovery_text(event)
+    {
+        return container(
+            iced_text(localized_model_recovery_text(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                event,
+            ))
+            .size(MESSAGE_META_TEXT_SIZE),
+        )
+        .padding([8, 14])
+        .width(Length::Fill)
+        .into();
+    }
+    let task_session_content = if role == ChatRole::User {
+        task_session_visible_text(content)
+    } else {
+        Cow::Borrowed(content)
+    };
+    let content = task_session_content.as_ref();
+    let is_user = role == ChatRole::User;
+    let assistant_like = matches!(role, ChatRole::Assistant | ChatRole::Tool);
+    let is_streaming_assistant =
+        role == ChatRole::Assistant && is_requesting && idx + 1 == app.chat.len();
+    let live_processing_elapsed_ms = is_streaming_assistant
+        .then(|| app.current_session_runtime_ref())
+        .flatten()
+        .map(|runtime| runtime.request_lifecycle.processing_timer.elapsed_ms_at(web_time::Instant::now()));
+    let cache_matches_revision = expected_revision_key.is_none_or(|expected| {
+        render_cache.revision_key.as_ref().is_some_and(|actual| actual.matches_key(expected))
+    });
+    let content_hash = if render_cache.content_hash == 0 || !cache_matches_revision {
+        #[cfg(test)]
+        super::performance::record_full_content_hash(content.len());
+        hash_chat_content(content)
+    } else {
+        render_cache.content_hash
+    };
+    let (visible_for_copy, visible_content_hash) =
+        resolve_visible_text_and_copy_hash(app, idx, content, content_hash, render_cache);
+    let render_cache = effective_assistant_render_cache(
         content,
-        think_timing,
-        processing_timing,
-        message_meta,
+        content_hash,
         render_cache,
-        heavy,
-        requesting,
-        revision,
-    )
-}
-pub(crate) use desktop_chat_view::message_view::recovery::{
-    localized_model_recovery_text, model_recovery_text,
-};
+        visible_for_copy.as_ref(),
+        visible_content_hash,
+        is_streaming_assistant,
+        app.dialogue_flow_show_reasoning_summary,
+    );
+    let (assistant_blocks, has_special_assistant_blocks) =
+        assistant_render_blocks(content, content_hash, render_cache.as_ref(), false);
+    let assistant_has_tool_blocks =
+        assistant_blocks.iter().any(|block| matches!(block, models::ParsedChatBlock::Tool { .. }));
+    let (cleaned_attachment_text, attachment_items) = parse_attachment_markers(content);
+    let prefer_attachment_card_render =
+        !attachment_items.is_empty() && !has_special_assistant_blocks;
 
-pub(crate) fn recovery_notice_text(app: &App) -> Option<String> {
-    let runtime = app.current_session_runtime_ref()?;
-    desktop_chat_view::message_view::recovery::recovery_notice_text(
+    let recently_copied = is_recent_copy(app, visible_content_hash);
+    let copy_icon = if recently_copied { Icon::Check } else { Icon::Copy };
+    let copy_tip = if recently_copied {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("已复制")
+    } else {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("复制消息")
+    };
+    let permission_badge_text = pending_permission_badge_label(
         crate::app::i18n::I18n::new(app.desktop_locale),
-        runtime.request_lifecycle.active_agent_request.as_ref().map(|request| request.id),
-        runtime.model_recovery.as_ref().map(|(id, event)| (*id, event)),
+        &app.permission_modal_requests,
+        app.permission_modal_request_id.as_deref(),
+    );
+    let message_id = app.chat_message_ids.get(idx).and_then(|message_id| message_id.as_deref());
+    let supports_permission_badge =
+        role == ChatRole::Tool || (role == ChatRole::Assistant && assistant_has_tool_blocks);
+    let is_permission_target =
+        pending_permission_targets_message(app.permission_modal_request.as_ref(), message_id)
+            && supports_permission_badge;
+    let matched_permission_request = supports_permission_badge
+        .then(|| pending_permission_request_for_message(&app.permission_modal_requests, message_id))
+        .flatten();
+    let permission_badge: Option<(String, Option<Message>)> = if is_permission_target {
+        Some((
+            permission_badge_text.clone(),
+            app.permission_modal_request_id.clone().map(|request_id| {
+                Message::Chat(message::ChatMessage::PermissionSelectRequest(request_id))
+            }),
+        ))
+    } else {
+        matched_permission_request.map(|request| {
+            (
+                pending_permission_request_badge_label(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    &app.permission_modal_requests,
+                    request.id.as_str(),
+                ),
+                Some(Message::Chat(message::ChatMessage::PermissionSelectRequest(
+                    request.id.clone(),
+                ))),
+            )
+        })
+    };
+    let can_branch_or_reset = is_user && app.active_session_id.is_some();
+
+    let icon_action_btn = |icon, label: &'static str, on_press, highlighted, compact_square| {
+        desktop_chat_view::message_view::layout::icon_action_button(
+            icon,
+            copy_tooltip_content(label),
+            on_press,
+            highlighted,
+            compact_square,
+            is_user,
+        )
+    };
+
+    let session_id = app.active_session_id.as_deref().unwrap_or_default();
+    let copy_message = copy_chat_message_action(session_id, idx);
+
+    let fork_press = Message::Chat(message::ChatMessage::OpenForkSessionDialog(
+        can_branch_or_reset
+            .then(|| crate::app::message::chat::fork_session_anchor_from_user_row(app, idx))
+            .flatten(),
+    ));
+    let reset_press = Message::Chat(message::ChatMessage::ToggleResetMenu(idx));
+
+    let user_text = if is_user {
+        let (text, _) = split_session_control_selection(cleaned_attachment_text.trim());
+        normalize_display_text(text.trim()).into_owned()
+    } else {
+        String::new()
+    };
+    let user_preview = user_message_preview(&user_text);
+    let user_expanded = app.chat_message_expanded.contains(&idx);
+    let user_collapsed = user_preview.is_some() && !user_expanded;
+    let plain_text_body = |text: String| {
+        if user_collapsed {
+            message_text_body(format!("{}…", user_preview.unwrap_or_default()), true)
+        } else {
+            message_text_body(text, true)
+        }
+    };
+
+    let body = if assistant_like && !prefer_attachment_card_render {
+        render_assistant_body(
+            app,
+            idx,
+            think_timing,
+            &render_cache.special_text_blocks,
+            &render_cache.display_text,
+            assistant_blocks.as_ref(),
+            &render_cache.tool_block_metadata,
+            has_special_assistant_blocks,
+            is_streaming_assistant,
+            visible_for_copy.as_ref(),
+        )
+    } else {
+        let mut body = column![].spacing(8);
+        let use_editor = !user_collapsed
+            && should_use_user_message_editor(app, idx, content, attachment_items.is_empty());
+        let (text, selection) = split_session_control_selection(cleaned_attachment_text.trim());
+        if use_editor {
+            if let Some(view) = user_message_editor_body(app, idx, app.theme().palette().text) {
+                body = body.push(view);
+            }
+        } else {
+            let text = normalize_display_text(text.trim()).into_owned();
+            if !text.is_empty() {
+                body = body.push(plain_text_body(text));
+            }
+        }
+        if let Some(selection) = selection {
+            body = body.push(session_control_selection_card(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                selection,
+            ));
+        }
+        body
+    };
+    let body = if prefer_attachment_card_render {
+        let mut attachment_body = column![].spacing(8);
+        if !attachment_items.is_empty() {
+            attachment_body = attachment_body.push(attachment_preview_strip(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                attachment_items.clone(),
+            ));
+        }
+        let (text, selection) = split_session_control_selection(cleaned_attachment_text.trim());
+        let text = normalize_display_text(text.trim()).into_owned();
+        if !text.is_empty() {
+            attachment_body = attachment_body.push(plain_text_body(text));
+        }
+        if let Some(selection) = selection {
+            attachment_body = attachment_body.push(session_control_selection_card(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                selection,
+            ));
+        }
+        attachment_body
+    } else if !attachment_items.is_empty() && !assistant_like {
+        let mut attachment_body = column![attachment_preview_strip(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            attachment_items.clone()
+        )]
+        .spacing(8);
+        let (text, selection) = split_session_control_selection(cleaned_attachment_text.trim());
+        let text = normalize_display_text(text.trim()).into_owned();
+        if !text.is_empty() {
+            attachment_body = attachment_body.push(plain_text_body(text));
+        }
+        if let Some(selection) = selection {
+            attachment_body = attachment_body.push(session_control_selection_card(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                selection,
+            ));
+        }
+        attachment_body
+    } else {
+        body
+    };
+    let body = if user_preview.is_some() {
+        let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+        let toggle = button(
+            row![
+                iced_text(i18n.__(if user_expanded { "收起" } else { "查看更多" })).size(13),
+                icon_svg(if user_expanded { Icon::ChevronUp } else { Icon::ChevronDown })
+                    .width(Length::Fixed(14.0))
+                    .height(Length::Fixed(14.0)),
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center),
+        )
+        .padding([6, 8])
+        .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+        .on_press(Message::Chat(message::ChatMessage::ToggleUserMessage(idx)));
+        body.push(toggle)
+    } else {
+        body
+    };
+    let body = if assistant_like {
+        let mut assistant_content = column![].spacing(ASSISTANT_HEADER_BODY_SPACING);
+        if let Some(label) = processing_duration_label(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            processing_timing,
+            live_processing_elapsed_ms,
+        ) {
+            assistant_content = assistant_content.push(
+                iced_text(label).size(PROCESSING_DURATION_TEXT_SIZE).style(|theme: &Theme| {
+                    iced::widget::text::Style { color: Some(processing_duration_text_color(theme)) }
+                }),
+            );
+        }
+        assistant_content.push(body)
+    } else {
+        body
+    };
+
+    let context_key = chat_context_target_key(idx, None);
+    let surface_contract = message_surface_contract(is_user);
+    let bubble_inner = container(body)
+        .padding(surface_contract.padding)
+        .width(surface_contract.width)
+        .style(move |theme: &Theme| message_surface_style(theme, is_user, is_permission_target));
+    let bubble_inner = if let Some(max_width) = surface_contract.max_width {
+        bubble_inner.max_width(max_width)
+    } else {
+        bubble_inner
+    };
+
+    let bubble_inner: Element<'a, Message> = RightClickArea::new(
+        bubble_inner.into(),
+        Box::new(move |point| {
+            open_chat_message_context_menu_action(context_key, point, session_id, idx)
+        }),
     )
+    .use_global_position()
+    .preserve_on_right_click()
+    .into();
+
+    let meta = message_meta.map(|meta_text| {
+        iced_text(meta_text)
+            .size(MESSAGE_META_TEXT_SIZE)
+            .font(chat_text_font())
+            .style(move |theme: &Theme| iced::widget::text::Style {
+                color: Some(message_meta_text_color(theme, is_user)),
+            })
+            .into()
+    });
+    let badge = permission_badge.map(|(label, on_press)| {
+        desktop_chat_view::message_view::layout::approval_badge_view(
+            label,
+            on_press,
+            chat_text_font(),
+        )
+    });
+    let mut actions = Vec::new();
+    if can_branch_or_reset {
+        actions.push(icon_action_btn(
+            Icon::GitBranch,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("分叉到新会话"),
+            fork_press,
+            false,
+            true,
+        ));
+        actions.push(icon_action_btn(
+            Icon::ArrowCounterClockwise,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("重置到此点"),
+            reset_press,
+            false,
+            true,
+        ));
+    }
+    actions.push(icon_action_btn(copy_icon, copy_tip, copy_message, recently_copied, true));
+    let footer =
+        desktop_chat_view::message_view::layout::message_footer(meta, badge, actions, is_user);
+    desktop_chat_view::message_view::layout::message_layout(bubble_inner, footer, is_user)
 }
 
-pub(crate) fn recovery_notice_view(app: &App) -> Element<'_, Message> {
-    desktop_chat_view::message_view::recovery::recovery_notice_view(recovery_notice_text(app))
-}
-
-#[cfg(test)]
-mod host_contract_tests;
-
-#[cfg(test)]
 pub(super) fn should_use_user_message_editor(
     app: &App,
     idx: usize,
     content: &str,
-    no_attachments: bool,
+    has_no_attachments: bool,
 ) -> bool {
-    desktop_chat_view::message_view::bubble::should_use_user_message_editor(
-        &snapshot::snapshot(app),
-        idx,
-        content,
-        no_attachments,
-    )
+    has_no_attachments
+        && selectable_text_policy(content, false) != SelectableTextPolicy::PreviewWithCopyFallback
+        && app.chat_message_editors.get(idx).is_some_and(|editor| !editor.text().trim().is_empty())
+}
+
+pub(crate) fn model_recovery_text(
+    event: &gateway_chat_stream::GatewayModelRecoveryEvent,
+) -> String {
+    use gateway_chat_stream::GatewayModelRecoveryPhase;
+    match event.phase {
+        GatewayModelRecoveryPhase::Waiting => format!(
+            "正在重试 {}/{}，等待 {}ms，原因：{}",
+            event.attempt, event.max_attempts, event.wait_ms, event.reason
+        ),
+        GatewayModelRecoveryPhase::Stopped => {
+            let attempts = if event.attempt <= 1 {
+                "未重试".to_string()
+            } else {
+                format!("已尝试 {} 次（重试 {} 次）", event.attempt, event.attempt - 1)
+            };
+            format!("已停止，{attempts}，原因：{}。{}", event.reason, event.next_action)
+        }
+        GatewayModelRecoveryPhase::Recovered => "模型调用已恢复".to_string(),
+        GatewayModelRecoveryPhase::Cancelled => "已取消重试".to_string(),
+    }
+}
+
+pub(crate) fn localized_model_recovery_text(
+    i18n: crate::app::i18n::I18n,
+    event: &gateway_chat_stream::GatewayModelRecoveryEvent,
+) -> String {
+    use gateway_chat_stream::GatewayModelRecoveryPhase;
+    match event.phase {
+        GatewayModelRecoveryPhase::Waiting => i18n
+            .format(
+                "正在重试 %u/%u，等待 %ums，原因：%s",
+                &[
+                    event.attempt.into(),
+                    event.max_attempts.into(),
+                    event.wait_ms.into(),
+                    event.reason.clone().into(),
+                ],
+            )
+            .expect("valid recovery template"),
+        GatewayModelRecoveryPhase::Stopped => {
+            let attempts = if event.attempt <= 1 {
+                i18n.__("未重试").to_string()
+            } else {
+                i18n.format(
+                    "已尝试 %u 次（重试 %u 次）",
+                    &[event.attempt.into(), (event.attempt - 1).into()],
+                )
+                .expect("valid attempt template")
+            };
+            i18n.format(
+                "已停止，%s，原因：%s。%s",
+                &[attempts.into(), event.reason.clone().into(), event.next_action.clone().into()],
+            )
+            .expect("valid stopped template")
+        }
+        GatewayModelRecoveryPhase::Recovered => i18n.__("模型调用已恢复").to_string(),
+        GatewayModelRecoveryPhase::Cancelled => i18n.__("已取消重试").to_string(),
+    }
+}
+
+pub(crate) fn recovery_notice_text(app: &App) -> Option<String> {
+    let runtime = app.current_session_runtime_ref()?;
+    let (id, event) = runtime.model_recovery.as_ref()?;
+    if runtime.request_lifecycle.active_agent_request.as_ref()?.id != *id
+        || event.phase != gateway_chat_stream::GatewayModelRecoveryPhase::Waiting
+    {
+        return None;
+    }
+    Some(localized_model_recovery_text(crate::app::i18n::I18n::new(app.desktop_locale), event))
+}
+
+pub(crate) fn recovery_notice_view(app: &App) -> Element<'_, Message> {
+    let Some(text) = recovery_notice_text(app) else {
+        return iced::widget::Space::new().height(0).into();
+    };
+    container(iced_text(text).size(MESSAGE_META_TEXT_SIZE).style(|theme: &Theme| {
+        iced::widget::text::Style { color: Some(compaction_status_text_color(theme)) }
+    }))
+    .padding([8, 14])
+    .width(Length::Fill)
+    .style(compaction_status_card_style)
+    .into()
 }

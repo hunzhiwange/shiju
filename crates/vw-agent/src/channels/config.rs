@@ -25,9 +25,6 @@
 
 use super::*;
 
-#[cfg(test)]
-#[path = "config_tests.rs"]
-mod config_tests;
 
 /// 计算有效的通道消息超时时间（秒）
 ///

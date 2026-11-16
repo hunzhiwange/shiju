@@ -206,7 +206,8 @@ pub(crate) mod installed_state;
 mod t54_tests;
 
 pub(crate) mod dependencies;
-
+#[cfg(test)]
+mod t58_tests;
 
 #[cfg(test)]
 mod plugin_window_fixture;

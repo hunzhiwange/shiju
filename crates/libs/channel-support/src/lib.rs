@@ -16,3 +16,6 @@ pub mod session_turn;
 
 #[cfg(test)]
 mod root_contract_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_42_tests;

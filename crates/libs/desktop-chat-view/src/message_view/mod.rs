@@ -61,14 +61,3 @@ pub mod think_block;
 mod think_block_tests;
 
 pub mod markdown_body;
-
-pub mod render_snapshot;
-pub mod render_support;
-pub mod bubble;
-pub mod assistant_render;
-
-pub mod assistant_error_render;
-
-pub mod workspace_links;
-
-pub mod recovery;

@@ -10,13 +10,13 @@
 // 所有测试均在临时目录中运行，确保测试隔离性和可重复性。
 
 use super::*;
-type GrepTool = super::GrepTool<crate::host_migration_34_tests::Host>;
+type GrepTool = super::GrepTool<crate::tools::context::AgentContextHost>;
 
 #[allow(dead_code)]
 mod tests {
     use super::*;
 
-    use agent_security::{AutonomyLevel, SecurityPolicy};
+    use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
     use tempfile::TempDir;
 
     /// 创建测试用的安全策略配置

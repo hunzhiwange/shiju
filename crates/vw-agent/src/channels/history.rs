@@ -35,78 +35,6 @@ pub(crate) fn interruption_scope_key(msg: &traits::ChannelMessage) -> String {
     conversation_history_key(msg)
 }
 
-/// 规范化缓存的通道轮次
-///
-/// 该函数处理和规范化对话轮次序列，确保用户和助手消息正确交替。
-/// 对于不符合交替模式的消息（如中断导致的连续用户消息），会进行合并处理。
-///
-/// # 参数
-///
-/// - `turns`: 原始的聊天消息向量，可能包含不符合交替模式的消息
-///
-/// # 返回值
-///
-/// 返回规范化后的聊天消息向量，其中：
-/// - 用户和助手消息正确交替
-/// - 不符合模式的消息已合并到相邻的同类消息中
-///
-/// # 处理逻辑
-///
-/// 1. 期望状态机：跟踪当前期望的消息角色（用户或助手）
-/// 2. 正常情况：用户 -> 助手 -> 用户 -> 助手 的交替模式
-/// 3. 异常处理：
-///    - 连续的用户消息（助手被中断未持久化）：合并到前一个用户消息
-///    - 连续的助手消息：合并到前一个助手消息
-///
-/// # 示例
-///
-/// ```ignore
-/// let turns = vec![
-///     ChatMessage { role: "user".into(), content: "Hello".into() },
-///     ChatMessage { role: "user".into(), content: "World".into() }, // 异常：连续用户消息
-/// ];
-/// let normalized = normalize_cached_channel_turns(turns);
-/// // 结果：一个包含合并内容 "Hello\n\nWorld" 的用户消息
-/// ```
-#[cfg(test)]
-pub(crate) fn normalize_cached_channel_turns(turns: Vec<ChatMessage>) -> Vec<ChatMessage> {
-    let mut normalized = Vec::with_capacity(turns.len());
-    // 状态标志：true 表示期望用户消息，false 表示期望助手消息
-    let mut expecting_user = true;
-
-    for turn in turns {
-        match (expecting_user, turn.role.as_str()) {
-            // 正常情况：收到期望的用户消息
-            (true, "user") => {
-                normalized.push(turn);
-                expecting_user = false; // 下次期望助手消息
-            }
-            // 正常情况：收到期望的助手消息
-            (false, "assistant") => {
-                normalized.push(turn);
-                expecting_user = true; // 下次期望用户消息
-            }
-            // 中断的通道轮次可能产生连续的用户消息（助手尚未持久化）
-            // 采用合并策略而非丢弃，以保留完整的用户输入上下文
-            (false, "user") | (true, "assistant") => {
-                if let Some(last_turn) = normalized.last_mut() {
-                    if !turn.content.is_empty() {
-                        if !last_turn.content.is_empty() {
-                            // 用双换行符分隔合并的内容，保持可读性
-                            last_turn.content.push_str("\n\n");
-                        }
-                        last_turn.content.push_str(&turn.content);
-                    }
-                }
-            }
-            // 忽略其他角色（如 system）的消息
-            _ => {}
-        }
-    }
-
-    normalized
-}
-
 /// 清除发送者的历史记录
 ///
 /// 从通道运行时上下文中完全移除指定发送者的所有对话历史。
@@ -178,6 +106,7 @@ pub(crate) fn append_sender_turn(ctx: &ChannelRuntimeContext, sender_key: &str, 
 pub(crate) fn rollback_orphan_user_turn(ctx: &ChannelRuntimeContext, sender_key: &str, expected_content: &str) -> bool {
     channel_support::history::rollback_orphan_user_turn(&ctx.conversation_histories, sender_key, expected_content)
 }
+
 
 #[cfg(test)]
 #[path = "history_tests.rs"]

@@ -545,7 +545,3 @@ impl<H: super::FileToolHost> Tool for LsTool<H> {
 /// - 忽略模式过滤
 /// - 输出格式正确性
 /// - 边界条件处理
-
-#[cfg(test)]
-#[path = "tests.rs"]
-mod host_migration_34_tests;

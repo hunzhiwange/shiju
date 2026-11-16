@@ -18,9 +18,8 @@ pub mod hooks;
 #[cfg(test)]
 mod host_migration_33_tests;
 
-#[cfg(any(test, feature = "test-support"))]
-#[doc(hidden)]
-pub mod host_migration_34_tests;
+#[cfg(test)]
+mod host_migration_34_tests;
 
 #[cfg(test)]
 mod host_migration_35_tests;

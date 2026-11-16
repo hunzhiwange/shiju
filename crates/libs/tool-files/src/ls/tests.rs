@@ -12,7 +12,7 @@
 // - `LsTool`: 被测试的文件列表工具
 
 use super::*;
-type LsTool = super::LsTool<crate::host_migration_34_tests::Host>;
+type LsTool = super::LsTool<crate::tools::context::AgentContextHost>;
 
 /// 测试模块
 ///
@@ -21,7 +21,7 @@ type LsTool = super::LsTool<crate::host_migration_34_tests::Host>;
 mod tests {
     use super::*;
 
-    use agent_security::{AutonomyLevel, SecurityPolicy};
+    use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
     use tempfile::TempDir;
 
     /// 创建测试用的安全策略

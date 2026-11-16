@@ -702,7 +702,3 @@ fn is_binary(path: &Path) -> bool {
 
     (bad as f32) / (buf.len() as f32) > 0.3
 }
-
-#[cfg(test)]
-#[path = "tests.rs"]
-mod host_migration_34_tests;

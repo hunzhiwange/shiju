@@ -330,8 +330,6 @@ fn block_on_future<F: std::future::Future>(fut: F) -> F::Output {
 #[path = "channels_config_host_tests.rs"]
 mod channel_project_binding_tests;
 
-#[cfg(test)]
-include!("channel_project_scope_tests.rs");
 
 #[cfg(test)]
 include!("scope_delivery_tests.rs");

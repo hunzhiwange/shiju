@@ -115,6 +115,3 @@ fn render_cache_bytes(entry: &ChatRenderCacheEntry) -> usize {
 fn text_editor_bytes(content: &text_editor::Content) -> usize {
     content.lines().map(|line| line.text.len()).sum()
 }
-
-/// Borrowed inputs used by message bubbles and assistant bodies.
-pub use crate::message_view::render_snapshot::MessageViewSnapshot;

@@ -2,8 +2,8 @@
 // 临时目录场景同时覆盖符号链接逃逸和非法搜索根目录等安全失败分支。
 
 use super::*;
-type GlobSearchTool = super::GlobSearchTool<crate::host_migration_34_tests::Host>;
-use agent_security::{AutonomyLevel, SecurityPolicy};
+type GlobSearchTool = super::GlobSearchTool<crate::tools::context::AgentContextHost>;
+use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use serde_json::json;
 use std::path::PathBuf;
 use tempfile::TempDir;

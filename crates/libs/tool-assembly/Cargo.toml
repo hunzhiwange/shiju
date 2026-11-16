@@ -37,20 +37,17 @@ syscall-anomaly = { path = "../syscall-anomaly", version = "0.6.0" }
 session-port = { path = "../session-port", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 
-permission-types = { path = "../permission-types", version = "0.6.0" }
-tool-files = { path = "../tool-files", version = "0.6.0" }
-tokio-util = { version = "0.7", features = ["rt"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
-rmcp = { version = "0.8.0", default-features = false, features = ["client", "server", "transport-io"] }
-reqwest_012 = { package = "reqwest", version = "0.12", default-features = false }
-
 [features]
 default = []
 test-support = []
 
 [dev-dependencies]
 tempfile = "3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+permission-types = { path = "../permission-types", version = "0.6.0" }
+tool-files = { path = "../tool-files", version = "0.6.0" }
 agent-paths = { path = "../agent-paths", version = "0.6.0" }
 tool-git = { path = "../tool-git", version = "0.6.0" }
-git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
+git2 = "0.20"
 acp-types = { path = "../acp-types", version = "0.6.0" }

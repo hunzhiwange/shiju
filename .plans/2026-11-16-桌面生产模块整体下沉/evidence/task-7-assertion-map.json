@@ -1,0 +1,4514 @@
+[
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/common_tests.rs",
+    "test": "clear_new_session_picker_messages_preserves_picker_selection",
+    "old_assertions": 9,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests.rs",
+        "assertions": 9
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.new_session_picker_project.as_deref(), Some(\"/project\"));",
+        "current": "assert_eq!(app.new_session_picker_project.as_deref(), Some(\"/project\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.new_session_picker_options.len(), 1);",
+        "current": "assert_eq!(app.new_session_picker_options.len(), 1);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.new_session_worktree_name, \"feature\");",
+        "current": "assert_eq!(app.new_session_worktree_name, \"feature\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.new_session_last_directory.as_deref(), Some(\"/project/previous\"));",
+        "current": "assert_eq!(app.new_session_last_directory.as_deref(), Some(\"/project/previous\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.new_session_confirm_delete_directory.is_none());",
+        "current": "assert!(app.new_session_confirm_delete_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(app.new_session_force_delete_directory.is_none());",
+        "current": "assert!(app.new_session_force_delete_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert!(app.new_session_delete_error.is_none());",
+        "current": "assert!(app.new_session_delete_error.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert!(app.new_session_confirm_reset_directory.is_none());",
+        "current": "assert!(app.new_session_confirm_reset_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 9,
+        "original": "assert!(app.new_session_reset_error.is_none());",
+        "current": "assert!(app.new_session_reset_error.is_none());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/common_tests.rs",
+    "test": "reset_new_session_picker_state_clears_selection_options_and_messages",
+    "old_assertions": 9,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests.rs",
+        "assertions": 9
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(app.new_session_picker_project.is_none());",
+        "current": "assert!(app.new_session_picker_project.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.new_session_picker_options.is_empty());",
+        "current": "assert!(app.new_session_picker_options.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.new_session_worktree_name.is_empty());",
+        "current": "assert!(app.new_session_worktree_name.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.new_session_last_directory.as_deref(), Some(\"/project/previous\"));",
+        "current": "assert_eq!(app.new_session_last_directory.as_deref(), Some(\"/project/previous\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.new_session_confirm_delete_directory.is_none());",
+        "current": "assert!(app.new_session_confirm_delete_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(app.new_session_force_delete_directory.is_none());",
+        "current": "assert!(app.new_session_force_delete_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert!(app.new_session_delete_error.is_none());",
+        "current": "assert!(app.new_session_delete_error.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert!(app.new_session_confirm_reset_directory.is_none());",
+        "current": "assert!(app.new_session_confirm_reset_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 9,
+        "original": "assert!(app.new_session_reset_error.is_none());",
+        "current": "assert!(app.new_session_reset_error.is_none());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/edit_tests.rs",
+    "test": "test_module_is_wired",
+    "old_assertions": 1,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/edit_tests.rs",
+        "assertions": 1
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(module.ends_with(\"edit_tests\"));",
+        "current": "assert!(module.ends_with(\"edit_tests\"));",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "宿主消息分类、mod 注册与 Option<Task> 接线契约"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/edit_tests.rs",
+    "test": "project_accepts_custom_registered_workflow",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/edit_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.project_editor.project_edit_task_board_settings.workflow_id, workflow_id);",
+        "current": "assert_eq!(app.project_editor.project_edit_task_board_settings.workflow_id, workflow_id);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.project_editor.project_edit_task_board_settings.clone().sanitized().workflow_id, workflow_id);",
+        "current": "assert_eq!(\n        app.project_editor.project_edit_task_board_settings.clone().sanitized().workflow_id,\n        workflow_id\n    );",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(\n        saved.task_board_settings.as_ref().map(|settings| settings.workflow_id.as_str()),\n        Some(workflow_id)\n    );",
+        "current": "assert_eq!(\n        saved.task_board_settings.as_ref().map(|settings| settings.workflow_id.as_str()),\n        Some(workflow_id)\n    );",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.task_board_settings.workflow_id, workflow_id);",
+        "current": "assert_eq!(app.task_board_settings.workflow_id, workflow_id);",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/edit_tests.rs",
+    "test": "project_rejects_unknown_workflow_id",
+    "old_assertions": 2,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/edit_tests.rs",
+        "assertions": 2
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(\n        app.project_editor.project_edit_task_board_settings.workflow_id,\n        crate::app::task::DEFAULT_TASK_WORKFLOW_ID\n    );",
+        "current": "assert_eq!(\n        app.project_editor.project_edit_task_board_settings.workflow_id,\n        desktop_task_model::DEFAULT_TASK_WORKFLOW_ID\n    );",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(\n        app.project_editor.project_edit_task_board_settings.clone().sanitized().workflow_id,\n        crate::app::task::DEFAULT_TASK_WORKFLOW_ID\n    );",
+        "current": "assert_eq!(\n        app.project_editor.project_edit_task_board_settings.clone().sanitized().workflow_id,\n        desktop_task_model::DEFAULT_TASK_WORKFLOW_ID\n    );",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/edit_tests.rs",
+    "test": "edit_icon_pick_file_returns_async_picker_task",
+    "old_assertions": 1,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/edit_tests.rs",
+        "assertions": 1
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 编辑效果到网关、设置存储、导航及 toast 的宿主适配"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/edit_tests.rs",
+    "test": "edit_save_without_path_is_noop_and_runtime_error_sets_error_message",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/edit_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.project_editor.project_edit_path.is_none());",
+        "current": "assert!(app.project_editor.project_edit_path.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.error_message.as_deref(), Some(\"保存项目扩展配置失败: gateway\"));",
+        "current": "assert_eq!(app.error_message.as_deref(), Some(\"保存项目扩展配置失败: gateway\"));",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 编辑效果到网关、设置存储、导航及 toast 的宿主适配"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/edit_tests.rs",
+    "test": "edit_runtime_success_is_silent_and_unhandled_message_is_delegated",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/edit_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(handled.is_some());",
+        "current": "assert!(handled.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.error_message.is_none());",
+        "current": "assert!(app.error_message.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(delegated.is_none());",
+        "current": "assert!(delegated.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.project_path.is_none());",
+        "current": "assert!(app.navigation_tabs.project_path.is_none());",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "宿主消息分类、mod 注册与 Option<Task> 接线契约"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/edit_tests.rs",
+    "test": "edit_save_updates_meta_worktree_and_resets_editor_state",
+    "old_assertions": 16,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/edit_tests.rs",
+        "assertions": 16
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.recent_projects_edits, vec![\"project\".to_string()]);",
+        "current": "assert_eq!(app.recent_projects_edits, vec![\"project\".to_string()]);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(saved.name, \"project\");",
+        "current": "assert_eq!(saved.name, \"project\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(saved.icon.as_deref(), Some(\"icon\"));",
+        "current": "assert_eq!(saved.icon.as_deref(), Some(\"icon\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert_eq!(saved.icon_color.as_deref(), Some(\"#123456\"));",
+        "current": "assert_eq!(saved.icon_color.as_deref(), Some(\"#123456\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert_eq!(saved.worktree_start_command.as_deref(), Some(\"pnpm dev\"));",
+        "current": "assert_eq!(saved.worktree_start_command.as_deref(), Some(\"pnpm dev\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert!(!saved.session_auto_refresh);",
+        "current": "assert!(!saved.session_auto_refresh);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert_eq!(saved.session_refresh_interval_seconds, 3600);",
+        "current": "assert_eq!(saved.session_refresh_interval_seconds, 3600);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 9,
+        "original": "assert!(app.project_worktree_enabled.contains_key(&path));",
+        "current": "assert!(app.project_worktree_enabled.contains_key(&path));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 10,
+        "original": "assert!(app.project_editor.project_edit_path.is_none());",
+        "current": "assert!(app.project_editor.project_edit_path.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 11,
+        "original": "assert!(app.project_editor.project_edit_name.is_empty());",
+        "current": "assert!(app.project_editor.project_edit_name.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 12,
+        "original": "assert!(app.project_editor.project_edit_icon.is_empty());",
+        "current": "assert!(app.project_editor.project_edit_icon.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 13,
+        "original": "assert_eq!(app.project_editor.project_edit_tab, crate::app::state::ProjectEditTab::General);",
+        "current": "assert_eq!(app.project_editor.project_edit_tab, crate::app::state::ProjectEditTab::General);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 14,
+        "original": "assert_eq!(app.task_board_settings.max_concurrent, 10);",
+        "current": "assert_eq!(app.task_board_settings.max_concurrent, 10);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 15,
+        "original": "assert_eq!(app.task_board_settings.failed_retry_max_attempts, 10);",
+        "current": "assert_eq!(app.task_board_settings.failed_retry_max_attempts, 10);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 16,
+        "original": "assert!(!app.task_board_settings.auto_refresh);",
+        "current": "assert!(!app.task_board_settings.auto_refresh);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 编辑效果到网关、设置存储、导航及 toast 的宿主适配"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/edit_tests.rs",
+    "test": "recent_remove_pressed_allows_current_project_confirmation",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/edit_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.recent_projects, vec![current.clone()]);",
+        "current": "assert_eq!(app.recent_projects, vec![current.clone()]);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.recent_project_remove_confirm_path, Some(current));",
+        "current": "assert_eq!(app.recent_project_remove_confirm_path, Some(current));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.project_tools_menu_path.is_none());",
+        "current": "assert!(app.project_tools_menu_path.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.active_toast.is_none());",
+        "current": "assert!(app.active_toast.is_none());",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 编辑效果到网关、设置存储、导航及 toast 的宿主适配"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/edit_tests.rs",
+    "test": "recent_remove_confirmed_current_project_selects_first_remaining_project",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/edit_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.recent_projects, vec![next.clone()]);",
+        "current": "assert_eq!(app.recent_projects, vec![next.clone()]);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.project_path, Some(next));",
+        "current": "assert_eq!(app.navigation_tabs.project_path, Some(next));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.recent_project_remove_confirm_path.is_none());",
+        "current": "assert!(app.recent_project_remove_confirm_path.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.active_toast.is_none());",
+        "current": "assert!(app.active_toast.is_none());",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 编辑效果到网关、设置存储、导航及 toast 的宿主适配"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "stale_stream_ui_phase_is_ignored",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.chat_render_cache[&0].content_hash, 77);",
+        "current": "assert_eq!(app.chat_render_cache[&0].content_hash, 77);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.chat_render_cache[&0].display_text, \"kept\");",
+        "current": "assert_eq!(app.chat_render_cache[&0].display_text, \"kept\");",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_messages_loaded_preserves_parent_order_after_completion_refresh",
+    "old_assertions": 2,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 2
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(\n        app.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(),\n        vec![\"question\", \"answer\"]\n    );",
+        "current": "assert_eq!(\n        app.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(),\n        vec![\"question\", \"answer\"]\n    );",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(\n        app.chat_message_ids,\n        vec![Some(\"user-1\".to_string()), Some(\"assistant-1\".to_string())]\n    );",
+        "current": "assert_eq!(\n        app.chat_message_ids,\n        vec![Some(\"user-1\".to_string()), Some(\"assistant-1\".to_string())]\n    );",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_messages_loaded_same_content_preserves_scroll_and_ui_cache",
+    "old_assertions": 20,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 20
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.chat_scroll_id, previous_scroll_id);",
+        "current": "assert_eq!(app.chat_scroll_id, previous_scroll_id);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.chat_virtualizer.turn_focus_user_index(), Some(0));",
+        "current": "assert_eq!(app.chat_virtualizer.turn_focus_user_index(), Some(0));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.active_session_view_state.base_ready);",
+        "current": "assert!(app.active_session_view_state.base_ready);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(!app.active_session_view_state.ui_preparing);",
+        "current": "assert!(!app.active_session_view_state.ui_preparing);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert_eq!(app.active_session_view_state.updated_ms, 77);",
+        "current": "assert_eq!(app.active_session_view_state.updated_ms, 77);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert_eq!(app.active_session_view_state.calls, vec![json!({ \"id\": \"call-live\" })]);",
+        "current": "assert_eq!(app.active_session_view_state.calls, vec![json!({ \"id\": \"call-live\" })]);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert!(app.chat_render_cache.contains_key(&0));",
+        "current": "assert!(app.chat_render_cache.contains_key(&0));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 9,
+        "original": "assert_eq!(\n        app.chat_message_ids,\n        vec![Some(\"user-1\".to_string()), Some(\"assistant-1\".to_string())]\n    );",
+        "current": "assert_eq!(\n        app.chat_message_ids,\n        vec![Some(\"user-1\".to_string()), Some(\"assistant-1\".to_string())]\n    );",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 10,
+        "original": "assert_eq!(app.usage.input_tokens, 2);",
+        "current": "assert_eq!(app.usage.input_tokens, 2);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 11,
+        "original": "assert_eq!(app.usage.output_tokens, 3);",
+        "current": "assert_eq!(app.usage.output_tokens, 3);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 12,
+        "original": "assert_eq!(app.usage.cached_tokens, 4);",
+        "current": "assert_eq!(app.usage.cached_tokens, 4);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 13,
+        "original": "assert_eq!(app.usage.reasoning_tokens, 5);",
+        "current": "assert_eq!(app.usage.reasoning_tokens, 5);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 14,
+        "original": "assert_eq!(app.active_session_view_state.steps.len(), 1);",
+        "current": "assert_eq!(app.active_session_view_state.steps.len(), 1);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 15,
+        "original": "assert_eq!(app.active_session_view_state.steps[0].usage.input_tokens, 11);",
+        "current": "assert_eq!(app.active_session_view_state.steps[0].usage.input_tokens, 11);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 16,
+        "original": "assert_eq!(app.active_session_view_state.steps[0].usage.output_tokens, 12);",
+        "current": "assert_eq!(app.active_session_view_state.steps[0].usage.output_tokens, 12);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 17,
+        "original": "assert_eq!(app.active_session_view_state.steps[0].usage.cached_tokens, 3);",
+        "current": "assert_eq!(app.active_session_view_state.steps[0].usage.cached_tokens, 3);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 18,
+        "original": "assert_eq!(app.active_session_view_state.steps[0].usage.reasoning_tokens, 4);",
+        "current": "assert_eq!(app.active_session_view_state.steps[0].usage.reasoning_tokens, 4);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 19,
+        "original": "assert_eq!(app.active_session_view_state.message_meta_texts.len(), app.chat.len());",
+        "current": "assert_eq!(app.active_session_view_state.message_meta_texts.len(), app.chat.len());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 20,
+        "original": "assert!(app.active_session_view_state.message_meta_texts.iter().all(|meta| meta.as_ref().map(\n        |meta| meta.render(crate::app::i18n::I18n::new(\n            config_ui::DesktopLocale::SimplifiedChinese\n        ))\n    ) != Some(\n        \"stale\".to_string()\n    )));",
+        "current": "assert!(app.active_session_view_state.message_meta_texts.iter().all(|meta| meta.as_ref().map(\n        |meta| {\n            meta.render(crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese))\n        }\n    ) != Some(\n        \"stale\".to_string()\n    )));",
+        "same_after_local_projection": false,
+        "review_note": "rustfmt 将闭包表达式加上等价花括号；原 locale 与预期 stale 字符串保持。"
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_messages_loaded_changed_content_replaces_history_and_invalidates_ui_cache",
+    "old_assertions": 8,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 8
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_ne!(app.chat_scroll_id, previous_scroll_id);",
+        "current": "assert_ne!(app.chat_scroll_id, previous_scroll_id);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.chat[1].role, ChatRole::Assistant);",
+        "current": "assert_eq!(app.chat[1].role, ChatRole::Assistant);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.chat[1].content, \"answer\");",
+        "current": "assert_eq!(app.chat[1].content, \"answer\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.chat_render_cache.is_empty());",
+        "current": "assert!(app.chat_render_cache.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(!app.active_session_view_state.base_ready);",
+        "current": "assert!(!app.active_session_view_state.base_ready);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert!(app.active_session_view_state.ui_preparing);",
+        "current": "assert!(app.active_session_view_state.ui_preparing);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert_eq!(\n            app.chat_message_ids,\n            vec![Some(\"user-1\".to_string()), Some(\"assistant-1\".to_string())]\n        );",
+        "current": "assert_eq!(\n            app.chat_message_ids,\n            vec![Some(\"user-1\".to_string()), Some(\"assistant-1\".to_string())]\n        );",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_context_menu_and_rename_state_are_updated_synchronously",
+    "old_assertions": 9,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/interaction_tests.rs",
+        "assertions": 9
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.session_menu_id.as_deref(), Some(\"s1\"));",
+        "current": "assert_eq!(app.session_menu_id.as_deref(), Some(\"s1\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.session_menu_anchor.expect(\"anchor\").x, 10.0);",
+        "current": "assert_eq!(app.session_menu_anchor.expect(\"anchor\").x, 10.0);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.session_menu_id.is_none());",
+        "current": "assert!(app.session_menu_id.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.session_menu_anchor.is_none());",
+        "current": "assert!(app.session_menu_anchor.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert_eq!(app.session_rename_id.as_deref(), Some(\"s2\"));",
+        "current": "assert_eq!(app.session_rename_id.as_deref(), Some(\"s2\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert_eq!(app.session_rename_value, \"Second\");",
+        "current": "assert_eq!(app.session_rename_value, \"Second\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert_eq!(app.session_rename_value, \" Renamed \");",
+        "current": "assert_eq!(app.session_rename_value, \" Renamed \");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert!(app.session_rename_id.is_none());",
+        "current": "assert!(app.session_rename_id.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 9,
+        "original": "assert!(app.session_rename_value.is_empty());",
+        "current": "assert!(app.session_rename_value.is_empty());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_tree_toggle_updates_non_persistent_expansion_state",
+    "old_assertions": 5,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/interaction_tests.rs",
+        "assertions": 5
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(app.session_tree_expanded.is_empty());",
+        "current": "assert!(app.session_tree_expanded.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(first.is_some());",
+        "current": "assert!(first.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.session_tree_expanded.contains(\"parent\"));",
+        "current": "assert!(app.session_tree_expanded.contains(\"parent\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(second.is_some());",
+        "current": "assert!(second.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(!app.session_tree_expanded.contains(\"parent\"));",
+        "current": "assert!(!app.session_tree_expanded.contains(\"parent\"));",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_rename_save_ignores_missing_or_empty_title_and_updates_local_titles",
+    "old_assertions": 8,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/interaction_tests.rs",
+        "assertions": 8
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.sessions[0].title, \"First\");",
+        "current": "assert_eq!(app.sessions[0].title, \"First\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.sessions[0].title, \"First\");",
+        "current": "assert_eq!(app.sessions[0].title, \"First\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.session_rename_id.as_deref(), Some(\"s1\"));",
+        "current": "assert_eq!(app.session_rename_id.as_deref(), Some(\"s1\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.session_rename_id.is_none());",
+        "current": "assert!(app.session_rename_id.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(app.session_rename_value.is_empty());",
+        "current": "assert!(app.session_rename_value.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert_eq!(app.sessions[0].title, \"Updated\");",
+        "current": "assert_eq!(app.sessions[0].title, \"Updated\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert_eq!(app.project_sessions.get(\"/tmp/project\").unwrap()[0].title, \"Updated\");",
+        "current": "assert_eq!(app.project_sessions.get(\"/tmp/project\").unwrap()[0].title, \"Updated\");",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_created_inserts_unique_session_and_resets_active_chat_state",
+    "old_assertions": 9,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 9
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.new_session_last_directory.as_deref(), Some(\"/tmp/project\"));",
+        "current": "assert_eq!(app.new_session_last_directory.as_deref(), Some(\"/tmp/project\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.sessions.iter().filter(|s| s.id == \"s1\").count(), 1);",
+        "current": "assert_eq!(app.sessions.iter().filter(|s| s.id == \"s1\").count(), 1);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.project_sessions.get(\"/tmp/project\").unwrap()[0].id, \"s1\");",
+        "current": "assert_eq!(app.project_sessions.get(\"/tmp/project\").unwrap()[0].id, \"s1\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert_eq!(app.active_session_id.as_deref(), Some(\"s1\"));",
+        "current": "assert_eq!(app.active_session_id.as_deref(), Some(\"s1\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(app.chat.is_empty());",
+        "current": "assert!(app.chat.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert!(app.chat_message_ids.is_empty());",
+        "current": "assert!(app.chat_message_ids.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert_eq!(app.usage, crate::app::models::TokenUsage::default());",
+        "current": "assert_eq!(app.usage, crate::app::models::TokenUsage::default());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 9,
+        "original": "assert!(!app.new_session_creating);",
+        "current": "assert!(!app.new_session_creating);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 项目归属改变后 session 活动态、原生资源与聊天视图的跨域切换"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_created_without_project_path_uses_session_directory_bucket",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.active_session_id.as_deref(), Some(\"s-dir\"));",
+        "current": "assert_eq!(app.active_session_id.as_deref(), Some(\"s-dir\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(\n        app.project_sessions.get(\"/tmp/session-dir\").expect(\"directory bucket\")[0].id,\n        \"s-dir\"\n    );",
+        "current": "assert_eq!(\n        app.project_sessions.get(\"/tmp/session-dir\").expect(\"directory bucket\")[0].id,\n        \"s-dir\"\n    );",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 项目归属改变后 session 活动态、原生资源与聊天视图的跨域切换"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "discovered_child_session_does_not_replace_active_parent",
+    "old_assertions": 6,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 6
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.active_session_id.as_deref(), Some(\"parent\"));",
+        "current": "assert_eq!(app.active_session_id.as_deref(), Some(\"parent\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.chat[0].content, \"parent chat\");",
+        "current": "assert_eq!(app.chat[0].content, \"parent chat\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.chat_message_ids, vec![Some(\"parent-message\".to_string())]);",
+        "current": "assert_eq!(app.chat_message_ids, vec![Some(\"parent-message\".to_string())]);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.sessions.iter().any(|session| session.id == \"child\"));",
+        "current": "assert!(app.sessions.iter().any(|session| session.id == \"child\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(\n        app.project_sessions\n            .get(\"/tmp/project\")\n            .expect(\"project session bucket\")\n            .iter()\n            .any(|session| session.id == \"child\")\n    );",
+        "current": "assert!(\n        app.project_sessions\n            .get(\"/tmp/project\")\n            .expect(\"project session bucket\")\n            .iter()\n            .any(|session| session.id == \"child\")\n    );",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 项目归属改变后 session 活动态、原生资源与聊天视图的跨域切换"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_messages_loaded_keeps_reset_local_history_when_gateway_returns_stale_tail",
+    "old_assertions": 2,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 2
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(contents, vec![\"keep\", \"new question\", \"new answer\"]);",
+        "current": "assert_eq!(contents, vec![\"keep\", \"new question\", \"new answer\"]);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(\n        app.chat_message_ids,\n        vec![\n            Some(\"user-keep\".to_string()),\n            Some(\"user-new\".to_string()),\n            Some(\"assistant-new\".to_string()),\n        ]\n    );",
+        "current": "assert_eq!(\n        app.chat_message_ids,\n        vec![\n            Some(\"user-keep\".to_string()),\n            Some(\"user-new\".to_string()),\n            Some(\"assistant-new\".to_string()),\n        ]\n    );",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_copied_adds_to_current_and_project_session_lists_without_duplicates",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/membership_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.sessions.iter().filter(|s| s.id == \"s1\").count(), 1);",
+        "current": "assert_eq!(app.sessions.iter().filter(|s| s.id == \"s1\").count(), 1);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.project_sessions.get(\"/tmp/project\").unwrap().len(), 1);",
+        "current": "assert_eq!(app.project_sessions.get(\"/tmp/project\").unwrap().len(), 1);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.sessions[0].id, \"s2\");",
+        "current": "assert_eq!(app.sessions[0].id, \"s2\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.project_sessions.get(\"/tmp/project\").unwrap()[0].id, \"s2\");",
+        "current": "assert_eq!(app.project_sessions.get(\"/tmp/project\").unwrap()[0].id, \"s2\");",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_copied_without_active_project_uses_info_directory_bucket_only",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/membership_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.sessions.is_empty());",
+        "current": "assert!(app.sessions.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.project_sessions.get(\"/tmp/copied\").unwrap()[0].id, \"copy-dir\");",
+        "current": "assert_eq!(app.project_sessions.get(\"/tmp/copied\").unwrap()[0].id, \"copy-dir\");",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_title_double_click_enters_rename_mode_and_closes_actions",
+    "old_assertions": 5,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/interaction_tests.rs",
+        "assertions": 5
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.session_rename_id.as_deref(), Some(\"s1\"));",
+        "current": "assert_eq!(app.session_rename_id.as_deref(), Some(\"s1\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.session_rename_value, \"First\");",
+        "current": "assert_eq!(app.session_rename_value, \"First\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.session_menu_id.is_none());",
+        "current": "assert!(app.session_menu_id.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.session_menu_anchor.is_none());",
+        "current": "assert!(app.session_menu_anchor.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(!app.show_session_actions_popover);",
+        "current": "assert!(!app.actions);",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_archive_active_without_replacement_clears_active_view",
+    "old_assertions": 10,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 10
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.sessions[0].time.archived.is_some());",
+        "current": "assert!(app.sessions[0].time.archived.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.project_sessions.get(\"/tmp/project\").unwrap()[0].time.archived.is_some());",
+        "current": "assert!(app.project_sessions.get(\"/tmp/project\").unwrap()[0].time.archived.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.active_session_id.is_none());",
+        "current": "assert!(app.active_session_id.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.chat.is_empty());",
+        "current": "assert!(app.chat.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert_eq!(app.usage, crate::app::models::TokenUsage::default());",
+        "current": "assert_eq!(app.usage, crate::app::models::TokenUsage::default());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert!(app.active_session_view_state.steps.is_empty());",
+        "current": "assert!(app.active_session_view_state.steps.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert!(app.active_session_view_state.calls.is_empty());",
+        "current": "assert!(app.active_session_view_state.calls.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 9,
+        "original": "assert!(!app.active_session_view_state.ui_preparing);",
+        "current": "assert!(!app.active_session_view_state.ui_preparing);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 10,
+        "original": "assert!(!app.active_session_view_state.base_ready);",
+        "current": "assert!(!app.active_session_view_state.base_ready);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 项目归属改变后 session 活动态、原生资源与聊天视图的跨域切换"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_archive_active_switches_to_next_unarchived_session",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.sessions[0].time.archived.is_some());",
+        "current": "assert!(app.sessions[0].time.archived.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.active_session_id.as_deref(), Some(\"next\"));",
+        "current": "assert_eq!(app.active_session_id.as_deref(), Some(\"next\"));",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 项目归属改变后 session 活动态、原生资源与聊天视图的跨域切换"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_delete_active_switches_to_remaining_unarchived_session",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.active_session_id.as_deref(), Some(\"next\"));",
+        "current": "assert_eq!(app.active_session_id.as_deref(), Some(\"next\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(\n        app.sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(),\n        vec![\"next\"]\n    );",
+        "current": "assert_eq!(\n        app.sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(),\n        vec![\"next\"]\n    );",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(\n        app.project_sessions\n            .get(\"/tmp/project\")\n            .unwrap()\n            .iter()\n            .map(|session| session.id.as_str())\n            .collect::<Vec<_>>(),\n        vec![\"next\"]\n    );",
+        "current": "assert_eq!(\n        app.project_sessions\n            .get(\"/tmp/project\")\n            .unwrap()\n            .iter()\n            .map(|session| session.id.as_str())\n            .collect::<Vec<_>>(),\n        vec![\"next\"]\n    );",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 项目归属改变后 session 活动态、原生资源与聊天视图的跨域切换"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_delete_active_without_replacement_clears_chat_usage_and_runtime_state",
+    "old_assertions": 10,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 10
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.sessions.is_empty());",
+        "current": "assert!(app.sessions.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.project_sessions.get(\"/tmp/project\").unwrap().is_empty());",
+        "current": "assert!(app.project_sessions.get(\"/tmp/project\").unwrap().is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.active_session_id.is_none());",
+        "current": "assert!(app.active_session_id.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.chat.is_empty());",
+        "current": "assert!(app.chat.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert_eq!(app.usage, crate::app::models::TokenUsage::default());",
+        "current": "assert_eq!(app.usage, crate::app::models::TokenUsage::default());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert!(app.active_session_view_state.steps.is_empty());",
+        "current": "assert!(app.active_session_view_state.steps.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert!(app.active_session_view_state.calls.is_empty());",
+        "current": "assert!(app.active_session_view_state.calls.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 9,
+        "original": "assert!(!app.active_session_view_state.ui_preparing);",
+        "current": "assert!(!app.active_session_view_state.ui_preparing);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 10,
+        "original": "assert!(!app.active_session_view_state.base_ready);",
+        "current": "assert!(!app.active_session_view_state.base_ready);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 项目归属改变后 session 活动态、原生资源与聊天视图的跨域切换"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_messages_loaded_empty_history_marks_base_ready_without_ui_task",
+    "old_assertions": 9,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 9
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.chat.is_empty());",
+        "current": "assert!(app.chat.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.chat_message_ids.is_empty());",
+        "current": "assert!(app.chat_message_ids.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.usage.input_tokens, 2);",
+        "current": "assert_eq!(app.usage.input_tokens, 2);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert_eq!(app.usage.output_tokens, 3);",
+        "current": "assert_eq!(app.usage.output_tokens, 3);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert_eq!(app.usage.cached_tokens, 4);",
+        "current": "assert_eq!(app.usage.cached_tokens, 4);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert_eq!(app.usage.reasoning_tokens, 5);",
+        "current": "assert_eq!(app.usage.reasoning_tokens, 5);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert!(app.active_session_view_state.base_ready);",
+        "current": "assert!(app.active_session_view_state.base_ready);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 9,
+        "original": "assert!(!app.active_session_view_state.ui_preparing);",
+        "current": "assert!(!app.active_session_view_state.ui_preparing);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_messages_loaded_restores_the_historical_session_model",
+    "old_assertions": 5,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 5
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.model, \"provider/current-model\");",
+        "current": "assert_eq!(app.model, \"provider/current-model\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(!app.auto_model);",
+        "current": "assert!(!app.auto_model);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.get_session_runtime(\"session-1\").model, \"provider-a/model-a\");",
+        "current": "assert_eq!(app.get_session_runtime(\"session-1\").model, \"provider-a/model-a\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert_ne!(app.chat_scroll_id, previous_scroll_id);",
+        "current": "assert_ne!(app.chat_scroll_id, previous_scroll_id);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_messages_loaded_restores_model_without_usage_or_step_parts",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.model, \"provider/global-model\");",
+        "current": "assert_eq!(app.model, \"provider/global-model\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(!app.auto_model);",
+        "current": "assert!(!app.auto_model);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.get_session_runtime(\"session-1\").model, \"provider-a/model-a\");",
+        "current": "assert_eq!(app.get_session_runtime(\"session-1\").model, \"provider-a/model-a\");",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_messages_loaded_empty_gateway_history_restores_cached_chat",
+    "old_assertions": 6,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 6
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.chat.len(), 1);",
+        "current": "assert_eq!(app.chat.len(), 1);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.chat[0].content, \"cached question\");",
+        "current": "assert_eq!(app.chat[0].content, \"cached question\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.chat_message_ids, vec![Some(\"cached-user\".to_string())]);",
+        "current": "assert_eq!(app.chat_message_ids, vec![Some(\"cached-user\".to_string())]);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.active_session_view_state.ui_preparing);",
+        "current": "assert!(app.active_session_view_state.ui_preparing);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(!app.active_session_view_state.base_ready);",
+        "current": "assert!(!app.active_session_view_state.base_ready);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_messages_loaded_shorter_gateway_history_preserves_cached_chat",
+    "old_assertions": 6,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 6
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.chat.len(), 3);",
+        "current": "assert_eq!(app.chat.len(), 3);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.chat[0].content, \"original question\");",
+        "current": "assert_eq!(app.chat[0].content, \"original question\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.chat[1].content, \"original answer\");",
+        "current": "assert_eq!(app.chat[1].content, \"original answer\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert_eq!(app.chat[2].content, \"latest question\");",
+        "current": "assert_eq!(app.chat[2].content, \"latest question\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert_eq!(\n        app.chat_message_ids,\n        vec![\n            Some(\"original-user\".to_string()),\n            Some(\"original-assistant\".to_string()),\n            Some(\"latest-user\".to_string()),\n        ]\n    );",
+        "current": "assert_eq!(\n        app.chat_message_ids,\n        vec![\n            Some(\"original-user\".to_string()),\n            Some(\"original-assistant\".to_string()),\n            Some(\"latest-user\".to_string()),\n        ]\n    );",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_messages_loaded_error_without_cached_history_sets_error_message",
+    "old_assertions": 2,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 2
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(\n        app.error_message.as_deref(),\n        Some(\"Failed to load session messages: gateway unavailable\")\n    );",
+        "current": "assert_eq!(\n        app.error_message.as_deref(),\n        Some(\"Failed to load session messages: gateway unavailable\")\n    );",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_messages_loaded_error_restores_cached_history_when_available",
+    "old_assertions": 7,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 7
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.error_message.is_none());",
+        "current": "assert!(app.error_message.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.chat.len(), 1);",
+        "current": "assert_eq!(app.chat.len(), 1);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.chat[0].content, \"cached answer\");",
+        "current": "assert_eq!(app.chat[0].content, \"cached answer\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert_eq!(app.chat_message_ids, vec![None]);",
+        "current": "assert_eq!(app.chat_message_ids, vec![None]);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(app.active_session_view_state.ui_preparing);",
+        "current": "assert!(app.active_session_view_state.ui_preparing);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert!(!app.active_session_view_state.base_ready);",
+        "current": "assert!(!app.active_session_view_state.base_ready);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_messages_loaded_for_inactive_session_preserves_active_state",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.chat.len(), 1);",
+        "current": "assert_eq!(app.chat.len(), 1);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.chat[0].content, \"keep\");",
+        "current": "assert_eq!(app.chat[0].content, \"keep\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.usage.input_tokens, 7);",
+        "current": "assert_eq!(app.usage.input_tokens, 7);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "prepared_session_open_for_inactive_target_preserves_active_state",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.chat.len(), 1);",
+        "current": "assert_eq!(app.chat.len(), 1);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.chat[0].content, \"keep\");",
+        "current": "assert_eq!(app.chat[0].content, \"keep\");",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "loaded_session_preserves_step_llm_raw_for_active_view",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(\n        app.active_session_view_state.step_llm_raw[&raw_key][\"output\"][\"reasoning_content\"],\n        \"kept\"\n    );",
+        "current": "assert_eq!(\n        app.active_session_view_state.step_llm_raw[&raw_key][\"output\"][\"reasoning_content\"],\n        \"kept\"\n    );",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(\n        app.active_session_view_state.llm_raw_step_indices,\n        std::collections::HashSet::from([raw_key, other_key])\n    );",
+        "current": "assert_eq!(\n        app.active_session_view_state.llm_raw_step_indices,\n        std::collections::HashSet::from([raw_key, other_key])\n    );",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "loaded_session_refreshes_raw_when_trajectory_is_already_open",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(task.units(), 2);",
+        "current": "assert_eq!(task.units(), 2);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.trajectory_raw_loading.contains(&(\n        \"session-1\".to_string(),\n        \"turn-3\".to_string(),\n        3,\n    )));",
+        "current": "assert!(app.trajectory_raw_loading.contains(&(\n        \"session-1\".to_string(),\n        \"turn-3\".to_string(),\n        3,\n    )));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.trajectory_raw_loading.contains(&(\n        \"session-1\".to_string(),\n        \"turn-8\".to_string(),\n        8,\n    )));",
+        "current": "assert!(app.trajectory_raw_loading.contains(&(\n        \"session-1\".to_string(),\n        \"turn-8\".to_string(),\n        8,\n    )));",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+    "test": "session_reopen_restores_gateway_identity_and_full_access",
+    "old_assertions": 5,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs",
+        "assertions": 5
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(runtime.agent.as_deref(), Some(\"acp-codex\"));",
+        "current": "assert_eq!(runtime.agent.as_deref(), Some(\"acp-codex\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(runtime.acp_agent.as_deref(), Some(\"codex\"));",
+        "current": "assert_eq!(runtime.acp_agent.as_deref(), Some(\"codex\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(runtime.agent_label.as_deref(), Some(\"固化助手名称\"));",
+        "current": "assert_eq!(runtime.agent_label.as_deref(), Some(\"固化助手名称\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(runtime.full_access_enabled);",
+        "current": "assert!(runtime.full_access_enabled);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert_eq!(app.last_llm_full_access, Some(false));",
+        "current": "assert_eq!(app.last_llm_full_access, Some(false));",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "test_module_is_wired",
+    "old_assertions": 1,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 1
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(module.ends_with(\"open_tests\"));",
+        "current": "assert!(module.ends_with(\"open_tests\"));",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "宿主消息分类、mod 注册与 Option<Task> 接线契约"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "work_space_switch_carries_chat_and_input_draft_into_a_new_session",
+    "old_assertions": 6,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 6
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.project_path.as_deref(), Some(\"/workspace/beta\"));",
+        "current": "assert_eq!(app.navigation_tabs.project_path.as_deref(), Some(\"/workspace/beta\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.active_session_id.is_none());",
+        "current": "assert!(app.active_session_id.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.chat.len(), 1);",
+        "current": "assert_eq!(app.chat.len(), 1);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert_eq!(app.chat[0].content, \"保留这段聊天\");",
+        "current": "assert_eq!(app.chat[0].content, \"保留这段聊天\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert_eq!(app.current_session_runtime().input_editor.text(), \"未发送草稿\");",
+        "current": "assert_eq!(app.current_session_runtime().input_editor.text(), \"未发送草稿\");",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 选择/创建效果安装到 session 草稿、编辑器、权限及导航的跨域装配"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "sessions_loaded_updates_list_or_pushes_notification",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/list_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.sessions.len(), 1);",
+        "current": "assert_eq!(app.sessions.len(), 1);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.sessions[0].id, \"s1\");",
+        "current": "assert_eq!(app.sessions[0].id, \"s1\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.notifications.iter().any(|item| item.message.contains(\"boom\")));",
+        "current": "assert!(app.notifications.iter().any(|item| item.message.contains(\"boom\")));",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "session_bootstrap_loaded_keeps_metadata_and_reports_session_error",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/list_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.session_previews, previews);",
+        "current": "assert_eq!(app.session_previews, previews);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.archived_session_ids, archived);",
+        "current": "assert_eq!(app.archived_session_ids, archived);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.sessions.is_empty());",
+        "current": "assert!(app.sessions.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.notifications.iter().any(|item| item.message.contains(\"gateway unavailable\")));",
+        "current": "assert!(app.notifications.iter().any(|item| item.message.contains(\"gateway unavailable\")));",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "recent_hover_uses_cached_sessions_without_scheduling_gateway_load",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.hovered_recent_project, Some(path.clone()));",
+        "current": "assert_eq!(app.hovered_recent_project, Some(path.clone()));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(!app.project_sessions_loading.contains(&path));",
+        "current": "assert!(!app.project_sessions_loading.contains(&path));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(messages.is_empty());",
+        "current": "assert!(messages.is_empty());",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "领域效果到 Iced 任务、待办刷新或 toast 的宿主映射"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "repeated_recent_hover_does_not_reload_active_session_todos",
+    "old_assertions": 1,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 1
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(messages.is_empty(), \"repeated hover emitted {messages:?}\");",
+        "current": "assert!(messages.is_empty(), \"repeated hover emitted {messages:?}\");",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "领域效果到 Iced 任务、待办刷新或 toast 的宿主映射"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "recent_hover_none_clears_hover_without_scheduling_todo_refresh",
+    "old_assertions": 2,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 2
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(app.hovered_recent_project.is_none());",
+        "current": "assert!(app.hovered_recent_project.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(messages.is_empty());",
+        "current": "assert!(messages.is_empty());",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "领域效果到 Iced 任务、待办刷新或 toast 的宿主映射"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "open_requesting_session_prepares_restored_cached_state",
+    "old_assertions": 12,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 12
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.project_path.as_deref(), Some(\"/tmp/known-project\"));",
+        "current": "assert_eq!(app.navigation_tabs.project_path.as_deref(), Some(\"/tmp/known-project\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.active_session_id.as_deref(), Some(\"target\"));",
+        "current": "assert_eq!(app.active_session_id.as_deref(), Some(\"target\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.chat.len(), 1);",
+        "current": "assert_eq!(app.chat.len(), 1);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.chat[0].content, \"cached target chat\");",
+        "current": "assert_eq!(app.chat[0].content, \"cached target chat\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert_eq!(app.chat_message_ids, vec![Some(\"target-message\".to_string())]);",
+        "current": "assert_eq!(app.chat_message_ids, vec![Some(\"target-message\".to_string())]);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert_eq!(app.usage, crate::app::models::TokenUsage::default());",
+        "current": "assert_eq!(app.usage, crate::app::models::TokenUsage::default());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert_eq!(app.active_session_view_state.updated_ms, 0);",
+        "current": "assert_eq!(app.active_session_view_state.updated_ms, 0);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert!(app.active_session_view_state.ui_preparing);",
+        "current": "assert!(app.active_session_view_state.ui_preparing);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 9,
+        "original": "assert!(!app.active_session_view_state.base_ready);",
+        "current": "assert!(!app.active_session_view_state.base_ready);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 10,
+        "original": "assert_ne!(app.chat_scroll_id, previous_scroll_id);",
+        "current": "assert_ne!(app.chat_scroll_id, previous_scroll_id);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 11,
+        "original": "assert!(!app.active_session_view_state.ui_preparing);",
+        "current": "assert!(!app.active_session_view_state.ui_preparing);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 12,
+        "original": "assert!(app.active_session_view_state.base_ready);",
+        "current": "assert!(app.active_session_view_state.base_ready);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "open_project_session_restores_hot_view_without_prewarm",
+    "old_assertions": 11,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 11
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.active_session_id.as_deref(), Some(\"a\"));",
+        "current": "assert_eq!(app.active_session_id.as_deref(), Some(\"a\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.chat[0].content, \"session a\");",
+        "current": "assert_eq!(app.chat[0].content, \"session a\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.chat_scroll_id, a_scroll_id);",
+        "current": "assert_eq!(app.chat_scroll_id, a_scroll_id);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert_eq!(app.chat_virtualizer.window().visible_start_idx, a_window.visible_start_idx);",
+        "current": "assert_eq!(app.chat_virtualizer.window().visible_start_idx, a_window.visible_start_idx);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert_eq!(app.chat_virtualizer.window().visible_end_idx, a_window.visible_end_idx);",
+        "current": "assert_eq!(app.chat_virtualizer.window().visible_end_idx, a_window.visible_end_idx);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert!(app.active_session_view_state.base_ready);",
+        "current": "assert!(app.active_session_view_state.base_ready);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert!(!app.active_session_view_state.ui_preparing);",
+        "current": "assert!(!app.active_session_view_state.ui_preparing);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 9,
+        "original": "assert!(app.active_session_view_state.prepared_chat_ui_chunks.contains(&0));",
+        "current": "assert!(app.active_session_view_state.prepared_chat_ui_chunks.contains(&0));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 10,
+        "original": "assert!(!app.active_session_view_state.preparing_chat_ui_chunks.contains(&0));",
+        "current": "assert!(!app.active_session_view_state.preparing_chat_ui_chunks.contains(&0));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 11,
+        "original": "assert!(app.chat_render_cache.contains_key(&0));",
+        "current": "assert!(app.chat_render_cache.contains_key(&0));",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "hot_restore_preserves_virtual_window_and_scroll_anchor",
+    "old_assertions": 6,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 6
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.chat_scroll_id, expected_scroll_id);",
+        "current": "assert_eq!(app.chat_scroll_id, expected_scroll_id);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.chat_scroll_offset_y, expected_offset);",
+        "current": "assert_eq!(app.chat_scroll_offset_y, expected_offset);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(restored_window.visible_start_idx, expected_window.visible_start_idx);",
+        "current": "assert_eq!(restored_window.visible_start_idx, expected_window.visible_start_idx);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(restored_window.visible_end_idx, expected_window.visible_end_idx);",
+        "current": "assert_eq!(restored_window.visible_end_idx, expected_window.visible_end_idx);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert_eq!(restored_window.render_start_idx, expected_window.render_start_idx);",
+        "current": "assert_eq!(restored_window.render_start_idx, expected_window.render_start_idx);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert_eq!(restored_window.render_end_idx, expected_window.render_end_idx);",
+        "current": "assert_eq!(restored_window.render_end_idx, expected_window.render_end_idx);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "cold_session_open_applies_cached_history_and_prepares_base_ui",
+    "old_assertions": 7,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 7
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.chat.len(), 1);",
+        "current": "assert_eq!(app.chat.len(), 1);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.chat[0].content, \"loaded history\");",
+        "current": "assert_eq!(app.chat[0].content, \"loaded history\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.chat_message_ids, vec![Some(\"message-1\".to_string())]);",
+        "current": "assert_eq!(app.chat_message_ids, vec![Some(\"message-1\".to_string())]);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.active_session_view_state.base_ready);",
+        "current": "assert!(app.active_session_view_state.base_ready);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(!app.active_session_view_state.ui_preparing);",
+        "current": "assert!(!app.active_session_view_state.ui_preparing);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(app.active_session_view_state.prepared_chat_ui_chunks.contains(&0));",
+        "current": "assert!(app.active_session_view_state.prepared_chat_ui_chunks.contains(&0));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert!(!app.chat_render_cache.contains_key(&99));",
+        "current": "assert!(!app.chat_render_cache.contains_key(&99));",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "prepared_session_open_moves_messages_into_app",
+    "old_assertions": 1,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 1
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.chat.as_ptr(), messages_ptr);",
+        "current": "assert_eq!(app.chat.as_ptr(), messages_ptr);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "equal_remote_refresh_keeps_hot_render_cache_and_scroll_id",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.chat_scroll_id, scroll_id);",
+        "current": "assert_eq!(app.chat_scroll_id, scroll_id);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.chat_render_cache.get(&0).map(|entry| entry.content_hash), render_hash);",
+        "current": "assert_eq!(app.chat_render_cache.get(&0).map(|entry| entry.content_hash), render_hash);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(task.units(), 0);",
+        "current": "assert_eq!(task.units(), 0);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "empty_remote_refresh_finishes_session_loading",
+    "old_assertions": 1,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 1
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(!app.active_session_view_state.ui_preparing);",
+        "current": "assert!(!app.active_session_view_state.ui_preparing);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "short_remote_refresh_preserves_prepared_history",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(\n        app.chat_message_ids,\n        vec![\n            Some(\"message-1\".to_string()),\n            Some(\"message-2\".to_string()),\n            Some(\"message-3\".to_string()),\n        ]\n    );",
+        "current": "assert_eq!(\n        app.chat_message_ids,\n        vec![\n            Some(\"message-1\".to_string()),\n            Some(\"message-2\".to_string()),\n            Some(\"message-3\".to_string()),\n        ]\n    );",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(\n        app.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(),\n        vec![\"first\", \"second\", \"third\"]\n    );",
+        "current": "assert_eq!(\n        app.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(),\n        vec![\"first\", \"second\", \"third\"]\n    );",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(\n        app.chat_message_ids,\n        vec![\n            Some(\"message-1\".to_string()),\n            Some(\"message-2\".to_string()),\n            Some(\"message-3\".to_string()),\n        ]\n    );",
+        "current": "assert_eq!(\n        app.chat_message_ids,\n        vec![\n            Some(\"message-1\".to_string()),\n            Some(\"message-2\".to_string()),\n            Some(\"message-3\".to_string()),\n        ]\n    );",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "remote_refresh_does_not_restore_messages_after_explicit_reset",
+    "old_assertions": 2,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 2
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.chat_message_ids, vec![Some(\"message-1\".to_string())]);",
+        "current": "assert_eq!(app.chat_message_ids, vec![Some(\"message-1\".to_string())]);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(\n        app.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(),\n        vec![\"retained\"]\n    );",
+        "current": "assert_eq!(\n        app.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(),\n        vec![\"retained\"]\n    );",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "remote_history_error_finishes_session_loading",
+    "old_assertions": 2,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 2
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(!app.active_session_view_state.ui_preparing);",
+        "current": "assert!(!app.active_session_view_state.ui_preparing);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(\n        app.error_message.as_deref(),\n        Some(\"Failed to load session messages: gateway unavailable\")\n    );",
+        "current": "assert_eq!(\n        app.error_message.as_deref(),\n        Some(\"Failed to load session messages: gateway unavailable\")\n    );",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "changed_remote_refresh_replaces_snapshot_once",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_ne!(replacement_scroll_id, initial_scroll_id);",
+        "current": "assert_ne!(replacement_scroll_id, initial_scroll_id);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.chat[0].content, \"remote replacement\");",
+        "current": "assert_eq!(app.chat[0].content, \"remote replacement\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.chat_scroll_id, replacement_scroll_id);",
+        "current": "assert_eq!(app.chat_scroll_id, replacement_scroll_id);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.chat[0].content, \"remote replacement\");",
+        "current": "assert_eq!(app.chat[0].content, \"remote replacement\");",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "stale_async_result_cannot_overwrite_new_active_session",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.active_session_id.as_deref(), Some(\"b\"));",
+        "current": "assert_eq!(app.active_session_id.as_deref(), Some(\"b\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.chat[0].content, \"session b\");",
+        "current": "assert_eq!(app.chat[0].content, \"session b\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.session_view_cache.is_current_open(\"b\", current_open_generation));",
+        "current": "assert!(app.session_view_cache.is_current_open(\"b\", current_open_generation));",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "open_project_session_uses_global_model_until_its_history_is_restored",
+    "old_assertions": 7,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 7
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.active_session_id.as_deref(), Some(\"target\"));",
+        "current": "assert_eq!(app.active_session_id.as_deref(), Some(\"target\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.model, \"provider/previous-model\");",
+        "current": "assert_eq!(app.model, \"provider/previous-model\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(!app.auto_model);",
+        "current": "assert!(!app.auto_model);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert_eq!(runtime.model, \"provider/previous-model\");",
+        "current": "assert_eq!(runtime.model, \"provider/previous-model\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(!runtime.auto_model);",
+        "current": "assert!(!runtime.auto_model);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert!(runtime.restore_model_from_history);",
+        "current": "assert!(runtime.restore_model_from_history);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "child_session_navigation_project_route_checks_persisted_source",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(\n            app.active_session_id.as_deref(),\n            Some(if opens { \"target\" } else { \"parent\" }),\n            \"{source}\"\n        );",
+        "current": "assert_eq!(\n            app.active_session_id.as_deref(),\n            Some(if opens { \"target\" } else { \"parent\" }),\n            \"{source}\"\n        );",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.input_popovers.recommended_prompt, !opens);",
+        "current": "assert_eq!(app.input_popovers.recommended_prompt, !opens);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.get_session_runtime(\"target\").workflow_mode_enabled);",
+        "current": "assert!(app.get_session_runtime(\"target\").workflow_mode_enabled);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "child_session_navigation_missing_metadata_keeps_the_current_session",
+    "old_assertions": 2,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 2
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.active_session_id.as_deref(), Some(\"parent\"));",
+        "current": "assert_eq!(app.active_session_id.as_deref(), Some(\"parent\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.chat[0].content, \"父会话内容\");",
+        "current": "assert_eq!(app.chat[0].content, \"父会话内容\");",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "child_session_navigation_resolution_rejects_internal_and_stale_results",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.active_session_id.as_deref(), Some(\"parent\"));",
+        "current": "assert_eq!(app.active_session_id.as_deref(), Some(\"parent\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.active_session_id.as_deref(), Some(\"parent\"));",
+        "current": "assert_eq!(app.active_session_id.as_deref(), Some(\"parent\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.active_session_id.as_deref(), Some(\"parent\"));",
+        "current": "assert_eq!(app.active_session_id.as_deref(), Some(\"parent\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.active_session_id.as_deref(), Some(\"uncached\"));",
+        "current": "assert_eq!(app.active_session_id.as_deref(), Some(\"uncached\"));",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "open_project_session_keeps_workflow_mode_for_root_session",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.get_session_runtime(\"root\").workflow_mode_enabled);",
+        "current": "assert!(app.get_session_runtime(\"root\").workflow_mode_enabled);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.get_session_runtime(\"root\").goal_mode_enabled);",
+        "current": "assert!(app.get_session_runtime(\"root\").goal_mode_enabled);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "open_recent_pressed_clears_hover_menus_and_new_session_picker_state",
+    "old_assertions": 8,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/overlay_tests.rs",
+        "assertions": 8
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.hovered_recent_project.is_none());",
+        "current": "assert!(app.hovered_recent_project.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.session_menu_id.is_none());",
+        "current": "assert!(app.session_menu_id.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.session_menu_anchor.is_none());",
+        "current": "assert!(app.session_menu_anchor.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.new_session_picker_project.is_none());",
+        "current": "assert!(app.picker.new_session_picker_project.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(app.new_session_picker_options.is_empty());",
+        "current": "assert!(app.picker.new_session_picker_options.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert!(app.new_session_worktree_name.is_empty());",
+        "current": "assert!(app.picker.new_session_worktree_name.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert!(app.new_session_delete_error.is_none());",
+        "current": "assert!(app.picker.new_session_delete_error.is_none());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "recent_hover_marks_uncached_project_loading_once",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/list_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(first_task.is_some());",
+        "current": "assert!(first_task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.project_sessions_loading.contains(&path));",
+        "current": "assert!(app.project_sessions_loading.contains(&path));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(second_task.is_some());",
+        "current": "assert!(second_task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.project_sessions_loading.len(), 1);",
+        "current": "assert_eq!(app.project_sessions_loading.len(), 1);",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "project_sessions_loaded_records_error_message",
+    "old_assertions": 2,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/list_tests.rs",
+        "assertions": 2
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(!app.project_sessions_loading.contains(&path));",
+        "current": "assert!(!app.project_sessions_loading.contains(&path));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.error_message.as_deref(), Some(\"Failed to load project sessions: offline\"));",
+        "current": "assert_eq!(app.error_message.as_deref(), Some(\"Failed to load project sessions: offline\"));",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "recent_overlay_closed_preserves_open_picker_but_otherwise_resets_overlay_state",
+    "old_assertions": 5,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/overlay_tests.rs",
+        "assertions": 5
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(app.new_session_picker_project.is_some());",
+        "current": "assert!(app.picker.new_session_picker_project.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.hovered_recent_project.is_some());",
+        "current": "assert!(app.hovered_recent_project.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.hovered_recent_project.is_none());",
+        "current": "assert!(app.hovered_recent_project.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.session_menu_id.is_none());",
+        "current": "assert!(app.session_menu_id.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.project_tools_menu_path.is_none());",
+        "current": "assert!(app.project_tools_menu_path.is_none());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "recent_overlay_closed_clears_anchor_and_all_picker_state",
+    "old_assertions": 8,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/overlay_tests.rs",
+        "assertions": 8
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(app.hovered_recent_project.is_none());",
+        "current": "assert!(app.hovered_recent_project.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.session_menu_id.is_none());",
+        "current": "assert!(app.session_menu_id.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.session_menu_anchor.is_none());",
+        "current": "assert!(app.session_menu_anchor.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.project_tools_menu_path.is_none());",
+        "current": "assert!(app.project_tools_menu_path.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.new_session_picker_options.is_empty());",
+        "current": "assert!(app.picker.new_session_picker_options.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(app.new_session_worktree_name.is_empty());",
+        "current": "assert!(app.picker.new_session_worktree_name.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert!(app.new_session_confirm_delete_directory.is_none());",
+        "current": "assert!(app.picker.new_session_confirm_delete_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert!(app.new_session_delete_error.is_none());",
+        "current": "assert!(app.picker.new_session_delete_error.is_none());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "project_create_session_opens_picker_when_worktree_enabled",
+    "old_assertions": 6,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 6
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.project_path.as_deref(), Some(path.as_str()));",
+        "current": "assert_eq!(app.navigation_tabs.project_path.as_deref(), Some(path.as_str()));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.new_session_picker_project, Some(path));",
+        "current": "assert_eq!(app.new_session_picker_project, Some(path));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.new_session_picker_options.is_empty());",
+        "current": "assert!(app.new_session_picker_options.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.new_session_worktree_name.is_empty());",
+        "current": "assert!(app.new_session_worktree_name.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(app.new_session_delete_error.is_none());",
+        "current": "assert!(app.new_session_delete_error.is_none());",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 选择/创建效果安装到 session 草稿、编辑器、权限及导航的跨域装配"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "desktop_first_response_project_create_session_opens_a_blank_draft",
+    "old_assertions": 10,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 10
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.project_path.as_deref(), Some(path.as_str()));",
+        "current": "assert_eq!(app.navigation_tabs.project_path.as_deref(), Some(path.as_str()));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.new_session_picker_project.is_none());",
+        "current": "assert!(app.new_session_picker_project.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.new_session_picker_options.is_empty());",
+        "current": "assert!(app.new_session_picker_options.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.new_session_worktree_name.is_empty());",
+        "current": "assert!(app.new_session_worktree_name.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(app.new_session_reset_error.is_none());",
+        "current": "assert!(app.new_session_reset_error.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert!(!app.new_session_creating);",
+        "current": "assert!(!app.new_session_creating);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert!(app.active_session_id.is_none());",
+        "current": "assert!(app.active_session_id.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 9,
+        "original": "assert!(app.sessions.is_empty());",
+        "current": "assert!(app.sessions.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 10,
+        "original": "assert!(app.chat.is_empty());",
+        "current": "assert!(app.chat.is_empty());",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 选择/创建效果安装到 session 草稿、编辑器、权限及导航的跨域装配"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "project_create_session_ignores_duplicate_request_while_creation_is_running",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.project_path.as_deref(), Some(\"/tmp/current\"));",
+        "current": "assert_eq!(app.navigation_tabs.project_path.as_deref(), Some(\"/tmp/current\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.new_session_creating);",
+        "current": "assert!(app.new_session_creating);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 选择/创建效果安装到 session 草稿、编辑器、权限及导航的跨域装配"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "session_create_failure_clears_progress_and_shows_error",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(!app.new_session_creating);",
+        "current": "assert!(!app.new_session_creating);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(\n        app.active_toast.as_ref().is_some_and(|toast| toast.message.contains(\"创建新会话失败\"))\n    );",
+        "current": "assert!(\n        app.active_toast.as_ref().is_some_and(|toast| toast.message.contains(\"创建新会话失败\"))\n    );",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "领域效果到 Iced 任务、待办刷新或 toast 的宿主映射"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "project_info_loaded_ignores_error_and_stale_project_result",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.project_id.as_deref(), Some(\"original-id\"));",
+        "current": "assert_eq!(app.project_id.as_deref(), Some(\"original-id\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.selected_branch.as_deref(), Some(\"original-branch\"));",
+        "current": "assert_eq!(app.git.selected_branch.as_deref(), Some(\"original-branch\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.project_updated_at_ms, Some(7));",
+        "current": "assert_eq!(app.project_updated_at_ms, Some(7));",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 项目完成结果到 git 分支、任务板能力与宿主活动项目字段的跨域投影"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "project_info_loaded_applies_current_project_identity_timestamp_and_branch",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.project_id.as_deref(), Some(\"project-id\"));",
+        "current": "assert_eq!(app.project_id.as_deref(), Some(\"project-id\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.project_updated_at_ms, Some(42));",
+        "current": "assert_eq!(app.project_updated_at_ms, Some(42));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.selected_branch.as_deref(), Some(\"main\"));",
+        "current": "assert_eq!(app.git.selected_branch.as_deref(), Some(\"main\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.project_is_git_repo);",
+        "current": "assert!(app.project_is_git_repo);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 项目完成结果到 git 分支、任务板能力与宿主活动项目字段的跨域投影"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "project_info_loaded_sets_non_git_capability_when_vcs_absent",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(!app.project_is_git_repo);",
+        "current": "assert!(!app.project_is_git_repo);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.task_board_worktree_snapshot.is_none());",
+        "current": "assert!(app.task_board_worktree_snapshot.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(!app.task_board_worktree_snapshot_loading);",
+        "current": "assert!(!app.task_board_worktree_snapshot_loading);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.task_board_last_worktree_snapshot_at_ms, 0);",
+        "current": "assert_eq!(app.task_board_last_worktree_snapshot_at_ms, 0);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 项目完成结果到 git 分支、任务板能力与宿主活动项目字段的跨域投影"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "project_info_loaded_maps_zero_timestamp_to_none_and_keeps_branch_when_missing",
+    "old_assertions": 2,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 2
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.project_updated_at_ms, None);",
+        "current": "assert_eq!(app.project_updated_at_ms, None);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.selected_branch.as_deref(), Some(\"existing\"));",
+        "current": "assert_eq!(app.git.selected_branch.as_deref(), Some(\"existing\"));",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 项目完成结果到 git 分支、任务板能力与宿主活动项目字段的跨域投影"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "project_info_loaded_updates_recent_project_icon_color_and_start_command",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(meta.icon.as_deref(), Some(\"rocket\"));",
+        "current": "assert_eq!(meta.icon.as_deref(), Some(\"rocket\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(meta.icon_color.as_deref(), Some(\"#112233\"));",
+        "current": "assert_eq!(meta.icon_color.as_deref(), Some(\"#112233\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(meta.worktree_start_command.as_deref(), Some(\"cargo run\"));",
+        "current": "assert_eq!(meta.worktree_start_command.as_deref(), Some(\"cargo run\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.project_id.as_deref(), Some(\"project-id\"));",
+        "current": "assert_eq!(app.project_id.as_deref(), Some(\"project-id\"));",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 项目完成结果到 git 分支、任务板能力与宿主活动项目字段的跨域投影"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "project_branches_loaded_ignores_stale_project_and_applies_current_project",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.selected_branch.as_deref(), Some(\"main\"));",
+        "current": "assert_eq!(app.git.selected_branch.as_deref(), Some(\"main\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.selected_branch.as_deref(), Some(\"develop\"));",
+        "current": "assert_eq!(app.git.selected_branch.as_deref(), Some(\"develop\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.branches, vec![\"main\".to_string(), \"develop\".to_string()]);",
+        "current": "assert_eq!(app.git.branches, vec![\"main\".to_string(), \"develop\".to_string()]);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 项目完成结果到 git 分支、任务板能力与宿主活动项目字段的跨域投影"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "project_load_sessions_skips_duplicate_loads_and_marks_new_load",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/list_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.project_sessions_loading.len(), 1);",
+        "current": "assert_eq!(app.project_sessions_loading.len(), 1);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.project_sessions_loading.contains(&path));",
+        "current": "assert!(app.project_sessions_loading.contains(&path));",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "handle_returns_none_for_message_owned_by_another_project_submodule",
+    "old_assertions": 1,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 1
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_none());",
+        "current": "assert!(task.is_none());",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "宿主消息分类、mod 注册与 Option<Task> 接线契约"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "bounded_session_open_and_prepend_keep_save_sequence_base",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.session_runtime_states[\"paged\"].stream_save.seq_base, 100);",
+        "current": "assert_eq!(app.session_runtime_states[\"paged\"].stream_save.seq_base, 100);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.paged_chat_timeline.as_mut().unwrap().begin_prepend(\"older\"));",
+        "current": "assert!(app.paged_chat_timeline.as_mut().unwrap().begin_prepend(\"older\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.chat.len(), 4);",
+        "current": "assert_eq!(app.chat.len(), 4);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.session_runtime_states[\"paged\"].stream_save.seq_base, 98);",
+        "current": "assert_eq!(app.session_runtime_states[\"paged\"].stream_save.seq_base, 98);",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "fork_selection_reopen_projects_authoritative_state_for_both_directories",
+    "old_assertions": 2,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 2
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.current_session_has_started(), started);",
+        "current": "assert_eq!(app.current_session_has_started(), started);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.known_session_directory(\"fork\").as_deref(), Some(directory));",
+        "current": "assert_eq!(app.known_session_directory(\"fork\").as_deref(), Some(directory));",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "fork_selection_reopen_late_inherited_binding_keeps_explicit_native_selection",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.current_session_runtime().acp_agent, None);",
+        "current": "assert_eq!(app.current_session_runtime().acp_agent, None);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.current_session_runtime().agent, None);",
+        "current": "assert_eq!(app.current_session_runtime().agent, None);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(!app.current_session_full_access());",
+        "current": "assert!(!app.current_session_full_access());",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "fork_selection_reopen_new_drafts_do_not_inherit_fork_authority",
+    "old_assertions": 5,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 5
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.current_session_runtime().fork_execution_started, None);",
+        "current": "assert_eq!(app.current_session_runtime().fork_execution_started, None);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(!app.current_session_runtime().fork_request_submitted);",
+        "current": "assert!(!app.current_session_runtime().fork_request_submitted);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(!app.current_session_runtime().fork_agent_selected);",
+        "current": "assert!(!app.current_session_runtime().fork_agent_selected);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.current_session_runtime().fork_execution_started, None);",
+        "current": "assert_eq!(app.current_session_runtime().fork_execution_started, None);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(!app.current_session_has_started());",
+        "current": "assert!(!app.current_session_has_started());",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 选择/创建效果安装到 session 草稿、编辑器、权限及导航的跨域装配"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+    "test": "fork_selection_reopen_hot_cache_uses_fresh_authority",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/open_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.chat[0].content, \"继承历史\");",
+        "current": "assert_eq!(app.chat[0].content, \"继承历史\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(!app.current_session_has_started());",
+        "current": "assert!(!app.current_session_has_started());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.chat[0].content, \"继承历史\");",
+        "current": "assert_eq!(app.chat[0].content, \"继承历史\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.current_session_has_started());",
+        "current": "assert!(app.current_session_has_started());",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "session 历史/代际结果到真实聊天渲染缓存、模型权限、滚动及任务调度的跨域应用"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "test_module_is_wired",
+    "old_assertions": 1,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/worktree_tests.rs",
+        "assertions": 1
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(module.ends_with(\"worktree_tests\"));",
+        "current": "assert!(module.ends_with(\"worktree_tests\"));",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "picker_loaded_ignores_stale_project_and_falls_back_on_error",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/worktree_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.new_session_picker_options, vec![(\"keep\".to_string(), \"保留\".to_string())]);",
+        "current": "assert_eq!(app.new_session_picker_options, vec![(\"keep\".to_string(), \"保留\".to_string())]);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.error_message.as_deref(), Some(\"加载工作区列表失败: gateway down\"));",
+        "current": "assert_eq!(app.error_message.as_deref(), Some(\"加载工作区列表失败: gateway down\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(\n        app.new_session_picker_options,\n        vec![(\"__create_worktree__\".to_string(), \"创建新的独立工作区\".to_string())]\n    );",
+        "current": "assert_eq!(\n        app.new_session_picker_options,\n        vec![(\"__create_worktree__\".to_string(), \"创建新的独立工作区\".to_string())]\n    );",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "picker_close_and_name_change_update_state",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/worktree_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.new_session_worktree_name, \"feature-login\");",
+        "current": "assert_eq!(app.new_session_worktree_name, \"feature-login\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.hovered_recent_project.is_none());",
+        "current": "assert!(app.hovered_recent_project.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.new_session_picker_project.is_none());",
+        "current": "assert!(app.new_session_picker_project.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.new_session_picker_options.is_empty());",
+        "current": "assert!(app.new_session_picker_options.is_empty());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "desktop_first_response_picking_existing_workspace_opens_a_scoped_draft",
+    "old_assertions": 10,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+        "assertions": 10
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.new_session_last_directory.as_deref(), Some(\"/tmp/project-wt\"));",
+        "current": "assert_eq!(app.new_session_last_directory.as_deref(), Some(\"/tmp/project-wt\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.new_session_picker_project.is_none());",
+        "current": "assert!(app.new_session_picker_project.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.new_session_picker_options.is_empty());",
+        "current": "assert!(app.new_session_picker_options.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.new_session_worktree_name.is_empty());",
+        "current": "assert!(app.new_session_worktree_name.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(!app.new_session_creating);",
+        "current": "assert!(!app.new_session_creating);",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert!(app.active_session_id.is_none());",
+        "current": "assert!(app.active_session_id.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert!(app.sessions.is_empty());",
+        "current": "assert!(app.sessions.is_empty());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 9,
+        "original": "assert_eq!(draft.directory, \"/tmp/project-wt\");",
+        "current": "assert_eq!(draft.directory, \"/tmp/project-wt\");",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 10,
+        "original": "assert_eq!(draft.project_path, \"/tmp/project\");",
+        "current": "assert_eq!(draft.project_path, \"/tmp/project\");",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "workspace 选择/创建效果安装到 session 草稿、编辑器、权限及导航的跨域装配"
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "picking_existing_workspace_ignores_duplicate_while_creation_is_running",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/worktree_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.new_session_last_directory.as_deref(), Some(\"/tmp/previous\"));",
+        "current": "assert_eq!(app.new_session_last_directory.as_deref(), Some(\"/tmp/previous\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.new_session_picker_project.as_deref(), Some(\"/tmp/project\"));",
+        "current": "assert_eq!(app.new_session_picker_project.as_deref(), Some(\"/tmp/project\"));",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "create_worktree_validates_empty_and_invalid_names_before_async_call",
+    "old_assertions": 5,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/worktree_tests.rs",
+        "assertions": 5
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.error_message.as_deref(), Some(\"请输入 worktree 英文名称\"));",
+        "current": "assert_eq!(app.error_message.as_deref(), Some(\"请输入 worktree 英文名称\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.error_message.as_deref(), Some(\"worktree 名称仅支持小写英文、数字、连字符(-)\"));",
+        "current": "assert_eq!(app.error_message.as_deref(), Some(\"worktree 名称仅支持小写英文、数字、连字符(-)\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.new_session_picker_project.is_none());",
+        "current": "assert!(app.new_session_picker_project.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.new_session_worktree_name.is_empty());",
+        "current": "assert!(app.new_session_worktree_name.is_empty());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "delete_worktree_blocks_primary_and_sets_confirmation_for_secondary",
+    "old_assertions": 6,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/worktree_tests.rs",
+        "assertions": 6
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.new_session_delete_error.as_deref(), Some(\"主工作区禁止删除\"));",
+        "current": "assert_eq!(app.new_session_delete_error.as_deref(), Some(\"主工作区禁止删除\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.new_session_confirm_delete_directory.is_none());",
+        "current": "assert!(app.new_session_confirm_delete_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.new_session_confirm_delete_directory, Some(worktree));",
+        "current": "assert_eq!(app.new_session_confirm_delete_directory, Some(worktree));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.new_session_delete_error.is_none());",
+        "current": "assert!(app.new_session_delete_error.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.new_session_force_delete_directory.is_none());",
+        "current": "assert!(app.new_session_force_delete_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(app.new_session_confirm_reset_directory.is_none());",
+        "current": "assert!(app.new_session_confirm_reset_directory.is_none());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "delete_worktree_cancel_and_missing_confirmation_are_noops",
+    "old_assertions": 5,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/worktree_tests.rs",
+        "assertions": 5
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(app.new_session_confirm_delete_directory.is_none());",
+        "current": "assert!(app.new_session_confirm_delete_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.new_session_force_delete_directory.is_none());",
+        "current": "assert!(app.new_session_force_delete_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.new_session_delete_error.is_none());",
+        "current": "assert!(app.new_session_delete_error.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.new_session_reset_error.is_none());",
+        "current": "assert!(app.new_session_reset_error.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "delete_worktree_confirmed_requires_project_and_directory",
+    "old_assertions": 4,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/worktree_tests.rs",
+        "assertions": 4
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.new_session_confirm_delete_directory.as_deref(), Some(\"/tmp/wt\"));",
+        "current": "assert_eq!(app.new_session_confirm_delete_directory.as_deref(), Some(\"/tmp/wt\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.new_session_confirm_delete_directory.is_none());",
+        "current": "assert!(app.new_session_confirm_delete_directory.is_none());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "delete_worktree_confirmed_for_secondary_clears_messages_before_async_task",
+    "old_assertions": 6,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/worktree_tests.rs",
+        "assertions": 6
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.new_session_confirm_delete_directory.is_none());",
+        "current": "assert!(app.new_session_confirm_delete_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.new_session_force_delete_directory.is_none());",
+        "current": "assert!(app.new_session_force_delete_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.new_session_delete_error.is_none());",
+        "current": "assert!(app.new_session_delete_error.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.new_session_confirm_reset_directory.is_none());",
+        "current": "assert!(app.new_session_confirm_reset_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(app.new_session_reset_error.is_none());",
+        "current": "assert!(app.new_session_reset_error.is_none());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "delete_worktree_confirmed_blocks_primary_and_result_handles_success_error_and_stale_project",
+    "old_assertions": 8,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/worktree_tests.rs",
+        "assertions": 8
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.new_session_delete_error.as_deref(), Some(\"主工作区禁止删除\"));",
+        "current": "assert_eq!(app.new_session_delete_error.as_deref(), Some(\"主工作区禁止删除\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.new_session_delete_error.as_deref(), Some(\"old\"));",
+        "current": "assert_eq!(app.new_session_delete_error.as_deref(), Some(\"old\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.new_session_delete_error.as_deref(), Some(\"dirty worktree\"));",
+        "current": "assert_eq!(app.new_session_delete_error.as_deref(), Some(\"dirty worktree\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.new_session_force_delete_directory, Some(worktree.clone()));",
+        "current": "assert_eq!(app.new_session_force_delete_directory, Some(worktree.clone()));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(app.new_session_delete_error.is_none());",
+        "current": "assert!(app.new_session_delete_error.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 7,
+        "original": "assert!(app.new_session_force_delete_directory.is_none());",
+        "current": "assert!(app.new_session_force_delete_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 8,
+        "original": "assert!(app.new_session_last_directory.is_none());",
+        "current": "assert!(app.new_session_last_directory.is_none());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "delete_worktree_success_preserves_a_different_last_directory",
+    "old_assertions": 5,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/worktree_tests.rs",
+        "assertions": 5
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.new_session_last_directory.as_deref(), Some(\"/tmp/recent-wt\"));",
+        "current": "assert_eq!(app.new_session_last_directory.as_deref(), Some(\"/tmp/recent-wt\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.new_session_delete_error.is_none());",
+        "current": "assert!(app.new_session_delete_error.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.new_session_force_delete_directory.is_none());",
+        "current": "assert!(app.new_session_force_delete_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.new_session_reset_error.is_none());",
+        "current": "assert!(app.new_session_reset_error.is_none());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "force_delete_requires_directory_then_starts_async_task",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/worktree_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(app.new_session_force_delete_directory.is_none());",
+        "current": "assert!(app.new_session_force_delete_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.new_session_force_delete_directory.is_none());",
+        "current": "assert!(app.new_session_force_delete_directory.is_none());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "force_delete_requires_an_active_project",
+    "old_assertions": 2,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/worktree_tests.rs",
+        "assertions": 2
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.new_session_force_delete_directory.as_deref(), Some(\"/tmp/wt\"));",
+        "current": "assert_eq!(app.new_session_force_delete_directory.as_deref(), Some(\"/tmp/wt\"));",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "reset_worktree_blocks_primary_confirms_secondary_and_cancels",
+    "old_assertions": 6,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/worktree_tests.rs",
+        "assertions": 6
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert_eq!(app.new_session_reset_error.as_deref(), Some(\"主工作区禁止重置\"));",
+        "current": "assert_eq!(app.new_session_reset_error.as_deref(), Some(\"主工作区禁止重置\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.new_session_confirm_reset_directory.is_none());",
+        "current": "assert!(app.new_session_confirm_reset_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.new_session_confirm_reset_directory, Some(worktree));",
+        "current": "assert_eq!(app.new_session_confirm_reset_directory, Some(worktree));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert!(app.new_session_reset_error.is_none());",
+        "current": "assert!(app.new_session_reset_error.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.new_session_confirm_reset_directory.is_none());",
+        "current": "assert!(app.new_session_confirm_reset_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(app.new_session_reset_error.is_none());",
+        "current": "assert!(app.new_session_reset_error.is_none());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "reset_worktree_confirmed_and_result_update_state",
+    "old_assertions": 6,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/worktree_tests.rs",
+        "assertions": 6
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(app.new_session_confirm_reset_directory.is_none());",
+        "current": "assert!(app.new_session_confirm_reset_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert_eq!(app.new_session_reset_error.as_deref(), Some(\"主工作区禁止重置\"));",
+        "current": "assert_eq!(app.new_session_reset_error.as_deref(), Some(\"主工作区禁止重置\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert_eq!(app.new_session_reset_error.as_deref(), Some(\"old\"));",
+        "current": "assert_eq!(app.new_session_reset_error.as_deref(), Some(\"old\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 4,
+        "original": "assert_eq!(app.new_session_reset_error.as_deref(), Some(\"reset failed\"));",
+        "current": "assert_eq!(app.new_session_reset_error.as_deref(), Some(\"reset failed\"));",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 5,
+        "original": "assert!(app.new_session_reset_error.is_none());",
+        "current": "assert!(app.new_session_reset_error.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 6,
+        "original": "assert!(app.notifications.iter().any(|item| item.message == \"工作区已重置\"));",
+        "current": "assert!(app.notifications.iter().any(|item| item.message == \"工作区已重置\"));",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "reset_worktree_confirmed_for_secondary_clears_prompt_before_async_task",
+    "old_assertions": 3,
+    "destinations": [
+      {
+        "path": "crates/libs/desktop-workspace/src/host_module_7_tests/worktree_tests.rs",
+        "assertions": 3
+      }
+    ],
+    "ownership": "domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_some());",
+        "current": "assert!(task.is_some());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 2,
+        "original": "assert!(app.new_session_confirm_reset_directory.is_none());",
+        "current": "assert!(app.new_session_confirm_reset_directory.is_none());",
+        "same_after_local_projection": true
+      },
+      {
+        "index": 3,
+        "original": "assert!(app.new_session_reset_error.is_none());",
+        "current": "assert!(app.new_session_reset_error.is_none());",
+        "same_after_local_projection": true
+      }
+    ]
+  },
+  {
+    "source": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+    "test": "unrelated_project_message_is_not_handled",
+    "old_assertions": 1,
+    "destinations": [
+      {
+        "path": "crates/vw-desktop/src/app/message/project/session/worktree_tests.rs",
+        "assertions": 1
+      }
+    ],
+    "ownership": "host_cross_domain",
+    "assertion_map": [
+      {
+        "index": 1,
+        "original": "assert!(task.is_none());",
+        "current": "assert!(task.is_none());",
+        "same_after_local_projection": true
+      }
+    ],
+    "retention_reason": "宿主消息分类、mod 注册与 Option<Task> 接线契约"
+  }
+]

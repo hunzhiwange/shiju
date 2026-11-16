@@ -36,3 +36,5 @@ mod runtime_tests;
 mod view_cache_tests;
 
 pub mod agent;
+
+pub mod history_commit;

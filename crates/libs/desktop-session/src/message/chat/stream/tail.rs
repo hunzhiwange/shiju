@@ -209,3 +209,12 @@ fn trailing_chars(value: &str, max_chars: usize) -> &str {
         .nth(max_chars.saturating_sub(1))
         .map_or(value, |(start, _)| &value[start..])
 }
+
+impl StreamTailState {
+    /// Complete one background preparation and schedule the latest tail if it changed meanwhile.
+    pub fn finish_session_open_ui(&mut self, generation: u64, active: bool) -> Option<(usize, u64)> {
+        self.finish_ui_preparation(generation);
+        if self.ui_generation() == generation || !active { None }
+        else { self.message_idx().zip(self.begin_ui_preparation()) }
+    }
+}

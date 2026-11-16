@@ -281,3 +281,48 @@ pub async fn load_project_sessions(
 #[cfg(test)]
 #[path="loading_tests.rs"]
 mod loading_tests;
+
+/// Replacement loading retains the archive route's authoritative metadata read.
+pub enum ReplacementHistory { Archived, Deleted }
+pub async fn load_replacement_history(
+    client: &vw_gateway_client::GatewayClient, id: String, route: ReplacementHistory,
+) -> Result<(String, Vec<message_types::WithParts>, TokenUsage), String> {
+    let session = gateway_session::GatewaySessionClient::new(client.transport().clone());
+    let messages = session.session_messages::<Vec<message_types::WithParts>>(&id, None).await;
+    let info = match route {
+        ReplacementHistory::Archived => session.session_get::<session_info::Info>(&id, None).await.map(|_| ()),
+        ReplacementHistory::Deleted => Ok(()),
+    };
+    let messages = messages?;
+    info?;
+    let mut usage = TokenUsage::default();
+    for message in &messages {
+        if let message_types::Info::Assistant(info) = &message.info {
+            usage.input_tokens += info.tokens.input;
+            usage.output_tokens += info.tokens.output;
+            usage.cached_tokens += info.tokens.cache.read + info.tokens.cache.write;
+            usage.reasoning_tokens += info.tokens.reasoning;
+        }
+    }
+    Ok((id, messages, usage))
+}
+
+pub enum SessionMutation {
+    Rename { id: String, title: String },
+    Archive { id: String },
+    Delete { id: String },
+}
+/// Persist a lifecycle effect using the endpoint selected by the host.
+pub async fn persist_session_mutation(client: &vw_gateway_client::GatewayClient,
+    project_path: Option<&str>, mutation: SessionMutation) -> Result<(), String> {
+    use vw_api_session::{GatewaySessionPatchBody, GatewaySessionPatchTime};
+    let session = gateway_session::GatewaySessionClient::new(client.transport().clone());
+    match mutation {
+        SessionMutation::Rename { id, title } => session.session_update::<session_info::Info>(
+            &id, project_path, &GatewaySessionPatchBody { title: Some(title), time: None }).await.map(|_| ()),
+        SessionMutation::Archive { id } => session.session_update::<session_info::Info>(
+            &id, project_path, &GatewaySessionPatchBody { title: None,
+                time: Some(GatewaySessionPatchTime { archived: Some(runtime_time::now_ms()) }) }).await.map(|_| ()),
+        SessionMutation::Delete { id } => session.session_delete(&id, project_path).await.map(|_| ()),
+    }
+}

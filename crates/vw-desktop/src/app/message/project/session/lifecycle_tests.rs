@@ -3,12 +3,10 @@
 //!
 //! 注释聚焦模块职责、消息边界和失败处理方式，帮助维护者在不改变逻辑的前提下理解代码。
 
-use super::lifecycle::{
-    loaded_chat_from_gateway_messages,
-};
+use super::lifecycle::loaded_chat_from_gateway_messages;
 use crate::app::models::{ChatRenderCacheEntry, ChatRole};
-use serde_json::json;
 use message_types as agent_message;
+use serde_json::json;
 
 fn app() -> crate::app::App {
     crate::app::App::new().0
@@ -62,12 +60,7 @@ fn session_info(id: &str, title: &str, directory: &str) -> session_info::Info {
         share: None,
         title: title.to_string(),
         version: "1".to_string(),
-        time: session_info::TimeInfo {
-            created: 1,
-            updated: 1,
-            compacting: None,
-            archived: None,
-        },
+        time: session_info::TimeInfo { created: 1, updated: 1, compacting: None, archived: None },
         permission: None,
         fork_execution_started: None,
         revert: None,
@@ -284,9 +277,9 @@ fn session_messages_loaded_same_content_preserves_scroll_and_ui_cache() {
     assert_eq!(app.active_session_view_state.steps[0].usage.reasoning_tokens, 4);
     assert_eq!(app.active_session_view_state.message_meta_texts.len(), app.chat.len());
     assert!(app.active_session_view_state.message_meta_texts.iter().all(|meta| meta.as_ref().map(
-        |meta| meta.render(crate::app::i18n::I18n::new(
-            config_ui::DesktopLocale::SimplifiedChinese
-        ))
+        |meta| {
+            meta.render(crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese))
+        }
     ) != Some(
         "stale".to_string()
     )));
@@ -333,107 +326,6 @@ fn session_messages_loaded_changed_content_replaces_history_and_invalidates_ui_c
             vec![Some("user-1".to_string()), Some("assistant-1".to_string())]
         );
     }
-}
-
-#[test]
-fn session_context_menu_and_rename_state_are_updated_synchronously() {
-    let mut app = app();
-    app.sessions = vec![session_info("s1", "First", "/tmp/project")];
-    app.project_sessions
-        .insert("/tmp/other".to_string(), vec![session_info("s2", "Second", "/tmp/other")]);
-
-    let _ = super::lifecycle::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionRightClicked(
-            "s1".to_string(),
-            10.0,
-            20.0,
-        ),
-    );
-    assert_eq!(app.session_menu_id.as_deref(), Some("s1"));
-    assert_eq!(app.session_menu_anchor.expect("anchor").x, 10.0);
-
-    let _ = super::lifecycle::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionMenuClose,
-    );
-    assert!(app.session_menu_id.is_none());
-    assert!(app.session_menu_anchor.is_none());
-
-    let _ = super::lifecycle::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionRenamePressed("s2".to_string()),
-    );
-    assert_eq!(app.session_rename_id.as_deref(), Some("s2"));
-    assert_eq!(app.session_rename_value, "Second");
-
-    let _ = super::lifecycle::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionRenameChanged(" Renamed ".to_string()),
-    );
-    assert_eq!(app.session_rename_value, " Renamed ");
-
-    let _ = super::lifecycle::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionRenameCancel,
-    );
-    assert!(app.session_rename_id.is_none());
-    assert!(app.session_rename_value.is_empty());
-}
-
-#[test]
-fn session_tree_toggle_updates_non_persistent_expansion_state() {
-    let mut app = app();
-    assert!(app.session_tree_expanded.is_empty());
-
-    let first = super::lifecycle::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionTreeToggled("parent".to_string()),
-    );
-    assert!(first.is_some());
-    assert!(app.session_tree_expanded.contains("parent"));
-
-    let second = super::lifecycle::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionTreeToggled("parent".to_string()),
-    );
-    assert!(second.is_some());
-    assert!(!app.session_tree_expanded.contains("parent"));
-}
-
-#[test]
-fn session_rename_save_ignores_missing_or_empty_title_and_updates_local_titles() {
-    let mut app = app();
-    app.sessions = vec![session_info("s1", "First", "/tmp/project")];
-    app.project_sessions
-        .insert("/tmp/project".to_string(), vec![session_info("s1", "First", "/tmp/project")]);
-
-    let _ = super::lifecycle::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionRenameSave,
-    );
-    assert_eq!(app.sessions[0].title, "First");
-
-    app.session_rename_id = Some("s1".to_string());
-    app.session_rename_value = "   ".to_string();
-    let _ = super::lifecycle::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionRenameSave,
-    );
-    assert_eq!(app.sessions[0].title, "First");
-    assert_eq!(app.session_rename_id.as_deref(), Some("s1"));
-
-    app.session_rename_value = "Updated".to_string();
-    let task = super::lifecycle::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionRenameSave,
-    );
-
-    assert!(task.is_some());
-    assert!(app.session_rename_id.is_none());
-    assert!(app.session_rename_value.is_empty());
-    assert_eq!(app.sessions[0].title, "Updated");
-    assert_eq!(app.project_sessions.get("/tmp/project").unwrap()[0].title, "Updated");
 }
 
 #[test]
@@ -595,67 +487,9 @@ fn session_messages_loaded_keeps_reset_local_history_when_gateway_returns_stale_
     );
 }
 
-#[test]
-fn session_copied_adds_to_current_and_project_session_lists_without_duplicates() {
-    let mut app = app();
-    let info = session_info("s1", "Copy", "/tmp/project");
-    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
-    app.sessions = vec![info.clone()];
 
-    let _ = super::lifecycle::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionCopied(info.clone()),
-    );
-    assert_eq!(app.sessions.iter().filter(|s| s.id == "s1").count(), 1);
-    assert_eq!(app.project_sessions.get("/tmp/project").unwrap().len(), 1);
 
-    let second = session_info("s2", "Copy 2", "/tmp/project");
-    let _ = super::lifecycle::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionCopied(second),
-    );
-    assert_eq!(app.sessions[0].id, "s2");
-    assert_eq!(app.project_sessions.get("/tmp/project").unwrap()[0].id, "s2");
-}
 
-#[test]
-fn session_copied_without_active_project_uses_info_directory_bucket_only() {
-    let mut app = app();
-    let info = session_info("copy-dir", "Copy", "/tmp/copied");
-
-    let task = super::lifecycle::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionCopied(info),
-    );
-
-    assert!(task.is_some());
-    assert!(app.sessions.is_empty());
-    assert_eq!(app.project_sessions.get("/tmp/copied").unwrap()[0].id, "copy-dir");
-}
-
-#[test]
-fn session_title_double_click_enters_rename_mode_and_closes_actions() {
-    let mut app = app();
-    app.sessions = vec![session_info("s1", "First", "/tmp/project")];
-    app.session_menu_id = Some("s1".to_string());
-    app.session_menu_anchor = Some(iced::Point::new(1.0, 2.0));
-    app.popover_visibility.session_actions = true;
-
-    let _ = super::lifecycle::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionTitleClicked("s1".to_string()),
-    );
-    let _ = super::lifecycle::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionTitleClicked("s1".to_string()),
-    );
-
-    assert_eq!(app.session_rename_id.as_deref(), Some("s1"));
-    assert_eq!(app.session_rename_value, "First");
-    assert!(app.session_menu_id.is_none());
-    assert!(app.session_menu_anchor.is_none());
-    assert!(!app.popover_visibility.session_actions);
-}
 
 #[test]
 fn session_archive_active_without_replacement_clears_active_view() {

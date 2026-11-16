@@ -8,7 +8,7 @@ use crate::app::message::project::helpers::{
     find_session_project_path, load_prepared_session_open_from_gateway_task, now_ms,
     prepare_session_ui_chunks_task, prepare_session_ui_task,
 };
-use crate::app::{App, Message, models, state::ActiveSessionViewState};
+use crate::app::{App, Message, models};
 use web_time::Instant;
 
 /// 幂等登记外部创建的会话，不触碰当前活动会话及聊天运行态。
@@ -16,21 +16,19 @@ pub(crate) fn cache_external_session(app: &mut App, info: session_info::Info) {
     cache_project_session(app, info.directory.clone(), info);
 }
 
-pub(super) fn cache_project_session(
-    app: &mut App,
-    project_path: String,
-    info: session_info::Info,
-) {
+pub(super) fn cache_project_session(app: &mut App, project_path: String, info: session_info::Info) {
     desktop_workspace::project_message::session::lifecycle::cache_project_session(
-        &mut app.sessions, &mut app.project_sessions, project_path, info,
+        &mut app.sessions,
+        &mut app.project_sessions,
+        project_path,
+        info,
     );
 }
 
-pub(crate) use desktop_workspace::project_message::session::lifecycle::{
-    latest_assistant_model_label,
-    steps_from_gateway_messages,
+use desktop_workspace::project_message::session::history_open::{
+    HistoryDecision, HistoryOpen, HistorySource,
 };
-use desktop_workspace::project_message::session::history_open::{HistoryOpen, HistorySource, HistoryDecision};
+pub(crate) use desktop_workspace::project_message::session::lifecycle::latest_assistant_model_label;
 
 pub(crate) fn loaded_chat_from_gateway_messages(
     messages: Vec<message_types::WithParts>,
@@ -41,51 +39,41 @@ pub(crate) fn loaded_chat_from_gateway_messages(
     )
 }
 
+pub(super) fn history_state(
+    app: &mut App,
+) -> desktop_session::session::history_commit::HistoryState<
+    '_,
+    crate::app::components::chat_panel::trajectory::TrajectoryProjection,
+> {
+    desktop_session::session::history_commit::HistoryState {
+        chat: &mut app.chat,
+        ids: &mut app.chat_message_ids,
+        usage: &mut app.usage,
+        view: &mut app.active_session_view_state,
+        timeline: &mut app.paged_chat_timeline,
+    }
+}
+
 fn apply_prepared_session_open(
     app: &mut App,
     prepared: crate::app::session::PreparedSessionOpen,
     open_generation: u64,
 ) {
-    let crate::app::session::PreparedSessionOpen {
-        session_id,
-        agent_binding: _,
-        full_access: _,
-        messages,
-        message_ids,
-        usage,
-        steps,
-        calls,
-        step_llm_raw,
-        llm_raw_step_indices,
-        updated_ms,
-        content_signature: _,
+    let committed = history_state(app).install(prepared, open_generation);
+    let session_id = committed.session_id.clone();
+    if let Some(seq_base) = committed.seq_base {
+        app.get_session_runtime_mut(&session_id).stream_save.seq_base = seq_base;
+    }
+    app.chat_scroll_id = iced::widget::Id::unique();
+    let restored_session_model_from_steps =
+        app.restore_session_model_from_steps(&session_id, &committed.steps);
+    let desktop_session::session::history_commit::PreparedViewCompletion {
         session_model,
         base_ui_chunk,
-        timeline_page,
-    } = prepared;
-
-    if let Some(page) = timeline_page {
-        app.get_session_runtime_mut(&session_id).stream_save.seq_base =
-            page.entries.first().and_then(|entry| entry.seq_no).unwrap_or(0);
-        let mut timeline = crate::app::session::chat_timeline::PagedChatTimeline::new(
-            session_id.clone(),
-            open_generation,
-        );
-        timeline.merge_initial_page(page);
-        app.paged_chat_timeline = Some(timeline);
-    }
-
-    app.chat_scroll_id = iced::widget::Id::unique();
-    app.chat = messages;
-    app.chat_message_ids = message_ids;
-    app.usage = usage;
-    app.active_session_view_state.updated_ms = updated_ms;
-    let restored_session_model_from_steps =
-        app.restore_session_model_from_steps(&session_id, &steps);
-    app.replace_active_session_steps(steps);
-    app.replace_active_session_calls(calls);
-    app.replace_active_session_step_llm_raw(step_llm_raw);
-    app.replace_active_session_llm_raw_step_indices(llm_raw_step_indices);
+    } = committed.apply_view(
+        &mut app.active_session_view_state,
+        crate::app::components::chat_panel::trajectory::project_trajectory,
+    );
     let restored_session_model_from_history = session_model
         .as_deref()
         .is_some_and(|model| app.restore_session_model_from_history(&session_id, model));
@@ -93,21 +81,19 @@ fn apply_prepared_session_open(
         app.sync_active_session_preferences();
     }
 
-    app.active_session_view_state.ui_preparing = true;
-    app.active_session_view_state.base_ready = false;
+    history_state(app).begin_history_ui();
     app.invalidate_chat_ui_state();
+    let base_installed = base_ui_chunk.is_some();
     if let Some(base_ui_chunk) = base_ui_chunk {
         let chunk_start_idx = base_ui_chunk.chunk_start_idx;
         app.pin_chat_ui_chunk(Some(chunk_start_idx));
         app.apply_prepared_chat_ui_phase(crate::app::session::PreparedChatUiPhase::Base(
             base_ui_chunk,
         ));
-        app.active_session_view_state.base_ready = true;
-        app.rebuild_active_session_message_meta();
     } else {
         app.pin_chat_ui_chunk(None);
     }
-    app.active_session_view_state.ui_preparing = false;
+    history_state(app).finish_history_ui(base_installed);
 }
 
 /// handle 处理当前模块对应的消息或状态转换。
@@ -118,10 +104,13 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
     // 所有界面事件在一个入口显式匹配，方便审计状态变更和异步任务边界。
     match message {
         message @ (ProjectMessage::SessionRightClicked(..)
-            | ProjectMessage::SessionMenuClose | ProjectMessage::SessionTreeToggled(_)
-            | ProjectMessage::SessionTitleClicked(_) | ProjectMessage::SessionRenamePressed(_)
-            | ProjectMessage::SessionRenameChanged(_) | ProjectMessage::SessionRenameCancel
-            | ProjectMessage::SessionRenameSave) => {
+        | ProjectMessage::SessionMenuClose
+        | ProjectMessage::SessionTreeToggled(_)
+        | ProjectMessage::SessionTitleClicked(_)
+        | ProjectMessage::SessionRenamePressed(_)
+        | ProjectMessage::SessionRenameChanged(_)
+        | ProjectMessage::SessionRenameCancel
+        | ProjectMessage::SessionRenameSave) => {
             use desktop_workspace::project_message::session::interaction::{self, Event, State};
             let event = match message {
                 ProjectMessage::SessionRightClicked(id, x, y) => Event::RightClick(id, x, y),
@@ -129,46 +118,54 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 ProjectMessage::SessionTreeToggled(id) => Event::Toggle(id),
                 ProjectMessage::SessionTitleClicked(id) => {
                     let now = web_time::Instant::now();
-                    let elapsed = app.session_title_last_click.map(|last| now.duration_since(last).as_millis());
+                    let elapsed = app
+                        .session_title_last_click
+                        .map(|last| now.duration_since(last).as_millis());
                     app.session_title_last_click = Some(now);
                     Event::Title(id, elapsed)
-                },
+                }
                 ProjectMessage::SessionRenamePressed(id) => Event::Rename(id),
                 ProjectMessage::SessionRenameChanged(value) => Event::Change(value),
                 ProjectMessage::SessionRenameCancel => Event::Cancel,
                 ProjectMessage::SessionRenameSave => Event::Save,
                 _ => unreachable!(),
             };
-            let rename = interaction::update(&mut State {
-                menu: &mut app.session_menu_id, anchor: &mut app.session_menu_anchor,
-                actions: &mut app.popover_visibility.session_actions,
-                project_menu: &mut app.navigation_mode.work_current_project_menu,
-                expanded: &mut app.session_tree_expanded,
-                rename_id: &mut app.session_rename_id, rename_value: &mut app.session_rename_value,
-                sessions: &mut app.sessions, projects: &mut app.project_sessions,
-            }, event);
-            let Some(interaction::Rename { id, title }) = rename else { return Some(iced::Task::none()); };
+            let rename = interaction::update(
+                &mut State {
+                    menu: &mut app.session_menu_id,
+                    anchor: &mut app.session_menu_anchor,
+                    actions: &mut app.popover_visibility.session_actions,
+                    project_menu: &mut app.navigation_mode.work_current_project_menu,
+                    expanded: &mut app.session_tree_expanded,
+                    rename_id: &mut app.session_rename_id,
+                    rename_value: &mut app.session_rename_value,
+                    sessions: &mut app.sessions,
+                    projects: &mut app.project_sessions,
+                },
+                event,
+            );
+            let Some(interaction::Rename { id, title }) = rename else {
+                return Some(iced::Task::none());
+            };
             app.refresh_task_pet_session_title(&id, &title);
 
             let project_path = find_session_project_path(app, &id);
             Some(iced::Task::perform(
                 async move {
                     let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
-                    gateway_session::GatewaySessionClient::new(client.transport().clone())
-                        .session_update::<session_info::Info>(
-                            &id,
-                            project_path.as_deref(),
-                            &vw_api_session::GatewaySessionPatchBody {
-                                title: Some(title),
-                                time: None,
-                            },
-                        )
-                        .await
+                    desktop_session::session::loading::persist_session_mutation(
+                        &client,
+                        project_path.as_deref(),
+                        desktop_session::session::loading::SessionMutation::Rename { id, title },
+                    )
+                    .await
                 },
                 |_| Message::None,
             ))
         }
-        ProjectMessage::SessionPinPressed(project_id, id, pinned) => Some(app.set_session_pin(project_id, id, pinned)),
+        ProjectMessage::SessionPinPressed(project_id, id, pinned) => {
+            Some(app.set_session_pin(project_id, id, pinned))
+        }
         ProjectMessage::SessionPinSaved(key, result) => Some(app.apply_session_pin(key, result)),
         ProjectMessage::SessionArchivePressed(id) => {
             #[cfg(not(target_arch = "wasm32"))]
@@ -181,22 +178,20 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.session_menu_anchor = None;
             app.popover_visibility.session_actions = false;
 
-            if let Some(s) = app.sessions.iter_mut().find(|s| s.id == id) {
-                s.time.archived = Some(now_ms());
+            desktop_workspace::project_message::session::lifecycle::SessionMembership {
+                sessions: &mut app.sessions,
+                projects: &mut app.project_sessions,
             }
-            for sessions in app.project_sessions.values_mut() {
-                if let Some(s) = sessions.iter_mut().find(|s| s.id == id) {
-                    s.time.archived = Some(now_ms());
-                }
-            }
+            .archive(&id, now_ms);
 
             let mut switch_task = iced::Task::none();
             if app.active_session_id.as_ref() == Some(&id) {
-                let next = app
-                    .sessions
-                    .iter()
-                    .find(|s| s.time.archived.is_none() && s.id != id && s.is_user_navigable())
-                    .map(|s| s.id.clone());
+                let next =
+                    desktop_workspace::project_message::session::lifecycle::SessionMembership {
+                        sessions: &mut app.sessions,
+                        projects: &mut app.project_sessions,
+                    }
+                    .replacement(Some(&id));
 
                 if let Some(next_id) = next {
                     app.prepare_historical_session_model(&next_id);
@@ -210,38 +205,19 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                                 Ok(client) => client,
                                 Err(err) => return Err(err),
                             };
-                            let msgs = gateway_session::GatewaySessionClient::new(client.transport().clone())
-                                .session_messages::<Vec<agent_message::WithParts>>(&next_id, None)
-                                .await;
-                            let info = gateway_session::GatewaySessionClient::new(client.transport().clone())
-                                .session_get::<session_info::Info>(&next_id, None)
-                                .await;
-                            match (msgs, info) {
-                                (Ok(msgs), Ok(_info)) => {
-                                    let mut usage = models::TokenUsage::default();
-                                    for m in &msgs {
-                                        if let agent_message::Info::Assistant(a) = &m.info {
-                                            usage.input_tokens += a.tokens.input;
-                                            usage.output_tokens += a.tokens.output;
-                                            usage.cached_tokens +=
-                                                a.tokens.cache.read + a.tokens.cache.write;
-                                            usage.reasoning_tokens += a.tokens.reasoning;
-                                        }
-                                    }
-                                    Ok((next_id, msgs, usage))
-                                }
-                                (Err(e), _) => Err(e.to_string()),
-                                (_, Err(e)) => Err(e.to_string()),
-                            }
+                            desktop_session::session::loading::load_replacement_history(
+                                &client,
+                                next_id,
+                                desktop_session::session::loading::ReplacementHistory::Archived,
+                            )
+                            .await
                         },
                         |res| Message::Project(ProjectMessage::SessionMessagesLoaded(res)),
                     );
                     switch_task = iced::Task::batch([load_messages, load_permissions]);
                 } else {
                     app.active_session_id = None;
-                    app.chat.clear();
-                    app.usage = models::TokenUsage::default();
-                    app.active_session_view_state = ActiveSessionViewState::default();
+                    history_state(app).close();
                     app.invalidate_chat_ui_state();
                 }
             }
@@ -254,19 +230,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             Ok(client) => client,
                             Err(err) => return Err(err.to_string()),
                         };
-                        gateway_session::GatewaySessionClient::new(client.transport().clone())
-                            .session_update::<session_info::Info>(
-                                &id,
-                                project_path.as_deref(),
-                                &vw_api_session::GatewaySessionPatchBody {
-                                    title: None,
-                                    time: Some(vw_api_session::GatewaySessionPatchTime {
-                                        archived: Some(runtime_time::now_ms()),
-                                    }),
-                                },
-                            )
-                            .await
-                            .map_err(|err| err.to_string())
+                        desktop_session::session::loading::persist_session_mutation(
+                            &client,
+                            project_path.as_deref(),
+                            desktop_session::session::loading::SessionMutation::Archive { id },
+                        )
+                        .await
                     },
                     |_| Message::None,
                 ),
@@ -283,31 +252,32 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     panel.cancel();
                 }
             }
-            app.session_runtime_states.remove(&id);
-            app.session_view_cache.remove(&id);
-            app.session_chat_cache.remove(&id);
-            app.session_chat_message_id_cache.remove(&id);
-            app.session_history_reset_boundaries.remove(&id);
+            desktop_session::session::cache::remove_session(
+                &id,
+                &mut app.session_runtime_states,
+                &mut app.session_view_cache,
+                &mut app.session_chat_cache,
+                &mut app.session_chat_message_id_cache,
+                &mut app.session_history_reset_boundaries,
+            );
 
             let project_path = find_session_project_path(app, &id);
 
-            if let Some(pos) = app.sessions.iter().position(|s| s.id == id) {
-                app.sessions.remove(pos);
+            desktop_workspace::project_message::session::lifecycle::SessionMembership {
+                sessions: &mut app.sessions,
+                projects: &mut app.project_sessions,
             }
-            for sessions in app.project_sessions.values_mut() {
-                if let Some(pos) = sessions.iter().position(|s| s.id == id) {
-                    sessions.remove(pos);
-                }
-            }
+            .delete(&id);
 
             let mut switch_task = iced::Task::none();
 
             if app.active_session_id.as_ref() == Some(&id) {
-                let next = app
-                    .sessions
-                    .iter()
-                    .find(|s| s.time.archived.is_none() && s.is_user_navigable())
-                    .map(|s| s.id.clone());
+                let next =
+                    desktop_workspace::project_message::session::lifecycle::SessionMembership {
+                        sessions: &mut app.sessions,
+                        projects: &mut app.project_sessions,
+                    }
+                    .replacement(None);
 
                 if let Some(next_id) = next {
                     app.prepare_historical_session_model(&next_id);
@@ -321,34 +291,19 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                                 Ok(client) => client,
                                 Err(err) => return Err(err),
                             };
-                            let msgs = gateway_session::GatewaySessionClient::new(client.transport().clone())
-                                .session_messages::<Vec<agent_message::WithParts>>(&next_id, None)
-                                .await;
-                            match msgs {
-                                Ok(msgs) => {
-                                    let mut usage = models::TokenUsage::default();
-                                    for m in &msgs {
-                                        if let agent_message::Info::Assistant(a) = &m.info {
-                                            usage.input_tokens += a.tokens.input;
-                                            usage.output_tokens += a.tokens.output;
-                                            usage.cached_tokens +=
-                                                a.tokens.cache.read + a.tokens.cache.write;
-                                            usage.reasoning_tokens += a.tokens.reasoning;
-                                        }
-                                    }
-                                    Ok((next_id, msgs, usage))
-                                }
-                                Err(e) => Err(e.to_string()),
-                            }
+                            desktop_session::session::loading::load_replacement_history(
+                                &client,
+                                next_id,
+                                desktop_session::session::loading::ReplacementHistory::Deleted,
+                            )
+                            .await
                         },
                         |res| Message::Project(ProjectMessage::SessionMessagesLoaded(res)),
                     );
                     switch_task = iced::Task::batch([load_messages, load_permissions]);
                 } else {
                     app.active_session_id = None;
-                    app.chat.clear();
-                    app.usage = models::TokenUsage::default();
-                    app.active_session_view_state = ActiveSessionViewState::default();
+                    history_state(app).close();
                     app.invalidate_chat_ui_state();
                 }
             }
@@ -357,7 +312,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 iced::Task::perform(
                     async move {
                         let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
-                        gateway_session::GatewaySessionClient::new(client.transport().clone()).session_delete(&id, project_path.as_deref()).await
+                        desktop_session::session::loading::persist_session_mutation(
+                            &client,
+                            project_path.as_deref(),
+                            desktop_session::session::loading::SessionMutation::Delete { id },
+                        )
+                        .await
                     },
                     |_| Message::None,
                 ),
@@ -370,11 +330,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 async move {
                     let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
                     gateway_session::GatewaySessionClient::new(client.transport().clone())
-                        .session_fork::<session_info::Info>(
-                            &id,
-                            project_path.as_deref(),
-                            &None,
-                        )
+                        .session_fork::<session_info::Info>(&id, project_path.as_deref(), &None)
                         .await
                 },
                 |res| match res {
@@ -387,37 +343,26 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             ))
         }
         ProjectMessage::SessionCopied(info) => {
-            if app.navigation_tabs.project_path.as_ref() == Some(&info.directory)
-                && !app.sessions.iter().any(|s| s.id == info.id)
-            {
-                app.sessions.insert(0, info.clone());
+            desktop_workspace::project_message::session::lifecycle::SessionMembership {
+                sessions: &mut app.sessions,
+                projects: &mut app.project_sessions,
             }
-            let sessions_key = app.navigation_tabs.project_path.clone().unwrap_or_else(|| info.directory.clone());
-            if let Some(list) = app.project_sessions.get_mut(&sessions_key) {
-                if !list.iter().any(|s| s.id == info.id) {
-                    list.insert(0, info.clone());
-                }
-            } else {
-                app.project_sessions.insert(sessions_key, vec![info.clone()]);
-            }
+            .insert(app.navigation_tabs.project_path.as_deref(), info, false);
             Some(iced::Task::none())
         }
         ProjectMessage::SessionCreated(info) => {
-            let is_discovered_child =
-                info.parent_id.as_deref().is_some_and(|parent_id| !parent_id.trim().is_empty());
             app.cache_active_session_chat();
-            if !app.sessions.iter().any(|s| s.id == info.id) {
-                app.sessions.insert(0, info.clone());
-            }
-            let sessions_key = app.navigation_tabs.project_path.clone().unwrap_or_else(|| info.directory.clone());
-            if let Some(list) = app.project_sessions.get_mut(&sessions_key) {
-                if !list.iter().any(|s| s.id == info.id) {
-                    list.insert(0, info.clone());
+            let activate =
+                desktop_workspace::project_message::session::lifecycle::SessionMembership {
+                    sessions: &mut app.sessions,
+                    projects: &mut app.project_sessions,
                 }
-            } else {
-                app.project_sessions.insert(sessions_key, vec![info.clone()]);
-            }
-            if is_discovered_child {
+                .insert(
+                    app.navigation_tabs.project_path.as_deref(),
+                    info.clone(),
+                    true,
+                );
+            if !activate {
                 return Some(iced::Task::none());
             }
 
@@ -430,15 +375,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.active_session_id = Some(info.id.clone());
             app.chat_scroll_id = iced::widget::Id::unique();
             app.mark_active_session_viewed();
-            app.chat.clear();
-            app.chat_message_ids.clear();
+            history_state(app).blank_draft();
             app.store_session_chat_snapshot(
                 info.id.clone(),
                 crate::app::session::shared_chat_messages(app.chat.clone()),
                 app.chat_message_ids.clone(),
             );
-            app.usage = models::TokenUsage::default();
-            app.active_session_view_state = ActiveSessionViewState::default();
             app.invalidate_chat_ui_state();
             app.sync_active_session_preferences();
             Some(iced::Task::batch([
@@ -456,18 +398,28 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             let history_open = HistoryOpen {
                 active_session: app.active_session_id.as_deref(),
                 target_session: &target_session_id,
-                current_generation: app.session_view_cache.is_current_open(&target_session_id, open_generation),
-                source: if source == PreparedSessionOpenSource::UiStore { HistorySource::UiStore } else { HistorySource::Remote },
+                current_generation: app
+                    .session_view_cache
+                    .is_current_open(&target_session_id, open_generation),
+                source: if source == PreparedSessionOpenSource::UiStore {
+                    HistorySource::UiStore
+                } else {
+                    HistorySource::Remote
+                },
                 current_ids: &app.chat_message_ids,
                 reset_boundary: app.session_history_reset_boundary(&target_session_id),
-                current_signature: crate::app::session::session_content_signature(&app.chat, &app.chat_message_ids),
+                current_signature: crate::app::session::session_content_signature(
+                    &app.chat,
+                    &app.chat_message_ids,
+                ),
             };
-            let acceptance = history_open.accept(result.as_ref().ok().map(|prepared| prepared.session_id.as_str()));
-            let content_decision = result.as_ref().ok().map(|prepared| history_open.content(&prepared.message_ids, prepared.content_signature));
+            let acceptance = history_open
+                .accept(result.as_ref().ok().map(|prepared| prepared.session_id.as_str()));
+            let content_decision = result.as_ref().ok().map(|prepared| {
+                history_open.content(&prepared.message_ids, prepared.content_signature)
+            });
             let prepared = match result {
-                Ok(prepared) if acceptance == HistoryDecision::Replace => {
-                    prepared
-                }
+                Ok(prepared) if acceptance == HistoryDecision::Replace => prepared,
                 Ok(_) => {
                     tracing::info!(
                         target: "vw_desktop",
@@ -510,13 +462,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             };
 
             if let Some(binding) = prepared.agent_binding.as_ref() {
-                let runtime = app.get_session_runtime_mut(&target_session_id);
-                if !runtime.fork_agent_selected {
-                    runtime.agent = (binding.agent != crate::app::state::MAIN_AGENT_KEY)
-                        .then(|| binding.agent.clone());
-                    runtime.acp_agent = binding.acp_agent.clone();
-                    runtime.agent_label = binding.label.clone();
-                }
+                app.get_session_runtime_mut(&target_session_id).restore_open_binding(binding);
             }
             if let Some(full_access) = prepared.full_access {
                 app.restore_session_full_access(&target_session_id, full_access);
@@ -534,17 +480,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
 
             if content_decision == Some(HistoryDecision::RefreshMetadata) {
-                app.active_session_view_state.ui_preparing = false;
-                app.usage = prepared.usage;
-                if !prepared.steps.is_empty() {
-                    app.replace_active_session_steps(prepared.steps);
-                }
-                if !prepared.step_llm_raw.is_empty() {
-                    app.replace_active_session_step_llm_raw(prepared.step_llm_raw);
-                }
-                if !prepared.llm_raw_step_indices.is_empty() {
-                    app.replace_active_session_llm_raw_step_indices(prepared.llm_raw_step_indices);
-                }
+                history_state(app).refresh_metadata(
+                    prepared,
+                    crate::app::components::chat_panel::trajectory::project_trajectory,
+                );
                 if let Some(summary) = app.session_view_cache.record_open_commit(
                     &target_session_id,
                     open_generation,
@@ -606,57 +545,25 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             requested_cursor,
             result,
         } => {
-            let is_current = app.active_session_id.as_deref() == Some(&session_id)
-                && app.session_view_cache.is_current_open(&session_id, open_generation);
-            if !is_current {
+            let current_generation =
+                app.session_view_cache.is_current_open(&session_id, open_generation);
+            let active_session = app.active_session_id.clone();
+            let commit = history_state(app).prepend(
+                active_session.as_deref(),
+                &session_id,
+                current_generation,
+                open_generation,
+                &requested_cursor,
+                result,
+            );
+            let Some(desktop_session::session::history_commit::PrependCommit {
+                inserted,
+                seq_base,
+            }) = commit
+            else {
                 return Some(iced::Task::none());
-            }
-            let Some(timeline) = app.paged_chat_timeline.as_mut() else {
-                return Some(iced::Task::none());
             };
-            let page = match result {
-                Ok(page) => page,
-                Err(error) => {
-                    timeline.cancel_prepend(&requested_cursor);
-                    tracing::warn!(target: "vw_desktop", %session_id, %error, "failed to load older chat history page");
-                    return Some(iced::Task::none());
-                }
-            };
-            let old_keys = timeline
-                .entries()
-                .iter()
-                .map(|entry| entry.key.clone())
-                .collect::<std::collections::HashSet<_>>();
-            let outcome =
-                timeline.merge_prepend_page(&session_id, open_generation, &requested_cursor, page);
-            let inserted = match outcome {
-                crate::app::session::chat_timeline::PageMergeOutcome::Applied { inserted } => {
-                    inserted
-                }
-                _ => return Some(iced::Task::none()),
-            };
-            let new_entries = timeline
-                .entries()
-                .iter()
-                .filter(|entry| !old_keys.contains(&entry.key))
-                .take(inserted)
-                .cloned()
-                .collect::<Vec<_>>();
-            let new_messages =
-                new_entries.iter().map(|entry| entry.message.clone()).collect::<Vec<_>>();
-            let new_ids = new_entries
-                .iter()
-                .map(|entry| match &entry.key {
-                    crate::app::session::chat_timeline::ChatEntryKey::PersistedId(id) => {
-                        Some(id.clone())
-                    }
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
-            let seq_base = timeline.loaded_seq_range().map_or(0, |(first, _)| first);
             app.get_session_runtime_mut(&session_id).stream_save.seq_base = seq_base;
-            app.chat.splice(0..0, new_messages);
-            app.chat_message_ids.splice(0..0, new_ids);
             app.chat_virtualizer.prepend_estimated_heights(&vec![120.0; inserted]);
             app.chat_render_cache.clear();
             app.chat_visible_text_cache.clear();
@@ -675,7 +582,6 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             match res {
                 Ok((id, msgs, usage)) => {
                     let loaded_session_model = latest_assistant_model_label(&msgs);
-                    let loaded_steps = steps_from_gateway_messages(&msgs);
                     tracing::info!(
                         target: "vw_desktop",
                         session_id = %id,
@@ -694,63 +600,30 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         let local_message_ids = app.cached_chat_message_ids(&id);
                         let reset_boundary =
                             app.session_history_reset_boundary(&id).map(|ids| ids.to_vec());
-                        let (next_chat, next_ids, shorter_gateway) = desktop_workspace::project_message::session::lifecycle::select_loaded_history(
-                            msgs, local_messages, local_message_ids, reset_boundary,
+                        let commit = history_state(app).loaded(msgs, local_messages, local_message_ids, reset_boundary, usage,
                             crate::app::components::chat_panel::message_view::COMPACTION_COMPLETED_TEXT,
-                        );
-                        if let Some((gateway_messages, cached_messages)) = shorter_gateway {
-                            tracing::warn!(
-                                target: "vw_desktop", session_id = %id,
-                                gateway_messages, cached_messages,
-                                "preserved cached session history because gateway history was shorter"
-                            );
+                            crate::app::components::chat_panel::trajectory::project_trajectory);
+                        if let Some((gateway_messages, cached_messages)) = commit.shorter_gateway {
+                            tracing::warn!(target: "vw_desktop", session_id = %id, gateway_messages, cached_messages,
+                                "preserved cached session history because gateway history was shorter");
                         }
-                        let same_visible_history = desktop_workspace::project_message::session::lifecycle::same_visible_history(&app.chat, &next_chat);
-                        if same_visible_history {
-                            app.chat_message_ids = next_ids;
-                            let shared_chat =
-                                crate::app::session::shared_chat_messages(app.chat.clone());
-                            app.store_session_chat_snapshot(
-                                id.clone(),
-                                shared_chat,
-                                app.chat_message_ids.clone(),
-                            );
-                            app.usage = usage;
-                            if !loaded_steps.is_empty() {
-                                app.replace_active_session_steps(loaded_steps);
-                            }
-                            if restored_session_model {
-                                app.sync_active_session_preferences();
-                            }
-                            app.rebuild_active_session_message_meta();
+                        let shared_chat = commit.shared;
+                        app.store_session_chat_snapshot(
+                            id.clone(),
+                            shared_chat.clone(),
+                            app.chat_message_ids.clone(),
+                        );
+                        if restored_session_model {
+                            app.sync_active_session_preferences();
+                        }
+                        if commit.same_visible {
                             return Some(
                                 crate::app::message::chat::refresh_active_trajectory_raw_task(
                                     app, &id,
                                 ),
                             );
                         }
-
-                        let shared_chat = crate::app::session::shared_chat_messages(next_chat);
                         app.chat_scroll_id = iced::widget::Id::unique();
-                        app.chat = shared_chat.iter().cloned().collect();
-                        app.chat_message_ids = next_ids;
-                        app.store_session_chat_snapshot(
-                            id.clone(),
-                            shared_chat.clone(),
-                            app.chat_message_ids.clone(),
-                        );
-                        app.usage = usage;
-                        let existing_calls = app.active_session_view_state.calls.clone();
-                        let existing_steps = app.active_session_view_state.steps.clone();
-                        let next_steps =
-                            if loaded_steps.is_empty() { existing_steps } else { loaded_steps };
-                        app.active_session_view_state.updated_ms = 0;
-                        app.clear_active_session_steps();
-                        app.replace_active_session_steps(next_steps);
-                        app.replace_active_session_calls(existing_calls);
-                        if restored_session_model {
-                            app.sync_active_session_preferences();
-                        }
                         app.invalidate_chat_ui_state();
                         if app.chat.is_empty() {
                             tracing::warn!(
@@ -767,13 +640,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             );
                         }
 
-                        if app.chat.is_empty() {
-                            app.active_session_view_state.ui_preparing = false;
-                            app.active_session_view_state.base_ready = true;
+                        if !(history_state(app)).prepare_loaded_ui() {
                             app.pin_chat_ui_chunk(None);
                         } else {
-                            app.active_session_view_state.ui_preparing = true;
-                            app.active_session_view_state.base_ready = false;
                             let base_chunk_start = app.preferred_base_chat_ui_chunk_start();
                             app.pin_chat_ui_chunk(Some(base_chunk_start));
                             app.mark_chat_ui_chunks_preparing(&[base_chunk_start]);
@@ -806,24 +675,17 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         && !local.is_empty()
                     {
                         let local_messages = local.iter().cloned().collect::<Vec<_>>();
-                        let local_message_ids = if let Some(ids) = app.cached_chat_message_ids(&id)
-                            && ids.len() == local_messages.len()
-                        {
-                            ids
-                        } else {
-                            vec![None; local_messages.len()]
-                        };
-                        let shared_chat = crate::app::session::shared_chat_messages(local_messages);
-                        app.chat = shared_chat.iter().cloned().collect();
-                        app.chat_message_ids = local_message_ids;
+                        let local_message_ids = app.cached_chat_message_ids(&id);
+                        let shared_chat = history_state(app).restore_cached(
+                            local_messages,
+                            local_message_ids,
+                            crate::app::components::chat_panel::trajectory::project_trajectory,
+                        );
                         app.store_session_chat_snapshot(
                             id.clone(),
                             shared_chat.clone(),
                             app.chat_message_ids.clone(),
                         );
-                        app.clear_active_session_steps();
-                        app.active_session_view_state.ui_preparing = true;
-                        app.active_session_view_state.base_ready = false;
                         app.invalidate_chat_ui_state();
                         let base_chunk_start = app.preferred_base_chat_ui_chunk_start();
                         app.pin_chat_ui_chunk(Some(base_chunk_start));
@@ -845,15 +707,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::SessionUiPrepared { session_id, stream_generation, phase } => {
             let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
             if let Some(generation) = stream_generation {
-                let reprepare = {
-                    let state = &mut app.get_session_runtime_mut(&session_id).stream_tail_state;
-                    state.finish_ui_preparation(generation);
-                    if state.ui_generation() == generation || !is_active_session {
-                        None
-                    } else {
-                        state.message_idx().zip(state.begin_ui_preparation())
-                    }
-                };
+                let reprepare = app
+                    .get_session_runtime_mut(&session_id)
+                    .stream_tail_state
+                    .finish_session_open_ui(generation, is_active_session);
                 if let Some((message_idx, latest_generation)) = reprepare
                     && let Some(message) = app.chat.get(message_idx).cloned()
                 {
@@ -876,9 +733,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     matches!(phase, crate::app::session::PreparedChatUiPhase::Base(_));
                 app.apply_prepared_chat_ui_phase(phase);
                 if is_base_phase {
-                    app.active_session_view_state.base_ready = true;
-                    app.rebuild_active_session_message_meta();
-                    app.active_session_view_state.ui_preparing = false;
+                    history_state(app).finish_base_ui();
                     let (visible_start_idx, visible_end_idx) = app.visible_chat_message_window();
                     let nearby_chunk_starts =
                         app.pending_chat_ui_chunk_starts(visible_start_idx, visible_end_idx, true);

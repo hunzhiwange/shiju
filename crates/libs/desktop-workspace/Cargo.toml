@@ -54,6 +54,7 @@ chrono = "0.4"
 session-text = { path = "../session-text", version = "0.6.0" }
 
 [dev-dependencies]
+desktop-task-model = { path = "../desktop-task-model", version = "0.6.0", features = ["test-support"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tempfile = "3"
 

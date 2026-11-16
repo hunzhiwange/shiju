@@ -148,53 +148,11 @@ fn ui_store_session(id: &str, message_ids: Vec<Option<String>>) -> crate::app::m
     }
 }
 
-#[test]
-fn sessions_loaded_updates_list_or_pushes_notification() {
-    let mut app = app();
-    let sessions = vec![session_info("s1", 1, 0)];
-
-    let task = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionsLoaded(Ok(sessions.clone())),
-    );
-
-    assert!(task.is_some());
-    assert_eq!(app.sessions.len(), 1);
-    assert_eq!(app.sessions[0].id, "s1");
-
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionsLoaded(Err("boom".to_string())),
-    );
-    assert!(app.notifications.iter().any(|item| item.message.contains("boom")));
-}
 
 
 
-#[test]
-fn session_bootstrap_loaded_keeps_metadata_and_reports_session_error() {
-    let mut app = app();
-    let previews = std::collections::HashMap::from([(
-        "failed-session".to_string(),
-        "cached preview".to_string(),
-    )]);
-    let archived = std::collections::HashSet::from(["archived-session".to_string()]);
 
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionBootstrapLoaded {
-            project_path: None,
-            result: Err("gateway unavailable".to_string()),
-            previews: previews.clone(),
-            archived_session_ids: archived.clone(),
-        },
-    );
 
-    assert_eq!(app.session_previews, previews);
-    assert_eq!(app.archived_session_ids, archived);
-    assert!(app.sessions.is_empty());
-    assert!(app.notifications.iter().any(|item| item.message.contains("gateway unavailable")));
-}
 
 #[tokio::test(flavor = "multi_thread")]
 async fn recent_hover_uses_cached_sessions_without_scheduling_gateway_load() {
@@ -888,124 +846,20 @@ fn open_project_session_keeps_workflow_mode_for_root_session() {
     assert!(app.get_session_runtime("root").goal_mode_enabled);
 }
 
-#[test]
-fn open_recent_pressed_clears_hover_menus_and_new_session_picker_state() {
-    let mut app = app();
-    app.hovered_recent_project = Some("/tmp/project".to_string());
-    app.session_menu_id = Some("session-1".to_string());
-    app.session_menu_anchor = Some(iced::Point::new(8.0, 12.0));
-    app.new_session_picker_project = Some("/tmp/project".to_string());
-    app.new_session_picker_options = vec![("/tmp/worktree".to_string(), "Worktree".to_string())];
-    app.new_session_worktree_name = "feature".to_string();
-    app.new_session_delete_error = Some("stale delete".to_string());
-
-    let task = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::OpenRecentPressed("/tmp/project".to_string()),
-    );
-
-    assert!(task.is_some());
-    assert!(app.hovered_recent_project.is_none());
-    assert!(app.session_menu_id.is_none());
-    assert!(app.session_menu_anchor.is_none());
-    assert!(app.new_session_picker_project.is_none());
-    assert!(app.new_session_picker_options.is_empty());
-    assert!(app.new_session_worktree_name.is_empty());
-    assert!(app.new_session_delete_error.is_none());
-}
-
-#[test]
-fn recent_hover_marks_uncached_project_loading_once() {
-    let mut app = app();
-    let path = "/tmp/uncached-project".to_string();
-
-    let first_task = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::RecentHovered(Some(path.clone())),
-    );
-
-    assert!(first_task.is_some());
-    assert!(app.project_sessions_loading.contains(&path));
-
-    let second_task = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::RecentHovered(Some(path.clone())),
-    );
-
-    assert!(second_task.is_some());
-    assert_eq!(app.project_sessions_loading.len(), 1);
-}
 
 
-#[test]
-fn project_sessions_loaded_records_error_message() {
-    let mut app = app();
-    let path = "/tmp/project".to_string();
-    app.project_sessions_loading.insert(path.clone());
 
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::ProjectSessionsLoaded(
-            path.clone(),
-            Err("offline".to_string()),
-        ),
-    );
 
-    assert!(!app.project_sessions_loading.contains(&path));
-    assert_eq!(app.error_message.as_deref(), Some("Failed to load project sessions: offline"));
-}
+
+
 
 
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
-#[test]
-fn recent_overlay_closed_preserves_open_picker_but_otherwise_resets_overlay_state() {
-    let mut app = app();
-    app.new_session_picker_project = Some("/tmp/project".to_string());
-    app.hovered_recent_project = Some("/tmp/project".to_string());
 
-    let _ =
-        super::handle(&mut app, crate::app::message::project::ProjectMessage::RecentOverlayClosed);
-    assert!(app.new_session_picker_project.is_some());
-    assert!(app.hovered_recent_project.is_some());
 
-    app.new_session_picker_project = None;
-    app.session_menu_id = Some("s1".to_string());
-    app.project_tools_menu_path = Some("/tmp/project".to_string());
 
-    let _ =
-        super::handle(&mut app, crate::app::message::project::ProjectMessage::RecentOverlayClosed);
-
-    assert!(app.hovered_recent_project.is_none());
-    assert!(app.session_menu_id.is_none());
-    assert!(app.project_tools_menu_path.is_none());
-}
-
-#[test]
-fn recent_overlay_closed_clears_anchor_and_all_picker_state() {
-    let mut app = app();
-    app.hovered_recent_project = Some("/tmp/project".to_string());
-    app.session_menu_id = Some("session-1".to_string());
-    app.session_menu_anchor = Some(iced::Point::new(12.0, 24.0));
-    app.project_tools_menu_path = Some("/tmp/project".to_string());
-    app.new_session_picker_options = vec![("/tmp/worktree".to_string(), "Worktree".to_string())];
-    app.new_session_worktree_name = "feature".to_string();
-    app.new_session_confirm_delete_directory = Some("/tmp/worktree".to_string());
-    app.new_session_delete_error = Some("old error".to_string());
-
-    let _ =
-        super::handle(&mut app, crate::app::message::project::ProjectMessage::RecentOverlayClosed);
-
-    assert!(app.hovered_recent_project.is_none());
-    assert!(app.session_menu_id.is_none());
-    assert!(app.session_menu_anchor.is_none());
-    assert!(app.project_tools_menu_path.is_none());
-    assert!(app.new_session_picker_options.is_empty());
-    assert!(app.new_session_worktree_name.is_empty());
-    assert!(app.new_session_confirm_delete_directory.is_none());
-    assert!(app.new_session_delete_error.is_none());
-}
 
 #[test]
 fn project_create_session_opens_picker_when_worktree_enabled() {
@@ -1248,27 +1102,7 @@ fn project_branches_loaded_ignores_stale_project_and_applies_current_project() {
     assert_eq!(app.git.branches, vec!["main".to_string(), "develop".to_string()]);
 }
 
-#[test]
-fn project_load_sessions_skips_duplicate_loads_and_marks_new_load() {
-    let mut app = app();
-    let path = "/tmp/project".to_string();
-    app.project_sessions_loading.insert(path.clone());
 
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::ProjectLoadSessions(path.clone()),
-    );
-    assert_eq!(app.project_sessions_loading.len(), 1);
-
-    app.project_sessions_loading.clear();
-    let task = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::ProjectLoadSessions(path.clone()),
-    );
-
-    assert!(task.is_some());
-    assert!(app.project_sessions_loading.contains(&path));
-}
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。

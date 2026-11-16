@@ -233,3 +233,32 @@ pub fn collect_agent_subscription_requests<RenderState>(
     }
     requests
 }
+
+impl<R> SessionRuntimeState<R> {
+    pub fn open_draft(&mut self, project_path: String, directory: String) {
+        self.input_editor = text_editor::Content::new();
+        self.fork_execution_started = None;
+        self.fork_request_submitted = false;
+        self.fork_agent_selected = false;
+        self.acp_options_state.source_pending = None;
+        self.acp_options_state.source_request_id = None;
+        self.draft = Some(SessionDraft { project_path, directory, history_len: 0 });
+    }
+    pub fn apply_open_execution_state(&mut self, started: Option<bool>) {
+        self.fork_execution_started = started;
+        if started != Some(false) { self.fork_agent_selected = false; }
+        if !self.request_lifecycle.is_requesting && self.request_lifecycle.active_agent_request.is_none() {
+            self.fork_request_submitted = false;
+        }
+    }
+}
+
+impl<R> SessionRuntimeState<R> {
+    pub fn restore_open_binding(&mut self, binding: &vw_api_chat_identity::SessionAgentIdentity) {
+        if !self.fork_agent_selected {
+            self.agent = (binding.agent != desktop_settings_agents::state::MAIN_AGENT_KEY).then(|| binding.agent.clone());
+            self.acp_agent = binding.acp_agent.clone();
+            self.agent_label = binding.label.clone();
+        }
+    }
+}

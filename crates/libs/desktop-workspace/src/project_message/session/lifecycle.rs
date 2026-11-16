@@ -1,6 +1,6 @@
 //! 项目会话登记与网关历史转换；桌面壳负责跨域效果编排。
-use serde_json::{Map, Value};
 use message_types as agent_message;
+use serde_json::{Map, Value};
 use session_ui_types as models;
 
 pub fn cache_project_session(
@@ -675,8 +675,6 @@ pub fn remote_history_is_incomplete(
         || (shared_known_count == 0 && remote_ids.len() < current_ids.len())
 }
 
-
-
 /// 合并网关与本地历史，保留重置边界及较完整的本地快照。
 pub fn select_loaded_history(
     msgs: Vec<agent_message::WithParts>,
@@ -695,52 +693,106 @@ pub fn select_loaded_history(
     } else {
         let (converted, converted_ids) =
             loaded_chat_from_gateway_messages(msgs, compaction_completed_text);
-        let (converted, converted_ids) =
-            if let Some(reset_boundary) = reset_boundary.as_deref() {
-                filter_loaded_chat_after_reset_boundary(
-                    converted,
-                    converted_ids,
-                    reset_boundary,
-                    local_message_ids.as_deref().unwrap_or(&[]),
-                )
-            } else {
-                (converted, converted_ids)
-            };
+        let (converted, converted_ids) = if let Some(reset_boundary) = reset_boundary.as_deref() {
+            filter_loaded_chat_after_reset_boundary(
+                converted,
+                converted_ids,
+                reset_boundary,
+                local_message_ids.as_deref().unwrap_or(&[]),
+            )
+        } else {
+            (converted, converted_ids)
+        };
 
         if let Some(local) = local_messages.clone()
             && converted.len() < local.len()
         {
             shorter_gateway = Some((converted.len(), local.len()));
-            let ids =
-                local_message_ids.unwrap_or_else(|| vec![None; local.len()]);
+            let ids = local_message_ids.unwrap_or_else(|| vec![None; local.len()]);
             (local, ids)
         } else if !converted.is_empty() {
             (converted, converted_ids)
         } else if let Some(local) = local_messages
             && !local.is_empty()
         {
-            let ids =
-                local_message_ids.unwrap_or_else(|| vec![None; local.len()]);
+            let ids = local_message_ids.unwrap_or_else(|| vec![None; local.len()]);
             (local, ids)
         } else {
             (Vec::new(), Vec::new())
         }
     };
 
-    let next_ids = if next_chat.len() == next_ids.len() {
-        next_ids
-    } else {
-        vec![None; next_chat.len()]
-    };
+    let next_ids =
+        if next_chat.len() == next_ids.len() { next_ids } else { vec![None; next_chat.len()] };
     (next_chat, next_ids, shorter_gateway)
 }
 
-pub fn same_visible_history(current: &[models::ChatMessage], loaded: &[models::ChatMessage]) -> bool {
-    current.len() == loaded.len() && current.iter().zip(loaded).all(|(current, loaded)| {
-        current.role == loaded.role && current.content == loaded.content
-    })
+pub fn same_visible_history(
+    current: &[models::ChatMessage],
+    loaded: &[models::ChatMessage],
+) -> bool {
+    current.len() == loaded.len()
+        && current.iter().zip(loaded).all(|(current, loaded)| {
+            current.role == loaded.role && current.content == loaded.content
+        })
 }
 
 #[cfg(test)]
 #[path = "lifecycle_tests.rs"]
 mod tests;
+
+/// Project membership changes do not own session runtimes or render caches.
+pub struct SessionMembership<'a> {
+    pub sessions: &'a mut Vec<session_info::Info>,
+    pub projects: &'a mut std::collections::HashMap<String, Vec<session_info::Info>>,
+}
+impl SessionMembership<'_> {
+    pub fn archive(&mut self, id: &str, mut now_ms: impl FnMut() -> u64) {
+        if let Some(info) = self.sessions.iter_mut().find(|info| info.id == id) {
+            info.time.archived = Some(now_ms());
+        }
+        for sessions in self.projects.values_mut() {
+            if let Some(info) = sessions.iter_mut().find(|info| info.id == id) {
+                info.time.archived = Some(now_ms());
+            }
+        }
+    }
+    pub fn delete(&mut self, id: &str) {
+        if let Some(pos) = self.sessions.iter().position(|info| info.id == id) {
+            self.sessions.remove(pos);
+        }
+        for sessions in self.projects.values_mut() {
+            if let Some(pos) = sessions.iter().position(|info| info.id == id) {
+                sessions.remove(pos);
+            }
+        }
+    }
+    pub fn replacement(&self, excluded: Option<&str>) -> Option<String> {
+        self.sessions
+            .iter()
+            .find(|info| {
+                info.time.archived.is_none()
+                    && excluded != Some(info.id.as_str())
+                    && info.is_user_navigable()
+            })
+            .map(|info| info.id.clone())
+    }
+    pub fn insert(
+        &mut self,
+        current_project: Option<&str>,
+        info: session_info::Info,
+        created: bool,
+    ) -> bool {
+        if (created || current_project == Some(info.directory.as_str()))
+            && !self.sessions.iter().any(|s| s.id == info.id)
+        {
+            self.sessions.insert(0, info.clone());
+        }
+        let key = current_project.unwrap_or(&info.directory).to_owned();
+        let sessions = self.projects.entry(key).or_default();
+        if !sessions.iter().any(|s| s.id == info.id) {
+            sessions.insert(0, info.clone());
+        }
+        !info.parent_id.as_deref().is_some_and(|id| !id.trim().is_empty())
+    }
+}

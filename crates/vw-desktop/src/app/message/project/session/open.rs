@@ -5,16 +5,17 @@
 use super::common::reset_new_session_picker_state;
 use crate::app::message::project::ProjectMessage;
 use crate::app::message::project::helpers::{
-    list_gateway_project_sessions,
-    load_prepared_session_open_from_gateway_task, load_project_worktree_picker_options,
-    prepare_session_ui_task,
+    list_gateway_project_sessions, load_prepared_session_open_from_gateway_task,
+    load_project_worktree_picker_options, prepare_session_ui_task,
 };
 use crate::app::projects::save_recent_projects_meta_background;
-use crate::app::{App, Message, models};
+use crate::app::{App, Message};
 use session_info::Info;
 use web_time::Instant;
 
-use desktop_workspace::project_message::session_open::{self, Navigation, ListEvent, ListEffect, SessionLists};
+use desktop_workspace::project_message::session_open::{
+    self, ListEffect, ListEvent, Navigation, SessionLists,
+};
 
 pub(crate) fn open_session_draft(
     app: &mut App,
@@ -26,28 +27,14 @@ pub(crate) fn open_session_draft(
     app.agent_stream_id = app.agent_stream_id.wrapping_add(1);
     app.active_session_id = None;
     app.chat_scroll_id = iced::widget::Id::unique();
-    app.chat.clear();
-    app.chat_message_ids.clear();
+    super::lifecycle::history_state(app).blank_draft();
     app.files.clear();
-    app.usage = models::TokenUsage::default();
-    app.active_session_view_state = Default::default();
     app.invalidate_chat_ui_state();
     app.input_popovers.recommended_prompt = false;
     app.input_popovers.agent_sessions = false;
     app.input_editor = iced::widget::text_editor::Content::new();
     app.reset_draft_full_access();
-    let runtime = app.current_session_runtime_mut();
-    runtime.input_editor = iced::widget::text_editor::Content::new();
-    runtime.fork_execution_started = None;
-    runtime.fork_request_submitted = false;
-    runtime.fork_agent_selected = false;
-    runtime.acp_options_state.source_pending = None;
-    runtime.acp_options_state.source_request_id = None;
-    runtime.draft = Some(crate::app::state::SessionDraft {
-        project_path,
-        directory: directory.clone(),
-        history_len: 0,
-    });
+    app.current_session_runtime_mut().open_draft(project_path, directory.clone());
     app.sync_active_session_preferences();
     app.new_session_last_directory = Some(directory.clone());
     app.save_desktop_preference("new_session_last_directory", serde_json::Value::String(directory))
@@ -85,14 +72,7 @@ pub(crate) fn open_project_session(
 
     app.prepare_historical_session_model(&id);
     if let Some(started) = execution_state {
-        let runtime = app.get_session_runtime_mut(&id);
-        runtime.fork_execution_started = started;
-        if started != Some(false) {
-            runtime.fork_agent_selected = false;
-        }
-        if !runtime.request_lifecycle.is_requesting && runtime.request_lifecycle.active_agent_request.is_none() {
-            runtime.fork_request_submitted = false;
-        }
+        app.get_session_runtime_mut(&id).apply_open_execution_state(started);
     }
     app.chat_fork_dialog = None;
     app.active_session_id = Some(id.clone());
@@ -130,15 +110,15 @@ pub(crate) fn open_project_session(
 
     app.chat_scroll_id = iced::widget::Id::unique();
     app.restore_chat_for_session(&id);
-    app.usage = models::TokenUsage::default();
-    app.active_session_view_state.updated_ms = 0;
-    app.clear_active_session_steps();
-    app.active_session_view_state.ui_preparing = true;
-    app.active_session_view_state.base_ready = false;
+    super::lifecycle::history_state(app)
+        .begin_cold_open(crate::app::components::chat_panel::trajectory::project_trajectory);
     app.sync_active_session_preferences();
-    let has_requesting_cache =
-        app.session_is_requesting(&id) && app.session_chat_cache.contains_key(&id);
-    let requesting_cache_prewarm_task = if has_requesting_cache && !app.chat.is_empty() {
+    use desktop_session::session::history_commit::ColdHistory;
+    let requesting = app.session_is_requesting(&id);
+    let cached = app.session_chat_cache.contains_key(&id);
+    let history_route = super::lifecycle::history_state(app).cold_history(requesting, cached);
+    let has_requesting_cache = history_route != ColdHistory::Remote;
+    let requesting_cache_prewarm_task = if history_route == ColdHistory::RequestingMessages {
         let base_chunk_start = app.preferred_base_chat_ui_chunk_start();
         app.pin_chat_ui_chunk(Some(base_chunk_start));
         app.mark_chat_ui_chunks_preparing(&[base_chunk_start]);
@@ -150,9 +130,7 @@ pub(crate) fn open_project_session(
             app.dialogue_flow_show_reasoning_summary,
         )
     } else {
-        if has_requesting_cache {
-            app.active_session_view_state.ui_preparing = false;
-            app.active_session_view_state.base_ready = true;
+        if history_route == ColdHistory::RequestingEmpty {
             app.pin_chat_ui_chunk(None);
         }
         iced::Task::none()
@@ -190,16 +168,29 @@ pub(crate) fn open_project_session(
 fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::Task<Message> {
     app.session_view_cache.navigation_generation += 1;
     let generation = app.session_view_cache.navigation_generation;
-    let requesting_draft = app.session_runtime_states.get(id.trim())
+    let requesting_draft = app
+        .session_runtime_states
+        .get(id.trim())
         .filter(|runtime| runtime.request_lifecycle.is_requesting)
         .and_then(|runtime| runtime.draft.as_ref())
         .map(|draft| (draft.project_path.as_str(), draft.directory.as_str()));
-    let (id, cached, path) = match session_open::navigation(path, id,
-        app.navigation_tabs.project_path.as_ref(), app.project_id.as_deref(), app.active_session_id.as_deref(),
-        &app.sessions, &app.project_sessions, requesting_draft) {
+    let (id, cached, path) = match session_open::navigation(
+        path,
+        id,
+        app.navigation_tabs.project_path.as_ref(),
+        app.project_id.as_deref(),
+        app.active_session_id.as_deref(),
+        &app.sessions,
+        &app.project_sessions,
+        requesting_draft,
+    ) {
         Navigation::Ignore => return iced::Task::none(),
-        Navigation::Cached { project_path, id, info } => return open_project_session(app, project_path, id, Some(info), None),
-        Navigation::Draft { project_path, id } => return open_project_session(app, project_path, id, None, None),
+        Navigation::Cached { project_path, id, info } => {
+            return open_project_session(app, project_path, id, Some(info), None);
+        }
+        Navigation::Draft { project_path, id } => {
+            return open_project_session(app, project_path, id, None, None);
+        }
         Navigation::Resolve { id, cached, path } => (id, cached, path),
     };
     let from_project = app.navigation_tabs.project_path.clone();
@@ -225,23 +216,53 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 失败会被转换为界面可展示的状态或消息，避免在处理链路中静默丢失。
 pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Task<Message>> {
+    use desktop_workspace::project_message::session::overlay;
+    let overlay_event = match &message {
+        ProjectMessage::OpenRecentPressed(path) => Some(overlay::Event::Open(path.clone())),
+        ProjectMessage::SwitchWorkSpacePressed(path) => Some(overlay::Event::Switch(path.clone())),
+        ProjectMessage::CodeProjectsMenuChanged(open) => Some(overlay::Event::Menu(*open)),
+        ProjectMessage::RecentHovered(path) => Some(overlay::Event::Hover(path.clone())),
+        ProjectMessage::RecentOverlayClosed => Some(overlay::Event::Close),
+        ProjectMessage::SessionCreateFailed(error) => {
+            Some(overlay::Event::CreateFailed(error.clone()))
+        }
+        _ => None,
+    };
+    if let Some(event) = overlay_event {
+        let effects = overlay::update(
+            &mut overlay::State {
+                code_menu: &mut app.navigation_mode.code_projects_menu_open,
+                hovered: &mut app.hovered_recent_project,
+                menu_id: &mut app.session_menu_id,
+                menu_anchor: &mut app.session_menu_anchor,
+                tools_path: &mut app.project_tools_menu_path,
+                creating: &mut app.new_session_creating,
+                picker_open: app.new_session_picker_project.is_some(),
+            },
+            event,
+        );
+        let mut tasks = Vec::new();
+        for effect in effects {
+            match effect {
+                overlay::Effect::ResetPicker => reset_new_session_picker_state(app),
+                overlay::Effect::Open(path) => tasks.push(app.open_project_and_index(path)),
+                overlay::Effect::Switch(path) => {
+                    tasks.push(app.switch_work_space_preserving_chat(path))
+                }
+                overlay::Effect::Hover(path) => {
+                    tasks.push(update_lists(app, ListEvent::Hover(path)))
+                }
+                overlay::Effect::CreateFailed(error) => tasks.push(app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "创建新会话失败：%s",
+                    vec![error.into()],
+                )),
+            }
+        }
+        return Some(iced::Task::batch(tasks));
+    }
     // 所有界面事件在一个入口显式匹配，方便审计状态变更和异步任务边界。
     match message {
-        ProjectMessage::OpenRecentPressed(path) => {
-            app.navigation_mode.code_projects_menu_open = false;
-            app.hovered_recent_project = None;
-            app.session_menu_id = None;
-            app.session_menu_anchor = None;
-            reset_new_session_picker_state(app);
-            Some(app.open_project_and_index(path))
-        }
-        ProjectMessage::SwitchWorkSpacePressed(path) => {
-            app.hovered_recent_project = None;
-            app.session_menu_id = None;
-            app.session_menu_anchor = None;
-            reset_new_session_picker_state(app);
-            Some(app.switch_work_space_preserving_chat(path))
-        }
         ProjectMessage::OpenProjectSessionPressed(path, id) => {
             Some(request_session_navigation(app, path, id))
         }
@@ -252,48 +273,48 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             destination,
         } => {
             let task = if let Some((project_path, info)) = session_open::accept_navigation(
-                generation, app.session_view_cache.navigation_generation,
-                &from_project, &app.navigation_tabs.project_path, &from_session, &app.active_session_id, destination) {
+                generation,
+                app.session_view_cache.navigation_generation,
+                &from_project,
+                &app.navigation_tabs.project_path,
+                &from_session,
+                &app.active_session_id,
+                destination,
+            ) {
                 open_project_session(app, project_path, info.id.clone(), Some(*info), None)
             } else {
                 iced::Task::none()
             };
             Some(task)
         }
-        ProjectMessage::CodeProjectsMenuChanged(open) => {
-            app.navigation_mode.code_projects_menu_open = open;
-            app.hovered_recent_project = None;
-            Some(iced::Task::none())
-        }
-        ProjectMessage::RecentHovered(id) => {
-            app.hovered_recent_project = id.clone();
-            Some(id.map(|path| update_lists(app, ListEvent::Hover(path))).unwrap_or_else(iced::Task::none))
-        }
-        ProjectMessage::RecentOverlayClosed => {
-            if app.new_session_picker_project.is_some() {
-                return Some(iced::Task::none());
-            }
-            app.hovered_recent_project = None;
-            app.session_menu_id = None;
-            app.session_menu_anchor = None;
-            app.project_tools_menu_path = None;
-            reset_new_session_picker_state(app);
-            Some(iced::Task::none())
-        }
         ProjectMessage::SessionsLoaded(res) => Some(update_lists(app, ListEvent::Loaded(res))),
-        ProjectMessage::SessionBootstrapLoaded { project_path, result, previews, archived_session_ids } => {
-            Some(update_lists(app, ListEvent::Bootstrap { project_path, result, previews, archived: archived_session_ids }))
-        }
+        ProjectMessage::SessionBootstrapLoaded {
+            project_path,
+            result,
+            previews,
+            archived_session_ids,
+        } => Some(update_lists(
+            app,
+            ListEvent::Bootstrap { project_path, result, previews, archived: archived_session_ids },
+        )),
         ProjectMessage::ProjectInfoLoaded(res) => {
             if let Ok(loaded) = res {
-                let Some(completed) = session_open::complete_project(app.navigation_tabs.project_path.as_deref(),
-                    &loaded.project_path, &mut app.recent_projects_meta, loaded.info, loaded.current_branch)
-                else { return Some(iced::Task::none()); };
+                let Some(completed) = session_open::complete_project(
+                    app.navigation_tabs.project_path.as_deref(),
+                    &loaded.project_path,
+                    &mut app.recent_projects_meta,
+                    loaded.info,
+                    loaded.current_branch,
+                ) else {
+                    return Some(iced::Task::none());
+                };
                 if completed.metadata_changed {
                     save_recent_projects_meta_background(app.recent_projects_meta.clone());
                 }
                 app.project_updated_at_ms = completed.updated_at;
-                if completed.selected_branch.is_some() { app.git.selected_branch = completed.selected_branch; }
+                if completed.selected_branch.is_some() {
+                    app.git.selected_branch = completed.selected_branch;
+                }
                 app.project_is_git_repo = completed.is_git_repo;
                 if !app.project_is_git_repo {
                     app.task_board_worktree_snapshot = None;
@@ -310,19 +331,29 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             Some(iced::Task::none())
         }
-        ProjectMessage::ProjectSessionsLoaded(path, res) => Some(update_lists(app, ListEvent::ProjectLoaded(path, res))),
-        ProjectMessage::ProjectSessionListScrollChanged { project_path, has_vertical_scrollbar } => Some(update_lists(app, ListEvent::Scrollbar(project_path, has_vertical_scrollbar))),
-        ProjectMessage::ProjectLoadMoreSessions(path) => Some(update_lists(app, ListEvent::More(path))),
+        ProjectMessage::ProjectSessionsLoaded(path, res) => {
+            Some(update_lists(app, ListEvent::ProjectLoaded(path, res)))
+        }
+        ProjectMessage::ProjectSessionListScrollChanged {
+            project_path,
+            has_vertical_scrollbar,
+        } => Some(update_lists(app, ListEvent::Scrollbar(project_path, has_vertical_scrollbar))),
+        ProjectMessage::ProjectLoadMoreSessions(path) => {
+            Some(update_lists(app, ListEvent::More(path)))
+        }
         ProjectMessage::ProjectCreateSession(project_path) => {
-            let worktree_enabled = app.project_worktree_enabled.get(&project_path).copied().unwrap_or(false);
+            let worktree_enabled =
+                app.project_worktree_enabled.get(&project_path).copied().unwrap_or(false);
             let creation = session_open::creation(app.new_session_creating, worktree_enabled);
-            if matches!(creation, session_open::Creation::Ignore) { return Some(iced::Task::none()); }
-            let project_switch_task = if app.navigation_tabs.project_path.as_deref() == Some(project_path.as_str())
-            {
-                iced::Task::none()
-            } else {
-                app.open_project_and_index(project_path.clone())
-            };
+            if matches!(creation, session_open::Creation::Ignore) {
+                return Some(iced::Task::none());
+            }
+            let project_switch_task =
+                if app.navigation_tabs.project_path.as_deref() == Some(project_path.as_str()) {
+                    iced::Task::none()
+                } else {
+                    app.open_project_and_index(project_path.clone())
+                };
             if matches!(creation, session_open::Creation::Draft) {
                 reset_new_session_picker_state(app);
                 let draft = open_session_draft(app, project_path.clone(), project_path);
@@ -344,18 +375,17 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 ),
             ]))
         }
-        ProjectMessage::SessionCreateFailed(error) => {
-            app.new_session_creating = false;
-            Some(app.show_localized_toast(
-                crate::app::state::ToastKind::Error,
-                "创建新会话失败：%s",
-                vec![format!("{}", error).into()],
-            ))
-        }
         ProjectMessage::ProjectBranchesLoaded { project_path, selected_branch, branches } => {
-            desktop_workspace::projects::apply_branch_snapshot(app.navigation_tabs.project_path.as_deref(),
-                desktop_workspace::projects::ProjectBranchSnapshot { project_path, selected_branch, branches },
-                &mut app.git.selected_branch, &mut app.git.branches);
+            desktop_workspace::projects::apply_branch_snapshot(
+                app.navigation_tabs.project_path.as_deref(),
+                desktop_workspace::projects::ProjectBranchSnapshot {
+                    project_path,
+                    selected_branch,
+                    branches,
+                },
+                &mut app.git.selected_branch,
+                &mut app.git.branches,
+            );
             Some(iced::Task::none())
         }
         ProjectMessage::ProjectLoadSessions(path) => Some(update_lists(app, ListEvent::Load(path))),
@@ -395,11 +425,19 @@ pub(crate) fn open_existing_checkout(
 }
 
 fn update_lists(app: &mut App, event: ListEvent) -> iced::Task<Message> {
-    let effects = session_open::update_lists(&mut SessionLists {
-        sessions: &mut app.sessions, previews: &mut app.session_previews, archived: &mut app.archived_session_ids,
-        projects: &mut app.project_sessions, counts: &mut app.project_session_load_counts,
-        loading: &mut app.project_sessions_loading, scrollbars: &mut app.project_session_has_vertical_scrollbar,
-    }, &app.navigation_tabs.project_path, event);
+    let effects = session_open::update_lists(
+        &mut SessionLists {
+            sessions: &mut app.sessions,
+            previews: &mut app.session_previews,
+            archived: &mut app.archived_session_ids,
+            projects: &mut app.project_sessions,
+            counts: &mut app.project_session_load_counts,
+            loading: &mut app.project_sessions_loading,
+            scrollbars: &mut app.project_session_has_vertical_scrollbar,
+        },
+        &app.navigation_tabs.project_path,
+        event,
+    );
     let mut tasks = Vec::new();
     for effect in effects {
         match effect {
@@ -407,10 +445,13 @@ fn update_lists(app: &mut App, event: ListEvent) -> iced::Task<Message> {
             ListEffect::Error(text) => app.error_message = Some(text),
             ListEffect::Load(path) => {
                 let project_path = path.clone();
-                tasks.push(iced::Task::perform(async move {
-                    let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
-                    list_gateway_project_sessions(&client, &project_path).await
-                }, |result| Message::Project(ProjectMessage::ProjectSessionsLoaded(path, result))));
+                tasks.push(iced::Task::perform(
+                    async move {
+                        let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
+                        list_gateway_project_sessions(&client, &project_path).await
+                    },
+                    |result| Message::Project(ProjectMessage::ProjectSessionsLoaded(path, result)),
+                ));
             }
         }
     }

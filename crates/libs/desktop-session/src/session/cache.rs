@@ -130,3 +130,19 @@ pub fn prune_runtime_snapshots<R>(
         ids,
     );
 }
+
+/// Forget all session-owned runtime and history resources after the host cancels native panels.
+pub fn remove_session<R, S: super::view_cache::ViewSnapshot>(
+    id: &str,
+    runtimes: &mut HashMap<String, super::agent::SessionRuntimeState<R>>,
+    views: &mut super::view_cache::SessionViewCache<S>,
+    chats: &mut HashMap<String, SharedChatMessages>,
+    message_ids: &mut HashMap<String, Vec<Option<String>>>,
+    reset_boundaries: &mut HistoryResetBoundaries,
+) {
+    runtimes.remove(id);
+    views.remove(id);
+    chats.remove(id);
+    message_ids.remove(id);
+    reset_boundaries.remove(id);
+}

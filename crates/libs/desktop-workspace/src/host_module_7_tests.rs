@@ -113,3 +113,15 @@ fn history_open_rejects_stale_target_and_preserves_remote_reset_boundary() {
     assert_eq!(open.accept(Some("current")), HistoryDecision::Discard);
     assert_eq!(open.accept(None), HistoryDecision::Discard);
 }
+
+mod worktree_tests;
+
+mod interaction_tests;
+
+mod edit_tests;
+
+mod list_tests;
+
+mod membership_tests;
+
+mod overlay_tests;

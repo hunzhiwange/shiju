@@ -102,3 +102,8 @@ pub mod archived_acceptance;
 
 #[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
 pub mod native_fork_acceptance;
+
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod stream_runtime_acceptance;
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod stream_runtime_acceptance_host;

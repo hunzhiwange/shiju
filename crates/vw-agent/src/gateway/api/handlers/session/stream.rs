@@ -177,8 +177,6 @@ use super::shared::with_tenant_instance;
 use crate::gateway::instance::InstanceQuery;
 #[cfg(test)]
 use crate::{project::instance, session as agent_session};
-#[cfg(test)]
-use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{Extension, Json, extract::Query, http::HeaderMap};
 #[cfg(test)]

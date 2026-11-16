@@ -28,24 +28,10 @@ pub(super) async fn prepare(
     // Resolve the current catalog on every issue/reissue; persisted launch records
     // cannot supply a Provider snapshot or resurrect removed models.
     let resolved = provider::get_model(&model.provider_id, &model.id).await?;
-    anyhow::ensure!(
-        resolved.status == "active" && !super::super::prompt::is_acp_model(&resolved),
-        "ACP launch requires an active non-ACP model"
-    );
-    // Claude verifies its native engine when spawning, so reused sessions do
-    // not hash the same running executable on every turn.
-    if agent != "claude" {
-        acp_agent_registry::verify_reviewed_agent_executable(agent, &config.command)
-            .map_err(anyhow::Error::msg)?;
-    }
     let identity = launch_identity(context.project.id.clone(), agent, model, session);
-    let mut profile = AcpLaunchProfile::new(config, identity)?;
-    profile.state_root = Some(
-        std::env::var_os("VIBEWINDOW_CONFIG_DIR")
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|| crate::global::paths().state.clone()),
-    );
-    profile.apply_model(&resolved);
+    let state_root = || std::env::var_os("VIBEWINDOW_CONFIG_DIR").map(std::path::PathBuf::from)
+        .unwrap_or_else(|| crate::global::paths().state.clone());
+    let mut profile = llm_runtime::acp::model_source::prepare_profile(agent, config, &resolved, identity, state_root)?;
     let server = RelayServer::start(
         profile.binding.clone(),
         std::sync::Arc::new(ProviderRelayBackend::new()?),
@@ -54,10 +40,7 @@ pub(super) async fn prepare(
     .await?;
     let endpoint = format!("http://{}", server.address());
     profile.attach_server(server);
-    drivers::configure(agent, &mut profile, &endpoint)?;
-    if let Some(gateway) = profile.gateway.as_mut() {
-        gateway.start().await?;
-    }
+    llm_runtime::acp::model_source::configure_profile(agent, &mut profile, &endpoint).await?;
     Ok(profile)
 }
 

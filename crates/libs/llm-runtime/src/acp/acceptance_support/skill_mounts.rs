@@ -270,3 +270,37 @@ pub async fn run<H: AcceptanceHost>(input: Value, agent: &str) {
         }
     }
 }
+
+/// Assert initial prompt secrecy using the real host default-resolution port.
+pub async fn initial_prompt_contains_no_body<H: crate::acp::host::Host>(root: &std::path::Path) {
+    let skill = root.join("skills/acceptance");
+    std::fs::create_dir_all(&skill).unwrap();
+    std::fs::write(
+        skill.join("SKILL.md"),
+        "---\nname: acceptance\ndescription: fixture\n---\nPRIVATE_SKILL_BODY\n",
+    )
+    .unwrap();
+    let mut config = agent_config::schema::Config::default();
+    config.agents.insert("acp-codex".into(), serde_json::from_value(json!({"provider":"", "model":"",
+        "defaults":{"skills":{"mode":"fixed","value":["acceptance"]},"mcp":{"mode":"fixed","value":[]}}})).unwrap());
+    let mut parsed = crate::acp::options::ParsedAcpOptions::<H::Skills>::default();
+    let messages = H::agent_defaults(
+        &config,
+        &json!({"agent":"acp-codex"}),
+        "codex",
+        root,
+        &mut parsed,
+        &json!([{"role":"user","content":"use the skill"}]),
+    )
+    .await
+    .unwrap();
+    let prompt = crate::acp::replay::build_request_prompt(
+        &messages,
+        false,
+        crate::acp::options::AcpReplayStrategy::Discard,
+        3,
+    );
+    assert!(!prompt.contains("PRIVATE_SKILL_BODY"));
+    assert_eq!(parsed.skill_mounts.len(), 1);
+    assert_eq!(std::path::Path::new(&parsed.skill_mounts[0].path), skill.canonicalize().unwrap());
+}

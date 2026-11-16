@@ -28,3 +28,5 @@ pub mod skill_mounts;
 
 pub mod codex;
 pub mod negative;
+
+pub mod profile;

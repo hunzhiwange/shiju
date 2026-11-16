@@ -54,49 +54,8 @@ async fn acp_model_source_launch_profile_http_reissue_isolates_old_credentials()
     };
     let mut id = identity("http-owner");
     id.project = project.id;
-    let mut profile = AcpLaunchProfile::new(&Default::default(), id.clone()).unwrap();
-    let token = profile.binding.bearer_token().to_owned();
-    let server = RelayServer::start(
-        profile.binding.clone(),
-        std::sync::Arc::new(ModelService),
-        context.clone(),
-    )
-    .await
-    .unwrap();
-    let url = format!("http://{}/v1/chat/completions", server.address());
-    profile.attach_server(server);
-    let client = crate::model_relay::upstream_http_client().unwrap();
-    let body =
-        serde_json::json!({"model": "model", "messages": [{"role": "user", "content": "hello"}]});
-    assert_eq!(
-        client.post(&url).bearer_auth(&token).json(&body).send().await.unwrap().status(),
-        200
-    );
-    let reference = profile.config().env[profile::REFERENCE_ENV].clone();
-    drop(profile);
-    let mut restored = AcpLaunchProfile::new(&Default::default(), id).unwrap();
-    assert_eq!(reference, restored.config().env[profile::REFERENCE_ENV]);
-    let server =
-        RelayServer::start(restored.binding.clone(), std::sync::Arc::new(ModelService), context)
-            .await
-            .unwrap();
-    let url = format!("http://{}/v1/chat/completions", server.address());
-    restored.attach_server(server);
-    assert_eq!(
-        client.post(&url).bearer_auth(token).json(&body).send().await.unwrap().status(),
-        401
-    );
-    assert_eq!(
-        client
-            .post(&url)
-            .bearer_auth(restored.binding.bearer_token())
-            .json(&body)
-            .send()
-            .await
-            .unwrap()
-            .status(),
-        200
-    );
+    llm_runtime::acp::acceptance_support::profile::http_reissue(id, |binding| {
+        let context = context.clone();
+        async move { RelayServer::start(binding, std::sync::Arc::new(ModelService), context).await.map(Into::into) }
+    }).await;
 }
-
-// Profile identity-boundary coverage lives with its owner in llm-runtime.

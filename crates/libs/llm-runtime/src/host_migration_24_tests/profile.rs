@@ -34,3 +34,24 @@ fn acp_model_source_launch_profile_all_drivers_fail_closed_without_secret_errors
         assert!(!error.contains(profile.binding.bearer_token()));
     }
 }
+
+#[path = "../aisdk/convert_test_support.rs"]
+mod models;
+
+#[test]
+fn launch_profile_rejects_inactive_and_acp_models_before_executable_access() {
+    for (status, provider, adapter) in [
+        ("disabled", "provider", "openai-compatible"),
+        ("active", "acp", "openai-compatible"),
+        ("active", "provider", "acp"),
+        ("active", "provider", "agent-client-protocol"),
+        ("active", "provider", "agent_client_protocol"),
+    ] {
+        let mut model = models::test_model(provider, adapter, "https://example.test/v1", "model", "Model");
+        model.status = status.into();
+        let error = crate::acp::model_source::prepare_profile(
+            "codex", &Default::default(), &model, identity("rejected"), || panic!("invalid model must not resolve host state"),
+        ).err().expect("invalid model must fail before launch material or executable access");
+        assert_eq!(error.to_string(), "ACP launch requires an active non-ACP model");
+    }
+}

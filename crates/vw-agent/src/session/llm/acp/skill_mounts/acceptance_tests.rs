@@ -10,7 +10,6 @@ async fn run(value: &str) {
     let context = crate::project::instance::Context { directory: root.to_string_lossy().into(), worktree: project.worktree.clone(), project };
     crate::project::instance::provide_context(context, llm_runtime::acp::acceptance_support::skill_mounts::run::<super::super::request::RuntimeHost>(input, value)).await;
 }
-use serde_json::json;
 #[tokio::test]
 async fn acp_skill_mount_harness_initial_prompt_contains_no_body() {
     let _guard = crate::test_support::global_async_env_lock().lock().await;
@@ -20,36 +19,7 @@ async fn acp_skill_mount_harness_initial_prompt_contains_no_body() {
     )
     .await;
     let root = tempfile::tempdir().unwrap();
-    let skill = root.path().join("skills/acceptance");
-    std::fs::create_dir_all(&skill).unwrap();
-    std::fs::write(
-        skill.join("SKILL.md"),
-        "---\nname: acceptance\ndescription: fixture\n---\nPRIVATE_SKILL_BODY\n",
-    )
-    .unwrap();
-    let mut config = crate::config::Config::default();
-    config.agents.insert("acp-codex".into(), serde_json::from_value(json!({"provider":"", "model":"",
-        "defaults":{"skills":{"mode":"fixed","value":["acceptance"]},"mcp":{"mode":"fixed","value":[]}}})).unwrap());
-    let mut parsed = super::super::ParsedAcpOptions::default();
-    let messages = super::super::config::apply_agent_defaults(
-        &config,
-        &json!({"agent":"acp-codex"}),
-        "codex",
-        root.path(),
-        &mut parsed,
-        &json!([{"role":"user","content":"use the skill"}]),
-    )
-    .await
-    .unwrap();
-    let prompt = super::super::replay::build_request_prompt(
-        &messages,
-        false,
-        super::super::AcpReplayStrategy::Discard,
-        3,
-    );
-    assert!(!prompt.contains("PRIVATE_SKILL_BODY"));
-    assert_eq!(parsed.skill_mounts.len(), 1);
-    assert_eq!(std::path::Path::new(&parsed.skill_mounts[0].path), skill.canonicalize().unwrap());
+    llm_runtime::acp::acceptance_support::skill_mounts::initial_prompt_contains_no_body::<super::super::request::RuntimeHost>(root.path()).await;
 }
 
 #[tokio::test]

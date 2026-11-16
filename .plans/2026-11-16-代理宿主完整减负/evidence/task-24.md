@@ -923,3 +923,31 @@ This is domain assertion plus real host boundary coverage, not independently reg
 Future: `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib dynamic_tools_acceptance_ -- --test-threads=1` expects the original 5 tests. Static checks: test-name set equality, old helper/mod removal, domain lib registration, dependency direction, retained HTTP status/ownership assertions and scoped git diff --check. These are not compile or behavior proof.
 
 This source: 495 -> 181 lines; domain contract 326 lines. The remaining host methods are the concrete boundary responsibilities above, rather than a whole-file coupling exemption. Prior 495-line retention statements are superseded by this section.
+
+
+## Recovery 4: remaining profile, prompt and production launch policy
+
+Re-read final.md (its stored 43584/8584 snapshot) and current owner=24 files; coordinator reports the more recent whole-plan excess about 4050. This task does not overwrite shared global counts or claim the gate has closed.
+
+Production call mapping: vw-agent::session::llm::acp::model_source::prepare still obtains the actual project context, freshly resolves the provider catalog model and derives the actual tenant-bound identity. It now calls llm-runtime::acp::model_source::prepare_profile for active/non-ACP model rejection, reviewed executable verification (same Claude exception), private profile construction, state-root assignment and apply_model. Host-owned state_root is a closure evaluated only after successful model/executable/private-profile checks, preserving ordering. The host starts the actual ProviderRelayBackend RelayServer and attaches it, then calls configure_profile for the existing driver configuration and optional gateway.start. This is an actual production branch migration, not a new duplicate algorithm. Host tenant/catalog/context/server ports and permission checks remain real.
+
+acp_model_source_launch_profile_http_reissue_isolates_old_credentials keeps its original host test name, global lock, config-dir restore guard, real project/catalog configuration and native RelayServer constructor. The entire first HTTP 200 -> stable launch reference -> profile drop -> new server -> old token 401 -> fresh token 200 sequence now lives in llm-runtime::acp::acceptance_support::profile::http_reissue. The injected server returns the same native service through its existing Into implementation; no fake HTTP admission added. Original ModelService upstream fixture remains unchanged.
+
+acp_skill_mount_harness_initial_prompt_contains_no_body keeps its original host lock, RecoveryConfig and temporary root; calls llm-runtime::acp::acceptance_support::skill_mounts::initial_prompt_contains_no_body with the actual RuntimeHost. The complete SKILL.md fixture, fixed agent defaults, real H::agent_defaults resolution, replay prompt construction, body absence, mount count and canonical-path assertions moved together. Other ignored CLI entries and counts are unchanged.
+
+Added domain test code launch_profile_rejects_inactive_and_acp_models_before_executable_access covers disabled model, ACP provider and all three ACP adapter spellings, and checks the exact existing error. The state-root closure panics if unexpectedly called on rejection. It reuses the existing convert_test_support model fixture via a relative domain-only path. This extra test has NOT run. No intended behavior change and no fabricated red/green evidence.
+
+Future focused commands (not executed):
+- python3 scripts/cargo_slot.py cargo test -p llm-runtime --lib launch_profile_rejects_inactive_and_acp_models_before_executable_access -- --test-threads=1 (Unix: 1)
+- python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp_model_source_launch_profile_http_reissue_isolates_old_credentials -- --test-threads=1 (Unix: 1)
+- python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp_skill_mount_harness_initial_prompt_contains_no_body -- --test-threads=1 (1)
+
+The two integration contracts remain domain assertions + actual host boundaries, not independently registered domain tests. The single new rejection test is domain-registered via existing host_migration_24_tests::profile (Unix). Static checks cover source call mapping, registration, dependency direction, complete assertion sequence and scoped whitespace diff. No Cargo/build/unit/device execution. No added dependency, App/AppState copy, reverse host path or dropped assertion. Remaining thin CLI entries preserve the original names/ignore metadata; remaining prompt/model/Gateway fixture construction is the actual host boundary identified above.
+
+- `crates/vw-agent/src/session/llm/acp/model_source/profile_tests.rs`: 102 -> 61 lines.
+
+- `crates/vw-agent/src/session/llm/acp/skill_mounts/acceptance_tests.rs`: 164 -> 134 lines.
+
+- `crates/vw-agent/src/session/llm/acp/model_source/mod.rs`: 80 -> 63 lines.
+
+This recovery net host reduction: 88 lines; total gate remains a coordinator audit, not a passing test result.

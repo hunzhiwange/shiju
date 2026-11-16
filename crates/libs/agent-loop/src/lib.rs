@@ -39,3 +39,6 @@ extern crate self as agent_loop;
 #[cfg(test)]
 #[path = "tests/loop_suite/mod.rs"]
 mod loop_suite_tests;
+
+#[cfg(test)]
+mod host_migration_27_tests;

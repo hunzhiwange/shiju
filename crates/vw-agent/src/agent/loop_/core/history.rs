@@ -1,12 +1,6 @@
 //! 原解析类型与新历史构建规则的绑定。
 use super::super::parsing::ParsedToolCall;
-use model_types::ToolCall;
-#[cfg(test)]
-use crate::tools::Tool;
 pub use agent_loop::core::history::{autosave_memory_key, tools_to_openai_format, build_native_assistant_history};
-#[cfg(test)]
-#[path = "history_tests.rs"]
-mod history_tests;
 pub(crate) fn build_native_assistant_history_from_parsed_calls(text: &str, calls: &[ParsedToolCall], reasoning: Option<&str>) -> Option<String> {
     agent_loop::core::history::build_native_assistant_history_from_parsed_calls(text, calls, reasoning, |call| agent_loop::core::tool_execution::CallView { name: &call.name, arguments: &call.arguments, tool_call_id: call.tool_call_id.as_deref() })
 }

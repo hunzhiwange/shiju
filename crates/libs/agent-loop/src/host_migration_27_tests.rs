@@ -1,8 +1,11 @@
 //! 测试工具规格和工具调用写入供应商历史时的规范化行为。
 //! 固定工具规格与调用编号用于验证空内容、空调用和缺失编号的序列化边界。
 
-use super::*;
-use crate::app::agent::tools::{ToolResult, ToolSpec};
+use crate::core::history::{autosave_memory_key, tools_to_openai_format, build_native_assistant_history};
+use crate::parsing::ParsedToolCall;
+use model_types::ToolCall;
+use tool_types::Tool;
+use tool_types::{ToolResult, ToolSpec};
 use async_trait::async_trait;
 use serde_json::Value;
 
@@ -166,4 +169,18 @@ fn parsed_tool_calls_without_id_return_none() {
     }];
 
     assert!(build_native_assistant_history_from_parsed_calls("text", &calls, None).is_none());
+}
+
+fn build_native_assistant_history_from_parsed_calls(
+    text: &str,
+    calls: &[ParsedToolCall],
+    reasoning: Option<&str>,
+) -> Option<String> {
+    crate::core::history::build_native_assistant_history_from_parsed_calls(
+        text, calls, reasoning, |call| crate::core::tool_execution::CallView {
+            name: &call.name,
+            arguments: &call.arguments,
+            tool_call_id: call.tool_call_id.as_deref(),
+        },
+    )
 }

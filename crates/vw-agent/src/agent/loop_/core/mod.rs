@@ -59,8 +59,6 @@ pub(crate) use constants::DEFAULT_MAX_HISTORY_MESSAGES;
 #[cfg(test)]
 pub(crate) use constants::DEFAULT_MAX_ITERATIONS;
 #[cfg(test)]
-pub(crate) use history::{
-    build_native_assistant_history_from_parsed_calls, tools_to_openai_format,
-};
+pub(crate) use history::tools_to_openai_format;
 #[cfg(test)]
 pub(crate) use tool_loop::looks_like_unverified_action_completion_without_tool_call;

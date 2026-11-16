@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::app::agent::config::{
-    Config, DelegateAgentConfig, MemoryConfig,
+    Config, MemoryConfig,
 };
 use crate::app::agent::memory::{self, Memory};
 use crate::app::agent::runtime::NativeRuntime;
@@ -29,171 +29,17 @@ fn test_config(workspace: &Path) -> Config {
     }
 }
 
-
-
-fn agent_config(mode: &str, enabled: bool, allowed_skills: Vec<String>) -> DelegateAgentConfig {
-    DelegateAgentConfig {
-        runtime: Default::default(),
-        recommended_prompts: Vec::new(),
-        defaults: Default::default(),
-        label: None,
-        description: None,
-        builtin: false,
-        mode: mode.to_string(),
-        enabled,
-        allow_as_subagent: true,
-        max_parallel_subagents: 4,
-        provider: "ollama".to_string(),
-        model: "llama3".to_string(),
-        force_model_selection: false,
-        system_prompt: None,
-        api_key: None,
-        temperature: None,
-        top_p: None,
-        identity_format: None,
-        hidden: false,
-        max_depth: 3,
-        agentic: false,
-        allowed_tools: Vec::new(),
-        skill_policy: Default::default(),
-        allowed_skills,
-        enabled_identity_files: Vec::new(),
-        options: HashMap::new(),
-        permission: serde_json::Value::Null,
-        max_iterations: 10,
-        compact_context: false,
-        max_history_messages: 100,
-        parallel_tools: false,
-        steps: None,
-    }
-}
-
-#[test]
-fn delegate_agents_auto_load_project_skills_by_default_and_preserve_explicit_skills() {
-    let dir = tempfile::tempdir().unwrap();
-    let workspace = dir.path().join("workspace");
-    std::fs::create_dir_all(workspace.join(".git")).unwrap();
-    let skill_dir = workspace.join(".agents/skills/project-skill");
-    std::fs::create_dir_all(&skill_dir).unwrap();
-    std::fs::write(
-        skill_dir.join("SKILL.md"),
-        "---\nname: project-skill\ndescription: Project skill\n---\n",
-    )
-    .unwrap();
-
-    let root_config = test_config(&workspace);
-    let agents = HashMap::from([(
-        "worker".to_string(),
-        agent_config("all", true, vec!["explicit-skill".to_string()]),
-    )]);
-
-    let effective = enabled_delegate_agents_with_project_skills(&agents, &workspace, &root_config);
-
-    assert_eq!(
-        effective["worker"].allowed_skills,
-        vec!["explicit-skill".to_string(), "project-skill".to_string()]
-    );
-}
-
-#[test]
-fn delegate_agents_require_explicit_skills_when_project_auto_load_is_disabled() {
-    let dir = tempfile::tempdir().unwrap();
-    let workspace = dir.path().join("workspace");
-    std::fs::create_dir_all(workspace.join(".git")).unwrap();
-    let skill_dir = workspace.join("skills/project-skill");
-    std::fs::create_dir_all(&skill_dir).unwrap();
-    std::fs::write(skill_dir.join("SKILL.md"), "# Project Skill\n").unwrap();
-
-    let mut root_config = test_config(&workspace);
-    root_config.skills.auto_load_project_skills = false;
-    let agents = HashMap::from([(
-        "worker".to_string(),
-        agent_config("all", true, vec!["explicit-skill".to_string()]),
-    )]);
-
-    let effective = enabled_delegate_agents_with_project_skills(&agents, &workspace, &root_config);
-
-    assert_eq!(effective["worker"].allowed_skills, vec!["explicit-skill".to_string()]);
-}
-
-
-
 fn tool_names(tools: &[Box<dyn Tool>]) -> Vec<&str> {
     tools.iter().map(|tool| tool.name()).collect()
 }
 
-// 本地 stdio 服务用于检查动态工具注册和执行，不依赖用户的 MCP 配置。
-
-
-def send(payload):
-    sys.stdout.write(json.dumps(payload, separators=(",", ":")) + "\n")
-    sys.stdout.flush()
-
-for line in sys.stdin:
-    if not line.strip():
-        continue
-    message = json.loads(line)
-    method = message.get("method")
-    request_id = message.get("id")
-    if method == "initialize":
-        params = message.get("params") or {}
-        send({
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "result": {
-                "protocolVersion": params.get("protocolVersion", "2025-06-18"),
-                "capabilities": {"tools": {"listChanged": False}},
-                "serverInfo": {"name": "fixture-mcp", "version": "1.0.0"},
-                "instructions": "Fixture instructions for dynamic MCP tool tests."
-            }
-        })
-    elif method == "tools/list":
-        send({"jsonrpc": "2.0", "id": request_id, "result": {"tools": [TOOL]}})
-    elif method == "tools/call":
-        params = message.get("params") or {}
-        arguments = params.get("arguments") or {}
-        send({
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "result": {
-                "content": [{"type": "text", "text": "echo:" + str(arguments.get("message", ""))}],
-                "structuredContent": {"echoed": arguments.get("message", "")},
-                "isError": False
-            }
-        })
-    elif request_id is not None:
-        send({"jsonrpc": "2.0", "id": request_id, "result": {}})
-"#,
-    )
-    .unwrap();
-    script
-}
-
-
-
-
-
 // 先固定纯辅助逻辑，再由后续用例组合运行时、MCP 与递归代理上下文。
-
-
 
 #[tokio::test]
 async fn block_on_bridges_when_called_inside_tokio_runtime() {
     let value = block_on(async { 42 });
     assert_eq!(value, 42);
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 #[test]
 fn all_tools_wrapper_registers_default_network_tools() {
@@ -226,28 +72,6 @@ fn all_tools_wrapper_registers_default_network_tools() {
     assert!(!names.contains(&"web_fetch"));
     assert!(names.contains(&"batch"));
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #[test]
 fn thread_tools_visible_without_tool_search() {
@@ -337,12 +161,6 @@ async fn workflow_and_goal_sessions_inherit_recursive_agent_tool_controls() {
     }
 }
 
-
-
-
-
-
-
 #[test]
 fn shell_outer_timeout_yield_does_not_cancel_process() {
     let dir = tempfile::tempdir().unwrap();
@@ -424,36 +242,6 @@ async fn codex_plugin_compat_t57_toolset_bridge_preserves_turn_and_tenant() {
         });
     })
     .await;
-}
-
-#[test]
-fn agent_config_cleanup_delegate_fixed_selection_preserves_strict_boundary() {
-    use config_agent_profile::AgentDefault;
-    use config_agent::DelegateCapabilityPolicy;
-    let dir = tempfile::tempdir().unwrap();
-    let workspace = dir.path();
-    std::fs::create_dir_all(workspace.join(".git")).unwrap();
-    let skill_dir = workspace.join("skills/project-skill");
-    std::fs::create_dir_all(&skill_dir).unwrap();
-    std::fs::write(
-        skill_dir.join("SKILL.md"),
-        "---\nname: project-skill\ndescription: fixture\n---\n",
-    )
-    .unwrap();
-    let root = test_config(workspace);
-    for selection in [
-        AgentDefault::Inherit,
-        AgentDefault::Fixed(vec![]),
-        AgentDefault::Fixed(vec!["allowed".into()]),
-    ] {
-        let mut config = agent_config("all", true, vec!["allowed".into()]);
-        config.skill_policy = DelegateCapabilityPolicy::Strict;
-        config.defaults.skills = selection.clone();
-        let agents = HashMap::from([("worker".into(), config)]);
-        let result = enabled_delegate_agents_with_project_skills(&agents, workspace, &root);
-        assert_eq!(result["worker"].allowed_skills, vec!["allowed"]);
-        assert_eq!(result["worker"].defaults.skills, selection);
-    }
 }
 
 #[test]

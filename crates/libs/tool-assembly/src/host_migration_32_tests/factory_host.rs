@@ -17,7 +17,8 @@ impl FactoryHost for Host {
  fn block_on<F: Future + Send>(f: F) -> F::Output where F::Output: Send {
   std::thread::scope(|s| s.spawn(|| tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(f)).join().unwrap())
  }
- fn construct(tool: ToolConstruction, _: &ConstructionContext<'_>) -> Arc<dyn Tool> {
+ fn construct(tool: ToolConstruction, context: &ConstructionContext<'_>) -> Arc<dyn Tool> {
+  if let Some(tool) = crate::domain_construction::construct_domain_tool::<Self>(&tool, context) { return tool; }
   use ToolConstruction::*;
   let id = match tool {
 #[cfg(not(target_arch = "wasm32"))]
@@ -98,7 +99,7 @@ McpStatusTool => "mcp_status",
  fn search_tool(catalog: &ToolDiscoveryCatalog) -> Arc<dyn Tool> { Arc::new(crate::tool_search::ContextToolSearchTool::<Self>::new(catalog)) }
  fn agent_tool(_: HashMap<String, DelegateAgentConfig>, _: Option<String>, _: PathBuf, _: Option<tool_agents::agent_tool::AgentToolChildSessionCreatedCallback>) -> Arc<dyn Tool> { Arc::new(Selected("AgentTool")) }
  fn project_scope(_: &Path) -> Option<String> { None }
- fn project_skills(_: &Path, _: &Config) -> Vec<String> { Vec::new() }
+ fn project_skills(workspace: &Path, config: &Config) -> Vec<String> { agent_skills::catalog::load_project_skills_with_config(workspace, &config.skills).into_iter().map(|skill| skill.name).collect() }
  fn connections_for_factory(_: &Path, _: Option<&str>) -> Arc<McpSessionConnections> { Arc::new(<Self as tool_mcp::McpToolHost>::new_connections()) }
  fn load_runtime_mcp_config(workspace: &Path) -> anyhow::Result<acp_config::ResolvedAcpxConfig> { Ok(Self::block_on(acp_config::load_resolved_config_from_paths(workspace.join("missing-global.json"), workspace.join(".vwacprc.json")))?) }
  #[cfg(unix)]

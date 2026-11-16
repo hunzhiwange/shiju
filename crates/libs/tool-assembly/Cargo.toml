@@ -44,6 +44,10 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
 rmcp = { version = "0.8.0", default-features = false, features = ["client", "server", "transport-io"] }
 reqwest_012 = { package = "reqwest", version = "0.12", default-features = false }
 
+tool-shell = { path = "../tool-shell", version = "0.6.0" }
+tool-memory = { path = "../tool-memory", version = "0.6.0" }
+tool-services = { path = "../tool-services", version = "0.6.0" }
+
 [features]
 default = []
 test-support = []
@@ -59,3 +63,5 @@ permission-runtime = { path = "../permission-runtime", version = "0.6.0" }
 agent-approval = { path = "../agent-approval", version = "0.6.0" }
 config-security = { path = "../config-security", version = "0.6.0" }
 agent-observability = { path = "../agent-observability", version = "0.6.0" }
+
+agent-skills = { path = "../agent-skills", version = "0.6.0" }

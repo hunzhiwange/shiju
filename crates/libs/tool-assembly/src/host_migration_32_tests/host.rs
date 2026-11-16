@@ -48,3 +48,8 @@ impl ContextHost for Host {
     fn pre_hook(runner: &Self::HookRunner, name: String, input: Value) -> impl Future<Output = tool_context::hooks::PreHookOutcome> + HostFuture { async { panic!("toolset test reached host: pre_hook") } }
     fn post_hook<'a>(runner: &'a Self::HookRunner, name: &'a str, result: &'a ToolResult, duration: std::time::Duration) -> impl Future<Output = ()> + HostFuture + 'a { async { panic!("toolset test reached host: post_hook") } }
 }
+
+impl tool_files::FileToolHost for Host {
+ fn session_skill_allows_read(_: &Path) -> bool { false }
+ async fn skill_directories() -> Vec<String> { Vec::new() }
+}

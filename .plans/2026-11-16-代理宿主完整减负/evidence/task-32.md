@@ -136,3 +136,44 @@
 未来领域命令仍为 `python3 scripts/cargo_slot.py cargo test -p tool-assembly --lib host_migration_32_tests -- --test-threads=1`，现静态预期30条；宿主同前过滤，现静态预期11条。全部编译、构建与行为检查未运行，只有源码及diff静态核对。
 
 宿主总计1691 → 954，净减737（43.6%）；仍不足70%。原因：生产485行主要为具体工具构造和宿主资源端口，测试保留真实宿主验收。后续可迁项仅剩混合真实技能发现中的纯合并断言及thread请求过滤（实际所有者不是tool-assembly）；不得将缺口宣称达标。
+
+## 第三轮恢复：真实领域构造与技能发现
+
+已读取最新final.md（宿主51915行）和remaining-host.json（本任务485+469行）。修复前轮按函数末尾截取导致的孤立Python片段：完整fixture一直保存在领域assembly.rs，此次仅清除宿主无效尾段，没有删除有效测试。源码静态审查发现并修复，不宣称编译通过。
+
+真实生产迁移：宿主FactoryHost::construct → tool_assembly::domain_construction::construct_domain_tool::<AgentContextHost>，以下每个构造分支完整保留参数、security/runtime/memory与cfg；返回None的应用特定构造仍由宿主match处理：
+
+- `ShellTool` → `domain_construction.rs` 同名分支。
+- `BashWaitTool` → `domain_construction.rs` 同名分支。
+- `BashCancelTool` → `domain_construction.rs` 同名分支。
+- `ShellToolWithSyscallDetector` → `domain_construction.rs` 同名分支。
+- `PowerShellTool` → `domain_construction.rs` 同名分支。
+- `FileReadTool` → `domain_construction.rs` 同名分支。
+- `FileEditTool` → `domain_construction.rs` 同名分支。
+- `FileWriteTool` → `domain_construction.rs` 同名分支。
+- `ApplyPatchTool` → `domain_construction.rs` 同名分支。
+- `LsTool` → `domain_construction.rs` 同名分支。
+- `GlobTool` → `domain_construction.rs` 同名分支。
+- `GrepTool` → `domain_construction.rs` 同名分支。
+- `FileReadToolWithSession` → `domain_construction.rs` 同名分支。
+- `PdfReadTool` → `domain_construction.rs` 同名分支。
+- `HttpRequestTool` → `domain_construction.rs` 同名分支。
+- `WebFetchTool` → `domain_construction.rs` 同名分支。
+- `ExaWebSearchTool` → `domain_construction.rs` 同名分支。
+- `WebSearchTool` → `domain_construction.rs` 同名分支。
+- `MemoryStoreTool` → `domain_construction.rs` 同名分支。
+- `MemoryRecallTool` → `domain_construction.rs` 同名分支。
+- `MemoryForgetTool` → `domain_construction.rs` 同名分支。
+
+新增生产依赖tool-shell/tool-memory/tool-services；dev依赖agent-skills。无反向vw-agent依赖，静态核对这四个清单均无tool-assembly依赖。Cargo.lock仅手工同步本包依赖名，不运行Cargo。领域构造夹具优先调用真实生产构造入口，因此Shell/File/Web/Memory已不使用标识receipt；其余应用端口仍拒绝执行receipt。
+
+- `delegate_agents_auto_load_project_skills_by_default_and_preserve_explicit_skills` 原宿主mod_tests → 领域host_migration_32_tests::assembly，同名断言；FactoryHost::project_skills使用agent_skills::catalog真实文件发现，非模拟技能名。
+- `delegate_agents_require_explicit_skills_when_project_auto_load_is_disabled` 原宿主mod_tests → 领域host_migration_32_tests::assembly，同名断言；FactoryHost::project_skills使用agent_skills::catalog真实文件发现，非模拟技能名。
+- `agent_config_cleanup_delegate_fixed_selection_preserves_strict_boundary` 原宿主mod_tests → 领域host_migration_32_tests::assembly，同名断言；FactoryHost::project_skills使用agent_skills::catalog真实文件发现，非模拟技能名。
+- `crates/vw-agent/src/tools/toolset/mod.rs`：376 行；真实宿主端口/集成验收。
+- `crates/vw-agent/src/tools/toolset/mod_tests.rs`：257 行；真实宿主端口/集成验收。
+- `crates/libs/tool-assembly/src/domain_construction.rs`：124 行；领域生产构造。
+
+宿主1691 → 633，净减1058（62.6%）；仍未达70%。具体保留：mod.rs持有Config/Cron/Schedule/Browser/Skill/Thread等应用构造、租户与连接及Tokio桥接；mod_tests.rs保留8条真实装配、请求过滤、AgentTool状态、进程与租户快照测试。没有通过改名移动真实宿主端口来冲量。
+
+未来原命令领域预期33条、宿主预期8条，新增迁移3条用宿主--list确认消失。当前仅diff/源码/依赖静态核对，任何编译/测试/构建均未运行。当前无编号任务文件需要删除。

@@ -170,38 +170,8 @@ pub fn all_tools_with_runtime(
 impl FactoryHost for super::context::AgentContextHost {
  fn block_on<F: std::future::Future + Send>(future: F) -> F::Output where F::Output: Send { block_on(future) }
  fn construct(tool: ToolConstruction, context: &ConstructionContext<'_>) -> Arc<dyn Tool> {
+  if let Some(tool) = tool_assembly::domain_construction::construct_domain_tool::<Self>(&tool, context) { return tool; }
   match tool {
-#[cfg(not(target_arch = "wasm32"))]
-ToolConstruction::ShellTool => { let security = context.security;
-let runtime = context.runtime;
- Arc::new(ShellTool::new(security.clone(), runtime.clone())) },
-#[cfg(not(target_arch = "wasm32"))]
-ToolConstruction::BashWaitTool => { let security = context.security;
- Arc::new(BashWaitTool::new(security.clone())) },
-#[cfg(not(target_arch = "wasm32"))]
-ToolConstruction::BashCancelTool => { let security = context.security;
- Arc::new(BashCancelTool::new(security.clone())) },
-#[cfg(not(target_arch = "wasm32"))]
-ToolConstruction::FileReadTool => { let security = context.security;
- Arc::new(FileReadTool::new(security.clone())) },
-#[cfg(not(target_arch = "wasm32"))]
-ToolConstruction::FileEditTool => { let security = context.security;
- Arc::new(FileEditTool::new(security.clone())) },
-#[cfg(not(target_arch = "wasm32"))]
-ToolConstruction::FileWriteTool => { let security = context.security;
- Arc::new(FileWriteTool::new(security.clone())) },
-#[cfg(not(target_arch = "wasm32"))]
-ToolConstruction::ApplyPatchTool => { let security = context.security;
- Arc::new(ApplyPatchTool::new(security.clone())) },
-#[cfg(not(target_arch = "wasm32"))]
-ToolConstruction::LsTool => { let security = context.security;
- Arc::new(LsTool::new(security.clone())) },
-#[cfg(not(target_arch = "wasm32"))]
-ToolConstruction::GlobTool => { let security = context.security;
- Arc::new(GlobTool::new(security.clone())) },
-#[cfg(not(target_arch = "wasm32"))]
-ToolConstruction::GrepTool => { let security = context.security;
- Arc::new(GrepTool::new(security.clone())) },
 ToolConstruction::ConfigTool => { let security = context.security;
 let config = context.config.expect("full factory config");
  Arc::new(ConfigTool::new(config.clone(), security.clone())) },
@@ -230,37 +200,13 @@ let config = context.config.expect("full factory config");
         )) },
 ToolConstruction::CronRunsTool => { let config = context.config.expect("full factory config");
  Arc::new(CronRunsTool::new(config.clone())) },
-ToolConstruction::MemoryStoreTool => { let security = context.security;
-let memory = context.memory.expect("full factory memory");
- Arc::new(tool_memory::MemoryStoreTool::new(memory.clone(), security.clone())) },
-ToolConstruction::MemoryRecallTool => { let memory = context.memory.expect("full factory memory");
- Arc::new(tool_memory::MemoryRecallTool::new(memory.clone())) },
-ToolConstruction::MemoryForgetTool => { let security = context.security;
-let memory = context.memory.expect("full factory memory");
- Arc::new(tool_memory::MemoryForgetTool::new(memory.clone(), security.clone())) },
 ToolConstruction::ScheduleTool => { let security = context.security;
 let root_config = context.root_config.expect("root config");
  Arc::new(ScheduleTool::new(security.clone(), root_config.clone())) },
 #[cfg(not(target_arch = "wasm32"))]
-ToolConstruction::ShellToolWithSyscallDetector => { let security = context.security;
-let runtime = context.runtime;
-let syscall_detector = context.syscall_detector.expect("syscall detector");
- Arc::new(ShellTool::new_with_syscall_detector(
-            security.clone(),
-            runtime.clone(),
-            Some(syscall_detector.clone()),
-        )) },
-#[cfg(all(not(target_arch = "wasm32"), target_os = "windows"))]
-ToolConstruction::PowerShellTool => { let security = context.security;
- Arc::new(PowerShellTool::new(security.clone())) },
-#[cfg(not(target_arch = "wasm32"))]
 ToolConstruction::GitOperationsTool => { let security = context.security;
 let workspace_dir = context.workspace_dir.expect("workspace");
  Arc::new(GitOperationsTool::new(security.clone(), workspace_dir.to_path_buf())) },
-#[cfg(not(target_arch = "wasm32"))]
-ToolConstruction::FileReadToolWithSession => { let security = context.security;
-let session_id = context.session_id.expect("session");
- Arc::new(FileReadTool::with_session(security.clone(), session_id)) },
 #[cfg(not(target_arch = "wasm32"))]
 ToolConstruction::EnterWorktreeTool => {
  Arc::new(EnterWorktreeTool::new()) },
@@ -297,55 +243,6 @@ let browser_config = context.browser_config.expect("browser config");
                 max_coordinate_y: browser_config.computer_use.max_coordinate_y,
             },
         )) },
-ToolConstruction::HttpRequestTool => { let http_config = context.http_config.expect("http config");
-let security = context.security;
- Arc::new(HttpRequestTool::new(
-            security.clone(),
-            http_config.allowed_domains.clone(),
-            http_config.max_response_size,
-            http_config.timeout_secs,
-            http_config.user_agent.clone(),
-        )) },
-ToolConstruction::WebFetchTool => { let web_fetch_config = context.web_fetch_config.expect("web fetch config");
-let security = context.security;
- Arc::new(WebFetchTool::new(
-            security.clone(),
-            web_fetch_config.provider.clone(),
-            web_fetch_config.api_key.clone(),
-            web_fetch_config.api_url.clone(),
-            web_fetch_config.allowed_domains.clone(),
-            web_fetch_config.blocked_domains.clone(),
-            web_fetch_config.max_response_size,
-            web_fetch_config.timeout_secs,
-            web_fetch_config.user_agent.clone(),
-        )) },
-ToolConstruction::ExaWebSearchTool => { let api_key = context.api_key.clone();
-let security = context.security;
-let root_config = context.root_config.expect("root config");
- Arc::new(super::websearch::WebSearchTool::new(
-                security.clone(),
-                root_config.web_search.provider.clone(),
-                api_key,
-                root_config.web_search.api_url.clone(),
-                root_config.web_search.max_results,
-                root_config.web_search.timeout_secs,
-                root_config.web_search.user_agent.clone(),
-            )) },
-ToolConstruction::WebSearchTool => { let api_key = context.api_key.clone();
-let security = context.security;
-let root_config = context.root_config.expect("root config");
- Arc::new(WebSearchTool::new(
-                security.clone(),
-                root_config.web_search.provider.clone(),
-                api_key,
-                root_config.web_search.api_url.clone(),
-                root_config.web_search.max_results,
-                root_config.web_search.timeout_secs,
-                root_config.web_search.user_agent.clone(),
-            )) },
-#[cfg(not(target_arch = "wasm32"))]
-ToolConstruction::PdfReadTool => { let security = context.security;
- Arc::new(PdfReadTool::new(security.clone())) },
 #[cfg(not(target_arch = "wasm32"))]
 ToolConstruction::ScreenshotTool => { let security = context.security;
  Arc::new(ScreenshotTool::new(security.clone())) },
@@ -439,6 +336,7 @@ let session_id = context.session_id.expect("session");
     )) },
 ToolConstruction::McpStatusTool => {
  Arc::new(McpStatusTool::new()) },
+_ => unreachable!("domain construction handled above"),
   }
  }
  fn batch(tools: Arc<Vec<Arc<dyn Tool>>>) -> Arc<dyn Tool> { Arc::new(BatchTool::new(tools)) }
@@ -476,10 +374,3 @@ impl tool_assembly::runtime::RuntimeHost for super::context::AgentContextHost {
 
 #[cfg(test)]
 use tool_assembly::agents::{agent_tool_parallel_limit, enabled_delegate_agents};
-#[cfg(test)]
-fn enabled_delegate_agents_with_project_skills(agents: &HashMap<String, DelegateAgentConfig>, workspace: &Path, config: &Config) -> HashMap<String, DelegateAgentConfig> {
- tool_assembly::factory::enabled_delegate_agents_with_project_skills::<super::context::AgentContextHost>(agents, workspace, config)
-}
-
-#[cfg(test)]
-use super::tool_search::TOOL_SEARCH_ID;

@@ -29,3 +29,5 @@ mod host_migration_35_tests;
 mod host_migration_32_tests;
 
 pub mod shell_permission;
+
+pub mod domain_construction;

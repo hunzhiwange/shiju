@@ -674,3 +674,79 @@ fn register_dynamic_mcp_tools_skips_disabled_servers_and_keeps_existing_tools() 
     assert_eq!(tools.len(), 1);
     assert_eq!(tools[0].name(), "echo");
 }
+
+#[test]
+fn delegate_agents_auto_load_project_skills_by_default_and_preserve_explicit_skills() {
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = dir.path().join("workspace");
+    std::fs::create_dir_all(workspace.join(".git")).unwrap();
+    let skill_dir = workspace.join(".agents/skills/project-skill");
+    std::fs::create_dir_all(&skill_dir).unwrap();
+    std::fs::write(
+        skill_dir.join("SKILL.md"),
+        "---\nname: project-skill\ndescription: Project skill\n---\n",
+    )
+    .unwrap();
+
+    let root_config = test_config(&workspace);
+    let agents = HashMap::from([(
+        "worker".to_string(),
+        agent_config("all", true, vec!["explicit-skill".to_string()]),
+    )]);
+
+    let effective = enabled_delegate_agents_with_project_skills::<Host>(&agents, &workspace, &root_config);
+
+    assert_eq!(
+        effective["worker"].allowed_skills,
+        vec!["explicit-skill".to_string(), "project-skill".to_string()]
+    );
+}
+#[test]
+fn delegate_agents_require_explicit_skills_when_project_auto_load_is_disabled() {
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = dir.path().join("workspace");
+    std::fs::create_dir_all(workspace.join(".git")).unwrap();
+    let skill_dir = workspace.join("skills/project-skill");
+    std::fs::create_dir_all(&skill_dir).unwrap();
+    std::fs::write(skill_dir.join("SKILL.md"), "# Project Skill\n").unwrap();
+
+    let mut root_config = test_config(&workspace);
+    root_config.skills.auto_load_project_skills = false;
+    let agents = HashMap::from([(
+        "worker".to_string(),
+        agent_config("all", true, vec!["explicit-skill".to_string()]),
+    )]);
+
+    let effective = enabled_delegate_agents_with_project_skills::<Host>(&agents, &workspace, &root_config);
+
+    assert_eq!(effective["worker"].allowed_skills, vec!["explicit-skill".to_string()]);
+}
+#[test]
+fn agent_config_cleanup_delegate_fixed_selection_preserves_strict_boundary() {
+    use config_agent_profile::AgentDefault;
+    use config_agent::DelegateCapabilityPolicy;
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = dir.path();
+    std::fs::create_dir_all(workspace.join(".git")).unwrap();
+    let skill_dir = workspace.join("skills/project-skill");
+    std::fs::create_dir_all(&skill_dir).unwrap();
+    std::fs::write(
+        skill_dir.join("SKILL.md"),
+        "---\nname: project-skill\ndescription: fixture\n---\n",
+    )
+    .unwrap();
+    let root = test_config(workspace);
+    for selection in [
+        AgentDefault::Inherit,
+        AgentDefault::Fixed(vec![]),
+        AgentDefault::Fixed(vec!["allowed".into()]),
+    ] {
+        let mut config = agent_config("all", true, vec!["allowed".into()]);
+        config.skill_policy = DelegateCapabilityPolicy::Strict;
+        config.defaults.skills = selection.clone();
+        let agents = HashMap::from([("worker".into(), config)]);
+        let result = enabled_delegate_agents_with_project_skills::<Host>(&agents, workspace, &root);
+        assert_eq!(result["worker"].allowed_skills, vec!["allowed"]);
+        assert_eq!(result["worker"].defaults.skills, selection);
+    }
+}

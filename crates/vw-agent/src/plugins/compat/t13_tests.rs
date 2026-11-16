@@ -134,19 +134,6 @@ async fn codex_plugin_compat_t13_invokes_onboarding_only_on_request() {
     assert_eq!(snapshot(&installed.installed_dir), before);
 }
 
-#[test]
-fn codex_plugin_compat_t13_rejects_invalid_input() {
-    let fixture = Fixture::new();
-    write(&fixture.source.join("notes.txt"), b"Not a skill.\n");
-    write(&fixture.source.join(".codex-plugin/plugin.json"), br#"{"name":"onboarding-pack","extensions":{"com.openai":{"onboardingSkill":"notes.txt"}}}"#);
-    let installed = fixture.install();
-    assert!(
-        super::onboarding::entry(&installed.manifest, &installed.identity, &fixture.config)
-            .is_err(),
-        "a contained ordinary file must not be presented as an onboarding skill"
-    );
-}
-
 #[tokio::test]
 async fn codex_plugin_compat_t13_preserves_isolation() {
     let fixture = Fixture::new();
@@ -354,22 +341,6 @@ fn codex_plugin_compat_t13_does_not_borrow_a_shadowing_installation() {
         !super::super::cli::installation_message(&installed, &fixture.config)
             .contains("Onboarding available on request:")
     );
-}
-
-#[cfg(unix)]
-#[test]
-fn codex_plugin_compat_t13_reaudits_mutated_onboarding_paths_without_reading_outside() {
-    let fixture = Fixture::new();
-    let installed = fixture.install();
-    let outside = fixture._temp.path().join("outside.md");
-    write(&outside, b"private-fixture-payload\n");
-    let entry = installed.installed_dir.join("skills/setup/SKILL.md");
-    fs::remove_file(&entry).unwrap();
-    std::os::unix::fs::symlink(&outside, &entry).unwrap();
-    let error = super::onboarding::entry(&installed.manifest, &installed.identity, &fixture.config)
-        .unwrap_err();
-    assert!(!error.to_string().contains("private-fixture-payload"));
-    assert_eq!(fs::read(outside).unwrap(), b"private-fixture-payload\n");
 }
 
 #[test]

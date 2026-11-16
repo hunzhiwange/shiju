@@ -37,3 +37,7 @@ pub fn entry(
     }
     Ok(Some(name))
 }
+
+#[cfg(test)]
+#[path = "onboarding_tests.rs"]
+mod tests;

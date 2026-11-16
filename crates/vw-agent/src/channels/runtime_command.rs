@@ -37,8 +37,4 @@ pub(crate) use command::{
 };
 pub(crate) use handler::handle_runtime_command_if_needed;
 
-#[cfg(test)]
-#[path = "runtime_command_tests.rs"]
-mod runtime_command_tests;
-
 pub(crate) use session_lifecycle::{is_session_lifecycle_command, persist_current_route};

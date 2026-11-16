@@ -3,7 +3,7 @@
 use super::*;
 use gateway_resumable_stream::STREAM_REQUEST_ID_HEADER;
 
-use gateway_session::stream_acceptance::{docs_stream_request, make_docs_workspace};
+use gateway_session::stream_acceptance::docs_stream_request;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn gateway_chat_persists_and_reports_session_git_line_counts() {

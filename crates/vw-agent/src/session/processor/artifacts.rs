@@ -4,15 +4,7 @@ use super::llm_runner::LlmStep;
 use crate::session::session::Session;
 use crate::session::ui_types as models;
 use serde_json::Value;
-struct AgentArtifactHost;
-impl session_engine::artifacts::ArtifactHost for AgentArtifactHost {
-    fn build_prompt(session: &Session, model: Option<&str>, root: Option<&str>) -> String {
-        super::prompting::build_prompt(session, model, root, None)
-    }
-    fn persist_ai_call_payload(session: &str, stream: u64, payload: &Value, scope: Option<&str>) {
-        let _ = crate::session::ui_store::persist_ai_call_payload(session, stream, payload, scope);
-    }
-}
+use super::runner_host::AgentRunnerHost as AgentArtifactHost;
 fn artifact_request(req: &Request) -> session_engine::artifacts::ArtifactRequest<'_> {
     session_engine::artifacts::ArtifactRequest { stream: req.stream, session: &req.session, root: req.root.as_deref(), model: req.model.as_deref(), options: &req.options, persist_app_session_artifacts: req.persist_app_session_artifacts }
 }

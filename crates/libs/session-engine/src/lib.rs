@@ -84,3 +84,6 @@ mod host_split_8_tests;
 
 #[cfg(test)]
 mod host_migration_19_tests;
+
+#[cfg(test)]
+mod host_migration_22_tests;

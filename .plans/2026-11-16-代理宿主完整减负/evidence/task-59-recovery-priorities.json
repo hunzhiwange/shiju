@@ -1,337 +1,193 @@
 [
   {
     "priority": 1,
-    "owner": 44,
-    "current_original_host_lines": 1663,
+    "owner": 8,
+    "current_original_host_lines": 470,
     "candidate_files": [
       {
-        "path": "crates/vw-agent/src/workflow/video_edit/cloud_tests.rs",
-        "lines": 384,
+        "path": "crates/vw-agent/src/gateway/api/handlers/config_tests.rs",
+        "exists": true,
+        "lines": 455,
         "symbols": [
           {
-            "name": "video_edit_cloud_transport_errors_and_unknown_states_are_not_success",
-            "line": 204
+            "name": "config_providers_returns_defaults_for_available_models",
+            "line": 118
           },
           {
-            "name": "video_edit_cloud_transport_duplicate_visible_instances_are_ambiguous",
-            "line": 232
-          }
-        ]
-      },
-      {
-        "path": "crates/vw-agent/src/workflow/video_edit/e2e_tests.rs",
-        "lines": 479,
-        "symbols": [
-          {
-            "name": "video_edit_e2e_accepted_timeout_reconciles_without_duplicate_post",
-            "line": 226
+            "name": "handle_api_config_put_reports_config_save_failure_without_mutating_runtime_state",
+            "line": 136
           },
           {
-            "name": "video_edit_e2e_cancelled_restart_reconciles_and_never_resubmits",
-            "line": 347
+            "name": "config_put_reloads_hooks_and_invalidates_query_engines",
+            "line": 196
+          },
+          {
+            "name": "config_put_hook_build_failure_is_atomic",
+            "line": 259
+          },
+          {
+            "name": "manual_agent_save_updates_live_resolution_and_survives_instance_restart",
+            "line": 342
           }
         ]
       }
     ],
-    "requested_split": "Reconciliation ledger, terminal event/result expectations, cloud error/instance policy and shared transcript fixtures -> workflow-video-edit/workflow-engine actual entry; inject existing real native host execution for integration.",
-    "retain_real_boundary": "Keep actual native permission/path/hook denial and real gateway session publication; no simulated admission replacement.",
-    "removable_lines": "No savings promise: inventory includes true boundaries and thin wrappers; restore owner to separate these explicit remaining assertions",
-    "evidence": "evidence/task-44.md"
+    "requested_split": "Separate defaults, saved/live config consistency and atomic hook replacement assertions/real config-store fixtures into gateway-config via existing state/host APIs; keep true runtime capture in host.",
+    "retain_real_boundary": "Retain actual pairing before body parsing, real hook rebuild/query-engine invalidation and failed-save atomicity; do not copy AppState or mock auth.",
+    "removable_lines": "Inventory only; no exact savings or independent-test claim",
+    "evidence": "evidence/task-8.md"
   },
   {
     "priority": 2,
-    "owner": 11,
-    "current_original_host_lines": 1750,
+    "owner": 42,
+    "current_original_host_lines": 552,
     "candidate_files": [
       {
-        "path": "crates/vw-agent/src/gateway/api/handlers/session/stream_tests.rs",
-        "lines": 1420,
+        "path": "crates/vw-agent/src/channels/channel_session_lifecycle_tests.rs",
+        "exists": true,
+        "lines": 120,
         "symbols": [
           {
-            "name": "agcollab_delivery_reaches_next_model_request",
-            "line": 332
+            "name": "channel_first_response_hides_ordinary_and_explicit_drafts",
+            "line": 2
           },
           {
-            "name": "video_edit_entry_gateway_unbound_projects_template_edit_menu_and_persistence",
-            "line": 450
+            "name": "channel_first_response_reuses_failed_ingress_then_publishes_success",
+            "line": 26
           },
           {
-            "name": "agent_native_defaults_reach_registered_tools_and_prompt",
-            "line": 667
-          },
-          {
-            "name": "agent_session_identity_survives_profile_edits",
-            "line": 842
-          },
-          {
-            "name": "gateway_first_response_failure_preserves_history_until_same_session_retries",
-            "line": 1134
-          },
-          {
-            "name": "gateway_first_response_disconnect_after_tool_start_replays_cancellation_without_publishing",
-            "line": 1256
+            "name": "channel_first_response_requests_title_once_after_commit",
+            "line": 53
           }
         ]
       }
     ],
-    "requested_split": "Reuse new stream_acceptance real StreamHost contract to separate collaboration message projection, template/config snapshots, title retry and replay/cancellation assertion bodies and fixtures; original host still calls the real stream.",
-    "retain_real_boundary": "Keep real tool execution, first-response authorization/directory rejection and cancellation at the actual gateway boundary; do not credit wrappers as independent domain tests.",
-    "removable_lines": "No savings promise: inventory includes true boundaries and thin wrappers; restore owner to separate these explicit remaining assertions",
-    "evidence": "evidence/task-11.md"
+    "requested_split": "Separate ingress/draft/first-response/title timing result assertions through actual lifecycle state/store APIs and existing real runtime port.",
+    "retain_real_boundary": "Retain real ingress/session publication and actual processor/title execution; no fake commit or identity.",
+    "removable_lines": "Inventory only; no exact savings or independent-test claim",
+    "evidence": "evidence/task-42.md"
   },
   {
     "priority": 3,
-    "owner": 10,
-    "current_original_host_lines": 1454,
+    "owner": 16,
+    "current_original_host_lines": 727,
     "candidate_files": [
       {
-        "path": "crates/vw-agent/src/gateway/api/handlers/session/fork_acceptance_tests.rs",
-        "lines": 506,
-        "symbols": [
-          {
-            "name": "fork_acceptance_negative_detects_discarded_model_history",
-            "line": 186
-          },
-          {
-            "name": "assert_initial_history",
-            "line": 194
-          },
-          {
-            "name": "assert_continuation",
-            "line": 220
-          },
-          {
-            "name": "run_fixture",
-            "line": 334
-          },
-          {
-            "name": "run_process",
-            "line": 448
-          },
-          {
-            "name": "fork_acceptance_restarts_and_resumes_both_targets",
-            "line": 484
-          }
-        ]
+        "path": "crates/vw-agent/src/gateway/api/handlers/model_catalog_tests.rs",
+        "exists": false,
+        "lines": 0,
+        "symbols": []
       },
       {
-        "path": "crates/vw-agent/src/gateway/api/handlers/session/fork_acp_tests.rs",
-        "lines": 288,
-        "symbols": [
-          {
-            "name": "assert_prefix",
-            "line": 78
-          },
-          {
-            "name": "fork_acp_first_prompt_and_restart_preserve_history",
-            "line": 108
-          }
-        ]
+        "path": "crates/vw-agent/src/gateway/api/handlers/model_catalog_edits_tests.rs",
+        "exists": false,
+        "lines": 0,
+        "symbols": []
+      },
+      {
+        "path": "crates/vw-agent/src/gateway/api/handlers/model_discovery_tests.rs",
+        "exists": false,
+        "lines": 0,
+        "symbols": []
       }
     ],
-    "requested_split": "Remaining native/ACP fork history prefix/continuation and restart fixtures -> existing gateway-session fork acceptance contract, injected real process/stream/session ports.",
-    "retain_real_boundary": "Retain real independent process restart, actual gateway tenant routing, ACP/native first prompt and worktree publication calls.",
-    "removable_lines": "No savings promise: inventory includes true boundaries and thin wrappers; restore owner to separate these explicit remaining assertions",
-    "evidence": "evidence/task-10.md"
+    "requested_split": "Audit and commit the three already-deleted owned test files if their existing registered domain replacements are complete; do not restore old bodies or absorb unrelated edits.",
+    "retain_real_boundary": "Keep actual model-catalog client/gateway authentication acceptance. This is ownership/commit closure, not a new line-saving estimate.",
+    "removable_lines": "Inventory only; no exact savings or independent-test claim",
+    "evidence": "evidence/task-16.md"
   },
   {
     "priority": 4,
-    "owner": 24,
-    "current_original_host_lines": 1639,
+    "owner": 38,
+    "current_original_host_lines": 954,
     "candidate_files": [
       {
-        "path": "crates/vw-agent/src/session/dynamic_tool_acceptance_tests.rs",
-        "lines": 495,
+        "path": "crates/vw-agent/src/plugins/compat/t57_tests.rs",
+        "exists": true,
+        "lines": 240,
         "symbols": [
           {
-            "name": "dynamic_tools_acceptance_replacement_survives_resume",
-            "line": 132
+            "name": "codex_plugin_compat_t57_refreshes_required_hooks_at_boundary",
+            "line": 116
           },
           {
-            "name": "dynamic_tools_acceptance_default_policy_and_cross_session_are_denied",
-            "line": 247
-          },
-          {
-            "name": "dynamic_tools_acceptance_replacement_cancellation_and_revocation",
-            "line": 292
-          },
-          {
-            "name": "dynamic_tools_acceptance_fork_requires_new_host_and_matching_specs",
-            "line": 351
-          },
-          {
-            "name": "dynamic_tools_acceptance_search_then_call_uses_gateway_model_boundary",
-            "line": 440
-          }
-        ]
-      }
-    ],
-    "requested_split": "Separate persisted registration, revocation/cancellation response matrix, replacement/spec matching and client fixtures with the actual dynamic-tool storage/handler owner. Keep a thin real SDK/gateway executor binding.",
-    "retain_real_boundary": "Preserve real HTTP credential/session/project admission and client executor checks. Real-runtime mount cases are host boundaries, not removable solely because they are large.",
-    "removable_lines": "No savings promise: inventory includes true boundaries and thin wrappers; restore owner to separate these explicit remaining assertions",
-    "evidence": "evidence/task-24.md"
-  },
-  {
-    "priority": 5,
-    "owner": 23,
-    "current_original_host_lines": 1381,
-    "candidate_files": [
-      {
-        "path": "crates/vw-agent/src/session/codex_alignment_tests.rs",
-        "lines": 361,
-        "symbols": [
-          {
-            "name": "codex_alignment_skill_search_mcp_compaction_and_new_turn_preserve_boundaries",
-            "line": 172
-          },
-          {
-            "name": "codex_alignment_explicit_tools_search_disabled_and_disable_tools_keep_authorization",
-            "line": 240
-          },
-          {
-            "name": "codex_alignment_strict_skills_and_last_round_do_not_expand_capabilities",
-            "line": 269
-          },
-          {
-            "name": "codex_alignment_same_name_replacement_and_disabled_sources_cannot_replay_old_body",
-            "line": 301
-          },
-          {
-            "name": "codex_alignment_new_session_does_not_inherit_skill_or_tool_exposure",
-            "line": 344
-          }
-        ]
-      }
-    ],
-    "requested_split": "Split scripted model body assertions, exposure history and compaction checkpoint fixtures into actual session-engine/agent-loop acceptance support using existing real processor port.",
-    "retain_real_boundary": "Keep trusted tenant, real runtime tool/skill permission enforcement and host global config isolation; do not copy Request/AppState graphs.",
-    "removable_lines": "No savings promise: inventory includes true boundaries and thin wrappers; restore owner to separate these explicit remaining assertions",
-    "evidence": "evidence/task-23.md"
-  },
-  {
-    "priority": 6,
-    "owner": 53,
-    "current_original_host_lines": 1321,
-    "candidate_files": [
-      {
-        "path": "crates/vw-agent/src/acp/mounts_tests.rs",
-        "lines": 364,
-        "symbols": [
-          {
-            "name": "acp_server_skill_overlay_rejects_conflicts_and_failed_mcp_without_publishing",
+            "name": "codex_plugin_compat_t57_retires_old_mcp_process_after_turn",
             "line": 148
-          },
-          {
-            "name": "acp_server_skill_overlay_permission_change_revokes_read_and_invocation",
-            "line": 246
-          },
-          {
-            "name": "acp_server_skill_overlay_same_name_sources_are_isolated_and_explicit_empty_clears",
-            "line": 310
-          }
-        ]
-      }
-    ],
-    "requested_split": "Separate mount source-name conflict/explicit-clear/publication revision expectation matrices into existing ACP mount acceptance contracts with real backend injection.",
-    "retain_real_boundary": "Keep actual native file access, revoked permission denial and real MCP process invocation; root backend prompt orchestration is real host composition.",
-    "removable_lines": "No savings promise: inventory includes true boundaries and thin wrappers; restore owner to separate these explicit remaining assertions",
-    "evidence": "evidence/task-53.md"
-  },
-  {
-    "priority": 7,
-    "owner": 15,
-    "current_original_host_lines": 1286,
-    "candidate_files": [
-      {
-        "path": "crates/vw-agent/src/gateway/api/handlers/misc_tests.rs",
-        "lines": 193,
-        "symbols": [
-          {
-            "name": "command_list_returns_named_command_metadata",
-            "line": 69
-          },
-          {
-            "name": "agent_list_returns_keyed_agent_metadata",
-            "line": 77
-          },
-          {
-            "name": "skill_list_returns_named_and_located_skill_metadata",
-            "line": 93
-          },
-          {
-            "name": "list_handlers_ignore_legacy_invalid_project_json",
-            "line": 107
-          },
-          {
-            "name": "agent_profile_api_catalog_includes_disabled_only_when_requested",
-            "line": 145
-          }
-        ]
-      }
-    ],
-    "requested_split": "Move metadata/catalog/filter projection assertions and associated real storage fixtures to owning gateway catalog/misc domain handlers.",
-    "retain_real_boundary": "Keep actual host router registration, method mismatch/unknown-route checks and full root handler module assembly.",
-    "removable_lines": "No savings promise: inventory includes true boundaries and thin wrappers; restore owner to separate these explicit remaining assertions",
-    "evidence": "evidence/task-15.md"
-  },
-  {
-    "priority": 8,
-    "owner": 48,
-    "current_original_host_lines": 1084,
-    "candidate_files": [
-      {
-        "path": "crates/vw-agent/src/agent_apps/mcp/revocation_tests.rs",
-        "lines": 251,
-        "symbols": [
-          {
-            "name": "cc_mcp_t28_update_and_delete_revoke_cached_tools_without_interrupting_admitted_call",
-            "line": 31
-          },
-          {
-            "name": "cc_mcp_t28_disable_revokes_loopback_tools_until_a_fresh_selection",
-            "line": 158
           }
         ]
       },
       {
-        "path": "crates/vw-agent/src/agent_apps/mcp/runtime_tests.rs",
-        "lines": 261,
+        "path": "crates/vw-agent/src/plugins/compat/t43_tests.rs",
+        "exists": true,
+        "lines": 198,
         "symbols": [
           {
-            "name": "cc_mcp_t27_selected_record_exposes_and_calls_the_real_tool",
-            "line": 61
+            "name": "codex_plugin_compat_t43_persistent_success_failure_and_cancellation",
+            "line": 37
           },
           {
-            "name": "cc_mcp_t27_runtime_selection_keeps_project_and_acp_boundaries",
-            "line": 174
+            "name": "codex_plugin_compat_t43_continues_only_the_blocked_child",
+            "line": 122
           }
         ]
       }
     ],
-    "requested_split": "Separate selected record/spec projection and revocation state/result expectations into app-mcp-runtime actual service test support; host injects actual ACP/loopback execution.",
-    "retain_real_boundary": "Keep actual tenant, account and job owner authorization, admitted-call lifetime and cached real runtime revocation integration.",
-    "removable_lines": "No savings promise: inventory includes true boundaries and thin wrappers; restore owner to separate these explicit remaining assertions",
-    "evidence": "evidence/task-48.md"
+    "requested_split": "Split result/ordering matrices and package/child script fixtures into actual plugin hook/runtime contracts through real snapshot/process/context ports. These symbols were not the already-migrated invalid-input/isolation or cancellation-join contracts.",
+    "retain_real_boundary": "Retain actual required-hook refresh, old MCP process retirement, native child execution, persistent failure/cancel and blocked-child routing. No fake admission, process lifecycle or copied AppState.",
+    "removable_lines": "Inventory only, no exact savings claim",
+    "evidence": "evidence/task-38.md"
   },
   {
-    "priority": 9,
-    "owner": 37,
-    "current_original_host_lines": 1129,
+    "priority": 5,
+    "owner": 6,
+    "current_original_host_lines": 911,
     "candidate_files": [
       {
-        "path": "crates/vw-agent/src/plugins/compat/t20_tests.rs",
-        "lines": 243,
+        "path": "crates/vw-agent/src/gateway/api/handlers/app_providers/api_security_tests.rs",
+        "exists": true,
+        "lines": 109,
         "symbols": [
           {
-            "name": "codex_plugin_compat_t20_inspection_refreshes_only_notified_resource_and_prompt_catalogs",
-            "line": 200
+            "name": "safe",
+            "line": 11
+          },
+          {
+            "name": "tree",
+            "line": 18
+          },
+          {
+            "name": "cc04_api_security_registered_routes_deny_missing_gateway_auth_before_storage",
+            "line": 38
+          }
+        ]
+      },
+      {
+        "path": "crates/vw-agent/src/gateway/api/handlers/app_providers/delete_tests.rs",
+        "exists": true,
+        "lines": 72,
+        "symbols": [
+          {
+            "name": "tenant",
+            "line": 14
+          },
+          {
+            "name": "setup",
+            "line": 17
+          },
+          {
+            "name": "rows",
+            "line": 45
+          },
+          {
+            "name": "cc04_delete_is_registered_in_formal_handler_router",
+            "line": 52
           }
         ]
       }
     ],
-    "requested_split": "Split catalog notification refresh state/unchanged-catalog assertions into plugin MCP connection owner through actual connection service; narrow host inspection/context binding remains.",
-    "retain_real_boundary": "Keep actual runtime registration, session inspection and trusted plugin snapshot/permission checks.",
-    "removable_lines": "No savings promise: inventory includes true boundaries and thin wrappers; restore owner to separate these explicit remaining assertions",
-    "evidence": "evidence/task-37.md"
+    "requested_split": "Review remaining actual request authorization/delete result matrices and data fixtures via existing gateway-app-providers state/handler APIs; root retains real state/route projection.",
+    "retain_real_boundary": "Keep actual tenant/token privilege checks and before-write denial; no simulated middleware, copied AppState or removal of security assertions.",
+    "removable_lines": "Inventory only, no exact savings claim",
+    "evidence": "evidence/task-6.md"
   }
 ]

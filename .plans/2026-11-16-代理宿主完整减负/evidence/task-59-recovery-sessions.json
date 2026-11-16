@@ -1,0 +1,63 @@
+{
+  "skill": "/Users/xiangmin/.codex/skills/run-codex-task-plan-sessions/SKILL.md",
+  "step": "task59 step4 original owner recovery",
+  "max_domain_threads": 4,
+  "host_at_dispatch": 43584,
+  "queue": [],
+  "threads": [
+    {
+      "owner": 44,
+      "thread_id": "01a1e3d3-2bcc-7190-b75c-3041280e8577",
+      "status": "completed_and_task_deleted",
+      "commit": "81cd94684"
+    },
+    {
+      "owner": 11,
+      "thread_id": "01a1e39a-562c-7d81-9b2a-234d72ec760b",
+      "status": "completed_and_task_deleted"
+    },
+    {
+      "owner": 10,
+      "thread_id": "01a1e399-c1fc-78d0-ad9f-c6788d197bc3",
+      "status": "completed_and_task_deleted",
+      "commit": "c140f4310"
+    },
+    {
+      "owner": 24,
+      "thread_id": "01a1e3b3-3de3-7262-98f0-22c453f602fb",
+      "status": "completed_and_task_deleted",
+      "commit": "6e2df8b80"
+    },
+    {
+      "owner": 23,
+      "thread_id": "01a1e3b1-a201-7fc2-8657-22c5d038d83b",
+      "status": "completed_and_task_deleted",
+      "commit": "6c999e000"
+    },
+    {
+      "owner": 53,
+      "thread_id": "01a1e3dc-cc5a-70d1-82ec-69a806c5536d",
+      "status": "completed_and_task_deleted",
+      "commit": "e11247d61"
+    },
+    {
+      "owner": 15,
+      "thread_id": "01a1e39f-ecf7-7f41-be5d-5783740adb38",
+      "status": "completed_and_task_deleted",
+      "commit": "2755407bc"
+    },
+    {
+      "owner": 48,
+      "thread_id": "01a1e3d8-71a2-77b3-ae90-20eef93f2f68",
+      "status": "completed_and_task_deleted",
+      "commit": "f8ccabb4b"
+    },
+    {
+      "owner": 37,
+      "thread_id": "01a1e3ca-516b-7733-aa4d-4299ab551f92",
+      "status": "completed_and_task_deleted",
+      "commit": "76da5a64c"
+    }
+  ],
+  "host_after_followup_dispatcher_commits": 36520
+}

@@ -1,10 +1,10 @@
 {
   "status": "physical_gate_failed",
-  "host_lines": 43584,
+  "host_lines": 36178,
   "limit": 35000,
-  "excess": 8584,
+  "excess": 1178,
   "baseline_lines": 135228,
-  "net_physical_reduction": 91644,
+  "net_physical_reduction": 99050,
   "owner_totals": {
     "2": 698,
     "3": 246,
@@ -12,23 +12,23 @@
     "5": 192,
     "6": 911,
     "7": 266,
-    "8": 607,
-    "9": 351,
-    "10": 1454,
-    "11": 1750,
-    "12": 628,
+    "8": 564,
+    "9": 153,
+    "10": 687,
+    "11": 800,
+    "12": 632,
     "13": 685,
     "14": 700,
-    "15": 1286,
+    "15": 1027,
     "16": 727,
-    "17": 1225,
+    "17": 1084,
     "18": 694,
     "19": 449,
     "20": 623,
     "21": 683,
-    "22": 810,
-    "23": 1381,
-    "24": 1639,
+    "22": 806,
+    "23": 588,
+    "24": 1234,
     "25": 305,
     "26": 654,
     "27": 623,
@@ -36,34 +36,33 @@
     "29": 507,
     "30": 566,
     "31": 501,
-    "32": 633,
-    "33": 721,
+    "32": 498,
+    "33": 605,
     "34": 700,
-    "35": 1143,
+    "35": 780,
     "36": 211,
-    "37": 1129,
-    "38": 1172,
-    "39": 527,
+    "37": 746,
+    "38": 954,
+    "39": 405,
     "40": 573,
     "41": 254,
-    "42": 646,
-    "43": 830,
-    "44": 1663,
-    "45": 591,
-    "46": 898,
-    "47": 225,
-    "48": 1084,
+    "42": 611,
+    "43": 827,
+    "44": 1309,
+    "45": 379,
+    "46": 481,
+    "48": 792,
     "49": 7,
     "50": 629,
     "51": 350,
     "52": 258,
-    "53": 1321,
-    "54": 978,
-    "55": 654,
+    "53": 781,
+    "54": 973,
+    "55": 421,
     "56": 533,
     "57": 180,
     "58": 115,
-    "59": 3243
+    "59": 3240
   },
   "files": [
     {
@@ -164,28 +163,36 @@
       "path": "crates/vw-agent/src/acp/backend_tests.rs",
       "owner": 53,
       "before": 196,
-      "after": 166,
+      "after": 71,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-53.md",
       "symbols": [
         {
-          "line": 18,
-          "declaration": "fn tenant(suffix: &str) -> TenantScope {"
+          "line": 7,
+          "declaration": "struct NativeBackendPorts;"
         },
         {
-          "line": 24,
+          "line": 9,
+          "declaration": "impl contracts::BackendPorts for NativeBackendPorts {"
+        },
+        {
+          "line": 11,
+          "declaration": "async fn start(backend: &VibeWindowBackend, id: &str, case: PromptCase) -> Result<BackendPrompt, BackendError> {"
+        },
+        {
+          "line": 54,
           "declaration": "async fn backend_reuses_native_session_identity_and_history() {"
         },
         {
-          "line": 42,
+          "line": 59,
           "declaration": "async fn backend_prompt_persists_turn_once() {"
         },
         {
-          "line": 108,
+          "line": 64,
           "declaration": "async fn backend_prompt_uses_native_model_and_local_tools() {"
         },
         {
-          "line": 137,
+          "line": 69,
           "declaration": "async fn backend_cancel_propagates_to_runtime_turn() {"
         }
       ]
@@ -256,32 +263,28 @@
       "path": "crates/vw-agent/src/acp/mcp_tests.rs",
       "owner": 53,
       "before": 152,
-      "after": 136,
+      "after": 52,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-53.md",
       "symbols": [
         {
-          "line": 14,
-          "declaration": "fn fixture_server(root: &std::path::Path, env: Vec<EnvVariable>) -> McpServer {"
-        },
-        {
-          "line": 52,
+          "line": 12,
           "declaration": "async fn mcp_servers_are_scoped_to_bound_session() {"
         },
         {
-          "line": 70,
+          "line": 30,
           "declaration": "async fn mcp_conversion_preserves_supported_transport_without_logging_env() {"
         },
         {
-          "line": 78,
+          "line": 38,
           "declaration": "async fn unsupported_or_failed_mcp_is_rejected_atomically() {"
         },
         {
-          "line": 86,
+          "line": 46,
           "declaration": "async fn loaded_session_rebuilds_requested_mcp_scope() {"
         },
         {
-          "line": 114,
+          "line": 50,
           "declaration": "async fn foreign_session_load_rejects_before_starting_mcp_processes() {"
         }
       ]
@@ -299,16 +302,28 @@
       "path": "crates/vw-agent/src/acp/model_tests.rs",
       "owner": 53,
       "before": 83,
-      "after": 83,
+      "after": 22,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-53.md",
       "symbols": [
         {
-          "line": 11,
-          "declaration": "fn ids(state: &SessionModelState) -> Vec<&str> {"
+          "line": 3,
+          "declaration": "struct NativeModelPorts;"
         },
         {
-          "line": 16,
+          "line": 5,
+          "declaration": "impl agent_acp::host_migration_53_model_contracts::ModelPorts for NativeModelPorts {"
+        },
+        {
+          "line": 7,
+          "declaration": "async fn save_fixture(tenant: &vw_api_transport::TenantScope, provider: serde_json::Value) {"
+        },
+        {
+          "line": 12,
+          "declaration": "async fn prompt_selected(backend: &VibeWindowBackend, id: &str) -> acp_server::server::BackendPrompt {"
+        },
+        {
+          "line": 20,
           "declaration": "async fn model_selection_reaches_runtime_and_preserves_other_sessions() {"
         }
       ]
@@ -484,45 +499,45 @@
       "path": "crates/vw-agent/src/acp/mounts_tests.rs",
       "owner": 53,
       "before": 364,
-      "after": 364,
+      "after": 64,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-53.md",
       "symbols": [
         {
-          "line": 6,
+          "line": 2,
           "declaration": "async fn acp_server_skill_overlay_accepts_native_directory() {"
         },
         {
-          "line": 32,
-          "declaration": "fn source() -> tempfile::TempDir {"
-        },
-        {
-          "line": 39,
-          "declaration": "fn request(source: &std::path::Path) -> BackendMountRequest {"
-        },
-        {
-          "line": 53,
+          "line": 7,
           "declaration": "async fn acp_server_skill_overlay_invokes_reads_attachment_and_rediscovers_without_full_access() {"
         },
         {
-          "line": 148,
+          "line": 27,
           "declaration": "async fn acp_server_skill_overlay_rejects_conflicts_and_failed_mcp_without_publishing() {"
         },
         {
-          "line": 186,
+          "line": 32,
           "declaration": "async fn acp_server_skill_overlay_and_real_mcp_execute_in_one_prepared_session() {"
         },
         {
-          "line": 246,
+          "line": 38,
           "declaration": "async fn acp_server_skill_overlay_permission_change_revokes_read_and_invocation() {"
         },
         {
-          "line": 274,
+          "line": 43,
           "declaration": "async fn acp_server_skill_overlay_retains_native_skill_permission_denial() {"
         },
         {
-          "line": 310,
+          "line": 48,
           "declaration": "async fn acp_server_skill_overlay_same_name_sources_are_isolated_and_explicit_empty_clears() {"
+        },
+        {
+          "line": 52,
+          "declaration": "fn native_overlay_context(id: &str, root: &std::path::Path, sources: super::mounts::SessionSkillSources, deny: bool) -> std::sync::Arc<crate::tools::ToolUseContext> {"
+        },
+        {
+          "line": 60,
+          "declaration": "fn native_overlay_skill(id: String, root: &std::path::Path) -> std::sync::Arc<dyn crate::tools::Tool> {"
         }
       ]
     },
@@ -1582,16 +1597,12 @@
       "path": "crates/vw-agent/src/agent_apps/mcp/acp_mount_tests.rs",
       "owner": 48,
       "before": 227,
-      "after": 227,
+      "after": 148,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-48.md",
       "symbols": [
         {
-          "line": 17,
-          "declaration": "fn add_server("
-        },
-        {
-          "line": 59,
+          "line": 19,
           "declaration": "async fn cc_mcp_t29_explicit_catalog_selection_mounts_only_the_selected_server() {"
         }
       ]
@@ -1847,20 +1858,20 @@
       "path": "crates/vw-agent/src/agent_apps/mcp/revocation_tests.rs",
       "owner": 48,
       "before": 251,
-      "after": 251,
+      "after": 151,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-48.md",
       "symbols": [
         {
-          "line": 21,
+          "line": 19,
           "declaration": "fn connection(script: &Path, calls: &Path, label: &str) -> McpConnectionDefinition {"
         },
         {
-          "line": 31,
+          "line": 29,
           "declaration": "fn cc_mcp_t28_update_and_delete_revoke_cached_tools_without_interrupting_admitted_call()"
         },
         {
-          "line": 158,
+          "line": 84,
           "declaration": "fn cc_mcp_t28_disable_revokes_loopback_tools_until_a_fresh_selection() -> anyhow::Result<()> {"
         }
       ]
@@ -1883,20 +1894,16 @@
       "path": "crates/vw-agent/src/agent_apps/mcp/runtime_tests.rs",
       "owner": 48,
       "before": 261,
-      "after": 261,
+      "after": 148,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-48.md",
       "symbols": [
         {
-          "line": 40,
-          "declaration": "pub(super) fn register_project("
-        },
-        {
-          "line": 61,
+          "line": 38,
           "declaration": "fn cc_mcp_t27_selected_record_exposes_and_calls_the_real_tool() -> anyhow::Result<()> {"
         },
         {
-          "line": 174,
+          "line": 106,
           "declaration": "async fn cc_mcp_t27_runtime_selection_keeps_project_and_acp_boundaries() -> anyhow::Result<()> {"
         }
       ]
@@ -2095,84 +2102,48 @@
       "path": "crates/vw-agent/src/agent_scheduler/runner/gateway_executor_tests.rs",
       "owner": 55,
       "before": 991,
-      "after": 496,
+      "after": 263,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-55.md",
       "symbols": [
         {
-          "line": 24,
+          "line": 20,
           "declaration": "async fn acp_background_approval_scheduler_writes_only_inside_worktree() -> Result<()> {"
         },
         {
-          "line": 72,
+          "line": 68,
           "declaration": "fn gateway_executor_workspace_methods_fail_before_pool_io_for_unregistered_project() -> Result<()> {"
         },
         {
-          "line": 122,
+          "line": 73,
           "declaration": "fn gateway_executor_execute_collects_stream_output_and_appends_observed_logs() -> Result<()> {"
         },
         {
-          "line": 181,
+          "line": 78,
           "declaration": "fn gateway_executor_execute_propagates_stream_collection_error() -> Result<()> {"
         },
         {
-          "line": 200,
+          "line": 83,
           "declaration": "fn gateway_real_chat_client_is_disabled_in_unit_tests() -> Result<()> {"
         },
         {
-          "line": 217,
-          "declaration": "fn execution_request("
-        },
-        {
-          "line": 239,
-          "declaration": "fn finite_task(task_id: &TaskId) -> Result<NewAgentTask> {"
-        },
-        {
-          "line": 263,
-          "declaration": "struct FakeChatStream {"
-        },
-        {
-          "line": 269,
-          "declaration": "impl GatewayChatStreamClient for FakeChatStream {"
-        },
-        {
-          "line": 270,
-          "declaration": "fn collect_with_observer<'a>("
-        },
-        {
-          "line": 294,
-          "declaration": "fn pop_stream_result("
-        },
-        {
-          "line": 306,
+          "line": 101,
           "declaration": "fn task_pool_recovery_gateway_passes_stop_to_stream() -> Result<()> {"
         },
         {
-          "line": 308,
-          "declaration": "struct CancelStream;"
-        },
-        {
-          "line": 309,
-          "declaration": "impl GatewayChatStreamClient for CancelStream {"
-        },
-        {
-          "line": 310,
-          "declaration": "fn collect_with_observer<'a>("
-        },
-        {
-          "line": 338,
+          "line": 105,
           "declaration": "async fn exercise_task_pool_worktree(git: bool, fail_run: bool) -> Result<()> {"
         },
         {
-          "line": 484,
+          "line": 251,
           "declaration": "async fn task_pool_worktree_created_only_by_explicit_tool() -> Result<()> {"
         },
         {
-          "line": 489,
+          "line": 256,
           "declaration": "async fn task_pool_worktree_non_git_rejected_without_side_effects() -> Result<()> {"
         },
         {
-          "line": 494,
+          "line": 261,
           "declaration": "async fn task_pool_worktree_failed_run_preserves_changes() -> Result<()> {"
         }
       ]
@@ -2364,20 +2335,6 @@
         {
           "line": 81,
           "declaration": "fn drop(&mut self) { agent_env::remove(KEY); }"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/channels/channels_config_host_tests.rs",
-      "owner": 42,
-      "before": 55,
-      "after": 10,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-42.md",
-      "symbols": [
-        {
-          "line": 4,
-          "declaration": "async fn channel_project_binding_qq_webhook_uses_default_instance() {"
         }
       ]
     },
@@ -2578,16 +2535,12 @@
       "path": "crates/vw-agent/src/channels/manager/execution_binding.rs",
       "owner": 42,
       "before": 23,
-      "after": 23,
+      "after": 19,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-42.md",
       "symbols": [
         {
           "line": 4,
-          "declaration": "pub(crate) async fn resolve_execution_route("
-        },
-        {
-          "line": 8,
           "declaration": "pub(crate) async fn execution_options("
         }
       ]
@@ -2633,21 +2586,13 @@
       "path": "crates/vw-agent/src/channels/manager/message.rs",
       "owner": 42,
       "before": 24,
-      "after": 24,
+      "after": 12,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-42.md",
       "symbols": [
         {
           "line": 4,
-          "declaration": "pub(crate) async fn process_channel_message_inner("
-        },
-        {
-          "line": 9,
           "declaration": "pub(crate) async fn prepare_streaming_ui_state("
-        },
-        {
-          "line": 15,
-          "declaration": "pub(crate) fn spawn_draft_updater("
         }
       ]
     },
@@ -2770,7 +2715,7 @@
       "path": "crates/vw-agent/src/channels/manager/runtime_host.rs",
       "owner": 42,
       "before": 152,
-      "after": 152,
+      "after": 143,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-42.md",
       "symbols": [
@@ -2949,18 +2894,6 @@
         {
           "line": 140,
           "declaration": "fn hooks(&self, config: &Config) -> Result<Option<Arc<crate::hooks::HookRunner>>> {"
-        },
-        {
-          "line": 143,
-          "declaration": "fn recursive_policy(&self) -> &'static str {"
-        },
-        {
-          "line": 146,
-          "declaration": "fn tool_instructions(&self, specs: &[tool_types::ToolSpec]) -> String {"
-        },
-        {
-          "line": 149,
-          "declaration": "fn shell_policy(&self, autonomy: &crate::config::AutonomyConfig) -> String {"
         }
       ]
     },
@@ -3027,7 +2960,7 @@
       "path": "crates/vw-agent/src/channels/mod.rs",
       "owner": 43,
       "before": 372,
-      "after": 334,
+      "after": 331,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-43.md",
       "symbols": []
@@ -4074,32 +4007,28 @@
       "path": "crates/vw-agent/src/cron/delivery.rs",
       "owner": 54,
       "before": 71,
-      "after": 71,
+      "after": 66,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-54.md",
       "symbols": [
         {
-          "line": 7,
+          "line": 6,
           "declaration": "pub(crate) fn validate(config: &Config, delivery: &DeliveryConfig) -> Result<()> {"
         },
         {
-          "line": 10,
+          "line": 9,
           "declaration": "pub(crate) async fn validate_saved(config: &Config, delivery: &DeliveryConfig) -> Result<()> {"
         },
         {
-          "line": 14,
-          "declaration": "pub(crate) async fn send(config: &Config, channel: &str, target: &str, output: &str) -> Result<()> {"
-        },
-        {
-          "line": 17,
+          "line": 12,
           "declaration": "pub(crate) async fn apply_result(config: &Config, job: &super::CronJob, success: bool, output: &str) -> (bool, String) {"
         },
         {
-          "line": 21,
+          "line": 16,
           "declaration": "pub(super) async fn latest_config(config: &Config) -> Result<Config> {"
         },
         {
-          "line": 39,
+          "line": 34,
           "declaration": "pub(super) async fn send_validated(config: &Config, channel: &str, target: &str, output: &str) -> Result<()> {"
         }
       ]
@@ -6462,101 +6391,89 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/config_tests.rs",
       "owner": 8,
       "before": 1619,
-      "after": 498,
+      "after": 455,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-8.md",
       "symbols": [
         {
-          "line": 21,
+          "line": 20,
           "declaration": "struct EnvGuard {"
         },
         {
-          "line": 26,
+          "line": 25,
           "declaration": "impl EnvGuard {"
         },
         {
-          "line": 27,
+          "line": 26,
           "declaration": "fn set(key: &'static str, value: &OsStr) -> Self {"
         },
         {
-          "line": 35,
+          "line": 34,
           "declaration": "fn unset(key: &'static str) -> Self {"
         },
         {
-          "line": 44,
+          "line": 43,
           "declaration": "impl Drop for EnvGuard {"
         },
         {
-          "line": 45,
+          "line": 44,
           "declaration": "fn drop(&mut self) {"
         },
         {
-          "line": 56,
+          "line": 55,
           "declaration": "struct StaticProvider;"
         },
         {
-          "line": 60,
+          "line": 59,
           "declaration": "impl Provider for StaticProvider {"
         },
         {
-          "line": 61,
+          "line": 60,
           "declaration": "async fn chat_with_system("
         },
         {
-          "line": 72,
+          "line": 71,
           "declaration": "fn state(config: config::Config, require_pairing: bool, tokens: &[String]) -> AppState {"
         },
         {
-          "line": 96,
-          "declaration": "fn bearer_headers(token: &str) -> HeaderMap {"
-        },
-        {
-          "line": 103,
+          "line": 95,
           "declaration": "fn instance_query(temp: &TempDir) -> Query<InstanceQuery> {"
         },
         {
-          "line": 107,
+          "line": 99,
           "declaration": "fn local_store(home: &std::path::Path) -> config::SystemConfigStore {"
         },
         {
-          "line": 112,
+          "line": 104,
           "declaration": "async fn response_json(response: axum::response::Response) -> Value {"
         },
         {
-          "line": 119,
+          "line": 111,
           "declaration": "fn routers_build_for_stateless_and_stateful_config_routes() {"
         },
         {
-          "line": 126,
+          "line": 118,
           "declaration": "async fn config_providers_returns_defaults_for_available_models() {"
         },
         {
-          "line": 142,
-          "declaration": "async fn handle_api_config_get_requires_auth_when_pairing_is_enabled() {"
-        },
-        {
-          "line": 157,
-          "declaration": "async fn handle_api_config_put_rejects_unauthorized_before_parsing_body() {"
-        },
-        {
-          "line": 172,
+          "line": 136,
           "declaration": "async fn handle_api_config_put_reports_config_save_failure_without_mutating_runtime_state() {"
         },
         {
-          "line": 232,
+          "line": 196,
           "declaration": "async fn config_put_reloads_hooks_and_invalidates_query_engines() {"
         },
         {
-          "line": 295,
+          "line": 259,
           "declaration": "async fn config_put_hook_build_failure_is_atomic() {"
         },
         {
-          "line": 377,
-          "declaration": "async fn handle_api_config_get_accepts_valid_bearer_token_when_pairing_is_enabled() {"
+          "line": 342,
+          "declaration": "async fn manual_agent_save_updates_live_resolution_and_survives_instance_restart() {"
         },
         {
-          "line": 395,
-          "declaration": "async fn manual_agent_save_updates_live_resolution_and_survives_instance_restart() {"
+          "line": 449,
+          "declaration": "async fn config_host_enforces_pairing_before_parsing_put() {"
         }
       ]
     },
@@ -6606,64 +6523,52 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/cron_tests.rs",
       "owner": 9,
       "before": 1023,
-      "after": 307,
+      "after": 109,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-9.md",
       "symbols": [
         {
-          "line": 17,
+          "line": 13,
           "declaration": "struct StaticProvider;"
         },
         {
-          "line": 21,
+          "line": 17,
           "declaration": "impl Provider for StaticProvider {"
         },
         {
-          "line": 22,
+          "line": 18,
           "declaration": "async fn chat_with_system("
         },
         {
-          "line": 33,
+          "line": 29,
           "declaration": "fn state_with_config(config: Arc<parking_lot::Mutex<Config>>, require_pairing: bool) -> AppState {"
         },
         {
-          "line": 58,
+          "line": 54,
           "declaration": "fn temp_config(workspace: &std::path::Path) -> Arc<parking_lot::Mutex<Config>> {"
         },
         {
-          "line": 64,
-          "declaration": "async fn response_json<R: IntoResponse>(response: R) -> (StatusCode, serde_json::Value) {"
-        },
-        {
-          "line": 72,
-          "declaration": "fn add_body() -> CronAddBody {"
-        },
-        {
-          "line": 100,
-          "declaration": "fn update_body() -> CronUpdateBody {"
-        },
-        {
-          "line": 129,
-          "declaration": "async fn history_request(state: AppState) -> (StatusCode, serde_json::Value) {"
-        },
-        {
-          "line": 155,
+          "line": 63,
           "declaration": "async fn cron_handlers_reject_requests_when_pairing_is_required() {"
         },
         {
-          "line": 191,
+          "line": 69,
           "declaration": "async fn cron_mutating_handlers_reject_requests_before_writing_when_pairing_is_required() {"
         },
         {
-          "line": 223,
+          "line": 74,
+          "declaration": "fn router(state: AppState) -> axum::Router {"
+        },
+        {
+          "line": 79,
           "declaration": "async fn cron_history_endpoint_requires_auth() {"
         },
         {
-          "line": 231,
+          "line": 85,
           "declaration": "async fn cron_wecom_delivery_api_roundtrip_and_partial_edit_validate_merged_target() {"
         },
         {
-          "line": 277,
+          "line": 102,
           "declaration": "async fn wb_schedule_api_preview_routes_enforce_auth_and_return_candidates() {"
         }
       ]
@@ -6867,52 +6772,36 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/file_drag_integration_tests.rs",
       "owner": 15,
       "before": 405,
-      "after": 118,
+      "after": 75,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-15.md",
       "symbols": [
         {
-          "line": 9,
-          "declaration": "struct StaticProvider;"
-        },
-        {
-          "line": 13,
-          "declaration": "impl Provider for StaticProvider {"
-        },
-        {
-          "line": 14,
-          "declaration": "async fn chat_with_system("
-        },
-        {
-          "line": 26,
-          "declaration": "fn state() -> AppState {"
-        },
-        {
-          "line": 51,
+          "line": 5,
           "declaration": "async fn server(bootstrap: bool) -> Server {"
         },
         {
-          "line": 54,
+          "line": 8,
           "declaration": "async fn server_on(bootstrap: bool, host: &str) -> Server {"
         },
         {
-          "line": 81,
+          "line": 38,
           "declaration": "async fn file_drag_integration_both_listeners_preserve_data_and_reject_conflicts() {"
         },
         {
-          "line": 89,
+          "line": 46,
           "declaration": "async fn file_drag_integration_auth_tenant_origin_rejections_have_no_disk_effects() {"
         },
         {
-          "line": 96,
+          "line": 53,
           "declaration": "async fn file_drag_integration_recursive_link_failure_keeps_source_and_other_items() {"
         },
         {
-          "line": 105,
+          "line": 62,
           "declaration": "async fn file_drag_integration_non_loopback_cannot_spoof_forwarded_headers() {"
         },
         {
-          "line": 113,
+          "line": 70,
           "declaration": "async fn file_drag_integration_default_tenant_cannot_be_changed_from_another_tenant() {"
         }
       ]
@@ -6947,7 +6836,7 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/global.rs",
       "owner": 15,
       "before": 26,
-      "after": 20,
+      "after": 16,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-15.md",
       "symbols": [
@@ -6961,60 +6850,16 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/global_tests.rs",
       "owner": 15,
       "before": 807,
-      "after": 153,
+      "after": 65,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-15.md",
       "symbols": [
         {
-          "line": 19,
-          "declaration": "struct EnvGuard {"
-        },
-        {
-          "line": 24,
-          "declaration": "impl EnvGuard {"
-        },
-        {
-          "line": 25,
-          "declaration": "fn set(key: &'static str, value: &OsStr) -> Self {"
-        },
-        {
-          "line": 33,
-          "declaration": "fn unset(key: &'static str) -> Self {"
-        },
-        {
-          "line": 42,
-          "declaration": "impl Drop for EnvGuard {"
-        },
-        {
-          "line": 43,
-          "declaration": "fn drop(&mut self) {"
-        },
-        {
-          "line": 54,
-          "declaration": "struct StaticProvider;"
-        },
-        {
-          "line": 58,
-          "declaration": "impl Provider for StaticProvider {"
-        },
-        {
-          "line": 59,
-          "declaration": "async fn chat_with_system("
-        },
-        {
-          "line": 70,
-          "declaration": "fn state(config: config::Config, require_pairing: bool, tokens: &[String]) -> AppState {"
-        },
-        {
-          "line": 94,
-          "declaration": "fn use_temp_config_dir(temp: &TempDir) -> (EnvGuard, EnvGuard, EnvGuard) {"
-        },
-        {
-          "line": 102,
+          "line": 14,
           "declaration": "fn gateway_bootstrap_loads_default_tenant_skeys_from_shared_store_without_legacy_fallback() {"
         },
         {
-          "line": 110,
+          "line": 22,
           "declaration": "async fn global_config_patch_stateful_concurrent_fields_preserve_both_values() {"
         }
       ]
@@ -7326,7 +7171,7 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/misc.rs",
       "owner": 15,
       "before": 53,
-      "after": 53,
+      "after": 41,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-15.md",
       "symbols": [
@@ -7377,22 +7222,6 @@
         {
           "line": 35,
           "declaration": "pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> { gateway_misc::router::<S, Host>() }"
-        },
-        {
-          "line": 44,
-          "declaration": "async fn command_list(query: Query<InstanceQuery>, headers: HeaderMap) -> Result<Json<Vec<agent_commands::Info>>, ApiError> { gateway_misc::command_list::<Host>(query, headers).await }"
-        },
-        {
-          "line": 46,
-          "declaration": "async fn agent_list(tenant: Extension<TenantScope>, query: Query<AgentListQuery>, headers: HeaderMap) -> Result<Json<Vec<AgentInfo>>, ApiError> { gateway_misc::agent_list::<Host>(tenant, query, headers).await }"
-        },
-        {
-          "line": 48,
-          "declaration": "async fn agent_copy(tenant: Extension<TenantScope>, key: Path<String>, query: Query<InstanceQuery>, headers: HeaderMap) -> Result<Json<AgentInfo>, ApiError> { gateway_misc::agent_copy::<Host>(tenant, key, query, headers).await }"
-        },
-        {
-          "line": 50,
-          "declaration": "async fn skill_list(query: Query<InstanceQuery>, headers: HeaderMap) -> Result<Json<Vec<SkillInfo>>, ApiError> { gateway_misc::skill_list::<Host>(query, headers).await }"
         }
       ]
     },
@@ -7400,81 +7229,45 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/misc_tests.rs",
       "owner": 15,
       "before": 304,
-      "after": 193,
+      "after": 81,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-15.md",
       "symbols": [
         {
-          "line": 9,
-          "declaration": "struct StoredProjectCleanup(std::path::PathBuf);"
-        },
-        {
-          "line": 11,
-          "declaration": "impl Drop for StoredProjectCleanup {"
-        },
-        {
-          "line": 12,
-          "declaration": "fn drop(&mut self) {"
-        },
-        {
-          "line": 17,
-          "declaration": "fn query_for(path: &std::path::Path) -> Query<InstanceQuery> {"
-        },
-        {
-          "line": 21,
+          "line": 8,
           "declaration": "async fn route_status(method: Method, uri: &str) -> StatusCode {"
         },
         {
-          "line": 38,
+          "line": 25,
           "declaration": "fn router_builds_with_unit_state() {"
         },
         {
-          "line": 43,
+          "line": 30,
           "declaration": "async fn router_dispatches_all_get_routes() {"
         },
         {
-          "line": 55,
+          "line": 42,
           "declaration": "async fn router_rejects_non_get_methods_and_unknown_paths() {"
         },
         {
-          "line": 69,
+          "line": 54,
           "declaration": "async fn command_list_returns_named_command_metadata() {"
         },
         {
-          "line": 77,
+          "line": 59,
           "declaration": "async fn agent_list_returns_keyed_agent_metadata() {"
         },
         {
-          "line": 93,
+          "line": 64,
           "declaration": "async fn skill_list_returns_named_and_located_skill_metadata() {"
         },
         {
-          "line": 107,
+          "line": 69,
           "declaration": "async fn list_handlers_ignore_legacy_invalid_project_json() {"
         },
         {
-          "line": 145,
+          "line": 74,
           "declaration": "async fn agent_profile_api_catalog_includes_disabled_only_when_requested() {"
-        },
-        {
-          "line": 174,
-          "declaration": "struct ProfileEnvGuard(&'static str, Option<std::ffi::OsString>);"
-        },
-        {
-          "line": 175,
-          "declaration": "impl ProfileEnvGuard {"
-        },
-        {
-          "line": 176,
-          "declaration": "fn set(key: &'static str, value: &std::path::Path) -> Self {"
-        },
-        {
-          "line": 184,
-          "declaration": "impl Drop for ProfileEnvGuard {"
-        },
-        {
-          "line": 185,
-          "declaration": "fn drop(&mut self) {"
         }
       ]
     },
@@ -7875,7 +7668,7 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/session.rs",
       "owner": 12,
       "before": 135,
-      "after": 126,
+      "after": 130,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-12.md",
       "symbols": [
@@ -7969,7 +7762,7 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs",
       "owner": 10,
       "before": 1082,
-      "after": 67,
+      "after": 69,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-10.md",
       "symbols": [
@@ -7978,95 +7771,99 @@
           "declaration": "impl gateway_session::profile_acceptance_host::ProfileAcceptanceHost for Host {"
         },
         {
-          "line": 7,
-          "declaration": "async fn persist_turn(session: &str, query: &str, text: &str, agent: &str, error: Option<&str>) -> Result<(String, String), crate::gateway::ApiError> { super::stream::persist_child_agent_turn(session, query, text, agent, error).await }"
-        },
-        {
-          "line": 8,
-          "declaration": "fn env_lock() -> &'static tokio::sync::Mutex<()> { crate::test_support::global_async_env_lock() }"
+          "line": 6,
+          "declaration": "fn session_router() -> axum::Router { super::tests::test_app() }"
         },
         {
           "line": 9,
-          "declaration": "async fn recovery(api: &str, key: Option<&str>) -> Self::Fixture { Self::Fixture::new(api, key).await }"
+          "declaration": "async fn persist_turn(session: &str, query: &str, text: &str, agent: &str, error: Option<&str>) -> Result<(String, String), crate::gateway::ApiError> { super::stream::persist_child_agent_turn(session, query, text, agent, error).await }"
         },
         {
           "line": 10,
-          "declaration": "async fn config() -> anyhow::Result<agent_config::runtime::Config> { Ok(crate::config::get_current().await?) }"
+          "declaration": "fn env_lock() -> &'static tokio::sync::Mutex<()> { crate::test_support::global_async_env_lock() }"
         },
         {
           "line": 11,
-          "declaration": "async fn invalidate_cache() { crate::provider::provider::invalidate_cache().await; }"
+          "declaration": "async fn recovery(api: &str, key: Option<&str>) -> Self::Fixture { Self::Fixture::new(api, key).await }"
         },
         {
           "line": 12,
-          "declaration": "fn catalog_router() -> axum::Router { super::super::misc::router::<()>() }"
+          "declaration": "async fn config() -> anyhow::Result<agent_config::runtime::Config> { Ok(crate::config::get_current().await?) }"
         },
         {
           "line": 13,
-          "declaration": "fn config_router() -> axum::Router { super::super::config::router::<()>() }"
+          "declaration": "async fn invalidate_cache() { crate::provider::provider::invalidate_cache().await; }"
         },
         {
           "line": 14,
+          "declaration": "fn catalog_router() -> axum::Router { super::super::misc::router::<()>() }"
+        },
+        {
+          "line": 15,
+          "declaration": "fn config_router() -> axum::Router { super::super::config::router::<()>() }"
+        },
+        {
+          "line": 16,
           "declaration": "async fn chat(query: axum::extract::Query<gateway_instance::host::InstanceQuery>, headers: axum::http::HeaderMap, body: axum::Json<vw_api_chat::chat::GatewayChatStreamRequest>) -> Result<axum::response::Response, crate::gateway::ApiError> {"
         },
         {
-          "line": 21,
+          "line": 23,
           "declaration": "fn agent_profile_acceptance_runs_selected_profile_end_to_end() { suite::agent_profile_acceptance_runs_selected_profile_end_to_end::<Host>(); }"
         },
         {
-          "line": 24,
+          "line": 26,
           "declaration": "fn acp_onboarding_autohand_builtin_profile_persists_and_runs() { suite::acp_onboarding_autohand_builtin_profile_persists_and_runs::<Host>(); }"
         },
         {
-          "line": 28,
+          "line": 30,
           "declaration": "fn acp_onboarding_deepagents_builtin_profile_persists_and_runs() { suite::acp_onboarding_deepagents_builtin_profile_persists_and_runs::<Host>(); }"
         },
         {
-          "line": 31,
+          "line": 33,
           "declaration": "fn acp_onboarding_dimcode_builtin_profile_persists_and_runs() { suite::acp_onboarding_dimcode_builtin_profile_persists_and_runs::<Host>(); }"
         },
         {
-          "line": 34,
+          "line": 36,
           "declaration": "fn acp_onboarding_dirac_builtin_profile_persists_and_runs() { suite::acp_onboarding_dirac_builtin_profile_persists_and_runs::<Host>(); }"
         },
         {
-          "line": 37,
+          "line": 39,
           "declaration": "fn acp_onboarding_glm_acp_agent_builtin_profile_persists_and_runs() { suite::acp_onboarding_glm_acp_agent_builtin_profile_persists_and_runs::<Host>(); }"
         },
         {
-          "line": 40,
+          "line": 42,
           "declaration": "fn acp_onboarding_grok_builtin_profile_persists_and_runs() { suite::acp_onboarding_grok_builtin_profile_persists_and_runs::<Host>(); }"
         },
         {
-          "line": 43,
+          "line": 45,
           "declaration": "fn acp_onboarding_nova_builtin_profile_persists_and_runs() { suite::acp_onboarding_nova_builtin_profile_persists_and_runs::<Host>(); }"
         },
         {
-          "line": 47,
+          "line": 49,
           "declaration": "fn acp_onboarding_nova_real_builtin_profile_persists_and_runs() { suite::acp_onboarding_nova_real_builtin_profile_persists_and_runs::<Host>(); }"
         },
         {
-          "line": 50,
+          "line": 52,
           "declaration": "fn acp_onboarding_sigit_builtin_profile_persists_and_runs() { suite::acp_onboarding_sigit_builtin_profile_persists_and_runs::<Host>(); }"
         },
         {
-          "line": 54,
+          "line": 56,
           "declaration": "fn acp_onboarding_sigit_real_builtin_profile_persists_and_runs() { suite::acp_onboarding_sigit_real_builtin_profile_persists_and_runs::<Host>(); }"
         },
         {
-          "line": 58,
+          "line": 60,
           "declaration": "fn acp_onboarding_amp_acp_builtin_profile_persists_and_runs() { suite::acp_onboarding_amp_acp_builtin_profile_persists_and_runs::<Host>(); }"
         },
         {
-          "line": 61,
+          "line": 63,
           "declaration": "async fn agent_profile_acceptance_rejects_revoked_capabilities() { suite::agent_profile_acceptance_rejects_revoked_capabilities::<Host>().await; }"
         },
         {
-          "line": 64,
+          "line": 66,
           "declaration": "async fn agent_profile_acceptance_catalog_uses_request_tenant() { suite::agent_profile_acceptance_catalog_uses_request_tenant::<Host>().await; }"
         },
         {
-          "line": 67,
+          "line": 69,
           "declaration": "async fn agent_config_cleanup_global_profile_roundtrips_to_new_session() { suite::agent_config_cleanup_global_profile_roundtrips_to_new_session::<Host>().await; }"
         }
       ]
@@ -8115,80 +7912,16 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/session/fork_acceptance_tests.rs",
       "owner": 10,
       "before": 506,
-      "after": 506,
+      "after": 11,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-10.md",
       "symbols": [
         {
-          "line": 32,
-          "declaration": "async fn request("
-        },
-        {
-          "line": 63,
-          "declaration": "async fn read_desktop_history(app: &Router, session: &Info) -> Vec<SessionMessageRecord> {"
-        },
-        {
-          "line": 81,
-          "declaration": "async fn send(app: &Router, session: &Info, prompt: &str, answer: &str) -> String {"
-        },
-        {
-          "line": 99,
-          "declaration": "fn git(directory: &Path, args: &[&str]) -> String {"
-        },
-        {
-          "line": 106,
-          "declaration": "fn create_repo(directory: &Path) {"
-        },
-        {
-          "line": 128,
-          "declaration": "async fn serve_model(requests: Arc<Mutex<Vec<Value>>>) -> String {"
-        },
-        {
-          "line": 165,
-          "declaration": "enum Prefix {"
-        },
-        {
-          "line": 172,
-          "declaration": "struct Branch {"
-        },
-        {
-          "line": 178,
-          "declaration": "fn assert_no_future(value: &str) {"
-        },
-        {
-          "line": 186,
+          "line": 4,
           "declaration": "fn fork_acceptance_negative_detects_discarded_model_history() {"
         },
         {
-          "line": 194,
-          "declaration": "fn assert_initial_history(history: &[SessionMessageRecord], prefix: Prefix, tool_output: &str) {"
-        },
-        {
-          "line": 220,
-          "declaration": "fn assert_continuation(body: &Value, branch: &Branch, tool_output: &str) {"
-        },
-        {
-          "line": 264,
-          "declaration": "async fn native_model_history(info: &Info) -> Vec<Value> {"
-        },
-        {
-          "line": 278,
-          "declaration": "async fn seed_checkpoints(info: &Info, retained: Vec<Value>, full: Vec<Value>) {"
-        },
-        {
-          "line": 298,
-          "declaration": "async fn fork("
-        },
-        {
-          "line": 334,
-          "declaration": "async fn run_fixture(root: &Path) {"
-        },
-        {
-          "line": 448,
-          "declaration": "async fn run_process(root: &Path, phase: &str) {"
-        },
-        {
-          "line": 484,
+          "line": 8,
           "declaration": "async fn fork_acceptance_restarts_and_resumes_both_targets() {"
         }
       ]
@@ -8197,29 +7930,21 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/session/fork_acp_tests.rs",
       "owner": 10,
       "before": 288,
-      "after": 288,
+      "after": 14,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-10.md",
       "symbols": [
         {
-          "line": 6,
-          "declaration": "async fn process(root: &FsPath, phase: &str) {"
-        },
-        {
-          "line": 33,
-          "declaration": "async fn send("
-        },
-        {
-          "line": 78,
-          "declaration": "fn assert_prefix(text: &str) {"
-        },
-        {
-          "line": 103,
+          "line": 4,
           "declaration": "fn fork_acp_negative_missing_history_is_detected() {"
         },
         {
-          "line": 108,
+          "line": 8,
           "declaration": "async fn fork_acp_first_prompt_and_restart_preserve_history() {"
+        },
+        {
+          "line": 9,
+          "declaration": "fn app() -> axum::Router {"
         }
       ]
     },
@@ -8648,7 +8373,7 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/session/stream.rs",
       "owner": 11,
       "before": 568,
-      "after": 330,
+      "after": 328,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-11.md",
       "symbols": [
@@ -8761,43 +8486,43 @@
           "declaration": "fn start_prompt("
         },
         {
-          "line": 197,
+          "line": 195,
           "declaration": "pub(crate) async fn collect_gateway_chat_stream("
         },
         {
-          "line": 205,
+          "line": 203,
           "declaration": "pub(crate) async fn collect_gateway_chat_stream_with_observer("
         },
         {
-          "line": 214,
+          "line": 212,
           "declaration": "pub(crate) async fn collect_background_gateway_chat_stream("
         },
         {
-          "line": 230,
+          "line": 228,
           "declaration": "pub(crate) async fn collect_scheduler_gateway_chat_stream("
         },
         {
-          "line": 241,
+          "line": 239,
           "declaration": "pub(crate) async fn persist_stream_chat_turn("
         },
         {
-          "line": 265,
+          "line": 263,
           "declaration": "pub(crate) async fn persist_child_agent_turn("
         },
         {
-          "line": 277,
+          "line": 275,
           "declaration": "pub(crate) fn commit_collected_child_agent_turn("
         },
         {
-          "line": 292,
+          "line": 290,
           "declaration": "pub(crate) fn reserve_stream_agent_session("
         },
         {
-          "line": 305,
+          "line": 303,
           "declaration": "pub(crate) async fn chat_stream("
         },
         {
-          "line": 319,
+          "line": 317,
           "declaration": "pub(crate) async fn chat_stream_stop("
         }
       ]
@@ -8806,132 +8531,120 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/session/stream_tests.rs",
       "owner": 11,
       "before": 3250,
-      "after": 1420,
+      "after": 472,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-11.md",
       "symbols": [
         {
-          "line": 9,
+          "line": 7,
           "declaration": "async fn gateway_chat_persists_and_reports_session_git_line_counts() {"
         },
         {
-          "line": 121,
-          "declaration": "fn codex_skills_defaults_gateway_main_and_child_preload_before_first_request() {"
+          "line": 22,
+          "declaration": "async fn codex_skills_defaults_gateway_main_and_child_preload_before_first_request() {"
         },
         {
-          "line": 207,
+          "line": 27,
           "declaration": "async fn resolve_delegate_request_overrides_without_agent_returns_explicit_values() {"
         },
         {
-          "line": 226,
+          "line": 32,
           "declaration": "async fn resolve_delegate_request_overrides_rejects_unknown_agent() {"
         },
         {
-          "line": 240,
+          "line": 37,
           "declaration": "async fn chat_stream_rejects_missing_workspace_without_retryable_status() {"
         },
         {
-          "line": 245,
+          "line": 42,
           "declaration": "async fn native_workflow_gateway_persists_bound_graph_without_llm_artifacts() {"
         },
         {
-          "line": 317,
+          "line": 47,
           "declaration": "async fn collect_gateway_chat_stream_runs_docs_request_and_persists_done_message_ids() {"
         },
         {
-          "line": 322,
+          "line": 52,
           "declaration": "async fn gateway_first_turn_registers_parent_before_thread_tool_use() {"
         },
         {
-          "line": 327,
+          "line": 57,
           "declaration": "async fn chat_stream_returns_sse_response_for_docs_request() {"
         },
         {
-          "line": 332,
-          "declaration": "fn agcollab_delivery_reaches_next_model_request() {"
+          "line": 62,
+          "declaration": "async fn agcollab_delivery_reaches_next_model_request() {"
         },
         {
-          "line": 450,
+          "line": 67,
           "declaration": "async fn video_edit_entry_gateway_unbound_projects_template_edit_menu_and_persistence() {"
         },
         {
-          "line": 615,
+          "line": 185,
           "declaration": "async fn video_edit_entry_gateway_explicit_unavailable_model_does_not_start_graph() {"
         },
         {
-          "line": 640,
+          "line": 189,
           "declaration": "pub(crate) async fn collect_video_edit_test_stream("
         },
         {
-          "line": 667,
-          "declaration": "fn agent_native_defaults_reach_registered_tools_and_prompt() {"
+          "line": 216,
+          "declaration": "async fn agent_native_defaults_reach_registered_tools_and_prompt() {"
         },
         {
-          "line": 803,
+          "line": 221,
           "declaration": "async fn agent_native_defaults_do_not_grant_disabled_mcp() {"
         },
         {
-          "line": 831,
+          "line": 226,
           "declaration": "async fn agent_session_identity_rejects_forged_ui_binding() {"
         },
         {
-          "line": 842,
+          "line": 237,
           "declaration": "fn agent_session_identity_survives_profile_edits() {"
         },
         {
-          "line": 971,
+          "line": 302,
           "declaration": "async fn agent_session_identity_derives_backend_and_rejects_conflicts() {"
         },
         {
-          "line": 982,
+          "line": 313,
           "declaration": "async fn acp_background_approval_gateway_uses_turn_grant_after_agent_resolution() {"
         },
         {
-          "line": 1028,
+          "line": 338,
           "declaration": "async fn agent_config_cleanup_full_access_gateway_freezes_defaults_and_session_choice() {"
         },
         {
-          "line": 1072,
+          "line": 343,
           "declaration": "fn native_tool_search_core_loop_gateway_history_reaches_model_as_native_item() {"
         },
         {
-          "line": 1104,
+          "line": 375,
           "declaration": "async fn agent_model_inheritance_acp_new_and_reopened_sessions_preserve_priority() {"
         },
         {
-          "line": 1122,
+          "line": 393,
           "declaration": "async fn gateway_first_response_replays_the_same_session_and_rejects_other_directories() {"
         },
         {
-          "line": 1134,
+          "line": 405,
           "declaration": "async fn gateway_first_response_failure_preserves_history_until_same_session_retries() {"
         },
         {
-          "line": 1139,
-          "declaration": "struct RestoreTitleFixtureKey(Option<String>);"
-        },
-        {
-          "line": 1140,
-          "declaration": "impl Drop for RestoreTitleFixtureKey {"
-        },
-        {
-          "line": 1141,
-          "declaration": "fn drop(&mut self) {"
-        },
-        {
-          "line": 1250,
+          "line": 410,
           "declaration": "async fn gateway_first_response_missing_replay_does_not_start_a_new_turn() {"
         },
         {
-          "line": 1256,
-          "declaration": "async fn gateway_first_response_disconnect_after_tool_start_replays_cancellation_without_publishing()"
+          "line": 416,
+          "declaration": "async fn gateway_first_response_disconnect_after_tool_start_replays_cancellation_without_publishing() {"
         },
         {
-          "line": 1361,
+          "line": 421,
           "declaration": "async fn task_pool_agent_uses_existing_definition_and_defaults() {"
         },
         {
-          "line": 1411,
+          "line": 463,
           "declaration": "async fn task_pool_agent_rejects_unknown_or_disabled_definition() {"
         }
       ]
@@ -9265,36 +8978,16 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/tools.rs",
       "owner": 17,
       "before": 43,
-      "after": 39,
+      "after": 14,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-17.md",
       "symbols": [
         {
           "line": 8,
-          "declaration": "struct ToolsHost;"
-        },
-        {
-          "line": 10,
-          "declaration": "impl<S, C, H> gateway_tools::ToolsHost<S, C, H> for ToolsHost {"
-        },
-        {
-          "line": 13,
-          "declaration": "fn require_auth("
-        },
-        {
-          "line": 20,
-          "declaration": "fn diagnose(config: &Config) -> Vec<Self::Diagnostic> {"
-        },
-        {
-          "line": 24,
-          "declaration": "fn severity(result: &Self::Diagnostic) -> gateway_tools::Severity {"
-        },
-        {
-          "line": 33,
           "declaration": "pub async fn handle_api_tools(state: State<AppState>, headers: HeaderMap) -> impl IntoResponse {"
         },
         {
-          "line": 37,
+          "line": 12,
           "declaration": "pub async fn handle_api_doctor(state: State<AppState>, headers: HeaderMap) -> impl IntoResponse {"
         }
       ]
@@ -9469,32 +9162,32 @@
       "path": "crates/vw-agent/src/gateway/bootstrap.rs",
       "owner": 17,
       "before": 421,
-      "after": 421,
+      "after": 385,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-17.md",
       "symbols": [
         {
-          "line": 31,
+          "line": 26,
           "declaration": "pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {"
         },
         {
-          "line": 38,
+          "line": 33,
           "declaration": "pub(crate) async fn run_gateway_until("
         },
         {
-          "line": 56,
+          "line": 51,
           "declaration": "async fn serve_gateway("
         },
         {
-          "line": 300,
+          "line": 264,
           "declaration": "pub(super) fn external_router() -> Router<AppState> {"
         },
         {
-          "line": 315,
+          "line": 279,
           "declaration": "pub(super) fn client_router("
         },
         {
-          "line": 374,
+          "line": 338,
           "declaration": "pub(super) fn stateful_handler_router() -> Router<AppState> {"
         }
       ]
@@ -9654,60 +9347,52 @@
       "path": "crates/vw-agent/src/gateway/handlers.rs",
       "owner": 17,
       "before": 132,
-      "after": 132,
+      "after": 52,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-17.md",
       "symbols": [
         {
-          "line": 38,
+          "line": 26,
           "declaration": "fn run_gateway_chat_with_tools_boxed<'a>("
         },
         {
-          "line": 47,
-          "declaration": "async fn process_channel_messages_with_chat<C, K>("
-        },
-        {
-          "line": 96,
-          "declaration": "async fn send_successful_channel_reply<C: Channel + ?Sized>("
-        },
-        {
-          "line": 116,
+          "line": 36,
           "declaration": "impl agent_gateway::handlers::WhatsAppWebhook for crate::channels::WhatsAppChannel {"
         },
         {
-          "line": 117,
+          "line": 37,
           "declaration": "fn verify_token(&self) -> &str { self.verify_token() }"
         },
         {
-          "line": 118,
+          "line": 38,
           "declaration": "fn parse_webhook_payload(&self, payload: &serde_json::Value) -> Vec<ChannelMessage> { self.parse_webhook_payload(payload) }"
         },
         {
-          "line": 120,
+          "line": 40,
           "declaration": "pub async fn handle_whatsapp_verify(State(state): State<AppState>, Query(params): Query<WhatsAppVerifyQuery>) -> Response { agent_gateway::handlers::handle_whatsapp_verify(State(state), Query(params)).await }"
         },
         {
-          "line": 121,
+          "line": 41,
           "declaration": "pub async fn handle_wati_verify(State(state): State<AppState>, Query(params): Query<WatiVerifyQuery>) -> Response { agent_gateway::handlers::handle_wati_verify(State(state), Query(params)).await }"
         },
         {
-          "line": 122,
+          "line": 42,
           "declaration": "pub async fn handle_whatsapp_message(State(state): State<AppState>, headers: HeaderMap, body: Bytes) -> Response { agent_gateway::handlers::handle_whatsapp_message(State(state), headers, body, super::channel_runtime::channel_runtime, |ctx, msg, cancellation| Box::pin(crate::channels::manager::process_channel_message(ctx, msg, cancellation))).await }"
         },
         {
-          "line": 123,
+          "line": 43,
           "declaration": "pub async fn handle_linq_webhook(State(state): State<AppState>, headers: HeaderMap, body: Bytes) -> Response { agent_gateway::handlers::handle_linq_webhook(State(state), headers, body, super::channel_runtime::channel_runtime, |ctx, msg, cancellation| Box::pin(crate::channels::manager::process_channel_message(ctx, msg, cancellation))).await }"
         },
         {
-          "line": 124,
+          "line": 44,
           "declaration": "pub async fn handle_nextcloud_talk_webhook(State(state): State<AppState>, headers: HeaderMap, body: Bytes) -> Response { agent_gateway::handlers::handle_nextcloud_talk_webhook(State(state), headers, body, super::channel_runtime::channel_runtime, |ctx, msg, cancellation| Box::pin(crate::channels::manager::process_channel_message(ctx, msg, cancellation))).await }"
         },
         {
-          "line": 125,
+          "line": 45,
           "declaration": "pub async fn handle_qq_webhook(State(state): State<AppState>, headers: HeaderMap, body: Bytes) -> Response { agent_gateway::handlers::handle_qq_webhook(State(state), headers, body, super::channel_runtime::channel_runtime, |ctx, msg, cancellation| Box::pin(crate::channels::manager::process_channel_message(ctx, msg, cancellation))).await }"
         },
         {
-          "line": 126,
+          "line": 46,
           "declaration": "pub async fn handle_wati_webhook(State(state): State<AppState>, body: Bytes) -> Response { agent_gateway::handlers::handle_wati_webhook(State(state), body, super::channel_runtime::channel_runtime, |ctx, msg, cancellation| Box::pin(crate::channels::manager::process_channel_message(ctx, msg, cancellation))).await }"
         }
       ]
@@ -10266,7 +9951,7 @@
       "path": "crates/vw-agent/src/lib.rs",
       "owner": 59,
       "before": 382,
-      "after": 382,
+      "after": 381,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-59.md",
       "symbols": [
@@ -10334,15 +10019,6 @@
     },
     {
       "path": "crates/vw-agent/src/migration/mod.rs",
-      "owner": 59,
-      "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/model_catalog.rs",
       "owner": 59,
       "before": 2,
       "after": 2,
@@ -10642,7 +10318,7 @@
       "path": "crates/vw-agent/src/model_relay/mod.rs",
       "owner": 46,
       "before": 173,
-      "after": 146,
+      "after": 144,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-46.md",
       "symbols": []
@@ -10936,49 +10612,61 @@
       "path": "crates/vw-agent/src/model_relay/server_tests.rs",
       "owner": 46,
       "before": 490,
-      "after": 490,
+      "after": 75,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-46.md",
       "symbols": [
         {
-          "line": 13,
-          "declaration": "async fn kiro_protocol_flag_is_local_but_catalog_still_requires_selected_model() {"
-        },
-        {
-          "line": 107,
-          "declaration": "struct ExternalProvider {"
-        },
-        {
-          "line": 113,
-          "declaration": "impl RelayBackend for ExternalProvider {"
-        },
-        {
-          "line": 114,
-          "declaration": "async fn execute("
-        },
-        {
-          "line": 148,
+          "line": 4,
           "declaration": "struct EnvGuard(Option<std::ffi::OsString>);"
         },
         {
-          "line": 149,
+          "line": 5,
           "declaration": "impl Drop for EnvGuard {"
         },
         {
-          "line": 150,
+          "line": 6,
           "declaration": "fn drop(&mut self) {"
         },
         {
-          "line": 161,
+          "line": 17,
+          "declaration": "struct HostHarness { context: crate::project::instance::Context, root: PathBuf, id: RelayIdentity }"
+        },
+        {
+          "line": 19,
+          "declaration": "impl RelayHarness for HostHarness {"
+        },
+        {
+          "line": 20,
+          "declaration": "fn identity(&self) -> RelayIdentity { self.id.clone() }"
+        },
+        {
+          "line": 21,
+          "declaration": "fn scope_assertion(&self) -> fn(&RelayIdentity) { |identity| {"
+        },
+        {
+          "line": 25,
+          "declaration": "async fn start(&self, binding: Arc<RelayBinding>, backend: Arc<dyn RelayBackend>) -> model_relay_http::RelayServer {"
+        },
+        {
+          "line": 28,
+          "declaration": "async fn configure(&self, patch: serde_json::Value) {"
+        },
+        {
+          "line": 32,
+          "declaration": "async fn harness(root: PathBuf, session: &str, namespace: &str) -> HostHarness {"
+        },
+        {
+          "line": 48,
+          "declaration": "async fn kiro_protocol_flag_is_local_but_catalog_still_requires_selected_model() {"
+        },
+        {
+          "line": 58,
           "declaration": "async fn acp_model_source_relay_binding_http_isolation_limits_and_lifecycle() {"
         },
         {
-          "line": 394,
+          "line": 68,
           "declaration": "async fn acp_model_source_relay_expiry_cancels_an_established_http_stream() {"
-        },
-        {
-          "line": 449,
-          "declaration": "async fn acp_model_source_relay_binding_upstream_redirect_is_not_followed() {"
         }
       ]
     },
@@ -11063,44 +10751,6 @@
         {
           "line": 29,
           "declaration": "async fn execute(&self, identity: &RelayIdentity, request: RelayRequest, cancel: CancellationToken) -> Result<Response, StatusCode> {"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/model_relay/transport_tests.rs",
-      "owner": 47,
-      "before": 399,
-      "after": 225,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-47.md",
-      "symbols": [
-        {
-          "line": 5,
-          "declaration": "async fn model_protocol_012_relay_native_conversion_and_credential_isolation() {"
-        },
-        {
-          "line": 13,
-          "declaration": "struct Restore(Option<std::ffi::OsString>);"
-        },
-        {
-          "line": 14,
-          "declaration": "impl Drop for Restore {"
-        },
-        {
-          "line": 15,
-          "declaration": "fn drop(&mut self) {"
-        },
-        {
-          "line": 25,
-          "declaration": "struct RestoreKey(Option<std::ffi::OsString>, Option<String>);"
-        },
-        {
-          "line": 26,
-          "declaration": "impl Drop for RestoreKey {"
-        },
-        {
-          "line": 27,
-          "declaration": "fn drop(&mut self) {"
         }
       ]
     },
@@ -11477,24 +11127,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/plugins/compat/dependencies.rs",
-      "owner": 37,
-      "before": 23,
-      "after": 23,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-37.md",
-      "symbols": [
-        {
-          "line": 7,
-          "declaration": "pub fn inspect_plugin_dependencies(root: &Path) -> Result<Vec<PluginDependencyCheck>> {"
-        },
-        {
-          "line": 19,
-          "declaration": "pub(crate) fn missing_mcp_executable(server: &McpServer) -> Result<Option<PluginDependencyCheck>> {"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/plugins/compat/hook_async.rs",
       "owner": 38,
       "before": 2,
@@ -11617,24 +11249,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/plugins/compat/hook_subagent.rs",
-      "owner": 38,
-      "before": 29,
-      "after": 29,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-38.md",
-      "symbols": [
-        {
-          "line": 7,
-          "declaration": "pub(crate) async fn emit("
-        },
-        {
-          "line": 18,
-          "declaration": "pub(crate) async fn emit_boundary("
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/plugins/compat/hook_trust_content.rs",
       "owner": 38,
       "before": 2,
@@ -11753,52 +11367,6 @@
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-37.md",
       "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/plugins/compat/mcp_auth.rs",
-      "owner": 37,
-      "before": 29,
-      "after": 29,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-37.md",
-      "symbols": [
-        {
-          "line": 8,
-          "declaration": "pub(super) struct Source;"
-        },
-        {
-          "line": 9,
-          "declaration": "impl plugin_mcp::source_host::SourceHost for Source {"
-        },
-        {
-          "line": 10,
-          "declaration": "fn load_manifest(&self, root: &Path) -> Result<plugin_types::PluginManifest> { load_plugin_manifest(root) }"
-        },
-        {
-          "line": 11,
-          "declaration": "fn load_declarations(&self, manifest: &plugin_types::PluginManifest) -> Result<(PluginMcpParseOutcome, PathBuf)> {"
-        },
-        {
-          "line": 15,
-          "declaration": "pub(super) fn source_config(server: &McpServerHttp) -> Result<Option<serde_json::Map<String, serde_json::Value>>> {"
-        },
-        {
-          "line": 18,
-          "declaration": "pub async fn discover_oauth(server: &McpServerHttp) -> Result<super::mcp_oauth_discovery::OAuthDiscovery> {"
-        },
-        {
-          "line": 21,
-          "declaration": "pub(crate) fn runtime_headers(server: &McpServerHttp) -> Result<Option<reqwest_012::header::HeaderMap>> {"
-        },
-        {
-          "line": 24,
-          "declaration": "pub(crate) fn runtime_oauth_headers(server: &McpServerHttp, token: Option<&str>) -> Result<Option<reqwest_012::header::HeaderMap>> {"
-        },
-        {
-          "line": 27,
-          "declaration": "pub(crate) fn hook_source_matches(server: &McpServerHttp, root: &Path, name: &str) -> Result<bool> {"
-        }
-      ]
     },
     {
       "path": "crates/vw-agent/src/plugins/compat/mcp_capabilities.rs",
@@ -11947,20 +11515,6 @@
       "symbols": []
     },
     {
-      "path": "crates/vw-agent/src/plugins/compat/mcp_environment.rs",
-      "owner": 37,
-      "before": 20,
-      "after": 20,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-37.md",
-      "symbols": [
-        {
-          "line": 9,
-          "declaration": "pub(crate) fn resolve_servers("
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/plugins/compat/mcp_legacy.rs",
       "owner": 37,
       "before": 2,
@@ -11988,42 +11542,6 @@
       "symbols": []
     },
     {
-      "path": "crates/vw-agent/src/plugins/compat/mcp_oauth_flow.rs",
-      "owner": 37,
-      "before": 12,
-      "after": 12,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-37.md",
-      "symbols": [
-        {
-          "line": 3,
-          "declaration": "pub async fn authorize(server: &agent_client_protocol::McpServerHttp, session: String, tenant: vw_api_transport::TenantScope, cancelled: tokio_util::sync::CancellationToken) -> anyhow::Result<String> {"
-        },
-        {
-          "line": 7,
-          "declaration": "pub(super) async fn authorize_with<D, X, XF>(server: &agent_client_protocol::McpServerHttp, owner: super::mcp_elicitation::FormOwner, cancelled: tokio_util::sync::CancellationToken, timeout: std::time::Duration, discovery: D, exchange: X) -> anyhow::Result<String>"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/plugins/compat/mcp_oauth_tokens.rs",
-      "owner": 37,
-      "before": 9,
-      "after": 9,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-37.md",
-      "symbols": [
-        {
-          "line": 3,
-          "declaration": "pub(crate) async fn access(server: &agent_client_protocol::McpServerHttp, owner: &super::mcp_elicitation::FormOwner) -> anyhow::Result<Option<String>> {"
-        },
-        {
-          "line": 7,
-          "declaration": "pub(super) fn save(server: &agent_client_protocol::McpServerHttp, owner: &super::mcp_elicitation::FormOwner, grant: &Grant) -> anyhow::Result<()> {"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/plugins/compat/mcp_portable.rs",
       "owner": 37,
       "before": 2,
@@ -12031,36 +11549,6 @@
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-37.md",
       "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/plugins/compat/mcp_portable_overlay.rs",
-      "owner": 37,
-      "before": 19,
-      "after": 19,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-37.md",
-      "symbols": [
-        {
-          "line": 7,
-          "declaration": "struct OverlaySource;"
-        },
-        {
-          "line": 8,
-          "declaration": "impl plugin_mcp::mcp_portable_overlay::OverlayHost for OverlaySource {"
-        },
-        {
-          "line": 9,
-          "declaration": "fn resolve_component_path(&self, root: &Path, field: &str, raw: &str) -> Result<PluginPath> {"
-        },
-        {
-          "line": 12,
-          "declaration": "fn parse_legacy_manifest(&self, root: &Path, path: &Path, bytes: &[u8]) -> Result<PluginManifest> {"
-        },
-        {
-          "line": 17,
-          "declaration": "pub(crate) fn apply_env_overlay(root: &Path, outcome: &mut PluginMcpParseOutcome) -> Result<()> {"
-        }
-      ]
     },
     {
       "path": "crates/vw-agent/src/plugins/compat/mcp_public_auth.rs",
@@ -12084,7 +11572,7 @@
       "path": "crates/vw-agent/src/plugins/compat/mod.rs",
       "owner": 37,
       "before": 242,
-      "after": 172,
+      "after": 170,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-37.md",
       "symbols": []
@@ -12289,72 +11777,12 @@
       "path": "crates/vw-agent/src/plugins/compat/t20_tests.rs",
       "owner": 37,
       "before": 516,
-      "after": 243,
+      "after": 24,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-37.md",
       "symbols": [
         {
-          "line": 13,
-          "declaration": "struct Service {"
-        },
-        {
-          "line": 29,
-          "declaration": "impl ServerHandler for Service {"
-        },
-        {
-          "line": 30,
-          "declaration": "fn get_info(&self) -> ServerInfo {"
-        },
-        {
-          "line": 44,
-          "declaration": "async fn list_tools("
-        },
-        {
-          "line": 78,
-          "declaration": "async fn call_tool("
-        },
-        {
-          "line": 96,
-          "declaration": "async fn list_resources("
-        },
-        {
-          "line": 118,
-          "declaration": "async fn list_resource_templates("
-        },
-        {
-          "line": 135,
-          "declaration": "async fn list_prompts("
-        },
-        {
-          "line": 151,
-          "declaration": "struct Fixture {"
-        },
-        {
-          "line": 157,
-          "declaration": "impl Fixture {"
-        },
-        {
-          "line": 158,
-          "declaration": "async fn start() -> Self {"
-        },
-        {
-          "line": 161,
-          "declaration": "async fn with_service(service: Service) -> Self {"
-        },
-        {
-          "line": 185,
-          "declaration": "async fn changed(&self, invalid: bool) {"
-        },
-        {
-          "line": 194,
-          "declaration": "impl Drop for Fixture {"
-        },
-        {
-          "line": 195,
-          "declaration": "fn drop(&mut self) {"
-        },
-        {
-          "line": 200,
+          "line": 3,
           "declaration": "async fn codex_plugin_compat_t20_inspection_refreshes_only_notified_resource_and_prompt_catalogs() {"
         }
       ]
@@ -12363,24 +11791,20 @@
       "path": "crates/vw-agent/src/plugins/compat/t22_tests.rs",
       "owner": 37,
       "before": 366,
-      "after": 105,
+      "after": 55,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-37.md",
       "symbols": [
         {
-          "line": 11,
-          "declaration": "fn config(servers: Vec<agent_client_protocol::McpServer>) -> acp_config::ResolvedAcpxConfig {"
+          "line": 10,
+          "declaration": "fn fixture(root: &std::path::Path, names: &[&str], mode: &str) -> (McpResourceTool, Arc<McpSessionConnections>, Vec<String>) {"
         },
         {
-          "line": 32,
-          "declaration": "fn fixture("
-        },
-        {
-          "line": 63,
+          "line": 18,
           "declaration": "fn codex_plugin_compat_t22_registers_resource_tool_in_actual_runtime() {"
         },
         {
-          "line": 83,
+          "line": 37,
           "declaration": "async fn codex_plugin_compat_t22_inspection_retains_resource_and_prompt_metadata() {"
         }
       ]
@@ -12479,28 +11903,24 @@
       "path": "crates/vw-agent/src/plugins/compat/t43_tests.rs",
       "owner": 38,
       "before": 264,
-      "after": 222,
+      "after": 198,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-38.md",
       "symbols": [
         {
-          "line": 5,
+          "line": 4,
           "declaration": "fn fixture(root: &std::path::Path, state: &std::path::Path, parent: &str) -> Arc<ToolUseContext> {"
         },
         {
-          "line": 8,
+          "line": 7,
           "declaration": "fn fixture_output("
         },
         {
-          "line": 38,
+          "line": 37,
           "declaration": "async fn codex_plugin_compat_t43_persistent_success_failure_and_cancellation() {"
         },
         {
-          "line": 123,
-          "declaration": "async fn codex_plugin_compat_t43_routes_context_and_stop_to_child() {"
-        },
-        {
-          "line": 146,
+          "line": 122,
           "declaration": "async fn codex_plugin_compat_t43_continues_only_the_blocked_child() {"
         }
       ]
@@ -12524,72 +11944,6 @@
         {
           "line": 28,
           "declaration": "fn register("
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/plugins/compat/t45_tests.rs",
-      "owner": 38,
-      "before": 133,
-      "after": 133,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-38.md",
-      "symbols": [
-        {
-          "line": 3,
-          "declaration": "struct Fixture {"
-        },
-        {
-          "line": 7,
-          "declaration": "impl Drop for Fixture {"
-        },
-        {
-          "line": 8,
-          "declaration": "fn drop(&mut self) {"
-        },
-        {
-          "line": 13,
-          "declaration": "impl Fixture {"
-        },
-        {
-          "line": 14,
-          "declaration": "async fn new() -> Self {"
-        },
-        {
-          "line": 33,
-          "declaration": "fn plugin(&self, name: &str) -> std::path::PathBuf {"
-        },
-        {
-          "line": 41,
-          "declaration": "fn handler(&self) -> crate::plugins::CodexHookHandler {"
-        },
-        {
-          "line": 44,
-          "declaration": "async fn call(&self, root: &std::path::Path, event: Value) -> anyhow::Result<Value> {"
-        },
-        {
-          "line": 47,
-          "declaration": "async fn call_policy("
-        },
-        {
-          "line": 85,
-          "declaration": "async fn codex_plugin_compat_t45_calls_only_authorized_hook_server() {"
-        },
-        {
-          "line": 97,
-          "declaration": "async fn codex_plugin_compat_t45_rejects_invalid_input() {"
-        },
-        {
-          "line": 104,
-          "declaration": "async fn codex_plugin_compat_t45_preserves_isolation() {"
-        },
-        {
-          "line": 114,
-          "declaration": "fn codex_plugin_compat_t45_admits_trusted_mcp_and_skips_session_end() {"
-        },
-        {
-          "line": 127,
-          "declaration": "async fn codex_plugin_compat_t45_respects_tool_authorization() {"
         }
       ]
     },
@@ -12635,7 +11989,7 @@
       "path": "crates/vw-agent/src/plugins/compat/t57_tests.rs",
       "owner": 38,
       "before": 356,
-      "after": 272,
+      "after": 240,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-38.md",
       "symbols": [
@@ -12664,27 +12018,11 @@
           "declaration": "async fn codex_plugin_compat_t57_refreshes_required_hooks_at_boundary() {"
         },
         {
-          "line": 147,
-          "declaration": "async fn codex_plugin_compat_t57_joins_cancelled_work_before_releasing_turn() {"
-        },
-        {
-          "line": 149,
-          "declaration": "struct Finished(Arc<AtomicBool>);"
-        },
-        {
-          "line": 150,
-          "declaration": "impl Drop for Finished {"
-        },
-        {
-          "line": 151,
-          "declaration": "fn drop(&mut self) {"
-        },
-        {
-          "line": 180,
+          "line": 148,
           "declaration": "async fn codex_plugin_compat_t57_retires_old_mcp_process_after_turn() {"
         },
         {
-          "line": 206,
+          "line": 174,
           "declaration": "async fn pid("
         }
       ]
@@ -12745,20 +12083,12 @@
       "path": "crates/vw-agent/src/plugins/compat/t61_tests.rs",
       "owner": 39,
       "before": 351,
-      "after": 78,
+      "after": 19,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-39.md",
       "symbols": [
         {
-          "line": 5,
-          "declaration": "fn public_original(root: &Path, name: &str) -> std::path::PathBuf {"
-        },
-        {
-          "line": 13,
-          "declaration": "fn digest(p: &Path) -> Vec<(String, String)> {"
-        },
-        {
-          "line": 30,
+          "line": 2,
           "declaration": "async fn codex_plugin_compat_t61_public_skill_lifecycle_and_upgrade() {"
         }
       ]
@@ -12767,20 +12097,12 @@
       "path": "crates/vw-agent/src/plugins/compat/t64_tests.rs",
       "owner": 39,
       "before": 82,
-      "after": 82,
+      "after": 20,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-39.md",
       "symbols": [
         {
-          "line": 9,
-          "declaration": "fn digest(p: &Path) -> Vec<(String, String)> {"
-        },
-        {
-          "line": 25,
-          "declaration": "fn package(root: &Path) -> PathBuf {"
-        },
-        {
-          "line": 35,
+          "line": 2,
           "declaration": "async fn codex_plugin_compat_t64_uses_platform_command_and_unicode_paths() {"
         }
       ]
@@ -12907,7 +12229,7 @@
       "path": "crates/vw-agent/src/plugins/mod.rs",
       "owner": 39,
       "before": 150,
-      "after": 138,
+      "after": 137,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-39.md",
       "symbols": []
@@ -13616,13 +12938,29 @@
       "path": "crates/vw-agent/src/session/agent_binding_tests.rs",
       "owner": 23,
       "before": 174,
-      "after": 63,
+      "after": 25,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-23.md",
       "symbols": [
         {
           "line": 4,
           "declaration": "async fn agent_binding_inherited_history_cannot_override_fork_selection() {"
+        },
+        {
+          "line": 21,
+          "declaration": "impl session_engine::host_migration_23_binding_contract::BindingBoundaryHost for AdmissionHost {"
+        },
+        {
+          "line": 22,
+          "declaration": "async fn create_next(input:session_engine::session_io::CreateInput)->Result<crate::session::session::Info,crate::session::session::Error> { crate::session::session::create_next(input).await }"
+        },
+        {
+          "line": 23,
+          "declaration": "async fn create_fork(project:&str,session:&str,ids:Vec<String>)->anyhow::Result<()> { crate::session::fork_execution::create(project,session,ids).await }"
+        },
+        {
+          "line": 24,
+          "declaration": "async fn start_fork(project:&str,session:&str)->anyhow::Result<()> { crate::session::fork_execution::start(project,session).await }"
         }
       ]
     },
@@ -13644,7 +12982,7 @@
       "path": "crates/vw-agent/src/session/capability_policy_tests.rs",
       "owner": 23,
       "before": 284,
-      "after": 239,
+      "after": 147,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-23.md",
       "symbols": [
@@ -13654,15 +12992,7 @@
         },
         {
           "line": 82,
-          "declaration": "fn agent_native_defaults_do_not_inject_disabled_skills() {"
-        },
-        {
-          "line": 120,
           "declaration": "fn agent_native_defaults_mcp_respects_tenant_and_project_safety_scope() {"
-        },
-        {
-          "line": 188,
-          "declaration": "fn agent_config_cleanup_native_skill_inheritance_uses_allowed_source() {"
         }
       ]
     },
@@ -13886,110 +13216,64 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/session/claude_protocol_parity_tests.rs",
-      "owner": 23,
-      "before": 109,
-      "after": 109,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-23.md",
-      "symbols": [
-        {
-          "line": 19,
-          "declaration": "fn write(path: impl AsRef<Path>, content: &str) -> PathBuf {"
-        },
-        {
-          "line": 26,
-          "declaration": "fn resolved(path: &Path, content: String, conditions: Vec<String>) -> Resolved {"
-        },
-        {
-          "line": 36,
-          "declaration": "struct DelegateParityTool {"
-        },
-        {
-          "line": 42,
-          "declaration": "impl Tool for DelegateParityTool {"
-        },
-        {
-          "line": 43,
-          "declaration": "fn name(&self) -> &str {"
-        },
-        {
-          "line": 47,
-          "declaration": "fn description(&self) -> &str {"
-        },
-        {
-          "line": 51,
-          "declaration": "fn parameters_schema(&self) -> serde_json::Value {"
-        },
-        {
-          "line": 55,
-          "declaration": "async fn execute(&self, _args: serde_json::Value) -> anyhow::Result<ToolResult> {"
-        },
-        {
-          "line": 62,
-          "declaration": "fn delegate_capability_policy_is_consistent_across_agenttool_gateway_and_legacy_adapter() {"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/session/codex_alignment_tests.rs",
       "owner": 23,
       "before": 361,
-      "after": 361,
+      "after": 41,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-23.md",
       "symbols": [
         {
-          "line": 12,
-          "declaration": "fn stream(calls: &[(&str, &str, Value)]) {"
+          "line": 5,
+          "declaration": "struct Host;"
         },
         {
-          "line": 35,
-          "declaration": "fn skill(root: &Path, prefix: &str, body: &str) -> PathBuf {"
+          "line": 6,
+          "declaration": "impl suite::AcceptanceHost for Host {"
         },
         {
-          "line": 46,
-          "declaration": "fn workspace(root: &Path) -> PathBuf {"
+          "line": 9,
+          "declaration": "fn enqueue(events: Vec<super::llm::StreamEvent>) { processor::enqueue_test_llm_stream(events); }"
         },
         {
-          "line": 84,
-          "declaration": "fn request(workspace: &Path) -> Request {"
+          "line": 10,
+          "declaration": "fn run(request: suite::Request<Self>) -> Vec<processor::StreamEvent> {"
         },
         {
-          "line": 110,
+          "line": 15,
+          "declaration": "fn requests(session:&str)->Vec<suite::RecordedRequest> { processor::take_test_llm_messages(session).into_iter().map(|request|suite::RecordedRequest { messages:request.messages }).collect() }"
+        },
+        {
+          "line": 16,
+          "declaration": "fn tool_ids()->Vec<Vec<String>> { processor::llm_runner::take_test_llm_stream_tool_ids() }"
+        },
+        {
+          "line": 17,
+          "declaration": "fn limit_iterations(runtime:&tokio::runtime::Runtime) { runtime.block_on(crate::config::update(serde_json::json!({\"agents\":{\"main\":{\"provider\":\"model-recovery\",\"model\":\"original\",\"max_iterations\":2}}}))).unwrap(); }"
+        },
+        {
+          "line": 19,
           "declaration": "fn with_fixture(run: impl FnOnce(&Path, &Path, &tokio::runtime::Runtime)) {"
         },
         {
-          "line": 123,
-          "declaration": "fn run(request: Request) -> Vec<StreamEvent> {"
+          "line": 33,
+          "declaration": "fn codex_alignment_skill_search_mcp_compaction_and_new_turn_preserve_boundaries() { with_fixture(suite::codex_alignment_skill_search_mcp_compaction_and_new_turn_preserve_boundaries::<Host>); }"
         },
         {
-          "line": 133,
-          "declaration": "fn body_count(messages: &[Value], marker: &str) -> usize {"
+          "line": 35,
+          "declaration": "fn codex_alignment_explicit_tools_search_disabled_and_disable_tools_keep_authorization() { with_fixture(suite::codex_alignment_explicit_tools_search_disabled_and_disable_tools_keep_authorization::<Host>); }"
         },
         {
-          "line": 143,
-          "declaration": "fn history(query: &str, events: &[StreamEvent]) -> Vec<ChatMessage> {"
+          "line": 37,
+          "declaration": "fn codex_alignment_strict_skills_and_last_round_do_not_expand_capabilities() { with_fixture(suite::codex_alignment_strict_skills_and_last_round_do_not_expand_capabilities::<Host>); }"
         },
         {
-          "line": 172,
-          "declaration": "fn codex_alignment_skill_search_mcp_compaction_and_new_turn_preserve_boundaries() {"
+          "line": 39,
+          "declaration": "fn codex_alignment_same_name_replacement_and_disabled_sources_cannot_replay_old_body() { with_fixture(suite::codex_alignment_same_name_replacement_and_disabled_sources_cannot_replay_old_body::<Host>); }"
         },
         {
-          "line": 240,
-          "declaration": "fn codex_alignment_explicit_tools_search_disabled_and_disable_tools_keep_authorization() {"
-        },
-        {
-          "line": 269,
-          "declaration": "fn codex_alignment_strict_skills_and_last_round_do_not_expand_capabilities() {"
-        },
-        {
-          "line": 301,
-          "declaration": "fn codex_alignment_same_name_replacement_and_disabled_sources_cannot_replay_old_body() {"
-        },
-        {
-          "line": 344,
-          "declaration": "fn codex_alignment_new_session_does_not_inherit_skill_or_tool_exposure() {"
+          "line": 41,
+          "declaration": "fn codex_alignment_new_session_does_not_inherit_skill_or_tool_exposure() { with_fixture(suite::codex_alignment_new_session_does_not_inherit_skill_or_tool_exposure::<Host>); }"
         }
       ]
     },
@@ -13997,7 +13281,7 @@
       "path": "crates/vw-agent/src/session/compaction.rs",
       "owner": 23,
       "before": 67,
-      "after": 59,
+      "after": 57,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-23.md",
       "symbols": [
@@ -14133,57 +13417,33 @@
       "path": "crates/vw-agent/src/session/compaction_tests.rs",
       "owner": 23,
       "before": 831,
-      "after": 244,
+      "after": 12,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-23.md",
       "symbols": [
         {
+          "line": 3,
+          "declaration": "struct Host;"
+        },
+        {
+          "line": 4,
+          "declaration": "impl contract::CompactionBoundaryHost for Host {"
+        },
+        {
+          "line": 5,
+          "declaration": "async fn process(input: session_engine::compaction::ProcessInput,model:&crate::provider::provider::Model)->Result<session_engine::compaction::CompactionOutcome,crate::session::session::Error> { super::process(input,model).await }"
+        },
+        {
+          "line": 8,
+          "declaration": "async fn process_returns_stop_when_parent_user_message_is_missing() { contract::process_returns_stop_when_parent_user_message_is_missing::<Host>().await; }"
+        },
+        {
           "line": 10,
-          "declaration": "fn capability_io(text: bool) -> provider::CapabilityIO {"
+          "declaration": "async fn process_does_not_compact_when_the_boundary_has_no_prior_history() { contract::process_does_not_compact_when_the_boundary_has_no_prior_history::<Host>().await; }"
         },
         {
-          "line": 14,
-          "declaration": "pub(crate) fn model_with_limits(context: u64, input: Option<u64>, output: u64) -> provider::Model {"
-        },
-        {
-          "line": 53,
-          "declaration": "fn model_ref() -> message::ModelRef {"
-        },
-        {
-          "line": 60,
-          "declaration": "fn part_base(session_id: &str, message_id: &str, part_id: &str) -> message::PartBase {"
-        },
-        {
-          "line": 68,
-          "declaration": "fn text_part(session_id: &str, message_id: &str, part_id: &str, text: &str) -> message::Part {"
-        },
-        {
-          "line": 79,
-          "declaration": "pub(crate) fn user_message(session_id: &str, id: &str, text: &str) -> message::WithParts {"
-        },
-        {
-          "line": 102,
-          "declaration": "fn assistant_message("
-        },
-        {
-          "line": 151,
-          "declaration": "fn unique_session(prefix: &str) -> String {"
-        },
-        {
-          "line": 155,
-          "declaration": "async fn cleanup_session(session_id: &str) {"
-        },
-        {
-          "line": 178,
-          "declaration": "async fn process_returns_stop_when_parent_user_message_is_missing() {"
-        },
-        {
-          "line": 195,
-          "declaration": "async fn process_does_not_compact_when_the_boundary_has_no_prior_history() {"
-        },
-        {
-          "line": 223,
-          "declaration": "async fn process_does_not_synthesize_a_summary_for_blank_history() {"
+          "line": 12,
+          "declaration": "async fn process_does_not_synthesize_a_summary_for_blank_history() { contract::process_does_not_synthesize_a_summary_for_blank_history::<Host>().await; }"
         }
       ]
     },
@@ -14200,88 +13460,108 @@
       "path": "crates/vw-agent/src/session/dynamic_tool_acceptance_tests.rs",
       "owner": 24,
       "before": 495,
-      "after": 495,
+      "after": 181,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-24.md",
       "symbols": [
         {
-          "line": 19,
+          "line": 13,
           "declaration": "struct Fixture {"
         },
         {
-          "line": 28,
+          "line": 22,
           "declaration": "impl Fixture {"
         },
         {
-          "line": 29,
+          "line": 23,
           "declaration": "async fn new(trusted: bool) -> Self {"
         },
         {
-          "line": 65,
+          "line": 59,
           "declaration": "fn directory(&self) -> &str {"
         },
         {
-          "line": 68,
-          "declaration": "async fn register(&self) -> DynamicToolHostBinding {"
-        },
-        {
-          "line": 71,
-          "declaration": "async fn replace("
-        },
-        {
-          "line": 87,
-          "declaration": "fn entry("
-        },
-        {
-          "line": 98,
+          "line": 62,
           "declaration": "fn context(&self) -> Arc<ToolUseContext> {"
         },
         {
-          "line": 107,
+          "line": 71,
           "declaration": "impl Drop for Fixture {"
         },
         {
-          "line": 108,
+          "line": 72,
           "declaration": "fn drop(&mut self) {"
         },
         {
+          "line": 77,
+          "declaration": "impl contracts::Fixture for Fixture {"
+        },
+        {
+          "line": 80,
+          "declaration": "async fn new(trusted: bool) -> Self { Fixture::new(trusted).await }"
+        },
+        {
+          "line": 81,
+          "declaration": "fn directory(&self) -> &str { self.directory() }"
+        },
+        {
+          "line": 82,
+          "declaration": "fn session(&self) -> &str { &self.session }"
+        },
+        {
+          "line": 83,
+          "declaration": "fn scope(&self) -> &SessionScope { &self.scope }"
+        },
+        {
+          "line": 84,
+          "declaration": "fn transport(&self) -> gateway_http::GatewayTransport { self.client.transport().clone() }"
+        },
+        {
+          "line": 85,
+          "declaration": "fn context(&self) -> Arc<ToolUseContext> { self.context() }"
+        },
+        {
+          "line": 86,
+          "declaration": "fn wrong_tenant_transport(&self) -> gateway_http::GatewayTransport {"
+        },
+        {
+          "line": 89,
+          "declaration": "async fn update_ui_title(&self) {"
+        },
+        {
+          "line": 98,
+          "declaration": "async fn assert_ui_title(&self) {"
+        },
+        {
+          "line": 106,
+          "declaration": "async fn saved_tools(&self) -> session_store::dynamic_tool_store::PersistedDynamicTools {"
+        },
+        {
+          "line": 109,
+          "declaration": "async fn other_session(&self) -> String {"
+        },
+        {
           "line": 112,
-          "declaration": "fn replacement(name: &str, persist: bool) -> ReplaceDynamicToolsRequest {"
+          "declaration": "async fn fork_session(&self) -> String {"
+        },
+        {
+          "line": 118,
+          "declaration": "async fn dynamic_tools_acceptance_replacement_survives_resume() { contracts::dynamic_tools_acceptance_replacement_survives_resume::<Fixture>().await; }"
+        },
+        {
+          "line": 120,
+          "declaration": "async fn dynamic_tools_acceptance_default_policy_and_cross_session_are_denied() { contracts::dynamic_tools_acceptance_default_policy_and_cross_session_are_denied::<Fixture>().await; }"
+        },
+        {
+          "line": 122,
+          "declaration": "async fn dynamic_tools_acceptance_replacement_cancellation_and_revocation() { contracts::dynamic_tools_acceptance_replacement_cancellation_and_revocation::<Fixture>().await; }"
         },
         {
           "line": 124,
-          "declaration": "fn response() -> DynamicToolResponse {"
+          "declaration": "async fn dynamic_tools_acceptance_fork_requires_new_host_and_matching_specs() { contracts::dynamic_tools_acceptance_fork_requires_new_host_and_matching_specs::<Fixture>().await; }"
         },
         {
-          "line": 132,
-          "declaration": "async fn dynamic_tools_acceptance_replacement_survives_resume() {"
-        },
-        {
-          "line": 209,
-          "declaration": "async fn host_stream("
-        },
-        {
-          "line": 230,
-          "declaration": "async fn next_call("
-        },
-        {
-          "line": 235,
-          "declaration": "async fn execute("
-        },
-        {
-          "line": 247,
-          "declaration": "async fn dynamic_tools_acceptance_default_policy_and_cross_session_are_denied() {"
-        },
-        {
-          "line": 292,
-          "declaration": "async fn dynamic_tools_acceptance_replacement_cancellation_and_revocation() {"
-        },
-        {
-          "line": 351,
-          "declaration": "async fn dynamic_tools_acceptance_fork_requires_new_host_and_matching_specs() {"
-        },
-        {
-          "line": 440,
+          "line": 126,
           "declaration": "fn dynamic_tools_acceptance_search_then_call_uses_gateway_model_boundary() {"
         }
       ]
@@ -14374,7 +13654,7 @@
       "path": "crates/vw-agent/src/session/instruction.rs",
       "owner": 24,
       "before": 15,
-      "after": 15,
+      "after": 12,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-24.md",
       "symbols": []
@@ -14982,7 +14262,7 @@
       "path": "crates/vw-agent/src/session/llm/acp/model_source/mod.rs",
       "owner": 24,
       "before": 80,
-      "after": 80,
+      "after": 63,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-24.md",
       "symbols": [
@@ -14991,7 +14271,7 @@
           "declaration": "pub(super) async fn prepare("
         },
         {
-          "line": 64,
+          "line": 47,
           "declaration": "pub(super) fn launch_identity("
         }
       ]
@@ -15009,7 +14289,7 @@
       "path": "crates/vw-agent/src/session/llm/acp/model_source/profile_tests.rs",
       "owner": 24,
       "before": 135,
-      "after": 102,
+      "after": 61,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-24.md",
       "symbols": [
@@ -15232,7 +14512,7 @@
       "path": "crates/vw-agent/src/session/llm/acp/skill_mounts/acceptance_tests.rs",
       "owner": 24,
       "before": 471,
-      "after": 164,
+      "after": 134,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-24.md",
       "symbols": [
@@ -15241,95 +14521,95 @@
           "declaration": "async fn run(value: &str) {"
         },
         {
-          "line": 15,
+          "line": 14,
           "declaration": "async fn acp_skill_mount_harness_initial_prompt_contains_no_body() {"
         },
         {
-          "line": 57,
+          "line": 27,
           "declaration": "async fn acp_skill_mount_real_codex() {"
         },
         {
-          "line": 62,
+          "line": 32,
           "declaration": "async fn acp_skill_mount_real_claude() {"
         },
         {
-          "line": 67,
+          "line": 37,
           "declaration": "async fn acp_skill_mount_real_qwen() {"
         },
         {
-          "line": 72,
+          "line": 42,
           "declaration": "async fn acp_skill_mount_real_gemini() {"
         },
         {
-          "line": 77,
+          "line": 47,
           "declaration": "async fn acp_skill_mount_real_codebuddy() {"
         },
         {
-          "line": 82,
+          "line": 52,
           "declaration": "async fn acp_skill_mount_real_goose() {"
         },
         {
-          "line": 87,
+          "line": 57,
           "declaration": "async fn acp_skill_mount_real_vibe() {"
         },
         {
-          "line": 92,
+          "line": 62,
           "declaration": "async fn acp_skill_mount_real_hermes() {"
         },
         {
-          "line": 97,
+          "line": 67,
           "declaration": "async fn acp_skill_mount_real_snow() {"
         },
         {
-          "line": 102,
+          "line": 72,
           "declaration": "async fn acp_skill_mount_real_copilot() {"
         },
         {
-          "line": 107,
+          "line": 77,
           "declaration": "async fn acp_skill_mount_real_kilocode() {"
         },
         {
-          "line": 112,
+          "line": 82,
           "declaration": "async fn acp_skill_mount_real_kimi() {"
         },
         {
-          "line": 117,
+          "line": 87,
           "declaration": "async fn acp_skill_mount_real_kiro() {"
         },
         {
-          "line": 122,
+          "line": 92,
           "declaration": "async fn acp_skill_mount_real_opencode() {"
         },
         {
-          "line": 127,
+          "line": 97,
           "declaration": "async fn acp_skill_mount_real_openclaw() {"
         },
         {
-          "line": 132,
+          "line": 102,
           "declaration": "async fn acp_skill_mount_real_pi() {"
         },
         {
-          "line": 137,
+          "line": 107,
           "declaration": "async fn acp_skill_mount_real_auggie() {"
         },
         {
-          "line": 142,
+          "line": 112,
           "declaration": "async fn acp_skill_mount_real_cursor() {"
         },
         {
-          "line": 147,
+          "line": 117,
           "declaration": "async fn acp_skill_mount_real_droid() {"
         },
         {
-          "line": 152,
+          "line": 122,
           "declaration": "async fn acp_skill_mount_real_qoder() {"
         },
         {
-          "line": 157,
+          "line": 127,
           "declaration": "async fn acp_skill_mount_real_trae() {"
         },
         {
-          "line": 162,
+          "line": 132,
           "declaration": "async fn acp_skill_mount_real_iflow() {"
         }
       ]
@@ -15959,7 +15239,7 @@
       "path": "crates/vw-agent/src/session/processor/runner_host.rs",
       "owner": 22,
       "before": 375,
-      "after": 286,
+      "after": 284,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-22.md",
       "symbols": [
@@ -16084,59 +15364,55 @@
           "declaration": "fn stop_hook("
         },
         {
-          "line": 193,
-          "declaration": "fn read_todos(ctx: &ToolRuntimeContext) -> anyhow::Result<String> {"
-        },
-        {
-          "line": 199,
+          "line": 197,
           "declaration": "impl session_engine::runner_protocol::RunnerCheckpointHost for AgentRunnerHost {"
         },
         {
-          "line": 200,
+          "line": 198,
           "declaration": "fn restore_skills("
         },
         {
-          "line": 207,
+          "line": 205,
           "declaration": "fn save_skills("
         },
         {
-          "line": 215,
+          "line": 213,
           "declaration": "fn save_context("
         },
         {
-          "line": 228,
+          "line": 226,
           "declaration": "fn compact_hook("
         },
         {
-          "line": 245,
+          "line": 243,
           "declaration": "impl session_engine::compaction_summary::SummaryHost for AgentRunnerHost {"
         },
         {
-          "line": 246,
+          "line": 244,
           "declaration": "fn run_llm_step("
         },
         {
-          "line": 271,
+          "line": 269,
           "declaration": "impl session_engine::helpers::HelperHost for AgentRunnerHost {"
         },
         {
-          "line": 272,
+          "line": 270,
           "declaration": "fn specs(model: Option<&str>) -> Vec<crate::tools::ToolSpec> {"
         },
         {
-          "line": 275,
+          "line": 273,
           "declaration": "fn sanitize_tool_input(name: &str, arguments: &str) -> String {"
         },
         {
-          "line": 279,
+          "line": 277,
           "declaration": "impl session_engine::artifacts::ArtifactHost for AgentRunnerHost {"
         },
         {
-          "line": 280,
+          "line": 278,
           "declaration": "fn build_prompt(session: &Session, model: Option<&str>, root: Option<&str>) -> String {"
         },
         {
-          "line": 283,
+          "line": 281,
           "declaration": "fn persist_ai_call_payload(session: &str, stream: u64, payload: &Value, scope: Option<&str>) {"
         }
       ]
@@ -16159,20 +15435,12 @@
       "path": "crates/vw-agent/src/session/processor/todos.rs",
       "owner": 22,
       "before": 12,
-      "after": 12,
+      "after": 10,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-22.md",
       "symbols": [
         {
           "line": 2,
-          "declaration": "pub(crate) fn has_incomplete_todos(ctx: &ToolRuntimeContext) -> bool { session_engine::runner_todos::has_incomplete_todos::<crate::session::processor::runner_host::AgentRunnerHost>(ctx) }"
-        },
-        {
-          "line": 3,
-          "declaration": "pub(crate) fn read_todos_or_empty(ctx: &ToolRuntimeContext) -> Vec<todo::Todo> { session_engine::runner_todos::read_todos_or_empty::<crate::session::processor::runner_host::AgentRunnerHost>(ctx) }"
-        },
-        {
-          "line": 4,
           "declaration": "pub(crate) fn maybe_mark_todo_in_progress("
         }
       ]
@@ -16400,10 +15668,6 @@
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-24.md",
       "symbols": [
-        {
-          "line": 6,
-          "declaration": "pub(crate) struct HostTools;"
-        },
         {
           "line": 7,
           "declaration": "impl session_engine::runtime::dynamic_hosts::HostTools for HostTools {"
@@ -18132,33 +17396,25 @@
       "path": "crates/vw-agent/src/tools/cron_run/tests.rs",
       "owner": 33,
       "before": 174,
-      "after": 129,
+      "after": 13,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-33.md",
       "symbols": [
         {
-          "line": 14,
-          "declaration": "async fn test_config(tmp: &TempDir) -> Arc<Config> {"
+          "line": 5,
+          "declaration": "async fn force_runs_job_and_records_history() { history::force_runs_job_and_records_history(execute_job_now).await; }"
         },
         {
-          "line": 24,
-          "declaration": "fn test_security(cfg: &Config) -> Arc<SecurityPolicy> {"
+          "line": 7,
+          "declaration": "async fn shell_run_requires_approval_for_medium_risk() { history::shell_run_requires_approval_for_medium_risk(execute_job_now).await; }"
         },
         {
-          "line": 29,
-          "declaration": "async fn force_runs_job_and_records_history() {"
+          "line": 10,
+          "declaration": "async fn cron_history_manual_run_is_visible_until_completion() { history::cron_history_manual_run_is_visible_until_completion(execute_job_now).await; }"
         },
         {
-          "line": 47,
-          "declaration": "async fn shell_run_requires_approval_for_medium_risk() {"
-        },
-        {
-          "line": 75,
-          "declaration": "async fn cron_history_manual_run_is_visible_until_completion() {"
-        },
-        {
-          "line": 109,
-          "declaration": "async fn cron_history_cancelled_manual_run_leaves_no_history() {"
+          "line": 13,
+          "declaration": "async fn cron_history_cancelled_manual_run_leaves_no_history() { history::cron_history_cancelled_manual_run_leaves_no_history(execute_job_now).await; }"
         }
       ]
     },
@@ -19309,32 +18565,20 @@
       "path": "crates/vw-agent/src/tools/tests/mcp_discovery_tests.rs",
       "owner": 35,
       "before": 153,
-      "after": 153,
+      "after": 19,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-35.md",
       "symbols": [
         {
-          "line": 9,
-          "declaration": "fn dynamic_spec() -> ToolSpec {"
-        },
-        {
-          "line": 31,
-          "declaration": "fn write_mcp_fixture_server(dir: &std::path::Path) -> std::path::PathBuf {"
-        },
-        {
-          "line": 90,
-          "declaration": "fn fixture_server(script: &std::path::Path) -> McpServer {"
-        },
-        {
-          "line": 101,
+          "line": 6,
           "declaration": "async fn discover_and_call_configured_mcp_tool_through_stdio_fixture() {"
         },
         {
-          "line": 133,
+          "line": 12,
           "declaration": "async fn mcp_tool_from_spec_default_handler_reports_missing_configured_server() {"
         },
         {
-          "line": 142,
+          "line": 17,
           "declaration": "async fn mcp_tool_from_configured_server_uses_server_bound_handler() {"
         }
       ]
@@ -19343,85 +18587,69 @@
       "path": "crates/vw-agent/src/tools/tests/mod_tests.rs",
       "owner": 35,
       "before": 611,
-      "after": 364,
+      "after": 135,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-35.md",
       "symbols": [
         {
-          "line": 15,
-          "declaration": "fn test_config(tmp: &TempDir) -> Config {"
-        },
-        {
-          "line": 23,
-          "declaration": "fn write_mcp_toolset_server(tmp: &TempDir) -> PathBuf {"
-        },
-        {
-          "line": 94,
-          "declaration": "fn write_mcp_toolset_workspace(tmp: &TempDir) -> PathBuf {"
-        },
-        {
-          "line": 113,
+          "line": 16,
           "declaration": "fn mcp_toolset_context(workspace: &Path) -> ToolRuntimeContext {"
         },
         {
-          "line": 119,
+          "line": 22,
           "declaration": "fn all_tools_excludes_browser_when_disabled() {"
         },
         {
-          "line": 158,
+          "line": 27,
           "declaration": "fn all_tools_includes_browser_when_enabled() {"
         },
         {
-          "line": 202,
+          "line": 33,
           "declaration": "fn default_tools_all_have_descriptions() {"
         },
         {
-          "line": 211,
+          "line": 38,
           "declaration": "fn default_tools_all_have_schemas() {"
         },
         {
-          "line": 223,
+          "line": 44,
           "declaration": "fn registry_specs_include_apply_patch_by_default() {"
         },
         {
-          "line": 229,
+          "line": 50,
           "declaration": "fn registry_specs_include_apply_patch_for_explicit_models() {"
         },
         {
-          "line": 236,
+          "line": 57,
           "declaration": "fn tool_spec_generation() {"
         },
         {
-          "line": 250,
+          "line": 63,
           "declaration": "fn registry_specs_expose_bash_and_compact_search_surface() {"
         },
         {
-          "line": 267,
+          "line": 80,
           "declaration": "fn mcp_toolset_tools_are_registered_from_config() {"
         },
         {
-          "line": 285,
+          "line": 98,
           "declaration": "fn mcp_toolset_tools_can_be_executed_from_registry() {"
         },
         {
-          "line": 305,
+          "line": 118,
           "declaration": "fn all_tools_includes_agent_tool_when_agents_configured() {"
         },
         {
-          "line": 319,
+          "line": 123,
           "declaration": "fn all_tools_includes_default_agent_tool_when_no_agents() {"
         },
         {
-          "line": 327,
+          "line": 128,
           "declaration": "fn all_tools_includes_default_agent_tool_when_only_primary_agents() {"
         },
         {
-          "line": 341,
+          "line": 133,
           "declaration": "fn all_tools_registers_agent_tool_for_delegate_agents() {"
-        },
-        {
-          "line": 354,
-          "declaration": "fn agent_factory_names(agents: &HashMap<String, DelegateAgentConfig>, credential: Option<&str>) -> Vec<String> {"
         }
       ]
     },
@@ -19522,140 +18750,108 @@
       "path": "crates/vw-agent/src/tools/toolset/mod.rs",
       "owner": 32,
       "before": 492,
-      "after": 376,
+      "after": 241,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-32.md",
       "symbols": [
         {
-          "line": 15,
+          "line": 14,
           "declaration": "impl tool_git::GitToolHost for super::context::AgentContextHost {"
         },
         {
-          "line": 17,
+          "line": 16,
           "declaration": "fn initialize_worktree_host() {"
         },
         {
-          "line": 25,
-          "declaration": "pub(crate) fn mcp_connections_for_context("
-        },
-        {
-          "line": 29,
-          "declaration": "pub(crate) fn execution_tools_for_context(ctx: &ToolRuntimeContext) -> Vec<Box<dyn Tool>> { tool_assembly::runtime::execution_tools_for_context::<super::context::AgentContextHost>(ctx) }"
-        },
-        {
           "line": 33,
-          "declaration": "pub(crate) fn agent_tool_parallel_limit_for_context("
-        },
-        {
-          "line": 39,
           "declaration": "fn execution_environment_for_config("
         },
         {
-          "line": 46,
-          "declaration": "pub fn tool_specs_for_context(ctx: &ToolRuntimeContext) -> Vec<ToolSpec> { tool_assembly::runtime::tool_specs_for_context::<super::context::AgentContextHost>(ctx) }"
-        },
-        {
-          "line": 48,
-          "declaration": "pub fn execute_tool_call("
-        },
-        {
-          "line": 54,
-          "declaration": "pub(crate) fn execute_bound_app_tool("
-        },
-        {
-          "line": 60,
-          "declaration": "pub(crate) fn execute_agent_tool_call("
-        },
-        {
-          "line": 67,
-          "declaration": "pub async fn execute_tool_from_registry("
-        },
-        {
-          "line": 73,
+          "line": 49,
           "declaration": "fn block_on<F>(fut: F) -> F::Output"
         },
         {
-          "line": 123,
+          "line": 99,
           "declaration": "pub(crate) async fn discover_dynamic_mcp_tools("
         },
         {
-          "line": 134,
+          "line": 110,
           "declaration": "pub fn default_tools(security: Arc<SecurityPolicy>) -> Vec<Box<dyn Tool>> { tool_assembly::factory::default_tools::<super::context::AgentContextHost>(security) }"
         },
         {
-          "line": 136,
+          "line": 112,
           "declaration": "pub fn default_tools_with_runtime("
         },
         {
-          "line": 141,
+          "line": 117,
           "declaration": "pub fn all_tools("
         },
         {
-          "line": 155,
+          "line": 131,
           "declaration": "pub fn all_tools_with_runtime("
         },
         {
-          "line": 170,
+          "line": 146,
           "declaration": "impl FactoryHost for super::context::AgentContextHost {"
         },
         {
-          "line": 171,
+          "line": 147,
           "declaration": "fn block_on<F: std::future::Future + Send>(future: F) -> F::Output where F::Output: Send { block_on(future) }"
         },
         {
-          "line": 172,
+          "line": 148,
           "declaration": "fn construct(tool: ToolConstruction, context: &ConstructionContext<'_>) -> Arc<dyn Tool> {"
         },
         {
-          "line": 342,
+          "line": 207,
           "declaration": "fn batch(tools: Arc<Vec<Arc<dyn Tool>>>) -> Arc<dyn Tool> { Arc::new(BatchTool::new(tools)) }"
         },
         {
-          "line": 343,
+          "line": 208,
           "declaration": "fn search_tool(catalog: &ToolDiscoveryCatalog) -> Arc<dyn Tool> { Arc::new(ToolSearchTool::new(catalog)) }"
         },
         {
-          "line": 344,
+          "line": 209,
           "declaration": "fn agent_tool(agents: HashMap<String, DelegateAgentConfig>, session: Option<String>, workspace: std::path::PathBuf, callback: Option<super::agent_tool::AgentToolChildSessionCreatedCallback>) -> Arc<dyn Tool> {"
         },
         {
-          "line": 348,
+          "line": 213,
           "declaration": "fn project_scope(workspace: &Path) -> Option<String> {"
         },
         {
-          "line": 352,
+          "line": 217,
           "declaration": "fn project_skills(workspace: &Path, config: &Config) -> Vec<String> {"
         },
         {
-          "line": 355,
+          "line": 220,
           "declaration": "fn connections_for_factory(workspace: &Path, session: Option<&str>) -> Arc<crate::plugins::McpSessionConnections> {"
         },
         {
-          "line": 358,
+          "line": 223,
           "declaration": "fn load_runtime_mcp_config(workspace: &Path) -> anyhow::Result<acp_config::ResolvedAcpxConfig> {"
         },
         {
-          "line": 362,
+          "line": 227,
           "declaration": "fn native_tools(session: Option<&str>) -> Vec<Arc<dyn Tool>> {"
         },
         {
-          "line": 368,
+          "line": 233,
           "declaration": "impl tool_assembly::runtime::RuntimeHost for super::context::AgentContextHost {"
         },
         {
-          "line": 369,
+          "line": 234,
           "declaration": "async fn load_project_config(tenant: &vw_api_transport::TenantScope, workspace: &Path) -> anyhow::Result<Config> { crate::config::get_project_for_tenant(tenant, workspace).await }"
         },
         {
-          "line": 370,
+          "line": 235,
           "declaration": "fn mcp_connections(session: &str, root: &Path) -> Arc<crate::plugins::McpSessionConnections> { crate::plugins::mcp_session_connections(session, root) }"
         },
         {
-          "line": 371,
+          "line": 236,
           "declaration": "fn discovery_state(discovery: &Self::ToolDiscoverySession) -> &tool_assembly::tool_search::ToolDiscoverySession { discovery }"
         },
         {
-          "line": 372,
+          "line": 237,
           "declaration": "fn register_app(context: &ToolRuntimeContext, name: &str, result: &mut ToolCallResult) -> anyhow::Result<()> { crate::plugins::mcp_app_execution::register(context, name, result) }"
         }
       ]
@@ -20038,7 +19234,7 @@
       "path": "crates/vw-agent/src/workflow/native_tests.rs",
       "owner": 45,
       "before": 506,
-      "after": 329,
+      "after": 117,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-45.md",
       "symbols": [
@@ -20047,55 +19243,31 @@
           "declaration": "fn request(root: &std::path::Path, query: &str) -> Request {"
         },
         {
-          "line": 27,
-          "declaration": "fn binding_fixture() -> tempfile::TempDir {"
-        },
-        {
-          "line": 60,
+          "line": 28,
           "declaration": "fn native_workflow_bound_command_executes_graph_and_returns_answer() {"
         },
         {
-          "line": 78,
+          "line": 48,
           "declaration": "async fn native_workflow_provider_names_preserve_tool_restrictions() {"
         },
         {
-          "line": 107,
+          "line": 57,
           "declaration": "async fn native_workflow_provider_names_preserve_agent_restrictions() {"
         },
         {
-          "line": 157,
-          "declaration": "struct CloudFixtureProvider {"
+          "line": 71,
+          "declaration": "fn action_runtime(root: &std::path::Path, allowed: Vec<&str>) -> (WorkflowRuntime, tempfile::TempDir) {"
         },
         {
-          "line": 162,
-          "declaration": "impl model_types::Provider for CloudFixtureProvider {"
-        },
-        {
-          "line": 163,
-          "declaration": "async fn chat_with_system("
-        },
-        {
-          "line": 172,
-          "declaration": "async fn chat("
-        },
-        {
-          "line": 201,
-          "declaration": "async fn action_graph("
-        },
-        {
-          "line": 260,
-          "declaration": "fn action_repository() -> tempfile::TempDir {"
-        },
-        {
-          "line": 275,
+          "line": 105,
           "declaration": "async fn task_pool_actions_absent_steps_have_no_side_effects() {"
         },
         {
-          "line": 291,
+          "line": 110,
           "declaration": "async fn task_pool_actions_explicit_git_steps_use_native_tool_permissions() {"
         },
         {
-          "line": 321,
+          "line": 115,
           "declaration": "async fn task_pool_actions_upstream_failure_skips_downstream_send() {"
         }
       ]
@@ -20167,7 +19339,7 @@
       "path": "crates/vw-agent/src/workflow/video_edit/cloud.rs",
       "owner": 44,
       "before": 26,
-      "after": 26,
+      "after": 18,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md",
       "symbols": [
@@ -20176,7 +19348,7 @@
           "declaration": "pub(super) fn visible_shiju_root(skills: &[Skill]) -> Result<PathBuf, String> {"
         },
         {
-          "line": 22,
+          "line": 14,
           "declaration": "pub async fn discover(context: ToolRuntimeContext, skills: &[Skill], allowed_tools: Option<Value>) -> Result<ShijuCloudVideoToolProvider, String> {"
         }
       ]
@@ -20256,7 +19428,7 @@
       "path": "crates/vw-agent/src/workflow/video_edit/cloud_tests.rs",
       "owner": 44,
       "before": 384,
-      "after": 384,
+      "after": 316,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md",
       "symbols": [
@@ -20273,87 +19445,87 @@
           "declaration": "pub(super) fn fixture(mode: &str) -> (tempfile::TempDir, ToolRuntimeContext, Skill) {"
         },
         {
-          "line": 94,
+          "line": 37,
           "declaration": "fn request(name: &str, inputs: Value) -> WorkflowToolRequest {"
         },
         {
-          "line": 105,
+          "line": 48,
           "declaration": "async fn video_edit_cloud_transport_discovers_current_instance_and_full_private_receipt() {"
         },
         {
-          "line": 135,
+          "line": 78,
           "declaration": "async fn video_edit_cloud_transport_version_source_and_authorization_fail_closed() {"
         },
         {
-          "line": 151,
+          "line": 94,
           "declaration": "async fn video_edit_cloud_transport_missing_credentials_never_logs_in_or_falls_back() {"
         },
         {
-          "line": 164,
+          "line": 107,
           "declaration": "async fn video_edit_cloud_transport_native_tool_and_path_denials_prevent_process() {"
         },
         {
-          "line": 189,
+          "line": 132,
           "declaration": "async fn video_edit_cloud_transport_cancel_before_discovery_starts_no_process() {"
         },
         {
-          "line": 204,
+          "line": 147,
           "declaration": "async fn video_edit_cloud_transport_errors_and_unknown_states_are_not_success() {"
         },
         {
-          "line": 232,
+          "line": 164,
           "declaration": "fn video_edit_cloud_transport_duplicate_visible_instances_are_ambiguous() {"
         },
         {
-          "line": 238,
+          "line": 170,
           "declaration": "async fn video_edit_cloud_transport_no_project_uses_native_workspace() {"
         },
         {
-          "line": 247,
+          "line": 179,
           "declaration": "async fn video_edit_cloud_transport_inflight_cancel_stops_process_before_private_cleanup() {"
         },
         {
-          "line": 286,
+          "line": 218,
           "declaration": "async fn video_edit_cloud_transport_native_approval_denial_prevents_process() {"
         },
         {
-          "line": 293,
+          "line": 225,
           "declaration": "struct Deny(Arc<AtomicUsize>);"
         },
         {
-          "line": 295,
+          "line": 227,
           "declaration": "impl crate::hooks::HookHandler for Deny {"
         },
         {
-          "line": 296,
+          "line": 228,
           "declaration": "fn name(&self) -> &str {"
         },
         {
-          "line": 299,
+          "line": 231,
           "declaration": "async fn permission_request(&self, _: &str, _: &Value) -> anyhow::Result<Option<bool>> {"
         },
         {
-          "line": 334,
+          "line": 266,
           "declaration": "async fn video_edit_cloud_transport_native_hooks_never_receive_private_payloads() {"
         },
         {
-          "line": 336,
+          "line": 268,
           "declaration": "struct Audit(Arc<Mutex<Vec<String>>>);"
         },
         {
-          "line": 338,
+          "line": 270,
           "declaration": "impl crate::hooks::HookHandler for Audit {"
         },
         {
-          "line": 339,
+          "line": 271,
           "declaration": "fn name(&self) -> &str {"
         },
         {
-          "line": 342,
+          "line": 274,
           "declaration": "async fn before_tool_call("
         },
         {
-          "line": 350,
+          "line": 282,
           "declaration": "async fn on_after_tool_call("
         }
       ]
@@ -20393,89 +19565,101 @@
       "path": "crates/vw-agent/src/workflow/video_edit/e2e_tests.rs",
       "owner": 44,
       "before": 479,
-      "after": 479,
+      "after": 307,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md",
       "symbols": [
         {
-          "line": 19,
+          "line": 20,
           "declaration": "fn external(session: &str, scenario: Arc<Scenario>) -> entry_test_transport::TransportGuard {"
         },
         {
-          "line": 34,
+          "line": 35,
           "declaration": "fn request(session: &str, path: &Path, full: bool) -> GatewayChatStreamRequest {"
         },
         {
-          "line": 45,
+          "line": 46,
           "declaration": "async fn run("
         },
         {
-          "line": 63,
-          "declaration": "fn source(root: &Path, tag: &str) -> std::path::PathBuf {"
-        },
-        {
-          "line": 68,
-          "declaration": "fn runs() -> Vec<Value> {"
-        },
-        {
-          "line": 79,
+          "line": 64,
           "declaration": "fn ledger(path: &Path) -> Value {"
         },
         {
-          "line": 85,
-          "declaration": "fn captured(s: &Scenario, kind: &str) -> Vec<String> {"
-        },
-        {
-          "line": 88,
+          "line": 68,
           "declaration": "fn failure(result: Result<GatewayChatStreamCollected, crate::gateway::ApiError>, events: &[Value]) {"
         },
         {
-          "line": 93,
+          "line": 72,
           "declaration": "fn success("
         },
         {
-          "line": 155,
+          "line": 129,
           "declaration": "async fn video_edit_e2e_long_transcripts_reach_done_and_reload() {"
         },
         {
-          "line": 203,
+          "line": 140,
           "declaration": "async fn video_edit_e2e_quota_invalid_segment_and_fake_preview_never_done() {"
         },
         {
-          "line": 226,
+          "line": 151,
           "declaration": "async fn video_edit_e2e_accepted_timeout_reconciles_without_duplicate_post() {"
         },
         {
-          "line": 257,
+          "line": 162,
           "declaration": "async fn video_edit_e2e_independent_requests_have_distinct_run_budgets() {"
         },
         {
-          "line": 283,
+          "line": 173,
           "declaration": "async fn video_edit_e2e_native_permission_denial_prevents_external_io() {"
         },
         {
-          "line": 314,
+          "line": 204,
           "declaration": "async fn video_edit_e2e_final_save_failure_never_done() {"
         },
         {
-          "line": 334,
+          "line": 224,
           "declaration": "struct Trigger(rusqlite::Connection);"
         },
         {
-          "line": 335,
+          "line": 225,
           "declaration": "impl Drop for Trigger {"
         },
         {
-          "line": 336,
+          "line": 226,
           "declaration": "fn drop(&mut self) {"
         },
         {
-          "line": 347,
+          "line": 237,
           "declaration": "async fn video_edit_e2e_cancelled_restart_reconciles_and_never_resubmits() {"
         },
         {
-          "line": 413,
+          "line": 248,
           "declaration": "async fn video_edit_e2e_template_edit_changes_next_native_model_request() {"
+        },
+        {
+          "line": 272,
+          "declaration": "struct NativeGatewayAcceptance;"
+        },
+        {
+          "line": 274,
+          "declaration": "impl workflow_video_edit::test_support::gateway_acceptance::GatewayAcceptance for NativeGatewayAcceptance {"
+        },
+        {
+          "line": 275,
+          "declaration": "fn install(&self, session: &str, scenario: Arc<Scenario>) -> Box<dyn Send> {"
+        },
+        {
+          "line": 278,
+          "declaration": "fn ledger(&self, path: &Path) -> Value { ledger(path) }"
+        },
+        {
+          "line": 279,
+          "declaration": "async fn run_cancelled(&self, root: &Path, session: &str, path: &Path, scenario: &Scenario) {"
+        },
+        {
+          "line": 302,
+          "declaration": "async fn run(&self, root: &Path, session: &str, path: &Path, scenario: &Scenario, succeeds: bool) {"
         }
       ]
     },
@@ -20602,64 +19786,28 @@
       "path": "crates/vw-agent/src/workflow/video_edit/planning_tests.rs",
       "owner": 44,
       "before": 184,
-      "after": 219,
+      "after": 113,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md",
       "symbols": [
         {
-          "line": 2,
-          "declaration": "fn source() -> (VideoTranscript, Vec<VideoSegment>, VideoPlanRequirements) {"
-        },
-        {
-          "line": 34,
-          "declaration": "fn effect(i: u64, visual_type: VisualType) -> VideoEditEffect {"
-        },
-        {
-          "line": 60,
-          "declaration": "struct Endpoint(String);"
-        },
-        {
-          "line": 62,
-          "declaration": "impl Provider for Endpoint {"
-        },
-        {
-          "line": 63,
-          "declaration": "async fn chat_with_system("
-        },
-        {
-          "line": 72,
-          "declaration": "async fn chat("
-        },
-        {
-          "line": 96,
+          "line": 6,
           "declaration": "fn runtime(url: String) -> WorkflowRuntime {"
         },
         {
-          "line": 110,
+          "line": 19,
           "declaration": "async fn fixture() -> (String, mpsc::UnboundedReceiver<Entry>, tokio::task::JoinHandle<()>) {"
         },
         {
-          "line": 131,
-          "declaration": "async fn entered(rx: &mut mpsc::UnboundedReceiver<Entry>) -> Entry {"
-        },
-        {
-          "line": 134,
-          "declaration": "fn context() -> VideoPlanningContext {"
-        },
-        {
-          "line": 137,
-          "declaration": "fn reply(prompt: &serde_json::Value) -> String {"
-        },
-        {
-          "line": 147,
+          "line": 41,
           "declaration": "async fn video_edit_plan_real_iteration_six_segments_bounded_requests_and_shared_budget() {"
         },
         {
-          "line": 188,
+          "line": 82,
           "declaration": "async fn video_edit_plan_failed_segment_never_returns_partial_plan() {"
         },
         {
-          "line": 209,
+          "line": 103,
           "declaration": "async fn video_edit_plan_context_overflow_is_explicit_before_model_request() {"
         }
       ]
@@ -21023,75 +20171,68 @@
   "new_host": [
     {
       "path": "crates/vw-agent/src/channels/dispatch_cancel_tests.rs",
-      "lines": 358,
+      "lines": 137,
       "symbols": [
         {
           "line": 5,
-          "declaration": "async fn cancel_idle(channel_name: &'static str, content: &str) -> Vec<String> {"
-        },
-        {
-          "line": 20,
-          "declaration": "async fn channel_command_cancel_qq_idle_is_idempotent() {"
-        },
-        {
-          "line": 25,
-          "declaration": "async fn channel_command_cancel_lark_idle_is_idempotent() {"
-        },
-        {
-          "line": 30,
-          "declaration": "async fn channel_command_cancel_telegram_does_not_require_auto_interrupt() {"
-        },
-        {
-          "line": 35,
-          "declaration": "async fn channel_command_cancel_invalid_arguments_preserve_state() {"
-        },
-        {
-          "line": 42,
-          "declaration": "async fn channel_command_cancel_help_describes_scope() {"
-        },
-        {
-          "line": 48,
           "declaration": "async fn isolated_cancel_test(name: &str) -> bool {"
         },
         {
-          "line": 74,
+          "line": 31,
           "declaration": "async fn cancel_fixture("
         },
         {
-          "line": 113,
-          "declaration": "async fn wait_cancel_flag(flag: &AtomicBool) {"
+          "line": 72,
+          "declaration": "async fn channel_command_cancel_qq_idle_is_idempotent() { channel_runtime::cancel_contracts::channel_command_cancel_qq_idle_is_idempotent(crate::channels::manager::contract_host()).await; }"
         },
         {
-          "line": 124,
+          "line": 75,
+          "declaration": "async fn channel_command_cancel_lark_idle_is_idempotent() { channel_runtime::cancel_contracts::channel_command_cancel_lark_idle_is_idempotent(crate::channels::manager::contract_host()).await; }"
+        },
+        {
+          "line": 78,
+          "declaration": "async fn channel_command_cancel_telegram_does_not_require_auto_interrupt() { channel_runtime::cancel_contracts::channel_command_cancel_telegram_does_not_require_auto_interrupt(crate::channels::manager::contract_host()).await; }"
+        },
+        {
+          "line": 81,
+          "declaration": "async fn channel_command_cancel_invalid_arguments_preserve_state() { channel_runtime::cancel_contracts::channel_command_cancel_invalid_arguments_preserve_state(crate::channels::manager::contract_host()).await; }"
+        },
+        {
+          "line": 84,
+          "declaration": "async fn channel_command_cancel_help_describes_scope() { channel_runtime::cancel_contracts::channel_command_cancel_help_describes_scope(crate::channels::manager::contract_host()).await; }"
+        },
+        {
+          "line": 87,
           "declaration": "async fn channel_command_cancel_bypasses_full_slots_and_cleans_before_new_session() {"
         },
         {
-          "line": 175,
+          "line": 98,
           "declaration": "async fn channel_command_cancel_isolates_instance_room_thread_sender_and_tenant() {"
         },
         {
-          "line": 210,
+          "line": 105,
           "declaration": "async fn channel_command_cancel_unconfirmed_exit_keeps_mutations_busy() {"
         },
         {
-          "line": 237,
+          "line": 112,
           "declaration": "async fn channel_command_cancel_busy_commands_preserve_state_and_status_responds() {"
         },
         {
-          "line": 279,
+          "line": 119,
           "declaration": "async fn channel_command_cancel_natural_completion_then_stop_is_idempotent() {"
         },
         {
-          "line": 300,
+          "line": 126,
           "declaration": "async fn channel_command_cancel_waits_for_feedback_before_releasing_scope() {"
         },
         {
-          "line": 333,
+          "line": 133,
           "declaration": "async fn channel_command_cancel_dropped_caller_still_drains_processor() {"
         }
       ],
       "cfg": [],
-      "exports": []
+      "exports": [],
+      "owner": 43
     },
     {
       "path": "crates/vw-agent/src/channels/dispatch_tests.rs",
@@ -21128,7 +20269,65 @@
           "line": 1,
           "declaration": "pub(super) use channel_runtime::dispatch_test_support::{RecordingChannel, context, message};"
         }
-      ]
+      ],
+      "owner": 43
+    },
+    {
+      "path": "crates/vw-agent/src/gateway/api/handlers/session/stream_acceptance_host.rs",
+      "lines": 27,
+      "symbols": [
+        {
+          "line": 4,
+          "declaration": "impl RuntimeAcceptanceHost for Host {"
+        },
+        {
+          "line": 7,
+          "declaration": "fn env_lock() -> &'static tokio::sync::Mutex<()> { crate::test_support::global_async_env_lock() }"
+        },
+        {
+          "line": 8,
+          "declaration": "async fn recovery(api: &str, key: Option<&str>) -> Self::Fixture { Self::Fixture::new(api, key).await }"
+        },
+        {
+          "line": 9,
+          "declaration": "fn stream_guard() -> std::sync::MutexGuard<'static, ()> { crate::session::processor::test_llm_stream_guard() }"
+        },
+        {
+          "line": 10,
+          "declaration": "fn enqueue(events: Vec<llm_runtime::StreamEvent>) { crate::session::processor::enqueue_test_llm_stream(events); }"
+        },
+        {
+          "line": 11,
+          "declaration": "fn captured(session: &str) -> Vec<CapturedRequest> {"
+        },
+        {
+          "line": 17,
+          "declaration": "fn tool_ids() -> Vec<Vec<String>> { crate::session::processor::llm_runner::take_test_llm_stream_tool_ids() }"
+        },
+        {
+          "line": 18,
+          "declaration": "async fn update_config(value: serde_json::Value) -> anyhow::Result<()> { crate::config::update(value).await?; Ok(()) }"
+        },
+        {
+          "line": 19,
+          "declaration": "async fn update_project(path: &std::path::Path, value: serde_json::Value) -> anyhow::Result<()> { crate::config::update_project(path, value).await?; Ok(()) }"
+        },
+        {
+          "line": 20,
+          "declaration": "fn register_boundary(session: &str) -> Self::Boundary {"
+        },
+        {
+          "line": 25,
+          "declaration": "fn boundary_started(boundary: &Self::Boundary) -> bool { boundary.started.load(std::sync::atomic::Ordering::Acquire) }"
+        },
+        {
+          "line": 26,
+          "declaration": "fn release_boundary(boundary: &Self::Boundary) { boundary.release.store(true, std::sync::atomic::Ordering::Release); }"
+        }
+      ],
+      "cfg": [],
+      "exports": [],
+      "owner": 11
     }
   ],
   "reverse_dependency_candidates": [

@@ -50,12 +50,22 @@ for row in original:
     elif row['path'] in orphans:
         row['disposition'] = 'removed_unregistered_forwarder'
         row['destination'] = 'agent_memory existing public modules'
+for row in original:
+    if row['path'] == 'crates/vw-agent/src/model_catalog.rs' and not row['after']:
+        row['disposition'] = 'removed_uncalled_private_export'
+        row['destination'] = 'model-catalog::ModelCatalogStore; private host shim had no consumers'
 remaining = [dict(**row, symbols=host[row['path']]['symbols'])
              for row in original if row['after']]
 totals = Counter()
 for row in remaining:
     totals[row['owner']] += row['after']
-new_host = [v for p, v in host.items() if p not in baseline]
+new_host_owners = {
+    'crates/vw-agent/src/channels/dispatch_cancel_tests.rs': 43,
+    'crates/vw-agent/src/channels/dispatch_tests.rs': 43,
+    'crates/vw-agent/src/gateway/api/handlers/session/stream_acceptance_host.rs': 11,
+}
+new_host = [dict(**v, owner=new_host_owners[p]) for p, v in host.items() if p not in baseline]
+assert all(v['owner'] in {row[0] for row in scope['rows']} for v in new_host)
 total = sum(v['lines'] for v in host.values())
 domain = [inventory(p) for p in sorted((ROOT / 'crates/libs').rglob('*.rs'))
           if 'host_migration_' in str(p)]

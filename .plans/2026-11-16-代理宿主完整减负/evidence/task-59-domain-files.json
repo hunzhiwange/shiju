@@ -1219,6 +1219,13 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/agent-acp/src/host_migration_53_backend_contracts.rs",
+      "before": 0,
+      "after": 120,
+      "added": 120,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/agent-acp/src/host_migration_53_catalog_contracts.rs",
       "before": 0,
       "after": 167,
@@ -1228,8 +1235,22 @@
     {
       "path": "crates/libs/agent-acp/src/host_migration_53_mcp_contracts.rs",
       "before": 0,
-      "after": 70,
-      "added": 70,
+      "after": 125,
+      "added": 125,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/agent-acp/src/host_migration_53_model_contracts.rs",
+      "before": 0,
+      "after": 74,
+      "added": 74,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/agent-acp/src/host_migration_53_overlay_contracts.rs",
+      "before": 0,
+      "after": 311,
+      "added": 311,
       "deleted": 0
     },
     {
@@ -1256,8 +1277,8 @@
     {
       "path": "crates/libs/agent-acp/src/lib.rs",
       "before": 13,
-      "after": 41,
-      "added": 28,
+      "after": 50,
+      "added": 37,
       "deleted": 0
     },
     {
@@ -1384,6 +1405,34 @@
       "before": 29,
       "after": 29,
       "added": 0,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/agent-app-services/src/mcp/acceptance/acp.rs",
+      "before": 0,
+      "after": 120,
+      "added": 120,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/agent-app-services/src/mcp/acceptance/mod.rs",
+      "before": 0,
+      "after": 4,
+      "added": 4,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/agent-app-services/src/mcp/acceptance/projection.rs",
+      "before": 0,
+      "after": 34,
+      "added": 34,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/agent-app-services/src/mcp/acceptance/revocation.rs",
+      "before": 0,
+      "after": 105,
+      "added": 105,
       "deleted": 0
     },
     {
@@ -1529,8 +1578,8 @@
     {
       "path": "crates/libs/agent-app-services/src/mcp/mod.rs",
       "before": 181,
-      "after": 184,
-      "added": 3,
+      "after": 187,
+      "added": 6,
       "deleted": 0
     },
     {
@@ -2656,9 +2705,9 @@
     {
       "path": "crates/libs/agent-gateway/src/api/auth.rs",
       "before": 43,
-      "after": 43,
-      "added": 0,
-      "deleted": 0
+      "after": 51,
+      "added": 10,
+      "deleted": 2
     },
     {
       "path": "crates/libs/agent-gateway/src/api/auth_tests.rs",
@@ -2684,8 +2733,8 @@
     {
       "path": "crates/libs/agent-gateway/src/api/mod.rs",
       "before": 7,
-      "after": 7,
-      "added": 0,
+      "after": 8,
+      "added": 1,
       "deleted": 0
     },
     {
@@ -2707,6 +2756,13 @@
       "before": 242,
       "after": 242,
       "added": 0,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/api/tools.rs",
+      "before": 0,
+      "after": 32,
+      "added": 32,
       "deleted": 0
     },
     {
@@ -2740,15 +2796,15 @@
     {
       "path": "crates/libs/agent-gateway/src/bootstrap.rs",
       "before": 63,
-      "after": 63,
-      "added": 0,
+      "after": 125,
+      "added": 62,
       "deleted": 0
     },
     {
       "path": "crates/libs/agent-gateway/src/bootstrap_tests.rs",
       "before": 394,
-      "after": 394,
-      "added": 0,
+      "after": 397,
+      "added": 3,
       "deleted": 0
     },
     {
@@ -2763,6 +2819,13 @@
       "before": 49,
       "after": 49,
       "added": 0,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/agent-gateway/src/channel_reply_fixture.rs",
+      "before": 0,
+      "after": 115,
+      "added": 115,
       "deleted": 0
     },
     {
@@ -2822,6 +2885,13 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/agent-gateway/src/gateway_test_fixture.rs",
+      "before": 0,
+      "after": 94,
+      "added": 94,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/agent-gateway/src/global_config_contract.rs",
       "before": 0,
       "after": 77,
@@ -2838,9 +2908,9 @@
     {
       "path": "crates/libs/agent-gateway/src/handlers_tests.rs",
       "before": 1221,
-      "after": 1221,
+      "after": 1112,
       "added": 0,
-      "deleted": 0
+      "deleted": 109
     },
     {
       "path": "crates/libs/agent-gateway/src/health.rs",
@@ -2866,8 +2936,8 @@
     {
       "path": "crates/libs/agent-gateway/src/host_migration_15_tests/global.rs",
       "before": 0,
-      "after": 700,
-      "added": 700,
+      "after": 612,
+      "added": 612,
       "deleted": 0
     },
     {
@@ -2920,6 +2990,13 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/agent-gateway/src/host_migration_17_tests/replies.rs",
+      "before": 0,
+      "after": 72,
+      "added": 72,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/agent-gateway/src/host_migration_17_tests/status.rs",
       "before": 0,
       "after": 172,
@@ -2929,15 +3006,15 @@
     {
       "path": "crates/libs/agent-gateway/src/host_migration_17_tests/tools.rs",
       "before": 0,
-      "after": 201,
-      "added": 201,
+      "after": 185,
+      "added": 185,
       "deleted": 0
     },
     {
       "path": "crates/libs/agent-gateway/src/host_migration_17_tests.rs",
       "before": 0,
-      "after": 5,
-      "added": 5,
+      "after": 6,
+      "added": 6,
       "deleted": 0
     },
     {
@@ -3104,8 +3181,8 @@
     {
       "path": "crates/libs/agent-gateway/src/lib.rs",
       "before": 67,
-      "after": 85,
-      "added": 18,
+      "after": 91,
+      "added": 24,
       "deleted": 0
     },
     {
@@ -4579,6 +4656,13 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/agent-plugins/src/dependencies.rs",
+      "before": 0,
+      "after": 23,
+      "added": 23,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/agent-plugins/src/hook_handler.rs",
       "before": 1027,
       "after": 1027,
@@ -4728,8 +4812,8 @@
     {
       "path": "crates/libs/agent-plugins/src/host_migration_37_tests/t20_tests.rs",
       "before": 0,
-      "after": 468,
-      "added": 468,
+      "after": 272,
+      "added": 272,
       "deleted": 0
     },
     {
@@ -4742,8 +4826,8 @@
     {
       "path": "crates/libs/agent-plugins/src/host_migration_37_tests/t22_tests.rs",
       "before": 0,
-      "after": 322,
-      "added": 322,
+      "after": 277,
+      "added": 277,
       "deleted": 0
     },
     {
@@ -4791,15 +4875,15 @@
     {
       "path": "crates/libs/agent-plugins/src/host_migration_37_tests.rs",
       "before": 0,
-      "after": 117,
-      "added": 117,
+      "after": 108,
+      "added": 108,
       "deleted": 0
     },
     {
       "path": "crates/libs/agent-plugins/src/host_migration_38_tests/host.rs",
       "before": 0,
-      "after": 79,
-      "added": 79,
+      "after": 112,
+      "added": 112,
       "deleted": 0
     },
     {
@@ -4889,8 +4973,8 @@
     {
       "path": "crates/libs/agent-plugins/src/host_migration_38_tests/t43_tests.rs",
       "before": 0,
-      "after": 77,
-      "added": 77,
+      "after": 100,
+      "added": 100,
       "deleted": 0
     },
     {
@@ -4901,17 +4985,24 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/agent-plugins/src/host_migration_38_tests/t45_tests.rs",
+      "before": 0,
+      "after": 133,
+      "added": 133,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/agent-plugins/src/host_migration_38_tests/t57_tests.rs",
       "before": 0,
-      "after": 99,
-      "added": 99,
+      "after": 132,
+      "added": 132,
       "deleted": 0
     },
     {
       "path": "crates/libs/agent-plugins/src/host_migration_38_tests.rs",
       "before": 0,
-      "after": 68,
-      "added": 68,
+      "after": 70,
+      "added": 70,
       "deleted": 0
     },
     {
@@ -4924,8 +5015,8 @@
     {
       "path": "crates/libs/agent-plugins/src/host_migration_39_tests/dependencies.rs",
       "before": 0,
-      "after": 82,
-      "added": 82,
+      "after": 71,
+      "added": 71,
       "deleted": 0
     },
     {
@@ -5015,8 +5106,8 @@
     {
       "path": "crates/libs/agent-plugins/src/lib.rs",
       "before": 113,
-      "after": 125,
-      "added": 12,
+      "after": 130,
+      "added": 17,
       "deleted": 0
     },
     {
@@ -5052,6 +5143,27 @@
       "before": 231,
       "after": 231,
       "added": 0,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/agent-plugins/src/mcp_auth.rs",
+      "before": 0,
+      "after": 29,
+      "added": 29,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/agent-plugins/src/mcp_oauth_flow.rs",
+      "before": 0,
+      "after": 5,
+      "added": 5,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/agent-plugins/src/mcp_oauth_tokens.rs",
+      "before": 0,
+      "after": 8,
+      "added": 8,
       "deleted": 0
     },
     {
@@ -9166,9 +9278,9 @@
     {
       "path": "crates/libs/channel-runtime/src/startup_host.rs",
       "before": 20,
-      "after": 20,
-      "added": 0,
-      "deleted": 0
+      "after": 26,
+      "added": 9,
+      "deleted": 3
     },
     {
       "path": "crates/libs/channel-slack/src/lib.rs",
@@ -10790,8 +10902,22 @@
     {
       "path": "crates/libs/gateway-agent-apps/src/mcp_acceptance/mod.rs",
       "before": 0,
-      "after": 5,
-      "added": 5,
+      "after": 8,
+      "added": 8,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/gateway-agent-apps/src/mcp_acceptance/project.rs",
+      "before": 0,
+      "after": 24,
+      "added": 24,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/gateway-agent-apps/src/mcp_acceptance/runtime_scope.rs",
+      "before": 0,
+      "after": 57,
+      "added": 57,
       "deleted": 0
     },
     {
@@ -10799,6 +10925,13 @@
       "before": 0,
       "after": 414,
       "added": 414,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/gateway-agent-apps/src/mcp_acceptance/servers.rs",
+      "before": 0,
+      "after": 56,
+      "added": 56,
       "deleted": 0
     },
     {
@@ -12741,6 +12874,13 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/gateway-config/src/host_migration_8_tests/auth.rs",
+      "before": 0,
+      "after": 55,
+      "added": 55,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/gateway-config/src/host_migration_8_tests/patch.rs",
       "before": 0,
       "after": 345,
@@ -12771,8 +12911,8 @@
     {
       "path": "crates/libs/gateway-config/src/host_migration_8_tests.rs",
       "before": 0,
-      "after": 105,
-      "added": 105,
+      "after": 107,
+      "added": 107,
       "deleted": 0
     },
     {
@@ -12832,6 +12972,34 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/gateway-cron/src/host_contracts/delivery.rs",
+      "before": 36,
+      "after": 36,
+      "added": 0,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/gateway-cron/src/host_contracts/denial.rs",
+      "before": 64,
+      "after": 64,
+      "added": 0,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/gateway-cron/src/host_contracts/routes.rs",
+      "before": 37,
+      "after": 37,
+      "added": 0,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/gateway-cron/src/host_contracts.rs",
+      "before": 79,
+      "after": 79,
+      "added": 0,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/gateway-cron/src/host_migration_9_tests/delivery.rs",
       "before": 0,
       "after": 47,
@@ -12876,8 +13044,8 @@
     {
       "path": "crates/libs/gateway-cron/src/lib.rs",
       "before": 25,
-      "after": 28,
-      "added": 3,
+      "after": 31,
+      "added": 6,
       "deleted": 0
     },
     {
@@ -13343,10 +13511,17 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/gateway-session/src/fork_acceptance/acp_restart.rs",
+      "before": 0,
+      "after": 287,
+      "added": 287,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/gateway-session/src/fork_acceptance.rs",
       "before": 0,
-      "after": 610,
-      "added": 610,
+      "after": 615,
+      "added": 615,
       "deleted": 0
     },
     {
@@ -13457,8 +13632,8 @@
     {
       "path": "crates/libs/gateway-session/src/lib.rs",
       "before": 62,
-      "after": 101,
-      "added": 39,
+      "after": 109,
+      "added": 47,
       "deleted": 0
     },
     {
@@ -13473,6 +13648,20 @@
       "before": 160,
       "after": 160,
       "added": 0,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/gateway-session/src/native_fork_acceptance/history.rs",
+      "before": 0,
+      "after": 98,
+      "added": 98,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/gateway-session/src/native_fork_acceptance.rs",
+      "before": 0,
+      "after": 409,
+      "added": 409,
       "deleted": 0
     },
     {
@@ -13506,8 +13695,8 @@
     {
       "path": "crates/libs/gateway-session/src/profile_acceptance_host.rs",
       "before": 0,
-      "after": 18,
-      "added": 18,
+      "after": 20,
+      "added": 20,
       "deleted": 0
     },
     {
@@ -13574,10 +13763,17 @@
       "deleted": 30
     },
     {
+      "path": "crates/libs/gateway-session/src/stream_acceptance/projections.rs",
+      "before": 0,
+      "after": 46,
+      "added": 46,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/gateway-session/src/stream_acceptance.rs",
       "before": 0,
-      "after": 401,
-      "added": 401,
+      "after": 462,
+      "added": 462,
       "deleted": 0
     },
     {
@@ -13592,6 +13788,34 @@
       "before": 0,
       "after": 188,
       "added": 188,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/gateway-session/src/stream_runtime_acceptance/identity.rs",
+      "before": 0,
+      "after": 59,
+      "added": 59,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/gateway-session/src/stream_runtime_acceptance/recovery.rs",
+      "before": 0,
+      "after": 397,
+      "added": 397,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/gateway-session/src/stream_runtime_acceptance.rs",
+      "before": 0,
+      "after": 503,
+      "added": 503,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/gateway-session/src/stream_runtime_acceptance_host.rs",
+      "before": 0,
+      "after": 29,
+      "added": 29,
       "deleted": 0
     },
     {
@@ -13912,8 +14136,8 @@
     {
       "path": "crates/libs/llm-runtime/src/acp/acceptance_support/mod.rs",
       "before": 0,
-      "after": 30,
-      "added": 30,
+      "after": 32,
+      "added": 32,
       "deleted": 0
     },
     {
@@ -13931,10 +14155,17 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/llm-runtime/src/acp/acceptance_support/profile.rs",
+      "before": 0,
+      "after": 42,
+      "added": 42,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/llm-runtime/src/acp/acceptance_support/skill_mounts.rs",
       "before": 0,
-      "after": 272,
-      "added": 272,
+      "after": 306,
+      "added": 306,
       "deleted": 0
     },
     {
@@ -14325,8 +14556,8 @@
     {
       "path": "crates/libs/llm-runtime/src/acp/model_source/mod.rs",
       "before": 31,
-      "after": 31,
-      "added": 0,
+      "after": 56,
+      "added": 25,
       "deleted": 0
     },
     {
@@ -15200,8 +15431,8 @@
     {
       "path": "crates/libs/llm-runtime/src/host_migration_24_tests/profile.rs",
       "before": 0,
-      "after": 36,
-      "added": 36,
+      "after": 57,
+      "added": 57,
       "deleted": 0
     },
     {
@@ -16381,17 +16612,31 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/model-relay-http/src/host_migration_47_tests/native_http_tests.rs",
+      "before": 0,
+      "after": 226,
+      "added": 226,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/model-relay-http/src/host_migration_47_tests.rs",
       "before": 0,
-      "after": 177,
-      "added": 177,
+      "after": 179,
+      "added": 179,
       "deleted": 0
     },
     {
       "path": "crates/libs/model-relay-http/src/lib.rs",
       "before": 3,
-      "after": 9,
-      "added": 6,
+      "after": 12,
+      "added": 9,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/model-relay-http/src/relay_test_support.rs",
+      "before": 415,
+      "after": 415,
+      "added": 0,
       "deleted": 0
     },
     {
@@ -16920,6 +17165,13 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/plugin-mcp/src/catalog_test_support.rs",
+      "before": 0,
+      "after": 235,
+      "added": 235,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/plugin-mcp/src/connection_host.rs",
       "before": 31,
       "after": 31,
@@ -16936,8 +17188,8 @@
     {
       "path": "crates/libs/plugin-mcp/src/lib.rs",
       "before": 25,
-      "after": 28,
-      "added": 3,
+      "after": 34,
+      "added": 9,
       "deleted": 0
     },
     {
@@ -17113,6 +17365,13 @@
       "before": 264,
       "after": 264,
       "added": 0,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/plugin-mcp/src/resource_test_support.rs",
+      "before": 0,
+      "after": 65,
+      "added": 65,
       "deleted": 0
     },
     {
@@ -17342,9 +17601,9 @@
     {
       "path": "crates/libs/session-engine/src/capability_policy.rs",
       "before": 208,
-      "after": 208,
-      "added": 0,
-      "deleted": 0
+      "after": 220,
+      "added": 16,
+      "deleted": 4
     },
     {
       "path": "crates/libs/session-engine/src/capability_policy_tests.rs",
@@ -17515,6 +17774,13 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/session-engine/src/dynamic_tool_acceptance.rs",
+      "before": 0,
+      "after": 326,
+      "added": 326,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/session-engine/src/dynamic_tool_restore_contract.rs",
       "before": 0,
       "after": 94,
@@ -17676,10 +17942,38 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/session-engine/src/host_migration_22_tests/todo_storage_tests.rs",
+      "before": 0,
+      "after": 49,
+      "added": 49,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/session-engine/src/host_migration_22_tests.rs",
       "before": 0,
-      "after": 12,
-      "added": 12,
+      "after": 13,
+      "added": 13,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/session-engine/src/host_migration_23_acceptance.rs",
+      "before": 0,
+      "after": 338,
+      "added": 338,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/session-engine/src/host_migration_23_binding_contract.rs",
+      "before": 0,
+      "after": 54,
+      "added": 54,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/session-engine/src/host_migration_23_compaction_contract.rs",
+      "before": 0,
+      "after": 245,
+      "added": 245,
       "deleted": 0
     },
     {
@@ -17704,6 +17998,13 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/session-engine/src/host_migration_23_tests/claude_protocol_parity.rs",
+      "before": 0,
+      "after": 81,
+      "added": 81,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/session-engine/src/host_migration_23_tests/compaction.rs",
       "before": 0,
       "after": 821,
@@ -17725,6 +18026,13 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/session-engine/src/host_migration_23_tests/native_defaults.rs",
+      "before": 0,
+      "after": 108,
+      "added": 108,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/session-engine/src/host_migration_23_tests/policy.rs",
       "before": 0,
       "after": 44,
@@ -17741,8 +18049,8 @@
     {
       "path": "crates/libs/session-engine/src/host_migration_23_tests.rs",
       "before": 0,
-      "after": 8,
-      "added": 8,
+      "after": 10,
+      "added": 10,
       "deleted": 0
     },
     {
@@ -17818,8 +18126,8 @@
     {
       "path": "crates/libs/session-engine/src/lib.rs",
       "before": 83,
-      "after": 108,
-      "added": 25,
+      "after": 120,
+      "added": 37,
       "deleted": 0
     },
     {
@@ -18077,9 +18385,9 @@
     {
       "path": "crates/libs/session-engine/src/runner_host.rs",
       "before": 207,
-      "after": 149,
+      "after": 148,
       "added": 5,
-      "deleted": 63
+      "deleted": 64
     },
     {
       "path": "crates/libs/session-engine/src/runner_images.rs",
@@ -18148,15 +18456,15 @@
       "path": "crates/libs/session-engine/src/runner_text.rs",
       "before": 285,
       "after": 285,
-      "added": 0,
-      "deleted": 0
+      "added": 1,
+      "deleted": 1
     },
     {
       "path": "crates/libs/session-engine/src/runner_todo_updates.rs",
       "before": 184,
       "after": 184,
-      "added": 1,
-      "deleted": 1
+      "added": 3,
+      "deleted": 3
     },
     {
       "path": "crates/libs/session-engine/src/runner_todo_updates_tests.rs",
@@ -18169,8 +18477,8 @@
       "path": "crates/libs/session-engine/src/runner_todos.rs",
       "before": 194,
       "after": 194,
-      "added": 1,
-      "deleted": 1
+      "added": 8,
+      "deleted": 8
     },
     {
       "path": "crates/libs/session-engine/src/runner_todos_tests.rs",
@@ -18595,9 +18903,9 @@
     {
       "path": "crates/libs/session-engine/tests/host_suites/todos_tests.rs",
       "before": 128,
-      "after": 128,
-      "added": 0,
-      "deleted": 0
+      "after": 94,
+      "added": 1,
+      "deleted": 35
     },
     {
       "path": "crates/libs/session-engine/tests/host_suites/tools_exec_tests.rs",
@@ -19475,6 +19783,13 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/task-scheduler/src/gateway_executor_contract_tests.rs",
+      "before": 0,
+      "after": 257,
+      "added": 257,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/task-scheduler/src/host_migration_55_tests/gateway_tests.rs",
       "before": 0,
       "after": 559,
@@ -19505,8 +19820,8 @@
     {
       "path": "crates/libs/task-scheduler/src/lib.rs",
       "before": 57,
-      "after": 60,
-      "added": 3,
+      "after": 63,
+      "added": 6,
       "deleted": 0
     },
     {
@@ -20254,8 +20569,8 @@
     {
       "path": "crates/libs/tool-assembly/src/domain_construction.rs",
       "before": 0,
-      "after": 124,
-      "added": 124,
+      "after": 251,
+      "added": 251,
       "deleted": 0
     },
     {
@@ -20434,10 +20749,24 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/tool-assembly/src/host_migration_35_factory_acceptance.rs",
+      "before": 0,
+      "after": 171,
+      "added": 171,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/tool-assembly/src/host_migration_35_fixtures.rs",
       "before": 0,
       "after": 39,
       "added": 39,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/tool-assembly/src/host_migration_35_mcp_fixture.rs",
+      "before": 0,
+      "after": 92,
+      "added": 92,
       "deleted": 0
     },
     {
@@ -20478,8 +20807,8 @@
     {
       "path": "crates/libs/tool-assembly/src/lib.rs",
       "before": 16,
-      "after": 37,
-      "added": 21,
+      "after": 45,
+      "added": 29,
       "deleted": 0
     },
     {
@@ -20917,6 +21246,13 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/tool-mcp/src/host_migration_35_acceptance.rs",
+      "before": 0,
+      "after": 149,
+      "added": 149,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/tool-mcp/src/host_migration_35_tests.rs",
       "before": 0,
       "after": 30,
@@ -20926,8 +21262,8 @@
     {
       "path": "crates/libs/tool-mcp/src/lib.rs",
       "before": 7,
-      "after": 10,
-      "added": 3,
+      "after": 14,
+      "added": 7,
       "deleted": 0
     },
     {
@@ -21829,8 +22165,8 @@
     {
       "path": "crates/libs/workflow-engine/src/host_migration_45_tests.rs",
       "before": 0,
-      "after": 305,
-      "added": 305,
+      "after": 238,
+      "added": 238,
       "deleted": 0
     },
     {
@@ -21864,8 +22200,8 @@
     {
       "path": "crates/libs/workflow-engine/src/lib.rs",
       "before": 41,
-      "after": 44,
-      "added": 3,
+      "after": 47,
+      "added": 6,
       "deleted": 0
     },
     {
@@ -21921,6 +22257,41 @@
       "path": "crates/libs/workflow-engine/src/runner_tests.rs",
       "before": 803,
       "after": 803,
+      "added": 0,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/workflow-engine/src/test_support/actions.rs",
+      "before": 102,
+      "after": 102,
+      "added": 0,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/workflow-engine/src/test_support/binding.rs",
+      "before": 32,
+      "after": 32,
+      "added": 0,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/workflow-engine/src/test_support/permissions.rs",
+      "before": 64,
+      "after": 64,
+      "added": 0,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/workflow-engine/src/test_support/provider.rs",
+      "before": 45,
+      "after": 45,
+      "added": 0,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/workflow-engine/src/test_support.rs",
+      "before": 9,
+      "after": 9,
       "added": 0,
       "deleted": 0
     },
@@ -22172,8 +22543,8 @@
     {
       "path": "crates/libs/workflow-video-edit/src/lib.rs",
       "before": 30,
-      "after": 36,
-      "added": 6,
+      "after": 37,
+      "added": 7,
       "deleted": 0
     },
     {
@@ -22247,10 +22618,38 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/workflow-video-edit/src/test_support/cloud_contracts.rs",
+      "before": 0,
+      "after": 24,
+      "added": 24,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/workflow-video-edit/src/test_support/cloud_fixture.rs",
+      "before": 0,
+      "after": 62,
+      "added": 62,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/workflow-video-edit/src/test_support/contracts.rs",
       "before": 0,
       "after": 357,
       "added": 357,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/workflow-video-edit/src/test_support/gateway_acceptance.rs",
+      "before": 0,
+      "after": 97,
+      "added": 97,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/workflow-video-edit/src/test_support/gateway_contracts.rs",
+      "before": 0,
+      "after": 102,
+      "added": 102,
       "deleted": 0
     },
     {
@@ -22263,8 +22662,15 @@
     {
       "path": "crates/libs/workflow-video-edit/src/test_support/mod.rs",
       "before": 0,
-      "after": 7,
-      "added": 7,
+      "after": 13,
+      "added": 13,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/workflow-video-edit/src/test_support/planning_fixture.rs",
+      "before": 0,
+      "after": 103,
+      "added": 103,
       "deleted": 0
     },
     {
@@ -22289,6 +22695,13 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/workflow-video-edit/src/test_support/template_fixture.rs",
+      "before": 0,
+      "after": 53,
+      "added": 53,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/workflow-video-edit/src/transcript.rs",
       "before": 315,
       "after": 315,
@@ -22300,6 +22713,13 @@
       "before": 17,
       "after": 17,
       "added": 0,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/workflow-video-edit/src/visible_instance.rs",
+      "before": 0,
+      "after": 15,
+      "added": 15,
       "deleted": 0
     },
     {

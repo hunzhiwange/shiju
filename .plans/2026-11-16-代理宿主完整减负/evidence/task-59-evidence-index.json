@@ -8,8 +8,13 @@
   {
     "task": 2,
     "exists": true,
-    "lines": 180,
-    "unresolved_markers": []
+    "lines": 192,
+    "unresolved_markers": [
+      {
+        "line": 184,
+        "text": "已读取 evidence/final.md 与 evidence/remaining-host.json 中 owner=2 的残留。继续迁移图标领域断言与 HTTP 生命周期夹具，不将宿主换成领域模拟路由。"
+      }
+    ]
   },
   {
     "task": 3,
@@ -32,8 +37,13 @@
   {
     "task": 6,
     "exists": true,
-    "lines": 208,
-    "unresolved_markers": []
+    "lines": 220,
+    "unresolved_markers": [
+      {
+        "line": 212,
+        "text": "已读取 final.md、remaining-host.json：上轮本任务残留1507行。此次不运行 Cargo/构建/测试，所有编译与行为仍未验证。"
+      }
+    ]
   },
   {
     "task": 7,
@@ -44,32 +54,83 @@
   {
     "task": 8,
     "exists": true,
-    "lines": 74,
+    "lines": 98,
     "unresolved_markers": []
   },
   {
     "task": 9,
     "exists": true,
-    "lines": 83,
+    "lines": 98,
     "unresolved_markers": []
   },
   {
     "task": 10,
     "exists": true,
-    "lines": 140,
-    "unresolved_markers": []
+    "lines": 231,
+    "unresolved_markers": [
+      {
+        "line": 144,
+        "text": "读取 final.md 和 remaining-host.json 任务10条目后，拆开原 session_ops_tests 的实际宿主装配和领域断言。新增 gateway-session::host_lifecycle_acceptance，使用已有 SessionHost 及 H::State；八个完整行为函数迁入领域库。原宿主同名测试仅构造实际 AppState，调用对应领域函数并注入实际 Host。没有复制 AppState、伪造存储、重写策略或删除失败断言。"
+      }
+    ]
   },
   {
     "task": 11,
     "exists": true,
-    "lines": 175,
-    "unresolved_markers": []
+    "lines": 379,
+    "unresolved_markers": [
+      {
+        "line": 179,
+        "text": "Read evidence/final.md and evidence/remaining-host.json: task 11 originally retained 2788 lines, whole-plan gate remained open. This pass removes the unnecessary StreamHost binding from prepare_stream_history, gateway_content_to_title_source, commit_stream_session_trajectory and reserve_stream_agent_session. Existing production callers now reach these concrete domain functions directly. Store operations directly use the SAME session_store::ui_store functions formerly re-exported by host; title and child-agent helpers directly use the SAME session_engine functions. Removed 11 trait methods and matching native implementations; no permission, tenant selection or resource capture moved or bypassed."
+      },
+      {
+        "line": 210,
+        "text": "Remaining host responsibilities: real configured processor streams, skill preload/collaboration delivery, tool file/git mutations, approval grants, trusted binding config mutation, workflow applications router integration, title provider failure/retry, replay and cancellation. Three delegated model tests still use native model selection through Host. The mapping table above lists exact remaining dependencies. The native_tool_search history integration also still checks model SDK conversion and requires its owning runtime fixtures. These are explicit continuing candidates; the remaining 70% gap is not resolved by this pass."
+      },
+      {
+        "line": 222,
+        "text": "Removed all five test-only async forwarding wrappers (resolve_delegate_request_overrides, prepare_gateway_agent_request, session_model, start_gateway_chat_stream, start_gateway_chat_producer), their SharedPromptCancel alias, and delegated_model_override wrapper. Remaining native tests call real domain entries with Host explicitly."
+      },
+      {
+        "line": 248,
+        "text": "Remaining exact functions and native references (thin acceptance invocations are identifiable from stream_acceptance mapping above):"
+      },
+      {
+        "line": 281,
+        "text": "Remaining non-thin functions exercise concrete test LLM stream queue/capture, registry tool execution/skills, native binding scope/config mutation, workflow application HTTP router, title-provider socket failure/retry, and cancellation of an executing shell tool. They cannot be replaced with a simulated host to meet the numeric gate. This pass closes all model override pure tests and removes every test-only forwarding function; further independent registration would require moving the real native runner fixture API with its owning subsystem rather than cloning it here."
+      },
+      {
+        "line": 324,
+        "text": "Remaining host function map (current exact declarations):"
+      },
+      {
+        "line": 361,
+        "text": "Re-read final.md and remaining-host inventory. Source already contained fourth-pass real native runtime acceptance; the 38000-line gap in the dispatch is an older snapshot. This pass splits the remaining concrete assertions without repeating earlier migration credit."
+      },
+      {
+        "line": 369,
+        "text": "No new production algorithm or independent test registration claimed. Acceptance helpers still require original native test invocation; domain unit filter remains51, host filter27. Native history SDK conversion assertion remains in the host because its complete assertion matches the actual SDK Message enum, with no added SDK dependency merely for relocation. Remaining native test bodies now consist of actual git initialization, workflow route/edit and transport/database/path permission operations, actual fork/binding/config revocation operations, SDK integration and thin invocations. Every previous full-function mapping is retained; the partial mappings above supersede previous retained-body tables."
+      },
+      {
+        "line": 379,
+        "text": "Static verification: inspected remaining direct call sites and real return types; original host wrappers still invoke each extracted assertion, public helper registration is local under existing native test-support cfg, git diff --check clean. No Cargo, build, tests, test listing, device run or test binary invoked. Future commands/counts remain as above. The numbered task file was already deleted after prior committed completion and is not recreated for bookkeeping."
+      }
+    ]
   },
   {
     "task": 12,
     "exists": true,
-    "lines": 84,
-    "unresolved_markers": []
+    "lines": 142,
+    "unresolved_markers": [
+      {
+        "line": 88,
+        "text": "读取 final.md 与 evidence/remaining-host.json，本轮继续迁移，不将上轮保留说明作为领域归属判断。"
+      },
+      {
+        "line": 114,
+        "text": "读取最新 final.md 优先恢复项4及 remaining-host.json。本轮不运行任何 Cargo/构建/测试。"
+      }
+    ]
   },
   {
     "task": 13,
@@ -80,78 +141,179 @@
   {
     "task": 14,
     "exists": true,
-    "lines": 276,
-    "unresolved_markers": []
+    "lines": 315,
+    "unresolved_markers": [
+      {
+        "line": 280,
+        "text": "读取 final.md 与 remaining-host.json：原任务残留 1039 行。此次继续迁移真实行为，并非仅移动存放路径。"
+      },
+      {
+        "line": 285,
+        "text": "- 未迁生产算法：provider/通道实现此前已在领域库，本轮迁入完整领域测试和夹具，不计作新增生产迁移收益。宿主路由仍调用这些真实 crate router/collect 入口，无反向宿主依赖与 path/include 宿主源码。"
+      },
+      {
+        "line": 303,
+        "text": "本次重新读取 final.md（更新快照为宿主51915行，超额16915行）及 remaining-host.json（任务14原残留743行），不引用旧整轮缺口作为当前测量。"
+      }
+    ]
   },
   {
     "task": 15,
     "exists": true,
-    "lines": 399,
-    "unresolved_markers": []
+    "lines": 469,
+    "unresolved_markers": [
+      {
+        "line": 403,
+        "text": "读取 final.md 与 remaining-host.json（任务15原始残留1723行）后继续实施。本节覆盖前文相应保留映射；未运行任何 Cargo、构建或测试。"
+      },
+      {
+        "line": 452,
+        "text": "重新读取最新final.md、remaining-host.json。本任务metadata五候选已由2755407bc闭合，本轮处理文件拖拽与global残留。真实宿主业务端口/权限/根Router不移入库；原样的共享测试状态构造与环境生命周期集中到agent_gateway::gateway_test_fixture，三处真实调用：宿主global_tests、宿主file_drag_integration_tests、领域host_migration_15_tests::global。"
+      }
+    ]
   },
   {
     "task": 16,
     "exists": true,
-    "lines": 214,
+    "lines": 271,
     "unresolved_markers": [
       {
         "line": 30,
         "text": "生产：本轮未迁生产算法；原生产实现已在各领域库，本轮主要转移测试编译归属。生产入口 Host 和兼容导出保留，permission/plugins/pty 仅清理不再使用的测试 import。"
+      },
+      {
+        "line": 222,
+        "text": "Permission: all six remaining tests moved to agent-gateway::host_migration_16_tests. Fixture binds real session-store tenant scope, agent-project instance context and approval_state cache. It intentionally omits application bootstrap (not covered by these assertions). Host retains the concrete trait implementation and new router_builds_with_host_ports boundary. Old permission_tests module and two test wrappers removed."
       }
     ]
   },
   {
     "task": 17,
     "exists": true,
-    "lines": 313,
-    "unresolved_markers": []
+    "lines": 481,
+    "unresolved_markers": [
+      {
+        "line": 318,
+        "text": "读取 final.md / remaining-host.json，继续拆分任务17残留；未运行 Cargo、构建、单元或实机测试。"
+      },
+      {
+        "line": 392,
+        "text": "已重新读取 final.md（51915行快照）与 remaining-host.json；该快照是收口时点，不把它误写成本次即时统计。只做源码、注册、依赖和差异核对；没有 Cargo、构建或运行测试。"
+      },
+      {
+        "line": 450,
+        "text": "再次读取 final.md / remaining-host.json；收口快照43584行、任务17为1225行。本轮没有 Cargo、构建、单元/实机测试。静态差异检查通过，不把它称为编译或行为通过。"
+      }
+    ]
   },
   {
     "task": 18,
     "exists": true,
-    "lines": 374,
-    "unresolved_markers": []
+    "lines": 489,
+    "unresolved_markers": [
+      {
+        "line": 379,
+        "text": "读取 final.md、remaining-host.json 的任务18条目后，继续迁出剩余 HTTP ingress acceptance 及独立运行时策略。原 tests/mod.rs 432 行夹具随整组断言下沉，原四个 path 挂载全部消除，未删断言。"
+      },
+      {
+        "line": 414,
+        "text": "按 remaining-host 的18号原文件集，恢复前 1210 行，当前 757 行，本次净减 453 行。真实宿主 router/bootstrap 注册、state 具体类型、OpenAI/WS/聊天闭包仍保留；这些剩余端口不能用模拟实现替代。原始1588行范围仍未达到70%门槛，继续可迁项为协议跨目录测试的纯解析分支及具体提示/技能构建的领域入口，须由收口继续核算，不宣称整轮通过。"
+      }
+    ]
   },
   {
     "task": 19,
     "exists": true,
-    "lines": 89,
-    "unresolved_markers": []
+    "lines": 93,
+    "unresolved_markers": [
+      {
+        "line": 23,
+        "text": "宿主1508 → 449行，净减1059（70.23%）；只证明物理源码减量。整轮仍需任务59重算，不修改final.md/remaining-host.json快照。"
+      }
+    ]
   },
   {
     "task": 20,
     "exists": true,
-    "lines": 171,
-    "unresolved_markers": []
+    "lines": 224,
+    "unresolved_markers": [
+      {
+        "line": 176,
+        "text": "读取 final.md 与 evidence/remaining-host.json，原任务20残留1082行。此次把默认技能/MCP策略整条用例迁入 session-engine 的 host_migration_20_tests::skills::acp_skill_mount_outbound_defaults_preserve_rules_without_body。保留原全部断言、真实技能文件和 Python JSON-RPC 协议错误进程。任务本次未执行进程。任务局部 RefCell 仅提供已解析 MCP 端口数据；真实目录发现、禁用标记、自动授权、挂载和默认值合并仍调用已有领域实现。MCP启用/禁用注入端口不再依赖全局配置变更；真实配置加载由原有 mcp_common 测试负责，不能以此用例替代配置加载验收。"
+      },
+      {
+        "line": 197,
+        "text": "重新读取 final.md 与 remaining-host.json；任务20快照残留786行。整条 acp_local_blank_anchor_resumes_existing_session 现归 llm-runtime::acp::host_migration_20_tests::routing，同名函数和全部断言保留，宿主原函数删除。真实 Python 子进程和测试子进程隔离机制保留：验证协议拒绝时原锚点不变、成功恢复后 generation 归零、复用原 sessionId、new/resume/prompt 次数。不运行任何测试子进程或实际协议进程。"
+      }
+    ]
   },
   {
     "task": 21,
     "exists": true,
-    "lines": 172,
-    "unresolved_markers": []
+    "lines": 212,
+    "unresolved_markers": [
+      {
+        "line": 176,
+        "text": "Read final.md and remaining-host.json: task21 had 1321 remaining lines. Now 683: another 638 removed, cumulative 3448/4131 (83.5%). This supersedes the first-pass 68% gate. No Cargo, build, executable or test was run."
+      }
+    ]
   },
   {
     "task": 22,
     "exists": true,
-    "lines": 297,
+    "lines": 368,
     "unresolved_markers": [
       {
         "line": 196,
         "text": "- `sanitize_tool_input_for_ui_uses_remaining_items_marker` → `session_engine::host_migration_22_tests::processor_tests::sanitize_tool_input_for_ui_uses_remaining_items_marker`"
+      },
+      {
+        "line": 301,
+        "text": "读取 evidence/final.md 与 evidence/remaining-host.json；任务22原残留1123行。当前原19文件剩899行，本次再减224行；对1290基线累计净减391行（30.31%）。未达到70%，不能作为全局35000行门槛关闭依据。新变化全部是测试职责和冗余测试适配清理，未将旧领域算法记为新增生产收益。"
       }
     ]
   },
   {
     "task": 23,
     "exists": true,
-    "lines": 91,
-    "unresolved_markers": []
+    "lines": 194,
+    "unresolved_markers": [
+      {
+        "line": 94,
+        "text": "已读取 final.md 及 remaining-host.json 的 owner=23 残留。新增接收3个测试模块，由现有 host_migration_23_tests 自注册。"
+      },
+      {
+        "line": 132,
+        "text": "再次读取 final.md 的 owner23 建议及 remaining-host.json 的13项原路径。"
+      }
+    ]
   },
   {
     "task": 24,
     "exists": true,
-    "lines": 819,
-    "unresolved_markers": []
+    "lines": 953,
+    "unresolved_markers": [
+      {
+        "line": 824,
+        "text": "Read final.md and remaining-host.json (owner 24: 2678 lines). Both real CLI harnesses now belong to llm-runtime::acp::acceptance_support. Original RuntimeHost executes the actual request, controls and selection store. AcceptanceHost adds only two real configuration write ports, implemented with host config APIs. Manifest validation precedes fixture environment writes and project creation; read the manifest once. No fake permission or runtime implementation."
+      },
+      {
+        "line": 890,
+        "text": "Read the updated final.md (host 51915, remaining gate 16915) and owner=24 entries in remaining-host.json. No Cargo, build or tests run."
+      },
+      {
+        "line": 925,
+        "text": "This source: 495 -> 181 lines; domain contract 326 lines. The remaining host methods are the concrete boundary responsibilities above, rather than a whole-file coupling exemption. Prior 495-line retention statements are superseded by this section."
+      },
+      {
+        "line": 928,
+        "text": "## Recovery 4: remaining profile, prompt and production launch policy"
+      },
+      {
+        "line": 945,
+        "text": "The two integration contracts remain domain assertions + actual host boundaries, not independently registered domain tests. The single new rejection test is domain-registered via existing host_migration_24_tests::profile (Unix). Static checks cover source call mapping, registration, dependency direction, complete assertion sequence and scoped whitespace diff. No Cargo/build/unit/device execution. No added dependency, App/AppState copy, reverse host path or dropped assertion. Remaining thin CLI entries preserve the original names/ignore metadata; remaining prompt/model/Gateway fixture construction is the actual host boundary identified above."
+      }
+    ]
   },
   {
     "task": 25,
@@ -193,11 +355,15 @@
   {
     "task": 29,
     "exists": true,
-    "lines": 149,
+    "lines": 179,
     "unresolved_markers": [
       {
         "line": 121,
         "text": "- `query_engine_tests.rs`: `codex_discovery_core_query_engine_loads_and_resets_tools_between_user_turns`, `agent_and_query_engine_use_ephemeral_query_engine_context_each_turn`, `agent_and_query_engine_preserve_history_with_ephemeral_context_each_turn`, `query_engine_usage_totals_billable_tokens`, `query_engine_usage_total_saturates_on_overflow`, `recording_observer_accumulates_successful_llm_usage_and_forwards_calls`, `recording_observer_records_success_with_missing_usage_as_zero`, `recording_observer_saturates_oversized_token_counts`, `session_state_counts_non_system_messages_and_remaining_budget`, `snapshot_replace_and_restore_round_trip_history_turns_and_usage`, `submit_message_success_enriches_history_and_records_usage`, `submit_message_without_memory_context_uses_timestamp_prefix`, `first_turn_compaction_allows_threshold_but_rejects_overflow`, `submit_message_timestamp_uses_configured_timezone`, `new_rejects_invalid_programmatic_timezone`, `submit_message_success_preserves_history_after_turn`, `submit_message_error_rolls_back_history_and_turn_count`, `govern_history_does_not_apply_message_count_trimming`, `govern_history_preserves_history_after_a_response`, `govern_history_never_uses_local_summary_fallback`, `build_tool_descriptions_tracks_optional_tools`, `build_tool_descriptions_includes_browser_open_when_enabled`, `agcollab_channel_request_contains_only_enabled_team_runtime`"
+      },
+      {
+        "line": 153,
+        "text": "读取 final.md 与 remaining-host.json 后继续拆分。下列迁移使用已有 test-support 特性（vw-agent dev-dependency 已启用），无新增 Cargo 依赖，无反向依赖或加载宿主源文件。"
       }
     ]
   },
@@ -216,13 +382,30 @@
   {
     "task": 32,
     "exists": true,
-    "lines": 97,
-    "unresolved_markers": []
+    "lines": 215,
+    "unresolved_markers": [
+      {
+        "line": 101,
+        "text": "读取 final.md 与 remaining-host.json：任务32原残留1460行。本轮将 factory/runtime 的选择和发现断言从具体应用装配分离；未更改生产算法。"
+      },
+      {
+        "line": 134,
+        "text": "生产代码未迁移；移除不再使用的宿主测试parse_tool_input导入，其余生产端口和真实调用方向同前。领域自注册assembly/factory_host/mcp_host，未新增依赖，沿用现有库依赖。删除迁出测试旧定义及其专用夹具，保留原模块挂载仅用于真实边界。"
+      },
+      {
+        "line": 142,
+        "text": "已读取最新final.md（宿主51915行）和remaining-host.json（本任务485+469行）。修复前轮按函数末尾截取导致的孤立Python片段：完整fixture一直保存在领域assembly.rs，此次仅清除宿主无效尾段，没有删除有效测试。源码静态审查发现并修复，不宣称编译通过。"
+      },
+      {
+        "line": 183,
+        "text": "已重读final.md（宿主43584行、整轮缺8584行）与remaining-host.json（本组376+257行；快照早于前轮最终物理统计）。"
+      }
+    ]
   },
   {
     "task": 33,
     "exists": true,
-    "lines": 167,
+    "lines": 322,
     "unresolved_markers": [
       {
         "line": 82,
@@ -230,6 +413,14 @@
       },
       {
         "line": 83,
+        "text": "- `crates/vw-agent/src/tools/decision/tests.rs::blocked_path_checks_string_and_array_fields` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::blocked_path_checks_string_and_array_fields`"
+      },
+      {
+        "line": 206,
+        "text": "- `crates/vw-agent/src/tools/decision/tests.rs::security_decision_handles_readonly_rate_limit_and_blocked_paths` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::security_decision_handles_readonly_rate_limit_and_blocked_paths`"
+      },
+      {
+        "line": 207,
         "text": "- `crates/vw-agent/src/tools/decision/tests.rs::blocked_path_checks_string_and_array_fields` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::blocked_path_checks_string_and_array_fields`"
       }
     ]
@@ -252,8 +443,17 @@
   {
     "task": 35,
     "exists": true,
-    "lines": 316,
-    "unresolved_markers": []
+    "lines": 461,
+    "unresolved_markers": [
+      {
+        "line": 320,
+        "text": "按 final.md 与 evidence/remaining-host.json 的任务35清单继续拆分。前文声称搜索整组、Word Hook审批和 PowerShell 必须留宿主的判断已撤回：这些断言已经改用领域真实实现及窄上下文端口。未运行任何 Cargo、构建或测试。"
+      },
+      {
+        "line": 431,
+        "text": "读取最新 final.md 与 evidence/remaining-host.json 后，对本任务残留继续拆分。没有删除任何场景，也没有用 stub 工具、模拟鉴权或另一套算法替代原Host执行。"
+      }
+    ]
   },
   {
     "task": 36,
@@ -264,7 +464,7 @@
   {
     "task": 37,
     "exists": true,
-    "lines": 202,
+    "lines": 385,
     "unresolved_markers": [
       {
         "line": 45,
@@ -301,31 +501,77 @@
       {
         "line": 193,
         "text": "- `crates/vw-agent/testdata/plugin_compat/t23/server.py`: retained resource, original bytes unchanged; referenced by moved domain tests or remaining host transport tests."
+      },
+      {
+        "line": 206,
+        "text": "Read final.md and remaining-host.json: task37 retained 2705 host lines. Continued splitting complete tests, not duplicating assertion bodies. Production migration benefit remains zero: existing owners already implement the algorithms."
+      },
+      {
+        "line": 242,
+        "text": "## Third deep migration: close remaining domain cases"
+      },
+      {
+        "line": 244,
+        "text": "Read updated final.md priority 2 (2172 remaining host lines). New production algorithm migration = 0; this pass restores test ownership of existing actual plugin-mcp and tool-mcp implementations."
+      },
+      {
+        "line": 309,
+        "text": "Retained: t18 actual ToolUseContext cancellation, SessionToolset lease, plugin-disable notification, required executor admission; t19 actual runtime registry/filters; t20 actual inspection refresh with host context and its real service fixture; t22 actual runtime resource registration and inspection plus necessary package fixture; t24 only ignored real desktop/gateway interaction; t28 only ignored public provider/host logout acceptance plus package fixture t17. Remaining production adapters still provide current tenant, plugin source, approval and execution and cannot be moved as domain policy."
+      },
+      {
+        "line": 369,
+        "text": "Re-read latest final.md (43584 lines, 8584 excess; delegated 38000 gap is stale) and current source. t20 already stands at 24 host lines after 76da5a64c; no repeated migration credit. Continued with remaining t22 package/resource fixture."
       }
     ]
   },
   {
     "task": 38,
     "exists": true,
-    "lines": 179,
+    "lines": 216,
     "unresolved_markers": [
       {
         "line": 137,
         "text": "- `codex_plugin_compat_t43_continues_only_the_blocked_child` → 宿主原完整模块同名（断言保留）"
+      },
+      {
+        "line": 182,
+        "text": "本节覆盖上文 t36/t38、t42隔离、t43事件和 t57发布选择保留说明。读取 final.md/remaining-host.json 的任务38残留1658行后，复查真实入口，将9条完整用例继续迁入 agent-plugins::host_migration_38_tests。"
+      },
+      {
+        "line": 200,
+        "text": "读取最新 final.md（宿主51915行）和 remaining-host.json 后继续落实："
+      },
+      {
+        "line": 209,
+        "text": "读取最新 final.md（43584行快照）及 remaining-host.json，继续处理具体残留。"
       }
     ]
   },
   {
     "task": 39,
     "exists": true,
-    "lines": 147,
-    "unresolved_markers": []
+    "lines": 166,
+    "unresolved_markers": [
+      {
+        "line": 3,
+        "text": "代码与静态接线完成；禁止 Cargo、构建与运行测试，编译和行为未验证。读取 final.md/remaining-host.json，任务39首轮残留1466行。本轮不将真实端口依赖作为整组保留理由。"
+      },
+      {
+        "line": 152,
+        "text": "重新读取更新的 final.md/remaining-host.json；整轮门槛仍未闭合。沿用仓库 fork_acceptance/stream_acceptance 的实际宿主注入模式，未创建模拟宿主。"
+      }
+    ]
   },
   {
     "task": 40,
     "exists": true,
-    "lines": 141,
-    "unresolved_markers": []
+    "lines": 185,
+    "unresolved_markers": [
+      {
+        "line": 145,
+        "text": "读取 final.md 与 remaining-host.json 后继续拆分。禁止 Cargo/构建/运行测试，所有结论为静态源码证据。"
+      }
+    ]
   },
   {
     "task": 41,
@@ -336,49 +582,112 @@
   {
     "task": 42,
     "exists": true,
-    "lines": 187,
-    "unresolved_markers": []
+    "lines": 241,
+    "unresolved_markers": [
+      {
+        "line": 191,
+        "text": "读取 final.md 与 remaining-host.json 后继续执行。未运行任何 Cargo、构建、测试或实机命令。配置API与历史共享存储API的文档随真实实现归位，保持文档内容；该部分仅计兼容层清理，不计生产算法迁移。"
+      },
+      {
+        "line": 206,
+        "text": "remaining-host.json 的42号全体来源 1105 → 643 行，追加净减 462 行。原基线2632行口径净减 1989 行（75.6%）。领域生产/测试与文档分别如上，不宣称编译收益。"
+      },
+      {
+        "line": 214,
+        "text": "静态注册审查：audit_registrations.py 返回 edges=1139、unresolved=0、removed_targets_referenced=0；本轮定向 git diff --check 无空白错误。此为词法静态证据，非运行测试。"
+      },
+      {
+        "line": 216,
+        "text": "静态注册审查：audit_registrations.py 返回 edges=1139、unresolved=0、removed_targets_referenced=0；本轮定向 git diff --check 无空白错误。此为词法静态证据，非运行测试。"
+      },
+      {
+        "line": 241,
+        "text": "静态检查：audit_registrations.py 返回 edges=1105、unresolved=0、removed_targets_referenced=0；定向 git diff --check 无空白错误。上述为词法注册与差异核对，不是编译或运行测试。"
+      }
+    ]
   },
   {
     "task": 43,
     "exists": true,
-    "lines": 349,
+    "lines": 517,
     "unresolved_markers": [
       {
         "line": 19,
         "text": "- `crates/vw-agent/src/channels/mod_tests.rs`：53 → 35 行。保留 root_module_reexports_core_channel_types 与 native_channel_reexports_are_constructible，证明宿主公开入口确实连到通道实现；阻塞桥两用例迁入 support。"
+      },
+      {
+        "line": 353,
+        "text": "已读取 final.md 与 remaining-host.json 的 owner=43 残留。全轮门槛仍开放，本任务不声明全轮完成。"
+      },
+      {
+        "line": 414,
+        "text": "再次读取最新 remaining-host.json 的任务43残留及原文件、现有 command_history_contracts / command_catalog_contracts。沿用库内已有 test-support 契约模式，没有引入生产 Host trait 或模拟处理器。"
+      },
+      {
+        "line": 420,
+        "text": "调度 RecordingChannel/StaticProvider/context/message 完整夹具迁至 dispatch_test_support.rs，原子计数、阻塞发送和反馈释放保持不变。原 native dispatch 六个完整场景的断言迁至 dispatch_contracts.rs；宿主保留同名薄入口注入真实 RuntimeHost。取消流测试依赖原 dispatch_tests 的夹具公开路径仍有效。两条纯策略用例 compute_max_in_flight_messages_clamps_to_configured_bounds / log_worker_join_result_ignores_success_and_records_join_errors 在 manager::dispatch 下以 host_migration_43_tests 自注册，使用同一私有常量，原宿主定义删除。"
+      },
+      {
+        "line": 483,
+        "text": "再次读取最新 final.md 与 remaining-host.json；只继续任务43的额外挂载 dispatch_cancel_tests。完整12场景的取消/作用域/命令状态/反馈退出时序断言归 channel-runtime::cancel_contracts，仍驱动原 RuntimeHost。测试专用 CancelSignals 仅借用实际已注册 ChannelCancelStream 的 started/exited/release 原子信号，没有复制状态或模拟处理器；CancelFixture 传递原 Arc ctx/channel、msg/session 和信号引用。TempDir 与 Arc 流由宿主包装函数持有至契约返回。"
       }
     ]
   },
   {
     "task": 44,
     "exists": true,
-    "lines": 153,
+    "lines": 428,
     "unresolved_markers": []
   },
   {
     "task": 45,
     "exists": true,
-    "lines": 60,
+    "lines": 72,
     "unresolved_markers": []
   },
   {
     "task": 46,
     "exists": true,
-    "lines": 146,
-    "unresolved_markers": []
+    "lines": 181,
+    "unresolved_markers": [
+      {
+        "line": 154,
+        "text": "对照 evidence/final.md 与 remaining-host.json 的任务46记录：本轮来源残留3363→898行，再净减2465行；累计4080→898，净减3182行（78.0%）。生产算法迁移收益仍为0，未把测试组合fixture计入生产减负。"
+      }
+    ]
   },
   {
     "task": 47,
     "exists": true,
-    "lines": 39,
+    "lines": 42,
     "unresolved_markers": []
   },
   {
     "task": 48,
     "exists": true,
-    "lines": 102,
-    "unresolved_markers": []
+    "lines": 292,
+    "unresolved_markers": [
+      {
+        "line": 106,
+        "text": "## 恢复执行：按 final.md / remaining-host.json 深度迁移"
+      },
+      {
+        "line": 182,
+        "text": "本节替代上方“security_tests / host_scope_tests 整文件保留”判断。读取最新 final.md（宿主51915行）及 remaining-host.json 中任务48具体条目后继续拆分。"
+      },
+      {
+        "line": 223,
+        "text": "读取最新 final.md 的43584行/差8584行快照和 remaining-host.json 任务48项，本次不沿用派发消息中约38000行的旧差额。"
+      },
+      {
+        "line": 228,
+        "text": "- 新模块仅由现有 test-support + macOS 入口注册，宿主已有启用 feature 的 dev-dependency。未新增依赖、配置或 Host trait；未迁出生产算法，本次生产迁移计数为0，领域策略生产入口仍是此前已实际接线的 runtime_servers_for_project_roots。"
+      },
+      {
+        "line": 274,
+        "text": "本次读取 final.md（仍为43584旧快照）及 remaining-host.json（已更新39047、差4047行），不采用派发消息约38000行的旧差额。"
+      }
+    ]
   },
   {
     "task": 49,
@@ -389,14 +698,28 @@
   {
     "task": 50,
     "exists": true,
-    "lines": 135,
-    "unresolved_markers": []
+    "lines": 153,
+    "unresolved_markers": [
+      {
+        "line": 3,
+        "text": "本记录替代首轮保守保留结论。已读取 evidence/final.md 和 evidence/remaining-host.json：本任务残留2053行。未运行任何 Cargo、构建、单元/实机测试；仅源码静态核对。代码完成不代表编译或行为验收通过。"
+      },
+      {
+        "line": 147,
+        "text": "读取 final.md 当前恢复说明及 remaining-host.json（task50原2053行快照），以当前1090行续做。实际宿主 handlers::project::router 合并 gateway-project 与 worktree_management；后者仅安装真实Host再返回 gateway_worktree::project_router。迁移的7条用例URI全部归 gateway-worktree，因此直接使用其 project_router，完整保留Axum HTTP断言、真实数据库/租户/会话pin、确认删除、磁盘快照和重启子进程还原。"
+      }
+    ]
   },
   {
     "task": 51,
     "exists": true,
-    "lines": 85,
-    "unresolved_markers": []
+    "lines": 87,
+    "unresolved_markers": [
+      {
+        "line": 7,
+        "text": "已读取 final.md 与 remaining-host.json：本任务12个残留文件共1247行。真实会话存储用例也由 task-plan-runner 所有，不应因调用宿主转发便整体留宿主。改用真实 session_store::ui_store 接口承接6条绑定/历史用例和2条执行持久化用例。TestHost 从内存 HashMap 改为真实 SessionStore 端口转发，保留取消后禁止加载历史断言；没有复制App或新增模拟存储。"
+      }
+    ]
   },
   {
     "task": 52,
@@ -407,19 +730,41 @@
   {
     "task": 53,
     "exists": true,
-    "lines": 121,
-    "unresolved_markers": []
+    "lines": 287,
+    "unresolved_markers": [
+      {
+        "line": 125,
+        "text": "读取 final.md 与 remaining-host.json，原任务53保留2143行；本次继续拆分，不把早先保留说明当作验收结论。"
+      },
+      {
+        "line": 161,
+        "text": "再次读取 final.md 与 remaining-host.json，本任务在该快照残留2041行。新增三个 test-support 模块，由宿主原测试注册调用，不反向依赖或读取宿主源码："
+      }
+    ]
   },
   {
     "task": 54,
     "exists": true,
-    "lines": 92,
-    "unresolved_markers": []
+    "lines": 174,
+    "unresolved_markers": [
+      {
+        "line": 98,
+        "text": "已读取 final.md 与 remaining-host.json 所列 owner=54 的1618行残留。第二轮迁出 announcement::deliver_announcement 原有生产分支（大小写归一化、企微分流、不可用凭据拒绝、六种配置/发送器选择和发送、未知通道拒绝，以及原WASM行为）。宿主原入口现在只注入 Host 并调用领域函数；真实 scheduler Host::deliver_announcement 及现有调用者均经过该入口，因此不是新增死实现。领域直接调用现有 channel-* 实现，不模拟HTTP发送。"
+      },
+      {
+        "line": 134,
+        "text": "重读final.md和remaining-host.json。确认app.rs的task只是task_file_store::bootstrap_task导出，因此迁移完整任务池适配器到agent-cron::task_pool；scheduler::run_agent_job现在直接调用它。删除SchedulerHost::deliver_agent_job_to_task_pool及所有实现，消除非必要Host端口。保持原Task::new(999)、spawn_blocking、prompt/model/agent/acp字段、SQLite create_task、join错误及成功文本。任务池agent/acp归一化位于execution::task_pool_agents，真实适配器消费其强类型结果。新增依赖task-file-store及测试依赖config-runtime-paths，Cargo.lock同步仅本包条目。"
+      },
+      {
+        "line": 166,
+        "text": "重新读取最新final.md及remaining-host.json：整轮当前43584行、缺口8584行，优先恢复清单已无任务54；本任务上次统计978行。再次逐符号检查未把该统计当作无法迁移的豁免。"
+      }
+    ]
   },
   {
     "task": 55,
     "exists": true,
-    "lines": 152,
+    "lines": 172,
     "unresolved_markers": []
   },
   {

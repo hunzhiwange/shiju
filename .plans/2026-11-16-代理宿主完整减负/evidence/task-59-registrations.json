@@ -745,7 +745,7 @@
     },
     {
       "source": "crates/vw-agent/src/agent_apps/mcp/revocation_tests.rs",
-      "line": 163,
+      "line": 89,
       "kind": "include_bytes",
       "target": "crates/vw-agent/testdata/plugin_compat/t18/http_server.py",
       "attributes": [],
@@ -1197,7 +1197,7 @@
     },
     {
       "source": "crates/vw-agent/src/channels/manager/execution_binding.rs",
-      "line": 16,
+      "line": 12,
       "kind": "path",
       "target": "crates/libs/channel-runtime/src/manager/execution_binding_tests.rs",
       "attributes": [
@@ -1262,7 +1262,7 @@
     },
     {
       "source": "crates/vw-agent/src/channels/manager/message.rs",
-      "line": 24,
+      "line": 12,
       "kind": "path",
       "target": "crates/libs/channel-runtime/src/manager/message_tests.rs",
       "attributes": [
@@ -1622,18 +1622,7 @@
     },
     {
       "source": "crates/vw-agent/src/channels/mod.rs",
-      "line": 302,
-      "kind": "path",
-      "target": "crates/vw-agent/src/channels/channels_config_host_tests.rs",
-      "attributes": [
-        "#[cfg(test)]",
-        "#[path = \"channels_config_host_tests.rs\"]"
-      ],
-      "exists": true
-    },
-    {
-      "source": "crates/vw-agent/src/channels/mod.rs",
-      "line": 306,
+      "line": 303,
       "kind": "include",
       "target": "crates/vw-agent/src/channels/scope_delivery_tests.rs",
       "attributes": [
@@ -1643,7 +1632,7 @@
     },
     {
       "source": "crates/vw-agent/src/channels/mod.rs",
-      "line": 310,
+      "line": 307,
       "kind": "path",
       "target": "crates/libs/channel-runtime/src/runtime_command/project_commands_tests.rs",
       "attributes": [
@@ -1654,7 +1643,7 @@
     },
     {
       "source": "crates/vw-agent/src/channels/mod.rs",
-      "line": 314,
+      "line": 311,
       "kind": "path",
       "target": "crates/vw-agent/src/channels/runtime_command/command_tests.rs",
       "attributes": [
@@ -1665,7 +1654,7 @@
     },
     {
       "source": "crates/vw-agent/src/channels/mod.rs",
-      "line": 317,
+      "line": 314,
       "kind": "include",
       "target": "crates/vw-agent/src/channels/channel_session_lifecycle_tests.rs",
       "attributes": [
@@ -1675,7 +1664,7 @@
     },
     {
       "source": "crates/vw-agent/src/channels/mod.rs",
-      "line": 321,
+      "line": 318,
       "kind": "path",
       "target": "crates/vw-agent/src/channels/runtime_command/history_commands_tests.rs",
       "attributes": [
@@ -1686,7 +1675,7 @@
     },
     {
       "source": "crates/vw-agent/src/channels/mod.rs",
-      "line": 325,
+      "line": 322,
       "kind": "path",
       "target": "crates/vw-agent/src/channels/dispatch_tests.rs",
       "attributes": [
@@ -1697,7 +1686,7 @@
     },
     {
       "source": "crates/vw-agent/src/channels/mod.rs",
-      "line": 329,
+      "line": 326,
       "kind": "path",
       "target": "crates/vw-agent/src/channels/dispatch_cancel_tests.rs",
       "attributes": [
@@ -1708,7 +1697,7 @@
     },
     {
       "source": "crates/vw-agent/src/channels/mod.rs",
-      "line": 332,
+      "line": 329,
       "kind": "include",
       "target": "crates/vw-agent/src/channels/tests/message_dispatch.rs",
       "attributes": [
@@ -1718,7 +1707,7 @@
     },
     {
       "source": "crates/vw-agent/src/channels/mod.rs",
-      "line": 334,
+      "line": 331,
       "kind": "mod",
       "target": "crates/vw-agent/src/channels/session_turn.rs",
       "attributes": [],
@@ -2205,7 +2194,7 @@
     },
     {
       "source": "crates/vw-agent/src/gateway/api/handlers/global.rs",
-      "line": 20,
+      "line": 16,
       "kind": "path",
       "target": "crates/vw-agent/src/gateway/api/handlers/global_tests.rs",
       "attributes": [
@@ -2216,7 +2205,7 @@
     },
     {
       "source": "crates/vw-agent/src/gateway/api/handlers/global_tests.rs",
-      "line": 17,
+      "line": 11,
       "kind": "include_str",
       "target": "crates/vw-agent/src/gateway/bootstrap.rs",
       "attributes": [],
@@ -2294,7 +2283,7 @@
     },
     {
       "source": "crates/vw-agent/src/gateway/api/handlers/misc.rs",
-      "line": 53,
+      "line": 41,
       "kind": "path",
       "target": "crates/vw-agent/src/gateway/api/handlers/misc_tests.rs",
       "attributes": [
@@ -2520,7 +2509,7 @@
     },
     {
       "source": "crates/vw-agent/src/gateway/api/handlers/session/stream.rs",
-      "line": 328,
+      "line": 326,
       "kind": "path",
       "target": "crates/vw-agent/src/gateway/api/handlers/session/stream_tests.rs",
       "attributes": [
@@ -2531,7 +2520,7 @@
     },
     {
       "source": "crates/vw-agent/src/gateway/api/handlers/session/stream_tests.rs",
-      "line": 680,
+      "line": 217,
       "kind": "include_str",
       "target": "crates/vw-agent/src/session/native_defaults_mcp_fixture.py",
       "attributes": [],
@@ -2589,6 +2578,17 @@
       "attributes": [
         "#[cfg(test)]",
         "#[path = \"session/archived_delete_tests.rs\"]"
+      ],
+      "exists": true
+    },
+    {
+      "source": "crates/vw-agent/src/gateway/api/handlers/session.rs",
+      "line": 130,
+      "kind": "path",
+      "target": "crates/vw-agent/src/gateway/api/handlers/session/stream_acceptance_host.rs",
+      "attributes": [
+        "#[cfg(test)]",
+        "#[path = \"session/stream_acceptance_host.rs\"]"
       ],
       "exists": true
     },
@@ -4413,7 +4413,7 @@
     },
     {
       "source": "crates/vw-agent/src/gateway/bootstrap.rs",
-      "line": 418,
+      "line": 382,
       "kind": "path",
       "target": "crates/libs/agent-gateway/src/bootstrap_tests.rs",
       "attributes": [
@@ -4475,7 +4475,7 @@
     },
     {
       "source": "crates/vw-agent/src/gateway/handlers.rs",
-      "line": 129,
+      "line": 49,
       "kind": "path",
       "target": "crates/libs/agent-gateway/src/handlers_tests.rs",
       "attributes": [
@@ -5003,15 +5003,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 3,
-      "kind": "mod",
-      "target": "crates/vw-agent/src/plugins/compat/hook_subagent.rs",
-      "attributes": [],
-      "exists": true
-    },
-    {
-      "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 5,
+      "line": 4,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/t43_tests.rs",
       "attributes": [
@@ -5021,7 +5013,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 7,
+      "line": 6,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/agents.rs",
       "attributes": [],
@@ -5029,7 +5021,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 8,
+      "line": 7,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/identity.rs",
       "attributes": [],
@@ -5037,7 +5029,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 9,
+      "line": 8,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/legacy_manifest.rs",
       "attributes": [],
@@ -5047,7 +5039,7 @@
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
       "line": 10,
       "kind": "mod",
-      "target": "crates/vw-agent/src/plugins/compat/mcp_auth.rs",
+      "target": "crates/vw-agent/src/plugins/compat/mcp_capabilities.rs",
       "attributes": [],
       "exists": true
     },
@@ -5055,7 +5047,7 @@
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
       "line": 11,
       "kind": "mod",
-      "target": "crates/vw-agent/src/plugins/compat/mcp_capabilities.rs",
+      "target": "crates/vw-agent/src/plugins/compat/mcp_connection_sessions.rs",
       "attributes": [],
       "exists": true
     },
@@ -5063,7 +5055,7 @@
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
       "line": 12,
       "kind": "mod",
-      "target": "crates/vw-agent/src/plugins/compat/mcp_connection_sessions.rs",
+      "target": "crates/vw-agent/src/plugins/compat/mcp_connection_settings.rs",
       "attributes": [],
       "exists": true
     },
@@ -5071,7 +5063,7 @@
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
       "line": 13,
       "kind": "mod",
-      "target": "crates/vw-agent/src/plugins/compat/mcp_connection_settings.rs",
+      "target": "crates/vw-agent/src/plugins/compat/mcp_connections.rs",
       "attributes": [],
       "exists": true
     },
@@ -5079,21 +5071,13 @@
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
       "line": 14,
       "kind": "mod",
-      "target": "crates/vw-agent/src/plugins/compat/mcp_connections.rs",
-      "attributes": [],
-      "exists": true
-    },
-    {
-      "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 15,
-      "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/mcp_content.rs",
       "attributes": [],
       "exists": true
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 16,
+      "line": 15,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/mcp_elicitation.rs",
       "attributes": [],
@@ -5102,14 +5086,6 @@
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
       "line": 17,
-      "kind": "mod",
-      "target": "crates/vw-agent/src/plugins/compat/mcp_environment.rs",
-      "attributes": [],
-      "exists": true
-    },
-    {
-      "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 18,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/mcp_legacy.rs",
       "attributes": [],
@@ -5120,14 +5096,6 @@
       "line": 19,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/mcp_portable.rs",
-      "attributes": [],
-      "exists": true
-    },
-    {
-      "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 20,
-      "kind": "mod",
-      "target": "crates/vw-agent/src/plugins/compat/mcp_portable_overlay.rs",
       "attributes": [],
       "exists": true
     },
@@ -5275,22 +5243,6 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 77,
-      "kind": "mod",
-      "target": "crates/vw-agent/src/plugins/compat/mcp_oauth_flow.rs",
-      "attributes": [],
-      "exists": true
-    },
-    {
-      "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 80,
-      "kind": "mod",
-      "target": "crates/vw-agent/src/plugins/compat/mcp_oauth_tokens.rs",
-      "attributes": [],
-      "exists": true
-    },
-    {
-      "source": "crates/vw-agent/src/plugins/compat/mod.rs",
       "line": 82,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/t28_tests.rs",
@@ -5410,17 +5362,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 121,
-      "kind": "mod",
-      "target": "crates/vw-agent/src/plugins/compat/t45_tests.rs",
-      "attributes": [
-        "#[cfg(test)]"
-      ],
-      "exists": true
-    },
-    {
-      "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 124,
+      "line": 122,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/hook_trust_content.rs",
       "attributes": [],
@@ -5428,7 +5370,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 126,
+      "line": 124,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/marketplace.rs",
       "attributes": [],
@@ -5436,7 +5378,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 131,
+      "line": 129,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/npm_source.rs",
       "attributes": [],
@@ -5444,7 +5386,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 136,
+      "line": 134,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/upgrade.rs",
       "attributes": [],
@@ -5452,7 +5394,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 140,
+      "line": 138,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/t54_tests.rs",
       "attributes": [
@@ -5462,15 +5404,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 142,
-      "kind": "mod",
-      "target": "crates/vw-agent/src/plugins/compat/dependencies.rs",
-      "attributes": [],
-      "exists": true
-    },
-    {
-      "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 146,
+      "line": 144,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/plugin_window_fixture.rs",
       "attributes": [
@@ -5480,7 +5414,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 148,
+      "line": 146,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/session_snapshot.rs",
       "attributes": [],
@@ -5488,7 +5422,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 150,
+      "line": 148,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/t57_tests.rs",
       "attributes": [
@@ -5498,7 +5432,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/t57_tests.rs",
-      "line": 190,
+      "line": 158,
       "kind": "include_bytes",
       "target": "crates/vw-agent/testdata/plugin_compat/t18/server.py",
       "attributes": [],
@@ -5506,7 +5440,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 153,
+      "line": 151,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/t59_tests.rs",
       "attributes": [
@@ -5516,7 +5450,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 156,
+      "line": 154,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/t60_tests.rs",
       "attributes": [
@@ -5526,7 +5460,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 158,
+      "line": 156,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/host_files.rs",
       "attributes": [],
@@ -5534,7 +5468,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 161,
+      "line": 159,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/t61_tests.rs",
       "attributes": [
@@ -5544,7 +5478,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 166,
+      "line": 164,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/t64_tests.rs",
       "attributes": [
@@ -5554,7 +5488,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 170,
+      "line": 168,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/t41_tests.rs",
       "attributes": [
@@ -5564,7 +5498,7 @@
     },
     {
       "source": "crates/vw-agent/src/plugins/compat/mod.rs",
-      "line": 172,
+      "line": 170,
       "kind": "mod",
       "target": "crates/vw-agent/src/plugins/compat/t44_tests.rs",
       "attributes": [
@@ -5835,23 +5769,13 @@
       "source": "crates/vw-agent/src/model_relay/mod.rs",
       "line": 20,
       "kind": "mod",
-      "target": "crates/vw-agent/src/model_relay/transport_tests.rs",
-      "attributes": [
-        "#[cfg(test)]"
-      ],
-      "exists": true
-    },
-    {
-      "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 22,
-      "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/messages.rs",
       "attributes": [],
       "exists": true
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 23,
+      "line": 21,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/messages_stream.rs",
       "attributes": [],
@@ -5859,7 +5783,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 24,
+      "line": 22,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/messages_thinking.rs",
       "attributes": [],
@@ -5867,7 +5791,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 25,
+      "line": 23,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/messages_thinking_config.rs",
       "attributes": [],
@@ -5875,7 +5799,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 30,
+      "line": 28,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/responses.rs",
       "attributes": [],
@@ -5883,7 +5807,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 31,
+      "line": 29,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/responses_chat_request.rs",
       "attributes": [],
@@ -5891,7 +5815,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 33,
+      "line": 31,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/responses_compaction.rs",
       "attributes": [],
@@ -5899,7 +5823,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 35,
+      "line": 33,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/responses_stream.rs",
       "attributes": [],
@@ -5907,7 +5831,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 39,
+      "line": 37,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/gemini.rs",
       "attributes": [],
@@ -5915,7 +5839,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 40,
+      "line": 38,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/gemini_stream.rs",
       "attributes": [],
@@ -5923,7 +5847,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 42,
+      "line": 40,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/kiro.rs",
       "attributes": [],
@@ -5931,7 +5855,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 44,
+      "line": 42,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/stream_observer.rs",
       "attributes": [],
@@ -5939,7 +5863,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 47,
+      "line": 45,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/sse_framing.rs",
       "attributes": [],
@@ -5947,7 +5871,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 49,
+      "line": 47,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/native_chat.rs",
       "attributes": [],
@@ -5955,7 +5879,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 52,
+      "line": 50,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/native_messages.rs",
       "attributes": [],
@@ -5963,7 +5887,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 54,
+      "line": 52,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/native_responses.rs",
       "attributes": [],
@@ -5971,7 +5895,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 56,
+      "line": 54,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/native_gemini.rs",
       "attributes": [],
@@ -5979,7 +5903,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 58,
+      "line": 56,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/messages_chat_request.rs",
       "attributes": [],
@@ -5987,7 +5911,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 60,
+      "line": 58,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/messages_chat_result.rs",
       "attributes": [],
@@ -5995,7 +5919,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 63,
+      "line": 61,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/messages_gemini_request.rs",
       "attributes": [],
@@ -6003,7 +5927,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 65,
+      "line": 63,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/messages_responses_request.rs",
       "attributes": [],
@@ -6011,7 +5935,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 67,
+      "line": 65,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/messages_responses_result.rs",
       "attributes": [],
@@ -6019,7 +5943,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 69,
+      "line": 67,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/messages_gemini_result.rs",
       "attributes": [],
@@ -6027,7 +5951,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 71,
+      "line": 69,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/messages_gemini_stream.rs",
       "attributes": [],
@@ -6035,7 +5959,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 73,
+      "line": 71,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/messages_responses_stream.rs",
       "attributes": [],
@@ -6043,7 +5967,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 75,
+      "line": 73,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/gemini_shadow.rs",
       "attributes": [],
@@ -6051,7 +5975,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 78,
+      "line": 76,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/hosted_search.rs",
       "attributes": [],
@@ -6059,7 +5983,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 80,
+      "line": 78,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/search_citations.rs",
       "attributes": [],
@@ -6067,7 +5991,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 83,
+      "line": 81,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/responses_chat_result.rs",
       "attributes": [],
@@ -6075,7 +5999,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 86,
+      "line": 84,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/responses_chat_stream.rs",
       "attributes": [],
@@ -6083,7 +6007,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 88,
+      "line": 86,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/responses_history.rs",
       "attributes": [],
@@ -6091,7 +6015,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 91,
+      "line": 89,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/tool_namespace.rs",
       "attributes": [],
@@ -6099,7 +6023,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 93,
+      "line": 91,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/responses_anthropic_request.rs",
       "attributes": [],
@@ -6107,7 +6031,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 96,
+      "line": 94,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/responses_anthropic_result.rs",
       "attributes": [],
@@ -6115,7 +6039,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 99,
+      "line": 97,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/responses_anthropic_stream.rs",
       "attributes": [],
@@ -6123,7 +6047,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 102,
+      "line": 100,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/reasoning_bridge.rs",
       "attributes": [],
@@ -6131,7 +6055,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 106,
+      "line": 104,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/inline_think.rs",
       "attributes": [],
@@ -6139,7 +6063,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 108,
+      "line": 106,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/late_arguments.rs",
       "attributes": [],
@@ -6147,7 +6071,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 113,
+      "line": 111,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/signature_rectify.rs",
       "attributes": [],
@@ -6155,7 +6079,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 116,
+      "line": 114,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/tool_media.rs",
       "attributes": [],
@@ -6163,7 +6087,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 117,
+      "line": 115,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/tool_media_request.rs",
       "attributes": [],
@@ -6171,7 +6095,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 120,
+      "line": 118,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/copilot_transport.rs",
       "attributes": [
@@ -6181,7 +6105,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 123,
+      "line": 121,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/codex_oauth_transport.rs",
       "attributes": [],
@@ -6189,7 +6113,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 125,
+      "line": 123,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/quota_gate.rs",
       "attributes": [],
@@ -6197,7 +6121,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 128,
+      "line": 126,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/gemini_oauth_transport.rs",
       "attributes": [],
@@ -6205,7 +6129,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 130,
+      "line": 128,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/compaction.rs",
       "attributes": [],
@@ -6213,7 +6137,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 132,
+      "line": 130,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/compaction_v2.rs",
       "attributes": [],
@@ -6221,7 +6145,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 134,
+      "line": 132,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/models.rs",
       "attributes": [],
@@ -6229,7 +6153,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 136,
+      "line": 134,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/gemini_metadata.rs",
       "attributes": [],
@@ -6237,7 +6161,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 139,
+      "line": 137,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/alpha_search.rs",
       "attributes": [],
@@ -6245,7 +6169,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 141,
+      "line": 139,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/image_generation.rs",
       "attributes": [],
@@ -6253,7 +6177,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 143,
+      "line": 141,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/image_edit.rs",
       "attributes": [],
@@ -6261,7 +6185,7 @@
     },
     {
       "source": "crates/vw-agent/src/model_relay/mod.rs",
-      "line": 146,
+      "line": 144,
       "kind": "mod",
       "target": "crates/vw-agent/src/model_relay/forced_sse.rs",
       "attributes": [],
@@ -6836,7 +6760,7 @@
     },
     {
       "source": "crates/vw-agent/src/session/compaction.rs",
-      "line": 59,
+      "line": 57,
       "kind": "path",
       "target": "crates/vw-agent/src/session/compaction_tests.rs",
       "attributes": [
@@ -6911,17 +6835,6 @@
       "source": "crates/vw-agent/src/session/instruction.rs",
       "line": 9,
       "kind": "path",
-      "target": "crates/vw-agent/src/session/claude_protocol_parity_tests.rs",
-      "attributes": [
-        "#[cfg(test)]",
-        "#[path = \"claude_protocol_parity_tests.rs\"]"
-      ],
-      "exists": true
-    },
-    {
-      "source": "crates/vw-agent/src/session/instruction.rs",
-      "line": 12,
-      "kind": "path",
       "target": "crates/libs/session-engine/tests/host_suites/instruction_tests.rs",
       "attributes": [
         "#[cfg(test)]",
@@ -6931,7 +6844,7 @@
     },
     {
       "source": "crates/vw-agent/src/session/instruction.rs",
-      "line": 15,
+      "line": 12,
       "kind": "path",
       "target": "crates/vw-agent/src/session/instruction_rules.rs",
       "attributes": [
@@ -7394,7 +7307,7 @@
     },
     {
       "source": "crates/vw-agent/src/session/llm/acp/model_source/mod.rs",
-      "line": 77,
+      "line": 60,
       "kind": "path",
       "target": "crates/vw-agent/src/session/llm/acp/model_source/profile_tests.rs",
       "attributes": [
@@ -7405,7 +7318,7 @@
     },
     {
       "source": "crates/vw-agent/src/session/llm/acp/model_source/mod.rs",
-      "line": 80,
+      "line": 63,
       "kind": "mod",
       "target": "crates/vw-agent/src/session/llm/acp/model_source/acceptance_tests.rs",
       "attributes": [
@@ -7886,7 +7799,7 @@
     },
     {
       "source": "crates/vw-agent/src/session/processor/todos.rs",
-      "line": 12,
+      "line": 10,
       "kind": "path",
       "target": "crates/libs/session-engine/tests/host_suites/todos_tests.rs",
       "attributes": [
@@ -9555,7 +9468,7 @@
     },
     {
       "source": "crates/vw-agent/src/tools/toolset/mod.rs",
-      "line": 117,
+      "line": 93,
       "kind": "path",
       "target": "crates/vw-agent/src/tools/toolset/mod_tests.rs",
       "attributes": [
@@ -10116,15 +10029,7 @@
     },
     {
       "source": "crates/vw-agent/src/lib.rs",
-      "line": 380,
-      "kind": "mod",
-      "target": "crates/vw-agent/src/model_catalog.rs",
-      "attributes": [],
-      "exists": true
-    },
-    {
-      "source": "crates/vw-agent/src/lib.rs",
-      "line": 382,
+      "line": 381,
       "kind": "mod",
       "target": "crates/vw-agent/src/usage_bridge/mod.rs",
       "attributes": [],
@@ -10435,7 +10340,6 @@
     "crates/vw-agent/src/app_routing/mod.rs",
     "crates/vw-agent/src/app_tests.rs",
     "crates/vw-agent/src/channels/channel_session_lifecycle_tests.rs",
-    "crates/vw-agent/src/channels/channels_config_host_tests.rs",
     "crates/vw-agent/src/channels/clawdtalk/mod.rs",
     "crates/vw-agent/src/channels/cli/mod.rs",
     "crates/vw-agent/src/channels/dingtalk/mod.rs",
@@ -10700,6 +10604,7 @@
     "crates/vw-agent/src/gateway/api/handlers/session/shared.rs",
     "crates/vw-agent/src/gateway/api/handlers/session/shared_tests.rs",
     "crates/vw-agent/src/gateway/api/handlers/session/stream.rs",
+    "crates/vw-agent/src/gateway/api/handlers/session/stream_acceptance_host.rs",
     "crates/vw-agent/src/gateway/api/handlers/session/stream_tests.rs",
     "crates/vw-agent/src/gateway/api/handlers/session/turn_fork_tests.rs",
     "crates/vw-agent/src/gateway/api/handlers/session/ui_ops.rs",
@@ -10765,7 +10670,6 @@
     "crates/vw-agent/src/mcp/mod.rs",
     "crates/vw-agent/src/mcp/tests.rs",
     "crates/vw-agent/src/migration/mod.rs",
-    "crates/vw-agent/src/model_catalog.rs",
     "crates/vw-agent/src/model_relay/alpha_search.rs",
     "crates/vw-agent/src/model_relay/binding.rs",
     "crates/vw-agent/src/model_relay/chat.rs",
@@ -10829,7 +10733,6 @@
     "crates/vw-agent/src/model_relay/tool_media_request.rs",
     "crates/vw-agent/src/model_relay/tool_namespace.rs",
     "crates/vw-agent/src/model_relay/transport.rs",
-    "crates/vw-agent/src/model_relay/transport_tests.rs",
     "crates/vw-agent/src/multimodal/mod.rs",
     "crates/vw-agent/src/multimodal/ocr.rs",
     "crates/vw-agent/src/package_boundaries/gateway_pairing_tests.rs",
@@ -10850,7 +10753,6 @@
     "crates/vw-agent/src/plugins/audit.rs",
     "crates/vw-agent/src/plugins/cli.rs",
     "crates/vw-agent/src/plugins/compat/agents.rs",
-    "crates/vw-agent/src/plugins/compat/dependencies.rs",
     "crates/vw-agent/src/plugins/compat/hook_async.rs",
     "crates/vw-agent/src/plugins/compat/hook_manifest.rs",
     "crates/vw-agent/src/plugins/compat/hook_matcher.rs",
@@ -10859,7 +10761,6 @@
     "crates/vw-agent/src/plugins/compat/hook_post_tool.rs",
     "crates/vw-agent/src/plugins/compat/hook_pre_tool.rs",
     "crates/vw-agent/src/plugins/compat/hook_session.rs",
-    "crates/vw-agent/src/plugins/compat/hook_subagent.rs",
     "crates/vw-agent/src/plugins/compat/hook_trust_content.rs",
     "crates/vw-agent/src/plugins/compat/host_files.rs",
     "crates/vw-agent/src/plugins/compat/identity.rs",
@@ -10867,7 +10768,6 @@
     "crates/vw-agent/src/plugins/compat/marketplace.rs",
     "crates/vw-agent/src/plugins/compat/mcp_app_execution.rs",
     "crates/vw-agent/src/plugins/compat/mcp_apps.rs",
-    "crates/vw-agent/src/plugins/compat/mcp_auth.rs",
     "crates/vw-agent/src/plugins/compat/mcp_capabilities.rs",
     "crates/vw-agent/src/plugins/compat/mcp_catalog.rs",
     "crates/vw-agent/src/plugins/compat/mcp_catalog_refresh.rs",
@@ -10876,14 +10776,10 @@
     "crates/vw-agent/src/plugins/compat/mcp_connections.rs",
     "crates/vw-agent/src/plugins/compat/mcp_content.rs",
     "crates/vw-agent/src/plugins/compat/mcp_elicitation.rs",
-    "crates/vw-agent/src/plugins/compat/mcp_environment.rs",
     "crates/vw-agent/src/plugins/compat/mcp_legacy.rs",
     "crates/vw-agent/src/plugins/compat/mcp_notifications.rs",
     "crates/vw-agent/src/plugins/compat/mcp_oauth_discovery.rs",
-    "crates/vw-agent/src/plugins/compat/mcp_oauth_flow.rs",
-    "crates/vw-agent/src/plugins/compat/mcp_oauth_tokens.rs",
     "crates/vw-agent/src/plugins/compat/mcp_portable.rs",
-    "crates/vw-agent/src/plugins/compat/mcp_portable_overlay.rs",
     "crates/vw-agent/src/plugins/compat/mcp_public_auth.rs",
     "crates/vw-agent/src/plugins/compat/mcp_resources.rs",
     "crates/vw-agent/src/plugins/compat/mod.rs",
@@ -10905,7 +10801,6 @@
     "crates/vw-agent/src/plugins/compat/t42_tests.rs",
     "crates/vw-agent/src/plugins/compat/t43_tests.rs",
     "crates/vw-agent/src/plugins/compat/t44_tests.rs",
-    "crates/vw-agent/src/plugins/compat/t45_tests.rs",
     "crates/vw-agent/src/plugins/compat/t54_tests.rs",
     "crates/vw-agent/src/plugins/compat/t57_tests.rs",
     "crates/vw-agent/src/plugins/compat/t59_tests.rs",
@@ -10965,7 +10860,6 @@
     "crates/vw-agent/src/session/child_agent/entry_tests.rs",
     "crates/vw-agent/src/session/child_agent/mailbox.rs",
     "crates/vw-agent/src/session/child_agent_tests.rs",
-    "crates/vw-agent/src/session/claude_protocol_parity_tests.rs",
     "crates/vw-agent/src/session/codex_alignment_tests.rs",
     "crates/vw-agent/src/session/compaction.rs",
     "crates/vw-agent/src/session/compaction_checkpoint.rs",

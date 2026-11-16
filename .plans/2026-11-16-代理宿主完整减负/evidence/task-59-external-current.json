@@ -1,16 +1,16 @@
 {
   "method": "Static lib-reachable cfg-union source mounts; separate from host physical threshold; not measured compile time",
   "source_files": 178,
-  "source_lines": 56490,
+  "source_lines": 56350,
   "files": [
     {
       "path": "crates/libs/agent-gateway/src/bootstrap_tests.rs",
-      "lines": 394,
+      "lines": 397,
       "owner_task": 17,
       "incoming": [
         {
           "source": "crates/vw-agent/src/gateway/bootstrap.rs",
-          "line": 418,
+          "line": 382,
           "kind": "path",
           "target": "crates/libs/agent-gateway/src/bootstrap_tests.rs",
           "attributes": [
@@ -59,12 +59,12 @@
     },
     {
       "path": "crates/libs/agent-gateway/src/handlers_tests.rs",
-      "lines": 1221,
+      "lines": 1112,
       "owner_task": 17,
       "incoming": [
         {
           "source": "crates/vw-agent/src/gateway/handlers.rs",
-          "line": 129,
+          "line": 49,
           "kind": "path",
           "target": "crates/libs/agent-gateway/src/handlers_tests.rs",
           "attributes": [
@@ -578,7 +578,7 @@
       "incoming": [
         {
           "source": "crates/vw-agent/src/channels/manager/execution_binding.rs",
-          "line": 16,
+          "line": 12,
           "kind": "path",
           "target": "crates/libs/channel-runtime/src/manager/execution_binding_tests.rs",
           "attributes": [
@@ -686,7 +686,7 @@
       "incoming": [
         {
           "source": "crates/vw-agent/src/channels/manager/message.rs",
-          "line": 24,
+          "line": 12,
           "kind": "path",
           "target": "crates/libs/channel-runtime/src/manager/message_tests.rs",
           "attributes": [
@@ -776,7 +776,7 @@
       "incoming": [
         {
           "source": "crates/vw-agent/src/channels/mod.rs",
-          "line": 310,
+          "line": 307,
           "kind": "path",
           "target": "crates/libs/channel-runtime/src/runtime_command/project_commands_tests.rs",
           "attributes": [
@@ -2428,7 +2428,7 @@
       "incoming": [
         {
           "source": "crates/vw-agent/src/session/instruction.rs",
-          "line": 12,
+          "line": 9,
           "kind": "path",
           "target": "crates/libs/session-engine/tests/host_suites/instruction_tests.rs",
           "attributes": [
@@ -2692,12 +2692,12 @@
     },
     {
       "path": "crates/libs/session-engine/tests/host_suites/todos_tests.rs",
-      "lines": 128,
+      "lines": 94,
       "owner_task": 22,
       "incoming": [
         {
           "source": "crates/vw-agent/src/session/processor/todos.rs",
-          "line": 12,
+          "line": 10,
           "kind": "path",
           "target": "crates/libs/session-engine/tests/host_suites/todos_tests.rs",
           "attributes": [

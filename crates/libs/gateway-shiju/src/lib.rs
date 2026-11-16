@@ -7,3 +7,7 @@ mod shiju_knowledge;
 #[cfg(test)]
 mod shiju_knowledge_gateway_tests;
 pub mod shiju_skills;
+
+pub mod native_skills;
+#[cfg(test)]
+mod host_migration_17_tests;

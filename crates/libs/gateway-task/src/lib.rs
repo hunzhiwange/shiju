@@ -24,3 +24,6 @@ pub trait PlanRunHost: Send + Sync + 'static {
         on_event: Box<dyn FnMut(TaskPlanRunStreamEventDto) -> bool + Send + 'a>,
     ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>>;
 }
+
+#[cfg(test)]
+mod host_migration_17_tests;

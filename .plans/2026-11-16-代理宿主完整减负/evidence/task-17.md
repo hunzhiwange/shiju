@@ -311,3 +311,77 @@
 - `python3 scripts/cargo_slot.py cargo test -p gateway-workflow --lib host_migration_17_tests -- --test-threads=1`；静态预期 28 条，尚未运行。
 - 宿主保留测试采用上面完整模块/函数名称逐项过滤；迁出测试未来须通过真实宿主 list 确认消失，不以零测试结果充当通过。
 - 静态核对：迁出函数名称/断言未删减，领域根模块注册，旧挂载移除，依赖无反向宿主；仅 diff whitespace 检查，不构成 Rust 编译或行为通过。
+
+
+## 恢复深迁（本节覆盖上述相应保留结论）
+
+读取 final.md / remaining-host.json，继续拆分任务17残留；未运行 Cargo、构建、单元或实机测试。
+
+真实生产接线：宿主 shiju_skills::router → gateway-shiju::native_skills::router → NativeSkillClient → agent-skills::shiju::ShijuSkillClient → 既有 HTTP 路由。NativeSkillClient 是 trait 所在库本地类型，消除宿主对外部 trait/外部客户端的实现，保留每个请求转换及敏感上游错误裁剪；不是复制算法。宿主原 Service impl、错误映射与六条 TCP 集成测试删除，领域自注册。新增 agent-skills 正向依赖，无 vw-agent 反向依赖。
+
+工作区：宿主继续注入操作状态端口，authorize_workspace 直接使用 gateway-workspace 的 app-access-service 适配；真实策略文件权限、跨租户/项目/主机拒绝与 UTF-8 IO 整条测试进入领域，无 mock 策略。gateway-workspace 保持 macOS cfg。
+
+计划运行：输入校验/请求签名冲突/路径常量/panic payload 五条测试迁入 gateway-task。拒绝端口在误进入时 panic；没有模拟执行或取消算法。真实控制注册表、后代取消与幂等停止保留在宿主，仅两条宿主用例。
+
+### 新一轮逐测试映射
+- `shiju_skill_readme_route_forwards_markdown_content` → `crates/libs/gateway-shiju/src/host_migration_17_tests.rs::shiju_skill_readme_route_forwards_markdown_content`；原断言保留。
+- `shiju_skill_routes_forward_maintained_multi_value_filters` → `crates/libs/gateway-shiju/src/host_migration_17_tests.rs::shiju_skill_routes_forward_maintained_multi_value_filters`；原断言保留。
+- `shiju_skill_routes_forward_search_filters` → `crates/libs/gateway-shiju/src/host_migration_17_tests.rs::shiju_skill_routes_forward_search_filters`；原断言保留。
+- `shiju_skill_routes_forward_tag_catalogs` → `crates/libs/gateway-shiju/src/host_migration_17_tests.rs::shiju_skill_routes_forward_tag_catalogs`；原断言保留。
+- `shiju_skill_routes_forward_empty_and_version_install_bodies` → `crates/libs/gateway-shiju/src/host_migration_17_tests.rs::shiju_skill_routes_forward_empty_and_version_install_bodies`；原断言保留。
+- `shiju_skill_routes_reject_missing_credential_and_invalid_filters` → `crates/libs/gateway-shiju/src/host_migration_17_tests.rs::shiju_skill_routes_reject_missing_credential_and_invalid_filters`；原断言保留。
+- `workspace_api_denies_foreign_host_and_project_without_io` → `crates/libs/gateway-workspace/src/host_migration_17_tests.rs::workspace_api_denies_foreign_host_and_project_without_io`；原断言保留。
+- `task_plan_run_rejects_empty_root` → `crates/libs/gateway-task/src/host_migration_17_tests.rs::task_plan_run_rejects_empty_root`；原断言保留。
+- `task_plan_run_rejects_empty_query` → `crates/libs/gateway-task/src/host_migration_17_tests.rs::task_plan_run_rejects_empty_query`；原断言保留。
+- `task_plan_run_stream_path_matches_desktop_client` → `crates/libs/gateway-task/src/host_migration_17_tests.rs::task_plan_run_stream_path_matches_desktop_client`；原断言保留。
+- `panic_message_reads_str_and_string_payloads` → `crates/libs/gateway-task/src/host_migration_17_tests.rs::panic_message_reads_str_and_string_payloads`；原断言保留。
+- `task_plan_run_rejects_reused_request_id_with_different_body` → `crates/libs/gateway-task/src/host_migration_17_tests.rs::task_plan_run_rejects_reused_request_id_with_different_body`；原断言保留。
+
+### 逐源文件当前残留
+
+|原来源|当前行数|具体保留符号|
+|---|---:|---|
+|`crates/vw-agent/src/gateway/api/handlers/shiju_skills_tests.rs`|0|原定义及挂载已删除|
+|`crates/vw-agent/src/gateway/api/handlers/skill_market.rs`|24|skills|
+|`crates/vw-agent/src/gateway/api/handlers/skill_market_tests.rs`|392|new, record, source, recommended, skills, categories, skill_detail, skill_file, skill_artifact, skill_sets, skill_set_detail, skill_set_artifact, locator, coordinate, skill, skill_set, registry, post_response, expert_fixture_zip, valid_expert_fixture, expert_package_install_succeeds_without_connector_credentials|
+|`crates/vw-agent/src/gateway/api/handlers/status.rs`|11|handle_api_status, handle_api_health|
+|`crates/vw-agent/src/gateway/api/handlers/status_tests.rs`|0|原定义及挂载已删除|
+|`crates/vw-agent/src/gateway/api/handlers/task_lifecycle.rs`|2|兼容导出/模块声明（无业务分支）|
+|`crates/vw-agent/src/gateway/api/handlers/task_plan_run.rs`|47|status, stop, register, observe_event|
+|`crates/vw-agent/src/gateway/api/handlers/task_plan_run_tests.rs`|66|task_plan_run_router_is_wired, task_plan_run_control_routes_are_tenant_scoped_and_stop_is_idempotent|
+|`crates/vw-agent/src/gateway/api/handlers/task_pool.rs`|2|兼容导出/模块声明（无业务分支）|
+|`crates/vw-agent/src/gateway/api/handlers/tools.rs`|39|require_auth, diagnose, severity, handle_api_tools, handle_api_doctor|
+|`crates/vw-agent/src/gateway/api/handlers/tools_tests.rs`|0|原定义及挂载已删除|
+|`crates/vw-agent/src/gateway/api/handlers/usage/mod.rs`|38|router|
+|`crates/vw-agent/src/gateway/api/handlers/voice.rs`|42|load_session, load_snapshot, approval_manager, collect_chat|
+|`crates/vw-agent/src/gateway/api/handlers/voice_handoff.rs`|3|兼容导出/模块声明（无业务分支）|
+|`crates/vw-agent/src/gateway/api/handlers/voice_settings.rs`|15|兼容导出/模块声明（无业务分支）|
+|`crates/vw-agent/src/gateway/api/handlers/workflow.rs`|57|router, workflow_runtime, workflow_tool_runtime_context|
+|`crates/vw-agent/src/gateway/api/handlers/workspace_directory.rs`|4|router|
+|`crates/vw-agent/src/gateway/api/handlers/workspace_memory.rs`|6|router|
+|`crates/vw-agent/src/gateway/api/handlers/workspace_memory_tests.rs`|0|原定义及挂载已删除|
+|`crates/vw-agent/src/gateway/api/handlers/worktree_management.rs`|33|context, settings|
+|`crates/vw-agent/src/gateway/api/handlers/worktree_management_tests.rs`|258|git, call, worktree_management_rejects_cross_scope_operations, worktree_management_deletion_requires_valid_confirmation, worktree_managed_ui_records_ready_checkout_use_in_scope|
+|`crates/vw-agent/src/gateway/approval_state.rs`|8|approval_manager_for_current_instance|
+|`crates/vw-agent/src/gateway/bootstrap.rs`|421|run_gateway, run_gateway_until, serve_gateway, external_router, client_router, stateful_handler_router|
+|`crates/vw-agent/src/gateway/channel_reload.rs`|34|whatsapp, build_gateway_channels, watch_gateway_channels, watch_gateway_channels_with_source, poll|
+|`crates/vw-agent/src/gateway/channel_runtime.rs`|27|channel_runtime|
+|`crates/vw-agent/src/gateway/chat.rs`|71|tenant, extractor, simple_prompt, forked_session, load_fork_history, new_engine, replace_history, snapshot, restore_snapshot, stats, session_query_engine, session_query_engine_key, invalidate_session_query_engine, invalidate_all_session_query_engines, fork_session_query_engine, run_gateway_chat_simple, run_gateway_chat_simple_with_extractor, run_gateway_chat_with_tools|
+|`crates/vw-agent/src/gateway/error.rs`|2|兼容导出/模块声明（无业务分支）|
+|`crates/vw-agent/src/gateway/handlers.rs`|132|verify_token, parse_webhook_payload, handle_whatsapp_verify, handle_wati_verify, handle_whatsapp_message, handle_linq_webhook, handle_nextcloud_talk_webhook, handle_qq_webhook, handle_wati_webhook|
+|`crates/vw-agent/src/gateway/health.rs`|5|handle_health, handle_metrics|
+|`crates/vw-agent/src/gateway/instance.rs`|16|instance_init|
+|`crates/vw-agent/src/gateway/limits.rs`|2|兼容导出/模块声明（无业务分支）|
+|`crates/vw-agent/src/gateway/middleware.rs`|1|兼容导出/模块声明（无业务分支）|
+|`crates/vw-agent/src/gateway/middleware_tests.rs`|0|原定义及挂载已删除|
+|`crates/vw-agent/src/gateway/mod.rs`|110|wecom_acceptance_router|
+
+恢复前任务17来源2351行，当前1867行，再净减484行；对原2739行累计净减872行（31.8%）。仍未达70%，不宣称整轮门槛关闭。
+
+剩余大项具体原因：skill_market_tests 的专家签名安装→真实 AgentContextHost SkillTool 权限、上下文与正文验收尚保留；可继续将 fixture 提供器/制品构造与安装行为拆成领域自测，宿主只留调用结果契约。worktree_management_tests 的真实进程/会话保护快照与 project/config/Git 生命周期集成保留；领域迁移须先复用真实保护存储，不能以空快照冒充安全验收。bootstrap 保留资源生命周期、工具工厂与全部宿主路由组合；channel_runtime/chat/voice/workflow 保留真实租户、会话引擎、钩子与工具执行端口。未以整体“宿主耦合”声称这些分支已通过领域验收。
+
+未来新增过滤（均未运行）：
+- `python3 scripts/cargo_slot.py cargo test -p gateway-shiju --lib host_migration_17_tests -- --test-threads=1`：预期6条。
+- `python3 scripts/cargo_slot.py cargo test -p gateway-workspace --lib host_migration_17_tests -- --test-threads=1`：macOS预期1条。
+- `python3 scripts/cargo_slot.py cargo test -p gateway-task --lib host_migration_17_tests -- --test-threads=1`：预期5条。
+- 宿主 `task_plan_run_tests` 预期2条；迁出的shiju/workspace模块已删除，未来宿主真实 list 核实消失；不得把零测试当通过。

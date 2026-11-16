@@ -10750,6 +10750,7 @@ dependencies = [
 name = "gateway-shiju"
 version = "0.6.0"
 dependencies = [
+ "agent-skills",
  "axum",
  "gateway-shiju-account",
  "gateway-shiju-app",
@@ -11098,6 +11099,12 @@ dependencies = [
 name = "gateway-workspace"
 version = "0.6.0"
 dependencies = [
+ "serde_json",
+ "vw-agent-apps",
+ "tempfile",
+ "hex",
+ "sha2 0.11.0",
+ "app-access-service",
  "app-lifecycle",
  "app-workspace-memory",
  "app-workspace-paths",

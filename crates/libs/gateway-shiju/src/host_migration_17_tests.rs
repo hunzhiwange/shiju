@@ -11,8 +11,8 @@ use tower::ServiceExt;
 use gateway_shiju_account::SHIJU_CREDENTIAL_HEADER;
 
 async fn response(request: Request<Body>) -> (StatusCode, Value) {
-    let response = super::router_with_client::<()>(
-        crate::skills::shiju::ShijuSkillClient::with_base_url("http://127.0.0.1:9")
+    let response = crate::native_skills::router_with_client::<()>(
+        agent_skills::shiju::ShijuSkillClient::with_base_url("http://127.0.0.1:9")
             .expect("client"),
     )
     .oneshot(request)
@@ -88,8 +88,8 @@ async fn shiju_skill_readme_route_forwards_markdown_content() {
         body.len()
     );
     let (base, requests) = upstream_fixture_with_response(1, response.into_bytes());
-    let router = super::router_with_client::<()>(
-        crate::skills::shiju::ShijuSkillClient::with_base_url(&base).expect("client"),
+    let router = crate::native_skills::router_with_client::<()>(
+        agent_skills::shiju::ShijuSkillClient::with_base_url(&base).expect("client"),
     );
 
     let response = router
@@ -121,8 +121,8 @@ async fn shiju_skill_routes_forward_maintained_multi_value_filters() {
         body.len()
     );
     let (base, requests) = upstream_fixture_with_response(1, upstream_response.into_bytes());
-    let router = super::router_with_client::<()>(
-        crate::skills::shiju::ShijuSkillClient::with_base_url(&base).expect("client"),
+    let router = crate::native_skills::router_with_client::<()>(
+        agent_skills::shiju::ShijuSkillClient::with_base_url(&base).expect("client"),
     );
 
     let valid_response = router
@@ -163,8 +163,8 @@ async fn shiju_skill_routes_forward_search_filters() {
         body.len()
     );
     let (base, requests) = upstream_fixture_with_response(1, upstream_response.into_bytes());
-    let router = super::router_with_client::<()>(
-        crate::skills::shiju::ShijuSkillClient::with_base_url(&base).expect("client"),
+    let router = crate::native_skills::router_with_client::<()>(
+        agent_skills::shiju::ShijuSkillClient::with_base_url(&base).expect("client"),
     );
 
     let valid_response = router
@@ -215,8 +215,8 @@ async fn shiju_skill_routes_forward_tag_catalogs() {
             })
             .collect::<Vec<_>>()
     });
-    let router = super::router_with_client::<()>(
-        crate::skills::shiju::ShijuSkillClient::with_base_url(&format!("http://{address}"))
+    let router = crate::native_skills::router_with_client::<()>(
+        agent_skills::shiju::ShijuSkillClient::with_base_url(&format!("http://{address}"))
             .expect("client"),
     );
 
@@ -256,8 +256,8 @@ async fn shiju_skill_routes_forward_tag_catalogs() {
 #[tokio::test(flavor = "multi_thread")]
 async fn shiju_skill_routes_forward_empty_and_version_install_bodies() {
     let (base, requests) = upstream_fixture(2);
-    let router = super::router_with_client::<()>(
-        crate::skills::shiju::ShijuSkillClient::with_base_url(&base).expect("client"),
+    let router = crate::native_skills::router_with_client::<()>(
+        agent_skills::shiju::ShijuSkillClient::with_base_url(&base).expect("client"),
     );
 
     let response = router

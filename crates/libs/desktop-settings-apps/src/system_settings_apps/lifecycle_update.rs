@@ -34,14 +34,14 @@ pub struct LifecycleFailure {
     pub label: String,
 }
 #[derive(Clone)]
-enum Work {
+pub(crate) enum Work {
     Preview(AppActionPreviewRequest),
     Submit(AppActionSubmitRequest),
     Read(vw_api_transport::TaskId),
     Poll(vw_api_transport::TaskId),
     Cancel(vw_api_transport::TaskId),
 }
-async fn execute(
+pub(crate) async fn execute(
     client: GatewayClient,
     host: String,
     token: String,

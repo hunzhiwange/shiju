@@ -82,7 +82,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             let context = AgentAppsContext {
                 gateway: client.endpoint().base_url(),
                 tenant: client.endpoint().tenant_scope().clone(),
-                project: app.project_path.clone(),
+                project: app.navigation_tabs.project_path.clone(),
             };
             if app.apps_catalog.context.as_ref() != Some(&context)
                 || app.apps_catalog.host.is_empty() || app.apps_catalog.token.is_empty()
@@ -109,21 +109,17 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             let current = crate::app::config::gateway_client().ok().map(|client| AgentAppsContext {
                 gateway: client.endpoint().base_url(),
                 tenant: client.endpoint().tenant_scope().clone(),
-                project: app.project_path.clone(),
+                project: app.navigation_tabs.project_path.clone(),
             });
-            if current.as_ref() != Some(&context)
-                || app.apps_catalog.context.as_ref() != Some(&context)
-                || app.apps_catalog.host != host || app.apps_catalog.generation != generation
-                || !app.apps_catalog.loading
-            { return Task::none(); }
-            app.apps_catalog.loading = false;
-            app.apps_catalog.loaded_at = None;
-            let error = result.as_ref().err().map(catalog::error_label);
-            if let Some(row) = app.apps_catalog.rows.iter_mut().find(|row| row.entry.id == id) {
-                row.observation = result;
-            } else { return Task::none(); }
-            if let Some(error) = error { return app.show_error_toast(error); }
-            return Task::none();
+            let state = &mut app.apps_catalog;
+            let (accepted, error) = desktop_settings_apps::system_settings_apps::catalog_update::finish_observation(
+                desktop_settings_apps::system_settings_apps::catalog_update::ObservationInput {
+                    context: &state.context, host: &state.host, generation: state.generation,
+                    loading: &mut state.loading, rows: &mut state.rows,
+                }, current.as_ref(), context, host, generation, id, result,
+            );
+            if accepted { state.loaded_at = None; }
+            return error.map(|error| app.show_error_toast(error)).unwrap_or_else(Task::none);
         }
         AppsCatalogMessage::QueryInput(query) => {
             app.apps_catalog.query = query;
@@ -179,7 +175,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             let context = AgentAppsContext {
                 gateway: client.endpoint().base_url(),
                 tenant: client.endpoint().tenant_scope().clone(),
-                project: app.project_path.clone(),
+                project: app.navigation_tabs.project_path.clone(),
             };
             let generation = crate::app::state::agent_apps::begin(&mut app.apps_catalog, context.clone());
             app.app_providers.model_catalog = None;
@@ -203,12 +199,12 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 crate::app::config::gateway_client().ok().map(|client| AgentAppsContext {
                     gateway: client.endpoint().base_url(),
                     tenant: client.endpoint().tenant_scope().clone(),
-                    project: app.project_path.clone(),
+                    project: app.navigation_tabs.project_path.clone(),
                 });
-            if current.as_ref() != Some(&context)
-                || app.apps_catalog.generation != generation
-                || !app.apps_catalog.loading
-            {
+            if !desktop_settings_apps::system_settings_apps::catalog_update::accepts_local_credentials(
+                current.as_ref(), &context, app.apps_catalog.generation, generation,
+                app.apps_catalog.loading,
+            ) {
                 return Task::none();
             }
             app.apps_catalog.loading = false;
@@ -270,7 +266,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 crate::app::config::gateway_client().ok().map(|client| AgentAppsContext {
                     gateway: client.endpoint().base_url(),
                     tenant: client.endpoint().tenant_scope().clone(),
-                    project: app.project_path.clone(),
+                    project: app.navigation_tabs.project_path.clone(),
                 });
             app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.routing.invalidate();
@@ -312,7 +308,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             let context = AgentAppsContext {
                 gateway: client.endpoint().base_url(),
                 tenant: client.endpoint().tenant_scope().clone(),
-                project: app.project_path.clone(),
+                project: app.navigation_tabs.project_path.clone(),
             };
             crate::app::state::agent_apps::reset_if_context_changed(&mut app.apps_catalog, &context);
             if use_cache && app.apps_catalog.cache_is_fresh() {
@@ -343,7 +339,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 crate::app::config::gateway_client().ok().map(|client| AgentAppsContext {
                     gateway: client.endpoint().base_url(),
                     tenant: client.endpoint().tenant_scope().clone(),
-                    project: app.project_path.clone(),
+                    project: app.navigation_tabs.project_path.clone(),
                 });
             if current.as_ref() != Some(&context) || host != app.apps_catalog.host {
                 return Task::none();

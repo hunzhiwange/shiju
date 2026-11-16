@@ -51,3 +51,5 @@ mod desktop_integration_20_tests;
 
 #[cfg(test)]
 mod desktop_integration_26_tests;
+
+pub mod catalog_update;

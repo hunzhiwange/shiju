@@ -16,8 +16,7 @@ pub mod task_board;
 mod task_board_tests;
 #[cfg(test)]
 mod lifecycle_bridge_tests;
-#[cfg(test)]
-mod task_graph_tests;
+// Task-graph tests are registered by task-scheduler-core.
 
 #[cfg(test)]
 #[path = "store/schema_tests.rs"]

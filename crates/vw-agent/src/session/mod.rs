@@ -58,9 +58,7 @@ pub mod summary;
 pub mod system;
 /// 声明可见任务会话的运行状态协调器。
 pub(crate) mod task_session;
-#[cfg(test)]
-#[path = "task_session_tests.rs"]
-mod task_session_tests;
+// Task-session coordinator tests are registered by session-engine::task_session.
 /// 声明 title 子模块，保持当前领域的职责拆分清晰。
 pub mod title;
 /// 声明 todo 子模块，保持当前领域的职责拆分清晰。

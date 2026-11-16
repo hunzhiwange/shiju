@@ -452,8 +452,7 @@ pub(crate) mod agent_app_prompt_sync;
 pub(crate) mod agent_app_prompt_shared_import;
 
 pub(crate) mod computer_control;
-#[cfg(test)]
-mod computer_control_tests;
+// Computer-control policy tests are registered by gateway-computer-control.
 
 pub(crate) mod project_profiles;
 

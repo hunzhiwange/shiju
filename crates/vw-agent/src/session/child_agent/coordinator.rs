@@ -7,7 +7,9 @@ use crate::tools::ToolUseContext;
 pub(crate) use session_engine::child_agent::coordinator::{
     ChildAgentTaskState, ChildAgentTaskSnapshot, WaitCondition, ChildAgentWaitOutcome,
 };
+#[path = "mailbox.rs"]
 pub(crate) mod mailbox;
+#[path = "delivery.rs"]
 mod delivery;
 
 #[derive(Debug, Clone)]

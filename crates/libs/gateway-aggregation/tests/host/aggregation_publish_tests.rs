@@ -441,7 +441,7 @@ mod operation_contract;
 #[path = "aggregation_publish_failure_tests.rs"]
 mod failure_contract;
 
-#[path = "../../aggregation_lifecycle_tests.rs"]
+#[path = "aggregation_lifecycle_tests.rs"]
 mod lifecycle_tests;
 
 #[path = "aggregation_exit_tests.rs"]

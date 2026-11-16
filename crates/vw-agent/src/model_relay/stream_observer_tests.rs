@@ -196,6 +196,6 @@ async fn shared_stream_observer_native_converters_preserve_client_model_mapping(
     }
 }
 
-#[path = "../../../libs/agent-gateway/src/diagnostic_stream_fixtures.rs"]
+#[path = "../../../libs/app-diagnostics-runtime/src/diagnostic_stream_fixtures.rs"]
 mod diagnostic_stream_fixtures;
 pub(crate) use diagnostic_stream_fixtures::{samples, source};

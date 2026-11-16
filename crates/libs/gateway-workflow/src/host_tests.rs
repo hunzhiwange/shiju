@@ -1253,7 +1253,7 @@ fn talking_head_api_fixture(fail_model: bool) -> (axum::Router, Arc<TalkingHeadA
 }
 
 fn talking_head_api_body(mode: &str) -> serde_json::Value {
-    let yaml = include_str!("../../../../testdata/workflow/talking_head.yaml");
+    let yaml = include_str!("../../workflow-engine/testdata/workflow/talking_head.yaml");
     // 第二个配置使用独立视觉模型，其余节点保留样例模型。
     let yaml = yaml.replacen(
         "type: llm\n          model: {name: deepseek/deepseek-flash}\n          prompt_template:\n            - role: user\n              text: 'Return only a JSON array of dynamic",

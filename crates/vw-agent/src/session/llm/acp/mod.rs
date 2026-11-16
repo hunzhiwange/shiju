@@ -35,7 +35,7 @@ pub(crate) mod controls;
 mod fork_replay;
 pub(super) mod lifecycle;
 mod model_source;
-mod recovery;
+// ACP recovery is owned and registered by llm-runtime::acp.
 mod replay;
 pub(super) mod request;
 mod session;

@@ -74,8 +74,7 @@ pub use agent_loop::utils;
 /// 单元测试和集成测试
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
-mod utils_tests;
+// Utility tests are registered by agent-loop::utils_tests.
 
 // ============================================================================
 // 公共API重导出

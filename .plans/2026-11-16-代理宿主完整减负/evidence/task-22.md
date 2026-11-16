@@ -68,9 +68,9 @@
 ### todos_tests.rs
 物理行 128→128；保留理由：真实 Todo 存储及写入工具接线；存储读取策略仍可拆出。
 
-- `has_incomplete_todos_false_for_empty_or_all_completed_and_true_for_pending` → `原宿主挂载::todos_tests::has_incomplete_todos_false_for_empty_or_all_completed_and_true_for_pending（保留）`
-- `has_incomplete_todos_treats_cancelled_as_incomplete` → `原宿主挂载::todos_tests::has_incomplete_todos_treats_cancelled_as_incomplete（保留）`
-- `read_todos_or_empty_returns_current_items_or_empty_list` → `原宿主挂载::todos_tests::read_todos_or_empty_returns_current_items_or_empty_list（保留）`
+- `has_incomplete_todos_false_for_empty_or_all_completed_and_true_for_pending` → `session_engine::host_migration_22_tests::todo_storage_tests::has_incomplete_todos_false_for_empty_or_all_completed_and_true_for_pending`
+- `has_incomplete_todos_treats_cancelled_as_incomplete` → `session_engine::host_migration_22_tests::todo_storage_tests::has_incomplete_todos_treats_cancelled_as_incomplete`
+- `read_todos_or_empty_returns_current_items_or_empty_list` → `session_engine::host_migration_22_tests::todo_storage_tests::read_todos_or_empty_returns_current_items_or_empty_list`
 - `maybe_mark_todo_in_progress_updates_first_pending_item_silently` → `原宿主挂载::todos_tests::maybe_mark_todo_in_progress_updates_first_pending_item_silently（保留）`
 - `maybe_mark_todo_in_progress_noops_when_first_incomplete_is_already_in_progress` → `原宿主挂载::todos_tests::maybe_mark_todo_in_progress_noops_when_first_incomplete_is_already_in_progress（保留）`
 - `maybe_mark_todo_in_progress_noops_for_empty_list_without_side_effects` → `原宿主挂载::todos_tests::maybe_mark_todo_in_progress_noops_for_empty_list_without_side_effects（保留）`
@@ -353,3 +353,16 @@ runner_tests 的 mcp_catalog_refresh_tests 子模块仍随原宿主挂载保留�
 静态检查：rg 枚举 RunnerHost 仅一个具体实现；删除定义、旧 H::调用和 PlannedCall 关联类型引用零残留；git diff --check 在本任务修改路径通过。没有运行任何测试工具。未来原 host_migration_22_tests 预期58例；宿主 runner_tests、tools_exec_tests 保留精确名称按前文映射过滤验证，必须非零。
 
 runner_host.rs 当前286行，剩余仅具体配置/模型/插件/项目/审批/资源及外部生命周期端口；其它保留职责沿用上节逐文件映射。剩余可探索项是将已有公共端口组合提取为特定领域实现，禁止复制具体宿主形成新单体。
+
+## 第四次恢复：待办读取策略直接使用真实领域存储
+
+读取最新 final.md：全局43584行，仍超8584行。本组原19文件当前806行，基线1290累计减484行；本次810→806。仍未达70%，本组不能单独消除全局缺口。不得把此说明当作全局完成。
+
+- 删除 RunnerHost::read_todos 和唯一宿主实现。其原调用 tools::todo::read(ctx) 只有一行 tool_services::todo::read_for_session(&ctx.session)，领域层现直接调用同一函数，scope、存储错误处理及原解析分支不变。
+- runner_todos::{has_incomplete_todos,read_todos_or_empty} 输入从整套泛型 RunnerHost/ToolRuntimeContext 缩小为实际所需 session id；runner_text、runner_todo_updates、maybe_mark_todo_in_progress 和剩余宿主测试逐项接线。不增加特性开关、备用算法或模拟存储。
+- 删除宿主两个不再需要的读取包装。真实工具写入和事件记录仍通过 ToolExecutionHost，三条状态更新集成用例留在宿主。
+- `has_incomplete_todos_false_for_empty_or_all_completed_and_true_for_pending` 完整迁到 `host_migration_22_tests::todo_storage_tests::has_incomplete_todos_false_for_empty_or_all_completed_and_true_for_pending`，输入仅用会话ID，使用同一真实 read_for_session/write_for_session 存储，不依赖完整宿主状态，断言不变。
+- `has_incomplete_todos_treats_cancelled_as_incomplete` 完整迁到 `host_migration_22_tests::todo_storage_tests::has_incomplete_todos_treats_cancelled_as_incomplete`，输入仅用会话ID，使用同一真实 read_for_session/write_for_session 存储，不依赖完整宿主状态，断言不变。
+- `read_todos_or_empty_returns_current_items_or_empty_list` 完整迁到 `host_migration_22_tests::todo_storage_tests::read_todos_or_empty_returns_current_items_or_empty_list`，输入仅用会话ID，使用同一真实 read_for_session/write_for_session 存储，不依赖完整宿主状态，断言不变。
+
+领域自注册现native静态预期61例；未来 `python3 scripts/cargo_slot.py cargo test -p session-engine --lib host_migration_22_tests -- --test-threads=1`，必须61例、零失败。宿主 todos_tests 剩3例真实写入/事件集成过滤预期3。全部编译、构建、单元及实机测试未运行；仅源码调用、注册、依赖与 git diff --check 核对。仓库搜索旧泛型读取调用及 H::read_todos 零残留。

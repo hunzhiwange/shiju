@@ -190,9 +190,7 @@ impl session_engine::runner_host::RunnerHost for AgentRunnerHost {
     ) -> anyhow::Result<plugin_hooks::hook_stop::Outcome> {
         prompt::block_on(crate::plugins::hook_stop::emit::<crate::tools::context::AgentContextHost>(context, interrupt, active, message))
     }
-    fn read_todos(ctx: &ToolRuntimeContext) -> anyhow::Result<String> {
-        Ok(crate::tools::todo::read(ctx)?)
-    }
+
 
 }
 

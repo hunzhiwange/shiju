@@ -167,7 +167,7 @@ pub fn handle_assistant_text_branch<H: RunnerHost>(
     // TodoWrite 可用时强制续轮：未完成 todo 不得提前结束，避免模型“口头完成”后意外退出。
     let enforce_todos =
         allowed_tools.iter().any(|name| tool_types::todo_ids::is_todo_write_tool_id(name));
-    let incomplete = enforce_todos && crate::runner_todos::has_incomplete_todos::<H>(ctx);
+    let incomplete = enforce_todos && crate::runner_todos::has_incomplete_todos(&ctx.session);
 
     if enforce_todos && incomplete {
         let message = "任务未完成：todo 列表仍有未完成项，请继续推进直至全部完成，再输出最终答复。"

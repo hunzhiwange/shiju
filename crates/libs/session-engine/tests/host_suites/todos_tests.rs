@@ -32,45 +32,11 @@ fn read(ctx: &ToolRuntimeContext) -> Vec<todo::Todo> {
     serde_json::from_str(&todo::read(ctx).expect("read todos")).expect("todo json")
 }
 
-#[test]
-fn has_incomplete_todos_false_for_empty_or_all_completed_and_true_for_pending() {
-    let session = unique_session("todos-incomplete");
-    let ctx = ctx(&session);
 
-    assert!(!super::has_incomplete_todos(&ctx));
 
-    seed(&ctx, vec![item("1", "done", "completed")]);
-    assert!(!super::has_incomplete_todos(&ctx));
 
-    seed(&ctx, vec![item("1", "done", "completed"), item("2", "todo", "pending")]);
-    assert!(super::has_incomplete_todos(&ctx));
-}
 
-#[test]
-// 取消状态不等于完成，仍应阻止会话错误宣告全部完成。
-fn has_incomplete_todos_treats_cancelled_as_incomplete() {
-    let session = unique_session("todos-cancelled");
-    let ctx = ctx(&session);
-    seed(&ctx, vec![item("1", "cancelled", "cancelled")]);
 
-    assert!(super::has_incomplete_todos(&ctx));
-}
-
-#[test]
-fn read_todos_or_empty_returns_current_items_or_empty_list() {
-    let empty_session = unique_session("todos-empty");
-    assert!(super::read_todos_or_empty(&ctx(&empty_session)).is_empty());
-
-    let session = unique_session("todos-read");
-    let ctx = ctx(&session);
-    seed(&ctx, vec![item("1", "alpha", "pending"), item("2", "beta", "in_progress")]);
-
-    let items = super::read_todos_or_empty(&ctx);
-
-    assert_eq!(items.len(), 2);
-    assert_eq!(items[0].content, "alpha");
-    assert_eq!(items[1].status, "in_progress");
-}
 
 #[test]
 // 只自动推进首个待处理项且不产生多余用户事件。
@@ -123,6 +89,6 @@ fn maybe_mark_todo_in_progress_noops_for_empty_list_without_side_effects() {
 
     super::maybe_mark_todo_in_progress(&mut session, &ctx, &mut tool_state);
 
-    assert!(super::read_todos_or_empty(&ctx).is_empty());
+    assert!(crate::runner_todos::read_todos_or_empty(&ctx.session).is_empty());
     assert!(session.messages.is_empty());
 }

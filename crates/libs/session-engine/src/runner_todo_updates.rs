@@ -79,11 +79,11 @@ pub fn maybe_update_todos_after_work<H: RunnerHost>(
         return false;
     }
     // 检查是否存在未完成的待办事项，若没有则无需更新
-    if !crate::runner_todos::has_incomplete_todos::<H>(ctx) {
+    if !crate::runner_todos::has_incomplete_todos(&ctx.session) {
         return false;
     }
     // 检查待办事项列表是否为空，为空则跳过更新
-    if crate::runner_todos::read_todos_or_empty::<H>(ctx).is_empty() {
+    if crate::runner_todos::read_todos_or_empty(&ctx.session).is_empty() {
         return false;
     }
 

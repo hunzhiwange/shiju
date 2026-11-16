@@ -30,13 +30,13 @@ use tool_assembly::runtime::ToolRuntimeContext;
 /// # 示例
 ///
 /// ```ignore
-/// if has_incomplete_todos::<H>(&ctx) {
+/// if has_incomplete_todos(&ctx.session) {
 ///     println!("还有未完成的任务");
 /// }
 /// ```
-pub fn has_incomplete_todos<H: RunnerHost>(ctx: &ToolRuntimeContext<H::CtxHost>) -> bool {
+pub fn has_incomplete_todos(session: &str) -> bool {
     // 尝试读取原始任务列表数据，失败则返回 false
-    let Ok(raw) = H::read_todos(ctx) else {
+    let Ok(raw) = tool_services::todo::read_for_session(session) else {
         return false;
     };
     // 尝试解析为任务列表，失败则返回 false
@@ -63,12 +63,12 @@ pub fn has_incomplete_todos<H: RunnerHost>(ctx: &ToolRuntimeContext<H::CtxHost>)
 /// # 示例
 ///
 /// ```ignore
-/// let todos = read_todos_or_empty::<H>(&ctx);
+/// let todos = read_todos_or_empty(&ctx.session);
 /// println!("当前任务数量: {}", todos.len());
 /// ```
-pub fn read_todos_or_empty<H: RunnerHost>(ctx: &ToolRuntimeContext<H::CtxHost>) -> Vec<todo::Todo> {
+pub fn read_todos_or_empty(session: &str) -> Vec<todo::Todo> {
     // 尝试读取原始任务列表数据，失败则返回空列表
-    let Ok(raw) = H::read_todos(ctx) else {
+    let Ok(raw) = tool_services::todo::read_for_session(session) else {
         return Vec::new();
     };
     // 解析任务列表，失败时返回默认值（空列表）
@@ -168,7 +168,7 @@ pub fn maybe_mark_todo_in_progress<H: RunnerHost>(
     tool_state: &mut crate::runner_types::ToolSessionState,
 ) {
     // 尝试读取原始任务列表数据，失败则静默返回
-    let Ok(raw) = H::read_todos(ctx) else {
+    let Ok(raw) = tool_services::todo::read_for_session(&ctx.session) else {
         return;
     };
     // 尝试解析为任务列表，失败则静默返回

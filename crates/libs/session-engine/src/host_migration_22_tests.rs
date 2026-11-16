@@ -10,3 +10,4 @@ mod scripted_stream_tests;
 mod child_finalization_tests;
 #[cfg(not(target_arch = "wasm32"))]
 mod artifact_persistence_tests;
+mod todo_storage_tests;

@@ -144,6 +144,5 @@ pub trait RunnerHost:
         active: bool,
         message: Option<&str>,
     ) -> anyhow::Result<plugin_hooks::hook_stop::Outcome>;
-    fn read_todos(ctx: &ToolRuntimeContext<Self::CtxHost>) -> anyhow::Result<String>;
 
 }

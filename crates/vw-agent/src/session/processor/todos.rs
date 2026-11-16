@@ -1,6 +1,4 @@
-use crate::tools::{ToolRuntimeContext, todo};
-pub(crate) fn has_incomplete_todos(ctx: &ToolRuntimeContext) -> bool { session_engine::runner_todos::has_incomplete_todos::<crate::session::processor::runner_host::AgentRunnerHost>(ctx) }
-pub(crate) fn read_todos_or_empty(ctx: &ToolRuntimeContext) -> Vec<todo::Todo> { session_engine::runner_todos::read_todos_or_empty::<crate::session::processor::runner_host::AgentRunnerHost>(ctx) }
+use crate::tools::ToolRuntimeContext;
 pub(crate) fn maybe_mark_todo_in_progress(
     session: &mut super::Session,
     ctx: &ToolRuntimeContext,

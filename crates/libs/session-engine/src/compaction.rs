@@ -693,3 +693,7 @@ pub trait CompactionHost: plugin_hooks::host::HookHost {
 fn checkpoint_scope<H: CompactionHost>() -> String {
     crate::compaction_checkpoint::scope_for_directory(&H::current_tenant_scope(), &instance::directory())
 }
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "host_migration_23_tests/compaction.rs"]
+mod host_migration_23_tests;

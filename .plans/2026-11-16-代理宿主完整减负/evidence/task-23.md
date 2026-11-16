@@ -1,0 +1,91 @@
+# 任务23静态迁移证据
+代码完成，编译/行为未验证。本轮按计划未执行 Cargo、测试、构建或实机验证。
+
+## 生产边界
+现有实现已在 session-engine；本轮真实生产算法迁移为 0。未把既有下沉计为收益。依赖保持 vw-agent → session-engine，无反向依赖，无 path/include 宿主源码。领域测试由本库 lib.rs 及 compaction.rs 自注册，直接调用原领域函数；存储用例沿用 host_split_8 的子进程临时根目录隔离。无新增依赖。
+agent_binding 保留 store（宿主数据库）、scope（当前 home/tenant）、load_scoped/save_scoped、SessionSettings 的 load/save/remove/Deref、confirmed_full_access/resolve_full_access_scoped（注入作用域）、resolve_full_access/load（当前项目）、apply_to_config/prepare 及 AdmissionHost（真实配置/技能/MCP/权限端口）。capability_policy 保留重导出与 AdmissionHost 入口；compaction 保留 CompactionHost、process/process_session 及真实快照/消息投影/模型/摘要端口；compaction_checkpoint 保留 scope_for_directory/scope 与 save/restore/copy/copy_fork/remove_strict/remove 的真实租户目录注入；compaction_summary 保留 SummaryHost、summarize、summarize_async 的真实 llm runner、取消、spawn_blocking 和租户/项目传播；context_injection 保留兼容重导出。所有调用方向沿用现有生产入口。
+
+## 全文件及全用例映射
+
+### agent_binding_tests.rs：测试 174 → 125 行
+- `agent_session_identity_storage_round_trip_is_scoped_and_secret_free` → 宿主保留；真实当前 home/租户存储或 AdmissionHost 分叉准入
+- `agent_session_identity_rejects_engine_and_agent_changes` → crates/libs/session-engine/src/host_migration_23_tests/binding.rs；原函数名/断言保留，入口改为领域依赖
+- `agent_session_identity_keeps_live_credentials_and_security_rules` → crates/libs/session-engine/src/host_migration_23_tests/binding.rs；原函数名/断言保留，入口改为领域依赖
+- `agent_config_cleanup_full_access_session_state_preserves_explicit_false` → 宿主保留；真实当前 home/租户存储或 AdmissionHost 分叉准入
+- `agent_config_cleanup_full_access_retains_permission_denials` → crates/libs/session-engine/src/host_migration_23_tests/binding.rs；原函数名/断言保留，入口改为领域依赖
+- `agent_binding_inherited_history_cannot_override_fork_selection` → 宿主保留；真实当前 home/租户存储或 AdmissionHost 分叉准入
+
+### capability_policy_tests.rs：测试 284 → 240 行
+- `agent_native_defaults_mcp_selection_reaches_registered_tools_with_session_isolation` → 宿主保留；真实技能发现、MCP 注册/执行、项目覆盖与跨租户拒绝
+- `agent_native_defaults_do_not_inject_disabled_skills` → 宿主保留；真实技能发现、MCP 注册/执行、项目覆盖与跨租户拒绝
+- `agent_native_defaults_mcp_respects_tenant_and_project_safety_scope` → 宿主保留；真实技能发现、MCP 注册/执行、项目覆盖与跨租户拒绝
+- `agent_config_cleanup_strict_skill_boundary_survives_fixed_selection` → crates/libs/session-engine/src/host_migration_23_tests/policy.rs；原函数名/断言保留，入口改为领域依赖
+- `agent_config_cleanup_native_skill_inheritance_uses_allowed_source` → 宿主保留；真实技能发现、MCP 注册/执行、项目覆盖与跨租户拒绝
+
+### claude_protocol_parity_tests.rs：测试 109 → 109 行
+- `delegate_capability_policy_is_consistent_across_agenttool_gateway_and_legacy_adapter` → 宿主保留；真实旧 delegated_tools 适配器与现代策略一致性
+
+### codex_alignment_tests.rs：测试 361 → 361 行
+- `codex_alignment_skill_search_mcp_compaction_and_new_turn_preserve_boundaries` → 宿主保留；真实 processor、工具/MCP、技能重放与新轮次接线
+- `codex_alignment_explicit_tools_search_disabled_and_disable_tools_keep_authorization` → 宿主保留；真实 processor、工具/MCP、技能重放与新轮次接线
+- `codex_alignment_strict_skills_and_last_round_do_not_expand_capabilities` → 宿主保留；真实 processor、工具/MCP、技能重放与新轮次接线
+- `codex_alignment_same_name_replacement_and_disabled_sources_cannot_replay_old_body` → 宿主保留；真实 processor、工具/MCP、技能重放与新轮次接线
+- `codex_alignment_new_session_does_not_inherit_skill_or_tool_exposure` → 宿主保留；真实 processor、工具/MCP、技能重放与新轮次接线
+
+### compaction_tests.rs：测试 831 → 524 行
+- `overflow_reserves_summary_output_space` → crates/libs/session-engine/src/host_migration_23_tests/compaction.rs；原函数名/断言保留，入口改为领域依赖
+- `instance_directory_opt_returns_directory_inside_project_context` → crates/libs/session-engine/src/host_migration_23_tests/compaction.rs；原函数名/断言保留，入口改为领域依赖
+- `compaction_text_formats_roles_trims_and_skips_empty_text` → crates/libs/session-engine/src/host_migration_23_tests/compaction.rs；原函数名/断言保留，入口改为领域依赖
+- `compaction_text_keeps_all_messages_and_multibyte_tail` → crates/libs/session-engine/src/host_migration_23_tests/compaction.rs；原函数名/断言保留，入口改为领域依赖
+- `compaction_restore_reloads_agents_before_replaying_current_invoked_skill_body` → crates/libs/session-engine/src/host_migration_23_tests/compaction.rs；原函数名/断言保留，入口改为领域依赖
+- `process_returns_stop_when_parent_user_message_is_missing` → 宿主保留；真实 CompactionHost 快照/模型端口或完整会话 fork/remove 生命周期
+- `internal_compaction_replaces_covered_history_with_a_model_summary` → 宿主保留；真实 CompactionHost 快照/模型端口或完整会话 fork/remove 生命周期
+- `internal_compaction_keeps_history_when_summary_is_blank_or_fails` → 宿主保留；真实 CompactionHost 快照/模型端口或完整会话 fork/remove 生命周期
+- `process_does_not_compact_when_the_boundary_has_no_prior_history` → 宿主保留；真实 CompactionHost 快照/模型端口或完整会话 fork/remove 生命周期
+- `process_does_not_synthesize_a_summary_for_blank_history` → 宿主保留；真实 CompactionHost 快照/模型端口或完整会话 fork/remove 生命周期
+- `create_writes_user_message_with_compaction_part` → crates/libs/session-engine/src/host_migration_23_tests/compaction.rs；原函数名/断言保留，入口改为领域依赖
+- `create_preserves_manual_compaction_flag` → crates/libs/session-engine/src/host_migration_23_tests/compaction.rs；原函数名/断言保留，入口改为领域依赖
+- `prune_marks_only_old_unprotected_outputs_after_thresholds` → crates/libs/session-engine/src/host_migration_23_tests/compaction.rs；原函数名/断言保留，入口改为领域依赖
+- `prune_skips_unfinished_tool_states` → crates/libs/session-engine/src/host_migration_23_tests/compaction.rs；原函数名/断言保留，入口改为领域依赖
+- `internal_compaction_single_summary_preserves_all_persisted_history` → 宿主保留；真实 CompactionHost 快照/模型端口或完整会话 fork/remove 生命周期
+- `manual_compaction_checkpoint_matches_expanded_tool_history` → 宿主保留；真实 CompactionHost 快照/模型端口或完整会话 fork/remove 生命周期
+- `codex_skills_replay_real_session_fork_preserves_sources_and_respects_cutoff` → 宿主保留；真实 CompactionHost 快照/模型端口或完整会话 fork/remove 生命周期
+- `native_tool_search_history_compaction_keeps_call_output_pair` → crates/libs/session-engine/src/host_migration_23_tests/compaction.rs；原函数名/断言保留，入口改为领域依赖
+
+### compaction_checkpoint_tests.rs：测试 150 → 75 行
+- `checkpoint_restores_model_context_without_mutating_source` → crates/libs/session-engine/src/host_migration_23_tests/checkpoint.rs；原函数名/断言保留，入口改为领域依赖
+- `checkpoint_failed_save_keeps_previous_checkpoint` → crates/libs/session-engine/src/host_migration_23_tests/checkpoint.rs；原函数名/断言保留，入口改为领域依赖
+- `checkpoint_fork_uses_matching_prefix_and_removal_keeps_source` → crates/libs/session-engine/src/host_migration_23_tests/checkpoint.rs；原函数名/断言保留，入口改为领域依赖
+- `checkpoint_rejects_changed_tool_arguments` → crates/libs/session-engine/src/host_migration_23_tests/checkpoint.rs；原函数名/断言保留，入口改为领域依赖
+- `checkpoint_isolated_by_tenant` → 宿主保留；真实租户 task-local 注入或项目跨目录与技能检查点联动
+- `fork_history_copies_only_matching_checkpoints_between_directories` → 宿主保留；真实租户 task-local 注入或项目跨目录与技能检查点联动
+
+### compaction_summary_tests.rs：测试 402 → 374 行
+- `compaction_single_request_preserves_structured_history` → 宿主保留；真实 LLM 流、重试、取消、请求记录或异步工作线程
+- `compaction_overflow_trims_request_copy_and_keeps_tool_pairs` → 宿主保留；真实 LLM 流、重试、取消、请求记录或异步工作线程
+- `compaction_reuses_cancellation_and_retry` → 宿主保留；真实 LLM 流、重试、取消、请求记录或异步工作线程
+- `compaction_dropped_async_request_cancels_the_model_worker` → 宿主保留；真实 LLM 流、重试、取消、请求记录或异步工作线程
+- `compaction_preflight_bounds_large_tool_output_without_mutating_source` → 宿主保留；真实 LLM 流、重试、取消、请求记录或异步工作线程
+- `compaction_range_overflow_recovers_single_large_message` → 宿主保留；真实 LLM 流、重试、取消、请求记录或异步工作线程
+- `compaction_overflow_retries_are_bounded_and_preserve_source` → 宿主保留；真实 LLM 流、重试、取消、请求记录或异步工作线程
+- `compaction_impossible_budget_preserves_system_and_skips_model` → 宿主保留；真实 LLM 流、重试、取消、请求记录或异步工作线程
+- `compaction_failed_attempt_leaves_previous_checkpoint_restorable` → 宿主保留；真实 LLM 流、重试、取消、请求记录或异步工作线程
+- `compaction_budget_reserves_output_and_accepts_unset_input_limit` → crates/libs/session-engine/src/host_migration_23_tests/summary.rs；原函数名/断言保留，入口改为领域依赖
+- `compaction_equal_context_and_output_uses_bounded_request_allocation` → 宿主保留；真实 LLM 流、重试、取消、请求记录或异步工作线程
+- `compaction_unknown_window_recovers_from_provider_overflow_without_changing_history` → 宿主保留；真实 LLM 流、重试、取消、请求记录或异步工作线程
+- `compaction_empty_output_is_normalized_without_replaying_partial_streams` → 宿主保留；真实 LLM 流、重试、取消、请求记录或异步工作线程
+- `compaction_empty_error_translation_preserves_metadata_and_other_failures` → crates/libs/session-engine/src/host_migration_23_tests/summary.rs；原函数名/断言保留，入口改为领域依赖
+- `agent_binding.rs`：宿主生产/端口（含文档、测试注册）120 → 120 行；职责见生产边界。
+- `capability_policy.rs`：宿主生产/端口（含文档、测试注册）10 → 10 行；职责见生产边界。
+- `compaction.rs`：宿主生产/端口（含文档、测试注册）67 → 67 行；职责见生产边界。
+- `compaction_checkpoint.rs`：宿主生产/端口（含文档、测试注册）32 → 32 行；职责见生产边界。
+- `compaction_summary.rs`：宿主生产/端口（含文档、测试注册）79 → 79 行；职责见生产边界。
+- `context_injection.rs`：宿主生产/端口（含文档、测试注册）2 → 2 行；职责见生产边界。
+
+宿主来源合计 2621 → 2118，净减 503 行（19.2%），未达 70%，须由收口验收。领域新增测试/夹具 747 行，另增加两处注册；领域生产逻辑新增 0 行。
+继续可迁项：宿主 LLM 流测试需领域 runner 自有脚本流夹具；完整 CompactionHost 受 HookHost/McpToolHost 多层宿主约束，不能复制整套宿主伪装领域测试；capability 与 codex 对真实 MCP/工具装配的安全断言应保留真实宿主验收。上述每个保留文件及每条用例已逐项列出，不删除断言凑比例。
+
+## 未来验证
+`python3 scripts/cargo_slot.py cargo test -p session-engine --lib host_migration_23_tests -- --test-threads=1`：静态预期 20 条，必须确认 ran > 0 且 failed=0。llm-runtime/agent-acp 未新建模块，不运行零测试过滤。
+宿主未来按上述各保留名称使用 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib <完整名称> -- --exact --test-threads=1`（名称需加原模块路径），每条预期 1；迁出项未来用宿主 --list 核对消失。全部编译、行为、运行耗时检查均未运行。
+静态核对：20 个迁出函数不再挂在原宿主模块；原文件只保留真实集成用例及其夹具，没有通过 path 反向挂载领域测试。

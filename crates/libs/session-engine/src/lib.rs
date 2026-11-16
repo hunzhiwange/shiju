@@ -87,3 +87,6 @@ mod host_migration_19_tests;
 
 #[cfg(test)]
 mod host_migration_22_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_23_tests;

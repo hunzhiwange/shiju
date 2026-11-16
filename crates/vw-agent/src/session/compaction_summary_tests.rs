@@ -293,14 +293,6 @@ async fn compaction_failed_attempt_leaves_previous_checkpoint_restorable() {
 }
 
 #[test]
-fn compaction_budget_reserves_output_and_accepts_unset_input_limit() {
-    assert_eq!(request_input::input_budget(&model_limit(1000, 1000, 200)), 760);
-    assert_eq!(request_input::input_budget(&model_limit(1000, 500, 200)), 475);
-    assert_eq!(request_input::input_budget(&model_limit(1000, 0, 200)), 760);
-    assert_eq!(request_input::input_budget(&model_limit(1000, 1000, 2000)), 712);
-}
-
-#[test]
 fn compaction_equal_context_and_output_uses_bounded_request_allocation() {
     let _guard = processor::test_llm_stream_guard();
     processor::enqueue_test_llm_stream(response("checkpoint"));
@@ -378,25 +370,5 @@ fn compaction_empty_output_is_normalized_without_replaying_partial_streams() {
             assert_eq!(structured["is_retryable"], false);
         }
         assert_eq!(processor::take_test_llm_messages("empty-summary").len(), 1);
-    }
-}
-
-#[test]
-fn compaction_empty_error_translation_preserves_metadata_and_other_failures() {
-    let original = json!({"name":"APIError", "message":"模型未返回内容", "status_code":400,
-        "is_retryable":false, "response_body":"original body", "metadata":{"replay_safe":"false", "source":"aisdk"}});
-    let mut expected = original.clone();
-    expected["message"] = json!("internal compaction generated an empty summary");
-    let mapped: Value = serde_json::from_str(&summary_error(original.to_string())).unwrap();
-    for key in ["message", "status_code", "is_retryable", "response_body", "metadata"] {
-        assert_eq!(mapped[key], expected[key]);
-    }
-    for error in [
-        "执行已取消".to_string(),
-        "HTTP 401: 模型未返回内容".to_string(),
-        json!({"name":"APIError","message":"upstream failed: 模型未返回内容","is_retryable":false})
-            .to_string(),
-    ] {
-        assert_eq!(summary_error(error.clone()), error);
     }
 }

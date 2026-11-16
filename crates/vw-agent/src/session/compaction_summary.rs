@@ -11,7 +11,7 @@ use tokio_util::sync::CancellationToken;
 
 // Request fitting is owned by session-engine.
 #[cfg(test)]
-use session_engine::compaction_summary::{request_input, MAX_OVERFLOW_RECOVERIES, summary_error};
+use session_engine::compaction_summary::{request_input, MAX_OVERFLOW_RECOVERIES};
 
 struct SummaryHost;
 impl session_engine::compaction_summary::SummaryHost for SummaryHost {

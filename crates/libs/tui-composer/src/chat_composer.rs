@@ -26,6 +26,8 @@ use tui_contracts::event::V3Attachment;
 use tui_input::textarea::{TextArea, TextAreaState};
 use tui_render::renderable::Renderable;
 
+const LARGE_PASTE_CHAR_THRESHOLD: usize = 1000;
+
 const PROMPT_PREFIX: &str = "› ";
 
 /// 一个没有请求发送器或运行时依赖的本地输入编辑器。
@@ -73,8 +75,14 @@ impl ChatComposer {
         self.placeholder = placeholder.into();
     }
 
+    /// Visible editor text, including folded paste labels.
     pub fn text(&self) -> &str {
         self.textarea.text()
+    }
+
+    /// Original draft for external editors and other consumers of user content.
+    pub fn expanded_text(&self) -> String {
+        self.textarea.expanded_text()
     }
 
     pub fn replace_text(&mut self, text: &str) {
@@ -175,7 +183,15 @@ impl ChatComposer {
 
     fn insert_pasted_text(&mut self, pasted: &str) {
         if !pasted.is_empty() {
-            self.textarea.insert_str(pasted);
+            let chars = pasted.chars().count();
+            if chars > LARGE_PASTE_CHAR_THRESHOLD {
+                self.textarea.insert_element_with_payload(
+                    &format!("[Pasted text: {chars} chars]"),
+                    pasted,
+                );
+            } else {
+                self.textarea.insert_str(pasted);
+            }
             self.footer.set_mode(FooterMode::ComposerHasDraft);
         }
     }
@@ -210,8 +226,8 @@ impl ChatComposer {
         if self.textarea.is_empty() && self.attachments.is_empty() {
             return V3Action::None;
         }
-        let text = self.textarea.text().trim().to_string();
-        if text.is_empty() && self.attachments.is_empty() {
+        let text = self.textarea.expanded_text();
+        if text.trim().is_empty() && self.attachments.is_empty() {
             return V3Action::None;
         }
         self.history.record_local_submission(HistoryEntry::new(text.clone()));
@@ -226,7 +242,7 @@ impl ChatComposer {
     }
 
     fn restore_history_previous(&mut self) -> bool {
-        let Some(entry) = self.history.navigate_up(self.textarea.text()) else {
+        let Some(entry) = self.history.navigate_up(&self.textarea.expanded_text()) else {
             return false;
         };
         self.textarea.set_text_clearing_elements(&entry.text);
@@ -483,3 +499,7 @@ mod tests;
 #[cfg(test)]
 #[path = "terminal_req_01_tests.rs"]
 mod terminal_req_01_tests;
+
+#[cfg(test)]
+#[path = "terminal_req_04_tests.rs"]
+mod terminal_req_04_tests;

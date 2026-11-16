@@ -100,6 +100,7 @@ fn text_for_display(text: &str) -> Cow<'_, str> {
 
 #[derive(Debug, Clone)]
 struct TextElement {
+    payload: Option<String>,
     id: u64,
     range: Range<usize>,
 }
@@ -237,7 +238,7 @@ impl TextArea {
                     continue;
                 }
                 let id = self.next_element_id();
-                self.elements.push(TextElement { id, range: start..end });
+                self.elements.push(TextElement { id, range: start..end, payload: None });
             }
             self.elements.sort_by_key(|e| e.range.start);
         }
@@ -1172,7 +1173,7 @@ impl TextArea {
             return;
         }
 
-        let removed = self.text[range.clone()].to_string();
+        let removed = self.expanded_range(range.clone());
         if removed.is_empty() {
             return;
         }
@@ -1194,7 +1195,7 @@ impl TextArea {
         if range.start >= range.end {
             return;
         }
-        let removed = self.text[range].to_string();
+        let removed = self.expanded_range(range);
         if removed.is_empty() {
             return;
         }
@@ -1441,6 +1442,37 @@ impl TextArea {
     // 文本元素支持
     // ===== Text elements support =====
 
+    /// Insert a display-only atomic label whose original text is used on submission.
+    pub fn insert_element_with_payload(&mut self, label: &str, payload: &str) -> u64 {
+        let id = self.insert_element(label);
+        if let Some(element) = self.elements.iter_mut().find(|element| element.id == id) {
+            element.payload = Some(payload.to_owned());
+        }
+        id
+    }
+
+    /// Expand payloads in position order, preserving all surrounding whitespace.
+    pub fn expanded_text(&self) -> String {
+        self.expanded_range(0..self.text.len())
+    }
+
+    fn expanded_range(&self, range: Range<usize>) -> String {
+        let mut result = String::new();
+        let mut cursor = range.start;
+        for element in &self.elements {
+            if element.range.start < range.start || element.range.end > range.end {
+                continue;
+            }
+            if let Some(payload) = &element.payload {
+                result.push_str(&self.text[cursor..element.range.start]);
+                result.push_str(payload);
+                cursor = element.range.end;
+            }
+        }
+        result.push_str(&self.text[cursor..range.end]);
+        result
+    }
+
     pub fn element_payloads(&self) -> Vec<String> {
         self.elements
             .iter()
@@ -1585,7 +1617,7 @@ impl TextArea {
 
     fn add_element(&mut self, range: Range<usize>) -> u64 {
         let id = self.next_element_id();
-        self.elements.push(TextElement { id, range });
+        self.elements.push(TextElement { id, range, payload: None });
         self.elements.sort_by_key(|e| e.range.start);
         id
     }

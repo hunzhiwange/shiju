@@ -71,3 +71,6 @@ mod gateway_composition_tests;
 
 #[cfg(test)]
 mod workflow_req_02_tests;
+
+#[cfg(test)]
+mod terminal_req_02_tests;

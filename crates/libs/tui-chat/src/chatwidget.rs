@@ -208,6 +208,14 @@ impl ChatWidget {
         )));
     }
 
+    /// 当前选择层的归属标识；关闭或被其它覆盖层替换时返回 None。
+    pub fn selection_surface(&self) -> Option<&str> {
+        match self.overlay.as_ref() {
+            Some(ChatOverlay::Selection(overlay)) => Some(overlay.surface.as_str()),
+            _ => None,
+        }
+    }
+
     /// 替换底部面板斜杠命令面板使用的数据。
     /// Replaces the data used by the slash-command palette in the bottom pane.
     pub fn set_command_palette_items(&mut self, items: Vec<V3SelectionItem>) {
@@ -350,6 +358,22 @@ impl ChatWidget {
             return V3Action::None;
         }
         self.bottom_pane.handle_paste(text)
+    }
+
+    /// Pending composer input is suspended while an overlay owns input.
+    pub fn next_paste_flush_deadline(&self) -> Option<std::time::Instant> {
+        if self.overlay.is_some() {
+            return None;
+        }
+        self.bottom_pane.composer().next_paste_flush_deadline()
+    }
+
+    /// Flush local input only; idle refresh never produces a submission action.
+    pub fn flush_paste_burst_if_due(&mut self, now: std::time::Instant) -> bool {
+        if self.overlay.is_some() {
+            return false;
+        }
+        self.bottom_pane.composer_mut().flush_paste_burst_if_due(now)
     }
 
     /// 返回本地排队的后续消息数量。

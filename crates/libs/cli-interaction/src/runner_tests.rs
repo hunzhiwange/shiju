@@ -64,6 +64,7 @@ fn ready_key_burst_is_applied_before_next_frame() {
         .expect("apply ready terminal events");
 
     assert_eq!(outcome.processed, TERMINAL_EVENT_BUDGET);
+    app.widget_mut().flush_paste_burst_if_due(Instant::now() + Duration::from_secs(1));
     assert_eq!(app.widget().draft(), "a".repeat(TERMINAL_EVENT_BUDGET));
 }
 

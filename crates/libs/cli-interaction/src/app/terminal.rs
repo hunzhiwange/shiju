@@ -1,5 +1,7 @@
 //! 终端事件循环与绘制。
 
+use std::time::Instant;
+
 use super::{
     ActiveRunner,
     CrosstermBackend,
@@ -111,6 +113,13 @@ pub(super) fn run_event_loop(mut app: V3GatewayApp) -> io::Result<()> {
 
         let wait =
             if background_work_remaining { Duration::ZERO } else { Duration::from_millis(50) };
+        let wait = if runner.has_transcript_pager() {
+            wait
+        } else {
+            app.widget().next_paste_flush_deadline().map_or(wait, |deadline| {
+                wait.min(deadline.saturating_duration_since(Instant::now()))
+            })
+        };
         if event::poll(wait)? {
             let first_event = event::read()?;
             let outcome = apply_ready_terminal_events(&mut app, &mut runner, first_event, || {
@@ -122,6 +131,9 @@ pub(super) fn run_event_loop(mut app: V3GatewayApp) -> io::Result<()> {
             }
         }
 
+        if !runner.has_transcript_pager() && !runner.editor_in_flight() {
+            app.widget_mut().flush_paste_burst_if_due(Instant::now());
+        }
         let width = crossterm::terminal::size()?.0;
         runner.refresh_pager(&app, width);
         draw(&app, runner.transcript_pager.as_mut(), &mut terminal)?;

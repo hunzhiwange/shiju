@@ -299,6 +299,19 @@ impl PasteBurst {
         self.last_plain_char_time = Some(now);
     }
 
+    /// Next instant at which buffered input can be flushed (the timeout is strict).
+    pub fn next_flush_deadline(&self) -> Option<Instant> {
+        if !self.is_active_internal() && self.pending_first_char.is_none() {
+            return None;
+        }
+        let timeout = if self.is_active_internal() {
+            PASTE_BURST_ACTIVE_IDLE_TIMEOUT
+        } else {
+            PASTE_BURST_CHAR_INTERVAL
+        };
+        self.last_plain_char_time.map(|at| at + timeout + Duration::from_millis(1))
+    }
+
     /// 若超时时间已过，则清除任何已缓冲的突发数据。
     /// Flushes any buffered burst if the inter-key timeout has elapsed.
     ///

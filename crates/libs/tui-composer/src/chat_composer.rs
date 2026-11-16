@@ -180,6 +180,11 @@ impl ChatComposer {
         }
     }
 
+    /// Deadline for the host event loop to wake without another keypress.
+    pub fn next_paste_flush_deadline(&self) -> Option<Instant> {
+        self.paste_burst.next_flush_deadline()
+    }
+
     /// Flush a pending key or paste without resetting the Enter protection window.
     pub fn flush_paste_burst_if_due(&mut self, now: Instant) -> bool {
         match self.paste_burst.flush_if_due(now) {

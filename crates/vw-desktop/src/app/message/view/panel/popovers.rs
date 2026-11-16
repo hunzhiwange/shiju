@@ -7,7 +7,7 @@ use iced::Task;
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     let message = match message {
         ViewMessage::SelectChatSendBehavior(behavior) => {
-            app.chat_send_behavior = behavior;
+            app.session_state.chat_send_behavior = behavior;
             app.popover_visibility = desktop_chat_input::popovers::close(app.popover_visibility, Popover::SendMode);
             let save_task = app.save_desktop_preferences(serde_json::Map::from_iter([
                 ("chat_send_behavior".to_owned(), serde_json::json!(behavior.as_str())),
@@ -57,7 +57,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         requesting: app.current_session_is_requesting(),
         models_empty: app.model_settings.providers.is_empty(),
         models_loading: app.model_settings.loading,
-        acp_agents_empty: app.acp_agents.is_empty(),
+        acp_agents_empty: app.session_state.acp_agents.is_empty(),
     };
     let effect = domain::update(
         domain::Context {

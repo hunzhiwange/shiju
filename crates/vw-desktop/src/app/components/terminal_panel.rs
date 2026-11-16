@@ -9,7 +9,7 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
         height: app.terminal.height,
         tab_context_menu_id: app.terminal.tab_context_menu_id,
         tab_context_menu_pos: app.terminal.tab_context_menu_pos,
-        desktop_locale: app.desktop_locale,
+        desktop_locale: app.general_settings.desktop_locale,
         focused: app.focus_area == crate::app::FocusArea::Terminal,
         #[cfg(not(target_arch = "wasm32"))]
         panes: &app.terminal.panes,

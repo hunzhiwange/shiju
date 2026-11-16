@@ -14,7 +14,7 @@ fn voice_task_17_end_and_cancel_retire_queued_screen_without_sending() {
         &mut app,
         ScreenEvent::Ready(ticket, Owner::Cloud(VoiceCounter::FIRST), Ok(vec![1])),
     );
-    assert!(app.files.is_empty());
+    assert!(app.session_state.files.is_empty());
     assert!(app.voice.conversation.is_none());
     assert!(!app.current_session_runtime_ref().is_some_and(|runtime| runtime.request_lifecycle.is_requesting));
 }

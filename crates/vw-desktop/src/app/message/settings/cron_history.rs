@@ -12,7 +12,7 @@ fn task(app: &mut App, event: Option<CronHistoryMessage>) -> Task<Message> {
  let delivery = crate::app::components::system_settings_cron::availability(app);
  let config = crate::app::config::agent_config_access();
  let mut notices = Vec::new();
- let mut inputs = cron::Inputs { cron_settings: &mut app.cron_settings, desktop_locale: app.desktop_locale, delivery, client: crate::app::config::gateway_client(), config: &config, notices: &mut notices };
+ let mut inputs = cron::Inputs { cron_settings: &mut app.cron_settings, desktop_locale: app.general_settings.desktop_locale, delivery, client: crate::app::config::gateway_client(), config: &config, notices: &mut notices };
  let task = match event { Some(event) => history::update(&mut inputs, event), None => history::refresh(&mut inputs) }.map(mapping::message);
  let mut tasks = vec![task];
  for notice in notices { tasks.push(match notice { cron::Notice::Error(text) => app.show_error_toast(text), cron::Notice::Success(text) => app.show_success_toast(text) }); }

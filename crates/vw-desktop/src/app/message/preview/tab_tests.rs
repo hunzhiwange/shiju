@@ -249,8 +249,8 @@ fn open_loaded_updates_existing_tab_but_ignores_missing_path() {
 fn open_loaded_matching_pending_target_clears_navigation_and_schedules_goto() {
     let mut app = app();
     app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/a.txt", "old"));
-    app.pending_preview_goto = Some(("/tmp/a.txt".to_string(), 4, 7));
-    app.preview_trace_navigating = true;
+    app.preview_state.pending_preview_goto = Some(("/tmp/a.txt".to_string(), 4, 7));
+    app.preview_state.preview_trace_navigating = true;
 
     let task = update(
         &mut app,
@@ -261,8 +261,8 @@ fn open_loaded_matching_pending_target_clears_navigation_and_schedules_goto() {
         },
     );
 
-    assert!(app.pending_preview_goto.is_none());
-    assert!(!app.preview_trace_navigating);
+    assert!(app.preview_state.pending_preview_goto.is_none());
+    assert!(!app.preview_state.preview_trace_navigating);
     assert!(has_scheduled_action(task));
 }
 
@@ -286,19 +286,19 @@ async fn save_file_emits_save_for_active_path_and_none_without_active_path() {
 fn save_file_path_rejects_missing_or_clean_tab_without_io() {
     let mut app = app();
     app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
-    app.show_preview_context_menu = true;
+    app.preview_state.show_preview_context_menu = true;
 
     assert!(!has_scheduled_action(update(
         &mut app,
         PreviewMessage::SaveFilePath { path: "/tmp/missing.txt".to_string(), notify: false },
     )));
-    assert!(app.show_preview_context_menu);
+    assert!(app.preview_state.show_preview_context_menu);
 
     assert!(!has_scheduled_action(update(
         &mut app,
         PreviewMessage::SaveFilePath { path: "/tmp/a.txt".to_string(), notify: false },
     )));
-    assert!(!app.show_preview_context_menu);
+    assert!(!app.preview_state.show_preview_context_menu);
 }
 
 #[test]
@@ -307,14 +307,14 @@ fn save_file_path_dirty_tab_schedules_persist_and_closes_context_menu() {
     let mut tab = preview_tab("/tmp/a.txt", "old");
     tab.is_dirty = true;
     app.navigation_tabs.preview_tabs.push(tab);
-    app.show_preview_context_menu = true;
+    app.preview_state.show_preview_context_menu = true;
 
     let task = update(
         &mut app,
         PreviewMessage::SaveFilePath { path: "/tmp/a.txt".to_string(), notify: true },
     );
 
-    assert!(!app.show_preview_context_menu);
+    assert!(!app.preview_state.show_preview_context_menu);
     assert!(has_scheduled_action(task));
 }
 
@@ -339,7 +339,7 @@ fn save_file_finished_success_updates_matching_tab() {
     assert_eq!(app.navigation_tabs.preview_tabs[0].content, "saved");
     assert!(!app.navigation_tabs.preview_tabs[0].is_dirty);
     assert!(!app.navigation_tabs.preview_tabs[0].editor.inner.is_modified());
-    assert!(app.active_toast.is_none());
+    assert!(app.toast_state.active_toast.is_none());
     assert!(!has_scheduled_action(task));
 }
 
@@ -380,7 +380,7 @@ fn save_file_finished_reports_success_and_failure_toasts() {
             result: Ok(()),
         },
     );
-    let success = app.active_toast.as_ref().expect("success should show a toast");
+    let success = app.toast_state.active_toast.as_ref().expect("success should show a toast");
     assert_eq!(success.kind, ToastKind::Success);
     assert_eq!(success.message, "已保存");
 
@@ -393,7 +393,7 @@ fn save_file_finished_reports_success_and_failure_toasts() {
             result: Err("gateway unavailable".to_string()),
         },
     );
-    let failure = app.active_toast.as_ref().expect("failure should show a toast");
+    let failure = app.toast_state.active_toast.as_ref().expect("failure should show a toast");
     assert_eq!(failure.kind, ToastKind::Error);
     assert_eq!(failure.message, "保存失败: gateway unavailable");
 }
@@ -405,7 +405,7 @@ async fn auto_save_delay_emits_save_only_for_matching_dirty_revision() {
     tab.is_dirty = true;
     tab.auto_save_revision = 4;
     app.navigation_tabs.preview_tabs.push(tab);
-    app.preview_auto_save_mode = PreviewAutoSaveMode::AfterDelay;
+    app.preview_state.preview_auto_save_mode = PreviewAutoSaveMode::AfterDelay;
 
     let messages = collect_task_messages(update(
         &mut app,
@@ -428,7 +428,7 @@ async fn auto_save_delay_emits_save_only_for_matching_dirty_revision() {
         &mut app,
         PreviewMessage::AutoSaveDelayElapsed { path: "/tmp/a.txt".to_string(), revision: 4 },
     )));
-    app.preview_auto_save_mode = PreviewAutoSaveMode::Off;
+    app.preview_state.preview_auto_save_mode = PreviewAutoSaveMode::Off;
     assert!(!has_scheduled_action(update(
         &mut app,
         PreviewMessage::AutoSaveDelayElapsed { path: "/tmp/a.txt".to_string(), revision: 4 },
@@ -438,7 +438,7 @@ async fn auto_save_delay_emits_save_only_for_matching_dirty_revision() {
 #[test]
 fn auto_save_delay_rejects_missing_target_without_scheduling_io() {
     let mut app = app();
-    app.preview_auto_save_mode = PreviewAutoSaveMode::AfterDelay;
+    app.preview_state.preview_auto_save_mode = PreviewAutoSaveMode::AfterDelay;
 
     let task = update(
         &mut app,
@@ -451,12 +451,12 @@ fn auto_save_delay_rejects_missing_target_without_scheduling_io() {
 #[test]
 fn auto_save_mode_changed_updates_state_and_returns_save_task() {
     let mut app = app();
-    app.preview_auto_save_mode = PreviewAutoSaveMode::Off;
+    app.preview_state.preview_auto_save_mode = PreviewAutoSaveMode::Off;
 
     let task =
         update(&mut app, PreviewMessage::AutoSaveModeChanged(PreviewAutoSaveMode::OnFocusChange));
 
-    assert_eq!(app.preview_auto_save_mode, PreviewAutoSaveMode::OnFocusChange);
+    assert_eq!(app.preview_state.preview_auto_save_mode, PreviewAutoSaveMode::OnFocusChange);
     assert!(has_scheduled_action(task));
 }
 
@@ -467,7 +467,7 @@ async fn window_unfocused_saves_only_active_dirty_tab_in_supported_mode() {
     tab.is_dirty = true;
     app.navigation_tabs.preview_tabs.push(tab);
     app.navigation_tabs.active_preview_path = Some("/tmp/a.txt".to_string());
-    app.preview_auto_save_mode = PreviewAutoSaveMode::OnWindowChange;
+    app.preview_state.preview_auto_save_mode = PreviewAutoSaveMode::OnWindowChange;
 
     let messages = collect_task_messages(update(&mut app, PreviewMessage::WindowUnfocused)).await;
     assert!(matches!(
@@ -476,9 +476,9 @@ async fn window_unfocused_saves_only_active_dirty_tab_in_supported_mode() {
             if path == "/tmp/a.txt"
     ));
 
-    app.preview_auto_save_mode = PreviewAutoSaveMode::AfterDelay;
+    app.preview_state.preview_auto_save_mode = PreviewAutoSaveMode::AfterDelay;
     assert!(!has_scheduled_action(update(&mut app, PreviewMessage::WindowUnfocused)));
-    app.preview_auto_save_mode = PreviewAutoSaveMode::OnFocusChange;
+    app.preview_state.preview_auto_save_mode = PreviewAutoSaveMode::OnFocusChange;
     app.navigation_tabs.preview_tabs[0].is_dirty = false;
     assert!(!has_scheduled_action(update(&mut app, PreviewMessage::WindowUnfocused)));
     app.navigation_tabs.active_preview_path = None;
@@ -494,7 +494,7 @@ fn path_segment_clicked_lists_directories_first_and_hides_dot_entries() {
     std::fs::write(temp.path().join(".hidden"), "hidden")
         .expect("hidden fixture should be created");
     let mut app = app();
-    app.show_preview_context_menu = true;
+    app.preview_state.show_preview_context_menu = true;
     app.navigation_tabs.preview_tab_menu_path = Some("old".to_string());
 
     let _ = update(
@@ -505,14 +505,14 @@ fn path_segment_clicked_lists_directories_first_and_hides_dot_entries() {
         ),
     );
 
-    let (root, x, y, items) = app.preview_nav_popup.as_ref().expect("popup should be opened");
+    let (root, x, y, items) = app.preview_state.preview_nav_popup.as_ref().expect("popup should be opened");
     assert_eq!(root, &temp.path().to_string_lossy().to_string());
     assert_eq!((*x, *y), (12.0, 34.0));
     assert_eq!(
         items.as_slice(),
         &[("z_dir".to_string(), true), ("a.txt".to_string(), false), ("B.txt".to_string(), false),]
     );
-    assert!(!app.show_preview_context_menu);
+    assert!(!app.preview_state.show_preview_context_menu);
     assert!(app.navigation_tabs.preview_tab_menu_path.is_none());
 }
 
@@ -529,7 +529,7 @@ fn path_segment_clicked_for_file_lists_parent_at_cursor_position() {
         PreviewMessage::PathSegmentClicked(file.to_string_lossy().to_string(), None),
     );
 
-    let (root, x, y, items) = app.preview_nav_popup.as_ref().expect("popup should be opened");
+    let (root, x, y, items) = app.preview_state.preview_nav_popup.as_ref().expect("popup should be opened");
     assert_eq!(root, &temp.path().to_string_lossy().to_string());
     assert_eq!((*x, *y), (21.0, 43.0));
     assert_eq!(items, &vec![("a.txt".to_string(), false)]);
@@ -538,36 +538,36 @@ fn path_segment_clicked_for_file_lists_parent_at_cursor_position() {
 #[test]
 fn invalid_path_segment_dismisses_existing_popup_without_opening_another() {
     let mut app = app();
-    app.preview_nav_popup = Some(("old".to_string(), 1.0, 2.0, Vec::new()));
+    app.preview_state.preview_nav_popup = Some(("old".to_string(), 1.0, 2.0, Vec::new()));
 
     let _ = update(
         &mut app,
         PreviewMessage::PathSegmentClicked("/definitely/missing/vw-preview-path".to_string(), None),
     );
 
-    assert!(app.preview_nav_popup.is_none());
+    assert!(app.preview_state.preview_nav_popup.is_none());
 }
 
 #[test]
 fn close_nav_popup_clears_popup() {
     let mut app = app();
-    app.preview_nav_popup = Some(("/tmp".to_string(), 1.0, 2.0, Vec::new()));
+    app.preview_state.preview_nav_popup = Some(("/tmp".to_string(), 1.0, 2.0, Vec::new()));
 
     let _ = update(&mut app, PreviewMessage::CloseNavPopup);
 
-    assert!(app.preview_nav_popup.is_none());
+    assert!(app.preview_state.preview_nav_popup.is_none());
 }
 
 #[test]
 fn tab_right_click_replaces_other_preview_popups() {
     let mut app = app();
-    app.show_preview_context_menu = true;
-    app.preview_nav_popup = Some(("/tmp".to_string(), 1.0, 2.0, Vec::new()));
+    app.preview_state.show_preview_context_menu = true;
+    app.preview_state.preview_nav_popup = Some(("/tmp".to_string(), 1.0, 2.0, Vec::new()));
 
     let _ = update(&mut app, PreviewMessage::TabRightClicked("/tmp/a.txt".to_string(), 10.0, 20.0));
 
-    assert!(!app.show_preview_context_menu);
-    assert!(app.preview_nav_popup.is_none());
+    assert!(!app.preview_state.show_preview_context_menu);
+    assert!(app.preview_state.preview_nav_popup.is_none());
     assert_eq!(app.navigation_tabs.preview_tab_menu_path.as_deref(), Some("/tmp/a.txt"));
     assert_eq!(app.navigation_tabs.preview_tab_menu_pos, Some(iced::Point::new(10.0, 20.0)));
 }

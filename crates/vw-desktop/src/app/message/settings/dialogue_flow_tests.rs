@@ -40,21 +40,21 @@ fn action_messages_schedule_follow_up_work() {
 #[test]
 fn unrelated_message_leaves_dialogue_flow_state_unchanged_and_stays_idle() {
     let mut app = app();
-    app.dialogue_flow_show_reasoning_summary = false;
-    app.dialogue_flow_expand_shell_tool_section = true;
-    app.dialogue_flow_expand_edit_tool_section = true;
-    app.dialogue_flow_settings_save_message = Some("keep".to_string());
-    app.dialogue_flow_permission_editor =
+    app.general_settings.dialogue_flow_show_reasoning_summary = false;
+    app.general_settings.dialogue_flow_expand_shell_tool_section = true;
+    app.general_settings.dialogue_flow_expand_edit_tool_section = true;
+    app.general_settings.dialogue_flow_settings_save_message = Some("keep".to_string());
+    app.general_settings.dialogue_flow_permission_editor =
         iced::widget::text_editor::Content::with_text("keep permission");
 
     let task = update(&mut app, SettingsMessage::ToggleSettingsSidebar);
 
     assert!(!has_scheduled_action(task));
-    assert!(!app.dialogue_flow_show_reasoning_summary);
-    assert!(app.dialogue_flow_expand_shell_tool_section);
-    assert!(app.dialogue_flow_expand_edit_tool_section);
-    assert_eq!(app.dialogue_flow_settings_save_message.as_deref(), Some("keep"));
-    assert_eq!(app.dialogue_flow_permission_editor.text(), "keep permission");
+    assert!(!app.general_settings.dialogue_flow_show_reasoning_summary);
+    assert!(app.general_settings.dialogue_flow_expand_shell_tool_section);
+    assert!(app.general_settings.dialogue_flow_expand_edit_tool_section);
+    assert_eq!(app.general_settings.dialogue_flow_settings_save_message.as_deref(), Some("keep"));
+    assert_eq!(app.general_settings.dialogue_flow_permission_editor.text(), "keep permission");
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -66,9 +66,9 @@ fn dialogue_flow_patch_failure_reaches_localized_feedback_and_queued_edits_save(
     use serde_json::json;
 
     with_editor_settings_gateway(|mut app, requests, responses| {
-        app.dialogue_flow_show_reasoning_summary = true;
-        app.dialogue_flow_expand_shell_tool_section = false;
-        app.dialogue_flow_expand_edit_tool_section = true;
+        app.general_settings.dialogue_flow_show_reasoning_summary = true;
+        app.general_settings.dialogue_flow_expand_shell_tool_section = false;
+        app.general_settings.dialogue_flow_expand_edit_tool_section = true;
         let stale_read = loaded(Ok((true, false, false)));
         let save = app.update(Message::Settings(SettingsMessage::DialogueFlowUiSettingsSave));
         assert!(requests.try_recv().is_err());
@@ -105,15 +105,15 @@ fn dialogue_flow_patch_failure_reaches_localized_feedback_and_queued_edits_save(
                     0
                 );
                 let _ = app.update(Message::Settings(stale_read));
-                assert!(!app.dialogue_flow_show_reasoning_summary);
-                assert!(!app.dialogue_flow_expand_shell_tool_section);
-                assert!(app.dialogue_flow_expand_edit_tool_section);
+                assert!(!app.general_settings.dialogue_flow_show_reasoning_summary);
+                assert!(!app.general_settings.dialogue_flow_expand_shell_tool_section);
+                assert!(app.general_settings.dialogue_flow_expand_edit_tool_section);
             },
         );
         assert!(matches!(&failed, Message::SystemSettingsSaved(_, _, Err(_))));
         let pending = app.update(failed);
         assert!(
-            app.dialogue_flow_settings_translation
+            app.general_settings.dialogue_flow_settings_translation
                 .as_ref()
                 .unwrap()
                 .render(I18n::new(DesktopLocale::English))
@@ -134,6 +134,6 @@ fn dialogue_flow_patch_failure_reaches_localized_feedback_and_queued_edits_save(
         );
         assert!(matches!(&saved, Message::SystemSettingsSaved(_, _, Ok(()))));
         assert_eq!(app.update(saved).units(), 0);
-        assert_eq!(app.dialogue_flow_settings_save_message.as_deref(), Some("已保存对话流配置"));
+        assert_eq!(app.general_settings.dialogue_flow_settings_save_message.as_deref(), Some("已保存对话流配置"));
     });
 }

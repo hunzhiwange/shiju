@@ -149,10 +149,10 @@ fn snapshot_includes_open_window_tabs_for_project_switch() {
 #[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_17_native_snapshot_tracks_language_changes() {
     let mut app = test_app(Screen::Project);
-    app.desktop_locale = config_ui::DesktopLocale::English;
+    app.general_settings.desktop_locale = config_ui::DesktopLocale::English;
     let english = NativeMenuSnapshot::from_app(&app);
-    app.desktop_locale = config_ui::DesktopLocale::TraditionalChinese;
+    app.general_settings.desktop_locale = config_ui::DesktopLocale::TraditionalChinese;
     let traditional = NativeMenuSnapshot::from_app(&app);
     assert_ne!(english, traditional);
-    assert_eq!(traditional.locale, app.desktop_locale);
+    assert_eq!(traditional.locale, app.general_settings.desktop_locale);
 }

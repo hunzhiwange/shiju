@@ -129,7 +129,7 @@ fn match_selected_prepares_zero_based_editor_target_and_opens_file() {
         },
     );
 
-    assert_eq!(app.pending_preview_goto, Some(("/tmp/project/src/main.rs".to_string(), 7, 3)));
+    assert_eq!(app.preview_state.pending_preview_goto, Some(("/tmp/project/src/main.rs".to_string(), 7, 3)));
     assert!(task.is_some_and(|task| task.units() > 0));
 }
 
@@ -146,7 +146,7 @@ fn match_selected_clamps_invalid_one_based_position_to_editor_origin() {
         },
     );
 
-    assert_eq!(app.pending_preview_goto, Some(("/tmp/project/src/main.rs".to_string(), 0, 0)));
+    assert_eq!(app.preview_state.pending_preview_goto, Some(("/tmp/project/src/main.rs".to_string(), 0, 0)));
 }
 
 // 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。

@@ -49,15 +49,15 @@ fn selected_context_preserves_multi_selection_and_single_actions_use_first_visib
 #[test]
 fn batch_delete_confirmation_captures_all_paths_and_cancel_preserves_files() {
     let mut app = selected_app();
-    let files = app.files.clone();
+    let files = app.session_state.files.clone();
     action(&mut app, FileTreeAction::Delete);
     let (root, paths) = app.file_tree_interaction.file_tree_pending_delete.as_ref().unwrap();
     assert_eq!(root, "/project");
     assert_eq!(paths, &["/project/a.txt", "/project/z.txt"]);
-    assert_eq!(app.files, files);
+    assert_eq!(app.session_state.files, files);
     let _ = super::super::handle(&mut app, ProjectMessage::FileTreeDeleteCanceled);
     assert!(app.file_tree_interaction.file_tree_pending_delete.is_none());
-    assert_eq!(app.files, files);
+    assert_eq!(app.session_state.files, files);
 }
 
 #[test]
@@ -184,7 +184,7 @@ async fn batch_delete_http_attempts_every_root_once_and_reports_partial_failure(
     let mut app = App::new().0;
     app.navigation_tabs.project_path = Some(root.clone());
     let paths = ["src", "src/a.txt", "b.txt", "c.txt"].map(|path| format!("{root}/{path}"));
-    app.files = paths[1..].to_vec();
+    app.session_state.files = paths[1..].to_vec();
     app.file_tree_interaction.file_tree_pending_delete = Some((root.clone(), paths.to_vec()));
     let task = super::super::handle(&mut app, ProjectMessage::FileTreeDeleteConfirmed).unwrap();
     let mut outputs = Vec::new();

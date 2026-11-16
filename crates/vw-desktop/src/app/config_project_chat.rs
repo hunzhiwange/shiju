@@ -10,7 +10,7 @@ impl App {
     fn chat_model_defaults(&mut self, endpoint: &GatewayEndpoint) -> &mut ChatModelPreferences {
         self.desktop_preferences_persistence
             .project_chat
-            .defaults(endpoint, (self.model.clone(), self.auto_model, self.acp_agent.clone()))
+            .defaults(endpoint, (self.session_state.model.clone(), self.session_state.auto_model, self.session_state.acp_agent.clone()))
     }
 
     pub(crate) fn invalidate_project_chat_preferences_read(&mut self) {
@@ -25,7 +25,7 @@ impl App {
             gateway_client_endpoint(),
             self.navigation_tabs.project_path.clone(),
             project_changed,
-            (self.model.clone(), self.auto_model, self.acp_agent.clone()),
+            (self.session_state.model.clone(), self.session_state.auto_model, self.session_state.acp_agent.clone()),
         );
         for (model, auto_model, acp_agent) in read.selections {
             self.apply_project_chat_preferences(model, auto_model, acp_agent);
@@ -62,19 +62,19 @@ impl App {
             .save_chat_model_preferences(
                 gateway_client_endpoint(),
                 self.navigation_tabs.project_path.clone(),
-                (self.model.clone(), self.auto_model, self.acp_agent.clone()),
-                (model, auto_model, self.acp_agent.clone()),
+                (self.session_state.model.clone(), self.session_state.auto_model, self.session_state.acp_agent.clone()),
+                (model, auto_model, self.session_state.acp_agent.clone()),
             )
             .map(super::desktop::preferences_message)
     }
 
     pub(crate) fn save_automatic_model_preference(&mut self) -> Task<Message> {
-        self.auto_model = true;
+        self.session_state.auto_model = true;
         self.get_session_runtime_mut("__empty__").auto_model = true;
         self.desktop_preferences_persistence
             .save_automatic_model_preference(
                 gateway_client_endpoint(),
-                (self.model.clone(), self.auto_model, self.acp_agent.clone()),
+                (self.session_state.model.clone(), self.session_state.auto_model, self.session_state.acp_agent.clone()),
             )
             .map(super::desktop::preferences_message)
     }

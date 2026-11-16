@@ -86,8 +86,8 @@ fn fixture() -> (App, tempfile::TempDir, DelegateAgentSettingsEntry) {
     app.agents_settings.active_config_tab = AgentConfigTab::Agents;
     app.agents_settings.loading = false;
     app.agents_settings.selected_agent = KEY.into();
-    app.acp_agents = (0..30).map(|index| format!("fixture-engine-{index:02}")).collect();
-    app.acp_agents.push(BACKEND.into());
+    app.session_state.acp_agents = (0..30).map(|index| format!("fixture-engine-{index:02}")).collect();
+    app.session_state.acp_agents.push(BACKEND.into());
 
     let mut draft = DelegateAgentSettingsEntry::from_config(KEY, None);
     draft.enabled = true;
@@ -251,7 +251,7 @@ async fn ui_refresh_15_host_tabs_and_errors() {
 
     for (theme, theme_name) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
         for (locale, locale_name) in LOCALES {
-            app.desktop_locale = locale;
+            app.general_settings.desktop_locale = locale;
             for width in [640, 960] {
                 let mut page = Scene::new(super::view(&app), &mut renderer, width, 840);
                 let geometry = page.geometry(&renderer);
@@ -307,7 +307,7 @@ async fn agent_profile_modal_preserves_catalog_scroll() {
 
     let mut renderer = renderer().await;
     let (mut app, _root, draft) = fixture();
-    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    app.general_settings.desktop_locale = DesktopLocale::SimplifiedChinese;
     app.navigation_panels.show_system_settings = true;
     app.navigation_panels.system_settings_tab = SystemTab::Agents;
     app.agents_settings.entries = (0..16)

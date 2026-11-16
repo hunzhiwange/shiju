@@ -51,35 +51,35 @@ fn test_module_is_wired() {
 #[test]
 fn app_theme_selected_updates_theme_when_editor_is_independent() {
     let mut app = test_app();
-    app.app_theme = Theme::Light;
-    app.editor_theme = Theme::Light;
-    app.editor_follow_system_theme = false;
+    app.appearance.app_theme = Theme::Light;
+    app.appearance.editor_theme = Theme::Light;
+    app.appearance.editor_follow_system_theme = false;
 
     let _ = update(&mut app, ViewMessage::AppThemeSelected(Theme::Dark));
 
-    assert_eq!(app.app_theme.to_string(), Theme::Dark.to_string());
-    assert_eq!(app.editor_theme.to_string(), Theme::Light.to_string());
+    assert_eq!(app.appearance.app_theme.to_string(), Theme::Dark.to_string());
+    assert_eq!(app.appearance.editor_theme.to_string(), Theme::Light.to_string());
     assert_eq!(app.effective_editor_theme().to_string(), Theme::Light.to_string());
 }
 
 #[test]
 fn app_theme_selected_changes_effective_editor_theme_when_following_system() {
     let mut app = test_app();
-    app.app_theme = Theme::Light;
-    app.editor_theme = Theme::Light;
-    app.editor_follow_system_theme = true;
+    app.appearance.app_theme = Theme::Light;
+    app.appearance.editor_theme = Theme::Light;
+    app.appearance.editor_follow_system_theme = true;
 
     let _ = update(&mut app, ViewMessage::AppThemeSelected(Theme::Dark));
 
-    assert_eq!(app.app_theme.to_string(), Theme::Dark.to_string());
+    assert_eq!(app.appearance.app_theme.to_string(), Theme::Dark.to_string());
     assert_eq!(app.effective_editor_theme().to_string(), Theme::Dark.to_string());
 }
 
 #[test]
 fn app_theme_selected_with_preview_tabs_preserves_editor_data() {
     let mut app = test_app();
-    app.app_theme = Theme::Light;
-    app.editor_follow_system_theme = true;
+    app.appearance.app_theme = Theme::Light;
+    app.appearance.editor_follow_system_theme = true;
     app.navigation_tabs.preview_tabs = vec![
         preview_tab("/tmp/first.txt", "first content"),
         preview_tab("/tmp/second.txt", "second content"),
@@ -87,7 +87,7 @@ fn app_theme_selected_with_preview_tabs_preserves_editor_data() {
 
     let _ = update(&mut app, ViewMessage::AppThemeSelected(Theme::Dark));
 
-    assert_eq!(app.app_theme.to_string(), Theme::Dark.to_string());
+    assert_eq!(app.appearance.app_theme.to_string(), Theme::Dark.to_string());
     assert_eq!(app.navigation_tabs.preview_tabs[0].path, "/tmp/first.txt");
     assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), "first content");
     assert_eq!(app.navigation_tabs.preview_tabs[1].path, "/tmp/second.txt");
@@ -97,15 +97,15 @@ fn app_theme_selected_with_preview_tabs_preserves_editor_data() {
 #[test]
 fn unrelated_view_message_leaves_theme_state_unchanged() {
     let mut app = test_app();
-    app.app_theme = Theme::Dark;
-    app.editor_theme = Theme::Light;
-    app.editor_follow_system_theme = false;
+    app.appearance.app_theme = Theme::Dark;
+    app.appearance.editor_theme = Theme::Light;
+    app.appearance.editor_follow_system_theme = false;
 
     let _ = update(&mut app, ViewMessage::ToggleSettingsPanel);
 
-    assert_eq!(app.app_theme.to_string(), Theme::Dark.to_string());
-    assert_eq!(app.editor_theme.to_string(), Theme::Light.to_string());
-    assert!(!app.editor_follow_system_theme);
+    assert_eq!(app.appearance.app_theme.to_string(), Theme::Dark.to_string());
+    assert_eq!(app.appearance.editor_theme.to_string(), Theme::Light.to_string());
+    assert!(!app.appearance.editor_follow_system_theme);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -136,14 +136,14 @@ fn app_theme_selected_persists_custom_prefix_for_custom_theme() {
     set_test_themes_root(Some(temp.path().to_path_buf()));
 
     with_editor_settings_gateway(|mut app, requests, responses| {
-        app.app_theme = Theme::Light;
-        app.active_custom_theme_id = None;
+        app.appearance.app_theme = Theme::Light;
+        app.appearance.active_custom_theme_id = None;
         let save = app.update(Message::View(ViewMessage::AppThemeSelected(theme.clone())));
 
-        assert!(matches!(app.app_theme, Theme::Custom(_)));
-        assert_eq!(app.app_theme.to_string(), "Mint Night");
-        assert_eq!(app.app_theme.palette(), theme.palette());
-        assert_eq!(app.active_custom_theme_id.as_deref(), Some("mint-night"));
+        assert!(matches!(app.appearance.app_theme, Theme::Custom(_)));
+        assert_eq!(app.appearance.app_theme.to_string(), "Mint Night");
+        assert_eq!(app.appearance.app_theme.palette(), theme.palette());
+        assert_eq!(app.appearance.active_custom_theme_id.as_deref(), Some("mint-night"));
 
         let saved = drive_system_settings_patch(
             save,
@@ -157,7 +157,7 @@ fn app_theme_selected_persists_custom_prefix_for_custom_theme() {
         assert_eq!(app.update(saved).units(), 0);
 
         let _ = app.update(Message::View(ViewMessage::AppThemeSelected(Theme::Dark)));
-        assert!(app.active_custom_theme_id.is_none());
+        assert!(app.appearance.active_custom_theme_id.is_none());
     });
 
     set_test_themes_root(None);
@@ -169,10 +169,10 @@ fn theme_selection_does_not_wait_for_system_settings_gateway() {
     with_editor_settings_gateway(|mut app, requests, responses| {
         let select =
             |app: &mut App, theme| app.update(Message::View(ViewMessage::AppThemeSelected(theme)));
-        app.app_theme = Theme::Light;
+        app.appearance.app_theme = Theme::Light;
         let task = select(&mut app, Theme::Dark);
 
-        assert_eq!(app.app_theme, Theme::Dark);
+        assert_eq!(app.appearance.app_theme, Theme::Dark);
         assert!(
             matches!(requests.try_recv(), Err(std::sync::mpsc::TryRecvError::Empty)),
             "theme selection contacted the Gateway before returning its Iced task"
@@ -187,7 +187,7 @@ fn theme_selection_does_not_wait_for_system_settings_gateway() {
             || {
                 assert_eq!(select(&mut app, Theme::Dracula).units(), 0);
                 assert_eq!(select(&mut app, Theme::Light).units(), 0);
-                assert_eq!(app.app_theme, Theme::Light);
+                assert_eq!(app.appearance.app_theme, Theme::Light);
             },
         );
         assert!(matches!(&saved, Message::SystemSettingsSaved(_, _, Ok(()))));
@@ -205,7 +205,7 @@ fn theme_selection_does_not_wait_for_system_settings_gateway() {
         assert!(matches!(&saved, Message::SystemSettingsSaved(_, _, Ok(()))));
         assert_eq!(app.update(saved).units(), 0);
         assert!(*idle.borrow());
-        assert_eq!(app.app_theme, Theme::Light);
+        assert_eq!(app.appearance.app_theme, Theme::Light);
         assert!(requests.try_recv().is_err());
     });
 }

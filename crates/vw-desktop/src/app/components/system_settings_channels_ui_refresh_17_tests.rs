@@ -237,7 +237,7 @@ async fn ui_refresh_17_gateway_client_edits_host_and_masked_key() {
         (960, Theme::Dark, DesktopLocale::TraditionalChinese),
         (420, Theme::Dark, DesktopLocale::English),
     ] {
-        app.desktop_locale = locale;
+        app.general_settings.desktop_locale = locale;
         let size = Size::new(width, 1100);
         let mut ui = scene(system_settings_gateway_client::view(&app), &mut renderer, size);
         let fields = geometry(&mut ui, &renderer);
@@ -299,7 +299,7 @@ async fn settings_tabs_capabilities_appearance_channels() {
         |scene, app| {
             app.channels_settings.active_tab = ChannelsSettingsTab::Global;
             app.channels_settings.save_error = Some("fixture channel error".into());
-            let locale = app.desktop_locale;
+            let locale = app.general_settings.desktop_locale;
             let webhook = scene.check_with_padding(
                 app,
                 view(app),

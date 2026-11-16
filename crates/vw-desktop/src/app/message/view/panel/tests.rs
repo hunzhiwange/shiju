@@ -55,7 +55,7 @@ fn app_message_routes_to_apps_update() {
 #[test]
 fn usage_message_routes_to_usage_update() {
     let mut app = test_app();
-    app.active_session_id = None;
+    app.session_state.active_session_id = None;
 
     let _task = update(&mut app, ViewMessage::UsageStepToggled(7));
 

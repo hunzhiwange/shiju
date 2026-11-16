@@ -188,11 +188,11 @@ pub(super) fn now_ms() -> u64 {
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn load_session_or_default(app: &App, id: String) -> models::ChatSession {
     use desktop_session::message::chat::stream::projection::{ActiveSnapshot, load_snapshot};
-    let active = (app.active_session_id.as_deref() == Some(id.as_str())).then(|| ActiveSnapshot {
-        messages: &app.chat,
-        message_ids: &app.chat_message_ids,
-        calls: &app.active_session_view_state.calls,
-        steps: &app.active_session_view_state.steps,
+    let active = (app.session_state.active_session_id.as_deref() == Some(id.as_str())).then(|| ActiveSnapshot {
+        messages: &app.chat_view.chat,
+        message_ids: &app.chat_view.chat_message_ids,
+        calls: &app.chat_view.active_session_view_state.calls,
+        steps: &app.chat_view.active_session_view_state.steps,
     });
     let cached = if active.is_none() {
         app.cached_chat_messages(&id)
@@ -200,7 +200,7 @@ pub(super) fn load_session_or_default(app: &App, id: String) -> models::ChatSess
     } else {
         None
     };
-    let info = app.sessions.iter().find(|session| session.id == id);
+    let info = app.session_state.sessions.iter().find(|session| session.id == id);
     let now = if info.is_none() { now_ms() } else { 0 };
     load_snapshot(id, info, active, cached, now)
 }
@@ -221,7 +221,7 @@ pub(super) fn register_stream_session_messages(
 
 /// 启动队列中的下一个请求。
 pub(crate) fn start_next(app: &mut App, session_id: &str) -> Task<Message> {
-    let active = app.active_session_id.as_deref() == Some(session_id);
+    let active = app.session_state.active_session_id.as_deref() == Some(session_id);
     let Some(item) = desktop_session::message::chat::stream::projection::take_ready_request(
         app.get_session_runtime_mut(session_id),
         active,
@@ -242,7 +242,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 let mut failed = false;
-                for runtime in app.session_runtime_states.values_mut() {
+                for runtime in app.session_state.session_runtime_states.values_mut() {
                     runtime.mcp_app_panels.retain(|panel| {
                         failed |= panel.failed();
                         !panel.finished()
@@ -384,7 +384,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             query,
         } => {
             if let Some(feedback) = title_feedback {
-                app.generated_session_titles.insert(session_id.clone(), feedback);
+                app.input_feedback.generated_session_titles.insert(session_id.clone(), feedback);
             }
             stream_events::handle_plan_run_session_started(
                 app,
@@ -456,7 +456,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 Ok(info) => {
                     draft::apply_published_title(app, &info);
                     desktop_session::message::chat::stream::projection::apply_summary(
-                        app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten()),
+                        app.session_state.sessions.iter_mut().chain(app.workspace_state.project_sessions.values_mut().flatten()),
                         &info,
                     );
                 }
@@ -465,12 +465,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::none()
         }
         ChatMessage::AgentSessionDiffSummary(id, session_id, summary) => {
-            let active_request = app
-                .session_runtime_states
+            let active_request = app.session_state.session_runtime_states
                 .get(&session_id)
                 .and_then(|runtime| runtime.request_lifecycle.active_agent_request.as_ref());
             desktop_session::message::chat::stream::projection::apply_diff_summary(
-                app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten()),
+                app.session_state.sessions.iter_mut().chain(app.workspace_state.project_sessions.values_mut().flatten()),
                 &session_id,
                 &summary,
                 id,
@@ -517,7 +516,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::AgentStreamError(id, err) => {
             if err.starts_with("gateway stream failed: 410 ")
                 && let Some(session_id) = app.find_session_by_request_id(id)
-                && let Some(runtime) = app.session_runtime_states.get(&session_id)
+                && let Some(runtime) = app.session_state.session_runtime_states.get(&session_id)
                 && let (Some(draft), Some(request)) =
                     (&runtime.draft, &runtime.request_lifecycle.active_agent_request)
             {
@@ -569,7 +568,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             permissions::handle_toggle_full_access_permission(app)
         }
         ChatMessage::SessionFullAccessLoaded { session_id, full_access } => {
-            if app.active_session_id.as_deref() == Some(session_id.as_str()) {
+            if app.session_state.active_session_id.as_deref() == Some(session_id.as_str()) {
                 app.restore_session_full_access(&session_id, full_access);
             }
             Task::none()
@@ -588,7 +587,7 @@ pub(crate) use desktop_session::message::chat::stream::tool_session::session_too
 
 fn handle_plan_run_session_waiting(app: &mut App, session_id: String) -> Task<Message> {
     let session_id = session_id.trim();
-    if session_id.is_empty() || !app.sessions.iter().any(|session| session.id == session_id) {
+    if session_id.is_empty() || !app.session_state.sessions.iter().any(|session| session.id == session_id) {
         return Task::none();
     }
 
@@ -611,7 +610,7 @@ fn handle_agent_stream_cancelled(app: &mut App, id: u64) -> Task<Message> {
     let _ = stream_events::flush_agent_stream_delta(app, session_id.clone());
     let save_task = stream_events::force_save_agent_stream_session(app, &session_id);
     crate::app::state::clear_pending_guide_handoff(id);
-    let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
+    let is_active_session = app.session_state.active_session_id.as_ref() == Some(&session_id);
     desktop_session::message::chat::stream::projection::cancel_runtime(
         app.get_session_runtime_mut(&session_id),
     );

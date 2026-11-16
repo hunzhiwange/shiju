@@ -13,7 +13,7 @@ pub(in crate::app::message::voice) fn screen_call(app: &App) -> Result<u128, &'s
             })
         });
     desktop_voice_ui::message::voice_local_chat::screen_call(
-        app.voice.local_conversation.as_ref(), app.voice.conversation_scope == super::super::scope(app), app.active_session_id.as_deref(), app.voice.local_stop.is_some(), ready_to_send(app), supported,
+        app.voice.local_conversation.as_ref(), app.voice.conversation_scope == super::super::scope(app), app.session_state.active_session_id.as_deref(), app.voice.local_stop.is_some(), ready_to_send(app), supported,
     )
 }
 

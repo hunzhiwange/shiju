@@ -8,18 +8,18 @@ pub(super) fn show_half_fullscreen_control(_mode: WorkspaceMode) -> bool {
 }
 
 fn input(app: &App) -> HeaderInput<'_> {
-    let runtime = app.active_session_id.as_ref().and_then(|id| app.session_runtime_states.get(id));
+    let runtime = app.session_state.active_session_id.as_ref().and_then(|id| app.session_state.session_runtime_states.get(id));
     let chrome = crate::app::theme_catalog::resolve_chrome_style_from_skin(
-        app.active_theme_skin.as_ref(),
-        &app.app_theme,
+        app.appearance.active_theme_skin.as_ref(),
+        &app.appearance.app_theme,
     );
     HeaderInput {
-        active_session_id: app.active_session_id.clone(),
-        sessions: &app.sessions,
-        project_sessions: &app.project_sessions,
+        active_session_id: app.session_state.active_session_id.clone(),
+        sessions: &app.session_state.sessions,
+        project_sessions: &app.workspace_state.project_sessions,
         project_path: app.navigation_tabs.project_path.clone(),
-        desktop_locale: app.desktop_locale,
-        chat_panel_mode: app.chat_panel_mode == ChatPanelMode::Trajectory,
+        desktop_locale: app.general_settings.desktop_locale,
+        chat_panel_mode: app.chat_view.chat_panel_mode == ChatPanelMode::Trajectory,
         fullscreen: app.is_chat_fullscreen(),
         half_fullscreen: app.is_chat_half_fullscreen(),
         show_session_actions_popover: app.popover_visibility.session_actions,
@@ -76,9 +76,8 @@ fn map(action: HeaderAction) -> Message {
 pub fn chat_header_view(app: &App) -> Element<'_, Message> {
     let header = view::chat_header_view(&input(app)).map(map);
     let header_bg =
-        app.active_theme_skin.as_ref().and_then(|skin| skin.chat_header_path.as_deref());
-    let fit = app
-        .active_theme_skin
+        app.appearance.active_theme_skin.as_ref().and_then(|skin| skin.chat_header_path.as_deref());
+    let fit = app.appearance.active_theme_skin
         .as_ref()
         .map(|skin| {
             crate::app::theme_catalog::PanelImageFit::parse(

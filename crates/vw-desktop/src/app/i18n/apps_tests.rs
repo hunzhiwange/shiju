@@ -9,7 +9,7 @@ async fn desktop_gettext_area_14_hub_title_updates_after_locale_change() {
         (DesktopLocale::TraditionalChinese, "專家·技能·連接器"),
         (DesktopLocale::English, "Experts · Skills · Connectors"),
     ] {
-        app.desktop_locale = locale;
+        app.general_settings.desktop_locale = locale;
         super::apps::refresh_hub_titles(&mut app);
         let tab = app
             .navigation_tabs.open_tabs

@@ -45,7 +45,7 @@ async fn project_settings_refresh_task_reloads_agents_and_skills_for_project() {
 #[tokio::test]
 async fn open_first_recent_project_or_home_goes_home_when_no_projects_remain() {
     let (mut app, _) = crate::app::App::new();
-    app.recent_projects.clear();
+    app.workspace_state.recent_projects.clear();
 
     let messages = collect_task_messages(app.open_first_recent_project_or_home()).await;
 
@@ -104,7 +104,7 @@ fn open_project_does_not_wait_for_chat_preferences() {
 
     let received = project_preferences_loaded(task);
     let _ = app.update(received);
-    assert_eq!(app.model, "project-model");
+    assert_eq!(app.session_state.model, "project-model");
     assert_eq!(server.take_requests().len(), 1);
 }
 
@@ -163,7 +163,7 @@ fn project_preferences_ignore_an_earlier_visit_and_keep_the_draft() {
     let _ = app.update(project_b);
     let _ = app.update(first_a);
 
-    assert_eq!(app.model, "latest-a");
+    assert_eq!(app.session_state.model, "latest-a");
     assert_eq!(app.current_session_runtime().model, "latest-a");
     assert_eq!(app.current_session_runtime().input_editor.text(), "draft kept");
     assert_eq!(server.take_requests().len(), 3);
@@ -179,7 +179,7 @@ fn late_project_read_preserves_a_manual_model_selection() {
 
     let (_lock, _home, _guard) = temp_home();
     let (mut app, _) = App::new();
-    app.model = "global-default".into();
+    app.session_state.model = "global-default".into();
     let (get_started, get_seen) = tokio::sync::oneshot::channel();
     let get_started = Mutex::new(Some(get_started));
     let (release_get, allow_response) = mpsc::channel();
@@ -203,8 +203,8 @@ fn late_project_read_preserves_a_manual_model_selection() {
     set_gateway_port(server.port);
     let first = project_preferences_loaded(app.open_project("/repo/a".into()));
     let _ = app.update(first);
-    assert_eq!(app.model, "project-a");
-    assert_eq!(app.acp_agent.as_deref(), Some("coder"));
+    assert_eq!(app.session_state.model, "project-a");
+    assert_eq!(app.session_state.acp_agent.as_deref(), Some("coder"));
     let load = app.open_project("/repo/b".into());
     assert_eq!(app.current_session_runtime().model, "global-default");
     assert_eq!(app.current_session_runtime().acp_agent, None);
@@ -243,12 +243,12 @@ fn late_project_read_preserves_a_manual_model_selection() {
 fn open_project_resets_git_capability_until_project_info_loads() {
     let (mut app, _task) = crate::app::App::new();
     app.navigation_tabs.project_path = Some("/repo/old".to_string());
-    app.project_is_git_repo = true;
+    app.workspace_state.project_is_git_repo = true;
 
     let _ = app.open_project("/repo/new".to_string());
 
     assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/repo/new"));
-    assert!(!app.project_is_git_repo);
+    assert!(!app.workspace_state.project_is_git_repo);
 }
 
 #[test]
@@ -257,23 +257,23 @@ fn reset_task_board_project_state_clears_project_scoped_board_runtime() {
     let mut task = crate::app::task::Task::new(1);
     task.id = "T-old-project".to_string();
     task.status = crate::app::task::TaskStatus::Running;
-    app.task_board_tasks = vec![task.clone()];
-    app.task_board_executor.start_task(&task.id);
-    app.task_board_executor_running = true;
-    app.task_board_selected_tasks.insert(task.id.clone());
-    app.task_board_viewing_logs = Some(task);
-    app.task_board_worktree_snapshot_loading = true;
-    app.project_is_git_repo = true;
+    app.task_board.task_board_tasks = vec![task.clone()];
+    app.task_board.task_board_executor.start_task(&task.id);
+    app.task_board.task_board_executor_running = true;
+    app.task_board.task_board_selected_tasks.insert(task.id.clone());
+    app.task_board.task_board_viewing_logs = Some(task);
+    app.task_board.task_board_worktree_snapshot_loading = true;
+    app.workspace_state.project_is_git_repo = true;
 
     app.reset_task_board_project_state();
 
-    assert!(!app.project_is_git_repo);
-    assert!(app.task_board_tasks.is_empty());
-    assert!(app.task_board_executor.running_tasks.is_empty());
-    assert!(!app.task_board_executor_running);
-    assert!(app.task_board_selected_tasks.is_empty());
-    assert!(app.task_board_viewing_logs.is_none());
-    assert!(!app.task_board_worktree_snapshot_loading);
+    assert!(!app.workspace_state.project_is_git_repo);
+    assert!(app.task_board.task_board_tasks.is_empty());
+    assert!(app.task_board.task_board_executor.running_tasks.is_empty());
+    assert!(!app.task_board.task_board_executor_running);
+    assert!(app.task_board.task_board_selected_tasks.is_empty());
+    assert!(app.task_board.task_board_viewing_logs.is_none());
+    assert!(!app.task_board.task_board_worktree_snapshot_loading);
 }
 
 #[test]
@@ -343,8 +343,8 @@ fn open_project_removes_apps_tab_creates_project_tab_and_recent_edit_name() {
     app.navigation_tabs.open_tabs.clear();
     app.navigation_tabs.project_path = None;
     app.navigation_tabs.active_tab_id = None;
-    app.recent_projects.clear();
-    app.recent_projects_edits.clear();
+    app.workspace_state.recent_projects.clear();
+    app.workspace_state.recent_projects_edits.clear();
     app.navigation_tabs.open_tabs.push(crate::app::AppTab {
         id: "apps".to_string(),
         title: "Apps".to_string(),
@@ -353,7 +353,7 @@ fn open_project_removes_apps_tab_creates_project_tab_and_recent_edit_name() {
     });
     let mut meta = recent_meta("/repo/alpha");
     meta.name = "Alpha Project".to_string();
-    app.recent_projects_meta = vec![meta];
+    app.workspace_state.recent_projects_meta = vec![meta];
 
     let _ = app.open_project("/repo/alpha".to_string());
 
@@ -367,8 +367,8 @@ fn open_project_removes_apps_tab_creates_project_tab_and_recent_edit_name() {
             && tab.screen == crate::app::Screen::Project
             && tab.project_path.as_deref() == Some("/repo/alpha")
     }));
-    assert_eq!(app.recent_projects.first().map(String::as_str), Some("/repo/alpha"));
-    assert_eq!(app.recent_projects_edits.first().map(String::as_str), Some("Alpha Project"));
+    assert_eq!(app.workspace_state.recent_projects.first().map(String::as_str), Some("/repo/alpha"));
+    assert_eq!(app.workspace_state.recent_projects_edits.first().map(String::as_str), Some("Alpha Project"));
     assert!(app.git.selected_branch.is_none());
     assert!(app.git.branches.is_empty());
 }

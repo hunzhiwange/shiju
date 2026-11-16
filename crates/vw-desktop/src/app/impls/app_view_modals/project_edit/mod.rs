@@ -78,8 +78,8 @@ pub(crate) fn with_project_edit<'a>(app: &'a App, root: Element<'a, Message>) ->
 fn domain_view(app: &App) -> domain::View<'_> {
     domain::View {
         project_editor: &app.project_editor,
-        desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        desktop_locale: app.general_settings.desktop_locale,
+        app_theme: &app.appearance.app_theme,
         workflow_manager: domain::LifecycleStatus {
             loading: app.workflow_manager.lifecycles_loading(),
             loaded: app.workflow_manager.lifecycles_loaded(),

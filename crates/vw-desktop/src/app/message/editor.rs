@@ -42,7 +42,7 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
     let read_only = app.navigation_tabs.active_preview_path.as_ref().is_some_and(|path|
         app.navigation_tabs.preview_tabs.iter().any(|tab| tab.path == *path && tab.read_only));
     if !desktop_editor::message::editor::prepare_message(
-        app.shutdown_requested, read_only, &mut app.editor_popover, &message,
+        app.shutdown_requested, read_only, &mut app.preview_state.editor_popover, &message,
     ) { return Task::none(); }
     match message {
 
@@ -67,10 +67,10 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
                 .find(|tab| Some(&tab.path) == app.navigation_tabs.active_preview_path.as_ref())
                 .map(|tab| &mut tab.editor);
             desktop_editor::message::editor::open_popover(
-                editor, &mut app.editor_popover, &mut app.show_preview_context_menu,
-                &mut app.preview_nav_popup, &mut app.show_preview_settings,
-                #[cfg(not(target_arch = "wasm32"))] &mut app.lsp_overlay,
-                #[cfg(not(target_arch = "wasm32"))] &mut app.lsp_overlay_path,
+                editor, &mut app.preview_state.editor_popover, &mut app.preview_state.show_preview_context_menu,
+                &mut app.preview_state.preview_nav_popup, &mut app.preview_state.show_preview_settings,
+                #[cfg(not(target_arch = "wasm32"))] &mut app.preview_state.lsp_overlay,
+                #[cfg(not(target_arch = "wasm32"))] &mut app.preview_state.lsp_overlay_path,
                 kind,
             ).map(|event| match event {
                 desktop_editor::message::editor::Event::Preview(event) =>
@@ -80,21 +80,21 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
         }
 
         EditorMessage::ToggleSettings => {
-            app.show_preview_settings = !app.show_preview_settings;
-            if app.show_preview_settings { Task::none() } else { metrics::commit(app, None) }
+            app.preview_state.show_preview_settings = !app.preview_state.show_preview_settings;
+            if app.preview_state.show_preview_settings { Task::none() } else { metrics::commit(app, None) }
         }
 
         EditorMessage::FontSizePreview(size) => {
-            app.editor_metrics_preview.font_size = Some(size);
-            let generation = app.editor_metrics_preview.schedule_commit();
+            app.preview_state.editor_metrics_preview.font_size = Some(size);
+            let generation = app.preview_state.editor_metrics_preview.schedule_commit();
             crate::app::message::after(
                 std::time::Duration::from_millis(200),
                 Message::Editor(EditorMessage::CommitMetricsDue(generation)),
             )
         }
         EditorMessage::LineHeightPreview(height) => {
-            app.editor_metrics_preview.line_height = Some(height);
-            let generation = app.editor_metrics_preview.schedule_commit();
+            app.preview_state.editor_metrics_preview.line_height = Some(height);
+            let generation = app.preview_state.editor_metrics_preview.schedule_commit();
             crate::app::message::after(
                 std::time::Duration::from_millis(200),
                 Message::Editor(EditorMessage::CommitMetricsDue(generation)),
@@ -102,7 +102,7 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
         }
         EditorMessage::CommitMetrics => metrics::commit(app, None),
         EditorMessage::CommitMetricsDue(generation) => {
-            if app.editor_metrics_preview.generation == generation {
+            if app.preview_state.editor_metrics_preview.generation == generation {
                 metrics::commit(app, None)
             } else {
                 Task::none()
@@ -112,7 +112,7 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
 
         // 编辑器界面语言变更：更新所有编辑器实例的语言设置
         EditorMessage::LanguageChanged(lang) => {
-            app.current_language = lang;
+            app.preview_state.current_language = lang;
 
             desktop_editor::message::editor::apply_language(
                 app.navigation_tabs.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
@@ -124,8 +124,8 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
         // 编辑器主题变更：更新所有编辑器实例并持久化配置
         EditorMessage::ThemeChanged(theme) => {
             // 更新当前主题设置，并禁用跟随系统主题
-            app.editor_theme = theme.clone();
-            app.editor_follow_system_theme = false;
+            app.appearance.editor_theme = theme.clone();
+            app.appearance.editor_follow_system_theme = false;
 
             desktop_editor::message::editor::apply_theme(
                 app.navigation_tabs.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
@@ -137,7 +137,7 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
 
         // 切换是否跟随系统主题
         EditorMessage::ToggleFollowSystemTheme(follow) => {
-            app.editor_follow_system_theme = follow;
+            app.appearance.editor_follow_system_theme = follow;
 
             // 获取有效主题（考虑系统主题设置）
             let editor_theme = app.effective_editor_theme();
@@ -158,7 +158,7 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
                 .find(|tab| Some(&tab.path) == app.navigation_tabs.active_preview_path.as_ref())
                 .map(|tab| &mut tab.editor);
             desktop_editor::message::editor::update(
-                editor, &mut app.editor_popover, &mut app.show_preview_settings, message,
+                editor, &mut app.preview_state.editor_popover, &mut app.preview_state.show_preview_settings, message,
             ).map(|event| match event {
                 desktop_editor::message::editor::Event::Preview(event) =>
                     Message::Preview(crate::app::message::PreviewMessage::EditorEvent(event)),

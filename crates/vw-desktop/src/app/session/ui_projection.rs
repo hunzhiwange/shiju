@@ -192,10 +192,9 @@ impl App {
 
     pub(crate) fn refresh_session_pins_task(&mut self) -> Task<Message> {
         let generation = self.session_ui_projection.begin_pins_refresh();
-        let projects: HashSet<String> = self
-            .sessions
+        let projects: HashSet<String> = self.session_state.sessions
             .iter()
-            .chain(self.project_sessions.values().flatten())
+            .chain(self.workspace_state.project_sessions.values().flatten())
             .map(|session| session.project_id.clone())
             .collect();
         Task::perform(

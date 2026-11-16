@@ -19,13 +19,13 @@ fn shiju_knowledge_view_notifies_accepted_errors_only() {
     let stale = app.expert_hub.knowledge.begin_bases().unwrap();
     let current = app.expert_hub.knowledge.begin_bases().unwrap();
     let _ = update(&mut app, KnowledgeMessage::BasesLoaded(stale, Err("obsolete".into())));
-    assert!(app.active_toast.is_none());
+    assert!(app.toast_state.active_toast.is_none());
     let _ = update(
         &mut app,
         KnowledgeMessage::BasesLoaded(current.clone(), Err("fixture-only-error".into())),
     );
-    assert_eq!(app.active_toast.as_ref().unwrap().message, "资料加载失败，请重试");
-    app.active_toast = None;
+    assert_eq!(app.toast_state.active_toast.as_ref().unwrap().message, "资料加载失败，请重试");
+    app.toast_state.active_toast = None;
     let _ = update(&mut app, KnowledgeMessage::BasesLoaded(current, Err("duplicate".into())));
-    assert!(app.active_toast.is_none());
+    assert!(app.toast_state.active_toast.is_none());
 }

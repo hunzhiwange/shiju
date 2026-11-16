@@ -29,7 +29,7 @@ fn placement(app: &App) -> domain::Placement {
         status_bar_height: crate::app::impls::STATUS_BAR_HEIGHT,
     }
 }
-pub(crate) fn view(app: &App) -> Element<'_, Message> { domain::view(&app.work_browser, app.desktop_locale).map(map) }
+pub(crate) fn view(app: &App) -> Element<'_, Message> { domain::view(&app.work_browser, app.general_settings.desktop_locale).map(map) }
 fn finish(app: &mut App, error: Option<String>) -> Task<Message> {
     error.map(|error| app.show_error_toast(error)).unwrap_or_else(Task::none)
 }

@@ -288,8 +288,8 @@ async fn ui_refresh_40_terminal_rename_isolates_card_and_preserves_messages() {
         (640, 260, DesktopLocale::SimplifiedChinese, Theme::Light, "terminal-640-light"),
         (960, 260, DesktopLocale::English, Theme::Dark, "terminal-960-dark"),
     ] {
-        app.desktop_locale = locale;
-        app.app_theme = theme.clone();
+        app.general_settings.desktop_locale = locale;
+        app.appearance.app_theme = theme.clone();
         // The project layout reserves 8px for the terminal resize handle.
         app.terminal.height = height as f32 + 8.0;
         let draft = if width == 420 { "終端名称 / 测试 / ".repeat(18) } else { title.into() };
@@ -318,7 +318,7 @@ async fn ui_refresh_40_terminal_rename_isolates_card_and_preserves_messages() {
     }
     app.terminal.tabs[0].edit_title = Some(title.into());
 
-    let i18n = I18n::new(app.desktop_locale);
+    let i18n = I18n::new(app.general_settings.desktop_locale);
     let mut ui = scene(terminal_panel::view(&app), &mut renderer, Size::new(640, 260));
     let controls = bounds(&mut ui, &renderer);
     let heading = position(&controls.labels, i18n.__("重命名终端"));
@@ -397,8 +397,8 @@ async fn ui_refresh_40_preview_rendering() {
     }
     let mut app = fixture();
     let mut renderer = renderer().await;
-    app.editor_follow_system_theme = false;
-    app.editor_theme =
+    app.appearance.editor_follow_system_theme = false;
+    app.appearance.editor_theme =
         Theme::custom("長い編輯器主题 Long Editor Theme ".repeat(6), Theme::Dark.palette());
     for (width, height, locale, theme, name) in [
         (420, 420, DesktopLocale::TraditionalChinese, Theme::Dark, "preview-420-dark"),
@@ -406,8 +406,8 @@ async fn ui_refresh_40_preview_rendering() {
         (640, 720, DesktopLocale::SimplifiedChinese, Theme::Light, "preview-640-light"),
         (960, 720, DesktopLocale::English, Theme::Dark, "preview-960-dark"),
     ] {
-        app.desktop_locale = locale;
-        app.app_theme = theme.clone();
+        app.general_settings.desktop_locale = locale;
+        app.appearance.app_theme = theme.clone();
         let size = Size::new(width, height);
         let mut ui = scene(preview(&app), &mut renderer, size);
         capture(&mut ui, &mut renderer, &theme, size, name, Point::ORIGIN);
@@ -467,11 +467,11 @@ async fn ui_refresh_40_layout_and_interaction() {
     use iced_code_editor::i18n::Language;
 
     let mut app = fixture();
-    app.desktop_locale = DesktopLocale::English;
-    app.current_language = Language::English;
-    app.editor_follow_system_theme = false;
+    app.general_settings.desktop_locale = DesktopLocale::English;
+    app.preview_state.current_language = Language::English;
+    app.appearance.editor_follow_system_theme = false;
     let mut renderer = renderer().await;
-    let i18n = I18n::new(app.desktop_locale);
+    let i18n = I18n::new(app.general_settings.desktop_locale);
     let size = Size::new(420, 420);
     let mut ui = scene(preview(&app), &mut renderer, size);
     let before = bounds(&mut ui, &renderer);
@@ -543,10 +543,10 @@ async fn ui_refresh_40_preserves_values_and_disabled_states() {
         return;
     }
     let mut app = fixture();
-    app.editor_follow_system_theme = true;
-    app.current_font_size = 16.0;
-    app.current_line_height = 26.0;
-    app.auto_adjust_line_height = false;
+    app.appearance.editor_follow_system_theme = true;
+    app.preview_state.current_font_size = 16.0;
+    app.preview_state.current_line_height = 26.0;
+    app.preview_state.auto_adjust_line_height = false;
     let mut renderer = renderer().await;
     let mut ui = scene(preview(&app), &mut renderer, Size::new(640, 1200));
     let controls = bounds(&mut ui, &renderer);
@@ -560,5 +560,5 @@ async fn ui_refresh_40_preserves_values_and_disabled_states() {
             let _task = crate::app::message::editor::update(&mut app, message);
         }
     }
-    assert!(app.current_line_height > 50.0);
+    assert!(app.preview_state.current_line_height > 50.0);
 }

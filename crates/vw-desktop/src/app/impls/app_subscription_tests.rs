@@ -343,14 +343,14 @@ fn subscription_builds_default_and_polling_states() {
     let mut app = test_app();
     subscription_builds(&app);
 
-    app.question_modal_request_id = Some("question".to_string());
-    app.permission_modal_request_id = Some("permission".to_string());
+    app.session_state.question_modal_request_id = Some("question".to_string());
+    app.session_state.permission_modal_request_id = Some("permission".to_string());
     app.task_pet_window_id = Some(window_id());
     subscription_builds(&app);
 
-    app.active_session_id = Some("active".to_string());
-    app.session_runtime_states.insert("active".to_string(), SessionRuntimeState::new());
-    app.session_runtime_states.get_mut("active").unwrap().request_lifecycle.is_requesting = true;
+    app.session_state.active_session_id = Some("active".to_string());
+    app.session_state.session_runtime_states.insert("active".to_string(), SessionRuntimeState::new());
+    app.session_state.session_runtime_states.get_mut("active").unwrap().request_lifecycle.is_requesting = true;
     subscription_builds(&app);
 }
 
@@ -358,19 +358,19 @@ fn subscription_builds_default_and_polling_states() {
 fn requesting_sessions_animate_on_conversation_screen_and_stop_when_idle() {
     let mut app = test_app();
     app.navigation_tabs.screen = Screen::Project;
-    app.active_session_id = Some("active".to_string());
+    app.session_state.active_session_id = Some("active".to_string());
     assert!(!needs_activity_animation_tick(&app, false));
 
     let mut active = SessionRuntimeState::new();
     active.request_lifecycle.is_requesting = true;
-    app.session_runtime_states.insert("active".to_string(), active);
+    app.session_state.session_runtime_states.insert("active".to_string(), active);
     assert!(needs_activity_animation_tick(&app, false));
-    app.session_runtime_states.get_mut("active").unwrap().request_lifecycle.is_requesting = false;
+    app.session_state.session_runtime_states.get_mut("active").unwrap().request_lifecycle.is_requesting = false;
     assert!(!needs_activity_animation_tick(&app, false));
 
     let mut background = SessionRuntimeState::new();
     background.request_lifecycle.is_requesting = true;
-    app.session_runtime_states.insert("background".to_string(), background);
+    app.session_state.session_runtime_states.insert("background".to_string(), background);
     // The session list still displays the background request's running indicator.
     assert!(needs_activity_animation_tick(&app, false));
     app.navigation_tabs.screen = Screen::TaskBoard;
@@ -381,15 +381,15 @@ fn requesting_sessions_animate_on_conversation_screen_and_stop_when_idle() {
 #[test]
 fn subscription_builds_agent_runtime_states() {
     let mut app = test_app();
-    app.active_session_id = Some("active".to_string());
+    app.session_state.active_session_id = Some("active".to_string());
 
     let mut active_runtime = SessionRuntimeState::new();
     active_runtime.request_lifecycle.active_agent_request = Some(agent_request(1, "active"));
-    app.session_runtime_states.insert("active".to_string(), active_runtime);
+    app.session_state.session_runtime_states.insert("active".to_string(), active_runtime);
 
     let mut inactive_runtime = SessionRuntimeState::new();
     inactive_runtime.request_lifecycle.active_agent_request = Some(agent_request(2, "inactive"));
-    app.session_runtime_states.insert("inactive".to_string(), inactive_runtime);
+    app.session_state.session_runtime_states.insert("inactive".to_string(), inactive_runtime);
 
     subscription_builds(&app);
 }
@@ -487,10 +487,10 @@ fn subscription_builds_preview_lsp_enabled_and_disabled_states() {
     app.navigation_tabs.active_preview_path = Some(path.to_string());
     app.navigation_tabs.preview_tabs.push(preview_tab(path));
 
-    app.lsp_disabled = false;
+    app.preview_state.lsp_disabled = false;
     subscription_builds(&app);
 
-    app.lsp_disabled = true;
+    app.preview_state.lsp_disabled = true;
     subscription_builds(&app);
 }
 
@@ -532,13 +532,13 @@ fn mini_companion_hidden_stops_avatar_and_expansion_ticks() {
     app.companion_navigation.task_pet_visible = true;
     assert!(needs_activity_animation_tick(&app, false));
     app.companion_navigation.task_pet_visible = false;
-    app.task_pet_expand_target = Some(1.0);
+    app.pet_state.task_pet_expand_target = Some(1.0);
     assert!(!needs_activity_animation_tick(&app, false));
     app.companion_navigation.task_pet_visible = true;
-    app.task_pet_avatar_kind = crate::app::state::TaskPetAvatarKind::None;
-    app.task_pet_expand_target = None;
+    app.pet_state.task_pet_avatar_kind = crate::app::state::TaskPetAvatarKind::None;
+    app.pet_state.task_pet_expand_target = None;
     assert!(!needs_activity_animation_tick(&app, false));
-    app.task_pet_expand_target = Some(1.0);
+    app.pet_state.task_pet_expand_target = Some(1.0);
     assert!(needs_activity_animation_tick(&app, false));
 }
 

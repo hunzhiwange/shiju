@@ -51,13 +51,13 @@ fn shiju_knowledge_reader_notifies_accepted_errors_only() {
     let read = state.begin_read().unwrap();
     let search = state.begin_search("中文".into()).unwrap();
     let _ = update(&mut app, KnowledgeMessage::SearchLoaded(search.clone(), Err("offline".into())));
-    assert_eq!(app.active_toast.as_ref().unwrap().message, "检索失败，请重试");
-    app.active_toast = None;
+    assert_eq!(app.toast_state.active_toast.as_ref().unwrap().message, "检索失败，请重试");
+    app.toast_state.active_toast = None;
     let _ = update(&mut app, KnowledgeMessage::SearchLoaded(search, Err("duplicate".into())));
-    assert!(app.active_toast.is_none());
+    assert!(app.toast_state.active_toast.is_none());
     let _ = update(&mut app, KnowledgeMessage::ReadLoaded(read.clone(), Err("offline".into())));
-    assert_eq!(app.active_toast.as_ref().unwrap().message, "原文加载失败，请重试");
-    app.active_toast = None;
+    assert_eq!(app.toast_state.active_toast.as_ref().unwrap().message, "原文加载失败，请重试");
+    app.toast_state.active_toast = None;
     let _ = update(&mut app, KnowledgeMessage::ReadLoaded(read, Err("duplicate".into())));
-    assert!(app.active_toast.is_none());
+    assert!(app.toast_state.active_toast.is_none());
 }

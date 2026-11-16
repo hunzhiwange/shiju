@@ -53,10 +53,10 @@ fn desktop_first_response_catalog_launch_preserves_profile_in_a_draft() {
         crate::app::state::agent_settings_entries_from_config(&catalog_config());
     app.navigation_tabs.project_path = Some("/tmp/catalog-project".into());
     app.agents_settings.project_path = app.navigation_tabs.project_path.clone();
-    app.acp_agent = None;
+    app.session_state.acp_agent = None;
     dispatch(&mut app, AgentsMessage::CatalogLaunch("acp-codex".into()));
-    assert!(app.active_session_id.is_none());
-    assert!(app.sessions.is_empty());
+    assert!(app.session_state.active_session_id.is_none());
+    assert!(app.session_state.sessions.is_empty());
     assert_eq!(app.current_session_runtime().agent.as_deref(), Some("acp-codex"));
     assert!(!app.navigation_panels.show_settings);
     assert!(!app.agents_settings.catalog_busy);

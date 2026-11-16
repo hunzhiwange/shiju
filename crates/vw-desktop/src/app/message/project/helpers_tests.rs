@@ -40,7 +40,7 @@ fn append_local_attachments_adds_only_new_valid_files() {
     fs::write(&added, "added").expect("write added file");
     let existing = fs::canonicalize(existing).expect("canonical existing");
     let added = fs::canonicalize(added).expect("canonical added");
-    app.files = vec![existing.to_string_lossy().to_string()];
+    app.session_state.files = vec![existing.to_string_lossy().to_string()];
 
     append_local_attachments(
         &mut app,
@@ -48,7 +48,7 @@ fn append_local_attachments_adds_only_new_valid_files() {
     );
 
     assert_eq!(
-        app.files,
+        app.session_state.files,
         vec![existing.to_string_lossy().to_string(), added.to_string_lossy().to_string()]
     );
 }

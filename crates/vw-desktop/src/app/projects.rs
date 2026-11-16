@@ -122,7 +122,7 @@ impl App {
                         .ensure_default_terminal(Some(std::path::PathBuf::from(&path)));
                 }
                 #[cfg(not(target_arch = "wasm32"))]
-                self.terminal.apply_app_theme(&self.app_theme);
+                self.terminal.apply_app_theme(&self.appearance.app_theme);
                 false
             } else {
                 // 没有缓存状态：先占位，仅在面板可见时懒创建 PTY
@@ -140,7 +140,7 @@ impl App {
                 let old = std::mem::replace(&mut self.terminal, created);
                 self.terminal.absorb_replaced(old);
                 #[cfg(not(target_arch = "wasm32"))]
-                self.terminal.apply_app_theme(&self.app_theme);
+                self.terminal.apply_app_theme(&self.appearance.app_theme);
                 true
             }
         } else {
@@ -160,57 +160,57 @@ impl App {
     }
 
     pub(crate) fn reset_task_board_project_state(&mut self) {
-        self.project_is_git_repo = false;
-        self.task_board_loading = false;
-        self.task_board_tasks.clear();
-        self.task_board_tasks_pending_persistence.clear();
-        self.task_board_selected_tasks.clear();
-        self.task_board_bulk_active_status = None;
-        self.task_board_manual_merge_queue.clear();
-        self.task_board_selected_task = None;
-        self.task_board_viewing_logs = None;
-        self.task_board_detail_tab = Default::default();
-        self.task_board_log_cache.clear();
-        self.task_board_editing_task_id = None;
-        self.task_board_dragging = None;
-        self.task_board_drag_pending = None;
-        self.task_board_executor = crate::app::task::TaskExecutorState::new();
-        self.task_board_executor_running = false;
-        self.task_board_next_scheduler_tick_at_ms = 0;
-        self.task_board_next_auto_review_tick_at_ms = 0;
-        self.task_board_next_auto_promote_tick_at_ms = 0;
-        self.task_board_next_auto_merge_tick_at_ms = 0;
-        self.task_board_worktree_desired_capacity = None;
-        self.task_board_last_log_flush_at_ms = 0;
-        self.task_board_log_scan_cursor = 0;
-        self.task_board_timeout_scan_cursor = 0;
-        self.task_board_schedule_scan_cursor = 0;
-        self.task_board_executor_popover = false;
-        self.task_board_bulk_executor_popover = false;
-        self.task_board_bulk_model_popover = false;
-        self.task_board_model_popover = false;
-        self.task_board_worktree_maintenance_in_flight = false;
-        self.task_board_worktree_snapshot_loading = false;
-        self.task_board_worktree_manual_action_kind = None;
-        self.task_board_worktree_manual_confirm_kind = None;
-        self.task_board_worktree_action_logs.clear();
-        self.task_board_worktree_action_logs_visible_until_ms = None;
-        self.task_board_worktree_action_log_rx = None;
-        self.task_board_worktree_snapshot = None;
-        self.task_board_last_worktree_snapshot_at_ms = 0;
-        self.task_board_context_menu = None;
-        self.task_board_new_subtask_content.clear();
-        self.task_board_logs_editor = iced::widget::text_editor::Content::new();
-        self.task_board_logs_auto_scroll = true;
-        self.task_board_logs_context_menu_open = false;
-        self.task_board_logs_context_menu_pos = None;
-        self.task_board_logs_scroll_top_line = 0.0;
-        self.task_board_logs_scroll_remainder = 0.0;
-        self.task_board_logs_viewport_height = 0.0;
-        self.task_board_create_submit_success = false;
-        self.task_board_edit_submit_success = false;
-        self.task_board_is_import_mode = false;
-        self.task_board_column_has_vertical_scrollbar.clear();
+        self.workspace_state.project_is_git_repo = false;
+        self.task_board.task_board_loading = false;
+        self.task_board.task_board_tasks.clear();
+        self.task_board.task_board_tasks_pending_persistence.clear();
+        self.task_board.task_board_selected_tasks.clear();
+        self.task_board.task_board_bulk_active_status = None;
+        self.task_board.task_board_manual_merge_queue.clear();
+        self.task_board.task_board_selected_task = None;
+        self.task_board.task_board_viewing_logs = None;
+        self.task_board.task_board_detail_tab = Default::default();
+        self.task_board.task_board_log_cache.clear();
+        self.task_board.task_board_editing_task_id = None;
+        self.task_board.task_board_dragging = None;
+        self.task_board.task_board_drag_pending = None;
+        self.task_board.task_board_executor = crate::app::task::TaskExecutorState::new();
+        self.task_board.task_board_executor_running = false;
+        self.task_board.task_board_next_scheduler_tick_at_ms = 0;
+        self.task_board.task_board_next_auto_review_tick_at_ms = 0;
+        self.task_board.task_board_next_auto_promote_tick_at_ms = 0;
+        self.task_board.task_board_next_auto_merge_tick_at_ms = 0;
+        self.task_board.task_board_worktree_desired_capacity = None;
+        self.task_board.task_board_last_log_flush_at_ms = 0;
+        self.task_board.task_board_log_scan_cursor = 0;
+        self.task_board.task_board_timeout_scan_cursor = 0;
+        self.task_board.task_board_schedule_scan_cursor = 0;
+        self.task_board.task_board_executor_popover = false;
+        self.task_board.task_board_bulk_executor_popover = false;
+        self.task_board.task_board_bulk_model_popover = false;
+        self.task_board.task_board_model_popover = false;
+        self.task_board.task_board_worktree_maintenance_in_flight = false;
+        self.task_board.task_board_worktree_snapshot_loading = false;
+        self.task_board.task_board_worktree_manual_action_kind = None;
+        self.task_board.task_board_worktree_manual_confirm_kind = None;
+        self.task_board.task_board_worktree_action_logs.clear();
+        self.task_board.task_board_worktree_action_logs_visible_until_ms = None;
+        self.task_board.task_board_worktree_action_log_rx = None;
+        self.task_board.task_board_worktree_snapshot = None;
+        self.task_board.task_board_last_worktree_snapshot_at_ms = 0;
+        self.task_board.task_board_context_menu = None;
+        self.task_board.task_board_new_subtask_content.clear();
+        self.task_board.task_board_logs_editor = iced::widget::text_editor::Content::new();
+        self.task_board.task_board_logs_auto_scroll = true;
+        self.task_board.task_board_logs_context_menu_open = false;
+        self.task_board.task_board_logs_context_menu_pos = None;
+        self.task_board.task_board_logs_scroll_top_line = 0.0;
+        self.task_board.task_board_logs_scroll_remainder = 0.0;
+        self.task_board.task_board_logs_viewport_height = 0.0;
+        self.task_board.task_board_create_submit_success = false;
+        self.task_board.task_board_edit_submit_success = false;
+        self.task_board.task_board_is_import_mode = false;
+        self.task_board.task_board_column_has_vertical_scrollbar.clear();
     }
 
     /// 打开项目并在需要时启动后台文件索引
@@ -246,7 +246,7 @@ impl App {
                     Task::done(Message::Git(message::GitMessage::RefreshGitPanelData)),
                 ];
                 let needs_refresh =
-                    self.file_index_cache.get(&path).is_some_and(|files| files.is_empty());
+                    self.workspace_state.file_index_cache.get(&path).is_some_and(|files| files.is_empty());
                 if needs_refresh {
                     tasks.push(message::project::helpers::refresh_file_index(self));
                 }
@@ -278,7 +278,7 @@ impl App {
 
     /// 删除当前项目后打开剩余列表中的第一个项目；没有项目时返回首页。
     pub fn open_first_recent_project_or_home(&mut self) -> Task<Message> {
-        if let Some(path) = self.recent_projects.first().cloned() {
+        if let Some(path) = self.workspace_state.recent_projects.first().cloned() {
             self.open_project_and_index(path)
         } else {
             Task::done(Message::View(message::ViewMessage::GoHome))
@@ -292,9 +292,9 @@ impl App {
         }
 
         self.cache_active_session_chat();
-        let carried_chat = self.chat.clone();
-        let carried_usage = self.usage.clone();
-        let carried_view_state = self.active_session_view_state.clone();
+        let carried_chat = self.chat_view.chat.clone();
+        let carried_usage = self.chat_view.usage.clone();
+        let carried_view_state = self.chat_view.active_session_view_state.clone();
         let mut carried_runtime = self.current_session_runtime();
 
         let task = self.open_project_and_index(path);
@@ -309,13 +309,13 @@ impl App {
         carried_runtime.request_lifecycle.active_agent_request = None;
         carried_runtime.request_lifecycle.queue.clear();
         carried_runtime.restore_model_from_history = false;
-        self.active_session_id = None;
+        self.session_state.active_session_id = None;
         *self.current_session_runtime_mut() = carried_runtime;
-        self.chat = carried_chat;
-        self.chat_message_ids = vec![None; self.chat.len()];
-        self.usage = carried_usage;
-        self.active_session_view_state = carried_view_state;
-        self.active_session_view_state.updated_ms = 0;
+        self.chat_view.chat = carried_chat;
+        self.chat_view.chat_message_ids = vec![None; self.chat_view.chat.len()];
+        self.chat_view.usage = carried_usage;
+        self.chat_view.active_session_view_state = carried_view_state;
+        self.chat_view.active_session_view_state.updated_ms = 0;
         self.invalidate_chat_ui_state();
 
         task
@@ -340,16 +340,16 @@ impl App {
     ///
     /// - `Task<Message>` - 包含会话重载与项目信息加载的批处理任务
     pub fn open_project(&mut self, path: String) -> Task<Message> {
-        self.session_view_cache.navigation_generation += 1;
+        self.session_state.session_view_cache.navigation_generation += 1;
         let (previous_project_path, project_changed) = self.navigation_tabs.begin_project(&path);
         if project_changed {
             self.navigation_mode.work_current_project_menu = None;
-            self.project_is_git_repo = false;
+            self.workspace_state.project_is_git_repo = false;
             self.reset_task_board_project_state();
         }
 
         // 加载项目特定的任务看板设置
-        self.task_board_settings = desktop_workspace::projects::project_board_settings(&self.recent_projects_meta, &path);
+        self.task_board.task_board_settings = desktop_workspace::projects::project_board_settings(&self.workspace_state.recent_projects_meta, &path);
 
         self.navigation_tabs.restore_project_preview(&path);
         #[cfg(not(target_arch = "wasm32"))]
@@ -357,7 +357,7 @@ impl App {
             manager.prestart_for_project(&path);
         }
         #[cfg(not(target_arch = "wasm32"))]
-        if !self.lsp_disabled
+        if !self.preview_state.lsp_disabled
             && let Some(active_preview_path) = self.navigation_tabs.active_preview_path.clone()
         {
             let _ =
@@ -368,9 +368,9 @@ impl App {
         self.switch_project_terminal(previous_project_path, self.navigation_tabs.project_path.clone());
         let reap_task = crate::app::message::terminal::reap_retired_task(self);
         // 使离开前尚未完成的首次发送失效；重开同一项目保留已解析的身份。
-        self.agent_stream_id = self.agent_stream_id.wrapping_add(1);
+        self.session_state.agent_stream_id = self.session_state.agent_stream_id.wrapping_add(1);
         if project_changed {
-            self.project_id = None;
+            self.workspace_state.project_id = None;
         }
         let reload_task = self.reload_sessions_for_project(Some(path.clone()));
 
@@ -385,7 +385,7 @@ impl App {
         self.git.git_worktree_menu_open = false;
 
         // 将路径加入最近项目列表；已存在项目保持原位，避免点击切换时侧栏跳动。
-        ensure_recent_project(&mut self.recent_projects, path.clone());
+        ensure_recent_project(&mut self.workspace_state.recent_projects, path.clone());
         self.navigation_tabs.screen = Screen::Project;
         self.clear_expanded_files();
         self.refresh_search_panel_file_cache();
@@ -395,8 +395,8 @@ impl App {
         self.refresh_branches();
 
         // 为最近项目列表生成显示名称（使用元数据或路径末段）
-        self.recent_projects_edits = desktop_workspace::projects::recent_project_labels(
-            &self.recent_projects, &self.recent_projects_meta);
+        self.workspace_state.recent_projects_edits = desktop_workspace::projects::recent_project_labels(
+            &self.workspace_state.recent_projects, &self.workspace_state.recent_projects_meta);
         let deferred_path = path.clone();
         let deferred_task =
             Task::done(Message::Project(message::ProjectMessage::StartDeferredTasks {
@@ -429,7 +429,7 @@ impl App {
     /// - `branches`: 分支列表（清空后由后续逻辑填充）
     pub fn refresh_branches(&mut self) {
         desktop_workspace::projects::refresh_branches(self.navigation_tabs.project_path.as_deref(),
-            &mut self.git.selected_branch, &mut self.git.branches, &mut self.project_updated_at_ms);
+            &mut self.git.selected_branch, &mut self.git.branches, &mut self.workspace_state.project_updated_at_ms);
     }
 }
 

@@ -34,7 +34,7 @@ pub(super) fn apply(app: &mut App, effect: Effect) -> Task<Message> {
             Task::none()
         }
         Effect::Error(error) => {
-            app.error_message = Some(error);
+            app.input_feedback.error_message = Some(error);
             Task::none()
         }
         Effect::Notify { message, error } => {

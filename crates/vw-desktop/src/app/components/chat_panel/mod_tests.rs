@@ -25,9 +25,9 @@ fn message(role: ChatRole, content: &str) -> ChatMessage {
 #[test]
 fn conversation_shell_borrows_runtime_once() {
     let mut app = App::new().0;
-    app.active_session_id = Some("session".to_string());
+    app.session_state.active_session_id = Some("session".to_string());
     app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
-    app.chat = vec![message(ChatRole::User, "one"), message(ChatRole::Assistant, "two")];
+    app.chat_view.chat = vec![message(ChatRole::User, "one"), message(ChatRole::Assistant, "two")];
     super::performance::reset();
 
     let _ = view(&app);
@@ -67,13 +67,13 @@ async fn conversation_shell_renders_visual_regression_scenarios_without_panic() 
 
     fn visual_app(scenario: Scenario, theme: iced::Theme, skinned: bool) -> App {
         let (mut app, _) = App::new();
-        app.app_theme = theme;
+        app.appearance.app_theme = theme;
 
         if skinned {
             let background = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("../libs/desktop-theme/assets/presets/tahoe-beach-night/background.webp");
             assert!(background.is_file(), "visual regression skin asset should exist");
-            app.active_theme_skin = Some(crate::app::theme_catalog::ActiveThemeSkin {
+            app.appearance.active_theme_skin = Some(crate::app::theme_catalog::ActiveThemeSkin {
                 theme_id: "batch-6-visual-regression".to_string(),
                 background_path: Some(background.clone()),
                 cover_path: None,
@@ -88,8 +88,8 @@ async fn conversation_shell_renders_visual_regression_scenarios_without_panic() 
             return app;
         }
 
-        app.active_session_id = Some(format!("batch-6-{}", scenario.name()));
-        app.chat = match scenario {
+        app.session_state.active_session_id = Some(format!("batch-6-{}", scenario.name()));
+        app.chat_view.chat = match scenario {
             Scenario::Long => (0..80)
                 .map(|idx| {
                     let role = if idx % 2 == 0 { ChatRole::User } else { ChatRole::Assistant };
@@ -150,10 +150,10 @@ async fn conversation_shell_renders_visual_regression_scenarios_without_panic() 
             app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
         }
         if matches!(scenario, Scenario::WaitingPermission) {
-            app.chat_message_ids = vec![None, Some("msg-permission".to_string())];
+            app.chat_view.chat_message_ids = vec![None, Some("msg-permission".to_string())];
             let request = gateway_interaction::PendingPermissionRequestDto {
                 id: "req-permission".to_string(),
-                session_id: app.active_session_id.clone().unwrap_or_default(),
+                session_id: app.session_state.active_session_id.clone().unwrap_or_default(),
                 permission: "bash".to_string(),
                 patterns: vec![],
                 metadata: serde_json::Map::new(),
@@ -163,16 +163,16 @@ async fn conversation_shell_renders_visual_regression_scenarios_without_panic() 
                     call_id: "call-permission".to_string(),
                 }),
             };
-            app.permission_modal_request_id = Some(request.id.clone());
-            app.permission_modal_request = Some(request.clone());
-            app.permission_modal_requests = vec![request];
+            app.session_state.permission_modal_request_id = Some(request.id.clone());
+            app.session_state.permission_modal_request = Some(request.clone());
+            app.session_state.permission_modal_requests = vec![request];
         }
 
-        let heights = rough_message_heights(&app.chat);
-        app.chat_message_estimated_heights = heights.clone();
-        app.chat_height_index = super::height_index::ChatHeightIndex::from_heights(&heights);
-        app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&heights);
-        app.chat_virtualizer.set_viewport_height(520.0);
+        let heights = rough_message_heights(&app.chat_view.chat);
+        app.chat_view.chat_message_estimated_heights = heights.clone();
+        app.chat_view.chat_height_index = super::height_index::ChatHeightIndex::from_heights(&heights);
+        app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&heights);
+        app.chat_view.chat_virtualizer.set_viewport_height(520.0);
         app.rebuild_active_session_message_meta();
         app
     }
@@ -273,20 +273,20 @@ fn chat_panel_virtualization_has_single_state_owner() {
             "{path} must get chat windows from ChatVirtualizer"
         );
         assert!(
-            !source.contains("set_viewport_height(self.chat_scroll_viewport_h)")
-                && !source.contains("set_relative_y(self.chat_scroll_offset_y)"),
+            !source.contains("set_viewport_height(self.chat_view.chat_scroll_viewport_h)")
+                && !source.contains("set_relative_y(self.chat_view.chat_scroll_offset_y)"),
             "{path} must not let legacy scroll fields drive ChatVirtualizer"
         );
         assert!(
-            !source.contains("app.chat_scroll_offset_y = app.chat_virtualizer.relative_y()")
+            !source.contains("app.chat_view.chat_scroll_offset_y = app.chat_view.chat_virtualizer.relative_y()")
                 && !source.contains(
-                    "app.chat_scroll_viewport_h = app.chat_virtualizer.viewport_height_px()"
+                    "app.chat_view.chat_scroll_viewport_h = app.chat_view.chat_virtualizer.viewport_height_px()"
                 ),
             "{path} must mirror ChatVirtualizer through the shared compat sync"
         );
         assert!(
-            !source.contains("app.chat_height_index.update_height(")
-                && !source.contains("app.chat_message_estimated_heights.get_mut("),
+            !source.contains("app.chat_view.chat_height_index.update_height(")
+                && !source.contains("app.chat_view.chat_message_estimated_heights.get_mut("),
             "{path} must update measured heights through ChatVirtualizer"
         );
     }
@@ -301,19 +301,19 @@ fn chat_panel_view_builds_empty_and_loading_session_states() {
     let (mut app, _) = App::new();
     keep_element(view(&app));
 
-    app.active_session_id = Some("loading".to_string());
-    app.active_session_view_state.ui_preparing = true;
-    app.active_session_view_state.base_ready = false;
+    app.session_state.active_session_id = Some("loading".to_string());
+    app.chat_view.active_session_view_state.ui_preparing = true;
+    app.chat_view.active_session_view_state.base_ready = false;
     keep_element(view(&app));
 }
 
 #[test]
 fn chat_panel_view_builds_started_message_window() {
     let (mut app, _) = App::new();
-    app.active_session_id = Some("active".to_string());
-    app.chat = vec![message(ChatRole::User, "question"), message(ChatRole::Assistant, "answer")];
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0, 80.0]);
-    app.chat_virtualizer.set_viewport_height(200.0);
+    app.session_state.active_session_id = Some("active".to_string());
+    app.chat_view.chat = vec![message(ChatRole::User, "question"), message(ChatRole::Assistant, "answer")];
+    app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0, 80.0]);
+    app.chat_view.chat_virtualizer.set_viewport_height(200.0);
 
     keep_element(view(&app));
 }
@@ -324,14 +324,14 @@ fn chat_panel_switch_preserves_conversation_state() {
     use crate::app::state::ChatPanelMode;
 
     let (mut app, _) = App::new();
-    app.active_session_id = Some("active".to_string());
-    app.chat = vec![message(ChatRole::User, "问题"), message(ChatRole::Assistant, "回答")];
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0, 120.0]);
-    app.chat_virtualizer.set_viewport_height(100.0);
-    app.chat_virtualizer.set_scroll_top_px(40.0);
+    app.session_state.active_session_id = Some("active".to_string());
+    app.chat_view.chat = vec![message(ChatRole::User, "问题"), message(ChatRole::Assistant, "回答")];
+    app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0, 120.0]);
+    app.chat_view.chat_virtualizer.set_viewport_height(100.0);
+    app.chat_view.chat_virtualizer.set_scroll_top_px(40.0);
     app.sync_chat_virtualizer_compat_fields();
-    let before_window = app.chat_virtualizer.window();
-    let before_offset = app.chat_scroll_offset_y;
+    let before_window = app.chat_view.chat_virtualizer.window();
+    let before_offset = app.chat_view.chat_scroll_offset_y;
 
     let _task =
         chat::update(&mut app, AppChatMessage::ChatPanelModeSelected(ChatPanelMode::Trajectory));
@@ -340,9 +340,9 @@ fn chat_panel_switch_preserves_conversation_state() {
         chat::update(&mut app, AppChatMessage::ChatPanelModeSelected(ChatPanelMode::Conversation));
     keep_element(view(&app));
 
-    assert_eq!(app.chat_virtualizer.window(), before_window);
-    assert_eq!(app.chat_scroll_offset_y, before_offset);
-    assert_eq!(app.chat.len(), 2);
+    assert_eq!(app.chat_view.chat_virtualizer.window(), before_window);
+    assert_eq!(app.chat_view.chat_scroll_offset_y, before_offset);
+    assert_eq!(app.chat_view.chat.len(), 2);
 }
 
 #[test]

@@ -78,18 +78,18 @@ pub(super) fn cached_model(app: &App) -> std::sync::Arc<WorkSidebarModel> {
 pub(super) fn model(app: &App) -> WorkSidebarModel {
  let drafts = running_draft_sessions(app).collect::<Vec<_>>();
  let activity = |id: &str| {
- let runtime = app.session_runtime_states.get(id);
+ let runtime = app.session_state.session_runtime_states.get(id);
  (runtime.is_some_and(|r| r.request_lifecycle.is_requesting), runtime.is_some_and(|r| !r.request_lifecycle.queue.is_empty()), super::super::components::session_row::status_for_session(app, id))
  };
  domain::model(&domain::ModelInput {
-recent_projects: &app.recent_projects,
-recent_projects_edits: &app.recent_projects_edits,
+recent_projects: &app.workspace_state.recent_projects,
+recent_projects_edits: &app.workspace_state.recent_projects_edits,
 project_path: &app.navigation_tabs.project_path,
-project_sessions: &app.project_sessions,
+project_sessions: &app.workspace_state.project_sessions,
 work_expanded_spaces: &app.navigation_workspace.work_expanded_spaces,
 work_sidebar_space_task_visible: &app.navigation_sidebar.work_sidebar_space_task_visible,
-hovered_recent_project: &app.hovered_recent_project,
-project_tools_menu_path: &app.project_tools_menu_path,
+hovered_recent_project: &app.workspace_state.hovered_recent_project,
+project_tools_menu_path: &app.workspace_state.project_tools_menu_path,
 work_sidebar_filter_scope: app.navigation_sidebar.work_sidebar_filter_scope,
 work_sidebar_filter_status: app.navigation_sidebar.work_sidebar_filter_status,
 work_sidebar_filter_time: app.navigation_sidebar.work_sidebar_filter_time,
@@ -99,9 +99,9 @@ pinned: &app.session_ui_projection.pinned, drafts: &drafts, activity: &activity,
 })
 }
 fn input(app: &App) -> domain::ViewInput<'_> { domain::ViewInput {
-recent_projects: &app.recent_projects,
-project_sessions_loading: &app.project_sessions_loading,
-desktop_locale: app.desktop_locale,
+recent_projects: &app.workspace_state.recent_projects,
+project_sessions_loading: &app.workspace_state.project_sessions_loading,
+desktop_locale: app.general_settings.desktop_locale,
 work_sidebar_collapsed: app.navigation_sidebar.work_sidebar_collapsed,
 work_sidebar_more_open: app.navigation_sidebar.work_sidebar_more_open,
 work_sidebar_filter_open: app.navigation_sidebar.work_sidebar_filter_open,
@@ -111,18 +111,18 @@ work_sidebar_filter_status: app.navigation_sidebar.work_sidebar_filter_status,
 work_sidebar_filter_time: app.navigation_sidebar.work_sidebar_filter_time,
 work_sidebar_tab: app.navigation_sidebar.work_sidebar_tab,
 work_sidebar_width: app.layout_drag.work_sidebar_width,
-new_session_creating: app.new_session_creating,
+new_session_creating: app.workspace_state.new_session_creating,
 }}
 pub(super) fn view(app: &App) -> Element<'_, Message> {
  let model = cached_model(app);
- let card = domain::current_project_card(&input(app), app.navigation_tabs.project_path.as_deref(), &app.recent_projects_edits, app.navigation_mode.work_current_project_menu.as_deref());
+ let card = domain::current_project_card(&input(app), app.navigation_tabs.project_path.as_deref(), &app.workspace_state.recent_projects_edits, app.navigation_mode.work_current_project_menu.as_deref());
  let render = |task: &domain::WorkTaskItem| {
  let mut row = super::super::components::session_row::row_input(app, &task.id, task.details.title(), task.details.updated);
  row.pinned = app.session_ui_projection.pinned.contains(&(task.details.project_id().to_owned(), task.id.clone()));
- let menu = (app.session_menu_id.as_ref() == Some(&task.id)).then(|| {
+ let menu = (app.workspace_state.session_menu_id.as_ref() == Some(&task.id)).then(|| {
  let path = app.known_session_directory(&task.id).or_else(|| app.navigation_tabs.project_path.clone()).unwrap_or_default();
- let compacting = app.sessions.iter().chain(app.project_sessions.values().flatten()).find(|s| s.id == task.id).is_some_and(|s| s.time.compacting.is_some());
- (path, app.session_is_requesting(&task.id) || compacting, app.session_menu_anchor.unwrap_or(Point::ORIGIN))
+ let compacting = app.session_state.sessions.iter().chain(app.workspace_state.project_sessions.values().flatten()).find(|s| s.id == task.id).is_some_and(|s| s.time.compacting.is_some());
+ (path, app.session_is_requesting(&task.id) || compacting, app.workspace_state.session_menu_anchor.unwrap_or(Point::ORIGIN))
  });
  domain::TaskPresentation {row, menu}
  };
@@ -153,10 +153,10 @@ pub(super) fn task_session_context_menu(
     id: String,
     content: Element<'static, Message>,
 ) -> Element<'static, Message> {
-    let menu = (app.session_menu_id.as_ref() == Some(&id)).then(|| {
+    let menu = (app.workspace_state.session_menu_id.as_ref() == Some(&id)).then(|| {
         let path = app.known_session_directory(&id).or_else(|| app.navigation_tabs.project_path.clone()).unwrap_or_default();
-        let compacting = app.sessions.iter().chain(app.project_sessions.values().flatten()).find(|session| session.id == id).is_some_and(|session| session.time.compacting.is_some());
-        (build_session_menu(crate::app::i18n::I18n::new(app.desktop_locale), id.clone(), path, app.session_is_requesting(&id) || compacting), app.session_menu_anchor.unwrap_or(Point::ORIGIN))
+        let compacting = app.session_state.sessions.iter().chain(app.workspace_state.project_sessions.values().flatten()).find(|session| session.id == id).is_some_and(|session| session.time.compacting.is_some());
+        (build_session_menu(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), id.clone(), path, app.session_is_requesting(&id) || compacting), app.workspace_state.session_menu_anchor.unwrap_or(Point::ORIGIN))
     });
     domain::session_context_menu(content, move |position| Message::Project(ProjectMessage::SessionRightClicked(id.clone(), position.x, position.y)), menu, Message::Project(ProjectMessage::SessionMenuClose))
 }

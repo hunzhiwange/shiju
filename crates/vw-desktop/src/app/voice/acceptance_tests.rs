@@ -16,7 +16,7 @@ use gateway_endpoint::GatewayEndpoint;
 #[test]
 fn voice_task_19_voice_acceptance_cancel_has_no_external_write() {
     let mut app = App::new().0;
-    app.active_session_id = Some("acceptance-cancel".into());
+    app.session_state.active_session_id = Some("acceptance-cancel".into());
     app.current_session_runtime_mut().input_editor =
         iced::widget::text_editor::Content::with_text("原始草稿");
     // Capture a failed OS boundary: cancellation must discard the external destination,
@@ -42,7 +42,7 @@ fn voice_task_19_voice_acceptance_cancel_has_no_external_write() {
     assert!(app.voice.insertion.target.is_none());
     assert!(app.voice.insertion.pending.is_none());
     assert_eq!(app.voice.draft.phase, Phase::Idle);
-    assert!(app.files.is_empty());
+    assert!(app.session_state.files.is_empty());
 }
 
 #[test]
@@ -89,7 +89,7 @@ fn voice_task_19_voice_acceptance_end_closes_all_streams() {
 fn voice_task_19_full_app_cancel_releases_local_preview_and_preserves_draft() {
     use crate::app::Message;
     let (mut app, _) = App::new();
-    app.active_session_id = Some("acceptance-local".into());
+    app.session_state.active_session_id = Some("acceptance-local".into());
     app.current_session_runtime_mut().input_editor =
         iced::widget::text_editor::Content::with_text("保留本机草稿");
     let (started, ready) = mpsc::channel();

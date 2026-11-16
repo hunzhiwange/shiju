@@ -43,7 +43,7 @@ fn task_pet_window_moved_updates_pet_position_without_moving_main_window() {
     let _task =
         super::update(&mut app, super::ViewMessage::WindowMoved(task_pet_window_id, 120.0, 240.0));
 
-    assert_eq!(app.task_pet_position, iced::Point::new(120.0, 240.0));
+    assert_eq!(app.pet_state.task_pet_position, iced::Point::new(120.0, 240.0));
     assert_eq!(app.window_position, (4.0, 8.0));
 }
 
@@ -82,14 +82,14 @@ fn global_release_resets_active_drag_state_without_file_manager_persistence() {
     app.navigation_workspace.work_split_drag_anchor_x = Some(40.0);
     app.terminal.is_dragging = true;
     app.terminal.drag_anchor_y = Some(20.0);
-    app.task_board_drag_pending =
+    app.task_board.task_board_drag_pending =
         Some(("pending".to_owned(), crate::app::task::TaskStatus::Pending, iced::Point::ORIGIN));
-    app.task_board_dragging = Some(("dragging".to_owned(), crate::app::task::TaskStatus::Running));
+    app.task_board.task_board_dragging = Some(("dragging".to_owned(), crate::app::task::TaskStatus::Running));
 
     let _task = super::update(&mut app, super::ViewMessage::GlobalMouseReleased);
 
-    assert!(app.task_board_drag_pending.is_none());
-    assert!(app.task_board_dragging.is_none());
+    assert!(app.task_board.task_board_drag_pending.is_none());
+    assert!(app.task_board.task_board_dragging.is_none());
     assert!(!app.layout_drag.dragging_settings);
     assert_eq!(app.layout_drag.settings_drag_anchor_x, None);
     assert!(!app.layout_drag.dragging_split);
@@ -125,14 +125,14 @@ fn global_release_transfers_internal_files_to_hovered_input() {
 #[test]
 fn global_cursor_left_makes_visible_lsp_hover_noninteractive_and_schedules_hide() {
     let mut app = test_app();
-    app.lsp_overlay.hover_visible = true;
-    app.lsp_overlay.hover_interactive = true;
-    app.lsp_hover_hide_deadline = None;
+    app.preview_state.lsp_overlay.hover_visible = true;
+    app.preview_state.lsp_overlay.hover_interactive = true;
+    app.preview_state.lsp_hover_hide_deadline = None;
 
     let _task = super::update(&mut app, super::ViewMessage::GlobalCursorLeft);
 
-    assert!(!app.lsp_overlay.hover_interactive);
-    assert!(app.lsp_hover_hide_deadline.is_some());
+    assert!(!app.preview_state.lsp_overlay.hover_interactive);
+    assert!(app.preview_state.lsp_hover_hide_deadline.is_some());
 }
 
 #[test]

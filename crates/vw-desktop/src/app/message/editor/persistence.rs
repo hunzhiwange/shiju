@@ -8,13 +8,13 @@ pub(super) fn enqueue(app: &mut App, patch: EditorSettingsPatch) -> Task<Message
     for field in patch.edited_fields() {
         app.note_startup_setting_edit(field);
     }
-    app.editor_config_persistence
+    app.preview_state.editor_config_persistence
         .enqueue(crate::app::config::gateway_client_endpoint(), patch)
         .map(Message::Editor)
 }
 
 pub(super) fn save_complete(app: &mut App, result: Result<(), String>) -> Task<Message> {
-    let next = app.editor_config_persistence.save_complete().map(Message::Editor);
+    let next = app.preview_state.editor_config_persistence.save_complete().map(Message::Editor);
     if result.is_err() {
         tracing::warn!(target: "vw_desktop", "failed to save editor settings");
         return Task::batch([next, app.show_error_toast("编辑器配置保存失败，请重试")]);

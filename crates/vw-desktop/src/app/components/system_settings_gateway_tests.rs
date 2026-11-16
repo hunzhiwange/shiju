@@ -12,9 +12,9 @@ async fn settings_tabs_core_appearance_gateway() {
             app.gateway_settings.active_tab = GatewaySettingsTab::Config;
             let labels: Vec<_> = GATEWAY_TABS
                 .iter()
-                .map(|tab| connection_text(app.desktop_locale, tab.label))
+                .map(|tab| connection_text(app.general_settings.desktop_locale, tab.label))
                 .collect();
-            let content = connection_text(app.desktop_locale, "生成 skey");
+            let content = connection_text(app.general_settings.desktop_locale, "生成 skey");
             assert!(!scene.labels(view(app)).contains(content));
             let message = scene.check(app, view(app), &labels, 1);
             assert!(matches!(

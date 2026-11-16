@@ -21,8 +21,8 @@ fn ready_to_send(app: &App) -> Result<(), &'static str> {
         requesting: runtime.is_some_and(|r| r.request_lifecycle.is_requesting || r.request_lifecycle.active_agent_request.is_some() || !r.request_lifecycle.queue.is_empty()),
         has_draft: runtime.is_some_and(|r| !r.input_editor.text().trim().is_empty()),
         special_mode: runtime.is_some_and(|r| r.task_mode_enabled || r.workflow_mode_enabled || r.acp_agent.is_some()),
-        permissions_loading: runtime.is_some_and(|r| r.full_access_saving || r.full_access_save_failed || r.acp_options_state.source_pending.is_some() || r.acp_options_state.pending || (app.active_session_view_state.ui_preparing && !app.active_session_view_state.base_ready)),
-        approval_pending: app.permission_modal_request_id.is_some() || app.question_modal_request_id.is_some(),
+        permissions_loading: runtime.is_some_and(|r| r.full_access_saving || r.full_access_save_failed || r.acp_options_state.source_pending.is_some() || r.acp_options_state.pending || (app.chat_view.active_session_view_state.ui_preparing && !app.chat_view.active_session_view_state.base_ready)),
+        approval_pending: app.session_state.permission_modal_request_id.is_some() || app.session_state.question_modal_request_id.is_some(),
     })
 }
 pub(super) fn start(app: &mut App, preferences: Preferences) -> Task<Message> {
@@ -154,7 +154,7 @@ fn send_request(app: &mut App, input: String, caption: String) -> Task<Message> 
         return outcome(app, error.into());
     }
     let chat = app.voice.local_conversation.as_mut().unwrap();
-    chat.watermark = app.chat.len();
+    chat.watermark = app.chat_view.chat.len();
     let session_id = chat.session.clone();
     let task = crate::app::message::chat::update(
         app,

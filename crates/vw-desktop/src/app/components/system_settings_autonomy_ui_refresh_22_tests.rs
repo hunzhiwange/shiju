@@ -150,7 +150,7 @@ async fn ui_refresh_22_host_security_viewport() {
     let mut renderer = renderer().await;
     let mut app = fixture();
     use crate::app::components::system_settings::{self, SystemTab};
-    app.desktop_locale = DesktopLocale::English;
+    app.general_settings.desktop_locale = DesktopLocale::English;
     app.navigation_panels.show_system_settings = true;
     app.navigation_panels.system_settings_tab = SystemTab::Security;
     app.security_settings.active_tab = SecuritySettingsTab::SandboxAndResources;

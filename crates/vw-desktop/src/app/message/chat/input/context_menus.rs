@@ -15,7 +15,7 @@ use iced::{Task, widget::text_editor};
 /// 模块内可见函数，执行 handle_open_input_context_menu 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_open_input_context_menu(app: &mut App, x: f32, y: f32) -> Task<Message> {
-    app.input_context_menu.open(x, y);
+    app.session_state.input_context_menu.open(x, y);
     Task::none()
 }
 
@@ -91,17 +91,17 @@ pub(super) fn handle_open_message_context_menu(
     text: String,
 ) -> Task<Message> {
     // Preserve target publication before selection resolution.
-    app.chat_context_menu.target = Some(target);
-    app.chat_context_menu.position = Some((x, y));
+    app.session_state.chat_context_menu.target = Some(target);
+    app.session_state.chat_context_menu.position = Some((x, y));
     let text = selected_chat_text_for_target(app, target).unwrap_or(text);
-    app.chat_context_menu.open(target, x, y, text);
+    app.session_state.chat_context_menu.open(target, x, y, text);
     Task::none()
 }
 
 /// 模块内可见函数，执行 handle_close_message_context_menu 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_close_message_context_menu(app: &mut App) -> Task<Message> {
-    app.chat_context_menu.close();
+    app.session_state.chat_context_menu.close();
     Task::none()
 }
 
@@ -137,7 +137,7 @@ pub(super) fn handle_search_context_menu_with_bing(app: &mut App) -> Task<Messag
 
 fn handle_text_context_action(app: &mut App, action: TextContextAction) -> Task<Message> {
     action
-        .message(app.chat_context_menu.take_text())
+        .message(app.session_state.chat_context_menu.take_text())
         .map(crate::app::components::text_editor_context_menu::text_context_message)
         .map_or_else(Task::none, Task::done)
 }
@@ -146,13 +146,12 @@ pub(super) fn handle_open_fork_session_dialog(
     app: &mut App,
     anchor: Option<crate::app::message::chat::ForkSessionAnchor>,
 ) -> Task<Message> {
-    if app.chat_fork_dialog.as_ref().is_some_and(|dialog| dialog.in_progress) {
+    if app.session_state.chat_fork_dialog.as_ref().is_some_and(|dialog| dialog.in_progress) {
         return Task::none();
     }
-    app.chat_reset_menu_idx = None;
-    app.chat_fork_dialog = anchor.filter(|anchor| crate::app::message::chat::fork_session_anchor_is_current(&anchor, app)).and_then(|anchor| {
-        let index = app
-            .chat_message_ids
+    app.session_state.chat_reset_menu_idx = None;
+    app.session_state.chat_fork_dialog = anchor.filter(|anchor| crate::app::message::chat::fork_session_anchor_is_current(&anchor, app)).and_then(|anchor| {
+        let index = app.chat_view.chat_message_ids
             .iter()
             .position(|id| id.as_deref() == Some(anchor.user_message_id.as_str()))?;
         let prompt = crate::app::components::chat_panel::message_view::chat_message_action_text(
@@ -160,7 +159,7 @@ pub(super) fn handle_open_fork_session_dialog(
         )?;
         Some(crate::app::message::chat::ForkSessionDialog { anchor, prompt, in_progress: false })
     });
-    if app.chat_fork_dialog.is_some() {
+    if app.session_state.chat_fork_dialog.is_some() {
         Task::none()
     } else {
         app.show_localized_toast(
@@ -174,7 +173,7 @@ pub(super) fn handle_open_fork_session_dialog(
 /// 模块内可见函数，执行 handle_close_fork_session_dialog 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_close_fork_session_dialog(app: &mut App) -> Task<Message> {
-    desktop_session::message::chat::fork::close_fork_dialog(&mut app.chat_fork_dialog);
+    desktop_session::message::chat::fork::close_fork_dialog(&mut app.session_state.chat_fork_dialog);
     Task::none()
 }
 
@@ -182,7 +181,7 @@ pub(super) fn handle_close_fork_session_dialog(app: &mut App) -> Task<Message> {
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_toggle_reset_menu(app: &mut App, msg_idx: usize) -> Task<Message> {
     desktop_session::message::chat::fork::toggle_reset_menu(
-        &mut app.chat_fork_dialog, &mut app.chat_reset_menu_idx, msg_idx,
+        &mut app.session_state.chat_fork_dialog, &mut app.session_state.chat_reset_menu_idx, msg_idx,
     );
     Task::none()
 }
@@ -190,7 +189,7 @@ pub(super) fn handle_toggle_reset_menu(app: &mut App, msg_idx: usize) -> Task<Me
 /// 模块内可见函数，执行 handle_close_reset_menu 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_close_reset_menu(app: &mut App) -> Task<Message> {
-    app.chat_reset_menu_idx = None;
+    app.session_state.chat_reset_menu_idx = None;
     Task::none()
 }
 #[cfg(test)]
@@ -199,9 +198,9 @@ mod context_menus_tests;
 
 fn apply_input_menu(app: &mut App, action: desktop_chat_input::input_panel::input_menu::Action) -> Task<Message> {
     use desktop_chat_input::input_panel::input_menu::{self, Effect};
-    let mut menu = std::mem::take(&mut app.input_context_menu);
+    let mut menu = std::mem::take(&mut app.session_state.input_context_menu);
     let outcome = input_menu::update(&mut menu, &mut app.current_session_runtime_mut().input_editor, action);
-    app.input_context_menu = menu;
+    app.session_state.input_context_menu = menu;
     if outcome.sync_editor { sync_global_input_editor_if_needed(app); }
     match outcome.effect {
         Effect::None => Task::none(),

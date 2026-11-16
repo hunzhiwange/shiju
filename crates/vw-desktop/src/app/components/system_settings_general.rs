@@ -7,27 +7,27 @@ pub(super) use domain::GENERAL_TABS;
 use iced::Element;
 fn inputs(app: &App) -> domain::View<'_, Shell> {
     domain::View {
-        desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        desktop_locale: app.general_settings.desktop_locale,
+        app_theme: &app.appearance.app_theme,
         shell: app.terminal.shell,
         shell_options: Shell::all().to_vec(),
         font_family: &app.terminal.font_family,
         displayed_font_size: app
             .terminal_config_persistence
             .displayed_font_size(app.terminal.font_size),
-        preview_auto_save_mode: app.preview_auto_save_mode,
-        chat_timezone: &app.chat_timezone,
+        preview_auto_save_mode: app.preview_state.preview_auto_save_mode,
+        chat_timezone: &app.general_settings.chat_timezone,
         launch_at_login: app.launch_at_login,
         launch_at_login_busy: app.launch_at_login_busy,
         close_to_tray: app.close_to_tray,
-        task_completion_notification: app.task_completion_notification,
+        task_completion_notification: app.general_settings.task_completion_notification,
         notification_supported: crate::app::desktop_notification::SUPPORTED,
-        general_settings_tab: app.general_settings_tab,
+        general_settings_tab: app.general_settings.general_settings_tab,
     }
 }
 pub fn view(app: &App) -> Element<'_, Message> {
     use crate::app::state::GeneralSettingsTab;
-    let subpage = match app.general_settings_tab {
+    let subpage = match app.general_settings.general_settings_tab {
         GeneralSettingsTab::Editor => super::system_settings_editor::content(app),
         GeneralSettingsTab::Companion => super::system_settings_companion::content(app),
         GeneralSettingsTab::Themes => super::system_settings_themes::view(app),

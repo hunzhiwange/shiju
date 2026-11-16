@@ -18,13 +18,13 @@ fn todo(id: &str, status: &str) -> todo_types::Todo {
 #[test]
 fn load_todos_without_active_session_clears_cached_items() {
     let (mut app, _task) = App::new();
-    app.chat_todo_session_id = Some("old".to_string());
-    app.chat_todo_items = vec![todo("old", "pending")];
+    app.todo_state.chat_todo_session_id = Some("old".to_string());
+    app.todo_state.chat_todo_items = vec![todo("old", "pending")];
 
     super::handle_load_input_panel_todos(&mut app);
 
-    assert_eq!(app.chat_todo_session_id, None);
-    assert!(app.chat_todo_items.is_empty());
+    assert_eq!(app.todo_state.chat_todo_session_id, None);
+    assert!(app.todo_state.chat_todo_items.is_empty());
 }
 
 #[test]
@@ -47,37 +47,37 @@ fn todo_list_directory_falls_back_to_project_path() {
 #[test]
 fn load_todos_with_active_session_defers_cached_state_changes() {
     let (mut app, _task) = App::new();
-    app.active_session_id = Some("active".to_string());
-    app.chat_todo_session_id = Some("cached".to_string());
-    app.chat_todo_items = vec![todo("cached", "pending")];
+    app.session_state.active_session_id = Some("active".to_string());
+    app.todo_state.chat_todo_session_id = Some("cached".to_string());
+    app.todo_state.chat_todo_items = vec![todo("cached", "pending")];
 
     super::handle_load_input_panel_todos(&mut app);
 
-    assert_eq!(app.chat_todo_session_id.as_deref(), Some("cached"));
-    assert_eq!(app.chat_todo_items[0].id, "cached");
+    assert_eq!(app.todo_state.chat_todo_session_id.as_deref(), Some("cached"));
+    assert_eq!(app.todo_state.chat_todo_items[0].id, "cached");
 }
 
 #[test]
 fn poll_without_active_session_clears_cached_items() {
     let (mut app, _task) = App::new();
-    app.chat_todo_session_id = Some("cached".to_string());
-    app.chat_todo_items = vec![todo("cached", "pending")];
+    app.todo_state.chat_todo_session_id = Some("cached".to_string());
+    app.todo_state.chat_todo_items = vec![todo("cached", "pending")];
 
     super::handle_todo_poll_tick(&mut app);
 
-    assert!(app.chat_todo_session_id.is_none());
-    assert!(app.chat_todo_items.is_empty());
+    assert!(app.todo_state.chat_todo_session_id.is_none());
+    assert!(app.todo_state.chat_todo_items.is_empty());
 }
 
 #[test]
 fn poll_with_active_session_defers_cached_state_changes() {
     let (mut app, _task) = App::new();
-    app.active_session_id = Some("active".to_string());
-    app.chat_todo_session_id = Some("cached".to_string());
-    app.chat_todo_items = vec![todo("cached", "pending")];
+    app.session_state.active_session_id = Some("active".to_string());
+    app.todo_state.chat_todo_session_id = Some("cached".to_string());
+    app.todo_state.chat_todo_items = vec![todo("cached", "pending")];
 
     super::handle_todo_poll_tick(&mut app);
 
-    assert_eq!(app.chat_todo_session_id.as_deref(), Some("cached"));
-    assert_eq!(app.chat_todo_items[0].id, "cached");
+    assert_eq!(app.todo_state.chat_todo_session_id.as_deref(), Some("cached"));
+    assert_eq!(app.todo_state.chat_todo_items[0].id, "cached");
 }

@@ -13,21 +13,21 @@ use iced::{
 /// 模块内可见函数，执行 close_input_context_menu 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn close_input_context_menu(app: &mut App) {
-    app.input_context_menu.close();
+    app.session_state.input_context_menu.close();
 }
 
 /// 模块内可见函数，执行 sync_global_input_editor_if_needed 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn sync_global_input_editor_if_needed(app: &mut App) {
-    if app.active_session_id.is_none() {
-        app.input_editor = app.current_session_runtime_mut().input_editor.clone();
+    if app.session_state.active_session_id.is_none() {
+        app.session_state.input_editor = app.current_session_runtime_mut().input_editor.clone();
     }
 }
 
 /// 模块内可见函数，执行 focus_input_editor 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn focus_input_editor(app: &App) -> Task<Message> {
-    operation::focus(app.input_editor_id.clone())
+    operation::focus(app.session_state.input_editor_id.clone())
 }
 
 /// 模块内可见函数，执行 permission_target_tool_anchor_fraction 对应的应用流程。
@@ -49,42 +49,41 @@ fn locate_chat_message_idx(
     target_idx: usize,
     message_id: Option<&str>,
 ) -> Task<Message> {
-    if target_idx >= app.chat.len() {
+    if target_idx >= app.chat_view.chat.len() {
         return Task::none();
     }
 
-    app.chat_auto_scroll = false;
+    app.chat_view.chat_auto_scroll = false;
     app.sync_chat_message_estimated_heights_len();
-    app.refine_chat_message_estimated_heights(target_idx, (target_idx + 1).min(app.chat.len()));
+    app.refine_chat_message_estimated_heights(target_idx, (target_idx + 1).min(app.chat_view.chat.len()));
 
-    let viewport_h = app.chat_scroll_viewport_h.max(0.0);
-    let target_anchor_fraction = app
-        .chat
+    let viewport_h = app.chat_view.chat_scroll_viewport_h.max(0.0);
+    let target_anchor_fraction = app.chat_view.chat
         .get(target_idx)
         .and_then(|message| {
             permission_target_tool_anchor_fraction(
                 message,
-                app.permission_modal_request.as_ref(),
+                app.session_state.permission_modal_request.as_ref(),
                 message_id,
-                app.dialogue_flow_show_reasoning_summary,
+                app.general_settings.dialogue_flow_show_reasoning_summary,
             )
         })
         .unwrap_or(0.50);
-    app.chat_virtualizer.set_viewport_height(viewport_h);
-    app.chat_virtualizer.scroll_to_item_anchor(target_idx, target_anchor_fraction, 0.18);
+    app.chat_view.chat_virtualizer.set_viewport_height(viewport_h);
+    app.chat_view.chat_virtualizer.scroll_to_item_anchor(target_idx, target_anchor_fraction, 0.18);
     app.sync_chat_virtualizer_compat_fields();
 
     let target_chunk_start = crate::app::session::chat_ui_chunk_start_idx(target_idx);
     let prewarm_task =
-        if !app.active_session_view_state.preparing_chat_ui_chunks.contains(&target_chunk_start) {
-            if let Some(session_id) = app.active_session_id.clone() {
+        if !app.chat_view.active_session_view_state.preparing_chat_ui_chunks.contains(&target_chunk_start) {
+            if let Some(session_id) = app.session_state.active_session_id.clone() {
                 app.mark_chat_ui_chunks_preparing(&[target_chunk_start]);
                 crate::app::message::project::prepare_session_ui_task(
                     session_id,
                     app.active_shared_chat_messages(),
                     target_chunk_start,
                     false,
-                    app.dialogue_flow_show_reasoning_summary,
+                    app.general_settings.dialogue_flow_show_reasoning_summary,
                 )
             } else {
                 Task::none()
@@ -96,8 +95,8 @@ fn locate_chat_message_idx(
     Task::batch(vec![
         prewarm_task,
         operation::snap_to(
-            app.chat_scroll_id.clone(),
-            scrollable::RelativeOffset { x: Some(0.0), y: Some(app.chat_scroll_offset_y) },
+            app.chat_view.chat_scroll_id.clone(),
+            scrollable::RelativeOffset { x: Some(0.0), y: Some(app.chat_view.chat_scroll_offset_y) },
         )
         .map(|_: ()| Message::CopyDone),
     ])
@@ -107,7 +106,7 @@ fn locate_chat_message_idx(
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn locate_chat_message(app: &mut App, message_id: &str) -> Task<Message> {
     let Some(target_idx) =
-        preferred_chat_message_index_by_id(&app.chat, &app.chat_message_ids, message_id)
+        preferred_chat_message_index_by_id(&app.chat_view.chat, &app.chat_view.chat_message_ids, message_id)
     else {
         return Task::none();
     };
@@ -118,7 +117,7 @@ pub(super) fn locate_chat_message(app: &mut App, message_id: &str) -> Task<Messa
 /// 模块内可见函数，执行 locate_chat_message_index 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn locate_chat_message_index(app: &mut App, target_idx: usize) -> Task<Message> {
-    let message_id = app.chat_message_ids.get(target_idx).cloned().flatten();
+    let message_id = app.chat_view.chat_message_ids.get(target_idx).cloned().flatten();
     locate_chat_message_idx(app, target_idx, message_id.as_deref())
 }
 

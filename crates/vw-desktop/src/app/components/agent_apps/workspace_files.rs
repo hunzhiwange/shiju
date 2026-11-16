@@ -39,7 +39,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         tenant: client.endpoint().tenant_scope().clone(),
         project: app.navigation_tabs.project_path.clone(),
     };
-    let Some(project) = app.project_id.clone().filter(|p| !p.is_empty()) else {
+    let Some(project) = app.workspace_state.project_id.clone().filter(|p| !p.is_empty()) else {
         return app.show_error_toast("请先选择项目");
     };
     let connection = Connection {

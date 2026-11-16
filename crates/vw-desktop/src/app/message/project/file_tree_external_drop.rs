@@ -15,7 +15,7 @@ pub(super) fn submit(
         &root,
         &source,
         &directory,
-        &app.files,
+        &app.session_state.files,
     ) {
         return Task::none();
     }

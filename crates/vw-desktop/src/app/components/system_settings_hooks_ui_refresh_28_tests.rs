@@ -274,7 +274,7 @@ async fn ui_refresh_28_layout_and_interaction() {
     }
     let mut renderer = renderer().await;
     let mut app = fixture();
-    app.desktop_locale = DesktopLocale::English;
+    app.general_settings.desktop_locale = DesktopLocale::English;
     let state = &mut app.observability_settings;
     state.backend = "log".into();
     state.otel_endpoint_input = ENDPOINT.into();
@@ -370,7 +370,7 @@ async fn ui_refresh_28_layout_and_interaction() {
 
     app.navigation_panels.show_system_settings = true;
     app.navigation_panels.system_settings_tab = system_settings::SystemTab::Observability;
-    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    app.general_settings.desktop_locale = DesktopLocale::SimplifiedChinese;
     app.observability_settings.save_error = Some(FAILURE.into());
     let size = Size::new(960, 840);
     let mut ui = scene(system_settings::view(&app), &mut renderer, size);
@@ -399,7 +399,7 @@ async fn ui_refresh_28_layout_and_interaction() {
         if value == "log"));
     drop(ui);
 
-    app.desktop_locale = DesktopLocale::TraditionalChinese;
+    app.general_settings.desktop_locale = DesktopLocale::TraditionalChinese;
     app.observability_settings.show_help_modal = true;
     let size = Size::new(420, 360);
     let base = frame(observability::view(&app));
@@ -412,7 +412,7 @@ async fn ui_refresh_28_layout_and_interaction() {
         "help-zh-tw-420",
         mouse::Cursor::Unavailable,
     );
-    let title = crate::app::i18n::settings_runtime::text(app.desktop_locale, "可观测性配置帮助");
+    let title = crate::app::i18n::settings_runtime::text(app.general_settings.desktop_locale, "可观测性配置帮助");
     let positions = geometry(&mut ui, &renderer);
     assert_fits(positions.label(title), size);
     let (scroll, before) = positions.scroll.unwrap();
@@ -462,8 +462,8 @@ async fn help_rollout_20_renders_contextual_help() {
     }];
 
     for (locale, theme) in MODES {
-        app.desktop_locale = locale;
-        app.app_theme = theme;
+        app.general_settings.desktop_locale = locale;
+        app.appearance.app_theme = theme;
         let mut settings = Scene::new(&app, &mut renderer, "hooks", view(&app));
         for value in [FAILURE, COMMAND, TRACE_PATH, "before_tool_call", "blocking"] {
             settings.label(value);

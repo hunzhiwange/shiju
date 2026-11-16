@@ -35,23 +35,23 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             };
             let deleted = projects::apply_with_metadata(
                 State {
-                    query: &mut app.recent_project_query,
-                    tools_menu_path: &mut app.project_tools_menu_path,
-                    delete_confirm_idx: &mut app.recent_project_delete_confirm_idx,
-                    paths: &mut app.recent_projects,
-                    edits: &mut app.recent_projects_edits,
+                    query: &mut app.workspace_state.recent_project_query,
+                    tools_menu_path: &mut app.workspace_state.project_tools_menu_path,
+                    delete_confirm_idx: &mut app.workspace_state.recent_project_delete_confirm_idx,
+                    paths: &mut app.workspace_state.recent_projects,
+                    edits: &mut app.workspace_state.recent_projects_edits,
                 },
                 event,
                 app.navigation_tabs.project_path.as_deref(),
-                &mut app.recent_projects_meta,
+                &mut app.workspace_state.recent_projects_meta,
             );
             let mut deleting_current = false;
             let mut save_worktree = Task::none();
             if let Some(deleted) = deleted {
                 let path = deleted.path;
                 deleting_current = deleted.was_current;
-                save_recent_projects_background(app.recent_projects.clone());
-                save_recent_projects_meta_background(app.recent_projects_meta.clone());
+                save_recent_projects_background(app.workspace_state.recent_projects.clone());
+                save_recent_projects_meta_background(app.workspace_state.recent_projects_meta.clone());
                 save_worktree = set_worktree_enabled(app, path, false);
             }
             if deleting_current {
@@ -64,17 +64,17 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             set_worktree_enabled(app, path, enabled)
         }
         SettingsMessage::ProjectWorktreeSaved(result) => {
-            app.project_worktree_save_running = false;
+            app.workspace_state.project_worktree_save_running = false;
             let next = start_worktree_save(app);
             #[cfg(not(target_arch = "wasm32"))]
-            if !app.project_worktree_save_running
-                && let Some(idle) = app.project_worktree_save_idle.take()
+            if !app.workspace_state.project_worktree_save_running
+                && let Some(idle) = app.workspace_state.project_worktree_save_idle.take()
             {
                 idle.send_replace(true);
             }
             if let Err(error) = result {
                 tracing::warn!(target: "vw_desktop", %error, "failed to save project worktree setting");
-                let label = I18n::new(app.desktop_locale).__("Worktree 设置保存失败。");
+                let label = I18n::new(app.general_settings.desktop_locale).__("Worktree 设置保存失败。");
                 return Task::batch([next, app.show_error_toast(label)]);
             }
             next
@@ -86,7 +86,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 /// 应用 Worktree 选项并安排单项目配置写入。
 pub(crate) fn set_worktree_enabled(app: &mut App, path: String, enabled: bool) -> Task<Message> {
     let Some(patch) = desktop_settings_workspace::projects::set_worktree_enabled(
-        &mut app.project_worktree_enabled,
+        &mut app.workspace_state.project_worktree_enabled,
         &path,
         enabled,
     ) else {
@@ -96,7 +96,7 @@ pub(crate) fn set_worktree_enabled(app: &mut App, path: String, enabled: bool) -
     #[cfg(not(target_arch = "wasm32"))]
     app.note_startup_worktree_edit(&path);
     let endpoint = gateway_client_endpoint();
-    app.project_worktree_save_queue.push_back(Task::perform(
+    app.workspace_state.project_worktree_save_queue.push_back(Task::perform(
         async move {
             gateway_desktop_settings::GatewayDesktopSettingsClient::new(
                 GatewayClient::new(endpoint)?.transport().clone(),
@@ -111,30 +111,30 @@ pub(crate) fn set_worktree_enabled(app: &mut App, path: String, enabled: bool) -
 
 /// Keep the existing project editor cache aligned with an acknowledged gateway write.
 pub(crate) fn environment_command_saved(app: &mut App, path: &str, command: Option<String>) {
-    if let Some(meta) = app.recent_projects_meta.iter_mut().find(|meta| meta.path == path) {
+    if let Some(meta) = app.workspace_state.recent_projects_meta.iter_mut().find(|meta| meta.path == path) {
         meta.worktree_start_command = command;
-        save_recent_projects_meta_background(app.recent_projects_meta.clone());
+        save_recent_projects_meta_background(app.workspace_state.recent_projects_meta.clone());
     }
 }
 
 fn start_worktree_save(app: &mut App) -> Task<Message> {
-    if app.project_worktree_save_running {
+    if app.workspace_state.project_worktree_save_running {
         return Task::none();
     }
-    let Some(task) = app.project_worktree_save_queue.pop_front() else {
+    let Some(task) = app.workspace_state.project_worktree_save_queue.pop_front() else {
         return Task::none();
     };
-    app.project_worktree_save_running = true;
+    app.workspace_state.project_worktree_save_running = true;
     task
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn wait_for_worktree_saves(app: &mut App) -> Option<tokio::sync::watch::Receiver<bool>> {
-    if !app.project_worktree_save_running {
+    if !app.workspace_state.project_worktree_save_running {
         return None;
     }
     let (sender, receiver) = tokio::sync::watch::channel(false);
-    app.project_worktree_save_idle = Some(sender);
+    app.workspace_state.project_worktree_save_idle = Some(sender);
     Some(receiver)
 }
 

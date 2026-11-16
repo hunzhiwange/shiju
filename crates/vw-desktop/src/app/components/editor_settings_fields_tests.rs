@@ -65,12 +65,12 @@ async fn ecp03_settings_surfaces_apply_identical_metrics_and_theme() {
         return;
     }
     let mut app = fixture();
-    app.current_font_size = 16.0;
-    app.current_line_height = 26.0;
-    app.auto_adjust_line_height = false;
-    app.editor_follow_system_theme = true;
-    app.app_theme = Theme::Dark;
-    app.editor_theme = Theme::Light;
+    app.preview_state.current_font_size = 16.0;
+    app.preview_state.current_line_height = 26.0;
+    app.preview_state.auto_adjust_line_height = false;
+    app.appearance.editor_follow_system_theme = true;
+    app.appearance.app_theme = Theme::Dark;
+    app.appearance.editor_theme = Theme::Light;
     let mut renderer = renderer().await;
     for local in [true, false] {
         let element =
@@ -92,12 +92,12 @@ async fn ecp03_settings_surfaces_apply_identical_metrics_and_theme() {
                 let _task = editor::update(&mut app, message);
             }
         }
-        assert!(app.current_line_height > 50.0);
+        assert!(app.preview_state.current_line_height > 50.0);
         let _task = editor::update(&mut app, EditorMessage::ToggleFollowSystemTheme(false));
         let _task = editor::update(&mut app, EditorMessage::ThemeChanged(Theme::Dark));
         assert_eq!(app.effective_editor_theme(), Theme::Dark);
-        app.current_line_height = 26.0;
-        app.editor_follow_system_theme = true;
+        app.preview_state.current_line_height = 26.0;
+        app.appearance.editor_follow_system_theme = true;
     }
 }
 #[tokio::test]
@@ -110,9 +110,9 @@ async fn ecp03_closing_modal_commits_pending_metrics() {
     let _task = editor::update(&mut app, EditorMessage::FontSizePreview(22.0));
     let _task = editor::update(&mut app, EditorMessage::LineHeightPreview(60.0));
     let _task = editor::update(&mut app, EditorMessage::ToggleSettings);
-    assert!(!app.show_preview_settings);
-    assert_eq!(app.current_font_size, 22.0);
-    assert_eq!(app.current_line_height, 60.0);
+    assert!(!app.preview_state.show_preview_settings);
+    assert_eq!(app.preview_state.current_font_size, 22.0);
+    assert_eq!(app.preview_state.current_line_height, 60.0);
     assert_eq!(app.git.git_copy_modal_code_editor.font_size(), 22.0);
     assert_eq!(app.git.git_copy_modal_code_editor.line_height(), 60.0);
 }

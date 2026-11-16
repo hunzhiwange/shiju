@@ -34,14 +34,14 @@ fn completed_step_for_turn(index: u32, turn_id: &str) -> ChatSessionStep {
 // 缓存键包含轮次标识，防止同一会话内复用步骤序号时串读旧轨迹。
 fn trajectory_raw_cache_keys_include_turn_id() {
     let (mut app, _) = App::new();
-    app.active_session_id = Some("shared-session".to_string());
-    app.active_session_view_state.steps =
+    app.session_state.active_session_id = Some("shared-session".to_string());
+    app.chat_view.active_session_view_state.steps =
         vec![completed_step_for_turn(1, "turn-a"), completed_step_for_turn(1, "turn-b")];
     let first_key = ("shared-session".to_string(), "turn-a".to_string(), 1);
     let second_key = ("shared-session".to_string(), "turn-b".to_string(), 1);
     for key in [&first_key, &second_key] {
-        app.trajectory_raw_loading.insert(key.clone());
-        app.trajectory_raw_attempts.insert(key.clone(), 1);
+        app.chat_interaction.trajectory_raw_loading.insert(key.clone());
+        app.chat_interaction.trajectory_raw_attempts.insert(key.clone(), 1);
     }
 
     for (key, value) in [
@@ -60,9 +60,9 @@ fn trajectory_raw_cache_keys_include_turn_id() {
         );
     }
 
-    assert_eq!(app.active_session_view_state.step_llm_raw.len(), 2);
-    assert_eq!(app.active_session_view_state.step_llm_raw[&first_key]["output"]["text"], "first");
-    assert_eq!(app.active_session_view_state.step_llm_raw[&second_key]["output"]["text"], "second");
+    assert_eq!(app.chat_view.active_session_view_state.step_llm_raw.len(), 2);
+    assert_eq!(app.chat_view.active_session_view_state.step_llm_raw[&first_key]["output"]["text"], "first");
+    assert_eq!(app.chat_view.active_session_view_state.step_llm_raw[&second_key]["output"]["text"], "second");
 }
 
 
@@ -72,8 +72,8 @@ mod trajectory_raw {
     #[test]
     fn raw_modal_and_trajectory_share_reconstructed_payload() {
         let (mut app, _) = App::new();
-        app.active_session_id = Some("shared-session".to_string());
-        app.active_session_view_state.steps = vec![completed_step_for_turn(1, "turn-a")];
+        app.session_state.active_session_id = Some("shared-session".to_string());
+        app.chat_view.active_session_view_state.steps = vec![completed_step_for_turn(1, "turn-a")];
         let key = ("shared-session".to_string(), "turn-a".to_string(), 1);
         let reconstructed = serde_json::json!({
             "system": ["system prompt"],
@@ -92,8 +92,8 @@ mod trajectory_raw {
             ),
         );
         let projection = crate::app::components::chat_panel::trajectory::project_trajectory(
-            &app.active_session_view_state.steps,
-            &app.active_session_view_state.step_llm_raw,
+            &app.chat_view.active_session_view_state.steps,
+            &app.chat_view.active_session_view_state.step_llm_raw,
         );
         let _task = crate::app::message::view::panel::update(
             &mut app,
@@ -101,7 +101,7 @@ mod trajectory_raw {
         );
 
         assert!(!projection.records.is_empty());
-        assert_eq!(app.active_session_view_state.step_llm_raw.get(&key), Some(&reconstructed));
+        assert_eq!(app.chat_view.active_session_view_state.step_llm_raw.get(&key), Some(&reconstructed));
         assert!(!app.usage_panel.usage_step_raw_payloads.contains_key(&key));
         let modal = app.usage_panel.usage_step_raw_modal.as_ref().expect("shared raw modal");
         assert_eq!(
@@ -119,28 +119,28 @@ fn raw_key(session_id: &str, step_index: u32) -> (String, String, u32) {
 fn trajectory_mode_toggle_defaults_to_conversation() {
     let (mut app, _) = App::new();
 
-    assert_eq!(app.chat_panel_mode, ChatPanelMode::Conversation);
+    assert_eq!(app.chat_view.chat_panel_mode, ChatPanelMode::Conversation);
 
     let _task = super::update(
         &mut app,
         super::ChatMessage::ChatPanelModeSelected(ChatPanelMode::Trajectory),
     );
-    assert_eq!(app.chat_panel_mode, ChatPanelMode::Trajectory);
+    assert_eq!(app.chat_view.chat_panel_mode, ChatPanelMode::Trajectory);
 
     let _task = super::update(
         &mut app,
         super::ChatMessage::ChatPanelModeSelected(ChatPanelMode::Conversation),
     );
-    assert_eq!(app.chat_panel_mode, ChatPanelMode::Conversation);
+    assert_eq!(app.chat_view.chat_panel_mode, ChatPanelMode::Conversation);
 }
 
 #[test]
 // 切换到原始轨迹模式时只刷新已完成且尚未缓存的步骤。
 fn trajectory_mode_toggle_refreshes_missing_completed_raw() {
     let (mut app, _) = App::new();
-    app.active_session_id = Some("active-session".to_string());
-    app.active_session_view_state.steps = vec![completed_step(3), completed_step(4)];
-    app.active_session_view_state
+    app.session_state.active_session_id = Some("active-session".to_string());
+    app.chat_view.active_session_view_state.steps = vec![completed_step(3), completed_step(4)];
+    app.chat_view.active_session_view_state
         .step_llm_raw
         .insert(raw_key("active-session", 4), serde_json::json!({ "already": "loaded" }));
 
@@ -149,16 +149,16 @@ fn trajectory_mode_toggle_refreshes_missing_completed_raw() {
         super::ChatMessage::ChatPanelModeSelected(ChatPanelMode::Trajectory),
     );
 
-    assert!(app.trajectory_raw_loading.contains(&raw_key("active-session", 3)));
-    assert_eq!(app.trajectory_raw_attempts.get(&raw_key("active-session", 3)), Some(&1));
-    assert!(!app.trajectory_raw_loading.contains(&raw_key("active-session", 4)));
+    assert!(app.chat_interaction.trajectory_raw_loading.contains(&raw_key("active-session", 3)));
+    assert_eq!(app.chat_interaction.trajectory_raw_attempts.get(&raw_key("active-session", 3)), Some(&1));
+    assert!(!app.chat_interaction.trajectory_raw_loading.contains(&raw_key("active-session", 4)));
 }
 
 #[test]
 fn trajectory_mode_refreshes_known_raw_steps_without_session_step_metadata() {
     let (mut app, _) = App::new();
-    app.active_session_id = Some("raw-only-session".to_string());
-    app.active_session_view_state
+    app.session_state.active_session_id = Some("raw-only-session".to_string());
+    app.chat_view.active_session_view_state
         .llm_raw_step_indices
         .extend([raw_key("raw-only-session", 3), raw_key("raw-only-session", 7)]);
 
@@ -167,8 +167,8 @@ fn trajectory_mode_refreshes_known_raw_steps_without_session_step_metadata() {
         super::ChatMessage::ChatPanelModeSelected(ChatPanelMode::Trajectory),
     );
 
-    assert!(app.trajectory_raw_loading.contains(&raw_key("raw-only-session", 3)));
-    assert!(app.trajectory_raw_loading.contains(&raw_key("raw-only-session", 7)));
+    assert!(app.chat_interaction.trajectory_raw_loading.contains(&raw_key("raw-only-session", 3)));
+    assert!(app.chat_interaction.trajectory_raw_loading.contains(&raw_key("raw-only-session", 7)));
 }
 
 #[test]
@@ -176,8 +176,8 @@ fn trajectory_snapshot_refresh_populates_raw_without_opening_usage_modal() {
     let (mut app, _) = App::new();
     let session_id = "active-session".to_string();
     let key = raw_key(&session_id, 3);
-    app.active_session_id = Some(session_id.clone());
-    app.chat_panel_mode = ChatPanelMode::Trajectory;
+    app.session_state.active_session_id = Some(session_id.clone());
+    app.chat_view.chat_panel_mode = ChatPanelMode::Trajectory;
 
     let _task = super::update(
         &mut app,
@@ -207,17 +207,17 @@ fn trajectory_snapshot_refresh_populates_raw_without_opening_usage_modal() {
         },
     );
 
-    assert!(app.active_session_view_state.steps.iter().any(|step| step.index == 3));
-    assert!(app.active_session_view_state.step_llm_raw.contains_key(&key));
-    assert!(app.active_session_view_state.llm_raw_step_indices.contains(&key));
+    assert!(app.chat_view.active_session_view_state.steps.iter().any(|step| step.index == 3));
+    assert!(app.chat_view.active_session_view_state.step_llm_raw.contains_key(&key));
+    assert!(app.chat_view.active_session_view_state.llm_raw_step_indices.contains(&key));
     assert!(app.usage_panel.usage_step_raw_modal.is_none());
 }
 
 #[test]
 fn trajectory_snapshot_refresh_ignores_inactive_session() {
     let (mut app, _) = App::new();
-    app.active_session_id = Some("active-session".to_string());
-    app.chat_panel_mode = ChatPanelMode::Trajectory;
+    app.session_state.active_session_id = Some("active-session".to_string());
+    app.chat_view.chat_panel_mode = ChatPanelMode::Trajectory;
     let stale_key = raw_key("stale-session", 3);
 
     let _task = super::update(
@@ -245,8 +245,8 @@ fn trajectory_snapshot_refresh_ignores_inactive_session() {
         },
     );
 
-    assert!(!app.active_session_view_state.step_llm_raw.contains_key(&stale_key));
-    assert!(app.active_session_view_state.steps.is_empty());
+    assert!(!app.chat_view.active_session_view_state.step_llm_raw.contains_key(&stale_key));
+    assert!(app.chat_view.active_session_view_state.steps.is_empty());
 }
 
 #[test]
@@ -267,26 +267,26 @@ fn trajectory_interactions_update_state() {
         super::ChatMessage::TrajectoryDetailsTabSelected(TrajectoryDetailsTab::Raw),
     );
 
-    assert_eq!(app.trajectory_search_text, "工具 调用");
-    assert_eq!(app.trajectory_details.selected_record_id(), Some("tool:call-7"));
-    assert_eq!(app.trajectory_details.active_tab(), TrajectoryDetailsTab::Raw);
+    assert_eq!(app.chat_interaction.trajectory_search_text, "工具 调用");
+    assert_eq!(app.chat_interaction.trajectory_details.selected_record_id(), Some("tool:call-7"));
+    assert_eq!(app.chat_interaction.trajectory_details.active_tab(), TrajectoryDetailsTab::Raw);
 
     let _task = super::update(&mut app, super::ChatMessage::TrajectoryDetailsClosed);
-    assert_eq!(app.trajectory_details.selected_record_id(), None);
-    assert_eq!(app.trajectory_details.active_tab(), TrajectoryDetailsTab::Summary);
+    assert_eq!(app.chat_interaction.trajectory_details.selected_record_id(), None);
+    assert_eq!(app.chat_interaction.trajectory_details.active_tab(), TrajectoryDetailsTab::Summary);
 }
 
 #[test]
 fn trajectory_details_json_interactions_update_state_and_copy() {
     let (mut app, _) = App::new();
-    app.trajectory_details.select("user:1");
+    app.chat_interaction.trajectory_details.select("user:1");
 
     let toggle = super::update(
         &mut app,
         super::ChatMessage::TrajectoryDetailsJsonToggled("/source".to_string()),
     );
     assert_eq!(toggle.units(), 0);
-    assert!(app.trajectory_details.json_collapsed_paths().contains("/source"));
+    assert!(app.chat_interaction.trajectory_details.json_collapsed_paths().contains("/source"));
 
     let copy = super::update(
         &mut app,
@@ -319,23 +319,23 @@ mod trajectory_controls {
                 }
             }),
         );
-        app.trajectory_controls.toggle_turn(1);
-        app.trajectory_controls.toggle_tool_step(1);
+        app.chat_interaction.trajectory_controls.toggle_turn(1);
+        app.chat_interaction.trajectory_controls.toggle_tool_step(1);
 
         let _task = super::super::update(
             &mut app,
             super::super::ChatMessage::TrajectoryRecordSelected("tool:call-1".to_string()),
         );
 
-        assert!(!app.trajectory_controls.is_turn_collapsed(1));
-        assert!(!app.trajectory_controls.is_tool_step_collapsed(1));
-        assert_eq!(app.trajectory_details.selected_record_id(), Some("tool:call-1"));
+        assert!(!app.chat_interaction.trajectory_controls.is_turn_collapsed(1));
+        assert!(!app.chat_interaction.trajectory_controls.is_tool_step_collapsed(1));
+        assert_eq!(app.chat_interaction.trajectory_details.selected_record_id(), Some("tool:call-1"));
     }
 
     #[test]
     fn messages_update_controls_and_session_change_clears_collapsed_groups() {
         let (mut app, _) = App::new();
-        app.active_session_id = Some("session-1".to_string());
+        app.session_state.active_session_id = Some("session-1".to_string());
         app.replace_active_session_steps(vec![completed_step(1)]);
         app.insert_active_session_step_llm_raw(
             raw_key("session-1", 1),
@@ -348,7 +348,7 @@ mod trajectory_controls {
             }),
         );
 
-        assert_eq!(app.trajectory_controls.duration_mode(), TrajectoryDurationMode::Equal);
+        assert_eq!(app.chat_interaction.trajectory_controls.duration_mode(), TrajectoryDurationMode::Equal);
 
         let _task =
             super::super::update(&mut app, super::super::ChatMessage::TrajectoryDurationToggled);
@@ -357,12 +357,12 @@ mod trajectory_controls {
         let _task =
             super::super::update(&mut app, super::super::ChatMessage::TrajectoryCallsToggled);
 
-        assert_eq!(app.trajectory_controls.duration_mode(), TrajectoryDurationMode::Timed);
-        assert!(app.trajectory_controls.is_turn_collapsed(1));
-        assert!(app.trajectory_controls.is_tool_step_collapsed(1));
+        assert_eq!(app.chat_interaction.trajectory_controls.duration_mode(), TrajectoryDurationMode::Timed);
+        assert!(app.chat_interaction.trajectory_controls.is_turn_collapsed(1));
+        assert!(app.chat_interaction.trajectory_controls.is_tool_step_collapsed(1));
 
-        app.active_session_id = Some("session-2".to_string());
-        let switched = app.trajectory_controls.for_session(app.active_session_id.as_deref());
+        app.session_state.active_session_id = Some("session-2".to_string());
+        let switched = app.chat_interaction.trajectory_controls.for_session(app.session_state.active_session_id.as_deref());
         assert_eq!(switched.duration_mode(), TrajectoryDurationMode::Timed);
         assert!(!switched.is_turn_collapsed(1));
         assert!(!switched.is_tool_step_collapsed(1));
@@ -372,16 +372,16 @@ mod trajectory_controls {
             super::super::ChatMessage::TrajectorySearchChanged(String::new()),
         );
 
-        assert_eq!(app.trajectory_controls.duration_mode(), TrajectoryDurationMode::Timed);
-        assert!(!app.trajectory_controls.is_turn_collapsed(1));
-        assert!(!app.trajectory_controls.is_tool_step_collapsed(1));
+        assert_eq!(app.chat_interaction.trajectory_controls.duration_mode(), TrajectoryDurationMode::Timed);
+        assert!(!app.chat_interaction.trajectory_controls.is_turn_collapsed(1));
+        assert!(!app.chat_interaction.trajectory_controls.is_tool_step_collapsed(1));
     }
 }
 
 #[test]
 fn trajectory_cache_reuses_projection_for_view_interactions() {
     let (mut app, _) = App::new();
-    app.active_session_id = Some("session-1".to_string());
+    app.session_state.active_session_id = Some("session-1".to_string());
     app.replace_active_session_steps(vec![completed_step(1)]);
     app.insert_active_session_step_llm_raw(
         raw_key("session-1", 1),
@@ -390,7 +390,7 @@ fn trajectory_cache_reuses_projection_for_view_interactions() {
             "output": {"text": "answer"}
         }),
     );
-    let rebuild_count = app.active_session_view_state.trajectory_projection_rebuild_count;
+    let rebuild_count = app.chat_view.active_session_view_state.trajectory_projection_rebuild_count;
 
     {
         let _view = crate::app::components::chat_panel::trajectory::view(&app);
@@ -399,20 +399,20 @@ fn trajectory_cache_reuses_projection_for_view_interactions() {
         let _view = crate::app::components::chat_panel::trajectory::view(&app);
     }
     let _task = super::update(&mut app, super::ChatMessage::TrajectoryTurnsToggled);
-    let record_id = app.active_session_view_state.trajectory_projection.records[0].id.clone();
+    let record_id = app.chat_view.active_session_view_state.trajectory_projection.records[0].id.clone();
     let _task = super::update(&mut app, super::ChatMessage::TrajectoryRecordSelected(record_id));
 
-    assert_eq!(app.active_session_view_state.trajectory_projection_rebuild_count, rebuild_count);
+    assert_eq!(app.chat_view.active_session_view_state.trajectory_projection_rebuild_count, rebuild_count);
 }
 
 #[test]
 fn trajectory_cache_invalidates_for_steps_and_raw_payloads() {
     let (mut app, _) = App::new();
-    app.active_session_id = Some("session-1".to_string());
-    let initial_count = app.active_session_view_state.trajectory_projection_rebuild_count;
+    app.session_state.active_session_id = Some("session-1".to_string());
+    let initial_count = app.chat_view.active_session_view_state.trajectory_projection_rebuild_count;
 
     app.replace_active_session_steps(vec![completed_step(1)]);
-    let steps_count = app.active_session_view_state.trajectory_projection_rebuild_count;
+    let steps_count = app.chat_view.active_session_view_state.trajectory_projection_rebuild_count;
     assert_eq!(steps_count, initial_count + 1);
 
     app.insert_active_session_step_llm_raw(
@@ -423,9 +423,9 @@ fn trajectory_cache_invalidates_for_steps_and_raw_payloads() {
         }),
     );
 
-    assert_eq!(app.active_session_view_state.trajectory_projection_rebuild_count, steps_count + 1);
+    assert_eq!(app.chat_view.active_session_view_state.trajectory_projection_rebuild_count, steps_count + 1);
     assert!(
-        app.active_session_view_state
+        app.chat_view.active_session_view_state
             .trajectory_projection
             .records
             .iter()
@@ -436,7 +436,7 @@ fn trajectory_cache_invalidates_for_steps_and_raw_payloads() {
 #[test]
 fn trajectory_cache_survives_hot_session_restore() {
     let (mut app, _) = App::new();
-    app.active_session_id = Some("session-1".to_string());
+    app.session_state.active_session_id = Some("session-1".to_string());
     app.replace_active_session_steps(vec![completed_step(1)]);
     app.insert_active_session_step_llm_raw(
         raw_key("session-1", 1),
@@ -445,33 +445,33 @@ fn trajectory_cache_survives_hot_session_restore() {
             "output": {"text": "cached answer"}
         }),
     );
-    let expected = app.active_session_view_state.trajectory_projection.clone();
-    let rebuild_count = app.active_session_view_state.trajectory_projection_rebuild_count;
+    let expected = app.chat_view.active_session_view_state.trajectory_projection.clone();
+    let rebuild_count = app.chat_view.active_session_view_state.trajectory_projection_rebuild_count;
 
     app.stash_active_session_view();
-    app.active_session_id = Some("session-2".to_string());
+    app.session_state.active_session_id = Some("session-2".to_string());
     app.replace_active_session_steps(vec![completed_step(2)]);
-    let snapshot = app.session_view_cache.take("session-1").expect("cached session view");
+    let snapshot = app.session_state.session_view_cache.take("session-1").expect("cached session view");
     snapshot.restore_into(&mut app);
 
-    assert_eq!(app.active_session_view_state.trajectory_projection, expected);
-    assert_eq!(app.active_session_view_state.trajectory_projection_rebuild_count, rebuild_count);
+    assert_eq!(app.chat_view.active_session_view_state.trajectory_projection, expected);
+    assert_eq!(app.chat_view.active_session_view_state.trajectory_projection_rebuild_count, rebuild_count);
 }
 
 #[test]
 // 异步结果返回时重新核对活动会话，过期响应不得污染当前轨迹缓存。
 fn trajectory_raw_refresh_ignores_stale_session() {
     let (mut app, _) = App::new();
-    app.active_session_id = Some("active-session".to_string());
-    app.active_session_view_state.steps = vec![completed_step(7)];
+    app.session_state.active_session_id = Some("active-session".to_string());
+    app.chat_view.active_session_view_state.steps = vec![completed_step(7)];
     let current_key = raw_key("active-session", 7);
-    app.active_session_view_state
+    app.chat_view.active_session_view_state
         .step_llm_raw
         .insert(current_key.clone(), serde_json::json!({ "current": true }));
     let stale_key = raw_key("stale-session", 7);
-    app.trajectory_raw_loading.insert(stale_key.clone());
-    app.trajectory_raw_attempts.insert(stale_key.clone(), 1);
-    app.trajectory_raw_errors.insert(stale_key.clone(), "old error".to_string());
+    app.chat_interaction.trajectory_raw_loading.insert(stale_key.clone());
+    app.chat_interaction.trajectory_raw_attempts.insert(stale_key.clone(), 1);
+    app.chat_interaction.trajectory_raw_errors.insert(stale_key.clone(), "old error".to_string());
 
     let stale_retry = super::update(
         &mut app,
@@ -483,12 +483,12 @@ fn trajectory_raw_refresh_ignores_stale_session() {
         },
     );
     assert_eq!(stale_retry.units(), 0);
-    assert!(!app.trajectory_raw_loading.contains(&stale_key));
-    assert!(!app.trajectory_raw_attempts.contains_key(&stale_key));
-    assert!(!app.trajectory_raw_errors.contains_key(&stale_key));
+    assert!(!app.chat_interaction.trajectory_raw_loading.contains(&stale_key));
+    assert!(!app.chat_interaction.trajectory_raw_attempts.contains_key(&stale_key));
+    assert!(!app.chat_interaction.trajectory_raw_errors.contains_key(&stale_key));
 
-    app.trajectory_raw_loading.insert(stale_key.clone());
-    app.trajectory_raw_attempts.insert(stale_key.clone(), 1);
+    app.chat_interaction.trajectory_raw_loading.insert(stale_key.clone());
+    app.chat_interaction.trajectory_raw_attempts.insert(stale_key.clone(), 1);
     let _task = super::update(
         &mut app,
         super::ChatMessage::TrajectoryRawLoaded {
@@ -501,12 +501,12 @@ fn trajectory_raw_refresh_ignores_stale_session() {
     );
 
     assert_eq!(
-        app.active_session_view_state.step_llm_raw.get(&current_key),
+        app.chat_view.active_session_view_state.step_llm_raw.get(&current_key),
         Some(&serde_json::json!({ "current": true }))
     );
-    assert!(!app.trajectory_raw_loading.contains(&stale_key));
-    assert!(!app.trajectory_raw_attempts.contains_key(&stale_key));
-    assert!(!app.trajectory_raw_errors.contains_key(&stale_key));
+    assert!(!app.chat_interaction.trajectory_raw_loading.contains(&stale_key));
+    assert!(!app.chat_interaction.trajectory_raw_attempts.contains_key(&stale_key));
+    assert!(!app.chat_interaction.trajectory_raw_errors.contains_key(&stale_key));
 
     let _task = super::update(
         &mut app,
@@ -519,13 +519,13 @@ fn trajectory_raw_refresh_ignores_stale_session() {
         },
     );
     assert!(
-        !app.active_session_view_state.step_llm_raw.contains_key(&raw_key("active-session", 8))
+        !app.chat_view.active_session_view_state.step_llm_raw.contains_key(&raw_key("active-session", 8))
     );
 
     let active_key = current_key.clone();
-    app.trajectory_raw_loading.insert(active_key.clone());
-    app.trajectory_raw_attempts.insert(active_key.clone(), 1);
-    app.trajectory_raw_errors.insert(active_key.clone(), "old error".to_string());
+    app.chat_interaction.trajectory_raw_loading.insert(active_key.clone());
+    app.chat_interaction.trajectory_raw_attempts.insert(active_key.clone(), 1);
+    app.chat_interaction.trajectory_raw_errors.insert(active_key.clone(), "old error".to_string());
     let _task = super::update(
         &mut app,
         super::ChatMessage::TrajectoryRawLoaded {
@@ -537,22 +537,22 @@ fn trajectory_raw_refresh_ignores_stale_session() {
         },
     );
     assert_eq!(
-        app.active_session_view_state.step_llm_raw.get(&current_key),
+        app.chat_view.active_session_view_state.step_llm_raw.get(&current_key),
         Some(&serde_json::json!({ "current": true }))
     );
-    assert!(!app.trajectory_raw_loading.contains(&active_key));
-    assert!(!app.trajectory_raw_attempts.contains_key(&active_key));
-    assert!(!app.trajectory_raw_errors.contains_key(&active_key));
+    assert!(!app.chat_interaction.trajectory_raw_loading.contains(&active_key));
+    assert!(!app.chat_interaction.trajectory_raw_attempts.contains_key(&active_key));
+    assert!(!app.chat_interaction.trajectory_raw_errors.contains_key(&active_key));
 }
 
 #[test]
 fn trajectory_raw_refresh_error_is_recoverable() {
     let (mut app, _) = App::new();
     let key = raw_key("active-session", 7);
-    app.active_session_id = Some(key.0.clone());
-    app.active_session_view_state.steps = vec![completed_step(key.2)];
-    app.trajectory_raw_loading.insert(key.clone());
-    app.trajectory_raw_attempts.insert(key.clone(), 3);
+    app.session_state.active_session_id = Some(key.0.clone());
+    app.chat_view.active_session_view_state.steps = vec![completed_step(key.2)];
+    app.chat_interaction.trajectory_raw_loading.insert(key.clone());
+    app.chat_interaction.trajectory_raw_attempts.insert(key.clone(), 3);
 
     let _task = super::update(
         &mut app,
@@ -564,16 +564,16 @@ fn trajectory_raw_refresh_error_is_recoverable() {
             result: Err("temporary gateway failure".to_string()),
         },
     );
-    assert!(app.trajectory_raw_errors.contains_key(&key));
-    assert!(!app.active_session_view_state.step_llm_raw.contains_key(&key));
+    assert!(app.chat_interaction.trajectory_raw_errors.contains_key(&key));
+    assert!(!app.chat_view.active_session_view_state.step_llm_raw.contains_key(&key));
 
     let _task = super::update(
         &mut app,
         super::ChatMessage::ChatPanelModeSelected(ChatPanelMode::Trajectory),
     );
-    assert!(app.trajectory_raw_loading.contains(&key));
-    assert_eq!(app.trajectory_raw_attempts.get(&key), Some(&1));
-    assert!(!app.trajectory_raw_errors.contains_key(&key));
+    assert!(app.chat_interaction.trajectory_raw_loading.contains(&key));
+    assert_eq!(app.chat_interaction.trajectory_raw_attempts.get(&key), Some(&1));
+    assert!(!app.chat_interaction.trajectory_raw_errors.contains_key(&key));
 }
 
 #[test]
@@ -581,10 +581,10 @@ fn trajectory_raw_refresh_error_is_recoverable() {
 fn trajectory_raw_none_schedules_bounded_retry() {
     let (mut app, _) = App::new();
     let key = raw_key("active-session", 7);
-    app.active_session_id = Some(key.0.clone());
-    app.active_session_view_state.steps = vec![completed_step(key.2)];
-    app.trajectory_raw_loading.insert(key.clone());
-    app.trajectory_raw_attempts.insert(key.clone(), 1);
+    app.session_state.active_session_id = Some(key.0.clone());
+    app.chat_view.active_session_view_state.steps = vec![completed_step(key.2)];
+    app.chat_interaction.trajectory_raw_loading.insert(key.clone());
+    app.chat_interaction.trajectory_raw_attempts.insert(key.clone(), 1);
 
     let retry = super::update(
         &mut app,
@@ -598,9 +598,9 @@ fn trajectory_raw_none_schedules_bounded_retry() {
     );
 
     assert!(retry.units() > 0, "空响应应调度下一次有限重试");
-    assert!(app.trajectory_raw_loading.contains(&key));
-    assert_eq!(app.trajectory_raw_attempts.get(&key), Some(&2));
-    assert!(!app.trajectory_raw_errors.contains_key(&key));
+    assert!(app.chat_interaction.trajectory_raw_loading.contains(&key));
+    assert_eq!(app.chat_interaction.trajectory_raw_attempts.get(&key), Some(&2));
+    assert!(!app.chat_interaction.trajectory_raw_errors.contains_key(&key));
 
     let third = super::update(
         &mut app,
@@ -613,7 +613,7 @@ fn trajectory_raw_none_schedules_bounded_retry() {
         },
     );
     assert!(third.units() > 0);
-    assert_eq!(app.trajectory_raw_attempts.get(&key), Some(&3));
+    assert_eq!(app.chat_interaction.trajectory_raw_attempts.get(&key), Some(&3));
 
     let exhausted = super::update(
         &mut app,
@@ -626,19 +626,19 @@ fn trajectory_raw_none_schedules_bounded_retry() {
         },
     );
     assert_eq!(exhausted.units(), 0);
-    assert!(!app.trajectory_raw_loading.contains(&key));
-    assert!(!app.trajectory_raw_attempts.contains_key(&key));
-    assert!(app.trajectory_raw_errors.get(&key).is_some_and(|error| error.contains("3 次")));
+    assert!(!app.chat_interaction.trajectory_raw_loading.contains(&key));
+    assert!(!app.chat_interaction.trajectory_raw_attempts.contains_key(&key));
+    assert!(app.chat_interaction.trajectory_raw_errors.get(&key).is_some_and(|error| error.contains("3 次")));
 }
 
 #[test]
 fn trajectory_raw_retry_stops_after_success() {
     let (mut app, _) = App::new();
     let key = raw_key("active-session", 8);
-    app.active_session_id = Some(key.0.clone());
-    app.active_session_view_state.steps = vec![completed_step(key.2)];
-    app.trajectory_raw_loading.insert(key.clone());
-    app.trajectory_raw_attempts.insert(key.clone(), 2);
+    app.session_state.active_session_id = Some(key.0.clone());
+    app.chat_view.active_session_view_state.steps = vec![completed_step(key.2)];
+    app.chat_interaction.trajectory_raw_loading.insert(key.clone());
+    app.chat_interaction.trajectory_raw_attempts.insert(key.clone(), 2);
 
     let next = super::update(
         &mut app,
@@ -653,12 +653,12 @@ fn trajectory_raw_retry_stops_after_success() {
 
     assert_eq!(next.units(), 0);
     assert_eq!(
-        app.active_session_view_state.step_llm_raw.get(&key),
+        app.chat_view.active_session_view_state.step_llm_raw.get(&key),
         Some(&serde_json::json!({ "loaded": true }))
     );
-    assert!(!app.trajectory_raw_loading.contains(&key));
-    assert!(!app.trajectory_raw_attempts.contains_key(&key));
-    assert!(!app.trajectory_raw_errors.contains_key(&key));
+    assert!(!app.chat_interaction.trajectory_raw_loading.contains(&key));
+    assert!(!app.chat_interaction.trajectory_raw_attempts.contains_key(&key));
+    assert!(!app.chat_interaction.trajectory_raw_errors.contains_key(&key));
 
     let stale_retry = super::update(
         &mut app,
@@ -676,10 +676,10 @@ fn trajectory_raw_retry_stops_after_success() {
 fn trajectory_raw_retry_exhaustion_reports_error() {
     let (mut app, _) = App::new();
     let key = raw_key("active-session", 9);
-    app.active_session_id = Some(key.0.clone());
-    app.active_session_view_state.steps = vec![completed_step(key.2)];
-    app.trajectory_raw_loading.insert(key.clone());
-    app.trajectory_raw_attempts.insert(key.clone(), 1);
+    app.session_state.active_session_id = Some(key.0.clone());
+    app.chat_view.active_session_view_state.steps = vec![completed_step(key.2)];
+    app.chat_interaction.trajectory_raw_loading.insert(key.clone());
+    app.chat_interaction.trajectory_raw_attempts.insert(key.clone(), 1);
 
     for attempt in 1..=3 {
         let next = super::update(
@@ -694,17 +694,17 @@ fn trajectory_raw_retry_exhaustion_reports_error() {
         );
         if attempt < 3 {
             assert!(next.units() > 0);
-            assert_eq!(app.trajectory_raw_attempts.get(&key), Some(&(attempt + 1)));
-            assert!(!app.trajectory_raw_errors.contains_key(&key));
+            assert_eq!(app.chat_interaction.trajectory_raw_attempts.get(&key), Some(&(attempt + 1)));
+            assert!(!app.chat_interaction.trajectory_raw_errors.contains_key(&key));
         } else {
             assert_eq!(next.units(), 0);
         }
     }
 
-    assert!(!app.trajectory_raw_loading.contains(&key));
-    assert!(!app.trajectory_raw_attempts.contains_key(&key));
+    assert!(!app.chat_interaction.trajectory_raw_loading.contains(&key));
+    assert!(!app.chat_interaction.trajectory_raw_attempts.contains_key(&key));
     assert_eq!(
-        app.trajectory_raw_errors.get(&key).map(String::as_str),
+        app.chat_interaction.trajectory_raw_errors.get(&key).map(String::as_str),
         Some("temporary gateway failure")
     );
 

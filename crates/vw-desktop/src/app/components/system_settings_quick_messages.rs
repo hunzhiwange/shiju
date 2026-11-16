@@ -2,7 +2,7 @@
 use crate::app::{App, Message, message::{SettingsMessage, settings::QuickMessagesMessage}};
 use desktop_settings_appearance::quick_messages as domain;
 use iced::Element;
-pub fn view(app: &App) -> Element<'_, Message> { domain::view(&domain::View { quick_messages: &app.quick_messages, desktop_locale: app.desktop_locale, app_theme: &app.app_theme }, render_help).map(map_message) }
+pub fn view(app: &App) -> Element<'_, Message> { domain::view(&domain::View { quick_messages: &app.general_settings.quick_messages, desktop_locale: app.general_settings.desktop_locale, app_theme: &app.appearance.app_theme }, render_help).map(map_message) }
 fn map_message(action: domain::Message) -> Message {
  use domain::Message as A;
  let action = match action {

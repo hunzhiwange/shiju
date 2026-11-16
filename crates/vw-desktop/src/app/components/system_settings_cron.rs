@@ -48,10 +48,10 @@ fn help_content<'a>(
 fn data(app: &App) -> domain::ViewData<'_> {
     domain::ViewData {
         cron_settings: &app.cron_settings,
-        desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        desktop_locale: app.general_settings.desktop_locale,
+        app_theme: &app.appearance.app_theme,
         project_path: app.navigation_tabs.project_path.as_deref(),
-        recent_projects: &app.recent_projects,
+        recent_projects: &app.workspace_state.recent_projects,
         agents: app
             .agents_settings
             .entries
@@ -70,7 +70,7 @@ fn data(app: &App) -> domain::ViewData<'_> {
             .collect(),
         delivery: availability(app),
         scheduler_error: app.scheduler_settings.save_error.as_deref(),
-        last_copied_code_hash: app.last_copied_code_hash,
+        last_copied_code_hash: app.clipboard_state.last_copied_code_hash,
         help_content,
     }
 }

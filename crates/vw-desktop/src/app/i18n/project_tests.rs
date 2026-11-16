@@ -13,7 +13,7 @@ async fn desktop_gettext_area_10_attachment_errors_switch_after_collection() {
             missing.to_string_lossy().into_owned(),
         ],
     );
-    let notification = app.notifications.last().unwrap();
+    let notification = app.notification_state.notifications.last().unwrap();
     assert_eq!(notification.message.lines().count(), 2);
     for (locale, expected) in [
         (DesktopLocale::SimplifiedChinese, "不支持文件夹："),

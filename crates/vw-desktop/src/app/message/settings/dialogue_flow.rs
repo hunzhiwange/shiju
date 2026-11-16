@@ -34,12 +34,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
  let mut input = domain::Update {
  endpoint: gateway_client_endpoint(), project_path: app.navigation_tabs.project_path.clone(),
  desktop_preferences_persistence: &mut app.desktop_preferences_persistence,
- dialogue_flow_permission_editor: &mut app.dialogue_flow_permission_editor,
- dialogue_flow_show_reasoning_summary: &mut app.dialogue_flow_show_reasoning_summary,
- dialogue_flow_expand_shell_tool_section: &mut app.dialogue_flow_expand_shell_tool_section,
- dialogue_flow_expand_edit_tool_section: &mut app.dialogue_flow_expand_edit_tool_section,
- dialogue_flow_settings_translation: &mut app.dialogue_flow_settings_translation,
- dialogue_flow_settings_save_message: &mut app.dialogue_flow_settings_save_message,
+ dialogue_flow_permission_editor: &mut app.general_settings.dialogue_flow_permission_editor,
+ dialogue_flow_show_reasoning_summary: &mut app.general_settings.dialogue_flow_show_reasoning_summary,
+ dialogue_flow_expand_shell_tool_section: &mut app.general_settings.dialogue_flow_expand_shell_tool_section,
+ dialogue_flow_expand_edit_tool_section: &mut app.general_settings.dialogue_flow_expand_edit_tool_section,
+ dialogue_flow_settings_translation: &mut app.general_settings.dialogue_flow_settings_translation,
+ dialogue_flow_settings_save_message: &mut app.general_settings.dialogue_flow_settings_save_message,
  patches: Vec::new(),
  };
  let task = domain::update(&mut input, message).map(event);

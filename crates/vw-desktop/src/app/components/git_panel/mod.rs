@@ -9,14 +9,14 @@ use desktop_git_ui::page;
 fn input(app: &App) -> page::ViewContext<'_> {
     page::ViewContext {
         git: &app.git,
-        app_theme: &app.app_theme,
-        desktop_locale: app.desktop_locale,
+        app_theme: &app.appearance.app_theme,
+        desktop_locale: app.general_settings.desktop_locale,
         project_path: &app.navigation_tabs.project_path,
         repo_path: git_repo_path_for_app(app),
         context_path: crate::app::message::git::git_context_path_for_app(app),
         code_mode: app.navigation_mode.workspace_mode == crate::app::state::WorkspaceMode::Code,
         refresh_frame: app.file_manager.file_manager_refresh_frame,
-        last_copied_code_hash: app.last_copied_code_hash,
+        last_copied_code_hash: app.clipboard_state.last_copied_code_hash,
     }
 }
 fn map(message: page::Message) -> Message {
@@ -64,10 +64,9 @@ pub fn changed_files(app: &App) -> Vec<String> {
 pub(crate) fn git_repo_path_for_app(app: &App) -> Option<String> {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let active = app
-            .active_session_id
+        let active = app.session_state.active_session_id
             .as_ref()
-            .and_then(|id| app.sessions.iter().find(|s| &s.id == id))
+            .and_then(|id| app.session_state.sessions.iter().find(|s| &s.id == id))
             .map(|s| s.directory.as_str());
         desktop_git_ui::git_panel::ops::git_repo_path(
             app.git.selected_git_worktree_directory.as_deref(),

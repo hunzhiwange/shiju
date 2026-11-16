@@ -130,8 +130,8 @@ async fn hook_trust_result_refreshes_and_toasts() {
         ))),
     );
 
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Success));
-    assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("信任")));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Success));
+    assert!(app.toast_state.active_toast.as_ref().is_some_and(|toast| toast.message.contains("信任")));
     let messages = collect_task_messages(task).await;
     assert!(messages.iter().any(|message| matches!(
         message,
@@ -160,13 +160,13 @@ fn hook_load_failure_preserves_last_good_data() {
         &mut app,
         SettingsMessage::Hooks(HooksMessage::CatalogLoaded(Err("catalog unavailable".to_string()))),
     );
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Error));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Error));
 
     let _ = update(
         &mut app,
         SettingsMessage::Hooks(HooksMessage::AuditLoaded(Err("audit unavailable".to_string()))),
     );
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Error));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Error));
 
     app.hooks_settings.mutation_loading = true;
     let _ = update(
@@ -175,7 +175,7 @@ fn hook_load_failure_preserves_last_good_data() {
             "mutation unavailable".to_string()
         ))),
     );
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Error));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Error));
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。

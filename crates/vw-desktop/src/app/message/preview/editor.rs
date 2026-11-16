@@ -6,8 +6,8 @@ use desktop_editor::preview::editor::{self as domain, Effect};
 pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
  if let PreviewMessage::EditorEvent(ref evt) = message {
    if matches!(evt, iced_code_editor::Message::CustomContextMenuAction(_) | iced_code_editor::Message::RevealInFileManager)
-       && app.editor_popover == Some(crate::app::message::editor::EditorPopover::Actions) {
-       app.editor_popover = None;
+       && app.preview_state.editor_popover == Some(crate::app::message::editor::EditorPopover::Actions) {
+       app.preview_state.editor_popover = None;
    }
    if let iced_code_editor::Message::CustomContextMenuAction(id) = evt {
      return match id.as_str() {
@@ -36,41 +36,41 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
  let task = domain::update(
     &mut app.navigation_tabs.active_preview_path,
     &mut app.cursor_position,
-    &mut app.editor_popover,
+    &mut app.preview_state.editor_popover,
     #[cfg(not(target_arch = "wasm32"))]
-    &mut app.lsp_applying_completion,
+    &mut app.preview_state.lsp_applying_completion,
     #[cfg(not(target_arch = "wasm32"))]
-    &mut app.lsp_disabled,
+    &mut app.preview_state.lsp_disabled,
     #[cfg(not(target_arch = "wasm32"))]
-    &mut app.lsp_hover_anchor,
+    &mut app.preview_state.lsp_hover_anchor,
     #[cfg(not(target_arch = "wasm32"))]
-    &mut app.lsp_hover_hide_deadline,
+    &mut app.preview_state.lsp_hover_hide_deadline,
     #[cfg(not(target_arch = "wasm32"))]
-    &mut app.lsp_hover_pending,
+    &mut app.preview_state.lsp_hover_pending,
     #[cfg(not(target_arch = "wasm32"))]
     &mut app.lsp_manager,
     #[cfg(not(target_arch = "wasm32"))]
-    &mut app.lsp_overlay,
+    &mut app.preview_state.lsp_overlay,
     #[cfg(not(target_arch = "wasm32"))]
-    &mut app.lsp_overlay_path,
+    &mut app.preview_state.lsp_overlay_path,
     #[cfg(not(target_arch = "wasm32"))]
-    &mut app.lsp_progress,
+    &mut app.preview_state.lsp_progress,
     #[cfg(not(target_arch = "wasm32"))]
-    &mut app.lsp_status,
+    &mut app.preview_state.lsp_status,
     #[cfg(not(target_arch = "wasm32"))]
-    &mut app.lsp_status_message,
+    &mut app.preview_state.lsp_status_message,
     #[cfg(not(target_arch = "wasm32"))]
     &mut notifications,
-    &mut app.preview_auto_save_mode,
-    &mut app.preview_context_menu_pos,
-    &mut app.preview_context_target,
+    &mut app.preview_state.preview_auto_save_mode,
+    &mut app.preview_state.preview_context_menu_pos,
+    &mut app.preview_state.preview_context_target,
     #[cfg(not(target_arch = "wasm32"))]
-    &mut app.preview_nav_popup,
+    &mut app.preview_state.preview_nav_popup,
     &mut app.navigation_tabs.preview_tabs,
     #[cfg(not(target_arch = "wasm32"))]
     &mut app.navigation_tabs.project_path,
-    &mut app.show_preview_context_menu,
-    &mut app.show_preview_fullscreen_overlay,
+    &mut app.preview_state.show_preview_context_menu,
+    &mut app.preview_state.show_preview_fullscreen_overlay,
     &mut focus_preview,
     #[cfg(not(target_arch = "wasm32"))] &mut persist_lsp,
     message,

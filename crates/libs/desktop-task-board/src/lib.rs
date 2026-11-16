@@ -49,3 +49,8 @@ mod host_module_42_tests;
 
 /// Explicit native acceptance fixtures.
 pub mod acceptance;
+
+pub mod state;
+
+#[cfg(test)]
+mod host_module_31_tests;

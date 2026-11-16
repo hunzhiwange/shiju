@@ -33,8 +33,8 @@ fn view_groups_file_project_and_session_matches() {
     app.search.search_text = "needle".to_string();
     app.navigation_tabs.project_path = Some("/repo".to_string());
     app.set_file_index("/repo", vec!["src/needle.rs".to_string()]);
-    app.recent_projects = vec!["/workspace/needle-project".to_string()];
-    app.sessions = vec![session("session-1", "Needle session", "/workspace/demo")];
+    app.workspace_state.recent_projects = vec!["/workspace/needle-project".to_string()];
+    app.session_state.sessions = vec![session("session-1", "Needle session", "/workspace/demo")];
 
     assert_eq!(search_view_content_len(&app), 6);
 }

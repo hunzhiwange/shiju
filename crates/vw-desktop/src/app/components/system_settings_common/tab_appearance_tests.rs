@@ -23,7 +23,7 @@ impl shared::AppearanceMessage for Message {
 }
 impl shared::AppearanceContext<Message> for App {
     fn locale(&self) -> DesktopLocale {
-        self.desktop_locale
+        self.general_settings.desktop_locale
     }
     fn general_view(&self) -> Element<'_, Message> {
         system_settings_general::view(self)
@@ -99,9 +99,9 @@ pub(in crate::app) async fn run_at_least(
     ] {
         for theme in [Theme::Light, Theme::Dark] {
             let mut app = fixture();
-            app.desktop_locale = locale;
-            app.app_theme = theme.clone();
-            app.general_settings_tab = GeneralSettingsTab::Interface;
+            app.general_settings.desktop_locale = locale;
+            app.appearance.app_theme = theme.clone();
+            app.general_settings.general_settings_tab = GeneralSettingsTab::Interface;
             let width = if locale == DesktopLocale::English { min_width } else { 640 };
             let mut scene = TabAppearance {
                 renderer: &mut renderer,

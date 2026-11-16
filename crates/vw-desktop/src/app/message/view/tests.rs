@@ -14,8 +14,8 @@ fn task_pet_view_messages_update_interaction_state() {
     use crate::app::state::TaskPetAvatarKind;
 
     let mut app = crate::app::App::new().0;
-    assert!(app.task_pet_collapsed);
-    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Robot);
+    assert!(app.pet_state.task_pet_collapsed);
+    assert_eq!(app.pet_state.task_pet_avatar_kind, TaskPetAvatarKind::Robot);
 
     let _ = super::update(&mut app, ViewMessage::TaskPetToggleCollapsed);
     let _ = super::update(&mut app, ViewMessage::TaskPetRobotHover(true));
@@ -26,12 +26,12 @@ fn task_pet_view_messages_update_interaction_state() {
         super::update(&mut app, ViewMessage::TaskPetReplyInputChanged(" 继续执行 ".to_string()));
     let _ = super::update(&mut app, ViewMessage::TaskPetContextMenuOpened(12.0, 24.0));
 
-    assert!(!app.task_pet_collapsed);
+    assert!(!app.pet_state.task_pet_collapsed);
     assert!(app.companion_navigation.task_pet_robot_hovered);
-    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Beauty);
-    assert_eq!(app.task_pet_hovered_request_id, Some(41));
-    assert_eq!(app.task_pet_reply_request_id, Some(41));
-    assert_eq!(app.task_pet_reply_input, " 继续执行 ");
+    assert_eq!(app.pet_state.task_pet_avatar_kind, TaskPetAvatarKind::Beauty);
+    assert_eq!(app.pet_state.task_pet_hovered_request_id, Some(41));
+    assert_eq!(app.pet_state.task_pet_reply_request_id, Some(41));
+    assert_eq!(app.pet_state.task_pet_reply_input, " 继续执行 ");
     assert_eq!(app.companion_navigation.task_pet_context_menu_pos, Some((12.0, 24.0)));
 
     let _ = super::update(&mut app, ViewMessage::TaskPetContextMenuClosed);
@@ -57,7 +57,7 @@ fn update_routes_panel_layout_theme_and_activity_messages() {
     assert_eq!(app.layout_drag.settings_drag_start_width, app.layout_drag.settings_panel_width);
 
     let _ = super::update(&mut app, ViewMessage::AppThemeSelected(iced::Theme::Light));
-    assert_eq!(app.app_theme, iced::Theme::Light);
+    assert_eq!(app.appearance.app_theme, iced::Theme::Light);
 
     app.status_animation_frame = 7;
     let _ = super::update(&mut app, ViewMessage::ActivityAnimationTick);
@@ -71,13 +71,13 @@ fn update_handles_task_pet_drag_remove_and_empty_reply_submit() {
     let mut app = crate::app::App::new().0;
 
     let _ = super::update(&mut app, ViewMessage::TaskPetDragStarted);
-    assert!(app.task_pet_dragging);
+    assert!(app.pet_state.task_pet_dragging);
 
     let _ = super::update(&mut app, ViewMessage::TaskPetRemove(77));
-    assert!(app.task_pet_dismissed_request_ids.contains(&77));
+    assert!(app.pet_state.task_pet_dismissed_request_ids.contains(&77));
 
     let _ = super::update(&mut app, ViewMessage::TaskPetReplySubmit);
-    assert!(app.task_pet_reply_request_id.is_none());
+    assert!(app.pet_state.task_pet_reply_request_id.is_none());
 }
 
 #[test]
@@ -215,8 +215,8 @@ fn mini_companion_hidden_and_avatar_are_independent() {
     assert_eq!(app.task_pet_window_id, Some(window));
     let _ = super::update(&mut app, ViewMessage::WindowClosed(window));
     assert!(app.task_pet_window_id.is_none());
-    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::None);
-    assert_eq!(app.task_pet_scale, 1.25);
+    assert_eq!(app.pet_state.task_pet_avatar_kind, TaskPetAvatarKind::None);
+    assert_eq!(app.pet_state.task_pet_scale, 1.25);
 }
 
 #[test]
@@ -227,14 +227,14 @@ fn mini_companion_close_request_keeps_window_until_closed() {
     let pet = iced::window::Id::unique();
     app.register_window_ids(main, Some(pet));
     app.companion_navigation.task_pet_visible = true;
-    app.task_pet_avatar_kind = TaskPetAvatarKind::Handsome;
+    app.pet_state.task_pet_avatar_kind = TaskPetAvatarKind::Handsome;
     let _ = super::update(&mut app, ViewMessage::CloseRequested(pet));
     assert!(!app.companion_navigation.task_pet_visible);
     assert_eq!(app.task_pet_window_id, Some(pet));
     let _ = super::update(&mut app, ViewMessage::WindowClosed(pet));
     assert_eq!(app.main_window_id, Some(main));
     assert!(app.task_pet_window_id.is_none());
-    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Handsome);
+    assert_eq!(app.pet_state.task_pet_avatar_kind, TaskPetAvatarKind::Handsome);
 }
 
 #[test]
@@ -242,8 +242,8 @@ fn mini_companion_invalid_scale_does_not_enqueue_a_save() {
     use crate::app::{App, message::ViewMessage};
     let mut app = App::new().0;
     let _ = super::update(&mut app, ViewMessage::TaskPetScaleChanged(f32::NAN));
-    assert_eq!(app.task_pet_scale, 1.0);
-    assert!(app.active_toast.as_ref().unwrap().message.contains("有限数值"));
+    assert_eq!(app.pet_state.task_pet_scale, 1.0);
+    assert!(app.toast_state.active_toast.as_ref().unwrap().message.contains("有限数值"));
     let mut late = serde_json::json!({"mini_companion":{"scale":1.5}});
     app.retain_unedited_desktop_preferences(&mut late);
     assert!(late.get("mini_companion").is_some());
@@ -265,10 +265,10 @@ fn mini_companion_hide_preserves_avatar_and_tasks() {
     use super::ViewMessage;
     let mut app = crate::app::App::new().0;
     app.main_window_id = Some(iced::window::Id::unique());
-    app.task_pet_avatar_kind = crate::app::state::TaskPetAvatarKind::None;
-    app.task_pet_scale = 1.25;
-    app.task_pet_dismissed_request_ids.insert(42);
-    app.task_pet_items.push(crate::app::state::TaskPetItem {
+    app.pet_state.task_pet_avatar_kind = crate::app::state::TaskPetAvatarKind::None;
+    app.pet_state.task_pet_scale = 1.25;
+    app.pet_state.task_pet_dismissed_request_ids.insert(42);
+    app.pet_state.task_pet_items.push(crate::app::state::TaskPetItem {
         request_id: 7,
         session_id: "current".into(),
         title: "任务".into(),
@@ -285,11 +285,11 @@ fn mini_companion_hide_preserves_avatar_and_tasks() {
     let _ = super::update(&mut app, ViewMessage::WindowClosed(id));
     let _ = super::update(&mut app, ViewMessage::TaskPetShowWindow);
     assert_ne!(app.task_pet_window_id, Some(id));
-    assert_eq!(app.task_pet_avatar_kind, crate::app::state::TaskPetAvatarKind::None);
-    assert_eq!(app.task_pet_scale, 1.25);
-    assert!(app.task_pet_dismissed_request_ids.contains(&42));
-    assert_eq!(app.task_pet_items.len(), 1);
-    assert_eq!(app.task_pet_items[0].request_id, 7);
+    assert_eq!(app.pet_state.task_pet_avatar_kind, crate::app::state::TaskPetAvatarKind::None);
+    assert_eq!(app.pet_state.task_pet_scale, 1.25);
+    assert!(app.pet_state.task_pet_dismissed_request_ids.contains(&42));
+    assert_eq!(app.pet_state.task_pet_items.len(), 1);
+    assert_eq!(app.pet_state.task_pet_items[0].request_id, 7);
 }
 
 #[test]
@@ -314,12 +314,12 @@ fn mini_companion_show_while_closing_reopens_after_callback() {
 fn mini_companion_write_keeps_current_session_and_draft() {
     use super::ViewMessage;
     let mut app = crate::app::App::new().0;
-    app.active_session_id = Some("current".into());
-    app.task_pet_reply_input = "draft".into();
+    app.session_state.active_session_id = Some("current".into());
+    app.pet_state.task_pet_reply_input = "draft".into();
     let _ = super::update(&mut app, ViewMessage::TaskPetWriteMessage);
-    assert_eq!(app.active_session_id.as_deref(), Some("current"));
-    assert_eq!(app.task_pet_reply_input, "draft");
-    assert!(!app.task_pet_dragging);
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("current"));
+    assert_eq!(app.pet_state.task_pet_reply_input, "draft");
+    assert!(!app.pet_state.task_pet_dragging);
 }
 
 #[tokio::test]
@@ -331,8 +331,8 @@ async fn mini_companion_reply_route_preserves_target_session() {
     };
     use iced_runtime::futures::futures::StreamExt;
     let mut app = App::new().0;
-    app.active_session_id = Some("unrelated".into());
-    app.task_pet_items.push(TaskPetItem {
+    app.session_state.active_session_id = Some("unrelated".into());
+    app.pet_state.task_pet_items.push(TaskPetItem {
         request_id: 7,
         session_id: "target".into(),
         title: "中文任务".into(),
@@ -349,22 +349,22 @@ async fn mini_companion_reply_route_preserves_target_session() {
     assert!(
         matches!(stream.next().await, Some(iced_runtime::Action::Output(Message::Chat(ChatMessage::SendToSession {session_id, input}))) if session_id == "target" && input == "继续处理")
     );
-    assert_eq!(app.active_session_id.as_deref(), Some("unrelated"));
-    assert!(app.task_pet_reply_input.is_empty());
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("unrelated"));
+    assert!(app.pet_state.task_pet_reply_input.is_empty());
 }
 
 #[test]
 fn mini_companion_size_cancel_restores_committed_value() {
     use super::{ViewMessage, update};
     let mut app = crate::app::App::new().0;
-    app.task_pet_scale = 1.25;
+    app.pet_state.task_pet_scale = 1.25;
     let _ = update(&mut app, ViewMessage::TaskPetSizeOpen);
     let _ = update(&mut app, ViewMessage::TaskPetSizePreview(2.0));
     assert_eq!(app.task_pet_preview_scale(), 2.0);
-    assert_eq!(app.task_pet_scale, 1.25);
+    assert_eq!(app.pet_state.task_pet_scale, 1.25);
     let _ = update(&mut app, ViewMessage::TaskPetSizeCancel);
     assert_eq!(app.task_pet_preview_scale(), 1.25);
-    assert!(app.task_pet_size_draft.is_none());
+    assert!(app.pet_state.task_pet_size_draft.is_none());
 }
 
 #[test]
@@ -378,7 +378,7 @@ fn mini_companion_size_save_persists_once() {
     assert!(iced_runtime::task::into_stream(save).is_some());
     let again = update(&mut app, ViewMessage::TaskPetSizeSave);
     assert!(iced_runtime::task::into_stream(again).is_none());
-    assert_eq!(app.task_pet_scale, 1.0);
+    assert_eq!(app.pet_state.task_pet_scale, 1.0);
     assert!(app.task_pet_size_pending.is_some());
 }
 
@@ -391,8 +391,8 @@ fn mini_companion_size_escape_rolls_back_and_modal_blocks_actions() {
     let _ = update(&mut app, ViewMessage::TaskPetSizePreview(0.5));
     let _ = update(&mut app, ViewMessage::TaskPetAvatarSelected(TaskPetAvatarKind::None));
     let _ = update(&mut app, ViewMessage::TaskPetDragStarted);
-    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Robot);
-    assert!(!app.task_pet_dragging);
+    assert_eq!(app.pet_state.task_pet_avatar_kind, TaskPetAvatarKind::Robot);
+    assert!(!app.pet_state.task_pet_dragging);
     let _ = update(
         &mut app,
         ViewMessage::GlobalKeyPressed(
@@ -400,7 +400,7 @@ fn mini_companion_size_escape_rolls_back_and_modal_blocks_actions() {
             iced::keyboard::Modifiers::default(),
         ),
     );
-    assert!(app.task_pet_size_draft.is_none());
+    assert!(app.pet_state.task_pet_size_draft.is_none());
     assert_eq!(app.task_pet_preview_scale(), 1.0);
 }
 
@@ -408,7 +408,7 @@ fn mini_companion_size_escape_rolls_back_and_modal_blocks_actions() {
 fn mini_companion_size_none_ignores_slider() {
     use super::{ViewMessage, update};
     let mut app = crate::app::App::new().0;
-    app.task_pet_avatar_kind = crate::app::state::TaskPetAvatarKind::None;
+    app.pet_state.task_pet_avatar_kind = crate::app::state::TaskPetAvatarKind::None;
     let _ = update(&mut app, ViewMessage::TaskPetSizeOpen);
     let _ = update(&mut app, ViewMessage::TaskPetSizePreview(2.0));
     assert_eq!(app.task_pet_preview_scale(), 1.0);

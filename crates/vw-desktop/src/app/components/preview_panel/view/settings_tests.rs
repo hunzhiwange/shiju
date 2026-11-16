@@ -37,12 +37,12 @@ fn settings_overlay_builds_with_default_editor_settings() {
 #[test]
 fn settings_overlay_builds_with_manual_line_height_and_theme() {
     let mut app = app();
-    app.current_font_size = 18.0;
-    app.auto_adjust_line_height = false;
-    app.current_line_height = 28.5;
-    app.current_language = Language::ChineseSimplified;
-    app.editor_follow_system_theme = false;
-    app.editor_theme = Theme::Dark;
+    app.preview_state.current_font_size = 18.0;
+    app.preview_state.auto_adjust_line_height = false;
+    app.preview_state.current_line_height = 28.5;
+    app.preview_state.current_language = Language::ChineseSimplified;
+    app.appearance.editor_follow_system_theme = false;
+    app.appearance.editor_theme = Theme::Dark;
 
     keep(build_settings_overlay(&app, content()));
 }
@@ -50,9 +50,9 @@ fn settings_overlay_builds_with_manual_line_height_and_theme() {
 #[test]
 fn settings_overlay_uses_app_theme_when_following_system_theme() {
     let mut app = app();
-    app.editor_follow_system_theme = true;
-    app.app_theme = Theme::Dark;
-    app.editor_theme = Theme::Light;
+    app.appearance.editor_follow_system_theme = true;
+    app.appearance.app_theme = Theme::Dark;
+    app.appearance.editor_theme = Theme::Light;
 
     keep(build_settings_overlay(&app, content()));
 }

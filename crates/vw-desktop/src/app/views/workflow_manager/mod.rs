@@ -19,7 +19,7 @@ pub(crate) fn load_lifecycle_workflows_task(notify_error: bool) -> Task<Message>
     domain::load_lifecycle_workflows_task(notify_error, client()).map(map_message)
 }
 pub fn view(app: &App) -> Element<'_, Message> {
-    domain::view(&app.workflow_manager, desktop_i18n::I18n::new(app.desktop_locale), &app.app_theme).map(map_message)
+    domain::view(&app.workflow_manager, desktop_i18n::I18n::new(app.general_settings.desktop_locale), &app.appearance.app_theme).map(map_message)
 }
 /// 更新应用中的工作流状态、刷新运行时缓存并派发网关副作用。
 pub fn update_app(app: &mut App, message: WorkflowManagerMessage) -> Task<Message> {

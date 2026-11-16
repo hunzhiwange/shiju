@@ -103,21 +103,21 @@ fn queue_item(query: &str) -> QueueItem {
 #[test]
 fn session_items_builds_runtime_status_variants() {
     let mut app = test_app();
-    app.active_session_id = Some("running".to_string());
-    app.session_menu_id = Some("queued".to_string());
-    app.session_menu_anchor = Some(Point::new(4.0, 6.0));
+    app.session_state.active_session_id = Some("running".to_string());
+    app.workspace_state.session_menu_id = Some("queued".to_string());
+    app.workspace_state.session_menu_anchor = Some(Point::new(4.0, 6.0));
 
     let mut running = SessionRuntimeState::default();
     running.request_lifecycle.is_requesting = true;
-    app.session_runtime_states.insert("running".to_string(), running);
+    app.session_state.session_runtime_states.insert("running".to_string(), running);
 
     let mut queued = SessionRuntimeState::default();
     queued.request_lifecycle.queue.push(queue_item("继续"));
-    app.session_runtime_states.insert("queued".to_string(), queued);
+    app.session_state.session_runtime_states.insert("queued".to_string(), queued);
 
     let mut unseen = SessionRuntimeState::default();
     unseen.has_unseen_success = true;
-    app.session_runtime_states.insert("unseen".to_string(), unseen);
+    app.session_state.session_runtime_states.insert("unseen".to_string(), unseen);
 
     let sessions = vec![
         session("running", "运行中会话", "/tmp/project", false),
@@ -143,7 +143,7 @@ fn plan_run_live_children_integrate_with_session_visibility() {
 
     let (mut app, _) = crate::app::App::new();
     app.navigation_tabs.project_path = Some(DIRECTORY.to_string());
-    app.active_session_id = Some(MAIN_ID.to_string());
+    app.session_state.active_session_id = Some(MAIN_ID.to_string());
 
     let mut main = session(MAIN_ID, "主会话", DIRECTORY, false);
     main.time.updated = 100;
@@ -153,15 +153,15 @@ fn plan_run_live_children_integrate_with_session_visibility() {
     let mut ordinary_grandchild = child_session("ordinary-grandchild", "ordinary-child", 80);
     ordinary_grandchild.directory = DIRECTORY.to_string();
     ordinary_grandchild.title = "普通孙会话".to_string();
-    app.sessions = vec![ordinary_grandchild, ordinary_child, main];
-    app.chat = vec![crate::app::models::ChatMessage {
+    app.session_state.sessions = vec![ordinary_grandchild, ordinary_child, main];
+    app.chat_view.chat = vec![crate::app::models::ChatMessage {
         role: crate::app::models::ChatRole::User,
         content: "主会话任务".to_string(),
         model: None,
         think_timing: Vec::new(),
         processing_timing: None,
     }];
-    app.chat_message_ids = vec![None];
+    app.chat_view.chat_message_ids = vec![None];
     let parent_runtime = app.get_session_runtime_mut(MAIN_ID);
     parent_runtime.request_lifecycle.is_requesting = true;
     parent_runtime.request_lifecycle.active_agent_request = Some(agent_request(REQUEST_ID, MAIN_ID));
@@ -210,11 +210,11 @@ fn plan_run_live_children_integrate_with_session_visibility() {
         let _ = crate::app::message::chat::update(&mut app, message);
     }
 
-    assert_eq!(app.active_session_id.as_deref(), Some(MAIN_ID));
-    assert_eq!(app.chat.len(), 1);
-    assert_eq!(app.chat[0].content, "主会话任务");
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some(MAIN_ID));
+    assert_eq!(app.chat_view.chat.len(), 1);
+    assert_eq!(app.chat_view.chat[0].content, "主会话任务");
     for session_id in [PLANNING_ID, BATCH_ONE_ID, BATCH_TWO_ID] {
-        assert!(!app.sessions.iter().any(|session| session.id == session_id));
+        assert!(!app.session_state.sessions.iter().any(|session| session.id == session_id));
         assert!(app.get_session_runtime(session_id).is_plan_run_session);
         assert!(app.get_session_runtime(session_id).request_lifecycle.is_requesting);
         let _ = crate::app::message::chat::update(
@@ -248,20 +248,20 @@ fn plan_run_live_children_integrate_with_session_visibility() {
         .expect("running plan-run node should parse and render"),
     );
 
-    let collapsed = session_tree_projection(&app.sessions, 10, &HashSet::new());
+    let collapsed = session_tree_projection(&app.session_state.sessions, 10, &HashSet::new());
     assert_eq!(collapsed.total_roots, 1);
     assert_eq!(
         collapsed.rows.iter().map(|row| row.session.id.as_str()).collect::<Vec<_>>(),
         vec![MAIN_ID]
     );
 
-    let parent_expanded = session_tree_projection(&app.sessions, 10, &HashSet::new());
+    let parent_expanded = session_tree_projection(&app.session_state.sessions, 10, &HashSet::new());
     assert_eq!(
         parent_expanded.rows.iter().map(|row| row.session.id.as_str()).collect::<Vec<_>>(),
         vec![MAIN_ID]
     );
 
-    let recursively_expanded = session_tree_projection(&app.sessions, 10, &HashSet::new());
+    let recursively_expanded = session_tree_projection(&app.session_state.sessions, 10, &HashSet::new());
     assert_eq!(
         recursively_expanded.rows.iter().map(|row| row.session.id.as_str()).collect::<Vec<_>>(),
         vec![MAIN_ID]

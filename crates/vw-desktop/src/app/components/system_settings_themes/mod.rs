@@ -20,8 +20,8 @@ pub(super) fn editor_overlay<'a>(app: &'a App, base: Element<'a, Message>) -> El
 
 fn inputs(app: &App) -> desktop_settings_appearance::system_settings_themes::View<'_, Message> {
     desktop_settings_appearance::system_settings_themes::View {
-        desktop_locale: app.desktop_locale, app_theme: &app.app_theme,
-        active_custom_theme_id: &app.active_custom_theme_id,
+        desktop_locale: app.general_settings.desktop_locale, app_theme: &app.appearance.app_theme,
+        active_custom_theme_id: &app.appearance.active_custom_theme_id,
         themes_settings: &app.themes_settings,
         map: |message| Message::Settings(SettingsMessage::Themes(message)),
         none: Message::None,

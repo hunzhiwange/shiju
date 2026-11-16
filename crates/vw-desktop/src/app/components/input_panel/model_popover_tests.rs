@@ -67,7 +67,7 @@ async fn fork_selection_popover_click_and_chinese_render_follow_execution_state(
     for theme in [Theme::Light, Theme::Dark] {
         for state in [Some(false), Some(true), None] {
             let (mut app, _) = crate::app::App::new();
-            app.active_session_id = Some("fork".into());
+            app.session_state.active_session_id = Some("fork".into());
             app.current_session_runtime_mut().fork_execution_started = state;
             app.model_settings.providers =
                 vec![provider("custom", "供应商", vec![model("new", "中文模型", true)])];

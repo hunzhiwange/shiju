@@ -75,17 +75,17 @@ fn external_usage_entry() -> Element<'static, Message> {
 fn view_input(app: &App) -> desktop_usage::view_types::ViewInput<'_> {
     let runtime = app.current_session_runtime();
     desktop_usage::view_types::ViewInput {
-        desktop_locale: app.desktop_locale, usage: &app.usage,
+        desktop_locale: app.general_settings.desktop_locale, usage: &app.chat_view.usage,
         usage_model_info: app.usage_panel.usage_model_info.as_ref(),
         auto_model: runtime.auto_model, model: runtime.model,
-        active_session_id: app.active_session_id.as_ref(),
-        session_menu_id: app.session_menu_id.as_ref(), session_menu_anchor: app.session_menu_anchor,
+        active_session_id: app.session_state.active_session_id.as_ref(),
+        session_menu_id: app.workspace_state.session_menu_id.as_ref(), session_menu_anchor: app.workspace_state.session_menu_anchor,
         usage_step_expanded: &app.usage_panel.usage_step_expanded,
         usage_step_raw_loading: &app.usage_panel.usage_step_raw_loading,
         usage_step_raw_payloads: &app.usage_panel.usage_step_raw_payloads,
-        step_llm_raw: &app.active_session_view_state.step_llm_raw,
+        step_llm_raw: &app.chat_view.active_session_view_state.step_llm_raw,
         usage_step_raw_modal: app.usage_panel.usage_step_raw_modal.as_ref(),
-        last_copied_code_hash: app.last_copied_code_hash,
+        last_copied_code_hash: app.clipboard_state.last_copied_code_hash,
     }
 }
 fn map_message(event: desktop_usage::view_types::Message) -> Message {

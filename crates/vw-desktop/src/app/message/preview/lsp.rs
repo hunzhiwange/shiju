@@ -7,30 +7,30 @@ use desktop_editor::preview::lsp as domain;
 pub(crate) fn detach_lsp_for_tab(tab: &mut PreviewTab) { domain::detach_lsp_for_tab(tab) }
 pub(crate) fn sync_lsp_for_path(app: &mut App, path: &str) -> bool {
     let mut notifications = Vec::new();
-    let result = domain::sync_lsp_for_path(&mut app.lsp_disabled, &mut app.lsp_manager, &mut app.lsp_status, &mut app.lsp_status_message, &mut notifications, &mut app.navigation_tabs.preview_tabs, &mut app.navigation_tabs.project_path, path);
+    let result = domain::sync_lsp_for_path(&mut app.preview_state.lsp_disabled, &mut app.lsp_manager, &mut app.preview_state.lsp_status, &mut app.preview_state.lsp_status_message, &mut notifications, &mut app.navigation_tabs.preview_tabs, &mut app.navigation_tabs.project_path, path);
     for (source, arguments) in notifications { app.push_localized_notification(source, arguments); }
     result
 }
 pub(crate) fn disable_lsp(app: &mut App) {
-    domain::disable_lsp(&mut app.lsp_disabled, &mut app.lsp_hover_anchor, &mut app.lsp_hover_hide_deadline, &mut app.lsp_hover_pending, &mut app.lsp_manager, &mut app.lsp_overlay, &mut app.lsp_overlay_path, &mut app.lsp_progress, &mut app.lsp_status, &mut app.lsp_status_message, &mut app.navigation_tabs.preview_tabs);
+    domain::disable_lsp(&mut app.preview_state.lsp_disabled, &mut app.preview_state.lsp_hover_anchor, &mut app.preview_state.lsp_hover_hide_deadline, &mut app.preview_state.lsp_hover_pending, &mut app.lsp_manager, &mut app.preview_state.lsp_overlay, &mut app.preview_state.lsp_overlay_path, &mut app.preview_state.lsp_progress, &mut app.preview_state.lsp_status, &mut app.preview_state.lsp_status_message, &mut app.navigation_tabs.preview_tabs);
 }
 pub(crate) fn enable_lsp(app: &mut App) {
     let mut notifications = Vec::new();
-    domain::enable_lsp(&mut app.navigation_tabs.active_preview_path, &mut app.lsp_disabled, &mut app.lsp_manager, &mut app.lsp_status, &mut app.lsp_status_message, &mut notifications, &mut app.navigation_tabs.preview_tabs, &mut app.navigation_tabs.project_path);
+    domain::enable_lsp(&mut app.navigation_tabs.active_preview_path, &mut app.preview_state.lsp_disabled, &mut app.lsp_manager, &mut app.preview_state.lsp_status, &mut app.preview_state.lsp_status_message, &mut notifications, &mut app.navigation_tabs.preview_tabs, &mut app.navigation_tabs.project_path);
     for (source, arguments) in notifications { app.push_localized_notification(source, arguments); }
 }
 pub(crate) fn clear_lsp_hover(app: &mut App) {
-    domain::clear_lsp_hover(&mut app.lsp_hover_anchor, &mut app.lsp_hover_hide_deadline, &mut app.lsp_hover_pending, &mut app.lsp_overlay, &mut app.lsp_overlay_path);
+    domain::clear_lsp_hover(&mut app.preview_state.lsp_hover_anchor, &mut app.preview_state.lsp_hover_hide_deadline, &mut app.preview_state.lsp_hover_pending, &mut app.preview_state.lsp_overlay, &mut app.preview_state.lsp_overlay_path);
 }
 pub(crate) fn clear_lsp_completion(app: &mut App, suppress: bool) {
-    domain::clear_lsp_completion(&mut app.lsp_overlay, &mut app.lsp_overlay_path, suppress);
+    domain::clear_lsp_completion(&mut app.preview_state.lsp_overlay, &mut app.preview_state.lsp_overlay_path, suppress);
 }
 pub(crate) fn process_lsp_hover_timers(app: &mut App) {
-    domain::process_lsp_hover_timers(&mut app.lsp_hover_anchor, &mut app.lsp_hover_hide_deadline, &mut app.lsp_hover_pending, &mut app.lsp_overlay, &mut app.lsp_overlay_path, &mut app.navigation_tabs.preview_tabs);
+    domain::process_lsp_hover_timers(&mut app.preview_state.lsp_hover_anchor, &mut app.preview_state.lsp_hover_hide_deadline, &mut app.preview_state.lsp_hover_pending, &mut app.preview_state.lsp_overlay, &mut app.preview_state.lsp_overlay_path, &mut app.navigation_tabs.preview_tabs);
 }
 pub(crate) fn drain_lsp_events(app: &mut App) -> Task<Message> {
     let mut notifications = Vec::new();
-    let result = domain::drain_lsp_events(&mut app.navigation_tabs.active_preview_path, &mut app.lsp_events, &mut app.lsp_hover_anchor, &mut app.lsp_hover_hide_deadline, &mut app.lsp_hover_pending, &mut app.lsp_overlay, &mut app.lsp_overlay_path, &mut app.lsp_progress, &mut app.lsp_status, &mut app.lsp_status_message, &mut notifications, &mut app.pending_preview_goto, &mut app.navigation_tabs.preview_tabs);
+    let result = domain::drain_lsp_events(&mut app.navigation_tabs.active_preview_path, &mut app.lsp_events, &mut app.preview_state.lsp_hover_anchor, &mut app.preview_state.lsp_hover_hide_deadline, &mut app.preview_state.lsp_hover_pending, &mut app.preview_state.lsp_overlay, &mut app.preview_state.lsp_overlay_path, &mut app.preview_state.lsp_progress, &mut app.preview_state.lsp_status, &mut app.preview_state.lsp_status_message, &mut notifications, &mut app.preview_state.pending_preview_goto, &mut app.navigation_tabs.preview_tabs);
     for (source, arguments) in notifications { app.push_localized_notification(source, arguments); }
     Task::batch(result.into_iter().map(|path| Task::done(Message::Preview(PreviewMessage::Open(path)))))
 }
@@ -42,7 +42,7 @@ pub(crate) fn tick(app: &mut App) -> Task<Message> {
     // 更新加载动画的帧计数器（用于显示旋转动画）
     app.spinner_frame = app.spinner_frame.wrapping_add(1);
 
-    if app.lsp_disabled {
+    if app.preview_state.lsp_disabled {
         return Task::none();
     }
 

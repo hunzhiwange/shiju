@@ -203,15 +203,15 @@ async fn ui_refresh_34_import_errors_are_visible() {
     }
     let mut app = fixture();
     app.navigation_tabs.screen = Screen::TaskBoard;
-    app.desktop_locale = DesktopLocale::English;
-    app.task_board_create_modal_open = true;
-    app.task_board_is_import_mode = true;
+    app.general_settings.desktop_locale = DesktopLocale::English;
+    app.task_board.task_board_create_modal_open = true;
+    app.task_board.task_board_is_import_mode = true;
     let mut renderer = renderer().await;
-    let i18n = I18n::new(app.desktop_locale);
+    let i18n = I18n::new(app.general_settings.desktop_locale);
     let size = Size::new(960, 780);
 
     for (kind, content) in [("json", "{}"), ("csv", "unknown,header\n1,2")] {
-        app.task_board_import_editor = iced::widget::text_editor::Content::with_text(content);
+        app.task_board.task_board_import_editor = iced::widget::text_editor::Content::with_text(content);
         let mut ui = scene(app.view(), &mut renderer, size);
         let submit = labels(&mut ui, &renderer).bounds(i18n.__("导入任务")).center();
         let messages = click(&mut ui, &mut renderer, submit);
@@ -222,11 +222,11 @@ async fn ui_refresh_34_import_errors_are_visible() {
             panic!("expected one import submission");
         };
         let _ = app.update(message.clone());
-        assert!(app.task_board_create_modal_open);
-        assert_eq!(app.task_board_import_editor.text().trim_end(), content);
-        let toast = app.active_toast.as_ref().expect("import error should appear immediately");
+        assert!(app.task_board.task_board_create_modal_open);
+        assert_eq!(app.task_board.task_board_import_editor.text().trim_end(), content);
+        let toast = app.toast_state.active_toast.as_ref().expect("import error should appear immediately");
         assert!(matches!(toast.kind, ToastKind::Error));
-        assert_eq!(app.notifications.last().unwrap().message, toast.message);
+        assert_eq!(app.notification_state.notifications.last().unwrap().message, toast.message);
         let mut ui = scene(app.view(), &mut renderer, size);
         let feedback = labels(&mut ui, &renderer).bounds(&toast.message);
         assert!(feedback.x > size.width as f32 / 2.0);

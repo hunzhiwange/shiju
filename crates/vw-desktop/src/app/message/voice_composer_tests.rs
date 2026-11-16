@@ -1,7 +1,7 @@
 use super::*;
 fn app_with_draft() -> App {
     let (mut app, _) = App::new();
-    app.active_session_id = Some("voice-original".into());
+    app.session_state.active_session_id = Some("voice-original".into());
     let editor = &mut app.current_session_runtime_mut().input_editor;
     *editor = text_editor::Content::with_text("前后");
     editor.perform(text_editor::Action::Move(text_editor::Motion::DocumentStart));
@@ -26,12 +26,12 @@ fn voice_task_07_composer_inserts_at_original_cursor_without_sending() {
 fn voice_task_07_composer_switch_and_cancel_reject_late_reply() {
     let mut app = app_with_draft();
     let generation = app.voice.draft.generation;
-    app.active_session_id = Some("other".into());
+    app.session_state.active_session_id = Some("other".into());
     app.current_session_runtime_mut().input_editor = text_editor::Content::with_text("另一草稿");
     let _ = update(&mut app, Event::Completed(generation, Ok("迟到".into())));
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "另一草稿");
     assert_eq!(app.voice.draft.phase, Phase::Idle);
-    app.active_session_id = Some("voice-original".into());
+    app.session_state.active_session_id = Some("voice-original".into());
     let _ = update(&mut app, Event::Completed(generation, Ok("迟到".into())));
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "前后");
 }
@@ -120,7 +120,7 @@ fn voice_task_16_external_pending_remains_scoped_and_prevents_overwrite() {
     let _ = update(&mut app, Event::Start);
     assert_eq!(app.voice.draft.generation, generation);
     assert_eq!(app.voice.insertion.pending.as_deref(), Some("待复制"));
-    app.active_session_id = Some("other-session".into());
+    app.session_state.active_session_id = Some("other-session".into());
     invalidate(&mut app);
     assert!(app.voice.insertion.pending.is_none());
 }
@@ -130,7 +130,7 @@ fn voice_task_16_external_pending_remains_scoped_and_prevents_overwrite() {
 fn voice_task_11_local_start_never_opens_cloud_conversation() {
     let (mut app, _) = App::new();
     app.navigation_tabs.project_path = Some("/repo".into());
-    app.active_session_id = Some("local-voice-route".into());
+    app.session_state.active_session_id = Some("local-voice-route".into());
     app.current_session_runtime_mut();
     assert_eq!(
         crate::app::voice::preferences::load().unwrap().engine,

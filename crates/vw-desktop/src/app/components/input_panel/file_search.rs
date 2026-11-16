@@ -8,7 +8,7 @@ pub fn file_search_overlay(app: &crate::app::App) -> iced::Element<'_, crate::ap
         })
         .collect::<Vec<_>>();
     desktop_chat_input::input_panel::file_search::file_search_overlay(
-        crate::app::i18n::I18n::new(app.desktop_locale),
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         &entries,
         &app.input_suggestions.file_search_query,
         app.navigation_tabs.project_path.as_deref(),

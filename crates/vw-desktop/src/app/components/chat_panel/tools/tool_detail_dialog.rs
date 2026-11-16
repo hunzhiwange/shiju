@@ -2,8 +2,8 @@
 use crate::app::{App, Message, message::ChatMessage};
 use desktop_chat_tools::tools::{detail_input::{DetailInput, DialogInput, Message as Local}, tool_detail_dialog as domain};
 fn input(app: &App) -> DetailInput<'_> {
- DetailInput { i18n: crate::app::i18n::I18n::new(app.desktop_locale), line_height: app.current_line_height,
- dialog: app.tool_detail_dialog.as_ref().map(|d| DialogInput {title: &d.title, editor: &d.editor, editor_id: &d.editor_id, scroll_top_line: d.scroll_top_line, context_menu_open: d.context_menu_open, context_menu_pos: d.context_menu_pos}) }
+ DetailInput { i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale), line_height: app.preview_state.current_line_height,
+ dialog: app.chat_interaction.tool_detail_dialog.as_ref().map(|d| DialogInput {title: &d.title, editor: &d.editor, editor_id: &d.editor_id, scroll_top_line: d.scroll_top_line, context_menu_open: d.context_menu_open, context_menu_pos: d.context_menu_pos}) }
 }
 fn map(message: Local) -> Message {
  Message::Chat(match message {

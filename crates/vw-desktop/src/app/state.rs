@@ -16,8 +16,8 @@
 //! - [`ProviderSettingsState`]：提供者设置面板状态
 //! - [`ModelSettingsState`]：模型设置面板状态
 
-use iced::widget::{Id, text_editor};
-use iced::{Point, Theme};
+use iced::widget::Id;
+use iced::Point;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -29,9 +29,7 @@ use crate::app::lsp::LspServiceManager;
 use crate::app::message;
 use crate::app::models::{self, ChatMessage, ChatSessionStep};
 use crate::app::terminal::TerminalState;
-use crate::app::{DiffTheme, FocusArea, PreviewTab, Screen, SettingsTab, TodoPanelPlacement};
-#[cfg(not(target_arch = "wasm32"))]
-use crate::app::{LspHoverPending, LspProgress};
+use crate::app::FocusArea;
 use config_tools::HttpRequestConfig;
 
 mod account;

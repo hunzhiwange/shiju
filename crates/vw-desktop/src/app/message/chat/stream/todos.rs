@@ -10,11 +10,11 @@ use std::time::Duration;
 
 fn panel(app: &mut App) -> desktop_session::message::chat::stream::todos::TodoPanel<'_> {
     desktop_session::message::chat::stream::todos::TodoPanel {
-        active_session_id: app.active_session_id.as_deref(),
-        chat_todo_session_id: &mut app.chat_todo_session_id,
-        chat_todo_items: &mut app.chat_todo_items,
-        chat_todo_expanded: &mut app.chat_todo_expanded,
-        chat_todo_anim: &mut app.chat_todo_anim,
+        active_session_id: app.session_state.active_session_id.as_deref(),
+        chat_todo_session_id: &mut app.todo_state.chat_todo_session_id,
+        chat_todo_items: &mut app.todo_state.chat_todo_items,
+        chat_todo_expanded: &mut app.todo_state.chat_todo_expanded,
+        chat_todo_anim: &mut app.todo_state.chat_todo_anim,
     }
 }
 fn animation_task(tick: bool) -> Task<Message> {
@@ -26,9 +26,9 @@ fn apply_loaded_session_todos(app: &mut App, session_id: String, res: Result<Vec
 }
 
 fn todo_list_directory(app: &App) -> Option<String> {
-    app.active_session_id
+    app.session_state.active_session_id
         .as_ref()
-        .and_then(|id| app.sessions.iter().find(|session| &session.id == id))
+        .and_then(|id| app.session_state.sessions.iter().find(|session| &session.id == id))
         .map(|session| session.directory.clone())
         .filter(|directory| !directory.trim().is_empty())
         .or_else(|| app.navigation_tabs.project_path.clone())
@@ -54,9 +54,9 @@ pub(super) fn load_input_panel_todos_task(
 /// 模块内可见函数，执行 handle_load_input_panel_todos 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_load_input_panel_todos(app: &mut App) -> Task<Message> {
-    let Some(session_id) = app.active_session_id.clone() else {
-        app.chat_todo_session_id = None;
-        app.chat_todo_items.clear();
+    let Some(session_id) = app.session_state.active_session_id.clone() else {
+        app.todo_state.chat_todo_session_id = None;
+        app.todo_state.chat_todo_items.clear();
         return Task::none();
     };
 
@@ -66,9 +66,9 @@ pub(super) fn handle_load_input_panel_todos(app: &mut App) -> Task<Message> {
 /// 模块内可见函数，执行 handle_todo_poll_tick 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_todo_poll_tick(app: &mut App) -> Task<Message> {
-    let Some(session_id) = app.active_session_id.clone() else {
-        app.chat_todo_session_id = None;
-        app.chat_todo_items.clear();
+    let Some(session_id) = app.session_state.active_session_id.clone() else {
+        app.todo_state.chat_todo_session_id = None;
+        app.todo_state.chat_todo_items.clear();
         return Task::none();
     };
 

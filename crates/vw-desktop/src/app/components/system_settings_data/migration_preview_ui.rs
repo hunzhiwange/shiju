@@ -11,7 +11,7 @@ pub(super) fn target(app: &App) -> Option<DataManagementTarget> {
     if !app.apps_catalog.connection_open || app.apps_catalog.context.as_ref() != Some(&context)
         || app.apps_catalog.host.is_empty() || app.apps_catalog.token.is_empty() { return None; }
     Some(DataManagementTarget {
-        scope: ProjectScope::new(context.tenant, app.project_id.clone()?.into()).ok()?,
+        scope: ProjectScope::new(context.tenant, app.workspace_state.project_id.clone()?.into()).ok()?,
         target_host_id: app.apps_catalog.host.clone(),
         principal_id: app.apps_catalog.migration_preview.principal.trim().to_owned(),
     })

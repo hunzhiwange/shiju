@@ -8,19 +8,9 @@ pub(crate) use app_aux::{
 
 use super::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum TaskBoardViewMode {
-    #[default]
-    Kanban,
-}
+pub use desktop_task_board::state::TaskBoardViewMode;
 
-/// 聊天面板主体的瞬时显示模式。
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum ChatPanelMode {
-    #[default]
-    Conversation,
-    Trajectory,
-}
+pub use desktop_chat_view::view_snapshot::ChatPanelMode;
 
 pub use desktop_chat_view::trajectory::model::TrajectoryDetailsTab;
 
@@ -63,143 +53,25 @@ pub struct App {
     /// 工作模式停靠浏览器的受控子进程
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) work_browser_controller: crate::app::webview_runtime::WorkBrowserController,
-    /// 当前项目是否为 Git 仓库（网关 ProjectInfo.vcs）
-    pub(crate) project_is_git_repo: bool,
-    /// 当前项目唯一标识符
-    pub(crate) project_id: Option<String>,
+    pub(crate) workspace_state: desktop_workspace::project_state::State<crate::app::Message>,
+
     /// 项目输入与查找领域状态
     pub(crate) project_input: desktop_workspace::basic::InputState,
     pub(crate) project_find: desktop_workspace::project_message::find::FindState,
-    /// 输入文本（旧版，已废弃）
-    pub(crate) input_text: String,
-    /// 输入编辑器内容
-    pub(crate) input_editor: text_editor::Content,
-    /// 当前选择的模型标识符
-    pub(crate) model: String,
-    /// 是否自动选择模型
-    pub(crate) auto_model: bool,
-    pub(crate) reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
-    pub(crate) acp_agent: Option<String>,
-    pub(crate) acp_history_mode: AcpHistoryReplayMode,
-    pub(crate) acp_recent_count: usize,
-    pub(crate) chat_send_behavior: ChatSendBehavior,
-    pub(crate) acp_agents: Vec<String>,
+    pub(crate) session_state: desktop_session::session::state::State<desktop_chat_view::stream_render::StreamRenderState, crate::app::session::view_cache::SessionViewSnapshot>,
+
     pub(crate) acp_settings: AcpSettingsState,
     pub(crate) mcp_settings: McpSettingsState,
-    /// 附加文件列表
-    pub(crate) files: Vec<String>,
-    /// 聊天消息列表
-    pub(crate) chat: Vec<models::ChatMessage>,
-    /// 当前聊天消息对应的会话消息 ID
-    pub(crate) chat_message_ids: Vec<Option<String>>,
-    /// 聊天消息渲染缓存（按消息索引）
-    pub(crate) chat_render_cache: HashMap<usize, models::ChatRenderCacheEntry>,
-    /// 聊天消息可复制文本缓存（按消息索引）
-    pub(crate) chat_visible_text_cache: Vec<Option<String>>,
-    /// 聊天消息复制哈希缓存（按消息索引）
-    pub(crate) chat_copy_hash_cache: Vec<Option<u64>>,
-    /// 聊天消息折叠状态
-    pub(crate) chat_message_expanded: HashSet<usize>,
-    /// 聊天消息持久化高度缓存
-    pub(crate) chat_message_estimated_heights: Vec<f32>,
-    /// 聊天虚拟滚动统一状态源
-    pub(crate) chat_virtualizer: desktop_chat_view::virtualizer::ChatVirtualizer,
-    /// 聊天消息高度索引
-    pub(crate) chat_height_index: desktop_chat_view::height_index::ChatHeightIndex,
-    /// 聊天消息测量高度缓存
-    pub(crate) chat_message_measured_heights: HashMap<usize, f32>,
-    /// 聊天消息编辑器列表（用于消息编辑）
-    pub(crate) chat_message_editors: Vec<text_editor::Content>,
-    /// 特殊消息中的普通文本编辑器映射（消息索引 + 文本块索引 -> 编辑器内容）
-    pub(crate) chat_special_text_editors: HashMap<u64, text_editor::Content>,
-    /// 助手消息正文的 Markdown 块结构缓存（消息索引 + 文本块索引 -> 块列表）
-    pub(crate) chat_markdown_blocks:
-        HashMap<u64, Vec<crate::app::components::chat_panel::message_view::MarkdownBlock>>,
-    pub(crate) chat_markdown_selection: Option<crate::app::ui_types::ChatMarkdownSelection>,
-    /// Markdown 块的可划选只读编辑器映射（消息索引 + 文本块索引 + 块索引 -> 编辑器内容）
-    pub(crate) chat_markdown_block_editors: HashMap<u128, text_editor::Content>,
-    /// 工具卡片文本编辑器映射（消息索引 + 工具索引 + 文本索引 -> 编辑器内容）
-    pub(crate) chat_tool_text_editors: HashMap<u128, text_editor::Content>,
-    /// 思考块编辑器映射（消息索引 -> 编辑器内容）
-    pub(crate) chat_think_editors: HashMap<u64, text_editor::Content>,
-    /// 展开的思考块消息索引集合
-    pub(crate) chat_think_expanded: HashSet<u64>,
-    /// 手动折叠的思考块消息索引集合
-    pub(crate) chat_think_collapsed: HashSet<u64>,
-    /// 鼠标悬停的思考块消息索引
-    pub(crate) chat_think_hovered_idx: Option<u64>,
-    /// 展开的工具内文件项集合
-    pub(crate) chat_tool_file_expanded: HashSet<String>,
-    /// 鼠标悬停的工具内文件项键
-    pub(crate) chat_tool_file_hovered: Option<String>,
-    /// 展开的工具调用块集合
-    pub(crate) chat_tool_expanded: HashSet<u64>,
-    /// 鼠标悬停的工具调用块消息索引
-    pub(crate) chat_tool_hovered_idx: Option<u64>,
-    /// 已探索摘要块展开状态
-    pub(crate) chat_explore_expanded: HashSet<u64>,
-    /// 已探索摘要数字翻转动画状态
-    pub(crate) chat_explore_summary_animations: HashMap<u128, ExploreSummaryAnimationState>,
-    /// 工具详情对话框状态
-    pub(crate) tool_detail_dialog: Option<ToolDetailDialog>,
-    /// 思考块滚动容器 ID 映射
-    pub(crate) chat_think_scroll_ids: HashMap<u64, Id>,
-    /// 流式响应中当前思考块的消息索引
-    pub(crate) chat_stream_think_msg_idx: Option<usize>,
-    /// 流式响应中的思考块计数
-    pub(crate) chat_stream_think_count: usize,
-    /// 流式响应中自动展开的思考块索引
-    pub(crate) chat_stream_think_open_idx: Option<usize>,
-    pub(crate) chat_context_menu: desktop_session::message::chat::input::context_menus::MessageContextMenuState,
-    pub(crate) input_context_menu: desktop_session::message::chat::input::context_menus::InputContextMenuState,
-    /// 当前打开的“重置到此点”菜单消息索引
-    pub(crate) chat_reset_menu_idx: Option<usize>,
-    /// 分叉对话框及待提交的新会话输入
-    pub(crate) chat_fork_dialog: Option<crate::app::message::chat::ForkSessionDialog>,
-    /// Todo 面板是否展开
-    pub(crate) chat_todo_expanded: bool,
-    /// Todo 面板动画进度
-    pub(crate) chat_todo_anim: f32,
-    /// Todo 面板显示位置
-    pub(crate) chat_todo_placement: TodoPanelPlacement,
-    /// Todo 缓存所属会话 ID
-    pub(crate) chat_todo_session_id: Option<String>,
-    /// 当前活跃会话的 Todo 缓存
-    pub(crate) chat_todo_items: Vec<todo_types::Todo>,
-    /// Token 使用量统计
-    pub(crate) usage: models::TokenUsage,
-    /// 当前活跃会话的轻量视图状态
-    pub(crate) active_session_view_state: ActiveSessionViewState,
-    /// 聊天面板当前显示对话或轨迹。
-    pub(crate) chat_panel_mode: ChatPanelMode,
-    /// 轨迹账本搜索文本。
-    pub(crate) trajectory_search_text: String,
-    /// 轨迹详情选择与标签状态。
-    pub(crate) trajectory_details:
-        crate::app::components::chat_panel::trajectory::TrajectoryDetailsState,
-    /// Duration、Turns 与 Calls 的瞬时轨迹控制状态。
-    pub(crate) trajectory_controls:
-        crate::app::components::chat_panel::trajectory::TrajectoryControlsState,
-    /// 正在补载的轨迹原始步骤载荷。
-    pub(crate) trajectory_raw_loading: HashSet<UsageStepRawKey>,
-    /// 轨迹原始步骤载荷当前或待执行的有限重试次数。
-    pub(crate) trajectory_raw_attempts: HashMap<UsageStepRawKey, u8>,
-    /// 轨迹原始步骤载荷的可恢复错误。
-    pub(crate) trajectory_raw_errors: HashMap<UsageStepRawKey, String>,
-    /// 当前项目最近更新时间（毫秒时间戳）
-    pub(crate) project_updated_at_ms: Option<u64>,
-    /// 最近打开的项目路径列表
-    pub(crate) recent_projects: Vec<String>,
-    /// 是否正在处理请求
-    pub(crate) is_requesting: bool,
-    /// 提交按钮动画计数器
-    pub(crate) submit_anim: u8,
-    /// 当前活跃的 Agent 请求
-    pub(crate) active_agent_request: Option<AgentRequest>,
-    /// Agent 流式响应的唯一标识符
-    pub(crate) agent_stream_id: u64,
-    /// 请求队列
-    pub(crate) queue: Vec<QueueItem>,
+
+    pub(crate) chat_view: desktop_chat_view::view_snapshot::SessionViewSnapshot<
+        ActiveSessionViewState,
+        ChatPanelMode,
+    >,
+
+    pub(crate) chat_interaction: desktop_chat_view::interaction::State,
+
+    pub(crate) todo_state: desktop_chat_view::todo::State,
+
     /// 窗口尺寸（宽，高）
     pub(crate) window_size: (f32, f32),
     /// 当前会话的布局选择，独立于工作区模式与桌面面板尺寸。
@@ -218,128 +90,24 @@ pub struct App {
     /// 主窗口是否已进入一次性关机流程
     pub(crate) shutdown_requested: bool,
     pub(crate) desktop_preferences_persistence: crate::app::config::DesktopPreferencesPersistence,
-    /// 设置侧边栏是否折叠
-    pub(crate) settings_sidebar_collapsed: bool,
+    pub(crate) general_settings: desktop_settings_appearance::general_state::State,
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) web_install: crate::app::web_install::State,
     /// 应用升级来源、检测快照与安装器交接状态
     pub(crate) desktop_update: crate::app::desktop_update::DesktopUpdate,
-    /// 问题对话框关联的请求 ID
-    pub(crate) question_modal_request_id: Option<String>,
-    /// 当前问题对话框承载的请求数据
-    pub(crate) question_modal_request: Option<question_types::Request>,
-    /// 问题对话框的答案选项列表（每个问题多个选项）
-    pub(crate) question_modal_answers: Vec<Vec<String>>,
-    /// 问题对话框的自定义答案输入
-    pub(crate) question_modal_custom: Vec<String>,
-    /// 权限对话框关联的请求 ID
-    pub(crate) permission_modal_request_id: Option<String>,
-    /// 当前权限对话框承载的请求数据
-    pub(crate) permission_modal_request: Option<gateway_interaction::PendingPermissionRequestDto>,
-    /// 当前轮询到的全部待审批权限请求
-    pub(crate) permission_modal_requests: Vec<gateway_interaction::PendingPermissionRequestDto>,
+
     /// 外部应用检测结果对应的运行时平台
     pub(crate) open_external_platform: Option<RuntimePlatform>,
     pub(crate) file_manager: desktop_workspace::file_manager::FileManagerState,
     /// 通用状态动画帧
     pub(crate) status_animation_frame: usize,
-    /// 会话标题上次点击时间（用于双击检测）
-    pub(crate) session_title_last_click: Option<web_time::Instant>,
+
     /// 模型选择弹出框中的悬停项
     pub(crate) model_popover_hover: Option<ModelPopoverHover>,
-    /// 最近一次调用的日志文件路径
-    pub(crate) last_call_log_path: Option<String>,
-    /// 最近一次会话快照文件路径
-    pub(crate) last_session_snapshot_path: Option<String>,
+
     /// 搜索领域状态
     pub(crate) search: desktop_search::State,
-    /// 文件索引缓存（路径 -> 子文件列表）
-    pub(crate) file_index_cache: HashMap<String, Vec<String>>,
-    /// 文件索引版本号，用于搜索缓存失效判断
-    pub(crate) file_index_revision: u64,
-    /// 文件树缓存（路径 -> 目录树模型）
-    pub(crate) file_tree_model_cache:
-        HashMap<String, crate::app::components::file_tree::model::FileTreeNode>,
-    /// 全局搜索面板文件结果缓存查询
-    pub(crate) search_panel_file_cache_query: String,
-    /// 全局搜索面板文件结果缓存项目路径
-    pub(crate) search_panel_file_cache_project_path: Option<String>,
-    /// 全局搜索面板文件结果缓存索引版本
-    pub(crate) search_panel_file_cache_revision: u64,
-    /// 全局搜索面板文件结果缓存
-    pub(crate) search_panel_file_cache_results: Vec<String>,
-    /// 会话信息列表
-    pub(crate) sessions: Vec<session_info::Info>,
-    /// 会话预览映射（会话 ID -> 预览文本），缓存避免每帧查 DB
-    pub(crate) session_previews: HashMap<String, String>,
-    /// 当前活跃会话的唯一标识符
-    pub(crate) active_session_id: Option<String>,
-    /// 会话聊天消息缓存（会话 ID -> 消息列表）
-    pub(crate) session_chat_cache: HashMap<String, crate::app::session::SharedChatMessages>,
-    /// 最近访问会话的可移动视图工作集缓存
-    pub(crate) session_view_cache: crate::app::session::SessionViewCache,
-    /// 当前会话的有界历史页与活动消息覆盖层。
-    pub(crate) paged_chat_timeline: Option<desktop_session::session::chat_timeline::PagedChatTimeline>,
-    /// 会话消息 ID 缓存（会话 ID -> 消息 ID 列表）
-    pub(crate) session_chat_message_id_cache: HashMap<String, Vec<Option<String>>>,
-    /// 会话历史重置边界（会话 ID -> 重置时保留的消息 ID 列表）
-    pub(crate) session_history_reset_boundaries: desktop_session::session::cache::HistoryResetBoundaries,
-    /// 会话运行时状态映射（会话 ID -> 运行时状态）
-    pub(crate) session_runtime_states: HashMap<String, SessionRuntimeState>,
-    /// 持久化的会话推理强度；缺省表示使用模型默认值。
-    pub(crate) session_reasoning_efforts:
-        HashMap<String, Option<vw_api_chat_identity::ReasoningEffortDto>>,
-    pub(crate) last_llm_full_access: Option<bool>,
-    /// 已归档的会话 ID 集合
-    pub(crate) archived_session_ids: HashSet<String>,
-    /// 项目会话映射（项目路径 -> 会话列表）
-    pub(crate) project_sessions: HashMap<String, Vec<session_info::Info>>,
-    /// 项目会话加载计数（用于分页）
-    pub(crate) project_session_load_counts: HashMap<String, usize>,
-    /// 左侧普通会话树的展开会话 ID 集合（不持久化）
-    pub(crate) session_tree_expanded: HashSet<String>,
-    /// 正在加载会话的项目路径集合
-    pub(crate) project_sessions_loading: HashSet<String>,
-    /// 各项目会话列表是否显示纵向滚动条
-    pub(crate) project_session_has_vertical_scrollbar: HashMap<String, bool>,
-    /// 会话菜单的目标会话 ID
-    pub(crate) session_menu_id: Option<String>,
-    /// 会话菜单的锚点位置
-    pub(crate) session_menu_anchor: Option<Point>,
-    /// 项目工具菜单的文件路径
-    pub(crate) project_tools_menu_path: Option<String>,
-    /// 新建会话选择器的项目路径
-    pub(crate) new_session_picker_project: Option<String>,
-    /// 是否正在等待新会话创建完成
-    pub(crate) new_session_creating: bool,
-    /// 新建会话选择器的选项列表（显示名，值）
-    pub(crate) new_session_picker_options: Vec<(String, String)>,
-    /// 项目 worktree 启用状态映射
-    pub(crate) project_worktree_enabled: HashMap<String, bool>,
-    /// 等待保存的 Worktree 更改，按操作顺序提交。
-    pub(crate) project_worktree_save_queue:
-        std::collections::VecDeque<iced::Task<crate::app::Message>>,
-    pub(crate) project_worktree_save_running: bool,
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) project_worktree_save_idle: Option<tokio::sync::watch::Sender<bool>>,
-    /// 新建会话的上次选择目录
-    pub(crate) new_session_last_directory: Option<String>,
-    /// 新建会话的 worktree 名称
-    pub(crate) new_session_worktree_name: String,
-    /// 新建会话确认删除的目录路径
-    pub(crate) new_session_confirm_delete_directory: Option<String>,
-    /// 新建会话强制删除的目录路径
-    pub(crate) new_session_force_delete_directory: Option<String>,
-    /// 新建会话删除操作的错误信息
-    pub(crate) new_session_delete_error: Option<String>,
-    /// 新建会话确认重置的目录路径
-    pub(crate) new_session_confirm_reset_directory: Option<String>,
-    /// 新建会话重置操作的错误信息
-    pub(crate) new_session_reset_error: Option<String>,
-    /// 正在重命名的会话 ID
-    pub(crate) session_rename_id: Option<String>,
-    /// 会话重命名输入值
-    pub(crate) session_rename_value: String,
+
     pub(crate) project_editor: desktop_workspace::project_message::edit::Editor,
     /// 终端状态（主终端）
     pub terminal: TerminalState,
@@ -348,108 +116,30 @@ pub struct App {
         crate::app::message::terminal::config::ConfigPersistence,
     /// 按项目分组的终端状态映射
     pub(crate) terminals_by_project: HashMap<String, TerminalState>,
-    /// 应用主题
-    pub(crate) app_theme: Theme,
-    /// 用于模型聊天时间上下文的 IANA 时区
-    pub(crate) generated_session_titles:
-        std::collections::HashMap<String, crate::app::i18n::input::Feedback>,
-    pub(crate) desktop_locale: config_ui::DesktopLocale,
-    pub(crate) desktop_locale_selected: bool,
-    pub(crate) desktop_locale_saving: bool,
-    pub(crate) chat_timezone: String,
-    pub(crate) task_completion_notification: bool,
-    pub(crate) task_completion_notification_saving: bool,
+    pub(crate) appearance: desktop_settings_appearance::theme_state::State,
+    pub(crate) input_feedback: desktop_i18n::input::State,
+
     pub(crate) launch_at_login: bool,
     pub(crate) launch_at_login_busy: bool,
     pub(crate) close_to_tray: bool,
-    /// 当前应用的自定义主题 id（配置键 `custom:<id>`）；内置主题时为 `None`
-    pub(crate) active_custom_theme_id: Option<String>,
-    /// 活动自定义主题的皮肤快照（背景路径与 chrome）；内置主题时为 `None`
-    pub(crate) active_theme_skin: Option<crate::app::theme_catalog::ActiveThemeSkin>,
-    /// 编辑器是否跟随系统主题
-    pub(crate) editor_follow_system_theme: bool,
-    /// 编辑器主题
-    pub(crate) editor_theme: Theme,
-    pub(crate) editor_metrics_preview: crate::app::message::editor::metrics::MetricsPreview,
-    pub(crate) editor_config_persistence:
-        crate::app::message::editor::persistence::ConfigPersistence,
-    /// 最近复制的代码哈希
-    pub(crate) last_copied_code_hash: Option<u64>,
-    /// 最近复制时间
-    pub(crate) last_copy_time: Option<web_time::SystemTime>,
-    /// 聊天是否自动滚动
-    pub(crate) chat_auto_scroll: bool,
-    /// 聊天滚动容器 ID
-    pub(crate) chat_scroll_id: Id,
-    /// 聊天滚动相对偏移（0.0-1.0）
-    pub(crate) chat_scroll_offset_y: f32,
-    /// 聊天滚动视口高度
-    pub(crate) chat_scroll_viewport_h: f32,
-    /// 小宠物任务列表滚动容器 ID
-    pub(crate) task_pet_scroll_id: Id,
-    /// 小宠物面板位置
-    pub(crate) task_pet_position: Point,
-    /// 小宠物面板是否收起
-    pub(crate) task_pet_collapsed: bool,
-    /// 小宠物展开动画进度（0.0 收起，1.0 展开）
-    pub(crate) task_pet_expand_progress: f32,
-    /// 小宠物展开动画目标
-    pub(crate) task_pet_expand_target: Option<f32>,
-    /// 小宠物面板是否正在拖拽
-    pub(crate) task_pet_dragging: bool,
-    /// 小宠物拖拽锚点
-    pub(crate) task_pet_drag_anchor: Option<Point>,
-    /// 小宠物拖拽起始位置
-    pub(crate) task_pet_drag_start: Point,
-    /// 小宠物拖动朝向（-1 左，1 右）
-    pub(crate) task_pet_drag_direction: i8,
-    /// 小宠物脚步动画保持到的时间戳
-    pub(crate) task_pet_walk_until_ms: u64,
-    /// 小宠物当前形态
-    pub(crate) task_pet_avatar_kind: TaskPetAvatarKind,
-    /// 伙伴比例，有限值限制在 0.5–2.0。
-    pub(crate) task_pet_scale: f32,
-    /// 弹窗预览独立于持久化值；保存期间禁止重复提交和取消。
-    pub(crate) task_pet_size_draft: Option<f32>,
+
+    pub(crate) preview_state: desktop_editor::preview::state::State,
+
+    pub(crate) clipboard_state: desktop_navigation::clipboard::Feedback,
+
+    pub(crate) pet_state: desktop_task_board::pet_state::State,
+
     pub(crate) task_pet_size_pending: Option<crate::app::config::PreferencesScope>,
-    /// 小宠物展示的任务条目
-    pub(crate) task_pet_items: Vec<TaskPetItem>,
-    /// 当前鼠标悬停的小宠物任务请求 ID
-    pub(crate) task_pet_hovered_request_id: Option<u64>,
-    /// 当前正在回复的小宠物任务请求 ID
-    pub(crate) task_pet_reply_request_id: Option<u64>,
-    /// 小宠物回复输入内容
-    pub(crate) task_pet_reply_input: String,
-    /// 已主动隐藏的请求 ID
-    pub(crate) task_pet_dismissed_request_ids: HashSet<u64>,
-    /// 流式场景下上次自动贴底触发时间（毫秒）
-    pub(crate) chat_stream_autoscroll_last_ms: u64,
-    /// 程序化贴底后的保护窗口截止时间（毫秒）
-    pub(crate) chat_autoscroll_hold_until_ms: u64,
-    pub(crate) chat_autoscroll_generation: u64,
-    /// 聊天面板是否全屏占据右侧区域
-    pub(crate) chat_panel_fullscreen: bool,
-    /// 聊天面板是否半全屏占据主内容区域但保留文件树和终端
-    pub(crate) chat_panel_half_fullscreen: bool,
-    /// 是否显示聊天右上角全屏浮动控件
-    pub(crate) show_chat_fullscreen_overlay: bool,
-    /// 输入编辑器 ID
-    pub(crate) input_editor_id: Id,
+
     /// 文件搜索滚动容器 ID
     pub(crate) file_search_scroll_id: Id,
     /// Slash 面板滚动容器 ID
     pub(crate) slash_palette_scroll_id: Id,
-    /// 预览滚动容器 ID
-    pub(crate) preview_scroll_id: Id,
-    /// 预览标签页滚动容器 ID
-    pub(crate) preview_tabs_scroll_id: Id,
-    /// 常规配置页内标签
-    pub(crate) general_settings_tab: GeneralSettingsTab,
+
     /// 独立的原生归档聊天元数据与查询状态。
     pub(crate) archived_chats: ArchivedChatsState,
     pub(crate) worktree_settings: WorktreeSettingsState,
-    /// 系统设置分类搜索词
-    pub(crate) system_settings_query: String,
+
     /// 提供者设置状态
     pub(crate) provider_settings: ProviderSettingsState,
     /// 模型设置状态
@@ -514,35 +204,9 @@ pub struct App {
     pub(crate) tunnel_settings: TunnelSettingsState,
     /// 主题设置状态
     pub(crate) themes_settings: ThemesSettingsState,
-    /// 最近项目编辑列表
-    pub(crate) recent_projects_edits: Vec<String>,
-    /// 确认删除的最近项目索引
-    pub(crate) recent_project_delete_confirm_idx: Option<usize>,
-    /// 最近项目列表的搜索词
-    pub(crate) recent_project_query: String,
-    /// 确认从列表移除的最近项目路径
-    pub(crate) recent_project_remove_confirm_path: Option<String>,
-    /// 对话流权限编辑器内容
-    pub(crate) dialogue_flow_permission_editor: text_editor::Content,
-    pub(crate) dialogue_flow_show_reasoning_summary: bool,
-    pub(crate) dialogue_flow_expand_shell_tool_section: bool,
-    pub(crate) dialogue_flow_expand_edit_tool_section: bool,
-    pub(crate) quick_messages: Vec<config_ui::QuickMessageConfig>,
-    pub(crate) input_popovers: desktop_session::message::chat::input::popovers::InputPopoverState,
-    pub(crate) quick_message_handoff: Option<QuickMessageHandoffState>,
-    /// 对话流设置保存消息
-    pub(crate) dialogue_flow_settings_save_message: Option<String>,
-    pub(crate) dialogue_flow_settings_translation: Option<crate::app::i18n::format::Message>,
-    /// 最近项目元数据列表
-    pub(crate) recent_projects_meta: Vec<RecentProjectMeta>,
-    /// 展开的文件树路径列表
-    pub(crate) file_tree_expanded: Vec<String>,
-    /// 展开的文件树路径集合（用于快速查询）
-    pub(crate) file_tree_expanded_set: HashSet<String>,
+
     pub(crate) file_tree_interaction: desktop_workspace::interaction::InteractionState,
     pub(crate) input_suggestions: desktop_chat_input::input_panel::suggestions::State,
-    /// 工具文件过滤器文本
-    pub(crate) tool_files_filter: String,
     /// LSP 事件接收器（仅非 wasm32 平台）
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) lsp_events: Option<std::sync::mpsc::Receiver<LspEvent>>,
@@ -552,105 +216,25 @@ pub struct App {
     /// LSP 服务管理器（仅非 wasm32 平台）
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) lsp_manager: Option<LspServiceManager>,
-    /// LSP 覆盖层状态（仅非 wasm32 平台）
-    #[cfg(not(target_arch = "wasm32"))]
-    pub lsp_overlay: iced_code_editor::LspOverlayState,
-    /// 是否禁用 LSP（仅非 wasm32 平台）
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) lsp_disabled: bool,
-    /// 是否正在应用 LSP 补全（仅非 wasm32 平台）
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) lsp_applying_completion: bool,
-    /// LSP 悬停锚点（文件路径，位置）（仅非 wasm32 平台）
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) lsp_hover_anchor: Option<(String, iced_code_editor::LspPosition)>,
-    /// LSP 覆盖层路径（仅非 wasm32 平台）
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) lsp_overlay_path: Option<String>,
-    /// 待处理的 LSP 悬停信息（仅非 wasm32 平台）
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) lsp_hover_pending: Option<LspHoverPending>,
-    /// LSP 悬停隐藏截止时间（仅非 wasm32 平台）
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) lsp_hover_hide_deadline: Option<std::time::Instant>,
-    /// LSP 进度映射（文件路径 -> 进度 ID -> 进度信息）（仅非 wasm32 平台）
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) lsp_progress: HashMap<String, HashMap<String, LspProgress>>,
-    /// Semantic preview notices, separate from file contents.
-    pub(crate) preview_messages:
-        std::collections::HashMap<String, crate::app::i18n::format::Message>,
-    /// LSP 状态信息（仅非 wasm32 平台）
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) lsp_status: Option<String>,
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) lsp_status_message: Option<(String, crate::app::i18n::format::Message)>,
-    /// 待跳转的预览位置（文件路径，行号，列号）
-    pub(crate) pending_preview_goto: Option<(String, usize, usize)>,
-    /// 预览导航回退栈
-    pub(crate) preview_trace_back: Vec<(String, usize, usize)>,
-    /// 预览导航前进栈
-    pub(crate) preview_trace_forward: Vec<(String, usize, usize)>,
-    /// 是否正在导航预览
-    pub(crate) preview_trace_navigating: bool,
-    /// 上一个预览路径
-    pub(crate) previous_preview_path: Option<String>,
+
     /// 当前聚焦区域
     pub(crate) focus_area: FocusArea,
-    /// 是否显示预览上下文菜单
-    pub(crate) show_preview_context_menu: bool,
-    /// 预览上下文菜单目标（文件路径，起始行，起始列，结束行，结束列）
-    pub(crate) preview_context_target: Option<(String, usize, usize, usize, usize)>,
-    /// 预览上下文菜单位置
-    pub(crate) preview_context_menu_pos: Option<(f32, f32)>,
-    /// 预览导航弹出框（文件路径，X，Y，选项列表）
-    pub(crate) preview_nav_popup: Option<(String, f32, f32, Vec<(String, bool)>)>,
+
     /// 知识库工作台状态
     pub knowledge: KnowledgeUiState,
     /// Dify 工作流无限画布状态
     pub workflow_state: crate::apps::workflow::state::WorkflowState,
-    /// 错误消息
-    pub error_message: Option<String>,
-    pub(crate) localized_input_errors: std::collections::BTreeMap<
-        crate::app::i18n::input::ErrorField,
-        crate::app::i18n::input::Feedback,
-    >,
+
+
     /// 鼠标光标位置
     pub cursor_position: Point,
-    /// 是否显示预览设置
-    pub(crate) show_preview_settings: bool,
-    pub(crate) editor_popover: Option<crate::app::message::editor::EditorPopover>,
-    /// 是否显示预览右上角全屏浮动控件
-    pub(crate) show_preview_fullscreen_overlay: bool,
-    /// 当前字体大小
-    pub(crate) current_font_size: f32,
-    /// 当前行高
-    pub(crate) current_line_height: f32,
-    /// 是否自动调整行高
-    pub(crate) auto_adjust_line_height: bool,
-    /// 预览编辑器自动保存模式
-    pub(crate) preview_auto_save_mode: crate::app::PreviewAutoSaveMode,
-    /// 当前语言设置
-    pub(crate) current_language: iced_code_editor::i18n::Language,
-    /// 悬停的最近项目路径
-    pub(crate) hovered_recent_project: Option<String>,
+
     /// 加载动画帧索引
     pub spinner_frame: usize,
-    /// 通知列表
-    pub(crate) notifications: Vec<Notification>,
-    /// 通知面板是否展开
-    pub(crate) notifications_expanded: bool,
-    /// 下一个通知 ID
-    pub(crate) next_notification_id: usize,
-    /// 通知滚动容器 ID
-    pub(crate) notifications_scroll_id: Id,
-    /// 通知消息编辑器映射（通知 ID -> 编辑器内容）
-    pub(crate) notification_editors: HashMap<usize, text_editor::Content>,
-    /// 最近点击复制的通知 ID
-    pub(crate) copied_notification_id: Option<usize>,
-    /// 当前显示的轻量提示
-    pub(crate) active_toast: Option<Toast>,
-    /// 下一个轻量提示 ID
-    pub(crate) next_toast_id: usize,
+    pub(crate) notification_state: desktop_navigation::message::notification::OwnedState,
+
+    pub(crate) toast_state: desktop_ui_controls::toast::State,
+
     /// Shiju 本地多账户与登录状态。
     pub(crate) account: AccountState,
     #[cfg(not(target_arch = "wasm32"))]
@@ -659,171 +243,7 @@ pub struct App {
     pub(crate) shiju_apps: crate::app::shiju_apps::ShijuAppsState,
     /// 工作流管理面板状态
     pub workflow_manager: crate::app::views::workflow_manager::WorkflowManagerState,
-    /// 是否显示任务看板
-    pub show_task_board: bool,
-    /// 任务看板是否正在加载
-    pub task_board_loading: bool,
-    /// 任务看板当前视图模式
-    pub task_board_view_mode: TaskBoardViewMode,
-    /// 任务看板任务列表
-    pub task_board_tasks: Vec<crate::app::task::Task>,
-    /// 本地终态正在持久化、需避免旧网关快照覆盖的任务 ID
-    pub task_board_tasks_pending_persistence: HashSet<String>,
-
-    /// 任务看板创建对话框是否打开
-    pub task_board_create_modal_open: bool,
-    /// 任务看板草稿
-    pub task_board_draft: crate::app::task::TaskDraft,
-    /// 任务看板上次使用的模型
-    pub task_board_last_model: String,
-    /// 任务看板上次使用的 ACP 智能体
-    pub task_board_last_acp_agent: Option<String>,
-    /// 任务看板批量选中的任务 ID 集合
-    pub task_board_selected_tasks: HashSet<String>,
-    /// 当前启用批量操作的任务状态列
-    pub task_board_bulk_active_status: Option<crate::app::task::TaskStatus>,
-    /// 任务看板批量设置优先级输入
-    pub task_board_bulk_priority_input: String,
-    /// 任务看板批量设置模型输入
-    pub task_board_bulk_model_input: String,
-    /// 任务看板批量设置代理
-    pub task_board_bulk_agent: String,
-    /// 任务看板批量设置 ACP 智能体
-    pub task_board_bulk_acp_agent: Option<String>,
-    /// 任务看板批量设置推理强度
-    pub task_board_bulk_reasoning_effort:
-        Option<vw_api_chat_identity::ReasoningEffortDto>,
-    /// 任务看板批量设置任务拆分模式
-    pub task_board_bulk_task_split_mode: crate::app::task::TaskSplitMode,
-    /// 任务看板手动批量合并队列
-    pub task_board_manual_merge_queue: Vec<String>,
-    /// 任务看板选中的任务 ID
-    pub task_board_selected_task: Option<String>,
-    /// 任务看板正在查看日志的任务
-    pub task_board_viewing_logs: Option<crate::app::task::Task>,
-    /// 任务看板详情面板当前标签页
-    pub task_board_detail_tab: TaskBoardDetailTab,
-    /// 任务看板按任务 ID 缓存的内存日志
-    pub task_board_log_cache: HashMap<String, Vec<crate::app::task::TaskLogEntry>>,
-    /// 任务看板正在编辑的任务 ID
-    pub task_board_editing_task_id: Option<String>,
-    /// 任务看板拖动中的任务（任务 ID，状态）
-    pub task_board_dragging: Option<(String, crate::app::task::TaskStatus)>,
-    /// 任务看板待放置的任务（任务 ID，目标状态，位置）
-    pub task_board_drag_pending: Option<(String, crate::app::task::TaskStatus, iced::Point)>,
-    /// 任务看板状态过滤器
-    pub task_board_filter_status: Option<crate::app::task::TaskStatus>,
-    /// 任务看板优先级过滤器（最小值，最大值）
-    pub task_board_filter_priority: Option<(u32, u32)>,
-    /// 任务看板是否按优先级排序
-    pub task_board_sort_by_priority: bool,
-    /// 任务看板是否升序排序
-    pub task_board_sort_ascending: bool,
-    /// 任务看板设置
-    pub task_board_settings: crate::app::task::TaskBoardSettings,
-    /// 任务看板执行器状态
-    pub task_board_executor: crate::app::task::TaskExecutorState,
-    /// 任务看板执行器是否正在运行
-    pub task_board_executor_running: bool,
-    /// 任务看板下次刷新时间（毫秒时间戳）
-    pub task_board_next_refresh_at_ms: u64,
-    /// 任务看板下次调度器触发时间（毫秒时间戳）
-    pub task_board_next_scheduler_tick_at_ms: u64,
-    /// 任务看板下次自动审核触发时间（毫秒时间戳）
-    pub task_board_next_auto_review_tick_at_ms: u64,
-    /// 任务看板下次自动晋升触发时间（毫秒时间戳）
-    pub task_board_next_auto_promote_tick_at_ms: u64,
-    /// 任务看板下次自动合并触发时间（毫秒时间戳）
-    pub task_board_next_auto_merge_tick_at_ms: u64,
-    /// gateway 任务池调度返回的 worktree 目标容量
-    pub task_board_worktree_desired_capacity: Option<u32>,
-    /// 任务看板上次日志刷新时间（毫秒时间戳）
-    pub task_board_last_log_flush_at_ms: u64,
-    /// 任务看板日志扫描游标
-    pub task_board_log_scan_cursor: usize,
-    /// 任务看板超时扫描游标
-    pub task_board_timeout_scan_cursor: usize,
-    /// 任务看板调度扫描游标
-    pub task_board_schedule_scan_cursor: usize,
-    /// 任务看板执行器弹出框是否打开
-    pub task_board_executor_popover: bool,
-    /// 任务看板批量执行器弹出框是否打开
-    pub task_board_bulk_executor_popover: bool,
-    /// 任务看板批量模型弹出框是否打开
-    pub task_board_bulk_model_popover: bool,
-    /// 任务看板 worktree 维护是否进行中
-    pub task_board_worktree_maintenance_in_flight: bool,
-    /// 任务看板 worktree 快照是否正在加载
-    pub task_board_worktree_snapshot_loading: bool,
-    /// 任务看板手动 worktree 操作类型（cleanup / merge）
-    pub task_board_worktree_manual_action_kind: Option<&'static str>,
-    /// 任务看板手动 worktree 二次确认操作类型（cleanup / merge）
-    pub task_board_worktree_manual_confirm_kind: Option<&'static str>,
-    /// 任务看板手动 worktree 操作日志
-    pub task_board_worktree_action_logs: Vec<String>,
-    /// 任务看板手动 worktree 操作日志自动隐藏截止时间（毫秒时间戳）
-    pub task_board_worktree_action_logs_visible_until_ms: Option<u64>,
-    /// 任务看板手动 worktree 操作日志接收器
-    pub task_board_worktree_action_log_rx:
-        Option<std::sync::mpsc::Receiver<crate::app::task::executor::TaskLogStream>>,
-    /// 任务看板 worktree 池快照
-    pub task_board_worktree_snapshot: Option<crate::app::task::WorktreePoolSnapshot>,
-    /// 任务看板上次 worktree 快照时间（毫秒时间戳）
-    pub task_board_last_worktree_snapshot_at_ms: u64,
-    /// 任务看板 worktree 面板是否展开
-    pub task_board_worktree_panel_expanded: bool,
-    /// 任务看板是否显示像素办公室
-    pub task_board_worktree_pixel_office: bool,
-    /// 任务看板上下文菜单（任务 ID，X，Y）
-    pub task_board_context_menu: Option<(String, f32, f32)>,
-    /// 任务看板新建子任务内容
-    pub task_board_new_subtask_content: String,
-    /// 任务看板描述编辑器
-    pub task_board_desc_editor: text_editor::Content,
-    /// 任务看板提示词编辑器
-    pub task_board_prompt_editor: text_editor::Content,
-    /// 任务看板日志查看器（只读，可选择复制）
-    pub task_board_logs_editor: text_editor::Content,
-    /// 任务看板日志编辑器 ID
-    pub task_board_logs_editor_id: Id,
-    /// 任务看板日志是否自动跟随到底部
-    pub task_board_logs_auto_scroll: bool,
-    /// 任务看板日志右键菜单是否打开
-    pub task_board_logs_context_menu_open: bool,
-    /// 任务看板日志右键菜单位置
-    pub task_board_logs_context_menu_pos: Option<(f32, f32)>,
-    /// 任务看板日志当前顶部滚动行号
-    pub task_board_logs_scroll_top_line: f32,
-    /// 任务看板日志滚轮累积的小数行偏移
-    pub task_board_logs_scroll_remainder: f32,
-    /// 任务看板日志编辑器视口高度
-    pub task_board_logs_viewport_height: f32,
-    /// 任务看板模型选择弹出框是否打开
-    pub task_board_model_popover: bool,
-    /// 任务看板创建后是否清除提示词
-    pub task_board_clear_prompt_after_create: bool,
-    /// 任务看板创建后是否关闭对话框
-    pub task_board_close_after_create: bool,
-    /// 任务看板编辑后是否关闭详情面板
-    pub task_board_close_after_edit: bool,
-    /// 任务看板创建是否成功
-    pub task_board_create_submit_success: bool,
-    /// 任务看板编辑是否成功
-    pub task_board_edit_submit_success: bool,
-    /// 任务看板设置对话框是否打开
-    pub task_board_settings_modal_open: bool,
-    /// 任务看板设置对话框当前标签页
-    pub task_board_settings_modal_tab: TaskBoardSettingsModalTab,
-    /// 任务看板是否为导入模式
-    pub task_board_is_import_mode: bool,
-    /// 任务看板导入编辑器
-    pub task_board_import_editor: text_editor::Content,
-    /// 任务看板导入提示词格式
-    pub task_board_import_prompt_format: crate::app::task::TaskImportPromptFormat,
-    /// 任务看板导入提示词面板是否折叠
-    pub task_board_import_prompt_collapsed: bool,
-    /// 任务看板每个状态列是否显示纵向滚动条
-    pub task_board_column_has_vertical_scrollbar: HashMap<crate::app::task::TaskStatus, bool>,
+    pub task_board: desktop_task_board::state::State,
 }
 
 #[cfg(test)]

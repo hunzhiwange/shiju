@@ -207,10 +207,10 @@ async fn ui_refresh_29_host_quick_page_scrolls() {
         return;
     }
     let mut app = fixture();
-    app.desktop_locale = DesktopLocale::English;
+    app.general_settings.desktop_locale = DesktopLocale::English;
     let mut renderer = renderer().await;
     app.agents_settings.active_config_tab = AgentConfigTab::QuickMessages;
-    app.quick_messages = (0..4).flat_map(|_| templates()).collect();
+    app.general_settings.quick_messages = (0..4).flat_map(|_| templates()).collect();
     let size = Size::new(640, 420);
     let mut ui = scene(agents::view(&app), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);

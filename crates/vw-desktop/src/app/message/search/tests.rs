@@ -82,13 +82,13 @@ fn input_changed_refreshes_cache_without_closing_overlay_for_blank_query() {
     update(&mut app, SearchMessage::InputChanged("  query  ".to_string()));
     assert_eq!(app.search.search_text, "  query  ");
     assert!(app.search.show_search_overlay);
-    assert_eq!(app.search_panel_file_cache_query, "query");
+    assert_eq!(app.workspace_state.search_panel_file_cache_query, "query");
     assert_eq!(app.cached_search_panel_file_results(), ["src/query.rs"]);
 
     update(&mut app, SearchMessage::InputChanged("   ".to_string()));
     assert_eq!(app.search.search_text, "   ");
     assert!(app.search.show_search_overlay);
-    assert!(app.search_panel_file_cache_query.is_empty());
+    assert!(app.workspace_state.search_panel_file_cache_query.is_empty());
     assert_eq!(app.cached_search_panel_file_results(), ["src/query.rs", "src/other.rs"]);
 }
 
@@ -126,7 +126,7 @@ fn select_file_sets_file_input_and_hides_overlay() {
 async fn select_session_with_known_directory_routes_to_project_session() {
     let mut app = app();
     app.search.show_search_overlay = true;
-    app.sessions = vec![session_info("session-1", "/workspace")];
+    app.session_state.sessions = vec![session_info("session-1", "/workspace")];
 
     let messages = collect_task_messages(update(
         &mut app,
@@ -135,7 +135,7 @@ async fn select_session_with_known_directory_routes_to_project_session() {
     .await;
 
     assert!(!app.search.show_search_overlay);
-    assert!(app.active_session_id.is_none());
+    assert!(app.session_state.active_session_id.is_none());
     assert!(matches!(
         messages.as_slice(),
         [Message::Project(
@@ -149,8 +149,8 @@ async fn select_session_with_known_directory_routes_to_project_session() {
 #[tokio::test(flavor = "multi_thread")]
 async fn child_session_navigation_search_without_directory_defers_to_project_route() {
     let mut app = app();
-    app.active_session_id = Some("previous-session".into());
-    app.chat = vec![chat_message("parent content")];
+    app.session_state.active_session_id = Some("previous-session".into());
+    app.chat_view.chat = vec![chat_message("parent content")];
 
     let messages = collect_task_messages(update(
         &mut app,
@@ -158,8 +158,8 @@ async fn child_session_navigation_search_without_directory_defers_to_project_rou
     ))
     .await;
 
-    assert_eq!(app.active_session_id.as_deref(), Some("previous-session"));
-    assert_eq!(app.chat[0].content, "parent content");
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("previous-session"));
+    assert_eq!(app.chat_view.chat[0].content, "parent content");
     assert!(matches!(
         messages.as_slice(),
         [Message::Project(

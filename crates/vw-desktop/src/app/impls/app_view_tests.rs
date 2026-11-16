@@ -75,8 +75,8 @@ fn view_builds_workflow_tool_screen() {
 fn view_builds_with_settings_notifications_error_and_toast_overlays() {
     let mut app = test_app();
     app.navigation_panels.show_system_settings = true;
-    app.notifications_expanded = true;
-    app.error_message = Some("failure".to_string());
+    app.notification_state.notifications_expanded = true;
+    app.input_feedback.error_message = Some("failure".to_string());
     let _ = app.show_success_toast("saved");
 
     let _element: iced::Element<'_, Message> = app.view();
@@ -146,7 +146,7 @@ async fn toast_show_replace_and_dismiss_preserve_acp_scroll_offsets_and_viewport
     .into_iter()
     .enumerate()
     {
-        app.active_toast = kind.map(|kind| crate::app::state::Toast {
+        app.toast_state.active_toast = kind.map(|kind| crate::app::state::Toast {
             id: step,
             kind,
             message: "连接测试结果".into(),
@@ -194,8 +194,8 @@ fn view_builds_with_about_cli_search_and_rename_overlays() {
     app.search.show_search_overlay = true;
     app.file_tree_interaction.file_tree_rename_path = Some("src/lib.rs".to_string());
     app.file_tree_interaction.file_tree_rename_value = "main.rs".to_string();
-    app.session_rename_id = Some("session-1".to_string());
-    app.session_rename_value = "Session".to_string();
+    app.session_state.session_rename_id = Some("session-1".to_string());
+    app.session_state.session_rename_value = "Session".to_string();
 
     let _element: iced::Element<'_, Message> = app.view();
 }
@@ -216,7 +216,7 @@ fn view_builds_with_project_edit_and_permission_modals_together() {
     let mut app = test_app();
     app.project_editor.project_edit_path = Some("/workspace/project".to_string());
     app.project_editor.project_edit_name = "Project".to_string();
-    app.permission_modal_request = Some(gateway_interaction::PendingPermissionRequestDto {
+    app.session_state.permission_modal_request = Some(gateway_interaction::PendingPermissionRequestDto {
         id: "permission-1".to_string(),
         session_id: "session-1".to_string(),
         permission: "shell".to_string(),
@@ -261,17 +261,17 @@ fn mini_companion_routes_none_avatar_without_changing_main_window() {
     let main = iced::window::Id::unique();
     let mini = iced::window::Id::unique();
     app.register_window_ids(main, Some(mini));
-    app.task_pet_avatar_kind = crate::app::state::TaskPetAvatarKind::None;
+    app.pet_state.task_pet_avatar_kind = crate::app::state::TaskPetAvatarKind::None;
     for collapsed in [true, false] {
-        app.task_pet_collapsed = collapsed;
-        app.task_pet_expand_progress = if collapsed { 0.0 } else { 1.0 };
+        app.pet_state.task_pet_collapsed = collapsed;
+        app.pet_state.task_pet_expand_progress = if collapsed { 0.0 } else { 1.0 };
         let _ = app.view_window(mini);
         let _ = app.view_window(main);
         assert_eq!(app.main_window_id, Some(main));
         assert_eq!(app.theme_for_window(mini).palette().background, iced::Color::TRANSPARENT);
         assert_eq!(
             app.theme_for_window(mini).extended_palette().background.strong.color,
-            app.app_theme.extended_palette().background.strong.color
+            app.appearance.app_theme.extended_palette().background.strong.color
         );
     }
 }

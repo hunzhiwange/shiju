@@ -16,8 +16,8 @@ fn persist_status_effect(
             &mut app.model_settings,
             effect,
             config::gateway_client_endpoint(),
-            app.auto_model,
-            &app.model,
+            app.session_state.auto_model,
+            &app.session_state.model,
         )
     else {
         return Task::none();

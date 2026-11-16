@@ -50,7 +50,7 @@ fn view_builds_project_preview_with_tabs_and_content() {
 fn app_view_builds_preview_settings_overlay_when_enabled() {
     let mut app = app();
     app.navigation_tabs.screen = Screen::Preview;
-    app.show_preview_settings = true;
+    app.preview_state.show_preview_settings = true;
 
     keep(app.view());
 }
@@ -87,11 +87,11 @@ fn view_builds_breadcrumb_when_active_file_has_no_matching_tab() {
 #[test]
 fn view_builds_context_menu_with_and_without_anchor() {
     let mut app = app();
-    app.show_preview_context_menu = true;
+    app.preview_state.show_preview_context_menu = true;
 
     keep(view(&app));
 
-    app.preview_context_menu_pos = Some((18.0, 27.0));
+    app.preview_state.preview_context_menu_pos = Some((18.0, 27.0));
     keep(view(&app));
 }
 
@@ -135,7 +135,7 @@ fn active_preview_lsp_badge_builds_working_state_from_progress() {
     let mut app = app();
     app.navigation_tabs.active_preview_path = Some("/tmp/main.rs".to_string());
     app.navigation_tabs.preview_tabs = vec![tab("/tmp/main.rs", Some("rust-analyzer"))];
-    app.lsp_progress.insert(
+    app.preview_state.lsp_progress.insert(
         "rust-analyzer".to_string(),
         std::collections::HashMap::from([(
             "index".to_string(),

@@ -13,13 +13,13 @@ fn map_message(message: shared::Message) -> Message {
 }
 pub fn attachment_button(app: &App) -> Element<'_, Message> {
     shared::attachment_button(
-        crate::app::i18n::I18n::new(app.desktop_locale), &app.files,
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale), &app.session_state.files,
         app.multimodal_settings.max_images, app.multimodal_settings.max_image_size_mb,
         super::styles::round_icon_button_style,
     ).map(map_message)
 }
 pub fn attachment_strip(app: &App) -> Element<'_, Message> {
-    shared::attachment_strip(crate::app::i18n::I18n::new(app.desktop_locale), &app.files).map(map_message)
+    shared::attachment_strip(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), &app.session_state.files).map(map_message)
 }
 pub(crate) fn attachment_preview_strip(
     i18n: crate::app::i18n::I18n, items: Vec<AttachmentDisplayItem>,

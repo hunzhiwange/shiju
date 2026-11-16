@@ -208,13 +208,13 @@ pub(in crate::app::components) mod rollout {
                 )
                 .is_empty()
             );
-            let theme = &self.app.app_theme;
+            let theme = &self.app.appearance.app_theme;
             self.ui.draw(self.renderer, theme, &Style { text_color: theme.palette().text }, cursor);
             let pixels = self.renderer.screenshot(SIZE, 1.0, theme.palette().background);
             if let Some(out) = std::env::var_os("SHIJU_ROLLOUT_17_OUTPUT") {
                 let path = std::path::PathBuf::from(out)
                     .join("screenshots")
-                    .join(format!("{}-{:?}-{tag}.png", self.name, self.app.desktop_locale,));
+                    .join(format!("{}-{:?}-{tag}.png", self.name, self.app.general_settings.desktop_locale,));
                 ::image::save_buffer(
                     path,
                     &pixels,

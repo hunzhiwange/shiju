@@ -54,14 +54,14 @@ fn lsp_results_rebind_overlay_to_active_preview() {
     let mut app = app();
     app.navigation_tabs.active_preview_path = Some(active_path.to_string());
     app.navigation_tabs.preview_tabs.push(preview_tab(active_path, "fn main() {}"));
-    app.lsp_overlay_path = Some("/tmp/previous.rs".to_string());
+    app.preview_state.lsp_overlay_path = Some("/tmp/previous.rs".to_string());
     install_lsp_events(&mut app, [crate::app::lsp::LspEvent::Hover { text: "hover".to_string() }]);
 
     let _ = super::lsp::drain_lsp_events(&mut app);
 
-    assert_eq!(app.lsp_overlay_path.as_deref(), Some(active_path));
+    assert_eq!(app.preview_state.lsp_overlay_path.as_deref(), Some(active_path));
 
-    app.lsp_overlay_path = Some("/tmp/previous.rs".to_string());
+    app.preview_state.lsp_overlay_path = Some("/tmp/previous.rs".to_string());
     install_lsp_events(
         &mut app,
         [crate::app::lsp::LspEvent::Completion { items: vec!["main".to_string()] }],
@@ -69,7 +69,7 @@ fn lsp_results_rebind_overlay_to_active_preview() {
 
     let _ = super::lsp::drain_lsp_events(&mut app);
 
-    assert_eq!(app.lsp_overlay_path.as_deref(), Some(active_path));
+    assert_eq!(app.preview_state.lsp_overlay_path.as_deref(), Some(active_path));
 }
 
 // 宿主契约：核对 App 字段投影及 detach_lsp_for_tab 的消息/任务接线。
@@ -151,12 +151,12 @@ fn detach_lsp_for_tab_clears_all_document_metadata() {
 #[test]
 fn drain_lsp_events_without_receiver_returns_none_and_preserves_state() {
     let mut app = app();
-    app.lsp_status = Some("unchanged".to_string());
+    app.preview_state.lsp_status = Some("unchanged".to_string());
     app.lsp_events = None;
 
     let _ = super::lsp::drain_lsp_events(&mut app);
 
-    assert_eq!(app.lsp_status.as_deref(), Some("unchanged"));
+    assert_eq!(app.preview_state.lsp_status.as_deref(), Some("unchanged"));
     assert!(app.lsp_events.is_none());
 }
 
@@ -201,15 +201,15 @@ fn drain_lsp_events_handles_hover_completion_progress_and_log() {
 
     let _ = super::lsp::drain_lsp_events(&mut app);
 
-    assert!(app.lsp_overlay.hover_visible);
-    assert_eq!(app.lsp_overlay.completion_items, vec!["Alpha", "Beta"]);
-    assert_eq!(app.lsp_overlay_path.as_deref(), Some("/tmp/main.rs"));
-    let progress = &app.lsp_progress["rust-analyzer"]["index"];
+    assert!(app.preview_state.lsp_overlay.hover_visible);
+    assert_eq!(app.preview_state.lsp_overlay.completion_items, vec!["Alpha", "Beta"]);
+    assert_eq!(app.preview_state.lsp_overlay_path.as_deref(), Some("/tmp/main.rs"));
+    let progress = &app.preview_state.lsp_progress["rust-analyzer"]["index"];
     assert_eq!(progress.title, "Indexing");
     assert_eq!(progress.message.as_deref(), Some("workspace"));
     assert_eq!(progress.percentage, Some(25));
-    assert_eq!(app.lsp_status.as_deref(), Some("rust-analyzer Indexing"));
-    assert_eq!(app.notifications.last().map(|item| item.message.as_str()), Some("LSP 日志: ready"));
+    assert_eq!(app.preview_state.lsp_status.as_deref(), Some("rust-analyzer Indexing"));
+    assert_eq!(app.notification_state.notifications.last().map(|item| item.message.as_str()), Some("LSP 日志: ready"));
     assert!(app.lsp_events.is_none());
 }
 
@@ -217,9 +217,9 @@ fn drain_lsp_events_handles_hover_completion_progress_and_log() {
 #[test]
 fn drain_lsp_events_clears_blank_hover_and_completed_progress() {
     let mut app = app();
-    app.lsp_overlay.show_hover("stale".to_string());
-    app.lsp_overlay_path = Some("/tmp/main.rs".to_string());
-    app.lsp_progress.entry("rust-analyzer".to_string()).or_default().insert(
+    app.preview_state.lsp_overlay.show_hover("stale".to_string());
+    app.preview_state.lsp_overlay_path = Some("/tmp/main.rs".to_string());
+    app.preview_state.lsp_progress.entry("rust-analyzer".to_string()).or_default().insert(
         "index".to_string(),
         crate::app::LspProgress {
             title: "Indexing".to_string(),
@@ -244,10 +244,10 @@ fn drain_lsp_events_clears_blank_hover_and_completed_progress() {
 
     let _ = super::lsp::drain_lsp_events(&mut app);
 
-    assert!(!app.lsp_overlay.hover_visible);
-    assert!(app.lsp_overlay_path.is_none());
-    assert!(!app.lsp_progress.contains_key("rust-analyzer"));
-    assert_eq!(app.lsp_status.as_deref(), Some("rust-analyzer 就绪"));
+    assert!(!app.preview_state.lsp_overlay.hover_visible);
+    assert!(app.preview_state.lsp_overlay_path.is_none());
+    assert!(!app.preview_state.lsp_progress.contains_key("rust-analyzer"));
+    assert_eq!(app.preview_state.lsp_status.as_deref(), Some("rust-analyzer 就绪"));
 }
 
 // 宿主契约：核对 App 字段投影及 drain_lsp_events 的消息/任务接线。
@@ -267,7 +267,7 @@ fn drain_lsp_events_records_definition_with_decoded_file_path() {
 
     let _ = super::lsp::drain_lsp_events(&mut app);
 
-    assert_eq!(app.pending_preview_goto, Some(("/tmp/my file.rs".to_string(), 4, 7)));
+    assert_eq!(app.preview_state.pending_preview_goto, Some(("/tmp/my file.rs".to_string(), 4, 7)));
 }
 
 // 宿主契约：核对 App 字段投影及 drain_lsp_events 的消息/任务接线。
@@ -287,7 +287,7 @@ fn drain_lsp_events_ignores_definition_with_non_file_uri() {
 
     let _ = super::lsp::drain_lsp_events(&mut app);
 
-    assert!(app.pending_preview_goto.is_none());
+    assert!(app.preview_state.pending_preview_goto.is_none());
 }
 
 
@@ -296,7 +296,7 @@ fn drain_lsp_events_ignores_definition_with_non_file_uri() {
 #[test]
 fn tick_when_disabled_only_advances_spinner() {
     let mut app = app();
-    app.lsp_disabled = true;
+    app.preview_state.lsp_disabled = true;
     let initial = app.spinner_frame;
 
     let _ = super::lsp::tick(&mut app);
@@ -308,7 +308,7 @@ fn tick_when_disabled_only_advances_spinner() {
 #[test]
 fn tick_when_enabled_processes_lsp_events() {
     let mut app = app();
-    app.lsp_disabled = false;
+    app.preview_state.lsp_disabled = false;
     app.navigation_tabs.active_preview_path = Some("/tmp/main.rs".to_string());
     install_lsp_events(
         &mut app,
@@ -319,8 +319,8 @@ fn tick_when_enabled_processes_lsp_events() {
     let _ = super::lsp::tick(&mut app);
 
     assert_eq!(app.spinner_frame, initial.wrapping_add(1));
-    assert!(app.lsp_overlay.hover_visible);
-    assert_eq!(app.lsp_overlay_path.as_deref(), Some("/tmp/main.rs"));
+    assert!(app.preview_state.lsp_overlay.hover_visible);
+    assert_eq!(app.preview_state.lsp_overlay_path.as_deref(), Some("/tmp/main.rs"));
 }
 
 // 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。

@@ -151,7 +151,7 @@ impl Harness {
     fn view(&self, _: window::Id) -> Element<'_, Message> {
         desktop_settings_workspace::acceptance::view(
             &self.app.worktree_settings,
-            desktop_i18n::I18n::new(self.app.desktop_locale),
+            desktop_i18n::I18n::new(self.app.general_settings.desktop_locale),
             desktop_settings_workspace::environment::can_add(&crate::app::gateway_client_endpoint()),
             self.case,
         ).map(|event| Message::Ui(AppMessage::Settings(SettingsMessage::Worktrees(event))))

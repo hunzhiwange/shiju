@@ -45,20 +45,20 @@ impl Harness {
         self.waiting_seen = false;
         self.started = Instant::now();
         let theme = if self.scenario < 4 { "light" } else { "dark" };
-        self.app.app_theme = if theme == "light" { Theme::Light } else { Theme::Dark };
+        self.app.appearance.app_theme = if theme == "light" { Theme::Light } else { Theme::Dark };
         let case = CASES[self.scenario % 4];
         let session = format!("window-{case}-{theme}");
-        self.app.active_session_id = Some(session.clone());
-        self.app.chat = vec![models::ChatMessage {
+        self.app.session_state.active_session_id = Some(session.clone());
+        self.app.chat_view.chat = vec![models::ChatMessage {
             role: models::ChatRole::User,
             content: format!("{case}-{theme}"),
             model: None,
             think_timing: vec![],
             processing_timing: None,
         }];
-        self.app.chat_message_ids = vec![None];
-        self.app.chat_render_cache.clear();
-        self.app.active_toast = None;
+        self.app.chat_view.chat_message_ids = vec![None];
+        self.app.chat_view.chat_render_cache.clear();
+        self.app.toast_state.active_toast = None;
         let request = Arc::new(AgentRequest {
             id: self.scenario as u64 + 100,
             session: session.clone(),
@@ -214,7 +214,7 @@ impl Harness {
                         "cancel button must clear recovery state"
                     );
                     assert!(
-                        self.app.active_toast.is_none(),
+                        self.app.toast_state.active_toast.is_none(),
                         "cancel button must clear recovery toast"
                     );
                     self.capture = Some("terminal");
@@ -222,7 +222,7 @@ impl Harness {
                     return task;
                 }
                 if stage == "terminal" {
-                    self.results.push(json!({"case":case,"theme":theme,"waiting_seen":self.waiting_seen,"screenshot":name,"chat":self.app.chat.iter().map(|m| &m.content).collect::<Vec<_>>() }));
+                    self.results.push(json!({"case":case,"theme":theme,"waiting_seen":self.waiting_seen,"screenshot":name,"chat":self.app.chat_view.chat.iter().map(|m| &m.content).collect::<Vec<_>>() }));
                     return Task::done(Message::Next);
                 }
                 Task::none()
@@ -235,8 +235,7 @@ impl Harness {
         assert!(!self.app.current_session_is_requesting());
         assert!(self.app.current_session_runtime_ref().unwrap().model_recovery.is_none());
         let content = self
-            .app
-            .chat
+            .app.chat_view.chat
             .iter()
             .map(|message| message.content.as_str())
             .collect::<Vec<_>>()
@@ -373,7 +372,7 @@ pub(crate) fn run() {
         Harness::view,
     )
     .title("Recovery window validation")
-    .theme(|state: &Harness, _| state.app.app_theme.clone())
+    .theme(|state: &Harness, _| state.app.appearance.app_theme.clone())
     .subscription(Harness::subscription)
     .settings(iced::Settings {
         fonts: crate::fonts::load_all(),

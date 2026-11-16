@@ -78,3 +78,17 @@ impl ComputerControlSettingsState {
         true
     }
 }
+
+impl ComputerControlSettingsState {
+    pub fn reset_for_endpoint(&mut self, endpoint: &gateway_endpoint::GatewayEndpoint) {
+    if self.identity.as_ref()
+        != Some(&ControlIdentity::from_endpoint(endpoint))
+    {
+        let generation = self.generation + 1;
+        let pairing_generation = self.pairing_generation + 1;
+        *self = Default::default();
+        self.generation = generation;
+        self.pairing_generation = pairing_generation;
+    }
+    }
+}

@@ -27,7 +27,7 @@ pub(crate) struct NativeMenuSnapshot {
 impl NativeMenuSnapshot {
     pub(crate) fn from_app(app: &App) -> Self {
         Self {
-            locale: app.desktop_locale,
+            locale: app.general_settings.desktop_locale,
             is_project: matches!(app.navigation_tabs.screen, Screen::Project),
             workspace_mode: app.navigation_mode.workspace_mode,
             show_file_manager: app.file_manager.show_file_manager,
@@ -44,7 +44,7 @@ fn window_tab_entries(app: &App) -> Vec<WindowTabEntry> {
         .map(|tab| WindowTabEntry {
             id: tab.id.clone(),
             title: crate::app::i18n::native::tab_title(
-                crate::app::i18n::I18n::new(app.desktop_locale),
+                crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
                 window_tab_title(tab.title.as_str(), tab.project_path.as_deref()),
                 tab.title.trim().is_empty()
                     && tab.project_path.as_deref().is_none_or(|path| path.trim().is_empty()),

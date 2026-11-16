@@ -11,11 +11,11 @@ use crate::app::state::ToastKind;
 
 impl App {
     pub(crate) fn is_chat_fullscreen(&self) -> bool {
-        self.navigation_mode.workspace_mode.chat_fullscreen(self.chat_panel_fullscreen, self.navigation_workspace.work_chat_fullscreen)
+        self.navigation_mode.workspace_mode.chat_fullscreen(self.chat_interaction.chat_panel_fullscreen, self.navigation_workspace.work_chat_fullscreen)
     }
 
     pub(crate) fn is_chat_half_fullscreen(&self) -> bool {
-        self.navigation_mode.workspace_mode.chat_fullscreen(self.chat_panel_half_fullscreen, self.navigation_workspace.work_chat_half_fullscreen)
+        self.navigation_mode.workspace_mode.chat_fullscreen(self.chat_interaction.chat_panel_half_fullscreen, self.navigation_workspace.work_chat_half_fullscreen)
     }
 
     fn normalize_file_search_query(query: &str) -> String {
@@ -63,19 +63,19 @@ impl App {
     /// 模块内可见函数，执行 is_file_tree_dir_expanded 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn is_file_tree_dir_expanded(&self, path: &str) -> bool {
-        self.file_tree_expanded_set.contains(path)
+        self.workspace_state.file_tree_expanded_set.contains(path)
     }
 
     /// 模块内可见函数，执行 toggle_file_tree_dir_expanded 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn toggle_file_tree_dir_expanded(&mut self, path: String) {
-        desktop_file_tree::state::toggle_file_tree_dir_expanded(&mut self.file_tree_expanded, &mut self.file_tree_expanded_set, path)
+        desktop_file_tree::state::toggle_file_tree_dir_expanded(&mut self.workspace_state.file_tree_expanded, &mut self.workspace_state.file_tree_expanded_set, path)
     }
 
     /// 模块内可见函数，执行 ensure_file_tree_dir_expanded 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn ensure_file_tree_dir_expanded(&mut self, path: String) {
-        desktop_file_tree::state::ensure_file_tree_dir_expanded(&mut self.file_tree_expanded, &mut self.file_tree_expanded_set, path)
+        desktop_file_tree::state::ensure_file_tree_dir_expanded(&mut self.workspace_state.file_tree_expanded, &mut self.workspace_state.file_tree_expanded_set, path)
     }
 
     /// 公开函数，执行 title 对应的应用流程。
@@ -83,42 +83,42 @@ impl App {
     pub fn title(&self) -> String {
         match self.navigation_tabs.screen {
             Screen::Home => {
-                crate::app::i18n::I18n::new(self.desktop_locale).__("识矩 - 项目").to_string()
+                crate::app::i18n::I18n::new(self.general_settings.desktop_locale).__("识矩 - 项目").to_string()
             }
             Screen::Project => {
-                crate::app::i18n::I18n::new(self.desktop_locale).__("识矩 - 项目").to_string()
+                crate::app::i18n::I18n::new(self.general_settings.desktop_locale).__("识矩 - 项目").to_string()
             }
             Screen::Preview => {
-                crate::app::i18n::I18n::new(self.desktop_locale).__("识矩 - 预览").to_string()
+                crate::app::i18n::I18n::new(self.general_settings.desktop_locale).__("识矩 - 预览").to_string()
             }
             Screen::Apps => {
-                crate::app::i18n::I18n::new(self.desktop_locale).__("识矩 - 应用").to_string()
+                crate::app::i18n::I18n::new(self.general_settings.desktop_locale).__("识矩 - 应用").to_string()
             }
             Screen::Usage => {
-                crate::app::i18n::I18n::new(self.desktop_locale).__("识矩 - 用量").to_string()
+                crate::app::i18n::I18n::new(self.general_settings.desktop_locale).__("识矩 - 用量").to_string()
             }
             Screen::Knowledge => {
-                crate::app::i18n::I18n::new(self.desktop_locale).__("识矩 - 知识库").to_string()
+                crate::app::i18n::I18n::new(self.general_settings.desktop_locale).__("识矩 - 知识库").to_string()
             }
             Screen::WorkflowTool => {
-                crate::app::i18n::I18n::new(self.desktop_locale).__("识矩 - 工作流").to_string()
+                crate::app::i18n::I18n::new(self.general_settings.desktop_locale).__("识矩 - 工作流").to_string()
             }
             Screen::WorkflowManager => {
-                crate::app::i18n::I18n::new(self.desktop_locale).__("识矩 - 任务编排").to_string()
+                crate::app::i18n::I18n::new(self.general_settings.desktop_locale).__("识矩 - 任务编排").to_string()
             }
             Screen::TaskBoard => {
-                crate::app::i18n::I18n::new(self.desktop_locale).__("识矩 - 任务看板").to_string()
+                crate::app::i18n::I18n::new(self.general_settings.desktop_locale).__("识矩 - 任务看板").to_string()
             }
             #[cfg(not(target_arch = "wasm32"))]
             Screen::ShijuApps => {
-                crate::app::i18n::I18n::new(self.desktop_locale).__("识矩 - 识矩应用").to_string()
+                crate::app::i18n::I18n::new(self.general_settings.desktop_locale).__("识矩 - 识矩应用").to_string()
             }
             #[cfg(not(target_arch = "wasm32"))]
             Screen::ShijuSkills => {
-                crate::app::i18n::I18n::new(self.desktop_locale).__("识矩 - 识矩技能").to_string()
+                crate::app::i18n::I18n::new(self.general_settings.desktop_locale).__("识矩 - 识矩技能").to_string()
             }
             #[cfg(not(target_arch = "wasm32"))]
-            Screen::ExpertHub => crate::app::i18n::I18n::new(self.desktop_locale)
+            Screen::ExpertHub => crate::app::i18n::I18n::new(self.general_settings.desktop_locale)
                 .__("识矩 - 专家·技能·连接器")
                 .to_string(),
         }
@@ -137,7 +137,7 @@ impl App {
     pub(crate) fn current_file_index(&self) -> &[String] {
         self.navigation_tabs.project_path
             .as_ref()
-            .and_then(|path| self.file_index_cache.get(path).map(Vec::as_slice))
+            .and_then(|path| self.workspace_state.file_index_cache.get(path).map(Vec::as_slice))
             .unwrap_or(&[])
     }
 
@@ -146,7 +146,7 @@ impl App {
     pub(crate) fn current_file_tree_model(
         &self,
     ) -> Option<&crate::app::components::file_tree::model::FileTreeNode> {
-        self.navigation_tabs.project_path.as_ref().and_then(|path| self.file_tree_model_cache.get(path))
+        self.navigation_tabs.project_path.as_ref().and_then(|path| self.workspace_state.file_tree_model_cache.get(path))
     }
 
     /// 模块内可见函数，执行 refresh_search_panel_file_cache 对应的应用流程。
@@ -156,27 +156,27 @@ impl App {
         let project_path = self.navigation_tabs.project_path.clone();
 
         let Some(results) = desktop_workspace::basic::refresh_search_panel_file_results(
-            self.current_file_index(), &query, project_path.as_deref(), self.file_index_revision,
-            &self.search_panel_file_cache_query, self.search_panel_file_cache_project_path.as_deref(), self.search_panel_file_cache_revision,
+            self.current_file_index(), &query, project_path.as_deref(), self.workspace_state.file_index_revision,
+            &self.workspace_state.search_panel_file_cache_query, self.workspace_state.search_panel_file_cache_project_path.as_deref(), self.workspace_state.search_panel_file_cache_revision,
         ) else { return; };
 
-        self.search_panel_file_cache_query = query;
-        self.search_panel_file_cache_project_path = project_path;
-        self.search_panel_file_cache_revision = self.file_index_revision;
-        self.search_panel_file_cache_results = results;
+        self.workspace_state.search_panel_file_cache_query = query;
+        self.workspace_state.search_panel_file_cache_project_path = project_path;
+        self.workspace_state.search_panel_file_cache_revision = self.workspace_state.file_index_revision;
+        self.workspace_state.search_panel_file_cache_results = results;
     }
 
     /// 模块内可见函数，执行 cached_search_panel_file_results 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn cached_search_panel_file_results(&self) -> &[String] {
-        &self.search_panel_file_cache_results
+        &self.workspace_state.search_panel_file_cache_results
     }
 
     /// 模块内可见函数，执行 refresh_file_search_cache 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn refresh_file_search_cache(&mut self) {
         let mut state = std::mem::take(&mut self.input_suggestions);
-        state.refresh_file_cache(self.current_file_index(), self.navigation_tabs.project_path.as_deref(), self.file_index_revision);
+        state.refresh_file_cache(self.current_file_index(), self.navigation_tabs.project_path.as_deref(), self.workspace_state.file_index_revision);
         self.input_suggestions = state;
     }
 
@@ -192,9 +192,9 @@ impl App {
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn set_file_index(&mut self, path: &str, files: Vec<String>) {
         let tree = crate::app::components::file_tree::model::build_file_tree_model(path, &files);
-        self.file_index_cache.insert(path.to_string(), files);
-        self.file_tree_model_cache.insert(path.to_string(), tree);
-        self.file_index_revision = self.file_index_revision.wrapping_add(1);
+        self.workspace_state.file_index_cache.insert(path.to_string(), files);
+        self.workspace_state.file_tree_model_cache.insert(path.to_string(), tree);
+        self.workspace_state.file_index_revision = self.workspace_state.file_index_revision.wrapping_add(1);
         self.refresh_search_panel_file_cache();
         self.refresh_file_search_cache();
     }
@@ -205,9 +205,9 @@ impl App {
         path: &str,
         snapshot: crate::app::message::project::helpers::FileTreeIndexSnapshot,
     ) {
-        self.file_index_cache.insert(path.to_string(), snapshot.files);
-        self.file_tree_model_cache.insert(path.to_string(), snapshot.tree);
-        self.file_index_revision = self.file_index_revision.wrapping_add(1);
+        self.workspace_state.file_index_cache.insert(path.to_string(), snapshot.files);
+        self.workspace_state.file_tree_model_cache.insert(path.to_string(), snapshot.tree);
+        self.workspace_state.file_index_revision = self.workspace_state.file_index_revision.wrapping_add(1);
         if self.navigation_tabs.project_path.as_deref() == Some(path) {
             self.refresh_search_panel_file_cache();
             self.refresh_file_search_cache();
@@ -217,7 +217,7 @@ impl App {
     /// 模块内可见函数，执行 has_file_index 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn has_file_index(&self, path: &str) -> bool {
-        self.file_index_cache.contains_key(path)
+        self.workspace_state.file_index_cache.contains_key(path)
     }
 
     /// 模块内可见函数，执行 can_open_external 对应的应用流程。
@@ -230,7 +230,7 @@ impl App {
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub fn push_notification(&mut self, message: String) {
         desktop_navigation::components::notification::push_notification(
-            &mut self.notifications, &mut self.next_notification_id, message,
+            &mut self.notification_state.notifications, &mut self.notification_state.next_notification_id, message,
         );
     }
 
@@ -242,23 +242,23 @@ impl App {
     ) {
         let feedback = crate::app::i18n::input::Feedback::new(source, arguments);
         let target = match field {
-            crate::app::i18n::input::ErrorField::General => &mut self.error_message,
+            crate::app::i18n::input::ErrorField::General => &mut self.input_feedback.error_message,
             crate::app::i18n::input::ErrorField::WorktreeDelete => {
-                &mut self.new_session_delete_error
+                &mut self.workspace_state.new_session_delete_error
             }
-            crate::app::i18n::input::ErrorField::WorktreeReset => &mut self.new_session_reset_error,
+            crate::app::i18n::input::ErrorField::WorktreeReset => &mut self.workspace_state.new_session_reset_error,
         };
         *target = Some(feedback.fallback.clone());
-        self.localized_input_errors.insert(field, feedback);
+        self.input_feedback.localized_input_errors.insert(field, feedback);
     }
     pub(crate) fn render_input_error(
         &self,
         field: crate::app::i18n::input::ErrorField,
         raw: &str,
     ) -> String {
-        self.localized_input_errors
+        self.input_feedback.localized_input_errors
             .get(&field)
-            .map(|feedback| feedback.render(crate::app::i18n::I18n::new(self.desktop_locale), raw))
+            .map(|feedback| feedback.render(crate::app::i18n::I18n::new(self.general_settings.desktop_locale), raw))
             .unwrap_or_else(|| raw.to_owned())
     }
 
@@ -268,7 +268,7 @@ impl App {
         arguments: Vec<crate::app::i18n::format::Argument>,
     ) {
         desktop_navigation::components::notification::push_localized_notification(
-            &mut self.notifications, &mut self.next_notification_id, source, arguments,
+            &mut self.notification_state.notifications, &mut self.notification_state.next_notification_id, source, arguments,
         );
     }
 
@@ -280,7 +280,7 @@ impl App {
         message: impl Into<String>,
     ) -> iced::Task<crate::app::Message> {
         let id = desktop_ui_controls::toast::show_toast(
-            &mut self.active_toast, &mut self.next_toast_id, kind, message.into(),
+            &mut self.toast_state.active_toast, &mut self.toast_state.next_toast_id, kind, message.into(),
         );
         crate::app::message::after(
             Duration::from_millis(2200),
@@ -298,7 +298,7 @@ impl App {
     ) -> iced::Task<crate::app::Message> {
         let (fallback, message) = desktop_ui_controls::toast::localized_toast_message(source, arguments);
         let task = self.show_toast(kind, fallback);
-        if let Some(toast) = &mut self.active_toast { toast.localized_message = Some(message); }
+        if let Some(toast) = &mut self.toast_state.active_toast { toast.localized_message = Some(message); }
         task
     }
 
@@ -335,14 +335,14 @@ impl App {
     /// 公开函数，执行 theme 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub fn theme(&self) -> Theme {
-        self.app_theme.clone()
+        self.appearance.app_theme.clone()
     }
 
     pub fn theme_for_window(&self, window: iced::window::Id) -> Theme {
         if self.task_pet_window_id == Some(window) {
-            let mut palette = self.app_theme.palette();
+            let mut palette = self.appearance.app_theme.palette();
             palette.background = Color::TRANSPARENT;
-            Theme::custom_with_fn("VibeWindow Pet", palette, |_| *self.app_theme.extended_palette())
+            Theme::custom_with_fn("VibeWindow Pet", palette, |_| *self.appearance.app_theme.extended_palette())
         } else {
             self.theme()
         }
@@ -361,17 +361,17 @@ impl App {
     /// 公开函数，执行 effective_editor_theme 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub fn effective_editor_theme(&self) -> Theme {
-        if self.editor_follow_system_theme {
-            self.app_theme.clone()
+        if self.appearance.editor_follow_system_theme {
+            self.appearance.app_theme.clone()
         } else {
-            self.editor_theme.clone()
+            self.appearance.editor_theme.clone()
         }
     }
 
     /// 公开函数，执行 effective_editor_theme_ref 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub fn effective_editor_theme_ref(&self) -> &Theme {
-        if self.editor_follow_system_theme { &self.app_theme } else { &self.editor_theme }
+        if self.appearance.editor_follow_system_theme { &self.appearance.app_theme } else { &self.appearance.editor_theme }
     }
 }
 

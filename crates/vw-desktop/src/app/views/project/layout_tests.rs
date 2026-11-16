@@ -102,7 +102,7 @@ fn base_layout_builds_without_settings_sidebar_or_bottom_panel() {
 fn base_layout_builds_hovered_recent_project_overlay() {
     let mut app = test_app();
     app.navigation_panels.show_settings = false;
-    app.hovered_recent_project = Some("/tmp/vibe-window-hovered".to_string());
+    app.workspace_state.hovered_recent_project = Some("/tmp/vibe-window-hovered".to_string());
 
     let element = super::build_base_layout(&app, 476.0, 56.0, 0.6, 12.0, 2.0, 6.0, 0.0);
 
@@ -113,7 +113,7 @@ fn base_layout_builds_hovered_recent_project_overlay() {
 fn base_layout_clamps_sidebar_overlay_width_inputs() {
     let mut app = test_app();
     app.navigation_panels.show_settings = false;
-    app.hovered_recent_project = Some("/tmp/vibe-window-hovered".to_string());
+    app.workspace_state.hovered_recent_project = Some("/tmp/vibe-window-hovered".to_string());
 
     let element = super::build_base_layout(&app, 40.0, 80.0, 1.25, 0.0, 1.0, 0.0, 0.0);
 
@@ -123,7 +123,7 @@ fn base_layout_clamps_sidebar_overlay_width_inputs() {
 #[test]
 fn base_layout_builds_chat_fullscreen_without_bottom_panel() {
     let mut app = test_app();
-    app.chat_panel_fullscreen = true;
+    app.chat_interaction.chat_panel_fullscreen = true;
     app.terminal.is_visible = true;
 
     let element = super::build_base_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 6.0, 0.0);
@@ -145,7 +145,7 @@ fn base_layout_builds_git_fullscreen_without_bottom_panel() {
 #[test]
 fn base_layout_builds_with_tool_detail_overlay() {
     let mut app = test_app();
-    app.tool_detail_dialog = Some(ToolDetailDialog {
+    app.chat_interaction.tool_detail_dialog = Some(ToolDetailDialog {
         msg_idx: 1,
         tool_idx: 2,
         title: "Tool output".to_string(),

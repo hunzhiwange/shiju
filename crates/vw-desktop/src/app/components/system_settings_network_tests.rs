@@ -14,7 +14,7 @@ async fn settings_tabs_core_appearance_network() {
             app.http_request_settings.save_error = Some("Fixture HTTP error".into());
             let labels: Vec<_> = NETWORK_TABS
                 .iter()
-                .map(|tab| connection_text(app.desktop_locale, tab.label))
+                .map(|tab| connection_text(app.general_settings.desktop_locale, tab.label))
                 .collect();
             let before = scene.labels(view(app));
             assert!(before.contains("Fixture web search error"));

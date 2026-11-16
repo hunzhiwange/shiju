@@ -28,7 +28,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.reset_task_board_project_state();
             }
             app.switch_project_terminal(previous_project_path, None);
-            app.project_id = None;
+            app.workspace_state.project_id = None;
             Task::batch(vec![
                 crate::app::message::terminal::reap_retired_task(app),
                 app.reload_sessions_for_project(None),
@@ -59,7 +59,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     if app.has_file_index(&path) {
                         let mut tasks = vec![reap_task, reload_task, git_task, preferences];
                         let needs_refresh =
-                            app.file_index_cache.get(&path).is_some_and(|files| files.is_empty());
+                            app.workspace_state.file_index_cache.get(&path).is_some_and(|files| files.is_empty());
                         if needs_refresh {
                             tasks.push(crate::app::message::project::helpers::refresh_file_index(
                                 app,

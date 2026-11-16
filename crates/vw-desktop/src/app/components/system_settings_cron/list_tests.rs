@@ -5,7 +5,7 @@ use crate::app::state::CronListFilter;
 
 fn list_fixture() -> App {
     let mut app = fixture();
-    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    app.general_settings.desktop_locale = DesktopLocale::SimplifiedChinese;
     app.cron_settings = super::job_fixture::list_state();
     app
 }
@@ -82,7 +82,7 @@ async fn cron_list_render_theme_and_width_matrix() {
         let mut widths = Vec::new();
         for (width, height) in [(1920, 1080), (1280, 800), (760, 620)] {
             let mut app = list_fixture();
-            app.app_theme = theme.clone();
+            app.appearance.app_theme = theme.clone();
             app.navigation_panels.show_system_settings = true;
             app.navigation_panels.system_settings_tab = SystemTab::Cron;
             app.cron_settings.batch_mode = true;

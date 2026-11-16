@@ -117,7 +117,7 @@ fn project_file_settings_actions_toggle_panels_tabs_and_loading_state() {
 
     let _ = super::update(&mut app, ViewMessage::ToggleSettingsPanel);
     assert!(app.navigation_panels.show_settings);
-    assert!(app.project_sessions_loading.contains("/tmp/project"));
+    assert!(app.workspace_state.project_sessions_loading.contains("/tmp/project"));
 
     let _ = super::update(&mut app, ViewMessage::ToggleSettingsPanel);
     assert!(!app.navigation_panels.show_settings);
@@ -130,9 +130,9 @@ fn project_file_settings_actions_toggle_panels_tabs_and_loading_state() {
     assert!(app.navigation_panels.show_settings);
     assert_eq!(app.navigation_panels.settings_tab, SettingsTab::Projects);
 
-    app.show_preview_context_menu = true;
+    app.preview_state.show_preview_context_menu = true;
     let _ = super::update(&mut app, ViewMessage::ProjectFileSaveAll);
-    assert!(!app.show_preview_context_menu);
+    assert!(!app.preview_state.show_preview_context_menu);
 }
 
 #[test]
@@ -143,7 +143,7 @@ fn restart_failure_is_exposed_without_exiting() {
 
     let _ = super::update(&mut app, ViewMessage::RestartAppFinished(Err("restart denied".into())));
 
-    assert_eq!(app.error_message.as_deref(), Some("restart denied"));
+    assert_eq!(app.input_feedback.error_message.as_deref(), Some("restart denied"));
 }
 
 #[test]
@@ -177,7 +177,7 @@ fn app_update_result_controls_install_action_for_each_outcome() {
     );
     assert!(!app.update_panel.cli_install_modal_show_install_action);
     assert_eq!(app.update_panel.cli_install_modal_message, "server unavailable");
-    assert!(app.active_toast.is_some());
+    assert!(app.toast_state.active_toast.is_some());
 }
 
 #[test]
@@ -201,7 +201,7 @@ fn app_update_finish_clears_receiver_and_sets_success_or_failure_state() {
 
     app.desktop_update.busy = true;
     let _ = super::update(&mut app, ViewMessage::AppUpdateFinished(Err("replace failed".into())));
-    assert!(app.active_toast.is_some());
+    assert!(app.toast_state.active_toast.is_some());
     assert_eq!(app.update_panel.cli_install_modal_message, "replace failed");
 }
 
@@ -223,7 +223,7 @@ fn app_update_save_failure_keeps_selection_and_shows_unsaved_toast() {
     );
     assert_eq!(app.desktop_update.source, Some(UpdateSource::Github));
     assert!(!app.desktop_update.saving);
-    assert!(app.active_toast.as_ref().unwrap().message.contains("未保存"));
+    assert!(app.toast_state.active_toast.as_ref().unwrap().message.contains("未保存"));
 }
 
 #[test]

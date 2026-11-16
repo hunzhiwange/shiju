@@ -13,7 +13,7 @@ use desktop_platform::desktop_notification::ensure_macos_permission;
 
 /// 通知只是附加提醒；权限或发送失败不能覆盖当前业务反馈。
 pub(crate) fn failure_feedback(app: &mut App, error: String) -> Task<Message> {
-    if app.active_toast.is_some() {
+    if app.toast_state.active_toast.is_some() {
         return Task::none();
     }
     app.show_error_toast(error)

@@ -44,7 +44,7 @@ pub(crate) fn account_view<'a>(
 pub(super) fn input(app: &mut App) -> desktop_usage::card_update::Input<'_> {
     use desktop_usage::card_update::{Catalog, Input, Providers, Tab};
     Input {
-        project_id: &app.project_id,
+        project_id: &app.workspace_state.project_id,
         project_path: &app.navigation_tabs.project_path,
         agent_apps_auth: &mut app.agent_apps_auth,
         app_providers: Providers {
@@ -91,7 +91,7 @@ pub(super) fn scope(app: &App, endpoint: &GatewayEndpoint, account: bool) -> Opt
     use desktop_usage::card_update::{Catalog, ProviderScope, ScopeInput};
     desktop_usage::card_update::resolve_scope(
         &ScopeInput {
-            project_id: &app.project_id,
+            project_id: &app.workspace_state.project_id,
             project_path: &app.navigation_tabs.project_path,
             agent_apps_auth: &app.agent_apps_auth,
             app_providers: ProviderScope {

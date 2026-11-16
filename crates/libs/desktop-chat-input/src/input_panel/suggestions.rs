@@ -8,6 +8,7 @@ use std::collections::BTreeSet;
 
 #[derive(Debug, Default)]
 pub struct State {
+    pub tool_files_filter: String,
     pub file_search_cache_query: String,
     pub file_search_cache_project_path: Option<String>,
     pub file_search_cache_revision: u64,

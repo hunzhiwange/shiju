@@ -127,7 +127,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         GeneralSettingsMessage::CloseToTrayToggled(enabled) => {
             if enabled
-                && let Err(error) = crate::app::desktop_lifecycle::ensure_tray(app.desktop_locale)
+                && let Err(error) = crate::app::desktop_lifecycle::ensure_tray(app.general_settings.desktop_locale)
             {
                 return app.show_error_toast(format!("无法启用托盘：{error}"));
             }
@@ -187,7 +187,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             crate::app::desktop_lifecycle::refresh_tray_providers(app);
             #[cfg(not(target_arch = "wasm32"))]
             crate::app::desktop_lifecycle::refresh_tray_state(
-                app.desktop_locale,
+                app.general_settings.desktop_locale,
                 app.shutdown_requested,
                 cfg!(target_os = "macos") && app.main_window_id.is_none(),
             );
@@ -242,9 +242,9 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         GeneralSettingsMessage::LocaleSelected(locale) => {
             let save = domain::select_locale(
-                &mut app.desktop_locale,
-                &mut app.desktop_locale_selected,
-                &mut app.desktop_locale_saving,
+                &mut app.general_settings.desktop_locale,
+                &mut app.general_settings.desktop_locale_selected,
+                &mut app.general_settings.desktop_locale_saving,
                 locale,
             );
             #[cfg(not(target_arch = "wasm32"))]
@@ -252,10 +252,9 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             crate::app::i18n::editor::refresh(app);
             crate::apps::workflow::refresh_top_tab_title(app);
             crate::app::i18n::apps::refresh_hub_titles(app);
-            let viewing_task = app.task_board_viewing_logs.clone();
+            let viewing_task = app.task_board.task_board_viewing_logs.clone();
             crate::app::message::task_board::sync_task_logs_editor(app, viewing_task.as_ref());
-            let chunks = app
-                .active_session_view_state
+            let chunks = app.chat_view.active_session_view_state
                 .prepared_chat_ui_chunks
                 .iter()
                 .copied()
@@ -263,7 +262,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             for chunk in chunks {
                 app.invalidate_chat_ui_chunk(chunk);
             }
-            app.chat_explore_summary_animations.clear();
+            app.chat_interaction.chat_explore_summary_animations.clear();
             super::cron::refresh_run_history_locale(app);
             if save {
                 return save_locale(locale);
@@ -271,12 +270,12 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         GeneralSettingsMessage::LocaleSaved(locale, result) => {
             let save_again =
-                domain::locale_saved(app.desktop_locale, &mut app.desktop_locale_saving, locale);
+                domain::locale_saved(app.general_settings.desktop_locale, &mut app.general_settings.desktop_locale_saving, locale);
             let feedback = match result {
                 Ok(()) => Task::none(),
                 Err(error) => app.show_error_toast(
                     crate::__!(
-                        crate::app::i18n::I18n::new(app.desktop_locale),
+                        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
                         "保存失败：%s",
                         error
                     )
@@ -284,13 +283,13 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 ),
             };
             if save_again {
-                return Task::batch([feedback, save_locale(app.desktop_locale)]);
+                return Task::batch([feedback, save_locale(app.general_settings.desktop_locale)]);
             }
             return feedback;
         }
         GeneralSettingsMessage::TabSelected(tab) => {
             if domain::select_tab(
-                &mut app.general_settings_tab,
+                &mut app.general_settings.general_settings_tab,
                 &mut app.themes_settings.error,
                 tab,
             ) {
@@ -304,8 +303,8 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 return Task::none();
             }
             let persist = domain::select_notification(
-                &mut app.task_completion_notification,
-                &mut app.task_completion_notification_saving,
+                &mut app.general_settings.task_completion_notification,
+                &mut app.general_settings.task_completion_notification_saving,
                 enabled,
             );
             #[cfg(not(target_arch = "wasm32"))]
@@ -313,7 +312,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let save =
                 if persist { save_task_completion_notification(enabled) } else { Task::none() };
             let permission = if enabled {
-                crate::app::desktop_notification::permission_task(app.desktop_locale)
+                crate::app::desktop_notification::permission_task(app.general_settings.desktop_locale)
             } else {
                 Task::none()
             };
@@ -333,14 +332,14 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         GeneralSettingsMessage::TaskCompletionNotificationSaved(enabled, result) => {
             let persist = domain::notification_saved(
-                app.task_completion_notification,
-                &mut app.task_completion_notification_saving,
+                app.general_settings.task_completion_notification,
+                &mut app.general_settings.task_completion_notification_saving,
                 enabled,
             );
             let feedback = match result {
                 Ok(()) => Task::none(),
                 Err(_) => app.show_error_toast(
-                    crate::app::i18n::I18n::new(app.desktop_locale)
+                    crate::app::i18n::I18n::new(app.general_settings.desktop_locale)
                         .__("保存通知设置失败，请重试。")
                         .to_owned(),
                 ),
@@ -348,17 +347,17 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             if persist {
                 return Task::batch([
                     feedback,
-                    save_task_completion_notification(app.task_completion_notification),
+                    save_task_completion_notification(app.general_settings.task_completion_notification),
                 ]);
             }
             return feedback;
         }
         GeneralSettingsMessage::TestTaskCompletionNotification => {
-            return crate::app::desktop_notification::completion_task(app.desktop_locale);
+            return crate::app::desktop_notification::completion_task(app.general_settings.desktop_locale);
         }
         GeneralSettingsMessage::TaskCompletionNotificationSent(result) => {
             if let Err(error) = result {
-                let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+                let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
                 return crate::app::desktop_notification::failure_feedback(
                     app,
                     format!("{} {error}", i18n.__("系统通知发送失败，请检查系统通知权限。"),),
@@ -366,7 +365,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
         }
         GeneralSettingsMessage::TimezoneSelected(timezone) => {
-            if !domain::select_timezone(&mut app.chat_timezone, &timezone) {
+            if !domain::select_timezone(&mut app.general_settings.chat_timezone, &timezone) {
                 return Task::none();
             }
 

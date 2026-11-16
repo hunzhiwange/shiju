@@ -30,7 +30,7 @@ async fn settings_tabs_editors_appearance_provider() {
                     value: "draft".into(),
                 })
                 .collect();
-            let tr = |label| tr(app.desktop_locale, label);
+            let tr = |label| tr(app.general_settings.desktop_locale, label);
             let [basic, auth, models, title, save, cancel] =
                 ["基础信息", "认证与请求头", "模型", "自定义提供商", "保存", "取消"].map(tr);
             scene.save_preview(app, overlay(app), "provider");

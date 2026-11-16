@@ -7,7 +7,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     let SettingsMessage::QuickMessages(message) = message else { return Task::none(); };
     #[cfg(not(target_arch = "wasm32"))]
     if !matches!(&message, QuickMessagesMessage::Saved(_)) { app.note_startup_setting_edit("quick_messages"); }
-    match domain::update(&mut app.quick_messages, message) {
+    match domain::update(&mut app.general_settings.quick_messages, message) {
         Effect::None => Task::none(),
         Effect::Save(items) => Task::perform(
             desktop_settings_appearance::general_update::save_quick_messages(super::general::config_access(), items),

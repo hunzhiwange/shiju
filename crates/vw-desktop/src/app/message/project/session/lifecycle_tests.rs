@@ -16,15 +16,15 @@ fn app() -> crate::app::App {
 fn stale_stream_ui_phase_is_ignored() {
     let mut app = app();
     let session_id = "session-1".to_string();
-    app.active_session_id = Some(session_id.clone());
-    app.chat = vec![crate::app::models::ChatMessage {
+    app.session_state.active_session_id = Some(session_id.clone());
+    app.chat_view.chat = vec![crate::app::models::ChatMessage {
         role: ChatRole::Assistant,
         content: "current tail".to_string(),
         model: None,
         think_timing: Vec::new(),
         processing_timing: None,
     }];
-    app.chat_render_cache.insert(
+    app.chat_view.chat_render_cache.insert(
         0,
         ChatRenderCacheEntry {
             content_hash: 77,
@@ -32,7 +32,7 @@ fn stale_stream_ui_phase_is_ignored() {
             ..ChatRenderCacheEntry::default()
         },
     );
-    let phase = crate::app::session::prepare_chat_ui_message_phase(&app.chat[0], 0, false);
+    let phase = crate::app::session::prepare_chat_ui_message_phase(&app.chat_view.chat[0], 0, false);
     app.get_session_runtime_mut(&session_id).stream_tail_state.advance_ui_generation();
 
     let task = super::lifecycle::handle(
@@ -45,8 +45,8 @@ fn stale_stream_ui_phase_is_ignored() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.chat_render_cache[&0].content_hash, 77);
-    assert_eq!(app.chat_render_cache[&0].display_text, "kept");
+    assert_eq!(app.chat_view.chat_render_cache[&0].content_hash, 77);
+    assert_eq!(app.chat_view.chat_render_cache[&0].display_text, "kept");
 }
 
 fn session_info(id: &str, title: &str, directory: &str) -> session_info::Info {
@@ -186,7 +186,7 @@ fn text_message(info: agent_message::Info, text: &str) -> agent_message::WithPar
 #[test]
 fn session_messages_loaded_preserves_parent_order_after_completion_refresh() {
     let mut app = app();
-    app.active_session_id = Some("session-1".to_string());
+    app.session_state.active_session_id = Some("session-1".to_string());
     let messages = vec![
         text_message(assistant_info_at_with_parent("assistant-1", "user-1", 1_000), "answer"),
         text_message(user_info_at("user-1", 9_000), "question"),
@@ -202,11 +202,11 @@ fn session_messages_loaded_preserves_parent_order_after_completion_refresh() {
     );
 
     assert_eq!(
-        app.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(),
+        app.chat_view.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(),
         vec!["question", "answer"]
     );
     assert_eq!(
-        app.chat_message_ids,
+        app.chat_view.chat_message_ids,
         vec![Some("user-1".to_string()), Some("assistant-1".to_string())]
     );
 }
@@ -214,30 +214,30 @@ fn session_messages_loaded_preserves_parent_order_after_completion_refresh() {
 #[test]
 fn session_messages_loaded_same_content_preserves_scroll_and_ui_cache() {
     let mut app = app();
-    app.active_session_id = Some("session-1".to_string());
+    app.session_state.active_session_id = Some("session-1".to_string());
     let messages = vec![
         text_message(assistant_info_with_usage("assistant-1"), "answer"),
         text_message(user_info_at("user-1", 900), "question"),
     ];
     let (live_chat, _) = loaded_chat_from_gateway_messages(messages.clone());
-    app.chat = live_chat;
-    app.chat_message_ids = vec![None; app.chat.len()];
-    app.chat_virtualizer.sync_len(app.chat.len(), 120.0);
-    app.chat_virtualizer.set_viewport_height(100.0);
-    app.chat_virtualizer.focus_turn_on_user(0);
-    app.active_session_view_state.base_ready = true;
-    app.active_session_view_state.updated_ms = 77;
-    app.active_session_view_state.calls.push(json!({ "id": "call-live" }));
-    app.active_session_view_state.message_meta_texts =
+    app.chat_view.chat = live_chat;
+    app.chat_view.chat_message_ids = vec![None; app.chat_view.chat.len()];
+    app.chat_view.chat_virtualizer.sync_len(app.chat_view.chat.len(), 120.0);
+    app.chat_view.chat_virtualizer.set_viewport_height(100.0);
+    app.chat_view.chat_virtualizer.focus_turn_on_user(0);
+    app.chat_view.active_session_view_state.base_ready = true;
+    app.chat_view.active_session_view_state.updated_ms = 77;
+    app.chat_view.active_session_view_state.calls.push(json!({ "id": "call-live" }));
+    app.chat_view.active_session_view_state.message_meta_texts =
         vec![
             Some(crate::app::i18n::chat::MessageMeta::Model {
                 model: "stale".to_string(),
                 time_ms: None
             });
-            app.chat.len()
+            app.chat_view.chat.len()
         ];
-    app.chat_render_cache.insert(0, Default::default());
-    let previous_scroll_id = app.chat_scroll_id.clone();
+    app.chat_view.chat_render_cache.insert(0, Default::default());
+    let previous_scroll_id = app.chat_view.chat_scroll_id.clone();
     let usage = crate::app::models::TokenUsage {
         input_tokens: 2,
         output_tokens: 3,
@@ -255,28 +255,28 @@ fn session_messages_loaded_same_content_preserves_scroll_and_ui_cache() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.chat_scroll_id, previous_scroll_id);
-    assert_eq!(app.chat_virtualizer.turn_focus_user_index(), Some(0));
-    assert!(app.active_session_view_state.base_ready);
-    assert!(!app.active_session_view_state.ui_preparing);
-    assert_eq!(app.active_session_view_state.updated_ms, 77);
-    assert_eq!(app.active_session_view_state.calls, vec![json!({ "id": "call-live" })]);
-    assert!(app.chat_render_cache.contains_key(&0));
+    assert_eq!(app.chat_view.chat_scroll_id, previous_scroll_id);
+    assert_eq!(app.chat_view.chat_virtualizer.turn_focus_user_index(), Some(0));
+    assert!(app.chat_view.active_session_view_state.base_ready);
+    assert!(!app.chat_view.active_session_view_state.ui_preparing);
+    assert_eq!(app.chat_view.active_session_view_state.updated_ms, 77);
+    assert_eq!(app.chat_view.active_session_view_state.calls, vec![json!({ "id": "call-live" })]);
+    assert!(app.chat_view.chat_render_cache.contains_key(&0));
     assert_eq!(
-        app.chat_message_ids,
+        app.chat_view.chat_message_ids,
         vec![Some("user-1".to_string()), Some("assistant-1".to_string())]
     );
-    assert_eq!(app.usage.input_tokens, 2);
-    assert_eq!(app.usage.output_tokens, 3);
-    assert_eq!(app.usage.cached_tokens, 4);
-    assert_eq!(app.usage.reasoning_tokens, 5);
-    assert_eq!(app.active_session_view_state.steps.len(), 1);
-    assert_eq!(app.active_session_view_state.steps[0].usage.input_tokens, 11);
-    assert_eq!(app.active_session_view_state.steps[0].usage.output_tokens, 12);
-    assert_eq!(app.active_session_view_state.steps[0].usage.cached_tokens, 3);
-    assert_eq!(app.active_session_view_state.steps[0].usage.reasoning_tokens, 4);
-    assert_eq!(app.active_session_view_state.message_meta_texts.len(), app.chat.len());
-    assert!(app.active_session_view_state.message_meta_texts.iter().all(|meta| meta.as_ref().map(
+    assert_eq!(app.chat_view.usage.input_tokens, 2);
+    assert_eq!(app.chat_view.usage.output_tokens, 3);
+    assert_eq!(app.chat_view.usage.cached_tokens, 4);
+    assert_eq!(app.chat_view.usage.reasoning_tokens, 5);
+    assert_eq!(app.chat_view.active_session_view_state.steps.len(), 1);
+    assert_eq!(app.chat_view.active_session_view_state.steps[0].usage.input_tokens, 11);
+    assert_eq!(app.chat_view.active_session_view_state.steps[0].usage.output_tokens, 12);
+    assert_eq!(app.chat_view.active_session_view_state.steps[0].usage.cached_tokens, 3);
+    assert_eq!(app.chat_view.active_session_view_state.steps[0].usage.reasoning_tokens, 4);
+    assert_eq!(app.chat_view.active_session_view_state.message_meta_texts.len(), app.chat_view.chat.len());
+    assert!(app.chat_view.active_session_view_state.message_meta_texts.iter().all(|meta| meta.as_ref().map(
         |meta| {
             meta.render(crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese))
         }
@@ -291,19 +291,19 @@ fn session_messages_loaded_changed_content_replaces_history_and_invalidates_ui_c
         [(ChatRole::Assistant, "stale answer"), (ChatRole::User, "answer")]
     {
         let mut app = app();
-        app.active_session_id = Some("session-1".to_string());
+        app.session_state.active_session_id = Some("session-1".to_string());
         let messages = vec![
             text_message(assistant_info_at_with_parent("assistant-1", "user-1", 1_000), "answer"),
             text_message(user_info_at("user-1", 900), "question"),
         ];
         let (live_chat, _) = loaded_chat_from_gateway_messages(messages.clone());
-        app.chat = live_chat;
-        app.chat[1].role = stale_role;
-        app.chat[1].content = stale_content.to_string();
-        app.chat_message_ids = vec![None; app.chat.len()];
-        app.active_session_view_state.base_ready = true;
-        app.chat_render_cache.insert(0, Default::default());
-        let previous_scroll_id = app.chat_scroll_id.clone();
+        app.chat_view.chat = live_chat;
+        app.chat_view.chat[1].role = stale_role;
+        app.chat_view.chat[1].content = stale_content.to_string();
+        app.chat_view.chat_message_ids = vec![None; app.chat_view.chat.len()];
+        app.chat_view.active_session_view_state.base_ready = true;
+        app.chat_view.chat_render_cache.insert(0, Default::default());
+        let previous_scroll_id = app.chat_view.chat_scroll_id.clone();
 
         let task = super::lifecycle::handle(
             &mut app,
@@ -315,14 +315,14 @@ fn session_messages_loaded_changed_content_replaces_history_and_invalidates_ui_c
         );
 
         assert!(task.is_some());
-        assert_ne!(app.chat_scroll_id, previous_scroll_id);
-        assert_eq!(app.chat[1].role, ChatRole::Assistant);
-        assert_eq!(app.chat[1].content, "answer");
-        assert!(app.chat_render_cache.is_empty());
-        assert!(!app.active_session_view_state.base_ready);
-        assert!(app.active_session_view_state.ui_preparing);
+        assert_ne!(app.chat_view.chat_scroll_id, previous_scroll_id);
+        assert_eq!(app.chat_view.chat[1].role, ChatRole::Assistant);
+        assert_eq!(app.chat_view.chat[1].content, "answer");
+        assert!(app.chat_view.chat_render_cache.is_empty());
+        assert!(!app.chat_view.active_session_view_state.base_ready);
+        assert!(app.chat_view.active_session_view_state.ui_preparing);
         assert_eq!(
-            app.chat_message_ids,
+            app.chat_view.chat_message_ids,
             vec![Some("user-1".to_string()), Some("assistant-1".to_string())]
         );
     }
@@ -332,17 +332,17 @@ fn session_messages_loaded_changed_content_replaces_history_and_invalidates_ui_c
 fn session_created_inserts_unique_session_and_resets_active_chat_state() {
     let mut app = app();
     let info = session_info("s1", "First", "/tmp/project");
-    app.new_session_creating = true;
+    app.workspace_state.new_session_creating = true;
     app.navigation_tabs.project_path = Some("/tmp/project".to_string());
-    app.sessions = vec![info.clone()];
-    app.chat.push(crate::app::models::ChatMessage {
+    app.session_state.sessions = vec![info.clone()];
+    app.chat_view.chat.push(crate::app::models::ChatMessage {
         role: ChatRole::User,
         content: "old".to_string(),
         model: None,
         think_timing: Vec::new(),
         processing_timing: None,
     });
-    app.chat_message_ids = vec![Some("old".to_string())];
+    app.chat_view.chat_message_ids = vec![Some("old".to_string())];
 
     let task = super::lifecycle::handle(
         &mut app,
@@ -350,14 +350,14 @@ fn session_created_inserts_unique_session_and_resets_active_chat_state() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.new_session_last_directory.as_deref(), Some("/tmp/project"));
-    assert_eq!(app.sessions.iter().filter(|s| s.id == "s1").count(), 1);
-    assert_eq!(app.project_sessions.get("/tmp/project").unwrap()[0].id, "s1");
-    assert_eq!(app.active_session_id.as_deref(), Some("s1"));
-    assert!(app.chat.is_empty());
-    assert!(app.chat_message_ids.is_empty());
-    assert_eq!(app.usage, crate::app::models::TokenUsage::default());
-    assert!(!app.new_session_creating);
+    assert_eq!(app.workspace_state.new_session_last_directory.as_deref(), Some("/tmp/project"));
+    assert_eq!(app.session_state.sessions.iter().filter(|s| s.id == "s1").count(), 1);
+    assert_eq!(app.workspace_state.project_sessions.get("/tmp/project").unwrap()[0].id, "s1");
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("s1"));
+    assert!(app.chat_view.chat.is_empty());
+    assert!(app.chat_view.chat_message_ids.is_empty());
+    assert_eq!(app.chat_view.usage, crate::app::models::TokenUsage::default());
+    assert!(!app.workspace_state.new_session_creating);
 }
 
 #[test]
@@ -371,9 +371,9 @@ fn session_created_without_project_path_uses_session_directory_bucket() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.active_session_id.as_deref(), Some("s-dir"));
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("s-dir"));
     assert_eq!(
-        app.project_sessions.get("/tmp/session-dir").expect("directory bucket")[0].id,
+        app.workspace_state.project_sessions.get("/tmp/session-dir").expect("directory bucket")[0].id,
         "s-dir"
     );
 }
@@ -385,16 +385,16 @@ fn discovered_child_session_does_not_replace_active_parent() {
     let mut child = session_info("child", "Child", "/tmp/project");
     child.parent_id = Some(parent.id.clone());
     app.navigation_tabs.project_path = Some("/tmp/project".to_string());
-    app.active_session_id = Some(parent.id.clone());
-    app.sessions = vec![parent];
-    app.chat.push(crate::app::models::ChatMessage {
+    app.session_state.active_session_id = Some(parent.id.clone());
+    app.session_state.sessions = vec![parent];
+    app.chat_view.chat.push(crate::app::models::ChatMessage {
         role: ChatRole::User,
         content: "parent chat".to_string(),
         model: None,
         think_timing: Vec::new(),
         processing_timing: None,
     });
-    app.chat_message_ids = vec![Some("parent-message".to_string())];
+    app.chat_view.chat_message_ids = vec![Some("parent-message".to_string())];
 
     let task = super::lifecycle::handle(
         &mut app,
@@ -402,12 +402,12 @@ fn discovered_child_session_does_not_replace_active_parent() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.active_session_id.as_deref(), Some("parent"));
-    assert_eq!(app.chat[0].content, "parent chat");
-    assert_eq!(app.chat_message_ids, vec![Some("parent-message".to_string())]);
-    assert!(app.sessions.iter().any(|session| session.id == "child"));
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("parent"));
+    assert_eq!(app.chat_view.chat[0].content, "parent chat");
+    assert_eq!(app.chat_view.chat_message_ids, vec![Some("parent-message".to_string())]);
+    assert!(app.session_state.sessions.iter().any(|session| session.id == "child"));
     assert!(
-        app.project_sessions
+        app.workspace_state.project_sessions
             .get("/tmp/project")
             .expect("project session bucket")
             .iter()
@@ -418,9 +418,9 @@ fn discovered_child_session_does_not_replace_active_parent() {
 #[test]
 fn session_messages_loaded_keeps_reset_local_history_when_gateway_returns_stale_tail() {
     let mut app = app();
-    app.active_session_id = Some("session-1".to_string());
-    app.sessions = vec![session_info("session-1", "First", "/tmp/project")];
-    app.chat = vec![
+    app.session_state.active_session_id = Some("session-1".to_string());
+    app.session_state.sessions = vec![session_info("session-1", "First", "/tmp/project")];
+    app.chat_view.chat = vec![
         crate::app::models::ChatMessage {
             role: ChatRole::User,
             content: "keep".to_string(),
@@ -443,15 +443,15 @@ fn session_messages_loaded_keeps_reset_local_history_when_gateway_returns_stale_
             processing_timing: None,
         },
     ];
-    app.chat_message_ids = vec![
+    app.chat_view.chat_message_ids = vec![
         Some("user-keep".to_string()),
         Some("user-new".to_string()),
         Some("assistant-new".to_string()),
     ];
     app.store_session_chat_snapshot(
         "session-1".to_string(),
-        crate::app::session::shared_chat_messages(app.chat.clone()),
-        app.chat_message_ids.clone(),
+        crate::app::session::shared_chat_messages(app.chat_view.chat.clone()),
+        app.chat_view.chat_message_ids.clone(),
     );
     app.mark_session_history_reset_boundary(
         "session-1".to_string(),
@@ -475,10 +475,10 @@ fn session_messages_loaded_keeps_reset_local_history_when_gateway_returns_stale_
         ))),
     );
 
-    let contents = app.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>();
+    let contents = app.chat_view.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>();
     assert_eq!(contents, vec!["keep", "new question", "new answer"]);
     assert_eq!(
-        app.chat_message_ids,
+        app.chat_view.chat_message_ids,
         vec![
             Some("user-keep".to_string()),
             Some("user-new".to_string()),
@@ -495,10 +495,10 @@ fn session_messages_loaded_keeps_reset_local_history_when_gateway_returns_stale_
 fn session_archive_active_without_replacement_clears_active_view() {
     let mut app = app();
     let info = session_info("s1", "First", "/tmp/project");
-    app.sessions = vec![info.clone()];
-    app.project_sessions.insert("/tmp/project".to_string(), vec![info]);
-    app.active_session_id = Some("s1".to_string());
-    app.chat.push(crate::app::models::ChatMessage {
+    app.session_state.sessions = vec![info.clone()];
+    app.workspace_state.project_sessions.insert("/tmp/project".to_string(), vec![info]);
+    app.session_state.active_session_id = Some("s1".to_string());
+    app.chat_view.chat.push(crate::app::models::ChatMessage {
         role: ChatRole::User,
         content: "old".to_string(),
         model: None,
@@ -512,15 +512,15 @@ fn session_archive_active_without_replacement_clears_active_view() {
     );
 
     assert!(task.is_some());
-    assert!(app.sessions[0].time.archived.is_some());
-    assert!(app.project_sessions.get("/tmp/project").unwrap()[0].time.archived.is_some());
-    assert!(app.active_session_id.is_none());
-    assert!(app.chat.is_empty());
-    assert_eq!(app.usage, crate::app::models::TokenUsage::default());
-    assert!(app.active_session_view_state.steps.is_empty());
-    assert!(app.active_session_view_state.calls.is_empty());
-    assert!(!app.active_session_view_state.ui_preparing);
-    assert!(!app.active_session_view_state.base_ready);
+    assert!(app.session_state.sessions[0].time.archived.is_some());
+    assert!(app.workspace_state.project_sessions.get("/tmp/project").unwrap()[0].time.archived.is_some());
+    assert!(app.session_state.active_session_id.is_none());
+    assert!(app.chat_view.chat.is_empty());
+    assert_eq!(app.chat_view.usage, crate::app::models::TokenUsage::default());
+    assert!(app.chat_view.active_session_view_state.steps.is_empty());
+    assert!(app.chat_view.active_session_view_state.calls.is_empty());
+    assert!(!app.chat_view.active_session_view_state.ui_preparing);
+    assert!(!app.chat_view.active_session_view_state.base_ready);
 }
 
 #[test]
@@ -530,8 +530,8 @@ fn session_archive_active_switches_to_next_unarchived_session() {
     let mut archived = session_info("archived", "Archived", "/tmp/project");
     archived.time.archived = Some(2);
     let next = session_info("next", "Next", "/tmp/project");
-    app.sessions = vec![active, archived, next];
-    app.active_session_id = Some("active".to_string());
+    app.session_state.sessions = vec![active, archived, next];
+    app.session_state.active_session_id = Some("active".to_string());
 
     let task = super::lifecycle::handle(
         &mut app,
@@ -539,8 +539,8 @@ fn session_archive_active_switches_to_next_unarchived_session() {
     );
 
     assert!(task.is_some());
-    assert!(app.sessions[0].time.archived.is_some());
-    assert_eq!(app.active_session_id.as_deref(), Some("next"));
+    assert!(app.session_state.sessions[0].time.archived.is_some());
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("next"));
 }
 
 #[test]
@@ -548,9 +548,9 @@ fn session_delete_active_switches_to_remaining_unarchived_session() {
     let mut app = app();
     let deleted = session_info("deleted", "Deleted", "/tmp/project");
     let next = session_info("next", "Next", "/tmp/project");
-    app.sessions = vec![deleted.clone(), next.clone()];
-    app.project_sessions.insert("/tmp/project".to_string(), vec![deleted, next]);
-    app.active_session_id = Some("deleted".to_string());
+    app.session_state.sessions = vec![deleted.clone(), next.clone()];
+    app.workspace_state.project_sessions.insert("/tmp/project".to_string(), vec![deleted, next]);
+    app.session_state.active_session_id = Some("deleted".to_string());
 
     let task = super::lifecycle::handle(
         &mut app,
@@ -558,13 +558,13 @@ fn session_delete_active_switches_to_remaining_unarchived_session() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.active_session_id.as_deref(), Some("next"));
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("next"));
     assert_eq!(
-        app.sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(),
+        app.session_state.sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(),
         vec!["next"]
     );
     assert_eq!(
-        app.project_sessions
+        app.workspace_state.project_sessions
             .get("/tmp/project")
             .unwrap()
             .iter()
@@ -578,18 +578,18 @@ fn session_delete_active_switches_to_remaining_unarchived_session() {
 fn session_delete_active_without_replacement_clears_chat_usage_and_runtime_state() {
     let mut app = app();
     let deleted = session_info("deleted", "Deleted", "/tmp/project");
-    app.sessions = vec![deleted.clone()];
-    app.project_sessions.insert("/tmp/project".to_string(), vec![deleted]);
-    app.active_session_id = Some("deleted".to_string());
-    app.chat.push(crate::app::models::ChatMessage {
+    app.session_state.sessions = vec![deleted.clone()];
+    app.workspace_state.project_sessions.insert("/tmp/project".to_string(), vec![deleted]);
+    app.session_state.active_session_id = Some("deleted".to_string());
+    app.chat_view.chat.push(crate::app::models::ChatMessage {
         role: ChatRole::Assistant,
         content: "old answer".to_string(),
         model: None,
         think_timing: Vec::new(),
         processing_timing: None,
     });
-    app.usage.output_tokens = 42;
-    app.active_session_view_state.updated_ms = 99;
+    app.chat_view.usage.output_tokens = 42;
+    app.chat_view.active_session_view_state.updated_ms = 99;
 
     let task = super::lifecycle::handle(
         &mut app,
@@ -597,21 +597,21 @@ fn session_delete_active_without_replacement_clears_chat_usage_and_runtime_state
     );
 
     assert!(task.is_some());
-    assert!(app.sessions.is_empty());
-    assert!(app.project_sessions.get("/tmp/project").unwrap().is_empty());
-    assert!(app.active_session_id.is_none());
-    assert!(app.chat.is_empty());
-    assert_eq!(app.usage, crate::app::models::TokenUsage::default());
-    assert!(app.active_session_view_state.steps.is_empty());
-    assert!(app.active_session_view_state.calls.is_empty());
-    assert!(!app.active_session_view_state.ui_preparing);
-    assert!(!app.active_session_view_state.base_ready);
+    assert!(app.session_state.sessions.is_empty());
+    assert!(app.workspace_state.project_sessions.get("/tmp/project").unwrap().is_empty());
+    assert!(app.session_state.active_session_id.is_none());
+    assert!(app.chat_view.chat.is_empty());
+    assert_eq!(app.chat_view.usage, crate::app::models::TokenUsage::default());
+    assert!(app.chat_view.active_session_view_state.steps.is_empty());
+    assert!(app.chat_view.active_session_view_state.calls.is_empty());
+    assert!(!app.chat_view.active_session_view_state.ui_preparing);
+    assert!(!app.chat_view.active_session_view_state.base_ready);
 }
 
 #[test]
 fn session_messages_loaded_empty_history_marks_base_ready_without_ui_task() {
     let mut app = app();
-    app.active_session_id = Some("session-1".to_string());
+    app.session_state.active_session_id = Some("session-1".to_string());
     let usage = crate::app::models::TokenUsage {
         input_tokens: 2,
         output_tokens: 3,
@@ -629,24 +629,24 @@ fn session_messages_loaded_empty_history_marks_base_ready_without_ui_task() {
     );
 
     assert!(task.is_some());
-    assert!(app.chat.is_empty());
-    assert!(app.chat_message_ids.is_empty());
-    assert_eq!(app.usage.input_tokens, 2);
-    assert_eq!(app.usage.output_tokens, 3);
-    assert_eq!(app.usage.cached_tokens, 4);
-    assert_eq!(app.usage.reasoning_tokens, 5);
-    assert!(app.active_session_view_state.base_ready);
-    assert!(!app.active_session_view_state.ui_preparing);
+    assert!(app.chat_view.chat.is_empty());
+    assert!(app.chat_view.chat_message_ids.is_empty());
+    assert_eq!(app.chat_view.usage.input_tokens, 2);
+    assert_eq!(app.chat_view.usage.output_tokens, 3);
+    assert_eq!(app.chat_view.usage.cached_tokens, 4);
+    assert_eq!(app.chat_view.usage.reasoning_tokens, 5);
+    assert!(app.chat_view.active_session_view_state.base_ready);
+    assert!(!app.chat_view.active_session_view_state.ui_preparing);
 }
 
 #[test]
 fn session_messages_loaded_restores_the_historical_session_model() {
     let mut app = app();
-    let previous_scroll_id = app.chat_scroll_id.clone();
-    app.model = "provider/current-model".to_string();
-    app.auto_model = false;
+    let previous_scroll_id = app.chat_view.chat_scroll_id.clone();
+    app.session_state.model = "provider/current-model".to_string();
+    app.session_state.auto_model = false;
     app.prepare_historical_session_model("session-1");
-    app.active_session_id = Some("session-1".to_string());
+    app.session_state.active_session_id = Some("session-1".to_string());
     app.sync_active_session_preferences();
 
     let task = super::lifecycle::handle(
@@ -659,19 +659,19 @@ fn session_messages_loaded_restores_the_historical_session_model() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.model, "provider/current-model");
-    assert!(!app.auto_model);
+    assert_eq!(app.session_state.model, "provider/current-model");
+    assert!(!app.session_state.auto_model);
     assert_eq!(app.get_session_runtime("session-1").model, "provider-a/model-a");
-    assert_ne!(app.chat_scroll_id, previous_scroll_id);
+    assert_ne!(app.chat_view.chat_scroll_id, previous_scroll_id);
 }
 
 #[test]
 fn session_messages_loaded_restores_model_without_usage_or_step_parts() {
     let mut app = app();
-    app.model = "provider/global-model".to_string();
-    app.auto_model = false;
+    app.session_state.model = "provider/global-model".to_string();
+    app.session_state.auto_model = false;
     app.prepare_historical_session_model("session-1");
-    app.active_session_id = Some("session-1".to_string());
+    app.session_state.active_session_id = Some("session-1".to_string());
 
     let task = super::lifecycle::handle(
         &mut app,
@@ -683,15 +683,15 @@ fn session_messages_loaded_restores_model_without_usage_or_step_parts() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.model, "provider/global-model");
-    assert!(!app.auto_model);
+    assert_eq!(app.session_state.model, "provider/global-model");
+    assert!(!app.session_state.auto_model);
     assert_eq!(app.get_session_runtime("session-1").model, "provider-a/model-a");
 }
 
 #[test]
 fn session_messages_loaded_empty_gateway_history_restores_cached_chat() {
     let mut app = app();
-    app.active_session_id = Some("session-1".to_string());
+    app.session_state.active_session_id = Some("session-1".to_string());
     let cached = vec![crate::app::models::ChatMessage {
         role: ChatRole::User,
         content: "cached question".to_string(),
@@ -715,18 +715,18 @@ fn session_messages_loaded_empty_gateway_history_restores_cached_chat() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.chat.len(), 1);
-    assert_eq!(app.chat[0].content, "cached question");
-    assert_eq!(app.chat_message_ids, vec![Some("cached-user".to_string())]);
-    assert!(app.active_session_view_state.ui_preparing);
-    assert!(!app.active_session_view_state.base_ready);
+    assert_eq!(app.chat_view.chat.len(), 1);
+    assert_eq!(app.chat_view.chat[0].content, "cached question");
+    assert_eq!(app.chat_view.chat_message_ids, vec![Some("cached-user".to_string())]);
+    assert!(app.chat_view.active_session_view_state.ui_preparing);
+    assert!(!app.chat_view.active_session_view_state.base_ready);
 }
 
 #[test]
 fn session_messages_loaded_shorter_gateway_history_preserves_cached_chat() {
     let mut app = app();
     let session_id = "session-shorter-gateway-history";
-    app.active_session_id = Some(session_id.to_string());
+    app.session_state.active_session_id = Some(session_id.to_string());
     let cached = vec![
         crate::app::models::ChatMessage {
             role: ChatRole::User,
@@ -770,12 +770,12 @@ fn session_messages_loaded_shorter_gateway_history_preserves_cached_chat() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.chat.len(), 3);
-    assert_eq!(app.chat[0].content, "original question");
-    assert_eq!(app.chat[1].content, "original answer");
-    assert_eq!(app.chat[2].content, "latest question");
+    assert_eq!(app.chat_view.chat.len(), 3);
+    assert_eq!(app.chat_view.chat[0].content, "original question");
+    assert_eq!(app.chat_view.chat[1].content, "original answer");
+    assert_eq!(app.chat_view.chat[2].content, "latest question");
     assert_eq!(
-        app.chat_message_ids,
+        app.chat_view.chat_message_ids,
         vec![
             Some("original-user".to_string()),
             Some("original-assistant".to_string()),
@@ -787,7 +787,7 @@ fn session_messages_loaded_shorter_gateway_history_preserves_cached_chat() {
 #[test]
 fn session_messages_loaded_error_without_cached_history_sets_error_message() {
     let mut app = app();
-    app.active_session_id = Some("session-1".to_string());
+    app.session_state.active_session_id = Some("session-1".to_string());
 
     let task = super::lifecycle::handle(
         &mut app,
@@ -798,7 +798,7 @@ fn session_messages_loaded_error_without_cached_history_sets_error_message() {
 
     assert!(task.is_some());
     assert_eq!(
-        app.error_message.as_deref(),
+        app.input_feedback.error_message.as_deref(),
         Some("Failed to load session messages: gateway unavailable")
     );
 }
@@ -806,7 +806,7 @@ fn session_messages_loaded_error_without_cached_history_sets_error_message() {
 #[test]
 fn session_messages_loaded_error_restores_cached_history_when_available() {
     let mut app = app();
-    app.active_session_id = Some("session-1".to_string());
+    app.session_state.active_session_id = Some("session-1".to_string());
     let cached = vec![crate::app::models::ChatMessage {
         role: ChatRole::Assistant,
         content: "cached answer".to_string(),
@@ -828,26 +828,26 @@ fn session_messages_loaded_error_restores_cached_history_when_available() {
     );
 
     assert!(task.is_some());
-    assert!(app.error_message.is_none());
-    assert_eq!(app.chat.len(), 1);
-    assert_eq!(app.chat[0].content, "cached answer");
-    assert_eq!(app.chat_message_ids, vec![None]);
-    assert!(app.active_session_view_state.ui_preparing);
-    assert!(!app.active_session_view_state.base_ready);
+    assert!(app.input_feedback.error_message.is_none());
+    assert_eq!(app.chat_view.chat.len(), 1);
+    assert_eq!(app.chat_view.chat[0].content, "cached answer");
+    assert_eq!(app.chat_view.chat_message_ids, vec![None]);
+    assert!(app.chat_view.active_session_view_state.ui_preparing);
+    assert!(!app.chat_view.active_session_view_state.base_ready);
 }
 
 #[test]
 fn session_messages_loaded_for_inactive_session_preserves_active_state() {
     let mut app = app();
-    app.active_session_id = Some("active".to_string());
-    app.chat.push(crate::app::models::ChatMessage {
+    app.session_state.active_session_id = Some("active".to_string());
+    app.chat_view.chat.push(crate::app::models::ChatMessage {
         role: ChatRole::User,
         content: "keep".to_string(),
         model: None,
         think_timing: Vec::new(),
         processing_timing: None,
     });
-    app.usage.input_tokens = 7;
+    app.chat_view.usage.input_tokens = 7;
 
     let task = super::lifecycle::handle(
         &mut app,
@@ -859,16 +859,16 @@ fn session_messages_loaded_for_inactive_session_preserves_active_state() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.chat.len(), 1);
-    assert_eq!(app.chat[0].content, "keep");
-    assert_eq!(app.usage.input_tokens, 7);
+    assert_eq!(app.chat_view.chat.len(), 1);
+    assert_eq!(app.chat_view.chat[0].content, "keep");
+    assert_eq!(app.chat_view.usage.input_tokens, 7);
 }
 
 #[test]
 fn prepared_session_open_for_inactive_target_preserves_active_state() {
     let mut app = app();
-    app.active_session_id = Some("active".to_string());
-    app.chat.push(crate::app::models::ChatMessage {
+    app.session_state.active_session_id = Some("active".to_string());
+    app.chat_view.chat.push(crate::app::models::ChatMessage {
         role: ChatRole::User,
         content: "keep".to_string(),
         model: None,
@@ -905,14 +905,14 @@ fn prepared_session_open_for_inactive_target_preserves_active_state() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.chat.len(), 1);
-    assert_eq!(app.chat[0].content, "keep");
+    assert_eq!(app.chat_view.chat.len(), 1);
+    assert_eq!(app.chat_view.chat[0].content, "keep");
 }
 
 #[test]
 fn loaded_session_preserves_step_llm_raw_for_active_view() {
     let mut app = app();
-    app.active_session_id = Some("session-1".to_string());
+    app.session_state.active_session_id = Some("session-1".to_string());
     let mut prepared = crate::app::session::prepare_session_open(
         "session-1".to_string(),
         Vec::new(),
@@ -945,11 +945,11 @@ fn loaded_session_preserves_step_llm_raw_for_active_view() {
 
     assert!(task.is_some());
     assert_eq!(
-        app.active_session_view_state.step_llm_raw[&raw_key]["output"]["reasoning_content"],
+        app.chat_view.active_session_view_state.step_llm_raw[&raw_key]["output"]["reasoning_content"],
         "kept"
     );
     assert_eq!(
-        app.active_session_view_state.llm_raw_step_indices,
+        app.chat_view.active_session_view_state.llm_raw_step_indices,
         std::collections::HashSet::from([raw_key, other_key])
     );
 }
@@ -957,8 +957,8 @@ fn loaded_session_preserves_step_llm_raw_for_active_view() {
 #[test]
 fn loaded_session_refreshes_raw_when_trajectory_is_already_open() {
     let mut app = app();
-    app.active_session_id = Some("session-1".to_string());
-    app.chat_panel_mode = crate::app::state::ChatPanelMode::Trajectory;
+    app.session_state.active_session_id = Some("session-1".to_string());
+    app.chat_view.chat_panel_mode = crate::app::state::ChatPanelMode::Trajectory;
     let mut prepared = crate::app::session::prepare_session_open(
         "session-1".to_string(),
         Vec::new(),
@@ -988,12 +988,12 @@ fn loaded_session_refreshes_raw_when_trajectory_is_already_open() {
     .expect("prepared session should be handled");
 
     assert_eq!(task.units(), 2);
-    assert!(app.trajectory_raw_loading.contains(&(
+    assert!(app.chat_interaction.trajectory_raw_loading.contains(&(
         "session-1".to_string(),
         "turn-3".to_string(),
         3,
     )));
-    assert!(app.trajectory_raw_loading.contains(&(
+    assert!(app.chat_interaction.trajectory_raw_loading.contains(&(
         "session-1".to_string(),
         "turn-8".to_string(),
         8,
@@ -1003,7 +1003,7 @@ fn loaded_session_refreshes_raw_when_trajectory_is_already_open() {
 #[test]
 fn session_reopen_restores_gateway_identity_and_full_access() {
     let (mut app, _) = crate::app::App::new();
-    app.last_llm_full_access = Some(false);
+    app.session_state.last_llm_full_access = Some(false);
     let mut prepared = crate::app::session::prepare_session_open(
         "unified-reopen".into(),
         vec![],
@@ -1021,7 +1021,7 @@ fn session_reopen_restores_gateway_identity_and_full_access() {
         acp_agent: Some("codex".into()),
     });
     prepared.full_access = Some(true);
-    app.active_session_id = Some("unified-reopen".into());
+    app.session_state.active_session_id = Some("unified-reopen".into());
     let _ = super::lifecycle::handle(
         &mut app,
         crate::app::message::project::ProjectMessage::SessionOpenPrepared {
@@ -1037,5 +1037,5 @@ fn session_reopen_restores_gateway_identity_and_full_access() {
     assert_eq!(runtime.acp_agent.as_deref(), Some("codex"));
     assert_eq!(runtime.agent_label.as_deref(), Some("固化助手名称"));
     assert!(runtime.full_access_enabled);
-    assert_eq!(app.last_llm_full_access, Some(false));
+    assert_eq!(app.session_state.last_llm_full_access, Some(false));
 }

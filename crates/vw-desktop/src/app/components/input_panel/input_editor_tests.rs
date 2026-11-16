@@ -41,7 +41,7 @@ async fn terminal_focus_composer_does_not_capture_terminal_paste_or_enter() {
             .await
             .expect("renderer");
     let mut element: Element<'_, Message> = iced::widget::column![
-        iced::widget::container(build_input_editor(&app, &app.input_editor, false, false).0)
+        iced::widget::container(build_input_editor(&app, &app.session_state.input_editor, false, false).0)
             .height(100),
         iced::widget::container(crate::app::components::terminal_panel::view(&app)).height(300),
     ]

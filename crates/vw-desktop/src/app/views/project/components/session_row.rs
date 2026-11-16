@@ -5,7 +5,7 @@ use desktop_workspace::views::project::components::session_row as domain;
 pub use domain::SessionRowDetails;
 pub use domain::SessionRowStatus;
 pub(in crate::app::views::project) fn status_for_session(app: &App, id: &str) -> SessionRowStatus {
- let runtime = app.session_runtime_states.get(id);
+ let runtime = app.session_state.session_runtime_states.get(id);
  domain::SessionRowStatus::from_activity(
  runtime.is_some_and(|r| r.request_lifecycle.is_requesting),
  runtime.map_or(0, |r| r.request_lifecycle.queue.len()),
@@ -16,7 +16,7 @@ pub(in crate::app::views::project) fn status_for_session(app: &App, id: &str) ->
 pub(in crate::app::views::project) fn running_draft_sessions(
     app: &App,
 ) -> impl Iterator<Item = (&str, Info)> {
-    app.session_runtime_states.iter().filter_map(move |(id, runtime)| {
+    app.session_state.session_runtime_states.iter().filter_map(move |(id, runtime)| {
         let draft = runtime.draft.as_ref()?;
         if !runtime.request_lifecycle.is_requesting {
             return None;
@@ -24,7 +24,7 @@ pub(in crate::app::views::project) fn running_draft_sessions(
         let info = domain::running_draft_session(
             id, &draft.directory,
             runtime.request_lifecycle.active_agent_request.as_ref().map(|request| request.query.as_str()),
-            runtime.request_lifecycle.request_started_ms, app.desktop_locale,
+            runtime.request_lifecycle.request_started_ms, app.general_settings.desktop_locale,
         );
         Some((draft.project_path.as_str(), info))
     })
@@ -32,12 +32,11 @@ pub(in crate::app::views::project) fn running_draft_sessions(
 
 
 pub(in crate::app::views::project) fn row_input(app: &App, id: &str, title: &str, updated: u64) -> domain::Input {
- let i18n = I18n::new(app.desktop_locale);
+ let i18n = I18n::new(app.general_settings.desktop_locale);
     let metadata = app.session_ui_projection.hover_details.get(id);
     let workspace_kind = metadata.and_then(|details| details.primary_workspace);
     let binding = metadata.and_then(|details| details.agent.as_ref());
-    let request = app
-        .session_runtime_states
+    let request = app.session_state.session_runtime_states
         .get(id)
         .filter(|runtime| runtime.request_lifecycle.is_requesting)
         .and_then(|runtime| runtime.request_lifecycle.active_agent_request.as_deref());
@@ -60,12 +59,12 @@ pub(in crate::app::views::project) fn row_input(app: &App, id: &str, title: &str
     };
 
  domain::Input {
- desktop_locale: app.desktop_locale,
- active: app.active_session_id.as_deref() == Some(id),
- title: if title.trim().is_empty() && !app.session_previews.contains_key(id) { i18n.__("未命名任务").to_owned() } else { crate::app::i18n::other::session_title(app, id, title) },
+ desktop_locale: app.general_settings.desktop_locale,
+ active: app.session_state.active_session_id.as_deref() == Some(id),
+ title: if title.trim().is_empty() && !app.session_state.session_previews.contains_key(id) { i18n.__("未命名任务").to_owned() } else { crate::app::i18n::other::session_title(app, id, title) },
  pinned: false,
  status_animation_frame: app.status_animation_frame,
- menu_open: app.session_menu_id.is_some(), workspace_kind, agent,
+ menu_open: app.workspace_state.session_menu_id.is_some(), workspace_kind, agent,
  relative: crate::app::i18n::chat::relative_time(i18n, crate::app::components::chat_panel::utils::relative_time_bucket(updated, crate::app::time::now_ms())),
  }
 }

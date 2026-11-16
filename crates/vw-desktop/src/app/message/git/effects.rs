@@ -17,9 +17,9 @@ pub(super) fn update(
         project_path: app.navigation_tabs.project_path.clone(),
         repo_path: crate::app::components::git_panel::git_repo_path_for_app(app),
         editor_theme: app.effective_editor_theme(),
-        font_size: app.current_font_size,
-        line_height: app.current_line_height,
-        language: crate::app::i18n::editor::language(app.desktop_locale),
+        font_size: app.preview_state.current_font_size,
+        line_height: app.preview_state.current_line_height,
+        language: crate::app::i18n::editor::language(app.general_settings.desktop_locale),
         context_path: shared::git_context_path_for_app(app),
         animate: !app.file_manager.file_manager_changes_refreshing
             && !app.file_manager.file_manager_file_tree_refreshing,
@@ -57,8 +57,8 @@ fn apply(app: &mut App, effect: Effect) -> Task<Message> {
         Effect::Fullscreen(active) => {
             app.fullscreen_layout_settling = true;
             if active {
-                app.chat_panel_fullscreen = false;
-                app.chat_panel_half_fullscreen = false;
+                app.chat_interaction.chat_panel_fullscreen = false;
+                app.chat_interaction.chat_panel_half_fullscreen = false;
                 app.navigation_panels.show_diff = true;
             }
             crate::app::message::after(
@@ -74,7 +74,7 @@ fn apply(app: &mut App, effect: Effect) -> Task<Message> {
                     ))
                     .expect("preview error template");
                 let task = app.show_error_toast(fallback);
-                if let Some(toast) = &mut app.active_toast {
+                if let Some(toast) = &mut app.toast_state.active_toast {
                     toast.localized_message = Some(error);
                 }
                 return task;

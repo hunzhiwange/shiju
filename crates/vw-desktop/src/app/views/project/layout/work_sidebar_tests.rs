@@ -88,7 +88,7 @@ fn work_sidebar_shows_running_draft_until_history_is_available() {
     let path = "/workspace/project";
     let directory = "/workspace/worktree";
     let id = "first-response";
-    app.recent_projects = vec![path.into()];
+    app.workspace_state.recent_projects = vec![path.into()];
     app.navigation_tabs.project_path = Some(path.into());
     app.navigation_workspace.work_expanded_spaces.insert(path.into());
     let runtime = app.get_session_runtime_mut(id);
@@ -112,13 +112,13 @@ fn work_sidebar_shows_running_draft_until_history_is_available() {
         &running.tasks[0].message,
         sidebar_events::Message::Project(sidebar_events::ProjectMessage::OpenProjectSessionPressed(path, _)) if path == directory
     ));
-    assert!(app.project_sessions.is_empty());
+    assert!(app.workspace_state.project_sessions.is_empty());
 
     app.get_session_runtime_mut(id).request_lifecycle.is_requesting = false;
     assert!(work_sidebar::model(&app).tasks.is_empty());
 
     app.get_session_runtime_mut(id).request_lifecycle.is_requesting = true;
-    app.project_sessions.insert(path.into(), vec![session(id, "Generated title", directory, 20)]);
+    app.workspace_state.project_sessions.insert(path.into(), vec![session(id, "Generated title", directory, 20)]);
     let published = work_sidebar::model(&app);
     assert_eq!(published.task_total, 1);
     assert_eq!(published.tasks[0].id, id);
@@ -131,8 +131,8 @@ fn work_sidebar_shows_running_draft_until_history_is_available() {
 #[test]
 fn work_sidebar_projects_runtime_status_for_main_tasks_only() {
     let mut app = App::new().0;
-    app.recent_projects = vec!["/workspace/alpha".into()];
-    app.project_sessions.insert(
+    app.workspace_state.recent_projects = vec!["/workspace/alpha".into()];
+    app.workspace_state.project_sessions.insert(
         "/workspace/alpha".into(),
         vec![
             session("idle", "空闲任务", "/workspace/alpha", 10),
@@ -345,8 +345,8 @@ fn work_sidebar_navigation_routes_project_actions() {
 fn work_sidebar_filters_sessions_by_runtime_status() {
     let mut app = App::new().0;
     let now = runtime_time::now_ms();
-    app.recent_projects = vec!["/workspace/alpha".into()];
-    app.project_sessions.insert(
+    app.workspace_state.recent_projects = vec!["/workspace/alpha".into()];
+    app.workspace_state.project_sessions.insert(
         "/workspace/alpha".into(),
         vec![
             session("running", "进行中的任务", "/workspace/alpha", now),
@@ -419,7 +419,7 @@ async fn work_sidebar_routes_shiju_entries_and_expert_hub_separately() {
 #[test]
 fn work_sidebar_refresh_message_deduplicates_recent_projects() {
     let mut app = App::new().0;
-    app.recent_projects =
+    app.workspace_state.recent_projects =
         vec!["/workspace/alpha".into(), "/workspace/beta".into(), "/workspace/alpha".into()];
 
     let Message::Batch(refreshes) = work_sidebar::refresh_all_message(&app) else {
@@ -445,7 +445,7 @@ async fn work_sidebar_refreshes_sessions_for_every_space() {
             .await
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
-    app.recent_projects = vec!["/workspace/alpha".into(), "/workspace/beta".into()];
+    app.workspace_state.recent_projects = vec!["/workspace/alpha".into(), "/workspace/beta".into()];
     let mut button = work_sidebar::refresh_all_control(&app);
     let mut messages = click(&mut button, &renderer);
     assert_eq!(messages.len(), 1);
@@ -473,8 +473,8 @@ async fn work_sidebar_current_project_above_new_task_has_refresh_and_tools_butto
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
     let active = "/工作区/一个路径很长的项目/子目录/当前项目";
-    app.recent_projects = vec!["/workspace/other".into(), active.into()];
-    app.recent_projects_edits = vec!["Other project".into(), "自定义项目名称".into()];
+    app.workspace_state.recent_projects = vec!["/workspace/other".into(), active.into()];
+    app.workspace_state.recent_projects_edits = vec!["Other project".into(), "自定义项目名称".into()];
     app.navigation_tabs.project_path = Some(active.into());
     app.layout_drag.work_sidebar_width = 220.0;
 
@@ -598,11 +598,11 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
     app.navigation_sidebar.work_sidebar_collapsed = true;
-    app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
+    app.general_settings.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
     let project_path = "/workspace/project";
     app.navigation_tabs.project_path = Some(project_path.into());
-    app.recent_projects = vec![project_path.into()];
-    app.project_sessions
+    app.workspace_state.recent_projects = vec![project_path.into()];
+    app.workspace_state.project_sessions
         .insert(project_path.into(), vec![session("existing", "现有任务", project_path, 30)]);
     let mut sidebar = work_sidebar::view(&app);
     let size = Size::new(680.0, 800.0);
@@ -678,7 +678,7 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
     drop(sidebar);
     let _ = crate::app::message::view::update(&mut app, message.clone());
 
-    app.new_session_creating = true;
+    app.workspace_state.new_session_creating = true;
     let mut sidebar = work_sidebar::view(&app);
     let mut tree = Tree::new(sidebar.as_widget());
     let node = sidebar.as_widget_mut().layout(&mut tree, &renderer, &limits);
@@ -746,16 +746,16 @@ async fn work_sidebar_draws_dark_chinese_without_monospace_panic() {
             .await
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
-    app.recent_projects = vec!["/workspace/chinese".into()];
-    app.recent_projects_edits = vec!["中文空间".into()];
-    app.project_sessions.insert(
+    app.workspace_state.recent_projects = vec!["/workspace/chinese".into()];
+    app.workspace_state.recent_projects_edits = vec!["中文空间".into()];
+    app.workspace_state.project_sessions.insert(
         "/workspace/chinese".into(),
         vec![session("cn", "中文任务标题\r\n下一步", "/workspace/chinese", 30)],
     );
     app.get_session_runtime_mut("cn").request_lifecycle.is_requesting = true;
     app.navigation_sidebar.work_sidebar_more_open = true;
-    app.session_menu_id = Some("cn".into());
-    app.session_menu_anchor = Some(Point::new(120.0, 180.0));
+    app.workspace_state.session_menu_id = Some("cn".into());
+    app.workspace_state.session_menu_anchor = Some(Point::new(120.0, 180.0));
     let mut element = work_sidebar::view(&app);
     draw(&mut element, &mut renderer, &Theme::Dark);
     drop(element);
@@ -764,8 +764,8 @@ async fn work_sidebar_draws_dark_chinese_without_monospace_panic() {
     app.navigation_sidebar.work_sidebar_tab = WorkSidebarTab::Spaces;
     app.status_animation_frame = 1;
     app.navigation_workspace.work_expanded_spaces.insert("/workspace/chinese".into());
-    app.hovered_recent_project = Some("/workspace/chinese".into());
-    app.project_tools_menu_path = Some("/workspace/chinese".into());
+    app.workspace_state.hovered_recent_project = Some("/workspace/chinese".into());
+    app.workspace_state.project_tools_menu_path = Some("/workspace/chinese".into());
     let mut space_menu = work_sidebar::view(&app);
     draw(&mut space_menu, &mut renderer, &Theme::Dark);
 
@@ -860,8 +860,8 @@ fn draw(element: &mut iced::Element<'_, Message>, renderer: &mut iced::Renderer,
 #[test]
 fn work_sidebar_projection_reuses_scroll_snapshot_and_updates_after_session_change() {
     let mut app = App::new().0;
-    app.recent_projects = vec!["/workspace".into()];
-    app.project_sessions.insert("/workspace".into(), vec![session("old", "Old", "/workspace", 1)]);
+    app.workspace_state.recent_projects = vec!["/workspace".into()];
+    app.workspace_state.project_sessions.insert("/workspace".into(), vec![session("old", "Old", "/workspace", 1)]);
     let first = work_sidebar::cached_model(&app);
     let _ =
         app.prepare_session_ui_projection(&Message::View(ViewMessage::PointerMoved(20.0, 30.0)));
@@ -898,8 +898,8 @@ async fn session_ui_projection_open_scroll_probe() {
     app.navigation_tabs.screen = crate::app::Screen::Project;
     app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
     app.navigation_tabs.project_path = Some(path.into());
-    app.recent_projects = vec![path.into()];
-    app.active_session_id = Some("root".into());
+    app.workspace_state.recent_projects = vec![path.into()];
+    app.session_state.active_session_id = Some("root".into());
     let mut sessions = vec![session("root", "中文会话", path, 1)];
     for index in 0..10_000 {
         let mut child =
@@ -907,8 +907,8 @@ async fn session_ui_projection_open_scroll_probe() {
         child.slug = Info::visible_task_slug(&child.slug);
         sessions.push(child);
     }
-    app.project_sessions.insert(path.into(), sessions);
-    app.chat = (0..80)
+    app.workspace_state.project_sessions.insert(path.into(), sessions);
+    app.chat_view.chat = (0..80)
         .map(|index| crate::app::models::ChatMessage {
             role: if index % 2 == 0 {
                 crate::app::models::ChatRole::User
@@ -994,10 +994,10 @@ async fn session_ui_projection_open_scroll_probe() {
 fn browser_and_request_polling_reuse_sidebar_without_hiding_metadata_updates() {
     use crate::app::message::ChatMessage;
     let mut app = App::new().0;
-    app.recent_projects = vec!["/workspace".into()];
-    app.project_sessions
+    app.workspace_state.recent_projects = vec!["/workspace".into()];
+    app.workspace_state.project_sessions
         .insert("/workspace".into(), vec![session("task", "Task", "/workspace", 1)]);
-    app.active_session_id = Some("task".into());
+    app.session_state.active_session_id = Some("task".into());
     app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
     let snapshot = work_sidebar::cached_model(&app);
     for _ in 0..30 {

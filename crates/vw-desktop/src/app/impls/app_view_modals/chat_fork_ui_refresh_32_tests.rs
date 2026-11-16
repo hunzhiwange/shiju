@@ -222,11 +222,11 @@ fn find_layout<'a>(
 }
 
 fn prepare_chat(app: &mut App) {
-    app.active_session_id = Some("source".into());
+    app.session_state.active_session_id = Some("source".into());
     app.navigation_tabs.project_path = Some("/fixture/source".into());
-    app.project_is_git_repo = true;
-    app.sessions = vec![session_info("source", "/fixture/source")];
-    app.chat = [ChatRole::User, ChatRole::Tool, ChatRole::User]
+    app.workspace_state.project_is_git_repo = true;
+    app.session_state.sessions = vec![session_info("source", "/fixture/source")];
+    app.chat_view.chat = [ChatRole::User, ChatRole::Tool, ChatRole::User]
         .into_iter()
         .map(|role| TranscriptMessage {
             role,
@@ -236,11 +236,11 @@ fn prepare_chat(app: &mut App) {
             processing_timing: None,
         })
         .collect();
-    app.chat_message_ids =
+    app.chat_view.chat_message_ids =
         vec![Some("first-turn".into()), Some("tool-row".into()), Some("second-turn".into())];
     let anchor = crate::app::message::chat::fork_session_anchor_from_user_row(app, 2);
     let _ = crate::app::message::chat::update(app, ChatMessage::OpenForkSessionDialog(anchor));
-    app.chat_reset_menu_idx = Some(1);
+    app.session_state.chat_reset_menu_idx = Some(1);
 }
 
 fn session_info(id: &str, directory: &str) -> session_info::Info {
@@ -262,7 +262,7 @@ fn click_user_fork(app: &mut App, renderer: &mut Renderer, row: usize) -> ChatMe
 
     let cache = ChatRenderCacheEntry::default();
     let build = || {
-        let message = &app.chat[row];
+        let message = &app.chat_view.chat[row];
         message_view(app, row, message.role, &message.content, &[], None, None, &cache, false)
     };
     let mut element = build();
@@ -286,7 +286,7 @@ fn click_user_fork(app: &mut App, renderer: &mut Renderer, row: usize) -> ChatMe
 
 fn click_fork_target(app: &App, renderer: &mut Renderer, target: ForkSessionTarget) -> ChatMessage {
     let mut ui = scene(with_chat_fork_dialog(app, root()), renderer, VIEW_SIZE);
-    let i18n = I18n::new(app.desktop_locale);
+    let i18n = I18n::new(app.general_settings.desktop_locale);
     let title = match target {
         ForkSessionTarget::Local => "在当前目录中打开新会话",
         ForkSessionTarget::NewWorktree => "分叉到新工作树",
@@ -335,7 +335,7 @@ fn fork_tool_block() -> String {
 }
 
 fn assert_projected_fork(app: &App) {
-    let [user, assistant] = app.chat.as_slice() else {
+    let [user, assistant] = app.chat_view.chat.as_slice() else {
         panic!("expected only the retained user and assistant");
     };
     assert_eq!(user.role, ChatRole::User);
@@ -343,7 +343,7 @@ fn assert_projected_fork(app: &App) {
     assert_eq!(assistant.role, ChatRole::Assistant);
     assert_eq!(assistant.content, fork_tool_block());
     assert_eq!(
-        app.chat_message_ids,
+        app.chat_view.chat_message_ids,
         [Some("retained-user".into()), Some("retained-assistant".into())]
     );
 }
@@ -522,9 +522,9 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
         let (tx, mut requests) = tokio::sync::mpsc::unbounded_channel();
         let server = tokio::spawn(serve_fork_gateway(listener, id, directory, reject, tx));
         prepare_chat(&mut app);
-        app.chat_fork_dialog = None;
+        app.session_state.chat_fork_dialog = None;
         app.current_session_runtime_mut().input_editor = iced::widget::text_editor::Content::new();
-        app.chat = [
+        app.chat_view.chat = [
             (ChatRole::User, FORK_USER.to_owned()),
             (ChatRole::Assistant, fork_tool_block()),
             (ChatRole::User, FORK_SECOND.to_owned()),
@@ -541,7 +541,7 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
             processing_timing: None,
         })
         .collect();
-        app.chat_message_ids = [
+        app.chat_view.chat_message_ids = [
             "retained-user",
             "retained-assistant",
             "second-turn",
@@ -553,12 +553,12 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
         .to_vec();
 
         // A missing user ID must not trigger any writes or borrow the tool row's ID.
-        app.chat_message_ids[2] = None;
+        app.chat_view.chat_message_ids[2] = None;
         let open = click_user_fork(&mut app, &mut renderer, 2);
         let _ = chat::update(&mut app, open);
-        assert!(app.chat_fork_dialog.is_none());
+        assert!(app.session_state.chat_fork_dialog.is_none());
         assert!(requests.try_recv().is_err());
-        app.chat_message_ids[2] = Some("second-turn".into());
+        app.chat_view.chat_message_ids[2] = Some("second-turn".into());
 
         let (row, turn_id, prompt) = if id == "first" {
             (0, "retained-user", FORK_USER)
@@ -567,19 +567,19 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
         };
         let open = click_user_fork(&mut app, &mut renderer, row);
         let _ = chat::update(&mut app, open);
-        assert_eq!(app.chat_fork_dialog.as_ref().unwrap().anchor.user_message_id, turn_id);
+        assert_eq!(app.session_state.chat_fork_dialog.as_ref().unwrap().anchor.user_message_id, turn_id);
 
         // Paging can change the rows while the modal is open.
-        app.chat.remove(0);
-        app.chat_message_ids.remove(0);
+        app.chat_view.chat.remove(0);
+        app.chat_view.chat_message_ids.remove(0);
         let confirm = click_fork_target(&app, &mut renderer, target);
         let task = chat::update(&mut app, confirm.clone());
-        assert_eq!(app.active_session_id.as_deref(), Some("source"));
+        assert_eq!(app.session_state.active_session_id.as_deref(), Some("source"));
         assert!(iced_runtime::task::into_stream(chat::update(&mut app, confirm)).is_none());
         if id == "first" {
             let mut progress = scene(with_chat_fork_dialog(&app, root()), &mut renderer, VIEW_SIZE);
             let bounds = geometry(&mut progress, &renderer);
-            let i18n = I18n::new(app.desktop_locale);
+            let i18n = I18n::new(app.general_settings.desktop_locale);
             label(&bounds, i18n.__("正在分叉会话…"));
             assert!(key(&mut progress, &mut renderer, Key::Named(Named::Escape), None).is_empty());
             for (theme, mode) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
@@ -614,46 +614,46 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
         }
         assert!(requests.try_recv().is_err());
         if switch_while_pending {
-            app.active_session_id = Some("other".into());
+            app.session_state.active_session_id = Some("other".into());
         }
         let _ = chat::update(&mut app, finished);
-        assert!(app.chat_fork_dialog.is_none());
+        assert!(app.session_state.chat_fork_dialog.is_none());
 
         if switch_while_pending {
-            assert_eq!(app.active_session_id.as_deref(), Some("other"));
+            assert_eq!(app.session_state.active_session_id.as_deref(), Some("other"));
         } else if reject {
-            assert_eq!(app.active_session_id.as_deref(), Some("source"));
-            assert_eq!(app.chat_message_ids[1].as_deref(), Some("second-turn"));
+            assert_eq!(app.session_state.active_session_id.as_deref(), Some("source"));
+            assert_eq!(app.chat_view.chat_message_ids[1].as_deref(), Some("second-turn"));
             assert_eq!(
-                app.active_toast.as_ref().unwrap().kind,
+                app.toast_state.active_toast.as_ref().unwrap().kind,
                 crate::app::state::ToastKind::Error
             );
         } else {
-            assert_eq!(app.active_session_id.as_deref(), Some(id));
+            assert_eq!(app.session_state.active_session_id.as_deref(), Some(id));
             assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/fixture/source"));
             assert_eq!(app.known_session_directory(id).as_deref(), Some(directory));
-            assert!(app.sessions.iter().any(|info| info.id == id));
-            assert!(app.project_sessions["/fixture/source"].iter().any(|info| info.id == id));
+            assert!(app.session_state.sessions.iter().any(|info| info.id == id));
+            assert!(app.workspace_state.project_sessions["/fixture/source"].iter().any(|info| info.id == id));
             if target == ForkSessionTarget::NewWorktree {
-                assert!(!app.recent_projects.iter().any(|path| path == directory));
-                assert!(!app.project_sessions.contains_key(directory));
+                assert!(!app.workspace_state.recent_projects.iter().any(|path| path == directory));
+                assert!(!app.workspace_state.project_sessions.contains_key(directory));
             }
             assert_eq!(app.current_session_runtime().input_editor.text(), prompt);
             if id == "first" {
-                assert!(app.chat.is_empty());
+                assert!(app.chat_view.chat.is_empty());
             } else {
                 assert_projected_fork(&app);
             }
             assert_eq!(
-                app.active_toast.as_ref().unwrap().kind,
+                app.toast_state.active_toast.as_ref().unwrap().kind,
                 crate::app::state::ToastKind::Success
             );
 
-            app.active_session_id = None;
-            app.chat.clear();
-            app.session_view_cache.remove(id);
-            app.session_chat_cache.remove(id);
-            app.session_chat_message_id_cache.remove(id);
+            app.session_state.active_session_id = None;
+            app.chat_view.chat.clear();
+            app.session_state.session_view_cache.remove(id);
+            app.session_state.session_chat_cache.remove(id);
+            app.session_state.session_chat_message_id_cache.remove(id);
             let task = project::update(
                 &mut app,
                 ProjectMessage::OpenProjectSessionPressed(directory.into(), id.into()),
@@ -669,7 +669,7 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
             assert_fork_readback(&mut requests, id, directory);
             assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/fixture/source"));
             if id == "first" {
-                assert!(app.chat.is_empty());
+                assert!(app.chat_view.chat.is_empty());
             } else {
                 assert_projected_fork(&app);
             }
@@ -706,12 +706,12 @@ async fn ui_refresh_32_invalid_file_name_feedback_keeps_inline_editor() {
         return;
     }
     let mut app = fixture();
-    app.desktop_locale = DesktopLocale::English;
+    app.general_settings.desktop_locale = DesktopLocale::English;
     app.file_tree_interaction.file_tree_rename_path = Some("/fixture/original.txt".into());
     app.file_tree_interaction.file_tree_rename_value = "../wrong".into();
     let mut renderer = renderer().await;
     app.navigation_tabs.project_path = Some("/fixture".into());
-    app.file_index_cache.insert("/fixture".into(), vec!["/fixture/original.txt".into()]);
+    app.workspace_state.file_index_cache.insert("/fixture".into(), vec!["/fixture/original.txt".into()]);
     let mut ui = scene(crate::app::components::file_tree::view(&app), &mut renderer, VIEW_SIZE);
     let input = geometry(&mut ui, &renderer).inputs[0].1;
     assert!(click(&mut ui, &mut renderer, input.center()).is_empty());
@@ -727,7 +727,7 @@ async fn ui_refresh_32_invalid_file_name_feedback_keeps_inline_editor() {
         Some("/fixture/original.txt")
     );
     assert_eq!(app.file_tree_interaction.file_tree_rename_value, "../wrong");
-    let toast = app.active_toast.as_ref().expect("invalid file name must be visible");
+    let toast = app.toast_state.active_toast.as_ref().expect("invalid file name must be visible");
     assert!(matches!(toast.kind, crate::app::state::ToastKind::Error));
     let theme = Theme::Dark;
     let mut ui = scene(app.view(), &mut renderer, VIEW_SIZE);
@@ -766,10 +766,10 @@ async fn fork_selection_reopen_gateway_reads_worktree_authority() {
     let server =
         tokio::spawn(serve_fork_gateway(listener, "reopen", "/fixture/worktree", false, tx));
     app.navigation_tabs.project_path = Some("/fixture/source".into());
-    app.active_session_id = Some("source".into());
+    app.session_state.active_session_id = Some("source".into());
     let mut cached = session_info("reopen", "/fixture/worktree");
     cached.fork_execution_started = Some(false);
-    app.sessions = vec![cached];
+    app.session_state.sessions = vec![cached];
     app.get_session_runtime_mut("reopen").input_editor =
         iced::widget::text_editor::Content::with_text("未发送草稿");
     let task = project::update(
@@ -785,7 +785,7 @@ async fn fork_selection_reopen_gateway_reads_worktree_authority() {
     assert_eq!(request.path, "/v1/session/reopen?directory=/fixture/worktree");
     let Message::Project(resolved) = resolved else { unreachable!() };
     let _ = project::update(&mut app, resolved);
-    assert_eq!(app.active_session_id.as_deref(), Some("reopen"));
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("reopen"));
     assert!(!app.current_session_has_started());
     assert_eq!(app.current_session_runtime().input_editor.text(), "未发送草稿");
     server.abort();

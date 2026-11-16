@@ -40,7 +40,13 @@ pub(super) fn build_startup_task(app: &mut App) -> Task<Message> {
                 Message::BootstrapAcpAgentsLoaded,
             ),
             Task::perform(
-                async move { desktop_session::session_gateway::gateway_load_archived_session_ids_async(crate::app::config::gateway_client_endpoint(), None).await },
+                async move {
+                    desktop_session::session_gateway::gateway_load_archived_session_ids_async(
+                        crate::app::config::gateway_client_endpoint(),
+                        None,
+                    )
+                    .await
+                },
                 Message::BootstrapArchivedSessions,
             ),
             Task::perform(
@@ -52,7 +58,12 @@ pub(super) fn build_startup_task(app: &mut App) -> Task<Message> {
                 },
             ),
             Task::perform(
-                async move { desktop_session::session_gateway::gateway_external_apps_async(crate::app::config::gateway_client_endpoint()).await },
+                async move {
+                    desktop_session::session_gateway::gateway_external_apps_async(
+                        crate::app::config::gateway_client_endpoint(),
+                    )
+                    .await
+                },
                 Message::ExternalAppsLoaded,
             ),
             app.reload_sessions_for_project(None),
@@ -64,42 +75,13 @@ pub(super) fn build_startup_task(app: &mut App) -> Task<Message> {
 mod startup_tests;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(in crate::app) use native::StartupConfiguration;
+pub(in crate::app) use desktop_settings_network::startup::StartupConfiguration;
 #[cfg(not(target_arch = "wasm32"))]
 pub use desktop_settings_network::startup::StartupGatewaySnapshot;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod native {
     use super::*;
-
-    /// Adapt domain tasks and endpoint checks to the desktop's global messages.
-    #[derive(Default)]
-    pub(crate) struct StartupConfiguration(desktop_settings_network::startup::StartupConfiguration);
-
-    impl std::ops::Deref for StartupConfiguration {
-        type Target = desktop_settings_network::startup::StartupConfiguration;
-        fn deref(&self) -> &Self::Target { &self.0 }
-    }
-
-    impl std::ops::DerefMut for StartupConfiguration {
-        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
-    }
-
-    impl StartupConfiguration {
-        pub(crate) fn load(&mut self) -> Task<Message> {
-            self.0.load(config::gateway_client_endpoint()).map(|(generation, snapshot)| {
-                Message::StartupGatewaySnapshotLoaded(generation, snapshot)
-            })
-        }
-
-        pub(crate) fn accept(&mut self, generation: u64, snapshot: &StartupGatewaySnapshot) -> bool {
-            self.0.accept(generation, snapshot, &config::gateway_client_endpoint())
-        }
-
-        pub(crate) fn accept_sessions(&mut self, generation: u64, succeeded: bool) -> bool {
-            self.0.accept_sessions(generation, succeeded, &config::gateway_client_endpoint())
-        }
-    }
 
     impl App {
         pub(crate) fn note_startup_setting_edit(&mut self, field: &'static str) {
@@ -117,13 +99,18 @@ mod native {
             mut snapshot: HashMap<String, bool>,
         ) {
             let scope = config::preferences_scope(&config::gateway_client_endpoint());
-            self.startup_configuration.merge_worktrees(&scope, &mut snapshot, &self.project_worktree_enabled);
+            self.startup_configuration.merge_worktrees(
+                &scope,
+                &mut snapshot,
+                &self.workspace_state.project_worktree_enabled,
+            );
             if !self.project_editor.project_edit_worktree_dirty
                 && let Some(path) = self.project_editor.project_edit_path.as_ref()
             {
-                self.project_editor.project_edit_worktree_enabled = snapshot.get(path).copied().unwrap_or(false);
+                self.project_editor.project_edit_worktree_enabled =
+                    snapshot.get(path).copied().unwrap_or(false);
             }
-            self.project_worktree_enabled = snapshot;
+            self.workspace_state.project_worktree_enabled = snapshot;
         }
     }
 }

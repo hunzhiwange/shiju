@@ -278,8 +278,8 @@ async fn assert_contextual_help(tab: Option<ModelConfigTab>, count: usize, descr
         (DesktopLocale::SimplifiedChinese, Theme::Dark, 640),
         (DesktopLocale::TraditionalChinese, Theme::Light, 520),
     ] {
-        app.desktop_locale = locale;
-        app.app_theme = theme.clone();
+        app.general_settings.desktop_locale = locale;
+        app.appearance.app_theme = theme.clone();
         let element = if let Some(tab) = tab {
             app.model_settings.active_tab = tab;
             crate::app::components::system_settings_models::view(&app)
@@ -383,8 +383,8 @@ async fn settings_help_gap_04_preserves_multimodal_controls_and_catalog_feedback
     use system_settings_multimodal::system_settings_multimodal_tests::{model, provider};
 
     let mut app = fixture();
-    app.desktop_locale = DesktopLocale::English;
-    app.app_theme = Theme::Dark;
+    app.general_settings.desktop_locale = DesktopLocale::English;
+    app.appearance.app_theme = Theme::Dark;
     app.model_settings.active_tab = ModelConfigTab::Multimodal;
     app.model_settings.providers = vec![provider(
         "fixture",
@@ -479,9 +479,9 @@ async fn settings_help_gap_04_migrates_only_static_multimodal_copy() {
         DesktopLocale::TraditionalChinese,
         DesktopLocale::English,
     ] {
-        app.desktop_locale = locale;
+        app.general_settings.desktop_locale = locale;
         for theme in [Theme::Light, Theme::Dark] {
-            app.app_theme = theme.clone();
+            app.appearance.app_theme = theme.clone();
             for width in [420, 960] {
                 let i18n = I18n::new(locale);
                 let mut scene = Scene::new(

@@ -39,7 +39,7 @@ fn cc_control_19_save_failure_displays_error_and_requests_readback() {
     assert!(!app.computer_control_settings.saving);
     assert!(app.computer_control_settings.loading);
     assert!(app.computer_control_settings.status.is_none());
-    assert_eq!(app.active_toast.as_ref().unwrap().message, "保存失败");
+    assert_eq!(app.toast_state.active_toast.as_ref().unwrap().message, "保存失败");
 }
 #[test]
 fn cc_control_19_navigation_has_independent_entry() {
@@ -56,5 +56,5 @@ fn cc_control_19_stop_failure_does_not_claim_success() {
     app.computer_control_settings.stopping = true;
     let _task = update(&mut app, Event::Stopped { identity, result: Err("停止请求失败".into()) });
     assert!(!app.computer_control_settings.stopping);
-    assert_eq!(app.active_toast.as_ref().unwrap().message, "停止请求失败");
+    assert_eq!(app.toast_state.active_toast.as_ref().unwrap().message, "停止请求失败");
 }

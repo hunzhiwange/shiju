@@ -38,11 +38,11 @@ fn update_routes_tab_message_to_tab_handler() {
 #[test]
 fn update_routes_editor_message_to_editor_handler() {
     let mut app = crate::app::App::new().0;
-    app.show_preview_fullscreen_overlay = false;
+    app.preview_state.show_preview_fullscreen_overlay = false;
 
     let _ = super::update(&mut app, super::PreviewMessage::FullscreenOverlayEntered);
 
-    assert!(app.show_preview_fullscreen_overlay);
+    assert!(app.preview_state.show_preview_fullscreen_overlay);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -53,12 +53,12 @@ fn update_routes_editor_message_to_editor_handler() {
 fn update_routes_editor_mouse_message_to_editor_handler() {
     let mut app = crate::app::App::new().0;
     app.navigation_tabs.active_preview_path = Some("/tmp/a.rs".to_string());
-    app.lsp_overlay_path = Some("/tmp/a.rs".to_string());
-    app.lsp_hover_hide_deadline = Some(std::time::Instant::now());
+    app.preview_state.lsp_overlay_path = Some("/tmp/a.rs".to_string());
+    app.preview_state.lsp_hover_hide_deadline = Some(std::time::Instant::now());
 
     let _ = super::update(&mut app, super::PreviewMessage::EditorMouseEntered);
 
-    assert!(app.lsp_hover_hide_deadline.is_none());
+    assert!(app.preview_state.lsp_hover_hide_deadline.is_none());
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -66,15 +66,15 @@ fn update_routes_editor_mouse_message_to_editor_handler() {
 #[test]
 fn update_routes_lsp_message_to_editor_handler() {
     let mut app = crate::app::App::new().0;
-    app.lsp_overlay.all_completions = vec!["item".to_string()];
-    app.lsp_overlay.completion_items = vec!["item".to_string()];
-    app.lsp_overlay.completion_visible = true;
+    app.preview_state.lsp_overlay.all_completions = vec!["item".to_string()];
+    app.preview_state.lsp_overlay.completion_items = vec!["item".to_string()];
+    app.preview_state.lsp_overlay.completion_visible = true;
 
     let _ = super::update(&mut app, super::PreviewMessage::LspCompletionClosed);
 
-    assert!(app.lsp_overlay.all_completions.is_empty());
-    assert!(app.lsp_overlay.completion_items.is_empty());
-    assert!(!app.lsp_overlay.completion_visible);
+    assert!(app.preview_state.lsp_overlay.all_completions.is_empty());
+    assert!(app.preview_state.lsp_overlay.completion_items.is_empty());
+    assert!(!app.preview_state.lsp_overlay.completion_visible);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -84,7 +84,7 @@ fn update_routes_lsp_message_to_editor_handler() {
 #[test]
 fn tick_lsp_routes_to_lsp_tick_when_disabled() {
     let mut app = crate::app::App::new().0;
-    app.lsp_disabled = true;
+    app.preview_state.lsp_disabled = true;
     let initial_spinner_frame = app.spinner_frame;
 
     let _ = super::tick_lsp(&mut app);

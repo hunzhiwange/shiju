@@ -16,7 +16,7 @@ async fn desktop_gettext_area_15_failed_skip_preserves_error_and_switches_langua
             Err(raw.into()),
         ),
     );
-    let toast = app.active_toast.as_ref().expect("failure feedback");
+    let toast = app.toast_state.active_toast.as_ref().expect("failure feedback");
     let message = toast.localized_message.as_ref().expect("semantic feedback");
     for (locale, prefix) in [
         (DesktopLocale::SimplifiedChinese, "跳过版本未保存："),

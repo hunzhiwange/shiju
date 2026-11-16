@@ -23,7 +23,7 @@ pub use desktop_session::message::chat::session::PendingSessionSend;
 fn clear_quick_message_handoff_for_request(app: &mut App, request_id: u64) {
     use desktop_session::message::chat::git_handoff::{GitHandoffEffect, clear_for_request};
     if matches!(
-        clear_for_request(&mut app.quick_message_handoff, request_id),
+        clear_for_request(&mut app.session_state.quick_message_handoff, request_id),
         GitHandoffEffect::ClearCommitInProgress
     ) {
         app.git.git_commit_in_progress = false;
@@ -31,7 +31,7 @@ fn clear_quick_message_handoff_for_request(app: &mut App, request_id: u64) {
 }
 
 fn current_session_directory(app: &App) -> Option<String> {
-    app.active_session_id.as_deref().and_then(|id| app.known_session_directory(id))
+    app.session_state.active_session_id.as_deref().and_then(|id| app.known_session_directory(id))
 }
 
 fn base_tools_for_selection(app: &mut App) -> Vec<String> {
@@ -45,11 +45,11 @@ fn base_tools_for_selection(app: &mut App) -> Vec<String> {
 
 fn dispatch_queue_item(app: &mut App, item: QueueItem) -> Task<Message> {
     use desktop_session::message::chat::lifecycle::{DispatchEffect, dispatch};
-    let active = app.active_session_id.is_some();
+    let active = app.session_state.active_session_id.is_some();
     match dispatch(app.current_session_runtime_mut(), item, active) {
         DispatchEffect::None => Task::none(),
         DispatchEffect::StopDraft => {
-            let Some(session_id) = app.active_session_id.clone() else {
+            let Some(session_id) = app.session_state.active_session_id.clone() else {
                 return Task::none();
             };
             stream::stop_agent_stream(app, &session_id)
@@ -88,23 +88,23 @@ fn persist_acp_history_preferences(
     mode: crate::app::state::AcpHistoryReplayMode,
     recent_count: usize,
 ) -> Task<Message> {
-    app.acp_history_mode = mode;
-    app.acp_recent_count = recent_count.clamp(1, 20);
+    app.session_state.acp_history_mode = mode;
+    app.session_state.acp_recent_count = recent_count.clamp(1, 20);
 
     app.save_desktop_preferences(
         desktop_session::message::chat::preferences::acp_history_preferences(
             mode,
-            app.acp_recent_count,
+            app.session_state.acp_recent_count,
         ),
     )
 }
 
 fn persist_session_reasoning_effort(app: &mut App) -> Task<Message> {
-    let Some(session_id) = app.active_session_id.clone() else {
+    let Some(session_id) = app.session_state.active_session_id.clone() else {
         return Task::none();
     };
     let effort = app.current_session_runtime().reasoning_effort;
-    app.session_reasoning_efforts.insert(session_id.clone(), effort);
+    app.session_state.session_reasoning_efforts.insert(session_id.clone(), effort);
     app.save_desktop_preference(
         "session_reasoning_efforts",
         serde_json::json!({session_id: effort}),
@@ -112,7 +112,7 @@ fn persist_session_reasoning_effort(app: &mut App) -> Task<Message> {
 }
 
 fn message_id_for_index(app: &App, msg_idx: usize) -> Option<String> {
-    message_id_for_index_in_ids(&app.chat_message_ids, msg_idx)
+    message_id_for_index_in_ids(&app.chat_view.chat_message_ids, msg_idx)
 }
 
 fn recover_reset_message_ids_task(
@@ -156,41 +156,41 @@ fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> T
     let root = current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
     let (retained_chat, retained_message_ids) =
         desktop_session::message::chat::lifecycle::retain_history(
-            &app.chat,
-            &app.chat_message_ids,
+            &app.chat_view.chat,
+            &app.chat_view.chat_message_ids,
             msg_idx,
         );
 
-    app.chat_reset_menu_idx = None;
-    app.chat_fork_dialog = None;
+    app.session_state.chat_reset_menu_idx = None;
+    app.session_state.chat_fork_dialog = None;
     app.mark_session_acp_rebuild_required(&session_id);
-    app.active_session_id = Some(session_id.clone());
-    app.chat = retained_chat;
-    app.chat_message_ids = retained_message_ids;
-    app.mark_session_history_reset_boundary(session_id.clone(), app.chat_message_ids.clone());
-    let retained_history = app.chat.clone();
+    app.session_state.active_session_id = Some(session_id.clone());
+    app.chat_view.chat = retained_chat;
+    app.chat_view.chat_message_ids = retained_message_ids;
+    app.mark_session_history_reset_boundary(session_id.clone(), app.chat_view.chat_message_ids.clone());
+    let retained_history = app.chat_view.chat.clone();
     reset_runtime_history_snapshots(app, &session_id, &retained_history);
     app.invalidate_chat_ui_state();
     app.sync_active_session_preferences();
     app.rebuild_active_session_message_meta();
     app.store_session_chat_snapshot(
         session_id.clone(),
-        crate::app::session::shared_chat_messages(app.chat.clone()),
-        app.chat_message_ids.clone(),
+        crate::app::session::shared_chat_messages(app.chat_view.chat.clone()),
+        app.chat_view.chat_message_ids.clone(),
     );
     app.sync_active_session_from_chat();
-    let history_len = app.chat.len();
+    let history_len = app.chat_view.chat.len();
     if let Some(draft) = app.get_session_runtime_mut(&session_id).draft.as_mut() {
         draft.history_len = draft.history_len.min(history_len);
         return Task::none();
     }
 
     let now =
-        crate::app::time::now_ms().max(app.active_session_view_state.updated_ms.saturating_add(1));
-    app.active_session_view_state.updated_ms = now;
+        crate::app::time::now_ms().max(app.chat_view.active_session_view_state.updated_ms.saturating_add(1));
+    app.chat_view.active_session_view_state.updated_ms = now;
     let seq_base = app.get_session_runtime(&session_id).stream_save.seq_base;
-    let boundary = app.chat.last().cloned();
-    let boundary_id = app.chat_message_ids.last().cloned().flatten();
+    let boundary = app.chat_view.chat.last().cloned();
+    let boundary_id = app.chat_view.chat_message_ids.last().cloned().flatten();
     Task::perform(
         async move {
             let reset = desktop_session::message::chat::session::HistoryReset::new(
@@ -223,8 +223,8 @@ fn restore_cached_chat_for_session(app: &mut App, session_id: &str) {
     let cached = app.cached_chat_messages(session_id).map(|chat| chat.to_vec());
     let cached_ids = app.cached_chat_message_ids(session_id);
     desktop_session::message::chat::lifecycle::restore_cached_chat(
-        &mut app.chat,
-        &mut app.chat_message_ids,
+        &mut app.chat_view.chat,
+        &mut app.chat_view.chat_message_ids,
         cached.as_deref(),
         cached_ids,
     );
@@ -236,7 +236,7 @@ fn send_to_existing_session(app: &mut App, session_id: String, input: String) ->
         return Task::none();
     }
 
-    if app.active_session_id.as_deref() != Some(session_id.as_str())
+    if app.session_state.active_session_id.as_deref() != Some(session_id.as_str())
         && app.cached_chat_messages(&session_id).is_none()
     {
         let Some(directory) = app.known_session_directory(&session_id) else {
@@ -261,15 +261,15 @@ fn send_to_existing_session(app: &mut App, session_id: String, input: String) ->
         );
     }
 
-    if app.active_session_id.as_deref() == Some(session_id.as_str()) {
+    if app.session_state.active_session_id.as_deref() == Some(session_id.as_str()) {
         let runtime = app.get_session_runtime_mut(&session_id);
         runtime.input_editor = iced::widget::text_editor::Content::with_text(&input);
         return send_current_session_text_only(app);
     }
 
-    let previous_session_id = app.active_session_id.clone();
-    let previous_chat = app.chat.clone();
-    let previous_message_ids = app.chat_message_ids.clone();
+    let previous_session_id = app.session_state.active_session_id.clone();
+    let previous_chat = app.chat_view.chat.clone();
+    let previous_message_ids = app.chat_view.chat_message_ids.clone();
     if let Some(previous_id) = previous_session_id.clone() {
         app.store_session_chat_snapshot(
             previous_id,
@@ -278,7 +278,7 @@ fn send_to_existing_session(app: &mut App, session_id: String, input: String) ->
         );
     }
 
-    app.active_session_id = Some(session_id.clone());
+    app.session_state.active_session_id = Some(session_id.clone());
     restore_cached_chat_for_session(app, &session_id);
     app.invalidate_chat_ui_state();
     let runtime = app.get_session_runtime_mut(&session_id);
@@ -287,18 +287,18 @@ fn send_to_existing_session(app: &mut App, session_id: String, input: String) ->
     let task = send_current_session_text_only(app);
     app.store_session_chat_snapshot(
         session_id,
-        crate::app::session::shared_chat_messages(app.chat.clone()),
-        app.chat_message_ids.clone(),
+        crate::app::session::shared_chat_messages(app.chat_view.chat.clone()),
+        app.chat_view.chat_message_ids.clone(),
     );
 
-    app.active_session_id = previous_session_id;
-    app.chat = previous_chat;
-    app.chat_message_ids = previous_message_ids;
-    if let Some(previous_id) = app.active_session_id.clone() {
+    app.session_state.active_session_id = previous_session_id;
+    app.chat_view.chat = previous_chat;
+    app.chat_view.chat_message_ids = previous_message_ids;
+    if let Some(previous_id) = app.session_state.active_session_id.clone() {
         app.store_session_chat_snapshot(
             previous_id,
-            crate::app::session::shared_chat_messages(app.chat.clone()),
-            app.chat_message_ids.clone(),
+            crate::app::session::shared_chat_messages(app.chat_view.chat.clone()),
+            app.chat_view.chat_message_ids.clone(),
         );
     }
     app.invalidate_chat_ui_state();
@@ -308,22 +308,22 @@ fn send_to_existing_session(app: &mut App, session_id: String, input: String) ->
 }
 
 fn send_current_session_text_only(app: &mut App) -> Task<Message> {
-    let previous_files = std::mem::take(&mut app.files);
+    let previous_files = std::mem::take(&mut app.session_state.files);
     let task = send_current_session_input(app);
-    app.files = previous_files;
+    app.session_state.files = previous_files;
     task
 }
 
 fn session_info_is_compacting(app: &App, session_id: &str) -> bool {
     desktop_session::message::chat::session::session_info_is_compacting(
-        app.sessions.iter().chain(app.project_sessions.values().flatten()),
+        app.session_state.sessions.iter().chain(app.workspace_state.project_sessions.values().flatten()),
         session_id,
     )
 }
 
 fn set_session_compacting(app: &mut App, session_id: &str, compacting: Option<u64>) {
     desktop_session::message::chat::session::set_session_compacting(
-        app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten()),
+        app.session_state.sessions.iter_mut().chain(app.workspace_state.project_sessions.values_mut().flatten()),
         session_id,
         compacting,
     );
@@ -357,9 +357,9 @@ fn request_session_compaction_confirmation(
     }
 
     app.popover_visibility.session_actions = false;
-    app.session_menu_id = None;
-    app.session_menu_anchor = None;
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    app.workspace_state.session_menu_id = None;
+    app.workspace_state.session_menu_anchor = None;
+    let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
     Task::perform(
         async move {
             let result =
@@ -472,7 +472,7 @@ fn generate_git_commit_message(
         &action,
         app.git.git_commit_in_progress,
         app.current_session_is_requesting(),
-        app.quick_message_handoff.is_some(),
+        app.session_state.quick_message_handoff.is_some(),
         app.current_session_runtime().task_mode_enabled,
         &app.git.staged_files_selected,
         &app.git.staged_hunks_selected,
@@ -492,7 +492,7 @@ fn generate_git_commit_message(
     app.current_session_runtime_mut().input_editor =
         iced::widget::text_editor::Content::with_text(&prompt);
     let task = send_current_session_text_only(app);
-    let Some(source_session_id) = app.active_session_id.clone() else {
+    let Some(source_session_id) = app.session_state.active_session_id.clone() else {
         return task;
     };
     let request_id = app
@@ -505,7 +505,7 @@ fn generate_git_commit_message(
     if let GitHandoffEffect::Waiting(state) =
         begin_handoff(request_id, source_session_id, project_path, action)
     {
-        app.quick_message_handoff = Some(state);
+        app.session_state.quick_message_handoff = Some(state);
         app.git.git_commit_in_progress = true;
     }
     task
@@ -514,14 +514,14 @@ fn generate_git_commit_message(
 /// 当前活动会话是否由 plan-run 创建。
 fn active_session_is_plan_run_child(app: &App) -> bool {
     desktop_session::message::chat::preferences::is_plan_run_child(
-        app.active_session_id.as_deref(),
+        app.session_state.active_session_id.as_deref(),
         app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_plan_run_session),
-        app.sessions.iter().chain(app.project_sessions.values().flatten()),
+        app.session_state.sessions.iter().chain(app.workspace_state.project_sessions.values().flatten()),
     )
 }
 
 fn check_agent_installation(app: &App, backend: String, query: Option<String>) -> Task<Message> {
-    let session_id = app.active_session_id.clone();
+    let session_id = app.session_state.active_session_id.clone();
     let agent = app.current_session_runtime().agent.clone();
     Task::perform(
         async {
@@ -554,9 +554,9 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
 fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
     if let Some(message) = desktop_session::message::chat::lifecycle::send_gate(
         app.current_session_runtime_ref(),
-        app.active_session_id.is_some(),
-        app.active_session_view_state.ui_preparing,
-        app.active_session_view_state.base_ready,
+        app.session_state.active_session_id.is_some(),
+        app.chat_view.active_session_view_state.ui_preparing,
+        app.chat_view.active_session_view_state.base_ready,
     ) {
         return app.show_error_toast(message);
     }
@@ -566,8 +566,8 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
     request_runtime.tool_selector.clear_manual_context_selection();
     let allowed_tools = app.session_allowed_tools_for_request(&request_runtime);
     let plan_run_child = active_session_is_plan_run_child(app);
-    let behavior = app.chat_send_behavior;
-    let mut files = std::mem::take(&mut app.files);
+    let behavior = app.session_state.chat_send_behavior;
+    let mut files = std::mem::take(&mut app.session_state.files);
     let effect = prepare_send_input(
         app.current_session_runtime_mut(),
         &mut files,
@@ -577,12 +577,12 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
         behavior,
         crate::app::time::now_ms(),
     );
-    app.files = files;
+    app.session_state.files = files;
     match effect {
         SendInputEffect::None => Task::none(),
         SendInputEffect::InlineMode => {
-            if app.active_session_id.is_none() {
-                app.input_editor = app.current_session_runtime().input_editor;
+            if app.session_state.active_session_id.is_none() {
+                app.session_state.input_editor = app.current_session_runtime().input_editor;
             }
             Task::none()
         }
@@ -638,18 +638,18 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let current = pending_project_is_current(
                 app.navigation_tabs.project_path.as_deref(),
                 &project_path,
-                app.agent_stream_id,
+                app.session_state.agent_stream_id,
                 stream_id,
-                app.active_session_id.as_deref(),
+                app.session_state.active_session_id.as_deref(),
             );
             match resolve_pending_send(current, *pending, result) {
                 ProjectResolutionEffect::Ignore => Task::none(),
                 ProjectResolutionEffect::Resume { project_id, pending } => {
-                    app.project_id = Some(project_id);
+                    app.workspace_state.project_id = Some(project_id);
                     start(app, pending.item, pending.keep)
                 }
                 ProjectResolutionEffect::Failed { attachments, error } => {
-                    app.files.extend(attachments);
+                    app.session_state.files.extend(attachments);
                     app.push_localized_notification(
                         "解析项目失败，无法创建会话: %s",
                         vec![error.into()],
@@ -680,9 +680,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 let runtime = app.get_session_runtime_mut(&session_id);
                 runtime.stream_save.seq_base = 0;
                 runtime.stream_save.expected_updated_ms = loaded.updated_ms;
-                if app.active_session_id.as_deref() == Some(session_id.as_str()) {
-                    app.chat = loaded.messages.clone();
-                    app.chat_message_ids = loaded.message_ids.clone();
+                if app.session_state.active_session_id.as_deref() == Some(session_id.as_str()) {
+                    app.chat_view.chat = loaded.messages.clone();
+                    app.chat_view.chat_message_ids = loaded.message_ids.clone();
                     app.invalidate_chat_ui_state();
                 }
                 app.store_session_chat_snapshot(
@@ -706,7 +706,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             generate_git_commit_message(app, project_path, action)
         }
         ChatMessage::CancelPressed => {
-            let session_id = match &app.active_session_id {
+            let session_id = match &app.session_state.active_session_id {
                 Some(id) => id.clone(),
                 None => return Task::none(),
             };
@@ -731,21 +731,21 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 return stop_task;
             }
             let completed_ms = crate::app::time::now_ms();
-            let mut chat = std::mem::take(&mut app.chat);
+            let mut chat = std::mem::take(&mut app.chat_view.chat);
             desktop_session::message::chat::lifecycle::complete_cancel(
                 app.get_session_runtime_mut(&session_id),
                 &mut chat,
                 completed_ms,
             );
-            app.chat = chat;
+            app.chat_view.chat = chat;
             app.store_session_chat_snapshot(
                 session_id.clone(),
-                crate::app::session::shared_chat_messages(app.chat.clone()),
-                app.chat_message_ids.clone(),
+                crate::app::session::shared_chat_messages(app.chat_view.chat.clone()),
+                app.chat_view.chat_message_ids.clone(),
             );
             let mut session = stream::load_session_or_default(app, session_id.clone());
-            session.messages = app.chat.clone();
-            session.message_ids = app.chat_message_ids.clone();
+            session.messages = app.chat_view.chat.clone();
+            session.message_ids = app.chat_view.chat_message_ids.clone();
             session.updated_ms = completed_ms;
             let save_task = Task::batch([
                 stop_task,
@@ -781,14 +781,14 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     Some(model),
                 );
             }
-            if let Some(session_id) = app.active_session_id.clone() {
+            if let Some(session_id) = app.session_state.active_session_id.clone() {
                 app.cancel_session_model_history_restore(&session_id);
             }
             let (model, auto_model) = {
                 let runtime = app.current_session_runtime_mut();
                 desktop_session::message::chat::preferences::toggle_auto_model(runtime, b)
             };
-            app.auto_model = auto_model;
+            app.session_state.auto_model = auto_model;
             app.save_chat_model_preferences(model, auto_model)
         }
         ChatMessage::ReasoningEffortSelected(reasoning_effort) => {
@@ -796,7 +796,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 return Task::none();
             }
             app.current_session_runtime_mut().reasoning_effort = reasoning_effort;
-            app.reasoning_effort = reasoning_effort;
+            app.session_state.reasoning_effort = reasoning_effort;
             persist_session_reasoning_effort(app)
         }
         ChatMessage::AgentInstallationStatusesLoaded(result) => {
@@ -811,7 +811,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             };
             let runtime = app.current_session_runtime();
             match resolve_installation(
-                app.active_session_id.as_deref(),
+                app.session_state.active_session_id.as_deref(),
                 session_id.as_deref(),
                 &runtime,
                 agent.as_deref(),
@@ -842,7 +842,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
         }
         ChatMessage::AgentRecommendedPromptSelected(index) => {
-            app.input_popovers.recommended_prompt = false;
+            app.session_state.input_popovers.recommended_prompt = false;
             let runtime = app.current_session_runtime();
             let key = runtime.agent.as_deref().unwrap_or(MAIN_AGENT_KEY);
             let prompt = app
@@ -855,14 +855,14 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             match desktop_chat_input::input_panel::quick_actions::fill_recommendation(
                 &mut app.current_session_runtime_mut().input_editor, prompt.as_deref(),
             ) {
-                Ok(Some(prompt)) => app.input_text = prompt,
+                Ok(Some(prompt)) => app.session_state.input_text = prompt,
                 Ok(None) => {},
                 Err(source) => return app.show_localized_toast(crate::app::state::ToastKind::Warning, source, vec![]),
             }
             Task::none()
         }
         ChatMessage::SessionAgentSelected(agent) => {
-            app.input_popovers.recommended_prompt = false;
+            app.session_state.input_popovers.recommended_prompt = false;
             if app.current_session_has_started() {
                 return app.show_localized_toast(
                     crate::app::state::ToastKind::Warning,
@@ -886,7 +886,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             };
             let full_access = match &entry.runtime {
                 config_agent_profile::AgentRuntime::Native => {
-                    app.last_llm_full_access.unwrap_or(entry.defaults.full_access)
+                    app.session_state.last_llm_full_access.unwrap_or(entry.defaults.full_access)
                 }
                 config_agent_profile::AgentRuntime::Acp { .. } => entry.defaults.full_access,
             };
@@ -903,7 +903,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 full_access,
             );
             app.invalidate_project_chat_preferences_read();
-            app.acp_agent = acp_agent.clone();
+            app.session_state.acp_agent = acp_agent.clone();
             app.popover_visibility.acp = false;
             app.popover_visibility.reasoning_effort = false;
             app.popover_visibility.session_tool_selector = false;
@@ -941,7 +941,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     Some(m),
                 );
             }
-            if let Some(session_id) = app.active_session_id.clone() {
+            if let Some(session_id) = app.session_state.active_session_id.clone() {
                 app.cancel_session_model_history_restore(&session_id);
             }
             let (model, auto_model): (String, bool) = {
@@ -956,11 +956,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 runtime.task_mode_executor.is_some(),
                 &options,
             );
-            app.model = model.clone();
-            app.auto_model = auto_model;
+            app.session_state.model = model.clone();
+            app.session_state.auto_model = auto_model;
             app.popover_visibility.model = false;
             app.popover_visibility.mode = false;
-            app.reasoning_effort = app.current_session_runtime().reasoning_effort;
+            app.session_state.reasoning_effort = app.current_session_runtime().reasoning_effort;
             let reasoning_task =
                 if reset_effort { persist_session_reasoning_effort(app) } else { Task::none() };
             Task::batch([reasoning_task, app.save_chat_model_preferences(model, auto_model)])
@@ -973,7 +973,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     Some(m),
                 );
             }
-            if let Some(session_id) = app.active_session_id.clone() {
+            if let Some(session_id) = app.session_state.active_session_id.clone() {
                 app.cancel_session_model_history_restore(&session_id);
             }
             let (model, auto_model): (String, bool) = {
@@ -988,9 +988,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 runtime.task_mode_executor.is_some(),
                 &options,
             );
-            app.model = model.clone();
-            app.auto_model = auto_model;
-            app.reasoning_effort = app.current_session_runtime().reasoning_effort;
+            app.session_state.model = model.clone();
+            app.session_state.auto_model = auto_model;
+            app.session_state.reasoning_effort = app.current_session_runtime().reasoning_effort;
             let reasoning_task =
                 if reset_effort { persist_session_reasoning_effort(app) } else { Task::none() };
             Task::batch([reasoning_task, app.save_chat_model_preferences(model, auto_model)])
@@ -1167,10 +1167,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 QueueEffect::Edit(query) => {
                     app.current_session_runtime_mut().input_editor =
                         iced::widget::text_editor::Content::with_text(&query);
-                    if app.active_session_id.is_none() {
-                        app.input_editor = app.current_session_runtime().input_editor;
+                    if app.session_state.active_session_id.is_none() {
+                        app.session_state.input_editor = app.current_session_runtime().input_editor;
                     }
-                    iced::widget::operation::focus(app.input_editor_id.clone())
+                    iced::widget::operation::focus(app.session_state.input_editor_id.clone())
                 }
             }
         }
@@ -1185,15 +1185,14 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             if !crate::app::message::chat::fork_session_anchor_is_current(&anchor, app) {
                 return Task::none();
             }
-            let Some(dialog) = app
-                .chat_fork_dialog
+            let Some(dialog) = app.session_state.chat_fork_dialog
                 .as_mut()
                 .filter(|dialog| !dialog.in_progress && dialog.anchor == anchor)
             else {
                 return Task::none();
             };
             dialog.in_progress = true;
-            let show_reasoning_summary = app.dialogue_flow_show_reasoning_summary;
+            let show_reasoning_summary = app.general_settings.dialogue_flow_show_reasoning_summary;
             Task::perform(
                 async move {
                     let result = async {
@@ -1224,8 +1223,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             )
         }
         ChatMessage::ForkSessionFinished { anchor, target, result } => {
-            let Some(dialog) = app
-                .chat_fork_dialog
+            let Some(dialog) = app.session_state.chat_fork_dialog
                 .take_if(|dialog| dialog.in_progress && dialog.anchor == anchor)
             else {
                 return Task::none();
@@ -1249,7 +1247,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 .navigation_tabs
                 .project_path
                 .clone()
-                .filter(|_| app.project_id.as_deref() == Some(info.project_id.as_str()))
+                .filter(|_| app.workspace_state.project_id.as_deref() == Some(info.project_id.as_str()))
                 .unwrap_or(project_path);
             let open = crate::app::message::project::open_project_session(
                 app,
@@ -1260,7 +1258,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             );
             app.current_session_runtime_mut().input_editor =
                 iced::widget::text_editor::Content::with_text(&dialog.prompt);
-            app.input_text = dialog.prompt;
+            app.session_state.input_text = dialog.prompt;
             let toast = app.show_localized_toast(
                 ToastKind::Success,
                 match target {
@@ -1269,28 +1267,28 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 },
                 vec![],
             );
-            Task::batch([open, toast, iced::widget::operation::focus(app.input_editor_id.clone())])
+            Task::batch([open, toast, iced::widget::operation::focus(app.session_state.input_editor_id.clone())])
         }
         ChatMessage::ResetMessageIdsRecovered { session_id, msg_idx, result } => {
-            if app.active_session_id.as_deref() != Some(session_id.as_str()) {
+            if app.session_state.active_session_id.as_deref() != Some(session_id.as_str()) {
                 return Task::none();
             }
             if let Ok(ids) = &result
-                && (ids.len() == app.chat.len()
+                && (ids.len() == app.chat_view.chat.len()
                     || message_id_for_index_in_ids(ids, msg_idx).is_some())
             {
-                app.chat_message_ids.clone_from(ids);
+                app.chat_view.chat_message_ids.clone_from(ids);
                 app.store_session_chat_snapshot(
                     session_id,
-                    crate::app::session::shared_chat_messages(app.chat.clone()),
-                    app.chat_message_ids.clone(),
+                    crate::app::session::shared_chat_messages(app.chat_view.chat.clone()),
+                    app.chat_view.chat_message_ids.clone(),
                 );
                 return Task::done(Message::Chat(ChatMessage::ResetSessionToMessage { msg_idx }));
             }
             reset_session_locally(app, session_id, msg_idx)
         }
         ChatMessage::ResetSessionToMessage { msg_idx } => {
-            let Some(session_id) = app.active_session_id.clone() else {
+            let Some(session_id) = app.session_state.active_session_id.clone() else {
                 return Task::none();
             };
             let runtime = app.current_session_runtime();
@@ -1310,8 +1308,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
             let (retained_chat, retained_message_ids) =
                 desktop_session::message::chat::lifecycle::retain_history(
-                    &app.chat,
-                    &app.chat_message_ids,
+                    &app.chat_view.chat,
+                    &app.chat_view.chat_message_ids,
                     msg_idx,
                 );
             let save_task = reset_session_locally(app, session_id.clone(), msg_idx);
@@ -1350,11 +1348,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         } => match result {
             Ok(info) => {
                 if let Some(existing) =
-                    app.sessions.iter_mut().find(|session| session.id == info.id)
+                    app.session_state.sessions.iter_mut().find(|session| session.id == info.id)
                 {
                     *existing = info.clone();
                 }
-                for sessions in app.project_sessions.values_mut() {
+                for sessions in app.workspace_state.project_sessions.values_mut() {
                     if let Some(existing) =
                         sessions.iter_mut().find(|session| session.id == info.id)
                     {
@@ -1362,17 +1360,17 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     }
                 }
                 app.mark_session_acp_rebuild_required(&session_id);
-                app.active_session_id = Some(session_id.clone());
-                app.chat = retained_chat;
-                app.chat_message_ids = retained_message_ids;
-                app.chat_reset_menu_idx = None;
+                app.session_state.active_session_id = Some(session_id.clone());
+                app.chat_view.chat = retained_chat;
+                app.chat_view.chat_message_ids = retained_message_ids;
+                app.session_state.chat_reset_menu_idx = None;
                 app.invalidate_chat_ui_state();
                 app.sync_active_session_preferences();
                 app.rebuild_active_session_message_meta();
                 app.store_session_chat_snapshot(
                     session_id.clone(),
-                    crate::app::session::shared_chat_messages(app.chat.clone()),
-                    app.chat_message_ids.clone(),
+                    crate::app::session::shared_chat_messages(app.chat_view.chat.clone()),
+                    app.chat_view.chat_message_ids.clone(),
                 );
                 app.sync_active_session_from_chat();
 
@@ -1381,8 +1379,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 let local = desktop_session::message::chat::lifecycle::session_snapshot(
                     session_id,
                     info.title,
-                    app.chat.clone(),
-                    app.chat_message_ids.clone(),
+                    app.chat_view.chat.clone(),
+                    app.chat_view.chat_message_ids.clone(),
                     now,
                 );
                 save_session_task(local, session_directory)
@@ -1403,9 +1401,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message> {
     use desktop_session::message::chat::lifecycle::{StartGate, gate_start};
-    let active = app.active_session_id.is_some();
-    let preparing = app.active_session_view_state.ui_preparing;
-    let base_ready = app.active_session_view_state.base_ready;
+    let active = app.session_state.active_session_id.is_some();
+    let preparing = app.chat_view.active_session_view_state.ui_preparing;
+    let base_ready = app.chat_view.active_session_view_state.base_ready;
     let item = match gate_start(
         app.current_session_runtime_mut(),
         item,
@@ -1420,22 +1418,22 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
         }
         Err(StartGate::PermissionQueued) => return Task::none(),
     };
-    app.agent_stream_id = app.agent_stream_id.wrapping_add(1);
-    let stream_id = app.agent_stream_id;
+    app.session_state.agent_stream_id = app.session_state.agent_stream_id.wrapping_add(1);
+    let stream_id = app.session_state.agent_stream_id;
     let mut save_tasks = Vec::new();
     let mut initial_save = Task::none();
     app.cache_active_session_chat();
 
-    if app.active_session_id.is_none() {
+    if app.session_state.active_session_id.is_none() {
         app.invalidate_project_chat_preferences_read();
         let id = id::descending(id::Prefix::Session, None)
             .unwrap_or_else(|_| format!("ses_{}", stream_id));
         let project_path = app.navigation_tabs.project_path.clone().unwrap_or_default();
         let inferred_project_id = desktop_session::message::chat::lifecycle::inferred_project_id(
-            app.project_id.as_deref(),
+            app.workspace_state.project_id.as_deref(),
             &project_path,
-            app.project_sessions.get(&project_path).into_iter().flatten(),
-            app.sessions.iter(),
+            app.workspace_state.project_sessions.get(&project_path).into_iter().flatten(),
+            app.session_state.sessions.iter(),
         );
         if inferred_project_id.is_none() {
             if project_path.trim().is_empty() {
@@ -1468,17 +1466,17 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
         desktop_session::message::chat::lifecycle::initialize_draft(
             &mut runtime,
             project_path,
-            app.chat.len(),
+            app.chat_view.chat.len(),
         );
-        app.session_runtime_states.insert(id.clone(), runtime);
+        app.session_state.session_runtime_states.insert(id.clone(), runtime);
         app.reset_draft_full_access();
-        app.active_session_id = Some(id);
+        app.session_state.active_session_id = Some(id);
         save_tasks.push(persist_session_reasoning_effort(app));
     }
 
     let request_started_ms = crate::app::time::now_ms();
-    let mut chat = std::mem::take(&mut app.chat);
-    let mut message_ids = std::mem::take(&mut app.chat_message_ids);
+    let mut chat = std::mem::take(&mut app.chat_view.chat);
+    let mut message_ids = std::mem::take(&mut app.chat_view.chat_message_ids);
     let prepared = desktop_session::message::chat::lifecycle::prepare_request(
         app.current_session_runtime_mut(),
         item,
@@ -1486,8 +1484,8 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
         &mut message_ids,
         request_started_ms,
     );
-    app.chat = chat;
-    app.chat_message_ids = message_ids;
+    app.chat_view.chat = chat;
+    app.chat_view.chat_message_ids = message_ids;
     let desktop_session::message::chat::lifecycle::PreparedRequest {
         item,
         is_draft,
@@ -1497,32 +1495,32 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
         appended_user_idx,
     } = prepared;
     app.invalidate_chat_ui_for_message_idx(
-        appended_start_idx.min(app.chat.len().saturating_sub(1)),
+        appended_start_idx.min(app.chat_view.chat.len().saturating_sub(1)),
     );
-    if let Some(last_idx) = app.chat.len().checked_sub(1) {
+    if let Some(last_idx) = app.chat_view.chat.len().checked_sub(1) {
         app.invalidate_chat_ui_for_message_idx(last_idx);
     }
     app.sync_chat_message_estimated_heights_len();
-    app.refine_chat_message_estimated_heights(appended_start_idx, app.chat.len());
-    app.active_session_view_state.updated_ms = item.created_ms;
+    app.refine_chat_message_estimated_heights(appended_start_idx, app.chat_view.chat.len());
+    app.chat_view.active_session_view_state.updated_ms = item.created_ms;
     app.rebuild_active_session_message_meta();
-    if let Some(session_id) = app.active_session_id.clone() {
+    if let Some(session_id) = app.session_state.active_session_id.clone() {
         app.store_session_chat_snapshot(
             session_id,
-            crate::app::session::shared_chat_messages(app.chat.clone()),
-            app.chat_message_ids.clone(),
+            crate::app::session::shared_chat_messages(app.chat_view.chat.clone()),
+            app.chat_view.chat_message_ids.clone(),
         );
     }
     if !keep {
-        let is_empty_session = app.active_session_id.is_none();
+        let is_empty_session = app.session_state.active_session_id.is_none();
         let runtime = app.current_session_runtime_mut();
         runtime.input_editor = iced::widget::text_editor::Content::new();
         if is_empty_session {
-            app.input_editor = runtime.input_editor.clone();
+            app.session_state.input_editor = runtime.input_editor.clone();
         }
     }
 
-    if let Some(session_id) = app.active_session_id.clone() {
+    if let Some(session_id) = app.session_state.active_session_id.clone() {
         {
             let runtime = app.get_session_runtime_mut(&session_id);
             desktop_session::message::chat::lifecycle::begin_request(
@@ -1542,8 +1540,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
         {
             // Persist accepted input before model execution, including first-response failures.
             let now = crate::app::time::now_ms();
-            let title = app
-                .sessions
+            let title = app.session_state.sessions
                 .iter()
                 .find(|s| s.id == session_id)
                 .map(|s| s.title.clone())
@@ -1551,15 +1548,14 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
             let local = desktop_session::message::chat::lifecycle::session_snapshot(
                 session_id.clone(),
                 title,
-                app.chat.clone(),
-                app.chat_message_ids.clone(),
+                app.chat_view.chat.clone(),
+                app.chat_view.chat_message_ids.clone(),
                 now,
             );
             let session_directory =
                 current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
             // A bounded history page is not a complete replacement snapshot.
-            if app
-                .session_runtime_states
+            if app.session_state.session_runtime_states
                 .get(&session_id)
                 .is_none_or(|runtime| runtime.stream_save.seq_base == 0)
             {
@@ -1573,7 +1569,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
                 app,
                 &session_id,
                 appended_start_idx,
-                app.chat.len(),
+                app.chat_view.chat.len(),
                 now,
             ));
         }
@@ -1591,7 +1587,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
         } else {
             save_tasks.push(super::scroll_chat_to_turn_top_task(app, user_idx));
         }
-    } else if app.chat_auto_scroll {
+    } else if app.chat_view.chat_auto_scroll {
         save_tasks.push(super::scroll_chat_to_bottom_task(app));
     }
     initial_save.chain(Task::batch(save_tasks))

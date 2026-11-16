@@ -28,22 +28,22 @@ impl Acceptance {
         let path = tab.path.clone();
         app.navigation_tabs.preview_tabs = vec![tab];
         app.navigation_tabs.active_preview_path = Some(path);
-        app.app_theme = Theme::Light;
-        app.editor_theme = Theme::Light;
+        app.appearance.app_theme = Theme::Light;
+        app.appearance.editor_theme = Theme::Light;
         for tab in &mut app.navigation_tabs.preview_tabs {
             tab.editor.set_theme(Theme::Light);
         }
         app.file_manager.file_manager_show_changes = false;
-        app.editor_popover = Some(EditorPopover::Settings);
+        app.preview_state.editor_popover = Some(EditorPopover::Settings);
         Self { app }
     }
     fn update(&mut self, action: Action) -> Task<Action> {
         match action {
             Action::Theme => {
                 let theme =
-                    if self.app.app_theme == Theme::Light { Theme::Dark } else { Theme::Light };
-                self.app.app_theme = theme.clone();
-                self.app.editor_theme = theme.clone();
+                    if self.app.appearance.app_theme == Theme::Light { Theme::Dark } else { Theme::Light };
+                self.app.appearance.app_theme = theme.clone();
+                self.app.appearance.editor_theme = theme.clone();
                 for tab in &mut self.app.navigation_tabs.preview_tabs {
                     tab.editor.set_theme(theme.clone());
                 }
@@ -69,7 +69,7 @@ impl Acceptance {
 fn main() -> iced::Result {
     iced::application(Acceptance::new, Acceptance::update, Acceptance::view)
         .title("Editor configuration native acceptance")
-        .theme(|s: &Acceptance| s.app.app_theme.clone())
+        .theme(|s: &Acceptance| s.app.appearance.app_theme.clone())
         .settings(iced::Settings {
             fonts: fonts::load_all(),
             default_font: iced::Font::with_name("PingFang SC"),

@@ -8,7 +8,7 @@ mod drag;
 mod modals;
 mod panel;
 pub fn view(app: &App) -> iced::Element<'_, Message> {
- let input = desktop_task_board::page::PageView { task_board_create_modal_open: app.task_board_create_modal_open, task_board_worktree_pixel_office: app.task_board_worktree_pixel_office, kanban: app.task_board_view_mode == TaskBoardViewMode::Kanban, viewing_logs: app.task_board_viewing_logs.is_some(), task_board_settings_modal_open: app.task_board_settings_modal_open };
+ let input = desktop_task_board::page::PageView { task_board_create_modal_open: app.task_board.task_board_create_modal_open, task_board_worktree_pixel_office: app.task_board.task_board_worktree_pixel_office, kanban: app.task_board.task_board_view_mode == TaskBoardViewMode::Kanban, viewing_logs: app.task_board.task_board_viewing_logs.is_some(), task_board_settings_modal_open: app.task_board.task_board_settings_modal_open };
  desktop_task_board::page::assemble(input, desktop_task_board::page::PageBuilders {
  header: Box::new(|| control::build_control_buttons(app)),
  board: Box::new(|| board::build_kanban_board(app)),

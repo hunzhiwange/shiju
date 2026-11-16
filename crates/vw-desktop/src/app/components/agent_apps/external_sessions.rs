@@ -49,7 +49,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         project: app.navigation_tabs.project_path.clone(),
     };
     // A loaded response must still be checked when the current project is absent.
-    let project = app.project_id.clone().unwrap_or_default();
+    let project = app.workspace_state.project_id.clone().unwrap_or_default();
     let connection = desktop_apps_ui::Connection {
         client,
         context,
@@ -62,7 +62,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     if matches!(
         &event,
         Event::Maintenance(_) | Event::Path(_) | Event::Resume(_) | Event::Delete(_)
-    ) && app.project_id.is_none()
+    ) && app.workspace_state.project_id.is_none()
     {
         return Task::none();
     }
@@ -110,7 +110,7 @@ fn update_compression(
     let Ok(client) = crate::app::config::gateway_client() else {
         return Task::none();
     };
-    let Some(project) = app.project_id.clone() else {
+    let Some(project) = app.workspace_state.project_id.clone() else {
         return Task::none();
     };
     let context = AgentAppsContext {

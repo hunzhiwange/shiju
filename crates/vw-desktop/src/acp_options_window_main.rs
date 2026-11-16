@@ -61,7 +61,7 @@ impl Harness {
                 self.scene += 1;
                 self.frames = 0;
                 self.capturing = false;
-                self.app.app_theme = self.theme();
+                self.app.appearance.app_theme = self.theme();
                 match self.scene {
                     1 => {
                         return self
@@ -136,9 +136,9 @@ fn main() {
     iced::daemon(
         move || {
             let (mut app, _) = App::new();
-            app.app_theme = Theme::Light;
-            app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
-            app.active_session_id = Some("render-session".into());
+            app.appearance.app_theme = Theme::Light;
+            app.general_settings.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
+            app.session_state.active_session_id = Some("render-session".into());
             app.navigation_tabs.project_path = Some(root.to_string_lossy().into_owned());
             let runtime = app.get_session_runtime_mut("render-session");
             runtime.acp_agent = Some("copilot".into());

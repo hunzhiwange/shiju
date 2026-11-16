@@ -28,38 +28,38 @@ fn worktree_managed_ui_opens_chat_in_selected_existing_checkout() {
     let mut project = project("same");
     project.directory = primary.to_string_lossy().into_owned();
     app.navigation_tabs.project_path = Some(project.directory.clone());
-    app.project_id = Some(project.id.as_ref().to_owned());
-    app.active_session_id = Some("previous".into());
+    app.workspace_state.project_id = Some(project.id.as_ref().to_owned());
+    app.session_state.active_session_id = Some("previous".into());
     let _ = crate::app::message::project::open_existing_checkout(
         &mut app,
         project,
         checkout.to_string_lossy().into_owned(),
     );
-    assert!(app.active_session_id.is_none());
+    assert!(app.session_state.active_session_id.is_none());
     let draft = app.current_session_runtime().draft.unwrap();
     assert_eq!(draft.directory, checkout.to_string_lossy());
     assert_eq!(repo.worktrees().unwrap().len(), before);
     assert_eq!(draft.project_path, primary.to_string_lossy());
-    assert!(!app.new_session_creating);
+    assert!(!app.workspace_state.new_session_creating);
     assert!(!app.current_session_runtime().request_lifecycle.is_requesting);
-    assert!(app.chat.is_empty());
+    assert!(app.chat_view.chat.is_empty());
 }
 #[test]
 fn worktree_managed_ui_switches_project_before_draft() {
     let mut app = crate::app::App::new().0;
     app.navigation_tabs.project_path = Some("/旧项目".into());
-    app.project_id = Some("old".into());
+    app.workspace_state.project_id = Some("old".into());
     let _ = crate::app::message::project::open_existing_checkout(
         &mut app,
         project("other"),
         "/工作树/跨项目".into(),
     );
     assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/项目/other"));
-    assert_eq!(app.project_id.as_deref(), Some("other"));
+    assert_eq!(app.workspace_state.project_id.as_deref(), Some("other"));
     let draft = app.current_session_runtime().draft.unwrap();
     assert_eq!(draft.project_path, "/项目/other");
     assert_eq!(draft.directory, "/工作树/跨项目");
-    assert!(!app.new_session_creating);
+    assert!(!app.workspace_state.new_session_creating);
     assert!(!app.current_session_runtime().request_lifecycle.is_requesting);
 }
 
@@ -73,7 +73,7 @@ fn item(id: &str) -> vw_api_worktree::ManagedWorktreeDto {
 fn managed_app() -> crate::app::App {
     let mut app = crate::app::App::new().0;
     app.navigation_tabs.project_path = Some("/项目/same".into());
-    app.project_id = Some("same".into());
+    app.workspace_state.project_id = Some("same".into());
     let mut group = group("same");
     group.items = vec![item("same")];
     app.worktree_settings.managed.groups = vec![group];
@@ -92,9 +92,9 @@ fn update(
 fn worktree_managed_ui_deduplicates_and_preserves_session_on_failure() {
     use crate::app::message::settings::worktrees::ManagedMessage as Event;
     let mut app = managed_app();
-    app.active_session_id = Some("keep".into());
+    app.session_state.active_session_id = Some("keep".into());
     let identity = crate::app::state::worktree_identity(&app);
-    let navigation = app.session_view_cache.navigation_generation;
+    let navigation = app.session_state.session_view_cache.navigation_generation;
     update(&mut app, Event::Open { project: "same".into(), worktree: "checkout".into() });
     let pending = app.worktree_settings.managed.opening.clone();
     assert!(pending.is_some());
@@ -108,7 +108,7 @@ fn worktree_managed_ui_deduplicates_and_preserves_session_on_failure() {
             result: Err("网关不可达".into()),
         },
     );
-    assert_eq!(app.active_session_id.as_deref(), Some("keep"));
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("keep"));
     assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/项目/same"));
 }
 #[test]
@@ -130,10 +130,10 @@ fn worktree_managed_ui_rejects_stale_refresh_and_navigation() {
             identity: identity.clone(), generation, result: Err("刷新失败".into())
         },
     );
-    let navigation = app.session_view_cache.navigation_generation;
+    let navigation = app.session_state.session_view_cache.navigation_generation;
     update(&mut app, Event::Open { project: "same".into(), worktree: "checkout".into() });
-    app.session_view_cache.navigation_generation += 1;
-    app.active_session_id = Some("new-navigation".into());
+    app.session_state.session_view_cache.navigation_generation += 1;
+    app.session_state.active_session_id = Some("new-navigation".into());
     update(
         &mut app,
         Event::Prepared {
@@ -143,7 +143,7 @@ fn worktree_managed_ui_rejects_stale_refresh_and_navigation() {
             result: Ok((project("same"), "/工作树/旧响应".into())),
         },
     );
-    assert_eq!(app.active_session_id.as_deref(), Some("new-navigation"));
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("new-navigation"));
 }
 #[test]
 fn worktree_managed_ui_preflight_is_scoped_and_never_deletes() {

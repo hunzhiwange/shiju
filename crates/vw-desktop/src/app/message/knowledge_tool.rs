@@ -13,7 +13,7 @@ fn apply_feedback(app: &mut App, feedback: Option<(bool, String, desktop_i18n::f
     let Some((is_error, fallback, message)) = feedback else { return iced::Task::none() };
     let kind = if is_error { crate::app::state::ToastKind::Error } else { crate::app::state::ToastKind::Success };
     let task = app.show_toast(kind, fallback);
-    app.active_toast.as_mut().expect("inserted knowledge toast").localized_message = Some(message);
+    app.toast_state.active_toast.as_mut().expect("inserted knowledge toast").localized_message = Some(message);
     task
 }
 pub fn update(app: &mut App, message: KnowledgeToolMessage) -> iced::Task<Message> {

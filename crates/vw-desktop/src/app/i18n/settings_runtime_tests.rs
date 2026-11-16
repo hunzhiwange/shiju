@@ -19,7 +19,7 @@ fn desktop_i18n_settings_runtime_views_and_search_follow_locale() {
         DesktopLocale::TraditionalChinese,
         DesktopLocale::English,
     ] {
-        app.desktop_locale = locale;
+        app.general_settings.desktop_locale = locale;
         for tab in [
             MemorySettingsTab::General,
             MemorySettingsTab::RetentionAndCache,

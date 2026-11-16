@@ -53,11 +53,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.apps_catalog.drag = Default::default();
             app.navigation_panels.system_settings_tab = match tab {
                 SystemTab::Editor => {
-                    app.general_settings_tab = crate::app::state::GeneralSettingsTab::Editor;
+                    app.general_settings.general_settings_tab = crate::app::state::GeneralSettingsTab::Editor;
                     SystemTab::General
                 }
                 SystemTab::Themes => {
-                    app.general_settings_tab = crate::app::state::GeneralSettingsTab::Themes;
+                    app.general_settings.general_settings_tab = crate::app::state::GeneralSettingsTab::Themes;
                     SystemTab::General
                 }
                 SystemTab::Channels => {
@@ -317,7 +317,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
         }
         SettingsMessage::SystemTabQueryChanged(query) => {
-            app.system_settings_query = query;
+            app.general_settings.system_settings_query = query;
             iced::widget::operation::snap_to(
                 SETTINGS_NAVIGATION_SCROLL,
                 iced::widget::scrollable::RelativeOffset::START,
@@ -332,7 +332,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::ToggleSettingsSidebar => {
-            app.settings_sidebar_collapsed = !app.settings_sidebar_collapsed;
+            app.general_settings.settings_sidebar_collapsed = !app.general_settings.settings_sidebar_collapsed;
             Task::none()
         }
         _ => Task::none(),

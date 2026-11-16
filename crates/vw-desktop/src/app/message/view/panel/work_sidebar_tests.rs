@@ -29,11 +29,11 @@ fn work_sidebar_project_home_leaves_the_session_without_leaving_the_project() {
     app.navigation_tabs.screen = Screen::Project;
     app.navigation_tabs.project_path = Some("/workspace/project".into());
     app.navigation_tabs.active_tab_id = Some("project_/workspace/project".into());
-    app.active_session_id = Some("session-1".into());
+    app.session_state.active_session_id = Some("session-1".into());
     app.navigation_sidebar.work_sidebar_collapsed = true;
     app.navigation_sidebar.work_sidebar_tab = WorkSidebarTab::Spaces;
     app.navigation_workspace.work_resource_half_fullscreen = true;
-    app.chat.push(ChatMessage {
+    app.chat_view.chat.push(ChatMessage {
         role: ChatRole::User,
         content: "Existing conversation".into(),
         model: None,
@@ -46,9 +46,9 @@ fn work_sidebar_project_home_leaves_the_session_without_leaving_the_project() {
     assert_eq!(app.navigation_tabs.screen, Screen::Project);
     assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/workspace/project"));
     assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("project_/workspace/project"));
-    assert!(app.active_session_id.is_none());
-    assert!(app.chat.is_empty());
-    assert!(app.session_view_cache.contains("session-1"));
+    assert!(app.session_state.active_session_id.is_none());
+    assert!(app.chat_view.chat.is_empty());
+    assert!(app.session_state.session_view_cache.contains("session-1"));
     assert!(app.navigation_sidebar.work_sidebar_collapsed);
     assert!(!app.navigation_workspace.work_resource_half_fullscreen);
     assert_eq!(app.navigation_sidebar.work_sidebar_tab, WorkSidebarTab::Spaces);

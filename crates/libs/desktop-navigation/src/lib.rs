@@ -62,3 +62,5 @@ mod host_module_38_tests;
 
 #[cfg(test)]
 mod host_module_31_tests;
+
+pub mod clipboard;

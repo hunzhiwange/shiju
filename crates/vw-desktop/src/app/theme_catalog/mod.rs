@@ -4,11 +4,11 @@ pub use desktop_theme::theme_catalog::*;
 
 pub fn sync_active_theme_skin(app: &mut crate::app::App) {
     desktop_theme::sync_active_theme_skin(
-        app.active_custom_theme_id.as_deref(),
-        &mut app.active_theme_skin,
+        app.appearance.active_custom_theme_id.as_deref(),
+        &mut app.appearance.active_theme_skin,
     );
 }
 
 pub fn clear_active_theme_skin(app: &mut crate::app::App) {
-    desktop_theme::clear_active_theme_skin(&mut app.active_theme_skin);
+    desktop_theme::clear_active_theme_skin(&mut app.appearance.active_theme_skin);
 }

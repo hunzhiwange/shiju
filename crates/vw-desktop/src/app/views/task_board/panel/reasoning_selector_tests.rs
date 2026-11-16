@@ -14,12 +14,12 @@ fn task_reasoning_effort_selector_updates_draft_edit_bulk_and_task_mode() {
         &mut app,
         TaskBoardMessage::UpdateDraftReasoningEffort(Some(ReasoningEffortDto::High)),
     );
-    assert_eq!(app.task_board_draft.reasoning_effort, Some(ReasoningEffortDto::High));
+    assert_eq!(app.task_board.task_board_draft.reasoning_effort, Some(ReasoningEffortDto::High));
 
     let mut editing_task = Task::new(1);
     editing_task.id = "reasoning-edit".to_string();
     editing_task.status = TaskStatus::Pending;
-    app.task_board_tasks.push(editing_task);
+    app.task_board.task_board_tasks.push(editing_task);
     let _ = message::task_board::update(
         &mut app,
         TaskBoardMessage::EditTask("reasoning-edit".to_string()),
@@ -29,19 +29,19 @@ fn task_reasoning_effort_selector_updates_draft_edit_bulk_and_task_mode() {
         TaskBoardMessage::UpdateEditingTaskReasoningEffort(Some(ReasoningEffortDto::Xhigh)),
     );
     let _ = message::task_board::update(&mut app, TaskBoardMessage::SaveEditingTask);
-    app.task_board_draft.reasoning_effort = None;
+    app.task_board.task_board_draft.reasoning_effort = None;
     let _ = message::task_board::update(
         &mut app,
         TaskBoardMessage::EditTask("reasoning-edit".to_string()),
     );
-    assert_eq!(app.task_board_draft.reasoning_effort, Some(ReasoningEffortDto::Xhigh));
+    assert_eq!(app.task_board.task_board_draft.reasoning_effort, Some(ReasoningEffortDto::Xhigh));
 
-    app.task_board_selected_tasks.insert("reasoning-edit".to_string());
+    app.task_board.task_board_selected_tasks.insert("reasoning-edit".to_string());
     let _ = message::task_board::update(
         &mut app,
         TaskBoardMessage::UpdateBulkReasoningEffort(Some(ReasoningEffortDto::Low)),
     );
-    let bulk_reasoning_effort = app.task_board_bulk_reasoning_effort;
+    let bulk_reasoning_effort = app.task_board.task_board_bulk_reasoning_effort;
     let _ = message::task_board::update(
         &mut app,
         TaskBoardMessage::BulkSetReasoningEffortInStatus {
@@ -49,7 +49,7 @@ fn task_reasoning_effort_selector_updates_draft_edit_bulk_and_task_mode() {
             reasoning_effort: bulk_reasoning_effort,
         },
     );
-    assert_eq!(app.task_board_tasks[0].reasoning_effort, Some(ReasoningEffortDto::Low));
+    assert_eq!(app.task_board.task_board_tasks[0].reasoning_effort, Some(ReasoningEffortDto::Low));
 
     let _ = message::chat::update(
         &mut app,

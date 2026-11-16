@@ -594,3 +594,19 @@ mod terminal_tests;
 mod split;
 #[cfg(not(target_arch = "wasm32"))]
 pub use split::SplitError;
+
+impl TerminalState<crate::shell::Shell> {
+    pub fn with_system_settings(is_visible: bool, system: &config_ui::AppSystemSettingsConfig) -> Self {
+        let shell = match system.terminal_shell.as_str() {
+            "zsh" => crate::shell::Shell::Zsh,
+            _ => crate::shell::Shell::Bash,
+        };
+        Self::new(is_visible, shell, TerminalTheme::System, system.terminal_font_family.clone(), system.terminal_font_size, None)
+    }
+}
+
+impl TerminalState<crate::shell::Shell> {
+    pub fn set_system_shell(&mut self, shell: &str) {
+        self.shell = match shell { "zsh" => crate::shell::Shell::Zsh, _ => crate::shell::Shell::Bash };
+    }
+}

@@ -94,21 +94,21 @@ pub(crate) fn bulk_state(
     app: &mut crate::app::App,
 ) -> desktop_task_board::update::bulk::BulkState<'_> {
     desktop_task_board::update::bulk::BulkState {
-        task_board_bulk_active_status: &mut app.task_board_bulk_active_status,
-        task_board_bulk_acp_agent: &mut app.task_board_bulk_acp_agent,
-        task_board_bulk_agent: &mut app.task_board_bulk_agent,
-        task_board_bulk_model_input: &mut app.task_board_bulk_model_input,
-        task_board_bulk_priority_input: &mut app.task_board_bulk_priority_input,
-        task_board_bulk_reasoning_effort: &mut app.task_board_bulk_reasoning_effort,
-        task_board_bulk_task_split_mode: &mut app.task_board_bulk_task_split_mode,
-        task_board_context_menu: &mut app.task_board_context_menu,
-        task_board_draft: &mut app.task_board_draft,
-        task_board_editing_task_id: &mut app.task_board_editing_task_id,
-        task_board_last_acp_agent: &mut app.task_board_last_acp_agent,
-        task_board_last_model: &mut app.task_board_last_model,
-        task_board_manual_merge_queue: &mut app.task_board_manual_merge_queue,
-        task_board_selected_tasks: &mut app.task_board_selected_tasks,
-        task_board_tasks: &mut app.task_board_tasks,
+        task_board_bulk_active_status: &mut app.task_board.task_board_bulk_active_status,
+        task_board_bulk_acp_agent: &mut app.task_board.task_board_bulk_acp_agent,
+        task_board_bulk_agent: &mut app.task_board.task_board_bulk_agent,
+        task_board_bulk_model_input: &mut app.task_board.task_board_bulk_model_input,
+        task_board_bulk_priority_input: &mut app.task_board.task_board_bulk_priority_input,
+        task_board_bulk_reasoning_effort: &mut app.task_board.task_board_bulk_reasoning_effort,
+        task_board_bulk_task_split_mode: &mut app.task_board.task_board_bulk_task_split_mode,
+        task_board_context_menu: &mut app.task_board.task_board_context_menu,
+        task_board_draft: &mut app.task_board.task_board_draft,
+        task_board_editing_task_id: &mut app.task_board.task_board_editing_task_id,
+        task_board_last_acp_agent: &mut app.task_board.task_board_last_acp_agent,
+        task_board_last_model: &mut app.task_board.task_board_last_model,
+        task_board_manual_merge_queue: &mut app.task_board.task_board_manual_merge_queue,
+        task_board_selected_tasks: &mut app.task_board.task_board_selected_tasks,
+        task_board_tasks: &mut app.task_board.task_board_tasks,
     }
 }
 
@@ -116,9 +116,9 @@ pub(crate) fn start_manual_merge_queue_task(
     app: &mut crate::app::App,
 ) -> iced::Task<crate::app::Message> {
     let effect = desktop_task_board::bulk::prepare_manual_merge(
-        &mut app.task_board_tasks,
-        &app.task_board_executor.running_tasks,
-        &mut app.task_board_manual_merge_queue,
+        &mut app.task_board.task_board_tasks,
+        &app.task_board.task_board_executor.running_tasks,
+        &mut app.task_board.task_board_manual_merge_queue,
         app.navigation_tabs.project_path.is_some(),
     );
     let task = match effect {
@@ -138,9 +138,9 @@ pub(crate) fn start_manual_merge_queue_task(
         send_agent_scheduler_command(
             project_path.clone(),
             task,
-            app.task_board_settings.workflow_id.clone(),
+            app.task_board.task_board_settings.workflow_id.clone(),
             vw_api_agent_scheduler::AgentSchedulerCommandKindDto::Merge,
-            app.task_board_settings.agent_scheduler_dispatch_mode,
+            app.task_board.task_board_settings.agent_scheduler_dispatch_mode,
             None,
             None,
         ),

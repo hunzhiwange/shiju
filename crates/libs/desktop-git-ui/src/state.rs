@@ -170,3 +170,14 @@ impl Default for State {
         Self::new(false, false)
     }
 }
+
+impl State {
+    pub fn apply_preferences(&mut self, cfg: &serde_json::Value) {
+        for (key, setting) in [
+            ("show_git_diff_summary", &mut self.show_git_diff_summary),
+            ("show_git_diff_highlight", &mut self.show_git_diff_highlight),
+        ] {
+            if let Some(value) = cfg.get(key).and_then(serde_json::Value::as_bool) { *setting = value; }
+        }
+    }
+}

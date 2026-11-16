@@ -57,7 +57,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     crate::app::message::settings::routing_persistence::flush(app);
                 (
                     commit,
-                    app.editor_config_persistence.wait_for_idle(),
+                    app.preview_state.editor_config_persistence.wait_for_idle(),
                     routing_commit,
                     routing_saves,
                     crate::app::message::settings::wait_for_worktree_saves(app),
@@ -93,13 +93,13 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 }
                 #[cfg(target_arch = "wasm32")]
                 {
-                    app.error_message = Some("当前平台不支持重启应用".to_string());
+                    app.input_feedback.error_message = Some("当前平台不支持重启应用".to_string());
                     Task::none()
                 }
             }
             Err(error) => {
                 app.shutdown_requested = false;
-                app.error_message = Some(error);
+                app.input_feedback.error_message = Some(error);
                 Task::none()
             }
         },
@@ -156,7 +156,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 );
 
                 #[cfg(not(target_arch = "wasm32"))]
-                app.terminal.apply_app_theme(&app.app_theme);
+                app.terminal.apply_app_theme(&app.appearance.app_theme);
             }
             let save = app.save_desktop_preference("show_terminal", app.terminal.is_visible.into());
             #[cfg(not(target_arch = "wasm32"))]
@@ -194,7 +194,7 @@ pub fn close_requested(app: &mut App, window_id: iced::window::Id) -> Task<Messa
 
     if windows.main_window_id.is_some() {
         if app.close_to_tray && !app.shutdown_requested {
-            if let Err(error) = crate::app::desktop_lifecycle::ensure_tray(app.desktop_locale) {
+            if let Err(error) = crate::app::desktop_lifecycle::ensure_tray(app.general_settings.desktop_locale) {
                 return app.show_error_toast(format!("无法关闭到托盘：{error}"));
             }
             #[cfg(target_os = "macos")]
@@ -232,7 +232,7 @@ pub(crate) fn shutdown(app: &mut App, window_id: Option<iced::window::Id>) -> Ta
     arm_shutdown_exit_watchdog();
     let requests = take_shutdown_stream_requests(app);
     let editor_commit = crate::app::message::editor::metrics::commit(app, None);
-    let editor_saves = app.editor_config_persistence.wait_for_idle();
+    let editor_saves = app.preview_state.editor_config_persistence.wait_for_idle();
     let (routing_commit, routing_saves) =
         crate::app::message::settings::routing_persistence::flush(app);
     let worktree_saves = crate::app::message::settings::wait_for_worktree_saves(app);
@@ -304,8 +304,7 @@ fn arm_shutdown_exit_watchdog() {}
 
 #[cfg(not(target_arch = "wasm32"))]
 fn take_shutdown_stream_requests(app: &mut App) -> Vec<ShutdownStreamRequest> {
-    let requests = app
-        .session_runtime_states
+    let requests = app.session_state.session_runtime_states
         .values_mut()
         .filter_map(|runtime| runtime.request_lifecycle.active_agent_request.take())
         .map(|request| ShutdownStreamRequest {
@@ -320,8 +319,8 @@ fn take_shutdown_stream_requests(app: &mut App) -> Vec<ShutdownStreamRequest> {
             },
         })
         .collect();
-    app.active_agent_request = None;
-    app.is_requesting = false;
+    app.session_state.active_agent_request = None;
+    app.session_state.is_requesting = false;
     requests
 }
 
@@ -385,7 +384,7 @@ fn update_panel(app: &mut App, message: PanelMessage) -> Task<Message> {
         &mut effects,
         env!("CARGO_PKG_VERSION"),
         #[cfg(not(target_arch = "wasm32"))]
-        app.desktop_locale,
+        app.general_settings.desktop_locale,
         message,
     );
     let mut tasks = vec![task.map(|message| Message::View(panel_message(message)))];
@@ -506,10 +505,10 @@ fn update_navigation(
             let save = app.save_desktop_preference("show_settings", visible.into());
             if visible
                 && let Some(path) = app.navigation_tabs.project_path.clone()
-                && !app.project_sessions.contains_key(&path)
-                && !app.project_sessions_loading.contains(&path)
+                && !app.workspace_state.project_sessions.contains_key(&path)
+                && !app.workspace_state.project_sessions_loading.contains(&path)
             {
-                app.project_sessions_loading.insert(path.clone());
+                app.workspace_state.project_sessions_loading.insert(path.clone());
                 let directory = path.clone();
                 let sessions = Task::perform(
                     async move {
@@ -532,7 +531,7 @@ fn update_navigation(
             Task::done(Message::Project(ProjectMessage::OpenFolderPressed))
         }
         Some(domain::Effect::SaveAllFiles) => {
-            app.show_preview_context_menu = false;
+            app.preview_state.show_preview_context_menu = false;
             Task::batch(
                 app.navigation_tabs
                     .preview_tabs
@@ -550,7 +549,7 @@ fn update_navigation(
             )
         }
         Some(domain::Effect::SystemSettingsVisibilityChanged(visible)) => {
-            app.project_tools_menu_path = None;
+            app.workspace_state.project_tools_menu_path = None;
             #[cfg(not(target_arch = "wasm32"))]
             {
                 app.agent_apps_auth.form = None;

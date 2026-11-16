@@ -63,7 +63,7 @@ fn managed_mcp_feedback_maps_error_effect_to_desktop_toast() {
         vec![desktop_settings_mcp::management_effect::Effect::Error("fixture MCP failure".into())],
     );
     assert_eq!(
-        app.active_toast.as_ref().map(|t| t.kind),
+        app.toast_state.active_toast.as_ref().map(|t| t.kind),
         Some(crate::app::state::ToastKind::Error)
     );
 }

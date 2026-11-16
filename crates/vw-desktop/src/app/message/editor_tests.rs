@@ -60,25 +60,25 @@ fn test_module_is_wired() {
 #[test]
 fn toggle_settings_flips_preview_settings_panel() {
     let mut app = test_app();
-    let original = app.show_preview_settings;
+    let original = app.preview_state.show_preview_settings;
 
     let _ = update(&mut app, EditorMessage::ToggleSettings);
-    assert_eq!(app.show_preview_settings, !original);
+    assert_eq!(app.preview_state.show_preview_settings, !original);
 
     let _ = update(&mut app, EditorMessage::ToggleSettings);
-    assert_eq!(app.show_preview_settings, original);
+    assert_eq!(app.preview_state.show_preview_settings, original);
 }
 
 #[test]
 fn font_size_changed_updates_auto_line_height() {
     let mut app = test_app();
-    app.auto_adjust_line_height = true;
+    app.preview_state.auto_adjust_line_height = true;
     app.navigation_tabs.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
 
     let _ = commit_metrics_input(&mut app, EditorMessage::FontSizePreview(20.0));
 
-    assert_eq!(app.current_font_size, 20.0);
-    assert_eq!(app.current_line_height, 28.0);
+    assert_eq!(app.preview_state.current_font_size, 20.0);
+    assert_eq!(app.preview_state.current_line_height, 28.0);
     assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.font_size(), 20.0);
     assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.line_height(), 28.0);
     assert_eq!(app.git.git_copy_modal_code_editor.font_size(), 20.0);
@@ -88,16 +88,16 @@ fn font_size_changed_updates_auto_line_height() {
 #[test]
 fn font_size_changed_without_auto_line_height_preserves_height_and_clamps_modal_font() {
     let mut app = test_app();
-    app.auto_adjust_line_height = false;
-    app.current_line_height = 24.0;
+    app.preview_state.auto_adjust_line_height = false;
+    app.preview_state.current_line_height = 24.0;
     app.navigation_tabs.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
     let preview_line_height = app.navigation_tabs.preview_tabs[0].editor.inner.line_height();
     let modal_line_height = app.git.git_copy_modal_code_editor.line_height();
 
     let _ = commit_metrics_input(&mut app, EditorMessage::FontSizePreview(42.0));
 
-    assert_eq!(app.current_font_size, 42.0);
-    assert_eq!(app.current_line_height, 24.0);
+    assert_eq!(app.preview_state.current_font_size, 42.0);
+    assert_eq!(app.preview_state.current_line_height, 24.0);
     assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.font_size(), 42.0);
     assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.line_height(), preview_line_height);
     assert_eq!(app.git.git_copy_modal_code_editor.font_size(), 30.0);
@@ -107,13 +107,13 @@ fn font_size_changed_without_auto_line_height_preserves_height_and_clamps_modal_
 #[test]
 fn line_height_changed_disables_auto_adjustment() {
     let mut app = test_app();
-    app.auto_adjust_line_height = true;
+    app.preview_state.auto_adjust_line_height = true;
     app.navigation_tabs.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
 
     let _ = commit_metrics_input(&mut app, EditorMessage::LineHeightPreview(5.0));
 
-    assert_eq!(app.current_line_height, 5.0);
-    assert!(!app.auto_adjust_line_height);
+    assert_eq!(app.preview_state.current_line_height, 5.0);
+    assert!(!app.preview_state.auto_adjust_line_height);
     assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.line_height(), 10.0);
     assert_eq!(app.git.git_copy_modal_code_editor.line_height(), 10.0);
 }
@@ -121,15 +121,15 @@ fn line_height_changed_disables_auto_adjustment() {
 #[test]
 fn toggle_auto_line_height_recomputes_when_enabled() {
     let mut app = test_app();
-    app.current_font_size = 15.0;
-    app.current_line_height = 19.0;
-    app.auto_adjust_line_height = false;
+    app.preview_state.current_font_size = 15.0;
+    app.preview_state.current_line_height = 19.0;
+    app.preview_state.auto_adjust_line_height = false;
     app.navigation_tabs.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
 
     let _ = update(&mut app, EditorMessage::ToggleAutoLineHeight(true));
 
-    assert!(app.auto_adjust_line_height);
-    assert_eq!(app.current_line_height, 21.0);
+    assert!(app.preview_state.auto_adjust_line_height);
+    assert_eq!(app.preview_state.current_line_height, 21.0);
     assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.line_height(), 21.0);
     assert_eq!(app.git.git_copy_modal_code_editor.line_height(), 21.0);
 }
@@ -139,16 +139,16 @@ fn toggle_auto_line_height_recomputes_when_enabled() {
 #[test]
 fn toggle_auto_line_height_off_keeps_current_height() {
     let mut app = test_app();
-    app.current_font_size = 18.0;
-    app.current_line_height = 25.0;
+    app.preview_state.current_font_size = 18.0;
+    app.preview_state.current_line_height = 25.0;
     app.navigation_tabs.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
     let preview_line_height = app.navigation_tabs.preview_tabs[0].editor.inner.line_height();
     let modal_line_height = app.git.git_copy_modal_code_editor.line_height();
 
     let _ = update(&mut app, EditorMessage::ToggleAutoLineHeight(false));
 
-    assert!(!app.auto_adjust_line_height);
-    assert_eq!(app.current_line_height, 25.0);
+    assert!(!app.preview_state.auto_adjust_line_height);
+    assert_eq!(app.preview_state.current_line_height, 25.0);
     assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.line_height(), preview_line_height);
     assert_eq!(app.git.git_copy_modal_code_editor.line_height(), modal_line_height);
 }
@@ -159,7 +159,7 @@ fn language_changed_updates_current_language() {
 
     let _ = update(&mut app, EditorMessage::LanguageChanged(Language::English));
 
-    assert_eq!(app.current_language, Language::English);
+    assert_eq!(app.preview_state.current_language, Language::English);
 }
 
 #[test]
@@ -176,22 +176,22 @@ fn language_changed_propagates_to_every_preview_editor() {
 #[test]
 fn theme_changed_disables_follow_system_theme() {
     let mut app = test_app();
-    app.editor_follow_system_theme = true;
+    app.appearance.editor_follow_system_theme = true;
 
     let _ = update(&mut app, EditorMessage::ThemeChanged(Theme::Dark));
 
-    assert_eq!(app.editor_theme, Theme::Dark);
-    assert!(!app.editor_follow_system_theme);
+    assert_eq!(app.appearance.editor_theme, Theme::Dark);
+    assert!(!app.appearance.editor_follow_system_theme);
 }
 
 #[test]
 fn toggle_follow_system_theme_updates_flag() {
     let mut app = test_app();
-    app.editor_follow_system_theme = false;
+    app.appearance.editor_follow_system_theme = false;
 
     let _ = update(&mut app, EditorMessage::ToggleFollowSystemTheme(true));
 
-    assert!(app.editor_follow_system_theme);
+    assert!(app.appearance.editor_follow_system_theme);
 }
 
 #[test]
@@ -279,7 +279,7 @@ async fn metric_deadline(task: iced::Task<crate::app::Message>) -> EditorMessage
 fn editor_metrics_preview_commits_on_latest_deadline() {
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
     let mut app = app_with_active_preview("hello");
-    app.auto_adjust_line_height = true;
+    app.preview_state.auto_adjust_line_height = true;
     let previous = app.navigation_tabs.preview_tabs[0].editor.inner.font_size();
     let first = update(&mut app, EditorMessage::FontSizePreview(18.0));
     let last = update(&mut app, EditorMessage::FontSizePreview(20.0));
@@ -292,7 +292,7 @@ fn editor_metrics_preview_commits_on_latest_deadline() {
     let _ = update(&mut app, latest);
     assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.font_size(), 20.0);
     assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.line_height(), 28.0);
-    assert!(app.auto_adjust_line_height);
+    assert!(app.preview_state.auto_adjust_line_height);
     assert!(
         iced_runtime::task::into_stream(update(&mut app, EditorMessage::CommitMetrics)).is_none()
     );
@@ -301,27 +301,27 @@ fn editor_metrics_preview_commits_on_latest_deadline() {
 #[test]
 fn editor_metrics_preview_preserves_latest_input_when_toggling_auto_or_closing() {
     let mut app = app_with_active_preview("hello");
-    app.show_preview_settings = true;
-    app.auto_adjust_line_height = true;
+    app.preview_state.show_preview_settings = true;
+    app.preview_state.auto_adjust_line_height = true;
 
     let _ = update(&mut app, EditorMessage::FontSizePreview(20.0));
     let _ = update(&mut app, EditorMessage::LineHeightPreview(33.0));
     assert!(!super::editor::metrics::displayed(&app).auto_line_height);
     let _ = update(&mut app, EditorMessage::ToggleAutoLineHeight(true));
-    assert_eq!(app.current_font_size, 20.0);
-    assert_eq!(app.current_line_height, 28.0);
-    assert!(app.auto_adjust_line_height);
+    assert_eq!(app.preview_state.current_font_size, 20.0);
+    assert_eq!(app.preview_state.current_line_height, 28.0);
+    assert!(app.preview_state.auto_adjust_line_height);
 
     let _ = update(&mut app, EditorMessage::FontSizePreview(25.0));
     let _ = update(&mut app, EditorMessage::ToggleAutoLineHeight(false));
-    assert_eq!(app.current_line_height, 35.0);
+    assert_eq!(app.preview_state.current_line_height, 35.0);
     assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.line_height(), 35.0);
-    assert!(!app.auto_adjust_line_height);
+    assert!(!app.preview_state.auto_adjust_line_height);
 
     let _ = update(&mut app, EditorMessage::LineHeightPreview(39.0));
     let _ = update(&mut app, EditorMessage::ToggleSettings);
-    assert!(!app.show_preview_settings);
-    assert_eq!(app.current_line_height, 39.0);
+    assert!(!app.preview_state.show_preview_settings);
+    assert_eq!(app.preview_state.current_line_height, 39.0);
     assert_eq!(app.navigation_tabs.preview_tabs[0].editor.inner.line_height(), 39.0);
 }
 
@@ -343,7 +343,7 @@ fn editor_metrics_preview_commits_latest_once() {
         config::with_editor_settings_gateway(|mut app, mut requests, responses| {
             let runtime =
                 tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
-            app.auto_adjust_line_height = true;
+            app.preview_state.auto_adjust_line_height = true;
             for index in 0..tabs {
                 app.navigation_tabs.preview_tabs
                     .push(preview_tab(&format!("/tmp/editor-{index}.rs"), "fn main() {}"));
@@ -385,7 +385,7 @@ fn editor_metrics_preview_commits_latest_once() {
                 let current = read_metrics(&app);
                 input_layouts += usize::from(current != previous);
                 previous = current;
-                if save.is_none() && app.editor_config_persistence.wait_for_idle().is_some() {
+                if save.is_none() && app.preview_state.editor_config_persistence.wait_for_idle().is_some() {
                     save = Some(task);
                 } else {
                     debounce_tasks.push(task);
@@ -402,11 +402,11 @@ fn editor_metrics_preview_commits_latest_once() {
             let release = update(&mut app, EditorMessage::CommitMetrics);
             let release_time = start.elapsed();
             let release_layouts = usize::from(read_metrics(&app) != previous);
-            if save.is_none() && app.editor_config_persistence.wait_for_idle().is_some() {
+            if save.is_none() && app.preview_state.editor_config_persistence.wait_for_idle().is_some() {
                 save = Some(release);
             }
             assert_eq!(read_metrics(&app), vec![(24.0, 34.0); original.len()]);
-            assert!(!app.auto_adjust_line_height);
+            assert!(!app.preview_state.auto_adjust_line_height);
             let deadlines = debounce_tasks.split_off(debounce_tasks.len() - 2);
             let deadlines = runtime.block_on(async {
                 let messages = deadlines.into_iter().map(metric_deadline);
@@ -462,7 +462,7 @@ fn editor_metrics_preview_commits_latest_once() {
                     panic!("expected successful editor save");
                 };
                 let next = update(&mut app, EditorMessage::ConfigSaved(Ok(())));
-                if app.editor_config_persistence.wait_for_idle().is_some() {
+                if app.preview_state.editor_config_persistence.wait_for_idle().is_some() {
                     save = Some(next);
                 }
             }
@@ -550,7 +550,7 @@ fn editor_settings_save_ignores_gateway_delay_and_persists_latest() {
             .enable_all()
             .build()
             .unwrap();
-        app.auto_adjust_line_height = true;
+        app.preview_state.auto_adjust_line_height = true;
         let first = run_task(
             &runtime,
             commit_metrics_input(&mut app, EditorMessage::FontSizePreview(20.0)),
@@ -579,11 +579,11 @@ fn editor_settings_save_ignores_gateway_delay_and_persists_latest() {
         {
             assert!(iced_runtime::task::into_stream(update(&mut app, message)).is_none());
         }
-        assert_eq!(app.current_font_size, 24.0);
-        assert_eq!(app.current_line_height, 27.0);
-        assert!(app.editor_follow_system_theme);
+        assert_eq!(app.preview_state.current_font_size, 24.0);
+        assert_eq!(app.preview_state.current_line_height, 27.0);
+        assert!(app.appearance.editor_follow_system_theme);
 
-        let mut drain = app.editor_config_persistence.wait_for_idle().unwrap();
+        let mut drain = app.preview_state.editor_config_persistence.wait_for_idle().unwrap();
         assert!(matches!(drain.try_recv(), Err(tokio::sync::oneshot::error::TryRecvError::Empty)));
         responses.send(Some("{}".to_string())).unwrap();
         let second = run_task(&runtime, finish(&runtime, first, &mut app));
@@ -630,8 +630,8 @@ fn editor_settings_save_ignores_gateway_delay_and_persists_latest() {
         );
         responses.send(None).unwrap();
         let _ = finish(&runtime, failed, &mut app);
-        assert!(!app.editor_follow_system_theme);
-        let toast = app.active_toast.as_ref().expect("save failure must show a toast");
+        assert!(!app.appearance.editor_follow_system_theme);
+        let toast = app.toast_state.active_toast.as_ref().expect("save failure must show a toast");
         assert!(toast.message.contains("编辑器配置保存失败"));
 
         let retry =

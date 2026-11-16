@@ -12,23 +12,23 @@ pub(super) fn state(app: &mut App) -> TabState<'_> {
     TabState {
         active_preview_path: &mut app.navigation_tabs.active_preview_path,
         preview_tabs: &mut app.navigation_tabs.preview_tabs,
-        preview_context_target: &mut app.preview_context_target,
-        preview_trace_back: &mut app.preview_trace_back,
-        preview_trace_forward: &mut app.preview_trace_forward,
-        preview_trace_navigating: &mut app.preview_trace_navigating,
-        pending_preview_goto: &mut app.pending_preview_goto,
-        preview_messages: &mut app.preview_messages,
-        preview_auto_save_mode: &mut app.preview_auto_save_mode,
-        show_preview_context_menu: &mut app.show_preview_context_menu,
-        preview_context_menu_pos: &mut app.preview_context_menu_pos,
-        preview_nav_popup: &mut app.preview_nav_popup,
+        preview_context_target: &mut app.preview_state.preview_context_target,
+        preview_trace_back: &mut app.preview_state.preview_trace_back,
+        preview_trace_forward: &mut app.preview_state.preview_trace_forward,
+        preview_trace_navigating: &mut app.preview_state.preview_trace_navigating,
+        pending_preview_goto: &mut app.preview_state.pending_preview_goto,
+        preview_messages: &mut app.preview_state.preview_messages,
+        preview_auto_save_mode: &mut app.preview_state.preview_auto_save_mode,
+        show_preview_context_menu: &mut app.preview_state.show_preview_context_menu,
+        preview_context_menu_pos: &mut app.preview_state.preview_context_menu_pos,
+        preview_nav_popup: &mut app.preview_state.preview_nav_popup,
         preview_tab_menu_path: &mut app.navigation_tabs.preview_tab_menu_path,
         preview_tab_menu_pos: &mut app.navigation_tabs.preview_tab_menu_pos,
     }
 }
 pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
     let opening = if let PreviewMessage::Open(path) = &message { Some(path.clone()) } else { None };
-    domain::prepare_popover(&mut app.editor_popover, &message);
+    domain::prepare_popover(&mut app.preview_state.editor_popover, &message);
     let reveal_work_resources = opening.is_some() && matches!(app.navigation_tabs.screen, Screen::Project)
         && app.navigation_mode.workspace_mode == WorkspaceMode::Work
         && (!app.navigation_workspace.work_resources_visible || app.navigation_workspace.work_resource_mode != WorkResourceMode::WorkspaceFiles || app.navigation_workspace.work_chat_fullscreen || app.navigation_workspace.work_chat_half_fullscreen);
@@ -56,7 +56,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
         super::lsp::clear_lsp_hover(app);
         super::lsp::clear_lsp_completion(app, matches!(message, PreviewMessage::PathSegmentClicked(..)));
     }
-    let appearance = Appearance { theme: app.effective_editor_theme(), font_size: app.current_font_size, line_height: app.current_line_height, locale: app.desktop_locale, cursor_position: app.cursor_position };
+    let appearance = Appearance { theme: app.effective_editor_theme(), font_size: app.preview_state.current_font_size, line_height: app.preview_state.current_line_height, locale: app.general_settings.desktop_locale, cursor_position: app.cursor_position };
     let mut actions = Vec::new();
     let task = domain::update(&mut state(app), appearance, &mut actions, message);
     let mut tasks = Vec::new();

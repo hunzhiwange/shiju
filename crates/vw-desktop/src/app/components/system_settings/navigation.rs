@@ -9,7 +9,7 @@ pub(super) use desktop_settings_shell::navigation::GROUPS;
 pub(crate) use desktop_settings_shell::navigation::SETTINGS_NAVIGATION_SCROLL;
 use desktop_settings_shell::navigation::{NavigationEntry, NavigationGroup};
 pub(super) fn view(app: &App, width: f32) -> iced::Element<'_, Message> {
-    let groups = if app.system_settings_query.trim().is_empty() {
+    let groups = if app.general_settings.system_settings_query.trim().is_empty() {
         GROUPS
             .iter()
             .map(|(label, tabs)| NavigationGroup {
@@ -20,7 +20,7 @@ pub(super) fn view(app: &App, width: f32) -> iced::Element<'_, Message> {
                         project(
                             app,
                             SystemSettingsSearchEntry::new(
-                                navigation_label(app.desktop_locale, tab),
+                                navigation_label(app.general_settings.desktop_locale, tab),
                                 None,
                                 &[],
                                 SystemSettingsSearchTarget::TopLevel(tab),
@@ -33,15 +33,15 @@ pub(super) fn view(app: &App, width: f32) -> iced::Element<'_, Message> {
     } else {
         vec![NavigationGroup {
             label: None,
-            entries: search_results(app, &app.system_settings_query)
+            entries: search_results(app, &app.general_settings.system_settings_query)
                 .into_iter()
                 .map(|entry| project(app, entry))
                 .collect(),
         }]
     };
     desktop_settings_shell::navigation::view(
-        &app.system_settings_query,
-        crate::app::i18n::I18n::new(app.desktop_locale),
+        &app.general_settings.system_settings_query,
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         width,
         groups,
         Message::View(ViewMessage::ToggleSystemSettings),
@@ -62,7 +62,7 @@ fn search_target_is_active(app: &App, target: SystemSettingsSearchTarget) -> boo
     search_target_is_active(
         &ActiveNavigation {
             page: app.navigation_panels.system_settings_tab,
-            general: app.general_settings_tab,
+            general: app.general_settings.general_settings_tab,
             models: app.model_settings.active_tab,
             cron: app.cron_settings.active_tab,
             agents: app.agents_settings.active_config_tab,

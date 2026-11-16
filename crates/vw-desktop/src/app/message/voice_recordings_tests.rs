@@ -1,7 +1,7 @@
 use super::*;
 fn app() -> App {
     let (mut app, _) = App::new();
-    app.active_session_id = Some("voice-archive".into());
+    app.session_state.active_session_id = Some("voice-archive".into());
     app.navigation_panels.show_system_settings = true;
     app.navigation_panels.system_settings_tab = crate::app::components::system_settings::SystemTab::Voice;
     app.current_session_runtime_mut().input_editor =
@@ -31,7 +31,7 @@ fn voice_task_14_recordings_session_switch_discards_retry_result() {
     app.voice.recordings.scope = Some(scope);
     app.voice.recordings.generation = 7;
     app.voice.recordings.busy = true;
-    app.active_session_id = Some("other".into());
+    app.session_state.active_session_id = Some("other".into());
     let _ = update(&mut app, Event::Retried(7, Ok("旧结果".into())));
     assert!(app.voice.recordings.result.is_none());
     assert!(!app.voice.recordings.busy);

@@ -15,15 +15,15 @@ fn map(event: domain::Message) -> Message {
  }
 }
 pub fn projects_list<'a>(app: &App, collapsed_hover_mode: bool) -> iced::Element<'a, Message> {
- let attention = |sessions: &[session_info::Info]| sessions.iter().any(|session| app.session_runtime_states.get(&session.id).is_some_and(|runtime| runtime.request_lifecycle.is_requesting || !runtime.request_lifecycle.queue.is_empty() || runtime.has_unseen_success));
+ let attention = |sessions: &[session_info::Info]| sessions.iter().any(|session| app.session_state.session_runtime_states.get(&session.id).is_some_and(|runtime| runtime.request_lifecycle.is_requesting || !runtime.request_lifecycle.queue.is_empty() || runtime.has_unseen_success));
  let input = domain::Input {
- recent_projects: &app.recent_projects, recent_projects_edits: &app.recent_projects_edits,
- recent_projects_meta: &app.recent_projects_meta, project_path: &app.navigation_tabs.project_path,
- hovered_recent_project: &app.hovered_recent_project, code_projects_menu_open: app.navigation_mode.code_projects_menu_open,
- desktop_locale: app.desktop_locale,
- project_attention: app.recent_projects_edits.iter().enumerate().map(|(index, _)| {
- let path = app.recent_projects.get(index).map(String::as_str).unwrap_or("");
- (path, app.project_sessions.get(path).map(|sessions| attention(sessions)).unwrap_or_else(|| app.navigation_tabs.project_path.as_deref() == Some(path) && attention(&app.sessions)))
+ recent_projects: &app.workspace_state.recent_projects, recent_projects_edits: &app.workspace_state.recent_projects_edits,
+ recent_projects_meta: &app.workspace_state.recent_projects_meta, project_path: &app.navigation_tabs.project_path,
+ hovered_recent_project: &app.workspace_state.hovered_recent_project, code_projects_menu_open: app.navigation_mode.code_projects_menu_open,
+ desktop_locale: app.general_settings.desktop_locale,
+ project_attention: app.workspace_state.recent_projects_edits.iter().enumerate().map(|(index, _)| {
+ let path = app.workspace_state.recent_projects.get(index).map(String::as_str).unwrap_or("");
+ (path, app.workspace_state.project_sessions.get(path).map(|sessions| attention(sessions)).unwrap_or_else(|| app.navigation_tabs.project_path.as_deref() == Some(path) && attention(&app.session_state.sessions)))
  }).collect(),
  };
  domain::projects_list(&input, collapsed_hover_mode).map(map)

@@ -5,8 +5,8 @@ use crate::app::message::ChatMessage;
 fn new_draft() -> App {
     let (mut app, _) = App::new();
     app.navigation_tabs.project_path = Some("/voice-new-draft".into());
-    app.project_id = Some("voice-project".into());
-    app.active_session_id = None;
+    app.workspace_state.project_id = Some("voice-project".into());
+    app.session_state.active_session_id = None;
     let runtime = app.current_session_runtime_mut();
     runtime.acp_agent = None;
     runtime.task_mode_enabled = false;
@@ -32,9 +32,9 @@ fn voice_task_07_new_draft_start_preserves_keyboard_editor_without_creating_sess
         "new draft was rejected before local capture preparation"
     );
     assert!(iced_runtime::task::into_stream(task).is_some());
-    assert!(app.active_session_id.is_none());
-    assert!(app.chat.is_empty());
-    assert!(app.sessions.is_empty());
+    assert!(app.session_state.active_session_id.is_none());
+    assert!(app.chat_view.chat.is_empty());
+    assert!(app.session_state.sessions.is_empty());
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "前后");
     assert!(!app.current_session_runtime_ref().unwrap().request_lifecycle.is_requesting);
 }
@@ -65,9 +65,9 @@ fn voice_task_07_new_draft_fills_original_cursor_once_without_sending() {
     complete(&mut app, generation, "识别");
     complete(&mut app, generation, "重复");
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "前识别后");
-    assert_eq!(app.input_editor.text(), "前识别后");
-    assert!(app.active_session_id.is_none());
-    assert!(app.chat.is_empty());
+    assert_eq!(app.session_state.input_editor.text(), "前识别后");
+    assert!(app.session_state.active_session_id.is_none());
+    assert!(app.chat_view.chat.is_empty());
     assert!(!app.current_session_runtime_ref().unwrap().request_lifecycle.is_requesting);
 }
 #[test]
@@ -75,12 +75,12 @@ fn voice_task_07_new_draft_first_send_uses_original_session_creation_chain() {
     let mut app = new_draft();
     let generation = recognize(&mut app);
     complete(&mut app, generation, "首条听写");
-    assert!(app.active_session_id.is_none());
+    assert!(app.session_state.active_session_id.is_none());
     let task = app.update(Message::Chat(ChatMessage::SendPressed));
-    assert!(app.active_session_id.is_some());
+    assert!(app.session_state.active_session_id.is_some());
     assert!(iced_runtime::task::into_stream(task).is_some());
-    assert_eq!(app.chat[0].role, crate::app::models::ChatRole::User);
-    assert_eq!(app.chat[0].content, "首条听写");
+    assert_eq!(app.chat_view.chat[0].role, crate::app::models::ChatRole::User);
+    assert_eq!(app.chat_view.chat[0].content, "首条听写");
     let runtime = app.current_session_runtime_ref().unwrap();
     assert!(runtime.input_editor.text().is_empty());
     assert_eq!(runtime.request_lifecycle.active_agent_request.as_ref().unwrap().query, "首条听写");
@@ -92,7 +92,7 @@ fn voice_task_07_new_draft_first_send_invalidates_inflight_dictation() {
     let generation = recognize(&mut app);
     let token = app.voice.native_cancel.clone().unwrap();
     let _ = app.update(Message::Chat(ChatMessage::SendPressed));
-    assert!(app.active_session_id.is_some());
+    assert!(app.session_state.active_session_id.is_some());
     assert!(token.is_cancelled());
     complete(&mut app, generation, "迟到识别");
     let runtime = app.current_session_runtime_ref().unwrap();
@@ -124,8 +124,8 @@ fn voice_task_07_new_draft_edit_then_undo_requires_explicit_apply() {
     assert_eq!(app.voice.draft.pending.as_deref(), Some("识别"));
     let _ = app.update(Message::Voice(Event::Apply));
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "原稿识别");
-    assert_eq!(app.input_editor.text(), "原稿识别");
-    assert!(app.active_session_id.is_none());
+    assert_eq!(app.session_state.input_editor.text(), "原稿识别");
+    assert!(app.session_state.active_session_id.is_none());
 }
 #[test]
 fn voice_task_07_new_draft_reopen_same_project_rejects_old_generation() {
@@ -139,7 +139,7 @@ fn voice_task_07_new_draft_reopen_same_project_rejects_old_generation() {
             directory: "/voice-new-draft".into(),
         },
     ));
-    assert!(app.active_session_id.is_none());
+    assert!(app.session_state.active_session_id.is_none());
     assert!(original != scope(&app).unwrap());
     assert!(token.is_cancelled());
     keyboard(&mut app, "另一个草稿");

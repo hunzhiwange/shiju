@@ -8,8 +8,8 @@ pub(super) fn view_overlays<'a>(
 ) -> Element<'a, Message> {
     desktop_settings_skills::help::view_overlays(
         app.skills_settings.show_help_modal,
-        app.desktop_locale,
-        app.last_copied_code_hash,
+        app.general_settings.desktop_locale,
+        app.clipboard_state.last_copied_code_hash,
         dialog,
         Message::CopyCode,
         Message::Settings(message::SettingsMessage::SkillsHelpClose),

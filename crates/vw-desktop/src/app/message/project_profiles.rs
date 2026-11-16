@@ -11,7 +11,7 @@ pub(crate) fn message(event: Event) -> Message {
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let Ok(client) = crate::app::config::gateway_client() else { return Task::none(); };
     let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.navigation_tabs.project_path.clone() };
-    let Some(project) = app.project_id.clone().filter(|p| !p.trim().is_empty()) else { return Task::none(); };
+    let Some(project) = app.workspace_state.project_id.clone().filter(|p| !p.trim().is_empty()) else { return Task::none(); };
     if app.apps_catalog.context.as_ref() != Some(&context) || app.apps_catalog.token.is_empty() { return Task::none(); }
     let catalog = desktop_workspace::profile_update::Catalog {
         tenant: context.tenant.clone(), context, project,

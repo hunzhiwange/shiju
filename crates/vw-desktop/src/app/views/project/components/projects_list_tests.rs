@@ -45,9 +45,9 @@ fn recent_meta(path: &str, icon: Option<&str>, icon_color: Option<&str>) -> Rece
 #[test]
 fn projects_list_builds_empty_recent_projects() {
     let (mut app, _task) = App::new();
-    app.recent_projects.clear();
-    app.recent_projects_edits.clear();
-    app.recent_projects_meta.clear();
+    app.workspace_state.recent_projects.clear();
+    app.workspace_state.recent_projects_edits.clear();
+    app.workspace_state.recent_projects_meta.clear();
 
     let element: Element<'_, Message> = projects_list(&app, false);
 
@@ -61,16 +61,16 @@ fn projects_list_builds_with_hover_meta_and_project_attention() {
     let path = "/tmp/vibe-window-alpha".to_string();
     let session_id = "session-alpha".to_string();
 
-    app.recent_projects = vec![path.clone()];
-    app.recent_projects_edits = vec!["Alpha".to_string()];
-    app.recent_projects_meta = vec![recent_meta(&path, Some("A"), Some("#336699"))];
+    app.workspace_state.recent_projects = vec![path.clone()];
+    app.workspace_state.recent_projects_edits = vec!["Alpha".to_string()];
+    app.workspace_state.recent_projects_meta = vec![recent_meta(&path, Some("A"), Some("#336699"))];
     app.navigation_tabs.project_path = Some(path.clone());
-    app.hovered_recent_project = Some(path.clone());
-    app.project_sessions.insert(path.clone(), vec![session_info(&session_id, &path)]);
+    app.workspace_state.hovered_recent_project = Some(path.clone());
+    app.workspace_state.project_sessions.insert(path.clone(), vec![session_info(&session_id, &path)]);
 
     let mut runtime = SessionRuntimeState::new();
     runtime.request_lifecycle.is_requesting = true;
-    app.session_runtime_states.insert(session_id, runtime);
+    app.session_state.session_runtime_states.insert(session_id, runtime);
 
     let element: Element<'_, Message> = projects_list(&app, true);
 
@@ -84,15 +84,15 @@ fn projects_list_falls_back_to_current_sessions_for_attention() {
     let path = "/tmp/vibe-window-beta".to_string();
     let session_id = "session-beta".to_string();
 
-    app.recent_projects = vec![path.clone()];
-    app.recent_projects_edits = vec![String::new()];
-    app.recent_projects_meta = vec![recent_meta(&path, None, Some("not-a-color"))];
+    app.workspace_state.recent_projects = vec![path.clone()];
+    app.workspace_state.recent_projects_edits = vec![String::new()];
+    app.workspace_state.recent_projects_meta = vec![recent_meta(&path, None, Some("not-a-color"))];
     app.navigation_tabs.project_path = Some(path.clone());
-    app.sessions = vec![session_info(&session_id, &path)];
+    app.session_state.sessions = vec![session_info(&session_id, &path)];
 
     let mut runtime = SessionRuntimeState::new();
     runtime.has_unseen_success = true;
-    app.session_runtime_states.insert(session_id, runtime);
+    app.session_state.session_runtime_states.insert(session_id, runtime);
 
     let element: Element<'_, Message> = projects_list(&app, false);
 
@@ -106,10 +106,10 @@ fn projects_list_builds_with_queue_attention() {
     let path = "/tmp/vibe-window-queue".to_string();
     let session_id = "session-queue".to_string();
 
-    app.recent_projects = vec![path.clone()];
-    app.recent_projects_edits = vec!["Queue Project".to_string()];
+    app.workspace_state.recent_projects = vec![path.clone()];
+    app.workspace_state.recent_projects_edits = vec!["Queue Project".to_string()];
     app.navigation_tabs.project_path = Some(path.clone());
-    app.project_sessions.insert(path.clone(), vec![session_info(&session_id, &path)]);
+    app.workspace_state.project_sessions.insert(path.clone(), vec![session_info(&session_id, &path)]);
 
     let mut runtime = SessionRuntimeState::new();
     runtime.request_lifecycle.queue = vec![crate::app::state::QueueItem {
@@ -136,7 +136,7 @@ fn projects_list_builds_with_queue_attention() {
         workflow_mode_enabled: false,
         goal_mode_enabled: false,
     }];
-    app.session_runtime_states.insert(session_id, runtime);
+    app.session_state.session_runtime_states.insert(session_id, runtime);
 
     let element: Element<'_, Message> = projects_list(&app, false);
 
@@ -147,9 +147,9 @@ fn projects_list_builds_with_queue_attention() {
 #[test]
 fn projects_list_uses_empty_path_when_edit_has_no_matching_recent_project() {
     let (mut app, _task) = App::new();
-    app.recent_projects.clear();
-    app.recent_projects_edits = vec!["Loose edit".to_string()];
-    app.recent_projects_meta.clear();
+    app.workspace_state.recent_projects.clear();
+    app.workspace_state.recent_projects_edits = vec!["Loose edit".to_string()];
+    app.workspace_state.recent_projects_meta.clear();
 
     let element: Element<'_, Message> = projects_list(&app, false);
 
@@ -161,9 +161,9 @@ fn projects_list_uses_empty_path_when_edit_has_no_matching_recent_project() {
 fn projects_list_builds_without_attention_when_runtime_state_is_missing() {
     let (mut app, _task) = App::new();
     let path = "/tmp/no-runtime".to_string();
-    app.recent_projects = vec![path.clone()];
-    app.recent_projects_edits = vec!["No Runtime".to_string()];
-    app.project_sessions.insert(path.clone(), vec![session_info("missing-runtime", &path)]);
+    app.workspace_state.recent_projects = vec![path.clone()];
+    app.workspace_state.recent_projects_edits = vec!["No Runtime".to_string()];
+    app.workspace_state.project_sessions.insert(path.clone(), vec![session_info("missing-runtime", &path)]);
 
     let element: Element<'_, Message> = projects_list(&app, false);
 
@@ -175,14 +175,14 @@ fn projects_list_builds_without_attention_when_runtime_state_is_missing() {
 fn projects_list_does_not_use_current_sessions_for_unselected_project() {
     let (mut app, _task) = App::new();
     let listed_path = "/tmp/listed".to_string();
-    app.recent_projects = vec![listed_path.clone()];
-    app.recent_projects_edits = vec![String::new()];
+    app.workspace_state.recent_projects = vec![listed_path.clone()];
+    app.workspace_state.recent_projects_edits = vec![String::new()];
     app.navigation_tabs.project_path = Some("/tmp/current".to_string());
-    app.sessions = vec![session_info("current-session", "/tmp/current")];
+    app.session_state.sessions = vec![session_info("current-session", "/tmp/current")];
 
     let mut runtime = SessionRuntimeState::new();
     runtime.request_lifecycle.is_requesting = true;
-    app.session_runtime_states.insert("current-session".to_string(), runtime);
+    app.session_state.session_runtime_states.insert("current-session".to_string(), runtime);
 
     let element: Element<'_, Message> = projects_list(&app, true);
 
@@ -194,9 +194,9 @@ fn projects_list_does_not_use_current_sessions_for_unselected_project() {
 fn projects_list_ignores_recent_project_meta_for_other_paths() {
     let (mut app, _task) = App::new();
     let listed_path = "/tmp/listed-without-meta".to_string();
-    app.recent_projects = vec![listed_path.clone()];
-    app.recent_projects_edits = vec!["Listed".to_string()];
-    app.recent_projects_meta = vec![recent_meta("/tmp/other-project", Some("O"), Some("#112233"))];
+    app.workspace_state.recent_projects = vec![listed_path.clone()];
+    app.workspace_state.recent_projects_edits = vec!["Listed".to_string()];
+    app.workspace_state.recent_projects_meta = vec![recent_meta("/tmp/other-project", Some("O"), Some("#112233"))];
 
     let element: Element<'_, Message> = projects_list(&app, false);
 

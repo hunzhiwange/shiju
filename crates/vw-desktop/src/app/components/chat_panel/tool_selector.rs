@@ -15,7 +15,7 @@ fn map_message(local: LocalMessage) -> Message {
 pub(crate) fn session_tool_selector_popover(app: &App) -> iced::Element<'_, Message> {
  let runtime = app.current_session_runtime();
  desktop_chat_tools::tool_selector::session_tool_selector_popover(SelectorInput {
- i18n: crate::app::i18n::I18n::new(app.desktop_locale),
+ i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
  show_tools: runtime.acp_agent.is_none(),
  active_tab: runtime.visible_session_tool_selector_tab(),
  tool_selector: &runtime.tool_selector,

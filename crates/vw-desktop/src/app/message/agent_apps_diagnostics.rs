@@ -13,7 +13,7 @@ pub(crate) fn message(event: McpDiagnosticMessage) -> Message {
     Message::Settings(SettingsMessage::Mcp(McpMessage::Diagnostic(event)))
 }
 pub(crate) fn context(app: &App) -> Option<Context> {
-    desktop_settings_mcp::diagnostic_context::current(catalog::context(app), app.project_id.as_deref(), app.mcp_settings.diagnostics.app.as_ref(),
+    desktop_settings_mcp::diagnostic_context::current(catalog::context(app), app.workspace_state.project_id.as_deref(), app.mcp_settings.diagnostics.app.as_ref(),
         &app.apps_catalog.token, app.apps_catalog.context.as_ref(), app.apps_catalog.rows.iter().map(|r| r.entry.id), catalog::visible(app))
 }
 

@@ -16,7 +16,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         scope: app.app_providers.scope.as_ref(),
         catalog_context: app.apps_catalog.context.as_ref(),
         credentials_generation: app.apps_catalog.model_diagnostics.access_generation,
-        project: app.project_id.as_deref(),
+        project: app.workspace_state.project_id.as_deref(),
         token: &app.apps_catalog.token,
         current_scope, endpoints_open: app.app_providers.endpoints.is_some(),
         client, notice: &mut notice, manage_custom: &mut manage_custom, applied: &mut applied,

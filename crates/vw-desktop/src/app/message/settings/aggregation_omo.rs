@@ -5,7 +5,7 @@ pub use desktop_settings_apps::aggregation::omo::*;
 fn current(app: &App) -> Result<(GatewayAggregationOmoClient, Context), String> {
     let (client, scope) = list::current(app, AppId::OpenCode)?;
     let project =
-        app.project_id.as_ref().filter(|id| !id.is_empty()).ok_or("请先打开已注册项目")?;
+        app.workspace_state.project_id.as_ref().filter(|id| !id.is_empty()).ok_or("请先打开已注册项目")?;
     if app.app_providers.scope.as_ref() != Some(&scope)
         || scope.host.is_empty()
         || app.apps_catalog.token.is_empty()

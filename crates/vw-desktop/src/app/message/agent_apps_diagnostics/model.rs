@@ -9,7 +9,7 @@ pub(crate) fn invalidate(app: &mut App) {
 }
 pub(crate) fn can_show(app: &App) -> bool {
     let access = domain::Access {
-        token: &app.apps_catalog.token, context: &app.apps_catalog.context, project: &app.project_id,
+        token: &app.apps_catalog.token, context: &app.apps_catalog.context, project: &app.workspace_state.project_id,
         scope: app.app_providers.scope.as_ref(),
         actual: app.app_providers.scope.as_ref().and_then(|s| list::current(app, s.app).ok().map(|(_, scope)| scope)),
         catalog: app.app_providers.snapshot.as_ref().map(|s| &s.catalog),
@@ -20,7 +20,7 @@ pub(crate) fn can_show(app: &App) -> bool {
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let access = domain::Access {
-        token: &app.apps_catalog.token, context: &app.apps_catalog.context, project: &app.project_id,
+        token: &app.apps_catalog.token, context: &app.apps_catalog.context, project: &app.workspace_state.project_id,
         scope: app.app_providers.scope.as_ref(),
         actual: app.app_providers.scope.as_ref().and_then(|s| list::current(app, s.app).ok().map(|(_, scope)| scope)),
         catalog: app.app_providers.snapshot.as_ref().map(|s| &s.catalog),

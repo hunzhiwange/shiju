@@ -68,7 +68,7 @@ fn agent_model_inheritance_verified_acp_models_survive_disconnect_and_reopen() {
             ),
             None
         );
-        app.session_runtime_states.get_mut("verified").unwrap().acp_agent = Some("other".into());
+        app.session_state.session_runtime_states.get_mut("verified").unwrap().acp_agent = Some("other".into());
         assert!(
             desktop_settings_agents::defaults::validation_error(
                 &super::domain::defaults_input(&app, &draft),
@@ -76,7 +76,7 @@ fn agent_model_inheritance_verified_acp_models_survive_disconnect_and_reopen() {
             )
             .is_some()
         );
-        app.session_runtime_states.get_mut("verified").unwrap().acp_agent = Some("codex".into());
+        app.session_state.session_runtime_states.get_mut("verified").unwrap().acp_agent = Some("codex".into());
     }
     app.agents_settings.provider_models[0].models[0].enabled = false;
     let draft = DelegateAgentSettingsEntry::from_config(

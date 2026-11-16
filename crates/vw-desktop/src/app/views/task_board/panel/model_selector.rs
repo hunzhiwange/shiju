@@ -2,9 +2,9 @@ use crate::app::{App, Message};
 use crate::app::message::{TaskBoardMessage, SettingsMessage, ViewMessage};
 use desktop_task_board::model_selector::{SelectorView, SelectorMessage};
 pub(super) fn view(app: &App) -> SelectorView<'_> {
-    SelectorView { draft_model: &app.task_board_draft.model, bulk_model: &app.task_board_bulk_model_input,
-        task_board_model_popover: app.task_board_model_popover, task_board_bulk_model_popover: app.task_board_bulk_model_popover,
-        desktop_locale: app.desktop_locale, model_settings: &app.model_settings }
+    SelectorView { draft_model: &app.task_board.task_board_draft.model, bulk_model: &app.task_board.task_board_bulk_model_input,
+        task_board_model_popover: app.task_board.task_board_model_popover, task_board_bulk_model_popover: app.task_board.task_board_bulk_model_popover,
+        desktop_locale: app.general_settings.desktop_locale, model_settings: &app.model_settings }
 }
 pub(super) fn map(message: SelectorMessage) -> Message {
     match message {

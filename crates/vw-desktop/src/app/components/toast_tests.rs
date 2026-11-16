@@ -20,7 +20,7 @@ fn cache_sync_pending_retry_exposes_retry_action_in_toast() {
     let mut app = test_app();
     app.expert_hub.cache_sync =
         SkillCacheSyncState::PendingRetry { skill_id: 7, refresh_detail: false };
-    app.active_toast = Some(Toast {
+    app.toast_state.active_toast = Some(Toast {
         localized_message: None,
         id: 7,
         kind: ToastKind::Warning,
@@ -37,8 +37,8 @@ fn cache_sync_pending_retry_exposes_retry_action_in_toast() {
 #[test]
 fn confirmation_cancel_keeps_recent_project_and_clears_pending_path() {
  let mut app=test_app(); const PATH:&str="/fixture/測試";
- app.recent_projects=vec![PATH.into()]; app.recent_project_remove_confirm_path=Some(PATH.into());
+ app.workspace_state.recent_projects=vec![PATH.into()]; app.workspace_state.recent_project_remove_confirm_path=Some(PATH.into());
  let _=app.update(Message::Project(crate::app::message::ProjectMessage::RecentRemoveCanceled));
- assert!(app.recent_project_remove_confirm_path.is_none());
- assert_eq!(app.recent_projects,[PATH]);
+ assert!(app.workspace_state.recent_project_remove_confirm_path.is_none());
+ assert_eq!(app.workspace_state.recent_projects,[PATH]);
 }

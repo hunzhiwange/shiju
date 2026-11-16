@@ -6,12 +6,7 @@ pub enum FocusArea {
     Terminal,
 }
 
-/// Todo 面板在会话界面中的承载位置。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TodoPanelPlacement {
-    InputBottom,
-    ChatTopRight,
-}
+pub use desktop_ui_controls::todo_panel::TodoPanelPlacement;
 
 /// 编辑菜单剪切/复制/粘贴的上下文路由种类。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,15 +14,6 @@ pub enum ClipboardShortcutKind {
     Copy,
     Cut,
     Paste,
-}
-
-impl TodoPanelPlacement {
-    pub fn label(self) -> &'static str {
-        match self {
-            TodoPanelPlacement::InputBottom => "输入底部",
-            TodoPanelPlacement::ChatTopRight => "右上角",
-        }
-    }
 }
 
 /// 公开的 SettingsTab 枚举，描述该模块支持的一组离散状态或事件。

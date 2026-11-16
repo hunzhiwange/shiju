@@ -10,14 +10,11 @@
 
 use std::collections::HashMap;
 
-pub(super) use super::components;
 pub(super) use super::config;
-pub(super) use super::models;
 pub(super) use super::state;
-pub(super) use super::state::ConventionalCommitType;
 pub(super) use super::{
-    App, DiffTheme, FocusArea, Message,
-    Shell, TerminalState, TerminalTheme, load_recent_projects,
+    App, FocusArea, Message,
+    TerminalState, load_recent_projects,
     load_recent_projects_meta,
 };
 #[cfg(not(target_arch = "wasm32"))]
@@ -31,3 +28,9 @@ pub(in crate::app) mod startup;
 pub(super) use desktop_settings_agents::acp::sort_acp_agents;
 pub(super) use desktop_workspace::basic::display_name_for_path;
 pub(super) use desktop_apps_ui::bookmark::load_web_bookmarks;
+
+mod preferences;
+#[cfg(not(target_arch = "wasm32"))]
+mod startup_snapshot;
+mod system_settings;
+pub(in crate::app) mod dispatch;

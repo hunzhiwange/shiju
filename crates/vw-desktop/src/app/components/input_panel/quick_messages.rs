@@ -3,19 +3,19 @@ use desktop_chat_input::input_panel::quick_messages as domain;
 fn input(app: &App) -> domain::QuickInput<'_> {
     let key = app.current_session_runtime_ref().and_then(|r| r.agent.as_deref()).unwrap_or(crate::app::state::MAIN_AGENT_KEY);
     domain::QuickInput {
-        i18n: crate::app::i18n::I18n::new(app.desktop_locale),
-        quick_messages: &app.quick_messages,
-        quick_message_group: app.input_popovers.quick_message_group,
-        recommended_prompt: app.input_popovers.recommended_prompt,
+        i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
+        quick_messages: &app.general_settings.quick_messages,
+        quick_message_group: app.session_state.input_popovers.quick_message_group,
+        recommended_prompt: app.session_state.input_popovers.recommended_prompt,
         recommended_prompts: app.agents_settings.entries.iter().find(|e| e.key == key).map(|e| e.recommended_prompts.as_slice()),
         show_workspace: app.navigation_mode.workspace_mode == crate::app::state::WorkspaceMode::Work,
-        project_is_git_repo: app.project_is_git_repo,
-        recent_projects: &app.recent_projects,
-        recent_projects_edits: &app.recent_projects_edits,
+        project_is_git_repo: app.workspace_state.project_is_git_repo,
+        recent_projects: &app.workspace_state.recent_projects,
+        recent_projects_edits: &app.workspace_state.recent_projects_edits,
         project_path: app.navigation_tabs.project_path.as_deref(),
         work_space_picker_open: app.navigation_sidebar.work_space_picker_open,
         #[cfg(not(target_arch = "wasm32"))]
-        shiju_skill: app.input_popovers.shiju_skill,
+        shiju_skill: app.session_state.input_popovers.shiju_skill,
         #[cfg(not(target_arch = "wasm32"))]
         installed: &app.expert_hub.installed,
         #[cfg(not(target_arch = "wasm32"))]

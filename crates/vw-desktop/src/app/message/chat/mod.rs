@@ -40,7 +40,7 @@ use orchestration::AUTOSCROLL_HOLD_MS;
 use orchestration::think_block_key;
 
 pub(crate) fn refresh_active_trajectory_raw_task(app: &mut App, session_id: &str) -> Task<Message> {
-    if app.chat_panel_mode != crate::app::state::ChatPanelMode::Trajectory {
+    if app.chat_view.chat_panel_mode != crate::app::state::ChatPanelMode::Trajectory {
         return Task::none();
     }
     trajectory::refresh_missing_raw_task(app, session_id, None)
@@ -52,32 +52,32 @@ fn now_ms() -> u64 {
 
 pub(super) fn arm_autoscroll_hold(app: &mut App) {
     orchestration::arm_autoscroll_hold(
-        &mut app.chat_autoscroll_generation,
-        &mut app.chat_auto_scroll,
-        &mut app.chat_autoscroll_hold_until_ms,
+        &mut app.chat_interaction.chat_autoscroll_generation,
+        &mut app.chat_view.chat_auto_scroll,
+        &mut app.chat_interaction.chat_autoscroll_hold_until_ms,
         now_ms(),
     );
 }
 
 pub(super) fn focus_chat_on_turn(app: &mut App, user_index: usize) -> bool {
-    if user_index >= app.chat_virtualizer.len() {
+    if user_index >= app.chat_view.chat_virtualizer.len() {
         return false;
     }
 
-    app.chat_auto_scroll = false;
-    app.chat_virtualizer.focus_turn_on_user(user_index);
+    app.chat_view.chat_auto_scroll = false;
+    app.chat_view.chat_virtualizer.focus_turn_on_user(user_index);
     app.sync_chat_virtualizer_compat_fields();
     true
 }
 
 pub(super) fn scroll_chat_to_bottom_task(app: &mut App) -> Task<Message> {
     arm_autoscroll_hold(app);
-    app.chat_virtualizer.snap_to_tail();
+    app.chat_view.chat_virtualizer.snap_to_tail();
     // Scrolling changes the offset, not message heights. Rebuilding the compatibility
     // height index here turns every streaming tail-follow into a full-history update.
     app.sync_chat_scroll_compat_fields();
     iced::widget::operation::snap_to(
-        app.chat_scroll_id.clone(),
+        app.chat_view.chat_scroll_id.clone(),
         scrollable::RelativeOffset { x: Some(0.0), y: Some(1.0) },
     )
     .map(|_: ()| Message::CopyDone)
@@ -88,11 +88,11 @@ pub(super) fn scroll_chat_to_turn_top_task(app: &mut App, user_index: usize) -> 
         return Task::none();
     }
 
-    let relative_y = app.chat_virtualizer.relative_y();
+    let relative_y = app.chat_view.chat_virtualizer.relative_y();
 
     Task::batch([
         iced::widget::operation::snap_to(
-            app.chat_scroll_id.clone(),
+            app.chat_view.chat_scroll_id.clone(),
             scrollable::RelativeOffset { x: Some(0.0), y: Some(relative_y) },
         )
         .map(|_: ()| Message::CopyDone),
@@ -102,7 +102,7 @@ pub(super) fn scroll_chat_to_turn_top_task(app: &mut App, user_index: usize) -> 
 
 pub(super) fn throttled_stream_autoscroll_task(app: &mut App) -> Option<Task<Message>> {
     if !orchestration::stream_autoscroll_due(
-        app.chat_auto_scroll, &mut app.chat_stream_autoscroll_last_ms, now_ms(),
+        app.chat_view.chat_auto_scroll, &mut app.chat_interaction.chat_stream_autoscroll_last_ms, now_ms(),
     ) {
         return None;
     }
@@ -111,40 +111,40 @@ pub(super) fn throttled_stream_autoscroll_task(app: &mut App) -> Option<Task<Mes
 
 pub(super) fn scroll_chat_to_bottom_with_followups(app: &mut App) -> Task<Message> {
     arm_autoscroll_hold(app);
-    app.chat_virtualizer.snap_to_tail();
+    app.chat_view.chat_virtualizer.snap_to_tail();
     app.sync_chat_virtualizer_compat_fields();
     Task::batch([
         iced::widget::operation::snap_to(
-            app.chat_scroll_id.clone(),
+            app.chat_view.chat_scroll_id.clone(),
             scrollable::RelativeOffset { x: Some(0.0), y: Some(1.0) },
         )
         .map(|_: ()| Message::CopyDone),
         message::after(
             Duration::from_millis(16),
             Message::Chat(ChatMessage::FollowupScrollToBottom {
-                session_id: app.active_session_id.clone(),
-                generation: app.chat_autoscroll_generation,
+                session_id: app.session_state.active_session_id.clone(),
+                generation: app.chat_interaction.chat_autoscroll_generation,
             }),
         ),
         message::after(
             Duration::from_millis(48),
             Message::Chat(ChatMessage::FollowupScrollToBottom {
-                session_id: app.active_session_id.clone(),
-                generation: app.chat_autoscroll_generation,
+                session_id: app.session_state.active_session_id.clone(),
+                generation: app.chat_interaction.chat_autoscroll_generation,
             }),
         ),
         message::after(
             Duration::from_millis(96),
             Message::Chat(ChatMessage::FollowupScrollToBottom {
-                session_id: app.active_session_id.clone(),
-                generation: app.chat_autoscroll_generation,
+                session_id: app.session_state.active_session_id.clone(),
+                generation: app.chat_interaction.chat_autoscroll_generation,
             }),
         ),
         message::after(
             Duration::from_millis(160),
             Message::Chat(ChatMessage::FollowupScrollToBottom {
-                session_id: app.active_session_id.clone(),
-                generation: app.chat_autoscroll_generation,
+                session_id: app.session_state.active_session_id.clone(),
+                generation: app.chat_interaction.chat_autoscroll_generation,
             }),
         ),
     ])
@@ -163,20 +163,20 @@ pub use desktop_session::message::chat::fork::{ForkSessionAnchor, ForkSessionDia
 
 pub(crate) fn fork_session_anchor_from_user_row(app: &App, index: usize) -> Option<ForkSessionAnchor> {
     orchestration::fork_session_anchor(
-        &app.chat,
-        &app.chat_message_ids,
+        &app.chat_view.chat,
+        &app.chat_view.chat_message_ids,
         index,
-        app.active_session_id.as_deref(),
-        app.active_session_id.as_deref().and_then(|id| app.known_session_directory(id)),
-        app.session_view_cache.open_generation(),
+        app.session_state.active_session_id.as_deref(),
+        app.session_state.active_session_id.as_deref().and_then(|id| app.known_session_directory(id)),
+        app.session_state.session_view_cache.open_generation(),
     )
 }
 
 pub(crate) fn fork_session_anchor_is_current(anchor: &ForkSessionAnchor, app: &App) -> bool {
     orchestration::fork_session_anchor_is_current(
         anchor,
-        app.active_session_id.as_deref(),
-        app.session_view_cache.open_generation(),
+        app.session_state.active_session_id.as_deref(),
+        app.session_state.session_view_cache.open_generation(),
         app.known_session_directory(&anchor.session_id).as_deref(),
     )
 }
@@ -252,11 +252,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         desktop_session::message::chat::routing::Route::Session => session::update(app, message),
     };
 
-    if app.input_popovers.agent_sessions
+    if app.session_state.input_popovers.agent_sessions
         && crate::app::components::input_panel::agent_sessions::cached_running_agent_sessions(app)
             .is_empty()
     {
-        app.input_popovers.agent_sessions = false;
+        app.session_state.input_popovers.agent_sessions = false;
     }
 
     if local_ui_event {
@@ -265,24 +265,24 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 
     // 对流式增量消息执行特殊处理：同步思考块状态
     if is_stream_delta {
-        let stream_tail = app.active_session_id.as_deref().and_then(|session_id| {
-            let state = &app.session_runtime_states.get(session_id)?.stream_tail_state;
+        let stream_tail = app.session_state.active_session_id.as_deref().and_then(|session_id| {
+            let state = &app.session_state.session_runtime_states.get(session_id)?.stream_tail_state;
             state
                 .message_idx()
                 .map(|message_idx| (message_idx, state.think_count(), state.thinking_open()))
         });
         if let Some((i, think_count, thinking_open)) = stream_tail {
             let outcome = orchestration::sync_stream_think_tracking(
-                &mut app.chat_stream_think_msg_idx,
-                &mut app.chat_stream_think_count,
-                &mut app.chat_stream_think_open_idx,
+                &mut app.chat_interaction.chat_stream_think_msg_idx,
+                &mut app.chat_interaction.chat_stream_think_count,
+                &mut app.chat_interaction.chat_stream_think_open_idx,
                 i, think_count, thinking_open,
             );
             for think_idx in outcome.removed_indexes {
                 let key = think_block_key(i, think_idx);
-                app.chat_think_editors.remove(&key);
-                app.chat_think_expanded.remove(&key);
-                app.chat_think_collapsed.remove(&key);
+                app.chat_view.chat_think_editors.remove(&key);
+                app.chat_view.chat_think_expanded.remove(&key);
+                app.chat_view.chat_think_collapsed.remove(&key);
             }
 
             if outcome.scroll_to_open_block
@@ -296,7 +296,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         let pending_chunk_starts =
             app.pending_chat_message_editors_window_chunks(visible_start_idx, visible_end_idx);
         if !pending_chunk_starts.is_empty()
-            && let Some(session_id) = app.active_session_id.clone()
+            && let Some(session_id) = app.session_state.active_session_id.clone()
         {
             app.mark_chat_ui_chunks_preparing(&pending_chunk_starts);
             task = task.chain(message::project::prepare_session_ui_chunks_task(
@@ -304,7 +304,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 app.active_shared_chat_messages(),
                 pending_chunk_starts,
                 None,
-                app.dialogue_flow_show_reasoning_summary,
+                app.general_settings.dialogue_flow_show_reasoning_summary,
             ));
         }
     }

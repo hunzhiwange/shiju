@@ -30,17 +30,17 @@ domain::events::ProjectMessage::ProjectSessionListScrollChanged { project_path, 
 }
 fn input(app: &App) -> domain::Input<'_> {
  let drafts = super::session_row::running_draft_sessions(app).map(|(path, info)| (path.to_owned(), info)).collect::<Vec<_>>();
- let rows = app.project_sessions.values().flat_map(|sessions| domain::session_tree_projection(sessions, usize::MAX, &app.session_ui_projection.pinned).rows.into_iter().map(|row| row.session)).chain(drafts.iter().map(|(_, info)| info)).map(|info| {
+ let rows = app.workspace_state.project_sessions.values().flat_map(|sessions| domain::session_tree_projection(sessions, usize::MAX, &app.session_ui_projection.pinned).rows.into_iter().map(|row| row.session)).chain(drafts.iter().map(|(_, info)| info)).map(|info| {
  let mut row = super::session_row::row_input(app, &info.id, &info.title, info.time.updated);
  row.pinned = app.session_ui_projection.pinned.contains(&(info.project_id.clone(), info.id.clone()));
  (info.id.clone(), (row, super::session_row::status_for_session(app, &info.id).into()))
  }).collect();
- domain::Input { desktop_locale: app.desktop_locale, pinned: &app.session_ui_projection.pinned,
- session_menu_id: &app.session_menu_id, session_menu_anchor: app.session_menu_anchor, rows, drafts,
- recent_projects: &app.recent_projects, recent_projects_edits: &app.recent_projects_edits,
- project_sessions_loading: &app.project_sessions_loading, project_session_load_counts: &app.project_session_load_counts,
- project_session_has_vertical_scrollbar: &app.project_session_has_vertical_scrollbar, project_sessions: &app.project_sessions,
- project_tools_menu_path: &app.project_tools_menu_path,
+ domain::Input { desktop_locale: app.general_settings.desktop_locale, pinned: &app.session_ui_projection.pinned,
+ session_menu_id: &app.workspace_state.session_menu_id, session_menu_anchor: app.workspace_state.session_menu_anchor, rows, drafts,
+ recent_projects: &app.workspace_state.recent_projects, recent_projects_edits: &app.workspace_state.recent_projects_edits,
+ project_sessions_loading: &app.workspace_state.project_sessions_loading, project_session_load_counts: &app.workspace_state.project_session_load_counts,
+ project_session_has_vertical_scrollbar: &app.workspace_state.project_session_has_vertical_scrollbar, project_sessions: &app.workspace_state.project_sessions,
+ project_tools_menu_path: &app.workspace_state.project_tools_menu_path,
  new_session: super::new_session::button_input(app), }
 }
 pub fn project_sessions_panel(app: &App, path: Option<String>) -> iced::Element<'_, Message> { domain::project_sessions_panel(&input(app), path).map(map) }

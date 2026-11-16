@@ -22,11 +22,11 @@ fn map(event: Event) -> Message {
 }
 pub(super) fn render_tiles_grid(app: &App, blocked: bool) -> Element<'_, Message> {
     domain::render_tiles_grid(app.window_size.0, &app.navigation_tabs.apps_search_query,
-        crate::app::i18n::I18n::new(app.desktop_locale),
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         app.web_navigation.web_bookmarks.iter().map(|bookmark| domain::Bookmark {
             title: &bookmark.title, url: &bookmark.url, width: bookmark.width, height: bookmark.height,
         }), blocked).map(map)
 }
 pub(super) fn render_header(app: &App, blocked: bool) -> Element<'static, Message> {
-    domain::render_header(&app.navigation_tabs.apps_search_query, crate::app::i18n::I18n::new(app.desktop_locale), blocked).map(map)
+    domain::render_header(&app.navigation_tabs.apps_search_query, crate::app::i18n::I18n::new(app.general_settings.desktop_locale), blocked).map(map)
 }

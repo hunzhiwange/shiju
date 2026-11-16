@@ -82,7 +82,7 @@ async fn settings_tabs_capabilities_appearance_agents() {
             app.agents_settings.active_config_tab = AgentConfigTab::Agents;
             app.agents_settings.catalog_official = false;
             app.agents_settings.save_error = Some("fixture agent error".into());
-            let locale = app.desktop_locale;
+            let locale = app.general_settings.desktop_locale;
             let tr = |label| super::tr(locale, label);
 
             let catalog =

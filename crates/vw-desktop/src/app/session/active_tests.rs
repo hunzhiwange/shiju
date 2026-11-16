@@ -19,8 +19,8 @@ fn switch_stashes_previous_chat_without_cloning_payload() {
     let (mut app, _task) = App::new();
     let content = "large message payload ".repeat(4_096);
     let expected_pointer = content.as_ptr();
-    app.active_session_id = Some("previous".to_string());
-    app.chat = vec![ChatMessage {
+    app.session_state.active_session_id = Some("previous".to_string());
+    app.chat_view.chat = vec![ChatMessage {
         role: ChatRole::Assistant,
         content,
         model: None,
@@ -30,30 +30,30 @@ fn switch_stashes_previous_chat_without_cloning_payload() {
 
     app.stash_active_session_view();
 
-    let snapshot = app.session_view_cache.get("previous").expect("previous view should be cached");
+    let snapshot = app.session_state.session_view_cache.get("previous").expect("previous view should be cached");
     assert_eq!(snapshot.chat()[0].content.as_ptr(), expected_pointer);
-    assert!(app.chat.is_empty());
+    assert!(app.chat_view.chat.is_empty());
 }
 
 #[test]
 fn repeated_stash_and_project_reload_preserve_running_session_history() {
     let (mut app, _) = App::new();
-    app.active_session_id = Some("running".to_string());
-    app.chat = vec![message(ChatRole::User, "question"), message(ChatRole::Assistant, "partial")];
-    app.chat_message_ids = vec![Some("user-id".to_string()), None];
+    app.session_state.active_session_id = Some("running".to_string());
+    app.chat_view.chat = vec![message(ChatRole::User, "question"), message(ChatRole::Assistant, "partial")];
+    app.chat_view.chat_message_ids = vec![Some("user-id".to_string()), None];
     app.get_session_runtime_mut("running").request_lifecycle.is_requesting = true;
 
     app.stash_active_session_view();
-    assert!(app.active_session_id.is_none());
+    assert!(app.session_state.active_session_id.is_none());
     app.stash_active_session_view();
     let _ = app.reload_sessions_for_project(Some("/workspace/other".to_string()));
 
-    let snapshot = app.session_view_cache.get("running").expect("stashed history");
+    let snapshot = app.session_state.session_view_cache.get("running").expect("stashed history");
     assert_eq!(snapshot.chat().len(), 2);
-    app.active_session_id = Some("running".to_string());
+    app.session_state.active_session_id = Some("running".to_string());
     app.restore_chat_for_session("running");
-    assert_eq!(app.chat.len(), 2);
-    assert_eq!(app.chat[0].content, "question");
-    assert_eq!(app.chat[1].content, "partial");
-    assert_eq!(app.chat_message_ids, vec![Some("user-id".to_string()), None]);
+    assert_eq!(app.chat_view.chat.len(), 2);
+    assert_eq!(app.chat_view.chat[0].content, "question");
+    assert_eq!(app.chat_view.chat[1].content, "partial");
+    assert_eq!(app.chat_view.chat_message_ids, vec![Some("user-id".to_string()), None]);
 }

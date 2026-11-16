@@ -12,16 +12,16 @@ async fn task_pool_desktop_non_git_can_start_and_retry() {
     let directory = tempfile::tempdir().unwrap();
     let (mut app, _) = crate::app::App::new();
     app.navigation_tabs.project_path = Some(directory.path().to_string_lossy().into_owned());
-    app.project_is_git_repo = false;
-    let prior_review_deadline = app.task_board_next_auto_review_tick_at_ms;
+    app.workspace_state.project_is_git_repo = false;
+    let prior_review_deadline = app.task_board.task_board_next_auto_review_tick_at_ms;
     let _ = super::update(&mut app, super::TaskBoardMessage::StartExecution);
-    assert_eq!(app.task_board_next_auto_review_tick_at_ms, prior_review_deadline);
-    assert!(app.task_board_executor_running);
+    assert_eq!(app.task_board.task_board_next_auto_review_tick_at_ms, prior_review_deadline);
+    assert!(app.task_board.task_board_executor_running);
     for status in [crate::app::task::TaskStatus::Pending, crate::app::task::TaskStatus::Failed] {
         let mut task = crate::app::task::Task::new(1);
         task.status = status;
         task.id = "desktop-task".into();
-        app.task_board_tasks = vec![task];
+        app.task_board.task_board_tasks = vec![task];
         let command = super::update(
             &mut app,
             super::TaskBoardMessage::ExecuteTask { task_id: "desktop-task".into() },
@@ -38,7 +38,7 @@ async fn task_pool_desktop_non_git_can_start_and_retry() {
             _ => panic!("expected scheduler status output"),
         }
     }
-    app.task_board_settings.max_concurrent = 7;
+    app.task_board.task_board_settings.max_concurrent = 7;
     let tick = super::update(&mut app, super::TaskBoardMessage::ExecutionTick);
     let mut stream = iced_runtime::task::into_stream(tick).unwrap();
     for _ in 0..2 {
@@ -176,32 +176,32 @@ fn task_pool_acceptance_capacity_and_employee_interactions_match_baseline() {
     let project = tempfile::tempdir().unwrap();
     let (mut app, _) = crate::app::App::new();
     app.navigation_tabs.project_path = Some(project.path().display().to_string());
-    app.task_board_worktree_desired_capacity = Some(17);
-    let expanded = app.task_board_worktree_panel_expanded;
+    app.task_board.task_board_worktree_desired_capacity = Some(17);
+    let expanded = app.task_board.task_board_worktree_panel_expanded;
     let _ = crate::app::message::task_board::update(
         &mut app,
         super::TaskBoardMessage::ToggleWorktreePanelExpanded,
     );
-    assert_eq!(app.task_board_worktree_panel_expanded, !expanded);
+    assert_eq!(app.task_board.task_board_worktree_panel_expanded, !expanded);
     for pixel in [false, true] {
         let _ = crate::app::message::task_board::update(
             &mut app,
             super::TaskBoardMessage::ToggleWorktreePixelOffice(pixel),
         );
-        assert_eq!(app.task_board_worktree_pixel_office, pixel);
-        assert_eq!(app.task_board_worktree_desired_capacity, Some(17));
+        assert_eq!(app.task_board.task_board_worktree_pixel_office, pixel);
+        assert_eq!(app.task_board.task_board_worktree_desired_capacity, Some(17));
     }
     let _ = crate::app::message::task_board::update(
         &mut app,
         super::TaskBoardMessage::CleanAllWorktreesPressed,
     );
-    assert_eq!(app.task_board_worktree_manual_confirm_kind, Some("cleanup"));
+    assert_eq!(app.task_board.task_board_worktree_manual_confirm_kind, Some("cleanup"));
     let _ = crate::app::message::task_board::update(
         &mut app,
         super::TaskBoardMessage::CancelWorktreeManualConfirm,
     );
-    assert_eq!(app.task_board_worktree_manual_confirm_kind, None);
-    assert_eq!(app.task_board_worktree_desired_capacity, Some(17));
+    assert_eq!(app.task_board.task_board_worktree_manual_confirm_kind, None);
+    assert_eq!(app.task_board.task_board_worktree_desired_capacity, Some(17));
     assert!(!project.path().join(".git").exists());
     assert_eq!(std::fs::read_dir(project.path()).unwrap().count(), 0);
 }

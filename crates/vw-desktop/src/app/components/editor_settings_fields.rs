@@ -6,15 +6,15 @@ use desktop_editor::components::editor_settings_fields::{self as fields, Message
 
 pub(crate) fn view(app: &App, control_width: f32) -> iced::Element<'_, Message> {
     let metrics = metrics::displayed(app);
-    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
-    let color = app.app_theme.palette().text;
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
+    let color = app.appearance.app_theme.palette().text;
     fields::view(SettingsView {
-        locale: app.desktop_locale,
-        editor_theme: app.effective_editor_theme(), follow_system_theme: app.editor_follow_system_theme,
+        locale: app.general_settings.desktop_locale,
+        editor_theme: app.effective_editor_theme(), follow_system_theme: app.appearance.editor_follow_system_theme,
         font_size: metrics.font_size, line_height: metrics.line_height, auto_line_height: metrics.auto_line_height,
-        language: app.current_language,
+        language: app.preview_state.current_language,
         #[cfg(not(target_arch = "wasm32"))]
-        lsp_disabled: app.lsp_disabled,
+        lsp_disabled: app.preview_state.lsp_disabled,
     }, control_width, move |title, description| {
         super::chat_panel::message_view::selectable_titled_text(title, description, Some(color), i18n)
     }).map(map_message)

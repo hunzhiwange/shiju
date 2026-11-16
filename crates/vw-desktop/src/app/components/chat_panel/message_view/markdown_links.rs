@@ -8,8 +8,7 @@ pub(super) struct WorkspaceLinks<'a>(local::WorkspaceLinks<'a>);
 impl<'a> WorkspaceLinks<'a> {
     pub(super) fn new(app: &'a App) -> Self {
         let project = app.navigation_tabs.project_path.as_deref();
-        let directory = app
-            .active_session_id
+        let directory = app.session_state.active_session_id
             .as_deref()
             .and_then(|id| app.known_session_directory(id))
             .filter(|path| !path.is_empty())
@@ -17,8 +16,8 @@ impl<'a> WorkspaceLinks<'a> {
             .or_else(|| project.map(Cow::Borrowed));
         let index = directory
             .as_deref()
-            .and_then(|path| app.file_tree_model_cache.get_key_value(path))
-            .or_else(|| app.file_tree_model_cache.get_key_value(project?))
+            .and_then(|path| app.workspace_state.file_tree_model_cache.get_key_value(path))
+            .or_else(|| app.workspace_state.file_tree_model_cache.get_key_value(project?))
             .map(|(root, tree)| (root.as_str(), tree));
         Self(local::WorkspaceLinks::new(directory, index))
     }

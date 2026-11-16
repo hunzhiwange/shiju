@@ -63,7 +63,7 @@ pub(in crate::app::components) fn defaults_input<'a>(
 ) -> domain::defaults::Input<'a> {
     let model_source_available = domain::defaults::supports_fixed_model(
         &draft.runtime,
-        app.session_runtime_states.values().map(|state| {
+        app.session_state.session_runtime_states.values().map(|state| {
             (
                 state.acp_agent.as_deref(),
                 state.acp_options_state.options.model_source_capabilities.as_slice(),
@@ -72,8 +72,8 @@ pub(in crate::app::components) fn defaults_input<'a>(
     );
     domain::defaults::catalog_input(
         &app.agents_settings,
-        app.desktop_locale,
-        &app.app_theme,
+        app.general_settings.desktop_locale,
+        &app.appearance.app_theme,
         help,
         model_source_available,
         app.mcp_settings.inspect.as_ref(),
@@ -85,7 +85,7 @@ pub(in crate::app::components) fn defaults_input<'a>(
 pub(in crate::app::components) fn catalog_input(app: &App) -> domain::catalog::Input<'_> {
     let state = &app.agents_settings;
     domain::catalog::Input {
-        locale: app.desktop_locale,
+        locale: app.general_settings.desktop_locale,
         entries: &state.entries,
         selected_agent: &state.selected_agent,
         catalog_official: state.catalog_official,
@@ -96,7 +96,7 @@ pub(in crate::app::components) fn catalog_input(app: &App) -> domain::catalog::I
         dirty: state.dirty,
         profile_entering_key: state.profile_entering_key,
         diagnostic_results: &app.acp_settings.diagnostic_results,
-        new_session_creating: app.new_session_creating,
+        new_session_creating: app.workspace_state.new_session_creating,
         icon,
     }
 }
@@ -105,8 +105,8 @@ pub(in crate::app::components) fn acp_input(app: &App) -> domain::acp_view::Inpu
     domain::acp_view::Input {
         help,
         state: &app.acp_settings,
-        locale: app.desktop_locale,
-        theme: &app.app_theme,
+        locale: app.general_settings.desktop_locale,
+        theme: &app.appearance.app_theme,
         frame: app.status_animation_frame,
         icon,
     }

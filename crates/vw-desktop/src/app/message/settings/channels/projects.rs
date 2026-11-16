@@ -4,7 +4,7 @@ use crate::app::Message;
 #[cfg(test)]
 use iced::Task;
 pub(super) fn project_choices(app: &App) -> Vec<(String, String)> {
-    desktop_settings_channels::update::projects::project_choices(&app.recent_projects, &app.recent_projects_edits, app.recent_projects_meta.iter().map(|meta| (meta.path.as_str(), meta.name.as_str())))
+    desktop_settings_channels::update::projects::project_choices(&app.workspace_state.recent_projects, &app.workspace_state.recent_projects_edits, app.workspace_state.recent_projects_meta.iter().map(|meta| (meta.path.as_str(), meta.name.as_str())))
 }
 
 #[cfg(test)]

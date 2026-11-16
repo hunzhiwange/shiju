@@ -2,10 +2,10 @@ fn state(app: &crate::app::App) -> desktop_chat_input::input_panel::input_editor
     desktop_chat_input::input_panel::input_editor::EditorState {
         show_slash_palette: app.input_suggestions.show_slash_palette,
         show_file_search: app.input_suggestions.show_file_search,
-        input_editor_id: app.input_editor_id.clone(),
-        i18n: crate::app::i18n::I18n::new(app.desktop_locale),
-        context_menu_position: app.input_context_menu.position,
-        context_menu_open: app.input_context_menu.open,
+        input_editor_id: app.session_state.input_editor_id.clone(),
+        i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
+        context_menu_position: app.session_state.input_context_menu.position,
+        context_menu_open: app.session_state.input_context_menu.open,
     }
 }
 pub fn build_input_editor<'a>(
@@ -15,8 +15,8 @@ pub fn build_input_editor<'a>(
     task_mode: bool,
 ) -> (iced::Element<'a, crate::app::Message>, f32) {
     let chrome = crate::app::theme_catalog::resolve_chrome_style_from_skin(
-        app.active_theme_skin.as_ref(),
-        &app.app_theme,
+        app.appearance.active_theme_skin.as_ref(),
+        &app.appearance.app_theme,
     );
     let (editor, height) = desktop_chat_input::input_panel::input_editor::build_input_editor(
         state(app),

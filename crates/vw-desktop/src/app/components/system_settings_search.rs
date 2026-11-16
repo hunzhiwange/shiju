@@ -66,5 +66,5 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
     extend_tabs!(system_settings_network::NETWORK_TABS, "网络配置", Network);
     extend_tabs!(system_settings_mcp::MCP_TABS, "智能体 / MCP", AgentMcp);
     extend_tabs!(system_settings_skills::SKILLS_TABS, "智能体 / 技能", AgentSkills);
-    desktop_settings_shell::search::localize_catalog(entries, app.desktop_locale)
+    desktop_settings_shell::search::localize_catalog(entries, app.general_settings.desktop_locale)
 }

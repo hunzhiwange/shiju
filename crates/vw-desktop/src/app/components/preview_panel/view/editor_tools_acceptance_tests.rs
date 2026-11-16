@@ -90,8 +90,8 @@ async fn ecp07_popover_layout_is_stable_across_sizes() {
         result
     };
     for theme in [iced::Theme::Light, iced::Theme::Dark] {
-        app.app_theme = theme.clone();
-        app.editor_theme = theme;
+        app.appearance.app_theme = theme.clone();
+        app.appearance.editor_theme = theme;
         for size in [
             iced::Size::new(640.0, 480.0),
             iced::Size::new(900.0, 600.0),

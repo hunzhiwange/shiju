@@ -118,3 +118,49 @@ fn text_editor_bytes(content: &text_editor::Content) -> usize {
 
 /// Borrowed inputs used by message bubbles and assistant bodies.
 pub use crate::message_view::render_snapshot::MessageViewSnapshot;
+
+impl<A: Default, M: Default> SessionViewSnapshot<A, M> {
+    /// First-screen working set. Constructed without loading any gateway data.
+    pub fn initial() -> Self {
+        let heights = crate::panel::rough_message_heights(&[]);
+        Self {
+            content_signature: 0,
+            chat: Vec::new(),
+            chat_message_ids: Vec::new(),
+            usage: TokenUsage::default(),
+            active_session_view_state: A::default(),
+            chat_panel_mode: M::default(),
+            chat_render_cache: HashMap::new(),
+            chat_visible_text_cache: Vec::new(),
+            chat_copy_hash_cache: Vec::new(),
+            chat_message_expanded: std::collections::HashSet::new(),
+            chat_message_estimated_heights: heights.clone(),
+            chat_virtualizer: ChatVirtualizer::from_estimated_heights(&heights),
+            chat_height_index: ChatHeightIndex::from_heights(&heights),
+            chat_message_measured_heights: HashMap::new(),
+            chat_message_editors: Vec::new(),
+            chat_special_text_editors: HashMap::new(),
+            chat_markdown_blocks: HashMap::new(),
+            chat_markdown_block_editors: HashMap::new(),
+            chat_tool_text_editors: HashMap::new(),
+            chat_think_editors: HashMap::new(),
+            chat_think_expanded: std::collections::HashSet::new(),
+            chat_think_collapsed: std::collections::HashSet::new(),
+            chat_tool_file_expanded: std::collections::HashSet::new(),
+            chat_tool_expanded: std::collections::HashSet::new(),
+            chat_explore_expanded: std::collections::HashSet::new(),
+            chat_auto_scroll: true,
+            chat_scroll_id: iced::widget::Id::new("chat"),
+            chat_scroll_offset_y: 1.0,
+            chat_scroll_viewport_h: 0.0,
+        }
+    }
+}
+
+/// 聊天面板主体的瞬时显示模式。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ChatPanelMode {
+    #[default]
+    Conversation,
+    Trajectory,
+}

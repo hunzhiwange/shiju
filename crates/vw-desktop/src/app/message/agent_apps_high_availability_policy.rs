@@ -26,7 +26,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         desktop_apps_ui::agent_apps_high_availability_policy::Input {
             state: &mut app.apps_catalog.high_availability, client, context,
             catalog_generation: app.apps_catalog.generation,
-            catalog_context: app.apps_catalog.context.as_ref(), project: app.project_id.as_deref(),
+            catalog_context: app.apps_catalog.context.as_ref(), project: app.workspace_state.project_id.as_deref(),
             host: &app.apps_catalog.host, token: &app.apps_catalog.token, requested_app_exists,
         }, event, &mut notice).map(message);
     let toast = match notice {

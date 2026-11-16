@@ -27,7 +27,7 @@ fn go_home_archives_project_preview_and_clears_project_context() {
     let mut app = test_app();
     app.navigation_tabs.screen = Screen::Project;
     app.navigation_tabs.project_path = Some("/project-a".to_string());
-    app.project_id = Some("project-a".to_string());
+    app.workspace_state.project_id = Some("project-a".to_string());
     app.navigation_tabs.active_preview_path = Some("/project-a/src/main.rs".to_string());
     app.navigation_tabs.preview_tab_menu_path = Some("/project-a/src/main.rs".to_string());
     app.navigation_tabs.preview_tab_menu_pos = Some(iced::Point::new(12.0, 24.0));
@@ -37,7 +37,7 @@ fn go_home_archives_project_preview_and_clears_project_context() {
     assert_eq!(app.navigation_tabs.screen, Screen::Home);
     assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("home"));
     assert_eq!(app.navigation_tabs.project_path, None);
-    assert_eq!(app.project_id, None);
+    assert_eq!(app.workspace_state.project_id, None);
     assert_eq!(app.navigation_tabs.active_preview_path, None);
     assert_eq!(
         app.navigation_tabs.project_preview_active_path.get("/project-a"),

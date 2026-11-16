@@ -12,9 +12,9 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     match message {
         ChatMessage::ChatPanelModeSelected(mode) => {
             sync_controls_session(app);
-            app.chat_panel_mode = mode;
+            app.chat_view.chat_panel_mode = mode;
             if mode == ChatPanelMode::Trajectory {
-                let Some(session_id) = app.active_session_id.clone() else {
+                let Some(session_id) = app.session_state.active_session_id.clone() else {
                     return Task::none();
                 };
                 return refresh_trajectory_task(app, session_id);
@@ -50,9 +50,9 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 _ => return Task::none(),
             };
             trajectory_update::update(
-                &mut app.trajectory_controls, &mut app.trajectory_details,
-                &mut app.trajectory_search_text, app.active_session_id.as_deref(),
-                &app.active_session_view_state.trajectory_projection, message,
+                &mut app.chat_interaction.trajectory_controls, &mut app.chat_interaction.trajectory_details,
+                &mut app.chat_interaction.trajectory_search_text, app.session_state.active_session_id.as_deref(),
+                &app.chat_view.active_session_view_state.trajectory_projection, message,
             ).map_or_else(Task::none, |text| Task::done(Message::CopyCode(text)))
         },
     }
@@ -81,25 +81,25 @@ fn apply_snapshot_result(
     result: Result<Option<gateway_session::SessionUiLoadResult>, String>,
 ) -> Task<Message> {
     let Some(loaded) = accepted_snapshot(
-        app.chat_panel_mode == ChatPanelMode::Trajectory, app.active_session_id.as_deref(),
+        app.chat_view.chat_panel_mode == ChatPanelMode::Trajectory, app.session_state.active_session_id.as_deref(),
         &session_id, result,
     ) else { return Task::none(); };
-    for step in missing_snapshot_steps(&app.active_session_view_state.steps, loaded.session.steps) {
+    for step in missing_snapshot_steps(&app.chat_view.active_session_view_state.steps, loaded.session.steps) {
         app.upsert_active_session_step(step);
     }
-    app.active_session_view_state.llm_raw_step_indices.extend(loaded.llm_raw_step_indices);
+    app.chat_view.active_session_view_state.llm_raw_step_indices.extend(loaded.llm_raw_step_indices);
     app.insert_missing_active_session_step_llm_raw(loaded.step_llm_raw);
     sync_details_values(app);
     refresh_missing_raw_task(app, &session_id, None)
 }
 
 fn sync_controls_session(app: &mut App) {
-    app.trajectory_controls.sync_session(app.active_session_id.as_deref());
+    app.chat_interaction.trajectory_controls.sync_session(app.session_state.active_session_id.as_deref());
 }
 
 fn sync_details_values(app: &mut App) {
     trajectory_update::sync_details_values(
-        &mut app.trajectory_details, &app.active_session_view_state.trajectory_projection,
+        &mut app.chat_interaction.trajectory_details, &app.chat_view.active_session_view_state.trajectory_projection,
     );
 }
 
@@ -108,7 +108,7 @@ pub(super) fn refresh_missing_raw_task(
     session_id: &str,
     only_step_index: Option<u32>,
 ) -> Task<Message> {
-    if app.active_session_id.as_deref() != Some(session_id) {
+    if app.session_state.active_session_id.as_deref() != Some(session_id) {
         return Task::none();
     }
 
@@ -130,7 +130,7 @@ fn retry_raw_load_task(
     attempt: u8,
 ) -> Task<Message> {
     let key = (session_id.clone(), turn_id.clone(), step_index);
-    let active_session_id = app.active_session_id.clone();
+    let active_session_id = app.session_state.active_session_id.clone();
     if !raw_state(app).accepts(active_session_id.as_deref(), &key, attempt) {
         return Task::none();
     }
@@ -177,7 +177,7 @@ fn apply_raw_result(
     result: Result<Option<serde_json::Value>, String>,
 ) -> Task<Message> {
     let key = (session_id.clone(), turn_id.clone(), step_index);
-    let active_session_id = app.active_session_id.clone();
+    let active_session_id = app.session_state.active_session_id.clone();
     let effect = raw_state(app).apply_result(active_session_id.as_deref(), &key, attempt, result);
     match effect {
         RawResultEffect::Insert(raw) => {
@@ -198,11 +198,11 @@ fn apply_raw_result(
 
 fn raw_state(app: &mut App) -> RawLoadState<'_> {
     RawLoadState {
-        steps: &app.active_session_view_state.steps,
-        indices: &app.active_session_view_state.llm_raw_step_indices,
-        raw: &app.active_session_view_state.step_llm_raw,
-        loading: &mut app.trajectory_raw_loading,
-        attempts: &mut app.trajectory_raw_attempts,
-        errors: &mut app.trajectory_raw_errors,
+        steps: &app.chat_view.active_session_view_state.steps,
+        indices: &app.chat_view.active_session_view_state.llm_raw_step_indices,
+        raw: &app.chat_view.active_session_view_state.step_llm_raw,
+        loading: &mut app.chat_interaction.trajectory_raw_loading,
+        attempts: &mut app.chat_interaction.trajectory_raw_attempts,
+        errors: &mut app.chat_interaction.trajectory_raw_errors,
     }
 }

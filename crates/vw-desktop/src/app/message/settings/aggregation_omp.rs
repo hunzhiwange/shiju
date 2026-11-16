@@ -16,7 +16,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         app.app_providers.omp_directory = None;
         return Task::none();
     }
-    let Some(project) = app.project_id.as_deref().filter(|s| !s.is_empty()).map(ProjectId::from)
+    let Some(project) = app.workspace_state.project_id.as_deref().filter(|s| !s.is_empty()).map(ProjectId::from)
     else {
         app.app_providers.omp_directory = None;
         return app.show_error_toast("请先打开已注册的项目");

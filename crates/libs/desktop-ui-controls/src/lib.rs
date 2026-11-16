@@ -36,3 +36,5 @@ pub mod settings_navigation;
 
 #[cfg(test)]
 mod host_module_38_tests;
+
+pub mod todo_panel;

@@ -16,9 +16,9 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
     let task = desktop_terminal::updates::update(
         &mut app.terminal,
         &mut app.terminal_config_persistence,
-        &app.app_theme,
+        &app.appearance.app_theme,
         app.navigation_tabs.project_path.as_deref(),
-        app.desktop_locale,
+        app.general_settings.desktop_locale,
         app.cursor_position.y,
         &mut focused,
         &mut effects,
@@ -70,7 +70,7 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
             ),
             Effect::AppendChat(text) => {
                 let append = super::chat::update(app, super::ChatMessage::AppendText(text));
-                Task::batch([append, iced::widget::operation::focus(app.input_editor_id.clone())])
+                Task::batch([append, iced::widget::operation::focus(app.session_state.input_editor_id.clone())])
             }
         });
     }

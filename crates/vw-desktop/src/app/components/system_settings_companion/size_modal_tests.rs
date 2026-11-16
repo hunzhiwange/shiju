@@ -7,9 +7,9 @@ fn mini_companion_size_reset_restores_default() {
         message::view::{ViewMessage, update},
     };
     let mut app = App::new().0;
-    app.task_pet_scale = 1.5;
+    app.pet_state.task_pet_scale = 1.5;
     let _ = update(&mut app, ViewMessage::TaskPetSizeOpen);
     let _ = update(&mut app, ViewMessage::TaskPetSizeReset);
     assert_eq!(app.task_pet_preview_scale(), 1.0);
-    assert_eq!(app.task_pet_scale, 1.5);
+    assert_eq!(app.pet_state.task_pet_scale, 1.5);
 }

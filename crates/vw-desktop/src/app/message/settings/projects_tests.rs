@@ -27,33 +27,33 @@ fn recent_project_meta(path: &str, name: &str) -> RecentProjectMeta {
 #[test]
 fn delete_request_allows_current_project() {
     let mut app = app();
-    app.recent_projects = vec!["/workspace/project-a".to_string()];
+    app.workspace_state.recent_projects = vec!["/workspace/project-a".to_string()];
     app.navigation_tabs.project_path = Some("/workspace/project-a".to_string());
 
     let _task = update(&mut app, SettingsMessage::RecentProjectDeleteRequested(0));
 
-    assert_eq!(app.recent_project_delete_confirm_idx, Some(0));
-    assert_eq!(app.recent_projects, vec!["/workspace/project-a"]);
-    assert!(app.active_toast.is_none());
+    assert_eq!(app.workspace_state.recent_project_delete_confirm_idx, Some(0));
+    assert_eq!(app.workspace_state.recent_projects, vec!["/workspace/project-a"]);
+    assert!(app.toast_state.active_toast.is_none());
 }
 
 #[test]
 fn delete_confirmed_current_project_selects_first_remaining_project() {
     let mut app = app();
-    app.recent_projects =
+    app.workspace_state.recent_projects =
         vec!["/workspace/project-a".to_string(), "/workspace/project-b".to_string()];
-    app.recent_projects_edits = vec!["Project A".to_string(), "Project B".to_string()];
-    app.recent_projects_meta = vec![recent_project_meta("/workspace/project-b", "Project B")];
+    app.workspace_state.recent_projects_edits = vec!["Project A".to_string(), "Project B".to_string()];
+    app.workspace_state.recent_projects_meta = vec![recent_project_meta("/workspace/project-b", "Project B")];
     app.navigation_tabs.project_path = Some("/workspace/project-a".to_string());
-    app.recent_project_delete_confirm_idx = Some(0);
+    app.workspace_state.recent_project_delete_confirm_idx = Some(0);
 
     let _task = update(&mut app, SettingsMessage::RecentProjectDeleteConfirmed(0));
 
-    assert_eq!(app.recent_projects, vec!["/workspace/project-b"]);
-    assert_eq!(app.recent_projects_edits, vec!["Project B"]);
+    assert_eq!(app.workspace_state.recent_projects, vec!["/workspace/project-b"]);
+    assert_eq!(app.workspace_state.recent_projects_edits, vec!["Project B"]);
     assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/workspace/project-b"));
-    assert_eq!(app.recent_project_delete_confirm_idx, None);
-    assert!(app.active_toast.is_none());
+    assert_eq!(app.workspace_state.recent_project_delete_confirm_idx, None);
+    assert!(app.toast_state.active_toast.is_none());
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -70,7 +70,7 @@ fn worktree_toggles_patch_one_project_in_click_order() {
         let disable =
             update(&mut app, SettingsMessage::ProjectEnableWorktreeToggled(path.into(), false));
         assert_eq!(disable.units(), 0);
-        assert!(!app.project_worktree_enabled.contains_key(path));
+        assert!(!app.workspace_state.project_worktree_enabled.contains_key(path));
         assert!(requests.try_recv().is_err());
 
         let idle = wait_for_worktree_saves(&mut app).expect("pending saves");
@@ -95,7 +95,7 @@ fn worktree_toggles_patch_one_project_in_click_order() {
             task = update(&mut app, saved);
         }
         assert_eq!(task.units(), 0);
-        assert!(!app.project_worktree_save_running);
+        assert!(!app.workspace_state.project_worktree_save_running);
         assert!(*idle.borrow());
     });
 }
@@ -108,18 +108,18 @@ fn worktree_toggles_patch_one_project_in_click_order() {
 #[test]
 fn unrelated_settings_message_leaves_project_state_unchanged() {
     let mut app = app();
-    app.recent_projects = vec!["/workspace/project-a".to_string()];
-    app.recent_projects_edits = vec!["Project A".to_string()];
-    app.recent_projects_meta = vec![recent_project_meta("/workspace/project-a", "Project A")];
-    app.project_worktree_enabled.insert("/workspace/project-a".to_string(), true);
-    app.recent_project_delete_confirm_idx = Some(0);
+    app.workspace_state.recent_projects = vec!["/workspace/project-a".to_string()];
+    app.workspace_state.recent_projects_edits = vec!["Project A".to_string()];
+    app.workspace_state.recent_projects_meta = vec![recent_project_meta("/workspace/project-a", "Project A")];
+    app.workspace_state.project_worktree_enabled.insert("/workspace/project-a".to_string(), true);
+    app.workspace_state.recent_project_delete_confirm_idx = Some(0);
 
     let _task = update(&mut app, SettingsMessage::ToggleSettingsSidebar);
 
-    assert_eq!(app.recent_projects, vec!["/workspace/project-a"]);
-    assert_eq!(app.recent_projects_edits, vec!["Project A"]);
-    assert_eq!(app.recent_projects_meta.len(), 1);
-    assert_eq!(app.recent_projects_meta[0].path, "/workspace/project-a");
-    assert_eq!(app.project_worktree_enabled.get("/workspace/project-a"), Some(&true));
-    assert_eq!(app.recent_project_delete_confirm_idx, Some(0));
+    assert_eq!(app.workspace_state.recent_projects, vec!["/workspace/project-a"]);
+    assert_eq!(app.workspace_state.recent_projects_edits, vec!["Project A"]);
+    assert_eq!(app.workspace_state.recent_projects_meta.len(), 1);
+    assert_eq!(app.workspace_state.recent_projects_meta[0].path, "/workspace/project-a");
+    assert_eq!(app.workspace_state.project_worktree_enabled.get("/workspace/project-a"), Some(&true));
+    assert_eq!(app.workspace_state.recent_project_delete_confirm_idx, Some(0));
 }

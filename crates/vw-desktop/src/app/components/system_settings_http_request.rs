@@ -5,8 +5,8 @@ use desktop_settings_network::system_settings_http_request as domain;
 fn inputs(app: &App) -> domain::View<'_> {
     domain::View {
         http_request_settings: &app.http_request_settings,
-        desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        desktop_locale: app.general_settings.desktop_locale,
+        app_theme: &app.appearance.app_theme,
         render_help: super::system_settings_browser::render_help,
     }
 }

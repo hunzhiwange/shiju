@@ -113,3 +113,5 @@ pub mod message;
 pub mod selection;
 
 pub mod tab;
+
+pub mod state;

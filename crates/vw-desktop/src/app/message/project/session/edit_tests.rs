@@ -50,7 +50,7 @@ fn edit_save_without_path_is_noop_and_runtime_error_sets_error_message() {
             "gateway".to_string()
         )),
     );
-    assert_eq!(app.error_message.as_deref(), Some("保存项目扩展配置失败: gateway"));
+    assert_eq!(app.input_feedback.error_message.as_deref(), Some("保存项目扩展配置失败: gateway"));
 }
 
 // 消息与任务边界：确认输入消息产生预期状态或返回任务。
@@ -64,7 +64,7 @@ fn edit_runtime_success_is_silent_and_unhandled_message_is_delegated() {
         crate::app::message::project::ProjectMessage::ProjectEditRuntimeSaved(Ok(())),
     );
     assert!(handled.is_some());
-    assert!(app.error_message.is_none());
+    assert!(app.input_feedback.error_message.is_none());
 
     let delegated = super::handle(
         &mut app,
@@ -81,8 +81,8 @@ fn edit_save_updates_meta_worktree_and_resets_editor_state() {
     let mut app = app();
     let path = "/tmp/project".to_string();
     app.navigation_tabs.project_path = Some(path.clone());
-    app.recent_projects = vec![path.clone()];
-    app.recent_projects_edits = vec!["Old".to_string()];
+    app.workspace_state.recent_projects = vec![path.clone()];
+    app.workspace_state.recent_projects_edits = vec!["Old".to_string()];
     app.project_editor.project_edit_path = Some(path.clone());
     app.project_editor.project_edit_name = "  ".to_string();
     app.project_editor.project_edit_icon = " icon ".to_string();
@@ -105,22 +105,22 @@ fn edit_save_updates_meta_worktree_and_resets_editor_state() {
         super::handle(&mut app, crate::app::message::project::ProjectMessage::ProjectEditSaved);
 
     assert!(task.is_some());
-    assert_eq!(app.recent_projects_edits, vec!["project".to_string()]);
-    let saved = app.recent_projects_meta.iter().find(|item| item.path == path).unwrap();
+    assert_eq!(app.workspace_state.recent_projects_edits, vec!["project".to_string()]);
+    let saved = app.workspace_state.recent_projects_meta.iter().find(|item| item.path == path).unwrap();
     assert_eq!(saved.name, "project");
     assert_eq!(saved.icon.as_deref(), Some("icon"));
     assert_eq!(saved.icon_color.as_deref(), Some("#123456"));
     assert_eq!(saved.worktree_start_command.as_deref(), Some("pnpm dev"));
     assert!(!saved.session_auto_refresh);
     assert_eq!(saved.session_refresh_interval_seconds, 3600);
-    assert!(app.project_worktree_enabled.contains_key(&path));
+    assert!(app.workspace_state.project_worktree_enabled.contains_key(&path));
     assert!(app.project_editor.project_edit_path.is_none());
     assert!(app.project_editor.project_edit_name.is_empty());
     assert!(app.project_editor.project_edit_icon.is_empty());
     assert_eq!(app.project_editor.project_edit_tab, crate::app::state::ProjectEditTab::General);
-    assert_eq!(app.task_board_settings.max_concurrent, 10);
-    assert_eq!(app.task_board_settings.failed_retry_max_attempts, 10);
-    assert!(!app.task_board_settings.auto_refresh);
+    assert_eq!(app.task_board.task_board_settings.max_concurrent, 10);
+    assert_eq!(app.task_board.task_board_settings.failed_retry_max_attempts, 10);
+    assert!(!app.task_board.task_board_settings.auto_refresh);
 }
 
 
@@ -129,20 +129,20 @@ fn edit_save_updates_meta_worktree_and_resets_editor_state() {
 fn recent_remove_pressed_allows_current_project_confirmation() {
     let mut app = app();
     let current = "/tmp/current".to_string();
-    app.recent_projects = vec![current.clone()];
-    app.recent_projects_edits = vec!["Current".to_string()];
+    app.workspace_state.recent_projects = vec![current.clone()];
+    app.workspace_state.recent_projects_edits = vec!["Current".to_string()];
     app.navigation_tabs.project_path = Some(current.clone());
-    app.project_tools_menu_path = Some(current.clone());
+    app.workspace_state.project_tools_menu_path = Some(current.clone());
 
     let _ = super::handle(
         &mut app,
         crate::app::message::project::ProjectMessage::RecentRemovePressed(current.clone()),
     );
 
-    assert_eq!(app.recent_projects, vec![current.clone()]);
-    assert_eq!(app.recent_project_remove_confirm_path, Some(current));
-    assert!(app.project_tools_menu_path.is_none());
-    assert!(app.active_toast.is_none());
+    assert_eq!(app.workspace_state.recent_projects, vec![current.clone()]);
+    assert_eq!(app.workspace_state.recent_project_remove_confirm_path, Some(current));
+    assert!(app.workspace_state.project_tools_menu_path.is_none());
+    assert!(app.toast_state.active_toast.is_none());
 }
 
 
@@ -152,20 +152,20 @@ fn recent_remove_confirmed_current_project_selects_first_remaining_project() {
     let mut app = app();
     let current = "/tmp/current".to_string();
     let next = "/tmp/next".to_string();
-    app.recent_projects = vec![current.clone(), next.clone()];
-    app.recent_projects_edits = vec!["Current".to_string(), "Next".to_string()];
+    app.workspace_state.recent_projects = vec![current.clone(), next.clone()];
+    app.workspace_state.recent_projects_edits = vec!["Current".to_string(), "Next".to_string()];
     app.navigation_tabs.project_path = Some(current.clone());
-    app.recent_project_remove_confirm_path = Some(current.clone());
+    app.workspace_state.recent_project_remove_confirm_path = Some(current.clone());
 
     let _ = super::handle(
         &mut app,
         crate::app::message::project::ProjectMessage::RecentRemoveConfirmed(current.clone()),
     );
 
-    assert_eq!(app.recent_projects, vec![next.clone()]);
+    assert_eq!(app.workspace_state.recent_projects, vec![next.clone()]);
     assert_eq!(app.navigation_tabs.project_path, Some(next));
-    assert!(app.recent_project_remove_confirm_path.is_none());
-    assert!(app.active_toast.is_none());
+    assert!(app.workspace_state.recent_project_remove_confirm_path.is_none());
+    assert!(app.toast_state.active_toast.is_none());
 }
 
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。

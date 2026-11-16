@@ -112,8 +112,8 @@ fn workflow_plan_run_children_reuse_input_session_list() {
     finished_child.slug = Info::plan_run_slug(FINISHED_CHILD_ID);
 
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some(PARENT_ID.to_string());
-    app.sessions = vec![
+    app.session_state.active_session_id = Some(PARENT_ID.to_string());
+    app.session_state.sessions = vec![
         session(PARENT_ID, None, "父会话", DIRECTORY),
         running_child,
         finished_child,
@@ -149,9 +149,9 @@ fn workflow_planning_child_uses_compact_label_and_task_path_tooltip() {
     planning_child.slug = Info::plan_run_slug(SESSION_ID);
 
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some(PARENT_ID.to_string());
-    app.sessions = vec![session(PARENT_ID, None, "父会话", DIRECTORY), planning_child];
-    app.chat = vec![
+    app.session_state.active_session_id = Some(PARENT_ID.to_string());
+    app.session_state.sessions = vec![session(PARENT_ID, None, "父会话", DIRECTORY), planning_child];
+    app.chat_view.chat = vec![
         assistant(&format!(
             "tool workflow_node\n{}\n",
             serde_json::json!({
@@ -180,7 +180,7 @@ fn workflow_planning_child_uses_compact_label_and_task_path_tooltip() {
             })
         )),
     ];
-    app.chat_message_ids = vec![None, None];
+    app.chat_view.chat_message_ids = vec![None, None];
     app.get_session_runtime_mut(SESSION_ID).request_lifecycle.is_requesting = true;
 
     let children = running_agent_sessions(&app);
@@ -237,14 +237,14 @@ fn agent_sessions_popover_lists_nested_plan_run_descendants_and_stops_owner() {
     ))];
 
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some(ROOT_SESSION_ID.to_string());
-    app.sessions = vec![
+    app.session_state.active_session_id = Some(ROOT_SESSION_ID.to_string());
+    app.session_state.sessions = vec![
         session(ROOT_SESSION_ID, None, "根会话", DIRECTORY),
         workflow_session,
         session(AGENT_SESSION_ID, Some(WORKFLOW_SESSION_ID), "检查孙会话", DIRECTORY),
     ];
-    app.chat = workflow_chat;
-    app.chat_message_ids = vec![None];
+    app.chat_view.chat = workflow_chat;
+    app.chat_view.chat_message_ids = vec![None];
     app.store_session_chat_snapshot(
         WORKFLOW_SESSION_ID.to_string(),
         crate::app::session::shared_chat_messages(agent_chat),
@@ -303,7 +303,7 @@ fn agent_sessions_popover_lists_nested_plan_run_descendants_and_stops_owner() {
         "successful stop waits for SSE cancelled before hiding the row"
     );
     assert!(
-        app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("等待运行状态收敛"))
+        app.toast_state.active_toast.as_ref().is_some_and(|toast| toast.message.contains("等待运行状态收敛"))
     );
 
     for error in ["task-plan-run 不存在", "当前租户不可见", "gateway request failed"] {
@@ -314,7 +314,7 @@ fn agent_sessions_popover_lists_nested_plan_run_descendants_and_stops_owner() {
                 result: Err(error.to_string()),
             },
         );
-        assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains(error)));
+        assert!(app.toast_state.active_toast.as_ref().is_some_and(|toast| toast.message.contains(error)));
     }
 }
 
@@ -328,14 +328,14 @@ async fn agent_tool_live_child_integrates_with_input_session_list() {
     const FAILED_CHILD_ID: &str = "child-failed";
 
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some(PARENT_ID.to_string());
-    app.sessions = vec![
+    app.session_state.active_session_id = Some(PARENT_ID.to_string());
+    app.session_state.sessions = vec![
         session(PARENT_ID, None, "父会话", DIRECTORY),
         session(SUCCESS_CHILD_ID, Some(PARENT_ID), "检查输入面板工作中入口", DIRECTORY),
         session(FAILED_CHILD_ID, Some(PARENT_ID), "检查失败终态收口", DIRECTORY),
     ];
-    app.chat = vec![assistant("AgentTool integration")];
-    app.chat_message_ids = vec![None];
+    app.chat_view.chat = vec![assistant("AgentTool integration")];
+    app.chat_view.chat_message_ids = vec![None];
     app.get_session_runtime_mut(PARENT_ID).request_lifecycle.active_agent_request =
         Some(agent_request(REQUEST_ID, PARENT_ID));
 
@@ -408,8 +408,8 @@ async fn agent_tool_live_child_integrates_with_input_session_list() {
         &mut app,
         message::ChatMessage::ToggleAgentSessionsPopover,
     );
-    assert!(app.input_popovers.agent_sessions);
-    assert_eq!(app.active_session_id.as_deref(), Some(PARENT_ID));
+    assert!(app.session_state.input_popovers.agent_sessions);
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some(PARENT_ID));
 
     release_success_tx.send(()).expect("release successful child executor");
     let completed_delta = delta_rx.recv().await.expect("successful terminal event");
@@ -445,7 +445,7 @@ async fn agent_tool_live_child_integrates_with_input_session_list() {
         &mut app,
         message::ChatMessage::ToggleAgentSessionsPopover,
     );
-    assert!(app.input_popovers.agent_sessions);
+    assert!(app.session_state.input_popovers.agent_sessions);
 
     let failed_delta = delta_rx.recv().await.expect("failed terminal event");
     let _ = crate::app::message::chat::update(
@@ -458,7 +458,7 @@ async fn agent_tool_live_child_integrates_with_input_session_list() {
         message::ChatMessage::AgentStreamDeltaFlush(PARENT_ID.into()),
     );
     assert!(running_agent_sessions(&app).is_empty());
-    assert!(!app.input_popovers.agent_sessions);
+    assert!(!app.session_state.input_popovers.agent_sessions);
     producer.await.expect("AgentTool event producer should finish");
 }
 
@@ -468,10 +468,10 @@ fn agent_tool_batch_lifecycle_stream_refreshes_badge_and_closes_popover() {
     const REQUEST_ID: u64 = 77;
     const PARENT_ID: &str = "parent-batch";
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some(PARENT_ID.to_string());
-    app.sessions = vec![session(PARENT_ID, None, "父会话", "/workspace/project")];
-    app.chat = vec![assistant("")];
-    app.chat_message_ids = vec![None];
+    app.session_state.active_session_id = Some(PARENT_ID.to_string());
+    app.session_state.sessions = vec![session(PARENT_ID, None, "父会话", "/workspace/project")];
+    app.chat_view.chat = vec![assistant("")];
+    app.chat_view.chat_message_ids = vec![None];
     app.get_session_runtime_mut(PARENT_ID).request_lifecycle.active_agent_request =
         Some(agent_request(REQUEST_ID, PARENT_ID));
 
@@ -494,7 +494,7 @@ fn agent_tool_batch_lifecycle_stream_refreshes_badge_and_closes_popover() {
         &mut app,
         message::ChatMessage::ToggleAgentSessionsPopover,
     );
-    assert!(app.input_popovers.agent_sessions);
+    assert!(app.session_state.input_popovers.agent_sessions);
 
     let mixed_output = serde_json::json!({
         "action": "wait",
@@ -533,7 +533,7 @@ fn agent_tool_batch_lifecycle_stream_refreshes_badge_and_closes_popover() {
     assert_eq!(children.len(), 1);
     assert_eq!(children[0].session_id, "child-2");
     assert_eq!(children[0].status, AgentChildSessionStatus::Waiting);
-    assert!(app.input_popovers.agent_sessions);
+    assert!(app.session_state.input_popovers.agent_sessions);
 
     let terminal_output = serde_json::json!({
         "action": "wait",
@@ -560,7 +560,7 @@ fn agent_tool_batch_lifecycle_stream_refreshes_badge_and_closes_popover() {
         message::ChatMessage::AgentStreamDeltaFlush(PARENT_ID.into()),
     );
     assert!(running_agent_sessions(&app).is_empty());
-    assert!(!app.input_popovers.agent_sessions);
+    assert!(!app.session_state.input_popovers.agent_sessions);
 }
 
 // 宿主保留：宿主运行态、聊天工具事件及子会话投影缓存契约。
@@ -568,7 +568,7 @@ fn agent_tool_batch_lifecycle_stream_refreshes_badge_and_closes_popover() {
 fn agent_badge_reuses_projection_until_tool_or_session_data_changes() {
     use super::agent_sessions::cached_running_agent_sessions;
     let mut app = crate::app::App::new().0;
-    app.active_session_id = Some("parent".into());
+    app.session_state.active_session_id = Some("parent".into());
     let first = cached_running_agent_sessions(&app);
     let _ = app.prepare_session_ui_projection(&Message::View(
         crate::app::message::ViewMessage::PointerMoved(1.0, 2.0),
@@ -585,7 +585,7 @@ fn agent_badge_reuses_projection_until_tool_or_session_data_changes() {
 fn cached_agent_badge_tracks_lifecycle_and_active_session_switch() {
     use super::agent_sessions::cached_running_agent_sessions;
     let mut app = crate::app::App::new().0;
-    app.active_session_id = Some("parent".into());
+    app.session_state.active_session_id = Some("parent".into());
     app.get_session_runtime_mut("parent").request_lifecycle.active_agent_request = Some(agent_request(42, "parent"));
     for (status, expected_count) in [("running", 1), ("completed", 0)] {
         for event in [
@@ -604,7 +604,7 @@ fn cached_agent_badge_tracks_lifecycle_and_active_session_switch() {
     app.prepare_session_ui_projection(&Message::Project(
         message::ProjectMessage::OpenProjectSessionPressed("/workspace".into(), "other".into()),
     ));
-    app.active_session_id = Some("other".into());
+    app.session_state.active_session_id = Some("other".into());
     let switched = cached_running_agent_sessions(&app);
     assert!(!std::sync::Arc::ptr_eq(&previous, &switched));
     assert!(switched.is_empty());
@@ -617,7 +617,7 @@ fn buffered_stream_tokens_reuse_projection_without_cloning_runtime() {
     use crate::app::components::chat_panel::performance;
     use message::ChatMessage;
     let mut app = crate::app::App::new().0;
-    app.active_session_id = Some("parent".into());
+    app.session_state.active_session_id = Some("parent".into());
     app.get_session_runtime_mut("parent").request_lifecycle.active_agent_request = Some(agent_request(42, "parent"));
     let apply = |app: &mut crate::app::App, event: ChatMessage| {
         app.prepare_session_ui_projection(&Message::Chat(event.clone()));
@@ -632,15 +632,15 @@ fn buffered_stream_tokens_reuse_projection_without_cloning_runtime() {
     );
     app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
     app.navigation_tabs.project_path = Some("/workspace".into());
-    app.recent_projects = vec!["/workspace".into()];
-    app.project_sessions
+    app.workspace_state.recent_projects = vec!["/workspace".into()];
+    app.workspace_state.project_sessions
         .insert("/workspace".into(), vec![session("parent", None, "Parent", "/workspace")]);
     drop(crate::app::views::project::view(&app));
     let sidebar = app.session_ui_projection.sidebar.borrow().as_ref().unwrap().clone();
-    app.input_popovers.agent_sessions = true;
+    app.session_state.input_popovers.agent_sessions = true;
     let snapshot = cached_running_agent_sessions(&app);
     assert_eq!(snapshot.len(), 1);
-    let before = app.chat.last().unwrap().content.clone();
+    let before = app.chat_view.chat.last().unwrap().content.clone();
     performance::reset();
     for _ in 0..256 {
         apply(&mut app, ChatMessage::AgentStreamDelta(42, "增量".into()));
@@ -650,10 +650,10 @@ fn buffered_stream_tokens_reuse_projection_without_cloning_runtime() {
             app.session_ui_projection.sidebar.borrow().as_ref().unwrap()
         ));
     }
-    assert_eq!(app.chat.last().unwrap().content, before);
+    assert_eq!(app.chat_view.chat.last().unwrap().content, before);
     assert_eq!(performance::snapshot().runtime_clones, 0);
     apply(&mut app, ChatMessage::AgentStreamDeltaFlush("parent".into()));
-    assert_eq!(app.chat.last().unwrap().content, format!("{before}{}", "增量".repeat(256)));
+    assert_eq!(app.chat_view.chat.last().unwrap().content, format!("{before}{}", "增量".repeat(256)));
     assert!(std::sync::Arc::ptr_eq(
         &sidebar,
         app.session_ui_projection.sidebar.borrow().as_ref().unwrap()
@@ -665,7 +665,7 @@ fn buffered_stream_tokens_reuse_projection_without_cloning_runtime() {
     assert_eq!(performance::snapshot().runtime_clones, 0);
     apply(&mut app, ChatMessage::AgentStreamSessionSaveFlush("parent".into()));
     let (generation, revision, updated_ms) =
-        app.session_runtime_states["parent"].stream_save.in_flight.unwrap();
+        app.session_state.session_runtime_states["parent"].stream_save.in_flight.unwrap();
     apply(
         &mut app,
         ChatMessage::AgentStreamSessionDeltaSaved {
@@ -676,7 +676,7 @@ fn buffered_stream_tokens_reuse_projection_without_cloning_runtime() {
             result: Ok(()),
         },
     );
-    assert!(app.session_runtime_states["parent"].stream_save.in_flight.is_none());
+    assert!(app.session_state.session_runtime_states["parent"].stream_save.in_flight.is_none());
     assert!(std::sync::Arc::ptr_eq(&flushed, &cached_running_agent_sessions(&app)));
     assert!(std::sync::Arc::ptr_eq(
         &sidebar,

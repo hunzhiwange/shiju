@@ -28,7 +28,7 @@ async fn settings_tabs_core_appearance_memory() {
         concat!(module_path!(), "::settings_tabs_core_appearance_memory"),
         fixture,
         |scene, app| {
-            let locale = app.desktop_locale;
+            let locale = app.general_settings.desktop_locale;
             let qdrant_label = memory_tab_label(locale, MemorySettingsTab::Qdrant);
             app.memory_settings.backend = "sqlite".into();
             assert!(!scene.labels(view(app)).contains(qdrant_label));

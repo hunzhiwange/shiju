@@ -15,27 +15,27 @@ fn emit(action: shared::Action) -> Message {
 pub(crate) fn cached_running_agent_sessions(app: &App) -> std::sync::Arc<Vec<AgentChildSession>> {
     let mut cached = app.session_ui_projection.agent_sessions.borrow_mut();
     let mut key = app.session_ui_projection.agent_session_key.borrow_mut();
-    if key.0.as_deref() != app.active_session_id.as_deref() || key.1 != app.chat.len() {
+    if key.0.as_deref() != app.session_state.active_session_id.as_deref() || key.1 != app.chat_view.chat.len() {
         cached.take();
-        *key = (app.active_session_id.clone(), app.chat.len());
+        *key = (app.session_state.active_session_id.clone(), app.chat_view.chat.len());
     }
     cached.get_or_insert_with(|| std::sync::Arc::new(running_agent_sessions(app))).clone()
 }
 
 
 pub(crate) fn running_agent_sessions(app: &App) -> Vec<AgentChildSession> {
-    shared::running_agent_sessions(app.active_session_id.as_deref(), &app.chat,
-        app.sessions.iter().chain(app.project_sessions.values().flatten()),
+    shared::running_agent_sessions(app.session_state.active_session_id.as_deref(), &app.chat_view.chat,
+        app.session_state.sessions.iter().chain(app.workspace_state.project_sessions.values().flatten()),
         &|id| app.cached_chat_messages(id),
-        &|id| app.session_runtime_states.get(id).is_some_and(|r| r.request_lifecycle.is_requesting),
+        &|id| app.session_state.session_runtime_states.get(id).is_some_and(|r| r.request_lifecycle.is_requesting),
         &|id, raw| crate::app::i18n::other::session_title(app, id, raw))
 }
 #[cfg(test)]
 pub(super) fn agent_session_stop_message(child: &AgentChildSession) -> Option<Message> { shared::agent_session_stop_message(child).map(emit) }
 #[cfg(test)]
 pub(super) fn agent_sessions_popover<'a>(app: &App, children: &[AgentChildSession]) -> Element<'a, Message> {
-    shared::agent_sessions_popover(crate::app::i18n::I18n::new(app.desktop_locale), app.status_animation_frame, children, emit)
+    shared::agent_sessions_popover(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), app.status_animation_frame, children, emit)
 }
 pub(super) fn agent_sessions_entry<'a>(app: &App, children: &[AgentChildSession]) -> Option<Element<'a, Message>> {
-    shared::agent_sessions_entry(crate::app::i18n::I18n::new(app.desktop_locale), app.status_animation_frame, app.input_popovers.agent_sessions, children, emit)
+    shared::agent_sessions_entry(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), app.status_animation_frame, app.session_state.input_popovers.agent_sessions, children, emit)
 }

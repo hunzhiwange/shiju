@@ -5,7 +5,7 @@ use desktop_settings_agents::{acp_update, acp_update_message::{Message as Local,
 use iced::Task;
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
  let SettingsMessage::Acp(message) = message else { return Task::none(); };
- let mut inputs = acp_update::Update { state: &mut app.acp_settings, acp_agents: &mut app.acp_agents, acp_agent: &mut app.acp_agent, access: crate::app::config::agent_config_access(), client: crate::app::config::gateway_client(), snapshot_applied: false, toasts: Vec::new() };
+ let mut inputs = acp_update::Update { state: &mut app.acp_settings, acp_agents: &mut app.session_state.acp_agents, acp_agent: &mut app.session_state.acp_agent, access: crate::app::config::agent_config_access(), client: crate::app::config::gateway_client(), snapshot_applied: false, toasts: Vec::new() };
  let task = acp_update::update(&mut inputs, message);
  #[cfg(not(target_arch="wasm32"))]
  let applied = inputs.snapshot_applied;

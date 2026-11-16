@@ -11,7 +11,7 @@ fn dispatch(app: &mut App, message: AgentsMessage) {
 fn runtime_creation_draft() -> App {
     let mut app = App::new().0;
     app.agents_settings.config_ready = true;
-    app.acp_agents = vec!["codex".into(), "claude".into()];
+    app.session_state.acp_agents = vec!["codex".into(), "claude".into()];
     dispatch(&mut app, AgentsMessage::AddAgentKeyChanged("runtime-custom".into()));
     dispatch(&mut app, AgentsMessage::AddAgentRequested);
     app
@@ -22,7 +22,7 @@ fn agent_runtime_creation_empty_directory_refreshes_and_failure_preserves_native
     use crate::app::message::settings::AcpMessage;
     let mut app = App::new().0;
     app.agents_settings.config_ready = true;
-    app.acp_agents.clear();
+    app.session_state.acp_agents.clear();
     app.acp_settings.loading = false;
     dispatch(&mut app, AgentsMessage::AddAgentKeyChanged("empty-catalog".into()));
     dispatch(&mut app, AgentsMessage::AddAgentRequested);
@@ -55,7 +55,7 @@ async fn settings_tabs_capabilities_appearance_profile() {
         concat!(module_path!(), "::settings_tabs_capabilities_appearance_profile"),
         runtime_creation_draft,
         |scene, app| {
-            let locale = app.desktop_locale;
+            let locale = app.general_settings.desktop_locale;
             let tr = |label| super::tr(locale, label);
             let draft_name = "暂存智能体 · Profile draft";
             dispatch(app, AgentsMessage::ProfileNameChanged(draft_name.into()));

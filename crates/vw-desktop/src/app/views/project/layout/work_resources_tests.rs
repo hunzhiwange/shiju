@@ -17,9 +17,9 @@ fn code_panel_snapshot(app: &App) -> (bool, bool, f32, bool, bool, bool) {
         app.navigation_panels.show_diff,
         app.file_manager.show_file_manager,
         app.layout_drag.split_ratio,
-        app.chat_panel_fullscreen,
+        app.chat_interaction.chat_panel_fullscreen,
         app.git.git_diff_fullscreen,
-        app.show_preview_fullscreen_overlay,
+        app.preview_state.show_preview_fullscreen_overlay,
     )
 }
 
@@ -64,9 +64,9 @@ fn work_resource_files_reuse_existing_file_manager_without_mutating_code_flags()
     app.navigation_panels.show_diff = false;
     app.file_manager.show_file_manager = false;
     app.layout_drag.split_ratio = 0.37;
-    app.chat_panel_fullscreen = true;
+    app.chat_interaction.chat_panel_fullscreen = true;
     app.git.git_diff_fullscreen = true;
-    app.show_preview_fullscreen_overlay = true;
+    app.preview_state.show_preview_fullscreen_overlay = true;
     let before = code_panel_snapshot(&app);
 
     let _ = work_resources::view(&app, 12.0);

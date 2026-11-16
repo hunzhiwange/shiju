@@ -12,7 +12,7 @@ async fn desktop_gettext_area_10_dynamic_feedback_retains_raw_arguments() {
         "已重命名为 %s",
         vec![raw.into()],
     );
-    let message = app.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
+    let message = app.toast_state.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
     for (locale, prefix) in [
         (DesktopLocale::SimplifiedChinese, "已重命名为 "),
         (DesktopLocale::TraditionalChinese, "已重新命名為 "),
@@ -23,7 +23,7 @@ async fn desktop_gettext_area_10_dynamic_feedback_retains_raw_arguments() {
     app.file_tree_interaction.file_tree_rename_path = Some("/project/file".into());
     app.file_tree_interaction.file_tree_rename_value = "../invalid".into();
     let _ = crate::app::message::project::update(&mut app, ProjectMessage::FileTreeRenameSave);
-    let message = app.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
+    let message = app.toast_state.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
     for (locale, expected) in [
         (DesktopLocale::SimplifiedChinese, "文件名不合法"),
         (DesktopLocale::TraditionalChinese, "檔案名稱無效"),

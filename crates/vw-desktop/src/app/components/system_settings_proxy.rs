@@ -5,10 +5,10 @@ use desktop_settings_network::system_settings_proxy as domain;
 fn inputs(app: &App) -> domain::View<'_> {
     domain::View {
         proxy_settings: &app.proxy_settings,
-        desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        desktop_locale: app.general_settings.desktop_locale,
+        app_theme: &app.appearance.app_theme,
         render_help: super::system_settings_browser::render_help,
-        last_copied_code_hash: app.last_copied_code_hash,
+        last_copied_code_hash: app.clipboard_state.last_copied_code_hash,
     }
 }
 pub fn view(app: &App) -> Element<'_, Message> { domain::view(inputs(app)).map(super::system_settings_browser::map_message) }

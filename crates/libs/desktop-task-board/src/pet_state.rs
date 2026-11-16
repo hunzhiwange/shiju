@@ -78,3 +78,67 @@ pub fn apply_task_pet_preferences(
         *visible = value;
     }
 }
+
+/// Owned domain state held by the desktop host.
+pub struct State {
+    /// 小宠物任务列表滚动容器 ID
+    pub task_pet_scroll_id: iced::widget::Id,
+    /// 小宠物面板位置
+    pub task_pet_position: iced::Point,
+    /// 小宠物面板是否收起
+    pub task_pet_collapsed: bool,
+    /// 小宠物展开动画进度（0.0 收起，1.0 展开）
+    pub task_pet_expand_progress: f32,
+    /// 小宠物展开动画目标
+    pub task_pet_expand_target: Option<f32>,
+    /// 小宠物面板是否正在拖拽
+    pub task_pet_dragging: bool,
+    /// 小宠物拖拽锚点
+    pub task_pet_drag_anchor: Option<iced::Point>,
+    /// 小宠物拖拽起始位置
+    pub task_pet_drag_start: iced::Point,
+    /// 小宠物拖动朝向（-1 左，1 右）
+    pub task_pet_drag_direction: i8,
+    /// 小宠物脚步动画保持到的时间戳
+    pub task_pet_walk_until_ms: u64,
+    /// 小宠物当前形态
+    pub task_pet_avatar_kind: TaskPetAvatarKind,
+    /// 伙伴比例，有限值限制在 0.5–2.0。
+    pub task_pet_scale: f32,
+    /// 弹窗预览独立于持久化值；保存期间禁止重复提交和取消。
+    pub task_pet_size_draft: Option<f32>,
+    /// 小宠物展示的任务条目
+    pub task_pet_items: Vec<TaskPetItem>,
+    /// 当前鼠标悬停的小宠物任务请求 ID
+    pub task_pet_hovered_request_id: Option<u64>,
+    /// 当前正在回复的小宠物任务请求 ID
+    pub task_pet_reply_request_id: Option<u64>,
+    /// 小宠物回复输入内容
+    pub task_pet_reply_input: String,
+    /// 已主动隐藏的请求 ID
+    pub task_pet_dismissed_request_ids: std::collections::HashSet<u64>,
+}
+impl State {
+    pub fn new() -> Self {
+        Self {
+            task_pet_scroll_id: iced::widget::Id::new("task_pet"),
+            task_pet_position: iced::Point::new(620.0, 96.0),
+            task_pet_collapsed: true,
+            task_pet_expand_progress: 0.0,
+            task_pet_expand_target: None,
+            task_pet_dragging: false,
+            task_pet_drag_anchor: None,
+            task_pet_drag_start: iced::Point::ORIGIN,
+            task_pet_drag_direction: 1,
+            task_pet_walk_until_ms: 0,
+            task_pet_avatar_kind: TaskPetAvatarKind::Robot,
+            task_pet_scale: 1.0,
+            task_pet_size_draft: None,
+            task_pet_items: Vec::new(),
+            task_pet_hovered_request_id: None,
+            task_pet_reply_request_id: None,
+            task_pet_reply_input: String::new(),
+            task_pet_dismissed_request_ids: std::collections::HashSet::new(),
+        }
+    }
+}

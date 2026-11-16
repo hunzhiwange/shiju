@@ -18,26 +18,16 @@
 //! - 返回 Task 用于执行异步操作（如剪贴板写入）
 
 use iced::Task;
-use iced_code_editor::theme;
-#[cfg(not(target_arch = "wasm32"))]
-use std::time::Duration;
 
 use super::message;
 use super::{App, Message, Screen};
-use crate::app::state::RuntimePlatform;
 use crate::app::ui_types::ClipboardShortcutKind;
 
-use desktop_settings_agents::acp_update::sort_acp_agent_names;
-
-#[cfg(not(target_arch = "wasm32"))]
-use desktop_settings_network::startup::startup_retry_interval;
-
-use desktop_settings_network::bootstrap::selected_gateway_health_key;
-#[cfg(any(test, target_arch = "wasm32"))]
+#[cfg(test)]
 use desktop_settings_network::bootstrap::selected_gateway_became_healthy;
 
 fn route_clipboard_shortcut(app: &App, kind: ClipboardShortcutKind) -> Task<Message> {
-    iced::widget::operation::is_focused(app.input_editor_id.clone())
+    iced::widget::operation::is_focused(app.session_state.input_editor_id.clone())
         .map(move |input_focused| Message::ClipboardShortcutRouted { kind, input_focused })
 }
 
@@ -59,8 +49,8 @@ fn copy_shortcut_without_input(app: &mut App) -> Task<Message> {
     {
         message::git::update(app, message::GitMessage::CopyDiffSelection)
     } else if app.navigation_tabs.screen == Screen::Project
-        && let Some(selection) = &app.chat_markdown_selection
-        && app.active_session_id.as_deref() == Some(selection.session_id.as_str())
+        && let Some(selection) = &app.chat_interaction.chat_markdown_selection
+        && app.session_state.active_session_id.as_deref() == Some(selection.session_id.as_str())
     {
         Task::done(Message::CopyCode(selection.text.clone()))
     } else {
@@ -73,7 +63,7 @@ pub(crate) fn copy_chat_message(
     session_id: String,
     message_idx: usize,
 ) -> Task<Message> {
-    if app.active_session_id.as_deref() != Some(session_id.as_str()) {
+    if app.session_state.active_session_id.as_deref() != Some(session_id.as_str()) {
         return Task::none();
     }
     let Some(text) = crate::app::components::chat_panel::message_view::chat_message_action_text(
@@ -87,15 +77,8 @@ pub(crate) fn copy_chat_message(
 }
 
 fn copy_code(app: &mut App, text: String) -> Task<Message> {
-    use std::hash::{Hash, Hasher};
     use std::time::Duration;
-    use web_time::SystemTime;
-
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    text.hash(&mut hasher);
-    let hash = hasher.finish();
-    app.last_copied_code_hash = Some(hash);
-    app.last_copy_time = Some(SystemTime::now());
+    let hash = app.clipboard_state.copied(&text);
 
     Task::batch(vec![
         copy_text_task(text, hash),
@@ -124,429 +107,6 @@ fn copy_text_task(text: String, hash: u64) -> Task<Message> {
 }
 
 impl App {
-    fn apply_external_apps_state(&mut self, platform: Option<RuntimePlatform>, apps: Vec<(String, bool)>) {
-        desktop_navigation::external_apps_update::apply_external_apps_state(
-            &mut self.open_external_platform, &mut self.external_navigation.open_external_exists,
-            &mut self.external_navigation.open_external_app, platform, apps,
-        );
-    }
-
-    pub(crate) fn apply_project_chat_preferences(
-        &mut self,
-        model: String,
-        auto_model: bool,
-        acp_agent: Option<String>,
-    ) {
-        self.model = model.clone();
-        self.auto_model = auto_model;
-        if self.active_session_id.is_none() {
-            self.acp_agent = acp_agent.clone();
-        }
-
-        // Existing sessions keep their own model. Updating the draft defaults must also preserve
-        // text and task settings entered while the project GET was in flight.
-        let runtime = self.get_session_runtime_mut("__empty__");
-        desktop_session::session::runtime::apply_draft_preferences(runtime, model, auto_model, acp_agent);
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    fn load_startup_sessions(&mut self) -> Task<Message> {
-        if self.navigation_tabs.screen != Screen::Home
-            || self.navigation_tabs.project_path.is_some()
-            || self.active_session_id.is_some()
-            || !self.sessions.is_empty()
-        {
-            return Task::none();
-        }
-        let Some(generation) = self.startup_configuration.begin_sessions() else {
-            return Task::none();
-        };
-        self.reload_sessions_for_project(None).map(move |message| match message {
-            Message::Project(result) => {
-                Message::StartupSessionsLoaded(generation, Box::new(result))
-            }
-            message => message,
-        })
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    fn apply_startup_gateway_snapshot(
-        &mut self,
-        generation: u64,
-        snapshot: crate::app::impls::StartupGatewaySnapshot,
-    ) -> Task<Message> {
-        if !self.startup_configuration.accept(generation, &snapshot) {
-            return Task::none();
-        }
-        let mut tasks = Vec::new();
-        if let Some(Ok(system)) = snapshot.system {
-            self.apply_system_settings_snapshot(system, false);
-        }
-        let scope =
-            crate::app::config::preferences_scope(&crate::app::config::gateway_client_endpoint());
-        let agents_loaded = matches!(&snapshot.agent, Some(Ok(_)));
-        if let Some(result) = snapshot.agent {
-            match result {
-                Ok(agent) => {
-                    self.apply_startup_agent_config(&agent.config, &agent.gateway);
-                    if !self.startup_configuration.setting_edited(&scope, "acp_agents") {
-                        self.acp_agents = agent.acp_agents;
-                    }
-                }
-                Err(_) => {
-                    tracing::debug!(target: "vw_desktop", "agent configuration unavailable during startup")
-                }
-            }
-        }
-        if let Some(result) = snapshot.catalog
-            && !self.startup_configuration.setting_edited(&scope, "agents_settings")
-            && (result.is_ok() || !self.agents_settings.config_ready)
-        {
-            tasks.push(message::settings::update(
-                self,
-                message::SettingsMessage::Agents(message::settings::AgentsMessage::ConfigLoaded {
-                    project_path: None,
-                    result,
-                }),
-            ));
-        }
-        if let Some(Ok(tools)) = snapshot.tools {
-            tasks.push(message::settings::update(
-                self,
-                message::SettingsMessage::Agents(message::settings::AgentsMessage::ToolsLoaded(
-                    Ok(tools),
-                )),
-            ));
-        }
-        let preferences_loaded = matches!(&snapshot.preferences, Some(Ok(_)));
-        if let Some(Ok(mut preferences)) = snapshot.preferences {
-            if let Some(fields) = preferences.as_object_mut() {
-                self.startup_configuration.pending_acp =
-                    fields.remove("acp_agent").and_then(|agent| agent.as_str().map(str::to_owned));
-                if self.startup_configuration.agent_loaded()
-                    && let Some(agent) = self
-                        .startup_configuration
-                        .pending_acp
-                        .take()
-                        .filter(|agent| self.acp_agents.contains(agent))
-                {
-                    fields.insert("acp_agent".into(), agent.into());
-                }
-            }
-            tasks.push(self.update(Message::StartupAppConfigLoaded(Ok(preferences))));
-        } else if agents_loaded
-            && let Some(agent) = self.startup_configuration.pending_acp.take()
-            && self.acp_agents.contains(&agent)
-        {
-            self.apply_bootstrap_chat_preferences(&serde_json::json!({"acp_agent": agent}));
-        }
-        if let Some(Ok(apps)) = snapshot.external_apps {
-            let platform = apps.platform.as_deref().and_then(RuntimePlatform::from_gateway_str);
-            let selection = self.external_navigation.open_external_app;
-            self.apply_external_apps_state(platform, apps.apps);
-            if self.desktop_preference_edited(&scope, "open_external_app") {
-                self.external_navigation.open_external_app = selection;
-            }
-        }
-        if (agents_loaded || preferences_loaded)
-            && self.navigation_tabs.project_path.is_none()
-            && self.active_session_id.is_none()
-            && !self.task_board_create_modal_open
-            && !self.show_task_board
-        {
-            self.task_board_last_acp_agent.clone_from(&self.acp_agent);
-            if !self.task_board_bulk_executor_popover {
-                self.task_board_bulk_acp_agent.clone_from(&self.acp_agent);
-            }
-        }
-        Task::batch(tasks)
-    }
-
-    fn apply_bootstrap_app_config(&mut self, mut cfg: serde_json::Value) {
-        self.retain_unedited_desktop_preferences(&mut cfg);
-        self.apply_task_pet_preferences(&cfg);
-        if !self.desktop_update.selected_by_user
-            && !self.desktop_update.checking
-            && self.desktop_update.background_request.is_none()
-            && !self.desktop_update.saving_skip
-            && !self.desktop_update.busy
-            && self.desktop_update.release.is_none()
-        {
-            let initial_check_started = self.desktop_update.initial_check_started;
-            self.desktop_update = crate::app::desktop_update::DesktopUpdate::from_config(&cfg);
-            self.desktop_update.initial_check_started = initial_check_started;
-        }
-        let mut efforts = crate::app::config::session_reasoning_efforts_from_config(&cfg);
-        // 启动配置返回前发生的本地选择（包括默认值）优先。
-        efforts.extend(self.session_reasoning_efforts.clone());
-        for (id, runtime) in &mut self.session_runtime_states {
-            if let Some(effort) = efforts.get(id) {
-                runtime.reasoning_effort = *effort;
-            }
-        }
-        self.session_reasoning_efforts = efforts;
-        if let Some(full_access) =
-            cfg.get("last_llm_full_access").and_then(serde_json::Value::as_bool)
-        {
-            self.last_llm_full_access = Some(full_access);
-            if let Some(runtime) = self.session_runtime_states.get_mut("__empty__")
-                && runtime.acp_agent.is_none()
-                && !runtime.full_access_overridden
-            {
-                runtime.full_access_enabled = full_access;
-                runtime.full_access_initialized = true;
-            }
-        }
-        self.reasoning_effort = self.current_session_runtime().reasoning_effort;
-        self.apply_bootstrap_chat_preferences(&cfg);
-        desktop_navigation::app_init::apply_preferences(
-            &mut self.navigation_panels,
-            &mut self.navigation_mode,
-            &mut self.navigation_sidebar,
-            &mut self.external_navigation,
-            &mut self.layout_drag,
-            &cfg,
-        );
-        if let Some(ids) = cfg.get("input_model_collapsed_provider_ids").and_then(|v| v.as_array())
-        {
-            self.model_settings.input_collapsed_provider_ids =
-                ids.iter().filter_map(|id| id.as_str().map(str::to_owned)).collect();
-        }
-        self.file_manager.show_file_manager = cfg
-            .get("show_file_manager")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(self.file_manager.show_file_manager);
-        self.file_manager.file_manager_show_changes = cfg
-            .get("file_manager_show_changes")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(self.file_manager.file_manager_show_changes);
-        if let Some(visible) = cfg.get("show_terminal").and_then(|v| v.as_bool()) {
-            self.terminal.set_visible(visible);
-        }
-        if let Some(paths) = cfg.get("file_tree_expanded").and_then(serde_json::Value::as_array) {
-            self.file_tree_expanded =
-                paths.iter().filter_map(|value| value.as_str().map(str::to_owned)).collect();
-            self.file_tree_expanded_set = self.file_tree_expanded.iter().cloned().collect();
-        }
-        if let Some(value) = cfg.get("chat_send_behavior").and_then(serde_json::Value::as_str) {
-            self.chat_send_behavior = crate::app::state::ChatSendBehavior::from_str(value);
-        }
-        let history_mode = cfg
-            .get("acp_history_strategy")
-            .and_then(serde_json::Value::as_str)
-            .map(crate::app::state::AcpHistoryReplayMode::from_str);
-        let history_count = cfg
-            .get("acp_history_recent_count")
-            .and_then(serde_json::Value::as_u64)
-            .map(|count| count.clamp(1, 20) as usize);
-        if let Some(mode) = history_mode {
-            self.acp_history_mode = mode;
-        }
-        if let Some(count) = history_count {
-            self.acp_recent_count = count;
-        }
-        if history_mode.is_some() || history_count.is_some() {
-            for runtime in self.session_runtime_states.values_mut() {
-                runtime.acp_history_mode = self.acp_history_mode;
-                runtime.acp_recent_count = self.acp_recent_count;
-            }
-        }
-        if let Some(value) = cfg.get("new_session_last_directory") {
-            self.new_session_last_directory = value.as_str().map(str::to_owned);
-        }
-        if cfg.get("web_bookmarks").is_some() {
-            self.web_navigation.web_bookmarks = super::app_init::load_web_bookmarks(&cfg);
-        }
-        for (key, setting) in [
-            ("show_git_diff_summary", &mut self.git.show_git_diff_summary),
-            ("show_git_diff_highlight", &mut self.git.show_git_diff_highlight),
-            ("task_board_worktree_pixel_office", &mut self.task_board_worktree_pixel_office),
-            (
-                "task_board_clear_prompt_after_create",
-                &mut self.task_board_clear_prompt_after_create,
-            ),
-            ("task_board_close_after_create", &mut self.task_board_close_after_create),
-            ("task_board_close_after_edit", &mut self.task_board_close_after_edit),
-        ] {
-            if let Some(value) = cfg.get(key).and_then(serde_json::Value::as_bool) {
-                *setting = value;
-            }
-        }
-    }
-
-    pub(crate) fn apply_bootstrap_system_settings(
-        &mut self,
-        system: config_ui::AppSystemSettingsConfig,
-    ) {
-        self.apply_system_settings_snapshot(system, true);
-    }
-
-    fn apply_system_settings_snapshot(
-        &mut self,
-        system: config_ui::AppSystemSettingsConfig,
-        apply_gateway_client: bool,
-    ) {
-        use crate::app::config::SystemSettingsSection;
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let scope =
-            crate::app::config::preferences_scope(&crate::app::config::gateway_client_endpoint());
-        let edited = |app: &Self, field: &str| {
-            #[cfg(not(target_arch = "wasm32"))]
-            return app.startup_configuration.setting_edited(&scope, field);
-            #[cfg(target_arch = "wasm32")]
-            {
-                let _ = (app, field);
-                false
-            }
-        };
-
-        if !self.desktop_locale_selected {
-            self.desktop_locale = system.desktop_locale;
-            crate::app::i18n::editor::refresh(self);
-        }
-        #[cfg(target_arch = "wasm32")]
-        provider_config_reader::set_wasm_gateway_endpoint({
-            let active = system.gateway_client.active_server();
-            let host = {
-                let value = active.host.trim();
-                if value.is_empty() { "127.0.0.1".to_string() } else { value.to_string() }
-            };
-            let skey = if active.skey.trim().is_empty() {
-                active.bearer_token.trim().to_string()
-            } else {
-                active.skey.trim().to_string()
-            };
-            let auth = gateway_endpoint::GatewayAuth {
-                skey: Some(skey).filter(|value| !value.is_empty()),
-                ..gateway_endpoint::GatewayAuth::default()
-            };
-            gateway_endpoint::GatewayEndpoint::new(host, active.port.clamp(1, u16::MAX))
-                .with_auth(auth)
-        });
-
-        if !edited(self, "terminal_shell") {
-            self.terminal.shell = match system.terminal_shell.as_str() {
-                "zsh" => crate::app::Shell::Zsh,
-                _ => crate::app::Shell::Bash,
-            };
-        }
-        if !edited(self, "terminal_font_family") {
-            self.terminal.set_font_family(system.terminal_font_family);
-        }
-        if !edited(self, "terminal_font_size") {
-            self.terminal.set_font_size(system.terminal_font_size);
-        }
-        if !edited(self, "editor_metrics") {
-            crate::app::message::editor::metrics::apply_snapshot(
-                self,
-                system.editor_font_size,
-                system.editor_line_height,
-                system.editor_auto_line_height,
-            );
-        }
-        if !self.system_settings_edited(SystemSettingsSection::Timezone) {
-            self.chat_timezone = system.timezone.clone();
-        }
-        if !self.task_completion_notification_saving
-            && !edited(self, "task_completion_notification")
-        {
-            self.task_completion_notification = system.task_completion_notification;
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        self.merge_startup_worktree_settings(system.project_worktree_enabled);
-        #[cfg(target_arch = "wasm32")]
-        {
-            self.project_worktree_enabled = system.project_worktree_enabled;
-        }
-        if !self.system_settings_edited(SystemSettingsSection::DialogueFlow) {
-            self.dialogue_flow_show_reasoning_summary = system.dialogue_flow_show_reasoning_summary;
-            self.dialogue_flow_expand_shell_tool_section =
-                system.dialogue_flow_expand_shell_tool_section;
-            self.dialogue_flow_expand_edit_tool_section =
-                system.dialogue_flow_expand_edit_tool_section;
-        }
-        if !edited(self, "quick_messages") {
-            self.quick_messages = system.quick_messages;
-            config_ui::upgrade_legacy_quick_message_actions(&mut self.quick_messages);
-            config_ui::append_missing_builtin_general_quick_messages(
-                &mut self.quick_messages,
-            );
-            config_ui::append_missing_builtin_git_quick_messages(
-                &mut self.quick_messages,
-            );
-        }
-        if !edited(self, "preview_auto_save") {
-            self.preview_auto_save_mode = system.preview_auto_save;
-        }
-        if !edited(self, "editor_follow_system_theme") {
-            self.editor_follow_system_theme = system.editor_follow_system_theme;
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let lsp_disabled = !system.lsp_enabled;
-            if self.lsp_disabled != lsp_disabled && !edited(self, "lsp_enabled") {
-                if system.lsp_enabled {
-                    crate::app::message::preview::lsp::enable_lsp(self);
-                } else {
-                    crate::app::message::preview::lsp::disable_lsp(self);
-                }
-            }
-        }
-        let theme_store = crate::app::theme_catalog::theme_store_from_home();
-        if !self.system_settings_edited(SystemSettingsSection::Theme) {
-            match crate::app::theme_catalog::resolve_app_theme_name(
-                &system.app_theme,
-                theme_store.as_ref(),
-            ) {
-                Some(theme) => {
-                    self.app_theme = theme;
-                    self.active_custom_theme_id =
-                        crate::app::theme_catalog::custom_theme_id_from_config(&system.app_theme)
-                            .map(str::to_string);
-                    crate::app::theme_catalog::sync_active_theme_skin(self);
-                }
-                None => {
-                    tracing::warn!(
-                        target: "vw_desktop",
-                        theme = %system.app_theme,
-                        "bootstrap could not resolve app theme; keeping current theme"
-                    );
-                }
-            }
-        }
-        if !edited(self, "editor_theme") {
-            self.editor_theme = crate::app::theme_catalog::resolve_app_theme_name(
-                &system.editor_theme,
-                theme_store.as_ref(),
-            )
-            .unwrap_or_else(|| self.app_theme.clone());
-        }
-        let editor_theme = self.effective_editor_theme();
-        for tab in self.navigation_tabs.preview_tabs.iter_mut() {
-            tab.editor.set_theme(editor_theme.clone());
-        }
-        self.git.git_copy_modal_code_editor.set_theme(theme::from_iced_theme(&editor_theme));
-        if apply_gateway_client
-            && !self.system_settings_edited(SystemSettingsSection::GatewayClient)
-            && self.gateway_client_settings.save_error.is_none()
-        {
-            self.apply_bootstrap_gateway_client(system.gateway_client);
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        if self.terminal.theme == crate::app::TerminalTheme::System {
-            self.terminal.apply_app_theme(&self.app_theme);
-        }
-    }
-
-    fn apply_bootstrap_gateway_client(&mut self, config: config_ui::GatewayClientSystemSettingsConfig) {
-        desktop_settings_network::bootstrap::apply_bootstrap_gateway_client(&mut self.gateway_client_settings, config);
-    }
-
-    fn apply_bootstrap_browser_settings(&mut self, browser: config_tools::BrowserConfig) {
-        desktop_settings_network::bootstrap::apply_bootstrap_browser_settings(&mut self.browser_settings, browser);
-    }
-
     /// 处理应用程序消息并更新状态
     ///
     /// 这是应用程序的核心更新函数，实现了 Elm 架构中的 update 模式。
@@ -626,138 +186,37 @@ impl App {
                 Task::none()
             }
             #[cfg(not(target_arch = "wasm32"))]
-            Message::StartupCliServiceBootstrapped(result) => {
-                if self.startup_state == crate::app::state::NativeStartupState::Ready {
-                    return Task::none();
+            message @ (Message::StartupCliServiceBootstrapped(_)
+            | Message::StartupGatewaySnapshotLoaded(..)
+            | Message::StartupSessionsLoaded(..)) => {
+                match super::app_init::dispatch::update(self, message) {
+                    super::app_init::dispatch::Update::Continue(task) => task,
+                    super::app_init::dispatch::Update::Return(task) => return task,
                 }
-                match result {
-                    Ok(()) => {
-                        self.startup_state = crate::app::state::NativeStartupState::Ready;
-                        tracing::info!(
-                            target: "vw_desktop",
-                            "desktop gateway is ready"
-                        );
-                    }
-                    Err(error) => {
-                        let retry_after = startup_retry_interval(self.startup_started_at.elapsed());
-                        tracing::debug!(
-                            target: "vw_desktop",
-                            error = %error,
-                            retry_after_seconds = retry_after.as_secs(),
-                            "desktop CLI service bootstrap will retry"
-                        );
-                        return Task::perform(
-                            async move {
-                                tokio::time::sleep(retry_after).await;
-                                crate::app::config::bootstrap_cli_service_async().await
-                            },
-                            Message::StartupCliServiceBootstrapped,
-                        );
-                    }
-                }
-                let mut tasks = vec![
-                    crate::app::message::account::load_repository(),
-                    self.startup_configuration.load(),
-                    Task::done(Message::GatewayHealthTick),
-                    Task::done(Message::Settings(message::SettingsMessage::ModelsRefresh)),
-                ];
-                tasks.push(self.load_startup_sessions());
-                Task::batch(tasks)
             }
-            #[cfg(not(target_arch = "wasm32"))]
-            Message::StartupGatewaySnapshotLoaded(generation, snapshot) => {
-                self.apply_startup_gateway_snapshot(generation, *snapshot)
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            Message::StartupSessionsLoaded(generation, message) => {
-                let succeeded = matches!(
-                    &*message,
-                    message::ProjectMessage::SessionBootstrapLoaded { result: Ok(_), .. }
-                );
-                if self.startup_configuration.accept_sessions(generation, succeeded)
-                    && self.active_session_id.is_none()
-                {
-                    return self.update(Message::Project(*message));
+            message @ (Message::StartupAppConfigLoaded(_)
+            | Message::BootstrapAppConfig(_)
+            | Message::StartupSystemSettingsLoaded(_)
+            | Message::BootstrapSystemSettings(_)
+            | Message::StartupAgentConfigLoaded(_)
+            | Message::StartupBrowserConfigLoaded(_)
+            | Message::BootstrapBrowserConfig(_)
+            | Message::BootstrapAcpAgentsLoaded(_)
+            | Message::BootstrapArchivedSessions(_)
+            | Message::ExternalAppsLoaded(_)) => {
+                match super::app_init::dispatch::update(self, message) {
+                    super::app_init::dispatch::Update::Continue(task) => task,
+                    super::app_init::dispatch::Update::Return(task) => return task,
                 }
-                Task::none()
-            }
-            Message::StartupAppConfigLoaded(result) | Message::BootstrapAppConfig(result) => {
-                if let Ok(cfg) = result {
-                    self.apply_bootstrap_app_config(cfg);
-                }
-                #[cfg(not(target_arch = "wasm32"))]
-                if !self.desktop_update.initial_check_started {
-                    self.desktop_update.initial_check_started = true;
-                    return Task::batch([
-                        message::view::sync_task_pet_window(self),
-                        Task::done(Message::View(message::ViewMessage::AutoCheckAppUpdate)),
-                    ]);
-                }
-                message::view::sync_task_pet_window(self)
-            }
-            Message::StartupSystemSettingsLoaded(result)
-            | Message::BootstrapSystemSettings(result) => {
-                if let Ok(system) = result {
-                    self.apply_bootstrap_system_settings(system);
-                    let health = Task::done(Message::GatewayHealthTick);
-                    // 输入栏依赖模型能力数据，桌面端也必须在启动时加载。
-                    return Task::batch(vec![
-                        health,
-                        Task::done(Message::Settings(
-                            crate::app::message::SettingsMessage::ModelsRefresh,
-                        )),
-                    ]);
-                }
-                Task::none()
-            }
-            Message::StartupAgentConfigLoaded(result) => {
-                match result {
-                    Ok(config) => self.apply_bootstrap_agent_config(&config),
-                    Err(error) => {
-                        tracing::warn!(
-                            target: "vw_desktop",
-                            error = %error,
-                            "failed to reload agent config after gateway bootstrap"
-                        );
-                    }
-                }
-                Task::none()
-            }
-            Message::StartupBrowserConfigLoaded(result)
-            | Message::BootstrapBrowserConfig(result) => {
-                if let Ok(browser) = result {
-                    self.apply_bootstrap_browser_settings(browser);
-                }
-                Task::none()
-            }
-            Message::BootstrapAcpAgentsLoaded(result) => {
-                if let Ok(acp_agents) = result {
-                    self.acp_agents = sort_acp_agent_names(acp_agents);
-                }
-                Task::none()
-            }
-            Message::BootstrapArchivedSessions(result) => {
-                if let Ok(archived_session_ids) = result {
-                    self.archived_session_ids = archived_session_ids;
-                }
-                Task::none()
-            }
-            Message::ExternalAppsLoaded(result) => {
-                if let Ok(state) = result {
-                    let platform =
-                        state.platform.as_deref().and_then(RuntimePlatform::from_gateway_str);
-                    self.apply_external_apps_state(platform, state.apps);
-                }
-                Task::none()
             }
             Message::SessionPreviewsLoaded(result) => {
                 match result {
                     Ok(previews) => {
-                        self.session_previews =
+                        self.session_state.session_previews =
                             crate::app::session::build_session_previews(previews);
                     }
                     Err(error) => {
-                        self.session_previews.clear();
+                        self.session_state.session_previews.clear();
                         self.push_notification(format!(
                             "Failed to load session previews: {}",
                             error
@@ -778,60 +237,11 @@ impl App {
             Message::SystemSettingsSaved(scope, section, result) => {
                 self.system_settings_saved(scope, section, result)
             }
-            Message::GatewayHealthTick => {
-                let servers = self.gateway_client_settings.servers.clone();
-                if servers.is_empty() {
-                    Task::none()
-                } else {
-                    Task::perform(
-                        message::gateway_health::check_servers(servers),
-                        Message::GatewayHealthChecked,
-                    )
+            message @ (Message::GatewayHealthTick | Message::GatewayHealthChecked(_)) => {
+                match super::app_init::dispatch::update(self, message) {
+                    super::app_init::dispatch::Update::Continue(task) => task,
+                    super::app_init::dispatch::Update::Return(task) => return task,
                 }
-            }
-            Message::GatewayHealthChecked(results) => {
-                #[cfg(not(target_arch = "wasm32"))]
-                let selected_gateway_is_healthy =
-                    selected_gateway_health_key(&self.gateway_client_settings).is_some_and(|key| {
-                        results.iter().any(|(candidate, healthy)| *healthy && candidate == &key)
-                    });
-                #[cfg(target_arch = "wasm32")]
-                let selected_gateway_became_healthy =
-                    selected_gateway_became_healthy(&self.gateway_client_settings, &results);
-                let known_keys = self
-                    .gateway_client_settings
-                    .servers
-                    .iter()
-                    .filter_map(crate::app::message::gateway_health::server_health_key)
-                    .collect::<std::collections::HashSet<_>>();
-                self.gateway_client_settings.health.retain(|key, _| known_keys.contains(key));
-                for (key, healthy) in results {
-                    if known_keys.contains(&key) {
-                        self.gateway_client_settings.health.insert(key, healthy);
-                    }
-                }
-                #[cfg(not(target_arch = "wasm32"))]
-                if self.startup_state == crate::app::state::NativeStartupState::Ready
-                    && selected_gateway_is_healthy
-                {
-                    return Task::batch([
-                        self.startup_configuration.load(),
-                        self.load_startup_sessions(),
-                    ]);
-                }
-                #[cfg(target_arch = "wasm32")]
-                if selected_gateway_became_healthy {
-                    return Task::batch(vec![
-                        Task::perform(
-                            crate::app::config::load_full_agent_config_async(),
-                            |result| Message::StartupAgentConfigLoaded(result.map(Box::new)),
-                        ),
-                        crate::app::message::settings::reload_agents_config_task(
-                            self.agents_settings.project_path.clone(),
-                        ),
-                    ]);
-                }
-                Task::none()
             }
             Message::Account(msg) => message::account::update(self, msg),
             #[cfg(not(target_arch = "wasm32"))]
@@ -916,8 +326,12 @@ impl App {
             Message::CopyCode(s) => copy_code(self, s),
             Message::ChatMarkdownSelectionChanged { session_id, message_idx, text_idx, text } => {
                 desktop_chat_view::chat_ui::update_markdown_selection(
-                    &mut self.chat_markdown_selection, self.active_session_id.as_deref(),
-                    session_id, message_idx, text_idx, text,
+                    &mut self.chat_interaction.chat_markdown_selection,
+                    self.session_state.active_session_id.as_deref(),
+                    session_id,
+                    message_idx,
+                    text_idx,
+                    text,
                 );
                 Task::none()
             }
@@ -927,23 +341,18 @@ impl App {
             }
 
             // 复制文件内容到剪贴板
-            Message::CopyFile(path) => {
-                match std::fs::read_to_string(path) {
-                    Ok(content) => copy_code(self, content),
-                    Err(_) => self.show_localized_toast(
-                        crate::app::state::ToastKind::Error,
-                        "读取文件失败，未修改剪贴板",
-                        vec![],
-                    ),
-                }
-            }
+            Message::CopyFile(path) => match std::fs::read_to_string(path) {
+                Ok(content) => copy_code(self, content),
+                Err(_) => self.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "读取文件失败，未修改剪贴板",
+                    vec![],
+                ),
+            },
 
             Message::ClipboardCopyFinished { hash, result } => {
                 if result.is_err() {
-                    if self.last_copied_code_hash == Some(hash) {
-                        self.last_copied_code_hash = None;
-                        self.last_copy_time = None;
-                    }
+                    self.clipboard_state.clear(hash);
                     self.show_localized_toast(
                         crate::app::state::ToastKind::Error,
                         "复制失败：系统剪贴板不可用或访问被拒绝",
@@ -958,16 +367,13 @@ impl App {
             Message::CopyDone => Task::none(),
 
             Message::CopyFeedbackExpired(hash) => {
-                if self.last_copied_code_hash == Some(hash) {
-                    self.last_copied_code_hash = None;
-                    self.last_copy_time = None;
-                }
+                self.clipboard_state.clear(hash);
                 Task::none()
             }
 
             // 关闭错误提示
             Message::CloseError => {
-                self.error_message = None;
+                self.input_feedback.error_message = None;
                 Task::none()
             }
 
@@ -1001,7 +407,8 @@ impl App {
 
         #[cfg(not(target_arch = "wasm32"))]
         if !self.navigation_panels.show_system_settings
-            || self.navigation_panels.system_settings_tab != crate::app::components::system_settings::SystemTab::Auth
+            || self.navigation_panels.system_settings_tab
+                != crate::app::components::system_settings::SystemTab::Auth
         {
             self.agent_apps_auth.login = None;
             self.agent_apps_auth.binding = None;

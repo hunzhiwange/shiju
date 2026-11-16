@@ -274,8 +274,8 @@ mod rollout {
         app.runtime_settings.docker_image = "fixture/image:1.0".into();
         app.runtime_settings.docker_read_only_rootfs = true;
         for (locale, theme, width) in SCENES {
-            app.desktop_locale = locale;
-            app.app_theme = theme.clone();
+            app.general_settings.desktop_locale = locale;
+            app.appearance.app_theme = theme.clone();
             let size = Size::new(width, 1020);
             let context = (locale, &theme, size);
             let mut ui = scene(view(&app), &mut renderer, size);
@@ -321,8 +321,8 @@ mod rollout {
         app.observability_settings.runtime_trace_mode = "rolling".into();
         app.observability_settings.runtime_trace_max_entries = 25_000;
         for (locale, theme, width) in SCENES {
-            app.desktop_locale = locale;
-            app.app_theme = theme.clone();
+            app.general_settings.desktop_locale = locale;
+            app.appearance.app_theme = theme.clone();
             let size = Size::new(width, 760);
             let context = (locale, &theme, size);
             let mut ui = scene(system_settings_observability::view(&app), &mut renderer, size);
@@ -368,8 +368,8 @@ mod rollout {
         app.runtime_settings.docker_read_only_rootfs = true;
         app.runtime_settings.save_error = Some("fixture runtime error".into());
         for (locale, theme, width) in SCENES {
-            app.desktop_locale = locale;
-            app.app_theme = theme.clone();
+            app.general_settings.desktop_locale = locale;
+            app.appearance.app_theme = theme.clone();
             let size = Size::new(width, 1180);
             for kind in ["docker", "native"] {
                 app.runtime_settings.kind = kind.into();
@@ -420,8 +420,8 @@ mod rollout {
         app.observability_settings.otel_endpoint_input = ENDPOINT.into();
         app.observability_settings.runtime_trace_max_entries = 25_000;
         for (locale, theme, width) in SCENES {
-            app.desktop_locale = locale;
-            app.app_theme = theme.clone();
+            app.general_settings.desktop_locale = locale;
+            app.appearance.app_theme = theme.clone();
             let size = Size::new(width, 1000);
             for (backend, trace, inactive) in [
                 ("otel", "rolling", 0),
@@ -481,8 +481,8 @@ mod rollout {
         app.scheduler_settings.max_tasks = 63;
         app.scheduler_settings.max_concurrent = 7;
         for (locale, theme, width) in SCENES {
-            app.desktop_locale = locale;
-            app.app_theme = theme.clone();
+            app.general_settings.desktop_locale = locale;
+            app.appearance.app_theme = theme.clone();
             let size = Size::new(width, 980);
             let mut ui = scene(system_settings::view(&app), &mut renderer, size);
             let positions = geometry(&mut ui, &renderer);
@@ -551,8 +551,8 @@ mod rollout {
             trusted: false,
         }];
         for (locale, theme, width) in SCENES {
-            app.desktop_locale = locale;
-            app.app_theme = theme.clone();
+            app.general_settings.desktop_locale = locale;
+            app.appearance.app_theme = theme.clone();
             let size = Size::new(width, 1800);
             for enabled in [true, false] {
                 app.hooks_settings.enabled = enabled;

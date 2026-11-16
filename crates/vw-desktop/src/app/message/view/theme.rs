@@ -17,11 +17,11 @@ use iced_code_editor::theme;
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     match message {
         ViewMessage::AppThemeSelected(theme) => {
-            app.app_theme = theme.clone();
+            app.appearance.app_theme = theme.clone();
             desktop_theme::selection::sync_active_custom_theme_id(
-                &app.app_theme, &mut app.active_custom_theme_id, &mut app.active_theme_skin,
+                &app.appearance.app_theme, &mut app.appearance.active_custom_theme_id, &mut app.appearance.active_theme_skin,
             );
-            if app.editor_follow_system_theme {
+            if app.appearance.editor_follow_system_theme {
                 let editor_theme = app.effective_editor_theme();
                 for tab in app.navigation_tabs.preview_tabs.iter_mut() {
                     tab.editor.set_theme(editor_theme.clone());
@@ -32,12 +32,12 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             if app.terminal.theme == TerminalTheme::System {
                 #[cfg(not(target_arch = "wasm32"))]
                 {
-                    app.terminal.apply_app_theme(&app.app_theme);
+                    app.terminal.apply_app_theme(&app.appearance.app_theme);
                 }
             }
 
             let app_theme =
-                config_value_for_theme(&app.app_theme, app.active_custom_theme_id.as_deref());
+                config_value_for_theme(&app.appearance.app_theme, app.appearance.active_custom_theme_id.as_deref());
             app.save_system_settings_fields(
                 SystemSettingsSection::Theme,
                 serde_json::Map::from_iter([("app_theme".into(), app_theme.into())]),

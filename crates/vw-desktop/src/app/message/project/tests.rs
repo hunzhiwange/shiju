@@ -84,6 +84,6 @@ fn update_dispatches_session_message() {
     let _task =
         update(&mut app, ProjectMessage::SessionRightClicked("session-id".to_string(), 8.0, 16.0));
 
-    assert_eq!(app.session_menu_id.as_deref(), Some("session-id"));
-    assert_eq!(app.session_menu_anchor, Some(iced::Point::new(8.0, 16.0)));
+    assert_eq!(app.workspace_state.session_menu_id.as_deref(), Some("session-id"));
+    assert_eq!(app.workspace_state.session_menu_anchor, Some(iced::Point::new(8.0, 16.0)));
 }

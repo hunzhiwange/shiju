@@ -14,25 +14,25 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         SettingsMessage::SessionDelete(id) => {
             #[cfg(not(target_arch = "wasm32"))]
-            if let Some(runtime) = app.session_runtime_states.get(&id) {
+            if let Some(runtime) = app.session_state.session_runtime_states.get(&id) {
                 for panel in &runtime.mcp_app_panels {
                     panel.cancel();
                 }
             }
-            app.session_runtime_states.remove(&id);
+            app.session_state.session_runtime_states.remove(&id);
 
-            if let Some(pos) = app.sessions.iter().position(|s| s.id == id) {
-                app.sessions.remove(pos);
+            if let Some(pos) = app.session_state.sessions.iter().position(|s| s.id == id) {
+                app.session_state.sessions.remove(pos);
             }
 
             let mut switch_task = Task::none();
             if let Some(next) = desktop_settings_sessions::sessions::next_after_delete(
-                &app.sessions,
-                app.active_session_id.as_deref(),
+                &app.session_state.sessions,
+                app.session_state.active_session_id.as_deref(),
                 &id,
             ) {
                 if let Some(next_id) = next {
-                    app.active_session_id = Some(next_id.clone());
+                    app.session_state.active_session_id = Some(next_id.clone());
                     app.mark_active_session_viewed();
                     app.sync_active_session_preferences();
                     let load_permissions = app.load_session_full_access(&next_id);
@@ -65,9 +65,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     );
                     switch_task = Task::batch([load_messages, load_permissions]);
                 } else {
-                    app.active_session_id = None;
-                    app.chat.clear();
-                    app.usage = crate::app::models::TokenUsage::default();
+                    app.session_state.active_session_id = None;
+                    app.chat_view.chat.clear();
+                    app.chat_view.usage = crate::app::models::TokenUsage::default();
                     app.invalidate_chat_ui_state();
                 }
             }

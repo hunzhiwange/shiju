@@ -34,18 +34,18 @@ pub(super) fn begin_picker(app: &mut App, project_path: String) -> iced::Task<Me
 }
 fn update_picker(app: &mut App, event: Event) -> iced::Task<Message> {
     let effects = session_worktree::update(&mut Picker {
-        project: &mut app.new_session_picker_project, options: &mut app.new_session_picker_options,
-        last_directory: &mut app.new_session_last_directory, name: &mut app.new_session_worktree_name,
-        creating: &mut app.new_session_creating, confirm_delete: &mut app.new_session_confirm_delete_directory,
-        force_delete: &mut app.new_session_force_delete_directory, delete_error: &mut app.new_session_delete_error,
-        confirm_reset: &mut app.new_session_confirm_reset_directory, reset_error: &mut app.new_session_reset_error,
-    }, app.navigation_tabs.project_path.as_deref(), app.agent_stream_id, event);
+        project: &mut app.workspace_state.new_session_picker_project, options: &mut app.workspace_state.new_session_picker_options,
+        last_directory: &mut app.workspace_state.new_session_last_directory, name: &mut app.workspace_state.new_session_worktree_name,
+        creating: &mut app.workspace_state.new_session_creating, confirm_delete: &mut app.workspace_state.new_session_confirm_delete_directory,
+        force_delete: &mut app.workspace_state.new_session_force_delete_directory, delete_error: &mut app.workspace_state.new_session_delete_error,
+        confirm_reset: &mut app.workspace_state.new_session_confirm_reset_directory, reset_error: &mut app.workspace_state.new_session_reset_error,
+    }, app.navigation_tabs.project_path.as_deref(), app.session_state.agent_stream_id, event);
     let mut tasks = Vec::new();
     for effect in effects {
         match effect {
             Effect::InputError(field, text, args) => app.set_localized_input_error(error_field(field), text, args.into_iter().map(Into::into).collect()),
-            Effect::ClearError(field) => { app.localized_input_errors.remove(&error_field(field)); }
-            Effect::ClearHover => app.hovered_recent_project = None,
+            Effect::ClearError(field) => { app.input_feedback.localized_input_errors.remove(&error_field(field)); }
+            Effect::ClearHover => app.workspace_state.hovered_recent_project = None,
             Effect::OpenDraft { project_path, directory } => tasks.push(super::open::open_session_draft(app, project_path, directory)),
             Effect::Create { project_path, name, generation } => {
                 let path = project_path.clone();

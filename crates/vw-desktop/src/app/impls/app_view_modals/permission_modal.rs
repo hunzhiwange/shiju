@@ -1,7 +1,7 @@
 use super::{App, Message, message};
 use iced::Element;
 pub(crate) fn with_permission_modal<'a>(app: &App, root: Element<'a, Message>) -> Element<'a, Message> {
-    desktop_chat_view::modals::permission_modal::with_permission_modal(app.permission_modal_request.as_ref(), &app.permission_modal_requests, app.desktop_locale, app.active_toast.as_ref().map(|_| crate::app::components::toast::view(app)), |event| {
+    desktop_chat_view::modals::permission_modal::with_permission_modal(app.session_state.permission_modal_request.as_ref(), &app.session_state.permission_modal_requests, app.general_settings.desktop_locale, app.toast_state.active_toast.as_ref().map(|_| crate::app::components::toast::view(app)), |event| {
         use desktop_chat_view::modals::permission_modal::Event;
         Message::Chat(match event {
             Event::PermissionReject => message::ChatMessage::PermissionReject,

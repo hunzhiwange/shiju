@@ -313,3 +313,17 @@ pub fn startup_retry_interval(elapsed: std::time::Duration) -> std::time::Durati
 #[cfg(test)]
 #[path = "startup_retry_tests.rs"]
 mod startup_retry_tests;
+
+impl StartupConfiguration {
+    pub fn take_pending_agent(&mut self, agents: &[String]) -> Option<String> {
+        self.pending_acp.take().filter(|agent| agents.contains(agent))
+    }
+    pub fn prepare_preferences_agent(&mut self, preferences: &mut serde_json::Value, agents: &[String]) {
+        if let Some(fields) = preferences.as_object_mut() {
+            self.pending_acp = fields.remove("acp_agent").and_then(|agent| agent.as_str().map(str::to_owned));
+            if self.agent_loaded() && let Some(agent) = self.take_pending_agent(agents) {
+                fields.insert("acp_agent".into(), agent.into());
+            }
+        }
+    }
+}

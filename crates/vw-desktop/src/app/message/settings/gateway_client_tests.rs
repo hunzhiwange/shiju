@@ -320,5 +320,5 @@ fn gateway_client_invalid_tenant_effect_shows_host_toast() {
     let mut app = App::new().0;
     app.gateway_client_settings = Default::default();
     let _ = update(&mut app, SettingsMessage::GatewayClient(GatewayClientMessage::PlatformIdChanged(" ".into())));
-    assert!(app.active_toast.is_some());
+    assert!(app.toast_state.active_toast.is_some());
 }

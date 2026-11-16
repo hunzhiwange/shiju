@@ -200,7 +200,7 @@ impl Harness {
                         }
                         2 => {
                             self.step = 3;
-                            self.app.app_theme = Theme::Dark;
+                            self.app.appearance.app_theme = Theme::Dark;
                             self.arm("t56-review-dark");
                             return Task::none();
                         }
@@ -223,7 +223,7 @@ impl Harness {
                 if self.case == 0 {
                     self.case = 1;
                     self.frames = 0;
-                    self.app.app_theme = Theme::Dark;
+                    self.app.appearance.app_theme = Theme::Dark;
                     Task::none()
                 } else {
                     std::fs::write(self.root.join("window-result.json"),r#"{"themes":2,"real_gateway":true,"missing_node":true,"hook_pending":true,"unicode_long_path":true,"glyph_panic":false,"closed_without_mutation":true}"#).unwrap();
@@ -325,7 +325,7 @@ pub(crate) fn run() {
     iced::daemon(
         move || {
             let (mut app, _) = App::new();
-            app.app_theme = Theme::Light;
+            app.appearance.app_theme = Theme::Light;
             let (id, task) = window::open(window::Settings {
                 size: iced::Size::new(1100., 850.),
                 exit_on_close_request: false,
@@ -354,7 +354,7 @@ pub(crate) fn run() {
         Harness::view,
     )
     .title("Plugin compatibility validation")
-    .theme(|state: &Harness, _| state.app.app_theme.clone())
+    .theme(|state: &Harness, _| state.app.appearance.app_theme.clone())
     .subscription(Harness::subscription)
     .settings(iced::Settings {
         fonts: crate::fonts::load_all(),

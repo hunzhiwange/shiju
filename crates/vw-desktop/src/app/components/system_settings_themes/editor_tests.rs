@@ -29,7 +29,7 @@ async fn settings_tabs_editors_appearance_theme() {
             let draft_name = "主题草稿 · Theme draft";
             dispatch(app, ThemesMessage::NewThemeRequested);
             dispatch(app, ThemesMessage::DraftNameChanged(draft_name.into()));
-            let i18n = I18n::new(app.desktop_locale);
+            let i18n = I18n::new(app.general_settings.desktop_locale);
             let labels: Vec<_> =
                 editor_tab_labels().iter().map(|(label, _)| i18n.__(label)).collect();
             scene.save_preview(app, overlay(app), "theme");

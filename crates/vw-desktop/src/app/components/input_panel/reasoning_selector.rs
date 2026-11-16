@@ -4,10 +4,10 @@ use desktop_chat_input::input_panel::reasoning_selector as domain;
 fn input(app: &App) -> domain::ReasoningInput<'_> {
     domain::ReasoningInput {
         providers: &app.model_settings.providers,
-        model: app.current_session_runtime_ref().map(|r| r.model.as_str()).unwrap_or(&app.model),
+        model: app.current_session_runtime_ref().map(|r| r.model.as_str()).unwrap_or(&app.session_state.model),
         expanded: app.popover_visibility.reasoning_effort,
-        i18n: crate::app::i18n::I18n::new(app.desktop_locale),
-        session_id: app.active_session_id.as_deref(),
+        i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
+        session_id: app.session_state.active_session_id.as_deref(),
     }
 }
 fn map_message(msg: desktop_chat_input::input_panel::reasoning_message::Message) -> Message {

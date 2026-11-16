@@ -353,7 +353,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 ..Default::default()
             });
             let mut app = App::new().0; // Deliberately do not poll bootstrap or history tasks.
-            app.active_session_id = Some(session.clone());
+            app.session_state.active_session_id = Some(session.clone());
             app.current_session_runtime_mut();
             app.navigation_panels.show_system_settings = true;
             app.navigation_panels.system_settings_tab = app::components::system_settings::SystemTab::Voice;

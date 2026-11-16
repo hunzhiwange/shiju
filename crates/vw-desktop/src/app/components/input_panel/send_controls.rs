@@ -20,7 +20,7 @@ pub(super) fn map(event: Event) -> Message {
     }
 }
 pub(super) fn has_permission_context(app: &App) -> bool {
-    let directory = app.active_session_id.as_deref().and_then(|id| app.known_session_directory(id));
+    let directory = app.session_state.active_session_id.as_deref().and_then(|id| app.known_session_directory(id));
     controls::has_permission_context(directory.as_deref(), app.navigation_tabs.project_path.as_deref())
 }
 
@@ -32,7 +32,7 @@ pub fn send_button(app: &App, enabled: bool, can_send: bool, is_requesting: bool
     };
     #[cfg(target_arch = "wasm32")]
     let voice_available = false;
-    controls::send_button(crate::app::i18n::I18n::new(app.desktop_locale), app.chat_send_behavior, app.popover_visibility.send_mode, voice_available, enabled, can_send, is_requesting).map(map)
+    controls::send_button(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), app.session_state.chat_send_behavior, app.popover_visibility.send_mode, voice_available, enabled, can_send, is_requesting).map(map)
 }
 pub fn pool_button(
     i18n: crate::app::i18n::I18n,

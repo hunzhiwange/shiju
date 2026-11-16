@@ -35,7 +35,7 @@ pub(super) struct Fixture {
 impl Fixture {
     pub(super) fn with(test: impl FnOnce(&mut Self)) {
         crate::app::config::with_editor_settings_gateway(|mut app, requests, responses| {
-            app.project_id = Some("model-edit-fixture".into());
+            app.workspace_state.project_id = Some("model-edit-fixture".into());
             app.navigation_tabs.project_path = Some("/fixture/project".into());
             app.apps_catalog.host = "fixture-mac".into();
             app.apps_catalog.token = "fixture-token".into();
@@ -125,7 +125,7 @@ fn catalog_desktop_edits_retains_draft_after_save_error() {
         let _ = fixture.finish(notice);
         assert_eq!(fixture.form().manual_id, MODEL);
         assert!(!fixture.form().saving);
-        let toast = fixture.app.active_toast.as_ref().expect("SDK save error must show a toast");
+        let toast = fixture.app.toast_state.active_toast.as_ref().expect("SDK save error must show a toast");
         assert!(matches!(toast.kind, ToastKind::Error));
         assert!(fixture.requests.try_recv().is_err(), "no desktop settings write");
     });

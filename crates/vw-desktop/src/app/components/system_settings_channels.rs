@@ -19,8 +19,8 @@ use iced::Element;
 fn view_state(app: &App) -> desktop_settings_channels::ViewState<'_> {
     desktop_settings_channels::ViewState {
         channels_settings: &app.channels_settings,
-        desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        desktop_locale: app.general_settings.desktop_locale,
+        app_theme: &app.appearance.app_theme,
     }
 }
 fn map_message(message: desktop_settings_channels::messages::Message) -> Message {

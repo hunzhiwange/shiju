@@ -28,16 +28,16 @@ pub(crate) use desktop_chat_view::trajectory::timeline::{
 use crate::app::message::chat::ChatMessage;
 use crate::app::{App, Message};
 pub(crate) fn view(app: &App) -> iced::Element<'_, Message> {
-    let session_id = app.active_session_id.as_deref().unwrap_or_default();
-    let loading = app.trajectory_raw_loading.iter().filter(|(id, _, _)| id == session_id).count();
-    let errors = app.trajectory_raw_errors.keys().filter(|(id, _, _)| id == session_id).count();
+    let session_id = app.session_state.active_session_id.as_deref().unwrap_or_default();
+    let loading = app.chat_interaction.trajectory_raw_loading.iter().filter(|(id, _, _)| id == session_id).count();
+    let errors = app.chat_interaction.trajectory_raw_errors.keys().filter(|(id, _, _)| id == session_id).count();
     desktop_chat_view::trajectory::view::view(
-        crate::app::i18n::I18n::new(app.desktop_locale),
-        &app.active_session_view_state.trajectory_projection,
-        &app.trajectory_details,
-        &app.trajectory_controls,
-        app.active_session_id.as_deref(),
-        &app.trajectory_search_text,
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
+        &app.chat_view.active_session_view_state.trajectory_projection,
+        &app.chat_interaction.trajectory_details,
+        &app.chat_interaction.trajectory_controls,
+        app.session_state.active_session_id.as_deref(),
+        &app.chat_interaction.trajectory_search_text,
         loading,
         errors,
     )

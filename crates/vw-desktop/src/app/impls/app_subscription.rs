@@ -31,8 +31,8 @@ fn needs_activity_animation_tick(app: &App, startup_transition_active: bool) -> 
         || app.has_active_explore_summary_animation()
         || (app.companion_navigation.task_pet_visible
             && app.task_pet_window_id.is_some()
-            && (app.task_pet_avatar_kind != crate::app::state::TaskPetAvatarKind::None
-                || app.task_pet_expand_target.is_some()))
+            && (app.pet_state.task_pet_avatar_kind != crate::app::state::TaskPetAvatarKind::None
+                || app.pet_state.task_pet_expand_target.is_some()))
         || ((app.navigation_panels.show_settings || app.navigation_panels.show_system_settings)
             && app.acp_settings.diagnostic_id.is_some())
 }
@@ -210,7 +210,7 @@ impl App {
         let terminal_subs = { Subscription::none() };
 
         let question_poll =
-            if self.any_session_requesting() || self.question_modal_request_id.is_some() {
+            if self.any_session_requesting() || self.session_state.question_modal_request_id.is_some() {
                 iced::time::every(std::time::Duration::from_secs(10))
                     .map(|_| Message::Chat(message::ChatMessage::QuestionPollTick))
             } else {
@@ -218,7 +218,7 @@ impl App {
             };
 
         let permission_poll =
-            if self.any_session_requesting() || self.permission_modal_request_id.is_some() {
+            if self.any_session_requesting() || self.session_state.permission_modal_request_id.is_some() {
                 iced::time::every(std::time::Duration::from_secs(10))
                     .map(|_| Message::Chat(message::ChatMessage::PermissionPollTick))
             } else {
@@ -257,7 +257,7 @@ impl App {
         };
 
         #[cfg(not(target_arch = "wasm32"))]
-        let preview_lsp_tick = if self.lsp_disabled {
+        let preview_lsp_tick = if self.preview_state.lsp_disabled {
             Subscription::none()
         } else if self
             .navigation_tabs.active_preview_path
@@ -351,8 +351,7 @@ impl App {
             },
             agent,
             #[cfg(not(target_arch = "wasm32"))]
-            if self
-                .session_runtime_states
+            if self.session_state.session_runtime_states
                 .values()
                 .any(|runtime| !runtime.mcp_app_panels.is_empty())
             {
@@ -419,7 +418,7 @@ impl App {
 
 fn collect_agent_subscription_requests(app: &App) -> Vec<Arc<crate::app::AgentRequest>> {
     desktop_session::session::agent::collect_agent_subscription_requests(
-        &app.active_session_id, &app.session_runtime_states,
+        &app.session_state.active_session_id, &app.session_state.session_runtime_states,
     )
 }
 

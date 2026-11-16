@@ -9,7 +9,7 @@ use crate::app::state::ChatPanelMode;
 
 fn snapshot_with_message(content: String) -> SessionViewSnapshot {
     let (mut app, _task) = App::new();
-    app.chat = vec![ChatMessage {
+    app.chat_view.chat = vec![ChatMessage {
         role: ChatRole::Assistant,
         content,
         model: None,
@@ -31,11 +31,11 @@ fn session_view_cache_moves_snapshot_without_reallocating_chat() {
 #[test]
 fn session_view_snapshot_keeps_chat_panel_mode_independent() {
     let (mut app, _task) = App::new();
-    app.chat_panel_mode = ChatPanelMode::Trajectory;
+    app.chat_view.chat_panel_mode = ChatPanelMode::Trajectory;
 
     let snapshot = SessionViewSnapshot::take_from(&mut app);
 
-    assert_eq!(app.chat_panel_mode, ChatPanelMode::Conversation);
+    assert_eq!(app.chat_view.chat_panel_mode, ChatPanelMode::Conversation);
     snapshot.restore_into(&mut app);
-    assert_eq!(app.chat_panel_mode, ChatPanelMode::Trajectory);
+    assert_eq!(app.chat_view.chat_panel_mode, ChatPanelMode::Trajectory);
 }

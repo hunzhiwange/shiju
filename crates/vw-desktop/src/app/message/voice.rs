@@ -33,9 +33,9 @@ pub(super) fn scope(app: &App) -> Option<Scope> {
         endpoint: endpoint.base_url(),
         tenant: serde_json::to_string(endpoint.tenant_scope()).ok()?,
         project: app.navigation_tabs.project_path.clone(),
-        composer: match &app.active_session_id {
+        composer: match &app.session_state.active_session_id {
             Some(id) => Composer::Session(id.clone()),
-            None => Composer::Draft(app.session_view_cache.navigation_generation),
+            None => Composer::Draft(app.session_state.session_view_cache.navigation_generation),
         },
     })
 }
@@ -104,8 +104,8 @@ pub(super) fn paste(app: &mut App, text: String, restore_cursor: bool) {
         if restore_cursor { cursor } else { None },
         text,
     );
-    if app.active_session_id.is_none() {
-        app.input_editor = app.current_session_runtime_mut().input_editor.clone();
+    if app.session_state.active_session_id.is_none() {
+        app.session_state.input_editor = app.current_session_runtime_mut().input_editor.clone();
     }
 }
 fn check_start(app: &mut App, chat: bool) -> Option<Task<Message>> {

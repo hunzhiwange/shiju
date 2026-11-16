@@ -40,7 +40,7 @@ fn wb_schedule_feedback_save_error_preserves_draft_and_shows_toast() {
         },
     );
     assert_eq!(app.cron_settings.save_error.as_deref(), Some("permission denied"));
-    let toast = app.active_toast.as_ref().expect("error toast");
+    let toast = app.toast_state.active_toast.as_ref().expect("error toast");
     assert_eq!(toast.message, "permission denied");
     assert_eq!(toast.kind, crate::app::state::ToastKind::Error);
     assert_eq!(app.cron_settings.add_draft.prompt, "report");
@@ -88,11 +88,11 @@ fn cron_history_repeated_polling_errors_do_not_repeat_toast() {
     let mut app = history_app();
     let generation = app.cron_settings.history.generation;
     history_loaded(&mut app, generation, Err("offline".into()));
-    let toast_id = app.next_toast_id;
+    let toast_id = app.toast_state.next_toast_id;
     let _ = cron_history::update(&mut app, CronHistoryMessage::Refresh);
     let generation = app.cron_settings.history.generation;
     history_loaded(&mut app, generation, Err("offline".into()));
-    assert_eq!(app.next_toast_id, toast_id);
+    assert_eq!(app.toast_state.next_toast_id, toast_id);
     let _ = cron_history::update(&mut app, CronHistoryMessage::Tick(generation));
     let current = app.cron_settings.history.generation;
     assert!(current > generation);

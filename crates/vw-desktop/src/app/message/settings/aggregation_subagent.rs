@@ -15,7 +15,7 @@ pub(crate) fn message(e: Event) -> Message {
 }
 fn current(app: &App) -> Result<(GatewayClient, Context), String> {
     let (client, scope) = list::current(app, AppId::Codex)?;
-    let project = app.project_id.as_ref().filter(|p| !p.is_empty()).ok_or("请先打开已注册项目")?;
+    let project = app.workspace_state.project_id.as_ref().filter(|p| !p.is_empty()).ok_or("请先打开已注册项目")?;
     if app.app_providers.scope.as_ref() != Some(&scope)
         || scope.host.is_empty()
         || app.apps_catalog.token.is_empty()

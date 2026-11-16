@@ -83,8 +83,8 @@ pub(super) fn complete_recovered(
         return Task::none();
     };
     let RecoveredDraft { publication, snapshot, assistant_id, user_id } = recovered;
-    let local_len = if app.active_session_id.as_deref() == Some(session_id.as_str()) {
-        app.chat.len()
+    let local_len = if app.session_state.active_session_id.as_deref() == Some(session_id.as_str()) {
+        app.chat_view.chat.len()
     } else {
         app.cached_chat_messages(&session_id).map_or(0, |messages| messages.len())
     };
@@ -96,9 +96,9 @@ pub(super) fn complete_recovered(
         );
     }
     app.get_session_runtime_mut(&session_id).pending_stream_delta.clear();
-    if app.active_session_id.as_deref() == Some(session_id.as_str()) {
-        app.chat = snapshot.messages.clone();
-        app.chat_message_ids = snapshot.message_ids.clone();
+    if app.session_state.active_session_id.as_deref() == Some(session_id.as_str()) {
+        app.chat_view.chat = snapshot.messages.clone();
+        app.chat_view.chat_message_ids = snapshot.message_ids.clone();
         app.invalidate_chat_ui_state();
     }
     app.store_session_chat_snapshot(
@@ -127,11 +127,11 @@ pub(super) fn publish(
     else {
         return Task::none();
     };
-    insert_publication(app.project_sessions.entry(draft.project_path.clone()).or_default(), &info);
+    insert_publication(app.workspace_state.project_sessions.entry(draft.project_path.clone()).or_default(), &info);
     if app.navigation_tabs.project_path.as_deref() == Some(draft.project_path.as_str()) {
-        insert_publication(&mut app.sessions, &info);
+        insert_publication(&mut app.session_state.sessions, &info);
     }
-    app.session_previews
+    app.session_state.session_previews
         .extend(crate::app::session::build_session_previews(preview.into_iter().collect()));
     apply_published_title(app, &info);
 
@@ -160,7 +160,7 @@ pub(super) fn publish(
 
 pub(super) fn apply_published_title(app: &mut App, info: &Info) {
     let changed = desktop_session::message::chat::stream::draft::apply_published_title(
-        app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten()),
+        app.session_state.sessions.iter_mut().chain(app.workspace_state.project_sessions.values_mut().flatten()),
         info,
     );
     if changed {

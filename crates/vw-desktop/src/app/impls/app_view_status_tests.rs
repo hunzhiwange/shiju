@@ -43,7 +43,7 @@ fn status_bar_builds_ready_when_no_preview_tab_is_active() {
     std::hint::black_box(super::status_bar(&app));
 
     // 尚未激活预览标签时故意忽略全局状态，避免显示与当前页面无关的进度。
-    app.lsp_status = Some("LSP: starting".to_string());
+    app.preview_state.lsp_status = Some("LSP: starting".to_string());
     std::hint::black_box(super::status_bar(&app));
 }
 
@@ -56,7 +56,7 @@ fn status_bar_builds_ready_and_global_status_for_tab_without_server_key() {
 
     std::hint::black_box(super::status_bar(&app));
 
-    app.lsp_status = Some("LSP: discovering server".to_string());
+    app.preview_state.lsp_status = Some("LSP: discovering server".to_string());
     std::hint::black_box(super::status_bar(&app));
 }
 
@@ -66,7 +66,7 @@ fn status_bar_builds_ready_when_active_path_has_no_matching_tab() {
     let (mut app, _) = crate::app::App::new();
     app.navigation_tabs.active_preview_path = Some("/workspace/src/missing.rs".to_string());
     app.navigation_tabs.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
-    app.lsp_status = Some("LSP: starting".to_string());
+    app.preview_state.lsp_status = Some("LSP: starting".to_string());
 
     std::hint::black_box(super::status_bar(&app));
 }
@@ -80,7 +80,7 @@ fn status_bar_builds_active_tab_lsp_variants() {
 
     std::hint::black_box(super::status_bar(&app));
 
-    app.lsp_progress.insert(
+    app.preview_state.lsp_progress.insert(
         "rust-analyzer".to_string(),
         std::collections::HashMap::from([(
             "token".to_string(),
@@ -94,7 +94,7 @@ fn status_bar_builds_active_tab_lsp_variants() {
     app.spinner_frame = 99;
     std::hint::black_box(super::status_bar(&app));
 
-    app.lsp_progress.get_mut("rust-analyzer").unwrap().get_mut("token").unwrap().percentage =
+    app.preview_state.lsp_progress.get_mut("rust-analyzer").unwrap().get_mut("token").unwrap().percentage =
         Some(100);
     std::hint::black_box(super::status_bar(&app));
 }
@@ -105,7 +105,7 @@ fn status_bar_builds_global_status_when_server_has_no_progress_map() {
     let (mut app, _) = crate::app::App::new();
     app.navigation_tabs.active_preview_path = Some("/workspace/src/main.rs".to_string());
     app.navigation_tabs.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
-    app.lsp_status = Some("LSP: initializing".to_string());
+    app.preview_state.lsp_status = Some("LSP: initializing".to_string());
 
     std::hint::black_box(super::status_bar(&app));
 }
@@ -116,7 +116,7 @@ fn status_bar_builds_server_key_when_progress_map_is_empty() {
     let (mut app, _) = crate::app::App::new();
     app.navigation_tabs.active_preview_path = Some("/workspace/src/main.rs".to_string());
     app.navigation_tabs.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
-    app.lsp_progress.insert("rust-analyzer".to_string(), std::collections::HashMap::new());
+    app.preview_state.lsp_progress.insert("rust-analyzer".to_string(), std::collections::HashMap::new());
 
     std::hint::black_box(super::status_bar(&app));
 }
@@ -127,7 +127,7 @@ fn status_bar_builds_running_progress_with_missing_optional_fields() {
     let (mut app, _) = crate::app::App::new();
     app.navigation_tabs.active_preview_path = Some("/workspace/src/main.rs".to_string());
     app.navigation_tabs.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
-    app.lsp_progress.insert(
+    app.preview_state.lsp_progress.insert(
         "rust-analyzer".to_string(),
         std::collections::HashMap::from([(
             "token".to_string(),
@@ -144,7 +144,7 @@ fn status_bar_builds_overcomplete_progress_as_completion() {
     let (mut app, _) = crate::app::App::new();
     app.navigation_tabs.active_preview_path = Some("/workspace/src/main.rs".to_string());
     app.navigation_tabs.preview_tabs.push(preview_tab("/workspace/src/main.rs", Some("rust-analyzer")));
-    app.lsp_progress.insert(
+    app.preview_state.lsp_progress.insert(
         "rust-analyzer".to_string(),
         std::collections::HashMap::from([(
             "token".to_string(),
@@ -163,7 +163,7 @@ fn status_bar_builds_overcomplete_progress_as_completion() {
 #[test]
 fn status_bar_builds_notification_variant() {
     let (mut app, _) = crate::app::App::new();
-    app.notifications.push(crate::app::state::Notification {
+    app.notification_state.notifications.push(crate::app::state::Notification {
         localized_message: None,
         id: 1,
         message: "warning".to_string(),
@@ -178,7 +178,7 @@ fn status_bar_builds_notification_variant() {
 fn status_bar_builds_multiple_notification_count() {
     let (mut app, _) = crate::app::App::new();
     for id in 1..=3 {
-        app.notifications.push(crate::app::state::Notification {
+        app.notification_state.notifications.push(crate::app::state::Notification {
             localized_message: None,
             id,
             message: format!("warning {id}"),

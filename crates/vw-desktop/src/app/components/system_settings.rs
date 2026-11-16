@@ -214,7 +214,7 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
                 column![
                     super::system_settings_apps::view(
                         &app.apps_catalog,
-                        crate::app::i18n::I18n::new(app.desktop_locale),
+                        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
                     ),
                     crate::app::components::system_settings_data::migration_preview_ui::view(app),
                     crate::app::message::settings::backup_inventory::view(app),
@@ -289,14 +289,14 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
             SystemTab::Gateway => app.gateway_settings.save_error.as_ref(),
             _ => None,
         }
-        .map(|error| error.display(app.desktop_locale))
+        .map(|error| error.display(app.general_settings.desktop_locale))
         .unwrap_or_else(|| {
             if active_tab == SystemTab::Runtime
                 || (active_tab == SystemTab::Agents
                     && app.agents_settings.active_config_tab
                         == crate::app::state::AgentConfigTab::Runtime)
             {
-                crate::app::i18n::settings_runtime::validation_error(app.desktop_locale, err)
+                crate::app::i18n::settings_runtime::validation_error(app.general_settings.desktop_locale, err)
             } else {
                 err.to_owned()
             }
@@ -327,7 +327,7 @@ fn settings_shell(
     if app.mobile_layout.mode() == crate::app::state::LayoutMode::Mobile {
         return desktop_settings_shell::mobile_shell(
             settings_content(app, active_tab),
-            system_settings_help::help_button(app.desktop_locale, help_tab),
+            system_settings_help::help_button(app.general_settings.desktop_locale, help_tab),
             Message::View(message::ViewMessage::MobileBack),
             (active_tab == SystemTab::GatewayClient).then_some(Message::GatewayHealthTick),
         );
@@ -336,7 +336,7 @@ fn settings_shell(
     let mut actions = row![super::system_settings_device_sync::entry_points()]
         .spacing(6)
         .align_y(Alignment::Center);
-    if let Some(help) = system_settings_help::help_button(app.desktop_locale, help_tab) {
+    if let Some(help) = system_settings_help::help_button(app.general_settings.desktop_locale, help_tab) {
         actions = actions.push(help);
     }
     let actions = container(actions.push(settings_close_button(close_message)))
@@ -371,7 +371,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let themes_active = active_tab == SystemTab::Themes
         || (active_tab == SystemTab::General
-            && app.general_settings_tab == GeneralSettingsTab::Themes);
+            && app.general_settings.general_settings_tab == GeneralSettingsTab::Themes);
     let editing_theme = themes_active && app.themes_settings.mode == ThemesSettingsMode::Edit;
     let select_focus_available = app.navigation_panels.system_settings_help_tab.is_none()
         && (active_tab == SystemTab::Editor
@@ -381,7 +381,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 && !app.observability_settings.show_help_modal)
             || (active_tab == SystemTab::General
                 && matches!(
-                    app.general_settings_tab,
+                    app.general_settings.general_settings_tab,
                     GeneralSettingsTab::Interface
                         | GeneralSettingsTab::Terminal
                         | GeneralSettingsTab::Editor
@@ -471,13 +471,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if app.navigation_panels.system_settings_tab == SystemTab::Apps {
         dialog = super::system_settings_apps::view_overlays(
             &app.apps_catalog,
-            crate::app::i18n::I18n::new(app.desktop_locale),
-            &app.app_theme,
+            crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
+            &app.appearance.app_theme,
             dialog,
         );
         let provider_help = super::app_providers::list::Help::new(
-            crate::app::i18n::I18n::new(app.desktop_locale),
-            &app.app_theme,
+            crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
+            &app.appearance.app_theme,
         );
         #[cfg(not(target_arch = "wasm32"))]
         let provider_help = provider_help.with_usage(app);

@@ -9,13 +9,13 @@ pub(crate) fn render_shared_tool_view<'a>(
     let input = desktop_chat_tools::tools::tool_renderer::ViewInput {
         card: super::card_adapter::input(app),
         result: desktop_chat_tools::tools::result_input::ResultInput {
-            i18n: crate::app::i18n::I18n::new(app.desktop_locale),
-            hovered: app.chat_tool_hovered_idx,
-            question_request: app.question_modal_request.as_ref(),
-            message_ids: &app.chat_message_ids,
+            i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
+            hovered: app.chat_interaction.chat_tool_hovered_idx,
+            question_request: app.session_state.question_modal_request.as_ref(),
+            message_ids: &app.chat_view.chat_message_ids,
         },
-        file_filter: &app.tool_files_filter,
-        file_hovered: app.chat_tool_file_hovered.as_deref(),
+        file_filter: &app.input_suggestions.tool_files_filter,
+        file_hovered: app.chat_interaction.chat_tool_file_hovered.as_deref(),
     };
     desktop_chat_tools::tools::tool_renderer::view(
         &input,

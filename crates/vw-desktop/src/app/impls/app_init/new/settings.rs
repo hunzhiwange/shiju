@@ -2,21 +2,9 @@
 
 use super::*;
 
-pub(super) use desktop_settings_providers::app_init::settings::build_embedding_routes_settings;
+pub(super) use desktop_settings_providers::app_init::settings::{build_embedding_routes_settings, build_model_routes_settings};
 
-pub(super) fn build_model_routes_settings(
-    full_agent_cfg: &config_aggregate::Config,
-) -> crate::app::state::ModelRoutesSettingsState {
-    let (routes, save_error) = desktop_settings_providers::model_routes::loaded_routes(
-        full_agent_cfg.model_routes.clone(),
-        &full_agent_cfg.query_classification,
-    );
-    crate::app::state::ModelRoutesSettingsState {
-        persistence: Default::default(),
-        routes,
-        save_error,
-    }
-}
+
 
 pub(super) use desktop_settings_runtime::app_init::settings::build_query_classification_settings;
 
@@ -30,16 +18,7 @@ pub(super) use desktop_settings_runtime::app_init::settings::build_hooks_setting
 
 pub(super) use desktop_settings_runtime::app_init::settings::build_runtime_settings;
 
-pub(super) fn build_skills_settings(
-    full_agent_cfg: &config_aggregate::Config,
-) -> crate::app::state::SkillsSettingsState {
-    crate::app::state::SkillsSettingsState {
-        auto_load_project_skills: full_agent_cfg.skills.auto_load_project_skills,
-        directory_provider: full_agent_cfg.skills.directory_provider,
-        prompt_injection_mode: full_agent_cfg.skills.prompt_injection_mode,
-        ..Default::default()
-    }
-}
+
 
 pub(super) use desktop_settings_network::app_init::settings::build_web_search_settings;
 
@@ -57,11 +36,7 @@ pub(super) use desktop_settings_runtime::app_init::settings::build_multimodal_se
 
 pub(super) use desktop_settings_security::app_init::settings::build_security_settings;
 
-pub(super) fn build_autonomy_settings(
-    full_agent_cfg: &config_aggregate::Config,
-) -> crate::app::state::AutonomySettingsState {
-    crate::app::state::AutonomySettingsState::from_config(&full_agent_cfg.autonomy)
-}
+
 
 pub(super) use desktop_settings_runtime::app_init::settings::build_observability_settings;
 
@@ -78,15 +53,7 @@ pub(super) fn apply_bootstrap_agent_config(
 ) {
     // Control state is read through its authenticated API, never inferred from config.
     #[cfg(not(target_arch = "wasm32"))]
-    if app.computer_control_settings.identity.as_ref()
-        != Some(&crate::app::state::ControlIdentity::from_endpoint(&crate::app::gateway_client_endpoint()))
-    {
-        let generation = app.computer_control_settings.generation + 1;
-        let pairing_generation = app.computer_control_settings.pairing_generation + 1;
-        app.computer_control_settings = Default::default();
-        app.computer_control_settings.generation = generation;
-        app.computer_control_settings.pairing_generation = pairing_generation;
-    }
+    app.computer_control_settings.reset_for_endpoint(&crate::app::gateway_client_endpoint());
     let gateway_cfg_result = Ok(gateway.clone());
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -118,7 +85,7 @@ pub(super) fn apply_bootstrap_agent_config(
     apply_section!(scheduler_settings, build_scheduler_settings(full_agent_cfg));
     apply_section!(hooks_settings, build_hooks_settings(full_agent_cfg));
     apply_section!(runtime_settings, build_runtime_settings(full_agent_cfg));
-    apply_section!(skills_settings, build_skills_settings(full_agent_cfg));
+    apply_section!(skills_settings, build_skills_settings(&full_agent_cfg.skills));
     apply_section!(web_search_settings, build_web_search_settings(full_agent_cfg));
     apply_section!(browser_settings, build_browser_settings(full_agent_cfg));
     apply_section!(http_request_settings, build_http_request_settings(full_agent_cfg));
@@ -131,16 +98,9 @@ pub(super) fn apply_bootstrap_agent_config(
     apply_section!(reliability_settings, build_reliability_settings(full_agent_cfg));
     apply_section!(multimodal_settings, build_multimodal_settings(full_agent_cfg));
     apply_section!(security_settings, build_security_settings(full_agent_cfg));
-    apply_section!(autonomy_settings, build_autonomy_settings(full_agent_cfg));
+    apply_section!(autonomy_settings, crate::app::state::AutonomySettingsState::from_config(&full_agent_cfg.autonomy));
     apply_section!(observability_settings, build_observability_settings(full_agent_cfg));
     apply_section!(storage_settings, build_storage_settings(full_agent_cfg));
     apply_section!(proxy_settings, build_proxy_settings(full_agent_cfg));
     apply_section!(tunnel_settings, build_tunnel_settings(full_agent_cfg));
 }
-
-#[cfg(test)]
-#[path = "load_tests.rs"]
-mod load_tests;
-#[cfg(test)]
-#[path = "state_tests.rs"]
-mod state_tests;

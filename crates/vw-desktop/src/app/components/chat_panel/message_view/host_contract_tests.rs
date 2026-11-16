@@ -28,7 +28,7 @@ fn message_view_builds_attachment_card_for_user_message() {
 fn markdown_selected_text_routes_to_clipboard() {
     use iced::futures::StreamExt;
     let mut app = App::new().0;
-    app.active_session_id = Some("markdown-selection".to_owned());
+    app.session_state.active_session_id = Some("markdown-selection".to_owned());
     app.navigation_tabs.screen = crate::app::Screen::Project;
     let expected = "文档 和 粗体，这段中文会在窄窗口中换行，继续选择下面的内容。\n\n名称\t值\n数据\t42\n\npnpm install";
     let _ = app.update(Message::ChatMarkdownSelectionChanged {

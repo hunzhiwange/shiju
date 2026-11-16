@@ -30,7 +30,7 @@ fn refresh_worktree_options_for_non_git_project_clears_state_without_error() {
     assert!(!app.git.git_worktree_options_loading);
     assert_eq!(app.git.git_worktree_options_project_path, None);
     assert!(!app.git.git_worktree_menu_open);
-    assert_eq!(app.error_message, None);
+    assert_eq!(app.input_feedback.error_message, None);
 }
 
 // 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
@@ -61,7 +61,7 @@ fn worktree_options_ready_error_resets_options_and_reports_error() {
     assert!(app.git.git_worktree_options.is_empty());
     assert_eq!(app.git.selected_git_worktree_directory, None);
     assert!(!app.git.git_worktree_menu_open);
-    assert_eq!(app.error_message.as_deref(), Some("读取 Git worktree 失败: boom"));
+    assert_eq!(app.input_feedback.error_message.as_deref(), Some("读取 Git worktree 失败: boom"));
 }
 
 // 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
@@ -112,7 +112,7 @@ fn changed_files_ready_updates_files_and_clears_selection() {
     assert!(app.git.git_diff_selected_range.is_none());
     assert!(app.git.git_diff_comment_draft.is_none());
     assert_eq!(
-        app.active_toast.as_ref().map(|toast| toast.message.as_str()),
+        app.toast_state.active_toast.as_ref().map(|toast| toast.message.as_str()),
         Some("Git 更改已刷新")
     );
 }
@@ -133,9 +133,9 @@ fn changed_files_ready_expands_change_list_dirs_when_showing_changes() {
         },
     );
 
-    assert!(app.file_tree_expanded.contains(&"chg:src".to_string()));
-    assert!(app.file_tree_expanded.contains(&"chg:src/nested".to_string()));
-    assert!(!app.file_tree_expanded.contains(&"src".to_string()));
+    assert!(app.workspace_state.file_tree_expanded.contains(&"chg:src".to_string()));
+    assert!(app.workspace_state.file_tree_expanded.contains(&"chg:src/nested".to_string()));
+    assert!(!app.workspace_state.file_tree_expanded.contains(&"src".to_string()));
 }
 
 // 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
@@ -144,7 +144,7 @@ fn changed_files_ready_without_manual_refresh_does_not_create_toast() {
     let (mut app, _task) = crate::app::App::new();
     app.git.git_changed_files_repo_path = Some("/repo".to_string());
     app.file_manager.file_manager_changes_refreshing = false;
-    app.active_toast = None;
+    app.toast_state.active_toast = None;
 
     let _task = super::refresh::update(
         &mut app,
@@ -155,7 +155,7 @@ fn changed_files_ready_without_manual_refresh_does_not_create_toast() {
     );
 
     assert_eq!(app.git.git_changed_files, vec!["README.md"]);
-    assert!(app.active_toast.is_none());
+    assert!(app.toast_state.active_toast.is_none());
 }
 
 // 宿主契约：核对 App 字段投影及 update 的消息/任务接线。

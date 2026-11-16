@@ -25,14 +25,14 @@ fn main() -> iced::Result {
 
 fn boot() -> (App, Task<Message>) {
     let (mut app, _) = App::new(); // Discard startup tasks: never start a real agent.
-    app.app_theme =
+    app.appearance.app_theme =
         if std::env::args().any(|arg| arg == "--light") { Theme::Light } else { Theme::Dark };
     let count = argument("--tasks=").unwrap_or(3);
     assert!([0, 1, 3, 20].contains(&count), "--tasks must be 0, 1, 3 or 20");
     let scale = argument::<f32>("--scale=").unwrap_or(1.0);
     assert!([0.5, 1.0, 2.0].contains(&scale), "--scale must be 0.5, 1 or 2");
-    app.task_pet_scale = scale;
-    app.task_pet_items = desktop_task_board::acceptance::items(count);
+    app.pet_state.task_pet_scale = scale;
+    app.pet_state.task_pet_items = desktop_task_board::acceptance::items(count);
     let (id, open) = iced::window::open(iced::window::Settings {
         size: iced::Size::new(
             if std::env::args().any(|arg| arg == "--narrow") { 420.0 } else { 980.0 },
@@ -181,22 +181,22 @@ fn scripted_scene(app: &mut App, scene: usize) -> Task<Message> {
         0 => return capture(app),
         1 => Some(V::TaskPetAvatarSelected(Avatar::Beauty)),
         2 => {
-            assert_eq!(app.task_pet_avatar_kind, Avatar::Beauty);
+            assert_eq!(app.pet_state.task_pet_avatar_kind, Avatar::Beauty);
             return capture(app);
         }
         3 => Some(V::TaskPetAvatarSelected(Avatar::Handsome)),
         4 => {
-            assert_eq!(app.task_pet_avatar_kind, Avatar::Handsome);
+            assert_eq!(app.pet_state.task_pet_avatar_kind, Avatar::Handsome);
             return capture(app);
         }
         5 => Some(V::TaskPetAvatarSelected(Avatar::None)),
         6 => {
-            assert_eq!(app.task_pet_avatar_kind, Avatar::None);
+            assert_eq!(app.pet_state.task_pet_avatar_kind, Avatar::None);
             return capture(app);
         }
         7 => Some(V::TaskPetSizeOpen),
         8 => {
-            assert_eq!(app.task_pet_size_draft, Some(committed));
+            assert_eq!(app.pet_state.task_pet_size_draft, Some(committed));
             return capture(app);
         }
         9 => Some(V::TaskPetSizeCancel),
@@ -204,31 +204,31 @@ fn scripted_scene(app: &mut App, scene: usize) -> Task<Message> {
         11 => Some(V::TaskPetSizeOpen),
         12 => Some(V::TaskPetSizePreview(0.5)),
         13 => {
-            assert_eq!(app.task_pet_size_draft, Some(0.5));
+            assert_eq!(app.pet_state.task_pet_size_draft, Some(0.5));
             return capture(app);
         }
         14 => Some(V::TaskPetSizePreview(2.0)),
         15 => {
-            assert_eq!(app.task_pet_size_draft, Some(2.0));
+            assert_eq!(app.pet_state.task_pet_size_draft, Some(2.0));
             return capture(app);
         }
         16 => Some(V::TaskPetSizeReset),
         17 => {
-            assert_eq!(app.task_pet_size_draft, Some(1.0));
+            assert_eq!(app.pet_state.task_pet_size_draft, Some(1.0));
             return capture(app);
         }
         18 => Some(V::TaskPetSizePreview(preview)),
         19 => Some(V::TaskPetSizeSave),
         20 => {
-            assert_eq!(app.task_pet_scale, committed);
-            assert_eq!(app.task_pet_size_draft, Some(preview));
+            assert_eq!(app.pet_state.task_pet_scale, committed);
+            assert_eq!(app.pet_state.task_pet_size_draft, Some(preview));
             assert!(app.task_pet_size_pending.is_none());
-            assert!(app.active_toast.is_some());
+            assert!(app.toast_state.active_toast.is_some());
             return capture(app);
         }
         21 => Some(V::TaskPetSizeCancel),
         22 => {
-            assert!(app.task_pet_size_draft.is_none());
+            assert!(app.pet_state.task_pet_size_draft.is_none());
             Some(V::TaskPetHideWindow)
         }
         23 => {
@@ -244,25 +244,25 @@ fn scripted_scene(app: &mut App, scene: usize) -> Task<Message> {
         }
         26 => Some(V::TaskPetToggleCollapsed),
         27 => {
-            assert!(!app.task_pet_collapsed);
+            assert!(!app.pet_state.task_pet_collapsed);
             return capture(app);
         }
-        28 => return iced::widget::operation::snap_to_end(app.task_pet_scroll_id.clone()),
+        28 => return iced::widget::operation::snap_to_end(app.pet_state.task_pet_scroll_id.clone()),
         29 => return capture(app),
         30 => {
             return iced::widget::operation::snap_to(
-                app.task_pet_scroll_id.clone(),
+                app.pet_state.task_pet_scroll_id.clone(),
                 iced::widget::operation::RelativeOffset::START,
             );
         }
-        31 if !app.task_pet_items.is_empty() => Some(V::TaskPetReplyPressed(1)),
-        32 if !app.task_pet_items.is_empty() => {
+        31 if !app.pet_state.task_pet_items.is_empty() => Some(V::TaskPetReplyPressed(1)),
+        32 if !app.pet_state.task_pet_items.is_empty() => {
             Some(V::TaskPetReplyInputChanged("中文原生回复输入验收，禁止发送真实代理。".into()))
         }
         33 => return capture(app),
-        34 if !app.task_pet_items.is_empty() => Some(V::TaskPetReplySubmit),
+        34 if !app.pet_state.task_pet_items.is_empty() => Some(V::TaskPetReplySubmit),
         35 => {
-            assert!(app.task_pet_reply_request_id.is_none());
+            assert!(app.pet_state.task_pet_reply_request_id.is_none());
             return Task::batch(
                 [
                     (app.main_window_id, iced::Point::new(150.0, 100.0)),
@@ -281,7 +281,7 @@ fn scripted_scene(app: &mut App, scene: usize) -> Task<Message> {
         39 => Some(V::TaskPetContextMenuClosed),
         40 => Some(V::TaskPetToggleCollapsed),
         41 => {
-            assert!(app.task_pet_collapsed);
+            assert!(app.pet_state.task_pet_collapsed);
             return capture(app);
         }
         42 => return iced::exit(),

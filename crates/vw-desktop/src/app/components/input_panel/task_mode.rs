@@ -39,8 +39,8 @@ pub fn task_mode_form<'a>(
     task_mode_subtasks: &'a [String],
 ) -> Element<'a, Message> {
 domain::task_mode_form(domain::Input {
- i18n: crate::app::i18n::I18n::new(app.desktop_locale), theme: &app.app_theme,
- providers: &app.model_settings.providers, agents: &app.acp_agents, expanded: app.popover_visibility.executor,
+ i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale), theme: &app.appearance.app_theme,
+ providers: &app.model_settings.providers, agents: &app.session_state.acp_agents, expanded: app.popover_visibility.executor,
 }, runtime.map(|r| r.task_mode_subtask_editors.as_slice()), task_mode_enabled, task_mode_priority,
  task_mode_model, task_mode_task_split_mode, task_mode_executor, task_mode_reasoning_effort, task_mode_subtasks).map(map_message)
 }

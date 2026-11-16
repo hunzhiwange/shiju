@@ -39,9 +39,9 @@ fn task_board_does_not_touch_legacy_task_database() {
 fn non_git_project_schedules_logical_pool_refresh() {
     let (mut app, _task) = crate::app::App::new();
     app.navigation_tabs.project_path = Some("/tmp/non-git-project".to_string());
-    app.project_is_git_repo = false;
-    app.task_board_worktree_snapshot_loading = false;
-    app.task_board_worktree_snapshot = Some(crate::app::task::WorktreePoolSnapshot {
+    app.workspace_state.project_is_git_repo = false;
+    app.task_board.task_board_worktree_snapshot_loading = false;
+    app.task_board.task_board_worktree_snapshot = Some(crate::app::task::WorktreePoolSnapshot {
         repo_root: "/tmp/stale".to_string(),
         pool_root: "/tmp/stale/.worktrees".to_string(),
         base_branch: "main".to_string(),
@@ -53,18 +53,18 @@ fn non_git_project_schedules_logical_pool_refresh() {
         merge_target_locks: Vec::new(),
         slots: Vec::new(),
     });
-    app.task_board_last_worktree_snapshot_at_ms = 99;
+    app.task_board.task_board_last_worktree_snapshot_at_ms = 99;
 
     let refresh = super::maybe_schedule_worktree_snapshot_refresh(&mut app, true);
 
     assert_eq!(refresh.units(), 1);
-    assert!(app.task_board_worktree_snapshot_loading);
-    assert!(app.task_board_worktree_snapshot.is_some());
-    assert_eq!(app.task_board_last_worktree_snapshot_at_ms, 99);
+    assert!(app.task_board.task_board_worktree_snapshot_loading);
+    assert!(app.task_board.task_board_worktree_snapshot.is_some());
+    assert_eq!(app.task_board.task_board_last_worktree_snapshot_at_ms, 99);
 
     let maintain = super::schedule_worktree_pool_maintenance(&mut app, "/tmp/non-git-project", 0);
     assert_eq!(maintain.units(), 1);
-    assert!(app.task_board_worktree_maintenance_in_flight);
+    assert!(app.task_board.task_board_worktree_maintenance_in_flight);
 
     let recycle = super::recycle_assigned_task_worktree_for_removal(&app, "T-1");
     assert_eq!(recycle.units(), 1);
@@ -74,13 +74,13 @@ fn non_git_project_schedules_logical_pool_refresh() {
 fn git_project_still_schedules_worktree_snapshot_refresh() {
     let (mut app, _task) = crate::app::App::new();
     app.navigation_tabs.project_path = Some("/tmp/git-project".to_string());
-    app.project_is_git_repo = true;
-    app.task_board_worktree_snapshot_loading = false;
+    app.workspace_state.project_is_git_repo = true;
+    app.task_board.task_board_worktree_snapshot_loading = false;
 
     let refresh = super::maybe_schedule_worktree_snapshot_refresh(&mut app, true);
 
     assert!(iced_runtime::task::into_stream(refresh.collect()).is_some());
-    assert!(app.task_board_worktree_snapshot_loading);
+    assert!(app.task_board.task_board_worktree_snapshot_loading);
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
@@ -102,12 +102,12 @@ fn task_pool_desktop_scheduler_prepares_logical_capacity_without_worktrees() {
     let path = directory.path().to_string_lossy().into_owned();
     let (mut app, _) = crate::app::App::new();
     app.navigation_tabs.project_path = Some(path.clone());
-    app.project_is_git_repo = false;
-    app.task_board_settings.max_concurrent = 7;
+    app.workspace_state.project_is_git_repo = false;
+    app.task_board.task_board_settings.max_concurrent = 7;
     let task = super::schedule_worktree_pool_maintenance(&mut app, &path, 0);
     assert_eq!(task.units(), 1);
-    assert!(app.task_board_worktree_maintenance_in_flight);
-    assert_eq!(app.task_board_settings.max_concurrent, 7);
+    assert!(app.task_board.task_board_worktree_maintenance_in_flight);
+    assert_eq!(app.task_board.task_board_settings.max_concurrent, 7);
     assert!(!directory.path().join(".git").exists());
     assert!(!directory.path().join(".worktrees").exists());
 }

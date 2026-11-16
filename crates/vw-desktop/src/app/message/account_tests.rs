@@ -80,7 +80,7 @@ fn native_shiju_skill_login_during_preparation_retries_after_stale_result() {
         },
     );
     assert_eq!(retry.units(), 1);
-    assert!(app.active_toast.is_none());
+    assert!(app.toast_state.active_toast.is_none());
     let stale = update(
         &mut app,
         AccountMessage::NativeShijuSkillPrepared {
@@ -90,7 +90,7 @@ fn native_shiju_skill_login_during_preparation_retries_after_stale_result() {
         },
     );
     assert_eq!(stale.units(), 0);
-    assert!(app.active_toast.is_none());
+    assert!(app.toast_state.active_toast.is_none());
     assert!(app.account.native_shiju_skill.begin().is_none());
 }
 
@@ -330,7 +330,7 @@ fn shiju_key_sync_failure_keeps_account_active() {
         app.account.active_account().map(|account| account.id()),
         Some(active_account_id.as_str())
     );
-    let warning = app.active_toast.as_ref().expect("sync failure should show a warning");
+    let warning = app.toast_state.active_toast.as_ref().expect("sync failure should show a warning");
     assert_eq!(warning.kind, ToastKind::Warning);
     assert!(warning.message.contains("安装页"));
     assert!(!warning.message.contains("credential-secret"));

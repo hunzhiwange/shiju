@@ -85,7 +85,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 }
             }
             FindEffect::Preview { path, line, column } => {
-                app.pending_preview_goto =
+                app.preview_state.pending_preview_goto =
                     Some((path.clone(), line.saturating_sub(1), column.saturating_sub(1)));
                 tasks.push(iced::Task::done(Message::Preview(
                     crate::app::message::preview::PreviewMessage::Open(path),

@@ -134,8 +134,8 @@ async fn help_rollout_04_bookmarks_render_contextual_help() {
     app.web_navigation.web_bookmark_title_input = "Fixture bookmark".into();
     app.web_navigation.web_bookmark_url_input = "https://example.invalid/fixture".into();
     for mode in &HELP_LOCALES {
-        app.desktop_locale = mode.0;
-        app.app_theme = mode.1.clone();
+        app.general_settings.desktop_locale = mode.0;
+        app.appearance.app_theme = mode.1.clone();
         app.web_navigation.editing_web_bookmark = None;
         let add = verify_help(
             super::super::view(&app),
@@ -207,7 +207,7 @@ async fn settings_help_gap_18_cookie_example_pins_and_copies_static_text() {
         DesktopLocale::TraditionalChinese,
         DesktopLocale::English,
     ] {
-        app.desktop_locale = locale;
+        app.general_settings.desktop_locale = locale;
         let i18n = I18n::new(locale);
         let field = i18n.__("Cookie配置(JSON)");
         let guidance = i18n.__("支持按 JSON 为指定站点注入 Cookie。");
@@ -215,7 +215,7 @@ async fn settings_help_gap_18_cookie_example_pins_and_copies_static_text() {
         let help = format!("{guidance}\n\n{}\n{example}", i18n.__("配置示例"));
 
         for theme in [Theme::Light, Theme::Dark] {
-            app.app_theme = theme.clone();
+            app.appearance.app_theme = theme.clone();
             for width in [420, 640] {
                 let size = Size::new(width, 650);
                 let viewport = Size::new(size.width as f32, size.height as f32);

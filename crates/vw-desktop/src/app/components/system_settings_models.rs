@@ -36,10 +36,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let error = if let Some(error) = active_tab_save_error(app) {
         match app.model_settings.active_tab {
             ModelConfigTab::Models => {
-                app.model_settings.save_error.as_ref().map(|e| e.display(app.desktop_locale))
+                app.model_settings.save_error.as_ref().map(|e| e.display(app.general_settings.desktop_locale))
             }
             ModelConfigTab::ModelRoutes => {
-                app.model_routes_settings.save_error.as_ref().map(|e| e.display(app.desktop_locale))
+                app.model_routes_settings.save_error.as_ref().map(|e| e.display(app.general_settings.desktop_locale))
             }
             ModelConfigTab::QueryClassification => Some(
                 app.query_classification_settings
@@ -47,7 +47,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     .as_ref()
                     .map(|message| {
                         message
-                            .render(crate::app::i18n::I18n::new(app.desktop_locale))
+                            .render(crate::app::i18n::I18n::new(app.general_settings.desktop_locale))
                             .expect("valid classification error template")
                     })
                     .unwrap_or_else(|| error.to_string()),
@@ -59,7 +59,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
     desktop_settings_providers::models_page::view(
         active_tab,
-        app.desktop_locale,
+        app.general_settings.desktop_locale,
         content,
         error,
         |tab| {
@@ -163,8 +163,8 @@ pub(crate) fn map_view_message(message: domain::Message) -> crate::app::Message 
 
 pub(crate) fn view_style(app: &App) -> desktop_settings_providers::view_style::ViewStyle<'_> {
     desktop_settings_providers::view_style::ViewStyle {
-        locale: app.desktop_locale,
-        theme: &app.app_theme,
+        locale: app.general_settings.desktop_locale,
+        theme: &app.appearance.app_theme,
         help_text,
     }
 }

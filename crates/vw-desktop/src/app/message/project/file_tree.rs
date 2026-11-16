@@ -193,7 +193,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::FileTreeRenameSave => {
             let rename = match app
                 .file_tree_interaction
-                .prepare_rename(app.navigation_tabs.project_path.as_deref(), &app.files)
+                .prepare_rename(app.navigation_tabs.project_path.as_deref(), &app.session_state.files)
             {
                 Ok(Some(rename)) => rename,
                 Ok(None) => return Some(iced::Task::none()),
@@ -302,7 +302,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         if let Some(dir) = dir {
                             // 添加新终端并应用当前主题
                             if app.terminal.add_terminal(Some(dir.to_path_buf())) {
-                                app.terminal.apply_app_theme(&app.app_theme);
+                                app.terminal.apply_app_theme(&app.appearance.app_theme);
                                 app.terminal.is_visible = true;
                                 return Some(iced::Task::batch([
                                     crate::app::message::terminal::event::focus_active_terminal(
@@ -345,14 +345,14 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         );
 
                         // 如果没有活动会话，同步输入编辑器内容
-                        if app.active_session_id.is_none() {
+                        if app.session_state.active_session_id.is_none() {
                             let runtime = app.current_session_runtime();
-                            app.input_editor = runtime.input_editor;
+                            app.session_state.input_editor = runtime.input_editor;
                         }
 
                         // 设置焦点并返回聚焦任务
                         app.focus_area = crate::app::FocusArea::None;
-                        return Some(iced::widget::operation::focus(app.input_editor_id.clone()));
+                        return Some(iced::widget::operation::focus(app.session_state.input_editor_id.clone()));
                     }
                 }
                 // 在文件夹中查找：创建新的查找标签页并打开查找界面

@@ -49,16 +49,16 @@ pub(super) fn handle_agent_step_start(
     let mut session = load_session_or_default(app, session_id.clone());
     upsert_step_start(&mut session, step_index, created_ms, model, None);
     // 运行时负责持久化步骤；此处仅更新投影，避免整份快照与消息增量竞争。
-    if app.active_session_id.as_ref() == Some(&session_id) {
+    if app.session_state.active_session_id.as_ref() == Some(&session_id) {
         if let Some(model) = session
             .steps
             .iter()
             .find(|step| step.index == step_index)
             .and_then(|step| step.model.as_deref())
         {
-            crate::app::session::bind_message_model_to_step(&mut app.chat, step_index, model);
+            crate::app::session::bind_message_model_to_step(&mut app.chat_view.chat, step_index, model);
         }
-        app.active_session_view_state.updated_ms = session.updated_ms;
+        app.chat_view.active_session_view_state.updated_ms = session.updated_ms;
         if let Some(step) = session.steps.iter().find(|step| step.index == step_index) {
             app.upsert_active_session_step(step.clone());
         }
@@ -93,11 +93,11 @@ pub(super) fn handle_agent_step_finish(
     }
     pause_llm_timer_at(app.get_session_runtime_mut(&session_id), web_time::Instant::now());
 
-    if app.active_session_id.as_ref() == Some(&session_id) {
-        app.usage.input_tokens += usage.input_tokens;
-        app.usage.output_tokens += usage.output_tokens;
-        app.usage.cached_tokens += usage.cached_tokens;
-        app.usage.reasoning_tokens += usage.reasoning_tokens;
+    if app.session_state.active_session_id.as_ref() == Some(&session_id) {
+        app.chat_view.usage.input_tokens += usage.input_tokens;
+        app.chat_view.usage.output_tokens += usage.output_tokens;
+        app.chat_view.usage.cached_tokens += usage.cached_tokens;
+        app.chat_view.usage.reasoning_tokens += usage.reasoning_tokens;
     }
 
     let mut session = load_session_or_default(app, session_id.clone());
@@ -110,16 +110,16 @@ pub(super) fn handle_agent_step_finish(
         model.clone(),
     );
     // 运行时负责持久化步骤；此处仅更新投影，避免整份快照与消息增量竞争。
-    if app.active_session_id.as_ref() == Some(&session_id) {
+    if app.session_state.active_session_id.as_ref() == Some(&session_id) {
         if let Some(model) = session
             .steps
             .iter()
             .find(|step| step.index == step_index)
             .and_then(|step| step.model.as_deref())
         {
-            crate::app::session::bind_message_model_to_step(&mut app.chat, step_index, model);
+            crate::app::session::bind_message_model_to_step(&mut app.chat_view.chat, step_index, model);
         }
-        app.active_session_view_state.updated_ms = session.updated_ms;
+        app.chat_view.active_session_view_state.updated_ms = session.updated_ms;
         if let Some(step) = session.steps.iter().find(|step| step.index == step_index) {
             app.upsert_active_session_step(step.clone());
         }
@@ -160,8 +160,8 @@ pub(super) fn handle_agent_tool_lifecycle(
     let mut session = load_session_or_default(app, session_id.clone());
     merge_tool_lifecycle(&mut session, event);
     // 运行时负责持久化步骤；此处仅更新投影，避免整份快照与消息增量竞争。
-    if app.active_session_id.as_ref() == Some(&session_id) {
-        app.active_session_view_state.updated_ms = session.updated_ms;
+    if app.session_state.active_session_id.as_ref() == Some(&session_id) {
+        app.chat_view.active_session_view_state.updated_ms = session.updated_ms;
         if let Some(step) = session.steps.iter().find(|step| step.index == event.step_index) {
             app.upsert_active_session_step(step.clone());
         }
@@ -197,11 +197,11 @@ pub(super) fn handle_agent_step_cost_loaded(
         now_ms(),
     );
     // 运行时负责持久化步骤；此处仅更新投影，避免整份快照与消息增量竞争。
-    if app.active_session_id.as_ref() == Some(&session_id) {
+    if app.session_state.active_session_id.as_ref() == Some(&session_id) {
         if let Some(model) = message_model.as_deref() {
-            crate::app::session::bind_message_model_to_step(&mut app.chat, step_index, model);
+            crate::app::session::bind_message_model_to_step(&mut app.chat_view.chat, step_index, model);
         }
-        app.active_session_view_state.updated_ms = session.updated_ms;
+        app.chat_view.active_session_view_state.updated_ms = session.updated_ms;
         if let Some(step) = session.steps.iter().find(|step| step.index == step_index) {
             app.upsert_active_session_step(step.clone());
         }

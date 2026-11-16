@@ -77,7 +77,7 @@ pub fn build_base_layout(
     );
 
     let hover_panel = if left_resize_handle.is_none() {
-        app.hovered_recent_project.clone().map(|path| {
+        app.workspace_state.hovered_recent_project.clone().map(|path| {
             sessions_panel::project_sessions_panel_container(
                 app,
                 settings_panel_width,
@@ -98,7 +98,7 @@ pub fn build_base_layout(
             .unwrap_or_else(|| Space::new().width(Length::Fill).height(Length::Fill).into()),
         hover_panel,
         Message::Project(crate::app::message::ProjectMessage::RecentOverlayClosed),
-        if app.chat_panel_fullscreen || app.git.git_diff_fullscreen || !app.terminal.is_visible {
+        if app.chat_interaction.chat_panel_fullscreen || app.git.git_diff_fullscreen || !app.terminal.is_visible {
             None
         } else {
             Some(bottom_panel(app))

@@ -17,12 +17,12 @@ fn map(message: desktop_account_ui::view::Message) -> Message {
     }
 }
 pub(crate) fn trigger_label(app: &App) -> String {
-    desktop_account_ui::view::trigger_label(&app.account, app.desktop_locale)
+    desktop_account_ui::view::trigger_label(&app.account, app.general_settings.desktop_locale)
 }
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
-    desktop_account_ui::view::view(&app.account, app.desktop_locale).map(map)
+    desktop_account_ui::view::view(&app.account, app.general_settings.desktop_locale).map(map)
 }
 pub(crate) fn monthly_quota(app: &App) -> Option<Element<'_, Message>> {
-    desktop_account_ui::view::monthly_quota(&app.account, app.desktop_locale)
+    desktop_account_ui::view::monthly_quota(&app.account, app.general_settings.desktop_locale)
         .map(|view| view.map(map))
 }

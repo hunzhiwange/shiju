@@ -79,12 +79,12 @@ pub(crate) fn update(app: &mut App, message: ArchivedChatsMessage) -> Task<Messa
 }
 
 fn sync_restored_session(app: &mut App, info: &Info) {
-    for row in app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten()) {
+    for row in app.session_state.sessions.iter_mut().chain(app.workspace_state.project_sessions.values_mut().flatten()) {
         if row.id == info.id {
             *row = info.clone();
         }
     }
-    app.archived_session_ids.remove(&info.id);
+    app.session_state.archived_session_ids.remove(&info.id);
 }
 
 fn refresh_project_task(

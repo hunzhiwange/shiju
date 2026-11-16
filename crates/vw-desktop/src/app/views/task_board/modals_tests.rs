@@ -30,9 +30,9 @@ async fn settings_tabs_peripheral_appearance_task_board() {
         test_app,
         |scene, app| {
             let _ = app.update(Message::TaskBoard(TaskBoardMessage::OpenSettingsModal));
-            app.task_board_settings.agent_scheduler_dispatch_mode =
+            app.task_board.task_board_settings.agent_scheduler_dispatch_mode =
                 AgentSchedulerDispatchModeDto::Local;
-            let i18n = I18n::new(app.desktop_locale);
+            let i18n = I18n::new(app.general_settings.desktop_locale);
             let tabs = ["刷新与自动化", "并发与保护"].map(|label| i18n.__(label));
             scene.check_selected_segment(super::super::view(app), i18n.__("本地"));
             scene.save_preview(app, super::super::view(app), "task-settings");
@@ -44,14 +44,14 @@ async fn settings_tabs_peripheral_appearance_task_board() {
                 ))
             ));
             let _ = app.update(message);
-            assert_eq!(app.task_board_settings_modal_tab, TaskBoardSettingsModalTab::Scheduling);
+            assert_eq!(app.task_board.task_board_settings_modal_tab, TaskBoardSettingsModalTab::Scheduling);
             assert_eq!(
-                app.task_board_settings.agent_scheduler_dispatch_mode,
+                app.task_board.task_board_settings.agent_scheduler_dispatch_mode,
                 AgentSchedulerDispatchModeDto::Local
             );
             let message = scene.click_message(super::super::view(app), tabs[0]);
             let _ = app.update(message);
-            assert_eq!(app.task_board_settings_modal_tab, TaskBoardSettingsModalTab::Refresh);
+            assert_eq!(app.task_board.task_board_settings_modal_tab, TaskBoardSettingsModalTab::Refresh);
         },
     )
     .await;
@@ -70,26 +70,26 @@ async fn task_board_modal_form_controls_render_and_apply_settings() {
         |scene, app| {
             let _ = app.update(Message::TaskBoard(TaskBoardMessage::OpenSettingsModal));
             app.navigation_tabs.project_path = None;
-            let i18n = I18n::new(app.desktop_locale);
+            let i18n = I18n::new(app.general_settings.desktop_locale);
             let view = super::super::view;
 
-            app.task_board_settings.refresh_interval_seconds = 37;
+            app.task_board.task_board_settings.refresh_interval_seconds = 37;
             let message = scene.edit_modal_input(view(app), "37", "45");
             assert!(matches!(
                 message,
                 Message::TaskBoard(TaskBoardMessage::SetRefreshIntervalSeconds(45))
             ));
             let _ = app.update(message);
-            assert_eq!(app.task_board_settings.refresh_interval_seconds, 45);
+            assert_eq!(app.task_board.task_board_settings.refresh_interval_seconds, 45);
 
             let message = scene.click_message(view(app), i18n.__("并发与保护"));
             let _ = app.update(message);
-            assert_eq!(app.task_board_settings_modal_tab, TaskBoardSettingsModalTab::Scheduling);
-            app.task_board_settings.max_concurrent = 4;
+            assert_eq!(app.task_board.task_board_settings_modal_tab, TaskBoardSettingsModalTab::Scheduling);
+            app.task_board.task_board_settings.max_concurrent = 4;
             let message = scene.edit_modal_input(view(app), "4", "99");
             assert!(matches!(message, Message::TaskBoard(TaskBoardMessage::SetMaxConcurrent(10))));
             let _ = app.update(message);
-            assert_eq!(app.task_board_settings.max_concurrent, 10);
+            assert_eq!(app.task_board.task_board_settings.max_concurrent, 10);
             scene.check_modal_scroll(view(app), i18n.__("任务设置"), None);
         },
     )
@@ -304,7 +304,7 @@ pub(in crate::app::views::task_board) mod help_rollout {
         description: &str,
         artifact: &str,
     ) -> Point {
-        let i18n = I18n::new(app.desktop_locale);
+        let i18n = I18n::new(app.general_settings.desktop_locale);
         let title = i18n.__(title);
         let description = i18n.__(description);
         let labels = geometry(ui, renderer).labels;
@@ -331,25 +331,25 @@ pub(in crate::app::views::task_board) mod help_rollout {
             Rectangle::with_size(Size::new(size.width as f32, size.height as f32)).contains(icon),
             "{title}: help anchor outside viewport: {icon:?}"
         );
-        let idle = frame(ui, renderer, &app.app_theme, size, Point::ORIGIN);
+        let idle = frame(ui, renderer, &app.appearance.app_theme, size, Point::ORIGIN);
         assert!(
             send(ui, renderer, icon, &[Event::Mouse(mouse::Event::CursorMoved { position: icon })])
                 .is_empty()
         );
-        let hover = frame(ui, renderer, &app.app_theme, size, icon);
+        let hover = frame(ui, renderer, &app.appearance.app_theme, size, icon);
         assert!(idle != hover, "{title}: hovering must open the help card");
         let click_messages = click(ui, renderer, icon);
-        let pinned = frame(ui, renderer, &app.app_theme, size, Point::ORIGIN);
+        let pinned = frame(ui, renderer, &app.appearance.app_theme, size, Point::ORIGIN);
         assert!(idle != pinned, "{title}: clicking must pin the help card");
         assert!(key(ui, renderer, Key::Named(Named::Escape), None).is_empty());
-        let closed = frame(ui, renderer, &app.app_theme, size, Point::ORIGIN);
+        let closed = frame(ui, renderer, &app.appearance.app_theme, size, Point::ORIGIN);
         assert!(idle == closed, "{title}: Escape must close only the help card");
 
         if let Some(directory) = std::env::var_os("SHIJU_HELP_ROLLOUT_24_SCREENSHOTS") {
             for (state, pixels) in [("idle", idle), ("open", pinned)] {
                 ::image::save_buffer(
                     std::path::PathBuf::from(&directory)
-                        .join(format!("{artifact}-{:?}-{state}.png", app.desktop_locale)),
+                        .join(format!("{artifact}-{:?}-{state}.png", app.general_settings.desktop_locale)),
                     &pixels,
                     size.width,
                     size.height,
@@ -370,13 +370,13 @@ pub(in crate::app::views::task_board) mod help_rollout {
         else {
             return;
         };
-        app.task_board_settings_modal_open = true;
-        app.task_board_settings.refresh_interval_seconds = 37;
-        app.task_board_settings.max_concurrent = 7;
+        app.task_board.task_board_settings_modal_open = true;
+        app.task_board.task_board_settings.refresh_interval_seconds = 37;
+        app.task_board.task_board_settings.max_concurrent = 7;
         let mut renderer = renderer().await;
         for (locale, theme, width) in LAYOUTS {
-            app.desktop_locale = locale;
-            app.app_theme = theme;
+            app.general_settings.desktop_locale = locale;
+            app.appearance.app_theme = theme;
             let i18n = I18n::new(locale);
             let size = Size::new(width, 600);
             for (tab, title, description, value, artifact) in [
@@ -395,7 +395,7 @@ pub(in crate::app::views::task_board) mod help_rollout {
                     "scheduling",
                 ),
             ] {
-                app.task_board_settings_modal_tab = tab;
+                app.task_board.task_board_settings_modal_tab = tab;
                 let mut ui = scene(super::super::super::view(&app), &mut renderer, size);
                 check_help(&mut ui, &mut renderer, &app, size, title, description, artifact);
                 let geometry = geometry(&mut ui, &renderer);
@@ -441,11 +441,11 @@ pub(in crate::app::views::task_board) mod help_rollout {
         else {
             return;
         };
-        app.desktop_locale = DesktopLocale::English;
-        app.task_board_settings_modal_open = true;
-        app.task_board_settings_modal_tab = TaskBoardSettingsModalTab::Refresh;
-        app.task_board_settings.refresh_interval_seconds = 1973;
-        let i18n = I18n::new(app.desktop_locale);
+        app.general_settings.desktop_locale = DesktopLocale::English;
+        app.task_board.task_board_settings_modal_open = true;
+        app.task_board.task_board_settings_modal_tab = TaskBoardSettingsModalTab::Refresh;
+        app.task_board.task_board_settings.refresh_interval_seconds = 1973;
+        let i18n = I18n::new(app.general_settings.desktop_locale);
         let description = "统一管理自动刷新、Agent Scheduler 唤醒与任务池回推节奏。";
         let mut renderer = renderer().await;
         let size = Size::new(640, 600);

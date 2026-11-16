@@ -22,7 +22,7 @@ fn desktop_i18n_settings_models_validation_and_sync_keep_semantics_after_switch(
         (DesktopLocale::TraditionalChinese, "第 1 條路由的 pattern 不能為空"),
         (DesktopLocale::English, "Route 1 pattern must not be empty"),
     ] {
-        app.desktop_locale = locale;
+        app.general_settings.desktop_locale = locale;
         assert_eq!(
             app.embedding_routes_settings.save_error.as_ref().unwrap().display(locale),
             expected
@@ -59,7 +59,7 @@ fn desktop_i18n_settings_models_search_matches_locale_stable_ids_and_chinese_nav
         DesktopLocale::TraditionalChinese,
         DesktopLocale::English,
     ] {
-        app.desktop_locale = locale;
+        app.general_settings.desktop_locale = locale;
         let entries = catalog(&app);
         let route = entries
             .iter()
@@ -90,7 +90,7 @@ fn desktop_i18n_settings_models_builds_current_pages_in_all_locales() {
         DesktopLocale::TraditionalChinese,
         DesktopLocale::English,
     ] {
-        app.desktop_locale = locale;
+        app.general_settings.desktop_locale = locale;
         for view in [
             system_settings_models::main_view(&app),
             system_settings_model_routes::view(&app),

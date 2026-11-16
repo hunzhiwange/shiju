@@ -10,7 +10,7 @@ use vw_api_app_provider_base::claude::ClaudeFormKind;
 fn diagnostic_desktop_endpoint_selection_requires_save() {
     crate::app::config::with_settings_gateway(|_requests, _responses| {
         let mut app = App::new().0;
-        app.project_id = Some("project".into());
+        app.workspace_state.project_id = Some("project".into());
         app.navigation_tabs.project_path = Some("/fixture".into());
         app.apps_catalog.host = "host".into();
         app.apps_catalog.token = "fixture-token".into();

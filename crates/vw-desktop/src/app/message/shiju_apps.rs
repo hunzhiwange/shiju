@@ -25,7 +25,7 @@ fn open_shiju_apps_tab(app: &mut App) {
     if !app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == SHIJU_APPS_TAB_ID) {
         app.navigation_tabs.open_tabs.push(AppTab {
             id: SHIJU_APPS_TAB_ID.to_string(),
-            title: crate::app::i18n::I18n::new(app.desktop_locale).__(SHIJU_APPS_TITLE).to_string(),
+            title: crate::app::i18n::I18n::new(app.general_settings.desktop_locale).__(SHIJU_APPS_TITLE).to_string(),
             screen: Screen::ShijuApps,
             project_path: None,
         });
@@ -52,7 +52,7 @@ fn launch(app: &mut App, target: gateway_shiju_app::ShijuAppLaunchDto, generatio
             app.shiju_apps.launch_feedback =
                 Some((generation, original.clone(), error.clone()));
             let task = app.show_error_toast(original);
-            if let Some(toast) = &mut app.active_toast {
+            if let Some(toast) = &mut app.toast_state.active_toast {
                 toast.localized_message = Some(error.message());
             }
             task

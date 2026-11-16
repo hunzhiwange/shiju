@@ -26,7 +26,7 @@ fn startup_cli_service_result_controls_main_interface_gate() {
 #[test]
 fn apply_project_chat_preferences_preserves_active_session_and_updates_draft() {
     let mut app = test_app();
-    app.active_session_id = Some("active".into());
+    app.session_state.active_session_id = Some("active".into());
     let runtime = app.current_session_runtime_mut();
     runtime.model = "session-model".into();
     runtime.acp_agent = Some("session-agent".into());
@@ -34,12 +34,12 @@ fn apply_project_chat_preferences_preserves_active_session_and_updates_draft() {
 
     app.apply_project_chat_preferences("gpt-test".to_string(), true, Some("codex".to_string()));
 
-    assert_eq!(app.model, "gpt-test");
-    assert!(app.auto_model);
-    assert_eq!(app.acp_agent.as_deref(), Some("session-agent"));
+    assert_eq!(app.session_state.model, "gpt-test");
+    assert!(app.session_state.auto_model);
+    assert_eq!(app.session_state.acp_agent.as_deref(), Some("session-agent"));
     assert_eq!(app.current_session_runtime().model, "session-model");
 
-    let runtime = app.session_runtime_states.get("__empty__").expect("empty runtime state");
+    let runtime = app.session_state.session_runtime_states.get("__empty__").expect("empty runtime state");
     assert_eq!(runtime.model, "gpt-test");
     assert!(runtime.auto_model);
     assert_eq!(runtime.acp_agent.as_deref(), Some("codex"));
@@ -65,7 +65,7 @@ fn startup_agent_config_reload_rehydrates_gateway_backed_settings() {
     assert_eq!(app.memory_settings.backend, "markdown");
     assert!(app.channels_settings.cli);
     assert!(app.proxy_settings.enabled);
-    assert_eq!(app.acp_agents, ["claude"]);
+    assert_eq!(app.session_state.acp_agents, ["claude"]);
     assert_eq!(app.agents_settings.project_path.as_deref(), Some("/workspace/project"));
 }
 
@@ -87,17 +87,17 @@ fn bootstrap_app_config_updates_known_fields_and_clamps_file_manager_width() {
         "file_tree_expanded": ["src", 7, "crates"]
     }))));
 
-    assert_eq!(app.model, "gpt-next");
-    assert!(app.auto_model);
-    assert_eq!(app.acp_agent.as_deref(), Some("codex"));
+    assert_eq!(app.session_state.model, "gpt-next");
+    assert!(app.session_state.auto_model);
+    assert_eq!(app.session_state.acp_agent.as_deref(), Some("codex"));
     assert!(app.navigation_panels.show_settings);
     assert_eq!(app.navigation_mode.workspace_mode, crate::app::state::WorkspaceMode::Work);
     assert!(!app.navigation_sidebar.work_sidebar_collapsed);
     assert!(app.file_manager.show_file_manager);
     assert_eq!(app.layout_drag.file_manager_width, 600.0);
     assert_eq!(app.external_navigation.open_external_app, ExternalOpenApp::Cursor);
-    assert_eq!(app.file_tree_expanded, ["src", "crates"]);
-    assert!(app.file_tree_expanded_set.contains("src"));
+    assert_eq!(app.workspace_state.file_tree_expanded, ["src", "crates"]);
+    assert!(app.workspace_state.file_tree_expanded_set.contains("src"));
 }
 
 #[test]
@@ -136,8 +136,8 @@ fn startup_app_config_loaded_uses_same_bootstrap_path() {
         "open_external_app": "zed"
     }))));
 
-    assert_eq!(app.model, "startup-model");
-    assert!(app.auto_model);
+    assert_eq!(app.session_state.model, "startup-model");
+    assert!(app.session_state.auto_model);
     assert!(app.navigation_sidebar.work_sidebar_collapsed);
     assert_eq!(app.layout_drag.file_manager_width, 200.0);
     assert_eq!(app.layout_drag.file_manager_start_width, 200.0);
@@ -147,9 +147,9 @@ fn startup_app_config_loaded_uses_same_bootstrap_path() {
 #[test]
 fn bootstrap_app_config_preserves_invalid_values_and_clamps_minimum_width() {
     let mut app = test_app();
-    app.model = "existing-model".to_string();
-    app.auto_model = true;
-    app.acp_agent = Some("existing-agent".to_string());
+    app.session_state.model = "existing-model".to_string();
+    app.session_state.auto_model = true;
+    app.session_state.acp_agent = Some("existing-agent".to_string());
     app.external_navigation.open_external_app = ExternalOpenApp::VSCode;
 
     let _ = app.update(Message::BootstrapAppConfig(Ok(json!({
@@ -166,9 +166,9 @@ fn bootstrap_app_config_preserves_invalid_values_and_clamps_minimum_width() {
         "file_tree_expanded": ["src", false, "src"]
     }))));
 
-    assert_eq!(app.model, "existing-model");
-    assert!(app.auto_model);
-    assert_eq!(app.acp_agent.as_deref(), Some("existing-agent"));
+    assert_eq!(app.session_state.model, "existing-model");
+    assert!(app.session_state.auto_model);
+    assert_eq!(app.session_state.acp_agent.as_deref(), Some("existing-agent"));
     assert!(app.navigation_panels.auto_max_mode);
     assert!(app.navigation_panels.show_settings);
     assert!(app.file_manager.show_file_manager);
@@ -177,8 +177,8 @@ fn bootstrap_app_config_preserves_invalid_values_and_clamps_minimum_width() {
     assert_eq!(app.layout_drag.file_manager_width, 180.0);
     assert_eq!(app.layout_drag.file_manager_start_width, 180.0);
     assert_eq!(app.external_navigation.open_external_app, ExternalOpenApp::VSCode);
-    assert_eq!(app.file_tree_expanded, ["src", "src"]);
-    assert_eq!(app.file_tree_expanded_set.len(), 1);
+    assert_eq!(app.workspace_state.file_tree_expanded, ["src", "src"]);
+    assert_eq!(app.workspace_state.file_tree_expanded_set.len(), 1);
 }
 
 #[test]
@@ -290,24 +290,24 @@ fn bootstrap_system_settings_updates_runtime_timezone_and_normalizes_active_gate
         password: String::new(),
         skey: "placeholder-key".to_string(),
     }];
-    let original_theme = app.app_theme.clone();
+    let original_theme = app.appearance.app_theme.clone();
 
     let _ = app.update(Message::BootstrapSystemSettings(Ok(system)));
 
     assert_eq!(app.terminal.font_family, "Test Mono");
     assert_eq!(app.terminal.font_size, 15.0);
-    assert_eq!(app.chat_timezone, "America/New_York");
-    assert_eq!(app.project_worktree_enabled.get("/workspace/demo"), Some(&true));
-    assert!(!app.dialogue_flow_show_reasoning_summary);
-    assert!(app.dialogue_flow_expand_shell_tool_section);
-    assert!(app.dialogue_flow_expand_edit_tool_section);
+    assert_eq!(app.general_settings.chat_timezone, "America/New_York");
+    assert_eq!(app.workspace_state.project_worktree_enabled.get("/workspace/demo"), Some(&true));
+    assert!(!app.general_settings.dialogue_flow_show_reasoning_summary);
+    assert!(app.general_settings.dialogue_flow_expand_shell_tool_section);
+    assert!(app.general_settings.dialogue_flow_expand_edit_tool_section);
     assert_eq!(
-        app.preview_auto_save_mode,
+        app.preview_state.preview_auto_save_mode,
         config_ui::PreviewAutoSaveMode::OnWindowChange
     );
-    assert!(!app.editor_follow_system_theme);
-    assert_eq!(app.app_theme, original_theme);
-    assert_eq!(app.editor_theme, original_theme);
+    assert!(!app.appearance.editor_follow_system_theme);
+    assert_eq!(app.appearance.app_theme, original_theme);
+    assert_eq!(app.appearance.editor_theme, original_theme);
     assert_eq!(app.gateway_client_settings.selected_server_id, "remote");
     assert_eq!(app.gateway_client_settings.host_input, "127.0.0.1");
     assert_eq!(app.gateway_client_settings.port, 1);
@@ -319,18 +319,18 @@ fn bootstrap_system_settings_updates_runtime_timezone_and_normalizes_active_gate
 #[test]
 fn bootstrap_system_settings_applies_lsp_enabled_state() {
     let mut app = test_app();
-    app.lsp_disabled = true;
+    app.preview_state.lsp_disabled = true;
     let mut system = config_ui::AppSystemSettingsConfig::default();
     system.lsp_enabled = true;
 
     app.apply_bootstrap_system_settings(system.clone());
 
-    assert!(!app.lsp_disabled);
+    assert!(!app.preview_state.lsp_disabled);
 
     system.lsp_enabled = false;
     app.apply_bootstrap_system_settings(system);
 
-    assert!(app.lsp_disabled);
+    assert!(app.preview_state.lsp_disabled);
 }
 
 #[test]
@@ -348,20 +348,20 @@ fn app_bootstrap_preserves_custom_items_and_adds_missing_builtin_git_actions() {
     let mut expected = config_ui::builtin_general_quick_messages();
     expected.extend(system.quick_messages.clone());
     expected.extend(config_ui::builtin_git_quick_messages());
-    assert_eq!(app.quick_messages, expected);
+    assert_eq!(app.general_settings.quick_messages, expected);
 
     system.quick_messages.clear();
     let _ = app.update(Message::BootstrapSystemSettings(Ok(system)));
 
-    assert!(app.quick_messages.is_empty());
+    assert!(app.general_settings.quick_messages.is_empty());
 }
 
 #[test]
 fn failed_bootstrap_results_preserve_existing_state() {
     let mut app = test_app();
-    app.model = "existing-model".to_string();
-    app.acp_agents = vec!["existing-agent".to_string()];
-    app.archived_session_ids = std::collections::HashSet::from(["existing-session".to_string()]);
+    app.session_state.model = "existing-model".to_string();
+    app.session_state.acp_agents = vec!["existing-agent".to_string()];
+    app.session_state.archived_session_ids = std::collections::HashSet::from(["existing-session".to_string()]);
     app.external_navigation.open_external_app = ExternalOpenApp::Cursor;
 
     let _ = app.update(Message::BootstrapAppConfig(Err("app config unavailable".to_string())));
@@ -373,10 +373,10 @@ fn failed_bootstrap_results_preserve_existing_state() {
     let _ = app.update(Message::BootstrapArchivedSessions(Err("archive unavailable".to_string())));
     let _ = app.update(Message::ExternalAppsLoaded(Err("apps unavailable".to_string())));
 
-    assert_eq!(app.model, "existing-model");
-    assert_eq!(app.acp_agents, ["existing-agent"]);
-    assert_eq!(app.archived_session_ids.len(), 1);
-    assert!(app.archived_session_ids.contains("existing-session"));
+    assert_eq!(app.session_state.model, "existing-model");
+    assert_eq!(app.session_state.acp_agents, ["existing-agent"]);
+    assert_eq!(app.session_state.archived_session_ids.len(), 1);
+    assert!(app.session_state.archived_session_ids.contains("existing-session"));
     assert_eq!(app.external_navigation.open_external_app, ExternalOpenApp::Cursor);
 }
 
@@ -390,17 +390,17 @@ fn update_loads_acp_agents_and_archived_sessions() {
         "codex".to_string(),
         "alpha".to_string(),
     ])));
-    assert_eq!(app.acp_agents, ["codex", "alpha", "zeta"]);
+    assert_eq!(app.session_state.acp_agents, ["codex", "alpha", "zeta"]);
 
     let archived = std::collections::HashSet::from(["session-1".to_string()]);
     let _ = app.update(Message::BootstrapArchivedSessions(Ok(archived.clone())));
-    assert_eq!(app.archived_session_ids, archived);
+    assert_eq!(app.session_state.archived_session_ids, archived);
 }
 
 #[test]
 fn update_handles_external_apps_and_session_preview_errors() {
     let mut app = test_app();
-    app.session_previews =
+    app.session_state.session_previews =
         std::collections::HashMap::from([("session".to_string(), "preview".to_string())]);
 
     let _ = app.update(Message::ExternalAppsLoaded(Ok(gateway_desktop_settings::ExternalAppsStateDto {
@@ -411,8 +411,8 @@ fn update_handles_external_apps_and_session_preview_errors() {
     assert_eq!(app.external_navigation.open_external_app, ExternalOpenApp::PowerShell);
 
     let _ = app.update(Message::SessionPreviewsLoaded(Err("offline".to_string())));
-    assert!(app.session_previews.is_empty());
-    assert!(app.notifications.iter().any(|notification| {
+    assert!(app.session_state.session_previews.is_empty());
+    assert!(app.notification_state.notifications.iter().any(|notification| {
         notification.message.contains("Failed to load session previews: offline")
     }));
 }
@@ -449,8 +449,8 @@ fn session_previews_loaded_builds_only_non_empty_content() {
 
     let _ = app.update(Message::SessionPreviewsLoaded(Ok(previews)));
 
-    assert_eq!(app.session_previews.len(), 1);
-    assert_eq!(app.session_previews.get("kept").map(String::as_str), Some("first line"));
+    assert_eq!(app.session_state.session_previews.len(), 1);
+    assert_eq!(app.session_state.session_previews.get("kept").map(String::as_str), Some("first line"));
 }
 
 #[test]
@@ -521,45 +521,45 @@ fn copy_code_records_content_hash_without_executing_clipboard_task() {
 
     let _clipboard_task = app.update(Message::CopyCode(content.to_string()));
 
-    assert_eq!(app.last_copied_code_hash, Some(expected_hash));
-    assert!(app.last_copy_time.is_some());
+    assert_eq!(app.clipboard_state.last_copied_code_hash, Some(expected_hash));
+    assert!(app.clipboard_state.last_copy_time.is_some());
 }
 
 #[test]
 fn copy_file_missing_path_preserves_clipboard_feedback() {
     let mut app = test_app();
-    app.last_copied_code_hash = Some(42);
+    app.clipboard_state.last_copied_code_hash = Some(42);
     let missing_path = std::env::temp_dir()
         .join(format!("vibe-window-missing-copy-file-{}", std::process::id()));
     let _ = app.update(Message::CopyFile(missing_path.to_string_lossy().into_owned()));
-    assert_eq!(app.last_copied_code_hash, Some(42));
+    assert_eq!(app.clipboard_state.last_copied_code_hash, Some(42));
 }
 
 #[test]
 fn copy_feedback_expiration_only_clears_matching_hash_and_close_error_clears_message() {
     let mut app = test_app();
-    app.last_copied_code_hash = Some(11);
-    app.last_copy_time = Some(web_time::SystemTime::now());
+    app.clipboard_state.last_copied_code_hash = Some(11);
+    app.clipboard_state.last_copy_time = Some(web_time::SystemTime::now());
 
     let _ = app.update(Message::CopyFeedbackExpired(12));
-    assert_eq!(app.last_copied_code_hash, Some(11));
-    assert!(app.last_copy_time.is_some());
+    assert_eq!(app.clipboard_state.last_copied_code_hash, Some(11));
+    assert!(app.clipboard_state.last_copy_time.is_some());
 
     let _ = app.update(Message::CopyFeedbackExpired(11));
-    assert_eq!(app.last_copied_code_hash, None);
-    assert_eq!(app.last_copy_time, None);
+    assert_eq!(app.clipboard_state.last_copied_code_hash, None);
+    assert_eq!(app.clipboard_state.last_copy_time, None);
 
-    app.error_message = Some("boom".to_string());
+    app.input_feedback.error_message = Some("boom".to_string());
     let _ = app.update(Message::CloseError);
-    assert_eq!(app.error_message, None);
+    assert_eq!(app.input_feedback.error_message, None);
 }
 
 #[test]
 fn batch_message_applies_each_nested_update_in_order() {
     let mut app = test_app();
-    app.error_message = Some("boom".to_string());
-    app.last_copied_code_hash = Some(99);
-    app.last_copy_time = Some(web_time::SystemTime::now());
+    app.input_feedback.error_message = Some("boom".to_string());
+    app.clipboard_state.last_copied_code_hash = Some(99);
+    app.clipboard_state.last_copy_time = Some(web_time::SystemTime::now());
 
     let _ = app.update(Message::Batch(vec![
         Message::BootstrapAcpAgentsLoaded(Ok(vec![
@@ -572,10 +572,10 @@ fn batch_message_applies_each_nested_update_in_order() {
         Message::None,
     ]));
 
-    assert_eq!(app.acp_agents, ["codex", "alpha", "zeta"]);
-    assert_eq!(app.last_copied_code_hash, None);
-    assert_eq!(app.last_copy_time, None);
-    assert_eq!(app.error_message, None);
+    assert_eq!(app.session_state.acp_agents, ["codex", "alpha", "zeta"]);
+    assert_eq!(app.clipboard_state.last_copied_code_hash, None);
+    assert_eq!(app.clipboard_state.last_copy_time, None);
+    assert_eq!(app.input_feedback.error_message, None);
 }
 
 #[test]
@@ -611,22 +611,22 @@ fn bootstrap_reasoning_effort_restores_open_history_and_preserves_local_default_
     use vw_api_chat_identity::ReasoningEffortDto;
 
     let mut app = test_app();
-    app.session_reasoning_efforts.clear();
+    app.session_state.session_reasoning_efforts.clear();
     app.prepare_historical_session_model("history");
-    app.active_session_id = Some("history".to_string());
+    app.session_state.active_session_id = Some("history".to_string());
     app.apply_bootstrap_app_config(json!({
         "session_reasoning_efforts": {"history": "xhigh"}
     }));
     assert_eq!(app.current_session_runtime().reasoning_effort, Some(ReasoningEffortDto::Xhigh));
-    assert_eq!(app.reasoning_effort, Some(ReasoningEffortDto::Xhigh));
+    assert_eq!(app.session_state.reasoning_effort, Some(ReasoningEffortDto::Xhigh));
 
-    app.session_reasoning_efforts.insert("history".to_string(), None);
+    app.session_state.session_reasoning_efforts.insert("history".to_string(), None);
     app.get_session_runtime_mut("history").reasoning_effort = None;
     app.apply_bootstrap_app_config(json!({
         "session_reasoning_efforts": {"history": "high", "other": "max"}
     }));
     assert_eq!(app.current_session_runtime().reasoning_effort, None);
-    assert_eq!(app.reasoning_effort, None);
+    assert_eq!(app.session_state.reasoning_effort, None);
     assert_eq!(app.get_session_runtime("other").reasoning_effort, Some(ReasoningEffortDto::Max));
 }
 
@@ -656,8 +656,8 @@ fn native_startup_rejects_an_old_snapshot_after_switching_tenants_and_back() {
             external_apps: None,
         };
         let _ = app.update(Message::StartupGatewaySnapshotLoaded(1, Box::new(stale)));
-        assert_eq!(app.model, "auto");
-        assert!(into_stream(app.startup_configuration.load()).is_some());
+        assert_eq!(app.session_state.model, "auto");
+        assert!(into_stream(app.startup_configuration.load(crate::app::config::gateway_client_endpoint()).map(|(generation, snapshot)| Message::StartupGatewaySnapshotLoaded(generation, snapshot))).is_some());
         crate::app::config::update_gateway_client_config(|config| *config = original).unwrap();
     });
 }
@@ -668,12 +668,12 @@ fn startup_model_backfills_an_open_project_until_the_project_has_its_own_choice(
     app.navigation_tabs.project_path = Some("/workspace/project".into());
     let _ = app.reload_project_chat_preferences(true);
     let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({"model": "restored"}))));
-    assert_eq!(app.model, "restored");
+    assert_eq!(app.session_state.model, "restored");
 
     app.invalidate_project_chat_preferences_read();
     app.apply_project_chat_preferences("local".into(), true, None);
     let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({"model": "older"}))));
-    assert_eq!(app.model, "local");
+    assert_eq!(app.session_state.model, "local");
 }
 
 #[test]
@@ -688,8 +688,8 @@ fn startup_chat_defaults_preserve_an_unsubmitted_home_selection() {
         "acp_agent": "remote-agent",
     }))));
 
-    assert_eq!(app.model, "local");
-    assert_eq!(app.acp_agent.as_deref(), Some("local-agent"));
+    assert_eq!(app.session_state.model, "local");
+    assert_eq!(app.session_state.acp_agent.as_deref(), Some("local-agent"));
 }
 
 #[test]

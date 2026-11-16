@@ -24,7 +24,7 @@ pub(super) fn inventory(app: &App) -> Vec<SelectionRow> {
     let prompts = &app.apps_catalog.prompts;
     if let Some(scope) = &prompts.scope {
         if scope.target_host_id == app.apps_catalog.host
-            && Some(scope.project_id.as_ref()) == app.project_id.as_deref()
+            && Some(scope.project_id.as_ref()) == app.workspace_state.project_id.as_deref()
         {
             if let Some(catalog) = &prompts.catalog {
                 for entry in &catalog.entries {
@@ -35,7 +35,7 @@ pub(super) fn inventory(app: &App) -> Vec<SelectionRow> {
     }
     let matches = |scope: &vw_api_app_skills::repos_api::SkillReposQuery| {
         scope.target_host_id == app.apps_catalog.host
-            && Some(scope.project_id.as_ref()) == app.project_id.as_deref()
+            && Some(scope.project_id.as_ref()) == app.workspace_state.project_id.as_deref()
     };
     if let Some(inventory) =
         crate::app::message::settings::skills::install_view::sync_inventory(app)

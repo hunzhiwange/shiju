@@ -8,7 +8,7 @@ fn current(app: &App) -> Option<(GatewayClient, Selection)> {
     if &now != scope {
         return None;
     }
-    let project = app.project_id.as_deref().filter(|s| !s.trim().is_empty())?.into();
+    let project = app.workspace_state.project_id.as_deref().filter(|s| !s.trim().is_empty())?.into();
     Some((
         client,
         Selection { scope: now, project, catalog_generation: app.apps_catalog.generation },

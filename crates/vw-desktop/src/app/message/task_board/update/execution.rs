@@ -9,16 +9,16 @@ fn wake_agent_scheduler_after_registering_pending(
     let Some(project_path) = app.navigation_tabs.project_path.clone() else {
         return iced::Task::none();
     };
-    if let Some(error) = taskboard::update::execution::agent_scheduler_lifecycle_error(&app.task_board_settings.workflow_id) {
+    if let Some(error) = taskboard::update::execution::agent_scheduler_lifecycle_error(&app.task_board.task_board_settings.workflow_id) {
         tracing::warn!(error = %error, "agent scheduler pending registration skipped");
         return iced::Task::none();
     }
     let now_ms = crate::app::time::now_ms();
-    let dispatch_mode = app.task_board_settings.agent_scheduler_dispatch_mode;
-    let max_concurrent = Some(app.task_board_settings.max_concurrent.clamp(1, 10));
-    let workflow_id = app.task_board_settings.workflow_id.clone();
+    let dispatch_mode = app.task_board.task_board_settings.agent_scheduler_dispatch_mode;
+    let max_concurrent = Some(app.task_board.task_board_settings.max_concurrent.clamp(1, 10));
+    let workflow_id = app.task_board.task_board_settings.workflow_id.clone();
     let pending_create_requests =
-        agent_scheduler_wake_create_task_requests(&app.task_board_tasks, &workflow_id);
+        agent_scheduler_wake_create_task_requests(&app.task_board.task_board_tasks, &workflow_id);
     iced::Task::perform(
         async move {
             let scope = resolve_task_board_scheduler_scope(&project_path).await?;
@@ -49,15 +49,15 @@ pub(super) fn update(app: &mut crate::app::App, message: TaskBoardMessage) -> ic
     let deadline = next_deadline_ms(scheduler_tick_interval_secs(app));
     let mut state = ExecutionState {
         project_path: &mut app.navigation_tabs.project_path,
-        task_board_settings: &mut app.task_board_settings,
-        task_board_tasks: &mut app.task_board_tasks,
-        task_board_executor: &mut app.task_board_executor,
-        task_board_executor_running: &mut app.task_board_executor_running,
-        task_board_last_log_flush_at_ms: &mut app.task_board_last_log_flush_at_ms,
-        task_board_log_scan_cursor: &mut app.task_board_log_scan_cursor,
-        task_board_timeout_scan_cursor: &mut app.task_board_timeout_scan_cursor,
-        task_board_schedule_scan_cursor: &mut app.task_board_schedule_scan_cursor,
-        task_board_next_scheduler_tick_at_ms: &mut app.task_board_next_scheduler_tick_at_ms,
+        task_board_settings: &mut app.task_board.task_board_settings,
+        task_board_tasks: &mut app.task_board.task_board_tasks,
+        task_board_executor: &mut app.task_board.task_board_executor,
+        task_board_executor_running: &mut app.task_board.task_board_executor_running,
+        task_board_last_log_flush_at_ms: &mut app.task_board.task_board_last_log_flush_at_ms,
+        task_board_log_scan_cursor: &mut app.task_board.task_board_log_scan_cursor,
+        task_board_timeout_scan_cursor: &mut app.task_board.task_board_timeout_scan_cursor,
+        task_board_schedule_scan_cursor: &mut app.task_board.task_board_schedule_scan_cursor,
+        task_board_next_scheduler_tick_at_ms: &mut app.task_board.task_board_next_scheduler_tick_at_ms,
         next_deadline_ms: deadline, effects: vec![],
     };
     let result = taskboard::update::execution::update(&mut state, message);
@@ -71,7 +71,7 @@ pub(super) fn update(app: &mut crate::app::App, message: TaskBoardMessage) -> ic
             ExecutionEffect::Error(error) => tasks.push(app.show_error_toast(error)),
             ExecutionEffect::SyncLogs(task) => {
                 if let Some(task) = task {
-                    if app.task_board_viewing_logs.as_ref().is_some_and(|viewing| viewing.id == task.id) {
+                    if app.task_board.task_board_viewing_logs.as_ref().is_some_and(|viewing| viewing.id == task.id) {
                         set_viewing_logs(app, Some(task));
                     } else {
                         refresh_task_log_cache(app, &task);

@@ -101,6 +101,6 @@ fn catalog_desktop_discovery_host_change_releases_original_poll() {
         run.apply(fixture);
         run.ended();
         assert!(fixture.app.app_providers.model_catalog.is_none());
-        assert!(fixture.app.active_toast.is_none());
+        assert!(fixture.app.toast_state.active_toast.is_none());
     });
 }

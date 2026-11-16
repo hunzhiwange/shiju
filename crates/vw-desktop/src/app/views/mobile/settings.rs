@@ -22,13 +22,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if app.mobile_layout.settings_detail {
         return system_settings::view(app);
     }
-    let search = settings_text_input("搜索设置", &app.system_settings_query)
+    let search = settings_text_input("搜索设置", &app.general_settings.system_settings_query)
         .on_input(|value| Message::Settings(SettingsMessage::SystemTabQueryChanged(value)))
         .width(Length::Fill);
     let mut categories = column![].spacing(8).width(Length::Fill);
     let mut found = false;
     for &(label, tab) in CATEGORIES {
-        if matches_query(label, tab, &app.system_settings_query) {
+        if matches_query(label, tab, &app.general_settings.system_settings_query) {
             found = true;
             categories = categories.push(container(super::action(label, ViewMessage::MobileSettingsTab(tab))).width(Length::Fill));
         }

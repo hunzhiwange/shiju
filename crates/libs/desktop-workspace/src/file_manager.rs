@@ -36,3 +36,26 @@ impl FileManagerState {
         true
     }
 }
+
+impl FileManagerState {
+    pub fn apply_preferences(&mut self, cfg: &serde_json::Value) {
+        self.show_file_manager = cfg
+            .get("show_file_manager")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(self.show_file_manager);
+        self.file_manager_show_changes = cfg
+            .get("file_manager_show_changes")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(self.file_manager_show_changes);
+    }
+}
+
+impl FileManagerState {
+    pub fn from_config(cfg: &serde_json::Value) -> Self {
+        Self {
+            file_manager_show_changes: cfg.get("file_manager_show_changes").and_then(serde_json::Value::as_bool).unwrap_or(true),
+            show_file_manager: cfg.get("show_file_manager").and_then(serde_json::Value::as_bool).unwrap_or(true),
+            ..Default::default()
+        }
+    }
+}

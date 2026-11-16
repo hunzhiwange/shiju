@@ -15,7 +15,7 @@ async fn settings_tabs_capabilities_appearance_mcp() {
         |scene, app| {
             app.mcp_settings.active_tab = McpSettingsTab::Servers;
             app.mcp_settings.save_error = Some("fixture MCP error".into());
-            let locale = app.desktop_locale;
+            let locale = app.general_settings.desktop_locale;
             // Match the agents page's real viewport, scrolled to the legacy controls.
             let page = iced::widget::scrollable(iced::widget::container(view(app)))
                 .direction(iced::widget::scrollable::Direction::Vertical(

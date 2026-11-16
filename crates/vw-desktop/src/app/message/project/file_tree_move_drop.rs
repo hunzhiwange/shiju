@@ -25,7 +25,7 @@ pub(super) fn submit(
         &root,
         &source,
         &directory,
-        &app.files,
+        &app.session_state.files,
     ) else {
         return Task::none();
     };
@@ -98,12 +98,12 @@ pub(super) fn complete_batch(
                 &root,
                 &source,
                 &target,
-                &mut app.file_tree_expanded,
+                &mut app.workspace_state.file_tree_expanded,
             );
         }
     }
     if current {
-        app.file_tree_expanded_set = app.file_tree_expanded.iter().cloned().collect();
+        app.workspace_state.file_tree_expanded_set = app.workspace_state.file_tree_expanded.iter().cloned().collect();
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(path) = app.navigation_tabs.active_preview_path.clone() {
             crate::app::message::preview::lsp::sync_lsp_for_path(app, &path);

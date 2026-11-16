@@ -22,7 +22,7 @@ pub(super) fn responsive_field_with_help<'a, Control>(
 where Control: Into<Element<'a,Message>> {
     use crate::app::components::system_settings_common::{settings_hover_help_label, settings_field_label};
     desktop_settings_providers::custom_model_modal::responsive_field(description, control, move |description, wide| {
-        let label = settings_hover_help_label(crate::app::i18n::I18n::new(app.desktop_locale), &app.app_theme, label, settings_field_label(label), description);
+        let label = settings_hover_help_label(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), &app.appearance.app_theme, label, settings_field_label(label), description);
         if wide { label.width(iced::Length::Fill).wrap().into() } else { label.wrap().into() }
     })
 }

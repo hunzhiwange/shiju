@@ -15,7 +15,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::UsageStepRawClose => domain::Message::UsageStepRawClose,
         _ => return Task::none(),
     };
-    let effect = domain::update(&mut app.usage_panel, app.active_session_id.as_deref(), &app.active_session_view_state.steps, &app.active_session_view_state.step_llm_raw, message);
+    let effect = domain::update(&mut app.usage_panel, app.session_state.active_session_id.as_deref(), &app.chat_view.active_session_view_state.steps, &app.chat_view.active_session_view_state.step_llm_raw, message);
     match effect {
         Some(domain::Effect::InsertRaw(key, raw)) => { app.insert_active_session_step_llm_raw(key, raw); Task::none() }
         Some(domain::Effect::LoadRaw((session_id, turn_id, step_index))) => {

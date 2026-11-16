@@ -8,7 +8,7 @@ fn mobile_layout_main_window_round_trip_preserves_business_and_panel_state() {
     let main = iced::window::Id::unique();
     app.main_window_id = Some(main);
     app.startup_resize_checked = true;
-    app.active_session_id = Some("layout-session".into());
+    app.session_state.active_session_id = Some("layout-session".into());
     app.layout_drag.split_ratio = 0.63;
     app.layout_drag.work_sidebar_width = 321.0;
     app.navigation_workspace.work_split_ratio = 0.57;
@@ -22,7 +22,7 @@ fn mobile_layout_main_window_round_trip_preserves_business_and_panel_state() {
                 LayoutMode::Mobile
             } else { LayoutMode::Desktop });
             assert_eq!(app.navigation_mode.workspace_mode, mode);
-            assert_eq!(app.active_session_id.as_deref(), Some("layout-session"));
+            assert_eq!(app.session_state.active_session_id.as_deref(), Some("layout-session"));
             assert_eq!((app.layout_drag.split_ratio, app.layout_drag.work_sidebar_width, app.navigation_workspace.work_split_ratio),
                 (0.63, 321.0, 0.57));
             assert_eq!((app.layout_drag.settings_panel_width, app.layout_drag.file_manager_width), (411.0, 299.0));

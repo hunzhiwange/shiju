@@ -3,9 +3,9 @@ use crate::app::message::chat::{self, ChatMessage};
 pub(super) fn app() -> App {
     let (mut app, _) = App::new();
     app.navigation_tabs.project_path = Some("/repo".into());
-    app.active_session_id = Some("local-turn".into());
-    app.active_session_view_state.base_ready = true;
-    app.active_session_view_state.ui_preparing = false;
+    app.session_state.active_session_id = Some("local-turn".into());
+    app.chat_view.active_session_view_state.base_ready = true;
+    app.chat_view.active_session_view_state.ui_preparing = false;
     let runtime = app.current_session_runtime_mut();
     runtime.acp_agent = None;
     runtime.task_mode_enabled = false;
@@ -78,7 +78,7 @@ fn voice_task_11_local_mute_end_and_switch_discard_late_results() {
     assert!(native.is_cancelled());
     let _ = update(&mut app, Event::Recognized(call, round, Ok("迟到的文字".into())));
     assert!(app.current_session_runtime_ref().unwrap().request_lifecycle.active_agent_request.is_none());
-    app.active_session_id = Some("different".into());
+    app.session_state.active_session_id = Some("different".into());
     super::super::invalidate(&mut app);
     assert!(app.voice.local_conversation.is_none());
     let _ = update(&mut app, Event::Recognized(call, round, Ok("更迟的文字".into())));
@@ -102,7 +102,7 @@ fn voice_task_11_local_interrupt_stops_only_owned_model_request() {
 fn voice_task_11_local_preserves_model_history_and_permission_policy() {
     let mut ordinary_app = app();
     let mut app = app();
-    app.chat = vec![
+    app.chat_view.chat = vec![
         StoredMessage {
             role: ChatRole::User,
             content: "已有问题".into(),
@@ -118,8 +118,8 @@ fn voice_task_11_local_preserves_model_history_and_permission_policy() {
             processing_timing: None,
         },
     ];
-    let history = app.chat.clone();
-    ordinary_app.chat = history.clone();
+    let history = app.chat_view.chat.clone();
+    ordinary_app.chat_view.chat = history.clone();
     for current in [&mut ordinary_app, &mut app] {
         let runtime = current.current_session_runtime_mut();
         runtime.model = "voice-test-selected-model".into();
@@ -147,7 +147,7 @@ fn voice_task_11_local_preserves_model_history_and_permission_policy() {
     assert_eq!(request.allowed_tools, ordinary.allowed_tools);
     assert_eq!(request.require_agent_tool, ordinary.require_agent_tool);
     assert!(!app.current_session_runtime_ref().unwrap().full_access_enabled);
-    assert_eq!(app.active_session_id.as_deref(), Some("local-turn"));
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("local-turn"));
 }
 #[test]
 fn voice_task_11_local_disabled_screen_ignores_stale_permission_or_capture() {

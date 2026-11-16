@@ -63,21 +63,21 @@ fn chat_global_status_reading_column(app: &App) -> Element<'_, Message> {
 }
 
 pub(crate) fn chat_panel_virtual_window(app: &App) -> ChatVirtualWindow {
-    app.chat_virtualizer.window()
+    app.chat_view.chat_virtualizer.window()
 }
 
 fn chat_panel_context_menu_overlay<'a>(
     app: &'a App,
     content: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    let is_open = app.chat_context_menu.target.is_some();
-    let menu = chat_context_menu(crate::app::i18n::I18n::new(app.desktop_locale), is_open)
+    let is_open = app.session_state.chat_context_menu.target.is_some();
+    let menu = chat_context_menu(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), is_open)
         .unwrap_or_else(|| Space::new().into());
     desktop_chat_view::panel::context_menu_overlay(
         content,
         menu,
         is_open,
-        app.chat_context_menu.position,
+        app.session_state.chat_context_menu.position,
         Message::Chat(message::ChatMessage::CloseMessageContextMenu),
     )
 }
@@ -93,10 +93,10 @@ fn session_loading_panel(app: &App) -> Element<'_, Message> {
 /// Assemble session snapshots and cross-domain view ports for the conversation.
 pub fn view(app: &App) -> Element<'_, Message> {
     let phase = desktop_chat_view::panel::panel_phase(
-        app.active_session_id.is_some(),
-        app.active_session_view_state.ui_preparing,
-        app.active_session_view_state.base_ready,
-        app.chat.len(),
+        app.session_state.active_session_id.is_some(),
+        app.chat_view.active_session_view_state.ui_preparing,
+        app.chat_view.active_session_view_state.base_ready,
+        app.chat_view.chat.len(),
     );
     if phase == desktop_chat_view::panel::PanelPhase::Loading {
         return session_loading_panel(app);
@@ -109,18 +109,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let requesting = runtime.is_some_and(|r| r.request_lifecycle.is_requesting);
     let scroll_content = desktop_chat_view::panel::conversation_window(
         desktop_chat_view::panel::ConversationInput {
-            chat: &app.chat,
-            cache: &app.chat_render_cache,
-            metadata: &app.active_session_view_state.message_meta_texts,
-            timeline: app.paged_chat_timeline.as_ref(),
+            chat: &app.chat_view.chat,
+            cache: &app.chat_view.chat_render_cache,
+            metadata: &app.chat_view.active_session_view_state.message_meta_texts,
+            timeline: app.session_state.paged_chat_timeline.as_ref(),
             window,
-            scroll_id: app.chat_scroll_id.clone(),
-            i18n: crate::app::i18n::I18n::new(app.desktop_locale),
+            scroll_id: app.chat_view.chat_scroll_id.clone(),
+            i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
             requesting,
-            model: runtime.map_or(app.model.as_str(), |r| r.model.as_str()),
+            model: runtime.map_or(app.session_state.model.as_str(), |r| r.model.as_str()),
             width: app.window_size.0,
             dark: self::utils::is_dark_theme(&app.theme()),
-            reasoning_summary: app.dialogue_flow_show_reasoning_summary,
+            reasoning_summary: app.general_settings.dialogue_flow_show_reasoning_summary,
         },
         |i, m, meta, cache, heavy, revision| {
             message_view::message_view_with_runtime(
@@ -150,13 +150,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
         let header = chat_header_view(app);
         let question_jump_button = user_question_nav_overlay(
             app,
-            &app.active_session_view_state.user_question_markers,
+            &app.chat_view.active_session_view_state.user_question_markers,
             window.visible_start_idx,
             window.visible_end_idx,
         );
         let jump_button = jump_to_bottom_button(app);
         let todo_overlay = chat_todo_overlay(app);
-        let body_base: Element<'_, Message> = match app.chat_panel_mode {
+        let body_base: Element<'_, Message> = match app.chat_view.chat_panel_mode {
             ChatPanelMode::Conversation => desktop_chat_view::panel::conversation_body(
                 scroll_content,
                 question_jump_button,
@@ -166,9 +166,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ChatPanelMode::Trajectory => trajectory::view(app),
         };
         let body_bg =
-            app.active_theme_skin.as_ref().and_then(|skin| skin.chat_body_path.as_deref());
-        let fit = app
-            .active_theme_skin
+            app.appearance.active_theme_skin.as_ref().and_then(|skin| skin.chat_body_path.as_deref());
+        let fit = app.appearance.active_theme_skin
             .as_ref()
             .map(|skin| {
                 crate::app::theme_catalog::PanelImageFit::parse(
@@ -195,10 +194,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
 fn chat_todo_overlay<'a>(app: &'a App) -> Element<'a, Message> {
     if !desktop_chat_view::panel::todo_is_visible(
-        app.chat_todo_placement == TodoPanelPlacement::ChatTopRight,
-        app.chat_todo_session_id.as_deref(),
-        app.active_session_id.as_deref(),
-        app.chat_todo_items.len(),
+        app.todo_state.chat_todo_placement == TodoPanelPlacement::ChatTopRight,
+        app.todo_state.chat_todo_session_id.as_deref(),
+        app.session_state.active_session_id.as_deref(),
+        app.todo_state.chat_todo_items.len(),
     ) {
         return Space::new().height(Length::Fixed(0.0)).into();
     }
@@ -209,7 +208,7 @@ fn chat_todo_overlay<'a>(app: &'a App) -> Element<'a, Message> {
         .unwrap_or(0);
     let panel = todo_panel::todo_panel(
         app,
-        app.chat_todo_items.as_slice(),
+        app.todo_state.chat_todo_items.as_slice(),
         submit_anim,
         TodoPanelSurface::ChatTopRight,
     );
@@ -223,7 +222,7 @@ pub fn tool_dialog_overlay(app: &App) -> Option<Element<'_, Message>> {
 
 fn empty_fullscreen_controls(app: &App) -> Element<'_, Message> {
     desktop_chat_view::panel::empty_fullscreen_controls(
-        crate::app::i18n::I18n::new(app.desktop_locale),
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         app.is_chat_fullscreen(),
         app.is_chat_half_fullscreen(),
         header::show_half_fullscreen_control(app.navigation_mode.workspace_mode),
@@ -242,8 +241,8 @@ fn panel_message(event: desktop_chat_view::panel::Message) -> Message {
 }
 fn jump_to_bottom_button(app: &App) -> Element<'_, Message> {
     desktop_chat_view::panel::jump_to_bottom_button(
-        app.chat_auto_scroll,
-        app.chat_scroll_viewport_h,
+        app.chat_view.chat_auto_scroll,
+        app.chat_view.chat_scroll_viewport_h,
     )
     .map(panel_message)
 }
@@ -254,8 +253,8 @@ fn user_question_nav_overlay<'a>(
     end: usize,
 ) -> Element<'a, Message> {
     desktop_chat_view::panel::user_question_nav_overlay(
-        crate::app::i18n::I18n::new(app.desktop_locale),
-        app.chat_scroll_viewport_h,
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
+        app.chat_view.chat_scroll_viewport_h,
         markers,
         start,
         end,

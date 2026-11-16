@@ -38,10 +38,9 @@ pub(super) fn dismiss_preview_transient_ui(app: &mut App) {
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
 pub(crate) fn git_context_path_for_app(app: &App) -> Option<String> {
-    let active_directory = app
-        .active_session_id
+    let active_directory = app.session_state.active_session_id
         .as_ref()
-        .and_then(|id| app.sessions.iter().find(|session| &session.id == id))
+        .and_then(|id| app.session_state.sessions.iter().find(|session| &session.id == id))
         .map(|session| session.directory.as_str());
     desktop_git_ui::message_git::shared::git_context_path(
         app.git.selected_git_worktree_directory.as_deref(),
@@ -96,5 +95,5 @@ pub(super) async fn load_git_worktree_options(
 }
 
 pub(super) fn persist_file_tree_expanded(app: &mut App) -> Task<Message> {
-    app.save_desktop_preference("file_tree_expanded", serde_json::json!(app.file_tree_expanded))
+    app.save_desktop_preference("file_tree_expanded", serde_json::json!(app.workspace_state.file_tree_expanded))
 }

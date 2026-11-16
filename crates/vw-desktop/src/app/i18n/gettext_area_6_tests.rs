@@ -22,7 +22,7 @@ async fn desktop_gettext_area_6_dynamic_feedback_preserves_raw_arguments() {
         &mut app,
         SettingsMessage::Hooks(HooksMessage::CatalogLoaded(Err(raw.to_owned()))),
     );
-    let toast = app.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
+    let toast = app.toast_state.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
     assert_eq!(
         toast.render(super::I18n::new(DesktopLocale::English)).unwrap(),
         format!("Failed to read plugin hook catalog: {raw}")
@@ -36,7 +36,7 @@ async fn desktop_gettext_area_6_dynamic_feedback_preserves_raw_arguments() {
 #[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_6_search_preserves_chinese_navigation() {
     let (mut app, _) = crate::app::App::new();
-    app.desktop_locale = DesktopLocale::English;
+    app.general_settings.desktop_locale = DesktopLocale::English;
     let entries = crate::app::components::system_settings_search::catalog(&app);
     let global = entries.iter().find(|entry| entry.label == "Global servers").unwrap();
     assert!(global.matches("Global servers"));
@@ -83,7 +83,7 @@ async fn desktop_gettext_area_6_settings_render_three_locales_in_both_themes() {
         DesktopLocale::TraditionalChinese,
         DesktopLocale::English,
     ] {
-        app.desktop_locale = locale;
+        app.general_settings.desktop_locale = locale;
         for theme in [Theme::Dark, Theme::Light] {
             for region in [
                 "tunnel",

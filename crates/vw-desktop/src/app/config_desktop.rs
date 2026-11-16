@@ -22,14 +22,14 @@ pub(super) fn preferences_message(message: desktop_config::config_desktop::Prefe
 }
 impl App {
     pub(crate) fn set_task_pet_scale(&mut self, scale: f32) -> Result<(), &'static str> {
-        desktop_task_board::pet_state::set_task_pet_scale(&mut self.task_pet_scale, scale)
+        desktop_task_board::pet_state::set_task_pet_scale(&mut self.pet_state.task_pet_scale, scale)
     }
 
     pub(crate) fn apply_task_pet_preferences(&mut self, cfg: &Value) {
         desktop_task_board::pet_state::apply_task_pet_preferences(
             cfg,
-            &mut self.task_pet_avatar_kind,
-            &mut self.task_pet_scale,
+            &mut self.pet_state.task_pet_avatar_kind,
+            &mut self.pet_state.task_pet_scale,
             &mut self.companion_navigation.task_pet_visible,
         );
     }
@@ -38,7 +38,7 @@ impl App {
         let endpoint = gateway_client_endpoint();
         self.task_pet_size_pending = Some(preferences_scope(&endpoint));
         self.desktop_preferences_persistence.enqueue_companion_size(endpoint,
-            serde_json::json!({ "avatar": self.task_pet_avatar_kind, "scale": scale, "visible": self.companion_navigation.task_pet_visible }))
+            serde_json::json!({ "avatar": self.pet_state.task_pet_avatar_kind, "scale": scale, "visible": self.companion_navigation.task_pet_visible }))
             .map(super::desktop::preferences_message)
     }
 
@@ -46,8 +46,8 @@ impl App {
         self.save_desktop_preference(
             "mini_companion",
             serde_json::json!({
-                "avatar": self.task_pet_avatar_kind,
-                "scale": if self.task_pet_size_pending.is_some() { self.task_pet_preview_scale() } else { self.task_pet_scale },
+                "avatar": self.pet_state.task_pet_avatar_kind,
+                "scale": if self.task_pet_size_pending.is_some() { self.task_pet_preview_scale() } else { self.pet_state.task_pet_scale },
                 "visible": self.companion_navigation.task_pet_visible,
             }),
         )

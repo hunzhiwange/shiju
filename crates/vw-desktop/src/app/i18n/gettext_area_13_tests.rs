@@ -116,7 +116,7 @@ async fn desktop_gettext_area_13_save_failure_toast_keeps_nested_error_semantics
     let (mut app, _) = crate::app::App::new();
     let error = super::workflow::Feedback::new("写入工作流文件失败: %s", vec!["用户/%s/%n".into()]);
     let _ = workflow::update(&mut app, WorkflowMessage::SaveActiveAppFinished(Err(error)));
-    let message = app.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
+    let message = app.toast_state.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
     assert_eq!(
         message.render(I18n::new(DesktopLocale::English)).unwrap(),
         "Save failed\nFailed to write workflow file: 用户/%s/%n"
@@ -133,7 +133,7 @@ async fn desktop_gettext_area_13_locale_selection_refreshes_tab_without_navigati
     let (mut app, _) = crate::app::App::new();
     crate::apps::workflow::sync_top_tab(&mut app);
     let active = app.navigation_tabs.active_tab_id.clone();
-    app.desktop_locale_saving = true;
+    app.general_settings.desktop_locale_saving = true;
     let _ = crate::app::message::settings::update(
         &mut app,
         SettingsMessage::General(GeneralSettingsMessage::LocaleSelected(DesktopLocale::English)),
@@ -164,7 +164,7 @@ async fn desktop_gettext_area_13_lifecycle_validation_keeps_template_and_identif
     ] {
         let _ = workflow_manager::update_app(&mut app, message);
     }
-    let message = app.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
+    let message = app.toast_state.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
     assert_eq!(
         message.render(I18n::new(DesktopLocale::English)).unwrap(),
         "Custom workflow label is required: 用户/%s/%n"

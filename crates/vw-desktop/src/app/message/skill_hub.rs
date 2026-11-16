@@ -423,7 +423,7 @@ fn with_domain<T>(app: &mut App, operation: impl FnOnce(&mut SkillUpdate<'_>) ->
         expert_hub: &mut app.expert_hub,
         active_account: app.account.active_account(),
         project_path: &app.navigation_tabs.project_path,
-        recent_projects: &app.recent_projects,
+        recent_projects: &app.workspace_state.recent_projects,
         screen: match app.navigation_tabs.screen {
             Screen::ExpertHub => HubPage::ExpertHub,
             Screen::ShijuSkills => HubPage::ShijuSkills,
@@ -431,7 +431,7 @@ fn with_domain<T>(app: &mut App, operation: impl FnOnce(&mut SkillUpdate<'_>) ->
             _ => HubPage::Other,
         },
         has_project_chat: app.navigation_tabs.open_tabs.iter().any(|tab| tab.project_path.as_deref() == app.navigation_tabs.project_path.as_deref() && tab.screen == Screen::Project),
-        desktop_locale: app.desktop_locale,
+        desktop_locale: app.general_settings.desktop_locale,
         gateway,
         effects: Vec::new(),
     };
@@ -469,7 +469,7 @@ fn apply_effects(app: &mut App, effects: Vec<Effect>) -> Task<Message> {
                 };
                 let fallback = message.render(crate::app::i18n::I18n::new(locale)).expect("valid skill feedback");
                 let task = app.show_toast(kind, fallback);
-                if let Some(toast) = &mut app.active_toast { toast.localized_message = Some(message); }
+                if let Some(toast) = &mut app.toast_state.active_toast { toast.localized_message = Some(message); }
                 task
             }
         });
@@ -494,7 +494,7 @@ pub(crate) fn open_expert_hub_tab(app: &mut App) {
     if !app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == EXPERT_HUB_TAB_ID) {
         app.navigation_tabs.open_tabs.push(AppTab {
             id: EXPERT_HUB_TAB_ID.to_string(),
-            title: crate::app::i18n::I18n::new(app.desktop_locale).__(EXPERT_HUB_TITLE).to_string(),
+            title: crate::app::i18n::I18n::new(app.general_settings.desktop_locale).__(EXPERT_HUB_TITLE).to_string(),
             screen: Screen::ExpertHub,
             project_path: None,
         });
@@ -507,7 +507,7 @@ fn open_shiju_skills_tab(app: &mut App) {
     if !app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == SHIJU_SKILLS_TAB_ID) {
         app.navigation_tabs.open_tabs.push(AppTab {
             id: SHIJU_SKILLS_TAB_ID.to_string(),
-            title: crate::app::i18n::I18n::new(app.desktop_locale)
+            title: crate::app::i18n::I18n::new(app.general_settings.desktop_locale)
                 .__(SHIJU_SKILLS_TITLE)
                 .to_string(),
             screen: Screen::ShijuSkills,

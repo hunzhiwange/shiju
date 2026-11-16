@@ -9,10 +9,10 @@ fn context(app: &App) -> BrowserContext<'_> {
     let s = &app.skills_settings;
     BrowserContext {
         help,
-        desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        desktop_locale: app.general_settings.desktop_locale,
+        app_theme: &app.appearance.app_theme,
         project_path: &app.navigation_tabs.project_path,
-        recent_projects: &app.recent_projects,
+        recent_projects: &app.workspace_state.recent_projects,
         skills_settings: BrowserState {
             directory_provider: s.directory_provider,
             query: &s.query,

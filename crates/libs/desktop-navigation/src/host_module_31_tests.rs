@@ -118,3 +118,20 @@ fn navigation_backfill_preserves_omitted_values_and_active_drag() {
     );
     assert_eq!(mode.workspace_mode, work);
 }
+
+mod load_tests;
+mod settings_tests;
+mod state_tests;
+
+#[test]
+fn copy_feedback_ignores_expiration_of_an_older_copy() {
+    let mut state = crate::clipboard::Feedback::new();
+    let old = state.copied("earlier");
+    let current = state.copied("current");
+    state.clear(old);
+    assert_eq!(state.last_copied_code_hash, Some(current));
+    assert!(state.last_copy_time.is_some());
+    state.clear(current);
+    assert!(state.last_copied_code_hash.is_none());
+    assert!(state.last_copy_time.is_none());
+}

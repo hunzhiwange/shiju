@@ -12,11 +12,11 @@ impl App {
         session_id: &str,
     ) -> desktop_session::session::runtime::RuntimeDefaults {
         desktop_session::session::runtime::RuntimeDefaults {
-            model: self.model.clone(),
-            auto_model: self.auto_model,
-            reasoning_effort: self.session_reasoning_efforts.get(session_id).copied().flatten(),
-            acp_history_mode: self.acp_history_mode,
-            acp_recent_count: self.acp_recent_count,
+            model: self.session_state.model.clone(),
+            auto_model: self.session_state.auto_model,
+            reasoning_effort: self.session_state.session_reasoning_efforts.get(session_id).copied().flatten(),
+            acp_history_mode: self.session_state.acp_history_mode,
+            acp_recent_count: self.session_state.acp_recent_count,
             full_access: self.new_session_full_access(session_id),
             config_ready: self.agents_settings.config_ready,
         }
@@ -25,10 +25,10 @@ impl App {
     fn new_session_full_access(&self, session_id: &str) -> bool {
         desktop_session::session::runtime::new_session_access(
             &self.agents_settings,
-            &self.sessions,
-            &self.project_sessions,
+            &self.session_state.sessions,
+            &self.workspace_state.project_sessions,
             session_id,
-            self.last_llm_full_access,
+            self.session_state.last_llm_full_access,
         )
     }
 
@@ -44,7 +44,7 @@ impl App {
 
     pub(crate) fn current_session_full_access(&self) -> bool {
         self.session_full_access(
-            self.active_session_id.as_deref().unwrap_or(EMPTY_SESSION_ID),
+            self.session_state.active_session_id.as_deref().unwrap_or(EMPTY_SESSION_ID),
             self.current_session_runtime_ref(),
         )
     }
@@ -90,8 +90,8 @@ impl App {
 
     pub(crate) fn reset_draft_full_access(&mut self) {
         desktop_session::session::runtime::reset_draft_full_access(
-            self.session_runtime_states.get_mut(EMPTY_SESSION_ID),
-            self.last_llm_full_access,
+            self.session_state.session_runtime_states.get_mut(EMPTY_SESSION_ID),
+            self.session_state.last_llm_full_access,
         );
     }
 
@@ -102,7 +102,7 @@ impl App {
         #[cfg(test)]
         crate::app::components::chat_panel::performance::record_runtime_clone();
         desktop_session::session::runtime::read_runtime(
-            self.session_runtime_states.get(session_id),
+            self.session_state.session_runtime_states.get(session_id),
             self.agents_settings.config_ready,
             self.new_session_full_access(session_id),
             || self.session_runtime_defaults(session_id),
@@ -114,11 +114,11 @@ impl App {
         session_id: &str,
     ) -> &mut crate::app::state::SessionRuntimeState {
         self.session_runtime_defaults(session_id)
-            .initialize(&mut self.session_runtime_states, session_id)
+            .initialize(&mut self.session_state.session_runtime_states, session_id)
     }
 
     pub(crate) fn current_session_runtime(&self) -> crate::app::state::SessionRuntimeState {
-        match &self.active_session_id {
+        match &self.session_state.active_session_id {
             Some(id) => self.get_session_runtime(id),
             None => self.get_session_runtime(EMPTY_SESSION_ID),
         }
@@ -127,17 +127,17 @@ impl App {
     pub(crate) fn current_session_runtime_ref(
         &self,
     ) -> Option<&crate::app::state::SessionRuntimeState> {
-        if let Some(id) = &self.active_session_id {
-            self.session_runtime_states.get(id)
+        if let Some(id) = &self.session_state.active_session_id {
+            self.session_state.session_runtime_states.get(id)
         } else {
-            self.session_runtime_states.get(EMPTY_SESSION_ID)
+            self.session_state.session_runtime_states.get(EMPTY_SESSION_ID)
         }
     }
 
     pub(crate) fn current_session_runtime_mut(
         &mut self,
     ) -> &mut crate::app::state::SessionRuntimeState {
-        if let Some(id) = self.active_session_id.clone() {
+        if let Some(id) = self.session_state.active_session_id.clone() {
             self.get_session_runtime_mut(&id)
         } else {
             self.get_session_runtime_mut(EMPTY_SESSION_ID)
@@ -147,8 +147,8 @@ impl App {
     pub(crate) fn current_session_has_started(&self) -> bool {
         desktop_session::session::runtime::current_session_has_started(
             self.current_session_runtime_ref(),
-            self.active_session_id.is_some(),
-            !self.chat.is_empty(),
+            self.session_state.active_session_id.is_some(),
+            !self.chat_view.chat.is_empty(),
         )
     }
 
@@ -171,7 +171,7 @@ impl App {
     }
 
     pub(crate) fn mark_active_session_viewed(&mut self) {
-        if let Some(id) = self.active_session_id.clone() {
+        if let Some(id) = self.session_state.active_session_id.clone() {
             self.mark_session_viewed(&id);
         }
     }
@@ -182,19 +182,19 @@ impl App {
     }
 
     pub fn session_is_requesting(&self, session_id: &str) -> bool {
-        self.session_runtime_states
+        self.session_state.session_runtime_states
             .get(session_id)
             .map(|s| s.request_lifecycle.is_requesting)
             .unwrap_or(false)
     }
 
     pub fn any_session_requesting(&self) -> bool {
-        self.session_runtime_states.values().any(|s| s.request_lifecycle.is_requesting)
+        self.session_state.session_runtime_states.values().any(|s| s.request_lifecycle.is_requesting)
     }
 
     pub fn has_active_explore_summary_animation(&self) -> bool {
         desktop_chat_view::stream_render::has_active_explore_summary_animation(
-            &self.chat_explore_summary_animations,
+            &self.chat_interaction.chat_explore_summary_animations,
             crate::app::time::now_ms(),
             crate::app::components::status_animation::EXPLORE_SUMMARY_FLIP_DURATION_MS,
         )
@@ -203,7 +203,7 @@ impl App {
     pub fn advance_status_animation_frame(&mut self) {
         desktop_chat_view::stream_render::advance_status_animation_frame(
             &mut self.status_animation_frame,
-            &mut self.chat_explore_summary_animations,
+            &mut self.chat_interaction.chat_explore_summary_animations,
             crate::app::time::now_ms(),
             crate::app::components::status_animation::EXPLORE_SUMMARY_FLIP_DURATION_MS,
         );
@@ -211,28 +211,28 @@ impl App {
 
     pub fn find_session_by_request_id(&self, request_id: u64) -> Option<String> {
         desktop_session::session::runtime::find_session_by_request_id(
-            &self.session_runtime_states,
+            &self.session_state.session_runtime_states,
             request_id,
         )
     }
 
     pub fn sync_active_session_preferences(&mut self) {
-        self.input_popovers.recommended_prompt = false;
-        let Some(session_id) = self.active_session_id.clone() else {
+        self.session_state.input_popovers.recommended_prompt = false;
+        let Some(session_id) = self.session_state.active_session_id.clone() else {
             return;
         };
         let runtime = self.get_session_runtime(&session_id);
-        self.reasoning_effort = runtime.reasoning_effort;
-        self.acp_agent = runtime.acp_agent;
-        self.acp_history_mode = runtime.acp_history_mode;
-        self.acp_recent_count = runtime.acp_recent_count;
+        self.session_state.reasoning_effort = runtime.reasoning_effort;
+        self.session_state.acp_agent = runtime.acp_agent;
+        self.session_state.acp_history_mode = runtime.acp_history_mode;
+        self.session_state.acp_recent_count = runtime.acp_recent_count;
     }
 
     /// 首次打开历史会话时，以全局最后选择占位并等待恢复会话自己的模型。
     pub(crate) fn prepare_historical_session_model(&mut self, session_id: &str) {
         desktop_session::session::runtime::prepare_historical_session_model(
             self.session_runtime_defaults(session_id),
-            &mut self.session_runtime_states,
+            &mut self.session_state.session_runtime_states,
             session_id,
         );
     }
@@ -256,7 +256,7 @@ impl App {
         session_id: &str,
         model: &str,
     ) -> bool {
-        let Some(runtime) = self.session_runtime_states.get_mut(session_id) else {
+        let Some(runtime) = self.session_state.session_runtime_states.get_mut(session_id) else {
             return false;
         };
         desktop_session::session::runtime::restore_session_model_from_history(runtime, model)
@@ -265,7 +265,7 @@ impl App {
     /// 用户显式选择模型后，历史加载结果不得再覆盖该选择。
     pub(crate) fn cancel_session_model_history_restore(&mut self, session_id: &str) {
         desktop_session::session::runtime::cancel_model_history_restore(
-            self.session_runtime_states.get_mut(session_id),
+            self.session_state.session_runtime_states.get_mut(session_id),
         );
     }
 

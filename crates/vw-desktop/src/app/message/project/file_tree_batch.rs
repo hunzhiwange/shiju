@@ -35,7 +35,7 @@ pub(super) fn duplicate(app: &mut App, root: String, paths: Vec<String>) -> iced
 pub(super) fn paste(app: &mut App, destination: &str) -> iced::Task<Message> {
     let Some((root, clipboard, targets)) = app.file_tree_interaction.prepare_paste(
         app.navigation_tabs.project_path.as_deref(),
-        &app.files,
+        &app.session_state.files,
         destination,
     ) else {
         return iced::Task::none();
@@ -45,7 +45,7 @@ pub(super) fn paste(app: &mut App, destination: &str) -> iced::Task<Message> {
 pub(super) fn delete(app: &mut App) -> iced::Task<Message> {
     let Some((root, paths)) = app
         .file_tree_interaction
-        .prepare_delete(app.navigation_tabs.project_path.as_deref(), &mut app.files)
+        .prepare_delete(app.navigation_tabs.project_path.as_deref(), &mut app.session_state.files)
     else {
         return iced::Task::none();
     };

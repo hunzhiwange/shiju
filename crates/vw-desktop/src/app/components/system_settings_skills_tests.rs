@@ -23,7 +23,7 @@ async fn settings_tabs_capabilities_appearance_skills() {
         |scene, app| {
             app.skills_settings.active_tab = SkillsSettingsTab::Skills;
             app.skills_settings.save_error = Some("fixture skills error".into());
-            let locale = app.desktop_locale;
+            let locale = app.general_settings.desktop_locale;
 
             let scope = scene.click(view(app), tr(locale, "全局目录"));
             assert!(matches!(

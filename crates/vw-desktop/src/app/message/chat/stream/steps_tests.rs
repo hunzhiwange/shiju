@@ -53,7 +53,7 @@ fn tool_event(kind: GatewayChatToolEventKind, occurred_ms: u64) -> GatewayChatTo
 fn tool_timing_lifecycle_handler_updates_active_step() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();
-    app.active_session_id = Some(session_id.clone());
+    app.session_state.active_session_id = Some(session_id.clone());
     app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
     let _task = super::handle_agent_step_start(
@@ -71,7 +71,7 @@ fn tool_timing_lifecycle_handler_updates_active_step() {
         &tool_event(GatewayChatToolEventKind::Start, 100),
     );
 
-    let timing = &app.active_session_view_state.steps[0].tool_timings[0];
+    let timing = &app.chat_view.active_session_view_state.steps[0].tool_timings[0];
     assert_eq!(timing.call_id, "call-1");
     assert_eq!(timing.started_ms, Some(100));
 }
@@ -118,7 +118,7 @@ fn handle_agent_step_start_returns_none_for_unknown_request_id() {
     let (mut app, _) = crate::app::App::new();
     let _task = super::handle_agent_step_start(&mut app, 999, "s1".to_string(), 1, 100, None);
     // 请求不存在时应直接返回，不能产生 panic 或修改应用状态。
-    assert!(app.active_session_view_state.steps.is_empty());
+    assert!(app.chat_view.active_session_view_state.steps.is_empty());
 }
 
 #[test]
@@ -128,14 +128,14 @@ fn handle_agent_step_start_returns_none_for_empty_session_id() {
         Some(agent_request(42, "s1"));
     let _task = super::handle_agent_step_start(&mut app, 42, "".to_string(), 1, 100, None);
     // 即使找到请求，空会话标识仍必须在写入任何状态前被拒绝。
-    assert!(app.active_session_view_state.steps.is_empty());
+    assert!(app.chat_view.active_session_view_state.steps.is_empty());
 }
 
 #[test]
 fn handle_agent_step_start_creates_step_in_active_session_view() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();
-    app.active_session_id = Some(session_id.clone());
+    app.session_state.active_session_id = Some(session_id.clone());
     app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
 
@@ -149,16 +149,16 @@ fn handle_agent_step_start_creates_step_in_active_session_view() {
     );
 
     assert_eq!(task.units(), 0, "step projection must not submit a full UI snapshot");
-    assert_eq!(app.active_session_view_state.steps.len(), 1);
-    assert_eq!(app.active_session_view_state.steps[0].index, 1);
-    assert_eq!(app.active_session_view_state.steps[0].started_ms, 100);
-    assert_eq!(app.active_session_view_state.steps[0].model.as_deref(), Some("model-x"));
+    assert_eq!(app.chat_view.active_session_view_state.steps.len(), 1);
+    assert_eq!(app.chat_view.active_session_view_state.steps[0].index, 1);
+    assert_eq!(app.chat_view.active_session_view_state.steps[0].started_ms, 100);
+    assert_eq!(app.chat_view.active_session_view_state.steps[0].model.as_deref(), Some("model-x"));
 }
 
 #[test]
 fn handle_agent_step_start_keeps_inactive_session_out_of_active_view() {
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some("active-session".to_string());
+    app.session_state.active_session_id = Some("active-session".to_string());
     app.get_session_runtime_mut("background-session").request_lifecycle.active_agent_request =
         Some(agent_request(42, "background-session"));
 
@@ -171,7 +171,7 @@ fn handle_agent_step_start_keeps_inactive_session_out_of_active_view() {
         Some("model-x".to_string()),
     );
 
-    assert!(app.active_session_view_state.steps.is_empty());
+    assert!(app.chat_view.active_session_view_state.steps.is_empty());
 }
 
 // 结束事件处理：只更新匹配请求，并安排后续成本加载。
@@ -189,7 +189,7 @@ fn handle_agent_step_finish_returns_none_for_unknown_request_id() {
         None,
         None,
     );
-    assert!(app.active_session_view_state.steps.is_empty());
+    assert!(app.chat_view.active_session_view_state.steps.is_empty());
 }
 
 #[test]
@@ -207,14 +207,14 @@ fn handle_agent_step_finish_returns_none_for_empty_session_id() {
         Some("stop".to_string()),
         Some("final".to_string()),
     );
-    assert!(app.active_session_view_state.steps.is_empty());
+    assert!(app.chat_view.active_session_view_state.steps.is_empty());
 }
 
 #[test]
 fn handle_agent_step_finish_updates_token_usage_for_active_session() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();
-    app.active_session_id = Some(session_id.clone());
+    app.session_state.active_session_id = Some(session_id.clone());
     app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
 
@@ -229,21 +229,21 @@ fn handle_agent_step_finish_updates_token_usage_for_active_session() {
         Some("final-model".to_string()),
     );
 
-    assert_eq!(app.usage.input_tokens, 10);
-    assert_eq!(app.usage.output_tokens, 20);
-    assert_eq!(app.usage.cached_tokens, 3);
-    assert_eq!(app.usage.reasoning_tokens, 4);
-    assert_eq!(app.active_session_view_state.steps.len(), 1);
-    assert_eq!(app.active_session_view_state.steps[0].index, 1);
-    assert_eq!(app.active_session_view_state.steps[0].usage.input_tokens, 10);
-    assert_eq!(app.active_session_view_state.steps[0].turn_id, None);
-    assert!(app.trajectory_raw_loading.is_empty());
+    assert_eq!(app.chat_view.usage.input_tokens, 10);
+    assert_eq!(app.chat_view.usage.output_tokens, 20);
+    assert_eq!(app.chat_view.usage.cached_tokens, 3);
+    assert_eq!(app.chat_view.usage.reasoning_tokens, 4);
+    assert_eq!(app.chat_view.active_session_view_state.steps.len(), 1);
+    assert_eq!(app.chat_view.active_session_view_state.steps[0].index, 1);
+    assert_eq!(app.chat_view.active_session_view_state.steps[0].usage.input_tokens, 10);
+    assert_eq!(app.chat_view.active_session_view_state.steps[0].turn_id, None);
+    assert!(app.chat_interaction.trajectory_raw_loading.is_empty());
 }
 
 #[test]
 fn handle_agent_step_finish_does_not_charge_active_usage_for_inactive_session() {
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some("active-session".to_string());
+    app.session_state.active_session_id = Some("active-session".to_string());
     app.get_session_runtime_mut("background-session").request_lifecycle.active_agent_request =
         Some(agent_request(42, "background-session"));
 
@@ -258,8 +258,8 @@ fn handle_agent_step_finish_does_not_charge_active_usage_for_inactive_session() 
         None,
     );
 
-    assert_eq!(app.usage, TokenUsage::default());
-    assert!(app.active_session_view_state.steps.is_empty());
+    assert_eq!(app.chat_view.usage, TokenUsage::default());
+    assert!(app.chat_view.active_session_view_state.steps.is_empty());
 }
 
 // 成本回填：结果只能写入原请求对应的步骤，过期结果应被忽略。
@@ -267,7 +267,7 @@ fn handle_agent_step_finish_does_not_charge_active_usage_for_inactive_session() 
 #[test]
 fn handle_agent_step_cost_loaded_keeps_inactive_step_out_of_active_view() {
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some("active-session".to_string());
+    app.session_state.active_session_id = Some("active-session".to_string());
 
     let _task = super::handle_agent_step_cost_loaded(
         &mut app,
@@ -277,5 +277,5 @@ fn handle_agent_step_cost_loaded_keeps_inactive_step_out_of_active_view() {
         Some(0.05),
     );
 
-    assert!(app.active_session_view_state.steps.is_empty());
+    assert!(app.chat_view.active_session_view_state.steps.is_empty());
 }

@@ -13,7 +13,7 @@ async fn settings_tabs_core_appearance_autonomy() {
         test_app,
         |scene, app| {
             app.autonomy_settings.active_tab = AutonomySettingsTab::Permissions;
-            let i18n = I18n::new(app.desktop_locale);
+            let i18n = I18n::new(app.general_settings.desktop_locale);
             let labels: Vec<_> = AUTONOMY_TABS.iter().map(|tab| i18n.__(tab.label)).collect();
             assert!(matches!(
                 scene.check(app, view(app), &labels, 3),

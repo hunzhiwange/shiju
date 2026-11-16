@@ -24,7 +24,7 @@ async fn work_layout_keeps_single_chat_surface_when_code_panels_are_enabled() {
     app.navigation_panels.show_diff = false;
     app.file_manager.show_file_manager = false;
     app.terminal.is_visible = false;
-    app.chat_panel_fullscreen = false;
+    app.chat_interaction.chat_panel_fullscreen = false;
     app.git.git_diff_fullscreen = false;
 
     let without_code_panels = {
@@ -34,7 +34,7 @@ async fn work_layout_keeps_single_chat_surface_when_code_panels_are_enabled() {
 
     app.navigation_panels.show_diff = true;
     app.file_manager.show_file_manager = true;
-    app.chat_panel_fullscreen = true;
+    app.chat_interaction.chat_panel_fullscreen = true;
     app.git.git_diff_fullscreen = true;
 
     let with_code_panels = {
@@ -56,7 +56,7 @@ async fn work_layout_renders_matching_backgrounds_in_dark_and_light_themes() {
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
     app.navigation_mode.workspace_mode = WorkspaceMode::Work;
-    app.active_theme_skin = None;
+    app.appearance.active_theme_skin = None;
     app.terminal.is_visible = false;
     app.navigation_sidebar.work_sidebar_collapsed = false;
     app.layout_drag.work_sidebar_width = 280.0;
@@ -64,7 +64,7 @@ async fn work_layout_renders_matching_backgrounds_in_dark_and_light_themes() {
     app.navigation_workspace.work_resource_mode = WorkResourceMode::Overview;
 
     for theme in [Theme::Dark, Theme::Light] {
-        app.app_theme = theme.clone();
+        app.appearance.app_theme = theme.clone();
         let mut element = super::super::view(&app);
         draw_element(&mut element, &mut renderer, &theme);
 
@@ -474,7 +474,7 @@ async fn terminal_fullscreen_toolbar_round_trips_workspace_layout() {
     let size = Size::new(240.0, 500.0);
     for theme in [Theme::Light, Theme::Dark] {
         for mode in [WorkspaceMode::Code, WorkspaceMode::Work] {
-            app.app_theme = theme.clone();
+            app.appearance.app_theme = theme.clone();
             app.navigation_mode.workspace_mode = mode;
             app.navigation_panels.show_diff = true;
             app.navigation_workspace.work_resources_visible = true;
@@ -520,14 +520,14 @@ fn terminal_toolbar_frame(
     );
     eprintln!(
         "{:?} / {:?}: terminal header y={header_y}, content={expected_content:?}",
-        app.navigation_mode.workspace_mode, app.app_theme
+        app.navigation_mode.workspace_mode, app.appearance.app_theme
     );
 
     let mut ui = UserInterface::build(view, size, Cache::new(), renderer);
-    let style = renderer::Style { text_color: app.app_theme.palette().text };
-    ui.draw(renderer, &app.app_theme, &style, Cursor::Unavailable);
+    let style = renderer::Style { text_color: app.appearance.app_theme.palette().text };
+    ui.draw(renderer, &app.appearance.app_theme, &style, Cursor::Unavailable);
     let pixel_size = Size::new(size.width as u32, size.height as u32);
-    let pixels = renderer.screenshot(pixel_size, 1.0, app.app_theme.palette().background);
+    let pixels = renderer.screenshot(pixel_size, 1.0, app.appearance.app_theme.palette().background);
     assert_eq!(pixels.len(), (pixel_size.width * pixel_size.height * 4) as usize);
 
     if !click {
@@ -547,7 +547,7 @@ fn terminal_toolbar_frame(
     );
     assert_eq!(scroll_status, [iced::event::Status::Captured]);
     let cursor = Cursor::Available(Point::new(size.width - 16.0, header_y as f32 + 17.0));
-    ui.draw(renderer, &app.app_theme, &style, cursor);
+    ui.draw(renderer, &app.appearance.app_theme, &style, cursor);
     let _ = ui.update(
         &[
             Event::Mouse(MouseEvent::ButtonPressed(Button::Left)),

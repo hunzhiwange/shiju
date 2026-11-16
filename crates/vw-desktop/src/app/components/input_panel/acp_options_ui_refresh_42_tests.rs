@@ -70,7 +70,7 @@ fn isolated_exact(test: &str) -> bool {
 fn fixture() -> App {
     assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");
     let mut app = App::new().0;
-    app.active_session_id = Some("fixture-a".into());
+    app.session_state.active_session_id = Some("fixture-a".into());
     let runtime = app.current_session_runtime_mut();
     runtime.draft = Some(crate::app::state::SessionDraft {
         project_path: "/workspace".into(),
@@ -356,7 +356,7 @@ async fn ui_refresh_42_model_search_stays_visible_in_short_overlay() {
     let search = layout
         .inputs
         .iter()
-        .find(|(value, _)| value == I18n::new(app.desktop_locale).__("搜索模型…"))
+        .find(|(value, _)| value == I18n::new(app.general_settings.desktop_locale).__("搜索模型…"))
         .expect("search input is reachable above the composer")
         .1;
     let body = model_scroll(&layout).1;
@@ -405,11 +405,11 @@ async fn ui_refresh_42_close_modal_is_scoped_to_current_session() {
     let mut app = fixture();
     app.current_session_runtime_mut().acp_options_state.open = true;
     app.current_session_runtime_mut().acp_options_state.pending = true;
-    app.active_session_id = Some("fixture-b".into());
+    app.session_state.active_session_id = Some("fixture-b".into());
     app.current_session_runtime_mut().acp_options_state.open = true;
     let _ = chat::update(&mut app, ChatMessage::AcpOptionsClose);
     assert!(!app.current_session_runtime().acp_options_state.open);
-    app.active_session_id = Some("fixture-a".into());
+    app.session_state.active_session_id = Some("fixture-a".into());
     let runtime = app.current_session_runtime();
     assert!(runtime.acp_options_state.open && runtime.acp_options_state.pending);
     assert_eq!(runtime.acp_options_state.options.options[0].current, "fixture/backend-value-1");
@@ -531,7 +531,7 @@ pub(in crate::app::components::input_panel) async fn verify_effort_entry(test: &
         app.current_session_runtime().acp_options_state.options.options[0].current,
         "fixture/backend-value-1"
     );
-    assert_eq!(app.active_toast.as_ref().unwrap().message, "fixture rejection");
+    assert_eq!(app.toast_state.active_toast.as_ref().unwrap().message, "fixture rejection");
     let mut ui = scene(with_modal(&app, panel()), &mut renderer, size);
     assert!(matches!(
         key(&mut ui, &mut renderer, Point::ORIGIN, Key::Named(Named::Escape), None).as_slice(),

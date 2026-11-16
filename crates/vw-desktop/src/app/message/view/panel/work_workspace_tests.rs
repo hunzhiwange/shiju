@@ -24,10 +24,10 @@ fn code_layout_snapshot(app: &App) -> CodeLayoutSnapshot {
         show_diff: app.navigation_panels.show_diff,
         show_file_manager: app.file_manager.show_file_manager,
         split_ratio: app.layout_drag.split_ratio,
-        chat_panel_fullscreen: app.chat_panel_fullscreen,
-        chat_panel_half_fullscreen: app.chat_panel_half_fullscreen,
+        chat_panel_fullscreen: app.chat_interaction.chat_panel_fullscreen,
+        chat_panel_half_fullscreen: app.chat_interaction.chat_panel_half_fullscreen,
         git_diff_fullscreen: app.git.git_diff_fullscreen,
-        show_preview_fullscreen_overlay: app.show_preview_fullscreen_overlay,
+        show_preview_fullscreen_overlay: app.preview_state.show_preview_fullscreen_overlay,
         terminal_visible: app.terminal.is_visible,
         terminal_height: app.terminal.height,
         settings_panel_width: app.layout_drag.settings_panel_width,
@@ -41,10 +41,10 @@ fn work_workspace_messages_preserve_code_layout_preferences() {
     app.navigation_panels.show_diff = false;
     app.file_manager.show_file_manager = false;
     app.layout_drag.split_ratio = 0.37;
-    app.chat_panel_fullscreen = true;
-    app.chat_panel_half_fullscreen = true;
+    app.chat_interaction.chat_panel_fullscreen = true;
+    app.chat_interaction.chat_panel_half_fullscreen = true;
     app.git.git_diff_fullscreen = true;
-    app.show_preview_fullscreen_overlay = true;
+    app.preview_state.show_preview_fullscreen_overlay = true;
     app.terminal.is_visible = true;
     app.terminal.height = 333.0;
     app.layout_drag.settings_panel_width = 451.0;

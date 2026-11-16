@@ -50,10 +50,10 @@ fn archived_chats_restore_routes_sync_caches_without_navigation_and_rejects_late
         sessions: vec![row.clone()],
         ..Default::default()
     };
-    app.sessions = vec![row.clone(), info("other", "q", "Other", 8)];
-    app.project_sessions.insert("/non-current".into(), vec![row.clone()]);
-    app.archived_session_ids.extend(["a".into(), "other".into()]);
-    app.active_session_id = Some("other".into());
+    app.session_state.sessions = vec![row.clone(), info("other", "q", "Other", 8)];
+    app.workspace_state.project_sessions.insert("/non-current".into(), vec![row.clone()]);
+    app.session_state.archived_session_ids.extend(["a".into(), "other".into()]);
+    app.session_state.active_session_id = Some("other".into());
     app.navigation_tabs.project_path = Some("/current".into());
     let send =
         |app: &mut App, message| super::super::update(app, SettingsMessage::ArchivedChats(message));
@@ -63,8 +63,8 @@ fn archived_chats_restore_routes_sync_caches_without_navigation_and_rejects_late
             .is_none()
     );
     let _ = send(&mut app, restored(&current, Err("fixture failure".into())));
-    assert!(app.active_toast.is_some());
-    assert!(app.sessions[0].time.archived.is_some());
+    assert!(app.toast_state.active_toast.is_some());
+    assert!(app.session_state.sessions[0].time.archived.is_some());
     assert_eq!(app.archived_chats.sessions.len(), 1);
     let _ = send(&mut app, ArchivedChatsMessage::Restore("a".into()));
     let generation = app.archived_chats.restore_requests["a"];
@@ -79,12 +79,12 @@ fn archived_chats_restore_routes_sync_caches_without_navigation_and_rejects_late
             result: Ok(row.clone()),
         },
     );
-    assert_eq!(app.sessions[0].title, "Persisted title");
-    assert!(app.sessions[0].time.archived.is_none());
-    assert!(app.project_sessions["/non-current"][0].time.archived.is_none());
-    assert!(!app.archived_session_ids.contains("a"));
-    assert!(app.archived_session_ids.contains("other"));
-    assert_eq!(app.active_session_id.as_deref(), Some("other"));
+    assert_eq!(app.session_state.sessions[0].title, "Persisted title");
+    assert!(app.session_state.sessions[0].time.archived.is_none());
+    assert!(app.workspace_state.project_sessions["/non-current"][0].time.archived.is_none());
+    assert!(!app.session_state.archived_session_ids.contains("a"));
+    assert!(app.session_state.archived_session_ids.contains("other"));
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("other"));
     assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/current"));
     assert!(app.archived_chats.sessions.is_empty());
     let generation = app.archived_chats.request_generation;
@@ -96,7 +96,7 @@ fn archived_chats_restore_routes_sync_caches_without_navigation_and_rejects_late
             result: Ok(("/stale".into(), vec![info("a", "p", "Old snapshot", 10)])),
         },
     );
-    assert!(!app.project_sessions.contains_key("/stale"));
+    assert!(!app.workspace_state.project_sessions.contains_key("/stale"));
     let _ = send(
         &mut app,
         ArchivedChatsMessage::ProjectRefreshed {
@@ -105,7 +105,7 @@ fn archived_chats_restore_routes_sync_caches_without_navigation_and_rejects_late
             result: Ok(("/uncached".into(), vec![row.clone()])),
         },
     );
-    assert!(app.project_sessions["/uncached"][0].time.archived.is_none());
+    assert!(app.workspace_state.project_sessions["/uncached"][0].time.archived.is_none());
     let mut old = current.clone();
     old.auth_fingerprint = [1; 32];
     let _ = send(
@@ -116,7 +116,7 @@ fn archived_chats_restore_routes_sync_caches_without_navigation_and_rejects_late
             result: Ok(("/foreign".into(), vec![row.clone()])),
         },
     );
-    assert!(!app.project_sessions.contains_key("/foreign"));
+    assert!(!app.workspace_state.project_sessions.contains_key("/foreign"));
     row.title = "Foreign".into();
     let _ = send(
         &mut app,
@@ -127,7 +127,7 @@ fn archived_chats_restore_routes_sync_caches_without_navigation_and_rejects_late
             result: Ok(row),
         },
     );
-    assert_eq!(app.sessions[0].title, "Persisted title");
+    assert_eq!(app.session_state.sessions[0].title, "Persisted title");
 }
 
 pub(crate) fn info(id: &str, project: &str, title: &str, updated: i64) -> Info {
@@ -267,18 +267,18 @@ fn archived_chats_delete_routes_cleanup_only_after_success() {
         ..Default::default()
     };
     app.archived_chats.sessions[1].parent_id = Some("a".into());
-    app.sessions = rows.clone();
-    app.project_sessions.insert("/p".into(), rows);
-    app.active_session_id = Some("child".into());
+    app.session_state.sessions = rows.clone();
+    app.workspace_state.project_sessions.insert("/p".into(), rows);
+    app.session_state.active_session_id = Some("child".into());
     for id in ["a", "child", "other"] {
-        app.session_runtime_states.insert(id.into(), Default::default());
-        app.session_previews.insert(id.into(), "cached".into());
-        app.session_chat_cache.insert(id.into(), crate::app::session::shared_chat_messages(vec![]));
-        app.session_chat_message_id_cache.insert(id.into(), vec![]);
-        app.archived_session_ids.insert(id.into());
+        app.session_state.session_runtime_states.insert(id.into(), Default::default());
+        app.session_state.session_previews.insert(id.into(), "cached".into());
+        app.session_state.session_chat_cache.insert(id.into(), crate::app::session::shared_chat_messages(vec![]));
+        app.session_state.session_chat_message_id_cache.insert(id.into(), vec![]);
+        app.session_state.archived_session_ids.insert(id.into());
         let snapshot = crate::app::session::view_cache::SessionViewSnapshot::take_from(&mut app);
-        let _ = app.session_view_cache.insert(id.into(), snapshot);
-        assert!(app.session_view_cache.contains(id));
+        let _ = app.session_state.session_view_cache.insert(id.into(), snapshot);
+        assert!(app.session_state.session_view_cache.contains(id));
     }
     let send =
         |app: &mut App, message| super::super::update(app, SettingsMessage::ArchivedChats(message));
@@ -293,7 +293,7 @@ fn archived_chats_delete_routes_cleanup_only_after_success() {
         iced_runtime::task::into_stream(send(&mut app, ArchivedChatsMessage::DeleteCancelled))
             .is_none()
     );
-    assert_eq!(app.sessions.len(), 3);
+    assert_eq!(app.session_state.sessions.len(), 3);
     let _ = send(&mut app, ArchivedChatsMessage::DeleteRequested("a".into()));
     let _ = send(&mut app, ArchivedChatsMessage::DeleteConfirmed);
     assert!(
@@ -301,7 +301,7 @@ fn archived_chats_delete_routes_cleanup_only_after_success() {
             .is_none()
     );
     let generation = app.archived_chats.delete_generation.unwrap();
-    assert_eq!(app.sessions.len(), 3);
+    assert_eq!(app.session_state.sessions.len(), 3);
     let _ = send(
         &mut app,
         ArchivedChatsMessage::Deleted {
@@ -311,8 +311,8 @@ fn archived_chats_delete_routes_cleanup_only_after_success() {
             result: Err("fixture partial failure".into()),
         },
     );
-    assert!(app.active_toast.is_some());
-    assert_eq!(app.sessions.len(), 3);
+    assert!(app.toast_state.active_toast.is_some());
+    assert_eq!(app.session_state.sessions.len(), 3);
     assert!(app.archived_chats.loading);
     let generation = app.archived_chats.request_generation;
     let rows =
@@ -322,10 +322,10 @@ fn archived_chats_delete_routes_cleanup_only_after_success() {
         ArchivedChatsMessage::Loaded { identity: current.clone(), generation, result: Ok(rows) },
     );
     assert!(app.archived_chats.delete_confirmation.is_some());
-    assert_eq!(app.sessions.len(), 2);
-    assert!(!app.session_runtime_states.contains_key("child"));
-    assert!(!app.session_view_cache.contains("child"));
-    assert!(app.active_session_id.is_none());
+    assert_eq!(app.session_state.sessions.len(), 2);
+    assert!(!app.session_state.session_runtime_states.contains_key("child"));
+    assert!(!app.session_state.session_view_cache.contains("child"));
+    assert!(app.session_state.active_session_id.is_none());
     let _ = send(&mut app, ArchivedChatsMessage::DeleteConfirmed);
     let generation = app.archived_chats.delete_generation.unwrap();
     let _ = send(
@@ -337,20 +337,20 @@ fn archived_chats_delete_routes_cleanup_only_after_success() {
             result: Ok(vec!["child".into(), "a".into()]),
         },
     );
-    assert!(app.active_toast.is_some());
-    assert!(app.active_session_id.is_none());
-    assert!(app.chat.is_empty());
-    assert_eq!(app.sessions.len(), 1);
-    assert_eq!(app.project_sessions["/p"].len(), 1);
+    assert!(app.toast_state.active_toast.is_some());
+    assert!(app.session_state.active_session_id.is_none());
+    assert!(app.chat_view.chat.is_empty());
+    assert_eq!(app.session_state.sessions.len(), 1);
+    assert_eq!(app.workspace_state.project_sessions["/p"].len(), 1);
     for id in ["a", "child"] {
-        assert!(!app.session_runtime_states.contains_key(id));
-        assert!(!app.session_view_cache.contains(id));
-        assert!(!app.session_chat_cache.contains_key(id));
-        assert!(!app.session_chat_message_id_cache.contains_key(id));
-        assert!(!app.session_previews.contains_key(id));
-        assert!(!app.archived_session_ids.contains(id));
+        assert!(!app.session_state.session_runtime_states.contains_key(id));
+        assert!(!app.session_state.session_view_cache.contains(id));
+        assert!(!app.session_state.session_chat_cache.contains_key(id));
+        assert!(!app.session_state.session_chat_message_id_cache.contains_key(id));
+        assert!(!app.session_state.session_previews.contains_key(id));
+        assert!(!app.session_state.archived_session_ids.contains(id));
     }
-    assert!(app.session_runtime_states.contains_key("other"));
+    assert!(app.session_state.session_runtime_states.contains_key("other"));
 
     // If the failure refresh also fails, a retry may report only the root:
     // reconcile the previously committed child against a new complete snapshot.
@@ -363,8 +363,8 @@ fn archived_chats_delete_routes_cleanup_only_after_success() {
         sessions: vec![root.clone(), child.clone()],
         ..Default::default()
     };
-    app.sessions.extend([root, child]);
-    app.session_runtime_states.insert("nested".into(), Default::default());
+    app.session_state.sessions.extend([root, child]);
+    app.session_state.session_runtime_states.insert("nested".into(), Default::default());
     let _ = send(&mut app, ArchivedChatsMessage::DeleteRequested("b".into()));
     let _ = send(&mut app, ArchivedChatsMessage::DeleteConfirmed);
     let generation = app.archived_chats.delete_generation.unwrap();
@@ -388,7 +388,7 @@ fn archived_chats_delete_routes_cleanup_only_after_success() {
     );
     let _ = send(&mut app, ArchivedChatsMessage::DeleteConfirmed);
     let generation = app.archived_chats.delete_generation.unwrap();
-    let navigation_generation = app.session_view_cache.navigation_generation;
+    let navigation_generation = app.session_state.session_view_cache.navigation_generation;
     let _ = send(
         &mut app,
         ArchivedChatsMessage::Deleted {
@@ -399,9 +399,9 @@ fn archived_chats_delete_routes_cleanup_only_after_success() {
         },
     );
     assert!(app.archived_chats.loading);
-    assert!(app.session_view_cache.navigation_generation > navigation_generation);
+    assert!(app.session_state.session_view_cache.navigation_generation > navigation_generation);
     let from_project = app.navigation_tabs.project_path.clone();
-    let from_session = app.active_session_id.clone();
+    let from_session = app.session_state.active_session_id.clone();
     let _ = crate::app::message::project::update(
         &mut app,
         crate::app::message::project::ProjectMessage::SessionNavigationResolved {
@@ -411,7 +411,7 @@ fn archived_chats_delete_routes_cleanup_only_after_success() {
             destination: Some(("/fixture/p".into(), Box::new(info("b", "p", "Deleted", 10)))),
         },
     );
-    assert!(app.active_session_id.is_none());
+    assert!(app.session_state.active_session_id.is_none());
     let generation = app.archived_chats.request_generation;
     let _ = send(
         &mut app,
@@ -421,6 +421,6 @@ fn archived_chats_delete_routes_cleanup_only_after_success() {
             result: Ok(vec![info("other", "q", "Other", 8)]),
         },
     );
-    assert_eq!(app.sessions.len(), 1);
-    assert!(!app.session_runtime_states.contains_key("nested"));
+    assert_eq!(app.session_state.sessions.len(), 1);
+    assert!(!app.session_state.session_runtime_states.contains_key("nested"));
 }

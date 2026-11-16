@@ -27,16 +27,16 @@ fn help<'a>(i18n: I18n, theme: &Theme, title: &'a str, description: &'a str, wid
 }
 fn state(app: &App) -> ViewState<'_> {
     ViewState {
-        project_path: &app.navigation_tabs.project_path, project_worktree_enabled: &app.project_worktree_enabled,
-        project_tools_menu_path: &app.project_tools_menu_path, recent_projects: &app.recent_projects,
-        recent_projects_edits: &app.recent_projects_edits, recent_project_delete_confirm_idx: app.recent_project_delete_confirm_idx,
-        recent_project_query: &app.recent_project_query, desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        project_path: &app.navigation_tabs.project_path, project_worktree_enabled: &app.workspace_state.project_worktree_enabled,
+        project_tools_menu_path: &app.workspace_state.project_tools_menu_path, recent_projects: &app.workspace_state.recent_projects,
+        recent_projects_edits: &app.workspace_state.recent_projects_edits, recent_project_delete_confirm_idx: app.workspace_state.recent_project_delete_confirm_idx,
+        recent_project_query: &app.workspace_state.recent_project_query, desktop_locale: app.general_settings.desktop_locale,
+        app_theme: &app.appearance.app_theme,
     }
 }
 pub fn view(app: &App) -> Element<'_, Message> {
     let appearance = |path: &str| {
-        let meta = app.recent_projects_meta.iter().find(|meta| meta.path == path);
+        let meta = app.workspace_state.recent_projects_meta.iter().find(|meta| meta.path == path);
         (meta.and_then(|meta| meta.icon.as_deref()), meta.and_then(|meta| meta.icon_color.as_deref()))
     };
     domain::view(&state(app), message, avatar, help, &appearance)

@@ -35,26 +35,26 @@ fn session_info(id: &str) -> session_info::Info {
 #[test]
 fn reload_sessions_for_project_clears_current_session_state_before_loading() {
     let (mut app, _startup_task) = crate::app::App::new();
-    app.session_previews.insert("session-1".to_string(), "preview".to_string());
-    app.archived_session_ids.insert("session-1".to_string());
-    app.sessions.push(session_info("session-1"));
-    app.active_session_id = Some("session-1".to_string());
-    app.chat.push(message(ChatRole::User, "stale message"));
-    app.usage =
+    app.session_state.session_previews.insert("session-1".to_string(), "preview".to_string());
+    app.session_state.archived_session_ids.insert("session-1".to_string());
+    app.session_state.sessions.push(session_info("session-1"));
+    app.session_state.active_session_id = Some("session-1".to_string());
+    app.chat_view.chat.push(message(ChatRole::User, "stale message"));
+    app.chat_view.usage =
         TokenUsage { input_tokens: 10, output_tokens: 20, cached_tokens: 3, reasoning_tokens: 4 };
-    app.chat_visible_text_cache.push(Some("stale text".to_string()));
-    app.chat_message_expanded.insert(0);
+    app.chat_view.chat_visible_text_cache.push(Some("stale text".to_string()));
+    app.chat_view.chat_message_expanded.insert(0);
 
     let _reload_task = app.reload_sessions_for_project(None);
 
-    assert!(app.session_previews.is_empty());
-    assert!(app.archived_session_ids.is_empty());
-    assert!(app.sessions.is_empty());
-    assert_eq!(app.active_session_id, None);
-    assert!(app.chat.is_empty());
-    assert_eq!(app.usage, TokenUsage::default());
-    assert!(app.chat_visible_text_cache.is_empty());
-    assert!(app.chat_message_expanded.is_empty());
+    assert!(app.session_state.session_previews.is_empty());
+    assert!(app.session_state.archived_session_ids.is_empty());
+    assert!(app.session_state.sessions.is_empty());
+    assert_eq!(app.session_state.active_session_id, None);
+    assert!(app.chat_view.chat.is_empty());
+    assert_eq!(app.chat_view.usage, TokenUsage::default());
+    assert!(app.chat_view.chat_visible_text_cache.is_empty());
+    assert!(app.chat_view.chat_message_expanded.is_empty());
 }
 
 #[test]
@@ -65,5 +65,5 @@ fn reload_sessions_for_project_with_path_returns_runnable_task() {
     let reload_task = app.reload_sessions_for_project(Some(project_path.clone()));
 
     assert!(iced_runtime::task::into_stream(reload_task.collect()).is_some());
-    assert!(app.project_sessions_loading.contains(&project_path));
+    assert!(app.workspace_state.project_sessions_loading.contains(&project_path));
 }

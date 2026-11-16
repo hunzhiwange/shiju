@@ -5,10 +5,10 @@ pub(super) fn nav_popup_item_message(parent: &str, name: &str, is_dir: bool) -> 
     map_message(desktop_editor::components::preview_panel::view::menus::nav_popup_item_message(parent, name, is_dir))
 }
 pub fn build_menu_ui(app: &App) -> Element<'_, Message> {
-    let exists = app.preview_context_target.as_ref().is_some_and(|(path, ..)| app.navigation_tabs.preview_tabs.iter().any(|tab| &tab.path == path));
+    let exists = app.preview_state.preview_context_target.as_ref().is_some_and(|(path, ..)| app.navigation_tabs.preview_tabs.iter().any(|tab| &tab.path == path));
     desktop_editor::components::preview_panel::view::menus::build_menu_ui(
-        app.show_preview_context_menu && app.preview_context_target.is_some() && app.preview_context_menu_pos.is_some(),
-        exists, desktop_i18n::I18n::new(app.desktop_locale), app.preview_nav_popup.as_ref(),
+        app.preview_state.show_preview_context_menu && app.preview_state.preview_context_target.is_some() && app.preview_state.preview_context_menu_pos.is_some(),
+        exists, desktop_i18n::I18n::new(app.general_settings.desktop_locale), app.preview_state.preview_nav_popup.as_ref(),
     ).map(map_message)
 }
 fn map_message(action: desktop_editor::components::preview_panel::view::MenuMessage) -> Message {

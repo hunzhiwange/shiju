@@ -13,24 +13,24 @@ pub(crate) fn flush_running_task_logs_throttled(
 ) {
     let project_path = app.navigation_tabs.project_path.clone();
     let mut logs = desktop_task_board::helpers::logs::TaskLogsState {
-        task_board_logs_editor: &mut app.task_board_logs_editor,
-        task_board_logs_auto_scroll: &mut app.task_board_logs_auto_scroll,
-        task_board_logs_scroll_top_line: &mut app.task_board_logs_scroll_top_line,
-        task_board_logs_scroll_remainder: &mut app.task_board_logs_scroll_remainder,
-        task_board_logs_viewport_height: &mut app.task_board_logs_viewport_height,
-        current_line_height: &mut app.current_line_height,
-        desktop_locale: &mut app.desktop_locale,
-        task_board_log_cache: &mut app.task_board_log_cache,
-        task_board_tasks: &mut app.task_board_tasks,
-        task_board_viewing_logs: &mut app.task_board_viewing_logs,
-        task_board_logs_context_menu_open: &mut app.task_board_logs_context_menu_open,
-        task_board_logs_context_menu_pos: &mut app.task_board_logs_context_menu_pos,
+        task_board_logs_editor: &mut app.task_board.task_board_logs_editor,
+        task_board_logs_auto_scroll: &mut app.task_board.task_board_logs_auto_scroll,
+        task_board_logs_scroll_top_line: &mut app.task_board.task_board_logs_scroll_top_line,
+        task_board_logs_scroll_remainder: &mut app.task_board.task_board_logs_scroll_remainder,
+        task_board_logs_viewport_height: &mut app.task_board.task_board_logs_viewport_height,
+        current_line_height: &mut app.preview_state.current_line_height,
+        desktop_locale: &mut app.general_settings.desktop_locale,
+        task_board_log_cache: &mut app.task_board.task_board_log_cache,
+        task_board_tasks: &mut app.task_board.task_board_tasks,
+        task_board_viewing_logs: &mut app.task_board.task_board_viewing_logs,
+        task_board_logs_context_menu_open: &mut app.task_board.task_board_logs_context_menu_open,
+        task_board_logs_context_menu_pos: &mut app.task_board.task_board_logs_context_menu_pos,
     };
     desktop_task_board::helpers::execution::flush_running_task_logs_throttled(
         &mut logs,
-        &mut app.task_board_executor,
-        &mut app.task_board_log_scan_cursor,
-        &mut app.task_board_last_log_flush_at_ms,
+        &mut app.task_board.task_board_executor,
+        &mut app.task_board.task_board_log_scan_cursor,
+        &mut app.task_board.task_board_last_log_flush_at_ms,
         force,
         tick_started_at,
         |task| {
@@ -356,10 +356,10 @@ pub(crate) fn schedule_worktree_pool_maintenance(
     use crate::app::Message;
 
     let Some(desired_capacity) = desktop_task_board::update::worktree::begin_maintenance(
-        &mut app.task_board_worktree_maintenance_in_flight,
-        app.task_board_worktree_manual_action_kind,
-        app.task_board_worktree_desired_capacity,
-        app.task_board_settings.max_concurrent,
+        &mut app.task_board.task_board_worktree_maintenance_in_flight,
+        app.task_board.task_board_worktree_manual_action_kind,
+        app.task_board.task_board_worktree_desired_capacity,
+        app.task_board.task_board_settings.max_concurrent,
     ) else {
         return iced::Task::none();
     };
@@ -398,7 +398,7 @@ pub(crate) fn maybe_schedule_worktree_snapshot_refresh(
     use crate::app::Message;
 
     let project_path = app.navigation_tabs.project_path.clone();
-    let expanded = app.task_board_worktree_panel_expanded;
+    let expanded = app.task_board.task_board_worktree_panel_expanded;
     if !snapshot_state(app).request(project_path.as_deref(), expanded, force, now_ms()) {
         return iced::Task::none();
     }
@@ -475,8 +475,8 @@ pub(crate) fn snapshot_state(
     app: &mut crate::app::App,
 ) -> desktop_task_board::update::worktree::SnapshotState<'_> {
     desktop_task_board::update::worktree::SnapshotState {
-        snapshot: &mut app.task_board_worktree_snapshot,
-        loading: &mut app.task_board_worktree_snapshot_loading,
-        last_refresh: &mut app.task_board_last_worktree_snapshot_at_ms,
+        snapshot: &mut app.task_board.task_board_worktree_snapshot,
+        loading: &mut app.task_board.task_board_worktree_snapshot_loading,
+        last_refresh: &mut app.task_board.task_board_last_worktree_snapshot_at_ms,
     }
 }

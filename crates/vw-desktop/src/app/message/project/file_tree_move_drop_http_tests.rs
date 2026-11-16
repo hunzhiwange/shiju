@@ -112,7 +112,7 @@ async fn file_tree_move_drop_http_counts_requests_for_both_release_orders_and_co
     for scenario in 0..3 {
         let mut app = App::new().0;
         app.navigation_tabs.project_path = Some(root.clone());
-        app.lsp_disabled = true;
+        app.preview_state.lsp_disabled = true;
         let source = format!("{root}/a.txt");
         let mut tab = super::preview_tab(&source);
         tab.content = "unsaved".into();
@@ -184,14 +184,14 @@ async fn file_tree_move_drop_http_counts_requests_for_both_release_orders_and_co
         assert!(app.navigation_tabs.preview_tabs[0].is_dirty);
         assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), "unsaved");
         if scenario == 2 {
-            assert!(app.active_toast.as_ref().unwrap().message.contains("destination exists"));
+            assert!(app.toast_state.active_toast.as_ref().unwrap().message.contains("destination exists"));
         }
         assert!(!app.file_tree_interaction.file_tree_operation_in_progress);
         assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
     }
     let mut app = App::new().0;
     app.navigation_tabs.project_path = Some(root.clone());
-    app.lsp_disabled = true;
+    app.preview_state.lsp_disabled = true;
     let sources = ["a.txt", "b.txt", "c.txt"].map(|path| format!("{root}/{path}"));
     app.set_file_index(&root, sources.to_vec());
     for path in &sources {
@@ -230,7 +230,7 @@ async fn file_tree_move_drop_http_counts_requests_for_both_release_orders_and_co
     assert!(app.file_tree_interaction.file_tree_selection.contains(&root, &format!("{root}/dst/a.txt")));
     assert!(app.file_tree_interaction.file_tree_selection.contains(&root, &sources[1]));
     assert!(app.file_tree_interaction.file_tree_selection.contains(&root, &format!("{root}/dst/c.txt")));
-    assert!(app.active_toast.as_ref().unwrap().message.contains("destination exists"));
+    assert!(app.toast_state.active_toast.as_ref().unwrap().message.contains("destination exists"));
     assert!(!app.file_tree_interaction.file_tree_operation_in_progress);
     assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
     let requests = server.join().unwrap();

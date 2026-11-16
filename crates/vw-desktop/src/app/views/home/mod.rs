@@ -6,10 +6,10 @@ use crate::app::{App, Message, message};
 
 pub fn view(app: &App) -> iced::Element<'_, Message> {
     let state = desktop_navigation::views::home::recent::State {
-        desktop_locale: app.desktop_locale,
-        recent_projects: &app.recent_projects,
-        recent_projects_edits: &app.recent_projects_edits,
-        recent_projects_meta: &app.recent_projects_meta,
+        desktop_locale: app.general_settings.desktop_locale,
+        recent_projects: &app.workspace_state.recent_projects,
+        recent_projects_edits: &app.workspace_state.recent_projects_edits,
+        recent_projects_meta: &app.workspace_state.recent_projects_meta,
         project_path: app.navigation_tabs.project_path.as_deref(),
     };
     desktop_navigation::views::home::view(&state, app.navigation_tabs.home_apps_bar_scroll_id.clone())

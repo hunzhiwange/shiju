@@ -5,15 +5,15 @@ use desktop_navigation::panel::work_sidebar as domain;
 
 pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     if matches!(message, ViewMessage::WorkProjectHome) {
-        if domain::project_home(app.navigation_tabs.screen, app.navigation_tabs.project_path.is_some(), app.active_session_id.is_some(), &mut app.navigation_workspace) {
+        if domain::project_home(app.navigation_tabs.screen, app.navigation_tabs.project_path.is_some(), app.session_state.active_session_id.is_some(), &mut app.navigation_workspace) {
             app.stash_active_session_view();
-            app.active_session_id = None;
+            app.session_state.active_session_id = None;
             // The stash may retain the view in place when it exceeds cache capacity.
-            app.chat.clear();
-            app.chat_message_ids.clear();
-            app.usage = Default::default();
-            app.active_session_view_state = Default::default();
-            app.chat_panel_mode = Default::default();
+            app.chat_view.chat.clear();
+            app.chat_view.chat_message_ids.clear();
+            app.chat_view.usage = Default::default();
+            app.chat_view.active_session_view_state = Default::default();
+            app.chat_view.chat_panel_mode = Default::default();
             app.invalidate_chat_ui_state();
         }
         return Task::none();

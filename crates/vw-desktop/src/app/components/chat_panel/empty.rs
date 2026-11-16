@@ -6,11 +6,11 @@ use iced::Element;
 
 pub fn session_loading_placeholder(app: &App) -> Element<'_, Message> {
     desktop_chat_view::empty::session_loading_placeholder(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("正在恢复会话"),
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale).__("正在恢复会话"),
     )
 }
 pub fn empty_session_placeholder(app: &App) -> Element<'_, Message> {
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
     #[cfg(not(target_arch = "wasm32"))]
     let name = app.account.active_account().and_then(|a| a.profile()).map(|p| p.name());
     #[cfg(target_arch = "wasm32")]
@@ -22,7 +22,7 @@ pub fn empty_session_placeholder(app: &App) -> Element<'_, Message> {
             chrono::Local::now().hour(),
             matches!(app.navigation_mode.workspace_mode, crate::app::state::WorkspaceMode::Work),
             current_project_path_label(app),
-            app.project_is_git_repo
+            app.workspace_state.project_is_git_repo
                 .then(|| (current_branch_label(app), relative_modified_label(app))),
         ),
     )

@@ -32,3 +32,17 @@ impl Feedback {
         }
     }
 }
+
+/// Localized input errors and generated session labels shared across host routes.
+#[derive(Default)]
+pub struct State {
+    /// 错误消息
+    pub error_message: Option<String>,
+    pub localized_input_errors: std::collections::BTreeMap<
+        crate::input::ErrorField,
+        crate::input::Feedback,
+    >,
+    /// 用于模型聊天时间上下文的 IANA 时区
+    pub generated_session_titles:
+        std::collections::HashMap<String, crate::input::Feedback>,
+}

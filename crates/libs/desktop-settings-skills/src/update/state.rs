@@ -100,3 +100,14 @@ impl Default for State {
         }
     }
 }
+
+pub fn build_skills_settings(
+    config: &config_skills::SkillsConfig,
+) -> crate::update::state::State {
+    crate::update::state::State {
+        auto_load_project_skills: config.auto_load_project_skills,
+        directory_provider: config.directory_provider,
+        prompt_injection_mode: config.prompt_injection_mode,
+        ..Default::default()
+    }
+}

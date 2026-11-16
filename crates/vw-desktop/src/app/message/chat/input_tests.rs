@@ -33,31 +33,31 @@ fn copy_hash(text: &str) -> u64 {
 #[test]
 fn copy_chat_message_resolves_current_session_text_on_press() {
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some("session-current".to_string());
-    app.chat.push(chat_entry(ChatRole::Assistant, "<think>hidden reasoning</think>visible answer"));
+    app.session_state.active_session_id = Some("session-current".to_string());
+    app.chat_view.chat.push(chat_entry(ChatRole::Assistant, "<think>hidden reasoning</think>visible answer"));
 
     let _ = crate::app::impls::copy_chat_message(&mut app, "session-current".to_string(), 0);
 
-    assert_eq!(app.last_copied_code_hash, Some(copy_hash("visible answer")));
+    assert_eq!(app.clipboard_state.last_copied_code_hash, Some(copy_hash("visible answer")));
 }
 
 #[test]
 fn stale_chat_message_action_does_not_copy_other_session() {
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some("session-new".to_string());
-    app.chat.push(chat_entry(ChatRole::Assistant, "other session text"));
+    app.session_state.active_session_id = Some("session-new".to_string());
+    app.chat_view.chat.push(chat_entry(ChatRole::Assistant, "other session text"));
 
     let _ = crate::app::impls::copy_chat_message(&mut app, "session-old".to_string(), 0);
 
-    assert_eq!(app.last_copied_code_hash, None);
-    assert!(app.last_copy_time.is_none());
+    assert_eq!(app.clipboard_state.last_copied_code_hash, None);
+    assert!(app.clipboard_state.last_copy_time.is_none());
 }
 
 #[test]
 fn chat_message_context_menu_resolves_visible_text_and_rejects_stale_session() {
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some("session-current".to_string());
-    app.chat.push(chat_entry(ChatRole::Assistant, "<think>hidden</think>visible"));
+    app.session_state.active_session_id = Some("session-current".to_string());
+    app.chat_view.chat.push(chat_entry(ChatRole::Assistant, "<think>hidden</think>visible"));
 
     let _ = super::update(
         &mut app,
@@ -69,9 +69,9 @@ fn chat_message_context_menu_resolves_visible_text_and_rejects_stale_session() {
             message_idx: 0,
         },
     );
-    assert_eq!(app.chat_context_menu.text, "visible");
+    assert_eq!(app.session_state.chat_context_menu.text, "visible");
 
-    app.chat_context_menu.text.clear();
+    app.session_state.chat_context_menu.text.clear();
     let _ = super::update(
         &mut app,
         ChatMessage::OpenChatMessageContextMenu {
@@ -82,7 +82,7 @@ fn chat_message_context_menu_resolves_visible_text_and_rejects_stale_session() {
             message_idx: 0,
         },
     );
-    assert!(app.chat_context_menu.text.is_empty());
+    assert!(app.session_state.chat_context_menu.text.is_empty());
 }
 
 async fn collect_task_messages(task: iced::Task<Message>) -> Vec<Message> {
@@ -115,42 +115,42 @@ fn input_changed_updates_legacy_input_text() {
 
     let _ = super::update(&mut app, ChatMessage::InputChanged("hello".to_string()));
 
-    assert_eq!(app.input_text, "hello");
+    assert_eq!(app.session_state.input_text, "hello");
 }
 
 #[test]
 fn agent_sessions_popover_toggle_requires_running_children_and_closes_when_list_clears() {
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some("parent".to_string());
+    app.session_state.active_session_id = Some("parent".to_string());
 
     let _ = super::update(&mut app, ChatMessage::ToggleAgentSessionsPopover);
-    assert!(!app.input_popovers.agent_sessions);
+    assert!(!app.session_state.input_popovers.agent_sessions);
 
-    app.chat.push(running_child("parent", "child"));
+    app.chat_view.chat.push(running_child("parent", "child"));
     let _ = super::update(&mut app, ChatMessage::ToggleAgentSessionsPopover);
-    assert!(app.input_popovers.agent_sessions);
+    assert!(app.session_state.input_popovers.agent_sessions);
 
-    app.chat.push(chat_entry(
+    app.chat_view.chat.push(chat_entry(
         ChatRole::Assistant,
         r#"tool AgentTool
 {"status":"completed","output":"{\"session_id\":\"child\",\"agent\":\"writer\",\"task\":\"build badge\"}"}"#,
     ));
     let _ = super::update(&mut app, ChatMessage::InputChanged(String::new()));
-    assert!(!app.input_popovers.agent_sessions);
+    assert!(!app.session_state.input_popovers.agent_sessions);
 }
 
 #[test]
 fn agent_sessions_popover_closes_when_parent_session_changes() {
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some("parent".to_string());
-    app.chat.push(running_child("parent", "child"));
+    app.session_state.active_session_id = Some("parent".to_string());
+    app.chat_view.chat.push(running_child("parent", "child"));
 
     let _ = super::update(&mut app, ChatMessage::ToggleAgentSessionsPopover);
-    assert!(app.input_popovers.agent_sessions);
+    assert!(app.session_state.input_popovers.agent_sessions);
 
-    app.active_session_id = Some("other-parent".to_string());
+    app.session_state.active_session_id = Some("other-parent".to_string());
     let _ = super::update(&mut app, ChatMessage::InputChanged(String::new()));
-    assert!(!app.input_popovers.agent_sessions);
+    assert!(!app.session_state.input_popovers.agent_sessions);
 }
 
 #[test]
@@ -158,7 +158,7 @@ fn agent_sessions_popover_stop_rejects_missing_and_mismatched_plan_run_targets()
     let (mut app, _) = crate::app::App::new();
 
     let _ = super::update(&mut app, ChatMessage::StopPlanRun(" \t ".to_string()));
-    assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("task ID 为空")));
+    assert!(app.toast_state.active_toast.as_ref().is_some_and(|toast| toast.message.contains("task ID 为空")));
 
     let _ = super::update(
         &mut app,
@@ -173,14 +173,14 @@ fn agent_sessions_popover_stop_rejects_missing_and_mismatched_plan_run_targets()
         },
     );
     assert!(
-        app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("响应任务不匹配"))
+        app.toast_state.active_toast.as_ref().is_some_and(|toast| toast.message.contains("响应任务不匹配"))
     );
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
     let (mut app, _) = crate::app::App::new();
-    app.quick_messages = vec![
+    app.general_settings.quick_messages = vec![
         config_ui::QuickMessageConfig {
             text: "继续推进".to_string(),
             group: config_ui::QuickMessageGroup::General,
@@ -215,8 +215,8 @@ async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
     assert!(collect_task_messages(fill_task).await.is_empty());
 
     app.navigation_tabs.project_path = Some("/workspace/project".to_string());
-    app.active_session_id = Some("session-1".to_string());
-    app.sessions.push(session_info::Info {
+    app.session_state.active_session_id = Some("session-1".to_string());
+    app.session_state.sessions.push(session_info::Info {
         id: "session-1".to_string(),
         slug: "session-1".to_string(),
         project_id: "project-1".to_string(),
@@ -236,9 +236,9 @@ async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
         fork_execution_started: None,
         revert: None,
     });
-    app.input_popovers.quick_message_group = Some(config_ui::QuickMessageGroup::Git);
+    app.session_state.input_popovers.quick_message_group = Some(config_ui::QuickMessageGroup::Git);
     let create_task = super::update(&mut app, ChatMessage::QuickMessageSelected(2));
-    assert_eq!(app.input_popovers.quick_message_group, None);
+    assert_eq!(app.session_state.input_popovers.quick_message_group, None);
     assert!(matches!(
         collect_task_messages(create_task).await.as_slice(),
         [Message::Project(message::ProjectMessage::ProjectCreateSession(path))]
@@ -260,7 +260,7 @@ async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
             .iter()
             .all(|message| !matches!(message, Message::Project(_)))
     );
-    assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("打开项目")));
+    assert!(app.toast_state.active_toast.as_ref().is_some_and(|toast| toast.message.contains("打开项目")));
 
     let out_of_bounds_task = super::update(&mut app, ChatMessage::QuickMessageSelected(99));
     assert!(collect_task_messages(out_of_bounds_task).await.is_empty());
@@ -272,7 +272,7 @@ async fn quick_message_git_actions_reuse_panel_workflows_and_validate_empty_stat
 
     let (mut app, _) = crate::app::App::new();
     app.navigation_tabs.project_path = Some("/workspace/project".to_string());
-    app.quick_messages = [
+    app.general_settings.quick_messages = [
         QuickMessageKind::RefreshGitChanges,
         QuickMessageKind::SelectAllGitChanges,
         QuickMessageKind::InvertGitSelection,
@@ -340,7 +340,7 @@ async fn quick_message_git_actions_reuse_panel_workflows_and_validate_empty_stat
     let empty_selection =
         collect_task_messages(super::update(&mut app, ChatMessage::QuickMessageSelected(1))).await;
     assert!(empty_selection.iter().all(|message| !matches!(message, Message::Git(_))));
-    assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("没有可选择")));
+    assert!(app.toast_state.active_toast.as_ref().is_some_and(|toast| toast.message.contains("没有可选择")));
 }
 
 #[test]
@@ -351,10 +351,10 @@ fn quick_message_group_click_opens_and_closes_dropdown_state() {
         &mut app,
         ChatMessage::QuickMessageGroupChanged(Some(config_ui::QuickMessageGroup::Git)),
     );
-    assert_eq!(app.input_popovers.quick_message_group, Some(config_ui::QuickMessageGroup::Git));
+    assert_eq!(app.session_state.input_popovers.quick_message_group, Some(config_ui::QuickMessageGroup::Git));
 
     let _ = super::update(&mut app, ChatMessage::QuickMessageGroupChanged(None));
-    assert_eq!(app.input_popovers.quick_message_group, None);
+    assert_eq!(app.session_state.input_popovers.quick_message_group, None);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -382,11 +382,11 @@ async fn shiju_skill_selection_validates_catalog_and_toggles_multiple_items() {
             upgrade_available: false,
         },
     ]);
-    app.input_popovers.quick_message_group = Some(config_ui::QuickMessageGroup::Git);
+    app.session_state.input_popovers.quick_message_group = Some(config_ui::QuickMessageGroup::Git);
 
     let load_task = super::update(&mut app, ChatMessage::ToggleShijuSkillMenu);
-    assert!(app.input_popovers.shiju_skill);
-    assert_eq!(app.input_popovers.quick_message_group, None);
+    assert!(app.session_state.input_popovers.shiju_skill);
+    assert_eq!(app.session_state.input_popovers.quick_message_group, None);
     let messages = collect_task_messages(load_task).await;
     assert_eq!(messages.len(), 2);
     assert!(messages.iter().any(|message| matches!(
@@ -400,7 +400,7 @@ async fn shiju_skill_selection_validates_catalog_and_toggles_multiple_items() {
 
     let _ = super::update(&mut app, ChatMessage::SelectShijuSkill(999));
     assert!(app.current_session_runtime().tool_selector.selected_shiju_skills().is_empty());
-    assert!(app.input_popovers.shiju_skill);
+    assert!(app.session_state.input_popovers.shiju_skill);
 
     let _ = super::update(&mut app, ChatMessage::SelectShijuSkill(42));
     let _ = super::update(&mut app, ChatMessage::SelectShijuSkill(43));
@@ -408,77 +408,77 @@ async fn shiju_skill_selection_validates_catalog_and_toggles_multiple_items() {
     assert_eq!(selected.len(), 2);
     assert_eq!(selected[0].slug(), "document-review");
     assert_eq!(selected[1].slug(), "meeting-notes");
-    assert!(app.input_popovers.shiju_skill);
+    assert!(app.session_state.input_popovers.shiju_skill);
 
     let _ = super::update(&mut app, ChatMessage::SelectShijuSkill(42));
     let selected = app.current_session_runtime().tool_selector.selected_shiju_skills();
     assert_eq!(selected.len(), 1);
     assert_eq!(selected[0].skill_id(), 43);
-    assert!(app.input_popovers.shiju_skill);
+    assert!(app.session_state.input_popovers.shiju_skill);
 }
 
 #[test]
 fn scroll_changed_clamps_offsets_and_updates_autoscroll() {
     let (mut app, _) = crate::app::App::new();
-    app.chat_auto_scroll = false;
+    app.chat_view.chat_auto_scroll = false;
 
     let _ = super::update(
         &mut app,
         ChatMessage::ScrollChanged { offset_y: 1.5, absolute_offset_y: 0.0, viewport_h: -10.0 },
     );
 
-    assert_eq!(app.chat_scroll_offset_y, 0.0);
-    assert_eq!(app.chat_scroll_viewport_h, 0.0);
-    assert!(app.chat_auto_scroll);
+    assert_eq!(app.chat_view.chat_scroll_offset_y, 0.0);
+    assert_eq!(app.chat_view.chat_scroll_viewport_h, 0.0);
+    assert!(app.chat_view.chat_auto_scroll);
 }
 
 #[test]
 fn scroll_changed_preserves_absolute_position_across_height_corrections() {
     let (mut app, _) = crate::app::App::new();
-    app.chat = (0..20).map(|_| chat_entry(ChatRole::Assistant, "answer")).collect();
-    app.chat_auto_scroll = false;
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[200.0; 20]);
-    app.chat_virtualizer.set_viewport_height(600.0);
-    app.chat_virtualizer.set_scroll_top_px(1200.0);
+    app.chat_view.chat = (0..20).map(|_| chat_entry(ChatRole::Assistant, "answer")).collect();
+    app.chat_view.chat_auto_scroll = false;
+    app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[200.0; 20]);
+    app.chat_view.chat_virtualizer.set_viewport_height(600.0);
+    app.chat_view.chat_virtualizer.set_scroll_top_px(1200.0);
     app.sync_chat_virtualizer_compat_fields();
 
     // Layout callbacks may report a different fraction after height measurements,
     // while the actual pixel offset remains unchanged.
     for (height, relative_y) in [(800.0, 0.25), (200.0, 0.32), (900.0, 0.24)] {
-        app.chat_virtualizer.apply_measured_height(19, height);
+        app.chat_view.chat_virtualizer.apply_measured_height(19, height);
         let outcome = super::input::apply_chat_scroll_changed(&mut app, relative_y, 1200.0, 600.0);
-        assert_eq!(app.chat_virtualizer.scroll_top_px(), 1200.0);
+        assert_eq!(app.chat_view.chat_virtualizer.scroll_top_px(), 1200.0);
         assert!(!outcome.viewport_or_offset_changed);
-        assert!(!app.chat_auto_scroll);
+        assert!(!app.chat_view.chat_auto_scroll);
     }
 
     let outcome = super::input::apply_chat_scroll_changed(&mut app, 0.24, 1260.0, 600.0);
-    assert_eq!(app.chat_virtualizer.scroll_top_px(), 1260.0);
+    assert_eq!(app.chat_view.chat_virtualizer.scroll_top_px(), 1260.0);
     assert!(outcome.viewport_or_offset_changed);
 }
 
 #[test]
 fn chat_scroll_semantics_toggle_think_preserves_manual_anchor() {
     let (mut app, _) = crate::app::App::new();
-    app.chat = vec![
+    app.chat_view.chat = vec![
         chat_entry(ChatRole::User, "question"),
         chat_entry(ChatRole::Assistant, "<think>hidden reasoning</think>\nanswer"),
         chat_entry(ChatRole::User, "follow-up"),
         chat_entry(ChatRole::Assistant, "later answer"),
     ];
-    app.chat_auto_scroll = false;
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[90.0, 130.0, 90.0, 130.0]);
-    app.chat_virtualizer.set_viewport_height(180.0);
-    app.chat_virtualizer.set_scroll_top_px(105.0);
+    app.chat_view.chat_auto_scroll = false;
+    app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[90.0, 130.0, 90.0, 130.0]);
+    app.chat_view.chat_virtualizer.set_viewport_height(180.0);
+    app.chat_view.chat_virtualizer.set_scroll_top_px(105.0);
     app.sync_chat_virtualizer_compat_fields();
-    let before_scroll_top = app.chat_virtualizer.scroll_top_px();
+    let before_scroll_top = app.chat_view.chat_virtualizer.scroll_top_px();
 
     let _task = super::update(&mut app, ChatMessage::ToggleThink(1, 0, false));
 
-    assert!(!app.chat_auto_scroll);
-    assert_eq!(app.chat_virtualizer.scroll_mode(), ChatScrollMode::Anchored);
-    assert_eq!(app.chat_virtualizer.scroll_top_px(), before_scroll_top);
-    assert!(app.chat_think_expanded.contains(&((1_u64 << 32) | 0)));
+    assert!(!app.chat_view.chat_auto_scroll);
+    assert_eq!(app.chat_view.chat_virtualizer.scroll_mode(), ChatScrollMode::Anchored);
+    assert_eq!(app.chat_view.chat_virtualizer.scroll_top_px(), before_scroll_top);
+    assert!(app.chat_view.chat_think_expanded.contains(&((1_u64 << 32) | 0)));
 }
 
 #[test]
@@ -490,8 +490,8 @@ fn fullscreen_toggles_clear_competing_git_fullscreen_modes() {
 
     let _ = super::update(&mut app, ChatMessage::ToggleFullscreen);
 
-    assert!(app.chat_panel_fullscreen);
-    assert!(!app.chat_panel_half_fullscreen);
+    assert!(app.chat_interaction.chat_panel_fullscreen);
+    assert!(!app.chat_interaction.chat_panel_half_fullscreen);
     assert!(!app.git.git_diff_fullscreen);
     assert!(!app.git.git_diff_half_fullscreen);
     assert!(app.fullscreen_layout_settling);
@@ -501,12 +501,12 @@ fn fullscreen_toggles_clear_competing_git_fullscreen_modes() {
 fn half_fullscreen_toggles_clear_fullscreen_mode() {
     let (mut app, _) = crate::app::App::new();
     app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Code;
-    app.chat_panel_fullscreen = true;
+    app.chat_interaction.chat_panel_fullscreen = true;
 
     let _ = super::update(&mut app, ChatMessage::ToggleHalfFullscreen);
 
-    assert!(app.chat_panel_half_fullscreen);
-    assert!(!app.chat_panel_fullscreen);
+    assert!(app.chat_interaction.chat_panel_half_fullscreen);
+    assert!(!app.chat_interaction.chat_panel_fullscreen);
     assert!(app.fullscreen_layout_settling);
 }
 
@@ -514,8 +514,8 @@ fn half_fullscreen_toggles_clear_fullscreen_mode() {
 fn work_half_fullscreen_toggles_are_mutually_exclusive_and_preserve_code_state() {
     let (mut app, _) = crate::app::App::new();
     app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Work;
-    app.chat_panel_fullscreen = true;
-    app.chat_panel_half_fullscreen = false;
+    app.chat_interaction.chat_panel_fullscreen = true;
+    app.chat_interaction.chat_panel_half_fullscreen = false;
     app.navigation_workspace.work_resource_fullscreen = true;
     app.navigation_workspace.work_resource_half_fullscreen = true;
 
@@ -527,8 +527,8 @@ fn work_half_fullscreen_toggles_are_mutually_exclusive_and_preserve_code_state()
     assert!(!app.navigation_workspace.work_resource_half_fullscreen);
     assert!(!app.is_chat_fullscreen());
     assert!(app.is_chat_half_fullscreen());
-    assert!(app.chat_panel_fullscreen);
-    assert!(!app.chat_panel_half_fullscreen);
+    assert!(app.chat_interaction.chat_panel_fullscreen);
+    assert!(!app.chat_interaction.chat_panel_half_fullscreen);
 
     let _ = super::update(&mut app, ChatMessage::ToggleFullscreen);
 
@@ -536,8 +536,8 @@ fn work_half_fullscreen_toggles_are_mutually_exclusive_and_preserve_code_state()
     assert!(app.is_chat_fullscreen());
     assert!(!app.is_chat_half_fullscreen());
     assert!(!app.navigation_workspace.work_chat_half_fullscreen);
-    assert!(app.chat_panel_fullscreen);
-    assert!(!app.chat_panel_half_fullscreen);
+    assert!(app.chat_interaction.chat_panel_fullscreen);
+    assert!(!app.chat_interaction.chat_panel_half_fullscreen);
 }
 
 #[test]
@@ -545,16 +545,16 @@ fn hover_messages_set_and_clear_state() {
     let (mut app, _) = crate::app::App::new();
 
     let _ = super::update(&mut app, ChatMessage::ThinkHover(2, 3));
-    assert_eq!(app.chat_think_hovered_idx, Some((2_u64 << 32) | 3));
+    assert_eq!(app.chat_interaction.chat_think_hovered_idx, Some((2_u64 << 32) | 3));
     let _ = super::update(&mut app, ChatMessage::ThinkHoverLeave);
-    assert_eq!(app.chat_think_hovered_idx, None);
+    assert_eq!(app.chat_interaction.chat_think_hovered_idx, None);
 
     let _ = super::update(&mut app, ChatMessage::ToolHover(4, 5));
-    assert_eq!(app.chat_tool_hovered_idx, Some((4_u64 << 32) | 5));
-    app.chat_tool_file_hovered = Some("file".to_string());
+    assert_eq!(app.chat_interaction.chat_tool_hovered_idx, Some((4_u64 << 32) | 5));
+    app.chat_interaction.chat_tool_file_hovered = Some("file".to_string());
     let _ = super::update(&mut app, ChatMessage::ToolHoverLeave);
-    assert_eq!(app.chat_tool_hovered_idx, None);
-    assert_eq!(app.chat_tool_file_hovered, None);
+    assert_eq!(app.chat_interaction.chat_tool_hovered_idx, None);
+    assert_eq!(app.chat_interaction.chat_tool_file_hovered, None);
 }
 
 #[test]
@@ -562,37 +562,37 @@ fn toggle_sets_add_and_remove_keys() {
     let (mut app, _) = crate::app::App::new();
 
     let _ = super::update(&mut app, ChatMessage::ToggleToolFile(1, 2, "src/main.rs".to_string()));
-    assert!(app.chat_tool_file_expanded.contains("1:2:src/main.rs"));
+    assert!(app.chat_view.chat_tool_file_expanded.contains("1:2:src/main.rs"));
     let _ = super::update(&mut app, ChatMessage::ToggleToolFile(1, 2, "src/main.rs".to_string()));
-    assert!(!app.chat_tool_file_expanded.contains("1:2:src/main.rs"));
+    assert!(!app.chat_view.chat_tool_file_expanded.contains("1:2:src/main.rs"));
 
     let _ = super::update(&mut app, ChatMessage::ToggleTool(3, 4));
-    assert!(app.chat_tool_expanded.contains(&((3_u64 << 32) | 4)));
+    assert!(app.chat_view.chat_tool_expanded.contains(&((3_u64 << 32) | 4)));
     let _ = super::update(&mut app, ChatMessage::ToggleTool(3, 4));
-    assert!(!app.chat_tool_expanded.contains(&((3_u64 << 32) | 4)));
+    assert!(!app.chat_view.chat_tool_expanded.contains(&((3_u64 << 32) | 4)));
 
     let _ = super::update(&mut app, ChatMessage::ToggleExploreSummary(5, 6));
-    assert!(app.chat_explore_expanded.contains(&((5_u64 << 32) | 6)));
+    assert!(app.chat_view.chat_explore_expanded.contains(&((5_u64 << 32) | 6)));
     let _ = super::update(&mut app, ChatMessage::ToggleExploreSummary(5, 6));
-    assert!(!app.chat_explore_expanded.contains(&((5_u64 << 32) | 6)));
+    assert!(!app.chat_view.chat_explore_expanded.contains(&((5_u64 << 32) | 6)));
 }
 
 #[test]
 fn toggle_tool_file_preserves_scroll_anchor_and_clears_stale_height() {
     let (mut app, _) = crate::app::App::new();
-    app.chat = vec![chat_entry(ChatRole::Assistant, "tool apply_patch\n{}")];
-    app.chat_auto_scroll = false;
-    app.chat_message_measured_heights.insert(0, 88.0);
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[88.0]);
-    app.chat_virtualizer.set_viewport_height(200.0);
-    app.chat_virtualizer.preserve_anchor(ChatScrollAnchor::new(0, 12.0));
+    app.chat_view.chat = vec![chat_entry(ChatRole::Assistant, "tool apply_patch\n{}")];
+    app.chat_view.chat_auto_scroll = false;
+    app.chat_view.chat_message_measured_heights.insert(0, 88.0);
+    app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[88.0]);
+    app.chat_view.chat_virtualizer.set_viewport_height(200.0);
+    app.chat_view.chat_virtualizer.preserve_anchor(ChatScrollAnchor::new(0, 12.0));
     app.sync_chat_virtualizer_compat_fields();
 
     let _ = super::update(&mut app, ChatMessage::ToggleToolFile(0, 0, "src/main.rs".to_string()));
-    assert!(app.chat_tool_file_expanded.contains("0:0:src/main.rs"));
-    assert!(!app.chat_message_measured_heights.contains_key(&0));
-    assert_eq!(app.chat_virtualizer.scroll_mode(), ChatScrollMode::Anchored);
-    assert_eq!(app.chat_virtualizer.anchor().map(|anchor| anchor.index), Some(0));
+    assert!(app.chat_view.chat_tool_file_expanded.contains("0:0:src/main.rs"));
+    assert!(!app.chat_view.chat_message_measured_heights.contains_key(&0));
+    assert_eq!(app.chat_view.chat_virtualizer.scroll_mode(), ChatScrollMode::Anchored);
+    assert_eq!(app.chat_view.chat_virtualizer.anchor().map(|anchor| anchor.index), Some(0));
 }
 
 #[test]
@@ -603,14 +603,14 @@ fn todo_panel_messages_update_state_and_animation() {
         &mut app,
         ChatMessage::SetTodoPanelPlacement(TodoPanelPlacement::ChatTopRight),
     );
-    assert_eq!(app.chat_todo_placement, TodoPanelPlacement::ChatTopRight);
-    assert!(app.chat_todo_expanded);
-    assert_eq!(app.chat_todo_anim, 1.0);
+    assert_eq!(app.todo_state.chat_todo_placement, TodoPanelPlacement::ChatTopRight);
+    assert!(app.todo_state.chat_todo_expanded);
+    assert_eq!(app.todo_state.chat_todo_anim, 1.0);
 
     let _ = super::update(&mut app, ChatMessage::ToggleTodoPanel);
-    assert!(!app.chat_todo_expanded);
+    assert!(!app.todo_state.chat_todo_expanded);
     let _ = super::update(&mut app, ChatMessage::TodoAnimTick);
-    assert!(app.chat_todo_anim < 1.0);
+    assert!(app.todo_state.chat_todo_anim < 1.0);
 }
 
 #[test]
@@ -622,25 +622,25 @@ fn simple_input_flags_update_directly() {
     let _ = super::update(&mut app, ChatMessage::FileReferenceHoverChanged(Some(2)));
     assert_eq!(app.input_suggestions.file_ref_hovered_index, Some(2));
     let _ = super::update(&mut app, ChatMessage::ToolFilesFilterChanged("rs".to_string()));
-    assert_eq!(app.tool_files_filter, "rs");
+    assert_eq!(app.input_suggestions.tool_files_filter, "rs");
     let _ = super::update(&mut app, ChatMessage::FullscreenOverlayEntered);
-    assert!(app.show_chat_fullscreen_overlay);
+    assert!(app.chat_interaction.show_chat_fullscreen_overlay);
     let _ = super::update(&mut app, ChatMessage::FullscreenOverlayExited);
-    assert!(!app.show_chat_fullscreen_overlay);
+    assert!(!app.chat_interaction.show_chat_fullscreen_overlay);
 }
 
 #[test]
 fn toggle_think_resets_existing_override_to_default_state() {
     let (mut app, _) = crate::app::App::new();
-    app.chat = vec![chat_entry(ChatRole::Assistant, "reasoning")];
-    app.chat_auto_scroll = false;
+    app.chat_view.chat = vec![chat_entry(ChatRole::Assistant, "reasoning")];
+    app.chat_view.chat_auto_scroll = false;
     let key = 11;
-    app.chat_think_collapsed.insert(key);
+    app.chat_view.chat_think_collapsed.insert(key);
 
     let _ = super::update(&mut app, ChatMessage::ToggleThink(0, 11, true));
 
-    assert!(!app.chat_think_collapsed.contains(&key));
-    assert!(!app.chat_think_expanded.contains(&key));
+    assert!(!app.chat_view.chat_think_collapsed.contains(&key));
+    assert!(!app.chat_view.chat_think_expanded.contains(&key));
 }
 
 #[test]
@@ -648,31 +648,31 @@ fn tool_file_hover_messages_set_and_clear_path() {
     let (mut app, _) = crate::app::App::new();
 
     let _ = super::update(&mut app, ChatMessage::ToolFileHover("src/lib.rs".to_string()));
-    assert_eq!(app.chat_tool_file_hovered.as_deref(), Some("src/lib.rs"));
+    assert_eq!(app.chat_interaction.chat_tool_file_hovered.as_deref(), Some("src/lib.rs"));
 
     let _ = super::update(&mut app, ChatMessage::ToolFileHoverLeave);
-    assert_eq!(app.chat_tool_file_hovered, None);
+    assert_eq!(app.chat_interaction.chat_tool_file_hovered, None);
 }
 
 #[test]
 fn todo_animation_tick_snaps_both_directions_at_completion_threshold() {
     let (mut app, _) = crate::app::App::new();
-    app.chat_todo_expanded = false;
-    app.chat_todo_anim = 0.001;
+    app.todo_state.chat_todo_expanded = false;
+    app.todo_state.chat_todo_anim = 0.001;
 
     let _ = super::update(&mut app, ChatMessage::TodoAnimTick);
-    assert_eq!(app.chat_todo_anim, 0.0);
+    assert_eq!(app.todo_state.chat_todo_anim, 0.0);
 
-    app.chat_todo_expanded = true;
-    app.chat_todo_anim = 0.999;
+    app.todo_state.chat_todo_expanded = true;
+    app.todo_state.chat_todo_anim = 0.999;
     let _ = super::update(&mut app, ChatMessage::TodoAnimTick);
-    assert_eq!(app.chat_todo_anim, 1.0);
+    assert_eq!(app.todo_state.chat_todo_anim, 1.0);
 }
 
 #[test]
 fn unchanged_scroll_geometry_reports_no_viewport_or_offset_change() {
     let (mut app, _) = crate::app::App::new();
-    app.chat_auto_scroll = false;
+    app.chat_view.chat_auto_scroll = false;
 
     let outcome = super::input::apply_chat_scroll_changed(&mut app, 0.0, 0.0, 0.0);
 
@@ -684,14 +684,14 @@ fn unchanged_scroll_geometry_reports_no_viewport_or_offset_change() {
 #[test]
 fn scroll_within_rendered_window_skips_redundant_measurement() {
     let (mut app, _) = crate::app::App::new();
-    app.chat =
+    app.chat_view.chat =
         (0..40).map(|idx| chat_entry(ChatRole::Assistant, &format!("message {idx}"))).collect();
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&vec![100.0; app.chat.len()]);
-    app.chat_virtualizer.set_viewport_height(300.0);
-    app.chat_virtualizer.set_scroll_top_px(1_500.0);
-    app.chat_auto_scroll = false;
+    app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&vec![100.0; app.chat_view.chat.len()]);
+    app.chat_view.chat_virtualizer.set_viewport_height(300.0);
+    app.chat_view.chat_virtualizer.set_scroll_top_px(1_500.0);
+    app.chat_view.chat_auto_scroll = false;
 
-    let max_scroll_top = app.chat_virtualizer.max_scroll_top_px();
+    let max_scroll_top = app.chat_view.chat_virtualizer.max_scroll_top_px();
     let outcome =
         super::input::apply_chat_scroll_changed(&mut app, 1_510.0 / max_scroll_top, 1_510.0, 300.0);
 
@@ -702,13 +702,13 @@ fn scroll_within_rendered_window_skips_redundant_measurement() {
 #[test]
 fn scroll_across_rendered_window_boundary_requests_measurement() {
     let (mut app, _) = crate::app::App::new();
-    app.chat =
+    app.chat_view.chat =
         (0..40).map(|idx| chat_entry(ChatRole::Assistant, &format!("message {idx}"))).collect();
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&vec![100.0; app.chat.len()]);
-    app.chat_virtualizer.set_viewport_height(300.0);
-    app.chat_auto_scroll = false;
+    app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&vec![100.0; app.chat_view.chat.len()]);
+    app.chat_view.chat_virtualizer.set_viewport_height(300.0);
+    app.chat_view.chat_auto_scroll = false;
 
-    let max_scroll_top = app.chat_virtualizer.max_scroll_top_px();
+    let max_scroll_top = app.chat_view.chat_virtualizer.max_scroll_top_px();
     let outcome =
         super::input::apply_chat_scroll_changed(&mut app, 1_200.0 / max_scroll_top, 1_200.0, 300.0);
 
@@ -718,51 +718,51 @@ fn scroll_across_rendered_window_boundary_requests_measurement() {
 #[test]
 fn scroll_autoscroll_threshold_is_relaxed_during_hold_window() {
     let (mut held_app, _) = crate::app::App::new();
-    held_app.chat_auto_scroll = true;
-    held_app.chat_autoscroll_hold_until_ms = u64::MAX;
+    held_app.chat_view.chat_auto_scroll = true;
+    held_app.chat_interaction.chat_autoscroll_hold_until_ms = u64::MAX;
 
     let _ = super::input::apply_chat_scroll_changed(&mut held_app, 0.85, 0.0, 100.0);
-    assert!(held_app.chat_auto_scroll);
+    assert!(held_app.chat_view.chat_auto_scroll);
 
     let (mut regular_app, _) = crate::app::App::new();
-    regular_app.chat_auto_scroll = true;
-    regular_app.chat_autoscroll_hold_until_ms = 0;
+    regular_app.chat_view.chat_auto_scroll = true;
+    regular_app.chat_interaction.chat_autoscroll_hold_until_ms = 0;
 
     let _ = super::input::apply_chat_scroll_changed(&mut regular_app, 0.85, 0.0, 100.0);
-    assert!(!regular_app.chat_auto_scroll);
+    assert!(!regular_app.chat_view.chat_auto_scroll);
 }
 
 #[test]
 fn manual_scroll_requires_tail_threshold_to_resume_autoscroll() {
     let (mut app, _) = crate::app::App::new();
-    app.chat =
+    app.chat_view.chat =
         (0..40).map(|idx| chat_entry(ChatRole::Assistant, &format!("message {idx}"))).collect();
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[100.0; 40]);
-    app.chat_virtualizer.set_viewport_height(300.0);
-    app.chat_auto_scroll = false;
-    let max_scroll = app.chat_virtualizer.max_scroll_top_px();
+    app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[100.0; 40]);
+    app.chat_view.chat_virtualizer.set_viewport_height(300.0);
+    app.chat_view.chat_auto_scroll = false;
+    let max_scroll = app.chat_view.chat_virtualizer.max_scroll_top_px();
 
     let _ = super::input::apply_chat_scroll_changed(&mut app, 0.974, max_scroll * 0.974, 300.0);
-    assert!(!app.chat_auto_scroll);
+    assert!(!app.chat_view.chat_auto_scroll);
 
     let _ = super::input::apply_chat_scroll_changed(&mut app, 0.975, max_scroll * 0.975, 300.0);
-    assert!(app.chat_auto_scroll);
+    assert!(app.chat_view.chat_auto_scroll);
 }
 
 #[test]
 fn matching_scroll_callback_preserves_turn_focus() {
     let (mut app, _) = crate::app::App::new();
-    app.chat = vec![
+    app.chat_view.chat = vec![
         chat_entry(ChatRole::Assistant, "history"),
         chat_entry(ChatRole::User, "question"),
         chat_entry(ChatRole::Assistant, ""),
     ];
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[120.0, 100.0, 0.0]);
-    app.chat_virtualizer.set_viewport_height(300.0);
-    app.chat_virtualizer.focus_turn_on_user(1);
-    app.chat_auto_scroll = false;
-    let expected_relative_y = app.chat_virtualizer.relative_y();
-    let expected_absolute_y = app.chat_virtualizer.scroll_top_px();
+    app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[120.0, 100.0, 0.0]);
+    app.chat_view.chat_virtualizer.set_viewport_height(300.0);
+    app.chat_view.chat_virtualizer.focus_turn_on_user(1);
+    app.chat_view.chat_auto_scroll = false;
+    let expected_relative_y = app.chat_view.chat_virtualizer.relative_y();
+    let expected_absolute_y = app.chat_view.chat_virtualizer.scroll_top_px();
 
     let _ = super::input::apply_chat_scroll_changed(
         &mut app,
@@ -771,62 +771,62 @@ fn matching_scroll_callback_preserves_turn_focus() {
         300.0,
     );
 
-    assert_eq!(app.chat_virtualizer.turn_focus_user_index(), Some(1));
+    assert_eq!(app.chat_view.chat_virtualizer.turn_focus_user_index(), Some(1));
 }
 
 #[test]
 fn stale_tail_relative_callback_preserves_turn_focus_after_stream_growth() {
     let (mut app, _) = crate::app::App::new();
-    app.chat = vec![
+    app.chat_view.chat = vec![
         chat_entry(ChatRole::Assistant, "history"),
         chat_entry(ChatRole::User, "question"),
         chat_entry(ChatRole::Assistant, "answer"),
     ];
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[600.0, 100.0, 0.0]);
-    app.chat_virtualizer.set_viewport_height(300.0);
-    app.chat_virtualizer.focus_turn_on_user(1);
-    app.chat_auto_scroll = false;
-    let anchored_top = app.chat_virtualizer.scroll_top_px();
+    app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[600.0, 100.0, 0.0]);
+    app.chat_view.chat_virtualizer.set_viewport_height(300.0);
+    app.chat_view.chat_virtualizer.focus_turn_on_user(1);
+    app.chat_view.chat_auto_scroll = false;
+    let anchored_top = app.chat_view.chat_virtualizer.scroll_top_px();
 
-    app.chat_virtualizer.apply_measured_height(2, 500.0);
-    assert!(app.chat_virtualizer.relative_y() < 1.0);
+    app.chat_view.chat_virtualizer.apply_measured_height(2, 500.0);
+    assert!(app.chat_view.chat_virtualizer.relative_y() < 1.0);
 
     let _ = super::input::apply_chat_scroll_changed(&mut app, 1.0, anchored_top, 300.0);
 
-    assert_eq!(app.chat_virtualizer.turn_focus_user_index(), Some(1));
-    assert!(!app.chat_auto_scroll);
-    assert_eq!(app.chat_virtualizer.scroll_top_px(), anchored_top);
+    assert_eq!(app.chat_view.chat_virtualizer.turn_focus_user_index(), Some(1));
+    assert!(!app.chat_view.chat_auto_scroll);
+    assert_eq!(app.chat_view.chat_virtualizer.scroll_top_px(), anchored_top);
 }
 
 #[test]
 fn manual_scroll_and_explicit_navigation_release_turn_focus() {
     let (mut app, _) = crate::app::App::new();
-    app.chat = vec![
+    app.chat_view.chat = vec![
         chat_entry(ChatRole::Assistant, "history"),
         chat_entry(ChatRole::User, "question"),
         chat_entry(ChatRole::Assistant, ""),
     ];
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[120.0, 100.0, 0.0]);
-    app.chat_virtualizer.set_viewport_height(300.0);
-    app.chat_virtualizer.focus_turn_on_user(1);
-    app.chat_auto_scroll = false;
+    app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[120.0, 100.0, 0.0]);
+    app.chat_view.chat_virtualizer.set_viewport_height(300.0);
+    app.chat_view.chat_virtualizer.focus_turn_on_user(1);
+    app.chat_view.chat_auto_scroll = false;
 
-    let manual_absolute_y = app.chat_virtualizer.max_scroll_top_px() * 0.5;
+    let manual_absolute_y = app.chat_view.chat_virtualizer.max_scroll_top_px() * 0.5;
     let _ = super::input::apply_chat_scroll_changed(&mut app, 0.5, manual_absolute_y, 300.0);
 
-    assert_eq!(app.chat_virtualizer.turn_focus_user_index(), None);
+    assert_eq!(app.chat_view.chat_virtualizer.turn_focus_user_index(), None);
 
-    app.chat_virtualizer.focus_turn_on_user(1);
+    app.chat_view.chat_virtualizer.focus_turn_on_user(1);
     let _task = super::scroll_chat_to_bottom_task(&mut app);
 
-    assert_eq!(app.chat_virtualizer.turn_focus_user_index(), None);
+    assert_eq!(app.chat_view.chat_virtualizer.turn_focus_user_index(), None);
 }
 
 #[test]
 fn message_measurements_ignore_empty_invalid_and_out_of_range_values() {
     let (mut app, _) = crate::app::App::new();
-    app.chat = vec![chat_entry(ChatRole::Assistant, "answer")];
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0]);
+    app.chat_view.chat = vec![chat_entry(ChatRole::Assistant, "answer")];
+    app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0]);
 
     assert!(!super::input::apply_chat_message_measurements(&mut app, Vec::new()));
     assert!(!super::input::apply_chat_message_measurements(
@@ -836,15 +836,15 @@ fn message_measurements_ignore_empty_invalid_and_out_of_range_values() {
             ChatMessageMeasurement { message_idx: 1, y: 0.0, height: 120.0, target: None },
         ],
     ));
-    assert!(app.chat_message_measured_heights.is_empty());
+    assert!(app.chat_view.chat_message_measured_heights.is_empty());
 }
 
 #[test]
 fn message_measurements_clamp_negative_height_and_sync_virtualizer_length() {
     let (mut app, _) = crate::app::App::new();
-    app.chat =
+    app.chat_view.chat =
         vec![chat_entry(ChatRole::User, "question"), chat_entry(ChatRole::Assistant, "answer")];
-    assert_eq!(app.chat_virtualizer.len(), 0);
+    assert_eq!(app.chat_view.chat_virtualizer.len(), 0);
 
     let changed = super::input::apply_chat_message_measurements(
         &mut app,
@@ -852,27 +852,27 @@ fn message_measurements_clamp_negative_height_and_sync_virtualizer_length() {
     );
 
     assert!(changed);
-    assert_eq!(app.chat_virtualizer.len(), app.chat.len());
-    assert_eq!(app.chat_message_measured_heights.get(&1), Some(&0.0));
+    assert_eq!(app.chat_view.chat_virtualizer.len(), app.chat_view.chat.len());
+    assert_eq!(app.chat_view.chat_message_measured_heights.get(&1), Some(&0.0));
 }
 
 #[test]
 fn message_measurements_ignore_epsilon_changes_and_apply_larger_updates() {
     let (mut app, _) = crate::app::App::new();
-    app.chat = vec![chat_entry(ChatRole::Assistant, "answer")];
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0]);
+    app.chat_view.chat = vec![chat_entry(ChatRole::Assistant, "answer")];
+    app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0]);
 
     assert!(!super::input::apply_chat_message_measurements(
         &mut app,
         vec![ChatMessageMeasurement { message_idx: 0, y: 0.0, height: 80.5, target: None }],
     ));
-    assert!(app.chat_message_measured_heights.is_empty());
+    assert!(app.chat_view.chat_message_measured_heights.is_empty());
 
     assert!(super::input::apply_chat_message_measurements(
         &mut app,
         vec![ChatMessageMeasurement { message_idx: 0, y: 0.0, height: 82.0, target: None }],
     ));
-    assert_eq!(app.chat_message_measured_heights.get(&0), Some(&82.0));
+    assert_eq!(app.chat_view.chat_message_measured_heights.get(&0), Some(&82.0));
 
     assert!(!super::input::apply_chat_message_measurements(
         &mut app,
@@ -883,11 +883,11 @@ fn message_measurements_ignore_epsilon_changes_and_apply_larger_updates() {
 #[test]
 fn visible_message_measurements_message_updates_virtualizer_when_height_changes() {
     let (mut app, _) = crate::app::App::new();
-    app.chat = vec![chat_entry(ChatRole::Assistant, "answer")];
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0]);
+    app.chat_view.chat = vec![chat_entry(ChatRole::Assistant, "answer")];
+    app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0]);
 
     let _ = super::update(&mut app, ChatMessage::VisibleMessageMeasurements(Vec::new()));
-    assert!(app.chat_message_measured_heights.is_empty());
+    assert!(app.chat_view.chat_message_measured_heights.is_empty());
 
     let _ = super::update(
         &mut app,
@@ -899,7 +899,7 @@ fn visible_message_measurements_message_updates_virtualizer_when_height_changes(
         }]),
     );
 
-    assert_eq!(app.chat_message_measured_heights.get(&0), Some(&104.0));
+    assert_eq!(app.chat_view.chat_message_measured_heights.get(&0), Some(&104.0));
 }
 
 #[test]
@@ -924,14 +924,14 @@ fn chat_measurement_rejects_stale_revision() {
     });
     let mut stale = timeline.target_at(0).unwrap();
     stale.revision = stale.revision.next();
-    app.chat = vec![message];
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0]);
-    app.paged_chat_timeline = Some(timeline);
+    app.chat_view.chat = vec![message];
+    app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0]);
+    app.session_state.paged_chat_timeline = Some(timeline);
     assert!(!super::input::apply_chat_message_measurements(
         &mut app,
         vec![ChatMessageMeasurement { message_idx: 0, y: 0.0, height: 120.0, target: Some(stale) }],
     ));
-    assert!(app.chat_message_measured_heights.is_empty());
+    assert!(app.chat_view.chat_message_measured_heights.is_empty());
 }
 
 #[test]
@@ -939,8 +939,8 @@ fn typing_during_request_does_not_clone_runtime_or_prepare_transcript_chunks() {
     use crate::app::components::chat_panel::performance;
     use iced::widget::text_editor;
     let mut app = crate::app::App::new().0;
-    app.active_session_id = Some("typing".into());
-    app.chat =
+    app.session_state.active_session_id = Some("typing".into());
+    app.chat_view.chat =
         (0..80).map(|_| chat_entry(ChatRole::Assistant, &"长回复内容".repeat(500))).collect();
     app.rebuild_chat_message_estimated_heights();
     let runtime = app.current_session_runtime_mut();
@@ -959,11 +959,11 @@ fn typing_during_request_does_not_clone_runtime_or_prepare_transcript_chunks() {
     }
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), input);
     assert_eq!(performance::snapshot().runtime_clones, 0);
-    assert!(app.active_session_view_state.preparing_chat_ui_chunks.is_empty());
-    assert!(app.chat_render_cache.is_empty());
-    assert_eq!(app.chat.len(), 80);
+    assert!(app.chat_view.active_session_view_state.preparing_chat_ui_chunks.is_empty());
+    assert!(app.chat_view.chat_render_cache.is_empty());
+    assert_eq!(app.chat_view.chat.len(), 80);
     assert_eq!(
-        app.session_runtime_states["typing"].pending_stream_delta,
+        app.session_state.session_runtime_states["typing"].pending_stream_delta,
         "生成中的长缓冲".repeat(10_000)
     );
 }
@@ -972,35 +972,35 @@ fn typing_during_request_does_not_clone_runtime_or_prepare_transcript_chunks() {
 fn upward_scroll_near_tail_cancels_stream_follow_and_pending_followups() {
     for hold_until in [0, u64::MAX] {
         let (mut app, _) = crate::app::App::new();
-        app.chat =
+        app.chat_view.chat =
             (0..40).map(|idx| chat_entry(ChatRole::Assistant, &format!("message {idx}"))).collect();
-        app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[100.0; 40]);
-        app.chat_virtualizer.set_viewport_height(300.0);
-        app.chat_virtualizer.snap_to_tail();
-        app.chat_auto_scroll = true;
-        app.chat_autoscroll_hold_until_ms = hold_until;
-        let generation = app.chat_autoscroll_generation;
-        let max_scroll = app.chat_virtualizer.max_scroll_top_px();
+        app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[100.0; 40]);
+        app.chat_view.chat_virtualizer.set_viewport_height(300.0);
+        app.chat_view.chat_virtualizer.snap_to_tail();
+        app.chat_view.chat_auto_scroll = true;
+        app.chat_interaction.chat_autoscroll_hold_until_ms = hold_until;
+        let generation = app.chat_interaction.chat_autoscroll_generation;
+        let max_scroll = app.chat_view.chat_virtualizer.max_scroll_top_px();
         let offset = max_scroll - 20.0;
 
         let _ =
             super::input::apply_chat_scroll_changed(&mut app, offset / max_scroll, offset, 300.0);
 
-        assert!(!app.chat_auto_scroll);
-        assert_ne!(app.chat_autoscroll_generation, generation);
-        assert!((app.chat_virtualizer.scroll_top_px() - offset).abs() < 0.01);
+        assert!(!app.chat_view.chat_auto_scroll);
+        assert_ne!(app.chat_interaction.chat_autoscroll_generation, generation);
+        assert!((app.chat_view.chat_virtualizer.scroll_top_px() - offset).abs() < 0.01);
         assert!(super::throttled_stream_autoscroll_task(&mut app).is_none());
 
         // Repeated layout callbacks near the bottom must not undo the pause.
         let _ =
             super::input::apply_chat_scroll_changed(&mut app, offset / max_scroll, offset, 300.0);
-        assert!(!app.chat_auto_scroll);
+        assert!(!app.chat_view.chat_auto_scroll);
 
         // Scrolling down into the tolerance area resumes before reaching the end.
         let offset = max_scroll - 10.0;
         let _ =
             super::input::apply_chat_scroll_changed(&mut app, offset / max_scroll, offset, 300.0);
-        assert!(app.chat_auto_scroll);
+        assert!(app.chat_view.chat_auto_scroll);
     }
 }
 
@@ -1008,39 +1008,39 @@ fn upward_scroll_near_tail_cancels_stream_follow_and_pending_followups() {
 fn session_entry_recommendations_close_for_other_input_menus() {
     let mut app = crate::app::App::new().0;
     let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(true));
-    assert!(app.input_popovers.recommended_prompt);
+    assert!(app.session_state.input_popovers.recommended_prompt);
     let _ = super::update(
         &mut app,
         ChatMessage::QuickMessageGroupChanged(Some(config_ui::QuickMessageGroup::Git)),
     );
-    assert!(!app.input_popovers.recommended_prompt);
+    assert!(!app.session_state.input_popovers.recommended_prompt);
     let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(true));
-    assert!(app.input_popovers.quick_message_group.is_none());
+    assert!(app.session_state.input_popovers.quick_message_group.is_none());
     let _ = super::update(&mut app, ChatMessage::ToggleShijuSkillMenu);
-    assert!(!app.input_popovers.recommended_prompt);
+    assert!(!app.session_state.input_popovers.recommended_prompt);
     let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(true));
-    assert!(!app.input_popovers.shiju_skill);
+    assert!(!app.session_state.input_popovers.shiju_skill);
     let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(false));
-    assert!(!app.input_popovers.recommended_prompt);
+    assert!(!app.session_state.input_popovers.recommended_prompt);
     let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(true));
     let _ = super::update(&mut app, ChatMessage::SessionAgentSelected(None));
-    assert!(!app.input_popovers.recommended_prompt);
+    assert!(!app.session_state.input_popovers.recommended_prompt);
 }
 
 #[test]
 fn user_message_toggle_preserves_source_and_invalidates_height() {
     let (mut app, _) = crate::app::App::new();
     let source = "中文长消息\n".repeat(30);
-    app.chat.push(chat_entry(ChatRole::User, &source));
-    app.chat.push(chat_entry(ChatRole::Assistant, "answer"));
-    app.chat_message_measured_heights.insert(0, 200.0);
+    app.chat_view.chat.push(chat_entry(ChatRole::User, &source));
+    app.chat_view.chat.push(chat_entry(ChatRole::Assistant, "answer"));
+    app.chat_view.chat_message_measured_heights.insert(0, 200.0);
     let _ = super::update(&mut app, ChatMessage::ToggleUserMessage(0));
-    assert!(app.chat_message_expanded.contains(&0));
-    assert!(!app.chat_message_measured_heights.contains_key(&0));
-    assert_eq!(app.chat[0].content, source);
+    assert!(app.chat_view.chat_message_expanded.contains(&0));
+    assert!(!app.chat_view.chat_message_measured_heights.contains_key(&0));
+    assert_eq!(app.chat_view.chat[0].content, source);
     let _ = super::update(&mut app, ChatMessage::ToggleUserMessage(0));
-    assert!(!app.chat_message_expanded.contains(&0));
+    assert!(!app.chat_view.chat_message_expanded.contains(&0));
     let _ = super::update(&mut app, ChatMessage::ToggleUserMessage(1));
     let _ = super::update(&mut app, ChatMessage::ToggleUserMessage(99));
-    assert!(app.chat_message_expanded.is_empty());
+    assert!(app.chat_view.chat_message_expanded.is_empty());
 }

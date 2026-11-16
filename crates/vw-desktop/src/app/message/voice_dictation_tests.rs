@@ -5,7 +5,7 @@ fn voice_task_07_local_context_change_cancels_native_and_rejects_completion() {
     use crate::app::message::voice::{self, Event};
     use crate::app::message::voice_draft::Phase;
     let mut app = App::new().0;
-    app.active_session_id = Some("local-original".into());
+    app.session_state.active_session_id = Some("local-original".into());
     app.current_session_runtime_mut().input_editor =
         iced::widget::text_editor::Content::with_text("原草稿");
     let scope = voice::scope(&app).unwrap();
@@ -13,7 +13,7 @@ fn voice_task_07_local_context_change_cancels_native_and_rejects_completion() {
     app.voice.draft.phase = Phase::Transcribing;
     let token = Cancellation::default();
     app.voice.native_cancel = Some(token.clone());
-    app.active_session_id = Some("other".into());
+    app.session_state.active_session_id = Some("other".into());
     app.current_session_runtime_mut().input_editor =
         iced::widget::text_editor::Content::with_text("其它草稿");
     voice::invalidate(&mut app);

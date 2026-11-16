@@ -52,16 +52,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
     use desktop_editor::components::preview_panel::view::layout::{self, ViewInput, ViewParts, ViewMessage};
     #[cfg(not(target_arch = "wasm32"))]
     let lsp_overlay_show = app.navigation_tabs.active_preview_path.is_some()
-        && app.lsp_overlay_path.as_ref() == app.navigation_tabs.active_preview_path.as_ref()
-        && (app.lsp_overlay.hover_visible || app.lsp_overlay.completion_visible);
+        && app.preview_state.lsp_overlay_path.as_ref() == app.navigation_tabs.active_preview_path.as_ref()
+        && (app.preview_state.lsp_overlay.hover_visible || app.preview_state.lsp_overlay.completion_visible);
     #[cfg(not(target_arch = "wasm32"))]
     tracing::debug!(
         "[LSP OVERLAY] lsp_overlay_show={}, hover_visible={}, completion_visible={}, context_menu={}, nav_popup={}",
         lsp_overlay_show,
-        app.lsp_overlay.hover_visible,
-        app.lsp_overlay.completion_visible,
-        app.show_preview_context_menu,
-        app.preview_nav_popup.is_some()
+        app.preview_state.lsp_overlay.hover_visible,
+        app.preview_state.lsp_overlay.completion_visible,
+        app.preview_state.show_preview_context_menu,
+        app.preview_state.preview_nav_popup.is_some()
     );
 
     let tab = app.navigation_tabs.preview_tabs.iter().find(|tab| Some(&tab.path) == app.navigation_tabs.active_preview_path.as_ref());
@@ -69,8 +69,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         active_path: app.navigation_tabs.active_preview_path.as_deref(), project_path: app.navigation_tabs.project_path.as_deref(),
         read_only_title: tab.filter(|tab| tab.read_only).map(|tab| tab.title.as_str()),
         show_fullscreen_controls: show_fullscreen_controls(app), fullscreen: app.git.git_diff_fullscreen,
-        show_changes: app.file_manager.file_manager_show_changes, show_context_menu: app.show_preview_context_menu,
-        context_menu_pos: app.preview_context_menu_pos, i18n: desktop_i18n::I18n::new(app.desktop_locale),
+        show_changes: app.file_manager.file_manager_show_changes, show_context_menu: app.preview_state.show_preview_context_menu,
+        context_menu_pos: app.preview_state.preview_context_menu_pos, i18n: desktop_i18n::I18n::new(app.general_settings.desktop_locale),
     }, ViewParts {
         header_tabs: build_header_tabs(app).map(ViewMessage::External),
         header_tools: tab.map(|tab| editor_toolbar::view(app,
@@ -97,10 +97,10 @@ fn active_preview_lsp_badge(app: &App) -> Option<Element<'_, Message>> {
         return None;
     }
     let language = crate::app::lsp::config::lsp_language_for_path(std::path::Path::new(path));
-    let progress = tab.lsp_server_key.is_some_and(|key| app.lsp_progress.get(key).is_some_and(|entries| !entries.is_empty()));
+    let progress = tab.lsp_server_key.is_some_and(|key| app.preview_state.lsp_progress.get(key).is_some_and(|entries| !entries.is_empty()));
     Some(desktop_editor::components::preview_panel::view::layout::lsp_badge(
         tab.lsp_server_key, progress, language.is_some(), &app.effective_editor_theme(),
-        desktop_i18n::I18n::new(app.desktop_locale)))
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale)))
 }
 
 

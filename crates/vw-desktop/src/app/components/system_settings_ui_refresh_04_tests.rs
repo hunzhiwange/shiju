@@ -15,7 +15,7 @@ fn fixture() -> App {
     let mut app = app.expect("isolated settings fixture");
     app.navigation_panels.show_system_settings = true;
     app.navigation_panels.system_settings_tab = SystemTab::General;
-    app.general_settings_tab = crate::app::state::GeneralSettingsTab::Interface;
+    app.general_settings.general_settings_tab = crate::app::state::GeneralSettingsTab::Interface;
     app
 }
 
@@ -33,8 +33,8 @@ async fn ui_refresh_04_layout_and_interaction() {
             (DesktopLocale::TraditionalChinese, "zh-hant"),
             (DesktopLocale::English, "en"),
         ] {
-            app.desktop_locale = locale;
-            app.app_theme = theme.clone();
+            app.general_settings.desktop_locale = locale;
+            app.appearance.app_theme = theme.clone();
             for window_width in [420, 800, 950, 1270, 1720] {
                 let mut scene = Scene::new(view(&app), window_width, 760).await;
                 scene.snapshot(
@@ -59,7 +59,7 @@ async fn ui_refresh_04_layout_and_interaction() {
         }
     }
 
-    app.desktop_locale = DesktopLocale::English;
+    app.general_settings.desktop_locale = DesktopLocale::English;
     let mut scene = Scene::new(view(&app), 950, 410).await;
     let first = scene.bounds(SIDEBAR, &[0, 2, 0, 0, 0, 1, 0]).center();
     let second = scene.bounds(SIDEBAR, &[0, 2, 0, 0, 0, 1, 1]).center();
@@ -125,8 +125,8 @@ async fn ui_refresh_04_layout_and_interaction() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_04_preserves_values_and_disabled_states() {
     let mut app = fixture();
-    app.desktop_locale = DesktopLocale::English;
-    app.system_settings_query = "OC".into();
+    app.general_settings.desktop_locale = DesktopLocale::English;
+    app.general_settings.system_settings_query = "OC".into();
     let mut scene = Scene::new(view(&app), 950, 760).await;
     let input = scene.bounds(SIDEBAR, &[0, 1, 0, 0]);
     assert!(scene.click(Point::new(input.x + 45.0, input.center_y())).is_empty());
@@ -166,16 +166,16 @@ async fn ui_refresh_04_preserves_values_and_disabled_states() {
     drop(scene);
     let Message::Settings(clear) = cleared.into_iter().next().unwrap() else { unreachable!() };
     let _ = message::settings::update(&mut app, clear);
-    assert!(app.system_settings_query.is_empty());
+    assert!(app.general_settings.system_settings_query.is_empty());
     assert_eq!(app.model_settings.active_tab, ModelConfigTab::Multimodal);
 
-    app.system_settings_query = "unmatched-fixture-entry".into();
+    app.general_settings.system_settings_query = "unmatched-fixture-entry".into();
     let mut scene = Scene::new(view(&app), 950, 760).await;
     scene.snapshot(&Theme::Light, mouse::Cursor::Unavailable, "search-empty");
     assert!(scene.click(result.center()).is_empty());
     drop(scene);
 
-    app.system_settings_query.clear();
+    app.general_settings.system_settings_query.clear();
     app.navigation_panels.system_settings_tab = SystemTab::Apps;
     app.apps_catalog.loading = true;
     let mut scene = Scene::new(view(&app), 950, 760).await;
@@ -240,13 +240,13 @@ async fn ui_refresh_04_renders_each_page_and_preserves_help_close() {
 
     app.navigation_panels.system_settings_tab = SystemTab::General;
     app.navigation_panels.system_settings_help_tab = Some(SystemTab::General);
-    app.app_theme = Theme::Dark;
+    app.appearance.app_theme = Theme::Dark;
     for (locale, name) in [
         (DesktopLocale::SimplifiedChinese, "zh"),
         (DesktopLocale::TraditionalChinese, "zh-hant"),
         (DesktopLocale::English, "en"),
     ] {
-        app.desktop_locale = locale;
+        app.general_settings.desktop_locale = locale;
         let mut scene = Scene::new(view(&app), 420, 500).await;
         scene.snapshot(&Theme::Dark, mouse::Cursor::Unavailable, &format!("help-{name}-420"));
         let card = scene.bounds(HELP_CARD, &[]);
@@ -265,7 +265,7 @@ async fn ui_refresh_04_keeps_general_select_overlay_interactive() {
     use crate::app::message::GeneralSettingsMessage;
 
     let mut app = fixture();
-    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    app.general_settings.desktop_locale = DesktopLocale::SimplifiedChinese;
     let mut scene = Scene::new(view(&app), 950, 760).await;
     let trigger = scene.bounds(PANEL, &[0, 0, 0, 0, 0, 2, 1, 0, 4, 0, 1, 0, 0]).center();
     assert!(scene.click(trigger).is_empty());
@@ -290,9 +290,9 @@ async fn ui_refresh_04_keeps_general_select_overlay_interactive() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_04_search_opens_the_language_control_row() {
     let mut app = fixture();
-    app.desktop_locale = DesktopLocale::SimplifiedChinese;
-    app.general_settings_tab = GeneralSettingsTab::Terminal;
-    app.system_settings_query = "语言".into();
+    app.general_settings.desktop_locale = DesktopLocale::SimplifiedChinese;
+    app.general_settings.general_settings_tab = GeneralSettingsTab::Terminal;
+    app.general_settings.system_settings_query = "语言".into();
     let mut scene = Scene::new(view(&app), 420, 400).await;
     scene.snapshot(&Theme::Dark, mouse::Cursor::Unavailable, "search-language-dark");
     let result = scene.bounds(SIDEBAR, &[0, 2, 0, 0, 0]);
@@ -306,7 +306,7 @@ async fn ui_refresh_04_search_opens_the_language_control_row() {
     drop(scene);
     let Message::Settings(selected) = messages.into_iter().next().unwrap() else { unreachable!() };
     let task = message::settings::update(&mut app, selected);
-    assert_eq!(app.general_settings_tab, GeneralSettingsTab::Interface);
+    assert_eq!(app.general_settings.general_settings_tab, GeneralSettingsTab::Interface);
 
     // The help card leaves the language row higher on the page.
     let mut scene = Scene::new(view(&app), 420, 260).await;
@@ -350,14 +350,14 @@ async fn help_rollout_27_quick_messages_renders_contextual_help() {
     let mut app = fixture();
     app.navigation_panels.system_settings_tab = SystemTab::Agents;
     app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::QuickMessages;
-    app.quick_messages.clear();
+    app.general_settings.quick_messages.clear();
     for (locale, theme) in [
         (DesktopLocale::SimplifiedChinese, Theme::Dark),
         (DesktopLocale::TraditionalChinese, Theme::Light),
         (DesktopLocale::English, Theme::Dark),
     ] {
-        app.desktop_locale = locale;
-        app.app_theme = theme.clone();
+        app.general_settings.desktop_locale = locale;
+        app.appearance.app_theme = theme.clone();
         let i18n = crate::app::i18n::I18n::new(locale);
         let mut scene = Scene::new(view(&app), 560, 480).await;
         let mut heading = Heading {
@@ -398,7 +398,7 @@ async fn settings_help_gap_01_terminal_theme_moves_into_help() {
     use crate::app::message::TerminalMessage;
 
     let mut app = fixture();
-    app.general_settings_tab = GeneralSettingsTab::Terminal;
+    app.general_settings.general_settings_tab = GeneralSettingsTab::Terminal;
     app.terminal.font_size = 14.0;
     for locale in [
         DesktopLocale::SimplifiedChinese,
@@ -406,8 +406,8 @@ async fn settings_help_gap_01_terminal_theme_moves_into_help() {
         DesktopLocale::English,
     ] {
         for (theme, width) in [(Theme::Light, 950), (Theme::Dark, 420)] {
-            app.desktop_locale = locale;
-            app.app_theme = theme.clone();
+            app.general_settings.desktop_locale = locale;
+            app.appearance.app_theme = theme.clone();
             let i18n = I18n::new(locale);
             let mut scene = Scene::new(view(&app), width, 760).await;
             let field = general_fields::TERMINAL_THEME;
@@ -481,9 +481,9 @@ async fn settings_help_gap_01_editor_theme_and_lsp_keep_their_controls() {
     use crate::app::message::{EditorMessage, PreviewMessage};
 
     let mut app = fixture();
-    app.general_settings_tab = GeneralSettingsTab::Editor;
-    app.editor_theme = Theme::Nord;
-    app.lsp_disabled = true;
+    app.general_settings.general_settings_tab = GeneralSettingsTab::Editor;
+    app.appearance.editor_theme = Theme::Nord;
+    app.preview_state.lsp_disabled = true;
 
     for locale in [
         DesktopLocale::SimplifiedChinese,
@@ -493,10 +493,10 @@ async fn settings_help_gap_01_editor_theme_and_lsp_keep_their_controls() {
         for (tab, theme, width) in
             [(SystemTab::General, Theme::Dark, 420), (SystemTab::Editor, Theme::Light, 950)]
         {
-            app.desktop_locale = locale;
-            app.app_theme = theme.clone();
+            app.general_settings.desktop_locale = locale;
+            app.appearance.app_theme = theme.clone();
             app.navigation_panels.system_settings_tab = tab;
-            app.editor_follow_system_theme = true;
+            app.appearance.editor_follow_system_theme = true;
             let i18n = I18n::new(locale);
             let field = general_fields::EDITOR_THEME;
             let explanation = i18n.__("关闭跟随系统主题时使用的编辑器配色。");
@@ -531,7 +531,7 @@ async fn settings_help_gap_01_editor_theme_and_lsp_keep_their_controls() {
                 unreachable!()
             };
             let _ = message::editor::update(&mut app, toggle);
-            assert!(!app.editor_follow_system_theme);
+            assert!(!app.appearance.editor_follow_system_theme);
 
             let mut scene = Scene::new(view(&app), width, 760).await;
             let picker = scene.control(field).bounds().center();
@@ -544,7 +544,7 @@ async fn settings_help_gap_01_editor_theme_and_lsp_keep_their_controls() {
             assert!(scene.overlay_bounds().is_some(), "the picker opens and dismisses help");
             assert!(matches!(
                 scene.key(Key::Named(Named::Enter), None).as_slice(),
-                [Message::Editor(EditorMessage::ThemeChanged(value))] if value == &app.editor_theme
+                [Message::Editor(EditorMessage::ThemeChanged(value))] if value == &app.appearance.editor_theme
             ));
             assert!(scene.overlay_bounds().is_none());
 
@@ -591,12 +591,12 @@ async fn settings_help_gap_01_editor_theme_and_lsp_keep_their_controls() {
 #[tokio::test]
 async fn settings_help_gap_01_search_reveals_both_theme_rows() {
     let mut app = fixture();
-    app.desktop_locale = DesktopLocale::SimplifiedChinese;
-    app.editor_follow_system_theme = false;
+    app.general_settings.desktop_locale = DesktopLocale::SimplifiedChinese;
+    app.appearance.editor_follow_system_theme = false;
 
     for field in [general_fields::TERMINAL_THEME, general_fields::EDITOR_THEME] {
-        app.general_settings_tab = GeneralSettingsTab::Interface;
-        app.system_settings_query = field.label.into();
+        app.general_settings.general_settings_tab = GeneralSettingsTab::Interface;
+        app.general_settings.system_settings_query = field.label.into();
         let mut scene = Scene::new(view(&app), 420, 420).await;
         let result = scene.bounds(SIDEBAR, &[0, 2, 0, 0, 0]);
         let messages = scene.click(result.center());
@@ -611,7 +611,7 @@ async fn settings_help_gap_01_search_reveals_both_theme_rows() {
             unreachable!()
         };
         let task = message::settings::update(&mut app, selected);
-        assert_eq!(app.general_settings_tab, field.tab);
+        assert_eq!(app.general_settings.general_settings_tab, field.tab);
 
         let mut scene = Scene::new(view(&app), 420, 225).await;
         let trigger = scene.control(field).bounds().center();

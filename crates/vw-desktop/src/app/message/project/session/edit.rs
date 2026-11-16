@@ -56,17 +56,17 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
     };
     let effects = edit::handle(&mut State {
         editor: &mut app.project_editor,
-        hovered_recent_project: &mut app.hovered_recent_project,
+        hovered_recent_project: &mut app.workspace_state.hovered_recent_project,
         project_path: &mut app.navigation_tabs.project_path,
-        project_tools_menu_path: &mut app.project_tools_menu_path,
-        project_worktree_enabled: &mut app.project_worktree_enabled,
-        recent_project_remove_confirm_path: &mut app.recent_project_remove_confirm_path,
-        recent_projects: &mut app.recent_projects,
-        recent_projects_edits: &mut app.recent_projects_edits,
-        recent_projects_meta: &mut app.recent_projects_meta,
-        session_menu_anchor: &mut app.session_menu_anchor,
-        session_menu_id: &mut app.session_menu_id,
-        task_board_settings: &mut app.task_board_settings,
+        project_tools_menu_path: &mut app.workspace_state.project_tools_menu_path,
+        project_worktree_enabled: &mut app.workspace_state.project_worktree_enabled,
+        recent_project_remove_confirm_path: &mut app.workspace_state.recent_project_remove_confirm_path,
+        recent_projects: &mut app.workspace_state.recent_projects,
+        recent_projects_edits: &mut app.workspace_state.recent_projects_edits,
+        recent_projects_meta: &mut app.workspace_state.recent_projects_meta,
+        session_menu_anchor: &mut app.workspace_state.session_menu_anchor,
+        session_menu_id: &mut app.workspace_state.session_menu_id,
+        task_board_settings: &mut app.task_board.task_board_settings,
         work_current_project_menu: &mut app.navigation_mode.work_current_project_menu,
     }, event);
     let mut tasks = Vec::new();
@@ -79,8 +79,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 { None }
             }, |picked| Message::Project(ProjectMessage::ProjectEditIconFilePicked(picked)))),
             Effect::SaveWorktree(path, enabled) => tasks.push(crate::app::message::settings::set_worktree_enabled(app, path, enabled)),
-            Effect::SaveMeta => save_recent_projects_meta_background(app.recent_projects_meta.clone()),
-            Effect::SaveRecent => save_recent_projects_background(app.recent_projects.clone()),
+            Effect::SaveMeta => save_recent_projects_meta_background(app.workspace_state.recent_projects_meta.clone()),
+            Effect::SaveRecent => save_recent_projects_background(app.workspace_state.recent_projects.clone()),
             Effect::OpenFirst => tasks.push(app.open_first_recent_project_or_home()),
             Effect::Reveal(path) => {
                 #[cfg(not(target_arch = "wasm32"))]

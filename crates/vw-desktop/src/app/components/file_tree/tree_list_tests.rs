@@ -210,10 +210,10 @@ pub(super) fn alignment_app() -> App {
         .iter()
         .map(|path| format!("/tree-fixture/{path}"))
         .collect::<Vec<_>>();
-    app.file_tree_model_cache
+    app.workspace_state.file_tree_model_cache
         .insert("/tree-fixture".into(), build_file_tree_model("/tree-fixture", &files));
     for key in ["sp6", "sp7", "sp7/.shiju", "chg:sp6", "chg:sp7", "chg:sp7/.shiju"] {
-        app.file_tree_expanded_set.insert(key.into());
+        app.workspace_state.file_tree_expanded_set.insert(key.into());
     }
     app
 }

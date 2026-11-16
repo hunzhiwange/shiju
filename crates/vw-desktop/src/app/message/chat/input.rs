@@ -62,17 +62,17 @@ pub(crate) fn is_composer_event(message: &ChatMessage) -> bool {
 pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     match message {
         ChatMessage::InputChanged(value) => {
-            app.input_text = value;
+            app.session_state.input_text = value;
             Task::none()
         }
         ChatMessage::QuickMessageSelected(index) => {
-            app.input_popovers.quick_message_group = None;
-            let Some(item) = app.quick_messages.get(index).cloned() else {
+            app.session_state.input_popovers.quick_message_group = None;
+            let Some(item) = app.general_settings.quick_messages.get(index).cloned() else {
                 return Task::none();
             };
             use desktop_chat_input::input_panel::quick_actions::{self, Effect};
             let project = app.navigation_tabs.project_path.clone();
-            let session = app.active_session_id.clone();
+            let session = app.session_state.active_session_id.clone();
             let directory = session.as_deref().and_then(|id| app.known_session_directory(id));
             let git_path = git_quick_action_path(app);
             let has_git_changes = !app.git.git_changed_files.is_empty();
@@ -99,16 +99,16 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
         }
         ChatMessage::RecommendedPromptMenuChanged(open) => {
-            app.input_popovers.set_recommended_prompt(open);
+            app.session_state.input_popovers.set_recommended_prompt(open);
             Task::none()
         }
         ChatMessage::QuickMessageGroupChanged(group) => {
-            app.input_popovers.set_quick_message_group(group);
+            app.session_state.input_popovers.set_quick_message_group(group);
             Task::none()
         }
         #[cfg(not(target_arch = "wasm32"))]
         ChatMessage::ToggleShijuSkillMenu => {
-            if !app.input_popovers.toggle_shiju_skill() {
+            if !app.session_state.input_popovers.toggle_shiju_skill() {
                 return Task::none();
             }
             Task::batch([
@@ -147,11 +147,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let has_running_children =
                 !crate::app::components::input_panel::agent_sessions::running_agent_sessions(app)
                     .is_empty();
-            app.input_popovers.toggle_agent_sessions(has_running_children);
+            app.session_state.input_popovers.toggle_agent_sessions(has_running_children);
             Task::none()
         }
         ChatMessage::CloseAgentSessionsPopover => {
-            app.input_popovers.agent_sessions = false;
+            app.session_state.input_popovers.agent_sessions = false;
             Task::none()
         }
         ChatMessage::StopPlanRun(task_id) => {
@@ -227,9 +227,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::ScrollChanged { offset_y: rel_y, absolute_offset_y, viewport_h } => {
             let outcome = apply_chat_scroll_changed(app, rel_y, absolute_offset_y, viewport_h);
             let history_task = if rel_y <= 0.08 {
-                app.navigation_tabs.project_path.clone().zip(app.active_session_id.clone()).and_then(
+                app.navigation_tabs.project_path.clone().zip(app.session_state.active_session_id.clone()).and_then(
                     |(project_path, session_id)| {
-                        let request = app.paged_chat_timeline.as_mut().and_then(|timeline| {
+                        let request = app.session_state.paged_chat_timeline.as_mut().and_then(|timeline| {
                             let cursor = timeline.before_cursor()?.to_owned();
                             timeline.begin_prepend(&cursor).then(|| (timeline.generation(), cursor))
                         });
@@ -247,7 +247,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 None
             };
             let chunk_task = if !outcome.pending_chunk_starts.is_empty()
-                && let Some(session_id) = app.active_session_id.clone()
+                && let Some(session_id) = app.session_state.active_session_id.clone()
             {
                 app.mark_chat_ui_chunks_preparing(&outcome.pending_chunk_starts);
                 Some(crate::app::message::project::prepare_session_ui_chunks_task(
@@ -255,7 +255,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     app.active_shared_chat_messages(),
                     outcome.pending_chunk_starts,
                     None,
-                    app.dialogue_flow_show_reasoning_summary,
+                    app.general_settings.dialogue_flow_show_reasoning_summary,
                 ))
             } else {
                 None
@@ -276,15 +276,15 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::ScrollToBottom => super::scroll_chat_to_bottom_task(app),
         ChatMessage::FollowupScrollToBottom { session_id, generation } => {
-            if app.active_session_id != session_id
-                || app.chat_autoscroll_generation != generation
-                || !app.chat_auto_scroll
+            if app.session_state.active_session_id != session_id
+                || app.chat_interaction.chat_autoscroll_generation != generation
+                || !app.chat_view.chat_auto_scroll
             {
                 return Task::none();
             }
             // A follow-up must not re-arm the request or enable follow mode.
             iced::widget::operation::snap_to(
-                app.chat_scroll_id.clone(),
+                app.chat_view.chat_scroll_id.clone(),
                 iced::widget::scrollable::RelativeOffset { x: Some(0.0), y: Some(1.0) },
             )
             .map(|_: ()| Message::CopyDone)
@@ -296,9 +296,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::ToggleFullscreen => {
             match app.navigation_mode.workspace_mode {
                 WorkspaceMode::Code => {
-                    app.chat_panel_fullscreen = !app.chat_panel_fullscreen;
-                    app.chat_panel_half_fullscreen = false;
-                    if app.chat_panel_fullscreen {
+                    app.chat_interaction.chat_panel_fullscreen = !app.chat_interaction.chat_panel_fullscreen;
+                    app.chat_interaction.chat_panel_half_fullscreen = false;
+                    if app.chat_interaction.chat_panel_fullscreen {
                         app.git.git_diff_fullscreen = false;
                         app.git.git_diff_half_fullscreen = false;
                     }
@@ -321,9 +321,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::ToggleHalfFullscreen => {
             match app.navigation_mode.workspace_mode {
                 WorkspaceMode::Code => {
-                    app.chat_panel_half_fullscreen = !app.chat_panel_half_fullscreen;
-                    app.chat_panel_fullscreen = false;
-                    if app.chat_panel_half_fullscreen {
+                    app.chat_interaction.chat_panel_half_fullscreen = !app.chat_interaction.chat_panel_half_fullscreen;
+                    app.chat_interaction.chat_panel_fullscreen = false;
+                    if app.chat_interaction.chat_panel_half_fullscreen {
                         app.git.git_diff_fullscreen = false;
                         app.git.git_diff_half_fullscreen = false;
                     }
@@ -344,42 +344,41 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             )
         }
         ChatMessage::FullscreenOverlayEntered => {
-            app.show_chat_fullscreen_overlay = true;
+            app.chat_interaction.show_chat_fullscreen_overlay = true;
             Task::none()
         }
         ChatMessage::FullscreenOverlayExited => {
-            app.show_chat_fullscreen_overlay = false;
+            app.chat_interaction.show_chat_fullscreen_overlay = false;
             Task::none()
         }
         ChatMessage::ToggleUserMessage(idx) => {
-            if !app
-                .chat
+            if !app.chat_view.chat
                 .get(idx)
                 .is_some_and(|entry| entry.role == crate::app::models::ChatRole::User)
             {
                 return Task::none();
             }
-            desktop_session::message::chat::input::interactions::toggle_user_message(&mut app.chat_message_expanded, idx);
-            app.chat_message_measured_heights.remove(&idx);
-            app.chat_virtualizer.preserve_current_anchor_around();
+            desktop_session::message::chat::input::interactions::toggle_user_message(&mut app.chat_view.chat_message_expanded, idx);
+            app.chat_view.chat_message_measured_heights.remove(&idx);
+            app.chat_view.chat_virtualizer.preserve_current_anchor_around();
             app.refine_chat_message_estimated_heights(idx, idx.saturating_add(1));
             super::measure_visible_chat_messages_task()
         }
         ChatMessage::ToggleThink(msg_idx, think_idx, default_expanded) => {
             let next_expanded = desktop_session::message::chat::input::interactions::toggle_think(
-                &mut app.chat_think_expanded, &mut app.chat_think_collapsed,
+                &mut app.chat_view.chat_think_expanded, &mut app.chat_view.chat_think_collapsed,
                 msg_idx, think_idx, default_expanded,
             );
 
-            if app.chat_auto_scroll {
+            if app.chat_view.chat_auto_scroll {
                 app.refine_chat_message_estimated_heights(msg_idx, msg_idx.saturating_add(1));
                 if next_expanded {
                     return super::scroll_chat_to_bottom_with_followups(app);
                 }
-                app.chat_virtualizer.snap_to_tail();
+                app.chat_view.chat_virtualizer.snap_to_tail();
                 app.sync_chat_virtualizer_compat_fields();
             } else {
-                app.chat_virtualizer.preserve_current_anchor_around();
+                app.chat_view.chat_virtualizer.preserve_current_anchor_around();
                 app.refine_chat_message_estimated_heights(msg_idx, msg_idx.saturating_add(1));
             }
 
@@ -387,66 +386,66 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::ThinkHover(msg_idx, think_idx) => {
             let key = desktop_session::message::chat::input::interactions::block_key(msg_idx, think_idx);
-            app.chat_think_hovered_idx = Some(key);
+            app.chat_interaction.chat_think_hovered_idx = Some(key);
             Task::none()
         }
         ChatMessage::ThinkHoverLeave => {
-            app.chat_think_hovered_idx = None;
+            app.chat_interaction.chat_think_hovered_idx = None;
             Task::none()
         }
         ChatMessage::ToggleToolFile(msg_idx, tool_idx, path) => {
             desktop_session::message::chat::input::interactions::toggle_tool_file(
-                &mut app.chat_tool_file_expanded, msg_idx, tool_idx, &path,
+                &mut app.chat_view.chat_tool_file_expanded, msg_idx, tool_idx, &path,
             );
             // 展开/收起内联 diff 会显著改变消息高度，需与 ToggleThink 一样重测，
             // 否则虚拟列表 spacer 仍按旧高度计算，表现为大片空白。
-            app.chat_message_measured_heights.remove(&msg_idx);
-            if app.chat_auto_scroll {
+            app.chat_view.chat_message_measured_heights.remove(&msg_idx);
+            if app.chat_view.chat_auto_scroll {
                 app.refine_chat_message_estimated_heights(msg_idx, msg_idx.saturating_add(1));
-                app.chat_virtualizer.snap_to_tail();
+                app.chat_view.chat_virtualizer.snap_to_tail();
                 app.sync_chat_virtualizer_compat_fields();
             } else {
-                app.chat_virtualizer.preserve_current_anchor_around();
+                app.chat_view.chat_virtualizer.preserve_current_anchor_around();
                 app.refine_chat_message_estimated_heights(msg_idx, msg_idx.saturating_add(1));
             }
             super::measure_visible_chat_messages_task()
         }
         ChatMessage::ToggleTool(msg_idx, tool_idx) => {
             desktop_session::message::chat::input::interactions::toggle_tool_block(
-                &mut app.chat_tool_expanded, msg_idx, tool_idx,
+                &mut app.chat_view.chat_tool_expanded, msg_idx, tool_idx,
             );
-            app.chat_message_measured_heights.remove(&msg_idx);
-            if app.chat_auto_scroll {
+            app.chat_view.chat_message_measured_heights.remove(&msg_idx);
+            if app.chat_view.chat_auto_scroll {
                 app.refine_chat_message_estimated_heights(msg_idx, msg_idx.saturating_add(1));
-                app.chat_virtualizer.snap_to_tail();
+                app.chat_view.chat_virtualizer.snap_to_tail();
                 app.sync_chat_virtualizer_compat_fields();
             } else {
-                app.chat_virtualizer.preserve_current_anchor_around();
+                app.chat_view.chat_virtualizer.preserve_current_anchor_around();
                 app.refine_chat_message_estimated_heights(msg_idx, msg_idx.saturating_add(1));
             }
             super::measure_visible_chat_messages_task()
         }
         ChatMessage::ToolFileHover(key) => {
-            app.chat_tool_file_hovered = Some(key);
+            app.chat_interaction.chat_tool_file_hovered = Some(key);
             Task::none()
         }
         ChatMessage::ToolFileHoverLeave => {
-            app.chat_tool_file_hovered = None;
+            app.chat_interaction.chat_tool_file_hovered = None;
             Task::none()
         }
         ChatMessage::ToolHover(msg_idx, tool_idx) => {
             let key = desktop_session::message::chat::input::interactions::block_key(msg_idx, tool_idx);
-            app.chat_tool_hovered_idx = Some(key);
+            app.chat_interaction.chat_tool_hovered_idx = Some(key);
             Task::none()
         }
         ChatMessage::ToolHoverLeave => {
-            app.chat_tool_hovered_idx = None;
-            app.chat_tool_file_hovered = None;
+            app.chat_interaction.chat_tool_hovered_idx = None;
+            app.chat_interaction.chat_tool_file_hovered = None;
             Task::none()
         }
         ChatMessage::ToggleExploreSummary(msg_idx, tool_idx) => {
             desktop_session::message::chat::input::interactions::toggle_tool_block(
-                &mut app.chat_explore_expanded, msg_idx, tool_idx,
+                &mut app.chat_view.chat_explore_expanded, msg_idx, tool_idx,
             );
             Task::none()
         }
@@ -485,7 +484,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::CloseToolDetail => tool_detail::handle_close_tool_detail(app),
         ChatMessage::ToggleTodoPanel => {
             if desktop_session::message::chat::input::interactions::toggle_todo_panel(
-                &mut app.chat_todo_expanded, &mut app.chat_todo_anim,
+                &mut app.todo_state.chat_todo_expanded, &mut app.todo_state.chat_todo_anim,
             ) {
                 message::after(Duration::from_millis(16), Message::Chat(ChatMessage::TodoAnimTick))
             } else {
@@ -494,13 +493,13 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
 
         ChatMessage::SetTodoPanelPlacement(placement) => {
-            app.chat_todo_placement = placement;
-            desktop_session::message::chat::input::interactions::show_todo_panel(&mut app.chat_todo_expanded, &mut app.chat_todo_anim);
+            app.todo_state.chat_todo_placement = placement;
+            desktop_session::message::chat::input::interactions::show_todo_panel(&mut app.todo_state.chat_todo_expanded, &mut app.todo_state.chat_todo_anim);
             Task::none()
         }
         ChatMessage::TodoAnimTick => {
             if desktop_session::message::chat::input::interactions::tick_todo_panel(
-                app.chat_todo_expanded, &mut app.chat_todo_anim,
+                app.todo_state.chat_todo_expanded, &mut app.todo_state.chat_todo_anim,
             ) {
                 message::after(Duration::from_millis(16), Message::Chat(ChatMessage::TodoAnimTick))
             } else {
@@ -537,7 +536,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::none()
         }
         ChatMessage::ToolFilesFilterChanged(value) => {
-            app.tool_files_filter = value;
+            app.input_suggestions.tool_files_filter = value;
             Task::none()
         }
         ChatMessage::TaskModeToggled(value) => task_mode::handle_task_mode_toggled(app, value),
@@ -585,7 +584,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             context_menus::handle_open_message_context_menu(app, target, x, y, text)
         }
         ChatMessage::OpenChatMessageContextMenu { target, x, y, session_id, message_idx } => {
-            if app.active_session_id.as_deref() != Some(session_id.as_str()) {
+            if app.session_state.active_session_id.as_deref() != Some(session_id.as_str()) {
                 return Task::none();
             }
             let Some(text) =
@@ -631,12 +630,12 @@ pub(crate) fn apply_chat_scroll_changed(
     absolute_offset_y: f32,
     viewport_h: f32,
 ) -> ChatScrollUpdateOutcome {
-    if app.chat_virtualizer.len() != app.chat.len() {
+    if app.chat_view.chat_virtualizer.len() != app.chat_view.chat.len() {
         app.sync_chat_message_estimated_heights_len();
     }
     let outcome = desktop_chat_view::scroll_update::apply_scroll_changed(
-        &mut app.chat_virtualizer, &mut app.chat_auto_scroll, &mut app.chat_autoscroll_generation,
-        app.chat_autoscroll_hold_until_ms, rel_y, absolute_offset_y, viewport_h, super::now_ms,
+        &mut app.chat_view.chat_virtualizer, &mut app.chat_view.chat_auto_scroll, &mut app.chat_interaction.chat_autoscroll_generation,
+        app.chat_interaction.chat_autoscroll_hold_until_ms, rel_y, absolute_offset_y, viewport_h, super::now_ms,
     );
     app.sync_chat_scroll_compat_fields();
     let visible_range = outcome.visible_range;
@@ -663,13 +662,13 @@ pub(crate) fn apply_chat_message_measurements(
         return false;
     }
 
-    if app.chat_virtualizer.len() != app.chat.len() {
+    if app.chat_view.chat_virtualizer.len() != app.chat_view.chat.len() {
         app.sync_chat_message_estimated_heights_len();
     }
 
     let changed = desktop_chat_view::scroll_update::apply_targeted_message_measurements(
-        &mut app.chat_virtualizer, &mut app.chat_message_measured_heights, app.chat.len(),
-        app.paged_chat_timeline.as_ref(), measurements,
+        &mut app.chat_view.chat_virtualizer, &mut app.chat_view.chat_message_measured_heights, app.chat_view.chat.len(),
+        app.session_state.paged_chat_timeline.as_ref(), measurements,
     );
 
     if changed {

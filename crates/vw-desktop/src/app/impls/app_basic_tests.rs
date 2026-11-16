@@ -86,22 +86,22 @@ fn diff_file_expansion_helpers_keep_order_and_set_in_sync() {
 #[test]
 fn file_tree_expansion_helpers_toggle_and_deduplicate() {
     let mut app = new_app();
-    app.file_tree_expanded.clear();
-    app.file_tree_expanded_set.clear();
+    app.workspace_state.file_tree_expanded.clear();
+    app.workspace_state.file_tree_expanded_set.clear();
 
     assert!(!app.is_file_tree_dir_expanded("src"));
 
     app.ensure_file_tree_dir_expanded("src".to_string());
     app.ensure_file_tree_dir_expanded("src".to_string());
-    assert_eq!(app.file_tree_expanded, ["src"]);
+    assert_eq!(app.workspace_state.file_tree_expanded, ["src"]);
     assert!(app.is_file_tree_dir_expanded("src"));
 
     app.toggle_file_tree_dir_expanded("src".to_string());
     assert!(!app.is_file_tree_dir_expanded("src"));
-    assert!(app.file_tree_expanded.is_empty());
+    assert!(app.workspace_state.file_tree_expanded.is_empty());
 
     app.toggle_file_tree_dir_expanded("crates".to_string());
-    assert_eq!(app.file_tree_expanded, ["crates"]);
+    assert_eq!(app.workspace_state.file_tree_expanded, ["crates"]);
     assert!(app.is_file_tree_dir_expanded("crates"));
 }
 
@@ -110,11 +110,11 @@ fn expansion_toggles_clear_membership_when_ordered_entries_are_absent() {
     let mut app = new_app();
     app.git.expanded_files.clear();
     app.git.expanded_files_set.clear();
-    app.file_tree_expanded.clear();
-    app.file_tree_expanded_set.clear();
+    app.workspace_state.file_tree_expanded.clear();
+    app.workspace_state.file_tree_expanded_set.clear();
 
     app.git.expanded_files_set.insert("src/lib.rs".to_string());
-    app.file_tree_expanded_set.insert("src".to_string());
+    app.workspace_state.file_tree_expanded_set.insert("src".to_string());
 
     app.toggle_diff_file_expanded("src/lib.rs".to_string());
     app.toggle_file_tree_dir_expanded("src".to_string());
@@ -122,7 +122,7 @@ fn expansion_toggles_clear_membership_when_ordered_entries_are_absent() {
     assert!(!app.is_diff_file_expanded("src/lib.rs"));
     assert!(app.git.expanded_files.is_empty());
     assert!(!app.is_file_tree_dir_expanded("src"));
-    assert!(app.file_tree_expanded.is_empty());
+    assert!(app.workspace_state.file_tree_expanded.is_empty());
 }
 
 #[test]
@@ -211,13 +211,13 @@ fn search_panel_file_cache_limits_to_first_eight_matches() {
 fn search_caches_keep_entries_when_cache_keys_match() {
     let mut app = new_app();
     app.navigation_tabs.project_path = Some("/workspace".to_string());
-    app.file_index_revision = 9;
+    app.workspace_state.file_index_revision = 9;
 
     app.search.search_text = " SRC\\ ".to_string();
-    app.search_panel_file_cache_query = "src/".to_string();
-    app.search_panel_file_cache_project_path = Some("/workspace".to_string());
-    app.search_panel_file_cache_revision = 9;
-    app.search_panel_file_cache_results = vec!["kept-panel-result".to_string()];
+    app.workspace_state.search_panel_file_cache_query = "src/".to_string();
+    app.workspace_state.search_panel_file_cache_project_path = Some("/workspace".to_string());
+    app.workspace_state.search_panel_file_cache_revision = 9;
+    app.workspace_state.search_panel_file_cache_results = vec!["kept-panel-result".to_string()];
 
     app.input_suggestions.file_search_query = " SRC\\ ".to_string();
     app.input_suggestions.file_search_cache_query = "src/".to_string();
@@ -238,19 +238,19 @@ fn search_caches_keep_entries_when_cache_keys_match() {
 #[test]
 fn search_caches_invalidate_for_query_project_and_revision_changes() {
     let mut app = new_app();
-    app.file_index_cache.clear();
-    app.file_index_cache
+    app.workspace_state.file_index_cache.clear();
+    app.workspace_state.file_index_cache
         .insert("/workspace".to_string(), vec!["src/lib.rs".to_string(), "README.md".to_string()]);
-    app.file_index_cache.insert("/other".to_string(), vec!["src/library.rs".to_string()]);
+    app.workspace_state.file_index_cache.insert("/other".to_string(), vec!["src/library.rs".to_string()]);
     app.navigation_tabs.project_path = Some("/workspace".to_string());
-    app.file_index_revision = 10;
+    app.workspace_state.file_index_revision = 10;
     app.search.search_text = " SRC\\LIB ".to_string();
     app.input_suggestions.file_search_query = String::new();
 
     app.refresh_search_panel_file_cache();
     app.refresh_file_search_cache();
 
-    assert_eq!(app.search_panel_file_cache_query, "src/lib");
+    assert_eq!(app.workspace_state.search_panel_file_cache_query, "src/lib");
     assert_eq!(app.cached_search_panel_file_results(), ["src/lib.rs"]);
     assert!(app.cached_file_search_entries().iter().any(|entry| entry.path == "src/lib.rs"));
 
@@ -262,12 +262,12 @@ fn search_caches_invalidate_for_query_project_and_revision_changes() {
     assert!(app.cached_file_search_entries().iter().any(|entry| entry.path == "src/library.rs"));
     assert!(!app.cached_file_search_entries().iter().any(|entry| entry.path == "src/lib.rs"));
 
-    app.file_index_cache.insert("/other".to_string(), vec!["src/lib_new.rs".to_string()]);
-    app.file_index_revision = 11;
+    app.workspace_state.file_index_cache.insert("/other".to_string(), vec!["src/lib_new.rs".to_string()]);
+    app.workspace_state.file_index_revision = 11;
     app.refresh_search_panel_file_cache();
     app.refresh_file_search_cache();
 
-    assert_eq!(app.search_panel_file_cache_revision, 11);
+    assert_eq!(app.workspace_state.search_panel_file_cache_revision, 11);
     assert_eq!(app.cached_search_panel_file_results(), ["src/lib_new.rs"]);
     assert_eq!(app.input_suggestions.file_search_cache_revision, 11);
     assert!(app.cached_file_search_entries().iter().any(|entry| entry.path == "src/lib_new.rs"));
@@ -277,20 +277,20 @@ fn search_caches_invalidate_for_query_project_and_revision_changes() {
 #[test]
 fn set_file_index_overwrites_existing_files_and_wraps_revision() {
     let mut app = new_app();
-    app.file_index_cache.clear();
-    app.file_tree_model_cache.clear();
-    app.file_index_cache.insert("/workspace".to_string(), vec!["old.rs".to_string()]);
+    app.workspace_state.file_index_cache.clear();
+    app.workspace_state.file_tree_model_cache.clear();
+    app.workspace_state.file_index_cache.insert("/workspace".to_string(), vec!["old.rs".to_string()]);
     app.navigation_tabs.project_path = Some("/workspace".to_string());
     app.search.search_text = "new".to_string();
     app.input_suggestions.file_search_query = "new".to_string();
-    app.file_index_revision = u64::MAX;
+    app.workspace_state.file_index_revision = u64::MAX;
 
     app.set_file_index("/workspace", vec!["src/new.rs".to_string()]);
 
-    assert_eq!(app.file_index_revision, 0);
+    assert_eq!(app.workspace_state.file_index_revision, 0);
     assert_eq!(app.current_file_index(), ["src/new.rs"]);
     assert!(app.current_file_tree_model().is_some());
-    assert_eq!(app.search_panel_file_cache_revision, 0);
+    assert_eq!(app.workspace_state.search_panel_file_cache_revision, 0);
     assert_eq!(app.cached_search_panel_file_results(), ["src/new.rs"]);
     assert_eq!(app.input_suggestions.file_search_cache_revision, 0);
     assert!(app.cached_file_search_entries().iter().any(|entry| entry.path == "src/new.rs"));
@@ -313,57 +313,57 @@ fn can_open_external_defaults_false_and_uses_cached_value() {
 #[test]
 fn push_notification_assigns_incrementing_ids() {
     let mut app = new_app();
-    app.notifications.clear();
-    app.next_notification_id = 7;
+    app.notification_state.notifications.clear();
+    app.notification_state.next_notification_id = 7;
 
     app.push_notification("first".to_string());
     app.push_notification("second".to_string());
 
-    assert_eq!(app.notifications.len(), 2);
-    assert_eq!(app.notifications[0].id, 7);
-    assert_eq!(app.notifications[0].message, "first");
-    assert_eq!(app.notifications[1].id, 8);
-    assert_eq!(app.notifications[1].message, "second");
-    assert_eq!(app.next_notification_id, 9);
+    assert_eq!(app.notification_state.notifications.len(), 2);
+    assert_eq!(app.notification_state.notifications[0].id, 7);
+    assert_eq!(app.notification_state.notifications[0].message, "first");
+    assert_eq!(app.notification_state.notifications[1].id, 8);
+    assert_eq!(app.notification_state.notifications[1].message, "second");
+    assert_eq!(app.notification_state.next_notification_id, 9);
 }
 
 #[test]
 fn toast_helpers_store_kind_message_and_increment_id() {
     let mut app = new_app();
-    app.next_toast_id = 3;
+    app.toast_state.next_toast_id = 3;
 
     let _ = app.show_success_toast("saved");
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.id), Some(3));
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Success));
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.message.as_str()), Some("saved"));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.id), Some(3));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Success));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.message.as_str()), Some("saved"));
 
     let _ = app.show_error_toast("failed");
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.id), Some(4));
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Error));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.id), Some(4));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Error));
 
     let _ = app.show_info_toast("noted");
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.id), Some(5));
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Info));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.id), Some(5));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Info));
 
     let _ = app.show_warning_toast("careful");
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.id), Some(6));
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Warning));
-    assert_eq!(app.next_toast_id, 7);
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.id), Some(6));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Warning));
+    assert_eq!(app.toast_state.next_toast_id, 7);
 }
 
 #[test]
 fn theme_helpers_select_app_editor_and_pet_themes() {
     let mut app = new_app();
-    app.app_theme = Theme::Dark;
-    app.editor_theme = Theme::Light;
+    app.appearance.app_theme = Theme::Dark;
+    app.appearance.editor_theme = Theme::Light;
 
     assert_eq!(app.theme().to_string(), Theme::Dark.to_string());
 
-    app.editor_follow_system_theme = true;
+    app.appearance.editor_follow_system_theme = true;
     assert_eq!(app.effective_editor_theme().to_string(), Theme::Dark.to_string());
     assert_eq!(app.effective_editor_theme_ref().to_string(), Theme::Dark.to_string());
 
-    app.editor_follow_system_theme = false;
+    app.appearance.editor_follow_system_theme = false;
     assert_eq!(app.effective_editor_theme().to_string(), Theme::Light.to_string());
     assert_eq!(app.effective_editor_theme_ref().to_string(), Theme::Light.to_string());
 
@@ -382,7 +382,7 @@ fn mini_companion_native_theme_clears_transparently_in_both_modes() {
     let main = iced::window::Id::unique();
     app.task_pet_window_id = Some(mini);
     for theme in [Theme::Dark, Theme::Light] {
-        app.app_theme = theme.clone();
+        app.appearance.app_theme = theme.clone();
         let mini_theme = app.theme_for_window(mini);
         assert_eq!(App::window_style(&app, &mini_theme).background_color, iced::Color::TRANSPARENT);
         // Menus and input backgrounds must remain opaque even on the transparent surface.

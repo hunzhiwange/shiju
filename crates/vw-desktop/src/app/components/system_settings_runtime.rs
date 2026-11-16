@@ -5,7 +5,7 @@ use desktop_settings_runtime::system_settings_runtime as domain;
 fn inputs(app: &App) -> domain::View<'_> {
  domain::View { runtime_settings: &app.runtime_settings,
 select_focus_scope: super::system_settings::SELECT_FOCUS_SCOPE,
- desktop_locale: app.desktop_locale, app_theme: &app.app_theme,
+ desktop_locale: app.general_settings.desktop_locale, app_theme: &app.appearance.app_theme,
 
  render_help: super::system_settings_hooks::render_help,
  }

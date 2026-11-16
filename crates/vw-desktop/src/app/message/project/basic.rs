@@ -68,7 +68,7 @@ fn ensure_file_manager_changes_expanded(
     for key in keys {
         app.ensure_file_tree_dir_expanded(key);
     }
-    fields.insert("file_tree_expanded".into(), json!(app.file_tree_expanded));
+    fields.insert("file_tree_expanded".into(), json!(app.workspace_state.file_tree_expanded));
     app.save_desktop_preferences(fields)
 }
 
@@ -100,7 +100,7 @@ mod basic_tests;
 /// }
 /// ```
 pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Task<Message>> {
-    if desktop_workspace::basic::handle_input(&mut app.project_input, &mut app.files, &message) {
+    if desktop_workspace::basic::handle_input(&mut app.project_input, &mut app.session_state.files, &message) {
         return Some(iced::Task::none());
     }
     match message {
@@ -137,7 +137,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::RecentProjectsLoaded(result) => {
             match result {
                 Ok(meta) => {
-                    desktop_workspace::projects::replace_recent_project_views(&mut app.recent_projects, &mut app.recent_projects_edits, &mut app.recent_projects_meta, meta);
+                    desktop_workspace::projects::replace_recent_project_views(&mut app.workspace_state.recent_projects, &mut app.workspace_state.recent_projects_edits, &mut app.workspace_state.recent_projects_meta, meta);
                 }
                 Err(error) => {
                     tracing::warn!(
@@ -224,7 +224,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::ToggleTreeDir(dir) => {
             app.toggle_file_tree_dir_expanded(dir);
             // 将展开的目录列表序列化并保存到配置
-            Some(app.save_desktop_preference("file_tree_expanded", json!(app.file_tree_expanded)))
+            Some(app.save_desktop_preference("file_tree_expanded", json!(app.workspace_state.file_tree_expanded)))
         }
         // 处理文件管理器显示模式切换事件
         // 切换文件管理器在"文件浏览"和"Git 变更"模式之间
@@ -249,7 +249,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 ) {
                     app.ensure_file_tree_dir_expanded(key);
                 }
-                fields.insert("file_tree_expanded".into(), json!(app.file_tree_expanded));
+                fields.insert("file_tree_expanded".into(), json!(app.workspace_state.file_tree_expanded));
                 reveal
             } else {
                 None
@@ -320,13 +320,13 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 // 在光标位置插入文件引用
                 crate::app::ui::chat::insert_at_cursor(&mut runtime.input_editor, &mention);
                 // 如果没有活动会话，同步输入编辑器状态
-                if app.active_session_id.is_none() {
+                if app.session_state.active_session_id.is_none() {
                     let runtime = app.current_session_runtime();
-                    app.input_editor = runtime.input_editor;
+                    app.session_state.input_editor = runtime.input_editor;
                 }
                 app.focus_area = crate::app::FocusArea::None;
                 // 返回聚焦输入框的任务
-                return Some(iced::widget::operation::focus(app.input_editor_id.clone()));
+                return Some(iced::widget::operation::focus(app.session_state.input_editor_id.clone()));
             }
             Some(iced::Task::none())
         }

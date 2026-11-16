@@ -59,23 +59,23 @@ impl App {
         &mut self,
         path: Option<String>,
     ) -> iced::Task<crate::app::Message> {
-        self.session_previews.clear();
-        self.archived_session_ids.clear();
-        self.sessions.clear();
-        self.input_popovers.recommended_prompt = false;
+        self.session_state.session_previews.clear();
+        self.session_state.archived_session_ids.clear();
+        self.session_state.sessions.clear();
+        self.session_state.input_popovers.recommended_prompt = false;
         self.cache_active_session_chat();
-        self.active_session_id = None;
+        self.session_state.active_session_id = None;
         self.current_session_runtime_mut().draft = None;
-        self.chat.clear();
-        self.chat_message_ids.clear();
-        self.usage = TokenUsage::default();
+        self.chat_view.chat.clear();
+        self.chat_view.chat_message_ids.clear();
+        self.chat_view.usage = TokenUsage::default();
         self.invalidate_chat_ui_state();
 
         if let Some(project_path) = path.as_ref() {
-            self.project_sessions_loading.insert(project_path.clone());
+            self.workspace_state.project_sessions_loading.insert(project_path.clone());
         }
         let path_clone = path.clone();
-        let project_id = self.project_id.clone();
+        let project_id = self.workspace_state.project_id.clone();
         let endpoint = crate::app::config::gateway_client_endpoint();
 
         iced::Task::perform(
@@ -132,7 +132,7 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let scope = desktop_session::session_gateway::gateway_current_session_scope(crate::app::config::gateway_client_endpoint());
-            self.session_previews = build_session_previews(
+            self.session_state.session_previews = build_session_previews(
                 desktop_session::session_gateway::gateway_load_sessions_scoped(crate::app::config::gateway_client_endpoint(), scope.as_deref()),
             );
             iced::Task::none()

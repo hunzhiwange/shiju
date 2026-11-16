@@ -58,7 +58,7 @@ fn installed_targets(
 fn account_restore_loads_function_updates_before_opening_shiju_menu() {
     let (mut app, _) = App::new();
     app.account.replace_repository(repository_with_account("account-secret", "company-1"));
-    assert!(!app.input_popovers.shiju_skill);
+    assert!(!app.session_state.input_popovers.shiju_skill);
     let task = super::skill_hub::account_changed(&mut app);
     assert!(task.units() >= 2, "main version and function updates should both load");
     assert!(matches!(app.expert_hub.installed, LoadState::Loading { .. }));
@@ -127,7 +127,7 @@ fn business_skill_version_actions_use_server_upgrade_flag_and_immutable_version_
     }));
     assert_eq!(sync.units(), 2, "progress toast plus cache sync");
     assert!(app.expert_hub.action.is_none());
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Info));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Info));
     let cache_sync_generation = match app.expert_hub.cache_sync {
         SkillCacheSyncState::Syncing { generation, skill_id: 7, refresh_detail: true } => {
             generation
@@ -141,7 +141,7 @@ fn business_skill_version_actions_use_server_upgrade_flag_and_immutable_version_
         result: Ok(SkillCacheSyncReport { fetch_exit_code: 0, rebuild_exit_code: 0 }),
     }));
     assert!(refresh.units() >= 4, "toast plus three scoped refreshes");
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Success));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Success));
     assert!(matches!(app.expert_hub.marketplace, LoadState::Loading { .. }));
     assert!(matches!(app.expert_hub.installed, LoadState::Loading { .. }));
     assert!(matches!(
@@ -199,7 +199,7 @@ fn business_skill_version_actions_ignore_late_results_and_preserve_loaded_state_
     }));
     assert_eq!(failed.units(), 1);
     assert!(app.expert_hub.action.is_none());
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Error));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Error));
     assert!(matches!(app.expert_hub.marketplace, LoadState::Loaded(_)));
     assert!(matches!(app.expert_hub.installed, LoadState::Loaded(_)));
 }
@@ -249,8 +249,8 @@ fn version_switch_preserves_server_success_when_cache_sync_fails() {
     }));
     assert_eq!(warning.units(), 1);
     assert_eq!(app.expert_hub.cache_sync.pending_retry_skill_id(), Some(7));
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Warning));
-    assert!(app.active_toast.as_ref().unwrap().message.contains("服务端已更新"));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Warning));
+    assert!(app.toast_state.active_toast.as_ref().unwrap().message.contains("服务端已更新"));
     assert!(matches!(app.expert_hub.marketplace, LoadState::Loaded(_)));
     assert!(matches!(app.expert_hub.installed, LoadState::Loaded(_)));
 
@@ -497,7 +497,7 @@ fn skill_detail_install_uninstall_and_download_complete_user_flow() {
         result: Ok(()),
     }));
     assert!(app.expert_hub.action.is_none());
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Info));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Info));
     let cache_sync_generation = match app.expert_hub.cache_sync {
         SkillCacheSyncState::Syncing { generation, skill_id: 7, .. } => generation,
         ref state => panic!("unexpected cache sync state: {state:?}"),
@@ -508,7 +508,7 @@ fn skill_detail_install_uninstall_and_download_complete_user_flow() {
         skill_id: 7,
         result: Ok(SkillCacheSyncReport { fetch_exit_code: 0, rebuild_exit_code: 0 }),
     }));
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Success));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Success));
     assert!(matches!(app.expert_hub.marketplace, LoadState::Loading { .. }));
 
     app.expert_hub.marketplace = LoadState::Loaded(CursorPage {
@@ -526,7 +526,7 @@ fn skill_detail_install_uninstall_and_download_complete_user_flow() {
         result: Err("fixture failure".into()),
     }));
     assert!(matches!(app.expert_hub.marketplace, LoadState::Loaded(_)));
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Error));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Error));
 
     let mut opened = Vec::new();
     dispatch_download_with(&app, 17, |url| {
@@ -598,14 +598,14 @@ fn install_guide_routes_current_package_copy_download_and_direct_install() {
 fn project_scope_requires_open_project() {
     let (mut app, _) = App::new();
     app.expert_hub.install_guide.open = true;
-    app.recent_projects.clear();
+    app.workspace_state.recent_projects.clear();
 
     let _ = app.update(Message::SkillHub(SkillHubMessage::SelectShijuInstallScope(
         SkillInstallScope::Project,
     )));
 
     assert_eq!(app.expert_hub.install_guide.install_scope, SkillInstallScope::Global);
-    let error = app.active_toast.as_ref().expect("missing project should show an error");
+    let error = app.toast_state.active_toast.as_ref().expect("missing project should show an error");
     assert_eq!(error.kind, ToastKind::Error);
     assert!(error.message.contains("项目"));
 
@@ -622,7 +622,7 @@ fn project_scope_requires_open_project() {
 fn project_scope_uses_selected_install_project_and_can_switch_projects() {
     let (mut app, _) = App::new();
     app.expert_hub.install_guide.open = true;
-    app.recent_projects = vec!["/repo/first".to_string(), "/repo/second".to_string()];
+    app.workspace_state.recent_projects = vec!["/repo/first".to_string(), "/repo/second".to_string()];
     app.expert_hub.install_guide.selected_project_path = Some("/repo/first".to_string());
 
     let _ = app.update(Message::SkillHub(SkillHubMessage::SelectShijuInstallScope(
@@ -654,7 +654,7 @@ fn manual_shiju_key_sync_requires_active_account() {
 
     let _ = app.update(Message::SkillHub(SkillHubMessage::SyncShijuKey));
 
-    let warning = app.active_toast.as_ref().expect("missing account should show a warning");
+    let warning = app.toast_state.active_toast.as_ref().expect("missing account should show a warning");
     assert_eq!(warning.kind, ToastKind::Warning);
     assert!(warning.message.contains("登录识矩账户"));
     assert!(!app.expert_hub.install_guide.login_sync_in_progress);
@@ -666,16 +666,16 @@ fn manual_shiju_key_sync_requires_active_account() {
         requested_by_user: true,
         result: Err("credential-secret".into()),
     }));
-    let warning = app.active_toast.as_ref().expect("stale sync result should be ignored");
+    let warning = app.toast_state.active_toast.as_ref().expect("stale sync result should be ignored");
     assert_eq!(warning.kind, ToastKind::Warning);
     assert!(!warning.message.contains("credential-secret"));
     assert!(!app.expert_hub.install_guide.login_sync_in_progress);
 
     app.account.replace_repository(repository_with_account("account-secret", "company-1"));
-    app.active_toast = None;
+    app.toast_state.active_toast = None;
     let task = app.update(Message::SkillHub(SkillHubMessage::SyncShijuKey));
     assert_eq!(task.units(), 1);
-    assert!(app.active_toast.is_none());
+    assert!(app.toast_state.active_toast.is_none());
     assert!(app.expert_hub.install_guide.login_sync_in_progress);
     let sync = app.expert_hub.install_guide.login_sync.clone().unwrap();
     let account_id = app.account.active_account().unwrap().id().to_string();
@@ -729,7 +729,7 @@ fn direct_install_success_schedules_key_sync() {
 
     assert_eq!(task.units(), 2);
     assert!(app.expert_hub.install_guide.is_installed);
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Success));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Success));
 
     let sync = app.expert_hub.install_guide.login_sync.clone().unwrap();
     let _ = app.update(Message::SkillHub(SkillHubMessage::ShijuKeySyncFinished {
@@ -744,7 +744,7 @@ fn direct_install_success_schedules_key_sync() {
             }],
         }),
     }));
-    let success = app.active_toast.as_ref().expect("sync completion should show success");
+    let success = app.toast_state.active_toast.as_ref().expect("sync completion should show success");
     assert_eq!(success.kind, ToastKind::Success);
     assert!(!success.message.contains("account-secret"));
 }
@@ -798,7 +798,7 @@ fn install_guide_uninstall_completion_updates_local_status_and_ignores_stale_res
     assert!(!app.expert_hub.install_guide.is_installed);
     assert!(app.expert_hub.install_guide.installed_version.is_none());
     assert!(matches!(app.expert_hub.install_guide.direct_install, ShijuDirectInstallState::Idle));
-    assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Success));
+    assert_eq!(app.toast_state.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Success));
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。

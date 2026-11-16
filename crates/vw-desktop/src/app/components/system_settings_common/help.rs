@@ -27,8 +27,8 @@ pub fn with_settings_help_modal<'a>(
     close_message: Message,
 ) -> Element<'a, Message> {
     shared::localized_settings_help_modal(
-        app.desktop_locale,
-        app.last_copied_code_hash,
+        app.general_settings.desktop_locale,
+        app.clipboard_state.last_copied_code_hash,
         base,
         title,
         help_text,

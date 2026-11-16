@@ -25,7 +25,7 @@ use tracing::info;
 
 pub(super) fn stream_delta_flush_interval(app: &App, session_id: &str) -> Duration {
     desktop_session::message::chat::stream::stream_events::stream_delta_flush_interval(
-        app.active_session_id.as_deref(),
+        app.session_state.active_session_id.as_deref(),
         session_id,
     )
 }
@@ -62,9 +62,9 @@ fn calibrate_stream_tail_at_terminal(
 }
 
 fn apply_active_terminal_tail_calibration(app: &mut App, calibration: TerminalTailCalibration) {
-    app.chat_stream_think_msg_idx = Some(calibration.message_idx);
-    app.chat_stream_think_count = calibration.think_count;
-    app.chat_stream_think_open_idx = calibration
+    app.chat_interaction.chat_stream_think_msg_idx = Some(calibration.message_idx);
+    app.chat_interaction.chat_stream_think_count = calibration.think_count;
+    app.chat_interaction.chat_stream_think_open_idx = calibration
         .thinking_open
         .then(|| calibration.think_count.saturating_sub(1))
         .filter(|_| calibration.think_count > 0);
@@ -90,7 +90,7 @@ fn complete_quick_message_handoff(
         .or_else(|| app.navigation_tabs.project_path.clone());
     let prompt = completed_handoff_prompt(chat);
     match domain::complete_commit_handoff(
-        app.quick_message_handoff.as_ref(),
+        app.session_state.quick_message_handoff.as_ref(),
         request_id,
         session_id,
         prompt.as_deref(),
@@ -98,7 +98,7 @@ fn complete_quick_message_handoff(
     ) {
         domain::CommitHandoff::Unrelated => None,
         domain::CommitHandoff::Warning(message) => {
-            app.quick_message_handoff = None;
+            app.session_state.quick_message_handoff = None;
             app.git.git_commit_in_progress = false;
             Some(app.show_localized_toast(crate::app::state::ToastKind::Warning, message, vec![]))
         }
@@ -109,7 +109,7 @@ fn complete_quick_message_handoff(
             app.git.git_commit_description = summary;
             app.git.git_commit_description_editor =
                 iced::widget::text_editor::Content::with_text(&app.git.git_commit_description);
-            app.quick_message_handoff = None;
+            app.session_state.quick_message_handoff = None;
             app.git.git_commit_in_progress = false;
             let message = match action {
                 QuickMessageGitCommitAction::StageAllAndCommit => {
@@ -125,10 +125,10 @@ fn complete_quick_message_handoff(
 }
 
 fn prepare_scroll_for_active_stream_growth(app: &mut App) {
-    if app.chat_auto_scroll {
-        app.chat_virtualizer.snap_to_tail();
-    } else if app.chat_virtualizer.turn_focus_user_index().is_none() {
-        app.chat_virtualizer.preserve_current_anchor_around();
+    if app.chat_view.chat_auto_scroll {
+        app.chat_view.chat_virtualizer.snap_to_tail();
+    } else if app.chat_view.chat_virtualizer.turn_focus_user_index().is_none() {
+        app.chat_view.chat_virtualizer.preserve_current_anchor_around();
     }
     app.sync_chat_scroll_compat_fields();
 }
@@ -143,15 +143,15 @@ fn finish_active_stream_tail_update(
 ) -> Task<Message> {
     // 流式追加和工具替换都会改变尾消息；旧哈希不能继续作为视图缓存命中依据。
     // 仅失效变化行，历史消息缓存和编辑器保持可复用。
-    app.chat_render_cache.remove(&changed_idx);
-    if let Some(visible_text) = app.chat_visible_text_cache.get_mut(changed_idx) {
+    app.chat_view.chat_render_cache.remove(&changed_idx);
+    if let Some(visible_text) = app.chat_view.chat_visible_text_cache.get_mut(changed_idx) {
         *visible_text = None;
     }
-    if let Some(copy_hash) = app.chat_copy_hash_cache.get_mut(changed_idx) {
+    if let Some(copy_hash) = app.chat_view.chat_copy_hash_cache.get_mut(changed_idx) {
         *copy_hash = None;
     }
-    app.session_chat_cache.remove(&session_id);
-    app.session_chat_message_id_cache.remove(&session_id);
+    app.session_state.session_chat_cache.remove(&session_id);
+    app.session_state.session_chat_message_id_cache.remove(&session_id);
     prepare_scroll_for_active_stream_growth(app);
     app.sync_task_pet_from_runtime();
     let (estimated_height, stream_generation) = {
@@ -161,14 +161,14 @@ fn finish_active_stream_tail_update(
     };
     app.apply_stream_tail_estimated_height(changed_idx, estimated_height);
 
-    let should_snap_to_bottom = app.chat_virtualizer.should_follow_tail_after_growth();
+    let should_snap_to_bottom = app.chat_view.chat_virtualizer.should_follow_tail_after_growth();
     if let Some(stream_generation) = stream_generation {
         app.get_session_runtime_mut(&session_id)
             .stream_tail_state
             .finish_ui_preparation(stream_generation);
     }
 
-    app.active_session_view_state.updated_ms = now;
+    app.chat_view.active_session_view_state.updated_ms = now;
     app.refresh_active_session_tail_message_meta(changed_idx);
 
     mark_agent_stream_session_dirty(app, &session_id, changed_idx, now, previous_content_len);
@@ -182,14 +182,13 @@ fn finish_active_stream_tail_update(
 }
 
 fn refresh_stream_replacement_projection(app: &mut App, session_id: &str, message_idx: usize) {
-    let generation = app
-        .session_runtime_states
+    let generation = app.session_state.session_runtime_states
         .get(session_id)
         .and_then(|runtime| runtime.request_lifecycle.active_agent_request.as_ref())
         .map_or(0, |request| request.id);
     let mut render =
         std::mem::take(&mut app.get_session_runtime_mut(session_id).stream_render_state);
-    if let Some(content) = app.chat.get(message_idx).map(|message| message.content.as_str()) {
+    if let Some(content) = app.chat_view.chat.get(message_idx).map(|message| message.content.as_str()) {
         render.begin(session_id, generation, message_idx, content);
         let _ = render.replace_from_stable_boundary(session_id, generation, message_idx, content);
     }
@@ -216,20 +215,18 @@ pub(super) fn mark_agent_stream_session_dirty(
     updated_ms: u64,
     previous_content_len: Option<usize>,
 ) {
-    if app.session_runtime_states.get(session_id).is_some_and(|runtime| runtime.is_plan_run_session)
+    if app.session_state.session_runtime_states.get(session_id).is_some_and(|runtime| runtime.is_plan_run_session)
     {
         return;
     }
-    let is_active = app.active_session_id.as_deref() == Some(session_id);
-    let seq_no = app
-        .session_runtime_states
+    let is_active = app.session_state.active_session_id.as_deref() == Some(session_id);
+    let seq_no = app.session_state.session_runtime_states
         .get(session_id)
         .map_or(0, |runtime| runtime.stream_save.seq_base)
         + index as u64;
     let message = if is_active {
-        app.chat.get(index).map(|source| {
-            let (message, _cloned) = app
-                .session_runtime_states
+        app.chat_view.chat.get(index).map(|source| {
+            let (message, _cloned) = app.session_state.session_runtime_states
                 .get_mut(session_id)
                 .map(|runtime| runtime.stream_save.snapshot(source, seq_no, previous_content_len))
                 .unwrap_or_else(|| (source.clone(), true));
@@ -248,17 +245,15 @@ pub(super) fn mark_agent_stream_session_dirty(
         return;
     };
     let message_id = if is_active {
-        app.chat_message_ids.get(index).cloned().flatten()
+        app.chat_view.chat_message_ids.get(index).cloned().flatten()
     } else {
         app.cached_chat_message_ids(session_id).and_then(|ids| ids.get(index).cloned()).flatten()
     };
-    let base_updated_ms = app
-        .sessions
+    let base_updated_ms = app.session_state.sessions
         .iter()
         .find(|session| session.id == session_id)
         .map_or(0, |session| session.time.updated);
-    let request_generation = app
-        .session_runtime_states
+    let request_generation = app.session_state.session_runtime_states
         .get(session_id)
         .and_then(|runtime| runtime.request_lifecycle.active_agent_request.as_ref())
         .map(|request| request.id);
@@ -269,7 +264,7 @@ pub(super) fn mark_agent_stream_session_dirty(
         request_generation,
     );
     // Keep the newest local timestamp in the delta snapshot; the stored base changes only on ack.
-    app.active_session_view_state.updated_ms = updated_ms;
+    app.chat_view.active_session_view_state.updated_ms = updated_ms;
 }
 
 pub(super) fn flush_agent_stream_session_save(app: &mut App, session_id: String) -> Task<Message> {
@@ -335,9 +330,8 @@ pub(super) fn handle_agent_stream_session_delta_saved(
     let request_generation =
         runtime.request_lifecycle.active_agent_request.as_ref().map(|request| request.id);
     let mut save = std::mem::take(&mut runtime.stream_save);
-    let is_active = app.active_session_id.as_deref() == Some(session_id.as_str());
-    let base_updated_ms = app
-        .sessions
+    let is_active = app.session_state.active_session_id.as_deref() == Some(session_id.as_str());
+    let base_updated_ms = app.session_state.sessions
         .iter()
         .find(|session| session.id == session_id)
         .map_or(0, |session| session.time.updated);
@@ -353,7 +347,7 @@ pub(super) fn handle_agent_stream_session_delta_saved(
                 return None;
             }
             let message = if is_active {
-                app.chat.get(index).map(|source| {
+                app.chat_view.chat.get(index).map(|source| {
                     #[cfg(test)]
                     crate::app::components::chat_panel::performance::record_chat_message_clone(
                         source.content.len(),
@@ -365,7 +359,7 @@ pub(super) fn handle_agent_stream_session_delta_saved(
                     .and_then(|messages| messages.get(index).cloned())
             }?;
             let message_id = if is_active {
-                app.chat_message_ids.get(index).cloned().flatten()
+                app.chat_view.chat_message_ids.get(index).cloned().flatten()
             } else {
                 app.cached_chat_message_ids(&session_id)
                     .and_then(|ids| ids.get(index).cloned())
@@ -376,7 +370,7 @@ pub(super) fn handle_agent_stream_session_delta_saved(
     );
     app.get_session_runtime_mut(&session_id).stream_save = save;
     if repaired {
-        app.active_session_view_state.updated_ms = updated_ms;
+        app.chat_view.active_session_view_state.updated_ms = updated_ms;
     }
     match outcome {
         SaveOutcome::Ignored | SaveOutcome::Settled => Task::none(),
@@ -404,19 +398,18 @@ pub(super) fn handle_agent_stream_session_delta_saved(
 pub(super) fn force_save_agent_stream_session(app: &mut App, session_id: &str) -> Task<Message> {
     clear_agent_stream_session_save_flush(app, session_id);
     let now = now_ms();
-    if app.active_session_id.as_deref() == Some(session_id) {
-        let mut chat = std::mem::take(&mut app.chat);
+    if app.session_state.active_session_id.as_deref() == Some(session_id) {
+        let mut chat = std::mem::take(&mut app.chat_view.chat);
         let calibration = calibrate_stream_tail_at_terminal(app, session_id, &mut chat, now);
-        app.chat = chat;
+        app.chat_view.chat = chat;
         if let Some(calibration) = calibration {
             apply_active_terminal_tail_calibration(app, calibration);
         }
-    } else if let Some(cached) = app.session_chat_cache.get(session_id).cloned() {
+    } else if let Some(cached) = app.session_state.session_chat_cache.get(session_id).cloned() {
         let mut chat = cached.iter().cloned().collect::<Vec<_>>();
         let calibration = calibrate_stream_tail_at_terminal(app, session_id, &mut chat, now);
         if calibration.is_some() {
-            let message_ids = app
-                .session_chat_message_id_cache
+            let message_ids = app.session_state.session_chat_message_id_cache
                 .get(session_id)
                 .cloned()
                 .unwrap_or_else(|| vec![None; chat.len()]);
@@ -449,11 +442,11 @@ pub(super) fn queue_agent_tool_delta(app: &mut App, id: u64, delta: String) -> T
 }
 
 pub(super) fn settle_interrupted_compaction(app: &mut App, session_id: &str, content: &str) {
-    let is_active = app.active_session_id.as_deref() == Some(session_id);
+    let is_active = app.session_state.active_session_id.as_deref() == Some(session_id);
     let mut chat = if is_active {
-        app.chat.clone()
+        app.chat_view.chat.clone()
     } else {
-        app.session_chat_cache
+        app.session_state.session_chat_cache
             .get(session_id)
             .map(|chat| chat.iter().cloned().collect::<Vec<_>>())
             .unwrap_or_default()
@@ -468,9 +461,9 @@ pub(super) fn settle_interrupted_compaction(app: &mut App, session_id: &str, con
     };
     let changed = [index];
     let ids = if is_active {
-        app.chat_message_ids.clone()
+        app.chat_view.chat_message_ids.clone()
     } else {
-        app.session_chat_message_id_cache
+        app.session_state.session_chat_message_id_cache
             .get(session_id)
             .cloned()
             .unwrap_or_else(|| vec![None; chat.len()])
@@ -481,9 +474,9 @@ pub(super) fn settle_interrupted_compaction(app: &mut App, session_id: &str, con
         ids,
     );
     if is_active {
-        app.chat = chat;
+        app.chat_view.chat = chat;
         for index in &changed {
-            app.chat_render_cache.remove(index);
+            app.chat_view.chat_render_cache.remove(index);
         }
         app.sync_active_session_from_chat();
     }
@@ -498,19 +491,19 @@ pub(super) fn handle_agent_todo_continuation(app: &mut App, id: u64) -> Task<Mes
     };
     // 先刷新正文，保证状态条位于上一轮回复与下一轮输出之间。
     let delta_task = flush_agent_stream_delta(app, session_id.clone());
-    let is_active = app.active_session_id.as_deref() == Some(session_id.as_str());
+    let is_active = app.session_state.active_session_id.as_deref() == Some(session_id.as_str());
     let mut chat = if is_active {
-        app.chat.clone()
+        app.chat_view.chat.clone()
     } else {
-        app.session_chat_cache
+        app.session_state.session_chat_cache
             .get(&session_id)
             .map(|messages| messages.iter().cloned().collect())
             .unwrap_or_default()
     };
     let mut message_ids = if is_active {
-        app.chat_message_ids.clone()
+        app.chat_view.chat_message_ids.clone()
     } else {
-        app.session_chat_message_id_cache.get(&session_id).cloned().unwrap_or_default()
+        app.session_state.session_chat_message_id_cache.get(&session_id).cloned().unwrap_or_default()
     };
     let changed_idx = desktop_session::message::chat::stream::stream_events::append_system_notice(
         &mut chat,
@@ -524,9 +517,9 @@ pub(super) fn handle_agent_todo_continuation(app: &mut App, id: u64) -> Task<Mes
         message_ids.clone(),
     );
     if is_active {
-        app.chat = chat;
-        app.chat_message_ids = message_ids;
-        app.chat_render_cache.remove(&changed_idx);
+        app.chat_view.chat = chat;
+        app.chat_view.chat_message_ids = message_ids;
+        app.chat_view.chat_render_cache.remove(&changed_idx);
         app.sync_active_session_from_chat();
     }
     mark_agent_stream_session_dirty(app, &session_id, changed_idx, now_ms(), None);
@@ -546,19 +539,19 @@ pub(super) fn handle_agent_compaction_status(
     let Some(session_id) = app.find_session_by_request_id(id) else {
         return Task::none();
     };
-    let is_active = app.active_session_id.as_deref() == Some(session_id.as_str());
+    let is_active = app.session_state.active_session_id.as_deref() == Some(session_id.as_str());
     let mut chat = if is_active {
-        std::mem::take(&mut app.chat)
+        std::mem::take(&mut app.chat_view.chat)
     } else {
-        app.session_chat_cache
+        app.session_state.session_chat_cache
             .get(&session_id)
             .map(|messages| messages.iter().cloned().collect())
             .unwrap_or_default()
     };
     let mut ids = if is_active {
-        std::mem::take(&mut app.chat_message_ids)
+        std::mem::take(&mut app.chat_view.chat_message_ids)
     } else {
-        app.session_chat_message_id_cache
+        app.session_state.session_chat_message_id_cache
             .get(&session_id)
             .cloned()
             .unwrap_or_else(|| vec![None; chat.len()])
@@ -572,11 +565,11 @@ pub(super) fn handle_agent_compaction_status(
         crate::app::components::chat_panel::message_view::COMPACTION_COMPLETED_TEXT,
     );
     if is_active {
-        app.chat = chat;
-        app.chat_message_ids = ids;
-        app.chat_render_cache.remove(&changed_idx);
-        app.session_chat_cache.remove(&session_id);
-        app.session_chat_message_id_cache.remove(&session_id);
+        app.chat_view.chat = chat;
+        app.chat_view.chat_message_ids = ids;
+        app.chat_view.chat_render_cache.remove(&changed_idx);
+        app.session_state.session_chat_cache.remove(&session_id);
+        app.session_state.session_chat_message_id_cache.remove(&session_id);
         app.sync_active_session_from_chat();
     } else {
         app.store_session_chat_snapshot(
@@ -600,7 +593,7 @@ pub(super) fn queue_agent_session_delta(
     }
 
     use desktop_session::message::chat::stream::stream_events::DeltaEffect;
-    let is_active = app.active_session_id.as_deref() == Some(session_id.as_str());
+    let is_active = app.session_state.active_session_id.as_deref() == Some(session_id.as_str());
     let interval = stream_delta_flush_interval(app, &session_id);
     let runtime = app.get_session_runtime_mut(&session_id);
     match domain::queue_runtime_delta(runtime, is_active, delta) {
@@ -653,15 +646,14 @@ fn apply_agent_session_delta(app: &mut App, session_id: String, delta: String) -
     // text can change the agent badge, including for background descendants.
     app.session_ui_projection.agent_sessions.get_mut().take();
     let now = now_ms();
-    let is_active = app.active_session_id.as_ref() == Some(&session_id);
+    let is_active = app.session_state.active_session_id.as_ref() == Some(&session_id);
     let mut tail_state = {
         let runtime = app.get_session_runtime_mut(&session_id);
         std::mem::take(&mut runtime.stream_tail_state)
     };
     if is_active {
-        let changed_idx = domain::tail_target(&app.chat);
-        let generation = app
-            .session_runtime_states
+        let changed_idx = domain::tail_target(&app.chat_view.chat);
+        let generation = app.session_state.session_runtime_states
             .get(&session_id)
             .and_then(|runtime| runtime.request_lifecycle.active_agent_request.as_ref())
             .map_or(0, |request| request.id);
@@ -671,8 +663,8 @@ fn apply_agent_session_delta(app: &mut App, session_id: String, delta: String) -
             let _ = render.append_delta(&session_id, generation, changed_idx, &delta);
         }
         let applied = domain::apply_delta(
-            &mut app.chat,
-            &mut app.chat_message_ids,
+            &mut app.chat_view.chat,
+            &mut app.chat_view.chat_message_ids,
             &mut tail_state,
             delta,
             now,
@@ -691,13 +683,11 @@ fn apply_agent_session_delta(app: &mut App, session_id: String, delta: String) -
         );
     }
 
-    let mut live_chat: Vec<models::ChatMessage> = app
-        .session_chat_cache
+    let mut live_chat: Vec<models::ChatMessage> = app.session_state.session_chat_cache
         .get(&session_id)
         .map(|cached| cached.iter().cloned().collect())
         .unwrap_or_default();
-    let mut live_ids = app
-        .session_chat_message_id_cache
+    let mut live_ids = app.session_state.session_chat_message_id_cache
         .get(&session_id)
         .cloned()
         .unwrap_or_else(|| vec![None; live_chat.len()]);
@@ -737,7 +727,7 @@ pub(super) fn handle_plan_run_session_started(
         return Task::none();
     }
 
-    if !app.session_chat_cache.contains_key(session_id) {
+    if !app.session_state.session_chat_cache.contains_key(session_id) {
         let initial_chat = domain::plan_initial_chat(query);
         app.store_session_chat_snapshot(
             session_id.to_string(),
@@ -759,7 +749,7 @@ pub(super) fn handle_plan_run_session_finished(app: &mut App, session_id: String
     let save_task = force_save_agent_stream_session(app, &session_id);
     app.get_session_runtime_mut(&session_id).request_lifecycle.is_requesting = false;
     app.sync_task_pet_from_runtime();
-    if app.active_session_id.as_ref() == Some(&session_id) {
+    if app.session_state.active_session_id.as_ref() == Some(&session_id) {
         app.sync_active_session_from_chat();
     }
     save_task
@@ -791,15 +781,15 @@ fn handle_agent_tool_blocks_update(
     let delta_task = flush_agent_stream_delta(app, session_id.clone());
 
     let now = now_ms();
-    let is_active = app.active_session_id.as_ref() == Some(&session_id);
+    let is_active = app.session_state.active_session_id.as_ref() == Some(&session_id);
     let mut tail_state = {
         let runtime = app.get_session_runtime_mut(&session_id);
         std::mem::take(&mut runtime.stream_tail_state)
     };
     if is_active {
         let changed_idx = domain::apply_tool_blocks(
-            &mut app.chat,
-            &mut app.chat_message_ids,
+            &mut app.chat_view.chat,
+            &mut app.chat_view.chat_message_ids,
             &mut tail_state,
             raw_tool_blocks,
         );
@@ -812,13 +802,11 @@ fn handle_agent_tool_blocks_update(
         ]);
     }
 
-    let mut live_chat: Vec<models::ChatMessage> = app
-        .session_chat_cache
+    let mut live_chat: Vec<models::ChatMessage> = app.session_state.session_chat_cache
         .get(&session_id)
         .map(|cached| cached.iter().cloned().collect())
         .unwrap_or_default();
-    let mut live_ids = app
-        .session_chat_message_id_cache
+    let mut live_ids = app.session_state.session_chat_message_id_cache
         .get(&session_id)
         .cloned()
         .unwrap_or_else(|| vec![None; live_chat.len()]);
@@ -906,15 +894,15 @@ pub(super) fn complete_agent_stream(
     let _ = flush_agent_stream_delta(app, session_id.clone());
     clear_agent_stream_session_save_flush(app, &session_id);
     crate::app::state::clear_pending_guide_handoff(id);
-    let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
+    let is_active_session = app.session_state.active_session_id.as_ref() == Some(&session_id);
     let completed_ms = now_ms();
     let terminal = domain::begin_terminal(app.get_session_runtime_mut(&session_id));
     let has_pending_queue = terminal.has_pending_queue;
     let request_started_ms = terminal.request_started_ms;
     let resume_history_only = terminal.resume_history_only;
     let mut persisted_chat: Vec<models::ChatMessage> = if is_active_session {
-        app.chat.clone()
-    } else if let Some(cached) = app.session_chat_cache.get(&session_id).cloned() {
+        app.chat_view.chat.clone()
+    } else if let Some(cached) = app.session_state.session_chat_cache.get(&session_id).cloned() {
         cached.iter().cloned().collect::<Vec<models::ChatMessage>>()
     } else {
         tracing::warn!(target: "vw_desktop", session_id = %session_id, "missing bounded chat cache at stream completion");
@@ -943,9 +931,9 @@ pub(super) fn complete_agent_stream(
     );
     let handoff_task = complete_quick_message_handoff(app, id, &session_id, &persisted_chat);
     let mut persisted_ids = if is_active_session {
-        app.chat_message_ids.clone()
+        app.chat_view.chat_message_ids.clone()
     } else {
-        app.session_chat_message_id_cache
+        app.session_state.session_chat_message_id_cache
             .get(&session_id)
             .cloned()
             .unwrap_or_else(|| vec![None; persisted_chat.len()])
@@ -968,10 +956,10 @@ pub(super) fn complete_agent_stream(
     );
 
     if is_active_session {
-        app.chat = persisted_chat.clone();
-        app.chat_message_ids = persisted_ids.clone();
-        app.usage = usage;
-        app.last_call_log_path = None;
+        app.chat_view.chat = persisted_chat.clone();
+        app.chat_view.chat_message_ids = persisted_ids.clone();
+        app.chat_view.usage = usage;
+        app.session_state.last_call_log_path = None;
         if let Some(calibration) = terminal_tail {
             apply_active_terminal_tail_calibration(app, calibration);
         }
@@ -979,7 +967,7 @@ pub(super) fn complete_agent_stream(
 
     if is_active_session {
         domain::bind_terminal_turn(
-            &mut app.active_session_view_state.steps,
+            &mut app.chat_view.active_session_view_state.steps,
             assistant_message_id.as_deref(),
             request_started_ms,
         );
@@ -1004,8 +992,7 @@ pub(super) fn complete_agent_stream(
         target: "vw_desktop",
         request_id = id,
         session_id = %session_id,
-        cached_message_ids_tail = ?app
-            .session_chat_message_id_cache
+        cached_message_ids_tail = ?app.session_state.session_chat_message_id_cache
             .get(&session_id)
             .map(|ids| message_ids_tail(ids))
             .unwrap_or_default(),
@@ -1030,16 +1017,16 @@ pub(super) fn complete_agent_stream(
         resume_history_only,
         is_draft,
         handoff_task.is_some(),
-        app.task_completion_notification,
+        app.general_settings.task_completion_notification,
     );
     let notification = if effects.notify && crate::app::desktop_notification::SUPPORTED {
-        crate::app::desktop_notification::completion_task(app.desktop_locale)
+        crate::app::desktop_notification::completion_task(app.general_settings.desktop_locale)
     } else {
         Task::none()
     };
     let next = if effects.start_next { start_next(app, &session_id) } else { Task::none() };
     let refresh_message_ids = if effects.refresh_message_ids {
-        app.sessions
+        app.session_state.sessions
             .iter()
             .find(|entry| entry.id == session_id)
             .map(|entry| entry.directory.clone())
@@ -1062,8 +1049,7 @@ pub(super) fn complete_agent_stream(
         Task::none()
     };
     let session_todos_task = if is_active_session {
-        let directory = app
-            .sessions
+        let directory = app.session_state.sessions
             .iter()
             .find(|entry| entry.id == session_id)
             .map(|entry| entry.directory.clone())
@@ -1090,7 +1076,7 @@ pub(super) fn complete_agent_stream(
         },
         |result| Message::Chat(super::ChatMessage::SessionSummaryReloaded(result)),
     );
-    let completion = if is_active_session && app.chat_auto_scroll {
+    let completion = if is_active_session && app.chat_view.chat_auto_scroll {
         scroll_chat_to_bottom_task(app)
     } else {
         Task::none()
@@ -1122,7 +1108,7 @@ pub(super) fn handle_agent_post_tool_round(
     let Some(found_session_id) = app.find_session_by_request_id(id) else {
         return Task::none();
     };
-    if found_session_id != session_id || app.active_session_id.as_ref() != Some(&session_id) {
+    if found_session_id != session_id || app.session_state.active_session_id.as_ref() != Some(&session_id) {
         return Task::none();
     }
 
@@ -1145,7 +1131,7 @@ pub(super) fn handle_agent_post_tool_round(
         crate::app::message::chat::processing_timing::pause_runtime_processing_timers(runtime)
     };
     crate::app::message::chat::processing_timing::complete_tail_assistant_processing(
-        &mut app.chat,
+        &mut app.chat_view.chat,
         completed_ms,
         elapsed.processing_ms,
         elapsed.llm_ms,
@@ -1153,15 +1139,15 @@ pub(super) fn handle_agent_post_tool_round(
     app.finalize_stream_text();
     app.store_session_chat_snapshot(
         session_id.clone(),
-        crate::app::session::shared_chat_messages(app.chat.clone()),
-        app.chat_message_ids.clone(),
+        crate::app::session::shared_chat_messages(app.chat_view.chat.clone()),
+        app.chat_view.chat_message_ids.clone(),
     );
-    if let Some(tail_idx) = app.chat.len().checked_sub(1) {
+    if let Some(tail_idx) = app.chat_view.chat.len().checked_sub(1) {
         mark_agent_stream_session_dirty(app, &session_id, tail_idx, completed_ms, None);
     }
     let save_task = force_save_agent_stream_session(app, &session_id);
 
-    let resume_history = app.chat.clone();
+    let resume_history = app.chat_view.chat.clone();
     let continuation = desktop_session::message::chat::stream::stream_events::continuation_item(
         &active_request,
         resume_history,
@@ -1191,25 +1177,25 @@ pub(super) fn handle_agent_post_tool_round(
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> Task<Message> {
     if matches!(
-        app.quick_message_handoff,
+        app.session_state.quick_message_handoff,
         Some(QuickMessageHandoffState::WaitingForGitCommitMessage {
             request_id: pending_id,
             ..
         }) if pending_id == id
     ) {
         if matches!(
-            app.quick_message_handoff,
+            app.session_state.quick_message_handoff,
             Some(QuickMessageHandoffState::WaitingForGitCommitMessage { .. })
         ) {
             app.git.git_commit_in_progress = false;
         }
-        app.quick_message_handoff = None;
+        app.session_state.quick_message_handoff = None;
     }
     let display_err = domain::display_stream_error(err);
 
     let Some(session_id) = app.find_session_by_request_id(id) else {
         crate::app::state::clear_pending_guide_handoff(id);
-        if let Some(active_id) = app.active_session_id.clone() {
+        if let Some(active_id) = app.session_state.active_session_id.clone() {
             let runtime = app.get_session_runtime_mut(&active_id);
             // 迟到的旧请求错误不得结束正在运行的新请求。
             if !domain::settle_unmatched_error(runtime) {
@@ -1236,7 +1222,7 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
     let _ = flush_agent_stream_delta(app, session_id.clone());
     clear_agent_stream_session_save_flush(app, &session_id);
     crate::app::state::clear_pending_guide_handoff(id);
-    let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
+    let is_active_session = app.session_state.active_session_id.as_ref() == Some(&session_id);
     let completed_ms = now_ms();
 
     let terminal = domain::begin_terminal(app.get_session_runtime_mut(&session_id));
@@ -1249,8 +1235,8 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
     let toast_task = app.show_error_toast(display_err.clone());
 
     let mut persisted_chat = if is_active_session {
-        app.chat.clone()
-    } else if let Some(cached) = app.session_chat_cache.get(&session_id).cloned() {
+        app.chat_view.chat.clone()
+    } else if let Some(cached) = app.session_state.session_chat_cache.get(&session_id).cloned() {
         cached.iter().cloned().collect::<Vec<models::ChatMessage>>()
     } else {
         tracing::warn!(target: "vw_desktop", session_id = %session_id, "missing bounded chat cache at stream failure; preserving stored history");
@@ -1258,9 +1244,9 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
         return toast_task.chain(start_next(app, &session_id));
     };
     let mut persisted_ids = if is_active_session {
-        app.chat_message_ids.clone()
+        app.chat_view.chat_message_ids.clone()
     } else {
-        app.session_chat_message_id_cache
+        app.session_state.session_chat_message_id_cache
             .get(&session_id)
             .cloned()
             .unwrap_or_else(|| vec![None; persisted_chat.len()])
@@ -1276,8 +1262,8 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
     );
 
     if is_active_session {
-        app.chat = persisted_chat.clone();
-        app.chat_message_ids = persisted_ids.clone();
+        app.chat_view.chat = persisted_chat.clone();
+        app.chat_view.chat_message_ids = persisted_ids.clone();
         if let Some(calibration) = terminal_tail {
             apply_active_terminal_tail_calibration(app, calibration);
         }
@@ -1286,7 +1272,7 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
     }
 
     let message_count = if is_active_session {
-        app.chat.len()
+        app.chat_view.chat.len()
     } else {
         app.cached_chat_messages(&session_id).map_or(0, |messages| messages.len())
     };
@@ -1297,7 +1283,7 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
 
     let next = start_next(app, &session_id);
 
-    if is_active_session && app.chat_auto_scroll {
+    if is_active_session && app.chat_view.chat_auto_scroll {
         toast_task.chain(scroll_chat_to_bottom_task(app)).chain(save_task).chain(next)
     } else {
         toast_task.chain(save_task).chain(next)
@@ -1313,13 +1299,13 @@ pub(super) fn clear_model_recovery(
 ) -> Option<(u64, gateway_chat_stream::GatewayModelRecoveryEvent)> {
     let recovery = app.get_session_runtime_mut(session_id).model_recovery.take();
     if let Some((_, event)) = &recovery
-        && app.active_session_id.as_deref() == Some(session_id)
-        && app.active_toast.as_ref().is_some_and(|toast| {
+        && app.session_state.active_session_id.as_deref() == Some(session_id)
+        && app.toast_state.active_toast.as_ref().is_some_and(|toast| {
             toast.message
                 == crate::app::components::chat_panel::message_view::model_recovery_text(event)
         })
     {
-        app.active_toast = None;
+        app.toast_state.active_toast = None;
     }
     recovery
 }
@@ -1344,7 +1330,7 @@ pub(super) fn handle_agent_model_recovery(
     let text = crate::app::components::chat_panel::message_view::model_recovery_text(&event);
     let phase = event.phase;
     app.get_session_runtime_mut(&session_id).model_recovery = Some((id, event));
-    if app.active_session_id.as_deref() != Some(session_id.as_str()) {
+    if app.session_state.active_session_id.as_deref() != Some(session_id.as_str()) {
         return Task::none();
     }
     match phase {

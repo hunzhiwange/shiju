@@ -62,9 +62,9 @@ fn open_project_pressed_uses_non_empty_input_path() {
 #[test]
 fn recent_projects_loaded_success_replaces_all_recent_project_views() {
     let mut app = app();
-    app.recent_projects = vec!["stale".to_string()];
-    app.recent_projects_edits = vec!["Stale".to_string()];
-    app.recent_projects_meta = vec![recent_project("stale", "Stale")];
+    app.workspace_state.recent_projects = vec!["stale".to_string()];
+    app.workspace_state.recent_projects_edits = vec!["Stale".to_string()];
+    app.workspace_state.recent_projects_meta = vec![recent_project("stale", "Stale")];
     let projects =
         vec![recent_project("/workspace/one", "One"), recent_project("/workspace/two", "Two")];
 
@@ -74,18 +74,18 @@ fn recent_projects_loaded_success_replaces_all_recent_project_views() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.recent_projects, ["/workspace/one", "/workspace/two"]);
-    assert_eq!(app.recent_projects_edits, ["One", "Two"]);
-    assert_eq!(app.recent_projects_meta.len(), 2);
-    assert_eq!(app.recent_projects_meta[1].name, "Two");
+    assert_eq!(app.workspace_state.recent_projects, ["/workspace/one", "/workspace/two"]);
+    assert_eq!(app.workspace_state.recent_projects_edits, ["One", "Two"]);
+    assert_eq!(app.workspace_state.recent_projects_meta.len(), 2);
+    assert_eq!(app.workspace_state.recent_projects_meta[1].name, "Two");
 }
 
 #[test]
 fn recent_projects_loaded_error_preserves_existing_projects() {
     let mut app = app();
-    app.recent_projects = vec!["/workspace/keep".to_string()];
-    app.recent_projects_edits = vec!["Keep".to_string()];
-    app.recent_projects_meta = vec![recent_project("/workspace/keep", "Keep")];
+    app.workspace_state.recent_projects = vec!["/workspace/keep".to_string()];
+    app.workspace_state.recent_projects_edits = vec!["Keep".to_string()];
+    app.workspace_state.recent_projects_meta = vec![recent_project("/workspace/keep", "Keep")];
 
     let task = super::handle(
         &mut app,
@@ -95,9 +95,9 @@ fn recent_projects_loaded_error_preserves_existing_projects() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.recent_projects, ["/workspace/keep"]);
-    assert_eq!(app.recent_projects_edits, ["Keep"]);
-    assert_eq!(app.recent_projects_meta[0].path, "/workspace/keep");
+    assert_eq!(app.workspace_state.recent_projects, ["/workspace/keep"]);
+    assert_eq!(app.workspace_state.recent_projects_edits, ["Keep"]);
+    assert_eq!(app.workspace_state.recent_projects_meta[0].path, "/workspace/keep");
 }
 
 
@@ -120,14 +120,14 @@ fn attachment_files_picked_appends_paths() {
         ])),
     );
 
-    assert!(app.files.contains(&first_path));
-    assert!(app.files.contains(&second_path));
+    assert!(app.session_state.files.contains(&first_path));
+    assert!(app.session_state.files.contains(&second_path));
 }
 
 #[test]
 fn attachment_files_picked_none_preserves_existing_files() {
     let mut app = app();
-    app.files = vec!["existing.txt".to_string()];
+    app.session_state.files = vec!["existing.txt".to_string()];
 
     let task = super::handle(
         &mut app,
@@ -135,7 +135,7 @@ fn attachment_files_picked_none_preserves_existing_files() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.files, ["existing.txt"]);
+    assert_eq!(app.session_state.files, ["existing.txt"]);
 }
 
 
@@ -249,13 +249,13 @@ fn toggle_tree_dir_toggles_expanded_state() {
         &mut app,
         crate::app::message::project::ProjectMessage::ToggleTreeDir("src".to_string()),
     );
-    assert!(app.file_tree_expanded.contains(&"src".to_string()));
+    assert!(app.workspace_state.file_tree_expanded.contains(&"src".to_string()));
 
     let _ = super::handle(
         &mut app,
         crate::app::message::project::ProjectMessage::ToggleTreeDir("src".to_string()),
     );
-    assert!(!app.file_tree_expanded.contains(&"src".to_string()));
+    assert!(!app.workspace_state.file_tree_expanded.contains(&"src".to_string()));
 }
 
 #[test]
@@ -274,9 +274,9 @@ fn file_manager_show_changes_true_clears_active_preview_and_expands_changed_dirs
     assert!(app.file_manager.file_manager_show_changes);
     assert!(app.navigation_tabs.active_preview_path.is_none());
     assert!(app.file_manager.show_file_manager);
-    assert!(app.file_tree_expanded.contains(&"chg:src".to_string()));
-    assert!(app.file_tree_expanded.contains(&"chg:src/nested".to_string()));
-    assert!(!app.file_tree_expanded.contains(&"src".to_string()));
+    assert!(app.workspace_state.file_tree_expanded.contains(&"chg:src".to_string()));
+    assert!(app.workspace_state.file_tree_expanded.contains(&"chg:src/nested".to_string()));
+    assert!(!app.workspace_state.file_tree_expanded.contains(&"src".to_string()));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -478,8 +478,8 @@ async fn open_changed_file_in_work_mode_reveals_workspace_changes_and_focuses_fi
     assert!(!app.navigation_workspace.work_chat_fullscreen);
     assert!(app.file_manager.file_manager_show_changes);
     assert!(app.file_manager.show_file_manager);
-    assert!(app.file_tree_expanded.contains(&"chg:src".to_string()));
-    assert!(app.file_tree_expanded.contains(&"chg:src/nested".to_string()));
+    assert!(app.workspace_state.file_tree_expanded.contains(&"chg:src".to_string()));
+    assert!(app.workspace_state.file_tree_expanded.contains(&"chg:src/nested".to_string()));
 
     let messages = collect_task_messages(task).await;
     assert!(messages.iter().any(|message| {
@@ -510,8 +510,8 @@ fn open_changed_file_expands_collapsed_change_dirs_when_already_in_changes_view(
     app.file_manager.file_manager_show_changes = true;
     app.file_manager.show_file_manager = true;
     app.git.git_changed_files = vec!["src/nested/lib.rs".to_string()];
-    app.file_tree_expanded.clear();
-    app.file_tree_expanded_set.clear();
+    app.workspace_state.file_tree_expanded.clear();
+    app.workspace_state.file_tree_expanded_set.clear();
 
     let _ = super::handle(
         &mut app,
@@ -521,8 +521,8 @@ fn open_changed_file_expands_collapsed_change_dirs_when_already_in_changes_view(
     );
 
     assert!(app.file_manager.file_manager_show_changes);
-    assert!(app.file_tree_expanded.contains(&"chg:src".to_string()));
-    assert!(app.file_tree_expanded.contains(&"chg:src/nested".to_string()));
+    assert!(app.workspace_state.file_tree_expanded.contains(&"chg:src".to_string()));
+    assert!(app.workspace_state.file_tree_expanded.contains(&"chg:src/nested".to_string()));
 }
 
 #[test]
@@ -661,7 +661,7 @@ fn file_tree_empty_directory_snapshot_refresh_updates_tree_and_search_without_at
     use crate::app::message::project::ProjectMessage;
     let mut app = app();
     app.navigation_tabs.project_path = Some("/project".into());
-    app.files = vec!["/attached.txt".into()];
+    app.session_state.files = vec!["/attached.txt".into()];
     app.file_manager.file_manager_file_tree_refreshing = true;
     let _ = super::handle(
         &mut app,
@@ -673,8 +673,8 @@ fn file_tree_empty_directory_snapshot_refresh_updates_tree_and_search_without_at
     assert!(!app.file_manager.file_manager_file_tree_refreshing);
     assert!(app.current_file_tree_model().unwrap().children.contains_key("empty"));
     assert_eq!(app.current_file_index(), ["/project/readme.txt"]);
-    assert_eq!(app.search_panel_file_cache_results, ["/project/readme.txt"]);
-    assert_eq!(app.files, ["/attached.txt"]);
+    assert_eq!(app.workspace_state.search_panel_file_cache_results, ["/project/readme.txt"]);
+    assert_eq!(app.session_state.files, ["/attached.txt"]);
     // 晚到的本地纯文件缓存不能抹去网关保留的空目录。
     let _ = super::handle(
         &mut app,
@@ -702,7 +702,7 @@ fn file_tree_empty_directory_old_project_result_only_updates_its_cache() {
     app.navigation_tabs.project_path = Some("/current".into());
     app.set_file_index("/current", vec!["/current/file.txt".into()]);
     app.file_manager.file_manager_file_tree_refreshing = true;
-    let results = app.search_panel_file_cache_results.clone();
+    let results = app.workspace_state.search_panel_file_cache_results.clone();
     let _ = super::handle(
         &mut app,
         ProjectMessage::FileTreeSnapshotReady {
@@ -711,7 +711,7 @@ fn file_tree_empty_directory_old_project_result_only_updates_its_cache() {
         },
     );
     assert_eq!(app.current_file_index(), ["/current/file.txt"]);
-    assert_eq!(app.search_panel_file_cache_results, results);
+    assert_eq!(app.workspace_state.search_panel_file_cache_results, results);
     assert!(app.file_manager.file_manager_file_tree_refreshing);
     assert!(!app.current_file_tree_model().unwrap().children.contains_key("empty"));
     app.navigation_tabs.project_path = Some("/old".into());
@@ -733,7 +733,7 @@ fn file_tree_empty_directory_directory_only_snapshot_is_cached_with_empty_file_i
     );
     assert!(app.current_file_index().is_empty());
     assert!(app.current_file_tree_model().unwrap().children.contains_key("empty"));
-    assert!(app.search_panel_file_cache_results.is_empty());
+    assert!(app.workspace_state.search_panel_file_cache_results.is_empty());
 }
 
 #[test]
@@ -798,7 +798,7 @@ fn project_file_preferences_update_before_gateway_reply() {
         assert!(app.is_file_tree_dir_expanded("src"));
         assert!(iced_runtime::task::into_stream(expanded).is_none());
         let collapsed = update(&mut app, toggle());
-        assert!(app.file_tree_expanded.is_empty());
+        assert!(app.workspace_state.file_tree_expanded.is_empty());
         assert!(iced_runtime::task::into_stream(collapsed).is_none());
         let files = update(&mut app, ProjectMessage::FileManagerShowChanges(false));
         assert!(!app.file_manager.file_manager_show_changes);

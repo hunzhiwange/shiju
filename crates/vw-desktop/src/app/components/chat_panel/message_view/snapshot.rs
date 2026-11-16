@@ -11,38 +11,36 @@ pub(super) fn snapshot(app: &App) -> MessageViewSnapshot<'_, Message> {
     let runtime = app.current_session_runtime_ref();
     let recovery = runtime.and_then(|r| r.model_recovery.as_ref()).map(|(_, event)| event);
     MessageViewSnapshot {
-        chat: &app.chat,
-        chat_message_ids: &app.chat_message_ids,
-        chat_render_cache: &app.chat_render_cache,
-        chat_visible_text_cache: &app.chat_visible_text_cache,
-        chat_copy_hash_cache: &app.chat_copy_hash_cache,
-        chat_message_expanded: &app.chat_message_expanded,
-        chat_markdown_blocks: &app.chat_markdown_blocks,
-        chat_think_expanded: &app.chat_think_expanded,
-        chat_think_collapsed: &app.chat_think_collapsed,
-        chat_think_hovered_idx: app.chat_think_hovered_idx,
+        chat: &app.chat_view.chat,
+        chat_message_ids: &app.chat_view.chat_message_ids,
+        chat_render_cache: &app.chat_view.chat_render_cache,
+        chat_visible_text_cache: &app.chat_view.chat_visible_text_cache,
+        chat_copy_hash_cache: &app.chat_view.chat_copy_hash_cache,
+        chat_message_expanded: &app.chat_view.chat_message_expanded,
+        chat_markdown_blocks: &app.chat_view.chat_markdown_blocks,
+        chat_think_expanded: &app.chat_view.chat_think_expanded,
+        chat_think_collapsed: &app.chat_view.chat_think_collapsed,
+        chat_think_hovered_idx: app.chat_interaction.chat_think_hovered_idx,
         text: super::super::tool_text_support::text_state(app),
-        markdown_selection_text_idx: app
-            .chat_markdown_selection
+        markdown_selection_text_idx: app.chat_interaction.chat_markdown_selection
             .as_ref()
-            .filter(|s| app.active_session_id.as_deref() == Some(s.session_id.as_str()))
+            .filter(|s| app.session_state.active_session_id.as_deref() == Some(s.session_id.as_str()))
             .map(|s| s.text_idx),
-        desktop_locale: app.desktop_locale,
-        dialogue_flow_show_reasoning_summary: app.dialogue_flow_show_reasoning_summary,
-        active_session_id: app.active_session_id.as_deref(),
-        permission_modal_requests: &app.permission_modal_requests,
-        permission_modal_request: app.permission_modal_request.as_ref(),
-        permission_modal_request_id: app.permission_modal_request_id.as_deref(),
+        desktop_locale: app.general_settings.desktop_locale,
+        dialogue_flow_show_reasoning_summary: app.general_settings.dialogue_flow_show_reasoning_summary,
+        active_session_id: app.session_state.active_session_id.as_deref(),
+        permission_modal_requests: &app.session_state.permission_modal_requests,
+        permission_modal_request: app.session_state.permission_modal_request.as_ref(),
+        permission_modal_request_id: app.session_state.permission_modal_request_id.as_deref(),
         is_requesting: runtime.is_some_and(|r| r.request_lifecycle.is_requesting),
         live_processing_elapsed_ms: runtime
             .map(|r| r.request_lifecycle.processing_timer.elapsed_ms_at(web_time::Instant::now())),
         recovery_text: recovery.map(super::model_recovery_text),
         localized_recovery_text: recovery.map(|e| {
-            super::localized_model_recovery_text(crate::app::i18n::I18n::new(app.desktop_locale), e)
+            super::localized_model_recovery_text(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), e)
         }),
-        last_copied_code_hash: app.last_copied_code_hash,
-        copied_recently: app
-            .last_copied_code_hash
+        last_copied_code_hash: app.clipboard_state.last_copied_code_hash,
+        copied_recently: app.clipboard_state.last_copied_code_hash
             .is_some_and(|h| super::super::utils::is_recent_copy(app, h)),
         now_ms: crate::app::time::now_ms(),
         status_animation_frame: app.status_animation_frame,
@@ -109,7 +107,7 @@ pub(super) fn snapshot(app: &App) -> MessageViewSnapshot<'_, Message> {
                 has_attachments: !items.is_empty(),
                 preview: Rc::new(move || {
                     crate::app::components::input_panel::attachment::attachment_preview_strip(
-                        crate::app::i18n::I18n::new(app.desktop_locale),
+                        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
                         items.clone(),
                     )
                 }),

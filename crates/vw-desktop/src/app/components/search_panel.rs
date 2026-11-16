@@ -5,12 +5,12 @@ pub(crate) use desktop_search::components::search_panel::input_id;
 use desktop_search::components::search_panel::{self as panel, ViewData};
 
 fn data(app: &App) -> ViewData<'_> {
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
     ViewData {
         search_text: &app.search.search_text,
         files: app.cached_search_panel_file_results(),
-        recent_projects: &app.recent_projects,
-        sessions: panel::matching_sessions(&app.sessions, &app.session_previews,
+        recent_projects: &app.workspace_state.recent_projects,
+        sessions: panel::matching_sessions(&app.session_state.sessions, &app.session_state.session_previews,
             |session| crate::app::i18n::other::session_title(app, &session.id, &session.title),
             &app.search.search_text),
         labels: [i18n.__("搜索文件 / 项目 / 历史会话"), i18n.__("关闭"),

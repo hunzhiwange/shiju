@@ -4,8 +4,8 @@ use iced::Element;
 use desktop_settings_runtime::system_settings_reliability as domain;
 fn inputs(app: &App) -> domain::View<'_> {
  domain::View { reliability_settings: &app.reliability_settings,
- desktop_locale: app.desktop_locale, app_theme: &app.app_theme,
- last_copied_code_hash: app.last_copied_code_hash,
+ desktop_locale: app.general_settings.desktop_locale, app_theme: &app.appearance.app_theme,
+ last_copied_code_hash: app.clipboard_state.last_copied_code_hash,
  render_help: super::system_settings_hooks::render_help,
  }
 }

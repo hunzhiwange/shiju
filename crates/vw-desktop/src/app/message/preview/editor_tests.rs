@@ -64,43 +64,43 @@ fn update_context_menu_and_fullscreen_flags_are_local() {
     app.navigation_tabs.preview_tabs = vec![tab(&path, "fn main() {}")];
 
     let _ = update(&mut app, PreviewMessage::ContextMenuOpenForActiveEditor(10.0, 20.0));
-    assert!(app.show_preview_context_menu);
-    assert_eq!(app.preview_context_menu_pos, Some((10.0, 20.0)));
-    assert_eq!(app.preview_context_target, Some((path.clone(), 1, 1, 1, 1)));
+    assert!(app.preview_state.show_preview_context_menu);
+    assert_eq!(app.preview_state.preview_context_menu_pos, Some((10.0, 20.0)));
+    assert_eq!(app.preview_state.preview_context_target, Some((path.clone(), 1, 1, 1, 1)));
 
     app.cursor_position = iced::Point::new(30.0, 40.0);
     let _ = update(&mut app, PreviewMessage::ContextMenuOpenForActiveEditor(10.0, 20.0));
-    assert_eq!(app.preview_context_menu_pos, Some((30.0, 40.0)));
+    assert_eq!(app.preview_state.preview_context_menu_pos, Some((30.0, 40.0)));
 
     let _ = update(&mut app, PreviewMessage::ContextMenuClose);
-    assert!(!app.show_preview_context_menu);
-    assert_eq!(app.preview_context_menu_pos, None);
-    assert_eq!(app.preview_context_target, None);
+    assert!(!app.preview_state.show_preview_context_menu);
+    assert_eq!(app.preview_state.preview_context_menu_pos, None);
+    assert_eq!(app.preview_state.preview_context_target, None);
 
     let _ = update(&mut app, PreviewMessage::FullscreenOverlayEntered);
-    assert!(app.show_preview_fullscreen_overlay);
+    assert!(app.preview_state.show_preview_fullscreen_overlay);
     let _ = update(&mut app, PreviewMessage::FullscreenOverlayExited);
-    assert!(!app.show_preview_fullscreen_overlay);
+    assert!(!app.preview_state.show_preview_fullscreen_overlay);
 }
 
 #[test]
 fn context_menu_open_preserves_valid_selection_and_requires_active_path() {
     let mut app = test_app();
-    app.show_preview_context_menu = false;
-    app.preview_context_menu_pos = Some((7.0, 8.0));
+    app.preview_state.show_preview_context_menu = false;
+    app.preview_state.preview_context_menu_pos = Some((7.0, 8.0));
 
     let _ = update(&mut app, PreviewMessage::ContextMenuOpenForActiveEditor(10.0, 20.0));
-    assert!(!app.show_preview_context_menu);
-    assert_eq!(app.preview_context_menu_pos, Some((7.0, 8.0)));
+    assert!(!app.preview_state.show_preview_context_menu);
+    assert_eq!(app.preview_state.preview_context_menu_pos, Some((7.0, 8.0)));
 
     let path = "/tmp/main.rs".to_string();
     let selection = (path.clone(), 2, 3, 4, 5);
     app.navigation_tabs.active_preview_path = Some(path);
-    app.preview_context_target = Some(selection.clone());
+    app.preview_state.preview_context_target = Some(selection.clone());
 
     let _ = update(&mut app, PreviewMessage::ContextMenuOpenForActiveEditor(10.0, 20.0));
-    assert!(app.show_preview_context_menu);
-    assert_eq!(app.preview_context_target, Some(selection));
+    assert!(app.preview_state.show_preview_context_menu);
+    assert_eq!(app.preview_state.preview_context_target, Some(selection));
 }
 
 
@@ -166,7 +166,7 @@ fn update_editor_event_sets_focus_dirty_and_autosave_revision() {
     let path = "/tmp/main.rs".to_string();
     app.navigation_tabs.active_preview_path = Some(path.clone());
     app.navigation_tabs.preview_tabs = vec![tab(&path, "")];
-    app.preview_auto_save_mode = PreviewAutoSaveMode::AfterDelay;
+    app.preview_state.preview_auto_save_mode = PreviewAutoSaveMode::AfterDelay;
 
     let _ = update(
         &mut app,
@@ -205,14 +205,14 @@ fn non_editing_editor_event_preserves_existing_dirty_state() {
 fn close_search_clears_visible_completion_before_editor_focus_changes() {
     let mut app = test_app();
     app.focus_area = FocusArea::None;
-    app.lsp_overlay.completion_visible = true;
-    app.lsp_overlay.completion_items = vec!["Alpha".to_string()];
+    app.preview_state.lsp_overlay.completion_visible = true;
+    app.preview_state.lsp_overlay.completion_items = vec!["Alpha".to_string()];
 
     let _ = update(&mut app, PreviewMessage::EditorEvent(iced_code_editor::Message::CloseSearch));
 
     assert_eq!(app.focus_area, FocusArea::None);
-    assert!(!app.lsp_overlay.completion_visible);
-    assert!(app.lsp_overlay.completion_items.is_empty());
+    assert!(!app.preview_state.lsp_overlay.completion_visible);
+    assert!(app.preview_state.lsp_overlay.completion_items.is_empty());
 }
 
 
@@ -229,8 +229,8 @@ fn close_search_clears_visible_completion_before_editor_focus_changes() {
 #[tokio::test(flavor = "multi_thread")]
 async fn editor_event_completion_keyboard_navigation_returns_preview_messages() {
     let mut app = test_app();
-    app.lsp_overlay.completion_visible = true;
-    app.lsp_overlay.completion_items = vec!["Alpha".to_string(), "Beta".to_string()];
+    app.preview_state.lsp_overlay.completion_visible = true;
+    app.preview_state.lsp_overlay.completion_items = vec!["Alpha".to_string(), "Beta".to_string()];
 
     let up_task = update(
         &mut app,
@@ -277,18 +277,18 @@ async fn editor_event_completion_keyboard_navigation_returns_preview_messages() 
 #[test]
 fn completion_confirm_ignores_hidden_overlay_and_lsp_toggle_updates_status() {
     let mut app = test_app();
-    app.lsp_overlay.completion_visible = false;
-    app.lsp_overlay.completion_items = vec!["Alpha".to_string()];
+    app.preview_state.lsp_overlay.completion_visible = false;
+    app.preview_state.lsp_overlay.completion_items = vec!["Alpha".to_string()];
 
     let _ = update(&mut app, PreviewMessage::LspCompletionConfirm);
-    assert_eq!(app.lsp_overlay.completion_items, vec!["Alpha".to_string()]);
+    assert_eq!(app.preview_state.lsp_overlay.completion_items, vec!["Alpha".to_string()]);
 
     let _ = update(&mut app, PreviewMessage::LspToggleDisabled(true));
-    assert!(app.lsp_disabled);
-    assert_eq!(app.lsp_status.as_deref(), Some("LSP 已禁用"));
+    assert!(app.preview_state.lsp_disabled);
+    assert_eq!(app.preview_state.lsp_status.as_deref(), Some("LSP 已禁用"));
 
     app.lsp_manager = None;
     let _ = update(&mut app, PreviewMessage::LspToggleDisabled(false));
-    assert!(!app.lsp_disabled);
-    assert_eq!(app.lsp_status.as_deref(), Some("LSP 已启用"));
+    assert!(!app.preview_state.lsp_disabled);
+    assert_eq!(app.preview_state.lsp_status.as_deref(), Some("LSP 已启用"));
 }

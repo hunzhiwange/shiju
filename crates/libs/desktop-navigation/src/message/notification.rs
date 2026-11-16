@@ -129,3 +129,31 @@ pub fn update(app: State<'_>, message: NotificationMessage) -> Option<(usize, St
 #[cfg(test)]
 #[path = "notification_tests.rs"]
 mod tests;
+
+/// Owned domain state held by the desktop host.
+pub struct OwnedState {
+    /// 通知列表
+    pub notifications: Vec<Notification>,
+    /// 通知面板是否展开
+    pub notifications_expanded: bool,
+    /// 下一个通知 ID
+    pub next_notification_id: usize,
+    /// 通知滚动容器 ID
+    pub notifications_scroll_id: iced::widget::Id,
+    /// 通知消息编辑器映射（通知 ID -> 编辑器内容）
+    pub notification_editors: HashMap<usize, text_editor::Content>,
+    /// 最近点击复制的通知 ID
+    pub copied_notification_id: Option<usize>,
+}
+impl OwnedState {
+    pub fn new() -> Self {
+        Self {
+            notifications: Vec::new(),
+            notifications_expanded: false,
+            next_notification_id: 0,
+            notifications_scroll_id: iced::widget::Id::new("notifications_scroll"),
+            notification_editors: std::collections::HashMap::new(),
+            copied_notification_id: None,
+        }
+    }
+}

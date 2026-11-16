@@ -18,8 +18,8 @@ pub(crate) fn cache_external_session(app: &mut App, info: session_info::Info) {
 
 pub(super) fn cache_project_session(app: &mut App, project_path: String, info: session_info::Info) {
     desktop_workspace::project_message::session::lifecycle::cache_project_session(
-        &mut app.sessions,
-        &mut app.project_sessions,
+        &mut app.session_state.sessions,
+        &mut app.workspace_state.project_sessions,
         project_path,
         info,
     );
@@ -46,11 +46,11 @@ pub(super) fn history_state(
     crate::app::components::chat_panel::trajectory::TrajectoryProjection,
 > {
     desktop_session::session::history_commit::HistoryState {
-        chat: &mut app.chat,
-        ids: &mut app.chat_message_ids,
-        usage: &mut app.usage,
-        view: &mut app.active_session_view_state,
-        timeline: &mut app.paged_chat_timeline,
+        chat: &mut app.chat_view.chat,
+        ids: &mut app.chat_view.chat_message_ids,
+        usage: &mut app.chat_view.usage,
+        view: &mut app.chat_view.active_session_view_state,
+        timeline: &mut app.session_state.paged_chat_timeline,
     }
 }
 
@@ -64,14 +64,14 @@ fn apply_prepared_session_open(
     if let Some(seq_base) = committed.seq_base {
         app.get_session_runtime_mut(&session_id).stream_save.seq_base = seq_base;
     }
-    app.chat_scroll_id = iced::widget::Id::unique();
+    app.chat_view.chat_scroll_id = iced::widget::Id::unique();
     let restored_session_model_from_steps =
         app.restore_session_model_from_steps(&session_id, &committed.steps);
     let desktop_session::session::history_commit::PreparedViewCompletion {
         session_model,
         base_ui_chunk,
     } = committed.apply_view(
-        &mut app.active_session_view_state,
+        &mut app.chat_view.active_session_view_state,
         crate::app::components::chat_panel::trajectory::project_trajectory,
     );
     let restored_session_model_from_history = session_model
@@ -118,10 +118,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 ProjectMessage::SessionTreeToggled(id) => Event::Toggle(id),
                 ProjectMessage::SessionTitleClicked(id) => {
                     let now = web_time::Instant::now();
-                    let elapsed = app
-                        .session_title_last_click
+                    let elapsed = app.session_state.session_title_last_click
                         .map(|last| now.duration_since(last).as_millis());
-                    app.session_title_last_click = Some(now);
+                    app.session_state.session_title_last_click = Some(now);
                     Event::Title(id, elapsed)
                 }
                 ProjectMessage::SessionRenamePressed(id) => Event::Rename(id),
@@ -132,15 +131,15 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             };
             let rename = interaction::update(
                 &mut State {
-                    menu: &mut app.session_menu_id,
-                    anchor: &mut app.session_menu_anchor,
+                    menu: &mut app.workspace_state.session_menu_id,
+                    anchor: &mut app.workspace_state.session_menu_anchor,
                     actions: &mut app.popover_visibility.session_actions,
                     project_menu: &mut app.navigation_mode.work_current_project_menu,
-                    expanded: &mut app.session_tree_expanded,
-                    rename_id: &mut app.session_rename_id,
-                    rename_value: &mut app.session_rename_value,
-                    sessions: &mut app.sessions,
-                    projects: &mut app.project_sessions,
+                    expanded: &mut app.workspace_state.session_tree_expanded,
+                    rename_id: &mut app.session_state.session_rename_id,
+                    rename_value: &mut app.session_state.session_rename_value,
+                    sessions: &mut app.session_state.sessions,
+                    projects: &mut app.workspace_state.project_sessions,
                 },
                 event,
             );
@@ -169,33 +168,33 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::SessionPinSaved(key, result) => Some(app.apply_session_pin(key, result)),
         ProjectMessage::SessionArchivePressed(id) => {
             #[cfg(not(target_arch = "wasm32"))]
-            if let Some(runtime) = app.session_runtime_states.get_mut(&id) {
+            if let Some(runtime) = app.session_state.session_runtime_states.get_mut(&id) {
                 for panel in runtime.mcp_app_panels.drain(..) {
                     panel.cancel();
                 }
             }
-            app.session_menu_id = None;
-            app.session_menu_anchor = None;
+            app.workspace_state.session_menu_id = None;
+            app.workspace_state.session_menu_anchor = None;
             app.popover_visibility.session_actions = false;
 
             desktop_workspace::project_message::session::lifecycle::SessionMembership {
-                sessions: &mut app.sessions,
-                projects: &mut app.project_sessions,
+                sessions: &mut app.session_state.sessions,
+                projects: &mut app.workspace_state.project_sessions,
             }
             .archive(&id, now_ms);
 
             let mut switch_task = iced::Task::none();
-            if app.active_session_id.as_ref() == Some(&id) {
+            if app.session_state.active_session_id.as_ref() == Some(&id) {
                 let next =
                     desktop_workspace::project_message::session::lifecycle::SessionMembership {
-                        sessions: &mut app.sessions,
-                        projects: &mut app.project_sessions,
+                        sessions: &mut app.session_state.sessions,
+                        projects: &mut app.workspace_state.project_sessions,
                     }
                     .replacement(Some(&id));
 
                 if let Some(next_id) = next {
                     app.prepare_historical_session_model(&next_id);
-                    app.active_session_id = Some(next_id.clone());
+                    app.session_state.active_session_id = Some(next_id.clone());
                     app.mark_active_session_viewed();
                     app.sync_active_session_preferences();
                     let load_permissions = app.load_session_full_access(&next_id);
@@ -216,7 +215,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     );
                     switch_task = iced::Task::batch([load_messages, load_permissions]);
                 } else {
-                    app.active_session_id = None;
+                    app.session_state.active_session_id = None;
                     history_state(app).close();
                     app.invalidate_chat_ui_state();
                 }
@@ -243,45 +242,45 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             ]))
         }
         ProjectMessage::SessionDeletePressed(id) => {
-            app.session_menu_id = None;
-            app.session_menu_anchor = None;
+            app.workspace_state.session_menu_id = None;
+            app.workspace_state.session_menu_anchor = None;
             app.popover_visibility.session_actions = false;
             #[cfg(not(target_arch = "wasm32"))]
-            if let Some(runtime) = app.session_runtime_states.get(&id) {
+            if let Some(runtime) = app.session_state.session_runtime_states.get(&id) {
                 for panel in &runtime.mcp_app_panels {
                     panel.cancel();
                 }
             }
             desktop_session::session::cache::remove_session(
                 &id,
-                &mut app.session_runtime_states,
-                &mut app.session_view_cache,
-                &mut app.session_chat_cache,
-                &mut app.session_chat_message_id_cache,
-                &mut app.session_history_reset_boundaries,
+                &mut app.session_state.session_runtime_states,
+                &mut app.session_state.session_view_cache,
+                &mut app.session_state.session_chat_cache,
+                &mut app.session_state.session_chat_message_id_cache,
+                &mut app.session_state.session_history_reset_boundaries,
             );
 
             let project_path = find_session_project_path(app, &id);
 
             desktop_workspace::project_message::session::lifecycle::SessionMembership {
-                sessions: &mut app.sessions,
-                projects: &mut app.project_sessions,
+                sessions: &mut app.session_state.sessions,
+                projects: &mut app.workspace_state.project_sessions,
             }
             .delete(&id);
 
             let mut switch_task = iced::Task::none();
 
-            if app.active_session_id.as_ref() == Some(&id) {
+            if app.session_state.active_session_id.as_ref() == Some(&id) {
                 let next =
                     desktop_workspace::project_message::session::lifecycle::SessionMembership {
-                        sessions: &mut app.sessions,
-                        projects: &mut app.project_sessions,
+                        sessions: &mut app.session_state.sessions,
+                        projects: &mut app.workspace_state.project_sessions,
                     }
                     .replacement(None);
 
                 if let Some(next_id) = next {
                     app.prepare_historical_session_model(&next_id);
-                    app.active_session_id = Some(next_id.clone());
+                    app.session_state.active_session_id = Some(next_id.clone());
                     app.mark_active_session_viewed();
                     app.sync_active_session_preferences();
                     let load_permissions = app.load_session_full_access(&next_id);
@@ -302,7 +301,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     );
                     switch_task = iced::Task::batch([load_messages, load_permissions]);
                 } else {
-                    app.active_session_id = None;
+                    app.session_state.active_session_id = None;
                     history_state(app).close();
                     app.invalidate_chat_ui_state();
                 }
@@ -344,8 +343,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         ProjectMessage::SessionCopied(info) => {
             desktop_workspace::project_message::session::lifecycle::SessionMembership {
-                sessions: &mut app.sessions,
-                projects: &mut app.project_sessions,
+                sessions: &mut app.session_state.sessions,
+                projects: &mut app.workspace_state.project_sessions,
             }
             .insert(app.navigation_tabs.project_path.as_deref(), info, false);
             Some(iced::Task::none())
@@ -354,8 +353,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.cache_active_session_chat();
             let activate =
                 desktop_workspace::project_message::session::lifecycle::SessionMembership {
-                    sessions: &mut app.sessions,
-                    projects: &mut app.project_sessions,
+                    sessions: &mut app.session_state.sessions,
+                    projects: &mut app.workspace_state.project_sessions,
                 }
                 .insert(
                     app.navigation_tabs.project_path.as_deref(),
@@ -366,20 +365,20 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 return Some(iced::Task::none());
             }
 
-            app.new_session_creating = false;
-            app.new_session_last_directory = Some(info.directory.clone());
+            app.workspace_state.new_session_creating = false;
+            app.workspace_state.new_session_last_directory = Some(info.directory.clone());
             let save_last_directory_task = app.save_desktop_preference(
                 "new_session_last_directory",
                 serde_json::Value::String(info.directory.clone()),
             );
-            app.active_session_id = Some(info.id.clone());
-            app.chat_scroll_id = iced::widget::Id::unique();
+            app.session_state.active_session_id = Some(info.id.clone());
+            app.chat_view.chat_scroll_id = iced::widget::Id::unique();
             app.mark_active_session_viewed();
             history_state(app).blank_draft();
             app.store_session_chat_snapshot(
                 info.id.clone(),
-                crate::app::session::shared_chat_messages(app.chat.clone()),
-                app.chat_message_ids.clone(),
+                crate::app::session::shared_chat_messages(app.chat_view.chat.clone()),
+                app.chat_view.chat_message_ids.clone(),
             );
             app.invalidate_chat_ui_state();
             app.sync_active_session_preferences();
@@ -396,21 +395,20 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             result,
         } => {
             let history_open = HistoryOpen {
-                active_session: app.active_session_id.as_deref(),
+                active_session: app.session_state.active_session_id.as_deref(),
                 target_session: &target_session_id,
-                current_generation: app
-                    .session_view_cache
+                current_generation: app.session_state.session_view_cache
                     .is_current_open(&target_session_id, open_generation),
                 source: if source == PreparedSessionOpenSource::UiStore {
                     HistorySource::UiStore
                 } else {
                     HistorySource::Remote
                 },
-                current_ids: &app.chat_message_ids,
+                current_ids: &app.chat_view.chat_message_ids,
                 reset_boundary: app.session_history_reset_boundary(&target_session_id),
                 current_signature: crate::app::session::session_content_signature(
-                    &app.chat,
-                    &app.chat_message_ids,
+                    &app.chat_view.chat,
+                    &app.chat_view.chat_message_ids,
                 ),
             };
             let acceptance = history_open
@@ -441,7 +439,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         project_path,
                         target_session_id,
                         open_generation,
-                        app.dialogue_flow_show_reasoning_summary,
+                        app.general_settings.dialogue_flow_show_reasoning_summary,
                     ));
                 }
                 Err(error) if acceptance == HistoryDecision::ReportRemoteError => {
@@ -451,11 +449,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         error = %error,
                         "failed to prepare remote session history"
                     );
-                    if app.chat.is_empty() {
-                        app.error_message =
+                    if app.chat_view.chat.is_empty() {
+                        app.input_feedback.error_message =
                             Some(format!("Failed to load session messages: {error}"));
                     }
-                    app.active_session_view_state.ui_preparing = false;
+                    app.chat_view.active_session_view_state.ui_preparing = false;
                     return Some(iced::Task::none());
                 }
                 Err(_) => return Some(iced::Task::none()),
@@ -472,10 +470,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     target: "vw_desktop",
                     session_id = %target_session_id,
                     remote_messages = prepared.message_ids.len(),
-                    retained_messages = app.chat_message_ids.len(),
+                    retained_messages = app.chat_view.chat_message_ids.len(),
                     "preserved prepared session history because remote history was incomplete"
                 );
-                app.active_session_view_state.ui_preparing = false;
+                app.chat_view.active_session_view_state.ui_preparing = false;
                 return Some(iced::Task::none());
             }
 
@@ -484,11 +482,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     prepared,
                     crate::app::components::chat_panel::trajectory::project_trajectory,
                 );
-                if let Some(summary) = app.session_view_cache.record_open_commit(
+                if let Some(summary) = app.session_state.session_view_cache.record_open_commit(
                     &target_session_id,
                     open_generation,
                     crate::app::session::view_cache::SessionOpenUiCommit::SameContentRefresh,
-                    app.chat.len(),
+                    app.chat_view.chat.len(),
                     web_time::Duration::ZERO,
                     true,
                 ) {
@@ -515,7 +513,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 )),
             ]);
             let finalize = source == PreparedSessionOpenSource::RemoteHistory;
-            if let Some(summary) = app.session_view_cache.record_open_commit(
+            if let Some(summary) = app.session_state.session_view_cache.record_open_commit(
                 &target_session_id,
                 open_generation,
                 crate::app::session::view_cache::SessionOpenUiCommit::PreparedHistory,
@@ -531,7 +529,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         project_path,
                         target_session_id,
                         open_generation,
-                        app.dialogue_flow_show_reasoning_summary,
+                        app.general_settings.dialogue_flow_show_reasoning_summary,
                     ),
                     trajectory_refresh_task,
                 ]));
@@ -546,8 +544,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             result,
         } => {
             let current_generation =
-                app.session_view_cache.is_current_open(&session_id, open_generation);
-            let active_session = app.active_session_id.clone();
+                app.session_state.session_view_cache.is_current_open(&session_id, open_generation);
+            let active_session = app.session_state.active_session_id.clone();
             let commit = history_state(app).prepend(
                 active_session.as_deref(),
                 &session_id,
@@ -564,18 +562,18 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 return Some(iced::Task::none());
             };
             app.get_session_runtime_mut(&session_id).stream_save.seq_base = seq_base;
-            app.chat_virtualizer.prepend_estimated_heights(&vec![120.0; inserted]);
-            app.chat_render_cache.clear();
-            app.chat_visible_text_cache.clear();
-            app.chat_copy_hash_cache.clear();
-            app.chat_message_measured_heights.clear();
+            app.chat_view.chat_virtualizer.prepend_estimated_heights(&vec![120.0; inserted]);
+            app.chat_view.chat_render_cache.clear();
+            app.chat_view.chat_visible_text_cache.clear();
+            app.chat_view.chat_copy_hash_cache.clear();
+            app.chat_view.chat_message_measured_heights.clear();
             app.sync_chat_virtualizer_compat_fields();
             Some(crate::app::message::project::prepare_session_ui_chunks_task(
                 session_id,
                 app.active_shared_chat_messages(),
                 vec![0],
                 None,
-                app.dialogue_flow_show_reasoning_summary,
+                app.general_settings.dialogue_flow_show_reasoning_summary,
             ))
         }
         ProjectMessage::SessionMessagesLoaded(res) => {
@@ -586,10 +584,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         target: "vw_desktop",
                         session_id = %id,
                         message_count = msgs.len(),
-                        active_session_matches = app.active_session_id.as_ref() == Some(&id),
+                        active_session_matches = app.session_state.active_session_id.as_ref() == Some(&id),
                         "received session messages load result"
                     );
-                    if app.active_session_id.as_ref() == Some(&id) {
+                    if app.session_state.active_session_id.as_ref() == Some(&id) {
                         let restored_session_model =
                             loaded_session_model.as_deref().is_some_and(|model| {
                                 app.restore_session_model_from_history(&id, model)
@@ -611,7 +609,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         app.store_session_chat_snapshot(
                             id.clone(),
                             shared_chat.clone(),
-                            app.chat_message_ids.clone(),
+                            app.chat_view.chat_message_ids.clone(),
                         );
                         if restored_session_model {
                             app.sync_active_session_preferences();
@@ -623,9 +621,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                                 ),
                             );
                         }
-                        app.chat_scroll_id = iced::widget::Id::unique();
+                        app.chat_view.chat_scroll_id = iced::widget::Id::unique();
                         app.invalidate_chat_ui_state();
-                        if app.chat.is_empty() {
+                        if app.chat_view.chat.is_empty() {
                             tracing::warn!(
                                 target: "vw_desktop",
                                 session_id = %id,
@@ -635,7 +633,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             tracing::info!(
                                 target: "vw_desktop",
                                 session_id = %id,
-                                chat_messages = app.chat.len(),
+                                chat_messages = app.chat_view.chat.len(),
                                 "applied loaded session messages to active chat"
                             );
                         }
@@ -651,14 +649,14 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                                 shared_chat,
                                 base_chunk_start,
                                 true,
-                                app.dialogue_flow_show_reasoning_summary,
+                                app.general_settings.dialogue_flow_show_reasoning_summary,
                             ));
                         }
                     } else {
                         tracing::warn!(
                             target: "vw_desktop",
                             session_id = %id,
-                            active_session_id = app.active_session_id.as_deref().unwrap_or("<none>"),
+                            active_session_id = app.session_state.active_session_id.as_deref().unwrap_or("<none>"),
                             "discarded session messages because active session changed"
                         );
                     }
@@ -666,11 +664,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 Err(e) => {
                     tracing::warn!(
                         target: "vw_desktop",
-                        active_session_id = app.active_session_id.as_deref().unwrap_or("<none>"),
+                        active_session_id = app.session_state.active_session_id.as_deref().unwrap_or("<none>"),
                         error = %e,
                         "failed to load session messages"
                     );
-                    if let Some(id) = app.active_session_id.clone()
+                    if let Some(id) = app.session_state.active_session_id.clone()
                         && let Some(local) = app.cached_chat_messages(&id)
                         && !local.is_empty()
                     {
@@ -684,7 +682,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         app.store_session_chat_snapshot(
                             id.clone(),
                             shared_chat.clone(),
-                            app.chat_message_ids.clone(),
+                            app.chat_view.chat_message_ids.clone(),
                         );
                         app.invalidate_chat_ui_state();
                         let base_chunk_start = app.preferred_base_chat_ui_chunk_start();
@@ -695,31 +693,31 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             shared_chat,
                             base_chunk_start,
                             true,
-                            app.dialogue_flow_show_reasoning_summary,
+                            app.general_settings.dialogue_flow_show_reasoning_summary,
                         ));
                     } else {
-                        app.error_message = Some(format!("Failed to load session messages: {}", e));
+                        app.input_feedback.error_message = Some(format!("Failed to load session messages: {}", e));
                     }
                 }
             }
             Some(iced::Task::none())
         }
         ProjectMessage::SessionUiPrepared { session_id, stream_generation, phase } => {
-            let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
+            let is_active_session = app.session_state.active_session_id.as_ref() == Some(&session_id);
             if let Some(generation) = stream_generation {
                 let reprepare = app
                     .get_session_runtime_mut(&session_id)
                     .stream_tail_state
                     .finish_session_open_ui(generation, is_active_session);
                 if let Some((message_idx, latest_generation)) = reprepare
-                    && let Some(message) = app.chat.get(message_idx).cloned()
+                    && let Some(message) = app.chat_view.chat.get(message_idx).cloned()
                 {
                     return Some(crate::app::message::project::prepare_stream_message_ui_task(
                         session_id,
                         message,
                         message_idx,
                         latest_generation,
-                        app.dialogue_flow_show_reasoning_summary,
+                        app.general_settings.dialogue_flow_show_reasoning_summary,
                     ));
                 }
                 if app.get_session_runtime(&session_id).stream_tail_state.ui_generation()
@@ -744,7 +742,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             app.active_shared_chat_messages(),
                             nearby_chunk_starts,
                             None,
-                            app.dialogue_flow_show_reasoning_summary,
+                            app.general_settings.dialogue_flow_show_reasoning_summary,
                         ));
                     }
                 }

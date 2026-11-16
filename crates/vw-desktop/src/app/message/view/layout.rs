@@ -80,14 +80,14 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             };
             if !domain::update(&mut app.layout_drag, &mut app.navigation_workspace, app.navigation_sidebar.work_sidebar_collapsed, app.window_size.0, local) { return Task::none(); }
             let domain::Message::PointerMoved(x, y) = local else { return Task::none(); };
-            if app.task_pet_dragging {
+            if app.pet_state.task_pet_dragging {
                 app.drag_task_pet_to(x, y);
             }
             if app.terminal.is_dragging && !app.terminal.pointer_resize(y, app.window_size.1) {
                 return Task::none();
             }
             desktop_task_board::drag::promote_pending_drag(
-                &mut app.task_board_drag_pending, &mut app.task_board_dragging, app.cursor_position,
+                &mut app.task_board.task_board_drag_pending, &mut app.task_board.task_board_dragging, app.cursor_position,
             );
             Task::none()
         }
@@ -139,11 +139,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
         }
         ViewMessage::GlobalMouseReleased => {
-            desktop_task_board::drag::clear_pending_drag(&mut app.task_board_drag_pending, &mut app.task_board_dragging);
+            desktop_task_board::drag::clear_pending_drag(&mut app.task_board.task_board_drag_pending, &mut app.task_board.task_board_dragging);
             let save = desktop_navigation::view_layout::drag::finish(&mut app.layout_drag, &mut app.navigation_workspace)
                 .map(|width| app.save_desktop_preference("file_manager_width", serde_json::json!(width)))
                 .unwrap_or_else(Task::none);
-            if app.task_pet_dragging {
+            if app.pet_state.task_pet_dragging {
                 app.finish_task_pet_drag();
             }
             app.terminal.finish_pointer_resize();
@@ -181,9 +181,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 );
             }
             #[cfg(not(target_arch = "wasm32"))]
-            if app.lsp_overlay.hover_visible {
-                app.lsp_overlay.hover_interactive = false;
-                app.lsp_hover_hide_deadline =
+            if app.preview_state.lsp_overlay.hover_visible {
+                app.preview_state.lsp_overlay.hover_interactive = false;
+                app.preview_state.lsp_hover_hide_deadline =
                     Some(std::time::Instant::now() + std::time::Duration::from_millis(400));
             }
             Task::none()
@@ -212,8 +212,8 @@ fn mobile_message(message: &ViewMessage) -> Option<desktop_navigation::mobile_la
 }
 fn update_mobile(app: &mut App, message: desktop_navigation::mobile_layout::Message) -> Task<Message> {
  use desktop_navigation::mobile_layout as domain;
- let blocked = app.question_modal_request.is_some() || app.permission_modal_request.is_some() || app.new_session_picker_project.is_some();
- let effect = domain::update(domain::Context { mobile: &mut app.mobile_layout, panels: &mut app.navigation_panels, tabs: &mut app.navigation_tabs, notifications_expanded: &mut app.notifications_expanded }, blocked, message);
+ let blocked = app.session_state.question_modal_request.is_some() || app.session_state.permission_modal_request.is_some() || app.workspace_state.new_session_picker_project.is_some();
+ let effect = domain::update(domain::Context { mobile: &mut app.mobile_layout, panels: &mut app.navigation_panels, tabs: &mut app.navigation_tabs, notifications_expanded: &mut app.notification_state.notifications_expanded }, blocked, message);
  match effect {
  None => Task::none(),
  Some(domain::Effect::OpenSettingsTab(tab)) => super::update(app, ViewMessage::OpenSystemSettingsTab(tab)),

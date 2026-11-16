@@ -154,7 +154,7 @@ async fn ui_refresh_21_renders_pages_and_narrow_help() {
         (DesktopLocale::TraditionalChinese, Theme::Dark, 640, "zh-tw-dark"),
         (DesktopLocale::English, Theme::Dark, 960, "en-dark"),
     ] {
-        app.desktop_locale = locale;
+        app.general_settings.desktop_locale = locale;
         let size = Size::new(width, 1320);
         snapshot(
             system_settings_runtime::view(&app),
@@ -348,8 +348,8 @@ async fn help_rollout_13_renders_contextual_help() {
         (DesktopLocale::TraditionalChinese, Theme::Dark, 440),
         (DesktopLocale::English, Theme::Dark, 640),
     ] {
-        app.desktop_locale = locale;
-        app.app_theme = theme.clone();
+        app.general_settings.desktop_locale = locale;
+        app.appearance.app_theme = theme.clone();
         let i18n = I18n::new(locale);
         let size = Size::new(width, 680);
         let mut ui = scene(view(&app), &mut renderer, size);

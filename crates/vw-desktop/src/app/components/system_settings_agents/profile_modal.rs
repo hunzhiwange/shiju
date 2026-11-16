@@ -10,7 +10,7 @@ pub(in crate::app::components) fn overlay<'a>(
     let model_source_available = state.profile_modal.as_ref().is_none_or(|draft| {
         domain::defaults::supports_fixed_model(
             &draft.runtime,
-            app.session_runtime_states.values().map(|state| {
+            app.session_state.session_runtime_states.values().map(|state| {
                 (
                     state.acp_agent.as_deref(),
                     state.acp_options_state.options.model_source_capabilities.as_slice(),
@@ -24,17 +24,17 @@ pub(in crate::app::components) fn overlay<'a>(
         .find(|file| file.file_name == state.active_prompt_tab)
         .and_then(|file| {
             super::identity::workspace_identity_meta_line(
-                app.desktop_locale,
+                app.general_settings.desktop_locale,
                 file.size_bytes,
                 file.modified_at_ms,
             )
         });
     let card = domain::profile_modal::page_card(domain::profile_modal::PageInput {
         state,
-        locale: app.desktop_locale,
-        theme: &app.app_theme,
+        locale: app.general_settings.desktop_locale,
+        theme: &app.appearance.app_theme,
         help: super::domain::help,
-        acp_agents: &app.acp_agents,
+        acp_agents: &app.session_state.acp_agents,
         acp_loading: app.acp_settings.loading,
         acp_error: app.acp_settings.save_error.as_ref(),
         inspect: app.mcp_settings.inspect.as_ref(),

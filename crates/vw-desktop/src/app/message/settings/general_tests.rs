@@ -20,7 +20,7 @@ fn timezone_selection_updates_immediately_and_persists_last_choice() {
             )))
         };
         let task = select(&mut app, "America/New_York");
-        assert_eq!(app.chat_timezone, "America/New_York");
+        assert_eq!(app.general_settings.chat_timezone, "America/New_York");
         assert!(requests.try_recv().is_err());
 
         let saved = drive_system_settings_patch(
@@ -33,7 +33,7 @@ fn timezone_selection_updates_immediately_and_persists_last_choice() {
                 assert_eq!(select(&mut app, "Asia/Shanghai").units(), 0);
                 assert_eq!(select(&mut app, "UTC").units(), 0);
                 assert_eq!(select(&mut app, "Mars/Olympus_Mons").units(), 0);
-                assert_eq!(app.chat_timezone, "UTC");
+                assert_eq!(app.general_settings.chat_timezone, "UTC");
             },
         );
         assert!(matches!(&saved, Message::SystemSettingsSaved(_, _, Ok(()))));
@@ -47,7 +47,7 @@ fn timezone_selection_updates_immediately_and_persists_last_choice() {
         );
         assert!(matches!(&saved, Message::SystemSettingsSaved(_, _, Ok(()))));
         assert_eq!(app.update(saved).units(), 0);
-        assert_eq!(app.chat_timezone, "UTC");
+        assert_eq!(app.general_settings.chat_timezone, "UTC");
     });
 }
 
@@ -65,7 +65,7 @@ fn desktop_language_selection_survives_reload() {
             SettingsMessage::General(GeneralSettingsMessage::LocaleSelected(locale)),
         );
         app.apply_bootstrap_system_settings(AppSystemSettingsConfig::default());
-        assert_eq!(app.desktop_locale, locale);
+        assert_eq!(app.general_settings.desktop_locale, locale);
     }
 }
 
@@ -77,14 +77,14 @@ fn desktop_language_restores_and_reports_save_failure() {
         desktop_locale: DesktopLocale::English,
         ..Default::default()
     });
-    assert_eq!(app.desktop_locale, DesktopLocale::English);
+    assert_eq!(app.general_settings.desktop_locale, DesktopLocale::English);
     let _ = update(
         &mut app,
         SettingsMessage::General(GeneralSettingsMessage::LocaleSelected(
             DesktopLocale::TraditionalChinese,
         )),
     );
-    assert!(app.desktop_locale_saving);
+    assert!(app.general_settings.desktop_locale_saving);
     let _ = update(
         &mut app,
         SettingsMessage::General(GeneralSettingsMessage::LocaleSaved(
@@ -92,8 +92,8 @@ fn desktop_language_restores_and_reports_save_failure() {
             Err("raw error".into()),
         )),
     );
-    assert!(!app.desktop_locale_saving);
-    assert!(app.active_toast.is_some());
+    assert!(!app.general_settings.desktop_locale_saving);
+    assert!(app.toast_state.active_toast.is_some());
 }
 
 #[test]
@@ -134,14 +134,14 @@ fn notification_settings_restore_and_report_delivery_failure() {
         task_completion_notification: true,
         ..Default::default()
     });
-    assert!(app.task_completion_notification);
+    assert!(app.general_settings.task_completion_notification);
     let _ = update(
         &mut app,
         SettingsMessage::General(GeneralSettingsMessage::TaskCompletionNotificationSent(Err(
             "denied".into(),
         ))),
     );
-    assert!(app.active_toast.is_some());
+    assert!(app.toast_state.active_toast.is_some());
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -153,13 +153,13 @@ fn notification_setting_serializes_rapid_toggle_saves() {
         SettingsMessage::General(GeneralSettingsMessage::TaskCompletionNotificationToggled(true)),
     );
     assert!(first.units() > 0);
-    assert!(app.task_completion_notification_saving);
+    assert!(app.general_settings.task_completion_notification_saving);
     let second = update(
         &mut app,
         SettingsMessage::General(GeneralSettingsMessage::TaskCompletionNotificationToggled(false)),
     );
     assert_eq!(second.units(), 0);
-    assert!(!app.task_completion_notification);
+    assert!(!app.general_settings.task_completion_notification);
     let pending = update(
         &mut app,
         SettingsMessage::General(GeneralSettingsMessage::TaskCompletionNotificationSaved(
@@ -168,7 +168,7 @@ fn notification_setting_serializes_rapid_toggle_saves() {
         )),
     );
     assert!(pending.units() > 0);
-    assert!(app.task_completion_notification_saving);
+    assert!(app.general_settings.task_completion_notification_saving);
     let _ = update(
         &mut app,
         SettingsMessage::General(GeneralSettingsMessage::TaskCompletionNotificationSaved(
@@ -176,15 +176,15 @@ fn notification_setting_serializes_rapid_toggle_saves() {
             Ok(()),
         )),
     );
-    assert!(!app.task_completion_notification_saving);
-    assert!(!app.task_completion_notification);
+    assert!(!app.general_settings.task_completion_notification_saving);
+    assert!(!app.general_settings.task_completion_notification);
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[test]
 fn notification_permission_failure_disables_and_persists_notification_setting() {
     let mut app = App::new().0;
-    app.task_completion_notification = true;
+    app.general_settings.task_completion_notification = true;
     let task = update(
         &mut app,
         SettingsMessage::General(
@@ -193,8 +193,8 @@ fn notification_permission_failure_disables_and_persists_notification_setting() 
             )),
         ),
     );
-    assert!(!app.task_completion_notification);
-    assert!(app.task_completion_notification_saving);
-    assert!(app.active_toast.is_some());
+    assert!(!app.general_settings.task_completion_notification);
+    assert!(app.general_settings.task_completion_notification_saving);
+    assert!(app.toast_state.active_toast.is_some());
     assert!(task.units() > 0);
 }

@@ -234,7 +234,7 @@ fn failed_path_reveal_shows_gateway_error_and_target_in_toast() {
             result: Err("gateway unavailable".to_string()),
         },
     );
-    let toast = app.active_toast.as_ref().expect("gateway failures must be visible");
+    let toast = app.toast_state.active_toast.as_ref().expect("gateway failures must be visible");
     assert!(matches!(toast.kind, crate::app::state::ToastKind::Error));
     assert!(toast.message.contains("/gateway/文件.rs"));
     assert!(toast.message.contains("gateway unavailable"));
@@ -250,6 +250,6 @@ fn successful_path_reveal_does_not_show_toast() {
             result: Ok(()),
         },
     );
-    assert!(app.active_toast.is_none());
+    assert!(app.toast_state.active_toast.is_none());
     assert!(!has_scheduled_action(task));
 }

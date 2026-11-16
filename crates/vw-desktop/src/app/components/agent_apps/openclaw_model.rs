@@ -17,7 +17,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     if matches!(event, Event::Close) { domain::close(&mut app.apps_catalog.openclaw_model); return Task::none(); }
     let Ok(client) = crate::app::config::gateway_client() else { return app.show_error_toast("网关不可用"); };
     let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.navigation_tabs.project_path.clone() };
-    let Some(project) = app.project_id.clone().filter(|id| !id.is_empty()) else { return app.show_error_toast("请先选择项目"); };
+    let Some(project) = app.workspace_state.project_id.clone().filter(|id| !id.is_empty()) else { return app.show_error_toast("请先选择项目"); };
     let connection = Connection { client, context, catalog_context: app.apps_catalog.context.clone(), project,
         host: app.apps_catalog.host.clone(), generation: app.apps_catalog.generation, token: app.apps_catalog.token.clone() };
     let mut notice = None;

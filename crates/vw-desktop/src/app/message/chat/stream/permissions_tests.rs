@@ -42,13 +42,13 @@ fn session_info(id: &str, directory: &str) -> session_info::Info {
 #[test]
 fn permission_directory_prefers_session_directory_and_filters_blank_fallbacks() {
     let (mut app, _task) = crate::app::App::new();
-    app.active_session_id = Some("s1".to_string());
-    app.sessions = vec![session_info("s1", "/session")];
+    app.session_state.active_session_id = Some("s1".to_string());
+    app.session_state.sessions = vec![session_info("s1", "/session")];
     app.navigation_tabs.project_path = Some("/project".to_string());
 
     assert_eq!(super::permission_directory(&app).as_deref(), Some("/session"));
 
-    app.sessions[0].directory = "   ".to_string();
+    app.session_state.sessions[0].directory = "   ".to_string();
     assert_eq!(super::permission_directory(&app).as_deref(), Some("/project"));
 
     app.navigation_tabs.project_path = Some("\t".to_string());
@@ -58,7 +58,7 @@ fn permission_directory_prefers_session_directory_and_filters_blank_fallbacks() 
 #[test]
 fn current_full_access_session_id_requires_active_enabled_runtime() {
     let (mut app, _task) = crate::app::App::new();
-    app.active_session_id = Some("s1".to_string());
+    app.session_state.active_session_id = Some("s1".to_string());
 
     assert_eq!(super::current_full_access_session_id(&app), None);
 
@@ -73,7 +73,7 @@ fn current_full_access_session_id_requires_active_enabled_runtime() {
 // 全访问自动批准严格限制在活动且已启用的会话，其他会话请求必须继续排队。
 fn handle_permission_list_loaded_auto_approves_only_active_full_access_session() {
     let (mut app, _task) = crate::app::App::new();
-    app.active_session_id = Some("active".to_string());
+    app.session_state.active_session_id = Some("active".to_string());
     app.current_session_runtime_mut().full_access_enabled = true;
 
     super::handle_permission_list_loaded(
@@ -81,9 +81,9 @@ fn handle_permission_list_loaded_auto_approves_only_active_full_access_session()
         Ok(vec![request("active-request", "active"), request("other-request", "other")]),
     );
 
-    assert_eq!(app.permission_modal_request_id.as_deref(), Some("other-request"));
+    assert_eq!(app.session_state.permission_modal_request_id.as_deref(), Some("other-request"));
     assert_eq!(
-        app.permission_modal_requests.iter().map(|request| request.id.as_str()).collect::<Vec<_>>(),
+        app.session_state.permission_modal_requests.iter().map(|request| request.id.as_str()).collect::<Vec<_>>(),
         vec!["other-request"]
     );
 }
@@ -91,17 +91,17 @@ fn handle_permission_list_loaded_auto_approves_only_active_full_access_session()
 #[test]
 fn handle_toggle_full_access_permission_enables_and_removes_active_session_requests() {
     let (mut app, _task) = crate::app::App::new();
-    app.active_session_id = Some("active".to_string());
+    app.session_state.active_session_id = Some("active".to_string());
     app.current_session_runtime_mut().full_access_enabled = false;
-    app.permission_modal_requests =
+    app.session_state.permission_modal_requests =
         vec![request("active-request", "active"), request("other-request", "other")];
 
     super::handle_toggle_full_access_permission(&mut app);
 
     assert!(app.current_session_runtime_ref().expect("active runtime").full_access_enabled);
-    assert_eq!(app.permission_modal_request_id.as_deref(), Some("other-request"));
+    assert_eq!(app.session_state.permission_modal_request_id.as_deref(), Some("other-request"));
     assert_eq!(
-        app.permission_modal_requests.iter().map(|request| request.id.as_str()).collect::<Vec<_>>(),
+        app.session_state.permission_modal_requests.iter().map(|request| request.id.as_str()).collect::<Vec<_>>(),
         vec!["other-request"]
     );
 }
@@ -110,7 +110,7 @@ fn handle_toggle_full_access_permission_enables_and_removes_active_session_reque
 // 切换全访问除了更新界面状态，还需标记 ACP 运行时重建以应用新的权限边界。
 fn handle_toggle_full_access_permission_marks_acp_runtime_for_rebuild() {
     let (mut app, _task) = crate::app::App::new();
-    app.active_session_id = Some("active".to_string());
+    app.session_state.active_session_id = Some("active".to_string());
     {
         let runtime = app.current_session_runtime_mut();
         runtime.full_access_enabled = true;
@@ -129,19 +129,19 @@ fn handle_toggle_full_access_permission_marks_acp_runtime_for_rebuild() {
 #[test]
 fn disabling_full_access_without_acp_preserves_pending_modal() {
     let (mut app, _task) = crate::app::App::new();
-    app.active_session_id = Some("active".to_string());
+    app.session_state.active_session_id = Some("active".to_string());
     app.current_session_runtime_mut().full_access_enabled = true;
-    app.permission_modal_request_id = Some("a".to_string());
-    app.permission_modal_request = Some(request("a", "active"));
-    app.permission_modal_requests = vec![request("a", "active")];
+    app.session_state.permission_modal_request_id = Some("a".to_string());
+    app.session_state.permission_modal_request = Some(request("a", "active"));
+    app.session_state.permission_modal_requests = vec![request("a", "active")];
 
     super::handle_toggle_full_access_permission(&mut app);
 
     let runtime = app.current_session_runtime_ref().expect("active runtime");
     assert!(!runtime.full_access_enabled);
     assert!(!runtime.acp_rebuild_required);
-    assert_eq!(app.permission_modal_request_id.as_deref(), Some("a"));
-    assert_eq!(app.permission_modal_requests, vec![request("a", "active")]);
+    assert_eq!(app.session_state.permission_modal_request_id.as_deref(), Some("a"));
+    assert_eq!(app.session_state.permission_modal_requests, vec![request("a", "active")]);
 }
 
 #[test]
@@ -159,21 +159,21 @@ fn reply_result_schedules_permission_refresh_for_success_and_error() {
 fn agent_config_cleanup_full_access_disabled_keeps_normal_approval() {
     let mut app = crate::app::App::new().0;
     app.agents_settings.config_ready = true;
-    app.last_llm_full_access = Some(false);
-    app.active_session_id = Some("normal-approval".into());
+    app.session_state.last_llm_full_access = Some(false);
+    app.session_state.active_session_id = Some("normal-approval".into());
     app.current_session_runtime_mut();
     let pending = request("pending", "normal-approval");
     let _ = super::handle_permission_list_loaded(&mut app, Ok(vec![pending.clone()]));
     assert!(!app.current_session_runtime().full_access_enabled);
-    assert_eq!(app.permission_modal_requests, vec![pending]);
-    assert_eq!(app.permission_modal_request_id.as_deref(), Some("pending"));
+    assert_eq!(app.session_state.permission_modal_requests, vec![pending]);
+    assert_eq!(app.session_state.permission_modal_request_id.as_deref(), Some("pending"));
 }
 
 #[test]
 fn full_access_save_failure_restores_previous_mode_and_allows_retry() {
     let (mut app, _) = crate::app::App::new();
     let id = "stored-session";
-    app.active_session_id = Some(id.into());
+    app.session_state.active_session_id = Some(id.into());
     let runtime = app.current_session_runtime_mut();
     runtime.full_access_enabled = false;
     runtime.full_access_saving = true;

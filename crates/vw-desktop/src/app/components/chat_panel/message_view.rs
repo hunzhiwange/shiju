@@ -116,7 +116,7 @@ pub(crate) use desktop_chat_view::message_view::recovery::{
 pub(crate) fn recovery_notice_text(app: &App) -> Option<String> {
     let runtime = app.current_session_runtime_ref()?;
     desktop_chat_view::message_view::recovery::recovery_notice_text(
-        crate::app::i18n::I18n::new(app.desktop_locale),
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         runtime.request_lifecycle.active_agent_request.as_ref().map(|request| request.id),
         runtime.model_recovery.as_ref().map(|(id, event)| (*id, event)),
     )

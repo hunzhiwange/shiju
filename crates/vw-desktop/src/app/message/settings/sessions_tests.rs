@@ -7,11 +7,11 @@ use session_info::{Info, TimeInfo};
 
 fn app() -> App {
     let mut app = App::new().0;
-    app.active_session_id = None;
-    app.sessions.clear();
-    app.session_runtime_states.clear();
-    app.chat.clear();
-    app.usage = TokenUsage::default();
+    app.session_state.active_session_id = None;
+    app.session_state.sessions.clear();
+    app.session_state.session_runtime_states.clear();
+    app.chat_view.chat.clear();
+    app.chat_view.usage = TokenUsage::default();
     app
 }
 
@@ -48,50 +48,50 @@ fn chat_message(content: &str) -> ChatMessage {
 #[test]
 fn session_delete_active_only_session_clears_conversation_and_usage() {
     let mut app = app();
-    app.active_session_id = Some("only".to_string());
-    app.sessions.push(session("only"));
+    app.session_state.active_session_id = Some("only".to_string());
+    app.session_state.sessions.push(session("only"));
     app.get_session_runtime_mut("only").request_lifecycle.is_requesting = true;
-    app.chat.push(chat_message("hello"));
-    app.usage =
+    app.chat_view.chat.push(chat_message("hello"));
+    app.chat_view.usage =
         TokenUsage { input_tokens: 12, output_tokens: 7, cached_tokens: 3, reasoning_tokens: 2 };
 
     let _task = update(&mut app, SettingsMessage::SessionDelete("only".to_string()));
 
-    assert!(app.sessions.is_empty());
-    assert!(!app.session_runtime_states.contains_key("only"));
-    assert_eq!(app.active_session_id, None);
-    assert!(app.chat.is_empty());
-    assert_eq!(app.usage, TokenUsage::default());
+    assert!(app.session_state.sessions.is_empty());
+    assert!(!app.session_state.session_runtime_states.contains_key("only"));
+    assert_eq!(app.session_state.active_session_id, None);
+    assert!(app.chat_view.chat.is_empty());
+    assert_eq!(app.chat_view.usage, TokenUsage::default());
 }
 
 #[test]
 fn session_delete_active_session_switches_to_first_remaining_and_syncs_preferences() {
     let mut app = app();
-    app.active_session_id = Some("deleted".to_string());
-    app.sessions = vec![session("deleted"), session("next"), session("later")];
+    app.session_state.active_session_id = Some("deleted".to_string());
+    app.session_state.sessions = vec![session("deleted"), session("next"), session("later")];
     app.get_session_runtime_mut("deleted").request_lifecycle.is_requesting = true;
     let next_runtime = app.get_session_runtime_mut("next");
     next_runtime.model = "next-model".to_string();
     next_runtime.auto_model = false;
     next_runtime.has_unseen_success = true;
-    app.model = "old-model".to_string();
-    app.auto_model = true;
-    app.chat.push(chat_message("preserved until load completes"));
-    app.usage.input_tokens = 9;
+    app.session_state.model = "old-model".to_string();
+    app.session_state.auto_model = true;
+    app.chat_view.chat.push(chat_message("preserved until load completes"));
+    app.chat_view.usage.input_tokens = 9;
 
     let _task = update(&mut app, SettingsMessage::SessionDelete("deleted".to_string()));
 
     assert_eq!(
-        app.sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(),
+        app.session_state.sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(),
         vec!["next", "later"]
     );
-    assert_eq!(app.active_session_id.as_deref(), Some("next"));
-    assert!(!app.session_runtime_states.contains_key("deleted"));
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("next"));
+    assert!(!app.session_state.session_runtime_states.contains_key("deleted"));
     assert!(!app.get_session_runtime("next").has_unseen_success);
-    assert_eq!(app.model, "old-model");
-    assert!(app.auto_model);
-    assert_eq!(app.chat[0].content, "preserved until load completes");
-    assert_eq!(app.usage.input_tokens, 9);
+    assert_eq!(app.session_state.model, "old-model");
+    assert!(app.session_state.auto_model);
+    assert_eq!(app.chat_view.chat[0].content, "preserved until load completes");
+    assert_eq!(app.chat_view.usage.input_tokens, 9);
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
@@ -99,41 +99,41 @@ fn session_delete_active_session_switches_to_first_remaining_and_syncs_preferenc
 #[test]
 fn session_delete_inactive_session_preserves_active_context() {
     let mut app = app();
-    app.active_session_id = Some("active".to_string());
-    app.sessions = vec![session("active"), session("inactive")];
+    app.session_state.active_session_id = Some("active".to_string());
+    app.session_state.sessions = vec![session("active"), session("inactive")];
     app.get_session_runtime_mut("active").request_lifecycle.is_requesting = true;
     app.get_session_runtime_mut("inactive").request_lifecycle.is_requesting = true;
-    app.chat.push(chat_message("keep me"));
-    app.usage.output_tokens = 5;
+    app.chat_view.chat.push(chat_message("keep me"));
+    app.chat_view.usage.output_tokens = 5;
 
     let _task = update(&mut app, SettingsMessage::SessionDelete("inactive".to_string()));
 
     assert_eq!(
-        app.sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(),
+        app.session_state.sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(),
         vec!["active"]
     );
-    assert_eq!(app.active_session_id.as_deref(), Some("active"));
-    assert!(app.session_runtime_states.contains_key("active"));
-    assert!(!app.session_runtime_states.contains_key("inactive"));
-    assert_eq!(app.chat[0].content, "keep me");
-    assert_eq!(app.usage.output_tokens, 5);
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("active"));
+    assert!(app.session_state.session_runtime_states.contains_key("active"));
+    assert!(!app.session_state.session_runtime_states.contains_key("inactive"));
+    assert_eq!(app.chat_view.chat[0].content, "keep me");
+    assert_eq!(app.chat_view.usage.output_tokens, 5);
 }
 
 #[test]
 fn session_delete_missing_session_removes_orphan_runtime_without_changing_context() {
     let mut app = app();
-    app.active_session_id = Some("active".to_string());
-    app.sessions.push(session("active"));
+    app.session_state.active_session_id = Some("active".to_string());
+    app.session_state.sessions.push(session("active"));
     app.get_session_runtime_mut("orphan").request_lifecycle.is_requesting = true;
-    app.chat.push(chat_message("keep me"));
+    app.chat_view.chat.push(chat_message("keep me"));
 
     let _task = update(&mut app, SettingsMessage::SessionDelete("orphan".to_string()));
 
-    assert_eq!(app.sessions.len(), 1);
-    assert_eq!(app.sessions[0].id, "active");
-    assert_eq!(app.active_session_id.as_deref(), Some("active"));
-    assert!(!app.session_runtime_states.contains_key("orphan"));
-    assert_eq!(app.chat[0].content, "keep me");
+    assert_eq!(app.session_state.sessions.len(), 1);
+    assert_eq!(app.session_state.sessions[0].id, "active");
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("active"));
+    assert!(!app.session_state.session_runtime_states.contains_key("orphan"));
+    assert_eq!(app.chat_view.chat[0].content, "keep me");
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
@@ -141,42 +141,42 @@ fn session_delete_missing_session_removes_orphan_runtime_without_changing_contex
 #[test]
 fn session_delete_missing_active_session_switches_to_first_available_session() {
     let mut app = app();
-    app.active_session_id = Some("missing".to_string());
-    app.sessions = vec![session("next"), session("later")];
+    app.session_state.active_session_id = Some("missing".to_string());
+    app.session_state.sessions = vec![session("next"), session("later")];
     let next_runtime = app.get_session_runtime_mut("next");
     next_runtime.model = "next-model".to_string();
     next_runtime.auto_model = false;
     next_runtime.has_unseen_success = true;
-    app.model = "old-model".to_string();
-    app.auto_model = true;
+    app.session_state.model = "old-model".to_string();
+    app.session_state.auto_model = true;
 
     let _task = update(&mut app, SettingsMessage::SessionDelete("missing".to_string()));
 
     assert_eq!(
-        app.sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(),
+        app.session_state.sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(),
         vec!["next", "later"]
     );
-    assert_eq!(app.active_session_id.as_deref(), Some("next"));
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("next"));
     assert!(!app.get_session_runtime("next").has_unseen_success);
-    assert_eq!(app.model, "old-model");
-    assert!(app.auto_model);
+    assert_eq!(app.session_state.model, "old-model");
+    assert!(app.session_state.auto_model);
 }
 
 #[test]
 fn session_copy_leaves_local_session_state_unchanged_until_task_completes() {
     let mut app = app();
-    app.active_session_id = Some("active".to_string());
-    app.sessions.push(session("active"));
+    app.session_state.active_session_id = Some("active".to_string());
+    app.session_state.sessions.push(session("active"));
     app.get_session_runtime_mut("active").request_lifecycle.is_requesting = true;
-    app.chat.push(chat_message("unchanged"));
+    app.chat_view.chat.push(chat_message("unchanged"));
 
     let _task = update(&mut app, SettingsMessage::SessionCopy("active".to_string()));
 
-    assert_eq!(app.active_session_id.as_deref(), Some("active"));
-    assert_eq!(app.sessions.len(), 1);
-    assert_eq!(app.sessions[0].id, "active");
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("active"));
+    assert_eq!(app.session_state.sessions.len(), 1);
+    assert_eq!(app.session_state.sessions[0].id, "active");
     assert!(app.get_session_runtime("active").request_lifecycle.is_requesting);
-    assert_eq!(app.chat[0].content, "unchanged");
+    assert_eq!(app.chat_view.chat[0].content, "unchanged");
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
@@ -184,15 +184,15 @@ fn session_copy_leaves_local_session_state_unchanged_until_task_completes() {
 #[test]
 fn unrelated_settings_message_is_ignored() {
     let mut app = app();
-    app.active_session_id = Some("active".to_string());
-    app.sessions.push(session("active"));
-    app.chat.push(chat_message("unchanged"));
-    app.usage.cached_tokens = 4;
+    app.session_state.active_session_id = Some("active".to_string());
+    app.session_state.sessions.push(session("active"));
+    app.chat_view.chat.push(chat_message("unchanged"));
+    app.chat_view.usage.cached_tokens = 4;
 
     let _task = update(&mut app, SettingsMessage::ToggleSettingsSidebar);
 
-    assert_eq!(app.active_session_id.as_deref(), Some("active"));
-    assert_eq!(app.sessions.len(), 1);
-    assert_eq!(app.chat[0].content, "unchanged");
-    assert_eq!(app.usage.cached_tokens, 4);
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("active"));
+    assert_eq!(app.session_state.sessions.len(), 1);
+    assert_eq!(app.chat_view.chat[0].content, "unchanged");
+    assert_eq!(app.chat_view.usage.cached_tokens, 4);
 }

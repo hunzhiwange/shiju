@@ -9,7 +9,7 @@ fn current(app: &App, scope: &Scope) -> Result<(GatewayModelCatalogClient, Catal
     if &actual_scope != scope || app.apps_catalog.token.is_empty() {
         return Err("应用执行主机已切换，请重新打开模型目录".into());
     }
-    let project = match (&app.project_id, &scope.context.project) {
+    let project = match (&app.workspace_state.project_id, &scope.context.project) {
         (Some(id), Some(directory)) if !id.is_empty() => {
             ModelCatalogProject { project_id: id.as_str().into(), directory: directory.clone() }
         }

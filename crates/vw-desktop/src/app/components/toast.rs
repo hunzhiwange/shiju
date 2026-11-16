@@ -16,12 +16,12 @@ pub(super) fn cache_sync_retry_message(_app: &App) -> Option<Message> {
 }
 
 pub fn view(app: &App) -> Element<'static, Message> {
-    shared::view(app.active_toast.as_ref(), app.desktop_locale, cache_sync_retry_message(app))
+    shared::view(app.toast_state.active_toast.as_ref(), app.general_settings.desktop_locale, cache_sync_retry_message(app))
 }
 
 pub(crate) fn modal_with_feedback<'a>(
     app: &App,
     card: Container<'a, Message>,
 ) -> Container<'a, Message> {
-    shared::modal_with_feedback(card, app.active_toast.as_ref().map(|_| view(app)))
+    shared::modal_with_feedback(card, app.toast_state.active_toast.as_ref().map(|_| view(app)))
 }

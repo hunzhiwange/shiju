@@ -42,24 +42,24 @@ async fn empty_gateway_bulk_wrappers_short_circuit_without_gateway_access() {
 fn start_manual_merge_queue_task_without_project_clears_queue_and_notifies() {
     let (mut app, _task) = crate::app::App::new();
     app.navigation_tabs.project_path = None;
-    app.task_board_tasks = vec![task("T-merge", TaskStatus::PrSubmitted)];
-    app.task_board_manual_merge_queue = vec!["T-merge".to_string()];
-    app.notifications.clear();
+    app.task_board.task_board_tasks = vec![task("T-merge", TaskStatus::PrSubmitted)];
+    app.task_board.task_board_manual_merge_queue = vec!["T-merge".to_string()];
+    app.notification_state.notifications.clear();
 
     let _command = super::start_manual_merge_queue_task(&mut app);
 
-    assert!(app.task_board_manual_merge_queue.is_empty());
-    assert_eq!(app.notifications.len(), 1);
-    assert_eq!(app.notifications[0].message, "缺少项目路径，无法执行批量合并");
+    assert!(app.task_board.task_board_manual_merge_queue.is_empty());
+    assert_eq!(app.notification_state.notifications.len(), 1);
+    assert_eq!(app.notification_state.notifications[0].message, "缺少项目路径，无法执行批量合并");
 }
 
 #[test]
 fn manual_merge_without_eligible_task_does_not_notify() {
     let (mut app, _) = crate::app::App::new();
     app.navigation_tabs.project_path = Some("/tmp/project".into());
-    app.task_board_tasks = vec![task("T-pending", TaskStatus::Pending)];
-    app.task_board_manual_merge_queue = vec!["T-missing".into(), "T-pending".into()];
-    app.notifications.clear();
+    app.task_board.task_board_tasks = vec![task("T-pending", TaskStatus::Pending)];
+    app.task_board.task_board_manual_merge_queue = vec!["T-missing".into(), "T-pending".into()];
+    app.notification_state.notifications.clear();
     let _ = super::start_manual_merge_queue_task(&mut app);
-    assert!(app.notifications.is_empty());
+    assert!(app.notification_state.notifications.is_empty());
 }

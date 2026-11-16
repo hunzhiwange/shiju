@@ -9,39 +9,39 @@ pub(crate) use desktop_editor::metrics::{Metrics, MetricsPreview};
 use desktop_editor::metrics::apply;
 fn applied(app: &App) -> Metrics {
     Metrics {
-        font_size: app.current_font_size,
-        line_height: app.current_line_height,
-        auto_line_height: app.auto_adjust_line_height,
+        font_size: app.preview_state.current_font_size,
+        line_height: app.preview_state.current_line_height,
+        auto_line_height: app.preview_state.auto_adjust_line_height,
     }
 }
 pub(crate) fn displayed(app: &App) -> Metrics {
-    desktop_editor::metrics::displayed(applied(app), &app.editor_metrics_preview)
+    desktop_editor::metrics::displayed(applied(app), &app.preview_state.editor_metrics_preview)
 }
 
 pub(crate) fn commit(app: &mut App, auto: Option<bool>) -> Task<Message> {
     let previous = applied(app);
-    let Some(update) = desktop_editor::metrics::commit(previous, &mut app.editor_metrics_preview, auto) else {
+    let Some(update) = desktop_editor::metrics::commit(previous, &mut app.preview_state.editor_metrics_preview, auto) else {
         return Task::none();
     };
     let desktop_editor::metrics::MetricsCommit { next, font_size, line_height } = update;
     apply_to_open_editors(app, font_size, line_height);
-    app.current_font_size = next.font_size;
-    app.current_line_height = next.line_height;
-    app.auto_adjust_line_height = next.auto_line_height;
+    app.preview_state.current_font_size = next.font_size;
+    app.preview_state.current_line_height = next.line_height;
+    app.preview_state.auto_adjust_line_height = next.auto_line_height;
     let patch = EditorSettingsPatch::metrics(
-        app.current_font_size,
-        app.current_line_height,
-        app.auto_adjust_line_height,
+        app.preview_state.current_font_size,
+        app.preview_state.current_line_height,
+        app.preview_state.auto_adjust_line_height,
     );
     persistence::enqueue(app, patch)
 }
 
 pub(crate) fn apply_snapshot(app: &mut App, size: f32, height: f32, auto: bool) {
     let metrics = Metrics::normalized(size, height, auto);
-    app.current_font_size = metrics.font_size;
-    app.current_line_height = metrics.line_height;
-    app.auto_adjust_line_height = auto;
-    apply_to_open_editors(app, Some(app.current_font_size), Some(app.current_line_height));
+    app.preview_state.current_font_size = metrics.font_size;
+    app.preview_state.current_line_height = metrics.line_height;
+    app.preview_state.auto_adjust_line_height = auto;
+    apply_to_open_editors(app, Some(app.preview_state.current_font_size), Some(app.preview_state.current_line_height));
 }
 
 fn apply_to_open_editors(app: &mut App, font_size: Option<f32>, line_height: Option<f32>) {

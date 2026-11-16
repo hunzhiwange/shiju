@@ -18,8 +18,8 @@ fn main() {
             app.agents_settings.loading = false;
             app.agents_settings.entries = desktop_settings_agents::acceptance::entries();
             app.agents_settings.selected_agent = "acp-codex".into();
-            app.acp_agents = vec!["codex".into(), "claude".into()];
-            app.recent_projects = vec![
+            app.session_state.acp_agents = vec!["codex".into(), "claude".into()];
+            app.workspace_state.recent_projects = vec![
                 "/tmp/agent-acceptance-a".into(),
                 "/tmp/agent-acceptance-b".into(),
             ];

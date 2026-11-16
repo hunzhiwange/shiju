@@ -4,13 +4,13 @@ use desktop_chat_tools::tool_text_support as domain;
 pub use domain::{ToolTextTarget,tool_text_key,message_target_from_context,chat_text_line_height,chat_text_font_name,chat_text_font,content_safe_font,chat_text_selection_color,read_only_text_style,tool_text_style,tool_text_style_with_danger,READ_ONLY_EDITOR_MAX_HEIGHT,is_safe_for_text_editor};
 pub(crate) fn text_state(app: &App) -> domain::ToolTextState<'_> {
     domain::ToolTextState {
-        chat_message_editors: &app.chat_message_editors,
-        chat_special_text_editors: &app.chat_special_text_editors,
-        chat_tool_text_editors: &app.chat_tool_text_editors,
-        chat_think_editors: &app.chat_think_editors,
-        chat_markdown_block_editors: &app.chat_markdown_block_editors,
-        markdown_selection: app.chat_markdown_selection.as_ref()
-            .filter(|selection| app.active_session_id.as_deref() == Some(selection.session_id.as_str()))
+        chat_message_editors: &app.chat_view.chat_message_editors,
+        chat_special_text_editors: &app.chat_view.chat_special_text_editors,
+        chat_tool_text_editors: &app.chat_view.chat_tool_text_editors,
+        chat_think_editors: &app.chat_view.chat_think_editors,
+        chat_markdown_block_editors: &app.chat_view.chat_markdown_block_editors,
+        markdown_selection: app.chat_interaction.chat_markdown_selection.as_ref()
+            .filter(|selection| app.session_state.active_session_id.as_deref() == Some(selection.session_id.as_str()))
             .map(|selection| (selection.message_idx, selection.text.as_str())),
         theme: app.theme(),
     }

@@ -10,7 +10,7 @@ async fn desktop_gettext_area_7_quick_message_error_switches_locale_without_chan
         &mut app,
         SettingsMessage::QuickMessages(QuickMessagesMessage::Saved(Err(raw.into()))),
     );
-    let message = app.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
+    let message = app.toast_state.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
     for (locale, prefix) in [
         (DesktopLocale::SimplifiedChinese, "保存快捷消息失败："),
         (DesktopLocale::TraditionalChinese, "儲存快捷訊息失敗："),
@@ -29,7 +29,7 @@ async fn desktop_gettext_area_7_dialogue_feedback_switches_locale() {
         &mut app,
         SettingsMessage::DialogueFlowUiSettingsSaved(Err(raw.into())),
     );
-    let status = app.dialogue_flow_settings_translation.as_ref().unwrap();
+    let status = app.general_settings.dialogue_flow_settings_translation.as_ref().unwrap();
     for locale in [
         DesktopLocale::SimplifiedChinese,
         DesktopLocale::TraditionalChinese,
@@ -42,7 +42,7 @@ async fn desktop_gettext_area_7_dialogue_feedback_switches_locale() {
         SettingsMessage::DialogueFlowUiSettingsSaved(Ok(())),
     );
     assert_eq!(
-        app.dialogue_flow_settings_translation
+        app.general_settings.dialogue_flow_settings_translation
             .as_ref()
             .unwrap()
             .render(I18n::new(DesktopLocale::English))
@@ -73,7 +73,7 @@ async fn desktop_gettext_area_7_acp_validation_is_localized_without_changing_inp
 #[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_7_general_search_keeps_chinese_and_stable_keywords() {
     let (mut app, _) = crate::app::App::new();
-    app.desktop_locale = DesktopLocale::English;
+    app.general_settings.desktop_locale = DesktopLocale::English;
     let entries = crate::app::components::system_settings_search::catalog(&app);
     let entry = entries.iter().find(|entry| entry.label == "General settings").unwrap();
     assert!(entry.matches("常规"));

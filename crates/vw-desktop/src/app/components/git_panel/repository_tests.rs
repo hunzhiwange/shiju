@@ -19,7 +19,7 @@ async fn repository_snapshot_preview_renders_chinese_in_both_themes() {
         let mut app = crate::app::App::new().0;
         let path = remote_path.to_owned();
         app.navigation_tabs.project_path = Some(path.clone());
-        app.app_theme = theme.clone();
+        app.appearance.app_theme = theme.clone();
         app.git.show_git_diff_highlight = true;
         app.git.merge_view = width == 520;
         app.git.git_repository.history = !name.starts_with("working-");

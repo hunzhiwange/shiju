@@ -11,11 +11,11 @@ async fn desktop_gettext_area_16_lsp_state_switches_without_translating_server_c
         (DesktopLocale::TraditionalChinese, "LSP 失敗: "),
         (DesktopLocale::English, "LSP failed: "),
     ] {
-        app.desktop_locale = locale;
+        app.general_settings.desktop_locale = locale;
         super::editor::refresh(&mut app);
         assert_eq!(super::editor::lsp_status(&app).unwrap(), format!("{prefix}{raw}"));
     }
-    app.lsp_status = Some(raw.into());
+    app.preview_state.lsp_status = Some(raw.into());
     assert_eq!(super::editor::lsp_status(&app).as_deref(), Some(raw));
 }
 
@@ -23,7 +23,7 @@ async fn desktop_gettext_area_16_lsp_state_switches_without_translating_server_c
 async fn desktop_gettext_area_16_locale_event_updates_existing_and_new_editors() {
     use crate::app::message::{PreviewMessage, preview, settings};
     let (mut app, _) = crate::app::App::new();
-    let editor_setting = app.current_language;
+    let editor_setting = app.preview_state.current_language;
     let _ = preview::update(&mut app, PreviewMessage::Open("/tmp/原始%s.zip".into()));
     for locale in [
         DesktopLocale::TraditionalChinese,
@@ -37,7 +37,7 @@ async fn desktop_gettext_area_16_locale_event_updates_existing_and_new_editors()
             )),
         );
         let expected = super::editor::language(locale);
-        assert_eq!(app.current_language, editor_setting);
+        assert_eq!(app.preview_state.current_language, editor_setting);
         assert_eq!(app.git.git_copy_modal_code_editor.language(), expected);
         assert!(app.navigation_tabs.preview_tabs.iter().all(|tab| tab.editor.inner.language() == expected));
         let path = format!("/tmp/{locale:?}.zip");
@@ -54,7 +54,7 @@ async fn desktop_gettext_area_16_preview_loading_and_failure_switch_at_display_t
     let path = "/tmp/原始%s.txt";
     let _ = preview::update(&mut app, PreviewMessage::Open(path.into()));
     assert_eq!(
-        app.preview_messages[path].render(I18n::new(DesktopLocale::English)).unwrap(),
+        app.preview_state.preview_messages[path].render(I18n::new(DesktopLocale::English)).unwrap(),
         "Loading…"
     );
     let raw = "服务器/%s/%n/原始";
@@ -68,7 +68,7 @@ async fn desktop_gettext_area_16_preview_loading_and_failure_switch_at_display_t
         (DesktopLocale::English, "Read failed: "),
     ] {
         assert_eq!(
-            app.preview_messages[path].render(I18n::new(locale)).unwrap(),
+            app.preview_state.preview_messages[path].render(I18n::new(locale)).unwrap(),
             format!("{prefix}{raw}\n")
         );
     }

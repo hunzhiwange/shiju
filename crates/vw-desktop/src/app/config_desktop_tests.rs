@@ -257,7 +257,7 @@ fn app_update_source_gateway_save_failure_reaches_unsaved_toast() {
     assert!(result.is_err());
     let _ = crate::app::message::view::update(&mut app, ViewMessage::AppUpdateSourceSaved(result));
     assert_eq!(app.desktop_update.source, Some(UpdateSource::Github));
-    assert!(app.active_toast.as_ref().unwrap().message.contains("未保存"));
+    assert!(app.toast_state.active_toast.as_ref().unwrap().message.contains("未保存"));
     assert_eq!(server.take_requests().len(), 1);
 }
 
@@ -266,7 +266,7 @@ fn preference_save_failure_reaches_host_toast() {
     let mut app = crate::app::App::new().0;
     let scope = super::preferences_scope(&gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1));
     let _ = app.desktop_preferences_saved(scope, Err("rejected".into()));
-    assert!(app.active_toast.as_ref().unwrap().message.contains("未保存"));
+    assert!(app.toast_state.active_toast.as_ref().unwrap().message.contains("未保存"));
 }
 
 
@@ -297,7 +297,7 @@ fn project_save_failure_reaches_host_toast() {
     let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1);
     let scope = super::ProjectPreferencesScope::new(&endpoint, "/repo/a".into());
     let _ = app.project_chat_preferences_saved(scope, Err("rejected".into()));
-    assert!(app.active_toast.as_ref().unwrap().message.contains("项目聊天偏好未保存"));
+    assert!(app.toast_state.active_toast.as_ref().unwrap().message.contains("项目聊天偏好未保存"));
 }
 
 #[test]
@@ -307,7 +307,7 @@ fn send_behavior_change_emits_send_before_preferences_complete() {
     let (_lock, _home, _guard) = temp_home();
     let mut app = App::new().0;
     set_gateway_port(1);
-    app.active_session_id = Some("active".into());
+    app.session_state.active_session_id = Some("active".into());
     app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
     let behavior = app.update(Message::View(ViewMessage::SelectChatSendBehavior(ChatSendBehavior::Queue)));
     tokio::runtime::Runtime::new().unwrap().block_on(async {
@@ -341,8 +341,8 @@ fn mini_companion_preferences_round_trip_preserves_other_fields() {
     });
     let (_lock, _home, _guard) = configure_gateway(server.port);
     let mut app = App::new().0;
-    app.task_pet_avatar_kind = TaskPetAvatarKind::None;
-    app.task_pet_scale = 1.5;
+    app.pet_state.task_pet_avatar_kind = TaskPetAvatarKind::None;
+    app.pet_state.task_pet_scale = 1.5;
     app.companion_navigation.task_pet_visible = true;
     let save = app.save_task_pet_preferences();
     let messages = super::super::gateway::run_gateway_call(async {
@@ -358,8 +358,8 @@ fn mini_companion_preferences_round_trip_preserves_other_fields() {
     assert_eq!(cfg["theme"], "dark");
     let mut restored = App::new().0;
     let _ = restored.update(Message::StartupAppConfigLoaded(Ok(cfg)));
-    assert_eq!(restored.task_pet_avatar_kind, TaskPetAvatarKind::None);
-    assert_eq!(restored.task_pet_scale, 1.5);
+    assert_eq!(restored.pet_state.task_pet_avatar_kind, TaskPetAvatarKind::None);
+    assert_eq!(restored.pet_state.task_pet_scale, 1.5);
     assert!(restored.companion_navigation.task_pet_visible);
     assert!(restored.task_pet_window_id.is_some());
     assert_eq!(server.take_requests().len(), 2);
@@ -371,14 +371,14 @@ fn mini_companion_late_load_keeps_local_edit() {
     use serde_json::json;
     let (_lock, _home, _guard) = temp_home();
     let mut app = App::new().0;
-    app.task_pet_avatar_kind = TaskPetAvatarKind::Beauty;
+    app.pet_state.task_pet_avatar_kind = TaskPetAvatarKind::Beauty;
     app.companion_navigation.task_pet_visible = false;
     let _save = app.save_task_pet_preferences();
     let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({
         "mini_companion": {"avatar":"robot", "scale":2.0, "visible":true}
     }))));
-    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Beauty);
-    assert_eq!(app.task_pet_scale, 1.0);
+    assert_eq!(app.pet_state.task_pet_avatar_kind, TaskPetAvatarKind::Beauty);
+    assert_eq!(app.pet_state.task_pet_scale, 1.0);
     assert!(!app.companion_navigation.task_pet_visible);
     assert!(app.task_pet_window_id.is_none());
 }
@@ -408,8 +408,8 @@ fn mini_companion_failed_save_keeps_edit_and_can_retry() {
     for message in messages {
         let _ = app.update(message);
     }
-    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::None);
-    assert!(app.active_toast.as_ref().unwrap().message.contains("未保存"));
+    assert_eq!(app.pet_state.task_pet_avatar_kind, TaskPetAvatarKind::None);
+    assert!(app.toast_state.active_toast.as_ref().unwrap().message.contains("未保存"));
     let retry = app.save_task_pet_preferences();
     let messages = super::super::gateway::run_gateway_call(async {
         Ok(collect_preference_messages(retry).await)
@@ -430,7 +430,7 @@ fn mini_companion_old_endpoint_snapshot_cannot_restore_visibility() {
     use gateway_endpoint::GatewayEndpoint;
     let (_lock, _home, _guard) = temp_home();
     let mut app = App::new().0;
-    let _load = app.startup_configuration.load();
+    let _load = app.startup_configuration.load(crate::app::config::gateway_client_endpoint()).map(|(generation, snapshot)| crate::app::Message::StartupGatewaySnapshotLoaded(generation, snapshot));
     app.startup_configuration.select_endpoint(&GatewayEndpoint::new("127.0.0.1", 1));
     let snapshot = StartupGatewaySnapshot {
         preferences: Some(Ok(
@@ -444,7 +444,7 @@ fn mini_companion_old_endpoint_snapshot_cannot_restore_visibility() {
     };
     let _ = app.update(Message::StartupGatewaySnapshotLoaded(1, Box::new(snapshot)));
     assert!(!app.companion_navigation.task_pet_visible);
-    assert_eq!(app.task_pet_scale, 1.0);
+    assert_eq!(app.pet_state.task_pet_scale, 1.0);
     assert!(app.task_pet_window_id.is_none());
 }
 
@@ -472,7 +472,7 @@ fn mini_companion_queued_edits_save_latest_without_reopening_window() {
     let mut app = App::new().0;
     app.companion_navigation.task_pet_visible = true;
     let first = app.save_task_pet_preferences();
-    app.task_pet_avatar_kind = TaskPetAvatarKind::None;
+    app.pet_state.task_pet_avatar_kind = TaskPetAvatarKind::None;
     assert!(iced_runtime::task::into_stream(app.save_task_pet_preferences()).is_none());
     app.companion_navigation.task_pet_visible = false;
     app.set_task_pet_scale(1.75).unwrap();
@@ -501,19 +501,19 @@ fn mini_companion_defaults_and_loaded_scale_are_bounded() {
     use crate::app::{App, Message, state::TaskPetAvatarKind};
     use serde_json::json;
     let mut app = App::new().0;
-    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Robot);
-    assert_eq!(app.task_pet_scale, 1.0);
+    assert_eq!(app.pet_state.task_pet_avatar_kind, TaskPetAvatarKind::Robot);
+    assert_eq!(app.pet_state.task_pet_scale, 1.0);
     assert!(!app.companion_navigation.task_pet_visible);
     let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({
         "mini_companion":{"avatar":"unknown", "scale":99.0, "visible":false}
     }))));
-    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Robot);
-    assert_eq!(app.task_pet_scale, 2.0);
+    assert_eq!(app.pet_state.task_pet_avatar_kind, TaskPetAvatarKind::Robot);
+    assert_eq!(app.pet_state.task_pet_scale, 2.0);
     let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({
         "mini_companion":{"avatar":"handsome", "scale":-1.0, "visible":false}
     }))));
-    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Handsome);
-    assert_eq!(app.task_pet_scale, 0.5);
+    assert_eq!(app.pet_state.task_pet_avatar_kind, TaskPetAvatarKind::Handsome);
+    assert_eq!(app.pet_state.task_pet_scale, 0.5);
 }
 
 #[test]
@@ -551,13 +551,13 @@ fn mini_companion_size_failure_keeps_draft_and_retry_commits_once() {
         }
         assert!(app.task_pet_size_pending.is_none());
         if !success {
-            assert_eq!(app.task_pet_size_draft, Some(1.5));
-            assert_eq!(app.task_pet_scale, 1.0);
-            assert!(app.active_toast.as_ref().unwrap().message.contains("未保存"));
+            assert_eq!(app.pet_state.task_pet_size_draft, Some(1.5));
+            assert_eq!(app.pet_state.task_pet_scale, 1.0);
+            assert!(app.toast_state.active_toast.as_ref().unwrap().message.contains("未保存"));
         }
     }
-    assert!(app.task_pet_size_draft.is_none());
-    assert_eq!(app.task_pet_scale, 1.5);
+    assert!(app.pet_state.task_pet_size_draft.is_none());
+    assert_eq!(app.pet_state.task_pet_scale, 1.5);
     assert_eq!(server.take_requests().len(), 2);
 }
 
@@ -586,8 +586,8 @@ fn mini_companion_size_queued_save_waits_for_its_own_response() {
     assert!(matches!(&messages[0], Message::DesktopPreferencesSaved(_, Ok(()))));
     for message in messages {
         let next = app.update(message);
-        assert_eq!(app.task_pet_size_draft, Some(2.0));
-        assert_eq!(app.task_pet_scale, 1.0);
+        assert_eq!(app.pet_state.task_pet_size_draft, Some(2.0));
+        assert_eq!(app.pet_state.task_pet_scale, 1.0);
         let messages = super::super::gateway::run_gateway_call(async {
             Ok(collect_preference_messages(next).await)
         })
@@ -597,8 +597,8 @@ fn mini_companion_size_queued_save_waits_for_its_own_response() {
             let _ = app.update(message);
         }
     }
-    assert!(app.task_pet_size_draft.is_none());
-    assert_eq!(app.task_pet_scale, 2.0);
+    assert!(app.pet_state.task_pet_size_draft.is_none());
+    assert_eq!(app.pet_state.task_pet_scale, 2.0);
     let requests = server.take_requests();
     assert_eq!(requests.len(), 2);
     let patch: serde_json::Value = serde_json::from_str(&requests[1].body).unwrap();

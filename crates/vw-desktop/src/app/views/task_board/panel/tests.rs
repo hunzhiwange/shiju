@@ -21,16 +21,16 @@ mod help_rollout {
             return;
         };
         let mut renderer = renderer().await;
-        app.task_board_draft.priority = "173".into();
-        app.task_board_draft.subtasks = vec!["draft fixture subtask".into()];
-        app.task_board_new_subtask_content = "new fixture subtask".into();
+        app.task_board.task_board_draft.priority = "173".into();
+        app.task_board.task_board_draft.subtasks = vec!["draft fixture subtask".into()];
+        app.task_board.task_board_new_subtask_content = "new fixture subtask".into();
         for (locale, theme, width) in LAYOUTS {
-            app.desktop_locale = locale;
-            app.app_theme = theme;
+            app.general_settings.desktop_locale = locale;
+            app.appearance.app_theme = theme;
             let i18n = I18n::new(locale);
             let size = Size::new(width, 1040);
-            app.task_board_create_modal_open = true;
-            app.task_board_is_import_mode = false;
+            app.task_board.task_board_create_modal_open = true;
+            app.task_board.task_board_is_import_mode = false;
             let mut ui = scene(crate::app::views::task_board::view(&app), &mut renderer, size);
             for (title, description, artifact) in [
                 ("新建任务", "集中填写提示词、模型、执行器与导入内容。", "create"),
@@ -74,7 +74,7 @@ mod help_rollout {
             ));
             drop(ui);
 
-            app.task_board_is_import_mode = true;
+            app.task_board.task_board_is_import_mode = true;
             let mut ui = scene(crate::app::views::task_board::view(&app), &mut renderer, size);
             check_help(
                 &mut ui,
@@ -96,9 +96,9 @@ mod help_rollout {
             ));
             drop(ui);
 
-            app.task_board_create_modal_open = false;
-            app.task_board_detail_tab = TaskBoardDetailTab::Basic;
-            app.task_board_viewing_logs = Some(Task {
+            app.task_board.task_board_create_modal_open = false;
+            app.task_board.task_board_detail_tab = TaskBoardDetailTab::Basic;
+            app.task_board.task_board_viewing_logs = Some(Task {
                 id: "fixture-task".into(),
                 status: TaskStatus::Failed,
                 last_error: Some("fixture execution error".into()),
@@ -159,8 +159,8 @@ mod help_rollout {
 
         let mut renderer = renderer().await;
         for (locale, theme, width) in LAYOUTS {
-            app.desktop_locale = locale;
-            app.app_theme = theme;
+            app.general_settings.desktop_locale = locale;
+            app.appearance.app_theme = theme;
             let size = Size::new(width, 640);
             use iced::advanced::{Layout, layout::Limits, widget::Tree};
 

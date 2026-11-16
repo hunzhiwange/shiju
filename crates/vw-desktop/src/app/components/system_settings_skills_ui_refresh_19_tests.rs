@@ -286,8 +286,8 @@ async fn help_rollout_10_agent_policy_and_scope() {
         (DesktopLocale::SimplifiedChinese, Theme::Dark, 420),
         (DesktopLocale::English, Theme::Light, 640),
     ] {
-        app.desktop_locale = locale;
-        app.app_theme = theme.clone();
+        app.general_settings.desktop_locale = locale;
+        app.appearance.app_theme = theme.clone();
         let size = Size::new(width, 800);
         let mut ui = scene(system_settings_agents::view(&app), &mut renderer, size);
         for (title, description) in [

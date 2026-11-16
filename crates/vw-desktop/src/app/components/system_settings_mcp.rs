@@ -101,8 +101,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     page::view(
         event,
         &app.mcp_settings.page,
-        app.desktop_locale,
-        &app.app_theme,
+        app.general_settings.desktop_locale,
+        &app.appearance.app_theme,
         [
             catalog::panel(list::visible(app), list::loading(app)).map(catalog_event),
             bindings::panel(app),
@@ -155,8 +155,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
     page::view_overlays(
         event,
         &app.mcp_settings.page,
-        app.desktop_locale,
-        &app.app_theme,
+        app.general_settings.desktop_locale,
+        &app.appearance.app_theme,
         help,
         dialog,
     )

@@ -35,7 +35,7 @@ fn voice_ui_dictation_stop_transcribes_once() {
     let _ = app.update(Message::Voice(Event::Completed(generation, Ok("听写".into()))));
     let _ = app.update(Message::Voice(Event::Completed(generation, Ok("重复".into()))));
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "听写");
-    assert!(app.chat.is_empty());
+    assert!(app.chat_view.chat.is_empty());
 }
 #[test]
 fn voice_ui_dictation_cancel_rejects_late_result() {
@@ -57,5 +57,5 @@ fn voice_ui_dictation_conflict_requires_apply() {
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "修改");
     let _ = app.update(Message::Voice(Event::Apply));
     assert!(app.current_session_runtime_ref().unwrap().input_editor.text().contains("结果"));
-    assert!(app.chat.is_empty());
+    assert!(app.chat_view.chat.is_empty());
 }

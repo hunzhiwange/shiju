@@ -15,7 +15,7 @@ use {
 };
 
 fn permission_directory(app: &App) -> Option<String> {
-    app.active_session_id
+    app.session_state.active_session_id
         .as_deref()
         .and_then(|session_id| app.known_session_directory(session_id))
         .filter(|directory| !directory.trim().is_empty())
@@ -36,7 +36,7 @@ fn clear_permission_modal(app: &mut App) {
 fn current_full_access_session_id(app: &App) -> Option<&str> {
     app.current_session_runtime_ref()
         .filter(|runtime| runtime.full_access_enabled)
-        .and_then(|_| app.active_session_id.as_deref())
+        .and_then(|_| app.session_state.active_session_id.as_deref())
 }
 
 fn submit_permission_replies(
@@ -127,7 +127,7 @@ pub(super) fn handle_permission_select_request(app: &mut App, request_id: String
 /// 模块内可见函数，执行 handle_toggle_full_access_permission 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_toggle_full_access_permission(app: &mut App) -> Task<Message> {
-    let session_id = app.active_session_id.clone();
+    let session_id = app.session_state.active_session_id.clone();
     let directory = permission_directory(app);
     let (full_access_enabled, should_rebuild, saved_session) = {
         let runtime = app.current_session_runtime_mut();
@@ -156,7 +156,7 @@ pub(super) fn handle_toggle_full_access_permission(app: &mut App) -> Task<Messag
     let remember = if should_rebuild {
         Task::none()
     } else {
-        app.last_llm_full_access = Some(full_access_enabled);
+        app.session_state.last_llm_full_access = Some(full_access_enabled);
         if saved_session.is_some() {
             app.reset_draft_full_access();
         }
@@ -186,8 +186,8 @@ pub(super) fn handle_toggle_full_access_permission(app: &mut App) -> Task<Messag
     }
 
     let (remaining_requests, auto_approve_request_ids) = split_auto_approved_permission_requests(
-        app.active_session_id.as_deref(),
-        std::mem::take(&mut app.permission_modal_requests),
+        app.session_state.active_session_id.as_deref(),
+        std::mem::take(&mut app.session_state.permission_modal_requests),
     );
     apply_permission_request(app, remaining_requests);
     let replies = submit_permission_replies(
@@ -204,7 +204,7 @@ pub(super) fn handle_full_access_saved(
     previous: bool,
     result: Result<bool, String>,
 ) -> Task<Message> {
-    let Some(runtime) = app.session_runtime_states.get_mut(session_id) else {
+    let Some(runtime) = app.session_state.session_runtime_states.get_mut(session_id) else {
         return Task::none();
     };
     desktop_session::message::chat::stream::permissions::settle_full_access(
@@ -279,8 +279,8 @@ fn permission_state(
     app: &mut App,
 ) -> desktop_session::message::chat::stream::permissions::PermissionState<'_> {
     desktop_session::message::chat::stream::permissions::PermissionState {
-        permission_modal_request_id: &mut app.permission_modal_request_id,
-        permission_modal_request: &mut app.permission_modal_request,
-        permission_modal_requests: &mut app.permission_modal_requests,
+        permission_modal_request_id: &mut app.session_state.permission_modal_request_id,
+        permission_modal_request: &mut app.session_state.permission_modal_request,
+        permission_modal_requests: &mut app.session_state.permission_modal_requests,
     }
 }

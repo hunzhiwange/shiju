@@ -6,7 +6,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     build_code_review_view_from_diff(app, files, patches)
 }
 pub(super) fn build_code_review_view_from_diff(app: &App, files: Vec<String>, patches: std::collections::HashMap<String, String>) -> Element<'_, Message> {
-    desktop_git_ui::code_review::build_code_review_view_from_diff(app.desktop_locale, &app.git.expanded_files_set, files, patches).map(|event| match event {
+    desktop_git_ui::code_review::build_code_review_view_from_diff(app.general_settings.desktop_locale, &app.git.expanded_files_set, files, patches).map(|event| match event {
         desktop_git_ui::code_review::ReviewMessage::Refresh => Message::Git(message::GitMessage::RefreshGitPanelData),
         desktop_git_ui::code_review::ReviewMessage::ToggleExpandFile(file) => Message::Git(message::GitMessage::ToggleExpandFile(file)),
     })

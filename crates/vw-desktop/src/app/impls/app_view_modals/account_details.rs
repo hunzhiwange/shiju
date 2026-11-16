@@ -6,7 +6,7 @@ pub(crate) fn with_account_details<'a>(
 ) -> Element<'a, Message> {
     desktop_account_ui::account_details::with_account_details(
         &app.account,
-        app.desktop_locale,
+        app.general_settings.desktop_locale,
         root,
         Message::Account,
     )

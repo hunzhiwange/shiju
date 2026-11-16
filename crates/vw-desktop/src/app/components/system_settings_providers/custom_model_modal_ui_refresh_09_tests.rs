@@ -20,7 +20,7 @@ fn fixture() -> App {
     let mut app = None;
     crate::app::config::with_editor_settings_gateway(|fixture, _, _| app = Some(fixture));
     let mut app = app.expect("isolated settings fixture");
-    app.desktop_locale = DesktopLocale::English;
+    app.general_settings.desktop_locale = DesktopLocale::English;
     let settings = &mut app.provider_settings;
     settings.custom_provider_modal_open = true;
     settings.custom.provider_id = "fixture".into();
@@ -262,8 +262,8 @@ async fn settings_help_gap_03_provider_id_and_account_auth() {
         (DesktopLocale::SimplifiedChinese, Theme::Dark),
         (DesktopLocale::TraditionalChinese, Theme::Light),
     ] {
-        app.desktop_locale = locale;
-        app.app_theme = theme.clone();
+        app.general_settings.desktop_locale = locale;
+        app.appearance.app_theme = theme.clone();
         for width in [420, 960] {
             let size = Size::new(width, 620);
             for editing in [false, true] {
@@ -338,8 +338,8 @@ async fn settings_help_gap_03_model_limits_and_modalities() {
         (DesktopLocale::SimplifiedChinese, Theme::Light),
         (DesktopLocale::TraditionalChinese, Theme::Dark),
     ] {
-        app.desktop_locale = locale;
-        app.app_theme = theme.clone();
+        app.general_settings.desktop_locale = locale;
+        app.appearance.app_theme = theme.clone();
         for width in [420, 960] {
             let size = Size::new(width, 620);
             for (index, tab) in [
@@ -442,8 +442,8 @@ async fn help_rollout_02_renders_contextual_help() {
         (DesktopLocale::SimplifiedChinese, Theme::Dark, "zh-dark"),
         (DesktopLocale::TraditionalChinese, Theme::Light, "zh-hant-light"),
     ] {
-        app.desktop_locale = locale;
-        app.app_theme = theme.clone();
+        app.general_settings.desktop_locale = locale;
+        app.appearance.app_theme = theme.clone();
         for (tab, targets) in [
             (
                 CustomProviderModelTab::Info,
@@ -517,7 +517,7 @@ async fn help_rollout_02_dismisses_menu_before_card_and_keeps_modal_actions() {
 
     let mut renderer = renderer().await;
     let mut app = settings_help_fixture();
-    app.app_theme = Theme::Light;
+    app.appearance.app_theme = Theme::Light;
     apply(&mut app, vec![Message::Settings(SettingsMessage::CustomProviderModelOpen(Some(0)))]);
     let mut scene = Scene::new(settings_view(&app), &mut renderer, Size::new(420, 620));
     let icon = scene.bounds(&group(&[0, 0, 0, 1]));
@@ -548,7 +548,7 @@ async fn help_rollout_02_dismisses_menu_before_card_and_keeps_modal_actions() {
     let row_height = f32::from(line_height) + 10.0;
     let menu_item =
         |index: f32| Point::new(start.x + 24.0, start.y + 3.0 + row_height * (index + 0.5));
-    let description = tr(app.desktop_locale, "用于请求 provider 的真实 model_id。");
+    let description = tr(app.general_settings.desktop_locale, "用于请求 provider 的真实 model_id。");
     let search = format!("https://www.google.com/search?q={}", urlencoding::encode(description));
     assert!(matches!(
         scene.click(&mut renderer, menu_item(3.0)).as_slice(),
@@ -593,7 +593,7 @@ async fn help_rollout_02_dismisses_menu_before_card_and_keeps_modal_actions() {
     );
 
     assert!(mouse_event(&mut scene, &mut renderer, start, right).is_empty());
-    let expected = format!("{}\n{description}", tr(app.desktop_locale, "模型 ID"));
+    let expected = format!("{}\n{description}", tr(app.general_settings.desktop_locale, "模型 ID"));
     assert!(matches!(
         scene.click(&mut renderer, menu_item(0.0)).as_slice(),
         [Message::CopyCode(text)] if text == &expected
@@ -648,7 +648,7 @@ async fn help_rollout_02_keeps_help_inside_the_window_and_clips_scrolled_trigger
     let mut renderer = renderer().await;
     let mut app = fixture();
     let theme = Theme::Light;
-    app.app_theme = theme.clone();
+    app.appearance.app_theme = theme.clone();
     apply(&mut app, vec![Message::Settings(SettingsMessage::CustomProviderModelOpen(Some(0)))]);
     let size = Size::new(320, 315);
     let mut scene = Scene::new(view(&app), &mut renderer, size);
@@ -680,7 +680,7 @@ async fn help_rollout_02_keeps_help_inside_the_window_and_clips_scrolled_trigger
         Point::new(size.width as f32 - 116.0, right.y - menu_height + 3.0 + row_height / 2.0);
     assert!(matches!(
         scene.click(&mut renderer, copy).as_slice(),
-        [Message::CopyCode(text)] if text == tr(app.desktop_locale, "用于请求 provider 的真实 model_id。")
+        [Message::CopyCode(text)] if text == tr(app.general_settings.desktop_locale, "用于请求 provider 的真实 model_id。")
     ));
 
     let offset = scene.scroll(&mut renderer, body, 500.0);
@@ -837,7 +837,7 @@ async fn settings_tabs_editors_appearance_model() {
             );
             let [info, limits, capabilities, title, save, cancel] =
                 ["模型信息", "限制", "能力与模态", "添加模型", "保存", "取消"]
-                    .map(|label| tr(app.desktop_locale, label));
+                    .map(|label| tr(app.general_settings.desktop_locale, label));
             scene.save_preview(app, view(app), "model");
             let message = scene.check(app, view(app), &[info, limits, capabilities], 1);
             assert!(matches!(

@@ -40,7 +40,7 @@ async fn installer_update_linux_authorizes_install_and_allows_retry() {
     app.desktop_update.busy = true;
     let _ = app.update(Message::View(ViewMessage::AppUpdateFinished(Err(error.to_string()))));
     assert_eq!(app.update_panel.cli_install_modal_title, "自动更新启动失败");
-    assert!(app.active_toast.is_some());
+    assert!(app.toast_state.active_toast.is_some());
     assert!(!app.desktop_update.busy);
     assert!(!app.shutdown_requested);
     assert!(app.desktop_update.ready.is_some());
@@ -81,7 +81,7 @@ async fn installer_directory_failure_preserves_package_and_does_not_exit() {
         }
         _ => panic!("tampered package must not reach the file manager"),
     }
-    assert!(app.active_toast.is_some());
+    assert!(app.toast_state.active_toast.is_some());
     assert!(!app.shutdown_requested);
     assert!(!app.desktop_update.busy);
     assert_eq!(app.desktop_update.ready.as_ref().unwrap().path(), ready.path());
@@ -134,7 +134,7 @@ async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
     assert!(!app.update_panel.cli_install_modal_is_checking_update);
     assert!(!app.shutdown_requested);
     assert_eq!(app.update_panel.cli_install_modal_title, "自动更新启动失败");
-    assert!(app.active_toast.is_some());
+    assert!(app.toast_state.active_toast.is_some());
     assert!(app.update_panel.cli_install_modal_message.contains(ready.path().to_str().unwrap()));
     assert!(app.desktop_update.ready.is_some());
 

@@ -3,10 +3,10 @@ use crate::app::{App, Message};
 use desktop_expert_hub::views::knowledge_workspace::{self as workspace, ViewInput};
 pub fn view(app: &App) -> iced::Element<'_, Message> {
     workspace::view(ViewInput {
-        knowledge: &app.knowledge, desktop_locale: app.desktop_locale, app_theme: &app.app_theme,
+        knowledge: &app.knowledge, desktop_locale: app.general_settings.desktop_locale, app_theme: &app.appearance.app_theme,
         files_dragging: !app.file_tree_interaction.dragging_file_paths.is_empty()
             || !app.file_tree_interaction.pending_drop_file_paths.is_empty(),
-        last_copied_code_hash: app.last_copied_code_hash,
+        last_copied_code_hash: app.clipboard_state.last_copied_code_hash,
     }).map(|message| match message {
         workspace::Message::Knowledge(value) => Message::Knowledge(value),
         workspace::Message::OpenMemorySettings => Message::View(crate::app::message::ViewMessage::OpenSystemSettingsTab(crate::app::components::system_settings::SystemTab::Memory)),

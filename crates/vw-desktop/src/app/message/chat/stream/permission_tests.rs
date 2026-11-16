@@ -43,7 +43,7 @@ fn session_info(id: &str, title: &str, directory: &str) -> session_info::Info {
 fn session_directory_for_save_prefers_known_session_directory_then_project_path() {
     let (mut app, _task) = crate::app::App::new();
     app.navigation_tabs.project_path = Some("/project".to_string());
-    app.sessions = vec![session_info("s1", "Session", "/session")];
+    app.session_state.sessions = vec![session_info("s1", "Session", "/session")];
 
     assert_eq!(super::session_directory_for_save(&app, "s1").as_deref(), Some("/session"));
     assert_eq!(super::session_directory_for_save(&app, "missing").as_deref(), Some("/project"));
@@ -55,11 +55,11 @@ fn session_directory_for_save_prefers_known_session_directory_then_project_path(
 #[test]
 fn load_session_or_default_uses_active_chat_and_steps_for_active_session() {
     let (mut app, _task) = crate::app::App::new();
-    app.active_session_id = Some("s1".to_string());
-    app.sessions = vec![session_info("s1", "Title", "/repo")];
-    app.chat = vec![chat_message(crate::app::models::ChatRole::User, "hi")];
-    app.chat_message_ids = vec![Some("m1".to_string())];
-    app.active_session_view_state.steps = vec![crate::app::models::ChatSessionStep {
+    app.session_state.active_session_id = Some("s1".to_string());
+    app.session_state.sessions = vec![session_info("s1", "Title", "/repo")];
+    app.chat_view.chat = vec![chat_message(crate::app::models::ChatRole::User, "hi")];
+    app.chat_view.chat_message_ids = vec![Some("m1".to_string())];
+    app.chat_view.active_session_view_state.steps = vec![crate::app::models::ChatSessionStep {
         index: 1,
         turn_id: None,
         started_ms: 10,
@@ -76,10 +76,10 @@ fn load_session_or_default_uses_active_chat_and_steps_for_active_session() {
     let loaded = super::load_session_or_default(&app, "s1".to_string());
 
     assert_eq!(loaded.title, "Title");
-    assert_eq!(loaded.messages.len(), app.chat.len());
+    assert_eq!(loaded.messages.len(), app.chat_view.chat.len());
     assert_eq!(loaded.messages[0].role, crate::app::models::ChatRole::User);
     assert_eq!(loaded.messages[0].content, "hi");
-    assert_eq!(loaded.message_ids, app.chat_message_ids);
+    assert_eq!(loaded.message_ids, app.chat_view.chat_message_ids);
     assert_eq!(loaded.steps.len(), 1);
     assert_eq!(loaded.created_ms, 10);
     assert_eq!(loaded.updated_ms, 20);
@@ -88,7 +88,7 @@ fn load_session_or_default_uses_active_chat_and_steps_for_active_session() {
 #[test]
 fn load_session_or_default_uses_cached_chat_for_inactive_session() {
     let (mut app, _task) = crate::app::App::new();
-    app.sessions = vec![session_info("s1", "Title", "/repo")];
+    app.session_state.sessions = vec![session_info("s1", "Title", "/repo")];
     app.store_session_chat_snapshot(
         "s1".to_string(),
         crate::app::session::shared_chat_messages(vec![
@@ -120,7 +120,7 @@ fn load_session_or_default_falls_back_when_session_unknown() {
 #[test]
 fn start_next_noops_for_empty_queue() {
     let (mut app, _task) = crate::app::App::new();
-    app.active_session_id = Some("s1".to_string());
+    app.session_state.active_session_id = Some("s1".to_string());
 
     super::start_next(&mut app, "s1");
 

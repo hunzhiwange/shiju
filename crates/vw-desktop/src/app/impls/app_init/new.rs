@@ -1,8 +1,6 @@
 use super::*;
-use crate::app::TodoPanelPlacement;
 use iced::Task;
-use iced::Theme;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 mod settings;
 
@@ -12,18 +10,13 @@ use desktop_settings_runtime::app_init::settings::build_multimodal_settings;
 #[path = "new/settings_tests.rs"]
 mod settings_tests;
 
-#[cfg(test)]
-fn build_task_board_settings(_cfg: &serde_json::Value) -> crate::app::task::TaskBoardSettings {
-    crate::app::task::TaskBoardSettings::new()
-}
-
 impl App {
     pub(crate) fn apply_bootstrap_agent_config(
         &mut self,
         config: &config_aggregate::Config,
     ) {
         settings::apply_bootstrap_agent_config(self, config, &config.gateway);
-        self.acp_agents = sort_acp_agents(&config.acp);
+        self.session_state.acp_agents = sort_acp_agents(&config.acp);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -38,16 +31,7 @@ impl App {
     /// 使用本机连接配置和默认值构造首屏，由启动任务在服务就绪后回填配置。
     pub fn new() -> (Self, Task<Message>) {
         let cfg = serde_json::json!({});
-        let mut system_settings_cfg = config_ui::AppSystemSettingsConfig::default();
-        config_ui::upgrade_legacy_quick_message_actions(
-            &mut system_settings_cfg.quick_messages,
-        );
-        config_ui::append_missing_builtin_general_quick_messages(
-            &mut system_settings_cfg.quick_messages,
-        );
-        config_ui::append_missing_builtin_git_quick_messages(
-            &mut system_settings_cfg.quick_messages,
-        );
+        let system_settings_cfg = config_ui::AppSystemSettingsConfig::default();
         let init_ms = {
             #[cfg(not(target_arch = "wasm32"))]
             {
@@ -68,103 +52,11 @@ impl App {
         // 终端显示开关
         let cfg_show_terminal =
             cfg.get("show_terminal").and_then(|v: &serde_json::Value| v.as_bool()).unwrap_or(false);
-        // 默认使用的AI模型
-        let cfg_model = cfg
-            .get("model")
-            .and_then(|v: &serde_json::Value| v.as_str())
-            .unwrap_or("auto")
-            .to_string();
-        // 是否自动选择模型
-        let cfg_auto_model =
-            cfg.get("auto_model").and_then(|v: &serde_json::Value| v.as_bool()).unwrap_or(true);
         let cfg_acp_agent = cfg
             .get("acp_agent")
             .and_then(|v: &serde_json::Value| v.as_str())
             .map(ToString::to_string);
-        let cfg_acp_history_mode = crate::app::state::AcpHistoryReplayMode::from_str(
-            cfg.get("acp_history_strategy")
-                .and_then(|v: &serde_json::Value| v.as_str())
-                .unwrap_or("discard"),
-        );
-        let cfg_acp_recent_count = cfg
-            .get("acp_history_recent_count")
-            .and_then(|v: &serde_json::Value| v.as_u64())
-            .map(|value: u64| value.clamp(1, 20) as usize)
-            .unwrap_or(3);
-        let cfg_chat_send_behavior = cfg
-            .get("chat_send_behavior")
-            .and_then(|v: &serde_json::Value| v.as_str())
-            .map(crate::app::state::ChatSendBehavior::from_str)
-            .unwrap_or(crate::app::state::ChatSendBehavior::Queue);
-        // 文件树中已展开的路径列表
-        let cfg_file_tree_expanded = cfg
-            .get("file_tree_expanded")
-            .and_then(|v: &serde_json::Value| v.as_array())
-            .map(|arr: &Vec<serde_json::Value>| {
-                arr.iter()
-                    .filter_map(|e: &serde_json::Value| e.as_str().map(|s: &str| s.to_string()))
-                    .collect::<Vec<String>>()
-            })
-            .unwrap_or_default();
 
-        // 文件树右键菜单状态（初始为空）
-        let file_tree_menu_path = None;
-        let file_tree_menu_anchor = None;
-        let file_tree_menu_source = None;
-
-        // 解析终端和主题相关配置
-        // 终端Shell类型（支持zsh和bash）
-        let cfg_shell = match system_settings_cfg.terminal_shell.as_str() {
-            "zsh" => Shell::Zsh,
-            _ => Shell::Bash,
-        };
-        // 终端主题（默认跟随系统）
-        let cfg_term_theme = TerminalTheme::System;
-        // 终端字体配置
-        let cfg_term_font_family = system_settings_cfg.terminal_font_family.clone();
-        let cfg_term_font_size = system_settings_cfg.terminal_font_size;
-        // 应用程序主题（启动时轻量种子内置预设，失败仅 warn）
-        if let Some(root) = crate::app::theme_catalog::current_themes_root() {
-            if let Err(err) = crate::app::theme_catalog::ensure_bundled_presets(&root) {
-                tracing::warn!(
-                    target: "vw_desktop",
-                    error = %err,
-                    "failed to seed bundled theme presets on startup"
-                );
-            }
-        }
-        let theme_store = crate::app::theme_catalog::theme_store_from_home();
-        let (cfg_app_theme, cfg_active_custom_theme_id) =
-            match crate::app::theme_catalog::resolve_app_theme_name(
-                &system_settings_cfg.app_theme,
-                theme_store.as_ref(),
-            ) {
-                Some(theme) => {
-                    let custom_id = crate::app::theme_catalog::custom_theme_id_from_config(
-                        &system_settings_cfg.app_theme,
-                    )
-                    .map(str::to_string);
-                    (theme, custom_id)
-                }
-                None => (Theme::Light, None),
-            };
-        // 编辑器主题配置
-        let cfg_editor_follow_system_theme = system_settings_cfg.editor_follow_system_theme;
-        let cfg_editor_theme = crate::app::theme_catalog::resolve_app_theme_name(
-            &system_settings_cfg.editor_theme,
-            theme_store.as_ref(),
-        )
-        .unwrap_or_else(|| cfg_app_theme.clone());
-
-        // 文件管理器配置
-        let cfg_file_manager_show_changes = cfg
-            .get("file_manager_show_changes")
-            .and_then(|v: &serde_json::Value| v.as_bool())
-            .unwrap_or(true);
-        let cfg_show_file_manager = cfg
-            .get("show_file_manager")
-            .and_then(|v: &serde_json::Value| v.as_bool())
-            .unwrap_or(true);
         // Git差异显示配置
         let cfg_show_git_diff_summary = cfg
             .get("show_git_diff_summary")
@@ -191,23 +83,12 @@ impl App {
         let channels_cfg = full_agent_cfg.channels_config.clone();
 
         // 新建会话时的默认目录
-        let cfg_new_session_last_directory = cfg
-            .get("new_session_last_directory")
-            .and_then(|v: &serde_json::Value| v.as_str())
-            .map(|s: &str| s.to_string());
 
         let (open_external_platform, open_external_exists, open_external_app) =
             external_apps::resolve_external_apps(&cfg);
 
         // 初始化会话相关状态
-        let sessions = Vec::new();
-        let cfg_archived_session_ids = HashSet::new();
-        let active_session_id = None;
-        let chat = Vec::new();
-        let chat_message_editors = Vec::new();
-        let usage = models::TokenUsage::default();
 
-        let effective_app_theme = cfg_app_theme;
         let recent_meta = load_recent_projects_meta();
 
         let cfg_web_bookmarks = load_web_bookmarks(&cfg);
@@ -221,16 +102,6 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         let lsp_manager = lsp_event_sender.as_ref().cloned().map(LspServiceManager::new);
         let channels_settings = settings_builders::build_channels_settings(&channels_cfg);
-        let chat_message_estimated_heights =
-            crate::app::components::chat_panel::rough_message_heights(&chat);
-        let chat_virtualizer =
-            crate::app::components::chat_panel::virtualizer::ChatVirtualizer::from_estimated_heights(
-                &chat_message_estimated_heights,
-            );
-        let chat_height_index =
-            crate::app::components::chat_panel::height_index::ChatHeightIndex::from_heights(
-                &chat_message_estimated_heights,
-            );
         // 创建应用程序实例并初始化所有状态字段
         let mut app = Self {
             git: desktop_git_ui::state::State::new(cfg_show_git_diff_summary, cfg_show_git_diff_highlight),
@@ -246,44 +117,11 @@ impl App {
             layout_drag: desktop_navigation::app_init::layout_drag(&cfg),
             popover_visibility: Default::default(),
             navigation_panels: desktop_navigation::app_init::panels(&cfg),
-            usage_panel: desktop_usage::panel::State {
-                usage_model_info: None,
-                usage_step_expanded: std::collections::HashSet::new(),
-                usage_step_raw_payloads: std::collections::HashMap::new(),
-                usage_step_raw_loading: std::collections::HashSet::new(),
-                usage_step_raw_modal: None,
-            },
-            update_panel: desktop_update::panel::PanelState {
-                show_cli_install_modal: false,
-                cli_install_modal_title: String::new(),
-                cli_install_modal_message: String::new(),
-                cli_install_modal_current_version: String::new(),
-                cli_install_modal_server_version: String::new(),
-                cli_install_modal_show_update_action: false,
-                cli_install_modal_show_install_action: false,
-                cli_install_modal_use_app_update_action: false,
-                cli_install_modal_is_checking_update: false,
-                app_update_progress: None,
-                app_update_progress_rx: None,
-            },
+            usage_panel: Default::default(),
+            update_panel: Default::default(),
             navigation_tabs: desktop_navigation::app_init::tabs(),
             companion_navigation: Default::default(),
-            web_navigation: desktop_apps_ui::web::State {
-                web_bookmarks: cfg_web_bookmarks,
-                #[cfg(not(target_arch = "wasm32"))]
-                independent_webview_children: Vec::new(),
-                show_web_links_menu: false,
-                web_bookmark_title_input: String::new(),
-                web_bookmark_url_input: String::new(),
-                web_bookmark_width_input: String::new(),
-                web_bookmark_height_input: String::new(),
-                editing_web_bookmark: None,
-                edit_web_bookmark_title_input: String::new(),
-                edit_web_bookmark_url_input: String::new(),
-                edit_web_bookmark_width_input: String::new(),
-                edit_web_bookmark_height_input: String::new(),
-                edit_web_bookmark_cookie_configs_editor: iced::widget::text_editor::Content::new(),
-            },
+            web_navigation: desktop_apps_ui::web::State { web_bookmarks: cfg_web_bookmarks, ..Default::default() },
             external_navigation: desktop_navigation::panel::external::State {
                 open_external_app,
                 open_external_exists,
@@ -293,92 +131,27 @@ impl App {
             work_browser: state::WorkBrowserState::default(),
             #[cfg(not(target_arch = "wasm32"))]
             work_browser_controller: crate::app::webview_runtime::WorkBrowserController::default(),
-            project_is_git_repo: false,
-            project_id: None,
+            workspace_state: desktop_workspace::project_state::State::new(&cfg, load_recent_projects(), recent_meta, cfg_project_worktree_enabled),
+
             project_input: Default::default(),
             project_find: Default::default(),
 
             // ========== 输入和模型配置 ==========
             #[cfg(not(target_arch = "wasm32"))]
             voice: Default::default(),
-            input_text: String::new(),
-            model: cfg_model.clone(),
-            auto_model: cfg_auto_model,
-            reasoning_effort: None,
-            acp_agent: cfg_acp_agent.clone(),
-            acp_history_mode: cfg_acp_history_mode,
-            acp_recent_count: cfg_acp_recent_count,
-            acp_agents,
+            session_state: desktop_session::session::state::State::new(&cfg, cfg_acp_agent.clone(), acp_agents),
+
             acp_settings: super::state::AcpSettingsState::default(),
             mcp_settings: super::state::McpSettingsState::default(),
-            files: vec![],
 
             // ========== 聊天相关状态 ==========
-            chat,
-            chat_message_ids: Vec::new(),
-            chat_render_cache: HashMap::new(),
-            chat_visible_text_cache: Vec::new(),
-            chat_copy_hash_cache: Vec::new(),
-            chat_message_expanded: std::collections::HashSet::new(),
-            chat_message_estimated_heights,
-            chat_virtualizer,
-            chat_height_index,
-            chat_message_measured_heights: HashMap::new(),
-            chat_message_editors,
-            chat_special_text_editors: HashMap::new(),
-            chat_markdown_blocks: HashMap::new(),
-            chat_markdown_selection: None,
-            chat_markdown_block_editors: HashMap::new(),
-            chat_tool_text_editors: HashMap::new(),
-            chat_think_editors: HashMap::new(),
-            chat_think_expanded: std::collections::HashSet::new(),
-            chat_think_collapsed: std::collections::HashSet::new(),
-            chat_think_hovered_idx: None,
-            chat_tool_file_expanded: std::collections::HashSet::new(),
-            chat_tool_file_hovered: None,
-            chat_tool_expanded: std::collections::HashSet::new(),
-            chat_tool_hovered_idx: None,
-            chat_explore_expanded: std::collections::HashSet::new(),
-            chat_explore_summary_animations: HashMap::new(),
-            tool_detail_dialog: None,
-            chat_think_scroll_ids: HashMap::new(),
-            chat_stream_think_msg_idx: None,
-            chat_stream_think_count: 0,
-            chat_stream_think_open_idx: None,
-            chat_context_menu: Default::default(),
-            input_context_menu: Default::default(),
-            chat_reset_menu_idx: None,
-            chat_fork_dialog: None,
-            chat_todo_expanded: true,
-            chat_todo_anim: 1.0,
-            chat_todo_placement: TodoPanelPlacement::ChatTopRight,
-            chat_todo_session_id: None,
-            chat_todo_items: vec![],
+            chat_view: desktop_chat_view::view_snapshot::SessionViewSnapshot::initial(),
 
-            // ========== Token使用统计 ==========
-            usage,
-            active_session_view_state: crate::app::state::ActiveSessionViewState::default(),
-            chat_panel_mode: crate::app::state::ChatPanelMode::default(),
-            trajectory_search_text: String::new(),
-            trajectory_details:
-                crate::app::components::chat_panel::trajectory::TrajectoryDetailsState::default(),
-            trajectory_controls:
-                crate::app::components::chat_panel::trajectory::TrajectoryControlsState::default(),
-            trajectory_raw_loading: std::collections::HashSet::new(),
-            trajectory_raw_attempts: std::collections::HashMap::new(),
-            trajectory_raw_errors: std::collections::HashMap::new(),
+            chat_interaction: desktop_chat_view::interaction::State::new(),
+
+            todo_state: desktop_chat_view::todo::State::new(),
+
             usage_center: Default::default(),
-
-            // ========== 文件和分支管理 ==========
-            project_updated_at_ms: None,
-            recent_projects: load_recent_projects(),
-
-            // ========== 请求和队列状态 ==========
-            is_requesting: false,
-            submit_anim: 0,
-            active_agent_request: None,
-            agent_stream_id: 0,
-            queue: vec![],
 
             // ========== 窗口和布局 ==========
             window_size: (1200.0, 800.0),
@@ -387,81 +160,31 @@ impl App {
             startup_resize_checked: false,
 
             // ========== 设置面板 ==========
-            settings_sidebar_collapsed: false,
+            general_settings: desktop_settings_appearance::general_state::State::new(&system_settings_cfg),
             #[cfg(not(target_arch = "wasm32"))]
             web_install: Default::default(),
             desktop_update: crate::app::desktop_update::DesktopUpdate::from_config(&cfg),
-            question_modal_request_id: None,
-            question_modal_request: None,
-            question_modal_answers: vec![],
-            question_modal_custom: vec![],
-            permission_modal_request_id: None,
-            permission_modal_request: None,
-            permission_modal_requests: vec![],
+
             open_external_platform,
 
             // ========== 面板拖拽和尺寸 ==========
-            file_manager: desktop_workspace::file_manager::FileManagerState {
-                file_manager_show_changes: cfg_file_manager_show_changes,
-                show_file_manager: cfg_show_file_manager,
-                ..Default::default()
-            },
+            file_manager: desktop_workspace::file_manager::FileManagerState::from_config(&cfg),
             status_animation_frame: 0,
 
-            // ========== 弹出菜单和Popover ==========
-            session_title_last_click: None,
             model_popover_hover: None,
-            last_call_log_path: None,
-            last_session_snapshot_path: None,
 
             // ========== 搜索和缓存 ==========
             search: desktop_search::State::default(),
-            file_index_cache: HashMap::new(),
-            file_index_revision: 0,
-            file_tree_model_cache: HashMap::new(),
-            search_panel_file_cache_query: String::new(),
-            search_panel_file_cache_project_path: None,
-            search_panel_file_cache_revision: 0,
-            search_panel_file_cache_results: Vec::new(),
-            input_editor: iced::widget::text_editor::Content::new(),
-            last_copied_code_hash: None,
-            last_copy_time: None,
-            chat_auto_scroll: true,
 
-            // ========== UI组件ID ==========
-            chat_scroll_id: iced::widget::Id::new("chat"),
-            chat_scroll_offset_y: 1.0,
-            chat_scroll_viewport_h: 0.0,
-            task_pet_scroll_id: iced::widget::Id::new("task_pet"),
-            task_pet_position: iced::Point::new(620.0, 96.0),
-            task_pet_collapsed: true,
-            task_pet_expand_progress: 0.0,
-            task_pet_expand_target: None,
-            task_pet_dragging: false,
-            task_pet_drag_anchor: None,
-            task_pet_drag_start: iced::Point::ORIGIN,
-            task_pet_drag_direction: 1,
-            task_pet_walk_until_ms: 0,
-            task_pet_avatar_kind: state::TaskPetAvatarKind::Robot,
-            task_pet_scale: 1.0,
-            task_pet_size_draft: None,
+            clipboard_state: desktop_navigation::clipboard::Feedback::new(),
+
+            pet_state: desktop_task_board::pet_state::State::new(),
+
             task_pet_size_pending: None,
-            task_pet_items: Vec::new(),
-            task_pet_hovered_request_id: None,
-            task_pet_reply_request_id: None,
-            task_pet_reply_input: String::new(),
-            task_pet_dismissed_request_ids: HashSet::new(),
-            chat_stream_autoscroll_last_ms: 0,
-            chat_autoscroll_hold_until_ms: 0,
-            chat_autoscroll_generation: 0,
-            chat_panel_fullscreen: false,
-            chat_panel_half_fullscreen: false,
-            show_chat_fullscreen_overlay: false,
-            input_editor_id: iced::widget::Id::new("input_editor"),
+
             file_search_scroll_id: iced::widget::Id::new("file_search"),
             slash_palette_scroll_id: iced::widget::Id::new("slash_palette"),
-            preview_scroll_id: iced::widget::Id::new("preview"),
-            preview_tabs_scroll_id: iced::widget::Id::new("preview_tabs"),
+            preview_state: desktop_editor::preview::state::State::new(&system_settings_cfg),
 
             // ========== 光标和窗口位置 ==========
             cursor_position: iced::Point::ORIGIN,
@@ -472,115 +195,25 @@ impl App {
             shutdown_requested: false,
             desktop_preferences_persistence: Default::default(),
 
-            // ========== 最近项目编辑 ==========
-            recent_projects_edits: {
-                let recent = load_recent_projects();
-                recent.iter().map(|p| display_name_for_path(&recent_meta, p)).collect()
-            },
-            recent_project_delete_confirm_idx: None,
-            recent_project_query: String::new(),
-            recent_project_remove_confirm_path: None,
-
-            // ========== 对话流配置 ==========
-            dialogue_flow_permission_editor: iced::widget::text_editor::Content::with_text("{}"),
-            dialogue_flow_show_reasoning_summary: system_settings_cfg
-                .dialogue_flow_show_reasoning_summary,
-            dialogue_flow_expand_shell_tool_section: system_settings_cfg
-                .dialogue_flow_expand_shell_tool_section,
-            dialogue_flow_expand_edit_tool_section: system_settings_cfg
-                .dialogue_flow_expand_edit_tool_section,
-            quick_messages: system_settings_cfg.quick_messages.clone(),
-            input_popovers: Default::default(),
-            quick_message_handoff: None,
-            chat_send_behavior: cfg_chat_send_behavior,
-            dialogue_flow_settings_save_message: None,
-            dialogue_flow_settings_translation: None,
-            recent_projects_meta: recent_meta,
             spinner_frame: 0,
-
-            // ========== 会话管理 ==========
-            sessions,
-            active_session_id,
-            archived_session_ids: cfg_archived_session_ids,
-            session_reasoning_efforts: config::session_reasoning_efforts_from_config(&cfg),
-            last_llm_full_access: None,
-            session_chat_cache: HashMap::new(),
-            session_view_cache: crate::app::session::SessionViewCache::new(),
-            paged_chat_timeline: None,
-            session_chat_message_id_cache: HashMap::new(),
-            session_history_reset_boundaries: Default::default(),
-            session_previews: HashMap::new(),
-            session_runtime_states: std::collections::HashMap::from([(
-                "__empty__".to_string(),
-                super::state::SessionRuntimeState::with_defaults(cfg_model.clone(), cfg_auto_model),
-            )]),
-            project_sessions: std::collections::HashMap::new(),
-            project_session_load_counts: std::collections::HashMap::new(),
-            session_tree_expanded: std::collections::HashSet::new(),
-            project_sessions_loading: std::collections::HashSet::new(),
-            project_session_has_vertical_scrollbar: std::collections::HashMap::new(),
-            session_menu_id: None,
-            session_menu_anchor: None,
-            project_tools_menu_path: None,
-
-            // ========== 新建会话相关 ==========
-            new_session_picker_project: None,
-            new_session_creating: false,
-            new_session_picker_options: Vec::new(),
-            project_worktree_enabled: cfg_project_worktree_enabled,
-            project_worktree_save_queue: Default::default(),
-            project_worktree_save_running: false,
-            #[cfg(not(target_arch = "wasm32"))]
-            project_worktree_save_idle: None,
-            new_session_last_directory: cfg_new_session_last_directory,
-            new_session_worktree_name: String::new(),
-            new_session_confirm_delete_directory: None,
-            new_session_force_delete_directory: None,
-            new_session_delete_error: None,
-            new_session_confirm_reset_directory: None,
-            new_session_reset_error: None,
-            session_rename_id: None,
-            session_rename_value: String::new(),
 
             // ========== 项目编辑 ==========
             project_editor: Default::default(),
 
             // ========== Diff和终端 ==========
             terminal_config_persistence: Default::default(),
-            terminal: TerminalState::new(
-                cfg_show_terminal,
-                cfg_shell,
-                cfg_term_theme,
-                cfg_term_font_family,
-                cfg_term_font_size,
-                None,
-            ),
+            terminal: TerminalState::with_system_settings(cfg_show_terminal, &system_settings_cfg),
             terminals_by_project: HashMap::new(),
-            app_theme: effective_app_theme,
-            generated_session_titles: std::collections::HashMap::new(),
-            desktop_locale: system_settings_cfg.desktop_locale,
-            desktop_locale_selected: false,
-            desktop_locale_saving: false,
-            chat_timezone: system_settings_cfg.timezone.clone(),
-            task_completion_notification: system_settings_cfg.task_completion_notification,
-            task_completion_notification_saving: false,
+            appearance: desktop_settings_appearance::theme_state::State::new(&system_settings_cfg),
+            input_feedback: Default::default(),
+
             launch_at_login: crate::app::desktop_lifecycle::launch_at_login_enabled(),
             launch_at_login_busy: false,
             close_to_tray: crate::app::desktop_lifecycle::close_to_tray_enabled(),
-            active_custom_theme_id: cfg_active_custom_theme_id,
-            active_theme_skin: None,
-            editor_follow_system_theme: cfg_editor_follow_system_theme,
-            editor_theme: cfg_editor_theme,
-            editor_metrics_preview: Default::default(),
-            editor_config_persistence: Default::default(),
 
-            // ========== Git状态 ==========
-
-            // ========== 设置标签页 ==========
-            general_settings_tab: super::state::GeneralSettingsTab::default(),
             archived_chats: super::state::ArchivedChatsState::default(),
-            worktree_settings: super::settings_builders::build_worktree_settings(),
-            system_settings_query: String::new(),
+            worktree_settings: Default::default(),
+
             provider_settings: super::state::ProviderSettingsState::default(),
             model_settings: super::state::ModelSettingsState::default(),
             embedding_routes_settings: settings::build_embedding_routes_settings(
@@ -608,7 +241,7 @@ impl App {
             runtime_settings: settings::build_runtime_settings(&full_agent_cfg),
 
             // ========== 技能设置 ==========
-            skills_settings: settings::build_skills_settings(&full_agent_cfg),
+            skills_settings: settings::build_skills_settings(&full_agent_cfg.skills),
 
             web_search_settings: settings::build_web_search_settings(&full_agent_cfg),
 
@@ -670,23 +303,10 @@ impl App {
             // ========== 主题设置 ==========
             themes_settings: super::state::ThemesSettingsState::default(),
 
-            // ========== 文件树状态 ==========
-            file_tree_expanded: cfg_file_tree_expanded.clone(),
-            file_tree_expanded_set: cfg_file_tree_expanded.into_iter().collect(),
-            file_tree_interaction: desktop_workspace::interaction::InteractionState {
-                file_tree_menu_path,
-                file_tree_menu_anchor,
-                file_tree_menu_source,
-                ..Default::default()
-            },
-
-            // ========== 文件搜索 ==========
+            file_tree_interaction: Default::default(),
             input_suggestions: Default::default(),
 
             // ========== 查找结果标签页 ==========
-            tool_files_filter: String::new(),
-
-            // ========== 预览标签页 ==========
 
             // ========== LSP状态（仅非WASM平台） ==========
             #[cfg(not(target_arch = "wasm32"))]
@@ -695,68 +315,17 @@ impl App {
             lsp_event_sender,
             #[cfg(not(target_arch = "wasm32"))]
             lsp_manager,
-            #[cfg(not(target_arch = "wasm32"))]
-            lsp_overlay: iced_code_editor::LspOverlayState::new(),
-            #[cfg(not(target_arch = "wasm32"))]
-            lsp_disabled: !system_settings_cfg.lsp_enabled,
-            #[cfg(not(target_arch = "wasm32"))]
-            lsp_applying_completion: false,
-            #[cfg(not(target_arch = "wasm32"))]
-            lsp_hover_anchor: None,
-            #[cfg(not(target_arch = "wasm32"))]
-            lsp_overlay_path: None,
-            #[cfg(not(target_arch = "wasm32"))]
-            lsp_hover_pending: None,
-            #[cfg(not(target_arch = "wasm32"))]
-            lsp_hover_hide_deadline: None,
-            #[cfg(not(target_arch = "wasm32"))]
-            lsp_progress: HashMap::new(),
-            preview_messages: std::collections::HashMap::new(),
-            #[cfg(not(target_arch = "wasm32"))]
-            lsp_status: None,
-            #[cfg(not(target_arch = "wasm32"))]
-            lsp_status_message: None,
 
-            // ========== 预览导航 ==========
-            pending_preview_goto: None,
-            preview_trace_back: Vec::new(),
-            preview_trace_forward: Vec::new(),
-            preview_trace_navigating: false,
-            previous_preview_path: None,
             focus_area: FocusArea::None,
-            show_preview_context_menu: false,
-            preview_context_target: None,
-            preview_context_menu_pos: None,
-            preview_nav_popup: None,
 
-            error_message: None,
-            localized_input_errors: Default::default(),
-            show_preview_settings: false,
-            editor_popover: None,
-            show_preview_fullscreen_overlay: false,
-
-            // ========== 编辑器设置 ==========
-            current_font_size: system_settings_cfg.editor_font_size.max(1.0),
-            current_line_height: system_settings_cfg.editor_line_height.max(1.0),
-            auto_adjust_line_height: system_settings_cfg.editor_auto_line_height,
-            preview_auto_save_mode: system_settings_cfg.preview_auto_save,
-            current_language: editor_language,
             knowledge: super::state::KnowledgeUiState::default(),
             workflow_state: crate::apps::workflow::state::WorkflowState::default(),
-            // ========== 标签页管理 ==========
-            hovered_recent_project: None,
-
-            // ========== Web书签编辑 ==========
 
             // ========== 通知系统 ==========
-            notifications: Vec::new(),
-            notifications_expanded: false,
-            next_notification_id: 0,
-            notifications_scroll_id: iced::widget::Id::new("notifications_scroll"),
-            notification_editors: std::collections::HashMap::new(),
-            copied_notification_id: None,
-            active_toast: None,
-            next_toast_id: 0,
+            notification_state: desktop_navigation::message::notification::OwnedState::new(),
+
+            toast_state: desktop_ui_controls::toast::State::new(),
+
             account: crate::app::state::AccountState::default(),
             #[cfg(not(target_arch = "wasm32"))]
             shiju_apps: crate::app::shiju_apps::ShijuAppsState::default(),
@@ -777,128 +346,12 @@ impl App {
             },
             workflow_manager: crate::app::views::workflow_manager::WorkflowManagerState::default(),
 
-            // ========== 任务板基础状态 ==========
-            show_task_board: false,
-            task_board_loading: false,
-            task_board_view_mode: crate::app::state::TaskBoardViewMode::default(),
-            task_board_tasks: Vec::new(),
-            task_board_tasks_pending_persistence: std::collections::HashSet::new(),
-            task_board_create_modal_open: false,
-            task_board_settings_modal_open: false,
-            task_board_settings_modal_tab: crate::app::state::TaskBoardSettingsModalTab::default(),
+            task_board: desktop_task_board::state::State::new(&cfg, cfg_acp_agent.clone(), init_ms as u64),
 
-            // ========== 任务导入 ==========
-            task_board_is_import_mode: false,
-            task_board_import_editor: iced::widget::text_editor::Content::new(),
-            task_board_import_prompt_format: crate::app::task::TaskImportPromptFormat::Json,
-            task_board_import_prompt_collapsed: true,
-            task_board_column_has_vertical_scrollbar: std::collections::HashMap::new(),
-
-            // ========== 任务草稿和执行 ==========
-            task_board_draft: crate::app::task::TaskDraft::default(),
-            task_board_last_model: "auto".to_string(),
-            task_board_last_acp_agent: cfg_acp_agent.clone(),
-            task_board_selected_tasks: std::collections::HashSet::new(),
-            task_board_bulk_active_status: None,
-            task_board_bulk_priority_input: "999".to_string(),
-            task_board_bulk_model_input: "auto".to_string(),
-            task_board_bulk_agent: crate::app::task::TASK_AGENT_MAIN.to_string(),
-            task_board_bulk_acp_agent: cfg_acp_agent.clone(),
-            task_board_bulk_reasoning_effort: None,
-            task_board_bulk_task_split_mode: crate::app::task::TaskSplitMode::FollowSystem,
-            task_board_manual_merge_queue: Vec::new(),
-            task_board_selected_task: None,
-            task_board_viewing_logs: None,
-            task_board_detail_tab: crate::app::state::TaskBoardDetailTab::default(),
-            task_board_log_cache: std::collections::HashMap::new(),
-            task_board_editing_task_id: None,
-
-            // ========== 任务拖拽和排序 ==========
-            task_board_dragging: None,
-            task_board_drag_pending: None,
-            task_board_filter_status: None,
-            task_board_filter_priority: None,
-            task_board_sort_by_priority: true,
-            task_board_sort_ascending: false,
-
-            // ========== 任务板设置 ==========
-            task_board_settings: crate::app::task::TaskBoardSettings::new(),
-
-            // ========== 任务执行器 ==========
-            task_board_executor: crate::app::task::TaskExecutorState::new(),
-            task_board_executor_running: false,
-
-            // ========== 任务板定时器 ==========
-            // 下次刷新时间（60秒后）
-            task_board_next_refresh_at_ms: (init_ms as u64).saturating_add(60_000),
-            // 下次调度器tick（1秒后）
-            task_board_next_scheduler_tick_at_ms: (init_ms as u64).saturating_add(1_000),
-            // 下次自动审查tick（30秒后）
-            task_board_next_auto_review_tick_at_ms: (init_ms as u64).saturating_add(30_000),
-            // 下次自动提升tick（30秒后）
-            task_board_next_auto_promote_tick_at_ms: (init_ms as u64).saturating_add(30_000),
-            // 下次自动合并tick（10秒后）
-            task_board_next_auto_merge_tick_at_ms: (init_ms as u64).saturating_add(10_000),
-            task_board_worktree_desired_capacity: None,
-            // 日志刷新和扫描游标
-            task_board_last_log_flush_at_ms: 0,
-            task_board_log_scan_cursor: 0,
-            task_board_timeout_scan_cursor: 0,
-            task_board_schedule_scan_cursor: 0,
-
-            // ========== 任务板UI状态 ==========
-            task_board_executor_popover: false,
-            task_board_bulk_executor_popover: false,
-            task_board_bulk_model_popover: false,
-            task_board_worktree_maintenance_in_flight: false,
-            task_board_worktree_snapshot_loading: false,
-            task_board_worktree_manual_action_kind: None,
-            task_board_worktree_manual_confirm_kind: None,
-            task_board_worktree_action_logs: Vec::new(),
-            task_board_worktree_action_logs_visible_until_ms: None,
-            task_board_worktree_action_log_rx: None,
-            task_board_worktree_snapshot: None,
-            task_board_last_worktree_snapshot_at_ms: 0,
-            task_board_worktree_panel_expanded: false,
-            task_board_worktree_pixel_office: cfg
-                .get("task_board_worktree_pixel_office")
-                .and_then(|v: &serde_json::Value| v.as_bool())
-                .unwrap_or(false),
-            task_board_context_menu: None,
-            task_board_new_subtask_content: String::new(),
-            task_board_desc_editor: iced::widget::text_editor::Content::new(),
-            task_board_prompt_editor: iced::widget::text_editor::Content::new(),
-            task_board_logs_editor: iced::widget::text_editor::Content::new(),
-            task_board_logs_editor_id: iced::widget::Id::new("task_board_logs_editor"),
-            task_board_logs_auto_scroll: true,
-            task_board_logs_context_menu_open: false,
-            task_board_logs_context_menu_pos: None,
-            task_board_logs_scroll_top_line: 0.0,
-            task_board_logs_scroll_remainder: 0.0,
-            task_board_logs_viewport_height: 0.0,
-            task_board_model_popover: false,
-
-            // ========== 任务板行为配置 ==========
-            task_board_clear_prompt_after_create: cfg
-                .get("task_board_clear_prompt_after_create")
-                .and_then(|v: &serde_json::Value| v.as_bool())
-                .unwrap_or(true),
-            task_board_close_after_create: cfg
-                .get("task_board_close_after_create")
-                .and_then(|v: &serde_json::Value| v.as_bool())
-                .unwrap_or(true),
-            task_board_close_after_edit: cfg
-                .get("task_board_close_after_edit")
-                .and_then(|v: &serde_json::Value| v.as_bool())
-                .unwrap_or(true),
-            task_board_create_submit_success: false,
-            task_board_edit_submit_success: false,
-
-            // ========== 独立WebView子窗口（仅非WASM平台） ==========
         };
 
-        if let Some(runtime) = app.session_runtime_states.get_mut("__empty__") {
-            runtime.acp_agent = app.acp_agent.clone();
+        if let Some(runtime) = app.session_state.session_runtime_states.get_mut("__empty__") {
+            runtime.acp_agent = app.session_state.acp_agent.clone();
         }
 
         crate::app::theme_catalog::sync_active_theme_skin(&mut app);
@@ -906,7 +359,7 @@ impl App {
         // 对终端应用主题（仅非WASM平台）
         #[cfg(not(target_arch = "wasm32"))]
         {
-            app.terminal.apply_app_theme(&app.app_theme);
+            app.terminal.apply_app_theme(&app.appearance.app_theme);
         }
 
         let startup_task = Task::batch(vec![

@@ -15,7 +15,7 @@ use iced::{Element, Task};
 pub use desktop_usage::Identity;
 
 fn identity(app: &App) -> Option<Identity> {
-    let project = app.project_id.as_ref().filter(|p| !p.trim().is_empty())?.clone();
+    let project = app.workspace_state.project_id.as_ref().filter(|p| !p.trim().is_empty())?.clone();
     let host = app.apps_catalog.host.trim().to_owned();
     if host.is_empty() {
         return None;

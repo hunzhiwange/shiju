@@ -6,10 +6,10 @@ fn input(app: &App) -> domain::ViewInput<'_> {
     domain::ViewInput {
         expert_hub: &app.expert_hub,
         shiju_apps: &app.shiju_apps,
-        desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        desktop_locale: app.general_settings.desktop_locale,
+        app_theme: &app.appearance.app_theme,
         project_path: &app.navigation_tabs.project_path,
-        recent_projects: &app.recent_projects,
+        recent_projects: &app.workspace_state.recent_projects,
         has_project_chat: app.navigation_tabs.open_tabs.iter().any(|tab| {
             tab.project_path.as_deref() == app.navigation_tabs.project_path.as_deref()
                 && tab.screen == Screen::Project

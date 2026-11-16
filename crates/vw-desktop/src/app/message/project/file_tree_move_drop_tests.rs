@@ -6,13 +6,13 @@ use iced::keyboard::Modifiers;
 fn selected_app() -> App {
     let mut app = App::new().0;
     app.navigation_tabs.project_path = Some("/project".into());
-    app.lsp_disabled = true;
+    app.preview_state.lsp_disabled = true;
     app.set_file_index(
         "/project",
         vec!["/project/a.txt".into(), "/project/b.txt".into(), "/project/c.txt".into()],
     );
-    app.file_tree_expanded.clear();
-    app.file_tree_expanded_set.clear();
+    app.workspace_state.file_tree_expanded.clear();
+    app.workspace_state.file_tree_expanded_set.clear();
     for path in ["/project/a.txt", "/project/b.txt"] {
         let _ = super::super::handle(
             &mut app,
@@ -133,5 +133,5 @@ fn selected_drag_partial_completion_preserves_dirty_tabs_and_failed_selection() 
     assert!(app.file_tree_interaction.file_tree_selection.contains("/project", "/project/dst/a.txt"));
     assert!(app.file_tree_interaction.file_tree_selection.contains("/project", "/project/b.txt"));
     assert!(!app.file_tree_interaction.file_tree_selection.contains("/project", "/project/a.txt"));
-    assert!(app.active_toast.as_ref().unwrap().message.contains("denied"));
+    assert!(app.toast_state.active_toast.as_ref().unwrap().message.contains("denied"));
 }

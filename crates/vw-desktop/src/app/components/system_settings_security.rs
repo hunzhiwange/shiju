@@ -52,8 +52,8 @@ fn map(message: Local) -> Message {
     }
 }
 fn inputs(app: &App) -> SecurityView<'_> {
-    SecurityView { security_settings: &app.security_settings, desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme, last_copied_code_hash: app.last_copied_code_hash,
+    SecurityView { security_settings: &app.security_settings, desktop_locale: app.general_settings.desktop_locale,
+        app_theme: &app.appearance.app_theme, last_copied_code_hash: app.clipboard_state.last_copied_code_hash,
         help_text: |title, body, color, i18n| crate::app::components::chat_panel::message_view::selectable_titled_text(title, body, color, i18n).map(|message| match message { Message::CopyCode(value) => Local::CopyCode(value), _ => Local::None }),
     }
 }

@@ -7,7 +7,7 @@ use crate::app::{App, Message};
 async fn desktop_first_response_chinese_preview_and_title_draw_in_both_themes() {
     let (mut app, _) = App::new();
     let id = "draft";
-    app.session_previews.insert(id.into(), "首轮预览".into());
+    app.session_state.session_previews.insert(id.into(), "首轮预览".into());
     let mut details = SessionRowDetails {
         title: String::new(),
         directory: "/project".into(),
@@ -93,5 +93,5 @@ fn running_draft_title_uses_first_non_empty_input_line() {
     let (_, info) = super::running_draft_sessions(&app).next().unwrap();
     assert_eq!(info.title, "首轮中文问题");
     assert!(info.is_first_response_pending());
-    assert!(app.sessions.is_empty());
+    assert!(app.session_state.sessions.is_empty());
 }

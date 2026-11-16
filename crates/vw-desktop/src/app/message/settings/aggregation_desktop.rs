@@ -10,7 +10,7 @@ fn current(app: &App) -> Result<(GatewayTransport, Binding), String> {
     {
         return Err("请先连接已授权执行主机".into());
     }
-    let project = app.project_id.as_ref().filter(|p| !p.is_empty()).ok_or("请先打开已注册项目")?;
+    let project = app.workspace_state.project_id.as_ref().filter(|p| !p.is_empty()).ok_or("请先打开已注册项目")?;
     let endpoint = client
         .endpoint()
         .clone()

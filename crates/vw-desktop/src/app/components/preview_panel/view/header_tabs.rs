@@ -40,8 +40,8 @@ pub fn build_header_tabs(app: &App) -> Element<'_, Message> {
     desktop_editor::components::preview_panel::view::header_tabs::build_header_tabs(
         app.navigation_tabs.preview_tabs.iter().map(|tab| (tab.path.as_str(), tab.title.as_str())),
         app.navigation_tabs.active_preview_path.as_deref(), app.navigation_tabs.preview_tab_menu_path.as_deref(),
-        app.navigation_tabs.preview_tab_menu_pos, app.preview_tabs_scroll_id.clone(),
-        super::super::styles::should_show_preview_tabs_scrollbar(app), desktop_i18n::I18n::new(app.desktop_locale),
+        app.navigation_tabs.preview_tab_menu_pos, app.preview_state.preview_tabs_scroll_id.clone(),
+        super::super::styles::should_show_preview_tabs_scrollbar(app), desktop_i18n::I18n::new(app.general_settings.desktop_locale),
     ).map(map_message)
 }
 fn map_message(action: desktop_editor::components::preview_panel::view::HeaderMessage) -> Message {

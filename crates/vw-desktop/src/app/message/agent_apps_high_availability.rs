@@ -13,7 +13,7 @@ fn current(app: &App) -> Option<Context> {
     Some(Context {
         scope: scope.clone(),
         query: FailoverQueueQuery {
-            project_id: app.project_id.as_deref().filter(|s| !s.is_empty())?.into(),
+            project_id: app.workspace_state.project_id.as_deref().filter(|s| !s.is_empty())?.into(),
             target_host_id: scope.host.clone(), app_id: scope.app,
         },
         list_generation: app.app_providers.generation,

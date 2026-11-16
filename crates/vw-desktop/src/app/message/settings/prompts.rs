@@ -11,7 +11,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     }
     let mut input = desktop_settings_skills::prompts::update::Input {
         client: crate::app::config::gateway_client(),
-        project_id: app.project_id.clone(), project_path: app.navigation_tabs.project_path.clone(),
+        project_id: app.workspace_state.project_id.clone(), project_path: app.navigation_tabs.project_path.clone(),
         context: app.apps_catalog.context.clone(), generation: app.apps_catalog.generation,
         host: app.apps_catalog.host.clone(), token: app.apps_catalog.token.clone(),
         prompts: &mut app.apps_catalog.prompts,

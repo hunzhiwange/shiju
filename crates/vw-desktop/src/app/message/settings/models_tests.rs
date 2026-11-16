@@ -22,8 +22,8 @@ fn provider_summary() -> ProviderModelsSummary {
 #[test]
 fn model_toggle_updates_locally_and_starts_save_without_reloading() {
     let mut app = app();
-    app.auto_model = false;
-    app.model = "another-model".to_string();
+    app.session_state.auto_model = false;
+    app.session_state.model = "another-model".to_string();
     app.model_settings.providers = vec![provider_summary()];
 
 
@@ -32,14 +32,14 @@ fn model_toggle_updates_locally_and_starts_save_without_reloading() {
         SettingsMessage::ModelToggle("openai".to_string(), "gpt-5".to_string(), false),
     );
 
-    assert!(!app.auto_model);
+    assert!(!app.session_state.auto_model);
 }
 
 #[test]
 fn disabling_selected_model_switches_back_to_auto_model() {
     let mut app = app();
-    app.auto_model = false;
-    app.model = "openai/gpt-5".to_string();
+    app.session_state.auto_model = false;
+    app.session_state.model = "openai/gpt-5".to_string();
     app.current_session_runtime_mut().auto_model = false;
     app.model_settings.providers = vec![provider_summary()];
 
@@ -48,7 +48,7 @@ fn disabling_selected_model_switches_back_to_auto_model() {
         SettingsMessage::ModelToggle("openai".to_string(), "gpt-5".to_string(), false),
     );
 
-    assert!(app.auto_model);
+    assert!(app.session_state.auto_model);
     assert!(app.current_session_runtime().auto_model);
     assert!(app.model_settings.saving);
 }
@@ -56,8 +56,8 @@ fn disabling_selected_model_switches_back_to_auto_model() {
 #[test]
 fn enabling_model_updates_locally_and_schedules_save_without_forcing_auto_model() {
     let mut app = app();
-    app.auto_model = false;
-    app.model = "gpt-5".to_string();
+    app.session_state.auto_model = false;
+    app.session_state.model = "gpt-5".to_string();
     let mut provider = provider_summary();
     provider.models[0].enabled = false;
     provider.models[0].detail["status"] = json!("disabled");
@@ -68,6 +68,6 @@ fn enabling_model_updates_locally_and_schedules_save_without_forcing_auto_model(
         SettingsMessage::ModelToggle("openai".to_string(), "gpt-5".to_string(), true),
     );
 
-    assert!(!app.auto_model);
+    assert!(!app.session_state.auto_model);
     assert!(iced_runtime::task::into_stream(task.collect()).is_some());
 }

@@ -43,12 +43,12 @@ fn step(index: u32, usage: TokenUsage) -> ChatSessionStep {
 #[test]
 fn from_app_prefers_loaded_session_metadata_and_latest_step_usage() {
     let (mut app, _task) = App::new();
-    app.active_session_id = Some("session-1".to_string());
-    app.sessions = vec![session_info("session-1", "Loaded", 100, 200)];
-    app.project_sessions
+    app.session_state.active_session_id = Some("session-1".to_string());
+    app.session_state.sessions = vec![session_info("session-1", "Loaded", 100, 200)];
+    app.workspace_state.project_sessions
         .insert("/project".to_string(), vec![session_info("session-1", "Project", 300, 400)]);
-    app.active_session_view_state.calls = vec![json!({ "kind": "llm" })];
-    app.active_session_view_state.steps = vec![
+    app.chat_view.active_session_view_state.calls = vec![json!({ "kind": "llm" })];
+    app.chat_view.active_session_view_state.steps = vec![
         step(1, TokenUsage::default()),
         step(
             2,
@@ -75,8 +75,8 @@ fn from_app_prefers_loaded_session_metadata_and_latest_step_usage() {
 #[test]
 fn from_app_falls_back_to_project_metadata_for_active_session() {
     let (mut app, _task) = App::new();
-    app.active_session_id = Some("project-session".to_string());
-    app.project_sessions.insert(
+    app.session_state.active_session_id = Some("project-session".to_string());
+    app.workspace_state.project_sessions.insert(
         "/project".to_string(),
         vec![session_info("project-session", "Project Session", 500, 600)],
     );

@@ -81,9 +81,9 @@ fn compute_todo_data_ignores_runtime_when_there_is_no_active_session() {
 #[test]
 fn read_todos_for_panel_returns_empty_when_session_does_not_match() {
     let mut app = test_app();
-    app.active_session_id = Some("active".to_string());
-    app.chat_todo_session_id = Some("other".to_string());
-    app.chat_todo_items = vec![todo("1", "pending", "hidden")];
+    app.session_state.active_session_id = Some("active".to_string());
+    app.todo_state.chat_todo_session_id = Some("other".to_string());
+    app.todo_state.chat_todo_items = vec![todo("1", "pending", "hidden")];
 
     let (items, error) = read_todos_for_panel(&app).expect("panel data");
 
@@ -95,9 +95,9 @@ fn read_todos_for_panel_returns_empty_when_session_does_not_match() {
 #[test]
 fn read_todos_for_panel_sorts_numeric_ids_before_text_ids() {
     let mut app = test_app();
-    app.active_session_id = Some("session".to_string());
-    app.chat_todo_session_id = Some("session".to_string());
-    app.chat_todo_items = vec![
+    app.session_state.active_session_id = Some("session".to_string());
+    app.todo_state.chat_todo_session_id = Some("session".to_string());
+    app.todo_state.chat_todo_items = vec![
         todo("b", "pending", "b"),
         todo("10", "pending", "ten"),
         todo("2", "pending", "two"),
@@ -117,7 +117,7 @@ fn read_todos_for_panel_sorts_numeric_ids_before_text_ids() {
 #[test]
 fn read_todos_for_panel_reads_global_todos_when_both_sessions_are_absent() {
     let mut app = test_app();
-    app.chat_todo_items = vec![todo("task_2", "pending", "second"), todo("1", "pending", "first")];
+    app.todo_state.chat_todo_items = vec![todo("task_2", "pending", "second"), todo("1", "pending", "first")];
 
     let (items, error) = read_todos_for_panel(&app).expect("panel data");
 
@@ -132,9 +132,9 @@ fn read_todos_for_panel_reads_global_todos_when_both_sessions_are_absent() {
 #[test]
 fn read_todos_for_panel_preserves_input_order_for_equal_numeric_ids() {
     let mut app = test_app();
-    app.active_session_id = Some("session".to_string());
-    app.chat_todo_session_id = Some("session".to_string());
-    app.chat_todo_items = vec![
+    app.session_state.active_session_id = Some("session".to_string());
+    app.todo_state.chat_todo_session_id = Some("session".to_string());
+    app.todo_state.chat_todo_items = vec![
         todo("02", "pending", "zero padded"),
         todo("2", "pending", "plain"),
         todo("1", "pending", "first"),

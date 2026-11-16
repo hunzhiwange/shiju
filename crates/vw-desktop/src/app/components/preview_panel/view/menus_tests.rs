@@ -65,20 +65,20 @@ fn assert_close_nav_then(message: Message, expected_path: &str, expected_dir: bo
 #[test]
 fn menu_ui_handles_context_menu_without_target_or_position() {
     let mut app = app();
-    app.show_preview_context_menu = true;
+    app.preview_state.show_preview_context_menu = true;
 
     keep(build_menu_ui(&app));
 
-    app.preview_context_target = Some(("/tmp/a.rs".to_string(), 1, 1, 1, 1));
+    app.preview_state.preview_context_target = Some(("/tmp/a.rs".to_string(), 1, 1, 1, 1));
     keep(build_menu_ui(&app));
 }
 
 #[test]
 fn menu_ui_builds_context_menu_for_matching_tab() {
     let mut app = app();
-    app.show_preview_context_menu = true;
-    app.preview_context_target = Some(("/tmp/a.rs".to_string(), 1, 1, 2, 4));
-    app.preview_context_menu_pos = Some((20.0, 30.0));
+    app.preview_state.show_preview_context_menu = true;
+    app.preview_state.preview_context_target = Some(("/tmp/a.rs".to_string(), 1, 1, 2, 4));
+    app.preview_state.preview_context_menu_pos = Some((20.0, 30.0));
     app.navigation_tabs.preview_tabs = vec![tab("/tmp/a.rs")];
 
     keep(build_menu_ui(&app));
@@ -87,9 +87,9 @@ fn menu_ui_builds_context_menu_for_matching_tab() {
 #[test]
 fn menu_ui_uses_empty_context_items_for_missing_tab() {
     let mut app = app();
-    app.show_preview_context_menu = true;
-    app.preview_context_target = Some(("/tmp/missing.rs".to_string(), 1, 1, 2, 4));
-    app.preview_context_menu_pos = Some((20.0, 30.0));
+    app.preview_state.show_preview_context_menu = true;
+    app.preview_state.preview_context_target = Some(("/tmp/missing.rs".to_string(), 1, 1, 2, 4));
+    app.preview_state.preview_context_menu_pos = Some((20.0, 30.0));
     app.navigation_tabs.preview_tabs = vec![tab("/tmp/a.rs")];
 
     keep(build_menu_ui(&app));

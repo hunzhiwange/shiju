@@ -10,7 +10,7 @@ async fn desktop_gettext_area_18_account_labels_follow_current_locale() {
         (DesktopLocale::TraditionalChinese, "正在登入…"),
         (DesktopLocale::English, "Signing in…"),
     ] {
-        app.desktop_locale = locale;
+        app.general_settings.desktop_locale = locale;
         assert_eq!(crate::app::components::account_status::trigger_label(&app), expected);
     }
 }
@@ -20,7 +20,7 @@ async fn desktop_gettext_area_18_knowledge_feedback_switches_after_creation() {
     use crate::app::message::knowledge_tool::{self, KnowledgeToolMessage};
     let (mut app, _) = crate::app::App::new();
     let _ = knowledge_tool::update(&mut app, KnowledgeToolMessage::CreateDataset);
-    let toast = app.active_toast.as_ref().expect("validation feedback");
+    let toast = app.toast_state.active_toast.as_ref().expect("validation feedback");
     let message = toast.localized_message.as_ref().expect("semantic feedback");
     for (locale, expected) in [
         (DesktopLocale::SimplifiedChinese, "知识库名称不能为空"),
@@ -56,7 +56,7 @@ async fn desktop_gettext_area_18_account_validation_retains_semantic_feedback() 
         &mut app,
         crate::app::message::AccountMessage::SubmitManual,
     );
-    let message = app.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
+    let message = app.toast_state.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
     assert_eq!(message.render(I18n::new(DesktopLocale::English)).unwrap(), "skey is required");
     assert_eq!(
         message.render(I18n::new(DesktopLocale::TraditionalChinese)).unwrap(),
@@ -69,10 +69,10 @@ async fn desktop_gettext_area_18_generated_session_titles_preserve_renames() {
     let (mut app, _) = crate::app::App::new();
     let feedback = super::input::Feedback::new("规划 · %s", vec!["id/%s/%n".into()]);
     let raw = feedback.fallback.clone();
-    app.generated_session_titles.insert("child".into(), feedback);
-    app.desktop_locale = DesktopLocale::English;
+    app.input_feedback.generated_session_titles.insert("child".into(), feedback);
+    app.general_settings.desktop_locale = DesktopLocale::English;
     assert_eq!(super::other::session_title(&app, "child", &raw), "Planning · id/%s/%n");
-    app.desktop_locale = DesktopLocale::TraditionalChinese;
+    app.general_settings.desktop_locale = DesktopLocale::TraditionalChinese;
     assert_eq!(super::other::session_title(&app, "child", &raw), "規劃 · id/%s/%n");
     assert_eq!(super::other::session_title(&app, "child", "用户/%s/%n"), "用户/%s/%n");
 }

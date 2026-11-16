@@ -106,19 +106,19 @@ fn input_panel_layouts_do_not_render_acp_history_interactions() {
 
     fn app_for_layout(layout: &str, mode: AcpHistoryReplayMode) -> crate::app::App {
         let mut app = crate::app::App::new().0;
-        app.acp_agent = Some("codex".to_string());
-        app.acp_history_mode = mode;
-        app.acp_recent_count = 7;
-        app.quick_messages.clear();
+        app.session_state.acp_agent = Some("codex".to_string());
+        app.session_state.acp_history_mode = mode;
+        app.session_state.acp_recent_count = 7;
+        app.general_settings.quick_messages.clear();
 
         match layout {
             "standard" => {}
             "queue" => app.current_session_runtime_mut().request_lifecycle.queue = vec![queue_item("queued")],
             "todo" => {
-                app.active_session_id = Some("session".to_string());
-                app.chat_todo_session_id = Some("session".to_string());
-                app.chat_todo_items = vec![todo("1", "pending", "next")];
-                app.chat_todo_placement = TodoPanelPlacement::InputBottom;
+                app.session_state.active_session_id = Some("session".to_string());
+                app.todo_state.chat_todo_session_id = Some("session".to_string());
+                app.todo_state.chat_todo_items = vec![todo("1", "pending", "next")];
+                app.todo_state.chat_todo_placement = TodoPanelPlacement::InputBottom;
             }
             _ => unreachable!(),
         }
@@ -154,7 +154,7 @@ fn selected_context_card_is_absent_without_runtime_manual_context() {
 #[test]
 fn input_panel_view_falls_back_when_active_session_has_no_runtime() {
     let mut app = crate::app::App::new().0;
-    app.active_session_id = Some("missing-runtime".to_string());
+    app.session_state.active_session_id = Some("missing-runtime".to_string());
 
     assert!(app.current_session_runtime_ref().is_none());
     assert!(selected_context_card(&app).is_none());
@@ -177,7 +177,7 @@ async fn input_panel_aligns_with_chat_column_on_wide_and_narrow_layouts() {
                 .await
                 .expect("tiny-skia headless renderer should be available");
         let (mut app, _) = crate::app::App::new();
-        app.quick_messages.clear();
+        app.general_settings.quick_messages.clear();
         let mut element: Element<'_, Message> = iced::widget::container(view(&app))
             .width(Length::Fill)
             .padding(iced::Padding {
@@ -328,8 +328,8 @@ fn input_panel_view_renders_default_task_queue_and_overlay_states() {
     assert_eq!(default.as_widget().size().width, Length::Fill);
     drop(default);
 
-    app.input_editor = iced::widget::text_editor::Content::with_text("@src/main.rs:1\nhello");
-    app.files.push("/tmp/a.txt".to_string());
+    app.session_state.input_editor = iced::widget::text_editor::Content::with_text("@src/main.rs:1\nhello");
+    app.session_state.files.push("/tmp/a.txt".to_string());
     app.popover_visibility.model = true;
     app.input_suggestions.show_file_search = true;
     app.navigation_tabs.project_path = Some("/repo".to_string());
@@ -346,7 +346,7 @@ fn input_panel_view_renders_drag_hover_and_send_mode_state() {
     app.file_tree_interaction.dragging_file_paths = vec!["src/main.rs".to_string()];
     app.file_tree_interaction.input_drop_hovered = true;
     app.popover_visibility.send_mode = true;
-    app.chat_send_behavior = ChatSendBehavior::StopAndSend;
+    app.session_state.chat_send_behavior = ChatSendBehavior::StopAndSend;
 
     let element = view(&app);
 
@@ -357,14 +357,14 @@ fn input_panel_view_renders_drag_hover_and_send_mode_state() {
 #[test]
 fn input_panel_view_renders_app_level_acp_history_and_pending_drop_hover() {
     let mut app = crate::app::App::new().0;
-    app.acp_agent = Some("codex".to_string());
-    app.acp_history_mode = AcpHistoryReplayMode::Recent;
-    app.acp_recent_count = 7;
+    app.session_state.acp_agent = Some("codex".to_string());
+    app.session_state.acp_history_mode = AcpHistoryReplayMode::Recent;
+    app.session_state.acp_recent_count = 7;
     app.file_tree_interaction.pending_drop_file_paths = vec!["src/lib.rs".to_string()];
     app.file_tree_interaction.input_drop_hovered = true;
-    app.chat_todo_session_id = Some("other-session".to_string());
-    app.chat_todo_items = vec![todo("1", "pending", "hidden because session differs")];
-    app.input_editor = iced::widget::text_editor::Content::with_text("hello");
+    app.todo_state.chat_todo_session_id = Some("other-session".to_string());
+    app.todo_state.chat_todo_items = vec![todo("1", "pending", "hidden because session differs")];
+    app.session_state.input_editor = iced::widget::text_editor::Content::with_text("hello");
 
     let element = view(&app);
 
@@ -398,19 +398,19 @@ fn input_panel_quick_message_strip_renders_in_standard_queue_and_todo_layouts() 
     assert_eq!(with_quick_messages.as_widget().children().len(), 2);
     drop(with_quick_messages);
 
-    app.quick_messages.clear();
+    app.general_settings.quick_messages.clear();
     let without_quick_messages = view(&app);
     assert_eq!(without_quick_messages.as_widget().children().len(), 1);
     drop(without_quick_messages);
-    app.quick_messages = config_ui::AppSystemSettingsConfig::default().quick_messages;
+    app.general_settings.quick_messages = config_ui::AppSystemSettingsConfig::default().quick_messages;
 
     app.current_session_runtime_mut().request_lifecycle.queue = vec![queue_item("queued request")];
     assert_eq!(view(&app).as_widget().size().width, Length::Fill);
 
-    app.active_session_id = Some("session".to_string());
-    app.chat_todo_session_id = Some("session".to_string());
-    app.chat_todo_items = vec![todo("1", "pending", "next")];
-    app.chat_todo_placement = TodoPanelPlacement::InputBottom;
+    app.session_state.active_session_id = Some("session".to_string());
+    app.todo_state.chat_todo_session_id = Some("session".to_string());
+    app.todo_state.chat_todo_items = vec![todo("1", "pending", "next")];
+    app.todo_state.chat_todo_placement = TodoPanelPlacement::InputBottom;
     assert_eq!(view(&app).as_widget().size().width, Length::Fill);
 }
 
@@ -434,11 +434,11 @@ fn input_panel_view_renders_task_mode_instead_of_nonempty_queue() {
 #[test]
 fn input_panel_view_renders_matching_todos_at_input_bottom() {
     let mut app = crate::app::App::new().0;
-    app.active_session_id = Some("session".to_string());
-    app.chat_todo_session_id = Some("session".to_string());
-    app.chat_todo_items = vec![todo("1", "in_progress", "working")];
-    app.chat_todo_placement = TodoPanelPlacement::InputBottom;
-    app.chat_todo_expanded = true;
+    app.session_state.active_session_id = Some("session".to_string());
+    app.todo_state.chat_todo_session_id = Some("session".to_string());
+    app.todo_state.chat_todo_items = vec![todo("1", "in_progress", "working")];
+    app.todo_state.chat_todo_placement = TodoPanelPlacement::InputBottom;
+    app.todo_state.chat_todo_expanded = true;
     {
         let runtime = app.current_session_runtime_mut();
         runtime.acp_agent = Some("codex".to_string());
@@ -454,14 +454,14 @@ fn input_panel_view_renders_matching_todos_at_input_bottom() {
 #[test]
 fn input_panel_view_renders_agent_sessions_entry_only_for_running_children() {
     let mut app = crate::app::App::new().0;
-    app.active_session_id = Some("parent".to_string());
+    app.session_state.active_session_id = Some("parent".to_string());
     app.navigation_tabs.project_path = Some("/workspace/project".to_string());
 
     let empty = view(&app);
     assert_eq!(empty.as_widget().size().width, Length::Fill);
     drop(empty);
 
-    app.chat = vec![crate::app::models::ChatMessage {
+    app.chat_view.chat = vec![crate::app::models::ChatMessage {
         role: crate::app::models::ChatRole::Assistant,
         content: r#"tool AgentTool
 {"status":"running","metadata":{"parent_session_id":"parent","child_session_id":"child","agent":"writer","task":"build badge"}}"#
@@ -470,7 +470,7 @@ fn input_panel_view_renders_agent_sessions_entry_only_for_running_children() {
         think_timing: Vec::new(),
         processing_timing: None,
     }];
-    app.input_popovers.agent_sessions = true;
+    app.session_state.input_popovers.agent_sessions = true;
 
     let with_running_child = view(&app);
     assert_eq!(with_running_child.as_widget().size().width, Length::Fill);
@@ -499,7 +499,7 @@ fn agent_unified_selection_prompt_preserves_existing_draft() {
         message::ChatMessage::AgentRecommendedPromptSelected(0),
     );
     assert_eq!(app.current_session_runtime().input_editor.text(), "我的草稿");
-    assert!(app.chat.is_empty());
+    assert!(app.chat_view.chat.is_empty());
 }
 
 #[cfg(not(target_arch = "wasm32"))]

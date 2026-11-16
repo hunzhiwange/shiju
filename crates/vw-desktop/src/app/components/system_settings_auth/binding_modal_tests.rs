@@ -182,7 +182,7 @@ fn binding_case(app: &mut App, endpoint: &GatewayEndpoint, listener: TcpListener
         let binding = app.agent_apps_auth.binding.as_ref().expect("rejection keeps picker open");
         assert!(!binding.saving);
         assert_eq!(binding.error, Some("保存失败：所选账号需要重新授权"));
-        let toast = app.active_toast.as_ref().expect("save errors use the desktop toast");
+        let toast = app.toast_state.active_toast.as_ref().expect("save errors use the desktop toast");
         assert!(matches!(toast.kind, ToastKind::Error));
         assert_eq!(toast.message, "保存失败：所选账号需要重新授权");
         let another_company = endpoint
@@ -193,7 +193,7 @@ fn binding_case(app: &mut App, endpoint: &GatewayEndpoint, listener: TcpListener
         assert!(app.agent_apps_auth.binding.is_none());
     } else {
         assert!(app.agent_apps_auth.binding.is_none());
-        assert!(matches!(app.active_toast.as_ref().unwrap().kind, ToastKind::Success));
+        assert!(matches!(app.toast_state.active_toast.as_ref().unwrap().kind, ToastKind::Success));
     }
 }
 
@@ -218,7 +218,7 @@ fn auth6_ui_binding_rejects_invalid_or_stale_input() {
         );
         assert_eq!(app.navigation_panels.system_settings_tab, SystemTab::Apps);
         assert!(matches!(
-            app.active_toast.as_ref().expect("stale supplier must be rejected explicitly").kind,
+            app.toast_state.active_toast.as_ref().expect("stale supplier must be rejected explicitly").kind,
             ToastKind::Error
         ));
         binding_case(&mut app, &endpoint, listener, true);

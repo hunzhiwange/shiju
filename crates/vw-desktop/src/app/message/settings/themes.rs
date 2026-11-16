@@ -16,26 +16,26 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     let SettingsMessage::Themes(message) = message else { return Task::none(); };
     let mut inputs = domain::Update {
         themes_settings: &mut app.themes_settings,
-        active_custom_theme_id: &mut app.active_custom_theme_id,
-        active_theme_skin: &mut app.active_theme_skin,
-        app_theme: &mut app.app_theme,
+        active_custom_theme_id: &mut app.appearance.active_custom_theme_id,
+        active_theme_skin: &mut app.appearance.active_theme_skin,
+        app_theme: &mut app.appearance.app_theme,
         effects: Vec::new(),
     };
     let task = domain::update(&mut inputs, message).map(|message| Message::Settings(SettingsMessage::Themes(message)));
     let effects = std::mem::take(&mut inputs.effects);
-    let final_skin = app.active_theme_skin.clone();
-    let final_id = app.active_custom_theme_id.clone();
+    let final_skin = app.appearance.active_theme_skin.clone();
+    let final_id = app.appearance.active_custom_theme_id.clone();
     let mut tasks = vec![task];
     for effect in effects {
         match effect {
             Effect::ApplyTheme(theme, id) => {
-                app.active_custom_theme_id = id;
+                app.appearance.active_custom_theme_id = id;
                 tasks.push(crate::app::message::view::update(app, crate::app::message::view::ViewMessage::AppThemeSelected(theme)));
             }
             Effect::Toast(kind, source, arguments) => tasks.push(app.show_localized_toast(toast_kind(kind), &source, arguments)),
         }
     }
-    app.active_theme_skin = final_skin;
-    app.active_custom_theme_id = final_id;
+    app.appearance.active_theme_skin = final_skin;
+    app.appearance.active_custom_theme_id = final_id;
     Task::batch(tasks)
 }

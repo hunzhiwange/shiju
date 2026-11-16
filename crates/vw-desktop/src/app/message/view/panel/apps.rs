@@ -22,7 +22,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             apps_search_query: &mut app.navigation_tabs.apps_search_query,
         },
         crate::apps::workflow::WORKFLOW_TOOL_TAB_ID,
-        app.recent_projects.first().map(String::as_str),
+        app.workspace_state.recent_projects.first().map(String::as_str),
         local,
     );
     match effect {

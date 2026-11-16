@@ -13,7 +13,7 @@ fn child_count(element: &iced::Element<'_, crate::app::Message>) -> usize {
 #[test]
 fn usage_data_counts_tool_messages_separately() {
     let (mut app, _task) = App::new();
-    app.chat = vec![
+    app.chat_view.chat = vec![
         ChatMessage {
             role: ChatRole::User,
             content: "user".to_string(),
@@ -56,7 +56,7 @@ fn usage_data_counts_tool_messages_separately() {
 #[test]
 fn usage_view_constructs_from_app_state() {
     let (mut app, _task) = App::new();
-    app.chat = vec![ChatMessage {
+    app.chat_view.chat = vec![ChatMessage {
         role: ChatRole::User,
         content: "统计一下".to_string(),
         model: None,
@@ -72,9 +72,9 @@ fn usage_view_constructs_from_app_state() {
 #[test]
 fn usage_data_exposes_active_steps_and_raw_calls() {
     let (mut app, _task) = App::new();
-    app.active_session_id = Some("session-usage".to_string());
-    app.active_session_view_state.calls = vec![json!({"prompt": "system", "messages": []})];
-    app.active_session_view_state.steps = vec![ChatSessionStep {
+    app.session_state.active_session_id = Some("session-usage".to_string());
+    app.chat_view.active_session_view_state.calls = vec![json!({"prompt": "system", "messages": []})];
+    app.chat_view.active_session_view_state.steps = vec![ChatSessionStep {
         index: 1,
         turn_id: None,
         started_ms: 10,

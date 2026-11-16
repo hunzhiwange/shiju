@@ -161,7 +161,7 @@ pub(super) fn selected_context_card(app: &App) -> Option<Element<'_, Message>> {
         .find(|id| id.contains("--skillset--"))
         .map(|id| Message::Chat(message::ChatMessage::SessionSkillSelected(id)));
     Some(desktop_chat_input::input_panel::panel::selected_context_card(
-        crate::app::i18n::I18n::new(app.desktop_locale), summary,
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale), summary,
         Message::View(message::ViewMessage::ToggleSessionToolSelectorPopover), cancel,
     ))
 }
@@ -186,7 +186,7 @@ pub(super) fn selected_context_summary(app: &App) -> Option<String> {
         .iter()
         .map(|tool_id| {
             crate::app::i18n::other::tool_name(
-                crate::app::i18n::I18n::new(app.desktop_locale),
+                crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
                 tool_id,
             )
         })
@@ -196,7 +196,7 @@ pub(super) fn selected_context_summary(app: &App) -> Option<String> {
 
     let shiju_names = selected_shiju_skills.iter().map(|selection| selection.display_name().to_string()).collect::<Vec<_>>();
     desktop_chat_input::input_panel::panel::selected_context_summary(
-        crate::app::i18n::I18n::new(app.desktop_locale), &tool_names, &skill_names, &shiju_names,
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale), &tool_names, &skill_names, &shiju_names,
     )
 }
 
@@ -211,11 +211,11 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let is_requesting = runtime.map(|r| r.request_lifecycle.is_requesting).unwrap_or(false);
     let submit_anim = runtime.map(|r| r.request_lifecycle.submit_anim).unwrap_or(0);
     let queue = runtime.map(|r| r.request_lifecycle.queue.clone()).unwrap_or_default();
-    let auto_model = runtime.map(|r| r.auto_model).unwrap_or(app.auto_model);
-    let model = runtime.map(|r| r.model.clone()).unwrap_or_else(|| app.model.clone());
-    let input_editor = runtime.map(|r| &r.input_editor).unwrap_or(&app.input_editor);
+    let auto_model = runtime.map(|r| r.auto_model).unwrap_or(app.session_state.auto_model);
+    let model = runtime.map(|r| r.model.clone()).unwrap_or_else(|| app.session_state.model.clone());
+    let input_editor = runtime.map(|r| &r.input_editor).unwrap_or(&app.session_state.input_editor);
     let selected_acp_agent = runtime.and_then(|r| r.acp_agent.clone());
-    let reasoning_effort = runtime.map(|r| r.reasoning_effort).unwrap_or(app.reasoning_effort);
+    let reasoning_effort = runtime.map(|r| r.reasoning_effort).unwrap_or(app.session_state.reasoning_effort);
     let full_access_enabled = app.current_session_full_access();
     let workflow_mode_enabled = runtime.map(|r| r.workflow_mode_enabled).unwrap_or(false);
 
@@ -269,14 +269,14 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         .into();
     let (agent_tab_btn, tools_tab_btn, skills_tab_btn) = session_tool_tab_buttons(app);
 
-    let acp_btn = app.active_session_id.as_ref().and_then(|_| acp_options::entry(app, runtime));
+    let acp_btn = app.session_state.active_session_id.as_ref().and_then(|_| acp_options::entry(app, runtime));
     let reasoning_btn = if selected_acp_agent.is_some() {
         None
     } else {
         reasoning_effort_selector(app, None, reasoning_effort)
     };
     let permission_btn = Some(full_access_button(
-        crate::app::i18n::I18n::new(app.desktop_locale),
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         desktop_chat_input::input_panel::send_controls::permission_change_allowed(
             has_permission_context, runtime.is_some_and(|r| r.full_access_saving),
             runtime.is_some_and(|r| r.draft.is_some()), runtime.is_some_and(|r| r.request_lifecycle.is_requesting),
@@ -284,13 +284,13 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         full_access_enabled,
     ));
     let workflow_btn = workflow_mode_button(
-        crate::app::i18n::I18n::new(app.desktop_locale),
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         workflow_mode_enabled,
     );
 
     // ========== 计算按钮启用状态 ==========
     let input_text = input_editor.text().to_string();
-    let enabled = desktop_chat_input::input_panel::send_controls::has_sendable_input(&input_text, !app.files.is_empty());
+    let enabled = desktop_chat_input::input_panel::send_controls::has_sendable_input(&input_text, !app.session_state.files.is_empty());
     let can_send = enabled;
 
     // 构建使用量按钮
@@ -299,7 +299,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     // 构建任务池按钮（仅在任务模式启用时显示）
     let pool_btn = if task_mode_enabled {
         Some(pool_button(
-            crate::app::i18n::I18n::new(app.desktop_locale),
+            crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
             enabled,
             task_mode_enabled,
             input_text.clone(),
@@ -318,7 +318,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
 
     // 如果正在请求中，显示取消按钮
     let cancel = if is_requesting {
-        Some(cancel_button(crate::app::i18n::I18n::new(app.desktop_locale), submit_anim))
+        Some(cancel_button(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), submit_anim))
     } else {
         None
     };
@@ -359,27 +359,27 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let file_mentions = extract_file_mentions(&input_text);
 
     let file_refs: Element<'_, Message> = render_file_references(
-        crate::app::i18n::I18n::new(app.desktop_locale),
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         &file_mentions,
         app.input_suggestions.file_ref_hovered_index,
     );
     let attachment_strip = attachment::attachment_strip(app);
 
     // 读取当前会话的TODO项
-    let todo_items: &[todo_types::Todo] = if app.chat_todo_session_id == app.active_session_id
+    let todo_items: &[todo_types::Todo] = if app.todo_state.chat_todo_session_id == app.session_state.active_session_id
     {
-        app.chat_todo_items.as_slice()
+        app.todo_state.chat_todo_items.as_slice()
     } else {
         &[]
     };
 
     use desktop_chat_input::input_panel::layout::{supplement, Supplement};
-    let supplement = supplement(!todo_items.is_empty(), app.chat_todo_placement == TodoPanelPlacement::InputBottom, !queue.is_empty(), task_mode_enabled);
+    let supplement = supplement(!todo_items.is_empty(), app.todo_state.chat_todo_placement == TodoPanelPlacement::InputBottom, !queue.is_empty(), task_mode_enabled);
     let todo_panel = (supplement == Supplement::Todo).then(|| todo_panel::todo_panel(
         app, todo_items, submit_anim, todo_panel::TodoPanelSurface::InputBottom,
     ));
     let queue_panel = (supplement == Supplement::Queue).then(||
-        queue_panel::queue_panel(crate::app::i18n::I18n::new(app.desktop_locale), queue, is_requesting));
+        queue_panel::queue_panel(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), queue, is_requesting));
     let content = desktop_chat_input::input_panel::layout::Content {
         attachment_strip, file_refs, task_mode_form, input, divider, bottom_bar,
         context_card: selected_context_card(app), todo_panel, queue_panel,
@@ -398,9 +398,9 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     };
 
     let chrome = crate::app::theme_catalog::resolve_chrome_style_from_skin(
-        app.active_theme_skin.as_ref(), &app.app_theme,
+        app.appearance.active_theme_skin.as_ref(), &app.appearance.app_theme,
     );
-    let fit = app.active_theme_skin.as_ref().and_then(|skin|
+    let fit = app.appearance.active_theme_skin.as_ref().and_then(|skin|
         crate::app::theme_catalog::PanelImageFit::parse(skin.chrome.chat_input_image_fit.as_deref())
     ).unwrap_or_default();
     let running_agent_sessions = agent_sessions::cached_running_agent_sessions(app);
@@ -413,7 +413,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
                 || !app.file_tree_interaction.pending_drop_file_paths.is_empty(),
             input_drop_hovered: app.file_tree_interaction.input_drop_hovered,
             chrome,
-            background: app.active_theme_skin.as_ref().and_then(|skin| skin.chat_input_path.as_deref()),
+            background: app.appearance.active_theme_skin.as_ref().and_then(|skin| skin.chat_input_path.as_deref()),
             fit,
             voice: super::voice_chat::local_inline(app),
             agent_sessions: agent_sessions::agent_sessions_entry(app, &running_agent_sessions),

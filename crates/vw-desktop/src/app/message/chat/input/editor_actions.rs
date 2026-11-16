@@ -12,7 +12,7 @@ pub(super) fn handle_message_editor_action(
     act: text_editor::Action,
 ) -> Task<Message> {
     desktop_session::message::chat::input::editor_actions::handle_message_editor_action(
-        &mut app.chat_message_editors, idx, act,
+        &mut app.chat_view.chat_message_editors, idx, act,
     );
     Task::none()
 }
@@ -26,7 +26,7 @@ pub(super) fn handle_special_text_editor_action(
     act: text_editor::Action,
 ) -> Task<Message> {
     desktop_session::message::chat::input::editor_actions::handle_special_text_editor_action(
-        &mut app.chat_special_text_editors, msg_idx, text_idx, act,
+        &mut app.chat_view.chat_special_text_editors, msg_idx, text_idx, act,
     );
     Task::none()
 }
@@ -41,7 +41,7 @@ pub(super) fn handle_tool_text_editor_action(
     act: text_editor::Action,
 ) -> Task<Message> {
     desktop_session::message::chat::input::editor_actions::handle_tool_text_editor_action(
-        &mut app.chat_tool_text_editors, msg_idx, tool_idx, text_idx, act,
+        &mut app.chat_view.chat_tool_text_editors, msg_idx, tool_idx, text_idx, act,
     );
     Task::none()
 }
@@ -56,7 +56,7 @@ pub(super) fn handle_markdown_block_editor_action(
     act: text_editor::Action,
 ) -> Task<Message> {
     desktop_session::message::chat::input::editor_actions::handle_markdown_block_editor_action(
-        &mut app.chat_markdown_block_editors, crate::app::components::chat_panel::message_view::markdown_block_key(msg_idx, text_idx, block_idx), act,
+        &mut app.chat_view.chat_markdown_block_editors, crate::app::components::chat_panel::message_view::markdown_block_key(msg_idx, text_idx, block_idx), act,
     );
     Task::none()
 }
@@ -70,7 +70,7 @@ pub(super) fn handle_think_editor_action(
     act: text_editor::Action,
 ) -> Task<Message> {
     desktop_session::message::chat::input::editor_actions::handle_think_editor_action(
-        &mut app.chat_think_editors, msg_idx, think_idx, act,
+        &mut app.chat_view.chat_think_editors, msg_idx, think_idx, act,
     );
     Task::none()
 }

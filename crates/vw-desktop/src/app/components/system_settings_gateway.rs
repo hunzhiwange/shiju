@@ -8,9 +8,9 @@ use desktop_settings_network::system_settings_gateway as domain;
 fn inputs(app: &App) -> domain::View<'_> {
     domain::View {
         gateway_settings: &app.gateway_settings,
-        desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
-        last_copied_code_hash: app.last_copied_code_hash,
+        desktop_locale: app.general_settings.desktop_locale,
+        app_theme: &app.appearance.app_theme,
+        last_copied_code_hash: app.clipboard_state.last_copied_code_hash,
         render_help: super::system_settings_browser::render_help,
     }
 }

@@ -26,7 +26,7 @@ pub(crate) fn reset(app: &mut App, generation: u64) -> Task<Message> {
     }
     let path = super::models::auth_filepath();
     if let Err(error) = desktop_settings_providers::managed_shiju::reset_credentials(&path, &mut app.provider_settings) {
-        return app.show_error_toast(error.display(app.desktop_locale));
+        return app.show_error_toast(error.display(app.general_settings.desktop_locale));
     }
     let Some(account) = app.account.active_account() else {
         return super::tasks::refresh_task();
@@ -36,7 +36,7 @@ pub(crate) fn reset(app: &mut App, generation: u64) -> Task<Message> {
         Ok(credential) => credential,
         Err(_) => {
             return app.show_error_toast(
-                Feedback::owned("识矩登录凭据无效，请重新登录", vec![]).display(app.desktop_locale),
+                Feedback::owned("识矩登录凭据无效，请重新登录", vec![]).display(app.general_settings.desktop_locale),
             );
         }
     };
@@ -69,7 +69,7 @@ pub(crate) fn token_loaded(
     };
     // 网关响应仍需在持久化边界校验，避免错误配置将模型密钥发送给其他服务。
     if let Err(error) = save_token(&super::models::auth_filepath(), &token) {
-        return app.show_error_toast(error.display(app.desktop_locale));
+        return app.show_error_toast(error.display(app.general_settings.desktop_locale));
     }
     Task::perform(
         desktop_settings_providers::managed_shiju::configure(super::models::access(), token),
@@ -89,7 +89,7 @@ pub(crate) fn configured(
         Ok(()) => Task::batch([
             super::tasks::refresh_task(),
             app.show_success_toast(
-                Feedback::owned("识矩模型已自动配置", vec![]).display(app.desktop_locale),
+                Feedback::owned("识矩模型已自动配置", vec![]).display(app.general_settings.desktop_locale),
             ),
         ]),
         Err(_) => retry_task(generation),

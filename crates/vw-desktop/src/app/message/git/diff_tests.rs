@@ -33,7 +33,7 @@ fn preview_rejects_unsupported_file_without_external_io() {
     let _ = update(&mut app, GitMessage::PreviewDiffFile("archive.zip".to_string()));
 
     assert!(app.git.git_diff_file_menu.is_none());
-    assert_eq!(app.error_message.as_deref(), Some("不支持展开该文件：压缩包 文件无法打开"));
+    assert_eq!(app.input_feedback.error_message.as_deref(), Some("不支持展开该文件：压缩包 文件无法打开"));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -70,15 +70,15 @@ async fn preview_and_copy_file_join_project_path_when_available() {
 #[test]
 fn fullscreen_toggles_reset_competing_chat_fullscreen_state() {
     let mut app = test_app();
-    app.chat_panel_fullscreen = true;
-    app.chat_panel_half_fullscreen = true;
+    app.chat_interaction.chat_panel_fullscreen = true;
+    app.chat_interaction.chat_panel_half_fullscreen = true;
 
     let _ = update(&mut app, GitMessage::ToggleFullscreen);
 
     assert!(app.git.git_diff_fullscreen);
     assert!(!app.git.git_diff_half_fullscreen);
-    assert!(!app.chat_panel_fullscreen);
-    assert!(!app.chat_panel_half_fullscreen);
+    assert!(!app.chat_interaction.chat_panel_fullscreen);
+    assert!(!app.chat_interaction.chat_panel_half_fullscreen);
     assert!(app.navigation_panels.show_diff);
     assert!(app.fullscreen_layout_settling);
 }
@@ -101,15 +101,15 @@ fn fullscreen_toggle_exits_without_reopening_diff() {
 fn half_fullscreen_enters_and_exits_while_disabling_fullscreen() {
     let mut app = test_app();
     app.git.git_diff_fullscreen = true;
-    app.chat_panel_fullscreen = true;
-    app.chat_panel_half_fullscreen = true;
+    app.chat_interaction.chat_panel_fullscreen = true;
+    app.chat_interaction.chat_panel_half_fullscreen = true;
 
     let _ = update(&mut app, GitMessage::ToggleHalfFullscreen);
 
     assert!(app.git.git_diff_half_fullscreen);
     assert!(!app.git.git_diff_fullscreen);
-    assert!(!app.chat_panel_fullscreen);
-    assert!(!app.chat_panel_half_fullscreen);
+    assert!(!app.chat_interaction.chat_panel_fullscreen);
+    assert!(!app.chat_interaction.chat_panel_half_fullscreen);
     assert!(app.navigation_panels.show_diff);
     assert!(app.fullscreen_layout_settling);
 

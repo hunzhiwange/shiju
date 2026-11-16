@@ -79,3 +79,19 @@ impl DesktopUpdate {
 pub fn source_patch(source: UpdateSource) -> serde_json::Value {
     serde_json::json!({"app_update_source": source})
 }
+
+impl DesktopUpdate {
+    pub fn restore_preferences(&mut self, cfg: &serde_json::Value) {
+        if !self.selected_by_user
+            && !self.checking
+            && self.background_request.is_none()
+            && !self.saving_skip
+            && !self.busy
+            && self.release.is_none()
+        {
+            let initial_check_started = self.initial_check_started;
+            *self = DesktopUpdate::from_config(&cfg);
+            self.initial_check_started = initial_check_started;
+        }
+    }
+}

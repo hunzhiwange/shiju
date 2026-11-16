@@ -34,7 +34,7 @@ pub fn lsp_overlay(app: &App) -> iced::Element<'_, Message> {
         app.navigation_tabs.preview_tabs.iter().find(|tab| &tab.path == path).map(|tab| &tab.editor.inner)
     });
     desktop_editor::components::preview_panel::lsp_overlay::lsp_overlay(
-        app.navigation_tabs.active_preview_path.as_deref(), app.lsp_overlay_path.as_deref(), editor,
-        &app.lsp_overlay, app.effective_editor_theme_ref(), app.current_font_size, app.current_line_height,
+        app.navigation_tabs.active_preview_path.as_deref(), app.preview_state.lsp_overlay_path.as_deref(), editor,
+        &app.preview_state.lsp_overlay, app.effective_editor_theme_ref(), app.preview_state.current_font_size, app.preview_state.current_line_height,
     ).map(map_lsp_overlay_message)
 }

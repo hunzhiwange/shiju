@@ -60,7 +60,7 @@ impl App {
             result.is_err(), self.gateway_client_settings.save_error.is_some()) {
             SystemSettingsSaveFeedback::GatewaySyncFailed => {
                 let error = Feedback::owned("网关连接已在本机保存，远端同步失败。", vec![]);
-                let toast = self.show_error_toast(error.display(self.desktop_locale));
+                let toast = self.show_error_toast(error.display(self.general_settings.desktop_locale));
                 self.gateway_client_settings.save_error = Some(error);
                 Task::batch([next, toast])
             }

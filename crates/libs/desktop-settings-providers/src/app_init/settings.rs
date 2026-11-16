@@ -1,5 +1,3 @@
-
-
 pub fn build_embedding_routes_settings(
     full_agent_cfg: &config_aggregate::Config,
     gateway_cfg_result: &Result<config_gateway::GatewayConfig, String>,
@@ -22,4 +20,14 @@ pub fn build_embedding_routes_settings(
             .map(desktop_i18n::settings_models::messages::Feedback::gateway),
         save_success: false,
     }
+}
+
+pub fn build_model_routes_settings(
+    full_agent_cfg: &config_aggregate::Config,
+) -> crate::state::ModelRoutesSettingsState {
+    let (routes, save_error) = crate::model_routes::loaded_routes(
+        full_agent_cfg.model_routes.clone(),
+        &full_agent_cfg.query_classification,
+    );
+    crate::state::ModelRoutesSettingsState { persistence: Default::default(), routes, save_error }
 }

@@ -12,7 +12,7 @@ fn mini_companion_settings_selection_updates_preview_and_window() {
     for avatar in [TaskPetAvatarKind::Robot, TaskPetAvatarKind::Beauty, TaskPetAvatarKind::Handsome]
     {
         let _ = view::update(&mut app, view::ViewMessage::TaskPetAvatarSelected(avatar));
-        assert_eq!(app.task_pet_avatar_kind, avatar);
+        assert_eq!(app.pet_state.task_pet_avatar_kind, avatar);
         std::hint::black_box(content(&app));
     }
 }
@@ -46,18 +46,18 @@ fn mini_companion_settings_search_reaches_page() {
             &mut app,
             settings::SettingsMessage::SystemSearchTargetSelected(entry.target),
         );
-        assert_eq!(app.general_settings_tab, GeneralSettingsTab::Companion);
+        assert_eq!(app.general_settings.general_settings_tab, GeneralSettingsTab::Companion);
     }
     let _ = view::update(&mut app, view::ViewMessage::TaskPetOpenSettings);
     assert!(app.navigation_panels.show_system_settings);
-    assert_eq!(app.general_settings_tab, GeneralSettingsTab::Companion);
+    assert_eq!(app.general_settings.general_settings_tab, GeneralSettingsTab::Companion);
 }
 
 #[path = "../../../../libs/desktop-settings-appearance/src/companion_test_support.rs"]
 mod rendering;
 use rendering::Scene;
 async fn scene(app: &App, width: f32, click: Option<&str>) -> (Scene, Vec<crate::app::Message>) {
-    rendering::scene(content(app), preview_id(app.task_pet_avatar_kind), width, click).await
+    rendering::scene(content(app), preview_id(app.pet_state.task_pet_avatar_kind), width, click).await
 }
 
 #[tokio::test]
@@ -74,7 +74,7 @@ async fn mini_companion_selection_events_preserve_window() {
                 let _ = view::update(&mut app, message);
             }
         }
-        assert_eq!(app.task_pet_avatar_kind, avatar);
+        assert_eq!(app.pet_state.task_pet_avatar_kind, avatar);
         assert!(app.companion_navigation.task_pet_visible);
         assert_eq!(app.task_pet_window_id, Some(id));
     }

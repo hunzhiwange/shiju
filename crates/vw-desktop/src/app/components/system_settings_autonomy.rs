@@ -25,7 +25,7 @@ fn map(message: Local) -> Message { match message {
         Local::AutonomyWorkspaceOnlyToggled(a) => Message::Settings(SettingsMessage::AutonomyWorkspaceOnlyToggled(a)),
 Local::None => Message::None, Local::CopyCode(value) => Message::CopyCode(value),
 }}
-fn inputs(app: &App) -> View<'_> { View {autonomy_settings: &app.autonomy_settings, available_tools: &app.agents_settings.available_tools, desktop_locale: app.desktop_locale, app_theme: &app.app_theme, last_copied_code_hash: app.last_copied_code_hash, help_text: |i18n, theme, title, label, body| crate::app::components::system_settings_common::settings_hover_help_label(i18n, theme, title, label, body).map(|m| match m { Message::CopyCode(v) => Local::CopyCode(v), _ => Local::None }), }}
+fn inputs(app: &App) -> View<'_> { View {autonomy_settings: &app.autonomy_settings, available_tools: &app.agents_settings.available_tools, desktop_locale: app.general_settings.desktop_locale, app_theme: &app.appearance.app_theme, last_copied_code_hash: app.clipboard_state.last_copied_code_hash, help_text: |i18n, theme, title, label, body| crate::app::components::system_settings_common::settings_hover_help_label(i18n, theme, title, label, body).map(|m| match m { Message::CopyCode(v) => Local::CopyCode(v), _ => Local::None }), }}
 pub fn view(app: &App) -> Element<'_, Message> { desktop_settings_agents::system_settings_autonomy::view(&inputs(app)).map(map) }
 pub(crate) use desktop_settings_agents::system_settings_autonomy::AUTONOMY_TABS;
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> { desktop_settings_agents::system_settings_autonomy::view_overlays(&inputs(app), dialog, map) }

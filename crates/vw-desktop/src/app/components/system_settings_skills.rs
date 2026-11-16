@@ -77,8 +77,8 @@ fn config_context(app: &App) -> desktop_settings_skills::page::ConfigContext<'_>
     let s = &app.skills_settings;
     desktop_settings_skills::page::ConfigContext {
         help,
-        desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        desktop_locale: app.general_settings.desktop_locale,
+        app_theme: &app.appearance.app_theme,
         directory_provider: s.directory_provider,
         auto_load_project_skills: s.auto_load_project_skills,
         prompt_injection_mode: s.prompt_injection_mode,

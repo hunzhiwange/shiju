@@ -10,7 +10,7 @@ async fn desktop_gettext_area_9_existing_toast_renders_current_locale() {
         "加载失败：%s",
         vec![raw.into()],
     );
-    let toast = app.active_toast.as_ref().unwrap();
+    let toast = app.toast_state.active_toast.as_ref().unwrap();
     let message = toast.localized_message.as_ref().unwrap();
     for (locale, expected) in [
         (DesktopLocale::SimplifiedChinese, "加载失败：用户/%n/%s"),
@@ -27,7 +27,7 @@ async fn desktop_gettext_area_9_notifications_and_errors_retain_semantic_source(
     let raw = "service 中文 %s %n";
     app.push_localized_notification("未找到 MCP 服务器：%s", vec![raw.into()]);
     assert_eq!(
-        app.notifications.last().unwrap().render(I18n::new(DesktopLocale::English)),
+        app.notification_state.notifications.last().unwrap().render(I18n::new(DesktopLocale::English)),
         format!("MCP server not found: {raw}")
     );
     app.set_localized_input_error(
@@ -35,11 +35,11 @@ async fn desktop_gettext_area_9_notifications_and_errors_retain_semantic_source(
         "加载工作区列表失败: %s",
         vec![raw.into()],
     );
-    app.desktop_locale = DesktopLocale::English;
+    app.general_settings.desktop_locale = DesktopLocale::English;
     assert_eq!(
         app.render_input_error(
             super::input::ErrorField::General,
-            app.error_message.as_deref().unwrap()
+            app.input_feedback.error_message.as_deref().unwrap()
         ),
         format!("Failed to load workspaces: {raw}")
     );

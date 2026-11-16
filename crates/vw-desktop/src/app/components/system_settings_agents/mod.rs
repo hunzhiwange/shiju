@@ -110,7 +110,7 @@ pub(super) const AGENT_CONFIG_TABS: &[SettingsTabDescriptor<AgentConfigTab>] = &
 pub(super) fn agent_project_options(app: &App) -> Vec<String> {
     desktop_settings_agents::agents_view::agent_project_options(
         app.navigation_tabs.project_path.as_deref(),
-        &app.recent_projects,
+        &app.workspace_state.recent_projects,
     )
 }
 
@@ -131,7 +131,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let active_tab = app.agents_settings.active_config_tab;
     let tabs = settings_tab_row(AGENT_CONFIG_TABS.iter().map(|descriptor| {
         shared::agent_tab_button(
-            tr(app.desktop_locale, descriptor.label),
+            tr(app.general_settings.desktop_locale, descriptor.label),
             descriptor.tab == active_tab,
             Message::Settings(SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
                 descriptor.tab,
@@ -221,11 +221,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
             })
             .map(|message| {
                 message
-                    .render(crate::app::i18n::I18n::new(app.desktop_locale))
+                    .render(crate::app::i18n::I18n::new(app.general_settings.desktop_locale))
                     .expect("valid agent error template")
             })
             .unwrap_or_else(|| {
-                crate::app::i18n::I18n::new(app.desktop_locale).__(error).to_owned()
+                crate::app::i18n::I18n::new(app.general_settings.desktop_locale).__(error).to_owned()
             });
         page = page.push(settings_error_banner(rendered));
     }
@@ -252,7 +252,7 @@ fn agents_view(app: &App) -> Element<'_, Message> {
     desktop_settings_agents::agents_view::agents_view(desktop_settings_agents::agents_view::Input {
         state: &app.agents_settings,
         catalog: domain::catalog_input(app),
-        theme: &app.app_theme,
+        theme: &app.appearance.app_theme,
     })
     .map(domain::event)
 }

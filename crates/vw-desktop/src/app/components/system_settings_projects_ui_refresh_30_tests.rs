@@ -49,8 +49,8 @@ fn fixture() -> App {
     let mut app = App::new().0;
     app.navigation_tabs.project_path = None;
     app.project_editor.project_edit_path = None;
-    app.recent_projects = vec![PATH.into()];
-    app.recent_projects_edits = vec![NAME.into()];
+    app.workspace_state.recent_projects = vec![PATH.into()];
+    app.workspace_state.recent_projects_edits = vec![NAME.into()];
     app
 }
 
@@ -140,7 +140,7 @@ async fn settings_tabs_peripheral_appearance_project() {
         |scene, app| {
             set_project_draft(app);
             app.project_editor.project_edit_tab = ProjectEditTab::General;
-            let i18n = I18n::new(app.desktop_locale);
+            let i18n = I18n::new(app.general_settings.desktop_locale);
             let tabs =
                 ["基础信息", "启动与工作区", "刷新策略", "调度与保护"].map(|label| i18n.__(label));
             scene.save_preview(app, overlay(app), "project-edit");

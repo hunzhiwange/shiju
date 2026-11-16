@@ -19,14 +19,14 @@ fn emit(action: shared::Action) -> Message {
 }
 pub fn model_toggle_button(app: &App, auto_model: bool, model: &str, expanded: bool) -> Element<'static, Message> {
     let cli_local = app.current_session_runtime_ref().is_some_and(|r| r.acp_agent.is_some() && r.acp_model_source == AcpModelSource::CliLocal);
-    shared::model_toggle_button(crate::app::i18n::I18n::new(app.desktop_locale), &app.model_settings.providers, cli_local, auto_model, model, expanded, emit)
+    shared::model_toggle_button(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), &app.model_settings.providers, cli_local, auto_model, model, expanded, emit)
 }
 pub fn model_popover_content<'a>(app: &'a App, auto_model: bool, model: &str) -> Element<'a, Message> {
     let runtime = app.current_session_runtime();
     let started = app.current_session_has_started();
     let can_select = shared::can_select_model(&super::acp_options::state(app, &runtime), started);
     let input = shared::ModelPopoverInput {
-        settings: &app.model_settings, i18n: crate::app::i18n::I18n::new(app.desktop_locale),
+        settings: &app.model_settings, i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         cli_local: runtime.acp_agent.is_some() && runtime.acp_model_source == AcpModelSource::CliLocal,
         started, can_select, is_acp: runtime.acp_agent.is_some(),
         input_model: runtime.acp_options_state.model_input_draft.as_deref().unwrap_or(model).to_owned(),

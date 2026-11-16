@@ -15,7 +15,7 @@ fn fixture() -> App {
     let mut app = None;
     crate::app::config::with_editor_settings_gateway(|fixture, _, _| app = Some(fixture));
     let mut app = app.expect("isolated settings fixture");
-    app.desktop_locale = DesktopLocale::English;
+    app.general_settings.desktop_locale = DesktopLocale::English;
     rendering::seed_catalog(&mut app.provider_settings);
     app
 }
@@ -27,7 +27,7 @@ async fn help_rollout_05_keeps_credentials_and_validation_outside_help() {
 
     let mut renderer = renderer().await;
     let mut app = fixture();
-    app.app_theme = Theme::Light;
+    app.appearance.app_theme = Theme::Light;
     app.provider_settings.connect_modal = Some(ProviderConnectState {
         provider_id: "fixture-private-id".into(),
         provider_name: "Fixture Private Provider".into(),
@@ -47,7 +47,7 @@ async fn help_rollout_05_keeps_credentials_and_validation_outside_help() {
     let menu_item = |row: f32| {
         Point::new(card_text.x + 24.0, card_text.y + 3.0 + menu_row_height * (row + 0.5))
     };
-    let description = tr(app.desktop_locale, "录入并保存当前 Provider 的 API 密钥。");
+    let description = tr(app.general_settings.desktop_locale, "录入并保存当前 Provider 的 API 密钥。");
     let expected_url =
         format!("https://www.google.com/search?q={}", urlencoding::encode(description));
     for (row, copy) in [(0.0, true), (3.0, false)] {
@@ -88,8 +88,8 @@ async fn help_rollout_05_keeps_credentials_and_validation_outside_help() {
         let _ = app.update(message);
     }
     assert_eq!(
-        app.provider_settings.connect_error.as_ref().unwrap().display(app.desktop_locale),
-        tr(app.desktop_locale, "请输入 API 密钥")
+        app.provider_settings.connect_error.as_ref().unwrap().display(app.general_settings.desktop_locale),
+        tr(app.general_settings.desktop_locale, "请输入 API 密钥")
     );
     assert!(app.provider_settings.connect_modal.is_some());
 
@@ -118,8 +118,8 @@ async fn help_rollout_05_keeps_credentials_and_validation_outside_help() {
             let _ = app.update(message);
         }
         assert_eq!(
-            app.provider_settings.save_error.as_ref().unwrap().display(app.desktop_locale),
-            tr(app.desktop_locale, expected_error)
+            app.provider_settings.save_error.as_ref().unwrap().display(app.general_settings.desktop_locale),
+            tr(app.general_settings.desktop_locale, expected_error)
         );
         assert!(app.provider_settings.custom_provider_modal_open);
     }

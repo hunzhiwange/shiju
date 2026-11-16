@@ -26,11 +26,11 @@ fn persist_result_task_via_gateway(
 pub(super) fn update(app: &mut crate::app::App, message: TaskBoardMessage) -> iced::Task<Message> {
     let mut state = ResultState {
         project_path: &mut app.navigation_tabs.project_path,
-        task_board_tasks: &mut app.task_board_tasks,
-        task_board_executor: &mut app.task_board_executor,
-        task_board_settings: &mut app.task_board_settings,
-        task_board_tasks_pending_persistence: &mut app.task_board_tasks_pending_persistence,
-        task_board_manual_merge_queue: &mut app.task_board_manual_merge_queue,
+        task_board_tasks: &mut app.task_board.task_board_tasks,
+        task_board_executor: &mut app.task_board.task_board_executor,
+        task_board_settings: &mut app.task_board.task_board_settings,
+        task_board_tasks_pending_persistence: &mut app.task_board.task_board_tasks_pending_persistence,
+        task_board_manual_merge_queue: &mut app.task_board.task_board_manual_merge_queue,
         effects: vec![],
     };
     let tasks = taskboard::update::execution_results::update(&mut state, message);
@@ -42,7 +42,7 @@ pub(super) fn update(app: &mut crate::app::App, message: TaskBoardMessage) -> ic
         match effect {
             ResultEffect::SyncLogs(task) => {
                 if let Some(task) = task {
-                    if app.task_board_viewing_logs.as_ref().is_some_and(|viewing| viewing.id == task.id) {
+                    if app.task_board.task_board_viewing_logs.as_ref().is_some_and(|viewing| viewing.id == task.id) {
                         set_viewing_logs(app, Some(task));
                     } else {
                         refresh_task_log_cache(app, &task);

@@ -3,8 +3,8 @@ use crate::app::components::{file_tree, preview_panel};
 use desktop_workspace::views::project::layout::main::{self, MainLayout};
 pub fn main_area(app: &App, spacing: f32, content_pad: f32, chat_pad: f32, radius: f32) -> iced::Element<'_, Message> {
     main::main_area(MainLayout {
-        chat_panel_fullscreen: app.chat_panel_fullscreen,
-        chat_panel_half_fullscreen: app.chat_panel_half_fullscreen,
+        chat_panel_fullscreen: app.chat_interaction.chat_panel_fullscreen,
+        chat_panel_half_fullscreen: app.chat_interaction.chat_panel_half_fullscreen,
         git_diff_fullscreen: app.git.git_diff_fullscreen,
         git_diff_half_fullscreen: app.git.git_diff_half_fullscreen,
         file_manager_width: app.layout_drag.file_manager_width,

@@ -14,7 +14,7 @@ pub(crate) fn collect_local_attachments(
     picked: Vec<String>,
 ) -> (Vec<String>, Vec<ProjectFeedback>) {
     desktop_workspace::project_message::attachments::collect_local_attachments(
-        &app.files,
+        &app.session_state.files,
         app.navigation_tabs.project_path.as_deref(),
         app.multimodal_settings.max_images,
         app.multimodal_settings.max_image_size_mb,
@@ -29,7 +29,7 @@ pub(crate) fn collect_local_attachments(
 pub(crate) fn append_local_attachments(app: &mut App, picked: Vec<String>) {
     let (accepted, errors) = collect_local_attachments(app, picked);
     if !accepted.is_empty() {
-        app.files.extend(accepted);
+        app.session_state.files.extend(accepted);
     }
     if !errors.is_empty() {
         let fallback =
@@ -41,7 +41,7 @@ pub(crate) fn append_local_attachments(app: &mut App, picked: Vec<String>) {
                 .collect(),
         );
         app.push_notification(fallback);
-        app.notifications.last_mut().expect("notification was inserted").localized_message =
+        app.notification_state.notifications.last_mut().expect("notification was inserted").localized_message =
             Some(message);
     }
 }
@@ -123,7 +123,7 @@ pub(crate) use desktop_workspace::project_message::paths::copy_recursively;
 /// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
 pub(crate) fn find_session_project_path(app: &App, session_id: &str) -> Option<String> {
     desktop_workspace::project_message::data::find_session_project_path(
-        &app.project_sessions,
+        &app.workspace_state.project_sessions,
         app.navigation_tabs.project_path.as_deref(),
         session_id,
     )

@@ -160,7 +160,7 @@ async fn file_tree_external_drop_tasks_keep_each_source_and_project_after_switch
     });
     let mut app = App::new().0;
     app.navigation_tabs.project_path = Some(root.clone());
-    app.lsp_disabled = true;
+    app.preview_state.lsp_disabled = true;
     app.file_tree_interaction.file_tree_operation_in_progress = true;
     app.file_tree_interaction.pending_drop_file_paths = vec!["/stale-hover".into()];
     let mut tasks = vec![];
@@ -186,7 +186,7 @@ async fn file_tree_external_drop_tasks_keep_each_source_and_project_after_switch
     let _ = crate::app::message::view::update(&mut app, ViewMessage::HoveredFilesLeft);
     let _ = crate::app::message::view::update(&mut app, ViewMessage::GlobalMouseReleased);
     app.navigation_tabs.project_path = Some("/other-project".into());
-    app.files = vec!["/other-project/keep".into()];
+    app.session_state.files = vec!["/other-project/keep".into()];
     for task in tasks {
         let mut replies = messages(task).await;
         assert_eq!(replies.len(), 1);
@@ -195,8 +195,8 @@ async fn file_tree_external_drop_tasks_keep_each_source_and_project_after_switch
         };
         let _ = super::super::file_tree::handle(&mut app, reply);
     }
-    assert!(app.active_toast.as_ref().unwrap().message.contains("destination exists"));
-    assert_eq!(app.files, vec!["/other-project/keep"]);
+    assert!(app.toast_state.active_toast.as_ref().unwrap().message.contains("destination exists"));
+    assert_eq!(app.session_state.files, vec!["/other-project/keep"]);
     assert_eq!(std::fs::read(&source).unwrap(), [0, 255, 9]);
     assert_eq!(server.join().unwrap().len(), 3);
 }

@@ -17,7 +17,7 @@ fn fixture() -> App {
     let mut app = None;
     crate::app::config::with_editor_settings_gateway(|fixture, _, _| app = Some(fixture));
     let mut app = app.expect("isolated settings fixture");
-    app.desktop_locale = DesktopLocale::English;
+    app.general_settings.desktop_locale = DesktopLocale::English;
     app.model_settings.providers = vec![ProviderModelsSummary {
         id: PROVIDER.into(),
         name: "Fixture 模型供应商 測試供應商".into(),
@@ -159,7 +159,7 @@ async fn ui_refresh_10_layout_and_interaction() {
     let mut renderer = renderer().await;
     let mut app = fixture();
     // At 420 px the English segments need a second line. All original routes remain clickable.
-    app.desktop_locale = DesktopLocale::English;
+    app.general_settings.desktop_locale = DesktopLocale::English;
     for (index, descriptor) in MODEL_TABS.iter().enumerate() {
         let mut scene = Scene::new(view(&app), &mut renderer, Size::new(420, 760));
         let tab = scene.bounds(&[0, index]);
@@ -196,7 +196,7 @@ async fn settings_tabs_core_appearance_models() {
         fixture,
         |scene, app| {
             app.model_settings.active_tab = ModelConfigTab::Models;
-            let locale = app.desktop_locale;
+            let locale = app.general_settings.desktop_locale;
             let labels: Vec<_> = MODEL_TABS.iter().map(|tab| text(locale, tab.label)).collect();
             let content = text(locale, "路由规则");
             assert!(!scene.labels(view(app)).contains(content));

@@ -17,7 +17,7 @@ pub(crate) fn update(app: &mut App, event: EnvironmentMessage) -> Task<Message> 
         event,
         current,
         crate::app::gateway_client(),
-        app.recent_projects.clone(),
+        app.workspace_state.recent_projects.clone(),
         can_add(&crate::app::gateway_client_endpoint()),
         &mut effects,
     )

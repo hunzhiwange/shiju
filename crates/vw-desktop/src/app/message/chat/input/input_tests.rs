@@ -25,14 +25,14 @@ fn input_tests_module_is_wired() {
 #[test]
 fn chat_panel_scroll_schedules_visible_measurement() {
     let (mut app, _) = crate::app::App::new();
-    app.chat = (0..120).map(chat_entry).collect();
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&vec![80.0; app.chat.len()]);
+    app.chat_view.chat = (0..120).map(chat_entry).collect();
+    app.chat_view.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&vec![80.0; app.chat_view.chat.len()]);
 
     let outcome = super::apply_chat_scroll_changed(&mut app, 0.5, 200.0, 240.0);
 
     assert!(outcome.measure_visible_messages);
-    assert_eq!(app.chat_virtualizer.viewport_height_px(), 240.0);
+    assert_eq!(app.chat_view.chat_virtualizer.viewport_height_px(), 240.0);
     assert_eq!(app.visible_chat_message_window(), outcome.visible_range);
     assert!(outcome.visible_range.0 > 0);
-    assert!(outcome.visible_range.1 < app.chat.len());
+    assert!(outcome.visible_range.1 < app.chat_view.chat.len());
 }

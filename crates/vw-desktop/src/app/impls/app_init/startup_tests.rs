@@ -98,7 +98,7 @@ fn native_startup_backfills_once_and_retries_only_failed_reads() {
         let first_request = requests.recv_timeout(timeout).expect("startup makes real HTTP reads");
         // A response is withheld while the main interface lays out and handles local input.
         assert!(layout_window(&app).bounds().height > 0.0);
-        assert!(app.archived_session_ids.is_empty());
+        assert!(app.session_state.archived_session_ids.is_empty());
         let save = app.update(Message::View(ViewMessage::ToggleGitDiffSummary));
         let _ = app.update(Message::Settings(SettingsMessage::QuickMessages(
             QuickMessagesMessage::TextChanged(0, "local draft".into()),
@@ -170,20 +170,20 @@ fn native_startup_backfills_once_and_retries_only_failed_reads() {
         assert_eq!(counts.get("/v1/global/config"), Some(&1));
         assert_eq!(counts.get("/v1/session/archived"), Some(&1));
         assert_eq!(counts.get("/v1/tools"), Some(&1));
-        assert!(app.archived_session_ids.contains("archive-1"));
+        assert!(app.session_state.archived_session_ids.contains("archive-1"));
         assert_eq!(app.gateway_settings.port, 19876);
         assert_eq!(app.heartbeat_settings.interval_minutes, 43);
-        assert_eq!(app.acp_agents, ["codex"]);
+        assert_eq!(app.session_state.acp_agents, ["codex"]);
         assert_eq!(app.agents_settings.available_tools, ["file_read"]);
-        assert_eq!(app.app_theme.to_string(), iced::Theme::Dark.to_string());
-        assert_eq!(app.current_font_size, 18.0);
-        assert!((app.current_line_height - 25.2).abs() < 0.001);
-        assert!(app.auto_adjust_line_height);
+        assert_eq!(app.appearance.app_theme.to_string(), iced::Theme::Dark.to_string());
+        assert_eq!(app.preview_state.current_font_size, 18.0);
+        assert!((app.preview_state.current_line_height - 25.2).abs() < 0.001);
+        assert!(app.preview_state.auto_adjust_line_height);
         assert!(matches!(app.terminal.shell, crate::app::Shell::Zsh));
         assert_eq!(app.terminal.font_size, 16.0);
-        assert_eq!(app.quick_messages[0].text, "local draft");
-        assert_eq!(app.project_worktree_enabled.get("/local"), Some(&true));
-        assert_eq!(app.project_worktree_enabled.get("/remote"), Some(&true));
+        assert_eq!(app.general_settings.quick_messages[0].text, "local draft");
+        assert_eq!(app.workspace_state.project_worktree_enabled.get("/local"), Some(&true));
+        assert_eq!(app.workspace_state.project_worktree_enabled.get("/remote"), Some(&true));
 
         let mut actions = into_stream(save).expect("edited preference saves through Iced");
         let driver = runtime.spawn(async move { actions.next().await.unwrap() });
@@ -240,20 +240,20 @@ fn native_startup_backfills_once_and_retries_only_failed_reads() {
             panic!("expected startup snapshot");
         };
         let _ = app.update(message);
-        assert_eq!(app.model, "remote-model");
-        assert_eq!(app.acp_agent.as_deref(), Some("codex"));
-        assert_eq!(app.task_board_last_acp_agent.as_deref(), Some("codex"));
-        assert_eq!(app.acp_history_mode, AcpHistoryReplayMode::Recent);
-        assert_eq!(app.acp_recent_count, 9);
+        assert_eq!(app.session_state.model, "remote-model");
+        assert_eq!(app.session_state.acp_agent.as_deref(), Some("codex"));
+        assert_eq!(app.task_board.task_board_last_acp_agent.as_deref(), Some("codex"));
+        assert_eq!(app.session_state.acp_history_mode, AcpHistoryReplayMode::Recent);
+        assert_eq!(app.session_state.acp_recent_count, 9);
         let runtime_state = app.current_session_runtime();
         assert_eq!(runtime_state.acp_history_mode, AcpHistoryReplayMode::Recent);
         assert_eq!(runtime_state.acp_recent_count, 9);
-        assert_eq!(app.chat_send_behavior, ChatSendBehavior::Guide);
+        assert_eq!(app.session_state.chat_send_behavior, ChatSendBehavior::Guide);
         assert!(app.git.show_git_diff_summary);
         assert!(app.git.show_git_diff_highlight);
         assert_eq!(app.web_navigation.web_bookmarks[0].title, "Remote");
-        assert!(app.task_board_worktree_pixel_office);
-        assert!(!app.task_board_clear_prompt_after_create);
+        assert!(app.task_board.task_board_worktree_pixel_office);
+        assert!(!app.task_board.task_board_clear_prompt_after_create);
         assert_eq!(app.update(healthy()).units(), 0);
         assert!(requests.try_recv().is_err());
     });

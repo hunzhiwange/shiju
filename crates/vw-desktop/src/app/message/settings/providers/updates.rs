@@ -139,7 +139,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         app.account.active_account().is_some(), message,
     );
     let effect = match effect {
-        Some(Effect::Warning(text)) => app.show_warning_toast(text.display(app.desktop_locale)),
+        Some(Effect::Warning(text)) => app.show_warning_toast(text.display(app.general_settings.desktop_locale)),
         #[cfg(not(target_arch = "wasm32"))]
         Some(Effect::SyncAccount) => super::managed_shiju::sync(app),
         #[cfg(target_arch = "wasm32")]

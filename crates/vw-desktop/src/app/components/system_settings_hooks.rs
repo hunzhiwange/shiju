@@ -4,7 +4,7 @@ use iced::Element;
 use desktop_settings_runtime::system_settings_hooks as domain;
 fn inputs(app: &App) -> domain::View<'_> {
  domain::View { hooks_settings: &app.hooks_settings,
- desktop_locale: app.desktop_locale, app_theme: &app.app_theme,
+ desktop_locale: app.general_settings.desktop_locale, app_theme: &app.appearance.app_theme,
 
  render_help: super::system_settings_hooks::render_help,
  }

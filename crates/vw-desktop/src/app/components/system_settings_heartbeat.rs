@@ -11,7 +11,7 @@ fn help_content<'a>(title: &'a str, body: std::borrow::Cow<'a,str>, color: Optio
  })
 }
 fn data(app: &App) -> domain::ViewData<'_> {
- domain::ViewData { heartbeat_settings: &app.heartbeat_settings, desktop_locale: app.desktop_locale, app_theme: &app.app_theme, last_copied_code_hash: app.last_copied_code_hash, help_content }
+ domain::ViewData { heartbeat_settings: &app.heartbeat_settings, desktop_locale: app.general_settings.desktop_locale, app_theme: &app.appearance.app_theme, last_copied_code_hash: app.clipboard_state.last_copied_code_hash, help_content }
 }
 fn map(event: Local) -> Message {
  match event { Local::None => Message::None, Local::CopyCode(v) => Message::CopyCode(v), Local::Settings(event) => Message::Settings(match event { Event::HeartbeatHelpOpen => Global::HeartbeatHelpOpen,

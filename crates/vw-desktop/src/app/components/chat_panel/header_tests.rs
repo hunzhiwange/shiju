@@ -33,8 +33,8 @@ fn return_to_parent_session_pressed_emits_open_parent_when_parent_id_present() {
     let mut child = session("child", "/workspace/main");
     child.parent_id = Some(parent.id.clone());
     app.navigation_tabs.project_path = Some("/workspace/main".to_string());
-    app.active_session_id = Some(parent.id.clone());
-    app.sessions = vec![parent, child];
+    app.session_state.active_session_id = Some(parent.id.clone());
+    app.session_state.sessions = vec![parent, child];
 
     let _open_task = crate::app::message::project::update(
         &mut app,
@@ -43,7 +43,7 @@ fn return_to_parent_session_pressed_emits_open_parent_when_parent_id_present() {
             "child".to_string(),
         ),
     );
-    assert_eq!(app.active_session_id.as_deref(), Some("child"));
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("child"));
 
     match return_to_parent_session_pressed(&app) {
         Some(Message::Project(message::ProjectMessage::OpenProjectSessionPressed(path, id))) => {

@@ -17,30 +17,30 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }).expect("position always produces context text");
             let runtime = app.current_session_runtime_mut();
             chat::append_line(&mut runtime.input_editor, &text);
-            if app.active_session_id.is_none() {
+            if app.session_state.active_session_id.is_none() {
                 let runtime = app.current_session_runtime();
-                app.input_editor = runtime.input_editor;
+                app.session_state.input_editor = runtime.input_editor;
             }
-            app.show_preview_context_menu = false;
+            app.preview_state.show_preview_context_menu = false;
             Task::none()
         }
         ChatMessage::InsertActiveMatch => Task::none(),
         ChatMessage::InsertSelectionRange => Task::none(),
         ChatMessage::InsertSelectionPositions => {
             if let Some((path, start_line, start_col, end_line, end_col)) =
-                app.preview_context_target.clone()
+                app.preview_state.preview_context_target.clone()
             {
                 let s = context_input_text(app.navigation_tabs.project_path.as_deref(), ContextInput::Selection {
                     path: &path, start_line, start_column: start_col, end_line, end_column: end_col,
                 }).expect("selection always produces context text");
                 let runtime = app.current_session_runtime_mut();
                 chat::append_line(&mut runtime.input_editor, &s);
-                if app.active_session_id.is_none() {
+                if app.session_state.active_session_id.is_none() {
                     let runtime = app.current_session_runtime();
-                    app.input_editor = runtime.input_editor;
+                    app.session_state.input_editor = runtime.input_editor;
                 }
             }
-            app.show_preview_context_menu = false;
+            app.preview_state.show_preview_context_menu = false;
             Task::none()
         }
         ChatMessage::InsertSelected => {
@@ -54,23 +54,23 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         ))
                     });
 
-                app.show_preview_context_menu = false;
+                app.preview_state.show_preview_context_menu = false;
 
                 return copy_task
                     .chain(iced::clipboard::read().map(|opt| {
                         Message::Chat(ChatMessage::AppendText(opt.unwrap_or_default()))
                     }));
             }
-            app.show_preview_context_menu = false;
+            app.preview_state.show_preview_context_menu = false;
             Task::none()
         }
         ChatMessage::AppendText(text) => {
             if let Some(text) = context_input_text(None, ContextInput::Append(&text)) {
                 let runtime = app.current_session_runtime_mut();
                 chat::append_line(&mut runtime.input_editor, &text);
-                if app.active_session_id.is_none() {
+                if app.session_state.active_session_id.is_none() {
                     let runtime = app.current_session_runtime();
-                    app.input_editor = runtime.input_editor;
+                    app.session_state.input_editor = runtime.input_editor;
                 }
             }
             Task::none()

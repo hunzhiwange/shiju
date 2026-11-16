@@ -27,7 +27,7 @@ pub(crate) fn update(app: &mut App, event: ManagedMessage) -> Task<Message> {
     let mut effects = Vec::new();
     let task = desktop_settings_workspace::managed::update(
         &mut app.worktree_settings, event, current,
-        app.session_view_cache.navigation_generation, client, &mut effects,
+        app.session_state.session_view_cache.navigation_generation, client, &mut effects,
     );
     super::managed::finish(app, task, effects)
 }

@@ -27,5 +27,5 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
 }
 /// A repository selection must belong to the active gateway, project and host.
 pub(crate) fn sync_inventory(app: &App) -> Option<&SkillReposResponse> {
-    desktop_settings_skills::update::repo_modal::sync_inventory(&app.skills_settings.repositories, &app.apps_catalog.context, app.project_id.as_deref(), &app.apps_catalog.host)
+    desktop_settings_skills::update::repo_modal::sync_inventory(&app.skills_settings.repositories, &app.apps_catalog.context, app.workspace_state.project_id.as_deref(), &app.apps_catalog.host)
 }

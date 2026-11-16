@@ -25,7 +25,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     } else {
         iced::widget::Space::new().into()
     };
-    domain::view(&app.memory_settings, &app.storage_settings, app.desktop_locale, &app.app_theme, routes).map(|event| match event {
+    domain::view(&app.memory_settings, &app.storage_settings, app.general_settings.desktop_locale, &app.appearance.app_theme, routes).map(|event| match event {
         PageMessage::Memory(event) => Message::Settings(SettingsMessage::Memory(event)),
         PageMessage::Storage(event) => Message::Settings(SettingsMessage::Storage(event)),
         PageMessage::External(message) => message,

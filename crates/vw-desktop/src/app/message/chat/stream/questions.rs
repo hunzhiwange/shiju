@@ -138,9 +138,9 @@ fn question_state(
     app: &mut App,
 ) -> desktop_session::message::chat::stream::questions::QuestionState<'_> {
     desktop_session::message::chat::stream::questions::QuestionState {
-        question_modal_request_id: &mut app.question_modal_request_id,
-        question_modal_request: &mut app.question_modal_request,
-        question_modal_answers: &mut app.question_modal_answers,
-        question_modal_custom: &mut app.question_modal_custom,
+        question_modal_request_id: &mut app.session_state.question_modal_request_id,
+        question_modal_request: &mut app.session_state.question_modal_request,
+        question_modal_answers: &mut app.session_state.question_modal_answers,
+        question_modal_custom: &mut app.session_state.question_modal_custom,
     }
 }

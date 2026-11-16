@@ -44,10 +44,10 @@ impl App {
             {
                 return match self.main_window_view_kind() {
                     MainWindowViewKind::StartupTransition => components::startup_transition::view(
-                        crate::app::i18n::I18n::new(self.desktop_locale),
+                        crate::app::i18n::I18n::new(self.general_settings.desktop_locale),
                         &self.startup_state,
                         self.status_animation_frame,
-                        &self.app_theme,
+                        &self.appearance.app_theme,
                     ),
                     MainWindowViewKind::MainInterface => self.view(),
                 };
@@ -151,7 +151,7 @@ impl App {
                 .into()
         };
 
-        let main_view = if self.show_preview_settings
+        let main_view = if self.preview_state.show_preview_settings
             && !self.navigation_panels.show_system_settings
             && matches!(self.navigation_tabs.screen, Screen::Project | Screen::Preview)
         {
@@ -162,7 +162,7 @@ impl App {
 
         // 如果通知面板已展开，则在主视图之上叠加通知组件
         // 通知面板定位在右下角，带有适当的内边距
-        let main_view: Element<'_, Message> = if self.notifications_expanded {
+        let main_view: Element<'_, Message> = if self.notification_state.notifications_expanded {
             iced::widget::stack![
                 main_view,
                 iced::widget::container(components::notification::view(self))
@@ -179,9 +179,9 @@ impl App {
 
         // 如果存在错误消息，则在最顶部显示红色错误横幅
         // 错误横幅包含错误文本和关闭按钮
-        let root_content = if let Some(error) = &self.error_message {
+        let root_content = if let Some(error) = &self.input_feedback.error_message {
             desktop_navigation::view_layout::with_error(
-                main_view, crate::app::i18n::I18n::new(self.desktop_locale),
+                main_view, crate::app::i18n::I18n::new(self.general_settings.desktop_locale),
                 self.render_input_error(crate::app::i18n::input::ErrorField::General, error),
                 Message::CloseError,
             )
@@ -204,7 +204,7 @@ impl App {
                 components::install_cli_modal::view_app_update(self)
             } else {
                 components::install_cli_modal::view_localized(
-                    crate::app::i18n::I18n::new(self.desktop_locale),
+                    crate::app::i18n::I18n::new(self.general_settings.desktop_locale),
                     &self.update_panel.cli_install_modal_title,
                     &self.update_panel.cli_install_modal_message,
                 )
@@ -250,8 +250,8 @@ impl App {
         // 保留固定的 toast 宿主，避免提示显隐改变根树结构并重置页面滚动、焦点等状态。
         let root_content: Element<'_, Message> = {
             // 询问弹窗已预留自己的反馈区，避免浮层遮住固定操作按钮。
-            let toast = if self.question_modal_request.is_some()
-                || self.permission_modal_request.is_some()
+            let toast = if self.session_state.question_modal_request.is_some()
+                || self.session_state.permission_modal_request.is_some()
             {
                 iced::widget::Space::new().into()
             } else {
@@ -260,8 +260,8 @@ impl App {
             // Leave the creation panel's fixed actions below the toast.
             let toast_bottom = if self.navigation_tabs.screen == Screen::TaskBoard
                 && !self.navigation_panels.show_system_settings
-                && self.task_board_create_modal_open
-                && !self.task_board_settings_modal_open
+                && self.task_board.task_board_create_modal_open
+                && !self.task_board.task_board_settings_modal_open
             {
                 98
             } else {
@@ -289,7 +289,7 @@ impl App {
 
         // 自定义主题背景图：置于最底层；无背景时保持原视图。
         if let Some(path) =
-            self.active_theme_skin.as_ref().and_then(|skin| skin.background_path.as_ref())
+            self.appearance.active_theme_skin.as_ref().and_then(|skin| skin.background_path.as_ref())
         {
             use iced::widget::Image;
             use iced::widget::image::Handle as ImageHandle;

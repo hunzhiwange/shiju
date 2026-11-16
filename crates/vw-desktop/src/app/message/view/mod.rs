@@ -45,7 +45,7 @@ pub(crate) fn sync_task_pet_window(app: &mut App) -> Task<Message> {
         (true, None) => {
             let (id, open) = iced::window::open(task_pet_window_settings(
                 app.task_pet_window_size(),
-                app.task_pet_position,
+                app.pet_state.task_pet_position,
             ));
             app.task_pet_window_id = Some(id);
             open.map(|_| Message::None)
@@ -56,7 +56,7 @@ pub(crate) fn sync_task_pet_window(app: &mut App) -> Task<Message> {
 }
 
 fn open_task_pet_session(app: &mut App, session_id: String) -> Task<Message> {
-    if app.active_session_id.as_deref() == Some(session_id.as_str()) {
+    if app.session_state.active_session_id.as_deref() == Some(session_id.as_str()) {
         return Task::none();
     }
 
@@ -670,7 +670,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         app.apps_catalog.external_sessions.cancel_reader();
     }
 
-    if app.task_pet_size_draft.is_some()
+    if app.pet_state.task_pet_size_draft.is_some()
         && matches!(
             &message,
             ViewMessage::TaskPetAvatarSelected(_)
@@ -820,7 +820,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             });
             #[cfg(target_arch = "wasm32")]
             let focus = Task::none();
-            focus.chain(iced::widget::operation::focus(app.input_editor_id.clone()))
+            focus.chain(iced::widget::operation::focus(app.session_state.input_editor_id.clone()))
         }
         ViewMessage::TaskPetContextMenuOpened(x, y) => {
             desktop_navigation::panel::companion::update(&mut app.companion_navigation, desktop_navigation::panel::companion::Message::OpenContext(x, y));
@@ -850,7 +850,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::TaskPetOpenSettings => {
             desktop_navigation::panel::companion::update(&mut app.companion_navigation, desktop_navigation::panel::companion::Message::CloseContext);
-            app.general_settings_tab = crate::app::state::GeneralSettingsTab::Companion;
+            app.general_settings.general_settings_tab = crate::app::state::GeneralSettingsTab::Companion;
             app.navigation_panels.prepare_companion_settings();
             let open = update(
                 app,
@@ -866,15 +866,15 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::TaskPetSizeOpen => {
             if !desktop_task_board::task_pet::window::open_size(
-                &mut app.task_pet_size_draft, &mut app.task_pet_dragging, app.task_pet_scale,
+                &mut app.pet_state.task_pet_size_draft, &mut app.pet_state.task_pet_dragging, app.pet_state.task_pet_scale,
             ) { return Task::none(); }
             update(app, ViewMessage::TaskPetOpenSettings)
         }
         ViewMessage::TaskPetSizePreview(scale) => {
             let previous_size = app.task_pet_window_size();
             match desktop_task_board::task_pet::window::preview_size(
-                &mut app.task_pet_size_draft, app.task_pet_size_pending.is_some(),
-                app.task_pet_avatar_kind, scale,
+                &mut app.pet_state.task_pet_size_draft, app.task_pet_size_pending.is_some(),
+                app.pet_state.task_pet_avatar_kind, scale,
             ) {
                 Ok(true) => app.resize_task_pet_preview(previous_size),
                 Ok(false) => Task::none(),
@@ -885,13 +885,13 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::TaskPetSizeCancel => {
             let previous_size = app.task_pet_window_size();
             if !desktop_task_board::task_pet::window::cancel_size(
-                &mut app.task_pet_size_draft, app.task_pet_size_pending.is_some(),
+                &mut app.pet_state.task_pet_size_draft, app.task_pet_size_pending.is_some(),
             ) { return Task::none(); }
             app.resize_task_pet_preview(previous_size)
         }
         ViewMessage::TaskPetSizeSave => {
             use desktop_task_board::task_pet::window::{size_save, SizeSave};
-            match size_save(app.task_pet_size_draft, app.task_pet_size_pending.is_some(), app.task_pet_scale) {
+            match size_save(app.pet_state.task_pet_size_draft, app.task_pet_size_pending.is_some(), app.pet_state.task_pet_scale) {
                 SizeSave::Idle => Task::none(),
                 SizeSave::Cancel => update(app, ViewMessage::TaskPetSizeCancel),
                 SizeSave::Save(scale) => app.save_task_pet_size(scale),
@@ -900,7 +900,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::TaskPetSizeSaved(scope, result) => {
             if app.task_pet_size_pending.as_ref() == Some(&scope) {
                 app.task_pet_size_pending = None;
-                desktop_task_board::task_pet::window::commit_size(&mut app.task_pet_size_draft, &mut app.task_pet_scale, result.is_ok());
+                desktop_task_board::task_pet::window::commit_size(&mut app.pet_state.task_pet_size_draft, &mut app.pet_state.task_pet_scale, result.is_ok());
             }
             app.desktop_preferences_saved(scope, result)
         }
@@ -909,7 +909,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.save_task_pet_preferences()
         }
         ViewMessage::TaskPetAvatarSelected(avatar) => {
-            app.task_pet_avatar_kind = avatar;
+            app.pet_state.task_pet_avatar_kind = avatar;
             app.save_task_pet_preferences()
         }
         ViewMessage::TaskPetScaleChanged(scale) => match app.set_task_pet_scale(scale) {
@@ -1148,7 +1148,7 @@ fn handle_global_key(
     key: iced::keyboard::Key,
     modifiers: iced::keyboard::Modifiers,
 ) -> Task<Message> {
-    if app.task_pet_size_draft.is_some() {
+    if app.pet_state.task_pet_size_draft.is_some() {
         return if key == iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape) {
             update(app, ViewMessage::TaskPetSizeCancel)
         } else {

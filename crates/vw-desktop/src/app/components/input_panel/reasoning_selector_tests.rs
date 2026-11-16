@@ -12,7 +12,7 @@ use vw_api_chat_identity::ReasoningEffortDto;
 #[test]
 fn acp_session_options_follow_capabilities_ignore_legacy_reasoning_selection() {
     let (mut app, _task) = crate::app::App::new();
-    app.active_session_id = Some("session-a".to_string());
+    app.session_state.active_session_id = Some("session-a".to_string());
     app.get_session_runtime_mut("session-a").acp_agent = Some("codex".to_string());
     let _ = crate::app::message::view::update(
         &mut app,
@@ -25,7 +25,7 @@ fn acp_session_options_follow_capabilities_ignore_legacy_reasoning_selection() {
     );
     assert_eq!(app.get_session_runtime("session-a").reasoning_effort, None);
 
-    app.active_session_id = Some("session-b".to_string());
+    app.session_state.active_session_id = Some("session-b".to_string());
     app.get_session_runtime_mut("session-b").acp_agent = Some("claude".to_string());
     let _ = chat::update(
         &mut app,
@@ -80,8 +80,8 @@ fn model_reasoning_effort_options_follow_configured_capability_and_provider() {
     assert_eq!(model_reasoning_effort_options(&app, "model"), expected);
     assert_eq!(model_reasoning_effort_options(&app, "other/model"), [None]);
     assert_eq!(model_reasoning_effort_options(&app, "auto"), [None]);
-    app.model = "provider/model".into();
-    app.active_session_id = None;
+    app.session_state.model = "provider/model".into();
+    app.session_state.active_session_id = None;
     app.current_session_runtime_mut().model = "provider/model".into();
     assert!(reasoning_effort_selector(&app, None, None).is_some());
     app.model_settings.providers[0].models[0].detail["capabilities"]["reasoning"] = false.into();
@@ -119,7 +119,7 @@ fn acp_session_options_follow_capabilities_before_connection() {
 fn acp_session_options_follow_capabilities_commit_only_acknowledged_values() {
     use vw_api_acp_model::acp_session::*;
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some("options-a".into());
+    app.session_state.active_session_id = Some("options-a".into());
     let options = AcpSessionOptions {
         acp_model_source:
             vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
@@ -163,7 +163,7 @@ fn acp_session_options_follow_capabilities_commit_only_acknowledged_values() {
     assert!(!app.get_session_runtime("options-a").acp_options_state.pending);
     let mut confirmed = options.clone();
     confirmed.options[0].current = "code".into();
-    app.active_session_id = Some("options-b".into());
+    app.session_state.active_session_id = Some("options-b".into());
     let _ = chat::update(
         &mut app,
         message::ChatMessage::AcpOptionsLoaded {
@@ -181,7 +181,7 @@ fn acp_session_options_follow_capabilities_commit_only_acknowledged_values() {
 fn acp_session_options_follow_capabilities_reject_unadvertised_selection() {
     use vw_api_acp_model::acp_session::*;
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some("options-unknown".into());
+    app.session_state.active_session_id = Some("options-unknown".into());
     app.current_session_runtime_mut().acp_agent = Some("codex".into());
     let _ = chat::update(
         &mut app,
@@ -200,13 +200,13 @@ fn acp_session_options_follow_capabilities_reject_unadvertised_selection() {
 #[test]
 fn reasoning_slider_keeps_popover_open_and_resets_to_default() {
     let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some("reasoning-slider".into());
+    app.session_state.active_session_id = Some("reasoning-slider".into());
     app.popover_visibility.reasoning_effort = true;
     for value in [Some(ReasoningEffortDto::Low), Some(ReasoningEffortDto::High), None] {
         let _ = chat::update(&mut app, message::ChatMessage::ReasoningEffortSelected(value));
         assert!(app.popover_visibility.reasoning_effort);
         assert_eq!(app.current_session_runtime().reasoning_effort, value);
-        assert_eq!(app.reasoning_effort, value);
+        assert_eq!(app.session_state.reasoning_effort, value);
     }
     let _ = crate::app::message::view::update(
         &mut app,

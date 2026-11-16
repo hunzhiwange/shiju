@@ -79,7 +79,7 @@ fn model_validation_feedback(
     feedback: crate::app::i18n::workflow::Feedback,
 ) -> Task<Message> {
     let task = app.show_warning_toast(feedback.as_str());
-    app.active_toast.as_mut().expect("inserted validation toast").localized_message =
+    app.toast_state.active_toast.as_mut().expect("inserted validation toast").localized_message =
         Some(feedback.message());
     task
 }

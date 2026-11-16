@@ -59,16 +59,16 @@ fn frame(app: &mut App) -> (crate::app::voice::screen_context::Ticket, screen::O
 fn voice_task_17_local_frame_uses_current_model_history_and_permissions_once() {
     use base64::{Engine as _, engine::general_purpose::STANDARD};
     let mut app = image_app();
-    app.chat.push(StoredMessage {
+    app.chat_view.chat.push(StoredMessage {
         role: ChatRole::User,
         content: "已有问题".into(),
         model: None,
         think_timing: vec![],
         processing_timing: None,
     });
-    app.files = vec!["keep-private.png".into()];
+    app.session_state.files = vec!["keep-private.png".into()];
     app.current_session_runtime_mut().tool_selector.toggle_manual_tool("read");
-    let history = app.chat.clone();
+    let history = app.chat_view.chat.clone();
     let (ticket, owner, png) = frame(&mut app);
     let _ = screen::receive(&mut app, ticket.clone(), owner, Ok(png.clone()), true);
     let request = app.current_session_runtime_ref().unwrap().request_lifecycle.active_agent_request.clone().unwrap();
@@ -84,7 +84,7 @@ fn voice_task_17_local_frame_uses_current_model_history_and_permissions_once() {
     assert!(!request.query.contains("keep-private"));
     assert!(request.query.contains("工具：read"));
     assert_eq!(app.voice.local_conversation.as_ref().unwrap().request, Some(request.id));
-    assert_eq!(app.files, ["keep-private.png"]);
+    assert_eq!(app.session_state.files, ["keep-private.png"]);
     assert_eq!(app.voice.local_conversation.as_ref().unwrap().stage, Stage::WaitingModel);
     assert!(!app.voice.local_conversation.as_ref().unwrap().captions[0].1.contains("base64"));
     let _ = screen::receive(&mut app, ticket, owner, Ok(png), true);
@@ -131,7 +131,7 @@ fn voice_task_17_local_cancel_disable_revoke_end_and_switch_discard_frames() {
             2 => {} // Permission is the OS boundary replaced below, not a fabricated image service.
             3 => super::super::end_conversation(&mut app),
             4 => {
-                app.active_session_id = Some("other-session".into());
+                app.session_state.active_session_id = Some("other-session".into());
                 super::super::invalidate(&mut app);
             }
             5 => {
@@ -143,7 +143,7 @@ fn voice_task_17_local_cancel_disable_revoke_end_and_switch_discard_frames() {
         assert!(!ticket.is_live(), "capture must retire for action {action}");
         assert!(app.current_session_runtime_ref().is_none_or(|r| r.request_lifecycle.active_agent_request.is_none()));
         assert!(app.voice.local_conversation.as_ref().is_none_or(|c| c.captions.is_empty()));
-        assert!(app.files.is_empty());
+        assert!(app.session_state.files.is_empty());
     }
 }
 #[test]

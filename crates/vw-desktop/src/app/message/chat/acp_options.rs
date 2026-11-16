@@ -23,7 +23,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::none()
         }
         ChatMessage::AcpSourceRefresh => {
-            let session_id = app.active_session_id.clone().unwrap_or_else(|| "__empty__".into());
+            let session_id = app.session_state.active_session_id.clone().unwrap_or_else(|| "__empty__".into());
             let directory = super::stream::session_directory_for_save(app, &session_id);
             let runtime = app.get_session_runtime_mut(&session_id);
             let Some((agent, request_id, draft_options)) =
@@ -51,7 +51,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             )
         }
         ChatMessage::AcpSourceLoaded { session_id, request_id, agent, result } => {
-            let Some(runtime) = app.session_runtime_states.get_mut(&session_id) else {
+            let Some(runtime) = app.session_state.session_runtime_states.get_mut(&session_id) else {
                 return Task::none();
             };
             match runtime.apply_acp_source_loaded(request_id, &agent, result) {
@@ -68,7 +68,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             result,
         } => {
             if session_id == "__empty__" && app.navigation_tabs.project_path != project_path {
-                if let Some(runtime) = app.session_runtime_states.get_mut(&session_id)
+                if let Some(runtime) = app.session_state.session_runtime_states.get_mut(&session_id)
                     && runtime.acp_options_state.source_request_id == Some(request_id)
                 {
                     runtime.acp_options_state.source_pending = None;
@@ -77,11 +77,11 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 return Task::none();
             }
             let active = if session_id == "__empty__" {
-                app.active_session_id.is_none()
+                app.session_state.active_session_id.is_none()
             } else {
-                app.active_session_id.as_deref() == Some(&session_id)
+                app.session_state.active_session_id.as_deref() == Some(&session_id)
             };
-            let Some(runtime) = app.session_runtime_states.get_mut(&session_id) else {
+            let Some(runtime) = app.session_state.session_runtime_states.get_mut(&session_id) else {
                 return Task::none();
             };
             if !runtime.acp_options_state.source_save_matches(
@@ -113,7 +113,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::none()
         }
         ChatMessage::AcpOptionsLoaded { session_id, result } => {
-            let Some(runtime) = app.session_runtime_states.get_mut(&session_id) else {
+            let Some(runtime) = app.session_state.session_runtime_states.get_mut(&session_id) else {
                 return Task::none();
             };
             match runtime.acp_options_state.apply_loaded_options(result) {
@@ -123,7 +123,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
 
         ChatMessage::AcpOptionsOpen | ChatMessage::AcpOptionSelected(_) => {
-            let Some(session_id) = app.active_session_id.clone() else {
+            let Some(session_id) = app.session_state.active_session_id.clone() else {
                 return Task::none();
             };
             let directory = super::stream::session_directory_for_save(app, &session_id);
@@ -178,7 +178,7 @@ pub(super) fn select_source(
     source: vw_api_acp_model::acp_model_source::AcpModelSource,
     model: Option<String>,
 ) -> Task<Message> {
-    let session_id = app.active_session_id.clone().unwrap_or_else(|| "__empty__".into());
+    let session_id = app.session_state.active_session_id.clone().unwrap_or_else(|| "__empty__".into());
     let directory = super::stream::session_directory_for_save(app, &session_id);
     let project_path = app.navigation_tabs.project_path.clone();
     let request_id = next_source_request_id();

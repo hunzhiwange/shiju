@@ -299,3 +299,16 @@ pub fn localized_toast_message(source: &str, arguments: Vec<desktop_i18n::format
     let fallback = message.render(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese)).expect("valid toast template");
     (fallback, message)
 }
+
+/// Owned domain state held by the desktop host.
+pub struct State {
+    /// 当前显示的轻量提示
+    pub active_toast: Option<Toast>,
+    /// 下一个轻量提示 ID
+    pub next_toast_id: usize,
+}
+impl State {
+    pub fn new() -> Self {
+        Self { active_toast: None, next_toast_id: 0 }
+    }
+}

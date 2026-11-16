@@ -1,5 +1,7 @@
 //! Dictation and conversation routing. Local audio stays on the client; screen sharing is explicit.
-use super::voice_draft::{Composer, Phase, Scope};
+use super::voice_draft::{Composer, Scope};
+#[cfg(test)]
+use super::voice_draft::Phase;
 use crate::app::{App, Message};
 #[cfg(test)]
 use gateway_endpoint::GatewayEndpoint;

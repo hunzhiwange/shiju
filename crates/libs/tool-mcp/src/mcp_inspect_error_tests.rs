@@ -8,4 +8,3 @@ fn summarize_error_uses_the_outer_context() {
 
     assert_eq!(summarize_error(&error), "failed to inspect server");
 }
-

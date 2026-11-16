@@ -11,3 +11,5 @@ pub enum Outcome<E> { Event(E), Refresh, Error(String), Success(String) }
 pub mod state;
 pub mod event;
 pub mod view;
+
+pub mod update;

@@ -38,3 +38,5 @@ mod desktop_split_30_tests;
 
 #[cfg(test)]
 mod desktop_split_19_tests;
+
+pub mod card_update;

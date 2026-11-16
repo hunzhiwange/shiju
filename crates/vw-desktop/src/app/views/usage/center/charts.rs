@@ -1,13 +1,12 @@
 //! Desktop composition for the usage charts panel.
-pub use desktop_usage::center::charts::{State, Event};
-use desktop_usage::center::charts as domain;
 use crate::app::{App, Message, message::ViewMessage};
-use iced::{Element, Task};
-fn map(event: Event) -> Message { Message::View(ViewMessage::UsageCenter(super::Event::Charts(event))) }
-pub fn update(app: &mut App, event: Event) -> Task<Message> {
-    let current = super::identity(app);
-    let visible = app.screen == crate::app::Screen::Usage;
-    domain::update(&mut app.usage_center.charts, current, visible, app.usage_center.open, app.usage_center.sequence, event).map(map)
+use desktop_usage::center::charts as domain;
+use desktop_usage::center::charts::Event;
+pub use desktop_usage::center::charts::State;
+use iced::Element;
+fn map(event: Event) -> Message {
+    Message::View(ViewMessage::UsageCenter(super::Event::Charts(event)))
 }
-pub fn view(app: &App) -> Element<'_, Message> { domain::view(&app.usage_center.charts).map(map) }
-pub fn load(ticket: u64, scope: super::Identity, query: vw_api_usage::UsageQuery) -> Task<Message> { domain::load(crate::app::config::gateway_client(), ticket, scope, query).map(map) }
+pub fn view(app: &App) -> Element<'_, Message> {
+    domain::view(&app.usage_center.charts).map(map)
+}

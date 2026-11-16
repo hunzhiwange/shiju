@@ -1,6 +1,6 @@
 //! Transport fixtures shared by desktop integration tests.
-use std::{io::{Read, Write}, net::{TcpListener, TcpStream}, time::Duration};
 use gateway_endpoint::GatewayEndpoint;
+use std::{io::{Read, Write}, net::{TcpListener, TcpStream}, time::Duration};
 use vw_gateway_client::GatewayClient;
 pub(in crate::app) fn gateway() -> (TcpListener, GatewayClient) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();

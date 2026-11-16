@@ -233,39 +233,6 @@ fn account_password_edit_validates_redacts_and_ignores_late_results() {
 }
 
 #[test]
-fn late_account_responses_do_not_replace_newer_operation() {
-    let (mut app, _) = App::new();
-    let stale_generation = app.account.begin(AccountOperation::Validating);
-    let current_generation = app.account.begin(AccountOperation::StartingBrowser);
-
-    let stale_verified = VerifiedAccount::from_parts(
-        AccountIdentity::new("", "旧公司", "", "enabled").unwrap(),
-        SecretSkey::new("stale-secret").unwrap(),
-    );
-    let validation_task = update(
-        &mut app,
-        AccountMessage::AccountValidated {
-            generation: stale_generation,
-            origin: AccountOrigin::ManualSkey,
-            result: Ok(stale_verified),
-        },
-    );
-    let poll_task = update(
-        &mut app,
-        AccountMessage::LoginPolled {
-            generation: stale_generation,
-            result: Ok(LoginPoll::Pending),
-        },
-    );
-
-    assert_eq!(validation_task.units(), 0);
-    assert_eq!(poll_task.units(), 0);
-    assert!(app.account.is_current(current_generation));
-    assert!(matches!(app.account.operation, AccountOperation::StartingBrowser));
-    assert!(app.account.active_account().is_none());
-}
-
-#[test]
 fn account_change_invalidates_skill_hub_state() {
     let (mut app, _) = App::new();
     let mut first = AccountRepository::default();

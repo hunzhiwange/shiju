@@ -6,6 +6,7 @@ license = "MIT"
 [lib]
 doctest = false
 [dependencies]
+desktop-provider-apps = { path = "../desktop-provider-apps", version = "0.6.0" }
 provider-resolution = { path = "../provider-resolution", version = "0.6.0" }
 model-types = { path = "../model-types", version = "0.6.0" }
 model-state = { path = "../model-state", version = "0.6.0" }

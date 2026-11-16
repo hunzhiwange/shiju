@@ -38,15 +38,15 @@ const LOAD: &str =
 const SAVE: &str = "PUT /v1/agent-apps/auth/bindings/official-claude?host_id=fixture-mac&service=claude_official HTTP/1.1";
 
 fn prepare(app: &mut App, endpoint: &GatewayEndpoint) {
-    app.show_system_settings = true;
-    app.system_settings_tab = SystemTab::Apps;
+    app.navigation_panels.show_system_settings = true;
+    app.navigation_panels.system_settings_tab = SystemTab::Apps;
     app.apps_catalog.host = HOST.into();
     app.apps_catalog.token = TOKEN.into();
     app.app_providers.scope = Some(Scope {
         context: AgentAppsContext {
             gateway: endpoint.base_url(),
             tenant: endpoint.tenant_scope().clone(),
-            project: app.project_path.clone(),
+            project: app.navigation_tabs.project_path.clone(),
         },
         host: HOST.into(),
         app: AppId::Claude,
@@ -138,7 +138,7 @@ fn binding_case(app: &mut App, endpoint: &GatewayEndpoint, listener: TcpListener
         endpoint.clone(),
     );
     assert_eq!(
-        app.system_settings_tab,
+        app.navigation_panels.system_settings_tab,
         SystemTab::Auth,
         "supplier editor must open the authorization center"
     );
@@ -216,7 +216,7 @@ fn auth6_ui_binding_rejects_invalid_or_stale_input() {
             Event::OpenBinding { provider_id: "stale-provider".into(), provider_generation: 0 },
             endpoint.clone(),
         );
-        assert_eq!(app.system_settings_tab, SystemTab::Apps);
+        assert_eq!(app.navigation_panels.system_settings_tab, SystemTab::Apps);
         assert!(matches!(
             app.active_toast.as_ref().expect("stale supplier must be rejected explicitly").kind,
             ToastKind::Error

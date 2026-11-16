@@ -22,16 +22,16 @@ pub(crate) fn update(app: &mut App, message: ShijuAppsMessage) -> Task<Message> 
     Task::batch(tasks)
 }
 fn open_shiju_apps_tab(app: &mut App) {
-    if !app.open_tabs.iter().any(|tab| tab.id == SHIJU_APPS_TAB_ID) {
-        app.open_tabs.push(AppTab {
+    if !app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == SHIJU_APPS_TAB_ID) {
+        app.navigation_tabs.open_tabs.push(AppTab {
             id: SHIJU_APPS_TAB_ID.to_string(),
             title: crate::app::i18n::I18n::new(app.desktop_locale).__(SHIJU_APPS_TITLE).to_string(),
             screen: Screen::ShijuApps,
             project_path: None,
         });
     }
-    app.active_tab_id = Some(SHIJU_APPS_TAB_ID.to_string());
-    app.screen = Screen::ShijuApps;
+    app.navigation_tabs.active_tab_id = Some(SHIJU_APPS_TAB_ID.to_string());
+    app.navigation_tabs.screen = Screen::ShijuApps;
 }
 
 fn launch(app: &mut App, target: gateway_shiju_app::ShijuAppLaunchDto, generation: u64, installation_id: &str) -> Task<Message> {

@@ -26,10 +26,3 @@ pub(crate) fn monthly_quota(app: &App) -> Option<Element<'_, Message>> {
     desktop_account_ui::view::monthly_quota(&app.account, app.desktop_locale)
         .map(|view| view.map(map))
 }
-#[cfg(test)]
-fn menu(app: &App) -> Element<'_, Message> {
-    desktop_account_ui::view::menu(&app.account, app.desktop_locale).map(map)
-}
-#[cfg(test)]
-#[path = "account_status_ui_refresh_31_tests.rs"]
-mod ui_refresh_31_tests;

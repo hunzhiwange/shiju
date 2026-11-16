@@ -52,3 +52,6 @@ mod desktop_split_17_tests;
 
 #[cfg(test)]
 mod host_module_28_tests;
+
+#[cfg(test)]
+mod host_module_35_tests;

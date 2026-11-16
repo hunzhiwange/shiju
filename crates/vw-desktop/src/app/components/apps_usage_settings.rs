@@ -15,7 +15,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> iced::Task<Message> {
     if let Event::Feedback(success, message) = event { return if success { app.show_success_toast(message) } else { app.show_error_toast(message) }; }
     let endpoint = crate::app::gateway_client_endpoint();
     let scope = apps_usage_cards::scope(app, &endpoint, false);
-    let visible = app.show_system_settings && app.system_settings_tab == SystemTab::Apps;
+    let visible = app.navigation_panels.show_system_settings && app.navigation_panels.system_settings_tab == SystemTab::Apps;
     let selected = match &event {
         Event::Open(app_id, provider_id) => app.app_providers.snapshot.as_ref().is_some_and(|snapshot| snapshot.catalog.rows.iter().any(|row| &row.provider.app_id == app_id && &row.provider.id == provider_id)),
         _ => false,
@@ -23,6 +23,6 @@ pub(crate) fn update(app: &mut App, event: Event) -> iced::Task<Message> {
     domain::update(&mut app.app_providers.usage.settings, scope, visible, selected, endpoint, &app.apps_catalog.token, event).map(map)
 }
 pub(crate) fn overlay<'a>(app: &'a App, base: iced::Element<'a, Message>) -> iced::Element<'a, Message> {
-    let scope = (app.show_system_settings && app.system_settings_tab == SystemTab::Apps).then(|| apps_usage_cards::current_scope(app, false)).flatten();
+    let scope = (app.navigation_panels.show_system_settings && app.navigation_panels.system_settings_tab == SystemTab::Apps).then(|| apps_usage_cards::current_scope(app, false)).flatten();
     domain::overlay(&app.app_providers.usage.settings, scope, base, map)
 }

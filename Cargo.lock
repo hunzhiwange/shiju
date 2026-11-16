@@ -6681,6 +6681,11 @@ dependencies = [
 name = "desktop-account-ui"
 version = "0.6.0"
 dependencies = [
+ "image",
+ "serde_json",
+ "tempfile",
+ "iced_runtime",
+ "desktop-assets",
  "chrono",
  "config-ui",
  "desktop-account",
@@ -7934,6 +7939,7 @@ dependencies = [
  "config-ui",
  "desktop-assets",
  "desktop-i18n",
+ "desktop-provider-apps",
  "desktop-settings-account",
  "desktop-ui-controls",
  "gateway-app-auth",

@@ -411,7 +411,6 @@ pub(crate) mod app_providers;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod apps_usage_cards;
 #[cfg(not(target_arch = "wasm32"))]
-mod apps_usage_details;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod apps_usage_details_tests;
 #[cfg(not(target_arch = "wasm32"))]

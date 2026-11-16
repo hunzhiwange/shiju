@@ -1,15 +1,17 @@
 //! Exercise the account forms through the headless Iced runtime.
 #![cfg(not(target_arch = "wasm32"))]
 
-use super::{App, Element, Message, menu, view};
-use crate::app::account::{
+use crate::message::AccountMessage;
+use crate::state::{AccountOperation, AccountPasswordEditorState, AccountProfileEditorState};
+use crate::view::Message;
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+use desktop_account::{
     AccountIdentity, AccountOrigin, AccountPasswordDraft, AccountProfile, AccountProfileDraft,
     AccountRepository, ManualSkeyInput, SecretSkey, VerifiedAccount,
 };
-use crate::app::account::{AccountPasswordField, LoginChallenge};
-use crate::app::i18n::I18n;
-use crate::app::message::{AccountMessage, SkillHubMessage};
-use crate::app::state::{AccountOperation, AccountPasswordEditorState, AccountProfileEditorState};
+use desktop_account::{AccountPasswordField, LoginChallenge};
+use desktop_i18n::I18n;
+use iced::Element;
 use iced::advanced::{
     clipboard,
     renderer::{Headless, Style},
@@ -17,7 +19,6 @@ use iced::advanced::{
 use iced::keyboard::key::Named;
 use iced::{Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
 fn isolated(test: &str) -> bool {
     const CHILD: &str = "SHIJU_UI_REFRESH_31_CHILD";
@@ -56,7 +57,7 @@ fn isolated(test: &str) -> bool {
 async fn renderer() -> Renderer {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -84,7 +85,6 @@ fn send(
 ) -> Vec<Message> {
     let mut messages = Vec::new();
     ui.update(events, cursor, renderer, &mut clipboard::Null, &mut messages);
-    messages.retain(|message| !matches!(message, Message::None));
     messages
 }
 
@@ -250,9 +250,62 @@ const CURRENT: &str = "MMMM1111";
 const NEW: &str = "NewFixture123";
 const ERROR: &str = "Fixture unavailable / 測試連線失敗";
 
-fn fixture() -> App {
-    assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");
-    App::new().0
+struct Fixture {
+    account: crate::state::AccountState,
+    desktop_locale: DesktopLocale,
+    active_toast: Option<crate::update::Effect>,
+}
+impl Fixture {
+    fn view(&self) -> Element<'_, Message> {
+        let base = iced::widget::column![
+            view(self),
+            crate::view::monthly_quota(&self.account, self.desktop_locale)
+                .unwrap_or_else(|| iced::widget::Space::new().into()),
+        ]
+        .into();
+        match crate::account_details::details(&self.account, self.desktop_locale) {
+            Some(modal) => desktop_ui_controls::system_settings_common::settings_modal_overlay(
+                Some(base),
+                Message::Account(AccountMessage::CloseDetails),
+                modal.map(Message::Account),
+            ),
+            None => base,
+        }
+    }
+}
+fn fixture() -> Fixture {
+    Fixture {
+        account: Default::default(),
+        desktop_locale: DesktopLocale::SimplifiedChinese,
+        active_toast: None,
+    }
+}
+fn view(app: &Fixture) -> Element<'_, Message> {
+    crate::view::view(&app.account, app.desktop_locale)
+}
+fn menu(app: &Fixture) -> Element<'_, Message> {
+    crate::view::menu(&app.account, app.desktop_locale)
+}
+fn update(app: &mut Fixture, event: AccountMessage) -> iced::Task<AccountMessage> {
+    let mut effects = Vec::new();
+    let task = crate::update::update(
+        &mut app.account,
+        event,
+        &crate::update::Services {
+            gateway: Err("fixture offline".into()),
+            store_path: Err("fixture offline".into()),
+        },
+        &mut effects,
+    );
+    app.active_toast = effects.into_iter().find(|effect| {
+        matches!(
+            effect,
+            crate::update::Effect::Validation(_)
+                | crate::update::Effect::Toast(..)
+                | crate::update::Effect::Error(_)
+        )
+    });
+    task
 }
 
 fn repository() -> AccountRepository {
@@ -295,7 +348,7 @@ fn redraw(ui: &mut Ui<'_>, renderer: &mut Renderer, theme: &Theme, size: Size<u3
     capture(ui, renderer, theme, size, name, mouse::Cursor::Unavailable);
 }
 
-fn login_view(app: &App) -> Element<'_, Message> {
+fn login_view(app: &Fixture) -> Element<'_, Message> {
     iced::widget::container(view(app)).align_bottom(iced::Fill).align_right(iced::Fill).into()
 }
 
@@ -494,7 +547,7 @@ async fn ui_refresh_31_login_menu_preserves_account_actions() {
     }
     assert!(matches!(
         click_label(&mut ui, &mut renderer, i18n.__("安装识矩技能")).as_slice(),
-        [Message::SkillHub(SkillHubMessage::OpenInstallGuide)]
+        [Message::OpenInstallGuide]
     ));
 
     let mut hovered = Vec::new();
@@ -585,7 +638,6 @@ async fn ui_refresh_31_preserves_values_and_disabled_states() {
     redraw(&mut ui, &mut renderer, &Theme::Light, size, "login-validating");
     drop(ui);
 
-    use crate::app::message::account::update;
     app.account.replace_repository(repository());
     app.account.details_open = true;
     app.account.profile_editor = AccountProfileEditorState::Loading;
@@ -700,16 +752,17 @@ async fn monthly_quota_renders_ring_and_shows_details_on_hover() {
     if !isolated("monthly_quota_renders_ring_and_shows_details_on_hover") {
         return;
     }
-    use crate::app::state::MonthlyQuotaState;
+    use crate::state::MonthlyQuotaState;
 
     let mut app = fixture();
     app.account.replace_repository(repository());
-    app.account.monthly_quota = MonthlyQuotaState::Ready(gateway_shiju_account::ShijuMonthlyQuotaDto {
-        limit: 1.0,
-        used: 0.991,
-        remaining: Some(0.009),
-        reset_at: 1796054400,
-    });
+    app.account.monthly_quota =
+        MonthlyQuotaState::Ready(gateway_shiju_account::ShijuMonthlyQuotaDto {
+            limit: 1.0,
+            used: 0.991,
+            remaining: Some(0.009),
+            reset_at: 1796054400,
+        });
     let size = Size::new(800, 600);
     let mut renderer = renderer().await;
     for (locale, theme) in
@@ -791,4 +844,37 @@ async fn monthly_quota_renders_ring_and_shows_details_on_hover() {
         );
         assert_eq!(closed[details_region], dismissed[details_region]);
     }
+}
+
+#[test]
+fn late_account_responses_do_not_replace_newer_operation() {
+    let mut app = fixture();
+    let stale_generation = app.account.begin(AccountOperation::Validating);
+    let current_generation = app.account.begin(AccountOperation::StartingBrowser);
+
+    let stale_verified = VerifiedAccount::from_parts(
+        AccountIdentity::new("", "旧公司", "", "enabled").unwrap(),
+        SecretSkey::new("stale-secret").unwrap(),
+    );
+    let validation_task = update(
+        &mut app,
+        AccountMessage::AccountValidated {
+            generation: stale_generation,
+            origin: AccountOrigin::ManualSkey,
+            result: Ok(stale_verified),
+        },
+    );
+    let poll_task = update(
+        &mut app,
+        AccountMessage::LoginPolled {
+            generation: stale_generation,
+            result: Ok(desktop_account::LoginPoll::Pending),
+        },
+    );
+
+    assert_eq!(validation_task.units(), 0);
+    assert_eq!(poll_task.units(), 0);
+    assert!(app.account.is_current(current_generation));
+    assert!(matches!(app.account.operation, AccountOperation::StartingBrowser));
+    assert!(app.account.active_account().is_none());
 }

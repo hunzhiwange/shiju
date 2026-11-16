@@ -64,23 +64,6 @@ fn skills_tab_button(
 ) -> Element<'static, Message> {
     desktop_settings_skills::page::skills_tab_button(label, tab, active_tab).map(page_message)
 }
-#[cfg(test)]
-fn field_row<'a>(
-    app: &App,
-    label: &'static str,
-    description: &'static str,
-    control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
-    crate::app::components::system_settings_common::settings_flexible_row_with_help(
-        I18n::new(app.desktop_locale),
-        &app.app_theme,
-        label,
-        description,
-        330.0,
-        control,
-    )
-    .into()
-}
 pub(super) const SKILLS_TABS: &[SettingsTabDescriptor<SkillsSettingsTab>] = &[
     SettingsTabDescriptor::new(
         SKILLS_TAB_LABELS[0].1,
@@ -222,8 +205,6 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
     updates_view::view(app, dialog)
 }
 
-#[cfg(test)]
-mod browser_tests;
 #[cfg(test)]
 mod help_tests;
 #[cfg(test)]

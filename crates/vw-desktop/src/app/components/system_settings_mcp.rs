@@ -5,11 +5,7 @@ use crate::app::state::McpSettingsTab;
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use desktop_settings_mcp::{page, catalog};
 use iced::{Element, widget::container};
-#[cfg(test)]
-use vw_api_mcp_inspect::McpServerInspectDto;
 use desktop_ui_controls::system_settings_common::settings_modal_overlay;
-#[cfg(test)]
-use config_ui::DesktopLocale;
 fn event(value: page::McpMessage) -> Message {
     Message::Settings(SettingsMessage::Mcp(match value {
         page::McpMessage::TabSelected(v0) => McpMessage::TabSelected(v0),
@@ -128,39 +124,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 }
 
 #[cfg(test)]
-use desktop_settings_mcp::ConfiguredMcpServerRow;
-#[cfg(test)]
 use page::mcp_tab_labels;
-#[cfg(test)]
-fn new_server_panel(app: &App) -> Element<'_, Message> {
-    page::new_server_panel(event, &app.mcp_settings.page, app.desktop_locale, &app.app_theme, help)
-}
-#[cfg(test)]
-fn configured_server_panel<'a>(
-    locale: DesktopLocale,
-    server: ConfiguredMcpServerRow,
-    inspect: Option<&'a McpServerInspectDto>,
-    preview_key: String,
-    preview_expanded: bool,
-    controls_enabled: bool,
-    preview_enabled: bool,
-    previewing: bool,
-) -> Element<'a, Message> {
-    page::configured_server_panel(event, locale, server, inspect, preview_key, preview_expanded, controls_enabled, preview_enabled, previewing)
-}
-#[cfg(test)]
-fn runtime_server_panel(
-    locale: DesktopLocale,
-    server: &McpServerInspectDto,
-    preview_key: String,
-    preview_expanded: bool,
-    controls_enabled: bool,
-    preview_enabled: bool,
-    previewing: bool,
-) -> Element<'_, Message> {
-    page::runtime_server_panel(event, locale, server, preview_key, preview_expanded, controls_enabled, preview_enabled, previewing)
-}
-
 #[cfg(test)]
 #[path = "system_settings_mcp_tests.rs"]
 mod system_settings_mcp_tests;

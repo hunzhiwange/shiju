@@ -2,10 +2,11 @@
 //!
 //! 测试遍历全部技能设置标签，并确认错误横幅跟随当前子页而不是全局常驻。
 
+// 宿主契约：多标签页面组合浏览器与配置页，帮助浮层再组合仓库、安装等弹窗；
+// 错误横幅及 appearance 测试验证 SettingsMessage 经 App::update 的状态投影。
 use super::*;
 use crate::app::{App, Message};
 use iced::Element;
-use iced::advanced::widget::Tree;
 use iced::widget::text;
 
 fn test_app() -> App {
@@ -14,65 +15,6 @@ fn test_app() -> App {
 
 fn keep_element(element: Element<'_, Message>) {
     std::hint::black_box(element);
-}
-
-#[test]
-fn skills_tab_labels_keep_expected_order_and_unique_tabs() {
-    let labels = skills_tab_labels();
-
-    assert_eq!(
-        labels,
-        &[
-            ("技能", SkillsSettingsTab::Skills),
-            ("顺序", SkillsSettingsTab::DiscoveryOrder),
-            ("系统配置", SkillsSettingsTab::SystemConfig),
-        ]
-    );
-    for (_, expected_tab) in labels {
-        assert_eq!(labels.iter().filter(|(_, tab)| tab == expected_tab).count(), 1);
-    }
-}
-
-#[test]
-fn field_row_and_tab_buttons_build_active_and_inactive_states() {
-    keep_element(field_row(&test_app(), "字段", "字段说明", text("字段值")));
-
-    for (label, tab) in skills_tab_labels() {
-        let inactive_tab = if *tab == SkillsSettingsTab::SystemConfig {
-            SkillsSettingsTab::Skills
-        } else {
-            SkillsSettingsTab::SystemConfig
-        };
-        keep_element(skills_tab_button(label, *tab, *tab));
-        keep_element(skills_tab_button(label, *tab, inactive_tab));
-    }
-}
-
-#[test]
-fn system_config_view_builds_default_and_populated_settings() {
-    let app = test_app();
-    keep_element(system_config_view(&app));
-
-    let mut app = test_app();
-    app.skills_settings.auto_load_project_skills = false;
-    app.skills_settings.prompt_injection_mode = SkillsPromptInjectionMode::Full;
-
-    for provider in SkillsDirectoryProvider::ALL {
-        app.skills_settings.directory_provider = provider;
-        keep_element(system_config_view(&app));
-    }
-}
-
-#[test]
-fn system_config_view_keeps_three_config_rows_in_one_panel() {
-    let app = test_app();
-    let element = system_config_view(&app);
-    let tree = Tree::new(element.as_widget());
-
-    assert_eq!(tree.children.len(), 2);
-    // The field rows have controls; separators have no children.
-    let fields = tree.children[1].children.iter().filter(|child| !child.children.is_empty());
-    assert_eq!(fields.count(), 3);
 }
 
 #[test]

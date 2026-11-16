@@ -1,8 +1,9 @@
 //! 验证 MCP 服务器配置、运行状态、预览区、标签与删除确认层。
 //! 非法 JSON、缺失检查结果和各连接状态用于约束解析失败与显示回退。
 
-use super::{ConfiguredMcpServerRow, configured_server_panel, new_server_panel, runtime_server_panel,
-    mcp_tab_labels, view, view_overlays};
+// 宿主契约：view 注入 catalog/bindings/resync/diagnostics/tools 五个跨域面板；
+// 错误横幅、删除浮层优先级及标签消息经 App::update 验证，因此留在宿主。
+use super::{mcp_tab_labels, view, view_overlays};
 use crate::app::Message;
 use crate::app::message::settings::{McpMessage, SettingsMessage};
 use crate::app::state::{McpNewServerTransport, McpSettingsTab};
@@ -36,66 +37,6 @@ fn inspected_server(name: &str, status: McpConnectionStatusDto) -> McpServerInsp
         resource_templates_error: None,
         prompts_error: None,
         error: None,
-    }
-}
-
-#[test]
-fn server_panels_build_configured_runtime_and_new_server_states() {
-    let (mut app, _) = crate::app::App::new();
-    let mut inspect = inspected_server("demo", McpConnectionStatusDto::Connected);
-    inspect.required = true;
-    inspect.tool_count = Some(3);
-    inspect.resource_count = Some(2);
-    inspect.prompt_count = Some(1);
-    inspect.resources = vec![json!({"name":"Resource","uri":"file:///tmp"})];
-    inspect.resource_templates = vec![json!({"uriTemplate":"file:///{path}"})];
-    inspect.prompts = vec![json!({"name":"Prompt","description":"Use it"})];
-
-    let row = ConfiguredMcpServerRow {
-        index: 0,
-        name: "demo".to_string(),
-        transport: "stdio".to_string(),
-        enabled: true,
-        required: true,
-    };
-    let _: iced::Element<'_, Message> = configured_server_panel(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        row.clone(),
-        Some(&inspect),
-        "global:demo".to_string(),
-        true,
-        true,
-        true,
-        false,
-    );
-    let _: iced::Element<'_, Message> = configured_server_panel(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        row,
-        None,
-        "global:demo".to_string(),
-        false,
-        false,
-        false,
-        true,
-    );
-    let _: iced::Element<'_, Message> = runtime_server_panel(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        &inspect,
-        "runtime:demo".to_string(),
-        true,
-        true,
-        true,
-        false,
-    );
-
-    app.mcp_settings.new_server_expanded = false;
-    let _: iced::Element<'_, Message> = view_overlays(&app, iced::widget::text("base").into());
-    app.mcp_settings.new_server_expanded = true;
-    for transport in
-        [McpNewServerTransport::Stdio, McpNewServerTransport::Http, McpNewServerTransport::Sse]
-    {
-        app.mcp_settings.new_server.transport = transport;
-        let _: iced::Element<'_, Message> = new_server_panel(&app);
     }
 }
 

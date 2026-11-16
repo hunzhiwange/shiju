@@ -1,3 +1,4 @@
+// 宿主保留：帮助浮层由本模块实现，依赖 with_settings_help_modal 的 App 主题与关闭消息。
 use super::help::view_overlays;
 use crate::app::{App, Message};
 use iced::{Element, widget::text};

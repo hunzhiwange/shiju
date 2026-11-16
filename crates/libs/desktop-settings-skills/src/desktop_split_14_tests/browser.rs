@@ -4,29 +4,102 @@
 
 // 保留计划任务 819 的既定覆盖面。
 const SOURCE: &str = concat!(
-    include_str!("../../../../../libs/desktop-settings-skills/src/browser.rs"),
-    include_str!("../../../../../libs/desktop-settings-skills/src/browser_discovery.rs"),
-    include_str!("../../../../../libs/desktop-settings-skills/src/browser_widgets.rs"),
-    include_str!("../../../../../libs/desktop-settings-skills/src/browser_detail.rs")
+    include_str!("../browser.rs"),
+    include_str!("../browser_discovery.rs"),
+    include_str!("../browser_widgets.rs"),
+    include_str!("../browser_detail.rs")
 );
 
-use super::browser::DetailActionStyle;
-use super::browser::{
+use crate::browser::DetailActionStyle;
+use crate::browser::{
     catalog_panel_style, detail_action_button, detail_modal_body, detail_source_note,
     discovery_order_text, discovery_order_view, empty_state, header_panel_style, loading_banner,
     refresh_button, scope_button, skill_project_options, status_banner, view as browser_view,
     view_overlays,
 };
-use crate::app::assets::Icon;
-use crate::app::message;
-use crate::app::state::{
+use desktop_assets::assets::Icon;
+
+use crate::types::{
     SkillsCatalogItem, SkillsCatalogKind, SkillsDirectoryScope, SkillsSelectedDetail,
 };
-use crate::app::{App, Message, message::SettingsMessage};
+use crate::{BrowserContext, BrowserState, Event as Message};
+use config_skills::SkillsDirectoryProvider;
 use iced::advanced::widget::Tree;
 
-fn app() -> App {
-    App::new().0
+pub(super) fn help<'a, E>(
+    _: desktop_i18n::I18n,
+    _: Option<&iced::Theme>,
+    _: &'a str,
+    label: iced::widget::Text<'a>,
+    _: std::borrow::Cow<'a, str>,
+) -> iced::widget::Row<'a, E> {
+    iced::widget::row![label]
+}
+#[derive(Default)]
+struct Fixture {
+    project_path: Option<String>,
+    recent_projects: Vec<String>,
+    skills_settings: State,
+    theme: iced::Theme,
+}
+struct State {
+    directory_provider: config_skills::SkillsDirectoryProvider,
+    query: String,
+    directory_scope: SkillsDirectoryScope,
+    loading: bool,
+    catalog: Vec<SkillsCatalogItem>,
+    selected_skill_id: Option<String>,
+    selected_skill_detail: Option<SkillsSelectedDetail>,
+    detail_loading: bool,
+    detail_error: Option<String>,
+    status_message: Option<String>,
+    status_is_error: bool,
+}
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            directory_provider: config_skills::SkillsDirectoryProvider::Vibewindow,
+            query: String::new(),
+            directory_scope: SkillsDirectoryScope::All,
+            loading: false,
+            catalog: vec![],
+            selected_skill_id: None,
+            selected_skill_detail: None,
+            detail_loading: false,
+            detail_error: None,
+            status_message: None,
+            status_is_error: false,
+        }
+    }
+}
+impl Fixture {
+    fn context(&self) -> BrowserContext<'_> {
+        let s = &self.skills_settings;
+        BrowserContext {
+            help: help::<Message>,
+            desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
+            app_theme: &self.theme,
+            project_path: &self.project_path,
+            recent_projects: &self.recent_projects,
+            skills_settings: BrowserState {
+                directory_provider: s.directory_provider,
+                query: &s.query,
+                directory_scope: s.directory_scope,
+                loading: s.loading,
+                catalog: &s.catalog,
+                selected_skill_id: &s.selected_skill_id,
+                selected_skill_detail: &s.selected_skill_detail,
+                detail_loading: s.detail_loading,
+                detail_error: &s.detail_error,
+                status_message: &s.status_message,
+                status_message_translation: &None,
+                status_is_error: s.status_is_error,
+            },
+        }
+    }
+}
+fn app() -> Fixture {
+    Fixture::default()
 }
 
 #[test]
@@ -41,7 +114,7 @@ fn skill_project_options_put_current_first_and_deduplicate_recent_paths() {
     ];
 
     assert_eq!(
-        skill_project_options(&app),
+        skill_project_options(app.context()),
         vec!["/repo/current".to_string(), "/repo/other".to_string(), "/repo/third".to_string(),]
     );
 }
@@ -104,13 +177,13 @@ fn discovery_order_text_distinguishes_project_context() {
     app.skills_settings.directory_provider = SkillsDirectoryProvider::Codex;
 
     assert_eq!(
-        discovery_order_text(&app),
+        discovery_order_text(app.context()),
         "未打开项目时，仅显示 ~/.codex/skills, ~/.agents/skills 与内置技能。"
     );
 
     app.project_path = Some("/workspace/demo".to_string());
     assert_eq!(
-        discovery_order_text(&app),
+        discovery_order_text(app.context()),
         "发现顺序：/workspace/demo/.codex/skills, .agents/skills, skills -> 父级 .codex/skills, .agents/skills, skills -> ~/.codex/skills, ~/.agents/skills"
     );
 }
@@ -119,10 +192,10 @@ fn discovery_order_text_distinguishes_project_context() {
 fn discovery_order_view_builds_for_closed_and_open_project() {
     let mut app = app();
     app.skills_settings.directory_provider = SkillsDirectoryProvider::Claude;
-    let _ = discovery_order_view(&app);
+    let _ = discovery_order_view(app.context());
 
     app.project_path = Some("/workspace/demo".to_string());
-    let _ = discovery_order_view(&app);
+    let _ = discovery_order_view(app.context());
 }
 
 #[test]
@@ -151,7 +224,7 @@ fn browser_widgets_build_for_status_actions_and_common_states() {
         "执行",
         Icon::Plus,
         DetailActionStyle::Primary,
-        Some(Message::Settings(SettingsMessage::SkillsRefresh)),
+        Some(Message::SkillsRefresh),
     );
     let _ = detail_action_button(
         config_ui::DesktopLocale::SimplifiedChinese,
@@ -165,7 +238,7 @@ fn browser_widgets_build_for_status_actions_and_common_states() {
         "次要",
         Icon::ArrowRepeat,
         DetailActionStyle::Secondary,
-        Some(Message::Settings(message::SettingsMessage::SkillsRefresh)),
+        Some(Message::SkillsRefresh),
     );
 }
 
@@ -174,14 +247,14 @@ fn detail_modal_builds_loading_error_empty_and_action_states() {
     let mut app = app();
 
     app.skills_settings.detail_loading = true;
-    let _ = detail_modal_body(&app, false);
+    let _ = detail_modal_body(app.context(), false);
 
     app.skills_settings.detail_loading = false;
     app.skills_settings.detail_error = Some("detail failed".to_string());
-    let _ = detail_modal_body(&app, false);
+    let _ = detail_modal_body(app.context(), false);
 
     app.skills_settings.detail_error = None;
-    let _ = detail_modal_body(&app, false);
+    let _ = detail_modal_body(app.context(), false);
 
     let cases = [
         ("workspace", SkillsCatalogKind::Recommended),
@@ -192,7 +265,7 @@ fn detail_modal_builds_loading_error_empty_and_action_states() {
     ];
     for (source, kind) in cases {
         app.skills_settings.selected_skill_detail = Some(selected_detail(source, kind));
-        let _ = detail_modal_body(&app, true);
+        let _ = detail_modal_body(app.context(), true);
     }
 
     let mut restricted = selected_detail("bundled", SkillsCatalogKind::System);
@@ -202,12 +275,12 @@ fn detail_modal_builds_loading_error_empty_and_action_states() {
     restricted.can_toggle = false;
     restricted.can_delete = false;
     app.skills_settings.selected_skill_detail = Some(restricted);
-    let _ = detail_modal_body(&app, false);
+    let _ = detail_modal_body(app.context(), false);
 
     app.skills_settings.loading = true;
     app.skills_settings.selected_skill_detail =
         Some(selected_detail("workspace", SkillsCatalogKind::Recommended));
-    let _ = detail_modal_body(&app, true);
+    let _ = detail_modal_body(app.context(), true);
 }
 
 #[test]
@@ -219,7 +292,7 @@ fn detail_modal_action_row_matches_supported_actions() {
     detail.can_delete = true;
     app.skills_settings.selected_skill_detail = Some(detail);
 
-    let element = detail_modal_body(&app, true);
+    let element = detail_modal_body(app.context(), true);
     let tree = Tree::new(element.as_widget());
     let action_row = &tree.children[1];
 
@@ -237,26 +310,26 @@ fn detail_modal_keeps_toggle_available_when_install_requires_project() {
     detail.can_delete = false;
     app.skills_settings.selected_skill_detail = Some(detail);
 
-    let closed_project = detail_modal_body(&app, false);
+    let closed_project = detail_modal_body(app.context(), false);
     std::hint::black_box(closed_project);
 
     app.project_path = Some("/workspace/demo".to_string());
-    let open_project = detail_modal_body(&app, true);
+    let open_project = detail_modal_body(app.context(), true);
     std::hint::black_box(open_project);
 }
 
 #[test]
 fn overlays_build_for_base_loading_and_each_detail_source() {
     let mut app = app();
-    let _ = view_overlays(&app, empty_state("base", "content"));
+    let _ = view_overlays(app.context(), empty_state("base", "content"));
 
     app.skills_settings.selected_skill_id = Some("selected".to_string());
-    let _ = view_overlays(&app, empty_state("base", "content"));
+    let _ = view_overlays(app.context(), empty_state("base", "content"));
 
     for source in ["workspace", "ancestor", "global", "bundled", "unknown"] {
         app.skills_settings.selected_skill_detail =
             Some(selected_detail(source, SkillsCatalogKind::Personal));
-        let _ = view_overlays(&app, empty_state("base", "content"));
+        let _ = view_overlays(app.context(), empty_state("base", "content"));
     }
 }
 
@@ -273,24 +346,24 @@ fn browser_view_builds_empty_loading_status_and_grouped_catalog_states() {
         SkillsDirectoryScope::All,
     ] {
         app.skills_settings.directory_scope = scope;
-        let _ = browser_view(&app);
+        let _ = browser_view(app.context());
     }
 
     app.project_path = Some("/workspace/demo".to_string());
     for scope in [SkillsDirectoryScope::Project, SkillsDirectoryScope::Ancestor] {
         app.skills_settings.directory_scope = scope;
-        let _ = browser_view(&app);
+        let _ = browser_view(app.context());
     }
 
     app.skills_settings.directory_scope = SkillsDirectoryScope::All;
     app.skills_settings.loading = true;
-    let _ = browser_view(&app);
+    let _ = browser_view(app.context());
 
     app.skills_settings.loading = false;
     app.skills_settings.status_message = Some("refreshed".to_string());
-    let _ = browser_view(&app);
+    let _ = browser_view(app.context());
     app.skills_settings.status_is_error = true;
-    let _ = browser_view(&app);
+    let _ = browser_view(app.context());
 
     app.skills_settings.status_message = None;
     app.skills_settings.catalog = vec![
@@ -300,10 +373,10 @@ fn browser_view_builds_empty_loading_status_and_grouped_catalog_states() {
         catalog_item("bundled", "bundled"),
     ];
     app.skills_settings.selected_skill_id = Some("global".to_string());
-    let _ = browser_view(&app);
+    let _ = browser_view(app.context());
 
     app.skills_settings.query = "missing".to_string();
-    let _ = browser_view(&app);
+    let _ = browser_view(app.context());
 }
 
 #[test]
@@ -317,10 +390,10 @@ fn browser_view_search_can_match_source_path_and_scope_together() {
     ];
     app.skills_settings.query = "/skills/global".to_string();
 
-    let _ = browser_view(&app);
+    let _ = browser_view(app.context());
 
     app.skills_settings.directory_scope = SkillsDirectoryScope::Global;
-    let _ = browser_view(&app);
+    let _ = browser_view(app.context());
 }
 
 #[test]

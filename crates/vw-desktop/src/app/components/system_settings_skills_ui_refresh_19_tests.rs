@@ -1,3 +1,5 @@
+// 宿主保留：本文件真实整形/渲染 selectable help，验证复制与外链消息、
+// agents 技能策略以及 plugin 审计安装跨页装配；局部构造测试已迁入领域库。
 #![cfg(not(target_arch = "wasm32"))]
 
 use super::*;

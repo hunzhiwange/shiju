@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+tracing = "0.1"
 llm-runtime = { path = "../llm-runtime", version = "0.6.0" }
 tool-catalog = { path = "../tool-catalog", version = "0.6.0" }
 config-tools = { path = "../config-tools", version = "0.6.0" }

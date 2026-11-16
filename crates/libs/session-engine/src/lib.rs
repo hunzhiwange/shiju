@@ -36,5 +36,6 @@ pub mod planning;
 pub mod tool_parsing;
 pub mod prefetch;
 pub mod prompting;
+pub mod runner_protocol;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native_call_collector;

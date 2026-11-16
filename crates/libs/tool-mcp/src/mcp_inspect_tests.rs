@@ -89,13 +89,6 @@ async fn inspect_workspace_rejects_invalid_project_json() {
     assert!(error.to_string().contains("Invalid JSON"));
 }
 
-#[test]
-fn summarize_error_uses_the_outer_context() {
-    let error = anyhow::anyhow!("connection refused").context("failed to inspect server");
-
-    assert_eq!(summarize_error(&error), "failed to inspect server");
-}
-
 #[tokio::test]
 async fn codex_plugin_compat_t58_inspection_preflights_missing_executable() {
     let server = McpServer::Stdio(McpServerStdio::new(

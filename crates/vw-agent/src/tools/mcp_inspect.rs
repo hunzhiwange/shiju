@@ -8,7 +8,5 @@ pub async fn inspect_mcp_servers_from_workspace(workspace_dir: impl AsRef<std::p
 #[cfg(test)]
 use vw_api_mcp_inspect::McpConnectionStatusDto;
 #[cfg(test)]
-use tool_mcp::mcp_inspect::summarize_error;
-#[cfg(test)]
 #[path = "../../../libs/tool-mcp/src/mcp_inspect_tests.rs"]
 mod mcp_inspect_tests;

@@ -215,3 +215,7 @@ async fn inspect_server<H: McpToolHost>(
 pub fn summarize_error(error: &anyhow::Error) -> String {
     error.to_string()
 }
+
+#[cfg(test)]
+#[path = "mcp_inspect_error_tests.rs"]
+mod mcp_inspect_error_tests;

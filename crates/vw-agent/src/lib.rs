@@ -377,6 +377,5 @@ pub use app_provider_services as app_providers;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod app_routing;
 
-mod model_catalog;
 
 pub(crate) mod usage_bridge;

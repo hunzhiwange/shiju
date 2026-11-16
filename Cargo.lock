@@ -22417,7 +22417,6 @@ dependencies = [
  "message-types",
  "mime_guess",
  "minijinja",
- "model-catalog",
  "model-protocol",
  "model-protocols",
  "model-reasoning",

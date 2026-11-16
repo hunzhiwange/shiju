@@ -1,8 +1,9 @@
 //! 流消息投影、工具块合并与终止标识处理。
-use session_ui_types as models;
 use super::tail::StreamTailState;
-use crate::message::chat::request::{QueueItem, ChatSendBehavior};
+use crate::message::chat::request::{ChatSendBehavior, QueueItem};
+use crate::session::agent::SessionRuntimeState;
 use serde::Deserialize;
+use session_ui_types as models;
 
 pub(crate) fn update_think_timing_from_delta(
     message: &mut models::ChatMessage,
@@ -289,7 +290,6 @@ pub fn is_payload_too_large_stream_error(err: &str) -> bool {
         || err.contains("请求内容过大")
 }
 
-
 #[derive(Debug, Clone, Copy)]
 pub struct TerminalTailCalibration {
     pub message_idx: usize,
@@ -298,10 +298,23 @@ pub struct TerminalTailCalibration {
     pub estimated_height: f32,
 }
 
-
-pub fn calibrate_terminal_tail(state: &mut StreamTailState, message: &mut models::ChatMessage, message_idx: usize, think_count: usize, thinking_open: bool, estimated_height: f32, now: u64) -> Option<TerminalTailCalibration> {
+pub fn calibrate_terminal_tail(
+    state: &mut StreamTailState,
+    message: &mut models::ChatMessage,
+    message_idx: usize,
+    think_count: usize,
+    thinking_open: bool,
+    estimated_height: f32,
+    now: u64,
+) -> Option<TerminalTailCalibration> {
     message.think_timing.truncate(think_count);
-    state.calibrate(message_idx, message.content.len(), think_count, thinking_open, estimated_height);
+    state.calibrate(
+        message_idx,
+        message.content.len(),
+        think_count,
+        thinking_open,
+        estimated_height,
+    );
     state.advance_ui_generation();
     update_think_timing_from_delta(message, state, now);
     state.clear_tail();
@@ -315,17 +328,12 @@ pub fn upsert_compaction_status(
     started_text: &str,
     completed_text: &str,
 ) -> usize {
-    let content = if completed {
-        completed_text
-    } else {
-        started_text
-    };
+    let content = if completed { completed_text } else { started_text };
     if completed
         && let Some(idx) = pending_index
         && let Some(message) = chat.get_mut(idx)
         && message.role == models::ChatRole::System
-        && message.content
-            == started_text
+        && message.content == started_text
     {
         message.content = content.to_string();
         return idx;
@@ -345,8 +353,11 @@ pub fn upsert_compaction_status(
     chat.len() - 1
 }
 
-
-pub fn continuation_item(active_request: &crate::message::chat::request::AgentRequest, resume_history: Vec<models::ChatMessage>, now: u64) -> QueueItem {
+pub fn continuation_item(
+    active_request: &crate::message::chat::request::AgentRequest,
+    resume_history: Vec<models::ChatMessage>,
+    now: u64,
+) -> QueueItem {
     QueueItem {
         created_ms: now,
         query: continuation_label_from_history(&resume_history),
@@ -379,20 +390,32 @@ pub fn refreshed_usage(messages: &[message_types::WithParts]) -> models::TokenUs
         if let message_types::Info::Assistant(assistant) = &message.info {
             usage.input_tokens += assistant.tokens.input;
             usage.output_tokens += assistant.tokens.output;
-            usage.cached_tokens += assistant.tokens.cache.read
-                + assistant.tokens.cache.write;
+            usage.cached_tokens += assistant.tokens.cache.read + assistant.tokens.cache.write;
             usage.reasoning_tokens += assistant.tokens.reasoning;
         }
     }
     usage
 }
 
-pub fn stream_delta_flush_interval(active_session_id: Option<&str>, session_id: &str) -> std::time::Duration {
+pub fn stream_delta_flush_interval(
+    active_session_id: Option<&str>,
+    session_id: &str,
+) -> std::time::Duration {
     std::time::Duration::from_millis(if active_session_id == Some(session_id) { 16 } else { 100 })
 }
 
-pub enum DeltaEffect { Immediate(String), Schedule, Buffered }
-pub fn queue_delta(tail: &StreamTailState, pending: &mut String, scheduled: &mut bool, is_active: bool, delta: String) -> DeltaEffect {
+pub enum DeltaEffect {
+    Immediate(String),
+    Schedule,
+    Buffered,
+}
+pub fn queue_delta(
+    tail: &StreamTailState,
+    pending: &mut String,
+    scheduled: &mut bool,
+    is_active: bool,
+    delta: String,
+) -> DeltaEffect {
     if is_active && tail.message_idx().is_none() {
         *scheduled = false;
         let mut immediate = std::mem::take(pending);
@@ -400,23 +423,332 @@ pub fn queue_delta(tail: &StreamTailState, pending: &mut String, scheduled: &mut
         return DeltaEffect::Immediate(immediate);
     }
     pending.push_str(&delta);
-    if *scheduled { DeltaEffect::Buffered } else { *scheduled = true; DeltaEffect::Schedule }
+    if *scheduled {
+        DeltaEffect::Buffered
+    } else {
+        *scheduled = true;
+        DeltaEffect::Schedule
+    }
 }
-pub fn settle_compaction(chat: &mut [models::ChatMessage], pending_index: &mut Option<usize>, started_text: &str, content: &str) -> Option<usize> {
+pub fn settle_compaction(
+    chat: &mut [models::ChatMessage],
+    pending_index: &mut Option<usize>,
+    started_text: &str,
+    content: &str,
+) -> Option<usize> {
     let index = pending_index.take()?;
     let message = chat.get_mut(index)?;
-    if message.role != models::ChatRole::System || message.content != started_text { return None; }
+    if message.role != models::ChatRole::System || message.content != started_text {
+        return None;
+    }
     message.content = content.into();
     Some(index)
 }
-pub fn append_system_notice(chat: &mut Vec<models::ChatMessage>, ids: &mut Vec<Option<String>>, content: String) -> usize {
+pub fn append_system_notice(
+    chat: &mut Vec<models::ChatMessage>,
+    ids: &mut Vec<Option<String>>,
+    content: String,
+) -> usize {
     ids.resize(chat.len(), None);
     let index = chat.len();
-    chat.push(models::ChatMessage { role: models::ChatRole::System, content, model: None, think_timing: Vec::new(), processing_timing: None });
+    chat.push(models::ChatMessage {
+        role: models::ChatRole::System,
+        content,
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    });
     ids.push(None);
     index
 }
 pub fn instruction_read_tool_blocks(paths: Vec<String>) -> Vec<String> {
     let mut seen = std::collections::HashSet::new();
-    paths.into_iter().filter(|path| !path.trim().is_empty()).filter(|path| seen.insert(path.clone())).map(|path| instruction_read_tool_block(&path)).collect()
+    paths
+        .into_iter()
+        .filter(|path| !path.trim().is_empty())
+        .filter(|path| seen.insert(path.clone()))
+        .map(|path| instruction_read_tool_block(&path))
+        .collect()
+}
+
+/// Buffer ownership and flush transitions belong to the session, independent of UI scheduling.
+pub fn queue_runtime_delta<R>(
+    runtime: &mut SessionRuntimeState<R>,
+    active: bool,
+    delta: String,
+) -> DeltaEffect {
+    queue_delta(
+        &runtime.stream_tail_state,
+        &mut runtime.pending_stream_delta,
+        &mut runtime.stream_delta_flush_scheduled,
+        active,
+        delta,
+    )
+}
+pub fn flush_runtime_delta<R>(runtime: &mut SessionRuntimeState<R>) -> String {
+    runtime.stream_delta_flush_scheduled = false;
+    std::mem::take(&mut runtime.pending_stream_delta)
+}
+pub fn apply_tool_blocks(
+    chat: &mut Vec<models::ChatMessage>,
+    ids: &mut Vec<Option<String>>,
+    tail: &mut StreamTailState,
+    blocks: Vec<String>,
+) -> usize {
+    let mut changed = chat.len().saturating_sub(1);
+    for block in blocks {
+        let target = chat
+            .last()
+            .filter(|message| message.role == models::ChatRole::Assistant)
+            .map_or(chat.len(), |_| chat.len().saturating_sub(1));
+        tail.begin_message(target);
+        tail.apply_delta(&block);
+        changed = upsert_workflow_tool_to_tail(chat, ids, block);
+    }
+    changed
+}
+pub fn apply_runtime_compaction<R>(
+    runtime: &mut SessionRuntimeState<R>,
+    chat: &mut Vec<models::ChatMessage>,
+    ids: &mut Vec<Option<String>>,
+    completed: bool,
+    started: &str,
+    finished: &str,
+) -> usize {
+    let pending = runtime.pending_compaction_status_index.take();
+    let index = upsert_compaction_status(chat, ids, completed, pending, started, finished);
+    runtime.pending_compaction_status_index = (!completed).then_some(index);
+    index
+}
+pub fn finish_runtime<R>(runtime: &mut SessionRuntimeState<R>, unseen_success: bool) {
+    runtime.request_lifecycle.is_requesting = false;
+    runtime.has_unseen_success = unseen_success;
+    runtime.request_lifecycle.active_agent_request = None;
+}
+/// A stale error may clear an orphaned busy flag, but cannot finish a newer request.
+pub fn settle_unmatched_error<R>(runtime: &mut SessionRuntimeState<R>) -> bool {
+    if runtime.request_lifecycle.active_agent_request.is_some() {
+        return false;
+    }
+    if runtime.request_lifecycle.is_requesting {
+        runtime.request_lifecycle.is_requesting = false;
+        runtime.has_unseen_success = false;
+    }
+    true
+}
+pub fn yield_tool_round<R>(
+    runtime: &mut SessionRuntimeState<R>,
+    continuation: QueueItem,
+    insert_index: usize,
+) -> QueueItem {
+    finish_runtime(runtime, false);
+    runtime.request_lifecycle.submit_anim = 0;
+    runtime.request_lifecycle.queue.insert(insert_index, continuation);
+    runtime.request_lifecycle.queue.remove(0)
+}
+pub fn start_plan_runtime<R>(runtime: &mut SessionRuntimeState<R>) {
+    runtime.is_plan_run_session = true;
+    runtime.request_lifecycle.is_requesting = true;
+}
+pub fn plan_initial_chat(query: String) -> Vec<models::ChatMessage> {
+    if query.trim().is_empty() {
+        Vec::new()
+    } else {
+        vec![models::ChatMessage {
+            role: models::ChatRole::User,
+            content: query,
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        }]
+    }
+}
+pub fn model_recovery_matches<R>(
+    runtime: &SessionRuntimeState<R>,
+    id: u64,
+    session_id: &str,
+    event: &gateway_chat_stream::GatewayModelRecoveryEvent,
+) -> bool {
+    event.session_id == session_id
+        && !runtime
+            .model_recovery
+            .as_ref()
+            .is_some_and(|(request, previous)| *request == id && previous == event)
+}
+pub fn complete_draft_boundary<R>(
+    runtime: &mut SessionRuntimeState<R>,
+    terminal_index: Option<usize>,
+) {
+    if let (Some(last), Some(draft)) = (terminal_index, runtime.draft.as_mut()) {
+        draft.history_len = last + 1;
+    }
+}
+pub fn bind_terminal_turn(
+    steps: &mut [models::ChatSessionStep],
+    turn_id: Option<&str>,
+    request_started_ms: u64,
+) {
+    if let Some(turn_id) = turn_id {
+        for step in steps.iter_mut().filter(|step| {
+            step.turn_id.is_none()
+                && (request_started_ms == 0 || step.started_ms >= request_started_ms)
+        }) {
+            step.turn_id = Some(turn_id.to_string());
+        }
+    }
+}
+
+/// Terminal settlement inputs are local to one session; host effects run only after settlement.
+pub struct TerminalRequest {
+    pub has_pending_queue: bool,
+    pub request_started_ms: u64,
+    pub resume_history_only: bool,
+    pub generation: u64,
+    pub elapsed: crate::message::chat::processing_timing::ProcessingElapsed,
+}
+pub fn begin_terminal<R>(runtime: &mut SessionRuntimeState<R>) -> TerminalRequest {
+    runtime.stream_save.flush_scheduled = false;
+    let lifecycle = &mut runtime.request_lifecycle;
+    TerminalRequest {
+        has_pending_queue: !lifecycle.queue.is_empty(),
+        request_started_ms: lifecycle.request_started_ms,
+        resume_history_only: lifecycle
+            .active_agent_request
+            .as_ref()
+            .is_some_and(|request| request.resume_history_only),
+        generation: lifecycle.active_agent_request.as_ref().map_or(0, |request| request.id),
+        elapsed: crate::message::chat::processing_timing::pause_runtime_processing_timers(
+            &mut lifecycle.processing_timer,
+            &mut lifecycle.llm_timer,
+        ),
+    }
+}
+pub fn complete_terminal_messages(
+    chat: &mut [models::ChatMessage],
+    terminal: &TerminalRequest,
+    completed_ms: u64,
+) {
+    crate::message::chat::processing_timing::complete_tail_assistant_processing(
+        chat,
+        completed_ms,
+        terminal.elapsed.processing_ms,
+        terminal.elapsed.llm_ms,
+    );
+}
+pub struct AppliedDelta {
+    pub changed_index: usize,
+    pub previous_content_len: Option<usize>,
+    pub boundary_changed: bool,
+}
+pub fn apply_delta(
+    chat: &mut Vec<models::ChatMessage>,
+    ids: &mut Vec<Option<String>>,
+    tail: &mut StreamTailState,
+    delta: String,
+    now: u64,
+) -> AppliedDelta {
+    let previous_content_len = chat
+        .last()
+        .filter(|message| message.role == models::ChatRole::Assistant)
+        .map(|message| message.content.len());
+    let previous_boundary = tail.text_block_boundary();
+    let changed_index = append_stream_delta_to_tail(chat, ids, delta, now, tail);
+    AppliedDelta {
+        changed_index,
+        previous_content_len,
+        boundary_changed: tail.text_block_boundary() != previous_boundary,
+    }
+}
+pub fn tail_target(chat: &[models::ChatMessage]) -> usize {
+    chat.last()
+        .filter(|message| message.role == models::ChatRole::Assistant)
+        .map_or(chat.len(), |_| chat.len().saturating_sub(1))
+}
+
+pub enum CommitHandoff {
+    Unrelated,
+    Warning(&'static str),
+    Commit {
+        title: String,
+        summary: String,
+        action: crate::message::chat::git_handoff::QuickMessageGitCommitAction,
+    },
+}
+pub fn complete_commit_handoff(
+    state: Option<&crate::message::chat::git_handoff::QuickMessageHandoffState>,
+    request_id: u64,
+    session_id: &str,
+    visible_prompt: Option<&str>,
+    current_project: Option<&str>,
+) -> CommitHandoff {
+    use crate::message::chat::git_handoff::QuickMessageHandoffState;
+    let Some(QuickMessageHandoffState::WaitingForGitCommitMessage {
+        request_id: pending,
+        source_session_id,
+        project_path,
+        action,
+    }) = state
+    else {
+        return CommitHandoff::Unrelated;
+    };
+    if *pending != request_id || source_session_id != session_id {
+        return CommitHandoff::Unrelated;
+    }
+    let Some(generated) = visible_prompt.and_then(parse_generated_git_commit_message) else {
+        return CommitHandoff::Warning("AI 未生成有效的提交标题和摘要，未执行提交");
+    };
+    if current_project != Some(project_path.as_str()) {
+        return CommitHandoff::Warning("Git 工作树已切换，未执行提交");
+    }
+    CommitHandoff::Commit {
+        title: generated.title.trim().into(),
+        summary: generated.summary.trim().into(),
+        action: action.clone(),
+    }
+}
+pub fn display_stream_error(error: String) -> String {
+    if is_payload_too_large_stream_error(&error) {
+        "请求内容过大（图片或会话历史超出网关限制），请压缩图片、减少附件数量或开启新会话后重试"
+            .into()
+    } else {
+        error
+    }
+}
+pub struct CompletionEffects {
+    pub notify: bool,
+    pub start_next: bool,
+    pub refresh_message_ids: bool,
+}
+pub fn completion_effects(
+    active: bool,
+    pending_queue: bool,
+    resume_only: bool,
+    draft: bool,
+    handoff: bool,
+    notifications: bool,
+) -> CompletionEffects {
+    CompletionEffects {
+        notify: notifications && !resume_only && !handoff,
+        start_next: !handoff,
+        refresh_message_ids: active && !pending_queue && !resume_only && !draft,
+    }
+}
+
+pub async fn reload_terminal_messages(
+    client: &vw_gateway_client::GatewayClient,
+    session_id: String,
+    directory: &str,
+) -> Result<(String, Vec<message_types::WithParts>, models::TokenUsage), String> {
+    let gateway = gateway_session::GatewaySessionClient::new(client.transport().clone());
+    let messages = gateway
+        .session_messages::<Vec<message_types::WithParts>>(&session_id, Some(directory))
+        .await;
+    let info = gateway.session_get::<session_info::Info>(&session_id, Some(directory)).await;
+    match (messages, info) {
+        (Ok(messages), Ok(_)) => {
+            let usage = refreshed_usage(&messages);
+            Ok((session_id, messages, usage))
+        }
+        (Err(error), _) | (_, Err(error)) => Err(error),
+    }
 }

@@ -47,11 +47,7 @@ pub fn apply_question_request(app: &mut QuestionState<'_>, requests: Vec<questio
         }
     }
 }
-pub fn handle_question_option_toggled(
-    app: &mut QuestionState<'_>,
-    q_idx: usize,
-    label: String,
-) {
+pub fn handle_question_option_toggled(app: &mut QuestionState<'_>, q_idx: usize, label: String) {
     let Some(req) = app.question_modal_request.as_ref() else {
         return;
     };
@@ -69,27 +65,24 @@ pub fn handle_question_option_toggled(
         existing.clear();
         existing.push(label);
     }
-
 }
-pub fn handle_question_custom_changed(
-    app: &mut QuestionState<'_>,
-    q_idx: usize,
-    value: String,
-) {
+pub fn handle_question_custom_changed(app: &mut QuestionState<'_>, q_idx: usize, value: String) {
     let Some(existing) = app.question_modal_custom.get_mut(q_idx) else {
         return;
     };
     *existing = value;
-
 }
-pub fn collect_answers(req: &question_types::Request, selected: &[Vec<String>], custom_answers: &[String]) -> Vec<Vec<String>> {
+pub fn collect_answers(
+    req: &question_types::Request,
+    selected: &[Vec<String>],
+    custom_answers: &[String],
+) -> Vec<Vec<String>> {
     let mut answers: Vec<Vec<String>> = Vec::with_capacity(req.questions.len());
     for i in 0..req.questions.len() {
         let allow_multi = req.questions.get(i).and_then(|q| q.multiple).unwrap_or(false);
         let allow_custom = req.questions.get(i).and_then(|q| q.custom).unwrap_or(false);
         let mut a = selected.get(i).cloned().unwrap_or_default();
-        let custom =
-            custom_answers.get(i).cloned().unwrap_or_default().trim().to_string();
+        let custom = custom_answers.get(i).cloned().unwrap_or_default().trim().to_string();
         if allow_custom && !custom.is_empty() {
             if allow_multi {
                 if !a.contains(&custom) {
@@ -102,9 +95,46 @@ pub fn collect_answers(req: &question_types::Request, selected: &[Vec<String>], 
         answers.push(a);
     }
 
-answers
+    answers
 }
 
 #[cfg(test)]
 #[path = "questions_tests.rs"]
 mod questions_tests;
+
+/// Prepare a reply while keeping invalid forms open for correction.
+pub fn prepare_reply(
+    state: &mut QuestionState<'_>,
+    valid: impl FnOnce(&question_types::Request, &[Vec<String>]) -> bool,
+) -> Result<Option<(String, Vec<Vec<String>>)>, ()> {
+    let Some(id) = state.question_modal_request_id.clone() else {
+        return Ok(None);
+    };
+    let Some(request) = state.question_modal_request.as_ref() else {
+        return Ok(None);
+    };
+    let answers =
+        collect_answers(request, state.question_modal_answers, state.question_modal_custom);
+    if !valid(request, &answers) {
+        return Err(());
+    }
+    clear_question_modal(state);
+    Ok(Some((id, answers)))
+}
+pub fn reject_request(state: &mut QuestionState<'_>) -> Option<String> {
+    let id = state.question_modal_request_id.clone()?;
+    clear_question_modal(state);
+    Some(id)
+}
+pub fn apply_list_result(
+    state: &mut QuestionState<'_>,
+    result: Result<Vec<question_types::Request>, String>,
+) {
+    match result {
+        Ok(requests) => apply_question_request(state, requests),
+        Err(_) => clear_question_modal(state),
+    }
+}
+
+#[cfg(test)]
+mod question_reply_tests;

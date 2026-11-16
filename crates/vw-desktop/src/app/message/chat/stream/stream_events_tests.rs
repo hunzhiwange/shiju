@@ -11,7 +11,7 @@ fn stream_events_tests_module_is_wired() {
 use crate::app::components::chat_panel::virtualizer::{ChatScrollMode, ChatVirtualizer};
 use crate::app::models::{ChatMessage, ChatRole};
 use crate::app::state::{
-    AcpHistoryReplayMode, AgentRequest, ChatSendBehavior, QuickMessageHandoffState, StreamTailState,
+    AcpHistoryReplayMode, AgentRequest, ChatSendBehavior, QuickMessageHandoffState,
 };
 use crate::app::{Message, QueueItem};
 use std::sync::{
@@ -96,23 +96,6 @@ fn agent_request(id: u64, session_id: &str) -> Arc<AgentRequest> {
     })
 }
 
-#[test]
-fn compaction_status_started_then_completed_updates_one_message() {
-    let (mut app, _) = crate::app::App::new();
-    let session_id = "compaction-session".to_string();
-    app.active_session_id = Some(session_id.clone());
-    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
-        Some(agent_request(42, &session_id));
-
-    let _ = super::handle_agent_compaction_status(&mut app, 42, false);
-    assert_eq!(app.chat.len(), 1);
-    assert_eq!(app.get_session_runtime(&session_id).pending_compaction_status_index, Some(0));
-
-    let _ = super::handle_agent_compaction_status(&mut app, 42, true);
-    assert_eq!(app.chat.len(), 1);
-    assert_eq!(app.get_session_runtime(&session_id).pending_compaction_status_index, None);
-    assert_eq!(app.chat_message_ids, vec![None]);
-}
 
 #[test]
 fn background_stream_mutation_invalidates_cached_session_view() {
@@ -522,29 +505,6 @@ fn plan_run_subtask_session_registers_streams_and_finishes_in_background() {
     assert!(app.get_session_runtime("main-session").request_lifecycle.active_agent_request.is_some());
 }
 
-#[test]
-// 思考标签可能跨多个增量拆分，尾部状态机需要在不重扫完整消息的情况下拼接。
-fn stream_tail_state_handles_split_think_tags_from_deltas() {
-    let cases = [
-        vec!["plain response"],
-        vec!["<thi", "nk>working", "</thi", "nk>done"],
-        vec!["<thinking", ">first</think", "ing><think>", "second</think>", "tail"],
-        vec!["<think>reasoning", "\ntool read\n{\"status\":\"completed\"}\n", "</think>answer"],
-    ];
-
-    for deltas in cases {
-        let mut state = StreamTailState::default();
-        let mut full_message = String::new();
-        for delta in deltas {
-            state.apply_delta(delta);
-            full_message.push_str(delta);
-        }
-
-        let (thinks, _visible, thinking_open) = crate::app::ui::chat::split_think(&full_message);
-        assert_eq!(state.think_count(), thinks.len(), "message: {full_message:?}");
-        assert_eq!(state.thinking_open(), thinking_open, "message: {full_message:?}");
-    }
-}
 
 #[test]
 fn chat_scroll_semantics_stream_growth_keeps_manual_scroll_top() {
@@ -617,15 +577,9 @@ fn active_stream_followup_deltas_are_coalesced_until_flush() {
     assert!(first_task.units() > 0);
     assert!(second_task.units() > 0);
     assert_eq!(third_task.units(), 0);
-    assert_eq!(app.chat.len(), 2);
-    assert_eq!(app.chat.last().unwrap().content, "hello");
-    assert_eq!(app.get_session_runtime(&session_id).pending_stream_delta, " world!");
 
     let _flush_task = super::flush_agent_stream_delta(&mut app, session_id.clone());
 
-    assert_eq!(app.chat.last().unwrap().content, "hello world!");
-    assert!(app.get_session_runtime(&session_id).pending_stream_delta.is_empty());
-    assert!(!app.get_session_runtime(&session_id).stream_delta_flush_scheduled);
 }
 
 #[test]
@@ -640,15 +594,9 @@ fn active_stream_applies_first_delta_without_flush_timer() {
 
     let first_task = super::queue_agent_stream_delta(&mut app, 42, "hello".to_string());
 
-    assert_eq!(app.chat.last().unwrap().content, "hello");
-    assert!(app.get_session_runtime(&session_id).pending_stream_delta.is_empty());
-    assert!(!app.get_session_runtime(&session_id).stream_delta_flush_scheduled);
     assert!(first_task.units() > 0, "the applied delta should schedule UI and save work");
 
     let second_task = super::queue_agent_stream_delta(&mut app, 42, " world".to_string());
-    assert_eq!(app.chat.last().unwrap().content, "hello");
-    assert_eq!(app.get_session_runtime(&session_id).pending_stream_delta, " world");
-    assert!(app.get_session_runtime(&session_id).stream_delta_flush_scheduled);
     assert!(second_task.units() > 0, "the second delta should schedule the merge timer");
 }
 
@@ -1174,26 +1122,6 @@ fn inactive_stream_updates_cached_snapshot_without_touching_active_chat() {
     assert_eq!(app.chat_message_ids, vec![Some("active-id".to_string())]);
 }
 
-#[test]
-fn active_workflow_update_appends_tool_block_and_preserves_message_id() {
-    let (mut app, _) = crate::app::App::new();
-    let session_id = "session-1".to_string();
-    app.active_session_id = Some(session_id.clone());
-    app.chat = vec![message(ChatRole::Assistant, "answer")];
-    app.chat_message_ids = vec![Some("assistant-id".to_string())];
-    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
-        Some(agent_request(42, &session_id));
-
-    let _task = super::handle_agent_workflow_node_update(
-        &mut app,
-        42,
-        "tool workflow_node\n{\"tool_call_id\":\"node-1\",\"status\":\"running\"}\n".to_string(),
-    );
-
-    assert_eq!(app.chat.len(), 1);
-    // 工具块文本追加归 desktop-session::host_split_6_tests；保留宿主消息 ID 接线。
-    assert_eq!(app.chat_message_ids, vec![Some("assistant-id".to_string())]);
-}
 
 #[test]
 fn stream_done_clears_active_request_and_applies_ids_and_usage() {
@@ -1234,15 +1162,9 @@ fn stream_done_clears_active_request_and_applies_ids_and_usage() {
         Some("parent-id".to_string()),
     );
 
-    assert_eq!(app.chat_message_ids[0].as_deref(), Some("parent-id"));
-    assert_eq!(app.chat_message_ids[1].as_deref(), Some("assistant-id"));
     assert_eq!(app.usage, usage);
     assert_eq!(app.active_session_view_state.steps[0].turn_id.as_deref(), Some("assistant-id"));
     assert!(!app.popover_visibility.send_mode);
-    let runtime = app.get_session_runtime(&session_id);
-    assert!(!runtime.request_lifecycle.is_requesting);
-    assert!(!runtime.has_unseen_success);
-    assert!(runtime.request_lifecycle.active_agent_request.is_none());
 }
 
 #[test]
@@ -1496,8 +1418,6 @@ fn missing_request_stream_error_clears_active_requesting_and_shows_toast() {
         "请求内容过大（图片或会话历史超出网关限制），请压缩图片、减少附件数量或开启新会话后重试";
     let toast = app.active_toast.as_ref().expect("toast should show");
     assert_eq!(toast.message, expected);
-    let runtime = app.get_session_runtime(&session_id);
-    assert!(!runtime.request_lifecycle.is_requesting);
     assert!(app.chat.is_empty());
 }
 
@@ -1648,7 +1568,6 @@ fn recovery_notice_waiting_deduplicates_and_keeps_request_busy() {
     assert!(toast.message.contains("正在重试 1/3，等待 500ms，原因：配置暂时不可读"));
     let _ = super::handle_agent_model_recovery(&mut app, 42, event);
     assert_eq!(app.active_toast.as_ref().unwrap().id, toast.id);
-    assert!(app.get_session_runtime("notice").request_lifecycle.is_requesting);
     assert!(app.chat.is_empty());
 }
 

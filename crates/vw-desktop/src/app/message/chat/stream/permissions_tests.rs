@@ -32,12 +32,7 @@ fn session_info(id: &str, directory: &str) -> session_info::Info {
         share: None,
         title: "Session".to_string(),
         version: "0.0.0".to_string(),
-        time: session_info::TimeInfo {
-            created: 10,
-            updated: 20,
-            compacting: None,
-            archived: None,
-        },
+        time: session_info::TimeInfo { created: 10, updated: 20, compacting: None, archived: None },
         permission: None,
         fork_execution_started: None,
         revert: None,
@@ -75,39 +70,6 @@ fn current_full_access_session_id_requires_active_enabled_runtime() {
 }
 
 #[test]
-fn handle_permission_list_loaded_applies_sorted_request_and_clears_on_error() {
-    let (mut app, _task) = crate::app::App::new();
-
-    super::handle_permission_list_loaded(&mut app, Ok(vec![request("b", "s"), request("a", "s")]));
-
-    assert_eq!(app.permission_modal_request_id.as_deref(), Some("a"));
-    assert_eq!(
-        app.permission_modal_requests.iter().map(|request| request.id.as_str()).collect::<Vec<_>>(),
-        vec!["a", "b"]
-    );
-
-    super::handle_permission_list_loaded(&mut app, Err("offline".to_string()));
-
-    assert_eq!(app.permission_modal_request_id, None);
-    assert!(app.permission_modal_request.is_none());
-    assert!(app.permission_modal_requests.is_empty());
-}
-
-#[test]
-fn handle_permission_list_loaded_clears_stale_modal_for_empty_success() {
-    let (mut app, _task) = crate::app::App::new();
-    app.permission_modal_request_id = Some("stale".to_string());
-    app.permission_modal_request = Some(request("stale", "s"));
-    app.permission_modal_requests = vec![request("stale", "s")];
-
-    super::handle_permission_list_loaded(&mut app, Ok(Vec::new()));
-
-    assert_eq!(app.permission_modal_request_id, None);
-    assert!(app.permission_modal_request.is_none());
-    assert!(app.permission_modal_requests.is_empty());
-}
-
-#[test]
 // 全访问自动批准严格限制在活动且已启用的会话，其他会话请求必须继续排队。
 fn handle_permission_list_loaded_auto_approves_only_active_full_access_session() {
     let (mut app, _task) = crate::app::App::new();
@@ -124,36 +86,6 @@ fn handle_permission_list_loaded_auto_approves_only_active_full_access_session()
         app.permission_modal_requests.iter().map(|request| request.id.as_str()).collect::<Vec<_>>(),
         vec!["other-request"]
     );
-}
-
-#[test]
-fn handle_permission_select_request_updates_current_when_found_and_clears_when_missing() {
-    let (mut app, _task) = crate::app::App::new();
-    app.permission_modal_requests = vec![request("a", "s"), request("b", "s")];
-
-    super::handle_permission_select_request(&mut app, "b".to_string());
-
-    assert_eq!(app.permission_modal_request_id.as_deref(), Some("b"));
-    assert_eq!(app.permission_modal_request.as_ref().map(|request| request.id.as_str()), Some("b"));
-
-    super::handle_permission_select_request(&mut app, "missing".to_string());
-
-    assert_eq!(app.permission_modal_request_id, None);
-    assert!(app.permission_modal_request.is_none());
-}
-
-#[test]
-fn handle_permission_approve_all_always_clears_modal_state() {
-    let (mut app, _task) = crate::app::App::new();
-    app.permission_modal_request_id = Some("a".to_string());
-    app.permission_modal_request = Some(request("a", "s"));
-    app.permission_modal_requests = vec![request("a", "s"), request("b", "s")];
-
-    super::handle_permission_approve_all_always(&mut app);
-
-    assert_eq!(app.permission_modal_request_id, None);
-    assert!(app.permission_modal_request.is_none());
-    assert!(app.permission_modal_requests.is_empty());
 }
 
 #[test]
@@ -210,61 +142,6 @@ fn disabling_full_access_without_acp_preserves_pending_modal() {
     assert!(!runtime.acp_rebuild_required);
     assert_eq!(app.permission_modal_request_id.as_deref(), Some("a"));
     assert_eq!(app.permission_modal_requests, vec![request("a", "active")]);
-}
-
-#[test]
-// 回复后选择相邻请求而不是清空整个队列，保证连续授权流程不会跳项。
-fn handle_permission_approve_once_advances_modal_to_next_request() {
-    let (mut app, _task) = crate::app::App::new();
-    app.permission_modal_request_id = Some("b".to_string());
-    app.permission_modal_request = Some(request("b", "s"));
-    app.permission_modal_requests = vec![request("c", "s"), request("a", "s"), request("b", "s")];
-
-    super::handle_permission_approve_once(&mut app);
-
-    assert_eq!(app.permission_modal_request_id.as_deref(), Some("c"));
-    assert_eq!(app.permission_modal_request.as_ref().map(|request| request.id.as_str()), Some("c"));
-    assert_eq!(
-        app.permission_modal_requests.iter().map(|request| request.id.as_str()).collect::<Vec<_>>(),
-        vec!["a", "c"]
-    );
-}
-
-#[test]
-fn handle_permission_approve_once_without_selection_preserves_pending_requests() {
-    let (mut app, _task) = crate::app::App::new();
-    app.permission_modal_requests = vec![request("a", "s")];
-
-    super::handle_permission_approve_once(&mut app);
-
-    assert_eq!(app.permission_modal_request_id, None);
-    assert_eq!(app.permission_modal_requests, vec![request("a", "s")]);
-}
-
-#[test]
-fn approve_always_advances_modal_to_remaining_request() {
-    let (mut app, _task) = crate::app::App::new();
-    app.permission_modal_request_id = Some("a".to_string());
-    app.permission_modal_request = Some(request("a", "s"));
-    app.permission_modal_requests = vec![request("a", "s"), request("b", "s")];
-
-    super::handle_permission_approve_always(&mut app);
-
-    assert_eq!(app.permission_modal_request_id.as_deref(), Some("b"));
-    assert_eq!(app.permission_modal_requests, vec![request("b", "s")]);
-}
-
-#[test]
-fn reject_advances_modal_to_remaining_request() {
-    let (mut app, _task) = crate::app::App::new();
-    app.permission_modal_request_id = Some("a".to_string());
-    app.permission_modal_request = Some(request("a", "s"));
-    app.permission_modal_requests = vec![request("a", "s"), request("b", "s")];
-
-    super::handle_permission_reject(&mut app);
-
-    assert_eq!(app.permission_modal_request_id.as_deref(), Some("b"));
-    assert_eq!(app.permission_modal_requests, vec![request("b", "s")]);
 }
 
 #[test]

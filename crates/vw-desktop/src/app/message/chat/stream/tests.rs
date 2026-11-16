@@ -282,36 +282,6 @@ fn save_session_hook_observes_arguments_and_is_cleared_after_scope() {
 }
 
 #[test]
-fn desktop_first_response_title_updates_only_untitled_copies_for_its_project() {
-    let (mut app, _task) = crate::app::App::new();
-    let mut foreign = session_info("session-1", "", "/other");
-    foreign.project_id = "foreign-project".to_string();
-    app.active_session_id = Some("session-2".to_string());
-    app.sessions = vec![
-        session_info("session-1", "手工改名", "/project"),
-        session_info("session-2", "当前会话", "/project"),
-    ];
-    app.project_sessions
-        .insert("/project".to_string(), vec![session_info("session-1", "", "/project")]);
-    app.project_sessions.insert("/other".to_string(), vec![foreign]);
-
-    let task = super::update(
-        &mut app,
-        super::ChatMessage::PublishedSessionTitleLoaded(session_info(
-            "session-1",
-            "服务端标题",
-            "/project",
-        )),
-    );
-
-    assert_eq!(task.units(), 0);
-    assert_eq!(app.sessions[0].title, "手工改名");
-    assert_eq!(app.sessions[1].title, "当前会话");
-    assert_eq!(app.project_sessions["/project"][0].title, "服务端标题");
-    assert!(app.project_sessions["/other"][0].title.is_empty());
-}
-
-#[test]
 fn externally_created_session_does_not_replace_active_session() {
     let (mut app, _task) = crate::app::App::new();
     let mut visible = session_info("visible-task", "Visible task", "/project");

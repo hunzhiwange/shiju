@@ -94,11 +94,15 @@ fn gateway_save_session_for_stream(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-use desktop_session::message::chat::stream::snapshot_save::{StreamSessionSaveResult, STREAM_SESSION_SAVE_COORDINATOR};
+use desktop_session::message::chat::stream::snapshot_save::{
+    STREAM_SESSION_SAVE_COORDINATOR, StreamSessionSaveResult,
+};
 
 #[cfg(not(target_arch = "wasm32"))]
 fn stream_session_save_message(completed: Option<StreamSessionSaveResult>) -> Message {
-    use desktop_session::message::chat::stream::snapshot_save::{save_notification, SaveNotification};
+    use desktop_session::message::chat::stream::snapshot_save::{
+        SaveNotification, save_notification,
+    };
     match save_notification(completed) {
         SaveNotification::Ack => Message::Chat(ChatMessage::SessionSaveAck),
         SaveNotification::None => Message::None,
@@ -171,7 +175,8 @@ pub(super) fn save_session_task(
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn session_directory_for_save(app: &App, session_id: &str) -> Option<String> {
     desktop_session::message::chat::stream::projection::directory_for_save(
-        app.known_session_directory(session_id), app.navigation_tabs.project_path.as_deref(),
+        app.known_session_directory(session_id),
+        app.navigation_tabs.project_path.as_deref(),
     )
 }
 
@@ -184,7 +189,7 @@ pub(super) fn now_ms() -> u64 {
 /// 模块内可见函数，执行 load_session_or_default 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn load_session_or_default(app: &App, id: String) -> models::ChatSession {
-    use desktop_session::message::chat::stream::projection::{load_snapshot, ActiveSnapshot};
+    use desktop_session::message::chat::stream::projection::{ActiveSnapshot, load_snapshot};
     let active = (app.active_session_id.as_deref() == Some(id.as_str())).then(|| ActiveSnapshot {
         messages: &app.chat,
         message_ids: &app.chat_message_ids,
@@ -192,10 +197,11 @@ pub(super) fn load_session_or_default(app: &App, id: String) -> models::ChatSess
         steps: &app.active_session_view_state.steps,
     });
     let cached = if active.is_none() {
-        app.cached_chat_messages(&id).map(|messages| (
-            messages.iter().cloned().collect(), app.cached_chat_message_ids(&id),
-        ))
-    } else { None };
+        app.cached_chat_messages(&id)
+            .map(|messages| (messages.iter().cloned().collect(), app.cached_chat_message_ids(&id)))
+    } else {
+        None
+    };
     let info = app.sessions.iter().find(|session| session.id == id);
     let now = if info.is_none() { now_ms() } else { 0 };
     load_snapshot(id, info, active, cached, now)
@@ -217,18 +223,13 @@ pub(super) fn register_stream_session_messages(
 
 /// 启动队列中的下一个请求。
 pub(crate) fn start_next(app: &mut App, session_id: &str) -> Task<Message> {
-    if app.active_session_id.as_deref() != Some(session_id) {
-        return Task::none();
-    }
-    let runtime = app.get_session_runtime(session_id);
-    if runtime.request_lifecycle.is_requesting || runtime.full_access_saving || runtime.full_access_save_failed {
-        return Task::none();
-    }
-    let Some(item) = runtime.request_lifecycle.queue.first().cloned() else {
+    let active = app.active_session_id.as_deref() == Some(session_id);
+    let Some(item) = desktop_session::message::chat::stream::projection::take_ready_request(
+        app.get_session_runtime_mut(session_id),
+        active,
+    ) else {
         return Task::none();
     };
-    let runtime = app.get_session_runtime_mut(session_id);
-    runtime.request_lifecycle.queue.remove(0);
     super::session::start(app, item, true)
 }
 
@@ -472,7 +473,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 .and_then(|runtime| runtime.request_lifecycle.active_agent_request.as_ref());
             desktop_session::message::chat::stream::projection::apply_diff_summary(
                 app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten()),
-                &session_id, &summary, id, active_request.map(|request| request.id),
+                &session_id,
+                &summary,
+                id,
+                active_request.map(|request| request.id),
             );
             Task::none()
         }
@@ -610,13 +614,9 @@ fn handle_agent_stream_cancelled(app: &mut App, id: u64) -> Task<Message> {
     let save_task = stream_events::force_save_agent_stream_session(app, &session_id);
     crate::app::state::clear_pending_guide_handoff(id);
     let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
-    {
-        let runtime = app.get_session_runtime_mut(&session_id);
-        runtime.request_lifecycle.is_requesting = false;
-        runtime.request_lifecycle.submit_anim = 0;
-        runtime.has_unseen_success = false;
-        runtime.request_lifecycle.active_agent_request = None;
-    }
+    desktop_session::message::chat::stream::projection::cancel_runtime(
+        app.get_session_runtime_mut(&session_id),
+    );
     app.sync_task_pet_from_runtime();
     if is_active_session {
         app.popover_visibility.send_mode = false;
@@ -628,7 +628,9 @@ fn handle_agent_stream_cancelled(app: &mut App, id: u64) -> Task<Message> {
 /// 清除重试提示并显式停止对应的可恢复流，不能仅取消本地订阅。
 pub(super) fn stop_agent_stream(app: &mut App, session_id: &str) -> Task<Message> {
     stream_events::clear_model_recovery(app, session_id);
-    let Some(request) = app.get_session_runtime(session_id).request_lifecycle.active_agent_request.clone() else {
+    let Some(request) =
+        app.get_session_runtime(session_id).request_lifecycle.active_agent_request.clone()
+    else {
         return Task::none();
     };
     let request_id = crate::app::impls::desktop_stream_request_id(&request);
@@ -640,7 +642,12 @@ pub(super) fn stop_agent_stream(app: &mut App, session_id: &str) -> Task<Message
     Task::perform(
         async move {
             let client = crate::app::config::gateway_client()?;
-            desktop_session::message::chat::stream::projection::stop_stream(&client, &request_id, workflow).await
+            desktop_session::message::chat::stream::projection::stop_stream(
+                &client,
+                &request_id,
+                workflow,
+            )
+            .await
         },
         move |result| Message::Chat(ChatMessage::AgentStreamStopFinished(id, result)),
     )

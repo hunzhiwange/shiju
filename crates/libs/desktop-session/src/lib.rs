@@ -75,3 +75,6 @@ mod host_module_1_tests;
 
 #[cfg(test)]
 mod host_module_2_tests;
+
+#[cfg(test)]
+mod host_module_3_tests;

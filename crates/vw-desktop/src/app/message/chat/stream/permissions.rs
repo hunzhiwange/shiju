@@ -1,23 +1,36 @@
 //! 处理聊天流式会话事件。
 //! 本模块把网关轮询和流式增量落到会话状态，避免 UI 层理解传输细节。
 
-pub(super) use desktop_session::message::chat::stream::permissions::{split_auto_approved_permission_requests, sync_permission_requests, advance_permission_requests_after_reply};
 use super::ChatMessage;
 use crate::app::session_gateway;
 use crate::app::{App, Message};
+pub(super) use desktop_session::message::chat::stream::permissions::{
+    advance_permission_requests_after_reply, split_auto_approved_permission_requests,
+    sync_permission_requests,
+};
 use iced::Task;
-use {gateway_interaction::PendingPermissionReplyDto, gateway_interaction::PendingPermissionRequestDto};
+use {
+    gateway_interaction::PendingPermissionReplyDto,
+    gateway_interaction::PendingPermissionRequestDto,
+};
 
 fn permission_directory(app: &App) -> Option<String> {
     app.active_session_id
         .as_deref()
         .and_then(|session_id| app.known_session_directory(session_id))
         .filter(|directory| !directory.trim().is_empty())
-        .or_else(|| app.navigation_tabs.project_path.clone().filter(|directory| !directory.trim().is_empty()))
+        .or_else(|| {
+            app.navigation_tabs
+                .project_path
+                .clone()
+                .filter(|directory| !directory.trim().is_empty())
+        })
 }
 
 fn clear_permission_modal(app: &mut App) {
-    desktop_session::message::chat::stream::permissions::clear_permission_modal(&mut permission_state(app));
+    desktop_session::message::chat::stream::permissions::clear_permission_modal(
+        &mut permission_state(app),
+    );
 }
 
 fn current_full_access_session_id(app: &App) -> Option<&str> {
@@ -52,11 +65,17 @@ fn submit_permission_replies(
 }
 
 fn apply_current_permission_request(app: &mut App, request_id: Option<String>) {
-    desktop_session::message::chat::stream::permissions::apply_current_permission_request(&mut permission_state(app), request_id);
+    desktop_session::message::chat::stream::permissions::apply_current_permission_request(
+        &mut permission_state(app),
+        request_id,
+    );
 }
 
 fn apply_permission_request(app: &mut App, requests: Vec<PendingPermissionRequestDto>) {
-    desktop_session::message::chat::stream::permissions::apply_permission_request(&mut permission_state(app), requests);
+    desktop_session::message::chat::stream::permissions::apply_permission_request(
+        &mut permission_state(app),
+        requests,
+    );
 }
 
 /// 模块内可见函数，执行 handle_permission_poll_tick 对应的应用流程。
@@ -112,14 +131,22 @@ pub(super) fn handle_toggle_full_access_permission(app: &mut App) -> Task<Messag
     let directory = permission_directory(app);
     let (full_access_enabled, should_rebuild, saved_session) = {
         let runtime = app.current_session_runtime_mut();
-        if runtime.full_access_saving || (runtime.draft.is_some() && runtime.request_lifecycle.is_requesting) {
-            return Task::none();
-        }
         let saved_session = session_id.clone().filter(|_| runtime.draft.is_none());
-        runtime.full_access_enabled = !runtime.full_access_enabled;
-        runtime.full_access_overridden = true;
-        runtime.full_access_initialized = true;
-        runtime.full_access_saving = saved_session.is_some();
+        let draft = runtime.draft.is_some();
+        let requesting = runtime.request_lifecycle.is_requesting;
+        let Some(_) = desktop_session::message::chat::stream::permissions::toggle_full_access(
+            &mut desktop_session::message::chat::stream::permissions::FullAccessState {
+                enabled: &mut runtime.full_access_enabled,
+                overridden: &mut runtime.full_access_overridden,
+            },
+            &mut runtime.full_access_initialized,
+            &mut runtime.full_access_saving,
+            draft,
+            requesting,
+            saved_session.is_some(),
+        ) else {
+            return Task::none();
+        };
         runtime.acp_options_state.options.access_status = None;
         (runtime.full_access_enabled, runtime.acp_agent.is_some(), saved_session)
     };
@@ -180,9 +207,13 @@ pub(super) fn handle_full_access_saved(
     let Some(runtime) = app.session_runtime_states.get_mut(session_id) else {
         return Task::none();
     };
-    runtime.full_access_saving = false;
-    runtime.full_access_save_failed = result.is_err();
-    runtime.full_access_enabled = result.as_ref().copied().unwrap_or(previous);
+    desktop_session::message::chat::stream::permissions::settle_full_access(
+        &mut runtime.full_access_enabled,
+        &mut runtime.full_access_saving,
+        &mut runtime.full_access_save_failed,
+        previous,
+        &result,
+    );
     match result {
         Ok(_) => super::start_next(app, session_id),
         Err(error) => app.show_error_toast(format!("保存会话权限失败：{error}")),
@@ -205,11 +236,9 @@ pub(super) fn handle_permission_approve_always(app: &mut App) -> Task<Message> {
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_permission_approve_all_always(app: &mut App) -> Task<Message> {
     let directory = permission_directory(app);
-    let request_ids = std::mem::take(&mut app.permission_modal_requests)
-        .into_iter()
-        .map(|request| request.id)
-        .collect::<Vec<_>>();
-    clear_permission_modal(app);
+    let request_ids = desktop_session::message::chat::stream::permissions::take_all_requests(
+        &mut permission_state(app),
+    );
     submit_permission_replies(request_ids, PendingPermissionReplyDto::Always, directory)
 }
 
@@ -232,26 +261,26 @@ pub(super) fn handle_permission_reply_submitted(
 }
 
 fn submit_permission_reply(app: &mut App, reply: PendingPermissionReplyDto) -> Task<Message> {
-    let Some(request_id) = app.permission_modal_request_id.clone() else {
+    let directory = permission_directory(app);
+    let Some(request_id) =
+        desktop_session::message::chat::stream::permissions::take_selected_request(
+            &mut permission_state(app),
+        )
+    else {
         return Task::none();
     };
-    let directory = permission_directory(app);
-    let (remaining_requests, selected_request_id) = advance_permission_requests_after_reply(
-        Some(request_id.as_str()),
-        std::mem::take(&mut app.permission_modal_requests),
-    );
-    app.permission_modal_requests = remaining_requests;
-    apply_current_permission_request(app, selected_request_id);
     submit_permission_replies(vec![request_id], reply, directory)
 }
 #[cfg(test)]
 #[path = "permissions_tests.rs"]
 mod permissions_tests;
 
-fn permission_state(app: &mut App) -> desktop_session::message::chat::stream::permissions::PermissionState<'_> {
+fn permission_state(
+    app: &mut App,
+) -> desktop_session::message::chat::stream::permissions::PermissionState<'_> {
     desktop_session::message::chat::stream::permissions::PermissionState {
-    permission_modal_request_id: &mut app.permission_modal_request_id,
-    permission_modal_request: &mut app.permission_modal_request,
-    permission_modal_requests: &mut app.permission_modal_requests,
+        permission_modal_request_id: &mut app.permission_modal_request_id,
+        permission_modal_request: &mut app.permission_modal_request,
+        permission_modal_requests: &mut app.permission_modal_requests,
     }
 }

@@ -3,9 +3,8 @@
 use super::ChatMessage;
 use crate::app::{App, Message, models};
 use iced::Task;
-use std::time::Duration;
-use vw_gateway_client::GatewayClient;
 use session_info::Info;
+use vw_gateway_client::GatewayClient;
 
 pub use desktop_session::message::chat::stream::draft::{DraftPublication, RecoveredDraft};
 
@@ -22,7 +21,12 @@ pub(super) fn reload_after_response(
         async move {
             let result = async {
                 let client = GatewayClient::new(endpoint)?;
-                desktop_session::message::chat::stream::draft::read_publication(&client, &session_id, &directory).await
+                desktop_session::message::chat::stream::draft::read_publication(
+                    &client,
+                    &session_id,
+                    &directory,
+                )
+                .await
             }
             .await;
             match result {
@@ -56,7 +60,13 @@ pub(super) fn recover_expired_replay(
     Task::perform(
         async move {
             let client = GatewayClient::new(endpoint).ok()?;
-            desktop_session::message::chat::stream::draft::recover(&client, &session_id, &directory, &query).await
+            desktop_session::message::chat::stream::draft::recover(
+                &client,
+                &session_id,
+                &directory,
+                &query,
+            )
+            .await
         },
         move |recovered| {
             Message::Chat(ChatMessage::DraftReplayChecked { id, error: error.clone(), recovered })
@@ -112,21 +122,14 @@ pub(super) fn publish(
     publication: DraftPublication,
 ) -> Task<Message> {
     let DraftPublication { info, preview } = publication;
-    if info.id != session_id || info.is_first_response_pending() || info.time.archived.is_some() {
-        return Task::none();
-    }
-    let Some(draft) = app.get_session_runtime_mut(session_id).draft.take() else {
+    use desktop_session::message::chat::stream::draft::{insert_publication, take_publication};
+    let Some(draft) = take_publication(app.get_session_runtime_mut(session_id), session_id, &info)
+    else {
         return Task::none();
     };
-
-    let list = app.project_sessions.entry(draft.project_path.clone()).or_default();
-    if !list.iter().any(|entry| entry.id == session_id) {
-        list.insert(0, info.clone());
-    }
-    if app.navigation_tabs.project_path.as_deref() == Some(draft.project_path.as_str())
-        && !app.sessions.iter().any(|entry| entry.id == session_id)
-    {
-        app.sessions.insert(0, info.clone());
+    insert_publication(app.project_sessions.entry(draft.project_path.clone()).or_default(), &info);
+    if app.navigation_tabs.project_path.as_deref() == Some(draft.project_path.as_str()) {
+        insert_publication(&mut app.sessions, &info);
     }
     app.session_previews
         .extend(crate::app::session::build_session_previews(preview.into_iter().collect()));
@@ -139,20 +142,13 @@ pub(super) fn publish(
     Task::perform(
         async move {
             let client = GatewayClient::new(endpoint).ok()?;
-            for delay in [1, 2, 4, 8, 16, 16, 16] {
-                crate::app::message::sleep(Duration::from_secs(delay)).await;
-                if let Ok(updated) =
-                    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_get::<Info>(&info.id, Some(&draft.directory)).await
-                    && updated.id == info.id
-                    && updated.project_id == info.project_id
-                    && !updated.is_first_response_pending()
-                    && updated.time.archived.is_none()
-                    && !updated.title.trim().is_empty()
-                {
-                    return Some(updated);
-                }
-            }
-            None
+            desktop_session::message::chat::stream::draft::poll_published_title(
+                &client,
+                info,
+                draft.directory,
+                crate::app::message::sleep,
+            )
+            .await
         },
         |result| {
             result.map_or(Message::None, |info| {
@@ -163,29 +159,19 @@ pub(super) fn publish(
 }
 
 pub(super) fn apply_published_title(app: &mut App, info: &Info) {
-    if info.title.trim().is_empty()
-        || info.is_first_response_pending()
-        || info.time.archived.is_some()
-    {
-        return;
-    }
-    let mut changed = false;
-    for session in app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten()) {
-        if session.id == info.id
-            && session.project_id == info.project_id
-            && session.title.trim().is_empty()
-        {
-            session.title.clone_from(&info.title);
-            session.time.updated = session.time.updated.max(info.time.updated);
-            changed = true;
-        }
-    }
+    let changed = desktop_session::message::chat::stream::draft::apply_published_title(
+        app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten()),
+        info,
+    );
     if changed {
         app.refresh_task_pet_session_title(&info.id, &info.title);
     }
 }
 
 #[cfg(test)]
-pub(in crate::app::message::chat) fn publication_fixture(info: Info, preview: session_ui_types::ChatSessionMeta) -> DraftPublication {
- DraftPublication { info, preview: Some(preview) }
+pub(in crate::app::message::chat) fn publication_fixture(
+    info: Info,
+    preview: session_ui_types::ChatSessionMeta,
+) -> DraftPublication {
+    DraftPublication { info, preview: Some(preview) }
 }

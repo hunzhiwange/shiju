@@ -7,11 +7,16 @@ use crate::app::{App, Message};
 use iced::Task;
 
 fn clear_question_modal(app: &mut App) {
-    desktop_session::message::chat::stream::questions::clear_question_modal(&mut question_state(app));
+    desktop_session::message::chat::stream::questions::clear_question_modal(&mut question_state(
+        app,
+    ));
 }
 
 fn apply_question_request(app: &mut App, requests: Vec<question_types::Request>) {
-    desktop_session::message::chat::stream::questions::apply_question_request(&mut question_state(app), requests);
+    desktop_session::message::chat::stream::questions::apply_question_request(
+        &mut question_state(app),
+        requests,
+    );
 }
 
 /// 模块内可见函数，执行 handle_question_poll_tick 对应的应用流程。
@@ -45,7 +50,11 @@ pub(super) fn handle_question_option_toggled(
     q_idx: usize,
     label: String,
 ) -> Task<Message> {
-    desktop_session::message::chat::stream::questions::handle_question_option_toggled(&mut question_state(app), q_idx, label);
+    desktop_session::message::chat::stream::questions::handle_question_option_toggled(
+        &mut question_state(app),
+        q_idx,
+        label,
+    );
     Task::none()
 }
 
@@ -56,30 +65,34 @@ pub(super) fn handle_question_custom_changed(
     q_idx: usize,
     value: String,
 ) -> Task<Message> {
-    desktop_session::message::chat::stream::questions::handle_question_custom_changed(&mut question_state(app), q_idx, value);
+    desktop_session::message::chat::stream::questions::handle_question_custom_changed(
+        &mut question_state(app),
+        q_idx,
+        value,
+    );
     Task::none()
 }
 
 /// 模块内可见函数，执行 handle_question_submit 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_question_submit(app: &mut App) -> Task<Message> {
-    let Some(request_id) = app.question_modal_request_id.clone() else {
-        return Task::none();
+    let prepared = desktop_session::message::chat::stream::questions::prepare_reply(
+        &mut question_state(app),
+        |req, answers| {
+            req.mcp_form.as_ref().is_none_or(|form| crate::app::mcp_form::valid(form, answers))
+        },
+    );
+    let (request_id, answers) = match prepared {
+        Ok(Some(reply)) => reply,
+        Ok(None) => return Task::none(),
+        Err(()) => {
+            return app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "请检查 MCP 表单的必填字段、类型与取值范围",
+                vec![],
+            );
+        }
     };
-    let Some(req) = app.question_modal_request.clone() else {
-        return Task::none();
-    };
-
-    let answers = desktop_session::message::chat::stream::questions::collect_answers(&req, &app.question_modal_answers, &app.question_modal_custom);
-
-    if req.mcp_form.as_ref().is_some_and(|form| !crate::app::mcp_form::valid(form, &answers)) {
-        return app.show_localized_toast(
-            crate::app::state::ToastKind::Error,
-            "请检查 MCP 表单的必填字段、类型与取值范围",
-            vec![],
-        );
-    }
-    clear_question_modal(app);
     Task::perform(
         async move { session_gateway::gateway_question_reply_async(&request_id, answers).await },
         |res| Message::Chat(ChatMessage::QuestionReplySubmitted(res)),
@@ -89,10 +102,11 @@ pub(super) fn handle_question_submit(app: &mut App) -> Task<Message> {
 /// 模块内可见函数，执行 handle_question_reject 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_question_reject(app: &mut App) -> Task<Message> {
-    let Some(request_id) = app.question_modal_request_id.clone() else {
+    let Some(request_id) =
+        desktop_session::message::chat::stream::questions::reject_request(&mut question_state(app))
+    else {
         return Task::none();
     };
-    clear_question_modal(app);
     Task::perform(
         async move { session_gateway::gateway_question_reject_async(&request_id).await },
         |res| Message::Chat(ChatMessage::QuestionRejected(res)),
@@ -120,11 +134,13 @@ pub(super) fn handle_question_rejected(res: Result<(), String>) -> Task<Message>
 #[path = "questions_tests.rs"]
 mod questions_tests;
 
-fn question_state(app: &mut App) -> desktop_session::message::chat::stream::questions::QuestionState<'_> {
+fn question_state(
+    app: &mut App,
+) -> desktop_session::message::chat::stream::questions::QuestionState<'_> {
     desktop_session::message::chat::stream::questions::QuestionState {
-    question_modal_request_id: &mut app.question_modal_request_id,
-    question_modal_request: &mut app.question_modal_request,
-    question_modal_answers: &mut app.question_modal_answers,
-    question_modal_custom: &mut app.question_modal_custom,
+        question_modal_request_id: &mut app.question_modal_request_id,
+        question_modal_request: &mut app.question_modal_request,
+        question_modal_answers: &mut app.question_modal_answers,
+        question_modal_custom: &mut app.question_modal_custom,
     }
 }

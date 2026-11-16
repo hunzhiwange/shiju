@@ -1,11 +1,13 @@
 //! 处理聊天流式会话事件。
 //! 本模块把网关轮询和流式增量落到会话状态，避免 UI 层理解传输细节。
 
-use desktop_session::message::chat::stream::steps::{upsert_step_start, upsert_step_finish, merge_tool_lifecycle, compute_step_cost};
 use super::{ChatMessage, load_session_or_default, now_ms};
 use crate::app::{App, Message, models};
-use iced::Task;
+use desktop_session::message::chat::stream::steps::{
+    compute_step_cost, merge_tool_lifecycle, upsert_step_finish, upsert_step_start,
+};
 use gateway_chat_stream::GatewayChatToolEvent;
+use iced::Task;
 
 /// 模块内可见函数，执行 handle_agent_step_start 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
@@ -13,14 +15,20 @@ pub(super) fn start_llm_timer_at(
     runtime: &mut crate::app::state::SessionRuntimeState,
     now: web_time::Instant,
 ) {
-    desktop_session::message::chat::stream::steps::start_llm_timer_at(&mut runtime.request_lifecycle, now);
+    desktop_session::message::chat::stream::steps::start_llm_timer_at(
+        &mut runtime.request_lifecycle,
+        now,
+    );
 }
 
 pub(super) fn pause_llm_timer_at(
     runtime: &mut crate::app::state::SessionRuntimeState,
     now: web_time::Instant,
 ) {
-    desktop_session::message::chat::stream::steps::pause_llm_timer_at(&mut runtime.request_lifecycle, now);
+    desktop_session::message::chat::stream::steps::pause_llm_timer_at(
+        &mut runtime.request_lifecycle,
+        now,
+    );
 }
 
 pub(super) fn handle_agent_step_start(
@@ -181,33 +189,13 @@ pub(super) fn handle_agent_step_cost_loaded(
     }
     let mut session = load_session_or_default(app, session_id.clone());
     let message_model = resolved_model.clone();
-    if let Some(step) = session.steps.iter_mut().find(|s| s.index == step_index) {
-        if resolved_model.is_some() {
-            step.model = resolved_model;
-        }
-        if cost.is_some() {
-            step.cost_usd = cost;
-        }
-    } else if resolved_model.is_some() || cost.is_some() {
-        session.steps.push(models::ChatSessionStep {
-            index: step_index,
-            turn_id: None,
-            started_ms: now_ms(),
-            finished_ms: None,
-            start_snapshot_path: None,
-            finish_snapshot_path: None,
-            usage: models::TokenUsage::default(),
-            cost_usd: cost,
-            finish_reason: None,
-            model: resolved_model,
-            tool_timings: Vec::new(),
-        });
-        session.steps.sort_by_key(|s| s.index);
-    }
-    if let Some(model) = message_model.as_deref() {
-        crate::app::session::bind_message_model_to_step(&mut session.messages, step_index, model);
-    }
-    session.updated_ms = session.updated_ms.max(now_ms());
+    desktop_session::message::chat::stream::steps::apply_step_cost(
+        &mut session,
+        step_index,
+        resolved_model,
+        cost,
+        now_ms(),
+    );
     // 运行时负责持久化步骤；此处仅更新投影，避免整份快照与消息增量竞争。
     if app.active_session_id.as_ref() == Some(&session_id) {
         if let Some(model) = message_model.as_deref() {

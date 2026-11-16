@@ -94,7 +94,10 @@ pub fn apply_current_permission_request(app: &mut PermissionState<'_>, request_i
     *app.permission_modal_request_id = Some(request.id.clone());
     *app.permission_modal_request = Some(request);
 }
-pub fn apply_permission_request(app: &mut PermissionState<'_>, requests: Vec<PendingPermissionRequestDto>) {
+pub fn apply_permission_request(
+    app: &mut PermissionState<'_>,
+    requests: Vec<PendingPermissionRequestDto>,
+) {
     let (pending_requests, selected_request_id) =
         sync_permission_requests(app.permission_modal_request_id.as_deref(), requests);
     if pending_requests.is_empty() {
@@ -105,3 +108,65 @@ pub fn apply_permission_request(app: &mut PermissionState<'_>, requests: Vec<Pen
     *app.permission_modal_requests = pending_requests;
     apply_current_permission_request(app, selected_request_id);
 }
+
+/// Borrow only the permission state changed by a full-access operation.
+pub struct FullAccessState<'a> {
+    pub enabled: &'a mut bool,
+    pub overridden: &'a mut bool,
+}
+
+pub fn toggle_full_access(
+    state: &mut FullAccessState<'_>,
+    initialized: &mut bool,
+    saving: &mut bool,
+    draft: bool,
+    requesting: bool,
+    saved_session: bool,
+) -> Option<bool> {
+    if *saving || (draft && requesting) {
+        return None;
+    }
+    *state.enabled = !*state.enabled;
+    *state.overridden = true;
+    *initialized = true;
+    *saving = saved_session;
+    Some(*state.enabled)
+}
+pub fn settle_full_access(
+    enabled: &mut bool,
+    saving: &mut bool,
+    failed: &mut bool,
+    previous: bool,
+    result: &Result<bool, String>,
+) {
+    *saving = false;
+    *failed = result.is_err();
+    *enabled = result.as_ref().copied().unwrap_or(previous);
+}
+
+pub fn apply_permission_list_result(
+    state: &mut PermissionState<'_>,
+    result: Result<Vec<PendingPermissionRequestDto>, String>,
+) {
+    match result {
+        Ok(requests) => apply_permission_request(state, requests),
+        Err(_) => clear_permission_modal(state),
+    }
+}
+pub fn take_all_requests(state: &mut PermissionState<'_>) -> Vec<String> {
+    let ids = std::mem::take(state.permission_modal_requests).into_iter().map(|r| r.id).collect();
+    clear_permission_modal(state);
+    ids
+}
+pub fn take_selected_request(state: &mut PermissionState<'_>) -> Option<String> {
+    let id = state.permission_modal_request_id.clone()?;
+    let (remaining, selected) = advance_permission_requests_after_reply(
+        Some(&id),
+        std::mem::take(state.permission_modal_requests),
+    );
+    *state.permission_modal_requests = remaining;
+    apply_current_permission_request(state, selected);
+    Some(id)
+}
+#[cfg(test)]
+mod permission_reply_tests;

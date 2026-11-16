@@ -1,6 +1,6 @@
 //! Session step projection and provider cost resolution.
-use session_ui_types as models;
 use gateway_chat_stream::{GatewayChatToolEvent, GatewayChatToolEventKind};
+use session_ui_types as models;
 pub fn upsert_step_start(
     session: &mut models::ChatSession,
     step_index: u32,
@@ -235,10 +235,57 @@ pub async fn compute_step_cost(
 #[path = "steps_tests.rs"]
 mod steps_tests;
 
-pub fn start_llm_timer_at(lifecycle: &mut crate::message::chat::request::RequestLifecycle, now: web_time::Instant) {
+pub fn start_llm_timer_at(
+    lifecycle: &mut crate::message::chat::request::RequestLifecycle,
+    now: web_time::Instant,
+) {
     lifecycle.llm_timer.start_at(now);
 }
 
-pub fn pause_llm_timer_at(lifecycle: &mut crate::message::chat::request::RequestLifecycle, now: web_time::Instant) {
+pub fn pause_llm_timer_at(
+    lifecycle: &mut crate::message::chat::request::RequestLifecycle,
+    now: web_time::Instant,
+) {
     lifecycle.llm_timer.pause_at(now);
 }
+
+/// Merge asynchronous pricing without clearing existing optional values.
+pub fn apply_step_cost(
+    session: &mut models::ChatSession,
+    step_index: u32,
+    resolved_model: Option<String>,
+    cost: Option<f64>,
+    now: u64,
+) {
+    let message_model = resolved_model.clone();
+    if let Some(step) = session.steps.iter_mut().find(|s| s.index == step_index) {
+        if resolved_model.is_some() {
+            step.model = resolved_model;
+        }
+        if cost.is_some() {
+            step.cost_usd = cost;
+        }
+    } else if resolved_model.is_some() || cost.is_some() {
+        session.steps.push(models::ChatSessionStep {
+            index: step_index,
+            turn_id: None,
+            started_ms: now,
+            finished_ms: None,
+            start_snapshot_path: None,
+            finish_snapshot_path: None,
+            usage: models::TokenUsage::default(),
+            cost_usd: cost,
+            finish_reason: None,
+            model: resolved_model,
+            tool_timings: Vec::new(),
+        });
+        session.steps.sort_by_key(|s| s.index);
+    }
+    if let Some(model) = message_model.as_deref() {
+        super::bind_message_model_to_step(&mut session.messages, step_index, model);
+    }
+    session.updated_ms = session.updated_ms.max(now);
+}
+
+#[cfg(test)]
+mod step_cost_tests;

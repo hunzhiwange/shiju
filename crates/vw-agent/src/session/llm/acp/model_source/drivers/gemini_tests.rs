@@ -2,32 +2,6 @@ use super::*;
 use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
 
 
-fn profile() -> AcpLaunchProfile {
-    let mut profile = AcpLaunchProfile::new(
-        &AcpAgentConfig {
-            command: "gemini".into(),
-            args: vec!["--experimental-acp".into()],
-            ..Default::default()
-        },
-        RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
-            project: "project".into(),
-            session: "session".into(),
-            provider: "provider".into(),
-            model: "selected-model".into(),
-            generation: 1,
-        },
-    )
-    .unwrap();
-    profile.model_supports_tool_call = true;
-    profile.model_api = Some(crate::provider::provider::ApiInfo {
-        id: "selected-model".into(),
-        url: "https://example.invalid/v1beta".into(),
-        adapter: "google".into(),
-        protocols: None,
-    });
-    profile
-}
 
 #[tokio::test]
 async fn acp_model_source_gemini_project_cli_override_reaches_actual_subprocess() {

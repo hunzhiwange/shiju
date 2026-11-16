@@ -1,29 +1,5 @@
-use super::*;
-use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
 
 
-fn profile(model: &str) -> AcpLaunchProfile {
-    let mut profile = AcpLaunchProfile::new(
-        &AcpAgentConfig { command: "kimi".into(), args: vec!["acp".into()], ..Default::default() },
-        RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
-            project: "project".into(),
-            session: "session".into(),
-            provider: "provider".into(),
-            model: model.into(),
-            generation: 0,
-        },
-    )
-    .unwrap();
-    profile.model_api = Some(crate::provider::provider::ApiInfo {
-        protocols: None,
-        id: model.into(),
-        url: "https://example.invalid/v1/chat/completions".into(),
-        adapter: "openai-compatible".into(),
-    });
-    profile.model_supports_tool_call = true;
-    profile
-}
 
 #[tokio::test]
 async fn acp_model_source_kimi_missing_credentials_and_disabled_model_never_use_native_account() {
@@ -68,25 +44,6 @@ async fn acp_model_source_kimi_missing_credentials_and_disabled_model_never_use_
         project,
     };
     crate::project::instance::provide_context(context, async {
-        let config = AcpAgentConfig { command:"kimi".into(), args:vec!["acp".into()], ..Default::default() };
-        let active = crate::provider::provider::get_model("kimi-offline-no-account", "active-model").await.unwrap();
-        let profile = crate::session::llm::acp::model_source::prepare("kimi", &config, &active, "missing-key").await.unwrap();
-        let settings: toml::Value = toml::from_str(&std::fs::read_to_string(std::path::Path::new(&profile.config().env["KIMI_CODE_HOME"]).join("config.toml")).unwrap()).unwrap();
-        let endpoint = settings["providers"]["session-provider"]["base_url"].as_str().unwrap();
-        let response = crate::model_relay::upstream_http_client().unwrap()
-            .post(format!("{endpoint}/chat/completions"))
-            .bearer_auth(profile.binding.bearer_token())
-            .json(&serde_json::json!({"model":"active-model","messages":[{"role":"user","content":"hello"}]}))
-            .send().await.unwrap();
-        assert_eq!(response.status(), 401);
-        // A stale caller snapshot cannot resurrect a catalog-disabled model.
-        let mut disabled = active.clone();
-        disabled.id = "disabled-model".into();
-        let result = crate::session::llm::acp::model_source::prepare("kimi", &config, &disabled, "disabled").await;
-        let error = match result {
-            Ok(_) => panic!("disabled model must not create a Kimi launch"),
-            Err(error) => error.to_string(),
-        };
-        assert!(error.contains("disabled-model"));
+        llm_runtime::acp::acceptance_support::negative::kimi_rejects_native_account::<super::super::super::super::request::RuntimeHost>().await;
     }).await;
 }

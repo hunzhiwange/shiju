@@ -1,5 +1,3 @@
-use super::*;
-use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
 
 
 
@@ -37,21 +35,7 @@ async fn acp_model_source_claude_disabled_model_and_missing_credentials_do_not_f
         worktree: project.worktree.clone(),
         project,
     };
-    let config = AcpAgentConfig { command: "claude-agent-acp".into(), ..Default::default() };
     crate::project::instance::provide_context(context, async {
-        let active = crate::provider::provider::get_model("claude-negative-test","selected-model").await.unwrap();
-        // A persisted active snapshot must not resurrect a now-disabled catalog key.
-        let mut disabled = active.clone();
-        disabled.id = "disabled".into();
-        assert!(super::super::super::prepare("claude",&config,&disabled,"negative").await.is_err());
-        let launch = super::super::super::prepare("claude",&config,&active,"negative").await.unwrap();
-        assert_eq!(launch.model_context_limit,12000);
-        assert_eq!(launch.model_output_limit,1024);
-        let response = crate::model_relay::upstream_http_client().unwrap()
-            .post(format!("{}/v1/messages",launch.config().env["ANTHROPIC_BASE_URL"]))
-            .bearer_auth(launch.binding.bearer_token())
-            .json(&serde_json::json!({"model":"selected-model","max_tokens":16,"messages":[{"role":"user","content":"hello"}]}))
-            .send().await.unwrap();
-        assert_eq!(response.status(),reqwest::StatusCode::UNAUTHORIZED);
+        llm_runtime::acp::acceptance_support::negative::claude_rejects_native_account::<super::super::super::super::request::RuntimeHost>().await;
     }).await;
 }

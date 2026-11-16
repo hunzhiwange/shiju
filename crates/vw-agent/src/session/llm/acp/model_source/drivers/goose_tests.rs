@@ -2,20 +2,6 @@ use super::*;
 use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
 
 
-fn profile(config: &AcpAgentConfig) -> AcpLaunchProfile {
-    AcpLaunchProfile::new(
-        config,
-        RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
-            project: "project".into(),
-            session: "session".into(),
-            provider: "provider".into(),
-            model: "selected-model-high".into(),
-            generation: 0,
-        },
-    )
-    .unwrap()
-}
 
 #[tokio::test]
 async fn acp_model_source_goose_missing_credentials_and_disabled_model_never_use_native_account() {
@@ -76,22 +62,6 @@ async fn acp_model_source_goose_missing_credentials_and_disabled_model_never_use
         ).await.unwrap();
         let relay_endpoint = format!("http://{}", server.address());
         profile.attach_server(server);
-        configure(&mut profile, &relay_endpoint).unwrap();
-        let endpoint = &profile.config().env["OPENAI_HOST"];
-        let response = crate::model_relay::upstream_http_client().unwrap()
-            .post(format!("{endpoint}/v1/chat/completions"))
-            .bearer_auth(profile.binding.bearer_token())
-            .json(&serde_json::json!({"model":"active-model","messages":[{"role":"user","content":"hello"}]}))
-            .send().await.unwrap();
-        assert_eq!(response.status(), 401);
-        // A stale caller snapshot cannot resurrect a catalog-disabled model.
-        let mut disabled = active.clone();
-        disabled.id = "disabled-model".into();
-        let result = crate::session::llm::acp::model_source::prepare("goose", &config, &disabled, "disabled").await;
-        let error = match result {
-            Ok(_) => panic!("disabled model must not create a Goose launch"),
-            Err(error) => error.to_string(),
-        };
-        assert!(error.contains("disabled-model"));
+        llm_runtime::acp::acceptance_support::negative::goose_rejects_native_account::<super::super::super::super::request::RuntimeHost>(profile, active, config, relay_endpoint).await;
     }).await;
 }

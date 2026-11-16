@@ -170,3 +170,43 @@
 净减不足70%：逐文件保留行数见上表，主要为 codex 真实 CLI 生命周期/effort/取消/恢复和九个驱动的真实宿主配置与凭据拒绝边界。这些直接调用宿主 prepare、ProviderRelayBackend、project、request/controls/lifecycle，不能替换为模拟端口。继续可迁项：后续原边界所有者提供可直接复用的真实存储与配置领域入口后，可将缺失凭据/禁用模型宿主用例中的领域断言进一步拆分；当前不伪造迁移收益。由收口任务验收不足70%的具体保留。
 未来：`python3 scripts/cargo_slot.py cargo test -p llm-runtime --lib host_migration_21_tests -- --test-threads=1`；Unix 非 wasm 预期发现87条，其中86运行、1条Hermes真实安装验收忽略。宿主原名称过滤预期13条（9运行，4条Codex显式真实CLI验收忽略），详见映射。未来用 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib session::llm::acp::model_source::drivers -- --list` 核对迁出87条消失、保留13条；list未运行，不以零测试冒充通过。所有编译/行为/测试/实机检查均未运行；未声称编译耗时收益。
 静态核对：全100条测试一一映射；宿主13 + 领域87，无场景删除。diff whitespace 检查完成。
+
+## Recovery: deeper domain ownership
+
+Read final.md and remaining-host.json: task21 had 1321 remaining lines. Now 683: another 638 removed, cumulative 3448/4131 (83.5%). This supersedes the first-pass 68% gate. No Cargo, build, executable or test was run.
+
+Codex host tests keep their four names/ignore attributes. codex_run now injects actual environment lock, project context and RuntimeHost into acceptance_support::codex::{load_manifest,run}. Former codex_accepted, codex_evidence, codex_request, codex_effort_run moved in full. Request uses the actual RuntimeHost; controls reuse AcceptanceHost ports; persisted lifecycle uses H::open_selection. Manifest isolation, authentication, route/tool observations, cancellation, restart, model switch, handshake, effort validation and restoration assertions remain. No simulated host or new trait.
+
+Seven original negative tests retain names and actual host setup, calling acceptance_support::negative::<driver>_rejects_native_account for claude/kimi/hermes/codex/goose/pi/opencode. The first three call actual H::prepare_launch/request; the latter four consume the real host-created profile with its attached relay, run original driver configuration, HTTP401 and disabled-model assertions. Global environment lock and Restore::drop remain in the host. Unused profile constructors were removed.
+
+Registration: acceptance_support/mod.rs directly registers codex and negative. These are domain acceptance support, not newly claimed production algorithm migration (production migration gain this pass: zero). Existing real host callers execute their assertions; no duplicate tests added. All original 100 names remain mapped as before: 87 self-registered domain tests and 13 host entry points, 11 now delegating most assertions to domain support. Future commands/counts/ignore requirements remain unchanged.
+
+Static macro counts before/after across affected host suites plus moved support: {'assert!': (24, 24), 'assert_eq!': (23, 23), 'assert_ne!': (0, 0), 'panic!': (6, 6)}. Equal counts are static evidence only, not proof of runtime behavior. Checked explicit module registration, real-call direction, imports and scoped git diff --check.
+
+Current retained source:
+
+|File|Lines|Responsibility|
+|---|---:|---|
+|claude.rs|10|Test mounting and domain imports|
+|claude_tests.rs|41|Real tenant/project/env/relay wiring and call into domain assertions|
+|codex.rs|7|Test mounting and domain imports|
+|codex_tests.rs|122|Real tenant/project/env/relay wiring and call into domain assertions|
+|gemini.rs|13|Test mounting and domain imports|
+|gemini_tests.rs|34|Actual project CLI override reaches subprocess|
+|goose.rs|7|Test mounting and domain imports|
+|goose_tests.rs|67|Real tenant/project/env/relay wiring and call into domain assertions|
+|hermes.rs|7|Test mounting and domain imports|
+|hermes_tests.rs|7|Real tenant/project/env/relay wiring and call into domain assertions|
+|kimi.rs|13|Test mounting and domain imports|
+|kimi_tests.rs|49|Real tenant/project/env/relay wiring and call into domain assertions|
+|kiro.rs|13|Test mounting and domain imports|
+|kiro_tests.rs|123|Real RelayContext authentication, configuration revocation and HTTP boundary; ExternalModel only substitutes upstream|
+|mod.rs|25|Directory injection and controls capability exports|
+|opencode.rs|11|Test mounting and domain imports|
+|opencode_tests.rs|59|Real tenant/project/env/relay wiring and call into domain assertions|
+|pi.rs|11|Test mounting and domain imports|
+|pi_tests.rs|64|Real tenant/project/env/relay wiring and call into domain assertions|
+
+Domain acceptance_support/codex.rs: 319 lines of acceptance orchestration/assertions.
+
+Domain acceptance_support/negative.rs: 188 lines of acceptance orchestration/assertions.

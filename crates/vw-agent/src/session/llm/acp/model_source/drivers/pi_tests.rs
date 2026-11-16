@@ -2,20 +2,6 @@ use super::*;
 use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
 
 
-fn profile(model: &str) -> AcpLaunchProfile {
-    AcpLaunchProfile::new(
-        &AcpAgentConfig { command: "pi-acp".into(), ..Default::default() },
-        RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
-            project: "project".into(),
-            session: "session".into(),
-            provider: "provider".into(),
-            model: model.into(),
-            generation: 0,
-        },
-    )
-    .unwrap()
-}
 
 #[tokio::test]
 async fn acp_model_source_pi_missing_credentials_and_disabled_model_never_use_native_account() {
@@ -73,21 +59,6 @@ async fn acp_model_source_pi_missing_credentials_and_disabled_model_never_use_na
         ).await.unwrap();
         let endpoint = format!("http://{}/v1", server.address());
         profile.attach_server(server);
-        configure_native(&mut profile, endpoint.trim_end_matches("/v1")).unwrap();
-        let response = crate::model_relay::upstream_http_client().unwrap()
-            .post(format!("{endpoint}/chat/completions"))
-            .bearer_auth(profile.binding.bearer_token())
-            .json(&serde_json::json!({"model":"active-model","messages":[{"role":"user","content":"hello"}]}))
-            .send().await.unwrap();
-        assert_eq!(response.status(), 401);
-        // A stale caller snapshot cannot resurrect a catalog-disabled model.
-        let mut disabled = active.clone();
-        disabled.id = "disabled-model".into();
-        let result = crate::session::llm::acp::model_source::prepare("pi", &config, &disabled, "disabled").await;
-        let error = match result {
-            Ok(_) => panic!("disabled model must not create a Pi launch"),
-            Err(error) => error.to_string(),
-        };
-        assert!(error.contains("disabled-model"));
+        llm_runtime::acp::acceptance_support::negative::pi_rejects_native_account::<super::super::super::super::request::RuntimeHost>(profile, active, config, endpoint).await;
     }).await;
 }

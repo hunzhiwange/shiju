@@ -2,32 +2,6 @@ use super::*;
 use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
 
 
-fn profile(model: &str) -> AcpLaunchProfile {
-    let mut profile = AcpLaunchProfile::new(
-        &AcpAgentConfig {
-            command: "kiro-cli".into(),
-            args: vec!["acp".into()],
-            ..Default::default()
-        },
-        RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
-            project: "project".into(),
-            session: "session:kiro".into(),
-            provider: "provider".into(),
-            model: model.into(),
-            generation: 0,
-        },
-    )
-    .unwrap();
-    profile.model_supports_tool_call = true;
-    profile.model_api = Some(crate::provider::provider::ApiInfo {
-        protocols: None,
-        id: model.into(),
-        url: "https://example.invalid/v1/chat/completions".into(),
-        adapter: "openai-compatible".into(),
-    });
-    profile
-}
 
 #[test]
 fn acp_model_source_kiro_control_is_authenticated_bound_and_revocable() {

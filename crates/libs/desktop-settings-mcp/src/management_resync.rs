@@ -1,14 +1,14 @@
 use crate::management_context as catalog;
-use iced::Task;
+use crate::management_effect::Effect;
 use gateway_app_settings::AgentAppsSettingsError;
-use vw_gateway_client::GatewayClient;
 use gateway_mcp_distribution::*;
-use vw_api_transport::TaskId;
-use vw_api_app_operations::AppActionExecutionResult;
+use iced::Task;
 use vw_api_app_identity::AppId;
+use vw_api_app_operations::AppActionExecutionResult;
 use vw_api_mcp_management::*;
 use vw_api_task::TaskStatus;
-use crate::management_effect::Effect;
+use vw_api_transport::TaskId;
+use vw_gateway_client::GatewayClient;
 pub struct Update<'a> {
     pub state: &'a mut ResyncState,
     pub context: Option<catalog::Context>,
@@ -22,9 +22,18 @@ pub struct Update<'a> {
     pub effects: Vec<Effect>,
 }
 impl Update<'_> {
-    fn show_error_toast(&mut self, value: impl Into<String>) -> Task<ResyncMessage> { self.effects.push(Effect::Error(value.into())); Task::none() }
-    fn show_success_toast(&mut self, value: impl Into<String>) -> Task<ResyncMessage> { self.effects.push(Effect::Success(value.into())); Task::none() }
-    fn refresh(&mut self) -> Task<ResyncMessage> { self.effects.push(Effect::Refresh); Task::none() }
+    fn show_error_toast(&mut self, value: impl Into<String>) -> Task<ResyncMessage> {
+        self.effects.push(Effect::Error(value.into()));
+        Task::none()
+    }
+    fn show_success_toast(&mut self, value: impl Into<String>) -> Task<ResyncMessage> {
+        self.effects.push(Effect::Success(value.into()));
+        Task::none()
+    }
+    fn refresh(&mut self) -> Task<ResyncMessage> {
+        self.effects.push(Effect::Refresh);
+        Task::none()
+    }
 }
 #[derive(Debug, Clone, Default)]
 pub struct ResyncState {
@@ -76,7 +85,7 @@ enum Work {
     Cancel(TaskId),
     Observe(McpResyncRequest),
 }
-pub use crate::distribution::{terminal, failed, successful};
+pub use crate::distribution::{failed, successful, terminal};
 
 fn validate(
     status: &McpResyncOperationStatus,
@@ -146,34 +155,39 @@ async fn execute(
                     installation_id: target.installation_id,
                     target_host_id: host.clone(),
                 };
-                let status = gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone())
-                    .mcp_management_native(&expected, target.account_id.as_deref(), &token)
-                    .await
-                    .ok()
-                    .filter(|p| p.target == expected)
-                    .map(|p| p.status);
+                let status =
+                    gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone())
+                        .mcp_management_native(&expected, target.account_id.as_deref(), &token)
+                        .await
+                        .ok()
+                        .filter(|p| p.target == expected)
+                        .map(|p| p.status);
                 observed.push((expected, status));
             }
             Ok(ResyncResult::Observed(observed))
         }
         Work::Submit(request) => {
-            gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone()).mcp_management_catalog(&host, &token).await.map_err(|_| ResyncFailure {
-                label: "无法刷新实际目录；未提交重同步".into(),
-                uncertain: false,
-            })?;
+            gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone())
+                .mcp_management_catalog(&host, &token)
+                .await
+                .map_err(|_| ResyncFailure {
+                    label: "无法刷新实际目录；未提交重同步".into(),
+                    uncertain: false,
+                })?;
             for target in &request.targets {
                 let expected = McpAppTarget {
                     app_id: target.app_id,
                     installation_id: target.installation_id.clone(),
                     target_host_id: host.clone(),
                 };
-                let preview = gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone())
-                    .mcp_management_native(&expected, target.account_id.as_deref(), &token)
-                    .await
-                    .map_err(|_| ResyncFailure {
-                        label: "无法刷新目标原生状态；未提交重同步".into(),
-                        uncertain: false,
-                    })?;
+                let preview =
+                    gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone())
+                        .mcp_management_native(&expected, target.account_id.as_deref(), &token)
+                        .await
+                        .map_err(|_| ResyncFailure {
+                            label: "无法刷新目标原生状态；未提交重同步".into(),
+                            uncertain: false,
+                        })?;
                 if preview.target != expected {
                     return Err(ResyncFailure {
                         label: "目标状态不匹配；未提交重同步".into(),
@@ -207,14 +221,16 @@ async fn execute(
                     uncertain: false,
                 })
         }
-        Work::Cancel(id) => gateway_mcp_distribution::GatewayMcpDistributionClient::new(client.transport().clone())
-            .mcp_management_resync_cancel(&host, &id, &token)
-            .await
-            .map(ResyncResult::Status)
-            .map_err(|_| ResyncFailure {
-                label: "取消结果未知；请刷新同一作业核实".into(),
-                uncertain: false,
-            }),
+        Work::Cancel(id) => {
+            gateway_mcp_distribution::GatewayMcpDistributionClient::new(client.transport().clone())
+                .mcp_management_resync_cancel(&host, &id, &token)
+                .await
+                .map(ResyncResult::Status)
+                .map_err(|_| ResyncFailure {
+                    label: "取消结果未知；请刷新同一作业核实".into(),
+                    uncertain: false,
+                })
+        }
     }
 }
 fn dispatch(app: &mut Update<'_>, context: catalog::Context, work: Work) -> Task<ResyncMessage> {
@@ -244,17 +260,12 @@ pub fn update(app: &mut Update<'_>, value: ResyncMessage) -> Task<ResyncMessage>
         *app.state =
             ResyncState { context: Some(context.clone()), generation, ..Default::default() };
     }
-    if !app.authorized
-        || app.token.is_empty()
-        || context.host.is_empty()
-    {
+    if !app.authorized || app.token.is_empty() || context.host.is_empty() {
         return Task::none();
     }
     match value {
         ResyncMessage::Open => {
-            if !locked(&*app.state)
-                && !app.modal_open
-            {
+            if !locked(&*app.state) && !app.modal_open {
                 app.state.open = true;
             }
         }
@@ -381,10 +392,7 @@ pub fn update(app: &mut Update<'_>, value: ResyncMessage) -> Task<ResyncMessage>
                         state.uncertain = error.uncertain;
                     }
                     state.error = Some(error.label.clone());
-                    return Task::batch([
-                        app.show_error_toast(error.label),
-                        app.refresh(),
-                    ]);
+                    return Task::batch([app.show_error_toast(error.label), app.refresh()]);
                 }
                 Ok(ResyncResult::Observed(observed)) => {
                     state.observed = observed;
@@ -426,11 +434,7 @@ pub fn update(app: &mut Update<'_>, value: ResyncMessage) -> Task<ResyncMessage>
                     };
                     let request = app.state.request.clone().expect("owned request");
                     let observe = dispatch(app, context, Work::Observe(request));
-                    return Task::batch([
-                        feedback,
-                        app.refresh(),
-                        observe,
-                    ]);
+                    return Task::batch([feedback, app.refresh(), observe]);
                 }
             }
         }
@@ -441,4 +445,73 @@ pub fn locked(state: &ResyncState) -> bool {
     state.busy
         || state.uncertain
         || (state.operation.is_some() && !state.status.as_ref().is_some_and(terminal))
+}
+
+use crate::resync as ui;
+use iced::Element;
+fn project(state: &ResyncState) -> ui::ResyncView<'_> {
+    ui::ResyncView {
+        locked: locked(state),
+        has_operation: state.operation.is_some(),
+        busy: state.busy,
+        cancelling: state.cancelling,
+        status: &state.status,
+        request: &state.request,
+        observed: &state.observed,
+        error: &state.error,
+        selected: &state.selected,
+        account: &state.account,
+    }
+}
+fn message(event: ui::ResyncMessage) -> ResyncMessage {
+    use self::ResyncMessage as M;
+    match event {
+        ui::ResyncMessage::Open => M::Open,
+        ui::ResyncMessage::RetryFailed => M::RetryFailed,
+        ui::ResyncMessage::Refresh => M::Refresh,
+        ui::ResyncMessage::Cancel => M::Cancel,
+        ui::ResyncMessage::Close => M::Close,
+        ui::ResyncMessage::Select(v, b) => M::Select(v, b),
+        ui::ResyncMessage::Account(v) => M::Account(v),
+        ui::ResyncMessage::Start => M::Start,
+    }
+}
+
+pub fn panel(state: Option<&ResyncState>) -> Element<'_, ResyncMessage> {
+    ui::panel(state.map(project)).map(message)
+}
+pub fn card<'a>(
+    state: &'a ResyncState,
+    selected: &[McpCatalogRecord],
+    targets: Vec<McpAppTarget>,
+) -> Element<'a, ResyncMessage> {
+    let scope = if selected.is_empty() {
+        "当前租户".to_owned()
+    } else {
+        match crate::distribution::project(selected) {
+            Ok(Some(p)) => format!("项目 {}", p.0),
+            Ok(None) => "当前租户".to_owned(),
+            Err(e) => format!("无效：{e}"),
+        }
+    };
+    ui::card(project(state), scope, targets).map(message)
+}
+pub fn overlay<'a>(
+    state: &'a ResyncState,
+    selected: &[McpCatalogRecord],
+    targets: Vec<McpAppTarget>,
+    dialog: Element<'a, ResyncMessage>,
+) -> Element<'a, ResyncMessage> {
+    desktop_ui_controls::system_settings_common::settings_modal_overlay(
+        Some(dialog),
+        ResyncMessage::Close,
+        card(state, selected, targets),
+    )
+}
+
+pub fn visible<'a>(
+    state: &'a ResyncState,
+    current: Option<&crate::management_context::Context>,
+) -> Option<&'a ResyncState> {
+    (current == state.context.as_ref()).then_some(state)
 }

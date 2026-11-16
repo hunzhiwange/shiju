@@ -97,3 +97,10 @@ impl BindingsState {
         true
     }
 }
+
+pub fn visible<'a>(
+    state: &'a BindingsState,
+    current: Option<&crate::management_context::Context>,
+) -> Option<&'a BindingsState> {
+    (current == state.context.as_ref()).then_some(state)
+}

@@ -1,7 +1,7 @@
 use crate::management_context::Context;
+use gateway_http::AgentAppsReadError;
 use vw_api_mcp_management::*;
 use vw_gateway_client::GatewayClient;
-use gateway_http::AgentAppsReadError;
 #[derive(Debug, Clone, Default)]
 pub struct CatalogState {
     pub context: Option<Context>,
@@ -19,7 +19,9 @@ pub async fn load(
     host: &str,
     token: &str,
 ) -> Result<McpCatalogResponse, AgentAppsReadError> {
-    gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone()).mcp_management_catalog(host, token).await
+    gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone())
+        .mcp_management_catalog(host, token)
+        .await
 }
 impl CatalogState {
     fn finish(
@@ -41,8 +43,8 @@ impl CatalogState {
     }
 }
 
-use iced::Task;
 use crate::management_effect::Effect;
+use iced::Task;
 pub struct Update<'a> {
     pub state: &'a mut CatalogState,
     pub context: Option<Context>,
@@ -52,7 +54,10 @@ pub struct Update<'a> {
     pub effects: Vec<Effect>,
 }
 impl Update<'_> {
-    fn show_error_toast(&mut self, value: impl Into<String>) -> Task<CatalogMessage> { self.effects.push(Effect::Error(value.into())); Task::none() }
+    fn show_error_toast(&mut self, value: impl Into<String>) -> Task<CatalogMessage> {
+        self.effects.push(Effect::Error(value.into()));
+        Task::none()
+    }
 }
 pub fn update(app: &mut Update<'_>, message: CatalogMessage) -> Task<CatalogMessage> {
     match message {
@@ -65,10 +70,7 @@ pub fn update(app: &mut Update<'_>, message: CatalogMessage) -> Task<CatalogMess
             state.context = Some(context.clone());
             state.result = None;
             state.loading = false;
-            if context.host.is_empty()
-                || app.token.is_empty()
-                || !app.authorized
-            {
+            if context.host.is_empty() || app.token.is_empty() || !app.authorized {
                 state.result = Some(Err("请先在应用管理中连接目标主机".into()));
                 return Task::none();
             }
@@ -92,8 +94,7 @@ pub fn update(app: &mut Update<'_>, message: CatalogMessage) -> Task<CatalogMess
         }
         CatalogMessage::Loaded { context: request, generation, result } => {
             if let Some(current) = app.context.clone() {
-                let accepted =
-                    app.state.finish(&current, &request, generation, result);
+                let accepted = app.state.finish(&current, &request, generation, result);
                 if accepted && let Some(Err(error)) = app.state.result.as_ref() {
                     return app.show_error_toast(error.clone());
                 }
@@ -106,3 +107,13 @@ pub fn update(app: &mut Update<'_>, message: CatalogMessage) -> Task<CatalogMess
 #[cfg(test)]
 #[path = "management_list_tests.rs"]
 mod tests;
+
+pub fn loading(state: &CatalogState, current: Option<&crate::management_context::Context>) -> bool {
+    state.loading && current == state.context.as_ref()
+}
+pub fn visible<'a>(
+    state: &'a CatalogState,
+    current: Option<&crate::management_context::Context>,
+) -> Option<&'a Result<McpCatalogResponse, String>> {
+    (current == state.context.as_ref()).then_some(state.result.as_ref()).flatten()
+}

@@ -1,21 +1,16 @@
+use super::fixture::{catalog, probe};
 use vw_api_app_identity::{AppCatalogEntry, AppId, AppReadResponse, AppRuntimeKind};
-use crate::app::message::{
-    agent_apps_diagnostics as probe,
-    settings::{McpMessage, SettingsMessage, mcp_management_list as catalog},
-};
-use crate::app::{App, Message};
-use {
-    vw_api_types::agent_apps::*,
-    vw_api_mcp_management::*,
-};
 
-fn setup() -> App {
-    let mut app = App::new().0;
+use super::fixture::*;
+use vw_api_mcp_management::*;
+
+fn setup() -> Fixture {
+    let mut app = Fixture::default();
     app.project_id = Some("project".into());
-    app.apps_catalog.host = "host".into();
-    app.apps_catalog.token = "fixture".into();
-    app.apps_catalog.context = Some(catalog::context(&app).unwrap().endpoint);
-    app.apps_catalog.rows.push(crate::app::components::system_settings_apps::catalog::CatalogRow {
+    app.authority.host = "host".into();
+    app.authority.token = "fixture".into();
+    app.authority.context = Some(catalog::context(&app).unwrap().endpoint);
+    app.authority.rows.push(desktop_settings_apps::system_settings_apps::catalog::CatalogRow {
         entry: AppCatalogEntry {
             id: AppId::Codex,
             name: "Codex".into(),
@@ -56,7 +51,7 @@ fn setup() -> App {
     app
 }
 
-fn draw(app: &App) -> Vec<String> {
+fn draw(app: &Fixture) -> Vec<String> {
     use iced::{
         Font, Rectangle, Renderer, Size, Theme,
         advanced::{
@@ -81,13 +76,13 @@ fn draw(app: &App) -> Vec<String> {
         runtime.block_on(Renderer::new(Font::DEFAULT, 14.0.into(), Some("tiny-skia"))).unwrap();
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
     let mut result = vec![];
     for theme in [Theme::Light, Theme::Dark] {
-        let element = crate::app::components::agent_apps_diagnostics::mcp_panel::view(app);
+        let element = super::fixture::diagnostic_panel(app);
         let mut ui =
             UserInterface::build(element, Size::new(1000., 1000.), Cache::new(), &mut renderer);
         ui.draw(
@@ -104,9 +99,9 @@ fn draw(app: &App) -> Vec<String> {
 }
 #[test]
 fn cc_mcp_t49_catalog_load_draws_unchecked_without_starting_probe() {
-    let (_lock, _home, _guard) = crate::app::config::isolated_settings();
+    let (_lock, _home, _guard) = super::fixture::isolated_settings();
     let app = setup();
-    assert!(!app.mcp_settings.diagnostics.active());
+    assert!(!app.state.diagnostics.active());
     let labels = draw(&app);
     assert!(
         labels.iter().any(|s| s.contains("unchecked")),
@@ -115,25 +110,19 @@ fn cc_mcp_t49_catalog_load_draws_unchecked_without_starting_probe() {
 }
 
 use iced::Task;
-use {
-    vw_api_transport::ProjectScope,
-    vw_api_app_diagnostics::*,
-};
+use {vw_api_app_diagnostics::*, vw_api_transport::ProjectScope};
 fn runtime() -> tokio::runtime::Runtime {
     tokio::runtime::Builder::new_multi_thread().worker_threads(1).enable_all().build().unwrap()
 }
 fn run(
-    task: Task<Message>,
+    task: Task<McpMessage>,
     rt: &tokio::runtime::Runtime,
 ) -> tokio::task::JoinHandle<probe::McpDiagnosticMessage> {
     use iced_runtime::{Action, futures::futures::StreamExt};
     rt.spawn(async move {
         let mut stream = iced_runtime::task::into_stream(task).expect("network task");
         while let Some(action) = stream.next().await {
-            if let Action::Output(Message::Settings(SettingsMessage::Mcp(
-                McpMessage::Diagnostic(event),
-            ))) = action
-            {
+            if let Action::Output(McpMessage::Diagnostic(event)) = action {
                 return event;
             }
         }
@@ -180,7 +169,7 @@ fn send(tx: &std::sync::mpsc::Sender<Option<String>>, value: &impl serde::Serial
 }
 #[test]
 fn cc_mcp_t49_real_check_uses_generation_and_revision_then_edit_clears_connected() {
-    crate::app::config::with_settings_gateway(|requests, responses| {
+    super::fixture::with_settings_gateway(|requests, responses| {
         let rt = runtime();
         let mut app = setup();
         let context = probe::context(&app).unwrap();
@@ -189,7 +178,7 @@ fn cc_mcp_t49_real_check_uses_generation_and_revision_then_edit_clears_connected
             &mut app,
             probe::McpDiagnosticMessage::Start(vec![McpRecordId("docs".into())]),
         );
-        let generation = app.mcp_settings.diagnostics.generation;
+        let generation = app.state.diagnostics.generation;
         assert!(draw(&app).iter().any(|s| s.contains("checking")));
         let start = run(task, &rt);
         let request = requests.recv_timeout(std::time::Duration::from_secs(10)).unwrap();
@@ -236,7 +225,7 @@ fn cc_mcp_t49_real_check_uses_generation_and_revision_then_edit_clears_connected
 }
 #[test]
 fn cc_mcp_t49_late_registration_after_leaving_is_revoked_with_captured_authority() {
-    crate::app::config::with_settings_gateway(|requests, responses| {
+    super::fixture::with_settings_gateway(|requests, responses| {
         let rt = runtime();
         let mut app = setup();
         let context = probe::context(&app).unwrap();
@@ -251,13 +240,11 @@ fn cc_mcp_t49_late_registration_after_leaving_is_revoked_with_captured_authority
                 .unwrap()
                 .starts_with("POST /v1/agent-apps/mcp/checks?")
         );
-        app.show_system_settings = false;
-        drop(app.update(Message::Settings(SettingsMessage::Mcp(McpMessage::TabSelected(
-            crate::app::state::McpSettingsTab::Servers,
-        )))));
+        app.on_page = false;
+        drop(app.route(McpMessage::TabSelected(crate::state::McpSettingsTab::Servers)));
         // Even if the current credential changes, revocation uses the original authority.
-        app.apps_catalog.token = "replacement".into();
-        app.apps_catalog.generation += 1;
+        app.authority.token = "replacement".into();
+        app.authority.generation += 1;
         send(&responses, &job(&context));
         let cleanup = run(probe::update(&mut app, rt.block_on(start).unwrap()), &rt);
         let cancel = requests.recv_timeout(std::time::Duration::from_secs(10)).unwrap();
@@ -292,17 +279,17 @@ fn cc_mcp_t49_late_registration_after_leaving_is_revoked_with_captured_authority
             rt.block_on(cleanup).unwrap(),
             probe::McpDiagnosticMessage::Cleaned(Ok(()))
         ));
-        assert!(app.mcp_settings.diagnostics.targets.is_empty());
+        assert!(app.state.diagnostics.targets.is_empty());
         assert!(requests.try_recv().is_err());
     });
 }
 #[test]
 fn cc_mcp_t49_stale_generation_revision_scope_job_and_duplicate_results_are_unchecked() {
-    let (_lock, _home, _guard) = crate::app::config::isolated_settings();
+    let (_lock, _home, _guard) = super::fixture::isolated_settings();
     let mut app = setup();
     let context = probe::context(&app).unwrap();
     for case in 0..5 {
-        let state = &mut app.mcp_settings.diagnostics;
+        let state = &mut app.state.diagnostics;
         state.begin(context.clone(), context.records.clone());
         state.job = Some(job(&context));
         let generation = state.generation;
@@ -349,7 +336,7 @@ fn cc_mcp_t49_stale_generation_revision_scope_job_and_duplicate_results_are_unch
 }
 #[test]
 fn cc_mcp_t49_cancel_before_registration_waits_and_error_cancelled_states_draw() {
-    let (_lock, _home, _guard) = crate::app::config::isolated_settings();
+    let (_lock, _home, _guard) = super::fixture::isolated_settings();
     let mut app = setup();
     let context = probe::context(&app).unwrap();
     let task = probe::update(
@@ -358,13 +345,13 @@ fn cc_mcp_t49_cancel_before_registration_waits_and_error_cancelled_states_draw()
     );
     drop(task);
     drop(probe::update(&mut app, probe::McpDiagnosticMessage::Cancel));
-    assert!(app.mcp_settings.diagnostics.cancelling);
-    assert!(!app.mcp_settings.diagnostics.terminal, "cancel request is not cleanup confirmation");
+    assert!(app.state.diagnostics.cancelling);
+    assert!(!app.state.diagnostics.terminal, "cancel request is not cleanup confirmation");
     for (outcome, label) in [
         (McpConnectionOutcome::Failed { code: McpFailureCode::TargetUnavailable }, "error"),
         (McpConnectionOutcome::Cancelled, "cancelled"),
     ] {
-        let state = &mut app.mcp_settings.diagnostics;
+        let state = &mut app.state.diagnostics;
         state.begin(context.clone(), context.records.clone());
         state.job = Some(job(&context));
         let snap =
@@ -376,7 +363,7 @@ fn cc_mcp_t49_cancel_before_registration_waits_and_error_cancelled_states_draw()
 #[test]
 fn cc_mcp_t49_cancel_while_registering_and_leaving_registered_job_both_revoke() {
     for leave in [false, true] {
-        crate::app::config::with_settings_gateway(|requests, responses| {
+        super::fixture::with_settings_gateway(|requests, responses| {
             let rt = runtime();
             let mut app = setup();
             let context = probe::context(&app).unwrap();
@@ -393,13 +380,8 @@ fn cc_mcp_t49_cancel_while_registering_and_leaving_registered_job_both_revoke() 
             let next = probe::update(&mut app, rt.block_on(start).unwrap());
             let pending = if leave {
                 drop(next); // No poll runs before the navigation event.
-                app.show_system_settings = false;
-                run(
-                    app.update(Message::Settings(SettingsMessage::Mcp(McpMessage::TabSelected(
-                        crate::app::state::McpSettingsTab::Servers,
-                    )))),
-                    &rt,
-                )
+                app.on_page = false;
+                run(app.route(McpMessage::TabSelected(crate::state::McpSettingsTab::Servers)), &rt)
             } else {
                 run(next, &rt)
             };
@@ -422,7 +404,7 @@ fn cc_mcp_t49_cancel_while_registering_and_leaving_registered_job_both_revoke() 
                 assert!(matches!(event, probe::McpDiagnosticMessage::Cleaned(Ok(()))));
             } else {
                 drop(probe::update(&mut app, event));
-                assert!(app.mcp_settings.diagnostics.terminal);
+                assert!(app.state.diagnostics.terminal);
                 assert!(draw(&app).iter().any(|s| s.contains("cancelled")));
             }
         });
@@ -430,14 +412,12 @@ fn cc_mcp_t49_cancel_while_registering_and_leaving_registered_job_both_revoke() 
 }
 #[test]
 fn cc_mcp_t49_definition_save_and_binding_mutation_clear_completed_results() {
-    let (_lock, _home, _guard) = crate::app::config::isolated_settings();
+    let (_lock, _home, _guard) = super::fixture::isolated_settings();
     let mut app = setup();
-    app.show_system_settings = true;
-    app.system_settings_tab = crate::app::components::system_settings::SystemTab::Agents;
-    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Mcp;
+    app.on_page = true;
     let context = probe::context(&app).unwrap();
     for binding in [false, true] {
-        let state = &mut app.mcp_settings.diagnostics;
+        let state = &mut app.state.diagnostics;
         state.begin(context.clone(), context.records.clone());
         state.job = Some(job(&context));
         let snap = snapshot(
@@ -448,18 +428,16 @@ fn cc_mcp_t49_definition_save_and_binding_mutation_clear_completed_results() {
             McpConnectionOutcome::Connected { tool_count: None },
         );
         state.accept(&context, &context, state.generation, state.request_serial, snap);
-        app.mcp_settings.saving = !binding;
-        app.mcp_settings.bindings.running = binding;
-        drop(app.update(Message::Settings(SettingsMessage::Mcp(McpMessage::TabSelected(
-            crate::app::state::McpSettingsTab::Servers,
-        )))));
-        assert!(app.mcp_settings.diagnostics.targets.is_empty());
+        app.state.saving = !binding;
+        app.state.bindings.running = binding;
+        drop(app.route(McpMessage::TabSelected(crate::state::McpSettingsTab::Servers)));
+        assert!(app.state.diagnostics.targets.is_empty());
         assert!(draw(&app).iter().any(|s| s.contains("unchecked")));
     }
 }
 #[test]
 fn cc_mcp_t49_cancelling_snapshot_preserves_completed_rows_until_cleanup_terminal() {
-    let (_lock, _home, _guard) = crate::app::config::isolated_settings();
+    let (_lock, _home, _guard) = super::fixture::isolated_settings();
     let app = setup();
     let mut context = probe::context(&app).unwrap();
     let mut second = context.connections[0].clone();

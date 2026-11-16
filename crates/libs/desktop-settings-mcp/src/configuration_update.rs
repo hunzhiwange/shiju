@@ -397,3 +397,7 @@ pub fn update(app: &mut crate::state::State, message: Message) -> Effect {
 pub use crate::management_bindings_update as bindings;
 pub use crate::management_form_update as form;
 pub use crate::management_import_update as import;
+pub use crate::management_list as catalog;
+pub use crate::management_probe as probe;
+pub use crate::management_resync as resync;
+pub use crate::management_tools as tools;

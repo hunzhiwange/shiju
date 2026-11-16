@@ -10,9 +10,6 @@ fn authorized(app: &Update<'_>, context: &crate::management_context::Context) ->
         && !context.host.is_empty()
         && !app.token.is_empty()
 }
-pub fn visible(app: &Update<'_>) -> Option<&ImportState> {
-    app.state.import.as_ref().filter(|s| scope::context(app).as_ref() == Some(&s.context))
-}
 /// Decoded clipboard drafts share confirmation; system URI routing has a separate owner.
 fn open_draft(app: &mut Update<'_>, request: McpCreateRequest) -> Task<ImportMessage> {
     let Some(context) = scope::context(app).filter(|c| authorized(app, c)) else {

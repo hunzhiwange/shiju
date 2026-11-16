@@ -705,8 +705,6 @@ pub(crate) mod aggregation_subagent;
 #[cfg(test)]
 mod mcp_management_resync_tests;
 
-#[cfg(test)]
-mod mcp_management_probe_tests;
 
 #[cfg(test)]
 mod mcp_management_tools_tests;

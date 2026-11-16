@@ -1,4 +1,8 @@
-use crate::{diagnostic_context as diagnostics, management_probe::{self as mcp_management_probe, ProbeTransport}, management_effect::Effect};
+use crate::{
+    diagnostic_context as diagnostics,
+    management_effect::Effect,
+    management_probe::{self as mcp_management_probe, ProbeTransport},
+};
 use iced::Task;
 use vw_api_app_diagnostics::*;
 use vw_api_mcp_management::*;
@@ -13,9 +17,14 @@ pub struct Update<'a> {
     pub effects: Vec<Effect>,
 }
 impl Update<'_> {
-    fn show_error_toast(&mut self, value: impl Into<String>) -> Task<ToolsMessage> { self.effects.push(Effect::Error(value.into())); Task::none() }
+    fn show_error_toast(&mut self, value: impl Into<String>) -> Task<ToolsMessage> {
+        self.effects.push(Effect::Error(value.into()));
+        Task::none()
+    }
 }
-fn current_visible(app: &Update<'_>) -> bool { app.state.context.as_ref().is_some_and(|context| current(app, context)) }
+fn current_visible(app: &Update<'_>) -> bool {
+    app.state.context.as_ref().is_some_and(|context| current(app, context))
+}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Context {
     pub diagnostics: diagnostics::Context,
@@ -77,7 +86,8 @@ fn close(app: &mut Update<'_>) -> Task<ToolsMessage> {
     let cleanup = if !state.terminal {
         state.context.take().zip(state.job.take()).zip(state.transport.take()).map(
             |((context, job), transport)| {
-                mcp_management_probe::cleanup(transport, context.diagnostics, job).map(ToolsMessage::Cleaned)
+                mcp_management_probe::cleanup(transport, context.diagnostics, job)
+                    .map(ToolsMessage::Cleaned)
             },
         )
     } else {
@@ -132,7 +142,10 @@ fn poll(app: &mut Update<'_>, cancel: bool) -> Task<ToolsMessage> {
 }
 pub fn update(app: &mut Update<'_>, event: ToolsMessage) -> Task<ToolsMessage> {
     match event {
-        ToolsMessage::Cleaned(result) => match result { Ok(()) => Task::none(), Err(error) => app.show_error_toast(error) },
+        ToolsMessage::Cleaned(result) => match result {
+            Ok(()) => Task::none(),
+            Err(error) => app.show_error_toast(error),
+        },
         ToolsMessage::AcpSessionChanged(session) => {
             let state = &mut *app.state;
             state.acp_session = session;
@@ -166,10 +179,12 @@ pub fn update(app: &mut Update<'_>, event: ToolsMessage) -> Task<ToolsMessage> {
                         project_id: context.diagnostics.query.project_id.clone(),
                         session_id: session.clone().into(),
                     };
-                    let result = gateway_mcp_read::GatewayMcpReadClient::new(transport.client.transport().clone())
-                        .mcp_management_acp_usage(&query, &transport.token)
-                        .await
-                        .map_err(|_| "ACP 挂载未验证，请检查会话身份及独立读取授权".to_owned());
+                    let result = gateway_mcp_read::GatewayMcpReadClient::new(
+                        transport.client.transport().clone(),
+                    )
+                    .mcp_management_acp_usage(&query, &transport.token)
+                    .await
+                    .map_err(|_| "ACP 挂载未验证，请检查会话身份及独立读取授权".to_owned());
                     ToolsMessage::AcpLoaded(context, generation, serial, session, result)
                 },
                 std::convert::identity,
@@ -232,14 +247,16 @@ pub fn update(app: &mut Update<'_>, event: ToolsMessage) -> Task<ToolsMessage> {
             state.transport = Some(transport.clone());
             let task = Task::perform(
                 async move {
-                    let result = gateway_mcp_probe::GatewayMcpProbeClient::new(transport.client.transport().clone())
+                    let result = gateway_mcp_probe::GatewayMcpProbeClient::new(
+                        transport.client.transport().clone(),
+                    )
                     .mcp_management_tools(
-                            &context.diagnostics.query,
-                            &request(&context, generation),
-                            &transport.token,
-                        )
-                        .await
-                        .map_err(safe_error);
+                        &context.diagnostics.query,
+                        &request(&context, generation),
+                        &transport.token,
+                    )
+                    .await
+                    .map_err(safe_error);
                     ToolsMessage::Started(context, generation, transport, result)
                 },
                 std::convert::identity,
@@ -270,7 +287,8 @@ pub fn update(app: &mut Update<'_>, event: ToolsMessage) -> Task<ToolsMessage> {
                 if let Ok(job) = result
                     && identity(&context, &job)
                 {
-                    return mcp_management_probe::cleanup(transport, context.diagnostics, job).map(ToolsMessage::Cleaned);
+                    return mcp_management_probe::cleanup(transport, context.diagnostics, job)
+                        .map(ToolsMessage::Cleaned);
                 }
                 return Task::none();
             }
@@ -351,4 +369,50 @@ pub fn update(app: &mut Update<'_>, event: ToolsMessage) -> Task<ToolsMessage> {
             }
         }
     }
+}
+
+fn map_view_message(event: crate::tools::ToolsMessage) -> ToolsMessage {
+    use self::ToolsMessage as M;
+    match event {
+        crate::tools::ToolsMessage::Open(v) => M::Open(v),
+        crate::tools::ToolsMessage::Close => M::Close,
+        crate::tools::ToolsMessage::AcpSessionChanged(v) => M::AcpSessionChanged(v),
+        crate::tools::ToolsMessage::ReadAcp => M::ReadAcp,
+        crate::tools::ToolsMessage::Cancel => M::Cancel,
+        crate::tools::ToolsMessage::Refresh => M::Refresh,
+    }
+}
+
+pub fn card<'a>(
+    state: &'a ToolsState,
+    catalog: Option<&'a Result<vw_api_mcp_management::McpCatalogResponse, String>>,
+) -> iced::Element<'a, ToolsMessage> {
+    let context = state.context.as_ref().expect("visible tool context");
+    crate::tools::card(
+        crate::tools::ToolsView {
+            record: &context.record,
+            acp_session: &state.acp_session,
+            acp_loading: state.acp_loading,
+            acp: &state.acp,
+            result: &state.result,
+            error: &state.error,
+            cancelling: state.cancelling,
+            terminal: state.terminal,
+        },
+        catalog,
+    )
+    .map(map_view_message)
+}
+
+pub fn visible<'a>(
+    state: &'a ToolsState,
+    current: Option<&crate::diagnostic_context::Context>,
+) -> Option<&'a ToolsState> {
+    state
+        .context
+        .as_ref()
+        .filter(|c| {
+            current == Some(&c.diagnostics) && c.diagnostics.connections.contains(&c.record)
+        })
+        .map(|_| state)
 }

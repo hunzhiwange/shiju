@@ -1,7 +1,6 @@
 //! Desktop context assembly and MCP message mapping.
 use crate::app::{App, Message, message::settings::{McpMessage, SettingsMessage, mcp_management_list as catalog}};
 use iced::Task;
-use vw_api_app_diagnostics::*;
 pub(crate) use desktop_apps_ui::agent_apps_diagnostics::mcp_state::*;
 pub use desktop_apps_ui::agent_apps_diagnostics::mcp::McpDiagnosticMessage;
 pub(crate) mod mcp_results;
@@ -14,31 +13,8 @@ pub(crate) fn message(event: McpDiagnosticMessage) -> Message {
     Message::Settings(SettingsMessage::Mcp(McpMessage::Diagnostic(event)))
 }
 pub(crate) fn context(app: &App) -> Option<Context> {
-    let catalog = catalog::context(app)?;
-    let project = app.project_id.as_deref().filter(|p| !p.is_empty())?;
-    let choice = app.mcp_settings.diagnostics.app.as_ref()?;
-    if catalog.host.is_empty()
-        || app.apps_catalog.token.is_empty()
-        || app.apps_catalog.context.as_ref() != Some(&catalog.endpoint)
-        || !app.apps_catalog.rows.iter().any(|r| r.entry.id == choice.0)
-    {
-        return None;
-    }
-    let connections = catalog::visible(app)?.as_ref().ok()?.records.clone();
-    let records = connections.iter().map(|r| r.record.clone()).collect();
-    Some(Context {
-        records,
-        connections,
-        query: DiagnosticScopeQuery {
-            project_id: project.into(),
-            target_host_id: catalog.host.clone(),
-            app_id: choice.0,
-        },
-        gateway: catalog.endpoint.gateway,
-        tenant: catalog.endpoint.tenant,
-        project_path: catalog.endpoint.project,
-        credentials_generation: catalog.credentials_generation,
-    })
+    desktop_settings_mcp::diagnostic_context::current(catalog::context(app), app.project_id.as_deref(), app.mcp_settings.diagnostics.app.as_ref(),
+        &app.apps_catalog.token, app.apps_catalog.context.as_ref(), app.apps_catalog.rows.iter().map(|r| r.entry.id), catalog::visible(app))
 }
 
 pub(crate) fn update(app: &mut App, event: McpDiagnosticMessage) -> Task<Message> {

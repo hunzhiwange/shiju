@@ -37,3 +37,44 @@ impl std::ops::DerefMut for McpSettingsState {
         &mut self.page
     }
 }
+
+impl McpSettingsState {
+    pub fn mutating(&self) -> bool {
+        self.page.saving
+            || self.bindings.running
+            || self.connection_form.as_ref().is_some_and(|d| d.saving)
+    }
+    pub fn modal_open(&self) -> bool {
+        self.import.is_some() || self.connection_form.is_some()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Overlay {
+    Tools,
+    Resync,
+    Import,
+    Form,
+    Page,
+}
+impl McpSettingsState {
+    pub fn overlay(
+        &self,
+        current: Option<&crate::management_context::Context>,
+        diagnostics: Option<&crate::diagnostic_context::Context>,
+    ) -> Overlay {
+        if crate::management_tools::visible(&self.tools, diagnostics).is_some() {
+            return Overlay::Tools;
+        }
+        if crate::management_resync::visible(&self.resync, current).is_some_and(|s| s.open) {
+            return Overlay::Resync;
+        }
+        if crate::management_import::visible(self.import.as_ref(), current).is_some() {
+            return Overlay::Import;
+        }
+        if self.connection_form.is_some() {
+            return Overlay::Form;
+        }
+        Overlay::Page
+    }
+}

@@ -135,3 +135,41 @@ pub async fn import(
             .map_err(|_| "导入请求失败，请刷新目录核实；不要直接重复提交".to_owned())?;
     result_labels(response, &source.target)
 }
+
+use crate::import as ui;
+pub fn panel(
+    state: &ImportState,
+    targets: Vec<vw_api_mcp_management::McpAppTarget>,
+) -> iced::Element<'_, ImportMessage> {
+    ui::panel(
+        ui::ImportView {
+            host: &state.context.host,
+            importing: state.importing,
+            loading: state.loading,
+            link_drafts: &state.link_drafts,
+            draft: &state.draft,
+            source: &state.source,
+            account: &state.account,
+            has_preview: state.preview.is_some(),
+            can_confirm: state.can_confirm(),
+            result: &state.result,
+        },
+        targets,
+        state.preview.as_ref().map(preview_labels).unwrap_or_default(),
+    )
+    .map(|event| match event {
+        ui::ImportMessage::Close => ImportMessage::Close,
+        ui::ImportMessage::Select(v) => ImportMessage::Select(v),
+        ui::ImportMessage::Account(v) => ImportMessage::Account(v),
+        ui::ImportMessage::Preview => ImportMessage::Preview,
+        ui::ImportMessage::Paste => ImportMessage::Paste,
+        ui::ImportMessage::Confirm => ImportMessage::Confirm,
+    })
+}
+
+pub fn visible<'a>(
+    state: Option<&'a ImportState>,
+    current: Option<&crate::management_context::Context>,
+) -> Option<&'a ImportState> {
+    state.filter(|s| current == Some(&s.context))
+}

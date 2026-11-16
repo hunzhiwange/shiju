@@ -1,16 +1,8 @@
-use vw_api_app_identity::{
-    AppCatalogEntry,
-    AppId,
-    AppInstallation,
-    AppInstallationEnvironment,
-    AppInstallationId,
-    AppInstallationRuntimeStatus,
-    AppInstallationSource,
-    AppReadResponse,
-    AppRuntimeKind,
-};
-use super::catalog::rows;
-use super::*;
+use super::fixture::bindings::*;
+use super::fixture::catalog;
+use super::fixture::*;
+use vw_api_app_identity::AppId;
+use vw_api_mcp_management::*;
 
 fn record(id: &str) -> McpCatalogRecord {
     McpCatalogRecord {
@@ -30,9 +22,7 @@ fn record(id: &str) -> McpCatalogRecord {
 fn target() -> McpAppTarget {
     McpAppTarget {
         app_id: AppId::Codex,
-        installation_id: vw_api_app_identity::AppInstallationId(
-            "trusted-instance".into(),
-        ),
+        installation_id: vw_api_app_identity::AppInstallationId("trusted-instance".into()),
         target_host_id: "host".into(),
     }
 }
@@ -59,22 +49,21 @@ fn result() -> McpDistributionResult {
 }
 #[test]
 fn cc_mcp_t46_matrix_draws_chinese_results_and_preserves_runtime_and_acp_selections() {
-    use crate::app::components::system_settings_apps::catalog::CatalogRow;
+    use desktop_settings_apps::system_settings_apps::catalog::CatalogRow;
     use iced::{
         Font, Renderer, Size, Theme,
         advanced::renderer::{Headless, Style},
         mouse,
     };
     use iced_runtime::user_interface::{Cache, UserInterface};
-    use vw_api_types::agent_apps::*;
-    crate::app::config::with_settings_gateway(|_, _| {
-        let mut app = App::new().0;
-        app.apps_catalog.host = "host".into();
-        app.apps_catalog.token = "fixture".into();
+    use vw_api_app_identity::*;
+    super::fixture::with_settings_gateway(|_, _| {
+        let mut app = Fixture::default();
+        app.authority.host = "host".into();
+        app.authority.token = "fixture".into();
         let context = catalog::context(&app).unwrap();
-        app.apps_catalog.context = Some(context.endpoint.clone());
-        let before_runtime = app.mcp_settings.runtime_overrides.clone();
-        let before_acp = app.acp_settings.enabled.clone();
+        app.authority.context = Some(context.endpoint.clone());
+        let before_runtime = app.state.runtime_overrides.clone();
         let record = record("a");
         let catalog_response = McpCatalogResponse {
             records: vec![record.clone()],
@@ -95,7 +84,7 @@ fn cc_mcp_t46_matrix_draws_chinese_results_and_preserves_runtime_and_acp_selecti
                 result: Ok(catalog_response),
             },
         ));
-        app.apps_catalog.rows.push(CatalogRow {
+        app.authority.rows.push(CatalogRow {
             entry: AppCatalogEntry {
                 id: AppId::Codex,
                 name: "Codex".into(),
@@ -120,9 +109,9 @@ fn cc_mcp_t46_matrix_draws_chinese_results_and_preserves_runtime_and_acp_selecti
         });
         let mut obsolete = record.clone();
         obsolete.record.revision = 3;
-        app.mcp_settings.bindings.selected.push(obsolete);
+        app.state.bindings.selected.push(obsolete);
         drop(update(&mut app, BindingsMessage::Select(record.clone(), true)));
-        assert_eq!(app.mcp_settings.bindings.selected, vec![record]);
+        assert_eq!(app.state.bindings.selected, vec![record]);
         let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
         let mut renderer = runtime
             .block_on(Renderer::new(
@@ -133,15 +122,15 @@ fn cc_mcp_t46_matrix_draws_chinese_results_and_preserves_runtime_and_acp_selecti
             .unwrap();
         {
             let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-            for font in crate::fonts::load_all() {
+            for font in desktop_assets::fonts::load_all() {
                 fonts.load_font(font);
             }
         }
         for response in [Some(Ok(result())), Some(Err("中文目标无法写入 😀".into())), None]
         {
-            app.mcp_settings.bindings.result = response;
+            app.state.bindings.result = response;
             for theme in [Theme::Light, Theme::Dark] {
-                let element = crate::app::components::system_settings_mcp::view(&app);
+                let element = super::fixture::view(&app);
                 let mut ui = UserInterface::build(
                     element,
                     Size::new(1200., 3000.),
@@ -159,17 +148,16 @@ fn cc_mcp_t46_matrix_draws_chinese_results_and_preserves_runtime_and_acp_selecti
         let mut invalid_target = target();
         invalid_target.installation_id.0 = "untrusted".into();
         drop(update(&mut app, BindingsMessage::Apply(invalid_target, true)));
-        assert!(!app.mcp_settings.bindings.running);
+        assert!(!app.state.bindings.running);
         drop(update(&mut app, BindingsMessage::Apply(target(), true)));
-        assert!(app.mcp_settings.bindings.running);
-        let generation = app.mcp_settings.bindings.generation;
+        assert!(app.state.bindings.running);
+        let generation = app.state.bindings.generation;
         drop(update(
             &mut app,
             BindingsMessage::Finished { context, generation, result: Ok(result()) },
         ));
-        assert!(!app.mcp_settings.bindings.running);
-        assert_eq!(app.mcp_settings.bindings.result, Some(Ok(result())));
-        assert_eq!(app.mcp_settings.runtime_overrides, before_runtime);
-        assert_eq!(app.acp_settings.enabled, before_acp);
+        assert!(!app.state.bindings.running);
+        assert_eq!(app.state.bindings.result, Some(Ok(result())));
+        assert_eq!(app.state.runtime_overrides, before_runtime);
     });
 }

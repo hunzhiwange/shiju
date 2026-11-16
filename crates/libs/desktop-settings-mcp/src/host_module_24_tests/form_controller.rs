@@ -1,5 +1,9 @@
-use super::*;
-use crate::app::state::AgentAppsContext;
+use super::fixture::catalog;
+use super::fixture::form::*;
+use super::fixture::*;
+use desktop_provider_apps::AgentAppsContext;
+use std::collections::BTreeMap;
+use vw_api_mcp_management::*;
 use {vw_api_app_auth::AuthService, vw_api_transport::TenantScope};
 fn context() -> catalog::Context {
     catalog::Context {
@@ -47,12 +51,12 @@ fn record() -> McpCatalogRecord {
 fn cc_mcp_t45_save_completion_always_rereads_catalog_and_failure_keeps_draft() {
     use iced_runtime::{Action, futures::futures::StreamExt};
     use std::time::Duration;
-    crate::app::config::with_settings_gateway(|requests, responses| {
-        let mut app = App::new().0;
-        app.apps_catalog.host = "host".into();
-        app.apps_catalog.token = "fixture".into();
+    super::fixture::with_settings_gateway(|requests, responses| {
+        let mut app = Fixture::default();
+        app.authority.host = "host".into();
+        app.authority.token = "fixture".into();
         let context = catalog::context(&app).unwrap();
-        app.apps_catalog.context = Some(context.endpoint.clone());
+        app.authority.context = Some(context.endpoint.clone());
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(1)
             .enable_all()
@@ -62,15 +66,12 @@ fn cc_mcp_t45_save_completion_always_rereads_catalog_and_failure_keeps_draft() {
             let mut draft = draft();
             draft.context = context.clone();
             draft.command = "keep-on-failure".into();
-            app.mcp_settings.connection_form = Some(draft);
+            app.state.connection_form = Some(draft);
             let task = update(&mut app, FormMessage::Save);
             let saving = runtime.spawn(async move {
                 let mut stream = iced_runtime::task::into_stream(task).unwrap();
                 while let Some(action) = stream.next().await {
-                    if let Action::Output(Message::Settings(SettingsMessage::Mcp(
-                        McpMessage::ConnectionForm(event),
-                    ))) = action
-                    {
+                    if let Action::Output(McpMessage::ConnectionForm(event)) = action {
                         return event;
                     }
                 }
@@ -83,19 +84,16 @@ fn cc_mcp_t45_save_completion_always_rereads_catalog_and_failure_keeps_draft() {
             let task = update(&mut app, event);
             assert!(catalog::loading(&app), "both outcomes must schedule a fresh catalog read");
             if success {
-                assert!(app.mcp_settings.connection_form.is_none());
+                assert!(app.state.connection_form.is_none());
             } else {
-                let draft = app.mcp_settings.connection_form.as_ref().unwrap();
+                let draft = app.state.connection_form.as_ref().unwrap();
                 assert_eq!(draft.command, "keep-on-failure");
                 assert!(!draft.saving);
             }
             let completion = runtime.spawn(async move {
                 let mut stream = iced_runtime::task::into_stream(task).unwrap();
                 while let Some(action) = stream.next().await {
-                    if let Action::Output(Message::Settings(SettingsMessage::Mcp(
-                        McpMessage::Catalog(event),
-                    ))) = action
-                    {
+                    if let Action::Output(McpMessage::Catalog(event)) = action {
                         return event;
                     }
                 }
@@ -122,12 +120,12 @@ fn cc_mcp_t45_save_completion_always_rereads_catalog_and_failure_keeps_draft() {
 
 #[test]
 fn cc_mcp_t45_old_preset_response_does_not_replace_a_reopened_draft() {
-    let (_lock, _home, _guard) = crate::app::config::isolated_settings();
-    let mut app = App::new().0;
+    let (_lock, _home, _guard) = super::fixture::isolated_settings();
+    let mut app = Fixture::default();
     let old = draft();
     let current = draft();
     let generation = current.generation;
-    app.mcp_settings.connection_form = Some(current);
+    app.state.connection_form = Some(current);
     let response = || McpPresetsResponse {
         presets: vec![McpPresetDraftView {
             id: "fixture".into(),
@@ -141,7 +139,7 @@ fn cc_mcp_t45_old_preset_response_does_not_replace_a_reopened_draft() {
     };
     let _ =
         update(&mut app, FormMessage::Presets(old.context.clone(), old.generation, Ok(response())));
-    assert!(app.mcp_settings.connection_form.as_ref().unwrap().presets.is_empty());
+    assert!(app.state.connection_form.as_ref().unwrap().presets.is_empty());
     let _ = update(&mut app, FormMessage::Presets(old.context.clone(), generation, Ok(response())));
-    assert_eq!(app.mcp_settings.connection_form.as_ref().unwrap().presets.len(), 1);
+    assert_eq!(app.state.connection_form.as_ref().unwrap().presets.len(), 1);
 }

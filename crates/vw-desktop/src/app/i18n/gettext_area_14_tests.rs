@@ -18,31 +18,6 @@ async fn desktop_gettext_area_14_launch_feedback_switches_language() {
 }
 
 #[test]
-fn desktop_gettext_area_14_feedback_catalog_covers_message_paths() {
-    let en = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/en.json")).unwrap();
-    let tw = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/zh-TW.json")).unwrap();
-    let calls = regex::Regex::new(
-        r#"show_localized_toast\(\s*crate::app::state::ToastKind::\w+,\s*("(?:[^"\\]|\\.)*")"#,
-    )
-    .unwrap();
-    let mut count = 0;
-    for source in [
-        include_str!("../message/shiju_apps.rs"),
-        include_str!("../message/skill_hub.rs"),
-        include_str!("../message/skill_hub/connectors.rs"),
-        include_str!("../message/skill_hub/public.rs"),
-    ] {
-        for captures in calls.captures_iter(source) {
-            let key: String = serde_json::from_str(&captures[1]).unwrap();
-            assert!(en.contains_key(&key), "English feedback missing: {key}");
-            assert!(tw.contains_key(&key), "Traditional feedback missing: {key}");
-            count += 1;
-        }
-    }
-    assert!(count > 60);
-}
-
-#[test]
 fn desktop_gettext_area_14_cache_error_keeps_semantics_until_render() {
     let error = crate::app::skill_hub::SkillCacheSyncError::new("识矩 CLI 不能是符号链接");
     let message = super::format::Message::nested(
@@ -55,25 +30,6 @@ fn desktop_gettext_area_14_cache_error_keeps_semantics_until_render() {
     assert!(tw.contains("識矩 CLI 不可為符號連結"));
     let raw = super::format::Message::literal("raw/%n/%s/中文".into());
     assert_eq!(raw.render(I18n::new(DesktopLocale::English)).unwrap(), "raw/%n/%s/中文");
-}
-
-#[test]
-fn desktop_gettext_area_14_public_helpers_have_catalog_entries() {
-    let en = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/en.json")).unwrap();
-    let tw = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/zh-TW.json")).unwrap();
-    let calls = regex::Regex::new(r#"\.__\(\s*("(?:[^"\\]|\\.)*")"#).unwrap();
-    for source in [
-        include_str!("../views/expert_hub/public_skills.rs"),
-        include_str!("../views/expert_hub/list.rs"),
-        include_str!("../../../../libs/desktop-expert-hub/src/views/shiju_apps/store.rs"),
-        include_str!("../views/expert_hub/shiju_apps/mine.rs"),
-    ] {
-        for captures in calls.captures_iter(source) {
-            let key: String = serde_json::from_str(&captures[1]).unwrap();
-            assert!(en.contains_key(&key), "missing English: {key}");
-            assert!(tw.contains_key(&key), "missing Traditional Chinese: {key}");
-        }
-    }
 }
 
 #[test]

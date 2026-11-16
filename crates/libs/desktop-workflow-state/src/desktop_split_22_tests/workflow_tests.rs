@@ -1,9 +1,9 @@
-use super::{I18n, workflow::Feedback};
+use desktop_i18n::I18n;
 use config_ui::DesktopLocale;
 
 #[test]
 fn desktop_gettext_area_13_state_error_is_localized_without_changing_identifiers() {
-    let mut state = crate::apps::workflow::state::WorkflowState::default();
+    let mut state = crate::state::WorkflowState::default();
     let error = state.open_edit_environment_variable_editor("用户/%n").unwrap_err();
     state.set_error(error);
     assert_eq!(

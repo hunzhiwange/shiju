@@ -27,8 +27,6 @@ mod project_tests;
 #[cfg(test)]
 mod gettext_area_9_tests;
 #[cfg(test)]
-mod gettext_area_8_tests;
-#[cfg(test)]
 mod tasks_tests;
 #[cfg(test)]
 mod gettext_area_14_tests;
@@ -40,5 +38,3 @@ mod gettext_area_13_tests;
 mod gettext_area_12_tests;
 #[cfg(test)]
 mod gettext_area_18_tests;
-#[cfg(test)]
-mod workflow_tests;

@@ -1,37 +1,6 @@
 use super::I18n;
 use config_ui::DesktopLocale;
 
-#[test]
-fn desktop_gettext_area_10_catalog_covers_display_paths() {
-    let en = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/en.json")).unwrap();
-    let tw = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/zh-TW.json")).unwrap();
-    let literal =
-        regex::Regex::new(r#"(?:\.__|\.format|ProjectFeedback::new)\(\s*("(?:\\.|[^"\\])*")"#)
-            .unwrap();
-    for source in [
-        include_str!("../components/file_tree/find_results.rs"),
-        include_str!("../components/file_tree/mod.rs"),
-        include_str!("../components/file_tree/tree_list.rs"),
-        include_str!("../components/search_panel.rs"),
-        include_str!("../../../../libs/desktop-i18n/src/project.rs"),
-        include_str!("../message/project/helpers.rs"),
-        include_str!("../impls/app_view_modals/project_edit/general_tab.rs"),
-        include_str!("../../../../libs/desktop-workspace/src/project_edit_view/launch_tab.rs"),
-        include_str!("../../../../libs/desktop-workspace/src/project_edit_view/refresh_tab.rs"),
-        include_str!("../../../../libs/desktop-workspace/src/project_edit_view/scheduling_tab.rs"),
-        include_str!("../impls/app_view_modals/project_edit/mod.rs"),
-        include_str!("../views/project/layout/work_sidebar.rs"),
-        include_str!("../views/project/layout/work_resources.rs"),
-        include_str!("../views/project/components/projects_list.rs"),
-    ] {
-        for capture in literal.captures_iter(source) {
-            let key: String = serde_json::from_str(&capture[1]).unwrap();
-            assert!(en.contains_key(&key), "missing English key: {key}");
-            assert!(tw.contains_key(&key), "missing Traditional Chinese key: {key}");
-        }
-    }
-}
-
 #[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_10_dynamic_feedback_retains_raw_arguments() {
     use crate::app::message::project::ProjectMessage;

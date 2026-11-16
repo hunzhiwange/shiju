@@ -19,20 +19,6 @@ async fn desktop_gettext_area_16_lsp_state_switches_without_translating_server_c
     assert_eq!(super::editor::lsp_status(&app).as_deref(), Some(raw));
 }
 
-#[test]
-fn desktop_gettext_area_16_preview_metadata_preserves_filename() {
-    let message = crate::app::preview::preview_description("/tmp/原始%s.zip").unwrap();
-    for (locale, kind) in [
-        (DesktopLocale::SimplifiedChinese, "压缩包"),
-        (DesktopLocale::TraditionalChinese, "壓縮檔"),
-        (DesktopLocale::English, "Archive"),
-    ] {
-        let rendered = message.render(I18n::new(locale)).unwrap();
-        assert!(rendered.contains("原始%s.zip"));
-        assert!(rendered.contains(kind));
-    }
-}
-
 #[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_16_locale_event_updates_existing_and_new_editors() {
     use crate::app::message::{PreviewMessage, preview, settings};

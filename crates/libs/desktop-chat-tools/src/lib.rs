@@ -34,3 +34,6 @@ mod desktop_split_05_tests;
 
 #[cfg(test)]
 mod desktop_split_02_tests;
+
+#[cfg(test)]
+mod desktop_split_22_tests;

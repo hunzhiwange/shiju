@@ -174,20 +174,3 @@ async fn desktop_gettext_area_13_lifecycle_validation_keeps_template_and_identif
         "自訂工作流 label 不能為空: 用户/%s/%n"
     );
 }
-#[test]
-fn desktop_gettext_area_13_status_keeps_parameters_and_rejects_stale_metadata() {
-    use super::format::Message;
-    use crate::apps::workflow::state::WorkflowState;
-    let mut state = WorkflowState::default();
-    state.set_status(Message::new("已加载 %s", vec!["用户/%s/%n/中文".into()]));
-    assert_eq!(
-        state.status_text(I18n::new(DesktopLocale::English)).unwrap(),
-        "Loaded 用户/%s/%n/中文"
-    );
-    assert_eq!(
-        state.status_text(I18n::new(DesktopLocale::TraditionalChinese)).unwrap(),
-        "已載入 用户/%s/%n/中文"
-    );
-    state.status_message = Some("raw 已加载 %s".into());
-    assert_eq!(state.status_text(I18n::new(DesktopLocale::English)).unwrap(), "raw 已加载 %s");
-}

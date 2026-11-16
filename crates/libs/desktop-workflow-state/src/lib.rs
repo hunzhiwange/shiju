@@ -17,3 +17,6 @@ mod ids_tests;
 pub mod app_ui;
 pub mod canvas_ops;
 pub mod state;
+
+#[cfg(test)]
+mod desktop_split_22_tests;

@@ -7023,6 +7023,7 @@ dependencies = [
 name = "desktop-i18n"
 version = "0.6.0"
 dependencies = [
+ "config-ui",
  "iced-code-editor",
  "once_cell",
  "regex",
@@ -8030,6 +8031,7 @@ dependencies = [
 name = "desktop-workflow-state"
 version = "0.6.0"
 dependencies = [
+ "config-ui",
  "desktop-i18n",
  "desktop-workflow-model",
  "gateway-workflow",

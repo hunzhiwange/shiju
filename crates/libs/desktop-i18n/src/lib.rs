@@ -72,3 +72,6 @@ mod gettext_selection_tests;
 mod gettext_area_4_tests;
 #[cfg(test)]
 mod gettext_area_5_tests;
+
+#[cfg(test)]
+mod desktop_split_22_tests;

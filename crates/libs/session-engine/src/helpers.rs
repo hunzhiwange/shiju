@@ -93,3 +93,7 @@ pub fn is_acp_request(options: &Value) -> bool {
 pub fn should_execute_structured_tool_calls_locally(options: &Value) -> bool {
     !is_acp_request(options)
 }
+
+#[cfg(test)]
+#[path = "helpers_visibility_tests.rs"]
+mod visibility_tests;

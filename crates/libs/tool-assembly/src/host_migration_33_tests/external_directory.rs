@@ -17,9 +17,10 @@
 //! - 路径规范化处理
 //! - 错误消息格式验证
 
-use super::super::*;
-use super::{Kind, Options, assert_external_directory, normalize_path, resolve_full_path};
-use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
+use super::*;
+use tool_files::external_directory::{Kind, Options, normalize_path, resolve_full_path};
+async fn assert_external_directory(security: &SecurityPolicy, target: Option<&str>, options: Option<Options>) -> Result<(), String> { tool_files::external_directory::assert_external_directory::<host::Host>(security, target, options).await }
+use agent_security::{AutonomyLevel, SecurityPolicy};
 use std::path::PathBuf;
 
 /// 创建用于测试的安全策略配置
@@ -257,7 +258,7 @@ async fn tool_output_directory_is_allowed_outside_workspace() {
     let root = tempfile::TempDir::new().unwrap();
     let policy = test_policy(root.path().to_path_buf());
     let tool_output_file =
-        crate::app::agent::global::paths().data.join("tool-output").join("result.txt");
+        agent_paths::paths().data.join("tool-output").join("result.txt");
 
     assert!(
         assert_external_directory(

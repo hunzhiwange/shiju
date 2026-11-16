@@ -86,7 +86,6 @@ pub mod glob_search;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod grep;
 mod hooks;
-mod http_headers;
 pub mod http_request;
 pub mod image_asset_read;
 #[cfg(not(target_arch = "wasm32"))]
@@ -278,8 +277,6 @@ pub(crate) use delegate::DelegateTool;
 
 pub(crate) use toolset::execute_bound_app_tool;
 
-#[cfg(test)]
-mod catalog_tests;
 
 pub mod client_tool;
 #[cfg(test)]

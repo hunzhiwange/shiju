@@ -1,4 +1,4 @@
-use super::catalog::ToolCatalog;
+use crate::catalog::ToolCatalog;
 use super::{Tool, ToolResult, ToolSpec, ToolUseContext};
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -144,7 +144,7 @@ fn dynamic_tools_catalog_session_and_context_share_snapshot_without_granting_met
     let snapshot = ToolCatalog::default().replace(vec![tool("first")], []).unwrap();
     assert!(snapshot.specs().is_empty());
     assert!(snapshot.tools().is_empty());
-    let session = crate::session::runtime::SessionToolset::default().with_catalog(snapshot.clone());
+    let session = crate::runtime::SessionToolset::default().with_catalog(snapshot.clone());
     let context = ToolUseContext::new("catalog", None).with_tool_catalog(session.catalog().clone());
     assert!(Arc::ptr_eq(context.tool_catalog().unwrap(), &snapshot));
     assert!(!context.tool_is_exposed("version_tool"));

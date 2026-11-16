@@ -16,4 +16,10 @@ pub mod runtime;
 pub mod hooks;
 
 #[cfg(test)]
-mod host_migration_32_tests;
+mod host_migration_33_tests;
+
+#[cfg(test)]
+mod host_migration_34_tests;
+
+#[cfg(test)]
+mod host_migration_35_tests;

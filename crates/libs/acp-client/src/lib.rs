@@ -15,7 +15,7 @@ use acp_lifecycle::{AgentLifecycleExit, AgentLifecycleSnapshot};
 use acp_storage::session_persistence;
 
 mod client;
-pub use client::{AcpClient, ConnectionDiagnostic};
+pub use client::{AcpClient, ConnectionDiagnostic, SkillMountLease};
 
 #[cfg(test)]
 use acp_agent_registry::{

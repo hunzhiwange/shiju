@@ -3,21 +3,7 @@ use session_port::{ModelRecovery, CompactionPhase, ToolEvent};
 use session_port::llm_raw::LlmRawArtifact;
 use session_port::ui_types as models;
 
-/// 工具调用结构
-///
-/// 该结构体表示 LLM 请求执行的工具调用，包含工具调用的所有必要信息。
-/// 在函数调用场景中，LLM 会返回此类结构以请求执行特定工具。
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct ToolCall {
-    pub kind: model_types::ToolCallKind,
-    pub namespace: Option<String>,
-    /// 工具调用的唯一标识符，用于关联调用和结果
-    pub id: String,
-    /// 要调用的工具名称
-    pub name: String,
-    /// 工具参数的 JSON 字符串表示
-    pub arguments: String,
-}
+pub use model_types::ToolCall;
 
 /// 流式事件枚举
 ///

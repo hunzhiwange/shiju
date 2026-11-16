@@ -2,3 +2,5 @@
 pub mod acp;
 mod error;
 pub use error::Error;
+mod events;
+pub use events::StreamEvent;

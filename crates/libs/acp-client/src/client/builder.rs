@@ -84,7 +84,7 @@ impl AcpClient {
     pub fn with_skill_mounts(
         mut self,
         selection: Option<crate::SessionMountSelection>,
-        lease: Option<Arc<dyn std::any::Any + Send + Sync>>,
+        lease: Option<Arc<dyn super::SkillMountLease>>,
     ) -> Self {
         self.skill_mounts = selection;
         self.skill_mount_lease = lease;

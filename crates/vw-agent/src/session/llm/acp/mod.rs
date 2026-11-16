@@ -14,6 +14,7 @@ pub(crate) use replay::{build_replay_prompt, parse_replay_strategy};
 pub(crate) use request::do_stream_request_acp;
 #[allow(unused_imports)]
 pub(crate) use session::{acp_session_name, missing_session_error};
+#[cfg(test)]
 use std::sync::Arc;
 #[allow(unused_imports)]
 pub(crate) use updates::{
@@ -25,7 +26,7 @@ pub(crate) use updates::{
 
 use crate::app::agent::session::message;
 
-use super::types::{Error, StreamEvent, ToolCall};
+use super::types::{Error, StreamEvent};
 
 mod approval;
 mod config;
@@ -41,16 +42,14 @@ mod session;
 mod skill_mounts;
 mod updates;
 
+#[cfg(test)]
 use llm_runtime::acp::cache::{ACP_CLIENT_CACHE, CachedAcpClient};
 
 /// ACP 客户端缓存命中结果。
 ///
 /// `key` 用于在一次性请求结束后安全移除对应缓存项，`client` 是实际共享客户端。
-struct CachedAcpClientEntry {
-    request_owned: bool,
-    key: String,
-    client: Arc<CachedAcpClient>,
-}
+#[cfg(test)]
+use llm_runtime::acp::session::CachedAcpClientEntry;
 
 /// 从运行时选项解析出的 ACP 会话参数。
 ///
@@ -68,9 +67,7 @@ fn to_api_error(err: impl std::fmt::Display) -> Error {
 /// 判断错误文本是否表示 ACP 代理端会话已经发生变化。
 ///
 /// 参数是任意错误消息文本；返回 `true` 时请求层会尝试新建会话并重放上下文。
-pub(super) fn is_acp_session_changed_message(message: &str) -> bool {
-    message.to_ascii_lowercase().contains("acp session changed:")
-}
+pub(super) use llm_runtime::acp::is_acp_session_changed_message;
 
 /// 构造 ACP 选项解析错误。
 ///
@@ -84,17 +81,8 @@ fn acp_option_error(message: impl Into<String>) -> Error {
 /// 从统一错误类型中识别 ACP 会话切换错误。
 ///
 /// 该检查只解析已知 API 错误分支；其他错误类型保持原样上抛，避免误判导致重复请求。
-fn is_acp_session_changed_error(err: &Error) -> bool {
-    match err {
-        Error::Api(message::AssistantError::Unknown { message }) => {
-            is_acp_session_changed_message(message)
-        }
-        Error::Api(message::AssistantError::APIError { message, .. }) => {
-            is_acp_session_changed_message(message)
-        }
-        _ => false,
-    }
-}
+#[cfg(test)]
+use llm_runtime::acp::is_acp_session_changed_error;
 #[cfg(test)]
 mod tests;
 

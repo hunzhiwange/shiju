@@ -3,6 +3,7 @@ use crate::{gateway::settings_store::GatewaySettingsStore, global_database::Glob
 
 pub(super) struct ForkReplay(llm_runtime::acp::fork_replay::ForkReplay);
 impl ForkReplay {
+    pub(super) fn into_runtime(self) -> llm_runtime::acp::fork_replay::ForkReplay { self.0 }
     pub(super) async fn load(session: &str, directory: &str) -> anyhow::Result<Option<Self>> {
         if session.is_empty() { return Ok(None); }
         let Some(project) = crate::project::instance::project() else { return Ok(None); };

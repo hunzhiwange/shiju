@@ -4,9 +4,14 @@ use serde_json::{Map, Value, json};
 use acp_types::AcpJsonRpcMessage;
 use vw_api_tools::{StructuredPatchHunkDto, ToolResultContentDto, ToolResultDto};
 
-use crate::app::agent::session::{llm::StreamEvent, ui_types};
+use crate::StreamEvent;
+use session_ui_types as ui_types;
 
 use super::*;
+
+fn forward_acp_message(message: &AcpJsonRpcMessage, on_event: &mut impl FnMut(StreamEvent), latest_usage: &mut ui_types::TokenUsage, delta_count: &mut usize, tools: &mut AcpToolUpdates) {
+    super::forward_acp_message(message, on_event, latest_usage, delta_count, tools, str::to_owned);
+}
 
 fn acp_message(value: Value) -> AcpJsonRpcMessage {
     serde_json::from_value(value).expect("valid ACP JSON-RPC message")

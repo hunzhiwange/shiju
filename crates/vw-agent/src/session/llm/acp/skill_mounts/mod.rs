@@ -65,6 +65,11 @@ impl PartialEq for MountedSkills {
     }
 }
 impl Eq for MountedSkills {}
+impl llm_runtime::acp::host::SkillLease for MountedSkills {
+    fn fingerprint(&self) -> &str { self.0.fingerprint() }
+    fn root(&self) -> &std::path::Path { self.0.root() }
+    fn validate(&self) -> Result<(), Error> { self.0.validate().map_err(super::to_api_error) }
+}
 impl MountedSkills {
     pub(super) fn prepare(
         mounts: &[acp_types::SessionSkillMount],

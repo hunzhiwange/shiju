@@ -36,6 +36,12 @@ agent-config = { path = "../agent-config", version = "0.6.0" }
 model-types = { path = "../model-types", version = "0.6.0" }
 agent-multimodal = { path = "../agent-multimodal", version = "0.6.0" }
 message-types = { path = "../message-types", version = "0.6.0" }
+session-ui-types = { path = "../session-ui-types", version = "0.6.0" }
+vw-api-tools = { path = "../api-tools", version = "0.6.0" }
+vw-api-usage = { path = "../api-usage", version = "0.6.0" }
+acp-lifecycle = { path = "../acp-lifecycle", version = "0.6.0" }
+agent-auth = { path = "../agent-auth", version = "0.6.0" }
+agent-env = { path = "../agent-env", version = "0.6.0" }
 vw-api-chat-identity = { path = "../api-chat-identity", version = "0.6.0" }
 
 model-transport = { path = "../model-transport", version = "0.6.0" }

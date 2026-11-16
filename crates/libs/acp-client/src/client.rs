@@ -178,6 +178,10 @@ use self::state::*;
 
 const DEFAULT_ACTOR_IDLE_TIMEOUT: Duration = Duration::from_secs(60);
 
+/// Lifetime ownership of a mounted skill view, retained until client shutdown.
+pub trait SkillMountLease: Send + Sync {}
+impl<T: Send + Sync> SkillMountLease for T {}
+
 #[derive(Clone)]
 /// ACP 客户端的可复用句柄。
 ///
@@ -197,7 +201,7 @@ pub struct AcpClient {
     auth_policy: AuthPolicy,
     session_options: Option<AcpSessionOptions>,
     skill_mounts: Option<crate::SessionMountSelection>,
-    skill_mount_lease: Option<Arc<dyn std::any::Any + Send + Sync>>,
+    skill_mount_lease: Option<Arc<dyn SkillMountLease>>,
     verbose: bool,
     on_acp_message: Option<AcpMessageCallback>,
     on_acp_output_message: Option<AcpMessageCallback>,

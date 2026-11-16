@@ -105,3 +105,6 @@ mod compat_t51_tests;
 
 #[cfg(test)]
 mod compat_t53_tests;
+
+#[cfg(test)]
+mod compat_t64_tests;

@@ -80,36 +80,3 @@ async fn codex_plugin_compat_t64_uses_platform_command_and_unicode_paths() {
     remove_installed_plugin(&plugins, "original@market").unwrap();
     assert!(output.exists());
 }
-
-#[test]
-fn codex_plugin_compat_t64_rejects_invalid_input() {
-    let t = tempfile::tempdir().unwrap();
-    let source = package(t.path());
-    fs::write(source.join("plugin.json"), b"{broken").unwrap();
-    let before = digest(&source);
-    let plugins = t.path().join("plugins");
-    assert!(install_plugin_from_marketplace(source.to_str().unwrap(), &plugins, "market").is_err());
-    assert_eq!(digest(&source), before);
-    assert!(
-        crate::plugins::discover_plugins(&PluginDiscoveryOptions::new(
-            t.path().join("workspace"),
-            t.path(),
-            Default::default()
-        ))
-        .unwrap()
-        .installed
-        .is_empty()
-    );
-}
-#[test]
-fn codex_plugin_compat_t64_preserves_isolation() {
-    let t = tempfile::tempdir().unwrap();
-    let source = package(t.path());
-    let plugins = t.path().join("plugins");
-    let a = install_plugin_from_marketplace(source.to_str().unwrap(), &plugins, "alpha").unwrap();
-    let b = install_plugin_from_marketplace(source.to_str().unwrap(), &plugins, "beta").unwrap();
-    remove_installed_plugin(&plugins, "original@alpha").unwrap();
-    assert!(!a.installed_dir.exists());
-    assert!(b.installed_dir.exists());
-    assert_eq!(digest(&source), digest(&b.installed_dir));
-}

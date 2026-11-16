@@ -139,9 +139,9 @@ pub use whatsapp_web::WhatsAppWebChannel;
 // ============================================================================
 
 /// 通道配置处理
-pub(crate) mod config;
+pub(crate) use channel_support::config;
 /// 消息格式化工具
-pub(crate) mod format;
+pub(crate) use channel_runtime::format;
 /// 会话历史管理
 pub(crate) mod history;
 mod http;

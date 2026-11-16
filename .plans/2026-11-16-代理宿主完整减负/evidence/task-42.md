@@ -185,3 +185,32 @@
 - `crates/libs/channel-support/src/host_migration_42_tests/config.rs`：616行，全部为测试/夹具；新增生产逻辑0行。
 - `crates/libs/channel-support/src/host_migration_42_tests/history.rs`：193行，全部为测试/夹具；新增生产逻辑0行。
 - `crates/libs/channel-runtime/src/host_migration_42_tests.rs`：48行，全部为测试/夹具；新增生产逻辑0行。
+
+## 深度迁移补充（覆盖上一轮保留结论）
+
+读取 final.md 与 remaining-host.json 后继续执行。未运行任何 Cargo、构建、测试或实机命令。配置API与历史共享存储API的文档随真实实现归位，保持文档内容；该部分仅计兼容层清理，不计生产算法迁移。
+
+原 host format.rs 的两个生产函数完整迁入 channel-runtime::format。运行库 manager 不再私有复制 sanitize_channel_response，直接使用同一入口；宿主 channels::format 直接别名此领域模块。路径调用者（宿主 runtime_command/session_commands_tests、manager 等）保持已有函数名。领域入口依赖已有 agent-loop::progress 和 session-engine::child_agent::history，后者与旧宿主使用的 run::visible_answer_from_execution_output 是同一重导出函数。没有新增依赖，也没有引入Host抽象或伪造租户。
+
+原四条格式断言完整迁入 channel-runtime/src/host_migration_42_format_tests.rs，由 host_migration_42_tests::format 自注册。测试函数名及断言不变，去掉已经无调用的 NamedTool 夹具。宿主旧 format 测试文件和挂载删除。
+
+配置旧 config.rs 完整消除，父模块直接别名 channel-support::config。原API文档迁到对应领域函数声明，非通过删文档凑减量。history 仍保留当前租户注入及 ChannelRuntimeContext 存储字段映射，长篇领域操作文档移至 channel-support::history 的对应真实函数。真实租户身份测试28行仍保留；首次响应120行仍验证真实宿主处理器与数据库、标题模型HTTP调用；runtime_host152行仍为实际宿主权限、项目上下文与会话资源端口，不能复制进领域库冒充迁移。
+
+| 本轮来源 | 新归属 | 源前→后行数 |
+|---|---|---:|
+| `crates/vw-agent/src/channels/config.rs` | channel-support::config | 234→0 |
+| `crates/vw-agent/src/channels/format.rs` | channel-runtime::format / host_migration_42_tests::format | 83→0 |
+| `crates/vw-agent/src/channels/format_tests.rs` | channel-runtime::format / host_migration_42_tests::format | 85→0 |
+| `crates/vw-agent/src/channels/history.rs` | channel-support::history + 宿主租户/存储薄端口 | 113→53 |
+
+remaining-host.json 的42号全体来源 1105 → 643 行，追加净减 462 行。原基线2632行口径净减 1989 行（75.6%）。领域生产/测试与文档分别如上，不宣称编译收益。
+- 原 `channels::format::format_tests::split_internal_progress_delta_detects_known_prefix` → `channel_runtime::host_migration_42_tests::format::split_internal_progress_delta_detects_known_prefix`。
+- 原 `channels::format::format_tests::split_internal_progress_delta_hides_ws_event_payloads_and_preserves_normal_text` → `channel_runtime::host_migration_42_tests::format::split_internal_progress_delta_hides_ws_event_payloads_and_preserves_normal_text`。
+- 原 `channels::format::format_tests::sanitize_channel_response_keeps_only_visible_answer_from_execution_transcript` → `channel_runtime::host_migration_42_tests::format::sanitize_channel_response_keeps_only_visible_answer_from_execution_transcript`。
+- 原 `channels::format::format_tests::sanitize_channel_response_rejects_execution_transcript_without_final_answer` → `channel_runtime::host_migration_42_tests::format::sanitize_channel_response_rejects_execution_transcript_without_final_answer`。
+
+未来：`python3 scripts/cargo_slot.py cargo test -p channel-runtime --lib host_migration_42_tests -- --test-threads=1`，静态预期7条（原Nostr3条+格式4条）；channel-support原过滤与预期不变。真实编译归属和行为全部未验证。
+
+静态注册审查：audit_registrations.py 返回 edges=1139、unresolved=0、removed_targets_referenced=0；本轮定向 git diff --check 无空白错误。此为词法静态证据，非运行测试。
+
+静态注册审查：audit_registrations.py 返回 edges=1139、unresolved=0、removed_targets_referenced=0；本轮定向 git diff --check 无空白错误。此为词法静态证据，非运行测试。

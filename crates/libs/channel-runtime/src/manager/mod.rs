@@ -107,10 +107,7 @@ use channel_support::format::{should_expose_internal_tool_details, extract_tool_
 use channel_support::session_events::to_session_history;
 use crate::ChannelHealthState;
 
-fn sanitize_channel_response(response: &str, tools: &[Box<dyn tool_types::Tool>]) -> String {
-    let visible = session_engine::child_agent::history::visible_answer_from_execution_output(response);
-    channel_support::format::sanitize_visible_channel_response(&visible, tools)
-}
+use crate::format::sanitize_channel_response;
 
 use channel_support::session::{channel_session_ownership, save_channel_session_route};
 pub async fn persist_current_route(

@@ -28,3 +28,5 @@ mod host_migration_43_tests;
 pub mod prompt;
 
 pub mod session_events;
+
+pub mod format;

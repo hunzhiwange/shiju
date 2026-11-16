@@ -1,40 +1,9 @@
-// 本文件验证渠道输出清理、内部进度识别与投递提示生成。
-
-use super::*;
-use crate::app::agent::tools::{ToolResult, ToolSpec};
-use std::collections::HashSet;
-
-struct NamedTool {
-    id: &'static str,
-}
-
-#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
-impl Tool for NamedTool {
-    fn name(&self) -> &str {
-        self.id
-    }
-
-    fn description(&self) -> &str {
-        "test tool"
-    }
-
-    fn parameters_schema(&self) -> serde_json::Value {
-        serde_json::json!({"type": "object"})
-    }
-
-    async fn execute(&self, _args: serde_json::Value) -> anyhow::Result<ToolResult> {
-        Ok(ToolResult { success: true, output: String::new(), error: None })
-    }
-
-    fn spec(&self) -> ToolSpec {
-        ToolSpec::new(self.id, self.description(), self.parameters_schema())
-    }
-}
+use crate::format::{sanitize_channel_response, split_internal_progress_delta};
+use tool_types::Tool;
 
 #[test]
 fn split_internal_progress_delta_detects_known_prefix() {
-    let delta = format!("{}working", crate::app::agent::agent::loop_::DRAFT_PROGRESS_SENTINEL);
+    let delta = format!("{}working", agent_loop::progress::DRAFT_PROGRESS_SENTINEL);
     let (is_progress, content) = split_internal_progress_delta(&delta);
 
     assert!(is_progress);
@@ -45,8 +14,8 @@ fn split_internal_progress_delta_detects_known_prefix() {
 fn split_internal_progress_delta_hides_ws_event_payloads_and_preserves_normal_text() {
     let ws_delta = format!(
         "{}{}payload",
-        crate::app::agent::agent::loop_::DRAFT_PROGRESS_SENTINEL,
-        crate::app::agent::agent::loop_::DRAFT_WS_EVENT_SENTINEL
+        agent_loop::progress::DRAFT_PROGRESS_SENTINEL,
+        agent_loop::progress::DRAFT_WS_EVENT_SENTINEL
     );
 
     assert_eq!(split_internal_progress_delta(&ws_delta), (true, ""));

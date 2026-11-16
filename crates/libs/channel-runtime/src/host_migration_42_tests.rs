@@ -45,3 +45,6 @@ async fn append_nostr_channel_if_available_reports_invalid_private_key() {
     assert!(channels.is_empty());
     assert!(reason.is_some_and(|message| message.contains("Nostr init failed during startup")));
 }
+
+#[path = "host_migration_42_format_tests.rs"]
+mod format;

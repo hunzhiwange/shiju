@@ -16,13 +16,8 @@
 //! - **语言感知**：支持中文和英文的意图识别，正确理解否定表达
 //! - **通道适配**：针对不同通道的渲染能力提供定制化的格式化指导
 
-use super::*;
 
-pub(crate) use channel_support::format::strip_tool_call_tags;
-
-pub(crate) use channel_support::format::channel_delivery_instructions;
-
-pub(crate) use channel_support::format::should_expose_internal_tool_details;
+pub use channel_support::format::*;
 
 /// 分离内部进度标记与实际内容
 ///
@@ -37,15 +32,13 @@ pub(crate) use channel_support::format::should_expose_internal_tool_details;
 /// 返回元组 `(is_draft_progress, content)`:
 /// - `is_draft_progress`: 是否为草稿进度消息
 /// - `content`: 移除标记后的内容（如果不是进度消息，返回原始 delta）
-pub(crate) fn split_internal_progress_delta(delta: &str) -> (bool, &str) {
+pub fn split_internal_progress_delta(delta: &str) -> (bool, &str) {
     channel_support::format::split_internal_progress_delta(
         delta,
-        crate::app::agent::agent::loop_::DRAFT_PROGRESS_SENTINEL,
-        crate::app::agent::agent::loop_::DRAFT_WS_EVENT_SENTINEL,
+        agent_loop::progress::DRAFT_PROGRESS_SENTINEL,
+        agent_loop::progress::DRAFT_WS_EVENT_SENTINEL,
     )
 }
-
-pub(crate) use channel_support::format::extract_tool_context_summary;
 
 /// 净化通道响应，移除工具调用相关内容
 ///
@@ -59,25 +52,7 @@ pub(crate) use channel_support::format::extract_tool_context_summary;
 /// # 返回值
 ///
 /// 返回净化后的响应字符串
-pub(crate) fn sanitize_channel_response(response: &str, tools: &[Box<dyn Tool>]) -> String {
-    let visible_response = crate::app::agent::session::child_agent::visible_answer_from_execution_output(response);
-    channel_support::format::sanitize_visible_channel_response(&visible_response, tools)
+pub fn sanitize_channel_response(response: &str, tools: &[Box<dyn tool_types::Tool>]) -> String {
+    let visible = session_engine::child_agent::history::visible_answer_from_execution_output(response);
+    channel_support::format::sanitize_visible_channel_response(&visible, tools)
 }
-
-#[cfg(test)]
-pub(crate) use channel_support::format::is_tool_call_payload;
-
-#[cfg(test)]
-pub(crate) use channel_support::format::is_tool_result_payload;
-
-#[cfg(test)]
-pub(crate) use channel_support::format::sanitize_tool_json_value;
-
-#[cfg(test)]
-pub(crate) use channel_support::format::is_line_isolated_json_segment;
-
-pub(crate) use channel_support::format::strip_isolated_tool_json_artifacts;
-
-#[cfg(test)]
-#[path = "format_tests.rs"]
-mod format_tests;

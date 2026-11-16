@@ -1,3 +1,4 @@
+// 宿主保留依据：文件树批量消息关联选区、剪贴板、编辑器及网关请求，保留部分失败与项目切换契约。
 use super::*;
 use crate::app::message::project::FileTreeAction;
 use iced::keyboard::Modifiers;

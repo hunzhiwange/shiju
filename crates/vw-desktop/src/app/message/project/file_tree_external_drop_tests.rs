@@ -1,3 +1,4 @@
+// 宿主保留依据：外部拖放经过宿主项目解析、网关配置及任务回写，保留请求来源和失败隔离契约。
 //! Protocol assertions use a controlled HTTP service; disk acceptance lives in gateway local_import tests.
 use crate::app::message::{ProjectMessage as P, ViewMessage};
 use crate::app::{App, Message};

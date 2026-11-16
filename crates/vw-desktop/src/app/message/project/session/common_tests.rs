@@ -1,3 +1,4 @@
+// 宿主保留依据：核对 App 的 picker 字段投影及组合清理，包含保留最后目录的宿主策略。
 #[test]
 fn clear_new_session_picker_messages_preserves_picker_selection() {
     let (mut app, _task) = crate::app::App::new();

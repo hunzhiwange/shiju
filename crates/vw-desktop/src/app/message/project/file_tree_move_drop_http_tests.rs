@@ -1,3 +1,4 @@
+// 宿主保留依据：拖放消息经过宿主释放顺序及 HTTP 边界，保留请求次数和冲突契约。
 //! Run the real Iced task and HTTP client in an isolated configuration process.
 use crate::app::message::{ProjectMessage as P, ViewMessage};
 use crate::app::{App, Message};

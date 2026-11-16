@@ -1,3 +1,4 @@
+// 宿主保留依据：拖放消息关联手势、选区、聊天投递和脏编辑器，保留跨域同步契约。
 use super::*;
 use crate::app::message::{ProjectMessage as P, ViewMessage};
 use iced::keyboard::Modifiers;

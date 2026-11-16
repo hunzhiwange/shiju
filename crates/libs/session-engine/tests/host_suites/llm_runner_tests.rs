@@ -13,6 +13,12 @@ use std::collections::VecDeque;
 use std::sync::mpsc;
 use std::time::Duration;
 
+use session_engine::llm_runner as runner;
+use super::StreamEvent as CollectorStreamEvent;
+#[path = "../../src/llm_runner_test_support.rs"]
+mod llm_runner_test_support;
+use llm_runner_test_support::{collect_events_with_delta_consumer, usage};
+
 pub(crate) struct RecordedLlmRequest {
     pub(crate) tool_specs: Vec<ToolSpec>,
     pub(crate) system: Vec<String>,
@@ -127,105 +133,6 @@ pub(super) fn spawn_test_llm_stream_thread(
     })
 }
 
-fn collect_events(
-    events: impl IntoIterator<Item = llm::StreamEvent>,
-) -> (Result<super::LlmStep, String>, Vec<String>) {
-    let (tx, rx) = mpsc::channel();
-    for event in events {
-        tx.send(event).expect("stream event should be queued");
-    }
-    drop(tx);
-
-    let (abort_tx, _abort_rx) = tokio::sync::watch::channel(false);
-    let mut deltas = Vec::new();
-    let result = super::collect_llm_step_from_stream(
-        rx,
-        &mut |event| {
-            if let super::StreamEvent::Delta(text) = event {
-                deltas.push(text);
-            }
-            true
-        },
-        &abort_tx,
-        Duration::from_millis(5),
-        None,
-    );
-    (result, deltas)
-}
-
-fn collect_events_with_delta_consumer(
-    events: impl IntoIterator<Item = llm::StreamEvent>,
-    keep_sender_alive: bool,
-    idle_timeout: Duration,
-    mut accept_delta: impl FnMut(&str, usize) -> bool,
-) -> (Result<super::LlmStep, String>, Vec<String>, bool) {
-    let (tx, rx) = mpsc::channel();
-    for event in events {
-        tx.send(event).expect("stream event should be queued");
-    }
-    let keep_sender_alive = keep_sender_alive.then_some(tx);
-
-    let (abort_tx, mut abort_rx) = tokio::sync::watch::channel(false);
-    let mut deltas = Vec::new();
-    let result = super::collect_llm_step_from_stream(
-        rx,
-        &mut |event| {
-            let super::StreamEvent::Delta(text) = event else {
-                return true;
-            };
-            let index = deltas.len();
-            let keep_going = accept_delta(&text, index);
-            deltas.push(text);
-            keep_going
-        },
-        &abort_tx,
-        idle_timeout,
-        None,
-    );
-    drop(keep_sender_alive);
-
-    (result, deltas, *abort_rx.borrow_and_update())
-}
-
-fn observe_first_delta_before_stream_continues(
-    first_event: llm::StreamEvent,
-    remaining_events: impl IntoIterator<Item = llm::StreamEvent>,
-) -> String {
-    let (stream_tx, stream_rx) = mpsc::channel();
-    let (observed_tx, observed_rx) = mpsc::channel();
-    let collector = std::thread::spawn(move || {
-        let (abort_tx, _abort_rx) = tokio::sync::watch::channel(false);
-        super::collect_llm_step_from_stream(
-            stream_rx,
-            &mut |event| {
-                if let super::StreamEvent::Delta(delta) = event {
-                    let _ = observed_tx.send(delta);
-                }
-                true
-            },
-            &abort_tx,
-            Duration::from_secs(5),
-            None,
-        )
-    });
-
-    stream_tx.send(first_event).expect("first stream event should be sent");
-    let first_delta = observed_rx
-        .recv_timeout(Duration::from_secs(1))
-        .expect("first delta should be observed before another stream event arrives");
-    for event in remaining_events {
-        stream_tx.send(event).expect("remaining stream event should be sent");
-    }
-    drop(stream_tx);
-
-    collector.join().expect("stream collector should not panic").expect("stream should complete");
-    first_delta
-}
-
-fn usage(input_tokens: i64, output_tokens: i64) -> models::TokenUsage {
-    models::TokenUsage { input_tokens, output_tokens, cached_tokens: 3, reasoning_tokens: 4 }
-}
-
 #[test]
 fn acp_request_detection_accepts_test_flag_and_agent_name() {
     assert!(super::is_acp_request(&serde_json::json!({ "acp_test": true })));
@@ -267,223 +174,16 @@ fn llm_step_retry_allowed_blocks_model_config_errors_only() {
     assert!(!super::llm_step_retry_allowed("invalid api key", true));
 }
 
-#[test]
-fn collect_stream_returns_text_tool_calls_usage_and_full_messages() {
-    let tool_call = llm::ToolCall {
-        kind: Default::default(),
-        namespace: None,
-        id: "call-1".to_string(),
-        name: "file_read".to_string(),
-        arguments: r#"{"path":"README.md"}"#.to_string(),
-    };
-    let full_messages = vec![serde_json::json!({ "role": "system", "content": "base" })];
 
-    let (result, deltas) = collect_events([
-        llm::StreamEvent::Delta("hello ".to_string()),
-        llm::StreamEvent::Delta("world".to_string()),
-        llm::StreamEvent::ToolCalls(vec![tool_call.clone()]),
-        llm::StreamEvent::FullMessages(full_messages.clone()),
-        llm::StreamEvent::Done {
-            usage: usage(11, 7),
-            finish_reason: Some("tool_calls".to_string()),
-        },
-    ]);
 
-    let step = result.expect("stream should produce a step");
-    assert_eq!(step.text, "hello world");
-    assert_eq!(step.tool_calls[0].id, tool_call.id);
-    assert_eq!(step.full_messages, full_messages);
-    assert_eq!(step.finish_reason.as_deref(), Some("tool_calls"));
-    assert_eq!(step.usage.input_tokens, 11);
-    assert_eq!(step.usage.output_tokens, 7);
-    assert_eq!(deltas.join(""), "hello world");
-}
 
-#[test]
-fn remote_tool_updates_are_forwarded_without_entering_answer_text() {
-    let (tx, rx) = mpsc::channel();
-    tx.send(llm::StreamEvent::RemoteToolUpdate {
-        call_id: "remote-1".to_string(),
-        name: "bash".to_string(),
-        is_initial: true,
-        payload: serde_json::json!({"status": "running", "input": "pwd"}),
-    })
-    .expect("remote tool event should be queued");
-    tx.send(llm::StreamEvent::Delta("最终答复".to_string())).expect("answer should be queued");
-    tx.send(llm::StreamEvent::Done {
-        usage: models::TokenUsage::default(),
-        finish_reason: Some("stop".to_string()),
-    })
-    .expect("done should be queued");
-    drop(tx);
 
-    let (abort_tx, _abort_rx) = tokio::sync::watch::channel(false);
-    let mut forwarded = Vec::new();
-    let step = super::collect_llm_step_from_stream(
-        rx,
-        &mut |event| {
-            forwarded.push(event);
-            true
-        },
-        &abort_tx,
-        Duration::from_millis(5),
-        None,
-    )
-    .expect("stream should produce a step");
 
-    assert_eq!(step.text, "最终答复");
-    assert!(matches!(
-        &forwarded[0],
-        super::StreamEvent::Tool(event)
-            if event.call_id == "remote-1"
-                && event.name == "bash"
-                && event.kind == super::ToolEventKind::Start
-                && event.status == super::ToolCallStatus::Running
-    ));
-    assert!(matches!(&forwarded[1], super::StreamEvent::Delta(text) if text == "最终答复"));
-}
 
-#[test]
-fn llm_stream_emits_first_text_delta_immediately() {
-    let first_delta = observe_first_delta_before_stream_continues(
-        llm::StreamEvent::Delta("hello".to_string()),
-        [llm::StreamEvent::Done {
-            usage: models::TokenUsage::default(),
-            finish_reason: Some("stop".to_string()),
-        }],
-    );
 
-    assert_eq!(first_delta, "hello");
-}
 
-#[test]
-fn llm_stream_emits_first_reasoning_delta_immediately() {
-    let first_delta = observe_first_delta_before_stream_continues(
-        llm::StreamEvent::ReasoningDelta("plan".to_string()),
-        [
-            llm::StreamEvent::Delta("answer".to_string()),
-            llm::StreamEvent::Done {
-                usage: models::TokenUsage::default(),
-                finish_reason: Some("stop".to_string()),
-            },
-        ],
-    );
 
-    assert_eq!(first_delta, "<think>plan");
-}
 
-#[test]
-fn collect_stream_wraps_reasoning_before_text() {
-    let (result, deltas) = collect_events([
-        llm::StreamEvent::ReasoningDelta("plan".to_string()),
-        llm::StreamEvent::Delta("answer".to_string()),
-        llm::StreamEvent::Done {
-            usage: models::TokenUsage::default(),
-            finish_reason: Some("stop".to_string()),
-        },
-    ]);
-
-    let step = result.expect("reasoning plus text should be valid");
-    assert_eq!(step.reasoning_content, "plan");
-    assert_eq!(step.text, "answer");
-    assert_eq!(deltas, vec!["<think>plan", "</think>\n\n", "answer"]);
-}
-
-#[test]
-fn collect_stream_rejects_reasoning_without_assistant_content() {
-    let (result, deltas) = collect_events([
-        llm::StreamEvent::ReasoningDelta("only thoughts".to_string()),
-        llm::StreamEvent::Done {
-            usage: models::TokenUsage::default(),
-            finish_reason: Some("stop".to_string()),
-        },
-    ]);
-
-    assert_eq!(result.unwrap_err(), "模型未返回内容");
-    assert_eq!(deltas, vec!["<think>only thoughts", "</think>\n\n"]);
-}
-
-#[test]
-fn collect_stream_emits_late_reasoning_after_text() {
-    let (result, deltas) = collect_events([
-        llm::StreamEvent::Delta("answer".to_string()),
-        llm::StreamEvent::ReasoningDelta("late plan".to_string()),
-        llm::StreamEvent::Done {
-            usage: models::TokenUsage::default(),
-            finish_reason: Some("stop".to_string()),
-        },
-    ]);
-
-    let step = result.expect("text should make the step valid");
-    assert_eq!(step.text, "answer");
-    assert_eq!(step.reasoning_content, "late plan");
-    assert_eq!(deltas, vec!["answer", "\n\n<think>late plan</think>\n\n"]);
-}
-
-#[test]
-fn collect_stream_emits_late_reasoning_without_repeating_early_reasoning() {
-    let (result, deltas) = collect_events([
-        llm::StreamEvent::ReasoningDelta("先检查。".to_string()),
-        llm::StreamEvent::Delta("answer".to_string()),
-        llm::StreamEvent::ReasoningDelta("late plan".to_string()),
-        llm::StreamEvent::Done {
-            usage: models::TokenUsage::default(),
-            finish_reason: Some("stop".to_string()),
-        },
-    ]);
-
-    let step = result.expect("text should make the step valid");
-    assert_eq!(step.reasoning_content, "先检查。late plan");
-    assert_eq!(
-        deltas,
-        vec!["<think>先检查。", "</think>\n\n", "answer", "\n\n<think>late plan</think>\n\n"]
-    );
-}
-
-#[test]
-fn collect_stream_rejects_done_without_text_or_tools() {
-    let (result, deltas) = collect_events([llm::StreamEvent::Done {
-        usage: models::TokenUsage::default(),
-        finish_reason: Some("stop".to_string()),
-    }]);
-
-    assert_eq!(result.unwrap_err(), "模型未返回内容");
-    assert!(deltas.is_empty());
-}
-
-#[test]
-fn collect_stream_allows_tool_only_steps() {
-    let (result, deltas) = collect_events([
-        llm::StreamEvent::ToolCalls(vec![llm::ToolCall {
-            kind: Default::default(),
-            namespace: None,
-            id: "call-1".to_string(),
-            name: "TodoWrite".to_string(),
-            arguments: "{}".to_string(),
-        }]),
-        llm::StreamEvent::Done {
-            usage: models::TokenUsage::default(),
-            finish_reason: Some("tool_calls".to_string()),
-        },
-    ]);
-
-    let step = result.expect("tool-only response should be valid");
-    assert!(step.text.is_empty());
-    assert_eq!(step.tool_calls.len(), 1);
-    assert!(deltas.is_empty());
-}
-
-#[test]
-fn collect_stream_flushes_pending_content_on_error() {
-    let (result, deltas) = collect_events([
-        llm::StreamEvent::ReasoningDelta("before error".to_string()),
-        llm::StreamEvent::Error(AssistantError::Unknown { message: "boom".to_string() }),
-    ]);
-
-    let message = result.unwrap_err();
-    assert!(message.contains("boom"));
-    assert_eq!(deltas, vec!["<think>before error", "</think>\n\n"]);
-}
 
 #[test]
 fn collect_stream_times_out_and_closes_open_reasoning() {
@@ -654,99 +354,10 @@ fn non_retryable_llm_error_matches_consumer_stopped_direct_string() {
 
 // ── collect_llm_step_from_stream additional edge cases ─────────────────────
 
-#[test]
-fn collect_stream_flushes_text_by_character_threshold() {
-    let (result, deltas) = collect_events([
-        llm::StreamEvent::Delta("x".repeat(1024)),
-        llm::StreamEvent::Delta("tail".to_string()),
-        llm::StreamEvent::Done {
-            usage: models::TokenUsage::default(),
-            finish_reason: Some("stop".to_string()),
-        },
-    ]);
 
-    let step = result.expect("long text should produce a valid step");
-    assert_eq!(step.text.len(), 1028); // 1024 + 4
-    // First flush at 1024 chars, remaining "tail" flushed at end
-    assert_eq!(deltas.len(), 2);
-    assert_eq!(deltas[0].len(), 1024);
-    assert_eq!(deltas[1], "tail");
-}
 
-#[test]
-fn collect_stream_flushes_reasoning_by_character_threshold() {
-    let (result, deltas) = collect_events([
-        llm::StreamEvent::ReasoningDelta("r".repeat(1024)),
-        llm::StreamEvent::Done {
-            usage: models::TokenUsage::default(),
-            finish_reason: Some("stop".to_string()),
-        },
-    ]);
 
-    assert_eq!(result.unwrap_err(), "模型未返回内容");
-    // Mid-stream flush includes the <think> prefix
-    assert_eq!(deltas.len(), 2);
-    assert_eq!(deltas[0], format!("<think>{}", "r".repeat(1024)));
-    assert_eq!(deltas[1], "</think>\n\n");
-}
 
-#[test]
-fn collect_stream_overwrites_tool_calls_on_repeated_events() {
-    let first = llm::ToolCall {
-        kind: Default::default(),
-        namespace: None,
-        id: "call-1".to_string(),
-        name: "read_file".to_string(),
-        arguments: "{}".to_string(),
-    };
-    let second = llm::ToolCall {
-        kind: Default::default(),
-        namespace: None,
-        id: "call-2".to_string(),
-        name: "write_file".to_string(),
-        arguments: r#"{"path":"/tmp/x"}"#.to_string(),
-    };
-
-    let (result, _deltas) = collect_events([
-        llm::StreamEvent::ToolCalls(vec![first]),
-        llm::StreamEvent::ToolCalls(vec![second.clone()]),
-        llm::StreamEvent::Done {
-            usage: models::TokenUsage::default(),
-            finish_reason: Some("tool_calls".to_string()),
-        },
-    ]);
-
-    let step = result.expect("repeated tool calls should still produce a step");
-    assert_eq!(step.tool_calls.len(), 1);
-    assert_eq!(step.tool_calls[0].id, "call-2");
-    assert_eq!(step.tool_calls[0].name, "write_file");
-}
-
-#[test]
-fn collect_stream_flushes_pending_text_and_reasoning_on_error() {
-    let (result, deltas) = collect_events([
-        llm::StreamEvent::ReasoningDelta("think ".to_string()),
-        llm::StreamEvent::Delta("speak ".to_string()),
-        llm::StreamEvent::Error(AssistantError::Unknown { message: "fail".to_string() }),
-    ]);
-
-    assert!(result.is_err());
-    // pending reasoning flushed (as <think> block), then </think>, then pending text
-    assert_eq!(deltas, vec!["<think>think ", "</think>\n\n", "speak "]);
-}
-
-#[test]
-fn collect_stream_rejects_whitespace_only_text() {
-    let (result, _deltas) = collect_events([
-        llm::StreamEvent::Delta("   ".to_string()),
-        llm::StreamEvent::Done {
-            usage: models::TokenUsage::default(),
-            finish_reason: Some("stop".to_string()),
-        },
-    ]);
-
-    assert_eq!(result.unwrap_err(), "模型未返回内容");
-}
 
 #[test]
 fn acp_request_detection_rejects_unexpected_option_types() {
@@ -770,36 +381,7 @@ fn non_retryable_llm_error_matches_english_model_resolution_failures() {
     assert!(!super::llm_step_retry_allowed("unsupported model family", false));
 }
 
-#[test]
-fn collect_stream_returns_buffered_text_when_sender_disconnects_without_done() {
-    let (result, deltas) = collect_events([llm::StreamEvent::Delta("partial".to_string())]);
 
-    let step = result.expect("buffered text should remain a valid step after disconnect");
-    assert_eq!(step.text, "partial");
-    assert_eq!(step.usage, models::TokenUsage::default());
-    assert_eq!(step.finish_reason, None);
-    assert_eq!(deltas, vec!["partial"]);
-}
-
-#[test]
-fn collect_stream_keeps_latest_full_messages_event() {
-    let latest = vec![serde_json::json!({ "role": "assistant", "content": "latest" })];
-    let (result, _deltas) = collect_events([
-        llm::StreamEvent::FullMessages(vec![serde_json::json!({
-            "role": "assistant",
-            "content": "stale"
-        })]),
-        llm::StreamEvent::FullMessages(latest.clone()),
-        llm::StreamEvent::Delta("answer".to_string()),
-        llm::StreamEvent::Done {
-            usage: models::TokenUsage::default(),
-            finish_reason: Some("stop".to_string()),
-        },
-    ]);
-
-    let step = result.expect("text and full messages should produce a step");
-    assert_eq!(step.full_messages, latest);
-}
 
 #[test]
 fn collect_stream_timeout_flushes_pending_text_and_requests_abort() {
@@ -860,19 +442,6 @@ fn collect_stream_aborts_when_consumer_rejects_reasoning_close_tag() {
     assert!(*abort_rx.borrow_and_update());
 }
 
-#[test]
-fn collect_stream_rejects_whitespace_only_reasoning_fallback() {
-    let (result, deltas) = collect_events([
-        llm::StreamEvent::ReasoningDelta("   ".to_string()),
-        llm::StreamEvent::Done {
-            usage: models::TokenUsage::default(),
-            finish_reason: Some("stop".to_string()),
-        },
-    ]);
-
-    assert_eq!(result.unwrap_err(), "模型未返回内容");
-    assert_eq!(deltas, vec!["<think>   ", "</think>\n\n"]);
-}
 
 #[test]
 fn collect_stream_aborts_when_consumer_rejects_pending_text_on_timeout() {

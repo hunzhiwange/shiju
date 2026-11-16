@@ -567,3 +567,7 @@ pub fn run_llm_step_with_budget<H: LlmStreamHost>(
 }
 
 pub use crate::recovery::provider_retry_backoff_ms;
+
+#[cfg(test)]
+#[path = "llm_runner_buffer_tests.rs"]
+mod buffer_tests;

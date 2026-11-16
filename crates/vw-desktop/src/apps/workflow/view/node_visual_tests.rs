@@ -58,70 +58,9 @@ fn node_visual_section_builds_start_visual() {
     assert_visual_section_builds("start", WorkflowNodeVisualDraft::Start { variables: Vec::new() });
 }
 
-#[test]
-fn output_and_text_nodes_visual_sections_build() {
-    let named = WorkflowNamedValueDraft {
-        name: "result".to_string(),
-        value_type: "string".to_string(),
-        selector: WorkflowVariableSelectorDraft::from_input("start.query"),
-        ..WorkflowNamedValueDraft::default()
-    };
-    assert_visual_section_builds(
-        "end",
-        WorkflowNodeVisualDraft::End { outputs: vec![named.clone()] },
-    );
-    assert_visual_section_builds(
-        "template-transform",
-        WorkflowNodeVisualDraft::TemplateTransform {
-            variables: vec![named],
-            template_editor: text_editor::Content::with_text("{{ result }}"),
-        },
-    );
-    assert_visual_section_builds(
-        "document-extractor",
-        WorkflowNodeVisualDraft::DocumentExtractor {
-            variable_selector: WorkflowVariableSelectorDraft::from_input("start.file"),
-        },
-    );
-}
 
-#[test]
-fn classifier_and_parameter_extractor_visual_sections_build() {
-    let model = WorkflowModelDraft {
-        provider: "openai".to_string(),
-        name: "gpt".to_string(),
-        mode: "chat".to_string(),
-    };
-    assert_visual_section_builds(
-        "question-classifier",
-        WorkflowNodeVisualDraft::QuestionClassifier {
-            query: WorkflowVariableSelectorDraft::from_input("start.query"),
-            model: model.clone(),
-            classes: vec![WorkflowClassifierClassDraft {
-                id: "support".to_string(),
-                name: "售后".to_string(),
-                ..WorkflowClassifierClassDraft::default()
-            }],
-            instruction_editor: text_editor::Content::with_text("分类"),
-        },
-    );
-    assert_visual_section_builds(
-        "parameter-extractor",
-        WorkflowNodeVisualDraft::ParameterExtractor {
-            query: WorkflowVariableSelectorDraft::from_input("start.query"),
-            model,
-            parameters: vec![WorkflowParameterDraft {
-                name: "city".to_string(),
-                value_type: "string".to_string(),
-                description: "城市".to_string(),
-                required: true,
-                ..WorkflowParameterDraft::default()
-            }],
-            reasoning_mode: "prompt".to_string(),
-            instruction_editor: text_editor::Content::with_text("提取"),
-        },
-    );
-}
+
+
 
 #[test]
 fn node_visual_section_builds_llm_visual() {

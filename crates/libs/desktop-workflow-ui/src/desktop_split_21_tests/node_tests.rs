@@ -7,8 +7,11 @@ fn test_module_is_wired() {
     assert!(module.ends_with("node_tests"));
 }
 
-use super::*;
-use crate::apps::workflow::state::{
+use crate::message::{self, WorkflowMessage};
+use desktop_workflow_model::*;
+use desktop_workflow_state::state::*;
+
+use desktop_workflow_state::state::{
     WorkflowCanvasContextMenuTarget, WorkflowNodeEditorMode, WorkflowNodeEditorTab,
     WorkflowNodeFieldEdit, WorkflowNodeVisualDraft,
 };
@@ -24,9 +27,8 @@ fn editor_scroll() -> text_editor::Action {
     text_editor::Action::Scroll { lines: 1 }
 }
 
-fn app_with_workflow() -> App {
-    let mut app = App::new().0;
-    app.window_size = (1280.0, 860.0);
+fn app_with_workflow() -> WorkflowState {
+    let mut app = WorkflowState::default();
     let loaded = load_document_from_text(
         None,
         r#"
@@ -60,28 +62,25 @@ workflow:
         .to_string(),
     )
     .expect("workflow should load");
-    apply_loaded(&mut app, loaded);
+    app.apply_loaded(loaded, (1280.0, 860.0));
     app
 }
 
-fn node_message(app: &mut App, message: WorkflowMessage) {
-    assert!(super::node::handle(app, message).is_some());
+fn node_message(app: &mut WorkflowState, message: WorkflowMessage) {
+    assert!(message::node::handle(app, (1280.0, 860.0), message).is_some());
 }
 
-fn open_create_editor(app: &mut App, block_type: &str) {
+fn open_create_editor(app: &mut WorkflowState, block_type: &str) {
     node_message(
         app,
         WorkflowMessage::OpenCreateNodeEditorAt(block_type.to_string(), Point::new(12.0, 34.0)),
     );
-    assert_eq!(
-        app.workflow_state.node_editor.as_ref().map(|editor| editor.block_type.as_str()),
-        Some(block_type)
-    );
+    assert_eq!(app.node_editor.as_ref().map(|editor| editor.block_type.as_str()), Some(block_type));
 }
 
 #[test]
 fn output_and_text_nodes_messages_update_visual_drafts() {
-    let mut app = App::new().0;
+    let mut app = WorkflowState::default();
 
     open_create_editor(&mut app, "end");
     node_message(
@@ -102,9 +101,7 @@ fn output_and_text_nodes_messages_update_visual_drafts() {
             "code.result".to_string(),
         )),
     );
-    assert!(
-        app.workflow_state.node_editor.as_ref().unwrap().raw_data_editor.text().contains("result")
-    );
+    assert!(app.node_editor.as_ref().unwrap().raw_data_editor.text().contains("result"));
 
     open_create_editor(&mut app, "template-transform");
     node_message(
@@ -112,32 +109,28 @@ fn output_and_text_nodes_messages_update_visual_drafts() {
         WorkflowMessage::NodeEditorTemplateFieldEdit(WorkflowNodeFieldEdit::NamedValueAdded),
     );
     node_message(&mut app, WorkflowMessage::NodeEditorTemplateAction(editor_paste("Hello")));
-    assert!(
-        app.workflow_state.node_editor.as_ref().unwrap().raw_data_editor.text().contains("Hello")
-    );
+    assert!(app.node_editor.as_ref().unwrap().raw_data_editor.text().contains("Hello"));
 
     open_create_editor(&mut app, "document-extractor");
     node_message(
         &mut app,
         WorkflowMessage::NodeEditorDocumentSelectorChanged("start.file".to_string()),
     );
-    assert!(
-        app.workflow_state.node_editor.as_ref().unwrap().raw_data_editor.text().contains("file")
-    );
+    assert!(app.node_editor.as_ref().unwrap().raw_data_editor.text().contains("file"));
 }
 
 #[test]
 fn advanced_dsl_context_menu_opens_and_closes_for_editor_actions() {
-    let mut app = App::new().0;
+    let mut app = WorkflowState::default();
     open_create_editor(&mut app, "answer");
 
     node_message(&mut app, WorkflowMessage::NodeEditorDslOpenContextMenu { x: 18.0, y: 24.0 });
-    assert!(app.workflow_state.node_editor_dsl_context_menu_open);
-    assert_eq!(app.workflow_state.node_editor_dsl_context_menu_pos, Some((18.0, 24.0)));
+    assert!(app.node_editor_dsl_context_menu_open);
+    assert_eq!(app.node_editor_dsl_context_menu_pos, Some((18.0, 24.0)));
 
     node_message(&mut app, WorkflowMessage::NodeEditorDataAction(editor_scroll()));
-    assert!(!app.workflow_state.node_editor_dsl_context_menu_open);
-    assert!(app.workflow_state.node_editor_dsl_context_menu_pos.is_none());
+    assert!(!app.node_editor_dsl_context_menu_open);
+    assert!(app.node_editor_dsl_context_menu_pos.is_none());
 
     for action in [
         WorkflowMessage::NodeEditorDslCloseContextMenu,
@@ -150,34 +143,26 @@ fn advanced_dsl_context_menu_opens_and_closes_for_editor_actions() {
     ] {
         node_message(&mut app, WorkflowMessage::NodeEditorDslOpenContextMenu { x: 3.0, y: 4.0 });
         node_message(&mut app, action);
-        assert!(!app.workflow_state.node_editor_dsl_context_menu_open);
-        assert!(app.workflow_state.node_editor_dsl_context_menu_pos.is_none());
+        assert!(!app.node_editor_dsl_context_menu_open);
+        assert!(app.node_editor_dsl_context_menu_pos.is_none());
     }
 }
 
 #[test]
 fn advanced_dsl_undo_and_redo_restore_editor_text() {
-    let mut app = App::new().0;
+    let mut app = WorkflowState::default();
     open_create_editor(&mut app, "answer");
-    let original =
-        app.workflow_state.node_editor.as_ref().expect("node editor").raw_data_editor.text();
+    let original = app.node_editor.as_ref().expect("node editor").raw_data_editor.text();
 
     node_message(&mut app, WorkflowMessage::NodeEditorDataAction(editor_paste("\nextra: true")));
-    let edited =
-        app.workflow_state.node_editor.as_ref().expect("node editor").raw_data_editor.text();
+    let edited = app.node_editor.as_ref().expect("node editor").raw_data_editor.text();
     assert_ne!(edited, original);
 
     node_message(&mut app, WorkflowMessage::NodeEditorDslUndo);
-    assert_eq!(
-        app.workflow_state.node_editor.as_ref().expect("node editor").raw_data_editor.text(),
-        original
-    );
+    assert_eq!(app.node_editor.as_ref().expect("node editor").raw_data_editor.text(), original);
 
     node_message(&mut app, WorkflowMessage::NodeEditorDslRedo);
-    assert_eq!(
-        app.workflow_state.node_editor.as_ref().expect("node editor").raw_data_editor.text(),
-        edited
-    );
+    assert_eq!(app.node_editor.as_ref().expect("node editor").raw_data_editor.text(), edited);
 }
 
 #[test]
@@ -185,19 +170,16 @@ fn quick_insert_create_edit_and_submit_messages_update_node_state() {
     let mut app = app_with_workflow();
 
     node_message(&mut app, WorkflowMessage::ToggleQuickInsertPanel);
-    assert!(app.workflow_state.quick_insert_panel_open);
+    assert!(app.quick_insert_panel_open);
 
-    let node_count = app.workflow_state.document.nodes.len();
+    let node_count = app.document.nodes.len();
     node_message(&mut app, WorkflowMessage::InsertSuggestedNode("answer".to_string()));
-    assert_eq!(app.workflow_state.document.nodes.len(), node_count + 1);
+    assert_eq!(app.document.nodes.len(), node_count + 1);
     node_message(&mut app, WorkflowMessage::InsertSuggestedNode("start".to_string()));
-    assert_eq!(app.workflow_state.error_message.as_deref(), Some("开始节点只能有一个"));
+    assert_eq!(app.error_message.as_deref(), Some("开始节点只能有一个"));
 
     node_message(&mut app, WorkflowMessage::OpenCreateNodeEditor("llm".to_string()));
-    assert_eq!(
-        app.workflow_state.node_editor.as_ref().map(|editor| editor.block_type.as_str()),
-        Some("llm")
-    );
+    assert_eq!(app.node_editor.as_ref().map(|editor| editor.block_type.as_str()), Some("llm"));
     node_message(
         &mut app,
         WorkflowMessage::NodeEditorTabSelected(WorkflowNodeEditorTab::AdvancedDsl),
@@ -206,30 +188,27 @@ fn quick_insert_create_edit_and_submit_messages_update_node_state() {
     node_message(&mut app, WorkflowMessage::NodeEditorDescriptionChanged("描述".to_string()));
     node_message(&mut app, WorkflowMessage::NodeEditorDescriptionAction(editor_paste(" plus")));
     node_message(&mut app, WorkflowMessage::NodeEditorShowRawDataEditorChanged(true));
-    let editor = app.workflow_state.node_editor.as_ref().expect("node editor");
+    let editor = app.node_editor.as_ref().expect("node editor");
     assert_eq!(editor.active_tab, WorkflowNodeEditorTab::AdvancedDsl);
     assert_eq!(editor.title, "  草稿标题  ");
     assert!(editor.description.contains(" plus"));
     assert!(editor.show_raw_data_editor);
 
     node_message(&mut app, WorkflowMessage::CloseNodeEditor);
-    assert!(app.workflow_state.node_editor.is_none());
+    assert!(app.node_editor.is_none());
 
     node_message(&mut app, WorkflowMessage::OpenEditNodeEditor(Some("answer".to_string())));
     node_message(&mut app, WorkflowMessage::NodeEditorTitleChanged("新回复".to_string()));
     node_message(&mut app, WorkflowMessage::SubmitNodeEditor);
-    assert_eq!(
-        app.workflow_state.document.node("answer").map(|node| node.title.as_str()),
-        Some("Answer")
-    );
+    assert_eq!(app.document.node("answer").map(|node| node.title.as_str()), Some("Answer"));
 
     node_message(&mut app, WorkflowMessage::OpenEditNodeEditor(Some("missing".to_string())));
-    assert_eq!(app.workflow_state.error_message.as_deref(), Some("目标节点不存在"));
+    assert_eq!(app.error_message.as_deref(), Some("目标节点不存在"));
 }
 
 #[test]
 fn start_variable_editor_messages_cover_nested_editor_paths() {
-    let mut app = App::new().0;
+    let mut app = WorkflowState::default();
     open_create_editor(&mut app, "start");
 
     node_message(&mut app, WorkflowMessage::NodeEditorStartVariableHovered(Some(0)));
@@ -289,11 +268,11 @@ fn start_variable_editor_messages_cover_nested_editor_paths() {
             "pick failed".to_string()
         )),
     );
-    assert_eq!(app.workflow_state.error_message.as_deref(), Some("pick failed"));
+    assert_eq!(app.error_message.as_deref(), Some("pick failed"));
     node_message(&mut app, WorkflowMessage::NodeEditorStartVariableEditorRemoveDefaultFile(0));
     node_message(&mut app, WorkflowMessage::NodeEditorStartVariableEditorCloseDefaultFileUrlInput);
     node_message(&mut app, WorkflowMessage::NodeEditorStartSubmitVariableEditor);
-    assert!(app.workflow_state.error_message.is_some());
+    assert!(app.error_message.is_some());
 
     node_message(&mut app, WorkflowMessage::NodeEditorStartCloseVariableEditor);
     node_message(&mut app, WorkflowMessage::NodeEditorStartAddVariable);
@@ -325,7 +304,7 @@ fn start_variable_editor_messages_cover_nested_editor_paths() {
     node_message(&mut app, WorkflowMessage::NodeEditorStartVariableEditorRemoveOption(99));
     node_message(&mut app, WorkflowMessage::NodeEditorStartSubmitVariableEditor);
 
-    let editor = app.workflow_state.node_editor.as_ref().expect("node editor");
+    let editor = app.node_editor.as_ref().expect("node editor");
     let WorkflowNodeVisualDraft::Start { variables } =
         editor.visual_draft.as_ref().expect("start draft")
     else {
@@ -371,25 +350,25 @@ fn downstream_and_context_node_messages_report_success_and_errors() {
     let mut app = app_with_workflow();
 
     node_message(&mut app, WorkflowMessage::OpenDownstreamNodePicker("start".to_string()));
-    assert_eq!(app.workflow_state.error_message.as_deref(), Some("右键菜单已关闭"));
+    assert_eq!(app.error_message.as_deref(), Some("右键菜单已关闭"));
 
-    app.workflow_state.open_context_menu(
+    app.open_context_menu(
         WorkflowCanvasContextMenuTarget::Node("start".to_string()),
         Point::new(10.0, 20.0),
         Point::new(30.0, 40.0),
     );
     node_message(&mut app, WorkflowMessage::OpenDownstreamNodePicker("start".to_string()));
     assert!(matches!(
-        app.workflow_state.context_menu.as_ref().map(|menu| &menu.target),
+        app.context_menu.as_ref().map(|menu| &menu.target),
         Some(WorkflowCanvasContextMenuTarget::NodeInsert(id)) if id == "start"
     ));
 
-    let node_count = app.workflow_state.document.nodes.len();
+    let node_count = app.document.nodes.len();
     node_message(
         &mut app,
         WorkflowMessage::InsertDownstreamNode("start".to_string(), "answer".to_string()),
     );
-    assert_eq!(app.workflow_state.document.nodes.len(), node_count + 1);
+    assert_eq!(app.document.nodes.len(), node_count + 1);
 
     node_message(
         &mut app,
@@ -399,22 +378,22 @@ fn downstream_and_context_node_messages_report_success_and_errors() {
             "answer".to_string(),
         ),
     );
-    assert_eq!(app.workflow_state.error_message.as_deref(), Some("右键菜单已关闭"));
+    assert_eq!(app.error_message.as_deref(), Some("右键菜单已关闭"));
 
-    app.workflow_state.open_context_menu(
+    app.open_context_menu(
         WorkflowCanvasContextMenuTarget::NodeInsert("start".to_string()),
         Point::new(1.0, 2.0),
         Point::new(3.0, 4.0),
     );
     node_message(&mut app, WorkflowMessage::CreateContextNode("answer".to_string()));
-    assert!(app.workflow_state.status_message.as_deref().unwrap_or_default().contains("已新增"));
+    assert!(app.status_message.as_deref().unwrap_or_default().contains("已新增"));
 }
 
 #[test]
 fn downstream_from_valid_handle_inserts_node_and_records_source_handle() {
     let mut app = app_with_workflow();
-    let node_count = app.workflow_state.document.nodes.len();
-    let edge_count = app.workflow_state.document.edges.len();
+    let node_count = app.document.nodes.len();
+    let edge_count = app.document.edges.len();
 
     node_message(
         &mut app,
@@ -425,10 +404,10 @@ fn downstream_from_valid_handle_inserts_node_and_records_source_handle() {
         ),
     );
 
-    assert_eq!(app.workflow_state.document.nodes.len(), node_count + 1);
-    assert_eq!(app.workflow_state.document.edges.len(), edge_count + 1);
+    assert_eq!(app.document.nodes.len(), node_count + 1);
+    assert_eq!(app.document.edges.len(), edge_count + 1);
     assert!(
-        app.workflow_state.document.edges.iter().any(|edge| {
+        app.document.edges.iter().any(|edge| {
             edge.source == "start" && edge.source_handle.as_deref() == Some("source")
         })
     );
@@ -436,7 +415,7 @@ fn downstream_from_valid_handle_inserts_node_and_records_source_handle() {
 
 #[test]
 fn branch_knowledge_tool_agent_llm_answer_and_code_messages_update_visual_drafts() {
-    let mut app = App::new().0;
+    let mut app = WorkflowState::default();
 
     open_create_editor(&mut app, "if-else");
     node_message(&mut app, WorkflowMessage::NodeEditorIfElseAddCase);
@@ -577,13 +556,13 @@ fn branch_knowledge_tool_agent_llm_answer_and_code_messages_update_visual_drafts
     node_message(&mut app, WorkflowMessage::NodeEditorCodeRemoveInputVariable(99));
     node_message(&mut app, WorkflowMessage::NodeEditorCodeRemoveOutputVariable(99));
 
-    let editor = app.workflow_state.node_editor.as_ref().expect("code editor");
+    let editor = app.node_editor.as_ref().expect("code editor");
     assert!(matches!(editor.visual_draft, Some(WorkflowNodeVisualDraft::Code { .. })));
 }
 
 #[test]
 fn start_variable_empty_default_file_url_is_ignored() {
-    let mut app = App::new().0;
+    let mut app = WorkflowState::default();
     open_create_editor(&mut app, "start");
 
     node_message(&mut app, WorkflowMessage::NodeEditorStartAddVariable);
@@ -598,26 +577,27 @@ fn start_variable_empty_default_file_url_is_ignored() {
     );
     node_message(&mut app, WorkflowMessage::NodeEditorStartVariableEditorSubmitDefaultFileUrl);
 
-    assert!(app.workflow_state.error_message.is_none());
+    assert!(app.error_message.is_none());
 }
 
 #[test]
 fn submit_node_editor_success_and_error_paths_are_reported() {
-    let mut app = App::new().0;
+    let mut app = WorkflowState::default();
     open_create_editor(&mut app, "answer");
     node_message(&mut app, WorkflowMessage::NodeEditorTitleChanged("回复节点".to_string()));
     node_message(&mut app, WorkflowMessage::SubmitNodeEditor);
-    assert_eq!(app.workflow_state.document.nodes.len(), 1);
-    assert!(app.workflow_state.node_editor.is_none());
+    assert_eq!(app.document.nodes.len(), 1);
+    assert!(app.node_editor.is_none());
 
     open_create_editor(&mut app, "tool");
     node_message(&mut app, WorkflowMessage::SubmitNodeEditor);
-    assert_eq!(
-        app.workflow_state.error_message.as_deref(),
-        Some("请先修正节点表单中的错误字段，再保存。")
-    );
+    assert_eq!(app.error_message.as_deref(), Some("请先修正节点表单中的错误字段，再保存。"));
 
-    let ignored = super::node::handle(&mut app, WorkflowMessage::SelectNode("x".to_string()));
+    let ignored = message::node::handle(
+        &mut app,
+        (1280.0, 860.0),
+        WorkflowMessage::SelectNode("x".to_string()),
+    );
     assert!(ignored.is_none());
 }
 
@@ -625,34 +605,34 @@ fn submit_node_editor_success_and_error_paths_are_reported() {
 fn selected_node_and_context_create_errors_are_reported() {
     let mut app = app_with_workflow();
 
-    app.workflow_state.selected_node_id = Some("answer".to_string());
+    app.selected_node_id = Some("answer".to_string());
     node_message(&mut app, WorkflowMessage::OpenEditNodeEditor(None));
-    let editor = app.workflow_state.node_editor.as_ref().expect("node editor");
+    let editor = app.node_editor.as_ref().expect("node editor");
     assert!(matches!(&editor.mode, WorkflowNodeEditorMode::Edit(node_id) if node_id == "answer"));
 
     node_message(&mut app, WorkflowMessage::CloseNodeEditor);
-    app.workflow_state.selected_node_id = Some("missing".to_string());
+    app.selected_node_id = Some("missing".to_string());
     node_message(&mut app, WorkflowMessage::OpenEditNodeEditor(None));
-    assert_eq!(app.workflow_state.error_message.as_deref(), Some("目标节点不存在"));
+    assert_eq!(app.error_message.as_deref(), Some("目标节点不存在"));
 
     node_message(&mut app, WorkflowMessage::CreateContextNode("answer".to_string()));
-    assert_eq!(app.workflow_state.error_message.as_deref(), Some("目标节点不存在"));
+    assert_eq!(app.error_message.as_deref(), Some("目标节点不存在"));
 }
 
 #[test]
 fn second_start_node_editor_is_rejected_without_opening_editor() {
     let mut app = app_with_workflow();
-    app.workflow_state.error_message = None;
+    app.error_message = None;
 
     node_message(&mut app, WorkflowMessage::OpenCreateNodeEditor("start".to_string()));
 
-    assert!(app.workflow_state.node_editor.is_none());
-    assert_eq!(app.workflow_state.error_message.as_deref(), Some("开始节点只能有一个"));
+    assert!(app.node_editor.is_none());
+    assert_eq!(app.error_message.as_deref(), Some("开始节点只能有一个"));
 }
 
 #[test]
 fn node_messages_without_matching_state_are_safe_noops() {
-    let mut app = App::new().0;
+    let mut app = WorkflowState::default();
 
     for message in [
         WorkflowMessage::NodeEditorTabSelected(WorkflowNodeEditorTab::Visual),
@@ -681,9 +661,13 @@ fn node_messages_without_matching_state_are_safe_noops() {
         node_message(&mut app, message);
     }
 
-    assert!(app.workflow_state.node_editor.is_none());
-    assert!(app.workflow_state.error_message.is_none());
+    assert!(app.node_editor.is_none());
+    assert!(app.error_message.is_none());
 
-    let ignored = super::node::handle(&mut app, WorkflowMessage::ToggleSavedAppActions("x".into()));
+    let ignored = message::node::handle(
+        &mut app,
+        (1280.0, 860.0),
+        WorkflowMessage::ToggleSavedAppActions("x".into()),
+    );
     assert!(ignored.is_none());
 }

@@ -1,12 +1,11 @@
 //! Workflow 应用列表视图测试模块，覆盖列表状态、文案回退、时间格式化与样式分支。
 
-use super::*;
-use crate::apps::workflow::state::{
+use crate::message::WorkflowMessage;
+use crate::view::run_preview::*;
+use desktop_workflow_state::state::{
     WorkflowRunErrorPreview, WorkflowRunNodePreview, WorkflowRunPreview, WorkflowRunStatus,
-    WorkflowSavedAppSummary,
 };
-use iced::widget::button;
-use iced::{Background, Theme};
+use iced::Theme;
 
 #[test]
 fn workflow_run_preview_builds_running_success_and_error_states() {
@@ -14,24 +13,24 @@ fn workflow_run_preview_builds_running_success_and_error_states() {
     running.nodes.push(run_node("start", "开始", Some("running")));
     running.text_output = "正在分析输入".to_string();
     let _ = build_saved_app_run_preview_layer(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &running,
         false,
     );
     assert!(matches!(
-        saved_app_run_preview_action(crate::app::i18n::I18n::new(Default::default()), &running),
+        saved_app_run_preview_action(desktop_i18n::I18n::new(Default::default()), &running),
         Some(("取消运行", WorkflowMessage::CancelSavedAppRun))
     ));
     assert_eq!(
         workflow_run_status_label(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             WorkflowRunStatus::Running
         ),
         "运行中"
     );
     assert_eq!(
         workflow_run_node_status_label(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             Some("running")
         ),
         "运行中"
@@ -43,24 +42,24 @@ fn workflow_run_preview_builds_running_success_and_error_states() {
     succeeded.nodes.push(run_node("answer", "回答", Some("succeeded")));
     succeeded.text_output = "完成输出".to_string();
     let _ = build_saved_app_run_preview_layer(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &succeeded,
         false,
     );
     assert!(matches!(
-        saved_app_run_preview_action(crate::app::i18n::I18n::new(Default::default()), &succeeded),
+        saved_app_run_preview_action(desktop_i18n::I18n::new(Default::default()), &succeeded),
         Some(("重新执行", WorkflowMessage::RetrySavedAppRunPreview))
     ));
     assert_eq!(
         workflow_run_status_label(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             WorkflowRunStatus::Succeeded
         ),
         "成功"
     );
     assert_eq!(
         workflow_run_node_status_label(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             Some("succeeded")
         ),
         "成功"
@@ -75,26 +74,23 @@ fn workflow_run_preview_builds_running_success_and_error_states() {
         message: "节点执行失败".to_string(),
     });
     let _ = build_saved_app_run_preview_layer(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &failed,
         false,
     );
     assert!(matches!(
-        saved_app_run_preview_action(crate::app::i18n::I18n::new(Default::default()), &failed),
+        saved_app_run_preview_action(desktop_i18n::I18n::new(Default::default()), &failed),
         Some(("重新执行", WorkflowMessage::RetrySavedAppRunPreview))
     ));
     assert_eq!(
         workflow_run_status_label(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             WorkflowRunStatus::Failed
         ),
         "失败"
     );
     assert_eq!(
-        workflow_run_node_status_label(
-            crate::app::i18n::I18n::new(Default::default()),
-            Some("failed")
-        ),
+        workflow_run_node_status_label(desktop_i18n::I18n::new(Default::default()), Some("failed")),
         "失败"
     );
     assert!(matches!(
@@ -115,37 +111,37 @@ fn workflow_run_preview_builds_running_success_and_error_states() {
         data: serde_json::json!({}),
     });
     let _ = build_saved_app_run_preview_layer(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &canceled,
         false,
     );
     assert!(
-        saved_app_run_preview_action(crate::app::i18n::I18n::new(Default::default()), &canceled)
+        saved_app_run_preview_action(desktop_i18n::I18n::new(Default::default()), &canceled)
             .is_none()
     );
 
     // Node status labels cover every timeline state.
     assert_eq!(
         workflow_run_node_status_label(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             Some("canceled")
         ),
         "已取消"
     );
     assert_eq!(
         workflow_run_node_status_label(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             Some("mystery")
         ),
         "未知"
     );
     assert_eq!(
-        workflow_run_node_status_label(crate::app::i18n::I18n::new(Default::default()), None),
+        workflow_run_node_status_label(desktop_i18n::I18n::new(Default::default()), None),
         "等待中"
     );
     assert_eq!(
         workflow_run_status_label(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             WorkflowRunStatus::Canceled
         ),
         "已取消"
@@ -160,7 +156,7 @@ fn workflow_run_preview_builds_running_success_and_error_states() {
     };
     assert!(
         workflow_run_node_data_preview_items(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             &empty_node
         )
         .is_empty()
@@ -172,7 +168,7 @@ fn workflow_run_preview_builds_running_success_and_error_states() {
     assert!(pending.nodes.is_empty());
     assert!(pending.run_id.is_none());
     let _ = build_saved_app_run_preview_layer(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &pending,
         false,
     );
@@ -187,7 +183,7 @@ fn workflow_run_preview_builds_running_success_and_error_states() {
     multi.nodes.push(run_node("answer", "回答", None));
     multi.text_output = "多节点输出".to_string();
     let _ = build_saved_app_run_preview_layer(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &multi,
         false,
     );
@@ -235,11 +231,11 @@ fn workflow_run_output_text_handles_empty_long_and_padded_output() {
 #[test]
 fn workflow_run_output_and_error_areas_build_for_empty_long_and_failed_states() {
     // Empty output still builds a stable, lightweight empty-state container.
-    let _ = workflow_run_output(crate::app::i18n::I18n::new(Default::default()), "");
+    let _ = workflow_run_output(desktop_i18n::I18n::new(Default::default()), "");
 
     // Long multi-line output builds without panicking.
     let long_output = (0..200).map(|i| format!("行 {i}")).collect::<Vec<_>>().join("\n");
-    let _ = workflow_run_output(crate::app::i18n::I18n::new(Default::default()), &long_output);
+    let _ = workflow_run_output(desktop_i18n::I18n::new(Default::default()), &long_output);
 
     // A failed preview with a multi-line, long error message builds a stable error report
     // in both themes via its dedicated styles.
@@ -252,7 +248,7 @@ fn workflow_run_output_and_error_areas_build_for_empty_long_and_failed_states() 
         code: "workflow_run_error".to_string(),
         message: format!("节点执行失败\n详细堆栈:\n{}", "栈帧 ".repeat(64)),
     });
-    let _ = workflow_run_error(crate::app::i18n::I18n::new(Default::default()), &failed);
+    let _ = workflow_run_error(desktop_i18n::I18n::new(Default::default()), &failed);
 
     for theme in [Theme::Light, Theme::Dark] {
         assert!(workflow_run_preview_output_style(&theme).background.is_some());
@@ -321,10 +317,8 @@ fn workflow_run_node_preview_formats_key_value_details() {
         }),
     };
 
-    let items = workflow_run_node_data_preview_items(
-        crate::app::i18n::I18n::new(Default::default()),
-        &node,
-    );
+    let items =
+        workflow_run_node_data_preview_items(desktop_i18n::I18n::new(Default::default()), &node);
     assert_eq!(items[0], ("类型:".to_string(), "llm".to_string()));
     assert_eq!(items[1], ("序号:".to_string(), "2".to_string()));
     assert_eq!(items[2].0, "开始时间:");
@@ -353,10 +347,8 @@ fn workflow_run_node_preview_formats_millisecond_and_hides_empty_fields() {
         }),
     };
 
-    let items = workflow_run_node_data_preview_items(
-        crate::app::i18n::I18n::new(Default::default()),
-        &node,
-    );
+    let items =
+        workflow_run_node_data_preview_items(desktop_i18n::I18n::new(Default::default()), &node);
 
     // Type and index keep their business priority order.
     assert_eq!(items[0], ("类型:".to_string(), "tool".to_string()));

@@ -8,3 +8,6 @@ pub mod workflow_manager;
 mod dify_node_editor_round_trip_tests;
 
 pub mod shortcuts;
+
+#[cfg(test)]
+mod desktop_split_21_tests;

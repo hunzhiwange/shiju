@@ -22,7 +22,3 @@ pub(super) fn build_saved_app_run_prompt_dialog(
 ) -> Option<Element<'_, Message>> {
     desktop_workflow_ui::view::app_list::build_saved_app_run_prompt_dialog(i18n, state).map(|element| element.map(Message::WorkflowTool))
 }
-
-#[cfg(test)]
-#[path = "app_list_tests.rs"]
-mod app_list_tests;

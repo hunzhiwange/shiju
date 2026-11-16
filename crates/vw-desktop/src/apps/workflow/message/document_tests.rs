@@ -8,13 +8,6 @@ fn test_module_is_wired() {
 }
 
 use super::*;
-use crate::apps::workflow::state::{WorkflowVariableEditorMode, WorkflowVariablePanelKind};
-use iced::widget::text_editor;
-use std::sync::Arc;
-
-fn editor_paste(text: &str) -> text_editor::Action {
-    text_editor::Action::Edit(text_editor::Edit::Paste(Arc::new(text.to_string())))
-}
 
 fn app_with_workflow() -> App {
     let mut app = App::new().0;
@@ -65,114 +58,7 @@ fn document_message(app: &mut App, message: WorkflowMessage) {
     assert!(super::document::handle(app, message).is_some());
 }
 
-#[test]
-fn variable_panel_and_environment_editor_messages_update_state() {
-    let mut app = app_with_workflow();
 
-    document_message(
-        &mut app,
-        WorkflowMessage::OpenVariablePanel(WorkflowVariablePanelKind::Environment),
-    );
-    assert_eq!(app.workflow_state.variable_panel, Some(WorkflowVariablePanelKind::Environment));
-
-    document_message(&mut app, WorkflowMessage::OpenCreateEnvironmentVariableEditor);
-    assert!(matches!(
-        app.workflow_state.variable_editor.as_ref().map(|editor| &editor.mode),
-        Some(WorkflowVariableEditorMode::CreateEnvironment)
-    ));
-    document_message(&mut app, WorkflowMessage::VariableEditorNameChanged("limit".to_string()));
-    document_message(&mut app, WorkflowMessage::VariableEditorTypeChanged("number".to_string()));
-    document_message(&mut app, WorkflowMessage::VariableEditorValueAction(editor_paste("42")));
-    document_message(&mut app, WorkflowMessage::SubmitVariableEditor);
-    assert!(app.workflow_state.environment_variables.iter().any(|item| {
-        item.name == "limit" && item.value_type == "number" && item.value.as_i64() == Some(42)
-    }));
-
-    document_message(
-        &mut app,
-        WorkflowMessage::OpenEditEnvironmentVariableEditor("env-existing".to_string()),
-    );
-    document_message(
-        &mut app,
-        WorkflowMessage::VariableEditorDescriptionChanged("updated env".to_string()),
-    );
-    document_message(&mut app, WorkflowMessage::SubmitVariableEditor);
-    assert_eq!(
-        app.workflow_state
-            .environment_variable("env-existing")
-            .map(|item| item.description.as_str()),
-        Some("updated env")
-    );
-
-    document_message(
-        &mut app,
-        WorkflowMessage::OpenEditEnvironmentVariableEditor("missing".to_string()),
-    );
-    assert_eq!(app.workflow_state.error_message.as_deref(), Some("环境变量不存在"));
-    document_message(
-        &mut app,
-        WorkflowMessage::DeleteEnvironmentVariable("env-existing".to_string()),
-    );
-    assert!(app.workflow_state.environment_variable("env-existing").is_none());
-
-    document_message(&mut app, WorkflowMessage::CloseVariableEditor);
-    document_message(&mut app, WorkflowMessage::CloseVariablePanel);
-    assert!(app.workflow_state.variable_editor.is_none());
-    assert!(app.workflow_state.variable_panel.is_none());
-}
-
-#[test]
-fn conversation_editor_messages_cover_success_and_error_paths() {
-    let mut app = app_with_workflow();
-
-    document_message(&mut app, WorkflowMessage::OpenCreateConversationVariableEditor);
-    assert!(matches!(
-        app.workflow_state.variable_editor.as_ref().map(|editor| &editor.mode),
-        Some(WorkflowVariableEditorMode::CreateConversation)
-    ));
-    document_message(&mut app, WorkflowMessage::VariableEditorNameChanged("profile".to_string()));
-    document_message(&mut app, WorkflowMessage::VariableEditorTypeChanged("object".to_string()));
-    document_message(
-        &mut app,
-        WorkflowMessage::VariableEditorValueAction(editor_paste("{name: Ada}")),
-    );
-    document_message(&mut app, WorkflowMessage::SubmitVariableEditor);
-    assert!(app.workflow_state.conversation_variables.iter().any(|item| {
-        item.name == "profile" && item.value_type == "object" && item.value.is_mapping()
-    }));
-
-    document_message(
-        &mut app,
-        WorkflowMessage::OpenEditConversationVariableEditor("conv-existing".to_string()),
-    );
-    document_message(
-        &mut app,
-        WorkflowMessage::VariableEditorDescriptionChanged("updated conv".to_string()),
-    );
-    document_message(&mut app, WorkflowMessage::SubmitVariableEditor);
-    assert_eq!(
-        app.workflow_state
-            .conversation_variable("conv-existing")
-            .map(|item| item.description.as_str()),
-        Some("updated conv")
-    );
-
-    document_message(
-        &mut app,
-        WorkflowMessage::OpenEditConversationVariableEditor("missing".to_string()),
-    );
-    assert_eq!(app.workflow_state.error_message.as_deref(), Some("会话变量不存在"));
-    document_message(
-        &mut app,
-        WorkflowMessage::DeleteConversationVariable("conv-existing".to_string()),
-    );
-    assert!(app.workflow_state.conversation_variable("conv-existing").is_none());
-
-    document_message(&mut app, WorkflowMessage::OpenCreateConversationVariableEditor);
-    document_message(&mut app, WorkflowMessage::VariableEditorNameChanged(" ".to_string()));
-    document_message(&mut app, WorkflowMessage::SubmitVariableEditor);
-    assert_eq!(app.workflow_state.error_message.as_deref(), Some("变量名称不能为空"));
-}
 
 #[test]
 fn save_reload_export_and_floating_panel_messages_update_state() {
@@ -275,17 +161,4 @@ fn save_reload_export_and_floating_panel_messages_update_state() {
     let ignored =
         super::document::handle(&mut app, WorkflowMessage::SelectNode("start".to_string()));
     assert!(ignored.is_none());
-}
-
-#[test]
-fn action_menu_toggle_opens_closed_menu_and_close_is_idempotent() {
-    let mut app = app_with_workflow();
-    assert!(!app.workflow_state.action_menu_open);
-
-    document_message(&mut app, WorkflowMessage::ToggleActionMenu);
-    assert!(app.workflow_state.action_menu_open);
-
-    document_message(&mut app, WorkflowMessage::CloseFloatingPanels);
-    document_message(&mut app, WorkflowMessage::CloseFloatingPanels);
-    assert!(!app.workflow_state.action_menu_open);
 }

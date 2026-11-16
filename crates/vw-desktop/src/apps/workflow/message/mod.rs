@@ -32,17 +32,11 @@ mod video_edit;
 #[path = "app_tests.rs"]
 mod app_tests;
 #[cfg(test)]
-#[path = "canvas_tests.rs"]
-mod canvas_tests;
-#[cfg(test)]
 #[path = "document_tests.rs"]
 mod document_tests;
 #[cfg(test)]
 #[path = "mod_tests.rs"]
 mod mod_tests;
-#[cfg(test)]
-#[path = "node_tests.rs"]
-mod node_tests;
 #[cfg(test)]
 mod tests;
 

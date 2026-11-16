@@ -332,6 +332,32 @@ fn settings_shell(
     active_tab: SystemTab,
     help_tab: SystemTab,
 ) -> Element<'_, Message> {
+    if app.mobile_layout.mode() == crate::app::state::LayoutMode::Mobile {
+        use super::system_settings_common::{rounded_action_btn_style, settings_muted_text_style};
+        use iced::widget::{button, text};
+        let back = button(text("返回分类"))
+            .padding([10, 12])
+            .style(rounded_action_btn_style)
+            .on_press(Message::View(message::ViewMessage::MobileBack));
+        let mut header = row![back].spacing(8).align_y(Alignment::Center);
+        if let Some(help) = system_settings_help::help_button(app.desktop_locale, help_tab) {
+            header = header.push(help);
+        }
+        let mut page = column![header, settings_content(app, active_tab)]
+            .spacing(8).width(Length::Fill).height(Length::Fill);
+        if active_tab == SystemTab::GatewayClient {
+            // Gateway edits already validate and persist through the existing settings chain.
+            // Keep retry reachable even when the form is scrolled or the keyboard is open.
+            page = page.push(column![
+                text("有效输入自动保存；保存不代表已连接。连接失败时检查地址、认证及浏览器跨域配置。")
+                    .size(12).style(settings_muted_text_style),
+                button(text("刷新连接 / 重试"))
+                    .padding([10, 12]).style(rounded_action_btn_style)
+                    .on_press(Message::GatewayHealthTick),
+            ].spacing(6));
+        }
+        return page.into();
+    }
     let close_message = Message::View(message::ViewMessage::ToggleSystemSettings);
     let mut actions = row![super::system_settings_device_sync::entry_points()]
         .spacing(6)

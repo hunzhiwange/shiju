@@ -475,3 +475,30 @@ pub fn render_file_references<'a>(
     // 使用 wrap 实现自动换行
     container(refs_row.wrap()).width(Length::Fill).padding([4, 0]).into()
 }
+
+/// 删除全部精确匹配的文件提及，保留其它文件名内的空白。
+pub fn remove_file_reference(editor: &mut iced::widget::text_editor::Content, path: &str) {
+    use desktop_editor::components::input_mention_highlighter::{file_mention, mention_ranges};
+    use iced::widget::text_editor;
+    let text = editor.text().to_string();
+    let mention_pattern = file_mention(path);
+
+    let mut new_text = text.clone();
+    for mut range in mention_ranges(&text).into_iter().rev() {
+        if text[range.clone()] != mention_pattern {
+            continue;
+        }
+        // 删除引用后的分隔空白，保留其它文件名内部的空格。
+        range.end += text[range.end..]
+            .chars()
+            .take_while(|c| c.is_whitespace())
+            .map(char::len_utf8)
+            .sum::<usize>();
+        new_text.replace_range(range, "");
+    }
+    let new_text = new_text.trim();
+
+    *editor = text_editor::Content::with_text(new_text);
+    editor.perform(text_editor::Action::Move(text_editor::Motion::DocumentEnd));
+
+}

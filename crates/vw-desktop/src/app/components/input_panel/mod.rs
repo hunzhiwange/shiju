@@ -95,16 +95,14 @@ mod usage_button_tests;
 mod usage_tests;
 
 use crate::app::components::chat_panel::{
-    conversation_reading_column, tool_selector::session_tool_selector_popover,
+    tool_selector::session_tool_selector_popover,
 };
 use crate::app::components::overlays::AboveOverlay;
 
-use crate::app::theme_catalog::with_panel_background;
 use crate::app::{App, Message, TodoPanelPlacement, message};
-use drop_area::DropArea;
 use file_references::{extract_file_mentions, render_file_references};
 use iced::widget::{Space, column, container};
-use iced::{Element, Length, Padding};
+use iced::{Element, Length};
 use reasoning_selector::reasoning_effort_selector;
 use send_controls::{
     bottom_bar, cancel_button, full_access_button, pool_button, send_button, workflow_mode_button,
@@ -464,87 +462,36 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         Space::new().into()
     };
 
-    // 将文件搜索作为覆盖层添加到主内容上
-    let content_with_file_search: Element<'_, Message> =
-        AboveOverlay::new(content, file_search_content)
-            .show(app.show_file_search)
-            .gap(6.0)
-            .on_close(Message::Chat(message::ChatMessage::FileSearchInputChanged(String::new())))
-            .into();
-
-    // Slash 面板与 @ 文件搜索互斥显示
-    let content_with_overlays: Element<'_, Message> =
-        AboveOverlay::new(content_with_file_search, slash_palette_content)
-            .show(app.show_slash_palette)
-            .gap(6.0)
-            .on_close(Message::Chat(message::ChatMessage::SlashPaletteClosed))
-            .into();
-
-    // 检测是否有文件树项正在被拖拽
-    let dragging_any_tree_item =
-        !app.file_tree_interaction.dragging_file_paths.is_empty() || !app.file_tree_interaction.pending_drop_file_paths.is_empty();
-
-    // 包装主内容为拖放区域，支持文件拖拽添加
-    let drop_area: Element<'_, Message> = Element::new(
-        DropArea::new(
-            content_with_overlays,
-            Message::Chat(message::ChatMessage::InputAreaDragDrop),
-            Some((
-                Message::Chat(message::ChatMessage::InputAreaDragHoverChanged(true)),
-                Message::Chat(message::ChatMessage::InputAreaDragHoverChanged(false)),
-            )),
-            dragging_any_tree_item,
-        )
-        .on_native_drop(|path| {
-            Message::View(message::ViewMessage::DroppedFilePath(
-                path.to_string_lossy().into_owned(),
-            ))
-        }),
-    );
-
-    // 检测输入区域是否处于拖拽悬停状态
-    let input_drop_hovered = app.file_tree_interaction.input_drop_hovered && dragging_any_tree_item;
     let chrome = crate::app::theme_catalog::resolve_chrome_style_from_skin(
-        app.active_theme_skin.as_ref(),
-        &app.app_theme,
+        app.active_theme_skin.as_ref(), &app.app_theme,
     );
-
-    // 应用容器样式并返回最终UI元素
-    let card = container(drop_area)
-        .style(move |theme: &iced::Theme| {
-            styles::input_card_style(theme, input_drop_hovered, Some(&chrome))
-        })
-        .padding(0)
-        .width(Length::Fill);
-
-    let input_bg = app.active_theme_skin.as_ref().and_then(|skin| skin.chat_input_path.as_deref());
-    let fit = app
-        .active_theme_skin
-        .as_ref()
-        .map(|skin| {
-            crate::app::theme_catalog::PanelImageFit::parse(
-                skin.chrome.chat_input_image_fit.as_deref(),
-            )
-            .unwrap_or_default()
-        })
-        .unwrap_or_default();
-    let card = with_panel_background(card.into(), input_bg, fit);
+    let fit = app.active_theme_skin.as_ref().and_then(|skin|
+        crate::app::theme_catalog::PanelImageFit::parse(skin.chrome.chat_input_image_fit.as_deref())
+    ).unwrap_or_default();
     let running_agent_sessions = agent_sessions::cached_running_agent_sessions(app);
-    let mut panel = column![].spacing(6).width(Length::Fill);
-    if let Some(voice) = super::voice_chat::local_inline(app) {
-        panel = panel.push(voice);
-    }
-    if let Some(entry) = agent_sessions::agent_sessions_entry(app, &running_agent_sessions) {
-        panel = panel.push(entry);
-    }
-    if let Some(quick_messages) = quick_messages::view(app) {
-        panel = panel.push(quick_messages);
-    }
-    conversation_reading_column(
-        panel.push(card),
-        Padding { top: 0.0, right: 2.0, bottom: 0.0, left: 2.0 },
+    desktop_chat_input::input_panel::layout::surface(
+        desktop_chat_input::input_panel::layout::Surface {
+            content, file_search: file_search_content, slash_palette: slash_palette_content,
+            show_file_search: app.show_file_search, show_slash_palette: app.show_slash_palette,
+            dragging: !app.file_tree_interaction.dragging_file_paths.is_empty()
+                || !app.file_tree_interaction.pending_drop_file_paths.is_empty(),
+            input_drop_hovered: app.file_tree_interaction.input_drop_hovered,
+            chrome,
+            background: app.active_theme_skin.as_ref().and_then(|skin| skin.chat_input_path.as_deref()),
+            fit,
+            voice: super::voice_chat::local_inline(app),
+            agent_sessions: agent_sessions::agent_sessions_entry(app, &running_agent_sessions),
+            quick_messages: quick_messages::view(app),
+        },
+        desktop_chat_input::input_panel::layout::SurfaceMessages {
+            close_file_search: Message::Chat(message::ChatMessage::FileSearchInputChanged(String::new())),
+            close_slash_palette: Message::Chat(message::ChatMessage::SlashPaletteClosed),
+            drop: Message::Chat(message::ChatMessage::InputAreaDragDrop),
+            hover: (Message::Chat(message::ChatMessage::InputAreaDragHoverChanged(true)),
+                    Message::Chat(message::ChatMessage::InputAreaDragHoverChanged(false))),
+            native_drop: |path| Message::View(message::ViewMessage::DroppedFilePath(path.to_string_lossy().into_owned())),
+        },
     )
-    .into()
 }
 
 fn slice_message(message: desktop_chat_input::input_panel::slice_message::Message) -> Message {

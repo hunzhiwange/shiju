@@ -5,3 +5,6 @@ pub mod popovers;
 
 #[cfg(test)]
 mod desktop_split_07_tests;
+
+#[cfg(test)]
+mod host_module_4_tests;

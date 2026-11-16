@@ -193,27 +193,9 @@ fn selecting_current_file_search_result_uses_selected_index() {
     assert_eq!(app.current_session_runtime().input_editor.text(), previous);
 }
 
-#[test]
-fn remove_file_reference_deletes_mention_and_compacts_whitespace() {
-    let mut app = test_app();
-    set_input_text(&mut app, "read @src/main.rs and @tests/input.rs");
-    app.file_ref_hovered_index = Some(2);
 
-    handle_remove_file_reference(&mut app, "src/main.rs".to_string());
 
-    assert_eq!(app.current_session_runtime().input_editor.text(), "read and @tests/input.rs");
-    assert_eq!(app.file_ref_hovered_index, None);
-}
 
-#[test]
-fn remove_file_reference_removes_all_matching_mentions() {
-    let mut app = test_app();
-    set_input_text(&mut app, "@src/main.rs compare @src/main.rs");
-
-    handle_remove_file_reference(&mut app, "src/main.rs".to_string());
-
-    assert_eq!(app.current_session_runtime().input_editor.text(), "compare");
-}
 
 #[test]
 fn input_area_drag_drop_inserts_mentions_and_clears_state() {
@@ -303,13 +285,12 @@ fn selecting_and_removing_spaced_chinese_file_preserves_other_mentions() {
     assert!(app.current_session_runtime().input_editor.text().is_empty());
 }
 
+// 宿主只验证引用编辑完成后的悬停状态装配。
 #[test]
-fn removing_chinese_file_keeps_other_quoted_path_whitespace() {
+fn remove_file_reference_clears_host_hover() {
     let mut app = test_app();
-    set_input_text(&mut app, r#"@原始视频.mov @"目录/两个  空格.txt" @原始视频.mov.bak"#);
-    handle_remove_file_reference(&mut app, "原始视频.mov".to_string());
-    assert_eq!(
-        app.current_session_runtime().input_editor.text(),
-        r#"@"目录/两个  空格.txt" @原始视频.mov.bak"#
-    );
+    set_input_text(&mut app, "read @src/main.rs and @tests/input.rs");
+    app.file_ref_hovered_index = Some(2);
+    handle_remove_file_reference(&mut app, "src/main.rs".to_string());
+    assert_eq!(app.file_ref_hovered_index, None);
 }

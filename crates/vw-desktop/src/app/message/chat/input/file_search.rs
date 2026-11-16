@@ -5,7 +5,7 @@ use super::shared::{
     close_input_context_menu, focus_input_editor, sync_global_input_editor_if_needed,
 };
 use crate::app::components::input_mention_highlighter::{
-    file_mention, mention_ranges,
+    file_mention,
 };
 use crate::app::{App, FocusArea, Message};
 use iced::{Task, widget::operation, widget::text_editor};
@@ -94,29 +94,9 @@ pub(super) fn handle_file_search_select(app: &mut App, path: String) -> Task<Mes
 /// 模块内可见函数，执行 handle_remove_file_reference 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_remove_file_reference(app: &mut App, file_path: String) -> Task<Message> {
-    let runtime = app.current_session_runtime();
-    let text = runtime.input_editor.text().to_string();
-    let mention_pattern = file_mention(&file_path);
-
-    let mut new_text = text.clone();
-    for mut range in mention_ranges(&text).into_iter().rev() {
-        if text[range.clone()] != mention_pattern {
-            continue;
-        }
-        // 删除引用后的分隔空白，保留其它文件名内部的空格。
-        range.end += text[range.end..]
-            .chars()
-            .take_while(|c| c.is_whitespace())
-            .map(char::len_utf8)
-            .sum::<usize>();
-        new_text.replace_range(range, "");
-    }
-    let new_text = new_text.trim();
-
-    let runtime = app.current_session_runtime_mut();
-    runtime.input_editor = text_editor::Content::with_text(new_text);
-    runtime.input_editor.perform(text_editor::Action::Move(text_editor::Motion::DocumentEnd));
-
+    desktop_chat_input::input_panel::file_references::remove_file_reference(
+        &mut app.current_session_runtime_mut().input_editor, &file_path,
+    );
     sync_global_input_editor_if_needed(app);
     app.file_ref_hovered_index = None;
     Task::none()

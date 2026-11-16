@@ -238,3 +238,76 @@ Additional migration: 19 tests. Future agent-plugins lib host_migration_37_tests
 Connections implements only no-turn source and transport ports: actual audited cwd/headers/OAuth source readers and open_server_peer; dynamic discovery returns error and app revocation panics. Tenant/app selection tests remain in the host. These fixtures do not claim authorization, app revocation, model-turn cancellation or current-tenant acceptance. Host t18 retains ToolUseContext cancellation, runtime SessionToolset lease, disable notifications, required admission and actual dynamic tool timeout. Host t20 retains dynamic McpTool binding/call and inspection wiring; shared minimal real service fixture remains because both layers exercise the same protocol behavior. t23 old registration and file are removed entirely.
 
 Production dependencies unchanged. Existing dev dependencies suffice. Added child modules self-register in the existing domain test root; no new public API. Baseline mappings above are superseded for the listed moved names. No Cargo/build/tests executed; static source/registration/diff review only.
+
+## Third deep migration: close remaining domain cases
+
+Read updated final.md priority 2 (2172 remaining host lines). New production algorithm migration = 0; this pass restores test ownership of existing actual plugin-mcp and tool-mcp implementations.
+
+### t18: 191 -> 168 host lines
+
+- `codex_plugin_compat_t18_applies_host_call_timeout_to_actual_dynamic_tool` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t18_tests.rs`; original assertions preserved.
+
+### t19: 170 -> 31 host lines
+
+- `codex_plugin_compat_t19_paged_names_route_to_original_wire_names` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t19_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t19_rejects_loop_and_oversized_cursor` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t19_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t19_retains_same_named_servers_from_different_packages` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t19_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t19_denied_tool_cannot_bypass_catalog_filter` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t19_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t19_same_named_plugin_tools_call_their_own_process` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t19_tests.rs`; original assertions preserved.
+
+### t20: 379 -> 247 host lines
+
+- `codex_plugin_compat_t20_rejects_invalid_input` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t20_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t20_preserves_isolation` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t20_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t20_reconnect_rejects_old_binding_without_closing_current_binding` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t20_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t20_notification_does_not_revoke_an_already_admitted_call` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t20_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t20_equal_notification_preserves_bindings_and_shutdown_closes_catalogs` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t20_tests.rs`; original assertions preserved.
+- `dynamic_tools_mcp_refresh_notification_marks_only_connection_revision` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t20_tests.rs`; original assertions preserved.
+
+### t21: 278 -> 0 host lines
+
+- `codex_plugin_compat_t21_preserves_structured_and_media_content` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t21_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t21_rejects_invalid_input` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t21_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t21_preserves_isolation` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t21_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t21_preserves_large_and_empty_results` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t21_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t21_null_structured_content_does_not_expose_host_metadata` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t21_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t21_rejects_malformed_results_without_exposing_payload` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t21_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t21_keeps_existing_stdio_notification_compatibility` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t21_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t21_preserves_extensions_without_response_or_host_collision` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t21_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t21_distinguishes_call_timeout_from_tool_failure` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t21_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t21_preserves_results_over_http_json_and_both_sse_paths` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t21_tests.rs`; original assertions preserved.
+
+### t22: 366 -> 105 host lines
+
+- `codex_plugin_compat_t22_preserves_resource_origin_and_prompt_roles` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t22_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t22_rejects_invalid_input` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t22_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t22_preserves_isolation` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t22_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t22_lists_all_pages_and_preserves_metadata` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t22_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t22_rejects_invalid_actions_uris_and_parameter_shapes` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t22_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t22_rejects_pagination_cycles_and_limits` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t22_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t22_rejects_remote_malformed_content_and_roles` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t22_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t22_keeps_package_and_host_files_unchanged` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t22_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t22_disabled_and_cancelled_sessions_reject_before_connecting` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t22_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t22_reads_and_gets_over_http_json_and_sse` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t22_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t22_preserves_admission_timeouts_and_sanitizes_remote_errors` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t22_tests.rs`; original assertions preserved.
+
+### t24: 174 -> 37 host lines
+
+- `codex_plugin_compat_t24_returns_validated_user_response` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t24_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t24_rejects_invalid_input` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t24_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t24_preserves_isolation` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t24_tests.rs`; original assertions preserved.
+- `codex_plugin_compat_t24_timeout_removes_pending_form` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t24_tests.rs`; original assertions preserved.
+
+### t27_flow: 55 -> 0 host lines
+
+- `codex_plugin_compat_t27_url_stdio_completes_exact_request` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t27_flow_tests.rs`; original assertions preserved.
+
+Additional exclusive source reduction excluding shared mod.rs: 1025 lines.
+
+McpTool fixture calls the real McpTool generic implementation, real settings/tool allow-list, executable inspection, pool catalog bindings, app resource parser and plugin-mcp resource call. Its ContextHost shape follows the existing repository-only task38 fixture; no App/AppState copied, no host source loaded. Implicit config is rejected. Domain transport selection accepts only no owner or the explicit default test tenant; actual current tenant/snapshot/app selection remains under host integration. Elicitation uses real agent-question and agent-bus stores/events, default test tenant and real subprocess. Desktop ignored roundtrip stays in host.
+
+Retained: t18 actual ToolUseContext cancellation, SessionToolset lease, plugin-disable notification, required executor admission; t19 actual runtime registry/filters; t20 actual inspection refresh with host context and its real service fixture; t22 actual runtime resource registration and inspection plus necessary package fixture; t24 only ignored real desktop/gateway interaction; t28 only ignored public provider/host logout acceptance plus package fixture t17. Remaining production adapters still provide current tenant, plugin source, approval and execution and cannot be moved as domain policy.
+
+Dependencies: use existing tool-mcp dev dependency, add dev acp-types and agent-bus plus tokio test-util/rt-multi-thread for paused-clock and native runtime fixtures; lockfile existing-package edges updated without invoking Cargo. Self-register t19/t21/t22/t24/tool_host in domain; remove old t21/t27_flow host mounts. Existing t20 service fixture reused for moved bindings tests.
+
+Future `python3 scripts/cargo_slot.py cargo test -p agent-plugins --lib host_migration_37_tests -- --test-threads=1`: statically 94 test attributes (Unix cfg affects cross-platform count), must run nonzero. All Cargo/build/test execution remains NOT RUN by instruction. Static mapping and diff review only, no runtime/compile gain claim.

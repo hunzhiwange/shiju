@@ -1,12 +1,12 @@
 //! Tool results through a real local JSON-RPC process, not an in-memory call substitute.
-use crate::tools::{Tool, ToolCallResult, ToolSpec, mcp_tool::McpTool};
+use super::tools::{Tool, ToolCallResult, ToolSpec, mcp_tool::McpTool};
 use agent_client_protocol::{McpServer, McpServerHttp, McpServerSse, McpServerStdio};
 use serde_json::{Value, json};
 use std::{fs, path::Path};
 
 fn payload(source: &str, failed: bool) -> Value {
     let mut result: Value =
-        serde_json::from_slice(include_bytes!("../../../testdata/plugin_compat/t21/result.json"))
+        serde_json::from_slice(include_bytes!("../../../../vw-agent/testdata/plugin_compat/t21/result.json"))
             .unwrap();
     result["_meta"]["source"] = json!(source);
     result["structuredContent"]["source"] = json!(source);
@@ -17,10 +17,10 @@ fn payload(source: &str, failed: bool) -> Value {
 fn server(root: &Path, name: &str) -> McpServer {
     fs::create_dir_all(root).unwrap();
     let script = root.join("server.py");
-    fs::write(&script, include_bytes!("../../../testdata/plugin_compat/t21/server.py")).unwrap();
+    fs::write(&script, include_bytes!("../../../../vw-agent/testdata/plugin_compat/t21/server.py")).unwrap();
     fs::write(
         root.join("result.json"),
-        include_bytes!("../../../testdata/plugin_compat/t21/result.json"),
+        include_bytes!("../../../../vw-agent/testdata/plugin_compat/t21/result.json"),
     )
     .unwrap();
     McpServer::Stdio(
@@ -30,7 +30,7 @@ fn server(root: &Path, name: &str) -> McpServer {
 }
 
 fn tool_from_server(server: McpServer) -> McpTool {
-    let name = crate::tools::mcp_common::server_name(&server).to_owned();
+    let name = mcp_client::server_name(&server).to_owned();
     McpTool::from_configured_server(
         server,
         "report",
@@ -198,7 +198,7 @@ async fn codex_plugin_compat_t21_preserves_extensions_without_response_or_host_c
 #[tokio::test]
 async fn codex_plugin_compat_t21_distinguishes_call_timeout_from_tool_failure() {
     let root = tempfile::tempdir().unwrap();
-    let options = crate::plugins::PluginDiscoveryOptions::new(
+    let options = crate::PluginDiscoveryOptions::new(
         root.path().join("workspace"),
         root.path().join("config"),
         config_plugins::PluginsConfig::default(),
@@ -218,7 +218,7 @@ async fn codex_plugin_compat_t21_distinguishes_call_timeout_from_tool_failure() 
     )
     .unwrap();
     let mut servers = Vec::new();
-    crate::plugins::merge_enabled_plugin_mcp_servers(&mut servers, &options).unwrap();
+    super::merge_enabled_plugin_mcp_servers(&mut servers, &options).unwrap();
     assert_eq!(servers.len(), 1);
     let tool = tool_from_server(servers.pop().unwrap());
     assert!(!tool.call(json!({"fail":true})).await.unwrap().is_success());
@@ -236,7 +236,7 @@ async fn codex_plugin_compat_t21_preserves_results_over_http_json_and_both_sse_p
         let root = tempfile::tempdir().unwrap();
         let _ = server(root.path(), mode);
         let script = root.path().join("http_server.py");
-        fs::write(&script, include_bytes!("../../../testdata/plugin_compat/t21/http_server.py"))
+        fs::write(&script, include_bytes!("../../../../vw-agent/testdata/plugin_compat/t21/http_server.py"))
             .unwrap();
         let mut child = Command::new("python3")
             .arg(script)

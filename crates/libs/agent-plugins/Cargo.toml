@@ -66,3 +66,9 @@ agent-security = { path = "../agent-security", version = "0.6.0" }
 agent-multimodal = { path = "../agent-multimodal", version = "0.6.0" }
 
 permission-types = { path = "../permission-types", version = "0.6.0" }
+
+acp-types = { path = "../acp-types", version = "0.6.0" }
+
+agent-bus = { path = "../agent-bus", version = "0.6.0" }
+
+tokio = { version = "1", features = ["test-util", "rt-multi-thread"] }

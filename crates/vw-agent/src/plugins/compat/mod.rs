@@ -83,8 +83,7 @@ pub(crate) mod mcp_resources;
 #[cfg(test)]
 mod t20_tests;
 
-#[cfg(test)]
-mod t21_tests;
+
 
 #[cfg(test)]
 mod t22_tests;
@@ -97,8 +96,7 @@ mod t24_tests;
 pub mod mcp_oauth_discovery;
 
 pub mod mcp_oauth_flow;
-#[cfg(test)]
-mod t27_flow_tests;
+
 
 pub mod mcp_oauth_tokens;
 #[cfg(test)]

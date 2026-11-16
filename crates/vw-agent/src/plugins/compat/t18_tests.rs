@@ -166,26 +166,3 @@ async fn codex_plugin_compat_t18_required_failure_blocks_actual_tool_execution()
     );
     crate::plugins::close_session_mcp_connections("required", root.path());
 }
-
-#[tokio::test]
-async fn codex_plugin_compat_t18_applies_host_call_timeout_to_actual_dynamic_tool() {
-    use crate::tools::{Tool, ToolSpec, mcp_tool::McpTool};
-    use std::sync::Arc;
-    let root = tempfile::tempdir().unwrap();
-    let mut server = server(root.path(), "local");
-    settings(&mut server, 2000, 10000);
-    let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
-    let first = pid(&pool, &server).await.unwrap();
-    let tool = McpTool::from_session_server(
-        server,
-        "hang",
-        ToolSpec::new("mcp__local__hang", "hang", json!({"type":"object"})),
-        pool.clone(),
-        Some(Duration::from_millis(100)),
-    );
-    let error = tool.call(json!({})).await.unwrap_err();
-    assert!(format!("{error:#}").contains("timed out"), "{error:#}");
-    #[cfg(unix)]
-    exited(&first).await;
-    pool.shutdown();
-}

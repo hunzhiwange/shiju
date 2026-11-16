@@ -83,7 +83,7 @@ impl plugin_mcp::connection_host::ConnectionHost for Connections {
     }
     #[cfg(not(target_arch = "wasm32"))]
     fn selection_is_current(&self, _server: &McpServer, tenant: Option<&vw_api_transport::TenantScope>) -> Result<bool> {
-        anyhow::ensure!(tenant.is_none(), "fixture does not own application selections");
+        anyhow::ensure!(tenant.is_none_or(|tenant| tenant == &Default::default()), "fixture does not own application selections");
         Ok(true)
     }
     fn open_peer(&self, server: McpServer, startup: std::time::Duration, closed: CancellationToken, owner: Option<mcp_client::FormOwner>) -> plugin_mcp::connection_host::HostFuture<'_, mcp_client::RunningMcpPeer> {
@@ -100,3 +100,18 @@ impl plugin_mcp::connection_host::ConnectionHost for Connections {
 mod t18_tests;
 mod t20_tests;
 mod t23_tests;
+
+mod tool_host;
+mod tools {
+ pub use tool_types::{Tool, ToolCallResult, ToolSpec};
+ pub mod mcp_tool {
+  pub type McpTool = tool_mcp::mcp_tool::McpTool<super::super::tool_host::Host>;
+  pub use tool_mcp::mcp_tool::{mcp_tools_to_specs, discover_mcp_tool_specs};
+ }
+ pub mod mcp_resource { pub type McpResourceTool = tool_mcp::mcp_resource::McpResourceTool<super::super::tool_host::Host>; }
+}
+mod t19_tests;
+mod t21_tests;
+mod t22_tests;
+
+mod t24_tests;

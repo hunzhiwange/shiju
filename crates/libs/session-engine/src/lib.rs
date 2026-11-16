@@ -1,4 +1,5 @@
-//! Session message persistence, event publication and history serialization.
+//! Session identity snapshots and trusted capability policy resolution.
+
 pub mod agent_binding;
 pub mod instruction;
 pub mod instruction_discovery;

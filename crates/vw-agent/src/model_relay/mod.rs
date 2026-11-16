@@ -95,6 +95,7 @@ pub(crate) mod messages_responses_stream;
 
 pub(crate) mod gemini_shadow;
 
+
 pub(crate) mod hosted_search;
 #[cfg(test)]
 mod hosted_search_tests;
@@ -129,6 +130,7 @@ mod inline_think;
 
 pub(crate) mod late_arguments;
 
+
 pub(crate) mod xai_responses;
 // xAI Responses tests live in model-protocol.
 
@@ -160,10 +162,12 @@ pub(crate) mod models;
 
 pub(crate) mod gemini_metadata;
 
+
 pub(crate) mod alpha_search;
 
 pub(crate) mod image_generation;
 
 pub(crate) mod image_edit;
+
 
 pub(crate) mod forced_sse;

@@ -2,12 +2,12 @@
 
 use super::*;
 use crate::app::i18n::I18n;
+use config_ui::DesktopLocale;
 use iced::advanced::widget::{Id, Operation, operation};
 use iced::advanced::{clipboard, renderer::Headless};
 use iced::keyboard::{self, Key, key::Named};
 use iced::{Event, Font, Rectangle, Renderer, Size, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use config_ui::DesktopLocale;
 
 type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
 

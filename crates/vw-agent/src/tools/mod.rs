@@ -267,10 +267,6 @@ use std::sync::Arc;
 mod mcp_tool_tests;
 
 #[cfg(test)]
-#[path = "mod_tests.rs"]
-mod coverage_tests;
-
-#[cfg(test)]
 #[path = "tests/mod_tests.rs"]
 mod tests;
 #[cfg(test)]

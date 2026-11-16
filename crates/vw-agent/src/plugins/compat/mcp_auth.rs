@@ -5,16 +5,12 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 use plugin_mcp::mcp_legacy::PluginMcpParseOutcome;
 pub use plugin_mcp::mcp_auth::HttpContext;
-pub(crate) use plugin_mcp::mcp_auth::bind;
 pub(super) struct Source;
 impl plugin_mcp::source_host::SourceHost for Source {
     fn load_manifest(&self, root: &Path) -> Result<plugin_types::PluginManifest> { load_plugin_manifest(root) }
     fn load_declarations(&self, manifest: &plugin_types::PluginManifest) -> Result<(PluginMcpParseOutcome, PathBuf)> {
         crate::plugins::mcp::load_plugin_mcp_declarations(manifest)
     }
-}
-pub(crate) fn prepare(outcome: &mut PluginMcpParseOutcome, plugin: &DiscoveredPlugin, names: &HashMap<String, String>) -> Result<HashMap<String, HttpContext>> {
-    plugin_mcp::mcp_auth::prepare(outcome, &plugin.manifest, &plugin.source_dir, &plugin.identity, names)
 }
 pub(super) fn source_config(server: &McpServerHttp) -> Result<Option<serde_json::Map<String, serde_json::Value>>> {
     plugin_mcp::mcp_auth::source_config(&Source, server)

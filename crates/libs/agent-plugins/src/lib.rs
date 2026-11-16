@@ -90,3 +90,6 @@ mod compat_t11_tests;
 
 #[cfg(test)]
 mod compat_t14_tests;
+
+#[cfg(test)]
+mod compat_t16_tests;

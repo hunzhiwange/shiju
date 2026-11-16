@@ -144,3 +144,7 @@ pub fn ensure_persistent_request_message_id<H: RunnerHost>(
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "runner_model_tests.rs"]
+mod tests;

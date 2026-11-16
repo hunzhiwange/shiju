@@ -130,10 +130,6 @@ fn request_provider_retry_policy(req: &Request) -> (u32, u64) {
     session_engine::runner::request_provider_retry_policy::<AgentRunnerHost>(req)
 }
 #[cfg(test)]
-fn request_full_access_enabled(options: &Value) -> bool {
-    session_engine::runner::request_full_access_enabled(options)
-}
-#[cfg(test)]
 fn with_request_model_context(
     context: ToolUseContext,
     request_model: Option<&str>,
@@ -146,13 +142,6 @@ fn resolve_request_model(
     config: &crate::config::Config,
 ) -> Result<ResolvedRequestModel, String> {
     session_engine::runner::resolve_request_model::<AgentRunnerHost>(req, config)
-}
-#[cfg(test)]
-fn enabled_identity_files_for_agent(
-    config: &crate::config::Config,
-    agent_key: Option<&str>,
-) -> Vec<String> {
-    session_engine::runner::enabled_identity_files_for_agent(config, agent_key)
 }
 #[cfg(test)]
 fn should_handle_docs_request_locally(query: &str) -> bool {

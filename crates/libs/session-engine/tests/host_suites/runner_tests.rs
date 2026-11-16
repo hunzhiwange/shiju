@@ -7,20 +7,6 @@ fn runner_tests_module_is_wired() {
 }
 
 #[test]
-fn full_access_option_enables_request_full_access() {
-    let options = serde_json::json!({ "full_access": true });
-
-    assert!(super::request_full_access_enabled(&options));
-}
-
-#[test]
-fn missing_full_access_option_defaults_to_disabled() {
-    let options = serde_json::json!({});
-
-    assert!(!super::request_full_access_enabled(&options));
-}
-
-#[test]
 fn request_model_context_keeps_provider_and_model_together() {
     let context = super::with_request_model_context(
         crate::app::agent::tools::ToolUseContext::new("parent", None),
@@ -61,29 +47,6 @@ fn processor_step_events_report_selected_model() {
         .expect("Auto request should resolve once for all processor events");
 
     assert_eq!(resolved.step_event_model(), Some(resolved.model.as_str()));
-}
-
-#[test]
-fn enabled_identity_files_follow_selected_agent_config_snapshot() {
-    let mut config = crate::config::Config::default();
-    config.agents.insert(
-        "main".to_string(),
-        crate::config::DelegateAgentConfig {
-            enabled_identity_files: vec!["AGENTS.md".to_string()],
-            ..Default::default()
-        },
-    );
-    config.agents.insert(
-        "reviewer".to_string(),
-        crate::config::DelegateAgentConfig {
-            enabled_identity_files: vec!["SOUL.md".to_string()],
-            ..Default::default()
-        },
-    );
-
-    assert_eq!(super::enabled_identity_files_for_agent(&config, None), vec!["AGENTS.md"]);
-    assert_eq!(super::enabled_identity_files_for_agent(&config, Some("reviewer")), vec!["SOUL.md"]);
-    assert!(super::enabled_identity_files_for_agent(&config, Some("missing")).is_empty());
 }
 
 #[test]
@@ -447,26 +410,6 @@ fn event_texts(events: &[super::StreamEvent]) -> Vec<String> {
             }
         })
         .collect()
-}
-
-#[test]
-fn false_full_access_option_does_not_enable_request_full_access() {
-    let options = serde_json::json!({ "full_access": false });
-
-    assert!(!super::request_full_access_enabled(&options));
-}
-
-#[test]
-fn non_boolean_full_access_option_defaults_to_disabled() {
-    let options = serde_json::json!({ "full_access": "true" });
-
-    assert!(!super::request_full_access_enabled(&options));
-}
-
-#[test]
-fn non_object_full_access_options_default_to_disabled() {
-    assert!(!super::request_full_access_enabled(&serde_json::json!(true)));
-    assert!(!super::request_full_access_enabled(&serde_json::Value::Null));
 }
 
 #[test]

@@ -42,3 +42,7 @@ impl HookMatcher {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "hook_matcher_tests.rs"]
+mod tests;

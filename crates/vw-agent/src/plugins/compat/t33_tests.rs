@@ -1,5 +1,4 @@
 use super::hook_manifest::{CodexHookEvent as E, CodexHooksManifest};
-use super::hook_matcher::HookMatcher;
 #[cfg(unix)]
 use crate::app::agent::hooks::HookResult;
 use crate::plugins::{PluginHookTrustStore, hook_handler::codex_handlers};
@@ -63,33 +62,6 @@ async fn codex_plugin_compat_t33_executes_only_matching_handlers() {
         assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
     })
     .await;
-}
-#[test]
-fn codex_plugin_compat_t33_rejects_invalid_input() {
-    assert_eq!(
-        HookMatcher::new(E::PreToolUse, Some("[secret")).err().unwrap().to_string(),
-        "invalid Codex hook matcher"
-    );
-    assert!(HookMatcher::new(E::Stop, Some("[")).unwrap().matches(None));
-    for pattern in [None, Some(""), Some("*")] {
-        assert!(HookMatcher::new(E::PreToolUse, pattern).unwrap().matches(None));
-    }
-    assert!(
-        !HookMatcher::new(E::PreToolUse, Some("Write|Edit")).unwrap().matches(Some("Overwrite"))
-    );
-    for event in [
-        E::SessionStart,
-        E::SessionEnd,
-        E::PreCompact,
-        E::PostCompact,
-        E::SubagentStart,
-        E::SubagentStop,
-        E::PermissionRequest,
-    ] {
-        let matcher = HookMatcher::new(event, Some("^auto$")).unwrap();
-        assert!(matcher.matches(Some("auto")));
-        assert!(!matcher.matches(Some("manual")));
-    }
 }
 #[test]
 fn codex_plugin_compat_t33_preserves_isolation() {

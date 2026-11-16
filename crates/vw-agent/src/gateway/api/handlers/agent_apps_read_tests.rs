@@ -1,15 +1,12 @@
-use crate::{agent_apps::store::IconLibraryStore, global_database::GlobalDatabase};
+use crate::global_database::GlobalDatabase;
+use gateway_agent_apps::icon_acceptance::check_scopes;
 use axum::{
     Extension, Router,
-    body::{Body, to_bytes},
+    body::Body,
     http::{Request, StatusCode},
     middleware,
 };
 use tower::ServiceExt;
-use {
-    vw_api_app_identity::CustomIconEntry,
-    vw_api_transport::id::TenantScope,
-};
 
 fn router(database: GlobalDatabase) -> Router {
     Router::new()
@@ -39,35 +36,12 @@ fn request(company: Option<&str>, auth: &str) -> Request<Body> {
 #[tokio::test]
 async fn cc_base_icon_api_read_scoped_sqlite() -> anyhow::Result<()> {
     let home = tempfile::tempdir()?;
-    check_scopes(GlobalDatabase::for_home(home.path())?).await
+    check_scopes(GlobalDatabase::for_home(home.path())?, router).await
 }
 #[test]
 fn cc_base_icon_api_read_scoped_postgres() -> anyhow::Result<()> {
     let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
-    tokio::runtime::Runtime::new()?.block_on(check_scopes(fixture.database().clone()))
-}
-async fn check_scopes(db: GlobalDatabase) -> anyhow::Result<()> {
-    let seed_db = db.clone();
-    tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
-    let store = IconLibraryStore::new(seed_db)?;
-    let image = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==";
-    for company in ["a", "b"] {
-        store.add_icon(&TenantScope::new("p", company)?, company, image, company, 1).unwrap();
-    }
-    Ok(())
-    }).await??;
-    for company in ["a", "b", "empty"] {
-        let response =
-            router(db.clone()).oneshot(request(Some(company), "Basic dGVzdDpzZWNyZXQ=")).await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        let entries: Vec<CustomIconEntry> =
-            serde_json::from_slice(&to_bytes(response.into_body(), 65536).await?)?;
-        assert_eq!(entries.len(), usize::from(company != "empty"));
-        if company != "empty" {
-            assert_eq!(entries[0].id, company);
-        }
-    }
-    Ok(())
+    tokio::runtime::Runtime::new()?.block_on(check_scopes(fixture.database().clone(), router))
 }
 #[tokio::test]
 async fn cc_base_icon_api_read_rejects_auth_and_tenant_headers() -> anyhow::Result<()> {

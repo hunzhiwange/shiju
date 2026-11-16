@@ -8,9 +8,13 @@ license = "MIT"
 doctest = false
 
 [features]
-test-support = []
+test-support = ["dep:gateway-app-read", "dep:gateway-http", "dep:gateway-endpoint", "dep:tower", "tokio/net", "tokio/io-util"]
 
 [dependencies]
+tower = { version = "0.5", features = ["util"], optional = true }
+gateway-app-read = { path = "../gateway-app-read", version = "0.6.0", optional = true }
+gateway-http = { path = "../gateway-http", version = "0.6.0", optional = true }
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0", optional = true }
 vw-api-app-skills = { path = "../api-app-skills", version = "0.6.0" }
 app-diagnostics-runtime = { path = "../app-diagnostics-runtime", version = "0.6.0" }
 vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.6.0" }

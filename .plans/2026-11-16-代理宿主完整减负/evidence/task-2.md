@@ -178,3 +178,15 @@
 - `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc_base_icon_api_read_rejects_auth_and_tenant_headers -- --test-threads=1`，预期 1 条。
 - 图标宏展开验收逐条使用上列 6 个真实名称过滤，预期各 1 条；PostgreSQL 需真实服务，不允许跳过冒充通过。
 - 未来用宿主测试 list 核实迁出原名称消失；本轮名称守恒静态核对覆盖所有显式测试，断言无删除。无退出码、通过数或编译性能结论。
+
+## 深度迁移补充（恢复轮，替代上轮继续可迁项说明）
+
+已读取 evidence/final.md 与 evidence/remaining-host.json 中 owner=2 的残留。继续迁移图标领域断言与 HTTP 生命周期夹具，不将宿主换成领域模拟路由。
+
+- agent_apps_acceptance_tests.rs：361 → 67 行。roundtrip、rejection、disconnect、Server::start/client/url/stop/Drop、Gate、RequestCompletion 全部迁至 gateway-agent-apps/src/icon_acceptance.rs；SQLite/PostgreSQL 六条原名入口仍调用这些领域函数。宿主仅持有真实 build_router、PairingGuard、extract_auth_skey 和请求断连门闩装配。每个领域行为函数的原断言数静态守恒，未删除认证、租户、路径输入拒绝、取消或事务完整性断言。
+- agent_apps_read_tests.rs：88 → 62 行。check_scopes 的真实存储播种及作用域读取断言迁至同一模块；原两个数据库入口注入原 router。认证、缺失头与重复头拒绝仍在真实宿主薄测试。
+- 新模块 335 行，作为现有 test-support 特性的测试支持代码显式导出，由宿主测试调用。没有新增生产算法收益；不是 path/include 宿主源码，也没有反向依赖。RouterFactory 只接收原随机 key 与原 Gate，调用者是真实宿主路由装配，保留认证先于门闩、外层数据库 Extension 的原顺序。
+- 依赖：test-support 显式启用 optional gateway-app-read/http/endpoint/tower 和 tokio net/io-util；默认生产构建不启用这些测试入口。宿主已有 dev-dependency 启用 test-support，无需改宿主清单。
+- 来源全文件最新合计 2538 → 699 行，净减 1839 行（72.5%），本任务超过 70% 门槛。其余原映射仍有效：lifecycle.rs 仅为真实 Prompt/MCP 端口，mod.rs 为组合根，local_access_tests/read_tests 保留真实进程配置与认证装配。
+
+未来仍按六条 cc_base_icon_headless 原完整名分别运行宿主过滤，预期各 1 条；cc_base_icon_api_read_scoped_sqlite/postgres 原名各 1 条，原拒绝用例各 1 条。原 21 条领域迁移过滤不变。当前仅做源码/断言数量/名称守恒及 diff --check 静态核对；任何 Cargo、构建、单元测试、实机均未运行，不宣称编译通过或行为验证。

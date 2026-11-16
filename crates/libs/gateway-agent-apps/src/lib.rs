@@ -73,3 +73,6 @@ mod host_migration_48_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod host_migration_6_tests;
+
+#[cfg(all(feature = "test-support", target_os = "macos"))]
+pub mod icon_acceptance;

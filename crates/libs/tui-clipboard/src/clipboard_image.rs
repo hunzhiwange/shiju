@@ -83,3 +83,100 @@ impl Write for BoundedPngWriter<'_> {
 #[cfg(test)]
 #[path = "terminal_req_03_tests.rs"]
 mod terminal_req_03_tests;
+
+/// Recognize a single existing image path without evaluating shell syntax.
+/// Reading the file and enforcing workspace permissions remain request-boundary work.
+pub fn image_path_attachment(pasted: &str) -> Option<V3Attachment> {
+    let path = normalize_pasted_path(pasted)?;
+    if !path.is_file() {
+        return None;
+    }
+    let media_type = match path.extension()?.to_str()?.to_ascii_lowercase().as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        "bmp" => "image/bmp",
+        _ => return None,
+    };
+    Some(V3Attachment {
+        kind: V3AttachmentKind::Image,
+        label: path.file_name()?.to_str()?.to_owned(),
+        path: Some(path.to_str()?.to_owned()),
+        media_type: Some(media_type.to_owned()),
+        text: None,
+        bytes: None,
+    })
+}
+
+fn normalize_pasted_path(pasted: &str) -> Option<std::path::PathBuf> {
+    // Reject before trimming: even trailing newlines belong to text pastes.
+    if pasted.chars().any(char::is_control) {
+        return None;
+    }
+    let pasted = pasted.trim();
+    let quoted = pasted.starts_with(['\'', '"']);
+    let value = if quoted {
+        let quote = pasted.chars().next()?;
+        pasted.strip_prefix(quote)?.strip_suffix(quote)?
+    } else {
+        pasted
+    };
+    if let Some(uri) = value.strip_prefix("file://") {
+        let local = if uri.starts_with('/') {
+            uri
+        } else {
+            uri.strip_prefix("localhost").filter(|rest| rest.starts_with('/'))?
+        };
+        if local.contains(['?', '#']) {
+            return None;
+        }
+        let mut decoded = Vec::new();
+        let mut bytes = local.bytes();
+        while let Some(byte) = bytes.next() {
+            if byte == b'%' {
+                let high = char::from(bytes.next()?).to_digit(16)?;
+                let low = char::from(bytes.next()?).to_digit(16)?;
+                decoded.push((high * 16 + low) as u8);
+            } else {
+                decoded.push(byte);
+            }
+        }
+        let decoded = String::from_utf8(decoded).ok()?;
+        if decoded.chars().any(char::is_control) {
+            return None;
+        }
+        #[cfg(windows)]
+        let decoded = decoded.strip_prefix('/').unwrap_or(&decoded).to_owned();
+        return Some(decoded.into());
+    }
+    if value.is_empty() {
+        return None;
+    }
+    // Windows separators are literal; POSIX escaping only unescapes a following
+    // space, quote or backslash. No variables, substitutions or expansion run.
+    let windows = cfg!(windows);
+    let mut normalized = String::new();
+    let mut chars = value.chars();
+    while let Some(ch) = chars.next() {
+        if !quoted && !windows && ch == '\\' {
+            let escaped = chars.next()?;
+            if !matches!(escaped, ' ' | '\\' | '\'' | '"') {
+                return None;
+            }
+            normalized.push(escaped);
+        } else if !quoted
+            && (ch.is_whitespace()
+                || matches!(ch, '\'' | '"' | ';' | '|' | '&' | '$' | '`' | '<' | '>'))
+        {
+            return None;
+        } else {
+            normalized.push(ch);
+        }
+    }
+    Some(normalized.into())
+}
+
+#[cfg(test)]
+#[path = "terminal_req_06_tests.rs"]
+mod terminal_req_06_tests;

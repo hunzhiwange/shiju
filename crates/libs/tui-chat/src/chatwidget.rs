@@ -357,6 +357,11 @@ impl ChatWidget {
             overlay.handle_paste(text.as_str());
             return V3Action::None;
         }
+        if self.overlay.is_none() {
+            if let Some(attachment) = tui_clipboard::clipboard_image::image_path_attachment(&text) {
+                return self.bottom_pane.add_attachment(attachment);
+            }
+        }
         self.bottom_pane.handle_paste(text)
     }
 

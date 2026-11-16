@@ -1,3 +1,4 @@
+// 宿主契约：核对流事件与虚拟列表、缓存、请求生命周期、持久化及通知的联动。
 //! 验证后台与计划运行流事件对会话、队列和 Git 操作的状态更新。
 //!
 //! 事件序列同时覆盖前台与后台子会话，过期工作树或无效生成结果不得触发 Git 动作。
@@ -926,28 +927,9 @@ fn stale_stream_session_delta_rebases_before_retry() {
     assert!(app.get_session_runtime(&session_id).stream_save.dirty_records.is_empty());
 }
 
-#[test]
-fn active_stream_delta_flush_interval_is_one_frame() {
-    let (mut app, _) = crate::app::App::new();
-    let session_id = "active-session".to_string();
-    app.active_session_id = Some(session_id.clone());
 
-    assert_eq!(
-        super::stream_delta_flush_interval(&app, &session_id),
-        std::time::Duration::from_millis(16)
-    );
-}
 
-#[test]
-fn background_stream_delta_keeps_existing_interval() {
-    let (mut app, _) = crate::app::App::new();
-    app.active_session_id = Some("active-session".to_string());
 
-    assert_eq!(
-        super::stream_delta_flush_interval(&app, "background-session"),
-        std::time::Duration::from_millis(100)
-    );
-}
 
 #[test]
 fn active_stream_delta_updates_tail_without_replacing_chat_vector() {
@@ -1123,26 +1105,9 @@ fn active_stream_growth_preserves_turn_top_focus() {
     assert_eq!(app.chat_virtualizer.scroll_top_px(), anchored_top);
 }
 
-#[test]
-fn leading_guide_count_only_counts_initial_guide_items() {
-    let guide = queue_item(ChatSendBehavior::Guide);
-    let normal = queue_item(ChatSendBehavior::Queue);
-    let late_guide = queue_item(ChatSendBehavior::Guide);
 
-    assert_eq!(super::leading_guide_count(&[guide, normal, late_guide]), 1);
-}
 
-#[test]
-fn leading_guide_count_handles_empty_and_all_guide_queues() {
-    assert_eq!(super::leading_guide_count(&[]), 0);
-    assert_eq!(
-        super::leading_guide_count(&[
-            queue_item(ChatSendBehavior::Guide),
-            queue_item(ChatSendBehavior::Guide),
-        ]),
-        2
-    );
-}
+
 
 #[test]
 // 未知请求必须在任何聊天、缓存或运行时字段变化之前被拒绝。

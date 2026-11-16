@@ -1,3 +1,4 @@
+// 宿主契约：核对路由消息、活动视图、项目列表、缓存与保存 hook 的跨域投影。
 //! 验证聊天流终止、会话目录解析、缓存恢复和计划运行生命周期。
 //!
 //! 缓存会话与网关历史故意制造标识不一致，加载逻辑必须选择一致来源并立即刷新终止增量。
@@ -222,75 +223,15 @@ fn stream_terminal_flushes_pending_active_delta_immediately() {
     assert!(!error_app.get_session_runtime(&error_session).stream_save.flush_scheduled);
 }
 
-#[test]
-// 保存目录优先采用会话元数据，空白路径不能覆盖有效回退目录。
-fn session_directory_for_save_skips_blank_session_directory() {
-    let (mut app, _task) = crate::app::App::new();
-    app.sessions = vec![session_info("session-1", "Title", "  \n")];
-    app.project_path = Some("/project".to_string());
 
-    assert_eq!(super::session_directory_for_save(&app, "session-1").as_deref(), Some("/project"));
-}
 
-#[test]
-fn session_directory_for_save_prefers_known_session_directory() {
-    let (mut app, _task) = crate::app::App::new();
-    app.sessions = vec![session_info("session-1", "Title", "  /session/root  ")];
-    app.project_path = Some("/project/root".to_string());
 
-    assert_eq!(
-        super::session_directory_for_save(&app, "session-1").as_deref(),
-        Some("  /session/root  ")
-    );
-}
 
-#[test]
-fn session_directory_for_save_rejects_blank_fallbacks() {
-    let (mut app, _task) = crate::app::App::new();
-    app.sessions = vec![session_info("session-1", "Title", " \n\t ")];
-    app.project_path = Some("   ".to_string());
 
-    assert_eq!(super::session_directory_for_save(&app, "session-1"), None);
-}
 
-#[test]
-// 缓存消息标识与消息数量不一致时必须重建，避免后续流事件关联到错误消息。
-fn load_session_or_default_replaces_mismatched_cached_message_ids() {
-    let (mut app, _task) = crate::app::App::new();
-    app.sessions = vec![session_info("session-1", "Title", "/project")];
-    app.store_session_chat_snapshot(
-        "session-1".to_string(),
-        crate::app::session::shared_chat_messages(vec![
-            chat_message(ChatRole::User, "question"),
-            chat_message(ChatRole::Assistant, "answer"),
-        ]),
-        vec![Some("only-one-id".to_string())],
-    );
 
-    let loaded = super::load_session_or_default(&app, "session-1".to_string());
 
-    assert_eq!(loaded.messages.len(), 2);
-    assert_eq!(loaded.message_ids, vec![None, None]);
-    assert!(loaded.calls.is_empty());
-    assert!(loaded.steps.is_empty());
-}
 
-#[test]
-fn load_session_or_default_keeps_inactive_session_metadata_without_cache() {
-    let (mut app, _task) = crate::app::App::new();
-    app.sessions = vec![session_info("session-1", "Stored title", "/project")];
-
-    let loaded = super::load_session_or_default(&app, "session-1".to_string());
-
-    assert_eq!(loaded.id, "session-1");
-    assert_eq!(loaded.title, "Stored title");
-    assert_eq!(loaded.created_ms, 10);
-    assert_eq!(loaded.updated_ms, 20);
-    assert!(loaded.messages.is_empty());
-    assert!(loaded.message_ids.is_empty());
-    assert!(loaded.calls.is_empty());
-    assert!(loaded.steps.is_empty());
-}
 
 #[test]
 fn load_session_or_default_uses_active_chat_ids_calls_and_steps() {
@@ -310,21 +251,7 @@ fn load_session_or_default_uses_active_chat_ids_calls_and_steps() {
     assert_eq!(loaded.steps.len(), app.active_session_view_state.steps.len());
 }
 
-#[test]
-fn load_session_or_default_preserves_matching_cached_message_ids() {
-    let (mut app, _task) = crate::app::App::new();
-    app.sessions = vec![session_info("session-1", "Cached", "/project")];
-    app.store_session_chat_snapshot(
-        "session-1".to_string(),
-        crate::app::session::shared_chat_messages(vec![chat_message(ChatRole::User, "cached")]),
-        vec![Some("cached-id".to_string())],
-    );
 
-    let loaded = super::load_session_or_default(&app, "session-1".to_string());
-
-    assert_eq!(loaded.messages[0].content, "cached");
-    assert_eq!(loaded.message_ids, vec![Some("cached-id".to_string())]);
-}
 
 #[test]
 #[cfg(not(target_arch = "wasm32"))]

@@ -1,11 +1,7 @@
+use crate::agent_apps_diagnostics::{mcp_results, mcp_state::*};
 use gateway_app_diagnostics::GatewayAppDiagnosticsClient;
-use crate::app::message::agent_apps_diagnostics::{mcp_results, *};
 use serde_json::json;
-use {
-    vw_api_types::agent_apps::AppId,
-    vw_api_app_diagnostics::*,
-    vw_api_mcp_management::*,
-};
+use {vw_api_app_diagnostics::*, vw_api_mcp_management::*, vw_api_app_identity::AppId};
 fn context() -> Context {
     Context {
         records: vec![],
@@ -240,7 +236,7 @@ async fn protocol_roundtrip(context: &Context) {
         net::TcpListener,
         time::Duration,
     };
-    use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
+    use {gateway_endpoint::GatewayEndpoint, vw_gateway_client::GatewayClient};
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let client = GatewayClient::new(
         GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
@@ -295,15 +291,24 @@ async fn protocol_roundtrip(context: &Context) {
         identity
     );
     assert_eq!(
-        GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_status(&context.query, &identity.task_id, "fixture-token").await.unwrap(),
+        GatewayAppDiagnosticsClient::new(client.transport().clone())
+            .diagnostic_status(&context.query, &identity.task_id, "fixture-token")
+            .await
+            .unwrap(),
         running
     );
     assert_eq!(
-        GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_cancel(&context.query, &identity.task_id, "fixture-token").await.unwrap(),
+        GatewayAppDiagnosticsClient::new(client.transport().clone())
+            .diagnostic_cancel(&context.query, &identity.task_id, "fixture-token")
+            .await
+            .unwrap(),
         cancelling
     );
     assert_eq!(
-        GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_status(&context.query, &identity.task_id, "fixture-token").await.unwrap(),
+        GatewayAppDiagnosticsClient::new(client.transport().clone())
+            .diagnostic_status(&context.query, &identity.task_id, "fixture-token")
+            .await
+            .unwrap(),
         cancelled
     );
     submit(client, context, vec![ids[0].clone()], "fixture-token", 1).await.unwrap();

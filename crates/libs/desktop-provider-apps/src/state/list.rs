@@ -142,3 +142,74 @@ where Leave: Default, Failover: Default, Usage: Default {
         usage: Default::default(),
     } }
 }
+
+/// Catalog lifecycle messages remain independent of host routing.
+#[derive(Clone, Debug)]
+pub enum CatalogEvent {
+    Open,
+    Close,
+    Query(String),
+    Loaded { scope: Scope, generation: u64, result: Result<Snapshot, String> },
+}
+impl<L, F, A, S, P, D, O, M, U> ListState<L, F, A, S, P, D, O, M, U> {
+    pub fn update_catalog(
+        &mut self,
+        current: Result<(vw_gateway_client::GatewayClient, Scope), String>,
+        token: &str,
+        event: CatalogEvent,
+        clear_usage: &mut bool,
+        read_usage: &mut bool,
+        error: &mut Option<String>,
+    ) -> iced::Task<CatalogEvent>
+    where
+        Self: Default,
+    {
+        use iced::Task;
+        match event {
+            CatalogEvent::Close => {
+                let generation = self.generation.wrapping_add(1);
+                *self = Self::default();
+                self.generation = generation;
+            }
+            CatalogEvent::Query(query) => self.query = query,
+            CatalogEvent::Open => {
+                let (client, scope) = match current {
+                    Ok(value) => value,
+                    Err(text) => {
+                        *error = Some(text);
+                        return Task::none();
+                    }
+                };
+                if scope.host.is_empty() || token.is_empty() {
+                    *error = Some("请先连接应用执行主机".into());
+                    return Task::none();
+                }
+                if self.scope.as_ref() == Some(&scope)
+                    && (self.form.is_some() || self.editor.is_some())
+                {
+                    return Task::none();
+                }
+                *clear_usage = true;
+                let generation = self.begin(scope.clone());
+                let token = token.to_owned();
+                return Task::perform(
+                    crate::message::list::load(client, scope.clone(), token),
+                    move |result| CatalogEvent::Loaded { scope: scope.clone(), generation, result },
+                );
+            }
+            CatalogEvent::Loaded { scope, generation, result } => {
+                if current.ok().map(|(_, s)| s).as_ref() != Some(&scope) {
+                    return Task::none();
+                }
+                if self.finish(&scope, generation, result) {
+                    if let Some(text) = self.error.clone() {
+                        *error = Some(text);
+                    } else {
+                        *read_usage = true;
+                    }
+                }
+            }
+        }
+        Task::none()
+    }
+}

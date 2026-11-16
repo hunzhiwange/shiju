@@ -11,9 +11,9 @@ use crate::app::{App, Message, components::system_settings::SystemTab, message::
 use browser::LinkAction;
 use iced::Task;
 
-pub(crate) use desktop_apps_ui::agent_apps_auth::SERVICES;
+pub(crate) use desktop_provider_apps::auth::SERVICES;
 
-pub use desktop_apps_ui::agent_apps_auth::Event;
+pub use desktop_provider_apps::auth::Event;
 
 pub(crate) fn message(event: Event) -> Message {
     Message::Settings(SettingsMessage::AgentAppsAuth(event))
@@ -87,4 +87,4 @@ impl desktop_provider_apps::auth::controller::Ports for NativePorts {
         crate::app::components::system_settings_apps::local::connect_auth(client)
     }
 }
-pub(crate) use desktop_apps_ui::agent_apps_auth::{load, load_service};
+pub(crate) use desktop_provider_apps::auth::{load, load_service};

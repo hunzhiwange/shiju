@@ -1,16 +1,7 @@
-use super::super::list::Help;
-use super::super::{agy, dsh, edit, hermes, kimi, mcode, omp, openclaw, pi};
-use crate::app::{
-    App, Message,
-    message::{
-        SettingsMessage,
-        app_providers::{self as events, edit::EditMessage},
-    },
-    state::app_providers::{
-        self as state,
-        edit::{EditForm, Mode},
-    },
-};
+use super::ui_support::events;
+use super::ui_support::*;
+use desktop_provider_apps::state;
+use desktop_provider_apps::state::edit::{EditForm, Mode};
 use iced::advanced::{
     Layout, clipboard, layout,
     renderer::{Headless, Style},
@@ -34,7 +25,7 @@ async fn renderer() -> Renderer {
     static FONTS: std::sync::Once = std::sync::Once::new();
     FONTS.call_once(|| {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     });
@@ -403,7 +394,7 @@ fn check_dialog(renderer: &mut Renderer, provider: &str, create: bool, phase: &s
     );
 }
 
-fn handle_edit(app: &mut App, messages: Vec<Message>) {
+fn handle_edit(app: &mut Fixture, messages: Vec<Message>) {
     for message in messages {
         let Message::Settings(SettingsMessage::AppProviderEdit(event)) = message else {
             panic!("unexpected provider form message");
@@ -430,7 +421,7 @@ fn declaration_editor(scene: &Scene<'_>, provider: &str, create: bool) -> Rectan
     scene.node(&[1, 0, index]).bounds()
 }
 
-fn check_declaration(app: &mut App, renderer: &mut Renderer, provider: &str, create: bool) {
+fn check_declaration(app: &mut Fixture, renderer: &mut Renderer, provider: &str, create: bool) {
     let form = app.app_providers.form.as_ref().unwrap();
     let size = Size::new(420, 690);
     let mut scene = Scene::new(fields(form), renderer, size);
@@ -448,7 +439,7 @@ fn check_declaration(app: &mut App, renderer: &mut Renderer, provider: &str, cre
 
     macro_rules! check {
         ($draft:ident, $variant:ident) => {{
-            let contents = |app: &App| {
+            let contents = |app: &Fixture| {
                 app.app_providers.form.as_ref().unwrap().$draft.as_ref().unwrap().declaration.text()
             };
             let original = contents(app);
@@ -489,7 +480,7 @@ fn check_declaration(app: &mut App, renderer: &mut Renderer, provider: &str, cre
 async fn ui_refresh_14_preserves_values_and_disabled_states() {
     let mut renderer = renderer().await;
     let size = Size::new(420, 690);
-    crate::app::config::with_editor_settings_gateway(|mut app, requests, _| {
+    with_editor(|mut app, requests, _| {
         for provider in PROVIDERS {
             for create in [true, false] {
                 app.app_providers.form = Some(fixture(provider, create, "简体／繁體 · Fixture"));
@@ -601,12 +592,12 @@ async fn ui_refresh_14_preserves_values_and_disabled_states() {
                 assert!(app.app_providers.form.is_none());
             }
         }
-        assert!(requests.try_recv().is_err());
+        assert!(requests.accept().is_err());
     });
 }
 
 fn check_saved_key_controls(
-    app: &mut App,
+    app: &mut Fixture,
     renderer: &mut Renderer,
     provider: &str,
     size: Size<u32>,
@@ -637,13 +628,10 @@ fn check_saved_key_controls(
 
 #[tokio::test]
 async fn ui_refresh_14_renders_loading_error_and_empty_catalog() {
-    use crate::app::state::{
-        AgentAppsContext,
-        app_providers::list::{ListState, Scope, Snapshot},
-    };
-    use vw_api_types::agent_apps::AppId;
-use vw_api_app_provider_edit::catalog::ProviderCatalog;
-use vw_api_app_provider_edit::catalog::ProviderSelection;
+    use super::ui_support::{AgentAppsContext, ListState, Scope, Snapshot};
+    use vw_api_app_provider_edit::catalog::ProviderCatalog;
+    use vw_api_app_provider_edit::catalog::ProviderSelection;
+    use vw_api_app_identity::AppId;
 
     struct VisibleText<'a> {
         expected: &'a str,
@@ -674,11 +662,7 @@ use vw_api_app_provider_edit::catalog::ProviderSelection;
     let generation = state.begin(scope.clone());
     let size = Size::new(420, 690);
     let mut check = |state: &ListState, expected, name: &str| {
-        let mut scene = Scene::new(
-            super::super::list::overlay(state, Help::test(), base()),
-            &mut renderer,
-            size,
-        );
+        let mut scene = Scene::new(list::overlay(state, Help::test(), base()), &mut renderer, size);
         let mut text = VisibleText { expected, found: false };
         scene.ui.operate(&renderer, &mut text);
         assert!(text.found, "{name}");
@@ -719,9 +703,9 @@ use vw_api_app_provider_edit::catalog::ProviderSelection;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn help_rollout_06_renders_declaration_adapters() {
-    use super::super::desktop::ui_refresh_12_tests::assert_contextual_help;
-    use crate::app::i18n::I18n;
+    use super::desktop_ui_refresh_12_tests::assert_contextual_help;
     use config_ui::DesktopLocale;
+    use desktop_i18n::I18n;
 
     let mut renderer = renderer().await;
     let theme = Theme::Light;

@@ -134,6 +134,7 @@ pub fn card<'a>(
 }
 
 pub fn mapping_fields<'a>(form: &'a Form, help: Help<'_>) -> Vec<Element<'a, Message>> {
+    if !form.mapping_editable { return vec![]; }
     let active = !form.busy && form.aggregation.as_ref().is_none_or(|s| !s.running());
     let input = |label, value, event: fn(String) -> Event| {
         text_input(label, value)

@@ -1,20 +1,19 @@
 use crate::app::state::app_providers::list::{Scope, Snapshot};
-use vw_gateway_client::GatewayClient;
 use vw_api_app_provider_edit::presentation::AppProviderPresentation;
-use desktop_provider_apps::message::list::load;
-
+use vw_gateway_client::GatewayClient;
 
 use crate::app::{App, Message, message::SettingsMessage};
 use iced::Task;
+use vw_api_app_provider_extended::{
+    hermes::HermesLiveResult, openclaw::OpenClawLiveResult, opencode::OpenCodeLiveResult,
+};
 use vw_api_types::{
     agent_apps::AppId,
     app_providers::{
-        dsh::DshLiveResult, kimi::KimiLiveResult, mcode::McodeLiveResult,
-        omp::OmpLiveResult,
+        dsh::DshLiveResult, kimi::KimiLiveResult, mcode::McodeLiveResult, omp::OmpLiveResult,
         pi::PiLiveResult,
     },
 };
-use vw_api_app_provider_extended::{hermes::HermesLiveResult, openclaw::OpenClawLiveResult, opencode::OpenCodeLiveResult};
 #[derive(Clone, Debug)]
 pub enum ListMessage {
     Leave(super::leave::Choice),
@@ -162,8 +161,12 @@ pub(crate) fn current(app: &App, id: AppId) -> Result<(GatewayClient, Scope), St
 pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
     match value {
         ListMessage::Leave(choice) => return super::leave::choose(app, choice),
-        ListMessage::FailoverHealth(event) => return crate::app::message::agent_apps_health::update(app, event),
-        ListMessage::Failover(event) => return crate::app::message::agent_apps_high_availability::update(app, event),
+        ListMessage::FailoverHealth(event) => {
+            return crate::app::message::agent_apps_health::update(app, event);
+        }
+        ListMessage::Failover(event) => {
+            return crate::app::message::agent_apps_high_availability::update(app, event);
+        }
         ListMessage::CodexSubagent(event) => {
             return crate::app::message::settings::aggregation_subagent::update(app, event);
         }
@@ -209,54 +212,38 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
         }
         ListMessage::Desktop(event) => return super::desktop::update(app, event),
         ListMessage::Close => {
-            let generation = app.app_providers.generation.wrapping_add(1);
-            app.app_providers = Default::default();
-            app.app_providers.generation = generation;
+            return catalog(app, None, desktop_provider_apps::state::list::CatalogEvent::Close);
         }
         ListMessage::Open(id) => {
-            let (client, scope) = match current(app, id) {
-                Ok(v) => v,
-                Err(e) => return app.show_error_toast(e),
-            };
-            if scope.host.is_empty() || app.apps_catalog.token.is_empty() {
-                return app.show_error_toast("请先连接应用执行主机");
-            }
-            // Reloading the same list must not discard an unsaved or in-flight draft.
-            // A different host/application still starts a fresh scope below.
-            if app.app_providers.scope.as_ref() == Some(&scope)
-                && (app.app_providers.form.is_some() || app.app_providers.editor.is_some())
-            {
-                return Task::none();
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            app.app_providers.usage.clear();
-            let generation = app.app_providers.begin(scope.clone());
-            let token = app.apps_catalog.token.clone();
-            return Task::perform(load(client, scope.clone(), token), move |result| {
-                message(ListMessage::Loaded { scope: scope.clone(), generation, result })
-            });
+            return catalog(app, Some(id), desktop_provider_apps::state::list::CatalogEvent::Open);
         }
         ListMessage::QueryInput(query) => {
-            app.app_providers.query = query;
+            return catalog(
+                app,
+                None,
+                desktop_provider_apps::state::list::CatalogEvent::Query(query),
+            );
         }
         ListMessage::Refresh => {
-            if let Some(scope) = app.app_providers.scope.clone() {
-                return update(app, ListMessage::Open(scope.app));
+            if let Some(scope) = &app.app_providers.scope {
+                return catalog(
+                    app,
+                    Some(scope.app),
+                    desktop_provider_apps::state::list::CatalogEvent::Open,
+                );
             }
         }
         ListMessage::Loaded { scope, generation, result } => {
-            if current(app, scope.app).ok().map(|(_, s)| s).as_ref() != Some(&scope) {
-                return Task::none();
-            }
-            if app.app_providers.finish(&scope, generation, result) {
-                if let Some(e) = app.app_providers.error.clone() {
-                    return app.show_error_toast(e);
-                }
-                #[cfg(not(target_arch = "wasm32"))]
-                return crate::app::components::apps_usage_cards::read_linked_providers(
-                    app, scope.app,
-                );
-            }
+            let id = scope.app;
+            return catalog(
+                app,
+                Some(id),
+                desktop_provider_apps::state::list::CatalogEvent::Loaded {
+                    scope,
+                    generation,
+                    result,
+                },
+            );
         }
         ListMessage::HermesMember { id, add } => {
             return super::hermes::change_membership(app, id, add);
@@ -306,13 +293,87 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
         ListMessage::OpenCodeMemberChanged { scope, generation, add, result } => {
             return super::opencode::membership_changed(app, scope, generation, add, result);
         }
-        ListMessage::Edit(v) => return super::provider_update::list(app,desktop_provider_apps::message::list::Event::Edit(v)),
-        ListMessage::Sort(v) => return super::provider_update::list(app,desktop_provider_apps::message::list::Event::Sort(v)),
-        ListMessage::Category(v) => return super::provider_update::list(app,desktop_provider_apps::message::list::Event::Category(v)),
-        ListMessage::Notes(v) => return super::provider_update::list(app,desktop_provider_apps::message::list::Event::Notes(v)),
-        ListMessage::Cancel => return super::provider_update::list(app,desktop_provider_apps::message::list::Event::Cancel),
-        ListMessage::Save => return super::provider_update::list(app,desktop_provider_apps::message::list::Event::Save),
-        ListMessage::Saved {scope,generation,result} => return super::provider_update::list(app,desktop_provider_apps::message::list::Event::Saved {scope,generation,result}),
+        ListMessage::Edit(v) => {
+            return super::provider_update::list(
+                app,
+                desktop_provider_apps::message::list::Event::Edit(v),
+            );
+        }
+        ListMessage::Sort(v) => {
+            return super::provider_update::list(
+                app,
+                desktop_provider_apps::message::list::Event::Sort(v),
+            );
+        }
+        ListMessage::Category(v) => {
+            return super::provider_update::list(
+                app,
+                desktop_provider_apps::message::list::Event::Category(v),
+            );
+        }
+        ListMessage::Notes(v) => {
+            return super::provider_update::list(
+                app,
+                desktop_provider_apps::message::list::Event::Notes(v),
+            );
+        }
+        ListMessage::Cancel => {
+            return super::provider_update::list(
+                app,
+                desktop_provider_apps::message::list::Event::Cancel,
+            );
+        }
+        ListMessage::Save => {
+            return super::provider_update::list(
+                app,
+                desktop_provider_apps::message::list::Event::Save,
+            );
+        }
+        ListMessage::Saved { scope, generation, result } => {
+            return super::provider_update::list(
+                app,
+                desktop_provider_apps::message::list::Event::Saved { scope, generation, result },
+            );
+        }
     }
     Task::none()
+}
+
+fn catalog(
+    app: &mut App,
+    id: Option<AppId>,
+    event: desktop_provider_apps::state::list::CatalogEvent,
+) -> Task<Message> {
+    use desktop_provider_apps::state::list::CatalogEvent;
+    let current = id.map(|id| current(app, id)).unwrap_or_else(|| Err("无法连接网关".into()));
+    let mut clear = false;
+    let mut read = false;
+    let mut error = None;
+    let task = app
+        .app_providers
+        .update_catalog(current, &app.apps_catalog.token, event, &mut clear, &mut read, &mut error)
+        .map(|event| {
+            message(match event {
+                CatalogEvent::Loaded { scope, generation, result } => {
+                    ListMessage::Loaded { scope, generation, result }
+                }
+                _ => unreachable!("catalog tasks only return read results"),
+            })
+        });
+    #[cfg(not(target_arch = "wasm32"))]
+    if clear {
+        app.app_providers.usage.clear();
+    }
+    let feedback = error.map_or_else(Task::none, |text| app.show_error_toast(text));
+    #[cfg(not(target_arch = "wasm32"))]
+    let usage = if read {
+        app.app_providers.scope.as_ref().map(|s| s.app).map_or_else(Task::none, |id| {
+            crate::app::components::apps_usage_cards::read_linked_providers(app, id)
+        })
+    } else {
+        Task::none()
+    };
+    #[cfg(target_arch = "wasm32")]
+    let usage = Task::none();
+    Task::batch([task, feedback, usage])
 }

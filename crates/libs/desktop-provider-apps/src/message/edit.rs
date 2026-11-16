@@ -265,3 +265,45 @@ use vw_gateway_client::GatewayClient;
 #[path = "edit_update.rs"]
 mod update_impl;
 pub use update_impl::update;
+
+/// Apply a provider-specific field without executing host effects.
+pub fn change(state: &mut super::provider_update::State, field: &EditMessage) -> bool {
+    if !matches!(
+        field,
+        EditMessage::Claude(_)
+            | EditMessage::Codex(_)
+            | EditMessage::Gemini(_)
+            | EditMessage::Grok(_)
+            | EditMessage::Hermes(_)
+            | EditMessage::Pi(_)
+            | EditMessage::Kimi(_)
+            | EditMessage::Mcode(_)
+            | EditMessage::Agy(_)
+            | EditMessage::Dsh(_)
+            | EditMessage::Omp(_)
+            | EditMessage::OpenClaw(_)
+            | EditMessage::OpenCode(_)
+    ) {
+        return false;
+    }
+    let Some(form) = state.form.as_mut().filter(|f| !f.saving) else { return true };
+    use EditMessage as E;
+    match field.clone() {
+        E::Claude(field) => super::claude::change(form, field),
+        E::Codex(field) => super::codex::change(form, field),
+        E::Gemini(field) => super::gemini::change(form, field),
+        E::Grok(field) => super::grok::change(form, field),
+        E::Hermes(field) => super::hermes::change(form, field),
+        E::Pi(field) => super::pi::change(form, field),
+        E::Kimi(field) => super::kimi::change(form, field),
+        E::Mcode(field) => super::mcode::change(form, field),
+        E::Agy(field) => super::agy::change(form, field),
+        E::Dsh(field) => super::dsh::change(form, field),
+        E::Omp(field) => super::omp::change(form, field),
+        E::OpenClaw(field) => super::openclaw::change(form, field),
+        E::OpenCode(field) => super::opencode::change(form, field),
+        _ => {}
+    }
+
+    true
+}

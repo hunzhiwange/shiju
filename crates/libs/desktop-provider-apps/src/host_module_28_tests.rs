@@ -26,7 +26,7 @@ const DSH_STATUS: &str =
     "GET /v1/agent-apps/auth/status?host_id=fixture-mac&service=dsh_account HTTP/1.1";
 const DSH_REVOKE: &str = "POST /v1/agent-apps/auth/accounts/account-a/revoke?host_id=fixture-mac&service=dsh_account HTTP/1.1";
 
-fn fixture(app: &mut App) -> (GatewayEndpoint, TcpListener) {
+fn fixture(app: &mut AuthFixture) -> (GatewayEndpoint, TcpListener) {
     let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     listener.set_nonblocking(true).unwrap();
     let endpoint = GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
@@ -122,7 +122,7 @@ fn response(
     write!(socket, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
 }
 
-fn drive(app: &mut App, endpoint: &GatewayEndpoint, task: Task<Message>) -> Task<Message> {
+fn drive(app: &mut AuthFixture, endpoint: &GatewayEndpoint, task: Task<Message>) -> Task<Message> {
     let mut stream = iced_runtime::task::into_stream(task).expect("a scoped account action task");
     let event =
         tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(
@@ -142,12 +142,12 @@ fn drive(app: &mut App, endpoint: &GatewayEndpoint, task: Task<Message>) -> Task
     update_at(app, event, endpoint.clone())
 }
 
-fn update(app: &mut App, endpoint: &GatewayEndpoint, event: ActionEvent) -> Task<Message> {
+fn update(app: &mut AuthFixture, endpoint: &GatewayEndpoint, event: ActionEvent) -> Task<Message> {
     update_at(app, Event::AccountAction(event), endpoint.clone())
 }
 
 fn open(
-    app: &mut App,
+    app: &mut AuthFixture,
     endpoint: &GatewayEndpoint,
     service: AuthService,
     operation: AccountOperation,
@@ -164,7 +164,7 @@ fn open(
     )
 }
 
-fn generation(app: &App) -> u64 {
+fn generation(app: &AuthFixture) -> u64 {
     app.agent_apps_auth
         .account_action
         .as_ref()
@@ -172,7 +172,7 @@ fn generation(app: &App) -> u64 {
         .generation
 }
 
-fn toast(app: &App, expected: &str, success: bool) {
+fn toast(app: &AuthFixture, expected: &str, success: bool) {
     let toast = app.notice.as_ref().expect("account action shows a desktop toast");
     let text = match toast {
         Notice::Error(text) | Notice::Success(text) => text,
@@ -181,11 +181,11 @@ fn toast(app: &App, expected: &str, success: bool) {
     assert_eq!(matches!(toast, Notice::Success(_)), success);
 }
 
-fn confirm(app: &mut App, endpoint: &GatewayEndpoint) -> Task<Message> {
+fn confirm(app: &mut AuthFixture, endpoint: &GatewayEndpoint) -> Task<Message> {
     update(app, endpoint, ActionEvent::Confirm(generation(app)))
 }
 
-fn complete(app: &mut App, endpoint: &GatewayEndpoint, expected: &str, success: bool) {
+fn complete(app: &mut AuthFixture, endpoint: &GatewayEndpoint, expected: &str, success: bool) {
     let action = confirm(app, endpoint);
     let refresh = drive(app, endpoint, action);
     toast(app, expected, success);
@@ -193,7 +193,7 @@ fn complete(app: &mut App, endpoint: &GatewayEndpoint, expected: &str, success: 
     let _ = drive(app, endpoint, refresh);
 }
 
-fn scoped_account(app: &App, service: AuthService) -> Option<&AuthAccount> {
+fn scoped_account(app: &AuthFixture, service: AuthService) -> Option<&AuthAccount> {
     app.agent_apps_auth
         .rows
         .as_ref()?
@@ -410,13 +410,13 @@ impl crate::auth::state::Usage for Usage {
     fn clear(&mut self) {}
 }
 #[derive(Default)]
-struct App {
+struct AuthFixture {
     agent_apps_auth: crate::auth::state::State<Usage>,
     notice: Option<Notice>,
 }
 type Message = Event;
-fn with_state(f: impl FnOnce(App)) {
-    f(App::default());
+fn with_state(f: impl FnOnce(AuthFixture)) {
+    f(AuthFixture::default());
 }
 struct Ports;
 impl crate::auth::controller::Ports for Ports {
@@ -437,7 +437,7 @@ impl crate::auth::controller::Ports for Ports {
         panic!("unexpected provisioning")
     }
 }
-fn update_at(app: &mut App, event: Event, endpoint: GatewayEndpoint) -> Task<Event> {
+fn update_at(app: &mut AuthFixture, event: Event, endpoint: GatewayEndpoint) -> Task<Event> {
     let origin = crate::auth::binding::Origin {
         visible_apps: false,
         visible_auth: true,

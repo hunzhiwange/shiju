@@ -1,16 +1,7 @@
-use super::super::list::Help;
-use super::super::{claude, codex, edit, gemini, grok, opencode};
-use crate::app::{
-    App, Message,
-    message::{
-        SettingsMessage,
-        app_providers::{self as events, edit::EditMessage},
-    },
-    state::app_providers::{
-        self as state,
-        edit::{EditForm, Mode},
-    },
-};
+use super::ui_support::events;
+use super::ui_support::*;
+use desktop_provider_apps::state;
+use desktop_provider_apps::state::edit::{EditForm, Mode};
 use iced::advanced::renderer::{Headless, Style};
 use iced::advanced::widget::operation::{Operation, Scrollable};
 use iced::advanced::{Layout, clipboard, layout, widget::Tree};
@@ -19,15 +10,15 @@ use iced::widget::Space;
 use iced::widget::text_editor;
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::basic::ProviderBasic;
 use vw_api_app_provider_base::claude::ClaudeFormKind;
-use vw_api_app_provider_profiles::codex_catalog::CodexFormConfig;
-use vw_api_app_provider_profiles::codex_catalog::CodexModelMapping;
-use vw_api_app_provider_profiles::gemini::GeminiFormKind;
 use vw_api_app_provider_extended::grok::GrokFormConfig;
 use vw_api_app_provider_extended::opencode::OpenCodeFormConfig;
 use vw_api_app_provider_extended::opencode::OpenCodeFormat;
+use vw_api_app_provider_profiles::codex_catalog::CodexFormConfig;
+use vw_api_app_provider_profiles::codex_catalog::CodexModelMapping;
+use vw_api_app_provider_profiles::gemini::GeminiFormKind;
+use vw_api_app_identity::AppId;
 
 const PROVIDERS: [(AppId, &str); 5] = [
     (AppId::Claude, "claude"),
@@ -46,7 +37,7 @@ async fn renderer() -> Renderer {
     static FONTS: std::sync::Once = std::sync::Once::new();
     FONTS.call_once(|| {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     });
@@ -400,7 +391,7 @@ fn commit(text: &str) -> Event {
     Event::InputMethod(iced::advanced::input_method::Event::Commit(text.into()))
 }
 
-fn apply(app: &mut App, messages: Vec<Message>) {
+fn apply(app: &mut Fixture, messages: Vec<Message>) {
     for message in messages {
         let Message::Settings(SettingsMessage::AppProviderEdit(event)) = message else {
             panic!("unexpected message outside provider form");
@@ -431,7 +422,7 @@ fn type_in(
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn ui_refresh_13_preserves_values_and_disabled_states() {
     let mut renderer = renderer().await;
-    crate::app::config::with_editor_settings_gateway(|mut app, _, _| {
+    with_editor(|mut app, _, _| {
         for (provider, name) in PROVIDERS {
             for create in [true, false] {
                 let mode = if create { Mode::Create } else { Mode::Update };
@@ -599,9 +590,9 @@ async fn ui_refresh_13_preserves_values_and_disabled_states() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn help_rollout_06_renders_claude_family() {
-    use super::super::desktop::ui_refresh_12_tests::assert_contextual_help;
-    use crate::app::i18n::I18n;
+    use super::desktop_ui_refresh_12_tests::assert_contextual_help;
     use config_ui::DesktopLocale;
+    use desktop_i18n::I18n;
 
     let mut renderer = renderer().await;
     let theme = Theme::Dark;
@@ -622,10 +613,10 @@ async fn help_rollout_06_renders_claude_family() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn settings_help_gap_16_opencode_format_and_protected_values() {
-    use super::super::desktop::ui_refresh_12_tests::Scene as HelpScene;
-    use crate::app::i18n::I18n;
-    use events::opencode::Field;
+    use super::desktop_ui_refresh_12_tests::Scene as HelpScene;
     use config_ui::DesktopLocale;
+    use desktop_i18n::I18n;
+    use events::opencode::Field;
 
     let mut renderer = renderer().await;
     for locale in [

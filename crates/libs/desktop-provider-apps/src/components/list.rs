@@ -394,3 +394,70 @@ pub fn editor_card<'a>(sort: &'a str, category: &'a str, notes: &'a str, saving:
     let card = settings_modal_layout(header, fields, Some(actions.into())).width(560).height(480);
     container(card).padding(12).into()
 }
+
+/// Provider-owned modal precedence and close guards, shared by host and view tests.
+pub fn local_card<'a, L, F, A, S, P, D, O, M, U>(
+    state: &'a crate::state::list::ListState<L, F, A, S, P, D, O, M, U>,
+    help: super::help::Help<'_>,
+) -> Option<(crate::Message, Element<'a, crate::Message>)> {
+    use crate::Message as E;
+    let app = state.scope.as_ref()?.app;
+    if let Some(form) = &state.paths {
+        return Some((
+            if form.saving { E::None } else { E::Paths(super::paths::Event::Close) },
+            super::paths::card(form, help),
+        ));
+    }
+    if let Some(form) = &state.mode {
+        return Some((
+            if form.writing() { E::None } else { E::Mode(super::mode::Event::Close) },
+            super::mode::card(state.snapshot.as_ref(), form, help),
+        ));
+    }
+    if let Some(form) = &state.env {
+        return Some((
+            if form.writing() { E::None } else { E::Env(crate::message::env::Event::Close) },
+            super::env::card(form, help),
+        ));
+    }
+    if let Some(form) = &state.preview {
+        return Some((
+            if form.save.is_some() { E::None } else { E::Preview(super::preview::Event::Close) },
+            super::preview::card(form, help),
+        ));
+    }
+    if let Some(form) = &state.snippets {
+        return Some((
+            if form.pending == Some(crate::state::snippets::Operation::Save) {
+                E::None
+            } else {
+                E::Snippets(super::snippets::Event::Close)
+            },
+            super::snippets::card(state.snapshot.as_ref(), form, app, help),
+        ));
+    }
+    if let Some(form) = &state.universal {
+        return Some((
+            if form.busy { E::None } else { E::Universal(super::universal::Event::Close) },
+            super::universal::card(form, help),
+        ));
+    }
+    if let Some(form) = &state.icons {
+        return Some((E::Icons(crate::message::icons::Event::Close), super::icons::card(form)));
+    }
+    if let Some(form) = &state.endpoints {
+        return Some((
+            E::Endpoints(crate::message::endpoints::Event::Cancel),
+            super::endpoints::card(form, app),
+        ));
+    }
+    if let Some(form) = &state.desktop {
+        if form.aggregation.is_none() {
+            return Some((
+                E::Desktop(crate::message::desktop::Event::Cancel),
+                super::desktop::card(form, help),
+            ));
+        }
+    }
+    None
+}

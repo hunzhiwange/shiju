@@ -10,8 +10,7 @@ use iced::{Element, Task};
 
 pub use desktop_provider_apps::message::leave::Choice;
 fn busy(app: &App) -> bool {
-    app.app_providers.form.as_ref().is_some_and(|f| f.saving)
-        || app.app_providers.editor.as_ref().is_some_and(|f| f.saving)
+    desktop_provider_apps::message::leave::busy(app.app_providers.form.as_ref(),app.app_providers.editor.as_ref())
 }
 
 /// Runs before dispatch so cancelling never mutates the current page or host.

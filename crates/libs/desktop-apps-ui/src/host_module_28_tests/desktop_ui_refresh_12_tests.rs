@@ -1,25 +1,7 @@
-use super::super::list::Help;
-use super::super::{edit, list};
-use super::Form;
-use crate::app::message::{
-    SettingsMessage,
-    app_providers::{
-        desktop::{self, Event as DesktopEvent},
-        edit::EditMessage,
-        list::ListMessage,
-    },
-};
-use crate::app::{
-    Message,
-    i18n::I18n,
-    state::{
-        AgentAppsContext,
-        app_providers::{
-            edit::{EditForm, Mode},
-            list::{Editor, ListState, Scope, Snapshot},
-        },
-    },
-};
+use super::ui_support::*;
+use config_ui::DesktopLocale;
+
+use desktop_provider_apps::state::edit::{EditForm, Mode};
 use iced::advanced::renderer::{Headless, Style};
 use iced::advanced::widget::operation::{Operation, Scrollable};
 use iced::advanced::{Layout, clipboard, layout, widget::Tree};
@@ -27,8 +9,6 @@ use iced::keyboard::{self, Key, key::Named};
 use iced::widget::Space;
 use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use config_ui::DesktopLocale;
-use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::AppProviderSummary;
 use vw_api_app_provider_base::basic::ProviderBasic;
 use vw_api_app_provider_edit::catalog::ProviderCatalog;
@@ -36,12 +16,13 @@ use vw_api_app_provider_edit::catalog::ProviderCatalogRow;
 use vw_api_app_provider_edit::catalog::ProviderMembership;
 use vw_api_app_provider_edit::catalog::ProviderSelection;
 use vw_api_app_provider_profiles::desktop_mapping::DesktopModelRoute;
+use vw_api_app_identity::AppId;
 
 async fn renderer() -> Renderer {
     static FONTS: std::sync::Once = std::sync::Once::new();
     FONTS.call_once(|| {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     });
@@ -50,14 +31,14 @@ async fn renderer() -> Renderer {
         .expect("tiny-skia renderer")
 }
 
-pub(in crate::app::components::app_providers) struct Scene<'a> {
+pub(super) struct Scene<'a> {
     ui: UserInterface<'a, Message, Theme, Renderer>,
     layout: layout::Node,
     size: Size<u32>,
 }
 
 impl<'a> Scene<'a> {
-    pub(in crate::app::components::app_providers) fn new(
+    pub(super) fn new(
         mut element: Element<'a, Message>,
         renderer: &mut Renderer,
         size: Size<u32>,
@@ -111,11 +92,7 @@ impl<'a> Scene<'a> {
         )
     }
 
-    pub(in crate::app::components::app_providers) fn press(
-        &mut self,
-        renderer: &mut Renderer,
-        path: &[usize],
-    ) -> Vec<Message> {
+    pub(super) fn press(&mut self, renderer: &mut Renderer, path: &[usize]) -> Vec<Message> {
         self.click(renderer, self.modal(path).center())
     }
 
@@ -297,7 +274,7 @@ async fn ui_refresh_12_layout_and_interaction() {
         for (view, page, buttons) in [
             (list::overlay(&list, Help::test(), base()), "list", 5),
             (edit::overlay(&edit, Help::test(), base()), "edit", 2),
-            (super::overlay(&desktop, Help::test(), base()), "desktop", 4),
+            (desktop_view::overlay(&desktop, Help::test(), base()), "desktop", 4),
         ] {
             let mut scene = Scene::new(view, &mut renderer, Size::new(width, 760));
             assert_centered(scene.modal(&[0, 0]), scene.modal(&[0, 1]));
@@ -357,7 +334,7 @@ async fn ui_refresh_12_layout_and_interaction() {
     ));
 
     let mut scene = Scene::new(
-        super::overlay(&desktop, Help::test(), base()),
+        desktop_view::overlay(&desktop, Help::test(), base()),
         &mut renderer,
         Size::new(420, 760),
     );
@@ -424,13 +401,14 @@ async fn ui_refresh_12_preserves_values_and_disabled_states() {
     let mut renderer = renderer().await;
     let size = Size::new(420, 760);
     let mut app = None;
-    crate::app::config::with_editor_settings_gateway(|fixture, _, _| app = Some(fixture));
+    with_editor(|fixture, _, _| app = Some(fixture));
     let mut app = app.expect("isolated settings fixture");
     let original = desktop_fixture();
     app.app_providers.desktop = Some(original.clone());
     for official in [true, false] {
         let form = app.app_providers.desktop.as_ref().unwrap();
-        let mut scene = Scene::new(super::overlay(form, Help::test(), base()), &mut renderer, size);
+        let mut scene =
+            Scene::new(desktop_view::overlay(form, Help::test(), base()), &mut renderer, size);
         let events = scene.press(&mut renderer, &[1, 0, 0, 3, 0, 2]);
         assert!(matches!(&events[..],
             [Message::Settings(SettingsMessage::AppProviders(ListMessage::Desktop(DesktopEvent::Official(value))))]
@@ -456,7 +434,7 @@ async fn ui_refresh_12_preserves_values_and_disabled_states() {
         form.mapping_editable = busy;
         form.notice = Some("映射兼容校验失败／映射相容驗證失敗".into());
         let mut scene =
-            Scene::new(super::overlay(&form, Help::test(), base()), &mut renderer, size);
+            Scene::new(desktop_view::overlay(&form, Help::test(), base()), &mut renderer, size);
         for index in [1, 2] {
             assert!(scene.press(&mut renderer, &[2, index]).is_empty());
         }
@@ -531,9 +509,9 @@ async fn ui_refresh_12_preserves_values_and_disabled_states() {
 async fn help_rollout_06_renders_contextual_help() {
     let mut renderer = renderer().await;
     let mut claude = edit_fixture(Mode::Update);
-    claude.claude = Some(crate::app::state::app_providers::claude::Draft::new());
+    claude.claude = Some(desktop_provider_apps::state::claude::Draft::new());
     let mut agy = edit_fixture(Mode::Update);
-    agy.agy = Some(crate::app::state::app_providers::agy::Draft::new());
+    agy.agy = Some(desktop_provider_apps::state::agy::Draft::new());
     let desktop = desktop_fixture();
     for (locale, theme, width) in [
         (DesktopLocale::SimplifiedChinese, Theme::Light, 420),
@@ -543,7 +521,7 @@ async fn help_rollout_06_renders_contextual_help() {
         let help = Help::new(I18n::new(locale), &theme);
         for (name, element, expected) in [
             ("claude", edit::overlay(&claude, help, base()), 2),
-            ("desktop", super::overlay(&desktop, help, base()), 1),
+            ("desktop", desktop_view::overlay(&desktop, help, base()), 1),
             ("agy", edit::overlay(&agy, help, base()), 2),
         ] {
             assert_contextual_help(
@@ -560,7 +538,7 @@ async fn help_rollout_06_renders_contextual_help() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn help_rollout_06_renders_utility_overlays() {
-    use crate::app::state::app_providers::{env, mode, paths, preview, snippets, universal};
+    use desktop_provider_apps::state::{env, mode, paths, preview, snippets, universal};
 
     let mut renderer = renderer().await;
     let theme = Theme::Dark;
@@ -612,7 +590,7 @@ async fn help_rollout_06_renders_utility_overlays() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn help_rollout_06_keeps_values_outside_help_actions() {
-    use crate::app::message::{ChatMessage, ViewMessage};
+    use super::ui_support::{ChatMessage, ViewMessage};
     let mut renderer = renderer().await;
     let theme = Theme::Dark;
     let i18n = I18n::new(DesktopLocale::English);
@@ -688,7 +666,7 @@ async fn help_rollout_06_keeps_values_outside_help_actions() {
     ));
 }
 
-pub(in crate::app::components::app_providers) fn assert_contextual_help(
+pub(super) fn assert_contextual_help(
     element: Element<'_, Message>,
     renderer: &mut Renderer,
     theme: &Theme,
@@ -820,12 +798,7 @@ impl Operation for BodyText {
 }
 
 impl Scene<'_> {
-    pub(in crate::app::components::app_providers) fn assert_body(
-        &mut self,
-        renderer: &Renderer,
-        hidden: &[&str],
-        visible: &[&str],
-    ) {
+    pub(super) fn assert_body(&mut self, renderer: &Renderer, hidden: &[&str], visible: &[&str]) {
         let mut body = BodyText::default();
         self.ui.operate(renderer, &mut body);
         for phrase in hidden {
@@ -839,11 +812,7 @@ impl Scene<'_> {
         }
     }
 
-    pub(in crate::app::components::app_providers) fn click_label(
-        &mut self,
-        renderer: &mut Renderer,
-        label: &str,
-    ) -> Vec<Message> {
+    pub(super) fn click_label(&mut self, renderer: &mut Renderer, label: &str) -> Vec<Message> {
         let bounds = self.text_bounds(renderer, label);
         let point = visible_icon(self, renderer, bounds);
         self.click(renderer, point)
@@ -859,7 +828,7 @@ impl Scene<'_> {
             .1
     }
 
-    pub(in crate::app::components::app_providers) fn assert_help_copy(
+    pub(super) fn assert_help_copy(
         &mut self,
         renderer: &mut Renderer,
         theme: &Theme,
@@ -940,10 +909,10 @@ impl Scene<'_> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn settings_help_gap_16_catalog_alias_endpoint_and_discovery() {
-    use crate::app::message::settings::providers::{catalog_api::Event as CatalogEvent, discovery};
-    use crate::app::state::app_providers::model_catalog::{
+    use desktop_provider_apps::state::model_catalog::{
         CatalogContext, CatalogForm, DiscoveryPhase,
     };
+    use desktop_settings_providers::{catalog_api::Event as CatalogEvent, discovery};
     use vw_api_model_catalog::{
         ModelCatalogEntry, ModelCatalogProject, ModelCatalogReadResponse,
         ScopedModelCatalogIdentity,

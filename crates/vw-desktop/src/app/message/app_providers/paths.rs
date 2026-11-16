@@ -32,34 +32,6 @@ async fn pick_local(
     }
 }
 
-#[cfg(target_os = "macos")]
-fn open_local(home: &str, path: &str) -> Result<(), ()> {
-    use std::path::Path;
-    let home = Path::new(home);
-    let path = Path::new(path);
-    let relative = path.strip_prefix(home).map_err(|_| ())?;
-    if relative.as_os_str().is_empty()
-        || !relative.components().all(|part| matches!(part, std::path::Component::Normal(_)))
-    {
-        return Err(());
-    }
-    let actual = path.canonicalize().map_err(|_| ())?;
-    if actual != home.canonicalize().map_err(|_| ())?.join(relative) || !actual.is_dir() {
-        return Err(());
-    }
-    let status = std::process::Command::new("/usr/bin/open")
-        .args(["-a", "Finder"])
-        .arg(actual)
-        .status()
-        .map_err(|_| ())?;
-    status.success().then_some(()).ok_or(())
-}
-
-#[cfg(not(target_os = "macos"))]
-fn open_local(_: &str, _: &str) -> Result<(), ()> {
-    Err(())
-}
-
 pub fn message(event:Event)->Message {super::list::message(super::list::ListMessage::Paths(event))}
 
 pub fn pick(client:GatewayClient,scope:Scope,token:String,generation:u64,catalog_generation:u64)->Task<Message>{
@@ -68,6 +40,6 @@ pub fn pick(client:GatewayClient,scope:Scope,token:String,generation:u64,catalog
 pub fn open(client:GatewayClient,scope:Scope,token:String,path:String)->Task<Message>{
  Task::perform(async move {tokio::task::spawn_blocking(move || {
  let home=local::launch_directory(&client,&scope.host,&token,None).ok_or(())?;
- open_local(&home,&path)
+ desktop_provider_apps::message::paths::open_local(&home,&path)
  }).await.ok().and_then(Result::ok)},|opened|if opened.is_some(){Message::None}else{message(Event::FolderFailed)})
 }

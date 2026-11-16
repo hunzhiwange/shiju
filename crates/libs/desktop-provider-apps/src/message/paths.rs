@@ -187,3 +187,31 @@ async fn execute(
         )
         .await
 }
+
+#[cfg(target_os = "macos")]
+pub fn open_local(home: &str, path: &str) -> Result<(), ()> {
+    use std::path::Path;
+    let home = Path::new(home);
+    let path = Path::new(path);
+    let relative = path.strip_prefix(home).map_err(|_| ())?;
+    if relative.as_os_str().is_empty()
+        || !relative.components().all(|part| matches!(part, std::path::Component::Normal(_)))
+    {
+        return Err(());
+    }
+    let actual = path.canonicalize().map_err(|_| ())?;
+    if actual != home.canonicalize().map_err(|_| ())?.join(relative) || !actual.is_dir() {
+        return Err(());
+    }
+    let status = std::process::Command::new("/usr/bin/open")
+        .args(["-a", "Finder"])
+        .arg(actual)
+        .status()
+        .map_err(|_| ())?;
+    status.success().then_some(()).ok_or(())
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn open_local(_: &str, _: &str) -> Result<(), ()> {
+    Err(())
+}

@@ -6710,13 +6710,16 @@ name = "desktop-apps-ui"
 version = "0.6.0"
 dependencies = [
  "chrono",
+ "config-ui",
  "desktop-account",
  "desktop-app-launch",
  "desktop-assets",
+ "desktop-chat-view",
  "desktop-config",
  "desktop-i18n",
  "desktop-provider-apps",
  "desktop-settings-account",
+ "desktop-settings-providers",
  "desktop-skill-hub",
  "desktop-ui-controls",
  "desktop-web-runtime",
@@ -6749,6 +6752,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
+ "toml 0.9.12+spec-1.1.0",
  "toml_edit 0.22.27",
  "url",
  "vw-api-app-aggregation",
@@ -6758,12 +6762,15 @@ dependencies = [
  "vw-api-app-identity",
  "vw-api-app-provider-base",
  "vw-api-app-provider-edit",
+ "vw-api-app-provider-extended",
+ "vw-api-app-provider-profiles",
  "vw-api-app-routing",
  "vw-api-chat-identity",
  "vw-api-external-session",
  "vw-api-hermes-dashboard",
  "vw-api-hermes-memory",
  "vw-api-mcp-management",
+ "vw-api-model-catalog",
  "vw-api-openclaw-settings",
  "vw-api-task",
  "vw-api-transport",
@@ -6774,6 +6781,9 @@ dependencies = [
  "web-sys",
  "web-time",
 ]
+
+
+
 
 [[package]]
 name = "desktop-assets"

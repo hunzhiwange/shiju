@@ -66,3 +66,5 @@ pub fn overlay<'a, M: Clone + 'static>(pending: bool, busy: bool, base: Element<
     .width(Length::Fixed(480.0));
     settings_modal_overlay(Some(base), cancel, card)
 }
+
+pub fn busy(form:Option<&crate::state::edit::EditForm>,editor:Option<&crate::state::list::Editor>)->bool { form.is_some_and(|f|f.saving)||editor.is_some_and(|f|f.saving) }

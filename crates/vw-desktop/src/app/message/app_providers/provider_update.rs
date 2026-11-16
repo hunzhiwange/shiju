@@ -81,24 +81,7 @@ pub fn effect(app: &mut App, effect: Effect) -> Task<Message> {
             super::edit::dispatch_save(client,scope,generation,form,token)
         },
         Effect::Field(field) => {
-            let Some(form) = app.app_providers.form.as_mut().filter(|f| !f.saving) else { return Task::none() };
-            use super::edit::EditMessage as E;
-            match field {
-                E::Claude(field) => super::claude::change(form,field),
-                E::Codex(field) => super::codex::change(form,field),
-                E::Gemini(field) => super::gemini::change(form,field),
-                E::Grok(field) => super::grok::change(form,field),
-                E::Hermes(field) => super::hermes::change(form,field),
-                E::Pi(field) => super::pi::change(form,field),
-                E::Kimi(field) => super::kimi::change(form,field),
-                E::Mcode(field) => super::mcode::change(form,field),
-                E::Agy(field) => super::agy::change(form,field),
-                E::Dsh(field) => super::dsh::change(form,field),
-                E::Omp(field) => super::omp::change(form,field),
-                E::OpenClaw(field) => super::openclaw::change(form,field),
-                E::OpenCode(field) => super::opencode::change(form,field),
-                _ => {}
-            }
+            return run(app, |state, _, _| { desktop_provider_apps::message::edit::change(state, &field); Task::none() });
             Task::none()
         }
     }

@@ -29,8 +29,6 @@ pub(super) fn render_help<'a>(title: &'a str, body: std::borrow::Cow<'a,str>, co
         _ => desktop_provider_apps::Message::None,
     })
 }
-#[cfg(test)]
-pub(crate) fn overlay<'a>(form: &'a EditForm, help: Help<'_>,base:Element<'a,Message>)->Element<'a,Message>{overlay_with_binding(form,help,base,None)}
 pub(super) fn overlay_with_binding<'a>(form:&'a EditForm,help:Help<'_>,base:Element<'a,Message>,binding:Option<Message>)->Element<'a,Message>{
     let diagnostics=crate::app::message::agent_apps_diagnostics::endpoint_state::editable(form);
     let card=desktop_provider_apps::components::edit::card(form,help.provider_help(),binding.is_some(),diagnostics).map(move |event| match event {

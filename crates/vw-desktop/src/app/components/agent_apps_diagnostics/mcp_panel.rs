@@ -35,6 +35,3 @@ pub(crate) fn view(app: &App) -> iced::Element<'_, Message> {
         diagnostics::mcp_results::view(state),
     )
 }
-#[cfg(test)]
-#[path = "mcp_panel_tests.rs"]
-mod tests;

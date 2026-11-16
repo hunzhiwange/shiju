@@ -2,8 +2,8 @@
 
 // 回环引导码仅服务本机未配对流程，远程地址始终必须被拒绝。
 use super::*;
-use crate::app::agent::config::schema::ConfigExt;
-use crate::app::agent::gateway::pairing::{handle_pair, handle_pair_code, persist_pairing_tokens};
+use agent_config::runtime_schema::ConfigExt;
+use crate::pairing::{handle_pair, handle_pair_code, persist_pairing_tokens};
 use axum::body::to_bytes;
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -58,7 +58,7 @@ fn make_pair_state(pairing: PairingGuard, rate_limit: u32) -> AppState {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(rate_limit, 100, 1_000)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1_000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(vec![]),
         tools_registry_exec: Arc::new(vec![]),
         multimodal: Default::default(),

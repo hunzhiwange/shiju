@@ -2,11 +2,12 @@
 
 // 节点 allowlist 只接受完整节点名或全量通配符，不能把部分通配当作授权。
 use super::*;
-use crate::app::agent::config::Config;
-use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
-use crate::app::agent::memory::NoneMemory;
+use crate::node_control::*;
+use agent_config::runtime::Config;
+use gateway_types::{GatewayRateLimiter, IdempotencyStore};
+use memory_types::memory::NoneMemory;
 use model_types::Provider;
-use crate::app::agent::security::pairing::PairingGuard;
+use gateway_pairing::pairing::PairingGuard;
 use axum::body::{Body, to_bytes};
 use axum::extract::{FromRequest, State};
 use axum::http::{HeaderMap, HeaderValue, Request, StatusCode, header};
@@ -489,10 +490,10 @@ fn state_with(config: Config, require_pairing: bool, paired_tokens: &[&str]) -> 
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx,
         session_query_engines: Default::default(),

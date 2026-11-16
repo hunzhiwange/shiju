@@ -66,10 +66,10 @@ fn make_state_no_pairing() -> AppState {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
@@ -121,10 +121,10 @@ fn make_state_with_pairing(token: &str) -> AppState {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
@@ -183,7 +183,7 @@ fn require_auth_pairing_disabled_always_allows() {
     let state = make_state_no_pairing();
     // 即使没有 Authorization 请求头，也应该成功，因为配对功能已禁用
     let headers = HeaderMap::new();
-    let result = crate::app::agent::gateway::api::auth::require_auth(&state, &headers);
+    let result = crate::api::auth::require_auth(&state, &headers);
     assert!(result.is_ok(), "配对禁用时：没有 token 的请求必须成功");
 }
 
@@ -203,7 +203,7 @@ fn require_auth_pairing_disabled_ignores_bearer_token() {
     let state = make_state_no_pairing();
     // 即使提供了 Bearer token，配对禁用路径也会短路并放行
     let headers = bearer_headers("some-random-token");
-    let result = crate::app::agent::gateway::api::auth::require_auth(&state, &headers);
+    let result = crate::api::auth::require_auth(&state, &headers);
     assert!(result.is_ok(), "配对禁用时：Bearer token 也必须通过");
 }
 
@@ -226,7 +226,7 @@ fn require_auth_valid_bearer_token_returns_ok() {
     let token = "valid-secret-token-abc123";
     let state = make_state_with_pairing(token);
     let headers = bearer_headers(token);
-    let result = crate::app::agent::gateway::api::auth::require_auth(&state, &headers);
+    let result = crate::api::auth::require_auth(&state, &headers);
     assert!(result.is_ok(), "有效的 Bearer token 必须被接受");
 }
 
@@ -253,7 +253,7 @@ fn require_auth_missing_token_returns_401() {
     let token = "secret-token-xyz";
     let state = make_state_with_pairing(token);
     let headers = HeaderMap::new(); // 没有 Authorization 请求头
-    let result = crate::app::agent::gateway::api::auth::require_auth(&state, &headers);
+    let result = crate::api::auth::require_auth(&state, &headers);
     let (status, json_body) = result.unwrap_err();
     assert_eq!(
         status,
@@ -285,7 +285,7 @@ fn require_auth_wrong_token_returns_401() {
     let token = "correct-token";
     let state = make_state_with_pairing(token);
     let headers = bearer_headers("wrong-token");
-    let result = crate::app::agent::gateway::api::auth::require_auth(&state, &headers);
+    let result = crate::api::auth::require_auth(&state, &headers);
     let (status, json_body) = result.unwrap_err();
     assert_eq!(
         status,
@@ -316,7 +316,7 @@ fn require_auth_malformed_auth_header_returns_401() {
     let state = make_state_with_pairing(token);
     let mut headers = HeaderMap::new();
     headers.insert(header::AUTHORIZATION, HeaderValue::from_static("Token correct-token"));
-    let result = crate::app::agent::gateway::api::auth::require_auth(&state, &headers);
+    let result = crate::api::auth::require_auth(&state, &headers);
     let (status, json_body) = result.unwrap_err();
     assert_eq!(
         status,
@@ -345,7 +345,7 @@ fn require_auth_empty_bearer_returns_401() {
     let state = make_state_with_pairing(token);
     let mut headers = HeaderMap::new();
     headers.insert(header::AUTHORIZATION, HeaderValue::from_static("Bearer "));
-    let result = crate::app::agent::gateway::api::auth::require_auth(&state, &headers);
+    let result = crate::api::auth::require_auth(&state, &headers);
     let (status, json_body) = result.unwrap_err();
     assert_eq!(
         status,

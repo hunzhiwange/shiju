@@ -12,7 +12,7 @@
 //! # 相关模块
 //!
 //! - [`super`] - 父模块（网关测试模块）
-//! - [`crate::app::agent::gateway::node_control`] - 节点控制业务逻辑实现
+//! - [`crate::node_control`] - 节点控制业务逻辑实现
 
 use super::*;
 use axum::Json;
@@ -59,10 +59,10 @@ async fn node_control_returns_not_found_when_disabled() {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
@@ -79,7 +79,7 @@ async fn node_control_returns_not_found_when_disabled() {
     }));
 
     // 调用节点控制处理器并获取响应
-    let response: Response = crate::app::agent::gateway::node_control::handle_node_control(
+    let response: Response = crate::node_control::handle_node_control(
         State(state),
         HeaderMap::new(),
         body,
@@ -136,10 +136,10 @@ async fn node_control_list_returns_stub_nodes_when_enabled() {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
@@ -156,7 +156,7 @@ async fn node_control_list_returns_stub_nodes_when_enabled() {
     }));
 
     // 调用节点控制处理器并获取响应
-    let response: Response = crate::app::agent::gateway::node_control::handle_node_control(
+    let response: Response = crate::node_control::handle_node_control(
         State(state),
         HeaderMap::new(),
         body,

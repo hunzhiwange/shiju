@@ -24,10 +24,10 @@ async fn metrics_endpoint_returns_hint_when_prometheus_is_disabled() {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
@@ -35,7 +35,7 @@ async fn metrics_endpoint_returns_hint_when_prometheus_is_disabled() {
         channels: Default::default(),
     };
 
-    let response: Response = crate::app::agent::gateway::health::handle_metrics(
+    let response: Response = crate::health::handle_metrics(
         State(state),
         test_connect_info(),
         HeaderMap::new(),
@@ -58,14 +58,14 @@ async fn metrics_endpoint_returns_hint_when_prometheus_is_disabled() {
 
 #[tokio::test]
 async fn metrics_endpoint_renders_prometheus_output() {
-    let prom = Arc::new(crate::app::agent::observability::PrometheusObserver::new());
+    let prom = Arc::new(observer_prometheus::PrometheusObserver::new());
     // 先记录一个确定事件，避免测试依赖后台心跳的时间窗口。
-    crate::app::agent::observability::Observer::record_event(
+    observer_types::Observer::record_event(
         prom.as_ref(),
-        &crate::app::agent::observability::ObserverEvent::HeartbeatTick,
+        &observer_types::ObserverEvent::HeartbeatTick,
     );
 
-    let observer: Arc<dyn crate::app::agent::observability::Observer> = prom;
+    let observer: Arc<dyn observer_types::Observer> = prom;
     let state = AppState {
         config: Arc::new(Mutex::new(Config::default())),
         provider: Arc::new(MockProvider::default()),
@@ -80,7 +80,7 @@ async fn metrics_endpoint_renders_prometheus_output() {
         observer,
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
@@ -88,7 +88,7 @@ async fn metrics_endpoint_renders_prometheus_output() {
         channels: Default::default(),
     };
 
-    let response: Response = crate::app::agent::gateway::health::handle_metrics(
+    let response: Response = crate::health::handle_metrics(
         State(state),
         test_connect_info(),
         HeaderMap::new(),
@@ -116,10 +116,10 @@ async fn metrics_endpoint_rejects_public_clients_when_pairing_is_disabled() {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
@@ -127,7 +127,7 @@ async fn metrics_endpoint_rejects_public_clients_when_pairing_is_disabled() {
         channels: Default::default(),
     };
 
-    let response: Response = crate::app::agent::gateway::health::handle_metrics(
+    let response: Response = crate::health::handle_metrics(
         State(state),
         test_public_connect_info(),
         HeaderMap::new(),
@@ -156,10 +156,10 @@ async fn metrics_endpoint_requires_bearer_token_when_pairing_is_enabled() {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
@@ -167,7 +167,7 @@ async fn metrics_endpoint_requires_bearer_token_when_pairing_is_enabled() {
         channels: Default::default(),
     };
 
-    let unauthorized: Response = crate::app::agent::gateway::health::handle_metrics(
+    let unauthorized: Response = crate::health::handle_metrics(
         State(state.clone()),
         test_connect_info(),
         HeaderMap::new(),
@@ -182,7 +182,7 @@ async fn metrics_endpoint_requires_bearer_token_when_pairing_is_enabled() {
         header::AUTHORIZATION,
         HeaderValue::from_str(&format!("Bearer {paired_token}")).unwrap(),
     );
-    let authorized: Response = crate::app::agent::gateway::health::handle_metrics(
+    let authorized: Response = crate::health::handle_metrics(
         State(state),
         test_connect_info(),
         headers,

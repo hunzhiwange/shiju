@@ -68,3 +68,6 @@ pub mod aggregation_lifecycle;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod host_migration_15_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_18_tests;

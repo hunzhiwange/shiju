@@ -81,8 +81,6 @@ pub use agent_gateway::request_policy::{
     MAX_BODY_SIZE, REQUEST_TIMEOUT_SECS, WORKFLOW_CHAT_MESSAGES_TIMEOUT_SECS,
 };
 use agent_gateway::request_policy::{request_timeout_middleware, skey_auth_middleware};
-#[cfg(test)]
-use agent_gateway::request_policy::{request_timeout_for_path, is_public_skey_auth_path, is_workflow_chat_messages_path};
 
 #[cfg(test)]
 #[path = "../../../libs/agent-gateway/src/recovery_window_tests.rs"]

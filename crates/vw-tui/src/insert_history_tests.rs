@@ -2,9 +2,10 @@ use super::*;
 use crate::markdown_render::render_markdown_text;
 use crate::test_backend::VT100Backend;
 use ratatui::layout::Rect;
+use ratatui::style::Color;
 use ratatui::text::Line;
 use ratatui::text::Span;
-use ratatui::style::Color;
+use tui_render::terminal_hyperlinks::plain_hyperlink_lines;
 
 #[test]
 fn vt100_blockquote_line_emits_green_fg() {
@@ -23,8 +24,7 @@ fn vt100_blockquote_line_emits_green_fg() {
     // Build a blockquote-like line: apply line-level green style and prefix "> "
     let mut line: Line<'static> = Line::from(vec!["> ".into(), "Hello world".into()]);
     line = line.style(Color::Green);
-    insert_history_lines(&mut term, vec![line])
-        .expect("Failed to insert history lines in test");
+    insert_history_lines(&mut term, vec![line]).expect("Failed to insert history lines in test");
 
     let mut saw_colored = false;
     'outer: for row in 0..height {
@@ -60,8 +60,7 @@ fn vt100_blockquote_wrap_preserves_color_on_all_wrapped_lines() {
         Line::from(vec!["> ".into(), "This is a long quoted line that should wrap".into()]);
     line = line.style(Color::Green);
 
-    insert_history_lines(&mut term, vec![line])
-        .expect("Failed to insert history lines in test");
+    insert_history_lines(&mut term, vec![line]).expect("Failed to insert history lines in test");
 
     // 解析并检查最终屏幕缓冲区。
     // Parse and inspect the final screen buffer.
@@ -128,8 +127,7 @@ fn vt100_colored_prefix_then_plain_text_resets_color() {
         Span::raw("Hello world"),
     ]);
 
-    insert_history_lines(&mut term, vec![line])
-        .expect("Failed to insert history lines in test");
+    insert_history_lines(&mut term, vec![line]).expect("Failed to insert history lines in test");
 
     let screen = term.backend().vt100().screen();
 
@@ -259,8 +257,7 @@ fn vt100_prefixed_url_like_without_scheme_keeps_prefix_and_token_on_same_row() {
     let viewport = Rect::new(0, height - 1, width, 1);
     term.set_viewport_area(viewport);
 
-    let url_like =
-        "example.test/api/v1/projects/alpha-team/releases/2026-02-17/builds/1234567890";
+    let url_like = "example.test/api/v1/projects/alpha-team/releases/2026-02-17/builds/1234567890";
     let line: Line<'static> = Line::from(vec!["  │ ".into(), url_like.into()]);
 
     insert_history_lines(&mut term, vec![line]).expect("insert history");
@@ -441,12 +438,8 @@ fn vt100_terminal_wrap_policy_does_not_pre_wrap_long_paragraph() {
 
     let line = Line::from("alpha beta gamma delta epsilon zeta");
 
-    insert_history_lines_with_wrap_policy(
-        &mut term,
-        vec![line],
-        HistoryLineWrapPolicy::Terminal,
-    )
-    .expect("insert raw history");
+    insert_history_lines_with_wrap_policy(&mut term, vec![line], HistoryLineWrapPolicy::Terminal)
+        .expect("insert raw history");
 
     let rows: Vec<String> = term.backend().vt100().screen().rows(0, width).collect();
     assert!(
@@ -511,10 +504,7 @@ fn vt100_zellij_raw_replay_keeps_overflowing_soft_wrapped_tail_above_viewport() 
     .expect("replay Zellij raw history");
 
     let rows: Vec<String> = term.backend().vt100().screen().rows(0, width).collect();
-    insta::assert_snapshot!(
-        "zellij_raw_terminal_wrap_overflow_above_viewport",
-        rows.join("\n")
-    );
+    insta::assert_snapshot!("zellij_raw_terminal_wrap_overflow_above_viewport", rows.join("\n"));
     let history_rows = rows[..usize::from(term.viewport_area.y)]
         .iter()
         .map(|row| row.trim_end())

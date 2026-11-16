@@ -8,6 +8,7 @@ license = "Apache-2.0"
 doctest = false
 
 [dependencies]
+tracing = "0.1"
 tui-text = { path = "../tui-text", version = "0.6.0" }
 textwrap = "0.16.2"
 unicode-segmentation = "1.12.0"

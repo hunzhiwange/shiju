@@ -194,3 +194,283 @@
 - 两个批次 17 具名 CLI 回归：各 1 通过；`cargo test -p vw-cli tui --lib`：4 通过，0 失败。
 - `cargo test -p vw-cli stream_adapter --lib`：14 通过；`cargo test -p vw-cli security --lib`：14 通过。
 - `cargo clippy --all-targets --all-features -- -D warnings`：通过。
+
+
+## 2026-11-16 不可达源码清理（当前处置，以上为历史记录）
+
+Cargo 仅有 `src/lib.rs` 库目标，关闭 bin/test/example/bench 自动发现，无 build.rs。
+生产模块全部由 lib.rs 重导出 tui-* 实现；本地仅编译 insert_history 测试门面、其测试、test_backend、surface_tests 和快照矩阵。
+仓库 crates/scripts/.github/.cargo 路径审计仅命中快照 source 元数据（不加载源码）；全仓代码/配置扫描未发现外部 path/include 或脚本读取被删路径。
+复制的 BUILD.bazel 使用 Codex //defs.bzl 与 //codex-rs 标签，本仓没有对应构建入口，随失效旧源码删除。
+
+不可达不代表能力已迁移：旧 Codex chatwidget 子模块、pets、IDE IPC、keymap setup、onboarding trust、外部编辑器等实现和未接入测试不构成当前支持面，本次删除不宣称补齐这些能力。通用输入、渲染、聊天、终端能力以 lib.rs 真实出口与 tui-* 实现为准。
+下表逐文件记录去向；“符号交集”仅为声明名核对辅助，不是行为等价证明。删除依据是完整目标/引用审计与现有兼容契约，不能用同名推断已迁移。
+
+保留全部 .snap（含旧模块目录下的来源快照）、frames、fixture、visualize 资源、文档、AGENTS 和 LICENSE/NOTICE，作为来源/资源归档；不声称其全部参与运行。快照 source 元数据保留历史路径，不重写。
+Rust 规模：263 文件 / 108579 行 → 6 文件（最终行数见提交证据）。清理不等于编译提速，因为被删源码原本未编译。
+
+| 相对路径 | 处置 | 理由 | tui-* 声明符号交集 |
+| --- | --- | --- | --- |
+| `src/app_event.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/app_event_sender.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/approval_events.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/ascii_animation.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/auto_review_denials.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bin/md-events.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/app_link_view.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-cells, tui-chat, tui-composer, tui-input, tui-pager, tui-pickers, tui-popups, tui-render, tui-user-input, tui-widgets |
+| `src/bottom_pane/apply_patch_header.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/chat_composer/attachment_state.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/chat_composer/completion_target.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/chat_composer/completion_target_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/bottom_pane/chat_composer/draft_state.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/chat_composer/history_search.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/chat_composer/popup_state.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/chat_composer/popup_state_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/bottom_pane/chat_composer/slash_input.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/chat_composer_effort_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/bottom_pane/chat_composer_history/search_batch.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/chat_composer_history/search_batch_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/bottom_pane/custom_prompt_view.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-input, tui-pager, tui-pickers, tui-popups, tui-render, tui-user-input, tui-widgets |
+| `src/bottom_pane/custom_prompt_view_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/bottom_pane/effort_ignition.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-pager, tui-pickers, tui-render, tui-user-input, tui-widgets |
+| `src/bottom_pane/effort_ignition_styles.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/effort_ignition_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/bottom_pane/effort_status_line.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-cells |
+| `src/bottom_pane/effort_status_line_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/bottom_pane/experimental_features_view.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-input, tui-pager, tui-pickers, tui-popups, tui-render, tui-user-input, tui-widgets |
+| `src/bottom_pane/feedback_view.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-input, tui-pager, tui-pickers, tui-popups, tui-render, tui-user-input, tui-widgets |
+| `src/bottom_pane/hooks_browser_view.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-input, tui-pager, tui-pickers, tui-popups, tui-render, tui-user-input, tui-widgets |
+| `src/bottom_pane/mcp_server_elicitation.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-input, tui-pager, tui-pickers, tui-popups, tui-render, tui-user-input, tui-widgets |
+| `src/bottom_pane/memories_settings_view.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-input, tui-pager, tui-pickers, tui-popups, tui-render, tui-user-input, tui-widgets |
+| `src/bottom_pane/mentions_v2/candidate.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/mentions_v2/filter.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/mentions_v2/footer.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/mentions_v2/mod.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/mentions_v2/popup.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-input, tui-popups |
+| `src/bottom_pane/mentions_v2/render.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/mentions_v2/search_catalog.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/mentions_v2/search_mode.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/mod.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/multi_select_picker.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-input, tui-markdown, tui-pager, tui-pickers, tui-popups, tui-render, tui-user-input, tui-widgets |
+| `src/bottom_pane/pending_thread_approvals.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-input, tui-pager, tui-pickers, tui-render, tui-user-input, tui-widgets |
+| `src/bottom_pane/popup_consts.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/prompt_args.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/request_user_input/render_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/bottom_pane/skill_popup.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-input, tui-popups, tui-widgets |
+| `src/bottom_pane/skills_toggle_view.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-input, tui-pager, tui-pickers, tui-popups, tui-render, tui-user-input, tui-widgets |
+| `src/bottom_pane/startup.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/status_line_setup.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-input, tui-pager, tui-pickers, tui-popups, tui-render, tui-user-input, tui-widgets |
+| `src/bottom_pane/status_line_style.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/status_surface_preview.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/bottom_pane/title_setup.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-input, tui-pager, tui-pickers, tui-popups, tui-render, tui-user-input, tui-widgets |
+| `src/bottom_pane/unified_exec_footer.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-input, tui-pager, tui-pickers, tui-render, tui-user-input, tui-widgets |
+| `src/branch_summary.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-markdown |
+| `src/chatwidget/connector_mentions.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/connectors.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/goal_menu.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/goal_status.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-cells |
+| `src/chatwidget/hook_lifecycle.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/hooks.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/ide_context.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/input_flow.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/input_restore.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/interaction.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-bottom-pane, tui-chat, tui-composer, tui-pickers, tui-widgets |
+| `src/chatwidget/keymap_picker.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/mcp_startup.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/misalignment_policy.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/model_popups.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/notifications.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/permission_popups.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/permission_shortcuts.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/permissions_menu.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/pets.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/pets_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/plan_implementation.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/plugin_catalog.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-cells, tui-chat, tui-composer, tui-input, tui-pager, tui-pickers, tui-render, tui-user-input, tui-widgets |
+| `src/chatwidget/plugins.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/protocol.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/protocol_requests.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/rate_limits.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/reasoning_shortcuts.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/replay.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/reset_credits.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/review.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/review_popups.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/safety_buffering.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/service_tiers.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/session_flow.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/session_header.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/settings.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/settings_popups.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/side.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/skills.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/slash_dispatch.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/status_controls.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/tests/app_server.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/approval_requests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/composer_submission.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/config_errors_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/goal_menu.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/goal_validation.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/guardian.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/helpers.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/history_replay.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/mcp_startup.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/misalignment_policy_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/permission_shortcuts_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/permissions.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/plan_mode.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/plugin_catalog_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/popups_and_settings.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/review_mode.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/side.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/slash_commands.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/status_command_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/status_surface_previews.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/terminal_title.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests/usage.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/thread_usage.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/thread_usage_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tokens/chart/palette.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/tokens/chart/palette_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tokens/chart.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/tokens/chart_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tokens.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-exec-state, tui-render |
+| `src/chatwidget/tokens_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/chatwidget/tool_requests.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/transcript_export.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/turn_runtime.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/usage.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/warnings.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/windows_sandbox_prompts.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget/working_directory.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/chatwidget.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/clipboard_paste.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/collaboration_modes.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/custom_terminal.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/exec_cell/live_output.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-chat |
+| `src/exec_cell/live_output_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/exec_command.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/external_editor.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-clipboard, tui-terminal, tui-terminal-lifecycle |
+| `src/external_editor_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/file_search.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/frames.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/get_git_diff.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-markdown |
+| `src/goal_files.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/history_cell/approvals.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/history_cell/base.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-cells, tui-render, tui-stream |
+| `src/history_cell/hook_cell.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-cells, tui-chat, tui-composer, tui-exec-state, tui-input, tui-pager, tui-pickers, tui-render, tui-stream, tui-user-input, tui-widgets |
+| `src/history_cell/markdown_render_cache.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/history_cell/mcp.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-cells, tui-input, tui-render, tui-stream |
+| `src/history_cell/mcp_result.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-input, tui-markdown, tui-pager, tui-pickers, tui-render, tui-user-input, tui-widgets |
+| `src/history_cell/mcp_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/history_cell/messages_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/history_cell/notices.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-cells, tui-render, tui-stream |
+| `src/history_cell/plans.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-cells, tui-render, tui-stream |
+| `src/history_cell/plans_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/history_cell/request_user_input.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-render |
+| `src/history_cell/search.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-cells, tui-render |
+| `src/history_cell/separators.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-cells, tui-render |
+| `src/ide_context/ipc.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-terminal |
+| `src/ide_context/prompt.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/ide_context/windows_pipe.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-clipboard, tui-terminal, tui-terminal-lifecycle |
+| `src/ide_context/windows_pipe_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/ide_context.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/inline_visualization/viewer.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/inline_visualization.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-markdown, tui-stream |
+| `src/inline_visualization_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/insert_history.rs` | 保留 | 有效模块/测试接线 | 无；不推断已迁移 |
+| `src/insert_history_tests.rs` | 保留 | 有效模块/测试接线 | 无；不推断已迁移 |
+| `src/keymap/bindings.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/keymap/chords.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/keymap/chords_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/keymap.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-input |
+| `src/keymap_setup/actions.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/keymap_setup/capture.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-input, tui-pager, tui-pickers, tui-popups, tui-render, tui-user-input, tui-widgets |
+| `src/keymap_setup/capture_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/keymap_setup/debug.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-pager, tui-pickers, tui-render, tui-user-input, tui-widgets |
+| `src/keymap_setup/picker.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/keymap_setup.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/lib.rs` | 保留 | 有效模块/测试接线 | 无；不推断已迁移 |
+| `src/main.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/mention_codec.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/multi_agents.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/notifications/bel.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-terminal |
+| `src/notifications/mod.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/notifications/osc9.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-chat, tui-markdown, tui-terminal, tui-widgets |
+| `src/onboarding/keys.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/onboarding/mod.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/onboarding/onboarding_screen.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-input, tui-pager, tui-pickers, tui-popups, tui-user-input, tui-widgets |
+| `src/onboarding/trust_directory.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-popups |
+| `src/pager_overlay/scrolling_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-pickers, tui-render, tui-user-input, tui-widgets |
+| `src/pets/ambient.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-cells |
+| `src/pets/asset_pack.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/pets/catalog.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/pets/frames.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/pets/image_protocol.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-clipboard, tui-terminal, tui-terminal-lifecycle |
+| `src/pets/mod.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-terminal |
+| `src/pets/model.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/pets/picker.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/pets/preview.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-pickers, tui-render, tui-user-input, tui-widgets |
+| `src/pets/sixel.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/public_widgets/composer_input.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-approval, tui-bottom-pane, tui-chat, tui-composer, tui-input, tui-markdown, tui-onboarding, tui-pickers, tui-popups, tui-render, tui-stream, tui-terminal, tui-user-input, tui-widgets |
+| `src/public_widgets/mod.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/render/line_utils.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/render/mod.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/resume_picker/archive.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/resume_picker/archive_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/resume_picker/page_loading.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-stream, tui-widgets |
+| `src/resume_picker_transcript_preview.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/resume_picker_transcript_preview_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/session_state.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/skills_helpers.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/slash_command.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-popups |
+| `src/startup_error.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/status/account.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/status/helpers.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/status/rate_limits.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/status/remote_connection.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/status/tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/status/thread_usage.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/status/thread_usage_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/terminal_hyperlinks.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/terminal_title.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-terminal |
+| `src/terminal_visualization_instructions.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/test_backend.rs` | 保留 | 有效模块/测试接线 | tui-composer, tui-stream, tui-terminal, tui-terminal-lifecycle |
+| `src/test_support.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/token_usage.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/tooltips.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/tui/event_stream.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-chat, tui-markdown, tui-text, tui-widgets |
+| `src/tui/frame_rate_limiter.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/tui/frame_requester.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-markdown |
+| `src/tui/history_tail.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/tui/history_tail_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/tui/input_boundary.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/tui/job_control.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/tui/keyboard_modes.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-terminal |
+| `src/tui/screen_size.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/tui/screen_size_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/tui/scrollback.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/tui/scrollback_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/tui/terminal_stderr.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-chat, tui-exec-state |
+| `src/tui/test_support.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/tui/windows_console.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/tui_startup_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `src/version.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/vibe/mod.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/vibe/surface.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/vibe/surface_tests.rs` | 保留 | 有效模块/测试接线 | 无；不推断已迁移 |
+| `src/workspace_command.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | tui-markdown, tui-terminal |
+| `src/workspace_messages.rs` | 删除 | 不可达旧源码；不声称未迁能力已实现 | 无；不推断已迁移 |
+| `src/workspace_messages_tests.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `tests/all.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `tests/manager_dependency_regression.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `tests/suite/focus_palette.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `tests/suite/mod.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `tests/suite/resize_reflow.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `tests/suite/status_indicator.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `tests/suite/vt100_history.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `tests/suite/vt100_live_commit.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `tests/test_backend.rs` | 删除 | 未接入的测试；非有效覆盖，未声称迁移 | 无；不推断已迁移 |
+| `tests/upstream_snapshot_matrix.rs` | 保留 | 有效模块/测试接线 | 无；不推断已迁移 |

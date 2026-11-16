@@ -14,13 +14,27 @@ const V3_SNAPSHOT_COUNT: usize = 50;
 // 数量、命名、残留 `.new` 文件和白名单分类共同防止快照静默漂移。
 fn upstream_snapshot_matrix() {
     let crate_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let markdown_root = crate_root.join("../libs/tui-markdown");
-    let chat_root = crate_root.join("../libs/tui-chat");
     let mut snapshots = snapshot_files(&crate_root);
-    snapshots.extend(snapshot_files(&markdown_root));
-    snapshots.extend(snapshot_files(&chat_root));
+    // 拆包后快照随实现分布到各 tui-* 库，来源总数保持不变。
+    let library_roots: Vec<_> = fs::read_dir(crate_root.join("../libs"))
+        .expect("UI libraries must be readable")
+        .map(|entry| entry.expect("library entry must be readable").path())
+        .filter(|path| {
+            path.is_dir()
+                && path.file_name().is_some_and(|name| name.to_string_lossy().starts_with("tui-"))
+        })
+        .collect();
+    for root in &library_roots {
+        snapshots.extend(snapshot_files(root));
+        assert!(snapshot_files_with_extension(root, "new").is_empty());
+    }
     let upstream = named_snapshots(&snapshots, "codex_tui__");
-    let v3 = named_snapshots(&snapshots, "vw_tui__");
+    let v3: Vec<_> = snapshots
+        .iter()
+        .filter(|path| {
+            path.file_name().is_some_and(|name| !name.to_string_lossy().starts_with("codex_tui__"))
+        })
+        .collect();
     let relocated = snapshot_files(&crate_root.join("upstream_snapshots"));
 
     assert_eq!(upstream.len(), UPSTREAM_SNAPSHOT_COUNT);
@@ -29,7 +43,6 @@ fn upstream_snapshot_matrix() {
     assert_eq!(relocated.len(), RELOCATED_UPSTREAM_SNAPSHOT_COUNT);
     assert!(snapshots.iter().all(|path| path.extension().is_some_and(|ext| ext == "snap")));
     assert!(snapshot_files_with_extension(&crate_root, "new").is_empty());
-    assert!(snapshot_files_with_extension(&markdown_root, "new").is_empty());
 
     let source_root = Path::new(UPSTREAM_TUI);
     if source_root.is_dir() {

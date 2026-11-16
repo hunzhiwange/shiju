@@ -27,6 +27,7 @@ tui-terminal = { path = "../libs/tui-terminal", version = "0.6.0" }
 tui-contracts = { path = "../libs/tui-contracts", version = "0.6.0" }
 
 [dev-dependencies]
+tui-render = { path = "../libs/tui-render", version = "0.6.0" }
 insta = "1.46.3"
 tui-markdown = { path = "../libs/tui-markdown", version = "0.6.0" }
 crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }

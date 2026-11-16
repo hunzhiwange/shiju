@@ -150,3 +150,23 @@
 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib agent_scheduler::runner::gateway_executor::gateway_executor_tests -- --test-threads=1`，静态预期9条（其中1条unix且ignored）。逐条真实完整名称为该前缀加上表中保留用例名称。
 
 未来宿主 --list 应不再出现旧 integration_tests/local_e2e_tests 和上表已迁出网关规则测试；零测试不能作为通过证据。本次仅核对原用例一一唯一归属、模块注册、依赖方向及 git diff --check；所有编译、行为、性能、实机与 PostgreSQL 检查均未运行。
+
+## 专项复审追加（覆盖上述旧行数及“执行器契约尚待拆分”的结论）
+
+将执行器领域契约及脚本流夹具继续迁至 `crates/libs/task-scheduler/src/gateway_executor_contract_tests.rs`（257行），使用已有 `test-support` 特性注册。四条原宿主测试保留原完整名称，函数体仅传入真实 `SchedulerGatewayHost` 调用领域契约；不是新增模拟宿主，没有复制 App 状态或权限系统。领域契约实际执行 `GatewayLocalAgentExecutor<H>`，生产入口及权限语义保持原样。
+
+逐符号最终映射：
+- `gateway_executor_workspace_methods_fail_before_pool_io_for_unregistered_project` → 同名领域泛型契约，宿主原测试薄调用。
+- `gateway_executor_execute_collects_stream_output_and_appends_observed_logs` → 同名领域泛型契约，宿主原测试薄调用。
+- `gateway_executor_execute_propagates_stream_collection_error` → 同名领域泛型契约，宿主原测试薄调用。
+- `task_pool_recovery_gateway_passes_stop_to_stream` → 同名领域泛型契约（含 CancelStream），宿主原测试薄调用。
+- `execution_request`、`finite_task` → 领域测试支持夹具，宿主真实 ACP/工具集成测试复用，不复制。
+- `FakeChatStream`、`pop_stream_result` → 领域私有脚本流夹具，仅替代流传输端口。改用 std Mutex 并显式处理锁中毒，未增加生产依赖。
+
+最终原清单宿主1801 → 421行，净减1380行（76.6%），本轮额外减233行。宿主测试496 → 263行；其余原清单文件行数沿用上表。领域原自注册测试1202行，新增test-support契约/夹具257行，均非生产算法收益。宿主当前保留生产/文档/转发158行及测试263行。
+
+保留宿主逐项职责：四个泛型契约薄调用证明真实 SchedulerGatewayHost 接线；`gateway_real_chat_client_is_disabled_in_unit_tests` 证明实际网关端口测试隔离；`acp_background_approval_scheduler_writes_only_inside_worktree` 必须跨真实配置、ACP协议及文件授权边界；三个 `task_pool_worktree_*` 用例及 `exercise_task_pool_worktree` 验证真实 Enter/ExitWorktree 工具、项目实例作用域及权限/删除预检边界。继续抽离这些真实工具调用需要其所有者契约支持，本轮不新建测试专用泛化端口或复制权限状态。
+
+静态核对：四条契约仍使用同一真实执行器、同一原断言；原宿主文件及迁出契约的 assert/assert_eq/assert_ne 总数保持一致（44）；9条宿主测试注册名称不变。新增模块只由 test-support 注册，无 vw-agent 反向依赖。未来仍执行上文23条领域自注册测试及9条宿主测试（1条unix/ignored）；后者实际调用四条新领域契约，不能用库过滤零测试替代其验证。新增模块在普通生产依赖构建中不注册。
+
+本次所有 Cargo、构建、单元、实机测试仍未运行；仅源码、断言数量/完整用例映射、注册与差异静态核对。

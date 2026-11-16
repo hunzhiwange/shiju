@@ -58,3 +58,6 @@ mod local_runner_tests;
 
 #[cfg(test)]
 mod host_migration_55_tests;
+
+#[cfg(feature = "test-support")]
+pub mod gateway_executor_contract_tests;

@@ -10,7 +10,8 @@
 //! 这些测试确保代理系统在处理外部响应时能够正确过滤和清理潜在的
 //! 工具注入或恶意标签。
 
-use super::*;
+use async_trait::async_trait;
+use tool_types::Tool;
 
 /// 模拟调度工具
 ///
@@ -75,8 +76,8 @@ impl Tool for MockScheduleTool {
     async fn execute(
         &self,
         _args: serde_json::Value,
-    ) -> anyhow::Result<crate::app::agent::tools::ToolResult> {
-        Ok(crate::app::agent::tools::ToolResult {
+    ) -> anyhow::Result<tool_types::ToolResult> {
+        Ok(tool_types::ToolResult {
             success: true,
             output: "ok".to_string(),
             error: None,
@@ -115,7 +116,7 @@ fn sanitize_gateway_response_removes_tool_call_tags() {
     After"#;
 
     // 调用清理函数（不提供工具列表，仅测试标签移除）
-    let result = super::chat::sanitize_gateway_response(input, &[]);
+    let result = super::sanitize_gateway_response(input, &[]);
 
     // 标准化输出：移除空行，保留有内容的行
     let normalized =
@@ -162,7 +163,7 @@ fn sanitize_gateway_response_removes_isolated_tool_json_artifacts() {
     Reminder set successfully."#;
 
     // 调用清理函数，提供工具列表以匹配已知的工具调用格式
-    let result = super::chat::sanitize_gateway_response(input, &tools);
+    let result = super::sanitize_gateway_response(input, &tools);
 
     // 断言：清理后应仅保留普通文本部分
     assert_eq!(result, "Reminder set successfully.");

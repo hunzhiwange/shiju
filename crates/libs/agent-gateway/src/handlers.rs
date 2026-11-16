@@ -430,3 +430,7 @@ pub async fn handle_qq_webhook<E, H, W: WhatsAppWebhook + 'static>(
 #[cfg(test)]
 #[path = "verify_query_tests.rs"]
 mod verify_query_tests;
+
+#[cfg(test)]
+#[path = "whatsapp_signature_tests.rs"]
+mod whatsapp_signature_tests;

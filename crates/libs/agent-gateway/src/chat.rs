@@ -374,3 +374,7 @@ pub fn log_channel_message(channel: &str, sender: &str, content: &str) {
     // 使用 tracing::info! 记录消息日志，内容截断至50字符避免日志过长
     tracing::info!("{} message from {}: {}", channel, sender, truncate_with_ellipsis(content, 50));
 }
+
+#[cfg(test)]
+#[path = "sanitize_tests.rs"]
+mod sanitize_tests;

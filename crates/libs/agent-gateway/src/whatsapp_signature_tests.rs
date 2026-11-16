@@ -18,7 +18,11 @@
 //! 这些测试验证了签名验证函数能够正确拒绝各种篡改尝试，
 //! 防止恶意请求伪造或重放攻击。
 
-use super::*;
+fn generate_test_secret() -> String {
+    let bytes: [u8; 32] = rand::random();
+    hex::encode(bytes)
+}
+
 
 /// 计算 WhatsApp 签名的十六进制表示
 ///
@@ -79,7 +83,7 @@ fn whatsapp_signature_valid() {
 
     let signature_header = compute_whatsapp_signature_header(&app_secret, body);
 
-    assert!(super::handlers::verify_whatsapp_signature(&app_secret, body, &signature_header));
+    assert!(super::verify_whatsapp_signature(&app_secret, body, &signature_header));
 }
 
 /// 测试错误密钥签名验证失败
@@ -94,7 +98,7 @@ fn whatsapp_signature_invalid_wrong_secret() {
 
     let signature_header = compute_whatsapp_signature_header(&wrong_secret, body);
 
-    assert!(!super::handlers::verify_whatsapp_signature(&app_secret, body, &signature_header));
+    assert!(!super::verify_whatsapp_signature(&app_secret, body, &signature_header));
 }
 
 /// 测试篡改消息体验证失败
@@ -110,7 +114,7 @@ fn whatsapp_signature_invalid_wrong_body() {
     let signature_header = compute_whatsapp_signature_header(&app_secret, original_body);
 
     // 使用被篡改的消息体验证应该失败
-    assert!(!super::handlers::verify_whatsapp_signature(
+    assert!(!super::verify_whatsapp_signature(
         &app_secret,
         tampered_body,
         &signature_header
@@ -129,7 +133,7 @@ fn whatsapp_signature_missing_prefix() {
     // 不带 "sha256=" 前缀的签名
     let signature_header = "abc123def456";
 
-    assert!(!super::handlers::verify_whatsapp_signature(&app_secret, body, signature_header));
+    assert!(!super::verify_whatsapp_signature(&app_secret, body, signature_header));
 }
 
 /// 测试空签名头验证失败
@@ -140,7 +144,7 @@ fn whatsapp_signature_empty_header() {
     let app_secret = generate_test_secret();
     let body = b"test body";
 
-    assert!(!super::handlers::verify_whatsapp_signature(&app_secret, body, ""));
+    assert!(!super::verify_whatsapp_signature(&app_secret, body, ""));
 }
 
 /// 测试无效十六进制字符验证失败
@@ -155,7 +159,7 @@ fn whatsapp_signature_invalid_hex() {
     // 包含无效十六进制字符
     let signature_header = "sha256=not_valid_hex_zzz";
 
-    assert!(!super::handlers::verify_whatsapp_signature(&app_secret, body, signature_header));
+    assert!(!super::verify_whatsapp_signature(&app_secret, body, signature_header));
 }
 
 /// 测试空消息体的签名验证通过
@@ -169,7 +173,7 @@ fn whatsapp_signature_empty_body() {
 
     let signature_header = compute_whatsapp_signature_header(&app_secret, body);
 
-    assert!(super::handlers::verify_whatsapp_signature(&app_secret, body, &signature_header));
+    assert!(super::verify_whatsapp_signature(&app_secret, body, &signature_header));
 }
 
 /// 测试 Unicode 内容的签名验证通过
@@ -183,7 +187,7 @@ fn whatsapp_signature_unicode_body() {
 
     let signature_header = compute_whatsapp_signature_header(&app_secret, body);
 
-    assert!(super::handlers::verify_whatsapp_signature(&app_secret, body, &signature_header));
+    assert!(super::verify_whatsapp_signature(&app_secret, body, &signature_header));
 }
 
 /// 测试真实 JSON 载荷的签名验证通过
@@ -198,7 +202,7 @@ fn whatsapp_signature_json_payload() {
 
     let signature_header = compute_whatsapp_signature_header(&app_secret, body);
 
-    assert!(super::handlers::verify_whatsapp_signature(&app_secret, body, &signature_header));
+    assert!(super::verify_whatsapp_signature(&app_secret, body, &signature_header));
 }
 
 /// 测试签名前缀大小写敏感性
@@ -214,11 +218,11 @@ fn whatsapp_signature_case_sensitive_prefix() {
 
     // 错误大小写的前缀应该失败
     let wrong_prefix = format!("SHA256={hex_sig}");
-    assert!(!super::handlers::verify_whatsapp_signature(&app_secret, body, &wrong_prefix));
+    assert!(!super::verify_whatsapp_signature(&app_secret, body, &wrong_prefix));
 
     // 正确小写前缀应该通过
     let correct_prefix = format!("sha256={hex_sig}");
-    assert!(super::handlers::verify_whatsapp_signature(&app_secret, body, &correct_prefix));
+    assert!(super::verify_whatsapp_signature(&app_secret, body, &correct_prefix));
 }
 
 /// 测试截断的十六进制签名验证失败
@@ -235,7 +239,7 @@ fn whatsapp_signature_truncated_hex() {
     let truncated = &hex_sig[..32];
     let signature_header = format!("sha256={truncated}");
 
-    assert!(!super::handlers::verify_whatsapp_signature(&app_secret, body, &signature_header));
+    assert!(!super::verify_whatsapp_signature(&app_secret, body, &signature_header));
 }
 
 /// 测试包含额外字节的签名验证失败
@@ -252,5 +256,5 @@ fn whatsapp_signature_extra_bytes() {
     let extended = format!("{hex_sig}deadbeef");
     let signature_header = format!("sha256={extended}");
 
-    assert!(!super::handlers::verify_whatsapp_signature(&app_secret, body, &signature_header));
+    assert!(!super::verify_whatsapp_signature(&app_secret, body, &signature_header));
 }

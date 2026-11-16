@@ -39,7 +39,6 @@ pub trait StreamHost: crate::message_host::MessageHost {
     ) -> impl Future<Output = T> + Send;
     fn now_ms() -> u64;
     fn is_successful_finish_reason(reason: Option<&str>) -> bool;
-    fn delegated_model_ref(config: &config_agent::DelegateAgentConfig) -> Option<String>;
     fn agent(
         name: &str,
     ) -> impl Future<Output = Option<config_agent::AgentDefinitionConfig>> + Send;

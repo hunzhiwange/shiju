@@ -924,6 +924,17 @@ pub(crate) async fn resolve_delegate_overrides_from_config<H: StreamHost>(
     )
     .await
     .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    resolve_delegate_policy(agent_name, config, defaults, explicit_allowed_tools, explicit_model)
+}
+
+/// Apply the resolved defaults and caller tool selection without environment access.
+pub fn resolve_delegate_policy(
+    agent_name: String,
+    config: config_agent::AgentDefinitionConfig,
+    defaults: Option<session_engine::capability_policy::NativeAgentDefaults>,
+    explicit_allowed_tools: Option<Vec<String>>,
+    explicit_model: Option<String>,
+) -> Result<DelegateRequestOverrides, ApiError> {
     if config.force_model_selection
         && explicit_model.as_ref().is_some_and(|model| {
             !model.trim().eq_ignore_ascii_case("auto")
@@ -944,7 +955,7 @@ pub(crate) async fn resolve_delegate_overrides_from_config<H: StreamHost>(
         .as_ref()
         .and_then(|defaults| defaults.effective.model.as_ref())
         .map(|model| format!("{}/{}", model.provider, model.model))
-        .or_else(|| delegated_model_override::<H>(&config, explicit_model.or(fixed_model)));
+        .or_else(|| delegated_model_override(&config, explicit_model.or(fixed_model)));
     let chat_system_prompt = config
         .system_prompt
         .as_deref()
@@ -1052,12 +1063,12 @@ pub fn merge_delegate_capability_policy_options(
 }
 
 /// 将完整强制绑定置于显式父模型之前；普通 agent 绑定只作为 Auto 软偏好。
-pub fn delegated_model_override<H: StreamHost>(
+pub fn delegated_model_override(
     config: &config_agent::DelegateAgentConfig,
     explicit_model: Option<String>,
 ) -> Option<String> {
     if config.force_model_selection && config.has_complete_model_binding() {
-        return H::delegated_model_ref(config);
+        return Some(format!("{}/{}", config.provider.trim(), config.model.trim()));
     }
     explicit_model
 }

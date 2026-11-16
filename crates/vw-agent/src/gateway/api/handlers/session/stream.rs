@@ -49,10 +49,6 @@ impl StreamHost for Host {
     fn is_successful_finish_reason(reason: Option<&str>) -> bool {
         crate::session::runtime::is_successful_finish_reason(reason)
     }
-    fn delegated_model_ref(config: &config_agent::DelegateAgentConfig) -> Option<String> {
-        crate::agent::resolve_model_ref(config)
-            .map(|model| format!("{}/{}", model.provider_id, model.model_id))
-    }
     async fn agent(name: &str) -> Option<config_agent::AgentDefinitionConfig> {
         crate::agent::get(name).await
     }
@@ -194,7 +190,7 @@ use gateway_types::ApiError;
 use session_engine::message;
 use session_ui_types as ui_models;
 #[cfg(test)]
-use tokio::sync::{mpsc, mpsc::UnboundedReceiver};
+use tokio::sync::mpsc;
 use vw_api_chat::chat::GatewayChatStreamRequest;
 
 #[allow(clippy::too_many_arguments)]
@@ -326,94 +322,6 @@ pub(crate) async fn chat_stream_stop(
 ) -> Json<Value> {
     domain::chat_stream_stop(axum::Extension(tenant), axum::extract::Path(request_id)).await
 }
-
-#[cfg(test)]
-#[allow(clippy::too_many_arguments)]
-async fn resolve_delegate_request_overrides(
-    agent_name: Option<String>,
-    allowed_tools: Option<Vec<String>>,
-    explicit_model: Option<String>,
-) -> Result<DelegateRequestOverrides, ApiError> {
-    domain::resolve_delegate_request_overrides::<Host>(agent_name, allowed_tools, explicit_model)
-        .await
-}
-
-#[cfg(test)]
-#[allow(clippy::too_many_arguments)]
-async fn prepare_gateway_agent_request(
-    body: &mut GatewayChatStreamRequest,
-    background_full_access: Option<bool>,
-) -> Result<DelegateRequestOverrides, ApiError> {
-    domain::prepare_gateway_agent_request::<Host>(body, background_full_access).await
-}
-
-#[cfg(test)]
-#[allow(clippy::too_many_arguments)]
-async fn session_model(
-    body: &GatewayChatStreamRequest,
-    binding: &agent_session::agent_binding::AgentBinding,
-    session: &str,
-) -> Result<Option<String>, ApiError> {
-    domain::session_model::<Host>(body, binding, session).await
-}
-
-#[cfg(test)]
-#[allow(clippy::too_many_arguments)]
-async fn start_gateway_chat_stream(
-    tenant: TenantScope,
-    dir: String,
-    body: GatewayChatStreamRequest,
-    background_full_access: Option<bool>,
-    abort_token: Option<tokio_util::sync::CancellationToken>,
-) -> Result<UnboundedReceiver<Value>, ApiError> {
-    domain::start_gateway_chat_stream::<Host>(
-        tenant,
-        dir,
-        body,
-        background_full_access,
-        abort_token,
-    )
-    .await
-}
-
-#[cfg(test)]
-#[allow(clippy::too_many_arguments)]
-async fn start_gateway_chat_producer(
-    tenant: TenantScope,
-    dir: String,
-    body: GatewayChatStreamRequest,
-    background_full_access: Option<bool>,
-    abort_token: Option<tokio_util::sync::CancellationToken>,
-    prompt_cancel: Option<SharedPromptCancel>,
-    send: impl FnMut(Value, bool) -> bool + Send + 'static,
-) -> Result<(), ApiError> {
-    domain::start_gateway_chat_producer::<Host>(
-        tenant,
-        dir,
-        body,
-        background_full_access,
-        abort_token,
-        prompt_cancel,
-        send,
-    )
-    .await
-}
-
-
-
-
-#[cfg(test)]
-#[allow(clippy::too_many_arguments)]
-fn delegated_model_override(
-    config: &crate::config::DelegateAgentConfig,
-    explicit_model: Option<String>,
-) -> Option<String> {
-    domain::delegated_model_override::<Host>(config, explicit_model)
-}
-
-#[cfg(test)]
-type SharedPromptCancel =
-    std::sync::Arc<std::sync::Mutex<Option<session_port::PromptCancelHandle>>>;
 
 #[cfg(test)]
 #[path = "stream_tests.rs"]

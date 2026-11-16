@@ -1,8 +1,9 @@
 // 覆盖会话流事件转换、历史整理及代理选项合并。
 
 use super::*;
-use crate::config::DelegateAgentConfig;
-use axum::http::header;
+use gateway_resumable_stream::STREAM_REQUEST_ID_HEADER;
+
+use gateway_session::stream_acceptance::{docs_stream_request, make_docs_workspace};
 
 #[tokio::test(flavor = "multi_thread")]
 async fn gateway_chat_persists_and_reports_session_git_line_counts() {
@@ -165,7 +166,7 @@ fn codex_skills_defaults_gateway_main_and_child_preload_before_first_request() {
         runtime.block_on(async {
             let mut receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
                 Box::pin(async move {
-                    start_gateway_chat_stream(tenant, directory, request, None, None).await
+                    gateway_session::stream::start_gateway_chat_stream::<Host>(tenant, directory, request, None, None).await
                 })
             })
             .await
@@ -202,50 +203,9 @@ fn codex_skills_defaults_gateway_main_and_child_preload_before_first_request() {
     }
 }
 
-#[test]
-fn forced_child_model_overrides_parent_selection() {
-    let agent = DelegateAgentConfig {
-        provider: "token-plan".to_string(),
-        model: "qwen3.7-plus".to_string(),
-        force_model_selection: true,
-        ..DelegateAgentConfig::default()
-    };
-
-    assert_eq!(
-        delegated_model_override(&agent, Some("wrong-provider/qwen3.7-plus".to_string())),
-        Some("token-plan/qwen3.7-plus".to_string())
-    );
-}
-
-#[test]
-fn incomplete_forced_child_binding_is_ignored() {
-    let agent = DelegateAgentConfig {
-        provider: "token-plan".to_string(),
-        force_model_selection: true,
-        ..DelegateAgentConfig::default()
-    };
-
-    assert_eq!(
-        delegated_model_override(&agent, Some("token-plan/qwen3.7-plus".to_string())),
-        Some("token-plan/qwen3.7-plus".to_string())
-    );
-}
-
-#[test]
-fn child_soft_preference_does_not_bypass_profile_fit() {
-    let agent = DelegateAgentConfig {
-        provider: "token-plan".to_string(),
-        model: "qwen3.7-plus".to_string(),
-        ..DelegateAgentConfig::default()
-    };
-
-    assert_eq!(delegated_model_override(&agent, None), None);
-}
-
-// 历史整理保留角色与工具结果，只把最后一个用户输入提升为本轮查询。
 #[tokio::test]
 async fn resolve_delegate_request_overrides_without_agent_returns_explicit_values() {
-    let overrides = resolve_delegate_request_overrides(
+    let overrides = gateway_session::stream::resolve_delegate_request_overrides::<Host>(
         Some("  ".to_string()),
         Some(vec![" shell ".to_string(), "shell".to_string(), " ".to_string()]),
         Some("provider/model".to_string()),
@@ -261,26 +221,10 @@ async fn resolve_delegate_request_overrides_without_agent_returns_explicit_value
     assert_eq!(overrides.top_p, None);
 }
 
-#[tokio::test]
-async fn resolve_main_request_overrides_preserves_registered_tool_selection() {
-    let overrides = resolve_delegate_request_overrides(
-        Some("main".to_string()),
-        Some(vec!["file_read".to_string(), "memory_store".to_string(), "schedule".to_string()]),
-        Some("provider/model".to_string()),
-    )
-    .await
-    .expect("main overrides");
-
-    assert_eq!(overrides.agent.as_deref(), Some("main"));
-    assert_eq!(
-        overrides.allowed_tools,
-        Some(vec!["file_read".to_string(), "memory_store".to_string(), "schedule".to_string(),])
-    );
-}
 
 #[tokio::test]
 async fn resolve_delegate_request_overrides_rejects_unknown_agent() {
-    let error = resolve_delegate_request_overrides(
+    let error = gateway_session::stream::resolve_delegate_request_overrides::<Host>(
         Some("agent-that-does-not-exist-for-stream-tests".to_string()),
         None,
         None,
@@ -292,41 +236,9 @@ async fn resolve_delegate_request_overrides_rejects_unknown_agent() {
     assert!(error.to_string().contains("unknown agent:"));
 }
 
-fn docs_stream_request(session_id: Option<&str>) -> GatewayChatStreamRequest {
-    GatewayChatStreamRequest {
-        session_id: session_id.map(vw_api_transport::SessionId::from),
-        messages: vec![serde_json::json!({
-            "role": "user",
-            "content": "请列出 docs 文件列表"
-        })],
-        // Resolve a registered model normally before entering the local docs branch.
-        model: None,
-        ..GatewayChatStreamRequest::default()
-    }
-}
-
-fn make_docs_workspace() -> tempfile::TempDir {
-    let temp = tempfile::tempdir().expect("temporary workspace");
-    let docs = temp.path().join("docs");
-    std::fs::create_dir(&docs).expect("docs directory");
-    std::fs::write(docs.join("guide.md"), "# Guide\n").expect("docs file");
-    temp
-}
-
 #[tokio::test]
 async fn chat_stream_rejects_missing_workspace_without_retryable_status() {
-    let workspace = tempfile::tempdir().unwrap();
-    let missing = workspace.path().join("deleted-worktree");
-    let result = chat_stream(
-        Query(InstanceQuery { directory: Some(missing.to_string_lossy().into_owned()) }),
-        HeaderMap::new(),
-        Json(docs_stream_request(None)),
-    )
-    .await;
-
-    let error = result.err().expect("missing workspace must reject the request");
-    assert_eq!(error.status, StatusCode::BAD_REQUEST);
-    assert!(error.message.contains("无法访问会话工作目录"));
+    gateway_session::stream_acceptance::chat_stream_rejects_missing_workspace_without_retryable_status::<Host>().await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -403,148 +315,17 @@ workflow:
 
 #[tokio::test]
 async fn collect_gateway_chat_stream_runs_docs_request_and_persists_done_message_ids() {
-    let temp = make_docs_workspace();
-    let session_id = format!("ses_stream_docs_{}", uuid::Uuid::new_v4());
-    let request = docs_stream_request(Some(&session_id));
-    let mut seen_types = Vec::new();
-
-    let collected = collect_gateway_chat_stream_with_observer(
-        temp.path().to_string_lossy().to_string(),
-        request,
-        |payload| {
-            if let Some(kind) = payload.get("type").and_then(Value::as_str) {
-                seen_types.push(kind.to_string());
-            }
-        },
-    )
-    .await
-    .expect("docs stream should complete");
-
-    assert!(collected.output.contains("docs 目录下的文件"));
-    assert!(collected.output.contains("docs/guide.md"));
-    assert!(collected.message_id.as_deref().is_some_and(|id| id.starts_with("msg_")));
-    assert!(collected.parent_message_id.as_deref().is_some_and(|id| id.starts_with("msg_")));
-    assert_eq!(seen_types, vec!["chat.delta", "chat.done"]);
-
-    let stored = agent_session::message::messages(&session_id, None)
-        .await
-        .expect("persisted messages should load");
-    assert_eq!(stored.len(), 2);
+    gateway_session::stream_acceptance::collect_gateway_chat_stream_runs_docs_request_and_persists_done_message_ids::<Host>().await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn gateway_first_turn_registers_parent_before_thread_tool_use() {
-    let temp = make_docs_workspace();
-    let directory = temp.path().to_string_lossy().to_string();
-    let session_id = format!("ses_stream_parent_{}", uuid::Uuid::new_v4());
-    let request = docs_stream_request(Some(&session_id));
-    let tenant = crate::session::ui_store::current_tenant_scope();
-    let scope = crate::session::ui_store::resolve_session_scope_id_for_tenant(
-        &tenant,
-        Some(&directory),
-        None,
-    )
-    .expect("project scope");
-
-    assert!(
-        crate::session::ui_store::load_agent_session_scoped_for_tenant(
-            &tenant,
-            &session_id,
-            Some(&scope),
-        )
-        .is_none()
-    );
-
-    let tenant_for_stream = tenant.clone();
-    let directory_for_stream = directory.clone();
-    let receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
-        Box::pin(async move {
-            start_gateway_chat_stream(tenant_for_stream, directory_for_stream, request, None, None)
-                .await
-        })
-    })
-    .await
-    .expect("first gateway stream should start");
-
-    let parent = crate::session::ui_store::load_agent_session_scoped_for_tenant(
-        &tenant,
-        &session_id,
-        Some(&scope),
-    )
-    .expect("parent session must exist before streamed tool activity");
-    assert_eq!(parent.project_id, scope);
-    assert_eq!(parent.directory, directory);
-    assert_eq!(parent.parent_id, None);
-    drop(receiver);
+    gateway_session::stream_acceptance::gateway_first_turn_registers_parent_before_thread_tool_use::<Host>().await;
 }
 
-// 轨迹提交一次性持久化步骤、工具和原始产物，不依赖后续 UI 快照保存。
 #[tokio::test]
 async fn chat_stream_returns_sse_response_for_docs_request() {
-    let temp = make_docs_workspace();
-    let request = docs_stream_request(None);
-    let request_id = format!("chat-resume-{}", uuid::Uuid::new_v4());
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        crate::app::agent::gateway::api::handlers::resumable_stream::STREAM_REQUEST_ID_HEADER,
-        request_id.parse().expect("valid request id header"),
-    );
-    let response = chat_stream(
-        Query(InstanceQuery { directory: Some(temp.path().to_string_lossy().to_string()) }),
-        headers,
-        Json(request.clone()),
-    )
-    .await
-    .expect("chat stream response")
-    .into_response();
-
-    assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(
-        response.headers().get(header::CONTENT_TYPE).and_then(|value| value.to_str().ok()),
-        Some("text/event-stream")
-    );
-    assert_eq!(
-        response.headers().get(header::CACHE_CONTROL).and_then(|value| value.to_str().ok()),
-        Some("no-cache")
-    );
-    assert_eq!(
-        response.headers().get(header::CONNECTION).and_then(|value| value.to_str().ok()),
-        Some("keep-alive")
-    );
-
-    let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.expect("sse body");
-    let body = String::from_utf8(body.to_vec()).expect("utf8 body");
-    assert!(body.contains(r#""type":"chat.delta""#), "{body}");
-    assert!(body.contains(r#""type":"chat.done""#), "{body}");
-    assert!(body.contains("docs/guide.md"));
-    let event_ids = body
-        .lines()
-        .filter_map(|line| line.strip_prefix("id:"))
-        .map(str::trim)
-        .map(|id| id.parse::<u64>().expect("numeric SSE id"))
-        .collect::<Vec<_>>();
-    assert_eq!(event_ids, vec![1, 2]);
-
-    let mut resume_headers = HeaderMap::new();
-    resume_headers.insert(
-        crate::app::agent::gateway::api::handlers::resumable_stream::STREAM_REQUEST_ID_HEADER,
-        request_id.parse().expect("valid request id header"),
-    );
-    resume_headers.insert("last-event-id", "1".parse().expect("valid cursor header"));
-    let resumed = chat_stream(
-        Query(InstanceQuery { directory: Some(temp.path().to_string_lossy().to_string()) }),
-        resume_headers,
-        Json(request),
-    )
-    .await
-    .expect("resumed chat stream response")
-    .into_response();
-    let resumed_body =
-        axum::body::to_bytes(resumed.into_body(), usize::MAX).await.expect("resumed SSE body");
-    let resumed_body = String::from_utf8(resumed_body.to_vec()).expect("utf8 resumed body");
-    assert!(!resumed_body.contains(r#""type":"chat.delta""#));
-    assert!(resumed_body.contains("id: 2") || resumed_body.contains("id:2"));
-    assert!(resumed_body.contains(r#""type":"chat.done""#));
+    gateway_session::stream_acceptance::chat_stream_returns_sse_response_for_docs_request::<Host>().await;
 }
 
 #[test]
@@ -607,7 +388,7 @@ fn agcollab_delivery_reaches_next_model_request() {
         runtime.block_on(async {
             let mut receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
                 Box::pin(async move {
-                    start_gateway_chat_stream(tenant, directory, request, None, None).await
+                    gateway_session::stream::start_gateway_chat_stream::<Host>(tenant, directory, request, None, None).await
                 })
             })
             .await
@@ -866,7 +647,7 @@ pub(crate) async fn collect_video_edit_test_stream(
     let (tx, rx) = mpsc::unbounded_channel();
     with_tenant_instance(tenant.clone(), dir.clone(), move || {
         Box::pin(async move {
-            start_gateway_chat_producer(
+            gateway_session::stream::start_gateway_chat_producer::<Host>(
                 tenant,
                 dir,
                 body,
@@ -964,7 +745,7 @@ fn agent_native_defaults_reach_registered_tools_and_prompt() {
         runtime.block_on(async {
             let mut receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
                 Box::pin(async move {
-                    start_gateway_chat_stream(tenant, directory, request, None, None).await
+                    gateway_session::stream::start_gateway_chat_stream::<Host>(tenant, directory, request, None, None).await
                 })
             })
             .await
@@ -1039,7 +820,7 @@ async fn agent_native_defaults_do_not_grant_disabled_mcp() {
     let directory = workspace.path().to_string_lossy().to_string();
     let result = with_tenant_instance(tenant, directory, || {
         Box::pin(async {
-            resolve_delegate_request_overrides(Some("main".into()), None, None).await
+            gateway_session::stream::resolve_delegate_request_overrides::<Host>(Some("main".into()), None, None).await
         })
     })
     .await;
@@ -1054,23 +835,7 @@ async fn agent_session_identity_rejects_forged_ui_binding() {
         None,
     )
     .await;
-    let workspace = tempfile::tempdir().unwrap();
-    let result = chat_stream(
-        Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
-        HeaderMap::new(),
-        Json(GatewayChatStreamRequest {
-            session_id: Some(format!("ses_binding_{}", uuid::Uuid::new_v4()).into()),
-            agent: Some("main".into()),
-            messages: vec![serde_json::json!({"role":"user", "content":"hello"})],
-            options: Some(serde_json::json!({"agent_binding": {
-                "agent":"main", "runtime":{"kind":"acp", "backend":"codex"},
-                "permission":{"*":"allow"}
-            }})),
-            ..Default::default()
-        }),
-    )
-    .await;
-    assert!(result.is_err(), "client UI JSON must not supply a trusted runtime binding");
+    gateway_session::stream_acceptance::agent_session_identity_rejects_forged_ui_binding::<Host>().await;
 }
 
 #[test]
@@ -1115,7 +880,7 @@ fn agent_session_identity_survives_profile_edits() {
         runtime.block_on(async {
             let mut receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
                 Box::pin(async move {
-                    start_gateway_chat_stream(tenant, directory, request, None, None).await
+                    gateway_session::stream::start_gateway_chat_stream::<Host>(tenant, directory, request, None, None).await
                 })
             })
             .await
@@ -1166,11 +931,11 @@ fn agent_session_identity_survives_profile_edits() {
                     agent: Some("main".into()),
                     ..Default::default()
                 };
-                let overrides = prepare_gateway_agent_request(&mut resumed, None).await.unwrap();
+                let overrides = gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut resumed, None).await.unwrap();
                 assert_eq!(overrides.chat_system_prompt.as_deref(), Some("ORIGINAL_BINDING_RULE"));
                 let mut switched = resumed.clone();
                 switched.model = Some("model-recovery/different".into());
-                let error = prepare_gateway_agent_request(&mut switched, None).await.err().unwrap();
+                let error = gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut switched, None).await.err().unwrap();
                 assert!(error.message.contains("changing a session model requires a new session"));
                 let mut config = crate::config::get_current().await.unwrap();
                 crate::session::agent_binding::apply_to_config(&session_id, &mut config)
@@ -1193,7 +958,7 @@ fn agent_session_identity_survives_profile_edits() {
                 let mut new_session =
                     GatewayChatStreamRequest { agent: Some("main".into()), ..Default::default() };
                 assert!(
-                    prepare_gateway_agent_request(&mut new_session, None).await.is_err(),
+                    gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut new_session, None).await.is_err(),
                     "disabled agents cannot start new sessions"
                 );
                 Ok(())
@@ -1210,27 +975,7 @@ async fn agent_session_identity_derives_backend_and_rejects_conflicts() {
         None,
     )
     .await;
-    let workspace = tempfile::tempdir().unwrap();
-    let tenant = crate::session::ui_store::current_tenant_scope();
-    with_tenant_instance(tenant, workspace.path().to_string_lossy().into_owned(), || {
-        Box::pin(async {
-            let mut request =
-                GatewayChatStreamRequest { agent: Some("acp-codex".into()), ..Default::default() };
-            let overrides = prepare_gateway_agent_request(&mut request, None).await.unwrap();
-            assert_eq!(overrides.agent.as_deref(), Some("acp-codex"));
-            assert_eq!(request.acp_agent.as_deref(), Some("codex"));
-            let mut conflicting = request.clone();
-            conflicting.acp_agent = Some("claude".into());
-            conflicting.options = Some(serde_json::json!({"goal_evaluation":true}));
-            assert!(prepare_gateway_agent_request(&mut conflicting, None).await.is_err());
-            let mut conflicting = request;
-            conflicting.agent = Some("acp-claude".into());
-            assert!(prepare_gateway_agent_request(&mut conflicting, None).await.is_err());
-            Ok(())
-        })
-    })
-    .await
-    .unwrap();
+    gateway_session::stream_acceptance::agent_session_identity_derives_backend_and_rejects_conflicts::<Host>().await;
 }
 
 #[tokio::test]
@@ -1250,7 +995,7 @@ async fn acp_background_approval_gateway_uses_turn_grant_after_agent_resolution(
                 options: Some(serde_json::json!({"full_access":true})),
                 ..Default::default()
             };
-            prepare_gateway_agent_request(&mut request, Some(false)).await.unwrap();
+            gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut request, Some(false)).await.unwrap();
             assert_eq!(request.acp_agent.as_deref(), Some("codex"));
             let options = request.options.as_ref().unwrap();
             assert_eq!(options["full_access"], false);
@@ -1260,7 +1005,7 @@ async fn acp_background_approval_gateway_uses_turn_grant_after_agent_resolution(
                 "acp_permission_mode":"deny-all",
                 "acp_non_interactive_permissions":"fail"
             }));
-            prepare_gateway_agent_request(&mut request, Some(true)).await.unwrap();
+            gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut request, Some(true)).await.unwrap();
             let options = request.options.as_ref().unwrap();
             assert_eq!(options["full_access"], true);
             assert_eq!(options["acp_permission_mode"], "deny-all");
@@ -1295,26 +1040,26 @@ async fn agent_config_cleanup_full_access_gateway_freezes_defaults_and_session_c
     with_tenant_instance(tenant, workspace.path().to_string_lossy().into_owned(), || {
         Box::pin(async {
             let mut request = GatewayChatStreamRequest::default();
-            prepare_gateway_agent_request(&mut request, None).await.unwrap();
+            gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut request, None).await.unwrap();
             assert_eq!(request.options.as_ref().unwrap()["full_access"], true);
             request.options = Some(serde_json::json!({"full_access":false}));
-            prepare_gateway_agent_request(&mut request, None).await.unwrap();
+            gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut request, None).await.unwrap();
             assert_eq!(request.options.as_ref().unwrap()["full_access"], false);
             let mut untouched = GatewayChatStreamRequest::default();
-            prepare_gateway_agent_request(&mut untouched, None).await.unwrap();
+            gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut untouched, None).await.unwrap();
             crate::config::update(
                 serde_json::json!({"agents":{"main":{"defaults":{"full_access":false}}}}),
             )
             .await
             .unwrap();
             request.options = None;
-            prepare_gateway_agent_request(&mut request, None).await.unwrap();
+            gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut request, None).await.unwrap();
             assert_eq!(request.options.as_ref().unwrap()["full_access"], false);
             untouched.options = None;
-            prepare_gateway_agent_request(&mut untouched, None).await.unwrap();
+            gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut untouched, None).await.unwrap();
             assert_eq!(untouched.options.as_ref().unwrap()["full_access"], true);
             let mut fresh = GatewayChatStreamRequest::default();
-            prepare_gateway_agent_request(&mut fresh, None).await.unwrap();
+            gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut fresh, None).await.unwrap();
             assert_eq!(fresh.options.as_ref().unwrap()["full_access"], false);
             Ok(())
         })
@@ -1370,96 +1115,11 @@ async fn agent_model_inheritance_acp_new_and_reopened_sessions_preserve_priority
         "custom-forced": {"runtime":{"kind":"acp","backend":"codex"},
             "provider":"model-recovery","model":"original","force_model_selection":true}
     }})).await.unwrap();
-    let workspace = tempfile::tempdir().unwrap();
-    with_tenant_instance(
-        crate::session::ui_store::current_tenant_scope(),
-        workspace.path().to_string_lossy().into_owned(),
-        || {
-            Box::pin(async {
-                for explicit in [
-                    None,
-                    Some("auto"),
-                    Some("  AuTo  "),
-                    Some("   "),
-                    Some("model-recovery/selected"),
-                ] {
-                    let mut request = GatewayChatStreamRequest {
-                        agent: Some("custom-model".into()),
-                        model: explicit.map(str::to_owned),
-                        ..Default::default()
-                    };
-                    let expected = explicit
-                        .filter(|value| {
-                            !value.trim().is_empty() && !value.trim().eq_ignore_ascii_case("auto")
-                        })
-                        .unwrap_or("model-recovery/original");
-                    for _ in 0..2 {
-                        let resolved =
-                            prepare_gateway_agent_request(&mut request, None).await.unwrap();
-                        assert_eq!(
-                            resolved.model.as_deref(),
-                            Some(expected),
-                            "new/reopened {explicit:?}"
-                        );
-                        assert_eq!(request.acp_agent.as_deref(), Some("codex"));
-                    }
-                }
-                let mut inherited = GatewayChatStreamRequest {
-                    agent: Some("custom-inherit".into()),
-                    ..Default::default()
-                };
-                assert!(
-                    prepare_gateway_agent_request(&mut inherited, None)
-                        .await
-                        .unwrap()
-                        .model
-                        .is_none(),
-                    "prompt retains responsibility for global/Auto resolution"
-                );
-                inherited.model = Some("model-recovery/selected".into());
-                assert_eq!(
-                    prepare_gateway_agent_request(&mut inherited, None)
-                        .await
-                        .unwrap()
-                        .model
-                        .as_deref(),
-                    Some("model-recovery/selected")
-                );
-                let mut forced = GatewayChatStreamRequest {
-                    agent: Some("custom-forced".into()),
-                    ..Default::default()
-                };
-                assert_eq!(
-                    prepare_gateway_agent_request(&mut forced, None)
-                        .await
-                        .unwrap()
-                        .model
-                        .as_deref(),
-                    Some("model-recovery/original")
-                );
-                forced.model = Some("  AuTo  ".into());
-                assert_eq!(
-                    prepare_gateway_agent_request(&mut forced, None)
-                        .await
-                        .unwrap()
-                        .model
-                        .as_deref(),
-                    Some("model-recovery/original")
-                );
-                forced.model = Some("model-recovery/conflict".into());
-                assert!(prepare_gateway_agent_request(&mut forced, None).await.is_err());
-                Ok(())
-            })
-        },
-    )
-    .await
-    .unwrap();
+    gateway_session::stream_acceptance::agent_model_inheritance_acp_new_and_reopened_sessions_preserve_priority::<Host>().await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn gateway_first_response_replays_the_same_session_and_rejects_other_directories() {
-    use crate::app::agent::gateway::api::handlers::resumable_stream::STREAM_REQUEST_ID_HEADER;
-    use crate::session::ui_store;
 
     let _env = crate::test_support::global_async_env_lock().lock().await;
     let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
@@ -1467,54 +1127,7 @@ async fn gateway_first_response_replays_the_same_session_and_rejects_other_direc
         None,
     )
     .await;
-    let workspace = make_docs_workspace();
-    let unrelated = make_docs_workspace();
-    let directory = workspace.path().canonicalize().unwrap().to_string_lossy().into_owned();
-    let query = || Query(InstanceQuery { directory: Some(directory.clone()) });
-    let request_id = uuid::Uuid::new_v4().to_string();
-    let mut headers = HeaderMap::new();
-    headers.insert(STREAM_REQUEST_ID_HEADER, request_id.parse().unwrap());
-    let mut request = docs_stream_request(None);
-    request.model = Some("model-recovery/original".into());
-    let response =
-        chat_stream(query(), headers.clone(), Json(request.clone())).await.unwrap().into_response();
-    let session_id = response.headers()["x-vw-session-id"].to_str().unwrap().to_string();
-    // Drop the response before consuming Done. The resumable producer owns the turn.
-    drop(response);
-
-    let unrelated =
-        Query(InstanceQuery { directory: Some(unrelated.path().to_string_lossy().into_owned()) });
-    let conflict = chat_stream(unrelated, headers.clone(), Json(request.clone())).await;
-    assert_eq!(conflict.err().unwrap().status, StatusCode::CONFLICT);
-
-    let response =
-        chat_stream(query(), headers.clone(), Json(request.clone())).await.unwrap().into_response();
-    assert_eq!(response.headers()["x-vw-session-id"].to_str().unwrap(), session_id);
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
-    let body = std::str::from_utf8(&bytes).unwrap();
-    let done: Vec<Value> = body
-        .lines()
-        .filter_map(|line| line.strip_prefix("data:"))
-        .filter_map(|line| serde_json::from_str::<Value>(line.trim()).ok())
-        .filter(|event| event["type"] == "chat.done")
-        .collect();
-    assert_eq!(done.len(), 1, "{body}");
-    assert_eq!(done[0]["session_id"], session_id);
-
-    let response = chat_stream(query(), headers, Json(request)).await.unwrap().into_response();
-    let replay = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
-    assert_eq!(replay, bytes);
-
-    let tenant = ui_store::current_tenant_scope();
-    let scope =
-        ui_store::resolve_session_scope_id_for_tenant(&tenant, Some(&directory), None).unwrap();
-    let snapshot =
-        ui_store::load_session_scoped_for_tenant(&tenant, &session_id, Some(&scope)).unwrap();
-    assert_eq!(snapshot.messages.len(), 2);
-    let previews = ui_store::load_sessions_scoped_for_tenant(&tenant, Some(&scope));
-    let matching: Vec<_> = previews.iter().filter(|preview| preview.id == session_id).collect();
-    assert_eq!(matching.len(), 1);
-    assert_eq!(matching[0].last_content.as_deref(), Some("请列出 docs 文件列表"));
+    gateway_session::stream_acceptance::gateway_first_response_replays_the_same_session_and_rejects_other_directories::<Host>().await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -1636,17 +1249,7 @@ async fn gateway_first_response_failure_preserves_history_until_same_session_ret
 #[tokio::test]
 async fn gateway_first_response_missing_replay_does_not_start_a_new_turn() {
     let _env = crate::test_support::global_async_env_lock().lock().await;
-    let workspace = make_docs_workspace();
-    let mut headers = HeaderMap::new();
-    headers.insert(STREAM_REQUEST_ID_HEADER, uuid::Uuid::new_v4().to_string().parse().unwrap());
-    headers.insert("last-event-id", "0".parse().unwrap());
-    let result = chat_stream(
-        Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
-        headers,
-        Json(docs_stream_request(None)),
-    )
-    .await;
-    assert_eq!(result.err().unwrap().status, StatusCode::GONE);
+    gateway_session::stream_acceptance::gateway_first_response_missing_replay_does_not_start_a_new_turn::<Host>().await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -1773,7 +1376,7 @@ async fn task_pool_agent_uses_existing_definition_and_defaults() {
                     session_id: Some(format!("agent-scheduler-task-{agent}").into()),
                     ..Default::default()
                 };
-                let resolved = prepare_gateway_agent_request(&mut request, None).await.unwrap();
+                let resolved = gateway_session::stream::prepare_gateway_agent_request::<Host>(&mut request, None).await.unwrap();
                 assert_eq!(resolved.agent.as_deref(), Some(agent));
                 let binding = crate::session::agent_binding::load(
                     request.session_id.as_ref().unwrap().as_ref(),
@@ -1813,18 +1416,5 @@ async fn task_pool_agent_rejects_unknown_or_disabled_definition() {
     )
     .await;
     crate::config::update(serde_json::json!({"agents":{"main":{"enabled":false}}})).await.unwrap();
-    let workspace = tempfile::tempdir().unwrap();
-    let tenant = crate::session::ui_store::current_tenant_scope();
-    with_tenant_instance(tenant, workspace.path().to_string_lossy().into_owned(), move || {
-        Box::pin(async move {
-            for agent in ["main", "task-pool-unknown"] {
-                let mut request =
-                    GatewayChatStreamRequest { agent: Some(agent.into()), ..Default::default() };
-                assert!(prepare_gateway_agent_request(&mut request, None).await.is_err());
-            }
-            Ok(())
-        })
-    })
-    .await
-    .unwrap();
+    gateway_session::stream_acceptance::task_pool_agent_rejects_unknown_or_disabled_definition::<Host>().await;
 }

@@ -15,7 +15,7 @@ fn test_module_is_wired() {
 #[test]
 fn import_prompt_template_json_includes_selected_values_and_format_guidance() {
     let template = super::import_prompt_template(
-        crate::app::task::TaskImportPromptFormat::Json,
+        desktop_task_model::TaskImportPromptFormat::Json,
         321,
         "gpt-test",
         Some("codex"),
@@ -38,7 +38,7 @@ fn import_prompt_template_json_includes_selected_values_and_format_guidance() {
 #[test]
 fn import_prompt_template_csv_uses_defaults_for_blank_model_and_missing_executor() {
     let template = super::import_prompt_template(
-        crate::app::task::TaskImportPromptFormat::Csv,
+        desktop_task_model::TaskImportPromptFormat::Csv,
         808,
         "   ",
         None,
@@ -57,7 +57,7 @@ fn import_prompt_template_csv_uses_defaults_for_blank_model_and_missing_executor
 #[test]
 fn import_prompt_template_tsv_trims_model_and_includes_reasoning_effort_column() {
     let template = super::import_prompt_template(
-        crate::app::task::TaskImportPromptFormat::Tsv,
+        desktop_task_model::TaskImportPromptFormat::Tsv,
         144,
         "  model-x  ",
         Some("opencode"),

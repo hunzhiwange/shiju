@@ -1,13 +1,16 @@
 //! 拖放、筛选、草稿和编辑器的局部消息更新。
-use std::collections::{HashMap, HashSet};
-use iced::widget::text_editor;
 use crate::message::{TaskBoardMessage, TaskBoardSettingsModalTab};
+use iced::widget::text_editor;
+use std::collections::{HashMap, HashSet};
 
 /// 本地交互更新借用的看板字段；不包含应用或跨域状态。
 pub struct LocalState<'a> {
+    pub logs_auto_scroll: &'a mut bool,
+    pub editing_task_id: &'a mut Option<String>,
+    pub detail_tab: &'a mut crate::message::TaskBoardDetailTab,
     pub last_model: &'a mut String,
     pub create_modal_open: &'a mut bool,
-    pub tasks: &'a [desktop_task_model::Task],
+    pub tasks: &'a mut Vec<desktop_task_model::Task>,
     pub bulk_acp_agent: &'a mut Option<String>,
     pub bulk_agent: &'a mut String,
     pub bulk_executor_popover: &'a mut bool,
@@ -43,9 +46,77 @@ pub struct LocalState<'a> {
     pub worktree_manual_confirm_kind: &'a mut Option<&'static str>,
 }
 
+/// 日志编辑器同步由既有日志状态入口完成。
+pub enum LocalEffect {
+    None,
+    ViewLogs(Option<desktop_task_model::Task>),
+}
+
 /// 未消费的跨域消息交回桌面编排层。
-pub fn update_local(mut state: LocalState<'_>, message: TaskBoardMessage, main_agent_key: &str) -> Result<(), TaskBoardMessage> {
+pub fn update_local(
+    mut state: LocalState<'_>,
+    message: TaskBoardMessage,
+    main_agent_key: &str,
+) -> Result<LocalEffect, TaskBoardMessage> {
     match message {
+        TaskBoardMessage::EditTask(task_id) => {
+            if let Some(task) = state.tasks.iter().find(|t| t.id == task_id).cloned() {
+                *state.logs_auto_scroll = true;
+                *state.editing_task_id = Some(task_id);
+                *state.detail_tab = crate::message::TaskBoardDetailTab::Basic;
+                *state.edit_submit_success = false;
+                // 日志缓存可能覆盖任务日志，但不会改变草稿字段。
+                crate::update::forms::draft_from_task(state.draft, &task, main_agent_key);
+                *state.prompt_editor = text_editor::Content::with_text(&state.draft.prompt);
+                return Ok(LocalEffect::ViewLogs(Some(task)));
+            }
+        }
+        TaskBoardMessage::CloseTaskLogs => {
+            *state.detail_tab = crate::message::TaskBoardDetailTab::Basic;
+            *state.logs_auto_scroll = true;
+            *state.editing_task_id = None;
+            *state.edit_submit_success = false;
+            return Ok(LocalEffect::ViewLogs(None));
+        }
+        TaskBoardMessage::CloseTaskPanel => {
+            *state.create_modal_open = false;
+            *state.logs_auto_scroll = true;
+            *state.editing_task_id = None;
+            *state.create_submit_success = false;
+            *state.edit_submit_success = false;
+            return Ok(LocalEffect::ViewLogs(None));
+        }
+        TaskBoardMessage::TaskUpdated(task) => {
+            if let Some(existing) = state.tasks.iter_mut().find(|t| t.id == task.id) {
+                *existing = task.clone();
+            }
+            crate::bulk::prune_bulk_selection(state.tasks, state.selected_tasks);
+        }
+        TaskBoardMessage::InsertDemoData(template) => {
+            if let Some(content) = crate::draft::import_demo_content(&template) {
+                *state.import_editor = text_editor::Content::with_text(content);
+            }
+        }
+        TaskBoardMessage::CardReleased { task_id } => {
+            if state.dragging.is_some() {
+                *state.dragging = None;
+                *state.drag_pending = None;
+            } else if state.drag_pending.take().is_some() {
+                if let Some(task) = state.tasks.iter().find(|t| t.id == task_id).cloned() {
+                    *state.editing_task_id = Some(task_id);
+                    *state.detail_tab = crate::message::TaskBoardDetailTab::Basic;
+                    state.draft.priority = task.priority.to_string();
+                    state.draft.model = task.model.clone();
+                    state.draft.reasoning_effort = task.reasoning_effort;
+                    crate::draft::set_draft_executor_selection(state.draft, task.acp_agent.clone());
+                    state.draft.prompt = task.prompt.clone();
+                    state.draft.subtasks =
+                        task.subtasks.iter().map(|s| s.content.clone()).collect();
+                    *state.prompt_editor = text_editor::Content::with_text(&task.prompt);
+                    return Ok(LocalEffect::ViewLogs(Some(task)));
+                }
+            }
+        }
         TaskBoardMessage::DragStarted { task_id, from_status } => {
             (*state.dragging) = Some((task_id, from_status));
             (*state.drag_pending) = None;
@@ -114,9 +185,7 @@ pub fn update_local(mut state: LocalState<'_>, message: TaskBoardMessage, main_a
             (*state.draft).subtasks.push(String::new());
         }
         TaskBoardMessage::RemoveDraftSubtask(index) => {
-            if (*state.draft).subtasks.len() > 1
-                && index < (*state.draft).subtasks.len()
-            {
+            if (*state.draft).subtasks.len() > 1 && index < (*state.draft).subtasks.len() {
                 (*state.draft).subtasks.remove(index);
             } else if let Some(subtask) = (*state.draft).subtasks.get_mut(index) {
                 subtask.clear();
@@ -179,9 +248,9 @@ pub fn update_local(mut state: LocalState<'_>, message: TaskBoardMessage, main_a
         }
         TaskBoardMessage::ToggleTaskSelection { task_id, selected } => {
             if selected {
-                (*state.selected_task)s.insert(task_id);
+                (*state.selected_tasks).insert(task_id);
             } else {
-                (*state.selected_task)s.remove(&task_id);
+                (*state.selected_tasks).remove(&task_id);
             }
         }
         TaskBoardMessage::UpdateBulkPriorityInput(value) => {
@@ -272,12 +341,14 @@ pub fn update_local(mut state: LocalState<'_>, message: TaskBoardMessage, main_a
         }
         other => return Err(other),
     }
-    Ok(())
+    Ok(LocalEffect::None)
 }
 
 fn reset_draft(state: &mut LocalState<'_>) {
-    *state.draft = crate::draft::create_task_draft_with_preferences(
-        state.last_model.clone(), state.last_acp_agent.clone(),
+    crate::draft::reset_create_draft(
+        state.draft,
+        state.prompt_editor,
+        state.last_model.clone(),
+        state.last_acp_agent.clone(),
     );
-    *state.prompt_editor = text_editor::Content::with_text(&state.draft.prompt);
 }

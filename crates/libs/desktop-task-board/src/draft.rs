@@ -174,3 +174,14 @@ pub fn import_prompt_template(
 #[cfg(test)]
 #[path = "draft_tests.rs"]
 mod draft_tests;
+
+/// 重建创建草稿并同步提示词编辑器。
+pub fn reset_create_draft(
+    draft: &mut TaskDraft,
+    prompt_editor: &mut iced::widget::text_editor::Content,
+    model: String,
+    acp_agent: Option<String>,
+) {
+    *draft = create_task_draft_with_preferences(model, acp_agent);
+    *prompt_editor = iced::widget::text_editor::Content::with_text(&draft.prompt);
+}

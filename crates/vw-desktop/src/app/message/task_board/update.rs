@@ -2,9 +2,9 @@
 
 use crate::app::Message;
 use crate::app::state::MAIN_AGENT_KEY;
+use crate::app::task::workflow::task_workflow_by_id;
 use desktop_task_board as taskboard;
 use taskboard::update::projection::*;
-use crate::app::task::workflow::task_workflow_by_id;
 
 use super::helpers::*;
 use super::*;
@@ -24,7 +24,10 @@ mod execution_results_update;
 mod execution_update;
 
 fn task_board_project_matches(app: &crate::app::App, project_path: &str) -> bool {
-    taskboard::update::projection::task_board_project_matches(app.project_path.as_deref(), project_path)
+    taskboard::update::projection::task_board_project_matches(
+        app.project_path.as_deref(),
+        project_path,
+    )
 }
 
 fn initial_task_status_for_app(app: &crate::app::App) -> TaskStatus {
@@ -84,13 +87,13 @@ fn apply_agent_scheduler_status(
 
 fn apply_agent_scheduler_logs(
     app: &mut crate::app::App,
-    responses: Vec<
-        vw_api_agent_scheduler::AgentSchedulerTaskLogsResponse,
-    >,
+    responses: Vec<vw_api_agent_scheduler::AgentSchedulerTaskLogsResponse>,
 ) -> Vec<Task> {
-    let (updated_tasks, updated_task_ids) = taskboard::update::projection::apply_agent_scheduler_logs(
-        &mut app.task_board_tasks, responses,
-    );
+    let (updated_tasks, updated_task_ids) =
+        taskboard::update::projection::apply_agent_scheduler_logs(
+            &mut app.task_board_tasks,
+            responses,
+        );
 
     for task_id in updated_task_ids {
         sync_viewing_logs(app, &task_id);
@@ -107,9 +110,11 @@ fn schedule_agent_scheduler_status_followup_ticks(
         return iced::Task::none();
     }
 
-    let (should_schedule_review, should_schedule_merge) = taskboard::update::projection::scheduler_followup_ticks(
-        &app.task_board_settings.workflow_id, updated_tasks,
-    );
+    let (should_schedule_review, should_schedule_merge) =
+        taskboard::update::projection::scheduler_followup_ticks(
+            &app.task_board_settings.workflow_id,
+            updated_tasks,
+        );
     let mut tasks = Vec::new();
     if should_schedule_review {
         tasks.push(schedule_auto_review_tick_with_deadline(app));
@@ -133,7 +138,11 @@ pub fn update(
     message: TaskBoardMessage,
 ) -> iced::Task<crate::app::Message> {
     let model_options = taskboard::update::model::reasoning_model_for_message(&message)
-        .map(|model| crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &model))
+        .map(|model| {
+            crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(
+                app, &model,
+            )
+        })
         .unwrap_or_default();
     let message = match taskboard::update::model::update_model(
         taskboard::update::model::ModelState {
@@ -144,13 +153,19 @@ pub fn update(
             draft: &mut app.task_board_draft,
             last_model: &mut app.task_board_last_model,
             model_popover: &mut app.task_board_model_popover,
-        }, message, &model_options,
+        },
+        message,
+        &model_options,
         !app.model_settings.loading && app.model_settings.providers.is_empty(),
     ) {
         Ok(effect) => {
-            if effect.clear_hover { app.model_popover_hover = None; }
+            if effect.clear_hover {
+                app.model_popover_hover = None;
+            }
             if effect.refresh_models {
-                return iced::Task::done(Message::Settings(crate::app::message::SettingsMessage::ModelsRefresh));
+                return iced::Task::done(Message::Settings(
+                    crate::app::message::SettingsMessage::ModelsRefresh,
+                ));
             }
             return iced::Task::none();
         }
@@ -171,7 +186,8 @@ pub fn update(
             task_board_viewing_logs: &mut app.task_board_viewing_logs,
             task_board_logs_context_menu_open: &mut app.task_board_logs_context_menu_open,
             task_board_logs_context_menu_pos: &mut app.task_board_logs_context_menu_pos,
-        }, message,
+        },
+        message,
     ) {
         Ok(()) => return iced::Task::none(),
         Err(message) => message,
@@ -184,7 +200,8 @@ pub fn update(
             next_refresh_at_ms: &mut app.task_board_next_refresh_at_ms,
             next_scheduler_tick_at_ms: &mut app.task_board_next_scheduler_tick_at_ms,
             next_auto_promote_tick_at_ms: &mut app.task_board_next_auto_promote_tick_at_ms,
-        }, message,
+        },
+        message,
     ) {
         Ok(()) => {
             save_settings(app);
@@ -194,7 +211,9 @@ pub fn update(
     };
 
     let message = match taskboard::update::subtasks::update_subtasks(
-        &mut app.task_board_tasks, message, crate::app::time::now_ms(),
+        &mut app.task_board_tasks,
+        message,
+        crate::app::time::now_ms(),
     ) {
         Ok(changed_task) => {
             if let Some(task) = changed_task {
@@ -210,7 +229,10 @@ pub fn update(
         taskboard::update::local::LocalState {
             last_model: &mut app.task_board_last_model,
             create_modal_open: &mut app.task_board_create_modal_open,
-            tasks: &app.task_board_tasks,
+            tasks: &mut app.task_board_tasks,
+            logs_auto_scroll: &mut app.task_board_logs_auto_scroll,
+            editing_task_id: &mut app.task_board_editing_task_id,
+            detail_tab: &mut app.task_board_detail_tab,
             bulk_acp_agent: &mut app.task_board_bulk_acp_agent,
             bulk_agent: &mut app.task_board_bulk_agent,
             bulk_executor_popover: &mut app.task_board_bulk_executor_popover,
@@ -245,9 +267,15 @@ pub fn update(
             sort_by_priority: &mut app.task_board_sort_by_priority,
             worktree_manual_confirm_kind: &mut app.task_board_worktree_manual_confirm_kind,
         },
-        message, MAIN_AGENT_KEY,
+        message,
+        MAIN_AGENT_KEY,
     ) {
-        Ok(()) => return iced::Task::none(),
+        Ok(viewing_task) => {
+            if let taskboard::update::local::LocalEffect::ViewLogs(task) = viewing_task {
+                set_viewing_logs(app, task);
+            }
+            return iced::Task::none();
+        }
         Err(message) => message,
     };
 
@@ -277,11 +305,11 @@ pub fn update(
 
     match message {
         TaskBoardMessage::ToggleBoard => {
-            let board_is_open = app.screen == crate::app::Screen::TaskBoard;
+            let board_is_open = app.navigation_tabs.screen == crate::app::Screen::TaskBoard;
 
             if board_is_open {
                 app.show_task_board = false;
-                app.screen = if app.project_path.is_some() {
+                app.navigation_tabs.screen = if app.project_path.is_some() {
                     crate::app::Screen::Project
                 } else {
                     crate::app::Screen::Home
@@ -295,7 +323,7 @@ pub fn update(
             }
 
             app.show_task_board = true;
-            app.screen = crate::app::Screen::TaskBoard;
+            app.navigation_tabs.screen = crate::app::Screen::TaskBoard;
             if let Some(project_path) = &app.project_path {
                 let path: String = project_path.clone();
                 return iced::Task::batch(vec![
@@ -308,7 +336,7 @@ pub fn update(
         }
         TaskBoardMessage::CloseBoard => {
             app.show_task_board = false;
-            app.screen = if app.project_path.is_some() {
+            app.navigation_tabs.screen = if app.project_path.is_some() {
                 crate::app::Screen::Project
             } else {
                 crate::app::Screen::Home
@@ -376,13 +404,7 @@ pub fn update(
             }
             iced::Task::none()
         }
-        TaskBoardMessage::TaskUpdated(task) => {
-            if let Some(existing) = app.task_board_tasks.iter_mut().find(|t| t.id == task.id) {
-                *existing = task.clone();
-            }
-            prune_bulk_selection(app);
-            iced::Task::none()
-        }
+
         TaskBoardMessage::TaskDeleted(task_id) => {
             app.task_board_selected_tasks.remove(&task_id);
             if let Some(project_path) = &app.project_path {
@@ -397,33 +419,7 @@ pub fn update(
             }
             iced::Task::none()
         }
-        TaskBoardMessage::CardReleased { task_id } => {
-            if app.task_board_dragging.is_some() {
-                app.task_board_dragging = None;
-                app.task_board_drag_pending = None;
-            } else if app.task_board_drag_pending.is_some() {
-                app.task_board_drag_pending = None;
-                if let Some(task) = app.task_board_tasks.iter().find(|t| t.id == task_id).cloned() {
-                    app.task_board_editing_task_id = Some(task_id);
-                    app.task_board_detail_tab = TaskBoardDetailTab::Basic;
-                    set_viewing_logs(app, Some(task.clone()));
-                    app.task_board_draft.priority = task.priority.to_string();
-                    app.task_board_draft.model = task.model.clone();
-                    app.task_board_draft.reasoning_effort = taskboard::update::model::validated_reasoning_effort(
-                        app.task_board_draft.acp_agent.as_deref(), app.task_board_draft.reasoning_effort,
-                        &crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &app.task_board_draft.model),
-                    );
-                    app.task_board_draft.reasoning_effort = task.reasoning_effort;
-                    set_draft_executor_selection(&mut app.task_board_draft, task.acp_agent.clone());
-                    app.task_board_draft.prompt = task.prompt.clone();
-                    app.task_board_draft.subtasks =
-                        task.subtasks.iter().map(|subtask| subtask.content.clone()).collect();
-                    app.task_board_prompt_editor =
-                        iced::widget::text_editor::Content::with_text(&task.prompt);
-                }
-            }
-            iced::Task::none()
-        }
+
         TaskBoardMessage::DropOnStatus { to_status, insert_index } => {
             let Some((task_id, _from_status)) = app.task_board_dragging.take() else {
                 return iced::Task::none();
@@ -431,7 +427,10 @@ pub fn update(
             app.task_board_drag_pending = None;
 
             let Some(insert_at) = taskboard::update::rules::drop_insert_index(
-                &app.task_board_tasks, &task_id, to_status, insert_index,
+                &app.task_board_tasks,
+                &task_id,
+                to_status,
+                insert_index,
             ) else {
                 return iced::Task::none();
             };
@@ -516,7 +515,10 @@ pub fn update(
                 return iced::Task::none();
             };
 
-            let copied_task = taskboard::update::forms::duplicate_task(source_task, initial_task_status_for_app(app));
+            let copied_task = taskboard::update::forms::duplicate_task(
+                source_task,
+                initial_task_status_for_app(app),
+            );
 
             if let Some(project_path) = &app.project_path {
                 let path = project_path.clone();
@@ -539,7 +541,11 @@ pub fn update(
             iced::Task::none()
         }
         TaskBoardMessage::CreateTaskSubmitted => {
-            let Some(task) = taskboard::update::forms::task_from_draft(&app.task_board_draft, initial_task_status_for_app(app), MAIN_AGENT_KEY) else {
+            let Some(task) = taskboard::update::forms::task_from_draft(
+                &app.task_board_draft,
+                initial_task_status_for_app(app),
+                MAIN_AGENT_KEY,
+            ) else {
                 return iced::Task::none();
             };
 
@@ -570,16 +576,21 @@ pub fn update(
             let task = {
                 let runtime = app.current_session_runtime();
                 taskboard::update::forms::task_from_input(
-                    &content, app.task_board_settings.default_priority,
+                    &content,
+                    app.task_board_settings.default_priority,
                     initial_task_status_for_app(app),
                     taskboard::update::forms::InputModelSelection {
-                        auto_model: runtime.auto_model, model: &runtime.model,
+                        auto_model: runtime.auto_model,
+                        model: &runtime.model,
                         task_mode_enabled: runtime.task_mode_enabled,
                         executor: runtime.task_mode_executor.clone(),
-                    }, None,
+                    },
+                    None,
                 )
             };
-            let Some(task) = task else { return iced::Task::none(); };
+            let Some(task) = task else {
+                return iced::Task::none();
+            };
 
             if let Some(project_path) = &app.project_path {
                 let path = project_path.clone();
@@ -621,16 +632,27 @@ pub fn update(
             let task = {
                 let runtime = app.current_session_runtime();
                 taskboard::update::forms::task_from_input(
-                    &content, app.task_board_settings.default_priority,
+                    &content,
+                    app.task_board_settings.default_priority,
                     initial_task_status_for_app(app),
                     taskboard::update::forms::InputModelSelection {
-                        auto_model: runtime.auto_model, model: &runtime.model,
+                        auto_model: runtime.auto_model,
+                        model: &runtime.model,
                         task_mode_enabled: runtime.task_mode_enabled,
                         executor: runtime.task_mode_executor.clone(),
-                    }, Some(taskboard::update::forms::InputTaskOptions { priority, model, reasoning_effort, task_split_mode, subtasks }),
+                    },
+                    Some(taskboard::update::forms::InputTaskOptions {
+                        priority,
+                        model,
+                        reasoning_effort,
+                        task_split_mode,
+                        subtasks,
+                    }),
                 )
             };
-            let Some(task) = task else { return iced::Task::none(); };
+            let Some(task) = task else {
+                return iced::Task::none();
+            };
 
             if let Some(project_path) = &app.project_path {
                 let path = project_path.clone();
@@ -703,14 +725,7 @@ pub fn update(
             }
             iced::Task::none()
         }
-        TaskBoardMessage::CloseTaskLogs => {
-            set_viewing_logs(app, None);
-            app.task_board_detail_tab = TaskBoardDetailTab::Basic;
-            app.task_board_logs_auto_scroll = true;
-            app.task_board_editing_task_id = None;
-            app.task_board_edit_submit_success = false;
-            iced::Task::none()
-        }
+
         TaskBoardMessage::SelectDetailTab(tab) => {
             app.task_board_detail_tab = tab;
             if tab == TaskBoardDetailTab::Logs {
@@ -728,28 +743,17 @@ pub fn update(
             }
             iced::Task::none()
         }
-        TaskBoardMessage::EditTask(task_id) => {
-            if let Some(task) = app.task_board_tasks.iter().find(|t| t.id == task_id).cloned() {
-                app.task_board_logs_auto_scroll = true;
-                app.task_board_editing_task_id = Some(task_id);
-                app.task_board_detail_tab = TaskBoardDetailTab::Basic;
-                app.task_board_edit_submit_success = false;
-                set_viewing_logs(app, Some(task));
-                taskboard::update::forms::draft_from_task(
-                    &mut app.task_board_draft,
-                    app.task_board_viewing_logs.as_ref().unwrap(),
-                    MAIN_AGENT_KEY,
-                );
-                app.task_board_prompt_editor =
-                    iced::widget::text_editor::Content::with_text(&app.task_board_draft.prompt);
-            }
-            iced::Task::none()
-        }
+
         TaskBoardMessage::SaveEditingTask => {
             if let Some(task_id) = &app.task_board_editing_task_id.clone()
                 && let Some(task) = app.task_board_tasks.iter_mut().find(|t| &t.id == task_id)
             {
-                taskboard::update::forms::apply_task_draft(task, &app.task_board_draft, MAIN_AGENT_KEY, crate::app::time::now_ms());
+                taskboard::update::forms::apply_task_draft(
+                    task,
+                    &app.task_board_draft,
+                    MAIN_AGENT_KEY,
+                    crate::app::time::now_ms(),
+                );
                 if let Some(project_path) = &app.project_path {
                     let path = project_path.clone();
                     let task_clone = task.clone();
@@ -789,15 +793,7 @@ pub fn update(
             }
             iced::Task::none()
         }
-        TaskBoardMessage::CloseTaskPanel => {
-            app.task_board_create_modal_open = false;
-            set_viewing_logs(app, None);
-            app.task_board_logs_auto_scroll = true;
-            app.task_board_editing_task_id = None;
-            app.task_board_create_submit_success = false;
-            app.task_board_edit_submit_success = false;
-            iced::Task::none()
-        }
+
         TaskBoardMessage::LogsViewerCloseContextMenu => {
             close_logs_context_menu(app);
             focus_editor_task(&app.task_board_logs_editor_id)
@@ -938,7 +934,10 @@ pub fn update(
                 return iced::Task::none();
             }
 
-            let agent = taskboard::update::rules::normalized_bulk_agent(&app.task_board_bulk_agent, MAIN_AGENT_KEY);
+            let agent = taskboard::update::rules::normalized_bulk_agent(
+                &app.task_board_bulk_agent,
+                MAIN_AGENT_KEY,
+            );
             app.task_board_bulk_agent = agent.clone();
 
             taskboard::update::rules::set_bulk_agent(&mut tasks, &agent, MAIN_AGENT_KEY);
@@ -1005,7 +1004,11 @@ pub fn update(
             }
 
             app.task_board_bulk_reasoning_effort = reasoning_effort;
-            let tasks = taskboard::update::rules::set_bulk_reasoning_effort(&mut app.task_board_tasks, &task_ids, reasoning_effort);
+            let tasks = taskboard::update::rules::set_bulk_reasoning_effort(
+                &mut app.task_board_tasks,
+                &task_ids,
+                reasoning_effort,
+            );
 
             for task_id in &task_ids {
                 sync_viewing_logs(app, task_id);
@@ -1046,7 +1049,11 @@ pub fn update(
 
             app.task_board_bulk_task_split_mode = task_split_mode;
 
-            let tasks = taskboard::update::rules::set_bulk_split_mode(&mut app.task_board_tasks, &task_ids, task_split_mode);
+            let tasks = taskboard::update::rules::set_bulk_split_mode(
+                &mut app.task_board_tasks,
+                &task_ids,
+                task_split_mode,
+            );
 
             for task_id in &task_ids {
                 sync_viewing_logs(app, task_id);
@@ -1554,7 +1561,10 @@ pub fn update(
                 Err(error) => {
                     tracing::warn!(error = %error, "gateway worktree pool maintenance failed");
                     if let Some(project_path) = &app.project_path {
-                        let changed = taskboard::update::rules::log_worktree_maintenance_failure(&mut app.task_board_tasks, &error);
+                        let changed = taskboard::update::rules::log_worktree_maintenance_failure(
+                            &mut app.task_board_tasks,
+                            &error,
+                        );
                         if changed {
                             let persist_tasks =
                                 build_persist_tasks(project_path, &app.task_board_tasks);
@@ -1699,30 +1709,29 @@ pub fn update(
             if let Some(task) = app.task_board_tasks.iter_mut().find(|t| t.id == task_id) {
                 match taskboard::update::rules::apply_planning_result(task, final_logs, result) {
                     taskboard::update::rules::PlanningEffect::AllocateWorktree => {
-                            let _ = crate::app::task::write_task_plan_files(&project_path, task);
+                        let _ = crate::app::task::write_task_plan_files(&project_path, task);
 
-                            match crate::app::task::assign_task_execution_worktree(
-                                &project_path,
-                                task,
-                                None,
-                            ) {
-                                Ok(assigned_worktree_path) => {
-                                    taskboard::update::rules::start_planned_task(task, assigned_worktree_path);
-                                    let _ = crate::app::task::write_task_plan_files(
-                                        &project_path,
-                                        task,
-                                    );
-                                    execute_task_to_start = Some(task.clone());
-                                    task_to_persist = Some(task.clone());
-                                }
-                                Err(error) => {
-                                    mark_task_paused_after_worktree_preallocation_failure(
-                                        task, error,
-                                    );
-                                    plan_failed = true;
-                                    task_to_persist = Some(task.clone());
-                                }
+                        match crate::app::task::assign_task_execution_worktree(
+                            &project_path,
+                            task,
+                            None,
+                        ) {
+                            Ok(assigned_worktree_path) => {
+                                taskboard::update::rules::start_planned_task(
+                                    task,
+                                    assigned_worktree_path,
+                                );
+                                let _ =
+                                    crate::app::task::write_task_plan_files(&project_path, task);
+                                execute_task_to_start = Some(task.clone());
+                                task_to_persist = Some(task.clone());
                             }
+                            Err(error) => {
+                                mark_task_paused_after_worktree_preallocation_failure(task, error);
+                                plan_failed = true;
+                                task_to_persist = Some(task.clone());
+                            }
+                        }
                     }
                     taskboard::update::rules::PlanningEffect::PersistFailure => {
                         plan_failed = true;
@@ -1852,18 +1861,15 @@ pub fn update(
             }
             iced::Task::none()
         }
-        TaskBoardMessage::InsertDemoData(template) => {
-            if let Some(content) = import_demo_content(&template) {
-                app.task_board_import_editor =
-                    iced::widget::text_editor::Content::with_text(content);
-            }
-            iced::Task::none()
-        }
+
         TaskBoardMessage::ImportTasksSubmitted => {
             let content = app.task_board_import_editor.text().to_string();
             let tasks_to_create = match taskboard::update::forms::tasks_from_import_content(
-                &content, app.task_board_settings.default_priority, &app.task_board_draft,
-                initial_task_status_for_app(app), MAIN_AGENT_KEY,
+                &content,
+                app.task_board_settings.default_priority,
+                &app.task_board_draft,
+                initial_task_status_for_app(app),
+                MAIN_AGENT_KEY,
             ) {
                 Ok(tasks) => tasks,
                 Err(error) => {

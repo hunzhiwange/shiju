@@ -37,6 +37,3 @@ pub(crate) use logs::*;
 pub(crate) use review::*;
 /// 对外暴露当前模块需要复用的能力。
 pub(crate) use settings::*;
-#[cfg(test)]
-#[path = "helpers_tests.rs"]
-mod helpers_tests;

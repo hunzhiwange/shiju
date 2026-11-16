@@ -1,0 +1,39 @@
+# 任务16实施记录（未完成）
+
+本轮禁止 Cargo、测试、绘制和回归；未运行上述命令。仅完成源码读取、独立 rustfmt 和本任务路径 git diff --check。
+
+## 已实施的真实入口
+
+- profile_modal::page_card 持有五页分派和表单组装，宿主 overlay 投影跨域会话能力、时间及目录；不传入 App。
+- defaults::catalog_input 为 modal 和宿主保存校验共同提供真实目录投影，复用 validation_error。
+- host_module_16_tests 已独立注册。真实图标复用 desktop-chat-input，真实 selectable help 复用 desktop-chat-view；均为 dev-dependencies，无宿主反向引用。
+
+## 断言迁移映射
+
+- `acp_view.rs`：`acp_status_cards_and_editor_render_all_results_and_animate_in_both_themes`、`system_settings_acp_tests_are_wired`、`system_settings_acp_page_keeps_core_actions`、`acp_catalog_displays_registered_agents_render_both_themes`、`acp_editor_validates_and_saves_fields_render_both_themes`、`acp_diagnostic_ignores_stale_results_render_both_themes`、`acp_configuration_flow_regression_long_editor_keeps_actions_visible`
+- `catalog_view.rs`：`agents_view_loading_state_adds_status_row`、`agents_view_builds_cards_for_main_enabled_disabled_and_model_variants`、`agents_view_missing_selection_uses_first_entry_and_unknown_tab_falls_back`、`session_entry_catalog_cards_show_icons_and_start_session`、`session_entry_catalog_cards_render_both_themes`
+- `defaults.rs`：`agent_defaults_form_switch_preserves_invalid_draft_and_prevents_save`、`agent_defaults_form_forced_binding_rejects_conflicting_default`、`agent_config_cleanup_single_model_group_prevents_conflict`、`agent_config_cleanup_strict_skill_defaults_reject_save_outside_boundary`、`agent_model_inheritance_renders_chinese_in_both_themes`
+- `dialogue_update.rs`：`dialogue_flow_loaded_messages_update_ui_state`、`dialogue_flow_toggle_and_save_feedback_update_messages`、`loaded_success_preserves_existing_feedback_and_loaded_error_preserves_toggles`
+- `mcp.rs`：`agent_config_cleanup_mcp_tab_uses_stable_server_ids`、`agent_config_cleanup_mcp_unavailable_selection_is_explicit`、`agent_config_cleanup_mcp_renders_chinese_in_both_themes`
+- `profile_render.rs`：`agent_config_cleanup_five_tabs_render_in_both_themes`、`agent_config_cleanup_skill_directory_renders_chinese_in_both_themes`、`agent_runtime_creation_controls_render_in_both_themes`、`agent_runtime_visibility_actual_modal_renders_native_and_acp_in_both_themes`
+- `profile_update.rs`：`agent_profile_modal_cancel_preserves_saved_profile`、`agent_profile_modal_failed_save_preserves_draft`、`agent_profile_modal_builtin_rejects_engine_switch_and_delete`、`agent_profile_modal_prompts_preserve_user_order`、`agent_config_cancel_discards_parameters_and_profile_together`、`agent_config_create_commits_only_after_successful_save`、`agent_config_cleanup_basic_combines_profile_and_runtime`、`agent_config_cleanup_single_system_prompt_preserves_content`、`agent_config_cleanup_multiline_description_roundtrips_and_cancels`、`agent_runtime_creation_success_locks_runtime_but_keeps_profile_editable`、`agent_runtime_creation_failed_save_allows_retry_and_cancel_leaves_no_entry`、`agent_runtime_creation_reloaded_custom_and_builtin_reject_changes`、`agent_runtime_visibility_switch_closes_and_rejects_tools_tab_without_clearing_values`
+- `skills.rs`：`agent_config_cleanup_skill_modes_render_chinese_in_both_themes`
+
+每个上述用例保留原断言、测试名及 draw/screenshot（存在时），仅替换 App 为局部领域状态与输入；没有复制前轮 host_split 用例。
+
+## 必须继续完成的缺口
+
+- basic_ui_refresh_16、basic_profile_ui_refresh_15 的领域布局与事件断言仍在宿主。
+- ACP UI refresh 18 与 MCP/安全混合场景仍需逐断言拆分。
+- 自治 UI refresh 22 与对话流 UI refresh 29 尚未迁完；已有 host_split_2 需逐断言去重。
+- agents update HTTP、目录异步与真实跨域 launch 用例仍需拆分领域及宿主契约。
+- Profile/agents 标签外观、目录根页与会话能力验证仍在宿主，不能将整组一概认定为必要宿主契约。
+- 尚未完成逐函数/字段组残留审计；不满足删除任务卡的契约。
+
+## 行数（pathlib splitlines，当前中间态）
+
+- 基线来源 8772 行，当前 7061 行，来源净减 1711 行。
+- 生产候选基线 832 行，当前 850 行；分类仅为文件名初筛，不能据此宣称生产迁移完成。
+- 没有新建宿主替代文件。领域新增文件及增长不抵扣宿主指标。
+
+后续仅用户授权后才可执行任务文件保存的定向测试和宿主检查。本记录不表示编译或行为通过。

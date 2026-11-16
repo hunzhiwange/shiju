@@ -134,3 +134,127 @@ fn action(label: &'static str, value: Option<AgentsMessage>) -> Element<'static,
 pub const AGENT_CONFIGURATION_HELP: &str =
     "全局管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。";
 pub struct Input<'a> { pub help: crate::help::Renderer, pub locale: config_ui::DesktopLocale, pub theme: &'a iced::Theme, pub config_ready: bool, pub profile_entering_key: bool, pub new_agent_key_input: &'a str, pub draft: Option<&'a DelegateAgentSettingsEntry>, pub profile_saving: bool, pub active_detail_tab: &'a str }
+
+/// Borrowed page context. Session capability and timestamp projection stay at their owners.
+pub struct PageInput<'a> {
+    pub state: &'a crate::agents_state::AgentsSettingsState,
+    pub locale: config_ui::DesktopLocale,
+    pub theme: &'a iced::Theme,
+    pub help: crate::help::Renderer,
+    pub acp_agents: &'a [String],
+    pub acp_loading: bool,
+    pub acp_error: Option<&'a String>,
+    pub inspect: Option<&'a vw_api_mcp_inspect::McpInspectResponse>,
+    pub inspect_loading: bool,
+    pub inspect_error: Option<&'a String>,
+    pub model_source_available: bool,
+    pub workspace_metadata: Option<String>,
+    pub project_options: Vec<String>,
+}
+pub fn page_card(input: PageInput<'_>) -> Option<Element<'_, Message>> {
+    let state = input.state;
+    let draft = state.profile_modal.as_ref();
+    let defaults = || {
+        crate::defaults::catalog_input(
+            state,
+            input.locale,
+            input.theme,
+            input.help,
+            input.model_source_available,
+            input.inspect,
+            input.inspect_loading,
+            input.inspect_error,
+        )
+    };
+    let fields = if let Some(entry) = draft {
+        match state.active_detail_tab.as_str() {
+            crate::state::AGENT_DETAIL_IDENTITY_TAB => crate::identity::view(
+                crate::identity::Input {
+                    help: input.help,
+                    locale: input.locale,
+                    theme: input.theme,
+                    active_prompt_tab: &state.active_prompt_tab,
+                    workspace_identity_files: &state.workspace_identity_files,
+                    workspace_identity_root_path: state.workspace_identity_root_path.as_deref(),
+                    selected_agent: &state.selected_agent,
+                    workspace_metadata: input.workspace_metadata,
+                },
+                entry,
+            ),
+            crate::state::AGENT_DETAIL_TOOLS_TAB
+                if matches!(entry.runtime, config_agent_profile::AgentRuntime::Native) =>
+            {
+                crate::tools::view(
+                    crate::tools::Input {
+                        locale: input.locale,
+                        theme: input.theme,
+                        help: input.help,
+                        available_tools: &state.available_tools,
+                        active_tools_list_tab: &state.active_tools_list_tab,
+                    },
+                    entry,
+                )
+            }
+            crate::state::AGENT_DETAIL_SKILLS_TAB => crate::skills::view(
+                crate::skills::Input {
+                    locale: input.locale,
+                    theme: input.theme,
+                    help: input.help,
+                    project_options: input.project_options,
+                    skill_directory: &state.skill_directory,
+                    skill_directory_scope: state.skill_directory_scope,
+                    skill_catalog: &state.skill_catalog,
+                    skill_catalog_loading: state.skill_catalog_loading,
+                    skill_catalog_error: &state.skill_catalog_error,
+                },
+                entry,
+            ),
+            crate::state::AGENT_DETAIL_MCP_TAB => crate::mcp::view(
+                crate::mcp::Input {
+                    help: input.help,
+                    locale: input.locale,
+                    theme: input.theme,
+                    inspect: input.inspect,
+                    inspect_loading: input.inspect_loading,
+                    inspect_error: input.inspect_error,
+                    defaults: defaults(),
+                },
+                entry,
+            ),
+            _ => crate::basic::view(
+                crate::basic::Input {
+                    help: input.help,
+                    locale: input.locale,
+                    theme: input.theme,
+                    profile: crate::basic_profile::Input {
+                        locale: input.locale,
+                        entries: &state.entries,
+                        acp_agents: input.acp_agents,
+                        saving: state.profile_saving,
+                        acp_loading: input.acp_loading,
+                        acp_error: input.acp_error,
+                    },
+                    defaults: defaults(),
+                },
+                entry,
+                Vec::new(),
+            ),
+        }
+    } else {
+        iced::widget::Space::new().into()
+    };
+    card(
+        Input {
+            help: input.help,
+            locale: input.locale,
+            theme: input.theme,
+            config_ready: state.config_ready,
+            profile_entering_key: state.profile_entering_key,
+            new_agent_key_input: &state.new_agent_key_input,
+            draft,
+            profile_saving: state.profile_saving,
+            active_detail_tab: &state.active_detail_tab,
+        },
+        fields,
+    )
+}

@@ -17,8 +17,5 @@ pub fn view(app: &App) -> Element<'_, Message> {
     desktop_settings_agents::acp_view::view(domain::acp_input(app)).map(domain::event)
 }
 #[cfg(test)]
-#[path = "system_settings_acp_tests.rs"]
-mod system_settings_acp_tests;
-#[cfg(test)]
 #[path = "system_settings_acp_ui_refresh_18_tests.rs"]
 mod ui_refresh_18_tests;

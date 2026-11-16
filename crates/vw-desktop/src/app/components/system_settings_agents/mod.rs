@@ -23,11 +23,6 @@ mod tools;
 #[cfg(test)]
 #[path = "mod_tests.rs"]
 mod mod_tests;
-#[cfg(test)]
-#[path = "skills_tests.rs"]
-mod skills_tests;
-#[cfg(test)]
-mod tests;
 
 use crate::app::components::system_settings_common::{
     settings_error_banner, settings_tab_row,
@@ -258,7 +253,6 @@ fn active_tab_save_error(app: &App) -> Option<&str> {
     }
 }
 
-
 fn agents_view(app: &App) -> Element<'_, Message> {
  desktop_settings_agents::agents_view::agents_view(desktop_settings_agents::agents_view::Input {
  state: &app.agents_settings, catalog: domain::catalog_input(app), theme: &app.app_theme,
@@ -270,6 +264,3 @@ mod profile_modal_tests;
 
 #[cfg(test)]
 mod defaults_tests;
-
-#[cfg(test)]
-mod mcp_tests;

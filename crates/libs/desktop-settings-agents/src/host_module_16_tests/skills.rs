@@ -1,6 +1,8 @@
 //! Host contract: profile modal, directory dispatch and Chinese text shaping.
-use crate::app::message::settings::{AgentsMessage, SettingsMessage};
-use crate::app::state::{SkillsCatalogItem, SkillsCatalogKind};
+use super::profile_update::{ProfileFixture, dispatch};
+use crate::message::AgentsMessage;
+use crate::state::SkillsCatalogItem;
+use desktop_settings_skills::types::SkillsCatalogKind;
 
 fn skill(id: &str, enabled: bool, source: &str) -> SkillsCatalogItem {
     SkillsCatalogItem {
@@ -16,23 +18,19 @@ fn skill(id: &str, enabled: bool, source: &str) -> SkillsCatalogItem {
     }
 }
 
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn agent_config_cleanup_skill_modes_render_chinese_in_both_themes() {
     use iced::advanced::renderer::Headless;
     use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
     use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
-    fn dispatch(app: &mut crate::app::App, message: AgentsMessage) {
-        let _ = crate::app::message::settings::update(app, SettingsMessage::Agents(message));
-    }
     for (theme, name) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
-        let mut app = crate::app::App::new().0;
+        let mut app = ProfileFixture::default();
         app.agents_settings.config_ready = true;
         app.project_path = Some("/应用项目".into());
         app.recent_projects = vec!["/技能目录甲".into(), "/技能目录乙".into()];
         dispatch(&mut app, AgentsMessage::ProfileOpen("main".into()));
         dispatch(&mut app, AgentsMessage::SkillDirectorySelected(Some("/技能目录乙".into())));
-        app.agents_settings.active_detail_tab = crate::app::state::AGENT_DETAIL_SKILLS_TAB.into();
+        app.agents_settings.active_detail_tab = crate::state::AGENT_DETAIL_SKILLS_TAB.into();
         app.agents_settings.skill_catalog =
             vec![skill("中文技能", true, "global"), skill("disabled", false, "global")];
         let draft = app.agents_settings.profile_modal.as_mut().unwrap();
@@ -41,7 +39,7 @@ async fn agent_config_cleanup_skill_modes_render_chinese_in_both_themes() {
             draft.defaults.skills =
                 config_agent_profile::AgentDefault::Fixed(vec!["中文技能".into()]);
         }
-        let mut element = super::profile_modal::overlay(
+        let mut element = super::profile_render::overlay(
             &app,
             iced::widget::container(iced::widget::text("背景"))
                 .width(iced::Length::Fill)

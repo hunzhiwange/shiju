@@ -290,3 +290,36 @@ pub fn supports_fixed_model<'a>(
         }),
     }
 }
+
+/// Project the agent catalogs into validation and form inputs.
+pub fn catalog_input<'a>(
+    state: &crate::agents_state::AgentsSettingsState,
+    locale: DesktopLocale,
+    theme: &'a iced::Theme,
+    help: crate::help::Renderer,
+    model_source_available: bool,
+    inspect: Option<&vw_api_mcp_inspect::McpInspectResponse>,
+    inspect_loading: bool,
+    inspect_error: Option<&String>,
+) -> Input<'a> {
+    let models = state.provider_models.iter().flat_map(|provider| {
+        let connected = state.providers.iter().any(|p| p.id == provider.id && p.connected);
+        provider
+            .models
+            .iter()
+            .map(move |model| (provider.id.as_str(), model.id.as_str(), model.enabled, connected))
+    });
+    let skills =
+        state.skill_catalog.iter().map(|skill| (skill.id.as_str(), skill.installed, skill.enabled));
+    let (models, skills, mcp) = catalogs(model_source_available, models, skills, inspect);
+    Input {
+        help,
+        locale,
+        theme,
+        model_source_available,
+        mcp_ready: inspect.is_some() && !inspect_loading && inspect_error.is_none(),
+        models,
+        skills,
+        mcp,
+    }
+}

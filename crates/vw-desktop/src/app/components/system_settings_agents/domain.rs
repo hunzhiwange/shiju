@@ -54,18 +54,9 @@ pub(in crate::app::components) fn defaults_input<'a>(app: &'a App, draft: &domai
     let model_source_available = domain::defaults::supports_fixed_model(&draft.runtime,
         app.session_runtime_states.values().map(|state|
             (state.acp_agent.as_deref(), state.acp_options_state.options.model_source_capabilities.as_slice())));
-    let models = app.agents_settings.provider_models.iter().flat_map(|provider| {
-        let connected = app.agents_settings.providers.iter().any(|p| p.id == provider.id && p.connected);
-        provider.models.iter().map(move |model| (provider.id.as_str(), model.id.as_str(), model.enabled, connected))
-    });
-    let skills = app.agents_settings.skill_catalog.iter().map(|skill|
-        (skill.id.as_str(), skill.installed, skill.enabled));
-    let (models, skills, mcp) = domain::defaults::catalogs(model_source_available, models, skills, app.mcp_settings.inspect.as_ref());
-    domain::defaults::Input { help,
-        locale: app.desktop_locale, theme: &app.app_theme, model_source_available,
-        mcp_ready: app.mcp_settings.inspect.is_some() && !app.mcp_settings.inspect_loading && app.mcp_settings.inspect_error.is_none(),
-        models, skills, mcp,
-    }
+    domain::defaults::catalog_input(&app.agents_settings, app.desktop_locale, &app.app_theme, help,
+        model_source_available, app.mcp_settings.inspect.as_ref(), app.mcp_settings.inspect_loading,
+        app.mcp_settings.inspect_error.as_ref())
 }
 
 pub(in crate::app::components) fn catalog_input(app: &App) -> domain::catalog::Input<'_> {

@@ -59,3 +59,6 @@ mod host_split_2_tests;
 
 #[cfg(test)]
 mod autonomy_test_support;
+
+#[cfg(test)]
+mod host_module_16_tests;

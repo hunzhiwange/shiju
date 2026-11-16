@@ -1,9 +1,6 @@
-//! 验证 ACP 设置源码保持所需控件、消息连线与安全字段约束。
-//! 源码级断言用于守住静态配置契约，不替代实际视图的编译与渲染测试。
-
-const SOURCE: &str = concat!(include_str!("system_settings_acp.rs"), include_str!("../../../../libs/desktop-settings-agents/src/acp.rs"), include_str!("../../../../libs/desktop-settings-agents/src/acp_view.rs"));
-
-use crate::app::state::AcpDiagnosticStatus;
+use super::acp_fixture::*;
+use crate::acp_state::AcpDiagnosticStatus;
+const SOURCE: &str = concat!(include_str!("../acp.rs"), include_str!("../acp_view.rs"));
 use config_aggregate::AcpAgentConfig;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -13,7 +10,7 @@ async fn acp_status_cards_and_editor_render_all_results_and_animate_in_both_them
     use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
     use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
 
-    let (mut app, _) = crate::app::App::new();
+    let mut app = AcpFixture::default();
     let config = AcpAgentConfig { command: "中文路径/agent".into(), ..Default::default() };
     app.acp_settings.editing_agent = Some("codex".into());
     app.acp_settings.defaults.insert("codex".into(), AcpAgentConfig::default());
@@ -44,9 +41,9 @@ async fn acp_status_cards_and_editor_render_all_results_and_animate_in_both_them
                 for frame in 0..if running { 2 } else { 1 } {
                     app.status_animation_frame = frame;
                     let mut element = if editor {
-                        super::new_agent_form(&app)
+                        crate::acp_view::new_agent_form(app.input())
                     } else {
-                        super::acp_card(&app, "中文代理".into(), &config)
+                        crate::acp_view::acp_card(app.input(), "中文代理".into(), &config)
                     };
                     let bounds = Size::new(960.0, 640.0);
                     let mut tree = Tree::new(element.as_widget());
@@ -94,7 +91,7 @@ async fn acp_status_cards_and_editor_render_all_results_and_animate_in_both_them
 
 #[test]
 fn system_settings_acp_tests_are_wired() {
-    assert!(module_path!().contains("system_settings_acp_tests"));
+    assert!(module_path!().contains("acp_view"));
 }
 
 #[test]
@@ -120,25 +117,17 @@ fn system_settings_acp_page_keeps_core_actions() {
     }
 }
 
-
-
-
-
-
-
-
-
 #[tokio::test(flavor = "multi_thread")]
 async fn acp_catalog_displays_registered_agents_render_both_themes() {
     use iced::advanced::renderer::Headless;
     use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
     use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
-    let (mut app, _) = crate::app::App::new();
-    for agent in super::ACP_ORDER.iter().copied().chain(["中文自定义代理"]) {
+    let mut app = AcpFixture::default();
+    for agent in crate::acp::ACP_ORDER.iter().copied().chain(["中文自定义代理"]) {
         for theme in [Theme::Dark, Theme::Light] {
             let config = AcpAgentConfig { command: "示例命令".into(), ..Default::default() };
             app.acp_settings.enabled.insert(agent.into());
-            let mut element = super::acp_card(&app, agent.into(), &config);
+            let mut element = crate::acp_view::acp_card(app.input(), agent.into(), &config);
             let mut renderer =
                 <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
                     .await
@@ -170,12 +159,11 @@ async fn acp_editor_validates_and_saves_fields_render_both_themes() {
     use iced::advanced::renderer::Headless;
     use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
     use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
-    let (mut app, _) = crate::app::App::new();
-    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Acp;
-    for name in super::ACP_ORDER {
+    let mut app = AcpFixture::default();
+    for name in crate::acp::ACP_ORDER {
         app.acp_settings.catalog.insert((*name).into(), AcpAgentConfig::default());
     }
-    for agent in super::ACP_ORDER.iter().copied().chain(["中文自定义代理"]) {
+    for agent in crate::acp::ACP_ORDER.iter().copied().chain(["中文自定义代理"]) {
         for theme in [Theme::Dark, Theme::Light] {
             let config = AcpAgentConfig { command: "示例命令".into(), ..Default::default() };
             app.acp_settings.enabled.insert(agent.into());
@@ -184,7 +172,7 @@ async fn acp_editor_validates_and_saves_fields_render_both_themes() {
             app.acp_settings.new_agent_command_input = config.command.clone();
             app.acp_settings.editor_args = vec!["中文参数,空格 ".into()];
             app.acp_settings.editor_env = vec![("TOKEN".into(), "中文值".into())];
-            let mut element = crate::app::components::system_settings_agents::view(&app);
+            let mut element = crate::acp_view::view(app.input());
             let mut renderer =
                 <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
                     .await
@@ -217,8 +205,8 @@ async fn acp_diagnostic_ignores_stale_results_render_both_themes() {
     use iced::advanced::renderer::Headless;
     use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
     use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
-    let (mut app, _) = crate::app::App::new();
-    for agent in super::ACP_ORDER.iter().copied().chain(["中文自定义代理"]) {
+    let mut app = AcpFixture::default();
+    for agent in crate::acp::ACP_ORDER.iter().copied().chain(["中文自定义代理"]) {
         for theme in [Theme::Dark, Theme::Light] {
             let config = AcpAgentConfig { command: "示例命令".into(), ..Default::default() };
             app.acp_settings.enabled.insert(agent.into());
@@ -228,7 +216,7 @@ async fn acp_diagnostic_ignores_stale_results_render_both_themes() {
             app.acp_settings.diagnostic_status = Some(AcpDiagnosticStatus::AuthenticationRequired);
             app.acp_settings.editor_args = vec!["中文参数,空格 ".into()];
             app.acp_settings.editor_env = vec![("TOKEN".into(), "中文值".into())];
-            let mut element = super::new_agent_form(&app);
+            let mut element = crate::acp_view::new_agent_form(app.input());
             let mut renderer =
                 <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
                     .await
@@ -262,7 +250,7 @@ async fn acp_configuration_flow_regression_long_editor_keeps_actions_visible() {
     use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
     use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
 
-    let (mut app, _) = crate::app::App::new();
+    let mut app = AcpFixture::default();
     app.acp_settings.new_agent_expanded = true;
     app.acp_settings.new_agent_name_input = "中文自定义代理".into();
     app.acp_settings.new_agent_command_input = "/usr/bin/python3".into();
@@ -278,7 +266,7 @@ async fn acp_configuration_flow_regression_long_editor_keeps_actions_visible() {
                 (0..count).map(|i| format!("参数 {i}, 保留空格 ")).collect();
             app.acp_settings.editor_env =
                 (0..count).map(|i| (format!("KEY_{i}"), "中文值".into())).collect();
-            let mut element = super::new_agent_form(&app);
+            let mut element = crate::acp_view::new_agent_form(app.input());
             let bounds = Size::new(960.0, 640.0);
             let mut tree = Tree::new(element.as_widget());
             let node = element.as_widget_mut().layout(

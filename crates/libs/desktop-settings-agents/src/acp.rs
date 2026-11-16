@@ -1,6 +1,6 @@
 use config_aggregate::AcpAgentConfig;
 
-const ACP_ORDER: &[&str] = &[
+pub(crate) const ACP_ORDER: &[&str] = &[
     "claude",
     "gemini",
     "opencode",

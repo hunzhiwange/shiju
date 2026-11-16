@@ -1,17 +1,17 @@
-//! Host contracts: catalog state projection, desktop engine icon assets and launch message mapping.
+//! Catalog layout and local launch events with borrowed domain inputs.
 //! 验证代理设置主视图的标签切换、状态组合与空态路径。
 //! 主入口测试组合基础、身份、技能和工具页，检查共享状态传递。
 
-use crate::app::App;
-use crate::app::state::{AgentSettingsEntryKind, ProviderSummary};
+use super::catalog_fixture::*;
+use crate::state::{AgentSettingsEntryKind, ProviderSummary};
 
-fn root_child_count(app: &App) -> usize {
-    super::agents_view(app).as_widget().children().len()
+fn root_child_count(app: &CatalogFixture) -> usize {
+    crate::agents_view::agents_view(app.view_input()).as_widget().children().len()
 }
 
 #[test]
 fn agents_view_loading_state_adds_status_row() {
-    let (mut app, _) = App::new();
+    let mut app = CatalogFixture::default();
 
     assert_eq!(root_child_count(&app), 4);
 
@@ -23,7 +23,7 @@ fn agents_view_loading_state_adds_status_row() {
 
 #[test]
 fn agents_view_builds_cards_for_main_enabled_disabled_and_model_variants() {
-    let (mut app, _) = App::new();
+    let mut app = CatalogFixture::default();
     app.agents_settings.config_ready = true;
     let mut main = app
         .agents_settings
@@ -59,7 +59,7 @@ fn agents_view_builds_cards_for_main_enabled_disabled_and_model_variants() {
 
 #[test]
 fn agents_view_missing_selection_uses_first_entry_and_unknown_tab_falls_back() {
-    let (mut app, _) = App::new();
+    let mut app = CatalogFixture::default();
     app.agents_settings.config_ready = true;
     let first_key = app
         .agents_settings
@@ -77,8 +77,12 @@ fn agents_view_missing_selection_uses_first_entry_and_unknown_tab_falls_back() {
         connected: true,
     }];
 
-    let selected = super::shared::selected_entry(&app)
-        .expect("a missing selection should fall back to the first entry");
+    let selected = crate::shared::selected_entry(
+        None,
+        &app.agents_settings.entries,
+        &app.agents_settings.selected_agent,
+    )
+    .expect("a missing selection should fall back to the first entry");
     assert_eq!(selected.key, first_key);
     assert_eq!(root_child_count(&app), 5);
 }
@@ -100,16 +104,13 @@ impl iced::advanced::widget::Operation for CatalogText {
 }
 
 async fn render_catalog(theme: iced::Theme, click: bool) {
-    use crate::app::{
-        Message,
-        message::settings::{AgentsMessage, SettingsMessage},
-    };
+    use crate::message::{AgentsMessage, Event as Message};
+    use config_agent::AgentDefinitionConfig;
+    use config_agent_profile::AgentRuntime;
     use iced::advanced::renderer::Headless;
     use iced::advanced::{Layout, Shell, layout, mouse, renderer, widget::Tree};
     use iced::{Color, Event, Font, Pixels, Rectangle, Size};
-    use config_agent_profile::AgentRuntime;
-    use config_agent::AgentDefinitionConfig;
-    let mut app = App::new().0;
+    let mut app = CatalogFixture::default();
     app.agents_settings.entries = [
         AgentRuntime::Native,
         AgentRuntime::Acp { backend: "codex".into() },
@@ -118,7 +119,7 @@ async fn render_catalog(theme: iced::Theme, click: bool) {
     .into_iter()
     .enumerate()
     .map(|(i, runtime)| {
-        let mut entry = crate::app::state::DelegateAgentSettingsEntry::from_config(
+        let mut entry = crate::state::DelegateAgentSettingsEntry::from_config(
             &format!("fixture-{i}"),
             Some(AgentDefinitionConfig { runtime, ..Default::default() }),
         );
@@ -149,7 +150,7 @@ async fn render_catalog(theme: iced::Theme, click: bool) {
             }
             app.agents_settings.catalog_official = official;
             app.agents_settings.catalog_busy = busy;
-            let mut element = super::catalog::grid(&app);
+            let mut element = crate::catalog::grid(app.catalog_input());
             let mut tree = Tree::new(element.as_widget());
             let width = if click { 840 } else { 660 };
             let bounds = Size::new(width as f32, 800.0);
@@ -220,7 +221,7 @@ async fn render_catalog(theme: iced::Theme, click: bool) {
                     } else {
                         assert_eq!(messages.len(), 1);
                         assert!(
-                            matches!(&messages[0], Message::Settings(SettingsMessage::Agents(AgentsMessage::CatalogLaunch(key))) if key == &format!("fixture-{index}"))
+                            matches!(&messages[0], Message::Agents(AgentsMessage::CatalogLaunch(key)) if key == &format!("fixture-{index}"))
                         );
                     }
                 }

@@ -22,51 +22,6 @@ fn has_scheduled_action(task: Task<Message>) -> bool {
 
 // 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
 // 完成、失败与过期响应均按当前场景的既定契约处理。
-#[test]
-fn dialogue_flow_loaded_messages_update_ui_state() {
-    let mut app = app();
-
-    let _ = update(
-        &mut app,
-        SettingsMessage::DialogueFlowPermissionLoaded(Ok("{\n  \"allow\": true\n}".to_string())),
-    );
-    assert!(app.dialogue_flow_permission_editor.text().contains("\"allow\": true"));
-
-    let _ =
-        update(&mut app, SettingsMessage::DialogueFlowPermissionLoaded(Err("boom".to_string())));
-    assert!(app.dialogue_flow_permission_editor.text().contains("读取失败: boom"));
-
-    let _ = update(&mut app, loaded(Ok((false, true, true))));
-    assert!(!app.dialogue_flow_show_reasoning_summary);
-    assert!(app.dialogue_flow_expand_shell_tool_section);
-    assert!(app.dialogue_flow_expand_edit_tool_section);
-}
-
-#[test]
-fn dialogue_flow_toggle_and_save_feedback_update_messages() {
-    let mut app = app();
-
-    let _ = update(&mut app, loaded(Err("bad config".to_string())));
-    assert_eq!(
-        app.dialogue_flow_settings_save_message.as_deref(),
-        Some("读取配置失败: bad config")
-    );
-
-    let _ = update(&mut app, SettingsMessage::DialogueFlowShowReasoningSummaryToggled(true));
-    let _ = update(&mut app, SettingsMessage::DialogueFlowExpandShellToolSectionToggled(false));
-    let _ = update(&mut app, SettingsMessage::DialogueFlowExpandEditToolSectionToggled(false));
-    assert!(app.dialogue_flow_show_reasoning_summary);
-    assert!(!app.dialogue_flow_expand_shell_tool_section);
-    assert!(!app.dialogue_flow_expand_edit_tool_section);
-
-    let _ = update(&mut app, SettingsMessage::DialogueFlowUiSettingsSaved(Ok(())));
-    assert_eq!(app.dialogue_flow_settings_save_message.as_deref(), Some("已保存对话流配置"));
-    let _ = update(
-        &mut app,
-        SettingsMessage::DialogueFlowUiSettingsSaved(Err("write failed".to_string())),
-    );
-    assert_eq!(app.dialogue_flow_settings_save_message.as_deref(), Some("保存失败: write failed"));
-}
 
 #[test]
 fn action_messages_schedule_follow_up_work() {
@@ -78,26 +33,6 @@ fn action_messages_schedule_follow_up_work() {
     ));
     assert!(has_scheduled_action(update(&mut app, SettingsMessage::DialogueFlowPermissionReset,)));
     assert!(has_scheduled_action(update(&mut app, SettingsMessage::DialogueFlowUiSettingsSave,)));
-}
-
-#[test]
-fn loaded_success_preserves_existing_feedback_and_loaded_error_preserves_toggles() {
-    let mut app = app();
-    app.dialogue_flow_settings_save_message = Some("existing feedback".to_string());
-
-    let success_task = update(&mut app, loaded(Ok((false, true, false))));
-    assert!(!has_scheduled_action(success_task));
-    assert_eq!(app.dialogue_flow_settings_save_message.as_deref(), Some("existing feedback"));
-
-    let error_task = update(&mut app, loaded(Err("unavailable".to_string())));
-    assert!(!has_scheduled_action(error_task));
-    assert!(!app.dialogue_flow_show_reasoning_summary);
-    assert!(app.dialogue_flow_expand_shell_tool_section);
-    assert!(!app.dialogue_flow_expand_edit_tool_section);
-    assert_eq!(
-        app.dialogue_flow_settings_save_message.as_deref(),
-        Some("读取配置失败: unavailable")
-    );
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。

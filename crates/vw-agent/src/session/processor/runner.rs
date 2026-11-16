@@ -22,7 +22,6 @@ use session_engine::helpers::is_acp_request;
 use session_engine::runner::{
     EMPTY_RESPONSE_ERR, EMPTY_RESPONSE_RETRY_LIMIT, EMPTY_RESPONSE_RETRY_PROMPT,
 };
-pub(crate) use session_engine::runner_protocol::provider_request_options;
 #[cfg(test)]
 use session_engine::runner_protocol::{
     delegated_skill_policy_resolution, prepare_context_before_llm_step,

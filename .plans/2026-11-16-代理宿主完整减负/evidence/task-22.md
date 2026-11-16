@@ -1,6 +1,6 @@
 # 任务22证据
 
-代码静态迁移已提交前核对；全部 Cargo、编译、行为、实机及测试列表检查均未运行。当前仅完成部分减负，70%门槛未达；不得将本记录作为整组验收通过。
+代码静态迁移已提交前核对；全部 Cargo、编译、行为、实机及测试列表检查均未运行。领域迁移及保留宿主端口接线已静态闭合；70%减量门槛未达，须由收口任务验收保留边界；不得作为编译或行为验收通过。
 
 ## 本轮实际变化
 
@@ -15,22 +15,22 @@
 |`prompting.rs`|8→5|build_prompt：宿主 system prompt 输入组合，历史拼装测试全迁出|
 |`recovery.rs`|6→6|重导出/模块注册：既有 session-engine 领域类型/策略薄重导出，无本轮业务迁移收益|
 |`todos.rs`|12→12|has_incomplete_todos, read_todos_or_empty, maybe_mark_todo_in_progress：真实 Todo 存储及写入工具接线；存储读取策略仍可拆出|
-|`runner.rs`|293→293|DesktopSessionProtocol, Target, deref, deref_mut, new, prepare_native_skill_context, run, run_with_persisted_history, run_in_project, request_provider_retry_policy, with_request_model_context, resolve_request_model, should_handle_docs_request_locally, handle_docs_request, handle_structured_tool_calls, handle_assistant_text_branch, handle_empty_assistant_text, build_image_turn_context_for_request, compact_transient_history_for_request：真实宿主模型解析、技能、checkpoint、plugin hooks 和 catalog/子代理执行接线；纯协议断言仍可进一步拆分|
-|`llm_runner.rs`|153→153|AgentLlmStreamHost, spawn, spawn_llm_stream_thread, spawn_real_llm_stream_thread, run_llm_step, run_llm_step_with_retry, run_llm_step_with_budget：线程工具/租户/project 上下文捕获、脚本流注入、shell 后台生命周期；脚本收集断言仍可进一步分离|
+|`runner.rs`|293→166|DesktopSessionProtocol, Target, deref, deref_mut, new, prepare_native_skill_context, run, run_with_persisted_history, run_in_project, request_provider_retry_policy, with_request_model_context, resolve_request_model, should_handle_docs_request_locally, handle_docs_request, handle_structured_tool_calls, handle_assistant_text_branch, handle_empty_assistant_text, build_image_turn_context_for_request, compact_transient_history_for_request：真实宿主模型解析、技能、checkpoint、plugin hooks 和 catalog/子代理执行接线；纯协议断言仍可进一步拆分|
+|`llm_runner.rs`|153→140|AgentLlmStreamHost, spawn, spawn_llm_stream_thread, spawn_real_llm_stream_thread, run_llm_step, run_llm_step_with_retry, run_llm_step_with_budget：线程工具/租户/project 上下文捕获、脚本流注入、shell 后台生命周期；脚本收集断言本轮已整组分离|
 |`helpers.rs`|17→13|allowed_tool_ids, allowed_tool_ids_for_request, tool_call_preview, query_has_any_tool_calls：真实 registry specs 注册和必需工具筛选接线|
 |`mod.rs`|71→71|重导出/模块注册：模块装配和公共兼容出口|
-|`artifacts.rs`|48→40|artifact_request, persist_step_ai_call_payload, persist_llm_raw_step_payload, persist_final_ai_call_payload：请求投影、真实 UI 存储与 scoped project 写入；raw payload 纯构造场景仍可继续分离|
+|`artifacts.rs`|48→28|artifact_request, persist_step_ai_call_payload, persist_llm_raw_step_payload, persist_final_ai_call_payload：请求投影、真实 UI 存储与 scoped project 写入；raw payload 纯构造场景本轮已整组迁出|
 |`runner_host.rs`|375→375|AgentRunnerHost, CtxHost, ImageExtractor, image_extractor, Admission, Prompt, Connections, PlannedCall, Stream, Prefetch, config, apply_binding, native_defaults, providers, acp_model_source, is_acp_model, message_id, restore_context, admit_context, load_skills, accessible_skills, referenced_skills, explicit_skill_request, invocable_skills, run_video_command, run_bound_command, execution_tools, tool_specs, mcp_connections, refresh_catalog, request_catalog, new_discovery, rebase_discovery, exposed_specs, system_prompt, runtime_prompt, deliver_model_events, team_instructions, planned_call, parallel_limit, stop_hook, read_todos, with_request_tool_catalog, is_agent_tool, run_agent_tools_and_record, run_tool_and_record_with_protocol, run_tool_and_record, run_native_search_and_record, record_native_history_pair, list_docs, restore_skills, save_skills, save_context, compact_hook, run_llm_step, specs, sanitize_tool_input, build_prompt, persist_ai_call_payload：具体 Host 实现：配置、租户、工具、技能、hook、checkpoint 与模型线程入口|
 |`runner_admission.rs`|53→53|native, admit_context：plugin turn 快照、hook 生命周期和请求 ToolUseContext 组合|
 |`context_governance.rs`|2→2|重导出/模块注册：既有 session-engine 领域类型/策略薄重导出，无本轮业务迁移收益|
-|`prefetch.rs`|32→32|AgentPrefetchHost, Context, root, State, default_agent, permission_rules, is_binary, resolve_full_path, run_read, prefetch_allowed, try_prefetch_read, prefetch_seed_context：默认代理权限、真实 file_read、二进制/路径判定；block_on 及空 root 场景仍可继续下沉|
+|`prefetch.rs`|32→32|AgentPrefetchHost, Context, root, State, default_agent, permission_rules, is_binary, resolve_full_path, run_read, prefetch_allowed, try_prefetch_read, prefetch_seed_context：默认代理权限、真实 file_read、二进制/路径判定；block_on 及空 root 场景本轮已迁出|
 |`tools_exec.rs`|133→133|AgentToolPlannedCall, integrate_agent_tool_children, agent_tool_snapshot_status, agent_tool_snapshot_payload, finalize_agent_tool_children_with, prepare_native_search, take_native_output：真实工具权限、审批、catalog snapshot 和子代理 coordinator，不能以模拟端口替代验收|
-|`planning.rs`|24→24|AgentPlanningHost, Context, State, run_tool_and_record, ingest_planning_answer_todowrite_only：真实 TodoWrite 执行和持久化；拒绝分支可另用显式执行端口下沉|
+|`planning.rs`|24→24|AgentPlanningHost, Context, State, run_tool_and_record, ingest_planning_answer_todowrite_only：真实 TodoWrite 执行和持久化；拒绝分支本轮已用不可执行端口迁出|
 |`todo_updates.rs`|18→18|maybe_update_todos_after_work：真实 Todo 存储与 AgentRunnerHost 模型/执行接线|
 |`turn_policy.rs`|2→2|重导出/模块注册：既有 session-engine 领域类型/策略薄重导出，无本轮业务迁移收益|
 |`utils.rs`|33→33|重导出/模块注册：下属路径/工具/消息适配器装配|
 
-来源19文件生产/适配/测试包装混合物理行：1290→1275，净减15（1.16%）；没有将包装行伪报为新增领域生产算法。来源没有内联测试函数；cfg(test) 包装、导入及跨目录挂载依然单列于上表符号。新领域测试文件共477行，新增生产算法0行。
+来源19文件物理行：1290→1123，净减167（12.95%）。其中本轮新增领域生产算法0行；真实策略早已在领域库，收益是测试编译归属和冗余转发清理。新领域测试物理行共1061。
 
 ## 全测试映射（原完整名称→现归属）
 
@@ -48,7 +48,7 @@
 - `maybe_update_todos_returns_false_when_todo_list_is_empty` → `原宿主挂载::todo_updates_tests::maybe_update_todos_returns_false_when_todo_list_is_empty（保留）`
 - `maybe_update_todos_returns_false_when_all_todos_are_completed` → `原宿主挂载::todo_updates_tests::maybe_update_todos_returns_false_when_all_todos_are_completed（保留）`
 ### llm_runner_tests.rs
-物理行 460→353；保留理由：线程工具/租户/project 上下文捕获、脚本流注入、shell 后台生命周期；脚本收集断言仍可进一步分离。
+物理行 460→353；保留理由：线程工具/租户/project 上下文捕获、脚本流注入、shell 后台生命周期；脚本收集断言本轮已整组分离。
 
 - `llm_runner_tests_module_is_wired` → `原宿主挂载::llm_runner_tests::llm_runner_tests_module_is_wired（保留）`
 - `acp_request_detection_accepts_test_flag_and_agent_name` → `session_engine::host_migration_22_tests::llm_runner_tests::acp_request_detection_accepts_test_flag_and_agent_name`
@@ -60,11 +60,11 @@
 - `llm_error_message_falls_back_to_raw_string_when_json_without_message` → `session_engine::host_migration_22_tests::llm_runner_tests::llm_error_message_falls_back_to_raw_string_when_json_without_message`
 - `llm_error_message_falls_back_when_json_message_is_not_text` → `session_engine::host_migration_22_tests::llm_runner_tests::llm_error_message_falls_back_when_json_message_is_not_text`
 - `acp_request_detection_rejects_unexpected_option_types` → `session_engine::host_migration_22_tests::llm_runner_tests::acp_request_detection_rejects_unexpected_option_types`
-- `run_llm_step_uses_scripted_stream_and_filters_allowed_tools` → `原宿主挂载::llm_runner_tests::run_llm_step_uses_scripted_stream_and_filters_allowed_tools（保留）`
-- `run_llm_step_reports_missing_scripted_stream` → `原宿主挂载::llm_runner_tests::run_llm_step_reports_missing_scripted_stream（保留）`
+- `run_llm_step_uses_scripted_stream_and_filters_allowed_tools` → `session_engine::host_migration_22_tests::scripted_stream_tests::run_llm_step_uses_scripted_stream_and_filters_allowed_tools`
+- `run_llm_step_reports_missing_scripted_stream` → `session_engine::host_migration_22_tests::scripted_stream_tests::run_llm_step_reports_missing_scripted_stream`
 - `shell_outer_timeout_model_idle_does_not_cover_background_runtime` → `原宿主挂载::llm_runner_tests::shell_outer_timeout_model_idle_does_not_cover_background_runtime（保留）`
-- `compaction_range_error_requires_oversized_nonempty_input_and_safe_replay` → `原宿主挂载::llm_runner_tests::compaction_range_error_requires_oversized_nonempty_input_and_safe_replay（保留）`
-- `compaction_range_error_after_partial_output_never_replays` → `原宿主挂载::llm_runner_tests::compaction_range_error_after_partial_output_never_replays（保留）`
+- `compaction_range_error_requires_oversized_nonempty_input_and_safe_replay` → `session_engine::host_migration_22_tests::scripted_stream_tests::compaction_range_error_requires_oversized_nonempty_input_and_safe_replay`
+- `compaction_range_error_after_partial_output_never_replays` → `session_engine::host_migration_22_tests::scripted_stream_tests::compaction_range_error_after_partial_output_never_replays`
 ### todos_tests.rs
 物理行 128→128；保留理由：真实 Todo 存储及写入工具接线；存储读取策略仍可拆出。
 
@@ -90,12 +90,12 @@
 - `build_prompt_adds_missing_newline_for_message_chunks` → `session_engine::host_migration_22_tests::prompting_tests::build_prompt_adds_missing_newline_for_message_chunks`
 - `build_prompt_keeps_existing_message_newline_without_double_required_suffix` → `session_engine::host_migration_22_tests::prompting_tests::build_prompt_keeps_existing_message_newline_without_double_required_suffix`
 ### prefetch_tests.rs
-物理行 224→224；保留理由：默认代理权限、真实 file_read、二进制/路径判定；block_on 及空 root 场景仍可继续下沉。
+物理行 224→224；保留理由：默认代理权限、真实 file_read、二进制/路径判定；block_on 及空 root 场景本轮已迁出。
 
-- `block_on_drives_pending_future_without_existing_runtime` → `原宿主挂载::prefetch_tests::block_on_drives_pending_future_without_existing_runtime（保留）`
-- `block_on_runs_future_inside_existing_runtime` → `原宿主挂载::prefetch_tests::block_on_runs_future_inside_existing_runtime（保留）`
-- `app_session_scope_from_root_ignores_missing_or_blank_roots` → `原宿主挂载::prefetch_tests::app_session_scope_from_root_ignores_missing_or_blank_roots（保留）`
-- `app_session_scope_from_root_rejects_missing_directory` → `原宿主挂载::prefetch_tests::app_session_scope_from_root_rejects_missing_directory（保留）`
+- `block_on_drives_pending_future_without_existing_runtime` → `session_engine::host_migration_22_tests::prefetch_tests::block_on_drives_pending_future_without_existing_runtime`
+- `block_on_runs_future_inside_existing_runtime` → `session_engine::host_migration_22_tests::prefetch_tests::block_on_runs_future_inside_existing_runtime`
+- `app_session_scope_from_root_ignores_missing_or_blank_roots` → `session_engine::host_migration_22_tests::prefetch_tests::app_session_scope_from_root_ignores_missing_or_blank_roots`
+- `app_session_scope_from_root_rejects_missing_directory` → `session_engine::host_migration_22_tests::prefetch_tests::app_session_scope_from_root_rejects_missing_directory`
 - `try_prefetch_read_returns_false_for_missing_paths_and_directories` → `原宿主挂载::prefetch_tests::try_prefetch_read_returns_false_for_missing_paths_and_directories（保留）`
 - `try_prefetch_read_records_text_file_only_when_permission_allows` → `原宿主挂载::prefetch_tests::try_prefetch_read_records_text_file_only_when_permission_allows（保留）`
 - `try_prefetch_read_rejects_binary_files_without_recording_tools` → `原宿主挂载::prefetch_tests::try_prefetch_read_rejects_binary_files_without_recording_tools（保留）`
@@ -204,15 +204,15 @@
 - `structured_tool_calls_are_not_executed_locally_for_acp_requests` → `session_engine::host_migration_22_tests::processor_tests::structured_tool_calls_are_not_executed_locally_for_acp_requests`
 - `structured_tool_calls_still_execute_locally_for_non_acp_requests` → `session_engine::host_migration_22_tests::processor_tests::structured_tool_calls_still_execute_locally_for_non_acp_requests`
 ### planning_tests.rs
-物理行 220→220；保留理由：真实 TodoWrite 执行和持久化；拒绝分支可另用显式执行端口下沉。
+物理行 220→220；保留理由：真实 TodoWrite 执行和持久化；拒绝分支本轮已用不可执行端口迁出。
 
-- `ingest_planning_answer_does_not_autogenerate_when_todowrite_is_not_allowed` → `原宿主挂载::planning_tests::ingest_planning_answer_does_not_autogenerate_when_todowrite_is_not_allowed（保留）`
-- `ingest_planning_answer_does_not_run_allowed_todowrite_without_extractable_items` → `原宿主挂载::planning_tests::ingest_planning_answer_does_not_run_allowed_todowrite_without_extractable_items（保留）`
+- `ingest_planning_answer_does_not_autogenerate_when_todowrite_is_not_allowed` → `session_engine::host_migration_22_tests::planning_tests::ingest_planning_answer_does_not_autogenerate_when_todowrite_is_not_allowed`
+- `ingest_planning_answer_does_not_run_allowed_todowrite_without_extractable_items` → `session_engine::host_migration_22_tests::planning_tests::ingest_planning_answer_does_not_run_allowed_todowrite_without_extractable_items`
 - `ingest_planning_answer_records_explicit_todowrite_without_input` → `原宿主挂载::planning_tests::ingest_planning_answer_records_explicit_todowrite_without_input（保留）`
 - `ingest_planning_answer_autogenerates_todowrite_for_list_text` → `原宿主挂载::planning_tests::ingest_planning_answer_autogenerates_todowrite_for_list_text（保留）`
 - `ingest_planning_answer_runs_explicit_todowrite_and_skips_implicit_fallback` → `原宿主挂载::planning_tests::ingest_planning_answer_runs_explicit_todowrite_and_skips_implicit_fallback（保留）`
 - `ingest_planning_answer_consumes_multiline_todowrite_input_once` → `原宿主挂载::planning_tests::ingest_planning_answer_consumes_multiline_todowrite_input_once（保留）`
-- `ingest_planning_answer_ignores_non_todowrite_tool_calls` → `原宿主挂载::planning_tests::ingest_planning_answer_ignores_non_todowrite_tool_calls（保留）`
+- `ingest_planning_answer_ignores_non_todowrite_tool_calls` → `session_engine::host_migration_22_tests::planning_tests::ingest_planning_answer_ignores_non_todowrite_tool_calls`
 ### tools_exec_tests.rs
 物理行 1443→1443；保留理由：真实工具权限、审批、catalog snapshot 和子代理 coordinator，不能以模拟端口替代验收。
 
@@ -249,28 +249,49 @@
 - `native_tool_search_desktop_executor_requires_real_success_and_preserves_hooks` → `原宿主挂载::tools_exec_tests::native_tool_search_desktop_executor_requires_real_success_and_preserves_hooks（保留）`
 - `native_tool_search_desktop_ordinary_approval_and_hooks_still_deny` → `原宿主挂载::tools_exec_tests::native_tool_search_desktop_ordinary_approval_and_hooks_still_deny（保留）`
 ### artifacts_tests.rs
-物理行 553→553；保留理由：请求投影、真实 UI 存储与 scoped project 写入；raw payload 纯构造场景仍可继续分离。
+物理行 553→553；保留理由：请求投影、真实 UI 存储与 scoped project 写入；raw payload 纯构造场景本轮已整组迁出。
 
 - `step_and_final_ai_call_payloads_persist_to_scoped_session` → `原宿主挂载::artifacts_tests::step_and_final_ai_call_payloads_persist_to_scoped_session（保留）`
 - `ai_call_payloads_compact_repeated_context_before_persisting` → `原宿主挂载::artifacts_tests::ai_call_payloads_compact_repeated_context_before_persisting（保留）`
 - `ai_call_payloads_respect_persistence_guards` → `原宿主挂载::artifacts_tests::ai_call_payloads_respect_persistence_guards（保留）`
 - `final_ai_call_payload_uses_explicit_persist_decision` → `原宿主挂载::artifacts_tests::final_ai_call_payload_uses_explicit_persist_decision（保留）`
-- `raw_payload_builds_system_messages_output_and_tool_calls` → `原宿主挂载::artifacts_tests::raw_payload_builds_system_messages_output_and_tool_calls（保留）`
-- `raw_payload_builds_message_sources_without_provider_metadata` → `原宿主挂载::artifacts_tests::raw_payload_builds_message_sources_without_provider_metadata（保留）`
-- `raw_payload_builds_request_snapshot_and_tool_catalog` → `原宿主挂载::artifacts_tests::raw_payload_builds_request_snapshot_and_tool_catalog（保留）`
-- `raw_payload_options_are_explicitly_allowlisted` → `原宿主挂载::artifacts_tests::raw_payload_options_are_explicitly_allowlisted（保留）`
-- `raw_payload_serializes_empty_optional_output` → `原宿主挂载::artifacts_tests::raw_payload_serializes_empty_optional_output（保留）`
-- `raw_payload_respects_persistence_guards` → `原宿主挂载::artifacts_tests::raw_payload_respects_persistence_guards（保留）`
-- `raw_payload_build_does_not_access_storage` → `原宿主挂载::artifacts_tests::raw_payload_build_does_not_access_storage（保留）`
+- `raw_payload_builds_system_messages_output_and_tool_calls` → `session_engine::host_migration_22_tests::artifacts_tests::raw_payload_builds_system_messages_output_and_tool_calls`
+- `raw_payload_builds_message_sources_without_provider_metadata` → `session_engine::host_migration_22_tests::artifacts_tests::raw_payload_builds_message_sources_without_provider_metadata`
+- `raw_payload_builds_request_snapshot_and_tool_catalog` → `session_engine::host_migration_22_tests::artifacts_tests::raw_payload_builds_request_snapshot_and_tool_catalog`
+- `raw_payload_options_are_explicitly_allowlisted` → `session_engine::host_migration_22_tests::artifacts_tests::raw_payload_options_are_explicitly_allowlisted`
+- `raw_payload_serializes_empty_optional_output` → `session_engine::host_migration_22_tests::artifacts_tests::raw_payload_serializes_empty_optional_output`
+- `raw_payload_respects_persistence_guards` → `session_engine::host_migration_22_tests::artifacts_tests::raw_payload_respects_persistence_guards`
+- `raw_payload_build_does_not_access_storage` → `session_engine::host_migration_22_tests::artifacts_tests::raw_payload_build_does_not_access_storage`
 
 runner_tests 的 mcp_catalog_refresh_tests 子模块仍随原宿主挂载保留，未将其算作迁移；该子模块属于后续可拆分范围。
 
 ## 未来验证
 
-`python3 scripts/cargo_slot.py cargo test -p session-engine --lib host_migration_22_tests -- --test-threads=1`：静态预期 33 个，必须非零。
+`python3 scripts/cargo_slot.py cargo test -p session-engine --lib host_migration_22_tests -- --test-threads=1`：静态预期 51 个，必须非零。
 
 宿主保留项使用上表名称加 `session::processor::` 实际模块前缀作精确过滤，未来先 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib -- --list` 获取真实完整名。迁出项应在宿主列表消失；零测试不能作为通过。未新增 llm-runtime/agent-acp 测试，不运行其空过滤。
 
 ## 未达减量门槛的后续项
 
-需继续拆分 raw artifact 构造、prefetch 无权限依赖分支、planning 不执行分支和 runner 纯协议断言，保留真实安全/执行端口验收。当前不声称整个任务已完整迁出，保留编号任务文件供继续执行。
+已拆分 raw artifact 构造、prefetch 无权限依赖分支、planning 不执行分支；继续可迁候选是 runner 中与具体技能/配置重叠的协议断言，保留真实安全/执行端口验收。这些候选仍牵涉具体宿主配置/存储/执行验收，未用模拟宿主替代；保留文件及符号职责见上表，减量例外提交收口验收。
+
+## 续执行静态核对
+
+- 原始 raw payload 全部用例移至 artifacts_tests，真实 scoped 持久化4条继续由宿主执行；删除不再使用的 raw 转发和 ToolSpec fixture。
+- 规划三条拒绝路径迁入 GuardHost：仅在不应调用执行时 panic，未模拟权限或存储；四条真实 TodoWrite 验收保留。
+- prefetch 的运行时桥接/空路径/缺失目录四条迁出；权限、真实 file_read 与二进制访问验收保留。
+- 剩余四条纯 LLM 请求筛选/溢出/不可重放策略迁入 scripted_stream_tests，脚本仅替代外部模型流。宿主保留租户/目录请求记录、取消流夹具及真实 shell 生命周期验收。
+- runner 九个 cfg(test) 转发已删除，原宿主集成断言直接调用 session_engine 泛型入口；结构化调用保留 DesktopSessionProtocol 解包适配。
+- 未增加依赖；没有把 App、AppState 或完整具体宿主拷入领域库；无领域反向依赖。
+- git diff --check 针对本任务文件通过；未调用 Cargo/rustfmt/构建/测试可执行文件。源码测试数量和调用核对不等同编译或行为通过。
+
+### 嵌套挂载补充
+
+原 runner_tests::mcp_catalog_refresh_tests 的两条真实 MCP fixture 用例完整保留：
+- dynamic_tools_mcp_refresh_processor_pins_current_request_and_updates_next_request
+- dynamic_tools_mcp_refresh_processor_initializes_native_catalog
+
+### 精确未来非零检查
+
+宿主限定过滤：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib session::processor::artifacts::artifacts_tests -- --test-threads=1`，预期4条。
+领域限定过滤使用上文 host_migration_22_tests 命令；保留宿主薄边界和迁出列表需再用实际 --list 校验。所有命令本轮未运行。

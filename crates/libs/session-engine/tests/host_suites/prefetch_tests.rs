@@ -4,7 +4,6 @@ use crate::app::agent::session::session::{Role, Session};
 use crate::app::agent::tools::ToolRuntimeContext;
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::task::Poll;
 
 static NEXT_SESSION_ID: AtomicU64 = AtomicU64::new(0);
 
@@ -22,45 +21,8 @@ fn read_allowed(path: &std::path::Path) -> bool {
     super::prefetch_allowed("read", target.as_ref())
 }
 
-#[test]
-fn block_on_drives_pending_future_without_existing_runtime() {
-    let mut first_poll = true;
-    let value = super::block_on(std::future::poll_fn(move |cx| {
-        if first_poll {
-            first_poll = false;
-            cx.waker().wake_by_ref();
-            Poll::Pending
-        } else {
-            Poll::Ready(42)
-        }
-    }));
 
-    assert_eq!(value, 42);
-}
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn block_on_runs_future_inside_existing_runtime() {
-    let value = super::block_on(async {
-        tokio::task::yield_now().await;
-        "inside-runtime".to_string()
-    });
-
-    assert_eq!(value, "inside-runtime");
-}
-
-#[test]
-fn app_session_scope_from_root_ignores_missing_or_blank_roots() {
-    assert_eq!(super::app_session_scope_from_root(None), None);
-    assert_eq!(super::app_session_scope_from_root(Some("   ")), None);
-}
-
-#[test]
-fn app_session_scope_from_root_rejects_missing_directory() {
-    let workspace = tempfile::tempdir().expect("temp workspace should be created");
-    let missing = workspace.path().join("missing-project");
-
-    assert_eq!(super::app_session_scope_from_root(Some(missing.to_string_lossy().as_ref())), None);
-}
 
 #[test]
 fn try_prefetch_read_returns_false_for_missing_paths_and_directories() {

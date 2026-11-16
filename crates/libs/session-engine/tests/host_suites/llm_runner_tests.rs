@@ -5,16 +5,11 @@ fn llm_runner_tests_module_is_wired() {
 }
 
 use crate::app::agent::session::llm;
-use crate::app::agent::session::message::AssistantError;
 use crate::app::agent::tools::ToolSpec;
-use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::sync::mpsc;
 use std::time::Duration;
 
-#[path = "../../src/llm_runner_test_support.rs"]
-mod llm_runner_test_support;
-use llm_runner_test_support::usage;
 
 pub(crate) struct RecordedLlmRequest {
     pub(crate) tool_specs: Vec<ToolSpec>,
@@ -151,64 +146,9 @@ pub(super) fn spawn_test_llm_stream_thread(
 
 
 
-#[test]
-fn run_llm_step_uses_scripted_stream_and_filters_allowed_tools() {
-    let _guard = test_llm_stream_guard();
-    enqueue_test_llm_stream(vec![
-        llm::StreamEvent::Delta("scripted answer".to_string()),
-        llm::StreamEvent::Done { usage: usage(5, 8), finish_reason: Some("stop".to_string()) },
-    ]);
-    let available_tools = vec![
-        ToolSpec::new("file_read", "Read a file", serde_json::json!({})),
-        ToolSpec::new("shell", "Run a command", serde_json::json!({})),
-    ];
-    let allowed_tools = HashSet::from(["file_read".to_string()]);
-    let mut deltas = Vec::new();
 
-    let step = super::run_llm_step(
-        "session-1",
-        &[serde_json::json!({ "role": "user", "content": "hello" })],
-        &["system".to_string()],
-        Some("provider/model".to_string()),
-        &serde_json::json!({}),
-        &available_tools,
-        &allowed_tools,
-        &mut |event| {
-            if let super::StreamEvent::Delta(text) = event {
-                deltas.push(text);
-            }
-            true
-        },
-        None,
-    )
-    .expect("scripted LLM stream should produce a step");
 
-    assert_eq!(step.text, "scripted answer");
-    assert_eq!(step.usage.output_tokens, 8);
-    assert_eq!(deltas, vec!["scripted answer"]);
-    assert_eq!(take_test_llm_stream_tool_ids(), vec![vec!["file_read".to_string()]]);
-}
 
-#[test]
-fn run_llm_step_reports_missing_scripted_stream() {
-    let _guard = test_llm_stream_guard();
-
-    let error = super::run_llm_step(
-        "session-missing-script",
-        &[],
-        &[],
-        None,
-        &serde_json::json!({}),
-        &[],
-        &HashSet::new(),
-        &mut |_event| true,
-        None,
-    )
-    .unwrap_err();
-
-    assert!(error.contains("missing scripted LLM stream"));
-    assert_eq!(take_test_llm_stream_tool_ids(), vec![Vec::<String>::new()]);
-}
 
 #[derive(Default)]
 pub(crate) struct ChannelCancelStream {
@@ -282,72 +222,4 @@ fn shell_outer_timeout_model_idle_does_not_cover_background_runtime() {
         "model idle expired; process={} remained Running; shutdown reaped it",
         after.process_id
     );
-}
-
-fn recovery_api_error(message: &str, is_retryable: bool) -> AssistantError {
-    AssistantError::APIError {
-        message: message.into(),
-        status_code: None,
-        is_retryable,
-        response_headers: None,
-        response_body: None,
-        metadata: None,
-    }
-}
-
-#[test]
-fn compaction_range_error_requires_oversized_nonempty_input_and_safe_replay() {
-    let error = serde_json::to_string(&recovery_api_error(
-        "HTTP 400: Range of input length should be [1, 1000000]",
-        false,
-    ))
-    .unwrap();
-    let large = vec![serde_json::json!({"role":"user","content":"x".repeat(1_000_001)})];
-    assert!(super::is_request_too_long_error(&error, &large));
-    for input in [
-        vec![],
-        vec![serde_json::json!({"role":"user","content":""})],
-        vec![serde_json::json!({"role":"user","content":"short"})],
-    ] {
-        assert!(!super::is_request_too_long_error(&error, &input));
-    }
-    let mut with_empty = large.clone();
-    with_empty.push(serde_json::json!({"role":"user","content":""}));
-    assert!(!super::is_request_too_long_error(&error, &with_empty));
-    let mut unsafe_error: AssistantError = serde_json::from_str(&error).unwrap();
-    crate::session::llm::prevent_error_replay(&mut unsafe_error);
-    assert!(!super::is_request_too_long_error(
-        &serde_json::to_string(&unsafe_error).unwrap(),
-        &large
-    ));
-    assert!(!super::is_request_too_long_error("HTTP 400: invalid parameter", &large));
-}
-
-#[test]
-fn compaction_range_error_after_partial_output_never_replays() {
-    let _guard = test_llm_stream_guard();
-    enqueue_test_llm_stream(vec![
-        llm::StreamEvent::Delta("partial".into()),
-        llm::StreamEvent::Error(recovery_api_error(
-            "Range of input length should be [1, 1000]",
-            false,
-        )),
-    ]);
-    let input = vec![serde_json::json!({"role":"user","content":"x".repeat(2000)})];
-    let error = super::run_llm_step_with_retry(
-        "partial-range",
-        &input,
-        &[],
-        None,
-        &serde_json::json!({}),
-        &[],
-        &HashSet::new(),
-        &mut |_| true,
-        2,
-        0,
-        None,
-    )
-    .unwrap_err();
-    assert!(!super::is_request_too_long_error(&error, &input));
-    assert_eq!(take_test_llm_messages("partial-range").len(), 1);
 }

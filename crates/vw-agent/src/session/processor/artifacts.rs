@@ -3,7 +3,6 @@ use super::types::Request;
 use super::llm_runner::LlmStep;
 use crate::session::session::Session;
 use crate::session::ui_types as models;
-use serde_json::Value;
 use super::runner_host::AgentRunnerHost as AgentArtifactHost;
 fn artifact_request(req: &Request) -> session_engine::artifacts::ArtifactRequest<'_> {
     session_engine::artifacts::ArtifactRequest { stream: req.stream, session: &req.session, root: req.root.as_deref(), model: req.model.as_deref(), options: &req.options, persist_app_session_artifacts: req.persist_app_session_artifacts }
@@ -16,17 +15,6 @@ pub(crate) fn persist_step_ai_call_payload(
     step_index: u32,
     app_session_scope: Option<&str>,
 ) { session_engine::artifacts::persist_step_ai_call_payload::<AgentArtifactHost>(&artifact_request(req), session, total_usage, step, step_index, app_session_scope) }
-pub(crate) fn persist_llm_raw_step_payload(
-    req: &Request,
-    session_id: &str,
-    step_index: u32,
-    llm_messages: &[Value],
-    message_sources: &[Value],
-    resolved_model: &str,
-    system: &[String],
-    tool_specs: &[crate::app::agent::tools::ToolSpec],
-    step: &LlmStep,
-) -> Option<Value> { session_engine::artifacts::persist_llm_raw_step_payload(&artifact_request(req), session_id, step_index, llm_messages, message_sources, resolved_model, system, tool_specs, step) }
 pub(crate) fn persist_final_ai_call_payload(
     req: &Request,
     session: &Session,

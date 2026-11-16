@@ -118,19 +118,6 @@ pub(crate) fn run_llm_step(
     on_event: &mut dyn FnMut(StreamEvent) -> bool,
     cancellation: Option<&tokio_util::sync::CancellationToken>,
 ) -> Result<LlmStep, String> { session_engine::llm_runner::run_llm_step::<AgentLlmStreamHost>(session_id, messages, system, model, options, available_tools, allowed_tools, on_event, cancellation) }
-pub(crate) fn run_llm_step_with_retry(
-    session_id: &str,
-    messages: &[serde_json::Value],
-    system: &[String],
-    model: Option<String>,
-    options: &serde_json::Value,
-    available_tools: &[ToolSpec],
-    allowed_tools: &std::collections::HashSet<String>,
-    on_event: &mut dyn FnMut(StreamEvent) -> bool,
-    additional_retries: u32,
-    initial_backoff_ms: u64,
-    cancellation: Option<&tokio_util::sync::CancellationToken>,
-) -> Result<LlmStep, String> { session_engine::llm_runner::run_llm_step_with_retry::<AgentLlmStreamHost>(session_id, messages, system, model, options, available_tools, allowed_tools, on_event, additional_retries, initial_backoff_ms, cancellation) }
 pub(crate) fn run_llm_step_with_budget(
     session_id: &str,
     messages: &[Value],

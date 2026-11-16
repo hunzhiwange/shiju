@@ -17,55 +17,9 @@ fn allowed(names: &[&str]) -> HashSet<String> {
     names.iter().map(|name| (*name).to_string()).collect()
 }
 
-#[test]
-fn ingest_planning_answer_does_not_autogenerate_when_todowrite_is_not_allowed() {
-    let session_id = unique_session_id("not-allowed");
-    let mut session = Session::new(session_id.clone());
-    let ctx = ToolRuntimeContext::new(session_id, None);
-    let mut tool_state = super::super::ToolSessionState::default();
-    let mut event_count = 0usize;
 
-    let ran = super::ingest_planning_answer_todowrite_only(
-        &mut session,
-        "- first task\n- second task",
-        &ctx,
-        &HashSet::new(),
-        &mut |_event| {
-            event_count += 1;
-            true
-        },
-        &mut tool_state,
-    );
 
-    assert!(!ran);
-    assert!(session.messages.is_empty());
-    assert_eq!(event_count, 0);
-}
 
-#[test]
-fn ingest_planning_answer_does_not_run_allowed_todowrite_without_extractable_items() {
-    let session_id = unique_session_id("allowed-no-items");
-    let mut session = Session::new(session_id.clone());
-    let ctx = ToolRuntimeContext::new(session_id, None);
-    let mut tool_state = super::super::ToolSessionState::default();
-    let mut event_count = 0usize;
-
-    let ran = super::ingest_planning_answer_todowrite_only(
-        &mut session,
-        "/todowrite {}\n```\n- hidden task\n```",
-        &ctx,
-        &allowed(&[TODO_WRITE_TOOL_ID]),
-        &mut |_event| {
-            event_count += 1;
-            true
-        },
-        &mut tool_state,
-    );
-
-    assert!(!ran);
-    assert!(session.messages.is_empty());
-    assert_eq!(event_count, 0);
-}
 
 #[test]
 fn ingest_planning_answer_records_explicit_todowrite_without_input() {
@@ -195,26 +149,4 @@ fn ingest_planning_answer_consumes_multiline_todowrite_input_once() {
     assert_eq!(event_count, 1);
     let stored = todo::read(&ctx).expect("multiline todowrite should write todos");
     assert!(stored.contains("multiline task"));
-}
-
-#[test]
-fn ingest_planning_answer_ignores_non_todowrite_tool_calls() {
-    let session_id = unique_session_id("non-todo-tool");
-    let mut session = Session::new(session_id.clone());
-    let ctx = ToolRuntimeContext::new(session_id, None);
-    let mut tool_state = super::super::ToolSessionState::default();
-    let mut allowed_tools = allowed(&["file_read"]);
-    allowed_tools.insert(TODO_WRITE_TOOL_ID.to_string());
-
-    let ran = super::ingest_planning_answer_todowrite_only(
-        &mut session,
-        r#"/file_read {"path":"missing.rs"}"#,
-        &ctx,
-        &allowed_tools,
-        &mut |_event| true,
-        &mut tool_state,
-    );
-
-    assert!(!ran);
-    assert!(session.messages.is_empty());
 }

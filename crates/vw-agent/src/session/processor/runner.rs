@@ -4,7 +4,7 @@ use super::runner_host::AgentRunnerHost;
 use super::types::CompactionPhase;
 use super::types::{Request, StreamEvent};
 #[cfg(test)]
-use super::types::{ResolvedRequestModel, ToolSessionState};
+use super::types::ToolSessionState;
 #[cfg(test)]
 use super::{llm_runner, tools_exec};
 use crate::session::prompt;
@@ -126,36 +126,6 @@ fn run_in_project(
 }
 
 #[cfg(test)]
-fn request_provider_retry_policy(req: &Request) -> (u32, u64) {
-    session_engine::runner::request_provider_retry_policy::<AgentRunnerHost>(req)
-}
-#[cfg(test)]
-fn with_request_model_context(
-    context: ToolUseContext,
-    request_model: Option<&str>,
-) -> ToolUseContext {
-    session_engine::runner::with_request_model_context::<AgentRunnerHost>(context, request_model)
-}
-#[cfg(test)]
-fn resolve_request_model(
-    req: &Request,
-    config: &crate::config::Config,
-) -> Result<ResolvedRequestModel, String> {
-    session_engine::runner::resolve_request_model::<AgentRunnerHost>(req, config)
-}
-#[cfg(test)]
-fn should_handle_docs_request_locally(query: &str) -> bool {
-    session_engine::runner::should_handle_docs_request_locally(query)
-}
-#[cfg(test)]
-fn handle_docs_request(
-    session: &mut Session,
-    ctx: &ToolRuntimeContext,
-    on_event: &mut impl FnMut(StreamEvent) -> bool,
-) {
-    session_engine::runner::handle_docs_request::<AgentRunnerHost>(session, ctx, on_event)
-}
-#[cfg(test)]
 fn handle_structured_tool_calls(
     req: &Request,
     session: &mut Session,
@@ -189,103 +159,6 @@ fn handle_structured_tool_calls(
         parallel_tools,
         is_last_step,
         step_index,
-    )
-}
-#[cfg(test)]
-fn handle_assistant_text_branch(
-    req: &Request,
-    session: &mut Session,
-    ctx: &ToolRuntimeContext,
-    allowed_tools: &HashSet<String>,
-    llm_messages: &mut Vec<Value>,
-    total_usage: &mut models::TokenUsage,
-    on_event: &mut impl FnMut(StreamEvent) -> bool,
-    tool_state: &mut ToolSessionState,
-    empty_response_retries: &mut usize,
-    step: &mut usize,
-    step_out: &llm_runner::LlmStep,
-    step_text_preview: &str,
-    empty_tools: &HashSet<String>,
-    is_last_step: bool,
-    step_index: u32,
-    app_session_scope: Option<&str>,
-    stop_hook_active: &mut bool,
-) -> bool {
-    session_engine::runner::handle_assistant_text_branch::<AgentRunnerHost>(
-        req,
-        session,
-        ctx,
-        allowed_tools,
-        llm_messages,
-        total_usage,
-        on_event,
-        tool_state,
-        empty_response_retries,
-        step,
-        step_out,
-        step_text_preview,
-        empty_tools,
-        is_last_step,
-        step_index,
-        app_session_scope,
-        stop_hook_active,
-    )
-}
-#[cfg(test)]
-fn handle_empty_assistant_text(
-    req: &Request,
-    session: &mut Session,
-    llm_messages: &mut Vec<Value>,
-    on_event: &mut impl FnMut(StreamEvent) -> bool,
-    empty_response_retries: &mut usize,
-    step: &mut usize,
-    reasoning_content: &str,
-    is_last_step: bool,
-    step_index: u32,
-) -> bool {
-    session_engine::runner::handle_empty_assistant_text::<AgentRunnerHost>(
-        req,
-        session,
-        llm_messages,
-        on_event,
-        empty_response_retries,
-        step,
-        reasoning_content,
-        is_last_step,
-        step_index,
-    )
-}
-#[cfg(test)]
-fn build_image_turn_context_for_request(
-    req: &Request,
-    session: &Session,
-    config: &crate::config::Config,
-    on_event: &mut impl FnMut(StreamEvent) -> bool,
-) -> Result<Option<crate::app::agent::multimodal::context::ImageTurnContext>, String> {
-    session_engine::runner::build_image_turn_context_for_request::<AgentRunnerHost>(
-        req, session, config, on_event,
-    )
-}
-#[cfg(test)]
-fn compact_transient_history_for_request(
-    session_id: &str,
-    checkpoint_source: &[Value],
-    llm_messages: &mut Vec<Value>,
-    model: &str,
-    reliability: &crate::config::ReliabilityConfig,
-    on_event: &mut impl FnMut(StreamEvent) -> bool,
-    cancellation: Option<&tokio_util::sync::CancellationToken>,
-    model_limit: &crate::provider::provider::ModelLimit,
-) -> Result<bool, String> {
-    session_engine::runner_protocol::compact_transient_history_for_request::<AgentRunnerHost>(
-        session_id,
-        checkpoint_source,
-        llm_messages,
-        model,
-        reliability,
-        on_event,
-        cancellation,
-        model_limit,
     )
 }
 #[cfg(test)]

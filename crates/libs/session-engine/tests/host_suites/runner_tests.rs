@@ -8,7 +8,7 @@ fn runner_tests_module_is_wired() {
 
 #[test]
 fn request_model_context_keeps_provider_and_model_together() {
-    let context = super::with_request_model_context(
+    let context = session_engine::runner::with_request_model_context::<super::AgentRunnerHost>(
         crate::app::agent::tools::ToolUseContext::new("parent", None),
         Some(" token-plan/qwen3.7-plus "),
     );
@@ -19,7 +19,7 @@ fn request_model_context_keeps_provider_and_model_together() {
 
 #[test]
 fn request_model_context_retains_auto_selection_source() {
-    let context = super::with_request_model_context(
+    let context = session_engine::runner::with_request_model_context::<super::AgentRunnerHost>(
         crate::app::agent::tools::ToolUseContext::new("parent", None),
         Some("token-plan/qwen3.7-plus"),
     )
@@ -33,7 +33,7 @@ fn request_model_context_retains_auto_selection_source() {
 fn processor_auto_resolves_model_before_tool_context() {
     let req = request_with_session("auto-before-tools");
 
-    let resolved = super::resolve_request_model(&req, &crate::config::Config::default())
+    let resolved = session_engine::runner::resolve_request_model::<super::AgentRunnerHost>(&req, &crate::config::Config::default())
         .expect("Auto request should resolve before building tool context");
 
     assert!(resolved.model.contains('/'));
@@ -43,7 +43,7 @@ fn processor_auto_resolves_model_before_tool_context() {
 fn processor_step_events_report_selected_model() {
     let req = request_with_session("selected-step-events");
 
-    let resolved = super::resolve_request_model(&req, &crate::config::Config::default())
+    let resolved = session_engine::runner::resolve_request_model::<super::AgentRunnerHost>(&req, &crate::config::Config::default())
         .expect("Auto request should resolve once for all processor events");
 
     assert_eq!(resolved.step_event_model(), Some(resolved.model.as_str()));
@@ -208,7 +208,7 @@ fn request_reliability_values_feed_main_model_step_policy() {
     request.reliability.provider_retries = 7;
     request.reliability.provider_backoff_ms = 1_250;
 
-    assert_eq!(super::request_provider_retry_policy(&request), (7, 1_250));
+    assert_eq!(session_engine::runner::request_provider_retry_policy::<super::AgentRunnerHost>(&request), (7, 1_250));
 }
 
 #[test]
@@ -358,7 +358,7 @@ fn handle_docs_request_lists_docs_files_and_finishes() {
     let mut session = super::Session::new(ctx.session.clone());
     let mut events = Vec::new();
 
-    super::handle_docs_request(&mut session, &ctx, &mut |event| {
+    session_engine::runner::handle_docs_request::<super::AgentRunnerHost>(&mut session, &ctx, &mut |event| {
         events.push(event);
         true
     });
@@ -382,7 +382,7 @@ fn handle_docs_request_emits_error_when_docs_directory_is_missing() {
     let mut session = super::Session::new(ctx.session.clone());
     let mut events = Vec::new();
 
-    super::handle_docs_request(&mut session, &ctx, &mut |event| {
+    session_engine::runner::handle_docs_request::<super::AgentRunnerHost>(&mut session, &ctx, &mut |event| {
         events.push(event);
         true
     });
@@ -405,7 +405,7 @@ fn handle_docs_request_stops_before_done_when_delta_is_rejected() {
     let mut session = super::Session::new(ctx.session.clone());
     let mut events = Vec::new();
 
-    super::handle_docs_request(&mut session, &ctx, &mut |event| {
+    session_engine::runner::handle_docs_request::<super::AgentRunnerHost>(&mut session, &ctx, &mut |event| {
         events.push(event);
         false
     });
@@ -520,7 +520,7 @@ fn acp_context_preflight_preserves_large_prompt_without_local_compaction() {
         let original = messages.clone();
         let mut req = request_with_session("acp-context-preflight");
         req.options = serde_json::json!({ "acp_agent": agent, "acp_model_source": "cli_local" });
-        let model = super::resolve_request_model(&req, &crate::config::Config::default())
+        let model = session_engine::runner::resolve_request_model::<super::AgentRunnerHost>(&req, &crate::config::Config::default())
             .expect("resolve ACP model");
 
         let result = super::prepare_context_before_llm_step(
@@ -564,7 +564,7 @@ fn compaction_lifecycle_replaces_only_covered_history_after_completion() {
     ];
     let mut events = Vec::new();
 
-    let compacted = super::compact_transient_history_for_request(
+    let compacted = session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
         "runner-transient-compaction",
         &[],
         &mut messages,
@@ -615,7 +615,7 @@ fn compaction_lifecycle_keeps_history_and_omits_completion_when_summary_fails() 
     let before = messages.clone();
     let mut events = Vec::new();
 
-    let error = super::compact_transient_history_for_request(
+    let error = session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
         "runner-transient-compaction-failure",
         &[],
         &mut messages,
@@ -760,7 +760,7 @@ fn handle_assistant_text_branch_accepts_plain_final_text() {
     let empty_tools = HashSet::new();
     let step_out = llm_step("  final answer  ");
 
-    let should_continue = super::handle_assistant_text_branch(
+    let should_continue = session_engine::runner::handle_assistant_text_branch::<super::AgentRunnerHost>(
         &req,
         &mut session,
         &ctx,
@@ -810,7 +810,7 @@ fn legacy_require_agent_tool_option_does_not_reject_plain_final_text() {
 
     let step_out = llm_step("plain final answer");
 
-    let should_continue = super::handle_assistant_text_branch(
+    let should_continue = session_engine::runner::handle_assistant_text_branch::<super::AgentRunnerHost>(
         &req,
         &mut session,
         &ctx,
@@ -853,7 +853,7 @@ fn handle_assistant_text_branch_retries_empty_text_with_reasoning_message() {
     let mut step_out = llm_step("   ");
     step_out.reasoning_content = "reasoning only".to_string();
 
-    let should_continue = super::handle_assistant_text_branch(
+    let should_continue = session_engine::runner::handle_assistant_text_branch::<super::AgentRunnerHost>(
         &req,
         &mut session,
         &ctx,
@@ -917,7 +917,7 @@ fn todo_continuation_emits_status_when_incomplete_todos_remain() {
     .to_string();
     todo::write(&seed, &ctx).expect("seed incomplete todos");
 
-    let should_continue = super::handle_assistant_text_branch(
+    let should_continue = session_engine::runner::handle_assistant_text_branch::<super::AgentRunnerHost>(
         &req,
         &mut session,
         &ctx,
@@ -986,7 +986,7 @@ fn unfinished_todos_do_not_auto_complete_from_assistant_text() {
     .to_string();
     todo::write(&seed, &ctx).expect("seed incomplete todos");
 
-    let should_continue = super::handle_assistant_text_branch(
+    let should_continue = session_engine::runner::handle_assistant_text_branch::<super::AgentRunnerHost>(
         &req,
         &mut session,
         &ctx,
@@ -1027,7 +1027,7 @@ fn handle_empty_assistant_text_emits_terminal_error_after_retry_limit() {
     let mut step = 7;
     let mut events = Vec::new();
 
-    let should_continue = super::handle_empty_assistant_text(
+    let should_continue = session_engine::runner::handle_empty_assistant_text::<super::AgentRunnerHost>(
         &req,
         &mut session,
         &mut llm_messages,
@@ -1059,7 +1059,7 @@ fn handle_empty_assistant_text_retries_at_limit_boundary() {
     let mut step = 9;
     let mut events = Vec::new();
 
-    let should_continue = super::handle_empty_assistant_text(
+    let should_continue = session_engine::runner::handle_empty_assistant_text::<super::AgentRunnerHost>(
         &req,
         &mut session,
         &mut llm_messages,
@@ -1101,7 +1101,7 @@ fn compaction_lifecycle_failure_preserves_multibyte_history() {
     ];
     let before = messages.clone();
     let mut events = Vec::new();
-    let error = super::compact_transient_history_for_request(
+    let error = session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
         "chunk-failure",
         &[],
         &mut messages,
@@ -1139,7 +1139,7 @@ fn compaction_lifecycle_rejects_truncated_summary_without_replacing_history() {
         serde_json::json!({"role": "user", "content": "continue"}),
     ];
     let before = messages.clone();
-    let error = super::compact_transient_history_for_request(
+    let error = session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
         "truncated-summary",
         &[],
         &mut messages,
@@ -1172,7 +1172,7 @@ fn compaction_lifecycle_can_summarize_successive_tool_rounds_in_one_turn() {
             },
         ]);
         assert!(
-            super::compact_transient_history_for_request(
+            session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
                 "successive-rounds",
                 &[],
                 &mut messages,
@@ -1217,7 +1217,7 @@ fn compaction_checkpoint_replays_after_restart_without_rewriting_chat() {
     ];
     let mut context = raw.clone();
     let mut events = Vec::new();
-    super::compact_transient_history_for_request(
+    session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
         &id,
         &raw,
         &mut context,
@@ -1263,7 +1263,7 @@ fn compaction_checkpoint_failure_keeps_context_and_never_emits_completion() {
     ];
     let mut context = raw.clone();
     let mut events = Vec::new();
-    let result = super::compact_transient_history_for_request(
+    let result = session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
         "../invalid",
         &raw,
         &mut context,
@@ -1312,7 +1312,7 @@ fn model_recovery_preflight_and_network_share_budget() {
             },
             |_| {
                 reads += 1;
-                super::resolve_request_model(&req, &crate::config::Config::default())
+                session_engine::runner::resolve_request_model::<super::AgentRunnerHost>(&req, &crate::config::Config::default())
             },
         )
     })
@@ -1380,7 +1380,7 @@ fn model_recovery_preflight_exhaustion_and_permanent_resolution_stop() {
     let result = provider::with_config_read_failures(&[std::io::ErrorKind::TimedOut; 3], || {
         budget.run(false, None, &mut |_| true, |_| {
             reads += 1;
-            super::resolve_request_model(&req, &crate::config::Config::default())
+            session_engine::runner::resolve_request_model::<super::AgentRunnerHost>(&req, &crate::config::Config::default())
         })
     });
     assert!(result.is_err());
@@ -1392,7 +1392,7 @@ fn model_recovery_preflight_exhaustion_and_permanent_resolution_stop() {
             super::super::recovery::RetryBudget::new(2, 0)
                 .run(false, None, &mut |_| true, |_| {
                     reads += 1;
-                    super::resolve_request_model(&req, &crate::config::Config::default())
+                    session_engine::runner::resolve_request_model::<super::AgentRunnerHost>(&req, &crate::config::Config::default())
                 })
                 .is_err()
         );
@@ -1403,7 +1403,7 @@ fn model_recovery_preflight_exhaustion_and_permanent_resolution_stop() {
         provider::with_config_read_failures(&[std::io::ErrorKind::PermissionDenied; 3], || {
             super::super::recovery::RetryBudget::new(2, 0).run(false, None, &mut |_| true, |_| {
                 reads += 1;
-                super::resolve_request_model(&req, &crate::config::Config::default())
+                session_engine::runner::resolve_request_model::<super::AgentRunnerHost>(&req, &crate::config::Config::default())
             })
         });
     assert!(result.is_err());
@@ -2401,7 +2401,7 @@ fn codex_plugin_compat_t10_compaction_restores_qualified_invocation_arguments() 
             finish_reason: Some("stop".into()),
         },
     ]);
-    super::compact_transient_history_for_request(
+    session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
         "t10-compaction",
         &[],
         &mut history,
@@ -2452,7 +2452,7 @@ fn codex_plugin_compat_t42_processor_emits_around_real_summary() {
         },
     ]);
     crate::tools::scope_tool_use_context_sync(context, || {
-        super::compact_transient_history_for_request(
+        session_engine::runner_protocol::compact_transient_history_for_request::<super::AgentRunnerHost>(
             &session,
             &[],
             &mut history,
@@ -2496,7 +2496,7 @@ fn codex_plugin_compat_t44_session_final_text_requests_continuation() {
     let empty_tools = HashSet::new();
     let step_out = llm_step("  final answer  ");
 
-    let should_continue = super::handle_assistant_text_branch(
+    let should_continue = session_engine::runner::handle_assistant_text_branch::<super::AgentRunnerHost>(
         &req,
         &mut session,
         &ctx,
@@ -2548,7 +2548,7 @@ fn agcollab_processor_integrates_before_done() {
     }
     let step_out = llm_step("  final answer  ");
 
-    let should_continue = super::handle_assistant_text_branch(
+    let should_continue = session_engine::runner::handle_assistant_text_branch::<super::AgentRunnerHost>(
         &req,
         &mut session,
         &ctx,
@@ -2580,7 +2580,7 @@ fn agcollab_processor_integrates_before_done() {
     let request = serde_json::to_string(&llm_messages).unwrap();
     assert!(request.contains("fact_alpha") && request.contains("fact_beta"));
     let integrated = llm_step("fact_alpha and fact_beta");
-    assert!(!super::handle_assistant_text_branch(
+    assert!(!session_engine::runner::handle_assistant_text_branch::<super::AgentRunnerHost>(
         &req,
         &mut session,
         &ctx,
@@ -2683,7 +2683,7 @@ fn image_routing_acp_skips_catalog_and_separate_analysis() {
     req.model = Some("acp/codex".to_string());
     let session = super::Session::new(req.session.clone());
     let mut events = Vec::new();
-    let context = super::build_image_turn_context_for_request(
+    let context = session_engine::runner::build_image_turn_context_for_request::<super::AgentRunnerHost>(
         &req,
         &session,
         &crate::config::Config::default(),
@@ -2702,7 +2702,7 @@ fn image_routing_text_only_request_does_not_require_model_capabilities() {
     let mut req = request_with_session("text-only-image-routing");
     req.query = "hello".to_string();
     let session = super::Session::new(req.session.clone());
-    let context = super::build_image_turn_context_for_request(
+    let context = session_engine::runner::build_image_turn_context_for_request::<super::AgentRunnerHost>(
         &req,
         &session,
         &crate::config::Config::default(),
@@ -2717,7 +2717,7 @@ fn acp_model_source_routing_processor_rejects_missing_client_model() {
     let mut req = request_with_session("routing-processor");
     req.options = serde_json::json!({"acp_agent": "codex", "acp_model_source": "session_model"});
     req.model = Some("__missing_acp_source__/missing".into());
-    assert!(super::resolve_request_model(&req, &crate::config::Config::default()).is_err());
+    assert!(session_engine::runner::resolve_request_model::<super::AgentRunnerHost>(&req, &crate::config::Config::default()).is_err());
 }
 
 #[test]
@@ -2725,7 +2725,7 @@ fn acp_model_source_routing_processor_local_does_not_resolve_client_model() {
     let mut req = request_with_session("routing-processor-local");
     req.options = serde_json::json!({"acp_agent": "codex", "acp_model_source": "cli_local"});
     req.model = Some("__missing_acp_source__/missing".into());
-    let resolved = super::resolve_request_model(&req, &crate::config::Config::default()).unwrap();
+    let resolved = session_engine::runner::resolve_request_model::<super::AgentRunnerHost>(&req, &crate::config::Config::default()).unwrap();
     assert_eq!(resolved.model, "acp/codex");
 }
 
@@ -2741,11 +2741,11 @@ fn acp_model_source_routing_processor_freezes_real_model_for_step_events() {
     let mut req = request_with_session("routing-processor-snapshot");
     req.model = Some("model-recovery/original".into());
     req.options = serde_json::json!({"acp_agent": "codex", "acp_model_source": "session_model"});
-    let selected = super::resolve_request_model(&req, &crate::config::Config::default()).unwrap();
+    let selected = session_engine::runner::resolve_request_model::<super::AgentRunnerHost>(&req, &crate::config::Config::default()).unwrap();
     assert_eq!(selected.model, "model-recovery/original");
     assert_eq!(selected.step_event_model(), Some("model-recovery/original"));
     req.model = Some(selected.model.clone());
-    let context = super::with_request_model_context(
+    let context = session_engine::runner::with_request_model_context::<super::AgentRunnerHost>(
         crate::tools::ToolUseContext::new("parent", None),
         req.model.as_deref(),
     );

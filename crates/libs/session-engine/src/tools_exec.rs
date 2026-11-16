@@ -1755,3 +1755,7 @@ mod output_tests;
 #[cfg(test)]
 #[path = "tools_exec_batch_tests.rs"]
 mod batch_tests;
+
+#[cfg(test)]
+#[path = "tools_exec_agent_lifecycle_tests.rs"]
+mod agent_lifecycle_tests;

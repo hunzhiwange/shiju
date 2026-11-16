@@ -90,3 +90,9 @@ remaining-host.json lists every retained original file, lexical symbols, line co
 | 49 | 7 |
 
 Future authorized entry: `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib -- --list`; not run.
+
+## Continuing static audit
+
+Added audit_domain_changes.py and task-59-domain-files.json: configured 136 domain packages, baseline/current physical path statistics for 3172 Rust files, no production migration credit inferred from line changes. The sole AppState name candidate is the pre-existing generic gateway-types contract, unchanged from the baseline. Added audit_alias_callers.py and task-59-alias-callers.json for all 51 alias target/reference mappings.
+
+The registration scanner now also records task-59-external-current.json: 180 lib-reachable external Rust source files, 57503 lines, ownership and incoming attributes retained. These are separate from the host physical count and must be reviewed by original owners; existing host mounts do not prove independent domain test registration. Test-candidate accounting is being extended to original external mounts. No Cargo or test commands executed.

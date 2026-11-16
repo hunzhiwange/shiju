@@ -65,3 +65,15 @@ result=dict(method='lexical cfg union; no macro expansion', edges=edges, unresol
 removed=[x['source'] for name in ['task-59-aliases.json','task-59-orphans.json'] for x in json.loads((OUT/name).read_text())]
 assert not any(e['target'] in removed for e in edges)
 print(json.dumps(dict(edges=len(edges),unresolved=len(unresolved),removed_targets_referenced=0)))
+
+scope=json.loads((OUT.parent/'scope.json').read_text())
+owners={p:row[0] for row in scope['rows'] for p in row[5]}
+owners.update({p:59 for p in scope['residue']})
+for row in scope.get('external_mounts',[]):
+ if isinstance(row,dict):owners[row['path']]=row.get('owner_task')
+external=[]
+for name in sorted(scanned):
+ if name.startswith('crates/vw-agent/src/') or not name.endswith('.rs'):continue
+ external.append(dict(path=name,lines=len((ROOT/name).read_text().splitlines()),owner_task=owners.get(name),incoming=[e for e in edges if e['target']==name]))
+(OUT/'task-59-external-current.json').write_text(json.dumps(dict(method='Static lib-reachable cfg-union source mounts; separate from host physical threshold; not measured compile time',source_files=len(external),source_lines=sum(x['lines'] for x in external),files=external),ensure_ascii=False,indent=2)+'\n')
+print('external source mounts:',len(external),'lines:',sum(x['lines'] for x in external))

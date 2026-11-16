@@ -5,6 +5,9 @@ ROOT=Path(__file__).resolve().parents[3]
 PLAN=Path(__file__).resolve().parent.parent
 OUT=PLAN/'evidence'
 base=json.loads((PLAN/'baseline.json').read_text())
+scope=json.loads((PLAN/'scope.json').read_text())
+for item in scope.get('external_mounts',[]):
+ if isinstance(item,dict) and item['path'].endswith('.rs'):base.setdefault(item['path'],0)
 rev=json.loads((OUT/'snapshot.json').read_text())['head']
 pattern=re.compile(r'#\[(?:[\w:]*::)?test(?:\([^\]]*\))?\]\s*(?://[^\n]*\n\s*)*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?fn\s+(\w+)')
 current={}
@@ -15,6 +18,7 @@ for root in ['crates/vw-agent/src','crates/libs']:
 scope=json.loads((PLAN/'scope.json').read_text())
 owners={name:row[0] for row in scope['rows'] for name in row[5]}
 owners.update({name:59 for name in scope['residue']})
+owners.update({item['path']:item['owner_task'] for item in scope.get('external_mounts',[]) if isinstance(item,dict)})
 rows=[]
 for name in base:
  result=subprocess.run(['git','show',f'{rev}:{name}'],cwd=ROOT,text=True,capture_output=True)
@@ -27,7 +31,7 @@ for row in rows:
  if row['status']=='ambiguous':
   owner=owners[row['source']]
   migration_owner=27 if owner==28 else owner
-  selected=[x for x in row['candidates'] if f'host_migration_{migration_owner}_tests' in x['path']]
+  selected=[x for x in row['candidates'] if re.search(rf'host_migration_{migration_owner}(?:_|/)', x['path'])]
   if len(selected)==1:
    row['selected']=selected[0]
    row['status']='owner_evidence_candidate'

@@ -332,3 +332,7 @@ pub fn option_string_values(options: &Value, key: &str) -> Vec<String> {
         .map(ToOwned::to_owned)
         .collect()
 }
+
+#[cfg(test)]
+#[path = "runner_protocol_tests.rs"]
+mod tests;

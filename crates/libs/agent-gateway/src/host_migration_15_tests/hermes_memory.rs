@@ -5,9 +5,9 @@ use vw_api_hermes_memory::HermesMemoryKind;
 struct Policy(Option<PathBuf>);
 struct Scope { project_id: ProjectId, target_host_id: String }
 fn authorize(policy: &Policy, tenant: TenantScope, headers: &HeaderMap, scope: &Scope, write: bool)
-    -> Result<super::super::access::Host, StatusCode>
+    -> Result<app_access_service::access::Host, StatusCode>
 {
-    super::super::access::authorize_hermes_memory(policy.0.as_deref(), headers,
+    app_access_service::access::authorize_hermes_memory(policy.0.as_deref(), headers,
         &ProjectScope::new(tenant, scope.project_id.clone()), &scope.target_host_id, write)
 }
 

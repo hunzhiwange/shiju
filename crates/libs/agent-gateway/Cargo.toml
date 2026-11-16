@@ -280,3 +280,39 @@ version = "0.9"
 [dev-dependencies.tower]
 version = "0.5"
 features = ["util"]
+
+[dev-dependencies.gateway-global]
+path = "../gateway-global"
+version = "0.6.0"
+
+[dev-dependencies.gateway-integrations]
+path = "../gateway-integrations"
+version = "0.6.0"
+
+[dev-dependencies.agent-bus]
+path = "../agent-bus"
+version = "0.6.0"
+
+[dev-dependencies.secret-store]
+path = "../secret-store"
+version = "0.6.0"
+
+[dev-dependencies.config-runtime-paths]
+path = "../config-runtime-paths"
+version = "0.6.0"
+
+[dev-dependencies.config-gateway]
+path = "../config-gateway"
+version = "0.6.0"
+
+[dev-dependencies.rusqlite]
+version = "0.37.0"
+features = ["bundled"]
+
+[dev-dependencies.vw-api-hermes-memory]
+path = "../api-hermes-memory"
+version = "0.6.0"
+
+[dev-dependencies.gateway-misc]
+path = "../gateway-misc"
+version = "0.6.0"

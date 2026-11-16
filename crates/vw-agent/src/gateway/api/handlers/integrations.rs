@@ -40,7 +40,3 @@ pub async fn handle_api_integration_credentials_put(State(state): State<AppState
     gateway_integrations::handlers::handle_api_integration_credentials_put::<IntegrationsHost>(
         State(state), headers, Path(id), JsonResponse(body)).await
 }
-
-#[cfg(test)]
-#[path = "integrations_tests.rs"]
-mod integrations_tests;

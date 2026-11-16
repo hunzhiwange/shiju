@@ -65,3 +65,6 @@ pub mod publication_context;
 pub mod aggregation_desktop_record;
 #[cfg(target_os = "macos")]
 pub mod aggregation_lifecycle;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_15_tests;

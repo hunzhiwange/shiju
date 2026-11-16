@@ -63,13 +63,7 @@ async fn router_rejects_non_get_methods_and_unknown_paths() {
     assert_eq!(route_status(Method::GET, "/missing").await, StatusCode::NOT_FOUND);
 }
 
-#[tokio::test]
-async fn not_implemented_returns_501() {
-    let error = not_implemented().await.expect_err("endpoint is intentionally unavailable");
 
-    assert_eq!(error.status, StatusCode::NOT_IMPLEMENTED);
-    assert_eq!(error.message, "not implemented");
-}
 
 #[tokio::test]
 async fn command_list_returns_named_command_metadata() {
@@ -107,25 +101,7 @@ async fn skill_list_returns_named_and_located_skill_metadata() {
     );
 }
 
-#[test]
-fn skill_info_serializes_all_public_response_fields() {
-    let info = SkillInfo {
-        name: "review".to_string(),
-        description: "Review a change".to_string(),
-        location: "/workspace/review/SKILL.md".to_string(),
-        content: "# Review".to_string(),
-    };
 
-    assert_eq!(
-        serde_json::to_value(info).expect("skill info should serialize"),
-        serde_json::json!({
-            "name": "review",
-            "description": "Review a change",
-            "location": "/workspace/review/SKILL.md",
-            "content": "# Review",
-        })
-    );
-}
 
 #[tokio::test]
 async fn list_handlers_ignore_legacy_invalid_project_json() {

@@ -7,19 +7,13 @@ pub(crate) fn stateful_router() -> axum::Router<crate::gateway::AppState> {
 }
 
 #[cfg(test)]
-use gateway_global::*;
-#[cfg(test)]
-use crate::{config, bus};
+use crate::config;
 #[cfg(test)]
 use crate::gateway::AppState;
 #[cfg(test)]
-use axum::{Json, Router};
+use axum::Router;
 #[cfg(test)]
 use serde_json::Value;
-#[cfg(test)]
-use std::time::Duration;
-#[cfg(test)]
-use std::collections::HashMap;
 
 #[cfg(test)]
 #[path = "global_tests.rs"]

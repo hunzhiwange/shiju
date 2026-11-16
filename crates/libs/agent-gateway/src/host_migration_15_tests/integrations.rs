@@ -1,11 +1,50 @@
 // 覆盖集成目录、凭据更新、认证及修订冲突处理。
 
-use super::*;
-use crate::app::agent::config::Config;
-use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
-use crate::app::agent::memory::NoneMemory;
+use axum::response::Json as JsonResponse;
+use gateway_integrations::IntegrationCredentialsUpdateBody;
+type AppState = gateway_types::AppState<(), (), ()>;
+struct IntegrationsHost;
+impl gateway_integrations::IntegrationsHost for IntegrationsHost {
+    type State = AppState;
+    type Settings = crate::api::types::IntegrationSettingsPayload;
+    fn config(state: &AppState) -> &parking_lot::Mutex<Config> { &state.config }
+    fn require_auth(state: &AppState, headers: &HeaderMap)
+        -> Result<(), (StatusCode, JsonResponse<serde_json::Value>)> {
+        crate::api::auth::require_auth(state, headers)
+    }
+    fn build_integration_settings_payload(config: &Config) -> Self::Settings {
+        crate::api::integrations::build_integration_settings_payload(config)
+    }
+    fn config_revision(config: &Config) -> String {
+        crate::api::integrations::config_revision(config)
+    }
+    fn apply_integration_credentials_update(config: &Config, id: &str,
+        fields: &std::collections::BTreeMap<String, String>) -> Result<Config, String> {
+        crate::api::integrations::apply_integration_credentials_update(config, id, fields)
+    }
+}
+
+pub async fn handle_api_integrations(State(state): State<AppState>, headers: HeaderMap)
+    -> impl IntoResponse {
+    gateway_integrations::handlers::handle_api_integrations::<IntegrationsHost>(State(state), headers).await
+}
+pub async fn handle_api_integrations_settings(State(state): State<AppState>, headers: HeaderMap)
+    -> impl IntoResponse {
+    gateway_integrations::handlers::handle_api_integrations_settings::<IntegrationsHost>(State(state), headers).await
+}
+pub async fn handle_api_integration_credentials_put(State(state): State<AppState>, headers: HeaderMap,
+    Path(id): Path<String>, JsonResponse(body): JsonResponse<IntegrationCredentialsUpdateBody>)
+    -> impl IntoResponse {
+    gateway_integrations::handlers::handle_api_integration_credentials_put::<IntegrationsHost>(
+        State(state), headers, Path(id), JsonResponse(body)).await
+}
+
+
+use agent_config::runtime::Config;
+use gateway_types::{GatewayRateLimiter, IdempotencyStore};
+use memory_types::memory::NoneMemory;
 use model_types::Provider;
-use crate::app::agent::security::pairing::PairingGuard;
+use gateway_pairing::pairing::PairingGuard;
 use axum::body::to_bytes;
 use axum::extract::{Path as AxumPath, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
@@ -87,10 +126,10 @@ fn state_with(config: Config, require_pairing: bool, token: Option<&str>) -> App
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx,
         session_query_engines: Default::default(),
@@ -345,7 +384,7 @@ async fn integration_credentials_put_reports_unchanged_when_revision_is_same() {
     let temp = tempfile::tempdir().expect("tempdir");
     let mut config = config_in(&temp);
     config.default_provider = Some("openai".to_string());
-    let revision = crate::app::agent::gateway::api::integrations::config_revision(&config);
+    let revision = crate::api::integrations::config_revision(&config);
     let state = state_with(config, false, None);
     let body =
         IntegrationCredentialsUpdateBody { revision: Some(revision), fields: BTreeMap::new() };
@@ -368,9 +407,9 @@ async fn integration_credentials_put_reports_unchanged_when_revision_is_same() {
 
 #[tokio::test]
 async fn integration_credentials_put_saves_and_updates_state() {
-    let _async_env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let _async_env_lock = super::global_async_env_lock().lock().await;
     let _env_lock =
-        crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+        super::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
     let temp = tempfile::tempdir().expect("tempdir");
     let _home = HomeEnvGuard::set(temp.path());
     let state = state_with(config_in(&temp), false, None);
@@ -395,8 +434,8 @@ async fn integration_credentials_put_saves_and_updates_state() {
     assert_eq!(value["status"], "ok");
     assert_eq!(state.config.lock().default_provider.as_deref(), Some("openai"));
     assert_eq!(state.config.lock().api_key.as_deref(), Some("sk-test"));
-    let store = crate::app::agent::config::SystemConfigStore::new(
-        crate::global_database::GlobalDatabase::for_home(temp.path()).expect("global database"),
+    let store = agent_config::runtime::SystemConfigStore::new(
+        agent_database::GlobalDatabase::for_home(temp.path()).expect("global database"),
     )
     .expect("system config store");
     let payload = store
@@ -410,9 +449,9 @@ async fn integration_credentials_put_saves_and_updates_state() {
 
 #[tokio::test]
 async fn integration_credentials_put_accepts_valid_bearer_token() {
-    let _async_env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let _async_env_lock = super::global_async_env_lock().lock().await;
     let _env_lock =
-        crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+        super::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
     let temp = tempfile::tempdir().expect("tempdir");
     let _home = HomeEnvGuard::set(temp.path());
     let state = state_with(config_in(&temp), true, Some("paired-token"));
@@ -435,9 +474,9 @@ async fn integration_credentials_put_accepts_valid_bearer_token() {
 
 #[tokio::test]
 async fn integration_credentials_put_reports_config_persistence_failure() {
-    let _async_env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let _async_env_lock = super::global_async_env_lock().lock().await;
     let _env_lock =
-        crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+        super::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
     let temp = tempfile::tempdir().expect("tempdir");
     let invalid_home = temp.path().join("not-a-directory");
     std::fs::write(&invalid_home, "fixture").expect("invalid home fixture");

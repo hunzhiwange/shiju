@@ -9,7 +9,3 @@ pub(super) fn router() -> axum::Router {
         })
     })
 }
-
-#[cfg(test)]
-#[path = "hermes_memory_tests.rs"]
-mod tests;

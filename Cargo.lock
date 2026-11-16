@@ -773,6 +773,15 @@ dependencies = [
 name = "agent-gateway"
 version = "0.6.0"
 dependencies = [
+ "gateway-global",
+ "gateway-integrations",
+ "agent-bus",
+ "secret-store",
+ "config-runtime-paths",
+ "config-gateway",
+ "rusqlite",
+ "vw-api-hermes-memory",
+ "gateway-misc",
  "agent-app-services",
  "agent-approval",
  "agent-config",

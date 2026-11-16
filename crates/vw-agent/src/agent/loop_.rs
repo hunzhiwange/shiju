@@ -69,7 +69,7 @@ pub mod query_engine;
 pub mod runner;
 
 /// 通用工具函数
-pub mod utils;
+pub use agent_loop::utils;
 
 /// 单元测试和集成测试
 #[cfg(test)]

@@ -28,6 +28,10 @@ pub mod progress;
 pub mod query_engine;
 pub mod query_engine_host;
 pub mod runner;
+pub mod utils;
+
+#[cfg(test)]
+mod utils_tests;
 
 extern crate self as agent_loop;
 

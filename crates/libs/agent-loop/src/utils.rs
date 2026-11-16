@@ -78,4 +78,4 @@ pub(crate) static TOOL_FILE_PATH_REGEX: LazyLock<Regex> =
 /// 2. 对于每个匹配，提取键名和值
 /// 3. 保留值的前 4 个字符，其余部分用 `*[REDACTED]` 替换
 /// 4. 根据原始格式（使用 `:` 或 `=`，有无引号）重建脱敏后的字符串
-pub(crate) use agent_util::credentials::scrub_credentials;
+pub use agent_util::credentials::scrub_credentials;

@@ -1,29 +1,24 @@
-// 保留宿主契约：PreviewMessage 经宿主更新活动文档、只读保护、dirty 与自动保存 revision；原隔离配置 fixture 保留。
-use crate::app::components::editor::Editor;
-use crate::app::{App, PreviewTab};
+use super::fixture::Fixture;
+use crate::components::editor::Editor;
+use crate::preview::PreviewTab;
 use iced::widget::Id;
 use iced_code_editor::Message as Event;
-use config_ui::GatewayClientSystemSettingsConfig;
-fn send(app: &mut App, event: Event) {
-    let _ = crate::app::message::preview::update(
-        app,
-        crate::app::message::PreviewMessage::EditorEvent(event),
-    );
+
+fn send(app: &mut Fixture, event: Event) {
+    let _ = app.send(event);
 }
-fn fixture() -> App {
-    let mut app = App::new().0;
+fn fixture() -> Fixture {
+    let mut app = Fixture::default();
     app.preview_tabs = vec![tab("/tmp/a.rs", None), tab("/tmp/b.rs", None)];
     app.active_preview_path = Some("/tmp/a.rs".into());
-    app.preview_auto_save_mode = crate::app::PreviewAutoSaveMode::Off;
+    app.preview_auto_save_mode = config_ui::PreviewAutoSaveMode::Off;
     app
 }
 #[test]
 fn ecp02_menu_action_changes_only_active_document() {
-    if !isolated("ecp02_menu_action_changes_only_active_document") {
-        return;
-    }
     let mut app = fixture();
-    let actions = super::editor_actions::actions(false, false, true);
+    let actions =
+        crate::components::preview_panel::view::editor_actions::actions(false, false, true);
     assert!(actions.iter().any(|e| matches!(e, Event::DuplicateLineDown)));
     send(&mut app, Event::DuplicateLineDown);
     assert_ne!(app.preview_tabs[0].editor.content(), "fn main() {}");
@@ -31,9 +26,6 @@ fn ecp02_menu_action_changes_only_active_document() {
 }
 #[test]
 fn ecp02_mutating_actions_respect_read_only() {
-    if !isolated("ecp02_mutating_actions_respect_read_only") {
-        return;
-    }
     let mut app = fixture();
     app.preview_tabs[0].read_only = true;
     for event in
@@ -44,16 +36,13 @@ fn ecp02_mutating_actions_respect_read_only() {
         assert!(!app.preview_tabs[0].is_dirty);
     }
     assert!(
-        !super::editor_actions::actions(true, false, true)
+        !crate::components::preview_panel::view::editor_actions::actions(true, false, true)
             .iter()
             .any(|e| matches!(e, Event::DuplicateLineDown))
     );
 }
 #[test]
 fn ecp02_line_action_updates_dirty_revision_and_undo() {
-    if !isolated("ecp02_line_action_updates_dirty_revision_and_undo") {
-        return;
-    }
     let mut app = fixture();
     send(&mut app, Event::DuplicateLineDown);
     assert!(app.preview_tabs[0].is_dirty);
@@ -81,45 +70,8 @@ fn tab(path: &str, server_key: Option<&'static str>) -> PreviewTab {
     }
 }
 
-fn isolated(test: &str) -> bool {
-    const CHILD: &str = "SHIJU_ECP02_CHILD";
-    if std::env::var_os(CHILD).is_some() {
-        return true;
-    }
-    let home = tempfile::tempdir().unwrap();
-    let config = GatewayClientSystemSettingsConfig {
-        host: "[".into(),
-        servers: Vec::new(),
-        ..Default::default()
-    };
-    std::fs::write(
-        home.path().join("gateway-client-bootstrap.json"),
-        serde_json::to_vec(&config).unwrap(),
-    )
-    .unwrap();
-    let test = format!("{}::{test}", module_path!().split_once("::").unwrap().1);
-    let output = std::process::Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", &test])
-        .env(CHILD, "1")
-        .env("VIBEWINDOW_CONFIG_DIR", home.path())
-        .env("VIBEWINDOW_WORKSPACE", home.path())
-        .current_dir(home.path())
-        .output()
-        .unwrap();
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(
-        output.status.success() && stdout.contains("1 passed; 0 failed"),
-        "{stdout}\n{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    false
-}
-
 #[test]
 fn ecp02_selection_multicursor_folding_and_menu_visibility() {
-    if !isolated("ecp02_selection_multicursor_folding_and_menu_visibility") {
-        return;
-    }
     let mut app = fixture();
     app.preview_tabs[0].editor = Editor::new("fn a() {\n    foo();\n}\nfoo();", "rust");
     app.preview_tabs[0].editor.inner.request_focus();
@@ -141,7 +93,8 @@ fn ecp02_selection_multicursor_folding_and_menu_visibility() {
     assert!(app.preview_tabs[0].editor.inner.is_folded(0));
     send(&mut app, Event::UnfoldAll);
     assert!(!app.preview_tabs[0].editor.inner.is_folded(0));
-    let hidden = super::editor_actions::actions(false, true, false);
+    let hidden =
+        crate::components::preview_panel::view::editor_actions::actions(false, true, false);
     assert!(!hidden.iter().any(|e| matches!(
         e,
         Event::AddCursorAbove
@@ -153,12 +106,9 @@ fn ecp02_selection_multicursor_folding_and_menu_visibility() {
 }
 #[test]
 fn ecp02_move_comment_close_menu_and_resume_editing() {
-    if !isolated("ecp02_move_comment_close_menu_and_resume_editing") {
-        return;
-    }
     let mut app = fixture();
     app.preview_tabs[0].editor = Editor::new("first\nsecond", "rust");
-    app.editor_popover = Some(crate::app::message::editor::EditorPopover::Actions);
+    app.editor_popover = Some(crate::message::editor::EditorPopover::Actions);
     send(&mut app, Event::MoveLineDown);
     assert_eq!(app.preview_tabs[0].editor.content(), "second\nfirst");
     assert_eq!(app.editor_popover, None);
@@ -171,22 +121,17 @@ fn ecp02_move_comment_close_menu_and_resume_editing() {
 
 #[tokio::test]
 async fn ecp02_line_action_schedules_existing_auto_save_revision() {
-    if !isolated("ecp02_line_action_schedules_existing_auto_save_revision") {
-        return;
-    }
     use iced_runtime::futures::futures::StreamExt;
     let mut app = fixture();
-    app.preview_auto_save_mode = crate::app::PreviewAutoSaveMode::AfterDelay;
-    let task = crate::app::message::preview::update(
-        &mut app,
-        crate::app::message::PreviewMessage::EditorEvent(Event::DuplicateLineDown),
-    );
+    app.preview_auto_save_mode = config_ui::PreviewAutoSaveMode::AfterDelay;
+    let task = app.send(Event::DuplicateLineDown);
     let mut stream = iced_runtime::task::into_stream(task).expect("auto save delay task");
     let mut scheduled = false;
     while let Some(action) = stream.next().await {
-        if let iced_runtime::Action::Output(crate::app::Message::Preview(
-            crate::app::message::PreviewMessage::AutoSaveDelayElapsed { path, revision },
-        )) = action
+        if let iced_runtime::Action::Output(crate::preview::editor::Effect::AutoSave {
+            path,
+            revision,
+        }) = action
         {
             assert_eq!(path, "/tmp/a.rs");
             assert_eq!(revision, app.preview_tabs[0].auto_save_revision);

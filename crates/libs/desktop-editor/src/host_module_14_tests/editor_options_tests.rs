@@ -1,10 +1,11 @@
-// 保留宿主契约：EditorMessage 选择活动标签、保持弹窗、校验列宽并接入真实编辑和中文渲染；纯 CodeEditor 行为已迁至 desktop-editor。
-use crate::app::components::editor::Editor;
-use crate::app::message::editor::EditorOption;
-use crate::app::{App, PreviewTab};
+use super::fixture::update;
+// 验证领域选项消息、活动实例选择与中文真实绘制路径。
+use super::fixture::Fixture;
+use crate::components::editor::Editor;
+use crate::message::editor::EditorOption;
+use crate::preview::PreviewTab;
 use iced::widget::Id;
 use iced_code_editor::{IndentStyle, Message};
-use config_ui::GatewayClientSystemSettingsConfig;
 
 fn tab(path: &str, server_key: Option<&'static str>) -> PreviewTab {
     PreviewTab {
@@ -26,47 +27,10 @@ fn tab(path: &str, server_key: Option<&'static str>) -> PreviewTab {
     }
 }
 
-fn isolated(test: &str) -> bool {
-    const CHILD: &str = "SHIJU_ECP02_CHILD";
-    if std::env::var_os(CHILD).is_some() {
-        return true;
-    }
-    let home = tempfile::tempdir().unwrap();
-    let config = GatewayClientSystemSettingsConfig {
-        host: "[".into(),
-        servers: Vec::new(),
-        ..Default::default()
-    };
-    std::fs::write(
-        home.path().join("gateway-client-bootstrap.json"),
-        serde_json::to_vec(&config).unwrap(),
-    )
-    .unwrap();
-    let test = format!("{}::{test}", module_path!().split_once("::").unwrap().1);
-    let output = std::process::Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", &test])
-        .env(CHILD, "1")
-        .env("VIBEWINDOW_CONFIG_DIR", home.path())
-        .env("VIBEWINDOW_WORKSPACE", home.path())
-        .current_dir(home.path())
-        .output()
-        .unwrap();
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(
-        output.status.success() && stdout.contains("1 passed; 0 failed"),
-        "{stdout}\n{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    false
-}
-
 #[test]
 fn ecp04_message_changes_only_selected_tab() {
-    if !isolated("ecp04_message_changes_only_selected_tab") {
-        return;
-    }
-    use crate::app::message::editor::{EditorMessage, update};
-    let mut app = App::new().0;
+    use crate::message::editor::EditorMessage;
+    let mut app = Fixture::default();
     app.preview_tabs = vec![tab("/tmp/a.rs", None), tab("/tmp/b.rs", None)];
     app.active_preview_path = Some("/tmp/a.rs".into());
     let previous = app.preview_tabs[1].editor.inner.wrap_enabled();
@@ -77,16 +41,13 @@ fn ecp04_message_changes_only_selected_tab() {
     let _ = update(&mut app, EditorMessage::SetIndentStyle(IndentStyle::Tab));
     assert_eq!(app.preview_tabs[1].editor.inner.indent_style(), IndentStyle::Tab);
     assert!(!app.preview_tabs.iter().any(|tab| tab.is_dirty));
-    let _view = super::editor_options::view(&app);
+    let _view = super::fixture::options(&app);
 }
 
 #[test]
 fn editor_config_app_options_keep_settings_open() {
-    if !isolated("editor_config_app_options_keep_settings_open") {
-        return;
-    }
-    use crate::app::message::editor::{EditorMessage, EditorPopover, update};
-    let mut app = App::new().0;
+    use crate::message::editor::{EditorMessage, EditorPopover};
+    let mut app = Fixture::default();
     app.preview_tabs = vec![tab("/tmp/a.rs", None)];
     app.active_preview_path = Some("/tmp/a.rs".into());
     app.editor_popover = Some(EditorPopover::Settings);
@@ -101,11 +62,8 @@ fn editor_config_app_options_keep_settings_open() {
 
 #[test]
 fn editor_config_app_wrap_column_validates_active_instance() {
-    if !isolated("editor_config_app_wrap_column_validates_active_instance") {
-        return;
-    }
-    use crate::app::message::editor::{EditorMessage, EditorPopover, update};
-    let mut app = App::new().0;
+    use crate::message::editor::{EditorMessage, EditorPopover};
+    let mut app = Fixture::default();
     app.preview_tabs = vec![tab("/tmp/a.rs", None), tab("/tmp/b.rs", None)];
     app.preview_tabs[0].read_only = true;
     app.active_preview_path = Some("/tmp/a.rs".into());
@@ -133,7 +91,7 @@ fn editor_config_app_wrap_column_validates_active_instance() {
     assert_eq!(app.preview_tabs[1].editor.inner.wrap_column(), Some(8));
     assert_eq!(app.editor_popover, Some(EditorPopover::Settings));
     app.active_preview_path = None;
-    let _ = super::editor_options::view(&app);
+    let _ = super::fixture::options(&app);
     let _ = update(&mut app, EditorMessage::SetWrapColumn("9".into()));
     assert_eq!(app.preview_tabs[1].editor.inner.wrap_column(), Some(8));
     assert!(
@@ -145,11 +103,8 @@ fn editor_config_app_wrap_column_validates_active_instance() {
 
 #[test]
 fn editor_config_app_messages_change_real_editing() {
-    if !isolated("editor_config_app_messages_change_real_editing") {
-        return;
-    }
-    use crate::app::message::editor::{EditorMessage, update};
-    let mut app = App::new().0;
+    use crate::message::editor::EditorMessage;
+    let mut app = Fixture::default();
     app.preview_tabs = vec![tab("/tmp/a.rs", None), tab("/tmp/b.rs", None)];
     app.active_preview_path = Some("/tmp/a.rs".into());
     let _ = update(&mut app, EditorMessage::SetIndentStyle(IndentStyle::Spaces(2)));
@@ -162,10 +117,7 @@ fn editor_config_app_messages_change_real_editing() {
 
 #[test]
 fn editor_config_app_renders_chinese_and_runtime_wrap() {
-    if !isolated("editor_config_app_renders_chinese_and_runtime_wrap") {
-        return;
-    }
-    use crate::app::message::editor::{EditorMessage, update};
+    use crate::message::editor::EditorMessage;
     use iced::advanced::renderer::Headless;
     use iced_runtime::user_interface::{Cache, UserInterface};
     let mut renderer = iced::futures::executor::block_on(iced::Renderer::new(
@@ -174,7 +126,7 @@ fn editor_config_app_renders_chinese_and_runtime_wrap() {
         Some("tiny-skia"),
     ))
     .expect("software renderer");
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.preview_tabs = vec![tab("/tmp/中文.rs", None)];
     app.active_preview_path = Some("/tmp/中文.rs".into());
     let size = iced::Size::new(800.0, 800.0);
@@ -182,7 +134,7 @@ fn editor_config_app_renders_chinese_and_runtime_wrap() {
         for width in ["4", "80"] {
             let _ = update(&mut app, EditorMessage::SetWrapColumn(width.into()));
             let mut ui = UserInterface::build(
-                super::editor_options::view(&app),
+                super::fixture::options(&app),
                 size,
                 Cache::new(),
                 &mut renderer,
@@ -202,7 +154,9 @@ fn editor_config_app_renders_chinese_and_runtime_wrap() {
             let editor = &mut app.preview_tabs[0].editor.inner;
             let _ = editor.set_cursor(0, 12);
             let mut ui = UserInterface::build(
-                editor.view().map(|_| crate::app::Message::Editor(EditorMessage::ClosePopover)),
+                editor
+                    .view()
+                    .map(|_| crate::components::preview_panel::view::Message::ClosePopover),
                 size,
                 Cache::new(),
                 &mut renderer,

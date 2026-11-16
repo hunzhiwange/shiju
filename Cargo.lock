@@ -6939,6 +6939,7 @@ dependencies = [
  "gateway-files",
  "iced",
  "iced-code-editor",
+ "iced_runtime",
  "preview-content",
  "serde",
  "serde_json",

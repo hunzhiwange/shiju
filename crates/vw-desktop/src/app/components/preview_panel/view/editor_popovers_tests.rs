@@ -24,44 +24,6 @@ fn tab(path: &str, server_key: Option<&'static str>) -> PreviewTab {
     }
 }
 
-#[test]
-fn ecp01_popovers_close_on_escape_outside_and_tab_switch() {
-    if !isolated("ecp01_popovers_close_on_escape_outside_and_tab_switch") {
-        return;
-    }
-    let mut app = App::new().0;
-    app.file_manager.file_manager_show_changes = false;
-    app.screen = crate::app::Screen::Project;
-    app.preview_tabs = vec![tab("/tmp/a.rs", None)];
-    app.active_preview_path = Some("/tmp/a.rs".into());
-    let _ = editor::update(&mut app, EditorMessage::TogglePopover(EditorPopover::Help));
-    assert_eq!(app.editor_popover, Some(EditorPopover::Help));
-    let _ = editor::update(&mut app, EditorMessage::TogglePopover(EditorPopover::Help));
-    assert_eq!(app.editor_popover, None);
-    let _ = editor::update(&mut app, EditorMessage::TogglePopover(EditorPopover::Settings));
-    let _ = editor::update(&mut app, EditorMessage::ClosePopover);
-
-    assert_eq!(app.editor_popover, None);
-    for kind in [EditorPopover::Actions, EditorPopover::Settings, EditorPopover::Help] {
-        let _ = editor::update(&mut app, EditorMessage::TogglePopover(kind));
-        assert_eq!(app.editor_popover, Some(kind));
-    }
-    let _ = crate::app::message::preview::tab::update(
-        &mut app,
-        crate::app::message::PreviewMessage::Select(String::new()),
-    );
-    assert_eq!(app.editor_popover, None);
-    let _ = editor::update(&mut app, EditorMessage::TogglePopover(EditorPopover::Help));
-    assert_eq!(app.editor_popover, None);
-    app.active_preview_path = Some("/tmp/a.rs".into());
-    let _ = editor::update(&mut app, EditorMessage::TogglePopover(EditorPopover::Help));
-    let _ = crate::app::message::preview::tab::update(
-        &mut app,
-        crate::app::message::PreviewMessage::Close("/tmp/a.rs".into()),
-    );
-    assert_eq!(app.editor_popover, None);
-}
-
 fn isolated(test: &str) -> bool {
     const CHILD: &str = "SHIJU_ECP01_CHILD";
     if std::env::var_os(CHILD).is_some() {

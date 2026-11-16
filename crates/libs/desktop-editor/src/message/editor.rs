@@ -262,6 +262,31 @@ pub fn toggle_popover(popover: &mut Option<EditorPopover>, has_file: bool, kind:
 #[path = "editor_tests.rs"]
 mod tests;
 
+/// 切换活动文件弹层并关闭互斥的编辑器菜单。
+pub fn open_popover(
+    editor: Option<&mut Editor>, popover: &mut Option<EditorPopover>,
+    show_context_menu: &mut bool,
+    nav_popup: &mut Option<(String, f32, f32, Vec<(String, bool)>)>,
+    show_settings: &mut bool,
+    #[cfg(not(target_arch = "wasm32"))] overlay: &mut iced_code_editor::LspOverlayState,
+    #[cfg(not(target_arch = "wasm32"))] overlay_path: &mut Option<String>,
+    kind: EditorPopover,
+) -> Task<Event> {
+    toggle_popover(popover, editor.is_some(), kind);
+    *show_context_menu = false;
+    *nav_popup = None;
+    *show_settings = false;
+    #[cfg(not(target_arch = "wasm32"))] {
+        overlay.hover_visible = false;
+        overlay.completion_visible = false;
+        *overlay_path = None;
+    }
+    match editor {
+        Some(editor) => editor.inner.update(&iced_code_editor::Message::CloseCommandPalette).map(Event::Preview),
+        None => Task::none(),
+    }
+}
+
 /// 把语言设置应用到当前领域的编辑器集合。
 pub fn apply_language<'a>(editors: impl Iterator<Item = &'a mut Editor>, modal: &mut iced_code_editor::CodeEditor, language: Language) {
     for editor in editors { editor.set_ui_language(language); }

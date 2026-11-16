@@ -3,9 +3,6 @@ use super::PreviewMessage;
 use crate::app::{App, FocusArea, Message};
 use iced::Task;
 use desktop_editor::preview::editor::{self as domain, Effect};
-#[cfg(test)] fn update_context_target_from_editor_event(app: &mut App, evt: &iced_code_editor::Message) {
- desktop_editor::preview::selection::update_context_target_from_editor_event(&app.active_preview_path, &app.preview_tabs, &mut app.preview_context_target, evt);
-}
 pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
  if let PreviewMessage::EditorEvent(ref evt) = message {
    if matches!(evt, iced_code_editor::Message::CustomContextMenuAction(_) | iced_code_editor::Message::RevealInFileManager)

@@ -99,3 +99,10 @@ fn panel(editor: Option<&iced_code_editor::CodeEditor>, read_only: bool, i18n: d
         })
         .into()
 }
+
+/// 上下文菜单、设置弹窗和导航菜单优先于工具弹层。
+pub fn visible_popover(
+    popover: Option<EditorPopover>, context_menu: bool, settings: bool, navigation: bool,
+) -> Option<EditorPopover> {
+    popover.filter(|_| !context_menu && !settings && !navigation)
+}

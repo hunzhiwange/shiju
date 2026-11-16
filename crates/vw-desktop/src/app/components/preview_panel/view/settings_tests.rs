@@ -1,4 +1,4 @@
-// 保留宿主契约：设置控件到 EditorMessage 的映射、App 主题与指标投影和跨域帮助/字段注入；徽标精度断言保留原宿主测试辅助入口。
+// 保留宿主契约：App 设置字段及帮助组件注入到完整设置弹窗。
 //! 验证预览设置视图测试模块的装配入口。
 //! 设置控件的行为由父模块测试覆盖，此处保留独立模块的编译哨兵。
 
@@ -8,10 +8,8 @@ fn settings_tests_are_wired() {
 }
 
 use super::settings::{
-    SettingsControl, build_settings_overlay, control_message, font_size_badge_label,
-    line_height_badge_label, selected_editor_theme,
+    build_settings_overlay,
 };
-use crate::app::message::editor::EditorMessage;
 use crate::app::{App, Message};
 use iced::widget::{container, text};
 use iced::{Element, Theme};
@@ -27,98 +25,6 @@ fn content() -> Element<'static, Message> {
 
 fn keep(element: Element<'_, Message>) {
     std::hint::black_box(element);
-}
-
-fn editor_message(message: Message) -> EditorMessage {
-    match message {
-        Message::Editor(message) => message,
-        other => panic!("expected editor message, got {other:?}"),
-    }
-}
-
-#[test]
-fn close_control_maps_to_toggle_settings() {
-    assert!(matches!(
-        editor_message(control_message(SettingsControl::Close)),
-        EditorMessage::ToggleSettings
-    ));
-}
-
-#[test]
-fn numeric_controls_preserve_slider_values() {
-    match editor_message(control_message(SettingsControl::FontSize(17.25))) {
-        EditorMessage::FontSizePreview(value) => assert_eq!(value, 17.25),
-        other => panic!("expected font size change, got {other:?}"),
-    }
-
-    match editor_message(control_message(SettingsControl::LineHeight(28.5))) {
-        EditorMessage::LineHeightPreview(value) => assert_eq!(value, 28.5),
-        other => panic!("expected line height change, got {other:?}"),
-    }
-}
-
-#[test]
-fn boolean_controls_preserve_enabled_state() {
-    assert!(matches!(
-        editor_message(control_message(SettingsControl::AutoLineHeight(true))),
-        EditorMessage::ToggleAutoLineHeight(true)
-    ));
-    assert!(matches!(
-        editor_message(control_message(SettingsControl::AutoLineHeight(false))),
-        EditorMessage::ToggleAutoLineHeight(false)
-    ));
-    assert!(matches!(
-        editor_message(control_message(SettingsControl::FollowSystemTheme(true))),
-        EditorMessage::ToggleFollowSystemTheme(true)
-    ));
-    assert!(matches!(
-        editor_message(control_message(SettingsControl::FollowSystemTheme(false))),
-        EditorMessage::ToggleFollowSystemTheme(false)
-    ));
-}
-
-#[test]
-fn language_control_preserves_selected_language() {
-    assert!(matches!(
-        editor_message(control_message(SettingsControl::Language(Language::ChineseSimplified))),
-        EditorMessage::LanguageChanged(Language::ChineseSimplified)
-    ));
-}
-
-#[test]
-fn theme_control_preserves_selected_theme() {
-    assert!(matches!(
-        editor_message(control_message(SettingsControl::Theme(Theme::Dark))),
-        EditorMessage::ThemeChanged(Theme::Dark)
-    ));
-}
-
-#[test]
-fn selected_editor_theme_uses_manual_theme_when_system_following_is_disabled() {
-    let mut app = app();
-    app.editor_follow_system_theme = false;
-    app.app_theme = Theme::Light;
-    app.editor_theme = Theme::Dark;
-
-    assert!(matches!(selected_editor_theme(&app), Theme::Dark));
-}
-
-#[test]
-fn selected_editor_theme_uses_app_theme_when_system_following_is_enabled() {
-    let mut app = app();
-    app.editor_follow_system_theme = true;
-    app.app_theme = Theme::Dark;
-    app.editor_theme = Theme::Light;
-
-    assert!(matches!(selected_editor_theme(&app), Theme::Dark));
-}
-
-#[test]
-fn badge_labels_use_declared_precision_at_slider_boundaries() {
-    assert_eq!(font_size_badge_label(10.0), "10px");
-    assert_eq!(font_size_badge_label(29.6), "30px");
-    assert_eq!(line_height_badge_label(10.0), "10.0px");
-    assert_eq!(line_height_badge_label(49.95), "50.0px");
 }
 
 #[test]

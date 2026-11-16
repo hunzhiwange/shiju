@@ -28,7 +28,7 @@ pub(super) fn state(app: &mut App) -> TabState<'_> {
 }
 pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
     let opening = if let PreviewMessage::Open(path) = &message { Some(path.clone()) } else { None };
-    if matches!(message, PreviewMessage::Select(_) | PreviewMessage::Close(_) | PreviewMessage::Open(_) | PreviewMessage::OpenLoaded { .. } | PreviewMessage::TabMenuCloseLeft(_) | PreviewMessage::TabMenuCloseRight(_) | PreviewMessage::TabMenuCloseAll) { app.editor_popover = None; }
+    domain::prepare_popover(&mut app.editor_popover, &message);
     let reveal_work_resources = opening.is_some() && matches!(app.screen, Screen::Project)
         && app.workspace_mode == WorkspaceMode::Work
         && (!app.work_resources_visible || app.work_resource_mode != WorkResourceMode::WorkspaceFiles || app.work_chat_fullscreen || app.work_chat_half_fullscreen);

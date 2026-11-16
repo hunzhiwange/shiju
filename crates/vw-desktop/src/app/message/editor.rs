@@ -63,33 +63,22 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
             Err(error) => app.show_error_toast(error),
         },
         EditorMessage::TogglePopover(kind) => {
-            let has_file = app
-                .active_preview_path
-                .as_ref()
-                .is_some_and(|path| app.preview_tabs.iter().any(|tab| tab.path == *path));
-            desktop_editor::message::editor::toggle_popover(&mut app.editor_popover, has_file, kind);
-            app.show_preview_context_menu = false;
-            app.preview_nav_popup = None;
-            app.show_preview_settings = false;
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                app.lsp_overlay.hover_visible = false;
-                app.lsp_overlay.completion_visible = false;
-                app.lsp_overlay_path = None;
-            }
-            if let Some(path) = app.active_preview_path.as_ref()
-                && let Some(tab) = app.preview_tabs.iter_mut().find(|tab| tab.path == *path)
-            {
-                return tab
-                    .editor
-                    .inner
-                    .update(&iced_code_editor::Message::CloseCommandPalette)
-                    .map(|event| {
-                        Message::Preview(crate::app::message::PreviewMessage::EditorEvent(event))
-                    });
-            }
-            Task::none()
+            let editor = app.preview_tabs.iter_mut()
+                .find(|tab| Some(&tab.path) == app.active_preview_path.as_ref())
+                .map(|tab| &mut tab.editor);
+            desktop_editor::message::editor::open_popover(
+                editor, &mut app.editor_popover, &mut app.show_preview_context_menu,
+                &mut app.preview_nav_popup, &mut app.show_preview_settings,
+                #[cfg(not(target_arch = "wasm32"))] &mut app.lsp_overlay,
+                #[cfg(not(target_arch = "wasm32"))] &mut app.lsp_overlay_path,
+                kind,
+            ).map(|event| match event {
+                desktop_editor::message::editor::Event::Preview(event) =>
+                    Message::Preview(crate::app::message::PreviewMessage::EditorEvent(event)),
+                desktop_editor::message::editor::Event::Message(message) => Message::Editor(message),
+            })
         }
+
         EditorMessage::ToggleSettings => {
             app.show_preview_settings = !app.show_preview_settings;
             if app.show_preview_settings { Task::none() } else { metrics::commit(app, None) }
@@ -127,7 +116,7 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
 
             desktop_editor::message::editor::apply_language(
                 app.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
-                &mut app.git_copy_modal_code_editor, lang,
+                &mut app.git.git_copy_modal_code_editor, lang,
             );
             Task::none()
         }
@@ -140,7 +129,7 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
 
             desktop_editor::message::editor::apply_theme(
                 app.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
-                &mut app.git_copy_modal_code_editor, theme.clone(),
+                &mut app.git.git_copy_modal_code_editor, theme.clone(),
             );
 
             persistence::enqueue(app, EditorSettingsPatch::theme(theme.to_string()))
@@ -155,7 +144,7 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
 
             desktop_editor::message::editor::apply_theme(
                 app.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
-                &mut app.git_copy_modal_code_editor, editor_theme.clone(),
+                &mut app.git.git_copy_modal_code_editor, editor_theme.clone(),
             );
 
             persistence::enqueue(app, EditorSettingsPatch::follow_system_theme(follow))

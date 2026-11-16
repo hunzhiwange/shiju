@@ -103,17 +103,7 @@ fn active_preview_lsp_badge(app: &App) -> Option<Element<'_, Message>> {
         desktop_i18n::I18n::new(app.desktop_locale)))
 }
 
-#[cfg(test)]
-mod editor_actions;
-#[cfg(test)]
-#[path = "editor_actions_tests.rs"]
-mod editor_actions_tests;
 
-#[cfg(test)]
-mod editor_options;
-#[cfg(test)]
-#[path = "editor_options_tests.rs"]
-mod editor_options_tests;
 
 #[cfg(test)]
 #[path = "editor_search_tests.rs"]

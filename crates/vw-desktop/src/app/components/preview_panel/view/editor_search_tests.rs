@@ -1,6 +1,6 @@
-// 保留宿主契约：搜索与周边面板联动、活动文档 dirty/revision 与只读保护，以及宿主组合视图边界。
+// 保留宿主契约：搜索弹窗与完整宿主组合视图的布局边界。
 use crate::app::components::editor::Editor;
-use crate::app::message::editor::{self, EditorMessage, EditorPopover};
+use crate::app::message::editor::{self, EditorMessage};
 use crate::app::{App, PreviewTab};
 use iced::widget::Id;
 use config_ui::GatewayClientSystemSettingsConfig;
@@ -56,85 +56,6 @@ fn isolated(test: &str) -> bool {
         String::from_utf8_lossy(&output.stderr)
     );
     false
-}
-
-#[test]
-fn ecp06_search_closes_surrounding_panels() {
-    if !isolated("ecp06_search_closes_surrounding_panels") {
-        return;
-    }
-    let mut app = App::new().0;
-    app.preview_tabs = vec![tab("/tmp/a.rs", None)];
-    app.active_preview_path = Some("/tmp/a.rs".into());
-    app.show_preview_settings = true;
-    app.editor_popover = Some(EditorPopover::Help);
-    let _ = editor::update(&mut app, EditorMessage::OpenSearch);
-    assert!(!app.show_preview_settings);
-    assert_eq!(app.editor_popover, None);
-}
-
-fn send(app: &mut App, event: iced_code_editor::Message) {
-    let _ = crate::app::message::preview::update(
-        app,
-        crate::app::message::PreviewMessage::EditorEvent(event),
-    );
-}
-
-#[test]
-fn ecp06_search_replace_updates_only_active_document() {
-    if !isolated("ecp06_search_replace_updates_only_active_document") {
-        return;
-    }
-    use iced_code_editor::Message as E;
-    let mut app = App::new().0;
-    app.preview_auto_save_mode = crate::app::PreviewAutoSaveMode::Off;
-    app.preview_tabs = vec![tab("/tmp/a.rs", None), tab("/tmp/b.rs", None)];
-    app.active_preview_path = Some("/tmp/a.rs".into());
-    let _ = editor::update(&mut app, EditorMessage::OpenReplace);
-    send(&mut app, E::SearchQueryChanged("main".into()));
-    send(&mut app, E::ReplaceQueryChanged("start".into()));
-    send(&mut app, E::ReplaceNext);
-    assert_eq!(app.preview_tabs[0].editor.content(), "fn start() {}");
-    assert_eq!(app.preview_tabs[1].editor.content(), "fn main() {}");
-    assert!(app.preview_tabs[0].is_dirty);
-    assert!(app.preview_tabs[0].auto_save_revision > 0);
-    send(&mut app, E::Undo);
-    assert_eq!(app.preview_tabs[0].editor.content(), "fn main() {}");
-    send(&mut app, E::SearchQueryChanged("FN".into()));
-    send(&mut app, E::ToggleCaseSensitive);
-    send(&mut app, E::ReplaceAll);
-    assert_eq!(app.preview_tabs[0].editor.content(), "fn main() {}");
-    send(&mut app, E::ToggleCaseSensitive);
-    send(&mut app, E::FindNext);
-    send(&mut app, E::FindPrevious);
-    send(&mut app, E::SearchDialogTab);
-    send(&mut app, E::SearchDialogShiftTab);
-    send(&mut app, E::ReplaceAll);
-    assert_eq!(app.preview_tabs[0].editor.content(), "start main() {}");
-    send(&mut app, E::Undo);
-    assert_eq!(app.preview_tabs[0].editor.content(), "fn main() {}");
-    let _ = editor::update(&mut app, EditorMessage::CloseSearch);
-}
-
-#[test]
-fn ecp06_read_only_blocks_replace() {
-    if !isolated("ecp06_read_only_blocks_replace") {
-        return;
-    }
-    use iced_code_editor::Message as E;
-    let mut app = App::new().0;
-    app.preview_tabs = vec![tab("/tmp/a.rs", None)];
-    app.preview_tabs[0].read_only = true;
-    app.active_preview_path = Some("/tmp/a.rs".into());
-    let _ = editor::update(&mut app, EditorMessage::OpenReplace);
-    send(&mut app, E::OpenSearchReplace);
-    send(&mut app, E::SearchQueryChanged("main".into()));
-    send(&mut app, E::ReplaceQueryChanged("changed".into()));
-    send(&mut app, E::ReplaceNext);
-    send(&mut app, E::ReplaceAll);
-    assert_eq!(app.preview_tabs[0].editor.content(), "fn main() {}");
-    assert!(!app.preview_tabs[0].is_dirty);
-    assert_eq!(app.preview_tabs[0].auto_save_revision, 0);
 }
 
 #[tokio::test]

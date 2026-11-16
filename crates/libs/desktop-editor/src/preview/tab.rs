@@ -639,3 +639,10 @@ pub fn preview_description(path: &str) -> Option<desktop_i18n::format::Message> 
 #[cfg(test)]
 #[path = "tab_tests.rs"]
 mod tests;
+
+/// 标签导航开始时关闭编辑器弹层，包括打开失败或尚未加载的路径。
+pub fn prepare_popover(popover: &mut Option<crate::message::editor::EditorPopover>, message: &PreviewMessage) {
+    if matches!(message, PreviewMessage::Select(_) | PreviewMessage::Close(_) | PreviewMessage::Open(_) | PreviewMessage::OpenLoaded { .. } | PreviewMessage::TabMenuCloseLeft(_) | PreviewMessage::TabMenuCloseRight(_) | PreviewMessage::TabMenuCloseAll) {
+        *popover = None;
+    }
+}

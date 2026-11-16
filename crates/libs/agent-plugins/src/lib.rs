@@ -78,3 +78,6 @@ pub mod skills;
 
 #[cfg(test)]
 mod compat_t06_tests;
+
+#[cfg(test)]
+mod compat_t09_tests;

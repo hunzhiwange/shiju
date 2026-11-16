@@ -1,6 +1,7 @@
+use crate::help::{settings_hover_help_label};
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_compact_tab_button,
-    settings_divider, settings_error_banner, settings_group_card, settings_hover_help_label,
+    settings_divider, settings_error_banner, settings_group_card,
     settings_muted_text_style, settings_responsive_row, settings_section_content,
     settings_text_input,
 };

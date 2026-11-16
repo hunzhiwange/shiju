@@ -53,3 +53,8 @@ mod host_split_4_tests;
 mod channel_render_fixture;
 #[cfg(test)]
 mod host_split_5_tests;
+
+pub mod view;
+mod help;
+#[cfg(test)]
+mod host_module_18_tests;

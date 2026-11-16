@@ -1,0 +1,893 @@
+#![cfg(not(target_arch = "wasm32"))]
+
+use crate::channel_render_fixture::*;
+use crate::{
+    common, enterprise_channels, extended_channels,
+    messages::{ChannelsMessage, Message, SettingsMessage},
+    state::ChannelsSettingsTab,
+    test_support::Fixture as App,
+    view::view,
+};
+use config_ui::DesktopLocale;
+use config_ui::GatewayClientSystemSettingsConfig;
+use desktop_i18n::settings_extensions::text as tr;
+use iced::Element;
+use iced::{Event, Renderer, Size, Theme, mouse};
+use iced_runtime::user_interface::{Cache, UserInterface};
+
+const CHANNELS: [&str; 21] = [
+    "telegram",
+    "discord",
+    "slack",
+    "mattermost",
+    "webhook",
+    "imessage",
+    "signal",
+    "whatsapp",
+    "linq",
+    "wati",
+    "nextcloud_talk",
+    "email",
+    "irc",
+    "lark",
+    "feishu",
+    "dingtalk",
+    "qq",
+    "wecom",
+    "wechat",
+    "nostr",
+    "clawdtalk",
+];
+
+fn isolated(test: &str) -> bool {
+    const CHILD: &str = "SHIJU_UI_REFRESH_17_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        return true;
+    }
+    let home = tempfile::tempdir().unwrap();
+    let config = GatewayClientSystemSettingsConfig {
+        host: "[".into(),
+        servers: Vec::new(),
+        ..Default::default()
+    };
+    std::fs::write(
+        home.path().join("gateway-client-bootstrap.json"),
+        serde_json::to_vec(&config).unwrap(),
+    )
+    .unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", &format!("{}::{test}", module_path!().split_once("::").unwrap().1)])
+        .env(CHILD, "1")
+        .env("HOME", home.path())
+        .env("VIBEWINDOW_CONFIG_DIR", home.path())
+        .env("VIBEWINDOW_WORKSPACE", home.path())
+        .current_dir(home.path())
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success() && stdout.contains("1 passed; 0 failed"),
+        "{stdout}\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    false
+}
+
+fn update(app: &mut App, message: ChannelsMessage) {
+    let services = crate::update::Services {
+        config: desktop_config::ConfigAccess::new(
+            gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1),
+            None,
+        ),
+        client: Err("fixture has no gateway".into()),
+        project_choices: Vec::new(),
+    };
+    drop(crate::update::updates::update(&mut app.channels_settings, &services, message));
+}
+
+fn fixture() -> App {
+    let mut app = App::new().0;
+    for channel in CHANNELS {
+        update(&mut app, ChannelsMessage::EnabledToggled(channel.into(), true));
+    }
+    let long_url = format!("https://example.invalid/{}", "webhook-segment/".repeat(20));
+    for (key, value) in [
+        ("telegram.bot_token", "fixture-token"),
+        ("telegram.base_url", long_url.as_str()),
+        ("telegram.allowed_users", "fixture-one\n示例使用者\nfixture-two"),
+        ("mattermost.url", long_url.as_str()),
+        ("nextcloud_talk.base_url", long_url.as_str()),
+        ("email.username", "fixture@example.invalid"),
+        ("email.password", "fixture-password"),
+        ("email.allowed_senders", "a@example.invalid\nb@example.invalid"),
+        ("feishu.app_id", "fixture-app"),
+        ("feishu.app_secret", "fixture-secret"),
+    ] {
+        update(&mut app, ChannelsMessage::TextChanged(key.into(), value.into()));
+    }
+    app.channels_settings.refresh_text_inputs();
+    app.channels_settings.project_dir_input = format!("/示例專案/{}/workspace", "path-".repeat(25));
+    app
+}
+
+fn snapshot(
+    view: Element<'_, Message>,
+    renderer: &mut Renderer,
+    theme: &Theme,
+    size: Size<u32>,
+    name: &str,
+) {
+    let mut ui = UserInterface::build(
+        view,
+        Size::new(size.width as f32, size.height as f32),
+        Cache::new(),
+        renderer,
+    );
+    screenshot(&mut ui, renderer, theme, size, name, mouse::Cursor::Unavailable);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn ui_refresh_17_renders_channel_forms() {
+    if !isolated("ui_refresh_17_renders_channel_forms") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    for (width, theme, locale, suffix) in [
+        (640, Theme::Light, DesktopLocale::SimplifiedChinese, "light-zh"),
+        (960, Theme::Dark, DesktopLocale::TraditionalChinese, "dark-tw"),
+        (640, Theme::Dark, DesktopLocale::English, "dark-en"),
+    ] {
+        app.desktop_locale = locale;
+        for channel in std::iter::once("global").chain(CHANNELS) {
+            app.channels_settings.active_tab = ChannelsSettingsTab::from_channel_id(channel)
+                .unwrap_or(ChannelsSettingsTab::Global);
+            snapshot(
+                view(app.view()),
+                &mut renderer,
+                &theme,
+                Size::new(width, 2000),
+                &format!("{channel}-{suffix}"),
+            );
+        }
+    }
+    app.channels_settings.active_tab = ChannelsSettingsTab::Webhook;
+    app.channels_settings.save_error = Some("Fixture channel validation error".into());
+    snapshot(
+        view(app.view()),
+        &mut renderer,
+        &Theme::Dark,
+        Size::new(640, 1200),
+        "channel-validation-error",
+    );
+}
+
+fn layout(
+    element: &mut Element<'_, Message>,
+    renderer: &Renderer,
+    size: Size,
+) -> iced::advanced::layout::Node {
+    let mut tree = iced::advanced::widget::Tree::new(element.as_widget());
+    element.as_widget_mut().layout(
+        &mut tree,
+        renderer,
+        &iced::advanced::layout::Limits::new(Size::ZERO, size),
+    )
+}
+
+#[tokio::test]
+async fn ui_refresh_17_layout_and_interaction() {
+    use iced::keyboard::key::Named;
+    let mut renderer = renderer().await;
+    let mut field = common::pick_row(
+        DesktopLocale::English,
+        "群聊回复模式",
+        "all_messages",
+        &common::GROUP_REPLY_MODE_OPTIONS,
+        "telegram.group_reply.mode",
+    );
+    let size = Size::new(420.0, 200.0);
+    let node = layout(&mut field, &renderer, size);
+    let field_layout = iced::advanced::Layout::new(&node).children().next().unwrap();
+    let trigger = field_layout.children().nth(1).unwrap();
+    for item in trigger.children().next().unwrap().children() {
+        assert!((item.bounds().center_y() - trigger.bounds().center_y()).abs() < 0.5);
+    }
+    let point = trigger.bounds().center();
+    let cursor = mouse::Cursor::Available(point);
+    let mut ui = UserInterface::build(field, size, Cache::new(), &mut renderer);
+    assert!(click(&mut ui, &mut renderer, point).is_empty());
+    let menu_y = trigger.bounds().y + trigger.bounds().height + 12.0;
+    let screenshot_size = Size::new(420, 200);
+    for (index, theme) in [Theme::Light, Theme::Dark].into_iter().enumerate() {
+        for row in 0..2 {
+            let position = iced::Point::new(point.x, menu_y + 18.0 + 38.0 * row as f32);
+            let hover = mouse::Cursor::Available(position);
+            assert!(
+                send(
+                    &mut ui,
+                    &mut renderer,
+                    hover,
+                    &[Event::Mouse(mouse::Event::CursorMoved { position })],
+                )
+                .is_empty()
+            );
+            screenshot(
+                &mut ui,
+                &mut renderer,
+                &theme,
+                screenshot_size,
+                &format!("select-{index}-hover-{row}"),
+                hover,
+            );
+        }
+        assert!(
+            send(
+                &mut ui,
+                &mut renderer,
+                mouse::Cursor::Unavailable,
+                &[Event::Mouse(mouse::Event::CursorLeft)]
+            )
+            .is_empty()
+        );
+        screenshot(
+            &mut ui,
+            &mut renderer,
+            &theme,
+            screenshot_size,
+            &format!("select-{index}-left"),
+            mouse::Cursor::Unavailable,
+        );
+    }
+    // Reopening through the keyboard starts navigation at the current selection.
+    assert!(send(&mut ui, &mut renderer, cursor, &[key(Named::Escape)]).is_empty());
+    assert!(send(&mut ui, &mut renderer, cursor, &[key(Named::Enter)]).is_empty());
+    let messages =
+        send(&mut ui, &mut renderer, cursor, &[key(Named::ArrowDown), key(Named::Enter)]);
+    assert!(
+        matches!(
+            messages.as_slice(),
+            [Message::Settings(SettingsMessage::Channels(ChannelsMessage::ReceiveModeChanged(id, value)))]
+                if id == "telegram.group_reply.mode" && value == "mention_only"
+        ),
+        "{messages:?}"
+    );
+    assert!(send(&mut ui, &mut renderer, cursor, &[key(Named::Enter)]).is_empty());
+    assert!(send(&mut ui, &mut renderer, cursor, &[key(Named::Escape)]).is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn ui_refresh_17_preserves_values_and_disabled_states() {
+    if !isolated("ui_refresh_17_preserves_values_and_disabled_states") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.desktop_locale = DesktopLocale::English;
+    app.channels_settings.active_tab = ChannelsSettingsTab::Webhook;
+    let messages = {
+        let mut ui = scene(view(app.view()), &mut renderer, Size::new(640, 1200));
+        let email = geometry(&mut ui, &renderer).label("Email").center();
+        click(&mut ui, &mut renderer, email)
+    };
+    assert!(
+        matches!(
+            messages.as_slice(),
+            [Message::Settings(SettingsMessage::Channels(ChannelsMessage::TabSelected(
+                ChannelsSettingsTab::Email
+            )))]
+        ),
+        "{messages:?}"
+    );
+    update(&mut app, ChannelsMessage::TabSelected(ChannelsSettingsTab::Email));
+    assert_eq!(app.channels_settings.active_tab, ChannelsSettingsTab::Email);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn ui_refresh_17_preserves_project_binding_and_qr_actions() {
+    if !isolated("ui_refresh_17_preserves_project_binding_and_qr_actions") {
+        return;
+    }
+    use gateway_channel_qr::ChannelQrStatusDto;
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    let size = Size::new(420, 400);
+    for channel in CHANNELS {
+        let instance = format!("{channel}:default");
+        let state = &mut app.channels_settings;
+        let generation = state.begin_project_choices("tenant", &instance);
+        assert!(state.select_default_project("tenant", &instance, Some("project-1")).is_err());
+        assert!(state.finish_project_choices(
+            "tenant",
+            &instance,
+            generation,
+            Ok(vec![("project-1".into(), "示例專案".into())]),
+        ));
+        assert!(state.select_default_project("tenant", &instance, Some("unknown")).is_err());
+        state.select_default_project("tenant", &instance, Some("project-1")).unwrap();
+        assert_eq!(state.instance_default_projects[&instance], "project-1");
+    }
+
+    app.desktop_locale = DesktopLocale::TraditionalChinese;
+    let instance = "feishu:default";
+    let state = &mut app.channels_settings;
+    let generation = state.begin_project_choices("tenant", instance);
+    snapshot(
+        common::default_project_selector(app.view(), instance.into()),
+        &mut renderer,
+        &Theme::Light,
+        size,
+        "projects-loading",
+    );
+    app.channels_settings.finish_project_choices(
+        "tenant",
+        instance,
+        generation,
+        Err("fixture error".into()),
+    );
+    snapshot(
+        common::default_project_selector(app.view(), instance.into()),
+        &mut renderer,
+        &Theme::Light,
+        size,
+        "projects-error",
+    );
+    let generation = app.channels_settings.begin_project_choices("tenant", instance);
+    app.channels_settings.finish_project_choices("tenant", instance, generation, Ok(Vec::new()));
+    snapshot(
+        common::default_project_selector(app.view(), instance.into()),
+        &mut renderer,
+        &Theme::Dark,
+        size,
+        "projects-empty",
+    );
+    let projects = (1..=30)
+        .map(|i| (format!("project-{i}"), format!("示例專案 {i} · {}", "很長的顯示名稱".repeat(6))))
+        .collect::<Vec<_>>();
+    let generation = app.channels_settings.begin_project_choices("tenant", instance);
+    app.channels_settings.finish_project_choices(
+        "tenant",
+        instance,
+        generation,
+        Ok(projects.clone()),
+    );
+
+    {
+        use iced::{Point, advanced::Layout};
+        let mut field = common::default_project_selector(app.view(), instance.into());
+        let bounds = Size::new(420.0, 400.0);
+        let node = layout(&mut field, &renderer, bounds);
+        let responsive_row = Layout::new(&node).children().next().unwrap();
+        let field_layout = responsive_row.children().next().unwrap();
+        let picker = field_layout.children().nth(1).unwrap().bounds();
+        let mut ui = UserInterface::build(field, bounds, Cache::new(), &mut renderer);
+        let messages = click(&mut ui, &mut renderer, picker.center());
+        assert!(
+            matches!(
+                messages.as_slice(),
+                [Message::Settings(SettingsMessage::Channels(ChannelsMessage::ProjectChoicesRequested(id)))]
+                    if id == instance
+            ),
+            "{messages:?}"
+        );
+        let cursor = mouse::Cursor::Available(Point::new(200.0, picker.y + picker.height + 65.0));
+        let press = Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left));
+        assert!(send(&mut ui, &mut renderer, cursor, &[press]).is_empty());
+        let cache = ui.into_cache();
+        let generation = app.channels_settings.begin_project_choices("tenant", instance);
+        let ui = UserInterface::build(
+            common::default_project_selector(app.view(), instance.into()),
+            bounds,
+            cache,
+            &mut renderer,
+        );
+        let cache = ui.into_cache();
+        assert!(app.channels_settings.finish_project_choices(
+            "tenant",
+            instance,
+            generation,
+            Ok(projects),
+        ));
+        let mut ui = UserInterface::build(
+            common::default_project_selector(app.view(), instance.into()),
+            bounds,
+            cache,
+            &mut renderer,
+        );
+        let release = Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left));
+        assert!(send(&mut ui, &mut renderer, cursor, &[release]).is_empty());
+        let scroll = Event::Mouse(mouse::Event::WheelScrolled {
+            delta: mouse::ScrollDelta::Lines { x: 0.0, y: -8.0 },
+        });
+        assert!(send(&mut ui, &mut renderer, cursor, &[scroll]).is_empty());
+        screenshot(&mut ui, &mut renderer, &Theme::Dark, size, "projects-menu-scrolled", cursor);
+        use iced::keyboard::key::Named;
+        let messages = send(
+            &mut ui,
+            &mut renderer,
+            mouse::Cursor::Unavailable,
+            &[key(Named::End), key(Named::Enter)],
+        );
+        assert!(
+            matches!(
+                messages.as_slice(),
+                [Message::Settings(SettingsMessage::Channels(ChannelsMessage::DefaultProjectSelected {
+                    instance: id, project: Some(project),
+                }))] if id == instance && project == "project-30"
+            ),
+            "{messages:?}"
+        );
+        assert!(matches!(
+            click(&mut ui, &mut renderer, picker.center()).as_slice(),
+            [Message::Settings(SettingsMessage::Channels(ChannelsMessage::ProjectChoicesRequested(id)))]
+                if id == instance
+        ));
+        let mut other = UserInterface::build(
+            common::default_project_selector(app.view(), "qq:default".into()),
+            bounds,
+            ui.into_cache(),
+            &mut renderer,
+        );
+        assert!(
+            send(
+                &mut other,
+                &mut renderer,
+                mouse::Cursor::Unavailable,
+                &[key(Named::End), key(Named::Enter)]
+            )
+            .is_empty()
+        );
+    }
+
+    app.desktop_locale = DesktopLocale::English;
+    let size = Size::new(420, 1900);
+    app.channels_settings.qr_flow.channel = Some("feishu".into());
+    for (status, name) in [(None, "qr-loading"), (Some(ChannelQrStatusDto::Failed), "qr-failed")] {
+        app.channels_settings.qr_flow.status = status;
+        let mut ui = scene(enterprise_channels::feishu_panel(app.view()), &mut renderer, size);
+        let geometry = geometry(&mut ui, &renderer);
+        assert!(
+            !geometry
+                .labels
+                .iter()
+                .any(|(label, _)| label == tr(app.desktop_locale, "保存授权配置"))
+        );
+        screenshot(&mut ui, &mut renderer, &Theme::Dark, size, name, mouse::Cursor::Unavailable);
+    }
+    app.channels_settings.qr_flow.status = Some(ChannelQrStatusDto::Authorized);
+    app.channels_settings.qr_flow.credentials_ready = true;
+    // Match the displayed size so tiny-skia does not round the offset in scaled image pixels.
+    let pixels = (0..220)
+        .flat_map(|y| {
+            (0..220).flat_map(move |x| {
+                let shade = ((x / 22 + y / 22) % 2) as u8 * 255;
+                [shade, shade, shade, 255]
+            })
+        })
+        .collect::<Vec<_>>();
+    app.channels_settings.qr_flow.qrcode_image =
+        Some(iced::widget::image::Handle::from_rgba(220, 220, pixels));
+    let mut ui = scene(enterprise_channels::feishu_panel(app.view()), &mut renderer, size);
+    let geometry = geometry(&mut ui, &renderer);
+    screenshot(
+        &mut ui,
+        &mut renderer,
+        &Theme::Light,
+        size,
+        "qr-authorized",
+        mouse::Cursor::Unavailable,
+    );
+    let close = geometry.label(tr(app.desktop_locale, "关闭")).center();
+    let save = geometry.label(tr(app.desktop_locale, "保存授权配置")).center();
+    assert!(matches!(
+        click(&mut ui, &mut renderer, close).as_slice(),
+        [Message::Settings(SettingsMessage::Channels(ChannelsMessage::QrClosed))]
+    ));
+    assert!(matches!(
+        click(&mut ui, &mut renderer, save).as_slice(),
+        [Message::Settings(SettingsMessage::Channels(ChannelsMessage::QrSaveConfirmed))]
+    ));
+}
+
+fn assert_channel_help(
+    ui: &mut UserInterface<'_, Message, Theme, Renderer>,
+    renderer: &mut Renderer,
+    (size, theme, locale): (Size<u32>, &Theme, DesktopLocale),
+    scene_name: &str,
+    title: &'static str,
+    description: &'static str,
+) -> iced::Point {
+    let positions = geometry(ui, renderer);
+    let label = positions
+        .labels
+        .iter()
+        .rev()
+        .find(|(label, _)| label == tr(locale, title))
+        .unwrap_or_else(|| panic!("missing help title {title}"))
+        .1;
+    let frame = |ui: &mut UserInterface<'_, Message, Theme, Renderer>,
+                 renderer: &mut Renderer,
+                 suffix,
+                 cursor| {
+        screenshot(
+            ui,
+            renderer,
+            theme,
+            size,
+            &format!("help-11-{locale:?}-{scene_name}-{title}-{suffix}"),
+            cursor,
+        )
+    };
+    let idle = frame(ui, renderer, "idle", mouse::Cursor::Unavailable);
+    assert!(
+        positions.labels.iter().all(|(label, _)| label != tr(locale, description)),
+        "{scene_name}/{title}: static explanation is visible before opening help"
+    );
+    let icon = iced::Point::new(label.x + label.width + 15.0, label.center_y());
+    let cursor = mouse::Cursor::Available(icon);
+    assert!(
+        send(ui, renderer, cursor, &[Event::Mouse(mouse::Event::CursorMoved { position: icon })])
+            .is_empty()
+    );
+    assert!(idle != frame(ui, renderer, "hover", cursor), "{scene_name}/{title}: hover preview");
+    assert!(click(ui, renderer, icon).is_empty());
+    assert!(
+        idle != frame(ui, renderer, "open", mouse::Cursor::Unavailable),
+        "{scene_name}/{title}: pinned card"
+    );
+    assert!(
+        send(ui, renderer, mouse::Cursor::Unavailable, &[key(iced::keyboard::key::Named::Escape)])
+            .is_empty()
+    );
+    assert!(
+        idle == frame(ui, renderer, "closed", mouse::Cursor::Unavailable),
+        "{scene_name}/{title}: Escape should close the help card"
+    );
+    icon
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn help_rollout_11_renders_contextual_help() {
+    if !isolated("help_rollout_11_renders_contextual_help") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    const ERROR: &str = "Fixture channel validation error";
+    const WORKING_PROJECT_HELP: &str =
+        "从系统项目列表选择，该连接的聊天将在所选项目下工作；可不选。";
+    app.channels_settings.save_error = Some(ERROR.into());
+
+    for (locale, theme, width) in [
+        (DesktopLocale::English, Theme::Light, 760),
+        (DesktopLocale::SimplifiedChinese, Theme::Dark, 420),
+        (DesktopLocale::TraditionalChinese, Theme::Dark, 640),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let size = Size::new(width, 1450);
+        let context = (size, &theme, locale);
+        app.channels_settings.active_tab = ChannelsSettingsTab::Global;
+        let mut ui = scene(view(app.view()), &mut renderer, size);
+        for (title, description) in [
+            ("通道配置", "集中配置 CLI 与外部消息通道的接入参数。"),
+            ("已启用通道", "快速查看当前已打开的入口，便于核对多通道部署状态。"),
+            ("通道", "选择一个通道进行配置。"),
+        ] {
+            assert_channel_help(&mut ui, &mut renderer, context, "global", title, description);
+        }
+        let positions = geometry(&mut ui, &renderer);
+        positions.label(ERROR);
+        let cli = positions.label(tr(locale, "启用 CLI 通道")).center();
+        assert!(matches!(
+            click(&mut ui, &mut renderer, cli).as_slice(),
+            [Message::Settings(SettingsMessage::Channels(ChannelsMessage::CliToggled(_)))]
+        ));
+        drop(ui);
+
+        for (channel, title, description) in [
+            ("telegram", "Telegram", "机器人令牌、群聊行为与白名单控制。"),
+            ("discord", "Discord", "机器人令牌、服务器限制与群聊回复控制。"),
+            ("slack", "Slack", "机器人令牌、Socket Mode 应用令牌与频道限制。"),
+            ("mattermost", "Mattermost", "服务器地址、机器人令牌、线程回复与仅提及时回复。"),
+            ("webhook", "Webhook", "接收入站网络事件的轻量端点。"),
+            ("imessage", "iMessage", "macOS 下允许接入的联系人列表。"),
+            ("signal", "Signal", "signal-cli HTTP daemon 地址与来源过滤。"),
+            ("lark", "Lark", "国际版 Lark 的 app、接收模式与草稿编辑节流。"),
+            ("feishu", "飞书", "国内版飞书详细配置。"),
+            ("qq", "QQ", "QQ 官方机器人 app 信息与接收模式。"),
+            ("wecom", "企业微信", "企业微信 AI 机器人长连接凭据。"),
+            ("wechat", "微信", "微信 iLink 机器人凭据与可信平台地址。"),
+            ("nostr", "Nostr", "私钥、中继列表和允许的公钥白名单。"),
+            ("clawdtalk", "ClawdTalk", "Telnyx 语音通道的 API 鉴权与目的地限制。"),
+            ("whatsapp", "WhatsApp", "Cloud API 或 Web 模式字段共用一组表单。"),
+            ("linq", "Linq", "Partner API、发信号码与签名校验。"),
+            ("wati", "WATI", "第三方 WhatsApp Business API 集成。"),
+            ("nextcloud_talk", "Nextcloud Talk", "基础地址、应用 token 与 webhook 密钥。"),
+            ("email", "Email", "IMAP / SMTP 收发邮件配置。"),
+            ("irc", "IRC", "IRC over TLS、自动加入频道和认证口令。"),
+        ] {
+            app.channels_settings.active_tab =
+                ChannelsSettingsTab::from_channel_id(channel).unwrap();
+            let context = if channel == "feishu" {
+                (Size::new(width, 2200), &theme, locale)
+            } else {
+                context
+            };
+            let size = context.0;
+            let mut ui = scene(view(app.view()), &mut renderer, size);
+            let icon =
+                assert_channel_help(&mut ui, &mut renderer, context, channel, title, description);
+            if matches!(channel, "telegram" | "feishu" | "email") {
+                assert_channel_help(
+                    &mut ui,
+                    &mut renderer,
+                    context,
+                    channel,
+                    "工作项目",
+                    WORKING_PROJECT_HELP,
+                );
+            }
+            if channel == "webhook" && locale == DesktopLocale::English {
+                assert_channel_help_menu(&mut ui, &mut renderer, icon, tr(locale, description));
+            }
+            if channel == "feishu" {
+                assert_channel_help(
+                    &mut ui,
+                    &mut renderer,
+                    context,
+                    channel,
+                    "飞书详细配置",
+                    "覆盖 app_id、app_secret、加密字段、接收模式、端口和草稿编辑参数。",
+                );
+                let positions = geometry(&mut ui, &renderer);
+                positions.input(&"•".repeat("fixture-secret".len()));
+                let condition = positions.label(tr(locale, HELP_GAP_06_PORT_HINT));
+                assert!(condition.y + condition.height < size.height as f32);
+                let qr = positions.label(tr(locale, "获取二维码")).center();
+                assert!(matches!(
+                    click(&mut ui, &mut renderer, qr).as_slice(),
+                    [Message::Settings(SettingsMessage::Channels(ChannelsMessage::QrRequested(id)))]
+                        if id == "feishu"
+                ));
+            }
+        }
+
+        app.channels_settings.active_tab = ChannelsSettingsTab::DingTalk;
+        let mut ui = scene(view(app.view()), &mut renderer, size);
+        let positions = geometry(&mut ui, &renderer);
+        positions.label(tr(locale, HELP_GAP_06_EMPTY));
+        positions.label(tr(locale, HELP_GAP_06_USERS));
+        positions.label(tr(locale, "使用手机端扫描二维码；授权成功后请明确保存。"));
+    }
+}
+
+fn assert_channel_help_menu(
+    ui: &mut UserInterface<'_, Message, Theme, Renderer>,
+    renderer: &mut Renderer,
+    icon: iced::Point,
+    description: &str,
+) {
+    assert!(click(ui, renderer, icon).is_empty());
+    let body = iced::Point::new(icon.x + 29.0, icon.y + 5.0);
+    let item_height =
+        f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into())) + 10.0;
+    let search = format!(
+        "https://www.google.com/search?q={}",
+        url::form_urlencoded::byte_serialize(description.as_bytes()).collect::<String>()
+    );
+    for index in [0.0, 3.0] {
+        assert!(
+            send(
+                ui,
+                renderer,
+                mouse::Cursor::Available(body),
+                &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+            )
+            .is_empty()
+        );
+        let item = iced::Point::new(body.x + 24.0, body.y + 3.0 + item_height * (index + 0.5));
+        let messages = click(ui, renderer, item);
+        assert!(
+            match messages.as_slice() {
+                [Message::CopyCode(text)] if index == 0.0 => text == description,
+                [Message::OpenUrlExternal(url)] if index == 3.0 => url == &search,
+                _ => false,
+            },
+            "{messages:?}"
+        );
+    }
+    assert!(
+        send(ui, renderer, mouse::Cursor::Unavailable, &[key(iced::keyboard::key::Named::Escape)])
+            .is_empty()
+    );
+}
+
+const HELP_GAP_06_PORT_HELP: &str = "WebSocket 模式会忽略端口。";
+const HELP_GAP_06_PORT_HINT: &str = "Webhook 模式需要公网 HTTPS 入口。";
+const HELP_GAP_06_STREAM: &str = "钉钉 Stream 模式鉴权。";
+const HELP_GAP_06_EMPTY: &str = "白名单为空时拒绝所有用户。";
+const HELP_GAP_06_USERS: &str = "* 表示允许所有用户。";
+const HELP_GAP_06_FORMAT: &str = "每行一个，亦支持逗号分隔，可使用 *";
+const HELP_GAP_06_DISABLED: &str = "启用后显示该通道的详细配置表单。";
+
+fn help_gap_06_contexts() -> [(u32, Theme, DesktopLocale); 3] {
+    [
+        (420, Theme::Light, DesktopLocale::SimplifiedChinese),
+        (960, Theme::Dark, DesktopLocale::TraditionalChinese),
+        (420, Theme::Dark, DesktopLocale::English),
+    ]
+}
+
+fn assert_help_gap_06_card(
+    ui: &mut UserInterface<'_, Message, Theme, Renderer>,
+    renderer: &mut Renderer,
+    (size, theme, locale): (Size<u32>, &Theme, DesktopLocale),
+    title: &'static str,
+    description: &str,
+) {
+    let label = geometry(ui, renderer)
+        .labels
+        .iter()
+        .rev()
+        .find(|(label, _)| label == tr(locale, title))
+        .unwrap_or_else(|| panic!("missing help title {title}"))
+        .1;
+    let icon = iced::Point::new(label.x + label.width + 15.0, label.center_y());
+    let render = |ui: &mut UserInterface<'_, Message, Theme, Renderer>,
+                  renderer: &mut Renderer,
+                  phase,
+                  cursor| {
+        screenshot(ui, renderer, theme, size, &format!("gap-06-{locale:?}-{title}-{phase}"), cursor)
+    };
+    let away = mouse::Cursor::Unavailable;
+    let idle = render(ui, renderer, "idle", away);
+    let cursor = mouse::Cursor::Available(icon);
+    assert!(
+        send(ui, renderer, cursor, &[Event::Mouse(mouse::Event::CursorMoved { position: icon })])
+            .is_empty()
+    );
+    assert!(idle != render(ui, renderer, "hover", cursor), "{locale:?}: {title} hover");
+    assert!(click(ui, renderer, icon).is_empty());
+    let pinned = render(ui, renderer, "pinned", away);
+    assert!(idle != pinned, "{locale:?}: {title} pinned");
+    let left = icon.x - 15.0;
+    let right = icon.x + 15.0;
+    let right_space = size.width as f32 - right;
+    let width = 300.0_f32.min(left.max(right_space));
+    let x = if right_space >= width { right } else { left - width };
+    let card = iced::Point::new(x + 22.0, icon.y + 5.0);
+    let menu = Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right));
+    let escape = key(iced::keyboard::key::Named::Escape);
+    assert!(
+        send(ui, renderer, mouse::Cursor::Available(card), std::slice::from_ref(&menu)).is_empty()
+    );
+    assert!(pinned != render(ui, renderer, "menu", away));
+    assert!(send(ui, renderer, away, std::slice::from_ref(&escape)).is_empty());
+    assert!(pinned == render(ui, renderer, "menu-closed", away));
+    assert!(send(ui, renderer, mouse::Cursor::Available(card), &[menu]).is_empty());
+    let item_height =
+        f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into())) + 10.0;
+    let messages = click(
+        ui,
+        renderer,
+        iced::Point::new(
+            card.x.min(size.width as f32 - 140.0) + 25.0,
+            card.y + 3.0 + item_height / 2.0,
+        ),
+    );
+    assert!(
+        matches!(messages.as_slice(), [Message::CopyCode(value)] if value == description),
+        "{locale:?}: {title} help copy: {messages:?}"
+    );
+    assert!(send(ui, renderer, away, &[escape]).is_empty());
+    assert!(idle == render(ui, renderer, "closed", away));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_06_feishu_modes_keep_port_and_qr_controls() {
+    if !isolated("settings_help_gap_06_feishu_modes_keep_port_and_qr_controls") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    for (width, theme, locale) in help_gap_06_contexts() {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        app.channels_settings.active_tab = ChannelsSettingsTab::Feishu;
+        for mode in [
+            config_channel_services::LarkReceiveMode::Webhook,
+            config_channel_services::LarkReceiveMode::Websocket,
+        ] {
+            let cfg = app.channels_settings.feishu.as_mut().unwrap();
+            cfg.receive_mode = mode;
+            cfg.port = Some(4321);
+            let size = Size::new(width, 2000);
+            let mut ui = scene(view(app.view()), &mut renderer, size);
+            assert_help_gap_06_card(
+                &mut ui,
+                &mut renderer,
+                (size, &theme, locale),
+                "端口",
+                tr(locale, HELP_GAP_06_PORT_HELP),
+            );
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_06_dingtalk_keeps_allowlist_consequences() {
+    if !isolated("settings_help_gap_06_dingtalk_keeps_allowlist_consequences") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    for (width, theme, locale) in help_gap_06_contexts() {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        app.channels_settings.active_tab = ChannelsSettingsTab::DingTalk;
+        for named in [false, true] {
+            app.channels_settings.dingtalk_instances.clear();
+            update(&mut app, ChannelsMessage::EnabledToggled("dingtalk".into(), true));
+            if named {
+                update(&mut app, ChannelsMessage::InstanceAdded("dingtalk".into()));
+                app.channels_settings.dingtalk = None;
+                app.channels_settings.dingtalk_instances[0].id = "ops".into();
+                app.channels_settings.refresh_text_inputs();
+            }
+            let size = Size::new(width, 2000);
+            let mut ui = scene(view(app.view()), &mut renderer, size);
+            assert_help_gap_06_card(
+                &mut ui,
+                &mut renderer,
+                (size, &theme, locale),
+                "允许用户",
+                tr(locale, HELP_GAP_06_FORMAT),
+            );
+            assert_help_gap_06_card(
+                &mut ui,
+                &mut renderer,
+                (size, &theme, locale),
+                "钉钉",
+                tr(locale, HELP_GAP_06_STREAM),
+            );
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_06_ordinary_and_wildcard_lists_and_disabled_form() {
+    if !isolated("settings_help_gap_06_ordinary_and_wildcard_lists_and_disabled_form") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    for (width, theme, locale) in help_gap_06_contexts() {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        app.channels_settings.active_tab = ChannelsSettingsTab::Email;
+        update(&mut app, ChannelsMessage::EnabledToggled("email".into(), false));
+        let size = Size::new(width, 2000);
+        let mut ui = scene(extended_channels::email_panel(app.view()), &mut renderer, size);
+        assert_help_gap_06_card(
+            &mut ui,
+            &mut renderer,
+            (size, &theme, locale),
+            "Email",
+            &format!(
+                "{}\n\n{}",
+                tr(locale, "IMAP / SMTP 收发邮件配置。"),
+                tr(locale, HELP_GAP_06_DISABLED)
+            ),
+        );
+        drop(ui);
+        let mut ui = scene(enterprise_channels::lark_panel(app.view()), &mut renderer, size);
+        assert_help_gap_06_card(
+            &mut ui,
+            &mut renderer,
+            (size, &theme, locale),
+            "允许发送者 ID",
+            tr(locale, HELP_GAP_06_FORMAT),
+        );
+    }
+}

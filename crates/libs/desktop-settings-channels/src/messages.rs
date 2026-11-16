@@ -71,8 +71,35 @@ pub enum ChannelsMessage {
     QrSaveConfirmed,
 }
 
+#[derive(Debug, Clone)]
+pub enum SettingsMessage {
+    Channels(ChannelsMessage),
+}
+#[derive(Debug, Clone)]
+pub enum Message {
+    None,
+    Settings(SettingsMessage),
+    CopyCode(String),
+    Append(String),
+    OpenUrlExternal(String),
+}
 
-#[derive(Debug, Clone)]
-pub enum SettingsMessage { Channels(ChannelsMessage) }
-#[derive(Debug, Clone)]
-pub enum Message { None, Settings(SettingsMessage) }
+impl desktop_chat_view::message_view::markdown_selection::SelectionMessage for Message {
+    fn none() -> Self {
+        Self::None
+    }
+    fn copy(text: String) -> Self {
+        Self::CopyCode(text)
+    }
+    fn context(effect: desktop_ui_controls::text_editor_context_menu::TextContextEffect) -> Self {
+        use desktop_ui_controls::text_editor_context_menu::TextContextEffect;
+        match effect {
+            TextContextEffect::Copy(text) => Self::CopyCode(text),
+            TextContextEffect::Append(text) => Self::Append(text),
+            TextContextEffect::OpenUrl(url) => Self::OpenUrlExternal(url),
+        }
+    }
+    fn selection(_: String, _: usize, _: usize, _: Option<String>) -> Self {
+        Self::None
+    }
+}

@@ -7358,6 +7358,7 @@ dependencies = [
  "config-channels",
  "config-ui",
  "desktop-assets",
+ "desktop-chat-view",
  "desktop-config",
  "desktop-i18n",
  "desktop-settings-security",

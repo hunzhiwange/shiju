@@ -3,10 +3,11 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
+use crate::help::{settings_group_heading_with_help};
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
     settings_error_banner, settings_group_card, settings_group_heading,
-    settings_group_heading_with_help, settings_muted_text_style,
+    settings_muted_text_style,
 };
 use desktop_i18n::{I18n, settings_extensions::text as tr};
 use crate::messages::{ChannelsMessage, SettingsMessage};

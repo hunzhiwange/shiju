@@ -1,10 +1,13 @@
 //! 验证渠道设置总览、分类标签、启用摘要与错误横幅。
 //! 单渠道、多渠道和空摘要用例用于约束全局面板的计数与文案来源。
 
-use super::*;
-use crate::app::{App, Message};
-use iced::advanced::widget::Tree;
+use crate::messages::Message;
+use crate::{
+    common::enabled_channels, overview::channel_tab_descriptors, test_support::Fixture as App,
+    view::view,
+};
 use config_channel_types::{TelegramConfig, WebhookConfig};
+use iced::advanced::widget::Tree;
 
 // 总览 fixture 不预启用任何渠道，便于精确验证摘要从配置推导。
 fn test_app() -> App {
@@ -19,8 +22,8 @@ fn keep_element(element: iced::Element<'_, Message>) {
 fn view_builds_empty_enabled_channel_summary() {
     let app = test_app();
 
-    assert_eq!(enabled_channels(&app), ["CLI"]);
-    keep_element(view(&app));
+    assert_eq!(enabled_channels(app.view()), ["CLI"]);
+    keep_element(view(app.view()));
 }
 
 #[test]
@@ -30,7 +33,7 @@ fn channels_error_banner_follows_channel_tabs() {
     for descriptor in channel_tab_descriptors() {
         app.channels_settings.active_tab = descriptor.tab;
         let clean_children = {
-            let clean = view(&app);
+            let clean = view(app.view());
             let clean_tree = Tree::new(clean.as_widget());
             // The outer Container forwards the content Column's widget tree.
             clean_tree.children.len()
@@ -39,7 +42,7 @@ fn channels_error_banner_follows_channel_tabs() {
 
         app.channels_settings.save_error = Some("channel save failed".to_string());
         let error_children = {
-            let error = view(&app);
+            let error = view(app.view());
             let error_tree = Tree::new(error.as_widget());
             error_tree.children.len()
         };
@@ -53,8 +56,8 @@ fn view_builds_cli_enabled_channel_summary() {
     let mut app = test_app();
     app.channels_settings.cli = true;
 
-    assert_eq!(enabled_channels(&app), ["CLI"]);
-    keep_element(view(&app));
+    assert_eq!(enabled_channels(app.view()), ["CLI"]);
+    keep_element(view(app.view()));
 }
 
 #[test]
@@ -80,10 +83,13 @@ fn view_builds_multi_channel_enabled_summary() {
         iced::widget::text_editor::Content::new(),
     );
 
-    let enabled = enabled_channels(&app);
+    let enabled = enabled_channels(app.view());
 
     assert!(enabled.contains(&"CLI"));
     assert!(enabled.contains(&"Telegram"));
     assert!(enabled.contains(&"Webhook"));
-    keep_element(view(&app));
+    keep_element(view(app.view()));
 }
+
+#[path = "host_module_18_ui_tests.rs"]
+mod ui;

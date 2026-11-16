@@ -20,7 +20,7 @@
 | `crates/vw-agent/src/session/child_agent_tests.rs` | 704 | 10 | 见下方当前职责 |
 
 
-宿主1508 → 447行，净减1061（70.36%）；只证明物理源码减量。整轮仍需任务59重算，不修改final.md/remaining-host.json快照。
+宿主1508 → 449行，净减1059（70.23%）；只证明物理源码减量。整轮仍需任务59重算，不修改final.md/remaining-host.json快照。
 
 当前逐文件职责：
 
@@ -88,6 +88,6 @@ gateway-session既有test-support增加4个实际使用的可选依赖：agent-e
 - 宿主保留5条：tools::agent_tool::collaboration_tests两条，session::child_agent::coordinator::continuation_tests一条，session::child_agent::entry_tests一条，session::child_agent_tests一条；按映射表原函数名完整过滤，每条预期1条。
 - `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib -- --list`：未来证明16条迁出旧名称消失；零测试不能称通过。
 
-静态核对：所有来源逐项映射、旧挂载移除、新生产调用、特性注册、依赖方向及限定文件git diff --check。未执行类型检查或测试，不记录通过数。仍保留的447行按上方具体职责，不以隐藏/删除断言凑比例。
+静态核对：所有来源逐项映射、旧挂载移除、新生产调用、特性注册、依赖方向及限定文件git diff --check。未执行类型检查或测试，不记录通过数。仍保留的449行按上方具体职责，不以隐藏/删除断言凑比例。
 
 静态名称集合：21原用例 = 16领域 + 5宿主，遗漏0。可选TOML解析尝试未执行成功：本机python3没有tomllib；未安装依赖，未将其记为通过。

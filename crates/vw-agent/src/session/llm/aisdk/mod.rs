@@ -5,22 +5,29 @@
 //! 通用转换工具分别维护，避免把传输与消息转换混在一个文件中。
 
 pub(super) mod convert;
+mod host;
+#[cfg(test)]
 mod driver;
+#[cfg(test)]
 mod error;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(test)]
 mod reasoning;
 mod request;
+#[cfg(test)]
 mod stream;
+#[cfg(test)]
 mod util;
 
 /// 执行 AI SDK 流式请求的公开入口。
 pub use request::do_stream_request_aisdk;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) use driver::validate_catalog_request;
+pub(super) use llm_runtime::aisdk::driver::validate_catalog_request;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "../../../../../libs/llm-runtime/src/aisdk/host_tests/native_search_acceptance_tests.rs"]
 mod native_search_acceptance_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "../../../../../libs/llm-runtime/src/aisdk/host_tests/model_catalog_tests.rs"]
 mod model_catalog_tests;

@@ -98,7 +98,11 @@ impl App {
     /// ```
     pub fn view(&self) -> Element<'_, Message> {
         // 构建顶部栏组件
-        let top: Element<'_, Message> = iced::widget::column![components::top_bar::view(self), views::mobile::layout_selector(self)].into();
+        let top: Element<'_, Message> = iced::widget::column![
+            components::top_bar::view(self),
+            views::mobile::layout_selector(self)
+        ]
+        .into();
         // 构建标签栏组件
         let tab_bar = components::tab_bar::view(self);
 
@@ -131,7 +135,9 @@ impl App {
         let status_bar: Element<'_, Message> = app_view_status::status_bar(self);
 
         // 当系统设置打开时，仅保留顶部菜单栏，其余区域全部由设置面板占满
-        let main_view: Element<'_, Message> = if self.mobile_layout.mode() == crate::app::state::LayoutMode::Mobile {
+        let main_view: Element<'_, Message> = if self.mobile_layout.mode()
+            == crate::app::state::LayoutMode::Mobile
+        {
             views::mobile::view(self)
         } else if self.navigation_panels.show_system_settings {
             iced::widget::column![top, components::system_settings::view(self)]
@@ -160,19 +166,11 @@ impl App {
             main_view
         };
 
-        // 如果通知面板已展开，则在主视图之上叠加通知组件
-        // 通知面板定位在右下角，带有适当的内边距
-        let main_view: Element<'_, Message> = if self.notification_state.notifications_expanded {
-            iced::widget::stack![
+        let main_view = if self.notification_state.notifications_expanded {
+            desktop_navigation::view_layout::with_notifications(
                 main_view,
-                iced::widget::container(components::notification::view(self))
-                    .width(iced::Length::Fill)
-                    .height(iced::Length::Fill)
-                    .align_x(iced::alignment::Horizontal::Right)
-                    .align_y(iced::alignment::Vertical::Bottom)
-                    .padding(iced::Padding::default().top(0).right(8).bottom(32).left(0))
-            ]
-            .into()
+                components::notification::view(self),
+            )
         } else {
             main_view
         };
@@ -181,7 +179,8 @@ impl App {
         // 错误横幅包含错误文本和关闭按钮
         let root_content = if let Some(error) = &self.input_feedback.error_message {
             desktop_navigation::view_layout::with_error(
-                main_view, crate::app::i18n::I18n::new(self.general_settings.desktop_locale),
+                main_view,
+                crate::app::i18n::I18n::new(self.general_settings.desktop_locale),
                 self.render_input_error(crate::app::i18n::input::ErrorField::General, error),
                 Message::CloseError,
             )
@@ -267,48 +266,16 @@ impl App {
             } else {
                 44
             };
-            let toast_layer: Element<'_, Message> = iced::widget::column![
-                iced::widget::Space::new().height(iced::Length::Fill),
-                iced::widget::container(
-                    iced::widget::row![
-                        iced::widget::Space::new().width(iced::Length::Fill),
-                        toast,
-                    ]
-                    .width(iced::Length::Fill)
-                )
-                .width(iced::Length::Fill)
-                .height(iced::Length::Shrink)
-                .padding(iced::Padding::default().top(0).right(12).bottom(toast_bottom).left(0))
-            ]
-            .width(iced::Length::Fill)
-            .height(iced::Length::Fill)
-            .into();
-
-            iced::widget::stack![root_content, toast_layer].into()
+            desktop_navigation::view_layout::with_toast(root_content, toast, toast_bottom)
         };
 
-        // 自定义主题背景图：置于最底层；无背景时保持原视图。
-        if let Some(path) =
-            self.appearance.active_theme_skin.as_ref().and_then(|skin| skin.background_path.as_ref())
-        {
-            use iced::widget::Image;
-            use iced::widget::image::Handle as ImageHandle;
-            use iced::{ContentFit, Length};
-
-            let wallpaper: Element<'_, Message> = iced::widget::container(
-                Image::new(ImageHandle::from_path(path.clone()))
-                    .content_fit(ContentFit::Cover)
-                    .width(Length::Fill)
-                    .height(Length::Fill),
-            )
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into();
-
-            iced::widget::stack![wallpaper, root_content].into()
-        } else {
-            root_content
-        }
+        desktop_navigation::view_layout::with_wallpaper(
+            root_content,
+            self.appearance
+                .active_theme_skin
+                .as_ref()
+                .and_then(|skin| skin.background_path.as_ref()),
+        )
     }
 }
 

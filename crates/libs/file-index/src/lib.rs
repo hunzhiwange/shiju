@@ -503,3 +503,6 @@ fn index_files_with_cache(root: &str, cache: Option<&FileIndexCache>) -> FileInd
 #[cfg(test)]
 #[path = "files_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod host_module_43_tests;

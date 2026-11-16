@@ -115,3 +115,5 @@ pub mod selection;
 pub mod tab;
 
 pub mod state;
+
+pub mod file_validation;

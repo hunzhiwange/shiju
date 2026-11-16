@@ -15,7 +15,3 @@ pub fn refresh_file_index(root: &str) -> Vec<String> {
         .map(|dirs| dirs.data_local_dir().join("file_index_cache"));
     file_index::refresh_file_index(root, cache_dir.as_deref())
 }
-
-#[cfg(test)]
-#[path = "files_tests.rs"]
-mod tests;

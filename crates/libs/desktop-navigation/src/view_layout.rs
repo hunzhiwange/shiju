@@ -98,3 +98,77 @@ pub fn with_error<'a, M: Clone + 'a>(content: iced::Element<'a, M>, i18n: deskto
 
 #[path = "view_layout_drag.rs"]
 pub mod drag;
+
+/// Keep notification placement independent of the current page.
+pub fn with_notifications<'a, M: Clone + 'a>(
+    main_view: iced::Element<'a, M>,
+    notifications: iced::Element<'a, M>,
+) -> iced::Element<'a, M> {
+    iced::widget::stack![
+        main_view,
+        iced::widget::container(notifications)
+            .width(iced::Length::Fill)
+            .height(iced::Length::Fill)
+            .align_x(iced::alignment::Horizontal::Right)
+            .align_y(iced::alignment::Vertical::Bottom)
+            .padding(iced::Padding::default().top(0).right(8).bottom(32).left(0))
+    ]
+    .into()
+}
+
+/// Always mount the toast layer so changes preserve widget tree identity.
+pub fn with_toast<'a, M: Clone + 'a>(
+    content: iced::Element<'a, M>,
+    toast: iced::Element<'a, M>,
+    toast_bottom: u16,
+) -> iced::Element<'a, M> {
+    let toast_layer: iced::Element<'a, M> = iced::widget::column![
+        iced::widget::Space::new().height(iced::Length::Fill),
+        iced::widget::container(
+            iced::widget::row![iced::widget::Space::new().width(iced::Length::Fill), toast,]
+                .width(iced::Length::Fill)
+        )
+        .width(iced::Length::Fill)
+        .height(iced::Length::Shrink)
+        .padding(iced::Padding::default().top(0).right(12).bottom(toast_bottom).left(0))
+    ]
+    .width(iced::Length::Fill)
+    .height(iced::Length::Fill)
+    .into();
+
+    iced::widget::stack![content, toast_layer].into()
+}
+
+/// Cover the window with the selected theme image behind its contents.
+pub fn with_wallpaper<'a, M: Clone + 'a>(
+    content: iced::Element<'a, M>,
+    path: Option<&std::path::PathBuf>,
+) -> iced::Element<'a, M> {
+    if let Some(path) = path {
+        use iced::widget::Image;
+        use iced::widget::image::Handle as ImageHandle;
+        use iced::{ContentFit, Length};
+
+        let wallpaper: iced::Element<'a, M> = iced::widget::container(
+            Image::new(ImageHandle::from_path(path.clone()))
+                .content_fit(ContentFit::Cover)
+                .width(Length::Fill)
+                .height(Length::Fill),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into();
+
+        iced::widget::stack![wallpaper, content].into()
+    } else {
+        content
+    }
+}
+
+#[cfg(target_os = "macos")]
+#[path = "view_layout_link_preview.rs"]
+pub mod link_preview;
+
+#[cfg(test)]
+#[path = "host_module_43_tests.rs"]
+mod host_module_43_tests;

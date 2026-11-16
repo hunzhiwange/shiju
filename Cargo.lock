@@ -20544,11 +20544,16 @@ dependencies = [
  "async-trait",
  "chrono",
  "git2",
+ "permission-types",
  "serde",
  "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-util",
  "tool-context",
  "tool-types",
  "vw-api-tools",
+ "vw-api-transport",
  "worktree-core",
 ]
 

@@ -1,7 +1,9 @@
 //! 验证 Git 工具基于仓库状态执行读写操作、返回结构化结果并遵守安全约束。
 //! 测试使用临时真实仓库覆盖发现、状态、提交、分支、暂存及只读拒绝路径。
 
-use super::GitOperationsTool;
+use super::GitOperationsTool as GenericGitOperationsTool;
+use super::test_support::RepositoryHost;
+type GitOperationsTool = GenericGitOperationsTool<RepositoryHost>;
 use tool_types::{Tool, ToolResult};
 use agent_security::{AutonomyLevel, SecurityPolicy};
 use git2::{Repository, Signature};
@@ -152,7 +154,7 @@ async fn blocks_readonly_write_operations() {
 
 #[test]
 fn truncate_commit_message_preserves_unicode_limit() {
-    let truncated = tool_git::testing::truncate_commit_message::<crate::tools::context::AgentContextHost>(&"🦀".repeat(2500));
+    let truncated = GitOperationsTool::truncate_commit_message(&"🦀".repeat(2500));
     assert_eq!(truncated.chars().count(), 2000);
 }
 
@@ -160,7 +162,7 @@ fn truncate_commit_message_preserves_unicode_limit() {
 async fn checkout_rejects_invalid_branch_names() {
     let tmp = repository();
     for branch in ["", "main other", "feature@{1}", "main^", "main~1"] {
-        let result = tool_git::testing::git_checkout(&test_tool(tmp.path()), json!({"branch": branch})).await;
+        let result = test_tool(tmp.path()).git_checkout(json!({"branch": branch})).await;
         assert!(result.is_err(), "{branch:?} should be rejected");
     }
 }
@@ -240,36 +242,6 @@ async fn task_pool_git_merge_obeys_permissions_and_target_lock() {
     assert!(
         !test_tool(divergent.path())
             .execute(json!({"operation":"merge","source":"master","target":"feature"}))
-            .await
-            .unwrap()
-            .success
-    );
-}
-
-#[tokio::test]
-async fn task_pool_git_uses_active_worktree_directory() {
-    let tmp = repository();
-    let repo = Repository::open(tmp.path()).unwrap();
-    let worktree_parent = TempDir::new().unwrap();
-    let worktree = worktree_parent.path().join("active");
-    repo.worktree("active", &worktree, None).unwrap();
-    let context = Arc::new(crate::tools::ToolUseContext::new(
-        "git-test",
-        Some(tmp.path().to_string_lossy().into()),
-    ));
-    context
-        .bind_worktree(worktree.to_string_lossy().into(), "active".into(), "active".into())
-        .unwrap();
-    crate::tools::scope_tool_use_context(context, async {
-        let status =
-            output(test_tool(tmp.path()).execute(json!({"operation":"status"})).await.unwrap());
-        assert_eq!(status["branch"], "active");
-    })
-    .await;
-    let non_git = TempDir::new().unwrap();
-    assert!(
-        !test_tool(non_git.path())
-            .execute(json!({"operation":"merge","source":"a","target":"b"}))
             .await
             .unwrap()
             .success

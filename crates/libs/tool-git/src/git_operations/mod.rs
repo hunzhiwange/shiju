@@ -517,3 +517,8 @@ impl<H: ContextHost> Tool for GitOperationsTool<H> {
         }
     }
 }
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod test_support;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests;

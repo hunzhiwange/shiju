@@ -1,6 +1,12 @@
-use super::*;
-use crate::tools::context::ToolUseContext;
-use crate::tools::{ToolCallResult, execute_tool_from_registry};
+use crate::tool_search::*;
+use crate::{Tool, ToolResult, ToolSpec};
+use async_trait::async_trait;
+use serde_json::{Value, json};
+mod host;
+use host::Host;
+type ToolUseContext = tool_context::context::ToolUseContext<Host>;
+use tool_types::ToolCallResult;
+use tool_context::executor::execute_tool_from_registry;
 use std::sync::Arc;
 
 const ALPHA: &str = "mcp__fixture__alpha";
@@ -44,7 +50,7 @@ fn context(discovery: Arc<ToolDiscoverySession>) -> Arc<ToolUseContext> {
 #[tokio::test]
 async fn codex_discovery_tool_registry_returns_complete_specs_and_exposes_only_hits() {
     let discovery = session(true);
-    let tools: Vec<Box<dyn Tool>> = vec![Box::new(discovery.search_tool())];
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(ContextToolSearchTool::<Host>::from_metadata(discovery.search_tool()))];
     assert!(!discovery.exposed_specs().iter().any(|spec| spec.id == ALPHA));
     let result = execute_tool_from_registry(
         &tools,
@@ -70,7 +76,7 @@ async fn codex_discovery_tool_registry_returns_complete_specs_and_exposes_only_h
 #[tokio::test]
 async fn codex_discovery_tool_invalid_arguments_do_not_change_exposure() {
     let discovery = session(true);
-    let tools: Vec<Box<dyn Tool>> = vec![Box::new(discovery.search_tool())];
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(ContextToolSearchTool::<Host>::from_metadata(discovery.search_tool()))];
     for input in [
         json!({}),
         json!([]),
@@ -100,7 +106,7 @@ async fn codex_discovery_tool_invalid_arguments_do_not_change_exposure() {
 #[tokio::test]
 async fn codex_discovery_tool_no_match_and_duplicate_hits_are_idempotent() {
     let discovery = session(true);
-    let tools: Vec<Box<dyn Tool>> = vec![Box::new(discovery.search_tool())];
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(ContextToolSearchTool::<Host>::from_metadata(discovery.search_tool()))];
     let empty = execute_tool_from_registry(
         &tools,
         TOOL_SEARCH_ID,
@@ -128,7 +134,7 @@ async fn codex_discovery_tool_no_match_and_duplicate_hits_are_idempotent() {
 #[tokio::test]
 async fn codex_discovery_tool_denied_search_keeps_authorized_mcp_directly_visible() {
     let discovery = session(false);
-    let tools: Vec<Box<dyn Tool>> = vec![Box::new(discovery.search_tool())];
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(ContextToolSearchTool::<Host>::from_metadata(discovery.search_tool()))];
     assert!(
         execute_tool_from_registry(
             &tools,
@@ -148,7 +154,7 @@ async fn codex_discovery_tool_denied_search_keeps_authorized_mcp_directly_visibl
 #[tokio::test]
 async fn codex_discovery_tool_empty_authorization_cannot_restore_tools() {
     let discovery = Arc::new(ToolDiscoverySession::new(Vec::new()));
-    let tools: Vec<Box<dyn Tool>> = vec![Box::new(discovery.search_tool())];
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(ContextToolSearchTool::<Host>::from_metadata(discovery.search_tool()))];
     assert!(
         execute_tool_from_registry(
             &tools,
@@ -166,7 +172,7 @@ async fn codex_discovery_tool_empty_authorization_cannot_restore_tools() {
 async fn codex_discovery_tool_requires_runtime_catalog_and_isolates_sessions() {
     let first = session(true);
     let second = session(true);
-    let tools: Vec<Box<dyn Tool>> = vec![Box::new(first.search_tool())];
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(ContextToolSearchTool::<Host>::from_metadata(first.search_tool()))];
     let error = execute_tool_from_registry(
         &tools,
         TOOL_SEARCH_ID,
@@ -245,7 +251,7 @@ fn codex_discovery_tool_authorized_summary_omits_denied_servers_and_schemas() {
 async fn codex_discovery_tool_execution_uses_current_authorization_instead_of_registered_metadata()
 {
     let registered = session(true);
-    let tools: Vec<Box<dyn Tool>> = vec![Box::new(registered.search_tool())];
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(ContextToolSearchTool::<Host>::from_metadata(registered.search_tool()))];
     let restricted = Arc::new(ToolDiscoverySession::new(vec![
         deferred(ALPHA, "Search reports alpha"),
         ToolSpec::new(TOOL_SEARCH_ID, "Search", json!({"type": "object"})),
@@ -278,7 +284,7 @@ async fn dynamic_tools_exposure_non_mcp_deferred_is_discoverable() {
     assert!(discovery.exposed_specs().iter().any(|s| s.id == "mcp__fixture__direct"));
     assert!(!discovery.exposed_specs().iter().any(|s| s.id == "client-stable"));
     let before = discovery.exposed_specs();
-    let tools: Vec<Box<dyn Tool>> = vec![Box::new(discovery.search_tool())];
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(ContextToolSearchTool::<Host>::from_metadata(discovery.search_tool()))];
     let result = execute_tool_from_registry(
         &tools,
         TOOL_SEARCH_ID,
@@ -303,7 +309,7 @@ async fn dynamic_tools_search_schema_fields_are_searchable() {
         tool,
         ToolSpec::new(TOOL_SEARCH_ID, "Search", json!({})),
     ]));
-    let tools: Vec<Box<dyn Tool>> = vec![Box::new(discovery.search_tool())];
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(ContextToolSearchTool::<Host>::from_metadata(discovery.search_tool()))];
     let result = execute_tool_from_registry(
         &tools,
         TOOL_SEARCH_ID,
@@ -330,7 +336,7 @@ async fn dynamic_tools_search_tenants_and_loaded_state_remain_isolated() {
     let first = make(ALPHA, "tenantalpha");
     let equivalent = make(ALPHA, "tenantalpha");
     let second = make(BETA, "tenantbeta");
-    let tools: Vec<Box<dyn Tool>> = vec![Box::new(first.search_tool())];
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(ContextToolSearchTool::<Host>::from_metadata(first.search_tool()))];
     for (discovery, query, expected) in [
         (first.clone(), "tenantalpha", Some(ALPHA)),
         (second.clone(), "tenantalpha", None),

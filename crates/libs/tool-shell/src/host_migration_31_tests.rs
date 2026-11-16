@@ -24,3 +24,6 @@ mod processes_tests;
 mod termination_tests;
 #[cfg(windows)]
 mod termination_windows_tests;
+
+#[cfg(target_os = "windows")]
+mod powershell_35_tests;

@@ -27,3 +27,6 @@ fn tool_spec_serde() {
 
 #[path = "host_migration_35_registry.rs"]
 mod registry;
+
+#[path = "host_migration_35_search.rs"]
+mod search;

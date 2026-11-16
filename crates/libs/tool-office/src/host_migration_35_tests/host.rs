@@ -17,7 +17,7 @@ impl ContextHost for Host {
     type ToolCatalog = ();
     type InvokedSkillRecord = ();
     type ApprovalManager = ();
-    type HookRunner = ();
+    type HookRunner = agent_hooks::HookRunner;
     type SecurityPolicy = agent_security::SecurityPolicy;
     type Observer = ();
     type ImageAssetId = ();
@@ -39,7 +39,7 @@ impl ContextHost for Host {
     fn is_rate_limited(security: &Self::SecurityPolicy) -> bool { panic!("toolset test reached host: is_rate_limited") }
     fn is_path_allowed(security: &Self::SecurityPolicy, path: &str) -> bool { panic!("toolset test reached host: is_path_allowed") }
     fn shell_security_decision(name: &str, input: Value, security: &Self::SecurityPolicy, command: &str, approved: bool) -> PermissionDecision { panic!("toolset test reached host: shell_security_decision") }
-    fn permission_hook<'a>(runner: &'a Self::HookRunner, name: &'a str, input: &'a Value) -> impl Future<Output = anyhow::Result<Option<bool>>> + HostFuture + 'a { async { panic!("toolset test reached host: permission_hook") } }
+    fn permission_hook<'a>(runner: &'a Self::HookRunner, name: &'a str, input: &'a Value) -> impl Future<Output = anyhow::Result<Option<bool>>> + HostFuture + 'a { async move { runner.run_permission_request(name, input).await } }
     fn record_approval(manager: &Self::ApprovalManager, name: &str, display: &Value, response: tool_context::approval::ApprovalResponse, channel: &str) { panic!("toolset test reached host: record_approval") }
     fn prompt_cli(manager: &Self::ApprovalManager, request: &tool_context::approval::ApprovalRequest) -> tool_context::approval::ApprovalResponse { panic!("toolset test reached host: prompt_cli") }
     fn create_pending(manager: &Self::ApprovalManager, name: &str, sender: &str, channel: &str, reply_target: &str, reason: Option<String>, display: Value, message_id: Option<String>, call_id: Option<String>) -> String { panic!("toolset test reached host: create_pending") }

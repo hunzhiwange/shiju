@@ -1,5 +1,5 @@
 use super::*;
-use crate::security::AutonomyLevel;
+type PowerShellTool = crate::PowerShellTool<Host>;
 
 #[test]
 fn powershell_tool_preserves_identity_and_cwd_schema() {
@@ -41,11 +41,11 @@ async fn powershell_tool_uses_managed_execution_and_decodes_chinese() {
         allowed_commands: vec!["Write-Output".into()],
         ..SecurityPolicy::default()
     }));
-    let context = Arc::new(crate::tools::context::ToolUseContext::new(
+    let context = Arc::new(ToolUseContext::new(
         uuid::Uuid::new_v4().to_string(),
         Some(root.path().to_string_lossy().to_string()),
     ));
-    let result = crate::tools::scope_tool_use_context(
+    let result = scope_tool_use_context(
         context,
         tool.call(json!({
             "command": "Write-Output '中文输出🙂'",

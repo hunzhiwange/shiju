@@ -1,16 +1,11 @@
 //! Host protocol and task-local execution adapters for shared discovery.
-use super::context::current_tool_use_context;
-use super::discovery::ToolDiscoveryCatalog;
-use super::{Tool, ToolResult, ToolSpec};
-use async_trait::async_trait;
+use super::ToolSpec;
 use serde_json::Value;
-#[cfg(test)]
-use serde_json::json;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::Mutex;
 pub(crate) use tool_assembly::tool_search::TOOL_SEARCH_ID;
 pub struct ToolDiscoverySession {
-    inner: tool_assembly::tool_search::ToolDiscoverySession,
+    inner: std::sync::Arc<tool_assembly::tool_search::ToolDiscoverySession>,
     #[cfg(not(target_arch = "wasm32"))]
     last_search: Mutex<Option<(String, Value)>>,
 }
@@ -20,9 +15,9 @@ impl std::ops::Deref for ToolDiscoverySession {
 }
 impl ToolDiscoverySession {
     pub(crate) fn new(specs: Vec<ToolSpec>) -> Self { Self::wrap(tool_assembly::tool_search::ToolDiscoverySession::new(specs)) }
-    fn wrap(inner: tool_assembly::tool_search::ToolDiscoverySession) -> Self { Self { inner, #[cfg(not(target_arch = "wasm32"))] last_search: Mutex::new(None) } }
+    fn wrap(inner: tool_assembly::tool_search::ToolDiscoverySession) -> Self { Self { inner: std::sync::Arc::new(inner), #[cfg(not(target_arch = "wasm32"))] last_search: Mutex::new(None) } }
     pub(crate) fn rebase(&self, specs: Vec<ToolSpec>) -> Self { Self::wrap(self.inner.rebase(specs)) }
-    pub(crate) fn search_tool(&self) -> ToolSearchTool { ToolSearchTool(self.inner.search_tool()) }
+    pub(crate) fn search_tool(&self) -> ToolSearchTool { ToolSearchTool::from_metadata(self.inner.search_tool()) }
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn native_output(
         &self,
@@ -64,34 +59,18 @@ impl ToolDiscoverySession {
     }
 
 }
-pub(crate) struct ToolSearchTool(tool_assembly::tool_search::ToolSearchTool);
-impl ToolSearchTool { pub(crate) fn new(catalog: &ToolDiscoveryCatalog) -> Self { Self(tool_assembly::tool_search::ToolSearchTool::new(catalog)) } }
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Tool for ToolSearchTool {
-    fn name(&self) -> &str { self.0.name() }
-    fn description(&self) -> &str { self.0.description() }
-    fn parameters_schema(&self) -> Value { self.0.parameters_schema() }
-    fn is_read_only(&self) -> bool { self.0.is_read_only() }
-    fn is_concurrency_safe(&self) -> bool { self.0.is_concurrency_safe() }
-    fn validate_input(&self, input: Value) -> anyhow::Result<Value> { self.0.validate_input(input) }
-    async fn execute(&self, input: Value) -> anyhow::Result<ToolResult> {
-        self.0.validate_input(input.clone())?;
-        let context = current_tool_use_context()
-            .ok_or_else(|| anyhow::anyhow!("tool_search requires an authorized runtime catalog"))?;
-        let discovery = context
-            .tool_discovery()
-            .ok_or_else(|| anyhow::anyhow!("tool_search requires an authorized runtime catalog"))?;
-        let output = discovery.inner.search(input.clone())?;
+
+pub(crate) type ToolSearchTool = tool_assembly::tool_search::ContextToolSearchTool<super::context::AgentContextHost>;
+impl tool_assembly::tool_search::SearchHost for super::context::AgentContextHost {
+    fn search_session(context: &super::context::ToolUseContext) -> Option<std::sync::Arc<tool_assembly::tool_search::ToolDiscoverySession>> {
+        context.tool_discovery().map(|discovery| discovery.inner.clone())
+    }
+    fn record_search(context: &super::context::ToolUseContext, input: Value) {
         #[cfg(not(target_arch = "wasm32"))]
-        if let Some(id) = context.tool_call_id() {
-            *discovery.last_search.lock().unwrap_or_else(|error| error.into_inner()) =
-                Some((id.to_string(), input));
+        if let (Some(id), Some(discovery)) = (context.tool_call_id(), context.tool_discovery()) {
+            *discovery.last_search.lock().unwrap_or_else(|error| error.into_inner()) = Some((id.to_string(), input));
         }
-        Ok(ToolResult { success: true, output, error: None })
+        #[cfg(target_arch = "wasm32")]
+        let _ = (context, input);
     }
 }
-
-#[cfg(test)]
-#[path = "tool_search_tests.rs"]
-mod tests;

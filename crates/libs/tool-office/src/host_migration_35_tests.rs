@@ -340,3 +340,55 @@ async fn cc_control_16_malformed_readback_is_failure_and_closes_connection() {
     responder.await.unwrap();
     assert!(f.transport.documents(&office_owner(&f.context).unwrap()).is_empty());
 }
+
+struct DocumentApproval(Arc<parking_lot::Mutex<Vec<(String, Value)>>>);
+#[async_trait::async_trait]
+impl agent_hooks::HookHandler for DocumentApproval {
+    fn name(&self) -> &str {
+        "cc16-approval-boundary"
+    }
+    async fn permission_request(&self, name: &str, input: &Value) -> anyhow::Result<Option<bool>> {
+        self.0.lock().push((name.into(), input.clone()));
+        Ok(Some(true))
+    }
+}
+#[tokio::test]
+async fn cc_control_16_document_approval_is_scoped_and_explicit_deny_is_preserved() {
+    let f = Fixture::new().await;
+    let _socket = f.pair("book", &["word_read_document"]).await;
+    let request = f.request("book", read());
+    f.runtime
+        .control_policy()
+        .write()
+        .set_grant(&local_user(), GrantScope::WordDocument("book".into()), None)
+        .unwrap();
+    let seen = Arc::new(parking_lot::Mutex::new(Vec::new()));
+    let mut hooks = agent_hooks::HookRunner::new();
+    hooks.register(Box::new(DocumentApproval(seen.clone())));
+    let context = Arc::new(f.context.as_ref().clone().with_hook_runner(Arc::new(hooks)));
+    tool_context::context::scope_tool_use_context(context.clone(), f.tools[0].check_permissions(&request))
+        .await
+        .unwrap();
+    assert_eq!(seen.lock().len(), 1);
+    assert_eq!(seen.lock()[0].0, "word_control.document");
+    assert_eq!(seen.lock()[0].1["document_id"], "book");
+    assert_eq!(
+        f.runtime.control_policy().read().config().users[&local_user()].word_documents["book"],
+        GrantDecision::Allow
+    );
+    f.runtime
+        .control_policy()
+        .write()
+        .set_grant(
+            &local_user(),
+            GrantScope::WordDocument("book".into()),
+            Some(GrantDecision::Deny),
+        )
+        .unwrap();
+    assert!(
+        tool_context::context::scope_tool_use_context(context, f.tools[0].check_permissions(&request))
+            .await
+            .is_err()
+    );
+    assert_eq!(seen.lock().len(), 1);
+}

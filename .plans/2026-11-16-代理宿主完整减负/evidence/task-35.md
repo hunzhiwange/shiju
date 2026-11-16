@@ -314,3 +314,87 @@ tool-assembly::host_migration_35_tests 注册 3 个序列化和 registry 子模�
 - `crates/libs/tool-files/src/host_migration_30_tests/pdf_render.rs`：49 行。
 
 - `crates/libs/tool-office/src/host_migration_35_tests/host.rs`：50 行。
+
+## 深度恢复（覆盖前文相应保留判断）
+
+按 final.md 与 evidence/remaining-host.json 的任务35清单继续拆分。前文声称搜索整组、Word Hook审批和 PowerShell 必须留宿主的判断已撤回：这些断言已经改用领域真实实现及窄上下文端口。未运行任何 Cargo、构建或测试。
+
+生产接线：tool-assembly::tool_search::ContextToolSearchTool<H> 统一持有 metadata/input validation、当前上下文缺失拒绝、当前授权目录解析、真实 search 与成功回执顺序。SearchHost 仅提供当前授权 session 和记录成功回执两个真实调用所需端口。宿主 ToolSearchTool 已改为此泛型类型特化；原 trait 实现删除。AgentContextHost::search_session 克隆同一个 Arc，不复制授权/已加载状态；record_search 保留 call_id、互斥锁和成功参数写入。native_output/prepare_native_search/take_native_output 继续由宿主完成 AISDK 协议桥接。ToolDiscoverySession.inner 改用 Arc 只为共享原身份，rebase 仍创建独立状态。
+
+测试搜索 Host 使用真实领域 session 与 tool-context 执行器；仅 receipt 端口为空，因为本组无 native 协议断言。真实 native receipt 测试仍由会话协议所有者覆盖，不能将这13例冒充原生协议验证。Word 审批使用真实 agent-hooks::HookRunner 和真实 OfficePolicy，没有仿写审批分支；仅省略原 Host lifecycle cleanup（本例从未调用清理）。PowerShell 复用 tool-shell 已有 Host 和执行进程/上下文实现，Windows cfg 保持，所有原断言原名保留。
+
+新增依赖只有 tool-office 的 dev-dependency agent-hooks；方向 tool-office(test)→agent-hooks，不反向依赖 vw-agent。新增泛型 SearchHost 的唯一生产实现是 AgentContextHost；测试 Host 自注册在 tool-assembly 的 host_migration_35_tests::search 下。
+
+### 本轮逐用例映射
+
+- `codex_discovery_tool_registry_returns_complete_specs_and_exposes_only_hits` → `crates/libs/tool-assembly/src/host_migration_35_search.rs::codex_discovery_tool_registry_returns_complete_specs_and_exposes_only_hits`；原挂载已删除。
+- `codex_discovery_tool_invalid_arguments_do_not_change_exposure` → `crates/libs/tool-assembly/src/host_migration_35_search.rs::codex_discovery_tool_invalid_arguments_do_not_change_exposure`；原挂载已删除。
+- `codex_discovery_tool_no_match_and_duplicate_hits_are_idempotent` → `crates/libs/tool-assembly/src/host_migration_35_search.rs::codex_discovery_tool_no_match_and_duplicate_hits_are_idempotent`；原挂载已删除。
+- `codex_discovery_tool_denied_search_keeps_authorized_mcp_directly_visible` → `crates/libs/tool-assembly/src/host_migration_35_search.rs::codex_discovery_tool_denied_search_keeps_authorized_mcp_directly_visible`；原挂载已删除。
+- `codex_discovery_tool_empty_authorization_cannot_restore_tools` → `crates/libs/tool-assembly/src/host_migration_35_search.rs::codex_discovery_tool_empty_authorization_cannot_restore_tools`；原挂载已删除。
+- `codex_discovery_tool_requires_runtime_catalog_and_isolates_sessions` → `crates/libs/tool-assembly/src/host_migration_35_search.rs::codex_discovery_tool_requires_runtime_catalog_and_isolates_sessions`；原挂载已删除。
+- `codex_discovery_tool_same_name_and_forged_results_cannot_load_tools` → `crates/libs/tool-assembly/src/host_migration_35_search.rs::codex_discovery_tool_same_name_and_forged_results_cannot_load_tools`；原挂载已删除。
+- `codex_discovery_tool_authorized_summary_omits_denied_servers_and_schemas` → `crates/libs/tool-assembly/src/host_migration_35_search.rs::codex_discovery_tool_authorized_summary_omits_denied_servers_and_schemas`；原挂载已删除。
+- `codex_discovery_tool_execution_uses_current_authorization_instead_of_registered_metadata` → `crates/libs/tool-assembly/src/host_migration_35_search.rs::codex_discovery_tool_execution_uses_current_authorization_instead_of_registered_metadata`；原挂载已删除。
+- `dynamic_tools_exposure_non_mcp_deferred_is_discoverable` → `crates/libs/tool-assembly/src/host_migration_35_search.rs::dynamic_tools_exposure_non_mcp_deferred_is_discoverable`；原挂载已删除。
+- `dynamic_tools_search_schema_fields_are_searchable` → `crates/libs/tool-assembly/src/host_migration_35_search.rs::dynamic_tools_search_schema_fields_are_searchable`；原挂载已删除。
+- `dynamic_tools_search_tenants_and_loaded_state_remain_isolated` → `crates/libs/tool-assembly/src/host_migration_35_search.rs::dynamic_tools_search_tenants_and_loaded_state_remain_isolated`；原挂载已删除。
+- `powershell_tool_preserves_identity_and_cwd_schema` → `crates/libs/tool-shell/src/host_migration_31_tests/powershell_35_tests.rs::powershell_tool_preserves_identity_and_cwd_schema`；原挂载已删除。
+- `powershell_tool_keeps_readonly_rejection_before_spawn` → `crates/libs/tool-shell/src/host_migration_31_tests/powershell_35_tests.rs::powershell_tool_keeps_readonly_rejection_before_spawn`；原挂载已删除。
+- `powershell_tool_uses_managed_execution_and_decodes_chinese` → `crates/libs/tool-shell/src/host_migration_31_tests/powershell_35_tests.rs::powershell_tool_uses_managed_execution_and_decodes_chinese`；原挂载已删除。
+- `cc_control_16_document_approval_is_scoped_and_explicit_deny_is_preserved` → `tool-office::host_migration_35_tests`；实际Hook/文档审批分支保留。
+
+### 来源逐文件最新行数（同初始口径）
+
+- `crates/vw-agent/src/tools/mcp_tool.rs`：42→42。
+- `crates/vw-agent/src/tools/mod.rs`：312→312。
+- `crates/vw-agent/src/tools/pdf_read/mod.rs`：6→2。
+- `crates/vw-agent/src/tools/pdf_read/render_tests.rs`：48→0。
+- `crates/vw-agent/src/tools/powershell/mod.rs`：4→2。
+- `crates/vw-agent/src/tools/powershell/tests.rs`：64→0。
+- `crates/vw-agent/src/tools/question/mod.rs`：3→3。
+- `crates/vw-agent/src/tools/read_state/mod.rs`：2→2。
+- `crates/vw-agent/src/tools/registry/mod.rs`：23→17。
+- `crates/vw-agent/src/tools/registry/tests.rs`：84→0。
+- `crates/vw-agent/src/tools/remote_trigger/mod.rs`：2→2。
+- `crates/vw-agent/src/tools/schedule/mod.rs`：2→2。
+- `crates/vw-agent/src/tools/scheduler/mod.rs`：2→2。
+- `crates/vw-agent/src/tools/screenshot/mod.rs`：2→2。
+- `crates/vw-agent/src/tools/session_tool/mod.rs`：11→11。
+- `crates/vw-agent/src/tools/shell/ast/mod.rs`：3→3。
+- `crates/vw-agent/src/tools/shell/compound/mod.rs`：3→3。
+- `crates/vw-agent/src/tools/shell/path/mod.rs`：3→3。
+- `crates/vw-agent/src/tools/shell/permissions/mod.rs`：3→3。
+- `crates/vw-agent/src/tools/shell/readonly/mod.rs`：3→3。
+- `crates/vw-agent/src/tools/shell/sandbox/executor.rs`：2→2。
+- `crates/vw-agent/src/tools/shell/sandbox/mod.rs`：2→2。
+- `crates/vw-agent/src/tools/shell/sandbox/policy.rs`：2→2。
+- `crates/vw-agent/src/tools/shell/security/mod.rs`：3→3。
+- `crates/vw-agent/src/tools/shell/sed/mod.rs`：3→3。
+- `crates/vw-agent/src/tools/skill/mod.rs`：37→37。
+- `crates/vw-agent/src/tools/sleep/mod.rs`：2→2。
+- `crates/vw-agent/src/tools/tests/mcp_discovery_tests.rs`：153→153。
+- `crates/vw-agent/src/tools/tests/mod_tests.rs`：611→586。
+- `crates/vw-agent/src/tools/thread_tool/mod.rs`：17→17。
+- `crates/vw-agent/src/tools/todo/mod.rs`：12→12。
+- `crates/vw-agent/src/tools/tool_search.rs`：97→76。
+- `crates/vw-agent/src/tools/tool_search_tests.rs`：356→0。
+- `crates/vw-agent/src/tools/traits/dynamic_tools_tests.rs`：31→0。
+- `crates/vw-agent/src/tools/traits/mod.rs`：6→2。
+- `crates/vw-agent/src/tools/url_validation/mod.rs`：6→6。
+- `crates/vw-agent/src/tools/web_fetch/mod.rs`：3→3。
+- `crates/vw-agent/src/tools/web_search_tool/mod.rs`：3→3。
+- `crates/vw-agent/src/tools/websearch/mod.rs`：3→3。
+- `crates/vw-agent/src/tools/word_control.rs`：2→2。
+- `crates/vw-agent/src/tools/word_control_tests.rs`：424→37。
+
+总计 2397→1365，净减 1032（43.1%）。生产新增迁移为通用搜索执行器；其余新增减少来自完整断言及夹具迁出。兼容入口与真实工厂仍在宿主，不把原有重导出算作生产成果。仍未达到70%，主要残留为 tools/tests/mod_tests.rs 的真实默认/完整工厂与 MCP 配置端到端注册，以及 tools/mod.rs 具体宿主类型/端口装配；逐用例保留原因沿用前表，已迁出项以上节覆盖。收口须继续审查这些边界的最小性，不宣称整体门槛已达标。
+
+### 未来精确验证（未执行）
+
+- `python3 scripts/cargo_slot.py cargo test -p tool-assembly --lib host_migration_35_tests -- --test-threads=1`：预期22例（前9+搜索13）。
+- `python3 scripts/cargo_slot.py cargo test -p tool-office --lib host_migration_35_tests -- --test-threads=1`：预期13例（前12+审批1）。
+- Windows：`python3 scripts/cargo_slot.py cargo test -p tool-shell --lib powershell_35_tests -- --test-threads=1`：预期3例；其它平台不以零例宣称通过。
+- vw-agent保留 `tools::word_control_tests::cc_control_16_factory_registers_word_with_shared_gateway_authority` 1例。原搜索/PowerShell挂载消失须以后续真实宿主list证明，未运行。
+
+本轮静态核对：测试名称/断言一对一，原源码挂载删除；接收模块在本库注册；源码依赖方向与差异检查。编译、行为、系统授权、真实进程及 Cargo.lock 重生成全部未执行。

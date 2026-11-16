@@ -3,13 +3,13 @@ use std::{fs, os::unix::fs::PermissionsExt, path::Path};
 use vw_agent_apps::apps::discovery::read::{self, LocalReadEnvironment};
 use vw_api_app_identity::{AppId, AppInstallation};
 use vw_api_mcp_management::McpAppTarget;
-pub(super) fn private_root() -> std::io::Result<tempfile::TempDir> {
+pub fn private_root() -> std::io::Result<tempfile::TempDir> {
     let root = tempfile::tempdir()?;
     fs::set_permissions(root.path(), fs::Permissions::from_mode(0o700))?;
     Ok(root)
 }
 
-pub(super) fn installed(
+pub fn installed(
     home: &Path,
     app: AppId,
     executable: &str,

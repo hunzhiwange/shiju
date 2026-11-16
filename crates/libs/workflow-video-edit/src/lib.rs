@@ -34,3 +34,4 @@ mod host_migration_44_tests;
 
 #[cfg(any(test, feature = "test-support"))]
 pub mod test_support;
+pub mod visible_instance;

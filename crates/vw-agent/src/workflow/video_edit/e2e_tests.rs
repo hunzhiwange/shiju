@@ -1,5 +1,5 @@
-use workflow_video_edit::test_support::scenario::{Cloud, Fault, Model, Scenario};
 //! Synthetic media receipts exercise the native gateway, never video performance.
+use workflow_video_edit::test_support::scenario::{Cloud, Fault, Model, Scenario};
 use super::{
     entry_test_transport,
 };
@@ -7,6 +7,7 @@ use crate::gateway::api::handlers::session::stream::{
     GatewayChatStreamCollected, collect_gateway_chat_stream_with_observer,
 };
 use serde_json::{Value, json};
+use workflow_video_edit::test_support::gateway_contracts::{source, captured};
 use std::{
     path::Path,
     sync::{Arc, atomic::Ordering},
@@ -60,35 +61,13 @@ async fn run(
     .expect("bounded synthetic gateway run");
     (result, events)
 }
-fn source(root: &Path, tag: &str) -> std::path::PathBuf {
-    let path = root.join(format!("中文 原片 {tag}.mp4"));
-    std::fs::write(&path, format!("SYNTHETIC TEST DATA ONLY {tag}")).unwrap();
-    path
-}
-fn runs() -> Vec<Value> {
-    let database =
-        crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home).unwrap();
-    let conn = database.connect_sqlite().unwrap();
-    conn.prepare("SELECT payload FROM workflow_video_edit_runs")
-        .unwrap()
-        .query_map([], |r| r.get::<_, String>(0))
-        .unwrap()
-        .map(|r| serde_json::from_str(&r.unwrap()).unwrap())
-        .collect()
-}
 fn ledger(path: &Path) -> Value {
-    runs()
-        .into_iter()
-        .find(|r| r["source"]["path"] == path.canonicalize().unwrap().to_string_lossy().as_ref())
-        .unwrap()
-}
-fn captured(s: &Scenario, kind: &str) -> Vec<String> {
-    s.capture.lock().unwrap().iter().filter(|(k, _)| k == kind).map(|(_, id)| id.clone()).collect()
+    let database = crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home).unwrap();
+    workflow_video_edit::test_support::gateway_contracts::ledger(&database, path)
 }
 fn failure(result: Result<GatewayChatStreamCollected, crate::gateway::ApiError>, events: &[Value]) {
     assert!(result.is_err(), "failed chain must reject collection");
-    assert!(!events.iter().any(|e| e["type"] == "chat.done"));
-    assert!(events.iter().any(|e| e["type"] == "chat.error"));
+    workflow_video_edit::test_support::gateway_contracts::terminal_failure(events);
 }
 fn success(
     root: &Path,
@@ -97,10 +76,7 @@ fn success(
     events: &[Value],
     s: &Scenario,
 ) {
-    assert!(result.message_id.as_deref().unwrap().starts_with("msg_"));
-    assert!(result.output.contains("test-preview"));
-    assert_eq!(events.last().unwrap()["type"], "chat.done");
-    assert!(!root.join(".shiju/workflow_commands.json").exists());
+    workflow_video_edit::test_support::gateway_contracts::terminal_success(root, result.message_id.as_deref(), &result.output, events);
     let tenant = crate::session::ui_store::current_tenant_scope();
     let dir = root.to_string_lossy();
     let scope =
@@ -131,9 +107,7 @@ fn success(
         );
     }
     assert_eq!(snapshot.steps[0].finish_reason.as_deref(), Some("workflow"));
-    assert_eq!(s.peak.load(Ordering::SeqCst), 5, "shared model/asset external peak");
-    assert_eq!(s.write_peak.load(Ordering::SeqCst), 1);
-    assert_eq!(s.active.load(Ordering::SeqCst), 0);
+    workflow_video_edit::test_support::gateway_contracts::shared_budget(s);
     let other = TenantScope::new("e2e-other-platform", "e2e-other-company").unwrap();
     assert!(
         crate::session::ui_store::load_session_scoped_for_tenant(&other, session, Some(&scope))
@@ -169,32 +143,8 @@ async fn video_edit_e2e_long_transcripts_reach_done_and_reload() {
         let (result, events) = run(root.path(), &session, &path).await;
         success(root.path(), &session, result.unwrap(), &events, &scenario);
         let row = ledger(&path);
-        assert_eq!(row["transcript"]["Ready"]["duration_sec"].as_f64(), Some(f64::from(duration)));
         run_ids.push(row["run_id"].clone());
-        let starts = captured(&scenario, "model.start");
-        let done = captured(&scenario, "model.done");
-        assert!(starts.len() >= 5);
-        assert_eq!(done[..5], starts[..5].iter().rev().cloned().collect::<Vec<_>>());
-        let jobs = row["asset_jobs"].as_array().unwrap();
-        assert_eq!(jobs.len(), starts.len());
-        assert!(jobs.iter().all(|j| j["state"] == "Succeeded" && j["attempts"] == 1));
-        if duration == 600 {
-            assert!(starts.len() > 5);
-            assert!(jobs.len() > 5);
-        }
-        assert_eq!(captured(&scenario, "asset.submit").len(), jobs.len());
-        let posts = captured(&scenario, "asset.submit");
-        let ready = captured(&scenario, "asset.done");
-        assert_eq!(ready[..5], posts[..5].iter().rev().cloned().collect::<Vec<_>>());
-        assert_eq!(captured(&scenario, "project.create").len(), 1);
-        assert_eq!(captured(&scenario, "upload.put").len(), 1);
-        assert_eq!(captured(&scenario, "transcript.submit").len(), 1);
-        assert_eq!(captured(&scenario, "preview.read").len(), 1);
-        assert!(
-            captured(&scenario, "project.write")
-                .iter()
-                .all(|w| !w.to_lowercase().contains("export"))
-        );
+        workflow_video_edit::test_support::gateway_contracts::long_transcript(&row, &scenario, duration);
     }
     assert_ne!(run_ids[0], run_ids[1]);
 }
@@ -237,20 +187,7 @@ async fn video_edit_e2e_accepted_timeout_reconciles_without_duplicate_post() {
     let _external = external(&session, scenario.clone());
     let (result, events) = run(root.path(), &session, &path).await;
     success(root.path(), &session, result.unwrap(), &events, &scenario);
-    let submitted = captured(&scenario, "asset.submit");
-    let reconciled = captured(&scenario, "asset.reconcile");
-    assert_eq!(submitted.len(), submitted.iter().collect::<std::collections::BTreeSet<_>>().len());
-    assert_eq!(
-        submitted.iter().collect::<std::collections::BTreeSet<_>>(),
-        reconciled.iter().collect()
-    );
-    assert!(
-        ledger(&path)["asset_jobs"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|j| j["state"] == "Succeeded" && j["attempts"] == 1)
-    );
+    workflow_video_edit::test_support::gateway_contracts::accepted_timeout(&scenario, &ledger(&path));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -397,16 +334,7 @@ async fn video_edit_e2e_cancelled_restart_reconciles_and_never_resubmits() {
     let _restart = external(&restarted, scenario.clone());
     let (result, events) = run(root.path(), &restarted, &path).await;
     failure(result, &events);
-    assert_eq!(captured(&scenario, "asset.submit"), posted);
-    assert_eq!(
-        captured(&scenario, "model.start"),
-        planned,
-        "cancelled remote work must be reconciled before any new planning"
-    );
-    assert_eq!(scenario.peak.load(Ordering::SeqCst), 5);
-    assert_eq!(captured(&scenario, "asset.reconcile").len(), 5);
-    assert_eq!(ledger(&path)["run_id"], before["run_id"]);
-    assert!(captured(&scenario, "project.write").is_empty());
+    workflow_video_edit::test_support::gateway_contracts::cancelled_restart(&scenario, posted, planned, &before, &ledger(&path));
 }
 
 #[tokio::test(flavor = "multi_thread")]

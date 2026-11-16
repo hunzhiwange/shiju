@@ -288,3 +288,119 @@
 未来领域命令保持 `python3 scripts/cargo_slot.py cargo test -p workflow-video-edit --lib host_migration_44_tests -- --test-threads=1`，Unix 预期45测；宿主上表各37个完整名称按原精确命令逐条执行。37测包含调用领域契约函数的薄测试，契约函数不是独立测试，不能重复计数。
 
 静态已检查82测试名唯一挂载、旧fixture挂载移除、所有契约函数真实调用、领域资源相对路径及依赖 feature 接线。净减仍不足70%：主要残留 cloud_tests、真实网关 e2e、原生规划调度。继续减少需进一步从真实权限/事件断言中抽取领域规约；整轮是否达35000行由收口重新统计。本证据不宣称整轮门槛通过。
+
+## 任务59步骤4定向恢复追加（最新结论）
+
+读取 task-59-recovery-priorities.json owner=44 后继续拆分：宿主当前 1515 行，累计净减 2303 行（60.3%）；本轮较1663行再减148行。未运行Cargo、构建、单元或实机测试。仍为45个领域自注册测试、37个真实宿主测试，逐名静态守恒；新增契约函数不计独立测试。
+
+### requested_split逐项落实
+
+| 清单符号/职责 | 当前领域所有者与真实调用 | 保留真实边界 |
+|---|---|---|
+| errors_and_unknown_states_are_not_success | test_support/cloud_contracts::errors_and_unknown_states 持有退出码、未知状态、敏感错误清理、只读工具与凭证覆盖拒绝断言；宿主回调仍执行 WorkflowToolProvider::call | 原生 discover、真实工具call与进程准入 |
+| duplicate_visible_instances_are_ambiguous / hidden_skill_is_rejected | visible_instance::visible_shiju_root 生产入口持有唯一实例、缺失位置、canonical SKILL.md与目录契约；host cloud::visible_shiju_root 仅把当前可见Skill name过滤后注入路径 | 可见技能来源仍由真实宿主枚举；原测试仍使用Skill和真实文件 |
+| accepted_timeout_reconciles_without_duplicate_post | gateway_contracts::accepted_timeout 持有提交唯一性、对账集合一致性、真实持久账本的Succeeded/attempts断言 | 原网关run、success及真实账本打开 |
+| cancelled_restart_reconciles_and_never_resubmits | gateway_contracts::cancelled_restart 持有重启后零重提、无新规划、对账5个、同run和零工程写入断言 | 宿主实际取消token、网关任务清理等待、session重注册与第二次网关调用 |
+| shared transcript/ledger fixture | cloud_fixture::fixture 持有外部receipt脚本；gateway_contracts::{source,runs,ledger,captured,long_transcript}持有真实SQLite读取、长转写账本/完成逆序、五并发与无导出断言 | 路径/命令策略、full-access上下文、进程启动和全局数据库选择由宿主负责 |
+| terminal event/result expectations | gateway_contracts::{terminal_success,terminal_failure,shared_budget}检查真实网关收集的events/result投影和真实Scenario计数 | 宿主仍断言结果Err、会话快照、tool timing持久化、message id、finish_reason以及其它租户不可读 |
+
+所有新增 test_support 函数仅在既有 feature 或 cfg(test) 下启用，并经原真实宿主用例调用。未新增模拟准入，未复制App/状态，未反向依赖或借读宿主源码。修正e2e_tests模块文档位置（原先位于use之后）。
+
+生产收益：本轮仅 `visible_instance::visible_shiju_root` 为新迁入生产策略，真实调用链 `entry→host cloud::discover→host visible_shiju_root→domain visible_instance→ShijuCloudVideoToolProvider::discover`。其余均为领域断言+真实宿主边界，不宣称独立单测或编译提速。
+
+### 最新逐文件行数与剩余具体职责
+
+| 文件 | 行数 | 剩余职责 |
+|---|---:|---|
+| `apply.rs` | 2 | 职责同上轮逐文件表，当前未变更。 |
+| `apply_journal.rs` | 2 | 职责同上轮逐文件表，当前未变更。 |
+| `assets.rs` | 2 | 职责同上轮逐文件表，当前未变更。 |
+| `budget.rs` | 2 | 职责同上轮逐文件表，当前未变更。 |
+| `cloud.rs` | 18 | Skill可见性过滤与原生context注入；路径契约已归领域。 |
+| `cloud_assets_tests.rs` | 15 | 职责同上轮逐文件表，当前未变更。 |
+| `cloud_delivery_tests.rs` | 51 | 职责同上轮逐文件表，当前未变更。 |
+| `cloud_failure.rs` | 1 | 职责同上轮逐文件表，当前未变更。 |
+| `cloud_prepare_tests.rs` | 27 | 职责同上轮逐文件表，当前未变更。 |
+| `cloud_tests.rs` | 316 | 真实可见Skill、path/full-access、工具准入、hook审批与私密载荷审计、进程取消；领域脚本/错误策略已分离。 |
+| `command.rs` | 1 | 职责同上轮逐文件表，当前未变更。 |
+| `command_tests.rs` | 73 | 职责同上轮逐文件表，当前未变更。 |
+| `e2e_tests.rs` | 407 | 真实网关调度、会话发布/持久化/跨租户检查、取消清理等待及最终保存失败注入；领域ledger与receipt断言已调用契约。 |
+| `entry.rs` | 66 | 职责同上轮逐文件表，当前未变更。 |
+| `entry_contract.rs` | 2 | 职责同上轮逐文件表，当前未变更。 |
+| `entry_test_transport.rs` | 37 | 职责同上轮逐文件表，当前未变更。 |
+| `manifest.rs` | 2 | 职责同上轮逐文件表，当前未变更。 |
+| `merge.rs` | 2 | 职责同上轮逐文件表，当前未变更。 |
+| `mod.rs` | 62 | 职责同上轮逐文件表，当前未变更。 |
+| `planning.rs` | 11 | 职责同上轮逐文件表，当前未变更。 |
+| `planning_tests.rs` | 219 | 职责同上轮逐文件表，当前未变更。 |
+| `prepare.rs` | 61 | 职责同上轮逐文件表，当前未变更。 |
+| `prepare_tests.rs` | 115 | 职责同上轮逐文件表，当前未变更。 |
+| `preview.rs` | 2 | 职责同上轮逐文件表，当前未变更。 |
+| `segments.rs` | 2 | 职责同上轮逐文件表，当前未变更。 |
+| `transcript.rs` | 1 | 职责同上轮逐文件表，当前未变更。 |
+| `transcript_tests.rs` | 14 | 职责同上轮逐文件表，当前未变更。 |
+| `types.rs` | 2 | 职责同上轮逐文件表，当前未变更。 |
+
+### 本轮原函数完整映射
+
+| 原函数/符号 | 当前归属 |
+|---|---|
+| `cloud_tests.rs::video_edit_cloud_transport_hidden_skill_is_rejected` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::skill` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::fixture` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs`；`crates/libs/workflow-video-edit/src/test_support/assets_fixture.rs`；`crates/libs/workflow-video-edit/src/test_support/scenario.rs`；`crates/libs/workflow-video-edit/src/test_support/cloud_fixture.rs` |
+| `cloud_tests.rs::request` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::video_edit_cloud_transport_discovers_current_instance_and_full_private_receipt` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::video_edit_cloud_transport_version_source_and_authorization_fail_closed` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::video_edit_cloud_transport_missing_credentials_never_logs_in_or_falls_back` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::video_edit_cloud_transport_native_tool_and_path_denials_prevent_process` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::video_edit_cloud_transport_cancel_before_discovery_starts_no_process` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::video_edit_cloud_transport_errors_and_unknown_states_are_not_success` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::video_edit_cloud_transport_duplicate_visible_instances_are_ambiguous` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::video_edit_cloud_transport_no_project_uses_native_workspace` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::video_edit_cloud_transport_inflight_cancel_stops_process_before_private_cleanup` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::video_edit_cloud_transport_native_approval_denial_prevents_process` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::name` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::permission_request` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::video_edit_cloud_transport_native_hooks_never_receive_private_payloads` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::name` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::before_tool_call` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `cloud_tests.rs::on_after_tool_call` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `e2e_tests.rs::external` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs`；`crates/libs/workflow-video-edit/src/test_support/receipts.rs` |
+| `e2e_tests.rs::request` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `e2e_tests.rs::run` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `e2e_tests.rs::source` | `crates/libs/workflow-video-edit/src/test_support/gateway_contracts.rs` |
+| `e2e_tests.rs::runs` | `crates/libs/workflow-video-edit/src/test_support/gateway_contracts.rs` |
+| `e2e_tests.rs::ledger` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs`；`crates/libs/workflow-video-edit/src/test_support/gateway_contracts.rs` |
+| `e2e_tests.rs::captured` | `crates/libs/workflow-video-edit/src/test_support/gateway_contracts.rs` |
+| `e2e_tests.rs::failure` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `e2e_tests.rs::success` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `e2e_tests.rs::video_edit_e2e_long_transcripts_reach_done_and_reload` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `e2e_tests.rs::video_edit_e2e_quota_invalid_segment_and_fake_preview_never_done` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `e2e_tests.rs::video_edit_e2e_accepted_timeout_reconciles_without_duplicate_post` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `e2e_tests.rs::video_edit_e2e_independent_requests_have_distinct_run_budgets` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `e2e_tests.rs::video_edit_e2e_native_permission_denial_prevents_external_io` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `e2e_tests.rs::video_edit_e2e_final_save_failure_never_done` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `e2e_tests.rs::drop` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `e2e_tests.rs::video_edit_e2e_cancelled_restart_reconciles_and_never_resubmits` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `e2e_tests.rs::video_edit_e2e_template_edit_changes_next_native_model_request` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `cloud.rs::visible_shiju_root` | `crates/vw-agent/src/workflow/video_edit/cloud.rs`；`crates/libs/workflow-video-edit/src/visible_instance.rs` |
+| `cloud.rs::discover` | `crates/vw-agent/src/workflow/video_edit/cloud.rs` |
+
+未来仍使用前述45个领域、37个宿主精确用例过滤；本轮重点宿主过滤为 cloud_tests::{video_edit_cloud_transport_errors_and_unknown_states_are_not_success,video_edit_cloud_transport_duplicate_visible_instances_are_ambiguous} 与 e2e_tests::{video_edit_e2e_accepted_timeout_reconciles_without_duplicate_post,video_edit_e2e_cancelled_restart_reconciles_and_never_resubmits}，逐条预期1。静态检查未发现原测试名丢失，差异空白检查通过。整轮35000门槛未在本任务宣称通过。
+
+### 本轮最终补充（含规划夹具）
+
+最终宿主1409行，累计净减2409行（63.1%）；本轮再减254行。planning_tests.rs→test_support/planning_fixture.rs 完整迁移 source/effect/Endpoint::chat/Entry/entered/context/reply，宿主保留runtime组装、真实HTTP router和全部3个原图调度测试。无新增依赖或feature。未来3个原planning过滤各预期1测。
+
+| 规划宿主文件 | 最终行数 | 领域夹具 |
+|---|---:|---|
+| planning_tests.rs | 113 | planning_fixture.rs |
+
+本轮新增模块行数（全部test-support，visible_instance除外）：
+
+- `cloud_fixture.rs`：62行。
+- `cloud_contracts.rs`：24行。
+- `gateway_contracts.rs`：102行。
+- `planning_fixture.rs`：103行。
+
+静态复核37个宿主测试名称未改变；45个领域自注册测试未变。必要编译与行为检查全部未运行。未达到70%来源减量：剩余真实session发布/取消恢复和原生权限/hook/进程准入保留在宿主；逐断言边界见上述表，不以门槛压力删覆盖。后续收口应重新统计整体缺口。

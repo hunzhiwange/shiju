@@ -1,98 +1,8 @@
-use super::{planning::*, segments::*, transcript::*};
-fn source() -> (VideoTranscript, Vec<VideoSegment>, VideoPlanRequirements) {
-    let t = VideoTranscript {
-        asset_id: "asset".into(),
-        duration_sec: 360.0,
-        fps: 25.0,
-        text: "same ".repeat(6),
-        words: (0..6)
-            .map(|i| VideoTranscriptWord {
-                word_index: i,
-                text: "same".into(),
-                start: i as f64 * 60.0,
-                end: i as f64 * 60.0 + 1.0,
-            })
-            .collect(),
-        source: "fixture".into(),
-        diagnostics: vec![],
-    };
-    let segments = segment_video_transcript(
-        &t,
-        VideoSegmentOptions { target_sec: 60.0, max_sec: 60.0, context_sec: 5.0 },
-    )
-    .unwrap();
-    (
-        t,
-        segments,
-        VideoPlanRequirements {
-            instructions: "test".into(),
-            required_types: vec![VisualType::Keyword, VisualType::BRoll, VisualType::MotionGraphic],
-            max_effects_per_word: 1,
-        },
-    )
-}
-fn effect(i: u64, visual_type: VisualType) -> VideoEditEffect {
-    let (_, s, _) = source();
-    VideoEditEffect {
-        id: format!("effect-{i}"),
-        chunk_id: s[i as usize].chunk_id.clone(),
-        word_index: i,
-        end_word_index: i,
-        anchor: "same".into(),
-        start: i as f64 * 60.0,
-        end: i as f64 * 60.0 + 1.0,
-        visual_type,
-        assets: vec!["make a visual".into()],
-    }
-}
-
-use super::{
-    planning::{VideoPlanningContext, plan_video_edit},
-};
-use model_types::{ChatRequest, ChatResponse, Provider};
-use crate::{
-    workflow::WorkflowRuntime,
-};
+use super::planning::plan_video_edit;
+use crate::workflow::WorkflowRuntime;
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
-
-/// Only external model transport is replaced; production graph and merger run unchanged.
-struct Endpoint(String);
-#[async_trait::async_trait]
-impl Provider for Endpoint {
-    async fn chat_with_system(
-        &self,
-        _: Option<&str>,
-        _: &str,
-        _: &str,
-        _: f64,
-    ) -> anyhow::Result<String> {
-        unreachable!()
-    }
-    async fn chat(
-        &self,
-        request: ChatRequest<'_>,
-        model: &str,
-        _: f64,
-    ) -> anyhow::Result<ChatResponse> {
-        assert_eq!(model, "editable-model");
-        let prompt = &request.messages.last().unwrap().content;
-        let response = reqwest::Client::new()
-            .post(&self.0)
-            .body(prompt.clone())
-            .send()
-            .await?
-            .error_for_status()?
-            .text()
-            .await?;
-        Ok(ChatResponse {
-            text: Some(response),
-            tool_calls: vec![],
-            usage: None,
-            reasoning_content: None,
-        })
-    }
-}
+use workflow_video_edit::test_support::planning_fixture::{source, Endpoint, Entry, context, entered, reply};
 fn runtime(url: String) -> WorkflowRuntime {
     WorkflowRuntime {
         video_edit_budget: Default::default(),
@@ -106,7 +16,6 @@ fn runtime(url: String) -> WorkflowRuntime {
         temperature: 0.0,
     }
 }
-type Entry = (serde_json::Value, oneshot::Sender<Option<String>>);
 async fn fixture() -> (String, mpsc::UnboundedReceiver<Entry>, tokio::task::JoinHandle<()>) {
     let (tx, rx) = mpsc::unbounded_channel::<Entry>();
     let app = axum::Router::new().route(
@@ -127,21 +36,6 @@ async fn fixture() -> (String, mpsc::UnboundedReceiver<Entry>, tokio::task::Join
     let url = format!("http://{}/", socket.local_addr().unwrap());
     let handle = tokio::spawn(async move { axum::serve(socket, app).await.unwrap() });
     (url, rx, handle)
-}
-async fn entered(rx: &mut mpsc::UnboundedReceiver<Entry>) -> Entry {
-    tokio::time::timeout(std::time::Duration::from_secs(15), rx.recv()).await.unwrap().unwrap()
-}
-fn context() -> VideoPlanningContext {
-    VideoPlanningContext { brief: "bounded summary".into(), max_prompt_bytes: 8192, model: None }
-}
-fn reply(prompt: &serde_json::Value) -> String {
-    let i = prompt["segment"]["index"].as_u64().unwrap();
-    let e = effect(
-        i,
-        [VisualType::Keyword, VisualType::BRoll, VisualType::MotionGraphic][i as usize % 3],
-    );
-    serde_json::to_string(&VideoChunkPlan { chunk_id: e.chunk_id.clone(), effects: vec![e] })
-        .unwrap()
 }
 #[tokio::test]
 async fn video_edit_plan_real_iteration_six_segments_bounded_requests_and_shared_budget() {

@@ -1,13 +1,18 @@
-# Latest static handoff
+# 最新静态收口（本节替代历史快照）
 
-Host 36178 lines, limit 35000, excess 1178; 1381 original files have unique scope ownership. This supersedes earlier snapshots in final.md. No Cargo/build/unit/device test commands ran.
+宿主949文件、36014行，基线135228行，净减99214行；35000行硬门槛仍差1014行。1381原路径归属唯一，residue 3240行。任务59保留已阻塞，原因是原所有者领域残留尚未闭合，并非未来编译验证。
 
-Restoration candidates: 43 cancellation dispatch file, 8 config save/reload atomicity, 39 real MCP session binding/revocation, 42 ingress/first-response/title timing. Specific symbols and retained real boundaries are task-59-recovery-priorities.json. Owner16 only audits/commits the existing three deleted model catalog tests; it is not new physical reduction. Exclude already-migrated relay/native/workflow/cron candidates from the next queue.
+本轮从仓库根依次执行以下命令，全部退出0：
 
-51 direct aliases, unused app::config and private root model_catalog facade cleanup, 27 restored test registrations and two independently registered moved cases are implemented. The last facade/dependency cleanup is db4918199; its tree only removes the root model-catalog dependency/facade. Do not credit libc cleanup as additional change in that commit.
+```text
+python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_final.py
+python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_registrations.py
+python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_domain_registrations.py
+python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_test_candidates.py
+python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_domain_changes.py
+python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_alias_callers.py
+```
 
-The strengthened mapping now intersects all local lib/test roots with host roots; all 4159 baseline standard declarations have reachable name candidates, 55 ignored-test attributes match. This is lexical cfg-union/source traceability, not compiler registration or behavior verification. Domain scan includes unrelated generated/desktop resource unknowns; none are in scope/mapped test packages. Original aggregation orphan declaration maps to the already-registered gateway-app-providers operations exit test rather than the unused old path.
+结果：1105条宿主词法注册边零悬空；外部挂载178文件56350行，独立列账。领域622根、9225可达文件，40条未解析候选（含生成资源及Desktop源码引用），未将其报告为全领域零悬空。4159条标准测试声明：原路径1972、唯一候选2159、所有者候选28、歧义0、缺名0；55条ignore无差异。136目标包3280路径统计、51处别名调用映射已刷新。名称可达映射不证明断言等价、宏展开、平台cfg或真实编译注册；生产符号全量语义映射尚未独立闭合。未运行Cargo、构建、单元或实机测试，不承诺编译提速。
 
-Explicitly restored existing owner sessions under run-codex-task-plan-sessions; see task-59-recovery-sessions.json. No new chats/worktrees were created. Task59 remains until the hard gate closes; future compilation is not the reason for retaining it.
-
-Latest recovery candidates: owners8/42 then38/6; owner16 commit closure only. Detailed current symbols in task-59-recovery-priorities.json. Already-processed 46/9/45/33/39/43 are excluded.
+f10a33212与f2b0d1a62已分别完成8/42本轮拆分，9673b21a0完成16旧源删除提交，不重复派发这些旧候选。剩余明确候选38、6，逐文件符号、拆分职责与真实边界见task-59-recovery-priorities.json；仅为审查候选，不承诺可减少1014行。任务59不代改原所有者领域文件。当前工作区存在其他任务的暂存及未暂存修改，本次只提交任务59审计产物。

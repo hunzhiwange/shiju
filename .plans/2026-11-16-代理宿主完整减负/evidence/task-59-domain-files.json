@@ -5106,8 +5106,8 @@
     {
       "path": "crates/libs/agent-plugins/src/lib.rs",
       "before": 113,
-      "after": 130,
-      "added": 17,
+      "after": 132,
+      "added": 19,
       "deleted": 0
     },
     {
@@ -5213,6 +5213,27 @@
       "before": 76,
       "after": 76,
       "added": 0,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/agent-plugins/src/package_acceptance/platform.rs",
+      "before": 0,
+      "after": 43,
+      "added": 43,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/agent-plugins/src/package_acceptance/skill.rs",
+      "before": 0,
+      "after": 43,
+      "added": 43,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/agent-plugins/src/package_acceptance.rs",
+      "before": 0,
+      "after": 26,
+      "added": 26,
       "deleted": 0
     },
     {
@@ -8639,6 +8660,13 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/channel-runtime/src/cancel_contracts.rs",
+      "before": 0,
+      "after": 246,
+      "added": 246,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/channel-runtime/src/command_catalog_contracts.rs",
       "before": 0,
       "after": 80,
@@ -8692,6 +8720,13 @@
       "before": 0,
       "after": 194,
       "added": 194,
+      "deleted": 0
+    },
+    {
+      "path": "crates/libs/channel-runtime/src/first_response_contracts.rs",
+      "before": 0,
+      "after": 98,
+      "added": 98,
       "deleted": 0
     },
     {
@@ -8858,8 +8893,8 @@
     {
       "path": "crates/libs/channel-runtime/src/lib.rs",
       "before": 15,
-      "after": 52,
-      "added": 37,
+      "after": 58,
+      "added": 43,
       "deleted": 0
     },
     {
@@ -12874,6 +12909,13 @@
       "deleted": 0
     },
     {
+      "path": "crates/libs/gateway-config/src/host_acceptance.rs",
+      "before": 0,
+      "after": 127,
+      "added": 127,
+      "deleted": 0
+    },
+    {
       "path": "crates/libs/gateway-config/src/host_migration_8_tests/auth.rs",
       "before": 0,
       "after": 55,
@@ -12932,8 +12974,8 @@
     {
       "path": "crates/libs/gateway-config/src/lib.rs",
       "before": 29,
-      "after": 32,
-      "added": 3,
+      "after": 35,
+      "added": 6,
       "deleted": 0
     },
     {
@@ -12973,30 +13015,30 @@
     },
     {
       "path": "crates/libs/gateway-cron/src/host_contracts/delivery.rs",
-      "before": 36,
+      "before": 0,
       "after": 36,
-      "added": 0,
+      "added": 36,
       "deleted": 0
     },
     {
       "path": "crates/libs/gateway-cron/src/host_contracts/denial.rs",
-      "before": 64,
-      "after": 64,
-      "added": 0,
+      "before": 0,
+      "after": 63,
+      "added": 63,
       "deleted": 0
     },
     {
       "path": "crates/libs/gateway-cron/src/host_contracts/routes.rs",
-      "before": 37,
+      "before": 0,
       "after": 37,
-      "added": 0,
+      "added": 37,
       "deleted": 0
     },
     {
       "path": "crates/libs/gateway-cron/src/host_contracts.rs",
-      "before": 79,
+      "before": 0,
       "after": 79,
-      "added": 0,
+      "added": 79,
       "deleted": 0
     },
     {
@@ -16634,9 +16676,9 @@
     },
     {
       "path": "crates/libs/model-relay-http/src/relay_test_support.rs",
-      "before": 415,
-      "after": 415,
-      "added": 0,
+      "before": 0,
+      "after": 417,
+      "added": 417,
       "deleted": 0
     },
     {
@@ -22262,37 +22304,37 @@
     },
     {
       "path": "crates/libs/workflow-engine/src/test_support/actions.rs",
-      "before": 102,
+      "before": 0,
       "after": 102,
-      "added": 0,
+      "added": 102,
       "deleted": 0
     },
     {
       "path": "crates/libs/workflow-engine/src/test_support/binding.rs",
-      "before": 32,
-      "after": 32,
-      "added": 0,
+      "before": 0,
+      "after": 31,
+      "added": 31,
       "deleted": 0
     },
     {
       "path": "crates/libs/workflow-engine/src/test_support/permissions.rs",
-      "before": 64,
+      "before": 0,
       "after": 64,
-      "added": 0,
+      "added": 64,
       "deleted": 0
     },
     {
       "path": "crates/libs/workflow-engine/src/test_support/provider.rs",
-      "before": 45,
-      "after": 45,
-      "added": 0,
+      "before": 0,
+      "after": 44,
+      "added": 44,
       "deleted": 0
     },
     {
       "path": "crates/libs/workflow-engine/src/test_support.rs",
-      "before": 9,
+      "before": 0,
       "after": 9,
-      "added": 0,
+      "added": 9,
       "deleted": 0
     },
     {

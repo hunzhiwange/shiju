@@ -3526,6 +3526,9 @@
     "crates/libs/agent-plugins/src/npm_source_tests.rs",
     "crates/libs/agent-plugins/src/onboarding.rs",
     "crates/libs/agent-plugins/src/onboarding_tests.rs",
+    "crates/libs/agent-plugins/src/package_acceptance.rs",
+    "crates/libs/agent-plugins/src/package_acceptance/platform.rs",
+    "crates/libs/agent-plugins/src/package_acceptance/skill.rs",
     "crates/libs/agent-plugins/src/portable_manifest.rs",
     "crates/libs/agent-plugins/src/session_snapshot.rs",
     "crates/libs/agent-plugins/src/skills.rs",
@@ -5393,6 +5396,7 @@
     "crates/libs/channel-qq/src/tests.rs",
     "crates/libs/channel-qq/src/webhook.rs",
     "crates/libs/channel-qq/src/webhook_tests.rs",
+    "crates/libs/channel-runtime/src/cancel_contracts.rs",
     "crates/libs/channel-runtime/src/command_catalog_contracts.rs",
     "crates/libs/channel-runtime/src/command_history_contracts.rs",
     "crates/libs/channel-runtime/src/command_host.rs",
@@ -5401,6 +5405,7 @@
     "crates/libs/channel-runtime/src/configured.rs",
     "crates/libs/channel-runtime/src/dispatch_contracts.rs",
     "crates/libs/channel-runtime/src/dispatch_test_support.rs",
+    "crates/libs/channel-runtime/src/first_response_contracts.rs",
     "crates/libs/channel-runtime/src/format.rs",
     "crates/libs/channel-runtime/src/health_state.rs",
     "crates/libs/channel-runtime/src/host.rs",
@@ -7801,6 +7806,7 @@
     "crates/libs/desktop-settings-providers/src/model_routes_view.rs",
     "crates/libs/desktop-settings-providers/src/model_routes_view_tests.rs",
     "crates/libs/desktop-settings-providers/src/model_tasks.rs",
+    "crates/libs/desktop-settings-providers/src/model_test_fixture.rs",
     "crates/libs/desktop-settings-providers/src/model_update.rs",
     "crates/libs/desktop-settings-providers/src/model_update_tests.rs",
     "crates/libs/desktop-settings-providers/src/models.rs",
@@ -9396,6 +9402,7 @@
     "crates/libs/gateway-config/src/config_api_tests.rs",
     "crates/libs/gateway-config/src/handlers.rs",
     "crates/libs/gateway-config/src/host.rs",
+    "crates/libs/gateway-config/src/host_acceptance.rs",
     "crates/libs/gateway-config/src/host_migration_8_tests.rs",
     "crates/libs/gateway-config/src/host_migration_8_tests/auth.rs",
     "crates/libs/gateway-config/src/host_migration_8_tests/patch.rs",
@@ -22820,6 +22827,33 @@
       "line": 130,
       "kind": "mod",
       "target": "crates/libs/agent-plugins/src/mcp_oauth_tokens.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "compiling_package": "crates/libs/agent-plugins",
+      "source": "crates/libs/agent-plugins/src/lib.rs",
+      "line": 132,
+      "kind": "mod",
+      "target": "crates/libs/agent-plugins/src/package_acceptance.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "compiling_package": "crates/libs/agent-plugins",
+      "source": "crates/libs/agent-plugins/src/package_acceptance.rs",
+      "line": 3,
+      "kind": "mod",
+      "target": "crates/libs/agent-plugins/src/package_acceptance/skill.rs",
+      "attributes": [],
+      "exists": true
+    },
+    {
+      "compiling_package": "crates/libs/agent-plugins",
+      "source": "crates/libs/agent-plugins/src/package_acceptance.rs",
+      "line": 4,
+      "kind": "mod",
+      "target": "crates/libs/agent-plugins/src/package_acceptance/platform.rs",
       "attributes": [],
       "exists": true
     },
@@ -40996,6 +41030,28 @@
       "line": 52,
       "kind": "mod",
       "target": "crates/libs/channel-runtime/src/dispatch_contracts.rs",
+      "attributes": [
+        "#[cfg(feature = \"test-support\")]"
+      ],
+      "exists": true
+    },
+    {
+      "compiling_package": "crates/libs/channel-runtime",
+      "source": "crates/libs/channel-runtime/src/lib.rs",
+      "line": 55,
+      "kind": "mod",
+      "target": "crates/libs/channel-runtime/src/cancel_contracts.rs",
+      "attributes": [
+        "#[cfg(feature = \"test-support\")]"
+      ],
+      "exists": true
+    },
+    {
+      "compiling_package": "crates/libs/channel-runtime",
+      "source": "crates/libs/channel-runtime/src/lib.rs",
+      "line": 58,
+      "kind": "mod",
+      "target": "crates/libs/channel-runtime/src/first_response_contracts.rs",
       "attributes": [
         "#[cfg(feature = \"test-support\")]"
       ],
@@ -64866,7 +64922,7 @@
     {
       "compiling_package": "crates/libs/desktop-settings-cron",
       "source": "crates/libs/desktop-settings-cron/src/desktop_split_15_tests.rs",
-      "line": 218,
+      "line": 180,
       "kind": "mod",
       "target": "crates/libs/desktop-settings-cron/src/desktop_split_15_tests/history.rs",
       "attributes": [],
@@ -64875,7 +64931,7 @@
     {
       "compiling_package": "crates/libs/desktop-settings-cron",
       "source": "crates/libs/desktop-settings-cron/src/desktop_split_15_tests.rs",
-      "line": 220,
+      "line": 182,
       "kind": "mod",
       "target": "crates/libs/desktop-settings-cron/src/desktop_split_15_tests/modal.rs",
       "attributes": [],
@@ -67038,7 +67094,7 @@
     {
       "compiling_package": "crates/libs/desktop-settings-providers",
       "source": "crates/libs/desktop-settings-providers/src/managed_shiju.rs",
-      "line": 24,
+      "line": 30,
       "kind": "mod",
       "target": "crates/libs/desktop-settings-providers/src/managed_shiju/tests.rs",
       "attributes": [
@@ -67296,6 +67352,17 @@
       "line": 80,
       "kind": "mod",
       "target": "crates/libs/desktop-settings-providers/src/view_test_support.rs",
+      "attributes": [
+        "#[cfg(test)]"
+      ],
+      "exists": true
+    },
+    {
+      "compiling_package": "crates/libs/desktop-settings-providers",
+      "source": "crates/libs/desktop-settings-providers/src/lib.rs",
+      "line": 86,
+      "kind": "mod",
+      "target": "crates/libs/desktop-settings-providers/src/model_test_fixture.rs",
       "attributes": [
         "#[cfg(test)]"
       ],
@@ -82964,6 +83031,17 @@
       "kind": "mod",
       "target": "crates/libs/gateway-config/src/host_migration_8_tests/auth.rs",
       "attributes": [],
+      "exists": true
+    },
+    {
+      "compiling_package": "crates/libs/gateway-config",
+      "source": "crates/libs/gateway-config/src/lib.rs",
+      "line": 35,
+      "kind": "mod",
+      "target": "crates/libs/gateway-config/src/host_acceptance.rs",
+      "attributes": [
+        "#[cfg(all(feature = \"host-test-support\", not(target_arch = \"wasm32\")))]"
+      ],
       "exists": true
     },
     {

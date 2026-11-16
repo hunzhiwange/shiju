@@ -1,103 +1,6 @@
 [
   {
     "priority": 1,
-    "owner": 8,
-    "current_original_host_lines": 470,
-    "candidate_files": [
-      {
-        "path": "crates/vw-agent/src/gateway/api/handlers/config_tests.rs",
-        "exists": true,
-        "lines": 455,
-        "symbols": [
-          {
-            "name": "config_providers_returns_defaults_for_available_models",
-            "line": 118
-          },
-          {
-            "name": "handle_api_config_put_reports_config_save_failure_without_mutating_runtime_state",
-            "line": 136
-          },
-          {
-            "name": "config_put_reloads_hooks_and_invalidates_query_engines",
-            "line": 196
-          },
-          {
-            "name": "config_put_hook_build_failure_is_atomic",
-            "line": 259
-          },
-          {
-            "name": "manual_agent_save_updates_live_resolution_and_survives_instance_restart",
-            "line": 342
-          }
-        ]
-      }
-    ],
-    "requested_split": "Separate defaults, saved/live config consistency and atomic hook replacement assertions/real config-store fixtures into gateway-config via existing state/host APIs; keep true runtime capture in host.",
-    "retain_real_boundary": "Retain actual pairing before body parsing, real hook rebuild/query-engine invalidation and failed-save atomicity; do not copy AppState or mock auth.",
-    "removable_lines": "Inventory only; no exact savings or independent-test claim",
-    "evidence": "evidence/task-8.md"
-  },
-  {
-    "priority": 2,
-    "owner": 42,
-    "current_original_host_lines": 552,
-    "candidate_files": [
-      {
-        "path": "crates/vw-agent/src/channels/channel_session_lifecycle_tests.rs",
-        "exists": true,
-        "lines": 120,
-        "symbols": [
-          {
-            "name": "channel_first_response_hides_ordinary_and_explicit_drafts",
-            "line": 2
-          },
-          {
-            "name": "channel_first_response_reuses_failed_ingress_then_publishes_success",
-            "line": 26
-          },
-          {
-            "name": "channel_first_response_requests_title_once_after_commit",
-            "line": 53
-          }
-        ]
-      }
-    ],
-    "requested_split": "Separate ingress/draft/first-response/title timing result assertions through actual lifecycle state/store APIs and existing real runtime port.",
-    "retain_real_boundary": "Retain real ingress/session publication and actual processor/title execution; no fake commit or identity.",
-    "removable_lines": "Inventory only; no exact savings or independent-test claim",
-    "evidence": "evidence/task-42.md"
-  },
-  {
-    "priority": 3,
-    "owner": 16,
-    "current_original_host_lines": 727,
-    "candidate_files": [
-      {
-        "path": "crates/vw-agent/src/gateway/api/handlers/model_catalog_tests.rs",
-        "exists": false,
-        "lines": 0,
-        "symbols": []
-      },
-      {
-        "path": "crates/vw-agent/src/gateway/api/handlers/model_catalog_edits_tests.rs",
-        "exists": false,
-        "lines": 0,
-        "symbols": []
-      },
-      {
-        "path": "crates/vw-agent/src/gateway/api/handlers/model_discovery_tests.rs",
-        "exists": false,
-        "lines": 0,
-        "symbols": []
-      }
-    ],
-    "requested_split": "Audit and commit the three already-deleted owned test files if their existing registered domain replacements are complete; do not restore old bodies or absorb unrelated edits.",
-    "retain_real_boundary": "Keep actual model-catalog client/gateway authentication acceptance. This is ownership/commit closure, not a new line-saving estimate.",
-    "removable_lines": "Inventory only; no exact savings or independent-test claim",
-    "evidence": "evidence/task-16.md"
-  },
-  {
-    "priority": 4,
     "owner": 38,
     "current_original_host_lines": 954,
     "candidate_files": [
@@ -138,7 +41,7 @@
     "evidence": "evidence/task-38.md"
   },
   {
-    "priority": 5,
+    "priority": 2,
     "owner": 6,
     "current_original_host_lines": 911,
     "candidate_files": [

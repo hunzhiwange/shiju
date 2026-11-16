@@ -1344,7 +1344,7 @@
       "path": "crates/vw-agent/src/channels/channel_session_lifecycle_tests.rs",
       "owner": 42,
       "before": 178,
-      "after": 120,
+      "after": 61,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-42.md"
     },
@@ -3946,7 +3946,7 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/config.rs",
       "owner": 8,
       "before": 147,
-      "after": 109,
+      "after": 98,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-8.md"
     },
@@ -3954,7 +3954,7 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/config_tests.rs",
       "owner": 8,
       "before": 1619,
-      "after": 455,
+      "after": 361,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-8.md"
     },
@@ -14241,30 +14241,30 @@
     },
     {
       "path": "crates/vw-agent/src/channels/channel_session_lifecycle_tests.rs",
-      "lines": 120,
+      "lines": 61,
       "symbols": [
         {
           "line": 2,
           "declaration": "async fn channel_first_response_hides_ordinary_and_explicit_drafts() {"
         },
         {
-          "line": 26,
+          "line": 8,
           "declaration": "async fn channel_first_response_reuses_failed_ingress_then_publishes_success() {"
         },
         {
-          "line": 53,
+          "line": 16,
           "declaration": "async fn channel_first_response_requests_title_once_after_commit() {"
         },
         {
-          "line": 79,
+          "line": 42,
           "declaration": "struct RemoveKey;"
         },
         {
-          "line": 80,
+          "line": 43,
           "declaration": "impl Drop for RemoveKey {"
         },
         {
-          "line": 81,
+          "line": 44,
           "declaration": "fn drop(&mut self) { agent_env::remove(KEY); }"
         }
       ],
@@ -20519,7 +20519,7 @@
     },
     {
       "path": "crates/vw-agent/src/gateway/api/handlers/config.rs",
-      "lines": 109,
+      "lines": 98,
       "symbols": [
         {
           "line": 22,
@@ -20591,10 +20591,6 @@
         },
         {
           "line": 89,
-          "declaration": "async fn config_patch_stateful("
-        },
-        {
-          "line": 100,
           "declaration": "async fn config_providers("
         }
       ],
@@ -20608,11 +20604,7 @@
           "attribute": "#[cfg(test)]"
         },
         {
-          "line": 99,
-          "attribute": "#[cfg(test)]"
-        },
-        {
-          "line": 107,
+          "line": 96,
           "attribute": "#[cfg(test)]"
         }
       ],
@@ -20620,96 +20612,92 @@
     },
     {
       "path": "crates/vw-agent/src/gateway/api/handlers/config_tests.rs",
-      "lines": 455,
+      "lines": 361,
       "symbols": [
         {
-          "line": 20,
+          "line": 18,
           "declaration": "struct EnvGuard {"
         },
         {
-          "line": 25,
+          "line": 23,
           "declaration": "impl EnvGuard {"
         },
         {
-          "line": 26,
+          "line": 24,
           "declaration": "fn set(key: &'static str, value: &OsStr) -> Self {"
         },
         {
-          "line": 34,
+          "line": 32,
           "declaration": "fn unset(key: &'static str) -> Self {"
         },
         {
-          "line": 43,
+          "line": 41,
           "declaration": "impl Drop for EnvGuard {"
         },
         {
-          "line": 44,
+          "line": 42,
           "declaration": "fn drop(&mut self) {"
         },
         {
-          "line": 55,
+          "line": 53,
           "declaration": "struct StaticProvider;"
         },
         {
-          "line": 59,
+          "line": 57,
           "declaration": "impl Provider for StaticProvider {"
         },
         {
-          "line": 60,
+          "line": 58,
           "declaration": "async fn chat_with_system("
         },
         {
-          "line": 71,
+          "line": 69,
           "declaration": "fn state(config: config::Config, require_pairing: bool, tokens: &[String]) -> AppState {"
         },
         {
-          "line": 95,
+          "line": 93,
           "declaration": "fn instance_query(temp: &TempDir) -> Query<InstanceQuery> {"
         },
         {
-          "line": 99,
-          "declaration": "fn local_store(home: &std::path::Path) -> config::SystemConfigStore {"
-        },
-        {
-          "line": 104,
+          "line": 97,
           "declaration": "async fn response_json(response: axum::response::Response) -> Value {"
         },
         {
-          "line": 111,
+          "line": 104,
           "declaration": "fn routers_build_for_stateless_and_stateful_config_routes() {"
         },
         {
-          "line": 118,
+          "line": 111,
           "declaration": "async fn config_providers_returns_defaults_for_available_models() {"
         },
         {
-          "line": 136,
+          "line": 129,
           "declaration": "async fn handle_api_config_put_reports_config_save_failure_without_mutating_runtime_state() {"
         },
         {
-          "line": 196,
+          "line": 189,
           "declaration": "async fn config_put_reloads_hooks_and_invalidates_query_engines() {"
         },
         {
-          "line": 259,
+          "line": 252,
           "declaration": "async fn config_put_hook_build_failure_is_atomic() {"
         },
         {
-          "line": 342,
+          "line": 317,
           "declaration": "async fn manual_agent_save_updates_live_resolution_and_survives_instance_restart() {"
         },
         {
-          "line": 449,
+          "line": 355,
           "declaration": "async fn config_host_enforces_pairing_before_parsing_put() {"
         }
       ],
       "cfg": [
         {
-          "line": 57,
+          "line": 55,
           "attribute": "#[cfg_attr(target_arch = \"wasm32\", async_trait::async_trait(?Send))]"
         },
         {
-          "line": 58,
+          "line": 56,
           "attribute": "#[cfg_attr(not(target_arch = \"wasm32\"), async_trait::async_trait)]"
         }
       ],

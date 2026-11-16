@@ -1980,7 +1980,7 @@
     },
     {
       "source": "crates/vw-agent/src/gateway/api/handlers/config.rs",
-      "line": 109,
+      "line": 98,
       "kind": "path",
       "target": "crates/vw-agent/src/gateway/api/handlers/config_tests.rs",
       "attributes": [

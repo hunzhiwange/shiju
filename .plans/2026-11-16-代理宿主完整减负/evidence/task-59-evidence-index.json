@@ -54,7 +54,7 @@
   {
     "task": 8,
     "exists": true,
-    "lines": 98,
+    "lines": 111,
     "unresolved_markers": []
   },
   {
@@ -175,7 +175,7 @@
   {
     "task": 16,
     "exists": true,
-    "lines": 271,
+    "lines": 289,
     "unresolved_markers": [
       {
         "line": 30,
@@ -582,7 +582,7 @@
   {
     "task": 42,
     "exists": true,
-    "lines": 241,
+    "lines": 256,
     "unresolved_markers": [
       {
         "line": 191,
@@ -603,6 +603,10 @@
       {
         "line": 241,
         "text": "静态检查：audit_registrations.py 返回 edges=1105、unresolved=0、removed_targets_referenced=0；定向 git diff --check 无空白错误。上述为词法注册与差异核对，不是编译或运行测试。"
+      },
+      {
+        "line": 256,
+        "text": "未来精确验证：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib channel_first_response_ -- --test-threads=1`，静态预期3条，必须非零且failed=0；当前全部未运行。原有两个库 host_migration_42_tests 预期数量不变。audit_registrations.py 返回 edges=1105、unresolved=0、removed_targets_referenced=0；本轮git diff --check无空白错误。仅静态核对，编译/行为未验证。未修改其它任务来源，原42号任务文件已删除且无需恢复。"
       }
     ]
   },

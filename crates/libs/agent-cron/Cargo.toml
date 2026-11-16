@@ -50,3 +50,7 @@ channel-email-channel = { path = "../channel-email-channel", version = "0.6.0" }
 channel-mattermost = { path = "../channel-mattermost", version = "0.6.0" }
 channel-qq = { path = "../channel-qq", version = "0.6.0" }
 channel-slack = { path = "../channel-slack", version = "0.6.0" }
+
+[dependencies.agent-cli-types]
+path = "../agent-cli-types"
+version = "0.6.0"

@@ -5,6 +5,7 @@
 //! 并在影响上下文连续性时清理会话历史，避免新配置沿用旧上下文造成混淆。
 
 use super::*;
+use channel_support::routing_context::set_route_selection;
 use super::session_lifecycle::{invalidate_archive, persist_current_route};
 use super::task_mode::set_sender_task_mode;
 
@@ -52,7 +53,7 @@ pub async fn handle_set_provider(
     current: &mut ChannelRouteSelection,
     raw_provider: String,
 ) -> String {
-    match resolve_provider_alias(&raw_provider) {
+    match resolve_provider_alias(&raw_provider).await {
         Err(error) => format!("模型目录不可用：{error}"),
         Ok(Some(provider_name)) => {
             match get_or_create_session_provider(ctx, &provider_name).await {

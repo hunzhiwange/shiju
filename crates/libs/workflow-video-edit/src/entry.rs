@@ -152,7 +152,8 @@ impl ShijuVideoEntryProvider {
                         .effects
                         .iter()
                         .filter(|e| e.visual_type == VisualType::BRoll)
-                            .collect(),
+                        .cloned()
+                        .collect(),
                     ..plan.clone()
                 };
                 let requests = video_asset_requests(&broll, project, &s.recipes)?;

@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+model-types = { path = "../model-types", version = "0.6.0" }
 model-state = { path = "../model-state", version = "0.6.0" }
 provider-model-cache = { path = "../provider-model-cache", version = "0.6.0" }
 provider-model-catalog = { path = "../provider-model-catalog", version = "0.6.0" }

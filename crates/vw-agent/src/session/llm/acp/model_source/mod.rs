@@ -32,6 +32,7 @@ pub(super) async fn prepare(
     let state_root = || std::env::var_os("VIBEWINDOW_CONFIG_DIR").map(std::path::PathBuf::from)
         .unwrap_or_else(|| crate::global::paths().state.clone());
     let mut profile = llm_runtime::acp::model_source::prepare_profile(agent, config, &resolved, identity, state_root)?;
+    let directory = context.directory.clone();
     let server = RelayServer::start(
         profile.binding.clone(),
         std::sync::Arc::new(ProviderRelayBackend::new()?),
@@ -40,7 +41,7 @@ pub(super) async fn prepare(
     .await?;
     let endpoint = format!("http://{}", server.address());
     profile.attach_server(server);
-    llm_runtime::acp::model_source::configure_profile(agent, &mut profile, &endpoint).await?;
+    llm_runtime::acp::model_source::configure_profile(agent, &mut profile, &endpoint, &directory).await?;
     Ok(profile)
 }
 

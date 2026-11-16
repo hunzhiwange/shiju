@@ -1,6 +1,6 @@
 use tool_agents::ports::*;
 use session_port::{child_agent::*, task_session::*};
-use tool_context::context::ToolUseContext;
+use crate::tools::context::ToolUseContext;
 use std::{sync::{Arc, Mutex}, time::Duration};
 use tokio::sync::{mpsc, OwnedSemaphorePermit, Semaphore};
 use tokio_util::sync::CancellationToken;
@@ -11,6 +11,7 @@ pub struct ChildCoordinatorHost(pub(crate) crate::session::child_agent::coordina
 impl From<crate::session::child_agent::coordinator::ChildAgentCoordinator> for ChildCoordinatorHost { fn from(value: crate::session::child_agent::coordinator::ChildAgentCoordinator) -> Self { Self(value) } }
 #[async_trait::async_trait]
 impl ChildCoordinator for ChildCoordinatorHost {
+    type Context = crate::tools::context::AgentContextHost;
     fn team_capacity(&self, session_id: &str) -> Arc<Semaphore> { self.0.team_capacity(session_id) }
     fn track_execution(
         &self,
@@ -163,6 +164,7 @@ impl ChildRun for HostChildRun {
 }
 #[async_trait::async_trait]
 impl AgentHost for ToolAgentHost {
+    type Context = crate::tools::context::AgentContextHost;
     type Coordinator = ChildCoordinatorHost;
     type Run = HostChildRun;
     type Error = crate::gateway::ApiError;
@@ -182,6 +184,7 @@ impl AgentHost for ToolAgentHost {
 }
 #[async_trait::async_trait]
 impl SessionHost for ToolAgentHost {
+    type Context = crate::tools::context::AgentContextHost;
     type Coordinator = TaskCoordinatorHost;
     type Error = crate::gateway::ApiError;
     fn coordinator() -> Self::Coordinator { crate::session::task_session::global_task_session_coordinator().into() }
@@ -199,6 +202,7 @@ impl SessionHost for ToolAgentHost {
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
 impl DelegateHost for ToolAgentHost {
+    type Context = crate::tools::context::AgentContextHost;
     fn tools(parent: &[Arc<dyn Tool>], config: &DelegateAgentConfig, trusted: &[String]) -> Vec<Box<dyn Tool>> { super::delegated_tools::build_agentic_tools(parent, config, trusted) }
     async fn run_loop(provider: &dyn Provider, history: &mut Vec<ChatMessage>, tools: &[Box<dyn Tool>], observer: &dyn Observer, provider_name: &str, model: &str, temperature: f64, multimodal: &MultimodalConfig, max_iterations: usize, security: Arc<SecurityPolicy>) -> Result<String> {
         crate::agent::loop_::run_tool_call_loop(provider, history, tools, observer, provider_name, model, temperature, true, None, "delegate", multimodal, max_iterations, None, None, None, Some(security), &[]).await

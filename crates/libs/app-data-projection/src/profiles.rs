@@ -53,8 +53,8 @@ pub fn revision(rows: &[ProjectProfile]) -> Result<String, PreviewError> {
     for row in rows {
         if values.insert(&row.id.0, row).is_some() { return Err(PreviewError::InvalidCandidate); }
     }
-    Ok(format!("{:x}", Sha256::digest(serde_json::to_vec(&values)
-        .map_err(|_| PreviewError::InvalidCandidate)?)))
+    Ok(format!("{}", hex::encode(Sha256::digest(serde_json::to_vec(&values)
+        .map_err(|_| PreviewError::InvalidCandidate)?))))
 }
 
 /// Parse every selected profile before offering writes. CC profiles are SQLite

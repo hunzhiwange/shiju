@@ -2,7 +2,7 @@
 
 use super::event::UPDATED;
 use super::{UpdatedProperties, publish_updated};
-use agent_bus;
+use agent_bus as bus;
 use serde_json::Value;
 #[cfg(not(target_arch = "wasm32"))]
 use std::collections::HashMap;

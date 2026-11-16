@@ -81,10 +81,10 @@ pub struct Agent<H: super::AgentHost> {
     pub(crate) skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode,
     pub(crate) auto_save: bool,
     pub(crate) history: Vec<ChatMessage>,
-    pub(crate) classification_config: agent_config::schema::QueryClassificationConfig,
+    pub(crate) classification_config: config_routing::QueryClassificationConfig,
     pub(crate) available_hints: Vec<String>,
     pub(crate) route_model_by_hint: HashMap<String, String>,
-    pub(crate) multimodal_config: agent_config::schema::MultimodalConfig,
+    pub(crate) multimodal_config: config_tools::MultimodalConfig,
     pub(crate) timezone: Tz,
     pub(crate) skill_session: crate::core::skills::CoreSkillSession<H>,
 }
@@ -256,7 +256,7 @@ impl<H: super::AgentHost> Agent<H> {
             .filter(|(hint, _)| self.available_hints.contains(*hint))
             .filter_map(|(hint, model)| {
                 let (provider, model) = model.split_once('/')?;
-                Some(agent_config::schema::ModelRouteConfig {
+                Some(config_routing::ModelRouteConfig {
                     hint: hint.clone(),
                     provider: provider.to_string(),
                     model: model.to_string(),
@@ -327,7 +327,7 @@ impl<H: super::AgentHost> Agent<H> {
     #[cfg(any(test, feature = "test-support"))]
     pub fn fixture_timezone(&mut self, timezone: chrono_tz::Tz) { self.timezone = timezone; }
     #[cfg(any(test, feature = "test-support"))]
-    pub fn fixture_routing(&mut self, classification: agent_config::schema::QueryClassificationConfig, hints: Vec<String>, routes: std::collections::HashMap<String,String>) {
+    pub fn fixture_routing(&mut self, classification: config_routing::QueryClassificationConfig, hints: Vec<String>, routes: std::collections::HashMap<String,String>) {
         self.classification_config = classification;
         self.available_hints = hints;
         self.route_model_by_hint = routes;

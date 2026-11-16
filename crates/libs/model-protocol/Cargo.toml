@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+url = "2"
 regex = "1"
 axum = { version = "0.8.8", default-features = false, features = ["json"] }
 serde_json = "1"

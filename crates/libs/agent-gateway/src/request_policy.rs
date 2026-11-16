@@ -11,7 +11,7 @@ use axum::{
 use std::time::Duration;
 
 /// 第三方 webhook 请求允许的最大正文大小（32 MiB）。
-pub const MAX_BODY_SIZE: usize = 32 * 1024 * 1024;
+pub use gateway_types::MAX_BODY_SIZE;
 /// 普通请求的默认超时秒数，用于阻止慢速请求长期占用连接。
 pub const REQUEST_TIMEOUT_SECS: u64 = 30;
 /// 聊天、工作流和任务计划 SSE 请求允许的最长执行秒数。

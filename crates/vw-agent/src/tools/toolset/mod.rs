@@ -218,7 +218,7 @@ _ => unreachable!("domain construction handled above"),
   crate::app::agent::skills::load_project_skills_with_config(workspace, config).into_iter().map(|skill| skill.name).collect()
  }
  fn connections_for_factory(workspace: &Path, session: Option<&str>) -> Arc<crate::plugins::McpSessionConnections> {
-  session.map(|id| crate::plugins::mcp_session_connections(id, workspace)).unwrap_or_default()
+  session.map(|id| crate::plugins::mcp_session_connections(id, workspace)).unwrap_or_else(|| Arc::new(crate::plugins::McpSessionConnections::new(crate::plugins::compat::mcp_connections::host())))
  }
  fn load_runtime_mcp_config(workspace: &Path) -> anyhow::Result<acp_config::ResolvedAcpxConfig> {
   block_on(super::mcp_common::load_resolved_runtime_mcp_config_from(workspace))
@@ -231,7 +231,7 @@ _ => unreachable!("domain construction handled above"),
 }
 
 impl tool_assembly::runtime::RuntimeHost for super::context::AgentContextHost {
- async fn load_project_config(tenant: &vw_api_transport::TenantScope, workspace: &Path) -> anyhow::Result<Config> { crate::config::get_project_for_tenant(tenant, workspace).await }
+ async fn load_project_config(tenant: &vw_api_transport::TenantScope, workspace: &Path) -> anyhow::Result<Config> { Ok(crate::config::get_project_for_tenant(tenant, workspace).await?) }
  fn mcp_connections(session: &str, root: &Path) -> Arc<crate::plugins::McpSessionConnections> { crate::plugins::mcp_session_connections(session, root) }
  fn discovery_state(discovery: &Self::ToolDiscoverySession) -> &tool_assembly::tool_search::ToolDiscoverySession { discovery }
  fn register_app(context: &ToolRuntimeContext, name: &str, result: &mut ToolCallResult) -> anyhow::Result<()> { crate::plugins::mcp_app_execution::register(context, name, result) }

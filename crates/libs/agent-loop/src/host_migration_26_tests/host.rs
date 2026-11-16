@@ -99,7 +99,7 @@ async fn run_tool_call_loop_with_skills(
     silent: bool,
     approval: Option<Arc<ApprovalManager>>,
     channel_name: &str,
-    multimodal_config: &agent_config::schema::MultimodalConfig,
+    multimodal_config: &config_tools::MultimodalConfig,
     max_iterations: usize,
     cancellation_token: Option<CancellationToken>,
     on_delta: Option<tokio::sync::mpsc::Sender<String>>,

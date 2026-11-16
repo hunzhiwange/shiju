@@ -163,14 +163,14 @@ fn parse_line(
         .filter(|v| *v >= 0 && latency.is_some_and(|l| *v <= l));
     let measurement = |v: i64| UsageMeasurement { value: v as f64, kind: UsageMeasurementKind::Estimated };
     let request = data["message"]["id"].as_str().filter(|id| !id.trim().is_empty())
-        .map(str::to_owned).unwrap_or_else(|| format!("{:x}", Sha256::digest(event.to_string().as_bytes())));
+        .map(str::to_owned).unwrap_or_else(|| format!("{}", hex::encode(Sha256::digest(event.to_string().as_bytes()))));
     let model = data["message"]["source"]["model"].as_str().filter(|m| !m.trim().is_empty()).map(str::to_owned);
     let identity = UsageSourceIdentity {
         target_host: source.target_host.clone(), app: source.app.clone(), instance_id: source.instance_id.clone(),
         file_identity: source.file_identity.clone(), kind: UsageSourceKind::Native,
         native_session_id: Some(session.to_owned()), native_request_id: request.clone(),
     };
-    let id = format!("dsh:{:x}", Sha256::digest(serde_json::to_vec(&(scope, &identity)).map_err(|_| invalid())?));
+    let id = format!("dsh:{}", hex::encode(Sha256::digest(serde_json::to_vec(&(scope, &identity)).map_err(|_| invalid())?)));
     Ok(Some((identity, StoredUsageRecord {
         record: UsageRecord {
             id: id.clone(), started_at_unix_seconds: UsageUnixSeconds(start.unwrap_or(end) / 1000),

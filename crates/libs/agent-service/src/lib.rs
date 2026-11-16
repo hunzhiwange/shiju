@@ -31,8 +31,6 @@ use agent_config::runtime::Config;
 use std::time::Duration;
 
 use anyhow::{Result, bail};
-use clap::Subcommand;
-use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 #[cfg(test)]
@@ -230,21 +228,7 @@ mod mod_tests;
 mod tests;
 
 /// 服务管理命令枚举。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Subcommand)]
-pub enum ServiceCommands {
-    /// 安装服务。
-    Install,
-    /// 启动服务。
-    Start,
-    /// 停止服务。
-    Stop,
-    /// 重启服务。
-    Restart,
-    /// 查询服务状态。
-    Status,
-    /// 卸载服务。
-    Uninstall,
-}
+pub use agent_cli_types::ServiceCommands;
 #[cfg(test)]
 #[path = "common_tests.rs"]
 mod common_tests;

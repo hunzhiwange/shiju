@@ -8,3 +8,6 @@ mod tool_normalization;
 pub mod utils;
 pub mod pi_jsonl;
 pub mod source;
+
+#[cfg(test)]
+mod blocks_tests;

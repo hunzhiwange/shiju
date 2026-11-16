@@ -160,7 +160,7 @@ fn migration_revision(state: &SkillInstallsState) -> Result<String> {
             )?,
         ));
     }
-    Ok(format!("{:x}", Sha256::digest(serde_json::to_vec(&(state, content, projections))?)))
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&(state, content, projections))?)))
 }
 
 fn capture_migration(

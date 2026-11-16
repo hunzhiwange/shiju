@@ -58,7 +58,7 @@ impl NativeCommandHost for NativeCommandAdapter<'_> {
 pub(crate) fn run_bound_command(
     request: &Request,
     context: &ToolRuntimeContext,
-    emit: &mut (impl FnMut(StreamEvent) -> bool + Send + 'static),
+    emit: &mut (impl FnMut(StreamEvent) -> bool + Send),
 ) -> bool {
     run_command(request, context, emit, None)
 }
@@ -67,7 +67,7 @@ pub(crate) fn run_video_command(
     request: &Request,
     context: &ToolRuntimeContext,
     skills: &[crate::skills::Skill],
-    emit: &mut (impl FnMut(StreamEvent) -> bool + Send + 'static),
+    emit: &mut (impl FnMut(StreamEvent) -> bool + Send),
 ) -> bool {
     let query = super::video_edit::entry::command_query(&request.query);
     match super::video_edit::parse_video_edit_command(&query) {
@@ -92,7 +92,7 @@ pub(crate) fn run_video_command(
 fn run_command(
     request: &Request,
     context: &ToolRuntimeContext,
-    emit: &mut (impl FnMut(StreamEvent) -> bool + Send + 'static),
+    emit: &mut (impl FnMut(StreamEvent) -> bool + Send),
     prepared: Option<(WorkflowRuntime, WorkflowRunRequest)>,
 ) -> bool {
     let host = NativeCommandAdapter { request, context };

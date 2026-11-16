@@ -11,7 +11,7 @@ impl GatewayAppProviderClient {
         host: &str,
         token: &str,
     ) -> Result<(vw_api_app_provider_edit::catalog::ProviderCatalog, Vec<AppProviderPresentationEntry>), String> {
-        let mut catalog = self.app_provider_catalog(app, host, token).await?;
+        let mut catalog = self.app_provider_catalog(app, host, token).await.map_err(|error| error.to_string())?;
         let presentation = self.app_provider_presentation_list(app).await?;
         catalog.rows.sort_by_key(|row| {
             let value = presentation.iter().find(|entry| entry.id == row.provider.id);

@@ -1,4 +1,4 @@
-use agent_log;
+use agent_log as log;
 use serde_json::{Map, Value};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};

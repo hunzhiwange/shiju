@@ -2,7 +2,7 @@ use super::dynamic_tool_store::PersistentToolPolicy;
 use super::store::SessionStore;
 use agent_database::GlobalDatabase;
 use agent_project::store::ProjectStore;
-use tool_assembly::catalog::ToolCatalog;
+use tool_catalog::catalog::ToolCatalog;
 use tool_types::{Tool, ToolResult};
 use anyhow::Result;
 use serde_json::{Value, json};

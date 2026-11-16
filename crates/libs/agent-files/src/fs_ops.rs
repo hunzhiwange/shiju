@@ -1,4 +1,4 @@
-use agent_bus;
+use agent_bus as bus;
 use base64::Engine;
 use serde_json::{Map, Value};
 use std::path::Path;

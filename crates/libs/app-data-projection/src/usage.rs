@@ -74,8 +74,8 @@ pub fn prepare(connection: &Connection, scope: &SourceScope, source: &SourceSnap
             instance_id: scope.principal_id().into(), kind: source_kind,
             file_identity: format!("cc-import:{namespace}"), native_session_id: optional(f,"session_id")?,
             native_request_id: request.into() };
-        let id = format!("cc-{:x}", Sha256::digest(serde_json::to_vec(&(scope.project(), &identity))
-            .map_err(|_| PreviewError::InvalidCandidate)?));
+        let id = format!("cc-{}", hex::encode(Sha256::digest(serde_json::to_vec(&(scope.project(), &identity))
+            .map_err(|_| PreviewError::InvalidCandidate)?)));
         let amount = text(f,"total_cost_usd")?;
         decimal(amount)?;
         let multiplier = text(f,"cost_multiplier")?;
@@ -127,7 +127,7 @@ fn current_values(connection: &Connection, scope: &SourceScope, rows: &[(UsageSo
             .map_err(|_| PreviewError::InvalidCandidate)).transpose()).collect()
 }
 fn revision(values: &[Option<Value>]) -> Result<String, PreviewError> {
-    Ok(format!("{:x}",Sha256::digest(serde_json::to_vec(values).map_err(|_| PreviewError::InvalidCandidate)?)))
+    Ok(format!("{}", hex::encode(Sha256::digest(serde_json::to_vec(values).map_err(|_| PreviewError::InvalidCandidate)?))))
 }
 fn text<'a>(v: &'a Value, key: &str) -> Result<&'a str, PreviewError> {
     v.get(key).and_then(Value::as_str).filter(|s| !s.trim().is_empty() && !s.contains('\0')).ok_or(PreviewError::InvalidCandidate)

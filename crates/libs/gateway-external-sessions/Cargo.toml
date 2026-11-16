@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+hex = "0.4"
 app-access-service = { path = "../app-access-service", version = "0.6.0" }
 agent-database = { path = "../agent-database", version = "0.6.0" }
 agent-paths = { path = "../agent-paths", version = "0.6.0" }

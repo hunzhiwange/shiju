@@ -76,10 +76,10 @@ pub struct AgentBuilder<H: super::AgentHost> {
     skills: Option<Vec<agent_skills::types::Skill>>,
     skills_prompt_mode: Option<agent_config::schema::SkillsPromptInjectionMode>,
     auto_save: Option<bool>,
-    classification_config: Option<agent_config::schema::QueryClassificationConfig>,
+    classification_config: Option<config_routing::QueryClassificationConfig>,
     available_hints: Option<Vec<String>>,
     route_model_by_hint: Option<HashMap<String, String>>,
-    multimodal_config: Option<agent_config::schema::MultimodalConfig>,
+    multimodal_config: Option<config_tools::MultimodalConfig>,
     timezone: Option<Tz>,
 }
 
@@ -206,7 +206,7 @@ impl<H: super::AgentHost> AgentBuilder<H> {
 
     pub fn classification_config(
         mut self,
-        classification_config: agent_config::schema::QueryClassificationConfig,
+        classification_config: config_routing::QueryClassificationConfig,
     ) -> Self {
         self.classification_config = Some(classification_config);
         self
@@ -224,7 +224,7 @@ impl<H: super::AgentHost> AgentBuilder<H> {
 
     pub fn multimodal_config(
         mut self,
-        multimodal_config: agent_config::schema::MultimodalConfig,
+        multimodal_config: config_tools::MultimodalConfig,
     ) -> Self {
         self.multimodal_config = Some(multimodal_config);
         self

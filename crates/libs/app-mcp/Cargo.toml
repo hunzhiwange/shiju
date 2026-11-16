@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+serde = "1"
 app-mcp-catalog = { path = "../app-mcp-catalog" }
 vw-api-app-identity = { path = "../api-app-identity" }
 vw-api-mcp-management = { path = "../api-mcp-management" }

@@ -96,7 +96,7 @@ pub(super) fn template(slug: &str, bytes: &[u8]) -> Result<PiPromptTemplate, PiT
     let content = std::str::from_utf8(bytes).map_err(|_| PiTemplateError::InvalidUtf8)?;
     Ok(PiPromptTemplate {
         slug: slug.into(), content: content.into(),
-        revision: format!("{:x}", Sha256::digest(bytes)),
+        revision: hex::encode(Sha256::digest(bytes)),
         summary: get_pi_prompt_template_summary(content),
     })
 }

@@ -31,3 +31,6 @@ pub use types::{AgentBody, WebhookBody};
 
 pub mod app_operations;
 pub mod tenant_scope;
+
+/// Maximum accepted gateway request body size.
+pub const MAX_BODY_SIZE: usize = 32 * 1024 * 1024;

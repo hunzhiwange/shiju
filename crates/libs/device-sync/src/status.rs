@@ -88,7 +88,8 @@ pub(super) fn initialize(database: GlobalDatabase, target: &DataManagementTarget
                     }
                 }
                 for status in interrupted {
-                    journal.history(status.transport).last_error = Some(status);
+                    let transport = status.transport;
+                    journal.history(transport).last_error = Some(status);
                 }
                 let payload = serde_json::to_string(&journal)?;
                 Ok((journal.records, Some(payload)))

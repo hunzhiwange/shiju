@@ -197,10 +197,7 @@ pub fn scan_agy_transcript(
             native_session_id: Some(session.to_owned()),
             native_request_id: step.to_string(),
         };
-        let id = format!(
-            "agy:{:x}",
-            Sha256::digest(serde_json::to_vec(&(scope, &identity)).map_err(|_| invalid())?)
-        );
+        let id = format!("agy:{}", hex::encode(Sha256::digest(serde_json::to_vec(&(scope, &identity)).map_err(|_| invalid())?)));
         let record = StoredUsageRecord {
             record: UsageRecord {
                 id: id.clone(),

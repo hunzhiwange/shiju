@@ -69,7 +69,7 @@ pub trait RunnerHost:
         selected: &ResolvedRequestModel,
         auto: bool,
         workspace: &Path,
-        sink: &mut impl FnMut(StreamEvent) -> bool,
+        sink: &mut (impl FnMut(StreamEvent) -> bool + Send),
     ) -> Option<(ToolRuntimeContext<Self::CtxHost>, Self::Admission)>;
     fn load_skills(
         workspace: &Path,
@@ -88,13 +88,13 @@ pub trait RunnerHost:
         req: &Request<Self>,
         ctx: &ToolRuntimeContext<Self::CtxHost>,
         skills: &[Skill],
-        sink: &mut impl FnMut(StreamEvent) -> bool,
+        sink: &mut (impl FnMut(StreamEvent) -> bool + Send),
     ) -> bool;
     #[cfg(not(target_arch = "wasm32"))]
     fn run_bound_command(
         req: &Request<Self>,
         ctx: &ToolRuntimeContext<Self::CtxHost>,
-        sink: &mut impl FnMut(StreamEvent) -> bool,
+        sink: &mut (impl FnMut(StreamEvent) -> bool + Send),
     ) -> bool;
     fn execution_tools(ctx: &ToolRuntimeContext<Self::CtxHost>) -> Vec<Box<dyn tool_types::Tool>>;
     fn tool_specs(ctx: &ToolRuntimeContext<Self::CtxHost>) -> Vec<tool_types::ToolSpec>;
@@ -134,7 +134,7 @@ pub trait RunnerHost:
     fn deliver_model_events(
         context: &ToolUseContext<Self::CtxHost>,
         messages: &mut Vec<Value>,
-    ) -> anyhow::Result<()>;
+    ) -> anyhow::Result<bool>;
     fn team_instructions(session: &str, enabled: bool) -> String;
 
     fn parallel_limit(ctx: &ToolRuntimeContext<Self::CtxHost>, agent: &str) -> usize;

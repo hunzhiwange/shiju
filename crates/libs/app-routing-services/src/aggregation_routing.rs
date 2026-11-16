@@ -30,14 +30,14 @@ impl AggregationModel {
 pub struct AggregationTarget {
     pub messages_api_key: bool,
     pub binding: VerifiedRouteBinding,
-    pub(crate) revision: String,
+    pub revision: String,
     pub provider_id: String,
     pub target: JsonTarget,
 }
 
 pub struct AggregationPublication {
     pub binding: VerifiedRouteBinding,
-    pub(crate) revision: String,
+    pub revision: String,
     pub state: AppState,
     pub models: Vec<AggregationModel>,
     pub default: AggregationTarget,

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use super::SessionScope;
 use crate::tools::{Tool, ToolSpec};
 pub use session_engine::runtime::dynamic_hosts::{HostRegistrationConflict, SessionHostCalls};
-pub(crate) pub(crate) struct HostTools;
+pub(crate) struct HostTools;
 impl session_engine::runtime::dynamic_hosts::HostTools for HostTools {
     type Context = crate::tools::context::AgentContextHost;
     fn client_tool(spec: ToolSpec, host: Arc<super::dynamic_calls::ClientToolHost>) -> anyhow::Result<Arc<dyn Tool>> { Ok(Arc::new(crate::tools::client_tool::ClientTool::new(spec, host)?)) }

@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+glob = "0.3"
 skill-core = { path = "../skill-core", version = "0.6.0" }
 acp-types = { path = "../acp-types", version = "0.6.0" }
 gateway-shiju-account = { path = "../gateway-shiju-account", version = "0.6.0" }

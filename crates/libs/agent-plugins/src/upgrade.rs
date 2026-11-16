@@ -75,7 +75,7 @@ fn prepare_with(
     if !state::key_valid(key) {
         bail!("invalid plugin upgrade identity");
     }
-    let _guard = state::lock(plugins)?;
+    let _guard = state::lock(plugins, crate::load_plugin_manifest)?;
     let root = plugins.canonicalize()?;
     let identity = identity(&root, key)?;
     let old = root.join(key);
@@ -105,7 +105,7 @@ fn prepare_with(
     })
 }
 pub fn activate_plugin_upgrade(preview: PluginUpgradePreview, close_plugin: &dyn Fn(&Path)) -> Result<()> {
-    let _guard = state::lock(&preview.root)?;
+    let _guard = state::lock(&preview.root, crate::load_plugin_manifest)?;
     let key = preview.identity.as_key();
     let destination = preview.root.join(&key);
     let staged = preview.staging.path().join("new").join(&key);
@@ -151,7 +151,7 @@ pub fn activate_plugin_upgrade(preview: PluginUpgradePreview, close_plugin: &dyn
     })();
     match result {
         Ok(()) => {
-            if let Err(error) = state::recover(&preview.root) {
+            if let Err(error) = state::recover(&preview.root, crate::load_plugin_manifest) {
                 tracing::warn!(%error, "committed plugin upgrade cleanup deferred");
             }
             Ok(())
@@ -160,7 +160,7 @@ pub fn activate_plugin_upgrade(preview: PluginUpgradePreview, close_plugin: &dyn
             journal.committed = false;
             state::write_journal(&preview.root, &journal, false)
                 .with_context(|| format!("{error:#}; failed to persist rollback intent"))?;
-            state::recover(&preview.root)
+            state::recover(&preview.root, crate::load_plugin_manifest)
                 .with_context(|| format!("{error:#}; upgrade rollback failed"))?;
             Err(error)
         }

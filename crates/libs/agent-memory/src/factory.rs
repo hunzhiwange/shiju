@@ -9,7 +9,7 @@ use crate::{SqliteMemory, snapshot};
 use crate::PostgresMemory;
 #[cfg(feature = "memory-mariadb")]
 use crate::MariadbMemory;
-use agent_config::schema::{EmbeddingRouteConfig, MemoryConfig, StorageProviderConfig};
+use agent_config::runtime_schema::{EmbeddingRouteConfig, MemoryConfig, StorageProviderConfig};
 use anyhow::Context;
 use std::{path::Path, sync::Arc};
 
@@ -216,7 +216,7 @@ pub fn create_embedding_provider_with_routes(
 ///
 /// ```no_run
 /// use std::path::Path;
-/// use agent_config::schema::MemoryConfig;
+/// use agent_config::runtime_schema::MemoryConfig;
 /// use agent_memory::create_memory;
 ///
 /// let config = MemoryConfig::default();
@@ -251,7 +251,7 @@ pub fn create_memory(
 ///
 /// ```no_run
 /// use std::path::Path;
-/// use agent_config::schema::{MemoryConfig, StorageProviderConfig};
+/// use agent_config::runtime_schema::{MemoryConfig, StorageProviderConfig};
 /// use agent_memory::create_memory_with_storage;
 ///
 /// let config = MemoryConfig::default();
@@ -312,7 +312,7 @@ pub fn create_memory_with_storage(
 ///
 /// ```no_run
 /// use std::path::Path;
-/// use agent_config::schema::{MemoryConfig, StorageProviderConfig, EmbeddingRouteConfig};
+/// use agent_config::runtime_schema::{MemoryConfig, StorageProviderConfig, EmbeddingRouteConfig};
 /// use agent_memory::create_memory_with_storage_and_routes;
 ///
 /// let config = MemoryConfig::default();
@@ -560,7 +560,7 @@ pub fn create_memory_with_storage_and_routes(
 ///
 /// ```no_run
 /// use std::path::Path;
-/// use agent_config::schema::MemoryConfig;
+/// use agent_config::runtime_schema::MemoryConfig;
 /// use agent_memory::create_response_cache;
 ///
 /// let config = MemoryConfig::default();

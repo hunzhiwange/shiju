@@ -92,7 +92,7 @@ impl GatewayDeviceSyncClient {
         let mut authorization = reqwest::header::HeaderValue::from_str(&format!("Bearer {token}"))
             .map_err(|_| DeviceSyncTasksError::InvalidToken)?;
         authorization.set_sensitive(true);
-        let mut url = Url::parse(self.transport.endpoint().base_url()).map_err(|_| DeviceSyncTasksError::InvalidTarget)?;
+        let mut url = Url::parse(&self.transport.endpoint().base_url()).map_err(|_| DeviceSyncTasksError::InvalidTarget)?;
         url.path_segments_mut().map_err(|_| DeviceSyncTasksError::InvalidTarget)?
             .pop_if_empty().extend(["v1", "agent-apps", "device-sync", "tasks", id]);
         let client = self.transport.native_transport().map_err(|_| DeviceSyncTasksError::Transport)?;

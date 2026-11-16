@@ -56,7 +56,7 @@ pub async fn query_remote_snapshot(
         etag: download.metadata.etag,
         manifest_sha256: {
             use sha2::{Digest, Sha256};
-            format!("{:x}", Sha256::digest(&download.bytes))
+            format!("{}", hex::encode(Sha256::digest(&download.bytes)))
         },
     }))
 }

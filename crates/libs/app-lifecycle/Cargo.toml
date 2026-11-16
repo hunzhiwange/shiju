@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+semver = "1"
 app-auth = { path = "../app-auth" }
 app-catalog = { path = "../app-catalog" }
 app-versions = { path = "../app-versions" }

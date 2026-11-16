@@ -37,7 +37,7 @@ pub trait UiHost: crate::message_host::MessageHost {
         tenant: &TenantScope,
         session: &str,
         project: Option<&str>,
-    ) -> std::io::Result<Option<session_ui_types::SessionAgentIdentity>>;
+    ) -> std::io::Result<Option<vw_api_chat_identity::SessionAgentIdentity>>;
     fn load_session_any_for_tenant(tenant: &TenantScope, id: &str) -> Option<ChatSession>;
     fn load_session_message_page_scoped_for_tenant(
         tenant: &TenantScope,

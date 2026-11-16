@@ -84,7 +84,7 @@ impl PostgresGatewaySkeyStore {
 }
 
 impl GatewaySkeyReplacement {
-    pub(crate) fn write_postgres(
+    pub fn write_postgres(
         &self,
         transaction: &mut ::postgres::Transaction<'_>,
         tenant: &TenantScope,

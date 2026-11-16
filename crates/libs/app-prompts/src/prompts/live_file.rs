@@ -88,7 +88,7 @@ pub fn read(
         None => hash.update(b"missing"),
         Some(content) => { hash.update(b"present\0"); hash.update(content.as_bytes()); }
     }
-    let revision = PromptRevision(format!("sha256:{:x}", hash.finalize()));
+    let revision = PromptRevision(format!("sha256:{}", hex::encode(hash.finalize())));
     let relative = target.file.strip_prefix(home).map_err(|_| LiveFileError::UnsafePath)?;
     Ok(PromptTargetPreview {
         resource: resource.clone(),

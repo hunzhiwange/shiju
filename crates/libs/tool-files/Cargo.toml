@@ -11,6 +11,7 @@ doctest = false
 rag-pdf = []
 
 [dependencies]
+tracing = "0.1"
 glob = "0.3"
 agent-multimodal = { path = "../agent-multimodal", version = "0.6.0" }
 base64 = "0.23"

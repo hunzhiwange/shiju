@@ -8,6 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+tempfile = "3"
+hex = "0.4"
+getrandom = "0.4"
 vw-api-computer-control = { path = "../api-computer-control", version = "0.6.0" }
 config-computer-control = { path = "../config-computer-control", version = "0.6.0" }
 office-control-sessions = { path = "../office-control-sessions", version = "0.6.0" }
@@ -36,5 +39,4 @@ gateway-pairing = { path = "../gateway-pairing", version = "0.6.0" }
 libc = "0.2"
 
 [dev-dependencies]
-tempfile = "3"
 tokio = { version = "1", features = ["test-util", "rt-multi-thread"] }

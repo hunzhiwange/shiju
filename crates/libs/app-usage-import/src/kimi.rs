@@ -98,7 +98,7 @@ pub fn scan_kimi_file(
                 .into_iter().flatten().any(|n| n > 0) { continue; }
             let Some(committed) = timestamp_ms(&record["time"]) else { continue; };
             let id = meta["messageId"].as_str().filter(|id| !id.is_empty()).map(str::to_owned)
-                .unwrap_or_else(|| format!("{:x}", Sha256::digest(record.to_string().as_bytes())));
+                .unwrap_or_else(|| format!("{}", hex::encode(Sha256::digest(record.to_string().as_bytes()))));
             // Only metadata and counters survive parsing, never prompts or tools.
             pending.push((id, meta, tokens, committed));
         }
@@ -122,7 +122,7 @@ pub fn scan_kimi_file(
             kind: UsageSourceKind::Native, native_session_id: Some(session.into()),
             native_request_id: format!("{agent}:{id}"),
         };
-        let record_id = format!("kimi:{:x}", Sha256::digest(serde_json::to_vec(&(scope, &identity)).map_err(|_| invalid())?));
+        let record_id = format!("kimi:{}", hex::encode(Sha256::digest(serde_json::to_vec(&(scope, &identity)).map_err(|_| invalid())?)));
         let value = StoredUsageRecord {
             record: UsageRecord {
                 id: record_id.clone(),

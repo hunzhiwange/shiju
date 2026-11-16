@@ -1,5 +1,6 @@
 //! 后台网关请求执行。
 
+use session_ui_types::ChatRole;
 use super::{
     ActiveStream,
     ActiveStreamKind,

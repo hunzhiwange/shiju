@@ -214,14 +214,14 @@ fn import_source(
             false,
         )
         .map_err(|_| McpFailureCode::PermissionDenied)?;
-        let accounts = AuthAccountStore::new(database.clone(), &owner.credential_root)
+        let accounts = AuthAccountStore::new(database.clone(), &owner.host.credential_root.clone().ok_or(McpFailureCode::TargetUnavailable)?)
             .map_err(|_| McpFailureCode::StorageUnavailable)?;
         Some(
             accounts
                 .managed_official_lease(
                     AuthAccountScope {
                         tenant,
-                        host: &owner.id,
+                        host: &owner.host.id,
                         principal: &owner.principal,
                         service: AuthService::ClaudeOfficial,
                     },

@@ -8,6 +8,8 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+zstd = "0.13"
+hex = "0.4"
 app-session-core = { path = "../app-session-core" }
 app-session-native = { path = "../app-session-native" }
 app-session-gemini = { path = "../app-session-gemini" }

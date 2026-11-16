@@ -3,6 +3,7 @@
 //! 本模块负责把一次 VibeWindow LLM 请求映射为 ACP prompt 运行：解析代理配置、
 //! 查找或创建 ACP 会话、转发 ACP 输出事件，并在会话变化等可恢复错误上执行一次明确重试。
 
+use std::sync::Arc;
 use serde_json::Value;
 use tokio::sync::mpsc;
 use acp_types::{AcpJsonRpcMessage, PromptRequest, SessionStrategy};

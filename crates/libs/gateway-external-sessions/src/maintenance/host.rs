@@ -31,7 +31,7 @@ fn storage() -> Result<GatewaySettingsStore, StatusCode> {
 }
 fn key(target: &HistoryMaintenanceTarget) -> Result<String, StatusCode> {
     let bytes = serde_json::to_vec(target).map_err(|_| StatusCode::BAD_REQUEST)?;
-    Ok(format!("{:x}", Sha256::digest(bytes)))
+    Ok(hex::encode(Sha256::digest(bytes)))
 }
 pub(super) fn options(target: &HistoryMaintenanceTarget) -> Result<Options, StatusCode> {
     storage()?
@@ -56,10 +56,10 @@ fn record_key(
         return Err(StatusCode::BAD_REQUEST);
     }
     Ok(format!(
-        "{}:{:x}:{:x}:{id}",
+        "{}:{}:{}:{id}",
         key(target)?,
-        Sha256::digest(owner.as_bytes()),
-        Sha256::digest(root.as_os_str().as_encoded_bytes())
+        hex::encode(Sha256::digest(owner.as_bytes())),
+        hex::encode(Sha256::digest(root.as_os_str().as_encoded_bytes()))
     ))
 }
 pub(super) fn save(
@@ -192,7 +192,7 @@ pub(super) fn execute(
     // A private administrator-owned transaction root also anchors the cross-process
     // history reservation. Do not hold AppWriteGuard here: migrations acquire it.
     let ledger = private_child(&private, "external-history")?;
-    let root_hash = format!("{:x}", Sha256::digest(root.as_os_str().as_encoded_bytes()));
+    let root_hash = hex::encode(Sha256::digest(root.as_os_str().as_encoded_bytes()));
     let lock = OpenOptions::new()
         .read(true)
         .write(true)
@@ -326,7 +326,7 @@ pub(super) fn set_options(target: &HistoryMaintenanceTarget, options: &Options) 
 
 /// Query only the server-selected private ledger; never create a generation.
 pub(super) fn backups(target: &HistoryMaintenanceTarget, root: &Path, private: &Path) -> Result<HistoryBackups, StatusCode> {
-    let root_hash = format!("{:x}", Sha256::digest(root.as_os_str().as_encoded_bytes()));
+    let root_hash = hex::encode(Sha256::digest(root.as_os_str().as_encoded_bytes()));
     let ledger = private.join("external-history");
     let directory = ledger.join(format!("{}-{root_hash}", key(target)?));
     for path in [&ledger, &directory] {

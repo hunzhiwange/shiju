@@ -74,7 +74,7 @@ pub fn scan_session(
         target_host: identity.target_host.clone(),
         app: "claude".into(),
         instance_id: identity.instance_id.clone(),
-        file_identity: format!("claude-file:{:x}", Sha256::digest(relative_path.as_bytes())),
+        file_identity: format!("claude-file:{}", hex::encode(Sha256::digest(relative_path.as_bytes()))),
     };
     let mut file = File::open(source.path())?;
     let parser = RefCell::new(Parser::default());
@@ -152,7 +152,7 @@ impl Parser {
             };
             let bytes =
                 serde_json::to_vec(&identity).map_err(|_| UsageCursorError::InvalidRecord)?;
-            let id = format!("claude:{:x}", Sha256::digest(bytes));
+            let id = format!("claude:{}", hex::encode(Sha256::digest(bytes)));
             let performance = context.performance(&message);
             let started = context
                 .timings

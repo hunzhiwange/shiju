@@ -3,7 +3,7 @@
 //! 管理定期和一次性计划任务。支持创建、列出、取消、暂停和恢复任务。
 
 use tool_types::{Tool, ToolResult};
-use agent_config::Config;
+use agent_config::runtime::Config;
 use agent_cron as cron;
 use agent_security::SecurityPolicy;
 use anyhow::Result;

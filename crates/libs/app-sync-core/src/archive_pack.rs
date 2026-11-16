@@ -162,7 +162,7 @@ mod native {
             return Err("skills archive size exceeds limit");
         }
         let artifact = SyncArtifact {
-            sha256: format!("{:x}", Sha256::digest(&bytes)),
+            sha256: format!("{}", hex::encode(Sha256::digest(&bytes))),
             size: bytes.len() as u64,
         };
         Ok(PackedSkillsArchive { bytes, artifact })

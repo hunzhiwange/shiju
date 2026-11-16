@@ -1,5 +1,6 @@
 //! Exact endpoint grants and conversion capabilities for model execution.
 use model_types::ApiInfo;
+use model_protocol::generation::GenerationTransport;
 use axum::http::StatusCode;
 use provider_protocol_routes::{ConversionSupport, EndpointGrant, ProtocolRoute, RouteBinding, RouteCapability, RouteRequest, select_route};
 use model_protocols::{ModelProtocol, ProtocolAuthentication, ProtocolEndpoint, ProtocolEvidence, ProtocolEvidenceKind, ProtocolModelScope};

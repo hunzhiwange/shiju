@@ -186,7 +186,7 @@ impl DshFiles {
         )
     }
 
-    pub(crate) fn apply_checked(
+    pub fn apply_checked(
         &mut self,
         tx: &ProviderTransactions,
         tenant: &vw_api_transport::TenantScope,

@@ -61,7 +61,7 @@ impl<H: SessionHost> SessionTool<H> {
     }
 
     fn tenant_scope() -> TenantScope {
-        current_tool_use_context()
+        current_tool_use_context::<H::Context>()
             .map_or_else(H::tenant, |context| context.tenant_scope())
     }
 
@@ -160,7 +160,7 @@ impl<H: SessionHost> SessionTool<H> {
     }
 
     fn inherited_model_ref() -> Option<String> {
-        let context = current_tool_use_context()?;
+        let context = current_tool_use_context::<H::Context>()?;
         if context.model_selected_by_auto() {
             return None;
         }

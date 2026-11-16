@@ -273,11 +273,11 @@ fn native_preview(
             false,
         )
         .map_err(access_error)?;
-        let accounts = AuthAccountStore::new(database.clone(), &account_host.credential_root)
+        let accounts = AuthAccountStore::new(database.clone(), &account_host.host.credential_root.clone().ok_or_else(|| failure(StatusCode::SERVICE_UNAVAILABLE, McpFailureCode::TargetUnavailable))?)
             .map_err(unavailable)?;
         let owner = AuthAccountScope {
             tenant: &tenant,
-            host: &account_host.id,
+            host: &account_host.host.id,
             principal: &account_host.principal,
             service: AuthService::ClaudeOfficial,
         };

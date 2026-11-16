@@ -199,7 +199,7 @@ fn fingerprint(root: &Path) -> Result<String> {
     }
     let mut hash = Sha256::new();
     visit(root, &mut hash, &mut 0, &mut 0, 0)?;
-    Ok(format!("{:x}", hash.finalize()))
+    Ok(hex::encode(hash.finalize()))
 }
 
 // Link ownership covers the link itself, never the mutable SSOT contents.
@@ -213,7 +213,7 @@ pub fn binding_fingerprint(path: &Path, link_target: Option<&Path>) -> Result<St
             let mut hash = Sha256::new();
             hash.update(b"skill-symlink\0");
             hash.update(target.as_os_str().as_bytes());
-            Ok(format!("{:x}", hash.finalize()))
+            Ok(hex::encode(hash.finalize()))
         }
     }
 }

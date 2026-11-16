@@ -4,11 +4,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use app_auth_codex::identity::extract_codex_auth_user_identity;
 
 use super::codex_login_material::{
     codex_auth_has_credential_login_material, codex_auth_has_login_material,
     codex_auth_has_openai_account_material, codex_live_auth_is_stale_third_party_residue,
-    extract_codex_auth_api_key, extract_codex_auth_user_identity,
+    extract_codex_auth_api_key,
 };
 
 pub const STASH_FILENAME: &str = "shiju-login-stash.json";

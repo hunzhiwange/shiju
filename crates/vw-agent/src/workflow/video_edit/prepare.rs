@@ -6,8 +6,15 @@ use std::path::{Path, PathBuf};
 use tokio_util::sync::CancellationToken;
 use workflow_video_edit::context::VideoContext;
 
+#[derive(Clone)]
+pub(crate) struct NativeVideoContext(pub ToolRuntimeContext);
+impl std::ops::Deref for NativeVideoContext {
+    type Target = ToolRuntimeContext;
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
 #[async_trait::async_trait]
-impl VideoContext for ToolRuntimeContext {
+impl VideoContext for NativeVideoContext {
     fn question_tool_id(&self) -> &'static str { crate::tools::ASK_USER_QUESTION_TOOL_ID }
     fn workspace_root(&self) -> Option<PathBuf> { self.tool_use_context().workspace_root() }
     fn workspace_dir(&self) -> PathBuf { self.path_security_policy().workspace_dir.clone() }

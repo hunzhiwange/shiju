@@ -1,6 +1,6 @@
 //! 将网关日期字段转换为领域调度；预览与写入共享校验和窗口计算。
 use crate::requests::{CronAddBody, CronUpdateBody};
-use agent_cron::{self, CronJob, Schedule};
+use agent_cron::{self as cron, CronJob, Schedule};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use chrono_tz::Tz;
 use serde_json::{Value, json};

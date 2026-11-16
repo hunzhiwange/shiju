@@ -3,6 +3,7 @@
 //! 本模块是两套事件语汇的唯一转换边界：先用 Gateway 事件更新 `TuiState`，
 //! 再投影为产品中立的 `V3Event`。未支持的附件或失配审批会显式失败。
 
+use self::projection::{v3_terminal_event, tool_payload_text};
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers};
 use vw_api_tools::{ToolResultContentDto, ToolResultDto};
 use vw_gateway_client::{

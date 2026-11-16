@@ -96,7 +96,7 @@ impl ArtifactVerifier {
         if self.received != self.declaration.size {
             return Err("artifact download is truncated");
         }
-        let digest = format!("{:x}", self.hasher.finalize());
+        let digest = format!("{}", hex::encode(self.hasher.finalize()));
         if digest != self.declaration.sha256 {
             return Err("artifact SHA256 mismatch");
         }

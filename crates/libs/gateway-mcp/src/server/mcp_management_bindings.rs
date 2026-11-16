@@ -163,7 +163,7 @@ async fn execute(
                 &request.target.target_host_id,
                 service,
             ) {
-                if owner.credential_root == root {
+                if owner.host.credential_root.as_ref() == Some(&root) {
                     authorized.push((service, owner));
                 }
             }
@@ -186,7 +186,7 @@ async fn execute(
                         authorized.iter().find(|(service, _)| *service == reference.service).map(
                             |(service, owner)| AuthAccountScope {
                                 tenant: &tenant,
-                                host: &owner.id,
+                                host: &owner.host.id,
                                 principal: &owner.principal,
                                 service: *service,
                             },

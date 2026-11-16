@@ -21,7 +21,7 @@ pub(crate) async fn build(
             model: request.model.clone(),
             abort_token: request.abort_token.clone(),
         },
-        context,
+        &super::prepare::NativeVideoContext(context.clone()),
         &NativeVideoEntryHost { #[cfg(test)] session: &request.session, context, skills },
     ).await?;
     let runtime = WorkflowRuntime {

@@ -7,7 +7,7 @@
 use tool_types::{
     Tool, ToolCallResult, ToolCallTelemetry, ToolRenderHint, ToolResult, ToolSpec,
 };
-use agent_config::runtime::{self, Config};
+use agent_config::runtime::{self as config, Config};
 use agent_security::SecurityPolicy;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

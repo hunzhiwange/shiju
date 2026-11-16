@@ -145,7 +145,7 @@ fn hash_files(root: &Path, files: &[PathBuf]) -> io::Result<String> {
         }
         hash.update(b"\0");
     }
-    Ok(format!("{:x}", hash.finalize()))
+    Ok(hex::encode(hash.finalize()))
 }
 
 /// Missing directories invalidate cached hashes. Existing trees are read afresh.

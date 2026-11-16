@@ -225,7 +225,7 @@ impl McpCatalogStore {
 }
 fn fingerprint(value: &impl serde::Serialize) -> Result<String, McpFailureCode> {
     let bytes = serde_json::to_vec(value).map_err(|_| McpFailureCode::InvalidDefinition)?;
-    Ok(format!("{:x}", Sha256::digest(bytes)))
+    Ok(hex::encode(Sha256::digest(bytes)))
 }
 fn comparable(payload: &str) -> Result<serde_json::Value, PreviewError> {
     let mut stored: StoredCatalogRecord =

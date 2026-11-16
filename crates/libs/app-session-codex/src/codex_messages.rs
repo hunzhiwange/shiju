@@ -20,6 +20,15 @@ use super::codex_items::{
     ResultSpec, Str,
 };
 use app_session_core::pi_jsonl::{JsonlSpan, LineSpans};
+/// Maximum prefix length inspected before falling back to full JSON parsing.
+const SNIFF_BYTES: usize = 512;
+const INJECTED_USER_PREFIXES: [&str; 4] = [
+    "# AGENTS.md instructions",
+    "<environment_context>",
+    "<user_instructions>",
+    "<turn_aborted>",
+];
+
 pub fn load_messages(path: &Path) -> Result<Vec<SessionMessage>, String> {
     let reader = codex_rollout_file::open_reader(path)
         .map_err(|e| format!("Failed to open session file: {e}"))?;
@@ -442,3 +451,7 @@ fn is_image_wrapper(text: &str) -> bool {
     text == "</image>"
         || (text.starts_with("<image ") && text.ends_with('>') && !text.contains('\n'))
 }
+
+#[cfg(test)]
+#[path = "codex_messages_tests.rs"]
+mod tests;

@@ -1,5 +1,6 @@
 //! 当前聊天和项目的会话选择、恢复与归档；所有权校验先于绑定替换。
 use super::*;
+use channel_support::routing_context::set_route_selection;
 use super::session_commands::{effort_levels, handle_clear_session, handle_new_session};
 use super::task_mode::set_sender_task_mode;
 

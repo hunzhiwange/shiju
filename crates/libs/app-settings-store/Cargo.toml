@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+hex = "0.4"
 app-skills = { path = "../app-skills", version = "0.6.0" }
 app-availability = { path = "../app-availability", version = "0.6.0" }
 app-provider-validation = { path = "../app-provider-validation", version = "0.6.0" }

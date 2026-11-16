@@ -65,31 +65,31 @@ pub struct SkillMarketInstallSelectionDto {
 
 #[derive(Serialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct SkillMarketInstallRequest {
-    pub(super) project_path: String,
-    pub(super) source: String,
-    pub(super) namespace: String,
-    pub(super) slug: String,
-    pub(super) version: String,
+pub struct SkillMarketInstallRequest {
+    pub project_path: String,
+    pub source: String,
+    pub namespace: String,
+    pub slug: String,
+    pub version: String,
 }
 
 #[derive(Serialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct SkillMarketMultiInstallRequest {
-    pub(super) project_path: String,
-    pub(super) source: String,
-    pub(super) namespace: String,
-    pub(super) slug: String,
-    pub(super) version: String,
-    pub(super) installations: Vec<SkillMarketInstallSelectionDto>,
+pub struct SkillMarketMultiInstallRequest {
+    pub project_path: String,
+    pub source: String,
+    pub namespace: String,
+    pub slug: String,
+    pub version: String,
+    pub installations: Vec<SkillMarketInstallSelectionDto>,
 }
 
 #[derive(Serialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct SkillMarketSkillSetInstallRequest {
-    pub(super) project_path: String,
-    pub(super) source: String,
-    pub(super) slug: String,
+pub struct SkillMarketSkillSetInstallRequest {
+    pub project_path: String,
+    pub source: String,
+    pub slug: String,
 }
 
 /// Sort orders supported by the unified skill catalog.

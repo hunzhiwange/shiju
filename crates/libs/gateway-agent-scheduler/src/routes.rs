@@ -3,6 +3,7 @@
 use anyhow::Result;
 use gateway_types::ApiError;
 use task_scheduler_core::domain::AgentSchedulerContext;
+use vw_api_agent_scheduler::AgentSchedulerOutboxDrainResponse as AgentSchedulerProjectOutboxDrainResponse;
 use vw_api_agent_scheduler::{
     AgentSchedulerBulkCommandRequest,
     AgentSchedulerBulkCommandResponse,

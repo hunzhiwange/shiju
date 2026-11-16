@@ -8,6 +8,9 @@ pub struct WorktreeHost;
 struct Guard { _tree: tool_shell::shell::processes::termination::ProcessTree }
 impl ProcessGuard for Guard {}
 impl Host for WorktreeHost {
+    fn bootstrap(&self, _directory: std::path::PathBuf) -> crate::host::ScopedFuture<'static> {
+        Box::pin(async { Ok(()) })
+    }
     fn with_tenant_scope<'a>(&self, tenant: TenantScope, future: crate::host::ScopedFuture<'a>) -> crate::host::ScopedFuture<'a> {
         Box::pin(session_store::ui_store::with_tenant_scope(tenant, future))
     }

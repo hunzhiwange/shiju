@@ -31,7 +31,7 @@ impl session_engine::runner_host::RunnerHost for AgentRunnerHost {
     type Stream = super::llm_runner::AgentLlmStreamHost;
     type Prefetch = super::prefetch::AgentPrefetchHost;
     fn config() -> anyhow::Result<Config> {
-        prompt::block_on(crate::config::get_current())
+        Ok(prompt::block_on(crate::config::get_current())?)
     }
     fn apply_binding(session: &str, config: &mut Config) -> anyhow::Result<()> {
         prompt::block_on(crate::session::agent_binding::apply_to_config(session, config))
@@ -71,7 +71,7 @@ impl session_engine::runner_host::RunnerHost for AgentRunnerHost {
         selected: &ResolvedRequestModel,
         auto: bool,
         workspace: &Path,
-        sink: &mut impl FnMut(StreamEvent) -> bool,
+        sink: &mut (impl FnMut(StreamEvent) -> bool + Send),
     ) -> Option<(ToolRuntimeContext, Self::Admission)> {
         admission::admit_context(req, config, defaults, selected, auto, workspace, sink)
     }
@@ -96,7 +96,7 @@ impl session_engine::runner_host::RunnerHost for AgentRunnerHost {
         req: &Request,
         ctx: &ToolRuntimeContext,
         skills: &[crate::skills::Skill],
-        sink: &mut impl FnMut(StreamEvent) -> bool,
+        sink: &mut (impl FnMut(StreamEvent) -> bool + Send),
     ) -> bool {
         crate::workflow::native::run_video_command(req, ctx, skills, sink)
     }
@@ -104,7 +104,7 @@ impl session_engine::runner_host::RunnerHost for AgentRunnerHost {
     fn run_bound_command(
         req: &Request,
         ctx: &ToolRuntimeContext,
-        sink: &mut impl FnMut(StreamEvent) -> bool,
+        sink: &mut (impl FnMut(StreamEvent) -> bool + Send),
     ) -> bool {
         crate::workflow::native::run_bound_command(req, ctx, sink)
     }
@@ -171,7 +171,7 @@ impl session_engine::runner_host::RunnerHost for AgentRunnerHost {
     fn deliver_model_events(
         context: &ToolUseContext,
         messages: &mut Vec<Value>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<bool> {
         crate::session::child_agent::coordinator::global_child_agent_coordinator()
             .deliver_model_events(context, messages)
     }

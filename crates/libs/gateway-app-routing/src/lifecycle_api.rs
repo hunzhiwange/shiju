@@ -89,7 +89,7 @@ impl GatewayAppRoutingClient {
             if path.iter().any(|segment| matches!(*segment, "" | "." | "..")) {
                 return Err(AppRoutingError::InvalidRequest);
             }
-            let mut url = reqwest::Url::parse(self.transport.endpoint().base_url())
+            let mut url = reqwest::Url::parse(&self.transport.endpoint().base_url())
                 .map_err(|_| AppRoutingError::InvalidRequest)?;
             url.path_segments_mut()
                 .map_err(|_| AppRoutingError::InvalidRequest)?

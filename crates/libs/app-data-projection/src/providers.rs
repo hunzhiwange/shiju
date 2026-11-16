@@ -38,7 +38,7 @@ pub fn revision(rows: &[ProviderRow]) -> Result<String, PreviewError> {
         if values.insert(key, &row.value).is_some() { return Err(PreviewError::InvalidCandidate); }
     }
     let bytes = serde_json::to_vec(&values).map_err(|_| PreviewError::InvalidCandidate)?;
-    Ok(format!("{:x}", Sha256::digest(bytes)))
+    Ok(format!("{}", hex::encode(Sha256::digest(bytes))))
 }
 pub fn key(app: AppId, id: &str) -> Result<String, PreviewError> {
     app_providers::providers::validate_identity(id).map_err(|_| PreviewError::InvalidCandidate)?;
@@ -214,5 +214,5 @@ fn normalize(app: AppId, name: &str, settings: &Value, before: Option<&Value>) -
 }
 
 fn fingerprint(value: &Value) -> Value {
-    json!({"content":format!("{:x}", Sha256::digest(value.to_string().as_bytes()))})
+    json!({"content":format!("{}", hex::encode(Sha256::digest(value.to_string().as_bytes())))})
 }

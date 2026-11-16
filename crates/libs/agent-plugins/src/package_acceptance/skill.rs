@@ -1,5 +1,5 @@
 use super::{digest, public_original};
-use crate::{install_plugin_from_marketplace, activate_plugin_upgrade, prepare_plugin_upgrade};
+use crate::{install_plugin_from_marketplace, prepare_plugin_upgrade};
 use std::{path::Path, future::Future};
 /// Run the original package lifecycle with the application's real skill invocation.
 pub async fn lifecycle<F, Fut>(fixtures: &Path, invoke: F,
@@ -34,7 +34,7 @@ where F: FnOnce(agent_config::runtime::Config, String) -> Fut,
     crate::install::set_plugin_enabled(&plugins, "superpowers@public", true, close_plugin).unwrap();
     let preview =
         prepare_plugin_upgrade(upgrade.to_str().unwrap(), &plugins, "superpowers@public").unwrap();
-    activate_plugin_upgrade(preview).unwrap();
+    crate::upgrade::activate_plugin_upgrade(preview, close_plugin).unwrap();
     assert_eq!(digest(&installed.installed_dir), next);
     crate::install::remove_installed_plugin(&plugins, "superpowers@public", close_plugin).unwrap();
     assert!(!installed.installed_dir.exists());

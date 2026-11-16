@@ -16,6 +16,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 agent-config = { path = "../agent-config", version = "0.6.0", features = ["test-support"] }
 
 [dependencies]
+session-store = { path = "../session-store", version = "0.6.0" }
 agent-skills = { path = "../agent-skills", version = "0.6.0" }
 permission-runtime = { path = "../permission-runtime", version = "0.6.0" }
 question-types = { path = "../question-types", version = "0.6.0" }

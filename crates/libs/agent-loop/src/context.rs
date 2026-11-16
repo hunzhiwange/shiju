@@ -6,7 +6,7 @@
 //! - 基于相关性评分过滤低质量记忆
 //! - 构建格式化的上下文字符串供 Agent 使用
 
-use agent_memory::{self, Memory};
+use agent_memory::{self as memory, Memory};
 use std::fmt::Write;
 
 #[cfg(test)]

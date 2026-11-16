@@ -144,7 +144,7 @@ pub struct NativeAgentDefaults {
     pub permission_fixed: bool,
 }
 
-pub async fn native_agent_defaults<H: NativeDefaultsHost>(
+pub async fn native_agent_defaults<H: NativeDefaultsHost + crate::admission_host::AdmissionHost>(
     config: &agent_config::runtime::Config,
     key: &str,
     explicit_model: Option<&str>,

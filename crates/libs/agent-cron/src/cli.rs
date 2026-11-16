@@ -5,63 +5,8 @@ use agent_config::runtime::Config;
 use agent_security::SecurityPolicy;
 use anyhow::{Result, bail};
 
-use clap::Subcommand;
 
-#[derive(Debug, Clone, Subcommand)]
-/// 定时任务命令行支持的操作。
-pub enum CronCommands {
-    /// List all scheduled jobs
-    List,
-    /// Add a new cron job with a cron expression
-    Add {
-        /// Cron expression (e.g. '0 9 * * 1-5')
-        expression: String,
-        /// Timezone (e.g. America/New_York)
-        #[arg(long)]
-        tz: Option<String>,
-        /// Command to execute
-        command: String,
-    },
-    /// Add a one-shot job at a specific time (RFC 3339)
-    AddAt {
-        /// RFC 3339 timestamp (e.g. 2025-01-15T14:00:00Z)
-        at: String,
-        /// Command to execute
-        command: String,
-    },
-    /// Add a job that runs every N milliseconds
-    AddEvery {
-        /// Interval in milliseconds
-        every_ms: u64,
-        /// Command to execute
-        command: String,
-    },
-    /// Run a command once after a delay
-    Once {
-        /// Delay (e.g. 30m, 1h)
-        delay: String,
-        /// Command to execute
-        command: String,
-    },
-    /// Remove a job by ID
-    Remove { id: String },
-    /// Update an existing job
-    Update {
-        id: String,
-        #[arg(long)]
-        expression: Option<String>,
-        #[arg(long)]
-        tz: Option<String>,
-        #[arg(long)]
-        command: Option<String>,
-        #[arg(long)]
-        name: Option<String>,
-    },
-    /// Pause a job by ID
-    Pause { id: String },
-    /// Resume a job by ID
-    Resume { id: String },
-}
+pub use agent_cli_types::CronCommands;
 
 #[allow(clippy::needless_pass_by_value)]
 /// 执行一个定时任务命令并输出结果。

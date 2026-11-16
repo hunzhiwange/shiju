@@ -26,18 +26,13 @@ pub(crate) async fn prepare_session_tools(
 pub(super) fn prune_revoked_mounts(tools: SessionToolset) -> Result<SessionToolset, BackendError> {
     let Some(connections) = tools.mcp_connections() else { return Ok(tools) };
     let Some(leases) = &connections.acp_mounts else { return Ok(tools) };
-    let revoked =
-        leases.revoked_names().map_err(|error| BackendError::Internal(error.to_string()))?;
-    if revoked.is_empty() {
-        return Ok(tools);
+    let mut current = Vec::new();
+    for tool in tools.tools() {
+        if let Some(name) = tool.spec().identity.namespace.as_deref()
+            && !leases.is_current(name).map_err(|error| BackendError::Internal(error.to_string()))? {
+            continue;
+        }
+        current.push(tool.clone());
     }
-    let current = tools
-        .tools()
-        .iter()
-        .filter(|tool| {
-            !tool.spec().identity.namespace.as_deref().is_some_and(|name| revoked.contains(name))
-        })
-        .cloned()
-        .collect();
     Ok(tools.with_catalog(Arc::new(ToolCatalogSnapshot::from_runtime_tools(current))))
 }

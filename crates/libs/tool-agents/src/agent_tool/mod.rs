@@ -101,7 +101,7 @@ impl<H: AgentHost> AgentTool<H> {
     }
 
     fn inherited_model_ref() -> Option<String> {
-        let context = current_tool_use_context()?;
+        let context = current_tool_use_context::<H::Context>()?;
         if context.model_selected_by_auto() {
             return None;
         }
@@ -193,7 +193,7 @@ impl<H: AgentHost> AgentTool<H> {
         let coordinator = self.coordinator.clone();
         let mut followups = coordinator.attach_continuation(&child_session_id);
         let execute_stream = self.child_agent_stream_executor.clone();
-        let parent_abort = current_tool_use_context()
+        let parent_abort = current_tool_use_context::<H::Context>()
             .and_then(|context| context.abort_token().cloned())
             .unwrap_or_default();
         let tenant = H::tenant();
@@ -482,7 +482,7 @@ impl<H: AgentHost> AgentTool<H> {
                 allowed_tools: agent_config.allowed_tools.clone(),
                 default_allowed_skills: agent_config.allowed_skills.clone(),
                 skill_policy: agent_config.skill_policy,
-                trusted_user_selected_skills: current_tool_use_context()
+                trusted_user_selected_skills: current_tool_use_context::<H::Context>()
                     .map(|context| context.trusted_user_selected_skills().iter().cloned().collect())
                     .unwrap_or_default(),
             },
@@ -581,7 +581,7 @@ impl<H: AgentHost> AgentTool<H> {
         self.report_child_created(&prepared);
         let PreparedChildRun { parent_session_id, agent, task, created } = prepared;
         self.coordinator.mark_running(&parent_session_id, &child_session_id)?;
-        let parent_abort = current_tool_use_context()
+        let parent_abort = current_tool_use_context::<H::Context>()
             .and_then(|context| context.abort_token().cloned())
             .unwrap_or_default();
         let execution = tokio::select! {

@@ -28,7 +28,7 @@ pub struct RoundRequest<'a> {
     pub model: &'a str,
     pub temperature: f64,
     pub channel_name: &'a str,
-    pub multimodal_config: &'a agent_config::schema::MultimodalConfig,
+    pub multimodal_config: &'a config_tools::MultimodalConfig,
     pub cancellation_token: Option<&'a CancellationToken>,
     pub hooks: Option<&'a agent_hooks::HookRunner>,
     pub tool_specs: &'a [ToolSpec],
@@ -114,7 +114,7 @@ pub async fn run_tool_call_loop_with_skills<H, C, T>(
     silent: bool,
     approval: Option<Arc<ApprovalManager>>,
     channel_name: &str,
-    multimodal_config: &agent_config::schema::MultimodalConfig,
+    multimodal_config: &config_tools::MultimodalConfig,
     max_iterations: usize,
     cancellation_token: Option<CancellationToken>,
     on_delta: Option<tokio::sync::mpsc::Sender<String>>,
@@ -503,7 +503,7 @@ where
 async fn prepare_legacy_image_turn(
     history: &[ChatMessage],
     model: &str,
-    multimodal_config: &agent_config::schema::MultimodalConfig,
+    multimodal_config: &config_tools::MultimodalConfig,
     extractor: &dyn ImageTextExtractor,
 ) -> Result<Option<agent_multimodal::context::ImageTurnContext>> {
     use agent_multimodal::assets::{ImageAssetScope, ImageAssetStore};

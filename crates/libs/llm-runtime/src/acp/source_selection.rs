@@ -22,7 +22,7 @@ pub async fn select<H: SelectionHost>(
         return Err("Unknown ACP agent".into());
     }
     let mut options = AcpSessionOptions::default();
-    super::controls::annotate_model_source(&mut options, &update.agent);
+    H::annotate_model_source(&mut options, &update.agent);
     if !options.model_source_capabilities.iter().any(|capability| {
         matches!(capability, AcpModelSourceCapability::Supported { source } if *source == update.selection.source)
     }) {
@@ -94,6 +94,7 @@ pub async fn select<H: SelectionHost>(
 
 /// Trusted catalog resolution for the existing source-selection call path.
 pub trait SelectionHost: super::host::Host {
+    fn annotate_model_source(options: &mut AcpSessionOptions, agent: &str);
     fn resolve_model(model: Option<String>) -> super::host::HostFuture<'static, Result<model_types::Model, String>>;
     fn provider(id: &str) -> super::host::HostFuture<'_, anyhow::Result<Option<model_types::Info>>>;
 }

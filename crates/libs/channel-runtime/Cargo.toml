@@ -113,3 +113,7 @@ optional = true
 [dependencies.tempfile]
 version = "3"
 optional = true
+
+[dependencies.agent-cli-types]
+path = "../agent-cli-types"
+version = "0.6.0"

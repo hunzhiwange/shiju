@@ -6,7 +6,7 @@ use anyhow::{Result, bail};
 use vw_api_transport::id::ProjectScope;
 
 use super::store::SessionStore;
-use tool_assembly::catalog::{ToolCatalog, ToolCatalogSnapshot};
+use tool_catalog::catalog::{ToolCatalog, ToolCatalogSnapshot};
 use tool_types::Tool;
 
 /// Runtime-owned policy. External requests and model input cannot grant this permission.

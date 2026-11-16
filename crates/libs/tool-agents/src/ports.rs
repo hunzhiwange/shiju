@@ -7,6 +7,7 @@ use session_port::{child_agent::*, task_session::*};
 
 #[async_trait::async_trait]
 pub trait ChildCoordinator: Clone + Send + Sync + 'static {
+    type Context: tool_context::host::ContextHost;
     fn team_capacity(&self, session_id: &str) -> Arc<Semaphore>;
     fn track_execution(
         &self,
@@ -80,11 +81,11 @@ pub trait ChildCoordinator: Clone + Send + Sync + 'static {
     fn begin_followup(&self, parent: &str, child: &str, prompt: &str) -> Result<()>;
     async fn team_snapshots(
         &self,
-        context: &ToolUseContext,
+        context: &ToolUseContext<Self::Context>,
     ) -> Result<Vec<ChildAgentTaskSnapshot>>;
     async fn send_team_message(
         &self,
-        context: &ToolUseContext,
+        context: &ToolUseContext<Self::Context>,
         target: &str,
         turn: u64,
         kind: TeamMessageKind,
@@ -92,7 +93,7 @@ pub trait ChildCoordinator: Clone + Send + Sync + 'static {
     ) -> Result<TeamMessage>;
     async fn wait_team_activity(
         &self,
-        context: &ToolUseContext,
+        context: &ToolUseContext<Self::Context>,
         timeout: Duration,
         cancellation: &CancellationToken,
     ) -> Result<TeamActivity>;
@@ -157,7 +158,8 @@ pub trait ChildRun: Clone + Send + Sync + 'static {
 
 #[async_trait::async_trait]
 pub trait AgentHost: Send + Sync + 'static {
-    type Coordinator: ChildCoordinator;
+    type Context: tool_context::host::ContextHost;
+    type Coordinator: ChildCoordinator<Context = Self::Context>;
     type Run: ChildRun;
     type Error: std::fmt::Display + Send + Sync + 'static;
     fn coordinator() -> Self::Coordinator;
@@ -174,6 +176,7 @@ pub trait AgentHost: Send + Sync + 'static {
 
 #[async_trait::async_trait]
 pub trait SessionHost: Send + Sync + 'static {
+    type Context: tool_context::host::ContextHost;
     type Coordinator: TaskCoordinator;
     type Error: std::fmt::Display + Send + Sync + 'static;
     fn coordinator() -> Self::Coordinator;
@@ -192,6 +195,7 @@ pub trait SessionHost: Send + Sync + 'static {
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
 pub trait DelegateHost: Send + Sync + 'static {
+    type Context: tool_context::host::ContextHost;
     fn tools(parent: &[Arc<dyn Tool>], config: &DelegateAgentConfig, trusted: &[String]) -> Vec<Box<dyn Tool>>;
     async fn run_loop(provider: &dyn Provider, history: &mut Vec<ChatMessage>, tools: &[Box<dyn Tool>], observer: &dyn Observer, provider_name: &str, model: &str, temperature: f64, multimodal: &MultimodalConfig, max_iterations: usize, security: Arc<SecurityPolicy>) -> Result<String>;
 }

@@ -570,52 +570,9 @@ fn truncate_content(s: &str, max_len: usize) -> String {
 #[path = "tests.rs"]
 mod tests;
 
-use clap::Subcommand;
-use serde::{Deserialize, Serialize};
 
 /// 内存管理命令枚举
 ///
 /// 定义所有支持的内存操作命令，作为 clap 子命令使用。
 /// 每个变体对应一个具体的内存管理功能。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Subcommand)]
-pub enum MemoryCommands {
-    /// 列出内存条目（支持过滤和分页）
-    ///
-    /// 可按分类和会话 ID 过滤，默认每页显示 50 条记录。
-    List {
-        /// 按分类过滤（如 core、daily、conversation）
-        #[arg(long)]
-        category: Option<String>,
-        /// 按会话 ID 过滤
-        #[arg(long)]
-        session: Option<String>,
-        /// 每页显示的条目数量
-        #[arg(long, default_value = "50")]
-        limit: usize,
-        /// 跳过的条目数量（用于分页）
-        #[arg(long, default_value = "0")]
-        offset: usize,
-    },
-    /// 获取指定键的内存条目
-    ///
-    /// 支持精确匹配和前缀匹配。如果前缀匹配到多个条目，会列出所有匹配项。
-    Get { key: String },
-    /// 显示内存后端统计信息和健康状态
-    ///
-    /// 包括后端类型、健康状态、总条目数以及按分类的条目统计。
-    Stats,
-    /// 清除内存条目（支持按键、分类或全部清除）
-    ///
-    /// 默认会提示确认，可使用 --yes 跳过确认。
-    Clear {
-        /// 删除指定键的条目（支持前缀匹配）
-        #[arg(long)]
-        key: Option<String>,
-        /// 删除指定分类的所有条目
-        #[arg(long)]
-        category: Option<String>,
-        /// 跳过确认提示，直接执行删除
-        #[arg(long)]
-        yes: bool,
-    },
-}
+pub use agent_cli_types::MemoryCommands;

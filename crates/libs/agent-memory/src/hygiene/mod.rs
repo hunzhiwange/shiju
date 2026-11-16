@@ -12,7 +12,7 @@
 
 #[cfg(not(target_arch = "wasm32"))]
 mod imp {
-    use agent_config::schema::MemoryConfig;
+    use agent_config::runtime_schema::MemoryConfig;
     use crate::paths;
     use anyhow::Result;
     use chrono::{DateTime, Duration, Local, NaiveDate, Utc};
@@ -747,7 +747,7 @@ pub use imp::*;
 /// 始终返回 `Ok(())`
 #[cfg(target_arch = "wasm32")]
 pub fn run_if_due(
-    _config: &agent_config::schema::MemoryConfig,
+    _config: &agent_config::runtime_schema::MemoryConfig,
     _workspace_dir: &std::path::Path,
 ) -> anyhow::Result<()> {
     Ok(())

@@ -186,7 +186,7 @@ pub fn run<H: RunnerHost>(
     let mut ctx = admitted_ctx;
     let _interrupt = InterruptGuard::<H>(ctx.tool_use_context());
     let mut tool_state = ToolSessionState::default();
-    let skills = tool_context::context::scope_tool_use_context_sync::<H::CtxHost, _, _>(
+    let skills = tool_context::context::scope_tool_use_context_sync::<H::CtxHost, _>(
         ctx.tool_use_context().clone(),
         || H::load_skills(&skill_workspace, &config, &req.session_skills, false),
     );
@@ -621,7 +621,7 @@ pub fn run<H: RunnerHost>(
                 input_limit = context_governance::effective_input_window(&model_limit),
                 "session processor requires internal compaction before llm step"
             );
-            match tool_context::context::scope_tool_use_context_sync::<H::CtxHost, _, _>(
+            match tool_context::context::scope_tool_use_context_sync::<H::CtxHost, _>(
                 ctx.tool_use_context().clone(),
                 || {
                     compact_transient_history_for_request::<H>(
@@ -684,7 +684,7 @@ pub fn run<H: RunnerHost>(
         let mut retry_budget = initial_budget.take().unwrap_or_else(|| {
             crate::recovery::RetryBudget::new(provider_retries, provider_backoff_ms)
         });
-        let step_out = match tool_context::context::scope_tool_use_context_sync::<H::CtxHost, _, _>(
+        let step_out = match tool_context::context::scope_tool_use_context_sync::<H::CtxHost, _>(
             ctx.tool_use_context().clone(),
             || {
                 llm_runner::run_llm_step_with_budget::<H::Stream>(
@@ -721,7 +721,7 @@ pub fn run<H: RunnerHost>(
                     && llm_runner::is_request_too_long_error(&message, &provider_messages)
                     && !internal_compaction_attempted
                 {
-                    match tool_context::context::scope_tool_use_context_sync::<H::CtxHost, _, _>(
+                    match tool_context::context::scope_tool_use_context_sync::<H::CtxHost, _>(
                         ctx.tool_use_context().clone(),
                         || {
                             compact_transient_history_for_request::<H>(

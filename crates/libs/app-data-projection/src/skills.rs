@@ -195,7 +195,7 @@ impl SkillsPreview {
         // the private typed plan and still requires explicit target authorization.
         let identity = |record: &MigratedSkill| -> Result<serde_json::Value> {
             let bytes = checked(serde_json::to_vec(record))?;
-            Ok(serde_json::json!({"name": format!("{:x}", Sha256::digest(bytes))}))
+            Ok(serde_json::json!({"name": format!("{}", hex::encode(Sha256::digest(bytes)))}))
         };
         let candidates: Vec<_> = records
             .iter()

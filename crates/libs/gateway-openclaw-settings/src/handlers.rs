@@ -49,7 +49,7 @@ pub fn router_with_policy(path: Option<PathBuf>, authorization: Authorization) -
 }
 fn authorize(p: &Policy, t: &TenantScope, h: &HeaderMap, s: &Scope, write: bool) -> Result<Host, StatusCode> {
     (p.1.settings)(p.0.as_deref(), h,
-        &ProjectScope::new(t.clone(), s.project_id.clone()), &s.target_host_id, write)
+        &ProjectScope::new(t.clone(), s.project_id.clone()).map_err(|_| StatusCode::BAD_REQUEST)?, &s.target_host_id, write)
 }
 fn error(e: WriteError) -> StatusCode {
     match e {
@@ -79,7 +79,7 @@ async fn read(p: Policy, t: TenantScope, h: HeaderMap, s: Scope, section: Sectio
         let host = authorize(&p, &t, &h, &s, false)?;
         if matches!(section, Section::Env) {
             (p.1.sensitive_env)(p.0.as_deref(), &h,
-                &ProjectScope::new(t.clone(), s.project_id.clone()), &s.target_host_id)?;
+                &ProjectScope::new(t.clone(), s.project_id.clone()).map_err(|_| StatusCode::BAD_REQUEST)?, &s.target_host_id)?;
         }
         let bytes = openclaw::read(&host.home).map_err(error)?;
         project(section, bytes.as_deref()).map(Json)

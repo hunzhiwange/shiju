@@ -236,7 +236,7 @@ async fn run_llm_round_uses_ocr_before_non_vision_provider() {
     let extractor = StubImageTextExtractor::default();
     let observer = RecordingObserver::default();
     let history = vec![ChatMessage::user("inspect [IMAGE:data:image/png;base64,iVBORw0KGgo=]")];
-    let mut config = agent_config::schema::MultimodalConfig::default();
+    let mut config = config_tools::MultimodalConfig::default();
     config.ocr.enabled = true;
     config.ocr.model = Some("vision/reader".to_string());
 
@@ -294,7 +294,7 @@ async fn run_llm_round_fires_llm_input_hook() {
         "testcov-model",
         0.2,
         "testcov-channel",
-        &agent_config::schema::MultimodalConfig::default(),
+        &config_tools::MultimodalConfig::default(),
         None,
         Some(&hooks),
         &[],

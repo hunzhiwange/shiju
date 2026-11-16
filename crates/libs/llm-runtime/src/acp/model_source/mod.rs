@@ -49,8 +49,8 @@ pub fn prepare_profile(agent: &str, config: &agent_config::schema::AcpAgentConfi
 }
 
 /// Finish the reviewed driver configuration after the host binds its actual relay.
-pub async fn configure_profile(agent: &str, profile: &mut profile::AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
-    drivers::configure(agent, profile, endpoint)?;
+pub async fn configure_profile(agent: &str, profile: &mut profile::AcpLaunchProfile, endpoint: &str, directory: &str) -> anyhow::Result<()> {
+    drivers::configure(agent, profile, endpoint, directory)?;
     if let Some(gateway) = profile.gateway.as_mut() { gateway.start().await?; }
     Ok(())
 }

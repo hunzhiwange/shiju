@@ -40,7 +40,7 @@ pub async fn run_llm_round_with_extractor<T>(
     model: &str,
     temperature: f64,
     channel_name: &str,
-    multimodal_config: &agent_config::schema::MultimodalConfig,
+    multimodal_config: &config_tools::MultimodalConfig,
     cancellation_token: Option<&CancellationToken>,
     hooks: Option<&agent_hooks::HookRunner>,
     tool_specs: &[ToolSpec],

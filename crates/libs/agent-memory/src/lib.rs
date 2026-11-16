@@ -40,7 +40,7 @@ pub use postgres::PostgresMemory;
 #[cfg(feature = "memory-mariadb")]
 pub use mariadb::MariadbMemory;
 
-use agent_config::schema::StorageProviderConfig;
+use agent_config::runtime_schema::StorageProviderConfig;
 use std::path::Path;
 
 #[cfg(not(target_arch = "wasm32"))]

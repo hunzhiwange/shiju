@@ -73,7 +73,7 @@ fn key(scope: &ProjectScope, host: &str) -> Result<String, UsageLogsError> {
 }
 fn digest(value: &impl Serialize) -> Result<String, UsageLogsError> {
     let bytes = serde_json::to_vec(value).map_err(|_| UsageLogsError::StorageUnavailable)?;
-    Ok(format!("{:x}", Sha256::digest(bytes)))
+    Ok(hex::encode(Sha256::digest(bytes)))
 }
 
 /// Shared effective filter for totals, rows and source distribution. The ledger

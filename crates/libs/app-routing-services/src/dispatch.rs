@@ -478,7 +478,7 @@ pub(crate) async fn forward_json(
                     listener,
                     deadline: started + Duration::from_secs(duration.into()),
                 })
-                .await;
+                .await.map_err(RouteError::from);
         }
         let response = if compact {
             transport.forward_ordered(authorized_url, outgoing, wire, cancelled.clone(), listener).await?

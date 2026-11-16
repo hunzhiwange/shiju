@@ -1,12 +1,11 @@
+//! Confirmed shares use scoped create-only storage, then guarded native activation.
 use vw_api_app_operations::{ImportPromptShareApiRequest, ImportPromptShareResult, PromptActivationChoice, PromptEntry, PromptRevision, PromptShareActivationError};
 use vw_api_app_identity::{AppId};
-//! Confirmed shares use scoped create-only storage, then guarded native activation.
 use axum::{Extension, Json, Router, extract::{DefaultBodyLimit, rejection::JsonRejection}, http::{HeaderMap, StatusCode, header}, response::{IntoResponse, Response}, routing::post};
 use std::path::PathBuf;
 use agent_database::GlobalDatabase;
 use {
     vw_api_transport::TenantScope,
-    vw_api_app_operations::ImportPromptShareApiRequest,
 };
 
 #[derive(Clone)]

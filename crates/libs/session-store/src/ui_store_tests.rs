@@ -716,10 +716,10 @@ fn agent_session_identity_rejects_forged_ui_binding() {
         "created_ms":0, "updated_ms":0,
         "agent_binding":{"agent":"main", "acp_agent":"codex", "permission":{"*":"allow"}}
     });
-    assert!(session_ui_types::decode_ui_session(body.clone()).is_err());
+    assert!(session_port::ui_types::decode_ui_session(body.clone()).is_err());
     let mut valid = body;
     valid.as_object_mut().unwrap().remove("agent_binding");
-    assert!(session_ui_types::decode_ui_session(valid).is_ok());
+    assert!(session_port::ui_types::decode_ui_session(valid).is_ok());
 }
 
 #[test]

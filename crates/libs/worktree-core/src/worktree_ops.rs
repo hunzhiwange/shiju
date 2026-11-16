@@ -395,9 +395,9 @@ async fn prepare_checkout(
         };
         instance::provide_context(
             context,
-            project::instance_bootstrap(PathBuf::from(&info.directory)),
+            crate::host::bootstrap(PathBuf::from(&info.directory)),
         )
-        .await;
+        .await?;
         Ok(())
     }
     .await;

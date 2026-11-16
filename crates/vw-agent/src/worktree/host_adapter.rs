@@ -4,8 +4,12 @@ use vw_api_transport::{ProjectScope, TenantScope};
 use worktree_core::{Error, host::{Host, ProcessGuard, ProtectionSnapshot}};
 
 pub struct WorktreeHost;
-impl ProcessGuard for crate::tools::shell::processes::termination::ProcessTree {}
+struct Guard { _tree: crate::tools::shell::processes::termination::ProcessTree }
+impl ProcessGuard for Guard {}
 impl Host for WorktreeHost {
+    fn bootstrap(&self, directory: std::path::PathBuf) -> worktree_core::host::ScopedFuture<'static> {
+        Box::pin(async move { crate::project::instance_bootstrap(directory).await; Ok(()) })
+    }
     fn with_tenant_scope<'a>(&self, tenant: TenantScope, future: worktree_core::host::ScopedFuture<'a>) -> worktree_core::host::ScopedFuture<'a> {
         Box::pin(crate::session::ui_store::with_tenant_scope(tenant, future))
     }
@@ -29,7 +33,7 @@ impl Host for WorktreeHost {
     fn spawn(&self, command: &mut tokio::process::Command)
         -> anyhow::Result<(tokio::process::Child, Box<dyn ProcessGuard>)> {
         let (child, guard) = crate::tools::shell::processes::termination::spawn(command)?;
-        Ok((child, Box::new(guard)))
+        Ok((child, Box::new(Guard { _tree: guard })))
     }
 }
 

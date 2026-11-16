@@ -46,7 +46,7 @@ pub fn replay_codex(writer: &super::codex_rebuild::CodexRebuildWriter<'_, '_>,
             instance_id: key.instance_id.clone(), file_identity: key.file_identity.clone(),
             kind: UsageSourceKind::Native, native_session_id: session.clone(), native_request_id: request.clone() };
         let encoded = serde_json::to_vec(&identity).map_err(|_| E::ReplayFailed)?;
-        record.id = format!("{}:{:x}", key.app, Sha256::digest(encoded));
+        record.id = format!("{}:{}", key.app, hex::encode(Sha256::digest(encoded)));
         record.sources.push(UsageSourceRef { source_id: record.id.clone(), kind: UsageSourceKind::Native,
             app: key.app.clone(), native_session_id: session, native_request_id: Some(request) });
         writer.save(&identity, &StoredUsageRecord { record, status_code: None, failure: None })?;
@@ -91,7 +91,7 @@ fn commit(connection: &mut Connection, scope: &ProjectScope, key: &UsageCursorKe
             instance_id: key.instance_id.clone(), file_identity: key.file_identity.clone(),
             kind: UsageSourceKind::Native, native_session_id: session.clone(), native_request_id: request.clone() };
         let encoded = serde_json::to_vec(&identity).map_err(|_| UsageCursorError::InvalidRecord)?;
-        record.id = format!("{}:{:x}", key.app, Sha256::digest(encoded));
+        record.id = format!("{}:{}", key.app, hex::encode(Sha256::digest(encoded)));
         record.sources.push(UsageSourceRef { source_id: record.id.clone(), kind: UsageSourceKind::Native,
             app: key.app.clone(), native_session_id: session, native_request_id: Some(request) });
         let stored = StoredUsageRecord { record, status_code: None, failure: None };

@@ -113,7 +113,7 @@ fn snapshot(bytes: Option<&[u8]>) -> Result<PiPromptFileSnapshot, PiPromptFileEr
     if bytes.len() > MAX_PROMPT_FILE_BYTES { return Err(PiPromptFileError::ContentTooLarge); }
     Ok(PiPromptFileSnapshot {
         exists: true,
-        revision: format!("{:x}", Sha256::digest(bytes)),
+        revision: hex::encode(Sha256::digest(bytes)),
         content: std::str::from_utf8(bytes).map_err(|_| PiPromptFileError::InvalidUtf8)?.into(),
     })
 }

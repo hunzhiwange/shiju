@@ -36,7 +36,7 @@ impl SyncArtifacts {
             "{CONFIG_ARTIFACT}:{}|{SKILLS_ARTIFACT}:{}",
             self.config.sha256, self.skills.sha256
         );
-        Ok(format!("{:x}", Sha256::digest(identity.as_bytes())))
+        Ok(format!("{}", hex::encode(Sha256::digest(identity.as_bytes()))))
     }
 }
 

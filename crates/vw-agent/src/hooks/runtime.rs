@@ -8,6 +8,7 @@ pub use agent_hooks::HookRuntimeCandidate;
 #[derive(Clone)]
 pub struct HookRuntime(agent_hooks::HookRuntime);
 impl HookRuntime {
+    pub(crate) fn shared(&self) -> agent_hooks::HookRuntime { self.0.clone() }
     pub fn build(config: &Config) -> Result<Self> {
         agent_hooks::HookRuntime::build(&config.hooks, || crate::plugins::trusted_plugin_hook_handlers(config), Arc::new(NativeHookCleanup)).map(Self)
     }

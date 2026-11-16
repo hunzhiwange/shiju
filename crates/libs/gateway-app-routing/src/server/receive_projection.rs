@@ -14,7 +14,7 @@ pub async fn refresh(database: &GlobalDatabase, policy: Option<&Path>, headers: 
     // Every domain gets an attempt even if a previous domain fails. Callbacks
     // read current saved intent, never replay imported bytes or preimages.
     for (app, id) in &selection.providers {
-        let direct = (|| {
+        let direct: Result<bool, ()> = (|| {
             let (_, root, _) = app_access_service::access::authorize_aggregation_write(policy, headers, &target.scope, &target.target_host_id, *app, false).map_err(|_| ())?;
             let Some(root) = root else { return Ok(false); };
             let Some(tx) = ProviderTransactions::open_existing(&root, ExecutionHostId::new(&target.target_host_id).map_err(|_| ())?).map_err(|_| ())? else { return Ok(false); };

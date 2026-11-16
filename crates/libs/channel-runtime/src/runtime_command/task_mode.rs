@@ -5,6 +5,7 @@
 //! 宿主的强类型任务投递操作，以保持通道层和任务存储/执行层之间的边界清晰。
 
 use super::*;
+use channel_support::routing_context::set_route_selection;
 
 /// 设置当前发送者是否启用任务模式。
 ///

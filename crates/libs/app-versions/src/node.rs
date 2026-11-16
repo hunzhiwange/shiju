@@ -56,7 +56,7 @@ pub async fn update_node_gap(
 }
 
 /// Internal metadata boundary, also used by isolated HTTP fixtures.
-pub(crate) async fn update_node_gap_at(
+pub async fn update_node_gap_at(
     client: &reqwest::Client,
     installation: &AppInstallation,
     target: &str,

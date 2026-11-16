@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+shell-words = "1"
 anyhow = "1"
 async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }

@@ -1,4 +1,5 @@
 //! Explicit MCP connection checks using the host's shared diagnostic contract.
+use axum::http::header;
 use super::{host::{ProbeHost, ProbeStartError}, mcp_management_read::PolicyFile};
 use agent_database::GlobalDatabase;
 use axum::{

@@ -1,5 +1,5 @@
-use app_provider_native::providers::opencode::open_config_directory;
 //! Host-local configuration for the OpenCode OMO Slim variant.
+use app_provider_native::providers::opencode::open_config_directory;
 use super::omo_read::{OmoReadError, read_candidate, remove_credentials, take_object};
 use app_auth::providers::{
     live::{

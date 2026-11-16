@@ -44,7 +44,7 @@ pub async fn execute_agentic<H: DelegateHost>(
     full_prompt: &str,
     temperature: f64,
 ) -> anyhow::Result<ToolResult> {
-    let trusted_user_selected_skills = current_tool_use_context()
+    let trusted_user_selected_skills = current_tool_use_context::<H::Context>()
         .map(|context| context.trusted_user_selected_skills().iter().cloned().collect::<Vec<_>>())
         .unwrap_or_default();
     let sub_tools = H::tools(

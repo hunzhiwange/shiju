@@ -41,7 +41,6 @@ pub struct WorkflowState {
 pub use crate::{MAX_PENDING_IMAGE_RELOADS, PendingImageReloadQueue};
 
 /// Claude Tools V2 共享运行时上下文。
-#[derive(Clone)]
 pub struct ToolUseContext<H: ContextHost> {
     #[cfg(not(target_arch = "wasm32"))]
     run_worktree_owner: Option<crate::run_worktree::RunWorktreeOwner>,
@@ -90,6 +89,59 @@ pub struct ToolUseContext<H: ContextHost> {
     live_tool_catalog: Option<Arc<H::ToolCatalog>>,
     invoked_skills: Arc<Mutex<Vec<H::InvokedSkillRecord>>>,
 }
+impl<H: ContextHost> Clone for ToolUseContext<H> {
+    fn clone(&self) -> Self {
+        Self {
+            #[cfg(not(target_arch = "wasm32"))]
+            run_worktree_owner: self.run_worktree_owner.clone(),
+            session: self.session.clone(),
+            session_skills: self.session_skills.clone(),
+            tenant_scope: self.tenant_scope.clone(),
+            hook_input: self.hook_input.clone(),
+            hook_contexts: self.hook_contexts.clone(),
+            async_hooks: self.async_hooks.clone(),
+            agent_name: self.agent_name.clone(),
+            root: self.root.clone(),
+            message_id: self.message_id.clone(),
+            tool_call_id: self.tool_call_id.clone(),
+            full_access_enabled: self.full_access_enabled.clone(),
+            security: self.security.clone(),
+            delegated_security: self.delegated_security.clone(),
+            delegated_tools: self.delegated_tools.clone(),
+            delegated_skill_rules: self.delegated_skill_rules.clone(),
+            approval: self.approval.clone(),
+            messages_view: self.messages_view.clone(),
+            explicitly_requested_skills: self.explicitly_requested_skills.clone(),
+            trusted_user_selected_skills: self.trusted_user_selected_skills.clone(),
+            native_mcp_selection: self.native_mcp_selection.clone(),
+            native_permissions: self.native_permissions.clone(),
+            delegate_skill_policy: self.delegate_skill_policy.clone(),
+            delegate_default_allowed_skills: self.delegate_default_allowed_skills.clone(),
+            read_state: self.read_state.clone(),
+            observer: self.observer.clone(),
+            progress_tx: self.progress_tx.clone(),
+            abort_token: self.abort_token.clone(),
+            hook_runner: self.hook_runner.clone(),
+            plugin_snapshot: self.plugin_snapshot.clone(),
+            non_cli_approval_context: self.non_cli_approval_context.clone(),
+            channel: self.channel.clone(),
+            provider: self.provider.clone(),
+            model: self.model.clone(),
+            model_selected_by_auto: self.model_selected_by_auto.clone(),
+            turn_id: self.turn_id.clone(),
+            iteration: self.iteration.clone(),
+            bypass_non_cli_approval_for_turn: self.bypass_non_cli_approval_for_turn.clone(),
+            workflow: self.workflow.clone(),
+            pending_image_reloads: self.pending_image_reloads.clone(),
+            tool_discovery: self.tool_discovery.clone(),
+            tool_exposure_snapshot: self.tool_exposure_snapshot.clone(),
+            tool_catalog: self.tool_catalog.clone(),
+            live_tool_catalog: self.live_tool_catalog.clone(),
+            invoked_skills: self.invoked_skills.clone(),
+        }
+    }
+}
+
 
 impl<H: ContextHost> Default for ToolUseContext<H> {
     fn default() -> Self {

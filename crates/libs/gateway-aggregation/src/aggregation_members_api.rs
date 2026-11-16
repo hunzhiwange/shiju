@@ -65,7 +65,7 @@ impl GatewayAggregationClient {
     ) -> Result<reqwest::Url, AggregationApiError> {
         let app =
             serde_json::to_value(app).map_err(|e| AggregationApiError::Transport(e.to_string()))?;
-        let mut url = reqwest::Url::parse(self.transport.endpoint().base_url())
+        let mut url = reqwest::Url::parse(&self.transport.endpoint().base_url())
             .map_err(|e| AggregationApiError::Transport(e.to_string()))?;
         url.path_segments_mut()
             .map_err(|_| AggregationApiError::Transport("invalid gateway URL".into()))?

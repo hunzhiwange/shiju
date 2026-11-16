@@ -121,7 +121,7 @@ pub fn scan_mcode_database(
             kind: UsageSourceKind::Native, native_session_id: Some(session.clone()),
             native_request_id: id.to_string(),
         };
-        let record_id = format!("mcode:{:x}", Sha256::digest(serde_json::to_vec(&(scope, &identity)).map_err(|_| invalid())?));
+        let record_id = format!("mcode:{}", hex::encode(Sha256::digest(serde_json::to_vec(&(scope, &identity)).map_err(|_| invalid())?)));
         let record = StoredUsageRecord {
             record: UsageRecord {
                 id: record_id.clone(), started_at_unix_seconds: UsageUnixSeconds(ts / 1000),

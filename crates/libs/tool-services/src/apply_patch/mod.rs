@@ -18,6 +18,7 @@ use tool_files::file_edit::utils::{
 };
 use tool_types::{Tool, ToolCallResult, ToolCallTelemetry, ToolRenderHint, ToolResult};
 use agent_files as file;
+use patch::patch;
 use agent_files::watcher;
 use agent_security::SecurityPolicy;
 use anyhow::anyhow;

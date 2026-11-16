@@ -11,6 +11,7 @@ doctest = false
 test-support = ["dep:tempfile", "agent-database/test-support", "agent-project/test-support"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+thiserror = "2"
 anyhow = "1"
 async-trait = "0.1"
 serde_json = "1"

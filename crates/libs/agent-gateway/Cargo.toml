@@ -258,7 +258,7 @@ version = "0.6.0"
 [target.'cfg(target_os = "macos")'.dependencies.hex]
 version = "0.4"
 [target.'cfg(target_os = "macos")'.dependencies.toml_edit]
-version = "0.23"
+version = "0.22"
 
 [dependencies.app-access-service]
 path = "../app-access-service"
@@ -375,3 +375,19 @@ version = "0.6.0"
 path = "../observer-backends"
 version = "0.6.0"
 optional = true
+
+[dependencies.gateway-cron]
+path = "../gateway-cron"
+version = "0.6.0"
+
+[dependencies.gateway-memory]
+path = "../gateway-memory"
+version = "0.6.0"
+
+[dependencies.gateway-integrations]
+path = "../gateway-integrations"
+version = "0.6.0"
+
+[dependencies.agent-integrations]
+path = "../agent-integrations"
+version = "0.6.0"

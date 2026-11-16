@@ -118,6 +118,7 @@ async fn identify(
             SourceFormat::Sqlite => DataArchiveFormat::Sqlite,
             SourceFormat::Json => DataArchiveFormat::Json,
             SourceFormat::Sql => DataArchiveFormat::Sql,
+            SourceFormat::PortablePackage => return Err(StatusCode::UNPROCESSABLE_ENTITY),
         };
         use sha2::{Digest, Sha256};
         let mut digest = Sha256::new();

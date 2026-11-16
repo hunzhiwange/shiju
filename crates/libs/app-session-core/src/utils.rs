@@ -1,6 +1,9 @@
 //! Pure text utilities shared by external session adapters.
 use serde_json::Value;
 
+/// Maximum character count for external session titles.
+pub const TITLE_MAX_CHARS: usize = 80;
+
 pub fn extract_text(content: &Value) -> String {
     match content {
         Value::String(text) => text.to_string(),

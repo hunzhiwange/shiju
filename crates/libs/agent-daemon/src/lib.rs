@@ -22,7 +22,7 @@
 //! 3. 给予各组件宽限期完成清理
 //! 4. 超时后强制中止未完成的任务
 
-use agent_config::Config;
+use agent_config::runtime::Config;
 #[cfg(test)]
 use agent_config::schema::ChannelsConfigExt;
 use anyhow::Result;

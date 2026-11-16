@@ -4,6 +4,7 @@ use reqwest::Url;
 
 /// Execution-side input after the host resolves explicit secret intent.
 /// No Debug or serialization implementation: this contains raw secret material.
+#[derive(Clone)]
 pub struct S3Config {
     pub enabled: bool,
     pub auto_sync: bool,

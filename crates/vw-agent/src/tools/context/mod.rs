@@ -43,7 +43,7 @@ impl ContextHost for AgentContextHost {
     fn image_scope_key(scope: &ImageAssetScope) -> String { scope.key().to_string() }
     fn image_id_str(id: &ImageAssetId) -> &str { id.as_str() }
     #[cfg(not(target_arch = "wasm32"))]
-    fn use_lease(path: &Path) -> anyhow::Result<Option<std::fs::File>> { crate::worktree::registry::use_lease(path) }
+    fn use_lease(path: &Path) -> anyhow::Result<Option<std::fs::File>> { Ok(crate::worktree::registry::use_lease(path)?) }
     fn ensure_ready(context: &ToolUseContext) -> anyhow::Result<()> {
         if let Some(root) = context.workspace_root() { crate::plugins::mcp_session_connections(context.session(), &root).ensure_ready()?; }
         Ok(())

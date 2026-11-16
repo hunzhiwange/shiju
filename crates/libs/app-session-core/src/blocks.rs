@@ -392,3 +392,32 @@ pub fn line_change_counts(old: &str, new: &str) -> (u32, u32) {
         saturating_u32(old_lines.len() - prefix - suffix),
     )
 }
+
+pub fn starts_turn(message: &SessionMessage) -> bool {
+    if message.role != "user" || message.injected {
+        return false;
+    }
+    if message.blocks.is_empty() {
+        return !message.content.trim().is_empty();
+    }
+    message.blocks.iter().any(|block| match block {
+        SessionBlock::Text { text, .. } => !text.trim().is_empty(),
+        SessionBlock::Image { .. } => true,
+        SessionBlock::Event { kind, .. } => *kind == EventKind::SlashCommand,
+        _ => false,
+    })
+}
+
+/// 没有原生轮次概念的解析器共用（§4）：按 [`starts_turn`] 递增生成 `t{n}`，
+/// 首条提问之前的内容归 `t0`。已有 `turn_id` 的消息保持不变。
+pub fn assign_turn_ids(messages: &mut [SessionMessage]) {
+    let mut turn = 0u32;
+    for message in messages {
+        if starts_turn(message) {
+            turn += 1;
+        }
+        if message.turn_id.is_none() {
+            message.turn_id = Some(format!("t{turn}"));
+        }
+    }
+}

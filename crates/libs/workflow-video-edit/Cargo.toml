@@ -11,6 +11,7 @@ test-support = []
 doctest = false
 
 [dependencies]
+futures-util = "0.3.32"
 url = "2"
 model-types = { path = "../model-types", version = "0.6.0" }
 workflow-core = { path = "../workflow-core", version = "0.6.0" }
@@ -46,7 +47,6 @@ libc = "0.2"
 
 [dev-dependencies]
 workflow-template-contract = { path = "../workflow-template-contract", version = "0.6.0" }
-futures-util = "0.3.32"
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
 agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
 tempfile = "3"

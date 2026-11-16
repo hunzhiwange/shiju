@@ -25,7 +25,7 @@ use super::{
 
 impl V3GatewayApp {
     pub(super) fn plan_run_request(&self, query: &str) -> Result<TaskPlanRunRequest, String> {
-        plan_run_request(
+        cli_gateway_session::plan_run::plan_run_request(
             query,
             self.runtime.directory(),
             self.state.session_options.model.clone(),

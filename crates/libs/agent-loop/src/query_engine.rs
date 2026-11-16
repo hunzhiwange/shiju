@@ -89,7 +89,7 @@ pub struct QueryEngine<H: QueryEngineHost> {
     provider_name: String,
     model_name: String,
     default_temperature: f64,
-    multimodal_config: agent_config::schema::MultimodalConfig,
+    multimodal_config: config_tools::MultimodalConfig,
     compact_context: bool,
     model_limit: agent_provider::provider::ModelLimit,
     max_iterations: usize,
@@ -463,7 +463,7 @@ impl<H: QueryEngineHost> QueryEngine<H> {
         }));
         let input_tokens = context
             .iter()
-            .map(|message| agent_util::token::estimate(&message.content))
+            .map(|message| agent_text::token::estimate(&message.content))
             .sum();
         if !self.compact_context
             || (!force

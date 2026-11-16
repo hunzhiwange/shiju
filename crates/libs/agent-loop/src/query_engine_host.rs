@@ -13,5 +13,5 @@ pub trait QueryEngineHost: agent_loop::core::skills::CoreSkillHost<Context: tool
     async fn team_runtime_instructions(session: &str, enabled: bool) -> String;
     async fn restore_history(session: &str, source: &[serde_json::Value]) -> std::result::Result<Vec<serde_json::Value>, String>;
     async fn compact_history(history: &mut Vec<ChatMessage>, session: &str, model: &str, reliability: &config_reliability::ReliabilityConfig, limit: &agent_provider::provider::ModelLimit) -> Result<bool>;
-    async fn agent_turn(provider: &dyn Provider, history: &mut Vec<ChatMessage>, tools: &[Box<dyn Tool>], observer: &dyn Observer, provider_name: &str, model: &str, temperature: f64, silent: bool, multimodal: &agent_config::schema::MultimodalConfig, max_iterations: usize, hooks: Option<Arc<agent_hooks::HookRunner>>, skills: Option<&mut agent_loop::core::skills::CoreSkillSession<Self>>) -> Result<String>;
+    async fn agent_turn(provider: &dyn Provider, history: &mut Vec<ChatMessage>, tools: &[Box<dyn Tool>], observer: &dyn Observer, provider_name: &str, model: &str, temperature: f64, silent: bool, multimodal: &config_tools::MultimodalConfig, max_iterations: usize, hooks: Option<Arc<agent_hooks::HookRunner>>, skills: Option<&mut agent_loop::core::skills::CoreSkillSession<Self>>) -> Result<String>;
 }

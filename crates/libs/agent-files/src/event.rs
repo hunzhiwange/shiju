@@ -1,4 +1,4 @@
-use agent_bus;
+use agent_bus as bus;
 
 /// 文件编辑事件定义
 ///

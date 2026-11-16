@@ -13,6 +13,6 @@ pub(super) fn visible_shiju_root(skills: &[Skill]) -> Result<PathBuf, String> {
 
 pub async fn discover(context: ToolRuntimeContext, skills: &[Skill], allowed_tools: Option<Value>) -> Result<ShijuCloudVideoToolProvider, String> {
     let hub_root = visible_shiju_root(skills)?;
-    ShijuCloudVideoToolProvider::discover(Arc::new(context), hub_root, allowed_tools).await
+    ShijuCloudVideoToolProvider::discover(Arc::new(super::prepare::NativeVideoContext(context)), hub_root, allowed_tools).await
 }
 // WorkflowToolProvider 的实现由 workflow-engine 的 trait 所有者提供。

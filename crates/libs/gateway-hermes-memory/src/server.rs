@@ -40,7 +40,7 @@ pub fn router(authorize: Authorize) -> Router {
 }
 fn authorize(policy: &Policy, tenant: TenantScope, headers: &HeaderMap, scope: &Scope, write: bool) -> Result<AuthorizedHost, StatusCode> {
     (policy.1)(policy.0.as_deref(), headers,
-        &ProjectScope::new(tenant, scope.project_id.clone()), &scope.target_host_id, write)
+        &ProjectScope::new(tenant, scope.project_id.clone()).map_err(|_| StatusCode::BAD_REQUEST)?, &scope.target_host_id, write)
 }
 fn write_error(error: WriteError) -> StatusCode {
     match error {

@@ -177,7 +177,7 @@ pub fn scan_gemini_file(
             native_request_id: request.to_owned(),
         };
         let encoded = serde_json::to_vec(&(scope, &identity)).map_err(|_| invalid())?;
-        let id = format!("gemini_session:{:x}", Sha256::digest(encoded));
+        let id = format!("gemini_session:{}", hex::encode(Sha256::digest(encoded)));
         let record = StoredUsageRecord {
             record: UsageRecord {
                 id: id.clone(), started_at_unix_seconds: UsageUnixSeconds(timestamp.timestamp()),

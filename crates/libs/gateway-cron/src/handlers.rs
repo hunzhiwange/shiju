@@ -287,7 +287,7 @@ pub async fn handle_api_cron_history(
     if let Err(error) = (state.authenticate)(&headers) {
         return error.into_response();
     }
-    use agent_cron;
+    use agent_cron as cron;
     let config = state.config.lock().clone();
     // 先复制快照，再查询结束记录；交接窗口优先展示真实持久化结果。
     let active = cron::active_runs::snapshot(&config);

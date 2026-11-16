@@ -482,7 +482,7 @@ async fn process_inner<H: CompactionHost>(
         .map_err(|error| session_info::Error::Runtime(anyhow::anyhow!(error)))?;
     let cfg = config::get_project_for_tenant(
         &H::current_tenant_scope(),
-        std::path::Path::new(&crate::project::instance::directory()),
+        std::path::Path::new(&agent_project::instance::directory()),
     )
     .await
     .map_err(|error| session_info::Error::Runtime(anyhow::anyhow!(error)))?;

@@ -237,7 +237,7 @@ async fn run(
                 &job.tenant,
                 &job.host,
                 service,
-            ) && owner.credential_root == root
+            ) && owner.host.credential_root.as_ref() == Some(&root)
             {
                 authorized.push((service, owner));
             }
@@ -268,14 +268,14 @@ async fn run(
                         false,
                     )
                     .map_err(|_| McpFailureCode::PermissionDenied)?;
-                    if owner.credential_root != root {
+                    if owner.host.credential_root.as_ref() != Some(&root) {
                         return Err(McpFailureCode::PermissionDenied);
                     }
                     accounts
                         .managed_official_lease(
                             AuthAccountScope {
                                 tenant: &job.tenant,
-                                host: &owner.id,
+                                host: &owner.host.id,
                                 principal: &owner.principal,
                                 service: AuthService::ClaudeOfficial,
                             },
@@ -351,14 +351,14 @@ async fn run(
                                     *service,
                                 )
                                 .is_ok_and(|fresh| {
-                                    fresh.id == owner.id
+                                    fresh.host.id == owner.host.id
                                         && fresh.principal == owner.principal
-                                        && fresh.credential_root == root
+                                        && fresh.host.credential_root.as_ref() == Some(&root)
                                 })
                         })
                         .map(|(service, owner)| AuthAccountScope {
                             tenant: &job.tenant,
-                            host: &owner.id,
+                            host: &owner.host.id,
                             principal: &owner.principal,
                             service: *service,
                         })
@@ -453,7 +453,7 @@ pub async fn sync_saved_bindings(database: GlobalDatabase, policy: Option<std::p
         let headers = headers.clone();
         let database = database.clone();
         let request = ResyncRequest { target_host_id: target.target_host_id.clone(),
-            project_id: Some(target.scope.project_id().to_string()), targets: vec![selected] };
+            project_id: Some(target.scope.project_id().as_ref().to_owned()), targets: vec![selected] };
         tokio::task::spawn_blocking(move || runtime.block_on(run(job, policy, headers, request, database)))
             .await.map_err(|_| ())?.map_err(|_| ())?;
     }

@@ -343,22 +343,6 @@ mod mod_tests;
 #[path = "tests.rs"]
 mod tests;
 
-use clap::Subcommand;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Subcommand)]
-/// 集成目录支持的命令行操作。
-pub enum IntegrationCommands {
-    List {
-        #[arg(long)]
-        category: Option<String>,
-        #[arg(long)]
-        status: Option<String>,
-    },
-    Search {
-        query: String,
-    },
-    Info {
-        name: String,
-    },
-}
+pub use agent_cli_types::IntegrationCommands;

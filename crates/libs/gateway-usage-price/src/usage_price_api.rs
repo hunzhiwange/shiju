@@ -86,7 +86,7 @@ impl GatewayUsagePriceClient {
         if scope.project_id.as_ref().trim().is_empty() || scope.target_host.trim().is_empty() {
             return Err(UsagePriceError::InvalidInput("usage project and host required".into()));
         }
-        let mut url = reqwest::Url::parse(self.transport.endpoint().base_url()).map_err(|e| UsagePriceError::InvalidInput(e.to_string()))?;
+        let mut url = reqwest::Url::parse(&self.transport.endpoint().base_url()).map_err(|e| UsagePriceError::InvalidInput(e.to_string()))?;
         url.path_segments_mut().map_err(|_| UsagePriceError::InvalidInput("invalid gateway URL".into()))?
             .pop_if_empty().extend(["v1", "usage"]).extend(path.iter().copied());
         // Price handlers authorize scope from query parameters for every HTTP method.

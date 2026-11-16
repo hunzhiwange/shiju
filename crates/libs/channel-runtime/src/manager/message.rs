@@ -5,6 +5,8 @@
 //! 结果交给响应层。安全相关的语义防护和 canary token 也在这里按消息轮次接入。
 
 use super::*;
+use channel_support::routing_context::classify_message_route;
+use crate::prompt::build_runtime_tool_visibility_prompt;
 
 /// 处理一条来自通道的消息。
 ///

@@ -168,7 +168,7 @@ pub fn scan_grokbuild_file(
                         } else { calculated.map(|c| c.to_usage_cost()).unwrap_or(UsageCost { source: UsageCostSource::Unknown, amount_usd: None }) };
                         let native_id = serde_json::to_string(&(prompt, model, &*previous)).map_err(|_| invalid())?;
                         let identity = UsageSourceIdentity { target_host: source.target_host.clone(), app: source.app.clone(), instance_id: source.instance_id.clone(), file_identity: source.file_identity.clone(), kind: UsageSourceKind::Native, native_session_id: Some(source.file_identity.clone()), native_request_id: native_id.clone() };
-                        let id = format!("grok_session:{:x}", Sha256::digest(serde_json::to_vec(&(scope, &identity)).map_err(|_| invalid())?));
+                        let id = format!("grok_session:{}", hex::encode(Sha256::digest(serde_json::to_vec(&(scope, &identity)).map_err(|_| invalid())?)));
                         let priced = price.is_some() && cost.source == UsageCostSource::Calculated;
                         let record = StoredUsageRecord { record: UsageRecord {
                             id: id.clone(), started_at_unix_seconds: UsageUnixSeconds(timestamp), provider: UsageProvider::Unknown,

@@ -104,7 +104,7 @@ impl PromptsStore {
     }
 }
 fn digest(value: &impl serde::Serialize) -> Result<String> {
-    Ok(format!("{:x}", Sha256::digest(serde_json::to_vec(value)?)))
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(value)?)))
 }
 fn comparable(raw: &str) -> Result<serde_json::Value, PreviewError> {
     let mut catalog: PromptCatalog = serde_json::from_str(raw).map_err(|_| PreviewError::InvalidCandidate)?;

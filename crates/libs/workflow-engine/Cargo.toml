@@ -5,7 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [features]
-test-support = ["dep:git2", "dep:anyhow"]
+test-support = ["dep:git2"]
 
 [lib]
 doctest = false
@@ -25,7 +25,7 @@ uuid = { version = "1.11", features = ["v4", "js"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"], optional = true }
-anyhow = { version = "1", optional = true }
+anyhow = "1"
 agent-knowledge = { path = "../agent-knowledge", version = "0.6.0" }
 vw-api-knowledge = { path = "../api-knowledge", version = "0.6.0" }
 tokio-util = { version = "0.7.18", features = ["compat"] }

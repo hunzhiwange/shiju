@@ -72,8 +72,8 @@ impl<H: AgentHost> AgentTool<H> {
             .ok_or_else(|| anyhow::anyhow!("'{key}' must be a non-empty string"))
     }
 
-    fn communication_context(&self) -> anyhow::Result<Arc<tool_context::context::ToolUseContext>> {
-        let context = current_tool_use_context()
+    fn communication_context(&self) -> anyhow::Result<Arc<tool_context::context::ToolUseContext<H::Context>>> {
+        let context = current_tool_use_context::<H::Context>()
             .ok_or_else(|| anyhow::anyhow!("Team operations require tool runtime context"))?;
         if context.session() != self.parent_session_id()? {
             anyhow::bail!("Team runtime session mismatch");

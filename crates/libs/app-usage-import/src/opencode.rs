@@ -245,10 +245,7 @@ pub fn scan_opencode_database(
                 native_session_id: Some(session.clone()),
                 native_request_id: request.clone(),
             };
-            let id = format!(
-                "opencode_session:{:x}",
-                Sha256::digest(serde_json::to_vec(&(scope, &identity)).map_err(|_| invalid())?)
-            );
+            let id = format!("opencode_session:{}", hex::encode(Sha256::digest(serde_json::to_vec(&(scope, &identity)).map_err(|_| invalid())?)));
             let end = value["time"]["streamed"]
                 .as_i64()
                 .filter(|v| *v >= created)

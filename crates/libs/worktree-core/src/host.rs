@@ -16,6 +16,7 @@ pub trait ProcessGuard: Send {}
 pub type ScopedFuture<'a> = std::pin::Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>;
 
 pub trait Host: Send + Sync {
+    fn bootstrap(&self, directory: std::path::PathBuf) -> ScopedFuture<'static>;
     fn with_tenant_scope<'a>(&self, tenant: TenantScope, future: ScopedFuture<'a>) -> ScopedFuture<'a>;
     fn current_tenant_scope(&self) -> TenantScope;
     fn read_snapshot(&self, scope: &ProjectScope) -> Result<ProtectionSnapshot, Error>;
@@ -46,4 +47,8 @@ pub fn read_snapshot(scope: &ProjectScope) -> Result<ProtectionSnapshot, Error> 
 pub fn spawn(command: &mut tokio::process::Command)
     -> anyhow::Result<(tokio::process::Child, Box<dyn ProcessGuard>)> {
     host().map_err(|error| anyhow::anyhow!(error.to_string()))?.spawn(command)
+}
+
+pub async fn bootstrap(directory: std::path::PathBuf) -> Result<(), Error> {
+    host()?.bootstrap(directory).await
 }

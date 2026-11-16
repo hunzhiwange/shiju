@@ -410,3 +410,5 @@ mod usage_price_api;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod aggregation_facade_tests;
+
+pub use agent_apps_skills::SkillBackupError;

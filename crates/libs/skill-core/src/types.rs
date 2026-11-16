@@ -14,7 +14,6 @@
 use crate::constants::{
     default_policy_version, default_preloaded_skill_aliases, default_version,
 };
-use clap::Subcommand;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
@@ -253,20 +252,7 @@ impl Default for SkillRuntimeConfig {
 /// 技能管理命令枚举
 ///
 /// 定义通过 CLI 可执行的技能管理操作。
-#[derive(Debug, Clone, Subcommand)]
-pub enum SkillCommands {
-    /// 列出所有已安装的技能
-    List,
-
-    /// 审计指定源的技能（检查安全性、合规性等）
-    Audit { source: String },
-
-    /// 从指定源安装技能
-    Install { source: String },
-
-    /// 移除指定名称的技能
-    Remove { name: String },
-}
+pub use agent_cli_types::SkillCommands;
 
 /// 技能加载模式
 ///

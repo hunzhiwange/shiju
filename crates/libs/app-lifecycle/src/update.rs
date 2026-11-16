@@ -49,7 +49,7 @@ impl UpdatePlan {
         self.installation.app_id
     }
 
-    pub(super) fn verify_result(&self, report: &AppInstallationReport) -> bool {
+    pub fn verify_result(&self, report: &AppInstallationReport) -> bool {
         report.installations.iter().any(|i| {
             i.id == self.installation.id
                 && i.app_id == self.installation.app_id

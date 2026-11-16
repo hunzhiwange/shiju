@@ -26,7 +26,7 @@ pub fn export_shared_snapshot(
     let config_json = serde_json::to_vec(&capture.config)?;
     ensure!(config_json.len() as u64 <= vw_agent_apps::device_sync::artifact::MAX_ARTIFACT_SIZE,
         "shared configuration exceeds synchronization limit");
-    let config_artifact = SyncArtifact { sha256: format!("{:x}", Sha256::digest(&config_json)), size: config_json.len() as u64 };
+    let config_artifact = SyncArtifact { sha256: format!("{}", hex::encode(Sha256::digest(&config_json))), size: config_json.len() as u64 };
     Ok(ExportedSnapshot { data_compat_version: capture.config.data_compat_version,
         config_json, config_artifact, skills: capture.skills, source_versions: capture.source_versions })
 }

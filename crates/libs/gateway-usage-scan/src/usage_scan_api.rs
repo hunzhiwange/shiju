@@ -145,7 +145,7 @@ impl GatewayUsageScanClient {
     }
     async fn usage_scan_request<T: DeserializeOwned>(&self, method: reqwest::Method, path: &[&str], scope: &UsageScanScope, extra: Option<Value>) -> Result<T, UsageScanError> {
         self.validate_usage_scan_scope(scope)?;
-        let mut url = reqwest::Url::parse(self.transport.endpoint().base_url()).map_err(|e| UsageScanError::InvalidInput(e.to_string()))?;
+        let mut url = reqwest::Url::parse(&self.transport.endpoint().base_url()).map_err(|e| UsageScanError::InvalidInput(e.to_string()))?;
         url.path_segments_mut().map_err(|_| UsageScanError::InvalidInput("invalid gateway URL".into()))?
             .pop_if_empty().extend(["v1", "usage"]).extend(path.iter().copied());
         let mut request = self.transport.native_transport().map_err(UsageScanError::Transport)?.request(method.clone(), url);

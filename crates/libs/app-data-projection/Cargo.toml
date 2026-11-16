@@ -8,6 +8,8 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+hex = "0.4"
+vw-api-app-operations = { path = "../api-app-operations" }
 app-data-format = { path = "../app-data-format" }
 app-catalog = { path = "../app-catalog" }
 app-mcp-catalog = { path = "../app-mcp-catalog" }

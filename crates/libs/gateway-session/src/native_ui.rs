@@ -62,10 +62,11 @@ impl<H: crate::message_host::MessageHost> crate::ui_host::UiHost for NativeUiHos
         tenant: &TenantScope,
         session: &str,
         project: Option<&str>,
-    ) -> std::io::Result<Option<session_ui_types::SessionAgentIdentity>> {
-        session_store::ui_store::load_session_agent_identity_scoped_for_tenant(
-            tenant, session, project,
-        )
+    ) -> std::io::Result<Option<vw_api_chat_identity::SessionAgentIdentity>> {
+        let Some(project) = project else { return Ok(None); };
+        session_engine::prompt::block_on(session_engine::binding_store::load_scoped(
+            agent_paths::paths().home.clone(), tenant.clone(), project, session,
+        )).map(|binding| binding.map(|binding| binding.identity())).map_err(std::io::Error::other)
     }
     fn load_session_any_for_tenant(tenant: &TenantScope, id: &str) -> Option<ChatSession> {
         session_store::ui_store::load_session_any_for_tenant(tenant, id)

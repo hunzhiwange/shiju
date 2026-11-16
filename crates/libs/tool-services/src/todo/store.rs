@@ -50,7 +50,7 @@ fn scoped_project_id() -> Option<String> {
 fn load_todos(session: &str, scope: Option<&str>) -> Vec<Todo> {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        return session_artifact_store::load_session_todos_scoped(session, scope)
+        return session_store::ui_store::load_session_todos_scoped(session, scope)
             .into_iter()
             .map(|todo| Todo {
                 content: todo.content,
@@ -87,7 +87,7 @@ fn save_todos(session: &str, todos: &[Todo], scope: Option<&str>) {
                 id: todo.id.clone(),
             })
             .collect::<Vec<_>>();
-        let _ = session_artifact_store::save_session_todos_scoped(session, &mapped, scope);
+        let _ = session_store::ui_store::save_session_todos_scoped(session, &mapped, scope);
     }
 
     #[cfg(target_arch = "wasm32")]

@@ -172,7 +172,7 @@ pub struct ChannelRuntimeDefaults {
     /// 可选的 API 端点 URL
     pub api_url: Option<String>,
     /// 可靠性配置（重试、超时等）
-    pub reliability: agent_config::schema::ReliabilityConfig,
+    pub reliability: agent_config::runtime_schema::ReliabilityConfig,
 }
 
 /// 配置文件时间戳。

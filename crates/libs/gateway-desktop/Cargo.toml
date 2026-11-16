@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+urlencoding = "2"
 agent-skills = { path = "../agent-skills", version = "0.6.0" }
 agent-plugins = { path = "../agent-plugins", version = "0.6.0" }
 config-skills = { path = "../config-skills", version = "0.6.0" }

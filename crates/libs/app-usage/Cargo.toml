@@ -8,6 +8,8 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+hex = "0.4"
+uuid = { version = "1.11", features = ["v4"] }
 app-usage-core = { path = "../app-usage-core" }
 app-usage-store = { path = "../app-usage-store" }
 app-usage-codex = { path = "../app-usage-codex" }

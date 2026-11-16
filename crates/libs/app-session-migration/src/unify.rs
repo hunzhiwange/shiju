@@ -162,7 +162,7 @@ impl BackupGeneration {
         Ok(())
     }
     fn image(&self, bytes: &[u8]) -> io::Result<String> {
-        let name = format!("{:x}.image", Sha256::digest(bytes));
+        let name = format!("{}.image", hex::encode(Sha256::digest(bytes)));
         write_child(&self.directory, &name, bytes)?;
         Ok(name)
     }
@@ -178,7 +178,7 @@ impl BackupGeneration {
             return Err(invalid());
         }
         let bytes = read_child(&self.directory, name, 512 * 1024 * 1024)?.ok_or_else(invalid)?;
-        if format!("{:x}.image", Sha256::digest(&bytes)) != name {
+        if format!("{}.image", hex::encode(Sha256::digest(&bytes))) != name {
             return Err(invalid());
         }
         Ok(bytes)

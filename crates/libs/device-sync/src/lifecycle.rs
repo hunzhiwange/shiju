@@ -29,9 +29,9 @@ impl SyncLifecycle {
     ) -> Result<(), SyncErrorCode>
     where C: Send + 'static,
         R: FnMut() -> RF + Send + 'static,
-        RF: Future<Output = Result<Option<CurrentSyncConnection<C>>, SyncErrorCode>> + Send,
+        RF: Future<Output = Result<Option<CurrentSyncConnection<C>>, SyncErrorCode>> + Send + 'static,
         U: FnMut(C, tasks::SyncTaskExecution) -> UF + Send + 'static,
-        UF: Future<Output = Result<SyncRemoteSnapshot, SyncErrorCode>> + Send,
+        UF: Future<Output = Result<SyncRemoteSnapshot, SyncErrorCode>> + Send + 'static,
     {
         let mut state = self.state.lock().await;
         if state.closed { return Err(SyncErrorCode::Cancelled); }

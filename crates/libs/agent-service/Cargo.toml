@@ -19,3 +19,7 @@ which = "6.0"
 
 [dev-dependencies]
 tempfile = "3"
+
+[dependencies.agent-cli-types]
+path = "../agent-cli-types"
+version = "0.6.0"

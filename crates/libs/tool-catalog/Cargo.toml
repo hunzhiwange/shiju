@@ -15,3 +15,5 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tool-types = { path = "../tool-types", version = "0.6.0" }
 tool-context = { path = "../tool-context", version = "0.6.0" }
+
+vw-api-tools = { path = "../api-tools", version = "0.6.0" }

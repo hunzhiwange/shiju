@@ -1638,7 +1638,7 @@ fn persist_call_diagnostic(
                     session,
                     stream,
                     payload,
-                    agent_session::now_ms(),
+                    runtime_time::now_ms(),
                 )?;
                 Ok(store.storage_path().map_or_else(|| data_dir().to_path_buf(), Path::to_path_buf))
             },

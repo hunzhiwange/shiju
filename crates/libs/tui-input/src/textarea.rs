@@ -114,13 +114,15 @@ pub(crate) struct TextElementSnapshot {
 
 /// Owned visible draft state, including atomic payloads and the UTF-8 cursor.
 /// Editor configuration and the kill buffer remain local to the receiving editor.
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone)]
 pub struct TextAreaDraft {
     text: String,
     cursor: usize,
     elements: Vec<TextElement>,
     next_element_id: u64,
 }
+
+impl Eq for TextAreaDraft {}
 
 impl PartialEq for TextAreaDraft {
     fn eq(&self, other: &Self) -> bool {

@@ -168,7 +168,7 @@ pub(crate) fn parse_reader_for(mut reader: impl BufRead, flavor: Flavor) -> io::
             Some(id) => serde_json::to_vec(&(request_tag, &session_id, kind, id)),
             None => serde_json::to_vec(&(legacy_tag, &session_id, kind, canonical_json(&entry))),
         }.map_err(|_| invalid())?;
-        let request_id = format!("{prefix}:{:x}", Sha256::digest(identity));
+        let request_id = format!("{prefix}:{}", hex::encode(Sha256::digest(identity)));
         let request_model = if attributed { label(&carrier["model"]).unwrap_or_else(|| "unknown".into()) } else { "unknown".into() };
         let message = PiUsageMessage {
             flavor, request_id: request_id.clone(), session_id,

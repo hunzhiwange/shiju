@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+hex = "0.4"
 app-config-paths = { path = "../app-config-paths" }
 app-lifecycle = { path = "../app-lifecycle" }
 vw-api-app-identity = { path = "../api-app-identity" }

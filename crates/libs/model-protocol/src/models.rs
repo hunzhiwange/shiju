@@ -11,7 +11,7 @@ pub fn is_path(app: AppId, path: &str) -> bool {
 
 pub fn project(app: AppId, items: &[ModelCatalogEntry]) -> Value {
     let data: Vec<Value> = items.iter().map(|item| {
-        let id = item.identity.model_id.as_str();
+        let id = item.identity.model_id.as_ref();
         let label = item.display_alias.as_deref().unwrap_or(id);
         if app == AppId::Codex {
             json!({"id":id,"object":"model","owned_by":"shiju"})
@@ -23,7 +23,7 @@ pub fn project(app: AppId, items: &[ModelCatalogEntry]) -> Value {
         json!({"object":"list","data":data})
     } else {
         json!({"data":data,"has_more":false,
-            "first_id":items.first().map(|m|m.identity.model_id.as_str()),
-            "last_id":items.last().map(|m|m.identity.model_id.as_str())})
+            "first_id":items.first().map(|m|m.identity.model_id.as_ref()),
+            "last_id":items.last().map(|m|m.identity.model_id.as_ref())})
     }
 }

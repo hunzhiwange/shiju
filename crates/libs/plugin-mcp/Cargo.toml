@@ -11,6 +11,7 @@ doctest = false
 test-support = ["dep:acp-types"]
 
 [dependencies]
+tracing = "0.1"
 acp-types = { path = "../acp-types", version = "0.6.0", optional = true }
 session-port = { path = "../session-port", version = "0.6.0" }
 anyhow = "1"

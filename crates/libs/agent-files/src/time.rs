@@ -3,7 +3,7 @@
 //! 该模块用于支撑文件编辑工具的“先读后写”约束：每个会话读取文件后会记录
 //! 时间戳，写入前再比较文件系统修改时间，避免覆盖用户或其他进程的更新。
 
-use runtime_flags;
+use runtime_flags as flag;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;

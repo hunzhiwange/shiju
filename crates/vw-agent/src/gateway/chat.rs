@@ -45,7 +45,7 @@ impl GatewayChatHost for Host {
     }
     async fn forked_session(id: &str) -> anyhow::Result<Option<session::Info>> { Ok(session::forked_session(id).await?) }
     async fn load_fork_history(info: &session::Info) -> anyhow::Result<(Vec<crate::session::ui_types::ChatMessage>, Vec<serde_json::Value>)> { Ok(session::load_fork_history(info).await?) }
-    async fn new_engine(config: Config, id: &str, provider: Option<Arc<dyn Provider>>, hooks: Option<Self::Hooks>) -> anyhow::Result<QueryEngine> { QueryEngine::new_with_provider_and_hook_runtime(config, id, provider, hooks).await }
+    async fn new_engine(config: Config, id: &str, provider: Option<Arc<dyn Provider>>, hooks: Option<Self::Hooks>) -> anyhow::Result<QueryEngine> { QueryEngine::new_with_provider_and_hook_runtime(config, id, provider, hooks.map(|hooks| hooks.shared())).await }
     fn replace_history(engine: &mut QueryEngine, history: Vec<ChatMessage>) { engine.replace_history(history); }
     fn snapshot(engine: &QueryEngine) -> Self::Snapshot { engine.snapshot() }
     fn restore_snapshot(engine: &mut QueryEngine, snapshot: Self::Snapshot) { engine.restore_snapshot(snapshot); }

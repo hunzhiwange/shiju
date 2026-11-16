@@ -92,7 +92,7 @@ impl GatewayWorkspaceMemoryClient {
             .json().await.map_err(|_| WorkspaceMemoryError::Decode)?;
         // The server issues UUIDs. Reject path syntax instead of accepting an
         // arbitrary resource path from an untrusted response.
-        let id = response.progress.operation_id.to_string();
+        let id = response.progress.operation_id.as_ref().to_owned();
         if id.is_empty() || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
             return Err(WorkspaceMemoryError::Decode);
         }

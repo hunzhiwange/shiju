@@ -24,7 +24,7 @@ pub fn router() -> Router {
 fn authorize(state: &State, tenant: TenantScope, headers: &HeaderMap, scope: &DashboardScope)
     -> Result<(ProjectScope, app_access_service::access::Host, String), StatusCode>
 {
-    let project = ProjectScope::new(tenant, scope.project_id.clone());
+    let project = ProjectScope::new(tenant, scope.project_id.clone()).map_err(|_| StatusCode::BAD_REQUEST)?;
     let (host, principal) = app_access_service::access::authorize_hermes_dashboard(state.policy.as_deref(), headers, &project, &scope.target_host_id)?;
     Ok((project, host, principal))
 }

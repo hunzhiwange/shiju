@@ -98,7 +98,7 @@ pub fn parse_subagent_records(entry: &Value) -> Option<Vec<Value>> {
 fn semantic_key(entry: &Value) -> String {
     let mut semantic = entry.clone();
     if let Some(object) = semantic.as_object_mut() { object.remove("id"); }
-    format!("{:x}", Sha256::digest(pi::canonical_json(&semantic).to_string().as_bytes()))
+    format!("{}", hex::encode(Sha256::digest(pi::canonical_json(&semantic).to_string().as_bytes())))
 }
 
 /// Reparse all revisions so same-size repairs, cutoff changes and changes to

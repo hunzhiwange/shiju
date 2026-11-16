@@ -184,7 +184,7 @@ pub async fn dispatch_stream_request(
                     lm,
                     request_info.request_url.clone(),
                     request_info.enforce_strict_tool_schema,
-                    provider::resolve_native_search_capabilities(
+                    agent_provider::provider::resolve_native_search_capabilities(
                         &model.capabilities,
                         &model.api.adapter,
                         request_info.path_override.as_deref().unwrap_or("chat/completions"),

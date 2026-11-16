@@ -471,4 +471,5 @@ impl TranscriptBuilder {
 
 }
 
+#[path = "claude_messages/tool_results.rs"]
 mod tool_results;

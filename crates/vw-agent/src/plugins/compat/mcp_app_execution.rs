@@ -32,7 +32,7 @@ impl plugin_mcp::mcp_app_execution::AppContext for AppContext {
         }
     }
     fn execute(&self, id: &str, input: &str) -> Result<ToolCallResult> {
-        crate::tools::execute_bound_app_tool(id, input, &self.context)
+        Ok(crate::tools::execute_bound_app_tool(id, input, &self.context)?)
     }
 }
 pub(crate) fn register(context: &ToolRuntimeContext, requested: &str, result: &mut ToolCallResult) -> Result<()> {

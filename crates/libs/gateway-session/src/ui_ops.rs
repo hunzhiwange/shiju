@@ -35,7 +35,7 @@ pub struct SessionStepWithRaw {
 pub struct SessionWithRaw {
     pub id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_binding: Option<ui_models::SessionAgentIdentity>,
+    pub agent_binding: Option<vw_api_chat_identity::SessionAgentIdentity>,
     pub title: String,
     #[serde(default)]
     pub messages: Vec<ui_models::ChatMessage>,
@@ -408,7 +408,7 @@ pub async fn session_ui_save_request<H: UiHost>(
     headers: HeaderMap,
     Json(body): Json<Value>,
 ) -> Result<Json<bool>, ApiError> {
-    let body = ui_models::decode_ui_session(body)
+    let body = session_port::ui_types::decode_ui_session(body)
         .map_err(|error| ApiError::bad_request(error.to_string()))?;
     session_ui_save::<H>(path, query, headers, Json(body)).await
 }

@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+uuid = "1.11"
 app-auth = { path = "../app-auth" }
 app-session-codex = { path = "../app-session-codex" }
 app-usage-core = { path = "../app-usage-core" }

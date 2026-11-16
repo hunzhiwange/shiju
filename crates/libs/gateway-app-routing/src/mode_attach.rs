@@ -21,7 +21,7 @@ impl GatewayAppRoutingClient {
         let app = app.as_str().ok_or(AppRoutingError::InvalidRequest)?;
         self.app_routing_request(
             reqwest::Method::POST,
-            &[host, "projects", project.as_str(), "apps", app, "mode"],
+            &[host, "projects", project.as_ref(), "apps", app, "mode"],
             token,
             Some(request),
         )

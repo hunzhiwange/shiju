@@ -434,6 +434,8 @@ fn private_child(parent: &File, name: &str) -> Result<File, WriteError> {
 }
 mod target;
 pub(super) use target::*;
+#[cfg(any(test, feature = "test-support"))]
+pub use target::{HOOK, Phase};
 
 pub(super) fn checkpoint(
     store: &ProviderTransactions,

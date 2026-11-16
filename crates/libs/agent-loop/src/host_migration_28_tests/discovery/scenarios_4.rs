@@ -23,7 +23,7 @@ where
         true,
         None,
         "cli",
-        &agent_config::schema::MultimodalConfig::default(),
+        &config_tools::MultimodalConfig::default(),
         8,
         None,
         None,

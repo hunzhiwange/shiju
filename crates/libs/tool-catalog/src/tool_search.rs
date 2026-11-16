@@ -157,7 +157,7 @@ impl ToolSearchTool {
 
     pub fn spec(&self) -> ToolSpec {
         ToolSpec::new(self.name(), self.description(), self.parameters_schema())
-            .with_display_name(self.name()).with_aliases(Vec::new())
+            .with_display_name(self.name()).with_aliases(Vec::<String>::new())
             .with_read_only(true).with_destructive(false).with_concurrency_safe(true)
             .with_requires_user_interaction(false).with_strict(true)
     }

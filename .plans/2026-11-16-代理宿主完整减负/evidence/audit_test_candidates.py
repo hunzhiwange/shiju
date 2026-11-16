@@ -9,12 +9,12 @@ scope=json.loads((PLAN/'scope.json').read_text())
 for item in scope.get('external_mounts',[]):
  if isinstance(item,dict) and item['path'].endswith('.rs'):base.setdefault(item['path'],0)
 rev=json.loads((OUT/'snapshot.json').read_text())['head']
-pattern=re.compile(r'#\[(?:[\w:]*::)?test(?:\([^\]]*\))?\]\s*(?://[^\n]*\n\s*)*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?fn\s+(\w+)')
+pattern=re.compile(r'#\[(?:[\w:]*::)?test(?:\([^\]]*\))?\]\s*(?:(?://[^\n]*\n|#\[[^\n]*\])\s*)*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?fn\s+(\w+)')
 current={}
 for root in ['crates/vw-agent/src','crates/libs']:
  for path in sorted((ROOT/root).rglob('*.rs')):
   text=path.read_text()
-  for m in pattern.finditer(text):current.setdefault(m[1],[]).append(dict(path=str(path.relative_to(ROOT)),line=text.count('\n',0,m.start())+1))
+  for m in pattern.finditer(text):current.setdefault(m[1],[]).append(dict(path=str(path.relative_to(ROOT)),line=text.count('\n',0,m.start())+1,attributes=re.findall(r'#\[[^\n]*\]',m[0])))
 scope=json.loads((PLAN/'scope.json').read_text())
 owners={name:row[0] for row in scope['rows'] for name in row[5]}
 owners.update({name:59 for name in scope['residue']})
@@ -26,7 +26,7 @@ for name in base:
  for m in pattern.finditer(result.stdout):
   candidates=current.get(m[1],[])
   exact=[x for x in candidates if x['path']==name]
-  rows.append(dict(source=name,name=m[1],line=result.stdout.count('\n',0,m.start())+1,candidates=exact or candidates,status='retained_same_path' if exact else ('unique_name_candidate' if len(candidates)==1 else ('ambiguous' if candidates else 'missing'))))
+  rows.append(dict(source=name,name=m[1],line=result.stdout.count('\n',0,m.start())+1,attributes=re.findall(r'#\[[^\n]*\]',m[0]),candidates=exact or candidates,status='retained_same_path' if exact else ('unique_name_candidate' if len(candidates)==1 else ('ambiguous' if candidates else 'missing'))))
 for row in rows:
  if row['status']=='ambiguous':
   owner=owners[row['source']]
@@ -39,3 +39,11 @@ counts={key:sum(x['status']==key for x in rows) for key in ['retained_same_path'
 with (OUT/'task-59-test-candidates.json').open('w') as f:
  json.dump(dict(method='lexical standard test/tokio test attributes; excludes generated tests and does not prove assertions or registration',baseline_commit=rev,counts=counts,tests=rows),f,ensure_ascii=False,separators=(',',':'))
 print(json.dumps(counts))
+
+ignored=[row for row in rows if any(a.startswith('#[ignore') for a in row.get('attributes',[]))]
+mismatches=[]
+for row in ignored:
+ expected=[a for a in row['attributes'] if a.startswith('#[ignore')]
+ if not any([a for a in candidate.get('attributes',[]) if a.startswith('#[ignore')]==expected for candidate in row['candidates']):mismatches.append(row)
+(OUT/'task-59-ignore-attributes.json').write_text(json.dumps(dict(original_ignored_tests=len(ignored),mismatches=mismatches),ensure_ascii=False,indent=2)+'\n')
+print('ignored attributes:',len(ignored),'mismatches:',len(mismatches))

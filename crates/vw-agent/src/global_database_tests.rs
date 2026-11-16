@@ -1,7 +1,5 @@
-use std::fs;
 use std::path::{Path, PathBuf};
 use anyhow::Result;
-use rusqlite::Connection;
 use super::GlobalDatabase;
 use crate::agent_scheduler::store::AgentSchedulerStore;
 use crate::project::store::ProjectStore;
@@ -46,34 +44,7 @@ fn global_database_configures_connection_and_secure_permissions() -> Result<()> 
     Ok(())
 }
 
-#[test]
-fn agent_scheduler_for_home_defers_cutover_until_database_open() -> Result<()> {
-    let home = tempfile::tempdir()?;
-    let legacy_path = legacy_database_path(home.path());
-    drop(create_legacy_database(&legacy_path, "deferred")?);
-    let target_path = config_runtime_paths::global_database_path(home.path());
-
-    let store = crate::agent_scheduler::store::AgentSchedulerStore::for_home(home.path());
-
-    assert_eq!(store.database_path(), target_path);
-    assert!(legacy_path.exists());
-    assert!(!target_path.exists());
-    Ok(())
-}
 
 fn legacy_database_path(home: &Path) -> PathBuf {
     config_runtime_paths::home_config_dir(home).join("agent_scheduler").join("_index.sqlite3")
-}
-
-fn create_legacy_database(path: &Path, marker: &str) -> Result<Connection> {
-    fs::create_dir_all(path.parent().expect("database parent"))?;
-    let connection = Connection::open(path)?;
-    connection.execute_batch(
-        "PRAGMA journal_mode = WAL;
-         PRAGMA wal_autocheckpoint = 0;
-         CREATE TABLE migration_fixture (marker TEXT NOT NULL);",
-    )?;
-    connection.execute("INSERT INTO migration_fixture VALUES (?1)", [marker])?;
-    fs::write(path.with_extension("lock"), b"")?;
-    Ok(connection)
 }

@@ -297,9 +297,6 @@ use channel_support::blocking::block_on_future;
 
 
 
-#[cfg(test)]
-#[path = "channels_config_host_tests.rs"]
-mod channel_project_binding_tests;
 
 
 #[cfg(test)]

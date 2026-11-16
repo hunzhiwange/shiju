@@ -8,9 +8,15 @@ pub trait ChannelStartupHost: crate::host::ChannelHost {
     fn tools(&self, config: &Config, security: &Arc<agent_security::SecurityPolicy>, runtime: Arc<dyn runtime_types::RuntimeAdapter>, memory: Arc<dyn agent_memory::Memory>) -> Vec<Box<dyn tool_types::Tool>>;
     fn skills(&self, workspace: &Path, config: &Config) -> Vec<agent_skills::Skill>;
     fn hooks(&self, config: &Config) -> Result<Option<Arc<agent_hooks::HookRunner>>>;
-    fn recursive_policy(&self) -> &'static str;
-    fn tool_instructions(&self, specs: &[tool_types::ToolSpec]) -> String;
-    fn shell_policy(&self, autonomy: &AutonomyConfig) -> String;
+    fn recursive_policy(&self) -> &'static str {
+        agent_loop::prompt::multi_agent::recursive_orchestration_policy()
+    }
+    fn tool_instructions(&self, specs: &[tool_types::ToolSpec]) -> String {
+        agent_loop::instructions::build_tool_instructions_from_specs(specs)
+    }
+    fn shell_policy(&self, autonomy: &AutonomyConfig) -> String {
+        agent_loop::instructions::build_shell_policy_instructions(autonomy)
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]

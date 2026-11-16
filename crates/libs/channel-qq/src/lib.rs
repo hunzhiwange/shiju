@@ -264,3 +264,6 @@ impl QQChannel {
         self.parse_dispatch_message_event(frame.get("t")?.as_str()?, frame.get("d")?).await
     }
 }
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_42_tests;

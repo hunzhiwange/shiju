@@ -214,3 +214,28 @@ remaining-host.json 的42号全体来源 1105 → 643 行，追加净减 462 行
 静态注册审查：audit_registrations.py 返回 edges=1139、unresolved=0、removed_targets_referenced=0；本轮定向 git diff --check 无空白错误。此为词法静态证据，非运行测试。
 
 静态注册审查：audit_registrations.py 返回 edges=1139、unresolved=0、removed_targets_referenced=0；本轮定向 git diff --check 无空白错误。此为词法静态证据，非运行测试。
+
+## 专项复查：通道派发、取消与宿主装配
+
+本轮仍禁止 Cargo、构建和运行测试，未宣称通过编译或行为验收。源码检索宿主与挂载的 manager 测试后，resolve_execution_route、process_channel_message_inner、spawn_draft_updater 三个宿主转发仅有定义，无调用者。删除这些失用包装；真正领域实现与领域调用均仍在 channel-runtime::manager，不将删除包装计为新增领域算法。
+
+ChannelStartupHost 既有 recursive_policy、tool_instructions、shell_policy 方法改为直接调用 agent-loop 的领域默认实现，RuntimeHost 删除三项同义覆写；无新trait方法或开关。实际调用仍由运行库 startup 持有，不再依赖宿主提供通用提示词算法。保留可覆写能力，不改变其它端口实现。原 skills 方法经调用链核对会注入当前租户插件清单，明确保留；tools、hooks、tenant、session、Shell取消与处理器调用也仍是实际宿主边界。
+
+channel_project_binding_qq_webhook_uses_default_instance 完整函数及两条断言原样迁到 channel-qq::host_migration_42_tests，自注册；只把兼容 QQChannel 路径改为本库真实类型。删除 channels_config_host_tests.rs 和宿主旧挂载，不复制宿主夹具、不删断言。
+
+| 原文件 | 本轮前→后行数 | 保留 / 去向 |
+|---|---:|---|
+| `crates/vw-agent/src/channels/manager/execution_binding.rs` | 23→19 | 三个失用包装删除；实际端口/剩余测试挂载保留；QQ断言归领域库 |
+| `crates/vw-agent/src/channels/manager/message.rs` | 24→12 | 三个失用包装删除；实际端口/剩余测试挂载保留；QQ断言归领域库 |
+| `crates/vw-agent/src/channels/manager/runtime_host.rs` | 152→143 | 三个失用包装删除；实际端口/剩余测试挂载保留；QQ断言归领域库 |
+| `crates/vw-agent/src/channels/channels_config_host_tests.rs` | 10→0 | 三个失用包装删除；实际端口/剩余测试挂载保留；QQ断言归领域库 |
+| `crates/vw-agent/src/channels/mod.rs` | 334→331 | 三个失用包装删除；实际端口/剩余测试挂载保留；QQ断言归领域库 |
+
+宿主本轮净减38行。其余原归属文件已逐项复查，未为达到整轮门槛伪迁真实边界。跨任务约4000行缺口不属于本任务完成声明。
+
+未来精确验证：
+- `python3 scripts/cargo_slot.py cargo test -p channel-qq --lib host_migration_42_tests -- --test-threads=1`，预期1条。
+- channel-runtime 既有 host_migration_42_tests 预期7条不变；启动端口默认方法由后续该包相关启动契约验证。
+- 宿主首次响应三条、租户身份一条及 manager 的真实会话/取消/配置监听挂载继续保留，未通过mock替代。
+
+静态检查：audit_registrations.py 返回 edges=1105、unresolved=0、removed_targets_referenced=0；定向 git diff --check 无空白错误。上述为词法注册与差异核对，不是编译或运行测试。

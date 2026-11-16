@@ -1,10 +1,6 @@
 //! 通道运行实现与宿主能力注入。
 use super::*;
 pub(crate) use channel_runtime::manager::execution_binding::*;
-pub(crate) async fn resolve_execution_route(
-    snapshot: &ChannelMessageSnapshot,
-    fallback: ChannelRouteSelection,
-) -> Result<(ChannelRouteSelection, bool)> { channel_runtime::manager::execution_binding::resolve_execution_route(&super::runtime_host::HOST, snapshot, fallback).await }
 pub(crate) async fn execution_options(
     snapshot: &ChannelMessageSnapshot,
     session: &str,

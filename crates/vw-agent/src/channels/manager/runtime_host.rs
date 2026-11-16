@@ -140,13 +140,4 @@ impl channel_runtime::startup_host::ChannelStartupHost for RuntimeHost {
     fn hooks(&self, config: &Config) -> Result<Option<Arc<crate::hooks::HookRunner>>> {
         Ok(crate::hooks::build_hook_runtime(config)?.runner_snapshot())
     }
-    fn recursive_policy(&self) -> &'static str {
-        crate::agent::prompt::multi_agent::recursive_orchestration_policy()
-    }
-    fn tool_instructions(&self, specs: &[tool_types::ToolSpec]) -> String {
-        crate::agent::loop_::build_tool_instructions_from_specs(specs)
-    }
-    fn shell_policy(&self, autonomy: &crate::config::AutonomyConfig) -> String {
-        crate::agent::loop_::build_shell_policy_instructions(autonomy)
-    }
 }

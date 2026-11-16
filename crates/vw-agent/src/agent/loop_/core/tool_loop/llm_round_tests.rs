@@ -1,5 +1,7 @@
 //! 真实插件模型事件、取消与敏感信息边界验收。
 use super::*;
+use model_types::ChatRequest;
+use agent_observability::ObserverEvent;
 use model_types::{ChatResponse, ProviderCapabilities, TokenUsage};
 use agent_observability::traits::ObserverMetric;
 use async_trait::async_trait;

@@ -5,11 +5,7 @@
 
 use crate::app::agent::multimodal::ocr::{ImageTextExtractor, SessionImageTextExtractor};
 use crate::app::agent::observability::Observer;
-#[cfg(test)]
-use crate::app::agent::observability::ObserverEvent;
 use model_types::{ChatMessage, Provider};
-#[cfg(test)]
-use model_types::ChatRequest;
 use crate::app::agent::tools::ToolSpec;
 use anyhow::Result;
 use tokio_util::sync::CancellationToken;
@@ -18,8 +14,6 @@ use super::super::super::parsing::{
     ParsedToolCall, detect_tool_call_parse_issue, parse_structured_tool_calls, parse_tool_calls,
 };
 use super::super::super::utils::scrub_credentials;
-#[cfg(test)]
-use super::super::errors::ToolLoopCancelled;
 use super::super::history::{
     build_native_assistant_history, build_native_assistant_history_from_parsed_calls,
 };

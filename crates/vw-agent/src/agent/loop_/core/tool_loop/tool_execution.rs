@@ -108,14 +108,3 @@ fn services() -> agent_loop::core::tool_execution::ToolExecutionServices<crate::
         },
     }
 }
-
-#[cfg(test)]
-fn immediate_failure(name: String, id: Option<String>, output: String) -> (String, Option<String>, ToolExecutionOutcome) {
-    agent_loop::core::tool_execution::immediate_failure(&services(), name, id, output)
-}
-#[cfg(test)]
-async fn send_structured_tool_result_progress(tx: &Sender<String>, outcome: &ToolExecutionOutcome, secs: u64) {
-    let services = services();
-    let view = (services.outcome_view)(outcome);
-    agent_loop::core::tool_execution::send_structured_tool_result_progress(tx, &view, secs, &services).await
-}

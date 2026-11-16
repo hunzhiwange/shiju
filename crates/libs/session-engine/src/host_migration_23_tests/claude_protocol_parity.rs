@@ -1,38 +1,10 @@
-//! 验证 Claude 协议入口在代理、技能、压缩与委派策略上的一致性。
-
-use crate::app::agent::config::{DelegateAgentConfig, DelegateCapabilityPolicy};
-use crate::app::agent::skills::{InvokedSkillRecord, Skill, SkillListingSessionState};
-use crate::app::agent::tools::{Tool, ToolResult};
-use crate::channels::prompt::build_entrypoint_protocol_messages;
-use crate::session::capability_policy::resolve_skill_capabilities;
-use crate::session::child_agent::stream_request;
-use crate::session::instruction_discovery::{self, DiscoveryRoots, SourceKind};
-use crate::session::processor::llm_messages::assemble_session_protocol_messages;
+//! Legacy and modern capability policy share the real domain implementations.
+use config_agent::{DelegateAgentConfig,DelegateCapabilityPolicy};
+use tool_types::{Tool,ToolResult};
+use crate::capability_policy::resolve_skill_capabilities;
 use async_trait::async_trait;
 use serde_json::json;
-use std::cell::Cell;
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
-
-use super::{InstructionSource, Resolved, instruction_rules};
-
-fn write(path: impl AsRef<Path>, content: &str) -> PathBuf {
-    let path = path.as_ref().to_path_buf();
-    std::fs::create_dir_all(path.parent().expect("fixture parent")).expect("create fixture parent");
-    std::fs::write(&path, content).expect("write fixture");
-    path
-}
-
-fn resolved(path: &Path, content: String, conditions: Vec<String>) -> Resolved {
-    let filepath = path.to_string_lossy().to_string();
-    Resolved {
-        content: format!("Instructions from: {filepath}\n{content}"),
-        filepath: filepath.clone(),
-        sources: vec![InstructionSource { filepath, parent: None, conditions }],
-        diagnostics: Vec::new(),
-    }
-}
-
 struct DelegateParityTool {
     name: &'static str,
 }
@@ -79,7 +51,7 @@ fn delegate_capability_policy_is_consistent_across_agenttool_gateway_and_legacy_
             allowed_skills: vec!["review".to_string()],
             ..DelegateAgentConfig::default()
         };
-        let legacy = crate::app::agent::tools::delegated_tools::build_agentic_tools(
+        let legacy = crate::delegated_tools::build_agentic_tools(
             &parent_tools,
             &config,
             &trusted_skills,

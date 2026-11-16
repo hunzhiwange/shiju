@@ -109,3 +109,6 @@ pub mod dynamic_tool_restore_contract;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod dynamic_tool_acceptance;
+
+#[cfg(feature = "test-support")]
+pub mod host_migration_23_acceptance;

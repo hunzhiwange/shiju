@@ -79,44 +79,6 @@ fn agent_native_defaults_mcp_selection_reaches_registered_tools_with_session_iso
 }
 
 #[test]
-fn agent_native_defaults_do_not_inject_disabled_skills() {
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
-    let _fixture =
-        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
-            "https://example.test/v1",
-            None,
-        ));
-    let workspace = tempfile::tempdir().unwrap();
-    let dir = workspace.path().join("skills/disabled");
-    std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(
-        dir.join("SKILL.md"),
-        "---\nname: disabled\ndescription: Disabled fixture\n---\nMUST_NOT_INJECT\n",
-    )
-    .unwrap();
-    std::fs::write(crate::skills::local_skill_disabled_marker_path(&dir), "").unwrap();
-    let mut config = crate::config::Config::default();
-    config.agents.insert(
-        "main".into(),
-        serde_json::from_value(serde_json::json!({
-            "provider":"", "model":"", "defaults":{"skills":{"mode":"fixed","value":["disabled"]}}
-        }))
-        .unwrap(),
-    );
-    assert!(
-        runtime
-            .block_on(super::capability_policy::native_agent_defaults(
-                &config,
-                "main",
-                None,
-                workspace.path()
-            ))
-            .is_err()
-    );
-}
-
-#[test]
 fn agent_native_defaults_mcp_respects_tenant_and_project_safety_scope() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
@@ -182,58 +144,4 @@ fn agent_native_defaults_mcp_respects_tenant_and_project_safety_scope() {
         Err(error) => assert!(error.to_string().contains("unknown or out-of-scope MCP capability")),
         Ok(_) => panic!("another tenant must not resolve the owner's global MCP server"),
     }
-}
-
-#[test]
-fn agent_config_cleanup_native_skill_inheritance_uses_allowed_source() {
-    use config_agent_profile::AgentDefault;
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
-    let _fixture =
-        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
-            "https://example.test/v1",
-            None,
-        ));
-    let workspace = tempfile::tempdir().unwrap();
-    let dir = workspace.path().join("skills/allowed");
-    std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("SKILL.md"), "---\nname: allowed\ndescription: fixture\n---\n")
-        .unwrap();
-    let mut config = crate::config::Config::default();
-    config.agents.insert(
-        "main".into(),
-        serde_json::from_value(
-            serde_json::json!({"provider":"", "model":"", "allowed_skills":["allowed"], "skill_policy":"strict"}),
-        )
-        .unwrap(),
-    );
-    for (selection, expected) in [
-        (AgentDefault::Inherit, vec!["allowed"]),
-        (AgentDefault::Fixed(vec![]), vec![]),
-        (AgentDefault::Fixed(vec!["allowed".into()]), vec!["allowed"]),
-    ] {
-        config.agents.get_mut("main").unwrap().defaults.skills = selection;
-        let result = runtime
-            .block_on(super::capability_policy::native_agent_defaults(
-                &config,
-                "main",
-                None,
-                workspace.path(),
-            ))
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.effective.skills, expected);
-    }
-    config.agents.get_mut("main").unwrap().defaults.skills =
-        AgentDefault::Fixed(vec!["missing".into()]);
-    assert!(
-        runtime
-            .block_on(super::capability_policy::native_agent_defaults(
-                &config,
-                "main",
-                None,
-                workspace.path()
-            ))
-            .is_err()
-    );
 }

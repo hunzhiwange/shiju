@@ -149,3 +149,25 @@ agent_binding 保留 store（宿主数据库）、scope（当前 home/tenant）�
 - 当前 `context_injection.rs`：2 行。
 当前来源共 1381 行，相对2621行净减 1240 行（47.3%）。本轮额外减 154 行。累计领域测试静态预期39条；未来命令保持 `python3 scripts/cargo_slot.py cargo test -p session-engine --lib host_migration_23_tests -- --test-threads=1`。
 静态全仓引用搜索确认 snapshot_checkpoint_source 只有已更新的真实生产入口和迁入用例。diff --check 已执行。未执行 Cargo、构建、测试或实机验证。仍未达70%，不能据此宣称整轮门槛关闭。
+
+## 第四轮：按 task59 具体优先项拆分
+已读取 task-59-recovery-priorities.json owner23 的 requested_split/retain_real_boundary，恢复编号文件后实施。
+五条 codex_alignment 原名称保持在宿主，每条只驱动 session-engine::host_migration_23_acceptance 中同名契约。stream、request、skill、workspace、history、body_count 与全部场景断言/工具可见历史/压缩断言在领域验收契约。使用原 runner_types::Request<A,S>，未复制 Request/App/AppState 图。AcceptanceHost 只绑定真实处理器、脚本模型流、请求记录、工具ID及可信迭代配置。新增 test-support feature 仅由 vw-agent dev-dependency 激活，存在实际五条调用者；无运行时配置开关。
+这些是“领域断言 + 真实宿主边界”，不是独立领域单测。宿主继续持有 global_async_env_lock、RecoveryConfig、test_llm_stream_guard，真实 MCP 子进程、工具/技能权限执行及租户上下文仍由 processor::run 执行。没有以模拟准入替代权限验收，没有宣称编译提速。
+`delegate_capability_policy_is_consistent_across_agenttool_gateway_and_legacy_adapter` → host_migration_23_tests/claude_protocol_parity.rs，直接调用已下沉的 delegated_tools 与 capability_policy，完整保留断言；移除 instruction.rs 旧挂载及未使用的跨入口夹具/import。
+`agent_native_defaults_do_not_inject_disabled_skills`、`agent_config_cleanup_native_skill_inheritance_uses_allowed_source` → host_migration_23_tests/native_defaults.rs；真实 agent_skills 本地文件发现和 disabled 标记，外部插件库存为空。生产 native_agent_defaults 缩小为 NativeDefaultsHost 三个实际输入（skills/mcp/permission_ceiling），AdmissionHost blanket 实现保持原真实输入。宿主继续保留 MCP 选择执行和租户/项目覆盖拒绝两条边界。
+- 当前 `agent_binding.rs`：116 行。
+- 当前 `agent_binding_tests.rs`：63 行。
+- 当前 `capability_policy.rs`：10 行。
+- 当前 `capability_policy_tests.rs`：147 行。
+- 当前 `claude_protocol_parity_tests.rs`：0 行。
+- 当前 `codex_alignment_tests.rs`：41 行。
+- 当前 `compaction.rs`：59 行。
+- 当前 `compaction_tests.rs`：244 行。
+- 当前 `compaction_checkpoint.rs`：27 行。
+- 当前 `compaction_checkpoint_tests.rs`：0 行。
+- 当前 `compaction_summary.rs`：76 行。
+- 当前 `compaction_summary_tests.rs`：75 行。
+- 当前 `context_injection.rs`：2 行。
+当前来源共860行，相对2621净减1761行（67.2%）。领域独立测试静态预期42条；另5条真实Host契约保持原宿主过滤，不能相加伪称独立测试。未来沿原精确名称运行，全部编译/行为检查本轮未运行。
+剩余生产端口保留原因沿前轮逐符号清单；剩余测试为实际准入/processor边界或MCP执行权限检查。静态检查包含全仓旧挂载与直接调用引用、Cargo清单文字核对、diff --check。

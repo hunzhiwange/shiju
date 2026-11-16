@@ -144,7 +144,7 @@ pub struct NativeAgentDefaults {
     pub permission_fixed: bool,
 }
 
-pub async fn native_agent_defaults<H: crate::admission_host::AdmissionHost>(
+pub async fn native_agent_defaults<H: NativeDefaultsHost>(
     config: &agent_config::runtime::Config,
     key: &str,
     explicit_model: Option<&str>,
@@ -181,12 +181,12 @@ pub async fn native_agent_defaults<H: crate::admission_host::AdmissionHost>(
         })
         .transpose()?;
     let mut context = DefaultsContext {
-        permission_ceiling: H::permission_ceiling(key).await?,
+        permission_ceiling: <H as crate::admission_host::AdmissionHost>::permission_ceiling(key).await?,
         ..Default::default()
     };
-    context.skills = H::skills(workspace, config);
+    context.skills = <H as crate::admission_host::AdmissionHost>::skills(workspace, config);
     if mcp_fixed {
-        context.mcp = H::mcp(workspace, &AgentRuntime::Native).await?;
+        context.mcp = <H as crate::admission_host::AdmissionHost>::mcp(workspace, &AgentRuntime::Native).await?;
     }
     let inherited =
         DefaultSelection { skills: Some(agent.allowed_skills.clone()), ..Default::default() };
@@ -205,4 +205,16 @@ pub async fn native_agent_defaults<H: crate::admission_host::AdmissionHost>(
         mcp_fixed,
         permission_fixed,
     }))
+}
+
+/// Only discovery and permission inputs used by native defaults resolution.
+pub trait NativeDefaultsHost {
+    fn skills(workspace: &std::path::Path, config: &agent_config::runtime::Config) -> std::collections::HashMap<String,bool>;
+    fn mcp(workspace: &std::path::Path, runtime: &config_agent_profile::AgentRuntime) -> impl Future<Output=anyhow::Result<std::collections::HashMap<String,bool>>> + Send;
+    fn permission_ceiling(key: &str) -> impl Future<Output=anyhow::Result<permission_runtime::next::Ruleset>> + Send;
+}
+impl<H: crate::admission_host::AdmissionHost> NativeDefaultsHost for H {
+    fn skills(workspace: &std::path::Path, config: &agent_config::runtime::Config) -> std::collections::HashMap<String,bool> { <H as crate::admission_host::AdmissionHost>::skills(workspace,config) }
+    async fn mcp(workspace: &std::path::Path, runtime: &config_agent_profile::AgentRuntime) -> anyhow::Result<std::collections::HashMap<String,bool>> { <H as crate::admission_host::AdmissionHost>::mcp(workspace,runtime).await }
+    async fn permission_ceiling(key: &str) -> anyhow::Result<permission_runtime::next::Ruleset> { <H as crate::admission_host::AdmissionHost>::permission_ceiling(key).await }
 }

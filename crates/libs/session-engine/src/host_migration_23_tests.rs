@@ -6,3 +6,5 @@ mod checkpoint;
 mod compaction_summary;
 mod agent_binding;
 mod compaction_checkpoint;
+mod claude_protocol_parity;
+mod native_defaults;

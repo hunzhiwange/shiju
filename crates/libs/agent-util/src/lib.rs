@@ -6,6 +6,7 @@ pub mod filesystem;
 pub mod format;
 pub mod locale;
 pub mod rpc;
+pub mod test_capabilities;
 
 #[cfg(test)]
 mod channel_log_tests;

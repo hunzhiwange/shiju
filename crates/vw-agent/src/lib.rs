@@ -402,8 +402,7 @@ pub use health::initialize_runtime_build_id;
 #[path = "tests.rs"]
 mod tests;
 
-#[cfg(test)]
-include!("agent_scheduler_policy_legacy_review_exact_tests.rs");
+// 调度策略测试归 task-scheduler::policy_tests。
 
 pub mod app_providers;
 

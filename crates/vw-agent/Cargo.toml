@@ -244,6 +244,7 @@ agent-skills = { path = "../libs/agent-skills", version = "0.6.0" }
 plugin-install = { path = "../libs/plugin-install", version = "0.6.0" }
 agent-security = { path = "../libs/agent-security", version = "0.6.0" }
 agent-util = { path = "../libs/agent-util", version = "0.6.0" }
+task-file-store = { path = "../libs/task-file-store", version = "0.6.0" }
 agent-runtime = { path = "../libs/agent-runtime", version = "0.6.0" }
 agent-pty = { path = "../libs/agent-pty", version = "0.6.0" }
 permission-runtime = { path = "../libs/permission-runtime", version = "0.6.0" }

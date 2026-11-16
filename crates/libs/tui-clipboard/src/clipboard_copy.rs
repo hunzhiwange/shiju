@@ -516,3 +516,7 @@ fn osc52_sequence(text: &str, tmux: bool) -> Result<String, String> {
 #[cfg(test)]
 #[path = "clipboard_copy_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "terminal_req_10_tests.rs"]
+mod terminal_req_10_tests;

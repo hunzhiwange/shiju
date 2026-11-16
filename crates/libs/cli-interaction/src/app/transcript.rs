@@ -32,8 +32,8 @@ impl V3GatewayApp {
     }
 
     /// 使用聊天视图同一批已提交与活跃单元构造完整 transcript 阅读器。
-    pub(crate) fn transcript_pager(&self, width: u16) -> TranscriptPager {
-        TranscriptPager::new(self.transcript_lines(width, true))
+    pub(crate) fn transcript_pager(&self, _width: u16) -> TranscriptPager {
+        TranscriptPager::new(self.transcript_lines(u16::MAX, true))
     }
 
     /// 按宽度生成 transcript 行，供内联历史插入和窗口缩放回放共用。

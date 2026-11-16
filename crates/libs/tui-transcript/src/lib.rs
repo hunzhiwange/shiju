@@ -50,6 +50,7 @@ pub struct TranscriptState {
     active_cell: Option<Box<dyn HistoryCell>>,
     live_tail: Option<Box<dyn HistoryCell>>,
     active_cell_revision: u64,
+    content_revision: u64,
     active_cell_layout: Cell<Option<ActiveCellLayoutCache>>,
     committed_history_layout: RefCell<Vec<CommittedHistoryLayoutCache>>,
     scroll_top: Cell<usize>,
@@ -79,6 +80,7 @@ impl Default for TranscriptState {
             active_cell: None,
             live_tail: None,
             active_cell_revision: 0,
+            content_revision: 0,
             active_cell_layout: Cell::new(None),
             committed_history_layout: RefCell::new(Vec::new()),
             scroll_top: Cell::new(0),
@@ -129,22 +131,26 @@ impl TranscriptState {
     }
 
     pub fn set_active_cell(&mut self, cell: Box<dyn HistoryCell>) {
+        self.content_revision = self.content_revision.wrapping_add(1);
         self.active_cell = Some(cell);
         self.bump_active_cell_revision();
     }
 
     // 构造并展示 `push_cell` 对应的界面内容。
     pub fn push_cell(&mut self, cell: Box<dyn HistoryCell>) {
+        self.content_revision = self.content_revision.wrapping_add(1);
         self.committed_history.push(cell);
         self.invalidate_committed_history_layout();
     }
 
     pub fn push_history(&mut self, event: V3DisplayEvent) {
+        self.content_revision = self.content_revision.wrapping_add(1);
         self.committed_history.push(history_cell_for(&event));
         self.invalidate_committed_history_layout();
     }
 
     pub fn set_session_header(&mut self, data: tui_cells::V3SessionDisplayData) {
+        self.content_revision = self.content_revision.wrapping_add(1);
         if let Some(cell) = self
             .committed_history
             .iter_mut()
@@ -159,16 +165,19 @@ impl TranscriptState {
     }
 
     pub fn set_active_event(&mut self, event: Option<V3DisplayEvent>) {
+        self.content_revision = self.content_revision.wrapping_add(1);
         self.active_cell = event.as_ref().map(history_cell_for);
         self.bump_active_cell_revision();
     }
 
     // 更新 `set_live_tail_event` 对应的本地展示状态。
     pub fn set_live_tail_event(&mut self, event: Option<V3DisplayEvent>) {
+        self.content_revision = self.content_revision.wrapping_add(1);
         self.live_tail = event.as_ref().map(history_cell_for);
     }
 
     pub fn commit_active_cell(&mut self) {
+        self.content_revision = self.content_revision.wrapping_add(1);
         if let Some(cell) = self.active_cell.take() {
             self.committed_history.push(cell);
             self.invalidate_committed_history_layout();
@@ -179,6 +188,10 @@ impl TranscriptState {
     fn bump_active_cell_revision(&mut self) {
         self.active_cell_revision = self.active_cell_revision.wrapping_add(1);
         self.active_cell_layout.set(None);
+    }
+
+    pub fn content_revision(&self) -> u64 {
+        self.content_revision
     }
 
     pub fn history_len(&self) -> usize {

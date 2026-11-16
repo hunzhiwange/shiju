@@ -141,9 +141,11 @@ impl ActiveRunner {
         let _ = self.execute_action(app, V3Action::Submit { text, attachments });
     }
 
-    pub(super) fn refresh_pager(&mut self, app: &V3GatewayApp, width: u16) {
+    pub(super) fn refresh_pager(&mut self, app: &V3GatewayApp, _width: u16) {
         if let Some(pager) = self.transcript_pager.as_mut() {
-            pager.replace_committed(app.transcript_lines(width, true));
+            if pager.needs_source_refresh(app.widget().transcript_revision()) {
+                pager.replace_committed(app.transcript_lines(u16::MAX, true));
+            }
         }
     }
 

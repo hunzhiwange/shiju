@@ -12,7 +12,7 @@ pub struct Connection {
     pub token: String,
 }
 
-pub enum Notice { Error(String), Success(String) }
+pub use desktop_provider_apps::Notice;
 fn error<E>(notice: &mut Option<Notice>, text: impl Into<String>) -> iced::Task<E> {
     *notice = Some(Notice::Error(text.into())); iced::Task::none()
 }

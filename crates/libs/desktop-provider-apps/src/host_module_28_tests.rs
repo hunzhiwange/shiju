@@ -1,13 +1,6 @@
-use super::{Event, actions::ActionEvent, update_at};
-use crate::app::{
-    App, Message,
-    components::system_settings::SystemTab,
-    message::SettingsMessage,
-    state::{
-        ToastKind,
-        agent_apps_auth::{AccountOperation, ActionPhase, Connection, ServiceAccounts},
-    },
-};
+use crate::Notice;
+use crate::auth::state::{AccountOperation, ActionPhase, Connection, ServiceAccounts};
+use crate::auth::{Event, actions::ActionEvent};
 use iced::{Task, futures::StreamExt};
 use serde_json::{Value, json};
 use std::{
@@ -17,10 +10,8 @@ use std::{
     time::{Duration, Instant},
 };
 use {
-    gateway_endpoint::GatewayEndpoint,
-    vw_api_app_auth::AuthAccount,
-    vw_api_app_auth::AuthCredentialState,
-    vw_api_app_auth::AuthService,
+    gateway_endpoint::GatewayEndpoint, vw_api_app_auth::AuthAccount,
+    vw_api_app_auth::AuthCredentialState, vw_api_app_auth::AuthService,
     vw_api_transport::id::TenantScope,
 };
 
@@ -40,8 +31,6 @@ fn fixture(app: &mut App) -> (GatewayEndpoint, TcpListener) {
     listener.set_nonblocking(true).unwrap();
     let endpoint = GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
         .with_tenant_scope(TenantScope::new("platform-a", "company-a").unwrap());
-    app.show_system_settings = true;
-    app.system_settings_tab = SystemTab::Auth;
     let state = &mut app.agent_apps_auth;
     state.select_endpoint(&endpoint);
     state.connection = Some(Connection {
@@ -140,10 +129,7 @@ fn drive(app: &mut App, endpoint: &GatewayEndpoint, task: Task<Message>) -> Task
             async {
                 tokio::time::timeout(TIMEOUT, async {
                     while let Some(action) = stream.next().await {
-                        if let iced_runtime::Action::Output(Message::Settings(
-                            SettingsMessage::AgentAppsAuth(event),
-                        )) = action
-                        {
+                        if let iced_runtime::Action::Output(event) = action {
                             return event;
                         }
                     }
@@ -187,9 +173,12 @@ fn generation(app: &App) -> u64 {
 }
 
 fn toast(app: &App, expected: &str, success: bool) {
-    let toast = app.active_toast.as_ref().expect("account action shows a desktop toast");
-    assert_eq!(toast.message, expected);
-    assert_eq!(matches!(toast.kind, ToastKind::Success), success);
+    let toast = app.notice.as_ref().expect("account action shows a desktop toast");
+    let text = match toast {
+        Notice::Error(text) | Notice::Success(text) => text,
+    };
+    assert_eq!(text, expected);
+    assert_eq!(matches!(toast, Notice::Success(_)), success);
 }
 
 fn confirm(app: &mut App, endpoint: &GatewayEndpoint) -> Task<Message> {
@@ -218,7 +207,7 @@ fn scoped_account(app: &App, service: AuthService) -> Option<&AuthAccount> {
 
 #[test]
 fn auth6_ui_actions_commits_expected_scoped_result() {
-    crate::app::config::with_editor_settings_gateway(|mut app, _, _| {
+    with_state(|mut app| {
         let (endpoint, listener) = fixture(&mut app);
         let code = AuthService::CodexOauth;
         let dsh = AuthService::DshAccount;
@@ -300,7 +289,7 @@ fn auth6_ui_actions_commits_expected_scoped_result() {
 
 #[test]
 fn auth6_ui_actions_rejects_invalid_or_stale_input() {
-    crate::app::config::with_editor_settings_gateway(|mut app, _, _| {
+    with_state(|mut app| {
         let (endpoint, listener) = fixture(&mut app);
         let code = AuthService::CodexOauth;
         let dsh = AuthService::DshAccount;
@@ -412,4 +401,62 @@ fn auth6_ui_actions_rejects_invalid_or_stale_input() {
         assert!(app.agent_apps_auth.rows.is_none());
         assert!(app.agent_apps_auth.account_action.is_none());
     });
+}
+
+// Only the authorization aggregate is needed by this fixture.
+#[derive(Default)]
+struct Usage;
+impl crate::auth::state::Usage for Usage {
+    fn clear(&mut self) {}
+}
+#[derive(Default)]
+struct App {
+    agent_apps_auth: crate::auth::state::State<Usage>,
+    notice: Option<Notice>,
+}
+type Message = Event;
+fn with_state(f: impl FnOnce(App)) {
+    f(App::default());
+}
+struct Ports;
+impl crate::auth::controller::Ports for Ports {
+    fn store_preference(&self, _: bool) -> Result<(), &'static str> {
+        panic!("unexpected preference effect")
+    }
+    fn deliver(
+        &self,
+        _: crate::auth::browser::LinkAction,
+        _: &reqwest::Url,
+    ) -> Result<(), &'static str> {
+        panic!("unexpected browser effect")
+    }
+    async fn connect_auth(
+        &self,
+        _: vw_gateway_client::GatewayClient,
+    ) -> Result<local_app_auth::Credentials, String> {
+        panic!("unexpected provisioning")
+    }
+}
+fn update_at(app: &mut App, event: Event, endpoint: GatewayEndpoint) -> Task<Event> {
+    let origin = crate::auth::binding::Origin {
+        visible_apps: false,
+        visible_auth: true,
+        provider_generation: 0,
+        provider_scope: None,
+        form: None,
+        project_path: &None,
+        token: "",
+        host: "",
+        catalog_generation: 0,
+    };
+    crate::auth::controller::update(
+        &mut app.agent_apps_auth,
+        &mut app.notice,
+        &mut Default::default(),
+        origin,
+        None,
+        &Ports,
+        event,
+        endpoint,
+    )
 }

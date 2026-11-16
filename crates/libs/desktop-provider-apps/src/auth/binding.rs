@@ -4,7 +4,7 @@ use gateway_app_auth::AgentAppsAuthCredentials;
 
 use super::{Event, message, read_error_label};
 use desktop_settings_account::types::{Binding, Connection, Scope};
-use desktop_provider_apps::state::{claude::Kind, edit::{EditForm, Mode}};
+use crate::state::{claude::Kind, edit::{EditForm, Mode}};
 use super::state::{State, Usage};
 use crate::{Notice, error, success};
 type Message = Event;
@@ -12,7 +12,7 @@ pub struct Origin<'a> {
     pub visible_apps: bool,
     pub visible_auth: bool,
     pub provider_generation: u64,
-    pub provider_scope: Option<&'a desktop_provider_apps::Scope>,
+    pub provider_scope: Option<&'a crate::Scope>,
     pub form: Option<&'a EditForm>,
     pub project_path: &'a Option<String>,
     pub token: &'a str,

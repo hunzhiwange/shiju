@@ -1,25 +1,15 @@
 //! Authorization center requests through the scoped management SDK.
-use gateway_app_auth::AgentAppsAuthCredentials;
 
 #[path = "agent_apps_auth_actions.rs"]
 pub(in crate::app) mod actions;
-#[cfg(test)]
-#[path = "agent_apps_auth_actions_tests.rs"]
-mod actions_tests;
 pub(in crate::app) mod binding;
 #[path = "agent_apps_auth_browser.rs"]
 pub(in crate::app) mod browser;
 pub(in crate::app) mod flow;
 
-use crate::app::{
-    App, Message,
-    components::system_settings::SystemTab,
-    message::SettingsMessage,
-    state::agent_apps_auth::{Connection, LoginPhase, LoginTarget, Scope, ServiceAccounts, now},
-};
+use crate::app::{App, Message, components::system_settings::SystemTab, message::SettingsMessage};
 use browser::LinkAction;
 use iced::Task;
-use {vw_gateway_client::GatewayClient, vw_api_app_auth::AuthService};
 
 pub(crate) use desktop_apps_ui::agent_apps_auth::SERVICES;
 
@@ -39,320 +29,62 @@ pub(in crate::app) fn update_at(
     event: Event,
     endpoint: gateway_endpoint::GatewayEndpoint,
 ) -> Task<Message> {
-    let scope = Scope::from(&endpoint);
-    let visible = app.show_system_settings && app.system_settings_tab == SystemTab::Auth;
-    let state = &mut app.agent_apps_auth;
-    state.select_endpoint(&endpoint);
-
-    if let Event::AccountAction(action) = event {
-        return actions::update(app, action, endpoint, scope, visible);
-    }
-
-    if matches!(
+    use desktop_provider_apps::auth::{
+        binding::{Effects, Origin},
+        controller,
+    };
+    let origin = Origin {
+        visible_apps: app.show_system_settings && app.system_settings_tab == SystemTab::Apps,
+        visible_auth: app.show_system_settings && app.system_settings_tab == SystemTab::Auth,
+        provider_generation: app.app_providers.generation,
+        provider_scope: app.app_providers.scope.as_ref(),
+        form: app.app_providers.form.as_ref(),
+        project_path: &app.project_path,
+        token: &app.apps_catalog.token,
+        host: &app.apps_catalog.host,
+        catalog_generation: app.apps_catalog.generation,
+    };
+    let mut notice = None;
+    let mut effects = Effects::default();
+    let task = controller::update(
+        &mut app.agent_apps_auth,
+        &mut notice,
+        &mut effects,
+        origin,
+        app.apps_catalog.context.as_ref(),
+        &NativePorts,
         event,
-        Event::OpenBinding { .. }
-            | Event::LoadBinding(_)
-            | Event::BindingLoaded(..)
-            | Event::SelectBinding(..)
-            | Event::SaveBinding(_)
-            | Event::BindingSaved(..)
-            | Event::CloseBinding(_)
-    ) {
-        if state.account_action.is_some() {
-            return Task::none();
-        }
-        return binding::update(app, event, endpoint);
+        endpoint,
+    )
+    .map(message);
+    if effects.opened {
+        app.system_settings_tab = SystemTab::Auth;
+        app.system_settings_help_tab = None;
     }
-
-    if let Event::Loaded { scope: loaded_scope, generation, rows } = event {
-        let failed = rows.iter().all(|row| row.accounts.is_err());
-        if state.finish(&loaded_scope, generation, rows) && failed && visible {
-            return app.show_error_toast("授权账号读取失败，请检查各服务的提示");
-        }
-        return Task::none();
+    if effects.saved {
+        app.app_providers.usage.clear();
     }
-
-    if let Event::OpenBrowserPreference(open) = event {
-        if visible {
-            state.copy_login_link = !open;
-            if let Err(error) = browser::store_preference(open) {
-                return app.show_error_toast(error);
-            }
-        }
-        return Task::none();
-    }
-
-    // GatewayEndpoint currently uses HTTP. Keep management credentials on the direct loopback.
-    if !state.loopback {
-        return Task::none();
-    }
-
-    match event {
-        Event::AccountAction(_) => unreachable!("account action events handled above"),
-        Event::OpenBinding { .. }
-        | Event::LoadBinding(_)
-        | Event::BindingLoaded(..)
-        | Event::SelectBinding(..)
-        | Event::SaveBinding(_)
-        | Event::BindingSaved(..)
-        | Event::CloseBinding(_) => unreachable!("binding events handled above"),
-        Event::Open => {
-            if visible
-                && (state.pending.is_none() || state.binding.is_some())
-                && state.form.is_none()
-                && state.login.is_none()
-                && state.account_action.is_none()
-            {
-                let mut form = state.connection.clone().unwrap_or_else(|| Connection {
-                    username: "vibewindow".into(),
-                    ..Connection::default()
-                });
-                let catalog = &app.apps_catalog;
-                if state.connection.is_none()
-                    && catalog.context.as_ref().is_some_and(|context| {
-                        context.gateway == scope.gateway && context.tenant == scope.tenant
-                    })
-                {
-                    form.host.clone_from(&catalog.host);
-                    form.token.clone_from(&catalog.token);
-                }
-                if let Some(binding) = &state.binding {
-                    form.host.clone_from(&binding.host);
-                    form.token.clone_from(&catalog.token);
-                }
-                state.form = Some(form);
-            }
-        }
-        Event::Close => state.form = None,
-        Event::LocalReady { scope: ready_scope, generation, result } => {
-            if scope != ready_scope || state.pending != Some(generation) {
-                return Task::none();
-            }
-            state.pending = None;
-            match result {
-                Ok(credentials) => {
-                    state.connection = Some(Connection::local(credentials));
-                    return update_at(app, Event::Refresh, endpoint);
-                }
-                Err(error) => {
-                    state.connection_error = Some(error.clone());
-                    if visible {
-                        return app.show_error_toast(error);
-                    }
-                }
-            }
-        }
-        Event::Host(value) => {
-            if state.binding.is_none()
-                && let Some(form) = &mut state.form
-            {
-                form.host = value;
-            }
-        }
-        Event::Username(value) => {
-            if let Some(form) = &mut state.form {
-                form.username = value;
-            }
-        }
-        Event::Password(value) => {
-            if let Some(form) = &mut state.form {
-                form.password = value;
-            }
-        }
-        Event::Token(value) => {
-            if state.binding.is_none()
-                && let Some(form) = &mut state.form
-            {
-                form.token = value;
-            }
-        }
-        Event::Connect | Event::Refresh | Event::RetryService(_) => {
-            if !visible || state.account_action.is_some() || state.login.is_some() {
-                return Task::none();
-            }
-            if matches!(event, Event::RetryService(_)) && state.form.is_some() {
-                return Task::none();
-            }
-            if let Some(binding) = &state.binding {
-                let generation = binding.generation;
-                if matches!(event, Event::Connect)
-                    && !binding.loading
-                    && !binding.saving
-                    && state.form.as_ref().is_some_and(|form| {
-                        binding::connection_matches(binding, form, &app.apps_catalog.token)
-                    })
-                {
-                    state.connection = state.form.take();
-                    state.usage.clear();
-                    state.rows = None;
-                    state.pending = None;
-                    return binding::update(app, Event::LoadBinding(generation), endpoint);
-                }
-                return Task::none();
-            }
-            if state.pending.is_some() {
-                return Task::none();
-            }
-            if matches!(event, Event::Connect) {
-                if !state.form.as_ref().is_some_and(Connection::valid_management) {
-                    return Task::none();
-                }
-                state.connection = state.form.take();
-            }
-            let Ok(client) = GatewayClient::new(endpoint) else {
-                return app.show_error_toast("无法建立管理连接，请重试");
-            };
-            let Some(connection) = state.connection.clone() else {
-                if !cfg!(unix) {
-                    return Task::none();
-                }
-                let generation = state.begin();
-                return Task::perform(
-                    crate::app::components::system_settings_apps::local::connect_auth(client),
-                    move |result| message(Event::LocalReady { scope, generation, result }),
-                );
-            };
-            let retry = if let Event::RetryService(service) = event {
-                let Some(rows) = state.rows.clone().filter(|rows| {
-                    rows.iter().any(|row| row.service == service && row.accounts.is_err())
-                }) else {
-                    return Task::none();
-                };
-                Some((service, rows))
-            } else {
-                None
-            };
-            let generation = state.begin();
-            return Task::perform(
-                async move {
-                    let credentials = AgentAppsAuthCredentials {
-                        username: connection.username.trim(),
-                        password: &connection.password,
-                        principal_token: connection.token.trim(),
-                    };
-                    if let Some((service, mut rows)) = retry {
-                        let refreshed =
-                            load_service(&client, connection.host.trim(), &credentials, service).await;
-                        if let Some(row) = rows.iter_mut().find(|row| row.service == service) {
-                            *row = refreshed;
-                        }
-                        rows
-                    } else {
-                        load(&client, connection.host.trim(), &credentials).await
-                    }
-                },
-                move |rows| message(Event::Loaded { scope, generation, rows }),
-            );
-        }
-        Event::StartLogin(_) | Event::RetryLogin => {
-            if !visible
-                || state.form.is_some()
-                || state.pending.is_some()
-                || state.binding.is_some()
-                || state.account_action.is_some()
-            {
-                return Task::none();
-            }
-            let target = match (&state.login, event) {
-                (None, Event::StartLogin(target)) => target,
-                (Some(login), Event::RetryLogin)
-                    if matches!(login.phase, LoginPhase::Failed(_)) =>
-                {
-                    login.target
-                }
-                _ => return Task::none(),
-            };
-            let Some(connection) = state.connection.clone() else { return Task::none() };
-            let Ok(client) = GatewayClient::new(endpoint) else {
-                return app.show_error_toast("无法建立管理连接，请重试");
-            };
-            return flow::start(state, scope, client, connection, target);
-        }
-        Event::CloseLogin => state.login = None,
-        Event::LoginTick => {}
-        Event::LoginLink(generation, action) if visible => {
-            if let Some(login) = state.login_mut(generation)
-                && let LoginPhase::Pending(challenge) = &login.phase
-                && challenge.expires_at.0 > now().0
-            {
-                let url = challenge.verification_url.clone();
-                return deliver_link(app, action, url);
-            }
-        }
-        Event::PasteInput(generation, input) if visible => {
-            browser::edit_paste(state, generation, input);
-        }
-        Event::PasteSubmit(generation) if visible => {
-            if let Err(error) = browser::submit_paste(state, generation) {
-                return app.show_error_toast(error);
-            }
-        }
-        Event::LoginLink(..) | Event::PasteInput(..) | Event::PasteSubmit(_) => {}
-        Event::LoginUpdated { scope, generation, update } => {
-            if !visible || !state.is_latest_login_update(&scope, generation) {
-                return Task::none();
-            }
-            if matches!(update, flow::Update::CancelFailed) {
-                return app.show_error_toast("执行主机未确认取消授权登录");
-            }
-            let action = LinkAction::for_preference(state.copy_login_link);
-            let Some(login) = state.login_mut(generation) else { return Task::none() };
-            match update {
-                flow::Update::Started(challenge) => {
-                    if matches!(login.phase, LoginPhase::Starting) {
-                        let active = challenge.expires_at.0 > now().0;
-                        let url = challenge.verification_url.clone();
-                        login.phase = LoginPhase::Pending(challenge);
-                        if active {
-                            return deliver_link(app, action, url);
-                        }
-                    }
-                }
-                flow::Update::Pending(expires_at) => {
-                    if let LoginPhase::Pending(challenge) = &mut login.phase {
-                        challenge.expires_at = expires_at;
-                    }
-                }
-                flow::Update::Approved => {
-                    let label = if login.target.is_device() {
-                        "设备码登录成功"
-                    } else {
-                        "授权登录成功"
-                    };
-                    state.login = None;
-                    return Task::batch([
-                        app.show_success_toast(label),
-                        Task::done(message(Event::Refresh)),
-                    ]);
-                }
-                flow::Update::Failed(reason) => {
-                    login.paste_input.clear();
-                    login.phase = LoginPhase::Failed(reason);
-                    return app.show_error_toast(reason);
-                }
-                flow::Update::PasteFinished(result) => {
-                    login.paste_submitting = false;
-                    return match result {
-                        Ok(()) => app.show_success_toast("已提交回填，正在等待执行主机确认登录"),
-                        Err(error) => app.show_error_toast(error),
-                    };
-                }
-                flow::Update::CancelFailed => unreachable!("cancellation errors handled above"),
-            }
-        }
-        Event::Loaded { .. } | Event::OpenBrowserPreference(_) => {
-            unreachable!("local events handled above")
-        }
-    }
-    Task::none()
+    let feedback = match notice {
+        Some(desktop_provider_apps::Notice::Error(text)) => app.show_error_toast(text),
+        Some(desktop_provider_apps::Notice::Success(text)) => app.show_success_toast(text),
+        None => Task::none(),
+    };
+    Task::batch([task, feedback])
 }
-
-fn deliver_link(app: &mut App, action: LinkAction, url: reqwest::Url) -> Task<Message> {
-    match browser::deliver(action, &url) {
-        Ok(()) if matches!(action, LinkAction::Copy) => app.show_success_toast("已复制授权链接"),
-        Ok(()) => Task::none(),
-        Err(error) => app.show_error_toast(error),
+struct NativePorts;
+impl desktop_provider_apps::auth::controller::Ports for NativePorts {
+    fn store_preference(&self, open: bool) -> Result<(), &'static str> {
+        browser::store_preference(open)
+    }
+    fn deliver(&self, action: LinkAction, url: &reqwest::Url) -> Result<(), &'static str> {
+        browser::deliver(action, url)
+    }
+    fn connect_auth(
+        &self,
+        client: vw_gateway_client::GatewayClient,
+    ) -> impl std::future::Future<Output = Result<local_app_auth::Credentials, String>> + Send + 'static
+    {
+        crate::app::components::system_settings_apps::local::connect_auth(client)
     }
 }
-
 pub(crate) use desktop_apps_ui::agent_apps_auth::{load, load_service};

@@ -39,3 +39,16 @@ pub enum Message {
 }
 
 pub mod tray_switch;
+
+/// Feedback returned to the host for presentation.
+pub enum Notice { Error(String), Success(String) }
+fn error<E>(notice: &mut Option<Notice>, text: impl Into<String>) -> iced::Task<E> {
+    *notice = Some(Notice::Error(text.into())); iced::Task::none()
+}
+fn success<E>(notice: &mut Option<Notice>, text: impl Into<String>) -> iced::Task<E> {
+    *notice = Some(Notice::Success(text.into())); iced::Task::none()
+}
+pub mod auth;
+
+#[cfg(test)]
+mod host_module_28_tests;

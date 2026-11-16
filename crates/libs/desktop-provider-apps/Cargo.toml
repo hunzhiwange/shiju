@@ -14,7 +14,7 @@ vw-api-app-aggregation = { path = "../api-app-aggregation", version = "0.6.0" }
 vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 vw-api-model-catalog = { path = "../api-model-catalog", version = "0.6.0" }
-tokio = { version = "1", features = ["sync", "time"] }
+tokio = { version = "1", features = ["sync", "time", "macros"] }
 iced = { version = "0.14", features = ["advanced", "image"] }
 vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.6.0" }
 vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.6.0" }
@@ -40,6 +40,14 @@ vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
 gateway-app-read = { path = "../gateway-app-read", version = "0.6.0" }
 rfd = { version = "0.17", features = ["file-handle-inner"] }
 
+desktop-settings-account = { path = "../desktop-settings-account", version = "0.6.0" }
+gateway-app-auth = { path = "../gateway-app-auth", version = "0.6.0" }
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
+
 [dev-dependencies]
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+tempfile = "3"
+iced_runtime = "0.14"

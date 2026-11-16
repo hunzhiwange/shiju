@@ -188,6 +188,7 @@ fn reset_commit_form_state_clears_selection_and_restores_defaults() {
 
 #[test]
 fn diff_context_target_range_prefers_menu_inside_selected_range() {
+    let git_diff_selected_lines: Vec<GitDiffSelectedLine> = Default::default();
     let git_diff_selected_range: Option<GitDiffLineRange> =
         Some(GitDiffLineRange { file: "src/lib.rs".to_string(), start: 8, end: 4, is_old: false });
     let git_diff_context_menu: Option<GitDiffContextMenuState> = Some(GitDiffContextMenuState {
@@ -198,7 +199,12 @@ fn diff_context_target_range_prefers_menu_inside_selected_range() {
         y: 2.0,
     });
 
-    let range = super::shared::diff_context_target_range(&app).expect("range should resolve");
+    let range = domain::diff_context_target_range(
+        &git_diff_context_menu,
+        &git_diff_selected_range,
+        &git_diff_selected_lines,
+    )
+    .expect("range should resolve");
 
     assert_eq!(range.file, "src/lib.rs");
     assert_eq!(range.start, 4);
@@ -208,6 +214,7 @@ fn diff_context_target_range_prefers_menu_inside_selected_range() {
 
 #[test]
 fn diff_context_target_range_falls_back_to_menu_line() {
+    let git_diff_selected_lines: Vec<GitDiffSelectedLine> = Default::default();
     let git_diff_selected_range: Option<GitDiffLineRange> =
         Some(GitDiffLineRange { file: "other.rs".to_string(), start: 1, end: 3, is_old: false });
     let git_diff_context_menu: Option<GitDiffContextMenuState> = Some(GitDiffContextMenuState {
@@ -218,7 +225,12 @@ fn diff_context_target_range_falls_back_to_menu_line() {
         y: 2.0,
     });
 
-    let range = super::shared::diff_context_target_range(&app).expect("range should resolve");
+    let range = domain::diff_context_target_range(
+        &git_diff_context_menu,
+        &git_diff_selected_range,
+        &git_diff_selected_lines,
+    )
+    .expect("range should resolve");
 
     assert_eq!(range.file, "src/lib.rs");
     assert_eq!(range.start, 6);
@@ -228,10 +240,16 @@ fn diff_context_target_range_falls_back_to_menu_line() {
 
 #[test]
 fn diff_context_target_range_uses_selection_then_selected_line_then_none() {
+    let git_diff_context_menu: Option<GitDiffContextMenuState> = Default::default();
     let mut git_diff_selected_range: Option<GitDiffLineRange> =
         Some(GitDiffLineRange { file: "range.rs".to_string(), start: 7, end: 3, is_old: false });
 
-    let range = super::shared::diff_context_target_range(&app).expect("range should resolve");
+    let range = domain::diff_context_target_range(
+        &git_diff_context_menu,
+        &git_diff_selected_range,
+        &git_diff_selected_lines,
+    )
+    .expect("range should resolve");
     assert_eq!((range.file.as_str(), range.start, range.end), ("range.rs", 3, 7));
 
     git_diff_selected_range = None;
@@ -242,15 +260,29 @@ fn diff_context_target_range_uses_selection_then_selected_line_then_none() {
         text: "removed".to_string(),
     }];
 
-    let line = super::shared::diff_context_target_range(&app).expect("line should resolve");
+    let line = domain::diff_context_target_range(
+        &git_diff_context_menu,
+        &git_diff_selected_range,
+        &git_diff_selected_lines,
+    )
+    .expect("line should resolve");
     assert_eq!((line.file.as_str(), line.start, line.end, line.is_old), ("line.rs", 9, 9, true));
 
     git_diff_selected_lines.clear();
-    assert!(super::shared::diff_context_target_range(&app).is_none());
+    assert!(
+        domain::diff_context_target_range(
+            &git_diff_context_menu,
+            &git_diff_selected_range,
+            &git_diff_selected_lines
+        )
+        .is_none()
+    );
 }
 
 #[test]
 fn diff_context_target_stage_lines_deduplicates_selected_lines() {
+    let git_diff_context_menu: Option<GitDiffContextMenuState> = Default::default();
+    let git_diff_selected_range: Option<GitDiffLineRange> = Default::default();
     let git_diff_selected_lines: Vec<GitDiffSelectedLine> = vec![
         GitDiffSelectedLine {
             file: "src/lib.rs".to_string(),
@@ -272,7 +304,11 @@ fn diff_context_target_stage_lines_deduplicates_selected_lines() {
         },
     ];
 
-    let lines = super::shared::diff_context_target_stage_lines(&app);
+    let lines = domain::diff_context_target_stage_lines(
+        &git_diff_context_menu,
+        &git_diff_selected_range,
+        &git_diff_selected_lines,
+    );
 
     assert_eq!(
         lines,
@@ -282,6 +318,7 @@ fn diff_context_target_stage_lines_deduplicates_selected_lines() {
 
 #[test]
 fn diff_context_target_stage_lines_uses_range_containing_menu_line() {
+    let git_diff_selected_lines: Vec<GitDiffSelectedLine> = Default::default();
     let git_diff_selected_range: Option<GitDiffLineRange> =
         Some(GitDiffLineRange { file: "src/lib.rs".to_string(), start: 5, end: 3, is_old: true });
     let git_diff_context_menu: Option<GitDiffContextMenuState> = Some(GitDiffContextMenuState {
@@ -293,7 +330,11 @@ fn diff_context_target_stage_lines_uses_range_containing_menu_line() {
     });
 
     assert_eq!(
-        super::shared::diff_context_target_stage_lines(&app),
+        domain::diff_context_target_stage_lines(
+            &git_diff_context_menu,
+            &git_diff_selected_range,
+            &git_diff_selected_lines
+        ),
         vec![
             ("src/lib.rs".to_string(), 3, true),
             ("src/lib.rs".to_string(), 4, true),
@@ -304,6 +345,7 @@ fn diff_context_target_stage_lines_uses_range_containing_menu_line() {
 
 #[test]
 fn diff_context_target_stage_lines_filters_menu_side_or_uses_menu_only() {
+    let git_diff_selected_range: Option<GitDiffLineRange> = Default::default();
     let git_diff_selected_lines: Vec<GitDiffSelectedLine> = vec![
         GitDiffSelectedLine {
             file: "src/lib.rs".to_string(),
@@ -334,7 +376,11 @@ fn diff_context_target_stage_lines_filters_menu_side_or_uses_menu_only() {
         });
 
     assert_eq!(
-        super::shared::diff_context_target_stage_lines(&app),
+        domain::diff_context_target_stage_lines(
+            &git_diff_context_menu,
+            &git_diff_selected_range,
+            &git_diff_selected_lines
+        ),
         vec![("src/lib.rs".to_string(), 4, false), ("src/lib.rs".to_string(), 6, false)]
     );
 
@@ -347,7 +393,11 @@ fn diff_context_target_stage_lines_filters_menu_side_or_uses_menu_only() {
     });
 
     assert_eq!(
-        super::shared::diff_context_target_stage_lines(&app),
+        domain::diff_context_target_stage_lines(
+            &git_diff_context_menu,
+            &git_diff_selected_range,
+            &git_diff_selected_lines
+        ),
         vec![("other.rs".to_string(), 2, true)]
     );
 }
@@ -362,13 +412,18 @@ fn extend_and_clear_stage_selection_for_lines_are_idempotent() {
         ("src/lib.rs".to_string(), 1, true),
     ];
 
-    super::shared::extend_stage_selection_for_lines(&mut app, &lines);
+    domain::extend_stage_selection_for_lines(
+        &mut staged_old_lines_selected,
+        &mut staged_lines_selected,
+        &lines,
+    );
 
     assert_eq!(staged_lines_selected, vec![("src/lib.rs".to_string(), 2)]);
     assert_eq!(staged_old_lines_selected, vec![("src/lib.rs".to_string(), 1)]);
 
-    super::shared::clear_stage_selection_for_lines(
-        &mut app,
+    domain::clear_stage_selection_for_lines(
+        &mut staged_old_lines_selected,
+        &mut staged_lines_selected,
         &[("src/lib.rs".to_string(), 2, false)],
     );
 

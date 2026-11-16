@@ -7625,6 +7625,12 @@ dependencies = [
 name = "desktop-settings-skills"
 version = "0.6.0"
 dependencies = [
+ "urlencoding",
+ "tempfile",
+ "serde_json",
+ "image",
+ "iced_runtime",
+ "desktop-chat-view",
  "config-skills",
  "config-ui",
  "desktop-assets",

@@ -16,19 +16,6 @@ async fn collect_task_messages(task: iced::Task<Message>) -> Vec<Message> {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn copy_install_command_emits_the_documented_template() {
-    let mut app = app();
-
-    let messages =
-        collect_task_messages(update(&mut app, SettingsMessage::SkillsCopyInstallCommand)).await;
-
-    assert!(matches!(
-        messages.as_slice(),
-        [Message::CopyCode(command)] if command == INSTALL_COMMAND_TEMPLATE
-    ));
-}
-
-#[tokio::test(flavor = "multi_thread")]
 async fn skills_project_selection_refreshes_current_and_opens_other_project() {
     let mut app = app();
     app.project_path = Some("/repo/current".to_string());

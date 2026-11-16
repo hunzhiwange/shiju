@@ -6,50 +6,9 @@
 // 错误横幅及 appearance 测试验证 SettingsMessage 经 App::update 的状态投影。
 use super::*;
 use crate::app::{App, Message};
-use iced::Element;
-use iced::widget::text;
 
 fn test_app() -> App {
     App::new().0
-}
-
-fn keep_element(element: Element<'_, Message>) {
-    std::hint::black_box(element);
-}
-
-#[test]
-fn view_builds_every_skills_settings_tab() {
-    let mut app = test_app();
-
-    for (_, tab) in skills_tab_labels() {
-        app.skills_settings.active_tab = *tab;
-        keep_element(view(&app));
-        assert_eq!(app.skills_settings.active_tab, *tab);
-    }
-}
-
-#[test]
-fn skills_error_banner_follows_skills_tabs() {
-    let mut app = test_app();
-
-    for (_, tab) in skills_tab_labels() {
-        app.skills_settings.active_tab = *tab;
-        app.skills_settings.save_error = None;
-        assert_eq!(view(&app).as_widget().children().len(), 3);
-
-        app.skills_settings.save_error = Some("skills save failed".to_string());
-        assert_eq!(view(&app).as_widget().children().len(), 4);
-    }
-}
-
-#[test]
-fn view_overlays_builds_with_help_closed_and_open() {
-    let app = test_app();
-    keep_element(view_overlays(&app, text("基础对话框").into()));
-
-    let mut app = test_app();
-    app.skills_settings.show_help_modal = true;
-    keep_element(view_overlays(&app, text("基础对话框").into()));
 }
 
 #[tokio::test(flavor = "multi_thread")]

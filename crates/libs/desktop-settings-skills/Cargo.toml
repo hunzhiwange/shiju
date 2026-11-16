@@ -29,3 +29,12 @@ tokio = { version = "1", features = ["rt", "fs"] }
 rfd = { version = "0.17", features = ["file-handle-inner"] }
 
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+
+[dev-dependencies]
+desktop-chat-view = { path = "../desktop-chat-view", version = "0.6.0" }
+iced_runtime = "0.14"
+image = "0.25"
+serde_json = "1"
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+urlencoding = "2.1"

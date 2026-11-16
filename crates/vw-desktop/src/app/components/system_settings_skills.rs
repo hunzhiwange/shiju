@@ -17,21 +17,48 @@ mod repo_modal;
 mod storage_modal;
 mod updates_view;
 
-use crate::app::components::system_settings_common::{
-    settings_error_banner, settings_help_button_with_locale, settings_page_heading_with_help,
-    settings_tab_row,
-};
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
-use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::state::SkillsSettingsTab;
 use crate::app::{App, Message, message};
-use iced::widget::{column, container, row};
-use iced::{Alignment, Element, Length};
+#[cfg(test)]
+use desktop_i18n::settings_extensions::text as tr;
+use iced::Element;
 
 use desktop_settings_skills::page::SKILLS_TAB_LABELS;
 fn page_message(event: desktop_settings_skills::page::Message) -> Message {
     use desktop_settings_skills::page::Message as Ui;
     Message::Settings(match event {
+        Ui::HelpOpen => message::SettingsMessage::SkillsHelpOpen,
+        Ui::RepositoriesOpen => message::SettingsMessage::SkillRepositories(
+            crate::app::message::settings::skills::repo_modal::Event::Open,
+        ),
+        Ui::ClaudeOpen => message::SettingsMessage::SkillsClaudeConfig(
+            crate::app::message::settings::skills::claude_view::Event::Open,
+        ),
+        Ui::MarketOpen => message::SettingsMessage::SkillsMarket(
+            crate::app::message::settings::skills::market_view::Event::Open,
+        ),
+        Ui::UpdatesOpen => message::SettingsMessage::SkillsUpdates(
+            crate::app::message::settings::skills::updates_view::Event::Open,
+        ),
+        Ui::InstallOpen => message::SettingsMessage::SkillsInstall(
+            crate::app::message::settings::skills::install_view::Event::Open,
+        ),
+        Ui::ImportOpen => message::SettingsMessage::SkillsImport(
+            crate::app::message::settings::skills::import_modal::Event::Open,
+        ),
+        Ui::JobsOpen => message::SettingsMessage::SkillsJobs(
+            crate::app::message::settings::skills::jobs_view::Event::Open,
+        ),
+        Ui::BindingsOpen => message::SettingsMessage::SkillsBindings(
+            crate::app::message::settings::skills::bindings_view::Event::Open,
+        ),
+        Ui::StorageOpen => message::SettingsMessage::SkillsStorage(
+            crate::app::message::settings::skills::storage_modal::Event::Open,
+        ),
+        Ui::BackupOpen => message::SettingsMessage::SkillsBackups(
+            crate::app::message::settings::skills::backup_modal::Event::Open,
+        ),
         Ui::None => return Message::None,
         Ui::CopyText(text) => return Message::CopyCode(text),
         Ui::SkillsTabChanged(v) => message::SettingsMessage::SkillsTabChanged(v),
@@ -57,13 +84,6 @@ fn config_context(app: &App) -> desktop_settings_skills::page::ConfigContext<'_>
         prompt_injection_mode: s.prompt_injection_mode,
     }
 }
-fn skills_tab_button(
-    label: &'static str,
-    tab: SkillsSettingsTab,
-    active_tab: SkillsSettingsTab,
-) -> Element<'static, Message> {
-    desktop_settings_skills::page::skills_tab_button(label, tab, active_tab).map(page_message)
-}
 pub(super) const SKILLS_TABS: &[SettingsTabDescriptor<SkillsSettingsTab>] = &[
     SettingsTabDescriptor::new(
         SKILLS_TAB_LABELS[0].1,
@@ -88,106 +108,19 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
 }
 
 pub fn view(app: &App) -> Element<'_, Message> {
-    let s = &app.skills_settings;
-    let help_btn = settings_help_button_with_locale(
-        app.desktop_locale,
-        Message::Settings(message::SettingsMessage::SkillsHelpOpen),
-    );
-
-    let content = match s.active_tab {
+    let content = match app.skills_settings.active_tab {
         SkillsSettingsTab::Skills => browser::view(app),
         SkillsSettingsTab::DiscoveryOrder => browser::discovery_order_view(app),
         SkillsSettingsTab::SystemConfig => system_config_view(app),
     };
-
-    let mut page = column![
-        row![
-            container(settings_page_heading_with_help(
-                I18n::new(app.desktop_locale),
-                &app.app_theme,
-                tr(app.desktop_locale, "技能配置"),
-                tr(
-                    app.desktop_locale,
-                    "技能、发现顺序与系统配置分开展示；技能页只保留浏览和搜索。"
-                ),
-            ))
-            .width(Length::Fill),
-            iced::widget::button("仓库管理")
-                .padding([8, 10])
-                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
-                .on_press(Message::Settings(message::SettingsMessage::SkillRepositories(
-                    crate::app::message::settings::skills::repo_modal::Event::Open
-                ))),
-            iced::widget::button("Claude 配置")
-                .padding([8, 10])
-                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
-                .on_press(crate::app::message::settings::skills::claude_view::message(
-                    crate::app::message::settings::skills::claude_view::Event::Open
-                )),
-            iced::widget::button("技能市场")
-                .padding([8, 10])
-                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
-                .on_press(crate::app::message::settings::skills::market_view::message(
-                    crate::app::message::settings::skills::market_view::Event::Open
-                )),
-            iced::widget::button("更新与卸载")
-                .padding([8, 10])
-                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
-                .on_press(crate::app::message::settings::skills::updates_view::message(
-                    crate::app::message::settings::skills::updates_view::Event::Open
-                )),
-            iced::widget::button("详情与安装")
-                .padding([8, 10])
-                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
-                .on_press(crate::app::message::settings::skills::install_view::message(
-                    crate::app::message::settings::skills::install_view::Event::Open
-                )),
-            iced::widget::button("导入技能")
-                .padding([8, 10])
-                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
-                .on_press(crate::app::message::settings::skills::import_modal::message(
-                    crate::app::message::settings::skills::import_modal::Event::Open
-                )),
-            iced::widget::button("任务进度")
-                .padding([8, 10])
-                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
-                .on_press(crate::app::message::settings::skills::jobs_view::message(
-                    crate::app::message::settings::skills::jobs_view::Event::Open
-                )),
-            iced::widget::button("应用绑定")
-                .padding([8, 10])
-                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
-                .on_press(crate::app::message::settings::skills::bindings_view::message(
-                    crate::app::message::settings::skills::bindings_view::Event::Open
-                )),
-            iced::widget::button("存储与同步")
-                .padding([8, 10])
-                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
-                .on_press(crate::app::message::settings::skills::storage_modal::message(
-                    crate::app::message::settings::skills::storage_modal::Event::Open
-                )),
-            iced::widget::button("备份与恢复")
-                .padding([8, 10])
-                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
-                .on_press(crate::app::message::settings::skills::backup_modal::message(
-                    crate::app::message::settings::skills::backup_modal::Event::Open
-                )),
-            help_btn,
-        ]
-        .align_y(Alignment::Start),
-        settings_tab_row(skills_tab_labels().iter().map(|(label, tab)| {
-            skills_tab_button(tr(app.desktop_locale, label), *tab, s.active_tab)
-        }))
-        .wrap(),
-    ]
-    .spacing(16)
-    .width(Length::Fill);
-
-    if let Some(error) = &s.save_error {
-        page = page
-            .push(settings_error_banner(crate::app::i18n::I18n::new(app.desktop_locale).__(error)));
-    }
-    page.push(content).into()
+    desktop_settings_skills::page::view(
+        config_context(app),
+        app.skills_settings.active_tab,
+        &app.skills_settings.save_error,
+        content,
+        page_message,
+        heading_help,
+    )
 }
 
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
@@ -245,5 +178,21 @@ fn help<'a>(
         Message::None => desktop_settings_skills::page::Message::None,
         _ => unreachable!("plain selectable help only emits copy or no-op events"),
     });
+    desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label, content)
+}
+
+fn heading_help<'a>(
+    i18n: desktop_i18n::I18n,
+    theme: Option<&iced::Theme>,
+    title: &'a str,
+    label: iced::widget::Text<'a>,
+    description: std::borrow::Cow<'a, str>,
+) -> iced::widget::Row<'a, Message> {
+    let content = crate::app::components::chat_panel::message_view::selectable_titled_text(
+        title,
+        description,
+        theme.map(|t| t.palette().text),
+        i18n,
+    );
     desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label, content)
 }

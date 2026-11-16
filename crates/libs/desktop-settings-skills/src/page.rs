@@ -18,6 +18,17 @@ pub struct ConfigContext<'a> {
 #[derive(Clone, Debug)]
 pub enum Message {
     None,
+    HelpOpen,
+    RepositoriesOpen,
+    ClaudeOpen,
+    MarketOpen,
+    UpdatesOpen,
+    InstallOpen,
+    ImportOpen,
+    JobsOpen,
+    BindingsOpen,
+    StorageOpen,
+    BackupOpen,
     CopyText(String),
     SkillsTabChanged(SkillsSettingsTab),
     SkillsDirectoryProviderChanged(SkillsDirectoryProvider),
@@ -127,4 +138,90 @@ pub fn system_config_view(app: ConfigContext<'_>) -> Element<'static, Message> {
     .width(Length::Fill);
 
     config_card.into()
+}
+
+/// Compose the skill page around the selected domain content.
+pub fn view<'a, M: Clone + 'a>(
+    app: ConfigContext<'_>,
+    active_tab: SkillsSettingsTab,
+    save_error: &'a Option<String>,
+    content: Element<'a, M>,
+    map: fn(Message) -> M,
+    heading_help: crate::HelpRenderer<M>,
+) -> Element<'a, M> {
+    use iced::Alignment;
+    use iced::widget::{container, row};
+    let help_btn = settings_help_button_with_locale(app.desktop_locale, map(Message::HelpOpen));
+    let mut page = column![
+        row![
+            container(
+                (heading_help)(
+                    I18n::new(app.desktop_locale),
+                    Some(app.app_theme),
+                    tr(app.desktop_locale, "技能配置"),
+                    iced::widget::text(tr(app.desktop_locale, "技能配置")).size(28),
+                    tr(
+                        app.desktop_locale,
+                        "技能、发现顺序与系统配置分开展示；技能页只保留浏览和搜索。"
+                    )
+                    .into(),
+                )
+                .wrap()
+            )
+            .width(Length::Fill),
+            iced::widget::button("仓库管理")
+                .padding([8, 10])
+                .style(rounded_action_btn_style)
+                .on_press(map(Message::RepositoriesOpen)),
+            iced::widget::button("Claude 配置")
+                .padding([8, 10])
+                .style(rounded_action_btn_style)
+                .on_press(map(Message::ClaudeOpen)),
+            iced::widget::button("技能市场")
+                .padding([8, 10])
+                .style(rounded_action_btn_style)
+                .on_press(map(Message::MarketOpen)),
+            iced::widget::button("更新与卸载")
+                .padding([8, 10])
+                .style(rounded_action_btn_style)
+                .on_press(map(Message::UpdatesOpen)),
+            iced::widget::button("详情与安装")
+                .padding([8, 10])
+                .style(rounded_action_btn_style)
+                .on_press(map(Message::InstallOpen)),
+            iced::widget::button("导入技能")
+                .padding([8, 10])
+                .style(rounded_action_btn_style)
+                .on_press(map(Message::ImportOpen)),
+            iced::widget::button("任务进度")
+                .padding([8, 10])
+                .style(rounded_action_btn_style)
+                .on_press(map(Message::JobsOpen)),
+            iced::widget::button("应用绑定")
+                .padding([8, 10])
+                .style(rounded_action_btn_style)
+                .on_press(map(Message::BindingsOpen)),
+            iced::widget::button("存储与同步")
+                .padding([8, 10])
+                .style(rounded_action_btn_style)
+                .on_press(map(Message::StorageOpen)),
+            iced::widget::button("备份与恢复")
+                .padding([8, 10])
+                .style(rounded_action_btn_style)
+                .on_press(map(Message::BackupOpen)),
+            help_btn,
+        ]
+        .align_y(Alignment::Start),
+        settings_tab_row(skills_tab_labels().iter().map(|(label, tab)| {
+            skills_tab_button(tr(app.desktop_locale, label), *tab, active_tab).map(map)
+        }))
+        .wrap(),
+    ]
+    .spacing(16)
+    .width(Length::Fill);
+
+    if let Some(error) = save_error {
+        page = page.push(settings_error_banner(I18n::new(app.desktop_locale).__(error)));
+    }
+    page.push(content).into()
 }

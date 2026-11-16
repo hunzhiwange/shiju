@@ -25,8 +25,6 @@ pub(crate) mod backup_modal;
 
 use desktop_settings_skills::update::catalog::{self as domain, Event, Effect};
 pub(super) use domain::map_catalog_items;
-#[cfg(test)]
-use domain::INSTALL_COMMAND_TEMPLATE;
 fn refresh_task(project_path: Option<String>) -> Task<Message> {
     Task::perform(async move { gateway_skills_async(project_path.as_deref()).await }, |result| {
         Message::Settings(SettingsMessage::SkillsLoaded(result))

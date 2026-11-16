@@ -12,33 +12,7 @@ use crate::tools::catalog::ToolCatalogSnapshot;
 use crate::tools::mcp_common::server_name;
 use acp_server::server::BackendError;
 
-fn supported_server_name(server: &McpServer) -> Result<&str, BackendError> {
-    let name = match server {
-        McpServer::Http(server) => &server.name,
-        McpServer::Sse(server) => &server.name,
-        McpServer::Stdio(server) => &server.name,
-        _ => {
-            return Err(BackendError::InvalidRequest(
-                "unsupported MCP server transport".to_string(),
-            ));
-        }
-    };
-    if name.trim().is_empty() {
-        return Err(BackendError::InvalidRequest("MCP server name must not be empty".to_string()));
-    }
-    Ok(name)
-}
-
-fn validate_server_names(servers: &[McpServer]) -> Result<(), BackendError> {
-    let mut names = HashSet::new();
-    for server in servers {
-        let name = supported_server_name(server)?;
-        if !names.insert(name.to_string()) {
-            return Err(BackendError::InvalidRequest(format!("duplicate MCP server name: {name}")));
-        }
-    }
-    Ok(())
-}
+use agent_acp::mcp::validate_server_names;
 
 /// 完整探测所有配置；任何一项失败都不返回部分工具。
 pub(crate) async fn prepare_session_tools(

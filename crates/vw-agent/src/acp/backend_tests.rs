@@ -3,17 +3,15 @@
 
 use std::time::Duration;
 
-use serde_json::json;
 use tempfile::TempDir;
 use acp_server::server::{
-    BackendCancelHandle, BackendEvent, BackendTermination, BackendToolStatus, PromptContent,
+    BackendCancelHandle, BackendEvent, BackendTermination, PromptContent,
     SessionBackend,
 };
 use vw_api_transport::id::TenantScope;
 
-use super::backend::{VibeWindowBackend, map_runtime_event, start_prompt_with_runtime_runner};
-use crate::session::processor::{StreamEvent, ToolCallStatus, ToolEvent, ToolEventKind};
-use crate::session::runtime::{PromptEvent, PromptTermination};
+use super::backend::{VibeWindowBackend, start_prompt_with_runtime_runner};
+use crate::session::processor::StreamEvent;
 use crate::session::ui_types::TokenUsage;
 
 // 为每个场景生成完整且互不重叠的租户作用域，避免会话记录串扰。
@@ -133,34 +131,6 @@ async fn backend_prompt_uses_native_model_and_local_tools() {
         .expect("terminal timeout")
         .expect("terminal event");
     assert_eq!(terminal, BackendEvent::Terminal(BackendTermination::EndTurn));
-}
-
-#[test]
-fn backend_maps_runtime_events_without_parsing_display_text() {
-    let payload = json!({
-        "status": "completed",
-        "input": {"token": "[REDACTED]"},
-        "output": {"ok": true}
-    });
-    let event = PromptEvent::Tool(ToolEvent {
-        call_id: "call-1".to_string(),
-        name: "shell".to_string(),
-        kind: ToolEventKind::Complete,
-        status: ToolCallStatus::Completed,
-        occurred_ms: 1,
-        payload: payload.clone(),
-    });
-
-    let mapped = map_runtime_event(event).expect("mapped event");
-    assert!(matches!(
-        mapped,
-        BackendEvent::ToolComplete {
-            call_id,
-            status: BackendToolStatus::Completed,
-            raw_output: Some(output),
-            ..
-        } if call_id == "call-1" && output == json!({"ok": true})
-    ));
 }
 
 #[tokio::test]

@@ -11,3 +11,10 @@ pub mod prompt;
 
 #[cfg(test)]
 mod approval_tests;
+
+pub mod persistence;
+
+#[cfg(test)]
+mod host_migration_53_tests;
+
+pub mod mcp;

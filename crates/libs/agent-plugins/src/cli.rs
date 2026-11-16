@@ -219,4 +219,4 @@ fn component_summary(manifest: &PluginManifest) -> String {
     if components.is_empty() { "manifest".to_string() } else { components.join(",") }
 }
 
-fn install_dir_from_config(config: &agent_config::runtime::Config) -> PathBuf { config.config_path.parent().map(Path::to_path_buf).unwrap_or_else(|| config.workspace_dir.clone()).join("plugins") }
+pub fn install_dir_from_config(config: &agent_config::runtime::Config) -> PathBuf { config.config_path.parent().map(Path::to_path_buf).unwrap_or_else(|| config.workspace_dir.clone()).join("plugins") }

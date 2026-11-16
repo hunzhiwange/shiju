@@ -70,18 +70,6 @@ pub use types::{
 #[path = "hook_handler_tests.rs"]
 mod hook_handler_tests;
 
-#[cfg(test)]
-#[path = "install_tests.rs"]
-mod install_tests;
-
-#[cfg(test)]
-#[path = "cli_tests.rs"]
-mod cli_tests;
-
-#[cfg(test)]
-#[path = "skills_tests.rs"]
-mod skills_tests;
-
 pub(crate) use compat::mcp_catalog::list_tools as list_mcp_catalog_tools;
 
 pub(crate) use compat::mcp_connection_settings::tool_allowed as plugin_mcp_tool_allowed;

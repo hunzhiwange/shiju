@@ -1,7 +1,7 @@
 //! 验证插件命令行的安装、审计、启停、列举与删除流程。
 
-use super::{PluginCommands, PluginDiscoveryOptions, discover_plugins, handle_command};
-use crate::config::Config;
+use crate::{PluginCommands, PluginDiscoveryOptions, discover_plugins};
+use agent_config::runtime::Config;
 use serde_json::json;
 use std::fs;
 use std::path::Path;
@@ -189,4 +189,15 @@ fn plugin_cli_remove_deletes_plugin_and_disabled_marker() {
 
     assert!(!plugin.exists());
     assert!(!config_plugin_dir(&config).join("removed-plugin.disabled").exists());
+}
+
+// Use the real domain CLI with process-local connection cleanup and skill discovery.
+fn handle_command(command: PluginCommands, config: &Config) -> anyhow::Result<()> {
+    crate::cli::handle_command(command, config,
+        &plugin_mcp::mcp_connection_sessions::close_plugin,
+        &|config| agent_skills::catalog::load_skills_with_config(
+            &config.workspace_dir, &config.skills, true,
+            |mode| crate::skills::load_plugin_skills(
+                &config.workspace_dir, config, mode, &crate::discover_plugins),
+        ))
 }

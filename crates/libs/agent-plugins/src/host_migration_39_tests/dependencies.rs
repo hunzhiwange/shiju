@@ -1,4 +1,4 @@
-use crate::plugins::{DependencyState, inspect_plugin_dependencies};
+use plugin_install::dependencies::DependencyState;
 use serde_json::json;
 use std::{fs, path::Path};
 fn package(root: &Path, command: &str, args: serde_json::Value) {
@@ -66,4 +66,17 @@ fn codex_plugin_compat_t58_rejects_dependency_symlink() {
         .unwrap();
     assert!(inspect_plugin_dependencies(root.path()).is_err());
     assert_eq!(fs::read(outside.path().join("server.js")).unwrap(), b"private");
+}
+
+// Compose the existing inspection ports with the same audited domain loaders as the host.
+fn inspect_plugin_dependencies(root: &Path) -> anyhow::Result<Vec<plugin_install::dependencies::PluginDependencyCheck>> {
+    let manifest = crate::load_plugin_manifest(root)?;
+    let (outcome, _) = crate::mcp::load_plugin_mcp_declarations(&manifest)?;
+    plugin_install::dependencies::inspect_plugin_dependencies(
+        &manifest, outcome,
+        |manifest| plugin_install::skill_roots::skill_roots(manifest, &crate::audit::resolve_component_path),
+        |root| plugin_install::skill_roots::skill_files(root, plugin_install::skill_roots::package_format(&manifest)),
+        |root, skill| plugin_install::agents::load_metadata(root, skill, crate::audit::resolve_component_path),
+        plugin_mcp::mcp_portable::env_names_match,
+    )
 }

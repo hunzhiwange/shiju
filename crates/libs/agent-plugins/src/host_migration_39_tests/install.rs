@@ -1,6 +1,6 @@
-//! 配置目录投影仍由宿主组合层持有。
-use super::install::install_dir_from_config;
-use crate::config::Config;
+//! Installation directory projection uses the same domain entry as the CLI.
+use crate::cli::install_dir_from_config;
+use agent_config::runtime::Config;
 use std::path::Path;
 
 #[test]

@@ -1,9 +1,8 @@
 //! 验证插件技能加载、安全策略、覆盖优先级与禁用行为。
 
-use crate::app::agent::config::{Config, SkillsPromptInjectionMode};
-use crate::app::agent::skills::{
-    SkillLoadMode, load_skills_full_with_config, load_skills_with_config,
-};
+use agent_config::runtime::Config;
+use agent_config::runtime::SkillsPromptInjectionMode;
+use agent_skills::types::SkillLoadMode;
 use serde_json::json;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -79,7 +78,7 @@ fn write_skill(skills_dir: &Path, name: &str, description: &str) -> PathBuf {
     skill_dir
 }
 
-fn skill_names(skills: &[crate::app::agent::skills::Skill]) -> Vec<&str> {
+fn skill_names(skills: &[agent_skills::Skill]) -> Vec<&str> {
     skills.iter().map(|skill| skill.name.as_str()).collect()
 }
 
@@ -193,7 +192,18 @@ fn plugin_skills_invalid_plugin_source_returns_empty() {
 
     let mut config = runtime_config(&workspace_dir, &config_dir);
     config.config_path.clear();
-    let skills = super::load_plugin_skills(&workspace_dir, &config, SkillLoadMode::Full);
+    let skills = crate::skills::load_plugin_skills(&workspace_dir, &config, SkillLoadMode::Full, &crate::discover_plugins);
 
     assert!(skills.is_empty());
+}
+
+fn load_skills_with_config(workspace: &Path, config: &Config) -> Vec<agent_skills::Skill> {
+    load_catalog(workspace, config, false)
+}
+fn load_skills_full_with_config(workspace: &Path, config: &Config) -> Vec<agent_skills::Skill> {
+    load_catalog(workspace, config, true)
+}
+fn load_catalog(workspace: &Path, config: &Config, full: bool) -> Vec<agent_skills::Skill> {
+    agent_skills::catalog::load_skills_with_config(workspace, &config.skills, full,
+        |mode| crate::skills::load_plugin_skills(workspace, config, mode, &crate::discover_plugins))
 }

@@ -12,6 +12,7 @@ fn test_module_is_wired() {
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn update_routes_search_message_without_side_effects() {
     let mut app = crate::app::App::new().0;
@@ -22,6 +23,7 @@ fn update_routes_search_message_without_side_effects() {
     assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/a.txt"));
 }
 
+// 宿主契约：核对 App 字段投影及 Select, update 的消息/任务接线。
 #[test]
 fn update_routes_tab_message_to_tab_handler() {
     let mut app = crate::app::App::new().0;
@@ -32,6 +34,7 @@ fn update_routes_tab_message_to_tab_handler() {
     assert!(app.active_preview_path.is_none());
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn update_routes_editor_message_to_editor_handler() {
     let mut app = crate::app::App::new().0;
@@ -45,6 +48,7 @@ fn update_routes_editor_message_to_editor_handler() {
 #[cfg(not(target_arch = "wasm32"))]
 // 消息与任务边界：确认输入消息产生预期状态或返回任务。
 // 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn update_routes_editor_mouse_message_to_editor_handler() {
     let mut app = crate::app::App::new().0;
@@ -58,6 +62,7 @@ fn update_routes_editor_mouse_message_to_editor_handler() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn update_routes_lsp_message_to_editor_handler() {
     let mut app = crate::app::App::new().0;
@@ -75,6 +80,7 @@ fn update_routes_lsp_message_to_editor_handler() {
 #[cfg(not(target_arch = "wasm32"))]
 // 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
 // 完成、失败与过期响应均按当前场景的既定契约处理。
+// 宿主契约：核对 App 字段投影及 tick_lsp 的消息/任务接线。
 #[test]
 fn tick_lsp_routes_to_lsp_tick_when_disabled() {
     let mut app = crate::app::App::new().0;

@@ -7,6 +7,7 @@ use crate::app::state::ConventionalCommitType;
 // 提交与删除：覆盖保存、安装或移除操作前后的状态衔接。
 // 这里关注校验、任务载荷和结果反馈，不绑定底层实现。
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn commit_selected_rejects_blank_message_without_starting_commit() {
     let (mut app, _task) = crate::app::App::new();
@@ -20,6 +21,7 @@ fn commit_selected_rejects_blank_message_without_starting_commit() {
     assert_eq!(app.error_message.as_deref(), Some("提交消息不能为空"));
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn commit_all_reuses_commit_validation() {
     let (mut app, _task) = crate::app::App::new();
@@ -35,6 +37,7 @@ fn commit_all_reuses_commit_validation() {
 
 // 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
 // 完成、失败与过期响应均按当前场景的既定契约处理。
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn stage_all_requires_project_context_and_reports_finished_states() {
     let (mut app, _task) = crate::app::App::new();
@@ -72,6 +75,7 @@ fn stage_all_requires_project_context_and_reports_finished_states() {
     );
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn commit_selected_while_in_progress_preserves_existing_state() {
     let (mut app, _task) = crate::app::App::new();
@@ -86,6 +90,7 @@ fn commit_selected_while_in_progress_preserves_existing_state() {
     assert_eq!(app.error_message.as_deref(), Some("existing error"));
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn commit_selected_without_project_path_restores_idle_state_and_reports_error() {
     let (mut app, _task) = crate::app::App::new();
@@ -104,6 +109,7 @@ fn commit_selected_without_project_path_restores_idle_state_and_reports_error() 
     );
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn commit_selected_with_valid_context_enters_in_progress_state() {
     let (mut app, _task) = crate::app::App::new();
@@ -118,6 +124,7 @@ fn commit_selected_with_valid_context_enters_in_progress_state() {
     assert!(app.error_message.is_none());
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn commit_selected_finished_success_resets_form_and_reports_success() {
     let (mut app, _task) = crate::app::App::new();
@@ -150,6 +157,7 @@ fn commit_selected_finished_success_resets_form_and_reports_success() {
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn commit_selected_finished_error_keeps_form_and_reports_error() {
     let (mut app, _task) = crate::app::App::new();

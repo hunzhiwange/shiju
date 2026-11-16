@@ -6,6 +6,7 @@ use crate::app::state::GitWorktreeOption;
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn refresh_worktree_options_without_project_clears_state() {
     let (mut app, _task) = crate::app::App::new();
@@ -29,6 +30,7 @@ fn refresh_worktree_options_without_project_clears_state() {
     assert!(!app.git_worktree_menu_open);
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn refresh_worktree_options_with_project_marks_request_loading() {
     let temp = tempfile::TempDir::new().expect("tempdir");
@@ -43,6 +45,7 @@ fn refresh_worktree_options_with_project_marks_request_loading() {
     assert_eq!(app.git_worktree_options_project_path.as_deref(), Some(project_path.as_str()));
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn refresh_worktree_options_for_non_git_project_clears_state_without_error() {
     let temp = tempfile::TempDir::new().expect("tempdir");
@@ -69,6 +72,7 @@ fn refresh_worktree_options_for_non_git_project_clears_state_without_error() {
     assert_eq!(app.error_message, None);
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn refresh_worktree_options_while_same_project_is_loading_preserves_options() {
     let (mut app, _task) = crate::app::App::new();
@@ -88,6 +92,7 @@ fn refresh_worktree_options_while_same_project_is_loading_preserves_options() {
     assert!(app.git_worktree_options_loading);
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn worktree_options_ready_ignores_stale_project_path() {
     let (mut app, _task) = crate::app::App::new();
@@ -110,6 +115,7 @@ fn worktree_options_ready_ignores_stale_project_path() {
     assert!(app.git_worktree_options_loading);
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn worktree_options_ready_selects_matching_directory_and_branch() {
     let (mut app, _task) = crate::app::App::new();
@@ -141,6 +147,7 @@ fn worktree_options_ready_selects_matching_directory_and_branch() {
     assert_eq!(app.selected_branch.as_deref(), Some("feature"));
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn worktree_options_ready_normalizes_directory_separators() {
     let (mut app, _task) = crate::app::App::new();
@@ -163,6 +170,7 @@ fn worktree_options_ready_normalizes_directory_separators() {
     assert_eq!(app.selected_branch.as_deref(), Some("feature"));
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn worktree_options_ready_falls_back_to_first_option() {
     let (mut app, _task) = crate::app::App::new();
@@ -185,6 +193,7 @@ fn worktree_options_ready_falls_back_to_first_option() {
     assert_eq!(app.selected_branch.as_deref(), Some("main"));
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn worktree_options_ready_with_empty_result_clears_selected_directory() {
     let (mut app, _task) = crate::app::App::new();
@@ -207,6 +216,7 @@ fn worktree_options_ready_with_empty_result_clears_selected_directory() {
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn worktree_options_ready_error_resets_options_and_reports_error() {
     let (mut app, _task) = crate::app::App::new();
@@ -233,6 +243,7 @@ fn worktree_options_ready_error_resets_options_and_reports_error() {
     assert_eq!(app.error_message.as_deref(), Some("读取 Git worktree 失败: boom"));
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn select_git_worktree_resets_diff_state_and_updates_branch() {
     let (mut app, _task) = crate::app::App::new();
@@ -291,6 +302,7 @@ fn select_git_worktree_resets_diff_state_and_updates_branch() {
     assert!(app.git_diff_comment_draft.is_none());
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn toggle_git_worktree_menu_uses_requested_state() {
     let (mut app, _task) = crate::app::App::new();
@@ -302,6 +314,7 @@ fn toggle_git_worktree_menu_uses_requested_state() {
     assert!(!app.git_worktree_menu_open);
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn refresh_changed_files_without_repository_clears_cached_state() {
     let (mut app, _task) = crate::app::App::new();
@@ -318,6 +331,7 @@ fn refresh_changed_files_without_repository_clears_cached_state() {
     assert_eq!(app.git_changed_files_repo_path, None);
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn refresh_changed_files_while_loading_preserves_cached_state() {
     let (mut app, _task) = crate::app::App::new();
@@ -332,6 +346,7 @@ fn refresh_changed_files_while_loading_preserves_cached_state() {
     assert_eq!(app.git_changed_files_repo_path.as_deref(), Some("/repo"));
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn refresh_changed_files_with_project_marks_request_loading() {
     let (mut app, _task) = crate::app::App::new();
@@ -343,6 +358,7 @@ fn refresh_changed_files_with_project_marks_request_loading() {
     assert_eq!(app.git_changed_files_repo_path.as_deref(), Some("/repo"));
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn refresh_diff_file_metas_without_repository_clears_cached_contents() {
     let (mut app, _task) = crate::app::App::new();
@@ -362,6 +378,7 @@ fn refresh_diff_file_metas_without_repository_clears_cached_contents() {
     assert!(app.git_diff_contents_loading.is_empty());
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn refresh_diff_file_metas_while_same_repo_is_loading_preserves_contents() {
     let (mut app, _task) = crate::app::App::new();
@@ -377,6 +394,7 @@ fn refresh_diff_file_metas_while_same_repo_is_loading_preserves_contents() {
     assert!(app.git_diff_contents.contains_key("pending.rs"));
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn refresh_diff_file_metas_with_project_marks_request_loading() {
     let (mut app, _task) = crate::app::App::new();
@@ -390,6 +408,7 @@ fn refresh_diff_file_metas_with_project_marks_request_loading() {
 
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
 // 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn changed_files_ready_ignores_stale_repo_path() {
     let (mut app, _task) = crate::app::App::new();
@@ -408,6 +427,7 @@ fn changed_files_ready_ignores_stale_repo_path() {
     assert!(app.git_changed_files_loading);
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn changed_files_ready_updates_files_and_clears_selection() {
     let (mut app, _task) = crate::app::App::new();
@@ -456,6 +476,7 @@ fn changed_files_ready_updates_files_and_clears_selection() {
     );
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn changed_files_ready_expands_change_list_dirs_when_showing_changes() {
     let (mut app, _task) = crate::app::App::new();
@@ -476,6 +497,7 @@ fn changed_files_ready_expands_change_list_dirs_when_showing_changes() {
     assert!(!app.file_tree_expanded.contains(&"src".to_string()));
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn changed_files_ready_without_manual_refresh_does_not_create_toast() {
     let (mut app, _task) = crate::app::App::new();
@@ -499,6 +521,7 @@ fn changed_files_ready_without_manual_refresh_does_not_create_toast() {
 
 
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn diff_content_ready_for_stale_repo_preserves_current_loading_state() {
     let (mut app, _task) = crate::app::App::new();
@@ -519,6 +542,7 @@ fn diff_content_ready_for_stale_repo_preserves_current_loading_state() {
     assert!(!app.git_diff_contents.contains_key("src/lib.rs"));
 }
 
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn load_diff_content_without_repository_does_not_mark_file_loading() {
     let (mut app, _task) = crate::app::App::new();
@@ -534,6 +558,7 @@ fn load_diff_content_without_repository_does_not_mark_file_loading() {
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn diff_content_ready_ignores_unknown_file_but_clears_loading() {
     let (mut app, _task) = crate::app::App::new();

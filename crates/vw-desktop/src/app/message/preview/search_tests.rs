@@ -12,6 +12,7 @@ fn test_module_is_wired() {
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
+// 宿主契约：核对 App 字段投影及 GotoLineChanged, SearchChanged, SearchEditorAction, update 的消息/任务接线。
 #[test]
 fn update_ignores_all_routed_search_messages_without_scheduling_work() {
     let messages = [

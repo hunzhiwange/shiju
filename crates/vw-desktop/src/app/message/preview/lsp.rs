@@ -28,18 +28,6 @@ pub(crate) fn clear_lsp_completion(app: &mut App, suppress: bool) {
 pub(crate) fn process_lsp_hover_timers(app: &mut App) {
     domain::process_lsp_hover_timers(&mut app.lsp_hover_anchor, &mut app.lsp_hover_hide_deadline, &mut app.lsp_hover_pending, &mut app.lsp_overlay, &mut app.lsp_overlay_path, &mut app.preview_tabs);
 }
-#[cfg(test)]
-pub(crate) fn filter_completions(app: &mut App) {
-    domain::filter_completions(&mut app.lsp_overlay);
-}
-#[cfg(test)]
-pub(crate) fn apply_completion(app: &mut App, completion_text: &str) {
-    domain::apply_completion(&mut app.active_preview_path, &mut app.preview_tabs, completion_text);
-}
-#[cfg(test)]
-pub(crate) fn handle_lsp_hover_from_mouse(app: &mut App, point: iced::Point) {
-    domain::handle_lsp_hover_from_mouse(&mut app.active_preview_path, &mut app.lsp_hover_anchor, &mut app.lsp_hover_hide_deadline, &mut app.lsp_hover_pending, &mut app.lsp_overlay, &mut app.lsp_overlay_path, &mut app.preview_nav_popup, &mut app.preview_tabs, &mut app.show_preview_context_menu, point);
-}
 pub(crate) fn drain_lsp_events(app: &mut App) -> Task<Message> {
     let mut notifications = Vec::new();
     let result = domain::drain_lsp_events(&mut app.active_preview_path, &mut app.lsp_events, &mut app.lsp_hover_anchor, &mut app.lsp_hover_hide_deadline, &mut app.lsp_hover_pending, &mut app.lsp_overlay, &mut app.lsp_overlay_path, &mut app.lsp_progress, &mut app.lsp_status, &mut app.lsp_status_message, &mut notifications, &mut app.pending_preview_goto, &mut app.preview_tabs);

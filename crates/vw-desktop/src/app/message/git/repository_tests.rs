@@ -67,6 +67,7 @@ async fn history_preview_uses_committed_snapshot_including_deleted_files() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 宿主契约：核对 App 字段投影及 update 的消息/任务接线。
 #[test]
 fn non_git_project_skips_repository_requests_and_clears_history_error() {
     use crate::app::components::git_panel::repository_ops::RemoteAction;

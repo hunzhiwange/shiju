@@ -10,3 +10,6 @@ mod tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod voice;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_56_tests;

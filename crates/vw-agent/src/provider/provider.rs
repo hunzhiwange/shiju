@@ -2,10 +2,6 @@
 #[cfg(test)]
 use crate::config;
 #[cfg(test)]
-use std::sync::Arc;
-#[cfg(test)]
-use std::collections::HashMap;
-#[cfg(test)]
 use serde_json::Value;
 #[cfg(test)]
 use crate::project::instance;

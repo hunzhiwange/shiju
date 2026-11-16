@@ -142,3 +142,38 @@ fn modalities(values: &[String]) -> CapabilityIO {
         pdf: contains("pdf"),
     }
 }
+
+/// Validate runtime bindings before reading tenant-owned metadata through the host port.
+pub fn read_with(
+    config: &agent_config::runtime::Config,
+    mut read: impl FnMut(&vw_api_model_catalog::ModelCatalogIdentity) -> Result<vw_api_model_catalog::ModelCatalogReadResponse, agent_config::runtime::Error>,
+) -> Result<DeploymentCatalogs, agent_config::runtime::Error> {
+    use agent_config::runtime::Error;
+    use serde_json::Value;
+    use vw_api_model_catalog::ModelCatalogIdentity;
+    let mut bindings = Vec::new();
+    for (provider_id, provider) in &config.providers {
+        let Some(binding) = provider.get("model_catalog") else { continue };
+        app_provider_validation::validate_identity(provider_id).map_err(Error::Invalid)?;
+        let deployment: ModelCatalogIdentity = serde_json::from_value(binding.clone())
+            .map_err(|_| Error::Invalid("invalid runtime model catalog binding".into()))?;
+        if matches!(provider_id.as_str(), "shiju" | "acp")
+            || provider.get("api").and_then(Value::as_str) != Some(deployment.endpoint.as_str())
+        {
+            return Err(Error::Invalid(
+                "runtime model catalog requires the same configured endpoint on a custom provider"
+                    .into(),
+            ));
+        }
+        let adapter = provider.get("adapter").and_then(Value::as_str).unwrap_or_default();
+        if !matches!(adapter, "openai" | "openai-compatible" | "openai-responses" | "anthropic") {
+            return Err(Error::Invalid("unsupported runtime model catalog adapter".into()));
+        }
+        bindings.push((provider_id.clone(), adapter.to_string(), deployment));
+    }
+
+    bindings.into_iter().map(|(id, adapter, deployment)| {
+        let catalog = read(&deployment)?;
+        Ok((id, DeploymentCatalog { adapter, catalog }))
+    }).collect()
+}

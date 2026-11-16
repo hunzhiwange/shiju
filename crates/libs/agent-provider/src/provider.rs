@@ -93,18 +93,18 @@ fn provider_scope_key() -> String {
     .expect("serializable provider scope")
 }
 
-#[cfg(feature = "test-support")]
+#[cfg(any(test, feature = "test-support"))]
 tokio::task_local! {
     pub static CONFIG_READ_BOUNDARY: Arc<dyn Fn() -> agent_project::BoxFuture<()> + Send + Sync>;
 }
 
-#[cfg(feature = "test-support")]
+#[cfg(any(test, feature = "test-support"))]
 thread_local! {
     static CONFIG_READ_FAILURES: std::cell::RefCell<std::collections::VecDeque<std::io::ErrorKind>> = const { std::cell::RefCell::new(std::collections::VecDeque::new()) };
 }
 
 /// 只替换不确定的存储读取边界，目录构建及模型查找仍真实执行。
-#[cfg(feature = "test-support")]
+#[cfg(any(test, feature = "test-support"))]
 pub fn with_config_read_failures<T>(
     failures: &[std::io::ErrorKind],
     run: impl FnOnce() -> T,
@@ -121,7 +121,7 @@ pub fn with_config_read_failures<T>(
 }
 
 async fn provider_config() -> Result<config::Config, config::Error> {
-    #[cfg(feature = "test-support")]
+    #[cfg(any(test, feature = "test-support"))]
     if let Some(kind) = CONFIG_READ_FAILURES.with(|faults| faults.borrow_mut().pop_front()) {
         return Err(config::Error::Io(std::io::Error::new(kind, "isolated catalog storage read")));
     }
@@ -132,7 +132,7 @@ async fn provider_config() -> Result<config::Config, config::Error> {
     } else {
         config::get_project_for_tenant(&tenant, std::path::Path::new(&directory)).await
     };
-    #[cfg(feature = "test-support")]
+    #[cfg(any(test, feature = "test-support"))]
     if let Ok(boundary) = CONFIG_READ_BOUNDARY.try_with(Arc::clone) {
         boundary().await;
     }
@@ -430,7 +430,7 @@ fn unique_provider_api(models: &HashMap<String, Model>) -> Option<(String, Strin
     api_candidates.all(|candidate| candidate == first).then_some(first)
 }
 
-#[cfg(feature = "test-support")]
+#[cfg(any(test, feature = "test-support"))]
 pub async fn load_state_impl(apply_enabled_filter: bool) -> State {
     load_state_from_config(
         provider_config().await.expect("test configuration"),

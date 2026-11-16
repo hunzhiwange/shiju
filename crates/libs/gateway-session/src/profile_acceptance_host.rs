@@ -5,6 +5,8 @@ use gateway_instance::host::InstanceQuery;
 use gateway_types::ApiError;
 use vw_api_chat::chat::GatewayChatStreamRequest;
 pub trait ProfileAcceptanceHost: crate::session_host::SessionHost + crate::acp_host::AcpHost {
+    type Stream: crate::stream_host::StreamHost;
+    fn session_router() -> Router;
     type Fixture;
     type Admission: session_engine::admission_host::AdmissionHost;
     fn persist_turn(session: &str, query: &str, text: &str, agent: &str, error: Option<&str>) -> impl Future<Output = Result<(String, String), ApiError>> + Send;

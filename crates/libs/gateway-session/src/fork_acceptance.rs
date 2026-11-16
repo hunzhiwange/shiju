@@ -608,3 +608,8 @@ pub async fn fork_selection_locks_when_own_request_starts<S: SessionHost, T: Str
     assert!(events.contains("chat.done"), "{events}");
     server.abort();
 }
+
+#[cfg(unix)]
+mod acp_restart;
+#[cfg(unix)]
+pub use acp_restart::{fork_acp_negative_missing_history_is_detected, fork_acp_first_prompt_and_restart_preserve_history};

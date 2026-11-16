@@ -99,3 +99,6 @@ pub mod acp_source_acceptance;
 
 #[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
 pub mod archived_acceptance;
+
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod native_fork_acceptance;

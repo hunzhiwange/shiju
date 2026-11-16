@@ -2,6 +2,8 @@
 use gateway_session::profile_acceptance as suite;
 use super::message_ops::Host;
 impl gateway_session::profile_acceptance_host::ProfileAcceptanceHost for Host {
+    type Stream = super::stream::Host;
+    fn session_router() -> axum::Router { super::tests::test_app() }
     type Fixture = crate::session::llm::recovery_test_support::RecoveryConfig;
     type Admission = crate::session::agent_binding::AdmissionHost;
     async fn persist_turn(session: &str, query: &str, text: &str, agent: &str, error: Option<&str>) -> Result<(String, String), crate::gateway::ApiError> { super::stream::persist_child_agent_turn(session, query, text, agent, error).await }

@@ -5,7 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [features]
-test-support = ["tokio/rt-multi-thread", "tokio/net", "tokio/time", "dep:url", "dep:rusqlite", "dep:reqwest", "dep:parking_lot", "dep:llm-runtime", "dep:tower", "dep:futures-util", "dep:hex", "dep:sha2", "dep:uuid", "dep:agent-storage", "dep:tempfile", "dep:vw-api-todo", "dep:agent-env", "dep:agent-config", "dep:model-types", "dep:async-trait"]
+test-support = ["tokio/process", "tokio/rt-multi-thread", "tokio/net", "tokio/time", "dep:url", "dep:rusqlite", "dep:reqwest", "dep:parking_lot", "dep:llm-runtime", "dep:tower", "dep:futures-util", "dep:hex", "dep:sha2", "dep:uuid", "dep:agent-storage", "dep:tempfile", "dep:vw-api-todo", "dep:agent-env", "dep:agent-config", "dep:model-types", "dep:async-trait"]
 
 [lib]
 doctest = false

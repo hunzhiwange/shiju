@@ -207,3 +207,25 @@ archived_delete_tests.rs 254→31行；静态断言宏数量 26→26。该文件
 第三轮提交后静态快照（splitlines，14来源原基线4200）：当前1454行，累计净减2746行。逐文件当前数：acp_options=44, acp_source_tests=20, agent_profile_acceptance_tests=67, archived_delete=7, archived_delete_tests=31, fork_acceptance_tests=506, fork_acp_tests=288, message_ops=72, message_ops_tests=10, raw_commit=2, session_ops=174, session_ops_tests=138, shared=26, shared_tests=69。未达到70%时仍按保留项审查，不宣称整轮达标。
 
 明确继续可迁项：fork_acceptance_tests.rs的Branch/Prefix及assert_continuation/native_model_history/seed_checkpoints等仍在原源，其读端点、模型运输和worktree恢复已是具体组合，可再通过现有SessionHost/StreamHost与Router注入拆分；fork_acp_tests.rs仍由任务11的turn_fork_tests父模块提供fork/send/create_session_in上下文，目前父夹具正在并行下沉fork_acceptance，继续迁移必须对齐其实际新签名，不能复制旧父夹具或伪造接线。本轮已闭合profile/acp_source/archive三族，未把这两项写成已完成迁移。
+
+## 第四轮恢复：剩余 native/ACP fork 历史与重启契约
+
+读取task-59-recovery-priorities.json owner=10具体候选后，迁移fork_acceptance_tests.rs全部主体到gateway-session::native_fork_acceptance（history子模块承接Prefix/Branch与纯历史断言）；迁移fork_acp_tests.rs全部主体到已有fork_acceptance::acp_restart子模块，复用同库既有repository/fork/history/create_session_in/persist_turn/worktree_cleanup真实夹具，没有拷贝旧宿主父模块。宿主两文件只剩4条原注册、实际Router注入与原精确子进程测试名。
+
+ProfileAcceptanceHost复用上轮真实端口，最小补Stream关联类型与session_router，实际实现分别是原stream::Host及session::tests::test_app。native模型history调用原StreamHost::load_fork_history，checkpoint save显式接回session_engine已有scope_for_directory/current_tenant_scope/instance::directory，等价原宿主compaction_checkpoint::save薄封装。ACP端通过原S:SessionHost+AcpHost和T:StreamHost执行实际领域chat_stream/persist_child_agent_turn、原HTTP fork/history、实际binding持久化、worktree cleanup。
+
+子进程启动仍在领域夹具执行current_exe，精确注册名由宿主module_path!生成并传入；env_clear/HOME/TMPDIR/数据库恢复环境、独立create/restart或create/first/second阶段、kill_on_drop及超时逻辑保持。真实准入由注入的宿主Router/Host完成，没有模拟权限/文件访问/发布。两个负向should_panic的预期文案也保留原注册。
+
+完整新增映射：
+- `fork_acceptance_tests::fork_acceptance_negative_detects_discarded_model_history` → `gateway-session::native_fork_acceptance::history::fork_acceptance_negative_detects_discarded_model_history`（原宿主should_panic注册）。
+- `fork_acceptance_tests::fork_acceptance_restarts_and_resumes_both_targets` → `gateway-session::native_fork_acceptance::fork_acceptance_restarts_and_resumes_both_targets::<实际Host>`。
+- `session_ops::session_ops_tests::turn_fork_tests::fork_acp_tests::fork_acp_negative_missing_history_is_detected` → `gateway-session::fork_acceptance::acp_restart::fork_acp_negative_missing_history_is_detected`。
+- 同路径 `fork_acp_first_prompt_and_restart_preserve_history` → `gateway-session::fork_acceptance::acp_restart::fork_acp_first_prompt_and_restart_preserve_history::<实际SessionHost,实际StreamHost>`，注入原实际Router。
+
+原native文件所有符号逐项归属：request/read_desktop_history/send/git/create_repo/serve_model/Prefix/Branch/assert_no_future/assert_initial_history/assert_continuation/fork/native_model_history/seed_checkpoints/run_fixture/run_process及2条用例全部在native_fork_acceptance及其history；ACP文件process/send/assert_prefix及2条用例全部在fork_acceptance::acp_restart。生产策略迁移0行，新增领域断言仍经真实宿主注册运行，不冒充独立领域#[test]、编译收益或行为通过。前述fork两项待迁说明由本节替代。
+
+native静态断言宏数量 64→64。
+
+ACP静态断言宏数量 18→18。
+
+本任务14路径最新splitlines：acp_options=44, acp_source_tests=20, agent_profile_acceptance_tests=69, archived_delete=7, archived_delete_tests=31, fork_acceptance_tests=11, fork_acp_tests=14, message_ops=72, message_ops_tests=10, raw_commit=2, session_ops=174, session_ops_tests=138, shared=26, shared_tests=69。原4200→687行，累计净减3513行（83.64%）。剩余仅实际Host/typed转发、签名契约与薄注入及父模块实际使用的夹具。未运行任何Cargo、构建、测试或实机验证；未来4条原宿主完整名精确过滤并核对should_panic/非零注册，子进程必须仍匹配原名。

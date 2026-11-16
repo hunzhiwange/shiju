@@ -1,17 +1,11 @@
 //! Real HTTP gateway, SDK, SQLite and client executor. Model output alone is scripted.
 use super::dynamic_tool_store::PersistentToolPolicy;
 use super::runtime::{CreateSessionInput, SessionScope, create_session};
-use crate::tools::{ToolSpec, ToolUseContext};
+use crate::tools::ToolUseContext;
 use serde_json::json;
 use std::sync::Arc;
 use {
     vw_api_transport::id::TenantScope,
-    vw_api_tools::DynamicToolContent,
-    vw_api_tools::DynamicToolHostBinding,
-    vw_api_tools::DynamicToolRegistration,
-    vw_api_tools::DynamicToolResponse,
-    vw_api_tools::ReplaceDynamicToolsRequest,
-    vw_api_tools::ToolSource,
 };
 use vw_gateway_client::GatewayClient;
 use gateway_endpoint::GatewayEndpoint;
@@ -65,36 +59,6 @@ impl Fixture {
     fn directory(&self) -> &str {
         self.directory.path().to_str().unwrap()
     }
-    async fn register(&self) -> DynamicToolHostBinding {
-        gateway_host_tools::GatewayHostToolsClient::new(self.client.transport().clone()).register_dynamic_tool_host(&self.session, Some(self.directory())).await.unwrap()
-    }
-    async fn replace(
-        &self,
-        binding: &DynamicToolHostBinding,
-        name: &str,
-        persist: bool,
-    ) -> Result<u64, String> {
-        gateway_host_tools::GatewayHostToolsClient::new(self.client.transport().clone())
-            .replace_dynamic_tools(
-                &self.session,
-                Some(self.directory()),
-                binding,
-                &replacement(name, persist),
-            )
-            .await
-            .map(|r| r.version)
-    }
-    fn entry(
-        &self,
-        binding: &DynamicToolHostBinding,
-    ) -> Arc<super::runtime::dynamic_hosts::SessionHost> {
-        super::runtime::dynamic_hosts::SessionHost::authenticate(
-            &self.scope,
-            &self.session,
-            &binding.binding_token,
-        )
-        .unwrap()
-    }
     fn context(&self) -> Arc<ToolUseContext> {
         super::ui_store::with_tenant_scope_sync(self.scope.tenant().clone(), || {
             Arc::new(
@@ -109,333 +73,55 @@ impl Drop for Fixture {
         self.server.abort();
     }
 }
-fn replacement(name: &str, persist: bool) -> ReplaceDynamicToolsRequest {
-    let tools = if name.is_empty() {
-        vec![]
-    } else {
-        let mut spec = ToolSpec::new(name, name, json!({"type":"object","properties":{}}));
-        spec.source = ToolSource::Client;
-        spec.exposure = vw_api_tools::ToolExposure::Deferred;
-        spec.read_only = true;
-        vec![DynamicToolRegistration::Function(spec.to_dto())]
-    };
-    ReplaceDynamicToolsRequest { tools, persist }
-}
-fn response() -> DynamicToolResponse {
-    DynamicToolResponse {
-        success: true,
-        content: vec![DynamicToolContent::Text { text: "host result".into() }],
+use session_engine::dynamic_tool_acceptance::{self as contracts, Fixture as _, replacement, response, host_stream, execute, next_call};
+impl contracts::Fixture for Fixture {
+    type Context = crate::tools::context::AgentContextHost;
+    type Tools = super::runtime::dynamic_hosts::HostTools;
+    async fn new(trusted: bool) -> Self { Fixture::new(trusted).await }
+    fn directory(&self) -> &str { self.directory() }
+    fn session(&self) -> &str { &self.session }
+    fn scope(&self) -> &SessionScope { &self.scope }
+    fn transport(&self) -> gateway_http::GatewayTransport { self.client.transport().clone() }
+    fn context(&self) -> Arc<ToolUseContext> { self.context() }
+    fn wrong_tenant_transport(&self) -> gateway_http::GatewayTransport {
+        GatewayClient::new(self.client.endpoint().clone().with_tenant_scope(TenantScope::new("acceptance", "other").unwrap())).unwrap().transport().clone()
+    }
+    async fn update_ui_title(&self) {
+        let info = super::runtime::validate_session_scope(self.scope.clone(), &self.session).await.unwrap();
+        super::ui_store::with_tenant_scope_sync(self.scope.tenant().clone(), || {
+            super::ui_store::with_dynamic_tool_store(&info.project_id, |store, scope| {
+                let mut ui = store.load_session(scope, &self.session)?.unwrap();
+                ui.title = "UI title".into(); store.save_session(scope, &ui)
+            }).unwrap()
+        });
+    }
+    async fn assert_ui_title(&self) {
+        let info = super::runtime::validate_session_scope(self.scope.clone(), &self.session).await.unwrap();
+        super::ui_store::with_tenant_scope_sync(self.scope.tenant().clone(), || {
+            super::ui_store::with_dynamic_tool_store(&info.project_id, |store, scope| {
+                assert_eq!(store.load_session_meta(scope, &self.session)?.unwrap().title, "UI title"); Ok(())
+            }).unwrap()
+        });
+    }
+    async fn saved_tools(&self) -> session_store::dynamic_tool_store::PersistedDynamicTools {
+        super::runtime::load_session(self.scope.clone(), &self.session).await.unwrap().dynamic_tools.unwrap()
+    }
+    async fn other_session(&self) -> String {
+        create_session(CreateSessionInput { scope: self.scope.clone(), parent_id: None, title: None, permission: None }).await.unwrap().info.id
+    }
+    async fn fork_session(&self) -> String {
+        let fork: serde_json::Value = gateway_session::GatewaySessionClient::new(self.client.transport().clone()).session_fork(&self.session, Some(self.directory()), &None).await.unwrap();
+        fork["id"].as_str().unwrap().to_owned()
     }
 }
-
 #[tokio::test]
-async fn dynamic_tools_acceptance_replacement_survives_resume() {
-    let f = Fixture::new(true).await;
-    let binding = f.register().await;
-    assert!(f.replace(&binding, "release", true).await.unwrap() > 0);
-    let info = super::runtime::validate_session_scope(f.scope.clone(), &f.session).await.unwrap();
-    super::ui_store::with_tenant_scope_sync(f.scope.tenant().clone(), || {
-        super::ui_store::with_dynamic_tool_store(&info.project_id, |store, scope| {
-            let mut ui = store.load_session(scope, &f.session)?.unwrap();
-            ui.title = "UI title".into();
-            store.save_session(scope, &ui)
-        })
-        .unwrap()
-    });
-    assert!(f.replace(&binding, "deployment", true).await.unwrap() > 1);
-    super::ui_store::with_tenant_scope_sync(f.scope.tenant().clone(), || {
-        super::ui_store::with_dynamic_tool_store(&info.project_id, |store, scope| {
-            assert_eq!(store.load_session_meta(scope, &f.session)?.unwrap().title, "UI title");
-            Ok(())
-        })
-        .unwrap()
-    });
-    let old_entry = f.entry(&binding);
-    let (stream, mut receive) = host_stream(&f, &binding).await;
-    let cancelled = execute(&f, &binding, "deployment").await;
-    let _request = next_call(&mut receive).await;
-    stream.abort();
-    let _ = stream.await;
-    assert!(
-        tokio::time::timeout(std::time::Duration::from_secs(20), cancelled)
-            .await
-            .unwrap()
-            .unwrap()
-            .is_err()
-    );
-    assert!(old_entry.replace(replacement("forged-after-disconnect", true)).is_err());
-    let loaded = super::runtime::load_session(f.scope.clone(), &f.session).await.unwrap();
-    let saved = loaded.dynamic_tools.unwrap();
-    assert_eq!(saved.specs[0].id, "deployment");
-    let rebound = f.register().await;
-    assert_ne!(binding.binding_token, rebound.binding_token);
-    assert!(
-        f.entry(&rebound).catalog.snapshot().specs().is_empty(),
-        "saved metadata grants no execution"
-    );
-    f.replace(&rebound, "deployment", false).await.unwrap();
-    assert!(f.entry(&rebound).catalog.snapshot().bind("deployment").is_ok());
-    assert!(f.entry(&rebound).catalog.snapshot().bind("release").is_err());
-    assert!(
-        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
-            .replace_dynamic_tools(
-                &f.session,
-                Some(f.directory()),
-                &binding,
-                &replacement("release", false)
-            )
-            .await
-            .unwrap_err()
-            .contains("403")
-    );
-    let (stream, mut receive) = host_stream(&f, &rebound).await;
-    let call = execute(&f, &rebound, "deployment").await;
-    let request = next_call(&mut receive).await;
-    gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
-        .respond_dynamic_tool_call(
-            &f.session,
-            Some(f.directory()),
-            &rebound,
-            &request.call_id,
-            &response(),
-        )
-        .await
-        .unwrap();
-    assert!(call.await.unwrap().unwrap().result.is_success());
-    stream.abort();
-    let _ = stream.await;
-}
-
-async fn host_stream(
-    f: &Fixture,
-    binding: &DynamicToolHostBinding,
-) -> (
-    tokio::task::JoinHandle<()>,
-    tokio::sync::mpsc::UnboundedReceiver<vw_api_tools::DynamicToolCallRequest>,
-) {
-    let (send, receive) = tokio::sync::mpsc::unbounded_channel();
-    let client = f.client.clone();
-    let session = f.session.clone();
-    let directory = f.directory().to_owned();
-    let binding = binding.clone();
-    let task = tokio::spawn(async move {
-        let _ = gateway_host_tools::GatewayHostToolsClient::new(client.transport().clone())
-            .stream_dynamic_tool_calls(&session, Some(&directory), &binding, |call| {
-                send.send(call).is_ok()
-            })
-            .await;
-    });
-    (task, receive)
-}
-async fn next_call(
-    receive: &mut tokio::sync::mpsc::UnboundedReceiver<vw_api_tools::DynamicToolCallRequest>,
-) -> vw_api_tools::DynamicToolCallRequest {
-    tokio::time::timeout(std::time::Duration::from_secs(20), receive.recv()).await.unwrap().unwrap()
-}
-async fn execute(
-    f: &Fixture,
-    binding: &DynamicToolHostBinding,
-    name: &str,
-) -> tokio::task::JoinHandle<Result<crate::tools::ExecutedToolCall, crate::tools::ToolCallError>> {
-    let snapshot = f.entry(binding).catalog.snapshot();
-    let call = snapshot.bind(name).unwrap();
-    let context = f.context();
-    tokio::spawn(async move { call.execute(&snapshot, json!({}), context).await })
-}
-
+async fn dynamic_tools_acceptance_replacement_survives_resume() { contracts::dynamic_tools_acceptance_replacement_survives_resume::<Fixture>().await; }
 #[tokio::test]
-async fn dynamic_tools_acceptance_default_policy_and_cross_session_are_denied() {
-    let f = Fixture::new(false).await;
-    let binding = f.register().await;
-    assert!(f.replace(&binding, "release", true).await.unwrap_err().contains("disabled"));
-    assert!(f.entry(&binding).catalog.snapshot().specs().is_empty());
-    f.replace(&binding, "release", false).await.unwrap();
-    let other = create_session(CreateSessionInput {
-        scope: f.scope.clone(),
-        parent_id: None,
-        title: None,
-        permission: None,
-    })
-    .await
-    .unwrap();
-    assert!(
-        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
-            .replace_dynamic_tools(
-                &other.info.id,
-                Some(f.directory()),
-                &binding,
-                &replacement("release", false)
-            )
-            .await
-            .unwrap_err()
-            .contains("403")
-    );
-    let wrong_tenant = GatewayClient::new(
-        f.client
-            .endpoint()
-            .clone()
-            .with_tenant_scope(TenantScope::new("acceptance", "other").unwrap()),
-    )
-    .unwrap();
-    assert!(
-        gateway_host_tools::GatewayHostToolsClient::new(wrong_tenant.transport().clone())
-            .register_dynamic_tool_host(&f.session, Some(f.directory()))
-            .await
-            .err()
-            .unwrap()
-            .contains("404")
-    );
-    drop(f.entry(&binding).calls().unwrap());
-}
-
+async fn dynamic_tools_acceptance_default_policy_and_cross_session_are_denied() { contracts::dynamic_tools_acceptance_default_policy_and_cross_session_are_denied::<Fixture>().await; }
 #[tokio::test]
-async fn dynamic_tools_acceptance_replacement_cancellation_and_revocation() {
-    let f = Fixture::new(true).await;
-    let binding = f.register().await;
-    f.replace(&binding, "release", true).await.unwrap();
-    let (stream, mut receive) = host_stream(&f, &binding).await;
-    let call = execute(&f, &binding, "release").await;
-    let request = next_call(&mut receive).await;
-    assert_eq!(request.tool_id.as_ref(), "release");
-    // Old pending execution remains answerable while the next request sees the replacement.
-    f.replace(&binding, "deployment", true).await.unwrap();
-    assert!(f.entry(&binding).catalog.snapshot().bind("release").is_err());
-    gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
-        .respond_dynamic_tool_call(
-            &f.session,
-            Some(f.directory()),
-            &binding,
-            &request.call_id,
-            &response(),
-        )
-        .await
-        .unwrap();
-    assert!(call.await.unwrap().unwrap().result.is_success());
-    assert!(
-        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
-            .respond_dynamic_tool_call(
-                &f.session,
-                Some(f.directory()),
-                &binding,
-                &request.call_id,
-                &response()
-            )
-            .await
-            .unwrap_err()
-            .contains("403")
-    );
-    let cancelled = execute(&f, &binding, "deployment").await;
-    let request = next_call(&mut receive).await;
-    cancelled.abort();
-    assert!(cancelled.await.unwrap_err().is_cancelled());
-    assert!(
-        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
-            .respond_dynamic_tool_call(
-                &f.session,
-                Some(f.directory()),
-                &binding,
-                &request.call_id,
-                &response()
-            )
-            .await
-            .unwrap_err()
-            .contains("403")
-    );
-    f.replace(&binding, "", true).await.unwrap();
-    assert!(f.entry(&binding).catalog.snapshot().bind("deployment").is_err());
-    stream.abort();
-    let _ = stream.await;
-}
-
+async fn dynamic_tools_acceptance_replacement_cancellation_and_revocation() { contracts::dynamic_tools_acceptance_replacement_cancellation_and_revocation::<Fixture>().await; }
 #[tokio::test]
-async fn dynamic_tools_acceptance_fork_requires_new_host_and_matching_specs() {
-    let f = Fixture::new(true).await;
-    let binding = f.register().await;
-    f.replace(&binding, "release", true).await.unwrap();
-    let fork: serde_json::Value =
-        gateway_session::GatewaySessionClient::new(f.client.transport().clone()).session_fork(&f.session, Some(f.directory()), &None).await.unwrap();
-    let fork = fork["id"].as_str().unwrap();
-    assert!(
-        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
-            .replace_dynamic_tools(
-                fork,
-                Some(f.directory()),
-                &binding,
-                &replacement("release", false)
-            )
-            .await
-            .unwrap_err()
-            .contains("403")
-    );
-    let fork_binding =
-        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone()).register_dynamic_tool_host(fork, Some(f.directory())).await.unwrap();
-    let fork_entry = super::runtime::dynamic_hosts::SessionHost::authenticate(
-        &f.scope,
-        fork,
-        &fork_binding.binding_token,
-    )
-    .unwrap();
-    assert!(fork_entry.catalog.snapshot().bind("release").is_err());
-    assert!(
-        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
-            .replace_dynamic_tools(
-                fork,
-                Some(f.directory()),
-                &fork_binding,
-                &replacement("changed", false)
-            )
-            .await
-            .is_err()
-    );
-    gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
-        .replace_dynamic_tools(
-            fork,
-            Some(f.directory()),
-            &fork_binding,
-            &replacement("release", false),
-        )
-        .await
-        .unwrap();
-    assert!(fork_entry.catalog.snapshot().bind("release").is_ok());
-    assert!(
-        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
-            .respond_dynamic_tool_call(fork, Some(f.directory()), &binding, "forged", &response())
-            .await
-            .unwrap_err()
-            .contains("403")
-    );
-    let (stream, mut receive) = host_stream(&f, &binding).await;
-    let call = execute(&f, &binding, "release").await;
-    let request = next_call(&mut receive).await;
-    assert!(
-        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
-            .respond_dynamic_tool_call(
-                fork,
-                Some(f.directory()),
-                &fork_binding,
-                &request.call_id,
-                &response()
-            )
-            .await
-            .unwrap_err()
-            .contains("403")
-    );
-    gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
-        .respond_dynamic_tool_call(
-            &f.session,
-            Some(f.directory()),
-            &binding,
-            &request.call_id,
-            &response(),
-        )
-        .await
-        .unwrap();
-    assert!(call.await.unwrap().unwrap().result.is_success());
-    stream.abort();
-    let _ = stream.await;
-    drop(fork_entry.calls().unwrap());
-}
-
+async fn dynamic_tools_acceptance_fork_requires_new_host_and_matching_specs() { contracts::dynamic_tools_acceptance_fork_requires_new_host_and_matching_specs::<Fixture>().await; }
 #[test]
 fn dynamic_tools_acceptance_search_then_call_uses_gateway_model_boundary() {
     let runtime = tokio::runtime::Runtime::new().unwrap();

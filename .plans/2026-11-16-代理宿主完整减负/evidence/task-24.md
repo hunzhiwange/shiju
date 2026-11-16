@@ -904,3 +904,22 @@ This round removes 140 host lines. It is assertion/fixture ownership migration, 
 Future validation: `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib dynamic_tools_restore_client_specs_do_not_restore_host_capabilities -- --test-threads=1` expects 1; `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib messages_system_tests -- --test-threads=1` expects 4. Neither command was run. Existing domain migration filters and counts in the preceding recovery remain unchanged. Static diff whitespace check only.
 
 The 495-line real Gateway integration remains: its five tests exercise actual authenticated routes, SDK transport, live callbacks, session creation/forking and processor stream scripting. A separate gateway-wide fixture port would span task10/11/23 ownership; no facade that mocks those routes was introduced. All other source and external mappings above remain current. The whole-plan line gate is still open.
+
+
+## Recovery priority 4: dynamic-tool protocol matrix
+
+Read task-59-recovery-priorities.json owner=24 and implemented its requested persisted registration, replacement/spec matching, revocation/cancellation split. The original five host test names stay registered. Four invoke session-engine::dynamic_tool_acceptance with the real Fixture; the search/model-boundary test stays on host and reuses the same migrated wire/execution helpers.
+
+- dynamic_tools_acceptance_replacement_survives_resume -> same named domain function. Version monotonicity, preserved UI title, pending-call termination on disconnect, closed-entry replacement rejection, persisted deployment spec, fresh credentials, empty pre-rebind catalog and stale token HTTP 403 remain intact.
+- dynamic_tools_acceptance_default_policy_and_cross_session_are_denied -> same named domain function. Default persist denial, unchanged empty catalog, nonpersistent replacement, cross-session HTTP 403 and foreign-tenant HTTP 404 remain real HTTP observations.
+- dynamic_tools_acceptance_replacement_cancellation_and_revocation -> same named domain function. Prior pending execution remains answerable after replacement; repeated response and aborted execution response are rejected via HTTP 403; empty replacement revokes the deployment binding.
+- dynamic_tools_acceptance_fork_requires_new_host_and_matching_specs -> same named domain function. Actual GatewaySessionClient fork, fresh binding, mismatched specs denial, matching specs success, forged/wrong-owner response denial and original response success retained.
+- dynamic_tools_acceptance_search_then_call_uses_gateway_model_boundary -> original host function. Actual GatewayClient chat endpoint, processor test stream injection, native SDK callbacks and three model request/discovery assertions remain on host. No simulated admission substituted.
+
+Shared replacement/response/host_stream/next_call/execute now belong to the domain module. Its Fixture interface supplies actual scope, transport and client executor context; only real host implementation exists. HostTools was made crate-visible for the associated concrete factory. SessionHost::authenticate, replace, catalog snapshots and calls use the existing real domain registry. The real title write/read, tenant task-local, persisted snapshot load, create/fork session and wrong-tenant GatewayClient construction remain in small host adapter methods, preserving their original access path.
+
+This is domain assertion plus real host boundary coverage, not independently registered domain unit tests. No independent test count or compile-time improvement is claimed. The fixture does not clone App/AppState or import host source. Native dependencies gateway-http/gateway-host-tools are existing transport crates, not new implementations; Cargo.lock registers these two edges. No test assertion or ignore condition removed. No Cargo/build/unit/device execution performed.
+
+Future: `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib dynamic_tools_acceptance_ -- --test-threads=1` expects the original 5 tests. Static checks: test-name set equality, old helper/mod removal, domain lib registration, dependency direction, retained HTTP status/ownership assertions and scoped git diff --check. These are not compile or behavior proof.
+
+This source: 495 -> 181 lines; domain contract 326 lines. The remaining host methods are the concrete boundary responsibilities above, rather than a whole-file coupling exemption. Prior 495-line retention statements are superseded by this section.

@@ -18693,6 +18693,8 @@ dependencies = [
 name = "session-engine"
 version = "0.6.0"
 dependencies = [
+ "gateway-http",
+ "gateway-host-tools",
  "acp-client",
  "acp-config",
  "acp-types",

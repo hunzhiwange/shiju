@@ -81,3 +81,18 @@ lib.rs 新增3行测试注册，Cargo.toml 新增4行 dev依赖。宿主 cron_te
 - `python3 scripts/cargo_slot.py cargo test -p gateway-cron --lib host_migration_9_tests -- --test-threads=1`：静态预期35条，须实际 ran>0、failed=0。
 - `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib gateway::api::handlers::cron::cron_tests -- --test-threads=1`：静态预期5条，仅宿主边界；先用同过滤加 `--list` 核实35条领域旧挂载消失，不能以零测试认定通过。若真实宿主目标前缀不同，先据实际 list 确认完整名再运行。
 - 生产适配未改变；未来同时确认真实路由鉴权与配置回读。当前没有编译耗时或行为通过证据。
+
+
+## 收口恢复：继续分离断言驱动
+
+任务59 recovery-priorities 的 owner9 五个符号全部处理。此段替代上文“宿主保留完整断言”的最终归属说明；第一轮35条自注册领域测试不变。
+
+- `cron_handlers_reject_requests_when_pairing_is_required`、`cron_mutating_handlers_reject_requests_before_writing_when_pairing_is_required`：完整断言移至 `gateway_cron::host_contracts::denial`，宿主同名测试将真实 `cron_state(state_with_config(..., true))` 注入。真实 PairingGuard 与 auth::require_auth 不替换。
+- `cron_history_endpoint_requires_auth`、`wb_schedule_api_preview_routes_enforce_auth_and_return_candidates`：请求与断言移至 `host_contracts::routes`，宿主同名测试注入真实 client_router 的 Router。双别名、租户请求头、鉴权拒绝/允许、候选数、持久化无副作用全部保留；领域不伪造路由/中间件。
+- `cron_wecom_delivery_api_roundtrip_and_partial_edit_validate_merged_target`：请求数据、合并目标/敏感信息/持久化断言移至 `host_contracts::delivery`；宿主保留原租户作用域、真实配置保存、scheduler::Host 注入。配置数据构造归 delivery；没有模拟 latest_config 或 webhook 校验。
+
+五条仍为宿主测试注册，调用领域断言驱动，**不是新增独立领域测试**。领域提供 feature=test-support 的三个明确行为模块，仅接受既有 CronState/Router，无 AppState 克隆和反向依赖。共23个 assert 调用完整保留（源码静态核对），新增 test-support 与可选 tower/util 仅供真实路由契约使用；vw-agent dev-dependency 启用。生产调用路径与权限未变。
+
+本轮宿主 cron_tests.rs 307→109 行，净减198行；cron.rs 44行保持真实投影及七个适配入口。当前宿主文件族153行，相对原1507行净减1354行（89.85%）。领域生产业务新增0行，增加测试支持模块及功能注册；主模块持有请求夹具，denial/delivery/routes 各持有对应行为断言，不搬成新单体。
+
+未来命令仍为上文 gateway-cron 的 host_migration_9_tests（静态35条）与 vw-agent 的 cron::cron_tests（静态5条）；后者会执行三个领域驱动模块，需用真实宿主确认投影/路由/配置回读。测试支持 feature 在宿主测试构建启用。本轮仍未运行任何 Cargo、构建、测试或可执行产物，未声称编译或行为通过。编号任务卡上一轮已删除，不重建。

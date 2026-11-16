@@ -31,3 +31,11 @@ tracing = "0.1"
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 async-trait = "0.1"
 tempfile = "3"
+
+[features]
+test-support = ["dep:tower"]
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.tower]
+version = "0.5"
+features = ["util"]
+optional = true

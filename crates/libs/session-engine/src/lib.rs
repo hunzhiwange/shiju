@@ -45,5 +45,8 @@ pub mod runner_ingest;
 pub mod runner_todos;
 pub mod runner_todo_updates;
 pub mod turn_policy;
+pub mod tools_exec;
+pub mod tool_output;
+pub mod tool_file_links;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native_call_collector;

@@ -8,6 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+tool-agents = { path = "../tool-agents", version = "0.6.0" }
+session-store = { path = "../session-store", version = "0.6.0" }
+vw-api-tools = { path = "../api-tools", version = "0.6.0" }
 tool-assembly = { path = "../tool-assembly", version = "0.6.0" }
 model-selection = { path = "../model-selection", version = "0.6.0" }
 todo-types = { path = "../todo-types", version = "0.6.0" }

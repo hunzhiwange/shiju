@@ -45,7 +45,7 @@ mod computer_control_tests;
 pub mod config;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod content_search;
-mod context;
+pub(crate) mod context;
 pub mod cron_add;
 pub mod cron_list;
 pub mod cron_remove;

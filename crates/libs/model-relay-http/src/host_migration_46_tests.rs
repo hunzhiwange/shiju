@@ -10,7 +10,7 @@ mod gemini_tests;
 mod routing_tests;
 mod thinking_stream_tests;
 
-mod fixture;
+pub(crate) mod fixture;
 use fixture::{RelayServer, ProviderRelayBackend, global_async_env_lock};
 use model_transport::RelayBinding;
 mod chat_tests;

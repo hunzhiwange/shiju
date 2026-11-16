@@ -16,8 +16,6 @@ pub(crate) mod routing;
 mod transport;
 pub use transport::ProviderRelayBackend;
 pub(crate) use transport::{chat_url, official_deepseek_messages_url};
-#[cfg(test)]
-mod transport_tests;
 
 pub(crate) mod messages;
 pub(crate) mod messages_stream;

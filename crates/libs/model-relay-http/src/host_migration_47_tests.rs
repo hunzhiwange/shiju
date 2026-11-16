@@ -175,3 +175,5 @@ fn acp_model_source_relay_chat_oauth_expiry_and_revocation_never_use_cached_keys
         "rotated-api-secret"
     );
 }
+
+mod native_http_tests;

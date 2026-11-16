@@ -1,13 +1,14 @@
-//! Real tenant/project configuration and host-context relay integration.
+//! Native conversion and credential isolation through real scoped catalog storage.
 use axum::http::StatusCode;
 
 #[tokio::test]
 async fn model_protocol_012_relay_native_conversion_and_credential_isolation() {
-    use super::{ProviderRelayBackend, RelayBinding, RelayIdentity, RelayServer};
+    use crate::host_migration_46_tests::fixture::{ProviderRelayBackend, RelayServer};
+    use model_transport::{RelayBinding, RelayIdentity};
     use axum::{Router, http::HeaderMap, routing::post};
     use serde_json::{Value, json};
     use std::{sync::Arc, time::Duration};
-    let _lock = crate::test_support::global_async_env_lock().lock().await;
+    let _lock = crate::host_migration_46_tests::fixture::global_async_env_lock().lock().await;
     let temp = tempfile::tempdir().unwrap();
     let previous = std::env::var_os("VIBEWINDOW_CONFIG_DIR");
     struct Restore(Option<std::ffi::OsString>);
@@ -71,7 +72,7 @@ async fn model_protocol_012_relay_native_conversion_and_credential_isolation() {
     let tenant = vw_api_transport::TenantScope::new("protocol012", "fixture").unwrap();
     let root = temp.path().join("project");
     std::fs::create_dir(&root).unwrap();
-    let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
+    let (project, _) = agent_project::from_directory(&tenant, &root).await.unwrap();
     let endpoint = |protocol: &str, url: String, auth: Value| {
         json!({
             "protocol":protocol,"url":url,"deployment":"fixture", "authentication":auth,
@@ -103,7 +104,7 @@ async fn model_protocol_012_relay_native_conversion_and_credential_isolation() {
         "empty":{"id":"wire-model","status":"active","protocols":[]},
         "wrong-scope":{"id":"wire-model","status":"active","protocols":[wrong_scope]}
     });
-    crate::config::update_project_for_tenant(
+    agent_config::runtime::update_project_for_tenant(
         &tenant,
         &root,
         json!({"providers":{"protocol-fixture":{
@@ -112,7 +113,7 @@ async fn model_protocol_012_relay_native_conversion_and_credential_isolation() {
     )
     .await
     .unwrap();
-    let context = crate::project::instance::Context {
+    let context = agent_project::instance::Context {
         directory: root.to_string_lossy().into(),
         worktree: project.worktree.clone(),
         project: project.clone(),

@@ -112,7 +112,7 @@ fn tenant() -> vw_api_transport::TenantScope {
 async fn with_tenant_scope<T>(tenant: vw_api_transport::TenantScope, future: impl std::future::Future<Output = T>) -> T {
     TENANT.scope(tenant, future).await
 }
-pub(super) fn global_async_env_lock() -> &'static tokio::sync::Mutex<()> {
+pub(crate) fn global_async_env_lock() -> &'static tokio::sync::Mutex<()> {
     ensure_host();
     static LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
     &LOCK

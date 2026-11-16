@@ -61,7 +61,7 @@ async fn acp_model_source_relay_gemini_real_cli() {
     http(true).await;
 }
 async fn http(run_cli: bool) {
-    let _lock = crate::test_support::global_async_env_lock().lock().await;
+    let _lock = super::global_async_env_lock().lock().await;
     let dir = tempfile::tempdir().unwrap();
     let _env = EnvGuard(
         std::env::var_os("VIBEWINDOW_CONFIG_DIR"),
@@ -117,9 +117,9 @@ async fn http(run_cli: bool) {
     let tenant = vw_api_transport::TenantScope::new("gemini", "one").unwrap();
     let root = dir.path().join("project");
     std::fs::create_dir(&root).unwrap();
-    let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
-    crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-gemini":{"api":format!("http://{address}/v1/chat/completions"),"env":["SHIJU_RELAY_GEMINI_TEST_KEY"],"models":{"selected":{"id":"wire-model","status":"active","tool_call":true},"selected/variant":{"id":"wire-model","status":"active","tool_call":true}}}}})).await.unwrap();
-    let context = crate::project::instance::Context {
+    let (project, _) = agent_project::from_directory(&tenant, &root).await.unwrap();
+    agent_config::runtime::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-gemini":{"api":format!("http://{address}/v1/chat/completions"),"env":["SHIJU_RELAY_GEMINI_TEST_KEY"],"models":{"selected":{"id":"wire-model","status":"active","tool_call":true},"selected/variant":{"id":"wire-model","status":"active","tool_call":true}}}}})).await.unwrap();
+    let context = agent_project::instance::Context {
         directory: root.to_string_lossy().into(),
         worktree: project.worktree.clone(),
         project: project.clone(),
@@ -281,7 +281,7 @@ async fn http(run_cli: bool) {
     assert_eq!(response["modelVersion"], "selected/variant");
     slash_server.shutdown().await.unwrap();
     // Native protocol preserves signatures, tool declarations and provider extensions.
-    crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-gemini":{"api":format!("http://{address}/v1beta"),"adapter":"google","models":{"selected":{"reasoning":true,"temperature":true,"limit":{"context":1000000,"output":65536}}}}}})).await.unwrap();
+    agent_config::runtime::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-gemini":{"api":format!("http://{address}/v1beta"),"adapter":"google","models":{"selected":{"reasoning":true,"temperature":true,"limit":{"context":1000000,"output":65536}}}}}})).await.unwrap();
     for extra in [
         json!({"cachedContent":"other-tenant/cache"}),
         json!({"continuationToken":"other-tenant/token"}),
@@ -342,7 +342,7 @@ async fn http(run_cli: bool) {
     assert!(!wire.contains("wire-model"));
     assert!(events(&wire).last().unwrap().get("error").is_none());
     // A signature or thinking request must not reach a model lacking that capability.
-    crate::config::update_project_for_tenant(
+    agent_config::runtime::update_project_for_tenant(
         &tenant,
         &root,
         json!({"providers":{"relay-gemini":{"models":{"selected":{"reasoning":false}}}}}),
@@ -370,7 +370,7 @@ async fn http(run_cli: bool) {
         );
     }
     assert_eq!(captured.lock().len(), before_rejections);
-    crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-gemini":{"models":{"selected":{"reasoning":true,"modalities":{"input":["text","image","audio","video","pdf"],"output":["text"]}}}}}})).await.unwrap();
+    agent_config::runtime::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-gemini":{"models":{"selected":{"reasoning":true,"modalities":{"input":["text","image","audio","video","pdf"],"output":["text"]}}}}}})).await.unwrap();
     for mime in ["image/png", "audio/wav", "video/mp4", "application/pdf"] {
         let mut media = native_body.clone();
         media["contents"][0]["parts"] = json!([{"inlineData":{"mimeType":mime,"data":"AAAA"}}]);
@@ -480,7 +480,7 @@ async fn http(run_cli: bool) {
             calls.len() - before
         );
     }
-    crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-gemini":{"api":format!("http://{address}/v1/chat/completions"),"adapter":"openai"}}})).await.unwrap();
+    agent_config::runtime::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-gemini":{"api":format!("http://{address}/v1/chat/completions"),"adapter":"openai"}}})).await.unwrap();
     for prompt in ["error", "truncated", "wait"] {
         body["contents"] = json!([{"role":"user","parts":[{"text":prompt}]}]);
         let response = client

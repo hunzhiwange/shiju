@@ -56,7 +56,7 @@ fn sse(wire: String, wait: bool) -> Response {
 
 #[tokio::test]
 async fn aggregation_t25_authorized_codex_chat_replays_compaction_over_http() {
-    let _lock = crate::test_support::global_async_env_lock().lock().await;
+    let _lock = super::global_async_env_lock().lock().await;
     let dir = tempfile::tempdir().unwrap();
     let _env = EnvGuard(
         std::env::var_os("VIBEWINDOW_CONFIG_DIR"),
@@ -83,8 +83,8 @@ async fn aggregation_t25_authorized_codex_chat_replays_compaction_over_http() {
     let tenant = vw_api_transport::TenantScope::new("compaction", "fixture").unwrap();
     let root = dir.path().join("project");
     std::fs::create_dir(&root).unwrap();
-    let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
-    crate::config::update_project_for_tenant(
+    let (project, _) = agent_project::from_directory(&tenant, &root).await.unwrap();
+    agent_config::runtime::update_project_for_tenant(
         &tenant,
         &root,
         json!({"providers":{"relay-responses":{
@@ -95,7 +95,7 @@ async fn aggregation_t25_authorized_codex_chat_replays_compaction_over_http() {
     )
     .await
     .unwrap();
-    let context = crate::project::instance::Context {
+    let context = agent_project::instance::Context {
         directory: root.to_string_lossy().into(),
         worktree: project.worktree.clone(),
         project: project.clone(),
@@ -151,7 +151,7 @@ async fn aggregation_t25_authorized_codex_chat_replays_compaction_over_http() {
 
 #[tokio::test]
 async fn model_protocol_017_responses_http_roundtrip_stream_errors_cancel_and_ownership() {
-    let _lock = crate::test_support::global_async_env_lock().lock().await;
+    let _lock = super::global_async_env_lock().lock().await;
     let dir = tempfile::tempdir().unwrap();
     let _env = EnvGuard(
         std::env::var_os("VIBEWINDOW_CONFIG_DIR"),
@@ -247,9 +247,9 @@ async fn model_protocol_017_responses_http_roundtrip_stream_errors_cancel_and_ow
     let tenant = vw_api_transport::TenantScope::new("responses", "one").unwrap();
     let root = dir.path().join("project");
     std::fs::create_dir(&root).unwrap();
-    let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
-    crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-responses":{"api":format!("http://{address}/v1/chat/completions"),"env":["SHIJU_RELAY_RESPONSES_TEST_KEY"],"models":{"selected":{"id":"wire-model","status":"active","tool_call":true,"reasoning":true}}}}})).await.unwrap();
-    let context = crate::project::instance::Context {
+    let (project, _) = agent_project::from_directory(&tenant, &root).await.unwrap();
+    agent_config::runtime::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-responses":{"api":format!("http://{address}/v1/chat/completions"),"env":["SHIJU_RELAY_RESPONSES_TEST_KEY"],"models":{"selected":{"id":"wire-model","status":"active","tool_call":true,"reasoning":true}}}}})).await.unwrap();
+    let context = agent_project::instance::Context {
         directory: root.to_string_lossy().into(),
         worktree: project.worktree.clone(),
         project: project.clone(),
@@ -550,7 +550,7 @@ async fn model_protocol_017_responses_http_roundtrip_stream_errors_cancel_and_ow
         .unwrap();
     drop(codex_server);
     // Same-protocol reasoning and extensions survive; upstream response references stay capability-local.
-    crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-responses":{"api":format!("http://{address}/v1/responses"),"adapter":"openai-responses","models":{"selected":{"reasoning":true,"tool_call":true}}}}})).await.unwrap();
+    agent_config::runtime::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-responses":{"api":format!("http://{address}/v1/responses"),"adapter":"openai-responses","models":{"selected":{"reasoning":true,"tool_call":true}}}}})).await.unwrap();
     body = json!({"model":"selected","input":"hello","store":true,"include":["reasoning.encrypted_content"]});
     let result: Value = client
         .post(&url)
@@ -639,9 +639,9 @@ async fn model_protocol_017_responses_http_roundtrip_stream_errors_cancel_and_ow
     let other_root = dir.path().join("other-project");
     std::fs::create_dir(&other_root).unwrap();
     let (other_project, _) =
-        crate::project::from_directory(&other_tenant, &other_root).await.unwrap();
-    crate::config::update_project_for_tenant(&other_tenant,&other_root,json!({"providers":{"relay-responses":{"api":format!("http://{address}/v1/responses"),"adapter":"openai-responses","env":["SHIJU_RELAY_RESPONSES_TEST_KEY"],"models":{"selected":{"id":"wire-model","status":"active","tool_call":true,"reasoning":true}}}}})).await.unwrap();
-    let other_context = crate::project::instance::Context {
+        agent_project::from_directory(&other_tenant, &other_root).await.unwrap();
+    agent_config::runtime::update_project_for_tenant(&other_tenant,&other_root,json!({"providers":{"relay-responses":{"api":format!("http://{address}/v1/responses"),"adapter":"openai-responses","env":["SHIJU_RELAY_RESPONSES_TEST_KEY"],"models":{"selected":{"id":"wire-model","status":"active","tool_call":true,"reasoning":true}}}}})).await.unwrap();
+    let other_context = agent_project::instance::Context {
         directory: other_root.to_string_lossy().into(),
         worktree: other_project.worktree.clone(),
         project: other_project.clone(),
@@ -722,7 +722,7 @@ async fn model_protocol_017_responses_http_roundtrip_stream_errors_cancel_and_ow
     assert!(output.status.success());
     assert_eq!(String::from_utf8(output.stdout).unwrap().trim(), "selected");
     assert_eq!(captured.lock().last().unwrap().1["previous_response_id"], "resp-native");
-    crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-responses":{"api":format!("http://{address}/v1/chat/completions"),"adapter":"openai"}}})).await.unwrap();
+    agent_config::runtime::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-responses":{"api":format!("http://{address}/v1/chat/completions"),"adapter":"openai"}}})).await.unwrap();
     body = json!({"model":"selected","input":"wait","stream":true});
     let response =
         client.post(&url).bearer_auth(binding.bearer_token()).json(&body).send().await.unwrap();
@@ -754,7 +754,7 @@ fn parse_events(wire: &str) -> Vec<Value> {
 
 #[tokio::test]
 async fn model_protocol_017_responses_chat_preserves_reasoning_tools_json_and_sse() {
-    let _lock = crate::test_support::global_async_env_lock().lock().await;
+    let _lock = super::global_async_env_lock().lock().await;
     let dir = tempfile::tempdir().unwrap();
     let _env = EnvGuard(
         std::env::var_os("VIBEWINDOW_CONFIG_DIR"),
@@ -787,12 +787,12 @@ async fn model_protocol_017_responses_chat_preserves_reasoning_tools_json_and_ss
     let tenant = vw_api_transport::TenantScope::new("responses-017", "fixture").unwrap();
     let root = dir.path().join("project");
     std::fs::create_dir(&root).unwrap();
-    let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
-    crate::config::update_project_for_tenant(&tenant, &root, json!({"providers":{"relay-responses":{
+    let (project, _) = agent_project::from_directory(&tenant, &root).await.unwrap();
+    agent_config::runtime::update_project_for_tenant(&tenant, &root, json!({"providers":{"relay-responses":{
         "api":format!("http://{address}/v1/chat/completions"),"env":["SHIJU_RELAY_RESPONSES_TEST_KEY"],
         "models":{"selected":{"id":"gpt-5","status":"active","reasoning":true,"tool_call":true}}
     }}})).await.unwrap();
-    let context = crate::project::instance::Context {
+    let context = agent_project::instance::Context {
         directory: root.to_string_lossy().into(),
         worktree: project.worktree.clone(),
         project: project.clone(),

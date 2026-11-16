@@ -36,7 +36,7 @@ mod http {
 
     #[tokio::test]
     async fn acp_model_source_relay_messages_http_stream_cancellation_errors_and_isolation() {
-        let _lock = crate::test_support::global_async_env_lock().lock().await;
+        let _lock = super::super::global_async_env_lock().lock().await;
         let dir = tempfile::tempdir().unwrap();
         let _env = EnvGuard(
             std::env::var_os("VIBEWINDOW_CONFIG_DIR"),
@@ -116,9 +116,9 @@ mod http {
         let tenant = vw_api_transport::TenantScope::new("messages", "one").unwrap();
         let root = dir.path().join("project");
         std::fs::create_dir(&root).unwrap();
-        let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
-        crate::config::update_project_for_tenant(&tenant, &root, json!({"providers":{"relay-messages":{"api":format!("http://{address}/custom/v9/chat/completions"),"env":["SHIJU_RELAY_MESSAGES_TEST_KEY"],"models":{"selected":{"id":"wire-model","status":"active","headers":{"x-provider":"trusted"},"tool_call":true}}}}})).await.unwrap();
-        let context = crate::project::instance::Context {
+        let (project, _) = agent_project::from_directory(&tenant, &root).await.unwrap();
+        agent_config::runtime::update_project_for_tenant(&tenant, &root, json!({"providers":{"relay-messages":{"api":format!("http://{address}/custom/v9/chat/completions"),"env":["SHIJU_RELAY_MESSAGES_TEST_KEY"],"models":{"selected":{"id":"wire-model","status":"active","headers":{"x-provider":"trusted"},"tool_call":true}}}}})).await.unwrap();
+        let context = agent_project::instance::Context {
             directory: root.to_string_lossy().into(),
             worktree: project.worktree.clone(),
             project: project.clone(),
@@ -268,7 +268,7 @@ mod http {
         let output = child.wait_with_output().await.unwrap();
         assert!(output.status.success());
         assert_eq!(String::from_utf8(output.stdout).unwrap().trim(), "selected");
-        crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-messages":{"api":format!("http://{address}/custom/v9"),"adapter":"anthropic","models":{"selected":{"status":"active","reasoning":true}}}}})).await.unwrap();
+        agent_config::runtime::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-messages":{"api":format!("http://{address}/custom/v9"),"adapter":"anthropic","models":{"selected":{"status":"active","reasoning":true}}}}})).await.unwrap();
         body["messages"] = json!([{"role":"assistant","content":[{"type":"thinking","thinking":"plan","signature":"signed-native"},{"type":"text","text":"done","cache_control":{"type":"ephemeral"}}]}]);
         body["metadata"] = json!({"user_id":"fixture"});
         let response =
@@ -296,7 +296,7 @@ mod http {
         assert!(native_wire.contains("message_stop"));
         body.as_object_mut().unwrap().remove("metadata");
         // Restore the nonthinking fixture after exercising native signed thinking.
-        crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-messages":{"api":format!("http://{address}/custom/v9/chat/completions"),"adapter":"openai","models":{"selected":{"reasoning":false}}}}})).await.unwrap();
+        agent_config::runtime::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-messages":{"api":format!("http://{address}/custom/v9/chat/completions"),"adapter":"openai","models":{"selected":{"reasoning":false}}}}})).await.unwrap();
         body["messages"] = json!([{"role":"user","content":"wait"}]);
         body["stream"] = true.into();
         let response =

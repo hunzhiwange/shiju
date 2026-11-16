@@ -76,12 +76,12 @@ pub(super) async fn thinking_replays_through_bound_http() {
     let tenant = vw_api_transport::TenantScope::new("protocol015", "wire").unwrap();
     let root = dir.path().join("project");
     std::fs::create_dir(&root).unwrap();
-    let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
-    crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"fixture015":{
+    let (project, _) = agent_project::from_directory(&tenant, &root).await.unwrap();
+    agent_config::runtime::update_project_for_tenant(&tenant,&root,json!({"providers":{"fixture015":{
         "api":format!("http://{address}/v1"),"adapter":"openai","env":["SHIJU_PROTOCOL015_KEY"],
         "models":{"selected":{"id":"gpt-5.4","status":"active","tool_call":true,"reasoning":true,"modalities":{"input":["text","image"],"output":["text"]}}}
     }}})).await.unwrap();
-    let context = crate::project::instance::Context {
+    let context = agent_project::instance::Context {
         directory: root.to_string_lossy().into(),
         worktree: project.worktree.clone(),
         project: project.clone(),
@@ -228,7 +228,7 @@ pub(super) async fn thinking_replays_through_bound_http() {
         200
     );
     assert_eq!(received.lock().len(), 4);
-    crate::config::update_project_for_tenant(
+    agent_config::runtime::update_project_for_tenant(
         &tenant,
         &root,
         json!({"providers":{"fixture015":{"models":{"selected":{"id":"gpt-5.4-mini"}}}}}),

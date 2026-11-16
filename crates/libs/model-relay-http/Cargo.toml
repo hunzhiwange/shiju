@@ -29,8 +29,16 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "str
 provider-protocol-routes = { path = "../provider-protocol-routes", version = "0.6.0" }
 model-relay-state = { path = "../model-relay-state", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-tokio = { version = "1", features = ["io-util"] }
+tokio = { version = "1", features = ["io-util", "process"] }
 agent-auth = { path = "../agent-auth", version = "0.6.0" }
 agent-provider = { path = "../agent-provider", version = "0.6.0" }
 model-reasoning = { path = "../model-reasoning", version = "0.6.0" }
 chrono = "0.4"
+agent-config = { path = "../agent-config", version = "0.6.0", features = ["test-support"] }
+agent-project = { path = "../agent-project", version = "0.6.0", features = ["test-support"] }
+agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
+agent-paths = { path = "../agent-paths", version = "0.6.0" }
+agent-env = { path = "../agent-env", version = "0.6.0" }
+app-provider-services = { path = "../app-provider-services", version = "0.6.0" }
+app-models = { path = "../app-models", version = "0.6.0" }
+tempfile = "3"

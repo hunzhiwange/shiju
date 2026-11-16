@@ -9,3 +9,16 @@ mod stream_observer_tests;
 mod gemini_tests;
 mod routing_tests;
 mod thinking_stream_tests;
+
+mod fixture;
+use fixture::{RelayServer, ProviderRelayBackend, global_async_env_lock};
+use model_transport::RelayBinding;
+mod chat_tests;
+mod gemini_http_tests;
+mod messages_tests;
+mod responses_http_tests;
+mod messages_request_http_tests;
+mod messages_thinking_http_tests;
+mod messages_request_tests;
+mod messages_thinking_tests;
+mod messages_stream_tests;

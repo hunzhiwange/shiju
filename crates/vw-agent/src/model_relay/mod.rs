@@ -17,25 +17,13 @@ mod transport;
 pub use transport::ProviderRelayBackend;
 pub(crate) use transport::{chat_url, official_deepseek_messages_url};
 #[cfg(test)]
-mod chat_tests;
-#[cfg(test)]
 mod transport_tests;
 
 pub(crate) mod messages;
-#[cfg(test)]
-mod messages_request_http_tests;
-#[cfg(test)]
-mod messages_request_tests;
 pub(crate) mod messages_stream;
-#[cfg(test)]
-mod messages_tests;
 pub(crate) mod messages_thinking;
 mod messages_thinking_config;
 // Pure thinking receipt tests live in model-protocol.
-#[cfg(test)]
-mod messages_thinking_http_tests;
-#[cfg(test)]
-mod messages_thinking_tests;
 
 // Pure Responses tests live in model-protocol.
 
@@ -46,11 +34,7 @@ pub(crate) mod responses_compaction;
 // responses_compaction tests live in model-protocol.
 mod responses_stream;
 
-#[cfg(test)]
-mod responses_http_tests;
 
-#[cfg(test)]
-mod gemini_tests;
 
 mod gemini;
 mod gemini_stream;

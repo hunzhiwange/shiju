@@ -31,7 +31,7 @@ impl Drop for EnvGuard {
 
 #[tokio::test]
 async fn acp_model_source_relay_chat_roundtrip_stream_tools_and_account_isolation() {
-    let _lock = crate::test_support::global_async_env_lock().lock().await;
+    let _lock = super::global_async_env_lock().lock().await;
     let dir = tempfile::tempdir().unwrap();
     let _env = EnvGuard(
         std::env::var_os("VIBEWINDOW_CONFIG_DIR"),
@@ -86,9 +86,9 @@ async fn acp_model_source_relay_chat_roundtrip_stream_tools_and_account_isolatio
     let tenant = vw_api_transport::TenantScope::new("chat", "one").unwrap();
     let root = dir.path().join("project");
     std::fs::create_dir(&root).unwrap();
-    let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
-    crate::config::update_project_for_tenant(&tenant, &root, json!({"providers":{"relay-chat":{"api":format!("http://{address}/custom/v9/chat/completions"),"env":["SHIJU_RELAY_CHAT_TEST_KEY"],"models":{"selected":{"id":"wire-model","status":"active","headers":{"x-provider":"trusted"},"tool_call":true}}}}})).await.unwrap();
-    let context = crate::project::instance::Context {
+    let (project, _) = agent_project::from_directory(&tenant, &root).await.unwrap();
+    agent_config::runtime::update_project_for_tenant(&tenant, &root, json!({"providers":{"relay-chat":{"api":format!("http://{address}/custom/v9/chat/completions"),"env":["SHIJU_RELAY_CHAT_TEST_KEY"],"models":{"selected":{"id":"wire-model","status":"active","headers":{"x-provider":"trusted"},"tool_call":true}}}}})).await.unwrap();
+    let context = agent_project::instance::Context {
         directory: root.to_string_lossy().into(),
         worktree: project.worktree.clone(),
         project: project.clone(),
@@ -177,7 +177,7 @@ async fn acp_model_source_relay_chat_roundtrip_stream_tools_and_account_isolatio
             expected
         );
     }
-    crate::config::update_project_for_tenant(&tenant, &root, json!({"providers":{"relay-chat":{"models":{"selected":{"status":"active","tool_call":false}}}}})).await.unwrap();
+    agent_config::runtime::update_project_for_tenant(&tenant, &root, json!({"providers":{"relay-chat":{"models":{"selected":{"status":"active","tool_call":false}}}}})).await.unwrap();
     assert_eq!(
         client
             .post(&url)
@@ -189,7 +189,7 @@ async fn acp_model_source_relay_chat_roundtrip_stream_tools_and_account_isolatio
             .status(),
         422
     );
-    crate::config::update_project_for_tenant(&tenant, &root, json!({"providers":{"relay-chat":{"models":{"selected":{"status":"active","tool_call":true}}}}})).await.unwrap();
+    agent_config::runtime::update_project_for_tenant(&tenant, &root, json!({"providers":{"relay-chat":{"models":{"selected":{"status":"active","tool_call":true}}}}})).await.unwrap();
     unsafe {
         std::env::remove_var("SHIJU_RELAY_CHAT_TEST_KEY");
         agent_env::remove("SHIJU_RELAY_CHAT_TEST_KEY");

@@ -4,6 +4,6 @@
 
 #[tokio::test]
 async fn model_protocol_014_http_request_reaches_bound_chat_and_finishes_tool_round() {
-    let _lock = crate::test_support::global_async_env_lock().lock().await;
+    let _lock = super::global_async_env_lock().lock().await;
     super::messages_request_http_tests::request_reaches_bound_chat_and_finishes_tool_round().await;
 }

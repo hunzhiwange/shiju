@@ -14138,9 +14138,16 @@ name = "model-relay-http"
 version = "0.6.0"
 dependencies = [
  "agent-auth",
+ "agent-config",
+ "agent-database",
+ "agent-env",
+ "agent-paths",
+ "agent-project",
  "agent-provider",
  "agent-usage",
  "anyhow",
+ "app-models",
+ "app-provider-services",
  "async-trait",
  "axum",
  "chrono",
@@ -14148,11 +14155,16 @@ dependencies = [
  "model-protocol",
  "model-protocols",
  "model-reasoning",
+ "model-relay-state",
  "model-transport",
  "parking_lot",
+ "provider-protocol-routes",
+ "reqwest",
  "serde_json",
+ "tempfile",
  "tokio",
  "tokio-util",
+ "vw-api-transport",
 ]
 
 

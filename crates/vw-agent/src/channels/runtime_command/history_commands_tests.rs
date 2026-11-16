@@ -5,47 +5,7 @@ use super::runtime_command::session_commands_tests::{
 use super::*;
 use crate::session::message;
 
-async fn seed(ctx: &ChannelRuntimeContext, id: &str) -> Vec<String> {
-    let mut ids = Vec::new();
-    for content in ["first turn", "second turn", "last turn"] {
-        let mid = crate::id::ascending(crate::id::Prefix::Message, None).unwrap();
-        let info = message::Info::User(Box::new(message::UserInfo {
-            id: mid.clone(),
-            session_id: id.into(),
-            time: message::UserTime { created: 1 },
-            summary: None,
-            agent: "build".into(),
-            model: message::ModelRef {
-                provider_id: "default-provider".into(),
-                model_id: "default-model".into(),
-            },
-            system: None,
-            tools: None,
-            variant: None,
-        }));
-        let tenant = ctx.message_snapshot.as_ref().unwrap().scope.chat.tenant.clone();
-        crate::session::ui_store::with_tenant_scope(tenant, async {
-            message::update_message(&info).await.unwrap();
-            message::update_part(&message::Part::Text(message::TextPart {
-                base: message::PartBase {
-                    id: crate::id::ascending(crate::id::Prefix::Part, None).unwrap(),
-                    session_id: id.into(),
-                    message_id: mid.clone(),
-                },
-                text: content.into(),
-                synthetic: None,
-                ignored: None,
-                time: None,
-                metadata: None,
-            }))
-            .await
-            .unwrap();
-        })
-        .await;
-        ids.push(mid);
-    }
-    ids
-}
+use channel_runtime::command_history_contracts::seed;
 
 async fn fixture()
 -> (tempfile::TempDir, ChannelRuntimeContext, traits::ChannelMessage, String, Vec<String>) {
@@ -63,25 +23,13 @@ async fn fixture()
 #[tokio::test]
 async fn channel_session_history_lists_real_anchors_without_mutation() {
     let (_temp, ctx, msg, id, ids) = fixture().await;
-    for name in ["fork", "compact", "reset"] {
-        let response = lifecycle_dispatch(&ctx, &msg, &format!("/{name}")).await;
-        assert!(response.contains(&format!("/{name} {}", ids[1])), "{response}");
-        assert_eq!(lifecycle_id(&ctx), id);
-    }
+    channel_runtime::command_history_contracts::channel_session_history_lists_real_anchors_without_mutation(ctx, msg, id, ids, dispatch_contract).await;
 }
 
 #[tokio::test]
 async fn channel_session_history_fork_switches_and_preserves_source() {
     let (_temp, ctx, msg, id, ids) = fixture().await;
-    let response = lifecycle_dispatch(&ctx, &msg, &format!("/fork {}", ids[1])).await;
-    assert!(response.contains("已分叉"), "{response}");
-    let next = lifecycle_id(&ctx);
-    assert_ne!(id, next);
-    let snapshot = ctx.message_snapshot.as_ref().unwrap();
-    channel_session_ownership(snapshot, &next).await.unwrap();
-    assert_eq!(message::messages(&id, None).await.unwrap().len(), 3);
-    assert_eq!(message::messages(&next, None).await.unwrap().len(), 2);
-    assert_eq!(ctx.conversation_histories.lock().unwrap()[&snapshot.scope.key()].len(), 2);
+    channel_runtime::command_history_contracts::channel_session_history_fork_switches_and_preserves_source(ctx, msg, id, ids, dispatch_contract).await;
 }
 
 #[tokio::test]
@@ -102,65 +50,19 @@ async fn channel_session_history_foreign_anchors_preserve_cache_and_binding() {
 #[tokio::test]
 async fn channel_session_history_reset_requires_confirmation_and_reloads_cache() {
     let (_temp, ctx, msg, id, ids) = fixture().await;
-    let confirm = format!("/reset confirm {}", ids[1]);
-    assert!(lifecycle_dispatch(&ctx, &msg, &confirm).await.contains("失败"));
-    let prompt = lifecycle_dispatch(&ctx, &msg, &format!("/rewind {}", ids[1])).await;
-    assert!(prompt.contains(&confirm), "{prompt}");
-    assert_eq!(message::messages(&id, None).await.unwrap().len(), 3);
-    let result = lifecycle_dispatch(&ctx, &msg, &confirm).await;
-    assert!(result.contains("已回退"), "{result}");
-    assert_eq!(lifecycle_id(&ctx), id);
-    assert_eq!(message::messages(&id, None).await.unwrap().len(), 2);
-    assert_eq!(
-        ctx.conversation_histories.lock().unwrap()
-            [&ctx.message_snapshot.as_ref().unwrap().scope.key()]
-            .len(),
-        2
-    );
-    assert!(lifecycle_dispatch(&ctx, &msg, &confirm).await.contains("失败"));
+    channel_runtime::command_history_contracts::channel_session_history_reset_requires_confirmation_and_reloads_cache(ctx, msg, id, ids, dispatch_contract).await;
 }
 
 #[tokio::test]
 async fn channel_session_history_stale_confirmation_is_rejected() {
     let (_temp, ctx, msg, id, ids) = fixture().await;
-    for command in ["reset", "compact"] {
-        let prompt = lifecycle_dispatch(&ctx, &msg, &format!("/{command} {}", ids[1])).await;
-        assert!(prompt.contains("confirm"), "{prompt}");
-        seed(&ctx, &id).await;
-        let response =
-            lifecycle_dispatch(&ctx, &msg, &format!("/{command} confirm {}", ids[1])).await;
-        assert!(response.contains("失败") && response.contains("变化"), "{response}");
-        assert_eq!(lifecycle_id(&ctx), id);
-    }
+    channel_runtime::command_history_contracts::channel_session_history_stale_confirmation_is_rejected(ctx, msg, id, ids, dispatch_contract).await;
 }
 
 #[tokio::test]
 async fn channel_session_history_cross_scope_and_busy_are_rejected() {
     let (_temp, ctx, msg, id, ids) = fixture().await;
-    assert!(
-        lifecycle_dispatch(&ctx, &msg, &format!("/reset {}", ids[1])).await.contains("confirm")
-    );
-    for dimension in 0..5 {
-        let mut other = msg.clone();
-        match dimension {
-            0 => other.channel = "qq".into(),
-            1 => other.instance_id = "other".into(),
-            2 => other.reply_target = "other".into(),
-            3 => other.thread_ts = Some("other".into()),
-            _ => other.sender = "other".into(),
-        }
-        let mut candidate = ctx.clone();
-        candidate.message_snapshot = None;
-        let result =
-            lifecycle_dispatch(&candidate, &other, &format!("/reset confirm {}", ids[1])).await;
-        assert!(result.contains("失败"), "{result}");
-    }
-    let gate = channel_chat_gate(&ctx, &msg);
-    let guard = gate.read().await;
-    assert!(lifecycle_dispatch(&ctx, &msg, &format!("/fork {}", ids[1])).await.contains("繁忙"));
-    drop(guard);
-    assert_eq!(lifecycle_id(&ctx), id);
-    assert_eq!(message::messages(&id, None).await.unwrap().len(), 3);
+    channel_runtime::command_history_contracts::channel_session_history_cross_scope_and_busy_are_rejected(ctx, msg, id, ids, dispatch_contract).await;
 }
 
 struct ModelServer {
@@ -326,27 +228,15 @@ async fn channel_session_history_rejects_forged_binding_across_projects_and_tena
 #[tokio::test]
 async fn channel_session_history_switching_sessions_invalidates_confirmation() {
     let (_temp, ctx, msg, id, ids) = fixture().await;
-    lifecycle_dispatch(&ctx, &msg, &format!("/reset {}", ids[1])).await;
-    lifecycle_dispatch(&ctx, &msg, "/new").await;
-    assert!(lifecycle_dispatch(&ctx, &msg, &format!("/resume {id}")).await.contains("已恢复"));
-    assert!(
-        lifecycle_dispatch(&ctx, &msg, &format!("/reset confirm {}", ids[1]))
-            .await
-            .contains("失败")
-    );
-    assert_eq!(message::messages(&id, None).await.unwrap().len(), 3);
+    channel_runtime::command_history_contracts::channel_session_history_switching_sessions_invalidates_confirmation(ctx, msg, id, ids, dispatch_contract).await;
 }
 
 #[tokio::test]
 async fn channel_session_history_part_changes_invalidate_confirmation() {
     let (_temp, ctx, msg, id, ids) = fixture().await;
-    lifecycle_dispatch(&ctx, &msg, &format!("/reset {}", ids[1])).await;
-    let mut parts = message::parts(&id, &ids[0]).await.unwrap();
-    if let message::Part::Text(text) = &mut parts[0] {
-        text.text = "edited in place".into();
-    }
-    message::update_part(&parts[0]).await.unwrap();
-    let response = lifecycle_dispatch(&ctx, &msg, &format!("/reset confirm {}", ids[1])).await;
-    assert!(response.contains("失败") && response.contains("变化"), "{response}");
-    assert_eq!(message::messages(&id, None).await.unwrap().len(), 3);
+    channel_runtime::command_history_contracts::channel_session_history_part_changes_invalidate_confirmation(ctx, msg, id, ids, dispatch_contract).await;
+}
+
+fn dispatch_contract<'a>(ctx: &'a ChannelRuntimeContext, msg: &'a traits::ChannelMessage, text: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = String> + Send + 'a>> {
+    Box::pin(lifecycle_dispatch(ctx, msg, text))
 }

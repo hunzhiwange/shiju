@@ -33,3 +33,11 @@ pub mod format;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod host_migration_14_tests;
+
+#[cfg(any(test, feature = "test-support"))]
+pub mod command_test_support;
+#[cfg(feature = "test-support")]
+pub mod command_history_contracts;
+
+#[cfg(feature = "test-support")]
+pub mod command_catalog_contracts;

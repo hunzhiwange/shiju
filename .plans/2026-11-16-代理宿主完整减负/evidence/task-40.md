@@ -139,3 +139,47 @@ runtime_command/session_commands_tests.rs 和 task_mode_tests.rs 在任务1归�
 - `task_mode_keeps_auto_model_when_route_uses_auto`：原位置/原宿主挂载保留，依赖真实宿主会话、任务或共享上下文；不计本轮迁移。
 - `task_mode_reports_task_creation_error`：原位置/原宿主挂载保留，依赖真实宿主会话、任务或共享上下文；不计本轮迁移。
 - `task_mode_still_consumes_message_when_reply_send_fails`：原位置/原宿主挂载保留，依赖真实宿主会话、任务或共享上下文；不计本轮迁移。
+
+## 二次深迁（以本节覆盖首轮保留说明）
+
+读取 final.md 与 remaining-host.json 后继续拆分。禁止 Cargo/构建/运行测试，所有结论为静态源码证据。
+
+- command_test_support：合并宿主及领域重复的 Context、StaticProvider、CountingProvider、NamedTool、RecordingChannel、CatalogChannel、autonomy_config、boxed_tools、message 等原夹具。真实宿主与17条领域自注册测试共用，cfg(any(test, test-support))；没有复制App、反向挂载或更改生产算法。
+- command_history_contracts：7条历史测试的完整断言归领域，宿主同名函数仅提供真实fixture和原lifecycle_dispatch回调。seed 使用原 ordered-id/session-engine 写入与session-store租户作用域；新可选依赖仅test-support启用，锁文件仅登记已有包的依赖边。
+- command_catalog_contracts：4条模型/effort/非法输入/作用域/status完整断言归领域，同名宿主入口只提供真实项目上下文和原catalog_dispatch回调。status直接使用session-engine原存储。出站端口仍逐条消费消息、校验处理结果，未mock鉴权/存储。
+- 这些11条是真实宿主驱动的领域断言，不冒称新增11条库自注册测试；库自注册仍17条。宿主入口仍2+5+11条，原过滤命令继续有效。未来增加 `cargo test -p channel-runtime --lib --features test-support host_migration_40_tests`（通过槽位入口执行）确认feature编译。
+
+|来源|收口记录|当前行数|
+|---|---:|---:|
+|`crates/vw-agent/src/channels/runtime_command.rs`|40|40|
+|`crates/vw-agent/src/channels/runtime_command/approval_commands.rs`|2|2|
+|`crates/vw-agent/src/channels/runtime_command/approval_config.rs`|2|2|
+|`crates/vw-agent/src/channels/runtime_command/catalog.rs`|2|2|
+|`crates/vw-agent/src/channels/runtime_command/command.rs`|4|4|
+|`crates/vw-agent/src/channels/runtime_command/command_tests.rs`|149|83|
+|`crates/vw-agent/src/channels/runtime_command/handler.rs`|7|7|
+|`crates/vw-agent/src/channels/runtime_command/handler_tests.rs`|300|118|
+|`crates/vw-agent/src/channels/runtime_command/history_commands.rs`|7|7|
+|`crates/vw-agent/src/channels/runtime_command/history_commands_tests.rs`|352|242|
+|`crates/vw-agent/src/channels/runtime_command/project_commands.rs`|3|3|
+|`crates/vw-agent/src/channels/runtime_command/session_commands.rs`|45|45|
+|`crates/vw-agent/src/channels/runtime_command/session_lifecycle.rs`|9|9|
+|`crates/vw-agent/src/channels/runtime_command/task_mode.rs`|9|9|
+
+当前来源合计573行，本轮额外减少358行；相对1264行基线累计减少691行（54.7%）。剩余生产文件仍为先前真实Host注入/兼容入口，无新增生产算法迁移收益。
+
+- 原同名宿主测试 → `channel_runtime::command_history_contracts::channel_session_history_lists_real_anchors_without_mutation`，宿主同名薄入口保留；断言表达式原样迁移。
+- 原同名宿主测试 → `channel_runtime::command_history_contracts::channel_session_history_fork_switches_and_preserves_source`，宿主同名薄入口保留；断言表达式原样迁移。
+- 原同名宿主测试 → `channel_runtime::command_history_contracts::channel_session_history_reset_requires_confirmation_and_reloads_cache`，宿主同名薄入口保留；断言表达式原样迁移。
+- 原同名宿主测试 → `channel_runtime::command_history_contracts::channel_session_history_stale_confirmation_is_rejected`，宿主同名薄入口保留；断言表达式原样迁移。
+- 原同名宿主测试 → `channel_runtime::command_history_contracts::channel_session_history_cross_scope_and_busy_are_rejected`，宿主同名薄入口保留；断言表达式原样迁移。
+- 原同名宿主测试 → `channel_runtime::command_history_contracts::channel_session_history_switching_sessions_invalidates_confirmation`，宿主同名薄入口保留；断言表达式原样迁移。
+- 原同名宿主测试 → `channel_runtime::command_history_contracts::channel_session_history_part_changes_invalidate_confirmation`，宿主同名薄入口保留；断言表达式原样迁移。
+- 原同名宿主测试 → `channel_runtime::command_catalog_contracts::channel_command_catalog_real_provider_model_and_effort_success`，宿主同名薄入口保留；断言表达式原样迁移。
+- 原同名宿主测试 → `channel_runtime::command_catalog_contracts::channel_command_catalog_invalid_inputs_preserve_route_and_history`，宿主同名薄入口保留；断言表达式原样迁移。
+- 原同名宿主测试 → `channel_runtime::command_catalog_contracts::channel_command_catalog_model_selection_isolated_across_domains`，宿主同名薄入口保留；断言表达式原样迁移。
+- 原同名宿主测试 → `channel_runtime::command_catalog_contracts::channel_command_catalog_status_is_read_only_and_scoped`，宿主同名薄入口保留；断言表达式原样迁移。
+
+剩余厚边界逐项：history 两条压缩测试依赖真实session processor脚本队列及后续普通聊天；foreign anchors/forged binding两条依赖第二真实项目租户fixture，保留全部断言。catalog租户目录测试保留真实租户上下文与provider初始化验收。handler两个入口复用共享夹具，保留完整真实宿主会话/模型/审批组合与入站命名实例路由验收。没有将这些真实边界改成假端口。
+
+静态核对：差异空白检查；共享夹具两个实际调用者；11条同名宿主入口逐个调用新领域函数；真实seed与目录status依赖路径；未运行任何编译、行为或实机验证。整轮门槛仍由收口重新核算。

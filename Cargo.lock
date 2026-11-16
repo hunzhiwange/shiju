@@ -19539,6 +19539,7 @@ dependencies = [
  "session-info",
  "session-store",
  "session-ui-types",
+ "tempfile",
  "tokio",
  "tokio-util",
  "tracing",

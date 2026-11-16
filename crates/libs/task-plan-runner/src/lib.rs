@@ -23,3 +23,6 @@ pub use control::{PlanRunControlRegistry, PlanRunStopOutcome, global_plan_run_co
 pub use goal::{GoalTaskFilesState, build_goal_continuation_prompt, goal_turn_session_id, inspect_goal_task_files};
 pub use prompts::*;
 pub use runner::{SessionRunRequest, SessionRunner, run_task_plan, run_task_plan_with_cancellation};
+
+#[cfg(test)]
+mod host_split_5_tests;

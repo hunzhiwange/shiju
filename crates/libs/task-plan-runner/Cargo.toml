@@ -27,3 +27,6 @@ session-store = { path = "../session-store" }
 agent-project = { path = "../agent-project" }
 agent-database = { path = "../agent-database" }
 agent-installation = { path = "../agent-installation" }
+
+[dev-dependencies]
+tempfile = "3"

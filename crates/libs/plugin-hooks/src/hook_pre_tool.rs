@@ -16,3 +16,7 @@ pub fn updated_input(output: &Value) -> Result<Option<Value>> {
     }
     Ok(Some(updated.clone()))
 }
+
+#[cfg(test)]
+#[path = "hook_pre_tool_tests.rs"]
+mod tests;

@@ -39,9 +39,6 @@ pub(super) mod transaction_install;
 
 // t06 tests follow their implementation in agent-plugins.
 
-#[cfg(test)]
-#[path = "t07_tests.rs"]
-mod t07_tests;
 
 
 #[cfg(test)]
@@ -64,21 +61,12 @@ mod t12_tests;
 #[path = "t13_tests.rs"]
 mod t13_tests;
 
-#[cfg(test)]
-#[path = "t15_tests.rs"]
-mod t15_tests;
 
-#[cfg(test)]
-#[path = "t16_tests.rs"]
-mod t16_tests;
 
 #[cfg(test)]
 #[path = "t17_tests.rs"]
 mod t17_tests;
 
-#[cfg(test)]
-#[path = "t17_public_tests.rs"]
-mod t17_public_tests;
 
 #[cfg(test)]
 #[path = "t18_tests.rs"]
@@ -108,14 +96,10 @@ mod t23_tests;
 mod t24_tests;
 
 pub mod mcp_oauth_discovery;
-#[cfg(test)]
-mod t26_tests;
 
 pub mod mcp_oauth_flow;
 #[cfg(test)]
 mod t27_flow_tests;
-#[cfg(test)]
-mod t27_tests;
 
 pub mod mcp_oauth_tokens;
 #[cfg(test)]

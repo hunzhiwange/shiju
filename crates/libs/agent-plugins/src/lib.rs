@@ -114,3 +114,6 @@ mod compat_t64_tests;
 
 #[cfg(test)]
 mod host_migration_39_tests;
+
+#[cfg(test)]
+mod host_migration_37_tests;

@@ -1,6 +1,4 @@
 //! Host composition for the canonical AI SDK implementation.
-#[cfg(test)]
-use llm_runtime::aisdk::request::*;
 use super::host::NativeHost;
 use crate::session::llm::types::{Error, StreamEvent};
 use crate::provider::provider;

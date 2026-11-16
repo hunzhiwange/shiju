@@ -24,3 +24,11 @@ desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 gateway-config = { path = "../gateway-config", version = "0.6.0" }
 gateway-system = { path = "../gateway-system", version = "0.6.0" }
 serde_json = "1"
+
+desktop-workspace = { path = "../desktop-workspace", version = "0.6.0" }
+
+[dev-dependencies]
+tempfile = "3"
+iced_runtime = "0.14"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+image = "0.25"

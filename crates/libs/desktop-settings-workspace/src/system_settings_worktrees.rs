@@ -6,7 +6,7 @@ use iced::{Alignment, Element, Length};
 type Message = Event;
 fn message(event: Event) -> Message { event }
 pub mod environment;
-mod managed;
+pub(crate) mod managed;
 mod recovery;
 pub fn page(state: &WorktreeSettingsState, i18n: I18n, local: bool) -> Element<'_, Message> {
     let tabs = settings_tab_row([

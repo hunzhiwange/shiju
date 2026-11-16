@@ -27,7 +27,7 @@ fn help<'a>(i18n: I18n, theme: &Theme, title: &'a str, description: &'a str, wid
 }
 fn state(app: &App) -> ViewState<'_> {
     ViewState {
-        project_path: &app.project_path, project_worktree_enabled: &app.project_worktree_enabled,
+        project_path: &app.navigation_tabs.project_path, project_worktree_enabled: &app.project_worktree_enabled,
         project_tools_menu_path: &app.project_tools_menu_path, recent_projects: &app.recent_projects,
         recent_projects_edits: &app.recent_projects_edits, recent_project_delete_confirm_idx: app.recent_project_delete_confirm_idx,
         recent_project_query: &app.recent_project_query, desktop_locale: app.desktop_locale,
@@ -41,14 +41,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
     domain::view(&state(app), message, avatar, help, &appearance)
 }
-#[cfg(test)]
-fn current_project_worktree(app: &App, i18n: I18n) -> Element<'_, Message> {
-    domain::current_project_worktree(&state(app), i18n, message, help)
-}
-#[cfg(test)]
-#[path = "system_settings_projects_tests.rs"]
-mod system_settings_projects_tests;
-
 #[cfg(test)]
 #[path = "system_settings_projects_ui_refresh_30_tests.rs"]
 mod system_settings_projects_ui_refresh_30_tests;

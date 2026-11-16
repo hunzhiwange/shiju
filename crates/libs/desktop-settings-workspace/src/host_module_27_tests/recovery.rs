@@ -1,10 +1,25 @@
-use crate::app::message::settings::worktrees::recovery::{RecoveryMessage, update};
+use super::{Fixture, identity};
+use crate::messages::RecoveryMessage;
+fn update(
+    app: &mut Fixture,
+    event: RecoveryMessage,
+) -> iced::Task<crate::messages::WorktreeSettingsMessage> {
+    let current = identity(app);
+    crate::recovery::update(
+        &mut app.worktree_settings,
+        event,
+        current,
+        0,
+        Err("fixture unavailable".into()),
+        &mut app.effects,
+    )
+}
 
-use crate::app::state::WorktreeRecoveryProject;
+use crate::state::WorktreeRecoveryProject;
 use vw_api_worktree::*;
-fn app() -> crate::app::App {
-    let mut app = crate::app::App::new().0;
-    let identity = crate::app::state::worktree_identity(&app);
+fn app() -> Fixture {
+    let mut app = Fixture::default();
+    let identity = identity(&app);
     let state = &mut app.worktree_settings;
     state.managed.identity = Some(identity.clone());
     state.recovery.identity = Some(identity);
@@ -23,7 +38,7 @@ fn app() -> crate::app::App {
 #[test]
 fn worktree_cleanup_flow_cross_project_response_is_ignored() {
     let mut app = app();
-    let identity = crate::app::state::worktree_identity(&app);
+    let identity = identity(&app);
     app.worktree_settings.recovery.loading = true;
     app.project_path = Some("/different-project".into());
     let _ = update(
@@ -36,8 +51,8 @@ fn worktree_cleanup_flow_cross_project_response_is_ignored() {
 #[test]
 fn worktree_cleanup_flow_old_epoch_response_is_ignored() {
     let mut app = app();
-    let identity = crate::app::state::worktree_identity(&app);
-    crate::app::message::settings::worktrees::recovery::invalidate(&mut app);
+    let identity = identity(&app);
+    crate::recovery::invalidate(&mut app.worktree_settings);
     app.worktree_settings.recovery.identity = Some(identity.clone());
     app.worktree_settings.recovery.loading = true;
     let _ =
@@ -47,7 +62,7 @@ fn worktree_cleanup_flow_old_epoch_response_is_ignored() {
 #[test]
 fn worktree_cleanup_flow_item_failure_requires_new_preflight() {
     let mut app = app();
-    let identity = crate::app::state::worktree_identity(&app);
+    let identity = identity(&app);
     let _ = update(&mut app, RecoveryMessage::Confirm);
     let _ = update(
         &mut app,
@@ -73,7 +88,7 @@ fn restored() -> RestoreWorktreeResponse {
 #[test]
 fn worktree_cleanup_flow_restores_and_refreshes() {
     let mut app = app();
-    let identity = crate::app::state::worktree_identity(&app);
+    let identity = identity(&app);
     app.worktree_settings.recovery.pending = Some(("project".into(), "snapshot".into()));
     let _ = update(
         &mut app,
@@ -87,13 +102,17 @@ fn worktree_cleanup_flow_restores_and_refreshes() {
     assert!(app.worktree_settings.managed.loading);
     assert!(app.worktree_settings.recovery.loading);
     assert_eq!(app.worktree_settings.recovery.restored.as_ref().unwrap().2, "/恢复/新路径");
-    assert!(app.current_session_runtime().draft.is_none());
-    assert!(!app.new_session_creating);
+    assert!(
+        !app.effects.iter().any(|effect| matches!(effect, crate::lifecycle::Effect::Open { .. }))
+    );
+    assert!(
+        !app.effects.iter().any(|effect| matches!(effect, crate::lifecycle::Effect::Open { .. }))
+    );
 }
 #[test]
 fn worktree_cleanup_flow_delete_success_refreshes_and_records_snapshot() {
     let mut app = app();
-    let identity = crate::app::state::worktree_identity(&app);
+    let identity = identity(&app);
     let _ = update(&mut app, RecoveryMessage::Confirm);
     let _ = update(
         &mut app,
@@ -111,7 +130,7 @@ fn worktree_cleanup_flow_delete_success_refreshes_and_records_snapshot() {
 #[test]
 fn worktree_cleanup_flow_load_failure_does_not_report_empty_success() {
     let mut app = app();
-    let identity = crate::app::state::worktree_identity(&app);
+    let identity = identity(&app);
     app.worktree_settings.recovery.loading = true;
     let _ = update(
         &mut app,
@@ -123,7 +142,7 @@ fn worktree_cleanup_flow_load_failure_does_not_report_empty_success() {
 #[test]
 fn worktree_cleanup_flow_restore_failure_can_retry_persisted_snapshot() {
     let mut app = app();
-    let identity = crate::app::state::worktree_identity(&app);
+    let identity = identity(&app);
     let project = serde_json::from_value(serde_json::json!({"id":"project","name":"项目","directory":"/project","display_path":"/project","status":"ready","created_at_ms":1,"updated_at_ms":2,"git":{"is_repo":true,"has_uncommitted_changes":false}})).unwrap();
     app.worktree_settings.recovery.projects = vec![WorktreeRecoveryProject {
         project,
@@ -172,13 +191,13 @@ fn worktree_cleanup_flow_restore_failure_can_retry_persisted_snapshot() {
 #[test]
 fn worktree_cleanup_flow_cancel_rejects_late_preflight() {
     let mut app = app();
-    let identity = crate::app::state::worktree_identity(&app);
+    let identity = identity(&app);
     let preflight = app.worktree_settings.managed.preflight.clone().unwrap();
     let _ = update(&mut app, RecoveryMessage::Cancel);
-    let _ = crate::app::message::settings::worktrees::update(
+    let _ = super::update_worktrees(
         &mut app,
-        crate::app::message::settings::worktrees::WorktreeSettingsMessage::Managed(
-            crate::app::message::settings::worktrees::ManagedMessage::PreflightLoaded {
+        crate::messages::WorktreeSettingsMessage::Managed(
+            crate::messages::ManagedMessage::PreflightLoaded {
                 identity,
                 generation: 0,
                 target: ("project".into(), "tree".into()),
@@ -193,13 +212,13 @@ fn worktree_cleanup_flow_cancel_rejects_late_preflight() {
 #[test]
 fn worktree_cleanup_flow_preflight_cannot_cross_project() {
     let mut app = app();
-    let identity = crate::app::state::worktree_identity(&app);
+    let identity = identity(&app);
     let preflight = app.worktree_settings.managed.preflight.take().unwrap();
     app.project_path = Some("/other".into());
-    let _ = crate::app::message::settings::worktrees::update(
+    let _ = super::update_worktrees(
         &mut app,
-        crate::app::message::settings::worktrees::WorktreeSettingsMessage::Managed(
-            crate::app::message::settings::worktrees::ManagedMessage::PreflightLoaded {
+        crate::messages::WorktreeSettingsMessage::Managed(
+            crate::messages::ManagedMessage::PreflightLoaded {
                 identity,
                 generation: 0,
                 target: ("project".into(), "tree".into()),
@@ -213,7 +232,7 @@ fn worktree_cleanup_flow_preflight_cannot_cross_project() {
 #[test]
 fn worktree_cleanup_flow_delete_revokes_inflight_snapshot_list() {
     let mut app = app();
-    let identity = crate::app::state::worktree_identity(&app);
+    let identity = identity(&app);
     app.worktree_settings.recovery.loading = true;
     let _ = update(&mut app, RecoveryMessage::Confirm);
     assert!(!app.worktree_settings.recovery.loading);

@@ -20,7 +20,3 @@ pub(crate) fn view_overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Ele
 }
 #[cfg(test)]
 #[path = "system_settings_worktrees/managed_tests.rs"] mod managed_tests;
-#[cfg(test)]
-#[path = "system_settings_worktrees/environment_tests.rs"] mod environment_tests;
-#[cfg(test)]
-#[path = "system_settings_worktrees/recovery_tests.rs"] mod recovery_tests;

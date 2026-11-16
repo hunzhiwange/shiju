@@ -43,3 +43,45 @@ pub fn apply(state: State<'_>, event: Event, current_path: Option<&str>) -> Opti
     }
     None
 }
+
+/// Remove project metadata and rebuild display names from authoritative rows.
+pub fn reconcile_deleted(
+    paths: &[String],
+    edits: &mut Vec<String>,
+    metadata: &mut Vec<desktop_workspace::project_message::edit_meta::RecentProjectMeta>,
+    path: &str,
+) {
+    metadata.retain(|meta| meta.path != path);
+    *edits = paths
+        .iter()
+        .map(|path| {
+            metadata
+                .iter()
+                .find(|meta| &meta.path == path)
+                .map(|meta| meta.name.clone())
+                .unwrap_or_else(|| {
+                    std::path::Path::new(path)
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or(path)
+                        .to_string()
+                })
+        })
+        .collect();
+}
+pub fn set_worktree_enabled(
+    settings: &mut std::collections::HashMap<String, bool>,
+    path: &str,
+    enabled: bool,
+) -> Option<serde_json::Value> {
+    let changed = if enabled {
+        settings.insert(path.to_owned(), true) != Some(true)
+    } else {
+        settings.remove(path).is_some()
+    };
+    changed.then(|| {
+        serde_json::json!({ "project_worktree_enabled": {
+            path: if enabled { serde_json::Value::Bool(true) } else { serde_json::Value::Null }
+        }})
+    })
+}

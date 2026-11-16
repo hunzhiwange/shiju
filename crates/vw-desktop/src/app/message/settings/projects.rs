@@ -5,6 +5,7 @@ use crate::app::i18n::I18n;
 use crate::app::projects::{save_recent_projects_background, save_recent_projects_meta_background};
 use crate::app::{App, Message};
 use iced::Task;
+#[cfg(test)]
 use serde_json::{Value, json};
 use vw_gateway_client::GatewayClient;
 
@@ -17,48 +18,46 @@ use super::messages::SettingsMessage;
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         event @ (SettingsMessage::RecentProjectQueryChanged(_)
-            | SettingsMessage::RecentProjectDeleteRequested(_)
-            | SettingsMessage::RecentProjectDeleteCanceled
-            | SettingsMessage::RecentProjectDeleteConfirmed(_)) => {
+        | SettingsMessage::RecentProjectDeleteRequested(_)
+        | SettingsMessage::RecentProjectDeleteCanceled
+        | SettingsMessage::RecentProjectDeleteConfirmed(_)) => {
             use desktop_settings_workspace::projects::{self, Event, State};
             let event = match event {
                 SettingsMessage::RecentProjectQueryChanged(query) => Event::QueryChanged(query),
-                SettingsMessage::RecentProjectDeleteRequested(index) => Event::DeleteRequested(index),
+                SettingsMessage::RecentProjectDeleteRequested(index) => {
+                    Event::DeleteRequested(index)
+                }
                 SettingsMessage::RecentProjectDeleteCanceled => Event::DeleteCanceled,
-                SettingsMessage::RecentProjectDeleteConfirmed(index) => Event::DeleteConfirmed(index),
+                SettingsMessage::RecentProjectDeleteConfirmed(index) => {
+                    Event::DeleteConfirmed(index)
+                }
                 _ => unreachable!(),
             };
-            let deleted = projects::apply(State {
-                query: &mut app.recent_project_query,
-                tools_menu_path: &mut app.project_tools_menu_path,
-                delete_confirm_idx: &mut app.recent_project_delete_confirm_idx,
-                paths: &mut app.recent_projects,
-                edits: &mut app.recent_projects_edits,
-            }, event, app.project_path.as_deref());
+            let deleted = projects::apply(
+                State {
+                    query: &mut app.recent_project_query,
+                    tools_menu_path: &mut app.project_tools_menu_path,
+                    delete_confirm_idx: &mut app.recent_project_delete_confirm_idx,
+                    paths: &mut app.recent_projects,
+                    edits: &mut app.recent_projects_edits,
+                },
+                event,
+                app.navigation_tabs.project_path.as_deref(),
+            );
             let mut deleting_current = false;
             let mut save_worktree = Task::none();
             if let Some(deleted) = deleted {
                 let path = deleted.path;
                 deleting_current = deleted.was_current;
-                app.recent_projects_meta.retain(|m| m.path != path);
+                desktop_settings_workspace::projects::reconcile_deleted(
+                    &app.recent_projects,
+                    &mut app.recent_projects_edits,
+                    &mut app.recent_projects_meta,
+                    &path,
+                );
                 save_recent_projects_background(app.recent_projects.clone());
                 save_recent_projects_meta_background(app.recent_projects_meta.clone());
                 save_worktree = set_worktree_enabled(app, path, false);
-                app.recent_projects_edits = app
-                    .recent_projects
-                    .iter()
-                    .map(|p| {
-                        if let Some(m) = app.recent_projects_meta.iter().find(|m| &m.path == p) {
-                            m.name.clone()
-                        } else {
-                            std::path::Path::new(p)
-                                .file_name()
-                                .and_then(|s| s.to_str())
-                                .unwrap_or(p)
-                                .to_string()
-                        }
-                    })
-                    .collect();
             }
             if deleting_current {
                 Task::batch([save_worktree, app.open_first_recent_project_or_home()])
@@ -91,23 +90,25 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 
 /// 应用 Worktree 选项并安排单项目配置写入。
 pub(crate) fn set_worktree_enabled(app: &mut App, path: String, enabled: bool) -> Task<Message> {
-    let changed = if enabled {
-        app.project_worktree_enabled.insert(path.clone(), true) != Some(true)
-    } else {
-        app.project_worktree_enabled.remove(&path).is_some()
-    };
-    if !changed {
+    let Some(patch) = desktop_settings_workspace::projects::set_worktree_enabled(
+        &mut app.project_worktree_enabled,
+        &path,
+        enabled,
+    ) else {
         return Task::none();
-    }
+    };
 
     #[cfg(not(target_arch = "wasm32"))]
     app.note_startup_worktree_edit(&path);
     let endpoint = gateway_client_endpoint();
-    // The gateway recursively merges the patch. Null removes the project key.
-    let value = if enabled { Value::Bool(true) } else { Value::Null };
-    let patch = json!({ "project_worktree_enabled": { path: value } });
     app.project_worktree_save_queue.push_back(Task::perform(
-        async move { gateway_desktop_settings::GatewayDesktopSettingsClient::new(GatewayClient::new(endpoint)?.transport().clone()).desktop_system_settings_patch(&patch).await },
+        async move {
+            gateway_desktop_settings::GatewayDesktopSettingsClient::new(
+                GatewayClient::new(endpoint)?.transport().clone(),
+            )
+            .desktop_system_settings_patch(&patch)
+            .await
+        },
         |result| Message::Settings(SettingsMessage::ProjectWorktreeSaved(result)),
     ));
     start_worktree_save(app)

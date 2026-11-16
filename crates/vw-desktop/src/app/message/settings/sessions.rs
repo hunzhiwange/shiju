@@ -26,9 +26,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
 
             let mut switch_task = Task::none();
-            if app.active_session_id.as_ref() == Some(&id) {
-                let next =
-                    app.sessions.iter().find(|s| s.is_user_navigable()).map(|s| s.id.clone());
+            if let Some(next) = desktop_settings_sessions::sessions::next_after_delete(
+                &app.sessions,
+                app.active_session_id.as_deref(),
+                &id,
+            ) {
                 if let Some(next_id) = next {
                     app.active_session_id = Some(next_id.clone());
                     app.mark_active_session_viewed();
@@ -37,10 +39,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     let load_messages = Task::perform(
                         async move {
                             let client = crate::app::gateway_client().map_err(|e| e.to_string())?;
-                            let msgs = gateway_session::GatewaySessionClient::new(client.transport().clone())
-                                .session_messages::<Vec<message::WithParts>>(&next_id, None)
-                                .await
-                                .map_err(|e| e.to_string())?;
+                            let msgs = gateway_session::GatewaySessionClient::new(
+                                client.transport().clone(),
+                            )
+                            .session_messages::<Vec<message::WithParts>>(&next_id, None)
+                            .await
+                            .map_err(|e| e.to_string())?;
                             let mut usage = crate::app::models::TokenUsage::default();
                             for m in &msgs {
                                 if let message::Info::Assistant(a) = &m.info {
@@ -71,7 +75,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::batch(vec![
                 Task::perform(
                     async move {
-                        desktop_settings_sessions::sessions::delete(crate::app::config::gateway_client(), id).await
+                        desktop_settings_sessions::sessions::delete(
+                            crate::app::config::gateway_client(),
+                            id,
+                        )
+                        .await
                     },
                     |_| Message::None,
                 ),
@@ -80,7 +88,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::SessionCopy(id) => Task::perform(
             async move {
-                desktop_settings_sessions::sessions::copy(crate::app::config::gateway_client(), id).await
+                desktop_settings_sessions::sessions::copy(crate::app::config::gateway_client(), id)
+                    .await
             },
             |res| match res {
                 Ok(info) => {

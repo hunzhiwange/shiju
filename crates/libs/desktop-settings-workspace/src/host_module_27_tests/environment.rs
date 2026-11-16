@@ -1,4 +1,5 @@
-use crate::app::message::settings::worktrees::environment::{EnvironmentMessage as Event, apply};
+use super::{Fixture, apply, identity, update};
+use crate::messages::EnvironmentMessage as Event;
 fn project(id: &str) -> vw_api_project::ProjectDto {
     serde_json::from_value(serde_json::json!({
         "id":id,"name":format!("中文项目-{id}"),"directory":format!("/项目/{id}"),
@@ -9,7 +10,7 @@ fn project(id: &str) -> vw_api_project::ProjectDto {
 }
 #[test]
 fn worktree_environment_ui_saves_setup_for_selected_project() {
-    let mut app = crate::app::App::new().0;
+    let mut app = Fixture::default();
     app.project_id = Some("a".into());
     apply(&mut app, Event::Edit(project("b")));
     loaded(&mut app, Some("original"));
@@ -22,7 +23,7 @@ fn worktree_environment_ui_saves_setup_for_selected_project() {
 }
 #[test]
 fn worktree_environment_ui_cancel_preserves_command() {
-    let mut app = crate::app::App::new().0;
+    let mut app = Fixture::default();
     apply(&mut app, Event::Edit(project("a")));
     loaded(&mut app, Some("original"));
     app.worktree_settings.environment.editor =
@@ -33,7 +34,7 @@ fn worktree_environment_ui_cancel_preserves_command() {
 }
 #[test]
 fn worktree_environment_ui_save_does_not_execute() {
-    let mut app = crate::app::App::new().0;
+    let mut app = Fixture::default();
     let temp = tempfile::tempdir().unwrap();
     let sentinel = temp.path().join("must-not-exist");
     apply(&mut app, Event::Edit(project("a")));
@@ -42,22 +43,24 @@ fn worktree_environment_ui_save_does_not_execute() {
         iced::widget::text_editor::Content::with_text(&format!("touch '{}'", sentinel.display()));
     assert!(apply(&mut app, Event::Save).is_some());
     assert!(!sentinel.exists());
-    assert!(!app.new_session_creating);
+    assert!(
+        !app.effects.iter().any(|effect| matches!(effect, crate::lifecycle::Effect::Open { .. }))
+    );
 }
 
-fn loaded(app: &mut crate::app::App, command: Option<&str>) {
-    let identity = crate::app::state::worktree_identity(app);
+fn loaded(app: &mut Fixture, command: Option<&str>) {
+    let identity = identity(app);
     let generation = app.worktree_settings.environment.generation;
     apply(app, Event::Loaded { identity, generation, result: Ok(command.map(str::to_owned)) });
 }
 #[test]
 fn worktree_environment_ui_clear_failure_retry_and_stale_response() {
-    let mut app = crate::app::App::new().0;
+    let mut app = Fixture::default();
     apply(&mut app, Event::Edit(project("a")));
     let old = app.worktree_settings.environment.generation;
     loaded(&mut app, Some("old"));
     apply(&mut app, Event::Edit(project("b")));
-    let identity = crate::app::state::worktree_identity(&app);
+    let identity = identity(&app);
     apply(
         &mut app,
         Event::Loaded {
@@ -91,10 +94,10 @@ fn worktree_environment_ui_clear_failure_retry_and_stale_response() {
 }
 #[test]
 fn worktree_environment_ui_rejects_remote_picker_and_deduplicates_additions() {
-    use crate::app::message::settings::worktrees::environment::{can_add, update};
+    use crate::environment::can_add;
     assert!(!can_add(&gateway_endpoint::GatewayEndpoint::new("192.0.2.1", 8080)));
-    let mut app = crate::app::App::new().0;
-    let identity = crate::app::state::worktree_identity(&app);
+    let mut app = Fixture::default();
+    let identity = identity(&app);
     for _ in 0..2 {
         let _ = update(
             &mut app,
@@ -111,11 +114,10 @@ fn worktree_environment_ui_rejects_remote_picker_and_deduplicates_additions() {
 }
 #[test]
 fn worktree_environment_ui_project_switch_discards_pending_save() {
-    use crate::app::message::settings::worktrees::environment::update;
-    let mut app = crate::app::App::new().0;
+    let mut app = Fixture::default();
     let _ = update(&mut app, Event::Edit(project("a")));
     loaded(&mut app, Some("saved"));
-    let identity = crate::app::state::worktree_identity(&app);
+    let identity = identity(&app);
     apply(&mut app, Event::Save);
     let generation = app.worktree_settings.environment.generation;
     app.project_path = Some("/project/new-context".into());
@@ -134,7 +136,7 @@ async fn worktree_environment_ui_renders_chinese_editor_in_both_themes() {
     use iced_runtime::user_interface::{Cache, UserInterface};
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -142,19 +144,23 @@ async fn worktree_environment_ui_renders_chinese_editor_in_both_themes() {
         Renderer::new(Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"))
             .await
             .unwrap();
-    let mut app = crate::app::App::new().0;
-    app.worktree_settings.active_tab = crate::app::state::WorktreesTab::Environment;
+    let mut app = Fixture::default();
+    app.worktree_settings.active_tab = crate::state::WorktreesTab::Environment;
     app.worktree_settings.environment.projects = vec![project("中文项目目录")];
     apply(&mut app, Event::Edit(project("中文项目目录")));
     loaded(&mut app, Some("echo 中文初始化命令\ncargo build"));
     app.worktree_settings.environment.error = Some("保存失败，输入已保留。".into());
     for theme in [Theme::Light, Theme::Dark] {
-        let base =
-            super::page(&app.worktree_settings, crate::app::i18n::I18n::new(app.desktop_locale));
-        let element = super::environment::editor(
+        let base = crate::system_settings_worktrees::page(
+            &app.worktree_settings,
+            desktop_i18n::I18n::new(app.desktop_locale),
+            true,
+        );
+        let element = crate::system_settings_worktrees::environment::editor_with(
             &app.worktree_settings.environment,
-            crate::app::i18n::I18n::new(app.desktop_locale),
+            desktop_i18n::I18n::new(app.desktop_locale),
             base,
+            |event| event,
         );
         let mut ui =
             UserInterface::build(element, Size::new(900.0, 800.0), Cache::new(), &mut renderer);
@@ -181,7 +187,7 @@ async fn worktree_environment_ui_renders_chinese_editor_in_both_themes() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn worktree_environment_ui_paginates_and_sends_only_project_patch() {
-    use crate::app::message::settings::worktrees::environment::{load_projects, save_command};
+    use crate::environment::{load_projects, save_command};
     use std::io::{Read, Write};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let client = vw_gateway_client::GatewayClient::new(gateway_endpoint::GatewayEndpoint::new(
@@ -257,9 +263,7 @@ async fn worktree_environment_ui_paginates_and_sends_only_project_patch() {
     let projects = load_projects(&client, vec![]).await.unwrap();
     assert_eq!(projects.iter().map(|p| p.id.as_ref()).collect::<Vec<_>>(), ["a", "b"]);
     let patch = vw_api_project::UpdateProjectRequest {
-        commands: Some(vw_api_project::CommandsUpdateDto {
-            start: Some(command),
-        }),
+        commands: Some(vw_api_project::CommandsUpdateDto { start: Some(command) }),
         ..Default::default()
     };
     save_command(&client, &projects[1], &patch).await.unwrap();
@@ -269,15 +273,14 @@ async fn worktree_environment_ui_paginates_and_sends_only_project_patch() {
 
 #[test]
 fn worktree_environment_ui_retry_blocks_chat_until_refreshed_ready() {
-    use crate::app::message::settings::worktrees::{
-        ManagedMessage, WorktreeSettingsMessage, update,
-    };
-    let mut app = crate::app::App::new().0;
+    use super::update_worktrees as update;
+    use crate::messages::{ManagedMessage, WorktreeSettingsMessage};
+    let mut app = Fixture::default();
     let item = serde_json::from_value(serde_json::json!({
         "worktree":{"id":"failed","project_id":"a","name":"工作树","branch":"feature","directory":"/worktrees/a","status":"error","created_at_ms":1,"updated_at_ms":2},
         "title":"初始化失败","sessions":[],"protection_reasons":[],"recovered_from":null
     })).unwrap();
-    app.worktree_settings.managed.groups = vec![crate::app::state::ManagedWorktreeGroup {
+    app.worktree_settings.managed.groups = vec![crate::state::ManagedWorktreeGroup {
         project: project("a"),
         items: vec![item],
         collapsed: false,
@@ -294,7 +297,7 @@ fn worktree_environment_ui_retry_blocks_chat_until_refreshed_ready() {
         event(ManagedMessage::Retry { project: "a".into(), worktree: "failed".into() }),
     );
     assert_eq!(app.worktree_settings.managed.retrying, Some(("a".into(), "failed".into())));
-    let identity = crate::app::state::worktree_identity(&app);
+    let identity = identity(&app);
     let _ = update(
         &mut app,
         event(ManagedMessage::Retried {

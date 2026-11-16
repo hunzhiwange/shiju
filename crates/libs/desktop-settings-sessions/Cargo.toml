@@ -25,6 +25,7 @@ desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
 config-ui = { path = "../config-ui", version = "0.6.0" }
 
 [dev-dependencies]
+tempfile = "3"
 serde_json = "1"
 iced_runtime = "0.14"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

@@ -77,11 +77,6 @@ impl App {
     }
 }
 
-async fn fetch_desktop_system_settings_via_gateway()
--> Result<Option<AppSystemSettingsConfig>, String> {
-    config_access().fetch_desktop_system_settings_via_gateway().await
-}
-
 pub(in crate::app) use desktop_config::config_system_settings::{normalize_editor_metrics, normalize_system_settings_config};
 
 fn bootstrap_store() -> desktop_config::config_system_settings::BootstrapStore {
@@ -113,10 +108,9 @@ pub fn load_gateway_client_config() -> GatewayClientSystemSettingsConfig {
 pub fn update_gateway_client_config(
     update: impl FnOnce(&mut GatewayClientSystemSettingsConfig),
 ) -> Result<GatewayClientSystemSettingsConfig, String> {
-    let mut config = load_gateway_client_bootstrap_config();
-    update(&mut config);
-    save_gateway_client_bootstrap_config(&config)?;
-    Ok(config)
+    #[cfg(test)]
+    assert!(WINDOW_TEST_BOOTSTRAP.get().is_none(), "window fixture must not write bootstrap files");
+    bootstrap_store().update_gateway_client_config(update)
 }
 
 /// 公开函数，执行 load_system_settings_config_async 对应的应用流程。

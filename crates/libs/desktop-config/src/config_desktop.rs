@@ -166,6 +166,11 @@ impl DesktopPreferencesPersistence {
         )
     }
 
+    pub fn enqueue_companion_size(&mut self, endpoint: GatewayEndpoint, snapshot: Value) -> Task<Message> {
+        self.edited_desktop_fields.entry(preferences_scope(&endpoint)).or_default().insert("mini_companion".into());
+        self.enqueue_patch(endpoint, PatchTarget::Desktop, Map::from_iter([("mini_companion".into(), snapshot)]), true)
+    }
+
     pub fn save_chat_model_preferences(
         &mut self,
         endpoint: GatewayEndpoint,
@@ -584,3 +589,16 @@ pub fn session_reasoning_efforts_from_config(
 
 /// Cross-domain feedback selected after the queued save has advanced.
 pub enum SystemSettingsSaveFeedback { None, GatewaySyncFailed, DialogueFlow, Failed }
+
+impl crate::ConfigAccess {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn update_agents_compat_registry_async(&self, update: impl FnOnce(&mut Map<String, Value>) + Send + 'static) -> Task<crate::ConfigSaved> {
+        let access = self.clone();
+        crate::spawn_gateway_task("agents_compat", async move { access.update_agents_compat_registry_result_async(update).await })
+    }
+    #[cfg(target_arch = "wasm32")]
+    pub fn update_agents_compat_registry_async(&self, update: impl FnOnce(&mut Map<String, Value>) + 'static) -> Task<crate::ConfigSaved> {
+        let access = self.clone();
+        crate::spawn_gateway_task("agents_compat", async move { access.update_agents_compat_registry_result_async(update).await })
+    }
+}

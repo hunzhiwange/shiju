@@ -16,7 +16,6 @@ use config_ui::{
     GatewayClientServerConfig, GatewayClientSystemSettingsConfig,
 };
 
-const SOURCE: &str = concat!(include_str!("config_system_settings.rs"), include_str!("../../../libs/desktop-config/src/config_system_settings.rs"));
 static CONFIG_SYSTEM_SETTINGS_ENV_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
 pub(in crate::app) struct EnvGuard {
@@ -66,25 +65,6 @@ pub(in crate::app) fn isolated_settings() -> (MutexGuard<'static, ()>, TempDir, 
     (lock, root, guard)
 }
 
-fn source_declares_symbol(name: &str) -> bool {
-    let needles = [
-        format!("fn {name}"),
-        format!("pub fn {name}"),
-        format!("struct {name}"),
-        format!("pub struct {name}"),
-        format!("enum {name}"),
-        format!("pub enum {name}"),
-        format!("type {name}"),
-        format!("pub type {name}"),
-        format!("const {name}"),
-        format!("pub const {name}"),
-        format!("static {name}"),
-        format!("pub static {name}"),
-        format!("impl {name}"),
-    ];
-
-    needles.iter().any(|needle| SOURCE.contains(needle))
-}
 
 fn gateway_config(host: &str, port: u16) -> GatewayClientSystemSettingsConfig {
     let mut config = GatewayClientSystemSettingsConfig::default();
@@ -137,37 +117,6 @@ pub(in crate::app) fn request_json_body(request: &str) -> serde_json::Value {
     serde_json::from_str(body).expect("request body should be json")
 }
 
-#[test]
-fn config_system_settings_tests_keeps_planned_coverage_targets() {
-    for name in [
-        "fetch_desktop_system_settings_via_gateway",
-        "patch_desktop_system_settings_via_gateway",
-        "normalize_system_settings_config",
-        "gateway_client_bootstrap_cache_path",
-        "load_gateway_client_bootstrap_config",
-        "save_gateway_client_bootstrap_config",
-        "load_gateway_client_config",
-        "update_gateway_client_config",
-        "load_system_settings_config_async",
-    ] {
-        assert!(source_declares_symbol(name), "expected source to declare coverage target {name}");
-    }
-}
-
-#[test]
-#[cfg(not(target_arch = "wasm32"))]
-fn update_gateway_client_config_persists_without_a_gateway() {
-    let (_lock, _home, _guard) = temp_home();
-    let bootstrap = gateway_config("127.0.0.1", 1);
-    super::save_gateway_client_bootstrap_config(&bootstrap).unwrap();
-
-    let snapshot = super::update_gateway_client_config(|config| {
-        config.username = "desktop-user".to_string();
-    })
-    .expect("local save should succeed with no Gateway");
-    assert_eq!(snapshot.username, "desktop-user");
-    assert_eq!(super::load_gateway_client_bootstrap_config(), snapshot);
-}
 
 #[test]
 fn agent_unified_selection_config_override_isolates_window_bootstrap() {
@@ -178,7 +127,7 @@ fn agent_unified_selection_config_override_isolates_window_bootstrap() {
         super::gateway_client_bootstrap_cache_path().unwrap(),
         root.path().join("gateway-client-bootstrap.json")
     );
-    assert_eq!(super::legacy_gateway_client_bootstrap_cache_path(), None);
+    assert_eq!(super::bootstrap_store().legacy_gateway_client_bootstrap_cache_path(), None);
     assert!(crate::app::project_dirs().unwrap().data_local_dir().starts_with(root.path()));
 }
 

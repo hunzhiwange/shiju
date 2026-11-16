@@ -2,13 +2,12 @@
 //! 本模块把历史本地配置调用收敛到显式的桌面偏好接口，并在网关失败时提供安全空配置回退。
 
 use super::gateway::{
-    gateway_client_endpoint, spawn_gateway_task,
+    gateway_client_endpoint,
 };
 use crate::app::{App, Message};
 use iced::Task;
 use serde_json::{Map, Value};
 pub use desktop_config::config_desktop::{DesktopPreferencesPersistence, PreferencesScope, preferences_scope, ChatModelPreferences, ProjectPreferencesScope};
-use desktop_config::config_desktop::PatchTarget;
 #[path = "config_project_chat.rs"]
 mod project_chat;
 pub(super) fn preferences_message(message: desktop_config::config_desktop::PreferencesMessage) -> Message {
@@ -21,7 +20,6 @@ pub(super) fn preferences_message(message: desktop_config::config_desktop::Prefe
         Local::ProjectChatPreferencesSaved(scope, result) => Message::ProjectChatPreferencesSaved(scope, result),
     }
 }
-const REASONING_EFFORTS: &str = "session_reasoning_efforts";
 impl App {
     pub(crate) fn set_task_pet_scale(&mut self, scale: f32) -> Result<(), &'static str> {
         desktop_task_board::pet_state::set_task_pet_scale(&mut self.task_pet_scale, scale)
@@ -39,15 +37,9 @@ impl App {
     pub(crate) fn save_task_pet_size(&mut self, scale: f32) -> Task<Message> {
         let endpoint = gateway_client_endpoint();
         self.task_pet_size_pending = Some(preferences_scope(&endpoint));
-        self.desktop_preferences_persistence
-            .edited_desktop_fields
-            .entry(preferences_scope(&endpoint))
-            .or_default()
-            .insert("mini_companion".into());
-        self.desktop_preferences_persistence.enqueue_patch(endpoint, PatchTarget::Desktop,
-            Map::from_iter([("mini_companion".into(), serde_json::json!({
-                "avatar": self.task_pet_avatar_kind, "scale": scale, "visible": self.task_pet_visible,
-            }))]), true).map(super::desktop::preferences_message)
+        self.desktop_preferences_persistence.enqueue_companion_size(endpoint,
+            serde_json::json!({ "avatar": self.task_pet_avatar_kind, "scale": scale, "visible": self.task_pet_visible }))
+            .map(super::desktop::preferences_message)
     }
 
     pub(crate) fn save_task_pet_preferences(&mut self) -> Task<Message> {
@@ -126,9 +118,8 @@ pub async fn update_agents_compat_registry_result_async(
 pub fn update_agents_compat_registry_async(
     update: impl FnOnce(&mut serde_json::Map<String, serde_json::Value>) + 'static,
 ) -> Task<Message> {
-    spawn_gateway_task("agents_compat", async move {
-        update_agents_compat_registry_result_async(update).await
-    })
+    config_access().update_agents_compat_registry_async(update).map(|saved|
+        Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: saved.tag, result: saved.result }))
 }
 
 /// 公开函数，执行 update_agents_compat_registry_async 对应的应用流程。
@@ -137,9 +128,8 @@ pub fn update_agents_compat_registry_async(
 pub fn update_agents_compat_registry_async(
     update: impl FnOnce(&mut serde_json::Map<String, serde_json::Value>) + Send + 'static,
 ) -> Task<Message> {
-    spawn_gateway_task("agents_compat", async move {
-        update_agents_compat_registry_result_async(update).await
-    })
+    config_access().update_agents_compat_registry_async(update).map(|saved|
+        Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: saved.tag, result: saved.result }))
 }
 
 /// 公开函数，执行 load_app_config 对应的应用流程。

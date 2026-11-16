@@ -135,6 +135,16 @@ pub fn save_gateway_client_bootstrap_config(&self,
         Ok(())
     }
 }
+    pub fn load_gateway_client_config(&self) -> GatewayClientSystemSettingsConfig {
+        self.load_gateway_client_bootstrap_config()
+    }
+    pub fn update_gateway_client_config(&self, update: impl FnOnce(&mut GatewayClientSystemSettingsConfig)) -> Result<GatewayClientSystemSettingsConfig, String> {
+        let mut config = self.load_gateway_client_bootstrap_config();
+        update(&mut config);
+        self.save_gateway_client_bootstrap_config(&config)?;
+        Ok(config)
+    }
+
 
 }
 

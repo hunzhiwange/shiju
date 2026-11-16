@@ -83,3 +83,9 @@ fn gateway_save_feedback_requires_active_scope_and_no_existing_error() {
         Feedback::DialogueFlow
     ));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+mod desktop;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod system_settings;

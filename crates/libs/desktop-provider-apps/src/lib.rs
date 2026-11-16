@@ -52,3 +52,6 @@ pub mod auth;
 
 #[cfg(test)]
 mod host_module_28_tests;
+
+/// Explicit native acceptance fixtures.
+pub mod acceptance;

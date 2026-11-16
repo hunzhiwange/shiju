@@ -62,3 +62,6 @@ mod autonomy_test_support;
 
 #[cfg(test)]
 mod host_module_16_tests;
+
+/// Explicit native acceptance fixtures.
+pub mod acceptance;

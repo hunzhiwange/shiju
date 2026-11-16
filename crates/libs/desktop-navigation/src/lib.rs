@@ -50,3 +50,9 @@ mod desktop_split_30_tests;
 mod host_module_15_tests;
 
 pub mod mobile_layout;
+
+/// Explicit native acceptance fixtures.
+pub mod acceptance;
+
+#[cfg(test)]
+mod host_module_40_tests;

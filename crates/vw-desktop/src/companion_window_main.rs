@@ -32,22 +32,7 @@ fn boot() -> (App, Task<Message>) {
     let scale = argument::<f32>("--scale=").unwrap_or(1.0);
     assert!([0.5, 1.0, 2.0].contains(&scale), "--scale must be 0.5, 1 or 2");
     app.task_pet_scale = scale;
-    app.task_pet_items = (0..count)
-        .map(|index| app::state::TaskPetItem {
-            request_id: index as u64 + 1,
-            session_id: format!("companion-acceptance-{index}"),
-            title: format!("中文原生渲染验收任务 {}：检查动态长标题与叠层卡片边界", index + 1),
-            detail: "正在读取上下文并整理结果；完成后可以展开详情、关闭卡片或打开回复。".into(),
-            detail_feedback: None,
-            project: Some("隔离验收项目".into()),
-            status: if index % 2 == 0 {
-                app::state::TaskPetStatus::Running
-            } else {
-                app::state::TaskPetStatus::Completed
-            },
-            last_click_at: None,
-        })
-        .collect();
+    app.task_pet_items = desktop_task_board::acceptance::items(count);
     let (id, open) = iced::window::open(iced::window::Settings {
         size: iced::Size::new(
             if std::env::args().any(|arg| arg == "--narrow") { 420.0 } else { 980.0 },

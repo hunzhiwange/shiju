@@ -503,3 +503,6 @@ pub fn cancels_activity(state: &State, hotkeys_active: bool, event: &Event) -> b
 }
 
 pub mod view;
+
+/// Explicit native acceptance fixtures.
+pub mod acceptance;

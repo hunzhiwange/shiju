@@ -50,18 +50,9 @@ struct Harness {
 }
 impl Harness {
     fn setup(&mut self) {
-        self.app.voice.settings.edit = None;
-        if self.case % 3 != 0 {
-            self.app.voice.settings.resources = settings::voice::local_resources(None);
-            self.app.voice.settings.edit = Some(Edit::new(
-                VoiceConfig {
-                    dictionary: (0..45).map(|n| format!("中文词典条目{n}")).collect(),
-                    ..Default::default()
-                },
-                Preferences::default(),
-            ));
-        }
+        desktop_settings_voice::acceptance::setup(&mut self.app.voice.settings, self.case);
     }
+
     fn theme(&self) -> Theme {
         if self.case < 3 { Theme::Light } else { Theme::Dark }
     }

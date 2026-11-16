@@ -20,3 +20,6 @@ mod host_module_27_tests;
 
 #[cfg(test)]
 mod host_module_36_tests;
+
+/// Explicit native acceptance fixtures.
+pub mod acceptance;

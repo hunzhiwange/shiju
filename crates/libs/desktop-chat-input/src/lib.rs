@@ -8,3 +8,6 @@ mod desktop_split_07_tests;
 
 #[cfg(test)]
 mod host_module_4_tests;
+
+/// Explicit native acceptance fixtures.
+pub mod acceptance;

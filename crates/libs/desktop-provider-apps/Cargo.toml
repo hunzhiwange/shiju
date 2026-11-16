@@ -45,6 +45,9 @@ gateway-app-auth = { path = "../gateway-app-auth", version = "0.6.0" }
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
 
+serde_yaml = "0.9"
+toml = "0.9"
+
 [dev-dependencies]
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

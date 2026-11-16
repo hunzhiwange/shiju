@@ -24,29 +24,9 @@ enum Action {
 impl Acceptance {
     fn new() -> Self {
         let (mut app, _) = App::new();
-        let content = format!(
-            "fn 中文配置验收() {{\n\tlet color = \"#ff8800\";\n    let nested = ([1, 2, 3]);\n    // {}\n{}\n}}",
-            "中文长行 Tab 与软换行 ".repeat(25),
-            (0..65)
-                .map(|i| format!("    let row_{i} = ({i}, \"#22aa88\");"))
-                .collect::<Vec<_>>()
-                .join("\n")
-        );
-        let path = "/tmp/editor-config-acceptance.rs".to_owned();
-        app.navigation_tabs.preview_tabs = vec![PreviewTab {
-            path: path.clone(),
-            title: "editor-config-acceptance.rs".into(),
-            content: content.clone(),
-            is_dirty: false,
-            truncated: false,
-            read_only: false,
-            auto_save_revision: 0,
-            editor: Editor::new(&content, "rust"),
-            scroll_id: iced::widget::Id::unique(),
-            lsp_server_key: None,
-            lsp_uri: None,
-            lsp_language_id: None,
-        }];
+        let tab = desktop_editor::acceptance::tab();
+        let path = tab.path.clone();
+        app.navigation_tabs.preview_tabs = vec![tab];
         app.navigation_tabs.active_preview_path = Some(path);
         app.app_theme = Theme::Light;
         app.editor_theme = Theme::Light;

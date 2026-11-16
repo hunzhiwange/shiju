@@ -46,3 +46,6 @@ mod host_module_11_tests;
 pub mod agent_activity;
 #[cfg(test)]
 mod host_module_42_tests;
+
+/// Explicit native acceptance fixtures.
+pub mod acceptance;

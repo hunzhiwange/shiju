@@ -27,3 +27,6 @@ mod host_module_14_tests;
 
 #[cfg(test)]
 mod settings_test_support;
+
+/// Explicit native acceptance fixtures.
+pub mod acceptance;

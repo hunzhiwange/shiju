@@ -128,15 +128,6 @@ impl Harness {
         acp_options::with_modal(&self.app, base).map(Message::Ui)
     }
 }
-fn fixture_status() -> AcpAccessStatus {
-    AcpAccessStatus {
-        requested: false,
-        backend: "fixture".into(),
-        version: Some("1.0".into()),
-        support: AcpAccessSupport::Unavailable,
-        explanation: "沿用工作区工具审批规则。".into(),
-    }
-}
 
 fn main() {
     app::config::install_window_test_bootstrap(9);
@@ -153,28 +144,7 @@ fn main() {
             runtime.acp_agent = Some("copilot".into());
             runtime.acp_model_source =
                 vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel;
-            runtime.acp_options_state.options = AcpSessionOptions {
-                acp_model_source:
-                    vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
-                model_source_capabilities: Vec::new(),
-                selected_model: None,
-                verified_cli_release: None,
-                verified_platform: None,
-                access_status: Some(fixture_status()),
-                connected: true,
-                options: vec![AcpSessionOption {
-                    kind: AcpOptionKind::Config { id: "reasoning_effort".into() },
-                    name: "推理档位".into(),
-                    current: "low".into(),
-                    choices: vec![
-                        AcpChoice { id: "low".into(), name: "低".into() },
-                        AcpChoice {
-                            id: "high".into(),
-                            name: "高档位，使用较多推理预算来处理复杂问题和多个约束条件。此长选项用于检查中文折行和滚动区域的留白。".into(),
-                        },
-                    ],
-                }],
-            };
+            runtime.acp_options_state.options = desktop_chat_input::acceptance::options();
             let (window, task) = window::open(window::Settings {
                 size: iced::Size::new(720.0, 640.0),
                 ..Default::default()

@@ -21,7 +21,7 @@ use serde_json::Value;
 use session_engine::helpers::is_acp_request;
 #[cfg(test)]
 use session_engine::runner::{
-    EMPTY_RESPONSE_ERR, EMPTY_RESPONSE_RETRY_LIMIT, EMPTY_RESPONSE_RETRY_PROMPT,
+    EMPTY_RESPONSE_RETRY_LIMIT, EMPTY_RESPONSE_RETRY_PROMPT,
 };
 #[cfg(test)]
 use session_engine::runner_protocol::{
@@ -154,24 +154,6 @@ fn handle_docs_request(
     on_event: &mut impl FnMut(StreamEvent) -> bool,
 ) {
     session_engine::runner::handle_docs_request::<AgentRunnerHost>(session, ctx, on_event)
-}
-#[cfg(test)]
-fn handle_step_error(
-    session: &mut Session,
-    llm_messages: &mut Vec<Value>,
-    empty_response_retries: &mut usize,
-    step: &mut usize,
-    on_event: &mut impl FnMut(StreamEvent) -> bool,
-    message: String,
-) -> bool {
-    session_engine::runner::handle_step_error(
-        session,
-        llm_messages,
-        empty_response_retries,
-        step,
-        on_event,
-        message,
-    )
 }
 #[cfg(test)]
 fn handle_structured_tool_calls(

@@ -82,3 +82,7 @@ pub fn handle_step_error(
     on_event(StreamEvent::Error(final_message));
     false
 }
+
+#[cfg(test)]
+#[path = "runner_response_tests.rs"]
+mod tests;

@@ -1,7 +1,8 @@
 //! 活动会话的步骤与消息派生数据。
+use crate::message::chat::trajectory::SessionStepRawKey;
+use serde_json::Value;
 use session_ui_types::{ChatMessage, ChatRole, ChatSessionStep};
 use std::collections::HashMap;
-use serde_json::Value;
 
 #[derive(Debug, Clone, Default)]
 #[allow(dead_code)]
@@ -61,11 +62,7 @@ pub fn build_message_meta_labels(
                 message_meta_text(message.model.as_deref(), time_ms)
             }
             ChatRole::User => {
-                if session_text::parse_task_session_source_marker(
-                    &message.content,
-                )
-                .is_some()
-                {
+                if session_text::parse_task_session_source_marker(&message.content).is_some() {
                     Some(desktop_i18n::chat::MessageMeta::TaskSource)
                 } else {
                     let step_index = assistant_count + 1;
@@ -93,9 +90,7 @@ pub fn build_message_meta_label(
             message_meta_text(message.model.as_deref(), time_ms)
         }
         ChatRole::User => {
-            if session_text::parse_task_session_source_marker(&message.content)
-                .is_some()
-            {
+            if session_text::parse_task_session_source_marker(&message.content).is_some() {
                 Some(desktop_i18n::chat::MessageMeta::TaskSource)
             } else {
                 let step_index = *assistant_count + 1;
@@ -114,10 +109,7 @@ pub fn build_user_question_markers(chat: &[ChatMessage]) -> Vec<UserQuestionMark
             (message.role == ChatRole::User).then(|| UserQuestionMarker {
                 message_idx,
                 preview: user_question_preview(
-                    session_text::strip_task_session_source_marker(
-                        &message.content,
-                    )
-                    .as_ref(),
+                    session_text::strip_task_session_source_marker(&message.content).as_ref(),
                 ),
             })
         })
@@ -164,29 +156,31 @@ pub fn user_question_preview(content: &str) -> String {
     preview
 }
 
-
-pub fn upsert_step(steps: &mut Vec<ChatSessionStep>, step_index_map: &mut HashMap<u32, StepUiMeta>, mut step: ChatSessionStep) {
+pub fn upsert_step(
+    steps: &mut Vec<ChatSessionStep>,
+    step_index_map: &mut HashMap<u32, StepUiMeta>,
+    mut step: ChatSessionStep,
+) {
     normalize_step_turn_id(&mut step);
     step_index_map.insert(step.index, StepUiMeta::from(&step));
-    if let Some(existing_step) =
-        steps.iter_mut().find(|existing| {
-            existing.index == step.index
-                && existing.turn_id.as_deref() == step.turn_id.as_deref()
-        })
-    {
+    if let Some(existing_step) = steps.iter_mut().find(|existing| {
+        existing.index == step.index && existing.turn_id.as_deref() == step.turn_id.as_deref()
+    }) {
         *existing_step = step;
     } else {
         steps.push(step);
-        steps
-            .sort_by_key(|existing| (existing.started_ms, existing.index));
+        steps.sort_by_key(|existing| (existing.started_ms, existing.index));
     }
 }
 
-pub fn sync_user_question_index(chat: &[ChatMessage], markers: &mut Vec<UserQuestionMarker>, indexed_len: &mut usize) {
+pub fn sync_user_question_index(
+    chat: &[ChatMessage],
+    markers: &mut Vec<UserQuestionMarker>,
+    indexed_len: &mut usize,
+) {
     let previous_len = *indexed_len;
     if previous_len > chat.len() {
-        markers
-            .retain(|marker| marker.message_idx < chat.len());
+        markers.retain(|marker| marker.message_idx < chat.len());
         *indexed_len = chat.len();
         return;
     }
@@ -195,25 +189,22 @@ pub fn sync_user_question_index(chat: &[ChatMessage], markers: &mut Vec<UserQues
         return;
     }
 
-    markers.extend(
-        chat[previous_len..].iter().enumerate().filter_map(|(offset, message)| {
-            (message.role == ChatRole::User).then(|| UserQuestionMarker {
-                message_idx: previous_len + offset,
-                preview: user_question_preview(
-                    session_text::strip_task_session_source_marker(
-                        &message.content,
-                    )
-                    .as_ref(),
-                ),
-            })
-        }),
-    );
+    markers.extend(chat[previous_len..].iter().enumerate().filter_map(|(offset, message)| {
+        (message.role == ChatRole::User).then(|| UserQuestionMarker {
+            message_idx: previous_len + offset,
+            preview: user_question_preview(
+                session_text::strip_task_session_source_marker(&message.content).as_ref(),
+            ),
+        })
+    }));
     *indexed_len = chat.len();
 }
 
 pub fn refresh_tail_message_meta(
-    chat: &[ChatMessage], labels: &mut Vec<Option<desktop_i18n::chat::MessageMeta>>,
-    step_index_map: &HashMap<u32, StepUiMeta>, changed_idx: usize,
+    chat: &[ChatMessage],
+    labels: &mut Vec<Option<desktop_i18n::chat::MessageMeta>>,
+    step_index_map: &HashMap<u32, StepUiMeta>,
+    changed_idx: usize,
 ) {
     if changed_idx >= chat.len() {
         labels.truncate(chat.len());
@@ -225,9 +216,7 @@ pub fn refresh_tail_message_meta(
         labels.truncate(chat.len());
     }
 
-    if meta_len < changed_idx
-        || labels.len() + 1 < chat.len()
-    {
+    if meta_len < changed_idx || labels.len() + 1 < chat.len() {
         *labels = build_message_meta_labels(chat, step_index_map);
         return;
     }
@@ -236,11 +225,7 @@ pub fn refresh_tail_message_meta(
         .iter()
         .filter(|message| matches!(message.role, ChatRole::Assistant))
         .count() as u32;
-    let label = build_message_meta_label(
-        &chat[changed_idx],
-        &mut assistant_count,
-        &step_index_map,
-    );
+    let label = build_message_meta_label(&chat[changed_idx], &mut assistant_count, &step_index_map);
 
     if changed_idx < labels.len() {
         labels[changed_idx] = label;
@@ -444,5 +429,14 @@ impl<P: Default> ActiveSessionViewState<P> {
             self.trajectory_projection = project(&self.steps, &self.step_llm_raw);
             self.trajectory_projection_rebuild_count += 1;
         }
+    }
+}
+
+impl<P: Default> ActiveSessionViewState<P> {
+    pub fn sync_from_chat(&mut self, chat: &[ChatMessage], updated_ms: Option<u64>) {
+        if let Some(updated_ms) = updated_ms {
+            self.updated_ms = self.updated_ms.max(updated_ms);
+        }
+        self.rebuild_active_session_message_meta(chat);
     }
 }

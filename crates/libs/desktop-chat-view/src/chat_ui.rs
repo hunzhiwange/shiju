@@ -421,3 +421,14 @@ pub fn update_markdown_selection(selection: &mut Option<ChatMarkdownSelection>, 
         }
     }
 }
+
+/// Prepare only the first UI chunk for a cold session open.
+pub fn prepare_initial_session_chunk(messages: &[session_ui_types::ChatMessage], show_reasoning_summary: bool) -> PreparedChatUiChunk {
+    #[cfg(test)]
+    crate::performance::record_initial_load(messages.len(), messages.iter().map(|m| m.content.len()).sum());
+    let (_, end) = chat_ui_chunk_bounds(messages.len(), 0);
+    let PreparedChatUiPhase::Base(chunk) = prepare_chat_ui_chunk_phase(&messages[..end], 0, true, show_reasoning_summary) else {
+        unreachable!("base session preparation must return a base UI chunk");
+    };
+    chunk
+}

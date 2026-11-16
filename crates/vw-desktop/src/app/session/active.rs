@@ -111,10 +111,6 @@ impl App {
         self.show_session_actions_popover = false;
     }
 
-    /// 执行 rebuild_active_session_message_meta 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn rebuild_active_session_message_meta(&mut self) {
         self.active_session_view_state.rebuild_active_session_message_meta(&self.chat);
     }
@@ -130,10 +126,6 @@ impl App {
             .refresh_active_session_tail_message_meta(changed_idx, &self.chat);
     }
 
-    /// 执行 clear_active_session_steps 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn clear_active_session_steps(&mut self) {
         self.active_session_view_state.clear_active_session_steps(
             crate::app::components::chat_panel::trajectory::project_trajectory,
@@ -141,10 +133,6 @@ impl App {
     }
 
     #[allow(dead_code)]
-    /// 执行 replace_active_session_steps 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn replace_active_session_steps(&mut self, steps: Vec<ChatSessionStep>) {
         self.active_session_view_state.replace_active_session_steps(
             steps,
@@ -178,10 +166,6 @@ impl App {
         self.active_session_view_state.replace_active_session_llm_raw_step_indices(indices);
     }
 
-    /// 执行 upsert_active_session_step 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn upsert_active_session_step(&mut self, step: ChatSessionStep) {
         self.active_session_view_state.upsert_active_session_step(
             step,
@@ -189,54 +173,35 @@ impl App {
         );
     }
 
-    /// 执行 sync_active_session_from_chat 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn sync_active_session_from_chat(&mut self) {
-        if let Some(session_id) = self.active_session_id.as_deref()
-            && let Some(info) = self.sessions.iter().find(|session| session.id == session_id)
-        {
-            self.active_session_view_state.updated_ms =
-                self.active_session_view_state.updated_ms.max(info.time.updated);
-        }
-        self.rebuild_active_session_message_meta();
+        let updated_ms = self
+            .active_session_id
+            .as_deref()
+            .and_then(|id| self.sessions.iter().find(|s| s.id == id))
+            .map(|s| s.time.updated);
+        self.active_session_view_state.sync_from_chat(&self.chat, updated_ms);
     }
 
-    /// 执行 cache_active_session_chat 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn cache_active_session_chat(&mut self) {
-        if let Some(id) = self.active_session_id.clone() {
-            self.store_session_chat_snapshot(
-                id,
-                shared_chat_messages(self.chat.clone()),
-                self.chat_message_ids.clone(),
-            );
-        }
-        self.prune_inactive_session_chat_cache();
+        cache::cache_active_snapshot(
+            self.active_session_id.as_deref(),
+            &self.chat,
+            &self.chat_message_ids,
+            &self.session_runtime_states,
+            &mut self.session_chat_cache,
+            &mut self.session_chat_message_id_cache,
+            &mut self.session_view_cache,
+        );
     }
 
-    /// 执行 prune_inactive_session_chat_cache 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn prune_inactive_session_chat_cache(&mut self) {
-        cache::prune_snapshots(
-            self.session_runtime_states
-                .iter()
-                .filter(|(_, state)| state.request_lifecycle.is_requesting)
-                .map(|(id, _)| id.as_str()),
+        cache::prune_runtime_snapshots(
+            &self.session_runtime_states,
             &mut self.session_chat_cache,
             &mut self.session_chat_message_id_cache,
         );
     }
 
-    /// 执行 restore_chat_for_session 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn restore_chat_for_session(&mut self, session_id: &str) {
         let hit = cache::restore_snapshot(
             self.session_chat_cache.get(session_id),
@@ -260,43 +225,19 @@ impl App {
         }
     }
 
-    /// 执行 known_session_directory 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn known_session_directory(&self, session_id: &str) -> Option<String> {
-        self.sessions
-            .iter()
-            .find(|session| session.id == session_id)
-            .map(|session| session.directory.clone())
-            .or_else(|| {
-                self.project_sessions
-                    .values()
-                    .flat_map(|sessions| sessions.iter())
-                    .find(|session| session.id == session_id)
-                    .map(|session| session.directory.clone())
-            })
-            .or_else(|| {
-                self.session_runtime_states
-                    .get(session_id)?
-                    .draft
-                    .as_ref()
-                    .map(|draft| draft.directory.clone())
-            })
+        cache::known_session_directory(
+            session_id,
+            &self.sessions,
+            &self.project_sessions,
+            &self.session_runtime_states,
+        )
     }
 
-    /// 执行 cached_chat_messages 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn cached_chat_messages(&self, session_id: &str) -> Option<SharedChatMessages> {
         self.session_chat_cache.get(session_id).cloned()
     }
 
-    /// 执行 cached_chat_message_ids 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn cached_chat_message_ids(&self, session_id: &str) -> Option<Vec<Option<String>>> {
         self.session_chat_message_id_cache.get(session_id).cloned()
     }
@@ -312,10 +253,6 @@ impl App {
         self.session_history_reset_boundaries.insert(session_id, retained_message_ids);
     }
 
-    /// 执行 session_history_reset_boundary 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn session_history_reset_boundary(
         &self,
         session_id: &str,
@@ -323,33 +260,27 @@ impl App {
         self.session_history_reset_boundaries.get(session_id).map(Vec::as_slice)
     }
 
-    /// 执行 active_shared_chat_messages 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn active_shared_chat_messages(&self) -> SharedChatMessages {
         let cached =
             self.active_session_id.as_deref().and_then(|id| self.session_chat_cache.get(id));
         cache::active_shared_messages(cached, &self.chat)
     }
 
-    /// 执行 store_session_chat_snapshot 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn store_session_chat_snapshot(
         &mut self,
         session_id: String,
         chat: SharedChatMessages,
         message_ids: Vec<Option<String>>,
     ) {
-        let content_signature = super::loading::session_content_signature(&chat, &message_ids);
-        let invalidated_view_cache = self.active_session_id.as_deref() != Some(session_id.as_str())
-            && self
-                .session_view_cache
-                .invalidate_if_content_changed(&session_id, content_signature);
-        self.session_chat_cache.insert(session_id.clone(), chat);
-        self.session_chat_message_id_cache.insert(session_id.clone(), message_ids);
+        let invalidated_view_cache = cache::store_snapshot(
+            self.active_session_id.as_deref(),
+            session_id.clone(),
+            chat,
+            message_ids,
+            &mut self.session_chat_cache,
+            &mut self.session_chat_message_id_cache,
+            &mut self.session_view_cache,
+        );
         if invalidated_view_cache {
             tracing::info!(
                 target: "vw_desktop",
@@ -358,7 +289,7 @@ impl App {
                     .session_chat_cache
                     .get(&session_id)
                     .map_or(0, |messages| messages.len()),
-                content_signature,
+
                 branch = "background_snapshot_changed",
                 "invalidated stale session view cache"
             );

@@ -4,12 +4,12 @@
 //! 不改变任何运行时行为。
 
 use super::App;
-pub(crate) use desktop_session::message::chat::stream::{bind_message_model_to_step, assign_message_model_to_step};
-use super::models::{
-    ChatMessage, ChatRenderCacheEntry, ChatRole, ChatSession, ChatSessionStep,
-    TokenUsage,
+#[cfg(test)]
+use super::models::ChatRole;
+use super::models::{ChatMessage, ChatSession, ChatSessionStep, TokenUsage};
+pub(crate) use desktop_session::message::chat::stream::{
+    assign_message_model_to_step, bind_message_model_to_step,
 };
-use super::state::StepUiMeta;
 use std::collections::HashMap;
 
 mod active;
@@ -41,14 +41,9 @@ pub use self::loading::{
 };
 pub(crate) use self::view_cache::SessionViewCache;
 
-#[cfg(test)]
-use self::chat_ui::explore_summary_animation_key;
-
 const EMPTY_SESSION_ID: &str = "__empty__";
 
 pub(crate) use desktop_session::session::backfill_message_models_from_steps;
 
-#[cfg(test)]
-mod tests;
 #[cfg(test)]
 mod view_cache_tests;

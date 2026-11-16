@@ -163,3 +163,146 @@ fn active_session_clear_removes_step_raw_payloads() {
     assert!(state.step_llm_raw.is_empty());
     assert!(state.estimated_bytes() < estimated_with_raw);
 }
+
+mod runtime_tests;
+
+mod cache_tests;
+
+#[test]
+fn rebuild_active_session_message_meta_keeps_tool_outside_step_indexing() {
+    let mut state = ActiveSessionViewState::<()>::default();
+    state.updated_ms = 3_000;
+    let chat = vec![
+        ChatMessage {
+            role: ChatRole::Assistant,
+            content: "先给出结论".to_string(),
+            model: Some("message-model-a".to_string()),
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+        ChatMessage {
+            role: ChatRole::Tool,
+            content: "tool grep\n{\"status\":\"completed\",\"output\":\"2 matches\"}\n".to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+        ChatMessage {
+            model: None,
+            role: ChatRole::User,
+            content: "继续".to_string(),
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+    ];
+
+    state.upsert_active_session_step(
+        ChatSessionStep {
+            index: 1,
+            turn_id: None,
+            started_ms: 1_000,
+            finished_ms: Some(1_400),
+            start_snapshot_path: None,
+            finish_snapshot_path: None,
+            usage: TokenUsage::default(),
+            cost_usd: None,
+            finish_reason: Some("stop".to_string()),
+            model: Some("step-model-a".to_string()),
+            tool_timings: Vec::new(),
+        },
+        |_, _| (),
+    );
+    state.upsert_active_session_step(
+        ChatSessionStep {
+            index: 2,
+            turn_id: None,
+            started_ms: 2_000,
+            finished_ms: Some(2_200),
+            start_snapshot_path: None,
+            finish_snapshot_path: None,
+            usage: TokenUsage::default(),
+            cost_usd: None,
+            finish_reason: Some("stop".to_string()),
+            model: Some("step-model-b".to_string()),
+            tool_timings: Vec::new(),
+        },
+        |_, _| (),
+    );
+
+    state.rebuild_active_session_message_meta(&chat);
+
+    assert_eq!(state.message_meta_texts.len(), 3);
+    assert!(
+        state.message_meta_texts[0]
+            .as_ref()
+            .map(|meta| meta
+                .render(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese)))
+            .is_some_and(|text| text.contains("message-model-a"))
+    );
+    assert_eq!(state.message_meta_texts[1], None);
+    assert_eq!(state.message_meta_texts[2], None);
+}
+
+#[test]
+fn rebuild_active_session_message_meta_does_not_relabel_unrecorded_model() {
+    let mut state = ActiveSessionViewState::<()>::default();
+    let chat = vec![
+        ChatMessage {
+            model: None,
+            role: ChatRole::User,
+            content: "问题".to_string(),
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+        ChatMessage {
+            role: ChatRole::Assistant,
+            content: "回答".to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+    ];
+
+    state.upsert_active_session_step(
+        ChatSessionStep {
+            index: 1,
+            turn_id: None,
+            started_ms: 1_000,
+            finished_ms: Some(1_400),
+            start_snapshot_path: None,
+            finish_snapshot_path: None,
+            usage: TokenUsage::default(),
+            cost_usd: None,
+            finish_reason: Some("stop".to_string()),
+            model: None,
+            tool_timings: Vec::new(),
+        },
+        |_, _| (),
+    );
+
+    let runtime =
+        crate::session::agent::SessionRuntimeState::<()>::with_defaults("model-b".into(), false);
+    assert_eq!(runtime.model, "model-b");
+    state.rebuild_active_session_message_meta(&chat);
+
+    assert_eq!(state.message_meta_texts, vec![None, None]);
+}
+
+#[test]
+fn projection_changes_invalidate_only_the_selected_view() {
+    use crate::session::ui_projection::{ProjectionChange, SessionUiProjection};
+    use std::sync::Arc;
+    let mut state = SessionUiProjection::<(), ()>::default();
+    let agents = Arc::new(vec![]);
+    let sidebar = Arc::new(());
+    *state.agent_sessions.get_mut() = Some(agents.clone());
+    *state.sidebar.get_mut() = Some(sidebar.clone());
+    assert!(!state.prepare(ProjectionChange::Preserve));
+    assert!(Arc::ptr_eq(state.agent_sessions.get_mut().as_ref().unwrap(), &agents));
+    assert!(!state.prepare(ProjectionChange::Agent));
+    assert!(state.agent_sessions.get_mut().is_none());
+    assert!(Arc::ptr_eq(state.sidebar.get_mut().as_ref().unwrap(), &sidebar));
+    assert!(state.prepare(ProjectionChange::All));
+    assert!(state.sidebar.get_mut().is_none());
+    assert!(!state.prepare(ProjectionChange::All));
+}

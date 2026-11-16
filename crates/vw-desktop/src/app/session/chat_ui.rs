@@ -1,11 +1,8 @@
 //! 桌面聊天字段借用与领域更新委派。
 use super::App;
-#[cfg(test)]
-use super::{ChatMessage, ChatRole, ChatRenderCacheEntry};
 pub use desktop_chat_view::chat_ui::{PreparedChatUiChunk, PreparedChatUiMessage, PreparedChatUiPhase,
     CHAT_UI_CHUNK_SIZE, prepare_chat_ui_chunk_phase, prepare_chat_ui_message_phase,
     chat_ui_chunk_start_idx, chat_ui_chunk_bounds};
-pub(super) use desktop_chat_view::chat_ui::explore_summary_animation_key;
 
 impl App {
     fn chat_ui(&mut self) -> desktop_chat_view::chat_ui::ChatUi<'_> {
@@ -114,10 +111,3 @@ impl App {
         end_idx: usize,
     ) -> Vec<usize> { self.chat_ui().pending_chat_message_editors_window_chunks(start_idx, end_idx) }
 }
-#[cfg(test)]
-fn resolve_render_cache_height(app: &App, idx: usize) -> Option<f32> {
- desktop_chat_view::chat_ui::cached_message_height(&app.chat, &app.chat_render_cache, idx)
-}
-#[cfg(test)]
-#[path="chat_ui_tests.rs"]
-mod chat_ui_tests;

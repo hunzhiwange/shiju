@@ -582,7 +582,7 @@ impl App {
             session_view_cache: crate::app::session::SessionViewCache::new(),
             paged_chat_timeline: None,
             session_chat_message_id_cache: HashMap::new(),
-            session_history_reset_boundaries: HashMap::new(),
+            session_history_reset_boundaries: Default::default(),
             session_previews: HashMap::new(),
             session_runtime_states: std::collections::HashMap::from([(
                 "__empty__".to_string(),

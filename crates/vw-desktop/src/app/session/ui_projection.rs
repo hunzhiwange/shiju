@@ -9,8 +9,11 @@ use crate::app::message::{ChatMessage, ProjectMessage, ViewMessage};
 use crate::app::{App, Message};
 use iced::Task;
 
-pub(crate) type SessionUiProjection = desktop_session::session::ui_projection::SessionUiProjection<AgentChildSession, crate::app::views::project::WorkSidebarModel>;
-use desktop_session::session::ui_projection::{write_pin, load_pins};
+pub(crate) type SessionUiProjection = desktop_session::session::ui_projection::SessionUiProjection<
+    AgentChildSession,
+    crate::app::views::project::WorkSidebarModel,
+>;
+use desktop_session::session::ui_projection::{load_pins, write_pin};
 
 fn preserves_projection(message: &Message) -> bool {
     match message {
@@ -103,7 +106,7 @@ impl App {
         pinned: bool,
     ) -> Task<Message> {
         let key = (project_id, id);
-        if !self.session_ui_projection.pending_pins.insert(key.clone()) {
+        if !self.session_ui_projection.begin_pin(key.clone()) {
             return Task::none();
         }
         let (project_id, id) = key.clone();
@@ -139,34 +142,37 @@ impl App {
     }
 
     pub(crate) fn prepare_session_ui_projection(&mut self, message: &Message) -> bool {
-        if !preserves_projection(message) {
-            self.session_ui_projection.agent_sessions.get_mut().take();
-            if !matches!(
-                message,
-                Message::Chat(
-                    ChatMessage::AgentToolLifecycle(..)
-                        | ChatMessage::AgentWorkflowNodeUpdate(..)
-                        | ChatMessage::AgentTodoContinuation(..)
-                        | ChatMessage::AgentCompactionStatus(..)
-                        | ChatMessage::AgentContextLoaded(..)
-                )
-            ) {
-                if self.session_ui_projection.sidebar.get_mut().take().is_some() {
-                    // Only enum tags: never log keystrokes, prompts, or tool payloads.
-                    match message {
-                        Message::Chat(event) => {
-                            tracing::debug!(target: "vw_desktop::session_ui", family = "chat", event = ?std::mem::discriminant(event), "sidebar invalidated")
-                        }
-                        Message::View(event) => {
-                            tracing::debug!(target: "vw_desktop::session_ui", family = "view", event = ?std::mem::discriminant(event), "sidebar invalidated")
-                        }
-                        Message::Project(event) => {
-                            tracing::debug!(target: "vw_desktop::session_ui", family = "project", event = ?std::mem::discriminant(event), "sidebar invalidated")
-                        }
-                        _ => {
-                            tracing::debug!(target: "vw_desktop::session_ui", family = "app", event = ?std::mem::discriminant(message), "sidebar invalidated")
-                        }
-                    }
+        use desktop_session::session::ui_projection::ProjectionChange;
+        let change = if preserves_projection(message) {
+            ProjectionChange::Preserve
+        } else if matches!(
+            message,
+            Message::Chat(
+                ChatMessage::AgentToolLifecycle(..)
+                    | ChatMessage::AgentWorkflowNodeUpdate(..)
+                    | ChatMessage::AgentTodoContinuation(..)
+                    | ChatMessage::AgentCompactionStatus(..)
+                    | ChatMessage::AgentContextLoaded(..)
+            )
+        ) {
+            ProjectionChange::Agent
+        } else {
+            ProjectionChange::All
+        };
+        if self.session_ui_projection.prepare(change) {
+            // Log enum tags only, never message contents.
+            match message {
+                Message::Chat(event) => {
+                    tracing::debug!(target: "vw_desktop::session_ui", family = "chat", event = ?std::mem::discriminant(event), "sidebar invalidated")
+                }
+                Message::View(event) => {
+                    tracing::debug!(target: "vw_desktop::session_ui", family = "view", event = ?std::mem::discriminant(event), "sidebar invalidated")
+                }
+                Message::Project(event) => {
+                    tracing::debug!(target: "vw_desktop::session_ui", family = "project", event = ?std::mem::discriminant(event), "sidebar invalidated")
+                }
+                _ => {
+                    tracing::debug!(target: "vw_desktop::session_ui", family = "app", event = ?std::mem::discriminant(message), "sidebar invalidated")
                 }
             }
         }
@@ -185,9 +191,7 @@ impl App {
     }
 
     pub(crate) fn refresh_session_pins_task(&mut self) -> Task<Message> {
-        self.session_ui_projection.pins_generation =
-            self.session_ui_projection.pins_generation.wrapping_add(1);
-        let generation = self.session_ui_projection.pins_generation;
+        let generation = self.session_ui_projection.begin_pins_refresh();
         let projects: HashSet<String> = self
             .sessions
             .iter()

@@ -1,30 +1,60 @@
 //! 会话加载的桌面状态重置与消息映射。
-use super::{App, ChatMessage, ChatSession, ChatSessionStep, PreparedChatUiChunk, PreparedChatUiPhase, TokenUsage};
-pub use desktop_session::session::loading::{SharedChatMessages, shared_chat_messages, build_session_previews, session_content_signature, session_usage, prepare_timeline_page};
-pub type PreparedSessionOpen = desktop_session::session::loading::PreparedSessionOpen<PreparedChatUiChunk>;
+use super::{App, ChatMessage, ChatSession, ChatSessionStep, PreparedChatUiChunk, TokenUsage};
+pub use desktop_session::session::loading::{
+    SharedChatMessages, build_session_previews, prepare_timeline_page, session_content_signature,
+    session_usage, shared_chat_messages,
+};
+pub type PreparedSessionOpen =
+    desktop_session::session::loading::PreparedSessionOpen<PreparedChatUiChunk>;
 fn prepare_base(messages: &[ChatMessage], show_reasoning_summary: bool) -> PreparedChatUiChunk {
     #[cfg(test)]
-    desktop_chat_view::performance::record_initial_load(messages.len(), messages.iter().map(|m| m.content.len()).sum());
-    let (_, end) = super::chat_ui_chunk_bounds(messages.len(), 0);
-    let PreparedChatUiPhase::Base(chunk) = super::prepare_chat_ui_chunk_phase(&messages[..end], 0, true, show_reasoning_summary) else {
-        unreachable!("base session preparation must return a base UI chunk");
-    };
-    chunk
+    desktop_chat_view::performance::record_initial_load(
+        messages.len(),
+        messages.iter().map(|m| m.content.len()).sum(),
+    );
+    desktop_chat_view::chat_ui::prepare_initial_session_chunk(messages, show_reasoning_summary)
 }
-pub fn prepare_session_open(session_id: String, messages: Vec<ChatMessage>, message_ids: Vec<Option<String>>, usage: TokenUsage, steps: Vec<ChatSessionStep>, calls: Vec<serde_json::Value>, updated_ms: u64, session_model: Option<String>, show_reasoning_summary: bool) -> PreparedSessionOpen {
-    desktop_session::session::loading::prepare_session_open(session_id, messages, message_ids, usage, steps, calls, updated_ms, session_model, |messages| prepare_base(messages, show_reasoning_summary))
+pub fn prepare_session_open(
+    session_id: String,
+    messages: Vec<ChatMessage>,
+    message_ids: Vec<Option<String>>,
+    usage: TokenUsage,
+    steps: Vec<ChatSessionStep>,
+    calls: Vec<serde_json::Value>,
+    updated_ms: u64,
+    session_model: Option<String>,
+    show_reasoning_summary: bool,
+) -> PreparedSessionOpen {
+    desktop_session::session::loading::prepare_session_open(
+        session_id,
+        messages,
+        message_ids,
+        usage,
+        steps,
+        calls,
+        updated_ms,
+        session_model,
+        |messages| prepare_base(messages, show_reasoning_summary),
+    )
 }
-pub fn prepare_bounded_session_open(summary: vw_api_session::GatewaySessionUiSummary, page: vw_api_session::GatewaySessionMessagePage<session_ui_types::SessionMessageRecord>, show_reasoning_summary: bool) -> PreparedSessionOpen {
-    desktop_session::session::loading::prepare_bounded_session_open(summary, page, |messages| prepare_base(messages, show_reasoning_summary))
+pub fn prepare_bounded_session_open(
+    summary: vw_api_session::GatewaySessionUiSummary,
+    page: vw_api_session::GatewaySessionMessagePage<session_ui_types::SessionMessageRecord>,
+    show_reasoning_summary: bool,
+) -> PreparedSessionOpen {
+    desktop_session::session::loading::prepare_bounded_session_open(summary, page, |messages| {
+        prepare_base(messages, show_reasoning_summary)
+    })
 }
-pub fn prepare_session_open_from_ui_store(session: ChatSession, show_reasoning_summary: bool) -> PreparedSessionOpen {
-    desktop_session::session::loading::prepare_session_open_from_ui_store(session, |messages| prepare_base(messages, show_reasoning_summary))
+pub fn prepare_session_open_from_ui_store(
+    session: ChatSession,
+    show_reasoning_summary: bool,
+) -> PreparedSessionOpen {
+    desktop_session::session::loading::prepare_session_open_from_ui_store(session, |messages| {
+        prepare_base(messages, show_reasoning_summary)
+    })
 }
 impl App {
-    /// 执行 reload_sessions_for_project 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn reload_sessions_for_project(
         &mut self,
         path: Option<String>,
@@ -50,8 +80,10 @@ impl App {
 
         iced::Task::perform(
             async move {
-
-                desktop_session::session::loading::load_project_sessions(endpoint, path_clone, project_id).await
+                desktop_session::session::loading::load_project_sessions(
+                    endpoint, path_clone, project_id,
+                )
+                .await
             },
             move |res: Result<
                 (
@@ -81,10 +113,6 @@ impl App {
         )
     }
 
-    /// 执行 rebuild_session_previews 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn rebuild_session_previews(&mut self) -> iced::Task<crate::app::Message> {
         #[cfg(target_arch = "wasm32")]
         {

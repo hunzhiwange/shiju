@@ -213,3 +213,12 @@ pub fn advance_explore_summary_animation(
         }
     }
 }
+
+pub fn advance_status_animation_frame(
+    frame: &mut usize,
+    states: &mut std::collections::HashMap<u128, desktop_chat_tools::tools::explore_input::ExploreSummaryAnimationState>,
+    now_ms: u64, duration_ms: u64,
+) {
+    *frame = frame.wrapping_add(1);
+    advance_explore_summary_animation(states, now_ms, duration_ms);
+}

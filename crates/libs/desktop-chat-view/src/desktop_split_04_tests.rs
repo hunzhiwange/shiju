@@ -647,3 +647,6 @@ fn prepare_chat_ui_chunk_phase_uses_display_text_for_tool_editor_cache() {
     assert_eq!(chunk.message_editor_texts[0].as_deref(), Some("2 matches"));
     assert_eq!(chunk.visible_texts[0].as_deref(), Some(chat[0].content.as_str()));
 }
+
+#[path = "host_module_1_tests.rs"]
+mod host_module_1_tests;

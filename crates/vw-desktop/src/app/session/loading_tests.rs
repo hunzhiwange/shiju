@@ -2,9 +2,7 @@
 //! 会话加载测试，验证共享消息转换、冷加载分块和历史预览生成。
 //! 预览文本需处理空白、换行、长度边界与重复会话标识，同时保持原消息顺序。
 
-use crate::app::models::{
-    ChatMessage, ChatRole, TokenUsage,
-};
+use crate::app::models::{ChatMessage, ChatRole, TokenUsage};
 
 fn message(role: ChatRole, content: &str) -> ChatMessage {
     ChatMessage {
@@ -27,39 +25,11 @@ fn session_info(id: &str) -> session_info::Info {
         share: None,
         title: "Session".to_string(),
         version: "1".to_string(),
-        time: session_info::TimeInfo {
-            created: 10,
-            updated: 20,
-            compacting: None,
-            archived: None,
-        },
+        time: session_info::TimeInfo { created: 10, updated: 20, compacting: None, archived: None },
         permission: None,
         fork_execution_started: None,
         revert: None,
     }
-}
-
-#[test]
-fn cold_session_load_prepares_base_chunk_off_ui_thread() {
-    let messages =
-        (0..33).map(|index| message(ChatRole::Assistant, &format!("message {index}"))).collect();
-    let prepared = super::prepare_session_open(
-        "session-1".to_string(),
-        messages,
-        (0..33).map(|index| Some(format!("message-{index}"))).collect(),
-        TokenUsage::default(),
-        Vec::new(),
-        Vec::new(),
-        20,
-        None,
-        false,
-    );
-
-    let chunk = prepared.base_ui_chunk.expect("first UI chunk should be prepared");
-    assert_eq!(chunk.chunk_start_idx, 0);
-    assert_eq!(chunk.chunk_end_idx, 32);
-    assert_eq!(chunk.render_cache.len(), 32);
-    assert_eq!(prepared.messages.len(), 33);
 }
 
 #[test]

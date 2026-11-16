@@ -467,7 +467,7 @@ pub struct App {
     /// 会话消息 ID 缓存（会话 ID -> 消息 ID 列表）
     pub(crate) session_chat_message_id_cache: HashMap<String, Vec<Option<String>>>,
     /// 会话历史重置边界（会话 ID -> 重置时保留的消息 ID 列表）
-    pub(crate) session_history_reset_boundaries: HashMap<String, Vec<Option<String>>>,
+    pub(crate) session_history_reset_boundaries: desktop_session::session::cache::HistoryResetBoundaries,
     /// 会话运行时状态映射（会话 ID -> 运行时状态）
     pub(crate) session_runtime_states: HashMap<String, SessionRuntimeState>,
     /// 持久化的会话推理强度；缺省表示使用模型默认值。

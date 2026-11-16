@@ -57,6 +57,22 @@ class PackageShiJuWebTests(unittest.TestCase):
             checksum = archive.with_suffix('.zip.sha256').read_text().split()
             self.assertEqual(checksum, [hashlib.sha256(archive.read_bytes()).hexdigest(), archive.name])
 
+    def test_archive_preserves_mobile_viewport_and_relative_entry(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            archive = load_packager().package(self.fixture(root), root / 'out', '0.6.0')
+            with zipfile.ZipFile(archive) as bundle:
+                html = bundle.read('shiju-web-0.6.0/index.html').decode()
+            for feature in (
+                'viewport-fit=cover', '100dvh', 'safe-area-inset-bottom',
+                'window.visualViewport', "viewport?.addEventListener('resize'",
+                "window.addEventListener('pageshow'", 'id="shiju-viewport"',
+                "import init from './shi_ju.js'",
+            ):
+                self.assertIn(feature, html)
+            self.assertNotIn('<base', html)
+            self.assertNotIn('user-scalable=no', html)
+
     def test_extracted_package_serves_without_repository(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

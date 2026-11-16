@@ -24,22 +24,14 @@ npm run start
 使用仓库共享槽位，构建与中间产物均放在领取的槽位中。以下阶段结束后释放锁，
 保留编译缓存；浏览器使用复制到 `/tmp/shiju-wasm-dist` 的独立产物。
 
-先从 1–20 依次用 `mkdir target/rust-slot-locks/slot-N.lock` 原子领取一个空闲槽位，
-将成功槽位的编号放入 `SHIJU_WASM_SLOT`；全部占用时等待重试。在自己的锁目录中
-记录任务、会话与持有进程 PID。不要使用已经存在的锁。
+使用仓库入口自动领取并释放槽位，不手工分配缓存路径：
 
 ```bash
-export CARGO_TARGET_DIR="$PWD/target/rust-slot-${SHIJU_WASM_SLOT:?请先领取空闲槽位}"
-export CARGO_BUILD_BUILD_DIR="$CARGO_TARGET_DIR/build"
-cargo build -p vw-desktop --target wasm32-unknown-unknown --bin shi-ju
-"${WASM_BINDGEN:-wasm-bindgen}" --target web --out-name shi_ju \
-  --out-dir /tmp/shiju-wasm-dist \
-  "$CARGO_TARGET_DIR/wasm32-unknown-unknown/debug/shi-ju.wasm"
+python3 scripts/cargo_slot.py sh -c 'cargo build --locked -p vw-desktop --target wasm32-unknown-unknown --bin shi-ju && "${WASM_BINDGEN:-wasm-bindgen}" --target web --out-name shi_ju --out-dir /tmp/shiju-wasm-dist "$CARGO_TARGET_DIR/wasm32-unknown-unknown/debug/shi-ju.wasm"'
 ```
 
-`WASM_BINDGEN` 可指定匹配版本的工具路径。成功、失败或中断后，都必须先确认本阶段
-Cargo、绑定工具及其子进程全部退出，再删除自己写入的占用记录，并用 `rmdir` 释放
-自己的锁目录，保留编译缓存。不得清理其他任务的锁或缓存。
+`WASM_BINDGEN` 可指定匹配版本的工具路径。独立产物目录应为空或属于当前任务。
+入口负责子进程与锁生命周期；不要清理其他任务的锁或缓存。
 
 ## 打包和预览
 
@@ -72,3 +64,9 @@ node scripts/tests/test_shiju_wasm.mjs
 测试真实的完整产品页面、设置搜索框中的中文 IME 提交和选区替换，不发送聊天消息，
 不保存业务设置。`SHIJU_WASM_URL` 可指定服务地址。截图输出到 `/tmp/shiju-wasm-*.png`，
 需检查实际中文显示与搜索结果；系统输入法候选窗口仍使用本机浏览器手动验证。
+
+## 手机浏览器
+
+同一静态包按窗口宽度自动选择布局，支持会话内显式选择。
+手机访问须使用已授权的 HTTPS 站点与可达远端网关；本地预览器仍只监听回环。
+完整矩阵、自动化入口及实机记录要求见 [移动端浏览器验收](移动端浏览器验收.md)。

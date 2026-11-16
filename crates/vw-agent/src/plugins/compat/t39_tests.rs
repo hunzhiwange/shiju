@@ -1,4 +1,4 @@
-use super::hook_session::{close, start, validate};
+use super::hook_session::{close, start};
 use crate::tools::ToolUseContext;
 use serde_json::json;
 use std::sync::Arc;
@@ -57,16 +57,6 @@ async fn codex_plugin_compat_t39_emits_session_events_once() {
     assert_eq!(events[0]["source"], "startup");
     assert_eq!(events[1]["reason"], "other");
     assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
-}
-#[test]
-fn codex_plugin_compat_t39_rejects_invalid_input() {
-    assert!(
-        validate(
-            &json!({"hook_event_name":"SessionStart","session_id":"","cwd":"/","source":"startup"})
-        )
-        .is_err()
-    );
-    assert!(validate(&json!({"hook_event_name":"SessionStart","session_id":"s","cwd":"relative","source":"resume"})).is_err());
 }
 #[tokio::test]
 async fn codex_plugin_compat_t39_preserves_isolation() {

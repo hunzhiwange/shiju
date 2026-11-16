@@ -69,3 +69,7 @@ pub async fn close<H: HookHost>(session: &str, root: &Path) {
         .await;
     }
 }
+
+#[cfg(test)]
+#[path = "hook_session_tests.rs"]
+mod tests;

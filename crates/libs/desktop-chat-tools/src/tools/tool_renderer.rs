@@ -84,3 +84,94 @@ pub fn render_shared_tool_view<T>(
                 .flatten()
         })
 }
+
+/// Complete local input for the shared tool renderer. Git and stored todos remain injected boundaries.
+pub struct ViewInput<'a> {
+    pub card: crate::card_input::CardInput<'a>,
+    pub result: super::result_input::ResultInput<'a>,
+    pub file_filter: &'a str,
+    pub file_hovered: Option<&'a str>,
+}
+#[allow(clippy::too_many_arguments)]
+pub fn view<'a, M: Clone + 'a>(
+    input: &ViewInput<'a>,
+    m: usize,
+    t: usize,
+    raw: &str,
+    diff: &impl Fn(String, Option<String>, String, String) -> iced::Element<'a, M>,
+    todos: impl Fn() -> Option<(Vec<todo_types::Todo>, Option<String>)>,
+    card: fn(crate::card_input::Message<M>) -> M,
+    plain: fn(crate::card_input::Message) -> M,
+    advanced: fn(crate::advanced_input::Message) -> M,
+) -> Option<iced::Element<'a, M>> {
+    render_shared_tool_view(raw, |kind| match kind {
+        SharedToolRenderKind::Bash => {
+            super::bash_view::tool_bash_view(&input.card, m, t, raw).map(|v| v.map(plain))
+        }
+        SharedToolRenderKind::Config => {
+            super::config_view::tool_config_view(&input.card, m, t, raw).map(|v| v.map(plain))
+        }
+        SharedToolRenderKind::Read => {
+            super::read_view::tool_read_view(&input.card, m, t, raw).map(|v| v.map(plain))
+        }
+        SharedToolRenderKind::Skill => {
+            super::skill_view::tool_skill_view(&input.card, m, t, raw).map(|v| v.map(plain))
+        }
+        SharedToolRenderKind::Text => {
+            super::text_view::tool_text_view(&input.card, m, t, raw).map(|v| v.map(plain))
+        }
+        SharedToolRenderKind::Web => {
+            super::web_view::tool_web_view(&input.card, m, t, raw).map(|v| v.map(plain))
+        }
+        SharedToolRenderKind::Workflow => {
+            super::workflow_view::tool_workflow_view(&input.card, m, t, raw).map(|v| v.map(plain))
+        }
+        SharedToolRenderKind::Lsp => {
+            super::lsp_view::tool_lsp_view(&input.result, m, t, raw).map(|v| v.map(plain))
+        }
+        SharedToolRenderKind::Mcp => {
+            super::mcp_view::tool_mcp_view(&input.result, m, t, raw).map(|v| v.map(plain))
+        }
+        SharedToolRenderKind::Question => {
+            super::question_view::tool_question_view(&input.result, m, t, raw).map(|v| v.map(plain))
+        }
+        SharedToolRenderKind::TodoCompact => {
+            super::todo_views::tool_todowrite_compact_view(&input.card, m, t, raw)
+                .map(|v| v.map(plain))
+        }
+        SharedToolRenderKind::TodoRead => {
+            super::todo_views::tool_todos_view(&input.card, m, t, raw, &todos).map(|v| v.map(plain))
+        }
+        SharedToolRenderKind::ApplyPatch => {
+            super::apply_patch_view::tool_apply_patch_view(&input.card, m, t, raw, diff)
+                .map(|v| v.map(card))
+        }
+        SharedToolRenderKind::GitDiff => {
+            super::git_diff_view::tool_git_diff_view(&input.result, m, t, raw, diff)
+                .map(|v| v.map(card))
+        }
+        SharedToolRenderKind::Files => super::files_view::tool_files_view(
+            &super::files_input::FilesInput {
+                card: input.card.clone(),
+                filter: input.file_filter,
+                file_hovered: input.file_hovered,
+            },
+            m,
+            t,
+            raw,
+            diff,
+        )
+        .map(|v| v.map(card)),
+        SharedToolRenderKind::Advanced => super::advanced_view::tool_advanced_view(
+            crate::advanced_input::AdvancedInput {
+                i18n: input.card.i18n,
+                hovered: input.card.hovered,
+                text: input.card.text.clone(),
+            },
+            m,
+            t,
+            raw,
+        )
+        .map(|v| v.map(advanced)),
+    })
+}

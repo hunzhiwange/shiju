@@ -1,8 +1,8 @@
 //! 桌面空状态的只读数据装配。
+use super::utils::{current_branch_label, current_project_path_label, relative_modified_label};
+use crate::app::{App, Message};
 use chrono::Timelike;
 use iced::Element;
-use crate::app::{App, Message};
-use super::utils::{current_branch_label, current_project_path_label, relative_modified_label};
 
 pub fn session_loading_placeholder(app: &App) -> Element<'_, Message> {
     desktop_chat_view::empty::session_loading_placeholder(
@@ -15,16 +15,15 @@ pub fn empty_session_placeholder(app: &App) -> Element<'_, Message> {
     let name = app.account.active_account().and_then(|a| a.profile()).map(|p| p.name());
     #[cfg(target_arch = "wasm32")]
     let name: Option<&str> = None;
-    desktop_chat_view::empty::empty_session_placeholder(desktop_chat_view::empty::EmptySessionInput {
-        greeting: name.map(|name| i18n.format(if chrono::Local::now().hour() < 12 { "上午好，%s" } else { "下午好，%s" }, &[name.into()]).expect("valid greeting template")),
-        title: i18n.__(desktop_chat_view::empty::empty_session_title(matches!(app.navigation_mode.workspace_mode, crate::app::state::WorkspaceMode::Work))).to_string(),
-        path: current_project_path_label(app),
-        git: app.project_is_git_repo.then(|| (
-            i18n.format("分支 %s", &[current_branch_label(app).into()]).expect("valid branch template"),
-            relative_modified_label(app),
-        )),
-    })
+    desktop_chat_view::empty::empty_session_placeholder(
+        desktop_chat_view::empty::EmptySessionInput::from_context(
+            i18n,
+            name,
+            chrono::Local::now().hour(),
+            matches!(app.navigation_mode.workspace_mode, crate::app::state::WorkspaceMode::Work),
+            current_project_path_label(app),
+            app.project_is_git_repo
+                .then(|| (current_branch_label(app), relative_modified_label(app))),
+        ),
+    )
 }
-#[cfg(test)]
-#[path = "empty_tests.rs"]
-mod empty_tests;

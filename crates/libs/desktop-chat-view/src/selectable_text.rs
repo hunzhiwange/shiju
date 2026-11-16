@@ -60,10 +60,20 @@ pub fn visible_editor_text_for_message(
     assistant_visible: &str,
     tool_display_text: &str,
 ) -> String {
-    let raw = match role {
+    let raw = visible_editor_source(role, content, assistant_visible, tool_display_text);
+    strip_session_control_selection(raw)
+}
+
+/// Select a message source before another domain removes its own markers.
+pub fn visible_editor_source<'a>(
+    role: ChatRole,
+    content: &'a str,
+    assistant_visible: &'a str,
+    tool_display_text: &'a str,
+) -> &'a str {
+    match role {
         ChatRole::Assistant => assistant_visible,
         ChatRole::Tool => tool_display_text,
         ChatRole::User | ChatRole::System | ChatRole::Developer => content,
-    };
-    strip_session_control_selection(raw)
+    }
 }

@@ -93,3 +93,6 @@ mod compat_t14_tests;
 
 #[cfg(test)]
 mod compat_t16_tests;
+
+#[cfg(test)]
+mod compat_t17_auth_tests;

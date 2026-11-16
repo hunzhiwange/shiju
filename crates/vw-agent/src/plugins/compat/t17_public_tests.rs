@@ -1,5 +1,5 @@
 //! Public authentication declaration parsing and safe connection policy.
-use super::t17_tests::{captured, endpoint, list, options, plugin, write};
+use super::t17_tests::{captured, endpoint, list, options, write};
 use crate::plugins::mcp::merge_enabled_plugin_mcp_servers;
 use agent_client_protocol::{HttpHeader, McpServer, McpServerHttp};
 use serde_json::json;
@@ -72,44 +72,5 @@ async fn codex_plugin_compat_t17_accepts_public_auth_declarations_without_claimi
             "public fields and explicit empty scopes must remain intact"
         );
         task.abort();
-    }
-}
-
-#[test]
-fn codex_plugin_compat_t17_rejects_invalid_public_auth_without_values() {
-    for (index, auth) in [
-        json!({"type":"none","clientSecret":"fixture-only-secret"}),
-        json!({"type":"hosted"}),
-        json!({"type":"oauth","client":{"mode":"provided"}}),
-        json!({"type":"oauth","client":{"mode":"provided","clientId":" ","tokenEndpointAuthMethod":"none"}}),
-        json!({"type":"oauth","client":{"mode":"provided","clientId":"public","tokenEndpointAuthMethod":"unknown"}}),
-        json!({"type":"oauth","client":{"mode":"dcr","tokenEndpointAuthMethod":"none"}}),
-        json!({"type":"oauth","defaultScopes":[" "]}),
-        json!({"type":"oauth","baseScopes":false}),
-        json!({"type":"oauth","tokenUrl":"https://fixture-only-secret@example.test/token"}),
-        json!({"type":"oauth","authorizationUrl":"https://example.test#fragment"}),
-        json!({"type":"oauth","registrationUrl":"relative"}),
-        json!({"type":"oauth","oidcEnabled":"fixture-only-secret"}),
-        json!({"type":"oauth","defaultScopes":null}),
-        json!({"type":"api_key","headerScheme":"custom_header"}),
-        json!({"type":"api_key","headerScheme":"custom_header","headerName":"Host"}),
-        json!({"type":"api_key","headerScheme":"custom_header","headerName":"invalid name"}),
-        json!({"type":"api_key","headerScheme":"bearer","headerName":"X-Fixture"}),
-        json!({"type":"api_key","headerScheme":"unknown"}),
-        json!({"type":"api_key","headerScheme":"basic","token":"fixture-only-secret"}),
-    ].into_iter().enumerate() {
-        let temp = tempfile::tempdir().unwrap();
-        let options = options(temp.path());
-        plugin(
-            &options,
-            "local",
-            json!({"url":"https://example.test/mcp","extensions":{"com.openai":{"auth":auth}}}),
-        );
-        let mut servers = Vec::new();
-        let result = merge_enabled_plugin_mcp_servers(&mut servers, &options);
-        assert!(result.is_err(), "public auth rejection case {index} must fail");
-        let error = result.unwrap_err();
-        assert!(!format!("{error:#}").contains("fixture-only-secret"));
-        assert!(servers.is_empty());
     }
 }

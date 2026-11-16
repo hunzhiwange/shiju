@@ -286,32 +286,6 @@ async fn codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starti
     task.abort();
 }
 
-#[test]
-fn codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication() {
-    for fields in [
-        json!({"auth":"ema_auth"}),
-        json!({"auth":"chatgpt"}),
-        json!({"oauth":{"client_secret":"fixture-only-secret"}}),
-        json!({"oauth":{"client_id":"public-client","client_secret":" "}}),
-        json!({"oauth":{"callback_port":65536}}),
-        json!({"oauth":{"token_endpoint_auth_method":"client_secret_basic"}}),
-        json!({"oauth":{"ema_registration":{}}}),
-        json!({"oauth":{"authorization_server_issuer":"https://example.test"}}),
-        json!({"scopes":false}),
-        json!({"oauth_resource":false}),
-    ] {
-        let temp = tempfile::tempdir().unwrap();
-        let options = options(temp.path());
-        let mut config = fields;
-        config["url"] = json!("https://example.test/mcp");
-        plugin(&options, "local", config);
-        let mut servers = Vec::new();
-        let error = merge_enabled_plugin_mcp_servers(&mut servers, &options).unwrap_err();
-        assert!(!format!("{error:#}").contains("fixture-only-secret"));
-        assert!(servers.is_empty());
-    }
-}
-
 #[tokio::test]
 async fn codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context() {
     let temp = tempfile::tempdir().unwrap();

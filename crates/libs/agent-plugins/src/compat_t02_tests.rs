@@ -1,11 +1,11 @@
-use crate::plugins::load_plugin_manifest;
+use crate::load_plugin_manifest;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 fn fixture_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata/plugin_compat/t02")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../vw-agent/testdata/plugin_compat/t02")
 }
 
 fn fixture(name: &str) -> Value {
@@ -15,7 +15,7 @@ fn fixture(name: &str) -> Value {
 
 fn check(baseline: &Path, evidence: &Path) -> Output {
     let script =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/plugin_compat/check_evidence.py");
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../scripts/plugin_compat/check_evidence.py");
     Command::new("python3")
         .arg(script)
         .arg("--baseline")

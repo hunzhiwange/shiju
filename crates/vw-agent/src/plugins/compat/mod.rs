@@ -29,9 +29,7 @@ pub(super) mod skill_invocation;
 pub(super) mod skill_roots;
 pub(super) mod transaction_install;
 
-#[cfg(test)]
-#[path = "t02_tests.rs"]
-mod t02_tests;
+// t02 tests follow their implementation in agent-plugins.
 
 // t03 tests follow their implementation in agent-plugins.
 

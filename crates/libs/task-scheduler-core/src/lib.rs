@@ -1,6 +1,11 @@
 //! 自主代理调度领域契约与审计事件。
 
 pub mod domain;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod task_graph;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod task_graph_tests;
 pub mod events;
 
 #[cfg(test)]

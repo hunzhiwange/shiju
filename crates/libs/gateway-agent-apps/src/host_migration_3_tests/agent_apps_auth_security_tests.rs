@@ -2,10 +2,10 @@ use super::{
     agent_apps_auth_start::Runtime,
     agent_apps_auth_start_tests::{BASIC, FLOWS, Gateway, OWNER},
 };
-use crate::{
-    agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
-    app_providers::AppProviderStore,
-    global_database::{GlobalDatabase, run_sync_database, test_support::PostgresTestDatabase},
+use {
+    agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
+    app_provider_services::AppProviderStore,
+    agent_database::{GlobalDatabase, run_sync_database, test_support::PostgresTestDatabase},
 };
 use axum::http::{Method, StatusCode, header};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};

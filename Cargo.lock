@@ -9159,6 +9159,8 @@ dependencies = [
 name = "gateway-agent-apps"
 version = "0.6.0"
 dependencies = [
+ "gateway-app-auth",
+ "agent-gateway",
  "agent-app-services",
  "agent-client-protocol",
  "agent-database",

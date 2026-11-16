@@ -55,3 +55,6 @@ pub mod agent_apps_auth_start;
 
 #[cfg(all(test, target_os = "macos"))]
 mod host_migration_4_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod host_migration_3_tests;

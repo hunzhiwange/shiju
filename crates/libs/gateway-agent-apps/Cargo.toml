@@ -65,6 +65,8 @@ tower = { version = "0.5", features = ["util"] }
 tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "test-util"] }
 
 [target.'cfg(target_os = "macos")'.dev-dependencies]
+gateway-app-auth = { path = "../gateway-app-auth", version = "0.6.0" }
+agent-gateway = { path = "../agent-gateway", version = "0.6.0" }
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
 app-routing-services = { path = "../app-routing-services", version = "0.6.0" }
 gateway-app-diagnostics = { path = "../gateway-app-diagnostics", version = "0.6.0" }

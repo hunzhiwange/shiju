@@ -1,8 +1,8 @@
-use super::{agent_apps_auth_read, agent_apps_auth_start::Runtime};
-use crate::{
-    agent_apps::auth_accounts::AuthAccountScope,
-    app_providers::AppProviderStore,
-    global_database::{GlobalDatabase, run_sync_database, test_support::PostgresTestDatabase},
+use super::{auth_router as agent_apps_auth_read, agent_apps_auth_start::Runtime};
+use {
+    agent_app_services::auth_accounts::AuthAccountScope,
+    app_provider_services::AppProviderStore,
+    agent_database::{GlobalDatabase, run_sync_database, test_support::PostgresTestDatabase},
 };
 use axum::{Extension, Form, Json, Router, extract::State, routing::post};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -221,7 +221,7 @@ impl Fixture {
     async fn serve(&self, database: GlobalDatabase, oauth: SocketAddr) -> anyhow::Result<Server> {
         let mut runtime = Runtime::default();
         runtime.codex_device_oauth = Some(oauth);
-        let router = crate::gateway::router::build_router_with_auth(
+        let router = super::build_router_with_auth(
             vec![],
             agent_apps_auth_read::router_with_runtime(
                 Some(OWNER.password),

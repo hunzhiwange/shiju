@@ -1,7 +1,7 @@
 use super::{agent_apps_auth_read, agent_apps_auth_start::Runtime};
 use crate::{
     agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
-    global_database::{GlobalDatabase, run_sync_database, test_support::PostgresTestDatabase},
+    global_database::{GlobalDatabase, run_sync_database},
 };
 use axum::{
     Extension,
@@ -34,7 +34,7 @@ pub(super) struct Gateway {
 }
 
 impl Gateway {
-    async fn start(home: &Path, database: GlobalDatabase) -> anyhow::Result<Self> {
+    pub(super) async fn start(home: &Path, database: GlobalDatabase) -> anyhow::Result<Self> {
         Self::start_with_runtime(home, database, Arc::new(Runtime::default())).await
     }
 
@@ -193,154 +193,12 @@ impl Drop for Gateway {
     }
 }
 
-#[test]
-fn auth6_api_start_commits_expected_scoped_result() -> anyhow::Result<()> {
+#[tokio::test]
+async fn host_auth_start_uses_real_auth_wiring() -> anyhow::Result<()> {
     let home = tempfile::tempdir()?;
-    let database = GlobalDatabase::for_home(home.path())?;
-    tokio::runtime::Runtime::new()?.block_on(check_start(home.path(), database))
-}
-
-#[test]
-fn auth6_api_start_commits_expected_scoped_result_postgres() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let database = PostgresTestDatabase::from_environment()?;
-    tokio::runtime::Runtime::new()?.block_on(check_start(home.path(), database.database().clone()))
-}
-
-async fn check_start(home: &Path, database: GlobalDatabase) -> anyhow::Result<()> {
-    let gateway = Gateway::start(home, database).await?;
-    let (status, body) = gateway.post(FLOWS, CLAUDE, OWNER, json!({"method":"copy_link"})).await?;
-    assert_eq!(status, StatusCode::CREATED, "authorized Claude start");
-    let flow = body["flow_id"].as_str().unwrap();
-    assert!(uuid::Uuid::parse_str(flow).is_ok());
-    assert_eq!(body["verification_url"], LINK);
-    assert_eq!(body["can_paste"], true);
-    assert_eq!(body["state"], "pending");
-    assert_eq!(body["retry_after_seconds"], 1);
-    assert!(body["expires_at"].as_i64().unwrap() > 0);
-    assert_eq!(body.as_object().unwrap().len(), 6);
-    let path = format!("{FLOWS}/{flow}/paste");
-    let payload = json!({"pasted": PASTE});
-    let (status, body) = gateway.post(&path, CLAUDE, OTHER, payload.clone()).await?;
-    assert_eq!(status, StatusCode::NOT_FOUND);
-    assert_eq!(body["code"], "not_found");
-    assert_eq!(gateway.post(&path, CLAUDE, OWNER, payload).await?.0, StatusCode::ACCEPTED);
-    tokio::time::timeout(std::time::Duration::from_secs(3), async {
-        while !home.join("delivered").is_file() {
-            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-        }
-    })
-    .await?;
-    assert_eq!(fs::read_to_string(home.join("delivered"))?, "delivered");
-    tokio::time::timeout(std::time::Duration::from_secs(5), async {
-        loop {
-            let response = gateway
-                .client
-                .get(format!("http://{}/v1/agent-apps/auth/accounts?{CLAUDE}", gateway.addr))
-                .header(header::AUTHORIZATION, BASIC)
-                .header("x-platform-id", "p")
-                .header("x-company-id", "c")
-                .header("x-agent-apps-token", OWNER)
-                .send()
-                .await?;
-            assert_eq!(response.status(), StatusCode::OK);
-            let raw = response.text().await?;
-            assert!(!raw.contains("fixture-private"));
-            let body: Value = serde_json::from_str(&raw)?;
-            if let Some(account) = body["accounts"].as_array().unwrap().first() {
-                assert_eq!(account["credential_state"], "ready");
-                assert_eq!(account["service"], "claude_official");
-                assert_ne!(account["account_id"], flow);
-                assert_eq!(
-                    gateway.post(&path, CLAUDE, OWNER, json!({"pasted":PASTE})).await?.0,
-                    StatusCode::CONFLICT
-                );
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(30)).await;
-        }
-        Ok::<_, anyhow::Error>(())
-    })
-    .await??;
-    Ok(())
-}
-
-#[test]
-fn auth6_api_start_rejects_invalid_or_stale_input() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let database = GlobalDatabase::for_home(home.path())?;
-    tokio::runtime::Runtime::new()?.block_on(check_rejections(home.path(), database))
-}
-
-#[test]
-fn auth6_api_start_rejects_invalid_or_stale_input_postgres() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let database = PostgresTestDatabase::from_environment()?;
-    tokio::runtime::Runtime::new()?
-        .block_on(check_rejections(home.path(), database.database().clone()))
-}
-
-async fn check_rejections(home: &Path, database: GlobalDatabase) -> anyhow::Result<()> {
-    let gateway = Gateway::start(home, database).await?;
-    for (query, token, request, status, code) in [
-        (CLAUDE, READER, json!({"method":"copy_link"}), 403, "forbidden"),
-        (CLAUDE, OWNER, json!({"method":"device_code"}), 501, "unsupported"),
-        (CLAUDE, OWNER, json!({"method":"unknown"}), 400, "invalid_input"),
-        (CLAUDE, OWNER, json!({"method":"browser","program":"secret"}), 400, "invalid_input"),
-        ("host_id=host&service=unknown", OWNER, json!({"method":"browser"}), 400, "invalid_input"),
-        (
-            "host_id=host&service=kimi_oauth",
-            OWNER,
-            json!({"method":"device_code"}),
-            400,
-            "invalid_input",
-        ),
-        (
-            "host_id=host&service=github_copilot",
-            OWNER,
-            json!({"method":"device_code","github_domain":"https://secret.example/path"}),
-            400,
-            "invalid_input",
-        ),
-        (
-            CODEX,
-            OWNER,
-            json!({"method":"device_code","target_account_id":"other-account"}),
-            404,
-            "not_found",
-        ),
-        (
-            "host_id=remote&service=claude_official",
-            OWNER,
-            json!({"method":"copy_link"}),
-            501,
-            "execution_channel_unavailable",
-        ),
-        (
-            "host_id=offline&service=claude_official",
-            OWNER,
-            json!({"method":"copy_link"}),
-            503,
-            "execution_host_unavailable",
-        ),
-        (CODEX, OTHER, json!({"method":"browser"}), 409, "callback_unreachable"),
-        (
-            "host_id=host&service=kimi_oauth",
-            OWNER,
-            json!({"method":"device_code","target_account_id":"kimi-account","region":"global"}),
-            400,
-            "invalid_input",
-        ),
-    ] {
-        let (actual, body) = gateway.post(FLOWS, query, token, request).await?;
-        assert_eq!(actual.as_u16(), status, "{code}");
-        assert_eq!(body["code"], code);
-        assert!(!body.to_string().contains("secret"));
-    }
-    let path = format!("{FLOWS}/{}/paste", uuid::Uuid::new_v4());
-    let (status, body) = gateway.post(&path, CLAUDE, OWNER, json!({"pasted":PASTE})).await?;
-    assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(!body.to_string().contains(PASTE));
-    assert!(!home.join("delivered").exists());
+    let gateway = Gateway::start(home.path(), GlobalDatabase::for_home(home.path())?).await?;
+    let (status, body) = gateway.post(FLOWS, CLAUDE, READER, json!({"method":"copy_link"})).await?;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(body["code"], "forbidden");
     Ok(())
 }

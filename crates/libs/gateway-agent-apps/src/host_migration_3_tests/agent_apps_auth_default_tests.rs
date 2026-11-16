@@ -1,7 +1,7 @@
-use super::agent_apps_auth_read;
-use crate::{
-    agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
-    global_database::{GlobalDatabase, test_support::PostgresTestDatabase},
+use super::auth_router as agent_apps_auth_read;
+use {
+    agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
+    agent_database::{GlobalDatabase, test_support::PostgresTestDatabase},
 };
 use axum::{Extension, http::StatusCode};
 use serde_json::{Value, json};
@@ -146,7 +146,7 @@ impl Fixture {
     }
 
     async fn serve(&self) -> anyhow::Result<Gateway> {
-        let router = crate::gateway::router::build_router_with_auth(
+        let router = super::build_router_with_auth(
             vec![],
             agent_apps_auth_read::router(
                 Some("secret"),

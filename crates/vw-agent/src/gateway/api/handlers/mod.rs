@@ -250,23 +250,15 @@ pub(crate) mod agent_apps_auth_read;
 mod agent_apps_auth_read_tests;
 
 // agent_apps_auth_binding is owned by gateway-agent-apps.
-#[cfg(all(test, target_os = "macos"))]
-mod agent_apps_auth_binding_tests;
 
 // agent_apps_auth_cancel is owned by gateway-agent-apps.
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_cancel_tests;
 
 // agent_apps_auth_default is owned by gateway-agent-apps.
-#[cfg(all(test, target_os = "macos"))]
-mod agent_apps_auth_default_tests;
 
-#[cfg(all(test, target_os = "macos"))]
-mod agent_apps_auth_integration_tests;
 
 // agent_apps_auth_logout is owned by gateway-agent-apps.
-#[cfg(all(test, target_os = "macos"))]
-mod agent_apps_auth_logout_tests;
 
 // agent_apps_auth_poll is owned by gateway-agent-apps.
 #[cfg(all(test, target_os = "macos"))]
@@ -279,8 +271,6 @@ mod agent_apps_auth_redaction_tests;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_remove_tests;
 
-#[cfg(all(test, target_os = "macos"))]
-mod agent_apps_auth_security_tests;
 
 mod agent_apps_auth_start;
 #[cfg(all(test, target_os = "macos"))]

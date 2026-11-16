@@ -1,8 +1,8 @@
-use super::agent_apps_auth_read;
-use crate::{
-    agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
-    app_providers::AppProviderStore,
-    global_database::{GlobalDatabase, test_support::PostgresTestDatabase},
+use super::auth_router as agent_apps_auth_read;
+use {
+    agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
+    app_provider_services::AppProviderStore,
+    agent_database::{GlobalDatabase, test_support::PostgresTestDatabase},
 };
 use axum::{Extension, http::StatusCode};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -145,7 +145,7 @@ impl Fixture {
     }
 
     async fn serve(&self) -> anyhow::Result<Gateway> {
-        let router = crate::gateway::router::build_router_with_auth(
+        let router = super::build_router_with_auth(
             vec![],
             agent_apps_auth_read::router(
                 Some("secret"),
@@ -167,7 +167,7 @@ impl Fixture {
     }
 
     fn stored_default(&self, company: &str) -> anyhow::Result<Option<String>> {
-        crate::global_database::run_sync_database(|| {
+        agent_database::run_sync_database(|| {
             let tenant = TenantScope::new("p", company)?;
             let store =
                 AuthAccountStore::new(self.db.clone(), &self.root).map_err(anyhow::Error::msg)?;
@@ -411,7 +411,7 @@ model = "kimi-for-coding"
             .map_err(anyhow::Error::msg)?;
         let mut metadata = AuthAccountMetadata::new(id, TimestampMs(1)).unwrap();
         metadata.region = Some(region);
-        crate::global_database::run_sync_database(|| {
+        agent_database::run_sync_database(|| {
             accounts
                 .insert_metadata(&scope, id, &metadata)
                 .map_err(|error| anyhow::anyhow!("{error:?}"))

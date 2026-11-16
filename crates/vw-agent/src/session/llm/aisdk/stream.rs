@@ -32,7 +32,3 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "../../../../../libs/llm-runtime/src/aisdk/host_tests/stream_tests.rs"]
 mod stream_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "../../../../../libs/llm-runtime/src/aisdk/host_tests/truncation_tests.rs"]
-mod truncation_tests;

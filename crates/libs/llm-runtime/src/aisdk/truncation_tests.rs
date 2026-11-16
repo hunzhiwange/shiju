@@ -8,8 +8,8 @@ use aisdk::core::{DynamicModel, Message};
 use aisdk::providers::OpenAICompatible;
 use serde_json::{Value, json};
 
-use crate::app::agent::session::llm::types::{Error, StreamEvent};
-use crate::app::agent::session::message::AssistantError;
+use crate::{Error, StreamEvent};
+use message_types::AssistantError;
 
 use super::do_stream_request_aisdk_with_model;
 

@@ -19,6 +19,8 @@ mod compat_t04_tests;
 mod compat_t02_tests;
 #[cfg(test)]
 mod compat_t03_tests;
+#[cfg(test)]
+mod compat_t07_tests;
 pub mod loader;
 pub mod legacy_manifest;
 pub mod portable_manifest;

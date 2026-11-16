@@ -59,3 +59,5 @@ mod tool_summaries_tests;
 pub mod think_block;
 #[cfg(test)]
 mod think_block_tests;
+
+pub mod markdown_body;

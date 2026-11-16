@@ -1,12 +1,12 @@
 //! Reuse scoped domain inventories; never turn an empty choice into select-all.
 use desktop_ui_controls::system_settings_common::settings_checkbox_style;
+use gateway_device_sync::DeviceSyncSelection;
 use iced::{
     Element,
     widget::{checkbox, column, text},
 };
-use vw_api_project_profiles::{ProjectProfile, ProjectProfileScope};
-use gateway_device_sync::DeviceSyncSelection;
 use vw_api_app_identity::AppId;
+use vw_api_project_profiles::{ProjectProfile, ProjectProfileScope};
 
 #[derive(Clone)]
 pub enum Choice {
@@ -99,6 +99,37 @@ pub fn view(
         rows = std::mem::replace(&mut rows, column![]).push(control);
     };
     add("偏好设置".into(), Choice::Preferences, true);
-    for row in inventory { add(row.label, row.choice, row.available); }
+    for row in inventory {
+        add(row.label, row.choice, row.available);
+    }
     rows.into()
+}
+
+/// Deduplicate cross-application profiles and reject unresolved skill references.
+pub fn append_profiles<'a>(
+    rows: &mut Vec<SelectionRow>,
+    profiles: impl IntoIterator<Item = &'a ProjectProfile>,
+) {
+    let mut seen = std::collections::BTreeSet::new();
+    for profile in profiles {
+        if !seen.insert(profile.id.0.clone()) {
+            continue;
+        }
+        let has_skills = ProjectProfileScope::ALL
+            .iter()
+            .any(|g| profile.payload.skills.get(*g).as_ref().is_some_and(|v| !v.is_empty()));
+        rows.push(SelectionRow::new(
+            format!(
+                "组合 · {}{}",
+                profile.name,
+                if has_skills {
+                    "（技能引用尚无授权目录解析，暂不可选）"
+                } else {
+                    ""
+                }
+            ),
+            Choice::Profile(profile.clone()),
+            !has_skills,
+        ));
+    }
 }

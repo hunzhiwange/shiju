@@ -17,3 +17,8 @@ mod host_module_30_tests;
 pub mod messages;
 
 pub mod types;
+
+pub mod search;
+
+#[cfg(test)]
+mod host_module_36_tests;

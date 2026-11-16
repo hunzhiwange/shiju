@@ -22,7 +22,11 @@ pub(super) fn inventory(app: &App) -> Vec<SelectionRow> {
     }
     if let Some(Ok(catalog)) = crate::app::message::settings::mcp_management_list::visible(app) {
         for record in &catalog.records {
-            rows.push(SelectionRow::new(format!("MCP · {}", record.name), Choice::Mcp(record.record.id.0.clone()), true));
+            rows.push(SelectionRow::new(
+                format!("MCP · {}", record.name),
+                Choice::Mcp(record.record.id.0.clone()),
+                true,
+            ));
         }
     }
     let prompts = &app.apps_catalog.prompts;
@@ -41,18 +45,21 @@ pub(super) fn inventory(app: &App) -> Vec<SelectionRow> {
             }
         }
     }
-    let matches =
-        |scope: &vw_api_app_skills::repos_api::SkillReposQuery| {
-            scope.target_host_id == app.apps_catalog.host
-                && Some(scope.project_id.as_ref()) == app.project_id.as_deref()
-        };
+    let matches = |scope: &vw_api_app_skills::repos_api::SkillReposQuery| {
+        scope.target_host_id == app.apps_catalog.host
+            && Some(scope.project_id.as_ref()) == app.project_id.as_deref()
+    };
     if let Some(inventory) =
         crate::app::message::settings::skills::install_view::sync_inventory(app)
     {
         if matches(&inventory.scope) {
             for skill in &inventory.skills {
                 if skill.present {
-                    rows.push(SelectionRow::new(format!("技能 · {}", skill.name), Choice::Skill(skill.id.clone()), true));
+                    rows.push(SelectionRow::new(
+                        format!("技能 · {}", skill.name),
+                        Choice::Skill(skill.id.clone()),
+                        true,
+                    ));
                 }
             }
         }
@@ -69,29 +76,11 @@ pub(super) fn inventory(app: &App) -> Vec<SelectionRow> {
             }
         }
     }
-    let mut seen = std::collections::BTreeSet::new();
-    for group in ProjectProfileScope::ALL {
-        for profile in &app.apps_catalog.project_profiles.groups.get(group).profiles {
-            if !seen.insert(profile.id.0.clone()) {
-                continue;
-            }
-            let has_skills = ProjectProfileScope::ALL
-                .iter()
-                .any(|g| profile.payload.skills.get(*g).as_ref().is_some_and(|v| !v.is_empty()));
-            rows.push(SelectionRow::new(
-                format!(
-                    "组合 · {}{}",
-                    profile.name,
-                    if has_skills {
-                        "（技能引用尚无授权目录解析，暂不可选）"
-                    } else {
-                        ""
-                    }
-                ),
-                Choice::Profile(profile.clone()),
-                !has_skills,
-            ));
-        }
-    }
+    desktop_settings_memory::system_settings_device_sync::selection::append_profiles(
+        &mut rows,
+        ProjectProfileScope::ALL
+            .into_iter()
+            .flat_map(|group| &app.apps_catalog.project_profiles.groups.get(group).profiles),
+    );
     rows
 }

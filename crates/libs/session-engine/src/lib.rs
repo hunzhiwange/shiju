@@ -78,3 +78,6 @@ pub mod native_call_collector;
 
 #[cfg(test)]
 mod host_split_7_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_split_8_tests;

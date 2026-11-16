@@ -90,6 +90,3 @@ mod host_migration_22_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod host_migration_23_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod host_migration_23_tests;

@@ -26,3 +26,8 @@ pub use runner::{SessionRunRequest, SessionRunner, run_task_plan, run_task_plan_
 
 #[cfg(test)]
 mod host_split_5_tests;
+
+#[cfg(test)]
+mod test_host;
+#[cfg(test)]
+mod host_split_6_tests;

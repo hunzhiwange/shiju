@@ -33,7 +33,7 @@ impl SessionRunner for CancellationGatedSessionRunner {
 #[tokio::test]
 async fn task_plan_run_root_cancellation_publishes_cancelled_once() {
     let temp = tempfile::tempdir().expect("tempdir");
-    crate::install_host(&CancellationHost).expect("install cancellation fixture host");
+    crate::test_host::install();
     let runner = CancellationGatedSessionRunner::default();
     let started = Arc::clone(&runner.started);
     let cancellation = CancellationToken::new();
@@ -93,32 +93,3 @@ async fn task_plan_run_root_cancellation_publishes_cancelled_once() {
 }
 
 
-// 只替代宿主端口；取消发生前尚无成功回复，不允许访问回复存储。
-struct CancellationHost;
-
-impl crate::PlanRunHost for CancellationHost {
-    fn recursive_orchestration_policy(&self) -> &'static str { "Cancellation fixture" }
-    fn current_tenant_scope(&self) -> vw_api_transport::id::TenantScope {
-        vw_api_transport::id::TenantScope::new("cancel-fixture", "cancel-fixture").expect("fixture tenant")
-    }
-    fn reserve_pending_session(&self, _tenant: &vw_api_transport::id::TenantScope, info: &session_info::Info) -> anyhow::Result<session_info::Info> {
-        Ok(info.clone())
-    }
-    fn load_agent_session_scoped_for_tenant(&self, _tenant: &vw_api_transport::id::TenantScope, _session_id: &str, _scope: Option<&str>) -> Option<session_info::Info> {
-        panic!("cancelled planning must not load response history")
-    }
-    fn load_session_scoped_for_tenant_fallible(&self, _tenant: &vw_api_transport::id::TenantScope, _id: &str, _scope: Option<&str>) -> anyhow::Result<Option<session_ui_types::ChatSession>> {
-        anyhow::bail!("cancelled planning must not load response history")
-    }
-    fn has_committed_first_response(&self, _tenant: &vw_api_transport::id::TenantScope, _project_id: &str, _session_id: &str) -> anyhow::Result<bool> {
-        anyhow::bail!("cancelled planning must not inspect response commits")
-    }
-    fn commit_first_response(&self, _tenant: &vw_api_transport::id::TenantScope, _project_id: &str, _commit: session_store::FirstResponseCommit<'_>) -> anyhow::Result<bool> {
-        anyhow::bail!("cancelled planning must not commit a response")
-    }
-    fn save_session_ui_scoped_for_tenant(&self, _tenant: &vw_api_transport::id::TenantScope, _session: &session_ui_types::ChatSession, _scope: Option<&str>, _preserve_calls: bool) -> anyhow::Result<std::path::PathBuf> {
-        anyhow::bail!("cancelled planning must not save response history")
-    }
-    fn now_ms(&self) -> u64 { 1 }
-    fn create_slug(&self) -> String { "cancellation-fixture".to_string() }
-}

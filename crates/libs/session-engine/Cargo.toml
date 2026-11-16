@@ -34,6 +34,7 @@ config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }
 serde = { version = "1", features = ["derive"] }
 vw-api-chat-identity = { path = "../api-chat-identity", version = "0.6.0" }
 serde_json = "1"
+regex = "1"
 session-port = { path = "../session-port", version = "0.6.0" }
 tokio = { version = "1", features = ["sync", "time", "macros", "rt-multi-thread"] }
 tokio-util = { version = "0.7", features = ["rt"] }

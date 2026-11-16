@@ -16,14 +16,20 @@
 //! - `loop_text` — 文本响应处理与流式输出测试
 //! - `loop_tools` — 工具调用循环逻辑测试（含嵌套调用场景）
 //! - `run_single` — 单轮代理执行的端到端测试
-//! - `serialization` — 消息与状态序列化/反序列化测试
+//! 消息序列化测试位于 model-types 的集成测试中。
 //! - `tool_dispatcher` — 工具分发与执行路由测试
 
+#[path = "../../../../libs/agent-loop/src/tests/agent_host_suite/helpers.rs"]
 mod helpers;
+#[path = "../../../../libs/agent-loop/src/tests/agent_host_suite/loop_history.rs"]
 mod loop_history;
+#[path = "../../../../libs/agent-loop/src/tests/agent_host_suite/loop_memory.rs"]
 mod loop_memory;
+#[path = "../../../../libs/agent-loop/src/tests/agent_host_suite/loop_text.rs"]
 mod loop_text;
+#[path = "../../../../libs/agent-loop/src/tests/agent_host_suite/loop_tools.rs"]
 mod loop_tools;
+#[path = "../../../../libs/agent-loop/src/tests/agent_host_suite/run_single.rs"]
 mod run_single;
-mod serialization;
+// 消息序列化断言由 model-types/tests/conversation_serialization.rs 注册。
 mod tool_dispatcher;

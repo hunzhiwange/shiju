@@ -31,6 +31,7 @@ pub enum FooterMode {
     ComposerHasDraft,
     Working,
     ShortcutOverlay,
+    HistorySearch,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -99,6 +100,7 @@ fn context_spans(
 
 fn left_line(props: &FooterProps) -> Line<'static> {
     match props.mode {
+        FooterMode::HistorySearch => Line::from("Ctrl+R older · Enter accept · Esc restore"),
         FooterMode::ComposerEmpty => {
             Line::from(vec![key_hint::plain(KeyCode::Char('?')).into(), " shortcuts".into()])
         }
@@ -134,6 +136,9 @@ fn fallback_line(props: &FooterProps, width: u16) -> Line<'static> {
     if left_width <= available {
         return left;
     }
+    if props.mode == FooterMode::HistorySearch {
+        return Line::from("Esc restore");
+    }
     if props.data.is_task_running {
         return Line::from("Esc interrupt");
     }
@@ -143,7 +148,7 @@ fn fallback_line(props: &FooterProps, width: u16) -> Line<'static> {
 pub fn footer_height(props: &FooterProps, width: u16) -> u16 {
     if width < 12 {
         0
-    } else if matches!(props.mode, FooterMode::ShortcutOverlay) {
+    } else if matches!(props.mode, FooterMode::ShortcutOverlay | FooterMode::HistorySearch) {
         2
     } else {
         1

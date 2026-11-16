@@ -12,7 +12,9 @@ use std::ops::Range;
 use std::time::Instant;
 use tui_input::paste_burst::{CharDecision, FlushResult, PasteBurst};
 
-use crate::chat_composer_history::{ChatComposerHistory, HistoryEntry};
+use crate::chat_composer_history::{
+    ChatComposerHistory, HistoryEntry, HistorySearchDirection, HistorySearchResult,
+};
 use crate::footer::{self, FooterMode, FooterProps};
 use crate::footer_state::FooterState;
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
@@ -30,12 +32,19 @@ const LARGE_PASTE_CHAR_THRESHOLD: usize = 1000;
 
 const PROMPT_PREFIX: &str = "› ";
 
+struct HistorySearchSession {
+    original: HistoryEntry,
+    query: String,
+    matched: bool,
+}
+
 /// 一个没有请求发送器或运行时依赖的本地输入编辑器。
 /// A local composer with no request sender or runtime dependency.
 pub struct ChatComposer {
     textarea: TextArea,
     textarea_state: RefCell<TextAreaState>,
     history: ChatComposerHistory,
+    history_search: Option<HistorySearchSession>,
     footer: FooterState,
     footer_data: V3FooterData,
     placeholder: String,
@@ -54,6 +63,7 @@ impl ChatComposer {
             textarea: TextArea::new(),
             textarea_state: RefCell::new(TextAreaState::default()),
             history: ChatComposerHistory::new(),
+            history_search: None,
             footer: FooterState::new(),
             footer_data,
             placeholder,
@@ -86,6 +96,7 @@ impl ChatComposer {
     }
 
     pub fn replace_text(&mut self, text: &str) {
+        self.history_search = None;
         self.history.reset_navigation();
         self.paste_burst.clear_after_explicit_paste();
         self.textarea.set_text_clearing_elements(text);
@@ -99,6 +110,9 @@ impl ChatComposer {
 
     /// Returns the editable file-search query immediately before the cursor.
     pub fn active_file_search_query(&self) -> Option<&str> {
+        if self.history_search.is_some() {
+            return None;
+        }
         let range = self.file_search_token_range()?;
         self.textarea.text().get(range.start + '@'.len_utf8()..range.end)
     }
@@ -180,6 +194,7 @@ impl ChatComposer {
     }
 
     pub fn clear(&mut self) {
+        self.history_search = None;
         self.history.reset_navigation();
         self.paste_burst.clear_after_explicit_paste();
         self.textarea.set_text_clearing_elements("");
@@ -193,7 +208,12 @@ impl ChatComposer {
     pub fn handle_paste(&mut self, pasted: String) -> V3Action {
         self.flush_pending_input();
         self.paste_burst.clear_after_explicit_paste();
-        self.insert_pasted_text(&pasted);
+        if let Some(search) = &mut self.history_search {
+            search.query.push_str(&pasted);
+            self.update_history_search(true);
+        } else {
+            self.insert_pasted_text(&pasted);
+        }
         V3Action::None
     }
 
@@ -294,6 +314,50 @@ impl ChatComposer {
         true
     }
 
+    fn update_history_search(&mut self, restart: bool) {
+        let query = self.history_search.as_ref().unwrap().query.clone();
+        let result = self.history.search(&query, HistorySearchDirection::Older, restart);
+        match result {
+            HistorySearchResult::Found(entry) => {
+                self.restore_history_entry(entry);
+                self.history_search.as_mut().unwrap().matched = true;
+            }
+            HistorySearchResult::NotFound | HistorySearchResult::AtBoundary => {
+                // Keep the last preview and the query even when traversal runs out.
+                self.history_search.as_mut().unwrap().matched = false;
+            }
+        }
+    }
+
+    fn handle_history_search_key(&mut self, event: KeyEvent) -> V3Action {
+        match (event.code, event.modifiers) {
+            (KeyCode::Esc, _) => {
+                let search = self.history_search.take().unwrap();
+                self.restore_history_entry(search.original);
+                self.history.reset_navigation();
+            }
+            (KeyCode::Enter, _) => {
+                self.history_search = None;
+                self.history.reset_navigation();
+            }
+            (KeyCode::Char('r'), KeyModifiers::CONTROL) => self.update_history_search(false),
+            (KeyCode::Backspace, KeyModifiers::NONE) => {
+                self.history_search.as_mut().unwrap().query.pop();
+                self.update_history_search(true);
+            }
+            (KeyCode::Char(ch), modifiers)
+                if !modifiers.intersects(
+                    KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER
+                        | KeyModifiers::HYPER | KeyModifiers::META,
+                ) => {
+                self.history_search.as_mut().unwrap().query.push(ch);
+                self.update_history_search(true);
+            }
+            _ => {}
+        }
+        V3Action::None
+    }
+
     /// 将终端的一个键转换为本地编辑或显式的 V3 操作。
     /// Turn one terminal key into a local edit or an explicit V3 action.
     pub fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
@@ -308,7 +372,29 @@ impl ChatComposer {
 
         self.flush_paste_burst_if_due(now);
 
+        if self.history_search.is_some()
+            && !(event.code == KeyCode::Char('c') && event.modifiers == KeyModifiers::CONTROL)
+        {
+            return self.handle_history_search_key(event);
+        }
+        if event.code == KeyCode::Char('r') && event.modifiers == KeyModifiers::CONTROL {
+            self.flush_pending_input();
+            self.paste_burst.clear_after_explicit_paste();
+            self.history.reset_navigation();
+            self.history_search = Some(HistorySearchSession {
+                original: self.history_entry(),
+                query: String::new(),
+                matched: false,
+            });
+            self.update_history_search(true);
+            return V3Action::None;
+        }
+
         if event.code == KeyCode::Char('c') && event.modifiers.contains(KeyModifiers::CONTROL) {
+            if let Some(search) = self.history_search.take() {
+                self.restore_history_entry(search.original);
+                self.history.reset_navigation();
+            }
             return if self.footer_data.is_task_running {
                 self.flush_pending_input();
                 self.paste_burst.clear_after_explicit_paste();
@@ -453,7 +539,9 @@ impl ChatComposer {
 
     fn footer_props(&self) -> FooterProps {
         FooterProps {
-            mode: if self.footer_data.is_task_running && self.is_empty() {
+            mode: if self.history_search.is_some() {
+                FooterMode::HistorySearch
+            } else if self.footer_data.is_task_running && self.is_empty() {
                 FooterMode::Working
             } else {
                 self.footer.mode()
@@ -503,6 +591,13 @@ impl Renderable for ChatComposer {
             Paragraph::new(Span::from("›").magenta()).render(Rect::new(body.x, body.y, 1, 1), buf);
         }
         footer::render_footer(&self.footer_props(), footer_area, buf);
+        if let Some(search) = &self.history_search {
+            let status = if search.matched { "reverse search" } else { "no further match" };
+            Paragraph::new(format!("  {status}: {}", search.query)).render(
+                Rect::new(footer_area.x, footer_area.y + 1, footer_area.width,
+                    footer_area.height.saturating_sub(1)), buf,
+            );
+        }
     }
 
     fn desired_height(&self, width: u16) -> u16 {
@@ -542,3 +637,7 @@ mod terminal_req_04_tests;
 #[cfg(test)]
 #[path = "terminal_req_05_tests.rs"]
 mod terminal_req_05_tests;
+
+#[cfg(test)]
+#[path = "terminal_req_08_tests.rs"]
+mod terminal_req_08_tests;

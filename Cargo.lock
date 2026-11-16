@@ -18623,6 +18623,7 @@ dependencies = [
 name = "session-engine"
 version = "0.6.0"
 dependencies = [
+ "acp-client",
  "acp-config",
  "acp-types",
  "agent-bus",

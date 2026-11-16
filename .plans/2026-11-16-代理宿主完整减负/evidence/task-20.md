@@ -169,3 +169,24 @@ Unix 预期迁移测试 36 个（其中协议进程用例含 cfg(unix)，其它�
 宿主薄用例按上表各完整模块/函数名使用 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib <模块::函数> -- --exact --test-threads=1`，每条预期1；Rust crate 展示名由未来真实 list 核对（不能把零测试算通过）。宿主原 content_tests/tests 和迁出的 session/controls/request 函数须未来用真实 list 确认消失。
 
 静态验证仅源码、注册及 git diff --check；未运行测试清单或任何编译，不能给出构建耗时结论。
+
+
+## 第二轮深迁移（覆盖上文对应映射与计数）
+
+读取 final.md 与 evidence/remaining-host.json，原任务20残留1082行。此次把默认技能/MCP策略整条用例迁入 session-engine 的 host_migration_20_tests::skills::acp_skill_mount_outbound_defaults_preserve_rules_without_body。保留原全部断言、真实技能文件和 Python JSON-RPC 协议错误进程。任务本次未执行进程。任务局部 RefCell 仅提供已解析 MCP 端口数据；真实目录发现、禁用标记、自动授权、挂载和默认值合并仍调用已有领域实现。MCP启用/禁用注入端口不再依赖全局配置变更；真实配置加载由原有 mcp_common 测试负责，不能以此用例替代配置加载验收。
+
+配置 full_access 的 true/false、fixed deny、live deny、selective deny 矩阵移入 session-engine::host_migration_20_tests::defaults::agent_config_cleanup_full_access_acp_preserves_false_and_deny。宿主同名测试仅保留写入真实配置后对 deny/selective deny 的端口接线断言。DefaultsHost 固定 allow 权限上限、空偏好与插件清单；不复制权限算法、不宣称这些输入替代真实宿主权限验收。acp-config 用显式临时路径构造空配置，task-local scope 隔离能力清单，无进程环境修改。
+
+以下三条完整函数及断言迁入 llm-runtime::acp::host_migration_20_tests::routing（原宿主挂载删除）：
+- stream_request_reports_abort_before_config_lookup
+- agent_model_inheritance_rejects_missing_credentials_before_launch
+- acp_model_source_routing_local_reaches_command_lookup_without_client_credentials
+
+CacheHost 现在为前置请求提供无工具上下文、无 worktree/fork、空配置和真实隔离数据库 selection store；模型来源解析调用真实 prompt::acp_model_source。未使用的后续端口仍显式 panic，提前 launch/额外调用会暴露失败，未复制请求算法。
+
+保留 request_tests 的 local_blank_anchor（真实项目配置/恢复请求/持久锚点集成）和 unverified_driver（真实项目配置/驱动阻断/密钥不泄漏集成）；它们及其模型/Provider fixture 是剩余请求测试的真实边界。未把这些端到端边界改成模拟端口。
+
+未来新增 session-engine 命令：`python3 scripts/cargo_slot.py cargo test -p session-engine --lib host_migration_20_tests -- --test-threads=1`，预期2条。
+llm-runtime 既有同过滤命令新增3条，迁移族预期39条（Unix）；均未运行。宿主真实 list 待未来授权后确认上述3条和skills用例消失。新增测试 dev 依赖 acp-client 与 lock 声明；无生产接口新增或算法迁移收益。
+
+第二轮宿主剩余 786 行，较原2096行净减 1310 行（62.5%），本轮较1082行净减 296。仍不足70%，按上文真实集成边界逐项保留供收口审查。静态 diff --check 已核对，所有编译/行为/测试继续未运行。

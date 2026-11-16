@@ -13,13 +13,19 @@ impl Host for CacheHost {
     type TurnContext = ();
     type Approval<'a> = ();
     fn tenant() -> vw_api_transport::TenantScope { vw_api_transport::TenantScope::default() }
-    fn tool_context() -> Option<Self::TurnContext> { unimplemented!("unused host port in cache fixture") }
+    fn tool_context() -> Option<Self::TurnContext> { None }
     fn desktop_context(context: &Self::TurnContext) -> Option<DesktopContext> { unimplemented!("unused host port in cache fixture") }
-    fn worktree_lease(cwd: &Path) -> anyhow::Result<Option<Arc<std::fs::File>>> { unimplemented!("unused host port in cache fixture") }
-    fn open_selection(session: &str, cwd: &str) -> anyhow::Result<runtime::lifecycle::Store> { unimplemented!("unused host port in cache fixture") }
-    fn fork_replay<'a>(session: &'a str, cwd: &'a str) -> HostFuture<'a, anyhow::Result<Option<runtime::fork_replay::ForkReplay>>> { unimplemented!("unused host port in cache fixture") }
-    fn model_source(options: &serde_json::Value) -> Result<vw_api_acp_model::acp_model_source::AcpModelSource, String> { unimplemented!("unused host port in cache fixture") }
-    fn config() -> HostFuture<'static, anyhow::Result<Config>> { unimplemented!("unused host port in cache fixture") }
+    fn worktree_lease(cwd: &Path) -> anyhow::Result<Option<Arc<std::fs::File>>> { Ok(None) }
+    fn open_selection(session: &str, cwd: &str) -> anyhow::Result<runtime::lifecycle::Store> {
+        static ROOT: std::sync::OnceLock<tempfile::TempDir> = std::sync::OnceLock::new();
+        let root = ROOT.get_or_init(|| tempfile::tempdir().unwrap());
+        let database = agent_database::global_database::GlobalDatabase::for_home(root.path())?;
+        let store = app_settings_store::settings_store::GatewaySettingsStore::new(database)?;
+        Ok(runtime::lifecycle::Store::open(store, Self::tenant(), session, cwd))
+    }
+    fn fork_replay<'a>(session: &'a str, cwd: &'a str) -> HostFuture<'a, anyhow::Result<Option<runtime::fork_replay::ForkReplay>>> { Box::pin(async { Ok(None) }) }
+    fn model_source(options: &serde_json::Value) -> Result<vw_api_acp_model::acp_model_source::AcpModelSource, String> { crate::prompt::acp_model_source(options) }
+    fn config() -> HostFuture<'static, anyhow::Result<Config>> { Box::pin(async { Ok(Config::default()) }) }
     fn project_id() -> Option<String> { unimplemented!("unused host port in cache fixture") }
     fn bind_agent<'a>(session: &'a str, cfg: &'a mut Config) -> HostFuture<'a, anyhow::Result<()>> { unimplemented!("unused host port in cache fixture") }
     fn agent_defaults<'a>(cfg: &'a Config, options: &'a serde_json::Value, agent: &'a str, cwd: &'a Path, parsed: &'a mut options::ParsedAcpOptions<Self::Skills>, messages: &'a serde_json::Value) -> HostFuture<'a, Result<serde_json::Value, Error>> { unimplemented!("unused host port in cache fixture") }
@@ -41,3 +47,4 @@ mod contracts;
 mod content;
 mod session;
 mod request;
+mod routing;

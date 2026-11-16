@@ -203,3 +203,7 @@ ACP source两个场景主体归入acp_source_acceptance，由宿主传入原三�
 archived_delete_tests.rs 254→31行；静态断言宏数量 26→26。该文件旧整文件保留理由被本节替代。未运行测试、编译或Cargo。
 
 相邻静态修复：提交前发现并行已提交的gateway-session清单把依赖插入serde_json和target表头中间（serde_jsonparking_lot / cfllm-runtime片段），本轮恢复完整表头及原依赖，保留已提交的llm-runtime/parking_lot测试依赖；没有执行Cargo解析。
+
+第三轮提交后静态快照（splitlines，14来源原基线4200）：当前1454行，累计净减2746行。逐文件当前数：acp_options=44, acp_source_tests=20, agent_profile_acceptance_tests=67, archived_delete=7, archived_delete_tests=31, fork_acceptance_tests=506, fork_acp_tests=288, message_ops=72, message_ops_tests=10, raw_commit=2, session_ops=174, session_ops_tests=138, shared=26, shared_tests=69。未达到70%时仍按保留项审查，不宣称整轮达标。
+
+明确继续可迁项：fork_acceptance_tests.rs的Branch/Prefix及assert_continuation/native_model_history/seed_checkpoints等仍在原源，其读端点、模型运输和worktree恢复已是具体组合，可再通过现有SessionHost/StreamHost与Router注入拆分；fork_acp_tests.rs仍由任务11的turn_fork_tests父模块提供fork/send/create_session_in上下文，目前父夹具正在并行下沉fork_acceptance，继续迁移必须对齐其实际新签名，不能复制旧父夹具或伪造接线。本轮已闭合profile/acp_source/archive三族，未把这两项写成已完成迁移。

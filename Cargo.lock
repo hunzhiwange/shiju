@@ -10712,6 +10712,10 @@ dependencies = [
 name = "gateway-session"
 version = "0.6.0"
 dependencies = [
+ "agent-config",
+ "agent-env",
+ "async-trait",
+ "model-types",
  "agent-database",
  "agent-gateway",
  "agent-installation",

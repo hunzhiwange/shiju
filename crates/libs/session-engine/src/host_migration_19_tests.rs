@@ -162,3 +162,6 @@ fn agcollab_delivery_unknown_session_has_no_team_data() {
 mod storage;
 #[cfg(not(target_arch = "wasm32"))]
 mod persistence;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod access;

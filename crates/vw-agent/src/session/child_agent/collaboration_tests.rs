@@ -9,21 +9,9 @@ use tokio::sync::Barrier;
 async fn agcollab_end_to_end_team_workflow() {
     let workspace = tempfile::tempdir().unwrap();
     let directory = workspace.path().to_string_lossy().to_string();
-    let path = directory.clone();
-    let parent = crate::project::instance::provide(directory.clone(), None, move || {
-        Box::pin(async move {
-            crate::session::session::create_next(crate::session::session::CreateInput {
-                parent_id: None,
-                title: None,
-                directory: path,
-                permission: None,
-            })
-            .await
-        })
-    })
-    .await
-    .unwrap()
-    .unwrap();
+    let parent = gateway_session::child_acceptance::create_collaboration_parent::<
+        crate::session::session_io::NativeSessionIo,
+    >(directory.clone()).await;
     crate::project::instance::provide(directory.clone(), None, move || Box::pin(async move {
     let coordinator = ChildAgentCoordinator::new(128);
     let barrier = Arc::new(Barrier::new(3));
@@ -164,21 +152,9 @@ async fn agcollab_end_to_end_team_workflow() {
 async fn agcollab_end_to_end_cancel_and_budget() {
     let workspace = tempfile::tempdir().unwrap();
     let directory = workspace.path().to_string_lossy().to_string();
-    let path = directory.clone();
-    let parent = crate::project::instance::provide(directory.clone(), None, move || {
-        Box::pin(async move {
-            crate::session::session::create_next(crate::session::session::CreateInput {
-                parent_id: None,
-                title: None,
-                directory: path,
-                permission: None,
-            })
-            .await
-        })
-    })
-    .await
-    .unwrap()
-    .unwrap();
+    let parent = gateway_session::child_acceptance::create_collaboration_parent::<
+        crate::session::session_io::NativeSessionIo,
+    >(directory.clone()).await;
     let coordinator = ChildAgentCoordinator::new(128);
     let make_tool = |owner: String| {
         AgentTool::new(

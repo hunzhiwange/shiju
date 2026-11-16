@@ -4,7 +4,7 @@ use std::{future::Future, path::Path};
 use vw_api_transport::TenantScope;
 
 use gateway_session::stream_host::{PromptInput, StreamHost};
-pub(super) struct Host;
+pub(crate) struct Host;
 impl gateway_session::message_host::MessageHost for Host {
     fn current_tenant_scope() -> TenantScope {
         crate::session::ui_store::current_tenant_scope()

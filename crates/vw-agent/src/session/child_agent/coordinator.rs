@@ -40,8 +40,8 @@ impl ChildAgentCoordinator {
 
     pub(crate) async fn send_team_message(&self, context: &ToolUseContext, target: &str, turn: u64,
         kind: mailbox::TeamMessageKind, payload: String) -> Result<mailbox::TeamMessage> {
-        self.authorize_mail(context, target).await?;
-        self.0.enqueue_mail(context.session(), target, turn, kind, payload)
+        session_engine::child_agent_access::send_team_message::<crate::session::session_io::NativeSessionIo, _>(
+            &self.0, context, target, turn, kind, payload).await
     }
 
     pub(crate) async fn wait_team_activity(&self, context: &ToolUseContext, timeout: Duration,
@@ -51,8 +51,7 @@ impl ChildAgentCoordinator {
     }
 
     pub(crate) async fn consume_team_messages(&self, context: &ToolUseContext) -> Result<Vec<mailbox::TeamMessage>> {
-        self.authorize_mail(context, context.session()).await?;
-        self.0.take_mail(context.session())
+        session_engine::child_agent_access::consume_team_messages::<crate::session::session_io::NativeSessionIo, _>(&self.0, context).await
     }
 }
 

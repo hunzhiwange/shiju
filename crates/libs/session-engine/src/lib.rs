@@ -30,6 +30,7 @@ pub mod message;
 pub mod llm_stream;
 pub mod llm_runner;
 pub mod processor_clock;
+pub mod processor_docs;
 pub mod artifacts;
 pub mod helpers;
 pub mod planning;
@@ -47,6 +48,8 @@ pub mod runner_todo_updates;
 pub mod turn_policy;
 pub mod tools_exec;
 pub mod tool_output;
+#[cfg(test)]
+mod utils_tests;
 pub mod tool_file_links;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native_call_collector;

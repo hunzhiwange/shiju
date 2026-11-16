@@ -110,3 +110,7 @@ pub fn ingest_user_query<H: RunnerHost>(
         push_user_dedup(session, content);
     }
 }
+
+#[cfg(test)]
+#[path = "session_ingest_domain_tests.rs"]
+mod session_ingest_domain_tests;

@@ -45,3 +45,7 @@ pub fn assistant_message_with_reasoning(content: &str, reasoning_content: &str) 
         "reasoning_content": reasoning_content
     })
 }
+
+#[cfg(test)]
+#[path = "message_format_tests.rs"]
+mod message_format_tests;

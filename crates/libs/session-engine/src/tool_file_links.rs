@@ -165,3 +165,7 @@ pub fn build_file_link<H: RuntimeHost>(ctx: &ToolRuntimeContext<H>, p: &str) -> 
         bytes
     ))
 }
+
+#[cfg(test)]
+#[path = "file_links_domain_tests.rs"]
+mod file_links_domain_tests;

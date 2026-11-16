@@ -30,6 +30,4 @@ pub(crate) use tool_parsing::{
     is_valid_tool_name, parse_tool_at, query_has_any_tool_calls,
     query_has_any_tool_calls_with_allowed,
 };
-#[cfg(test)]
-#[path = "utils_tests.rs"]
-mod utils_tests;
+// 纯工具测试随实现归属 session-engine。

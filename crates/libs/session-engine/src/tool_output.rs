@@ -356,3 +356,7 @@ pub fn rewrite_todowrite_completed_when_no_work(input: &str) -> String {
     }
     serde_json::to_string(&v).unwrap_or_else(|_| input.to_string())
 }
+
+#[cfg(test)]
+#[path = "output_compaction_tests.rs"]
+mod output_compaction_tests;

@@ -23,44 +23,6 @@ fn ctx(session: &str, root: Option<String>) -> ToolRuntimeContext {
 }
 
 #[test]
-fn push_user_dedup_skips_empty_and_duplicate_trailing_user_message() {
-    let mut session = Session::new(unique_session("ingest-dedup"));
-
-    super::push_user_dedup(&mut session, "   ".to_string());
-    assert!(session.messages.is_empty());
-
-    super::push_user_dedup(&mut session, "hello".to_string());
-    super::push_user_dedup(&mut session, " hello ".to_string());
-
-    assert_eq!(session.messages.len(), 1);
-    assert_eq!(session.messages[0].role, Role::User);
-    assert_eq!(session.messages[0].content, "hello");
-}
-
-#[test]
-fn push_user_dedup_allows_same_text_after_non_user_message() {
-    let mut session = Session::new(unique_session("ingest-dedup-after-tool"));
-
-    super::push_user_dedup(&mut session, "hello".to_string());
-    session.push(Role::Tool, "tool output".to_string());
-    super::push_user_dedup(&mut session, "hello".to_string());
-
-    assert_eq!(session.messages.len(), 3);
-    assert_eq!(session.messages[2].role, Role::User);
-}
-
-#[test]
-fn push_user_dedup_preserves_original_nonempty_content() {
-    let mut session = Session::new(unique_session("ingest-preserve-user-content"));
-
-    super::push_user_dedup(&mut session, "  hello\n".to_string());
-
-    assert_eq!(session.messages.len(), 1);
-    assert_eq!(session.messages[0].role, Role::User);
-    assert_eq!(session.messages[0].content, "  hello\n");
-}
-
-#[test]
 fn ingest_user_query_ignores_whitespace_only_input() {
     let session_id = unique_session("ingest-user-whitespace");
     let mut session = Session::new(session_id.clone());

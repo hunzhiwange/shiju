@@ -1,7 +1,7 @@
 //! 验证会话消息与工具调用结果的格式转换及内容保留契约。
 //! 参数和结果内容按不透明文本处理，JSON 外形与空字符串都不得被悄然改写。
 
-use crate::app::agent::session::llm;
+use model_types as llm;
 
 #[test]
 fn now_ms_is_close_to_system_time() {

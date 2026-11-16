@@ -267,6 +267,10 @@ use std::sync::Arc;
 mod mcp_tool_tests;
 
 #[cfg(test)]
+#[path = "tests/mcp_discovery_tests.rs"]
+mod mcp_discovery_tests;
+
+#[cfg(test)]
 #[path = "tests/mod_tests.rs"]
 mod tests;
 #[cfg(test)]

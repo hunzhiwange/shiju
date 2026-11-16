@@ -34,6 +34,7 @@ impl ActiveRunner {
             title_request_id: None,
             workflow_run: None,
             transcript_pager: None,
+            native_copy_requested: false,
             session_bootstrap_in_flight: false,
             directory_switch_generation: 0,
             directory_switch_source: None,
@@ -134,7 +135,7 @@ impl ActiveRunner {
     }
 
     pub(super) fn start_next_queued_prompt(&mut self, app: &mut V3GatewayApp) {
-        if self.active_stream.is_some() {
+        if self.active_stream.is_some() || self.native_copy_requested {
             return;
         }
         let Some((text, attachments)) = app.widget_mut().pop_queued_input() else {

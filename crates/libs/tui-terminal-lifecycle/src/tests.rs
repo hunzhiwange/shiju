@@ -109,3 +109,46 @@ fn terminal_drop_restores_state_during_panic() {
         }
     );
 }
+
+#[test]
+fn workflow_req_06_selection_restores_screen_and_mouse_after_success_or_error() {
+    for mode in [TerminalMode::Inline, TerminalMode::Alternate] {
+        for fail in [false, true] {
+            let control = FakeControl::default();
+            let observed = control.0.clone();
+            *observed.borrow_mut() = State {
+                raw: true, paste: true, mouse: true, cursor_hidden: true,
+                alternate: mode == TerminalMode::Alternate,
+                ..State::default()
+            };
+            let result = with_selection_control(control, mode, || {
+                let state = observed.borrow();
+                assert!(!state.mouse);
+                assert!(state.raw && state.paste && state.cursor_hidden && state.alternate);
+                if fail { Err(io::Error::other("static output failed")) } else { Ok(()) }
+            });
+            assert_eq!(result.is_err(), fail);
+            let state = observed.borrow();
+            assert!(state.mouse && state.raw && state.paste && state.cursor_hidden);
+            assert_eq!(state.alternate, mode == TerminalMode::Alternate);
+            assert_eq!(state.restores, if mode == TerminalMode::Inline {
+                vec!["mouse", "screen"]
+            } else { vec!["mouse"] });
+        }
+    }
+}
+
+#[test]
+fn workflow_req_06_selection_restores_after_panic() {
+    let control = FakeControl::default();
+    let observed = control.0.clone();
+    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _ = with_selection_control(control, TerminalMode::Inline, || -> io::Result<()> {
+            panic!("static view interrupted");
+        });
+    }));
+    let state = observed.borrow();
+    assert!(state.mouse);
+    assert!(!state.alternate);
+    assert_eq!(state.restores, vec!["mouse", "screen"]);
+}

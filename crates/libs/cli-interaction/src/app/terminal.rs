@@ -83,7 +83,7 @@ pub(crate) fn apply_ready_terminal_events(
             }
         }
 
-        if outcome.processed == TERMINAL_EVENT_BUDGET {
+        if runner.native_copy_requested || outcome.processed == TERMINAL_EVENT_BUDGET {
             break;
         }
         next_event = read_ready()?;
@@ -129,6 +129,14 @@ pub(super) fn run_event_loop(mut app: V3GatewayApp) -> io::Result<()> {
             if outcome.quit {
                 return Ok(());
             }
+        }
+
+        if runner.native_copy_requested {
+            let result = super::native_copy::run(&mut app, &mut runner);
+            runner.native_copy_requested = false;
+            result?;
+            // The static view wrote outside the diff renderer. Invalidate its cache.
+            terminal.clear()?;
         }
 
         if !runner.has_transcript_pager() && !runner.editor_in_flight() {

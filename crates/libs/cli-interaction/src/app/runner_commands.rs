@@ -143,6 +143,10 @@ impl ActiveRunner {
                     }
                     RunnerControl::Continue
                 }
+                CommandRoute::NativeCopy => {
+                    self.native_copy_requested = true;
+                    RunnerControl::Continue
+                }
                 CommandRoute::Help => {
                     app.widget_mut().push_history(V3DisplayEvent::System { text: help_text() });
                     RunnerControl::Continue

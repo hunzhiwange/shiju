@@ -208,6 +208,68 @@ pub fn run_terminal<T>(
     run_with_control(CrosstermControl::new(std::io::stdout()), mode, operation)
 }
 
+/// Temporarily releases mouse ownership for a static, native-selectable view.
+/// Raw mode and bracketed paste stay enabled so all keys/pastes remain isolated
+/// from the composer. Inline mode uses an alternate screen to retain scrollback.
+/// The caller must stop dynamic rendering until the operation returns.
+pub fn with_native_selection<T>(
+    mode: TerminalMode,
+    operation: impl FnOnce() -> io::Result<T>,
+) -> io::Result<T> {
+    with_selection_control(CrosstermControl::new(std::io::stdout()), mode, operation)
+}
+
+fn with_selection_control<C: TerminalControl, T>(
+    control: C,
+    mode: TerminalMode,
+    operation: impl FnOnce() -> io::Result<T>,
+) -> io::Result<T> {
+    let mut selection = NativeSelection {
+        control,
+        alternate: mode == TerminalMode::Inline,
+        restored: false,
+    };
+    // Arm cleanup before attempting control writes: an I/O failure can occur
+    // after the terminal has already consumed part of a command sequence.
+    selection.control.disable_mouse_capture()?;
+    if selection.alternate {
+        selection.control.enter_alternate_screen()?;
+    }
+    let result = operation();
+    let restore = selection.restore();
+    match result {
+        Err(error) => Err(error),
+        Ok(value) => restore.map(|()| value),
+    }
+}
+
+struct NativeSelection<C: TerminalControl> {
+    control: C,
+    alternate: bool,
+    restored: bool,
+}
+
+impl<C: TerminalControl> NativeSelection<C> {
+    fn restore(&mut self) -> io::Result<()> {
+        if self.restored {
+            return Ok(());
+        }
+        let mut error = None;
+        if self.alternate {
+            record_restore_result(&mut error, self.control.leave_alternate_screen());
+        }
+        record_restore_result(&mut error, self.control.enable_mouse_capture());
+        self.restored = true;
+        error.map_or(Ok(()), Err)
+    }
+}
+
+impl<C: TerminalControl> Drop for NativeSelection<C> {
+    fn drop(&mut self) {
+        let _ = self.restore();
+    }
+}
+
 /// Concrete custom terminal used by the CLI host once v3 becomes the default entry.
 /// v3 成为默认入口后由 CLI 宿主使用的具体自定义终端类型。
 pub type Terminal = tui_terminal::Terminal<ratatui::backend::CrosstermBackend<Stdout>>;

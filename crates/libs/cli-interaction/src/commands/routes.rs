@@ -46,6 +46,7 @@ pub(super) fn route_slash_command(command_id: &str, arguments: &str) -> Result<C
         });
     }
     match command_id {
+        "raw" if !arguments.is_empty() => Err("/raw 不接受参数".to_string()),
         "export" => Ok(CommandRoute::ExportSession { path: if arguments.is_empty() { String::new() } else { normalize_workspace_relative_path(arguments)? } }),
         "copy" => {
             if arguments.is_empty() {

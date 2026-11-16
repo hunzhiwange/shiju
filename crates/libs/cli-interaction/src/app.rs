@@ -257,6 +257,7 @@ pub(crate) struct ActiveRunner {
     title_request_id: Option<String>,
     workflow_run: Option<WorkflowRunOwnership>,
     transcript_pager: Option<TranscriptPager>,
+    native_copy_requested: bool,
     session_bootstrap_in_flight: bool,
     directory_switch_generation: u64,
     directory_switch_source: Option<PathBuf>,
@@ -330,6 +331,7 @@ mod view;
 pub(crate) mod semantic_copy;
 mod startup;
 mod terminal;
+pub(crate) mod native_copy;
 mod workers;
 mod request_ids;
 

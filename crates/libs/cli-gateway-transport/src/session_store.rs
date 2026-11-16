@@ -191,7 +191,15 @@ impl GatewayUiRuntime {
     pub fn session_resume_candidates_blocking(
         &self,
     ) -> Result<Vec<ChatSessionMeta>, String> {
-        block_on_gateway(self.session_resume_candidates())
+        // 整个目录列表读取共用时限，避免取消 UI 后后台 worker 无限存活。
+        block_on_gateway(async {
+            tokio::time::timeout(
+                std::time::Duration::from_secs(30),
+                self.session_resume_candidates(),
+            )
+            .await
+            .map_err(|_| "session resume catalog timed out after 30 seconds".to_string())?
+        })
     }
 
     /// 重命名当前绑定会话；响应 ID 必须仍指向当前会话。

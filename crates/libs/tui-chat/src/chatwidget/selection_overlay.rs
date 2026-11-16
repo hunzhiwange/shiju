@@ -13,6 +13,7 @@ use ratatui::layout::Rect;
 
 pub(super) struct SelectionOverlay {
     view: ListSelectionView,
+    pub(super) surface: String,
 }
 
 impl SelectionOverlay {
@@ -21,9 +22,11 @@ impl SelectionOverlay {
         title: impl Into<String>,
         items: Vec<V3SelectionItem>,
     ) -> Self {
+        let surface = surface.into();
         Self {
+            surface: surface.clone(),
             view: ListSelectionView::new(SelectionViewParams {
-                surface: surface.into(),
+                surface,
                 title: Some(title.into()),
                 items: items.into_iter().map(SelectionItem::from_v3).collect(),
                 is_searchable: true,

@@ -128,6 +128,12 @@ struct ActiveHookMutation {
 pub(crate) type EditorAction = dyn Fn(&str) -> Result<Option<String>, String> + Send + Sync;
 
 enum HostMessage {
+    SessionCandidatesFinished {
+        generation: u64,
+        directory: PathBuf,
+        session_id: Option<String>,
+        result: Result<Vec<ChatSessionMeta>, String>,
+    },
     SessionTitleLoaded {
         directory: PathBuf,
         session_id: String,
@@ -259,6 +265,8 @@ pub(crate) struct ActiveRunner {
     file_search_generation: u64,
     file_search_query: Option<String>,
     session_diff_generation: u64,
+    session_picker_generation: u64,
+    session_picker_in_flight: Option<u64>,
     doctor_generation: u64,
     cron_generation: u64,
     task_detail_generation: u64,

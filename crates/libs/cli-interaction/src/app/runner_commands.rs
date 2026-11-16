@@ -223,7 +223,8 @@ impl ActiveRunner {
                 }
                 CommandRoute::Exit => RunnerControl::Quit,
                 CommandRoute::OpenSessionPicker => {
-                    self.execute_session_operation(app, |app| app.open_session_picker())
+                    self.open_session_picker(app);
+                    RunnerControl::Continue
                 }
                 CommandRoute::ContinueSession => {
                     self.execute_session_operation(app, |app| app.resume_latest_session())

@@ -186,6 +186,30 @@ impl ActiveRunner {
                         ),
                     }
                 }
+                Ok(HostMessage::SessionCandidatesFinished { generation, directory, session_id, result }) => {
+                    if self.session_picker_in_flight == Some(generation) {
+                        self.session_picker_in_flight = None;
+                    }
+                    if generation != self.session_picker_generation
+                        || directory.as_path() != app.runtime().directory()
+                        || session_id.as_deref() != app.runtime().session_id()
+                        || app.widget().selection_surface()
+                            != Some(super::sessions::session_picker_loading_surface(generation).as_str())
+                    {
+                        continue;
+                    }
+                    match result {
+                        Ok(candidates) => {
+                            let empty = candidates.is_empty();
+                            app.widget_mut().show_selection_overlay(
+                                super::SESSION_RESUME_SURFACE,
+                                if empty { "恢复会话 · 没有可恢复的会话（Esc 关闭）" } else { "恢复会话 · 输入关键词搜索" },
+                                super::session_resume_items(&candidates),
+                            );
+                        }
+                        Err(error) => super::sessions::show_session_picker_retry(app, &error),
+                    }
+                }
                 Ok(HostMessage::SessionDiffFinished { generation, session_id, result }) => {
                     if generation != self.session_diff_generation
                         || session_id.as_deref() != app.runtime().session_id()
@@ -463,3 +487,7 @@ impl ActiveRunner {
         true
     }
 }
+
+#[cfg(test)]
+#[path = "../workflow_req_05_tests.rs"]
+mod workflow_req_05_tests;

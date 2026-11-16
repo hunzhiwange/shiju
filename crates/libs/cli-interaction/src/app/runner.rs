@@ -42,6 +42,8 @@ impl ActiveRunner {
             file_search_generation: 0,
             file_search_query: None,
             session_diff_generation: 0,
+            session_picker_generation: 0,
+            session_picker_in_flight: None,
             doctor_generation: 0,
             cron_generation: 0,
             task_detail_generation: 0,

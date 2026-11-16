@@ -472,3 +472,19 @@ pub(super) fn spawn_workflow_resume(
         let _ = sender.send(HostMessage::WorkflowResumeFinished { pause_request_id, result });
     });
 }
+
+/// 只捕获独立 runtime 快照；每个 runner 至多有一个列表请求在途。
+pub(super) fn spawn_session_candidates(
+    runtime: GatewayUiRuntime,
+    generation: u64,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let directory = runtime.directory().to_path_buf();
+        let session_id = runtime.session_id().map(str::to_string);
+        let result = runtime.session_resume_candidates_blocking();
+        let _ = sender.send(HostMessage::SessionCandidatesFinished {
+            generation, directory, session_id, result,
+        });
+    });
+}

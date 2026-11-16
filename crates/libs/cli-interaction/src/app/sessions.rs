@@ -8,7 +8,6 @@ use super::{
     GatewayV3Bridge,
     Result,
     RunnerControl,
-    SESSION_RESUME_SURFACE,
     SystemTime,
     TranscriptReflowState,
     TuiAction,
@@ -23,7 +22,6 @@ use super::{
     build_session_widget,
     initial_tui_state,
     reduce_tui_state,
-    session_resume_items,
 };
 
 impl V3GatewayApp {
@@ -42,20 +40,6 @@ impl V3GatewayApp {
         snapshot.updated_ms = updated_ms;
         self.runtime.session_ui_save_blocking(&snapshot)?;
         reduce_tui_state(&mut self.state, TuiAction::SessionUpdatedMsSet(updated_ms));
-        Ok(())
-    }
-
-    /// 加载非归档会话并打开可搜索选择层。
-    pub(crate) fn open_session_picker(&mut self) -> Result<(), String> {
-        let candidates = self.runtime.session_resume_candidates_blocking()?;
-        if candidates.is_empty() {
-            return Err("no non-archived sessions are available to resume".to_string());
-        }
-        self.widget.show_selection_overlay(
-            SESSION_RESUME_SURFACE,
-            "恢复会话",
-            session_resume_items(candidates.as_slice()),
-        );
         Ok(())
     }
 
@@ -422,3 +406,54 @@ fn session_message_items(state: &TuiState) -> Vec<V3SelectionItem> {
 #[cfg(test)]
 #[path = "../workflow_req_04_tests.rs"]
 mod workflow_req_04_tests;
+
+impl super::ActiveRunner {
+    /// 每次打开使用独立 surface，关闭后的旧响应不能重新打开列表。
+    pub(super) fn open_session_picker(&mut self, app: &mut V3GatewayApp) {
+        if self.hook_mutation.is_some()
+            || self.session_bootstrap_in_flight
+            || self.directory_switch_source.is_some()
+            || self.active_stream.is_some()
+            || app.widget().queued_input_count() > 0
+        {
+            super::push_runner_error(app, "会话操作仍在进行，请稍后重试恢复列表");
+            return;
+        }
+        self.session_picker_generation = self.session_picker_generation.wrapping_add(1);
+        if self.session_picker_in_flight.is_some() {
+            show_session_picker_retry(app, "上一次会话列表请求仍在结束，请稍后重试");
+            return;
+        }
+        let generation = self.session_picker_generation;
+        app.widget_mut().show_selection_overlay(
+            session_picker_loading_surface(generation),
+            "恢复会话 · 正在加载（Esc 取消）",
+            vec![V3SelectionItem {
+                label: "正在从 Gateway 加载会话…".to_string(),
+                disabled: true,
+                ..Default::default()
+            }],
+        );
+        self.session_picker_in_flight = Some(generation);
+        super::workers::spawn_session_candidates(
+            app.runtime().clone(), generation, self.host_sender.clone(),
+        );
+    }
+}
+
+pub(super) fn session_picker_loading_surface(generation: u64) -> String {
+    format!("session_resume_loading:{generation}")
+}
+
+pub(super) fn show_session_picker_retry(app: &mut V3GatewayApp, message: &str) {
+    app.widget_mut().show_selection_overlay(
+        "session_resume_retry",
+        "恢复会话 · 加载失败",
+        vec![V3SelectionItem {
+            id: "retry".to_string(),
+            label: "重试加载会话".to_string(),
+            description: Some(message.to_string()),
+            ..Default::default()
+        }],
+    );
+}

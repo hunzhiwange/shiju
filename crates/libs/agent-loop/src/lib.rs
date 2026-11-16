@@ -23,3 +23,10 @@ pub mod execution;
 pub mod history;
 pub mod instructions;
 pub mod parsing;
+
+pub mod progress;
+pub mod query_engine;
+pub mod query_engine_host;
+pub mod runner;
+
+extern crate self as agent_loop;

@@ -2,6 +2,7 @@
 //! 脚本化供应商、可控记忆和记录观察器共同验证失败回滚及用量饱和计算。
 
 use super::*;
+type QueryEngine = super::QueryEngine<crate::agent::loop_::core::skills::NativeCoreSkillHost>;
 
 use crate::app::agent::config::Config;
 use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry};

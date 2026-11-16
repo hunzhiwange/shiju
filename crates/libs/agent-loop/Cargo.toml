@@ -11,6 +11,7 @@ doctest = false
 test-support = ["dep:tempfile"]
 
 [dependencies]
+channel-support = { path = "../channel-support", version = "0.6.0" }
 vw-api-tools = { path = "../api-tools", version = "0.6.0" }
 plugin-hooks = { path = "../plugin-hooks", version = "0.6.0" }
 session-port = { path = "../session-port", version = "0.6.0" }

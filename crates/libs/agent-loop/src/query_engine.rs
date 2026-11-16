@@ -1,0 +1,622 @@
+// 会话级查询引擎。
+//
+// 该模块参考 Claude Code 的 QueryEngine 分层，将“运行时装配”和“多轮消息提交”
+// 从 `runner` 中拆开：
+// - `QueryEngine::new` 负责一次性组装 provider、工具、记忆、系统提示
+// - `QueryEngine::submit_message` 负责向既有历史追加用户消息并执行单轮工具循环
+//
+// 这样可以在不改动底层 `core` 工具循环语义的前提下，为后续接入历史压缩、预算、
+// 任务编排和会话持久化提供稳定挂点。
+
+use agent_config::runtime::Config;
+use agent_memory::Memory;
+use agent_observability::{Observer, ObserverEvent};
+use model_types::{ChatMessage, Provider};
+
+use tool_types::Tool;
+use agent_observability::traits::ObserverMetric;
+use session_port::ui_types as ui_models;
+use anyhow::Result;
+use chrono_tz::Tz;
+use std::any::Any;
+use std::sync::{Arc, Mutex};
+use config_agent::merged_agent_configs;
+
+use agent_loop::context::build_context;
+
+use agent_loop::instructions::build_shell_policy_instructions;
+
+/// 会话级查询引擎。
+///
+/// 该结构体持有一轮会话内可复用的运行时依赖，并维护消息历史，
+/// 以便调用方按 Claude Code 的方式持续提交多条用户消息。
+#[derive(Debug, Clone, Default)]
+pub struct QueryEngineUsage {
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+    pub cached_tokens: i64,
+    pub reasoning_tokens: i64,
+    pub llm_calls: usize,
+}
+
+impl QueryEngineUsage {
+    pub fn total_tokens(&self) -> i64 {
+        self.input_tokens.saturating_add(self.output_tokens).saturating_add(self.cached_tokens)
+    }
+
+    pub fn as_ui_token_usage(&self) -> ui_models::TokenUsage {
+        ui_models::TokenUsage {
+            input_tokens: self.input_tokens,
+            output_tokens: self.output_tokens,
+            cached_tokens: self.cached_tokens,
+            reasoning_tokens: self.reasoning_tokens,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct QueryEngineBudgetSnapshot {
+    pub max_iterations: usize,
+    pub max_history_messages: usize,
+    pub non_system_messages: usize,
+    pub remaining_history_messages: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct QueryEngineSessionState {
+    pub turn_count: usize,
+    pub usage: QueryEngineUsage,
+    pub budget: QueryEngineBudgetSnapshot,
+}
+
+#[derive(Debug, Clone)]
+pub struct QueryEngineSnapshot {
+    history: Vec<ChatMessage>,
+    turn_count: usize,
+    usage: QueryEngineUsage,
+}
+
+pub struct QueryEngine<H: QueryEngineHost> {
+    workspace_dir: std::path::PathBuf,
+    session_id: String,
+    reliability: config_reliability::ReliabilityConfig,
+    history: Vec<ChatMessage>,
+    request_system_prompt: String,
+    tools_registry: Vec<Box<dyn Tool>>,
+    observer: Arc<RecordingObserver>,
+    provider: Arc<dyn Provider>,
+    memory: Arc<dyn Memory>,
+    provider_name: String,
+    model_name: String,
+    default_temperature: f64,
+    multimodal_config: agent_config::schema::MultimodalConfig,
+    compact_context: bool,
+    model_limit: agent_provider::provider::ModelLimit,
+    max_iterations: usize,
+    max_history_messages: usize,
+    min_memory_relevance_score: f64,
+    turn_count: usize,
+    timezone: Tz,
+    hook_runtime: Option<agent_hooks::HookRuntime>,
+    skill_session: Option<agent_loop::core::skills::CoreSkillSession<H>>,
+}
+
+#[derive(Debug, Default)]
+struct RecordingObserverState {
+    usage: QueryEngineUsage,
+}
+
+struct RecordingObserver {
+    inner: Arc<dyn Observer>,
+    state: Mutex<RecordingObserverState>,
+}
+
+impl RecordingObserver {
+    fn new(inner: Arc<dyn Observer>) -> Self {
+        Self { inner, state: Mutex::new(RecordingObserverState::default()) }
+    }
+
+    // SessionLlmProvider delegates real attempts to Gateway/aisdk. These totals
+    // are UI snapshots only; the lower request bridge owns ledger observations.
+    fn usage_snapshot(&self) -> QueryEngineUsage {
+        self.state.lock().expect("recording observer state poisoned").usage.clone()
+    }
+
+    fn replace_usage(&self, usage: QueryEngineUsage) {
+        self.state.lock().expect("recording observer state poisoned").usage = usage;
+    }
+}
+
+impl Observer for RecordingObserver {
+    fn record_event(&self, event: &ObserverEvent) {
+        if let ObserverEvent::LlmResponse {
+            success,
+            input_tokens,
+            output_tokens,
+            cached_tokens,
+            reasoning_tokens,
+            ..
+        } = event
+            && *success
+        {
+            let mut state = self.state.lock().expect("recording observer state poisoned");
+            state.usage.llm_calls = state.usage.llm_calls.saturating_add(1);
+            state.usage.input_tokens = state
+                .usage
+                .input_tokens
+                .saturating_add(i64::try_from(input_tokens.unwrap_or(0)).unwrap_or(i64::MAX));
+            state.usage.output_tokens = state
+                .usage
+                .output_tokens
+                .saturating_add(i64::try_from(output_tokens.unwrap_or(0)).unwrap_or(i64::MAX));
+            state.usage.cached_tokens = state
+                .usage
+                .cached_tokens
+                .saturating_add(i64::try_from(cached_tokens.unwrap_or(0)).unwrap_or(i64::MAX));
+            state.usage.reasoning_tokens = state
+                .usage
+                .reasoning_tokens
+                .saturating_add(i64::try_from(reasoning_tokens.unwrap_or(0)).unwrap_or(i64::MAX));
+        }
+
+        self.inner.record_event(event);
+    }
+
+    fn record_metric(&self, metric: &ObserverMetric) {
+        self.inner.record_metric(metric);
+    }
+
+    fn flush(&self) {
+        self.inner.flush();
+    }
+
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl<H: QueryEngineHost> QueryEngine<H> {
+    /// 从配置构建一个可复用的会话级引擎。
+    pub async fn new(config: Config, session_id: &str) -> Result<Self> {
+        Self::new_with_provider(config, session_id, None).await
+    }
+
+    /// 从配置构建引擎，并可复用调用方已经解析好的 provider。
+    pub async fn new_with_provider(
+        config: Config,
+        session_id: &str,
+        provider_override: Option<Arc<dyn Provider>>,
+    ) -> Result<Self> {
+        Self::new_with_provider_and_hook_runtime(config, session_id, provider_override, None).await
+    }
+
+    /// 从配置构建引擎，并复用网关持有的可热替换钩子运行时。
+    pub async fn new_with_provider_and_hook_runtime(
+        config: Config,
+        session_id: &str,
+        provider_override: Option<Arc<dyn Provider>>,
+        hook_runtime: Option<agent_hooks::HookRuntime>,
+    ) -> Result<Self> {
+        let timezone = agent_util::locale::parse_timezone(
+            &config.app_ui.system_settings.timezone,
+        )?;
+        let base_observer: Arc<dyn Observer> =
+            Arc::from(agent_observability::create_observer(&config.observability));
+        let observer = Arc::new(RecordingObserver::new(base_observer));
+
+        let (memory, tools_registry) = H::assemble_tools(&config, session_id)?;
+
+        let provider_name = config.default_provider.as_deref().unwrap_or("openrouter").to_string();
+        let model_name = config
+            .default_model
+            .clone()
+            .unwrap_or_else(|| "anthropic/claude-sonnet-4-20250514".into());
+
+        let provider_runtime_options = agent_providers::ProviderRuntimeOptions {
+            configured_provider_ids: config.providers.keys().cloned().collect(),
+            auth_profile_override: None,
+            provider_api_url: config.api_url.clone(),
+            vibewindow_dir: config.config_path.parent().map(std::path::PathBuf::from),
+            secrets_encrypt: config.secrets.encrypt,
+            reasoning_enabled: config.runtime.reasoning_enabled,
+            reasoning_level: config.effective_provider_reasoning_level(),
+            custom_provider_api_mode: config.provider_api.map(|mode| mode.as_compatible_mode()),
+            max_tokens_override: None,
+            model_support_vision: config.model_support_vision,
+        };
+
+        let provider: Arc<dyn Provider> = if let Some(provider) = provider_override {
+            provider
+        } else {
+            Arc::from(agent_providers::create_routed_provider_with_options(
+                &provider_name,
+                config.api_key.as_deref(),
+                config.api_url.as_deref(),
+                &config.reliability,
+                &config.model_routes,
+                &model_name,
+                &provider_runtime_options,
+            )?)
+        };
+
+        let skills =
+            H::load_skills_with_config(&config.workspace_dir, &config);
+        let tool_descs = build_tool_descriptions(&config);
+        let main_agent = config_agent::effective_main_agent_config(&config.agents);
+        let bootstrap_max_chars = main_agent.compact_context.then_some(6000);
+        let native_tools = provider.supports_native_tools();
+
+        let mut system_prompt = channel_support::prompt::build_system_prompt_with_mode(
+            &config.workspace_dir,
+            &model_name,
+            &tool_descs,
+            &skills,
+            Some(&config.identity),
+            bootstrap_max_chars,
+            native_tools,
+            config.skills.prompt_injection_mode,
+            timezone,
+            agent_loop::prompt::multi_agent::recursive_orchestration_policy(),
+        );
+
+        system_prompt.push_str(&build_shell_policy_instructions(&config.autonomy));
+
+        let parsed_model = agent_provider::provider::parse_model(&model_name);
+        let model_limit = H::get_model(
+            &parsed_model.provider_id,
+            &parsed_model.model_id,
+        )
+        .await;
+        let model_limit = match model_limit {
+            Ok(model) => model.limit,
+            Err(error @ agent_provider::provider::CatalogError::Configuration(_)) => {
+                return Err(error.into());
+            }
+            Err(agent_provider::provider::CatalogError::ModelNotFound(_)) => {
+                agent_provider::provider::ModelLimit { context: 0, input: None, output: 0 }
+            }
+        };
+
+        let skill_session = Some(agent_loop::core::skills::CoreSkillSession::<H>::from_config(
+            Arc::new(config.clone()),
+            session_id,
+            usize::try_from(model_limit.context).unwrap_or(usize::MAX),
+        ));
+        Ok(Self {
+            workspace_dir: config.workspace_dir.clone(),
+            session_id: session_id.to_string(),
+            reliability: config.reliability.clone(),
+            history: Vec::new(),
+            request_system_prompt: system_prompt,
+            tools_registry,
+            observer,
+            provider,
+            memory,
+            provider_name,
+            model_name,
+            default_temperature: config.default_temperature,
+            multimodal_config: config.multimodal,
+            compact_context: main_agent.compact_context,
+            model_limit,
+            max_iterations: main_agent.max_iterations,
+            max_history_messages: main_agent.max_history_messages,
+            min_memory_relevance_score: config.memory.min_relevance_score,
+            turn_count: 0,
+            timezone,
+            hook_runtime,
+            skill_session,
+        })
+    }
+
+    /// 提交一条用户消息并在当前会话历史上执行一次 agent 轮次。
+    pub async fn submit_message(&mut self, message: &str) -> Result<String> {
+        let context = match self.skill_session.as_ref() {
+            Some(skills) => Box::pin(skills.project_context()).await?,
+            None => None,
+        };
+        let execution = Box::pin(self.submit_message_in_project(message));
+        match context {
+            Some(context) => agent_project::instance::provide_context(context, execution).await,
+            None => execution.await,
+        }
+    }
+
+    async fn submit_message_in_project(&mut self, message: &str) -> Result<String> {
+        let history_snapshot = self.history.clone();
+        let memory_context =
+            build_context(self.memory.as_ref(), message, self.min_memory_relevance_score).await;
+
+        let now = agent_util::locale::configured_datetime(self.timezone);
+        let enriched = if memory_context.is_empty() {
+            format!("[{now}] {message}")
+        } else {
+            format!("{memory_context}[{now}] {message}")
+        };
+
+        self.history.push(ChatMessage::user(enriched));
+        if let Some(skills) = self.skill_session.as_mut() {
+            skills.begin_turn(message, &self.request_system_prompt, &self.history);
+        }
+        let context = match self.compact_before_primary_request(false).await {
+            Ok(context) => context,
+            Err(error) => {
+                self.history = history_snapshot;
+                return Err(error);
+            }
+        };
+        let team = H::team_runtime_instructions(
+            &self.session_id,
+            self.tools_registry.iter().any(|tool| tool.name() == "AgentTool"),
+        )
+        .await;
+        let persistent_len = context.len();
+        let mut request_history = vec![ChatMessage::user(format!(
+            "<system-reminder>\n{}\n</system-reminder>",
+            format_args!("{}\n{}", self.request_system_prompt, team)
+        ))];
+        let transient_len = request_history.len();
+        request_history.extend(context);
+
+        let result = H::agent_turn(
+            self.provider.as_ref(),
+            &mut request_history,
+            &self.tools_registry,
+            self.observer.as_ref(),
+            &self.provider_name,
+            &self.model_name,
+            self.default_temperature,
+            true,
+            &self.multimodal_config,
+            self.max_iterations,
+            self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot()),
+            self.skill_session.as_mut(),
+        )
+        .await;
+
+        let mut retry_response_persisted = false;
+        let result = match result {
+            Err(error) if is_prompt_too_long(&error.to_string(), &request_history) => {
+                let context = match self.compact_before_primary_request(true).await {
+                    Ok(context) => context,
+                    Err(compaction_error) => {
+                        self.history = history_snapshot;
+                        return Err(anyhow::anyhow!(
+                            "{error}; internal compaction could not recover the request: {compaction_error}"
+                        ));
+                    }
+                };
+                let team = H::team_runtime_instructions(
+                    &self.session_id,
+                    self.tools_registry.iter().any(|tool| tool.name() == "AgentTool"),
+                )
+                .await;
+                let persistent_len = context.len();
+                let mut retry_history = vec![ChatMessage::user(format!(
+                    "<system-reminder>\n{}\n</system-reminder>",
+                    format_args!("{}\n{}", self.request_system_prompt, team)
+                ))];
+                let transient_len = retry_history.len();
+                retry_history.extend(context);
+                let retry = H::agent_turn(
+                    self.provider.as_ref(),
+                    &mut retry_history,
+                    &self.tools_registry,
+                    self.observer.as_ref(),
+                    &self.provider_name,
+                    &self.model_name,
+                    self.default_temperature,
+                    true,
+                    &self.multimodal_config,
+                    self.max_iterations,
+                    self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot()),
+                    self.skill_session.as_mut(),
+                )
+                .await;
+                if retry.is_ok() {
+                    self.history
+                        .extend(retry_history.into_iter().skip(transient_len + persistent_len));
+                    retry_response_persisted = true;
+                }
+                retry
+            }
+            result => result,
+        };
+
+        if result.is_err() {
+            self.history = history_snapshot;
+        } else {
+            if !retry_response_persisted {
+                self.history
+                    .extend(request_history.into_iter().skip(transient_len + persistent_len));
+            }
+            self.turn_count = self.turn_count.saturating_add(1);
+            self.govern_history().await;
+        }
+
+        result
+    }
+
+    async fn govern_history(&mut self) {
+        // History replacement must only happen through the internal summary service before a
+        // primary request.  A post-response message-count trim can discard that summary and
+        // reintroduce the split compaction policy this engine is avoiding.
+    }
+
+    async fn compact_before_primary_request(&self, force: bool) -> Result<Vec<ChatMessage>> {
+        let start =
+            usize::from(self.history.first().is_some_and(|message| message.role == "system"));
+        let source = self.history[start..]
+            .iter()
+            .map(|message| serde_json::json!({"role": message.role, "content": message.content}))
+            .collect::<Vec<_>>();
+        let restored = H::restore_history(&self.session_id, &source)
+            .await
+            .map_err(anyhow::Error::msg)?;
+        let mut context = self.history[..start].to_vec();
+        context.extend(restored.into_iter().map(|item| ChatMessage {
+            role: item["role"].as_str().unwrap_or("assistant").to_string(),
+            content: item["content"].as_str().unwrap_or_default().to_string(),
+        }));
+        let input_tokens = context
+            .iter()
+            .map(|message| agent_util::token::estimate(&message.content))
+            .sum();
+        if !self.compact_context
+            || (!force
+                && !session_engine::context_governance::should_compact(
+                    input_tokens,
+                    &self.model_limit,
+                ))
+        {
+            return Ok(context);
+        }
+        // Keep the authoritative history intact, including across repeated checkpoints.
+        // The service restores the previous checkpoint before summarizing this raw prefix.
+        let mut source_history = self.history.clone();
+        let mut hook_context = tool_context::context::ToolUseContext::<H::Context>::new(
+            &self.session_id,
+            Some(self.workspace_dir.to_string_lossy().into_owned()),
+        )
+        .with_turn_id(uuid::Uuid::new_v4().to_string())
+        .with_model(&self.model_name);
+        if let Some(runner) =
+            self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot())
+        {
+            hook_context = hook_context.with_hook_runner(runner);
+        }
+        let compacted = tool_context::context::scope_tool_use_context(
+            Arc::new(hook_context),
+            H::compact_history(
+                &mut source_history,
+                &self.session_id,
+                &if self.model_name.contains('/') {
+                    self.model_name.clone()
+                } else {
+                    format!("{}/{}", self.provider_name, self.model_name)
+                },
+                &self.reliability,
+                &self.model_limit,
+            ),
+        )
+        .await?;
+        if !compacted {
+            if input_tokens
+                > session_engine::context_governance::effective_input_window(
+                    &self.model_limit,
+                )
+            {
+                anyhow::bail!("当前请求超过模型输入窗口，且没有可压缩的历史；请缩短输入或减少附件");
+            }
+            return Ok(context);
+        }
+        Ok(source_history)
+    }
+
+    /// 返回当前会话已成功提交的轮次数。
+    pub fn turn_count(&self) -> usize {
+        self.turn_count
+    }
+
+    /// 返回当前会话累计的 LLM 使用量与已消耗预算快照。
+    pub fn session_state(&self) -> QueryEngineSessionState {
+        let non_system_messages = self.non_system_message_count();
+        QueryEngineSessionState {
+            turn_count: self.turn_count,
+            usage: self.observer.usage_snapshot(),
+            budget: QueryEngineBudgetSnapshot {
+                max_iterations: self.max_iterations,
+                max_history_messages: self.max_history_messages,
+                non_system_messages,
+                remaining_history_messages: self
+                    .max_history_messages
+                    .saturating_sub(non_system_messages),
+            },
+        }
+    }
+
+    /// 导出当前会话历史快照，供 session fork 等上层生命周期管理复用。
+    pub fn history_snapshot(&self) -> Vec<ChatMessage> {
+        self.history.clone()
+    }
+
+    /// 导出当前引擎快照，供 session fork 等生命周期管理复用。
+    pub fn snapshot(&self) -> QueryEngineSnapshot {
+        QueryEngineSnapshot {
+            history: self.history.clone(),
+            turn_count: self.turn_count,
+            usage: self.observer.usage_snapshot(),
+        }
+    }
+
+    /// 用外部提供的历史覆盖当前会话历史。
+    pub fn replace_history(&mut self, history: Vec<ChatMessage>) {
+        self.history = history;
+    }
+
+    /// 用已有引擎快照恢复会话态，供 fork 后的子引擎继承父会话进度。
+    pub fn restore_snapshot(&mut self, snapshot: QueryEngineSnapshot) {
+        self.history = snapshot.history;
+        self.turn_count = snapshot.turn_count;
+        self.observer.replace_usage(snapshot.usage);
+    }
+
+    fn non_system_message_count(&self) -> usize {
+        self.history.iter().filter(|message| message.role != "system").count()
+    }
+}
+
+fn is_prompt_too_long(message: &str, history: &[ChatMessage]) -> bool {
+    let input = history
+        .iter()
+        .map(|item| serde_json::json!({"role": item.role, "content": item.content}))
+        .collect::<Vec<_>>();
+    session_engine::request_overflow::is_request_too_long_error(message, &input)
+}
+
+fn build_tool_descriptions(config: &Config) -> Vec<(&'static str, &'static str)> {
+    let mut tool_descs = vec![
+        ("bash", "Execute terminal commands."),
+        ("file_read", "Read file contents."),
+        ("file_edit", "Edit existing file contents by targeted replacement."),
+        ("file_write", "Create files or fully overwrite files."),
+        ("memory_store", "Save to memory."),
+        ("memory_recall", "Search memory."),
+        ("memory_forget", "Delete a memory entry."),
+        ("screenshot", "Capture a screenshot."),
+    ];
+
+    if config.browser.enabled {
+        if !config.browser.browser_open.eq_ignore_ascii_case("disable") {
+            tool_descs.push(("BrowserOpen", "Open approved URLs in browser."));
+        }
+        tool_descs.push(("Browser", "Control a browser for navigation and page interaction."));
+    }
+
+    if config.web_fetch.enabled {
+        tool_descs
+            .push(("WebFetch", "Fetch and convert approved web pages for model consumption."));
+    }
+
+    if config.web_search.enabled {
+        tool_descs
+            .push(("WebSearch", "Search the web for current information and relevant sources."));
+    }
+
+    let has_agent_tool = merged_agent_configs(&config.agents)
+        .values()
+        .any(|agent| agent.enabled && agent.allow_as_subagent);
+    if has_agent_tool {
+        tool_descs.push((
+            "AgentTool",
+            "Delegate complex work to persistent sub-agents; skip only genuinely simple single-step tasks. Use launch (or spawn) to start independent work in the background and in parallel, run when the result is an immediate dependency, status to inspect tasks, wait for event-driven any/all completion with a bounded timeout, and stop to cancel owned tasks. Continue useful parent work after launch, then verify and synthesize required results before answering.",
+        ));
+    }
+
+    tool_descs
+}
+
+pub use agent_loop::query_engine_host::QueryEngineHost;

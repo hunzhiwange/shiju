@@ -90,3 +90,7 @@ pub fn reasoning_request_config(
     }
     Ok((Some(effort), body))
 }
+
+#[cfg(test)]
+#[path = "reasoning_tests.rs"]
+mod tests;

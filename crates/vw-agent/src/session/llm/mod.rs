@@ -80,9 +80,5 @@ pub(crate) use acp::{
     source_selection::select as select_acp_model_source,
 };
 
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "../../../../libs/llm-runtime/src/native_tools_tests.rs"]
-mod native_tools_tests;
-
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native_tools;

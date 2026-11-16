@@ -4,7 +4,7 @@ use aisdk::Error as AiError;
 use reqwest::StatusCode;
 use serde_json::Value;
 
-use crate::app::agent::session::message::AssistantError;
+use message_types::AssistantError;
 
 use super::{
     aisdk_assistant_error_log_fields, aisdk_error_source_chain, assistant_error_from_aisdk,

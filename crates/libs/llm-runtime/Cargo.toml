@@ -82,6 +82,7 @@ tool-catalog = { path = "../tool-catalog", version = "0.6.0" }
 agent-usage = { path = "../agent-usage", version = "0.6.0" }
 
 [dev-dependencies]
+async-trait = "0.1.89"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
 tempfile = "3"

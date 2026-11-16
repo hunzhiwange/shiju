@@ -211,3 +211,6 @@ pub fn assistant_error_from_aisdk(
         },
     }
 }
+
+#[cfg(test)]
+mod error_tests;

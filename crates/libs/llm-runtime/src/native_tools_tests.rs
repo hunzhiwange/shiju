@@ -49,9 +49,9 @@ async fn native_tool_search_event_empty_output_is_dedicated_item() {
     assert_eq!(wire["tools"], json!([]));
 }
 
-struct SpecTool(crate::tools::ToolSpec);
+struct SpecTool(tool_types::ToolSpec);
 #[async_trait::async_trait]
-impl crate::tools::Tool for SpecTool {
+impl tool_types::Tool for SpecTool {
     fn name(&self) -> &str {
         &self.0.id
     }
@@ -61,28 +61,28 @@ impl crate::tools::Tool for SpecTool {
     fn parameters_schema(&self) -> serde_json::Value {
         self.0.input_schema.clone()
     }
-    fn spec(&self) -> crate::tools::ToolSpec {
+    fn spec(&self) -> tool_types::ToolSpec {
         self.0.clone()
     }
-    async fn execute(&self, _: serde_json::Value) -> anyhow::Result<crate::tools::ToolResult> {
+    async fn execute(&self, _: serde_json::Value) -> anyhow::Result<tool_types::ToolResult> {
         anyhow::bail!("conversion must not execute tools")
     }
 }
 
-fn catalog(mut specs: Vec<crate::tools::ToolSpec>) -> crate::tools::catalog::ToolCatalogSnapshot {
-    specs.push(crate::tools::ToolSpec::new("tool_search", "search", json!({"type":"object"})));
-    crate::tools::catalog::ToolCatalogSnapshot::from_runtime_tools(
+fn catalog(mut specs: Vec<tool_types::ToolSpec>) -> tool_catalog::catalog::ToolCatalogSnapshot {
+    specs.push(tool_types::ToolSpec::new("tool_search", "search", json!({"type":"object"})));
+    tool_catalog::catalog::ToolCatalogSnapshot::from_runtime_tools(
         specs
             .into_iter()
             .map(|spec| {
-                std::sync::Arc::new(SpecTool(spec)) as std::sync::Arc<dyn crate::tools::Tool>
+                std::sync::Arc::new(SpecTool(spec)) as std::sync::Arc<dyn tool_types::Tool>
             })
             .collect(),
     )
 }
 
-fn weather_spec(id: &str, namespace: Option<&str>) -> crate::tools::ToolSpec {
-    let mut spec = crate::tools::ToolSpec::new(
+fn weather_spec(id: &str, namespace: Option<&str>) -> tool_types::ToolSpec {
+    let mut spec = tool_types::ToolSpec::new(
         id,
         "weather forecast",
         json!({"type":"object", "properties":{"city":{"type":"string"}}}),
@@ -133,7 +133,7 @@ fn native_tool_search_event_rejects_untrusted_arguments_and_catalog() {
     assert!(NativeCallCollector::default().search(raw, true).is_err());
     let mut call = NativeCallCollector::default().search(search_call(), true).unwrap().unwrap();
     assert!(
-        native_search_output(&call, &crate::tools::catalog::ToolCatalogSnapshot::default(), false)
+        native_search_output(&call, &tool_catalog::catalog::ToolCatalogSnapshot::default(), false)
             .is_err()
     );
     call.kind = ToolCallKind::Function;

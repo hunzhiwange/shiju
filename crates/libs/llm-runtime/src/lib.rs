@@ -19,3 +19,6 @@ mod error;
 pub use error::Error;
 mod events;
 pub use events::StreamEvent;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod native_tools_tests;

@@ -412,9 +412,7 @@ pub(super) fn queue_agent_tool_delta(app: &mut App, id: u64, delta: String) -> T
     };
     let pending = &mut app.get_session_runtime_mut(&session_id).pending_stream_delta;
     // The flush can combine the preceding text and the tool into one delta.
-    if !pending.is_empty() && !pending.ends_with('\n') {
-        pending.push('\n');
-    }
+    desktop_session::message::chat::stream::stream_events::prepare_buffered_tool_line(pending);
     queue_agent_session_delta(app, session_id, delta)
 }
 

@@ -667,9 +667,14 @@ fn buffered_tool_event_starts_on_its_own_line() {
     let _ = super::queue_agent_stream_delta(&mut app, 42, " the repo.".to_string());
     let _ = super::queue_agent_tool_delta(&mut app, 42, "tool execute\n{}\n".to_string());
     let _ = super::queue_agent_stream_delta(&mut app, 42, "Done.".to_string());
-    let _ = super::flush_agent_stream_delta(&mut app, session_id);
+    let _ = super::flush_agent_stream_delta(&mut app, session_id.clone());
 
-    assert_eq!(app.chat.last().unwrap().content, "Checking the repo.\ntool execute\n{}\nDone.");
+    // 文本投影断言归 desktop-session::host_split_6_tests；此处保留队列接线。
+    let runtime = app.get_session_runtime_mut(&session_id);
+    assert!(runtime.pending_stream_delta.is_empty());
+    assert!(!runtime.stream_delta_flush_scheduled);
+    assert_eq!(app.chat.len(), 2);
+    assert_eq!(app.chat.last().unwrap().role, ChatRole::Assistant);
 }
 
 #[test]
@@ -1187,7 +1192,7 @@ fn active_workflow_update_appends_tool_block_and_preserves_message_id() {
     );
 
     assert_eq!(app.chat.len(), 1);
-    assert!(app.chat[0].content.starts_with("answer\ntool workflow_node\n"));
+    // 工具块文本追加归 desktop-session::host_split_6_tests；保留宿主消息 ID 接线。
     assert_eq!(app.chat_message_ids, vec![Some("assistant-id".to_string())]);
 }
 

@@ -194,6 +194,13 @@ pub(crate) fn continuation_label_from_history(history: &[models::ChatMessage]) -
         .unwrap_or_default()
 }
 
+/// 保证缓冲文本后的工具块从独立行开始；队列调度仍由调用方负责。
+pub fn prepare_buffered_tool_line(pending: &mut String) {
+    if !pending.is_empty() && !pending.ends_with('\n') {
+        pending.push('\n');
+    }
+}
+
 pub fn append_stream_delta_to_tail(
     chat: &mut Vec<models::ChatMessage>,
     message_ids: &mut Vec<Option<String>>,

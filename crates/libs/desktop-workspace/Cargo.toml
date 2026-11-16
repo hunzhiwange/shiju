@@ -48,7 +48,7 @@ serde_json = "1"
 
 gateway-project-profile = { path = "../gateway-project-profile", version = "0.6.0" }
 vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
-tokio = { version = "1", features = ["time"] }
+tokio = { version = "1", features = ["time", "rt"] }
 
 chrono = "0.4"
 session-text = { path = "../session-text", version = "0.6.0" }

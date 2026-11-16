@@ -1,5 +1,5 @@
 //! Single-consumer tree gestures move a frozen selection through the gateway.
-use super::{gateway_move_path, replace_path_prefix};
+use super::replace_path_prefix;
 use crate::app::message::ProjectMessage;
 use crate::app::{App, Message, PreviewTab};
 use iced::Task;
@@ -20,46 +20,17 @@ pub(super) fn submit(
     source: String,
     directory: String,
 ) -> Task<Message> {
-    if app.file_tree_interaction.file_tree_operation_in_progress
-        || app.file_tree_interaction.file_tree_drag_source.as_ref() != Some(&(root.clone(), source.clone()))
-    {
-        return Task::none();
-    }
-    let sources = super::batch::top_level_paths(app.file_tree_interaction.dragging_file_paths.clone());
-    // Consume even rejected tree targets, so the release cannot also reach chat.
-    clear_drag(app);
-    if app.navigation_tabs.project_path.as_ref() != Some(&root) {
-        return Task::none();
-    }
-    let Some(moves) = desktop_workspace::file_tree::plan_move(&root, &directory, &app.files, sources) else {
+    let Some(moves) = app.file_tree_interaction.prepare_move(
+        app.navigation_tabs.project_path.as_deref(),
+        &root,
+        &source,
+        &directory,
+        &app.files,
+    ) else {
         return Task::none();
     };
-    if moves.is_empty() {
-        return Task::none();
-    }
-    app.file_tree_interaction.file_tree_operation_in_progress = true;
-    Task::perform(
-        async move {
-            if moves.len() == 1 {
-                let (source, target) = moves.into_iter().next().unwrap();
-                let result = gateway_move_path(&root, &source, &target).await;
-                return ProjectMessage::FileTreeMoveCompleted {
-                    project_path: root,
-                    source_path: source,
-                    target_path: target,
-                    result,
-                };
-            }
-            let effects = moves.iter().map(|(source, target)| desktop_workspace::operations::Operation::Move {
-                root: root.clone(), source: source.clone(), target: target.clone(),
-            }).collect();
-            let result = desktop_workspace::operations::run(effects, super::batch::execute).await;
-            let moved_paths = moves.into_iter().filter(|(source, _)| result.completed.contains(source)).collect();
-            let errors = result.errors;
-            ProjectMessage::FileTreeBatchMoveCompleted { project_path: root, moved_paths, errors }
-        },
-        Message::Project,
-    )
+    desktop_workspace::operations::tasks::move_paths(root, moves, super::batch::execute)
+        .map(super::batch::file_event)
 }
 
 fn update_tabs(tabs: &mut [PreviewTab], source: &str, target: &str) {
@@ -123,7 +94,12 @@ pub(super) fn complete_batch(
             {
                 *path = updated;
             }
-            app.file_tree_interaction.relocate(&root, &source, &target, &mut app.file_tree_expanded);
+            app.file_tree_interaction.relocate(
+                &root,
+                &source,
+                &target,
+                &mut app.file_tree_expanded,
+            );
         }
     }
     if current {

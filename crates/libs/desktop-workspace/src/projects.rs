@@ -395,3 +395,13 @@ pub fn apply_branch_snapshot(current_project: Option<&str>, snapshot: ProjectBra
     *selected_branch = snapshot.selected_branch;
     *branches = snapshot.branches;
 }
+
+/// Replace the three recent-project projections together after a successful load.
+pub fn replace_recent_project_views(
+    paths: &mut Vec<String>, labels: &mut Vec<String>, metadata: &mut Vec<RecentProjectMeta>,
+    loaded: Vec<RecentProjectMeta>,
+) {
+    *paths = loaded.iter().map(|item| item.path.clone()).collect();
+    *labels = loaded.iter().map(|item| item.name.clone()).collect();
+    *metadata = loaded;
+}

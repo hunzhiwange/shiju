@@ -12,3 +12,5 @@ pub mod settings;
 pub mod companion;
 
 pub mod external;
+
+pub mod project_workspace;

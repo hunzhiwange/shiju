@@ -36,7 +36,7 @@ fn update_dispatches_basic_message() {
 
     let _task = update(&mut app, ProjectMessage::ProjectPathChanged("/tmp/project".to_string()));
 
-    assert_eq!(app.project_path_input, "/tmp/project");
+    assert_eq!(app.project_input.project_path_input, "/tmp/project");
 }
 
 // 消息与任务边界：确认输入消息产生预期状态或返回任务。
@@ -44,14 +44,14 @@ fn update_dispatches_basic_message() {
 #[test]
 fn update_dispatches_find_message() {
     let (mut app, _task) = App::new();
-    app.find_results_tabs.push(find_tab("find-tab"));
+    app.project_find.find_results_tabs.push(find_tab("find-tab"));
 
     let _task = update(
         &mut app,
         ProjectMessage::FileTreeFindCaseSensitiveToggled("find-tab".to_string(), true),
     );
 
-    assert!(app.find_results_tabs[0].case_sensitive);
+    assert!(app.project_find.find_results_tabs[0].case_sensitive);
 }
 
 // 消息与任务边界：确认输入消息产生预期状态或返回任务。

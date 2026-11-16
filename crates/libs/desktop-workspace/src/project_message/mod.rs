@@ -15,3 +15,5 @@ pub mod session_open;
 pub mod session_worktree;
 
 pub mod message;
+
+pub mod tasks;

@@ -100,6 +100,9 @@ mod basic_tests;
 /// }
 /// ```
 pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Task<Message>> {
+    if desktop_workspace::basic::handle_input(&mut app.project_input, &mut app.files, &message) {
+        return Some(iced::Task::none());
+    }
     match message {
         // 处理"打开文件"按钮点击事件
         // 在非 wasm32 平台上弹出文件选择对话框，选择后打开预览
@@ -126,7 +129,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         // 处理"打开项目"按钮点击事件
         // 如果输入框为空则使用当前目录，否则使用输入的路径
         ProjectMessage::OpenProjectPressed => {
-            if let Some(path) = desktop_workspace::basic::project_path_to_open(&app.project_path_input) {
+            if let Some(path) = desktop_workspace::basic::project_path_to_open(&app.project_input.project_path_input) {
                 return Some(app.open_project_and_index(path));
             }
             Some(iced::Task::none())
@@ -134,9 +137,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::RecentProjectsLoaded(result) => {
             match result {
                 Ok(meta) => {
-                    app.recent_projects = meta.iter().map(|item| item.path.clone()).collect();
-                    app.recent_projects_edits = meta.iter().map(|item| item.name.clone()).collect();
-                    app.recent_projects_meta = meta;
+                    desktop_workspace::projects::replace_recent_project_views(&mut app.recent_projects, &mut app.recent_projects_edits, &mut app.recent_projects_meta, meta);
                 }
                 Err(error) => {
                     tracing::warn!(
@@ -148,12 +149,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             Some(iced::Task::none())
         }
-        // 处理项目路径输入框内容变化事件
-        // 更新应用程序中的项目路径输入字段
-        ProjectMessage::ProjectPathChanged(v) => {
-            app.project_path_input = v;
-            Some(iced::Task::none())
-        }
+
         ProjectMessage::AttachmentFilesPick => {
             #[cfg(not(target_arch = "wasm32"))]
             {
@@ -177,25 +173,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
 
             Some(iced::Task::none())
         }
-        ProjectMessage::RemoveAttachedFile(path) => {
-            app.files.retain(|entry| entry != &path);
-            Some(iced::Task::none())
-        }
-        // 处理文件 URL 输入框内容变化事件
-        // 更新应用程序中的文件 URL 输入字段
-        ProjectMessage::FileUrlChanged(v) => {
-            app.file_url_input = v;
-            Some(iced::Task::none())
-        }
-        // 处理"添加文件"按钮点击事件
-        // 将当前输入的文件 URL 添加到文件列表中并清空输入框
-        ProjectMessage::AddFilePressed => {
-            if !app.file_url_input.is_empty() {
-                app.files.push(app.file_url_input.clone());
-                app.file_url_input.clear();
-            }
-            Some(iced::Task::none())
-        }
+
+
         ProjectMessage::FileIndexLoaded { project_path, result } => {
             if app.navigation_tabs.project_path.as_deref() != Some(project_path.as_str()) {
                 return Some(iced::Task::none());
@@ -251,7 +230,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         // 切换文件管理器在"文件浏览"和"Git 变更"模式之间
         ProjectMessage::FileManagerShowChanges(b) => {
             app.file_manager.select_changes(b);
-            app.active_find_results_tab_id = None;
+            app.project_find.active_find_results_tab_id = None;
             if b {
                 // 当切换到"变更"模式时，清除活动预览选择，
                 // 以便右侧面板可以渲染 Git diff 面板而不是停留在已打开的预览标签页
@@ -316,7 +295,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             if let Some(task) = reveal_work_workspace_files(app) {
                 tasks.push(task);
             }
-            app.active_find_results_tab_id = None;
+            app.project_find.active_find_results_tab_id = None;
             tasks.push(ensure_file_manager_changes_expanded(app, std::iter::once(path.clone())));
             tasks.push(iced::Task::done(Message::Git(crate::app::message::GitMessage::FocusFile(
                 path,

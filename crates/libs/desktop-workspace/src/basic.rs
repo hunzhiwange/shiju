@@ -66,3 +66,26 @@ pub fn refresh_search_panel_file_results(
     }
     Some(search_panel_file_results(files, query))
 }
+
+#[derive(Debug, Default)]
+pub struct InputState {
+    pub project_path_input: String,
+    pub file_url_input: String,
+}
+/// Local project input and attachment-list transitions; the host owns chat rendering.
+pub fn handle_input<P, H, U>(state: &mut InputState, files: &mut Vec<String>, message: &crate::project_message::message::ProjectMessage<P, H, U>) -> bool {
+    use crate::project_message::message::ProjectMessage as M;
+    match message {
+        M::ProjectPathChanged(value) => state.project_path_input = value.clone(),
+        M::FileUrlChanged(value) => state.file_url_input = value.clone(),
+        M::AddFilePressed => {
+            if !state.file_url_input.is_empty() {
+                files.push(state.file_url_input.clone());
+                state.file_url_input.clear();
+            }
+        }
+        M::RemoveAttachedFile(path) => files.retain(|entry| entry != path),
+        _ => return false,
+    }
+    true
+}

@@ -396,7 +396,8 @@ impl App {
             work_browser_controller: crate::app::webview_runtime::WorkBrowserController::default(),
             project_is_git_repo: false,
             project_id: None,
-            project_path_input: String::new(),
+            project_input: Default::default(),
+            project_find: Default::default(),
 
             // ========== 输入和模型配置 ==========
             #[cfg(not(target_arch = "wasm32"))]
@@ -411,7 +412,6 @@ impl App {
             acp_agents,
             acp_settings: super::state::AcpSettingsState::default(),
             mcp_settings: super::state::McpSettingsState::default(),
-            file_url_input: String::new(),
             files: vec![],
 
             // ========== 聊天相关状态 ==========
@@ -785,10 +785,6 @@ impl App {
             input_suggestions: Default::default(),
 
             // ========== 查找结果标签页 ==========
-            find_results_tabs: Vec::new(),
-            active_find_results_tab_id: None,
-            find_results_tab_menu_id: None,
-            find_results_tab_menu_pos: None,
             tool_files_filter: String::new(),
 
             // ========== 预览标签页 ==========

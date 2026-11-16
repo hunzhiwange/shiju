@@ -21,7 +21,7 @@ use super::RecentProjectMeta;
 use super::project_dirs;
 use super::{Screen, message};
 use crate::app::Message;
-use crate::app::{App, AppTab};
+use crate::app::App;
 use iced::Task;
 
 pub use desktop_workspace::projects::ProjectBranchSnapshot;
@@ -341,32 +341,7 @@ impl App {
     /// - `Task<Message>` - 包含会话重载与项目信息加载的批处理任务
     pub fn open_project(&mut self, path: String) -> Task<Message> {
         self.session_view_cache.navigation_generation += 1;
-        // 如果 Apps 中间页标签存在，则移除
-        if let Some(pos) = self.navigation_tabs.open_tabs.iter().position(|t| t.id == "apps") {
-            self.navigation_tabs.open_tabs.remove(pos);
-        }
-        // 创建或切换到项目标签页
-        let (tab_id, title) = desktop_workspace::projects::project_tab(&path);
-        if !self.navigation_tabs.open_tabs.iter().any(|t| t.id == tab_id) {
-            self.navigation_tabs.open_tabs.push(AppTab {
-                id: tab_id.clone(),
-                title,
-                screen: Screen::Project,
-                project_path: Some(path.clone()),
-            });
-        }
-        self.navigation_tabs.active_tab_id = Some(tab_id);
-
-        // 保存前一个项目的预览标签页与激活路径
-        let previous_project_path = self.navigation_tabs.project_path.clone();
-        let project_changed = previous_project_path.as_deref() != Some(path.as_str());
-        if let Some(prev_path) = &previous_project_path {
-            self.navigation_tabs.project_preview_tabs
-                .insert(prev_path.clone(), std::mem::take(&mut self.navigation_tabs.preview_tabs));
-            self.navigation_tabs.project_preview_active_path
-                .insert(prev_path.clone(), self.navigation_tabs.active_preview_path.take());
-        }
-        self.navigation_tabs.project_path = Some(path.clone());
+        let (previous_project_path, project_changed) = self.navigation_tabs.begin_project(&path);
         if project_changed {
             self.navigation_mode.work_current_project_menu = None;
             self.project_is_git_repo = false;
@@ -376,13 +351,7 @@ impl App {
         // 加载项目特定的任务看板设置
         self.task_board_settings = desktop_workspace::projects::project_board_settings(&self.recent_projects_meta, &path);
 
-        // 恢复当前项目的预览标签页与激活路径（若存在）
-        let tabs = self.navigation_tabs.project_preview_tabs.remove(&path).unwrap_or_default();
-        let active = self.navigation_tabs.project_preview_active_path.remove(&path).unwrap_or_default();
-        self.navigation_tabs.preview_tabs = tabs;
-        self.navigation_tabs.active_preview_path = active;
-        self.navigation_tabs.preview_tab_menu_path = None;
-        self.navigation_tabs.preview_tab_menu_pos = None;
+        self.navigation_tabs.restore_project_preview(&path);
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(manager) = self.lsp_manager.as_mut() {
             manager.prestart_for_project(&path);

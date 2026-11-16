@@ -67,8 +67,9 @@ pub struct App {
     pub(crate) project_is_git_repo: bool,
     /// 当前项目唯一标识符
     pub(crate) project_id: Option<String>,
-    /// 项目路径输入框内容
-    pub(crate) project_path_input: String,
+    /// 项目输入与查找领域状态
+    pub(crate) project_input: desktop_workspace::basic::InputState,
+    pub(crate) project_find: desktop_workspace::project_message::find::FindState,
     /// 输入文本（旧版，已废弃）
     pub(crate) input_text: String,
     /// 输入编辑器内容
@@ -85,8 +86,6 @@ pub struct App {
     pub(crate) acp_agents: Vec<String>,
     pub(crate) acp_settings: AcpSettingsState,
     pub(crate) mcp_settings: McpSettingsState,
-    /// 文件 URL 输入框内容
-    pub(crate) file_url_input: String,
     /// 附加文件列表
     pub(crate) files: Vec<String>,
     /// 聊天消息列表
@@ -542,14 +541,6 @@ pub struct App {
     pub(crate) file_tree_expanded_set: HashSet<String>,
     pub(crate) file_tree_interaction: desktop_workspace::interaction::InteractionState,
     pub(crate) input_suggestions: desktop_chat_input::input_panel::suggestions::State,
-    /// 在文件夹中查找的结果标签页列表
-    pub(crate) find_results_tabs: Vec<FindInFolderTab>,
-    /// 当前活跃的查找结果标签页 ID
-    pub(crate) active_find_results_tab_id: Option<String>,
-    /// 查找结果标签页右键菜单的目标 ID
-    pub(crate) find_results_tab_menu_id: Option<String>,
-    /// 查找结果标签页右键菜单位置
-    pub(crate) find_results_tab_menu_pos: Option<Point>,
     /// 工具文件过滤器文本
     pub(crate) tool_files_filter: String,
     /// LSP 事件接收器（仅非 wasm32 平台）

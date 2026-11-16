@@ -6,14 +6,19 @@ use crate::app::i18n::project::ProjectFeedback;
 use crate::app::message::project::ProjectMessage;
 use crate::app::{App, Message};
 use iced::Task;
-use vw_api_file::file::ListFilesRequest;
 use vw_api_project::ProjectDto;
 
 pub(crate) use desktop_workspace::project_message::attachments::is_supported_image_attachment;
-pub(crate) fn collect_local_attachments(app: &App, picked: Vec<String>) -> (Vec<String>, Vec<ProjectFeedback>) {
+pub(crate) fn collect_local_attachments(
+    app: &App,
+    picked: Vec<String>,
+) -> (Vec<String>, Vec<ProjectFeedback>) {
     desktop_workspace::project_message::attachments::collect_local_attachments(
-        &app.files, app.navigation_tabs.project_path.as_deref(), app.multimodal_settings.max_images,
-        app.multimodal_settings.max_image_size_mb, picked,
+        &app.files,
+        app.navigation_tabs.project_path.as_deref(),
+        app.multimodal_settings.max_images,
+        app.multimodal_settings.max_image_size_mb,
+        picked,
     )
 }
 
@@ -69,39 +74,33 @@ pub(crate) fn refresh_file_index(app: &App) -> Task<Message> {
 }
 
 pub(crate) async fn refresh_file_index_with_fallback(project_path: &str) -> FileTreeIndexSnapshot {
-    match refresh_gateway_file_index(project_path).await {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            if gateway_http::is_gateway_unavailable_error(&error) {
-                tracing::debug!(
-                    target: "vw_desktop",
-                    project_path,
-                    error = %error,
-                    "failed to refresh file index from gateway, falling back to local scan"
-                );
-            } else {
-                tracing::warn!(
-                    target: "vw_desktop",
-                    project_path,
-                    error = %error,
-                    "failed to refresh file index from gateway, falling back to local scan"
-                );
-            }
-            let files = refresh_local_file_index(project_path).await;
-            let tree = crate::app::components::file_tree::model::build_file_tree_model(
+    let cache_directory =
+        crate::app::project_dirs().map(|dirs| dirs.data_local_dir().join("file_index_cache"));
+    let (snapshot, fallback_error) = desktop_workspace::project_message::tasks::refresh_index(
+        gateway_client(),
+        crate::app::session_gateway::active_tenant_scope(),
+        project_path.to_string(),
+        cache_directory,
+    )
+    .await;
+    if let Some(error) = fallback_error {
+        if gateway_http::is_gateway_unavailable_error(&error) {
+            tracing::debug!(
+                target: "vw_desktop",
                 project_path,
-                &files,
+                error = %error,
+                "failed to refresh file index from gateway, falling back to local scan"
             );
-            FileTreeIndexSnapshot { files, tree }
+        } else {
+            tracing::warn!(
+                target: "vw_desktop",
+                project_path,
+                error = %error,
+                "failed to refresh file index from gateway, falling back to local scan"
+            );
         }
     }
-}
-
-async fn refresh_local_file_index(project_path: &str) -> Vec<String> {
-    let path = project_path.to_string();
-    crate::app::message::spawn_blocking_opt(move || Some(crate::app::refresh_file_index(&path)))
-        .await
-        .unwrap_or_default()
+    snapshot
 }
 
 #[allow(dead_code)]
@@ -123,12 +122,11 @@ pub(crate) use desktop_workspace::project_message::paths::copy_recursively;
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
 pub(crate) fn find_session_project_path(app: &App, session_id: &str) -> Option<String> {
-    app.project_sessions
-        .iter()
-        .find_map(|(path, sessions)| {
-            sessions.iter().any(|s| s.id == session_id).then(|| path.clone())
-        })
-        .or_else(|| app.navigation_tabs.project_path.clone())
+    desktop_workspace::project_message::data::find_session_project_path(
+        &app.project_sessions,
+        app.navigation_tabs.project_path.as_deref(),
+        session_id,
+    )
 }
 
 /// now_ms 处理当前模块对应的消息或状态转换。
@@ -152,40 +150,15 @@ pub(crate) use desktop_workspace::project_message::gateway::GatewayFileContext;
 pub(crate) async fn resolve_gateway_file_context(
     project_path: &str,
 ) -> Result<GatewayFileContext, String> {
-    desktop_workspace::project_message::gateway::resolve_gateway_file_context(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path).await
+    desktop_workspace::project_message::gateway::resolve_gateway_file_context(
+        &gateway_client()?,
+        &crate::app::session_gateway::active_tenant_scope(),
+        project_path,
+    )
+    .await
 }
 
-async fn refresh_gateway_file_index(project_path: &str) -> Result<FileTreeIndexSnapshot, String> {
-    let client = gateway_client()?;
-    let context = resolve_gateway_file_context(project_path).await?;
-    let response = gateway_files::GatewayFilesClient::new(client.transport().clone())
-        .file_list(&ListFilesRequest {
-            project_id: context.project_id,
-            worktree_id: context.worktree_id,
-            path: None,
-            depth: None,
-        })
-        .await?;
-    Ok(FileTreeIndexSnapshot::from_dto(&context.base_directory, &response.root))
-}
-
-
-
-
-
-
-
-
-
-use desktop_workspace::project_message::data::map_gateway_project;
-
-pub(crate) fn map_loaded_project_info(
-    project_path: String,
-    project: ProjectDto,
-) -> super::LoadedProjectInfo {
-    let current_branch = project.current_branch.clone().filter(|value| !value.trim().is_empty());
-    super::LoadedProjectInfo { project_path, info: map_gateway_project(project), current_branch }
-}
+pub(crate) use desktop_workspace::project_message::data::map_loaded_project_info;
 
 #[allow(dead_code)]
 /// load_gateway_recent_projects 处理当前模块对应的消息或状态转换。
@@ -195,8 +168,10 @@ pub(crate) fn map_loaded_project_info(
 pub(crate) async fn load_gateway_recent_projects()
 -> Result<Vec<crate::app::RecentProjectMeta>, String> {
     let projects = desktop_workspace::project_message::gateway::load_recent_projects(
-        &gateway_client()?, &crate::app::session_gateway::active_tenant_scope(),
-    ).await?;
+        &gateway_client()?,
+        &crate::app::session_gateway::active_tenant_scope(),
+    )
+    .await?;
 
     Ok(projects
         .into_iter()
@@ -220,16 +195,20 @@ pub(crate) async fn load_gateway_recent_projects()
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 失败会被转换为界面可展示的状态或消息，避免在处理链路中静默丢失。
 pub(crate) async fn resolve_gateway_project(project_path: &str) -> Result<ProjectDto, String> {
-    desktop_workspace::project_message::gateway::resolve_gateway_project(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path).await
+    desktop_workspace::project_message::gateway::resolve_gateway_project(
+        &gateway_client()?,
+        &crate::app::session_gateway::active_tenant_scope(),
+        project_path,
+    )
+    .await
 }
-
-
 
 pub(crate) async fn list_gateway_project_sessions(
     client: &vw_gateway_client::GatewayClient,
     project_path: &str,
 ) -> Result<Vec<session_info::Info>, String> {
-    desktop_workspace::project_message::gateway::list_gateway_project_sessions(client, project_path).await
+    desktop_workspace::project_message::gateway::list_gateway_project_sessions(client, project_path)
+        .await
 }
 
 pub(crate) async fn gateway_session_project_path(
@@ -261,7 +240,12 @@ pub(crate) fn load_project_info_task(project_path: String) -> Task<Message> {
 pub(crate) async fn load_project_worktree_picker_options(
     project_path: &str,
 ) -> Result<Vec<(String, String)>, String> {
-    desktop_workspace::project_message::gateway::load_project_worktree_picker_options(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path).await
+    desktop_workspace::project_message::gateway::load_project_worktree_picker_options(
+        &gateway_client()?,
+        &crate::app::session_gateway::active_tenant_scope(),
+        project_path,
+    )
+    .await
 }
 
 /// create_gateway_session_worktree 处理当前模块对应的消息或状态转换。
@@ -272,10 +256,14 @@ pub(crate) async fn create_gateway_session_worktree(
     project_path: String,
     requested_name: String,
 ) -> Result<String, String> {
-    desktop_workspace::project_message::gateway::create_gateway_session_worktree(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path, requested_name).await
+    desktop_workspace::project_message::gateway::create_gateway_session_worktree(
+        &gateway_client()?,
+        &crate::app::session_gateway::active_tenant_scope(),
+        project_path,
+        requested_name,
+    )
+    .await
 }
-
-
 
 /// delete_gateway_worktree 处理当前模块对应的消息或状态转换。
 ///
@@ -286,7 +274,14 @@ pub(crate) async fn delete_gateway_worktree(
     directory: &str,
     force: bool,
 ) -> Result<(), String> {
-    desktop_workspace::project_message::gateway::delete_gateway_worktree(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path, directory, force).await
+    desktop_workspace::project_message::gateway::delete_gateway_worktree(
+        &gateway_client()?,
+        &crate::app::session_gateway::active_tenant_scope(),
+        project_path,
+        directory,
+        force,
+    )
+    .await
 }
 
 /// reset_gateway_worktree 处理当前模块对应的消息或状态转换。
@@ -297,9 +292,14 @@ pub(crate) async fn reset_gateway_worktree(
     project_path: &str,
     directory: &str,
 ) -> Result<(), String> {
-    desktop_workspace::project_message::gateway::reset_gateway_worktree(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path, directory).await
+    desktop_workspace::project_message::gateway::reset_gateway_worktree(
+        &gateway_client()?,
+        &crate::app::session_gateway::active_tenant_scope(),
+        project_path,
+        directory,
+    )
+    .await
 }
-
 
 /// relative_to_project 处理当前模块对应的消息或状态转换。
 ///
@@ -313,7 +313,14 @@ pub(crate) async fn gateway_import_local_paths(
     target_directory: &str,
     source_paths: Vec<String>,
 ) -> Result<vw_api_file::file::LocalImportResponse, String> {
-    desktop_workspace::project_message::gateway::gateway_import_local_paths(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path, target_directory, source_paths).await
+    desktop_workspace::project_message::gateway::gateway_import_local_paths(
+        &gateway_client()?,
+        &crate::app::session_gateway::active_tenant_scope(),
+        project_path,
+        target_directory,
+        source_paths,
+    )
+    .await
 }
 
 /// gateway_move_path 处理当前模块对应的消息或状态转换。
@@ -325,7 +332,14 @@ pub(crate) async fn gateway_move_path(
     from_path: &str,
     to_path: &str,
 ) -> Result<(), String> {
-    desktop_workspace::project_message::gateway::gateway_move_path(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path, from_path, to_path).await
+    desktop_workspace::project_message::gateway::gateway_move_path(
+        &gateway_client()?,
+        &crate::app::session_gateway::active_tenant_scope(),
+        project_path,
+        from_path,
+        to_path,
+    )
+    .await
 }
 
 /// gateway_copy_path 处理当前模块对应的消息或状态转换。
@@ -337,11 +351,24 @@ pub(crate) async fn gateway_copy_path(
     from_path: &str,
     to_path: &str,
 ) -> Result<(), String> {
-    desktop_workspace::project_message::gateway::gateway_copy_path(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path, from_path, to_path).await
+    desktop_workspace::project_message::gateway::gateway_copy_path(
+        &gateway_client()?,
+        &crate::app::session_gateway::active_tenant_scope(),
+        project_path,
+        from_path,
+        to_path,
+    )
+    .await
 }
 
 pub(super) async fn gateway_duplicate_path(project_path: &str, path: &str) -> Result<(), String> {
-    desktop_workspace::project_message::gateway::gateway_duplicate_path(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path, path).await
+    desktop_workspace::project_message::gateway::gateway_duplicate_path(
+        &gateway_client()?,
+        &crate::app::session_gateway::active_tenant_scope(),
+        project_path,
+        path,
+    )
+    .await
 }
 
 /// gateway_delete_path 处理当前模块对应的消息或状态转换。
@@ -353,7 +380,14 @@ pub(crate) async fn gateway_delete_path(
     path: &str,
     recursive: bool,
 ) -> Result<(), String> {
-    desktop_workspace::project_message::gateway::gateway_delete_path(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path, path, recursive).await
+    desktop_workspace::project_message::gateway::gateway_delete_path(
+        &gateway_client()?,
+        &crate::app::session_gateway::active_tenant_scope(),
+        project_path,
+        path,
+        recursive,
+    )
+    .await
 }
 
 /// run_find_task 处理当前模块对应的消息或状态转换。
@@ -371,43 +405,18 @@ pub(crate) fn run_find_task(
     use_regex: bool,
     files: Vec<String>,
 ) -> Task<Message> {
-    let tab_id_for_msg = tab_id.clone();
-    let title_for_msg = title.clone();
-    let scope_for_msg = scope_path.clone();
-    let query_for_msg = query.clone();
-    let replace_for_msg = replace_text.clone();
-
-    Task::perform(
-        async move {
-            crate::app::message::spawn_blocking_opt(move || {
-                Some(desktop_workspace::project_message::search::search(
-                    scope_path, query, case_sensitive, whole_word, use_regex, files,
-                ))
-            })
-            .await
-            .unwrap_or((
-                Vec::new(),
-                Some(crate::app::i18n::input::Feedback::new("搜索失败", vec![])),
-                false,
-            ))
-        },
-        move |(matches, error, limit_reached)| {
-            Message::Project(ProjectMessage::FileTreeFindCompleted {
-                tab_id: tab_id_for_msg.clone(),
-                title: title_for_msg.clone(),
-                scope_path: scope_for_msg.clone(),
-                query: query_for_msg.clone(),
-                replace_text: replace_for_msg.clone(),
-                case_sensitive,
-                whole_word,
-                use_regex,
-                matches,
-                error: error.as_ref().map(|feedback| feedback.fallback.clone()),
-                localized_error: error,
-                limit_reached,
-            })
-        },
+    desktop_workspace::project_message::tasks::run_find_task(
+        tab_id,
+        title,
+        scope_path,
+        query,
+        replace_text,
+        case_sensitive,
+        whole_word,
+        use_regex,
+        files,
     )
+    .map(|event| Message::Project(event.into_message()))
 }
 
 /// 后台读取 UI Store，并将完整历史和首屏分块合并为一个冷打开结果。
@@ -562,23 +571,20 @@ pub(crate) fn load_session_history_page_task(
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
-struct ChatUiChunkSnapshot {
-    chunk_start_idx: usize,
-    messages: crate::app::session::SharedChatMessages,
+fn ui_event(event: desktop_chat_view::preparation_tasks::UiEvent) -> Message {
+    match event {
+        desktop_chat_view::preparation_tasks::UiEvent::None => Message::None,
+        desktop_chat_view::preparation_tasks::UiEvent::Prepared {
+            session_id,
+            stream_generation,
+            phase,
+        } => Message::Project(ProjectMessage::SessionUiPrepared {
+            session_id,
+            stream_generation,
+            phase,
+        }),
+    }
 }
-
-fn chat_ui_chunk_snapshot(
-    chat: &crate::app::session::SharedChatMessages,
-    chunk_start_idx: usize,
-) -> Option<ChatUiChunkSnapshot> {
-    let (chunk_start_idx, chunk_end_idx) =
-        crate::app::session::chat_ui_chunk_bounds(chat.len(), chunk_start_idx);
-    (chunk_start_idx < chunk_end_idx).then(|| ChatUiChunkSnapshot {
-        chunk_start_idx,
-        messages: std::sync::Arc::from(&chat[chunk_start_idx..chunk_end_idx]),
-    })
-}
-
 pub(crate) fn prepare_session_ui_task(
     session_id: String,
     chat: crate::app::session::SharedChatMessages,
@@ -586,35 +592,15 @@ pub(crate) fn prepare_session_ui_task(
     is_base: bool,
     show_reasoning_summary: bool,
 ) -> Task<Message> {
-    let Some(snapshot) = chat_ui_chunk_snapshot(&chat, chunk_start_idx) else {
-        return Task::done(Message::None);
-    };
-    Task::perform(
-        async move {
-            crate::app::message::spawn_blocking_opt(move || {
-                Some((
-                    session_id,
-                    crate::app::session::prepare_chat_ui_chunk_phase(
-                        &snapshot.messages,
-                        snapshot.chunk_start_idx,
-                        is_base,
-                        show_reasoning_summary,
-                    ),
-                ))
-            })
-            .await
-        },
-        |res| match res {
-            Some((session_id, phase)) => Message::Project(ProjectMessage::SessionUiPrepared {
-                session_id,
-                stream_generation: None,
-                phase,
-            }),
-            None => Message::None,
-        },
+    desktop_chat_view::preparation_tasks::prepare_session_ui_task(
+        session_id,
+        chat,
+        chunk_start_idx,
+        is_base,
+        show_reasoning_summary,
     )
+    .map(ui_event)
 }
-
 pub(crate) fn prepare_stream_message_ui_task(
     session_id: String,
     message: crate::app::models::ChatMessage,
@@ -622,38 +608,15 @@ pub(crate) fn prepare_stream_message_ui_task(
     stream_generation: u64,
     show_reasoning_summary: bool,
 ) -> Task<Message> {
-    Task::perform(
-        async move {
-            crate::app::message::spawn_blocking_opt(move || {
-                Some((
-                    session_id,
-                    stream_generation,
-                    crate::app::session::prepare_chat_ui_message_phase(
-                        &message,
-                        message_idx,
-                        show_reasoning_summary,
-                    ),
-                ))
-            })
-            .await
-        },
-        |res| match res {
-            Some((session_id, stream_generation, phase)) => {
-                Message::Project(ProjectMessage::SessionUiPrepared {
-                    session_id,
-                    stream_generation: Some(stream_generation),
-                    phase,
-                })
-            }
-            None => Message::None,
-        },
+    desktop_chat_view::preparation_tasks::prepare_stream_message_ui_task(
+        session_id,
+        message,
+        message_idx,
+        stream_generation,
+        show_reasoning_summary,
     )
+    .map(ui_event)
 }
-
-/// prepare_session_ui_chunks_task 处理当前模块对应的消息或状态转换。
-///
-/// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
-/// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
 pub(crate) fn prepare_session_ui_chunks_task(
     session_id: String,
     chat: crate::app::session::SharedChatMessages,
@@ -661,21 +624,15 @@ pub(crate) fn prepare_session_ui_chunks_task(
     base_chunk_start: Option<usize>,
     show_reasoning_summary: bool,
 ) -> Task<Message> {
-    if chunk_starts.is_empty() {
-        return Task::none();
-    }
-
-    Task::batch(chunk_starts.into_iter().map(|chunk_start_idx| {
-        prepare_session_ui_task(
-            session_id.clone(),
-            chat.clone(),
-            chunk_start_idx,
-            base_chunk_start == Some(chunk_start_idx),
-            show_reasoning_summary,
-        )
-    }))
+    desktop_chat_view::preparation_tasks::prepare_session_ui_chunks_task(
+        session_id,
+        chat,
+        chunk_starts,
+        base_chunk_start,
+        show_reasoning_summary,
+    )
+    .map(ui_event)
 }
-
 #[cfg(test)]
 #[path = "helpers_tests.rs"]
 mod helpers_tests;

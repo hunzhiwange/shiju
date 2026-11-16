@@ -45,31 +45,18 @@ fn recent_project(path: &str, name: &str) -> crate::app::RecentProjectMeta {
     }
 }
 
-#[test]
-fn project_path_changed_updates_input() {
-    let mut app = app();
 
-    let task = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::ProjectPathChanged(
-            "/tmp/project".to_string(),
-        ),
-    );
-
-    assert!(task.is_some());
-    assert_eq!(app.project_path_input, "/tmp/project");
-}
 
 #[test]
 fn open_project_pressed_uses_non_empty_input_path() {
     let mut app = app();
-    app.project_path_input = "/workspace/from-input".to_string();
+    app.project_input.project_path_input = "/workspace/from-input".to_string();
 
     let task =
         super::handle(&mut app, crate::app::message::project::ProjectMessage::OpenProjectPressed);
 
     assert!(task.is_some());
-    assert_eq!(app.project_path_input, "/workspace/from-input");
+    assert_eq!(app.project_input.project_path_input, "/workspace/from-input");
 }
 
 #[test]
@@ -113,31 +100,9 @@ fn recent_projects_loaded_error_preserves_existing_projects() {
     assert_eq!(app.recent_projects_meta[0].path, "/workspace/keep");
 }
 
-#[test]
-fn file_url_changed_and_add_file_pressed_append_file_once() {
-    let mut app = app();
 
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::FileUrlChanged(
-            "https://example.test/a.rs".to_string(),
-        ),
-    );
-    let _ = super::handle(&mut app, crate::app::message::project::ProjectMessage::AddFilePressed);
 
-    assert_eq!(app.files, vec!["https://example.test/a.rs".to_string()]);
-    assert!(app.file_url_input.is_empty());
-}
 
-#[test]
-fn add_file_pressed_ignores_empty_input() {
-    let mut app = app();
-    app.file_url_input.clear();
-
-    let _ = super::handle(&mut app, crate::app::message::project::ProjectMessage::AddFilePressed);
-
-    assert!(app.files.is_empty());
-}
 
 #[test]
 fn attachment_files_picked_appends_paths() {
@@ -173,31 +138,9 @@ fn attachment_files_picked_none_preserves_existing_files() {
     assert_eq!(app.files, ["existing.txt"]);
 }
 
-#[test]
-fn remove_attached_file_removes_matching_path() {
-    let mut app = app();
-    app.files = vec!["/tmp/a.txt".to_string(), "/tmp/b.txt".to_string()];
 
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::RemoveAttachedFile("/tmp/a.txt".to_string()),
-    );
 
-    assert_eq!(app.files, vec!["/tmp/b.txt".to_string()]);
-}
 
-#[test]
-fn remove_attached_file_removes_every_duplicate_and_preserves_other_paths() {
-    let mut app = app();
-    app.files = vec!["a.txt".to_string(), "b.txt".to_string(), "a.txt".to_string()];
-
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::RemoveAttachedFile("a.txt".to_string()),
-    );
-
-    assert_eq!(app.files, ["b.txt"]);
-}
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
@@ -370,7 +313,7 @@ async fn file_manager_show_changes_true_in_work_mode_reveals_workspace_files() {
 fn file_manager_show_changes_false_preserves_preview_and_resets_find_selection() {
     let mut app = app();
     app.navigation_tabs.active_preview_path = Some("/tmp/project/src/main.rs".to_string());
-    app.active_find_results_tab_id = Some("find-results".to_string());
+    app.project_find.active_find_results_tab_id = Some("find-results".to_string());
     app.file_manager.show_file_manager = false;
 
     let task = super::handle(
@@ -381,7 +324,7 @@ fn file_manager_show_changes_false_preserves_preview_and_resets_find_selection()
     assert!(task.is_some());
     assert!(!app.file_manager.file_manager_show_changes);
     assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/tmp/project/src/main.rs"));
-    assert!(app.active_find_results_tab_id.is_none());
+    assert!(app.project_find.active_find_results_tab_id.is_none());
     assert!(app.file_manager.show_file_manager);
 }
 

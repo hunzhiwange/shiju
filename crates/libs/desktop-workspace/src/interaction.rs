@@ -240,3 +240,39 @@ impl InteractionState {
         self.file_tree_drop_target = if self.file_tree_drag_source.as_ref().is_some_and(|(root, _)| current_root == Some(root.as_str())) && !self.file_tree_operation_in_progress { target } else { None };
     }
 }
+
+/// Handle interactions that need no filesystem, navigation or editor ownership.
+pub fn handle_local<P, H, U>(state: &mut InteractionState, message: &crate::project_message::message::ProjectMessage<P, H, U>) -> bool {
+    use crate::project_message::message::ProjectMessage as M;
+    match message {
+        M::FileTreeMenuClose => state.close_menu(),
+        M::FileTreeRenameChanged(value) => state.file_tree_rename_value = value.clone(),
+        M::FileTreeRenameCancel => state.cancel_rename(),
+        M::FileTreeDragStart(path, position) => state.start_drag(path.clone(), *position),
+        M::FileTreeDragEnd if state.file_tree_drag_source.is_none() || state.file_tree_drop_target.is_none() => state.end_chat_drag(),
+        M::FileTreeDeleteCanceled => state.file_tree_pending_delete = None,
+        _ => return false,
+    }
+    true
+}
+
+impl InteractionState {
+    /// Consume a frozen gesture before validation, preventing a second chat delivery.
+    pub fn prepare_move(&mut self, current_root: Option<&str>, root: &str, source: &str, directory: &str, files: &[String]) -> Option<Vec<(String, String)>> {
+        if self.file_tree_operation_in_progress
+            || self.file_tree_drag_source.as_ref() != Some(&(root.to_string(), source.to_string())) {
+            return None;
+        }
+        let sources = crate::file_tree::top_level_paths(self.dragging_file_paths.clone());
+        self.clear_drag();
+        if current_root != Some(root) { return None; }
+        let moves = crate::file_tree::plan_move(root, directory, files, sources)?;
+        if moves.is_empty() { return None; }
+        self.file_tree_operation_in_progress = true;
+        Some(moves)
+    }
+    pub fn prepare_import(&mut self, current_root: Option<&str>, root: &str, source: &str, directory: &str, files: &[String]) -> bool {
+        self.clear_drag();
+        current_root == Some(root) && crate::file_tree::valid_external_drop(root, source, directory, files)
+    }
+}

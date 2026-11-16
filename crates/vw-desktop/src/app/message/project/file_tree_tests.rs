@@ -35,70 +35,11 @@ pub(super) fn preview_tab(path: &str) -> crate::app::PreviewTab {
     }
 }
 
-#[test]
-fn file_tree_right_click_and_close_manage_menu_state() {
-    let mut app = app();
 
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::FileTreeRightClicked(
-            "/tmp/a.txt".to_string(),
-            "tree".to_string(),
-            10.0,
-            20.0,
-        ),
-    );
 
-    assert_eq!(app.file_tree_interaction.file_tree_menu_path.as_deref(), Some("/tmp/a.txt"));
-    assert_eq!(app.file_tree_interaction.file_tree_menu_source.as_deref(), Some("tree"));
-    assert_eq!(app.file_tree_interaction.file_tree_menu_anchor, Some(iced::Point::new(10.0, 20.0)));
 
-    let _ =
-        super::handle(&mut app, crate::app::message::project::ProjectMessage::FileTreeMenuClose);
 
-    assert!(app.file_tree_interaction.file_tree_menu_path.is_none());
-    assert!(app.file_tree_interaction.file_tree_menu_source.is_none());
-    assert!(app.file_tree_interaction.file_tree_menu_anchor.is_none());
-}
 
-#[test]
-fn rename_changed_and_cancel_manage_rename_state() {
-    let mut app = app();
-    app.file_tree_interaction.file_tree_rename_path = Some("/tmp/a.txt".to_string());
-
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::FileTreeRenameChanged("b.txt".to_string()),
-    );
-    assert_eq!(app.file_tree_interaction.file_tree_rename_value, "b.txt");
-
-    let _ =
-        super::handle(&mut app, crate::app::message::project::ProjectMessage::FileTreeRenameCancel);
-
-    assert!(app.file_tree_interaction.file_tree_rename_path.is_none());
-    assert!(app.file_tree_interaction.file_tree_rename_value.is_empty());
-}
-
-#[test]
-fn drag_start_and_end_transfer_pending_drop_state() {
-    let mut app = app();
-
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::FileTreeDragStart(
-            "/tmp/a.txt".to_string(),
-            Some((3, 4)),
-        ),
-    );
-    assert_eq!(app.file_tree_interaction.dragging_file_paths, vec!["/tmp/a.txt".to_string()]);
-    assert_eq!(app.file_tree_interaction.dragging_file_position, Some((3, 4)));
-
-    let _ = super::handle(&mut app, crate::app::message::project::ProjectMessage::FileTreeDragEnd);
-
-    assert!(app.file_tree_interaction.dragging_file_paths.is_empty());
-    assert_eq!(app.file_tree_interaction.pending_drop_file_paths, vec!["/tmp/a.txt".to_string()]);
-    assert_eq!(app.file_tree_interaction.pending_drop_file_position, Some((3, 4)));
-}
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
@@ -347,9 +288,9 @@ fn find_in_folder_action_creates_active_find_tab_and_open_tab() {
         ),
     );
 
-    assert_eq!(app.find_results_tabs.len(), 1);
-    assert_eq!(app.find_results_tabs[0].scope_path, "/tmp/project/src");
-    assert_eq!(app.active_find_results_tab_id, Some(app.find_results_tabs[0].id.clone()));
+    assert_eq!(app.project_find.find_results_tabs.len(), 1);
+    assert_eq!(app.project_find.find_results_tabs[0].scope_path, "/tmp/project/src");
+    assert_eq!(app.project_find.active_find_results_tab_id, Some(app.project_find.find_results_tabs[0].id.clone()));
     assert!(app.file_manager.show_file_manager);
     assert!(app.navigation_tabs.active_tab_id.as_deref().is_some_and(|id| id.starts_with("find:")));
 }

@@ -15,7 +15,7 @@ pub fn update(app: &mut App, message: SearchMessage) -> Task<Message> {
         }
         desktop_search::Effect::OpenProject(path) => app.open_project_and_index(path),
         desktop_search::Effect::SelectFile(path) => {
-            app.file_url_input = path;
+            app.project_input.file_url_input = path;
             Task::none()
         }
         desktop_search::Effect::OpenSession(id) => {

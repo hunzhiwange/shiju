@@ -34,19 +34,7 @@ fn start(app: &mut App, path: &str) {
     );
 }
 
-#[test]
-fn selected_drag_freezes_all_items_and_unselected_drag_replaces_selection() {
-    let mut app = selected_app();
-    start(&mut app, "/project/b.txt");
-    assert_eq!(app.file_tree_interaction.dragging_file_paths, ["/project/a.txt", "/project/b.txt"]);
-    app.file_tree_interaction.file_tree_selection.paths.clear();
-    assert_eq!(app.file_tree_interaction.dragging_file_paths.len(), 2);
-    clear_drag(&mut app);
-    start(&mut app, "/project/c.txt");
-    assert_eq!(app.file_tree_interaction.dragging_file_paths, ["/project/c.txt"]);
-    assert!(app.file_tree_interaction.file_tree_selection.contains("/project", "/project/c.txt"));
-    assert_eq!(app.file_tree_interaction.file_tree_selection.paths.len(), 1);
-}
+
 
 #[tokio::test]
 async fn selected_drag_chat_delivery_contains_every_item_for_both_release_orders() {

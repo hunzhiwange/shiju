@@ -118,7 +118,7 @@ fn select_file_sets_file_input_and_hides_overlay() {
 
     update(&mut app, SearchMessage::SelectFile("/tmp/data.json".to_string()));
 
-    assert_eq!(app.file_url_input, "/tmp/data.json");
+    assert_eq!(app.project_input.file_url_input, "/tmp/data.json");
     assert!(!app.search.show_search_overlay);
 }
 

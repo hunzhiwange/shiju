@@ -3,16 +3,12 @@
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::{
-    append_local_attachments, find_session_project_path, map_loaded_project_info,
-    prepare_session_ui_chunks_task, prepare_session_ui_task, prepare_stream_message_ui_task,
-    refresh_file_index, run_find_task,
+    append_local_attachments, prepare_session_ui_chunks_task, prepare_session_ui_task,
+    prepare_stream_message_ui_task, refresh_file_index, run_find_task,
 };
 use crate::app::App;
 use std::fs;
 use tempfile::tempdir;
-use vw_api_project::{ProjectDto, ProjectGitStateDto, ProjectStatus};
-use vw_api_transport::common::TimestampMs;
-use vw_api_transport::id::ProjectId;
 
 async fn collect_task_messages(task: iced::Task<crate::app::Message>) -> Vec<crate::app::Message> {
     use iced_runtime::futures::futures::StreamExt;
@@ -57,20 +53,6 @@ fn append_local_attachments_adds_only_new_valid_files() {
     );
 }
 
-#[test]
-fn find_session_project_path_falls_back_to_active_project() {
-    let (mut app, _task) = App::new();
-    app.navigation_tabs.project_path = Some("/active/project".to_string());
-
-    assert_eq!(
-        find_session_project_path(&app, "missing-session"),
-        Some("/active/project".to_string())
-    );
-
-    app.navigation_tabs.project_path = None;
-    assert_eq!(find_session_project_path(&app, "missing-session"), None);
-}
-
 #[tokio::test(flavor = "multi_thread")]
 async fn refresh_file_index_without_project_path_produces_no_messages() {
     let (app, _task) = App::new();
@@ -78,22 +60,6 @@ async fn refresh_file_index_without_project_path_produces_no_messages() {
     let messages = collect_task_messages(refresh_file_index(&app)).await;
 
     assert!(messages.is_empty());
-}
-
-#[test]
-fn map_loaded_project_info_drops_blank_current_branch() {
-    let loaded = map_loaded_project_info("/current".to_string(), project_dto(Some("  ")));
-
-    assert_eq!(loaded.project_path, "/current");
-    assert_eq!(loaded.info.id, "project-id");
-    assert!(loaded.current_branch.is_none());
-}
-
-#[test]
-fn map_loaded_project_info_keeps_non_blank_current_branch() {
-    let loaded = map_loaded_project_info("/current".to_string(), project_dto(Some("feature")));
-
-    assert_eq!(loaded.current_branch.as_deref(), Some("feature"));
 }
 
 #[tokio::test]
@@ -119,41 +85,6 @@ async fn prepare_session_ui_tasks_return_none_for_empty_work_units() {
     ))
     .await;
     assert!(empty_batch_messages.is_empty());
-}
-
-fn long_chat_chunk_snapshot() -> super::ChatUiChunkSnapshot {
-    let chat: crate::app::session::SharedChatMessages = std::sync::Arc::from(
-        (0..10_000)
-            .map(|idx| crate::app::models::ChatMessage {
-                role: crate::app::models::ChatRole::Assistant,
-                content: format!("message-{idx}"),
-                model: None,
-                think_timing: Vec::new(),
-                processing_timing: None,
-            })
-            .collect::<Vec<_>>(),
-    );
-
-    super::chat_ui_chunk_snapshot(&chat, 9_952)
-        .expect("the requested history chunk should have a bounded snapshot")
-}
-
-#[test]
-fn chat_ui_chunk_snapshots_requested_32_only() {
-    let snapshot = long_chat_chunk_snapshot();
-
-    assert_eq!(snapshot.chunk_start_idx, 9_952);
-    assert_eq!(snapshot.messages.len(), crate::app::session::CHAT_UI_CHUNK_SIZE);
-    assert_eq!(snapshot.messages[0].content, "message-9952");
-    assert_eq!(snapshot.messages[31].content, "message-9983");
-}
-
-#[test]
-fn prepare_session_ui_does_not_clone_full_history() {
-    let snapshot = long_chat_chunk_snapshot();
-
-    assert_eq!(snapshot.messages.len(), 32);
-    assert!(snapshot.messages.len() < 10_000);
 }
 
 // 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
@@ -191,28 +122,6 @@ async fn prepare_stream_message_ui_task_prepares_only_target() {
     assert_eq!(*stream_generation, Some(9));
     assert_eq!(prepared.message_idx, 47);
     assert_eq!(prepared.render_cache.display_text, "stream tail");
-}
-
-fn project_dto(current_branch: Option<&str>) -> ProjectDto {
-    ProjectDto {
-        id: ProjectId("project-id".to_string()),
-        name: "Gateway Project".to_string(),
-        directory: "/project".to_string(),
-        display_path: "/project".to_string(),
-        status: ProjectStatus::Ready,
-        created_at_ms: TimestampMs(-100),
-        updated_at_ms: TimestampMs(5000),
-        default_branch: Some("main".to_string()),
-        current_branch: current_branch.map(ToString::to_string),
-        git: ProjectGitStateDto {
-            is_repo: true,
-            has_uncommitted_changes: false,
-            ahead: None,
-            behind: None,
-        },
-        active_worktree_id: None,
-        session_count: Some(2),
-    }
 }
 
 #[tokio::test(flavor = "multi_thread")]

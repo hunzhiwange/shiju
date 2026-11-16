@@ -95,7 +95,7 @@ fn open_project_does_not_wait_for_chat_preferences() {
     );
     set_gateway_port(server.port);
 
-    app.project_path_input = home.path().display().to_string();
+    app.project_input.project_path_input = home.path().display().to_string();
     let task = app.update(crate::app::Message::Project(
         crate::app::message::ProjectMessage::OpenProjectPressed,
     ));

@@ -10,29 +10,31 @@ pub(super) fn submit(
     source: String,
     directory: String,
 ) -> Task<Message> {
-    super::move_drop::clear_drag(app);
-    if app.navigation_tabs.project_path.as_ref() != Some(&root)
-        || !desktop_workspace::file_tree::valid_external_drop(&root, &source, &directory, &app.files)
-    {
+    if !app.file_tree_interaction.prepare_import(
+        app.navigation_tabs.project_path.as_deref(),
+        &root,
+        &source,
+        &directory,
+        &app.files,
+    ) {
         return Task::none();
     }
     // Each native callback owns its context and task; a pending move cannot discard it.
-    Task::perform(
-        async move {
-            let result = super::super::helpers::gateway_import_local_paths(
-                &root,
-                &directory,
-                vec![source.clone()],
-            )
-            .await;
-            ProjectMessage::FileTreeImportCompleted {
-                project_path: root,
-                source_path: source,
-                result,
-            }
+    desktop_workspace::operations::tasks::import(
+        root,
+        source,
+        directory,
+        |root, directory, paths| async move {
+            super::super::helpers::gateway_import_local_paths(&root, &directory, paths).await
         },
-        Message::Project,
     )
+    .map(|event| {
+        Message::Project(ProjectMessage::FileTreeImportCompleted {
+            project_path: event.project_path,
+            source_path: event.source_path,
+            result: event.result,
+        })
+    })
 }
 
 pub(super) fn complete(
@@ -43,7 +45,9 @@ pub(super) fn complete(
 ) -> Task<Message> {
     let (kind, detail) = desktop_workspace::file_tree::import_feedback(&source, result);
     let kind = match kind {
-        desktop_workspace::file_tree::FeedbackKind::Success => crate::app::state::ToastKind::Success,
+        desktop_workspace::file_tree::FeedbackKind::Success => {
+            crate::app::state::ToastKind::Success
+        }
         desktop_workspace::file_tree::FeedbackKind::Error => crate::app::state::ToastKind::Error,
     };
     let toast = app.show_localized_toast(kind, "%s", vec![detail.into()]);

@@ -11,10 +11,7 @@ impl FileTreeIndexSnapshot {
         let mut files = Vec::new();
         collect_gateway_file_paths(base_directory, root, &mut files);
         files.sort();
-        let tree = desktop_file_tree::model::build_file_tree_model_from_dto(
-            base_directory,
-            root,
-        );
+        let tree = desktop_file_tree::model::build_file_tree_model_from_dto(base_directory, root);
         Self { files, tree }
     }
 }
@@ -66,3 +63,28 @@ pub fn map_gateway_project(project: ProjectDto) -> project_types::Info {
 #[cfg(test)]
 #[path = "data_tests.rs"]
 mod data_tests;
+
+pub fn map_loaded_project_info(
+    project_path: String,
+    project: vw_api_project::ProjectDto,
+) -> super::message::LoadedProjectInfo {
+    let current_branch = project.current_branch.clone().filter(|value| !value.trim().is_empty());
+    super::message::LoadedProjectInfo {
+        project_path,
+        info: map_gateway_project(project),
+        current_branch,
+    }
+}
+
+pub fn find_session_project_path(
+    sessions: &std::collections::HashMap<String, Vec<session_info::Info>>,
+    active_project: Option<&str>,
+    session_id: &str,
+) -> Option<String> {
+    sessions
+        .iter()
+        .find_map(|(path, sessions)| {
+            sessions.iter().any(|s| s.id == session_id).then(|| path.clone())
+        })
+        .or_else(|| active_project.map(str::to_owned))
+}

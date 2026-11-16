@@ -44,7 +44,7 @@ pub enum FindMessage {
     FileTreeFindTabMenuCloseRight(String),
     FileTreeFindTabMenuCloseAll,
 }
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct FindState {
  pub find_results_tabs: Vec<FindInFolderTab>,
  pub active_find_results_tab_id: Option<String>,
@@ -52,6 +52,7 @@ pub struct FindState {
  pub find_results_tab_menu_pos: Option<iced::Point>,
  effects: Vec<FindEffect>,
 }
+#[derive(Debug)]
 pub enum FindEffect {
  None,
  Open { id: String, count: usize },
@@ -331,29 +332,7 @@ fn update(app: &mut FindState, project_path: Option<&str>, files: Vec<String>, m
             let tab_id = format!("{}", now_ms());
 
             // 创建新的查找标签页并添加到列表
-            app.find_results_tabs.push(FindInFolderTab {
-                id: tab_id.clone(),                          // 唯一标识符
-                title: "查找".to_string(),                   // 初始标题
-                scope_path,                                  // 搜索范围路径
-                query_input: String::new(),                  // 查询输入（初始为空）
-                replace_input: String::new(),                // 替换输入（初始为空）
-                query_editor: text_editor::Content::new(),   // 查询编辑器内容
-                replace_editor: text_editor::Content::new(), // 替换编辑器内容
-                query: String::new(),                        // 当前查询字符串
-                replace_text: String::new(),                 // 当前替换文本
-                case_sensitive: false,                       // 默认不区分大小写
-                whole_word: false,                           // 默认不匹配全词
-                use_regex: false,                            // 默认不使用正则
-                running: false,                              // 初始不处于运行状态
-                error: None,                                 // 无错误
-                limit_reached: false,                        // 未达到限制
-                matches: Vec::new(),                         // 匹配结果列表
-                localized_error: None,
-                results_page: 0, // 从首屏开始展示结果
-            });
-
-            // 设置为活动标签页
-            app.active_find_results_tab_id = Some(tab_id.clone());
+            app.open_scope(scope_path, tab_id.clone());
 
             // 确保文件管理器可见
             app.effects.push(FindEffect::ShowFileManager);
@@ -528,3 +507,114 @@ pub fn handle(state: &mut FindState, project_path: Option<&str>, files: Vec<Stri
 #[cfg(test)]
 #[path = "find_tests.rs"]
 mod find_tests;
+
+impl FindState {
+    pub fn open_scope(&mut self, scope_path: String, tab_id: String) {
+            self.find_results_tabs.push(FindInFolderTab {
+                id: tab_id.clone(),                          // 唯一标识符
+                title: "查找".to_string(),                   // 初始标题
+                scope_path,                                  // 搜索范围路径
+                query_input: String::new(),                  // 查询输入（初始为空）
+                replace_input: String::new(),                // 替换输入（初始为空）
+                query_editor: text_editor::Content::new(),   // 查询编辑器内容
+                replace_editor: text_editor::Content::new(), // 替换编辑器内容
+                query: String::new(),                        // 当前查询字符串
+                replace_text: String::new(),                 // 当前替换文本
+                case_sensitive: false,                       // 默认不区分大小写
+                whole_word: false,                           // 默认不匹配全词
+                use_regex: false,                            // 默认不使用正则
+                running: false,                              // 初始不处于运行状态
+                error: None,                                 // 无错误
+                limit_reached: false,                        // 未达到限制
+                matches: Vec::new(),                         // 匹配结果列表
+                localized_error: None,
+                results_page: 0, // 从首屏开始展示结果
+            });
+
+            // 设置为活动标签页
+            self.active_find_results_tab_id = Some(tab_id.clone());
+
+    }
+}
+
+impl<P, H, U> TryFrom<super::message::ProjectMessage<P, H, U>> for FindMessage {
+    type Error = ();
+    fn try_from(message: super::message::ProjectMessage<P, H, U>) -> Result<Self, Self::Error> {
+        Ok(match message {
+        super::message::ProjectMessage::FileTreeFindScopeChanged(v0, v1) => {
+            FindMessage::FileTreeFindScopeChanged(v0, v1)
+        }
+        super::message::ProjectMessage::FileTreeFindQueryEditorAction(v0, v1) => {
+            FindMessage::FileTreeFindQueryEditorAction(v0, v1)
+        }
+        super::message::ProjectMessage::FileTreeFindReplaceEditorAction(v0, v1) => {
+            FindMessage::FileTreeFindReplaceEditorAction(v0, v1)
+        }
+        super::message::ProjectMessage::FileTreeFindCaseSensitiveToggled(v0, v1) => {
+            FindMessage::FileTreeFindCaseSensitiveToggled(v0, v1)
+        }
+        super::message::ProjectMessage::FileTreeFindWholeWordToggled(v0, v1) => {
+            FindMessage::FileTreeFindWholeWordToggled(v0, v1)
+        }
+        super::message::ProjectMessage::FileTreeFindRegexToggled(v0, v1) => {
+            FindMessage::FileTreeFindRegexToggled(v0, v1)
+        }
+        super::message::ProjectMessage::FileTreeFindCaseSensitiveShortcut => {
+            FindMessage::FileTreeFindCaseSensitiveShortcut
+        }
+        super::message::ProjectMessage::FileTreeFindWholeWordShortcut => FindMessage::FileTreeFindWholeWordShortcut,
+        super::message::ProjectMessage::FileTreeFindRegexShortcut => FindMessage::FileTreeFindRegexShortcut,
+        super::message::ProjectMessage::FileTreeFindResultsPageChanged(v0, v1) => {
+            FindMessage::FileTreeFindResultsPageChanged(v0, v1)
+        }
+        super::message::ProjectMessage::FileTreeFindRun(v0) => FindMessage::FileTreeFindRun(v0),
+        super::message::ProjectMessage::FileTreeFindRefreshActive => FindMessage::FileTreeFindRefreshActive,
+        super::message::ProjectMessage::FileTreeFindInProject => FindMessage::FileTreeFindInProject,
+        super::message::ProjectMessage::FileTreeReplaceInProject => FindMessage::FileTreeReplaceInProject,
+        super::message::ProjectMessage::FileTreeFindCompleted {
+            tab_id,
+            title,
+            scope_path,
+            query,
+            replace_text,
+            case_sensitive,
+            whole_word,
+            use_regex,
+            matches,
+            error,
+            localized_error,
+            limit_reached,
+        } => FindMessage::FileTreeFindCompleted {
+            tab_id,
+            title,
+            scope_path,
+            query,
+            replace_text,
+            case_sensitive,
+            whole_word,
+            use_regex,
+            matches,
+            error,
+            localized_error,
+            limit_reached,
+        },
+        super::message::ProjectMessage::FileTreeFindMatchSelected { path, line, column } => {
+            FindMessage::FileTreeFindMatchSelected { path, line, column }
+        }
+        super::message::ProjectMessage::FileTreeFindTabSelected(v0) => FindMessage::FileTreeFindTabSelected(v0),
+        super::message::ProjectMessage::FileTreeFindTabClosed(v0) => FindMessage::FileTreeFindTabClosed(v0),
+        super::message::ProjectMessage::FileTreeFindTabRightClicked(v0, v1, v2) => {
+            FindMessage::FileTreeFindTabRightClicked(v0, v1, v2)
+        }
+        super::message::ProjectMessage::FileTreeFindTabMenuClose => FindMessage::FileTreeFindTabMenuClose,
+        super::message::ProjectMessage::FileTreeFindTabMenuCloseLeft(v0) => {
+            FindMessage::FileTreeFindTabMenuCloseLeft(v0)
+        }
+        super::message::ProjectMessage::FileTreeFindTabMenuCloseRight(v0) => {
+            FindMessage::FileTreeFindTabMenuCloseRight(v0)
+        }
+        super::message::ProjectMessage::FileTreeFindTabMenuCloseAll => FindMessage::FileTreeFindTabMenuCloseAll,
+        _ => return Err(()),
+        })
+    }
+}

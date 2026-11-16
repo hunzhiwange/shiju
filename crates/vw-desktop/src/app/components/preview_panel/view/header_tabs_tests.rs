@@ -1,3 +1,4 @@
+// 保留宿主契约：标签条目数量投影、ProjectMessage/PreviewMessage 的路径和指针映射及宿主模块接线；纯构建已迁至 desktop-editor。
 //! 验证预览标题标签区域测试模块的装配入口。
 //! 该哨兵确保标题标签实现仍被父视图的测试构建包含。
 
@@ -43,14 +44,6 @@ fn keep(element: iced::Element<'_, Message>) {
     std::hint::black_box(element);
 }
 
-
-#[test]
-fn header_tabs_builds_for_empty_tabs() {
-    let app = app();
-
-    keep(build_header_tabs(&app));
-}
-
 #[test]
 fn header_tabs_keep_open_file_entry_last_for_empty_and_multiple_tabs() {
     let empty_app = app();
@@ -62,45 +55,6 @@ fn header_tabs_keep_open_file_entry_last_for_empty_and_multiple_tabs() {
     assert_eq!(header_tab_item_count(&populated_app), 3);
     keep(build_header_tabs(&populated_app));
 }
-
-#[test]
-fn header_tabs_builds_selected_and_unselected_tabs() {
-    let mut app = app();
-    app.active_preview_path = Some("/tmp/a.rs".to_string());
-    app.preview_tabs = vec![tab("/tmp/a.rs", false), tab("/tmp/b.ts", true)];
-
-    keep(build_header_tabs(&app));
-}
-
-#[test]
-fn header_tabs_builds_context_menu_overlay_for_target_tab() {
-    let mut app = app();
-    app.active_preview_path = Some("/tmp/a.rs".to_string());
-    app.preview_tabs = vec![tab("/tmp/a.rs", false), tab("/tmp/b.ts", true)];
-    app.preview_tab_menu_path = Some("/tmp/b.ts".to_string());
-    app.preview_tab_menu_pos = Some(Point::new(12.0, 24.0));
-
-    keep(build_header_tabs(&app));
-}
-
-#[test]
-fn header_tabs_uses_taller_scrollbar_container_when_tabs_overflow() {
-    let mut app = app();
-    app.window_size = (120.0, 700.0);
-    app.preview_tabs =
-        (0..8).map(|i| tab(&format!("/tmp/very-long-file-name-{i}.rs"), false)).collect();
-    app.active_preview_path = Some("/tmp/very-long-file-name-0.rs".to_string());
-
-    keep(build_header_tabs(&app));
-}
-
-
-
-
-
-
-
-
 
 #[test]
 fn tab_messages_preserve_paths_and_pointer_position() {

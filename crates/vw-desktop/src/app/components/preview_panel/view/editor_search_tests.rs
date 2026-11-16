@@ -1,3 +1,4 @@
+// 保留宿主契约：搜索与周边面板联动、活动文档 dirty/revision 与只读保护，以及宿主组合视图边界。
 use crate::app::components::editor::Editor;
 use crate::app::message::editor::{self, EditorMessage, EditorPopover};
 use crate::app::{App, PreviewTab};

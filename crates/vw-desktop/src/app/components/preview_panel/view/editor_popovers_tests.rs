@@ -1,3 +1,4 @@
+// 保留宿主契约：跨预览标签切换/关闭、Escape 与外部点击映射、组合视图的编辑器边界；真实渲染路径不替换。
 use crate::app::components::editor::Editor;
 use crate::app::message::editor::{self, EditorMessage, EditorPopover};
 use crate::app::{App, PreviewTab};

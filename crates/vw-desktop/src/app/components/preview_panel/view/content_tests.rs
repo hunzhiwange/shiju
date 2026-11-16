@@ -1,3 +1,4 @@
+// 保留宿主契约：Screen、文件管理器 changes 开关选择 git_panel，以及活动路径在多标签中的选择；内容类型分支已迁至 desktop-editor。
 //! 验证预览内容视图测试模块的装配入口。
 //! 内容类型的具体渲染分支由同目录视图测试承担，此处只守住模块接线。
 
@@ -50,89 +51,6 @@ fn content_shows_empty_selection_message_in_preview_screen() {
     let tree = content_tree(&app);
 
     assert!(tree.children.is_empty());
-}
-
-#[test]
-fn content_shows_missing_preview_when_active_tab_is_absent() {
-    let mut app = app();
-    app.active_preview_path = Some("/tmp/missing.rs".to_string());
-
-    let tree = content_tree(&app);
-
-    assert!(tree.children.is_empty());
-}
-
-#[test]
-fn content_builds_editor_view_for_text_tab() {
-    let mut app = app();
-    app.active_preview_path = Some("/tmp/main.rs".to_string());
-    app.preview_tabs = vec![tab("/tmp/main.rs", "fn main() {}")];
-
-    let tree = content_tree(&app);
-
-    assert_eq!(tree.children.len(), 1);
-}
-
-#[test]
-fn content_builds_raster_image_view_from_extension() {
-    let mut editor_app = app();
-    editor_app.active_preview_path = Some("/tmp/image.txt".to_string());
-    editor_app.preview_tabs = vec![tab("/tmp/image.txt", "")];
-    let editor_tag = content_tree(&editor_app).tag;
-
-    for extension in ["png", "JPG", "jpeg", "GIF", "bmp", "WebP"] {
-        let path = format!("/tmp/image.{extension}");
-        let mut app = app();
-        app.active_preview_path = Some(path.clone());
-        app.preview_tabs = vec![tab(&path, "")];
-
-        let tree = content_tree(&app);
-
-        assert_ne!(tree.tag, editor_tag, "{extension} should use a media view");
-        assert_eq!(tree.children.len(), 1);
-    }
-}
-
-#[test]
-fn content_builds_svg_view_from_extension() {
-    let mut editor_app = app();
-    editor_app.active_preview_path = Some("/tmp/icon.txt".to_string());
-    editor_app.preview_tabs = vec![tab("/tmp/icon.txt", "")];
-    let editor_tag = content_tree(&editor_app).tag;
-
-    for extension in ["svg", "SVG"] {
-        let path = format!("/tmp/icon.{extension}");
-        let mut app = app();
-        app.active_preview_path = Some(path.clone());
-        app.preview_tabs = vec![tab(&path, "")];
-
-        let tree = content_tree(&app);
-
-        assert_ne!(tree.tag, editor_tag, "{extension} should use a media view");
-        assert_eq!(tree.children.len(), 1);
-    }
-}
-
-#[test]
-fn content_uses_editor_view_for_unknown_or_missing_extension() {
-    let mut reference = app();
-    reference.active_preview_path = Some("/tmp/main.rs".to_string());
-    reference.preview_tabs = vec![tab("/tmp/main.rs", "fn main() {}")];
-    let editor_tag = content_tree(&reference).tag;
-
-    for path in [
-        "/tmp/README",
-        "/tmp.with.dot/README",
-        "/tmp/.svg",
-        "/tmp/archive.unknown",
-        "/tmp/trailing.",
-    ] {
-        let mut app = app();
-        app.active_preview_path = Some(path.to_string());
-        app.preview_tabs = vec![tab(path, "plain text")];
-
-        assert_eq!(content_tree(&app).tag, editor_tag, "{path} should use the editor view");
-    }
 }
 
 #[test]

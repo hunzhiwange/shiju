@@ -29,9 +29,6 @@ mod widgets;
 #[cfg(test)]
 #[path = "lsp_overlay_tests.rs"]
 mod lsp_overlay_tests;
-#[cfg(test)]
-#[path = "styles_tests.rs"]
-mod styles_tests;
 
 pub(crate) use view::build_settings_overlay;
 pub use view::view;

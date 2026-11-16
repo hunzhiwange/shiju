@@ -1,3 +1,4 @@
+// 保留宿主契约：PreviewMessage 经宿主更新活动文档、只读保护、dirty 与自动保存 revision；原隔离配置 fixture 保留。
 use crate::app::components::editor::Editor;
 use crate::app::{App, PreviewTab};
 use iced::widget::Id;

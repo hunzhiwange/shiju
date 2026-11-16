@@ -11,10 +11,6 @@ fn layout(app: &App) -> PreviewTabsLayout {
         file_manager_width: app.file_manager_width, show_diff: app.show_diff, split_ratio: app.split_ratio,
     }
 }
-#[cfg(test)]
-pub(super) fn estimate_preview_tabs_viewport_width(app: &App) -> f32 {
-    styles::estimate_preview_tabs_viewport_width(layout(app))
-}
 pub(super) fn should_show_preview_tabs_scrollbar(app: &App) -> bool {
     styles::should_show_preview_tabs_scrollbar(layout(app), app.preview_tabs.iter().map(|tab| tab.title.as_str()))
 }

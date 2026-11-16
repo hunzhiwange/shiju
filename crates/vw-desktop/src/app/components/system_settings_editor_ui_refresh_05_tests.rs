@@ -1,3 +1,4 @@
+// 保留宿主集成：系统设置导航、主题目录/编辑状态与消息处理器、剪贴板帮助及颜色选择器共同参与。保留字体加载、真实渲染和临时主题资源。
 use super::*;
 use crate::app::components::system_settings::{self, SystemTab};
 use crate::app::components::system_settings_themes::{self, editor, gallery};

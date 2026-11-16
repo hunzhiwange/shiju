@@ -1,3 +1,4 @@
+// 保留宿主契约：目标/位置缺失和活动标签匹配投影，以及关闭导航后批量分发项目/预览消息；纯菜单构建已迁至 desktop-editor。
 //! 验证预览菜单测试模块的装配入口。
 //! 菜单状态组合由主视图测试覆盖，此处用于防止条件测试模块被遗漏。
 
@@ -62,13 +63,6 @@ fn assert_close_nav_then(message: Message, expected_path: &str, expected_dir: bo
 }
 
 #[test]
-fn menu_ui_builds_empty_layers_when_hidden() {
-    let app = app();
-
-    keep(build_menu_ui(&app));
-}
-
-#[test]
 fn menu_ui_handles_context_menu_without_target_or_position() {
     let mut app = app();
     app.show_preview_context_menu = true;
@@ -100,23 +94,6 @@ fn menu_ui_uses_empty_context_items_for_missing_tab() {
 
     keep(build_menu_ui(&app));
 }
-
-#[test]
-fn menu_ui_builds_nav_popup_for_directory_and_file_items() {
-    let mut app = app();
-    app.preview_nav_popup = Some((
-        "/tmp/project".to_string(),
-        10.0,
-        20.0,
-        vec![("src".to_string(), true), ("main.rs".to_string(), false)],
-    ));
-
-    keep(build_menu_ui(&app));
-}
-
-
-
-
 
 #[test]
 fn nav_popup_item_message_closes_popup_then_opens_target() {

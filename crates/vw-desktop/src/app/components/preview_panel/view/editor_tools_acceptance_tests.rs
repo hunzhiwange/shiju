@@ -1,3 +1,4 @@
+// 保留宿主契约：实际 EditorMessage 更新与完整预览组合视图在明暗主题、多尺寸下保持布局、内容和光标。
 use crate::app::components::editor::Editor;
 use crate::app::message::editor::{self, EditorMessage, EditorPopover};
 use crate::app::{App, PreviewTab};

@@ -1,3 +1,4 @@
+// 保留宿主契约：共用设置表面接入 App 编辑消息、指标提交与模态关闭持久化；真实字体加载和渲染仍在宿主。
 use crate::app::message::editor::{self, EditorMessage};
 use crate::app::{App, Message};
 use iced::advanced::widget::{Id, Operation, operation};

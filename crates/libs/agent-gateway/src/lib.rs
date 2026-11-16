@@ -1,5 +1,7 @@
 //! Gateway application services.
 #[cfg(not(target_arch = "wasm32"))]
+pub mod request_policy;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod util;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod webhook;

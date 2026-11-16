@@ -1,0 +1,97 @@
+# Task 32 evidence
+
+代码及静态接线完成，编译/行为未验证；减量未达 70%，须收口审查保留范围。没有运行 Cargo（含 fmt/list/metadata）、构建、单元或实机测试。
+
+## 全文件/全用例映射
+
+- `crates/vw-agent/src/tools/toolset/mod_tests.rs`：1057 → 973 行。
+  - `delegate_agents_auto_load_project_skills_by_default_and_preserve_explicit_skills` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实项目技能文件发现接线；领域合并入口已在 factory/agents，尚可继续拆分纯策略断言。
+  - `delegate_agents_require_explicit_skills_when_project_auto_load_is_disabled` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实项目技能文件发现接线；领域合并入口已在 factory/agents，尚可继续拆分纯策略断言。
+  - `configured_subagent_opt_out_overrides_builtin_default` → `crates/libs/tool-assembly/src/host_migration_32_tests.rs` 同名完整函数；断言原样保留，仅路径与 ContextHost 类型改为领域端口。
+  - `agent_tool_parallel_limit_uses_current_agent_and_clamps_bounds` → `crates/libs/tool-assembly/src/host_migration_32_tests.rs` 同名完整函数；断言原样保留，仅路径与 ContextHost 类型改为领域端口。
+  - `runtime_context_and_scalar_parsing_cover_core_branches` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；具体 ToolRuntimeContext<AgentContextHost> 默认/上下文接线；混合解析断言按完整函数单位保留，后续可将上下文域拆出。
+  - `classify_message_and_binary_detection_cover_errors_and_content` → `crates/libs/tool-assembly/src/host_migration_32_tests.rs` 同名完整函数；断言原样保留，仅路径与 ContextHost 类型改为领域端口。
+  - `block_on_bridges_when_called_inside_tokio_runtime` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；具体宿主 Tokio 桥接生命周期，不能用领域 fixture 替代。
+  - `arc_delegating_tool_forwards_methods` → `crates/libs/tool-assembly/src/host_migration_32_tests.rs` 同名完整函数；断言原样保留，仅路径与 ContextHost 类型改为领域端口。
+  - `arc_delegating_tool_forwards_v2_contract_methods` → `crates/libs/tool-assembly/src/host_migration_32_tests.rs` 同名完整函数；断言原样保留，仅路径与 ContextHost 类型改为领域端口。
+  - `default_tools_include_native_capability_tools` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 FactoryHost 构造与运行时能力/配置选择接线；保留具体工具注册和 AgentTool 行为验收，领域选择逻辑已在 factory/runtime。
+  - `default_context_constructors_use_current_directory_roots` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；具体 ToolRuntimeContext<AgentContextHost> 默认/上下文接线；混合解析断言按完整函数单位保留，后续可将上下文域拆出。
+  - `default_tools_wrapper_uses_native_runtime` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 FactoryHost 构造与运行时能力/配置选择接线；保留具体工具注册和 AgentTool 行为验收，领域选择逻辑已在 factory/runtime。
+  - `default_tools_with_runtime_omits_batch_when_runtime_has_no_capabilities` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 FactoryHost 构造与运行时能力/配置选择接线；保留具体工具注册和 AgentTool 行为验收，领域选择逻辑已在 factory/runtime。
+  - `all_tools_with_runtime_respects_optional_tool_configurations` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 FactoryHost 构造与运行时能力/配置选择接线；保留具体工具注册和 AgentTool 行为验收，领域选择逻辑已在 factory/runtime。
+  - `all_tools_wrapper_registers_default_network_tools` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 FactoryHost 构造与运行时能力/配置选择接线；保留具体工具注册和 AgentTool 行为验收，领域选择逻辑已在 factory/runtime。
+  - `all_tools_with_runtime_registers_brave_search_without_ipc_tools` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 FactoryHost 构造与运行时能力/配置选择接线；保留具体工具注册和 AgentTool 行为验收，领域选择逻辑已在 factory/runtime。
+  - `all_tools_with_runtime_filters_delegate_agents` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 FactoryHost 构造与运行时能力/配置选择接线；保留具体工具注册和 AgentTool 行为验收，领域选择逻辑已在 factory/runtime。
+  - `canonical_agent_tool_registers_when_delegate_agent_exists` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 FactoryHost 构造与运行时能力/配置选择接线；保留具体工具注册和 AgentTool 行为验收，领域选择逻辑已在 factory/runtime。
+  - `tool_specs_for_context_registers_dynamic_mcp_tools_from_workspace_config` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 MCP 配置解析、stdio 子进程、会话连接及发现工具构造接线；当前仍为真实宿主集成用例。
+  - `codex_discovery_tool_factory_registers_search_for_deferred_tools` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 MCP 配置解析、stdio 子进程、会话连接及发现工具构造接线；当前仍为真实宿主集成用例。
+  - `codex_discovery_tool_factory_omits_search_without_deferred_tools` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 MCP 配置解析、stdio 子进程、会话连接及发现工具构造接线；当前仍为真实宿主集成用例。
+  - `codex_discovery_tool_factory_searches_authorized_catalog_without_remote_calls` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 MCP 配置解析、stdio 子进程、会话连接及发现工具构造接线；当前仍为真实宿主集成用例。
+  - `codex_discovery_tool_factory_respects_disabled_and_denied_search` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 MCP 配置解析、stdio 子进程、会话连接及发现工具构造接线；当前仍为真实宿主集成用例。
+  - `execution_environment_registers_agent_tool_from_loaded_config` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 FactoryHost 构造与运行时能力/配置选择接线；保留具体工具注册和 AgentTool 行为验收，领域选择逻辑已在 factory/runtime。
+  - `default_config_registers_agent_tool_with_builtin_subagents` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 FactoryHost 构造与运行时能力/配置选择接线；保留具体工具注册和 AgentTool 行为验收，领域选择逻辑已在 factory/runtime。
+  - `default_toolset_registers_thread_tools_without_delegate_agents` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 thread 工具工厂及请求 disable_tools 过滤接线，不能用名字相同的假工具替代。
+  - `thread_tools_visible_without_tool_search` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 thread 工具工厂及请求 disable_tools 过滤接线，不能用名字相同的假工具替代。
+  - `restricted_toolset_can_exclude_thread_tools` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；直接验收 session::processor 请求权限过滤入口；不属于 tool-assembly，继续可迁入该入口实际领域所有者。
+  - `workflow_and_goal_sessions_inherit_recursive_agent_tool_controls` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 FactoryHost 构造与运行时能力/配置选择接线；保留具体工具注册和 AgentTool 行为验收，领域选择逻辑已在 factory/runtime。
+  - `execute_tool_call_runs_dynamic_mcp_tool_through_context_registry` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 MCP 配置解析、stdio 子进程、会话连接及发现工具构造接线；当前仍为真实宿主集成用例。
+  - `execute_tool_from_registry_uses_supplied_tool_list` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 AgentContextHost 权限及执行 registry 接线，保留原 EchoTool。
+  - `register_dynamic_mcp_tools_skips_disabled_servers_and_keeps_existing_tools` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 MCP 配置解析、stdio 子进程、会话连接及发现工具构造接线；当前仍为真实宿主集成用例。
+  - `shell_outer_timeout_yield_does_not_cancel_process` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实 bash/wait/cancel 注册、桥接 runtime 销毁与进程存活边界。
+  - `codex_plugin_compat_t57_toolset_bridge_preserves_turn_and_tenant` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实租户 task-local、插件快照与目录隔离端口；保留实际 Host 验收。
+  - `agent_config_cleanup_delegate_fixed_selection_preserves_strict_boundary` → `crates/vw-agent/src/tools/toolset/mod_tests.rs` 同名完整函数；真实项目技能文件发现接线；领域合并入口已在 factory/agents，尚可继续拆分纯策略断言。
+- `crates/vw-agent/src/tools/toolset/mod.rs`：492 → 487 行。
+- `crates/vw-agent/src/tools/toolset/tests.rs`：142 → 0 行。
+  - `full_access_context_disables_workspace_only_for_tool_security` → `crates/libs/tool-assembly/src/host_migration_32_tests/security.rs` 同名完整函数；断言原样保留，仅路径与 ContextHost 类型改为领域端口。
+  - `full_access_context_allows_high_risk_curl_request` → `crates/libs/tool-assembly/src/host_migration_32_tests/security.rs` 同名完整函数；断言原样保留，仅路径与 ContextHost 类型改为领域端口。
+  - `full_access_context_allows_shell_paths_outside_workspace` → `crates/libs/tool-assembly/src/host_migration_32_tests/security.rs` 同名完整函数；断言原样保留，仅路径与 ContextHost 类型改为领域端口。
+  - `full_access_context_bypasses_all_bash_security_checks` → `crates/libs/tool-assembly/src/host_migration_32_tests/security.rs` 同名完整函数；断言原样保留，仅路径与 ContextHost 类型改为领域端口。
+  - `full_access_context_preserves_and_allows_redirected_shell_command` → `crates/libs/tool-assembly/src/host_migration_32_tests/security.rs` 同名完整函数；断言原样保留，仅路径与 ContextHost 类型改为领域端口。
+  - `agcollab_delegated_security_intersects_parent_and_role` → `crates/libs/tool-assembly/src/host_migration_32_tests/security.rs` 同名完整函数；断言原样保留，仅路径与 ContextHost 类型改为领域端口。
+
+## 生产归属与保留边界
+
+本轮没有新增生产逻辑迁移收益；原有实现已经位于 tool-assembly。删除重复 FactoryHost::block_on 成员属于静态修复，不计算为领域下沉。
+
+- `mcp_connections_for_context`：保留已有调用者需要的 AgentContextHost 泛型绑定；算法仍唯一在 tool-assembly 的 runtime/factory。
+- `execution_tools_for_context`：保留已有调用者需要的 AgentContextHost 泛型绑定；算法仍唯一在 tool-assembly 的 runtime/factory。
+- `agent_tool_parallel_limit_for_context`：保留已有调用者需要的 AgentContextHost 泛型绑定；算法仍唯一在 tool-assembly 的 runtime/factory。
+- `execution_environment_for_config`：仅宿主测试使用的具体泛型绑定；仍调用领域 runtime。
+- `tool_specs_for_context`：保留已有调用者需要的 AgentContextHost 泛型绑定；算法仍唯一在 tool-assembly 的 runtime/factory。
+- `execute_tool_call`：保留已有调用者需要的 AgentContextHost 泛型绑定；算法仍唯一在 tool-assembly 的 runtime/factory。
+- `execute_bound_app_tool`：保留已有调用者需要的 AgentContextHost 泛型绑定；算法仍唯一在 tool-assembly 的 runtime/factory。
+- `execute_agent_tool_call`：保留已有调用者需要的 AgentContextHost 泛型绑定；算法仍唯一在 tool-assembly 的 runtime/factory。
+- `execute_tool_from_registry`：保留已有调用者需要的 AgentContextHost 泛型绑定；算法仍唯一在 tool-assembly 的 runtime/factory。
+- `block_on`：保留租户和 ToolUseContext 跨线程、跨 Tokio runtime 生命周期。
+- `discover_dynamic_mcp_tools`：绑定 AgentContextHost 的发现入口，调用领域 mcp。
+- `default_tools`：保留已有调用者需要的 AgentContextHost 泛型绑定；算法仍唯一在 tool-assembly 的 runtime/factory。
+- `default_tools_with_runtime`：保留已有调用者需要的 AgentContextHost 泛型绑定；算法仍唯一在 tool-assembly 的 runtime/factory。
+- `all_tools`：保留已有调用者需要的 AgentContextHost 泛型绑定；算法仍唯一在 tool-assembly 的 runtime/factory。
+- `all_tools_with_runtime`：保留已有调用者需要的 AgentContextHost 泛型绑定；算法仍唯一在 tool-assembly 的 runtime/factory。
+- `enabled_delegate_agents_with_project_skills`：宿主测试绑定，验证真实项目技能发现端口。
+- `initialize_worktree_host`：GitToolHost 实现调用 worktree::initialize_host，属于真实全局宿主生命周期。
+- `FactoryHost`：construct 持有真实 Shell/File/Memory/Cron/Skill/Thread/Office 等工具构造；batch/search_tool/agent_tool 绑定具体工具；project_scope/project_skills 访问实际租户项目及技能；connections_for_factory/load_runtime_mcp_config/native_tools 保留外部资源接线。
+- `RuntimeHost`：load_project_config/mcp_connections/discovery_state/register_app 绑定真实项目配置、连接和 MCP app 注册。
+
+## 注册与依赖方向
+
+- tool-assembly/src/lib.rs 直接 cfg(test) 注册 host_migration_32_tests，内部注册 security 与显式失败的 ContextHost fixture；fixture 不复制 App/AppState，不替代真实鉴权、文件和进程验收。安全测试仍执行真实 SecurityPolicy。
+- 删除宿主 tests.rs 与 mod tests 挂载；mod_tests 保留宿主边界，迁走的 5 个函数从原模块删除，无 path/include 反向加载。
+- 依赖：vw-agent → tool-assembly → tool-context/agent-security/config-agent；新增仅 dev-dependencies（tempfile/tokio/tokio-util/permission-types）。宿主现有 test-support 依赖保持。
+- 直接调用：tools/mod.rs 重导出执行、MCP 连接和工具集入口；Word/Excel control 测试调用 execution_tools_for_context；领域 runtime 直接调用 factory 与 security。任务1 external-mounts 中无 toolset 跨目录挂载。
+
+## 分项行数与减量
+
+- 宿主生产及测试注册：mod.rs=487。
+- 宿主测试及夹具：mod_tests.rs=973。
+- 领域新增测试及夹具：host_migration_32_tests.rs=153, host.rs=50, security.rs=142。
+- 宿主文件族：1691 → 1460，净减 231（13.7%），低于 70%。mod.rs 保留实际端口和泛型绑定；mod_tests.rs 保留上述真实工具构造、MCP、租户及进程边界；tests.rs 整体迁出。
+- 继续可迁项：项目技能合并断言、混合上下文/解析用例、请求权限过滤用例，以及工厂用例中的纯选择断言；需要把领域断言与真实 Host 接线验收进一步分离。收口不得将本任务视为已达减量门槛。
+- 生产实现增量为 0；领域测试新增模块全部是测试/fixture。宿主 mod.rs 内 cfg(test) 适配不计为生产迁移，物理源码统计保留。未量测编译耗时，不宣称编译收益。
+
+## 未来验证
+
+- `python3 scripts/cargo_slot.py cargo test -p tool-assembly --lib host_migration_32_tests -- --test-threads=1`：静态预期 11 条，必须确认非零及零失败。
+- 宿主保留完整测试过滤前缀：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib tools::toolset::mod_tests:: -- --test-threads=1`；逐项名称见上表，静态预期 30 条。
+- 迁出的 tools::toolset::tests::* 和上表 5 个 mod_tests 函数未来用宿主 --list 确认消失；零测试仅证明迁走，不能记为行为通过。
+- 全部编译和行为检查未运行。当前仅源码、注册、路径、依赖及 git diff --check 静态核对。

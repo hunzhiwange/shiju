@@ -14,3 +14,6 @@ pub mod agents;
 pub mod factory;
 pub mod runtime;
 pub mod hooks;
+
+#[cfg(test)]
+mod host_migration_32_tests;

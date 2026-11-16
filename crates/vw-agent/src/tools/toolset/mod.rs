@@ -115,8 +115,6 @@ where
 #[cfg(test)]
 #[path = "mod_tests.rs"]
 mod mod_tests;
-#[cfg(test)]
-mod tests;
 
 use tool_assembly::factory::ToolConstruction;
 use tool_assembly::factory::{ConstructionContext, FactoryHost};
@@ -170,7 +168,6 @@ pub fn all_tools_with_runtime(
 ) -> Vec<Box<dyn Tool>> { tool_assembly::factory::all_tools_with_runtime::<super::context::AgentContextHost>(config, security, runtime, memory, browser_config, http_config, web_fetch_config, workspace_dir, agents, _fallback_api_key, root_config, session_id_override) }
 
 impl FactoryHost for super::context::AgentContextHost {
- fn block_on<F: std::future::Future + Send>(future: F) -> F::Output where F::Output: Send { block_on(future) }
  fn block_on<F: std::future::Future + Send>(future: F) -> F::Output where F::Output: Send { block_on(future) }
  fn construct(tool: ToolConstruction, context: &ConstructionContext<'_>) -> Arc<dyn Tool> {
   match tool {
@@ -478,11 +475,9 @@ impl tool_assembly::runtime::RuntimeHost for super::context::AgentContextHost {
 }
 
 #[cfg(test)]
-use tool_assembly::toolset::{parse_tool_input, classify_message};
+use tool_assembly::toolset::parse_tool_input;
 #[cfg(test)]
 use tool_assembly::agents::{agent_tool_parallel_limit, enabled_delegate_agents};
-#[cfg(test)]
-use tool_assembly::security::security_for_tool_context;
 #[cfg(test)]
 fn enabled_delegate_agents_with_project_skills(agents: &HashMap<String, DelegateAgentConfig>, workspace: &Path, config: &Config) -> HashMap<String, DelegateAgentConfig> {
  tool_assembly::factory::enabled_delegate_agents_with_project_skills::<super::context::AgentContextHost>(agents, workspace, config)

@@ -2,10 +2,10 @@
 //!
 //! 验证 full-access 放开当前工具执行的完整安全策略。
 
-use super::security_for_tool_context;
-use crate::app::agent::config::Config;
-use crate::app::agent::security::ShellRedirectPolicy;
-use crate::app::agent::tools::ToolUseContext;
+use crate::security::security_for_tool_context;
+use agent_config::runtime_schema::Config;
+use agent_security::ShellRedirectPolicy;
+type ToolUseContext = tool_context::context::ToolUseContext<super::host::Host>;
 use std::path::PathBuf;
 
 #[test]
@@ -109,7 +109,7 @@ fn full_access_context_preserves_and_allows_redirected_shell_command() {
 
 #[test]
 fn agcollab_delegated_security_intersects_parent_and_role() {
-    use crate::security::{AutonomyLevel, SecurityPolicy};
+    use agent_security::{AutonomyLevel, SecurityPolicy};
     use std::sync::Arc;
     let root = PathBuf::from("/tmp/agcollab-security");
     let mut config = Config { workspace_dir: root.clone(), ..Config::default() };
@@ -128,7 +128,7 @@ fn agcollab_delegated_security_intersects_parent_and_role() {
             .with_security(Arc::new(parent_security))
             .for_child("child".into(), vec!["file_read".into()]),
     );
-    let child = crate::tools::scope_tool_use_context_sync(parent, || {
+    let child = tool_context::context::scope_tool_use_context_sync(parent, || {
         ToolUseContext::new("child", Some(root.to_string_lossy().into_owned()))
             .inherit_delegated_authority()
     });

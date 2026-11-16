@@ -40,3 +40,9 @@ vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 [features]
 default = []
 test-support = []
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+permission-types = { path = "../permission-types", version = "0.6.0" }

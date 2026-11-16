@@ -11,3 +11,5 @@ fn acp_option_error(message: impl Into<String>) -> crate::Error {
 }
 
 pub mod model_source;
+pub mod replay;
+pub mod recovery;

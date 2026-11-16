@@ -1,5 +1,5 @@
 use super::*;
-use crate::model_relay::RelayIdentity;
+use model_transport::RelayIdentity;
 
 #[test]
 fn missing_anchor_recovers_only_the_latest_matching_managed_generation() {

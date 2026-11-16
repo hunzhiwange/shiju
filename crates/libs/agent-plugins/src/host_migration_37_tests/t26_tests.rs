@@ -13,10 +13,10 @@ async fn codex_plugin_compat_t26_host_entry_revalidates_package_identity() {
     );
     let original = std::fs::read(root.join(".codex-plugin/plugin.json")).unwrap();
     let mut servers = Vec::new();
-    crate::plugins::mcp::merge_enabled_plugin_mcp_servers(&mut servers, &options).unwrap();
+    super::merge_enabled_plugin_mcp_servers(&mut servers, &options).unwrap();
     let McpServer::Http(server) = &mut servers[0] else { panic!("HTTP fixture") };
     server.url = "https://other.example/mcp".into();
-    let error = crate::plugins::discover_plugin_mcp_oauth(server).await.unwrap_err();
+    let error = plugin_mcp::mcp_auth::discover_oauth(&super::Source, server).await.unwrap_err();
     assert!(error.to_string().contains("endpoint or identity changed"));
     assert_eq!(std::fs::read(root.join(".codex-plugin/plugin.json")).unwrap(), original);
 }

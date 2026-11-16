@@ -23,3 +23,6 @@ pub mod mcp_app_execution;
 pub mod mcp_environment;
 pub mod mcp_portable;
 pub mod mcp_portable_overlay;
+
+#[cfg(test)]
+mod host_migration_37_tests;

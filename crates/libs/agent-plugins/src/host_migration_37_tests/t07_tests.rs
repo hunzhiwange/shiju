@@ -1,11 +1,11 @@
 //! Real discovery entry-point checks for manifest formats, priority and rejected-package isolation.
 
-use crate::plugins::{PluginDiscoveryOptions, discover_plugins};
+use crate::PluginDiscoveryOptions;
 use std::fs;
 use std::path::{Path, PathBuf};
 use config_plugins::PluginsConfig;
 
-const NATIVE: &[u8] = include_bytes!("../../../testdata/plugin_compat/t07/native.json");
+const NATIVE: &[u8] = include_bytes!("../../../../vw-agent/testdata/plugin_compat/t07/native.json");
 
 fn write_manifest(root: &Path, relative: &str, bytes: &[u8]) -> PathBuf {
     let path = root.join(relative);
@@ -16,8 +16,8 @@ fn write_manifest(root: &Path, relative: &str, bytes: &[u8]) -> PathBuf {
 
 #[test]
 fn codex_plugin_compat_t07_preserves_healthy_skill_and_mcp_consumers() {
-    use crate::app::agent::config::Config;
-    use crate::app::agent::skills::SkillLoadMode;
+    use agent_config::runtime::Config;
+    use agent_skills::types::SkillLoadMode;
 
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path().join("workspace");
@@ -44,11 +44,11 @@ fn codex_plugin_compat_t07_preserves_healthy_skill_and_mcp_consumers() {
     let mut config = Config::default();
     config.workspace_dir = workspace.clone();
     config.config_path = config_dir.join("vibewindow.json");
-    let skills = crate::plugins::load_plugin_skills(&workspace, &config, SkillLoadMode::Full);
+    let skills = crate::skills::load_plugin_skills(&workspace, &config, SkillLoadMode::Full, &crate::discover_plugins);
     assert_eq!(skills.len(), 1);
     assert_eq!(skills[0].name, "kept-skill");
     let mut servers = Vec::new();
-    crate::plugins::merge_enabled_plugin_mcp_servers(
+    super::merge_enabled_plugin_mcp_servers(
         &mut servers,
         &PluginDiscoveryOptions::new(workspace, config_dir, PluginsConfig::default()),
     )

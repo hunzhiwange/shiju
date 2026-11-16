@@ -1,6 +1,6 @@
 //! Public authentication declaration parsing and safe connection policy.
 use super::t17_tests::{captured, endpoint, list, options, write};
-use crate::plugins::mcp::merge_enabled_plugin_mcp_servers;
+use super::merge_enabled_plugin_mcp_servers;
 use agent_client_protocol::{HttpHeader, McpServer, McpServerHttp};
 use serde_json::json;
 #[tokio::test]
@@ -25,7 +25,7 @@ async fn codex_plugin_compat_t17_accepts_public_auth_declarations_without_claimi
         );
         write(
             &root.join("mcp.json"),
-            json!({"$schema":super::mcp_portable::SCHEMA,"mcpServers":{"shared":{"type":"streamable-http","url":url,"extensions":{"com.openai":{"auth":auth}}}}}),
+            json!({"$schema":plugin_mcp::mcp_portable::SCHEMA,"mcpServers":{"shared":{"type":"streamable-http","url":url,"extensions":{"com.openai":{"auth":auth}}}}}),
         );
         let mut servers = Vec::new();
         let result = merge_enabled_plugin_mcp_servers(&mut servers, &options);
@@ -61,9 +61,9 @@ async fn codex_plugin_compat_t17_accepts_public_auth_declarations_without_claimi
             }
             _ => unreachable!(),
         }
-        let manifest = crate::plugins::load_plugin_manifest(&root).unwrap();
-        let (outcome, _) = crate::plugins::mcp::load_plugin_mcp_declarations(&manifest).unwrap();
-        let super::mcp_legacy::PluginMcpDeclaration::Portable { config, .. } = &outcome.servers[0]
+        let manifest = crate::load_plugin_manifest(&root).unwrap();
+        let (outcome, _) = crate::mcp::load_plugin_mcp_declarations(&manifest).unwrap();
+        let plugin_mcp::mcp_legacy::PluginMcpDeclaration::Portable { config, .. } = &outcome.servers[0]
         else {
             panic!("portable expected")
         };

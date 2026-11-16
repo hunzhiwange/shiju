@@ -1,6 +1,7 @@
 //! MCP process directories and package/data isolation through actual discovery and transport.
-use crate::plugins::{PluginDiscoveryOptions, mcp::merge_enabled_plugin_mcp_servers};
-use crate::tools::mcp_common::with_server_peer;
+use crate::PluginDiscoveryOptions;
+use super::merge_enabled_plugin_mcp_servers;
+use super::with_server_peer;
 use agent_client_protocol::McpServer;
 use serde_json::{Value, json};
 use std::{
@@ -21,7 +22,7 @@ fn portable(workspace: &Path, name: &str) -> PathBuf {
     );
     fs::write(
         root.join("server.py"),
-        include_bytes!("../../../testdata/plugin_compat/t16/server.py"),
+        include_bytes!("../../../../vw-agent/testdata/plugin_compat/t16/server.py"),
     )
     .unwrap();
     write(
@@ -123,7 +124,7 @@ async fn codex_plugin_compat_t16_keeps_legacy_relative_cwd_and_local_environment
     fs::create_dir(root.join("work")).unwrap();
     fs::write(
         root.join("server.py"),
-        include_bytes!("../../../testdata/plugin_compat/t16/server.py"),
+        include_bytes!("../../../../vw-agent/testdata/plugin_compat/t16/server.py"),
     )
     .unwrap();
     let mut servers = Vec::new();
@@ -148,7 +149,7 @@ async fn codex_plugin_compat_t16_launches_contained_relative_command_and_reaudit
         &executable,
         format!(
             "#!/usr/bin/env python3\n{}",
-            include_str!("../../../testdata/plugin_compat/t16/server.py")
+            include_str!("../../../../vw-agent/testdata/plugin_compat/t16/server.py")
         ),
     )
     .unwrap();

@@ -1,9 +1,7 @@
 //! 便携 MCP 声明经真实文件、发现和运行准入入口验证。
 
-use crate::plugins::PluginDiscoveryOptions;
-use crate::plugins::mcp::{
-    merge_enabled_plugin_mcp_servers,
-};
+use crate::PluginDiscoveryOptions;
+use super::merge_enabled_plugin_mcp_servers;
 use agent_client_protocol::McpServer;
 use serde_json::{Value, json};
 use std::fs;

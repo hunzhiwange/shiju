@@ -160,3 +160,7 @@ async fn fetch(url: &Url) -> Result<serde_json::Value> {
     }
     serde_json::from_slice(&bytes).context("invalid OAuth metadata JSON")
 }
+
+#[cfg(test)]
+#[path = "mcp_oauth_discovery_tests.rs"]
+mod tests;

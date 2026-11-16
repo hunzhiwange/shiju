@@ -2,6 +2,7 @@
 
 use crate::app::config::SystemSettingsSection;
 use crate::app::{App, Message};
+use desktop_settings_appearance::general_update as domain;
 use iced::Task;
 
 use super::{GeneralSettingsMessage, SettingsMessage};
@@ -14,10 +15,12 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 
     match message {
         GeneralSettingsMessage::LaunchAtLoginToggled(enabled) => {
-            if app.launch_at_login_busy || cfg!(target_arch = "wasm32") {
+            if !domain::begin_launch_at_login(
+                &mut app.launch_at_login_busy,
+                !cfg!(target_arch = "wasm32"),
+            ) {
                 return Task::none();
             }
-            app.launch_at_login_busy = true;
             return Task::perform(
                 async move {
                     #[cfg(not(target_arch = "wasm32"))]
@@ -41,12 +44,15 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             );
         }
         GeneralSettingsMessage::LaunchAtLoginSaved(result) => {
-            app.launch_at_login_busy = false;
-            match result {
-                Ok(enabled) => app.launch_at_login = enabled,
+            match domain::launch_at_login_saved(
+                &mut app.launch_at_login,
+                &mut app.launch_at_login_busy,
+                result,
+                true,
+            ) {
+                Ok(()) => {}
                 Err(error) => {
                     // 系统注册或旧项清理可能已部分成功；回读期间禁止再次写入。
-                    app.launch_at_login_busy = true;
                     let toast = app.show_error_toast(format!("设置开机启动失败：{error}"));
                     let refresh = Task::perform(
                         async {
@@ -63,19 +69,24 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                                 crate::app::desktop_lifecycle::read_launch_at_login()
                             }
                         },
-                        |result| Message::Settings(SettingsMessage::General(
-                            GeneralSettingsMessage::LaunchAtLoginRefreshed(result),
-                        )),
+                        |result| {
+                            Message::Settings(SettingsMessage::General(
+                                GeneralSettingsMessage::LaunchAtLoginRefreshed(result),
+                            ))
+                        },
                     );
                     return Task::batch([toast, refresh]);
                 }
             }
         }
         GeneralSettingsMessage::LaunchAtLoginRefreshed(result) => {
-            app.launch_at_login_busy = false;
-            match result {
-                Ok(enabled) => app.launch_at_login = enabled,
-                Err(error) => return app.show_error_toast(format!("读取开机启动状态失败：{error}")),
+            if let Err(error) = domain::launch_at_login_saved(
+                &mut app.launch_at_login,
+                &mut app.launch_at_login_busy,
+                result,
+                false,
+            ) {
+                return app.show_error_toast(format!("读取开机启动状态失败：{error}"));
             }
         }
         #[cfg(target_os = "macos")]
@@ -150,14 +161,16 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             if crate::app::provider_link_preview::pending().is_some()
                 || crate::app::mcp_link_preview::pending().is_some()
-                || crate::app::prompt_link_preview::pending().is_some() {
+                || crate::app::prompt_link_preview::pending().is_some()
+            {
                 app.show_settings = true;
             }
             let wake = app.reopen_main_window();
             if unsupported {
-                return Task::batch([wake, app.show_error_toast(
-                    "已唤醒主窗口；当前尚不支持启动参数".to_string(),
-                )]);
+                return Task::batch([
+                    wake,
+                    app.show_error_toast("已唤醒主窗口；当前尚不支持启动参数".to_string()),
+                ]);
             }
             return wake;
         }
@@ -165,7 +178,9 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             return crate::app::desktop_lifecycle::tray_switch::start(app, id);
         }
         GeneralSettingsMessage::TrayProviderSwitched { scope, generation, id, result } => {
-            return crate::app::desktop_lifecycle::tray_switch::finish(app, scope, generation, id, result);
+            return crate::app::desktop_lifecycle::tray_switch::finish(
+                app, scope, generation, id, result,
+            );
         }
         GeneralSettingsMessage::TrayTick => {
             #[cfg(not(target_arch = "wasm32"))]
@@ -193,9 +208,12 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.system_settings_help_tab = None;
             app.active_menu = None;
             app.apps_catalog.query.clear();
-            let page = super::update(app, SettingsMessage::SystemTabSelected(
-                crate::app::components::system_settings::SystemTab::Apps,
-            ));
+            let page = super::update(
+                app,
+                SettingsMessage::SystemTabSelected(
+                    crate::app::components::system_settings::SystemTab::Apps,
+                ),
+            );
             app.apps_catalog.pending_tray_app = Some(id);
             // Catalog connection/loading may reset the expanded row. Resolve after loading.
             let details = if !app.apps_catalog.loading
@@ -215,8 +233,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         GeneralSettingsMessage::TrayShow => {
             return app.reopen_main_window();
         }
-        GeneralSettingsMessage::TrayQuit =>
-        {
+        GeneralSettingsMessage::TrayQuit => {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 let window_id = app.main_window_id;
@@ -224,7 +241,12 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
         }
         GeneralSettingsMessage::LocaleSelected(locale) => {
-            app.desktop_locale = locale;
+            let save = domain::select_locale(
+                &mut app.desktop_locale,
+                &mut app.desktop_locale_selected,
+                &mut app.desktop_locale_saving,
+                locale,
+            );
             #[cfg(not(target_arch = "wasm32"))]
             crate::app::desktop_lifecycle::refresh_tray_locale(locale);
             crate::app::i18n::editor::refresh(app);
@@ -243,14 +265,13 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             app.chat_explore_summary_animations.clear();
             super::cron::refresh_run_history_locale(app);
-            app.desktop_locale_selected = true;
-            if !app.desktop_locale_saving {
-                app.desktop_locale_saving = true;
+            if save {
                 return save_locale(locale);
             }
         }
         GeneralSettingsMessage::LocaleSaved(locale, result) => {
-            app.desktop_locale_saving = false;
+            let save_again =
+                domain::locale_saved(app.desktop_locale, &mut app.desktop_locale_saving, locale);
             let feedback = match result {
                 Ok(()) => Task::none(),
                 Err(error) => app.show_error_toast(
@@ -262,16 +283,17 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     .expect("embedded save failure template has one string argument"),
                 ),
             };
-            if locale != app.desktop_locale {
-                app.desktop_locale_saving = true;
+            if save_again {
                 return Task::batch([feedback, save_locale(app.desktop_locale)]);
             }
             return feedback;
         }
         GeneralSettingsMessage::TabSelected(tab) => {
-            app.general_settings_tab = tab;
-            if tab == crate::app::state::GeneralSettingsTab::Themes {
-                app.themes_settings.error = None;
+            if domain::select_tab(
+                &mut app.general_settings_tab,
+                &mut app.themes_settings.error,
+                tab,
+            ) {
                 return Task::done(Message::Settings(SettingsMessage::Themes(
                     super::ThemesMessage::Refresh,
                 )));
@@ -281,15 +303,15 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             if !crate::app::desktop_notification::SUPPORTED {
                 return Task::none();
             }
-            app.task_completion_notification = enabled;
+            let persist = domain::select_notification(
+                &mut app.task_completion_notification,
+                &mut app.task_completion_notification_saving,
+                enabled,
+            );
             #[cfg(not(target_arch = "wasm32"))]
             app.note_startup_setting_edit("task_completion_notification");
-            let save = if !app.task_completion_notification_saving {
-                app.task_completion_notification_saving = true;
-                save_task_completion_notification(enabled)
-            } else {
-                Task::none()
-            };
+            let save =
+                if persist { save_task_completion_notification(enabled) } else { Task::none() };
             let permission = if enabled {
                 crate::app::desktop_notification::permission_task(app.desktop_locale)
             } else {
@@ -310,7 +332,11 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
         }
         GeneralSettingsMessage::TaskCompletionNotificationSaved(enabled, result) => {
-            app.task_completion_notification_saving = false;
+            let persist = domain::notification_saved(
+                app.task_completion_notification,
+                &mut app.task_completion_notification_saving,
+                enabled,
+            );
             let feedback = match result {
                 Ok(()) => Task::none(),
                 Err(_) => app.show_error_toast(
@@ -319,8 +345,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                         .to_owned(),
                 ),
             };
-            if enabled != app.task_completion_notification {
-                app.task_completion_notification_saving = true;
+            if persist {
                 return Task::batch([
                     feedback,
                     save_task_completion_notification(app.task_completion_notification),
@@ -336,19 +361,15 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
                 return crate::app::desktop_notification::failure_feedback(
                     app,
-                    format!(
-                        "{} {error}",
-                        i18n.__("系统通知发送失败，请检查系统通知权限。"),
-                    ),
+                    format!("{} {error}", i18n.__("系统通知发送失败，请检查系统通知权限。"),),
                 );
             }
         }
         GeneralSettingsMessage::TimezoneSelected(timezone) => {
-            if !config_ui::timezone_options().contains(&timezone.as_str()) {
+            if !domain::select_timezone(&mut app.chat_timezone, &timezone) {
                 return Task::none();
             }
 
-            app.chat_timezone = timezone.clone();
             return app.save_system_settings_fields(
                 SystemSettingsSection::Timezone,
                 serde_json::Map::from_iter([("timezone".into(), timezone.into())]),
@@ -375,7 +396,10 @@ fn save_locale(locale: config_ui::DesktopLocale) -> Task<Message> {
 
 fn save_task_completion_notification(enabled: bool) -> Task<Message> {
     Task::perform(
-        desktop_settings_appearance::general_update::save_task_completion_notification(config_access(), enabled),
+        desktop_settings_appearance::general_update::save_task_completion_notification(
+            config_access(),
+            enabled,
+        ),
         move |result| {
             Message::Settings(SettingsMessage::General(
                 GeneralSettingsMessage::TaskCompletionNotificationSaved(enabled, result),

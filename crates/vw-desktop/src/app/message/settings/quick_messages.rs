@@ -16,6 +16,3 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         Effect::Toast(kind, source, arguments) => app.show_localized_toast(super::themes::toast_kind(kind), source, arguments),
     }
 }
-#[cfg(test)]
-#[path = "quick_messages_tests.rs"]
-mod quick_messages_tests;

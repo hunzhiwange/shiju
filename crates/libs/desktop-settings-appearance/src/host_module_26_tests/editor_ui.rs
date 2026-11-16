@@ -1,22 +1,19 @@
-// 保留宿主集成：系统设置导航、主题目录/编辑状态与消息处理器、剪贴板帮助及颜色选择器共同参与。保留字体加载、真实渲染和临时主题资源。
-use super::*;
-use crate::app::components::system_settings::{self, SystemTab};
-use crate::app::components::system_settings_themes::{self, editor, gallery};
-use crate::app::message::settings::{
-    SettingsMessage, ThemeChromeField, ThemeColorPickerTarget, ThemePaletteField, ThemesMessage,
+// 真实领域视图、字体、绘制、交互与主题存储；不构造桌面 App。
+use super::ui_fixture::*;
+use crate::system_settings_themes::messages::{
+    ThemeChromeField, ThemeColorPickerTarget, ThemePaletteField, ThemesMessage,
 };
-use crate::app::state::{GeneralSettingsTab, ThemeEditorTab, ThemesSettingsMode};
+use crate::system_settings_themes::state::{ThemeEditorTab, ThemesSettingsMode};
+use config_ui::DesktopLocale;
+use iced::Element;
 use iced::advanced::renderer::Headless;
 use iced::advanced::widget::operation::{Operation, Outcome, focusable};
 use iced::advanced::{Layout, Shell, clipboard, layout, overlay, renderer, widget::Tree};
 use iced::keyboard::{self, Key, key::Named};
 use iced::{Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
-use config_ui::DesktopLocale;
 
-fn fixture() -> App {
-    let mut app = None;
-    crate::app::config::with_editor_settings_gateway(|fixture, _, _| app = Some(fixture));
-    app.expect("isolated settings fixture")
+fn fixture() -> Fixture {
+    Fixture::default()
 }
 
 struct Scene<'a> {
@@ -32,7 +29,7 @@ impl<'a> Scene<'a> {
         static FONTS: std::sync::Once = std::sync::Once::new();
         FONTS.call_once(|| {
             let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-            for font in crate::fonts::load_all() {
+            for font in desktop_assets::fonts::load_all() {
                 fonts.load_font(font);
             }
         });
@@ -380,9 +377,6 @@ async fn ui_refresh_05_layout_and_interaction() {
                 assert!(second.x > first.x && second.y == first.y);
             }
 
-            app.show_system_settings = true;
-            app.system_settings_tab = SystemTab::General;
-            app.general_settings_tab = GeneralSettingsTab::Themes;
             app.themes_settings.mode = ThemesSettingsMode::Edit;
             app.themes_settings.draft = Some(draft.clone());
             for tab in [
@@ -393,7 +387,15 @@ async fn ui_refresh_05_layout_and_interaction() {
                 ThemeEditorTab::Preview,
             ] {
                 app.themes_settings.editor_tab = tab;
-                let mut scene = Scene::new(system_settings::view(&app), 420, 650).await;
+                let mut scene = Scene::new(
+                    crate::system_settings_themes::editor_overlay(
+                        &inputs(&app),
+                        gallery::view(&app),
+                    ),
+                    420,
+                    650,
+                )
+                .await;
                 scene.snapshot(
                     &theme,
                     mouse::Cursor::Unavailable,
@@ -656,7 +658,7 @@ struct TestThemesRoot(tempfile::TempDir);
 
 impl TestThemesRoot {
     fn new() -> Self {
-        use crate::app::theme_catalog::{ensure_bundled_presets, set_test_themes_root};
+        use desktop_theme::{ensure_bundled_presets, set_test_themes_root};
         let dir = tempfile::tempdir().unwrap();
         ensure_bundled_presets(dir.path()).unwrap();
         set_test_themes_root(Some(dir.path().to_path_buf()));
@@ -666,15 +668,8 @@ impl TestThemesRoot {
 
 impl Drop for TestThemesRoot {
     fn drop(&mut self) {
-        crate::app::theme_catalog::set_test_themes_root(None);
+        desktop_theme::set_test_themes_root(None);
     }
-}
-
-fn handle_theme_message(app: &mut App, messages: Vec<Message>) {
-    let [Message::Settings(message @ SettingsMessage::Themes(_))] = messages.as_slice() else {
-        panic!("expected a theme action, got {messages:?}");
-    };
-    let _ = crate::app::message::settings::update(app, message.clone());
 }
 
 const GALLERY_RULE: &str =
@@ -687,7 +682,7 @@ const THEME_HELP_LAYOUTS: [(Theme, u32); 4] =
 
 #[tokio::test]
 async fn settings_help_gap_02_gallery_rules_and_card_status() {
-    use crate::app::i18n::I18n;
+    use desktop_i18n::I18n;
     use gallery::{ThemeGalleryEntry, ThemeGallerySource};
 
     let mut app = fixture();
@@ -746,8 +741,8 @@ async fn settings_help_gap_02_gallery_rules_and_card_status() {
 
 #[tokio::test]
 async fn settings_help_gap_02_gallery_opens_builtin_and_preset_editors() {
-    use crate::app::i18n::I18n;
-    use crate::app::theme_catalog::{ThemeStore, list_bundled_preset_ids};
+    use desktop_i18n::I18n;
+    use desktop_theme::{ThemeStore, list_bundled_preset_ids};
     use gallery::ThemeGallerySource;
 
     let mut app = fixture();
@@ -836,7 +831,7 @@ async fn settings_help_gap_02_gallery_opens_builtin_and_preset_editors() {
 
 #[tokio::test]
 async fn settings_help_gap_02_creation_help_keeps_validation_and_picker() {
-    use crate::app::i18n::I18n;
+    use desktop_i18n::I18n;
 
     let mut app = fixture();
     let _root = TestThemesRoot::new();

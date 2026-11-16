@@ -39,6 +39,3 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     app.active_custom_theme_id = final_id;
     Task::batch(tasks)
 }
-#[cfg(test)]
-#[path = "themes_tests.rs"]
-mod themes_tests;

@@ -21,6 +21,16 @@ desktop-config = { path = "../desktop-config", version = "0.6.0" }
 rfd = { version = "0.17", features = ["file-handle-inner"] }
 
 [dev-dependencies]
+serde_json = "1"
+desktop-terminal = { path = "../desktop-terminal", version = "0.6.0" }
+iced_runtime = "0.14"
+desktop-editor = { path = "../desktop-editor", version = "0.6.0" }
+desktop-chat-view = { path = "../desktop-chat-view", version = "0.6.0" }
+desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
+iced-code-editor = { git = "https://github.com/doyouhaobaby/iced-code-editor.git", tag = "v0.5.6" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+image = "0.25"
+
 tempfile = "3"
 desktop-theme = { path = "../desktop-theme", version = "0.6.0", features = ["test-support"] }
 

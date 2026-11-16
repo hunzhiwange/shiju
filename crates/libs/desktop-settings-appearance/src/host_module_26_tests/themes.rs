@@ -1,11 +1,16 @@
-use super::{update, ThemesMessage};
-use crate::app::App;
-use crate::app::message::settings::messages::SettingsMessage;
-use crate::app::theme_catalog::{ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, ThemeStore, set_test_themes_root, to_iced_theme};
+use super::ui_fixture::*;
+use crate::system_settings_themes::messages::ThemesMessage;
+fn update(app: &mut Fixture, message: SettingsMessage) {
+    handle_theme_message(app, vec![Message::Settings(message)]);
+}
+use desktop_theme::{
+    ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, ThemeStore, set_test_themes_root,
+    to_iced_theme,
+};
 use iced::Theme;
 
-fn test_app() -> App {
-    App::new().0
+fn test_app() -> Fixture {
+    Fixture::default()
 }
 
 fn sample_custom_theme() -> ThemeDefinition {

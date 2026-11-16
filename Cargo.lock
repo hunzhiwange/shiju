@@ -7371,6 +7371,15 @@ dependencies = [
 name = "desktop-settings-appearance"
 version = "0.6.0"
 dependencies = [
+ "serde_json",
+ "tokio",
+ "image",
+ "iced_runtime",
+ "iced-code-editor",
+ "desktop-terminal",
+ "desktop-assets",
+ "desktop-chat-view",
+ "desktop-editor",
  "config-ui",
  "desktop-config",
  "desktop-i18n",

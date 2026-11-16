@@ -121,7 +121,7 @@ fn forked_title(title: &str) -> String { crate::session_fork::forked_title(title
 ///
 /// - `Ok(String)`: 成功返回项目 ID
 /// - `Err(Error::NoProjectContext)`: 无活动项目上下文
-fn project_id() -> Result<String, Error> {
+pub(crate) fn project_id() -> Result<String, Error> {
     let Some(project) = instance::project() else {
         return Err(Error::NoProjectContext);
     };
@@ -228,7 +228,7 @@ async fn reserve_info<H: LifecycleHost>(info: Info) -> Result<Info, Error> {
     .await??)
 }
 
-fn new_info<H: LifecycleHost>(input: CreateInput) -> Result<Info, Error> {
+pub(crate) fn new_info<H: LifecycleHost>(input: CreateInput) -> Result<Info, Error> {
     #[cfg(not(target_arch = "wasm32"))]
     worktree_core::environment::ensure_ready(&input.directory)
         .map_err(|error| Error::Runtime(anyhow::Error::new(error)))?;
@@ -252,7 +252,7 @@ fn new_info<H: LifecycleHost>(input: CreateInput) -> Result<Info, Error> {
     })
 }
 
-async fn persist_info(info: &Info) -> Result<(), Error> {
+pub(crate) async fn persist_info(info: &Info) -> Result<(), Error> {
     let tenant = session_store::ui_store::current_tenant_scope();
     let _metadata = lock_metadata_writes(&tenant).await;
     validate_parent(&tenant, info).await?;

@@ -123,7 +123,7 @@ async fn update_persists_ui_todos_and_get_round_trips_gateway_shape() {
         todo.id = (index + 1).to_string();
     }
 
-    let loaded = crate::app::agent::project::instance::provide(project.path(), None, move || {
+    let loaded = agent_project::instance::provide(project.path(), None, move || {
         Box::pin(async move {
             update(UpdateInput { session_id: session_id.clone(), todos }).await.unwrap();
             get(&session_id).await
@@ -137,7 +137,7 @@ async fn update_persists_ui_todos_and_get_round_trips_gateway_shape() {
 
 #[tokio::test]
 async fn gateway_get_reads_todos_written_by_tool_with_same_session_key() {
-    use crate::app::agent::tools::todo::{Todo, write_session_todos_for_test};
+    use tool_services::todo::{Todo, write_session_todos as write_session_todos_for_test};
 
     let project = tempfile::tempdir().expect("project dir");
     let session_id = format!("todo-tool-roundtrip-{}", std::process::id());
@@ -148,7 +148,7 @@ async fn gateway_get_reads_todos_written_by_tool_with_same_session_key() {
         priority: "high".to_string(),
     }];
 
-    let loaded = crate::app::agent::project::instance::provide(project.path(), None, {
+    let loaded = agent_project::instance::provide(project.path(), None, {
         let session_id = session_id.clone();
         let tool_todos = tool_todos.clone();
         move || {

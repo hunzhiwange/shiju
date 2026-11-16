@@ -77,6 +77,9 @@ mod mcp_tests;
 pub mod skills;
 
 #[cfg(test)]
+mod compat_t12_tests;
+
+#[cfg(test)]
 mod compat_t06_tests;
 
 #[cfg(test)]

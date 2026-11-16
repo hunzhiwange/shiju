@@ -1174,6 +1174,14 @@ dependencies = [
 name = "agent-plugins"
 version = "0.6.0"
 dependencies = [
+ "walkdir",
+ "config-agent",
+ "question-types",
+ "permission-runtime",
+ "permission-types",
+ "agent-multimodal",
+ "agent-security",
+ "tool-services",
  "acp-config",
  "agent-cli-types",
  "agent-client-protocol",

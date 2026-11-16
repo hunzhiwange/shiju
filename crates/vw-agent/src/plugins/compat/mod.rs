@@ -5,8 +5,6 @@ pub(crate) mod hook_subagent;
 mod t43_tests;
 
 pub(super) mod agents;
-pub(super) mod commands;
-pub(super) mod discovery;
 pub(super) mod identity;
 pub(super) mod legacy_manifest;
 pub(super) mod mcp_auth;
@@ -22,12 +20,8 @@ pub(super) mod mcp_portable;
 pub(super) mod mcp_portable_overlay;
 pub(super) mod mcp_public_auth;
 pub(super) mod onboarding;
-pub(super) mod path_audit;
-pub(super) mod portable_manifest;
-pub(super) mod skill_frontmatter;
 pub(super) mod skill_invocation;
 pub(super) mod skill_roots;
-pub(super) mod transaction_install;
 
 // t02 tests follow their implementation in agent-plugins.
 
@@ -44,25 +38,10 @@ pub(super) mod transaction_install;
 mod t07_tests;
 
 
-#[cfg(test)]
-#[path = "t09_tests.rs"]
-mod t09_tests;
 
-#[cfg(test)]
-#[path = "t10_tests.rs"]
-mod t10_tests;
 
-#[cfg(test)]
-#[path = "t11_tests.rs"]
-mod t11_tests;
 
-#[cfg(test)]
-#[path = "t12_tests.rs"]
-mod t12_tests;
 
-#[cfg(test)]
-#[path = "t13_tests.rs"]
-mod t13_tests;
 
 #[cfg(test)]
 #[path = "t15_tests.rs"]
@@ -189,18 +168,15 @@ pub(crate) mod hook_trust_content;
 pub(crate) mod marketplace;
 // Marketplace tests live in plugin-install.
 
-pub(crate) mod git_source;
 // Fixed Git revision tests live in agent-plugins::install.
 
 pub(crate) mod npm_source;
 
-pub(crate) mod npm_archive;
 
 // Installation identity recovery tests live in agent-plugins.
 
 pub(crate) mod upgrade;
 
-pub(crate) mod installed_state;
 
 #[cfg(test)]
 mod t54_tests;
@@ -235,8 +211,3 @@ mod t64_tests;
 
 #[cfg(test)]
 mod platform_tests;
-
-#[cfg(test)]
-mod closure_tests;
-#[cfg(test)]
-mod t66_tests;

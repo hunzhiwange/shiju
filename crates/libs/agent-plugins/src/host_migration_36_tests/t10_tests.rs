@@ -1,17 +1,18 @@
 //! 通过真实技能工具、包外安装状态和会话恢复验证限定调用。
 
-use crate::config::Config;
-use crate::skills::{SkillListingSessionState, load_skills_full_with_config};
-use crate::tools::skill::{SkillTool, explicitly_referenced_skill_names};
-use crate::tools::traits::Tool;
-use crate::tools::{ToolUseContext, scope_tool_use_context};
+use agent_config::runtime::Config;
+use super::skills::{SkillListingSessionState, load_skills_full_with_config};
+use super::SkillTool;
+use super::skill::explicitly_referenced_skill_names;
+use tool_types::Tool;
+use super::{ToolUseContext, scope_tool_use_context};
 use serde_json::json;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-const MANIFEST: &[u8] = include_bytes!("../../../testdata/plugin_compat/t10/plugin.json");
-const SKILL: &[u8] = include_bytes!("../../../testdata/plugin_compat/t10/SKILL.md");
+const MANIFEST: &[u8] = include_bytes!("../../../../vw-agent/testdata/plugin_compat/t10/plugin.json");
+const SKILL: &[u8] = include_bytes!("../../../../vw-agent/testdata/plugin_compat/t10/SKILL.md");
 
 struct Fixture {
     _temp: tempfile::TempDir,
@@ -42,7 +43,7 @@ impl Fixture {
         write(&source.join("skills/review/resources/input.txt"), b"package resource");
         write(&source.join("skills/review/scripts/review.sh"), b"#!/bin/sh\nprintf '%s' \"$1\"\n");
         for market in ["first", "second"] {
-            crate::plugins::install_plugin_from_marketplace(
+            crate::install_plugin_from_marketplace(
                 source.to_str().unwrap(),
                 &workspace.join("plugins"),
                 market,
@@ -57,7 +58,7 @@ impl Fixture {
 
     fn tool(&self) -> SkillTool {
         SkillTool::new_with_runtime_config(
-            Arc::new(crate::security::SecurityPolicy::default()),
+            Arc::new(agent_security::SecurityPolicy::default()),
             "t10".into(),
             false,
             self.workspace.clone(),
@@ -158,7 +159,7 @@ async fn codex_plugin_compat_t10_preserves_isolation() {
     assert!(replay[0].content.contains("invocation-pack@first:review"));
     assert!(replay[0].content.contains("with one"));
     assert!(state.restore_invoked("other-agent").unwrap().is_empty());
-    crate::plugins::set_plugin_enabled(
+    super::set_plugin_enabled(
         &fixture.workspace.join("plugins"),
         "invocation-pack@first",
         false,
@@ -184,7 +185,7 @@ async fn codex_plugin_compat_t10_rejects_ambiguous_namespace_and_keeps_unique_al
     assert_eq!(result.data["success"], false);
     assert!(result.data["error"].as_str().unwrap().contains("歧义"));
     assert!(context.take_invoked_skills().is_empty());
-    crate::plugins::set_plugin_enabled(
+    super::set_plugin_enabled(
         &fixture.workspace.join("plugins"),
         "invocation-pack@second",
         false,
@@ -206,7 +207,7 @@ async fn codex_plugin_compat_t10_rejects_ambiguous_namespace_and_keeps_unique_al
 fn codex_plugin_compat_t10_uses_exact_plugin_links_without_display_name_authorization() {
     let fixture = Fixture::new(false);
     let mut skills = load_skills_full_with_config(&fixture.workspace, &fixture.config);
-    skills.push(crate::skills::Skill { name: "alias".into(), ..Default::default() });
+    skills.push(super::skills::Skill { name: "alias".into(), ..Default::default() });
     for wrong in [
         "Use [$alias](plugin://invocation-pack@first)",
         "Use [@alias](plugin://invocation-pack@first-more)",

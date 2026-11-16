@@ -1,6 +1,6 @@
 //! Agent declarations are exercised through the real plugin skill loader.
 
-use crate::config::Config;
+use agent_config::runtime::Config;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::fs;
@@ -41,11 +41,11 @@ impl Fixture {
         write(&root.join(".codex-plugin/plugin.json"), br#"{"name":"agent-pack"}"#);
         write(
             &root.join("skills/review/SKILL.md"),
-            include_bytes!("../../../testdata/plugin_compat/t12/SKILL.md"),
+            include_bytes!("../../../../vw-agent/testdata/plugin_compat/t12/SKILL.md"),
         );
         write(
             &root.join("skills/review/agents/openai.yaml"),
-            include_bytes!("../../../testdata/plugin_compat/t12/openai.yaml"),
+            include_bytes!("../../../../vw-agent/testdata/plugin_compat/t12/openai.yaml"),
         );
         write(&root.join("skills/review/assets/icon.svg"), b"<svg/>\n");
         Self { _temp: temp, root, config }
@@ -56,17 +56,17 @@ impl Fixture {
 
 #[tokio::test]
 async fn codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission() {
-    use crate::skills::{SkillListingSessionState, load_skills_full_with_config};
-    use crate::tools::skill::SkillTool;
-    use crate::tools::traits::Tool;
-    use crate::tools::{ToolUseContext, scope_tool_use_context};
+    use super::skills::{SkillListingSessionState, load_skills_full_with_config};
+    use super::SkillTool;
+    use tool_types::Tool;
+    use super::{ToolUseContext, scope_tool_use_context};
     use serde_json::json;
     use std::sync::Arc;
 
     let fixture = Fixture::new();
     let before = snapshot(&fixture.root);
     let tool = SkillTool::new_with_runtime_config(
-        Arc::new(crate::security::SecurityPolicy::default()),
+        Arc::new(agent_security::SecurityPolicy::default()),
         "t12".into(),
         false,
         fixture.config.workspace_dir.clone(),
@@ -104,7 +104,7 @@ async fn codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_a
     assert!(state.validate_invoked_sources("main", &restricted).is_err());
     write(
         &fixture.root.join("skills/review/agents/openai.yaml"),
-        include_bytes!("../../../testdata/plugin_compat/t12/openai.yaml"),
+        include_bytes!("../../../../vw-agent/testdata/plugin_compat/t12/openai.yaml"),
     );
     assert_eq!(snapshot(&fixture.root), before);
     assert!(!fixture.config.workspace_dir.join("sentinel").exists());

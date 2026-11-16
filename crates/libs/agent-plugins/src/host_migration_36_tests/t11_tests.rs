@@ -1,10 +1,10 @@
 //! Command migration is verified through discovery and the actual skill tool.
 
-use crate::config::Config;
-use crate::skills::{SkillLoadMode, load_skills_full_with_config};
-use crate::tools::skill::SkillTool;
-use crate::tools::traits::Tool;
-use crate::tools::{ToolUseContext, scope_tool_use_context};
+use agent_config::runtime::Config;
+use super::skills::{SkillLoadMode, load_skills_full_with_config};
+use super::SkillTool;
+use tool_types::Tool;
+use super::{ToolUseContext, scope_tool_use_context};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -12,9 +12,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-const MANIFEST: &[u8] = include_bytes!("../../../testdata/plugin_compat/t11/plugin.json");
-const COMMAND: &[u8] = include_bytes!("../../../testdata/plugin_compat/t11/review.md");
-const EXPECTED: &str = include_str!("../../../testdata/plugin_compat/t11/expected-skill.md");
+const MANIFEST: &[u8] = include_bytes!("../../../../vw-agent/testdata/plugin_compat/t11/plugin.json");
+const COMMAND: &[u8] = include_bytes!("../../../../vw-agent/testdata/plugin_compat/t11/review.md");
+const EXPECTED: &str = include_str!("../../../../vw-agent/testdata/plugin_compat/t11/expected-skill.md");
 
 struct Fixture {
     _temp: tempfile::TempDir,
@@ -56,7 +56,7 @@ impl Fixture {
     }
 
     fn install(&self, market: &str) -> PathBuf {
-        crate::plugins::install_plugin_from_marketplace(
+        crate::install_plugin_from_marketplace(
             self.source.to_str().unwrap(),
             &self.workspace.join("plugins"),
             market,
@@ -66,7 +66,7 @@ impl Fixture {
     }
 
     fn inventory(&self) -> super::super::skills::PluginSkillInventory {
-        super::super::skills::load_plugin_skill_inventory(
+        super::load_plugin_skill_inventory(
             &self.workspace,
             &self.config,
             SkillLoadMode::Full,
@@ -80,7 +80,7 @@ async fn codex_plugin_compat_t11_invokes_migrated_command() {
     let installed = fixture.install("first");
     let before = snapshot(&installed);
     let tool = SkillTool::new_with_runtime_config(
-        Arc::new(crate::security::SecurityPolicy::default()),
+        Arc::new(agent_security::SecurityPolicy::default()),
         "t11".into(),
         false,
         fixture.workspace.clone(),
@@ -122,7 +122,7 @@ fn codex_plugin_compat_t11_preserves_isolation() {
         assert_eq!(source.relative_skill_path, Path::new("commands/review.md"));
         assert!(!command.location.as_ref().unwrap().starts_with(&source.root));
     }
-    crate::plugins::set_plugin_enabled(
+    super::set_plugin_enabled(
         &fixture.workspace.join("plugins"),
         "command-pack@first",
         false,

@@ -1,12 +1,12 @@
 //! 安装只展示引导，实际调用仍走普通技能工具与来源隔离。
 
-use crate::config::Config;
-use crate::plugins::{
+use agent_config::runtime::Config;
+use crate::{
     PluginInstallResult, install_plugin_from_marketplace, install_plugin_from_source,
 };
-use crate::tools::skill::SkillTool;
-use crate::tools::traits::Tool;
-use crate::tools::{ToolUseContext, scope_tool_use_context};
+use super::SkillTool;
+use tool_types::Tool;
+use super::{ToolUseContext, scope_tool_use_context};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -46,7 +46,7 @@ impl Fixture {
         write(&source.join(".codex-plugin/plugin.json"), br#"{"name":"onboarding-pack","extensions":{"com.openai":{"onboardingSkill":"skills/setup/SKILL.md"}}}"#);
         write(
             &source.join("skills/setup/SKILL.md"),
-            include_bytes!("../../../testdata/plugin_compat/t13/SKILL.md"),
+            include_bytes!("../../../../vw-agent/testdata/plugin_compat/t13/SKILL.md"),
         );
         write(&source.join("skills/setup/resources/guide.txt"), b"Original package guide.\n");
         write(
@@ -69,7 +69,7 @@ impl Fixture {
 
     fn tool(&self) -> SkillTool {
         SkillTool::new_with_runtime_config(
-            Arc::new(crate::security::SecurityPolicy::default()),
+            Arc::new(agent_security::SecurityPolicy::default()),
             "t13".into(),
             false,
             self.config.workspace_dir.clone(),
@@ -85,7 +85,7 @@ async fn codex_plugin_compat_t13_invokes_onboarding_only_on_request() {
     let context = Arc::new(ToolUseContext::new("t13", None).with_full_access_enabled(true));
     let (installed, message) = scope_tool_use_context(context.clone(), async {
         let installed = fixture.install();
-        let message = super::super::cli::installation_message(&installed, &fixture.config);
+        let message = super::installation_message(&installed, &fixture.config);
         (installed, message)
     })
     .await;
@@ -94,7 +94,7 @@ async fn codex_plugin_compat_t13_invokes_onboarding_only_on_request() {
         "installation must expose the declared onboarding through the ordinary skill entry"
     );
     assert!(context.take_invoked_skills().is_empty());
-    let entry = super::onboarding::entry(&installed.manifest, &installed.identity, &fixture.config)
+    let entry = super::onboarding_entry(&installed.manifest, &installed.identity, &fixture.config)
         .unwrap()
         .unwrap();
     let implicit =
@@ -103,10 +103,10 @@ async fn codex_plugin_compat_t13_invokes_onboarding_only_on_request() {
             .unwrap();
     assert_eq!(implicit.data["success"], false, "installing is not explicit skill consent");
     let skills =
-        crate::skills::load_skills_full_with_config(&fixture.config.workspace_dir, &fixture.config);
+        super::skills::load_skills_full_with_config(&fixture.config.workspace_dir, &fixture.config);
     let request = format!("Please run ${entry} for sandbox-target");
     let selected =
-        crate::tools::skill::explicitly_referenced_skill_names(&skills, [request.as_str()]);
+        super::skill::explicitly_referenced_skill_names(&skills, [request.as_str()]);
     assert!(selected.contains(&entry));
     let explicit = Arc::new(
         ToolUseContext::new("t13", None)
@@ -150,13 +150,13 @@ async fn codex_plugin_compat_t13_preserves_isolation() {
     )
     .unwrap();
     let entry =
-        super::onboarding::entry(&second.manifest, &second.identity, &fixture.config).unwrap();
+        super::onboarding_entry(&second.manifest, &second.identity, &fixture.config).unwrap();
     assert_eq!(
         entry.as_deref(),
         Some("onboarding-pack@second:setup"),
         "onboarding entry must retain the exact marketplace identity"
     );
-    let first_entry = super::onboarding::entry(&first.manifest, &first.identity, &fixture.config)
+    let first_entry = super::onboarding_entry(&first.manifest, &first.identity, &fixture.config)
         .unwrap()
         .unwrap();
     let context = Arc::new(
@@ -172,9 +172,9 @@ async fn codex_plugin_compat_t13_preserves_isolation() {
     .unwrap();
     assert_eq!(result.data["success"], false);
     assert!(context.take_invoked_skills().is_empty());
-    crate::plugins::set_plugin_enabled(&fixture.plugins_dir(), "onboarding-pack@second", false)
+    super::set_plugin_enabled(&fixture.plugins_dir(), "onboarding-pack@second", false)
         .unwrap();
-    assert!(super::onboarding::entry(&second.manifest, &second.identity, &fixture.config).is_err());
+    assert!(super::onboarding_entry(&second.manifest, &second.identity, &fixture.config).is_err());
     let context = Arc::new(
         ToolUseContext::new("t13", None)
             .with_full_access_enabled(true)
@@ -220,7 +220,7 @@ fn codex_plugin_compat_t13_reads_both_manifest_positions_and_legacy_alternatives
             let before = snapshot(&fixture.source);
             let installed = fixture.install();
             assert_eq!(
-                super::onboarding::entry(&installed.manifest, &installed.identity, &fixture.config)
+                super::onboarding_entry(&installed.manifest, &installed.identity, &fixture.config)
                     .unwrap()
                     .as_deref(),
                 Some("onboarding-pack:setup"),
@@ -242,17 +242,17 @@ fn codex_plugin_compat_t13_does_not_add_roots_or_select_name_collision_losers() 
         if let Some(extra) = extra {
             write(
                 &fixture.source.join(extra),
-                include_bytes!("../../../testdata/plugin_compat/t13/SKILL.md"),
+                include_bytes!("../../../../vw-agent/testdata/plugin_compat/t13/SKILL.md"),
             );
         }
         write(&fixture.source.join(".codex-plugin/plugin.json"), &serde_json::to_vec(&json!({"name":"onboarding-pack","extensions":{"com.openai":{"onboardingSkill":path}}})).unwrap());
         let installed = fixture.install();
         assert!(
-            super::onboarding::entry(&installed.manifest, &installed.identity, &fixture.config)
+            super::onboarding_entry(&installed.manifest, &installed.identity, &fixture.config)
                 .is_err(),
             "{path} is not a selected package skill entry"
         );
-        let message = super::super::cli::installation_message(&installed, &fixture.config);
+        let message = super::installation_message(&installed, &fixture.config);
         assert!(
             message.contains("Plugin installed:") && message.contains("Onboarding unavailable:")
         );
@@ -264,22 +264,22 @@ fn codex_plugin_compat_t13_does_not_add_roots_or_select_name_collision_losers() 
 async fn codex_plugin_compat_t13_preserves_user_invocation_and_security_restrictions() {
     let mut fixture = Fixture::new();
     let installed = fixture.install();
-    let entry = super::onboarding::entry(&installed.manifest, &installed.identity, &fixture.config)
+    let entry = super::onboarding_entry(&installed.manifest, &installed.identity, &fixture.config)
         .unwrap()
         .unwrap();
     Arc::make_mut(&mut fixture.config).skills.security.reject_script_files = true;
     assert!(
-        super::onboarding::entry(&installed.manifest, &installed.identity, &fixture.config)
+        super::onboarding_entry(&installed.manifest, &installed.identity, &fixture.config)
             .is_err()
     );
     Arc::make_mut(&mut fixture.config).skills.security.reject_script_files = false;
     let content =
-        String::from_utf8(include_bytes!("../../../testdata/plugin_compat/t13/SKILL.md").to_vec())
+        String::from_utf8(include_bytes!("../../../../vw-agent/testdata/plugin_compat/t13/SKILL.md").to_vec())
             .unwrap()
             .replace("argument-hint:", "user-invocable: false\nargument-hint:");
     write(&installed.installed_dir.join("skills/setup/SKILL.md"), content.as_bytes());
     assert!(
-        super::onboarding::entry(&installed.manifest, &installed.identity, &fixture.config)
+        super::onboarding_entry(&installed.manifest, &installed.identity, &fixture.config)
             .is_err()
     );
     let context = Arc::new(
@@ -308,12 +308,12 @@ fn codex_plugin_compat_t13_keeps_absent_or_replaced_overlay_inert() {
             "inline extension replaces the whole legacy overlay"
         );
         assert!(
-            super::onboarding::entry(&installed.manifest, &installed.identity, &fixture.config)
+            super::onboarding_entry(&installed.manifest, &installed.identity, &fixture.config)
                 .unwrap()
                 .is_none()
         );
         assert!(
-            !super::super::cli::installation_message(&installed, &fixture.config)
+            !super::installation_message(&installed, &fixture.config)
                 .contains("Onboarding")
         );
     }
@@ -330,15 +330,15 @@ fn codex_plugin_compat_t13_does_not_borrow_a_shadowing_installation() {
     );
     write(
         &workspace_root.join("skills/setup/SKILL.md"),
-        include_bytes!("../../../testdata/plugin_compat/t13/SKILL.md"),
+        include_bytes!("../../../../vw-agent/testdata/plugin_compat/t13/SKILL.md"),
     );
     assert!(
-        super::onboarding::entry(&installed.manifest, &installed.identity, &fixture.config)
+        super::onboarding_entry(&installed.manifest, &installed.identity, &fixture.config)
             .is_err(),
         "same identity from another selected root must not satisfy the installed package's onboarding declaration"
     );
     assert!(
-        !super::super::cli::installation_message(&installed, &fixture.config)
+        !super::installation_message(&installed, &fixture.config)
             .contains("Onboarding available on request:")
     );
 }
@@ -355,7 +355,7 @@ fn codex_plugin_compat_t13_uses_final_skill_admission_after_local_shadowing() {
             )
             .as_bytes(),
         );
-        let admitted = crate::skills::load_skills_full_with_config(
+        let admitted = super::skills::load_skills_full_with_config(
             &fixture.config.workspace_dir,
             &fixture.config,
         );
@@ -373,7 +373,7 @@ fn codex_plugin_compat_t13_uses_final_skill_admission_after_local_shadowing() {
             assert!(admitted.iter().any(|skill| skill.plugin_source.is_some()));
         }
         assert!(
-            super::onboarding::entry(&installed.manifest, &installed.identity, &fixture.config)
+            super::onboarding_entry(&installed.manifest, &installed.identity, &fixture.config)
                 .is_err(),
             "onboarding cannot advertise a plugin skill hidden or ambiguous in ordinary runtime admission"
         );

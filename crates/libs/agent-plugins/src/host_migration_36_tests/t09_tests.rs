@@ -1,12 +1,12 @@
 //! 通过真实插件发现与技能加载入口验证多根、拒绝和来源隔离。
 
-use crate::app::agent::config::Config;
+use agent_config::runtime::Config;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const MANIFEST: &[u8] = include_bytes!("../../../testdata/plugin_compat/t09/plugin.json");
-const ALPHA: &str = include_str!("../../../testdata/plugin_compat/t09/alpha/SKILL.md");
-const BETA: &str = include_str!("../../../testdata/plugin_compat/t09/beta/SKILL.md");
+const MANIFEST: &[u8] = include_bytes!("../../../../vw-agent/testdata/plugin_compat/t09/plugin.json");
+const ALPHA: &str = include_str!("../../../../vw-agent/testdata/plugin_compat/t09/alpha/SKILL.md");
+const BETA: &str = include_str!("../../../../vw-agent/testdata/plugin_compat/t09/beta/SKILL.md");
 
 struct Fixture {
     temp: tempfile::TempDir,
@@ -46,14 +46,14 @@ fn codex_plugin_compat_t09_preserves_same_name_marketplace_provenance_in_runtime
     fs::rename(package, &source).unwrap();
     let install_dir = fixture.workspace.join("plugins");
     for market in ["first", "second"] {
-        crate::plugins::install_plugin_from_marketplace(
+        crate::install_plugin_from_marketplace(
             source.to_str().unwrap(),
             &install_dir,
             market,
         )
         .unwrap();
     }
-    let skills = crate::app::agent::skills::load_skills_full_with_config(
+    let skills = super::load_skills_full_with_config(
         &fixture.workspace,
         &fixture.config,
     );

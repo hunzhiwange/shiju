@@ -30,9 +30,7 @@ pub(crate) use desktop_workspace::project_message::session::lifecycle::{
     latest_assistant_model_label,
     steps_from_gateway_messages,
 };
-use desktop_workspace::project_message::session::lifecycle::{
-    remote_history_is_incomplete,
-};
+use desktop_workspace::project_message::session::history_open::{HistoryOpen, HistorySource, HistoryDecision};
 
 pub(crate) fn loaded_chat_from_gateway_messages(
     messages: Vec<message_types::WithParts>,
@@ -119,91 +117,37 @@ fn apply_prepared_session_open(
 pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Task<Message>> {
     // 所有界面事件在一个入口显式匹配，方便审计状态变更和异步任务边界。
     match message {
-        ProjectMessage::SessionRightClicked(id, x, y) => {
-            app.navigation_mode.work_current_project_menu = None;
-            app.session_menu_id = Some(id);
-            app.session_menu_anchor = Some(iced::Point::new(x, y));
-            Some(iced::Task::none())
-        }
-        ProjectMessage::SessionMenuClose => {
-            app.session_menu_id = None;
-            app.session_menu_anchor = None;
-            Some(iced::Task::none())
-        }
-        ProjectMessage::SessionPinPressed(project_id, id, pinned) => {
-            Some(app.set_session_pin(project_id, id, pinned))
-        }
-        ProjectMessage::SessionPinSaved(key, result) => Some(app.apply_session_pin(key, result)),
-        ProjectMessage::SessionTreeToggled(id) => {
-            if !app.session_tree_expanded.remove(&id) {
-                app.session_tree_expanded.insert(id);
-            }
-            Some(iced::Task::none())
-        }
-        ProjectMessage::SessionTitleClicked(id) => {
-            let now = web_time::Instant::now();
-            let is_double_click = if let Some(last) = app.session_title_last_click {
-                now.duration_since(last).as_millis() < 400
-            } else {
-                false
+        message @ (ProjectMessage::SessionRightClicked(..)
+            | ProjectMessage::SessionMenuClose | ProjectMessage::SessionTreeToggled(_)
+            | ProjectMessage::SessionTitleClicked(_) | ProjectMessage::SessionRenamePressed(_)
+            | ProjectMessage::SessionRenameChanged(_) | ProjectMessage::SessionRenameCancel
+            | ProjectMessage::SessionRenameSave) => {
+            use desktop_workspace::project_message::session::interaction::{self, Event, State};
+            let event = match message {
+                ProjectMessage::SessionRightClicked(id, x, y) => Event::RightClick(id, x, y),
+                ProjectMessage::SessionMenuClose => Event::Close,
+                ProjectMessage::SessionTreeToggled(id) => Event::Toggle(id),
+                ProjectMessage::SessionTitleClicked(id) => {
+                    let now = web_time::Instant::now();
+                    let elapsed = app.session_title_last_click.map(|last| now.duration_since(last).as_millis());
+                    app.session_title_last_click = Some(now);
+                    Event::Title(id, elapsed)
+                },
+                ProjectMessage::SessionRenamePressed(id) => Event::Rename(id),
+                ProjectMessage::SessionRenameChanged(value) => Event::Change(value),
+                ProjectMessage::SessionRenameCancel => Event::Cancel,
+                ProjectMessage::SessionRenameSave => Event::Save,
+                _ => unreachable!(),
             };
-            app.session_title_last_click = Some(now);
-            if is_double_click {
-                app.session_menu_id = None;
-                app.session_menu_anchor = None;
-                app.popover_visibility.session_actions = false;
-                app.session_rename_id = Some(id.clone());
-                if let Some(s) = app.sessions.iter().find(|s| s.id == id) {
-                    app.session_rename_value = s.title.clone();
-                }
-            }
-            Some(iced::Task::none())
-        }
-        ProjectMessage::SessionRenamePressed(id) => {
-            app.session_menu_id = None;
-            app.session_menu_anchor = None;
-            app.popover_visibility.session_actions = false;
-            app.session_rename_id = Some(id.clone());
-            if let Some(s) = app.sessions.iter().find(|s| s.id == id) {
-                app.session_rename_value = s.title.clone();
-            } else if let Some(s) = app
-                .project_sessions
-                .values()
-                .find_map(|sessions| sessions.iter().find(|s| s.id == id))
-            {
-                app.session_rename_value = s.title.clone();
-            }
-            Some(iced::Task::none())
-        }
-        ProjectMessage::SessionRenameChanged(v) => {
-            app.session_rename_value = v;
-            Some(iced::Task::none())
-        }
-        ProjectMessage::SessionRenameCancel => {
-            app.session_rename_id = None;
-            app.session_rename_value.clear();
-            Some(iced::Task::none())
-        }
-        ProjectMessage::SessionRenameSave => {
-            let Some(id) = app.session_rename_id.clone() else {
-                return Some(iced::Task::none());
-            };
-            let title = app.session_rename_value.trim().to_string();
-            if title.is_empty() {
-                return Some(iced::Task::none());
-            }
-
-            app.session_rename_id = None;
-            app.session_rename_value.clear();
-
-            if let Some(s) = app.sessions.iter_mut().find(|s| s.id == id) {
-                s.title = title.clone();
-            }
-            for sessions in app.project_sessions.values_mut() {
-                if let Some(s) = sessions.iter_mut().find(|s| s.id == id) {
-                    s.title = title.clone();
-                }
-            }
+            let rename = interaction::update(&mut State {
+                menu: &mut app.session_menu_id, anchor: &mut app.session_menu_anchor,
+                actions: &mut app.popover_visibility.session_actions,
+                project_menu: &mut app.navigation_mode.work_current_project_menu,
+                expanded: &mut app.session_tree_expanded,
+                rename_id: &mut app.session_rename_id, rename_value: &mut app.session_rename_value,
+                sessions: &mut app.sessions, projects: &mut app.project_sessions,
+            }, event);
+            let Some(interaction::Rename { id, title }) = rename else { return Some(iced::Task::none()); };
             app.refresh_task_pet_session_title(&id, &title);
 
             let project_path = find_session_project_path(app, &id);
@@ -224,6 +168,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 |_| Message::None,
             ))
         }
+        ProjectMessage::SessionPinPressed(project_id, id, pinned) => Some(app.set_session_pin(project_id, id, pinned)),
+        ProjectMessage::SessionPinSaved(key, result) => Some(app.apply_session_pin(key, result)),
         ProjectMessage::SessionArchivePressed(id) => {
             #[cfg(not(target_arch = "wasm32"))]
             if let Some(runtime) = app.session_runtime_states.get_mut(&id) {
@@ -507,10 +453,19 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             source,
             result,
         } => {
-            let is_active_target = app.active_session_id.as_deref() == Some(&target_session_id)
-                && app.session_view_cache.is_current_open(&target_session_id, open_generation);
+            let history_open = HistoryOpen {
+                active_session: app.active_session_id.as_deref(),
+                target_session: &target_session_id,
+                current_generation: app.session_view_cache.is_current_open(&target_session_id, open_generation),
+                source: if source == PreparedSessionOpenSource::UiStore { HistorySource::UiStore } else { HistorySource::Remote },
+                current_ids: &app.chat_message_ids,
+                reset_boundary: app.session_history_reset_boundary(&target_session_id),
+                current_signature: crate::app::session::session_content_signature(&app.chat, &app.chat_message_ids),
+            };
+            let acceptance = history_open.accept(result.as_ref().ok().map(|prepared| prepared.session_id.as_str()));
+            let content_decision = result.as_ref().ok().map(|prepared| history_open.content(&prepared.message_ids, prepared.content_signature));
             let prepared = match result {
-                Ok(prepared) if is_active_target && prepared.session_id == target_session_id => {
+                Ok(prepared) if acceptance == HistoryDecision::Replace => {
                     prepared
                 }
                 Ok(_) => {
@@ -523,7 +478,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     );
                     return Some(iced::Task::none());
                 }
-                Err(error) if source == PreparedSessionOpenSource::UiStore && is_active_target => {
+                Err(error) if acceptance == HistoryDecision::LoadRemote => {
                     tracing::warn!(
                         target: "vw_desktop",
                         session_id = %target_session_id,
@@ -537,7 +492,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         app.dialogue_flow_show_reasoning_summary,
                     ));
                 }
-                Err(error) if is_active_target => {
+                Err(error) if acceptance == HistoryDecision::ReportRemoteError => {
                     tracing::warn!(
                         target: "vw_desktop",
                         session_id = %target_session_id,
@@ -566,15 +521,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             if let Some(full_access) = prepared.full_access {
                 app.restore_session_full_access(&target_session_id, full_access);
             }
-            let incomplete_remote_history = source == PreparedSessionOpenSource::RemoteHistory
-                && (remote_history_is_incomplete(&app.chat_message_ids, &prepared.message_ids)
-                    || app.session_history_reset_boundary(&target_session_id).is_some_and(
-                        |boundary| {
-                            boundary == app.chat_message_ids
-                                && prepared.message_ids != app.chat_message_ids
-                        },
-                    ));
-            if incomplete_remote_history {
+            if content_decision == Some(HistoryDecision::KeepCurrent) {
                 tracing::warn!(
                     target: "vw_desktop",
                     session_id = %target_session_id,
@@ -586,10 +533,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 return Some(iced::Task::none());
             }
 
-            let same_remote_history = source == PreparedSessionOpenSource::RemoteHistory
-                && crate::app::session::session_content_signature(&app.chat, &app.chat_message_ids)
-                    == prepared.content_signature;
-            if same_remote_history {
+            if content_decision == Some(HistoryDecision::RefreshMetadata) {
                 app.active_session_view_state.ui_preparing = false;
                 app.usage = prepared.usage;
                 if !prepared.steps.is_empty() {

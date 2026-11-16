@@ -1,8 +1,5 @@
 use crate::app::App;
 pub(super) use desktop_workspace::project_message::session_common::{parse_clamped_u32, parse_clamped_u64, trim_to_option};
-#[cfg(test)]
-#[path = "common_tests.rs"]
-mod common_tests;
 pub(super) fn reset_new_session_picker_state(app: &mut App) {
     desktop_workspace::project_message::session_common::reset_picker_selection(
         &mut app.new_session_picker_project, &mut app.new_session_picker_options,

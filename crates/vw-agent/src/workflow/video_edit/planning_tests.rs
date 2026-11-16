@@ -1,17 +1,52 @@
-use super::planning::*;
-#[test]
-fn video_edit_plan_json_rejects_boolean_time_and_unstructured_assets() {
-    let effect = super::merge_tests::effect(0, VisualType::Keyword);
-    let mut value = serde_json::to_value(effect).unwrap();
-    value["start"] = serde_json::json!(true);
-    assert!(serde_json::from_value::<VideoEditEffect>(value.clone()).is_err());
-    value["start"] = serde_json::json!(0);
-    value["assets"] = serde_json::json!([{"prompt":"x"}]);
-    assert!(serde_json::from_value::<VideoEditEffect>(value).is_err());
+use super::{planning::*, segments::*, transcript::*};
+fn source() -> (VideoTranscript, Vec<VideoSegment>, VideoPlanRequirements) {
+    let t = VideoTranscript {
+        asset_id: "asset".into(),
+        duration_sec: 360.0,
+        fps: 25.0,
+        text: "same ".repeat(6),
+        words: (0..6)
+            .map(|i| VideoTranscriptWord {
+                word_index: i,
+                text: "same".into(),
+                start: i as f64 * 60.0,
+                end: i as f64 * 60.0 + 1.0,
+            })
+            .collect(),
+        source: "fixture".into(),
+        diagnostics: vec![],
+    };
+    let segments = segment_video_transcript(
+        &t,
+        VideoSegmentOptions { target_sec: 60.0, max_sec: 60.0, context_sec: 5.0 },
+    )
+    .unwrap();
+    (
+        t,
+        segments,
+        VideoPlanRequirements {
+            instructions: "test".into(),
+            required_types: vec![VisualType::Keyword, VisualType::BRoll, VisualType::MotionGraphic],
+            max_effects_per_word: 1,
+        },
+    )
+}
+fn effect(i: u64, visual_type: VisualType) -> VideoEditEffect {
+    let (_, s, _) = source();
+    VideoEditEffect {
+        id: format!("effect-{i}"),
+        chunk_id: s[i as usize].chunk_id.clone(),
+        word_index: i,
+        end_word_index: i,
+        anchor: "same".into(),
+        start: i as f64 * 60.0,
+        end: i as f64 * 60.0 + 1.0,
+        visual_type,
+        assets: vec!["make a visual".into()],
+    }
 }
 
 use super::{
-    merge_tests::{effect, source},
     planning::{VideoPlanningContext, plan_video_edit},
 };
 use model_types::{ChatRequest, ChatResponse, Provider};

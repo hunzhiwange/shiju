@@ -25482,6 +25482,7 @@ dependencies = [
  "vw-api-transport",
  "vw-api-workflow",
  "workflow-core",
+ "workflow-template-contract",
 ]
 
 [[package]]

@@ -28,3 +28,6 @@ pub mod cloud_failure;
 pub use cloud::{ShijuCloudVideoToolProvider, ShijuVideoProjectCloud};
 pub mod command;
 pub mod entry;
+
+#[cfg(test)]
+mod host_migration_44_tests;

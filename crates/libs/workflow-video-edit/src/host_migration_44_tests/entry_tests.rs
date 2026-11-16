@@ -1,4 +1,4 @@
-use crate::workflow::templates::VideoEditTemplateSeed;
+use workflow_core::templates::VideoEditTemplateSeed;
 
 #[test]
 fn video_edit_entry_rejects_uncontrolled_graph_before_storage() {
@@ -21,7 +21,7 @@ fn video_edit_entry_rejects_uncontrolled_graph_before_storage() {
 #[test]
 fn video_edit_entry_distributes_production_graph() {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../libs/workflow-template-contract/resources/cloud_video_edit.yaml");
+        .join("../workflow-template-contract/resources/cloud_video_edit.yaml");
     assert!(path.is_file(), "production graph must be distributed outside testdata");
 }
 

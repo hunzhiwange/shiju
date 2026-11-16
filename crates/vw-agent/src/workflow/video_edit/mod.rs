@@ -50,8 +50,6 @@ pub use cloud::ShijuVideoProjectCloud;
 #[cfg(test)]
 mod cloud_delivery_tests;
 
-#[cfg(test)]
-mod entry_tests;
 
 pub(crate) mod entry;
 mod entry_contract;

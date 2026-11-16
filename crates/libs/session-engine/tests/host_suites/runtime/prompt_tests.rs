@@ -1,5 +1,7 @@
-//! 验证提示运行时的工具生命周期事件与幂等取消行为。
-//! 伪运行器记录类型化工具事件，并用重复取消验证终止句柄的幂等性。
+//! NativeSessionEngine 提示入口的宿主装配契约（由 vw-agent 的 runtime 模块引入）。
+//! 生产实现属于 session-engine::runtime::prompt；此处绑定真实 AgentContextHost，
+//! 验证类型化事件、取消与 worker 生命周期，以及 Unix Shell 的进程归属边界。
+//! runner 仅替代模型调用，不替代宿主上下文、租户作用域或真实进程清理。
 
 use std::time::Duration;
 

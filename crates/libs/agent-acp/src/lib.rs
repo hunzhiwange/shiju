@@ -45,3 +45,6 @@ pub mod host_migration_53_overlay_contracts;
 
 #[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
 pub mod host_migration_53_model_contracts;
+
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod host_migration_53_backend_contracts;

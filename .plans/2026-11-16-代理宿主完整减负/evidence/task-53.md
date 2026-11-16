@@ -261,3 +261,27 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp::mcp_tests:: -- -
 静态预期Unix为7、1、5项，非Unix挂载6项。原名/属性/关键断言计数及 git diff --check 做静态核对；所有编译、Cargo、单元/实机测试均未运行。lib.rs 最小 test-support 注册，沿用既有 optional tempfile 和 tokio/time；无新依赖、反向引用或跨目录宿主源码借用。
 
 静态终检修正：source/request 夹具在领域保留一份，宿主保留供三项真实执行验收使用的一份，消除重复定义；最后宿主总行数 1046，本轮净减 275，累计净减 1285（55.1%）。上述1026是夹具恢复前中间数字，以此为准。
+
+## 最后恢复：后端四项与剩余挂载执行断言
+
+读取 final.md 最新候选及既有 model/overlay/backend 契约，继续真实宿主注入方式；不把文件大小作为豁免理由。
+
+- `acp::backend_tests::backend_reuses_native_session_identity_and_history` → `agent_acp::host_migration_53_backend_contracts` 同名函数；完整 identity/cwd/history 三断言及租户夹具归领域。
+- `backend_prompt_persists_turn_once` → 同领域模块同名函数；真实历史首轮/后续四消息、terminal/error事件消费归领域。Request.reliability、history及role断言仍在真实 native runner 回调。
+- `backend_prompt_uses_native_model_and_local_tools` → 同领域模块同名函数；超时与终态断言归领域，Request.channel_name/model/local tool routing 三断言仍在宿主。
+- `backend_cancel_propagates_to_runtime_turn` → 同领域模块同名函数；两次cancel的幂等结果、超时、Cancelled终态归领域；宿主回调仍等待真正 Request.abort_token 并发出原 ignored delta。
+- 所有 runtime runner 闭包仍执行原生 start_prompt_with_runtime_runner；test-support 的有限 PromptCase 只选择原四段夹具（hello/answer、follow-up/second answer、native hello、wait/ignored），不是模拟执行器。BackendPorts 只有现有实际调用所需的 start 端口。
+
+后端测试原166 → 71行；断言宏 18 → 宿主7 + 领域11。原四个测试属性/名称保留，处置真实 project instance 的前后顺序未变。
+
+挂载剩余三项全部映射：
+
+- `acp_server_skill_overlay_and_real_mcp_execute_in_one_prepared_session` → overlay 契约同名函数；脚本/附件夹具、真实tools/call成功、单工具目录和附件正文断言归领域。
+- `acp_server_skill_overlay_retains_native_skill_permission_denial` → overlay 契约同名函数；实际call后的失败与Denied错误断言归领域。宿主 factory 仍构造真实 delegated deny rule。
+- `acp_server_skill_overlay_invokes_reads_attachment_and_rediscovers_without_full_access` → overlay 契约同名函数；两轮发现、不泄漏正文、技能正文附加消息、附件读、其它session读拒绝、disabled后发现/执行拒绝所有断言归领域。宿主仅构造真实 FileReadTool/SkillTool、workspace_only security、默认配置与真实 ToolUseContext。bind=true保持with_skill_directory_context，disabled路径bind=false仍不绑定；其它session上下文仍不挂来源。
+
+挂载测试234 → 64行；宿主断言宏18 → 0，领域新增18，总数相等。source/request 夹具本轮彻底从宿主删除，由既有领域helper单一持有；三个实际factory由当前真实验收调用，未复制Host状态。领域使用共享Tool/ToolUseContext契约执行真正Tool.call/execute，不注入预制结果。默认config/security按原值由factory构造，未取得运行等价证明。
+
+本轮最后统计：宿主1046 → 781行，净减265行；2331基线累计净减1550行（66.5%）。仍不宣称70%门槛通过。剩余宿主测试只有真实Request检查、工具/context/security构造、技能/checkpoint实际执行端口及薄注册；生产文件保留实际配置/审批/运行器/权限租约装配。领域test-support仍由Host调用，不计独立领域单测和编译提速。
+
+未来精确包/过滤：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp::backend_tests:: -- --test-threads=1`（预期4项），`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp::mounts_tests:: -- --test-threads=1`（Unix预期7项）。原名/属性、断言宏与重复定义静态核对完成；所有Cargo、构建、运行测试均未执行。lib.rs只追加test-support自注册，沿用已有tool-context/tool-types与tempfile依赖，无反向源码挂载。

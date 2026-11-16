@@ -1,4 +1,4 @@
-use super::hook_model::{emit, validate};
+use super::hook_model::emit;
 use crate::tools::ToolUseContext;
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -59,7 +59,6 @@ async fn codex_plugin_compat_t41_wraps_actual_model_request() {
 }
 #[tokio::test]
 async fn codex_plugin_compat_t41_rejects_invalid_input() {
-    assert!(validate(&json!({"hook_event_name":"PreModelRequest"})).is_err());
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let marker = state.path().join("events");

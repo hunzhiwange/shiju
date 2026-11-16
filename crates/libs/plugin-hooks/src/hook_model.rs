@@ -47,3 +47,7 @@ pub async fn emit<H: HookHost>(status: Option<&str>, usage: Value) {
         runner.model_request(&input).await;
     }
 }
+
+#[cfg(test)]
+#[path = "hook_model_tests.rs"]
+mod tests;

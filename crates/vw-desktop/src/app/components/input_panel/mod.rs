@@ -283,6 +283,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         model_popover::model_popover_content(app, auto_model, &model);
 
     // 组合模型按钮和弹出框为覆盖层组件
+    let mobile = app.mobile_layout.mode() == crate::app::state::LayoutMode::Mobile;
     let model_btn: Element<'_, Message> = AboveOverlay::new(model_toggle, model_pop_content)
         .show(app.show_model_popover)
         .block_background_events(true)
@@ -356,7 +357,33 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     };
 
     // 组装底部控制栏（包含模型选择、使用量、附件、任务池、取消、发送按钮）
-    let bottom_bar = bottom_bar(
+    let bottom_bar = if mobile {
+        // 复用已有弹层状态与消息，布局切换不产生第二份草稿或请求状态。
+        let mut options = iced::widget::row![agent_tab_btn, skills_tab_btn]
+            .spacing(8).align_y(iced::Alignment::Center);
+        if let Some(control) = tools_tab_btn { options = options.push(control); }
+        if let Some(control) = acp_btn { options = options.push(control); }
+        if let Some(control) = reasoning_btn { options = options.push(control); }
+        if let Some(control) = permission_btn { options = options.push(control); }
+        options = options.push(workflow_btn).push(usage_btn);
+        let menu = container(column![options.wrap(), model_popover::model_popover_content(app, auto_model, &model)]
+            .spacing(8).width(Length::Fill))
+            .padding(7).width(Length::Fixed(334.0))
+            .style(|theme| styles::input_card_style(theme, false, None));
+        let toggle = iced::widget::button(iced::widget::text("模型与工具").size(12))
+            .padding([10, 12]).height(44)
+            .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+            .on_press(Message::View(message::ViewMessage::ToggleModelPopover));
+        let toggle: Element<'_, Message> = AboveOverlay::new(toggle, menu)
+            .show(app.input_popovers.model || app.input_popovers.session_tool_selector
+                || app.input_popovers.acp || app.input_popovers.reasoning_effort || app.input_popovers.usage)
+            .block_background_events(true).gap(6.0)
+            .on_close(Message::View(message::ViewMessage::ClosePopovers)).into();
+        desktop_chat_input::input_panel::panel::mobile_controls(
+            toggle, attach_btn, pool_btn, cancel, send,
+        )
+    } else {
+        bottom_bar(
         Some(agent_tab_btn),
         tools_tab_btn,
         Some(skills_tab_btn),
@@ -371,7 +398,8 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         cancel,
         Some(send),
         task_mode_enabled,
-    );
+    )
+    };
 
     // 占位分隔符
     let divider = Space::new().height(Length::Fixed(0.0));

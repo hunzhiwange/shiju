@@ -189,3 +189,19 @@ pub fn selected_context_summary(i18n: I18n, tool_names: &[String], skill_names: 
 
     (!lines.is_empty()).then(|| lines.join("  /  "))
 }
+
+/// 窄屏主操作始终独立成行，次级操作由宿主放入已有菜单。
+pub fn mobile_controls<'a, Message: 'a>(
+    menu: Element<'a, Message>,
+    attachment: Element<'a, Message>,
+    pool: Option<Element<'a, Message>>,
+    cancel: Option<Element<'a, Message>>,
+    send: Element<'a, Message>,
+) -> Element<'a, Message> {
+    let mut actions = row![menu, iced::widget::Space::new().width(Length::Fill), attachment]
+        .spacing(4).align_y(Alignment::Center);
+    if let Some(pool) = pool { actions = actions.push(pool); }
+    if let Some(cancel) = cancel { actions = actions.push(container(cancel).padding(6)); }
+    actions = actions.push(container(send).padding(6));
+    actions.padding([4, 7]).width(Length::Fill).into()
+}

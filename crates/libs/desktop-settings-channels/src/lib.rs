@@ -45,3 +45,6 @@ pub mod app_init;
 
 #[cfg(test)]
 mod desktop_split_15_tests;
+
+#[cfg(test)]
+mod host_split_4_tests;

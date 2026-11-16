@@ -27,3 +27,6 @@ pub mod lifecycle_api;
 pub mod config_api;
 pub mod outbound_api;
 pub mod mode_attach;
+
+mod router;
+pub use router::router;

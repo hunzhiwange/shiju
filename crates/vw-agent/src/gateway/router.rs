@@ -34,10 +34,6 @@
 
 // Host route composition; middleware policy belongs to agent-gateway.
 use axum::Router;
-#[cfg(target_os = "macos")]
-use axum::http::HeaderValue;
-#[cfg(target_os = "macos")]
-use axum::middleware;
 use tower_http::cors::AllowOrigin;
 use tower_http::cors::Any;
 use tower_http::cors::CorsLayer;
@@ -118,55 +114,7 @@ pub(super) fn build_router_with_auth(cors_whitelist: Vec<String>, auth: Router) 
 
 #[cfg(target_os = "macos")]
 pub(super) fn app_routing_router() -> Router {
-    use axum::{
-        extract::DefaultBodyLimit,
-        http::header,
-        response::Response,
-        routing::{get, post},
-    };
-    use handlers::app_routing::{
-        get_client_host, put_client_host, attach_mode, cancel_outbound_probe, cancel_outbound_scan, get_app_config, get_config, get_egress,
-        health, outbound_probe_status, outbound_scan_status, put_app_config, put_config, request_status,
-        put_egress, start, start_outbound_probe, start_outbound_scan, status, stop,
-    };
-
-    Router::new()
-        .route("/app-routing/hosts/{host}/client-host", get(get_client_host).put(put_client_host))
-        .route("/app-routing/hosts/{host}/status", get(status))
-        .route("/app-routing/hosts/{host}/projects/{project}/apps/{app}/mode", post(attach_mode))
-        .route("/app-routing/hosts/{host}/projects/{project}/apps/{app}/requests", get(request_status))
-        .route(
-            "/app-routing/hosts/{host}/projects/{project}/apps/{app}/egress/scans",
-            post(start_outbound_scan),
-        )
-        .route(
-            "/app-routing/hosts/{host}/projects/{project}/apps/{app}/egress/scans/{task}",
-            get(outbound_scan_status).delete(cancel_outbound_scan),
-        )
-        .route("/app-routing/hosts/{host}/health", get(health))
-        .route("/app-routing/hosts/{host}/start", post(start))
-        .route("/app-routing/hosts/{host}/stop", post(stop))
-        .route("/app-routing/hosts/{host}/config", get(get_config).put(put_config))
-        .route("/app-routing/hosts/{host}/egress", get(get_egress).put(put_egress))
-        .route(
-            "/app-routing/hosts/{host}/projects/{project}/apps/{app}/egress/probes",
-            post(start_outbound_probe),
-        )
-        .route(
-            "/app-routing/hosts/{host}/projects/{project}/apps/{app}/egress/probes/{task}",
-            get(outbound_probe_status).delete(cancel_outbound_probe),
-        )
-        .route(
-            "/app-routing/hosts/{host}/projects/{project}/apps/{app}/config",
-            get(get_app_config).put(put_app_config),
-        )
-        .layer(DefaultBodyLimit::max(1024))
-        .layer(middleware::map_response(async |mut response: Response| {
-            response
-                .headers_mut()
-                .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
-            response
-        }))
+    gateway_app_routing::server::router()
 }
 
 pub(crate) fn handler_router() -> Router {

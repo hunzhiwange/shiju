@@ -1,6 +1,5 @@
 //! Host paths and aggregation lifecycle assembly.
 pub(crate) use gateway_app_routing::server::lifecycle_api::*;
-pub(crate) use gateway_app_routing::server::ControlError;
 use crate::{app_routing::RoutingListener, global_database::GlobalDatabase};
 use axum::Router;
 use std::{path::PathBuf, sync::Arc};

@@ -1,8 +1,8 @@
 use super::{
-    lifecycle_api_tests::{
+    fixture::{
         HOST, MANAGER, READER, assert_error, client, spawn_gateway, write_policy,
     },
-    outbound_probe::probe,
+    crate::server::outbound_probe::probe,
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -26,7 +26,7 @@ use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::TaskId,
 };
-use vw_gateway_client::GatewayClient;
+use gateway_http::GatewayTransport;
 
 const APP: AppId = AppId::Codex;
 const PEER: &str = "fixture-routing-peer-token-00000001";
@@ -65,14 +65,14 @@ async fn assert_closed(socket: &mut TcpStream) {
 }
 
 async fn terminal(
-    client: &GatewayClient,
+    client: &GatewayTransport,
     project: &ProjectId,
     task: &TaskId,
     budget: Duration,
 ) -> DiagnosticJobSnapshot {
     timeout(budget, async {
         loop {
-            let snapshot = gateway_app_routing::GatewayAppRoutingClient::new(client.transport().clone()).app_routing_outbound_probe_status(HOST, project, APP, task, MANAGER)
+            let snapshot = crate::GatewayAppRoutingClient::new(client.clone()).app_routing_outbound_probe_status(HOST, project, APP, task, MANAGER)
                 .await
                 .unwrap();
             match snapshot.state {
@@ -124,27 +124,27 @@ async fn cc_route_029_outbound_probe_expected_behavior() {
     let owner = client(port, "owner");
     let project = ProjectId::from("fixture");
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start_outbound_probe(HOST, &project, APP, READER).await.unwrap_err(),
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_start_outbound_probe(HOST, &project, APP, READER).await.unwrap_err(),
         403,
         "forbidden",
     );
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(client(port, "other").transport().clone()).app_routing_start_outbound_probe(HOST, &project, APP, MANAGER)
+        crate::GatewayAppRoutingClient::new(client(port, "other").clone()).app_routing_start_outbound_probe(HOST, &project, APP, MANAGER)
             .await
             .unwrap_err(),
         403,
         "forbidden",
     );
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start_outbound_probe("other-mac", &project, APP, MANAGER)
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_start_outbound_probe("other-mac", &project, APP, MANAGER)
             .await
             .unwrap_err(),
         403,
         "forbidden",
     );
     let direct = RoutingEgressUpdate { mode: RoutingEgressMode::Direct, proxy_url: None };
-    gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_set_egress(HOST, MANAGER, &direct).await.unwrap();
-    let job = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start_outbound_probe(HOST, &project, APP, MANAGER).await.unwrap();
+    crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_set_egress(HOST, MANAGER, &direct).await.unwrap();
+    let job = crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_start_outbound_probe(HOST, &project, APP, MANAGER).await.unwrap();
     let snapshot = terminal(&owner, &project, &job.task_id, GUARD).await;
     assert!(matches!(
         snapshot.state,
@@ -156,7 +156,7 @@ async fn cc_route_029_outbound_probe_expected_behavior() {
         mode: RoutingEgressMode::Custom,
         proxy_url: Some(format!("http://fixture:test@{}", proxy.local_addr().unwrap())),
     };
-    gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_set_egress(HOST, MANAGER, &custom).await.unwrap();
+    crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_set_egress(HOST, MANAGER, &custom).await.unwrap();
     for body in [
         json!({"url": "http://127.0.0.1:9"}),
         json!({"proxyUrl": "http://127.0.0.1:9"}),
@@ -176,20 +176,20 @@ async fn cc_route_029_outbound_probe_expected_behavior() {
     assert_eq!(job.kind, DiagnosticProbeKind::OutboundProxy);
     let mut socket = accept_connect(&proxy).await;
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_cancel_outbound_probe(HOST, &project, APP, &job.task_id, PEER)
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_cancel_outbound_probe(HOST, &project, APP, &job.task_id, PEER)
             .await
             .unwrap_err(),
         404,
         "not_found",
     );
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_outbound_probe_status(HOST, &"other".into(), APP, &job.task_id, MANAGER)
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_outbound_probe_status(HOST, &"other".into(), APP, &job.task_id, MANAGER)
             .await
             .unwrap_err(),
         404,
         "not_found",
     );
-    let cancelled = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_cancel_outbound_probe(HOST, &project, APP, &job.task_id, MANAGER)
+    let cancelled = crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_cancel_outbound_probe(HOST, &project, APP, &job.task_id, MANAGER)
         .await
         .unwrap();
     assert!(matches!(
@@ -201,13 +201,13 @@ async fn cc_route_029_outbound_probe_expected_behavior() {
     assert_eq!(snapshot.state, DiagnosticJobState::Cancelled {});
     assert_eq!(snapshot.results, Some(vec![]));
     assert_eq!(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_cancel_outbound_probe(HOST, &project, APP, &job.task_id, MANAGER)
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_cancel_outbound_probe(HOST, &project, APP, &job.task_id, MANAGER)
             .await
             .unwrap(),
         snapshot
     );
 
-    let job = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start_outbound_probe(HOST, &project, APP, MANAGER).await.unwrap();
+    let job = crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_start_outbound_probe(HOST, &project, APP, MANAGER).await.unwrap();
     let mut socket = accept_connect(&proxy).await;
     let snapshot = terminal(&owner, &project, &job.task_id, Duration::from_secs(13)).await;
     assert!(matches!(
@@ -217,7 +217,7 @@ async fn cc_route_029_outbound_probe_expected_behavior() {
     assert_closed(&mut socket).await;
     assert!(timeout(Duration::from_millis(50), proxy.accept()).await.is_err());
 
-    let job = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start_outbound_probe(HOST, &project, APP, MANAGER).await.unwrap();
+    let job = crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_start_outbound_probe(HOST, &project, APP, MANAGER).await.unwrap();
     let mut socket = accept_connect(&proxy).await;
     socket
         .write_all(b"HTTP/1.1 407 Proxy Authentication Required\r\nContent-Length: 0\r\n\r\n")
@@ -244,7 +244,7 @@ async fn cc_route_029_probe_reports_headers_without_following_redirects() {
             b"HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:9/unapproved\r\nContent-Length: 0\r\n\r\n"
         ).await.unwrap();
     };
-    let client = crate::model_relay::upstream::upstream_http_client_builder_without_total_timeout()
+    let client = model_http_client::upstream_http_client_builder_without_total_timeout()
         .no_proxy()
         .build()
         .unwrap();

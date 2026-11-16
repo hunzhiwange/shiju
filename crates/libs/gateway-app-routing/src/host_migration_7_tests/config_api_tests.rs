@@ -1,4 +1,4 @@
-use super::lifecycle_api_tests::{
+use super::fixture::{
     HOST, MANAGER, MEMBER, READER, assert_error, client, spawn_gateway, write_attached_app,
     write_policy,
 };
@@ -61,26 +61,26 @@ async fn cc_route_012_config_api_expected_behavior() {
 
     let owner = client(port, "owner");
     let other_tenant = client(port, "other");
-    let initial = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_config(HOST, READER).await.unwrap();
+    let initial = crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_config(HOST, READER).await.unwrap();
     assert_eq!(serde_json::to_value(initial).unwrap(), listener);
-    assert_error(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_config(HOST, MEMBER).await.unwrap_err(), 403, "forbidden");
+    assert_error(crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_config(HOST, MEMBER).await.unwrap_err(), 403, "forbidden");
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_config("other-mac", READER).await.unwrap_err(),
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_config("other-mac", READER).await.unwrap_err(),
         403,
         "forbidden",
     );
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(other_tenant.transport().clone()).app_routing_config(HOST, READER).await.unwrap_err(),
+        crate::GatewayAppRoutingClient::new(other_tenant.clone()).app_routing_config(HOST, READER).await.unwrap_err(),
         403,
         "forbidden",
     );
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_set_config(HOST, READER, &initial).await.unwrap_err(),
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_set_config(HOST, READER, &initial).await.unwrap_err(),
         403,
         "forbidden",
     );
 
-    let running = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start(HOST, MANAGER).await.unwrap();
+    let running = crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_start(HOST, MANAGER).await.unwrap();
     let original_address = (running.bound_address.unwrap(), running.bound_port.unwrap());
     for (field, invalid) in [
         ("unknown", json!(1)),
@@ -99,8 +99,8 @@ async fn cc_route_012_config_api_expected_behavior() {
     let response = request(port, "config", Method::PUT, Some(MANAGER), Some(array)).await;
     assert_eq!(response.status(), 400, "configuration bodies must be objects");
     assert_eq!(response.headers()["cache-control"], "no-store");
-    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_config(HOST, READER).await.unwrap(), initial);
-    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_status(HOST, READER).await.unwrap(), running);
+    assert_eq!(crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_config(HOST, READER).await.unwrap(), initial);
+    assert_eq!(crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_status(HOST, READER).await.unwrap(), running);
     let occupied = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
     let next_port = occupied.local_addr().unwrap().port();
     let changed = vw_api_app_routing::RoutingConfig {
@@ -109,17 +109,17 @@ async fn cc_route_012_config_api_expected_behavior() {
         ..initial
     };
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_set_config(HOST, MANAGER, &changed).await.unwrap_err(),
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_set_config(HOST, MANAGER, &changed).await.unwrap_err(),
         409,
         "config_not_applied",
     );
-    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_config(HOST, READER).await.unwrap(), initial);
-    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_status(HOST, READER).await.unwrap(), running);
+    assert_eq!(crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_config(HOST, READER).await.unwrap(), initial);
+    assert_eq!(crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_status(HOST, READER).await.unwrap(), running);
 
     let project = "project".into();
     let other = "other".into();
     let defaults =
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_app_config(HOST, &project, AppId::Codex, READER).await.unwrap();
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_app_config(HOST, &project, AppId::Codex, READER).await.unwrap();
     assert_eq!(
         defaults,
         AppRoutingConfig {
@@ -134,33 +134,33 @@ async fn cc_route_012_config_api_expected_behavior() {
         non_streaming_timeout_secs: 1200,
     };
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_app_config(HOST, &"foreign".into(), AppId::Codex, MANAGER)
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_app_config(HOST, &"foreign".into(), AppId::Codex, MANAGER)
             .await
             .unwrap_err(),
         403,
         "forbidden",
     );
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_app_config(HOST, &other, AppId::Claude, MANAGER).await.unwrap_err(),
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_app_config(HOST, &other, AppId::Claude, MANAGER).await.unwrap_err(),
         403,
         "forbidden",
     );
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_app_config(HOST, &project, AppId::ClaudeDesktop, MANAGER)
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_app_config(HOST, &project, AppId::ClaudeDesktop, MANAGER)
             .await
             .unwrap_err(),
         422,
         "unsupported_app",
     );
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_set_app_config(HOST, &project, AppId::Codex, READER, &changed_timeouts)
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_set_app_config(HOST, &project, AppId::Codex, READER, &changed_timeouts)
             .await
             .unwrap_err(),
         403,
         "forbidden",
     );
     assert_eq!(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_set_app_config(HOST, &project, AppId::Codex, MANAGER, &changed_timeouts)
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_set_app_config(HOST, &project, AppId::Codex, MANAGER, &changed_timeouts)
             .await
             .unwrap(),
         changed_timeouts
@@ -184,32 +184,32 @@ async fn cc_route_012_config_api_expected_behavior() {
         assert_eq!(response.json::<Value>().await.unwrap()["error"]["code"], "invalid_input");
     }
     assert_eq!(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_app_config(HOST, &project, AppId::Codex, READER).await.unwrap(),
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_app_config(HOST, &project, AppId::Codex, READER).await.unwrap(),
         changed_timeouts
     );
     assert_eq!(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_app_config(HOST, &other, AppId::Codex, READER).await.unwrap(),
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_app_config(HOST, &other, AppId::Codex, READER).await.unwrap(),
         defaults
     );
     assert_eq!(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_app_config(HOST, &project, AppId::Claude, READER).await.unwrap(),
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_app_config(HOST, &project, AppId::Claude, READER).await.unwrap(),
         defaults
     );
-    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_status(HOST, READER).await.unwrap(), running);
+    assert_eq!(crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_status(HOST, READER).await.unwrap(), running);
 
     drop(occupied);
     let (state_path, original_state) = write_attached_app(home.path());
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_set_config(HOST, MANAGER, &changed).await.unwrap_err(),
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_set_config(HOST, MANAGER, &changed).await.unwrap_err(),
         409,
         "config_not_applied",
     );
     assert_eq!(fs::read_to_string(&state_path).unwrap(), original_state);
-    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_config(HOST, READER).await.unwrap(), initial);
-    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_status(HOST, READER).await.unwrap(), running);
+    assert_eq!(crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_config(HOST, READER).await.unwrap(), initial);
+    assert_eq!(crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_status(HOST, READER).await.unwrap(), running);
     fs::remove_file(state_path).unwrap();
-    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_set_config(HOST, MANAGER, &changed).await.unwrap(), changed);
-    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_status(HOST, READER).await.unwrap().bound_port, Some(next_port));
+    assert_eq!(crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_set_config(HOST, MANAGER, &changed).await.unwrap(), changed);
+    assert_eq!(crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_status(HOST, READER).await.unwrap().bound_port, Some(next_port));
     let listener_response = Client::builder()
         .no_proxy()
         .timeout(Duration::from_secs(5))
@@ -225,10 +225,10 @@ async fn cc_route_012_config_api_expected_behavior() {
 
     let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
     let owner = client(port, "owner");
-    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_status(HOST, READER).await.unwrap().state, RoutingState::Stopped);
-    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_config(HOST, READER).await.unwrap(), changed);
+    assert_eq!(crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_status(HOST, READER).await.unwrap().state, RoutingState::Stopped);
+    assert_eq!(crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_config(HOST, READER).await.unwrap(), changed);
     assert_eq!(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_app_config(HOST, &project, AppId::Codex, READER).await.unwrap(),
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_app_config(HOST, &project, AppId::Codex, READER).await.unwrap(),
         changed_timeouts
     );
 }

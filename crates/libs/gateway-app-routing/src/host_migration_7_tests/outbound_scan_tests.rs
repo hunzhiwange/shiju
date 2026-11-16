@@ -1,10 +1,10 @@
 use super::{
-    lifecycle_api_tests::{
+    fixture::{
         HOST, MANAGER, READER, assert_error, client, spawn_gateway, write_policy,
     },
-    outbound_scan::{CANDIDATES, scan_connection},
+    crate::server::outbound_scan::{CANDIDATES, scan_connection},
 };
-use crate::gateway::agent_apps_diagnostic_jobs::DiagnosticProbeError;
+use agent_gateway::agent_apps_diagnostic_jobs::DiagnosticProbeError;
 use serde_json::{Value, json};
 use std::{fs, future::pending, time::Duration};
 use tokio::{
@@ -47,21 +47,21 @@ async fn cc_route_030_outbound_scan_expected_behavior() {
     let owner = client(port, "owner");
     let project = "fixture".into();
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start_outbound_scan(HOST, &project, AppId::Codex, READER)
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_start_outbound_scan(HOST, &project, AppId::Codex, READER)
             .await
             .unwrap_err(),
         403,
         "forbidden",
     );
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(client(port, "other").transport().clone()).app_routing_start_outbound_scan(HOST, &project, AppId::Codex, MANAGER)
+        crate::GatewayAppRoutingClient::new(client(port, "other").clone()).app_routing_start_outbound_scan(HOST, &project, AppId::Codex, MANAGER)
             .await
             .unwrap_err(),
         403,
         "forbidden",
     );
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start_outbound_scan("other-mac", &project, AppId::Codex, MANAGER)
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_start_outbound_scan("other-mac", &project, AppId::Codex, MANAGER)
             .await
             .unwrap_err(),
         403,
@@ -81,7 +81,7 @@ async fn cc_route_030_outbound_scan_expected_behavior() {
     let job: vw_api_app_diagnostics::DiagnosticJobIdentity =
         response.json().await.unwrap();
     assert_error(
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_outbound_probe_status(HOST, &project, AppId::Codex, &job.task_id, MANAGER)
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_outbound_probe_status(HOST, &project, AppId::Codex, &job.task_id, MANAGER)
             .await
             .unwrap_err(),
         404,
@@ -89,7 +89,7 @@ async fn cc_route_030_outbound_scan_expected_behavior() {
     );
     let snapshot = timeout(Duration::from_secs(5), async {
         loop {
-            let snapshot = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_outbound_scan_status(
+            let snapshot = crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_outbound_scan_status(
                     HOST,
                     &project,
                     AppId::Codex,
@@ -125,8 +125,8 @@ async fn cc_route_030_outbound_scan_expected_behavior() {
     assert_eq!(ports, [1080, 3128, 7890, 7891, 8080, 8888, 10808, 10809]);
     // Cancellation remains safe even if the short scan already finished.
     let job =
-        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start_outbound_scan(HOST, &project, AppId::Codex, MANAGER).await.unwrap();
-    let cancelled = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_cancel_outbound_scan(HOST, &project, AppId::Codex, &job.task_id, MANAGER)
+        crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_start_outbound_scan(HOST, &project, AppId::Codex, MANAGER).await.unwrap();
+    let cancelled = crate::GatewayAppRoutingClient::new(owner.clone()).app_routing_cancel_outbound_scan(HOST, &project, AppId::Codex, &job.task_id, MANAGER)
         .await
         .unwrap();
     assert!(matches!(

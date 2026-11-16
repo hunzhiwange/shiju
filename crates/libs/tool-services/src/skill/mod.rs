@@ -953,3 +953,6 @@ impl<H: SkillHost> Tool for SkillTool<H> {
         Ok(self.invoke(input).await)
     }
 }
+
+#[cfg(test)]
+mod value_tests;

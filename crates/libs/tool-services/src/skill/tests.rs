@@ -3,7 +3,7 @@
 //! 这里覆盖参数解析、工具元数据、安全策略拒绝和同步/异步桥接等无需真实技能目录、
 //! 用户交互或外部进程的确定性行为。
 
-use super::{Args, SkillTool, block_on};
+use super::{SkillTool, block_on};
 use crate::app::agent::config;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use crate::app::agent::tools::traits::Tool;
@@ -21,28 +21,6 @@ fn tool_with_security(security: SecurityPolicy) -> SkillTool {
         root_config: Arc::new(config::Config::default()),
         description_text: Arc::from("cached skill description"),
     }
-}
-
-#[test]
-fn args_deserialize_skill_and_ignore_unknown_fields() {
-    let args: Args = serde_json::from_value(json!({
-        "skill": "rustcodegraph",
-        "args": "crates/vw-agent",
-        "ignored": true,
-    }))
-    .expect("valid skill arguments should deserialize");
-
-    assert_eq!(args.skill, "rustcodegraph");
-    assert_eq!(args.args.as_deref(), Some("crates/vw-agent"));
-}
-
-#[test]
-fn args_reject_missing_or_non_string_skill() {
-    let missing = serde_json::from_value::<Args>(json!({}));
-    let non_string = serde_json::from_value::<Args>(json!({ "skill": 239 }));
-
-    assert!(missing.is_err());
-    assert!(non_string.is_err());
 }
 
 #[test]

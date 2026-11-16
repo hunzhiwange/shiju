@@ -8,9 +8,7 @@ pub fn accessible_skills(skills: Vec<crate::skills::Skill>, context: Option<&sup
 }
 
 #[cfg(test)]
-use tool_services::skill::{Args, available_skill_names, base_dir_url, file_url,
-    skill_file_id, skill_is_explicitly_requested, skill_location, skill_matches_name,
-    skill_prompt_content, text_contains_skill_reference, xml_escape, skill_permission_rule};
+use tool_services::skill::{skill_file_id, skill_is_explicitly_requested, skill_permission_rule};
 #[cfg(test)]
 use tool_services::skill::invocation;
 #[cfg(test)]

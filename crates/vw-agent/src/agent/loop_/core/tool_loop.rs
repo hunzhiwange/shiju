@@ -123,7 +123,7 @@ pub(super) fn services() -> agent_loop::core::tool_loop::LoopServices<crate::too
         scrub_credentials,
         llm_round: |r| Box::pin(llm_round::run_llm_round(r.provider, r.history, r.observer, r.provider_name, r.model, r.temperature, r.channel_name, r.multimodal_config, r.cancellation_token, r.hooks, r.tool_specs, r.use_native_tools, r.turn_id, r.iteration)),
         execute_tools: |r| Box::pin(tool_execution::execute_tool_calls_and_update_history(r.history, r.tool_calls, r.assistant_history_content, r.native_tool_calls, r.tools_registry, r.observer, r.channel_name, r.channel_reply_target, r.provider_name, r.model, r.turn_id, r.iteration, r.tool_use_context, r.on_delta, r.excluded_tools, r.bypass_non_cli_approval_for_turn, r.cancellation_token, r.seen_tool_signatures, r.use_native_tools)),
-        stop_hook: |context, interrupt, active, message| Box::pin(crate::plugins::hook_stop::emit(context, interrupt, active, message)),
+        stop_hook: |context, interrupt, active, message| Box::pin(crate::plugins::hook_stop::emit::<crate::tools::context::AgentContextHost>(context, interrupt, active, message)),
         cancel_descendants: |session, children| global_child_agent_coordinator().cancel_descendants(session, children),
         descendant_snapshots: |session, children| global_child_agent_coordinator().descendant_snapshots(session, children),
         wait_for_descendants: |session, children, timeout| Box::pin(async move { global_child_agent_coordinator().wait_for_descendants(session, children, timeout).await }),

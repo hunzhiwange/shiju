@@ -12,7 +12,7 @@ impl llm_runtime::stream::Host for StreamHost {
     fn client_id() -> String { crate::flag::vibewindow_client() }
     fn emit_model(status: Option<&'static str>, usage: serde_json::Value)
         -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> {
-        Box::pin(crate::plugins::hook_model::emit(status, usage))
+        Box::pin(crate::plugins::hook_model::emit::<crate::tools::context::AgentContextHost>(status, usage))
     }
 }
 pub async fn stream(input: StreamInput, callback: impl FnMut(StreamEvent) + Send + 'static) -> Result<(), Error> {

@@ -115,7 +115,7 @@ pub(crate) mod hook_manifest;
 pub(crate) mod hook_matcher;
 
 
-pub(crate) mod hook_command;
+
 
 pub(crate) mod hook_async;
 
@@ -125,20 +125,20 @@ pub(crate) mod hook_permission;
 
 pub(crate) mod hook_post_tool;
 
-pub(crate) mod hook_prompt;
+
 
 pub(crate) mod hook_session;
 
 
-pub(crate) mod hook_model;
+
 #[cfg(test)]
 pub(crate) mod t41_tests;
 
-pub(crate) mod hook_compact;
+
 #[cfg(test)]
 pub(crate) mod t42_tests;
 
-pub(crate) mod hook_stop;
+
 #[cfg(test)]
 pub(crate) mod t44_tests;
 

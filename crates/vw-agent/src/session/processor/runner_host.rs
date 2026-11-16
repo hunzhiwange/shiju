@@ -188,7 +188,7 @@ impl session_engine::runner_host::RunnerHost for AgentRunnerHost {
         active: bool,
         message: Option<&str>,
     ) -> anyhow::Result<plugin_hooks::hook_stop::Outcome> {
-        prompt::block_on(crate::plugins::hook_stop::emit(context, interrupt, active, message))
+        prompt::block_on(crate::plugins::hook_stop::emit::<crate::tools::context::AgentContextHost>(context, interrupt, active, message))
     }
     fn read_todos(ctx: &ToolRuntimeContext) -> anyhow::Result<String> {
         Ok(crate::tools::todo::read(ctx)?)
@@ -232,7 +232,7 @@ impl session_engine::runner_protocol::RunnerCheckpointHost for AgentRunnerHost {
         automatic: bool,
         completed: bool,
     ) -> Result<(), String> {
-        prompt::block_on(crate::plugins::hook_compact::emit(
+        prompt::block_on(crate::plugins::hook_compact::emit::<crate::tools::context::AgentContextHost>(
             session,
             conversation,
             model,

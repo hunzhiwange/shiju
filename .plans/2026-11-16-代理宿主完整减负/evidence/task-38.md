@@ -195,3 +195,12 @@ t36/t38 使用 tool-context::executor::execute_tool_from_registry 原工厂、to
 
 33个原来源目前剩余 1334 行；相对2688行净减 1354 行（50.4%）。本轮生产算法迁移仍为0，新增仅领域测试与窄端口接线；共享 fixture 不计生产收益。未达到70%，保留大头为真实网关/窗口、child_agent、compaction和跨领域turn/MCP集成，逐文件原保留原因除本节覆盖项仍有效。
 未来 agent-plugins --lib host_migration_38_tests 过滤：原34+新增9=43条（Unix，其他平台保留原cfg限制），必须非零；所有编译和行为检查未运行。静态检查原名称/断言、入口签名和差异，未运行Cargo、构建或测试。
+
+## 第三轮继续迁移（2026-11-16）
+读取最新 final.md（宿主51915行）和 remaining-host.json 后继续落实：
+- 删除 hook_command（20行，已无调用者）、hook_compact（23行）、hook_model（8行）、hook_prompt（8行）、hook_stop（15行）。真实调用者 history、tool_loop、llm_round、session/llm/stream、runner_host、runner_admission 直接使用 plugin_hooks 模块，显式绑定 AgentContextHost；plugins/mod.rs 直接重导出领域模块，compat/mod.rs 删除原挂载。没有新增生产算法，74行仅为宿主转发清理，不能计为算法迁移。
+- `codex_plugin_compat_t54_rejects_invalid_input`、`codex_plugin_compat_t54_preserves_isolation`、`codex_plugin_compat_t54_gateway_client_activates_audited_package` → gateway-plugins::host_migration_38_tests 同名注册。原断言完整保留。真实 HTTP router、Pending、安装、审计、依赖检查、升级、GatewayClient 和临时目录均使用原生产入口。State 仅为已有 Config，无 AppState 复制。端口授权显式固定测试 token；此三条证明配置绑定、令牌隔离、非法输入及客户端流程，不冒充真实宿主鉴权。
+- t54 仅保留 `codex_plugin_compat_t54_requires_authorized_install_request` 和其真实 AppState/PairingGuard fixture，继续证明宿主生产 auth 接线；没有用领域端口代替该断言。
+- gateway-plugins 新增的依赖仅 dev-dependencies：tower、tokio测试特性、gateway-endpoint、vw-gateway-client、plugin-mcp。无领域反向依赖宿主。
+未来：`python3 scripts/cargo_slot.py cargo test -p gateway-plugins --lib host_migration_38_tests -- --test-threads=1` 预期3条；agent-plugins 原过滤预期43条（Unix）；宿主 t54 原真实鉴权过滤预期1条。均未运行，未声明通过。
+本任务33个原始来源当前剩余1172行，累计净减1516行（56.4%）。仍未满足70%，上文未覆盖的保留文件逐符号职责继续有效；真实宿主窗口fixture、child_agent持久化、compaction检查点和turn/MCP集成保留，不删除断言凑比例。

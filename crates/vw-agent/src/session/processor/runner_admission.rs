@@ -39,7 +39,7 @@ pub(super) fn admit_context(
         return None;
     }
     let _async_hook_turn = tool_use_context.async_hooks.turn_guard();
-    if let Err(error) = prompt::block_on(crate::plugins::hook_prompt::submit(
+    if let Err(error) = prompt::block_on(crate::plugins::hook_prompt::submit::<crate::tools::context::AgentContextHost>(
         std::sync::Arc::new(tool_use_context.clone()),
         &req.query,
     )) {

@@ -99,6 +99,6 @@ fn services() -> agent_loop::core::llm_round::LlmServices<ParsedToolCall> {
         history_parsed: build_native_assistant_history_from_parsed_calls,
         history_native: build_native_assistant_history, scrub_credentials,
         token_usage: crate::plugins::hook_model::token_usage,
-        emit_model: |status, usage| Box::pin(crate::plugins::hook_model::emit(status, usage)),
+        emit_model: |status, usage| Box::pin(crate::plugins::hook_model::emit::<crate::tools::context::AgentContextHost>(status, usage)),
     }
 }

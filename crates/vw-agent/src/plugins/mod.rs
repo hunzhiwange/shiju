@@ -90,9 +90,9 @@ pub(crate) use compat::mcp_app_execution;
 
 pub(crate) use compat::hook_async::AsyncHooks;
 
-pub(crate) use compat::hook_compact;
-pub(crate) use compat::hook_model;
-pub(crate) use compat::hook_prompt;
+pub(crate) use plugin_hooks::hook_compact;
+pub(crate) use plugin_hooks::hook_model;
+pub(crate) use plugin_hooks::hook_prompt;
 pub(crate) use compat::hook_session;
 pub(crate) use compat::hook_subagent;
 
@@ -102,7 +102,7 @@ pub(crate) use compat::t41_tests;
 #[cfg(test)]
 pub(crate) use compat::t42_tests;
 
-pub(crate) use compat::hook_stop;
+pub(crate) use plugin_hooks::hook_stop;
 
 #[cfg(test)]
 pub(crate) use compat::t44_tests;

@@ -367,3 +367,6 @@ fn install_dir_from_config(config: &Config) -> PathBuf {
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod host_migration_16_tests;
+
+#[cfg(test)]
+mod host_migration_38_tests;

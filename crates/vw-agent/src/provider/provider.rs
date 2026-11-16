@@ -55,5 +55,5 @@ async fn load_state_impl(filter: bool) -> State {
     agent_provider::provider::load_state_impl(filter).await
 }
 #[cfg(test)]
-#[path = "../../../libs/agent-provider/src/provider_tests.rs"]
+#[path = "provider_tests.rs"]
 mod provider_tests;

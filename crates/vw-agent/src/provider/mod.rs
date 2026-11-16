@@ -37,5 +37,4 @@ pub use agent_provider::voice;
 
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "../../../libs/agent-provider/src/model_catalog_tests.rs"]
 mod model_catalog_tests;

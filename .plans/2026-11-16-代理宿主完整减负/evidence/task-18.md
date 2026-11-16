@@ -14,7 +14,7 @@
 
 |---|---:|---:|---|
 
-|mod_tests.rs|357|139|StaticProvider/chat_with_system/auth_state/bootstrap_rest_app/tenant_request 保留以验证真实 bootstrap 注册、公网绑定和租户鉴权；auth_app/bearer_request 与完整策略用例迁入 policy。|
+|mod_tests.rs|357|138|StaticProvider/chat_with_system/auth_state/bootstrap_rest_app/tenant_request 保留以验证真实 bootstrap 注册、公网绑定和租户鉴权；auth_app/bearer_request 与完整策略用例迁入 policy。|
 
 |node_control.rs|16|4|只保留具体 AppState 的节点处理器绑定；完整服务测试迁入 node_service。|
 
@@ -26,7 +26,7 @@
 
 |router.rs|175|175|management_auth_router 读取真实 flag/env；handler_router 组合实际宿主处理器；build_router/app_routing_router 是真实装配。|
 
-|router_tests.rs|221|90|保留 handler_router 及 build_router 的真实路由注册与健康检查；CORS、租户与前缀策略迁入 router。|
+|router_tests.rs|221|89|保留 handler_router 及 build_router 的真实路由注册与健康检查；CORS、租户与前缀策略迁入 router。|
 
 |runtime.rs|54|54|runtime_router 初始化真实数据库及同步生命周期；serve/start/serve_until/start_until 绑定真实宿主路由，现有 runtime_tests 含真实 peer 验收。|
 
@@ -50,7 +50,7 @@
 
 |ws/mod.rs|103|103|Host::initial_history、run_loop、run_websocket_tool_loop、handle_ws_chat 使用真实工作区提示/技能/钩子/工具循环；其测试含完整工具与钩子断言。|
 
-宿主来源总计 1588 → 1211，净减 377（23.7%），未达 70%。上表逐文件说明保留原因。继续可迁：将 OpenAI/WS/webhook/runtime 跨目录测试拆成领域策略与真实宿主端口契约；四个通道/聊天 acceptance 模块还需沿现有 Host 端口分离，不删除断言。收口须复核该缺口。
+宿主来源总计 1588 → 1209，净减 379（23.9%），未达 70%。上表逐文件说明保留原因。继续可迁：将 OpenAI/WS/webhook/runtime 跨目录测试拆成领域策略与真实宿主端口契约；四个通道/聊天 acceptance 模块还需沿现有 Host 端口分离，不删除断言。收口须复核该缺口。
 
 宿主按文件分项：生产文件（含测试挂载）552 → 540；测试/夹具文件 1036 → 671。生产分支未增加或迁出。
 
@@ -281,3 +281,94 @@
 宿主保留过滤：`app::agent::gateway::mod_tests`、`app::agent::gateway::router::router_tests`、`app::agent::gateway::state::state_tests`；各自预期 [5, 6, 1] 条。未来使用相同槽位入口、包 vw-agent、--lib。迁出原完整名称须对宿主 --list 确认消失，不能用零测试结果当通过。
 
 当前仅源码映射、挂载和依赖方向核对；Cargo、编译、行为、测试 list、性能均未运行；不宣称验证通过。
+
+## 其余跨目录宿主挂载逐用例
+
+- `openai_compat/mod.rs → tests.rs::chat_completions_request_deserializes_minimal`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → tests.rs::chat_completions_request_deserializes_full`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → tests.rs::chat_completions_request_rejects_missing_messages`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → tests.rs::chat_completions_request_rejects_message_without_content`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → tests.rs::chat_completions_request_rejects_message_without_role`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → tests.rs::chat_completions_request_accepts_null_optional_fields`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → tests.rs::chat_completions_request_ignores_unknown_compatibility_fields`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → tests.rs::chat_completions_response_serializes`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → tests.rs::models_response_serializes`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → tests.rs::models_response_serializes_empty_data_array`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → tests.rs::streaming_chunk_serializes`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → tests.rs::streaming_chunk_omits_none_fields`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → tests.rs::streaming_chunk_omits_each_absent_delta_field_independently`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → tests.rs::chunk_bytes_done_emits_json_frame_then_done_marker`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → tests.rs::chunk_bytes_preserves_escaped_content_in_single_sse_frame`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → tests.rs::unix_timestamp_is_within_call_boundaries`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_chat_completions_rejects_rate_limited_request`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_chat_completions_rejects_missing_pairing_bearer`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_chat_completions_rejects_invalid_json_body`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_chat_completions_rejects_empty_messages`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_chat_completions_passes_large_body_to_provider`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_chat_completions_returns_non_streaming_completion`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_chat_completions_uses_state_defaults_for_empty_model_and_temperature`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_chat_completions_uses_unknown_provider_label_when_config_has_no_default`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_chat_completions_returns_provider_error_without_leaking_details`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_chat_completions_streams_single_chunk_when_provider_lacks_streaming`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_chat_completions_streams_sanitized_fallback_error`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_chat_completions_streams_native_chunks_and_done`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_chat_completions_streams_native_error_chunk`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_chat_completions_streams_done_after_native_error_without_success_event`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_models_rejects_missing_pairing_bearer`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_models_allows_request_when_pairing_is_disabled`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::handle_v1_models_returns_configured_model_for_valid_request`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::chunk_bytes_without_done_omits_done_marker_and_empty_fields`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::helper_record_functions_accept_success_and_failure_events`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `openai_compat/mod.rs → mod_tests.rs::response_helpers_read_empty_body_text`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `runtime.rs → runtime_tests.rs::runtime_entrypoints_are_available`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `runtime.rs → runtime_tests.rs::bind_prefer_uses_requested_available_port`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `runtime.rs → runtime_tests.rs::bind_prefer_rejects_occupied_requested_port`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `runtime.rs → runtime_tests.rs::bind_prefer_rejects_invalid_host`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `runtime.rs → runtime_tests.rs::bind_prefer_zero_port_prefers_4099_then_falls_back_when_occupied`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `runtime.rs → runtime_tests.rs::start_binds_service_and_returns_actual_address`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `runtime.rs → runtime_tests.rs::start_until_uses_custom_shutdown_future`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `runtime.rs → runtime_tests.rs::start_until_keeps_service_running_until_shutdown_is_requested`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `runtime.rs → runtime_tests.rs::start_returns_bind_error_for_occupied_requested_port`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `runtime.rs → runtime_tests.rs::start_until_returns_bind_error_without_polling_shutdown`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `runtime.rs → runtime_tests.rs::serve_returns_actual_address_after_graceful_shutdown`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `runtime.rs → runtime_tests.rs::serve_until_returns_address_when_shutdown_future_panics`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `runtime.rs → runtime_tests.rs::serve_returns_bind_error_for_occupied_port`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `runtime.rs → runtime_tests.rs::local_import_runtime_supplies_real_peer_address`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `state.rs → state_tests.rs::app_state_type_is_send_sync`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook.rs → webhook_tests.rs::webhook_handler_is_available`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook.rs → webhook_tests.rs::handle_webhook_accepts_loopback_request`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook.rs → webhook_tests.rs::handle_webhook_rejects_public_request_without_auth`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook.rs → webhook_tests.rs::handle_webhook_accepts_valid_secret_header`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook.rs → webhook_tests.rs::handle_webhook_returns_bad_request_for_json_rejection`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook.rs → webhook_tests.rs::handle_webhook_maps_provider_errors_to_internal_server_error`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::extract_idempotency_key_handles_missing_blank_trimmed_and_invalid_values`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::extract_webhook_secret_header_hash_trims_and_hashes_nonempty_secret`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::parse_webhook_body_accepts_valid_json_body`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::parse_webhook_body_rejects_invalid_json_body`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::enforce_idempotency_allows_missing_and_first_key_then_rejects_duplicate`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::enforce_idempotency_treats_trimmed_equivalent_keys_as_duplicates`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::enforce_rate_limit_returns_retry_after_after_limit_is_exceeded`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::enforce_rate_limit_scopes_limits_to_each_peer_address`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::authorize_webhook_request_allows_loopback_without_auth_and_rejects_remote`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::authorize_webhook_request_requires_valid_bearer_when_pairing_is_enabled`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::authorize_webhook_request_requires_matching_webhook_secret_when_configured`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::authorize_webhook_request_requires_both_credentials_when_both_are_configured`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::maybe_persist_inbound_message_skips_when_auto_save_is_disabled`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::maybe_persist_inbound_message_stores_conversation_when_auto_save_is_enabled`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::handle_webhook_inner_continues_when_auto_save_store_fails`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::handle_webhook_inner_returns_success_payload_for_authorized_loopback_request`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::handle_webhook_inner_returns_rate_limit_before_provider_call`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::handle_webhook_inner_returns_auth_error_before_provider_call`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::handle_webhook_inner_returns_bad_request_before_provider_call`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::handle_webhook_inner_returns_duplicate_without_second_provider_call`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::handle_webhook_inner_returns_provider_error_without_leaking_details`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::handle_webhook_inner_records_success_telemetry`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::handle_webhook_inner_records_error_telemetry_with_unknown_provider`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `webhook_ingress/mod.rs → tests.rs::unavailable_webhook_credentials_reject_local_unauthenticated_requests`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `ws/mod.rs → mod_tests.rs::gateway_websocket_passes_hook_runtime_to_tool_loop`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `ws/mod.rs → mod_tests.rs::websocket_entrypoints_and_constants_are_available`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `ws/mod.rs → mod_tests.rs::extract_ws_bearer_token_falls_back_when_authorization_is_not_bearer`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `ws/mod.rs → mod_tests.rs::parse_ws_private_event_uses_plain_payload_defaults`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `ws/mod.rs → mod_tests.rs::parse_ws_private_event_prefers_explicit_name_over_result_tool_id`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `ws/mod.rs → mod_tests.rs::parse_ws_delta_event_maps_empty_hint_to_none_and_bad_duration_to_none`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。
+- `ws/mod.rs → mod_tests.rs::websocket_upgrade_requires_real_hyper_upgrade_extension`：宿主原挂载保留；对应上述文件真实端口职责，尚可继续拆分纯领域断言。

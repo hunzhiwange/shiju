@@ -147,3 +147,33 @@
 - `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib -- --list`：核对旧 catalog_tests、tests::memory_context 完整名称消失；零测试不作为通过证据。
 
 静态检查：读取直接入口与注册、确认测试函数名/断言保留、无新增反向依赖；`git diff --check` 无输出。索引早于当前共享修改，RustCodeGraph status 可读，最新变更使用源码核对。未声称通过编译、行为或性能验收。
+
+## 深度续迁（覆盖上轮保留结论）
+
+读取 final.md 与 remaining-host.json 后继续拆分。下列迁移使用已有 test-support 特性（vw-agent dev-dependency 已启用），无新增 Cargo 依赖，无反向依赖或加载宿主源文件。
+
+- runner_tests 两个原名称保留，函数体现在仅向 host_contract_29::runner 的同名场景传入真实 super::process_message。完整 Config 构造、环境锁/恢复、一次性503网关及所有原断言归领域库。泛型 Fn 只注入真实宿主入口，不提供替身实现。
+- history_tests 四个原名称保留，向 host_contract_29::history 同名场景绑定已有 HistoryHost；真实 scripted stream guard/enqueue、插件 fixture/scope 和摘要 runner 消费数量断言仍在宿主。历史构造、长 Unicode 输入、失败不修改历史、摘要保留当前轮、PreCompact/PostCompact 顺序断言归领域库。插件 state/session 均由真实宿主传入，不替换会话 ID。
+- schedule_tool_batches 的 parser→dispatcher 转换完整迁至 agent-loop::execution::schedule_parsed_tool_batches，宿主用原名重导出，生产 core::tool_loop 调用路径不变，继续走实际 scheduler。宿主 execution 仅保留执行器导出和真实上下文测试入口。
+- parsing/mod.rs 删除，loop_ 直接导出领域 parsing。领域根模块公开现有 json/tool_call_formats 函数作为真实调用所需入口，无新算法，旧调用名称不变。
+
+本轮全量映射沿用前文45项领域测试和6项宿主测试；6项宿主测试的断言迁至上列一一同名场景，宿主注册数量不变，不能把支持场景函数当成新注册单元测试。本轮未新增伪端口或复制完整宿主。
+
+| 来源 | 续迁前→后 | 续迁目标 |
+|---|---:|---|
+| `crates/vw-agent/src/agent/loop_.rs` | 201→201 | 不变者继续保留前文逐符号宿主职责；变化者见上列目标 |
+| `crates/vw-agent/src/agent/loop_/approval.rs` | 5→5 | 不变者继续保留前文逐符号宿主职责；变化者见上列目标 |
+| `crates/vw-agent/src/agent/loop_/execution.rs` | 22→19 | 不变者继续保留前文逐符号宿主职责；变化者见上列目标 |
+| `crates/vw-agent/src/agent/loop_/history.rs` | 18→18 | 不变者继续保留前文逐符号宿主职责；变化者见上列目标 |
+| `crates/vw-agent/src/agent/loop_/history_tests.rs` | 126→54 | 不变者继续保留前文逐符号宿主职责；变化者见上列目标 |
+| `crates/vw-agent/src/agent/loop_/parsing/mod.rs` | 60→0 | 不变者继续保留前文逐符号宿主职责；变化者见上列目标 |
+| `crates/vw-agent/src/agent/loop_/query_engine.rs` | 25→25 | 不变者继续保留前文逐符号宿主职责；变化者见上列目标 |
+| `crates/vw-agent/src/agent/loop_/runner.rs` | 7→7 | 不变者继续保留前文逐符号宿主职责；变化者见上列目标 |
+| `crates/vw-agent/src/agent/loop_/runner_tests.rs` | 112→12 | 不变者继续保留前文逐符号宿主职责；变化者见上列目标 |
+| `crates/vw-agent/src/agent/loop_/tests/mod.rs` | 63→63 | 不变者继续保留前文逐符号宿主职责；变化者见上列目标 |
+| `crates/vw-agent/src/agent/mod.rs` | 97→97 | 不变者继续保留前文逐符号宿主职责；变化者见上列目标 |
+| `crates/vw-agent/src/agent/prompt/mod.rs` | 6→6 | 不变者继续保留前文逐符号宿主职责；变化者见上列目标 |
+
+任务29原来源1101行，第一轮742行，本轮剩余507行；续迁净减235行。仍未达70%：主要真实端口与公共兼容挂载保留；loop_.rs 的文档不以纯删除充当迁移收益。本轮生产迁移为 schedule_parsed_tool_batches，其余是测试场景所有权与兼容层清理，未声称性能收益。
+
+未来命令沿用前文两项领域过滤（22与23项）和两项真实宿主过滤（history 4项、runner 2项）。支持场景通过原宿主测试执行，不能以 agent-loop 下零测试代替。静态 diff/函数签名/注册与依赖已核对；所有 Cargo、构建、测试、实机检查均未运行，代码完成，编译/行为未验证。

@@ -57,7 +57,7 @@ pub mod history;
 pub use agent_loop::instructions;
 
 /// 工具调用解析（支持多种格式）
-pub mod parsing;
+pub use agent_loop::parsing;
 
 /// 草稿进度跟踪和状态管理
 pub use agent_loop::progress;

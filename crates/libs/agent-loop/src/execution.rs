@@ -371,3 +371,14 @@ mod dto_tests;
 #[cfg(test)]
 #[path = "execution_scheduling_tests.rs"]
 mod scheduling_tests;
+
+/// Schedule calls produced by model parsing through the shared dispatcher representation.
+pub fn schedule_parsed_tool_batches(
+    calls: &[crate::parsing::ParsedToolCall],
+    registry: &[Box<dyn Tool>],
+) -> Vec<tool_services::scheduler::ScheduledToolBatch> {
+    let calls: Vec<_> = calls.iter().map(|call| crate::dispatcher::ParsedToolCall {
+        name: call.name.clone(), arguments: call.arguments.clone(), tool_call_id: call.tool_call_id.clone(),
+    }).collect();
+    schedule_tool_batches(&calls, registry)
+}

@@ -51,3 +51,6 @@ pub mod host_migration_28_tests;
 
 #[cfg(test)]
 mod host_migration_29_tests;
+
+#[cfg(any(test, feature = "test-support"))]
+pub mod host_contract_29;

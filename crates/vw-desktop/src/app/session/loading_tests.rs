@@ -1,3 +1,4 @@
+// 宿主契约：保留领域加载器与聊天首屏分块器的组合，以及项目重载的 App 重置和 Task 映射；分页局部行为迁至 desktop-session::desktop_split_04_tests。
 //! 会话加载测试，验证共享消息转换、冷加载分块和历史预览生成。
 //! 预览文本需处理空白、换行、长度边界与重复会话标识，同时保持原消息顺序。
 
@@ -95,88 +96,4 @@ fn reload_sessions_for_project_with_path_returns_runnable_task() {
 
     assert!(iced_runtime::task::into_stream(reload_task.collect()).is_some());
     assert!(app.project_sessions_loading.contains(&project_path));
-}
-use session_ui_types::SessionMessageRecord;
-
-fn bounded_summary(message_count: usize) -> vw_api_session::GatewaySessionUiSummary {
-    vw_api_session::GatewaySessionUiSummary {
-        agent_binding: None,
-        full_access: None,
-        id: "session-page".to_string(),
-        title: "Paged".to_string(),
-        updated_ms: 42,
-        message_count,
-        call_count: 0,
-        last_content: None,
-    }
-}
-
-fn page_record(seq_no: u64) -> SessionMessageRecord {
-    SessionMessageRecord {
-        seq_no,
-        message_id: Some(format!("message-{seq_no}")),
-        message: ChatMessage {
-            role: session_ui_types::ChatRole::User,
-            content: format!("message {seq_no}"),
-            model: None,
-            think_timing: Vec::new(),
-            processing_timing: None,
-        },
-    }
-}
-
-#[test]
-fn session_open_page_keeps_initial_history_bounded() {
-    let page = vw_api_session::GatewaySessionMessagePage {
-        items: (9_937..=10_000).map(page_record).collect(),
-        next_cursor: Some("older-page".to_string()),
-        previous_cursor: None,
-        total_count: 10_000,
-    };
-
-    let prepared = super::prepare_bounded_session_open(bounded_summary(10_000), page, false);
-
-    assert_eq!(prepared.messages.len(), 64);
-    let timeline = prepared.timeline_page.expect("bounded open should carry timeline page");
-    assert_eq!(timeline.entries.len(), 64);
-    assert_eq!(timeline.total_count, 10_000);
-    assert_eq!(timeline.before_cursor.as_deref(), Some("older-page"));
-}
-
-#[test]
-fn session_open_page_becomes_ready_from_latest_page_without_heavy_state() {
-    let page = vw_api_session::GatewaySessionMessagePage {
-        items: vec![page_record(10_000)],
-        next_cursor: None,
-        previous_cursor: None,
-        total_count: 10_000,
-    };
-
-    let prepared = super::prepare_bounded_session_open(bounded_summary(10_000), page, false);
-
-    assert!(prepared.base_ui_chunk.is_some());
-    assert!(prepared.steps.is_empty());
-    assert!(prepared.calls.is_empty());
-    assert_eq!(prepared.updated_ms, 42);
-}
-
-#[test]
-fn agent_unified_selection_bounded_load_preserves_trusted_identity() {
-    let mut summary = bounded_summary(0);
-    summary.agent_binding = Some(vw_api_chat_identity::SessionAgentIdentity {
-        agent: "acp-codex".into(),
-        label: Some("编程助手".into()),
-        acp_agent: Some("codex".into()),
-    });
-    let prepared = super::prepare_bounded_session_open(
-        summary,
-        vw_api_session::GatewaySessionMessagePage {
-            items: vec![],
-            next_cursor: None,
-            previous_cursor: None,
-            total_count: 0,
-        },
-        false,
-    );
-    assert_eq!(prepared.agent_binding.unwrap().acp_agent.as_deref(), Some("codex"));
 }

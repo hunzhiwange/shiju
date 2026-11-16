@@ -1,3 +1,4 @@
+// 宿主契约：保留活动步骤、消息元数据与运行态投影，以及借用 App 缓存的分块保留和动画更新；模型绑定和工具显示文本迁至领域库。
 //! 维护聊天会话的加载、运行态和 UI 分块派生逻辑。
 //!
 //! 注释说明当前文件的职责边界，帮助调用方理解数据流与错误传播，
@@ -89,29 +90,6 @@ fn apply_prepared_chat_ui_phase_preserves_explore_summary_animation_history() {
     assert_eq!(updated_state.previous_summary_text, "1 次读取");
     assert_eq!(updated_state.current_summary_text, "2 次读取");
     assert!(updated_state.changed_at_ms.is_some());
-}
-
-#[test]
-fn prepare_chat_ui_chunk_phase_uses_display_text_for_tool_editor_cache() {
-    let chat = vec![ChatMessage {
-        role: ChatRole::Tool,
-        content: concat!(
-            "tool grep\n",
-            "{\"status\":\"completed\",\"input\":\"selectors\",\"output\":\"2 matches\"}\n"
-        )
-        .to_string(),
-        model: None,
-        think_timing: Vec::new(),
-        processing_timing: None,
-    }];
-
-    let PreparedChatUiPhase::Base(chunk) = prepare_chat_ui_chunk_phase(&chat, 0, true, false)
-    else {
-        panic!("base phase should be returned");
-    };
-
-    assert_eq!(chunk.message_editor_texts[0].as_deref(), Some("2 matches"));
-    assert_eq!(chunk.visible_texts[0].as_deref(), Some(chat[0].content.as_str()));
 }
 
 #[test]
@@ -222,83 +200,4 @@ fn rebuild_active_session_message_meta_does_not_relabel_unrecorded_model() {
     app.rebuild_active_session_message_meta();
 
     assert_eq!(app.active_session_view_state.message_meta_texts, vec![None, None]);
-}
-
-#[test]
-fn message_model_binding_updates_only_the_target_step() {
-    let mut messages = vec![
-        ChatMessage {
-            role: ChatRole::User,
-            content: "first question".to_string(),
-            model: None,
-            think_timing: Vec::new(),
-            processing_timing: None,
-        },
-        ChatMessage {
-            role: ChatRole::Assistant,
-            content: "first answer".to_string(),
-            model: None,
-            think_timing: Vec::new(),
-            processing_timing: None,
-        },
-        ChatMessage {
-            role: ChatRole::User,
-            content: "second question".to_string(),
-            model: Some("history-model".to_string()),
-            think_timing: Vec::new(),
-            processing_timing: None,
-        },
-        ChatMessage {
-            role: ChatRole::Assistant,
-            content: "second answer".to_string(),
-            model: Some("history-model".to_string()),
-            think_timing: Vec::new(),
-            processing_timing: None,
-        },
-    ];
-
-    bind_message_model_to_step(&mut messages, 1, "provider/model-a");
-
-    assert_eq!(messages[0].model.as_deref(), Some("provider/model-a"));
-    assert_eq!(messages[1].model.as_deref(), Some("provider/model-a"));
-    assert_eq!(messages[2].model.as_deref(), Some("history-model"));
-    assert_eq!(messages[3].model.as_deref(), Some("history-model"));
-}
-
-#[test]
-fn legacy_backfill_does_not_overwrite_persisted_message_models() {
-    let mut messages = vec![
-        ChatMessage {
-            role: ChatRole::User,
-            content: "question".to_string(),
-            model: Some("persisted-model".to_string()),
-            think_timing: Vec::new(),
-            processing_timing: None,
-        },
-        ChatMessage {
-            role: ChatRole::Assistant,
-            content: "answer".to_string(),
-            model: None,
-            think_timing: Vec::new(),
-            processing_timing: None,
-        },
-    ];
-    let steps = vec![ChatSessionStep {
-        index: 1,
-        turn_id: None,
-        started_ms: 1,
-        finished_ms: Some(2),
-        start_snapshot_path: None,
-        finish_snapshot_path: None,
-        usage: TokenUsage::default(),
-        cost_usd: None,
-        finish_reason: None,
-        model: Some("step-model".to_string()),
-        tool_timings: Vec::new(),
-    }];
-
-    backfill_message_models_from_steps(&mut messages, &steps);
-
-    assert_eq!(messages[0].model.as_deref(), Some("persisted-model"));
-    assert_eq!(messages[1].model.as_deref(), Some("step-model"));
 }

@@ -6,8 +6,6 @@ pub use desktop_chat_view::chat_ui::{PreparedChatUiChunk, PreparedChatUiMessage,
     CHAT_UI_CHUNK_SIZE, prepare_chat_ui_chunk_phase, prepare_chat_ui_message_phase,
     chat_ui_chunk_start_idx, chat_ui_chunk_bounds};
 pub(super) use desktop_chat_view::chat_ui::explore_summary_animation_key;
-#[cfg(test)]
-use desktop_chat_view::chat_ui::CHAT_INITIAL_MESSAGE_HEIGHT;
 
 impl App {
     fn chat_ui(&mut self) -> desktop_chat_view::chat_ui::ChatUi<'_> {

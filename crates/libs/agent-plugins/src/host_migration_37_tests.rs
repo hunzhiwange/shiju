@@ -60,3 +60,43 @@ async fn with_server_peer<T>(server: &McpServer,
 
 mod t27_flow_tests;
 mod t28_owner_tests;
+
+// Explicit no-turn transport owner. Session registry, app mounts and dynamic tool
+// discovery are deliberately unavailable; their acceptance stays in vw-agent.
+struct Connections;
+fn connection_host() -> Arc<dyn plugin_mcp::connection_host::ConnectionHost> { Arc::new(Connections) }
+impl plugin_mcp::connection_host::ConnectionHost for Connections {
+    fn request_abort(&self) -> Result<Option<CancellationToken>> { Ok(None) }
+    fn runtime_stdio_cwd(&self, server: &McpServerStdio) -> Result<Option<PathBuf>> {
+        plugin_mcp::mcp_environment::runtime_cwd(server)
+    }
+    fn runtime_headers(&self, server: &McpServerHttp, oauth: Option<&str>) -> Result<Option<reqwest_012::header::HeaderMap>> {
+        plugin_mcp::mcp_auth::runtime_oauth_headers(&Source, server, oauth)
+    }
+    fn oauth_access<'a>(&'a self, server: &'a McpServerHttp, owner: &'a mcp_client::FormOwner) -> plugin_mcp::connection_host::HostFuture<'a, Option<String>> {
+        Box::pin(plugin_mcp::mcp_oauth_tokens::access(&Source, server, owner))
+    }
+    fn oauth_cancellation(&self, server: &McpServerHttp, owner: &mcp_client::FormOwner) -> Result<CancellationToken> {
+        if plugin_mcp::mcp_auth::source_config(&Source, server)?.is_some() {
+            plugin_mcp::mcp_oauth_tokens::connection_cancellation(server, owner)
+        } else { Ok(CancellationToken::new()) }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    fn selection_is_current(&self, _server: &McpServer, tenant: Option<&vw_api_transport::TenantScope>) -> Result<bool> {
+        anyhow::ensure!(tenant.is_none(), "fixture does not own application selections");
+        Ok(true)
+    }
+    fn open_peer(&self, server: McpServer, startup: std::time::Duration, closed: CancellationToken, owner: Option<mcp_client::FormOwner>) -> plugin_mcp::connection_host::HostFuture<'_, mcp_client::RunningMcpPeer> {
+        Box::pin(mcp_client::open_server_peer(Arc::new(Client), server, startup, closed, owner))
+    }
+    fn discover<'a>(&'a self, _server: McpServer, _management: acp_config::McpServerManagement, _existing_ids: &'a [&'a str], _pool: Arc<plugin_mcp::mcp_connections::McpSessionConnections>) -> plugin_mcp::connection_host::HostFuture<'a, Vec<Arc<dyn tool_types::Tool>>> {
+        Box::pin(async { anyhow::bail!("dynamic tool discovery requires the real host") })
+    }
+    fn revoke_app(&self, _tenant: &vw_api_transport::TenantScope, _session: &str, _root: &Path) {
+        panic!("application revocation requires the real host");
+    }
+}
+
+mod t18_tests;
+mod t20_tests;
+mod t23_tests;

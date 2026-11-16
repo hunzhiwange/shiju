@@ -200,3 +200,41 @@ Shared mod.rs also has concurrent task changes; physical totals above reflect th
 
 
 Concurrent commit recovery temporarily removed domain registrations; final 87aa96fbc restores the task37 registrations/lock edges on the recovered HEAD. Receiving test files are tracked in final HEAD. Recompute exclusive net reduction from task changes at closure; transient intermediate HEAD counts are not acceptance evidence.
+
+## Deep migration after final residual audit
+
+Read final.md and remaining-host.json: task37 retained 2705 host lines. Continued splitting complete tests, not duplicating assertion bodies. Production migration benefit remains zero: existing owners already implement the algorithms.
+
+### t18: 389 -> 191 host lines
+
+- `codex_plugin_compat_t18_reuses_connection_until_session_ends` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t18_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+- `codex_plugin_compat_t18_preserves_isolation` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t18_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+- `codex_plugin_compat_t18_serializes_startup_and_survives_bridge_runtime_drop` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t18_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+- `codex_plugin_compat_t18_times_out_initialization_and_catalog_without_orphans` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t18_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+- `codex_plugin_compat_t18_closes_timed_out_and_cancelled_calls` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t18_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+- `codex_plugin_compat_t18_retires_changed_disabled_and_exited_servers` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t18_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+- `codex_plugin_compat_t18_reuses_streamable_http_and_legacy_sse_sessions` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t18_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+
+### t20: 516 -> 379 host lines
+
+- `codex_plugin_compat_t20_invalidates_catalog_after_notification` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t20_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+- `codex_plugin_compat_t20_retries_notification_during_initial_listing_without_mixed_publication` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t20_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+- `codex_plugin_compat_t20_rejects_persistent_notification_churn` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t20_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+- `codex_plugin_compat_t20_unadvertised_changes_do_not_enable_persistent_caching` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t20_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+- `codex_plugin_compat_t20_rejects_resource_template_and_prompt_cursor_cycles` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t20_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+- `codex_plugin_compat_t20_shutdown_cancels_inflight_resource_refresh` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t20_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+
+### t23: 191 -> 0 host lines
+
+- `codex_plugin_compat_t23_advertises_only_implemented_capabilities` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t23_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+- `codex_plugin_compat_t23_rejects_invalid_input` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t23_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+- `codex_plugin_compat_t23_preserves_isolation` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t23_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+- `codex_plugin_compat_t23_retains_known_fallbacks_without_advertising_roots` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t23_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+- `codex_plugin_compat_t23_rejects_unknown_versions_without_reflecting_payloads` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t23_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+- `codex_plugin_compat_t23_sends_negotiated_http_version_on_each_request` -> `crates/libs/agent-plugins/src/host_migration_37_tests/t23_tests.rs` (unchanged assertions, actual connection pool/client/subprocess/HTTP).
+
+Additional migration: 19 tests. Future agent-plugins lib host_migration_37_tests filter now expects 56 nonzero tests (platform cfg may exclude Unix-only tests on other OS); compilation and behavior NOT RUN. Use the original cargo_slot command above only after authorization.
+
+Connections implements only no-turn source and transport ports: actual audited cwd/headers/OAuth source readers and open_server_peer; dynamic discovery returns error and app revocation panics. Tenant/app selection tests remain in the host. These fixtures do not claim authorization, app revocation, model-turn cancellation or current-tenant acceptance. Host t18 retains ToolUseContext cancellation, runtime SessionToolset lease, disable notifications, required admission and actual dynamic tool timeout. Host t20 retains dynamic McpTool binding/call and inspection wiring; shared minimal real service fixture remains because both layers exercise the same protocol behavior. t23 old registration and file are removed entirely.
+
+Production dependencies unchanged. Existing dev dependencies suffice. Added child modules self-register in the existing domain test root; no new public API. Baseline mappings above are superseded for the listed moved names. No Cargo/build/tests executed; static source/registration/diff review only.

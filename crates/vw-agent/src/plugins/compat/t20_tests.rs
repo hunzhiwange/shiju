@@ -211,24 +211,6 @@ async fn bound(pool: &Arc<McpSessionConnections>, server: &McpServer) -> McpTool
 }
 
 #[tokio::test]
-async fn codex_plugin_compat_t20_invalidates_catalog_after_notification() {
-    let fixture = Fixture::start().await;
-    let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
-    let first = tools(&pool, &fixture.server).await;
-    let before = fixture.service.lists.load(Ordering::SeqCst);
-    assert_eq!(tools(&pool, &fixture.server).await, first);
-    assert_eq!(
-        fixture.service.lists.load(Ordering::SeqCst),
-        before,
-        "unchanged connection must reuse its cached catalog"
-    );
-    fixture.changed(false).await;
-    let next = tools(&pool, &fixture.server).await;
-    assert_ne!(next, first, "the notified connection must publish its new definitions");
-    pool.shutdown();
-}
-
-#[tokio::test]
 async fn codex_plugin_compat_t20_rejects_invalid_input() {
     let fixture = Fixture::start().await;
     let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
@@ -314,32 +296,6 @@ async fn codex_plugin_compat_t20_inspection_refreshes_only_notified_resource_and
 }
 
 #[tokio::test]
-async fn codex_plugin_compat_t20_retries_notification_during_initial_listing_without_mixed_publication()
- {
-    let service = Service::default();
-    service.changes_during_listing.store(1, Ordering::SeqCst);
-    let fixture = Fixture::with_service(service).await;
-    let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
-    let result = tools(&pool, &fixture.server).await;
-    assert_eq!(result[0].description.as_deref(), Some("generation 1"));
-    assert_eq!(fixture.service.lists.load(Ordering::SeqCst), 2);
-    pool.shutdown();
-}
-
-#[tokio::test]
-async fn codex_plugin_compat_t20_rejects_persistent_notification_churn() {
-    let service = Service::default();
-    service.changes_during_listing.store(2, Ordering::SeqCst);
-    let fixture = Fixture::with_service(service).await;
-    let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
-    let error = pool.list_tools(&fixture.server, None).await.unwrap_err();
-    assert!(format!("{error:#}").contains("changed during pagination"), "{error:#}");
-    assert_eq!(fixture.service.lists.load(Ordering::SeqCst), 2);
-    assert_eq!(fixture.service.calls.load(Ordering::SeqCst), 0);
-    pool.shutdown();
-}
-
-#[tokio::test]
 async fn codex_plugin_compat_t20_reconnect_rejects_old_binding_without_closing_current_binding() {
     let fixture = Fixture::start().await;
     let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
@@ -402,99 +358,6 @@ async fn codex_plugin_compat_t20_equal_notification_preserves_bindings_and_shutd
         "cancelled catalogs cannot publish updates or return a live cache"
     );
     assert_eq!(fixture.service.lists.load(Ordering::SeqCst), before);
-}
-
-#[tokio::test]
-async fn codex_plugin_compat_t20_unadvertised_changes_do_not_enable_persistent_caching() {
-    let service = Service::default();
-    service.unadvertised.store(1, Ordering::SeqCst);
-    let fixture = Fixture::with_service(service).await;
-    let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
-    let first = tools(&pool, &fixture.server).await;
-    let before = fixture.service.lists.load(Ordering::SeqCst);
-    assert_eq!(tools(&pool, &fixture.server).await, first);
-    assert!(
-        fixture.service.lists.load(Ordering::SeqCst) > before,
-        "servers that cannot invalidate must be listed anew"
-    );
-    pool.shutdown();
-    let unsupported = crate::tools::mcp_common::unsupported_mcp_capabilities_json();
-    assert!(
-        unsupported
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|item| item["capability"] == "resources.subscribe")
-    );
-    assert!(
-        unsupported
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|item| !item["capability"].as_str().unwrap().ends_with("listChanged"))
-    );
-}
-
-#[tokio::test]
-async fn codex_plugin_compat_t20_rejects_resource_template_and_prompt_cursor_cycles() {
-    for mode in [2, 3, 4] {
-        let service = Service::default();
-        service.invalid.store(mode, Ordering::SeqCst);
-        let fixture = Fixture::with_service(service).await;
-        let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
-        let error = pool
-            .with_client(&fixture.server, None, move |client| {
-                Box::pin(async move {
-                    let catalog = &client.service().catalogs;
-                    match mode {
-                        2 => {
-                            catalog.resources(client).await?;
-                        }
-                        3 => {
-                            catalog.templates(client).await?;
-                        }
-                        4 => {
-                            catalog.prompts(client).await?;
-                        }
-                        _ => unreachable!(),
-                    }
-                    Ok(())
-                })
-            })
-            .await
-            .unwrap_err();
-        assert!(format!("{error:#}").contains("repeated pagination cursor"), "{error:#}");
-        pool.shutdown();
-    }
-}
-
-#[tokio::test]
-async fn codex_plugin_compat_t20_shutdown_cancels_inflight_resource_refresh() {
-    let service = Service::default();
-    service.invalid.store(5, Ordering::SeqCst);
-    let fixture = Fixture::with_service(service).await;
-    let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
-    let active = pool.clone();
-    let server = fixture.server.clone();
-    let refresh = tokio::spawn(async move {
-        active
-            .with_client(&server, None, |client| {
-                Box::pin(async move { client.service().catalogs.resources(client).await })
-            })
-            .await
-    });
-    tokio::time::timeout(
-        std::time::Duration::from_secs(2),
-        fixture.service.resource_started.notified(),
-    )
-    .await
-    .unwrap();
-    pool.shutdown();
-    let result =
-        tokio::time::timeout(std::time::Duration::from_secs(2), refresh).await.unwrap().unwrap();
-    assert!(format!("{:#}", result.unwrap_err()).contains("closed"));
-    assert_eq!(fixture.service.resource_lists.load(Ordering::SeqCst), 1);
-    assert!(pool.list_tools(&fixture.server, None).await.is_err());
 }
 
 #[tokio::test]

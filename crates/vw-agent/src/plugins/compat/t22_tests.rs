@@ -1,3 +1,7 @@
+//! Host integration contracts for MCP resource/prompt provenance and admission.
+//! Keep the real plugin discovery, ConnectionHost, and subprocess/HTTP fixtures here;
+//! local protocol validators belong to plugin-mcp, not a replacement test host.
+
 use super::mcp_connections::McpSessionConnections;
 use crate::plugins::{PluginDiscoveryOptions, merge_enabled_plugin_mcp_servers};
 use crate::tools::{Tool, mcp_resource::McpResourceTool};

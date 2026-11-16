@@ -8,7 +8,9 @@ pub trait RelayHarness: Sync {
     async fn configure(&self, patch: Value);
 }
 use crate::{RelayBackend, RelayRequest};
-use model_transport::{RelayBinding, RelayIdentity, upstream_http_client};
+use model_transport::{RelayBinding, RelayIdentity};
+#[cfg(test)]
+use model_transport::upstream_http_client;
 use axum::{body::Body, http::StatusCode, response::Response};
 use std::{
     sync::{

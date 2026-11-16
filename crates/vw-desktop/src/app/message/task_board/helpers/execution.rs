@@ -67,7 +67,7 @@ pub(crate) async fn resolve_task_board_scheduler_scope(
     project_path: &str,
 ) -> Result<vw_api_agent_scheduler::AgentSchedulerScopeDto, String> {
     let project_id = resolve_task_board_project_id(project_path).await?;
-    crate::app::session_gateway::active_agent_scheduler_scope(project_id)
+    desktop_session::session_gateway::active_agent_scheduler_scope(crate::app::config::gateway_client_endpoint(), project_id)
 }
 
 pub(crate) fn sync_agent_scheduler_status(project_path: String) -> iced::Task<crate::app::Message> {
@@ -94,7 +94,7 @@ async fn load_agent_scheduler_logs(
     task_ids: Vec<String>,
 ) -> Result<Vec<vw_api_agent_scheduler::AgentSchedulerTaskLogsResponse>, String> {
     let client = crate::app::config::gateway_client()?;
-    let scope = crate::app::session_gateway::active_agent_scheduler_scope(project_id)?;
+    let scope = desktop_session::session_gateway::active_agent_scheduler_scope(crate::app::config::gateway_client_endpoint(), project_id)?;
     let mut responses = Vec::with_capacity(task_ids.len());
     for task_id in task_ids {
         responses.push(

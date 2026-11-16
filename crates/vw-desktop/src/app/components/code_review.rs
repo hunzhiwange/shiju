@@ -17,7 +17,7 @@ pub(super) fn git_diff_by_file(
     let Some(path) = &app.navigation_tabs.project_path else {
         return (vec![], std::collections::HashMap::new());
     };
-    let records = crate::app::session_gateway::gateway_project_change_records(path);
+    let records = desktop_session::session_gateway::gateway_project_change_records(crate::app::config::gateway_client_endpoint(), path);
     let mut files = Vec::with_capacity(records.len());
     let mut patches = std::collections::HashMap::<String, String>::with_capacity(records.len());
 

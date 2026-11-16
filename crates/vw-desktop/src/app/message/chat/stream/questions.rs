@@ -2,7 +2,7 @@
 //! 本模块把网关轮询和流式增量落到会话状态，避免 UI 层理解传输细节。
 
 use super::ChatMessage;
-use crate::app::session_gateway;
+use desktop_session::session_gateway;
 use crate::app::{App, Message};
 use iced::Task;
 
@@ -22,7 +22,7 @@ fn apply_question_request(app: &mut App, requests: Vec<question_types::Request>)
 /// 模块内可见函数，执行 handle_question_poll_tick 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_question_poll_tick() -> Task<Message> {
-    Task::perform(session_gateway::gateway_question_list_async(), |res| {
+    Task::perform(async move { session_gateway::gateway_question_list_async(crate::app::config::gateway_client_endpoint()).await }, |res| {
         Message::Chat(ChatMessage::QuestionListLoaded(res))
     })
 }
@@ -94,7 +94,7 @@ pub(super) fn handle_question_submit(app: &mut App) -> Task<Message> {
         }
     };
     Task::perform(
-        async move { session_gateway::gateway_question_reply_async(&request_id, answers).await },
+        async move { session_gateway::gateway_question_reply_async(crate::app::config::gateway_client_endpoint(), &request_id, answers).await },
         |res| Message::Chat(ChatMessage::QuestionReplySubmitted(res)),
     )
 }
@@ -108,7 +108,7 @@ pub(super) fn handle_question_reject(app: &mut App) -> Task<Message> {
         return Task::none();
     };
     Task::perform(
-        async move { session_gateway::gateway_question_reject_async(&request_id).await },
+        async move { session_gateway::gateway_question_reject_async(crate::app::config::gateway_client_endpoint(), &request_id).await },
         |res| Message::Chat(ChatMessage::QuestionRejected(res)),
     )
 }

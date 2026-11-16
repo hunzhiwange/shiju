@@ -21,7 +21,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         Some(domain::Effect::LoadRaw((session_id, turn_id, step_index))) => {
             let directory = app.known_session_directory(&session_id).or_else(|| app.navigation_tabs.project_path.clone());
             Task::perform(async move {
-                let result = crate::app::session_gateway::gateway_session_step_llm_raw_async(&session_id, &turn_id, step_index, directory.as_deref()).await;
+                let result = desktop_session::session_gateway::gateway_session_step_llm_raw_async(crate::app::config::gateway_client_endpoint(), &session_id, &turn_id, step_index, directory.as_deref()).await;
                 (session_id, turn_id, step_index, result)
             }, |(session_id, turn_id, step_index, result)| Message::View(ViewMessage::UsageTurnStepRawLoaded(session_id, turn_id, step_index, result)))
         }

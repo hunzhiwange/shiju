@@ -1,6 +1,6 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
-use crate::app::session_gateway::{
+use desktop_session::session_gateway::{
     gateway_plugin_delete_async, gateway_plugin_set_enabled_async, gateway_plugins_async,
     gateway_skill_create_async, gateway_skill_delete_async, gateway_skill_detail_async,
     gateway_skill_install_builtin_async, gateway_skill_set_enabled_async, gateway_skills_async,
@@ -26,13 +26,13 @@ pub(crate) mod backup_modal;
 use desktop_settings_skills::update::catalog::{self as domain, Event, Effect};
 pub(super) use domain::map_catalog_items;
 fn refresh_task(project_path: Option<String>) -> Task<Message> {
-    Task::perform(async move { gateway_skills_async(project_path.as_deref()).await }, |result| {
+    Task::perform(async move { gateway_skills_async(crate::app::config::gateway_client_endpoint(), project_path.as_deref()).await }, |result| {
         Message::Settings(SettingsMessage::SkillsLoaded(result))
     })
 }
 
 fn plugins_refresh_task() -> Task<Message> {
-    Task::perform(async move { gateway_plugins_async().await }, |result| {
+    Task::perform(async move { gateway_plugins_async(crate::app::config::gateway_client_endpoint()).await }, |result| {
         Message::Settings(SettingsMessage::PluginsLoaded(result))
     })
 }
@@ -40,7 +40,7 @@ fn plugins_refresh_task() -> Task<Message> {
 fn detail_task(project_path: Option<String>, skill_id: String) -> Task<Message> {
     let response_skill_id = skill_id.clone();
     Task::perform(
-        async move { gateway_skill_detail_async(project_path.as_deref(), &skill_id).await },
+        async move { gateway_skill_detail_async(crate::app::config::gateway_client_endpoint(), project_path.as_deref(), &skill_id).await },
         move |result| {
             Message::Settings(SettingsMessage::SkillsDetailLoaded {
                 skill_id: response_skill_id.clone(),
@@ -58,7 +58,7 @@ fn set_enabled_task(
     let response_skill_id = skill_id.clone();
     Task::perform(
         async move {
-            gateway_skill_set_enabled_async(project_path.as_deref(), &skill_id, enabled).await
+            gateway_skill_set_enabled_async(crate::app::config::gateway_client_endpoint(), project_path.as_deref(), &skill_id, enabled).await
         },
         move |result| {
             Message::Settings(SettingsMessage::SkillsSetEnabledCompleted {
@@ -73,7 +73,7 @@ fn set_enabled_task(
 fn delete_task(project_path: Option<String>, skill_id: String) -> Task<Message> {
     let response_skill_id = skill_id.clone();
     Task::perform(
-        async move { gateway_skill_delete_async(project_path.as_deref(), &skill_id).await },
+        async move { gateway_skill_delete_async(crate::app::config::gateway_client_endpoint(), project_path.as_deref(), &skill_id).await },
         move |result| {
             Message::Settings(SettingsMessage::SkillsDeleteCompleted {
                 skill_id: response_skill_id.clone(),
@@ -86,7 +86,7 @@ fn delete_task(project_path: Option<String>, skill_id: String) -> Task<Message> 
 fn plugin_set_enabled_task(plugin_id: String, enabled: bool) -> Task<Message> {
     let response_plugin_id = plugin_id.clone();
     Task::perform(
-        async move { gateway_plugin_set_enabled_async(&plugin_id, enabled).await },
+        async move { gateway_plugin_set_enabled_async(crate::app::config::gateway_client_endpoint(), &plugin_id, enabled).await },
         move |result| {
             Message::Settings(SettingsMessage::PluginsSetEnabledCompleted {
                 plugin_id: response_plugin_id.clone(),
@@ -99,7 +99,7 @@ fn plugin_set_enabled_task(plugin_id: String, enabled: bool) -> Task<Message> {
 
 fn plugin_delete_task(plugin_id: String) -> Task<Message> {
     let response_plugin_id = plugin_id.clone();
-    Task::perform(async move { gateway_plugin_delete_async(&plugin_id).await }, move |result| {
+    Task::perform(async move { gateway_plugin_delete_async(crate::app::config::gateway_client_endpoint(), &plugin_id).await }, move |result| {
         Message::Settings(SettingsMessage::PluginsDeleteCompleted {
             plugin_id: response_plugin_id.clone(),
             result,
@@ -192,11 +192,11 @@ fn execute(app: &mut App, effect: Effect) -> Task<Message> {
         Effect::PluginSetEnabled(id, enabled) => plugin_set_enabled_task(id, enabled),
         Effect::PluginDelete(id) => plugin_delete_task(id),
         Effect::Create(path) => Task::perform(
-            async move { gateway_skill_create_async(&path).await },
+            async move { gateway_skill_create_async(crate::app::config::gateway_client_endpoint(), &path).await },
             |result| Message::Settings(SettingsMessage::SkillsCreateNewCompleted(result)),
         ),
         Effect::InstallBuiltin(path, id) => Task::perform(
-            async move { gateway_skill_install_builtin_async(&path, &id).await },
+            async move { gateway_skill_install_builtin_async(crate::app::config::gateway_client_endpoint(), &path, &id).await },
             |result| Message::Settings(SettingsMessage::SkillsInstallBuiltInCompleted(result)),
         ),
         Effect::Save(directory_provider, auto_load_project_skills, prompt_injection_mode) => {

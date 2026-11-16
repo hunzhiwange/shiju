@@ -517,7 +517,7 @@ pub(crate) async fn prepare_gateway_session_open(
     directory: &str,
     show_reasoning_summary: bool,
 ) -> Result<crate::app::session::PreparedSessionOpen, String> {
-    let (summary, page) = crate::app::session_gateway::gateway_bounded_session_open_with_client(
+    let (summary, page) = desktop_session::session_gateway::gateway_bounded_session_open_with_client(
         client, session_id, directory,
     )
     .await?;
@@ -547,7 +547,7 @@ pub(crate) fn load_session_history_page_task(
         async move {
             let client = crate::app::gateway_client()?;
             let page =
-                crate::app::session_gateway::gateway_session_message_page_before_with_client(
+                desktop_session::session_gateway::gateway_session_message_page_before_with_client(
                     &client,
                     &session_id,
                     &project_path,

@@ -14,8 +14,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Effect::Error(error) => app.show_error_toast(error),
         Effect::Request { generation, project, host, query } => {
             let token = app.apps_catalog.token.clone();
-            Task::perform(crate::app::session_gateway::gateway_skills_market_request(
-                project, host, query, token),
+            Task::perform(async move { desktop_session::session_gateway::gateway_skills_market_request(crate::app::config::gateway_client_endpoint(),
+                project, host, query, token).await },
                 move |result| message(Event::Completed(generation, result)))
         }
     }

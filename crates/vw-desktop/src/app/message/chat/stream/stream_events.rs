@@ -301,7 +301,7 @@ fn save_latest_agent_stream_session(app: &mut App, session_id: &str) -> Task<Mes
     let result_session_id = session_id.to_string();
     Task::perform(
         async move {
-            crate::app::session_gateway::gateway_session_message_delta_async(
+            desktop_session::session_gateway::gateway_session_message_delta_async(crate::app::config::gateway_client_endpoint(),
                 &saved_session_id,
                 directory.as_deref(),
                 &delta,
@@ -327,7 +327,7 @@ pub(super) fn handle_agent_stream_session_delta_saved(
     generation: u64,
     revision: u64,
     updated_ms: u64,
-    result: Result<(), crate::app::session_gateway::SessionMessageDeltaSaveError>,
+    result: Result<(), desktop_session::session_gateway::SessionMessageDeltaSaveError>,
 ) -> Task<Message> {
     use desktop_session::message::chat::stream::save::SaveOutcome;
     let runtime = app.get_session_runtime_mut(&session_id);

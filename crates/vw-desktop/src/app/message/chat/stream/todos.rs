@@ -3,7 +3,7 @@
 
 use super::ChatMessage;
 use crate::app::message::after;
-use crate::app::session_gateway;
+use desktop_session::session_gateway;
 use crate::app::{App, Message};
 use iced::Task;
 use std::time::Duration;
@@ -43,7 +43,7 @@ pub(super) fn load_input_panel_todos_task(
     Task::perform(
         async move {
             let result =
-                session_gateway::gateway_session_todo_list_async(&session_id, directory.as_deref())
+                session_gateway::gateway_session_todo_list_async(crate::app::config::gateway_client_endpoint(), &session_id, directory.as_deref())
                     .await;
             (session_id, result)
         },

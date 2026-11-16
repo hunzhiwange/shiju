@@ -1,6 +1,6 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
-use crate::app::session_gateway::{
+use desktop_session::session_gateway::{
     gateway_hook_audit_async, gateway_hook_revoke_async, gateway_hook_trust_async,
     gateway_hooks_async,
 };
@@ -9,26 +9,26 @@ use iced::Task;
 
 use super::messages::{HooksMessage, SettingsMessage};
 fn catalog_refresh_task() -> Task<Message> {
-    Task::perform(gateway_hooks_async(), |result| {
+    Task::perform(async move { gateway_hooks_async(crate::app::config::gateway_client_endpoint()).await }, |result| {
         Message::Settings(SettingsMessage::Hooks(HooksMessage::CatalogLoaded(result)))
     })
 }
 
 fn audit_refresh_task() -> Task<Message> {
-    Task::perform(gateway_hook_audit_async(), |result| {
+    Task::perform(async move { gateway_hook_audit_async(crate::app::config::gateway_client_endpoint()).await }, |result| {
         Message::Settings(SettingsMessage::Hooks(HooksMessage::AuditLoaded(result)))
     })
 }
 
 fn trust_task(plugin_id: String, hook_hash: String) -> Task<Message> {
-    Task::perform(async move { gateway_hook_trust_async(&plugin_id, &hook_hash).await }, |result| {
+    Task::perform(async move { gateway_hook_trust_async(crate::app::config::gateway_client_endpoint(), &plugin_id, &hook_hash).await }, |result| {
         Message::Settings(SettingsMessage::Hooks(HooksMessage::MutationCompleted(result)))
     })
 }
 
 fn revoke_task(plugin_id: String, hook_hash: String) -> Task<Message> {
     Task::perform(
-        async move { gateway_hook_revoke_async(&plugin_id, &hook_hash).await },
+        async move { gateway_hook_revoke_async(crate::app::config::gateway_client_endpoint(), &plugin_id, &hook_hash).await },
         |result| Message::Settings(SettingsMessage::Hooks(HooksMessage::MutationCompleted(result))),
     )
 }

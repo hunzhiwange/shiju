@@ -24,9 +24,9 @@ fn repository(secret: &str, company_id: &str) -> AccountRepository {
 // 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn shiju_apps_open_loads_mine_through_gateway() {
-    let _ = crate::app::session_gateway::gateway_shiju_app_catalog_async;
-    let _ = crate::app::session_gateway::gateway_shiju_apps_async;
-    let _ = crate::app::session_gateway::gateway_shiju_app_prepare_launch_async;
+    let _ = desktop_session::session_gateway::gateway_shiju_app_catalog_async;
+    let _ = desktop_session::session_gateway::gateway_shiju_apps_async;
+    let _ = desktop_session::session_gateway::gateway_shiju_app_prepare_launch_async;
     let (mut app, _) = App::new();
     app.account.replace_repository(repository("account-secret", "company-1"));
 

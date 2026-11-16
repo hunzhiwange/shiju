@@ -124,10 +124,6 @@ fn copy_text_task(text: String, hash: u64) -> Task<Message> {
 }
 
 impl App {
-    fn parse_external_open_app(value: &str) -> Option<crate::app::state::ExternalOpenApp> {
-        desktop_navigation::external_apps_update::parse_external_open_app(value)
-    }
-
     fn apply_external_apps_state(&mut self, platform: Option<RuntimePlatform>, apps: Vec<(String, bool)>) {
         desktop_navigation::external_apps_update::apply_external_apps_state(
             &mut self.open_external_platform, &mut self.external_navigation.open_external_exists,
@@ -303,25 +299,19 @@ impl App {
         }
         self.reasoning_effort = self.current_session_runtime().reasoning_effort;
         self.apply_bootstrap_chat_preferences(&cfg);
-        self.navigation_panels.auto_max_mode =
-            cfg.get("auto_max_mode").and_then(|v| v.as_bool()).unwrap_or(self.navigation_panels.auto_max_mode);
-        if let Some(workspace_mode) = cfg
-            .get("workspace_mode")
-            .and_then(|value| value.as_str())
-            .and_then(crate::app::state::WorkspaceMode::parse)
-        {
-            self.navigation_mode.workspace_mode = workspace_mode;
-        }
-        if let Some(collapsed) = cfg.get("work_sidebar_collapsed").and_then(|v| v.as_bool()) {
-            self.navigation_sidebar.work_sidebar_collapsed = collapsed;
-        }
+        desktop_navigation::app_init::apply_preferences(
+            &mut self.navigation_panels,
+            &mut self.navigation_mode,
+            &mut self.navigation_sidebar,
+            &mut self.external_navigation,
+            &mut self.layout_drag,
+            &cfg,
+        );
         if let Some(ids) = cfg.get("input_model_collapsed_provider_ids").and_then(|v| v.as_array())
         {
             self.model_settings.input_collapsed_provider_ids =
                 ids.iter().filter_map(|id| id.as_str().map(str::to_owned)).collect();
         }
-        self.navigation_panels.show_settings =
-            cfg.get("show_settings").and_then(|v| v.as_bool()).unwrap_or(self.navigation_panels.show_settings);
         self.file_manager.show_file_manager = cfg
             .get("show_file_manager")
             .and_then(|v| v.as_bool())
@@ -332,22 +322,6 @@ impl App {
             .unwrap_or(self.file_manager.file_manager_show_changes);
         if let Some(visible) = cfg.get("show_terminal").and_then(|v| v.as_bool()) {
             self.terminal.set_visible(visible);
-        }
-        if let Some(target) = cfg
-            .get("open_external_app")
-            .and_then(|v| v.as_str())
-            .and_then(Self::parse_external_open_app)
-        {
-            self.external_navigation.open_external_app = target;
-        }
-        if !self.layout_drag.dragging_file_manager
-            && let Some(width) = cfg
-                .get("file_manager_width")
-                .and_then(|v| v.as_f64())
-                .map(|v| (v as f32).clamp(180.0, 600.0))
-        {
-            self.layout_drag.file_manager_width = width;
-            self.layout_drag.file_manager_start_width = width;
         }
         if let Some(paths) = cfg.get("file_tree_expanded").and_then(serde_json::Value::as_array) {
             self.file_tree_expanded =

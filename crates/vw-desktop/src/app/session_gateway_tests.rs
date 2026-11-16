@@ -21,7 +21,7 @@ fn desktop_project_calls_use_active_tenant_scope() {
 
 #[test]
 fn active_project_scope_preserves_active_tenant_and_project_id() {
-    let scope = super::active_project_scope("project-stable".into())
+    let scope = desktop_session::session_gateway::active_project_scope(crate::app::config::gateway_client_endpoint(), "project-stable".into())
         .expect("non-empty project id should build a project scope");
     let endpoint = crate::app::config::gateway_client_endpoint();
 
@@ -32,14 +32,14 @@ fn active_project_scope_preserves_active_tenant_and_project_id() {
 #[test]
 fn active_project_scope_rejects_empty_project_id() {
     let error =
-        super::active_project_scope("".into()).expect_err("empty project id should be rejected");
+        desktop_session::session_gateway::active_project_scope(crate::app::config::gateway_client_endpoint(), "".into()).expect_err("empty project id should be rejected");
 
     assert_eq!(error, "project id must not be empty");
 }
 
 #[test]
 fn active_project_scope_rejects_whitespace_project_id() {
-    let error = super::active_project_scope(" \t ".into())
+    let error = desktop_session::session_gateway::active_project_scope(crate::app::config::gateway_client_endpoint(), " \t ".into())
         .expect_err("whitespace-only project id should be rejected");
 
     assert_eq!(error, "project id must not be empty");
@@ -47,7 +47,7 @@ fn active_project_scope_rejects_whitespace_project_id() {
 
 #[test]
 fn desktop_agent_scheduler_calls_use_resolved_active_scope() {
-    let scope = super::active_agent_scheduler_scope("project-stable".into())
+    let scope = desktop_session::session_gateway::active_agent_scheduler_scope(crate::app::config::gateway_client_endpoint(), "project-stable".into())
         .expect("resolved project id should build a scheduler scope");
     let project_scope = scope.project_scope();
     let endpoint = crate::app::config::gateway_client_endpoint();
@@ -62,7 +62,7 @@ fn desktop_agent_scheduler_calls_use_resolved_active_scope() {
 
 #[test]
 fn active_agent_scheduler_scope_propagates_invalid_project_id() {
-    let error = super::active_agent_scheduler_scope(" ".into())
+    let error = desktop_session::session_gateway::active_agent_scheduler_scope(crate::app::config::gateway_client_endpoint(), " ".into())
         .expect_err("invalid project id should be rejected before scheduler scope construction");
 
     assert_eq!(error, "project id must not be empty");

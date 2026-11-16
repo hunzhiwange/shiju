@@ -22,9 +22,9 @@ pub(super) fn update(app: &mut App, message_in: S) -> Task<Message> {
         _ => return Task::none(),
     };
     match event {
-        E::Prepare(id, source, update) => Task::perform(crate::app::session_gateway::gateway_plugin_prepare_async(source, update), move |result| message(E::PluginsInstallPrepared { request_id: id, result })),
-        E::Activate(id, token, update) => Task::perform(crate::app::session_gateway::gateway_plugin_activate_async(token, update), move |result| message(E::PluginsInstallCompleted { request_id: id, result })),
-        E::Discard(token) => Task::perform(crate::app::session_gateway::gateway_plugin_discard_async(token), |r| message(E::PluginsPreviewDiscarded(r))),
+        E::Prepare(id, source, update) => Task::perform(async move { desktop_session::session_gateway::gateway_plugin_prepare_async(crate::app::config::gateway_client_endpoint(), source, update).await }, move |result| message(E::PluginsInstallPrepared { request_id: id, result })),
+        E::Activate(id, token, update) => Task::perform(async move { desktop_session::session_gateway::gateway_plugin_activate_async(crate::app::config::gateway_client_endpoint(), token, update).await }, move |result| message(E::PluginsInstallCompleted { request_id: id, result })),
+        E::Discard(token) => Task::perform(async move { desktop_session::session_gateway::gateway_plugin_discard_async(crate::app::config::gateway_client_endpoint(), token).await }, |r| message(E::PluginsPreviewDiscarded(r))),
         E::Refresh => super::skills::update(app, S::PluginsRefresh),
         E::Toast(kind, text) => app.show_localized_toast(match kind { ToastKind::Info => crate::app::state::ToastKind::Info, ToastKind::Success => crate::app::state::ToastKind::Success, ToastKind::Warning => crate::app::state::ToastKind::Warning, ToastKind::Error => crate::app::state::ToastKind::Error }, &text, vec![]),
         event => desktop_settings_skills::plugin_install::update(&mut State { plugin_operation_id: &mut app.skills_settings.plugin_operation_id, plugin_install: &mut app.skills_settings.plugin_install }, event).map(message),

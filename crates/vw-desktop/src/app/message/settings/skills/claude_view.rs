@@ -15,7 +15,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Effect::Success(notice) => app.show_success_toast(notice),
         Effect::Request { generation, scope, change } => {
             let token = app.apps_catalog.token.clone();
-            Task::perform(crate::app::session_gateway::gateway_claude_config_request(scope, token, change),
+            Task::perform(async move { desktop_session::session_gateway::gateway_claude_config_request(crate::app::config::gateway_client_endpoint(), scope, token, change).await },
                 move |result| message(Event::Completed(generation, result)))
         }
     }

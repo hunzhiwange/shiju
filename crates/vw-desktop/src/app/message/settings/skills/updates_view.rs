@@ -17,7 +17,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let Ok(client) = crate::app::config::gateway_client() else { return Task::none(); };
             let token = app.apps_catalog.token.clone();
             if let Some(operation) = operation {
-                return Task::perform(crate::app::session_gateway::gateway_skills_mutation(scope, operation, token), move |r| message(Event::Finished(g, r)));
+                return Task::perform(async move { desktop_session::session_gateway::gateway_skills_mutation(crate::app::config::gateway_client_endpoint(), scope, operation, token).await }, move |r| message(Event::Finished(g, r)));
             }
             Task::perform(async move {
                 let inventory = client.agent_apps_skills_inventory(&scope, &token).await.map_err(|e| e.to_string());

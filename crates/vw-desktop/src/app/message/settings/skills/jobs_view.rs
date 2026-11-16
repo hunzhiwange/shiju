@@ -34,7 +34,7 @@ fn execute(app: &mut App, effect: desktop_settings_skills::update::jobs_view::Ef
         }
         Effect::Request { g, scope, id, cancel } => {
             let token = app.apps_catalog.token.clone();
-            Task::perform(crate::app::session_gateway::gateway_skills_job(scope, id, token, cancel),
+            Task::perform(async move { desktop_session::session_gateway::gateway_skills_job(crate::app::config::gateway_client_endpoint(), scope, id, token, cancel).await },
                 move |r| message(Event::Loaded(g, r)))
         }
     }

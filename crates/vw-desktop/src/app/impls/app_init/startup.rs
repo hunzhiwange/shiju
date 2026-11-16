@@ -40,7 +40,7 @@ pub(super) fn build_startup_task(app: &mut App) -> Task<Message> {
                 Message::BootstrapAcpAgentsLoaded,
             ),
             Task::perform(
-                crate::app::session_gateway::gateway_load_archived_session_ids_async(None),
+                async move { desktop_session::session_gateway::gateway_load_archived_session_ids_async(crate::app::config::gateway_client_endpoint(), None).await },
                 Message::BootstrapArchivedSessions,
             ),
             Task::perform(
@@ -52,7 +52,7 @@ pub(super) fn build_startup_task(app: &mut App) -> Task<Message> {
                 },
             ),
             Task::perform(
-                crate::app::session_gateway::gateway_external_apps_async(),
+                async move { desktop_session::session_gateway::gateway_external_apps_async(crate::app::config::gateway_client_endpoint()).await },
                 Message::ExternalAppsLoaded,
             ),
             app.reload_sessions_for_project(None),

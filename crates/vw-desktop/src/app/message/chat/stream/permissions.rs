@@ -2,7 +2,7 @@
 //! 本模块把网关轮询和流式增量落到会话状态，避免 UI 层理解传输细节。
 
 use super::ChatMessage;
-use crate::app::session_gateway;
+use desktop_session::session_gateway;
 use crate::app::{App, Message};
 pub(super) use desktop_session::message::chat::stream::permissions::{
     advance_permission_requests_after_reply, split_auto_approved_permission_requests,
@@ -51,7 +51,7 @@ fn submit_permission_replies(
     Task::perform(
         async move {
             for request_id in request_ids {
-                session_gateway::gateway_permission_reply_async(
+                session_gateway::gateway_permission_reply_async(crate::app::config::gateway_client_endpoint(),
                     &request_id,
                     reply,
                     directory.as_deref(),
@@ -82,7 +82,7 @@ fn apply_permission_request(app: &mut App, requests: Vec<PendingPermissionReques
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_permission_poll_tick(app: &App) -> Task<Message> {
     let directory = permission_directory(app);
-    Task::perform(session_gateway::gateway_permission_list_owned_async(directory), |res| {
+    Task::perform(async move { session_gateway::gateway_permission_list_owned_async(crate::app::config::gateway_client_endpoint(), directory).await }, |res| {
         Message::Chat(ChatMessage::PermissionListLoaded(res))
     })
 }

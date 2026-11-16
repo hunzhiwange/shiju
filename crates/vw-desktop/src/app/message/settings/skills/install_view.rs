@@ -16,11 +16,11 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Effect::Request { g, scope, request } => {
             let token = app.apps_catalog.token.clone();
             if let Some(request) = request {
-                return Task::perform(crate::app::session_gateway::gateway_skills_submit(request, token),
+                return Task::perform(async move { desktop_session::session_gateway::gateway_skills_submit(crate::app::config::gateway_client_endpoint(), request, token).await },
                     move |r| message(Event::Submitted(g, r)));
             }
             Task::perform(async move {
-                crate::app::session_gateway::gateway_skills_install_view(scope, None, token).await
+                desktop_session::session_gateway::gateway_skills_install_view(crate::app::config::gateway_client_endpoint(), scope, None, token).await
             }, move |result| match result {
                 Ok(Some(data)) => message(Event::Loaded(g, Ok(data))),
                 Ok(None) => message(Event::Installed(g, Ok(()))),

@@ -96,12 +96,6 @@ impl App {
             .and_then(|v: &serde_json::Value| v.as_str())
             .map(crate::app::state::ChatSendBehavior::from_str)
             .unwrap_or(crate::app::state::ChatSendBehavior::Queue);
-        let cfg_workspace_mode = crate::app::state::WorkspaceMode::from_config(
-            cfg.get("workspace_mode").and_then(|value| value.as_str()),
-        );
-        // 是否启用自动最大化模式
-        let cfg_auto_max_mode =
-            cfg.get("auto_max_mode").and_then(|v: &serde_json::Value| v.as_bool()).unwrap_or(false);
         // 文件树中已展开的路径列表
         let cfg_file_tree_expanded = cfg
             .get("file_tree_expanded")
@@ -163,12 +157,6 @@ impl App {
         .unwrap_or_else(|| cfg_app_theme.clone());
 
         // 文件管理器配置
-        let cfg_file_manager_width = cfg
-            .get("file_manager_width")
-            .and_then(|v: &serde_json::Value| v.as_f64())
-            .map(|v| v as f32)
-            .unwrap_or(260.0)
-            .clamp(180.0, 600.0);
         let cfg_file_manager_show_changes = cfg
             .get("file_manager_show_changes")
             .and_then(|v: &serde_json::Value| v.as_bool())
@@ -186,9 +174,6 @@ impl App {
             .get("show_git_diff_highlight")
             .and_then(|v: &serde_json::Value| v.as_bool())
             .unwrap_or(false);
-        // 设置面板显示开关
-        let cfg_show_settings =
-            cfg.get("show_settings").and_then(|v: &serde_json::Value| v.as_bool()).unwrap_or(true);
         // 项目worktree功能开关
         let cfg_project_worktree_enabled = system_settings_cfg.project_worktree_enabled.clone();
         let gateway_client_cfg = config::load_gateway_client_config();
@@ -256,57 +241,11 @@ impl App {
             startup_started_at: std::time::Instant::now(),
             #[cfg(not(target_arch = "wasm32"))]
             startup_configuration: Default::default(),
-            navigation_workspace: desktop_navigation::panel::work_workspace::State {
-                work_resource_mode: state::WorkResourceMode::default(),
-                work_resources_visible: false,
-                dragging_work_split: false,
-                work_split_drag_anchor_x: None,
-                work_resource_fullscreen: false,
-                work_resource_half_fullscreen: false,
-                work_split_ratio: 0.6,
-                work_chat_fullscreen: false,
-                work_chat_half_fullscreen: false,
-                work_expanded_spaces: HashSet::new(),
-            },
-            navigation_mode: desktop_navigation::panel::workspace_mode::State {
-                workspace_mode: cfg_workspace_mode,
-                work_current_project_menu: None,
-                show_workspace_mode_popover: false,
-                code_projects_menu_open: false,
-            },
-            layout_drag: desktop_navigation::view_layout::drag::State {
-                dragging_file_manager: false,
-                dragging_settings: false,
-                dragging_split: false,
-                dragging_work_sidebar: false,
-                file_manager_drag_anchor_x: None,
-                file_manager_start_width: cfg_file_manager_width,
-                file_manager_width: cfg_file_manager_width,
-                settings_drag_anchor_x: None,
-                settings_drag_start_width: 0.0,
-                settings_panel_width: 476.0,
-                split_drag_anchor_x: None,
-                split_drag_start_ratio: 0.0,
-                split_ratio: 0.6,
-                work_sidebar_drag_anchor_x: None,
-                work_sidebar_drag_start_width: 292.0,
-                work_sidebar_width: 292.0,
-                work_split_drag_start_ratio: 0.6,
-            },
+            navigation_workspace: desktop_navigation::app_init::work_workspace(),
+            navigation_mode: desktop_navigation::app_init::workspace_mode(&cfg),
+            layout_drag: desktop_navigation::app_init::layout_drag(&cfg),
             popover_visibility: Default::default(),
-            navigation_panels: desktop_navigation::panel::settings::State {
-                show_settings: cfg_show_settings,
-                settings_tab: SettingsTab::Sessions,
-                show_system_settings: false,
-                system_settings_tab: components::system_settings::SystemTab::General,
-                system_settings_help_tab: None,
-                active_menu: None,
-                show_about_modal: false,
-                auto_max_mode: cfg_auto_max_mode,
-                show_diff: true,
-                top_bar_gateway_tab: super::state::TopBarGatewayTab::default(),
-                cli_commands_tab: Default::default(),
-            },
+            navigation_panels: desktop_navigation::app_init::panels(&cfg),
             usage_panel: desktop_usage::panel::State {
                 usage_model_info: None,
                 usage_step_expanded: std::collections::HashSet::new(),
@@ -327,32 +266,8 @@ impl App {
                 app_update_progress: None,
                 app_update_progress_rx: None,
             },
-            navigation_tabs: desktop_navigation::panel::tabs::State {
-                apps_search_query: String::new(),
-                project_path: None,
-                project_preview_tabs: HashMap::new(),
-                preview_tabs: Vec::new(),
-                project_preview_active_path: HashMap::new(),
-                active_preview_path: None,
-                screen: Screen::Home,
-                active_tab_id: Some("home".to_string()),
-                preview_tab_menu_path: None,
-                preview_tab_menu_pos: None,
-                home_apps_bar_scroll_x: 0.0,
-                home_apps_bar_scroll_id: iced::widget::Id::new("home_apps_bar"),
-                open_tabs: vec![AppTab {
-                    id: "home".to_string(),
-                    title: "首页".to_string(),
-                    screen: Screen::Home,
-                    project_path: None,
-                }],
-                hovered_tab_id: None,
-            },
-            companion_navigation: desktop_navigation::panel::companion::State {
-                task_pet_visible: false,
-                task_pet_robot_hovered: false,
-                task_pet_context_menu_pos: None,
-            },
+            navigation_tabs: desktop_navigation::app_init::tabs(),
+            companion_navigation: Default::default(),
             web_navigation: desktop_apps_ui::web::State {
                 web_bookmarks: cfg_web_bookmarks,
                 #[cfg(not(target_arch = "wasm32"))]
@@ -373,23 +288,7 @@ impl App {
                 open_external_app,
                 open_external_exists,
             },
-            navigation_sidebar: desktop_navigation::panel::work_sidebar::State {
-                work_sidebar_visible_tasks: state::WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS,
-                work_sidebar_visible_spaces: state::WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS,
-                work_sidebar_space_task_visible: HashMap::new(),
-                work_sidebar_project_nav_hovered: false,
-                work_sidebar_filter_open: false,
-                work_sidebar_more_open: false,
-                work_sidebar_collapsed: cfg
-                    .get("work_sidebar_collapsed")
-                    .and_then(serde_json::Value::as_bool)
-                    .unwrap_or(false),
-                work_sidebar_filter_scope: state::WorkSidebarFilterScope::default(),
-                work_sidebar_filter_status: state::WorkSidebarFilterStatus::default(),
-                work_sidebar_filter_time: state::WorkSidebarFilterTime::default(),
-                work_sidebar_tab: state::WorkSidebarTab::default(),
-                work_space_picker_open: false,
-            },
+            navigation_sidebar: desktop_navigation::app_init::sidebar(&cfg),
             session_ui_projection: Default::default(),
             work_browser: state::WorkBrowserState::default(),
             #[cfg(not(target_arch = "wasm32"))]

@@ -821,7 +821,7 @@ fn stream_session_delta_save_retries_after_failure() {
         88,
         revision,
         updated_ms,
-        Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Other(
+        Err(desktop_session::session_gateway::SessionMessageDeltaSaveError::Other(
             "temporary outage".to_string(),
         )),
     );
@@ -853,7 +853,7 @@ fn stale_stream_session_delta_rebases_before_retry() {
         89,
         revision,
         updated_ms,
-        Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Stale {
+        Err(desktop_session::session_gateway::SessionMessageDeltaSaveError::Stale {
             stored_updated_ms: 4_200_000_000_042,
             stored_message_count: 1,
         }),
@@ -1738,7 +1738,7 @@ fn stream_session_delta_save_keeps_retrying_when_conflict_recovery_advances() {
             generation,
             revision,
             updated_ms,
-            Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Stale {
+            Err(desktop_session::session_gateway::SessionMessageDeltaSaveError::Stale {
                 stored_updated_ms,
                 stored_message_count: 1,
             }),
@@ -1782,7 +1782,7 @@ fn stream_session_delta_save_stops_when_conflict_recovery_makes_no_progress() {
             generation,
             revision,
             updated_ms,
-            Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Stale {
+            Err(desktop_session::session_gateway::SessionMessageDeltaSaveError::Stale {
                 stored_updated_ms: 42,
                 stored_message_count: 1,
             }),
@@ -1815,7 +1815,7 @@ fn stream_session_delta_save_stops_after_three_failures() {
             generation,
             revision,
             updated_ms,
-            Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Other("offline".into())),
+            Err(desktop_session::session_gateway::SessionMessageDeltaSaveError::Other("offline".into())),
         );
         if attempt < 2 {
             assert!(app.get_session_runtime(&session_id).stream_save.flush_scheduled);
@@ -1859,7 +1859,7 @@ fn stream_session_delta_save_repairs_missing_user_prefix_for_active_and_backgrou
             generation,
             revision,
             updated_ms,
-            Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Stale {
+            Err(desktop_session::session_gateway::SessionMessageDeltaSaveError::Stale {
                 stored_updated_ms: 42,
                 stored_message_count: 2,
             }),
@@ -1904,7 +1904,7 @@ fn stream_session_delta_save_uses_absolute_page_sequences() {
         generation,
         revision,
         updated_ms,
-        Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Stale {
+        Err(desktop_session::session_gateway::SessionMessageDeltaSaveError::Stale {
             stored_updated_ms: 42,
             stored_message_count: 100,
         }),
@@ -1931,7 +1931,7 @@ fn stream_session_delta_save_rejects_permanent_errors_without_retry() {
         generation,
         revision,
         updated_ms,
-        Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Rejected(
+        Err(desktop_session::session_gateway::SessionMessageDeltaSaveError::Rejected(
             "invalid delta".into(),
         )),
     );
@@ -1957,7 +1957,7 @@ fn stream_session_delta_save_stops_when_missing_prefix_is_unavailable() {
         generation,
         revision,
         updated_ms,
-        Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Stale {
+        Err(desktop_session::session_gateway::SessionMessageDeltaSaveError::Stale {
             stored_updated_ms: 42,
             stored_message_count: 2,
         }),

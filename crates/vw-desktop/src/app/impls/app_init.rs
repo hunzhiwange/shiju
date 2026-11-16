@@ -16,8 +16,8 @@ pub(super) use super::models;
 pub(super) use super::state;
 pub(super) use super::state::ConventionalCommitType;
 pub(super) use super::{
-    App, AppTab, DiffTheme, FocusArea, Message, Screen,
-    SettingsTab, Shell, TerminalState, TerminalTheme, load_recent_projects,
+    App, DiffTheme, FocusArea, Message,
+    Shell, TerminalState, TerminalTheme, load_recent_projects,
     load_recent_projects_meta,
 };
 #[cfg(not(target_arch = "wasm32"))]

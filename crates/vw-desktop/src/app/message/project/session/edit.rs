@@ -93,7 +93,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 tasks.push(iced::Task::perform(async move {
                     let client = crate::app::gateway_client()?;
                     let project = crate::app::message::project::helpers::resolve_gateway_project(&path).await?;
-                    let scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
+                    let scope = desktop_session::session_gateway::active_project_scope(crate::app::config::gateway_client_endpoint(), project.id.clone())?;
                     gateway_project::GatewayProjectClient::new(client.transport().clone()).project_update(&scope, &vw_api_project::UpdateProjectRequest {
                         name: Some(name), active_worktree_id: None,
                         icon: Some(vw_api_project::IconUpdateDto { override_icon: icon, color: icon_color }),

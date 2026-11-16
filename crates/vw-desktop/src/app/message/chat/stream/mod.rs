@@ -21,7 +21,7 @@ mod permission_tests;
 mod tests;
 
 use super::ChatMessage;
-use crate::app::session_gateway;
+use desktop_session::session_gateway;
 use crate::app::{App, Message, models};
 use iced::Task;
 #[cfg(all(test, not(target_arch = "wasm32")))]
@@ -88,7 +88,7 @@ fn gateway_save_session_for_stream(
         return Ok(result);
     }
 
-    session_gateway::gateway_save_session_result(session, directory)
+    session_gateway::gateway_save_session_result(crate::app::config::gateway_client_endpoint(), session, directory)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -116,7 +116,7 @@ pub(super) fn save_session_task(
     directory: Option<String>,
 ) -> Task<Message> {
     Task::perform(
-        async move { session_gateway::gateway_save_session_async(&session, directory.as_deref()).await },
+        async move { session_gateway::gateway_save_session_async(crate::app::config::gateway_client_endpoint(), &session, directory.as_deref()).await },
         |result| match result {
             Ok(_) => Message::Chat(ChatMessage::SessionSaveAck),
             Err(error) => {

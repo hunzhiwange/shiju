@@ -166,7 +166,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let result_task_id = task_id.clone();
             Task::perform(
                 async move {
-                    crate::app::session_gateway::gateway_task_plan_run_stop_async(&task_id).await
+                    desktop_session::session_gateway::gateway_task_plan_run_stop_async(crate::app::config::gateway_client_endpoint(), &task_id).await
                 },
                 move |result| {
                     Message::Chat(ChatMessage::StopPlanRunFinished {

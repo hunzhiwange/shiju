@@ -1,6 +1,6 @@
 //! Versioned repository editing; no optimistic list updates or discovery orchestration.
 use crate::app::{App, Message, message::SettingsMessage};
-use crate::app::session_gateway::{gateway_skill_repos_request, gateway_skill_repos_scope};
+use desktop_session::session_gateway::{gateway_skill_repos_request, gateway_skill_repos_scope};
 use iced::Task;
 use vw_api_app_skills::repos_api::SkillReposResponse;
 
@@ -18,9 +18,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     Task::perform(async move {
         let scope = match snapshot.as_ref() {
             Some(s) => s.scope.clone(),
-            None => gateway_skill_repos_scope(&directory, host).await?,
+            None => gateway_skill_repos_scope(crate::app::config::gateway_client_endpoint(), &directory, host).await?,
         };
-        gateway_skill_repos_request(scope, snapshot.map_or(0, |s| s.version), change).await
+        gateway_skill_repos_request(crate::app::config::gateway_client_endpoint(), scope, snapshot.map_or(0, |s| s.version), change).await
     }, move |result| message(Event::Completed { generation, added, result }))
         }
     }

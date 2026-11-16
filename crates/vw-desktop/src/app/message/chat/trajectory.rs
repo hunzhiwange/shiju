@@ -63,7 +63,7 @@ fn refresh_trajectory_task(app: &mut App, session_id: String) -> Task<Message> {
     let snapshot_session_id = session_id.clone();
     let snapshot_task = Task::perform(
         async move {
-            crate::app::session_gateway::gateway_load_session_any_with_raw_async(&session_id).await
+            desktop_session::session_gateway::gateway_load_session_any_with_raw_async(crate::app::config::gateway_client_endpoint(), &session_id).await
         },
         move |result| {
             Message::Chat(ChatMessage::TrajectorySnapshotLoaded {
@@ -147,7 +147,7 @@ fn raw_load_task(
 ) -> Task<Message> {
     Task::perform(
         async move {
-            let result = crate::app::session_gateway::gateway_session_step_llm_raw_async(
+            let result = desktop_session::session_gateway::gateway_session_step_llm_raw_async(crate::app::config::gateway_client_endpoint(),
                 &session_id,
                 &turn_id,
                 step_index,

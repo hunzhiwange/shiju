@@ -119,8 +119,8 @@ impl App {
             return iced::Task::perform(
                 async move {
                     let scope =
-                        crate::app::session_gateway::gateway_current_session_scope_async().await?;
-                    crate::app::session_gateway::gateway_load_sessions_scoped_async(
+                        desktop_session::session_gateway::gateway_current_session_scope_async(crate::app::config::gateway_client_endpoint()).await?;
+                    desktop_session::session_gateway::gateway_load_sessions_scoped_async(crate::app::config::gateway_client_endpoint(),
                         scope.as_deref(),
                     )
                     .await
@@ -131,9 +131,9 @@ impl App {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let scope = crate::app::session_gateway::gateway_current_session_scope();
+            let scope = desktop_session::session_gateway::gateway_current_session_scope(crate::app::config::gateway_client_endpoint());
             self.session_previews = build_session_previews(
-                crate::app::session_gateway::gateway_load_sessions_scoped(scope.as_deref()),
+                desktop_session::session_gateway::gateway_load_sessions_scoped(crate::app::config::gateway_client_endpoint(), scope.as_deref()),
             );
             iced::Task::none()
         }

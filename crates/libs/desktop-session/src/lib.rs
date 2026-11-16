@@ -10,6 +10,10 @@ pub mod message {
         pub mod fork;
         pub mod session;
         pub mod send_input;
+        pub mod lifecycle;
+        pub mod preferences;
+        pub mod selection;
+        pub mod git_handoff;
         pub mod request;
         pub mod processing_timing;
         pub mod stream;

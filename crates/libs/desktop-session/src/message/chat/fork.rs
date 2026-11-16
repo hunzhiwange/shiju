@@ -26,3 +26,28 @@ pub fn toggle_reset_menu(dialog: &mut Option<ForkSessionDialog>, reset_index: &m
     *dialog = None;
     *reset_index = if *reset_index == Some(message_index) { None } else { Some(message_index) };
 }
+
+pub async fn fork_session(
+    client: &vw_gateway_client::GatewayClient,
+    anchor: &ForkSessionAnchor,
+    target: super::events::ForkSessionTarget,
+) -> Result<session_info::Info, String> {
+    use vw_api_session::{GatewaySessionForkBody, GatewaySessionForkTarget};
+    let destination = match target {
+        super::events::ForkSessionTarget::Local => GatewaySessionForkTarget::SameDirectory,
+        super::events::ForkSessionTarget::NewWorktree => {
+            GatewaySessionForkTarget::Worktree { name: None }
+        }
+    };
+    gateway_session::GatewaySessionClient::new(client.transport().clone())
+        .session_fork::<session_info::Info>(
+            &anchor.session_id,
+            Some(&anchor.directory),
+            &Some(GatewaySessionForkBody {
+                before_turn_id: Some(anchor.user_message_id.clone()),
+                target: Some(destination),
+                ..Default::default()
+            }),
+        )
+        .await
+}

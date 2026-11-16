@@ -178,13 +178,10 @@ mod session_tests;
 
 /// 恢复网关历史对应的本地消息边界，不访问桌面状态。
 pub async fn recover_reset_message_ids(
-    endpoint: (String, u16),
+    client: vw_gateway_client::GatewayClient,
     session_id: &str,
     directory: Option<&str>,
 ) -> Result<Vec<Option<String>>, String> {
-    let client = vw_gateway_client::GatewayClient::new(
-        gateway_endpoint::GatewayEndpoint::new(endpoint.0, endpoint.1),
-    )?;
     let messages = gateway_session::GatewaySessionClient::new(client.transport().clone())
         .session_messages::<Vec<agent_message::WithParts>>(session_id, directory)
         .await?;
@@ -396,4 +393,34 @@ pub fn reconcile_reasoning_effort(
         *task_mode_reasoning_effort = None;
     }
     reset_effort
+}
+
+pub enum CompactionGate {
+    Ready,
+    NoSession,
+    Requesting,
+    Compacting,
+}
+pub fn compaction_gate(
+    session_id: &str,
+    requesting: bool,
+    compacting: bool,
+    check_empty: bool,
+) -> CompactionGate {
+    if check_empty && session_id.trim().is_empty() {
+        CompactionGate::NoSession
+    } else if requesting {
+        CompactionGate::Requesting
+    } else if compacting {
+        CompactionGate::Compacting
+    } else {
+        CompactionGate::Ready
+    }
+}
+
+pub async fn reset_session(
+    client: vw_gateway_client::GatewayClient, session_id: &str, directory: Option<&str>, message_id: String,
+) -> Result<session_info::Info, String> {
+    gateway_session::GatewaySessionClient::new(client.transport().clone())
+        .session_reset::<session_info::Info>(session_id, directory, &vw_api_session::GatewaySessionResetBody { message_id }).await
 }

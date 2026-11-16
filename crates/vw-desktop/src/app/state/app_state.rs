@@ -24,21 +24,8 @@ pub enum ChatPanelMode {
 
 pub use desktop_chat_view::trajectory::model::TrajectoryDetailsTab;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum QuickMessageGitCommitAction {
-    StageAllAndCommit,
-    CommitSelected,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum QuickMessageHandoffState {
-    WaitingForGitCommitMessage {
-        request_id: u64,
-        source_session_id: String,
-        project_path: String,
-        action: QuickMessageGitCommitAction,
-    },
-}
+pub use desktop_session::message::chat::git_handoff::QuickMessageGitCommitAction;
+pub(crate) use desktop_session::message::chat::git_handoff::QuickMessageHandoffState;
 
 pub(crate) type UsageStepRawKey = SessionStepRawKey;
 

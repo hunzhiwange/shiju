@@ -2,7 +2,6 @@
 //! 本模块协调用户输入、会话缓存和网关持久化。
 
 use desktop_session::message::chat::session::{
-    compose_query_with_attachments,
     message_id_for_index_in_ids, normalize_delegate_agent,
 };
 
@@ -12,48 +11,23 @@ use super::ForkSessionTarget;
 
 use crate::app::message::TaskBoardMessage;
 use crate::app::message::chat::stream;
-use crate::app::state::{
-    ChatSendBehavior, MAIN_AGENT_KEY, QuickMessageGitCommitAction, QuickMessageHandoffState,
-    SessionDraft, SessionToolSelectorTab,
-};
+use crate::app::state::{MAIN_AGENT_KEY, QuickMessageGitCommitAction, SessionToolSelectorTab};
 use crate::app::{App, Message, QueueItem, message, models};
 use iced::Task;
-use std::sync::Arc;
-use std::time::Duration;
-use tracing::{debug, info};
-use vw_api_acp_model::acp_model_source::AcpModelSource;
 use ordered_id as id;
-use session_info as session;
+use std::time::Duration;
+use vw_api_acp_model::acp_model_source::AcpModelSource;
 
 pub use desktop_session::message::chat::session::PendingSessionSend;
 
 fn clear_quick_message_handoff_for_request(app: &mut App, request_id: u64) {
-    let generating_git_commit = matches!(
-        app.quick_message_handoff,
-        Some(QuickMessageHandoffState::WaitingForGitCommitMessage {
-            request_id: pending_id,
-            ..
-        }) if pending_id == request_id
-    );
+    use desktop_session::message::chat::git_handoff::{GitHandoffEffect, clear_for_request};
     if matches!(
-        app.quick_message_handoff,
-        Some(QuickMessageHandoffState::WaitingForGitCommitMessage {
-            request_id: pending_id,
-            ..
-        }) if pending_id == request_id
+        clear_for_request(&mut app.quick_message_handoff, request_id),
+        GitHandoffEffect::ClearCommitInProgress
     ) {
-        app.quick_message_handoff = None;
-        if generating_git_commit {
-            app.git.git_commit_in_progress = false;
-        }
+        app.git.git_commit_in_progress = false;
     }
-}
-
-
-fn gateway_endpoint(app: &App) -> (String, u16) {
-    desktop_session::message::chat::session::gateway_endpoint(
-        &app.gateway_settings.host_input, app.gateway_settings.port,
-    )
 }
 
 fn current_session_directory(app: &App) -> Option<String> {
@@ -61,85 +35,52 @@ fn current_session_directory(app: &App) -> Option<String> {
 }
 
 fn base_tools_for_selection(app: &mut App) -> Vec<String> {
-    if !app.current_session_has_started()
-        && !app.current_session_runtime_ref().is_some_and(|runtime| runtime.fork_agent_selected)
-    {
-        app.current_session_runtime_mut().agent = None;
-    }
+    let started = app.current_session_has_started();
+    desktop_session::message::chat::preferences::prepare_tool_selection(
+        app.current_session_runtime_mut(),
+        started,
+    );
     app.session_tool_inventory(&app.current_session_runtime()).base_tools
 }
 
 fn dispatch_queue_item(app: &mut App, item: QueueItem) -> Task<Message> {
-    use desktop_session::message::chat::request::{DispatchKind, RequestLifecycle};
-    let kind = app.current_session_runtime_ref().map_or_else(
-        || RequestLifecycle::default().dispatch_kind(item.send_behavior, false),
-        |runtime| runtime.request_lifecycle.dispatch_kind(
-            item.send_behavior, app.active_session_id.is_some() && runtime.draft.is_some(),
-        ),
-    );
-    match kind {
-        DispatchKind::StopDraft => {
+    use desktop_session::message::chat::lifecycle::{DispatchEffect, dispatch};
+    let active = app.active_session_id.is_some();
+    match dispatch(app.current_session_runtime_mut(), item, active) {
+        DispatchEffect::None => Task::none(),
+        DispatchEffect::StopDraft => {
             let Some(session_id) = app.active_session_id.clone() else {
                 return Task::none();
             };
-            let runtime = app.get_session_runtime_mut(&session_id);
-            runtime.request_lifecycle.queue.insert(0, item);
-            runtime.input_editor = iced::widget::text_editor::Content::new();
             stream::stop_agent_stream(app, &session_id)
         }
-        DispatchKind::Replace => {
-            if let Some(session_id) = app.active_session_id.clone() {
-                let request_id = app
-                    .get_session_runtime(&session_id)
-                    .request_lifecycle.active_agent_request
-                    .as_ref()
-                    .map(|request| request.id);
-                if let Some(request_id) = request_id {
-                    crate::app::state::clear_pending_guide_handoff(request_id);
-                    clear_quick_message_handoff_for_request(app, request_id);
-                }
-                let runtime = app.get_session_runtime_mut(&session_id);
-                runtime.request_lifecycle.clear_request();
+        DispatchEffect::Start { item, replaced_request, replace } => {
+            if let Some(request_id) = replaced_request {
+                clear_quick_message_handoff_for_request(app, request_id);
             }
-            app.sync_task_pet_from_runtime();
-            app.popover_visibility.send_mode = false;
+            if replace {
+                app.sync_task_pet_from_runtime();
+                app.popover_visibility.send_mode = false;
+            }
             start(app, item, false)
         }
-        DispatchKind::Guide => {
-            debug!(
-                target: "vw_desktop",
-                active_session_id = ?app.active_session_id,
-                queue_len = app.current_session_runtime().request_lifecycle.queue.len() + 1,
-                "desktop chat request guided ahead of queued requests"
-            );
-            if let Some(request_id) = app
-                .current_session_runtime()
-                .request_lifecycle.active_agent_request
-                .as_ref()
-                .map(|request| request.id)
-                && app.current_session_runtime_ref().is_none_or(|runtime| runtime.draft.is_none())
-            {
-                crate::app::state::mark_pending_guide_handoff(request_id);
-            }
-            let runtime = app.current_session_runtime_mut();
-            runtime.request_lifecycle.queue.insert(0, item);
-            runtime.input_editor = iced::widget::text_editor::Content::new();
-            Task::none()
-        }
-        DispatchKind::Queue => {
-            debug!(
-                target: "vw_desktop",
-                active_session_id = ?app.active_session_id,
-                queue_len = app.current_session_runtime().request_lifecycle.queue.len() + 1,
-                "desktop chat request queued while another request is active"
-            );
-            let runtime = app.current_session_runtime_mut();
-            runtime.request_lifecycle.queue.push(item);
-            runtime.input_editor = iced::widget::text_editor::Content::new();
-            Task::none()
-        }
-        DispatchKind::Start => start(app, item, false),
     }
+}
+
+fn selection_message(
+    app: &mut App,
+    message: desktop_session::message::chat::selection::SelectionMessage,
+    needs_inventory: bool,
+) -> Task<Message> {
+    let base_tools = if needs_inventory { base_tools_for_selection(app) } else { Vec::new() };
+    if let Some(message) = desktop_session::message::chat::selection::update(
+        &mut app.current_session_runtime_mut().tool_selector,
+        &base_tools,
+        message,
+    ) {
+        app.push_localized_notification(message, vec![]);
+    }
+    Task::none()
 }
 
 fn persist_acp_history_preferences(
@@ -150,10 +91,12 @@ fn persist_acp_history_preferences(
     app.acp_history_mode = mode;
     app.acp_recent_count = recent_count.clamp(1, 20);
 
-    app.save_desktop_preferences(serde_json::Map::from_iter([
-        ("acp_history_strategy".to_string(), serde_json::json!(mode.as_str())),
-        ("acp_history_recent_count".to_string(), serde_json::json!(app.acp_recent_count)),
-    ]))
+    app.save_desktop_preferences(
+        desktop_session::message::chat::preferences::acp_history_preferences(
+            mode,
+            app.acp_recent_count,
+        ),
+    )
 }
 
 fn persist_session_reasoning_effort(app: &mut App) -> Task<Message> {
@@ -173,16 +116,23 @@ fn message_id_for_index(app: &App, msg_idx: usize) -> Option<String> {
 }
 
 fn recover_reset_message_ids_task(
-    endpoint: (String, u16),
     session_id: String,
     directory: Option<String>,
     msg_idx: usize,
 ) -> Task<Message> {
     Task::perform(
         async move {
-            let result = desktop_session::message::chat::session::recover_reset_message_ids(
-                endpoint, &session_id, directory.as_deref(),
-            ).await;
+            let result = match crate::app::gateway_client() {
+                Ok(client) => {
+                    desktop_session::message::chat::session::recover_reset_message_ids(
+                        client,
+                        &session_id,
+                        directory.as_deref(),
+                    )
+                    .await
+                }
+                Err(error) => Err(error),
+            };
             ChatMessage::ResetMessageIdsRecovered { session_id, msg_idx, result }
         },
         Message::Chat,
@@ -196,16 +146,20 @@ fn reset_runtime_history_snapshots(
 ) {
     let runtime = app.get_session_runtime_mut(session_id);
     desktop_session::message::chat::request::reset_history_snapshots(
-        &mut runtime.request_lifecycle.active_agent_request, &mut runtime.request_lifecycle.queue, retained_chat,
+        &mut runtime.request_lifecycle.active_agent_request,
+        &mut runtime.request_lifecycle.queue,
+        retained_chat,
     );
 }
 
 fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> Task<Message> {
     let root = current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
-    let retain_end = msg_idx.saturating_add(1);
-    let retained_chat = app.chat.get(..retain_end).map(|slice| slice.to_vec()).unwrap_or_default();
-    let retained_message_ids =
-        app.chat_message_ids.get(..retain_end).map(|slice| slice.to_vec()).unwrap_or_default();
+    let (retained_chat, retained_message_ids) =
+        desktop_session::message::chat::lifecycle::retain_history(
+            &app.chat,
+            &app.chat_message_ids,
+            msg_idx,
+        );
 
     app.chat_reset_menu_idx = None;
     app.chat_fork_dialog = None;
@@ -240,7 +194,11 @@ fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> T
     Task::perform(
         async move {
             let reset = desktop_session::message::chat::session::HistoryReset::new(
-                boundary, boundary_id, seq_base, history_len, now,
+                boundary,
+                boundary_id,
+                seq_base,
+                history_len,
+                now,
             )?;
             let client = crate::app::gateway_client()?;
             reset.persist(client, &session_id, root.as_deref()).await
@@ -262,16 +220,14 @@ fn save_session_task(session: models::ChatSession, directory: Option<String>) ->
 }
 
 fn restore_cached_chat_for_session(app: &mut App, session_id: &str) {
-    if let Some(cached) = app.cached_chat_messages(session_id) {
-        app.chat = cached.iter().cloned().collect();
-        app.chat_message_ids = app
-            .cached_chat_message_ids(session_id)
-            .filter(|ids| ids.len() == app.chat.len())
-            .unwrap_or_else(|| vec![None; app.chat.len()]);
-    } else {
-        app.chat.clear();
-        app.chat_message_ids.clear();
-    }
+    let cached = app.cached_chat_messages(session_id).map(|chat| chat.to_vec());
+    let cached_ids = app.cached_chat_message_ids(session_id);
+    desktop_session::message::chat::lifecycle::restore_cached_chat(
+        &mut app.chat,
+        &mut app.chat_message_ids,
+        cached.as_deref(),
+        cached_ids,
+    );
 }
 
 fn send_to_existing_session(app: &mut App, session_id: String, input: String) -> Task<Message> {
@@ -288,17 +244,17 @@ fn send_to_existing_session(app: &mut App, session_id: String, input: String) ->
         };
         return Task::perform(
             async move {
-                let result = async {
-                    let loaded = gateway_session::GatewaySessionClient::new(crate::app::gateway_client()?.transport().clone())
-                        .session_ui_get_without_raw(&session_id, Some(&directory))
-                        .await?
-                        .ok_or_else(|| "会话历史不存在，未发送消息".to_string())?;
-                    if loaded.session.id != session_id {
-                        return Err("网关返回了其他会话的历史".to_string());
+                let result = match crate::app::gateway_client() {
+                    Ok(client) => {
+                        desktop_session::message::chat::lifecycle::load_send_history(
+                            client,
+                            &session_id,
+                            &directory,
+                        )
+                        .await
                     }
-                    Ok(Box::new(loaded.session))
-                }
-                .await;
+                    Err(error) => Err(error),
+                };
                 ChatMessage::SessionSendHistoryLoaded { session_id, input, result }
             },
             Message::Chat,
@@ -360,14 +316,16 @@ fn send_current_session_text_only(app: &mut App) -> Task<Message> {
 
 fn session_info_is_compacting(app: &App, session_id: &str) -> bool {
     desktop_session::message::chat::session::session_info_is_compacting(
-        app.sessions.iter().chain(app.project_sessions.values().flatten()), session_id,
+        app.sessions.iter().chain(app.project_sessions.values().flatten()),
+        session_id,
     )
 }
 
 fn set_session_compacting(app: &mut App, session_id: &str, compacting: Option<u64>) {
     desktop_session::message::chat::session::set_session_compacting(
         app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten()),
-        session_id, compacting,
+        session_id,
+        compacting,
     );
 }
 
@@ -376,26 +334,26 @@ fn request_session_compaction_confirmation(
     session_id: String,
     project_path: String,
 ) -> Task<Message> {
-    if session_id.trim().is_empty() {
-        return app.show_localized_toast(
-            crate::app::state::ToastKind::Warning,
-            "当前没有可压缩的会话",
-            vec![],
-        );
-    }
-    if app.session_is_requesting(&session_id) {
-        return app.show_localized_toast(
-            crate::app::state::ToastKind::Warning,
-            "请等待当前回复完成后再压缩会话",
-            vec![],
-        );
-    }
-    if session_info_is_compacting(app, &session_id) {
-        return app.show_localized_toast(
-            crate::app::state::ToastKind::Info,
-            "会话压缩正在进行中",
-            vec![],
-        );
+    use desktop_session::message::chat::session::{CompactionGate, compaction_gate};
+    let feedback = match compaction_gate(
+        &session_id,
+        app.session_is_requesting(&session_id),
+        session_info_is_compacting(app, &session_id),
+        true,
+    ) {
+        CompactionGate::Ready => None,
+        CompactionGate::NoSession => {
+            Some((crate::app::state::ToastKind::Warning, "当前没有可压缩的会话"))
+        }
+        CompactionGate::Requesting => {
+            Some((crate::app::state::ToastKind::Warning, "请等待当前回复完成后再压缩会话"))
+        }
+        CompactionGate::Compacting => {
+            Some((crate::app::state::ToastKind::Info, "会话压缩正在进行中"))
+        }
+    };
+    if let Some((kind, message)) = feedback {
+        return app.show_localized_toast(kind, message, vec![]);
     }
 
     app.popover_visibility.session_actions = false;
@@ -435,28 +393,40 @@ fn compact_session(
     if !confirmed {
         return Task::none();
     }
-    if app.session_is_requesting(&session_id) {
-        return app.show_localized_toast(
-            crate::app::state::ToastKind::Warning,
-            "请等待当前回复完成后再压缩会话",
-            vec![],
-        );
-    }
-    if session_info_is_compacting(app, &session_id) {
-        return app.show_localized_toast(
-            crate::app::state::ToastKind::Info,
-            "会话压缩正在进行中",
-            vec![],
-        );
+    use desktop_session::message::chat::session::{CompactionGate, compaction_gate};
+    let feedback = match compaction_gate(
+        &session_id,
+        app.session_is_requesting(&session_id),
+        session_info_is_compacting(app, &session_id),
+        false,
+    ) {
+        CompactionGate::Ready => None,
+        CompactionGate::NoSession => {
+            Some((crate::app::state::ToastKind::Warning, "当前没有可压缩的会话"))
+        }
+        CompactionGate::Requesting => {
+            Some((crate::app::state::ToastKind::Warning, "请等待当前回复完成后再压缩会话"))
+        }
+        CompactionGate::Compacting => {
+            Some((crate::app::state::ToastKind::Info, "会话压缩正在进行中"))
+        }
+    };
+    if let Some((kind, message)) = feedback {
+        return app.show_localized_toast(kind, message, vec![]);
     }
 
     set_session_compacting(app, &session_id, Some(crate::app::time::now_ms()));
     Task::perform(
         async move {
             let result = match crate::app::gateway_client() {
-                Ok(client) => desktop_session::message::chat::session::summarize_session(
-                    client, &session_id, &project_path,
-                ).await,
+                Ok(client) => {
+                    desktop_session::message::chat::session::summarize_session(
+                        client,
+                        &session_id,
+                        &project_path,
+                    )
+                    .await
+                }
                 Err(error) => Err(error),
             };
             (session_id, project_path, result)
@@ -491,78 +461,34 @@ fn finish_session_compaction(
     }
 }
 
-fn git_commit_selection_context(app: &App) -> String {
-    desktop_session::message::chat::session::git_commit_selection_context(
-        &app.git.staged_files_selected, &app.git.staged_hunks_selected,
-        &app.git.staged_lines_selected, &app.git.staged_old_lines_selected,
-    )
-}
-
-fn git_commit_generation_prompt(
-    app: &App,
-    project_path: &str,
-    action: &QuickMessageGitCommitAction,
-) -> String {
-    let target = match action {
-        QuickMessageGitCommitAction::StageAllAndCommit => {
-            "当前工作树中的全部 Git 变更。请只读检查这些变更，不要执行暂存或提交。".to_string()
-        }
-        QuickMessageGitCommitAction::CommitSelected => format!(
-            "用户在 Git 面板中选中的变更。请只读检查仓库差异，不要执行暂存或提交。\n\
-             选中范围：\n{}",
-            git_commit_selection_context(app)
-        ),
-    };
-    desktop_session::message::chat::session::git_commit_generation_prompt(project_path, &target)
-}
-
 fn generate_git_commit_message(
     app: &mut App,
     project_path: String,
     action: QuickMessageGitCommitAction,
 ) -> Task<Message> {
-    if app.git.git_commit_in_progress {
-        return app.show_localized_toast(
-            crate::app::state::ToastKind::Warning,
-            "Git 提交正在进行中",
-            vec![],
-        );
-    }
-    if app.current_session_is_requesting() {
-        return app.show_localized_toast(
-            crate::app::state::ToastKind::Warning,
-            "请等待当前回复完成后再生成 Git 提交信息",
-            vec![],
-        );
-    }
-    if app.quick_message_handoff.is_some() {
-        return app.show_localized_toast(
-            crate::app::state::ToastKind::Warning,
-            "另一个快捷动作正在进行中",
-            vec![],
-        );
-    }
-    if app.current_session_runtime().task_mode_enabled {
-        return app.show_localized_toast(
-            crate::app::state::ToastKind::Warning,
-            "请先切换到聊天模式，再生成 Git 提交信息",
-            vec![],
-        );
-    }
-    if matches!(action, QuickMessageGitCommitAction::CommitSelected)
-        && app.git.staged_files_selected.is_empty()
-        && app.git.staged_hunks_selected.is_empty()
-        && app.git.staged_lines_selected.is_empty()
-        && app.git.staged_old_lines_selected.is_empty()
-    {
-        return app.show_localized_toast(
-            crate::app::state::ToastKind::Warning,
-            "请先选择要提交的 Git 变更",
-            vec![],
-        );
-    }
-
-    let prompt = git_commit_generation_prompt(app, &project_path, &action);
+    use desktop_session::message::chat::git_handoff::{GitCommitPreparation, prepare_git_commit};
+    let prepared = prepare_git_commit(
+        &project_path,
+        &action,
+        app.git.git_commit_in_progress,
+        app.current_session_is_requesting(),
+        app.quick_message_handoff.is_some(),
+        app.current_session_runtime().task_mode_enabled,
+        &app.git.staged_files_selected,
+        &app.git.staged_hunks_selected,
+        &app.git.staged_lines_selected,
+        &app.git.staged_old_lines_selected,
+    );
+    let prompt = match prepared {
+        GitCommitPreparation::Warning(message) => {
+            return app.show_localized_toast(
+                crate::app::state::ToastKind::Warning,
+                message,
+                vec![],
+            );
+        }
+        GitCommitPreparation::Send(prompt) => prompt,
+    };
     app.current_session_runtime_mut().input_editor =
         iced::widget::text_editor::Content::with_text(&prompt);
     let task = send_current_session_text_only(app);
@@ -571,42 +497,40 @@ fn generate_git_commit_message(
     };
     let request_id = app
         .get_session_runtime(&source_session_id)
-        .request_lifecycle.active_agent_request
+        .request_lifecycle
+        .active_agent_request
         .as_ref()
         .map(|request| request.id);
-    let Some(request_id) = request_id else {
-        return task;
-    };
-
-    app.quick_message_handoff = Some(QuickMessageHandoffState::WaitingForGitCommitMessage {
-        request_id,
-        source_session_id,
-        project_path,
-        action,
-    });
-    app.git.git_commit_in_progress = true;
+    use desktop_session::message::chat::git_handoff::{GitHandoffEffect, begin_handoff};
+    if let GitHandoffEffect::Waiting(state) =
+        begin_handoff(request_id, source_session_id, project_path, action)
+    {
+        app.quick_message_handoff = Some(state);
+        app.git.git_commit_in_progress = true;
+    }
     task
 }
 
 /// 当前活动会话是否由 plan-run 创建。
 fn active_session_is_plan_run_child(app: &App) -> bool {
-    let Some(session_id) = app.active_session_id.as_deref() else {
-        return false;
-    };
-    app.get_session_runtime(session_id).is_plan_run_session
-        || app
-            .sessions
-            .iter()
-            .chain(app.project_sessions.values().flatten())
-            .find(|session| session.id == session_id)
-            .is_some_and(session_info::Info::is_plan_run)
+    desktop_session::message::chat::preferences::is_plan_run_child(
+        app.active_session_id.as_deref(),
+        app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_plan_run_session),
+        app.sessions.iter().chain(app.project_sessions.values().flatten()),
+    )
 }
 
 fn check_agent_installation(app: &App, backend: String, query: Option<String>) -> Task<Message> {
     let session_id = app.active_session_id.clone();
     let agent = app.current_session_runtime().agent.clone();
     Task::perform(
-        async { gateway_config::GatewayConfigClient::new(crate::app::gateway_client()?.transport().clone()).global_acp_installed_get().await },
+        async {
+            gateway_config::GatewayConfigClient::new(
+                crate::app::gateway_client()?.transport().clone(),
+            )
+            .global_acp_installed_get()
+            .await
+        },
         move |result| {
             Message::Chat(ChatMessage::AgentInstallationChecked {
                 session_id: session_id.clone(),
@@ -628,21 +552,15 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
 }
 
 fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
-    // Installation checks can finish after a source save has started.
-    if app
-        .current_session_runtime_ref()
-        .is_some_and(|runtime| runtime.acp_options_state.source_pending.is_some() || runtime.acp_options_state.pending)
-    {
-        return app.show_error_toast("模型来源正在保存，请稍后发送");
+    if let Some(message) = desktop_session::message::chat::lifecycle::send_gate(
+        app.current_session_runtime_ref(),
+        app.active_session_id.is_some(),
+        app.active_session_view_state.ui_preparing,
+        app.active_session_view_state.base_ready,
+    ) {
+        return app.show_error_toast(message);
     }
-    if app.active_session_id.is_some()
-        && app.current_session_runtime().draft.is_none()
-        && app.active_session_view_state.ui_preparing
-        && !app.active_session_view_state.base_ready
-    {
-        return app.show_error_toast("会话历史正在加载，请稍后发送");
-    }
-    use desktop_session::message::chat::send_input::{prepare_send_input, SendInputEffect};
+    use desktop_session::message::chat::send_input::{SendInputEffect, prepare_send_input};
     let root = current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
     let mut request_runtime = app.current_session_runtime();
     request_runtime.tool_selector.clear_manual_context_selection();
@@ -651,8 +569,13 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
     let behavior = app.chat_send_behavior;
     let mut files = std::mem::take(&mut app.files);
     let effect = prepare_send_input(
-        app.current_session_runtime_mut(), &mut files, root, allowed_tools,
-        plan_run_child, behavior, crate::app::time::now_ms(),
+        app.current_session_runtime_mut(),
+        &mut files,
+        root,
+        allowed_tools,
+        plan_run_child,
+        behavior,
+        crate::app::time::now_ms(),
     );
     app.files = files;
     match effect {
@@ -663,11 +586,21 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
             }
             Task::none()
         }
-        SendInputEffect::AddTask { content, priority, model, reasoning_effort, task_split_mode, subtasks } => {
-            Task::done(Message::TaskBoard(TaskBoardMessage::AddTaskFromInputWithOptions {
-                content, priority, model, reasoning_effort, task_split_mode, subtasks,
-            }))
-        }
+        SendInputEffect::AddTask {
+            content,
+            priority,
+            model,
+            reasoning_effort,
+            task_split_mode,
+            subtasks,
+        } => Task::done(Message::TaskBoard(TaskBoardMessage::AddTaskFromInputWithOptions {
+            content,
+            priority,
+            model,
+            reasoning_effort,
+            task_split_mode,
+            subtasks,
+        })),
         SendInputEffect::Send(item) => dispatch_queue_item(app, item),
     }
 }
@@ -699,22 +632,27 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             send_current_session_input(app)
         }
         ChatMessage::NewSessionProjectResolved { project_path, stream_id, pending, result } => {
-            if app.navigation_tabs.project_path.as_deref() != Some(project_path.as_str())
-                || app.agent_stream_id != stream_id
-                || app.active_session_id.is_some()
-            {
-                return Task::none();
-            }
-            match result {
-                Ok(project_id) => {
+            use desktop_session::message::chat::lifecycle::{
+                ProjectResolutionEffect, pending_project_is_current, resolve_pending_send,
+            };
+            let current = pending_project_is_current(
+                app.navigation_tabs.project_path.as_deref(),
+                &project_path,
+                app.agent_stream_id,
+                stream_id,
+                app.active_session_id.as_deref(),
+            );
+            match resolve_pending_send(current, *pending, result) {
+                ProjectResolutionEffect::Ignore => Task::none(),
+                ProjectResolutionEffect::Resume { project_id, pending } => {
                     app.project_id = Some(project_id);
                     start(app, pending.item, pending.keep)
                 }
-                Err(error) => {
-                    app.files.extend(pending.item.attachments);
+                ProjectResolutionEffect::Failed { attachments, error } => {
+                    app.files.extend(attachments);
                     app.push_localized_notification(
                         "解析项目失败，无法创建会话: %s",
-                        vec![format!("{}", error).into()],
+                        vec![error.into()],
                     );
                     Task::none()
                 }
@@ -724,18 +662,21 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             send_to_existing_session(app, session_id, input)
         }
         ChatMessage::SessionSendHistoryLoaded { session_id, input, result } => {
-            let loaded = match result {
-                Ok(loaded) if loaded.id == session_id => loaded,
-                Ok(_) => return app.show_error_toast("网关返回了其他会话的历史，未发送消息"),
-                Err(error) => {
-                    return app.show_error_toast(format!("加载会话历史失败，未发送消息：{error}"));
-                }
+            use desktop_session::message::chat::lifecycle::{
+                HistoryLoadEffect, resolve_history_load,
             };
-            // A newer local load or send wins over this asynchronous snapshot.
-            if app.cached_chat_messages(&session_id).is_none() {
-                if app.session_is_requesting(&session_id) {
-                    return app.show_error_toast("会话正在回复且历史尚未就绪，请稍后发送");
-                }
+            let effect = resolve_history_load(
+                &session_id,
+                app.cached_chat_messages(&session_id).is_some(),
+                app.session_is_requesting(&session_id),
+                result,
+            );
+            let loaded = match effect {
+                HistoryLoadEffect::Error(error) => return app.show_error_toast(error),
+                HistoryLoadEffect::UseCached => None,
+                HistoryLoadEffect::Store(loaded) => Some(loaded),
+            };
+            if let Some(loaded) = loaded {
                 let runtime = app.get_session_runtime_mut(&session_id);
                 runtime.stream_save.seq_base = 0;
                 runtime.stream_save.expected_updated_ms = loaded.updated_ms;
@@ -777,7 +718,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 
             let request_id = app
                 .get_session_runtime(&session_id)
-                .request_lifecycle.active_agent_request
+                .request_lifecycle
+                .active_agent_request
                 .as_ref()
                 .map(|request| request.id);
             if let Some(request_id) = request_id {
@@ -789,16 +731,13 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 return stop_task;
             }
             let completed_ms = crate::app::time::now_ms();
-            let elapsed = {
-                let runtime = app.get_session_runtime_mut(&session_id);
-                super::processing_timing::pause_runtime_processing_timers(runtime)
-            };
-            super::processing_timing::complete_tail_assistant_processing(
-                &mut app.chat,
+            let mut chat = std::mem::take(&mut app.chat);
+            desktop_session::message::chat::lifecycle::complete_cancel(
+                app.get_session_runtime_mut(&session_id),
+                &mut chat,
                 completed_ms,
-                elapsed.processing_ms,
-                elapsed.llm_ms,
             );
+            app.chat = chat;
             app.store_session_chat_snapshot(
                 session_id.clone(),
                 crate::app::session::shared_chat_messages(app.chat.clone()),
@@ -821,15 +760,14 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.finalize_stream_text();
             app.sync_active_session_from_chat();
 
-            let runtime = app.get_session_runtime(&session_id);
-            if runtime.request_lifecycle.queue.is_empty() {
-                save_task
-            } else {
-                let runtime = app.get_session_runtime_mut(&session_id);
-                let item = runtime.request_lifecycle.queue.remove(0);
-                save_task.chain(start(app, item, true))
+            match desktop_session::message::chat::lifecycle::next_queued(
+                app.get_session_runtime_mut(&session_id),
+            ) {
+                None => save_task,
+                Some(item) => save_task.chain(start(app, item, true)),
             }
         }
+
         ChatMessage::AcpModelSourceSelected(source) => {
             super::acp_options::select_source(app, source, None)
         }
@@ -848,11 +786,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
             let (model, auto_model) = {
                 let runtime = app.current_session_runtime_mut();
-                runtime.auto_model = b;
-                if b {
-                    runtime.task_mode_model = "auto".to_string();
-                }
-                (runtime.model.clone(), runtime.auto_model)
+                desktop_session::message::chat::preferences::toggle_auto_model(runtime, b)
             };
             app.auto_model = auto_model;
             app.save_chat_model_preferences(model, auto_model)
@@ -872,54 +806,44 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::none()
         }
         ChatMessage::AgentInstallationChecked { session_id, agent, backend, query, result } => {
-            if app.active_session_id != session_id || app.current_session_runtime().agent != agent {
-                return Task::none();
-            }
-            if app.current_session_runtime().acp_agent.as_deref() != Some(backend.as_str()) {
-                return Task::none();
-            }
-            let installed = match result {
-                Ok(statuses) => {
-                    let installed = statuses.get(&backend).copied();
-                    app.acp_settings.installed = statuses;
-                    installed
-                }
-                Err(error) => {
-                    return app.show_localized_toast(
-                        crate::app::state::ToastKind::Error,
-                        "检测运行环境失败：%s",
-                        vec![error.into()],
-                    );
-                }
+            use desktop_session::message::chat::lifecycle::{
+                InstallationEffect, resolve_installation,
             };
-            if installed != Some(true) {
-                return app.show_localized_toast(
-                    crate::app::state::ToastKind::Warning,
-                    if installed == Some(false) {
-                        "CLI 未安装，请通过输入区的安装 / 运行设置安装"
+            let runtime = app.current_session_runtime();
+            match resolve_installation(
+                app.active_session_id.as_deref(),
+                session_id.as_deref(),
+                &runtime,
+                agent.as_deref(),
+                &backend,
+                query,
+                result,
+            ) {
+                InstallationEffect::Ignore => Task::none(),
+                InstallationEffect::Error(error) => app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "检测运行环境失败：%s",
+                    vec![error.into()],
+                ),
+                InstallationEffect::Checked { statuses, warning, send } => {
+                    app.acp_settings.installed = statuses;
+                    if let Some(message) = warning {
+                        app.show_localized_toast(
+                            crate::app::state::ToastKind::Warning,
+                            message,
+                            vec![],
+                        )
+                    } else if send {
+                        send_current_session_input_checked(app)
                     } else {
-                        "网关未提供该智能体的安装状态，请检查运行设置"
-                    },
-                    vec![],
-                );
-            }
-            if query.is_some_and(|query| query == app.current_session_runtime().input_editor.text())
-            {
-                send_current_session_input_checked(app)
-            } else {
-                Task::none()
+                        Task::none()
+                    }
+                }
             }
         }
         ChatMessage::AgentRecommendedPromptSelected(index) => {
             app.input_popovers.recommended_prompt = false;
             let runtime = app.current_session_runtime();
-            if !runtime.input_editor.text().is_empty() {
-                return app.show_localized_toast(
-                    crate::app::state::ToastKind::Warning,
-                    "请先处理现有草稿",
-                    vec![],
-                );
-            }
             let key = runtime.agent.as_deref().unwrap_or(MAIN_AGENT_KEY);
             let prompt = app
                 .agents_settings
@@ -928,10 +852,12 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 .find(|entry| entry.key == key)
                 .and_then(|entry| entry.recommended_prompts.get(index))
                 .cloned();
-            if let Some(prompt) = prompt.filter(|prompt| !prompt.trim().is_empty()) {
-                app.current_session_runtime_mut().input_editor =
-                    iced::widget::text_editor::Content::with_text(&prompt);
-                app.input_text = prompt;
+            match desktop_chat_input::input_panel::quick_actions::fill_recommendation(
+                &mut app.current_session_runtime_mut().input_editor, prompt.as_deref(),
+            ) {
+                Ok(Some(prompt)) => app.input_text = prompt,
+                Ok(None) => {},
+                Err(source) => return app.show_localized_toast(crate::app::state::ToastKind::Warning, source, vec![]),
             }
             Task::none()
         }
@@ -969,30 +895,13 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 config_agent_profile::AgentRuntime::Native => None,
                 config_agent_profile::AgentRuntime::Acp { backend } => Some(backend.clone()),
             };
-            {
-                let runtime = app.current_session_runtime_mut();
-                if !runtime.full_access_overridden {
-                    runtime.full_access_enabled = full_access;
-                }
-                runtime.full_access_initialized = true;
-                runtime.agent = normalized_agent;
-                runtime.agent_label = agent_label;
-                runtime.acp_agent = acp_agent.clone();
-                if runtime.fork_execution_started == Some(false) {
-                    runtime.fork_agent_selected = true;
-                    runtime.restore_model_from_history = false;
-                }
-                runtime.acp_options_state.model_input_draft = None;
-                runtime.acp_options_state.source_pending = None;
-                runtime.acp_options_state.source_request_id = None;
-                runtime.acp_options_state.open = false;
-                runtime.last_effective_acp_agent = None;
-                runtime.acp_rebuild_required = acp_agent.is_some();
-                runtime.acp_options_state.options = Default::default();
-                runtime.acp_options_state.pending = false;
-                runtime.acp_model_source = Default::default();
-                runtime.tool_selector.reset();
-            }
+            desktop_session::message::chat::preferences::select_agent(
+                app.current_session_runtime_mut(),
+                normalized_agent,
+                agent_label,
+                acp_agent.clone(),
+                full_access,
+            );
             app.invalidate_project_chat_preferences_read();
             app.acp_agent = acp_agent.clone();
             app.popover_visibility.acp = false;
@@ -1037,16 +946,15 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
             let (model, auto_model): (String, bool) = {
                 let runtime = app.current_session_runtime_mut();
-                runtime.model = desktop_session::message::chat::session::normalize_model(&m);
-                runtime.auto_model = false;
-                runtime.task_mode_model = runtime.model.clone();
-                (runtime.model.clone(), runtime.auto_model)
+                desktop_session::message::chat::preferences::select_model(runtime, &m, false)
             };
             let options = crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &model);
             let runtime = app.current_session_runtime_mut();
             let reset_effort = desktop_session::message::chat::session::reconcile_reasoning_effort(
-                &mut runtime.reasoning_effort, &mut runtime.task_mode_reasoning_effort,
-                runtime.task_mode_executor.is_some(), &options,
+                &mut runtime.reasoning_effort,
+                &mut runtime.task_mode_reasoning_effort,
+                runtime.task_mode_executor.is_some(),
+                &options,
             );
             app.model = model.clone();
             app.auto_model = auto_model;
@@ -1070,16 +978,15 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
             let (model, auto_model): (String, bool) = {
                 let runtime = app.current_session_runtime_mut();
-                runtime.model = desktop_session::message::chat::session::normalize_model(&m);
-                runtime.auto_model = runtime.model == "auto";
-                runtime.task_mode_model = runtime.model.clone();
-                (runtime.model.clone(), runtime.auto_model)
+                desktop_session::message::chat::preferences::select_model(runtime, &m, true)
             };
             let options = crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &model);
             let runtime = app.current_session_runtime_mut();
             let reset_effort = desktop_session::message::chat::session::reconcile_reasoning_effort(
-                &mut runtime.reasoning_effort, &mut runtime.task_mode_reasoning_effort,
-                runtime.task_mode_executor.is_some(), &options,
+                &mut runtime.reasoning_effort,
+                &mut runtime.task_mode_reasoning_effort,
+                runtime.task_mode_executor.is_some(),
+                &options,
             );
             app.model = model.clone();
             app.auto_model = auto_model;
@@ -1088,16 +995,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 if reset_effort { persist_session_reasoning_effort(app) } else { Task::none() };
             Task::batch([reasoning_task, app.save_chat_model_preferences(model, auto_model)])
         }
-        ChatMessage::SessionToolBucketToggled(bucket) => {
-            let base_tools = base_tools_for_selection(app);
-            let runtime = app.current_session_runtime_mut();
-            if !runtime.tool_selector.toggle_bucket(bucket) {
-                app.push_localized_notification("至少保留一个工具分桶", vec![]);
-            } else {
-                runtime.tool_selector.reconcile_tools(&base_tools);
-            }
-            Task::none()
-        }
+        ChatMessage::SessionToolBucketToggled(bucket) => selection_message(
+            app,
+            desktop_session::message::chat::selection::SelectionMessage::Bucket(bucket),
+            true,
+        ),
         ChatMessage::SessionToolSelectorTabSelected(tab) => {
             {
                 let runtime = app.current_session_runtime_mut();
@@ -1105,7 +1007,13 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
             if tab == SessionToolSelectorTab::Agent {
                 let status = Task::perform(
-                    async { gateway_config::GatewayConfigClient::new(crate::app::gateway_client()?.transport().clone()).global_acp_installed_get().await },
+                    async {
+                        gateway_config::GatewayConfigClient::new(
+                            crate::app::gateway_client()?.transport().clone(),
+                        )
+                        .global_acp_installed_get()
+                        .await
+                    },
                     |result| Message::Chat(ChatMessage::AgentInstallationStatusesLoaded(result)),
                 );
                 let profiles = if !app.agents_settings.dirty && !app.agents_settings.save_in_flight
@@ -1153,7 +1061,13 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 
             if tab == SessionToolSelectorTab::Agent {
                 let status = Task::perform(
-                    async { gateway_config::GatewayConfigClient::new(crate::app::gateway_client()?.transport().clone()).global_acp_installed_get().await },
+                    async {
+                        gateway_config::GatewayConfigClient::new(
+                            crate::app::gateway_client()?.transport().clone(),
+                        )
+                        .global_acp_installed_get()
+                        .await
+                    },
                     |result| Message::Chat(ChatMessage::AgentInstallationStatusesLoaded(result)),
                 );
                 let profiles = if !app.agents_settings.dirty && !app.agents_settings.save_in_flight
@@ -1176,82 +1090,62 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 Task::none()
             }
         }
-        ChatMessage::SessionToolSelectorSearchChanged(query) => {
-            let runtime = app.current_session_runtime_mut();
-            runtime.tool_selector.set_query(query);
-            Task::none()
-        }
-        ChatMessage::SessionToolSelectorSkillDirectoryScopeChanged(scope) => {
-            let runtime = app.current_session_runtime_mut();
-            runtime.tool_selector.select_skill_directory_scope(scope);
-            Task::none()
-        }
-        ChatMessage::SessionToolGroupCollapsedToggled(group) => {
-            let runtime = app.current_session_runtime_mut();
-            runtime.tool_selector.toggle_group_collapsed(group);
-            Task::none()
-        }
-        ChatMessage::SessionToolGroupToolsToggled(group) => {
-            let base_tools = base_tools_for_selection(app);
-            let runtime = app.current_session_runtime_mut();
-            if !runtime.tool_selector.toggle_group_tools(&base_tools, group) {
-                app.push_localized_notification("至少保留一个会话工具", vec![]);
-            }
-            Task::none()
-        }
-        ChatMessage::SessionToolSelectorSelectAll => {
-            let base_tools = base_tools_for_selection(app);
-            let runtime = app.current_session_runtime_mut();
-            runtime.tool_selector.select_all_tools(&base_tools);
-            Task::none()
-        }
-        ChatMessage::SessionToolSelectorInvert => {
-            let base_tools = base_tools_for_selection(app);
-            let runtime = app.current_session_runtime_mut();
-            if !runtime.tool_selector.invert_tools(&base_tools) {
-                app.push_localized_notification("当前工具范围无法直接反选", vec![]);
-            }
-            Task::none()
-        }
-        ChatMessage::SessionToolToggled(tool_id) => {
-            let base_tools = base_tools_for_selection(app);
-            let runtime = app.current_session_runtime_mut();
-            if !runtime.tool_selector.toggle_tool(&base_tools, &tool_id) {
-                app.push_localized_notification("至少保留一个会话工具", vec![]);
-            }
-            Task::none()
-        }
-        ChatMessage::SessionManualToolSelected(tool_id) => {
-            let tool_id = tool_id.trim().to_string();
-            if tool_id.is_empty() {
-                return Task::none();
-            }
-            let runtime = app.current_session_runtime_mut();
-            runtime.tool_selector.toggle_manual_tool(&tool_id);
-            Task::none()
-        }
-        ChatMessage::SessionSkillSelected(skill_id) => {
-            let skill_id = skill_id.trim().to_string();
-            if skill_id.is_empty() {
-                return Task::none();
-            }
-            let runtime = app.current_session_runtime_mut();
-            runtime.tool_selector.toggle_manual_skill(&skill_id);
-            Task::none()
-        }
-        ChatMessage::SessionToolSelectorReset => {
-            let base_tools = base_tools_for_selection(app);
-            let runtime = app.current_session_runtime_mut();
-            runtime.tool_selector.reset();
-            runtime.tool_selector.reconcile_tools(&base_tools);
-            Task::none()
-        }
+        ChatMessage::SessionToolSelectorSearchChanged(query) => selection_message(
+            app,
+            desktop_session::message::chat::selection::SelectionMessage::Search(query),
+            false,
+        ),
+        ChatMessage::SessionToolSelectorSkillDirectoryScopeChanged(scope) => selection_message(
+            app,
+            desktop_session::message::chat::selection::SelectionMessage::Scope(scope),
+            false,
+        ),
+        ChatMessage::SessionToolGroupCollapsedToggled(group) => selection_message(
+            app,
+            desktop_session::message::chat::selection::SelectionMessage::Collapse(group),
+            false,
+        ),
+        ChatMessage::SessionToolGroupToolsToggled(group) => selection_message(
+            app,
+            desktop_session::message::chat::selection::SelectionMessage::Group(group),
+            true,
+        ),
+        ChatMessage::SessionToolSelectorSelectAll => selection_message(
+            app,
+            desktop_session::message::chat::selection::SelectionMessage::All,
+            true,
+        ),
+        ChatMessage::SessionToolSelectorInvert => selection_message(
+            app,
+            desktop_session::message::chat::selection::SelectionMessage::Invert,
+            true,
+        ),
+        ChatMessage::SessionToolToggled(tool_id) => selection_message(
+            app,
+            desktop_session::message::chat::selection::SelectionMessage::Tool(tool_id),
+            true,
+        ),
+        ChatMessage::SessionManualToolSelected(tool_id) => selection_message(
+            app,
+            desktop_session::message::chat::selection::SelectionMessage::ManualTool(tool_id),
+            false,
+        ),
+        ChatMessage::SessionSkillSelected(skill_id) => selection_message(
+            app,
+            desktop_session::message::chat::selection::SelectionMessage::Skill(skill_id),
+            false,
+        ),
+        ChatMessage::SessionToolSelectorReset => selection_message(
+            app,
+            desktop_session::message::chat::selection::SelectionMessage::Reset,
+            true,
+        ),
         message @ (ChatMessage::QueueRemove(_)
-            | ChatMessage::QueueEdit(_)
-            | ChatMessage::QueueGuide(_)
-            | ChatMessage::QueueUp(_)
-            | ChatMessage::QueueDown(_)
-            | ChatMessage::QueueCopy(_)) => {
+        | ChatMessage::QueueEdit(_)
+        | ChatMessage::QueueGuide(_)
+        | ChatMessage::QueueUp(_)
+        | ChatMessage::QueueDown(_)
+        | ChatMessage::QueueCopy(_)) => {
             use desktop_session::message::chat::request::{QueueAction, QueueEffect, update_queue};
             let action = match message {
                 ChatMessage::QueueRemove(i) => QueueAction::Remove(i),
@@ -1262,7 +1156,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 ChatMessage::QueueCopy(i) => QueueAction::Copy(i),
                 _ => unreachable!(),
             };
-            let effect = update_queue(&mut app.current_session_runtime_mut().request_lifecycle.queue, action);
+            let effect = update_queue(
+                &mut app.current_session_runtime_mut().request_lifecycle.queue,
+                action,
+            );
             match effect {
                 QueueEffect::None => Task::none(),
                 QueueEffect::Send(item) => dispatch_queue_item(app, item),
@@ -1296,35 +1193,15 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 return Task::none();
             };
             dialog.in_progress = true;
-            let endpoint = crate::app::gateway_client_endpoint();
             let show_reasoning_summary = app.dialogue_flow_show_reasoning_summary;
             Task::perform(
                 async move {
                     let result = async {
-                        use {vw_gateway_client::GatewayClient};
-use vw_api_session::{
-    GatewaySessionForkBody,
-    GatewaySessionForkTarget,
-};
-
-                        let client = GatewayClient::new(endpoint)?;
-                        let destination = match target {
-                            ForkSessionTarget::Local => GatewaySessionForkTarget::SameDirectory,
-                            ForkSessionTarget::NewWorktree => {
-                                GatewaySessionForkTarget::Worktree { name: None }
-                            }
-                        };
-                        let info = gateway_session::GatewaySessionClient::new(client.transport().clone())
-                            .session_fork::<session::Info>(
-                                &anchor.session_id,
-                                Some(&anchor.directory),
-                                &Some(GatewaySessionForkBody {
-                                    before_turn_id: Some(anchor.user_message_id.clone()),
-                                    target: Some(destination),
-                                    ..Default::default()
-                                }),
-                            )
-                            .await?;
+                        let client = crate::app::gateway_client()?;
+                        let info = desktop_session::message::chat::fork::fork_session(
+                            &client, &anchor, target,
+                        )
+                        .await?;
                         let project_path =
                             crate::app::message::project::helpers::gateway_session_project_path(
                                 &client, &info,
@@ -1369,7 +1246,8 @@ use vw_api_session::{
             };
             let id = info.id.clone();
             let project_path = app
-                .navigation_tabs.project_path
+                .navigation_tabs
+                .project_path
                 .clone()
                 .filter(|_| app.project_id.as_deref() == Some(info.project_id.as_str()))
                 .unwrap_or(project_path);
@@ -1424,38 +1302,30 @@ use vw_api_session::{
                 };
             }
             let Some(message_id) = message_id_for_index(app, msg_idx) else {
-                let root = current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
-                return recover_reset_message_ids_task(
-                    gateway_endpoint(app),
-                    session_id,
-                    root,
+                let root = current_session_directory(app)
+                    .or_else(|| app.navigation_tabs.project_path.clone());
+                return recover_reset_message_ids_task(session_id, root, msg_idx);
+            };
+            let root =
+                current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
+            let (retained_chat, retained_message_ids) =
+                desktop_session::message::chat::lifecycle::retain_history(
+                    &app.chat,
+                    &app.chat_message_ids,
                     msg_idx,
                 );
-            };
-            let root = current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
-            let retain_end = msg_idx.saturating_add(1);
-            let retained_chat =
-                app.chat.get(..retain_end).map(|slice| slice.to_vec()).unwrap_or_default();
-            let retained_message_ids = app
-                .chat_message_ids
-                .get(..retain_end)
-                .map(|slice| slice.to_vec())
-                .unwrap_or_default();
             let save_task = reset_session_locally(app, session_id.clone(), msg_idx);
-            let endpoint = gateway_endpoint(app);
             let gateway_task = Task::perform(
                 async move {
-                    let result = match vw_gateway_client::GatewayClient::new(
-                        gateway_endpoint::GatewayEndpoint::new(endpoint.0, endpoint.1),
-                    ) {
+                    let result = match crate::app::gateway_client() {
                         Ok(client) => {
-                            gateway_session::GatewaySessionClient::new(client.transport().clone())
-                                .session_reset::<session::Info>(
-                                    &session_id,
-                                    root.as_deref(),
-                                    &vw_api_session::GatewaySessionResetBody { message_id },
-                                )
-                                .await
+                            desktop_session::message::chat::session::reset_session(
+                                client,
+                                &session_id,
+                                root.as_deref(),
+                                message_id,
+                            )
+                            .await
                         }
                         Err(err) => Err(err),
                     };
@@ -1508,16 +1378,13 @@ use vw_api_session::{
 
                 let now = crate::app::time::now_ms();
                 let session_directory = directory.or_else(|| Some(info.directory.clone()));
-                let local = models::ChatSession {
-                    id: session_id,
-                    title: info.title,
-                    messages: app.chat.clone(),
-                    message_ids: app.chat_message_ids.clone(),
-                    calls: Vec::new(),
-                    steps: Vec::new(),
-                    created_ms: now,
-                    updated_ms: now,
-                };
+                let local = desktop_session::message::chat::lifecycle::session_snapshot(
+                    session_id,
+                    info.title,
+                    app.chat.clone(),
+                    app.chat_message_ids.clone(),
+                    now,
+                );
                 save_session_task(local, session_directory)
             }
             Err(error) => {
@@ -1534,26 +1401,25 @@ use vw_api_session::{
 
 /// 模块内可见函数，执行 start 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Message> {
-    if app
-        .current_session_runtime_ref()
-        .is_some_and(|runtime| runtime.full_access_saving || runtime.full_access_save_failed)
-    {
-        let runtime = app.current_session_runtime_mut();
-        runtime.request_lifecycle.queue.push(item);
-        if !keep {
-            runtime.input_editor = iced::widget::text_editor::Content::new();
+pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message> {
+    use desktop_session::message::chat::lifecycle::{StartGate, gate_start};
+    let active = app.active_session_id.is_some();
+    let preparing = app.active_session_view_state.ui_preparing;
+    let base_ready = app.active_session_view_state.base_ready;
+    let item = match gate_start(
+        app.current_session_runtime_mut(),
+        item,
+        keep,
+        active,
+        preparing,
+        base_ready,
+    ) {
+        Ok(item) => item,
+        Err(StartGate::HistoryQueued) => {
+            return app.show_error_toast("会话历史正在加载，消息已保留在队列中");
         }
-        return Task::none();
-    }
-    if app.active_session_id.is_some()
-        && app.current_session_runtime().draft.is_none()
-        && app.active_session_view_state.ui_preparing
-        && !app.active_session_view_state.base_ready
-    {
-        app.current_session_runtime_mut().request_lifecycle.queue.insert(0, item);
-        return app.show_error_toast("会话历史正在加载，消息已保留在队列中");
-    }
+        Err(StartGate::PermissionQueued) => return Task::none(),
+    };
     app.agent_stream_id = app.agent_stream_id.wrapping_add(1);
     let stream_id = app.agent_stream_id;
     let mut save_tasks = Vec::new();
@@ -1565,20 +1431,12 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
         let id = id::descending(id::Prefix::Session, None)
             .unwrap_or_else(|_| format!("ses_{}", stream_id));
         let project_path = app.navigation_tabs.project_path.clone().unwrap_or_default();
-        let inferred_project_id = app
-            .project_id
-            .clone()
-            .or_else(|| {
-                app.project_sessions
-                    .get(&project_path)
-                    .and_then(|sessions| sessions.first().map(|s| s.project_id.clone()))
-            })
-            .or_else(|| {
-                app.sessions
-                    .iter()
-                    .find(|s| s.directory == project_path)
-                    .map(|s| s.project_id.clone())
-            });
+        let inferred_project_id = desktop_session::message::chat::lifecycle::inferred_project_id(
+            app.project_id.as_deref(),
+            &project_path,
+            app.project_sessions.get(&project_path).into_iter().flatten(),
+            app.sessions.iter(),
+        );
         if inferred_project_id.is_none() {
             if project_path.trim().is_empty() {
                 app.set_localized_input_error(
@@ -1607,56 +1465,37 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
             );
         }
         let mut runtime = app.current_session_runtime();
-        runtime.fork_execution_started = None;
-        runtime.fork_request_submitted = false;
-        runtime.fork_agent_selected = false;
-        let directory = runtime
-            .draft
-            .as_ref()
-            .filter(|draft| draft.project_path == project_path)
-            .map_or_else(|| project_path.clone(), |draft| draft.directory.clone());
-        runtime.draft = Some(SessionDraft { project_path, directory, history_len: app.chat.len() });
+        desktop_session::message::chat::lifecycle::initialize_draft(
+            &mut runtime,
+            project_path,
+            app.chat.len(),
+        );
         app.session_runtime_states.insert(id.clone(), runtime);
         app.reset_draft_full_access();
         app.active_session_id = Some(id);
         save_tasks.push(persist_session_reasoning_effort(app));
     }
 
-    // 主动停止后续接（包括队列中的“立刻引导”）保留已显示的历史。
-    // 只有普通失败/取消重试才回到草稿的上一稳定边界。
-    if item.send_behavior == ChatSendBehavior::StopAndSend {
-        let history_len = app.chat.len();
-        if let Some(draft) = app.current_session_runtime_mut().draft.as_mut() {
-            draft.history_len = history_len;
-        }
-    }
-    let draft = app.current_session_runtime_ref().and_then(|runtime| runtime.draft.clone());
-    let is_draft = draft.is_some();
-    if let Some(draft) = draft {
-        if let Some(runtime) = app.current_session_runtime_ref()
-            && runtime.full_access_overridden
-        {
-            item.full_access_enabled = runtime.full_access_enabled;
-        }
-        item.root = Some(draft.directory);
-        // Failed first responses are still conversation history. Only an explicit
-        // versioned history edit may remove them; retrying a draft must append.
-    }
-    let request_history = item.request_history_override.clone().unwrap_or_else(|| app.chat.clone());
-    let request_query = if item.resume_history_only {
-        String::new()
-    } else {
-        compose_query_with_attachments(&item.query, &item.attachments)
-    };
-    let message_model = desktop_session::message::chat::session::normalize_message_model(
-        item.model.as_deref(),
-    );
     let request_started_ms = crate::app::time::now_ms();
-    let (appended_start_idx, appended_user_idx) =
-        desktop_session::message::chat::session::append_request_messages(
-            &mut app.chat, &mut app.chat_message_ids,
-            &request_query, message_model, request_started_ms,
-        );
+    let mut chat = std::mem::take(&mut app.chat);
+    let mut message_ids = std::mem::take(&mut app.chat_message_ids);
+    let prepared = desktop_session::message::chat::lifecycle::prepare_request(
+        app.current_session_runtime_mut(),
+        item,
+        &mut chat,
+        &mut message_ids,
+        request_started_ms,
+    );
+    app.chat = chat;
+    app.chat_message_ids = message_ids;
+    let desktop_session::message::chat::lifecycle::PreparedRequest {
+        item,
+        is_draft,
+        request_history,
+        request_query,
+        appended_start_idx,
+        appended_user_idx,
+    } = prepared;
     app.invalidate_chat_ui_for_message_idx(
         appended_start_idx.min(app.chat.len().saturating_sub(1)),
     );
@@ -1684,54 +1523,20 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
     }
 
     if let Some(session_id) = app.active_session_id.clone() {
-        let runtime = app.get_session_runtime_mut(&session_id);
-        runtime.request_lifecycle.begin_timing(request_started_ms, web_time::Instant::now());
-        runtime.fork_request_submitted = runtime.fork_execution_started.is_some();
-        runtime.has_unseen_success = false;
-        info!(
-            target: "vw_desktop",
-            request_id = stream_id,
-            session_id = %session_id,
-            acp_test = item.acp_test,
-            acp_agent = ?item.acp_agent,
-            acp_allowed_tools = ?item.acp_allowed_tools,
-            agent = ?item.agent,
-            allowed_tools = ?item.allowed_tools,
-            require_agent_tool = item.require_agent_tool,
-            acp_force_new_session = item.acp_force_new_session,
-            acp_history_mode = %item.acp_history_mode.as_str(),
-            acp_recent_count = item.acp_recent_count,
-            full_access_enabled = item.full_access_enabled,
-            workflow_mode_enabled = item.workflow_mode_enabled,
-            goal_mode_enabled = item.goal_mode_enabled,
-            model = ?item.model,
-            has_root = item.root.is_some(),
-            query_len = request_query.len(),
-            history_len = request_history.len(),
-            resume_history_only = item.resume_history_only,
-            keep_input = keep,
-            "desktop agent request started"
-        );
-        let full_access_enabled = (is_draft && (runtime.full_access_initialized || item.acp_test))
-            .then_some(item.full_access_enabled);
-        runtime.request_lifecycle.active_agent_request = Some(Arc::new(item.into_request(
-            stream_id, session_id.clone(), request_query, request_history, full_access_enabled,
-        )));
-        if !is_draft
-            && runtime
-                .request_lifecycle.queue
-                .first()
-                .is_some_and(|queued| queued.send_behavior == ChatSendBehavior::Guide)
         {
-            crate::app::state::mark_pending_guide_handoff(stream_id);
-        } else {
-            crate::app::state::clear_pending_guide_handoff(stream_id);
+            let runtime = app.get_session_runtime_mut(&session_id);
+            desktop_session::message::chat::lifecycle::begin_request(
+                runtime,
+                item,
+                stream_id,
+                session_id.clone(),
+                request_query,
+                request_history,
+                is_draft,
+                request_started_ms,
+                keep,
+            );
         }
-        if runtime.request_lifecycle.active_agent_request.as_ref().is_some_and(|request| request.acp_test) {
-            runtime.acp_rebuild_required = false;
-        }
-        runtime.last_effective_acp_agent =
-            runtime.request_lifecycle.active_agent_request.as_ref().and_then(|request| request.acp_agent.clone());
         app.sync_task_pet_from_runtime();
 
         {
@@ -1743,19 +1548,13 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
                 .find(|s| s.id == session_id)
                 .map(|s| s.title.clone())
                 .unwrap_or_else(|| "新会话".to_string());
-            let mut local = models::ChatSession {
-                id: session_id.clone(),
+            let local = desktop_session::message::chat::lifecycle::session_snapshot(
+                session_id.clone(),
                 title,
-                messages: vec![],
-                message_ids: vec![],
-                calls: vec![],
-                steps: vec![],
-                created_ms: now,
-                updated_ms: now,
-            };
-            local.messages = app.chat.clone();
-            local.message_ids = app.chat_message_ids.clone();
-            local.updated_ms = now;
+                app.chat.clone(),
+                app.chat_message_ids.clone(),
+                now,
+            );
             let session_directory =
                 current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
             // A bounded history page is not a complete replacement snapshot.

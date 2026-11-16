@@ -321,7 +321,7 @@ version = "0.6.0"
 path = "../gateway-status"
 version = "0.6.0"
 
-[dev-dependencies.gateway-tools]
+[dependencies.gateway-tools]
 path = "../gateway-tools"
 version = "0.6.0"
 
@@ -329,7 +329,7 @@ version = "0.6.0"
 path = "../agent-memory"
 version = "0.6.0"
 
-[dev-dependencies.agent-doctor]
+[dependencies.agent-doctor]
 path = "../agent-doctor"
 version = "0.6.0"
 

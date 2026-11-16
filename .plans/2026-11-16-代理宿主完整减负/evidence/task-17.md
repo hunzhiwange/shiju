@@ -443,3 +443,39 @@
 - `crates/vw-agent/src/gateway/mod.rs`：108行；wecom_acceptance_router。
 
 任务17当前原来源1225行；本轮前1867行，再减642行；对计划2739行累计减1514（55.3%）。仍未达到70%。余下 bootstrap 是真实工厂/路由/生命周期组合，chat/channel_runtime 是真实会话/租户/钩子端口，handlers 仍含既有测试分派夹具；这些不声称已迁出。进一步复核应针对其具体端口和断言，不把全局编译收益视为已证明。
+
+
+## 第四轮恢复：启动策略、诊断绑定与旧回复夹具
+
+再次读取 final.md / remaining-host.json；收口快照43584行、任务17为1225行。本轮没有 Cargo、构建、单元/实机测试。静态差异检查通过，不把它称为编译或行为通过。
+
+生产迁移（真实调用，不计重复算法）：
+- bootstrap::gateway_admission 接收原 Config，原样构建配对 guard、速率限额和幂等存储，保留 normalize_max_keys 的非零回退以及TTL至少1秒。宿主 serve_gateway 已删除原构造块并解构返回的 GatewayAdmission。
+- bootstrap::gateway_cors 保留空白名单及原 cors_origin_allowed 谓词、允许方法/头逻辑，真实 serve_gateway 调用；没有放宽来源策略。
+- bootstrap::print_gateway_startup 保留原启动地址、隧道地址、路由摘要与认证状态文本。宿主只传入真实通道可用性和 node-control 配置。
+- api::tools::ToolsHost 归 agent-gateway，直接使用已有共享 require_auth 与 agent-doctor；宿主 tools.rs 保留具体 AppState 函数签名和调用。领域已有7条工具/诊断测试现在直接调用这个生产绑定，删掉重复测试适配实现。两个既有dev依赖改为生产依赖，锁包集合不变；无宿主反向依赖。
+
+测试夹具单列（不计为生产算法减量）：
+- process_channel_messages_with_chat、send_successful_channel_reply、RecordingChannel、channel_message 归 channel_reply_fixture；只在 test / 原有 test-support 能力启用，保持原循环顺序、memory.store、错误文本、线程传递、sanitize及send失败处理。泛型参数直接沿用已有 gateway-types::AppState，未新增宿主状态类型。旧宿主挂载测试复用同一夹具，已删宿主旧定义。
+- process_channel_messages_with_chat_sends_successful_reply → agent-gateway::host_migration_17_tests::replies 同名函数。
+- send_successful_channel_reply_sanitizes_and_omits_thread_when_disabled → 上述模块同名函数。
+- send_successful_channel_reply_logs_send_errors_without_panicking → 上述模块同名函数。
+三条断言整函数保留，注入聊天结果仍是原固定成功端口，未模拟真实会话执行或外部协议验收。宿主仍保留真实模型/通道协议和取消集成。
+
+未来授权入口：`python3 scripts/cargo_slot.py cargo test -p agent-gateway --lib host_migration_17_tests -- --test-threads=1`，本族静态预期26条；`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib gateway::bootstrap::bootstrap_tests -- --test-threads=1` 复核实际启动接线。当前均未运行。原三条回复测试从宿主外部挂载文件删除，未来宿主list确认归属消失；不把零测试结果当通过。
+
+本轮具体文件行数与保留项：
+- `crates/vw-agent/src/gateway/handlers.rs`：132→52行。
+- `crates/libs/agent-gateway/src/lib.rs`：85→88行。
+- `crates/vw-agent/src/gateway/bootstrap.rs`：421→385行。
+- `crates/libs/agent-gateway/src/bootstrap.rs`：63→125行。
+- `crates/vw-agent/src/gateway/api/handlers/tools.rs`：39→14行。
+- `crates/libs/agent-gateway/src/api/mod.rs`：7→8行。
+- `crates/libs/agent-gateway/src/host_migration_17_tests/tools.rs`：201→185行。
+- `crates/libs/agent-gateway/Cargo.toml`：372→372行。
+- `crates/libs/agent-gateway/src/bootstrap_tests.rs`：394→397行。
+- `crates/libs/agent-gateway/src/handlers_tests.rs`：1221→1112行。
+- `crates/libs/agent-gateway/src/host_migration_17_tests.rs`：5→6行。
+- `crates/libs/agent-gateway/src/host_migration_17_tests/status.rs`：172→172行。
+
+任务17当前原来源1084行，本轮净减141行；计划2739行累计减少1655行（60.4%），仍未达70%。继续保留的bootstrap为真实socket/工具/运行时/钩子/隧道/后台服务生命周期及实际路由注册；chat、voice、workflow、channel_runtime为具体会话/租户/工具/IO端口；不会通过压行或把宿主整体搬入新单体凑门槛。

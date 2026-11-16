@@ -182,20 +182,4 @@ async fn tool_handlers_accept_valid_pairing_bearer() {
     assert_eq!(response.status(), StatusCode::OK);
 }
 
-struct ToolsHost;
-impl gateway_tools::ToolsHost<(), (), ()> for ToolsHost {
-    type Diagnostic = agent_doctor::DiagResult;
-    fn require_auth(state: &AppState, headers: &HeaderMap) -> Result<(), (StatusCode, axum::Json<serde_json::Value>)> {
-        crate::api::auth::require_auth(state, headers)
-    }
-    fn diagnose(config: &agent_config::runtime::Config) -> Vec<Self::Diagnostic> { agent_doctor::diagnose(config) }
-    fn severity(result: &Self::Diagnostic) -> gateway_tools::Severity {
-        match result.severity {
-            agent_doctor::Severity::Ok => gateway_tools::Severity::Ok,
-            agent_doctor::Severity::Warn => gateway_tools::Severity::Warn,
-            agent_doctor::Severity::Error => gateway_tools::Severity::Error,
-        }
-    }
-}
-async fn handle_api_tools(state: State<AppState>, headers: HeaderMap) -> impl IntoResponse { gateway_tools::handle_api_tools::<_, _, _, ToolsHost>(state, headers).await }
-async fn handle_api_doctor(state: State<AppState>, headers: HeaderMap) -> impl IntoResponse { gateway_tools::handle_api_doctor::<_, _, _, ToolsHost>(state, headers).await }
+use crate::api::tools::{handle_api_tools, handle_api_doctor};

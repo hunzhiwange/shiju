@@ -1,27 +1,22 @@
 use super::{
-    AppState, GatewayRateLimiter, IDEMPOTENCY_MAX_KEYS_DEFAULT, IdempotencyStore, MAX_BODY_SIZE,
-    RATE_LIMIT_MAX_KEYS_DEFAULT, agent, api, handlers, health, middleware, node_control,
-    normalize_max_keys, openai_compat, request_timeout_middleware, skey_auth_middleware, sse,
+    AppState, MAX_BODY_SIZE,
+    agent, api, handlers, health, middleware, node_control, openai_compat, request_timeout_middleware, skey_auth_middleware, sse,
     webhook, ws,
 };
 use crate::app::agent::config::{self, Config};
 use crate::app::agent::memory::{self, Memory};
 use crate::app::agent::runtime as agent_runtime;
 use crate::app::agent::security::SecurityPolicy;
-use crate::app::agent::security::pairing::{PairingGuard};
 use crate::app::agent::tools::traits::ToolSpec;
 use crate::app::agent::tools::{self, Tool};
 use anyhow::{Context, Result};
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
-use axum::http::HeaderValue;
 use axum::middleware::{from_fn, from_fn_with_state};
 use axum::routing::{delete, get, post, put};
 use parking_lot::Mutex;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::Duration;
-use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tower_http::limit::RequestBodyLimitLayer;
 use vw_api_transport::id::TenantScope;
 
@@ -82,13 +77,7 @@ async fn serve_gateway(
         .with_context(|| format!("Failed to bind gateway on {host}:{port}"))?;
     let actual_port = listener.local_addr()?.port();
     let display_addr = format!("{host}:{actual_port}");
-    let cors_whitelist: Arc<Vec<String>> = Arc::new(Vec::new());
-    let cors = CorsLayer::new()
-        .allow_origin(AllowOrigin::predicate(move |origin: &HeaderValue, _| {
-            middleware::cors_origin_allowed(origin, cors_whitelist.as_ref())
-        }))
-        .allow_methods(Any)
-        .allow_headers(Any);
+    let cors = agent_gateway::bootstrap::gateway_cors();
 
     let provider = gateway_provider(&config);
     let model = config.default_model.clone().unwrap_or_else(|| "anthropic/claude-sonnet-4".into());
@@ -136,21 +125,8 @@ async fn serve_gateway(
     routing.set_failover_events(event_tx.clone());
     let channels = super::channel_reload::build_gateway_channels(&config.channels_config);
 
-    let gateway_skeys = config.gateway.skeys.clone();
-    let pairing = Arc::new(PairingGuard::from_skeys(config.gateway.auth_enabled, &gateway_skeys));
-    let rate_limit_max_keys =
-        normalize_max_keys(config.gateway.rate_limit_max_keys, RATE_LIMIT_MAX_KEYS_DEFAULT);
-    let rate_limiter = Arc::new(GatewayRateLimiter::new(
-        config.gateway.pair_rate_limit_per_minute,
-        config.gateway.webhook_rate_limit_per_minute,
-        rate_limit_max_keys,
-    ));
-    let idempotency_max_keys =
-        normalize_max_keys(config.gateway.idempotency_max_keys, IDEMPOTENCY_MAX_KEYS_DEFAULT);
-    let idempotency_store = Arc::new(IdempotencyStore::new(
-        Duration::from_secs(config.gateway.idempotency_ttl_secs.max(1)),
-        idempotency_max_keys,
-    ));
+    let agent_gateway::bootstrap::GatewayAdmission { pairing, rate_limiter, idempotency_store } =
+        agent_gateway::bootstrap::gateway_admission(&config);
 
     let tunnel = crate::app::agent::tunnel::create_tunnel(&config.tunnel)?;
     let mut tunnel_url: Option<String> = None;
@@ -169,29 +145,17 @@ async fn serve_gateway(
         }
     }
 
-    println!("VibeWindow Gateway listening on http://{display_addr}");
-    if let Some(ref url) = tunnel_url {
-        println!("  Public URL: {url}");
-    }
-    for line in gateway_route_summary(GatewayRouteSummaryOptions {
-        whatsapp_enabled: channels.whatsapp.is_some(),
-        linq_enabled: channels.linq.is_some(),
-        wati_enabled: channels.wati.is_some(),
-        nextcloud_talk_enabled: channels.nextcloud_talk.is_some(),
-        qq_webhook_enabled: channels.qq_webhook_enabled,
-        node_control_enabled: config.gateway.node_control.enabled,
-    }) {
-        println!("{line}");
-    }
-    if pairing.auth_enabled() {
-        println!(
-            "  🔒 Gateway auth: ENABLED (Authorization: Bearer <skey> required, active skeys: {})",
-            pairing.active_skey_count()
-        );
-    } else {
-        println!("  Gateway auth: DISABLED (all requests accepted)");
-    }
-    println!("  Press Ctrl+C to stop.\n");
+    agent_gateway::bootstrap::print_gateway_startup(
+        &display_addr, tunnel_url.as_deref(), &pairing,
+        GatewayRouteSummaryOptions {
+            whatsapp_enabled: channels.whatsapp.is_some(),
+            linq_enabled: channels.linq.is_some(),
+            wati_enabled: channels.wati.is_some(),
+            nextcloud_talk_enabled: channels.nextcloud_talk.is_some(),
+            qq_webhook_enabled: channels.qq_webhook_enabled,
+            node_control_enabled: config.gateway.node_control.enabled,
+        },
+    );
 
     crate::app::agent::health::mark_component_ok("gateway");
 
@@ -295,7 +259,7 @@ async fn serve_gateway(
 }
 
 pub use agent_gateway::route_catalog::{GatewayRouteEntry, documented_gateway_routes};
-use agent_gateway::route_catalog::{GatewayRouteSummaryOptions, gateway_route_summary};
+use agent_gateway::route_catalog::GatewayRouteSummaryOptions;
 
 pub(super) fn external_router() -> Router<AppState> {
     Router::<AppState>::new()

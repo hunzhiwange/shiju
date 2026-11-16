@@ -22,54 +22,6 @@ use sha2::Sha256;
 use std::sync::Arc;
 use std::time::Duration;
 
-#[derive(Default)]
-struct RecordingChannel {
-    sent: Mutex<Vec<SendMessage>>,
-    fail_send: bool,
-}
-
-#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
-impl Channel for RecordingChannel {
-    fn name(&self) -> &str {
-        "recording"
-    }
-
-    async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
-        self.sent.lock().push(message.clone());
-        if self.fail_send {
-            anyhow::bail!("send failed");
-        }
-        Ok(())
-    }
-
-    async fn listen(&self, _tx: tokio::sync::mpsc::Sender<ChannelMessage>) -> anyhow::Result<()> {
-        Ok(())
-    }
-}
-
-// 构造统一渠道消息，便于比较成功回复和错误降级是否保留线程上下文。
-fn channel_message() -> ChannelMessage {
-    ChannelMessage {
-        instance_id: "default".to_string(),
-        id: "message-1".to_string(),
-        sender: "sender-1".to_string(),
-        reply_target: "target-1".to_string(),
-        content: "hello".to_string(),
-        channel: "recording".to_string(),
-        timestamp: 123,
-        thread_ts: Some("thread-1".to_string()),
-    }
-}
-
-fn successful_gateway_chat<'a>(
-    _state: &'a AppState,
-    _message: &'a str,
-    _key: &'a str,
-) -> GatewayChatFuture<'a> {
-    Box::pin(async { Ok("\nreply from injected runner\n".to_string()) })
-}
-
 struct StaticProvider;
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
@@ -204,67 +156,6 @@ async fn process_channel_messages_sends_fallback_with_thread_when_gateway_chat_f
     assert_eq!(sent[0].recipient, "target-1");
     assert_eq!(sent[0].thread_ts.as_deref(), Some("thread-1"));
     assert_eq!(sent[0].content, "Sorry, I couldn't process your message right now.");
-}
-
-#[tokio::test]
-async fn process_channel_messages_with_chat_sends_successful_reply() {
-    let state = state();
-    let channel = RecordingChannel::default();
-    let messages = vec![channel_message()];
-
-    process_channel_messages_with_chat(
-        &state,
-        "Recording",
-        &channel,
-        &messages,
-        |msg| format!("recording:{}", msg.sender),
-        "recording message",
-        true,
-        successful_gateway_chat,
-    )
-    .await;
-
-    let sent = channel.sent.lock();
-    assert_eq!(sent.len(), 1);
-    assert_eq!(sent[0].recipient, "target-1");
-    assert_eq!(sent[0].thread_ts.as_deref(), Some("thread-1"));
-    assert_eq!(sent[0].content, "reply from injected runner");
-}
-
-#[tokio::test]
-async fn send_successful_channel_reply_sanitizes_and_omits_thread_when_disabled() {
-    let channel = RecordingChannel::default();
-    let msg = channel_message();
-    let tools = Vec::new();
-
-    send_successful_channel_reply(
-        "Recording",
-        &channel,
-        &msg,
-        "\n\nsuccessful reply\n\n",
-        &tools,
-        false,
-    )
-    .await;
-
-    let sent = channel.sent.lock();
-    assert_eq!(sent.len(), 1);
-    assert_eq!(sent[0].recipient, "target-1");
-    assert!(sent[0].thread_ts.is_none());
-    assert_eq!(sent[0].content, "successful reply");
-}
-
-#[tokio::test]
-async fn send_successful_channel_reply_logs_send_errors_without_panicking() {
-    let channel = RecordingChannel { sent: Mutex::new(Vec::new()), fail_send: true };
-    let msg = channel_message();
-    let tools = Vec::new();
-
-    send_successful_channel_reply("Recording", &channel, &msg, "reply", &tools, true).await;
-
-    let sent = channel.sent.lock();
-    assert_eq!(sent.len(), 1);
-    assert_eq!(sent[0].thread_ts.as_deref(), Some("thread-1"));
 }
 
 #[test]

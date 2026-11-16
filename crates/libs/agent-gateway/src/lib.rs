@@ -83,3 +83,6 @@ pub mod global_config_contract;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod host_migration_16_tests;
+
+#[cfg(all(not(target_arch = "wasm32"), any(test, feature = "test-support")))]
+pub mod channel_reply_fixture;

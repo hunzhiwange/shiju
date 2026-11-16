@@ -2,6 +2,9 @@
 
 // 路由摘要既要反映已启用能力，也不能暴露被配置关闭的可选入口。
 use super::*;
+use gateway_types::{GatewayRateLimiter, IdempotencyStore};
+use std::time::Duration;
+use agent_gateway::route_catalog::gateway_route_summary;
 
 use crate::app::agent::memory::NoneMemory;
 use model_types::Provider;

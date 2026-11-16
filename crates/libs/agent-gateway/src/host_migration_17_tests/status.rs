@@ -31,7 +31,7 @@ impl Provider for StaticProvider {
     }
 }
 
-fn state(require_pairing: bool, paired_tokens: &[&str]) -> AppState {
+pub(super) fn state(require_pairing: bool, paired_tokens: &[&str]) -> AppState {
     let (event_tx, _) = broadcast::channel(16);
     let mut config = Config::default();
     config.gateway.port = 49123;

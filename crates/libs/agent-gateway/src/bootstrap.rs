@@ -61,3 +61,65 @@ pub fn validate_bind(host: &str, config: &Config) -> Result<()> {
     }
     Ok(())
 }
+
+use gateway_types::{GatewayRateLimiter, IdempotencyStore, RATE_LIMIT_MAX_KEYS_DEFAULT, IDEMPOTENCY_MAX_KEYS_DEFAULT};
+use gateway_pairing::pairing::PairingGuard;
+use crate::util::normalize_max_keys;
+use std::time::Duration;
+use crate::route_catalog::{GatewayRouteSummaryOptions, gateway_route_summary};
+pub struct GatewayAdmission {
+    pub pairing: Arc<PairingGuard>,
+    pub rate_limiter: Arc<GatewayRateLimiter>,
+    pub idempotency_store: Arc<IdempotencyStore>,
+}
+pub fn gateway_admission(config: &Config) -> GatewayAdmission {
+    let gateway_skeys = config.gateway.skeys.clone();
+    let pairing = Arc::new(PairingGuard::from_skeys(config.gateway.auth_enabled, &gateway_skeys));
+    let rate_limit_max_keys =
+        normalize_max_keys(config.gateway.rate_limit_max_keys, RATE_LIMIT_MAX_KEYS_DEFAULT);
+    let rate_limiter = Arc::new(GatewayRateLimiter::new(
+        config.gateway.pair_rate_limit_per_minute,
+        config.gateway.webhook_rate_limit_per_minute,
+        rate_limit_max_keys,
+    ));
+    let idempotency_max_keys =
+        normalize_max_keys(config.gateway.idempotency_max_keys, IDEMPOTENCY_MAX_KEYS_DEFAULT);
+    let idempotency_store = Arc::new(IdempotencyStore::new(
+        Duration::from_secs(config.gateway.idempotency_ttl_secs.max(1)),
+        idempotency_max_keys,
+    ));
+
+    GatewayAdmission { pairing, rate_limiter, idempotency_store }
+}
+pub fn gateway_cors() -> tower_http::cors::CorsLayer {
+    use tower_http::cors::{AllowOrigin, Any, CorsLayer};
+    use axum::http::HeaderValue;
+    let cors_whitelist: Arc<Vec<String>> = Arc::new(Vec::new());
+    let cors = CorsLayer::new()
+        .allow_origin(AllowOrigin::predicate(move |origin: &HeaderValue, _| {
+            crate::middleware::cors_origin_allowed(origin, cors_whitelist.as_ref())
+        }))
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    cors
+}
+pub fn print_gateway_startup(display_addr: &str, tunnel_url: Option<&str>, pairing: &PairingGuard, options: GatewayRouteSummaryOptions) {
+    println!("VibeWindow Gateway listening on http://{display_addr}");
+    if let Some(ref url) = tunnel_url {
+        println!("  Public URL: {url}");
+    }
+    for line in gateway_route_summary(options) {
+        println!("{line}");
+    }
+    if pairing.auth_enabled() {
+        println!(
+            "  🔒 Gateway auth: ENABLED (Authorization: Bearer <skey> required, active skeys: {})",
+            pairing.active_skey_count()
+        );
+    } else {
+        println!("  Gateway auth: DISABLED (all requests accepted)");
+    }
+    println!("  Press Ctrl+C to stop.\n");
+
+}

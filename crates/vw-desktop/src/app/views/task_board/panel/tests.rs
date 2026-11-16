@@ -1,3 +1,4 @@
+// Task 20 ownership: Host contracts: task forms compose host context-help and injected editors; chat priority exercises input_panel drag/drop and ChatMessage routing outside the task-board domain.
 use crate::app::Message;
 use crate::app::message::TaskBoardMessage;
 use crate::app::state::TaskBoardDetailTab;

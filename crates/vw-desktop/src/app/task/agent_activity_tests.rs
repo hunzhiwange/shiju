@@ -1,3 +1,4 @@
+// Task 20 ownership: Gateway DTO -> executor snapshot -> settings/slot adapters -> domain projection: retain host conversion contract; local identity assertions also live in desktop-task-model::desktop_split_20_tests.
 use super::*;
 use crate::app::task::WorktreeState;
 fn slot(id: &str, run: &str) -> WorktreeSlotSnapshot {

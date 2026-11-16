@@ -1,3 +1,4 @@
+// Task 20 ownership: Host contracts: appearance and form controls apply domain messages via App update; help tests exercise host help overlays, CopyCode and external View messages. Shared help fixture is also used by panel/tests.rs.
 #![allow(unused_imports, dead_code)]
 
 //! 任务看板弹窗的测试，覆盖设置及上下文菜单。

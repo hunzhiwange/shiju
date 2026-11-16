@@ -1,3 +1,4 @@
+// Task 20 ownership: Retain host BoardSlots injection: agent/model/executor selectors are assembled by the App adapter.
 //! Host composition coverage for selectors injected into the domain board.
 use crate::app::App;
 use crate::app::task::{Task, TaskStatus};

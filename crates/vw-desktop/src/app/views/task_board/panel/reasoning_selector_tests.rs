@@ -1,3 +1,4 @@
+// Task 20 ownership: Retain cross-domain contract: task editing/save and bulk update -> chat session runtime -> AddTaskFromInputWithOptions. Independent reasoning widget events moved to desktop-task-board::desktop_split_20_tests.
 //! 任务详情推理强度选择器的测试，覆盖默认值和各档位交互。
 //! 用例核对禁用及选中样式，并保证消息携带预期的强度值。
 use crate::app::App;

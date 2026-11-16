@@ -1,3 +1,4 @@
+// Task 20 ownership: Retain the host module registration sentinel: its module_path assertion guards this host test entry.
 //! 任务领域测试模块的连线哨兵。
 //! 用于守护执行器、存储、员工编排和工作流测试的顶层注册入口。
 

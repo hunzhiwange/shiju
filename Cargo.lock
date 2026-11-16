@@ -7718,6 +7718,8 @@ dependencies = [
  "display-format",
  "gateway-http",
  "iced",
+ "iced_runtime",
+ "image",
  "once_cell",
  "runtime-time",
  "serde",

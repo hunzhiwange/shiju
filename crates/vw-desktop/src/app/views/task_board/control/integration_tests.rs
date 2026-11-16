@@ -1,3 +1,4 @@
+// Task 20 ownership: Retain host worktree command lifecycle: update dispatches confirmations, async completion logs and control composition across executor and board.
 use crate::app::{App, task::{WorktreeSlotSnapshot, WorktreePoolSnapshot, WorktreeState}};
 fn test_app() -> App { App::new().0 }
 fn slot(id: &str, state: WorktreeState) -> WorktreeSlotSnapshot {

@@ -1,20 +1,20 @@
-//! Exercise task board detail and selector controls through the actual Iced layout, event, and draw paths.
+//! Host contracts: detail panel injects host editors/model selectors; sidebar shields the composed board.
+//! Standalone reasoning, executor and model selector rendering moved to desktop-task-board::desktop_split_20_tests.
 #![cfg(not(target_arch = "wasm32"))]
 
 use crate::app::i18n::I18n;
-use crate::app::message::{SettingsMessage, TaskBoardMessage, ViewMessage};
-use crate::app::state::{ModelSummary, ProviderModelsSummary, TaskBoardDetailTab};
+use crate::app::message::TaskBoardMessage;
+use crate::app::state::TaskBoardDetailTab;
 use crate::app::task::{SubTask, Task, TaskStatus};
 use crate::app::{App, Message};
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use iced::advanced::{
     clipboard,
     renderer::{Headless, Style},
     widget::{Id, Operation, operation},
 };
-use iced::keyboard::{self, Key, key::Named};
 use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
 type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
 
@@ -196,25 +196,6 @@ impl Labels {
     }
 }
 
-fn key(ui: &mut Ui<'_>, renderer: &mut Renderer, key: Key, text: Option<&str>) -> Vec<Message> {
-    send(
-        ui,
-        renderer,
-        mouse::Cursor::Unavailable,
-        &[Event::Keyboard(keyboard::Event::KeyPressed {
-            modified_key: key.clone(),
-            key,
-            physical_key: keyboard::key::Physical::Unidentified(
-                keyboard::key::NativeCode::Unidentified,
-            ),
-            location: keyboard::Location::Standard,
-            modifiers: keyboard::Modifiers::empty(),
-            text: text.map(Into::into),
-            repeat: false,
-        })],
-    )
-}
-
 fn wheel(ui: &mut Ui<'_>, renderer: &mut Renderer, point: Point, y: f32) -> Vec<Message> {
     send(
         ui,
@@ -224,15 +205,6 @@ fn wheel(ui: &mut Ui<'_>, renderer: &mut Renderer, point: Point, y: f32) -> Vec<
             delta: mouse::ScrollDelta::Pixels { x: 0.0, y },
         })],
     )
-}
-
-fn hover(ui: &mut Ui<'_>, renderer: &mut Renderer, point: Point) -> mouse::Cursor {
-    let cursor = mouse::Cursor::Available(point);
-    assert!(
-        send(ui, renderer, cursor, &[Event::Mouse(mouse::Event::CursorMoved { position: point })])
-            .is_empty()
-    );
-    cursor
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -373,204 +345,6 @@ async fn ui_refresh_35_layout_and_interaction() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ui_refresh_35_preserves_values_and_disabled_states() {
-    if !isolated("ui_refresh_35_preserves_values_and_disabled_states") {
-        return;
-    }
-    use crate::app::views::task_board::panel::build_bulk_reasoning_effort_selector;
-    use vw_api_chat_identity::ReasoningEffortDto;
-
-    let mut app = fixture();
-    app.desktop_locale = DesktopLocale::English;
-    assert!(build_bulk_reasoning_effort_selector(&app).is_none());
-    app.task_board_bulk_acp_agent = Some("codex".into());
-    app.task_board_bulk_reasoning_effort = Some(ReasoningEffortDto::Low);
-    let mut renderer = renderer().await;
-    let mut ui = scene(
-        build_bulk_reasoning_effort_selector(&app).expect("Codex reasoning options"),
-        &mut renderer,
-        Size::new(420, 480),
-    );
-
-    let point = Point::new(60.0, 18.0);
-    assert!(click(&mut ui, &mut renderer, point).is_empty());
-    assert!(key(&mut ui, &mut renderer, Key::Named(Named::Escape), None).is_empty());
-    assert!(click(&mut ui, &mut renderer, point).is_empty());
-    assert!(key(&mut ui, &mut renderer, Key::Named(Named::End), None).is_empty());
-    assert!(
-        matches!(
-            key(&mut ui, &mut renderer, Key::Named(Named::Enter), None).as_slice(),
-            [Message::TaskBoard(TaskBoardMessage::UpdateBulkReasoningEffort(Some(
-                ReasoningEffortDto::Xhigh
-            )))]
-        ),
-        "Enter must select the final reasoning option once"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ui_refresh_35_executor_overlay_scroll_hover_and_original_values() {
-    if !isolated("ui_refresh_35_executor_overlay_scroll_hover_and_original_values") {
-        return;
-    }
-    let mut app = fixture();
-    let mut renderer = renderer().await;
-    app.task_board_bulk_acp_agent = Some("codex".into());
-    app.acp_agents = ["codex".into(), "claude".into()]
-        .into_iter()
-        .chain((0..24).map(|idx| format!("示例執行器/{idx}{}", "測試".repeat(22))))
-        .collect();
-    app.task_board_bulk_executor_popover = true;
-    let size = Size::new(420, 480);
-    let mut ui = scene(super::build_bulk_executor_selector(&app), &mut renderer, size);
-    let theme = Theme::Dark;
-    let idle =
-        capture(&mut ui, &mut renderer, &theme, size, "executor-idle", mouse::Cursor::Unavailable);
-    let (menu, _) = labels(&mut ui, &renderer).scroll("task_board_executor_selector_scroll");
-    assert!(menu.x >= 0.0 && menu.x + menu.width <= 420.0);
-    assert!(menu.y >= 38.0 && menu.y + menu.height <= 480.0);
-    let codex = Point::new(menu.center_x(), menu.y + 54.0);
-    let claude = Point::new(menu.center_x(), menu.y + 92.0);
-    let first = hover(&mut ui, &mut renderer, codex);
-    let first = capture(&mut ui, &mut renderer, &theme, size, "executor-hover-codex", first);
-    let second = hover(&mut ui, &mut renderer, claude);
-    let second = capture(&mut ui, &mut renderer, &theme, size, "executor-hover-claude", second);
-    assert!(first != idle && second != idle && first != second);
-    let outside = hover(&mut ui, &mut renderer, Point::new(410.0, 470.0));
-    assert!(capture(&mut ui, &mut renderer, &theme, size, "executor-exit", outside) == idle);
-    assert!(matches!(
-        click(&mut ui, &mut renderer, claude).as_slice(),
-        [Message::TaskBoard(TaskBoardMessage::BulkExecutorSelected(Some(value)))] if value == "claude"
-    ));
-    assert!(wheel(&mut ui, &mut renderer, claude, -600.0).is_empty());
-    assert!(labels(&mut ui, &renderer).scroll("task_board_executor_selector_scroll").1.y > 0.0);
-    capture(
-        &mut ui,
-        &mut renderer,
-        &Theme::Light,
-        size,
-        "executor-scrolled",
-        mouse::Cursor::Unavailable,
-    );
-    assert!(matches!(
-        click(&mut ui, &mut renderer, Point::new(410.0, 470.0)).as_slice(),
-        [Message::TaskBoard(TaskBoardMessage::CloseBulkExecutorPopover)]
-    ));
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ui_refresh_35_model_search_groups_and_bulk_selection() {
-    if !isolated("ui_refresh_35_model_search_groups_and_bulk_selection") {
-        return;
-    }
-    let mut app = fixture();
-    let mut renderer = renderer().await;
-    app.desktop_locale = DesktopLocale::English;
-    app.task_board_bulk_model_popover = true;
-    app.task_board_bulk_model_input = "fixture/saved-model".into();
-    app.model_settings.loading = true;
-    let size = Size::new(420, 480);
-    let theme = Theme::Light;
-    let i18n = I18n::new(app.desktop_locale);
-    for (loading, name, label) in [
-        (true, "model-loading", "加载中…"),
-        (false, "model-empty", "暂无可选模型（请先在系统设置里启用模型）"),
-    ] {
-        app.model_settings.loading = loading;
-        let mut ui = scene(super::super::build_bulk_model_selector(&app), &mut renderer, size);
-        capture(&mut ui, &mut renderer, &theme, size, name, mouse::Cursor::Unavailable);
-        assert!(labels(&mut ui, &renderer).bounds(i18n.__(label)).height > 0.0);
-    }
-
-    app.model_settings.providers = vec![
-        ProviderModelsSummary {
-            id: "fixture".into(),
-            name: "Fixture models".into(),
-            models: vec![ModelSummary {
-                id: "saved-model".into(),
-                name: format!("A {}", "很长的模型標籤".repeat(16)),
-                enabled: true,
-                toolcall: true,
-                attachment: false,
-                context_limit: 32000,
-                detail: serde_json::json!({}),
-            }],
-        },
-        ProviderModelsSummary {
-            id: "other".into(),
-            name: "Other models".into(),
-            models: vec![ModelSummary {
-                id: "other-model".into(),
-                name: "Other model".into(),
-                enabled: true,
-                toolcall: false,
-                attachment: false,
-                context_limit: 32000,
-                detail: serde_json::json!({}),
-            }],
-        },
-    ];
-    let mut ui = scene(super::super::build_bulk_model_selector(&app), &mut renderer, size);
-    capture(&mut ui, &mut renderer, &theme, size, "model-groups", mouse::Cursor::Unavailable);
-    let geometry = labels(&mut ui, &renderer);
-    assert!(geometry.bounds("Other models").height > 0.0);
-    let search = geometry.input(i18n.__("搜索模型…"));
-    assert!(click(&mut ui, &mut renderer, search.center()).is_empty());
-    assert!(matches!(
-        key(&mut ui, &mut renderer, Key::Character("f".into()), Some("f")).as_slice(),
-        [Message::Settings(SettingsMessage::ModelQueryChanged(value))] if value == "f"
-    ));
-    let cache = ui.into_cache();
-    app.model_settings.query = "fixture".into();
-    let mut ui = UserInterface::build(
-        super::super::build_bulk_model_selector(&app),
-        Size::new(420.0, 480.0),
-        cache,
-        &mut renderer,
-    );
-    assert!(key(&mut ui, &mut renderer, Key::Named(Named::End), None).is_empty());
-    assert!(matches!(
-        key(&mut ui, &mut renderer, Key::Character("x".into()), Some("x")).as_slice(),
-        [Message::Settings(SettingsMessage::ModelQueryChanged(value))] if value == "fixturex"
-    ));
-    capture(
-        &mut ui,
-        &mut renderer,
-        &Theme::Dark,
-        size,
-        "model-filtered",
-        mouse::Cursor::Unavailable,
-    );
-    let geometry = labels(&mut ui, &renderer);
-    let manual = geometry.input("fixture/saved-model");
-    assert!(click(&mut ui, &mut renderer, manual.center()).is_empty());
-    assert!(key(&mut ui, &mut renderer, Key::Named(Named::End), None).is_empty());
-    assert!(matches!(
-        key(&mut ui, &mut renderer, Key::Character("x".into()), Some("x")).as_slice(),
-        [Message::TaskBoard(TaskBoardMessage::UpdateBulkModelInput(value))]
-            if value == "fixture/saved-modelx"
-    ));
-    assert!(!geometry.text.iter().any(|(value, _)| value == "Other models"));
-    let (menu, _) = geometry.scroll("task_board_model_selector_scroll");
-    assert!(menu.y + menu.height <= 480.0);
-    let group = geometry.bounds("Fixture models");
-    let row_y = group.y + group.height + 4.0 + 2.0 + 18.0;
-    assert!(matches!(
-        click(&mut ui, &mut renderer, Point::new(menu.x + menu.width - 24.0, row_y)).as_slice(),
-        [Message::View(ViewMessage::OpenSystemSettingsModelDetail(provider, model))]
-            if provider == "fixture" && model == "saved-model"
-    ));
-    assert!(matches!(
-        click(&mut ui, &mut renderer, Point::new(menu.center_x(), row_y)).as_slice(),
-        [Message::TaskBoard(TaskBoardMessage::BulkModelSelected(value))] if value == "fixture/saved-model"
-    ));
-    assert!(matches!(
-        click(&mut ui, &mut renderer, Point::new(416.0, 476.0)).as_slice(),
-        [Message::TaskBoard(TaskBoardMessage::CloseBulkModelPopover)]
-    ));
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_35_sidebar_shields_the_board() {
     if !isolated("ui_refresh_35_sidebar_shields_the_board") {
         return;
@@ -620,4 +394,26 @@ async fn ui_refresh_35_sidebar_shields_the_board() {
         "board-sidebar",
         mouse::Cursor::Unavailable,
     );
+}
+
+/// Domain model events still reach the three different host message routes.
+#[test]
+fn ui_refresh_35_model_search_groups_and_bulk_selection_host_messages() {
+    use crate::app::message::{SettingsMessage, ViewMessage};
+    use desktop_task_board::model_selector::SelectorMessage;
+    let map = super::super::model_selector::map;
+    assert!(matches!(map(SelectorMessage::ModelQueryChanged("fixturex".into())),
+        Message::Settings(SettingsMessage::ModelQueryChanged(value)) if value == "fixturex"));
+    assert!(matches!(map(SelectorMessage::UpdateBulkModelInput("fixture/saved-modelx".into())),
+        Message::TaskBoard(TaskBoardMessage::UpdateBulkModelInput(value)) if value == "fixture/saved-modelx"));
+    assert!(
+        matches!(map(SelectorMessage::OpenModelDetail("fixture".into(), "saved-model".into())),
+        Message::View(ViewMessage::OpenSystemSettingsModelDetail(provider, model)) if provider == "fixture" && model == "saved-model")
+    );
+    assert!(matches!(map(SelectorMessage::BulkModelSelected("fixture/saved-model".into())),
+        Message::TaskBoard(TaskBoardMessage::BulkModelSelected(value)) if value == "fixture/saved-model"));
+    assert!(matches!(
+        map(SelectorMessage::CloseBulkModelPopover),
+        Message::TaskBoard(TaskBoardMessage::CloseBulkModelPopover)
+    ));
 }

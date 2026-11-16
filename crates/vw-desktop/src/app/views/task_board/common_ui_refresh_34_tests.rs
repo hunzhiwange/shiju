@@ -1,3 +1,4 @@
+// Task 20 ownership: Host contracts: import_errors checks App update/toast/notification projection; layout_and_interaction composes host modal slots; preserves_values checks host editors and selector injection. Native rendering, locales and screenshot resources remain here.
 //! Exercise task board forms through the actual Iced layout, event, and draw paths.
 #![cfg(not(target_arch = "wasm32"))]
 

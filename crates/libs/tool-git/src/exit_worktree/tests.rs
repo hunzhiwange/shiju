@@ -53,18 +53,6 @@ fn create_worktree(repo: &Repository, dir: &TempDir, name: &str) -> (PathBuf, St
     (worktree_dir, branch)
 }
 
-#[test]
-fn exit_worktree_production_status_check_does_not_spawn_system_git() {
-    let source = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../libs/tool-git/src/exit_worktree/mod.rs"
-    ))
-    .expect("exit worktree source should read");
-
-    assert!(!source.contains("git_tokio_command"));
-    assert!(!source.contains("Command::new(\"git\")"));
-}
-
 async fn call_exit_worktree_in_instance(
     workspace_dir: PathBuf,
     worktree_dir: PathBuf,

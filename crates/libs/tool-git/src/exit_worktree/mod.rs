@@ -227,3 +227,6 @@ fn porcelain_worktree_status(status: git2::Status) -> char {
 impl<H: GitToolHost> Default for ExitWorktreeTool<H> {
     fn default() -> Self { Self::new() }
 }
+
+#[cfg(test)]
+mod source_tests;

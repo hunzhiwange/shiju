@@ -1,5 +1,19 @@
 //! Gateway application services.
 #[cfg(not(target_arch = "wasm32"))]
+pub mod health;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod node_control;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod openai_compat;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod middleware;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod handlers;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod instance;
+
+#[cfg(not(target_arch = "wasm32"))]
 pub mod chat;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod chat_host;

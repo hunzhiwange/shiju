@@ -5,21 +5,24 @@
 #[cfg(test)]
 use super::chat::{log_channel_message, run_gateway_chat_with_tools, sanitize_gateway_response};
 use super::state::AppState;
+#[cfg(test)]
 use super::util::{
     linq_memory_key, nextcloud_talk_memory_key, qq_memory_key, wati_memory_key, whatsapp_memory_key,
 };
+#[cfg(test)]
 use channel_types::SendMessage;
+#[cfg(test)]
 use channel_types::{Channel, ChannelMessage};
 #[cfg(test)]
 use crate::app::agent::memory::MemoryCategory;
-use crate::app::agent::security::pairing::constant_time_eq;
+
 #[cfg(test)]
 use crate::app::agent::tools::Tool;
 use axum::{
     body::Bytes,
     extract::{Query, State},
-    http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Json, Response},
+    http::HeaderMap,
+    response::Response,
 };
 #[cfg(test)]
 use std::future::Future;
@@ -38,47 +41,6 @@ fn run_gateway_chat_with_tools_boxed<'a>(
     key: &'a str,
 ) -> GatewayChatFuture<'a> {
     Box::pin(run_gateway_chat_with_tools(state, message, key))
-}
-
-async fn process_channel_messages<C, K>(
-    state: &AppState,
-    _channel_name: &str,
-    channel: &std::sync::Arc<C>,
-    messages: &[ChannelMessage],
-    _memory_key: K,
-    _llm_error_label: &str,
-    _include_thread: bool,
-) where
-    C: Channel + 'static,
-    K: Fn(&ChannelMessage) -> String,
-{
-    for msg in messages {
-        let runtime = match super::channel_runtime::channel_runtime(state) {
-            Ok(runtime) => runtime,
-            Err(error) => {
-                tracing::warn!("Unable to initialize webhook channel runtime: {error}");
-                let _ = channel
-                    .send(
-                        &SendMessage::new("通道运行时不可用，请稍后重试。", &msg.reply_target)
-                            .in_thread(msg.thread_ts.clone()),
-                    )
-                    .await;
-                continue;
-            }
-        };
-        let mut ctx = runtime.as_ref().clone();
-        ctx.channels_by_name = std::sync::Arc::new(std::collections::HashMap::from([(
-            crate::channels::channel_instance_key(&msg.channel, &msg.instance_id),
-            channel.clone() as std::sync::Arc<dyn Channel>,
-        )]));
-        // Webhook 自身已持有较大的请求状态，不把完整会话 Future 内联到 HTTP Future。
-        Box::pin(crate::channels::manager::process_channel_message(
-            std::sync::Arc::new(ctx),
-            msg.clone(),
-            tokio_util::sync::CancellationToken::new(),
-        ))
-        .await;
-    }
 }
 
 #[cfg(test)]
@@ -149,419 +111,22 @@ async fn send_successful_channel_reply<C: Channel + ?Sized>(
     }
 }
 
-/// Meta WhatsApp Webhook 握手查询参数。
-#[derive(serde::Deserialize)]
-pub struct WhatsAppVerifyQuery {
-    /// Meta 请求的订阅模式。
-    #[serde(rename = "hub.mode")]
-    pub mode: Option<String>,
-    /// Meta 回传的配置校验令牌。
-    #[serde(rename = "hub.verify_token")]
-    pub verify_token: Option<String>,
-    /// 验证成功时需要原样返回的挑战值。
-    #[serde(rename = "hub.challenge")]
-    pub challenge: Option<String>,
+pub use agent_gateway::handlers::{WhatsAppVerifyQuery, WatiVerifyQuery, verify_whatsapp_signature};
+#[cfg(test)]
+impl agent_gateway::handlers::WhatsAppWebhook for crate::channels::WhatsAppChannel {
+ fn verify_token(&self) -> &str { self.verify_token() }
+ fn parse_webhook_payload(&self, payload: &serde_json::Value) -> Vec<ChannelMessage> { self.parse_webhook_payload(payload) }
 }
-
-/// 校验 WhatsApp Webhook 握手参数并返回挑战值。
-pub async fn handle_whatsapp_verify(
-    State(state): State<AppState>,
-    Query(params): Query<WhatsAppVerifyQuery>,
-) -> Response {
-    let channels = state.channels.lock().clone();
-    let Some(ref wa) = channels.whatsapp else {
-        return (StatusCode::NOT_FOUND, "WhatsApp not configured".to_string()).into_response();
-    };
-
-    // Verify the token matches (constant-time comparison to prevent timing attacks)
-    let token_matches =
-        params.verify_token.as_deref().is_some_and(|t| constant_time_eq(t, wa.verify_token()));
-    if params.mode.as_deref() == Some("subscribe") && token_matches {
-        if let Some(ch) = params.challenge {
-            tracing::info!("WhatsApp webhook verified successfully");
-            return (StatusCode::OK, ch).into_response();
-        }
-        return (StatusCode::BAD_REQUEST, "Missing hub.challenge".to_string()).into_response();
-    }
-
-    tracing::warn!("WhatsApp webhook verification failed — token mismatch");
-    (StatusCode::FORBIDDEN, "Forbidden".to_string()).into_response()
-}
-
-/// 使用应用密钥校验 `X-Hub-Signature-256` HMAC 签名。
-/// See: <https://developers.facebook.com/docs/graph-api/webhooks/getting-started#verification-requests>
-pub fn verify_whatsapp_signature(app_secret: &str, body: &[u8], signature_header: &str) -> bool {
-    use hmac::{Hmac, KeyInit, Mac};
-    use sha2::Sha256;
-
-    // Signature format: "sha256=<hex_signature>"
-    let Some(hex_sig) = signature_header.strip_prefix("sha256=") else {
-        return false;
-    };
-
-    // Decode hex signature
-    let Ok(expected) = hex::decode(hex_sig) else {
-        return false;
-    };
-
-    // Compute HMAC-SHA256
-    let Ok(mut mac) = Hmac::<Sha256>::new_from_slice(app_secret.as_bytes()) else {
-        return false;
-    };
-    mac.update(body);
-
-    // Constant-time comparison
-    mac.verify_slice(&expected).is_ok()
-}
-
-/// 验证并处理 WhatsApp Cloud API 入站消息。
-pub async fn handle_whatsapp_message(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    body: Bytes,
-) -> Response {
-    let channels = state.channels.lock().clone();
-    let Some(ref wa) = channels.whatsapp else {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": "WhatsApp not configured"})),
-        )
-            .into_response();
-    };
-
-    // ── Security: Verify X-Hub-Signature-256 if app_secret is configured ──
-    if let Some(ref app_secret) = channels.whatsapp_app_secret {
-        let signature =
-            headers.get("X-Hub-Signature-256").and_then(|v| v.to_str().ok()).unwrap_or("");
-
-        if !verify_whatsapp_signature(app_secret, &body, signature) {
-            tracing::warn!(
-                "WhatsApp webhook signature verification failed (signature: {})",
-                if signature.is_empty() { "missing" } else { "invalid" }
-            );
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(serde_json::json!({"error": "Invalid signature"})),
-            )
-                .into_response();
-        }
-    }
-
-    // Parse JSON body
-    let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) else {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "Invalid JSON payload"})),
-        )
-            .into_response();
-    };
-
-    // Parse messages from the webhook payload
-    let messages = wa.parse_webhook_payload(&payload);
-
-    if messages.is_empty() {
-        // Acknowledge the webhook even if no messages (could be status updates)
-        return (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response();
-    }
-
-    process_channel_messages(
-        &state,
-        "WhatsApp",
-        &wa,
-        &messages,
-        whatsapp_memory_key,
-        "WhatsApp message",
-        false,
-    )
-    .await;
-
-    // Acknowledge the webhook
-    (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
-}
-
-/// 处理承载 iMessage、RCS 或 SMS 的 Linq Webhook 消息。
-pub async fn handle_linq_webhook(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    body: Bytes,
-) -> Response {
-    let channels = state.channels.lock().clone();
-    let Some(ref linq) = channels.linq else {
-        return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Linq not configured"})))
-            .into_response();
-    };
-
-    let body_str = String::from_utf8_lossy(&body);
-
-    // ── Security: Verify X-Webhook-Signature if signing_secret is configured ──
-    if let Some(ref signing_secret) = channels.linq_signing_secret {
-        let timestamp =
-            headers.get("X-Webhook-Timestamp").and_then(|v| v.to_str().ok()).unwrap_or("");
-
-        let signature =
-            headers.get("X-Webhook-Signature").and_then(|v| v.to_str().ok()).unwrap_or("");
-
-        if !crate::app::agent::channels::linq::verify_linq_signature(
-            signing_secret,
-            &body_str,
-            timestamp,
-            signature,
-        ) {
-            tracing::warn!(
-                "Linq webhook signature verification failed (signature: {})",
-                if signature.is_empty() { "missing" } else { "invalid" }
-            );
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(serde_json::json!({"error": "Invalid signature"})),
-            )
-                .into_response();
-        }
-    }
-
-    // Parse JSON body
-    let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) else {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "Invalid JSON payload"})),
-        )
-            .into_response();
-    };
-
-    // Parse messages from the webhook payload
-    let messages = linq.parse_webhook_payload(&payload);
-
-    if messages.is_empty() {
-        if payload
-            .get("event_type")
-            .and_then(|v| v.as_str())
-            .is_some_and(|event| event == "message.received")
-        {
-            tracing::warn!(
-                "Linq webhook message.received produced no actionable messages (possible unsupported payload shape)"
-            );
-        }
-        // Acknowledge the webhook even if no messages (could be status/delivery events)
-        return (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response();
-    }
-
-    process_channel_messages(
-        &state,
-        "Linq",
-        &linq,
-        &messages,
-        linq_memory_key,
-        "Linq message",
-        false,
-    )
-    .await;
-
-    // Acknowledge the webhook
-    (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
-}
-
-/// 校验 WATI Webhook 握手并返回挑战值。
-pub async fn handle_wati_verify(
-    State(state): State<AppState>,
-    Query(params): Query<WatiVerifyQuery>,
-) -> Response {
-    let channels = state.channels.lock().clone();
-    if channels.wati.is_none() {
-        return (StatusCode::NOT_FOUND, "WATI not configured".to_string()).into_response();
-    }
-
-    // WATI may use Meta-style webhook verification; echo the challenge
-    if let Some(challenge) = params.challenge {
-        tracing::info!("WATI webhook verified successfully");
-        return (StatusCode::OK, challenge).into_response();
-    }
-
-    (StatusCode::BAD_REQUEST, "Missing hub.challenge".to_string()).into_response()
-}
-
-#[derive(Debug, serde::Deserialize)]
-/// WATI Webhook 握手查询参数。
-pub struct WatiVerifyQuery {
-    /// 验证成功时返回的挑战值。
-    #[serde(rename = "hub.challenge")]
-    pub challenge: Option<String>,
-}
-
-/// 解析并处理 WATI 入站消息。
-pub async fn handle_wati_webhook(State(state): State<AppState>, body: Bytes) -> Response {
-    let channels = state.channels.lock().clone();
-    let Some(ref wati) = channels.wati else {
-        return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "WATI not configured"})))
-            .into_response();
-    };
-
-    // Parse JSON body
-    let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) else {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "Invalid JSON payload"})),
-        )
-            .into_response();
-    };
-
-    // Parse messages from the webhook payload
-    let messages = wati.parse_webhook_payload(&payload);
-
-    if messages.is_empty() {
-        return (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response();
-    }
-
-    process_channel_messages(
-        &state,
-        "WATI",
-        &wati,
-        &messages,
-        wati_memory_key,
-        "WATI message",
-        false,
-    )
-    .await;
-
-    // Acknowledge the webhook
-    (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
-}
-
-/// 处理 Nextcloud Talk 机器人 Webhook 消息。
-pub async fn handle_nextcloud_talk_webhook(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    body: Bytes,
-) -> Response {
-    let channels = state.channels.lock().clone();
-    let Some(ref nextcloud_talk) = channels.nextcloud_talk else {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": "Nextcloud Talk not configured"})),
-        )
-            .into_response();
-    };
-
-    let body_str = String::from_utf8_lossy(&body);
-
-    // ── Security: Verify Nextcloud Talk HMAC signature if secret is configured ──
-    if let Some(ref webhook_secret) = channels.nextcloud_talk_webhook_secret {
-        let random =
-            headers.get("X-Nextcloud-Talk-Random").and_then(|v| v.to_str().ok()).unwrap_or("");
-
-        let signature =
-            headers.get("X-Nextcloud-Talk-Signature").and_then(|v| v.to_str().ok()).unwrap_or("");
-
-        if !crate::app::agent::channels::nextcloud_talk::verify_nextcloud_talk_signature(
-            webhook_secret,
-            random,
-            &body_str,
-            signature,
-        ) {
-            tracing::warn!(
-                "Nextcloud Talk webhook signature verification failed (signature: {})",
-                if signature.is_empty() { "missing" } else { "invalid" }
-            );
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(serde_json::json!({"error": "Invalid signature"})),
-            )
-                .into_response();
-        }
-    }
-
-    // Parse JSON body
-    let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) else {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "Invalid JSON payload"})),
-        )
-            .into_response();
-    };
-
-    // Parse messages from webhook payload
-    let messages = nextcloud_talk.parse_webhook_payload(&payload);
-    if messages.is_empty() {
-        // Acknowledge webhook even if payload does not contain actionable user messages.
-        return (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response();
-    }
-
-    process_channel_messages(
-        &state,
-        "Nextcloud Talk",
-        &nextcloud_talk,
-        &messages,
-        nextcloud_talk_memory_key,
-        "Nextcloud Talk message",
-        false,
-    )
-    .await;
-
-    (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
-}
-
-/// 验证并处理 QQ 机器人 Webhook 消息。
-pub async fn handle_qq_webhook(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    body: Bytes,
-) -> Response {
-    let channels = state.channels.lock().clone();
-    let Some(ref qq) = channels.qq else {
-        return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "QQ not configured"})))
-            .into_response();
-    };
-
-    if !channels.qq_webhook_enabled {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": "QQ webhook mode not enabled"})),
-        )
-            .into_response();
-    }
-
-    let app_id_header =
-        headers.get("X-Bot-Appid").and_then(|v| v.to_str().ok()).map(str::trim).unwrap_or("");
-    if !app_id_header.is_empty() && !constant_time_eq(app_id_header, qq.app_id()) {
-        tracing::warn!("QQ webhook rejected due to mismatched X-Bot-Appid");
-        return (
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": "Invalid X-Bot-Appid"})),
-        )
-            .into_response();
-    }
-
-    let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) else {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "Invalid JSON payload"})),
-        )
-            .into_response();
-    };
-
-    if let Some(validation_response) = qq.build_webhook_validation_response(&payload) {
-        tracing::info!("QQ webhook validation challenge accepted");
-        return (StatusCode::OK, Json(validation_response)).into_response();
-    }
-
-    let messages = qq.parse_webhook_payload(&payload).await;
-    if messages.is_empty() {
-        return (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response();
-    }
-
-    process_channel_messages(
-        &state,
-        "QQ",
-        &qq,
-        &messages,
-        qq_memory_key,
-        "QQ webhook message",
-        true,
-    )
-    .await;
-
-    (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
-}
+pub async fn handle_whatsapp_verify(State(state): State<AppState>, Query(params): Query<WhatsAppVerifyQuery>) -> Response { agent_gateway::handlers::handle_whatsapp_verify(State(state), Query(params)).await }
+pub async fn handle_wati_verify(State(state): State<AppState>, Query(params): Query<WatiVerifyQuery>) -> Response { agent_gateway::handlers::handle_wati_verify(State(state), Query(params)).await }
+pub async fn handle_whatsapp_message(State(state): State<AppState>, headers: HeaderMap, body: Bytes) -> Response { agent_gateway::handlers::handle_whatsapp_message(State(state), headers, body, super::channel_runtime::channel_runtime, |ctx, msg, cancellation| Box::pin(crate::channels::manager::process_channel_message(ctx, msg, cancellation))).await }
+pub async fn handle_linq_webhook(State(state): State<AppState>, headers: HeaderMap, body: Bytes) -> Response { agent_gateway::handlers::handle_linq_webhook(State(state), headers, body, super::channel_runtime::channel_runtime, |ctx, msg, cancellation| Box::pin(crate::channels::manager::process_channel_message(ctx, msg, cancellation))).await }
+pub async fn handle_nextcloud_talk_webhook(State(state): State<AppState>, headers: HeaderMap, body: Bytes) -> Response { agent_gateway::handlers::handle_nextcloud_talk_webhook(State(state), headers, body, super::channel_runtime::channel_runtime, |ctx, msg, cancellation| Box::pin(crate::channels::manager::process_channel_message(ctx, msg, cancellation))).await }
+pub async fn handle_qq_webhook(State(state): State<AppState>, headers: HeaderMap, body: Bytes) -> Response { agent_gateway::handlers::handle_qq_webhook(State(state), headers, body, super::channel_runtime::channel_runtime, |ctx, msg, cancellation| Box::pin(crate::channels::manager::process_channel_message(ctx, msg, cancellation))).await }
+pub async fn handle_wati_webhook(State(state): State<AppState>, body: Bytes) -> Response { agent_gateway::handlers::handle_wati_webhook(State(state), body, super::channel_runtime::channel_runtime, |ctx, msg, cancellation| Box::pin(crate::channels::manager::process_channel_message(ctx, msg, cancellation))).await }
+#[cfg(test)]
+#[path = "../../../libs/agent-gateway/src/handlers_tests.rs"]
+mod handlers_tests;
 
 #[cfg(test)]
-#[path = "handlers_tests.rs"]
-mod handlers_tests;
+use axum::{http::StatusCode, response::{IntoResponse, Json}};

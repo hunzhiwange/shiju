@@ -103,6 +103,13 @@ version = "0.6.0"
 
 
 [dependencies]
+agent-health = { path = "../agent-health", version = "0.6.0" }
+observer-prometheus = { path = "../observer-prometheus", version = "0.6.0" }
+runtime-flags = { path = "../runtime-flags", version = "0.6.0" }
+base64 = "0.22"
+hmac = "0.13"
+channel-types = { path = "../channel-types", version = "0.6.0" }
+gateway-task = { path = "../gateway-task", version = "0.6.0" }
 app-diagnostics-runtime = { path = "../app-diagnostics-runtime", version = "0.6.0" }
 gateway-project = { path = "../gateway-project", version = "0.6.0" }
 agent-database = { path = "../agent-database", version = "0.6.0" }

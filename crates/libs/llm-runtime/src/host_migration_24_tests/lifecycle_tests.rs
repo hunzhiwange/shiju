@@ -1,10 +1,10 @@
 //! Outbound lifecycle invariants; real CLI acceptance is separate.
-use super::super::{ParsedAcpOptions, session};
+use super::{ParsedAcpOptions, session};
 use serde_json::json;
 
 #[tokio::test]
 async fn acp_skill_mount_lifecycle_scanner_change_retires_only_own_cached_client() {
-    let _guard = crate::test_support::global_async_env_lock().lock().await;
+    let _guard = super::CACHE_LOCK.lock().await;
     let cwd = tempfile::tempdir().unwrap();
     let config =
         serde_json::from_value(json!({"command":"unused-lifecycle-agent", "args":[], "env":{}}))
@@ -21,7 +21,7 @@ async fn acp_skill_mount_lifecycle_scanner_change_retires_only_own_cached_client
         .await
         .unwrap();
     {
-        let cache = super::super::ACP_CLIENT_CACHE.lock();
+        let cache = super::ACP_CLIENT_CACHE.lock();
         assert!(!cache.contains_key(&old.key));
         assert!(cache.contains_key(&other.key));
     }
@@ -32,16 +32,16 @@ async fn acp_skill_mount_lifecycle_scanner_change_retires_only_own_cached_client
 fn acp_skill_mount_lifecycle_busy_rejects_same_session_but_allows_other_session() {
     let cwd = tempfile::tempdir().unwrap();
     let directory = cwd.path().to_str().unwrap();
-    let lease = super::super::lifecycle::try_lock("lifecycle-busy", directory).unwrap();
-    assert!(super::super::lifecycle::try_lock("lifecycle-busy", directory).is_err());
-    assert!(super::super::lifecycle::try_lock("lifecycle-independent", directory).is_ok());
+    let lease = super::lifecycle::try_lock("lifecycle-busy", directory).unwrap();
+    assert!(super::lifecycle::try_lock("lifecycle-busy", directory).is_err());
+    assert!(super::lifecycle::try_lock("lifecycle-independent", directory).is_ok());
     drop(lease);
-    assert!(super::super::lifecycle::try_lock("lifecycle-busy", directory).is_ok());
+    assert!(super::lifecycle::try_lock("lifecycle-busy", directory).is_ok());
 }
 
 #[tokio::test]
 async fn acp_skill_mount_lifecycle_content_removal_and_session_change_identity() {
-    let _guard = crate::test_support::global_async_env_lock().lock().await;
+    let _guard = super::CACHE_LOCK.lock().await;
     let project = tempfile::tempdir().unwrap();
     let source = project.path().join("source");
     std::fs::create_dir(&source).unwrap();

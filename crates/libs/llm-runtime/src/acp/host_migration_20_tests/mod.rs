@@ -6,7 +6,7 @@ use crate::Error;
 use std::{path::Path, sync::Arc};
 use super::super::model_source::profile::AcpLaunchProfile;
 pub type ParsedAcpOptions = options::ParsedAcpOptions<MountedSkills>;
-struct CacheHost;
+pub(crate) struct CacheHost;
 #[allow(unused_variables)]
 impl Host for CacheHost {
     type Skills = MountedSkills;

@@ -27,12 +27,8 @@ pub(crate) async fn is_selectable(project: &str, session: &str) -> Result<bool> 
 
 /// Ignore any serialized projection and reload the authoritative server setting.
 pub(crate) async fn project(info: &mut super::session::Info) -> Result<()> {
-    info.fork_execution_started = if info.source_slug().starts_with("turn-fork-") {
-        load_scoped(&info.project_id, &info.id).await?.map(|state| state.started)
-    } else {
-        None
-    };
-    Ok(())
+    let (home, tenant) = scope();
+    session_engine::fork_execution::project(home, tenant, info).await
 }
 
 #[cfg(test)]

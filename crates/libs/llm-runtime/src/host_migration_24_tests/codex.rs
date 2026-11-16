@@ -1,6 +1,6 @@
 #[tokio::test]
 async fn acp_skill_mount_codex_retires_changed_owner_and_preserves_other_sessions() {
-    use super::super::{ACP_CLIENT_CACHE, ParsedAcpOptions, session};
+    use super::{ACP_CLIENT_CACHE, ParsedAcpOptions, session};
     let directory = tempfile::tempdir().unwrap();
     let config = agent_config::schema::AcpAgentConfig {
         command: "codex-acp".into(),

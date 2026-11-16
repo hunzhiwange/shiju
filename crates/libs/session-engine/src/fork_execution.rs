@@ -75,3 +75,13 @@ pub async fn start(home: PathBuf, tenant: TenantScope, project: &str, session: &
 pub async fn is_selectable(home: PathBuf, tenant: TenantScope, project: &str, session: &str) -> Result<bool> {
     Ok(load_scoped(home, tenant, project, session).await?.is_some_and(|state| !state.started))
 }
+
+/// Reload the authoritative execution state instead of trusting a serialized projection.
+pub async fn project(home: PathBuf, tenant: TenantScope, info: &mut session_info::Info) -> Result<()> {
+    info.fork_execution_started = if info.source_slug().starts_with("turn-fork-") {
+        load_scoped(home, tenant, &info.project_id, &info.id).await?.map(|state| state.started)
+    } else {
+        None
+    };
+    Ok(())
+}

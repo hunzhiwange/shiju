@@ -7,8 +7,6 @@
 pub(super) mod convert;
 pub(crate) mod host;
 #[cfg(test)]
-mod driver;
-#[cfg(test)]
 mod error;
 #[cfg(test)]
 mod reasoning;

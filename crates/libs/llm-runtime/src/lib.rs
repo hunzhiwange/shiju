@@ -25,3 +25,6 @@ mod native_tools_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod host_migration_21_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_24_tests;

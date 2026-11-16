@@ -5,9 +5,3 @@ pub(super) fn prepare(mounts: &[acp_types::SessionSkillMount], cwd: &std::path::
 }
 #[cfg(test)]
 mod acceptance_tests;
-#[cfg(test)]
-mod lifecycle_tests;
-#[cfg(test)]
-mod claude_tests;
-#[cfg(test)]
-mod codex_tests;

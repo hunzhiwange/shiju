@@ -38,7 +38,7 @@ impl Fixture {
         fs::write(root.join("mcp.json"),json!({"$schema":"https://agent-plugins.org/schemas/1.0.0/mcp.schema.json","mcpServers":{"fixture":{"type":"streamable-http","url":format!("http://127.0.0.1:{port}/mcp")}}}).to_string()).unwrap();
         root
     }
-    fn handler(&self) -> crate::plugins::CodexHookHandler {
+    fn handler(&self) -> plugin_types::CodexHookHandler {
         serde_json::from_value(json!({"type":"mcp_tool","server":"fixture","tool":"echo","input":{"message":"${tool_input.message}"}})).unwrap()
     }
     async fn call(&self, root: &std::path::Path, event: Value) -> anyhow::Result<Value> {
@@ -50,7 +50,7 @@ impl Fixture {
         event: Value,
         deny: bool,
     ) -> anyhow::Result<Value> {
-        use crate::plugins::{
+        use super::plugins::{
             CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers,
         };
         let manifest: CodexHooksManifest =
@@ -60,7 +60,7 @@ impl Fixture {
         trust.trust_codex_hooks("fixture", root, &manifest)?;
         let handlers = codex_handlers("fixture", root, &manifest, &trust)?;
         let context = Arc::new(
-            crate::tools::ToolUseContext::new("t45", Some(self.temp.path().display().to_string()))
+            super::tools::ToolUseContext::new("t45", Some(self.temp.path().display().to_string()))
                 .with_turn_id("turn")
                 .with_tool_call_id("call")
                 .with_model("fixture"),
@@ -70,10 +70,10 @@ impl Fixture {
         } else {
             context
         };
-        crate::tools::scope_tool_use_context(context.clone(), async {
+        super::tools::scope_tool_use_context(context.clone(), async {
             match handlers[0].before_tool_call("read".into(), event).await {
-                crate::hooks::HookResult::Cancel(reason) => anyhow::bail!(reason),
-                crate::hooks::HookResult::Continue(_) => {}
+                super::hooks::HookResult::Cancel(reason) => anyhow::bail!(reason),
+                super::hooks::HookResult::Continue(_) => {}
             }
             let contexts = context.take_hook_contexts();
             Ok(json!({"hookSpecificOutput":{"additionalContext": contexts.first()}}))
@@ -112,7 +112,7 @@ async fn codex_plugin_compat_t45_preserves_isolation() {
 
 #[test]
 fn codex_plugin_compat_t45_admits_trusted_mcp_and_skips_session_end() {
-    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use super::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let manifest:CodexHooksManifest=serde_json::from_value(json!({"hooks":{"PreToolUse":[{"hooks":[{"type":"mcp_tool","server":"fixture","tool":"echo"}]}],"SessionEnd":[{"hooks":[{"type":"mcp_tool","server":"fixture","tool":"echo"}]}]}})).unwrap();

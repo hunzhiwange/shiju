@@ -1,8 +1,8 @@
 use crate::*;
 use agent_config::runtime::Config;
-use std::{fs, path::Path, time::Duration};
+use std::{fs, path::Path, sync::Arc, time::Duration};
 fn capture(config: &Config) -> session_snapshot::PluginTurnSnapshot {
- session_snapshot::PluginTurnSnapshot::capture(crate::mcp::plugin_mcp_discovery_options(config), || Ok(None), || false, || vw_api_transport::TenantScope::new("snapshot-fixture", "snapshot-fixture").unwrap(), |_| panic!("no async hooks in publication fixture")).unwrap()
+ session_snapshot::PluginTurnSnapshot::capture(crate::mcp::plugin_mcp_discovery_options(config), || Ok(None), || false, || vw_api_transport::TenantScope::new("snapshot-fixture", "snapshot-fixture").unwrap(), |hooks| tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(hooks.shutdown()))).unwrap()
 }
 fn package(root: &Path, version: &str) {
     fs::create_dir_all(root.join(".codex-plugin")).unwrap();
@@ -96,4 +96,37 @@ fn codex_plugin_compat_t57_defers_new_store_until_next_turn() {
             .len(),
         1
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn codex_plugin_compat_t57_joins_cancelled_work_before_releasing_turn() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    struct Finished(Arc<AtomicBool>);
+    impl Drop for Finished {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::Release);
+        }
+    }
+    let root = tempfile::tempdir().unwrap();
+    let mut turn = capture(&config(root.path()));
+    let hooks = Arc::new(plugin_hooks::hook_async::AsyncHooks::default());
+    turn.own_async_hooks(hooks.clone());
+    let finished = Arc::new(AtomicBool::new(false));
+    let marker = finished.clone();
+    let (started, ready) = tokio::sync::oneshot::channel();
+    hooks
+        .schedule(async move {
+            let _guard = Finished(marker);
+            started.send(()).unwrap();
+            std::future::pending::<()>().await;
+        })
+        .unwrap();
+    ready.await.unwrap();
+    drop(turn);
+    assert!(
+        finished.load(Ordering::Acquire),
+        "turn release must wait for the cancelled future's process/resource guards"
+    );
+    assert!(hooks.is_closed());
+    assert!(hooks.schedule(async {}).is_err());
 }

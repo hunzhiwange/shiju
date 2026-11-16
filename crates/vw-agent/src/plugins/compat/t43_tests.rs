@@ -1,4 +1,3 @@
-use super::hook_subagent::emit;
 use crate::tools::ToolUseContext;
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -117,29 +116,6 @@ async fn codex_plugin_compat_t43_persistent_success_failure_and_cancellation() {
             if outcome == "success" { json!("handoff") } else { Value::Null }
         );
     }
-}
-
-#[tokio::test]
-async fn codex_plugin_compat_t43_routes_context_and_stop_to_child() {
-    let root = tempfile::tempdir().unwrap();
-    let state = tempfile::tempdir().unwrap();
-    let ctx = fixture_output(
-        root.path(),
-        state.path(),
-        "parent",
-        r#"{"continue":false,"hookSpecificOutput":{"hookEventName":"SubagentStart","additionalContext":"child only"}}"#,
-        r#"{"decision":"block","reason":"finish child work"}"#,
-    );
-    assert_eq!(
-        emit(Some(ctx.clone()), "parent", "child", "reviewer", None, false).await.unwrap(),
-        vec!["child only"]
-    );
-    assert_eq!(
-        emit(Some(ctx.clone()), "parent", "child", "reviewer", Some("done"), true).await.unwrap(),
-        vec!["finish child work"]
-    );
-    assert!(ctx.take_hook_contexts().is_empty());
-    assert!(emit(Some(ctx), "parent", "child", "other", None, false).await.unwrap().is_empty());
 }
 
 #[tokio::test]

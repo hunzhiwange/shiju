@@ -143,38 +143,6 @@ async fn codex_plugin_compat_t57_refreshes_required_hooks_at_boundary() {
         "expired contexts cannot authorize another model request"
     );
 }
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn codex_plugin_compat_t57_joins_cancelled_work_before_releasing_turn() {
-    use std::sync::atomic::{AtomicBool, Ordering};
-    struct Finished(Arc<AtomicBool>);
-    impl Drop for Finished {
-        fn drop(&mut self) {
-            self.0.store(true, Ordering::Release);
-        }
-    }
-    let root = tempfile::tempdir().unwrap();
-    let mut turn = PluginTurnSnapshot::capture(&config(root.path())).unwrap();
-    let hooks = Arc::new(super::hook_async::AsyncHooks::default());
-    turn.own_async_hooks(hooks.clone());
-    let finished = Arc::new(AtomicBool::new(false));
-    let marker = finished.clone();
-    let (started, ready) = tokio::sync::oneshot::channel();
-    hooks
-        .schedule(async move {
-            let _guard = Finished(marker);
-            started.send(()).unwrap();
-            std::future::pending::<()>().await;
-        })
-        .unwrap();
-    ready.await.unwrap();
-    drop(turn);
-    assert!(
-        finished.load(Ordering::Acquire),
-        "turn release must wait for the cancelled future's process/resource guards"
-    );
-    assert!(hooks.is_closed());
-    assert!(hooks.schedule(async {}).is_err());
-}
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn codex_plugin_compat_t57_retires_old_mcp_process_after_turn() {

@@ -94,7 +94,6 @@ pub(crate) use plugin_hooks::hook_compact;
 pub(crate) use plugin_hooks::hook_model;
 pub(crate) use plugin_hooks::hook_prompt;
 pub(crate) use compat::hook_session;
-pub(crate) use compat::hook_subagent;
 
 #[cfg(test)]
 pub(crate) use compat::t41_tests;

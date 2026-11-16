@@ -23,7 +23,7 @@ impl ContextHost for Host {
     type ImageAssetId = agent_multimodal::assets::ImageAssetId;
     type ImageAssetScope = agent_multimodal::assets::ImageAssetScope;
     fn task_local() -> &'static tokio::task::LocalKey<Arc<ToolUseContext<Self>>> { &CONTEXT }
-    fn current_tenant_scope() -> vw_api_transport::TenantScope { vw_api_transport::TenantScope::new("fixture-platform", "toolset-tests").unwrap() }
+    fn current_tenant_scope() -> vw_api_transport::TenantScope { Default::default() }
     fn permission_action(policy: &Self::EffectiveDefaults, permission: &str, aliases: &[String], pattern: &str) -> permission_types::Action { panic!("toolset test reached host: permission_action") }
     fn catalog_authorizes(catalog: &Self::ToolCatalogSnapshot, id: &str) -> bool { panic!("unused catalog port") }
     fn discovery_authorizes(discovery: &Self::ToolDiscoverySession, id: &str) -> bool { panic!("toolset test reached host: discovery_authorizes") }
@@ -50,20 +50,29 @@ impl ContextHost for Host {
 }
 
 impl tool_mcp::McpToolHost for Host {
- type Connections = ();
- fn new_connections() {}
- async fn load_config(_: Option<&Path>) -> anyhow::Result<acp_config::ResolvedAcpxConfig> { anyhow::bail!("unused MCP port") }
- fn connection_required(_: &agent_client_protocol::McpServer) -> anyhow::Result<bool> { anyhow::bail!("unused MCP port") }
- fn missing_executable(_: &agent_client_protocol::McpServer) -> anyhow::Result<Option<(String,String)>> { anyhow::bail!("unused MCP port") }
- fn tool_allowed(_: &agent_client_protocol::McpServer, _: &str) -> anyhow::Result<bool> { anyhow::bail!("unused MCP port") }
- fn tool_binding(_: &(), _: &agent_client_protocol::McpServer) -> Option<mcp_client::ToolCatalogBinding> { panic!("unused MCP port") }
- async fn with_client<T: Send,F>(_: &agent_client_protocol::McpServer, _: Option<std::time::Duration>, _: F) -> anyhow::Result<T>
- where F: for<'a> FnOnce(&'a mcp_client::RunningMcpPeer) -> tool_mcp::ClientFuture<'a,T> + Send { anyhow::bail!("unused MCP port") }
- async fn with_connection<T: Send,F>(_: &(), _: &agent_client_protocol::McpServer, _: Option<std::time::Duration>, _: F) -> anyhow::Result<T>
- where F: for<'a> FnOnce(&'a mcp_client::RunningMcpPeer) -> tool_mcp::ClientFuture<'a,T> + Send { anyhow::bail!("unused MCP port") }
- fn app_resource<'a>(_: &'a mcp_client::RunningMcpPeer, _: &'a mut Value) -> tool_mcp::ClientFuture<'a,()> { Box::pin(async { anyhow::bail!("unused MCP port") }) }
- fn call_resource<'a>(_: &'a acp_config::ResolvedAcpxConfig, _: &'a Arc<()>, _: Value) -> tool_mcp::ClientFuture<'a,tool_types::ToolCallResult> { Box::pin(async { anyhow::bail!("unused MCP port") }) }
+    type Connections = plugin_mcp::mcp_connections::McpSessionConnections;
+    fn new_connections() -> Self::Connections { Self::Connections::new(crate::host_migration_37_tests::connection_host()) }
+    async fn load_config(workspace: Option<&Path>) -> anyhow::Result<acp_config::ResolvedAcpxConfig> {
+        let workspace = workspace.ok_or_else(|| anyhow::anyhow!("explicit workspace required"))?;
+        let options = crate::PluginDiscoveryOptions::new(workspace.to_owned(), workspace.join("isolated-config"), Default::default());
+        let mut servers = Vec::new();
+        crate::mcp::merge_enabled_plugin_mcp_servers(&mut servers, &options, &|options| Ok((crate::discover_plugins(options)?, options.clone())))?;
+        Ok(config(servers))
+    }
+    fn connection_required(server: &agent_client_protocol::McpServer) -> anyhow::Result<bool> { Ok(plugin_mcp::mcp_connection_settings::settings(server)?.required) }
+    fn missing_executable(server: &agent_client_protocol::McpServer) -> anyhow::Result<Option<(String,String)>> {
+        Ok(crate::dependencies::missing_mcp_executable(server)?.map(|item| (item.dependency, item.detail)))
+    }
+    fn tool_allowed(server: &agent_client_protocol::McpServer, name: &str) -> anyhow::Result<bool> { plugin_mcp::mcp_connection_settings::tool_allowed(server, name) }
+    fn tool_binding(pool: &Self::Connections, server: &agent_client_protocol::McpServer) -> Option<mcp_client::ToolCatalogBinding> { pool.tool_binding(server) }
+    async fn with_client<T: Send,F>(server: &agent_client_protocol::McpServer, timeout: Option<std::time::Duration>, f: F) -> anyhow::Result<T>
+    where F: for<'a> FnOnce(&'a mcp_client::RunningMcpPeer) -> tool_mcp::ClientFuture<'a,T> + Send { Self::new_connections().with_client(server, timeout, f).await }
+    async fn with_connection<T: Send,F>(pool: &Self::Connections, server: &agent_client_protocol::McpServer, timeout: Option<std::time::Duration>, f: F) -> anyhow::Result<T>
+    where F: for<'a> FnOnce(&'a mcp_client::RunningMcpPeer) -> tool_mcp::ClientFuture<'a,T> + Send { pool.with_client(server, timeout, f).await }
+    fn app_resource<'a>(client: &'a mcp_client::RunningMcpPeer, binding: &'a mut Value) -> tool_mcp::ClientFuture<'a,()> { Box::pin(plugin_mcp::mcp_apps::resource(client, binding)) }
+    fn call_resource<'a>(config: &'a acp_config::ResolvedAcpxConfig, pool: &'a Arc<Self::Connections>, input: Value) -> tool_mcp::ClientFuture<'a,tool_types::ToolCallResult> { Box::pin(plugin_mcp::mcp_resources::call(config, pool, input)) }
 }
+
 impl plugin_hooks::host::HookHost for Host {
  fn sessions() -> &'static plugin_hooks::hook_session::HookSessions<Self> {
  static S: std::sync::OnceLock<plugin_hooks::hook_session::HookSessions<Host>> = std::sync::OnceLock::new(); S.get_or_init(Default::default)
@@ -72,8 +81,32 @@ impl plugin_hooks::host::HookHost for Host {
  async fn execution_runner(_: &Path) -> anyhow::Result<Option<Arc<agent_hooks::HookRunner>>> { anyhow::bail!("unexpected runner lookup") }
  async fn cleanup(_: &Arc<ToolUseContext<Self>>) { panic!("unexpected cleanup") }
  fn new_runner() -> agent_hooks::HookRunner { agent_hooks::HookRunner::new() }
- fn connections(_: &str, _: &Path) -> Arc<()> { panic!("unused MCP port") }
- fn hook_source_matches(_: &agent_client_protocol::McpServerHttp, _: &Path, _: &str) -> anyhow::Result<bool> { anyhow::bail!("unused MCP port") }
- async fn with_peer<T: Send,F>(_: &(), _: &agent_client_protocol::McpServer, _: Option<std::time::Duration>, _: F) -> anyhow::Result<T>
- where F: for<'a> FnOnce(&'a rmcp::service::Peer<rmcp::service::RoleClient>) -> tool_mcp::ClientFuture<'a,T> + Send { anyhow::bail!("unused MCP port") }
+ fn connections(_: &str, _: &Path) -> Arc<Self::Connections> { Arc::new(<Self as tool_mcp::McpToolHost>::new_connections()) }
+ fn hook_source_matches(server: &agent_client_protocol::McpServerHttp, root: &Path, name: &str) -> anyhow::Result<bool> { plugin_mcp::mcp_auth::hook_source_matches(&Source, server, root, name) }
+ async fn with_peer<T: Send,F>(pool: &Self::Connections, server: &agent_client_protocol::McpServer, timeout: Option<std::time::Duration>, f: F) -> anyhow::Result<T>
+ where F: for<'a> FnOnce(&'a rmcp::service::Peer<rmcp::service::RoleClient>) -> tool_mcp::ClientFuture<'a,T> + Send { pool.with_peer(server, timeout, f).await }
+}
+
+use crate::mcp_auth::Source;
+
+fn config(servers: Vec<agent_client_protocol::McpServer>) -> acp_config::ResolvedAcpxConfig {
+    acp_config::ResolvedAcpxConfig {
+        default_agent: "main".into(),
+        default_permissions: acp_types::PermissionMode::ApproveAll,
+        non_interactive_permissions: acp_types::NonInteractivePermissionPolicy::Deny,
+        auth_policy: acp_types::AuthPolicy::Skip,
+        ttl_ms: 300_000,
+        timeout_ms: None,
+        queue_max_depth: 16,
+        format: acp_types::OutputFormat::Text,
+        agents: Default::default(),
+        auth: Default::default(),
+        disable_exec: false,
+        mcp_servers: servers,
+        mcp_server_management: vec![],
+        global_path: "global.json".into(),
+        project_path: ".vwacprc.json".into(),
+        has_global_config: false,
+        has_project_config: false,
+    }
 }

@@ -204,3 +204,13 @@ t36/t38 使用 tool-context::executor::execute_tool_from_registry 原工厂、to
 - gateway-plugins 新增的依赖仅 dev-dependencies：tower、tokio测试特性、gateway-endpoint、vw-gateway-client、plugin-mcp。无领域反向依赖宿主。
 未来：`python3 scripts/cargo_slot.py cargo test -p gateway-plugins --lib host_migration_38_tests -- --test-threads=1` 预期3条；agent-plugins 原过滤预期43条（Unix）；宿主 t54 原真实鉴权过滤预期1条。均未运行，未声明通过。
 本任务33个原始来源当前剩余1172行，累计净减1516行（56.4%）。仍未满足70%，上文未覆盖的保留文件逐符号职责继续有效；真实宿主窗口fixture、child_agent持久化、compaction检查点和turn/MCP集成保留，不删除断言凑比例。
+
+## 第四轮深度迁移（2026-11-16）
+读取最新 final.md（43584行快照）及 remaining-host.json，继续处理具体残留。
+- t45 全5条用例 → agent-plugins::host_migration_38_tests::t45_tests 同名，旧模块和文件删除。testdata/plugin_compat/t45/server.py 由本库自身持有，启动与kill/wait仍保留。handler返回值显式引用实际plugin-types::CodexHookHandler。
+- t45端口真实调用链：workspace临时目录 → PluginDiscoveryOptions → discover_plugins → merge_enabled_plugin_mcp_servers → mcp_auth::hook_source_matches(&Source) → 实际McpSessionConnections及with_peer → tool_mcp::McpTool → tool_context::executor → 实际HTTP服务器。复用任务37现有ConnectionHost，固定默认fixture租户；不再使用当前宿主配置。配置不载入真实用户目录，global/project路径仅ResolvedAcpxConfig元数据。授权、missing executable、工具绑定、资源读取均调用真实领域接口；未复制算法。这里不冒充生产当前租户/选中插件校验，该边界仍由保留t57和任务37宿主测试证明。
+- `codex_plugin_compat_t57_joins_cancelled_work_before_releasing_turn` → 领域同名。真实PluginTurnSnapshot::Drop调用注入shutdown，fixture在原multi_thread runtime中block_in_place/block_on实际AsyncHooks::shutdown；取消future资源guard完成、closed以及拒绝再次schedule原断言保留。此测试覆盖领域Drop契约，不覆盖宿主block_on选择。
+- `codex_plugin_compat_t43_routes_context_and_stop_to_child` → 领域同名；原上下文隔离/继续提示/不匹配agent断言保留。t43现仅剩真实child_agent执行两条，fixture由其真实执行使用。
+- hook_subagent.rs 29行旧转发及测试emit适配已无任何宿主调用，删除文件、compat注册及plugins父重导出。无生产算法迁移收益，不将死转发统计为新增算法。
+未来 `python3 scripts/cargo_slot.py cargo test -p agent-plugins --lib host_migration_38_tests -- --test-threads=1` Unix预期50条；gateway-plugins本任务仍3条。MCP Python fixture仅未来测试启动，本轮未启动进程/HTTP服务，未运行Cargo、构建、单元或实机测试。
+33个原来源当前剩余954行；相对2688行净减1734行（64.5%），不足70%的原因按前文保留映射继续由收口验收。本次7条测试保留原名字和全部assert；静态签名/路径/挂载/差异核对不替代行为验证。

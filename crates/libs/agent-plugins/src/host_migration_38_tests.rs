@@ -66,3 +66,5 @@ mod hook_compact {
 mod t42_tests;
 
 mod t57_tests;
+
+mod t45_tests;

@@ -513,3 +513,7 @@ fn truncate_with_suffix(value: &str, max_chars: usize) -> String {
     truncated.push_str("...");
     truncated
 }
+
+#[cfg(test)]
+#[path = "mcp_tool_spec_tests.rs"]
+mod spec_tests;

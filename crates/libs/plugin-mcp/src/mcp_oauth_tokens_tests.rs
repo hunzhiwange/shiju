@@ -76,4 +76,3 @@ fn codex_plugin_compat_t28_rejects_transplanted_ciphertext() {
     std::fs::copy(dir.path().join("owner-a.grant"), dir.path().join("owner-b.grant")).unwrap();
     assert!(read(dir.path(), "owner-b").is_err(), "ciphertext must authenticate its owner binding");
 }
-

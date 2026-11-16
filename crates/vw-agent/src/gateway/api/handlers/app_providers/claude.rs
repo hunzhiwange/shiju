@@ -2,8 +2,7 @@
 use super::*;
 use std::path::PathBuf;
 pub use gateway_app_providers::claude::{Policy, WriteKind};
-#[cfg(target_os = "macos")]
-pub use gateway_app_providers::claude::sync_saved;
+// Saved-provider dispatch is owned by gateway_app_providers.
 pub(super) fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
 }

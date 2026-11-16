@@ -11,10 +11,4 @@ pub(in crate::gateway::api::handlers) fn router_with_policy(path: Option<PathBuf
     let router = router.layer(axum::middleware::from_fn(super::publication_host::inject));
     router
 }
-#[cfg(target_os = "macos")]
-pub(super) async fn sync_saved(database: GlobalDatabase, policy: Option<PathBuf>,
-    headers: axum::http::HeaderMap, target: &vw_api_app_operations::DataManagementTarget,
-    id: &str) -> Result<(), ()> {
-    gateway_app_providers::codex_catalog::sync_saved(database, policy, headers, target, id,
-        super::publication_host::control(None)).await
-}
+// Saved-provider dispatch and publication forwarding live in gateway_app_providers.

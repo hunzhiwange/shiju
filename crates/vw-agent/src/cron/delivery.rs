@@ -2,7 +2,7 @@
 use super::DeliveryConfig;
 use crate::config::Config;
 use anyhow::{Result, bail};
-pub(crate) use agent_cron::delivery::{is_wecom, failure_summary};
+pub(crate) use agent_cron::delivery::failure_summary;
 
 pub(crate) fn validate(config: &Config, delivery: &DeliveryConfig) -> Result<()> {
     agent_cron::delivery::validate(&super::scheduler::Host, config, delivery)

@@ -30,11 +30,21 @@ serde_json = "1"
 tracing = "0.1"
 
 [dev-dependencies]
+config-channel-types = { path = "../config-channel-types", version = "0.6.0" }
 tempfile = "3"
-tokio = { version = "1", features = ["fs"] }
+tokio = { version = "1", features = ["fs", "net", "io-util"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
 rusqlite = "0.37.0"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+channel-types = { path = "../channel-types", version = "0.6.0" }
+channel-telegram = { path = "../channel-telegram", version = "0.6.0" }
+channel-discord = { path = "../channel-discord", version = "0.6.0" }
+channel-email-channel = { path = "../channel-email-channel", version = "0.6.0" }
+channel-mattermost = { path = "../channel-mattermost", version = "0.6.0" }
+channel-qq = { path = "../channel-qq", version = "0.6.0" }
+channel-slack = { path = "../channel-slack", version = "0.6.0" }

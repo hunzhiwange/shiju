@@ -89,7 +89,7 @@ impl crate::scheduler::SchedulerHost for TestHost {
     async fn deliver_agent_job_to_task_pool(&self, _: &Config, _: &CronJob, _: &str, _: String) -> anyhow::Result<String> { panic!("unexpected task pool call") }
     #[cfg(not(target_arch = "wasm32"))]
     async fn run_gateway_agent_job(&self, _: &Config, _: &CronJob, _: &str, _: Option<String>) -> anyhow::Result<String> { panic!("unexpected gateway call") }
-    async fn deliver_announcement(&self, _: &Config, _: &str, _: &str, _: &str) -> anyhow::Result<()> { panic!("unexpected announcement") }
+    async fn deliver_announcement(&self, config: &Config, channel: &str, target: &str, output: &str) -> anyhow::Result<()> { crate::announcement::deliver_announcement(self, config, channel, target, output).await }
 }
 #[cfg(test)]
 async fn execute_job_with_retry(
@@ -155,3 +155,6 @@ async fn execute_job_now(config: &Config, job: &CronJob) -> (bool, String) { cra
 mod execution;
 #[path = "host_migration_54_tests/persistence.rs"]
 mod persistence;
+
+#[path = "host_migration_54_tests/announcement.rs"]
+mod announcement;

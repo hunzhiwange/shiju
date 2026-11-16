@@ -1,5 +1,7 @@
 # 任务54：定时任务完整领域静态证据
 
+首轮记录保留供比较；以下“深度恢复”更新覆盖旧的当前数量、保留原因和未来测试数。
+
 代码完成，编译/行为未验证。本轮遵守公共计划，不运行 Cargo、测试、构建、实机或格式化工具。
 
 来源共 2156 行 → 1618 行，净减 538 行（25.0%），未达到70%，须由收口验收。领域新增测试及夹具 663 行；lib.rs 注册增加3行。无新增依赖。
@@ -90,3 +92,39 @@ scheduler::run/execute_job_now → agent_cron::scheduler 对应入口，注入 H
 - `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cron:: -- --test-threads=1`，按上述保留完整名称逐项核对，不将零测试当通过。
 
 不足70%的原因逐文件见上表：保留的大文件主要是真实认证、通道、网关和任务池边界。继续可迁项是混合 best_effort/配置校验/活动快照用例的纯领域分支，须另行拆分且保持真实边界断言；本轮未为行数删除断言。
+
+## 深度恢复：真实通道路由与完整断言迁移
+
+已读取 final.md 与 remaining-host.json 所列 owner=54 的1618行残留。第二轮迁出 announcement::deliver_announcement 原有生产分支（大小写归一化、企微分流、不可用凭据拒绝、六种配置/发送器选择和发送、未知通道拒绝，以及原WASM行为）。宿主原入口现在只注入 Host 并调用领域函数；真实 scheduler Host::deliver_announcement 及现有调用者均经过该入口，因此不是新增死实现。领域直接调用现有 channel-* 实现，不模拟HTTP发送。
+
+agent-cron 新增原生目标通道依赖及测试配置类型依赖、tokio net/io-util 测试能力；Cargo.lock 仅补本包直接依赖。各通道清单未见 agent-cron/vw-agent 反向依赖。企微最新租户配置读取、认证会话解析及发送仍是 DeliveryHost。
+
+迁出 shell_barrier/release_shell 和真实HTTP完整读取夹具，删除旧挂载；删除 execute_and_persist_job 宿主测试包装和无调用者 is_wecom 重导出。新测试由 host_migration_54_tests::announcement 自注册；TestHost 普通投递调用真实新生产入口，其余外部端口仍对意外调用 panic。原8条完整函数名和断言保留，只有路径/Host 注入改变，无用例删减。
+
+- `cron::scheduler::tests::wb_schedule_feedback_persist_job_result_delivery_failure_non_best_effort_marks_error` → `agent_cron::host_migration_54_tests::announcement::wb_schedule_feedback_persist_job_result_delivery_failure_non_best_effort_marks_error`
+- `cron::scheduler::tests::wb_schedule_feedback_persist_job_result_delivery_failure_best_effort_keeps_success` → `agent_cron::host_migration_54_tests::announcement::wb_schedule_feedback_persist_job_result_delivery_failure_best_effort_keeps_success`
+- `cron::scheduler::tests::deliver_if_configured_handles_none_and_invalid_channel` → `agent_cron::host_migration_54_tests::announcement::deliver_if_configured_handles_none_and_invalid_channel`
+- `cron::scheduler::tests::wb_schedule_feedback_rejects_each_unconfigured_known_channel` → `agent_cron::host_migration_54_tests::announcement::wb_schedule_feedback_rejects_each_unconfigured_known_channel`
+- `cron::scheduler::tests::deliver_announcement_sends_configured_mattermost_thread_message` → `agent_cron::host_migration_54_tests::announcement::deliver_announcement_sends_configured_mattermost_thread_message`
+- `cron::scheduler::tests::deliver_if_configured_treats_announce_mode_case_insensitively` → `agent_cron::host_migration_54_tests::announcement::deliver_if_configured_treats_announce_mode_case_insensitively`
+- `cron::scheduler::tests::cron_history_scheduled_run_is_visible_until_completion` → `agent_cron::host_migration_54_tests::announcement::cron_history_scheduled_run_is_visible_until_completion`
+- `cron::scheduler::tests::wb_schedule_feedback_unavailable_credentials_rejected` → `agent_cron::host_migration_54_tests::announcement::wb_schedule_feedback_unavailable_credentials_rejected`
+
+更新宿主物理行数：2156 → 1618 → 1131，累计减少 1025 行（47.5%）。当前生产文件 310 行（含测试包装），独立测试 821 行。新生产 announcement.rs 144 行；新增领域公告测试/夹具 342 行。
+
+当前逐文件保留：
+
+|文件|行数|真实职责|
+|---|---:|---|
+|delivery.rs|71|租户配置watcher、已认证企微连接和真实webhook；薄领域入口|
+|delivery_tests.rs|214|真实配置密文失败、认证socket与webhook回执|
+|mod.rs|35|领域API导入及真实宿主入口/验收注册|
+|scheduler.rs|204|任务池对象创建与落盘、网关流调用、Host实现、入口和剩余宿主测试包装|
+|scheduler_tests.rs|68|薄宿主安全拒绝与不可用凭据契约|
+|tests/mod.rs|7|原未挂载测试集合入口|
+|tests/scheduler.rs|368|真实网关无密钥、任务池落盘/失败、企微实时配置/回执与历史验收|
+|wecom_acceptance_tests.rs|164|真实API路由/租户/保存配置/回执跨模块验收|
+
+仍未达70%减量；主要剩余是上述真实宿主验收，混合领域断言已继续抽出普通发送器/持久化/活动历史整组。未将真实租户配置、网关、任务池或认证会话夹具复制到领域库。收口须继续审查真实薄边界，不将本证据视为整轮门槛通过。
+
+静态核对：8条新迁出名称唯一，其余原测试名仍存续，旧active_runs_tests挂载及execute_and_persist_job宿主包装消失，git diff --check 无空白错误。未来同一 `python3 scripts/cargo_slot.py cargo test -p agent-cron --lib host_migration_54_tests -- --test-threads=1` 预期29条，须取得非零且 failed=0；宿主按上表剩余原测试名运行。所有 Cargo、编译、构建、测试及实机检查仍明确未运行。

@@ -2,8 +2,6 @@
 use super::parsing::ParsedToolCall;
 use crate::tools::{ScheduledToolBatch, Tool};
 #[cfg(test)]
-use crate::tools;
-#[cfg(test)]
 use crate::{tools::{ToolUseContext, ToolResult}, observability::{Observer, ObserverEvent}};
 #[cfg(test)]
 use std::{sync::Arc, time::Duration};
@@ -18,10 +16,6 @@ pub(crate) fn schedule_tool_batches(calls: &[ParsedToolCall], registry: &[Box<dy
         name: call.name.clone(), arguments: call.arguments.clone(), tool_call_id: call.tool_call_id.clone(),
     }).collect();
     agent_loop::execution::schedule_tool_batches(&calls, registry)
-}
-#[cfg(test)]
-pub(crate) fn should_execute_tools_in_parallel(calls: &[ParsedToolCall], registry: &[Box<dyn Tool>]) -> bool {
-    matches!(schedule_tool_batches(calls, registry).as_slice(), [ScheduledToolBatch { mode: tools::ScheduledToolBatchMode::Parallel, .. }])
 }
 #[cfg(test)]
 #[path = "../../../../libs/agent-loop/src/execution_tests.rs"]

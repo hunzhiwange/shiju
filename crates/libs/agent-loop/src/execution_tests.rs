@@ -100,12 +100,6 @@ impl Testcov0093Tool {
         self
     }
 
-    fn with_scheduling(mut self, read_only: bool, concurrency_safe: bool) -> Self {
-        self.read_only = read_only;
-        self.concurrency_safe = concurrency_safe;
-        self
-    }
-
     fn with_delay(mut self, delay_ms: u64) -> Self {
         self.delay_ms = delay_ms;
         self
@@ -171,14 +165,6 @@ fn pending(name: &str, value: &str, tool_call_id: Option<&str>) -> PendingToolCa
         name: name.to_string(),
         arguments: serde_json::json!({ "value": value }),
         tool_call_id: tool_call_id.map(str::to_string),
-    }
-}
-
-fn parsed(name: &str) -> ParsedToolCall {
-    ParsedToolCall {
-        name: name.to_string(),
-        arguments: serde_json::json!({ "value": name }),
-        tool_call_id: None,
     }
 }
 
@@ -416,36 +402,4 @@ async fn cancellation_token_stops_execution_before_tool_runs() {
 
     assert!(error.is::<ToolLoopCancelled>());
     assert_eq!(calls.load(Ordering::SeqCst), 0);
-}
-
-#[test]
-fn schedule_batches_and_parallel_decision_follow_tool_metadata() {
-    let parallel_a = Arc::new(AtomicUsize::new(0));
-    let serial = Arc::new(AtomicUsize::new(0));
-    let parallel_b = Arc::new(AtomicUsize::new(0));
-    let tools = registry(vec![
-        Testcov0093Tool::new("testcov_0093_parallel_a", parallel_a).with_scheduling(true, true),
-        Testcov0093Tool::new("testcov_0093_serial", serial).with_scheduling(false, false),
-        Testcov0093Tool::new("testcov_0093_parallel_b", parallel_b).with_scheduling(true, true),
-    ]);
-
-    let batches = schedule_tool_batches(
-        &[
-            parsed("testcov_0093_parallel_a"),
-            parsed("testcov_0093_serial"),
-            parsed("testcov_0093_parallel_b"),
-            parsed("missing_tool"),
-        ],
-        &tools,
-    );
-
-    assert_eq!(batches.len(), 4);
-    assert!(matches!(batches[0].mode, tools::ScheduledToolBatchMode::Parallel));
-    assert!(matches!(batches[1].mode, tools::ScheduledToolBatchMode::Sequential));
-    assert!(matches!(batches[2].mode, tools::ScheduledToolBatchMode::Parallel));
-    assert!(matches!(batches[3].mode, tools::ScheduledToolBatchMode::Sequential));
-
-    assert!(should_execute_tools_in_parallel(&[parsed("testcov_0093_parallel_a")], &tools));
-    assert!(!should_execute_tools_in_parallel(&[parsed("testcov_0093_serial")], &tools));
-    assert!(!should_execute_tools_in_parallel(&[], &tools));
 }

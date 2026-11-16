@@ -367,3 +367,7 @@ pub fn should_execute_tools_in_parallel(
 #[cfg(test)]
 #[path = "execution_dto_tests.rs"]
 mod dto_tests;
+
+#[cfg(test)]
+#[path = "execution_scheduling_tests.rs"]
+mod scheduling_tests;

@@ -190,10 +190,6 @@ pub(crate) use history::{apply_compaction_summary, build_compaction_transcript, 
 #[cfg(test)]
 pub(crate) use context::build_context;
 
-/// 工具执行策略函数（仅供测试使用）
-#[cfg(test)]
-pub(crate) use execution::should_execute_tools_in_parallel;
-
 /// 非 CLI 审批上下文（供 crate 内部复用）
 pub(crate) use approval::NonCliApprovalContext;
 

@@ -25,13 +25,13 @@
 |questions_tests.rs|167|25|False|
 |steps.rs|232|220|True|
 |steps_tests.rs|382|281|False|
-|stream_events.rs|1431|1384|True|
+|stream_events.rs|1431|1369|True|
 |stream_events_tests.rs|2221|2140|False|
 |tests.rs|458|428|False|
 |todos.rs|89|89|True|
 |todos_tests.rs|83|83|False|
 
-来源总量 6733 → 6235，宿主净减少 498 行；生产候选 2979 → 2958，净减少 21 行。没有新增宿主替代文件；测试减少单独统计，不冒充生产减少。独立rustfmt会影响空白行，行数不是业务迁移规模。
+来源总量 6733 → 6220，宿主净减少 513 行；生产候选 2979 → 2943，净减少 36 行。没有新增宿主替代文件；测试减少单独统计，不冒充生产减少。独立rustfmt会影响空白行，行数不是业务迁移规模。
 
 ## mod/draft与状态字段残留审查
 
@@ -238,7 +238,7 @@ permissions.rs cfg(test) mod permission_reply_tests；questions.rs cfg(test) mod
 - schedule_agent_stream_session_save/mark_agent_stream_session_dirty/flush_agent_stream_session_save/clear_agent_stream_session_save_flush/save_latest_agent_stream_session/handle_agent_stream_session_delta_saved/force_save_agent_stream_session: 既有StreamSaveState拥有状态算法；宿主仅选择App前后台缓存/目录、记录性能探针、映射保存结果及toast与网关资源效果。
 - queue_agent_stream_delta/queue_agent_tool_delta/queue_agent_session_delta/flush_agent_stream_delta/flush_agent_stream_delta_for_request: App请求身份解析和领域缓冲结果到Task调度的适配。
 - handle_agent_stream_delta/handle_agent_session_delta: cfg(test)跨域直接投影适配。
-- upsert_compaction_status: cfg(test)兼容已有宿主契约调用；真实入口使用apply_runtime_compaction。
+- upsert_compaction_status: 宿主旧兼容包装已删除；真实入口使用apply_runtime_compaction。
 - settle_interrupted_compaction/handle_agent_todo_continuation/handle_agent_compaction_status: 领域更新映射App前后台消息缓存、虚拟列表、保存与scroll。
 - apply_agent_session_delta: 领域AppliedDelta映射正文渲染器、前后台缓存和save装配。
 - handle_plan_run_session_started/handle_plan_run_session_finished: 父请求匹配，前后台缓存初始化及宠物状态、保存投影。

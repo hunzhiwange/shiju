@@ -432,3 +432,7 @@ pub fn has_tool_calls(messages: &[Value]) -> bool {
     }
     false
 }
+
+#[cfg(test)]
+#[path = "messages_chat_tests.rs"]
+mod messages_chat_tests;

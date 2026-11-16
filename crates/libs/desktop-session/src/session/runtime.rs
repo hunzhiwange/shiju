@@ -132,3 +132,38 @@ pub fn apply_draft_preferences<R>(runtime: &mut super::agent::SessionRuntimeStat
         runtime.acp_options_state.source_request_id = None;
     }
 }
+
+pub fn restore_session_full_access<R>(
+    runtime: &mut super::agent::SessionRuntimeState<R>,
+    full_access: bool,
+) {
+    if !runtime.full_access_overridden && !runtime.fork_agent_selected {
+        runtime.full_access_enabled = full_access;
+        runtime.full_access_initialized = true;
+    }
+}
+
+pub fn restore_session_model_from_history<R>(
+    runtime: &mut super::agent::SessionRuntimeState<R>,
+    model: &str,
+) -> bool {
+    let model = model.trim();
+    if model.is_empty() {
+        return false;
+    }
+
+    if !runtime.restore_model_from_history {
+        return false;
+    }
+
+    runtime.model = model.to_string();
+    runtime.auto_model = false;
+    runtime.task_mode_model = runtime.model.clone();
+    runtime.restore_model_from_history = false;
+    true
+}
+
+pub fn mark_session_acp_rebuild_required<R>(runtime: &mut super::agent::SessionRuntimeState<R>) {
+    runtime.acp_rebuild_required = true;
+    runtime.last_effective_acp_agent = None;
+}

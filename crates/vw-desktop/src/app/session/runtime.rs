@@ -34,11 +34,10 @@ impl App {
     }
 
     pub(crate) fn restore_session_full_access(&mut self, session_id: &str, full_access: bool) {
-        let runtime = self.get_session_runtime_mut(session_id);
-        if !runtime.full_access_overridden && !runtime.fork_agent_selected {
-            runtime.full_access_enabled = full_access;
-            runtime.full_access_initialized = true;
-        }
+        desktop_session::session::runtime::restore_session_full_access(
+            self.get_session_runtime_mut(session_id),
+            full_access,
+        );
     }
 
     pub(crate) fn load_session_full_access(
@@ -354,23 +353,10 @@ impl App {
         session_id: &str,
         model: &str,
     ) -> bool {
-        let model = model.trim();
-        if model.is_empty() {
-            return false;
-        }
-
         let Some(runtime) = self.session_runtime_states.get_mut(session_id) else {
             return false;
         };
-        if !runtime.restore_model_from_history {
-            return false;
-        }
-
-        runtime.model = model.to_string();
-        runtime.auto_model = false;
-        runtime.task_mode_model = runtime.model.clone();
-        runtime.restore_model_from_history = false;
-        true
+        desktop_session::session::runtime::restore_session_model_from_history(runtime, model)
     }
 
     /// 用户显式选择模型后，历史加载结果不得再覆盖该选择。
@@ -385,9 +371,9 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn mark_session_acp_rebuild_required(&mut self, session_id: &str) {
-        let runtime = self.get_session_runtime_mut(session_id);
-        runtime.acp_rebuild_required = true;
-        runtime.last_effective_acp_agent = None;
+        desktop_session::session::runtime::mark_session_acp_rebuild_required(
+            self.get_session_runtime_mut(session_id),
+        );
     }
 }
 

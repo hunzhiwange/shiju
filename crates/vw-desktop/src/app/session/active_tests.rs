@@ -3,7 +3,6 @@
 //! 会话清理与步骤替换必须同步释放原始载荷，避免派生缓存与主状态失配。
 
 use super::*;
-use crate::app::models::TokenUsage;
 use session_info::{Info, TimeInfo};
 
 fn message(role: ChatRole, content: &str) -> ChatMessage {
@@ -13,32 +12,6 @@ fn message(role: ChatRole, content: &str) -> ChatMessage {
         model: None,
         think_timing: Vec::new(),
         processing_timing: None,
-    }
-}
-
-fn message_with_model(role: ChatRole, content: &str, model: &str) -> ChatMessage {
-    ChatMessage {
-        role,
-        content: content.to_string(),
-        model: Some(model.to_string()),
-        think_timing: Vec::new(),
-        processing_timing: None,
-    }
-}
-
-fn step(index: u32, started_ms: u64, finished_ms: Option<u64>, model: &str) -> ChatSessionStep {
-    ChatSessionStep {
-        index,
-        turn_id: None,
-        started_ms,
-        finished_ms,
-        start_snapshot_path: None,
-        finish_snapshot_path: None,
-        usage: TokenUsage::default(),
-        cost_usd: None,
-        finish_reason: None,
-        model: Some(model.to_string()),
-        tool_timings: Vec::new(),
     }
 }
 
@@ -58,133 +31,6 @@ fn session_info(id: &str, directory: &str, updated_ms: u64) -> Info {
         fork_execution_started: None,
         revert: None,
     }
-}
-
-#[test]
-fn refresh_tail_message_meta_appends_then_replaces_changed_label() {
-    let (mut app, _task) = App::new();
-    app.chat = vec![message_with_model(ChatRole::User, "question", "message-model")];
-    app.upsert_active_session_step(step(1, 1_000, Some(1_500), "model-a"));
-
-    app.refresh_active_session_tail_message_meta(0);
-    assert_eq!(app.active_session_view_state.message_meta_texts.len(), 1);
-    assert!(
-        app.active_session_view_state.message_meta_texts[0]
-            .as_ref()
-            .map(|meta| meta.render(crate::app::i18n::I18n::new(
-                config_ui::DesktopLocale::SimplifiedChinese
-            )))
-            .is_some_and(|label| label.contains("message-model"))
-    );
-
-    app.upsert_active_session_step(step(1, 2_000, Some(2_500), "model-b"));
-    app.refresh_active_session_tail_message_meta(0);
-    assert!(
-        app.active_session_view_state.message_meta_texts[0]
-            .as_ref()
-            .map(|meta| meta.render(crate::app::i18n::I18n::new(
-                config_ui::DesktopLocale::SimplifiedChinese
-            )))
-            .is_some_and(|label| label.contains("message-model"))
-    );
-}
-
-#[test]
-fn refresh_tail_message_meta_rebuilds_gaps_and_truncates_out_of_range_entries() {
-    let (mut app, _task) = App::new();
-    app.chat = vec![message(ChatRole::User, "question"), message(ChatRole::Assistant, "answer")];
-    app.upsert_active_session_step(step(1, 1_000, Some(1_500), "model-a"));
-
-    app.refresh_active_session_tail_message_meta(1);
-    assert_eq!(app.active_session_view_state.message_meta_texts.len(), 2);
-
-    app.active_session_view_state.message_meta_texts.push(Some(
-        crate::app::i18n::chat::MessageMeta::Model { model: "stale".to_string(), time_ms: None },
-    ));
-    app.refresh_active_session_tail_message_meta(1);
-    assert_eq!(app.active_session_view_state.message_meta_texts.len(), 2);
-
-    app.active_session_view_state.message_meta_texts.push(Some(
-        crate::app::i18n::chat::MessageMeta::Model { model: "stale".to_string(), time_ms: None },
-    ));
-    app.refresh_active_session_tail_message_meta(2);
-    assert_eq!(app.active_session_view_state.message_meta_texts.len(), 2);
-}
-
-#[test]
-fn question_index_updates_incrementally_for_appended_user_message() {
-    let (mut app, _task) = App::new();
-    app.chat = vec![message(ChatRole::Assistant, "existing answer")];
-    app.rebuild_active_session_message_meta();
-
-    app.chat.push(message(ChatRole::User, "new question"));
-    app.sync_active_session_user_question_index();
-
-    assert_eq!(app.active_session_view_state.user_question_indexed_chat_len, 2);
-    assert_eq!(app.active_session_view_state.user_question_markers.len(), 1);
-    let marker = &app.active_session_view_state.user_question_markers[0];
-    assert_eq!(marker.message_idx, 1);
-    assert_eq!(marker.preview, "new question");
-}
-
-#[test]
-fn active_session_step_mutations_keep_steps_calls_and_index_map_consistent() {
-    let (mut app, _task) = App::new();
-    let calls = vec![serde_json::json!({"name": "read"})];
-
-    app.replace_active_session_steps(vec![step(2, 2_000, None, "model-b")]);
-    app.replace_active_session_calls(calls.clone());
-    app.upsert_active_session_step(step(1, 1_000, Some(1_500), "model-a"));
-    app.upsert_active_session_step(step(2, 2_000, Some(2_500), "model-c"));
-
-    assert_eq!(
-        app.active_session_view_state.steps.iter().map(|step| step.index).collect::<Vec<_>>(),
-        vec![1, 2]
-    );
-    assert_eq!(app.active_session_view_state.steps[1].model.as_deref(), Some("model-c"));
-    assert_eq!(
-        app.active_session_view_state.step_index_map.get(&2).and_then(|meta| meta.model.as_deref()),
-        Some("model-c")
-    );
-    assert_eq!(app.active_session_view_state.calls, calls);
-
-    app.clear_active_session_steps();
-    assert!(app.active_session_view_state.steps.is_empty());
-    assert!(app.active_session_view_state.calls.is_empty());
-    assert!(app.active_session_view_state.step_index_map.is_empty());
-}
-
-#[test]
-fn active_session_step_mutations_normalize_blank_turn_ids() {
-    let (mut app, _task) = App::new();
-    let mut loaded = step(1, 1_000, Some(1_500), "model-a");
-    loaded.turn_id = Some("  \t".to_string());
-    app.replace_active_session_steps(vec![loaded]);
-    assert_eq!(app.active_session_view_state.steps[0].turn_id, None);
-
-    let mut streamed = step(2, 2_000, Some(2_500), "model-b");
-    streamed.turn_id = Some(String::new());
-    app.upsert_active_session_step(streamed);
-    assert_eq!(app.active_session_view_state.steps[1].turn_id, None);
-}
-
-#[test]
-fn active_session_clear_removes_step_raw_payloads() {
-    let (mut app, _task) = App::new();
-    let raw = serde_json::json!({
-        "messages": [{"role": "user", "content": "retained raw payload"}]
-    });
-    app.replace_active_session_step_llm_raw(std::collections::HashMap::from([(
-        ("session-1".to_string(), "turn-1".to_string(), 1),
-        raw,
-    )]));
-    let estimated_with_raw = app.active_session_view_state.estimated_bytes();
-
-    assert!(estimated_with_raw > 0);
-    app.clear_active_session_steps();
-
-    assert!(app.active_session_view_state.step_llm_raw.is_empty());
-    assert!(app.active_session_view_state.estimated_bytes() < estimated_with_raw);
 }
 
 #[test]

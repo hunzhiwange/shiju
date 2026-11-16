@@ -68,3 +68,6 @@ mod test_messages;
 
 #[cfg(test)]
 mod host_split_7_tests;
+
+#[cfg(test)]
+mod host_module_1_tests;

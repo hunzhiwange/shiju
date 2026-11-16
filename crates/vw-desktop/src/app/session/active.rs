@@ -5,48 +5,35 @@
 
 use super::loading::{SharedChatMessages, shared_chat_messages};
 use super::view_cache::{SessionViewCacheInsertResult, SessionViewSnapshot};
-use super::{App, ChatSessionStep, HashMap, StepUiMeta};
+use super::{App, ChatSessionStep, HashMap};
 #[cfg(test)]
 use super::{ChatMessage, ChatRole};
 use crate::app::state::SessionStepRawKey;
 use serde_json::Value;
 
 use desktop_session::session::cache;
-use desktop_session::session::active::{normalize_step_turn_id, build_message_meta_labels, build_user_question_markers};
 
 impl App {
-    fn rebuild_active_session_trajectory_projection(&mut self) {
-        self.active_session_view_state.trajectory_projection =
-            crate::app::components::chat_panel::trajectory::project_trajectory(
-                &self.active_session_view_state.steps,
-                &self.active_session_view_state.step_llm_raw,
-            );
-        #[cfg(test)]
-        {
-            self.active_session_view_state.trajectory_projection_rebuild_count += 1;
-        }
-    }
-
     pub(crate) fn insert_active_session_step_llm_raw(
         &mut self,
         key: SessionStepRawKey,
         raw: Value,
     ) {
-        self.active_session_view_state.llm_raw_step_indices.insert(key.clone());
-        self.active_session_view_state.step_llm_raw.insert(key, raw);
-        self.rebuild_active_session_trajectory_projection();
+        self.active_session_view_state.insert_active_session_step_llm_raw(
+            key,
+            raw,
+            crate::app::components::chat_panel::trajectory::project_trajectory,
+        );
     }
 
     pub(crate) fn insert_missing_active_session_step_llm_raw(
         &mut self,
         raw: HashMap<SessionStepRawKey, Value>,
     ) {
-        if desktop_session::session::active::insert_missing_raw(
-            &mut self.active_session_view_state.step_llm_raw,
-            &mut self.active_session_view_state.llm_raw_step_indices, raw,
-        ) {
-            self.rebuild_active_session_trajectory_projection();
-        }
+        self.active_session_view_state.insert_missing_active_session_step_llm_raw(
+            raw,
+            crate::app::components::chat_panel::trajectory::project_trajectory,
+        );
     }
 
     /// 移走离开会话的稳定聊天工作集；容量拒绝时保留原始消息缓存作冷恢复后备。
@@ -57,7 +44,10 @@ impl App {
 
         self.close_session_transient_ui();
         let has_cold_chat_fallback = self.session_chat_cache.contains_key(&session_id);
-        if cache::needs_cold_fallback(self.get_session_runtime(&session_id).request_lifecycle.is_requesting, has_cold_chat_fallback) {
+        if cache::needs_cold_fallback(
+            self.get_session_runtime(&session_id).request_lifecycle.is_requesting,
+            has_cold_chat_fallback,
+        ) {
             self.store_session_chat_snapshot(
                 session_id.clone(),
                 shared_chat_messages(self.chat.clone()),
@@ -126,31 +116,18 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn rebuild_active_session_message_meta(&mut self) {
-        self.active_session_view_state.message_meta_texts =
-            build_message_meta_labels(&self.chat, &self.active_session_view_state.step_index_map);
-        if self.active_session_view_state.user_question_indexed_chat_len != self.chat.len() {
-            self.active_session_view_state.user_question_markers =
-                build_user_question_markers(&self.chat);
-            self.active_session_view_state.user_question_indexed_chat_len = self.chat.len();
-        }
+        self.active_session_view_state.rebuild_active_session_message_meta(&self.chat);
     }
 
     /// 将聊天尾部新增的消息增量纳入问题导航索引。
     pub(crate) fn sync_active_session_user_question_index(&mut self) {
-        desktop_session::session::active::sync_user_question_index(
-            &self.chat, &mut self.active_session_view_state.user_question_markers,
-            &mut self.active_session_view_state.user_question_indexed_chat_len,
-        );
+        self.active_session_view_state.sync_active_session_user_question_index(&self.chat);
     }
 
     /// 只刷新流式增量影响的尾部消息元信息。
     pub(crate) fn refresh_active_session_tail_message_meta(&mut self, changed_idx: usize) {
-        self.sync_active_session_user_question_index();
-        desktop_session::session::active::refresh_tail_message_meta(
-            &self.chat, &mut self.active_session_view_state.message_meta_texts,
-            &self.active_session_view_state.step_index_map,
-            changed_idx,
-        );
+        self.active_session_view_state
+            .refresh_active_session_tail_message_meta(changed_idx, &self.chat);
     }
 
     /// 执行 clear_active_session_steps 对应的领域操作。
@@ -158,12 +135,9 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn clear_active_session_steps(&mut self) {
-        self.active_session_view_state.steps.clear();
-        self.active_session_view_state.calls.clear();
-        self.active_session_view_state.step_llm_raw.clear();
-        self.active_session_view_state.llm_raw_step_indices.clear();
-        self.active_session_view_state.step_index_map.clear();
-        self.rebuild_active_session_trajectory_projection();
+        self.active_session_view_state.clear_active_session_steps(
+            crate::app::components::chat_panel::trajectory::project_trajectory,
+        );
     }
 
     #[allow(dead_code)]
@@ -171,19 +145,18 @@ impl App {
     ///
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-    pub(crate) fn replace_active_session_steps(&mut self, mut steps: Vec<ChatSessionStep>) {
-        steps.iter_mut().for_each(normalize_step_turn_id);
-        self.active_session_view_state.step_index_map =
-            steps.iter().map(|step| (step.index, StepUiMeta::from(step))).collect();
-        self.active_session_view_state.steps = steps;
-        self.rebuild_active_session_trajectory_projection();
+    pub(crate) fn replace_active_session_steps(&mut self, steps: Vec<ChatSessionStep>) {
+        self.active_session_view_state.replace_active_session_steps(
+            steps,
+            crate::app::components::chat_panel::trajectory::project_trajectory,
+        );
     }
 
     /// 执行 replace_active_session_calls 对应的领域操作。
     ///
     /// 原始调用记录来自会话 UI 快照，单独维护以避免历史加载时覆盖步骤索引。
     pub(crate) fn replace_active_session_calls(&mut self, calls: Vec<Value>) {
-        self.active_session_view_state.calls = calls;
+        self.active_session_view_state.replace_active_session_calls(calls);
     }
 
     /// 替换当前会话按稳定 turn/step 键保存的原始 LLM 载荷。
@@ -191,9 +164,10 @@ impl App {
         &mut self,
         raw: HashMap<SessionStepRawKey, Value>,
     ) {
-        self.active_session_view_state.llm_raw_step_indices.extend(raw.keys().cloned());
-        self.active_session_view_state.step_llm_raw = raw;
-        self.rebuild_active_session_trajectory_projection();
+        self.active_session_view_state.replace_active_session_step_llm_raw(
+            raw,
+            crate::app::components::chat_panel::trajectory::project_trajectory,
+        );
     }
 
     /// 替换当前会话在存储层已存在的原始 LLM 稳定 turn/step 键。
@@ -201,10 +175,7 @@ impl App {
         &mut self,
         indices: Vec<SessionStepRawKey>,
     ) {
-        self.active_session_view_state.llm_raw_step_indices = indices.into_iter().collect();
-        self.active_session_view_state
-            .llm_raw_step_indices
-            .extend(self.active_session_view_state.step_llm_raw.keys().cloned());
+        self.active_session_view_state.replace_active_session_llm_raw_step_indices(indices);
     }
 
     /// 执行 upsert_active_session_step 对应的领域操作。
@@ -212,11 +183,10 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn upsert_active_session_step(&mut self, step: ChatSessionStep) {
-        desktop_session::session::active::upsert_step(
-            &mut self.active_session_view_state.steps,
-            &mut self.active_session_view_state.step_index_map, step,
+        self.active_session_view_state.upsert_active_session_step(
+            step,
+            crate::app::components::chat_panel::trajectory::project_trajectory,
         );
-        self.rebuild_active_session_trajectory_projection();
     }
 
     /// 执行 sync_active_session_from_chat 对应的领域操作。
@@ -254,10 +224,12 @@ impl App {
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn prune_inactive_session_chat_cache(&mut self) {
         cache::prune_snapshots(
-            self.session_runtime_states.iter()
+            self.session_runtime_states
+                .iter()
                 .filter(|(_, state)| state.request_lifecycle.is_requesting)
                 .map(|(id, _)| id.as_str()),
-            &mut self.session_chat_cache, &mut self.session_chat_message_id_cache,
+            &mut self.session_chat_cache,
+            &mut self.session_chat_message_id_cache,
         );
     }
 
@@ -267,8 +239,10 @@ impl App {
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn restore_chat_for_session(&mut self, session_id: &str) {
         let hit = cache::restore_snapshot(
-            self.session_chat_cache.get(session_id), self.session_chat_message_id_cache.get(session_id),
-            &mut self.chat, &mut self.chat_message_ids,
+            self.session_chat_cache.get(session_id),
+            self.session_chat_message_id_cache.get(session_id),
+            &mut self.chat,
+            &mut self.chat_message_ids,
         );
         if hit {
             tracing::info!(
@@ -354,7 +328,8 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn active_shared_chat_messages(&self) -> SharedChatMessages {
-        let cached = self.active_session_id.as_deref().and_then(|id| self.session_chat_cache.get(id));
+        let cached =
+            self.active_session_id.as_deref().and_then(|id| self.session_chat_cache.get(id));
         cache::active_shared_messages(cached, &self.chat)
     }
 

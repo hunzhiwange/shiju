@@ -311,3 +311,138 @@ fn json_value_bytes(value: &Value) -> usize {
         }
     }
 }
+
+use std::collections::HashSet;
+#[derive(Debug, Clone, Default)]
+pub struct ActiveSessionViewState<P> {
+    pub updated_ms: u64,
+    pub steps: Vec<ChatSessionStep>,
+    pub calls: Vec<Value>,
+    pub step_llm_raw: HashMap<SessionStepRawKey, Value>,
+    pub trajectory_projection: P,
+    #[doc(hidden)]
+    pub trajectory_projection_rebuild_count: usize,
+    pub llm_raw_step_indices: HashSet<SessionStepRawKey>,
+    pub step_index_map: HashMap<u32, StepUiMeta>,
+    pub message_meta_texts: Vec<Option<desktop_i18n::chat::MessageMeta>>,
+    pub user_question_markers: Vec<UserQuestionMarker>,
+    pub user_question_indexed_chat_len: usize,
+    pub ui_preparing: bool,
+    pub base_ready: bool,
+    pub prepared_chat_ui_chunks: HashSet<usize>,
+    pub preparing_chat_ui_chunks: HashSet<usize>,
+    pub dirty_preparing_chat_ui_chunks: HashSet<usize>,
+    pub last_visited_chat_ui_chunk_start: Option<usize>,
+    pub pinned_chat_ui_chunk_start: Option<usize>,
+}
+
+impl<P: Default> ActiveSessionViewState<P> {
+    pub fn estimated_bytes(&self) -> usize {
+        estimated_bytes(
+            &self.steps,
+            &self.calls,
+            &self.step_llm_raw,
+            &self.step_index_map,
+            &self.message_meta_texts,
+            &self.user_question_markers,
+        )
+    }
+    pub fn rebuild_active_session_message_meta(&mut self, chat: &[ChatMessage]) {
+        self.message_meta_texts = build_message_meta_labels(chat, &self.step_index_map);
+        if self.user_question_indexed_chat_len != chat.len() {
+            self.user_question_markers = build_user_question_markers(&chat);
+            self.user_question_indexed_chat_len = chat.len();
+        }
+    }
+    pub fn sync_active_session_user_question_index(&mut self, chat: &[ChatMessage]) {
+        sync_user_question_index(
+            chat,
+            &mut self.user_question_markers,
+            &mut self.user_question_indexed_chat_len,
+        );
+    }
+    pub fn refresh_active_session_tail_message_meta(
+        &mut self,
+        changed_idx: usize,
+        chat: &[ChatMessage],
+    ) {
+        self.sync_active_session_user_question_index(chat);
+        refresh_tail_message_meta(
+            chat,
+            &mut self.message_meta_texts,
+            &self.step_index_map,
+            changed_idx,
+        );
+    }
+    pub fn clear_active_session_steps(
+        &mut self,
+        project: impl FnOnce(&[ChatSessionStep], &HashMap<SessionStepRawKey, Value>) -> P,
+    ) {
+        self.steps.clear();
+        self.calls.clear();
+        self.step_llm_raw.clear();
+        self.llm_raw_step_indices.clear();
+        self.step_index_map.clear();
+        self.trajectory_projection = project(&self.steps, &self.step_llm_raw);
+        self.trajectory_projection_rebuild_count += 1;
+    }
+    pub fn replace_active_session_steps(
+        &mut self,
+        mut steps: Vec<ChatSessionStep>,
+        project: impl FnOnce(&[ChatSessionStep], &HashMap<SessionStepRawKey, Value>) -> P,
+    ) {
+        steps.iter_mut().for_each(normalize_step_turn_id);
+        self.step_index_map =
+            steps.iter().map(|step| (step.index, StepUiMeta::from(step))).collect();
+        self.steps = steps;
+        self.trajectory_projection = project(&self.steps, &self.step_llm_raw);
+        self.trajectory_projection_rebuild_count += 1;
+    }
+    pub fn replace_active_session_calls(&mut self, calls: Vec<Value>) {
+        self.calls = calls;
+    }
+    pub fn replace_active_session_step_llm_raw(
+        &mut self,
+        raw: HashMap<SessionStepRawKey, Value>,
+        project: impl FnOnce(&[ChatSessionStep], &HashMap<SessionStepRawKey, Value>) -> P,
+    ) {
+        self.llm_raw_step_indices.extend(raw.keys().cloned());
+        self.step_llm_raw = raw;
+        self.trajectory_projection = project(&self.steps, &self.step_llm_raw);
+        self.trajectory_projection_rebuild_count += 1;
+    }
+    pub fn replace_active_session_llm_raw_step_indices(&mut self, indices: Vec<SessionStepRawKey>) {
+        self.llm_raw_step_indices = indices.into_iter().collect();
+        self.llm_raw_step_indices.extend(self.step_llm_raw.keys().cloned());
+    }
+    pub fn upsert_active_session_step(
+        &mut self,
+        step: ChatSessionStep,
+        project: impl FnOnce(&[ChatSessionStep], &HashMap<SessionStepRawKey, Value>) -> P,
+    ) {
+        upsert_step(&mut self.steps, &mut self.step_index_map, step);
+        self.trajectory_projection = project(&self.steps, &self.step_llm_raw);
+        self.trajectory_projection_rebuild_count += 1;
+    }
+    pub fn insert_active_session_step_llm_raw(
+        &mut self,
+        key: SessionStepRawKey,
+        raw: Value,
+        project: impl FnOnce(&[ChatSessionStep], &HashMap<SessionStepRawKey, Value>) -> P,
+    ) {
+        self.llm_raw_step_indices.insert(key.clone());
+        self.step_llm_raw.insert(key, raw);
+        self.trajectory_projection = project(&self.steps, &self.step_llm_raw);
+        self.trajectory_projection_rebuild_count += 1;
+    }
+    pub fn insert_missing_active_session_step_llm_raw(
+        &mut self,
+        raw: HashMap<SessionStepRawKey, Value>,
+        project: impl FnOnce(&[ChatSessionStep], &HashMap<SessionStepRawKey, Value>) -> P,
+    ) {
+        if insert_missing_raw(&mut self.step_llm_raw, &mut self.llm_raw_step_indices, raw) {
+            self.trajectory_projection = project(&self.steps, &self.step_llm_raw);
+            self.trajectory_projection_rebuild_count += 1;
+        }
+    }
+}

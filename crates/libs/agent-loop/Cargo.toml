@@ -11,6 +11,9 @@ doctest = false
 test-support = ["dep:tempfile"]
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
+permission-runtime = { path = "../permission-runtime", version = "0.6.0" }
+message-types = { path = "../message-types", version = "0.6.0" }
 channel-support = { path = "../channel-support", version = "0.6.0" }
 vw-api-tools = { path = "../api-tools", version = "0.6.0" }
 plugin-hooks = { path = "../plugin-hooks", version = "0.6.0" }

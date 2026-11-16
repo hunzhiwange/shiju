@@ -2,6 +2,7 @@
 
 pub mod classifier;
 pub mod defaults;
+pub mod definitions;
 pub mod dispatcher;
 
 

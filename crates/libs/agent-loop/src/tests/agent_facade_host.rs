@@ -2,7 +2,7 @@
 //! 配置夹具覆盖内置代理合并、默认选择、权限叠加和全局技能拒绝优先级。
 
 use super::*;
-use crate::app::agent::permission::next::Action;
+use permission_runtime::next::Action;
 use serde_json::{Value, json};
 
 fn config(mode: &str, hidden: bool) -> DelegateAgentConfig {
@@ -380,7 +380,7 @@ fn build_resolved_agent_preserves_custom_builtin_prompts() {
 
 #[test]
 fn build_resolved_agent_keeps_explicit_tool_output_deny() {
-    let trunc = truncate_glob();
+    let trunc = truncate_glob(std::path::Path::new("/fixture/data"));
     let resolved = build_resolved_agent(
         "main",
         DelegateAgentConfig {
@@ -449,7 +449,7 @@ fn load_state_skips_disabled_agents_and_preserves_default_name() {
 #[test]
 fn prompt_and_truncate_glob_are_non_empty() {
     assert!(!generate_prompt().trim().is_empty());
-    let glob = truncate_glob();
+    let glob = truncate_glob(std::path::Path::new("/fixture/data"));
     assert!(glob.ends_with("tool-output/*"));
 }
 

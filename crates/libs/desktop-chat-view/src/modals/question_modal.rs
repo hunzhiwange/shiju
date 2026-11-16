@@ -2,12 +2,15 @@
 //! 本模块只描述模态内容和交互消息，不直接承担持久化策略。
 
 #[derive(Debug, Clone)]
-pub enum Event { QuestionReject, QuestionSubmit, QuestionOptionToggled(usize, String), QuestionCustomChanged(usize, String) }
+pub enum Event {
+    QuestionReject,
+    QuestionSubmit,
+    QuestionOptionToggled(usize, String),
+    QuestionCustomChanged(usize, String),
+}
 
 use iced::Element;
 use iced::widget::button;
-
-
 
 fn question_modal_is_dark_theme(theme: &iced::Theme) -> bool {
     let background = theme.palette().background;
@@ -101,7 +104,11 @@ fn question_option_button_style(
 /// 模块内可见函数，执行 with_question_modal 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub fn with_question_modal<'a, Message: Clone + 'a>(
-    request: Option<&question_types::Request>, answers: &[Vec<String>], custom: &[String], locale: config_ui::DesktopLocale, feedback: Option<Element<'a, Message>>,
+    request: Option<&question_types::Request>,
+    answers: &[Vec<String>],
+    custom: &[String],
+    locale: config_ui::DesktopLocale,
+    feedback: Option<Element<'a, Message>>,
     emit: impl Fn(Event) -> Message + Copy + 'a,
     root_content: Element<'a, Message>,
 ) -> Element<'a, Message> {
@@ -115,141 +122,156 @@ pub fn with_question_modal<'a, Message: Clone + 'a>(
         use iced::widget::{button, column, container, row, text, text_input};
         use iced::{Alignment, Length, Theme};
 
-        let header =
-            req.questions.first().map(|question| question.header.clone()).unwrap_or_else(|| {
-                desktop_i18n::I18n::new(locale).__("需要确认").to_string()
-            });
-
-        let mut content = column![].spacing(12);
-        for (question_index, question) in req.questions.iter().enumerate() {
-            let mut question_column = column![text(question.question.clone()).size(14)].spacing(8);
-            let selected_answers =
-                answers.get(question_index).cloned().unwrap_or_default();
-
-            let mut option_column = column![].spacing(6);
-            for option in &question.options {
-                let label = option.label.clone();
-                let message_label = label.clone();
-                let selected = selected_answers.iter().any(|value| value == &label);
-
-                let button_label = column![
-                    text(label.clone()).size(13).style(move |theme: &Theme| {
-                        iced::widget::text::Style {
-                            color: Some(question_option_title_color(theme)),
-                        }
-                    }),
-                    text(option.description.clone()).size(11).style(move |theme: &Theme| {
-                        iced::widget::text::Style {
-                            color: Some(question_option_description_color(theme, selected)),
-                        }
-                    })
-                ]
-                .spacing(2);
-
-                let button = button(button_label)
-                    .padding([8, 12])
-                    .width(Length::Fill)
-                    .on_press(emit(Event::QuestionOptionToggled(
-                        question_index,
-                        message_label,
-                    )))
-                    .style(move |theme: &Theme, status| {
-                        question_option_button_style(theme, status, selected)
-                    });
-
-                option_column = option_column.push(button);
-            }
-            if !question.options.is_empty() {
-                question_column = question_column.push(option_column);
-            }
-
-            if !question.multiple.unwrap_or(false)
-                && let Some(selected_answer) = selected_answers.first()
-                && let Some(preview) = question
-                    .options
-                    .iter()
-                    .find(|option| option.label == *selected_answer)
-                    .and_then(|option| option.preview.as_deref())
-                && !preview.trim().is_empty()
-            {
-                question_column = question_column.push(
-                    column![
-                        text(desktop_i18n::I18n::new(locale).__("预览"))
-                            .size(11)
-                            .style(settings_muted_text_style),
-                        text(preview.to_string()).size(11),
-                    ]
-                    .spacing(4),
-                );
-            }
-
-            if let Some(form) = &req.mcp_form
-                && let Some((name, field)) = form.schema["properties"]
-                    .as_object()
-                    .and_then(|fields| fields.iter().nth(question_index))
-            {
-                let required = form.schema["required"]
-                    .as_array()
-                    .is_some_and(|xs| xs.iter().any(|v| v == name));
-                question_column = question_column.push(
-                    text(format!(
-                        "{}{} · {}",
-                        field["title"].as_str().unwrap_or(name),
-                        desktop_i18n::I18n::new(locale).__(if required {
-                            "（必填）"
-                        } else {
-                            "（可选）"
-                        }),
-                        field["type"].as_str().unwrap_or("")
-                    ))
-                    .size(12),
-                );
-            }
-            if question.custom.unwrap_or(false)
-                && !(req.mcp_form.is_some() && !question.options.is_empty())
-            {
-                let value =
-                    custom.get(question_index).cloned().unwrap_or_default();
-                let input = text_input(
-                    desktop_i18n::I18n::new(locale).__("输入你的答案"),
-                    &value,
-                )
-                .on_input(move |value| {
-                    emit(Event::QuestionCustomChanged(
-                        question_index,
-                        value,
-                    ))
-                })
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .style(settings_text_input_style);
-                question_column = question_column.push(input);
-            }
-
-            content = content.push(settings_panel(question_column).padding([12, 14]));
-        }
-
+        let answers = answers.to_vec();
+        let custom = custom.to_vec();
         let cancel_message = emit(Event::QuestionReject);
-        let cancel =
-            button(text(desktop_i18n::I18n::new(locale).__("取消")).size(13))
+        let card = container(iced::widget::responsive(move |size| {
+            let header = req
+                .questions
+                .first()
+                .map(|question| question.header.clone())
+                .unwrap_or_else(|| desktop_i18n::I18n::new(locale).__("需要确认").to_string());
+
+            let mut content = column![text(header).size(16)].spacing(12).width(Length::Fill);
+            for (question_index, question) in req.questions.iter().enumerate() {
+                let mut question_column = column![
+                    text(question.question.clone())
+                        .size(14)
+                        .wrapping(iced::widget::text::Wrapping::WordOrGlyph)
+                ]
+                .spacing(8);
+                let selected_answers = answers.get(question_index).cloned().unwrap_or_default();
+
+                let mut option_column = column![].spacing(6);
+                for option in &question.options {
+                    let label = option.label.clone();
+                    let message_label = label.clone();
+                    let selected = selected_answers.iter().any(|value| value == &label);
+
+                    let button_label = column![
+                        text(label.clone())
+                            .size(13)
+                            .wrapping(iced::widget::text::Wrapping::WordOrGlyph)
+                            .style(move |theme: &Theme| {
+                                iced::widget::text::Style {
+                                    color: Some(question_option_title_color(theme)),
+                                }
+                            }),
+                        text(option.description.clone())
+                            .size(11)
+                            .wrapping(iced::widget::text::Wrapping::WordOrGlyph)
+                            .style(move |theme: &Theme| {
+                                iced::widget::text::Style {
+                                    color: Some(question_option_description_color(theme, selected)),
+                                }
+                            })
+                    ]
+                    .spacing(2);
+
+                    let button = button(button_label)
+                        .padding([12, 12])
+                        .width(Length::Fill)
+                        .on_press(emit(Event::QuestionOptionToggled(question_index, message_label)))
+                        .style(move |theme: &Theme, status| {
+                            question_option_button_style(theme, status, selected)
+                        });
+
+                    option_column = option_column.push(button);
+                }
+                if !question.options.is_empty() {
+                    question_column = question_column.push(option_column);
+                }
+
+                if !question.multiple.unwrap_or(false)
+                    && let Some(selected_answer) = selected_answers.first()
+                    && let Some(preview) = question
+                        .options
+                        .iter()
+                        .find(|option| option.label == *selected_answer)
+                        .and_then(|option| option.preview.as_deref())
+                    && !preview.trim().is_empty()
+                {
+                    question_column = question_column.push(
+                        column![
+                            text(desktop_i18n::I18n::new(locale).__("预览"))
+                                .size(11)
+                                .style(settings_muted_text_style),
+                            text(preview.to_string())
+                                .size(11)
+                                .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
+                        ]
+                        .spacing(4),
+                    );
+                }
+
+                if let Some(form) = &req.mcp_form
+                    && let Some((name, field)) = form.schema["properties"]
+                        .as_object()
+                        .and_then(|fields| fields.iter().nth(question_index))
+                {
+                    let required = form.schema["required"]
+                        .as_array()
+                        .is_some_and(|xs| xs.iter().any(|v| v == name));
+                    question_column = question_column.push(
+                        text(format!(
+                            "{}{} · {}",
+                            field["title"].as_str().unwrap_or(name),
+                            desktop_i18n::I18n::new(locale).__(if required {
+                                "（必填）"
+                            } else {
+                                "（可选）"
+                            }),
+                            field["type"].as_str().unwrap_or("")
+                        ))
+                        .size(12),
+                    );
+                }
+                if question.custom.unwrap_or(false)
+                    && !(req.mcp_form.is_some() && !question.options.is_empty())
+                {
+                    let value = custom.get(question_index).cloned().unwrap_or_default();
+                    let input =
+                        text_input(desktop_i18n::I18n::new(locale).__("输入你的答案"), &value)
+                            .on_input(move |value| {
+                                emit(Event::QuestionCustomChanged(question_index, value))
+                            })
+                            .padding(SETTINGS_CONTROL_PADDING)
+                            .size(SETTINGS_CONTROL_TEXT_SIZE)
+                            .style(settings_text_input_style);
+                    question_column = question_column.push(input);
+                }
+
+                content = content.push(settings_panel(question_column).padding([12, 14]));
+            }
+
+            let cancel_message = emit(Event::QuestionReject);
+            let cancel = button(text(desktop_i18n::I18n::new(locale).__("取消")).size(13))
                 .on_press(cancel_message.clone())
-                .padding([8, 14])
+                .padding([12, 14])
                 .style(rounded_action_btn_style);
-        let submit =
-            button(text(desktop_i18n::I18n::new(locale).__("确定")).size(13))
+            let submit = button(text(desktop_i18n::I18n::new(locale).__("确定")).size(13))
                 .on_press(emit(Event::QuestionSubmit))
-                .padding([8, 14])
+                .padding([12, 14])
                 .style(primary_action_btn_style);
 
-        let header = settings_modal_header(
-            text(header).size(18),
-            settings_close_button(cancel_message.clone()),
-        );
-        let actions = container(row![cancel, submit].spacing(8).align_y(Alignment::Center).wrap())
-            .align_right(Length::Fill);
-        let card = settings_modal_layout(header, content, Some(actions.into())).width(Length::Fill);
+            let header = settings_modal_header(
+                text(desktop_i18n::I18n::new(locale).__("需要确认")).size(18),
+                settings_close_button(cancel_message.clone()),
+            );
+            let actions =
+                container(row![cancel, submit].spacing(8).align_y(Alignment::Center).wrap())
+                    .align_right(Length::Fill);
+            settings_modal_layout(header, content, Some(actions.into()))
+                .padding(if size.height < 420.0 { 12 } else { 22 })
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
+        }))
+        .width(Length::Fill)
+        .height(Length::Fill);
         let dialog = desktop_ui_controls::toast::modal_with_feedback(card, feedback)
-            .width(464)
+            .width(Length::Fill)
+            .max_width(464)
             .max_height(580);
 
         settings_modal_overlay(Some(root_content), cancel_message, dialog)

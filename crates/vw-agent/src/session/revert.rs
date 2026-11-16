@@ -1,7 +1,5 @@
 //! Shared revert orchestration with the existing metadata storage binding.
 pub use session_engine::revert::{Error, RevertInput};
-#[cfg(test)]
-use session_engine::revert::{collect_revert_plan, collect_cleanup_messages, worktree_path, instance_directory_opt, extra};
 use super::session_io::NativeSessionIo;
 pub async fn revert(input: RevertInput) -> Result<session_info::Info, Error> { session_engine::revert::revert::<NativeSessionIo>(input).await }
 pub async fn unrevert(id: &str) -> Result<session_info::Info, Error> { session_engine::revert::unrevert::<NativeSessionIo>(id).await }

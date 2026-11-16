@@ -460,3 +460,7 @@ pub fn extra<const N: usize>(pairs: [(&'static str, Value); N]) -> Map<String, V
     }
     m
 }
+
+#[cfg(test)]
+#[path = "revert_tests.rs"]
+mod revert_tests;

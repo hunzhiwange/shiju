@@ -1,5 +1,16 @@
 //! 安全沙箱选择、紧急停止与 OTP 控制，复用独立基础库的唯一类型所有者。
 
+mod redact;
+pub use redact::redact;
+pub use canary_guard::CanaryGuard;
+pub use pairing::PairingGuard;
+pub use traits::{NoopSandbox, Sandbox};
+pub use prompt_guard::{GuardAction, GuardResult, PromptGuard};
+
+#[cfg(test)]
+#[path = "tests.rs"]
+mod tests;
+
 pub mod detect;
 pub mod estop;
 pub mod otp;

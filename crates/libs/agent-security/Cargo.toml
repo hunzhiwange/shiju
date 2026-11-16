@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+canary-guard = { path = "../canary-guard", version = "0.6.0" }
 agent-config = { path = "../agent-config", version = "0.6.0" }
 agent-memory = { path = "../agent-memory", version = "0.6.0" }
 sha2 = "0.11"

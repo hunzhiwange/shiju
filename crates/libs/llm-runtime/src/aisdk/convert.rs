@@ -460,3 +460,7 @@ pub fn native_tool_id(
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "convert_endpoint_tests.rs"]
 mod endpoint_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "convert_native_tool_tests.rs"]
+mod native_tool_tests;

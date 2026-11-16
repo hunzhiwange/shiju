@@ -565,7 +565,3 @@ pub(crate) use desktop_settings_shell::traverse_select_focus;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "system_settings_ui_refresh_04_tests.rs"]
 mod ui_refresh_04_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "system_settings_gateway_client_ui_refresh_24_tests.rs"]
-mod gateway_client_ui_refresh_24_tests;

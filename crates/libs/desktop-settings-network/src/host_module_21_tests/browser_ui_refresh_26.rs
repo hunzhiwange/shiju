@@ -1,10 +1,11 @@
 //! Headless rendering and event regression for the network settings forms.
 #![cfg(not(target_arch = "wasm32"))]
 
-use super::super::{system_settings::SystemTab, system_settings_network as network};
-use super::{App, Message, SettingsMessage};
-use crate::app::i18n::settings_extensions::text as tr;
-use crate::app::message::settings::TunnelMessage;
+use super::{Message, NetworkFixture as App};
+use super::{SystemTab, network};
+use crate::messages::TunnelMessage;
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+use desktop_i18n::settings_extensions::text as tr;
 use iced::advanced::{
     clipboard,
     renderer::{Headless, Style},
@@ -14,7 +15,6 @@ use iced::widget::{container, scrollable};
 use iced::{Element, Event, Font, Length, Renderer, Size, Theme, mouse};
 use iced::{Point, Rectangle};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
 fn isolated(test: &str) -> bool {
     const CHILD: &str = "SHIJU_UI_REFRESH_26_CHILD";
@@ -53,7 +53,7 @@ fn isolated(test: &str) -> bool {
 async fn renderer() -> Renderer {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -123,8 +123,7 @@ const WEBDRIVER: &str = "http://127.0.0.1:9515";
 const TOKEN: &str = "fixture-token";
 
 fn fixture() -> App {
-    assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");
-    let mut app = App::new().0;
+    let mut app = App::default();
     let browser = &mut app.browser_settings;
     browser.enabled = false;
     browser.backend = "native".into();
@@ -217,11 +216,7 @@ async fn ui_refresh_26_layout_and_interaction() {
     app.proxy_settings.show_help_modal = true;
     app.system_settings_tab = SystemTab::Proxy;
     let size = Size::new(420, 520);
-    let mut ui = scene(
-        super::super::system_settings_proxy::view_overlays(&app, page(&app)),
-        &mut renderer,
-        size,
-    );
+    let mut ui = scene(super::proxy::view_overlays(&app, page(&app)), &mut renderer, size);
     for (theme, mode) in [(&Theme::Light, "light"), (&Theme::Dark, "dark")] {
         capture(
             &mut ui,
@@ -398,7 +393,7 @@ async fn ui_refresh_26_tunnel_keyboard_cancel_and_confirm() {
     assert!(key_at(&mut ui, &mut renderer, Named::ArrowDown).is_empty());
     assert!(matches!(
         key_at(&mut ui, &mut renderer, Named::Enter).as_slice(),
-        [Message::Settings(SettingsMessage::Tunnel(TunnelMessage::ProviderChanged(value)))]
+        [Message::Tunnel(TunnelMessage::ProviderChanged(value))]
             if value == "cloudflare"
     ));
     let size = Size::new(420, 320);
@@ -467,7 +462,7 @@ fn assert_input_center(
 
 #[tokio::test(flavor = "multi_thread")]
 async fn ui_refresh_26_preserves_values_and_disabled_states() {
-    use crate::app::message::settings::BrowserMessage as Browser;
+    use crate::messages::BrowserMessage as Browser;
 
     if !isolated("ui_refresh_26_preserves_values_and_disabled_states") {
         return;
@@ -497,33 +492,31 @@ async fn ui_refresh_26_preserves_values_and_disabled_states() {
     assert!(click(&mut ui, &mut renderer, backend_trigger.center()).is_empty());
     assert!(key_at(&mut ui, &mut renderer, Named::ArrowDown).is_empty());
     let messages = key_at(&mut ui, &mut renderer, Named::Enter);
-    let [Message::Settings(settings @ SettingsMessage::Browser(Browser::BackendChanged(id)))] =
-        messages.as_slice()
-    else {
+    let [settings @ Message::Browser(Browser::BackendChanged(id))] = messages.as_slice() else {
         panic!("expected one backend edit: {messages:?}");
     };
     assert_eq!(id, "computer_use");
     assert!(matches!(
         shorten(&mut ui, &mut renderer, positions.input("12345")).as_slice(),
-        [Message::Settings(SettingsMessage::Browser(Browser::ComputerUseTimeoutMsChanged(value)))]
+        [Message::Browser(Browser::ComputerUseTimeoutMsChanged(value))]
             if value == "1234"
     ));
     let editor = positions.focusables.iter().find(|bounds| bounds.height >= 96.0).unwrap();
     assert!(click(&mut ui, &mut renderer, editor.center()).iter().all(|message| matches!(
         message,
-        Message::Settings(SettingsMessage::Browser(Browser::AllowedDomainsEditorAction(_)))
+        Message::Browser(Browser::AllowedDomainsEditorAction(_))
     )));
     assert!(matches!(
         key_at(&mut ui, &mut renderer, Named::Enter).as_slice(),
-        [Message::Settings(SettingsMessage::Browser(Browser::AllowedDomainsEditorAction(
+        [Message::Browser(Browser::AllowedDomainsEditorAction(
             iced::widget::text_editor::Action::Edit(_),
-        )))]
+        ))]
     ));
     drop(ui);
 
     // Force local validation to fail, before any gateway task could be created.
     app.browser_settings.computer_use_timeout_ms_input = "0".into();
-    drop(crate::app::message::settings::update(&mut app, settings.clone()));
+    drop(super::update(&mut app, settings.clone()));
     assert_eq!(app.browser_settings.backend, "computer_use");
     assert!(app.browser_settings.save_error.is_some());
     let mut ui = scene(page(&app), &mut renderer, size);
@@ -535,7 +528,7 @@ async fn ui_refresh_26_preserves_values_and_disabled_states() {
         .save_error_translation
         .as_ref()
         .unwrap()
-        .render(crate::app::i18n::I18n::new(locale))
+        .render(desktop_i18n::I18n::new(locale))
         .unwrap();
     assert_fits(positions.label(&error), size);
     capture(
@@ -555,8 +548,8 @@ async fn ui_refresh_26_preserves_values_and_disabled_states() {
     {
         let messages = shorten(&mut ui, &mut renderer, positions.input(old));
         match (old, messages.as_slice()) {
-            (PROXY, [Message::Settings(SettingsMessage::ProxyAllChanged(value))])
-            | (SCOPE, [Message::Settings(SettingsMessage::ProxyServicesChanged(value))]) => {
+            (PROXY, [Message::ProxyAllChanged(value)])
+            | (SCOPE, [Message::ProxyServicesChanged(value)]) => {
                 assert_eq!(value, expected);
             }
             _ => panic!("unexpected proxy edit: {messages:?}"),
@@ -582,12 +575,12 @@ async fn ui_refresh_26_preserves_values_and_disabled_states() {
             }
             "cloudflare" => assert!(matches!(
                 shorten(&mut ui, &mut renderer, positions.input(TOKEN)).as_slice(),
-                [Message::Settings(SettingsMessage::Tunnel(TunnelMessage::CloudflareTokenChanged(value)))]
+                [Message::Tunnel(TunnelMessage::CloudflareTokenChanged(value))]
                     if value == "fixture-toke"
             )),
             "ngrok" => assert!(matches!(
                 shorten(&mut ui, &mut renderer, positions.input(TOKEN)).as_slice(),
-                [Message::Settings(SettingsMessage::Tunnel(TunnelMessage::NgrokAuthTokenChanged(value)))]
+                [Message::Tunnel(TunnelMessage::NgrokAuthTokenChanged(value))]
                     if value == "fixture-toke"
             )),
             "tailscale" => {
@@ -599,14 +592,12 @@ async fn ui_refresh_26_preserves_values_and_disabled_states() {
                         positions.label(t("启用 funnel（关闭时使用 serve）")).center()
                     )
                     .as_slice(),
-                    [Message::Settings(SettingsMessage::Tunnel(
-                        TunnelMessage::TailscaleFunnelToggled(true)
-                    ))]
+                    [Message::Tunnel(TunnelMessage::TailscaleFunnelToggled(true))]
                 ));
             }
             "custom" => assert!(matches!(
                 shorten(&mut ui, &mut renderer, positions.input("fixture local {port} --to {host}")).as_slice(),
-                [Message::Settings(SettingsMessage::Tunnel(TunnelMessage::CustomStartCommandChanged(value)))]
+                [Message::Tunnel(TunnelMessage::CustomStartCommandChanged(value))]
                     if value == "fixture local {port} --to {host"
             )),
             _ => unreachable!(),
@@ -626,7 +617,7 @@ const EXPOSURE: &str = "serve 仅 tailnet 内可访问，funnel 才会暴露到�
 
 #[tokio::test(flavor = "multi_thread")]
 async fn ui_refresh_26_proxy_scope_hover_and_help() {
-    use super::super::system_settings_proxy;
+    use super::proxy;
 
     if !isolated("ui_refresh_26_proxy_scope_hover_and_help") {
         return;
@@ -676,27 +667,27 @@ async fn ui_refresh_26_proxy_scope_hover_and_help() {
     let third = Point::new(menu.center_x(), menu.y + 94.0);
     assert!(matches!(
         click(&mut ui, &mut renderer, third).as_slice(),
-        [Message::Settings(SettingsMessage::ProxyScopeTextChanged(value))]
+        [Message::ProxyScopeTextChanged(value)]
             if value == "指定服务"
     ));
     assert!(click(&mut ui, &mut renderer, trigger.center()).is_empty());
     let underneath = positions
-        .label(crate::app::i18n::settings_models::connection_text::text(locale, "浏览器"))
+        .label(desktop_i18n::settings_models::connection_text::text(locale, "浏览器"))
         .center();
     assert!(click(&mut ui, &mut renderer, underneath).is_empty());
     assert!(matches!(
         click(&mut ui, &mut renderer, underneath).as_slice(),
-        [Message::Settings(SettingsMessage::SystemTabSelected(SystemTab::Browser))]
+        [Message::NetworkTabSelected(crate::NetworkTab::Browser)]
     ));
     let help = positions.label(tr(locale, "代理设置")).center_y();
     assert!(matches!(
         click(&mut ui, &mut renderer, Point::new(size.width as f32 - 20.0, help)).as_slice(),
-        [Message::Settings(SettingsMessage::ProxyHelpOpen)]
+        [Message::ProxyHelpOpen]
     ));
     drop(ui);
 
     app.proxy_settings.show_help_modal = true;
-    let mut ui = scene(system_settings_proxy::view_overlays(&app, page(&app)), &mut renderer, size);
+    let mut ui = scene(proxy::view_overlays(&app, page(&app)), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
     let title = positions.label("Proxy 設定說明");
     let (body, offset) = positions.scroll.expect("help body");
@@ -713,10 +704,7 @@ async fn ui_refresh_26_proxy_scope_hover_and_help() {
         mouse::Cursor::Unavailable,
     );
     let close = Point::new(size.width as f32 - 24.0 - 14.0, title.center_y());
-    assert!(matches!(
-        click(&mut ui, &mut renderer, close).as_slice(),
-        [Message::Settings(SettingsMessage::ProxyHelpClose)]
-    ));
+    assert!(matches!(click(&mut ui, &mut renderer, close).as_slice(), [Message::ProxyHelpClose]));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -734,12 +722,8 @@ async fn browser_install_help_renders_chinese_in_light_and_dark_themes() {
         [(Theme::Light, "browser-install-light"), (Theme::Dark, "browser-install-dark")]
     {
         app.app_theme = theme.clone();
-        let help = super::super::system_settings_help::with_help_modal(
-            &app,
-            page(&app),
-            SystemTab::Browser,
-            Some(SystemTab::Browser),
-        );
+        let help =
+            super::with_help_modal(&app, page(&app), SystemTab::Browser, Some(SystemTab::Browser));
         let mut ui = scene(help, &mut renderer, size);
         let pixels =
             capture(&mut ui, &mut renderer, &theme, size, name, mouse::Cursor::Unavailable);

@@ -1,21 +1,22 @@
 //! Exercise the real network settings widgets with isolated state and tiny-skia.
 #![cfg(not(target_arch = "wasm32"))]
 
-use super::super::{system_settings::SystemTab, system_settings_network as network};
-use super::{App, HttpRequestMessage as Http, Message, SettingsMessage};
-use crate::app::i18n::{settings_extensions::text as tr, settings_models::connection_text};
-use crate::app::message::settings::WebSearchMessage as Search;
+use super::{Message, NetworkFixture as App};
+use super::{SystemTab, network};
+use crate::messages::HttpRequestMessage as Http;
+use crate::messages::WebSearchMessage as Search;
+use desktop_i18n::{settings_extensions::text as tr, settings_models::connection_text};
 use iced::keyboard::key::Named;
 use iced::widget::{container, scrollable};
 use iced::{Element, Length, Point, Rectangle};
 
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use iced::advanced::{
     clipboard,
     renderer::{Headless, Style},
 };
 use iced::{Event, Font, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
 fn isolated(test: &str) -> bool {
     const CHILD: &str = "SHIJU_UI_REFRESH_25_CHILD";
@@ -54,7 +55,7 @@ fn isolated(test: &str) -> bool {
 async fn renderer() -> Renderer {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -231,8 +232,7 @@ fn masked(value: &str) -> String {
 }
 
 fn fixture() -> App {
-    assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");
-    let mut app = App::new().0;
+    let mut app = App::default();
     let http = &mut app.http_request_settings;
     http.enabled = false;
     http.timeout_secs = 37;
@@ -321,17 +321,17 @@ async fn ui_refresh_25_layout_and_interaction() {
             }
 
             for (target, label) in [
-                (SystemTab::WebSearch, "网页搜索"),
-                (SystemTab::HttpRequest, "网络请求"),
-                (SystemTab::Browser, "浏览器"),
-                (SystemTab::Proxy, "代理"),
-                (SystemTab::Tunnel, "隧道"),
+                (crate::NetworkTab::WebSearch, "网页搜索"),
+                (crate::NetworkTab::HttpRequest, "网络请求"),
+                (crate::NetworkTab::Browser, "浏览器"),
+                (crate::NetworkTab::Proxy, "代理"),
+                (crate::NetworkTab::Tunnel, "隧道"),
             ] {
                 let bounds = positions.label(connection_text::text(locale, label));
                 assert_fits(bounds, size);
                 assert!(matches!(
                     click(&mut ui, &mut renderer, bounds.center()).as_slice(),
-                    [Message::Settings(SettingsMessage::SystemTabSelected(actual))]
+                    [Message::NetworkTabSelected(actual)]
                         if *actual == target
                 ));
             }
@@ -358,7 +358,7 @@ async fn ui_refresh_25_preserves_values_and_disabled_states() {
     assert!(matches!(
         click(&mut ui, &mut renderer, positions.label(tr(app.desktop_locale, "添加")).center())
             .as_slice(),
-        [Message::Settings(SettingsMessage::HttpRequest(Http::AddAllowedDomain))]
+        [Message::HttpRequest(Http::AddAllowedDomain)]
     ));
     let delete = positions
         .labels
@@ -369,20 +369,20 @@ async fn ui_refresh_25_preserves_values_and_disabled_states() {
         .1;
     assert!(matches!(
         click(&mut ui, &mut renderer, delete.center()).as_slice(),
-        [Message::Settings(SettingsMessage::HttpRequest(Http::RemoveAllowedDomain(1)))]
+        [Message::HttpRequest(Http::RemoveAllowedDomain(1))]
     ));
     assert!(matches!(
         shorten(&mut ui, &mut renderer, positions.input(DOMAIN)).as_slice(),
-        [Message::Settings(SettingsMessage::HttpRequest(Http::NewAllowedDomainChanged(value)))]
+        [Message::HttpRequest(Http::NewAllowedDomainChanged(value))]
             if value == "*.api.example.invali"
     ));
     assert!(matches!(
         shorten(&mut ui, &mut renderer, positions.input("37")).as_slice(),
-        [Message::Settings(SettingsMessage::HttpRequest(Http::TimeoutSecsChanged(3)))]
+        [Message::HttpRequest(Http::TimeoutSecsChanged(3))]
     ));
     assert!(matches!(
         shorten(&mut ui, &mut renderer, positions.input(AGENT)).as_slice(),
-        [Message::Settings(SettingsMessage::HttpRequest(Http::UserAgentChanged(value)))]
+        [Message::HttpRequest(Http::UserAgentChanged(value))]
             if value == "Fixture-Agent/"
     ));
     drop(ui);
@@ -411,7 +411,7 @@ async fn ui_refresh_25_preserves_values_and_disabled_states() {
     }
     assert!(matches!(
         shorten(&mut ui, &mut renderer, positions.input("43")).as_slice(),
-        [Message::Settings(SettingsMessage::WebSearch(Search::TimeoutSecsChanged(value)))]
+        [Message::WebSearch(Search::TimeoutSecsChanged(value))]
             if value == "4"
     ));
     assert!(key_at(&mut ui, &mut renderer, Named::Enter).is_empty());
@@ -480,7 +480,7 @@ async fn ui_refresh_25_provider_keyboard_and_cancel() {
     );
     assert!(matches!(
         key_at(&mut ui, &mut renderer, Named::Enter).as_slice(),
-        [Message::Settings(SettingsMessage::WebSearch(Search::ProviderChanged(id)))]
+        [Message::WebSearch(Search::ProviderChanged(id))]
             if id == "serper"
     ));
 
@@ -509,7 +509,7 @@ async fn ui_refresh_25_provider_keyboard_and_cancel() {
     assert!(images[0] != images[1] && images[0] != images[2] && images[1] != images[2]);
     assert!(matches!(
         click(&mut ui, &mut renderer, first).as_slice(),
-        [Message::Settings(SettingsMessage::WebSearch(Search::ProviderChanged(id)))]
+        [Message::WebSearch(Search::ProviderChanged(id))]
             if id == "duckduckgo"
     ));
     assert!(click(&mut ui, &mut renderer, trigger.center()).is_empty());
@@ -610,7 +610,7 @@ fn assert_help_actions(ui: &mut Ui<'_>, renderer: &mut Renderer, icon: Point, de
         assert!(
             match (index, messages.as_slice()) {
                 (0, [Message::CopyCode(value)]) => value == description,
-                (3, [Message::View(crate::app::message::ViewMessage::OpenUrlExternal(url))]) => {
+                (3, [Message::OpenUrl(url)]) => {
                     url == &search
                 }
                 _ => false,
@@ -666,7 +666,7 @@ async fn help_rollout_16_renders_contextual_help() {
         positions.input("8");
         assert!(matches!(
             shorten(&mut ui, &mut renderer, positions.input(&masked(API_KEY))).as_slice(),
-            [Message::Settings(SettingsMessage::WebSearch(Search::ApiKeyChanged(value)))]
+            [Message::WebSearch(Search::ApiKeyChanged(value))]
                 if value == "fixture-api-ke"
         ));
         let switch = positions.label(connection_text::text(locale, "网络请求")).center();
@@ -674,10 +674,7 @@ async fn help_rollout_16_renders_contextual_help() {
         // An application-driven switch (such as settings search) has no outside click.
         assert!(click(&mut ui, &mut renderer, heading_icon).is_empty());
         let cache = ui.into_cache();
-        drop(crate::app::message::settings::update(
-            &mut app,
-            SettingsMessage::SystemTabSelected(SystemTab::HttpRequest),
-        ));
+        drop(super::update(&mut app, Message::NetworkTabSelected(crate::NetworkTab::HttpRequest)));
         assert_eq!(app.system_settings_tab, SystemTab::HttpRequest);
         let mut switched = UserInterface::build(
             page(&app),
@@ -700,7 +697,7 @@ async fn help_rollout_16_renders_contextual_help() {
         );
         assert!(matches!(
             click(&mut switched, &mut renderer, switch).as_slice(),
-            [Message::Settings(SettingsMessage::SystemTabSelected(SystemTab::HttpRequest))]
+            [Message::NetworkTabSelected(crate::NetworkTab::HttpRequest)]
         ));
         drop((switched, fresh));
 
@@ -729,11 +726,7 @@ async fn help_rollout_16_renders_contextual_help() {
             "search",
             (t("后端连接"), t("配置当前搜索后端的鉴权信息和兼容接口地址。")),
         );
-        let mut ui = scene(
-            scroll_frame(super::super::system_settings_web_search::view(&app)),
-            &mut renderer,
-            size,
-        );
+        let mut ui = scene(scroll_frame(super::web_search::view(&app)), &mut renderer, size);
         assert_help_frame(
             &app,
             &mut ui,
@@ -789,9 +782,9 @@ async fn help_rollout_16_http_preserves_permissions_and_errors() {
         }
         assert!(matches!(
             click(&mut ui, &mut renderer, positions.label(t("添加")).center()).as_slice(),
-            [Message::Settings(SettingsMessage::HttpRequest(Http::AddAllowedDomain))]
+            [Message::HttpRequest(Http::AddAllowedDomain)]
         ));
-        let mut ui = scene(scroll_frame(super::view(&app)), &mut renderer, size);
+        let mut ui = scene(scroll_frame(super::http_request::view(&app)), &mut renderer, size);
         assert_help_frame(
             &app,
             &mut ui,
@@ -820,7 +813,7 @@ async fn help_rollout_16_browser_preserves_native_and_sidecar_controls() {
     for (locale, theme) in HELP_LAYOUTS {
         app.desktop_locale = locale;
         app.app_theme = theme;
-        let i18n = crate::app::i18n::I18n::new(locale);
+        let i18n = desktop_i18n::I18n::new(locale);
         let mut ui = scene(page(&app), &mut renderer, size);
         let positions = geometry(&mut ui, &renderer);
         assert_fits(positions.input("/fixture/浏览器"), size);
@@ -854,15 +847,11 @@ async fn help_rollout_16_browser_preserves_native_and_sidecar_controls() {
         }
         assert!(matches!(
             shorten(&mut ui, &mut renderer, positions.input(&masked(API_KEY))).as_slice(),
-            [Message::Settings(SettingsMessage::Browser(
-                crate::app::message::settings::BrowserMessage::ComputerUseApiKeyChanged(value)
-            ))] if value == "fixture-api-ke"
+            [Message::Browser(
+                crate::messages::BrowserMessage::ComputerUseApiKeyChanged(value)
+            )] if value == "fixture-api-ke"
         ));
-        let mut ui = scene(
-            scroll_frame(super::super::system_settings_browser::view(&app)),
-            &mut renderer,
-            size,
-        );
+        let mut ui = scene(scroll_frame(super::browser::view(&app)), &mut renderer, size);
         assert_help_frame(
             &app,
             &mut ui,
@@ -911,7 +900,7 @@ async fn settings_help_gap_08_brave_credentials_and_result_range() {
         assert!(!positions.inputs.iter().any(|(value, _)| value == brave_key));
         assert!(matches!(
             shorten(&mut ui, &mut renderer, positions.input(&masked(brave_key))).as_slice(),
-            [Message::Settings(SettingsMessage::WebSearch(Search::BraveApiKeyChanged(value)))]
+            [Message::WebSearch(Search::BraveApiKeyChanged(value))]
                 if value == "fixture-brave-ke"
         ));
     }
@@ -960,7 +949,7 @@ async fn settings_help_gap_08_http_limits_and_permissions() {
         assert_eq!(positions.inputs.iter().filter(|(value, _)| value == "0").count(), 2);
         assert!(matches!(
             click(&mut ui, &mut renderer, positions.label(t("添加")).center()).as_slice(),
-            [Message::Settings(SettingsMessage::HttpRequest(Http::AddAllowedDomain))]
+            [Message::HttpRequest(Http::AddAllowedDomain)]
         ));
     }
 }
@@ -977,7 +966,7 @@ async fn settings_help_gap_08_browser_backend_and_domain_help() {
     for ((locale, theme), width) in HELP_LAYOUTS.into_iter().zip([420, 720, 420]) {
         app.desktop_locale = locale;
         app.app_theme = theme;
-        let i18n = crate::app::i18n::I18n::new(locale);
+        let i18n = desktop_i18n::I18n::new(locale);
         for (backend, dependency) in [
             ("native", "原生浏览器需要可用的 WebDriver。"),
             ("computer_use", "系统控制需要 sidecar。"),
@@ -1020,8 +1009,8 @@ async fn settings_help_gap_08_browser_backend_and_domain_help() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn settings_help_gap_08_tunnel_examples_and_restart() {
-    use super::super::system_settings_tunnel;
-    use crate::app::message::settings::TunnelMessage;
+    use super::tunnel;
+    use crate::messages::TunnelMessage;
 
     if !isolated("settings_help_gap_08_tunnel_examples_and_restart") {
         return;
@@ -1065,12 +1054,12 @@ async fn settings_help_gap_08_tunnel_examples_and_restart() {
             assert_fits(positions.label(t("serve 仅 tailnet 内可访问，funnel 才会暴露到公网。访问地址以启动日志为准，通常不要使用本地监听端口。")), size);
             assert!(matches!(
                 click(&mut ui, &mut renderer, positions.label(t("启用 funnel（关闭时使用 serve）")).center()).as_slice(),
-                [Message::Settings(SettingsMessage::Tunnel(TunnelMessage::TailscaleFunnelToggled(value)))]
+                [Message::Tunnel(TunnelMessage::TailscaleFunnelToggled(value))]
                     if *value != funnel
             ));
         }
         let size = Size::new(width, 960);
-        let mut ui = scene(scroll_frame(system_settings_tunnel::view(&app)), &mut renderer, size);
+        let mut ui = scene(scroll_frame(tunnel::view(&app)), &mut renderer, size);
         assert_help_frame(
             &app,
             &mut ui,

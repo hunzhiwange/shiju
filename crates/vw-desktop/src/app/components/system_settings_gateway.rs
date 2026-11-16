@@ -55,22 +55,5 @@ use crate::app::message::settings::GatewayMessage;
 #[cfg(test)]
 use desktop_i18n::settings_models::connection_text::text as connection_text;
 #[cfg(test)]
-use domain::{service_display_label, service_command_copy_button as local_copy_button};
-#[cfg(test)]
-fn service_command_copy_button(command: &'static str, copied: Option<&str>) -> Element<'static, Message> {
-    local_copy_button(command, copied).map(super::system_settings_browser::map_message)
-}
-#[cfg(test)]
-fn skey_calendar_popover(app: &App) -> Element<'_, Message> {
-    domain::skey_calendar_popover(inputs(app)).map(super::system_settings_browser::map_message)
-}
-#[cfg(test)]
-fn skey_date_picker(app: &App) -> Element<'_, Message> {
-    domain::skey_date_picker(inputs(app)).map(super::system_settings_browser::map_message)
-}
-#[cfg(test)]
-#[path = "system_settings_gateway_ui_refresh_23_tests.rs"]
-mod ui_refresh_23_tests;
-#[cfg(test)]
 #[path = "system_settings_gateway_tests.rs"]
 mod system_settings_gateway_tests;

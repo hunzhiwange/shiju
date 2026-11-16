@@ -1,13 +1,14 @@
 #![cfg(not(target_arch = "wasm32"))]
 
+use super::gateway::*;
 use super::*;
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use iced::advanced::{
     clipboard,
     renderer::{Headless, Style},
 };
 use iced::{Event, Font, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 fn isolated(test: &str) -> bool {
     const CHILD: &str = "SHIJU_UI_REFRESH_23_CHILD";
     if std::env::var_os(CHILD).is_some() {
@@ -45,7 +46,7 @@ fn isolated(test: &str) -> bool {
 async fn renderer() -> Renderer {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -218,8 +219,7 @@ const SAVE_ERROR: &str = "fixture: configuration could not be saved";
 const NODE_TOKEN: &str = "fictional-node-token";
 
 fn fixture() -> App {
-    assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");
-    let mut app = App::new().0;
+    let mut app = App::default();
     let s = &mut app.gateway_settings;
     s.host_input = format!("{}.example.invalid", "fictional-long-gateway-".repeat(14));
     s.node_control_auth_token_input = NODE_TOKEN.into();
@@ -317,7 +317,7 @@ async fn ui_refresh_23_layout_and_interaction() {
     let generate = generate.center();
     assert!(matches!(
         click(&mut ui, &mut renderer, generate).as_slice(),
-        [Message::Settings(SettingsMessage::Gateway(GatewayMessage::AddSkey))]
+        [Message::Gateway(GatewayMessage::AddSkey)]
     ));
     drop(ui);
     app.gateway_settings.new_skey_calendar_open = true;
@@ -332,7 +332,7 @@ async fn ui_refresh_23_layout_and_interaction() {
     );
     assert!(matches!(
         click(&mut ui, &mut renderer, generate).as_slice(),
-        [Message::Settings(SettingsMessage::Gateway(GatewayMessage::NewSkeyCalendarClosed))]
+        [Message::Gateway(GatewayMessage::NewSkeyCalendarClosed)]
     ));
     drop(ui);
     let mut ui = scene(skey_calendar_popover(&app), &mut renderer, size);
@@ -409,25 +409,22 @@ async fn ui_refresh_23_layout_and_interaction() {
     );
     assert!(matches!(
         click(&mut ui, &mut renderer, day.center() + shift).as_slice(),
-        [Message::Settings(SettingsMessage::Gateway(GatewayMessage::NewSkeyExpiresDateSelected(value)))]
+        [Message::Gateway(GatewayMessage::NewSkeyExpiresDateSelected(value))]
             if value == "2030-02-21"
     ));
     assert!(matches!(
         click(&mut ui, &mut renderer, positions.label(">").center() + shift).as_slice(),
-        [Message::Settings(SettingsMessage::Gateway(GatewayMessage::NewSkeyExpiresMonthChanged(
-            1
-        )))]
+        [Message::Gateway(GatewayMessage::NewSkeyExpiresMonthChanged(1))]
     ));
     assert!(matches!(
         click(&mut ui, &mut renderer, positions.label("Never expires").center() + shift).as_slice(),
-        [Message::Settings(SettingsMessage::Gateway(GatewayMessage::NewSkeyExpiresAtCleared))]
+        [Message::Gateway(GatewayMessage::NewSkeyExpiresAtCleared)]
     ));
     drop(ui);
 
-    app.show_system_settings = true;
-    app.system_settings_tab = crate::app::components::system_settings::SystemTab::Gateway;
+    app.system_settings_tab = super::system_settings::SystemTab::Gateway;
     snapshot(
-        crate::app::components::system_settings::view(&app),
+        super::system_settings::view(&app),
         &mut renderer,
         &Theme::Dark,
         Size::new(640, 800),
@@ -435,7 +432,7 @@ async fn ui_refresh_23_layout_and_interaction() {
     );
     app.gateway_settings.active_tab = GatewaySettingsTab::Config;
     snapshot(
-        crate::app::components::system_settings::view(&app),
+        super::system_settings::view(&app),
         &mut renderer,
         &Theme::Light,
         Size::new(640, 800),
@@ -453,10 +450,7 @@ async fn ui_refresh_23_preserves_values_and_disabled_states() {
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::English;
     app.gateway_settings.service_action_running = Some("status".into());
-    drop(crate::app::message::settings::update(
-        &mut app,
-        SettingsMessage::AgentConfigSaved { tag: "gateway", result: Err(SAVE_ERROR.into()) },
-    ));
+    crate::save_feedback::gateway_saved(&mut app.gateway_settings, Some(SAVE_ERROR.into()));
     assert_eq!(app.gateway_settings.new_skey_name_input, DRAFT_NAME);
     assert_eq!(app.gateway_settings.new_skey_expires_at_input, "2030-02-14");
     let error = app.gateway_settings.save_error.as_ref().unwrap().display(app.desktop_locale);
@@ -470,18 +464,16 @@ async fn ui_refresh_23_preserves_values_and_disabled_states() {
     assert!(click(&mut ui, &mut renderer, label("启动服务")).is_empty());
     assert!(
         matches!(click(&mut ui, &mut renderer, positions.label("shiju server start").center()).as_slice(),
-        [Message::Settings(SettingsMessage::Gateway(GatewayMessage::CopyServiceCommand(command)))]
+        [Message::Gateway(GatewayMessage::CopyServiceCommand(command))]
             if command == "shiju server start")
     );
     assert!(matches!(
         click(&mut ui, &mut renderer, label("通过 Authorization: Bearer 校验 skey")).as_slice(),
-        [Message::Settings(SettingsMessage::Gateway(GatewayMessage::AuthEnabledToggled(false)))]
+        [Message::Gateway(GatewayMessage::AuthEnabledToggled(false))]
     ));
     assert!(matches!(
         click(&mut ui, &mut renderer, label("启用实验性的 node-control API")).as_slice(),
-        [Message::Settings(SettingsMessage::Gateway(GatewayMessage::NodeControlEnabledToggled(
-            true
-        )))]
+        [Message::Gateway(GatewayMessage::NodeControlEnabledToggled(true))]
     ));
     let token = mouse::Cursor::Available(positions.input(&"•".repeat(NODE_TOKEN.len())).center());
     assert!(
@@ -494,7 +486,7 @@ async fn ui_refresh_23_preserves_values_and_disabled_states() {
         .is_empty()
     );
     assert!(matches!(send(&mut ui, &mut renderer, token, &[key(Named::Backspace)]).as_slice(),
-        [Message::Settings(SettingsMessage::Gateway(GatewayMessage::NodeControlAuthTokenChanged(value)))]
+        [Message::Gateway(GatewayMessage::NodeControlAuthTokenChanged(value))]
             if value == "fictional-node-toke"));
     assert!(
         send(&mut ui, &mut renderer, token, &[key(Named::Enter), key(Named::Escape)]).is_empty()
@@ -505,7 +497,7 @@ async fn ui_refresh_23_preserves_values_and_disabled_states() {
     assert!(send(&mut ui, &mut renderer, cursor, &[key(Named::End)]).is_empty());
     assert!(matches!(
         send(&mut ui, &mut renderer, cursor, &[key(Named::Backspace)]).as_slice(),
-        [Message::Settings(SettingsMessage::Gateway(GatewayMessage::PortChanged(4216)))]
+        [Message::Gateway(GatewayMessage::PortChanged(4216))]
     ));
     drop(ui);
 
@@ -537,10 +529,10 @@ async fn ui_refresh_23_preserves_values_and_disabled_states() {
     let confirm = positions.labels.iter().rev().find(|(value, _)| value == &confirm).unwrap().1;
     assert!(matches!(
         click(&mut ui, &mut renderer, cancel.center()).as_slice(),
-        [Message::Settings(SettingsMessage::Gateway(GatewayMessage::CancelDangerServiceCommand))]
+        [Message::Gateway(GatewayMessage::CancelDangerServiceCommand)]
     ));
     assert!(matches!(click(&mut ui, &mut renderer, confirm.center()).as_slice(),
-        [Message::Settings(SettingsMessage::Gateway(GatewayMessage::ConfirmDangerServiceCommand(command)))]
+        [Message::Gateway(GatewayMessage::ConfirmDangerServiceCommand(command))]
             if command == "stop"));
 }
 
@@ -575,7 +567,7 @@ async fn ui_refresh_23_scrolls_skeys_and_keeps_row_indices() {
     let positions = geometry(&mut ui, &renderer);
     assert!(matches!(
         click(&mut ui, &mut renderer, positions.label("Copy").center()).as_slice(),
-        [Message::Settings(SettingsMessage::Gateway(GatewayMessage::CopyLastCreatedSkey))]
+        [Message::Gateway(GatewayMessage::CopyLastCreatedSkey)]
     ));
     let (viewport, translation) = positions.scroll.unwrap();
     assert_eq!(translation.y, 0.0);
@@ -609,7 +601,7 @@ async fn ui_refresh_23_scrolls_skeys_and_keeps_row_indices() {
     assert!(viewport.contains(point));
     assert!(matches!(
         click(&mut ui, &mut renderer, point).as_slice(),
-        [Message::Settings(SettingsMessage::Gateway(GatewayMessage::RemoveSkey(14)))]
+        [Message::Gateway(GatewayMessage::RemoveSkey(14))]
     ));
     assert_ne!(
         initial,
@@ -626,17 +618,15 @@ async fn ui_refresh_23_scrolls_skeys_and_keeps_row_indices() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn help_rollout_18_renders_contextual_help() {
-    use crate::app::components::system_settings::{self, SystemTab};
-    use crate::app::components::system_settings_proxy::system_settings_proxy_tests::rollout::{
-        MODES, Scene,
-    };
+    use super::proxy_tests::rollout::{MODES, Scene};
+    use super::{SystemTab, system_settings};
 
     if !isolated("help_rollout_18_renders_contextual_help") {
         return;
     }
     let mut renderer = renderer().await;
     let mut app = fixture();
-    app.show_system_settings = true;
+
     app.system_settings_tab = SystemTab::Gateway;
     app.gateway_settings.save_error = Some(SAVE_ERROR.into());
     app.gateway_settings.service_action_output = Some("Fixture: service status".into());
@@ -667,7 +657,7 @@ async fn help_rollout_18_renders_contextual_help() {
         settings.actions(port_icon, port_help);
         assert!(matches!(
             settings.edit(&app.gateway_settings.host_input).as_slice(),
-            [Message::Settings(SettingsMessage::Gateway(GatewayMessage::HostChanged(value)))]
+            [Message::Gateway(GatewayMessage::HostChanged(value))]
                 if Some(value.as_str()) == app.gateway_settings.host_input.strip_suffix('d')
         ));
         drop(settings);
@@ -699,9 +689,7 @@ async fn help_rollout_18_renders_contextual_help() {
         let skey_tab = geometry(&mut shell, &renderer).label(t("skey 管理")).center();
         assert!(matches!(
             click(&mut shell, &mut renderer, skey_tab).as_slice(),
-            [Message::Settings(SettingsMessage::Gateway(GatewayMessage::TabSelected(
-                GatewaySettingsTab::Skeys
-            )))]
+            [Message::Gateway(GatewayMessage::TabSelected(GatewaySettingsTab::Skeys))]
         ));
         drop(shell);
 
@@ -712,7 +700,7 @@ async fn help_rollout_18_renders_contextual_help() {
         let generate = skeys.label(t("生成 skey")).center();
         assert!(matches!(
             skeys.click(generate).as_slice(),
-            [Message::Settings(SettingsMessage::Gateway(GatewayMessage::AddSkey))]
+            [Message::Gateway(GatewayMessage::AddSkey)]
         ));
     }
 }
@@ -770,8 +758,8 @@ fn assert_help_frames(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn settings_help_gap_08_gateway_listener_and_skey_help() {
-    use crate::app::components::system_settings::{self, SystemTab};
-    use crate::app::components::system_settings_proxy::system_settings_proxy_tests::rollout::MODES;
+    use super::proxy_tests::rollout::MODES;
+    use super::{SystemTab, system_settings};
 
     if !isolated("settings_help_gap_08_gateway_listener_and_skey_help") {
         return;
@@ -779,7 +767,7 @@ async fn settings_help_gap_08_gateway_listener_and_skey_help() {
 
     let mut renderer = renderer().await;
     let mut app = fixture();
-    app.show_system_settings = true;
+
     app.system_settings_tab = SystemTab::Gateway;
     for ((locale, theme), width) in MODES.into_iter().zip([420, 720, 420]) {
         app.desktop_locale = locale;
@@ -852,7 +840,7 @@ async fn settings_help_gap_08_gateway_listener_and_skey_help() {
         let copy = positions.label(t("复制")).center();
         assert!(matches!(
             click(&mut skeys, &mut renderer, copy).as_slice(),
-            [Message::Settings(SettingsMessage::Gateway(GatewayMessage::CopyLastCreatedSkey))]
+            [Message::Gateway(GatewayMessage::CopyLastCreatedSkey)]
         ));
     }
 }

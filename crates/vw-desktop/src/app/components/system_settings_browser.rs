@@ -52,6 +52,3 @@ pub(super) fn render_help<'a>(title: &'a str, description: std::borrow::Cow<'a, 
             _ => unreachable!("plain help selection published a chat-only message"),
         })
 }
-#[cfg(test)]
-#[path = "system_settings_browser_ui_refresh_26_tests.rs"]
-mod ui_refresh_26_tests;

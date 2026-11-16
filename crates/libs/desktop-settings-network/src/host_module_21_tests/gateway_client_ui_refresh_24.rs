@@ -1,6 +1,8 @@
-use super::super::system_settings_gateway_client as gateway;
+use super::gateway_client as gateway;
+use super::{Message, NetworkFixture as App};
 use super::{SystemTab, settings_content};
-use crate::app::{App, Message, message::SettingsMessage, state::GatewayClientServerDraft};
+use crate::state::GatewayClientServerDraft;
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use iced::advanced::{
     clipboard,
     renderer::{Headless, Style},
@@ -8,7 +10,6 @@ use iced::advanced::{
 use iced::widget::container;
 use iced::{Element, Event, Font, Length, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
 fn isolated(test: &str) -> bool {
     const CHILD: &str = "SHIJU_UI_REFRESH_24_CHILD";
@@ -47,7 +48,7 @@ fn isolated(test: &str) -> bool {
 async fn renderer() -> Renderer {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -197,8 +198,7 @@ const HOST: &str = "fixture.gateway.invalid";
 const SECRET: &str = "fictional-skey";
 
 fn fixture() -> App {
-    assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");
-    let mut app = App::new().0;
+    let mut app = App::default();
     let s = &mut app.gateway_client_settings;
     s.name_input = "示例网关 · 測試".into();
     s.host_input = HOST.into();
@@ -247,8 +247,8 @@ async fn ui_refresh_24_layout_and_interaction() {
     if !isolated("ui_refresh_24_layout_and_interaction") {
         return;
     }
-    use crate::app::i18n::settings_models::connection_text::text as tr;
-    use crate::app::message::{gateway_health::server_health_key, settings::GatewayClientMessage};
+    use crate::{messages::GatewayClientMessage, server_health_key};
+    use desktop_i18n::settings_models::connection_text::text as tr;
 
     let mut renderer = renderer().await;
     let mut app = fixture();
@@ -323,7 +323,7 @@ async fn ui_refresh_24_layout_and_interaction() {
         }
         assert!(matches!(
             click(&mut ui, &mut renderer, target.center()).as_slice(),
-            [Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::SelectServer(id)))]
+            [Message::GatewayClient(GatewayClientMessage::SelectServer(id))]
                 if id == "remote-fixture"
         ));
         assert!(matches!(
@@ -334,11 +334,11 @@ async fn ui_refresh_24_layout_and_interaction() {
         assert!(matches!(
             click(&mut ui, &mut renderer, positions.label(tr(locale, "新增网关")).center())
                 .as_slice(),
-            [Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::AddServer))]
+            [Message::GatewayClient(GatewayClientMessage::AddServer)]
         ));
         assert!(matches!(
             click(&mut ui, &mut renderer, positions.label(tr(locale, "删除当前")).center()).as_slice(),
-            [Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::RemoveServerRequested(id)))]
+            [Message::GatewayClient(GatewayClientMessage::RemoveServerRequested(id))]
                 if id == "fixture"
         ));
     }
@@ -355,13 +355,11 @@ async fn ui_refresh_24_layout_and_interaction() {
     assert_fits(confirm, size);
     assert!(matches!(
         click(&mut ui, &mut renderer, cancel.center()).as_slice(),
-        [Message::Settings(SettingsMessage::GatewayClient(
-            GatewayClientMessage::RemoveServerCanceled
-        ))]
+        [Message::GatewayClient(GatewayClientMessage::RemoveServerCanceled)]
     ));
     assert!(matches!(
         click(&mut ui, &mut renderer, confirm.center()).as_slice(),
-        [Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::RemoveServerConfirmed(id)))]
+        [Message::GatewayClient(GatewayClientMessage::RemoveServerConfirmed(id))]
             if id == "remote-fixture"
     ));
     capture(
@@ -404,7 +402,7 @@ async fn ui_refresh_24_preserves_values_and_disabled_states() {
     if !isolated("ui_refresh_24_preserves_values_and_disabled_states") {
         return;
     }
-    use crate::app::message::settings::GatewayClientMessage as Gateway;
+    use crate::messages::GatewayClientMessage as Gateway;
     use iced::keyboard::key::Named;
 
     let mut renderer = renderer().await;
@@ -433,31 +431,31 @@ async fn ui_refresh_24_preserves_values_and_disabled_states() {
 
     assert!(matches!(
         shorten(&mut ui, &mut renderer, positions.input("示例网关 · 測試").center()).as_slice(),
-        [Message::Settings(SettingsMessage::GatewayClient(Gateway::NameChanged(name)))]
+        [Message::GatewayClient(Gateway::NameChanged(name))]
             if name == "示例网关 · 測"
     ));
     assert!(matches!(
         shorten(&mut ui, &mut renderer, positions.input(HOST).center()).as_slice(),
-        [Message::Settings(SettingsMessage::GatewayClient(Gateway::HostChanged(host)))]
+        [Message::GatewayClient(Gateway::HostChanged(host))]
             if host == "fixture.gateway.invali"
     ));
     assert!(matches!(
         shorten(&mut ui, &mut renderer, positions.input("42167").center()).as_slice(),
-        [Message::Settings(SettingsMessage::GatewayClient(Gateway::PortChanged(4216)))]
+        [Message::GatewayClient(Gateway::PortChanged(4216))]
     ));
     assert!(matches!(
         shorten(&mut ui, &mut renderer, positions.input("20000").center()).as_slice(),
-        [Message::Settings(SettingsMessage::GatewayClient(Gateway::PlatformIdChanged(id)))]
+        [Message::GatewayClient(Gateway::PlatformIdChanged(id))]
             if id == "2000"
     ));
     assert!(matches!(
         shorten(&mut ui, &mut renderer, positions.input("200000001").center()).as_slice(),
-        [Message::Settings(SettingsMessage::GatewayClient(Gateway::CompanyIdChanged(id)))]
+        [Message::GatewayClient(Gateway::CompanyIdChanged(id))]
             if id == "20000000"
     ));
     assert!(matches!(
         shorten(&mut ui, &mut renderer, positions.input(&"•".repeat(SECRET.len())).center()).as_slice(),
-        [Message::Settings(SettingsMessage::GatewayClient(Gateway::SkeyChanged(skey)))]
+        [Message::GatewayClient(Gateway::SkeyChanged(skey))]
             if skey == "fictional-ske"
     ));
     drop(ui);
@@ -493,11 +491,9 @@ async fn ui_refresh_24_preserves_values_and_disabled_states() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn help_rollout_19_renders_contextual_help() {
-    use crate::app::components::system_settings_proxy::system_settings_proxy_tests::rollout::{
-        MODES, Scene,
-    };
-    use crate::app::i18n::settings_models::connection_text::text as tr;
-    use crate::app::message::settings::GatewayClientMessage;
+    use super::proxy_tests::rollout::{MODES, Scene};
+    use crate::messages::GatewayClientMessage;
+    use desktop_i18n::settings_models::connection_text::text as tr;
 
     if !isolated("help_rollout_19_renders_contextual_help") {
         return;
@@ -528,7 +524,7 @@ async fn help_rollout_19_renders_contextual_help() {
         settings.actions(host_help, description);
         assert!(matches!(
             settings.edit(HOST).as_slice(),
-            [Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::HostChanged(host)))]
+            [Message::GatewayClient(GatewayClientMessage::HostChanged(host))]
                 if host == "fixture.gateway.invali"
         ));
     }

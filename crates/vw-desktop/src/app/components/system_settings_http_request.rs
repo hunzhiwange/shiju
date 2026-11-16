@@ -12,9 +12,3 @@ fn inputs(app: &App) -> domain::View<'_> {
 }
 pub fn view(app: &App) -> Element<'_, Message> { domain::view(inputs(app)).map(super::system_settings_browser::map_message) }
 pub fn content(app: &App) -> Element<'_, Message> { domain::content(inputs(app)).map(super::system_settings_browser::map_message) }
-#[cfg(test)]
-#[path = "system_settings_http_request_ui_refresh_25_tests.rs"]
-mod ui_refresh_25_tests;
-
-#[cfg(test)]
-use crate::app::message::settings::{HttpRequestMessage, SettingsMessage};

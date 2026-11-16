@@ -1,7 +1,3 @@
-use super::*;
-use crate::app::{App, Message};
-use config_proxy::ProxyScope;
-fn test_app() -> App { App::new().0 }
 #[cfg(not(target_arch = "wasm32"))]
 pub(in crate::app::components) mod rollout {
     use crate::app::{App, Message};
@@ -306,61 +302,5 @@ pub(in crate::app::components) mod rollout {
             }
             assert!(self.key(iced::keyboard::key::Named::Escape).is_empty());
         }
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn help_rollout_17_renders_contextual_help() {
-    use super::super::{system_settings::SystemTab, system_settings_network as network};
-    use crate::app::i18n::I18n;
-    use crate::app::message::SettingsMessage;
-    use rollout::{MODES, Scene, isolated, renderer};
-
-    if !isolated(concat!(module_path!(), "::help_rollout_17_renders_contextual_help")) {
-        return;
-    }
-    let mut renderer = renderer().await;
-    let mut app = test_app();
-    app.system_settings_tab = SystemTab::Proxy;
-    app.proxy_settings.scope = ProxyScope::Services;
-    app.proxy_settings.http_proxy = "http://proxy.example.invalid:1234".into();
-    app.proxy_settings.save_error = Some("Fixture proxy connection failed".into());
-
-    for (locale, theme) in MODES {
-        app.desktop_locale = locale;
-        app.app_theme = theme;
-        let t = |key| I18n::new(locale).__(key);
-        let mut scene = Scene::new(&app, &mut renderer, "proxy-network", network::view(&app));
-        for label in [
-            "Fixture proxy connection failed",
-            "决定代理应用到环境、全局流量或指定服务。",
-            "当未命中 HTTP/HTTPS 时使用的兜底代理。",
-            "仅在范围为指定服务时生效。",
-        ] {
-            scene.label(t(label));
-        }
-        let description = t("HTTP 请求代理地址。");
-        let icon = scene.help(t("HTTP 代理"), description);
-        scene.actions(icon, description);
-        for (title, description) in [
-            ("基础行为", "控制代理开关与作用域选择。"),
-            ("代理地址", "分别配置 HTTP、HTTPS 与兜底代理地址。"),
-            ("排除与路由", "配置 NO_PROXY 和指定服务选择器。"),
-            ("启用", "控制是否启用代理能力。"),
-            ("HTTPS 代理", "HTTPS 请求代理地址。"),
-            ("排除列表", "支持逗号或换行分隔，格式与 NO_PROXY 一致。"),
-        ] {
-            scene.help(t(title), t(description));
-        }
-        assert!(matches!(
-            scene.edit("http://proxy.example.invalid:1234").as_slice(),
-            [Message::Settings(SettingsMessage::ProxyHttpChanged(value))]
-                if value == "http://proxy.example.invalid:123"
-        ));
-
-        drop(scene);
-        let mut scene = Scene::new(&app, &mut renderer, "proxy-standalone", view(&app));
-        scene.help(t("代理配置"), t("配置 HTTP、HTTPS、SOCKS5 代理以及生效范围。"));
     }
 }

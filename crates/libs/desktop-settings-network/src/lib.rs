@@ -29,6 +29,8 @@ pub enum Message {
     BrowserHelp,
     GatewayHealthTick,
     CopyCode(String),
+    #[cfg(test)]
+    OpenUrl(String),
 }
 
 mod health;
@@ -91,3 +93,6 @@ pub mod bootstrap;
 
 #[cfg(test)]
 mod desktop_split_02_tests;
+
+#[cfg(test)]
+mod host_module_21_tests;

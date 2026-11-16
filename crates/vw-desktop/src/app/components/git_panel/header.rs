@@ -15,10 +15,6 @@ fn input(app: &App) -> domain::Input<'_> {
 }
 pub fn view(app: &App, files: Vec<String>) -> iced::Element<'_, Message> { domain::view(&input(app), files).map(super::view_messages::map) }
 #[cfg(test)]
-pub(super) use domain::{summary_toggle_icon_and_tip, fullscreen_icon_and_tip};
-#[cfg(test)]
-pub(super) fn selected_worktree_trigger_label(app: &App) -> String { domain::selected_worktree_trigger_label(&input(app)) }
-#[cfg(test)]
 pub(super) fn worktree_menu_toggle_message(open: bool) -> Message { super::view_messages::map(domain::worktree_menu_toggle_message(open)) }
 #[cfg(test)]
 pub(super) fn filter_options_toggle_message(open: bool) -> Message { super::view_messages::map(domain::filter_options_toggle_message(open)) }

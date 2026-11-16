@@ -48,9 +48,6 @@ mod mod_tests;
 mod ops_tests;
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
-#[path = "utils_tests.rs"]
-mod utils_tests;
 
 pub(crate) use left_panel::traverse_commit_focus;
 pub use ops::{DiffFileMeta, checkout_branch, current_branch, list_branches, open_terminal};

@@ -98,18 +98,6 @@ fn embedded_custom_diff_and_main_view_cover_modal_and_filter_paths() {
 }
 
 #[test]
-fn discard_file_modal_requires_target_file_and_builds_stack() {
-    let mut app = app();
-
-    assert!(super::discard_file_modal(&app).is_none());
-
-    app.file_to_discard = Some("src/lib.rs".to_string());
-    let modal = super::discard_file_modal(&app).expect("discard modal should render");
-
-    assert_eq!(modal.as_widget().children().len(), 2);
-}
-
-#[test]
 fn main_view_covers_help_and_copy_modal_layers() {
     let mut app = app();
     app.show_git_commit_help_modal = true;

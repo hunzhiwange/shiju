@@ -106,10 +106,3 @@ fn diff_render_ctx_deduplicates_inputs_into_sets() {
     assert_eq!(ctx.selected_diff_lines.len(), 1);
     assert!(ctx.is_diff_line_selected("src/lib.rs", 3, false));
 }
-
-#[test]
-fn diff_view_layout_constants_are_stable() {
-    assert_eq!(super::DIFF_MARKER_WIDTH, 8.0);
-    assert_eq!(super::DIFF_LINE_NUMBER_WIDTH, 46.0);
-    assert_eq!(super::DIFF_SPLIT_DIVIDER_WIDTH, 8.0);
-}

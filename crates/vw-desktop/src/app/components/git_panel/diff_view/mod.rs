@@ -128,6 +128,3 @@ pub(super) fn map_diff_message(event: desktop_git_ui::git_panel::diff_view::Diff
         Local::OpenDiffContextMenu {file, line, is_old, text, x, y} => GitMessage::OpenDiffContextMenu {file, line, is_old, text, x, y},
     })
 }
-
-#[cfg(test)]
-use desktop_git_ui::git_panel::diff_view::{DIFF_MARKER_WIDTH, DIFF_SPLIT_DIVIDER_WIDTH};

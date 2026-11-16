@@ -142,7 +142,7 @@ pub struct PendingFile {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Pending {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider_record: Option<super::record_publication::ProviderRecordChange>,
+    pub provider_record: Option<super::super::record_publication::ProviderRecordChange>,
     #[serde(default)]
     pub project_preimage: Option<vw_api_transport::ProjectScope>,
     pub version: u32,

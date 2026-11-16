@@ -53,7 +53,5 @@ pub async fn process_session(session: &str, parent: &str, auto: bool) -> Result<
     session_engine::compaction::process_session::<Host>(session, parent, auto).await
 }
 #[cfg(test)]
-use session_engine::compaction::now_ms;
-#[cfg(test)]
 #[path = "compaction_tests.rs"]
 pub(crate) mod compaction_tests;

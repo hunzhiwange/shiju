@@ -171,3 +171,24 @@ agent_binding 保留 store（宿主数据库）、scope（当前 home/tenant）�
 - 当前 `context_injection.rs`：2 行。
 当前来源共860行，相对2621净减1761行（67.2%）。领域独立测试静态预期42条；另5条真实Host契约保持原宿主过滤，不能相加伪称独立测试。未来沿原精确名称运行，全部编译/行为检查本轮未运行。
 剩余生产端口保留原因沿前轮逐符号清单；剩余测试为实际准入/processor边界或MCP执行权限检查。静态检查包含全仓旧挂载与直接调用引用、Cargo清单文字核对、diff --check。
+
+## 第五轮：收缩剩余压缩和准入验收夹具
+已读取最新 final.md 的领域契约与真实边界要求。新增两个 test-support 模块，由 lib.rs 显式注册，沿用上轮已有 feature 和真实 dev-dependency，无新增依赖。
+- `process_returns_stop_when_parent_user_message_is_missing`、`process_does_not_compact_when_the_boundary_has_no_prior_history`、`process_does_not_synthesize_a_summary_for_blank_history`：全部原断言及完整模型/消息夹具、真实存储清理迁到 host_migration_23_compaction_contract.rs。宿主三条同名 tokio::test 只注入真正的 compaction::process；没有改成调用另一个算法、没有模拟模型准入。CompactionBoundaryHost 只有这一实际异步入口。
+- `agent_binding_inherited_history_cannot_override_fork_selection`：断言、原消息及分叉选择场景迁到 host_migration_23_binding_contract.rs。BindingBoundaryHost 复用既有 AdmissionHost，新增的3个方法只分别注入真实 session::create_next、fork_execution::create/start；消息写入仍调用真实领域存储，prepare/load/save/agent 仍经真实 AdmissionHost。宿主保留 RecoveryConfig、global_async_env_lock、真实 project::instance::provide 与端口实现，未模拟配置/权限输入。
+以上4条与上轮5条同属“领域断言+真实宿主边界”，不是独立领域单测，宿主测试名、属性和入口保持。原独立领域42条计数不变；未来另按9条宿主原完整名称验证，不以domain零测试冒充通过。
+- 最新 `agent_binding.rs`：116 行。
+- 最新 `agent_binding_tests.rs`：25 行。
+- 最新 `capability_policy.rs`：10 行。
+- 最新 `capability_policy_tests.rs`：147 行。
+- 最新 `claude_protocol_parity_tests.rs`：0 行。
+- 最新 `codex_alignment_tests.rs`：41 行。
+- 最新 `compaction.rs`：57 行。
+- 最新 `compaction_tests.rs`：12 行。
+- 最新 `compaction_checkpoint.rs`：27 行。
+- 最新 `compaction_checkpoint_tests.rs`：0 行。
+- 最新 `compaction_summary.rs`：76 行。
+- 最新 `compaction_summary_tests.rs`：75 行。
+- 最新 `context_injection.rs`：2 行。
+当前原来源共588行，相对2621行净减2033行（77.6%）；本轮再减272行。新契约的物理行数另计为领域测试支持，不计作生产算法下沉或编译收益。
+静态核对：原3条压缩用例、1条准入用例的断言全部保留；来源原专用夹具无外部调用；新契约没有path/include宿主文件；注册使用已有feature。diff --check已执行。按用户指令未运行任何Cargo、构建、单元或实机验证。

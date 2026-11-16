@@ -112,3 +112,9 @@ pub mod dynamic_tool_acceptance;
 
 #[cfg(feature = "test-support")]
 pub mod host_migration_23_acceptance;
+
+#[cfg(feature = "test-support")]
+pub mod host_migration_23_compaction_contract;
+
+#[cfg(feature = "test-support")]
+pub mod host_migration_23_binding_contract;

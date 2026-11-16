@@ -131,11 +131,11 @@ pub mod agent_apps;
 pub(crate) mod app;
 
 // 内部模块（仅在当前 crate 内可见）
-pub mod approval;
+pub use agent_approval as approval;
 pub use agent_auth as auth;
 
 // 事件总线
-pub mod bus;
+pub use agent_bus as bus;
 
 // 通道集成
 pub mod channels;
@@ -163,10 +163,10 @@ pub mod doctor;
 pub mod env;
 
 // 文件系统工具
-pub mod file;
+pub use agent_files as file;
 
 // 运行时标志
-pub mod flag;
+pub use runtime_flags as flag;
 
 // 文本格式化（非 WASM 平台）
 #[cfg(not(target_arch = "wasm32"))]
@@ -190,7 +190,7 @@ pub mod global_database;
 pub(crate) use agent_health as health;
 
 // 心跳机制
-pub(crate) mod heartbeat;
+pub(crate) use agent_heartbeat as heartbeat;
 
 // 扩展钩子
 pub mod hooks;
@@ -199,16 +199,16 @@ pub mod hooks;
 pub mod identity;
 
 // ID 生成
-pub mod id;
+pub use ordered_id as id;
 
 // 安装管理
-pub mod installation;
+pub use agent_installation as installation;
 
 // 第三方集成
-pub mod integrations;
+pub use agent_integrations as integrations;
 
 // 记忆系统
-pub mod memory;
+pub use agent_memory as memory;
 
 // 知识库运行时
 #[cfg(not(target_arch = "wasm32"))]
@@ -225,10 +225,10 @@ pub(crate) mod migration;
 pub(crate) mod multimodal;
 
 // 观测性
-pub mod observability;
+pub use agent_observability as observability;
 
 // 补丁工具
-pub mod patch;
+pub use ::patch::patch as patch;
 
 // 权限系统
 pub mod permission;
@@ -265,7 +265,7 @@ pub mod question;
 pub mod runtime;
 
 // 调度器
-pub mod scheduler;
+pub use agent_scheduler_core as scheduler;
 
 // Agent Scheduler（非 WASM 平台）
 #[cfg(not(target_arch = "wasm32"))]
@@ -275,7 +275,7 @@ pub mod agent_scheduler;
 pub mod security;
 
 // 服务管理
-pub mod service;
+pub use agent_service as service;
 
 /// SHIJU upstream integrations.
 #[cfg(not(target_arch = "wasm32"))]
@@ -285,13 +285,13 @@ pub(crate) mod shiju;
 pub mod session;
 
 // Shell 执行
-pub mod shell;
+pub use shell_command as shell;
 
 // 技能核心
 pub mod skill;
 
 // Skillforge
-pub mod skillforge;
+pub use skill_forge as skillforge;
 
 // 技能生态
 pub mod skills;
@@ -300,10 +300,10 @@ pub mod skills;
 pub mod snapshot;
 
 // 存储层
-pub mod storage;
+pub use agent_storage as storage;
 
 // 任务池 worktree pool
-pub mod task_worktree_pool;
+pub use ::task_worktree_pool;
 
 // 任务生命周期 workflow 领域服务
 pub mod task_lifecycle;
@@ -312,7 +312,7 @@ pub mod task_lifecycle;
 pub mod task_plan_run;
 
 // 测试能力
-pub mod test_capabilities;
+pub use agent_util::test_capabilities as test_capabilities;
 
 #[cfg(test)]
 pub(crate) mod test_support {
@@ -339,7 +339,7 @@ pub mod tools;
 
 // 隧道服务（非 WASM 平台）
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) mod tunnel;
+pub(crate) use agent_tunnel as tunnel;
 
 // 更新管理
 pub mod update;
@@ -372,7 +372,7 @@ mod tests;
 
 // 调度策略测试归 task-scheduler::policy_tests。
 
-pub mod app_providers;
+pub use app_provider_services as app_providers;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod app_routing;

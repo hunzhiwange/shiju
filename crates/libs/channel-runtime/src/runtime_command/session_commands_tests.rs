@@ -343,6 +343,7 @@ pub(crate) async fn lifecycle_fixture()
     (temp, ctx, msg)
 }
 
+#[tokio::test]
 pub(crate) async fn channel_session_lifecycle_new_preserves_old() {
     let (_temp, ctx, msg) = lifecycle_fixture().await;
     let snapshot = ctx.message_snapshot.as_ref().unwrap();
@@ -359,6 +360,7 @@ pub(crate) async fn channel_session_lifecycle_new_preserves_old() {
     assert!(crate::session::session::get_any(&old).await.is_ok());
 }
 
+#[test]
 pub(crate) fn channel_session_lifecycle_lists_are_parsed() {
     for text in ["/sessions", "/resume", "/continue"] {
         assert!(
@@ -368,6 +370,7 @@ pub(crate) fn channel_session_lifecycle_lists_are_parsed() {
     }
 }
 
+#[test]
 pub(crate) fn channel_session_lifecycle_mutations_are_parsed() {
     for text in ["/resume ses-owned", "/rename 新标题", "/archive", "/archive confirm ses-owned"]
     {
@@ -378,11 +381,13 @@ pub(crate) fn channel_session_lifecycle_mutations_are_parsed() {
     }
 }
 
+#[test]
 pub(crate) fn channel_session_lifecycle_clear_is_separate() {
     assert_ne!(parse_runtime_command("lark", "/clear"), parse_runtime_command("lark", "/new"));
     assert_eq!(parse_runtime_command("lark", "/session"), parse_runtime_command("lark", "/new"));
 }
 
+#[tokio::test]
 pub(crate) async fn channel_session_lifecycle_new_clears_cache() {
     let (_temp, ctx, msg) = lifecycle_fixture().await;
     let key = ctx.message_snapshot.as_ref().unwrap().scope.key();
@@ -394,6 +399,7 @@ pub(crate) async fn channel_session_lifecycle_new_clears_cache() {
     assert!(!get_route_selection(&ctx, &key).task_mode_enabled);
 }
 
+#[test]
 pub(crate) fn channel_session_lifecycle_help_explains_clear() {
     let help = super::catalog::help_messages("clear", true).join("\n");
     assert!(help.contains("重置"));
@@ -457,6 +463,7 @@ async fn lifecycle_save_history(ctx: &ChannelRuntimeContext, id: &str, content: 
     .unwrap();
 }
 
+#[tokio::test]
 pub(crate) async fn channel_session_lifecycle_resume_reloads_persisted_state() {
     let (_temp, ctx, msg) = lifecycle_fixture().await;
     lifecycle_call(&ctx, &msg, "/new").await;
@@ -485,6 +492,7 @@ pub(crate) async fn channel_session_lifecycle_resume_reloads_persisted_state() {
     assert!(lifecycle_call(&ctx, &msg, &format!("/resume {old}")).await.contains("已恢复"));
 }
 
+#[tokio::test]
 pub(crate) async fn channel_session_lifecycle_resume_rejects_unowned_and_invalid_ids() {
     let (_temp, ctx, msg) = lifecycle_fixture().await;
     lifecycle_call(&ctx, &msg, "/new").await;
@@ -512,6 +520,7 @@ pub(crate) async fn channel_session_lifecycle_resume_rejects_unowned_and_invalid
     assert!(!lifecycle_call(&ctx, &msg, "/sessions").await.contains(&unowned.id));
 }
 
+#[tokio::test]
 pub(crate) async fn channel_session_lifecycle_resume_isolates_all_chat_dimensions() {
     let (_temp, ctx, msg) = lifecycle_fixture().await;
     lifecycle_call(&ctx, &msg, "/new").await;
@@ -535,6 +544,7 @@ pub(crate) async fn channel_session_lifecycle_resume_isolates_all_chat_dimension
     }
 }
 
+#[tokio::test]
 pub(crate) async fn channel_session_lifecycle_archive_requires_matching_confirmation_and_preserves_history()
  {
     let (_temp, ctx, msg) = lifecycle_fixture().await;
@@ -561,6 +571,7 @@ pub(crate) async fn channel_session_lifecycle_archive_requires_matching_confirma
     assert_eq!(loaded.messages[0].content, "keep history");
 }
 
+#[tokio::test]
 pub(crate) async fn channel_session_lifecycle_archive_rejects_stale_and_busy_state() {
     let (_temp, ctx, msg) = lifecycle_fixture().await;
     lifecycle_call(&ctx, &msg, "/new").await;
@@ -586,6 +597,7 @@ pub(crate) async fn channel_session_lifecycle_archive_rejects_stale_and_busy_sta
     assert!(crate::session::session::get_any(&old).await.unwrap().time.archived.is_none());
 }
 
+#[tokio::test]
 pub(crate) async fn channel_session_lifecycle_continue_and_rename_use_owned_sessions() {
     let (_temp, ctx, msg) = lifecycle_fixture().await;
     assert!(lifecycle_call(&ctx, &msg, "/continue").await.contains("失败"));
@@ -647,6 +659,7 @@ pub(crate) async fn lifecycle_dispatch(
     sent[0].content.clone()
 }
 
+#[tokio::test]
 pub(crate) async fn channel_session_lifecycle_pipeline_persists_and_refreshes_model_options() {
     let (_temp, mut ctx, msg) =
         super::super::channel_command_catalog_tests::catalog_context().await;
@@ -671,6 +684,7 @@ pub(crate) async fn channel_session_lifecycle_pipeline_persists_and_refreshes_mo
     );
 }
 
+#[tokio::test]
 pub(crate) async fn channel_session_lifecycle_resume_isolates_projects_and_tenants() {
     let (_temp, ctx, msg) = lifecycle_fixture().await;
     lifecycle_call(&ctx, &msg, "/new").await;
@@ -698,6 +712,7 @@ pub(crate) async fn channel_session_lifecycle_resume_isolates_projects_and_tenan
     assert_eq!(lifecycle_id(&ctx), id);
 }
 
+#[tokio::test]
 pub(crate) async fn channel_session_lifecycle_failed_creation_and_rename_preserve_binding() {
     let (temp, ctx, msg) = lifecycle_fixture().await;
     lifecycle_call(&ctx, &msg, "/new").await;
@@ -713,6 +728,7 @@ pub(crate) async fn channel_session_lifecycle_failed_creation_and_rename_preserv
     assert_eq!(ctx.conversation_histories.lock().unwrap()[&key][0].content, "keep");
 }
 
+#[tokio::test]
 pub(crate) async fn channel_session_lifecycle_invalid_saved_model_preserves_current_state() {
     let (_temp, ctx, msg) = lifecycle_fixture().await;
     lifecycle_call(&ctx, &msg, "/new").await;
@@ -739,6 +755,7 @@ pub(crate) async fn channel_session_lifecycle_invalid_saved_model_preserves_curr
     assert_eq!(ctx.conversation_histories.lock().unwrap()[&key][0].content, "retain");
 }
 
+#[tokio::test]
 pub(crate) async fn channel_session_lifecycle_lists_are_stable_bounded_and_owned() {
     let (_temp, ctx, msg) = lifecycle_fixture().await;
     let snapshot = ctx.message_snapshot.as_ref().unwrap();
@@ -760,6 +777,7 @@ pub(crate) async fn channel_session_lifecycle_lists_are_stable_bounded_and_owned
     assert_eq!(lifecycle_id(&ctx), recent);
 }
 
+#[tokio::test]
 pub(crate) async fn channel_session_lifecycle_new_rejects_invalid_model_options() {
     let (_temp, ctx, msg) = lifecycle_fixture().await;
     lifecycle_call(&ctx, &msg, "/new").await;

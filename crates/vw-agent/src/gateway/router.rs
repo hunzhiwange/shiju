@@ -172,4 +172,5 @@ pub(crate) fn handler_router() -> Router {
 
 // These tests exercise the real host route registry and middleware composition.
 #[cfg(test)]
+#[path = "router_tests.rs"]
 mod router_tests;

@@ -1,10 +1,10 @@
 {
   "status": "blocked",
-  "host_lines": 73072,
+  "host_lines": 67221,
   "limit": 35000,
-  "excess": 38072,
+  "excess": 32221,
   "baseline_lines": 135228,
-  "net_physical_reduction": 62156,
+  "net_physical_reduction": 68007,
   "owner_totals": {
     "2": 1023,
     "3": 246,
@@ -14,7 +14,7 @@
     "7": 266,
     "8": 607,
     "9": 351,
-    "10": 3481,
+    "10": 2925,
     "11": 2788,
     "12": 1969,
     "13": 685,
@@ -22,7 +22,7 @@
     "15": 1723,
     "16": 1259,
     "17": 2351,
-    "18": 1209,
+    "18": 1210,
     "19": 1002,
     "20": 1082,
     "21": 1321,
@@ -47,12 +47,12 @@
     "40": 931,
     "41": 254,
     "42": 1105,
-    "43": 1467,
-    "44": 2824,
+    "43": 1476,
+    "44": 1667,
     "45": 591,
-    "46": 3363,
+    "46": 898,
     "47": 225,
-    "48": 3224,
+    "48": 1762,
     "49": 7,
     "50": 2053,
     "51": 1247,
@@ -63,7 +63,7 @@
     "56": 533,
     "57": 180,
     "58": 115,
-    "59": 3538
+    "59": 3317
   },
   "files": [
     {
@@ -1688,24 +1688,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/agent_apps/mcp/connection_probe_tests.rs",
-      "owner": 48,
-      "before": 153,
-      "after": 153,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-48.md",
-      "symbols": [
-        {
-          "line": 29,
-          "declaration": "fn cc_mcp_t39_revision_results_reuse_connection_checks_and_preserve_diagnostics()"
-        },
-        {
-          "line": 99,
-          "declaration": "fn cc_mcp_t39_revision_checks_reject_revoked_success_and_cancel_owned_work() -> anyhow::Result<()> {"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/agent_apps/mcp/connectivity.rs",
       "owner": 48,
       "before": 28,
@@ -1781,7 +1763,7 @@
       "path": "crates/vw-agent/src/agent_apps/mcp/mod.rs",
       "owner": 48,
       "before": 50,
-      "after": 48,
+      "after": 38,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-48.md",
       "symbols": []
@@ -1909,108 +1891,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/agent_apps/mcp/network_probe_tests.rs",
-      "owner": 48,
-      "before": 462,
-      "after": 462,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-48.md",
-      "symbols": [
-        {
-          "line": 55,
-          "declaration": "pub(super) struct Fixture {"
-        },
-        {
-          "line": 63,
-          "declaration": "impl Fixture {"
-        },
-        {
-          "line": 64,
-          "declaration": "pub(super) fn new(db: GlobalDatabase) -> anyhow::Result<Self> {"
-        },
-        {
-          "line": 84,
-          "declaration": "pub(super) fn catalog_scope(&self) -> McpCatalogScope {"
-        },
-        {
-          "line": 88,
-          "declaration": "fn policy_path(&self) -> PathBuf {"
-        },
-        {
-          "line": 92,
-          "declaration": "fn permit(record: &McpCatalogRecord, url: &str) -> Value {"
-        },
-        {
-          "line": 100,
-          "declaration": "pub(super) fn policy(&self, permits: &[Value]) -> anyhow::Result<()> {"
-        },
-        {
-          "line": 121,
-          "declaration": "fn create(&self, name: &str, url: &str, sse: bool) -> anyhow::Result<McpCatalogRecord> {"
-        },
-        {
-          "line": 130,
-          "declaration": "pub(super) fn start("
-        },
-        {
-          "line": 151,
-          "declaration": "pub(super) async fn finish("
-        },
-        {
-          "line": 174,
-          "declaration": "struct Server {"
-        },
-        {
-          "line": 183,
-          "declaration": "impl Server {"
-        },
-        {
-          "line": 184,
-          "declaration": "fn new(endpoint: &str) -> Self {"
-        },
-        {
-          "line": 196,
-          "declaration": "fn serve(&self, listener: tokio::net::TcpListener) -> tokio::task::JoinHandle<()> {"
-        },
-        {
-          "line": 205,
-          "declaration": "async fn reply(&self, request: Value) -> Option<Value> {"
-        },
-        {
-          "line": 226,
-          "declaration": "async fn http(State(server): State<Server>, Json(request): Json<Value>) -> Response {"
-        },
-        {
-          "line": 241,
-          "declaration": "async fn delete_session(State(server): State<Server>, headers: HeaderMap) -> StatusCode {"
-        },
-        {
-          "line": 247,
-          "declaration": "async fn sse(State(server): State<Server>) -> Response {"
-        },
-        {
-          "line": 260,
-          "declaration": "async fn sse_post(State(server): State<Server>, Json(request): Json<Value>) -> StatusCode {"
-        },
-        {
-          "line": 267,
-          "declaration": "fn report("
-        },
-        {
-          "line": 279,
-          "declaration": "fn diagnostic_mcp_http_handshake_is_scoped() -> anyhow::Result<()> {"
-        },
-        {
-          "line": 339,
-          "declaration": "fn diagnostic_mcp_http_handshake_is_scoped_cancels_active_connections_and_limits_batches()"
-        },
-        {
-          "line": 395,
-          "declaration": "fn diagnostic_mcp_http_handshake_is_scoped_rejects_foreign_endpoints_and_revoked_results()"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/agent_apps/mcp/probe_jobs.rs",
       "owner": 48,
       "before": 45,
@@ -2049,96 +1929,6 @@
         {
           "line": 28,
           "declaration": "pub fn start_connection_checks("
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/agent_apps/mcp/probe_jobs_tests.rs",
-      "owner": 48,
-      "before": 501,
-      "after": 501,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-48.md",
-      "symbols": [
-        {
-          "line": 33,
-          "declaration": "fn cc_mcp_t31_in_flight_connection_edit_discards_old_success() -> anyhow::Result<()> {"
-        },
-        {
-          "line": 96,
-          "declaration": "async fn check_http("
-        },
-        {
-          "line": 119,
-          "declaration": "fn cc_mcp_t31_cancel_stops_only_owned_active_and_queued_probes() -> anyhow::Result<()> {"
-        },
-        {
-          "line": 186,
-          "declaration": "fn cc_mcp_t31_only_current_task_generation_and_connection_revision_apply() -> anyhow::Result<()> {"
-        },
-        {
-          "line": 243,
-          "declaration": "fn diagnostic_mcp_stdio_cancellation_reaps_process_tree() -> anyhow::Result<()> {"
-        },
-        {
-          "line": 286,
-          "declaration": "fn cc_mcp_t31_timed_out_stdio_is_reaped_before_job_completion() -> anyhow::Result<()> {"
-        },
-        {
-          "line": 314,
-          "declaration": "fn cc_mcp_t31_cancel_drops_a_stalled_http_initialization_request() -> anyhow::Result<()> {"
-        },
-        {
-          "line": 348,
-          "declaration": "struct BatchFixture {"
-        },
-        {
-          "line": 357,
-          "declaration": "impl BatchFixture {"
-        },
-        {
-          "line": 358,
-          "declaration": "fn new(database: GlobalDatabase) -> anyhow::Result<Self> {"
-        },
-        {
-          "line": 382,
-          "declaration": "fn runtime(&self) -> std::io::Result<tokio::runtime::Runtime> {"
-        },
-        {
-          "line": 386,
-          "declaration": "fn stdio(&self, id: &str, mode: &str) -> McpCatalogRecord {"
-        },
-        {
-          "line": 392,
-          "declaration": "fn start<'a>("
-        },
-        {
-          "line": 416,
-          "declaration": "fn snapshot(&self, job: &DiagnosticJobIdentity) -> DiagnosticJobSnapshot {"
-        },
-        {
-          "line": 420,
-          "declaration": "async fn terminal(&self, job: &DiagnosticJobIdentity) -> anyhow::Result<DiagnosticJobSnapshot> {"
-        },
-        {
-          "line": 433,
-          "declaration": "fn marker(&self, record: &McpCatalogRecord, suffix: &str) -> std::path::PathBuf {"
-        },
-        {
-          "line": 437,
-          "declaration": "async fn wait_for_stdio(&self, record: &McpCatalogRecord) -> anyhow::Result<(i32, i32)> {"
-        },
-        {
-          "line": 451,
-          "declaration": "async fn wait_until<T>(mut observe: impl FnMut() -> Option<T>) -> anyhow::Result<T> {"
-        },
-        {
-          "line": 463,
-          "declaration": "fn process_exists(pid: i32) -> bool {"
-        },
-        {
-          "line": 469,
-          "declaration": "fn stdio_definition(id: &str, mode: &str) -> McpConnectionDefinition {"
         }
       ]
     },
@@ -2289,42 +2079,6 @@
         {
           "line": 95,
           "declaration": "async fn cc_mcp_t51_foreign_tenants_accounts_and_job_owners_cannot_cross_boundaries() {"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/agent_apps/mcp/stdio_probe_tests.rs",
-      "owner": 48,
-      "before": 173,
-      "after": 173,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-48.md",
-      "symbols": [
-        {
-          "line": 21,
-          "declaration": "fn diagnostic_mcp_stdio_cancellation_reaps_process_tree_handshake() -> anyhow::Result<()> {"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/agent_apps/mcp/tool_details_tests.rs",
-      "owner": 48,
-      "before": 163,
-      "after": 163,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-48.md",
-      "symbols": [
-        {
-          "line": 21,
-          "declaration": "fn details_policy(fixture: &Fixture, permits: &[Value]) -> anyhow::Result<()> {"
-        },
-        {
-          "line": 31,
-          "declaration": "fn cc_mcp_t50_details_discover_real_specs_and_read_only_the_authorized_selection()"
-        },
-        {
-          "line": 112,
-          "declaration": "fn cc_mcp_t50_discovery_rechecks_revocation_and_cancel_releases_the_owned_job() -> anyhow::Result<()>"
         }
       ]
     },
@@ -2681,15 +2435,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/app_providers.rs",
-      "owner": 59,
-      "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
       "path": "crates/vw-agent/src/app_routing/gateway_owner.rs",
       "owner": 57,
       "before": 19,
@@ -2767,24 +2512,6 @@
           "declaration": "fn agent_compat_namespace_exposes_selected_runtime_modules() {"
         }
       ]
-    },
-    {
-      "path": "crates/vw-agent/src/approval/mod.rs",
-      "owner": 59,
-      "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/bus/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
     },
     {
       "path": "crates/vw-agent/src/channels/channel_session_lifecycle_tests.rs",
@@ -4229,7 +3956,7 @@
       "path": "crates/vw-agent/src/channels/session_tests.rs",
       "owner": 43,
       "before": 473,
-      "after": 410,
+      "after": 419,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-43.md",
       "symbols": [
@@ -4270,43 +3997,43 @@
           "declaration": "pub(crate) async fn registered_context()"
         },
         {
-          "line": 151,
+          "line": 152,
           "declaration": "pub(crate) async fn channel_project_scope_binding_priority_and_immutable_snapshot() {"
         },
         {
-          "line": 185,
+          "line": 187,
           "declaration": "pub(crate) async fn channel_project_scope_invalid_binding_preserves_state() {"
         },
         {
-          "line": 207,
+          "line": 210,
           "declaration": "pub(crate) async fn channel_project_scope_sessions_follow_snapshot_and_isolate_rooms() {"
         },
         {
-          "line": 239,
+          "line": 243,
           "declaration": "pub(crate) async fn channel_project_scope_project_history_and_routes_are_independent() {"
         },
         {
-          "line": 262,
+          "line": 267,
           "declaration": "pub(crate) async fn channel_project_scope_unavailable_directory_does_not_cache_fake_session() {"
         },
         {
-          "line": 272,
+          "line": 278,
           "declaration": "pub(crate) async fn channel_project_scope_tenant_cannot_resolve_other_tenant_binding() {"
         },
         {
-          "line": 294,
+          "line": 301,
           "declaration": "pub(crate) async fn channel_project_scope_processor_uses_captured_directory() {"
         },
         {
-          "line": 347,
+          "line": 355,
           "declaration": "pub(crate) async fn channel_project_scope_memory_reads_only_matching_scope() {"
         },
         {
-          "line": 377,
+          "line": 386,
           "declaration": "pub(crate) async fn channel_project_scope_snapshot_rejects_different_sender() {"
         },
         {
-          "line": 387,
+          "line": 396,
           "declaration": "async fn isolated_processor_fixture(test: &str) -> bool {"
         }
       ]
@@ -5216,24 +4943,6 @@
     },
     {
       "path": "crates/vw-agent/src/env/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/file/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/flag/mod.rs",
       "owner": 59,
       "before": 3,
       "after": 3,
@@ -9902,29 +9611,25 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/session/session_ops_tests.rs",
       "owner": 10,
       "before": 765,
-      "after": 694,
+      "after": 138,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-10.md",
       "symbols": [
         {
-          "line": 24,
+          "line": 21,
           "declaration": "struct StaticProvider;"
         },
         {
-          "line": 28,
+          "line": 25,
           "declaration": "impl Provider for StaticProvider {"
         },
         {
-          "line": 29,
+          "line": 26,
           "declaration": "async fn chat_with_system("
         },
         {
-          "line": 43,
-          "declaration": "fn ensure_test_home() {"
-        },
-        {
-          "line": 53,
-          "declaration": "fn headers_for(directory: &FsPath) -> HeaderMap {"
+          "line": 37,
+          "declaration": "fn state() -> AppState {"
         },
         {
           "line": 62,
@@ -9932,46 +9637,42 @@
         },
         {
           "line": 66,
-          "declaration": "fn state() -> AppState {"
-        },
-        {
-          "line": 91,
           "declaration": "async fn create_session_in(directory: &FsPath, title: &str) -> agent_session::session::Info {"
         },
         {
-          "line": 104,
+          "line": 79,
           "declaration": "fn session_handlers_are_available() {"
         },
         {
-          "line": 123,
+          "line": 97,
           "declaration": "async fn gateway_first_response_create_without_title_reserves_an_unpublished_session() {"
         },
         {
-          "line": 182,
+          "line": 103,
           "declaration": "async fn ui_session_list_respects_updated_boundary_and_zero_limit() {"
         },
         {
-          "line": 242,
+          "line": 108,
           "declaration": "async fn ui_session_status_preserves_existing_non_idle_state() {"
         },
         {
-          "line": 261,
+          "line": 113,
           "declaration": "async fn ui_session_patch_ignores_empty_fields_and_uses_header_scope() {"
         },
         {
-          "line": 300,
+          "line": 118,
           "declaration": "async fn session_todo_put_replaces_and_clears_saved_items() {"
         },
         {
-          "line": 371,
+          "line": 123,
           "declaration": "async fn scoped_mutations_do_not_modify_sessions_from_another_instance() {"
         },
         {
-          "line": 423,
+          "line": 128,
           "declaration": "async fn session_ops_cover_lifecycle_filters_and_instance_boundaries() {"
         },
         {
-          "line": 636,
+          "line": 133,
           "declaration": "async fn session_ops_cover_diff_summary_reset_and_title_errors() {"
         }
       ]
@@ -11933,7 +11634,7 @@
       "path": "crates/vw-agent/src/gateway/router.rs",
       "owner": 18,
       "before": 227,
-      "after": 175,
+      "after": 176,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-18.md",
       "symbols": [
@@ -12315,15 +12016,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/heartbeat/mod.rs",
-      "owner": 59,
-      "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
       "path": "crates/vw-agent/src/hooks/mod.rs",
       "owner": 59,
       "before": 8,
@@ -12433,15 +12125,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/id/mod.rs",
-      "owner": 59,
-      "before": 6,
-      "after": 6,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
       "path": "crates/vw-agent/src/identity/mod.rs",
       "owner": 59,
       "before": 37,
@@ -12451,64 +12134,10 @@
       "symbols": []
     },
     {
-      "path": "crates/vw-agent/src/installation/mod.rs",
-      "owner": 59,
-      "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/integrations/mod.rs",
-      "owner": 59,
-      "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/knowledge/chunker.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/knowledge/fusion.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/knowledge/import.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
       "path": "crates/vw-agent/src/knowledge/mod.rs",
       "owner": 59,
       "before": 15,
-      "after": 15,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/knowledge/store.rs",
-      "owner": 59,
-      "before": 7,
-      "after": 7,
+      "after": 12,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-59.md",
       "symbols": []
@@ -12584,168 +12213,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/memory/backend/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/chunker/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/cli/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/embeddings/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/hygiene/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/lucid/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/mariadb/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/markdown/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/none/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/paths.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/postgres/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/qdrant/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/response_cache/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/snapshot/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/sqlite/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/traits/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/vector/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
       "path": "crates/vw-agent/src/migration/mod.rs",
       "owner": 59,
       "before": 2,
@@ -12789,32 +12256,6 @@
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-46.md",
       "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/model_relay/chat_tests.rs",
-      "owner": 46,
-      "before": 259,
-      "after": 259,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-46.md",
-      "symbols": [
-        {
-          "line": 12,
-          "declaration": "struct EnvGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
-        },
-        {
-          "line": 13,
-          "declaration": "impl Drop for EnvGuard {"
-        },
-        {
-          "line": 14,
-          "declaration": "fn drop(&mut self) {"
-        },
-        {
-          "line": 33,
-          "declaration": "async fn acp_model_source_relay_chat_roundtrip_stream_tools_and_account_isolation() {"
-        }
-      ]
     },
     {
       "path": "crates/vw-agent/src/model_relay/codex_oauth_transport.rs",
@@ -12905,52 +12346,6 @@
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-46.md",
       "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/model_relay/gemini_tests.rs",
-      "owner": 46,
-      "before": 616,
-      "after": 526,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-46.md",
-      "symbols": [
-        {
-          "line": 14,
-          "declaration": "struct EnvGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
-        },
-        {
-          "line": 15,
-          "declaration": "impl Drop for EnvGuard {"
-        },
-        {
-          "line": 16,
-          "declaration": "fn drop(&mut self) {"
-        },
-        {
-          "line": 33,
-          "declaration": "fn reply(value: Value) -> Response {"
-        },
-        {
-          "line": 39,
-          "declaration": "fn sse(wire: String, wait: bool) -> Response {"
-        },
-        {
-          "line": 55,
-          "declaration": "async fn model_protocol_018_gemini_http_tools_stream_metadata_errors_and_cancel() {"
-        },
-        {
-          "line": 60,
-          "declaration": "async fn acp_model_source_relay_gemini_real_cli() {"
-        },
-        {
-          "line": 63,
-          "declaration": "async fn http(run_cli: bool) {"
-        },
-        {
-          "line": 521,
-          "declaration": "fn events(wire: &str) -> Vec<Value> {"
-        }
-      ]
     },
     {
       "path": "crates/vw-agent/src/model_relay/generation.rs",
@@ -13070,50 +12465,6 @@
       "symbols": []
     },
     {
-      "path": "crates/vw-agent/src/model_relay/messages_request_http_tests.rs",
-      "owner": 46,
-      "before": 156,
-      "after": 156,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-46.md",
-      "symbols": [
-        {
-          "line": 4,
-          "declaration": "fn request() -> Value {"
-        },
-        {
-          "line": 8,
-          "declaration": "pub(super) async fn request_reaches_bound_chat_and_finishes_tool_round() {"
-        },
-        {
-          "line": 13,
-          "declaration": "struct ConfigGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
-        },
-        {
-          "line": 14,
-          "declaration": "impl Drop for ConfigGuard {"
-        },
-        {
-          "line": 15,
-          "declaration": "fn drop(&mut self) {"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/model_relay/messages_request_tests.rs",
-      "owner": 46,
-      "before": 21,
-      "after": 9,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-46.md",
-      "symbols": [
-        {
-          "line": 6,
-          "declaration": "async fn model_protocol_014_http_request_reaches_bound_chat_and_finishes_tool_round() {"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/model_relay/messages_responses_request.rs",
       "owner": 46,
       "before": 2,
@@ -13144,50 +12495,10 @@
       "path": "crates/vw-agent/src/model_relay/messages_stream.rs",
       "owner": 46,
       "before": 6,
-      "after": 6,
+      "after": 2,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-46.md",
       "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/model_relay/messages_stream_tests.rs",
-      "owner": 46,
-      "before": 94,
-      "after": 6,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-46.md",
-      "symbols": [
-        {
-          "line": 3,
-          "declaration": "async fn model_protocol_016_http_sse_thinking_receipt_replays() {"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/model_relay/messages_tests.rs",
-      "owner": 46,
-      "before": 327,
-      "after": 327,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-46.md",
-      "symbols": [
-        {
-          "line": 14,
-          "declaration": "struct EnvGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
-        },
-        {
-          "line": 15,
-          "declaration": "impl Drop for EnvGuard {"
-        },
-        {
-          "line": 16,
-          "declaration": "fn drop(&mut self) {"
-        },
-        {
-          "line": 38,
-          "declaration": "async fn acp_model_source_relay_messages_http_stream_cancellation_errors_and_isolation() {"
-        }
-      ]
     },
     {
       "path": "crates/vw-agent/src/model_relay/messages_thinking.rs",
@@ -13208,54 +12519,10 @@
       "symbols": []
     },
     {
-      "path": "crates/vw-agent/src/model_relay/messages_thinking_http_tests.rs",
-      "owner": 46,
-      "before": 253,
-      "after": 253,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-46.md",
-      "symbols": [
-        {
-          "line": 4,
-          "declaration": "fn request() -> Value {"
-        },
-        {
-          "line": 8,
-          "declaration": "pub(super) async fn thinking_replays_through_bound_http() {"
-        },
-        {
-          "line": 13,
-          "declaration": "struct ConfigGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
-        },
-        {
-          "line": 14,
-          "declaration": "impl Drop for ConfigGuard {"
-        },
-        {
-          "line": 15,
-          "declaration": "fn drop(&mut self) {"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/model_relay/messages_thinking_tests.rs",
-      "owner": 46,
-      "before": 16,
-      "after": 5,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-46.md",
-      "symbols": [
-        {
-          "line": 2,
-          "declaration": "async fn model_protocol_015_http_tool_round_and_sse_preserve_reasoning() {"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/model_relay/mod.rs",
       "owner": 46,
       "before": 173,
-      "after": 162,
+      "after": 146,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-46.md",
       "symbols": []
@@ -13421,52 +12688,6 @@
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-46.md",
       "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/model_relay/responses_http_tests.rs",
-      "owner": 46,
-      "before": 904,
-      "after": 904,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-46.md",
-      "symbols": [
-        {
-          "line": 14,
-          "declaration": "struct EnvGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
-        },
-        {
-          "line": 15,
-          "declaration": "impl Drop for EnvGuard {"
-        },
-        {
-          "line": 16,
-          "declaration": "fn drop(&mut self) {"
-        },
-        {
-          "line": 36,
-          "declaration": "fn reply(value: Value) -> Response {"
-        },
-        {
-          "line": 42,
-          "declaration": "fn sse(wire: String, wait: bool) -> Response {"
-        },
-        {
-          "line": 58,
-          "declaration": "async fn aggregation_t25_authorized_codex_chat_replays_compaction_over_http() {"
-        },
-        {
-          "line": 153,
-          "declaration": "async fn model_protocol_017_responses_http_roundtrip_stream_errors_cancel_and_ownership() {"
-        },
-        {
-          "line": 748,
-          "declaration": "fn parse_events(wire: &str) -> Vec<Value> {"
-        },
-        {
-          "line": 756,
-          "declaration": "async fn model_protocol_017_responses_chat_preserves_reasoning_tools_json_and_sse() {"
-        }
-      ]
     },
     {
       "path": "crates/vw-agent/src/model_relay/responses_stream.rs",
@@ -13823,15 +13044,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/observability/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
       "path": "crates/vw-agent/src/package_boundaries/gateway_pairing_tests.rs",
       "owner": 59,
       "before": 36,
@@ -14091,28 +13303,10 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/patch/mod.rs",
-      "owner": 59,
-      "before": 6,
-      "after": 6,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
       "path": "crates/vw-agent/src/permission/mod.rs",
       "owner": 59,
       "before": 19,
       "after": 19,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/permission/next.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-59.md",
       "symbols": []
@@ -16737,15 +15931,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/runtime/docker/mod.rs",
-      "owner": 59,
-      "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
       "path": "crates/vw-agent/src/runtime/mod.rs",
       "owner": 59,
       "before": 7,
@@ -16817,43 +16002,7 @@
       "symbols": []
     },
     {
-      "path": "crates/vw-agent/src/scheduler/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/security/bubblewrap/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
       "path": "crates/vw-agent/src/security/canary_guard/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/security/detect/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/security/docker/mod.rs",
       "owner": 59,
       "before": 3,
       "after": 3,
@@ -16883,42 +16032,6 @@
           "declaration": "fn domain_matcher_reexport_preserves_identity_and_matching() {"
         }
       ]
-    },
-    {
-      "path": "crates/vw-agent/src/security/estop/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/security/firejail/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/security/gateway_skey_store.rs",
-      "owner": 59,
-      "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/security/landlock/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
     },
     {
       "path": "crates/vw-agent/src/security/leak_detector.rs",
@@ -16953,82 +16066,10 @@
       "symbols": []
     },
     {
-      "path": "crates/vw-agent/src/security/otp/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/security/pairing.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/security/policy/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/security/prompt_guard.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/security/secrets.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/security/semantic_guard.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
       "path": "crates/vw-agent/src/security/syscall_anomaly.rs",
       "owner": 59,
       "before": 3,
       "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/security/traits.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/service/mod.rs",
-      "owner": 59,
-      "before": 2,
-      "after": 2,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-59.md",
       "symbols": []
@@ -20969,61 +20010,7 @@
       "symbols": []
     },
     {
-      "path": "crates/vw-agent/src/shell/mod.rs",
-      "owner": 59,
-      "before": 4,
-      "after": 4,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
       "path": "crates/vw-agent/src/shiju/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/skill/audit.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/skill/constants.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/skill/discovery.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/skill/install.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/skill/loader.rs",
       "owner": 59,
       "before": 3,
       "after": 3,
@@ -21036,24 +20023,6 @@
       "owner": 59,
       "before": 174,
       "after": 174,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/skill/policy.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/skill/prompt.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-59.md",
       "symbols": []
@@ -21109,24 +20078,6 @@
           "declaration": "async fn load_state_scans_workspace_skills_skips_invalid_files_and_tracks_duplicate_names() {"
         }
       ]
-    },
-    {
-      "path": "crates/vw-agent/src/skill/types.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/skillforge/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
     },
     {
       "path": "crates/vw-agent/src/skills/agent_metadata.rs",
@@ -21356,15 +20307,6 @@
           "declaration": "pub fn init(worktree: impl AsRef<Path>) {"
         }
       ]
-    },
-    {
-      "path": "crates/vw-agent/src/storage/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
     },
     {
       "path": "crates/vw-agent/src/task_lifecycle/mod.rs",
@@ -21824,24 +20766,6 @@
           "declaration": "async fn plan_run_retry_replaces_legacy_failure_history_and_preserves_title() {"
         }
       ]
-    },
-    {
-      "path": "crates/vw-agent/src/task_worktree_pool/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/test_capabilities.rs",
-      "owner": 59,
-      "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
     },
     {
       "path": "crates/vw-agent/src/tests.rs",
@@ -24813,15 +23737,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/tunnel/mod.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
       "path": "crates/vw-agent/src/update.rs",
       "owner": 59,
       "before": 12,
@@ -24944,73 +23859,10 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/util/archive.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/util/filesystem.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/util/format.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/util/locale.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/util/log.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
       "path": "crates/vw-agent/src/util/mod.rs",
       "owner": 59,
       "before": 44,
       "after": 44,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/util/rpc.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md",
-      "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/util/signal.rs",
-      "owner": 59,
-      "before": 3,
-      "after": 3,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-59.md",
       "symbols": []
@@ -25257,20 +24109,6 @@
       "symbols": []
     },
     {
-      "path": "crates/vw-agent/src/workflow/video_edit/assets_tests.rs",
-      "owner": 44,
-      "before": 452,
-      "after": 45,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-44.md",
-      "symbols": [
-        {
-          "line": 5,
-          "declaration": "pub(super) fn fixture("
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/workflow/video_edit/budget.rs",
       "owner": 44,
       "before": 2,
@@ -25301,12 +24139,12 @@
       "path": "crates/vw-agent/src/workflow/video_edit/cloud_assets_tests.rs",
       "owner": 44,
       "before": 60,
-      "after": 60,
+      "after": 15,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md",
       "symbols": [
         {
-          "line": 5,
+          "line": 4,
           "declaration": "async fn video_edit_asset_jobs_native_adapter_reconciles_pages_and_reads_reference() {"
         }
       ]
@@ -25315,32 +24153,28 @@
       "path": "crates/vw-agent/src/workflow/video_edit/cloud_delivery_tests.rs",
       "owner": 44,
       "before": 213,
-      "after": 213,
+      "after": 51,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md",
       "symbols": [
         {
-          "line": 57,
+          "line": 2,
           "declaration": "async fn native_scenario("
         },
         {
-          "line": 166,
-          "declaration": "fn video_edit_delivery_normalizes_live_media_probe_projection_without_losing_audio() {"
-        },
-        {
-          "line": 175,
+          "line": 18,
           "declaration": "async fn video_edit_delivery_native_adapter_applies_three_types_and_reads_real_contract_shapes() {"
         },
         {
-          "line": 182,
+          "line": 25,
           "declaration": "async fn video_edit_delivery_native_adapter_rejects_partial_caption_failure_and_pending_draft() {"
         },
         {
-          "line": 189,
+          "line": 32,
           "declaration": "async fn video_edit_delivery_native_adapter_records_verified_empty_cleanup_separately() {"
         },
         {
-          "line": 197,
+          "line": 40,
           "declaration": "async fn video_edit_delivery_native_finalize_accepts_observed_complete_import_receipt() {"
         }
       ]
@@ -25358,20 +24192,16 @@
       "path": "crates/vw-agent/src/workflow/video_edit/cloud_prepare_tests.rs",
       "owner": 44,
       "before": 116,
-      "after": 116,
+      "after": 27,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md",
       "symbols": [
         {
-          "line": 6,
+          "line": 5,
           "declaration": "async fn video_edit_prepare_native_receipts_keep_signed_tickets_in_memory() {"
         },
         {
-          "line": 66,
-          "declaration": "fn inspect(path: &std::path::Path) {"
-        },
-        {
-          "line": 93,
+          "line": 19,
           "declaration": "async fn video_edit_prepare_cloud_identity_is_independent_of_local_tenant_and_rejects_mismatch() {"
         }
       ]
@@ -25514,200 +24344,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/workflow/video_edit/e2e_test_cloud.rs",
-      "owner": 44,
-      "before": 371,
-      "after": 371,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-44.md",
-      "symbols": [
-        {
-          "line": 21,
-          "declaration": "pub(super) enum Fault {"
-        },
-        {
-          "line": 28,
-          "declaration": "pub(super) struct Scenario {"
-        },
-        {
-          "line": 40,
-          "declaration": "impl Scenario {"
-        },
-        {
-          "line": 41,
-          "declaration": "pub fn new(duration: u32, fault: Fault) -> Arc<Self> {"
-        },
-        {
-          "line": 63,
-          "declaration": "fn fixture(&self) -> &Value {"
-        },
-        {
-          "line": 66,
-          "declaration": "pub fn duration(&self) -> f64 {"
-        },
-        {
-          "line": 69,
-          "declaration": "pub fn record(&self, kind: &str, id: &str) -> usize {"
-        },
-        {
-          "line": 75,
-          "declaration": "async fn leaf(&self, order: usize, model: bool, id: &str) {"
-        },
-        {
-          "line": 94,
-          "declaration": "struct FinishOrder {"
-        },
-        {
-          "line": 99,
-          "declaration": "impl FinishOrder {"
-        },
-        {
-          "line": 100,
-          "declaration": "fn new() -> Self {"
-        },
-        {
-          "line": 107,
-          "declaration": "async fn wait(&self, order: usize) {"
-        },
-        {
-          "line": 120,
-          "declaration": "fn complete(&self, order: usize) {"
-        },
-        {
-          "line": 128,
-          "declaration": "pub(super) struct Cloud {"
-        },
-        {
-          "line": 134,
-          "declaration": "impl VideoPrepareCloud for Cloud {"
-        },
-        {
-          "line": 135,
-          "declaration": "fn context(&self) -> workflow_video_edit::context::VideoContextHandle {"
-        },
-        {
-          "line": 138,
-          "declaration": "async fn authorized_scopes(&self) -> Result<Vec<CloudVideoScope>> {"
-        },
-        {
-          "line": 142,
-          "declaration": "async fn create_project(&self, run: &str, _: &CloudVideoScope) -> Result<String> {"
-        },
-        {
-          "line": 146,
-          "declaration": "async fn find_project(&self, _: &str, _: &CloudVideoScope) -> Result<Option<String>> {"
-        },
-        {
-          "line": 150,
-          "declaration": "async fn create_upload(&self, _: &str, _: &VideoSourceIdentity) -> Result<VideoUploadTicket> {"
-        },
-        {
-          "line": 158,
-          "declaration": "async fn upload(&self, _: &VideoUploadTicket, source: &VideoSourceIdentity) -> Result<()> {"
-        },
-        {
-          "line": 163,
-          "declaration": "async fn finalize(&self, _: &str, _: &str, _: Option<&str>) -> Result<VideoImportResult> {"
-        },
-        {
-          "line": 167,
-          "declaration": "async fn probe(&self, _: &str, _: &str) -> Result<VideoMediaInfo> {"
-        },
-        {
-          "line": 179,
-          "declaration": "impl VideoTranscriptCloud for Cloud {"
-        },
-        {
-          "line": 180,
-          "declaration": "fn context(&self) -> workflow_video_edit::context::VideoContextHandle {"
-        },
-        {
-          "line": 183,
-          "declaration": "async fn probe_transcript_media(&self, _: &str, _: &str) -> Result<Value> {"
-        },
-        {
-          "line": 187,
-          "declaration": "async fn transcribe(&self, _: &str, _: &str, _: &str, _: Option<&str>) -> Result<Value> {"
-        },
-        {
-          "line": 193,
-          "declaration": "impl VideoAssetCloud for Cloud {"
-        },
-        {
-          "line": 194,
-          "declaration": "async fn submit("
-        },
-        {
-          "line": 209,
-          "declaration": "async fn reconcile(&self, job: &VideoAssetJob) -> Result<VideoAssetRemoteState> {"
-        },
-        {
-          "line": 219,
-          "declaration": "async fn verify(&self, _: &str, _: &str) -> Result<()> {"
-        },
-        {
-          "line": 225,
-          "declaration": "impl VideoEntryCloud for Cloud {"
-        },
-        {
-          "line": 226,
-          "declaration": "fn versions(&self) -> (&str, &str) {"
-        },
-        {
-          "line": 229,
-          "declaration": "async fn resolve_video_materials("
-        },
-        {
-          "line": 257,
-          "declaration": "fn project_cloud<'a>(&'a self, _: &VideoApplyInput<'a>) -> Box<dyn VideoProjectCloud + 'a> {"
-        },
-        {
-          "line": 261,
-          "declaration": "struct RemoteProject<'a>(&'a Cloud);"
-        },
-        {
-          "line": 263,
-          "declaration": "impl VideoProjectCloud for RemoteProject<'_> {"
-        },
-        {
-          "line": 264,
-          "declaration": "async fn read_timeline(&self, project: &str) -> Result<VideoTimelineEvidence> {"
-        },
-        {
-          "line": 299,
-          "declaration": "async fn write("
-        },
-        {
-          "line": 313,
-          "declaration": "async fn reconcile(&self, _: &str, _: &VideoWriteEntry) -> Result<VideoWriteStatus> {"
-        },
-        {
-          "line": 316,
-          "declaration": "async fn preview(&self, project: &str, revision: &str) -> Result<VideoPreviewEvidence> {"
-        },
-        {
-          "line": 327,
-          "declaration": "async fn viewer_url(&self, _: &str) -> Result<String> {"
-        },
-        {
-          "line": 333,
-          "declaration": "pub(super) struct Model(pub Arc<Scenario>);"
-        },
-        {
-          "line": 335,
-          "declaration": "impl Provider for Model {"
-        },
-        {
-          "line": 336,
-          "declaration": "async fn chat_with_system(&self, _: Option<&str>, _: &str, _: &str, _: f64) -> Result<String> {"
-        },
-        {
-          "line": 339,
-          "declaration": "async fn chat(&self, request: ChatRequest<'_>, _: &str, _: f64) -> Result<ChatResponse> {"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/workflow/video_edit/e2e_tests.rs",
       "owner": 44,
       "before": 479,
@@ -25840,165 +24476,33 @@
       "path": "crates/vw-agent/src/workflow/video_edit/entry_test_transport.rs",
       "owner": 44,
       "before": 257,
-      "after": 257,
+      "after": 37,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md",
       "symbols": [
         {
-          "line": 21,
+          "line": 10,
           "declaration": "pub(super) fn install_external(session: &str, factory: ExternalFactory) -> TransportGuard {"
         },
         {
-          "line": 27,
+          "line": 16,
           "declaration": "pub(crate) struct TransportGuard(String);"
         },
         {
-          "line": 28,
+          "line": 17,
           "declaration": "impl Drop for TransportGuard {"
         },
         {
-          "line": 29,
+          "line": 18,
           "declaration": "fn drop(&mut self) {"
         },
         {
-          "line": 34,
+          "line": 23,
           "declaration": "pub(crate) fn install(session: &str) -> TransportGuard {"
         },
         {
-          "line": 38,
+          "line": 27,
           "declaration": "pub(super) fn get("
-        },
-        {
-          "line": 55,
-          "declaration": "struct Cloud {"
-        },
-        {
-          "line": 60,
-          "declaration": "impl VideoPrepareCloud for Cloud {"
-        },
-        {
-          "line": 61,
-          "declaration": "fn context(&self) -> workflow_video_edit::context::VideoContextHandle {"
-        },
-        {
-          "line": 64,
-          "declaration": "async fn authorized_scopes(&self) -> Result<Vec<CloudVideoScope>> {"
-        },
-        {
-          "line": 67,
-          "declaration": "async fn create_project(&self, run: &str, _: &CloudVideoScope) -> Result<String> {"
-        },
-        {
-          "line": 70,
-          "declaration": "async fn find_project(&self, _: &str, _: &CloudVideoScope) -> Result<Option<String>> {"
-        },
-        {
-          "line": 73,
-          "declaration": "async fn create_upload(&self, _: &str, _: &VideoSourceIdentity) -> Result<VideoUploadTicket> {"
-        },
-        {
-          "line": 80,
-          "declaration": "async fn upload(&self, _: &VideoUploadTicket, source: &VideoSourceIdentity) -> Result<()> {"
-        },
-        {
-          "line": 84,
-          "declaration": "async fn finalize(&self, _: &str, _: &str, _: Option<&str>) -> Result<VideoImportResult> {"
-        },
-        {
-          "line": 87,
-          "declaration": "async fn probe(&self, _: &str, _: &str) -> Result<VideoMediaInfo> {"
-        },
-        {
-          "line": 98,
-          "declaration": "impl VideoTranscriptCloud for Cloud {"
-        },
-        {
-          "line": 99,
-          "declaration": "fn context(&self) -> workflow_video_edit::context::VideoContextHandle {"
-        },
-        {
-          "line": 102,
-          "declaration": "async fn probe_transcript_media(&self, _: &str, _: &str) -> Result<Value> {"
-        },
-        {
-          "line": 107,
-          "declaration": "async fn transcribe(&self, _: &str, _: &str, _: &str, _: Option<&str>) -> Result<Value> {"
-        },
-        {
-          "line": 114,
-          "declaration": "impl VideoAssetCloud for Cloud {"
-        },
-        {
-          "line": 115,
-          "declaration": "async fn submit(&self, _: &VideoAssetRequest, _: &str) -> Result<VideoAssetRemoteState> {"
-        },
-        {
-          "line": 121,
-          "declaration": "async fn reconcile(&self, _: &VideoAssetJob) -> Result<VideoAssetRemoteState> {"
-        },
-        {
-          "line": 127,
-          "declaration": "async fn verify(&self, _: &str, _: &str) -> Result<()> {"
-        },
-        {
-          "line": 132,
-          "declaration": "impl VideoEntryCloud for Cloud {"
-        },
-        {
-          "line": 133,
-          "declaration": "fn versions(&self) -> (&str, &str) {"
-        },
-        {
-          "line": 136,
-          "declaration": "async fn resolve_video_materials("
-        },
-        {
-          "line": 164,
-          "declaration": "fn project_cloud<'a>(&'a self, _: &VideoApplyInput<'a>) -> Box<dyn VideoProjectCloud + 'a> {"
-        },
-        {
-          "line": 168,
-          "declaration": "struct RemoteProject<'a>(&'a Cloud);"
-        },
-        {
-          "line": 170,
-          "declaration": "impl VideoProjectCloud for RemoteProject<'_> {"
-        },
-        {
-          "line": 171,
-          "declaration": "async fn read_timeline(&self, project: &str) -> Result<VideoTimelineEvidence> {"
-        },
-        {
-          "line": 205,
-          "declaration": "async fn write("
-        },
-        {
-          "line": 214,
-          "declaration": "async fn reconcile(&self, _: &str, _: &VideoWriteEntry) -> Result<VideoWriteStatus> {"
-        },
-        {
-          "line": 217,
-          "declaration": "async fn preview(&self, project: &str, revision: &str) -> Result<VideoPreviewEvidence> {"
-        },
-        {
-          "line": 227,
-          "declaration": "async fn viewer_url(&self, _: &str) -> Result<String> {"
-        },
-        {
-          "line": 231,
-          "declaration": "struct Model;"
-        },
-        {
-          "line": 233,
-          "declaration": "impl Provider for Model {"
-        },
-        {
-          "line": 234,
-          "declaration": "async fn chat_with_system(&self, _: Option<&str>, _: &str, _: &str, _: f64) -> Result<String> {"
-        },
-        {
-          "line": 237,
-          "declaration": "async fn chat(&self, request: ChatRequest<'_>, _: &str, _: f64) -> Result<ChatResponse> {"
         }
       ]
     },
@@ -26010,20 +24514,6 @@
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md",
       "symbols": []
-    },
-    {
-      "path": "crates/vw-agent/src/workflow/video_edit/manifest_tests.rs",
-      "owner": 44,
-      "before": 134,
-      "after": 32,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-44.md",
-      "symbols": [
-        {
-          "line": 3,
-          "declaration": "pub(super) fn candidate() -> VideoEditRunManifest {"
-        }
-      ]
     },
     {
       "path": "crates/vw-agent/src/workflow/video_edit/merge.rs",
@@ -26038,7 +24528,7 @@
       "path": "crates/vw-agent/src/workflow/video_edit/mod.rs",
       "owner": 44,
       "before": 71,
-      "after": 69,
+      "after": 66,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md",
       "symbols": [
@@ -26178,72 +24668,28 @@
       "path": "crates/vw-agent/src/workflow/video_edit/prepare_tests.rs",
       "owner": 44,
       "before": 446,
-      "after": 254,
+      "after": 115,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md",
       "symbols": [
         {
-          "line": 7,
-          "declaration": "struct Remote {"
-        },
-        {
-          "line": 19,
-          "declaration": "struct Cloud {"
-        },
-        {
-          "line": 25,
-          "declaration": "impl VideoPrepareCloud for Cloud {"
-        },
-        {
-          "line": 26,
-          "declaration": "fn context(&self) -> workflow_video_edit::context::VideoContextHandle {"
-        },
-        {
-          "line": 29,
-          "declaration": "async fn authorized_scopes(&self) -> Result<Vec<CloudVideoScope>> {"
-        },
-        {
-          "line": 32,
-          "declaration": "async fn create_project(&self, _run: &str, _scope: &CloudVideoScope) -> Result<String> {"
-        },
-        {
-          "line": 60,
-          "declaration": "async fn find_project(&self, _run: &str, _scope: &CloudVideoScope) -> Result<Option<String>> {"
-        },
-        {
-          "line": 63,
-          "declaration": "async fn create_upload("
-        },
-        {
-          "line": 93,
-          "declaration": "async fn upload("
-        },
-        {
-          "line": 111,
-          "declaration": "async fn finalize("
-        },
-        {
-          "line": 135,
-          "declaration": "async fn probe(&self, _project: &str, _asset: &str) -> Result<VideoMediaInfo> {"
-        },
-        {
-          "line": 145,
+          "line": 6,
           "declaration": "fn fixture() -> (tempfile::TempDir, GlobalDatabase, Cloud, VideoEditRequest) {"
         },
         {
-          "line": 165,
+          "line": 26,
           "declaration": "async fn prepare("
         },
         {
-          "line": 173,
+          "line": 34,
           "declaration": "async fn video_edit_prepare_multiple_spaces_use_real_question_and_cancel() {"
         },
         {
-          "line": 213,
+          "line": 74,
           "declaration": "fn video_edit_prepare_streaming_hash_obeys_security_and_cancellation() {"
         },
         {
-          "line": 233,
+          "line": 94,
           "declaration": "async fn video_edit_prepare_cross_tenant_runs_and_native_mismatch_are_isolated() {"
         }
       ]
@@ -26279,17 +24725,13 @@
       "path": "crates/vw-agent/src/workflow/video_edit/transcript_tests.rs",
       "owner": 44,
       "before": 262,
-      "after": 65,
+      "after": 14,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md",
       "symbols": [
         {
-          "line": 4,
+          "line": 3,
           "declaration": "async fn video_edit_transcript_native_adapter_keeps_audio_ticket_private_and_queries_exact_task() {"
-        },
-        {
-          "line": 45,
-          "declaration": "fn inspect(path: &std::path::Path) {"
         }
       ]
     },

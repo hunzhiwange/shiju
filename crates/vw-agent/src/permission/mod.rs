@@ -16,4 +16,4 @@
 //! - 用户交互支持：提供权限请求的批准、拒绝、永久允许等响应机制
 
 pub use command_arity as arity;
-pub mod next;
+pub use permission_runtime::next as next;

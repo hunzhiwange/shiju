@@ -1,3 +1,3 @@
-# 任务59：已阻塞
+# Task59
 
-静态审计及原所有者恢复请求见 final.md、remaining-host.json；73,072 > 35,000，差38,072行。原始1381路径唯一归属已核对，其余门槛未闭合。未运行 Cargo 或测试，不宣称代码完成。
+Forwarding cleanup and 27 test registrations implemented; static checks completed, compilation/behavior unverified. Whole-plan gate remains open; see final.md and remaining-host.json. No Cargo/build/tests run.

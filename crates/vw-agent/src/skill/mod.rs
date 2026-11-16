@@ -58,7 +58,7 @@
 ///
 /// 提供技能的安全审计功能，包括来源验证、权限检查、恶意代码检测等。
 /// 此模块对外公开，允许外部调用者对技能进行独立审计。
-pub mod audit;
+pub use skill_core::audit as audit;
 
 // ============================================================================
 // 内部子模块
@@ -68,7 +68,7 @@ pub mod audit;
 ///
 /// 负责从文件系统、远程仓库等源扫描和发现可用技能。
 /// 支持多种发现策略，包括目录扫描、Git 仓库克隆等。
-mod discovery;
+use skill_core::discovery as discovery;
 
 /// 技能核心模块
 ///
@@ -80,19 +80,19 @@ mod skill;
 ///
 /// 定义技能系统使用的各种常量，如默认目录名、文件扩展名、
 /// 信任域名列表、超时配置等。
-mod constants;
+use skill_core::constants as constants;
 
 /// 技能安装模块
 ///
 /// 处理技能的安装命令，包括从远程源下载、解压、验证和部署。
 /// 同时提供技能目录的初始化功能。
-mod install;
+use skill_core::install as install;
 
 /// 技能加载器模块
 ///
 /// 提供技能的加载功能，从配置或目录中读取技能定义并实例化。
 /// 支持带配置加载和无配置加载两种模式。
-mod loader;
+use skill_core::loader as loader;
 
 /// 技能安全策略模块
 ///
@@ -100,13 +100,13 @@ mod loader;
 /// - 下载策略（允许/禁止/询问）
 /// - 域名信任验证
 /// - 来源别名解析
-mod policy;
+use skill_core::policy as policy;
 
 /// 技能提示注入模块
 ///
 /// 将技能定义转换为可注入代理提示的文本格式。
 /// 支持多种注入模式，以适应不同的代理架构和提示格式要求。
-mod prompt;
+use skill_core::prompt as prompt;
 
 /// 技能来源管理模块
 ///
@@ -122,7 +122,7 @@ mod prompt;
 /// - `SkillsConfig`: 技能配置
 /// - `SkillRuntimeConfig`: 运行时配置
 /// - `SkillDownloadPolicy`: 下载策略
-mod types;
+use skill_core::types as types;
 
 // ============================================================================
 // 公开接口重新导出

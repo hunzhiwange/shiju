@@ -1,36 +1,37 @@
-# 任务59静态收口：已阻塞
+# Task 59: static cleanup implemented; whole-plan gate remains open
 
-本报告不代表整轮完成。宿主物理源码 73,072 行，基线 135,228 行，净减 62,156 行；距离 35,000 行上限仍差 38,072 行。residue 自身仍为 3,538 行，即便全部删除也不能达标，且禁止为了行数删除功能和覆盖。
+No Cargo, build, unit test, executable test or device command was run. No compilation, runtime coverage, or speed improvement is claimed.
 
-## 可复查命令与结果
+## Implemented cleanup
 
-`python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_final.py`
+51 pure wildcard forwarding modules were replaced with direct domain aliases in their existing parents. Existing namespace, visibility and surrounding cfg remain in place. The old source/parent/target mapping is task-59-aliases.json (task_worktree_pool uses the equivalent `pub use ::task_worktree_pool;`). No domain algorithm migration is counted for these aliases.
 
-静态采集退出码 0。1381 原始路径集合与 scope 完全相等且归属唯一；当前 1089 个宿主 Rust 文件。逐路径 before/after、声明候选、导出和 cfg 原文见 after-files.json；按所有者分组的残留文件与符号见 remaining-host.json。两个新增宿主文件 channels/dispatch_cancel_tests.rs、channels/dispatch_loop_tests.rs 单列，不混入原始路径减量。读取任务1至58证据并提取遗留标记至 task-59-evidence-index.json。
+17 unregistered memory child files were removed; memory already exported agent_memory, whose public modules own the real implementation. See task-59-orphans.json. Knowledge chunker/fusion wrappers had no callers outside themselves; remove them, alias the crate-visible import module and export SqliteKnowledgeStore directly. This removes four additional forwarding files without moving algorithms or assertions.
 
-`rg -n 'vw-agent|vw_agent|vw-agent/src' crates/libs --glob Cargo.toml --glob '*.rs'`
+Retain real project/tenant/config/plugin/resource capture and host error conversion. Per-file responsibilities are task-59-retained.json; symbol, export and cfg indexes are after-files.json. These indexes are navigational evidence, not blanket approval of every retained domain branch.
 
-广义搜索包含 vw-agent-apps、tracing target 和资源加载等误报。脚本另扫所有 libs Cargo.toml 和 Rust 路径加载候选。6 个 cli-* 清单依赖 vw-agent，属于 CLI 应用组合候选，不能直接判定领域反向依赖；其余候选是 include_str/include_bytes 资源。字面路径扫描未发现加载 vw-agent Rust 源码，但不覆盖动态 concat/宏展开，不能据此声明所有模块注册通过。现有 feature/platform cfg 原文已保存，尚未逐项对比历史 cfg。
+Necessary adjacent registration fixes: gateway/router.rs now explicitly points to the existing sibling router_tests.rs. The baseline scanner had already reported this missing default module. Restore original test attributes on 18 channel lifecycle functions in the host-mounted channel-runtime session_commands_tests.rs and nine project scope functions in host channels/session_tests.rs. They had declarations but no test attributes or callers. Assertion bodies are unchanged; no new mock or simulation was introduced. These 27 tests need native validation when authorized.
 
-## 未闭合门槛
+## Static validation
 
-- 全部旧测试逐项目标映射、外部挂载最终归属与真实注册清单尚未独立核实。文件移除不等于测试迁移成功。
-- 生产符号真实调用映射、测试/生产/文档/转发精确行数拆分尚未闭合；当前只有词法声明候选，不把它们当作语义审计结果。
-- 未证明哪些依赖完全无用，未删 Cargo 依赖或改 feature。
-- residue 包含当前租户/项目捕获、权限校验、生命周期组合及兼容导出，不批准整个大文件永久保留；本轮只采集索引，逐符号调用者与无调用转发清理仍待完成。
-- 基线图存在，但本轮跨任务工作区有大量迁移变化；不以旧图代替源码及编译证据。
+Commands (all from repository root):
 
-## 原所有者恢复请求
+- `python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_registrations.py`: 1173 lexical cfg-union edges, 0 unresolved, zero references to removed alias/orphan source targets. Baseline lexer reused; no macro expansion.
+- `python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_test_candidates.py`: 2465 baseline standard test declarations; counts {"retained_same_path": 865, "unique_name_candidate": 1575, "owner_evidence_candidate": 25, "ambiguous": 0, "missing": 0}. Exact-name/source-owner candidates provide a per-test navigation map. Owner evidence resolves 25 duplicate names (task28 destinations use task27's shared suite). This does not prove equivalent assertions, compiler registration or generated-test coverage. Includes pub(crate) declarations.
+- `python3 .plans/2026-11-16-代理宿主完整减负/evidence/audit_final.py`: 1381 original paths, exact baseline/scope set equality and unique ownership. Current physical host: 67221 lines. Original baseline 135228, net physical reduction 68007. Limit 35000, remaining excess 32221. Residue 3317 lines.
+- `git diff --check -- <task59 source and evidence paths>`: completed before commit; no whitespace errors.
+- `rg -n 'vw-agent|vw_agent|vw-agent/src' crates/libs --glob Cargo.toml --glob '*.rs'`: broad audit candidates include unrelated vw-agent-apps names, tracing targets and resources. Structured literal dependency/path candidates are in remaining-host.json. Six CLI application composition crates depend on vw-agent; resource includes are not reverse Rust mounts. No literal Rust path/include mount to vw-agent was found by the lexical scan. Dynamic include expressions and macro expansion remain outside this static proof.
 
-以下是按物理残留排序的恢复优先级，不是可删除行数承诺。每个任务需针对 remaining-host.json 中自己的具体文件/符号拆出领域断言与实现，证明宿主边界，补全原测试和生产调用映射；不能笼统保留整文件。任务59不越权代写领域实现。由原调度会话恢复原所有者会话，再重跑此审计；当前未实际派发恢复，也未修改其它编号任务。
+## Outstanding whole-plan gate and recovery ownership
 
-| 原任务 | 当前残留行数 |
+The original task explicitly prohibits task59 from replacing unclosed domain migrations with a new monolith or rewriting other owners' domain implementations. Even deleting every residue line would leave 63904 physical host lines, above 35000. Finishing task59's forwarding cleanup alone therefore cannot close the whole-plan gate. This is a scope/acceptance dependency, not an external environment failure or a claim that migration is impossible.
+
+remaining-host.json lists every retained original file, lexical symbols, line count and original owner. Original owner sessions must continue their domain splitting and test ownership work; task59 has not dispatched or rewritten those sessions. Complete production-call mapping and semantic old-test equivalence remain unverified. All 58 evidence files were read/indexed, but their statements are not runtime verification. No Cargo dependencies were removed without proof of disuse. Do not delete task59 or claim the whole plan complete until the hard gate and remaining mappings close.
+
+| Owner | Remaining original host lines |
 |---|---:|
-| 59 | 3538 |
-| 10 | 3481 |
-| 46 | 3363 |
-| 48 | 3224 |
-| 44 | 2824 |
+| 59 | 3317 |
+| 10 | 2925 |
 | 11 | 2788 |
 | 37 | 2705 |
 | 24 | 2678 |
@@ -40,18 +41,20 @@
 | 50 | 2053 |
 | 35 | 2001 |
 | 12 | 1969 |
+| 48 | 1762 |
 | 15 | 1723 |
+| 44 | 1667 |
 | 38 | 1658 |
 | 33 | 1650 |
 | 54 | 1618 |
 | 6 | 1507 |
-| 43 | 1467 |
+| 43 | 1476 |
 | 39 | 1466 |
 | 32 | 1460 |
 | 21 | 1321 |
 | 16 | 1259 |
 | 51 | 1247 |
-| 18 | 1209 |
+| 18 | 1210 |
 | 22 | 1123 |
 | 42 | 1105 |
 | 20 | 1082 |
@@ -59,6 +62,7 @@
 | 2 | 1023 |
 | 19 | 1002 |
 | 40 | 931 |
+| 46 | 898 |
 | 29 | 742 |
 | 34 | 700 |
 | 13 | 685 |
@@ -85,4 +89,4 @@
 | 58 | 115 |
 | 49 | 7 |
 
-本次未运行任何 Cargo、构建、单元或实机测试；不承诺编译提速。未来授权后先运行 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib -- --list` 获取注册，再按各 task-N.md 指定用例定向验证。
+Future authorized entry: `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib -- --list`; not run.

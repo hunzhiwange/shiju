@@ -1,0 +1,410 @@
+[
+  {
+    "source": "crates/vw-agent/src/app_providers.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod app_providers;",
+    "after": "pub use app_provider_services as app_providers;",
+    "domain": "app_provider_services",
+    "lines": 2
+  },
+  {
+    "source": "crates/vw-agent/src/approval/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod approval;",
+    "after": "pub use agent_approval as approval;",
+    "domain": "agent_approval",
+    "lines": 2
+  },
+  {
+    "source": "crates/vw-agent/src/bus/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod bus;",
+    "after": "pub use agent_bus as bus;",
+    "domain": "agent_bus",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/file/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod file;",
+    "after": "pub use agent_files as file;",
+    "domain": "agent_files",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/flag/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod flag;",
+    "after": "pub use runtime_flags as flag;",
+    "domain": "runtime_flags",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/heartbeat/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub(crate) mod heartbeat;",
+    "after": "pub(crate) use agent_heartbeat as heartbeat;",
+    "domain": "agent_heartbeat",
+    "lines": 2
+  },
+  {
+    "source": "crates/vw-agent/src/id/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod id;",
+    "after": "pub use ordered_id as id;",
+    "domain": "ordered_id",
+    "lines": 6
+  },
+  {
+    "source": "crates/vw-agent/src/installation/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod installation;",
+    "after": "pub use agent_installation as installation;",
+    "domain": "agent_installation",
+    "lines": 2
+  },
+  {
+    "source": "crates/vw-agent/src/integrations/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod integrations;",
+    "after": "pub use agent_integrations as integrations;",
+    "domain": "agent_integrations",
+    "lines": 2
+  },
+  {
+    "source": "crates/vw-agent/src/memory/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod memory;",
+    "after": "pub use agent_memory as memory;",
+    "domain": "agent_memory",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/observability/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod observability;",
+    "after": "pub use agent_observability as observability;",
+    "domain": "agent_observability",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/patch/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod patch;",
+    "after": "pub use ::patch::patch as patch;",
+    "domain": "::patch::patch",
+    "lines": 6
+  },
+  {
+    "source": "crates/vw-agent/src/permission/next.rs",
+    "parent": "crates/vw-agent/src/permission/mod.rs",
+    "before": "pub mod next;",
+    "after": "pub use permission_runtime::next as next;",
+    "domain": "permission_runtime::next",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/runtime/docker/mod.rs",
+    "parent": "crates/vw-agent/src/runtime/mod.rs",
+    "before": "pub mod docker;",
+    "after": "pub use agent_runtime::docker as docker;",
+    "domain": "agent_runtime::docker",
+    "lines": 2
+  },
+  {
+    "source": "crates/vw-agent/src/scheduler/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod scheduler;",
+    "after": "pub use agent_scheduler_core as scheduler;",
+    "domain": "agent_scheduler_core",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/security/bubblewrap/mod.rs",
+    "parent": "crates/vw-agent/src/security/mod.rs",
+    "before": "pub mod bubblewrap;",
+    "after": "pub use process_sandbox::bubblewrap as bubblewrap;",
+    "domain": "process_sandbox::bubblewrap",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/security/detect/mod.rs",
+    "parent": "crates/vw-agent/src/security/mod.rs",
+    "before": "pub mod detect;",
+    "after": "pub use agent_security::detect as detect;",
+    "domain": "agent_security::detect",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/security/docker/mod.rs",
+    "parent": "crates/vw-agent/src/security/mod.rs",
+    "before": "pub mod docker;",
+    "after": "pub use process_sandbox::docker as docker;",
+    "domain": "process_sandbox::docker",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/security/estop/mod.rs",
+    "parent": "crates/vw-agent/src/security/mod.rs",
+    "before": "pub mod estop;",
+    "after": "pub use agent_security::estop as estop;",
+    "domain": "agent_security::estop",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/security/firejail/mod.rs",
+    "parent": "crates/vw-agent/src/security/mod.rs",
+    "before": "pub mod firejail;",
+    "after": "pub use process_sandbox::firejail as firejail;",
+    "domain": "process_sandbox::firejail",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/security/gateway_skey_store.rs",
+    "parent": "crates/vw-agent/src/security/mod.rs",
+    "before": "pub mod gateway_skey_store;",
+    "after": "pub use secret_store::gateway_skey_store as gateway_skey_store;",
+    "domain": "secret_store::gateway_skey_store",
+    "lines": 2
+  },
+  {
+    "source": "crates/vw-agent/src/security/landlock/mod.rs",
+    "parent": "crates/vw-agent/src/security/mod.rs",
+    "before": "pub mod landlock;",
+    "after": "pub use process_sandbox::landlock as landlock;",
+    "domain": "process_sandbox::landlock",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/security/otp/mod.rs",
+    "parent": "crates/vw-agent/src/security/mod.rs",
+    "before": "pub mod otp;",
+    "after": "pub use agent_security::otp as otp;",
+    "domain": "agent_security::otp",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/security/pairing.rs",
+    "parent": "crates/vw-agent/src/security/mod.rs",
+    "before": "pub mod pairing;",
+    "after": "pub use gateway_pairing::pairing as pairing;",
+    "domain": "gateway_pairing::pairing",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/security/policy/mod.rs",
+    "parent": "crates/vw-agent/src/security/mod.rs",
+    "before": "pub mod policy;",
+    "after": "pub use agent_security::policy as policy;",
+    "domain": "agent_security::policy",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/security/prompt_guard.rs",
+    "parent": "crates/vw-agent/src/security/mod.rs",
+    "before": "pub mod prompt_guard;",
+    "after": "pub use agent_security::prompt_guard as prompt_guard;",
+    "domain": "agent_security::prompt_guard",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/security/secrets.rs",
+    "parent": "crates/vw-agent/src/security/mod.rs",
+    "before": "pub mod secrets;",
+    "after": "pub use secret_store::secrets as secrets;",
+    "domain": "secret_store::secrets",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/security/semantic_guard.rs",
+    "parent": "crates/vw-agent/src/security/mod.rs",
+    "before": "pub mod semantic_guard;",
+    "after": "pub use agent_security::semantic_guard as semantic_guard;",
+    "domain": "agent_security::semantic_guard",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/security/traits.rs",
+    "parent": "crates/vw-agent/src/security/mod.rs",
+    "before": "pub mod traits;",
+    "after": "pub use process_sandbox::traits as traits;",
+    "domain": "process_sandbox::traits",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/service/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod service;",
+    "after": "pub use agent_service as service;",
+    "domain": "agent_service",
+    "lines": 2
+  },
+  {
+    "source": "crates/vw-agent/src/shell/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod shell;",
+    "after": "pub use shell_command as shell;",
+    "domain": "shell_command",
+    "lines": 4
+  },
+  {
+    "source": "crates/vw-agent/src/skill/audit.rs",
+    "parent": "crates/vw-agent/src/skill/mod.rs",
+    "before": "pub mod audit;",
+    "after": "pub use skill_core::audit as audit;",
+    "domain": "skill_core::audit",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/skill/constants.rs",
+    "parent": "crates/vw-agent/src/skill/mod.rs",
+    "before": "mod constants;",
+    "after": "use skill_core::constants as constants;",
+    "domain": "skill_core::constants",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/skill/discovery.rs",
+    "parent": "crates/vw-agent/src/skill/mod.rs",
+    "before": "mod discovery;",
+    "after": "use skill_core::discovery as discovery;",
+    "domain": "skill_core::discovery",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/skill/install.rs",
+    "parent": "crates/vw-agent/src/skill/mod.rs",
+    "before": "mod install;",
+    "after": "use skill_core::install as install;",
+    "domain": "skill_core::install",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/skill/loader.rs",
+    "parent": "crates/vw-agent/src/skill/mod.rs",
+    "before": "mod loader;",
+    "after": "use skill_core::loader as loader;",
+    "domain": "skill_core::loader",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/skill/policy.rs",
+    "parent": "crates/vw-agent/src/skill/mod.rs",
+    "before": "mod policy;",
+    "after": "use skill_core::policy as policy;",
+    "domain": "skill_core::policy",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/skill/prompt.rs",
+    "parent": "crates/vw-agent/src/skill/mod.rs",
+    "before": "mod prompt;",
+    "after": "use skill_core::prompt as prompt;",
+    "domain": "skill_core::prompt",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/skill/types.rs",
+    "parent": "crates/vw-agent/src/skill/mod.rs",
+    "before": "mod types;",
+    "after": "use skill_core::types as types;",
+    "domain": "skill_core::types",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/skillforge/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod skillforge;",
+    "after": "pub use skill_forge as skillforge;",
+    "domain": "skill_forge",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/storage/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod storage;",
+    "after": "pub use agent_storage as storage;",
+    "domain": "agent_storage",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/task_worktree_pool/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod task_worktree_pool;",
+    "after": "pub use task_worktree_pool as task_worktree_pool;",
+    "domain": "task_worktree_pool",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/test_capabilities.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub mod test_capabilities;",
+    "after": "pub use agent_util::test_capabilities as test_capabilities;",
+    "domain": "agent_util::test_capabilities",
+    "lines": 2
+  },
+  {
+    "source": "crates/vw-agent/src/tunnel/mod.rs",
+    "parent": "crates/vw-agent/src/lib.rs",
+    "before": "pub(crate) mod tunnel;",
+    "after": "pub(crate) use agent_tunnel as tunnel;",
+    "domain": "agent_tunnel",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/util/archive.rs",
+    "parent": "crates/vw-agent/src/util/mod.rs",
+    "before": "pub mod archive;",
+    "after": "pub use agent_util::archive as archive;",
+    "domain": "agent_util::archive",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/util/filesystem.rs",
+    "parent": "crates/vw-agent/src/util/mod.rs",
+    "before": "pub mod filesystem;",
+    "after": "pub use agent_util::filesystem as filesystem;",
+    "domain": "agent_util::filesystem",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/util/format.rs",
+    "parent": "crates/vw-agent/src/util/mod.rs",
+    "before": "pub mod format;",
+    "after": "pub use agent_util::format as format;",
+    "domain": "agent_util::format",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/util/locale.rs",
+    "parent": "crates/vw-agent/src/util/mod.rs",
+    "before": "pub mod locale;",
+    "after": "pub use agent_util::locale as locale;",
+    "domain": "agent_util::locale",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/util/log.rs",
+    "parent": "crates/vw-agent/src/util/mod.rs",
+    "before": "pub mod log;",
+    "after": "pub use agent_log as log;",
+    "domain": "agent_log",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/util/rpc.rs",
+    "parent": "crates/vw-agent/src/util/mod.rs",
+    "before": "pub mod rpc;",
+    "after": "pub use agent_util::rpc as rpc;",
+    "domain": "agent_util::rpc",
+    "lines": 3
+  },
+  {
+    "source": "crates/vw-agent/src/util/signal.rs",
+    "parent": "crates/vw-agent/src/util/mod.rs",
+    "before": "pub mod signal;",
+    "after": "pub use agent_async::signal as signal;",
+    "domain": "agent_async::signal",
+    "lines": 3
+  }
+]

@@ -148,6 +148,7 @@ pub(crate) async fn registered_context()
     (temp, ctx, project)
 }
 
+#[tokio::test]
 pub(crate) async fn channel_project_scope_binding_priority_and_immutable_snapshot() {
     let (_a, ctx, a) = registered_context().await;
     let (_b, _, b) = registered_context().await;
@@ -182,6 +183,7 @@ pub(crate) async fn channel_project_scope_binding_priority_and_immutable_snapsho
     assert_eq!(resolve_channel_message_snapshot(&ctx, &msg).await.unwrap().scope.project, a.id);
 }
 
+#[tokio::test]
 pub(crate) async fn channel_project_scope_invalid_binding_preserves_state() {
     let (_a, ctx, _) = registered_context().await;
     let msg = channel_message(None);
@@ -204,6 +206,7 @@ pub(crate) async fn channel_project_scope_invalid_binding_preserves_state() {
     assert!(resolve_channel_message_snapshot(&ctx, &msg).await.is_err());
 }
 
+#[tokio::test]
 pub(crate) async fn channel_project_scope_sessions_follow_snapshot_and_isolate_rooms() {
     let (_a, ctx, _) = registered_context().await;
     let (_b, _, b) = registered_context().await;
@@ -236,6 +239,7 @@ pub(crate) async fn channel_project_scope_sessions_follow_snapshot_and_isolate_r
     assert_eq!(session_a, resolve_or_create_sender_session_id(&a, &msg, None).await.unwrap());
 }
 
+#[tokio::test]
 pub(crate) async fn channel_project_scope_project_history_and_routes_are_independent() {
     let (_a, ctx, _) = registered_context().await;
     let (_b, _, b) = registered_context().await;
@@ -259,6 +263,7 @@ pub(crate) async fn channel_project_scope_project_history_and_routes_are_indepen
     assert_eq!(ctx.conversation_histories.lock().unwrap()[&a.scope.key()][0].content, "keep a");
 }
 
+#[tokio::test]
 pub(crate) async fn channel_project_scope_unavailable_directory_does_not_cache_fake_session() {
     let (temp, ctx, _) = registered_context().await;
     let msg = channel_message(None);
@@ -269,6 +274,7 @@ pub(crate) async fn channel_project_scope_unavailable_directory_does_not_cache_f
     assert!(resolve_channel_message_snapshot(&ctx, &msg).await.is_err());
 }
 
+#[tokio::test]
 pub(crate) async fn channel_project_scope_tenant_cannot_resolve_other_tenant_binding() {
     let (_a, ctx, a) = registered_context().await;
     let msg = channel_message(None);
@@ -291,6 +297,7 @@ pub(crate) async fn channel_project_scope_tenant_cannot_resolve_other_tenant_bin
     .await;
 }
 
+#[tokio::test]
 pub(crate) async fn channel_project_scope_processor_uses_captured_directory() {
     if isolated_processor_fixture(
         "channels::channel_project_scope_processor_uses_captured_directory",
@@ -344,6 +351,7 @@ pub(crate) async fn channel_project_scope_processor_uses_captured_directory() {
     assert_eq!(info.project_id, snapshot.scope.project);
 }
 
+#[tokio::test]
 pub(crate) async fn channel_project_scope_memory_reads_only_matching_scope() {
     let (temp_a, mut ctx, _) = registered_context().await;
     let (_temp_b, _, b) = registered_context().await;
@@ -374,6 +382,7 @@ pub(crate) async fn channel_project_scope_memory_reads_only_matching_scope() {
     }
 }
 
+#[tokio::test]
 pub(crate) async fn channel_project_scope_snapshot_rejects_different_sender() {
     let (_temp, ctx, _) = registered_context().await;
     let mut msg = channel_message(None);

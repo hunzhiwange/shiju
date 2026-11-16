@@ -33,12 +33,12 @@ pub use agent_async::{abort, eventloop, lock, queue, task_set, timeout};
 pub use agent_context::{context, defer, r#fn, iife, lazy, proxied, scrap};
 pub use agent_text::{color, keybind, token, wildcard};
 
-pub mod archive;
-pub mod filesystem;
-pub mod format;
-pub mod locale;
-pub mod log;
-pub mod rpc;
-pub mod signal;
+pub use agent_util::archive as archive;
+pub use agent_util::filesystem as filesystem;
+pub use agent_util::format as format;
+pub use agent_util::locale as locale;
+pub use agent_log as log;
+pub use agent_util::rpc as rpc;
+pub use agent_async::signal as signal;
 
 pub use agent_util::{spawn, truncate_with_ellipsis, floor_utf8_char_boundary, MaybeSet};

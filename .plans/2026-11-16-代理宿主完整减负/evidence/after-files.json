@@ -645,8 +645,8 @@
       "path": "crates/vw-agent/src/agent_apps/mcp/connection_probe_tests.rs",
       "owner": 48,
       "before": 153,
-      "after": 153,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-48.md"
     },
     {
@@ -677,7 +677,7 @@
       "path": "crates/vw-agent/src/agent_apps/mcp/mod.rs",
       "owner": 48,
       "before": 50,
-      "after": 48,
+      "after": 38,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-48.md"
     },
@@ -693,8 +693,8 @@
       "path": "crates/vw-agent/src/agent_apps/mcp/network_probe_tests.rs",
       "owner": 48,
       "before": 462,
-      "after": 462,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-48.md"
     },
     {
@@ -709,8 +709,8 @@
       "path": "crates/vw-agent/src/agent_apps/mcp/probe_jobs_tests.rs",
       "owner": 48,
       "before": 501,
-      "after": 501,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-48.md"
     },
     {
@@ -757,16 +757,16 @@
       "path": "crates/vw-agent/src/agent_apps/mcp/stdio_probe_tests.rs",
       "owner": 48,
       "before": 173,
-      "after": 173,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-48.md"
     },
     {
       "path": "crates/vw-agent/src/agent_apps/mcp/tool_details_tests.rs",
       "owner": 48,
       "before": 163,
-      "after": 163,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-48.md"
     },
     {
@@ -1037,9 +1037,10 @@
       "path": "crates/vw-agent/src/app_providers.rs",
       "owner": 59,
       "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "app_provider_services"
     },
     {
       "path": "crates/vw-agent/src/app_routing/adapter_selection.rs",
@@ -1317,17 +1318,19 @@
       "path": "crates/vw-agent/src/approval/mod.rs",
       "owner": 59,
       "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_approval"
     },
     {
       "path": "crates/vw-agent/src/bus/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_bus"
     },
     {
       "path": "crates/vw-agent/src/channels/channel_project_scope_tests.rs",
@@ -1893,7 +1896,7 @@
       "path": "crates/vw-agent/src/channels/session_tests.rs",
       "owner": 43,
       "before": 473,
-      "after": 410,
+      "after": 419,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-43.md"
     },
@@ -2413,17 +2416,19 @@
       "path": "crates/vw-agent/src/file/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_files"
     },
     {
       "path": "crates/vw-agent/src/flag/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "runtime_flags"
     },
     {
       "path": "crates/vw-agent/src/format/host.rs",
@@ -4477,7 +4482,7 @@
       "path": "crates/vw-agent/src/gateway/api/handlers/session/session_ops_tests.rs",
       "owner": 10,
       "before": 765,
-      "after": 694,
+      "after": 138,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-10.md"
     },
@@ -4917,7 +4922,7 @@
       "path": "crates/vw-agent/src/gateway/router.rs",
       "owner": 18,
       "before": 227,
-      "after": 175,
+      "after": 176,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-18.md"
     },
@@ -5045,9 +5050,10 @@
       "path": "crates/vw-agent/src/heartbeat/mod.rs",
       "owner": 59,
       "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_heartbeat"
     },
     {
       "path": "crates/vw-agent/src/hooks/mod.rs",
@@ -5077,9 +5083,10 @@
       "path": "crates/vw-agent/src/id/mod.rs",
       "owner": 59,
       "before": 6,
-      "after": 6,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "ordered_id"
     },
     {
       "path": "crates/vw-agent/src/identity/mod.rs",
@@ -5093,47 +5100,49 @@
       "path": "crates/vw-agent/src/installation/mod.rs",
       "owner": 59,
       "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_installation"
     },
     {
       "path": "crates/vw-agent/src/integrations/mod.rs",
       "owner": 59,
       "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_integrations"
     },
     {
       "path": "crates/vw-agent/src/knowledge/chunker.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-59.md"
     },
     {
       "path": "crates/vw-agent/src/knowledge/fusion.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-59.md"
     },
     {
       "path": "crates/vw-agent/src/knowledge/import.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-59.md"
     },
     {
       "path": "crates/vw-agent/src/knowledge/mod.rs",
       "owner": 59,
       "before": 15,
-      "after": 15,
+      "after": 12,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-59.md"
     },
@@ -5141,8 +5150,8 @@
       "path": "crates/vw-agent/src/knowledge/store.rs",
       "owner": 59,
       "before": 7,
-      "after": 7,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-59.md"
     },
     {
@@ -5173,145 +5182,163 @@
       "path": "crates/vw-agent/src/memory/backend/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/memory/chunker/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/memory/cli/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/memory/embeddings/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/memory/hygiene/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/memory/lucid/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/memory/mariadb/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/memory/markdown/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/memory/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory"
     },
     {
       "path": "crates/vw-agent/src/memory/none/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/memory/paths.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/memory/postgres/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/memory/qdrant/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/memory/response_cache/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/memory/snapshot/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/memory/sqlite/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/memory/traits/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/memory/vector/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "removed_unregistered_forwarder",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_memory existing public modules"
     },
     {
       "path": "crates/vw-agent/src/migration/mod.rs",
@@ -5357,8 +5384,8 @@
       "path": "crates/vw-agent/src/model_relay/chat_tests.rs",
       "owner": 46,
       "before": 259,
-      "after": 259,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-46.md"
     },
     {
@@ -5453,8 +5480,8 @@
       "path": "crates/vw-agent/src/model_relay/gemini_tests.rs",
       "owner": 46,
       "before": 616,
-      "after": 526,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-46.md"
     },
     {
@@ -5581,16 +5608,16 @@
       "path": "crates/vw-agent/src/model_relay/messages_request_http_tests.rs",
       "owner": 46,
       "before": 156,
-      "after": 156,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-46.md"
     },
     {
       "path": "crates/vw-agent/src/model_relay/messages_request_tests.rs",
       "owner": 46,
       "before": 21,
-      "after": 9,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-46.md"
     },
     {
@@ -5621,7 +5648,7 @@
       "path": "crates/vw-agent/src/model_relay/messages_stream.rs",
       "owner": 46,
       "before": 6,
-      "after": 6,
+      "after": 2,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-46.md"
     },
@@ -5629,16 +5656,16 @@
       "path": "crates/vw-agent/src/model_relay/messages_stream_tests.rs",
       "owner": 46,
       "before": 94,
-      "after": 6,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-46.md"
     },
     {
       "path": "crates/vw-agent/src/model_relay/messages_tests.rs",
       "owner": 46,
       "before": 327,
-      "after": 327,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-46.md"
     },
     {
@@ -5661,23 +5688,23 @@
       "path": "crates/vw-agent/src/model_relay/messages_thinking_http_tests.rs",
       "owner": 46,
       "before": 253,
-      "after": 253,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-46.md"
     },
     {
       "path": "crates/vw-agent/src/model_relay/messages_thinking_tests.rs",
       "owner": 46,
       "before": 16,
-      "after": 5,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-46.md"
     },
     {
       "path": "crates/vw-agent/src/model_relay/mod.rs",
       "owner": 46,
       "before": 173,
-      "after": 162,
+      "after": 146,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-46.md"
     },
@@ -5829,8 +5856,8 @@
       "path": "crates/vw-agent/src/model_relay/responses_http_tests.rs",
       "owner": 46,
       "before": 904,
-      "after": 904,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-46.md"
     },
     {
@@ -6005,9 +6032,10 @@
       "path": "crates/vw-agent/src/observability/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_observability"
     },
     {
       "path": "crates/vw-agent/src/package_boundaries/gateway_pairing_tests.rs",
@@ -6125,9 +6153,10 @@
       "path": "crates/vw-agent/src/patch/mod.rs",
       "owner": 59,
       "before": 6,
-      "after": 6,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "::patch::patch"
     },
     {
       "path": "crates/vw-agent/src/permission/mod.rs",
@@ -6141,9 +6170,10 @@
       "path": "crates/vw-agent/src/permission/next.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "permission_runtime::next"
     },
     {
       "path": "crates/vw-agent/src/plugins/audit.rs",
@@ -7269,9 +7299,10 @@
       "path": "crates/vw-agent/src/runtime/docker/mod.rs",
       "owner": 59,
       "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_runtime::docker"
     },
     {
       "path": "crates/vw-agent/src/runtime/mod.rs",
@@ -7317,17 +7348,19 @@
       "path": "crates/vw-agent/src/scheduler/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_scheduler_core"
     },
     {
       "path": "crates/vw-agent/src/security/bubblewrap/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "process_sandbox::bubblewrap"
     },
     {
       "path": "crates/vw-agent/src/security/canary_guard/mod.rs",
@@ -7341,17 +7374,19 @@
       "path": "crates/vw-agent/src/security/detect/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_security::detect"
     },
     {
       "path": "crates/vw-agent/src/security/docker/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "process_sandbox::docker"
     },
     {
       "path": "crates/vw-agent/src/security/domain_matcher/mod.rs",
@@ -7373,33 +7408,37 @@
       "path": "crates/vw-agent/src/security/estop/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_security::estop"
     },
     {
       "path": "crates/vw-agent/src/security/firejail/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "process_sandbox::firejail"
     },
     {
       "path": "crates/vw-agent/src/security/gateway_skey_store.rs",
       "owner": 59,
       "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "secret_store::gateway_skey_store"
     },
     {
       "path": "crates/vw-agent/src/security/landlock/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "process_sandbox::landlock"
     },
     {
       "path": "crates/vw-agent/src/security/leak_detector.rs",
@@ -7429,49 +7468,55 @@
       "path": "crates/vw-agent/src/security/otp/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_security::otp"
     },
     {
       "path": "crates/vw-agent/src/security/pairing.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "gateway_pairing::pairing"
     },
     {
       "path": "crates/vw-agent/src/security/policy/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_security::policy"
     },
     {
       "path": "crates/vw-agent/src/security/prompt_guard.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_security::prompt_guard"
     },
     {
       "path": "crates/vw-agent/src/security/secrets.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "secret_store::secrets"
     },
     {
       "path": "crates/vw-agent/src/security/semantic_guard.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_security::semantic_guard"
     },
     {
       "path": "crates/vw-agent/src/security/syscall_anomaly.rs",
@@ -7485,17 +7530,19 @@
       "path": "crates/vw-agent/src/security/traits.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "process_sandbox::traits"
     },
     {
       "path": "crates/vw-agent/src/service/mod.rs",
       "owner": 59,
       "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_service"
     },
     {
       "path": "crates/vw-agent/src/session/agent_binding.rs",
@@ -8997,9 +9044,10 @@
       "path": "crates/vw-agent/src/shell/mod.rs",
       "owner": 59,
       "before": 4,
-      "after": 4,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "shell_command"
     },
     {
       "path": "crates/vw-agent/src/shiju/mod.rs",
@@ -9013,41 +9061,46 @@
       "path": "crates/vw-agent/src/skill/audit.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "skill_core::audit"
     },
     {
       "path": "crates/vw-agent/src/skill/constants.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "skill_core::constants"
     },
     {
       "path": "crates/vw-agent/src/skill/discovery.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "skill_core::discovery"
     },
     {
       "path": "crates/vw-agent/src/skill/install.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "skill_core::install"
     },
     {
       "path": "crates/vw-agent/src/skill/loader.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "skill_core::loader"
     },
     {
       "path": "crates/vw-agent/src/skill/mod.rs",
@@ -9061,17 +9114,19 @@
       "path": "crates/vw-agent/src/skill/policy.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "skill_core::policy"
     },
     {
       "path": "crates/vw-agent/src/skill/prompt.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "skill_core::prompt"
     },
     {
       "path": "crates/vw-agent/src/skill/skill.rs",
@@ -9093,17 +9148,19 @@
       "path": "crates/vw-agent/src/skill/types.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "skill_core::types"
     },
     {
       "path": "crates/vw-agent/src/skillforge/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "skill_forge"
     },
     {
       "path": "crates/vw-agent/src/skills/agent_metadata.rs",
@@ -9373,9 +9430,10 @@
       "path": "crates/vw-agent/src/storage/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_storage"
     },
     {
       "path": "crates/vw-agent/src/task_lifecycle/mod.rs",
@@ -9501,17 +9559,19 @@
       "path": "crates/vw-agent/src/task_worktree_pool/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "task_worktree_pool"
     },
     {
       "path": "crates/vw-agent/src/test_capabilities.rs",
       "owner": 59,
       "before": 2,
-      "after": 2,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_util::test_capabilities"
     },
     {
       "path": "crates/vw-agent/src/tests.rs",
@@ -10477,9 +10537,10 @@
       "path": "crates/vw-agent/src/tunnel/mod.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_tunnel"
     },
     {
       "path": "crates/vw-agent/src/update.rs",
@@ -10533,41 +10594,46 @@
       "path": "crates/vw-agent/src/util/archive.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_util::archive"
     },
     {
       "path": "crates/vw-agent/src/util/filesystem.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_util::filesystem"
     },
     {
       "path": "crates/vw-agent/src/util/format.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_util::format"
     },
     {
       "path": "crates/vw-agent/src/util/locale.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_util::locale"
     },
     {
       "path": "crates/vw-agent/src/util/log.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_log"
     },
     {
       "path": "crates/vw-agent/src/util/mod.rs",
@@ -10581,17 +10647,19 @@
       "path": "crates/vw-agent/src/util/rpc.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_util::rpc"
     },
     {
       "path": "crates/vw-agent/src/util/signal.rs",
       "owner": 59,
       "before": 3,
-      "after": 3,
-      "disposition": "retained_requires_review",
-      "evidence": "evidence/task-59.md"
+      "after": 0,
+      "disposition": "direct_domain_alias",
+      "evidence": "evidence/task-59.md",
+      "destination": "agent_async::signal"
     },
     {
       "path": "crates/vw-agent/src/workflow/code_runner.rs",
@@ -10725,8 +10793,8 @@
       "path": "crates/vw-agent/src/workflow/video_edit/assets_tests.rs",
       "owner": 44,
       "before": 452,
-      "after": 45,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-44.md"
     },
     {
@@ -10749,7 +10817,7 @@
       "path": "crates/vw-agent/src/workflow/video_edit/cloud_assets_tests.rs",
       "owner": 44,
       "before": 60,
-      "after": 60,
+      "after": 15,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md"
     },
@@ -10757,7 +10825,7 @@
       "path": "crates/vw-agent/src/workflow/video_edit/cloud_delivery_tests.rs",
       "owner": 44,
       "before": 213,
-      "after": 213,
+      "after": 51,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md"
     },
@@ -10773,7 +10841,7 @@
       "path": "crates/vw-agent/src/workflow/video_edit/cloud_prepare_tests.rs",
       "owner": 44,
       "before": 116,
-      "after": 116,
+      "after": 27,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md"
     },
@@ -10805,8 +10873,8 @@
       "path": "crates/vw-agent/src/workflow/video_edit/e2e_test_cloud.rs",
       "owner": 44,
       "before": 371,
-      "after": 371,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-44.md"
     },
     {
@@ -10837,7 +10905,7 @@
       "path": "crates/vw-agent/src/workflow/video_edit/entry_test_transport.rs",
       "owner": 44,
       "before": 257,
-      "after": 257,
+      "after": 37,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md"
     },
@@ -10861,8 +10929,8 @@
       "path": "crates/vw-agent/src/workflow/video_edit/manifest_tests.rs",
       "owner": 44,
       "before": 134,
-      "after": 32,
-      "disposition": "retained_requires_review",
+      "after": 0,
+      "disposition": "removed_requires_destination_mapping",
       "evidence": "evidence/task-44.md"
     },
     {
@@ -10877,7 +10945,7 @@
       "path": "crates/vw-agent/src/workflow/video_edit/mod.rs",
       "owner": 44,
       "before": 71,
-      "after": 69,
+      "after": 66,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md"
     },
@@ -10909,7 +10977,7 @@
       "path": "crates/vw-agent/src/workflow/video_edit/prepare_tests.rs",
       "owner": 44,
       "before": 446,
-      "after": 254,
+      "after": 115,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md"
     },
@@ -10941,7 +11009,7 @@
       "path": "crates/vw-agent/src/workflow/video_edit/transcript_tests.rs",
       "owner": 44,
       "before": 262,
-      "after": 65,
+      "after": 14,
       "disposition": "retained_requires_review",
       "evidence": "evidence/task-44.md"
     },
@@ -13183,22 +13251,6 @@
       "exports": []
     },
     {
-      "path": "crates/vw-agent/src/agent_apps/mcp/connection_probe_tests.rs",
-      "lines": 153,
-      "symbols": [
-        {
-          "line": 29,
-          "declaration": "fn cc_mcp_t39_revision_results_reuse_connection_checks_and_preserve_diagnostics()"
-        },
-        {
-          "line": 99,
-          "declaration": "fn cc_mcp_t39_revision_checks_reject_revoked_success_and_cancel_owned_work() -> anyhow::Result<()> {"
-        }
-      ],
-      "cfg": [],
-      "exports": []
-    },
-    {
       "path": "crates/vw-agent/src/agent_apps/mcp/connectivity.rs",
       "lines": 28,
       "symbols": [
@@ -13273,75 +13325,55 @@
     },
     {
       "path": "crates/vw-agent/src/agent_apps/mcp/mod.rs",
-      "lines": 48,
+      "lines": 38,
       "symbols": [],
       "cfg": [
         {
           "line": 5,
-          "attribute": "#[cfg(all(test, target_os = \"macos\"))]"
+          "attribute": "#[cfg(not(target_arch = \"wasm32\"))]"
         },
         {
           "line": 7,
-          "attribute": "#[cfg(not(target_arch = \"wasm32\"))]"
-        },
-        {
-          "line": 9,
           "attribute": "#[cfg(target_os = \"macos\")]"
         },
         {
-          "line": 11,
-          "attribute": "#[cfg(all(test, target_os = \"macos\"))]"
-        },
-        {
-          "line": 13,
+          "line": 9,
           "attribute": "#[cfg(not(target_arch = \"wasm32\"))]"
         },
         {
-          "line": 15,
-          "attribute": "#[cfg(all(test, target_os = \"macos\"))]"
-        },
-        {
-          "line": 17,
-          "attribute": "#[cfg(all(test, target_os = \"macos\"))]"
-        },
-        {
-          "line": 20,
+          "line": 12,
           "attribute": "#[cfg(not(target_arch = \"wasm32\"))]"
+        },
+        {
+          "line": 14,
+          "attribute": "#[cfg(all(test, target_os = \"macos\"))]"
+        },
+        {
+          "line": 16,
+          "attribute": "#[cfg(not(target_arch = \"wasm32\"))]"
+        },
+        {
+          "line": 18,
+          "attribute": "#[cfg(all(test, target_os = \"macos\"))]"
         },
         {
           "line": 22,
           "attribute": "#[cfg(all(test, target_os = \"macos\"))]"
         },
         {
-          "line": 24,
-          "attribute": "#[cfg(not(target_arch = \"wasm32\"))]"
-        },
-        {
           "line": 26,
           "attribute": "#[cfg(all(test, target_os = \"macos\"))]"
         },
         {
-          "line": 30,
+          "line": 29,
           "attribute": "#[cfg(all(test, target_os = \"macos\"))]"
         },
         {
-          "line": 33,
-          "attribute": "#[cfg(all(test, target_os = \"macos\"))]"
-        },
-        {
-          "line": 36,
-          "attribute": "#[cfg(all(test, target_os = \"macos\"))]"
-        },
-        {
-          "line": 39,
-          "attribute": "#[cfg(all(test, target_os = \"macos\"))]"
-        },
-        {
-          "line": 42,
+          "line": 32,
           "attribute": "#[cfg(test)]"
         },
         {
-          "line": 46,
+          "line": 36,
           "attribute": "#[cfg(all(test, target_os = \"macos\"))]"
         }
       ],
@@ -13473,106 +13505,6 @@
       "exports": []
     },
     {
-      "path": "crates/vw-agent/src/agent_apps/mcp/network_probe_tests.rs",
-      "lines": 462,
-      "symbols": [
-        {
-          "line": 55,
-          "declaration": "pub(super) struct Fixture {"
-        },
-        {
-          "line": 63,
-          "declaration": "impl Fixture {"
-        },
-        {
-          "line": 64,
-          "declaration": "pub(super) fn new(db: GlobalDatabase) -> anyhow::Result<Self> {"
-        },
-        {
-          "line": 84,
-          "declaration": "pub(super) fn catalog_scope(&self) -> McpCatalogScope {"
-        },
-        {
-          "line": 88,
-          "declaration": "fn policy_path(&self) -> PathBuf {"
-        },
-        {
-          "line": 92,
-          "declaration": "fn permit(record: &McpCatalogRecord, url: &str) -> Value {"
-        },
-        {
-          "line": 100,
-          "declaration": "pub(super) fn policy(&self, permits: &[Value]) -> anyhow::Result<()> {"
-        },
-        {
-          "line": 121,
-          "declaration": "fn create(&self, name: &str, url: &str, sse: bool) -> anyhow::Result<McpCatalogRecord> {"
-        },
-        {
-          "line": 130,
-          "declaration": "pub(super) fn start("
-        },
-        {
-          "line": 151,
-          "declaration": "pub(super) async fn finish("
-        },
-        {
-          "line": 174,
-          "declaration": "struct Server {"
-        },
-        {
-          "line": 183,
-          "declaration": "impl Server {"
-        },
-        {
-          "line": 184,
-          "declaration": "fn new(endpoint: &str) -> Self {"
-        },
-        {
-          "line": 196,
-          "declaration": "fn serve(&self, listener: tokio::net::TcpListener) -> tokio::task::JoinHandle<()> {"
-        },
-        {
-          "line": 205,
-          "declaration": "async fn reply(&self, request: Value) -> Option<Value> {"
-        },
-        {
-          "line": 226,
-          "declaration": "async fn http(State(server): State<Server>, Json(request): Json<Value>) -> Response {"
-        },
-        {
-          "line": 241,
-          "declaration": "async fn delete_session(State(server): State<Server>, headers: HeaderMap) -> StatusCode {"
-        },
-        {
-          "line": 247,
-          "declaration": "async fn sse(State(server): State<Server>) -> Response {"
-        },
-        {
-          "line": 260,
-          "declaration": "async fn sse_post(State(server): State<Server>, Json(request): Json<Value>) -> StatusCode {"
-        },
-        {
-          "line": 267,
-          "declaration": "fn report("
-        },
-        {
-          "line": 279,
-          "declaration": "fn diagnostic_mcp_http_handshake_is_scoped() -> anyhow::Result<()> {"
-        },
-        {
-          "line": 339,
-          "declaration": "fn diagnostic_mcp_http_handshake_is_scoped_cancels_active_connections_and_limits_batches()"
-        },
-        {
-          "line": 395,
-          "declaration": "fn diagnostic_mcp_http_handshake_is_scoped_rejects_foreign_endpoints_and_revoked_results()"
-        }
-      ],
-      "cfg": [],
-      "exports": []
-    },
-    {
       "path": "crates/vw-agent/src/agent_apps/mcp/probe_jobs.rs",
       "lines": 45,
       "symbols": [
@@ -13616,94 +13548,6 @@
           "declaration": "pub use agent_app_services::mcp::probe_jobs::{McpProbeTarget, McpProbeBatch};"
         }
       ]
-    },
-    {
-      "path": "crates/vw-agent/src/agent_apps/mcp/probe_jobs_tests.rs",
-      "lines": 501,
-      "symbols": [
-        {
-          "line": 33,
-          "declaration": "fn cc_mcp_t31_in_flight_connection_edit_discards_old_success() -> anyhow::Result<()> {"
-        },
-        {
-          "line": 96,
-          "declaration": "async fn check_http("
-        },
-        {
-          "line": 119,
-          "declaration": "fn cc_mcp_t31_cancel_stops_only_owned_active_and_queued_probes() -> anyhow::Result<()> {"
-        },
-        {
-          "line": 186,
-          "declaration": "fn cc_mcp_t31_only_current_task_generation_and_connection_revision_apply() -> anyhow::Result<()> {"
-        },
-        {
-          "line": 243,
-          "declaration": "fn diagnostic_mcp_stdio_cancellation_reaps_process_tree() -> anyhow::Result<()> {"
-        },
-        {
-          "line": 286,
-          "declaration": "fn cc_mcp_t31_timed_out_stdio_is_reaped_before_job_completion() -> anyhow::Result<()> {"
-        },
-        {
-          "line": 314,
-          "declaration": "fn cc_mcp_t31_cancel_drops_a_stalled_http_initialization_request() -> anyhow::Result<()> {"
-        },
-        {
-          "line": 348,
-          "declaration": "struct BatchFixture {"
-        },
-        {
-          "line": 357,
-          "declaration": "impl BatchFixture {"
-        },
-        {
-          "line": 358,
-          "declaration": "fn new(database: GlobalDatabase) -> anyhow::Result<Self> {"
-        },
-        {
-          "line": 382,
-          "declaration": "fn runtime(&self) -> std::io::Result<tokio::runtime::Runtime> {"
-        },
-        {
-          "line": 386,
-          "declaration": "fn stdio(&self, id: &str, mode: &str) -> McpCatalogRecord {"
-        },
-        {
-          "line": 392,
-          "declaration": "fn start<'a>("
-        },
-        {
-          "line": 416,
-          "declaration": "fn snapshot(&self, job: &DiagnosticJobIdentity) -> DiagnosticJobSnapshot {"
-        },
-        {
-          "line": 420,
-          "declaration": "async fn terminal(&self, job: &DiagnosticJobIdentity) -> anyhow::Result<DiagnosticJobSnapshot> {"
-        },
-        {
-          "line": 433,
-          "declaration": "fn marker(&self, record: &McpCatalogRecord, suffix: &str) -> std::path::PathBuf {"
-        },
-        {
-          "line": 437,
-          "declaration": "async fn wait_for_stdio(&self, record: &McpCatalogRecord) -> anyhow::Result<(i32, i32)> {"
-        },
-        {
-          "line": 451,
-          "declaration": "async fn wait_until<T>(mut observe: impl FnMut() -> Option<T>) -> anyhow::Result<T> {"
-        },
-        {
-          "line": 463,
-          "declaration": "fn process_exists(pid: i32) -> bool {"
-        },
-        {
-          "line": 469,
-          "declaration": "fn stdio_definition(id: &str, mode: &str) -> McpConnectionDefinition {"
-        }
-      ],
-      "cfg": [],
-      "exports": []
     },
     {
       "path": "crates/vw-agent/src/agent_apps/mcp/revocation.rs",
@@ -13845,38 +13689,6 @@
         {
           "line": 95,
           "declaration": "async fn cc_mcp_t51_foreign_tenants_accounts_and_job_owners_cannot_cross_boundaries() {"
-        }
-      ],
-      "cfg": [],
-      "exports": []
-    },
-    {
-      "path": "crates/vw-agent/src/agent_apps/mcp/stdio_probe_tests.rs",
-      "lines": 173,
-      "symbols": [
-        {
-          "line": 21,
-          "declaration": "fn diagnostic_mcp_stdio_cancellation_reaps_process_tree_handshake() -> anyhow::Result<()> {"
-        }
-      ],
-      "cfg": [],
-      "exports": []
-    },
-    {
-      "path": "crates/vw-agent/src/agent_apps/mcp/tool_details_tests.rs",
-      "lines": 163,
-      "symbols": [
-        {
-          "line": 21,
-          "declaration": "fn details_policy(fixture: &Fixture, permits: &[Value]) -> anyhow::Result<()> {"
-        },
-        {
-          "line": 31,
-          "declaration": "fn cc_mcp_t50_details_discover_real_specs_and_read_only_the_authorized_selection()"
-        },
-        {
-          "line": 112,
-          "declaration": "fn cc_mcp_t50_discovery_rechecks_revocation_and_cancel_releases_the_owned_job() -> anyhow::Result<()>"
         }
       ],
       "cfg": [],
@@ -14533,18 +14345,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/app_providers.rs",
-      "lines": 2,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 2,
-          "declaration": "pub use app_provider_services::*;"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/app_routing/gateway_owner.rs",
       "lines": 11,
       "symbols": [
@@ -14644,30 +14444,6 @@
       ],
       "cfg": [],
       "exports": []
-    },
-    {
-      "path": "crates/vw-agent/src/approval/mod.rs",
-      "lines": 2,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 2,
-          "declaration": "pub use agent_approval::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/bus/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_bus::*;"
-        }
-      ]
     },
     {
       "path": "crates/vw-agent/src/channels/channel_session_lifecycle_tests.rs",
@@ -17282,7 +17058,7 @@
     },
     {
       "path": "crates/vw-agent/src/channels/session_tests.rs",
-      "lines": 410,
+      "lines": 419,
       "symbols": [
         {
           "line": 11,
@@ -17321,43 +17097,43 @@
           "declaration": "pub(crate) async fn registered_context()"
         },
         {
-          "line": 151,
+          "line": 152,
           "declaration": "pub(crate) async fn channel_project_scope_binding_priority_and_immutable_snapshot() {"
         },
         {
-          "line": 185,
+          "line": 187,
           "declaration": "pub(crate) async fn channel_project_scope_invalid_binding_preserves_state() {"
         },
         {
-          "line": 207,
+          "line": 210,
           "declaration": "pub(crate) async fn channel_project_scope_sessions_follow_snapshot_and_isolate_rooms() {"
         },
         {
-          "line": 239,
+          "line": 243,
           "declaration": "pub(crate) async fn channel_project_scope_project_history_and_routes_are_independent() {"
         },
         {
-          "line": 262,
+          "line": 267,
           "declaration": "pub(crate) async fn channel_project_scope_unavailable_directory_does_not_cache_fake_session() {"
         },
         {
-          "line": 272,
+          "line": 278,
           "declaration": "pub(crate) async fn channel_project_scope_tenant_cannot_resolve_other_tenant_binding() {"
         },
         {
-          "line": 294,
+          "line": 301,
           "declaration": "pub(crate) async fn channel_project_scope_processor_uses_captured_directory() {"
         },
         {
-          "line": 347,
+          "line": 355,
           "declaration": "pub(crate) async fn channel_project_scope_memory_reads_only_matching_scope() {"
         },
         {
-          "line": 377,
+          "line": 386,
           "declaration": "pub(crate) async fn channel_project_scope_snapshot_rejects_different_sender() {"
         },
         {
-          "line": 387,
+          "line": 396,
           "declaration": "async fn isolated_processor_fixture(test: &str) -> bool {"
         }
       ],
@@ -18756,30 +18532,6 @@
         {
           "line": 3,
           "declaration": "pub use agent_env::{all, get, provide, provide_with, remove, set};"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/file/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_files::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/flag/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use runtime_flags::*;"
         }
       ]
     },
@@ -24817,27 +24569,23 @@
     },
     {
       "path": "crates/vw-agent/src/gateway/api/handlers/session/session_ops_tests.rs",
-      "lines": 694,
+      "lines": 138,
       "symbols": [
         {
-          "line": 24,
+          "line": 21,
           "declaration": "struct StaticProvider;"
         },
         {
-          "line": 28,
+          "line": 25,
           "declaration": "impl Provider for StaticProvider {"
         },
         {
-          "line": 29,
+          "line": 26,
           "declaration": "async fn chat_with_system("
         },
         {
-          "line": 43,
-          "declaration": "fn ensure_test_home() {"
-        },
-        {
-          "line": 53,
-          "declaration": "fn headers_for(directory: &FsPath) -> HeaderMap {"
+          "line": 37,
+          "declaration": "fn state() -> AppState {"
         },
         {
           "line": 62,
@@ -24845,56 +24593,52 @@
         },
         {
           "line": 66,
-          "declaration": "fn state() -> AppState {"
-        },
-        {
-          "line": 91,
           "declaration": "async fn create_session_in(directory: &FsPath, title: &str) -> agent_session::session::Info {"
         },
         {
-          "line": 104,
+          "line": 79,
           "declaration": "fn session_handlers_are_available() {"
         },
         {
-          "line": 123,
+          "line": 97,
           "declaration": "async fn gateway_first_response_create_without_title_reserves_an_unpublished_session() {"
         },
         {
-          "line": 182,
+          "line": 103,
           "declaration": "async fn ui_session_list_respects_updated_boundary_and_zero_limit() {"
         },
         {
-          "line": 242,
+          "line": 108,
           "declaration": "async fn ui_session_status_preserves_existing_non_idle_state() {"
         },
         {
-          "line": 261,
+          "line": 113,
           "declaration": "async fn ui_session_patch_ignores_empty_fields_and_uses_header_scope() {"
         },
         {
-          "line": 300,
+          "line": 118,
           "declaration": "async fn session_todo_put_replaces_and_clears_saved_items() {"
         },
         {
-          "line": 371,
+          "line": 123,
           "declaration": "async fn scoped_mutations_do_not_modify_sessions_from_another_instance() {"
         },
         {
-          "line": 423,
+          "line": 128,
           "declaration": "async fn session_ops_cover_lifecycle_filters_and_instance_boundaries() {"
         },
         {
-          "line": 636,
+          "line": 133,
           "declaration": "async fn session_ops_cover_diff_summary_reset_and_title_errors() {"
         }
       ],
       "cfg": [
         {
-          "line": 26,
+          "line": 23,
           "attribute": "#[cfg_attr(target_arch = \"wasm32\", async_trait::async_trait(?Send))]"
         },
         {
-          "line": 27,
+          "line": 24,
           "attribute": "#[cfg_attr(not(target_arch = \"wasm32\"), async_trait::async_trait)]"
         }
       ],
@@ -27444,7 +27188,7 @@
     },
     {
       "path": "crates/vw-agent/src/gateway/router.rs",
-      "lines": 175,
+      "lines": 176,
       "symbols": [
         {
           "line": 96,
@@ -27968,18 +27712,6 @@
       "exports": []
     },
     {
-      "path": "crates/vw-agent/src/heartbeat/mod.rs",
-      "lines": 2,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 2,
-          "declaration": "pub use agent_heartbeat::*;"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/hooks/mod.rs",
       "lines": 8,
       "symbols": [],
@@ -28136,18 +27868,6 @@
       "exports": []
     },
     {
-      "path": "crates/vw-agent/src/id/mod.rs",
-      "lines": 6,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 6,
-          "declaration": "pub use ordered_id::*;"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/identity/mod.rs",
       "lines": 37,
       "symbols": [],
@@ -28168,85 +27888,17 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/installation/mod.rs",
-      "lines": 2,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 2,
-          "declaration": "pub use agent_installation::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/integrations/mod.rs",
-      "lines": 2,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 2,
-          "declaration": "pub use agent_integrations::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/knowledge/chunker.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub(crate) use agent_knowledge::chunker::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/knowledge/fusion.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub(crate) use agent_knowledge::fusion::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/knowledge/import.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub(crate) use agent_knowledge::import::*;"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/knowledge/mod.rs",
-      "lines": 15,
+      "lines": 12,
       "symbols": [],
       "cfg": [],
       "exports": [
         {
-          "line": 13,
-          "declaration": "pub use store::SqliteKnowledgeStore;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/knowledge/store.rs",
-      "lines": 7,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
+          "line": 7,
+          "declaration": "pub(crate) use agent_knowledge::import;"
+        },
         {
-          "line": 5,
+          "line": 10,
           "declaration": "pub use agent_knowledge::store::SqliteKnowledgeStore;"
         }
       ]
@@ -28336,8 +27988,24 @@
       ],
       "exports": [
         {
+          "line": 134,
+          "declaration": "pub use agent_approval as approval;"
+        },
+        {
           "line": 135,
           "declaration": "pub use agent_auth as auth;"
+        },
+        {
+          "line": 138,
+          "declaration": "pub use agent_bus as bus;"
+        },
+        {
+          "line": 166,
+          "declaration": "pub use agent_files as file;"
+        },
+        {
+          "line": 169,
+          "declaration": "pub use runtime_flags as flag;"
         },
         {
           "line": 180,
@@ -28352,6 +28020,66 @@
           "declaration": "pub(crate) use agent_health as health;"
         },
         {
+          "line": 193,
+          "declaration": "pub(crate) use agent_heartbeat as heartbeat;"
+        },
+        {
+          "line": 202,
+          "declaration": "pub use ordered_id as id;"
+        },
+        {
+          "line": 205,
+          "declaration": "pub use agent_installation as installation;"
+        },
+        {
+          "line": 208,
+          "declaration": "pub use agent_integrations as integrations;"
+        },
+        {
+          "line": 211,
+          "declaration": "pub use agent_memory as memory;"
+        },
+        {
+          "line": 228,
+          "declaration": "pub use agent_observability as observability;"
+        },
+        {
+          "line": 231,
+          "declaration": "pub use ::patch::patch as patch;"
+        },
+        {
+          "line": 268,
+          "declaration": "pub use agent_scheduler_core as scheduler;"
+        },
+        {
+          "line": 278,
+          "declaration": "pub use agent_service as service;"
+        },
+        {
+          "line": 288,
+          "declaration": "pub use shell_command as shell;"
+        },
+        {
+          "line": 294,
+          "declaration": "pub use skill_forge as skillforge;"
+        },
+        {
+          "line": 303,
+          "declaration": "pub use agent_storage as storage;"
+        },
+        {
+          "line": 306,
+          "declaration": "pub use ::task_worktree_pool;"
+        },
+        {
+          "line": 315,
+          "declaration": "pub use agent_util::test_capabilities as test_capabilities;"
+        },
+        {
+          "line": 342,
+          "declaration": "pub(crate) use agent_tunnel as tunnel;"
+        },
+        {
           "line": 361,
           "declaration": "pub use agent_cli_types::{"
         },
@@ -28362,6 +28090,10 @@
         {
           "line": 367,
           "declaration": "pub use health::initialize_runtime_build_id;"
+        },
+        {
+          "line": 375,
+          "declaration": "pub use app_provider_services as app_providers;"
         }
       ]
     },
@@ -28418,222 +28150,6 @@
       ],
       "cfg": [],
       "exports": []
-    },
-    {
-      "path": "crates/vw-agent/src/memory/backend/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_memory::backend::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/chunker/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_memory::chunker::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/cli/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_memory::cli::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/embeddings/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_memory::embeddings::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/hygiene/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_memory::hygiene::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/lucid/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_memory::lucid::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/mariadb/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_memory::mariadb::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/markdown/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_memory::markdown::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_memory::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/none/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_memory::none::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/paths.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub(crate) use agent_memory::paths::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/postgres/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_memory::postgres::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/qdrant/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_memory::qdrant::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/response_cache/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use memory_response_cache::memory::response_cache::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/snapshot/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use memory_snapshot::memory::snapshot::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/sqlite/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use memory_sqlite::memory::sqlite::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/traits/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use memory_types::memory::traits::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/memory/vector/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_memory::vector::*;"
-        }
-      ]
     },
     {
       "path": "crates/vw-agent/src/migration/mod.rs",
@@ -28694,30 +28210,6 @@
           "declaration": "pub(crate) use model_protocol::chat::*;"
         }
       ]
-    },
-    {
-      "path": "crates/vw-agent/src/model_relay/chat_tests.rs",
-      "lines": 259,
-      "symbols": [
-        {
-          "line": 12,
-          "declaration": "struct EnvGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
-        },
-        {
-          "line": 13,
-          "declaration": "impl Drop for EnvGuard {"
-        },
-        {
-          "line": 14,
-          "declaration": "fn drop(&mut self) {"
-        },
-        {
-          "line": 33,
-          "declaration": "async fn acp_model_source_relay_chat_roundtrip_stream_tools_and_account_isolation() {"
-        }
-      ],
-      "cfg": [],
-      "exports": []
     },
     {
       "path": "crates/vw-agent/src/model_relay/codex_oauth_transport.rs",
@@ -28838,50 +28330,6 @@
           "declaration": "pub(crate) use model_protocol::gemini_stream::*;"
         }
       ]
-    },
-    {
-      "path": "crates/vw-agent/src/model_relay/gemini_tests.rs",
-      "lines": 526,
-      "symbols": [
-        {
-          "line": 14,
-          "declaration": "struct EnvGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
-        },
-        {
-          "line": 15,
-          "declaration": "impl Drop for EnvGuard {"
-        },
-        {
-          "line": 16,
-          "declaration": "fn drop(&mut self) {"
-        },
-        {
-          "line": 33,
-          "declaration": "fn reply(value: Value) -> Response {"
-        },
-        {
-          "line": 39,
-          "declaration": "fn sse(wire: String, wait: bool) -> Response {"
-        },
-        {
-          "line": 55,
-          "declaration": "async fn model_protocol_018_gemini_http_tools_stream_metadata_errors_and_cancel() {"
-        },
-        {
-          "line": 60,
-          "declaration": "async fn acp_model_source_relay_gemini_real_cli() {"
-        },
-        {
-          "line": 63,
-          "declaration": "async fn http(run_cli: bool) {"
-        },
-        {
-          "line": 521,
-          "declaration": "fn events(wire: &str) -> Vec<Value> {"
-        }
-      ],
-      "cfg": [],
-      "exports": []
     },
     {
       "path": "crates/vw-agent/src/model_relay/generation.rs",
@@ -29040,46 +28488,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/model_relay/messages_request_http_tests.rs",
-      "lines": 156,
-      "symbols": [
-        {
-          "line": 4,
-          "declaration": "fn request() -> Value {"
-        },
-        {
-          "line": 8,
-          "declaration": "pub(super) async fn request_reaches_bound_chat_and_finishes_tool_round() {"
-        },
-        {
-          "line": 13,
-          "declaration": "struct ConfigGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
-        },
-        {
-          "line": 14,
-          "declaration": "impl Drop for ConfigGuard {"
-        },
-        {
-          "line": 15,
-          "declaration": "fn drop(&mut self) {"
-        }
-      ],
-      "cfg": [],
-      "exports": []
-    },
-    {
-      "path": "crates/vw-agent/src/model_relay/messages_request_tests.rs",
-      "lines": 9,
-      "symbols": [
-        {
-          "line": 6,
-          "declaration": "async fn model_protocol_014_http_request_reaches_bound_chat_and_finishes_tool_round() {"
-        }
-      ],
-      "cfg": [],
-      "exports": []
-    },
-    {
       "path": "crates/vw-agent/src/model_relay/messages_responses_request.rs",
       "lines": 2,
       "symbols": [],
@@ -29117,56 +28525,15 @@
     },
     {
       "path": "crates/vw-agent/src/model_relay/messages_stream.rs",
-      "lines": 6,
+      "lines": 2,
       "symbols": [],
-      "cfg": [
-        {
-          "line": 4,
-          "attribute": "#[cfg(test)]"
-        }
-      ],
+      "cfg": [],
       "exports": [
         {
           "line": 2,
           "declaration": "pub(crate) use model_protocol::messages_stream::*;"
         }
       ]
-    },
-    {
-      "path": "crates/vw-agent/src/model_relay/messages_stream_tests.rs",
-      "lines": 6,
-      "symbols": [
-        {
-          "line": 3,
-          "declaration": "async fn model_protocol_016_http_sse_thinking_receipt_replays() {"
-        }
-      ],
-      "cfg": [],
-      "exports": []
-    },
-    {
-      "path": "crates/vw-agent/src/model_relay/messages_tests.rs",
-      "lines": 327,
-      "symbols": [
-        {
-          "line": 14,
-          "declaration": "struct EnvGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
-        },
-        {
-          "line": 15,
-          "declaration": "impl Drop for EnvGuard {"
-        },
-        {
-          "line": 16,
-          "declaration": "fn drop(&mut self) {"
-        },
-        {
-          "line": 38,
-          "declaration": "async fn acp_model_source_relay_messages_http_stream_cancellation_errors_and_isolation() {"
-        }
-      ],
-      "cfg": [],
-      "exports": []
     },
     {
       "path": "crates/vw-agent/src/model_relay/messages_thinking.rs",
@@ -29193,48 +28560,8 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/model_relay/messages_thinking_http_tests.rs",
-      "lines": 253,
-      "symbols": [
-        {
-          "line": 4,
-          "declaration": "fn request() -> Value {"
-        },
-        {
-          "line": 8,
-          "declaration": "pub(super) async fn thinking_replays_through_bound_http() {"
-        },
-        {
-          "line": 13,
-          "declaration": "struct ConfigGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
-        },
-        {
-          "line": 14,
-          "declaration": "impl Drop for ConfigGuard {"
-        },
-        {
-          "line": 15,
-          "declaration": "fn drop(&mut self) {"
-        }
-      ],
-      "cfg": [],
-      "exports": []
-    },
-    {
-      "path": "crates/vw-agent/src/model_relay/messages_thinking_tests.rs",
-      "lines": 5,
-      "symbols": [
-        {
-          "line": 2,
-          "declaration": "async fn model_protocol_015_http_tool_round_and_sse_preserve_reasoning() {"
-        }
-      ],
-      "cfg": [],
-      "exports": []
-    },
-    {
       "path": "crates/vw-agent/src/model_relay/mod.rs",
-      "lines": 162,
+      "lines": 146,
       "symbols": [],
       "cfg": [
         {
@@ -29246,39 +28573,7 @@
           "attribute": "#[cfg(test)]"
         },
         {
-          "line": 21,
-          "attribute": "#[cfg(test)]"
-        },
-        {
-          "line": 25,
-          "attribute": "#[cfg(test)]"
-        },
-        {
-          "line": 27,
-          "attribute": "#[cfg(test)]"
-        },
-        {
-          "line": 30,
-          "attribute": "#[cfg(test)]"
-        },
-        {
-          "line": 35,
-          "attribute": "#[cfg(test)]"
-        },
-        {
-          "line": 37,
-          "attribute": "#[cfg(test)]"
-        },
-        {
-          "line": 49,
-          "attribute": "#[cfg(test)]"
-        },
-        {
-          "line": 52,
-          "attribute": "#[cfg(test)]"
-        },
-        {
-          "line": 135,
+          "line": 119,
           "attribute": "#[cfg(target_os = \"macos\")]"
         }
       ],
@@ -29520,50 +28815,6 @@
           "declaration": "pub(crate) use model_protocol::responses_history::*;"
         }
       ]
-    },
-    {
-      "path": "crates/vw-agent/src/model_relay/responses_http_tests.rs",
-      "lines": 904,
-      "symbols": [
-        {
-          "line": 14,
-          "declaration": "struct EnvGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
-        },
-        {
-          "line": 15,
-          "declaration": "impl Drop for EnvGuard {"
-        },
-        {
-          "line": 16,
-          "declaration": "fn drop(&mut self) {"
-        },
-        {
-          "line": 36,
-          "declaration": "fn reply(value: Value) -> Response {"
-        },
-        {
-          "line": 42,
-          "declaration": "fn sse(wire: String, wait: bool) -> Response {"
-        },
-        {
-          "line": 58,
-          "declaration": "async fn aggregation_t25_authorized_codex_chat_replays_compaction_over_http() {"
-        },
-        {
-          "line": 153,
-          "declaration": "async fn model_protocol_017_responses_http_roundtrip_stream_errors_cancel_and_ownership() {"
-        },
-        {
-          "line": 748,
-          "declaration": "fn parse_events(wire: &str) -> Vec<Value> {"
-        },
-        {
-          "line": 756,
-          "declaration": "async fn model_protocol_017_responses_chat_preserves_reasoning_tools_json_and_sse() {"
-        }
-      ],
-      "cfg": [],
-      "exports": []
     },
     {
       "path": "crates/vw-agent/src/model_relay/responses_stream.rs",
@@ -29994,18 +29245,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/observability/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_observability::*;"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/package_boundaries/gateway_pairing_tests.rs",
       "lines": 36,
       "symbols": [
@@ -30268,18 +29507,6 @@
       "exports": []
     },
     {
-      "path": "crates/vw-agent/src/patch/mod.rs",
-      "lines": 6,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 6,
-          "declaration": "pub use ::patch::patch::*;"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/permission/mod.rs",
       "lines": 19,
       "symbols": [],
@@ -30288,18 +29515,10 @@
         {
           "line": 18,
           "declaration": "pub use command_arity as arity;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/permission/next.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
+        },
         {
-          "line": 3,
-          "declaration": "pub use permission_runtime::next::*;"
+          "line": 19,
+          "declaration": "pub use permission_runtime::next as next;"
         }
       ]
     },
@@ -33604,23 +32823,15 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/runtime/docker/mod.rs",
-      "lines": 2,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 2,
-          "declaration": "pub use agent_runtime::docker::*;"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/runtime/mod.rs",
       "lines": 7,
       "symbols": [],
       "cfg": [],
       "exports": [
+        {
+          "line": 3,
+          "declaration": "pub use agent_runtime::docker as docker;"
+        },
         {
           "line": 7,
           "declaration": "pub use agent_runtime::{create_runtime, DockerRuntime, NativeRuntime, RuntimeAdapter};"
@@ -33701,30 +32912,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/scheduler/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_scheduler_core::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/security/bubblewrap/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use process_sandbox::bubblewrap::*;"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/security/canary_guard/mod.rs",
       "lines": 3,
       "symbols": [],
@@ -33733,30 +32920,6 @@
         {
           "line": 3,
           "declaration": "pub use ::canary_guard::CanaryGuard;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/security/detect/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_security::detect::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/security/docker/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use process_sandbox::docker::*;"
         }
       ]
     },
@@ -33788,54 +32951,6 @@
       ],
       "cfg": [],
       "exports": []
-    },
-    {
-      "path": "crates/vw-agent/src/security/estop/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_security::estop::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/security/firejail/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use process_sandbox::firejail::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/security/gateway_skey_store.rs",
-      "lines": 2,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 2,
-          "declaration": "pub use secret_store::gateway_skey_store::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/security/landlock/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use process_sandbox::landlock::*;"
-        }
-      ]
     },
     {
       "path": "crates/vw-agent/src/security/leak_detector.rs",
@@ -33888,6 +33003,62 @@
         {
           "line": 45,
           "declaration": "pub use security_audit as audit;"
+        },
+        {
+          "line": 50,
+          "declaration": "pub use process_sandbox::bubblewrap as bubblewrap;"
+        },
+        {
+          "line": 56,
+          "declaration": "pub use agent_security::detect as detect;"
+        },
+        {
+          "line": 59,
+          "declaration": "pub use process_sandbox::docker as docker;"
+        },
+        {
+          "line": 66,
+          "declaration": "pub use agent_security::estop as estop;"
+        },
+        {
+          "line": 69,
+          "declaration": "pub use secret_store::gateway_skey_store as gateway_skey_store;"
+        },
+        {
+          "line": 74,
+          "declaration": "pub use process_sandbox::firejail as firejail;"
+        },
+        {
+          "line": 79,
+          "declaration": "pub use process_sandbox::landlock as landlock;"
+        },
+        {
+          "line": 85,
+          "declaration": "pub use agent_security::otp as otp;"
+        },
+        {
+          "line": 88,
+          "declaration": "pub use gateway_pairing::pairing as pairing;"
+        },
+        {
+          "line": 91,
+          "declaration": "pub use agent_security::policy as policy;"
+        },
+        {
+          "line": 94,
+          "declaration": "pub use agent_security::prompt_guard as prompt_guard;"
+        },
+        {
+          "line": 97,
+          "declaration": "pub use secret_store::secrets as secrets;"
+        },
+        {
+          "line": 100,
+          "declaration": "pub use agent_security::semantic_guard as semantic_guard;"
+        },
+        {
+          "line": 106,
+          "declaration": "pub use process_sandbox::traits as traits;"
         },
         {
           "line": 114,
@@ -33952,78 +33123,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/security/otp/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_security::otp::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/security/pairing.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use gateway_pairing::pairing::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/security/policy/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_security::policy::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/security/prompt_guard.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_security::prompt_guard::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/security/secrets.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use secret_store::secrets::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/security/semantic_guard.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_security::semantic_guard::*;"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/security/syscall_anomaly.rs",
       "lines": 3,
       "symbols": [],
@@ -34032,30 +33131,6 @@
         {
           "line": 3,
           "declaration": "pub use syscall_anomaly::{SyscallAnomalyAlert, SyscallAnomalyDetector, SyscallAnomalyKind};"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/security/traits.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use process_sandbox::traits::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/service/mod.rs",
-      "lines": 2,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 2,
-          "declaration": "pub use agent_service::*;"
         }
       ]
     },
@@ -39196,18 +38271,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/shell/mod.rs",
-      "lines": 4,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 4,
-          "declaration": "pub use shell_command::*;"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/shiju/mod.rs",
       "lines": 3,
       "symbols": [],
@@ -39216,66 +38279,6 @@
         {
           "line": 3,
           "declaration": "pub(crate) use shiju_client::{account, apps};"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/skill/audit.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use skill_core::audit::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/skill/constants.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use skill_core::constants::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/skill/discovery.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use skill_core::discovery::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/skill/install.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use skill_core::install::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/skill/loader.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use skill_core::loader::*;"
         }
       ]
     },
@@ -39294,6 +38297,10 @@
         }
       ],
       "exports": [
+        {
+          "line": 61,
+          "declaration": "pub use skill_core::audit as audit;"
+        },
         {
           "line": 134,
           "declaration": "pub use install::{handle_command, init_skills_dir};"
@@ -39321,30 +38328,6 @@
         {
           "line": 174,
           "declaration": "pub(crate) use types::SkillDownloadPolicy;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/skill/policy.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use skill_core::policy::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/skill/prompt.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use skill_core::prompt::*;"
         }
       ]
     },
@@ -39430,30 +38413,6 @@
         }
       ],
       "exports": []
-    },
-    {
-      "path": "crates/vw-agent/src/skill/types.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use skill_core::types::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/skillforge/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use skill_forge::*;"
-        }
-      ]
     },
     {
       "path": "crates/vw-agent/src/skills/agent_metadata.rs",
@@ -39802,18 +38761,6 @@
       ],
       "cfg": [],
       "exports": []
-    },
-    {
-      "path": "crates/vw-agent/src/storage/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_storage::*;"
-        }
-      ]
     },
     {
       "path": "crates/vw-agent/src/task_lifecycle/mod.rs",
@@ -40335,30 +39282,6 @@
       ],
       "cfg": [],
       "exports": []
-    },
-    {
-      "path": "crates/vw-agent/src/task_worktree_pool/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use task_worktree_pool::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/test_capabilities.rs",
-      "lines": 2,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 2,
-          "declaration": "pub use agent_util::test_capabilities::*;"
-        }
-      ]
     },
     {
       "path": "crates/vw-agent/src/tests.rs",
@@ -44516,18 +43439,6 @@
       "exports": []
     },
     {
-      "path": "crates/vw-agent/src/tunnel/mod.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_tunnel::*;"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/update.rs",
       "lines": 12,
       "symbols": [],
@@ -44679,66 +43590,6 @@
       "exports": []
     },
     {
-      "path": "crates/vw-agent/src/util/archive.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_util::archive::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/util/filesystem.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_util::filesystem::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/util/format.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_util::format::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/util/locale.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_util::locale::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/util/log.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_log::*;"
-        }
-      ]
-    },
-    {
       "path": "crates/vw-agent/src/util/mod.rs",
       "lines": 44,
       "symbols": [],
@@ -44757,32 +43608,36 @@
           "declaration": "pub use agent_text::{color, keybind, token, wildcard};"
         },
         {
+          "line": 36,
+          "declaration": "pub use agent_util::archive as archive;"
+        },
+        {
+          "line": 37,
+          "declaration": "pub use agent_util::filesystem as filesystem;"
+        },
+        {
+          "line": 38,
+          "declaration": "pub use agent_util::format as format;"
+        },
+        {
+          "line": 39,
+          "declaration": "pub use agent_util::locale as locale;"
+        },
+        {
+          "line": 40,
+          "declaration": "pub use agent_log as log;"
+        },
+        {
+          "line": 41,
+          "declaration": "pub use agent_util::rpc as rpc;"
+        },
+        {
+          "line": 42,
+          "declaration": "pub use agent_async::signal as signal;"
+        },
+        {
           "line": 44,
           "declaration": "pub use agent_util::{spawn, truncate_with_ellipsis, floor_utf8_char_boundary, MaybeSet};"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/util/rpc.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_util::rpc::*;"
-        }
-      ]
-    },
-    {
-      "path": "crates/vw-agent/src/util/signal.rs",
-      "lines": 3,
-      "symbols": [],
-      "cfg": [],
-      "exports": [
-        {
-          "line": 3,
-          "declaration": "pub use agent_async::signal::*;"
         }
       ]
     },
@@ -45075,18 +43930,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/workflow/video_edit/assets_tests.rs",
-      "lines": 45,
-      "symbols": [
-        {
-          "line": 5,
-          "declaration": "pub(super) fn fixture("
-        }
-      ],
-      "cfg": [],
-      "exports": []
-    },
-    {
       "path": "crates/vw-agent/src/workflow/video_edit/budget.rs",
       "lines": 2,
       "symbols": [],
@@ -45121,10 +43964,10 @@
     },
     {
       "path": "crates/vw-agent/src/workflow/video_edit/cloud_assets_tests.rs",
-      "lines": 60,
+      "lines": 15,
       "symbols": [
         {
-          "line": 5,
+          "line": 4,
           "declaration": "async fn video_edit_asset_jobs_native_adapter_reconciles_pages_and_reads_reference() {"
         }
       ],
@@ -45133,30 +43976,26 @@
     },
     {
       "path": "crates/vw-agent/src/workflow/video_edit/cloud_delivery_tests.rs",
-      "lines": 213,
+      "lines": 51,
       "symbols": [
         {
-          "line": 57,
+          "line": 2,
           "declaration": "async fn native_scenario("
         },
         {
-          "line": 166,
-          "declaration": "fn video_edit_delivery_normalizes_live_media_probe_projection_without_losing_audio() {"
-        },
-        {
-          "line": 175,
+          "line": 18,
           "declaration": "async fn video_edit_delivery_native_adapter_applies_three_types_and_reads_real_contract_shapes() {"
         },
         {
-          "line": 182,
+          "line": 25,
           "declaration": "async fn video_edit_delivery_native_adapter_rejects_partial_caption_failure_and_pending_draft() {"
         },
         {
-          "line": 189,
+          "line": 32,
           "declaration": "async fn video_edit_delivery_native_adapter_records_verified_empty_cleanup_separately() {"
         },
         {
-          "line": 197,
+          "line": 40,
           "declaration": "async fn video_edit_delivery_native_finalize_accepts_observed_complete_import_receipt() {"
         }
       ],
@@ -45177,18 +44016,14 @@
     },
     {
       "path": "crates/vw-agent/src/workflow/video_edit/cloud_prepare_tests.rs",
-      "lines": 116,
+      "lines": 27,
       "symbols": [
         {
-          "line": 6,
+          "line": 5,
           "declaration": "async fn video_edit_prepare_native_receipts_keep_signed_tickets_in_memory() {"
         },
         {
-          "line": 66,
-          "declaration": "fn inspect(path: &std::path::Path) {"
-        },
-        {
-          "line": 93,
+          "line": 19,
           "declaration": "async fn video_edit_prepare_cloud_identity_is_independent_of_local_tenant_and_rejects_mismatch() {"
         }
       ],
@@ -45342,198 +44177,6 @@
       "exports": []
     },
     {
-      "path": "crates/vw-agent/src/workflow/video_edit/e2e_test_cloud.rs",
-      "lines": 371,
-      "symbols": [
-        {
-          "line": 21,
-          "declaration": "pub(super) enum Fault {"
-        },
-        {
-          "line": 28,
-          "declaration": "pub(super) struct Scenario {"
-        },
-        {
-          "line": 40,
-          "declaration": "impl Scenario {"
-        },
-        {
-          "line": 41,
-          "declaration": "pub fn new(duration: u32, fault: Fault) -> Arc<Self> {"
-        },
-        {
-          "line": 63,
-          "declaration": "fn fixture(&self) -> &Value {"
-        },
-        {
-          "line": 66,
-          "declaration": "pub fn duration(&self) -> f64 {"
-        },
-        {
-          "line": 69,
-          "declaration": "pub fn record(&self, kind: &str, id: &str) -> usize {"
-        },
-        {
-          "line": 75,
-          "declaration": "async fn leaf(&self, order: usize, model: bool, id: &str) {"
-        },
-        {
-          "line": 94,
-          "declaration": "struct FinishOrder {"
-        },
-        {
-          "line": 99,
-          "declaration": "impl FinishOrder {"
-        },
-        {
-          "line": 100,
-          "declaration": "fn new() -> Self {"
-        },
-        {
-          "line": 107,
-          "declaration": "async fn wait(&self, order: usize) {"
-        },
-        {
-          "line": 120,
-          "declaration": "fn complete(&self, order: usize) {"
-        },
-        {
-          "line": 128,
-          "declaration": "pub(super) struct Cloud {"
-        },
-        {
-          "line": 134,
-          "declaration": "impl VideoPrepareCloud for Cloud {"
-        },
-        {
-          "line": 135,
-          "declaration": "fn context(&self) -> workflow_video_edit::context::VideoContextHandle {"
-        },
-        {
-          "line": 138,
-          "declaration": "async fn authorized_scopes(&self) -> Result<Vec<CloudVideoScope>> {"
-        },
-        {
-          "line": 142,
-          "declaration": "async fn create_project(&self, run: &str, _: &CloudVideoScope) -> Result<String> {"
-        },
-        {
-          "line": 146,
-          "declaration": "async fn find_project(&self, _: &str, _: &CloudVideoScope) -> Result<Option<String>> {"
-        },
-        {
-          "line": 150,
-          "declaration": "async fn create_upload(&self, _: &str, _: &VideoSourceIdentity) -> Result<VideoUploadTicket> {"
-        },
-        {
-          "line": 158,
-          "declaration": "async fn upload(&self, _: &VideoUploadTicket, source: &VideoSourceIdentity) -> Result<()> {"
-        },
-        {
-          "line": 163,
-          "declaration": "async fn finalize(&self, _: &str, _: &str, _: Option<&str>) -> Result<VideoImportResult> {"
-        },
-        {
-          "line": 167,
-          "declaration": "async fn probe(&self, _: &str, _: &str) -> Result<VideoMediaInfo> {"
-        },
-        {
-          "line": 179,
-          "declaration": "impl VideoTranscriptCloud for Cloud {"
-        },
-        {
-          "line": 180,
-          "declaration": "fn context(&self) -> workflow_video_edit::context::VideoContextHandle {"
-        },
-        {
-          "line": 183,
-          "declaration": "async fn probe_transcript_media(&self, _: &str, _: &str) -> Result<Value> {"
-        },
-        {
-          "line": 187,
-          "declaration": "async fn transcribe(&self, _: &str, _: &str, _: &str, _: Option<&str>) -> Result<Value> {"
-        },
-        {
-          "line": 193,
-          "declaration": "impl VideoAssetCloud for Cloud {"
-        },
-        {
-          "line": 194,
-          "declaration": "async fn submit("
-        },
-        {
-          "line": 209,
-          "declaration": "async fn reconcile(&self, job: &VideoAssetJob) -> Result<VideoAssetRemoteState> {"
-        },
-        {
-          "line": 219,
-          "declaration": "async fn verify(&self, _: &str, _: &str) -> Result<()> {"
-        },
-        {
-          "line": 225,
-          "declaration": "impl VideoEntryCloud for Cloud {"
-        },
-        {
-          "line": 226,
-          "declaration": "fn versions(&self) -> (&str, &str) {"
-        },
-        {
-          "line": 229,
-          "declaration": "async fn resolve_video_materials("
-        },
-        {
-          "line": 257,
-          "declaration": "fn project_cloud<'a>(&'a self, _: &VideoApplyInput<'a>) -> Box<dyn VideoProjectCloud + 'a> {"
-        },
-        {
-          "line": 261,
-          "declaration": "struct RemoteProject<'a>(&'a Cloud);"
-        },
-        {
-          "line": 263,
-          "declaration": "impl VideoProjectCloud for RemoteProject<'_> {"
-        },
-        {
-          "line": 264,
-          "declaration": "async fn read_timeline(&self, project: &str) -> Result<VideoTimelineEvidence> {"
-        },
-        {
-          "line": 299,
-          "declaration": "async fn write("
-        },
-        {
-          "line": 313,
-          "declaration": "async fn reconcile(&self, _: &str, _: &VideoWriteEntry) -> Result<VideoWriteStatus> {"
-        },
-        {
-          "line": 316,
-          "declaration": "async fn preview(&self, project: &str, revision: &str) -> Result<VideoPreviewEvidence> {"
-        },
-        {
-          "line": 327,
-          "declaration": "async fn viewer_url(&self, _: &str) -> Result<String> {"
-        },
-        {
-          "line": 333,
-          "declaration": "pub(super) struct Model(pub Arc<Scenario>);"
-        },
-        {
-          "line": 335,
-          "declaration": "impl Provider for Model {"
-        },
-        {
-          "line": 336,
-          "declaration": "async fn chat_with_system(&self, _: Option<&str>, _: &str, _: &str, _: f64) -> Result<String> {"
-        },
-        {
-          "line": 339,
-          "declaration": "async fn chat(&self, request: ChatRequest<'_>, _: &str, _: f64) -> Result<ChatResponse> {"
-        }
-      ],
-      "cfg": [],
-      "exports": []
-    },
-    {
       "path": "crates/vw-agent/src/workflow/video_edit/e2e_tests.rs",
       "lines": 479,
       "symbols": [
@@ -45681,163 +44324,31 @@
     },
     {
       "path": "crates/vw-agent/src/workflow/video_edit/entry_test_transport.rs",
-      "lines": 257,
+      "lines": 37,
       "symbols": [
         {
-          "line": 21,
+          "line": 10,
           "declaration": "pub(super) fn install_external(session: &str, factory: ExternalFactory) -> TransportGuard {"
         },
         {
-          "line": 27,
+          "line": 16,
           "declaration": "pub(crate) struct TransportGuard(String);"
         },
         {
-          "line": 28,
+          "line": 17,
           "declaration": "impl Drop for TransportGuard {"
         },
         {
-          "line": 29,
+          "line": 18,
           "declaration": "fn drop(&mut self) {"
         },
         {
-          "line": 34,
+          "line": 23,
           "declaration": "pub(crate) fn install(session: &str) -> TransportGuard {"
         },
         {
-          "line": 38,
+          "line": 27,
           "declaration": "pub(super) fn get("
-        },
-        {
-          "line": 55,
-          "declaration": "struct Cloud {"
-        },
-        {
-          "line": 60,
-          "declaration": "impl VideoPrepareCloud for Cloud {"
-        },
-        {
-          "line": 61,
-          "declaration": "fn context(&self) -> workflow_video_edit::context::VideoContextHandle {"
-        },
-        {
-          "line": 64,
-          "declaration": "async fn authorized_scopes(&self) -> Result<Vec<CloudVideoScope>> {"
-        },
-        {
-          "line": 67,
-          "declaration": "async fn create_project(&self, run: &str, _: &CloudVideoScope) -> Result<String> {"
-        },
-        {
-          "line": 70,
-          "declaration": "async fn find_project(&self, _: &str, _: &CloudVideoScope) -> Result<Option<String>> {"
-        },
-        {
-          "line": 73,
-          "declaration": "async fn create_upload(&self, _: &str, _: &VideoSourceIdentity) -> Result<VideoUploadTicket> {"
-        },
-        {
-          "line": 80,
-          "declaration": "async fn upload(&self, _: &VideoUploadTicket, source: &VideoSourceIdentity) -> Result<()> {"
-        },
-        {
-          "line": 84,
-          "declaration": "async fn finalize(&self, _: &str, _: &str, _: Option<&str>) -> Result<VideoImportResult> {"
-        },
-        {
-          "line": 87,
-          "declaration": "async fn probe(&self, _: &str, _: &str) -> Result<VideoMediaInfo> {"
-        },
-        {
-          "line": 98,
-          "declaration": "impl VideoTranscriptCloud for Cloud {"
-        },
-        {
-          "line": 99,
-          "declaration": "fn context(&self) -> workflow_video_edit::context::VideoContextHandle {"
-        },
-        {
-          "line": 102,
-          "declaration": "async fn probe_transcript_media(&self, _: &str, _: &str) -> Result<Value> {"
-        },
-        {
-          "line": 107,
-          "declaration": "async fn transcribe(&self, _: &str, _: &str, _: &str, _: Option<&str>) -> Result<Value> {"
-        },
-        {
-          "line": 114,
-          "declaration": "impl VideoAssetCloud for Cloud {"
-        },
-        {
-          "line": 115,
-          "declaration": "async fn submit(&self, _: &VideoAssetRequest, _: &str) -> Result<VideoAssetRemoteState> {"
-        },
-        {
-          "line": 121,
-          "declaration": "async fn reconcile(&self, _: &VideoAssetJob) -> Result<VideoAssetRemoteState> {"
-        },
-        {
-          "line": 127,
-          "declaration": "async fn verify(&self, _: &str, _: &str) -> Result<()> {"
-        },
-        {
-          "line": 132,
-          "declaration": "impl VideoEntryCloud for Cloud {"
-        },
-        {
-          "line": 133,
-          "declaration": "fn versions(&self) -> (&str, &str) {"
-        },
-        {
-          "line": 136,
-          "declaration": "async fn resolve_video_materials("
-        },
-        {
-          "line": 164,
-          "declaration": "fn project_cloud<'a>(&'a self, _: &VideoApplyInput<'a>) -> Box<dyn VideoProjectCloud + 'a> {"
-        },
-        {
-          "line": 168,
-          "declaration": "struct RemoteProject<'a>(&'a Cloud);"
-        },
-        {
-          "line": 170,
-          "declaration": "impl VideoProjectCloud for RemoteProject<'_> {"
-        },
-        {
-          "line": 171,
-          "declaration": "async fn read_timeline(&self, project: &str) -> Result<VideoTimelineEvidence> {"
-        },
-        {
-          "line": 205,
-          "declaration": "async fn write("
-        },
-        {
-          "line": 214,
-          "declaration": "async fn reconcile(&self, _: &str, _: &VideoWriteEntry) -> Result<VideoWriteStatus> {"
-        },
-        {
-          "line": 217,
-          "declaration": "async fn preview(&self, project: &str, revision: &str) -> Result<VideoPreviewEvidence> {"
-        },
-        {
-          "line": 227,
-          "declaration": "async fn viewer_url(&self, _: &str) -> Result<String> {"
-        },
-        {
-          "line": 231,
-          "declaration": "struct Model;"
-        },
-        {
-          "line": 233,
-          "declaration": "impl Provider for Model {"
-        },
-        {
-          "line": 234,
-          "declaration": "async fn chat_with_system(&self, _: Option<&str>, _: &str, _: &str, _: f64) -> Result<String> {"
-        },
-        {
-          "line": 237,
-          "declaration": "async fn chat(&self, request: ChatRequest<'_>, _: &str, _: f64) -> Result<ChatResponse> {"
         }
       ],
       "cfg": [],
@@ -45856,18 +44367,6 @@
       ]
     },
     {
-      "path": "crates/vw-agent/src/workflow/video_edit/manifest_tests.rs",
-      "lines": 32,
-      "symbols": [
-        {
-          "line": 3,
-          "declaration": "pub(super) fn candidate() -> VideoEditRunManifest {"
-        }
-      ],
-      "cfg": [],
-      "exports": []
-    },
-    {
       "path": "crates/vw-agent/src/workflow/video_edit/merge.rs",
       "lines": 2,
       "symbols": [],
@@ -45881,7 +44380,7 @@
     },
     {
       "path": "crates/vw-agent/src/workflow/video_edit/mod.rs",
-      "lines": 69,
+      "lines": 66,
       "symbols": [
         {
           "line": 58,
@@ -45935,10 +44434,6 @@
         },
         {
           "line": 65,
-          "attribute": "#[cfg(test)]"
-        },
-        {
-          "line": 68,
           "attribute": "#[cfg(test)]"
         }
       ],
@@ -46101,70 +44596,26 @@
     },
     {
       "path": "crates/vw-agent/src/workflow/video_edit/prepare_tests.rs",
-      "lines": 254,
+      "lines": 115,
       "symbols": [
         {
-          "line": 7,
-          "declaration": "struct Remote {"
-        },
-        {
-          "line": 19,
-          "declaration": "struct Cloud {"
-        },
-        {
-          "line": 25,
-          "declaration": "impl VideoPrepareCloud for Cloud {"
-        },
-        {
-          "line": 26,
-          "declaration": "fn context(&self) -> workflow_video_edit::context::VideoContextHandle {"
-        },
-        {
-          "line": 29,
-          "declaration": "async fn authorized_scopes(&self) -> Result<Vec<CloudVideoScope>> {"
-        },
-        {
-          "line": 32,
-          "declaration": "async fn create_project(&self, _run: &str, _scope: &CloudVideoScope) -> Result<String> {"
-        },
-        {
-          "line": 60,
-          "declaration": "async fn find_project(&self, _run: &str, _scope: &CloudVideoScope) -> Result<Option<String>> {"
-        },
-        {
-          "line": 63,
-          "declaration": "async fn create_upload("
-        },
-        {
-          "line": 93,
-          "declaration": "async fn upload("
-        },
-        {
-          "line": 111,
-          "declaration": "async fn finalize("
-        },
-        {
-          "line": 135,
-          "declaration": "async fn probe(&self, _project: &str, _asset: &str) -> Result<VideoMediaInfo> {"
-        },
-        {
-          "line": 145,
+          "line": 6,
           "declaration": "fn fixture() -> (tempfile::TempDir, GlobalDatabase, Cloud, VideoEditRequest) {"
         },
         {
-          "line": 165,
+          "line": 26,
           "declaration": "async fn prepare("
         },
         {
-          "line": 173,
+          "line": 34,
           "declaration": "async fn video_edit_prepare_multiple_spaces_use_real_question_and_cancel() {"
         },
         {
-          "line": 213,
+          "line": 74,
           "declaration": "fn video_edit_prepare_streaming_hash_obeys_security_and_cancellation() {"
         },
         {
-          "line": 233,
+          "line": 94,
           "declaration": "async fn video_edit_prepare_cross_tenant_runs_and_native_mismatch_are_isolated() {"
         }
       ],
@@ -46209,15 +44660,11 @@
     },
     {
       "path": "crates/vw-agent/src/workflow/video_edit/transcript_tests.rs",
-      "lines": 65,
+      "lines": 14,
       "symbols": [
         {
-          "line": 4,
+          "line": 3,
           "declaration": "async fn video_edit_transcript_native_adapter_keeps_audio_ticket_private_and_queries_exact_task() {"
-        },
-        {
-          "line": 45,
-          "declaration": "fn inspect(path: &std::path::Path) {"
         }
       ],
       "cfg": [],
@@ -55860,6 +54307,503 @@
       "exports": []
     },
     {
+      "path": "crates/libs/gateway-agent-apps/src/host_migration_48_tests/catalog_create_tests.rs",
+      "lines": 33,
+      "symbols": [
+        {
+          "line": 5,
+          "declaration": "pub(super) fn with_database("
+        },
+        {
+          "line": 20,
+          "declaration": "pub(super) fn http_draft(id: &str, url: &str) -> McpCatalogDraft {"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/gateway-agent-apps/src/host_migration_48_tests/client_host.rs",
+      "lines": 16,
+      "symbols": [
+        {
+          "line": 1,
+          "declaration": "pub(super) struct FixtureHost;"
+        },
+        {
+          "line": 2,
+          "declaration": "impl mcp_client::ClientHost for FixtureHost {"
+        },
+        {
+          "line": 3,
+          "declaration": "fn runtime_stdio_cwd(&self, server: &agent_client_protocol::McpServerStdio) -> anyhow::Result<Option<std::path::PathBuf>> {"
+        },
+        {
+          "line": 6,
+          "declaration": "fn http_headers<'a>(&'a self, _: &'a agent_client_protocol::McpServerHttp, _: Option<&'a mcp_client::FormOwner>)"
+        },
+        {
+          "line": 10,
+          "declaration": "fn request_elicitation(&self, _: mcp_client::FormOwner, _: String,"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/gateway-agent-apps/src/host_migration_48_tests/connection_probe_tests.rs",
+      "lines": 153,
+      "symbols": [
+        {
+          "line": 29,
+          "declaration": "fn cc_mcp_t39_revision_results_reuse_connection_checks_and_preserve_diagnostics()"
+        },
+        {
+          "line": 99,
+          "declaration": "fn cc_mcp_t39_revision_checks_reject_revoked_success_and_cancel_owned_work() -> anyhow::Result<()> {"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/gateway-agent-apps/src/host_migration_48_tests/connectivity.rs",
+      "lines": 28,
+      "symbols": [
+        {
+          "line": 6,
+          "declaration": "pub(crate) struct NativeConnectionCheckRuntime;"
+        },
+        {
+          "line": 7,
+          "declaration": "pub(crate) struct NativeCheckPeer(RunningMcpPeer);"
+        },
+        {
+          "line": 8,
+          "declaration": "impl CheckPeer for NativeCheckPeer {"
+        },
+        {
+          "line": 9,
+          "declaration": "fn has_tools(&self) -> bool {"
+        },
+        {
+          "line": 12,
+          "declaration": "async fn tool_count(&self) -> anyhow::Result<u32> {"
+        },
+        {
+          "line": 15,
+          "declaration": "async fn cancel(self) { let _ = RunningMcpPeer::cancel(self.0).await; }"
+        },
+        {
+          "line": 17,
+          "declaration": "impl ConnectionCheckRuntime for NativeConnectionCheckRuntime {"
+        },
+        {
+          "line": 19,
+          "declaration": "async fn open("
+        }
+      ],
+      "cfg": [],
+      "exports": [
+        {
+          "line": 2,
+          "declaration": "pub use agent_app_services::mcp::connectivity::*;"
+        }
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-agent-apps/src/host_migration_48_tests/network_probe.rs",
+      "lines": 100,
+      "symbols": [
+        {
+          "line": 12,
+          "declaration": "pub(crate) struct NativeProbeHost;"
+        },
+        {
+          "line": 13,
+          "declaration": "pub(crate) struct NativeProbeAccess(McpProbeAccess);"
+        },
+        {
+          "line": 15,
+          "declaration": "pub(crate) struct NativeProbeGrant(AuthorizedMcpProbe);"
+        },
+        {
+          "line": 16,
+          "declaration": "impl ProbeGrant for NativeProbeGrant {"
+        },
+        {
+          "line": 17,
+          "declaration": "fn principal(&self) -> &str { &self.0.principal }"
+        },
+        {
+          "line": 18,
+          "declaration": "fn credential_root(&self) -> Option<&Path> { self.0.credential_root.as_deref() }"
+        },
+        {
+          "line": 19,
+          "declaration": "fn catalog_scope(&self, scope: &DiagnosticScope) -> McpCatalogScope { self.0.permit.catalog_scope(scope) }"
+        },
+        {
+          "line": 20,
+          "declaration": "fn connection_revision(&self) -> u64 { self.0.permit.connection_revision }"
+        },
+        {
+          "line": 21,
+          "declaration": "fn stdio_workspace(&self) -> Option<&Path> { self.0.permit.stdio_workspace.as_deref() }"
+        },
+        {
+          "line": 22,
+          "declaration": "fn permits_stdio(&self, definition: &McpConnectionDefinition) -> bool { self.0.permit.permits_stdio(definition) }"
+        },
+        {
+          "line": 23,
+          "declaration": "fn permits_endpoint(&self, url: &str) -> bool { self.0.permit.permits_endpoint(url) }"
+        },
+        {
+          "line": 24,
+          "declaration": "fn permits_credential(&self, definition: &McpConnectionDefinition, reference: &McpCredentialRef) -> bool { self.0.permit.permits_credential(definition, reference) }"
+        },
+        {
+          "line": 26,
+          "declaration": "impl ProbeAccess for NativeProbeAccess {"
+        },
+        {
+          "line": 28,
+          "declaration": "fn new(policy: Option<PathBuf>, headers: &HeaderMap) -> Result<Self, StatusCode> { McpProbeAccess::new(policy, headers).map(Self) }"
+        },
+        {
+          "line": 29,
+          "declaration": "fn authorize(&self, scope: &DiagnosticScope, id: &McpRecordId) -> Result<Self::Grant, StatusCode> { self.0.authorize(scope, id).map(NativeProbeGrant) }"
+        },
+        {
+          "line": 30,
+          "declaration": "fn authorize_details(&self, scope: &DiagnosticScope, id: &McpRecordId) -> Result<Self::Grant, StatusCode> { self.0.authorize_details(scope, id).map(NativeProbeGrant) }"
+        },
+        {
+          "line": 32,
+          "declaration": "impl ProbeHost for NativeProbeHost {"
+        },
+        {
+          "line": 38,
+          "declaration": "fn runtime() -> Self::Runtime { super::connectivity::NativeConnectionCheckRuntime }"
+        },
+        {
+          "line": 39,
+          "declaration": "fn invalid_input() -> Self::JobError { DiagnosticJobError::InvalidInput }"
+        },
+        {
+          "line": 40,
+          "declaration": "fn cancelled() -> Self::ProbeError { DiagnosticProbeError::Cancelled }"
+        },
+        {
+          "line": 41,
+          "declaration": "fn max_probes() -> usize { MAX_PROBES_PER_JOB }"
+        },
+        {
+          "line": 42,
+          "declaration": "fn start<F, Fut>(jobs: &Self::Jobs, scope: DiagnosticScope, principal: String, kind: DiagnosticProbeKind, probes: Vec<F>) -> Result<DiagnosticJobIdentity, Self::JobError>"
+        },
+        {
+          "line": 47,
+          "declaration": "async fn open(server: agent_client_protocol::McpServer, timeout: std::time::Duration, http_io: CancellationToken, child: Option<&mut Option<mcp_client::ProbeChild>>, cleanup: Option<mcp_client::ConnectionCheckCleanup>) -> anyhow::Result<mcp_client::RunningMcpPeer> {"
+        },
+        {
+          "line": 50,
+          "declaration": "async fn tool_specs(peer: &mcp_client::RunningMcpPeer, id: &str) -> anyhow::Result<Vec<vw_api_tools::ToolSpecDto>> {"
+        },
+        {
+          "line": 56,
+          "declaration": "pub fn start_handshakes("
+        },
+        {
+          "line": 67,
+          "declaration": "pub(super) fn start_with_source("
+        },
+        {
+          "line": 79,
+          "declaration": "pub fn start_connection_checks("
+        },
+        {
+          "line": 91,
+          "declaration": "pub fn start_details("
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/gateway-agent-apps/src/host_migration_48_tests/network_probe_tests.rs",
+      "lines": 460,
+      "symbols": [
+        {
+          "line": 53,
+          "declaration": "pub(super) struct Fixture {"
+        },
+        {
+          "line": 61,
+          "declaration": "impl Fixture {"
+        },
+        {
+          "line": 62,
+          "declaration": "pub(super) fn new(db: GlobalDatabase) -> anyhow::Result<Self> {"
+        },
+        {
+          "line": 82,
+          "declaration": "pub(super) fn catalog_scope(&self) -> McpCatalogScope {"
+        },
+        {
+          "line": 86,
+          "declaration": "fn policy_path(&self) -> PathBuf {"
+        },
+        {
+          "line": 90,
+          "declaration": "fn permit(record: &McpCatalogRecord, url: &str) -> Value {"
+        },
+        {
+          "line": 98,
+          "declaration": "pub(super) fn policy(&self, permits: &[Value]) -> anyhow::Result<()> {"
+        },
+        {
+          "line": 119,
+          "declaration": "fn create(&self, name: &str, url: &str, sse: bool) -> anyhow::Result<McpCatalogRecord> {"
+        },
+        {
+          "line": 128,
+          "declaration": "pub(super) fn start("
+        },
+        {
+          "line": 149,
+          "declaration": "pub(super) async fn finish("
+        },
+        {
+          "line": 172,
+          "declaration": "struct Server {"
+        },
+        {
+          "line": 181,
+          "declaration": "impl Server {"
+        },
+        {
+          "line": 182,
+          "declaration": "fn new(endpoint: &str) -> Self {"
+        },
+        {
+          "line": 194,
+          "declaration": "fn serve(&self, listener: tokio::net::TcpListener) -> tokio::task::JoinHandle<()> {"
+        },
+        {
+          "line": 203,
+          "declaration": "async fn reply(&self, request: Value) -> Option<Value> {"
+        },
+        {
+          "line": 224,
+          "declaration": "async fn http(State(server): State<Server>, Json(request): Json<Value>) -> Response {"
+        },
+        {
+          "line": 239,
+          "declaration": "async fn delete_session(State(server): State<Server>, headers: HeaderMap) -> StatusCode {"
+        },
+        {
+          "line": 245,
+          "declaration": "async fn sse(State(server): State<Server>) -> Response {"
+        },
+        {
+          "line": 258,
+          "declaration": "async fn sse_post(State(server): State<Server>, Json(request): Json<Value>) -> StatusCode {"
+        },
+        {
+          "line": 265,
+          "declaration": "fn report("
+        },
+        {
+          "line": 277,
+          "declaration": "fn diagnostic_mcp_http_handshake_is_scoped() -> anyhow::Result<()> {"
+        },
+        {
+          "line": 337,
+          "declaration": "fn diagnostic_mcp_http_handshake_is_scoped_cancels_active_connections_and_limits_batches()"
+        },
+        {
+          "line": 393,
+          "declaration": "fn diagnostic_mcp_http_handshake_is_scoped_rejects_foreign_endpoints_and_revoked_results()"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/gateway-agent-apps/src/host_migration_48_tests/probe_jobs.rs",
+      "lines": 45,
+      "symbols": [
+        {
+          "line": 11,
+          "declaration": "struct NativeBatchHost;"
+        },
+        {
+          "line": 12,
+          "declaration": "impl BatchHost for NativeBatchHost {"
+        },
+        {
+          "line": 18,
+          "declaration": "fn runtime() -> Self::Runtime { super::connectivity::NativeConnectionCheckRuntime }"
+        },
+        {
+          "line": 19,
+          "declaration": "fn scope(owner: &Self::Owner) -> &DiagnosticScope { &owner.scope }"
+        },
+        {
+          "line": 20,
+          "declaration": "fn invalid_input() -> Self::JobError { DiagnosticJobError::InvalidInput }"
+        },
+        {
+          "line": 21,
+          "declaration": "fn cancelled() -> Self::ProbeError { DiagnosticProbeError::Cancelled }"
+        },
+        {
+          "line": 22,
+          "declaration": "fn start<F, Fut>(jobs: &Self::Jobs, owner: Self::Owner, kind: DiagnosticProbeKind, probes: Vec<F>) -> Result<DiagnosticJobIdentity, Self::JobError>"
+        },
+        {
+          "line": 28,
+          "declaration": "pub fn start_connection_checks("
+        }
+      ],
+      "cfg": [],
+      "exports": [
+        {
+          "line": 2,
+          "declaration": "pub use agent_app_services::mcp::probe_jobs::{McpProbeTarget, McpProbeBatch};"
+        }
+      ]
+    },
+    {
+      "path": "crates/libs/gateway-agent-apps/src/host_migration_48_tests/probe_jobs_tests.rs",
+      "lines": 499,
+      "symbols": [
+        {
+          "line": 31,
+          "declaration": "fn cc_mcp_t31_in_flight_connection_edit_discards_old_success() -> anyhow::Result<()> {"
+        },
+        {
+          "line": 94,
+          "declaration": "async fn check_http("
+        },
+        {
+          "line": 117,
+          "declaration": "fn cc_mcp_t31_cancel_stops_only_owned_active_and_queued_probes() -> anyhow::Result<()> {"
+        },
+        {
+          "line": 184,
+          "declaration": "fn cc_mcp_t31_only_current_task_generation_and_connection_revision_apply() -> anyhow::Result<()> {"
+        },
+        {
+          "line": 241,
+          "declaration": "fn diagnostic_mcp_stdio_cancellation_reaps_process_tree() -> anyhow::Result<()> {"
+        },
+        {
+          "line": 284,
+          "declaration": "fn cc_mcp_t31_timed_out_stdio_is_reaped_before_job_completion() -> anyhow::Result<()> {"
+        },
+        {
+          "line": 312,
+          "declaration": "fn cc_mcp_t31_cancel_drops_a_stalled_http_initialization_request() -> anyhow::Result<()> {"
+        },
+        {
+          "line": 346,
+          "declaration": "struct BatchFixture {"
+        },
+        {
+          "line": 355,
+          "declaration": "impl BatchFixture {"
+        },
+        {
+          "line": 356,
+          "declaration": "fn new(database: GlobalDatabase) -> anyhow::Result<Self> {"
+        },
+        {
+          "line": 380,
+          "declaration": "fn runtime(&self) -> std::io::Result<tokio::runtime::Runtime> {"
+        },
+        {
+          "line": 384,
+          "declaration": "fn stdio(&self, id: &str, mode: &str) -> McpCatalogRecord {"
+        },
+        {
+          "line": 390,
+          "declaration": "fn start<'a>("
+        },
+        {
+          "line": 414,
+          "declaration": "fn snapshot(&self, job: &DiagnosticJobIdentity) -> DiagnosticJobSnapshot {"
+        },
+        {
+          "line": 418,
+          "declaration": "async fn terminal(&self, job: &DiagnosticJobIdentity) -> anyhow::Result<DiagnosticJobSnapshot> {"
+        },
+        {
+          "line": 431,
+          "declaration": "fn marker(&self, record: &McpCatalogRecord, suffix: &str) -> std::path::PathBuf {"
+        },
+        {
+          "line": 435,
+          "declaration": "async fn wait_for_stdio(&self, record: &McpCatalogRecord) -> anyhow::Result<(i32, i32)> {"
+        },
+        {
+          "line": 449,
+          "declaration": "async fn wait_until<T>(mut observe: impl FnMut() -> Option<T>) -> anyhow::Result<T> {"
+        },
+        {
+          "line": 461,
+          "declaration": "fn process_exists(pid: i32) -> bool {"
+        },
+        {
+          "line": 467,
+          "declaration": "fn stdio_definition(id: &str, mode: &str) -> McpConnectionDefinition {"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/gateway-agent-apps/src/host_migration_48_tests/stdio_probe_tests.rs",
+      "lines": 173,
+      "symbols": [
+        {
+          "line": 21,
+          "declaration": "fn diagnostic_mcp_stdio_cancellation_reaps_process_tree_handshake() -> anyhow::Result<()> {"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/gateway-agent-apps/src/host_migration_48_tests/tool_details_tests.rs",
+      "lines": 163,
+      "symbols": [
+        {
+          "line": 21,
+          "declaration": "fn details_policy(fixture: &Fixture, permits: &[Value]) -> anyhow::Result<()> {"
+        },
+        {
+          "line": 31,
+          "declaration": "fn cc_mcp_t50_details_discover_real_specs_and_read_only_the_authorized_selection()"
+        },
+        {
+          "line": 112,
+          "declaration": "fn cc_mcp_t50_discovery_rechecks_revocation_and_cancel_releases_the_owned_job() -> anyhow::Result<()>"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/gateway-agent-apps/src/host_migration_48_tests.rs",
+      "lines": 12,
+      "symbols": [],
+      "cfg": [],
+      "exports": []
+    },
+    {
       "path": "crates/libs/gateway-agent-apps/src/host_migration_4_tests/acceptance.rs",
       "lines": 473,
       "symbols": [
@@ -60739,6 +59683,30 @@
       ]
     },
     {
+      "path": "crates/libs/model-relay-http/src/host_migration_46_tests/chat_tests.rs",
+      "lines": 259,
+      "symbols": [
+        {
+          "line": 12,
+          "declaration": "struct EnvGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
+        },
+        {
+          "line": 13,
+          "declaration": "impl Drop for EnvGuard {"
+        },
+        {
+          "line": 14,
+          "declaration": "fn drop(&mut self) {"
+        },
+        {
+          "line": 33,
+          "declaration": "async fn acp_model_source_relay_chat_roundtrip_stream_tools_and_account_isolation() {"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
       "path": "crates/libs/model-relay-http/src/host_migration_46_tests/compaction_v2_tests.rs",
       "lines": 9,
       "symbols": [
@@ -60761,6 +59729,158 @@
         {
           "line": 31,
           "declaration": "pub(crate) async fn source(wire: String) -> reqwest::Response {"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/model-relay-http/src/host_migration_46_tests/fixture.rs",
+      "lines": 136,
+      "symbols": [
+        {
+          "line": 10,
+          "declaration": "pub struct RelayServer(crate::RelayServer);"
+        },
+        {
+          "line": 11,
+          "declaration": "impl RelayServer {"
+        },
+        {
+          "line": 12,
+          "declaration": "pub async fn start(binding: Arc<RelayBinding>, backend: Arc<dyn RelayBackend>, context: agent_project::instance::Context) -> anyhow::Result<Self> {"
+        },
+        {
+          "line": 17,
+          "declaration": "pub fn address(&self) -> std::net::SocketAddr { self.0.address() }"
+        },
+        {
+          "line": 18,
+          "declaration": "pub async fn shutdown(self) -> anyhow::Result<()> { self.0.shutdown().await }"
+        },
+        {
+          "line": 20,
+          "declaration": "struct RelayContext {"
+        },
+        {
+          "line": 25,
+          "declaration": "impl crate::RelayHost for RelayContext {"
+        },
+        {
+          "line": 26,
+          "declaration": "fn usage(&self, identity: &RelayIdentity, protocol: GenerationProtocol) -> anyhow::Result<agent_usage::relay::RequestUsage> {"
+        },
+        {
+          "line": 33,
+          "declaration": "fn error(&self, protocol: GenerationProtocol, status: StatusCode) -> Response {"
+        },
+        {
+          "line": 41,
+          "declaration": "async fn control(&self, identity: &RelayIdentity, kiro_target: &str, json: &serde_json::Value) -> Result<Response, StatusCode> {"
+        },
+        {
+          "line": 62,
+          "declaration": "impl RelayBackend for RelayContext {"
+        },
+        {
+          "line": 63,
+          "declaration": "async fn execute(&self, identity: &RelayIdentity, request: RelayRequest, cancel: CancellationToken) -> Result<Response, StatusCode> {"
+        },
+        {
+          "line": 79,
+          "declaration": "struct RelayUsageObserver(super::stream_observer::StreamObserver);"
+        },
+        {
+          "line": 80,
+          "declaration": "impl agent_usage::relay::UsageStreamObserver for RelayUsageObserver {"
+        },
+        {
+          "line": 81,
+          "declaration": "fn push(&mut self, bytes: &[u8]) -> anyhow::Result<u32> {"
+        },
+        {
+          "line": 84,
+          "declaration": "fn finish(&mut self) -> anyhow::Result<()> {"
+        },
+        {
+          "line": 89,
+          "declaration": "pub struct ProviderRelayBackend(model_transport::provider_transport::ProviderTransport);"
+        },
+        {
+          "line": 90,
+          "declaration": "impl ProviderRelayBackend {"
+        },
+        {
+          "line": 91,
+          "declaration": "pub fn new() -> Result<Self, reqwest::Error> {"
+        },
+        {
+          "line": 103,
+          "declaration": "impl RelayBackend for ProviderRelayBackend {"
+        },
+        {
+          "line": 104,
+          "declaration": "async fn execute(&self, identity: &RelayIdentity, request: RelayRequest, cancel: CancellationToken) -> Result<Response, StatusCode> {"
+        },
+        {
+          "line": 109,
+          "declaration": "fn tenant() -> vw_api_transport::TenantScope {"
+        },
+        {
+          "line": 112,
+          "declaration": "async fn with_tenant_scope<T>(tenant: vw_api_transport::TenantScope, future: impl std::future::Future<Output = T>) -> T {"
+        },
+        {
+          "line": 115,
+          "declaration": "pub(super) fn global_async_env_lock() -> &'static tokio::sync::Mutex<()> {"
+        },
+        {
+          "line": 120,
+          "declaration": "fn ensure_host() {"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/model-relay-http/src/host_migration_46_tests/gemini_http_tests.rs",
+      "lines": 526,
+      "symbols": [
+        {
+          "line": 14,
+          "declaration": "struct EnvGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
+        },
+        {
+          "line": 15,
+          "declaration": "impl Drop for EnvGuard {"
+        },
+        {
+          "line": 16,
+          "declaration": "fn drop(&mut self) {"
+        },
+        {
+          "line": 33,
+          "declaration": "fn reply(value: Value) -> Response {"
+        },
+        {
+          "line": 39,
+          "declaration": "fn sse(wire: String, wait: bool) -> Response {"
+        },
+        {
+          "line": 55,
+          "declaration": "async fn model_protocol_018_gemini_http_tools_stream_metadata_errors_and_cancel() {"
+        },
+        {
+          "line": 60,
+          "declaration": "async fn acp_model_source_relay_gemini_real_cli() {"
+        },
+        {
+          "line": 63,
+          "declaration": "async fn http(run_cli: bool) {"
+        },
+        {
+          "line": 521,
+          "declaration": "fn events(wire: &str) -> Vec<Value> {"
         }
       ],
       "cfg": [],
@@ -60841,6 +59961,166 @@
         {
           "line": 110,
           "declaration": "async fn cc_route_040_session_usage_remains_strict() {"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/model-relay-http/src/host_migration_46_tests/messages_request_http_tests.rs",
+      "lines": 156,
+      "symbols": [
+        {
+          "line": 4,
+          "declaration": "fn request() -> Value {"
+        },
+        {
+          "line": 8,
+          "declaration": "pub(super) async fn request_reaches_bound_chat_and_finishes_tool_round() {"
+        },
+        {
+          "line": 13,
+          "declaration": "struct ConfigGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
+        },
+        {
+          "line": 14,
+          "declaration": "impl Drop for ConfigGuard {"
+        },
+        {
+          "line": 15,
+          "declaration": "fn drop(&mut self) {"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/model-relay-http/src/host_migration_46_tests/messages_request_tests.rs",
+      "lines": 9,
+      "symbols": [
+        {
+          "line": 6,
+          "declaration": "async fn model_protocol_014_http_request_reaches_bound_chat_and_finishes_tool_round() {"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/model-relay-http/src/host_migration_46_tests/messages_stream_tests.rs",
+      "lines": 6,
+      "symbols": [
+        {
+          "line": 3,
+          "declaration": "async fn model_protocol_016_http_sse_thinking_receipt_replays() {"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/model-relay-http/src/host_migration_46_tests/messages_tests.rs",
+      "lines": 327,
+      "symbols": [
+        {
+          "line": 14,
+          "declaration": "struct EnvGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
+        },
+        {
+          "line": 15,
+          "declaration": "impl Drop for EnvGuard {"
+        },
+        {
+          "line": 16,
+          "declaration": "fn drop(&mut self) {"
+        },
+        {
+          "line": 38,
+          "declaration": "async fn acp_model_source_relay_messages_http_stream_cancellation_errors_and_isolation() {"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/model-relay-http/src/host_migration_46_tests/messages_thinking_http_tests.rs",
+      "lines": 253,
+      "symbols": [
+        {
+          "line": 4,
+          "declaration": "fn request() -> Value {"
+        },
+        {
+          "line": 8,
+          "declaration": "pub(super) async fn thinking_replays_through_bound_http() {"
+        },
+        {
+          "line": 13,
+          "declaration": "struct ConfigGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
+        },
+        {
+          "line": 14,
+          "declaration": "impl Drop for ConfigGuard {"
+        },
+        {
+          "line": 15,
+          "declaration": "fn drop(&mut self) {"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/model-relay-http/src/host_migration_46_tests/messages_thinking_tests.rs",
+      "lines": 5,
+      "symbols": [
+        {
+          "line": 2,
+          "declaration": "async fn model_protocol_015_http_tool_round_and_sse_preserve_reasoning() {"
+        }
+      ],
+      "cfg": [],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/model-relay-http/src/host_migration_46_tests/responses_http_tests.rs",
+      "lines": 904,
+      "symbols": [
+        {
+          "line": 14,
+          "declaration": "struct EnvGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);"
+        },
+        {
+          "line": 15,
+          "declaration": "impl Drop for EnvGuard {"
+        },
+        {
+          "line": 16,
+          "declaration": "fn drop(&mut self) {"
+        },
+        {
+          "line": 36,
+          "declaration": "fn reply(value: Value) -> Response {"
+        },
+        {
+          "line": 42,
+          "declaration": "fn sse(wire: String, wait: bool) -> Response {"
+        },
+        {
+          "line": 58,
+          "declaration": "async fn aggregation_t25_authorized_codex_chat_replays_compaction_over_http() {"
+        },
+        {
+          "line": 153,
+          "declaration": "async fn model_protocol_017_responses_http_roundtrip_stream_errors_cancel_and_ownership() {"
+        },
+        {
+          "line": 748,
+          "declaration": "fn parse_events(wire: &str) -> Vec<Value> {"
+        },
+        {
+          "line": 756,
+          "declaration": "async fn model_protocol_017_responses_chat_preserves_reasoning_tools_json_and_sse() {"
         }
       ],
       "cfg": [],
@@ -60933,7 +60213,7 @@
     },
     {
       "path": "crates/libs/model-relay-http/src/host_migration_46_tests.rs",
-      "lines": 11,
+      "lines": 24,
       "symbols": [],
       "cfg": [],
       "exports": []
@@ -65547,7 +64827,7 @@
     },
     {
       "path": "crates/libs/workflow-video-edit/src/host_migration_44_tests/mod.rs",
-      "lines": 45,
+      "lines": 46,
       "symbols": [
         {
           "line": 21,
@@ -65615,123 +64895,91 @@
     },
     {
       "path": "crates/libs/workflow-video-edit/src/host_migration_44_tests/prepare_tests.rs",
-      "lines": 363,
+      "lines": 225,
       "symbols": [
         {
           "line": 8,
-          "declaration": "struct Remote {"
-        },
-        {
-          "line": 20,
-          "declaration": "struct Cloud {"
-        },
-        {
-          "line": 26,
-          "declaration": "impl VideoPrepareCloud for Cloud {"
-        },
-        {
-          "line": 27,
-          "declaration": "fn context(&self) -> crate::context::VideoContextHandle {"
-        },
-        {
-          "line": 30,
-          "declaration": "async fn authorized_scopes(&self) -> Result<Vec<CloudVideoScope>> {"
-        },
-        {
-          "line": 33,
-          "declaration": "async fn create_project(&self, _run: &str, _scope: &CloudVideoScope) -> Result<String> {"
-        },
-        {
-          "line": 61,
-          "declaration": "async fn find_project(&self, _run: &str, _scope: &CloudVideoScope) -> Result<Option<String>> {"
-        },
-        {
-          "line": 64,
-          "declaration": "async fn create_upload("
-        },
-        {
-          "line": 94,
-          "declaration": "async fn upload("
-        },
-        {
-          "line": 112,
-          "declaration": "async fn finalize("
-        },
-        {
-          "line": 136,
-          "declaration": "async fn probe(&self, _project: &str, _asset: &str) -> Result<VideoMediaInfo> {"
-        },
-        {
-          "line": 146,
           "declaration": "fn fixture() -> (tempfile::TempDir, GlobalDatabase, Cloud, VideoEditRequest) {"
         },
         {
-          "line": 166,
+          "line": 28,
           "declaration": "async fn prepare("
         },
         {
-          "line": 174,
+          "line": 36,
           "declaration": "async fn video_edit_prepare_unbound_readonly_source_reuses_durable_run() {"
         },
         {
-          "line": 205,
+          "line": 67,
           "declaration": "async fn video_edit_prepare_unknown_writes_reconcile_without_duplicate_side_effects() {"
         },
         {
-          "line": 219,
+          "line": 81,
           "declaration": "async fn video_edit_prepare_lost_session_response_stays_pending_without_resubmission() {"
         },
         {
-          "line": 229,
+          "line": 91,
           "declaration": "async fn video_edit_prepare_source_content_and_snapshots_invalidate_cache() {"
         },
         {
-          "line": 245,
+          "line": 107,
           "declaration": "async fn video_edit_prepare_replacement_and_nonvideo_never_return_success() {"
         },
         {
-          "line": 257,
+          "line": 119,
           "declaration": "async fn video_edit_prepare_two_projects_need_no_binding_and_have_independent_sources() {"
         },
         {
-          "line": 272,
+          "line": 134,
           "declaration": "async fn video_edit_prepare_no_space_and_unapproved_choice_have_no_side_effects() {"
         },
         {
-          "line": 282,
+          "line": 144,
           "declaration": "async fn video_edit_prepare_competing_requests_create_and_upload_only_once() {"
         },
         {
-          "line": 309,
+          "line": 171,
           "declaration": "async fn video_edit_prepare_incomplete_put_never_becomes_success_or_reuploads() {"
         },
         {
-          "line": 321,
+          "line": 183,
           "declaration": "fn video_edit_prepare_source_replacement_with_same_bytes_changes_identity() {"
         },
         {
-          "line": 333,
+          "line": 195,
           "declaration": "async fn video_edit_prepare_proven_non_submission_retries_same_ledger_without_duplicate_project() {"
         },
         {
-          "line": 355,
+          "line": 217,
           "declaration": "async fn video_edit_prepare_unknown_without_matching_project_never_reposts() {"
         }
       ],
       "cfg": [
         {
-          "line": 182,
+          "line": 44,
           "attribute": "#[cfg(unix)]"
         },
         {
-          "line": 198,
+          "line": 60,
           "attribute": "#[cfg(unix)]"
         },
         {
-          "line": 319,
+          "line": 181,
           "attribute": "#[cfg(unix)]"
         }
       ],
+      "exports": []
+    },
+    {
+      "path": "crates/libs/workflow-video-edit/src/host_migration_44_tests/probe_tests.rs",
+      "lines": 9,
+      "symbols": [
+        {
+          "line": 3,
+          "declaration": "fn video_edit_delivery_normalizes_live_media_probe_projection_without_losing_audio() {"
+        }
+      ],
+      "cfg": [],
       "exports": []
     },
     {

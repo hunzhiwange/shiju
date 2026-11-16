@@ -41,6 +41,15 @@ original = [dict(path=p, owner=owners[p], before=n,
                  disposition='retained_requires_review' if p in host else 'removed_requires_destination_mapping',
                  evidence=f'evidence/task-{owners[p]}.md')
             for p, n in sorted(baseline.items())]
+alias_map = {row['source']: row for row in json.loads((OUT/'task-59-aliases.json').read_text())}
+orphans = {row['source'] for row in json.loads((OUT/'task-59-orphans.json').read_text())}
+for row in original:
+    if row['path'] in alias_map:
+        row['disposition'] = 'direct_domain_alias'
+        row['destination'] = alias_map[row['path']]['domain']
+    elif row['path'] in orphans:
+        row['disposition'] = 'removed_unregistered_forwarder'
+        row['destination'] = 'agent_memory existing public modules'
 remaining = [dict(**row, symbols=host[row['path']]['symbols'])
              for row in original if row['after']]
 totals = Counter()

@@ -4,8 +4,6 @@ use crate::app::{
     Message,
     message::{GeneralSettingsMessage, SettingsMessage, view::ViewMessage},
 };
-use desktop_navigation::components::top_bar::menus::MenuEntry;
-use desktop_navigation::native_menu::{help_section, menu_sections};
 use desktop_platform::native_menu as platform;
 
 pub(crate) fn install_or_sync(snapshot: NativeMenuSnapshot) {
@@ -13,25 +11,7 @@ pub(crate) fn install_or_sync(snapshot: NativeMenuSnapshot) {
     if unsafe { libc::pthread_main_np() } == 0 {
         return;
     }
-    fn entries(items: Vec<MenuEntry>) -> Vec<platform::MenuEntry> {
-        items
-            .into_iter()
-            .map(|item| match item {
-                MenuEntry::Separator => platform::MenuEntry::Separator,
-                MenuEntry::Item { action, label, shortcut, .. } => {
-                    platform::MenuEntry::Item { action, label, shortcut }
-                }
-            })
-            .collect()
-    }
-    let sections = menu_sections(&snapshot).map(|(title, items)| (title, entries(items)));
-    let (title, items) = help_section();
-    platform::install_or_sync(platform::NativeMenuSnapshot {
-        locale: snapshot.locale,
-        sections,
-        help: (title, entries(items)),
-        open_window_tabs: snapshot.open_window_tabs,
-    });
+    platform::install_or_sync(desktop_navigation::native_menu::platform_snapshot(snapshot));
 }
 pub(crate) fn subscription() -> iced::Subscription<Message> {
     platform::subscription().map(|event| match event {

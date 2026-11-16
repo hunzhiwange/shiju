@@ -68,3 +68,13 @@ pub mod clipboard;
 pub mod native_menu;
 #[cfg(test)]
 mod host_module_41_tests;
+
+#[cfg(all(test, not(target_arch="wasm32")))]
+mod host_module_41_render_tests;
+
+#[cfg(test)]
+mod host_module_41_cache_tests;
+
+pub mod global_events;
+#[cfg(test)]
+mod host_module_41_event_tests;

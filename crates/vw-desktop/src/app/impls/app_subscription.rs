@@ -18,23 +18,31 @@ fn terminal_subscription(term: &iced_term::Terminal) -> Subscription<Message> {
 fn cron_history_subscription(app: &App) -> Subscription<Message> {
     use crate::app::message::settings::cron_history;
     desktop_settings_cron::update::history::subscription(
-        cron_history::visible(app), app.cron_settings.history.generation,
-    ).map(|event| Message::Settings(message::SettingsMessage::CronHistory(event)))
+        cron_history::visible(app),
+        app.cron_settings.history.generation,
+    )
+    .map(|event| Message::Settings(message::SettingsMessage::CronHistory(event)))
 }
 
 fn needs_activity_animation_tick(app: &App, startup_transition_active: bool) -> bool {
     desktop_platform::subscriptions::Activity {
         startup_transition_active,
         update_busy: app.update_panel.show_cli_install_modal
-            && app.update_panel.cli_install_modal_use_app_update_action && app.desktop_update.busy,
-        conversation_requesting: app.navigation_tabs.screen == Screen::Project && app.any_session_requesting(),
+            && app.update_panel.cli_install_modal_use_app_update_action
+            && app.desktop_update.busy,
+        conversation_requesting: app.navigation_tabs.screen == Screen::Project
+            && app.any_session_requesting(),
         explore_animating: app.has_active_explore_summary_animation(),
-        companion_visible: app.companion_navigation.task_pet_visible && app.task_pet_window_id.is_some(),
-        companion_animating: app.pet_state.task_pet_avatar_kind != crate::app::state::TaskPetAvatarKind::None
+        companion_visible: app.companion_navigation.task_pet_visible
+            && app.task_pet_window_id.is_some(),
+        companion_animating: app.pet_state.task_pet_avatar_kind
+            != crate::app::state::TaskPetAvatarKind::None
             || app.pet_state.task_pet_expand_target.is_some(),
-        diagnostic_active: (app.navigation_panels.show_settings || app.navigation_panels.show_system_settings)
+        diagnostic_active: (app.navigation_panels.show_settings
+            || app.navigation_panels.show_system_settings)
             && app.acp_settings.diagnostic_id.is_some(),
-    }.needs_tick()
+    }
+    .needs_tick()
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -47,126 +55,60 @@ fn map_global_event(
     status: iced::event::Status,
     id: iced::window::Id,
 ) -> Option<Message> {
+    desktop_navigation::global_events::map_global_event(event, status, id).map(adapt_global_event)
+}
+fn adapt_global_event(event: desktop_navigation::global_events::Message) -> Message {
+    use desktop_navigation::global_events::Message as Event;
     match event {
-        iced::Event::Mouse(iced::mouse::Event::CursorMoved { position }) => {
-            Some(Message::View(message::ViewMessage::PointerMoved(position.x, position.y)))
+        Event::HoveredFilePath(path) => Message::View(message::ViewMessage::HoveredFilePath(path)),
+        Event::PointerMoved(x, y) => Message::View(message::ViewMessage::PointerMoved(x, y)),
+        Event::DroppedFilePath(path) => Message::View(message::ViewMessage::DroppedFilePath(path)),
+        Event::HoveredFilesLeft => Message::View(message::ViewMessage::HoveredFilesLeft),
+        Event::GlobalMouseReleased => Message::View(message::ViewMessage::GlobalMouseReleased),
+        Event::GlobalCursorLeft => Message::View(message::ViewMessage::GlobalCursorLeft),
+        Event::WindowResized(id, w, h) => {
+            Message::View(message::ViewMessage::WindowResized(id, w, h))
         }
-        iced::Event::Window(iced::window::Event::FileHovered(path)) => Some(Message::View(
-            message::ViewMessage::HoveredFilePath(path.to_string_lossy().to_string()),
-        )),
-        iced::Event::Window(iced::window::Event::FileDropped(path)) => {
-            if status == iced::event::Status::Captured {
-                None
-            } else {
-                Some(Message::View(message::ViewMessage::DroppedFilePath(
-                    path.to_string_lossy().into_owned(),
-                )))
-            }
+        Event::WindowMoved(id, x, y) => Message::View(message::ViewMessage::WindowMoved(id, x, y)),
+        Event::CloseRequested(id) => Message::View(message::ViewMessage::CloseRequested(id)),
+        Event::WindowClosed(id) => Message::View(message::ViewMessage::WindowClosed(id)),
+        Event::WindowFocused(id) => Message::View(message::ViewMessage::WindowFocused(id)),
+        Event::FileTreeDragCancel => Message::Project(message::ProjectMessage::FileTreeDragCancel),
+        Event::WindowUnfocused(id) => Message::View(message::ViewMessage::WindowUnfocused(id)),
+        Event::GlobalKeyPressed(key, modifiers) => {
+            Message::View(message::ViewMessage::GlobalKeyPressed(key, modifiers))
         }
-        iced::Event::Window(iced::window::Event::FilesHoveredLeft) => {
-            Some(Message::View(message::ViewMessage::HoveredFilesLeft))
+        Event::ContextMenuClosed => {
+            Message::TaskBoard(message::TaskBoardMessage::ContextMenuClosed)
         }
-        iced::Event::Mouse(iced::mouse::Event::ButtonReleased(_)) => {
-            Some(Message::View(message::ViewMessage::GlobalMouseReleased))
+        Event::FileTreeRenameCancel => {
+            Message::Project(message::ProjectMessage::FileTreeRenameCancel)
         }
-        iced::Event::Mouse(iced::mouse::Event::CursorLeft) => {
-            Some(Message::View(message::ViewMessage::GlobalCursorLeft))
+        Event::CloseSearch => Message::Editor(message::EditorMessage::CloseSearch),
+        #[cfg(not(target_arch = "wasm32"))]
+        Event::LspCompletionClosed => {
+            Message::Preview(message::PreviewMessage::LspCompletionClosed)
         }
-        iced::Event::Window(iced::window::Event::Resized(size)) => {
-            Some(Message::View(message::ViewMessage::WindowResized(id, size.width, size.height)))
+        Event::OpenReplace => Message::Editor(message::EditorMessage::OpenReplace),
+        Event::OpenSearch => Message::Editor(message::EditorMessage::OpenSearch),
+        Event::TraverseFormFocus(id, backwards) => {
+            Message::View(message::ViewMessage::TraverseFormFocus(id, backwards))
         }
-        iced::Event::Window(iced::window::Event::Moved(pos)) => {
-            Some(Message::View(message::ViewMessage::WindowMoved(id, pos.x, pos.y)))
+        Event::PreviewWindowUnfocused => Message::Preview(message::PreviewMessage::WindowUnfocused),
+        #[cfg(not(target_arch = "wasm32"))]
+        Event::VoiceChatInterrupt => Message::Voice(message::voice::Event::ChatInterrupt),
+        Event::FileTreeFindCaseSensitiveShortcut => {
+            Message::Project(message::ProjectMessage::FileTreeFindCaseSensitiveShortcut)
         }
-        iced::Event::Window(iced::window::Event::CloseRequested) => {
-            Some(Message::View(message::ViewMessage::CloseRequested(id)))
+        Event::FileTreeFindWholeWordShortcut => {
+            Message::Project(message::ProjectMessage::FileTreeFindWholeWordShortcut)
         }
-        iced::Event::Window(iced::window::Event::Closed) => {
-            Some(Message::View(message::ViewMessage::WindowClosed(id)))
+        Event::FileTreeFindRegexShortcut => {
+            Message::Project(message::ProjectMessage::FileTreeFindRegexShortcut)
         }
-        iced::Event::Window(iced::window::Event::Focused) => {
-            Some(Message::View(message::ViewMessage::WindowFocused(id)))
+        Event::Batch(events) => {
+            Message::Batch(events.into_iter().map(adapt_global_event).collect())
         }
-        iced::Event::Window(iced::window::Event::Unfocused) => Some(Message::Batch(vec![
-            Message::Project(message::ProjectMessage::FileTreeDragCancel),
-            Message::View(message::ViewMessage::WindowUnfocused(id)),
-            Message::Preview(message::PreviewMessage::WindowUnfocused),
-        ])),
-        iced::Event::Keyboard(iced::keyboard::Event::KeyPressed { key, modifiers, .. }) => {
-            if matches!(key, iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape)) {
-                let escape_key_message =
-                    Message::View(message::ViewMessage::GlobalKeyPressed(key.clone(), modifiers));
-                #[cfg(not(target_arch = "wasm32"))]
-                let mut messages = vec![
-                    Message::TaskBoard(message::TaskBoardMessage::ContextMenuClosed),
-                    Message::Project(message::ProjectMessage::FileTreeDragCancel),
-                    Message::Project(message::ProjectMessage::FileTreeRenameCancel),
-                    Message::Editor(message::EditorMessage::CloseSearch),
-                    escape_key_message,
-                ];
-                #[cfg(target_arch = "wasm32")]
-                let messages = vec![
-                    Message::TaskBoard(message::TaskBoardMessage::ContextMenuClosed),
-                    Message::Project(message::ProjectMessage::FileTreeDragCancel),
-                    Message::Project(message::ProjectMessage::FileTreeRenameCancel),
-                    Message::Editor(message::EditorMessage::CloseSearch),
-                    escape_key_message,
-                ];
-                #[cfg(not(target_arch = "wasm32"))]
-                messages.push(Message::Preview(message::PreviewMessage::LspCompletionClosed));
-                return Some(Message::Batch(messages));
-            }
-
-            #[cfg(not(target_arch = "wasm32"))]
-            if modifiers.command()
-                && modifiers.shift()
-                && matches!(key, iced::keyboard::Key::Named(iced::keyboard::key::Named::Space))
-            {
-                return Some(Message::Voice(message::voice::Event::ChatInterrupt));
-            }
-
-            if modifiers.command() && modifiers.alt() && !modifiers.shift() {
-                let shortcut = match &key {
-                    iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("c") => {
-                        Some(message::ProjectMessage::FileTreeFindCaseSensitiveShortcut)
-                    }
-                    iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("w") => {
-                        Some(message::ProjectMessage::FileTreeFindWholeWordShortcut)
-                    }
-                    iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("x") => {
-                        Some(message::ProjectMessage::FileTreeFindRegexShortcut)
-                    }
-                    _ => None,
-                };
-                if let Some(shortcut) = shortcut {
-                    return Some(Message::Project(shortcut));
-                }
-            }
-
-            if modifiers.command()
-                && matches!(key, iced::keyboard::Key::Character(ref c) if c.eq_ignore_ascii_case("f"))
-            {
-                return Some(if modifiers.alt() {
-                    Message::Editor(message::EditorMessage::OpenReplace)
-                } else {
-                    Message::Editor(message::EditorMessage::OpenSearch)
-                });
-            }
-
-            if status == iced::event::Status::Captured {
-                return None;
-            }
-            if matches!(key, iced::keyboard::Key::Named(iced::keyboard::key::Named::Tab))
-                && (modifiers - iced::keyboard::Modifiers::SHIFT).is_empty()
-            {
-                return Some(Message::View(message::ViewMessage::TraverseFormFocus(
-                    id,
-                    modifiers.shift(),
-                )));
-            }
-            Some(Message::View(message::ViewMessage::GlobalKeyPressed(key, modifiers)))
-        }
-        _ => None,
     }
 }
 
@@ -209,21 +151,23 @@ impl App {
         #[cfg(target_arch = "wasm32")]
         let terminal_subs = { Subscription::none() };
 
-        let question_poll =
-            if self.any_session_requesting() || self.session_state.question_modal_request_id.is_some() {
-                iced::time::every(std::time::Duration::from_secs(10))
-                    .map(|_| Message::Chat(message::ChatMessage::QuestionPollTick))
-            } else {
-                Subscription::none()
-            };
+        let question_poll = if self.any_session_requesting()
+            || self.session_state.question_modal_request_id.is_some()
+        {
+            iced::time::every(std::time::Duration::from_secs(10))
+                .map(|_| Message::Chat(message::ChatMessage::QuestionPollTick))
+        } else {
+            Subscription::none()
+        };
 
-        let permission_poll =
-            if self.any_session_requesting() || self.session_state.permission_modal_request_id.is_some() {
-                iced::time::every(std::time::Duration::from_secs(10))
-                    .map(|_| Message::Chat(message::ChatMessage::PermissionPollTick))
-            } else {
-                Subscription::none()
-            };
+        let permission_poll = if self.any_session_requesting()
+            || self.session_state.permission_modal_request_id.is_some()
+        {
+            iced::time::every(std::time::Duration::from_secs(10))
+                .map(|_| Message::Chat(message::ChatMessage::PermissionPollTick))
+        } else {
+            Subscription::none()
+        };
 
         let todo_poll = if self.current_session_is_requesting() {
             iced::time::every(std::time::Duration::from_secs(10))
@@ -259,11 +203,9 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         let preview_lsp_tick = if self.preview_state.lsp_disabled {
             Subscription::none()
-        } else if self
-            .navigation_tabs.active_preview_path
-            .as_ref()
-            .is_some_and(|path| self.navigation_tabs.preview_tabs.iter().any(|tab| tab.path == *path))
-        {
+        } else if self.navigation_tabs.active_preview_path.as_ref().is_some_and(|path| {
+            self.navigation_tabs.preview_tabs.iter().any(|tab| tab.path == *path)
+        }) {
             iced::time::every(std::time::Duration::from_millis(33)).map(|_| Message::PreviewLspTick)
         } else {
             Subscription::none()
@@ -302,7 +244,8 @@ impl App {
         let work_browser_runtime_tick = if self.navigation_tabs.screen == Screen::Project
             && self.navigation_mode.workspace_mode == crate::app::state::WorkspaceMode::Work
             && self.navigation_workspace.work_resources_visible
-            && self.navigation_workspace.work_resource_mode == crate::app::state::WorkResourceMode::Browser
+            && self.navigation_workspace.work_resource_mode
+                == crate::app::state::WorkResourceMode::Browser
         {
             iced::time::every(std::time::Duration::from_millis(100))
                 .map(|_| Message::View(message::ViewMessage::WorkBrowserRuntimeTick))
@@ -329,13 +272,16 @@ impl App {
         let gateway_health_tick =
             iced::time::every(gateway_health_interval).map(|_| Message::GatewayHealthTick);
 
-        let usage_center_tick = if self.usage_center.open && self.navigation_tabs.screen == crate::app::Screen::Usage {
-            iced::time::every(std::time::Duration::from_secs(60)).map(|_| {
-                Message::View(message::ViewMessage::UsageCenter(crate::app::views::usage::center::Event::Tick))
-            })
-        } else {
-            Subscription::none()
-        };
+        let usage_center_tick =
+            if self.usage_center.open && self.navigation_tabs.screen == crate::app::Screen::Usage {
+                iced::time::every(std::time::Duration::from_secs(60)).map(|_| {
+                    Message::View(message::ViewMessage::UsageCenter(
+                        crate::app::views::usage::center::Event::Tick,
+                    ))
+                })
+            } else {
+                Subscription::none()
+            };
         Subscription::batch(vec![
             usage_center_tick,
             cron_history_subscription(self),
@@ -351,7 +297,9 @@ impl App {
             },
             agent,
             #[cfg(not(target_arch = "wasm32"))]
-            if self.session_state.session_runtime_states
+            if self
+                .session_state
+                .session_runtime_states
                 .values()
                 .any(|runtime| !runtime.mcp_app_panels.is_empty())
             {
@@ -371,7 +319,7 @@ impl App {
                     message::GeneralSettingsMessage::InstanceTick,
                 ))
             }),
-            if self.close_to_tray {
+            if self.lifecycle.close_to_tray {
                 iced::time::every(std::time::Duration::from_millis(200)).map(|_| {
                     Message::Settings(message::SettingsMessage::General(
                         message::GeneralSettingsMessage::TrayTick,
@@ -418,7 +366,8 @@ impl App {
 
 fn collect_agent_subscription_requests(app: &App) -> Vec<Arc<crate::app::AgentRequest>> {
     desktop_session::session::agent::collect_agent_subscription_requests(
-        &app.session_state.active_session_id, &app.session_state.session_runtime_states,
+        &app.session_state.active_session_id,
+        &app.session_state.session_runtime_states,
     )
 }
 
@@ -430,9 +379,11 @@ pub(super) fn workflow_run_subscription_request(
 
 fn workflow_run_stream(req: &WorkflowRunSubscriptionRequest) -> WorkflowRunBoxStream<Message> {
     Box::pin(iced::futures::StreamExt::map(
-        desktop_workflow_ui::message::workflow_run_stream(req,
-            || crate::app::config::gateway_client().map(|client|
-                gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()))),
+        desktop_workflow_ui::message::workflow_run_stream(req, || {
+            crate::app::config::gateway_client().map(|client| {
+                gateway_workflow::GatewayWorkflowClient::new(client.transport().clone())
+            })
+        }),
         Message::WorkflowTool,
     ))
 }

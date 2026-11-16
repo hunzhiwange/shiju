@@ -119,9 +119,7 @@ pub struct App {
     pub(crate) appearance: desktop_settings_appearance::theme_state::State,
     pub(crate) input_feedback: desktop_i18n::input::State,
 
-    pub(crate) launch_at_login: bool,
-    pub(crate) launch_at_login_busy: bool,
-    pub(crate) close_to_tray: bool,
+    pub(crate) lifecycle: desktop_platform::lifecycle::State,
 
     pub(crate) preview_state: desktop_editor::preview::state::State,
 

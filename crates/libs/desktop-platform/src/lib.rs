@@ -27,3 +27,8 @@ pub mod native_lifecycle;
 pub mod subscriptions;
 #[cfg(test)]
 mod host_module_41_tests;
+
+#[cfg(not(target_arch="wasm32"))]
+pub mod acceptance;
+
+pub mod lifecycle;

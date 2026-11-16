@@ -94,3 +94,6 @@ mod host_module_38_tests;
 pub mod interaction;
 
 pub mod todo;
+
+#[cfg(test)]
+mod host_module_41_tests;

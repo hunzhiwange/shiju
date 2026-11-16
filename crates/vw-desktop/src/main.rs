@@ -269,9 +269,6 @@ pub fn main() -> iced::Result {
 #[path = "main_tests.rs"]
 mod main_tests;
 
-#[cfg(test)]
-#[path = "app/plugin_compat_t25_tests.rs"]
-mod plugin_compat_t25_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "app/components/archived_chats_window_tests.rs"]

@@ -1,20 +1,18 @@
-//! Download completion preserves measured progress and permits a fresh retry.
+use super::*;
+// Download completion preserves measured progress and permits a fresh retry.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn desktop_integration_48_preserves_expected_behavior() {
-    use super::message::{ViewMessage, view};
-    use update_types::UpdateProgress;
     use desktop_release::{DesktopRelease, UpdateSource};
+    use update_types::UpdateProgress;
 
-    let mut app = super::App::new().0;
-    app.desktop_update = super::desktop_update::DesktopUpdate::from_config(&serde_json::json!({}));
-    let release = DesktopRelease {
-        source: UpdateSource::Shiju,
-        version: "99.0.0".into(),
-        assets: vec![],
-    };
+    let mut app = super::Fixture::new();
+    app.desktop_update =
+        crate::app::desktop_update::DesktopUpdate::from_config(&serde_json::json!({}));
+    let release =
+        DesktopRelease { source: UpdateSource::Shiju, version: "99.0.0".into(), assets: vec![] };
     app.desktop_update.release = Some(release.clone());
-    let _ = view::update(&mut app, ViewMessage::RunAppUpdate);
+    let _ = app.update(ViewMessage::RunAppUpdate);
     let (sender, receiver) = std::sync::mpsc::channel();
     app.update_panel.app_update_progress_rx = Some(receiver);
     let mut progress = UpdateProgress {
@@ -26,7 +24,7 @@ fn desktop_integration_48_preserves_expected_behavior() {
         average_bytes_per_second: 17.0,
     };
     sender.send(progress.clone()).unwrap();
-    let _ = view::update(&mut app, ViewMessage::AppUpdateProgressTick);
+    let _ = app.update(ViewMessage::AppUpdateProgressTick);
     assert_eq!(app.update_panel.app_update_progress, Some(progress.clone()));
     // Completion can beat the next tick, including a queue longer than its 48-event budget.
     for bytes in 18..=80 {
@@ -34,13 +32,13 @@ fn desktop_integration_48_preserves_expected_behavior() {
         sender.send(progress.clone()).unwrap();
     }
     drop(sender);
-    let _ = view::update(&mut app, ViewMessage::AppUpdatePrepared(Err("connection lost".into())));
+    let _ = app.update(ViewMessage::AppUpdatePrepared(Err("connection lost".into())));
     assert_eq!(app.update_panel.app_update_progress, Some(progress));
     assert!(!app.desktop_update.busy);
     assert!(app.update_panel.app_update_progress_rx.is_none());
     assert!(app.update_panel.cli_install_modal_show_install_action);
     assert_eq!(app.desktop_update.release, Some(release));
-    let retry = view::update(&mut app, ViewMessage::RunAppUpdate);
+    let retry = app.update(ViewMessage::RunAppUpdate);
     assert!(retry.units() > 0);
     assert!(app.desktop_update.busy);
     assert!(app.update_panel.app_update_progress.is_none());

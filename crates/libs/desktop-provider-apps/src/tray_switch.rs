@@ -111,3 +111,10 @@ pub fn apply_result(snapshot: Option<&mut crate::state::list::Snapshot>, app: Ap
         "配置已切换，请完全退出并重启 Claude Desktop"
     } else { "供应商已切换" })
 }
+
+/// Accept exactly one completion for the currently running tray generation.
+pub fn finish_request(scope: Option<&Scope>, generation: u64, pending: &mut Option<String>, completed_scope: &Scope, completed_generation: u64, id: &str) -> bool {
+    if scope != Some(completed_scope) || generation != completed_generation || pending.as_deref() != Some(id) { return false; }
+    *pending = None;
+    true
+}

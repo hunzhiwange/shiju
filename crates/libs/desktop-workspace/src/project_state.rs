@@ -172,3 +172,40 @@ impl<Message> State<Message> {
         }
     }
 }
+
+impl<Message> State<Message> {
+    pub fn current_file_index(&self, project: Option<&str>) -> &[String] {
+        project.and_then(|path| self.file_index_cache.get(path).map(Vec::as_slice)).unwrap_or(&[])
+    }
+    pub fn refresh_search_panel(&mut self, project: Option<&str>, query: String) {
+        let Some(results) = crate::basic::refresh_search_panel_file_results(
+            self.current_file_index(project),
+            &query,
+            project,
+            self.file_index_revision,
+            &self.search_panel_file_cache_query,
+            self.search_panel_file_cache_project_path.as_deref(),
+            self.search_panel_file_cache_revision,
+        ) else {
+            return;
+        };
+        self.search_panel_file_cache_query = query;
+        self.search_panel_file_cache_project_path = project.map(str::to_owned);
+        self.search_panel_file_cache_revision = self.file_index_revision;
+        self.search_panel_file_cache_results = results;
+    }
+    pub fn set_file_index(&mut self, path: &str, files: Vec<String>) {
+        let tree = desktop_file_tree::model::build_file_tree_model(path, &files);
+        self.set_file_tree(path, files, tree);
+    }
+    pub fn set_file_tree(
+        &mut self,
+        path: &str,
+        files: Vec<String>,
+        tree: desktop_file_tree::model::FileTreeNode,
+    ) {
+        self.file_index_cache.insert(path.to_owned(), files);
+        self.file_tree_model_cache.insert(path.to_owned(), tree);
+        self.file_index_revision = self.file_index_revision.wrapping_add(1);
+    }
+}

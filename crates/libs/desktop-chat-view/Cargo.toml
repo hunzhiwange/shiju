@@ -42,6 +42,7 @@ tokio = { version = "1", features = ["rt"] }
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 
 [dev-dependencies]
+desktop-web-runtime = { path = "../desktop-web-runtime", version = "0.6.0" }
 iced_runtime = "0.14"
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }

@@ -193,7 +193,7 @@ pub fn close_requested(app: &mut App, window_id: iced::window::Id) -> Task<Messa
     let windows = close_requested_windows(app.main_window_id, app.task_pet_window_id, window_id);
 
     if windows.main_window_id.is_some() {
-        if app.close_to_tray && !app.shutdown_requested {
+        if app.lifecycle.close_to_tray && !app.shutdown_requested {
             if let Err(error) = crate::app::desktop_lifecycle::ensure_tray(app.general_settings.desktop_locale) {
                 return app.show_error_toast(format!("无法关闭到托盘：{error}"));
             }

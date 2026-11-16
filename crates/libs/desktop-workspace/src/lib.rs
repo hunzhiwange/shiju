@@ -60,3 +60,6 @@ pub mod project_state;
 
 #[cfg(test)]
 mod host_module_31_tests;
+
+#[cfg(test)]
+mod host_module_41_tests;

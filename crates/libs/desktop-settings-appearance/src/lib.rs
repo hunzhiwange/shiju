@@ -30,3 +30,6 @@ mod companion_test_support;
 pub mod theme_state;
 
 pub mod general_state;
+
+#[cfg(test)]
+mod host_module_41_tests;

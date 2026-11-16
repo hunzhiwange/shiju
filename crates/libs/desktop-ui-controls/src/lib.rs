@@ -38,3 +38,6 @@ pub mod settings_navigation;
 mod host_module_38_tests;
 
 pub mod todo_panel;
+
+#[cfg(test)]
+mod host_module_41_tests;

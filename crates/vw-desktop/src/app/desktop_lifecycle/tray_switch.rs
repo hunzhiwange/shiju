@@ -5,8 +5,14 @@ use crate::app::{App, Message};
 use iced::Task;
 pub(crate) fn start(app: &mut App, id: String) -> Task<Message> {
     let state = &app.app_providers;
-    if !desktop_provider_apps::tray_switch::can_start(state.scope.as_ref(), state.snapshot.as_ref(), &id,
-        app.shutdown_requested, state.loading, state.tray_switch.is_some()) {
+    if !desktop_provider_apps::tray_switch::can_start(
+        state.scope.as_ref(),
+        state.snapshot.as_ref(),
+        &id,
+        app.shutdown_requested,
+        state.loading,
+        state.tray_switch.is_some(),
+    ) {
         return Task::none();
     }
     let Some(scope) = state.scope.clone() else { return Task::none() };
@@ -47,20 +53,26 @@ pub(crate) fn finish(
     id: String,
     result: Result<(), String>,
 ) -> Task<Message> {
-    if app.app_providers.scope.as_ref() != Some(&scope)
-        || app.app_providers.generation != generation
-        || app.app_providers.tray_switch.as_ref() != Some(&id)
-    {
+    if !desktop_provider_apps::tray_switch::finish_request(
+        app.app_providers.scope.as_ref(),
+        app.app_providers.generation,
+        &mut app.app_providers.tray_switch,
+        &scope,
+        generation,
+        &id,
+    ) {
         return Task::none();
     }
-    app.app_providers.tray_switch = None;
     if crate::app::message::app_providers::list::current(app, scope.app)
         .map_or(true, |(_, current)| current != scope)
     {
         return Task::none();
     }
     match desktop_provider_apps::tray_switch::apply_result(
-        app.app_providers.snapshot.as_mut(), scope.app, id, result,
+        app.app_providers.snapshot.as_mut(),
+        scope.app,
+        id,
+        result,
     ) {
         Ok(message) => app.show_success_toast(message),
         Err(error) => app.show_error_toast(error),

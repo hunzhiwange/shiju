@@ -322,7 +322,7 @@ fn shutdown_waits_for_pending_layout_preferences() {
 
         let window = iced::window::Id::unique();
         app.main_window_id = Some(window);
-        app.close_to_tray = false;
+        app.lifecycle.close_to_tray = false;
         let mut shutdown = outputs(panel::update(&mut app, ViewMessage::CloseRequested(window)));
         assert!(runtime.block_on(async { poll!(shutdown.next()).is_pending() }));
         responses.send(Some("{}".into())).unwrap();

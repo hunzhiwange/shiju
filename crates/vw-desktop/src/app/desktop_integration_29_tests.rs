@@ -1,46 +1,18 @@
-//! 注入系统结果验证消息处理，不请求真实系统权限。
-
+//! Host contract: permission failure disables the setting and preserves existing feedback.
 use super::message::{GeneralSettingsMessage, SettingsMessage};
-use super::state::ToastKind;
 use super::{App, Message};
-
 #[test]
-fn desktop_integration_29_preserves_expected_behavior() {
+fn notification_permission_failure_disables_setting_without_replacing_feedback() {
     let mut app = App::new().0;
     let _ = app.show_success_toast("业务已完成");
-    let original = app.toast_state.active_toast.clone().unwrap();
-    let next_id = app.toast_state.next_toast_id;
+    let id = app.toast_state.active_toast.as_ref().unwrap().id;
     app.general_settings.task_completion_notification = true;
-    // 避免产生持久化任务；授权失败仍需关闭应用内通知开关。
     app.general_settings.task_completion_notification_saving = true;
-
-    for result in [
-        GeneralSettingsMessage::TaskCompletionNotificationPermissionChecked(Err(
-            "通知权限未获允许".into(),
-        )),
-        GeneralSettingsMessage::TaskCompletionNotificationSent(Err("通知权限未获允许".into())),
-        GeneralSettingsMessage::TaskCompletionNotificationSent(Ok(())),
-    ] {
-        let _ = app.update(Message::Settings(SettingsMessage::General(result)));
-        let toast = app.toast_state.active_toast.as_ref().unwrap();
-        assert_eq!(toast.id, original.id);
-        assert_eq!(toast.kind, ToastKind::Success);
-        assert_eq!(toast.message, original.message);
-        assert_eq!(app.toast_state.next_toast_id, next_id);
-    }
+    let _ = app.update(Message::Settings(SettingsMessage::General(
+        GeneralSettingsMessage::TaskCompletionNotificationPermissionChecked(Err("denied".into())),
+    )));
+    assert_eq!(app.toast_state.active_toast.as_ref().unwrap().id, id);
     if super::desktop_notification::SUPPORTED {
         assert!(!app.general_settings.task_completion_notification);
     }
-}
-
-#[test]
-fn desktop_integration_29_reports_failure_when_no_toast_is_visible() {
-    let mut app = App::new().0;
-    app.toast_state.active_toast = None;
-    let _ = app.update(Message::Settings(SettingsMessage::General(
-        GeneralSettingsMessage::TaskCompletionNotificationSent(Err("permission denied".into())),
-    )));
-    let toast = app.toast_state.active_toast.as_ref().unwrap();
-    assert_eq!(toast.kind, ToastKind::Error);
-    assert!(toast.message.contains("permission denied"));
 }

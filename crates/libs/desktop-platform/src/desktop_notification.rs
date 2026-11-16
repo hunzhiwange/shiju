@@ -69,3 +69,35 @@ fn register_windows_application(app_id: &str) -> std::io::Result<()> {
 #[cfg(all(test, target_os = "macos"))]
 #[path = "desktop_notification_tests.rs"]
 mod tests;
+
+/// Execute native notification work off the UI thread without carrying conversation data.
+pub async fn completion(locale: config_ui::DesktopLocale) -> Result<(), String> {
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    {
+        let i18n = desktop_i18n::I18n::new(locale);
+        let title = i18n.__("任务完成").to_owned();
+        let body = i18n.__("本轮对话已完成，请返回识矩查看。").to_owned();
+        tokio::task::spawn_blocking(move || show(&title, &body))
+            .await
+            .map_err(|_| "通知线程异常退出".to_owned())?
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        let _ = locale;
+        Err("当前平台暂不支持原生桌面通知".to_owned())
+    }
+}
+pub async fn permission(locale: config_ui::DesktopLocale) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let result = tokio::task::spawn_blocking(ensure_macos_permission)
+            .await
+            .map_err(|_| "通知线程异常退出".to_owned())?;
+        result.map_err(|error| desktop_i18n::I18n::new(locale).__(error).to_owned())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = locale;
+        Ok(())
+    }
+}

@@ -121,3 +121,17 @@ pub fn title(screen: crate::ui_types::Screen, locale: config_ui::DesktopLocale) 
         }
     }
 }
+
+pub fn theme_for_surface(theme: &iced::Theme, companion: bool) -> iced::Theme {
+    if companion {
+        let mut palette = theme.palette();
+        palette.background = iced::Color::TRANSPARENT;
+        iced::Theme::custom_with_fn("VibeWindow Pet", palette, |_| *theme.extended_palette())
+    } else { theme.clone() }
+}
+pub fn window_style(theme: &iced::Theme) -> iced::theme::Style {
+    use iced::theme::Base;
+    let mut style = theme.base();
+    if theme.palette().background == iced::Color::TRANSPARENT { style.background_color = iced::Color::TRANSPARENT; }
+    style
+}

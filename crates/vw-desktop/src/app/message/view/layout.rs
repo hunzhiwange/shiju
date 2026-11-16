@@ -37,7 +37,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             if mark_window_closed(&mut app.main_window_id, &mut app.task_pet_window_id, window_id)
                 == WindowClosedOutcome::Exit
-                && !(app.close_to_tray && app.main_window_id.is_none() && !app.shutdown_requested)
+                && !(app.lifecycle.close_to_tray && app.main_window_id.is_none() && !app.shutdown_requested)
             {
                 #[cfg(not(target_arch = "wasm32"))]
                 {

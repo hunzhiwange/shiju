@@ -207,9 +207,11 @@ impl App {
             appearance: desktop_settings_appearance::theme_state::State::new(&system_settings_cfg),
             input_feedback: Default::default(),
 
-            launch_at_login: crate::app::desktop_lifecycle::launch_at_login_enabled(),
-            launch_at_login_busy: false,
-            close_to_tray: crate::app::desktop_lifecycle::close_to_tray_enabled(),
+            lifecycle: desktop_platform::lifecycle::State {
+                launch_at_login: crate::app::desktop_lifecycle::launch_at_login_enabled(),
+                launch_at_login_busy: false,
+                close_to_tray: crate::app::desktop_lifecycle::close_to_tray_enabled(),
+            },
 
             archived_chats: super::state::ArchivedChatsState::default(),
             worktree_settings: Default::default(),

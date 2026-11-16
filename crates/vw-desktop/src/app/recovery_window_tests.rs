@@ -7,7 +7,6 @@ use iced::{Element, Subscription, Task, Theme, window};
 use serde_json::{Value, json};
 use std::{
     path::PathBuf,
-    process::{Child, Command},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -286,24 +285,6 @@ impl Harness {
     }
 }
 
-struct Fixture {
-    child: Child,
-    root: PathBuf,
-}
-impl Drop for Fixture {
-    fn drop(&mut self) {
-        let _ = std::fs::write(self.root.join("stop"), "stop");
-        let deadline = Instant::now() + Duration::from_secs(5);
-        while self.child.try_wait().ok().flatten().is_none() && Instant::now() < deadline {
-            std::thread::sleep(Duration::from_millis(20));
-        }
-        if self.child.try_wait().ok().flatten().is_none() {
-            let _ = self.child.kill();
-        }
-        let _ = self.child.wait();
-    }
-}
-
 pub(crate) fn run() {
     let mut args = std::env::args().skip(1);
     assert_eq!(
@@ -315,30 +296,8 @@ pub(crate) fn run() {
     let root = PathBuf::from(args.next().expect("existing absolute evidence directory"));
     assert!(root.is_absolute() && root.is_dir());
     std::env::set_current_dir(&root).expect("use isolated project directory");
-    let child = Command::new(backend)
-        .args([
-            "gateway::recovery_window_tests::recovery_window_gateway_fixture",
-            "--exact",
-            "--nocapture",
-            "--test-threads=1",
-        ])
-        .env("VW_MODEL_RECOVERY_TEST_ROOT", &root)
-        .env("VIBEWINDOW_TEST_ROOT", &root)
-        .env("VW_RECOVERY_WINDOW_HTTP", "1")
-        .env("VIBEWINDOW_CONFIG_DIR", root.join("config"))
-        .env_remove("VIBEWINDOW_WORKSPACE")
-        .env_remove("VIBEWINDOW_SERVER_PASSWORD")
-        .env("VW_RECOVERY_WINDOW_API_KEY", "fixture-only")
-        .spawn()
-        .unwrap();
-    let _fixture = Fixture { child, root: root.clone() };
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while !root.join("ready.json").exists() {
-        assert!(Instant::now() < deadline, "gateway readiness timeout");
-        std::thread::sleep(Duration::from_millis(20));
-    }
-    let ready: Value =
-        serde_json::from_slice(&std::fs::read(root.join("ready.json")).unwrap()).unwrap();
+    let _fixture = desktop_platform::acceptance::recovery(&backend, &root);
+    let ready = _fixture.ready("gateway readiness timeout");
     crate::app::config::install_window_test_bootstrap(
         ready["gateway_port"].as_u64().unwrap() as u16
     );

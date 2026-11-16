@@ -2,7 +2,7 @@
 //!
 //! topbar 内嵌菜单保持不变；本模块额外安装与之同源的原生菜单。
 
-#[cfg(any(target_os = "macos", test))]
+#[cfg(target_os = "macos")]
 mod actions;
 
 #[cfg(target_os = "macos")]

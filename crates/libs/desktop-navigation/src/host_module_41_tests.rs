@@ -141,3 +141,109 @@ async fn desktop_gettext_area_17_native_snapshot_tracks_language_changes() {
     assert_ne!(english, traditional);
     assert_eq!(traditional.locale, app.locale);
 }
+
+#[test]
+fn title_covers_each_screen() {
+    let expected = [
+        (Screen::Home, "识矩 - 项目"),
+        (Screen::Project, "识矩 - 项目"),
+        (Screen::Preview, "识矩 - 预览"),
+        (Screen::Apps, "识矩 - 应用"),
+        (Screen::Usage, "识矩 - 用量"),
+        (Screen::Knowledge, "识矩 - 知识库"),
+        (Screen::WorkflowTool, "识矩 - 工作流"),
+        (Screen::WorkflowManager, "识矩 - 任务编排"),
+        (Screen::TaskBoard, "识矩 - 任务看板"),
+        (Screen::ShijuApps, "识矩 - 识矩应用"),
+        (Screen::ShijuSkills, "识矩 - 识矩技能"),
+        (Screen::ExpertHub, "识矩 - 专家·技能·连接器"),
+    ];
+
+    for (screen, title) in expected {
+        assert_eq!(
+            crate::window_lifecycle::title(screen, config_ui::DesktopLocale::SimplifiedChinese),
+            title
+        );
+    }
+}
+
+#[test]
+fn push_notification_assigns_incrementing_ids() {
+    let mut notifications = Vec::new();
+    let mut next_notification_id = 7;
+    notifications.clear();
+
+    crate::components::notification::push_notification(
+        &mut notifications,
+        &mut next_notification_id,
+        "first".to_string(),
+    );
+    crate::components::notification::push_notification(
+        &mut notifications,
+        &mut next_notification_id,
+        "second".to_string(),
+    );
+
+    assert_eq!(notifications.len(), 2);
+    assert_eq!(notifications[0].id, 7);
+    assert_eq!(notifications[0].message, "first");
+    assert_eq!(notifications[1].id, 8);
+    assert_eq!(notifications[1].message, "second");
+    assert_eq!(next_notification_id, 9);
+}
+
+#[test]
+fn desktop_integration_46_late_failure_preserves_newer_copy_feedback() {
+    let mut state = crate::clipboard::Feedback::new();
+    state.last_copied_code_hash = Some(47);
+    state.clear(46);
+    assert_eq!(state.last_copied_code_hash, Some(47));
+}
+
+#[test]
+fn desktop_integration_46_preserves_expected_behavior() {
+    let mut state = crate::clipboard::Feedback::new();
+    state.last_copied_code_hash = Some(46);
+    state.last_copy_time = Some(web_time::SystemTime::now());
+    state.clear(46);
+    assert_eq!(state.last_copied_code_hash, None);
+    assert!(state.last_copy_time.is_none());
+}
+
+use crate::components::top_bar::types::ExternalOpenApp;
+#[test]
+fn can_open_external_defaults_false_and_uses_cached_value() {
+    let mut exists = std::collections::HashMap::new();
+    exists.clear();
+
+    assert!(!crate::external_apps_update::can_open_external(&exists, ExternalOpenApp::VSCode));
+
+    exists.insert(ExternalOpenApp::VSCode, true);
+    exists.insert(ExternalOpenApp::Cursor, false);
+    assert!(crate::external_apps_update::can_open_external(&exists, ExternalOpenApp::VSCode));
+    assert!(!crate::external_apps_update::can_open_external(&exists, ExternalOpenApp::Cursor));
+}
+
+use iced::Theme;
+#[test]
+fn mini_companion_native_theme_clears_transparently_in_both_modes() {
+    use iced::theme::Base;
+    for theme in [Theme::Dark, Theme::Light] {
+        let mini_theme = crate::window_lifecycle::theme_for_surface(&theme, true);
+        assert_eq!(
+            crate::window_lifecycle::window_style(&mini_theme).background_color,
+            iced::Color::TRANSPARENT
+        );
+        // Menus and input backgrounds must remain opaque even on the transparent surface.
+        assert_eq!(mini_theme.base().background_color, theme.base().background_color);
+        assert_eq!(mini_theme.base().text_color, theme.base().text_color);
+        assert_eq!(
+            crate::window_lifecycle::theme_for_surface(&theme, false).base().background_color,
+            theme.base().background_color
+        );
+        assert_eq!(
+            mini_theme.extended_palette().background.strong.color,
+            theme.extended_palette().background.strong.color
+        );
+    }
+}

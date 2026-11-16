@@ -16,7 +16,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         GeneralSettingsMessage::LaunchAtLoginToggled(enabled) => {
             if !domain::begin_launch_at_login(
-                &mut app.launch_at_login_busy,
+                &mut app.lifecycle.launch_at_login_busy,
                 !cfg!(target_arch = "wasm32"),
             ) {
                 return Task::none();
@@ -45,8 +45,8 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         GeneralSettingsMessage::LaunchAtLoginSaved(result) => {
             match domain::launch_at_login_saved(
-                &mut app.launch_at_login,
-                &mut app.launch_at_login_busy,
+                &mut app.lifecycle.launch_at_login,
+                &mut app.lifecycle.launch_at_login_busy,
                 result,
                 true,
             ) {
@@ -81,8 +81,8 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         GeneralSettingsMessage::LaunchAtLoginRefreshed(result) => {
             if let Err(error) = domain::launch_at_login_saved(
-                &mut app.launch_at_login,
-                &mut app.launch_at_login_busy,
+                &mut app.lifecycle.launch_at_login,
+                &mut app.lifecycle.launch_at_login_busy,
                 result,
                 false,
             ) {
@@ -132,12 +132,12 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 return app.show_error_toast(format!("无法启用托盘：{error}"));
             }
             if let Err(error) = crate::app::desktop_lifecycle::save_close_to_tray(enabled) {
-                if !app.close_to_tray {
+                if !app.lifecycle.close_to_tray {
                     crate::app::desktop_lifecycle::remove_tray();
                 }
                 return app.show_error_toast(format!("保存关闭到托盘失败：{error}"));
             }
-            app.close_to_tray = enabled;
+            app.lifecycle.close_to_tray = enabled;
             if !enabled {
                 crate::app::desktop_lifecycle::remove_tray();
             }

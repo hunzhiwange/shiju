@@ -3,7 +3,6 @@ use crate::app::{App, Message as AppMessage, message::SettingsMessage, state::Sk
 use iced::{Element, Subscription, Task, Theme, window};
 use std::{
     path::PathBuf,
-    process::{Child, Command},
     time::{Duration, Instant},
 };
 #[derive(Debug, Clone)]
@@ -274,23 +273,6 @@ impl Harness {
         window::frames().map(|_| Message::Frame)
     }
 }
-struct Fixture {
-    child: Child,
-    root: PathBuf,
-}
-impl Drop for Fixture {
-    fn drop(&mut self) {
-        let _ = std::fs::write(self.root.join("stop"), "stop");
-        let deadline = Instant::now() + Duration::from_secs(5);
-        while self.child.try_wait().ok().flatten().is_none() && Instant::now() < deadline {
-            std::thread::sleep(Duration::from_millis(20));
-        }
-        if self.child.try_wait().ok().flatten().is_none() {
-            let _ = self.child.kill();
-        }
-        let _ = self.child.wait();
-    }
-}
 pub(crate) fn run() {
     let mut args = std::env::args().skip(1);
     let backend = args.next().expect("explicit backend test executable");
@@ -299,25 +281,8 @@ pub(crate) fn run() {
     assert!(matches!(mode, 55 | 56));
     assert!(root.is_absolute() && root.is_dir());
     std::env::set_current_dir(&root).unwrap();
-    let child = Command::new(backend)
-        .args([
-            "plugins::compat::plugin_window_fixture::plugin_window_gateway_fixture",
-            "--exact",
-            "--ignored",
-            "--nocapture",
-        ])
-        .env("SHIJU_PLUGIN_WINDOW_ROOT", &root)
-        .spawn()
-        .unwrap();
-    std::fs::write(root.join("backend.pid"), child.id().to_string()).unwrap();
-    let _fixture = Fixture { child, root: root.clone() };
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while !root.join("ready.json").exists() {
-        assert!(Instant::now() < deadline, "gateway fixture readiness timeout");
-        std::thread::sleep(Duration::from_millis(20));
-    }
-    let ready: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(root.join("ready.json")).unwrap()).unwrap();
+    let _fixture = desktop_platform::acceptance::plugin(&backend, &root);
+    let ready = _fixture.ready("gateway fixture readiness timeout");
     crate::app::config::install_window_test_bootstrap(ready["port"].as_u64().unwrap() as u16);
     let install_source = ready["install_source"].as_str().unwrap().to_owned();
     let update_source = ready["update_source"].as_str().unwrap().to_owned();

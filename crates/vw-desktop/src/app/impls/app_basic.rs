@@ -1,7 +1,7 @@
 //! 实现 App 上的基础状态辅助方法。
 //! 本模块集中维护展开文件、焦点、提示和轻量 UI 状态，避免主结构体实现过度膨胀。
 
-use iced::{Color, Theme};
+use iced::Theme;
 use std::time::Duration;
 
 use super::state::ExternalOpenApp;
@@ -95,10 +95,7 @@ impl App {
     /// 模块内可见函数，执行 current_file_index 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn current_file_index(&self) -> &[String] {
-        self.navigation_tabs.project_path
-            .as_ref()
-            .and_then(|path| self.workspace_state.file_index_cache.get(path).map(Vec::as_slice))
-            .unwrap_or(&[])
+        self.workspace_state.current_file_index(self.navigation_tabs.project_path.as_deref())
     }
 
     /// 模块内可见函数，执行 current_file_tree_model 对应的应用流程。
@@ -112,18 +109,10 @@ impl App {
     /// 模块内可见函数，执行 refresh_search_panel_file_cache 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn refresh_search_panel_file_cache(&mut self) {
-        let query = Self::normalize_file_search_query(&self.search.search_text);
-        let project_path = self.navigation_tabs.project_path.clone();
-
-        let Some(results) = desktop_workspace::basic::refresh_search_panel_file_results(
-            self.current_file_index(), &query, project_path.as_deref(), self.workspace_state.file_index_revision,
-            &self.workspace_state.search_panel_file_cache_query, self.workspace_state.search_panel_file_cache_project_path.as_deref(), self.workspace_state.search_panel_file_cache_revision,
-        ) else { return; };
-
-        self.workspace_state.search_panel_file_cache_query = query;
-        self.workspace_state.search_panel_file_cache_project_path = project_path;
-        self.workspace_state.search_panel_file_cache_revision = self.workspace_state.file_index_revision;
-        self.workspace_state.search_panel_file_cache_results = results;
+        self.workspace_state.refresh_search_panel(
+            self.navigation_tabs.project_path.as_deref(),
+            Self::normalize_file_search_query(&self.search.search_text),
+        );
     }
 
     /// 模块内可见函数，执行 cached_search_panel_file_results 对应的应用流程。
@@ -151,10 +140,7 @@ impl App {
     /// 模块内可见函数，执行 set_file_index 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn set_file_index(&mut self, path: &str, files: Vec<String>) {
-        let tree = crate::app::components::file_tree::model::build_file_tree_model(path, &files);
-        self.workspace_state.file_index_cache.insert(path.to_string(), files);
-        self.workspace_state.file_tree_model_cache.insert(path.to_string(), tree);
-        self.workspace_state.file_index_revision = self.workspace_state.file_index_revision.wrapping_add(1);
+        self.workspace_state.set_file_index(path, files);
         self.refresh_search_panel_file_cache();
         self.refresh_file_search_cache();
     }
@@ -165,9 +151,7 @@ impl App {
         path: &str,
         snapshot: crate::app::message::project::helpers::FileTreeIndexSnapshot,
     ) {
-        self.workspace_state.file_index_cache.insert(path.to_string(), snapshot.files);
-        self.workspace_state.file_tree_model_cache.insert(path.to_string(), snapshot.tree);
-        self.workspace_state.file_index_revision = self.workspace_state.file_index_revision.wrapping_add(1);
+        self.workspace_state.set_file_tree(path, snapshot.files, snapshot.tree);
         if self.navigation_tabs.project_path.as_deref() == Some(path) {
             self.refresh_search_panel_file_cache();
             self.refresh_file_search_cache();
@@ -183,7 +167,10 @@ impl App {
     /// 模块内可见函数，执行 can_open_external 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn can_open_external(&self, target: ExternalOpenApp) -> bool {
-        self.external_navigation.open_external_exists.get(&target).copied().unwrap_or(false)
+        desktop_navigation::external_apps_update::can_open_external(
+            &self.external_navigation.open_external_exists,
+            target,
+        )
     }
 
     /// 公开函数，执行 push_notification 对应的应用流程。
@@ -206,7 +193,9 @@ impl App {
             crate::app::i18n::input::ErrorField::WorktreeDelete => {
                 &mut self.workspace_state.new_session_delete_error
             }
-            crate::app::i18n::input::ErrorField::WorktreeReset => &mut self.workspace_state.new_session_reset_error,
+            crate::app::i18n::input::ErrorField::WorktreeReset => {
+                &mut self.workspace_state.new_session_reset_error
+            }
         };
         *target = Some(feedback.fallback.clone());
         self.input_feedback.localized_input_errors.insert(field, feedback);
@@ -216,10 +205,11 @@ impl App {
         field: crate::app::i18n::input::ErrorField,
         raw: &str,
     ) -> String {
-        self.input_feedback.localized_input_errors
-            .get(&field)
-            .map(|feedback| feedback.render(crate::app::i18n::I18n::new(self.general_settings.desktop_locale), raw))
-            .unwrap_or_else(|| raw.to_owned())
+        self.input_feedback.render_error(
+            field,
+            crate::app::i18n::I18n::new(self.general_settings.desktop_locale),
+            raw,
+        )
     }
 
     pub fn push_localized_notification(
@@ -299,39 +289,27 @@ impl App {
     }
 
     pub fn theme_for_window(&self, window: iced::window::Id) -> Theme {
-        if self.task_pet_window_id == Some(window) {
-            let mut palette = self.appearance.app_theme.palette();
-            palette.background = Color::TRANSPARENT;
-            Theme::custom_with_fn("VibeWindow Pet", palette, |_| *self.appearance.app_theme.extended_palette())
-        } else {
-            self.theme()
-        }
+        desktop_navigation::window_lifecycle::theme_for_surface(
+            &self.appearance.app_theme,
+            self.task_pet_window_id == Some(window),
+        )
     }
 
     /// Clear the native Mini surface without making menus or form controls transparent.
     pub fn window_style(_: &Self, theme: &Theme) -> iced::theme::Style {
-        use iced::theme::Base;
-        let mut style = theme.base();
-        if theme.palette().background == Color::TRANSPARENT {
-            style.background_color = Color::TRANSPARENT;
-        }
-        style
+        desktop_navigation::window_lifecycle::window_style(theme)
     }
 
     /// 公开函数，执行 effective_editor_theme 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub fn effective_editor_theme(&self) -> Theme {
-        if self.appearance.editor_follow_system_theme {
-            self.appearance.app_theme.clone()
-        } else {
-            self.appearance.editor_theme.clone()
-        }
+        self.appearance.effective_editor_theme().clone()
     }
 
     /// 公开函数，执行 effective_editor_theme_ref 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub fn effective_editor_theme_ref(&self) -> &Theme {
-        if self.appearance.editor_follow_system_theme { &self.appearance.app_theme } else { &self.appearance.editor_theme }
+        self.appearance.effective_editor_theme()
     }
 }
 

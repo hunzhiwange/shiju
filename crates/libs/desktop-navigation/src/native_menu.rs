@@ -92,3 +92,29 @@ pub fn resolve_native_menu_action(
     }
     None
 }
+
+/// Strip local messages before installing the native menu.
+pub fn platform_snapshot(
+    snapshot: NativeMenuSnapshot,
+) -> desktop_platform::native_menu::NativeMenuSnapshot {
+    use desktop_platform::native_menu as platform;
+    fn entries(items: Vec<MenuEntry>) -> Vec<platform::MenuEntry> {
+        items
+            .into_iter()
+            .map(|item| match item {
+                MenuEntry::Separator => platform::MenuEntry::Separator,
+                MenuEntry::Item { action, label, shortcut, .. } => {
+                    platform::MenuEntry::Item { action, label, shortcut }
+                }
+            })
+            .collect()
+    }
+    let sections = menu_sections(&snapshot).map(|(title, items)| (title, entries(items)));
+    let (title, items) = help_section();
+    platform::NativeMenuSnapshot {
+        locale: snapshot.locale,
+        sections,
+        help: (title, entries(items)),
+        open_window_tabs: snapshot.open_window_tabs,
+    }
+}

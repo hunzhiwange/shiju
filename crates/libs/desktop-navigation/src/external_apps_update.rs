@@ -106,3 +106,7 @@ pub fn apply_external_apps_state(
 #[cfg(test)]
 #[path = "external_apps_update_tests.rs"]
 mod tests;
+
+pub fn can_open_external(exists: &HashMap<ExternalOpenApp, bool>, target: ExternalOpenApp) -> bool {
+    exists.get(&target).copied().unwrap_or(false)
+}

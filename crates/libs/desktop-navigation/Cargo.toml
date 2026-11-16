@@ -28,6 +28,7 @@ desktop-editor = { path = "../desktop-editor", version = "0.6.0" }
 desktop-web-install = { path = "../desktop-web-install", version = "0.6.0" }
 
 [dev-dependencies]
+desktop-session = { path = "../desktop-session", version = "0.6.0" }
 iced_runtime = "0.14"
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

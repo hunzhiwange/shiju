@@ -312,3 +312,9 @@ impl State {
         Self { active_toast: None, next_toast_id: 0 }
     }
 }
+
+/// Supplemental OS failures must not replace the user's current business feedback.
+pub fn show_supplemental_error(active: &mut Option<Toast>, next_id: &mut usize, error: String) -> Option<usize> {
+    if active.is_some() { return None; }
+    Some(show_toast(active, next_id, ToastKind::Error, error))
+}

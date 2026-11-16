@@ -86,3 +86,9 @@ impl State {
             .unwrap_or_else(|| self.app_theme.clone());
     }
 }
+
+impl State {
+    pub fn effective_editor_theme(&self) -> &Theme {
+        if self.editor_follow_system_theme { &self.app_theme } else { &self.editor_theme }
+    }
+}

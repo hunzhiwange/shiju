@@ -2,11 +2,12 @@
 
 // 环境变量与本地配置由锁和清理守卫保护，避免配对令牌泄漏到其它用例。
 use super::*;
-use crate::app::agent::config::Config;
-use crate::app::agent::config::SystemConfigStore;
-use crate::app::agent::config::schema::ConfigExt;
-use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
-use crate::app::agent::memory::NoneMemory;
+type AppState = gateway_types::AppState<(), (), ()>;
+use agent_config::runtime::Config;
+use agent_config::runtime::SystemConfigStore;
+use agent_config::runtime_schema::ConfigExt;
+use gateway_types::{GatewayRateLimiter, IdempotencyStore};
+use memory_types::memory::NoneMemory;
 use model_types::Provider;
 use axum::body::to_bytes;
 use axum::extract::{ConnectInfo, State};
@@ -17,7 +18,8 @@ use std::path::Path;
 use std::time::Duration;
 
 fn env_lock() -> std::sync::MutexGuard<'static, ()> {
-    crate::test_support::global_env_lock().lock().unwrap_or_else(|err| err.into_inner())
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    LOCK.lock().unwrap_or_else(|err| err.into_inner())
 }
 
 // 主目录守卫把配置持久化限制在临时目录，并在结束时恢复进程环境。
@@ -45,7 +47,7 @@ impl Drop for HomeEnvGuard {
 
 fn stored_config(home: &Path) -> Config {
     let payload = SystemConfigStore::new(
-        crate::global_database::GlobalDatabase::for_home(home).expect("database"),
+        agent_database::GlobalDatabase::for_home(home).expect("database"),
     )
     .expect("config store")
     .get(&vw_api_transport::TenantScope::default())
@@ -83,7 +85,7 @@ fn state_with(pairing: PairingGuard, rate_limit: u32, config: Config) -> AppStat
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(rate_limit, 100, 1_000)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1_000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
         multimodal: Default::default(),

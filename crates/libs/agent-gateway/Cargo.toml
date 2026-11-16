@@ -34,6 +34,9 @@ version = "0.6.0"
 version = "0.1"
 
 
+[features]
+test-support = []
+
 [lib]
 doctest = false
 
@@ -102,6 +105,12 @@ path = "../agent-hooks"
 version = "0.6.0"
 
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio-stream = { version = "0.1.18", features = ["sync"] }
+tower-http = { version = "0.6", features = ["cors"] }
+device-sync = { path = "../device-sync", version = "0.6.0" }
+tokio = { version = "1", features = ["net", "signal"] }
+
 [dependencies]
 agent-health = { path = "../agent-health", version = "0.6.0" }
 observer-prometheus = { path = "../observer-prometheus", version = "0.6.0" }
@@ -160,6 +169,7 @@ version = "0.1"
 version = "0.2"
 
 [dev-dependencies]
+agent-config = { path = "../agent-config", version = "0.6.0", features = ["test-support"] }
 axum = "0.8"
 tempfile = "3"
 tokio = { version = "1", features = ["full", "test-util"] }

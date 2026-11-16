@@ -2,13 +2,14 @@
 
 // 广播观察器还要在无接收者或消息滞后时继续转发底层观测事件。
 use super::*;
-use crate::app::agent::config::Config;
-use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
-use crate::app::agent::memory::NoneMemory;
-use crate::app::agent::observability::{Observer, ObserverEvent};
+type AppState = gateway_types::AppState<(), (), ()>;
+use agent_config::runtime::Config;
+use gateway_types::{GatewayRateLimiter, IdempotencyStore};
+use memory_types::memory::NoneMemory;
+use observer_types::{Observer, ObserverEvent};
 use model_types::Provider;
-use crate::app::agent::security::pairing::PairingGuard;
-use crate::observability::traits::ObserverMetric;
+use gateway_pairing::pairing::PairingGuard;
+use observer_types::ObserverMetric;
 use axum::body::to_bytes;
 use axum::http::header;
 use std::sync::Arc;
@@ -83,10 +84,10 @@ fn state_with_pairing(
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx,
         session_query_engines: Default::default(),

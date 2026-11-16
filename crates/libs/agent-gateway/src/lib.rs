@@ -1,4 +1,14 @@
 //! Gateway application services.
+#[cfg(all(not(target_arch = "wasm32"), any(test, feature = "test-support")))]
+pub mod pairing;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod client_address;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod router;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod runtime;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod sse;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod health;
 #[cfg(not(target_arch = "wasm32"))]

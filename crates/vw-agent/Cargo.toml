@@ -528,6 +528,7 @@ tool-computer = { path = "../libs/tool-computer", version = "0.6.0" }
 tool-office = { path = "../libs/tool-office", version = "0.6.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+agent-gateway = { path = "../libs/agent-gateway", version = "0.6.0", features = ["test-support"] }
 gateway-agent-apps = { path = "../libs/gateway-agent-apps", version = "0.6.0", features = ["test-support"] }
 gateway-project = { path = "../libs/gateway-project", version = "0.6.0", features = ["test-support"] }
 channel-wecom = { path = "../libs/channel-wecom", version = "0.6.0", features = ["test-support"] }

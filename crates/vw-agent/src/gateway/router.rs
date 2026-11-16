@@ -32,19 +32,18 @@
 //! 所有路由默认受基础认证中间件保护。CORS 策略采用白名单机制，
 //! 仅允许配置中的来源域进行跨域请求。
 
-use std::sync::Arc;
-
+// Host route composition; middleware policy belongs to agent-gateway.
 use axum::Router;
+#[cfg(target_os = "macos")]
 use axum::http::HeaderValue;
+#[cfg(target_os = "macos")]
 use axum::middleware;
 use tower_http::cors::AllowOrigin;
 use tower_http::cors::Any;
 use tower_http::cors::CorsLayer;
 
 use crate::app::agent::gateway::api::handlers;
-use crate::app::agent::gateway::middleware::basic_auth_middleware;
-use crate::app::agent::gateway::middleware::cors_origin_allowed;
-use crate::app::agent::gateway::middleware::tenant_scope_middleware;
+// Middleware imports are kept in the policy owner.
 
 /// 构建 HTTP 路由器实例
 ///
@@ -112,33 +111,9 @@ pub(super) fn management_auth_router() -> Router {
 }
 
 pub(super) fn build_router_with_auth(cors_whitelist: Vec<String>, auth: Router) -> Router {
-    // 将 CORS 白名单包装为 Arc，以便在 CORS 谓词闭包中安全共享
-    // 避免每次请求时克隆整个列表
-    let whitelist = Arc::new(cors_whitelist);
-
-    // 构建 CORS 中间件层
-    // - 使用谓词模式进行来源验证，支持动态判断
-    // - allow_methods(Any) 允许任意 HTTP 方法
-    // - allow_headers(Any) 允许任意请求头
-    let cors = CorsLayer::new()
-        .allow_origin(AllowOrigin::predicate(move |origin: &HeaderValue, _| {
-            cors_origin_allowed(origin, whitelist.as_ref())
-        }))
-        .allow_methods(Any)
-        .allow_headers(Any);
-
-    // 同时保留无版本前缀路由，并挂载客户端实际使用的 /v1 前缀路由。
-    // 中间件按从下到上的顺序应用（洋葱模型）。
-    Router::new()
-        // CORS（最外层）-> Basic 认证 -> 租户解析 -> 客户端业务路由。
-        .merge(handler_router().layer(middleware::from_fn(tenant_scope_middleware)))
-        .nest("/v1", handler_router().layer(middleware::from_fn(tenant_scope_middleware)))
-        .nest("/api", super::api::voice_router())
-        // Basic 认证在租户解析前执行；OPTIONS 由各中间件放行。
-        .layer(middleware::from_fn(basic_auth_middleware))
-        .merge(auth)
-        // CORS 中间件：处理跨域请求（最外层）
-        .layer(cors)
+    agent_gateway::router::build_router_with_auth(
+        cors_whitelist, auth, handler_router(), handler_router(), super::api::voice_router(),
+    )
 }
 
 #[cfg(target_os = "macos")]
@@ -248,5 +223,5 @@ pub(crate) fn handler_router() -> Router {
 }
 
 #[cfg(test)]
-#[path = "router_tests.rs"]
+#[path = "../../../libs/agent-gateway/src/router_tests.rs"]
 mod router_tests;

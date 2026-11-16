@@ -158,6 +158,7 @@ fn is_public_skey_auth_path(path: &str) -> bool {
 }
 
 #[cfg(test)]
+#[path = "../../../libs/agent-gateway/src/recovery_window_tests.rs"]
 mod recovery_window_tests;
 
 #[cfg(target_os = "macos")]

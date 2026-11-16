@@ -37,7 +37,7 @@ pub mod memory_loader;
 pub mod prompt;
 
 #[cfg(test)]
-#[path = "mod_tests.rs"]
+#[path = "../../../libs/agent-loop/src/tests/agent_facade_host.rs"]
 mod mod_tests;
 #[cfg(test)]
 mod tests;
@@ -68,16 +68,16 @@ const PROMPT_GENERATE: &str = include_str!("generate.txt");
 /// 探索提示词模板
 ///
 /// 用于 explore 代理执行代码库探索任务
-const PROMPT_EXPLORE: &str = include_str!("prompt/explore.txt");
+const PROMPT_EXPLORE: &str = agent_loop::prompt::PROMPT_EXPLORE;
 
 /// 研究角色提示词模板。
-const PROMPT_RESEARCHER: &str = include_str!("prompt/researcher.txt");
+const PROMPT_RESEARCHER: &str = agent_loop::prompt::PROMPT_RESEARCHER;
 
 /// 实现角色提示词模板。
-const PROMPT_CODER: &str = include_str!("prompt/coder.txt");
+const PROMPT_CODER: &str = agent_loop::prompt::PROMPT_CODER;
 
 /// 审查角色提示词模板。
-const PROMPT_REVIEWER: &str = include_str!("prompt/reviewer.txt");
+const PROMPT_REVIEWER: &str = agent_loop::prompt::PROMPT_REVIEWER;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Info {

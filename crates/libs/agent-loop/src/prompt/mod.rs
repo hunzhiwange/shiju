@@ -48,6 +48,15 @@
 
 pub mod multi_agent;
 
+/// 内置委托代理的角色提示词。
+pub const PROMPT_EXPLORE: &str = include_str!("explore.txt");
+pub const PROMPT_RESEARCHER: &str = include_str!("researcher.txt");
+pub const PROMPT_CODER: &str = include_str!("coder.txt");
+pub const PROMPT_REVIEWER: &str = include_str!("reviewer.txt");
+
+#[cfg(test)]
+mod mod_tests;
+
 use agent_config::schema::IdentityConfig;
 use agent_skills::types::Skill;
 use tool_types::Tool;

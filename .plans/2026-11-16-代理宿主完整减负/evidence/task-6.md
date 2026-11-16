@@ -2,7 +2,7 @@
 
 代码完成，编译/行为未验证；禁止运行 Cargo、构建、单元测试及实机测试，均未运行。未声称性能收益。按 do-task-plans 与 rustcodegraph 技能执行；索引早于当前批次，变更源码以直接读取为准。
 
-宿主本组 4093 → 1507 行，净减 2586（63.2%）；领域测试新增 2692 行，迁入 42 个测试。生产实现迁移 0 行；生产组合/转发保留，测试及夹具减少 2586 行（父模块减少部分为 cfg/test 注册）。原生产路由早已下沉，不能计为本轮成果。领域生产代码仅新增 cfg(test) 注册。具体逐文件行数见下。
+宿主本组 4093 → 1507 行，净减 2586（63.2%）；领域测试新增 2683 行，迁入 42 个测试。生产实现迁移 0 行；生产组合/转发保留，测试及夹具减少 2586 行（父模块减少部分为 cfg/test 注册）。原生产路由早已下沉，不能计为本轮成果。领域生产代码仅新增 cfg(test) 注册。具体逐文件行数见下。
 
 依赖方向：vw-agent → gateway-app-providers → app-provider-services/agent-database。新增依赖均为 dev-dependencies（SDK、真实共享 Basic/租户中间件及发布适配器）；无反向 vw-agent 依赖、无复制 App/AppState、无 path/include 加载宿主。Claude 通用写路由使用现有 gateway-app-routing ProviderPublication control(None)，原 Host 包装所注入的真实适配器；Codex 显式传入相同 control。record_router 组合真实 GET/PUT/POST、basic、duplicate；不重写算法。测试名称与断言保持，正式 handler_router 鉴权仍在宿主。
 

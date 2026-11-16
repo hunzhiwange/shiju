@@ -4,7 +4,7 @@ use super::{
     network_probe::{self, McpHandshakeStartError},
     network_probe_tests::{Fixture, TOKEN},
 };
-use crate::global_database::run_sync_database;
+use agent_database::run_sync_database;
 use axum::{
     Json, Router,
     http::{HeaderMap, HeaderValue},

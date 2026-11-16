@@ -121,6 +121,25 @@ impl McpCatalogStore {
         })
     }
 
+    /// Project roots come from the host's authorized project record.
+    pub fn runtime_servers_for_project_roots<'a>(
+        &self,
+        project: &ProjectScope,
+        workspace: &Path,
+        roots: impl IntoIterator<Item = &'a str>,
+        existing: &[McpServer],
+    ) -> anyhow::Result<Vec<McpServer>> {
+        let workspace = workspace.canonicalize()?;
+        let in_project = roots.into_iter().any(|root| {
+            Path::new(root).canonicalize()
+                .is_ok_and(|root| root.parent().is_some() && workspace.starts_with(root))
+        });
+        if !in_project {
+            return Ok(Vec::new());
+        }
+        self.runtime_servers(project, &workspace, existing)
+    }
+
     pub fn runtime_servers(
         &self,
         project: &ProjectScope,

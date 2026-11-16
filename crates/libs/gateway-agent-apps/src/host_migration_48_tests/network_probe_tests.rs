@@ -44,10 +44,8 @@ use super::{
     catalog_create_tests::{http_draft, with_database},
     network_probe::{McpHandshakeStartError, start_with_source},
 };
-use crate::{
-    gateway::agent_apps_diagnostic_jobs::{DiagnosticJobOwner, DiagnosticJobs},
-    global_database::{GlobalDatabase, run_sync_database},
-};
+use app_diagnostics_runtime::agent_apps_diagnostic_jobs::{DiagnosticJobOwner, DiagnosticJobs};
+use agent_database::{GlobalDatabase, run_sync_database};
 
 pub(super) const TOKEN: &str = "fixture-member-token-for-mcp-probe";
 const OTHER_TOKEN: &str = "fixture-other-token-for-mcp-probe";

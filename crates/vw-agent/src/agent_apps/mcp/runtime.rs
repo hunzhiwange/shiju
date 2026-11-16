@@ -18,16 +18,9 @@ pub(crate) fn selected_runtime_servers(
         let Some(info) = ProjectStore::new(database.clone())?.get(project)? else {
             return Ok(Vec::new());
         };
-        let in_project = std::iter::once(&info.worktree).chain(&info.sandboxes).any(|root| {
-            Path::new(root)
-                .canonicalize()
-                .is_ok_and(|root| root.parent().is_some() && workspace.starts_with(root))
-        });
-        if !in_project {
-            return Ok(Vec::new());
-        }
         McpCatalogStore::new(database)
             .map_err(catalog_error)?
-            .runtime_servers(project, &workspace, existing)
+            .runtime_servers_for_project_roots(project, &workspace,
+                std::iter::once(info.worktree.as_str()).chain(info.sandboxes.iter().map(String::as_str)), existing)
     })
 }

@@ -23,11 +23,9 @@ use super::{
     catalog_create_tests::{http_draft, with_database},
     probe_jobs::{McpProbeBatch, McpProbeTarget, start_connection_checks},
 };
-use crate::{
-    agent_apps::auth_accounts::AuthAccountStore,
-    gateway::agent_apps_diagnostic_jobs::{DiagnosticJobError, DiagnosticJobOwner, DiagnosticJobs},
-    global_database::{GlobalDatabase, run_sync_database},
-};
+use agent_app_services::auth_accounts::AuthAccountStore;
+use app_diagnostics_runtime::agent_apps_diagnostic_jobs::{DiagnosticJobError, DiagnosticJobOwner, DiagnosticJobs};
+use agent_database::{GlobalDatabase, run_sync_database};
 
 #[test]
 fn cc_mcp_t31_in_flight_connection_edit_discards_old_success() -> anyhow::Result<()> {

@@ -69,6 +69,8 @@ tower = { version = "0.5", features = ["util"] }
 tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "test-util"] }
 
 [target.'cfg(target_os = "macos")'.dev-dependencies]
+reqwest_012 = { package = "reqwest", version = "0.12", default-features = false, features = ["json", "rustls-tls-webpki-roots"] }
+rmcp = { version = "0.8.0", default-features = false, features = ["client"] }
 gateway-app-auth = { path = "../gateway-app-auth", version = "0.6.0" }
 agent-gateway = { path = "../agent-gateway", version = "0.6.0" }
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }

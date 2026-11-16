@@ -6,26 +6,6 @@ use desktop_release::{DesktopRelease, UpdateSource};
 
 #[test]
 fn desktop_integration_47_preserves_expected_behavior() {
-    assert_eq!(
-        DesktopUpdate::from_config(&serde_json::json!({})).source,
-        Some(UpdateSource::Shiju)
-    );
-    for source in [UpdateSource::Shiju, UpdateSource::Github] {
-        let state = DesktopUpdate::from_config(&super::desktop_update::source_patch(source));
-        assert_eq!(state.source, Some(source));
-        assert!(state.error.is_none());
-    }
-    for value in [
-        serde_json::json!("cc-switch"),
-        serde_json::json!("https://example.com/latest"),
-        serde_json::Value::Null,
-    ] {
-        let state = DesktopUpdate::from_config(&serde_json::json!({"app_update_source": value}));
-        assert!(state.source.is_none());
-        assert!(state.error.is_some());
-        assert!(!state.installable());
-    }
-
     let mut app = App::new().0;
     app.desktop_update = DesktopUpdate::from_config(&serde_json::json!({}));
     let _ = view::update(&mut app, ViewMessage::CheckAppUpdate);

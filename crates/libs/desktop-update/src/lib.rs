@@ -16,3 +16,6 @@ pub mod notifications;
 
 #[cfg(test)]
 mod desktop_split_03_tests;
+
+#[cfg(test)]
+mod desktop_split_01_tests;

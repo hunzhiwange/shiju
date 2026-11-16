@@ -13,4 +13,7 @@ pub mod update;
 pub mod save_feedback;
 
 #[cfg(test)]
+mod desktop_split_01_tests;
+
+#[cfg(test)]
 mod desktop_split_02_tests;

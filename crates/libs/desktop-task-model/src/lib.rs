@@ -4,3 +4,6 @@ pub mod workflow;
 pub mod agent_activity;
 pub use models::*;
 pub use workflow::*;
+
+#[cfg(test)]
+mod desktop_split_01_tests;

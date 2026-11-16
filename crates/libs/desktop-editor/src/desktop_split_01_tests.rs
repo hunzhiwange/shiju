@@ -1,0 +1,89 @@
+use crate::components::editor::Editor;
+use crate::preview::{PreviewTab, tab::safe_preview};
+use iced::widget::Id;
+use preview_content::PREVIEW_MAX_BYTES;
+use std::fs;
+use std::io::Write;
+fn write_temp_file(name: &str, bytes: &[u8]) -> tempfile::NamedTempFile {
+    let mut file = tempfile::Builder::new().prefix(name).tempfile().expect("create temp file");
+    file.write_all(bytes).expect("write temp file");
+    file.as_file().sync_all().expect("sync temp file");
+    file
+}
+
+#[test]
+fn safe_preview_reports_binary_files_instead_of_raw_bytes() {
+    let file = write_temp_file("preview_binary", &[0x50, 0x4B, 0x03, 0x04, 0x00, 0xFF, 0xAA, 0x00]);
+    let path = file.path().to_string_lossy().to_string();
+
+    let (content, truncated) = safe_preview(&path);
+
+    assert!(!truncated);
+    assert!(content.contains("二进制文件"));
+    assert!(content.contains("不支持文本预览"));
+}
+
+#[test]
+fn safe_preview_classifies_images_archives_and_pdf_without_reading_them() {
+    assert_eq!(
+        safe_preview("assets/photo.PNG"),
+        ("文件: photo.PNG\n类型: 图片\n".to_string(), false)
+    );
+    assert_eq!(
+        safe_preview("assets/icon.svg"),
+        ("文件: icon.svg\n类型: 图片\n".to_string(), false)
+    );
+    assert_eq!(
+        safe_preview("archives/source.tar"),
+        ("文件: source.tar\n类型: 压缩包\n不支持文本预览\n".to_string(), false)
+    );
+    assert_eq!(
+        safe_preview("manual.pdf"),
+        ("文件: manual.pdf\n类型: PDF\n不支持文本预览\n".to_string(), false)
+    );
+}
+
+#[test]
+fn safe_preview_missing_plain_text_path_returns_empty_untruncated_content() {
+    assert_eq!(safe_preview("missing.txt"), (String::new(), false));
+}
+
+#[test]
+fn safe_preview_formats_text_and_reports_large_files() {
+    let temp = tempfile::tempdir().expect("create temp directory");
+    let text_path = temp.path().join("notes.txt");
+    let large_path = temp.path().join("large.txt");
+    fs::write(&text_path, b"hello\x1b[31m world\x1b[0m\x00").expect("write text preview");
+    fs::write(&large_path, vec![b'x'; PREVIEW_MAX_BYTES + 1]).expect("write large preview");
+
+    assert_eq!(safe_preview(&text_path.to_string_lossy()), ("hello world\n".to_string(), false));
+    let (large_content, large_truncated) = safe_preview(&large_path.to_string_lossy());
+    assert!(large_truncated);
+    assert_eq!(large_content.bytes().filter(|byte| *byte == b'x').count(), PREVIEW_MAX_BYTES);
+}
+
+#[test]
+fn preview_tab_debug_omits_content_and_editor_state() {
+    let tab = PreviewTab {
+        path: "/tmp/example.rs".to_string(),
+        title: "example.rs".to_string(),
+        content: "secret content".to_string(),
+        is_dirty: true,
+        truncated: true,
+        read_only: false,
+        auto_save_revision: 7,
+        editor: Editor::new("secret editor content", "rust"),
+        scroll_id: Id::unique(),
+        #[cfg(not(target_arch = "wasm32"))]
+        lsp_server_key: Some("rust"),
+        #[cfg(not(target_arch = "wasm32"))]
+        lsp_uri: Some("file:///tmp/example.rs".to_string()),
+        #[cfg(not(target_arch = "wasm32"))]
+        lsp_language_id: Some("rust".to_string()),
+    };
+
+    let debug = format!("{tab:?}");
+
+    assert_eq!(debug, "PreviewTab { path: \"/tmp/example.rs\", title: \"example.rs\" }");
+    assert!(!debug.contains("secret"));
+}

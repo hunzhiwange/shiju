@@ -9,3 +9,6 @@ pub mod preview;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod status_bar;
+
+#[cfg(test)]
+mod desktop_split_01_tests;

@@ -39,3 +39,6 @@ pub mod config_system_settings;
 pub mod config_file_manager;
 
 pub mod config_gateway;
+
+#[cfg(test)]
+mod desktop_split_01_tests;

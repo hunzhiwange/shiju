@@ -6884,6 +6884,7 @@ dependencies = [
  "gateway-interaction",
  "gateway-mcp",
  "iced",
+ "iced_runtime",
  "serde",
  "serde_json",
  "tempfile",

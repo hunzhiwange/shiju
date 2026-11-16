@@ -96,7 +96,3 @@ pub async fn preview_cron_schedule_async(
 ) -> Result<gateway_cron::CronPreviewResponse, String> {
     desktop_config::config_cron_jobs::preview_cron_schedule_async(super::gateway::gateway_client(), rule).await
 }
-
-#[cfg(test)]
-#[path = "config_cron_jobs_tests.rs"]
-mod tests;

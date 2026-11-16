@@ -41,3 +41,12 @@ pub mod command_history_contracts;
 
 #[cfg(feature = "test-support")]
 pub mod command_catalog_contracts;
+
+#[cfg(feature = "test-support")]
+pub mod session_contracts;
+
+#[cfg(any(test, feature = "test-support"))]
+pub mod dispatch_test_support;
+
+#[cfg(feature = "test-support")]
+pub mod dispatch_contracts;

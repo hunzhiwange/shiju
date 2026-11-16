@@ -69,3 +69,7 @@ pub async fn run_message_dispatch_loop(
         log_worker_join_result(result);
     }
 }
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "../host_migration_43_tests/dispatch_policy.rs"]
+mod host_migration_43_tests;

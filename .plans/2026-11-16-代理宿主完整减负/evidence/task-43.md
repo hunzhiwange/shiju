@@ -408,3 +408,72 @@ channel-runtime 新增生产 chrono-tz 声明（原 dev 已有，锁文件依赖
 - 未来 `python3 scripts/cargo_slot.py cargo test -p channel-runtime --lib host_migration_43_tests -- --test-threads=1`：静态预期 27 个，未运行。
 
 - 未来宿主精确过滤 `channels::session::session_tests::channel_project_scope_processor_uses_captured_directory`，必须非零；其余真实处理器/事务场景按上述完整原名过滤。
+
+## 第三轮：真实宿主测试的领域契约化（覆盖前述整文件保留结论）
+
+再次读取最新 remaining-host.json 的任务43残留及原文件、现有 command_history_contracts / command_catalog_contracts。沿用库内已有 test-support 契约模式，没有引入生产 Host trait 或模拟处理器。
+
+session_tests.rs：原七个完整行为函数的夹具、请求构建和断言迁至 channel-runtime/src/session_contracts.rs。宿主保留七个同名 tokio 测试入口，负责真实进程隔离及注入原 processor / 原 RuntimeHost；registered_context 与 channel_message 保留原公开路径的重导出，宿主命令、项目及调度测试继续复用。Request 使用原类型别名对应的 runner_types::Request<agent_approval::ApprovalManager, agent_skills::session_sources::SessionSkillSources>，没有克隆业务请求模型。
+
+真实端口：session_id/get_session 来自原 RuntimeHost，仍调用原宿主 resolve_or_create_sender_session_id / session::get_any；captured_directory 调用原 channel-runtime::manager::message_execution::run_message_execution 并注入同一静态 RuntimeHost；文档输出/失败通过 Processor 函数指针回到原 run_session_processor_for_channel。后者只为测试契约定义，未新增生产回调路径。会话/存储及项目生命周期未被模拟。
+
+调度 RecordingChannel/StaticProvider/context/message 完整夹具迁至 dispatch_test_support.rs，原子计数、阻塞发送和反馈释放保持不变。原 native dispatch 六个完整场景的断言迁至 dispatch_contracts.rs；宿主保留同名薄入口注入真实 RuntimeHost。取消流测试依赖原 dispatch_tests 的夹具公开路径仍有效。两条纯策略用例 compute_max_in_flight_messages_clamps_to_configured_bounds / log_worker_join_result_ignores_success_and_records_join_errors 在 manager::dispatch 下以 host_migration_43_tests 自注册，使用同一私有常量，原宿主定义删除。
+
+lib.rs：session_contracts/dispatch_contracts 只在现有 test-support feature 编入；dispatch_test_support 在 test 或 test-support 编入。当前 vw-agent dev-dependency 已启用 channel-runtime/test-support，未修改其清单。test-support 新增 dep:tempfile（原已有 dev 依赖/锁文件边），只服务现有真实临时目录夹具。普通产品构建不启用这些契约。
+
+### 本轮完整原用例映射
+
+- `channels::session::session_tests::run_session_processor_for_channel_accumulates_and_forwards_docs_output` → `channel_runtime::session_contracts::run_session_processor_for_channel_accumulates_and_forwards_docs_output`；宿主同名 tokio 入口保留并直接调用；全部断言归领域契约，仍需原生宿主执行。
+
+- `channels::session::session_tests::run_session_processor_for_channel_propagates_docs_error` → `channel_runtime::session_contracts::run_session_processor_for_channel_propagates_docs_error`；宿主同名 tokio 入口保留并直接调用；全部断言归领域契约，仍需原生宿主执行。
+
+- `channels::session::session_tests::channel_project_scope_sessions_follow_snapshot_and_isolate_rooms` → `channel_runtime::session_contracts::channel_project_scope_sessions_follow_snapshot_and_isolate_rooms`；宿主同名 tokio 入口保留并直接调用；全部断言归领域契约，仍需原生宿主执行。
+
+- `channels::session::session_tests::channel_project_scope_unavailable_directory_does_not_cache_fake_session` → `channel_runtime::session_contracts::channel_project_scope_unavailable_directory_does_not_cache_fake_session`；宿主同名 tokio 入口保留并直接调用；全部断言归领域契约，仍需原生宿主执行。
+
+- `channels::session::session_tests::channel_project_scope_processor_uses_captured_directory` → `channel_runtime::session_contracts::channel_project_scope_processor_uses_captured_directory`；宿主同名 tokio 入口保留并直接调用；全部断言归领域契约，仍需原生宿主执行。
+
+- `channels::session::session_tests::channel_project_scope_memory_reads_only_matching_scope` → `channel_runtime::session_contracts::channel_project_scope_memory_reads_only_matching_scope`；宿主同名 tokio 入口保留并直接调用；全部断言归领域契约，仍需原生宿主执行。
+
+- `channels::session::session_tests::channel_project_scope_snapshot_rejects_different_sender` → `channel_runtime::session_contracts::channel_project_scope_snapshot_rejects_different_sender`；宿主同名 tokio 入口保留并直接调用；全部断言归领域契约，仍需原生宿主执行。
+
+- `channels::dispatch_tests::run_message_dispatch_loop_processes_runtime_commands_until_input_closes` → `channel_runtime::dispatch_contracts::run_message_dispatch_loop_processes_runtime_commands_until_input_closes`；宿主同名 tokio 入口保留并直接调用；全部断言归领域契约，仍需原生宿主执行。
+
+- `channels::dispatch_tests::run_message_dispatch_loop_limits_in_flight_workers` → `channel_runtime::dispatch_contracts::run_message_dispatch_loop_limits_in_flight_workers`；宿主同名 tokio 入口保留并直接调用；全部断言归领域契约，仍需原生宿主执行。
+
+- `channels::dispatch_tests::run_message_dispatch_loop_skips_interrupt_for_non_telegram_channel` → `channel_runtime::dispatch_contracts::run_message_dispatch_loop_skips_interrupt_for_non_telegram_channel`；宿主同名 tokio 入口保留并直接调用；全部断言归领域契约，仍需原生宿主执行。
+
+- `channels::dispatch_tests::run_message_dispatch_loop_keeps_distinct_telegram_senders_independent` → `channel_runtime::dispatch_contracts::run_message_dispatch_loop_keeps_distinct_telegram_senders_independent`；宿主同名 tokio 入口保留并直接调用；全部断言归领域契约，仍需原生宿主执行。
+
+- `channels::dispatch_tests::run_message_dispatch_loop_stops_when_semaphore_closed_before_receive` → `channel_runtime::dispatch_contracts::run_message_dispatch_loop_stops_when_semaphore_closed_before_receive`；宿主同名 tokio 入口保留并直接调用；全部断言归领域契约，仍需原生宿主执行。
+
+- `channels::dispatch_tests::run_message_dispatch_loop_does_not_interrupt_model_queries` → `channel_runtime::dispatch_contracts::run_message_dispatch_loop_does_not_interrupt_model_queries`；宿主同名 tokio 入口保留并直接调用；全部断言归领域契约，仍需原生宿主执行。
+
+### 当前物理行数及保留边界
+
+- 宿主 `session_tests.rs`：70 行。
+
+- 宿主 `dispatch_tests.rs`：31 行。
+
+- 宿主 `dispatch_cancel_tests.rs`：358 行。
+
+- 宿主 `session.rs`：195 行。
+
+- 宿主 `session_turn.rs`：61 行。
+
+- 宿主 `scope.rs`：27 行。
+
+- 宿主 `mod.rs`：334 行。
+
+任务原26路径 splitlines：2763 → 830，净减 1933（70.0%）；物理归还的 dispatch_tests / dispatch_cancel_tests 属额外跨挂载范围，未混入此分母。
+
+生产：本轮仅增加 cfg(test) 的原 RuntimeHost 访问入口，生产算法未变，不把迁测试计作生产下沉。仍保留 session.rs 的实际 processor 启动、租户/项目/测试数据库继承和请求工件身份；session_turn.rs 的实际持久化/标题端口；scope.rs 的当前租户注入；mod.rs 的实际工厂/平台/特性挂载；dispatch_cancel_tests 的真实 processor ChannelCancelStream 注册、取消与退出信号/子进程安全隔离。没有把这些真实端口复制进库或用 mock 取代。
+
+### 静态检查及未来命令
+
+已逐条比对宿主包装函数 → 领域契约 → 原 RuntimeHost/processor 的调用链，核对 Request/StreamEvent 和 LlmExecutionResult 的真实公开归属。注册、feature 与 Cargo.toml 依赖边静态核对完成；所有 Cargo、构建和测试均未运行。没有执行测试或声称通过。
+
+- 未来 `python3 scripts/cargo_slot.py cargo test -p channel-runtime --lib host_migration_43_tests -- --test-threads=1`：本轮新增2条 dispatch 策略测试；原有27条加本轮2条，静态预期29个。
+- 未来 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib channels::session::session_tests -- --test-threads=1`：静态预期7条；必须实际非零且 failed=0。
+- 未来 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib channels::dispatch_tests -- --test-threads=1`：静态预期6条；两条纯策略原完整名称应从宿主 list 消失。
+- domain contracts 不是独立 #[test] 注册，不伪称为库单测通过；它们由上述真实宿主测试驱动。compiled ownership 需未来编译验证，库普通默认功能不会编入契约。

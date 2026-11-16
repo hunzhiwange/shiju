@@ -46,3 +46,6 @@ mod tests;
 
 mod runtime_host;
 pub(crate) fn command_host() -> &'static dyn channel_runtime::command_host::CommandHost { crate::provider::provider::ensure_host(); &runtime_host::HOST }
+
+#[cfg(test)]
+pub(crate) fn contract_host() -> &'static dyn channel_runtime::host::ChannelHost { &runtime_host::HOST }

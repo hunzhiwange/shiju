@@ -339,4 +339,3 @@ async fn prune_stops_at_previously_compacted_tool() {
 
     cleanup_session(&session_id).await;
 }
-

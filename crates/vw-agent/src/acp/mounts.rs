@@ -41,32 +41,11 @@ impl SessionSkillSources {
     }
     pub(crate) fn extend(
         &self,
-        mut skills: Vec<Skill>,
+        skills: Vec<Skill>,
         config: &Config,
         full: bool,
     ) -> Result<Vec<Skill>> {
-        self.validate()?;
-        if let Some(view) = &self.view {
-            for mount in self.mounts.iter() {
-                let skill = crate::skills::load_skill_directory(
-                    &view.root().join(&mount.name),
-                    if full { SkillLoadMode::Full } else { SkillLoadMode::MetadataOnly },
-                    &config.skills.security,
-                    true,
-                )?
-                .ok_or_else(|| anyhow::anyhow!("session skill disabled or unavailable"))?;
-                ensure!(
-                    !skills.iter().any(|local| local
-                        .invocation_name()
-                        .eq_ignore_ascii_case(&skill.invocation_name())),
-                    "session skill conflicts with local source: {}",
-                    skill.invocation_name()
-                );
-                skills.push(skill);
-            }
-        }
-        self.validate()?;
-        Ok(skills)
+        agent_skills::catalog::extend_session_skills(self, skills, &config.skills.security, full)
     }
     pub(crate) fn allows_read(&self, path: &Path) -> bool {
         self.validate().is_ok()
@@ -83,6 +62,20 @@ impl SessionSkillSources {
         self.view.as_ref().map(|view| view.fingerprint())
     }
     pub(crate) fn mounts(&self) -> &[SessionSkillMount] {
+        &self.mounts
+    }
+}
+
+impl agent_skills::catalog::SessionSkillInventory for SessionSkillSources {
+    fn validate(&self) -> Result<()> {
+        SessionSkillSources::validate(self)
+    }
+
+    fn view(&self) -> Option<&SessionSkillView> {
+        self.view.as_deref()
+    }
+
+    fn mounts(&self) -> &[SessionSkillMount] {
         &self.mounts
     }
 }

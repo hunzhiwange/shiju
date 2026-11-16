@@ -117,3 +117,58 @@ fn load_with_provider(
 pub fn skills_dir(workspace: &Path) -> PathBuf {
     workspace.join("skills")
 }
+
+/// Borrow the existing host-owned mount lease and validate its live revocation state.
+/// Ownership and revocation remain with the inbound session.
+pub trait SessionSkillInventory {
+    fn validate(&self) -> anyhow::Result<()>;
+    fn view(&self) -> Option<&crate::session_mounts::SessionSkillView>;
+    fn mounts(&self) -> &[acp_types::SessionSkillMount];
+}
+
+/// Load mounted skills with validation on both sides of the directory reads.
+pub fn extend_session_skills(
+    sources: &impl SessionSkillInventory,
+    mut skills: Vec<Skill>,
+    security: &SkillSecurityConfig,
+    full: bool,
+) -> anyhow::Result<Vec<Skill>> {
+    sources.validate()?;
+    if let Some(view) = sources.view() {
+        for mount in sources.mounts() {
+            let skill = loader::load_skill_directory(
+                &view.root().join(&mount.name),
+                if full { SkillLoadMode::Full } else { SkillLoadMode::MetadataOnly },
+                security,
+                true,
+            )?
+            .ok_or_else(|| anyhow::anyhow!("session skill disabled or unavailable"))?;
+            anyhow::ensure!(
+                !skills.iter().any(|local| local
+                    .invocation_name()
+                    .eq_ignore_ascii_case(&skill.invocation_name())),
+                "session skill conflicts with local source: {}",
+                skill.invocation_name()
+            );
+            skills.push(skill);
+        }
+    }
+    sources.validate()?;
+    Ok(skills)
+}
+
+/// Compose the catalog before validating and extending the inbound mount lease.
+pub fn load_session_skills(
+    workspace: &Path,
+    config: &SkillsConfig,
+    sources: &impl SessionSkillInventory,
+    full: bool,
+    plugin_skills: impl FnOnce(SkillLoadMode) -> Vec<Skill>,
+) -> anyhow::Result<Vec<Skill>> {
+    extend_session_skills(
+        sources,
+        load_skills_with_config(workspace, config, full, plugin_skills),
+        &config.security,
+        full,
+    )
+}

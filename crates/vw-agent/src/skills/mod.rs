@@ -209,13 +209,11 @@ pub(crate) fn load_session_skills(
     sources: &crate::acp::mounts::SessionSkillSources,
     full: bool,
 ) -> anyhow::Result<Vec<Skill>> {
-    sources.extend(
-        if full {
-            load_skills_full_with_config(workspace, config)
-        } else {
-            load_skills_with_config(workspace, config)
-        },
-        config,
+    agent_skills::catalog::load_session_skills(
+        workspace,
+        &config.skills,
+        sources,
         full,
+        |mode| crate::plugins::load_plugin_skills(workspace, config, mode),
     )
 }

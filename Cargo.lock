@@ -8006,6 +8006,7 @@ dependencies = [
  "gateway-voice",
  "iced",
  "iced_runtime",
+ "image 0.25.9",
  "rand 0.10.3",
  "serde_json",
  "tempfile",

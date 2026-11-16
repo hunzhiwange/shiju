@@ -279,3 +279,76 @@ pub fn check_start(state: &mut State, chat: bool) -> StartCheck {
     } else if state.chat_active() { return StartCheck::Info("请先结束语音聊天再开始听写。"); }
     StartCheck::Ready
 }
+
+#[derive(Clone)]
+pub enum Event {
+    Local(super::voice_local_chat::Event),
+    Screen(super::voice_screen::ScreenEvent),
+    Onboarding(crate::components::voice_onboarding::OnboardingEvent),
+    Recordings(super::voice_recordings::Event),
+    Transcribed(u64, Result<(String, Vec<u8>), String>),
+    ChatStart,
+    ChatMute,
+    ChatInterrupt,
+    ChatEnd,
+    ChatTick,
+    HotkeyTick,
+    Start,
+    Finish,
+    Cancel,
+    Apply,
+    Started(u64, Result<dictation::Prepared, String>),
+    Completed(u64, Result<String, String>),
+    Tick(u64),
+}
+// Do not log transcripts, endpoint credentials or capture payloads through Message::Debug.
+impl std::fmt::Debug for Event {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Local(..) => "VoiceLocalChat",
+            Self::Screen(..) => "VoiceScreen",
+            Self::Onboarding(..) => "VoiceOnboarding",
+            Self::Recordings(..) => "VoiceRecordings",
+            Self::Transcribed(..) => "VoiceTranscribed",
+            Self::ChatStart => "VoiceChatStart",
+            Self::ChatMute => "VoiceChatMute",
+            Self::ChatInterrupt => "VoiceChatInterrupt",
+            Self::ChatEnd => "VoiceChatEnd",
+            Self::ChatTick => "VoiceChatTick",
+            Self::HotkeyTick => "VoiceHotkeyTick",
+            Self::Start => "VoiceStart",
+            Self::Finish => "VoiceFinish",
+            Self::Cancel => "VoiceCancel",
+            Self::Apply => "VoiceApply",
+            Self::Started(..) => "VoiceStarted",
+            Self::Completed(..) => "VoiceCompleted",
+            Self::Tick(..) => "VoiceTick",
+        })
+    }
+}
+
+/// Insert into the caller-selected editor; session selection remains a host boundary.
+pub fn paste(editor: &mut text_editor::Content, cursor: Option<text_editor::Cursor>, text: String) {
+    if let Some(cursor) = cursor {
+        editor.move_to(cursor);
+    }
+    editor.perform(text_editor::Action::Edit(text_editor::Edit::Paste(std::sync::Arc::new(text))));
+}
+pub fn clear_pending(state: &mut State) {
+    state.settings.preview.take();
+    state.insertion.pending = None;
+    state.hotkeys.machine.reset();
+    state.recordings.stop();
+}
+pub fn fail(state: &mut State) {
+    stop(state);
+    state.draft.phase = super::voice_draft::Phase::Error;
+}
+pub fn cloud_error(state: &mut State) -> Option<String> {
+    if state.conversation_error_reported {
+        return None;
+    }
+    let error = state.conversation.as_ref()?.snapshot().error?;
+    state.conversation_error_reported = true;
+    Some(error)
+}

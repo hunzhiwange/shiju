@@ -1,12 +1,15 @@
 //! Dictation and conversation routing. Local audio stays on the client; screen sharing is explicit.
 use super::voice_draft::{Composer, Phase, Scope};
 use crate::app::{App, Message};
-use iced::{Task, widget::text_editor};
+#[cfg(test)]
+use gateway_endpoint::GatewayEndpoint;
+use iced::Task;
+#[cfg(test)]
+use iced::widget::text_editor;
+#[cfg(test)]
 use std::sync::Arc;
 #[cfg(test)]
 use std::sync::Mutex;
-#[cfg(test)]
-use gateway_endpoint::GatewayEndpoint;
 
 #[path = "voice_screen.rs"]
 mod screen;
@@ -19,54 +22,9 @@ pub(super) mod dictation;
 pub(crate) mod local_chat;
 
 pub use desktop_voice_ui::message::voice::State;
-use desktop_voice_ui::message::voice::{stop};
+
 pub use desktop_voice_ui::components::voice_onboarding::OnboardingEvent;
-#[derive(Clone)]
-pub enum Event {
-    Local(local_chat::Event),
-    Screen(ScreenEvent),
-    Onboarding(OnboardingEvent),
-    Recordings(super::voice_recordings::Event),
-    Transcribed(u64, Result<(String, Vec<u8>), String>),
-    ChatStart,
-    ChatMute,
-    ChatInterrupt,
-    ChatEnd,
-    ChatTick,
-    HotkeyTick,
-    Start,
-    Finish,
-    Cancel,
-    Apply,
-    Started(u64, Result<dictation::Prepared, String>),
-    Completed(u64, Result<String, String>),
-    Tick(u64),
-}
-// Do not log transcripts, endpoint credentials or capture payloads through Message::Debug.
-impl std::fmt::Debug for Event {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::Local(..) => "VoiceLocalChat",
-            Self::Screen(..) => "VoiceScreen",
-            Self::Onboarding(..) => "VoiceOnboarding",
-            Self::Recordings(..) => "VoiceRecordings",
-            Self::Transcribed(..) => "VoiceTranscribed",
-            Self::ChatStart => "VoiceChatStart",
-            Self::ChatMute => "VoiceChatMute",
-            Self::ChatInterrupt => "VoiceChatInterrupt",
-            Self::ChatEnd => "VoiceChatEnd",
-            Self::ChatTick => "VoiceChatTick",
-            Self::HotkeyTick => "VoiceHotkeyTick",
-            Self::Start => "VoiceStart",
-            Self::Finish => "VoiceFinish",
-            Self::Cancel => "VoiceCancel",
-            Self::Apply => "VoiceApply",
-            Self::Started(..) => "VoiceStarted",
-            Self::Completed(..) => "VoiceCompleted",
-            Self::Tick(..) => "VoiceTick",
-        })
-    }
-}
+pub use desktop_voice_ui::message::voice::Event;
 pub(super) fn scope(app: &App) -> Option<Scope> {
     let endpoint = crate::app::gateway_client_endpoint();
     Some(Scope {
@@ -84,10 +42,7 @@ pub(crate) fn end_conversation(app: &mut App) {
     desktop_voice_ui::message::voice::end_cloud(&mut app.voice);
 }
 pub(crate) fn cancel(app: &mut App) {
-    app.voice.settings.preview.take();
-    app.voice.insertion.pending = None;
-    app.voice.hotkeys.machine.reset();
-    app.voice.recordings.stop();
+    desktop_voice_ui::message::voice::clear_pending(&mut app.voice);
     end_conversation(app);
     desktop_voice_ui::message::voice::cancel_dictation(&mut app.voice);
 }
@@ -98,8 +53,12 @@ pub(crate) fn invalidate(app: &mut App) {
     super::voice_recordings::invalidate(app);
     let current = scope(app);
     let endpoint = crate::app::gateway_client_endpoint();
-    if desktop_voice_ui::message::voice::conversation_changed(&app.voice, &current, &endpoint) { end_conversation(app); }
-    if app.voice.draft.scope.is_none() { return; }
+    if desktop_voice_ui::message::voice::conversation_changed(&app.voice, &current, &endpoint) {
+        end_conversation(app);
+    }
+    if app.voice.draft.scope.is_none() {
+        return;
+    }
     if desktop_voice_ui::message::voice::draft_changed(&app.voice, &current, &endpoint) {
         cancel(app);
     } else if app.voice.draft.scope.is_some() {
@@ -111,31 +70,38 @@ pub(crate) fn invalidate(app: &mut App) {
     }
 }
 fn fail(app: &mut App, message: String) -> Task<Message> {
-    stop(&mut app.voice);
-    app.voice.draft.phase = Phase::Error;
+    desktop_voice_ui::message::voice::fail(&mut app.voice);
     app.show_toast(crate::app::state::ToastKind::Error, message)
 }
 fn capture_message(event: desktop_voice_ui::message::voice::CaptureEvent) -> Message {
     use desktop_voice_ui::message::voice::CaptureEvent;
     Message::Voice(match event {
-        CaptureEvent::Started(g, r) => Event::Started(g, r), CaptureEvent::Tick(g) => Event::Tick(g), CaptureEvent::Transcribed(g, r) => Event::Transcribed(g, r),
+        CaptureEvent::Started(g, r) => Event::Started(g, r),
+        CaptureEvent::Tick(g) => Event::Tick(g),
+        CaptureEvent::Transcribed(g, r) => Event::Transcribed(g, r),
     })
 }
-fn capture_step(app: &mut App, step: desktop_voice_ui::message::voice::CaptureStep) -> Task<Message> {
+fn capture_step(
+    app: &mut App,
+    step: desktop_voice_ui::message::voice::CaptureStep,
+) -> Task<Message> {
     use desktop_voice_ui::message::voice::CaptureStep;
     match step {
-        CaptureStep::Idle => Task::none(), CaptureStep::Task(task) => task.map(capture_message),
-        CaptureStep::Finish => update(app, Event::Finish), CaptureStep::Error(error) => fail(app, error),
+        CaptureStep::Idle => Task::none(),
+        CaptureStep::Task(task) => task.map(capture_message),
+        CaptureStep::Finish => update(app, Event::Finish),
+        CaptureStep::Error(error) => fail(app, error),
         CaptureStep::Completed(g, r) => update(app, Event::Completed(g, r)),
     }
 }
 pub(super) fn paste(app: &mut App, text: String, restore_cursor: bool) {
     let cursor = app.voice.cursor;
     let editor = &mut app.current_session_runtime_mut().input_editor;
-    if restore_cursor && let Some(cursor) = cursor {
-        editor.move_to(cursor);
-    }
-    editor.perform(text_editor::Action::Edit(text_editor::Edit::Paste(Arc::new(text))));
+    desktop_voice_ui::message::voice::paste(
+        editor,
+        if restore_cursor { cursor } else { None },
+        text,
+    );
     if app.active_session_id.is_none() {
         app.input_editor = app.current_session_runtime_mut().input_editor.clone();
     }
@@ -143,7 +109,8 @@ pub(super) fn paste(app: &mut App, text: String, restore_cursor: bool) {
 fn check_start(app: &mut App, chat: bool) -> Option<Task<Message>> {
     use desktop_voice_ui::message::voice::StartCheck;
     match desktop_voice_ui::message::voice::check_start(&mut app.voice, chat) {
-        StartCheck::Ready => None, StartCheck::Idle => Some(Task::none()),
+        StartCheck::Ready => None,
+        StartCheck::Idle => Some(Task::none()),
         StartCheck::Error(error) => Some(app.show_error_toast(error)),
         StartCheck::Info(info) => Some(app.show_toast(crate::app::state::ToastKind::Info, info)),
     }
@@ -153,17 +120,26 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     match event {
         Event::Local(event) => local_chat::update(app, event),
         Event::Screen(event) => screen::update(app, event),
-        Event::Onboarding(event) => match desktop_voice_ui::message::voice::onboarding(&mut app.voice, event) {
-            Ok(Some(text)) => iced::clipboard::write(text), Ok(None) => Task::none(), Err(error) => app.show_error_toast(error),
-        },
+        Event::Onboarding(event) => {
+            match desktop_voice_ui::message::voice::onboarding(&mut app.voice, event) {
+                Ok(Some(text)) => iced::clipboard::write(text),
+                Ok(None) => Task::none(),
+                Err(error) => app.show_error_toast(error),
+            }
+        }
         Event::HotkeyTick => super::voice_hotkeys::tick(app),
         Event::Recordings(event) => super::voice_recordings::update(app, event),
         Event::Transcribed(generation, result) => {
-            let step = desktop_voice_ui::message::voice::capture_event(&mut app.voice, desktop_voice_ui::message::voice::CaptureEvent::Transcribed(generation, result));
+            let step = desktop_voice_ui::message::voice::capture_event(
+                &mut app.voice,
+                desktop_voice_ui::message::voice::CaptureEvent::Transcribed(generation, result),
+            );
             capture_step(app, step)
         }
         Event::ChatStart => {
-            if let Some(task) = check_start(app, true) { return task; }
+            if let Some(task) = check_start(app, true) {
+                return task;
+            }
             let preferences = match crate::app::voice::preferences::load() {
                 Ok(p) => p,
                 Err(error) => return app.show_error_toast(error),
@@ -178,8 +154,14 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             if scope.session_id().is_none() {
                 return fail(app, "云端语音聊天需要已建立的聊天会话。".into());
             }
-            match desktop_voice_ui::message::voice::start_cloud(&mut app.voice, scope, endpoint, || crate::app::voice::preferences::load().map(|p| p.microphone)) {
-                Ok(()) => Task::none(), Err(error) => app.show_toast(crate::app::state::ToastKind::Error, error),
+            match desktop_voice_ui::message::voice::start_cloud(
+                &mut app.voice,
+                scope,
+                endpoint,
+                || crate::app::voice::preferences::load().map(|p| p.microphone),
+            ) {
+                Ok(()) => Task::none(),
+                Err(error) => app.show_toast(crate::app::state::ToastKind::Error, error),
             }
         }
         Event::ChatMute => {
@@ -208,12 +190,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             if app.voice.local_conversation.is_some() || app.voice.local_stop.is_some() {
                 return local_chat::tick(app);
             }
-            if !app.voice.conversation_error_reported
-                && let Some(error) =
-                    app.voice.conversation.as_ref().and_then(|c| c.snapshot().error)
-            {
-                app.voice.conversation_error_reported = true;
-                return app.show_toast(crate::app::state::ToastKind::Error, error);
+            if let Some(error) = desktop_voice_ui::message::voice::cloud_error(&mut app.voice) {
+                return app.show_error_toast(error);
             }
             Task::none()
         }
@@ -222,7 +200,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             Task::none()
         }
         Event::Start => {
-            if let Some(task) = check_start(app, false) { return task; }
+            if let Some(task) = check_start(app, false) {
+                return task;
+            }
             let preferences = match crate::app::voice::preferences::load() {
                 Ok(preferences) => preferences,
                 Err(error) => return fail(app, error),
@@ -238,14 +218,28 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let runtime = app.current_session_runtime_mut();
             let cursor = runtime.input_editor.cursor();
             let text = runtime.input_editor.text();
-            desktop_voice_ui::message::voice::start_capture(&mut app.voice, preferences, scope, crate::app::gateway_client_endpoint(), cursor, text).map(capture_message)
+            desktop_voice_ui::message::voice::start_capture(
+                &mut app.voice,
+                preferences,
+                scope,
+                crate::app::gateway_client_endpoint(),
+                cursor,
+                text,
+            )
+            .map(capture_message)
         }
         Event::Started(generation, result) => {
-            let step = desktop_voice_ui::message::voice::capture_event(&mut app.voice, desktop_voice_ui::message::voice::CaptureEvent::Started(generation, result));
+            let step = desktop_voice_ui::message::voice::capture_event(
+                &mut app.voice,
+                desktop_voice_ui::message::voice::CaptureEvent::Started(generation, result),
+            );
             capture_step(app, step)
         }
         Event::Tick(generation) => {
-            let step = desktop_voice_ui::message::voice::capture_event(&mut app.voice, desktop_voice_ui::message::voice::CaptureEvent::Tick(generation));
+            let step = desktop_voice_ui::message::voice::capture_event(
+                &mut app.voice,
+                desktop_voice_ui::message::voice::CaptureEvent::Tick(generation),
+            );
             capture_step(app, step)
         }
         Event::Finish => {
@@ -254,11 +248,31 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         }
         Event::Completed(generation, result) => {
             let current_scope = scope(app);
-            let current = app.current_session_runtime_ref().map(|r| r.input_editor.text()).unwrap_or_default();
-            let result = desktop_voice_ui::message::voice::complete(&mut app.voice, generation, result, current_scope, &current, crate::app::voice::preferences::path(), crate::app::voice::recordings::path());
-            if let Some(text) = result.paste { paste(app, text, true); }
-            if let Some(error) = result.error { return app.show_error_toast(error); }
-            if result.edited { return app.show_toast(crate::app::state::ToastKind::Info, "草稿已编辑，听写结果已保留；点击应用听写插入。"); }
+            let current = app
+                .current_session_runtime_ref()
+                .map(|r| r.input_editor.text())
+                .unwrap_or_default();
+            let result = desktop_voice_ui::message::voice::complete(
+                &mut app.voice,
+                generation,
+                result,
+                current_scope,
+                &current,
+                crate::app::voice::preferences::path(),
+                crate::app::voice::recordings::path(),
+            );
+            if let Some(text) = result.paste {
+                paste(app, text, true);
+            }
+            if let Some(error) = result.error {
+                return app.show_error_toast(error);
+            }
+            if result.edited {
+                return app.show_toast(
+                    crate::app::state::ToastKind::Info,
+                    "草稿已编辑，听写结果已保留；点击应用听写插入。",
+                );
+            }
             Task::none()
         }
         Event::Apply => {

@@ -243,3 +243,26 @@ pub struct LocalView<'a> {
 #[cfg(test)]
 #[path = "voice_chat_tests.rs"]
 mod tests;
+
+use crate::message::voice::Event as VoiceEvent;
+use crate::message::voice_screen::ScreenEvent as VoiceScreenEvent;
+pub fn map(event: self::Event) -> crate::message::voice::Event {
+    use self::{Event as Ui, LocalEvent as Local, ScreenEvent as Screen};
+    match event {
+        Ui::ChatEnd => VoiceEvent::ChatEnd,
+        Ui::ChatMute => VoiceEvent::ChatMute,
+        Ui::ChatInterrupt => VoiceEvent::ChatInterrupt,
+        Ui::Local(event) => VoiceEvent::Local(match event {
+            Local::Begin => crate::message::voice_local_chat::Event::Begin,
+            Local::Finish => crate::message::voice_local_chat::Event::Finish,
+        }),
+        Ui::Screen(event) => VoiceEvent::Screen(match event {
+            Screen::Enable(value) => VoiceScreenEvent::Enable(value),
+            Screen::Permission => VoiceScreenEvent::Permission,
+            Screen::Offer => VoiceScreenEvent::Offer,
+            Screen::Cancel => VoiceScreenEvent::Cancel,
+            Screen::Confirm => VoiceScreenEvent::Confirm,
+            Screen::AttachmentChat => VoiceScreenEvent::AttachmentChat,
+        }),
+    }
+}

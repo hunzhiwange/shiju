@@ -28,6 +28,10 @@ serde_json = "1"
 desktop-workspace = { path = "../desktop-workspace", version = "0.6.0" }
 
 [dev-dependencies]
+urlencoding = "2"
+desktop-navigation = { path = "../desktop-navigation", version = "0.6.0" }
+desktop-chat-view = { path = "../desktop-chat-view", version = "0.6.0" }
+desktop-task-model = { path = "../desktop-task-model", version = "0.6.0" }
 tempfile = "3"
 iced_runtime = "0.14"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

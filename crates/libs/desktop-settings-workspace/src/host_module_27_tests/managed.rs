@@ -191,3 +191,117 @@ async fn worktree_managed_ui_paginates_all_projects_and_keeps_partial_failure() 
     assert!(groups[51].error.is_none());
     assert_eq!(server.join().unwrap().len(), 54);
 }
+
+#[test]
+fn worktree_managed_ui_deduplicates_and_preserves_session_on_failure() {
+    use crate::messages::ManagedMessage as Event;
+    let mut app = managed_app();
+    let identity = super::identity(&app);
+    let navigation = app.navigation_generation;
+    update(&mut app, Event::Open { project: "same".into(), worktree: "checkout".into() });
+    let pending = app.worktree_settings.managed.opening.clone();
+    assert!(pending.is_some());
+    update(&mut app, Event::Open { project: "other".into(), worktree: "another".into() });
+    assert_eq!(app.worktree_settings.managed.opening, pending);
+    update(
+        &mut app,
+        Event::Prepared {
+            identity,
+            navigation,
+            target: pending.unwrap(),
+            result: Err("网关不可达".into()),
+        },
+    );
+    assert!(
+        !app.effects.iter().any(|effect| matches!(effect, crate::lifecycle::Effect::Open { .. }))
+    );
+    assert_eq!(app.project_path.as_deref(), Some("/项目/same"));
+    assert!(app.worktree_settings.managed.opening.is_none());
+    assert_eq!(app.worktree_settings.managed.error.as_deref(), Some("网关不可达"));
+}
+#[test]
+fn worktree_managed_ui_rejects_stale_refresh_and_navigation() {
+    use crate::messages::ManagedMessage as Event;
+    let mut app = managed_app();
+    let identity = super::identity(&app);
+    update(&mut app, Event::Refresh);
+    let old = app.worktree_settings.managed.generation;
+    update(&mut app, Event::Refresh);
+    update(
+        &mut app,
+        Event::Loaded { identity: identity.clone(), generation: old, result: Ok(vec![]) },
+    );
+    assert_eq!(app.worktree_settings.managed.groups.len(), 1);
+    assert!(app.worktree_settings.managed.loading);
+    let generation = app.worktree_settings.managed.generation;
+    update(
+        &mut app,
+        Event::Loaded {
+            identity: identity.clone(), generation, result: Err("刷新失败".into())
+        },
+    );
+    assert!(!app.worktree_settings.managed.loading);
+    assert_eq!(app.worktree_settings.managed.groups.len(), 1);
+    let navigation = app.navigation_generation;
+    update(&mut app, Event::Open { project: "same".into(), worktree: "checkout".into() });
+    app.navigation_generation += 1;
+    update(
+        &mut app,
+        Event::Prepared {
+            identity,
+            navigation,
+            target: ("same".into(), "checkout".into()),
+            result: Ok((project("same"), "/工作树/旧响应".into())),
+        },
+    );
+    assert!(
+        !app.effects.iter().any(|effect| matches!(effect, crate::lifecycle::Effect::Open { .. }))
+    );
+}
+#[test]
+fn worktree_managed_ui_preflight_is_scoped_and_never_deletes() {
+    use crate::messages::ManagedMessage as Event;
+    use vw_api_worktree::{WorktreeDeletionPreflight, WorktreeProtectionReason};
+    let mut app = managed_app();
+    let identity = super::identity(&app);
+    app.worktree_settings.managed.groups[0].items[0].protection_reasons =
+        vec![WorktreeProtectionReason::Pinned];
+    update(&mut app, Event::Preflight { project: "same".into(), worktree: "checkout".into() });
+    assert!(app.worktree_settings.managed.preflight_target.is_none());
+    app.worktree_settings.managed.groups[0].items[0].protection_reasons.clear();
+    update(&mut app, Event::Preflight { project: "same".into(), worktree: "checkout".into() });
+    let generation = app.worktree_settings.managed.generation;
+    update(
+        &mut app,
+        Event::PreflightLoaded {
+            identity,
+            generation,
+            target: ("same".into(), "checkout".into()),
+            result: Ok(WorktreeDeletionPreflight {
+                fingerprint: "only-a-preflight".into(),
+                expires_at_ms: u64::MAX,
+                confirmation_required: true,
+                has_changes: true,
+                has_ignored_files: true,
+                protection_reasons: vec![],
+            }),
+        },
+    );
+    assert!(app.worktree_settings.managed.preflight.is_some());
+    assert_eq!(app.worktree_settings.managed.groups[0].items.len(), 1);
+    assert!(
+        !app.effects.iter().any(|effect| matches!(effect, crate::lifecycle::Effect::Open { .. }))
+    );
+}
+
+fn update(app: &mut super::Fixture, event: crate::messages::ManagedMessage) {
+    let current = super::identity(app);
+    let _ = crate::managed::update(
+        &mut app.worktree_settings,
+        event,
+        current,
+        app.navigation_generation,
+        Err("fixture unavailable".into()),
+        &mut app.effects,
+    );
+}

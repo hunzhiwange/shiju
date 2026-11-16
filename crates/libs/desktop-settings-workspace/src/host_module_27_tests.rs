@@ -3,6 +3,7 @@ use crate::{messages::*, state::*};
 #[derive(Default)]
 struct Fixture {
     worktree_settings: WorktreeSettingsState,
+    navigation_generation: u64,
     project_path: Option<String>,
     project_worktree_enabled: std::collections::HashMap<String, bool>,
     project_id: Option<String>,
@@ -59,3 +60,5 @@ mod projects_view;
 mod managed;
 
 mod project_events;
+
+mod project_editor_ui;

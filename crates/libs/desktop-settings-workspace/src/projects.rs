@@ -85,3 +85,28 @@ pub fn set_worktree_enabled(
         }})
     })
 }
+
+/// Apply list mutations together with the metadata projection.
+pub fn apply_with_metadata(
+    state: State<'_>,
+    event: Event,
+    current_path: Option<&str>,
+    metadata: &mut Vec<desktop_workspace::project_message::edit_meta::RecentProjectMeta>,
+) -> Option<DeletedProject> {
+    let State { query, tools_menu_path, delete_confirm_idx, paths, edits } = state;
+    let deleted = apply(
+        State {
+            query,
+            tools_menu_path,
+            delete_confirm_idx,
+            paths: &mut *paths,
+            edits: &mut *edits,
+        },
+        event,
+        current_path,
+    );
+    if let Some(deleted) = &deleted {
+        reconcile_deleted(paths, edits, metadata, &deleted.path);
+    }
+    deleted
+}

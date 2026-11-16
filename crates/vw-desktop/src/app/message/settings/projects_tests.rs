@@ -21,11 +21,8 @@ fn recent_project_meta(path: &str, name: &str) -> RecentProjectMeta {
     }
 }
 
-
-
 // 提交与删除：覆盖保存、安装或移除操作前后的状态衔接。
 // 这里关注校验、任务载荷和结果反馈，不绑定底层实现。
-
 
 #[test]
 fn delete_request_allows_current_project() {
@@ -57,40 +54,6 @@ fn delete_confirmed_current_project_selects_first_remaining_project() {
     assert_eq!(app.navigation_tabs.project_path.as_deref(), Some("/workspace/project-b"));
     assert_eq!(app.recent_project_delete_confirm_idx, None);
     assert!(app.active_toast.is_none());
-}
-
-#[test]
-fn delete_confirmed_removes_associated_state_and_rebuilds_display_names() {
-    let mut app = app();
-    app.recent_projects = vec![
-        "/workspace/deleted".to_string(),
-        "/workspace/from-meta".to_string(),
-        "/workspace/from-path".to_string(),
-        "/".to_string(),
-    ];
-    app.recent_projects_edits = vec![
-        "Deleted".to_string(),
-        "Stale meta".to_string(),
-        "Stale path".to_string(),
-        "Stale root".to_string(),
-    ];
-    app.recent_projects_meta = vec![
-        recent_project_meta("/workspace/deleted", "Deleted"),
-        recent_project_meta("/workspace/from-meta", "Metadata name"),
-    ];
-    app.project_worktree_enabled.insert("/workspace/deleted".to_string(), true);
-    app.project_worktree_enabled.insert("/workspace/from-meta".to_string(), true);
-    app.recent_project_delete_confirm_idx = Some(0);
-
-    let _task = update(&mut app, SettingsMessage::RecentProjectDeleteConfirmed(0));
-
-    assert_eq!(app.recent_projects, vec!["/workspace/from-meta", "/workspace/from-path", "/"]);
-    assert_eq!(app.recent_projects_edits, vec!["Metadata name", "from-path", "/"]);
-    assert_eq!(app.recent_projects_meta.len(), 1);
-    assert_eq!(app.recent_projects_meta[0].path, "/workspace/from-meta");
-    assert!(!app.project_worktree_enabled.contains_key("/workspace/deleted"));
-    assert_eq!(app.project_worktree_enabled.get("/workspace/from-meta"), Some(&true));
-    assert_eq!(app.recent_project_delete_confirm_idx, None);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -139,41 +102,6 @@ fn worktree_toggles_patch_one_project_in_click_order() {
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
-#[test]
-fn delete_confirmed_handles_missing_edit_for_existing_project() {
-    let mut app = app();
-    app.recent_projects = vec!["/workspace/deleted".to_string()];
-    app.recent_projects_edits.clear();
-    app.recent_projects_meta = vec![recent_project_meta("/workspace/deleted", "Deleted")];
-
-    let _task = update(&mut app, SettingsMessage::RecentProjectDeleteConfirmed(0));
-
-    assert!(app.recent_projects.is_empty());
-    assert!(app.recent_projects_edits.is_empty());
-    assert!(app.recent_projects_meta.is_empty());
-    assert_eq!(app.recent_project_delete_confirm_idx, None);
-}
-
-#[test]
-fn delete_confirmed_rejects_out_of_bounds_index_but_closes_confirmation() {
-    let mut app = app();
-    app.recent_projects = vec!["/workspace/project-a".to_string()];
-    app.recent_projects_edits = vec!["Project A".to_string()];
-    app.recent_projects_meta = vec![recent_project_meta("/workspace/project-a", "Project A")];
-    app.project_worktree_enabled.insert("/workspace/project-a".to_string(), true);
-    app.recent_project_delete_confirm_idx = Some(4);
-
-    let _task = update(&mut app, SettingsMessage::RecentProjectDeleteConfirmed(4));
-
-    assert_eq!(app.recent_projects, vec!["/workspace/project-a"]);
-    assert_eq!(app.recent_projects_edits, vec!["Project A"]);
-    assert_eq!(app.recent_projects_meta.len(), 1);
-    assert_eq!(app.recent_projects_meta[0].path, "/workspace/project-a");
-    assert_eq!(app.project_worktree_enabled.get("/workspace/project-a"), Some(&true));
-    assert_eq!(app.recent_project_delete_confirm_idx, None);
-}
-
-
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。

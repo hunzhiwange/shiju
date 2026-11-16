@@ -33,7 +33,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
                 _ => unreachable!(),
             };
-            let deleted = projects::apply(
+            let deleted = projects::apply_with_metadata(
                 State {
                     query: &mut app.recent_project_query,
                     tools_menu_path: &mut app.project_tools_menu_path,
@@ -43,18 +43,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 },
                 event,
                 app.navigation_tabs.project_path.as_deref(),
+                &mut app.recent_projects_meta,
             );
             let mut deleting_current = false;
             let mut save_worktree = Task::none();
             if let Some(deleted) = deleted {
                 let path = deleted.path;
                 deleting_current = deleted.was_current;
-                desktop_settings_workspace::projects::reconcile_deleted(
-                    &app.recent_projects,
-                    &mut app.recent_projects_edits,
-                    &mut app.recent_projects_meta,
-                    &path,
-                );
                 save_recent_projects_background(app.recent_projects.clone());
                 save_recent_projects_meta_background(app.recent_projects_meta.clone());
                 save_worktree = set_worktree_enabled(app, path, false);

@@ -97,16 +97,6 @@ async fn codex_plugin_compat_t42_emits_events_around_compaction() {
         assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
     }
 }
-#[test]
-fn codex_plugin_compat_t42_rejects_invalid_input() {
-    use super::hook_compact::{parse, validate};
-    assert!(validate(&json!({})).is_err());
-    assert!(parse(Some(0), br#"{"continue":false,"stopReason":"fixture"}"#).is_err());
-    assert!(parse(Some(2), b"private diagnostic").is_ok());
-    assert!(parse(Some(0), br#"{"decision":"block"}"#).is_ok());
-    assert!(parse(Some(0), br#"{"continue":false,"stopReason":42}"#).is_ok());
-    assert!(parse(Some(0), br#"{"continue":false,"decision":"block"}"#).is_ok());
-}
 #[tokio::test]
 async fn codex_plugin_compat_t42_preserves_isolation() {
     let root = tempfile::tempdir().unwrap();

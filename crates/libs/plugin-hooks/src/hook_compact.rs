@@ -86,3 +86,7 @@ pub async fn context<H: HookHost>(
     }
     Ok(std::sync::Arc::new(context))
 }
+
+#[cfg(test)]
+#[path = "hook_compact_tests.rs"]
+mod tests;

@@ -5,13 +5,15 @@ use super::assistant_body::{
     count_visible_non_explore_tool_cards, deduped_tool_last_indices,
     deduped_tool_last_indices_with_metadata, render_assistant_body,
 };
+use super::fixture::{Message, RenderFixture};
 use super::markdown::parse_markdown_blocks;
-use crate::app::models::{ParsedChatBlock, ThinkTiming, ToolBlockRenderMetadata};
-use crate::app::{App, Message};
+use crate::message_view::ParsedChatBlock;
+use crate::render_cache::ToolBlockRenderMetadata;
 use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text_editor;
 use serde_json::Map;
+use session_ui_types::ThinkTiming;
 
 fn command_block(name: &str, call_id: &str, command: &str) -> ParsedChatBlock {
     ParsedChatBlock::Tool {
@@ -23,7 +25,7 @@ fn command_block(name: &str, call_id: &str, command: &str) -> ParsedChatBlock {
 
 // 顶层节点数用于验证分组边界，不绑定各卡片内部容易变化的控件结构。
 fn rendered_top_level_count(
-    app: &App,
+    app: &RenderFixture,
     blocks: Vec<ParsedChatBlock>,
     special_text_blocks: Vec<String>,
     think_timing: &[ThinkTiming],
@@ -131,7 +133,7 @@ fn cached_tool_metadata_drives_dedup_and_count_without_reparsing_raw_blocks() {
 
 #[test]
 fn render_assistant_body_builds_plain_text_body() {
-    let app = App::new().0;
+    let app = RenderFixture::new().0;
 
     let body = render_assistant_body(
         &app,
@@ -151,7 +153,7 @@ fn render_assistant_body_builds_plain_text_body() {
 
 #[test]
 fn completed_assistant_body_prefers_markdown_layout() {
-    let mut app = App::new().0;
+    let mut app = RenderFixture::new().0;
     let text = "# 标题\n\n第一段\n\n- 列表项";
     app.chat_message_editors.push(text_editor::Content::with_text(text));
     let blocks = parse_markdown_blocks(text);
@@ -179,7 +181,7 @@ fn completed_assistant_body_prefers_markdown_layout() {
 
 #[test]
 fn special_text_block_prefers_markdown_layout() {
-    let mut app = App::new().0;
+    let mut app = RenderFixture::new().0;
     let text = "# 标题\n\n第一段\n\n- 列表项";
     app.chat_special_text_editors.insert(0, text_editor::Content::with_text(text));
     let blocks = parse_markdown_blocks(text);
@@ -207,7 +209,7 @@ fn special_text_block_prefers_markdown_layout() {
 
 #[test]
 fn render_assistant_body_builds_api_error_card_for_special_text_block() {
-    let app = App::new().0;
+    let app = RenderFixture::new().0;
     let error = r#"{"name":"APIError","message":"bad gateway","is_retryable":true}"#;
     let blocks = vec![ParsedChatBlock::Text { content: error.to_string() }];
 
@@ -229,7 +231,7 @@ fn render_assistant_body_builds_api_error_card_for_special_text_block() {
 
 #[test]
 fn streaming_body_keeps_text_above_explore_as_thinking_resumes() {
-    let mut app = App::new().0;
+    let mut app = RenderFixture::new().0;
     let text = "我先看一下项目结构和技术栈。";
     let markdown = parse_markdown_blocks(text);
     app.chat_markdown_blocks.insert(0, markdown.clone());
@@ -265,7 +267,7 @@ fn streaming_body_keeps_text_above_explore_as_thinking_resumes() {
 
 #[test]
 fn render_assistant_body_handles_special_text_think_and_tool_blocks() {
-    let app = App::new().0;
+    let app = RenderFixture::new().0;
     let timing = vec![ThinkTiming { start_ms: 1, end_ms: Some(2), last_update_ms: 2 }];
     let blocks = vec![
         ParsedChatBlock::Think { content: "reason".to_string(), open: true },
@@ -298,7 +300,7 @@ fn render_assistant_body_handles_special_text_think_and_tool_blocks() {
 
 #[test]
 fn render_assistant_body_groups_explore_tools_before_visible_text() {
-    let app = App::new().0;
+    let app = RenderFixture::new().0;
     let blocks = vec![
         ParsedChatBlock::Tool {
             raw: "tool grep\n{\"status\":\"running\",\"input\":\"{\\\"pattern\\\":\\\"App\\\"}\"}"
@@ -325,7 +327,7 @@ fn render_assistant_body_groups_explore_tools_before_visible_text() {
 
 #[test]
 fn render_assistant_body_groups_adjacent_commands_into_one_top_level_summary() {
-    let app = App::new().0;
+    let app = RenderFixture::new().0;
     let blocks = vec![
         command_block("bash", "call-1", "printf first"),
         command_block("shell", "call-2", "printf 中文"),
@@ -336,7 +338,7 @@ fn render_assistant_body_groups_adjacent_commands_into_one_top_level_summary() {
 
 #[test]
 fn render_assistant_body_keeps_commands_grouped_across_hidden_reasoning() {
-    let mut app = App::new().0;
+    let mut app = RenderFixture::new().0;
     app.dialogue_flow_show_reasoning_summary = false;
     let blocks = vec![
         command_block("bash", "call-1", "printf first"),
@@ -349,7 +351,7 @@ fn render_assistant_body_keeps_commands_grouped_across_hidden_reasoning() {
 
 #[test]
 fn render_assistant_body_flushes_command_groups_at_visible_boundaries() {
-    let mut app = App::new().0;
+    let mut app = RenderFixture::new().0;
 
     let text_blocks = vec![
         command_block("bash", "call-1", "first"),
@@ -389,7 +391,7 @@ fn render_assistant_body_flushes_command_groups_at_visible_boundaries() {
 
 #[test]
 fn render_assistant_body_keeps_pending_command_outside_summary_group() {
-    let mut app = App::new().0;
+    let mut app = RenderFixture::new().0;
     app.chat_message_ids = vec![Some("msg-1".to_string())];
     let request = gateway_interaction::PendingPermissionRequestDto {
         id: "req-1".to_string(),
@@ -416,7 +418,7 @@ fn render_assistant_body_keeps_pending_command_outside_summary_group() {
 
 #[test]
 fn render_assistant_body_builds_api_error_card_without_special_blocks() {
-    let app = App::new().0;
+    let app = RenderFixture::new().0;
     let error = r#"{"name":"APIError","message":"request to https://api.example.test failed","is_retryable":false}"#;
 
     let body = render_assistant_body(
@@ -437,7 +439,7 @@ fn render_assistant_body_builds_api_error_card_without_special_blocks() {
 
 #[test]
 fn render_assistant_body_falls_back_for_unknown_tool_block() {
-    let app = App::new().0;
+    let app = RenderFixture::new().0;
     let blocks = vec![ParsedChatBlock::Tool { raw: "not a tool".to_string() }];
 
     let body = render_assistant_body(
@@ -458,7 +460,7 @@ fn render_assistant_body_falls_back_for_unknown_tool_block() {
 
 #[test]
 fn streaming_special_text_ignores_stale_editor() {
-    let mut app = App::new().0;
+    let mut app = RenderFixture::new().0;
     app.chat_special_text_editors.insert(0, text_editor::Content::with_text("stale"));
     let body = render_assistant_body(
         &app,
@@ -486,10 +488,10 @@ fn streaming_body_keeps_completed_text_and_think_editors_visible() {
         usize::from(tree.tag == tag)
             + tree.children.iter().map(|child| count_tag(child, tag)).sum::<usize>()
     }
-    let mut app = App::new().0;
+    let mut app = RenderFixture::new().0;
     let content = "阶段 **说明**<think>已完成的思考</think>还在输出";
-    app.chat.push(crate::app::models::ChatMessage {
-        role: crate::app::models::ChatRole::Assistant,
+    app.chat.push(session_ui_types::ChatMessage {
+        role: session_ui_types::ChatRole::Assistant,
         content: content.into(),
         model: None,
         think_timing: Vec::new(),

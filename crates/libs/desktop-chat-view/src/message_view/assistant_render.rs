@@ -8,36 +8,43 @@ use std::collections::HashMap;
 use iced::Element;
 use iced::widget::{Column, column};
 
-use crate::app::models::{self, ParsedChatBlock};
-use crate::app::{App, Message};
+use super::ParsedChatBlock;
+use super::markdown_selection::SelectionMessage;
+use super::render_snapshot::{Action, MessageViewSnapshot};
+use session_ui_types as models;
 
-use super::super::selectable_text::{SelectableTextPolicy, selectable_text_policy};
-use super::super::tool_text_support::chat_text_font_name;
-use super::super::tools::{
-    CommandItem, ExploreItem, ToolTextTarget, is_command_tool, pending_permission_badge_label,
-    pending_permission_request_badge_label, pending_permission_request_for_tool_call,
-    pending_permission_targets_message, pending_permission_targets_tool_call,
-    render_shared_tool_view, tool_call_id_from_raw, tool_command_summary_view,
-    tool_explore_summary_view, tool_text_editor,
+use super::assistant_error_render::assistant_api_error_view;
+use super::render_support::{
+    message_editor_body, message_text_body, render_shared_tool_view,
+    think_block_view_with_streaming, tool_command_summary_view, tool_explore_summary_view,
+    tool_text_editor,
 };
-use super::assistant_error::assistant_api_error_view;
 use super::styles::{ASSISTANT_BLOCK_SPACING, MESSAGE_TEXT_SIZE};
-use super::text::{message_editor_body, message_text_body, should_segment_text_block};
-use super::think_block::{
-    should_render_think_block, think_block_is_running, think_block_view_with_streaming,
-};
+use super::text::should_segment_text_block;
+use super::think_block::{should_render_think_block, think_block_is_running};
 use super::tool_summaries::{
     normalized_visible_text, should_hide_explore_link_box, should_hide_post_explore_tool_block,
 };
+use crate::selectable_text::{SelectableTextPolicy, selectable_text_policy};
+use desktop_chat_tools::tool_text_support::ToolTextTarget;
+use desktop_chat_tools::tool_text_support::chat_text_font_name;
+use desktop_chat_tools::tools::{
+    command_summary_view::is_command_tool,
+    tool_parse::tool_call_id_from_raw,
+    tool_permission::{
+        pending_permission_badge_label, pending_permission_request_badge_label,
+        pending_permission_request_for_tool_call, pending_permission_targets_message,
+        pending_permission_targets_tool_call,
+    },
+    types::{CommandItem, ExploreItem},
+};
 
-pub(super) fn count_visible_non_explore_tool_cards(
+pub fn count_visible_non_explore_tool_cards(
     blocks: &[ParsedChatBlock],
-    metadata: &[Option<models::ToolBlockRenderMetadata>],
+    metadata: &[Option<crate::render_cache::ToolBlockRenderMetadata>],
     last: &HashMap<String, usize>,
 ) -> usize {
-    use desktop_chat_view::message_view::assistant_body::{
-        BlockPresentation, count_visible_non_explore_tool_cards,
-    };
+    use super::assistant_body::{BlockPresentation, count_visible_non_explore_tool_cards};
     let presentation: Vec<_> = blocks
         .iter()
         .map(|block| {
@@ -57,34 +64,31 @@ pub(super) fn count_visible_non_explore_tool_cards(
     count_visible_non_explore_tool_cards(blocks, metadata, last, &presentation)
 }
 
-pub(crate) use desktop_chat_view::message_view::permission_card::should_highlight_pending_permission_tool;
-fn wrap_pending_permission_tool_card<'a>(
-    content: Element<'a, Message>,
+pub(crate) use super::permission_card::should_highlight_pending_permission_tool;
+fn wrap_pending_permission_tool_card<'a, M: Clone + 'a>(
+    app: &MessageViewSnapshot<'a, M>,
+    content: Element<'a, M>,
     label: String,
     request_id: Option<String>,
     is_active: bool,
-) -> Element<'a, Message> {
-    let on_press = request_id.map(|id| {
-        Message::Chat(crate::app::message::chat::ChatMessage::PermissionSelectRequest(id))
-    });
-    desktop_chat_view::message_view::permission_card::wrap_pending_permission_tool_card(
-        content, label, on_press, is_active,
-    )
+) -> Element<'a, M> {
+    let on_press = request_id.map(|id| (app.emit)(Action::PermissionSelectRequest(id)));
+    super::permission_card::wrap_pending_permission_tool_card(content, label, on_press, is_active)
 }
 
-pub(crate) use desktop_chat_view::message_view::assistant_body::{
+pub(crate) use super::assistant_body::{
     deduped_tool_last_indices, deduped_tool_last_indices_with_metadata,
 };
 
-fn push_explore_summary<'a>(
-    mut body: Column<'a, Message>,
-    app: &'a App,
+fn push_explore_summary<'a, M: SelectionMessage + 'a>(
+    mut body: Column<'a, M>,
+    app: &MessageViewSnapshot<'a, M>,
     idx: usize,
     explore_group_idx: usize,
     explore_items: &[ExploreItem],
     explore_group_force_running: bool,
     closed_by_following_block: bool,
-) -> Column<'a, Message> {
+) -> Column<'a, M> {
     if let Some(view) = tool_explore_summary_view(
         app,
         idx,
@@ -98,12 +102,12 @@ fn push_explore_summary<'a>(
     body
 }
 
-fn flush_command_summary<'a>(
-    mut body: Column<'a, Message>,
-    app: &'a App,
+fn flush_command_summary<'a, M: SelectionMessage + 'a>(
+    mut body: Column<'a, M>,
+    app: &MessageViewSnapshot<'a, M>,
     idx: usize,
     command_items: &mut Vec<CommandItem>,
-) -> Column<'a, Message> {
+) -> Column<'a, M> {
     if let Some(view) = tool_command_summary_view(app, idx, command_items) {
         body = body.push(view);
     }
@@ -111,14 +115,14 @@ fn flush_command_summary<'a>(
     body
 }
 
-fn push_special_text_block<'a>(
-    body: Column<'a, Message>,
-    app: &'a App,
+fn push_special_text_block<'a, M: SelectionMessage + 'a>(
+    body: Column<'a, M>,
+    app: &MessageViewSnapshot<'a, M>,
     idx: usize,
     text_idx: usize,
     text: String,
     prefer_markdown: bool,
-) -> Column<'a, Message> {
+) -> Column<'a, M> {
     if let Some(view) = assistant_api_error_view(app, idx, Some(text_idx), &text) {
         return body.push(view);
     }
@@ -129,7 +133,7 @@ fn push_special_text_block<'a>(
         && let Some(blocks) = app.chat_markdown_blocks.get(&special_text_key)
         && !blocks.is_empty()
     {
-        return body.push(super::markdown::markdown_body_view(app, idx, text_idx, blocks));
+        return body.push(super::render_support::markdown_body_view(app, idx, text_idx, blocks));
     }
 
     if prefer_markdown
@@ -145,11 +149,11 @@ fn push_special_text_block<'a>(
         return body.push(view);
     }
 
-    body.push(message_text_body(text, false))
+    body.push(message_text_body(app, text, false))
 }
 
-pub(super) fn render_assistant_body<'a, T, U, V, W>(
-    app: &'a App,
+pub fn render_assistant_body<'a, M: SelectionMessage + 'a, T, U, V, W>(
+    app: &MessageViewSnapshot<'a, M>,
     idx: usize,
     think_timing: &'a [models::ThinkTiming],
     special_text_blocks: T,
@@ -159,12 +163,12 @@ pub(super) fn render_assistant_body<'a, T, U, V, W>(
     has_special: bool,
     is_streaming_assistant: bool,
     visible_for_copy: &str,
-) -> Column<'a, Message>
+) -> Column<'a, M>
 where
     T: AsRef<[String]>,
     U: AsRef<str>,
     V: AsRef<[ParsedChatBlock]>,
-    W: AsRef<[Option<models::ToolBlockRenderMetadata>]>,
+    W: AsRef<[Option<crate::render_cache::ToolBlockRenderMetadata>]>,
 {
     let special_text_blocks = special_text_blocks.as_ref();
     let display_text = display_text.as_ref();
@@ -174,16 +178,16 @@ where
     let use_editor = !is_streaming_assistant
         && selectable_text_policy(visible_for_copy, should_segment_text_block(visible_for_copy))
             != SelectableTextPolicy::PreviewWithCopyFallback
-        && app.chat_message_editors.get(idx).is_some();
+        && app.text.chat_message_editors.get(idx).is_some();
 
     if has_special {
         let tool_last = deduped_tool_last_indices_with_metadata(blocks, tool_block_metadata);
         let message_id = app.chat_message_ids.get(idx).and_then(|value| value.as_deref());
         let is_permission_target_message =
-            pending_permission_targets_message(app.permission_modal_request.as_ref(), message_id);
+            pending_permission_targets_message(app.permission_modal_request, message_id);
         let permission_badge_text = pending_permission_badge_label(
-            crate::app::i18n::I18n::new(app.desktop_locale),
-            &app.permission_modal_requests,
+            desktop_i18n::I18n::new(app.desktop_locale),
+            app.permission_modal_requests,
             app.permission_modal_request_id.as_deref(),
         );
         let visible_non_explore_tool_count = if is_permission_target_message {
@@ -194,9 +198,7 @@ where
         let total_think_blocks =
             blocks.iter().filter(|block| matches!(block, ParsedChatBlock::Think { .. })).count();
 
-        use desktop_chat_view::message_view::assistant_body::{
-            BlockPresentation, BodyPart, assistant_body_sequence,
-        };
+        use super::assistant_body::{BlockPresentation, BodyPart, assistant_body_sequence};
         let mut think_idx = 0;
         let mut text_idx = 0;
         let presentation: Vec<_> = blocks
@@ -218,7 +220,7 @@ where
                     ParsedChatBlock::Tool { raw } => {
                         let raw_text = raw;
                         let matched_permission_request = pending_permission_request_for_tool_call(
-                            &app.permission_modal_requests,
+                            app.permission_modal_requests,
                             message_id,
                             &raw_text,
                         );
@@ -226,7 +228,7 @@ where
                         let matches_permission_tool = if is_permission_target_message {
                             let raw_call_id = tool_call_id_from_raw(&raw_text);
                             if pending_permission_targets_tool_call(
-                                app.permission_modal_request.as_ref(),
+                                app.permission_modal_request,
                                 message_id,
                                 &raw_text,
                             ) {
@@ -308,7 +310,7 @@ where
                         unreachable!()
                     };
                     let matched_permission_request = pending_permission_request_for_tool_call(
-                        &app.permission_modal_requests,
+                        app.permission_modal_requests,
                         message_id,
                         &raw_text,
                     );
@@ -316,7 +318,7 @@ where
                     let matches_permission_tool = if is_permission_target_message {
                         let raw_call_id = tool_call_id_from_raw(&raw_text);
                         if pending_permission_targets_tool_call(
-                            app.permission_modal_request.as_ref(),
+                            app.permission_modal_request,
                             message_id,
                             &raw_text,
                         ) {
@@ -346,12 +348,13 @@ where
                                 permission_badge_text.clone()
                             } else {
                                 pending_permission_request_badge_label(
-                                    crate::app::i18n::I18n::new(app.desktop_locale),
-                                    &app.permission_modal_requests,
+                                    desktop_i18n::I18n::new(app.desktop_locale),
+                                    app.permission_modal_requests,
                                     request.id.as_str(),
                                 )
                             };
                             wrap_pending_permission_tool_card(
+                                app,
                                 view,
                                 label,
                                 Some(request.id.clone()),
@@ -359,6 +362,7 @@ where
                             )
                         } else if matches_permission_tool {
                             wrap_pending_permission_tool_card(
+                                app,
                                 view,
                                 permission_badge_text.clone(),
                                 None,
@@ -371,7 +375,7 @@ where
                     } else {
                         let text = raw_text.trim().to_string();
                         if !text.is_empty() {
-                            body = body.push(message_text_body(text, false));
+                            body = body.push(message_text_body(app, text, false));
                         }
                     }
                 }
@@ -387,13 +391,13 @@ where
             && let Some(blocks) = app.chat_markdown_blocks.get(&markdown_key)
             && !blocks.is_empty()
         {
-            body = body.push(super::markdown::markdown_body_view(app, idx, 0, blocks));
+            body = body.push(super::render_support::markdown_body_view(app, idx, 0, blocks));
         } else if use_editor {
             if let Some(view) = message_editor_body(app, idx, app.theme().palette().text) {
                 body = body.push(view);
             }
         } else if !text.is_empty() {
-            body = body.push(message_text_body(text.to_owned(), false));
+            body = body.push(message_text_body(app, text.to_owned(), false));
         }
         body
     }

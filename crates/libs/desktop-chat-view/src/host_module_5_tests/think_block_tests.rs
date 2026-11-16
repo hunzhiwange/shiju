@@ -1,14 +1,14 @@
+use super::fixture::{Message, RenderFixture};
 use super::think_block::think_block_view;
-use crate::app::models::{ChatMessage, ChatRole, ThinkTiming};
-use crate::app::{App, Message};
 use iced::widget::text_editor;
+use session_ui_types::{ChatMessage, ChatRole, ThinkTiming};
 fn keep_element(element: iced::Element<'_, Message>) {
     std::hint::black_box(element);
 }
 
 #[test]
 fn think_block_view_builds_collapsed_and_empty_expanded_states() {
-    let (mut app, _) = App::new();
+    let (mut app, _) = RenderFixture::new();
 
     keep_element(think_block_view(&app, 1, 2, "collapsed".to_string(), false, None));
 
@@ -19,7 +19,7 @@ fn think_block_view_builds_collapsed_and_empty_expanded_states() {
 
 #[test]
 fn think_block_view_uses_editor_for_completed_short_content() {
-    let (mut app, _) = App::new();
+    let (mut app, _) = RenderFixture::new();
     let key = (3_u64 << 32) | 4;
     app.chat_think_expanded.insert(key);
     app.chat_think_editors.insert(key, text_editor::Content::with_text("reasoning"));
@@ -30,7 +30,7 @@ fn think_block_view_uses_editor_for_completed_short_content() {
 
 #[test]
 fn think_block_view_uses_text_fallback_for_completed_short_content_without_editor() {
-    let (mut app, _) = App::new();
+    let (mut app, _) = RenderFixture::new();
     let key = (4_u64 << 32) | 5;
     app.chat_think_expanded.insert(key);
     let done = ThinkTiming { start_ms: 1_000, end_ms: Some(3_000), last_update_ms: 3_000 };
@@ -40,7 +40,7 @@ fn think_block_view_uses_text_fallback_for_completed_short_content_without_edito
 
 #[test]
 fn think_block_view_uses_segmented_body_for_long_completed_content() {
-    let (mut app, _) = App::new();
+    let (mut app, _) = RenderFixture::new();
     let key = (5_u64 << 32) | 6;
     app.chat_think_expanded.insert(key);
     app.chat_think_hovered_idx = Some(key);
@@ -51,7 +51,7 @@ fn think_block_view_uses_segmented_body_for_long_completed_content() {
 
 #[test]
 fn think_block_view_builds_running_body() {
-    let (mut app, _) = App::new();
+    let (mut app, _) = RenderFixture::new();
     app.chat.push(ChatMessage {
         role: ChatRole::Assistant,
         content: "answer".to_string(),
@@ -74,7 +74,7 @@ fn think_block_view_builds_running_body() {
 
 #[test]
 fn think_block_running_header_builds_chinese_across_animation_frames() {
-    let (mut app, _) = App::new();
+    let (mut app, _) = RenderFixture::new();
     app.chat.push(ChatMessage {
         role: ChatRole::Assistant,
         content: "<think>分析中文路径</think>".to_string(),

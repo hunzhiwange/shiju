@@ -3,11 +3,11 @@
 //! 覆盖块级解析（标题/代码块/列表/引用）与行内标记清理，并确认链接点击
 //! 会映射为外部打开消息。
 
+use super::fixture::ViewMessage;
+use super::fixture::{Message, RenderFixture};
 use super::markdown::*;
 use super::markdown_links::{LinkTarget, WorkspaceLinks, link_click_message};
-use crate::app::components::chat_panel::tool_text_support::selected_chat_text_for_message;
-use crate::app::message::ViewMessage;
-use crate::app::{App, Message};
+use super::selected_chat_text_for_message;
 use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text_editor;
@@ -27,7 +27,7 @@ fn markdown_visual_contract_preserves_readable_block_hierarchy() {
         "```rust\n// 中文注释\nlet value = 1;\n```",
     );
     let blocks = parse_markdown_blocks(markdown);
-    let (app, _) = App::new();
+    let (app, _) = RenderFixture::new();
     assert_eq!(element_child_count(markdown_body_view(&app, 7, 0, &blocks)), 6);
 
     let contract = markdown_visual_contract();
@@ -45,7 +45,7 @@ fn markdown_visual_contract_preserves_readable_block_hierarchy() {
 
 #[test]
 fn formatted_markdown_uses_one_editor_for_cross_line_selection() {
-    let mut app = App::new().0;
+    let mut app = RenderFixture::new().0;
     let blocks = parse_markdown_blocks("first\n\nsecond\n\nthird");
     app.chat_markdown_block_editors.insert(
         markdown_block_key(0, 0, 0),
@@ -73,7 +73,7 @@ fn link_click_maps_to_external_open() {
 
 #[test]
 fn markdown_body_view_builds_every_block_kind_with_editor_and_text_fallbacks() {
-    let (mut app, _) = App::new();
+    let (mut app, _) = RenderFixture::new();
     app.chat_markdown_block_editors
         .insert(markdown_block_key(2, 3, 0), text_editor::Content::with_text("heading"));
     let blocks = vec![
@@ -130,7 +130,7 @@ fn table_link_renders_and_emits_open_message_in_both_themes() {
 
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -199,11 +199,11 @@ fn markdown_code_copy_renders_feedback_and_restores_in_both_themes() {
 
     let code = "# 中文注释\npnpm install\n  pnpm demo:1";
     let blocks = parse_markdown_blocks(&format!("```shell\n{code}\n```"));
-    let (mut app, _) = App::new();
+    let (mut app, _) = RenderFixture::new();
     app.chat_markdown_block_editors.insert(0, text_editor::Content::with_text(code));
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -214,7 +214,7 @@ fn markdown_code_copy_renders_feedback_and_restores_in_both_themes() {
     ))
     .expect("headless renderer");
 
-    let render_and_click = |app: &App, renderer: &mut Renderer| {
+    let render_and_click = |app: &RenderFixture, renderer: &mut Renderer| {
         let theme = app.theme();
         let size = Size::new(340.0, 160.0);
         let mut ui = UserInterface::build(
@@ -318,7 +318,7 @@ fn markdown_keeps_code_fragments_and_identifiers_unlinked() {
     for code in ["</script>", "<\\/script>", "</scr", "deepseek/deepseek-flash"] {
         assert!(spans.iter().any(|span| span.text == code && span.style.code));
     }
-    let mut app = App::new().0;
+    let mut app = RenderFixture::new().0;
     app.project_path = Some("/repo".into());
     app.set_file_index("/repo", vec!["src/main.rs".into()]);
     let rendered =
@@ -329,7 +329,7 @@ fn markdown_keeps_code_fragments_and_identifiers_unlinked() {
 #[cfg(unix)]
 #[test]
 fn markdown_auto_links_indexed_paths_and_keeps_explicit_links() {
-    let mut app = App::new().0;
+    let mut app = RenderFixture::new().0;
     app.project_path = Some("/repo".into());
     app.set_file_index(
         "/repo",
@@ -367,10 +367,10 @@ fn markdown_renders_padded_inline_code_in_both_themes() {
     use iced_runtime::user_interface::{Cache, UserInterface};
 
     let blocks = parse_markdown_blocks("在`data-gateway`仓库里查看`中文代码`。");
-    let (mut app, _) = App::new();
+    let (mut app, _) = RenderFixture::new();
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -455,7 +455,7 @@ fn markdown_file_link_click_resolves_the_workspace_path() {
 
 #[test]
 fn markdown_code_payload_preserves_shorter_fences_and_internal_whitespace() {
-    use crate::app::components::chat_panel::utils::normalize_display_text;
+    use crate::message_view::text_normalize::normalize_display_text;
 
     for fence in ["````", "~~~~"] {
         let payload = "  # 中文注释  \n```\n\n\npnpm install";

@@ -8,7 +8,7 @@ use {
 };
 use vw_agent_apps::skills::market_search::{self, MarketSearchError};
 
-pub(crate) fn router() -> Router {
+pub fn router() -> Router {
     Router::new().route("/agent-apps/skills/search", get(search))
         .layer(axum::middleware::map_response(async |mut response: Response| {
             response.headers_mut().insert(axum::http::header::CACHE_CONTROL,
@@ -27,7 +27,7 @@ async fn search(Extension(tenant): Extension<TenantScope>, headers: HeaderMap,
     let target = query.target_host_id.clone();
     tokio::task::spawn_blocking(move || {
         let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
-        super::super::agent_apps::authorize_skill_repos(policy.as_deref(), &headers,
+        app_access_service::access::authorize_skill_repos(policy.as_deref(), &headers,
             &scope, &target, false).map_err(|status| SearchError(match status {
                 StatusCode::UNAUTHORIZED => MarketSearchFailure::Unauthenticated,
                 StatusCode::FORBIDDEN => MarketSearchFailure::Forbidden,

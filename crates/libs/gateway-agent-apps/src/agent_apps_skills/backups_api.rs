@@ -7,11 +7,11 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
 #[derive(Clone)]
 struct BackupPolicy(Option<std::path::PathBuf>);
-pub(crate) fn router() -> Router {
+pub fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from))
 }
 pub(super) fn router_with_policy(policy: Option<std::path::PathBuf>) -> Router {
@@ -54,7 +54,7 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, pol
         {
             use vw_agent_apps::{skills::{backup_catalog, app_paths, bulk_sync::SkillInstallTarget},
                 apps::discovery::read::resolve_cli_installation};
-            let (env, root) = super::super::agent_apps::authorize_skill_bindings(
+            let (env, root) = app_access_service::access::authorize_skill_bindings(
                 policy.0.as_deref(), &headers, &project, &scope.target_host_id)?;
             let id = match &operation { Operation::List => None,
                 Operation::Delete(id) | Operation::Restore(id, _, _) => Some(id) };
@@ -97,8 +97,8 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, pol
                         targets.insert(key, path);
                     }
                     let db = match db { Some(Extension(db)) => db,
-                        None => GlobalDatabase::for_home(&crate::global::paths().home).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)? };
-                    let store = crate::gateway::agent_apps_skills_store::SkillInstallsStore::new(db)
+                        None => GlobalDatabase::for_home(&agent_paths::paths().home).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)? };
+                    let store = app_settings_store::agent_apps_skills_store::SkillInstallsStore::new(db)
                         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
                     let (state, result) = store.restore_skill_backup(&project, &scope.target_host_id,
                         version, &root, &backups, &id, &targets).map_err(|_| StatusCode::CONFLICT)?;
@@ -109,7 +109,7 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, pol
         }
         #[cfg(not(target_os = "macos"))]
         {
-            super::super::agent_apps::authorize_skill_install(policy.0.as_deref(), &headers,
+            app_access_service::access::authorize_skill_install(policy.0.as_deref(), &headers,
                 &project, &scope.target_host_id, None)?;
             let _ = (db, operation);
             Err(StatusCode::NOT_IMPLEMENTED)

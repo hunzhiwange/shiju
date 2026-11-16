@@ -7,9 +7,9 @@ use {
     vw_api_transport::id::TaskId,
     vw_api_transport::id::TenantScope,
 };
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
-pub(crate) fn router() -> Router {
+pub fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
 }
 
@@ -36,16 +36,16 @@ async fn execute(policy: Option<PathBuf>, tenant: TenantScope,
     scope: SkillReposQuery, cancel: bool,
 ) -> Result<SkillJobResponse, StatusCode> {
     let project = ProjectScope::new(tenant, scope.project_id.clone()).map_err(|_| StatusCode::BAD_REQUEST)?;
-    let (root, principal) = super::super::agent_apps::authorize_skill_job(
+    let (root, principal) = app_access_service::access::authorize_skill_job(
         policy.as_deref(), &headers, &project, &scope.target_host_id)?;
     #[cfg(target_os = "macos")]
     {
         tokio::task::spawn_blocking(move || {
-            use crate::gateway::agent_apps_skills_store::SkillInstallsStore;
+            use app_settings_store::agent_apps_skills_store::SkillInstallsStore;
             use vw_agent_apps::skills::jobs::SkillJobPhase as Phase;
             let db = match db {
                 Some(Extension(db)) => db,
-                None => GlobalDatabase::for_home(&crate::global::paths().home)
+                None => GlobalDatabase::for_home(&agent_paths::paths().home)
                     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
             };
             let job = SkillInstallsStore::new(db).and_then(|store| store.owned_job(

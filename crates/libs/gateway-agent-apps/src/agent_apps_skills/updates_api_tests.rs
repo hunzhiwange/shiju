@@ -2,7 +2,7 @@ use axum::{Extension, body::Body, http::{Request, StatusCode}};
 use serde_json::{json, Value};
 use tower::ServiceExt;
 use vw_api_transport::id::TenantScope;
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 use std::{fs, os::unix::fs::PermissionsExt};
 use sha2::{Digest, Sha256};
 

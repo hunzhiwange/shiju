@@ -9,7 +9,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use crate::{global_database::GlobalDatabase, gateway::agent_apps_skills_store::SkillInstallsStore};
+use {agent_database::GlobalDatabase, app_settings_store::agent_apps_skills_store::SkillInstallsStore};
 
 struct Fixture {
     _home: tempfile::TempDir,

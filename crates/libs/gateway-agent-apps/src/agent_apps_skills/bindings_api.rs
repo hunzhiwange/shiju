@@ -6,9 +6,9 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
-pub(crate) fn router() -> Router {
+pub fn router() -> Router {
     Router::new()
         .route("/agent-apps/skills/binding-targets", get(snapshot).put(preferences))
         .route("/agent-apps/skills/{id}/bindings", post(bind))
@@ -44,8 +44,8 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, hea
             use vw_agent_apps::{apps::discovery::read::resolve_cli_installation,
                 skills::{app_paths, bulk_sync::{SkillInstallTarget, SkillSyncTarget, SkillSyncStatus},
                     link_deploy::SyncMethod, local_install::validate_directory}};
-            use crate::gateway::agent_apps_skills_store::SkillInstallsStore;
-            let (env, root) = super::super::agent_apps::authorize_skill_bindings(
+            use app_settings_store::agent_apps_skills_store::SkillInstallsStore;
+            let (env, root) = app_access_service::access::authorize_skill_bindings(
                 policy.as_deref(), &headers, &project, &scope.target_host_id)?;
             if targets.is_empty() || targets.len() > 64 { return Err(StatusCode::BAD_REQUEST); }
             if let Some((id, _, _)) = &binding {
@@ -67,7 +67,7 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, hea
             }
             let db = match db {
                 Some(Extension(db)) => db,
-                None => GlobalDatabase::for_home(&crate::global::paths().home)
+                None => GlobalDatabase::for_home(&agent_paths::paths().home)
                     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
             };
             let store = SkillInstallsStore::new(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
@@ -88,7 +88,7 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, hea
         }
         #[cfg(not(target_os = "macos"))]
         {
-            super::super::agent_apps::authorize_skill_install(policy.as_deref(), &headers,
+            app_access_service::access::authorize_skill_install(policy.as_deref(), &headers,
                 &project, &scope.target_host_id, None)?;
             let _ = (db, targets, binding);
             Err(StatusCode::NOT_IMPLEMENTED)
@@ -115,11 +115,11 @@ async fn binding_settings(tenant: TenantScope, db: Option<Extension<GlobalDataba
         let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
         #[cfg(target_os = "macos")]
         {
-            let (_env, root) = super::super::agent_apps::authorize_skill_bindings(
+            let (_env, root) = app_access_service::access::authorize_skill_bindings(
                 policy.as_deref(), &headers, &project, &scope.target_host_id)?;
             use vw_agent_apps::skills::{app_paths::{distribution, SkillDistribution}, bulk_sync::SkillInstallTarget};
-            use crate::gateway::agent_apps_skills_store::SkillInstallsStore;
-            let db = match db { Some(Extension(db)) => db, None => GlobalDatabase::for_home(&crate::global::paths().home)
+            use app_settings_store::agent_apps_skills_store::SkillInstallsStore;
+            let db = match db { Some(Extension(db)) => db, None => GlobalDatabase::for_home(&agent_paths::paths().home)
                 .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)? };
             let store = SkillInstallsStore::new(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
             let state = if let Some((version, targets)) = change {
@@ -147,7 +147,7 @@ async fn binding_settings(tenant: TenantScope, db: Option<Extension<GlobalDataba
         }
         #[cfg(not(target_os = "macos"))]
         {
-            super::super::agent_apps::authorize_skill_install(policy.as_deref(), &headers, &project, &scope.target_host_id, None)?;
+            app_access_service::access::authorize_skill_install(policy.as_deref(), &headers, &project, &scope.target_host_id, None)?;
             let _ = (db, change); Err(StatusCode::NOT_IMPLEMENTED)
         }
     }).await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?

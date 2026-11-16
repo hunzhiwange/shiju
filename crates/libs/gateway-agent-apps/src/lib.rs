@@ -9,6 +9,7 @@ mod data_access;
 #[cfg(test)]
 mod agent_apps_error_tests;
 
+pub mod agent_apps_skills;
 pub mod read;
 pub mod preferences;
 pub mod launch;

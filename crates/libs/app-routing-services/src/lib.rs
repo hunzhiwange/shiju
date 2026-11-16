@@ -19,6 +19,8 @@ pub mod failover_runtime;
 #[cfg(target_os = "macos")]
 pub mod failover_store;
 #[cfg(target_os = "macos")]
+pub mod high_availability_service;
+#[cfg(target_os = "macos")]
 pub mod lifecycle_host;
 #[cfg(target_os = "macos")]
 pub mod aggregation_routing;

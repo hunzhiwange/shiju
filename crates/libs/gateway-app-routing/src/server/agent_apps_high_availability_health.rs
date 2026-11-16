@@ -1,14 +1,9 @@
 //! Scope-bound management of production observations and request policy.
 use super::{ControlError, ReadError, RoutingControl};
-use crate::{
-    app_providers::AppProviderStore,
-    gateway::{
-        agent_apps_failover_runtime,
-        agent_apps_high_availability_store::NAMESPACE,
-        settings_store::GatewaySettingsStore,
-    },
-    global_database::GlobalDatabase,
-};
+use app_provider_services::AppProviderStore;
+use app_routing_services::{failover_runtime as agent_apps_failover_runtime, failover_store::NAMESPACE};
+use app_settings_store::settings_store::GatewaySettingsStore;
+use agent_database::GlobalDatabase;
 use axum::{
     Extension, Json, Router,
     extract::{Query, rejection::{JsonRejection, QueryRejection}},
@@ -153,7 +148,7 @@ async fn execute(
     tokio::task::spawn_blocking(move || {
         let database = match database {
             Some(Extension(database)) => database,
-            None => GlobalDatabase::for_home(&crate::global::paths().home)
+            None => GlobalDatabase::for_home(&agent_paths::paths().home)
                 .map_err(|_| ReadError::Unavailable)?,
         };
         match operation {

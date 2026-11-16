@@ -1,4 +1,5 @@
 //! Server-side application routing HTTP contracts.
+pub mod agent_apps_high_availability;
 mod error;
 mod config_body;
 pub use error::ControlError;

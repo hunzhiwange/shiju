@@ -6,9 +6,9 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
-pub(crate) fn router() -> Router {
+pub fn router() -> Router {
     Router::new()
         .route("/agent-apps/skills/storage", get(read).patch(patch))
         .route("/agent-apps/skills/storage/move", post(move_storage))
@@ -46,12 +46,12 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, hea
         {
             use vw_agent_apps::{apps::discovery::read::resolve_cli_installation,
                 skills::{app_paths, bulk_sync::SkillSyncTarget, link_deploy::SyncMethod}};
-            use crate::gateway::agent_apps_skills_store::SkillInstallsStore;
+            use app_settings_store::agent_apps_skills_store::SkillInstallsStore;
             // Both inventory and install authority are required to expose and change roots.
-            super::super::agent_apps::authorize_skill_inventory(policy.as_deref(), &headers, &project, &scope.target_host_id)?;
-            let (env, runtime) = super::super::agent_apps::authorize_skill_bindings(policy.as_deref(), &headers, &project, &scope.target_host_id)?;
-            let (_, principal) = super::super::agent_apps::authorize_skill_job(policy.as_deref(), &headers, &project, &scope.target_host_id)?;
-            let db = match db { Some(Extension(db)) => db, None => GlobalDatabase::for_home(&crate::global::paths().home)
+            app_access_service::access::authorize_skill_inventory(policy.as_deref(), &headers, &project, &scope.target_host_id)?;
+            let (env, runtime) = app_access_service::access::authorize_skill_bindings(policy.as_deref(), &headers, &project, &scope.target_host_id)?;
+            let (_, principal) = app_access_service::access::authorize_skill_job(policy.as_deref(), &headers, &project, &scope.target_host_id)?;
+            let db = match db { Some(Extension(db)) => db, None => GlobalDatabase::for_home(&agent_paths::paths().home)
                 .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)? };
             let store = SkillInstallsStore::new(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
             let mut state = store.storage_state(&project, &scope.target_host_id, &runtime, &env.home)
@@ -98,7 +98,7 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, hea
         }
         #[cfg(not(target_os = "macos"))]
         {
-            super::super::agent_apps::authorize_skill_inventory(policy.as_deref(), &headers, &project, &scope.target_host_id)?;
+            app_access_service::access::authorize_skill_inventory(policy.as_deref(), &headers, &project, &scope.target_host_id)?;
             let _ = (db, action);
             Err(StatusCode::NOT_IMPLEMENTED)
         }

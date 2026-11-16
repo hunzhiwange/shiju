@@ -17,7 +17,7 @@ use {
     vw_api_transport::id::TenantScope,
 };
 use {gateway_endpoint::{GatewayEndpoint}, gateway_app_skills::GatewayAppSkillsClient};
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
 const TOKEN: &str = "macos-acceptance-fixture-token";
 
@@ -150,7 +150,7 @@ async fn cp12_macos_api_success() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cp12_macos_api_postgres_success() {
     // A missing database is an explicit failure, never a zero-work success.
-    let database = crate::global_database::test_support::PostgresTestDatabase::from_environment()
+    let database = agent_database::test_support::PostgresTestDatabase::from_environment()
         .expect("macOS API acceptance requires VIBEWINDOW_TEST_POSTGRES_URL");
     let fixture = Fixture::new(database.database().clone());
     lifecycle(&fixture).await;
@@ -187,7 +187,7 @@ async fn cp12_macos_api_rejects_without_side_effects() {
 async fn remote_update(f: &Fixture, cancel: bool) {
     use std::{io::Write, sync::{Arc, atomic::{AtomicUsize, Ordering}}};
     use axum::{extract::State, routing::get};
-    use crate::gateway::agent_apps_skills_store::SkillReposStore;
+    use app_settings_store::agent_apps_skills_store::SkillReposStore;
     use vw_agent_apps::skills::repos::SkillRepo;
     use {
     vw_api_transport::id::ProjectScope,
@@ -321,7 +321,7 @@ async fn cp12_macos_api_remote_update_and_precommit_cancel() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cp12_macos_api_postgres_remote_update_and_precommit_cancel() {
     for cancel in [false, true] {
-        let database = crate::global_database::test_support::PostgresTestDatabase::from_environment()
+        let database = agent_database::test_support::PostgresTestDatabase::from_environment()
             .expect("macOS API acceptance requires VIBEWINDOW_TEST_POSTGRES_URL");
         remote_update(&Fixture::new(database.database().clone()), cancel).await;
     }

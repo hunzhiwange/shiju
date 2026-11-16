@@ -6,9 +6,9 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
-pub(crate) fn router() -> Router {
+pub fn router() -> Router {
     Router::new()
         .route("/agent-apps/skills/unmanaged", get(scan))
         .route("/agent-apps/skills/import", post(import))
@@ -27,7 +27,7 @@ async fn scan(Extension(tenant): Extension<TenantScope>, db: Option<Extension<Gl
         let project = ProjectScope::new(tenant, query.project_id.clone())
             .map_err(|_| StatusCode::BAD_REQUEST)?;
         let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
-        let (home, root) = super::super::agent_apps::authorize_skill_import(
+        let (home, root) = app_access_service::access::authorize_skill_import(
             policy.as_deref(), &headers, &project, &query.target_host_id)?;
         #[cfg(target_os = "macos")]
         { native::scan(project, db, query, home, root).map(Json) }
@@ -43,7 +43,7 @@ async fn import(Extension(tenant): Extension<TenantScope>, db: Option<Extension<
         let project = ProjectScope::new(tenant, request.scope.project_id.clone())
             .map_err(|_| StatusCode::BAD_REQUEST)?;
         let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
-        let (home, root) = super::super::agent_apps::authorize_skill_import(
+        let (home, root) = app_access_service::access::authorize_skill_import(
             policy.as_deref(), &headers, &project, &request.scope.target_host_id)?;
         #[cfg(target_os = "macos")]
         { native::import(project, db, request, home, root).map(Json) }
@@ -59,7 +59,7 @@ mod native {
     use vw_agent_apps::skills::{app_paths::{self, AppSkillsPath}, unmanaged_import::UnmanagedSelection,
         unmanaged_scan::scan_unmanaged};
     use vw_api_app_identity::AppId;
-    use crate::gateway::agent_apps_skills_store::SkillInstallsStore;
+    use app_settings_store::agent_apps_skills_store::SkillInstallsStore;
 
     #[derive(Clone)]
     struct Selection {
@@ -81,7 +81,7 @@ mod native {
     fn store(db: Option<Extension<GlobalDatabase>>) -> Result<SkillInstallsStore, StatusCode> {
         let db = match db {
             Some(Extension(db)) => db,
-            None => GlobalDatabase::for_home(&crate::global::paths().home)
+            None => GlobalDatabase::for_home(&agent_paths::paths().home)
                 .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
         };
         SkillInstallsStore::new(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)

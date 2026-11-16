@@ -6,12 +6,12 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
 #[derive(Clone)]
 struct UninstallPolicy(Option<std::path::PathBuf>);
 
-pub(crate) fn router() -> Router {
+pub fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from))
 }
 
@@ -38,13 +38,13 @@ async fn uninstall(Extension(tenant): Extension<TenantScope>, db: Option<Extensi
         {
             use vw_agent_apps::{apps::discovery::read::resolve_cli_installation,
                 skills::{app_paths, local_install::validate_directory}};
-            use crate::gateway::agent_apps_skills_store::SkillInstallsStore;
-            let (env, root) = super::super::agent_apps::authorize_skill_bindings(
+            use app_settings_store::agent_apps_skills_store::SkillInstallsStore;
+            let (env, root) = app_access_service::access::authorize_skill_bindings(
                 policy.0.as_deref(), &headers, &project, &request.scope.target_host_id)?;
             validate_directory(&id).map_err(|_| StatusCode::BAD_REQUEST)?;
             let db = match db {
                 Some(Extension(db)) => db,
-                None => GlobalDatabase::for_home(&crate::global::paths().home)
+                None => GlobalDatabase::for_home(&agent_paths::paths().home)
                     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
             };
             let store = SkillInstallsStore::new(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
@@ -87,7 +87,7 @@ async fn uninstall(Extension(tenant): Extension<TenantScope>, db: Option<Extensi
         }
         #[cfg(not(target_os = "macos"))]
         {
-            super::super::agent_apps::authorize_skill_install(policy.0.as_deref(), &headers,
+            app_access_service::access::authorize_skill_install(policy.0.as_deref(), &headers,
                 &project, &request.scope.target_host_id, None)?;
             let _ = (db, id);
             Err(StatusCode::NOT_IMPLEMENTED)

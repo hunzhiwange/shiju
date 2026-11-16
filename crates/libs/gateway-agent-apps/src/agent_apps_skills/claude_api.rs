@@ -11,7 +11,7 @@ use {
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
 
-pub(crate) fn router() -> Router {
+pub fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
 }
 
@@ -61,7 +61,7 @@ fn context(policy: &Policy, tenant: &TenantScope, headers: &HeaderMap,
 ) -> Result<(PathBuf, PathBuf), StatusCode> {
     let project = ProjectScope::new(tenant.clone(), scope.project_id.clone())
         .map_err(|_| StatusCode::BAD_REQUEST)?;
-    super::super::agent_apps::authorize_claude_config(policy.0.as_deref(), headers,
+    app_access_service::access::authorize_claude_config(policy.0.as_deref(), headers,
         &project, &scope.target_host_id, permission)
 }
 

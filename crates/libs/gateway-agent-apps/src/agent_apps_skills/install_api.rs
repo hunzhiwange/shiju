@@ -7,9 +7,9 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
-pub(crate) fn router() -> Router {
+pub fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
 }
 
@@ -44,15 +44,15 @@ async fn execute(policy: Option<PathBuf>, tenant: TenantScope,
         SkillInstallSource::Git { .. } => None,
     };
     // No storage initialization, source lookup or network before authorization.
-    let (root, source, principal) = super::super::agent_apps::authorize_skill_install_owner(
+    let (root, source, principal) = app_access_service::access::authorize_skill_install_owner(
         policy.as_deref(), &headers, &project, &request.scope.target_host_id, file_id)?;
     #[cfg(target_os = "macos")]
     {
-        use crate::gateway::agent_apps_skills_store::{SkillInstallsStore, SkillReposStore};
+        use app_settings_store::agent_apps_skills_store::{SkillInstallsStore, SkillReposStore};
         use vw_agent_apps::skills::local_install::validate_directory;
         let db = match database {
             Some(Extension(db)) => db,
-            None => GlobalDatabase::for_home(&crate::global::paths().home)
+            None => GlobalDatabase::for_home(&agent_paths::paths().home)
                 .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
         };
         let store = SkillInstallsStore::new(db.clone()).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;

@@ -7,7 +7,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use crate::{global_database::GlobalDatabase, gateway::agent_apps_skills_store::SkillInstallsStore};
+use {agent_database::GlobalDatabase, app_settings_store::agent_apps_skills_store::SkillInstallsStore};
 
 const TOKEN: &str = "skill-install-test-token-00000000000";
 struct Fixture { root: tempfile::TempDir, policy: std::path::PathBuf, db: GlobalDatabase }
@@ -44,7 +44,7 @@ impl Fixture {
         let bytes = axum::body::to_bytes(response.into_body(), 16384).await.unwrap();
         (status, serde_json::from_slice(&bytes).unwrap_or(Value::Null))
     }
-    fn state(&self) -> crate::gateway::agent_apps_skills_store::SkillInstallsState {
+    fn state(&self) -> app_settings_store::agent_apps_skills_store::SkillInstallsState {
         SkillInstallsStore::new(self.db.clone()).unwrap().get(&project(), "h", &self.root.path().join("ssot")).unwrap()
     }
 }
@@ -130,7 +130,7 @@ async fn cp12_install_api_archive_preserves_individual_results() {
 
 #[tokio::test]
 async fn cp12_install_api_git_requires_enabled_saved_repository() {
-    use crate::gateway::agent_apps_skills_store::SkillReposStore;
+    use app_settings_store::agent_apps_skills_store::SkillReposStore;
     use vw_agent_apps::skills::repos::SkillRepo;
     let f = Fixture::new(true, "local");
     let mut body = request();

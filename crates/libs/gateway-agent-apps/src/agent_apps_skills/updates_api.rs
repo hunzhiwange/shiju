@@ -8,12 +8,12 @@ use {
     vw_api_transport::id::TenantScope,
     vw_api_transport::id::TaskId,
 };
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
 #[derive(Clone)]
 struct UpdatePolicy(Option<std::path::PathBuf>, String);
 
-pub(crate) fn router() -> Router {
+pub fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from))
 }
 
@@ -40,10 +40,10 @@ fn authorize(policy: &UpdatePolicy, tenant: TenantScope, headers: &HeaderMap, sc
     -> Result<(ProjectScope, std::path::PathBuf), StatusCode> {
     let project = ProjectScope::new(tenant, scope.project_id.clone()).map_err(|_| StatusCode::BAD_REQUEST)?;
     let root = if write {
-        super::super::agent_apps::authorize_skill_install(policy.0.as_deref(), headers, &project,
+        app_access_service::access::authorize_skill_install(policy.0.as_deref(), headers, &project,
             &scope.target_host_id, None)?.0
     } else {
-        super::super::agent_apps::authorize_skill_inventory(policy.0.as_deref(), headers, &project,
+        app_access_service::access::authorize_skill_inventory(policy.0.as_deref(), headers, &project,
             &scope.target_host_id)?
     };
     Ok((project, root))
@@ -51,13 +51,13 @@ fn authorize(policy: &UpdatePolicy, tenant: TenantScope, headers: &HeaderMap, sc
 
 #[cfg(target_os = "macos")]
 fn store(database: Option<Extension<GlobalDatabase>>)
-    -> Result<crate::gateway::agent_apps_skills_store::SkillInstallsStore, StatusCode> {
+    -> Result<app_settings_store::agent_apps_skills_store::SkillInstallsStore, StatusCode> {
     let database = match database {
         Some(Extension(db)) => db,
-        None => GlobalDatabase::for_home(&crate::global::paths().home)
+        None => GlobalDatabase::for_home(&agent_paths::paths().home)
             .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
     };
-    crate::gateway::agent_apps_skills_store::SkillInstallsStore::new(database)
+    app_settings_store::agent_apps_skills_store::SkillInstallsStore::new(database)
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
 }
 
@@ -105,7 +105,7 @@ async fn update(Extension(tenant): Extension<TenantScope>, database: Option<Exte
         if request.expected_hash.len() != 64 || !request.expected_hash.bytes().all(|b| b.is_ascii_hexdigit()) {
             return Err(StatusCode::BAD_REQUEST);
         }
-        let (_, _, principal) = super::super::agent_apps::authorize_skill_install_owner(
+        let (_, _, principal) = app_access_service::access::authorize_skill_install_owner(
             policy.0.as_deref(), &headers, &project, &request.scope.target_host_id, None)?;
         let store = store(database)?;
         let job = store.start_skill_update_at(project, request.scope.target_host_id.clone(), request.expected_version,
@@ -125,7 +125,7 @@ async fn status(Extension(tenant): Extension<TenantScope>, database: Option<Exte
     #[cfg(target_os = "macos")]
     {
         let store = store(database)?;
-        let (_, principal) = super::super::agent_apps::authorize_skill_job(
+        let (_, principal) = app_access_service::access::authorize_skill_job(
             policy.0.as_deref(), &headers, &project, &scope.target_host_id)?;
         let task_id = TaskId::from(id);
         let job = store.owned_job(&project, &scope.target_host_id, &task_id, &principal, &root, false)

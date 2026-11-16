@@ -8,7 +8,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use crate::{global_database::GlobalDatabase, gateway::agent_apps_skills_store::SkillReposStore};
+use {agent_database::GlobalDatabase, app_settings_store::agent_apps_skills_store::SkillReposStore};
 
 #[derive(Clone)]
 struct DiscoveryTransport { policy: Option<std::path::PathBuf>, api: String, archives: String }
@@ -16,7 +16,7 @@ struct DiscoveryTransport { policy: Option<std::path::PathBuf>, api: String, arc
 // Router-owned state never crosses gateway instances or tenant/project/host boundaries.
 type Caches = Arc<Mutex<BTreeMap<String, Arc<Mutex<SkillDiscoveryCache>>>>>;
 
-pub(crate) fn router() -> Router {
+pub fn router() -> Router {
     router_at(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from),
         "https://api.github.com".into(), "https://codeload.github.com".into())
 }
@@ -47,11 +47,11 @@ async fn discover(
         &request.scope.target_host_id, &request.repo_id)).map_err(|_| StatusCode::BAD_REQUEST)?;
     let (store, state, scope) = tokio::task::spawn_blocking(move || {
         let policy = transport.policy;
-        super::super::agent_apps::authorize_skill_repos(policy.as_deref(), &headers,
+        app_access_service::access::authorize_skill_repos(policy.as_deref(), &headers,
             &scope, &request.scope.target_host_id, false)?;
         let db = match database {
             Some(Extension(db)) => db,
-            None => GlobalDatabase::for_home(&crate::global::paths().home)
+            None => GlobalDatabase::for_home(&agent_paths::paths().home)
                 .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
         };
         let store = SkillReposStore::new(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;

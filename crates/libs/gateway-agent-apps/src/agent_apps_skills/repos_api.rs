@@ -7,10 +7,10 @@ use {
     vw_api_transport::id::TenantScope,
 };
 use vw_agent_apps::skills::repos::{SkillRepo, RepoError};
-use crate::{global_database::GlobalDatabase, gateway::agent_apps_skills_store::{
+use {agent_database::GlobalDatabase, app_settings_store::agent_apps_skills_store::{
     SkillReposStore, SkillReposState, SkillReposVersionConflict}};
 
-pub(crate) fn router() -> Router {
+pub fn router() -> Router {
     Router::new()
         .route("/agent-apps/skills/repos", get(read).post(save))
         .route("/agent-apps/skills/repos/{id}", delete(remove))
@@ -56,11 +56,11 @@ async fn execute(tenant: TenantScope, database: Option<Extension<GlobalDatabase>
         let project = ProjectScope::new(tenant, scope.project_id.clone())
             .map_err(|_| StatusCode::BAD_REQUEST)?;
         let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
-        super::super::agent_apps::authorize_skill_repos(policy.as_deref(), &headers,
+        app_access_service::access::authorize_skill_repos(policy.as_deref(), &headers,
             &project, &scope.target_host_id, change.is_some())?;
         let db = match database {
             Some(Extension(db)) => db,
-            None => GlobalDatabase::for_home(&crate::global::paths().home)
+            None => GlobalDatabase::for_home(&agent_paths::paths().home)
                 .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
         };
         let store = SkillReposStore::new(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;

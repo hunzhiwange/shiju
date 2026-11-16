@@ -6,12 +6,12 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
 #[derive(Clone)]
 struct InventoryPolicy(Option<std::path::PathBuf>);
 
-pub(crate) fn router() -> Router {
+pub fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from))
 }
 
@@ -45,16 +45,16 @@ async fn read(tenant: TenantScope, database: Option<Extension<GlobalDatabase>>, 
 ) -> Result<SkillInventoryResponse, StatusCode> {
     tokio::task::spawn_blocking(move || {
         let project = ProjectScope::new(tenant, scope.project_id.clone()).map_err(|_| StatusCode::BAD_REQUEST)?;
-        let root = super::super::agent_apps::authorize_skill_inventory(policy.0.as_deref(), &headers,
+        let root = app_access_service::access::authorize_skill_inventory(policy.0.as_deref(), &headers,
             &project, &scope.target_host_id)?;
         #[cfg(target_os = "macos")]
         {
-            use crate::gateway::agent_apps_skills_store::SkillInstallsStore;
+            use app_settings_store::agent_apps_skills_store::SkillInstallsStore;
             use vw_agent_apps::skills::{inventory::get_all_installed, local_install::validate_directory};
             if let Some(id) = &id { validate_directory(id).map_err(|_| StatusCode::BAD_REQUEST)?; }
             let db = match database {
                 Some(Extension(db)) => db,
-                None => GlobalDatabase::for_home(&crate::global::paths().home)
+                None => GlobalDatabase::for_home(&agent_paths::paths().home)
                     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
             };
             let store = SkillInstallsStore::new(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;

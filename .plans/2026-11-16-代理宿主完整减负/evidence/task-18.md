@@ -416,3 +416,74 @@
 未来 `python3 scripts/cargo_slot.py cargo test -p agent-gateway --lib host_migration_18_tests -- --test-threads=1` 预期 109 个测试（静态属性计数）。宿主未来精确过滤 `local_import_runtime_supplies_real_peer_address` 预期1条。禁止零测试当通过。
 
 静态核对：无残留 gateway::tests 引用；新模块无 crate::app/宿主 path/include；git diff --check 限本任务文件通过。Cargo、编译、运行测试均未执行。
+
+
+## 第二次深度恢复：协议所有权与生产消息组装
+
+重新读取最新 final.md 与任务18残留；不覆盖共享收口快照。生产 `ws::Host::initial_history` 现在调用 `agent_gateway::ws::initial_history`，后者拥有时区验证、系统提示构建、skill工具检测及协议消息在system之前的顺序。宿主只解析当前租户技能与工作区instruction上下文，并通过现有回调传入。保留原先时区读取、配置锁、系统提示构建、协议解析顺序，安全错误保持显式返回。新函数依赖现有 agent-util/channel-runtime，不新增依赖或反向宿主引用。
+
+OpenAI 两个测试文件由 openai_compat 自注册，整组搬回协议所有者；HTTP测试使用真实泛型入口和现有client key函数，状态仅实例化无关扩展类型为unit。宿主两个具体State包装不再挂载领域用例。WebSocket纯解析用例迁到host_migration_18_tests::ws_policy；实际工具循环、钩子及真实Hyper upgrade边界仍在宿主挂载。
+
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs::chat_completions_request_deserializes_minimal` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs::chat_completions_request_deserializes_full` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs::chat_completions_request_rejects_missing_messages` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs::chat_completions_request_rejects_message_without_content` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs::chat_completions_request_rejects_message_without_role` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs::chat_completions_request_accepts_null_optional_fields` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs::chat_completions_request_ignores_unknown_compatibility_fields` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs::chat_completions_response_serializes` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs::models_response_serializes` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs::models_response_serializes_empty_data_array` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs::streaming_chunk_serializes` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs::streaming_chunk_omits_none_fields` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs::streaming_chunk_omits_each_absent_delta_field_independently` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs::chunk_bytes_done_emits_json_frame_then_done_marker` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs::chunk_bytes_preserves_escaped_content_in_single_sse_frame` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs::unix_timestamp_is_within_call_boundaries` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_chat_completions_rejects_rate_limited_request` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_chat_completions_rejects_missing_pairing_bearer` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_chat_completions_rejects_invalid_json_body` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_chat_completions_rejects_empty_messages` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_chat_completions_passes_large_body_to_provider` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_chat_completions_returns_non_streaming_completion` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_chat_completions_uses_state_defaults_for_empty_model_and_temperature` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_chat_completions_uses_unknown_provider_label_when_config_has_no_default` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_chat_completions_returns_provider_error_without_leaking_details` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_chat_completions_streams_single_chunk_when_provider_lacks_streaming` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_chat_completions_streams_sanitized_fallback_error` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_chat_completions_streams_native_chunks_and_done` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_chat_completions_streams_native_error_chunk` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_chat_completions_streams_done_after_native_error_without_success_event` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_models_rejects_missing_pairing_bearer` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_models_allows_request_when_pairing_is_disabled` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::handle_v1_models_returns_configured_model_for_valid_request` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::chunk_bytes_without_done_omits_done_marker_and_empty_fields` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::helper_record_functions_accept_success_and_failure_events` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs::response_helpers_read_empty_body_text` → 领域原文件自注册，断言不变。
+- `crates/libs/agent-gateway/src/ws/mod_tests.rs::gateway_websocket_passes_hook_runtime_to_tool_loop` → 原宿主挂载（真实工具循环或Hyper升级）。
+- `crates/libs/agent-gateway/src/ws/mod_tests.rs::websocket_entrypoints_and_constants_are_available` → `host_migration_18_tests::ws_policy`。
+- `crates/libs/agent-gateway/src/ws/mod_tests.rs::extract_ws_bearer_token_falls_back_when_authorization_is_not_bearer` → `host_migration_18_tests::ws_policy`。
+- `crates/libs/agent-gateway/src/ws/mod_tests.rs::parse_ws_private_event_uses_plain_payload_defaults` → `host_migration_18_tests::ws_policy`。
+- `crates/libs/agent-gateway/src/ws/mod_tests.rs::parse_ws_private_event_prefers_explicit_name_over_result_tool_id` → `host_migration_18_tests::ws_policy`。
+- `crates/libs/agent-gateway/src/ws/mod_tests.rs::parse_ws_delta_event_maps_empty_hint_to_none_and_bad_duration_to_none` → `host_migration_18_tests::ws_policy`。
+- `crates/libs/agent-gateway/src/ws/mod_tests.rs::websocket_upgrade_requires_real_hyper_upgrade_extension` → 原宿主挂载（真实工具循环或Hyper升级）。
+
+修复既有静态挂载问题：原websocket_entrypoints测试引用宿主未导出的私有handle_socket/emit_ws_delta_event，移除这两个不可见函数的裸值引用；常量断言完整迁到领域，宿主另保留websocket_host_handler_is_available。未删除行为断言。
+
+新增两个未运行测试：websocket_initial_history_rejects_invalid_timezone_before_protocol_resolution、websocket_initial_history_preserves_protocol_before_system_prompt，覆盖失败先后与协议顺序。
+
+- `crates/vw-agent/src/gateway/openai_compat/mod.rs`：29 → 7 行。
+- `crates/vw-agent/src/gateway/ws/mod.rs`：103 → 62 行。
+- `crates/libs/agent-gateway/src/openai_compat/mod.rs`：567 → 572 行。
+- `crates/libs/agent-gateway/src/openai_compat/tests.rs`：372 → 372 行。
+- `crates/libs/agent-gateway/src/openai_compat/mod_tests.rs`：547 → 548 行。
+- `crates/libs/agent-gateway/src/ws/mod.rs`：628 → 647 行。
+- `crates/libs/agent-gateway/src/ws/mod_tests.rs`：301 → 207 行。
+
+未来 `python3 scripts/cargo_slot.py cargo test -p agent-gateway --lib openai_compat::tests -- --test-threads=1`，静态预期16条。
+
+未来 `python3 scripts/cargo_slot.py cargo test -p agent-gateway --lib openai_compat::mod_tests -- --test-threads=1`，静态预期20条。
+
+未来host_migration_18_tests过滤静态预期116条；原域用例宿主--list应消失。源码调用、注册、依赖与git diff --check已静态核对；Cargo、构建、运行和list均未执行。
+
+剩余真实宿主边界：router组合实际handler与环境认证；runtime捕获真实数据库；state实例化QueryEngine/HookRuntime；webhook和WS run_loop绑定真实聊天与技能端口。宿主mod_tests/router_tests保留真实bootstrap/handler接线。不把兼容转发、文档、已下沉逻辑计算为新增生产迁移成果。

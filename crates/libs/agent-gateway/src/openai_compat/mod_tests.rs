@@ -2,12 +2,13 @@
 
 // provider 桩分别模拟普通、流式与失败响应，以约束兼容层的协议映射。
 use super::*;
-use crate::app::agent::config::Config;
-use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
-use crate::app::agent::memory::NoneMemory;
+type AppState = gateway_types::AppState<(), (), ()>;
+use agent_config::runtime::Config;
+use gateway_types::{GatewayRateLimiter, IdempotencyStore};
+use memory_types::memory::NoneMemory;
 use model_types::Provider;
 use model_types::{StreamChunk, StreamError, StreamResult};
-use crate::app::agent::security::pairing::PairingGuard;
+use gateway_pairing::pairing::PairingGuard;
 use axum::body::{Body, Bytes, to_bytes};
 use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
@@ -152,10 +153,10 @@ fn state_with_provider(
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, webhook_rate_limit, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx,
         session_query_engines: Default::default(),
@@ -170,7 +171,7 @@ fn peer_addr() -> SocketAddr {
 
 // 统一调用 helper 保持认证头和原始 JSON 正文可独立变化。
 async fn chat_response(state: AppState, headers: HeaderMap, body: impl Into<Bytes>) -> Response {
-    handle_v1_chat_completions(State(state), ConnectInfo(peer_addr()), headers, body.into())
+    handle_v1_chat_completions(State(state), ConnectInfo(peer_addr()), headers, body.into(), crate::util::client_key_from_request)
         .await
         .into_response()
 }

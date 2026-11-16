@@ -565,3 +565,8 @@ pub fn record_failure<E: Clone + Send + Sync + 'static, C: Clone + Send + Sync +
 // ══════════════════════════════════════════════════════════════════════════════
 // TESTS
 // ══════════════════════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+mod mod_tests;

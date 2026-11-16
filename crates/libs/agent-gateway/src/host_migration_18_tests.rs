@@ -17,3 +17,4 @@ mod node_service;
 mod router;
 mod ingress;
 mod runtime;
+mod ws_policy;

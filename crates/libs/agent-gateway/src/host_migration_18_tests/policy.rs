@@ -256,3 +256,27 @@ fn acp_install_timeout_covers_installer_deadline_only_for_single_agent_routes() 
         assert_eq!(request_timeout_for_path(path), Duration::from_secs(REQUEST_TIMEOUT_SECS));
     }
 }
+
+#[test]
+fn websocket_initial_history_rejects_invalid_timezone_before_protocol_resolution() {
+    let state = auth_state(false, &[]);
+    state.config.lock().app_ui.system_settings.timezone = "Mars/Olympus_Mons".into();
+    let result = crate::ws::initial_history(&state, |_, _| panic!("invalid timezone must reject first"));
+    assert!(result.is_err());
+}
+
+#[test]
+fn websocket_initial_history_preserves_protocol_before_system_prompt() {
+    let state = auth_state(false, &[]);
+    let workspace = tempfile::tempdir().unwrap();
+    state.config.lock().workspace_dir = workspace.path().to_path_buf();
+    state.config.lock().app_ui.system_settings.timezone = "UTC".into();
+    let history = crate::ws::initial_history(&state, |_, skill_enabled| {
+        assert!(!skill_enabled);
+        vec![model_types::ChatMessage::system("workspace protocol")]
+    }).unwrap();
+    assert_eq!(history.len(), 2);
+    assert_eq!(history[0].content, "workspace protocol");
+    assert_eq!(history[1].role, "system");
+    assert!(!history[1].content.is_empty());
+}

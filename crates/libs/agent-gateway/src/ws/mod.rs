@@ -23,6 +23,25 @@
 //! - `done`: 服务端发送的完整响应（会话结束标记）
 //! - `error`: 错误消息
 
+/// Build protocol messages before the system prompt, preserving their transient role.
+/// Tenant-specific skill and instruction resolution remains with the caller.
+pub fn initial_history<S, C, H>(
+    state: &gateway_types::AppState<S, C, H>,
+    protocol: impl FnOnce(&agent_config::runtime::Config, bool) -> Vec<ChatMessage>,
+) -> anyhow::Result<Vec<ChatMessage>> {
+    let timezone_name = state.config.lock().app_ui.system_settings.timezone.clone();
+    let timezone = agent_util::locale::parse_timezone(&timezone_name)?;
+    let config = state.config.lock();
+    let system_prompt = channel_runtime::prompt::build_system_prompt(
+        &config.workspace_dir, &state.model, &[], &[], Some(&config.identity), None, timezone,
+    );
+    let skill_tool_enabled = state.tools_registry_exec.iter()
+        .any(|tool| tool.name().eq_ignore_ascii_case("skill"));
+    let mut history = protocol(&config, skill_tool_enabled);
+    history.push(ChatMessage::system(&system_prompt));
+    Ok(history)
+}
+
 pub type AppState<H> = gateway_types::AppState<<H as GatewayWsHost>::Sessions, <H as GatewayWsHost>::Channels, <H as GatewayWsHost>::Hooks>;
 pub trait GatewayWsHost: Send + Sync + 'static {
     type Sessions: Clone + Send + Sync + 'static;

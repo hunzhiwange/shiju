@@ -66,6 +66,7 @@ pub(super) async fn session_message_part_patch(
     gateway_session::message_ops::session_message_part_patch::<Host>(Path((session_id, message_id, part_id)), Query(gateway_instance::host::InstanceQuery { directory: query.directory }), headers, Json(part)).await
 }
 
+
 #[cfg(test)]
 #[path = "message_ops_tests.rs"]
 mod message_ops_tests;

@@ -41,10 +41,13 @@ pub fn task_session_summary_needs_refresh(session: &session::Info) -> bool {
     })
 }
 
-async fn refresh_task_session_summaries<H: SessionHost>(sessions: &mut [session::Info]) {
+async fn refresh_task_session_summaries(
+    sessions: &mut [session::Info],
+    refresh: impl AsyncFn(&str) -> Result<session::Summary, String>,
+) {
     for session in sessions.iter_mut().filter(|session| task_session_summary_needs_refresh(session))
     {
-        if let Ok(summary) = H::refresh_summary(&session.id).await
+        if let Ok(summary) = refresh(&session.id).await
             && (summary.files > 0 || session.summary.is_none())
         {
             session.summary = Some(summary);
@@ -99,7 +102,7 @@ pub async fn ui_session_list<H: SessionHost>(
     }
 
     sessions.truncate(limit);
-    refresh_task_session_summaries::<H>(&mut sessions).await;
+    refresh_task_session_summaries(&mut sessions, async |id| H::refresh_summary(id).await).await;
     Ok(Json(sessions))
 }
 
@@ -723,3 +726,7 @@ async fn fork_before_turn<H: SessionHost>(
     })
     .await
 }
+
+#[cfg(test)]
+#[path = "host_migration_10_tests/summary.rs"]
+mod host_migration_10_tests;

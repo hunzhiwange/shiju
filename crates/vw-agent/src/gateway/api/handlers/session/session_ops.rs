@@ -170,7 +170,5 @@ pub(super) async fn session_title_generate(
 }
 
 #[cfg(test)]
-use gateway_session::session_ops::task_session_summary_needs_refresh;
-#[cfg(test)]
 #[path = "session_ops_tests.rs"]
 mod session_ops_tests;

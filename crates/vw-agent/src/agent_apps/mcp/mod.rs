@@ -29,8 +29,10 @@ mod security_tests;
 #[cfg(all(test, target_os = "macos"))]
 mod host_scope_tests;
 
-#[cfg(all(test, target_os = "macos"))]
-use gateway_agent_apps::mcp_acceptance::catalog as catalog_create_tests;
+#[cfg(test)]
+#[path = "catalog_test_support.rs"]
+mod catalog_create_tests;
 
 #[cfg(all(test, target_os = "macos"))]
-use gateway_agent_apps::mcp_acceptance::installation as binding_tests;
+#[path = "binding_test_support.rs"]
+mod binding_tests;

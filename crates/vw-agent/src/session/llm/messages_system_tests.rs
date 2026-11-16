@@ -10,14 +10,7 @@ fn build_system_messages_merges_non_empty_sources_in_order() {
 
     let system = build_system_messages(&input, false);
 
-    assert_eq!(system.len(), 1);
-    let joined = &system[0];
-    let agent_idx = joined.find("agent prompt").expect("agent prompt should be present");
-    let session_idx = joined.find("session system").expect("session system should be present");
-    let user_idx = joined.find("user system").expect("user system should be present");
-    assert!(agent_idx < session_idx);
-    assert!(session_idx < user_idx);
-    assert!(!joined.contains("\n \n"));
+    llm_runtime::system_message_contract::merged_sources(&system);
 }
 
 #[test]
@@ -31,19 +24,7 @@ fn build_system_messages_does_not_duplicate_unified_prompt_for_codex() {
     let without_codex = build_system_messages(&input, false).join("\n");
     let with_codex = build_system_messages(&input, true).join("\n");
 
-    let without_count = without_codex.matches(UNIFIED_MARKER).count();
-    let with_count = with_codex.matches(UNIFIED_MARKER).count();
-    eprintln!("unified marker count without_codex={without_count} with_codex={with_count}");
-    eprintln!(
-        "joined lengths without_codex={} with_codex={}",
-        without_codex.len(),
-        with_codex.len()
-    );
-
-    assert_eq!(without_count, 1, "non-codex path should include unified prompt once");
-    assert_eq!(with_count, 1, "codex path must not duplicate unified prompt");
-    assert!(with_codex.contains("agent prompt"));
-    assert!(with_codex.contains("session system"));
+    llm_runtime::system_message_contract::unified_once(&without_codex, &with_codex, UNIFIED_MARKER);
 }
 
 #[test]
@@ -59,14 +40,7 @@ fn build_system_messages_keeps_pre_rendered_runtime_prompt_once() {
 
     let joined = build_system_messages(&input, false).join("\n");
 
-    assert_eq!(
-        joined.matches(crate::app::agent::session::system::UNIFIED_PROMPT_MARKER).count(),
-        1
-    );
-    assert!(joined.contains("deepseek/deepseek-v4-flash"));
-    assert!(joined.contains("/workspace/project"));
-    assert!(joined.contains("## Task Tracking"));
-    assert!(joined.contains("## Subagents"));
+    llm_runtime::system_message_contract::rendered_runtime_once(&joined, crate::session::system::UNIFIED_PROMPT_MARKER);
 }
 
 #[test]
@@ -81,5 +55,5 @@ fn build_system_messages_filters_blank_optional_sources_and_keeps_provider_promp
 
     let system = build_system_messages(&input, false);
 
-    assert_eq!(system, vec![provider_prompt]);
+    llm_runtime::system_message_contract::provider_only(system, provider_prompt);
 }

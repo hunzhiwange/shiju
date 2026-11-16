@@ -103,3 +103,6 @@ mod host_migration_33_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod host_migration_20_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod dynamic_tool_restore_contract;

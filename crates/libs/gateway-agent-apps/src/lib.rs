@@ -76,6 +76,3 @@ mod host_migration_6_tests;
 
 #[cfg(all(feature = "test-support", target_os = "macos"))]
 pub mod icon_acceptance;
-
-#[cfg(all(feature = "test-support", target_os = "macos"))]
-pub mod mcp_acceptance;

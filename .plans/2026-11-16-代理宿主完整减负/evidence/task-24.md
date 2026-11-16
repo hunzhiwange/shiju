@@ -883,3 +883,24 @@ Original 52 paths now 1779 lines, reduction 1181 from baseline 2960. Host run fu
 Regex dependency preserves the existing diagnostic redaction exactly. Cargo.lock adds only llm-runtime -> regex. No reverse host dependency, host path/include, removed assertion, or real CLI replacement. External mounted suite mappings above remain applicable. Production host algorithms are unchanged: these are domain acceptance flows called by real host test adapters, not production migration gains.
 
 Dynamic tool Gateway acceptance (495 lines), actual host ToolContext and prompt registration remain as documented above. Net reduction is still below 70%; whole-plan gate remains open. No Cargo, compilation, build, test or device run was performed. Static diff checks are not behavior evidence.
+
+
+## Recovery 2: real host restoration and prompt contracts
+
+Read the updated final.md (host 51915, remaining gate 16915) and owner=24 entries in remaining-host.json. No Cargo, build or tests run.
+
+- `crates/vw-agent/src/session/dynamic_tool_store_tests.rs`: 128 -> 14 lines.
+- `crates/vw-agent/src/session/llm/messages_system_tests.rs`: 85 -> 59 lines.
+
+Dynamic restoration: the entire assertion sequence now calls session-engine::dynamic_tool_restore_contract::dynamic_tools_restore_client_specs_do_not_restore_host_capabilities. It creates actual ClientToolHost owners, persists via the actual SessionStore and verifies rebind denial, fresh host binding and deferred discovery. The real SQLite ProjectStore/SessionStore fixture moved with it. ChatSession has identical field values, deserialized to the concrete parameter type of save_session; no persistence mock. The host supplies only its real ClientTool specialization, database location and original named test entry. Unused VersionTool/tools helpers had no callers and were removed. fixture/fixture_project moved; name/description/parameters_schema/execute belonged solely to the unused VersionTool.
+
+- `build_system_messages_merges_non_empty_sources_in_order` retains its original host entry, fixture and renderer, then calls `llm-runtime::system_message_contract::merged_sources` with actual output; all original assertions retained.
+- `build_system_messages_does_not_duplicate_unified_prompt_for_codex` retains its original host entry, fixture and renderer, then calls `llm-runtime::system_message_contract::unified_once` with actual output; all original assertions retained.
+- `build_system_messages_keeps_pre_rendered_runtime_prompt_once` retains its original host entry, fixture and renderer, then calls `llm-runtime::system_message_contract::rendered_runtime_once` with actual output; all original assertions retained.
+- `build_system_messages_filters_blank_optional_sources_and_keeps_provider_prompt` retains its original host entry, fixture and renderer, then calls `llm-runtime::system_message_contract::provider_only` with actual output; all original assertions retained.
+
+This round removes 140 host lines. It is assertion/fixture ownership migration, zero new production algorithm migration. Domain support functions are called by the existing real host test wrappers, not independently registered tests; do not claim these five names disappear from the host list or inflate domain test counts. No added Cargo dependency. New modules are registered by their domain lib.rs; no reverse host dependency or path/include.
+
+Future validation: `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib dynamic_tools_restore_client_specs_do_not_restore_host_capabilities -- --test-threads=1` expects 1; `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib messages_system_tests -- --test-threads=1` expects 4. Neither command was run. Existing domain migration filters and counts in the preceding recovery remain unchanged. Static diff whitespace check only.
+
+The 495-line real Gateway integration remains: its five tests exercise actual authenticated routes, SDK transport, live callbacks, session creation/forking and processor stream scripting. A separate gateway-wide fixture port would span task10/11/23 ownership; no facade that mocks those routes was introduced. All other source and external mappings above remain current. The whole-plan line gate is still open.

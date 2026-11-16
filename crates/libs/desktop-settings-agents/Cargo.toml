@@ -44,3 +44,4 @@ gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 tempfile = "3"
 iced_runtime = "0.14"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+desktop-chat-view = { path = "../desktop-chat-view", version = "0.6.0" }

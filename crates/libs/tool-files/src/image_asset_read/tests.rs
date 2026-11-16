@@ -1,8 +1,9 @@
+type ToolUseContext = tool_context::context::ToolUseContext<crate::host_migration_34_tests::Host>;
 use super::*;
-type ImageAssetReadTool = super::ImageAssetReadTool<crate::tools::context::AgentContextHost>;
-use crate::app::agent::multimodal::assets::{ImageAssetScope, ImageAssetStore};
-use crate::app::agent::tools::context::{
-    MAX_PENDING_IMAGE_RELOADS, PendingImageReloadQueue, ToolUseContext, scope_tool_use_context,
+type ImageAssetReadTool = super::ImageAssetReadTool<crate::host_migration_34_tests::Host>;
+use agent_multimodal::assets::{ImageAssetScope, ImageAssetStore};
+use tool_context::context::{
+    MAX_PENDING_IMAGE_RELOADS, PendingImageReloadQueue, scope_tool_use_context,
 };
 use image::{DynamicImage, ImageBuffer, ImageFormat, Rgb};
 use std::io::Cursor;
@@ -94,8 +95,8 @@ fn pending_reload_ids_are_deduplicated_and_bounded() {
 
 #[test]
 fn requested_image_is_attached_to_next_step_once() {
-    use crate::app::agent::multimodal::analysis::ImageAnalysisResult;
-    use crate::app::agent::multimodal::context::{ImageTurnContext, TrackedImage};
+    use agent_multimodal::analysis::ImageAnalysisResult;
+    use agent_multimodal::context::{ImageTurnContext, TrackedImage};
 
     let image_id = ImageAssetId::from_hex("ab".repeat(32)).unwrap();
     let analysis = ImageAnalysisResult {
@@ -107,7 +108,7 @@ fn requested_image_is_attached_to_next_step_once() {
         prompt_version: "v1".into(),
     };
     let reference =
-        crate::app::agent::multimodal::analysis::format_image_reference_text(&image_id, &analysis);
+        agent_multimodal::analysis::format_image_reference_text(&image_id, &analysis);
     let data_uri = "data:image/jpeg;base64,QUJD";
     let tracked = TrackedImage {
         image_id: image_id.clone(),

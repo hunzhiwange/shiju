@@ -48,14 +48,14 @@ async fn task_pool_git_uses_active_worktree_directory() {
     let worktree_parent = TempDir::new().unwrap();
     let worktree = worktree_parent.path().join("active");
     repo.worktree("active", &worktree, None).unwrap();
-    let context = Arc::new(crate::tools::ToolUseContext::new(
+    let context = Arc::new(super::ToolUseContext::new(
         "git-test",
         Some(tmp.path().to_string_lossy().into()),
     ));
     context
         .bind_worktree(worktree.to_string_lossy().into(), "active".into(), "active".into())
         .unwrap();
-    crate::tools::scope_tool_use_context(context, async {
+    super::scope_tool_use_context(context, async {
         let status =
             output(test_tool(tmp.path()).execute(json!({"operation":"status"})).await.unwrap());
         assert_eq!(status["branch"], "active");

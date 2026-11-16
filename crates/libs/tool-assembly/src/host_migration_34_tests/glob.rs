@@ -20,7 +20,7 @@ use std::path::PathBuf;
 mod tests {
     use super::*;
 
-    use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
+    use agent_security::{AutonomyLevel, SecurityPolicy};
     use tempfile::TempDir;
 
     /// 创建用于测试的默认安全策略

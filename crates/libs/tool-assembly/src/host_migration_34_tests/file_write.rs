@@ -29,10 +29,10 @@ use std::sync::Arc;
 mod tests {
     use super::*;
 
-    use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
-    use crate::app::agent::tools::FileSnapshot;
-    use crate::app::agent::tools::ToolUseContext;
-    use crate::app::agent::tools::context::scope_tool_use_context;
+    use agent_security::{AutonomyLevel, SecurityPolicy};
+    use tool_context::read_state::FileSnapshot;
+    use super::super::ToolUseContext;
+    use super::super::scope_tool_use_context;
     use vw_api_tools::ToolResultContentDto;
 
     /// 创建用于测试的默认安全策略

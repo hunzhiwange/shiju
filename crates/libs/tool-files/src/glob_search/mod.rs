@@ -361,3 +361,7 @@ impl<H: super::FileToolHost> Tool for GlobSearchTool<H> {
 /// 测试模块
 ///
 /// 测试代码位于 tests/glob_search.rs 文件中
+
+#[cfg(test)]
+#[path = "tests.rs"]
+mod host_migration_34_tests;

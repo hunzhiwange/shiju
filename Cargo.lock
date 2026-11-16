@@ -20514,6 +20514,16 @@ dependencies = [
 name = "tool-assembly"
 version = "0.6.0"
 dependencies = [
+ "tool-git",
+ "tool-files",
+ "tokio-util",
+ "tokio",
+ "tempfile",
+ "rmcp",
+ "reqwest 0.12.28",
+ "permission-types",
+ "git2",
+ "acp-types",
  "acp-config",
  "agent-client-protocol",
  "agent-config",

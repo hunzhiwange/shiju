@@ -19,3 +19,6 @@ pub trait FileToolHost: tool_context::host::ContextHost {
 
 #[cfg(test)]
 mod host_migration_30_tests;
+
+#[cfg(test)]
+mod host_migration_34_tests;

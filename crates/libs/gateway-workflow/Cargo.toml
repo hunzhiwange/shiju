@@ -21,6 +21,10 @@ vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+async-trait = "0.1"
+tool-context = { path = "../tool-context", version = "0.6.0" }
+tool-assembly = { path = "../tool-assembly", version = "0.6.0" }
+session-store = { path = "../session-store", version = "0.6.0" }
 gateway-types = { path = "../gateway-types", version = "0.6.0" }
 workflow-engine = { path = "../workflow-engine", version = "0.6.0" }
 workflow-core = { path = "../workflow-core", version = "0.6.0" }

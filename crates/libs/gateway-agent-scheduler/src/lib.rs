@@ -1,5 +1,8 @@
 //! Agent Scheduler HTTP 路由与服务注入契约。
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod store_gateway;
+
 mod types;
 pub use types::*;
 

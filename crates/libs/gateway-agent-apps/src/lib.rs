@@ -10,6 +10,8 @@ mod data_access;
 mod agent_apps_error_tests;
 
 pub mod agent_apps_skills;
+pub mod icons;
+pub mod host_context;
 pub mod read;
 pub mod preferences;
 pub mod launch;

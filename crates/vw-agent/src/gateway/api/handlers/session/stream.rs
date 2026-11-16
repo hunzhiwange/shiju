@@ -221,71 +221,17 @@ impl StreamHost for Host {
     ) -> session_port::PromptTurn {
         crate::session::ui_store::with_tenant_scope_sync(tenant, || {
             let start = || {
-                let (prompt_tx, prompt_rx) = tokio::sync::mpsc::unbounded_channel();
-                let request = crate::session::processor::Request {
-                    stream: 0,
-                    session: input.session,
-                    query: input.query,
-                    root: Some(input.root),
-                    model: input.model,
-                    reliability: input.reliability,
-                    options: input.options,
-                    approval: Some(approval),
-                    channel_name: Some("desktop".to_string()),
-                    non_cli_approval_context: (!input.background_acp).then(|| {
-                        crate::agent::loop_::NonCliApprovalContext {
-                            sender: "desktop".to_string(),
-                            reply_target: input.approval_reply_target,
-                            prompt_tx,
-                        }
-                    }),
-                    assistant_message_id: input.assistant_message_id,
-                    history: input.history,
-                    persist_app_session_artifacts: input.persist_app_session_artifacts,
-                    app_session_scope: input.app_session_scope,
-                    abort_token: input.abort_token,
-                    session_tools: crate::session::runtime::SessionToolset::default(),
-                    session_skills: Default::default(),
-                };
+                let (request, persisted_history, prompt_rx) =
+                    gateway_session::prompt_adapter::prepare_request(approval, input);
                 crate::session::runtime::start_prompt_with_runner(
                     request,
                     move |request, mut emit| {
                         let _approval_prompt_rx = prompt_rx;
                         crate::session::processor::run_with_persisted_history(
                             request,
-                            input.persisted_history,
+                            persisted_history,
                             move |event| {
-                                // Snapshot observation runs synchronously before the processor advances.
-                                match &event {
-                                    crate::session::processor::StreamEvent::StepStart {
-                                        step_index,
-                                        created_ms,
-                                        model,
-                                    } => before_emit(&session_port::PromptEvent::StepStart {
-                                        step_index: *step_index,
-                                        created_ms: *created_ms,
-                                        model: model.clone(),
-                                    }),
-                                    crate::session::processor::StreamEvent::PostToolRound {
-                                        step_index,
-                                    } => before_emit(&session_port::PromptEvent::PostToolRound {
-                                        step_index: *step_index,
-                                    }),
-                                    crate::session::processor::StreamEvent::StepFinish {
-                                        step_index,
-                                        finished_ms,
-                                        usage,
-                                        finish_reason,
-                                        model,
-                                    } => before_emit(&session_port::PromptEvent::StepFinish {
-                                        step_index: *step_index,
-                                        finished_ms: *finished_ms,
-                                        usage: usage.clone(),
-                                        finish_reason: finish_reason.clone(),
-                                        model: model.clone(),
-                                    }),
-                                    _ => {}
-                                }
+                                gateway_session::prompt_adapter::observe_event(&event, &mut before_emit);
                                 emit(event)
                             },
                         )

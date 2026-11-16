@@ -1161,7 +1161,7 @@ async fn agent_scheduler_gateway_policy_leaves_review_ready_task_submitted() {
     assert!(logs.is_empty());
     let events = store.list_events_after(&project_path, None, 100).expect("events");
     assert!(events.iter().all(|event| event.payload["policy_action"] != "skip_review"));
-    let holder = super::super::task_pool::task_worktree_pool_service()
+    let holder = super::super::super::task_pool::task_worktree_pool_service()
         .merge_lock_holder(&project_info, "main")
         .await
         .expect("merge lock holder");

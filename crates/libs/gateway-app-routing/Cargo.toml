@@ -27,6 +27,17 @@ reqwest = { version = "0.13", features = ["json"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+sha2 = "0.11"
+gateway-agent-apps = { path = "../gateway-agent-apps", version = "0.6.0" }
+gateway-app-providers = { path = "../gateway-app-providers", version = "0.6.0" }
+gateway-device-sync = { path = "../gateway-device-sync", version = "0.6.0" }
+gateway-aggregation = { path = "../gateway-aggregation", version = "0.6.0" }
+gateway-mcp = { path = "../gateway-mcp", version = "0.6.0" }
+agent-app-services = { path = "../agent-app-services", version = "0.6.0" }
+vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.6.0" }
+vw-api-app-aggregation = { path = "../api-app-aggregation", version = "0.6.0" }
+vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
 agent-paths = { path = "../agent-paths", version = "0.6.0" }
 axum = { version = "0.8.8", default-features = false, features = ["json"] }
 agent-gateway = { path = "../agent-gateway", version = "0.6.0" }

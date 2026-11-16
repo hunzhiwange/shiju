@@ -1,4 +1,6 @@
 //! 工作流应用、运行与 SSE 领域客户端。
+#[cfg(not(target_arch = "wasm32"))]
+pub mod tool_provider;
 
 #[derive(Debug, Clone)]
 pub struct GatewayWorkflowClient {

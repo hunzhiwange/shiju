@@ -1206,10 +1206,6 @@ dependencies = [
  "tracing",
  "url",
  "vw-api-transport",
- "agent-question",
- "mcp-client",
- "rmcp",
- "tokio-util",
 ]
 
 [[package]]
@@ -4713,6 +4709,7 @@ dependencies = [
  "agent-util",
  "anyhow",
  "async-trait",
+ "async-trait",
  "channel-types",
  "chrono-tz 0.10.4",
  "config-channels",
@@ -4732,6 +4729,7 @@ dependencies = [
  "session-port",
  "session-store",
  "sha2 0.11.0",
+ "tempfile",
  "tempfile",
  "tokio",
  "tokio-util",

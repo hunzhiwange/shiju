@@ -571,3 +571,7 @@ pub use crate::recovery::provider_retry_backoff_ms;
 #[cfg(test)]
 #[path = "llm_runner_buffer_tests.rs"]
 mod buffer_tests;
+
+#[cfg(test)]
+#[path = "llm_runner_consumer_tests.rs"]
+mod consumer_tests;

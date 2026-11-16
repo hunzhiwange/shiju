@@ -20,3 +20,6 @@ pub mod store;
 
 #[cfg(test)]
 mod host_migration_29_tests;
+
+#[cfg(test)]
+mod host_migration_58_tests;

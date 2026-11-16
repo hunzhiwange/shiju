@@ -20,3 +20,11 @@ fn services() -> MigrationServices {
 pub fn migrate_user_config(home: &Path) -> Result<MigrationOutcome> {
     crate::migration::migrate_user_config(home, &services())
 }
+
+#[cfg(test)]
+pub(crate) fn migrate_user_config_with_database(
+    home: &Path,
+    database: agent_database::GlobalDatabase,
+) -> Result<MigrationOutcome> {
+    crate::migration::migrate_user_config_with_database(home, database, &services())
+}

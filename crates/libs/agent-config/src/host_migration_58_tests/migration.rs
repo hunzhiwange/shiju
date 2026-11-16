@@ -4,10 +4,9 @@ use anyhow::Result;
 use vw_api_transport::id::TenantScope;
 use config_aggregate::Config;
 
-use super::SystemConfigStore;
-use super::migration::{MigrationOutcome, migrate_user_config, migrate_user_config_with_database};
-use crate::global_database::GlobalDatabase;
-use crate::global_database::test_support::PostgresTestDatabase;
+use crate::store::SystemConfigStore;
+use crate::runtime_migration::{MigrationOutcome, migrate_user_config, migrate_user_config_with_database};
+use agent_database::GlobalDatabase;
 
 fn write_source(home: &std::path::Path, config: &Config) -> Result<std::path::PathBuf> {
     let config_dir = config_runtime_paths::home_config_dir(home);
@@ -94,7 +93,7 @@ fn for_each_migration_provider(
     check(sqlite_home.path(), GlobalDatabase::for_home(sqlite_home.path())?)?;
 
     let postgres_home = tempfile::tempdir()?;
-    let postgres_fixture = crate::global_database::test_support::postgres_test_database!();
+    let postgres_fixture = agent_database::test_support::postgres_test_database!();
     check(postgres_home.path(), postgres_fixture.database().clone())?;
     postgres_fixture.cleanup()?;
     Ok(())

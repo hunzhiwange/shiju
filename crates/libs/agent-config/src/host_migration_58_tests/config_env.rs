@@ -1,6 +1,6 @@
 // 覆盖环境变量覆盖配置时的优先级、规范化及无效值处理。
 
-use super::{
+use crate::runtime_schema::{
     Config,
     config_env::apply_env_overrides,
     proxy::{ProxyConfig, ProxyScope, runtime_proxy_config, set_runtime_proxy_config},
@@ -66,12 +66,11 @@ const CONFIG_ENV_KEYS: &[&str] = &[
 ];
 
 fn env_lock() -> MutexGuard<'static, ()> {
-    crate::test_support::global_env_lock().lock().unwrap_or_else(|error| error.into_inner())
+    crate::schema::proxy::global_runtime_proxy_lock()
 }
 
 struct ConfigEnvGuard {
     _lock: MutexGuard<'static, ()>,
-    _runtime_proxy_lock: MutexGuard<'static, ()>,
     previous_env: Vec<(&'static str, Option<OsString>)>,
     previous_proxy: ProxyConfig,
 }
@@ -79,9 +78,6 @@ struct ConfigEnvGuard {
 impl ConfigEnvGuard {
     fn new() -> Self {
         let lock = env_lock();
-        let runtime_proxy_lock = crate::test_support::global_runtime_proxy_lock()
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
         let previous_env =
             CONFIG_ENV_KEYS.iter().map(|key| (*key, std::env::var_os(*key))).collect::<Vec<_>>();
         let previous_proxy = runtime_proxy_config();
@@ -92,7 +88,7 @@ impl ConfigEnvGuard {
             }
         }
 
-        Self { _lock: lock, _runtime_proxy_lock: runtime_proxy_lock, previous_env, previous_proxy }
+        Self { _lock: lock, previous_env, previous_proxy }
     }
 
     fn set(&self, key: &'static str, value: &str) {

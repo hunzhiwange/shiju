@@ -378,7 +378,7 @@ pub fn parse_proxy_enabled(raw: &str) -> Option<bool> {
 mod proxy_tests;
 
 #[cfg(test)]
-fn global_runtime_proxy_lock() -> std::sync::MutexGuard<'static, ()> {
+pub(crate) fn global_runtime_proxy_lock() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
     LOCK.lock().unwrap_or_else(|error| error.into_inner())
 }

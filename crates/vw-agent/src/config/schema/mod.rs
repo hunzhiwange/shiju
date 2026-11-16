@@ -4,5 +4,3 @@ pub use agent_config::runtime_schema::*;
 mod channel_reload;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) use channel_reload::ChannelConfigWatcher;
-#[cfg(test)]
-mod config_env_tests;

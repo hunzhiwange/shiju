@@ -3,12 +3,9 @@ use super::{ChannelsConfig, Config};
 use crate::config::SystemConfigStore;
 use crate::global_database::GlobalDatabase;
 use anyhow::{Context, Result};
-use vw_api_transport::id::TenantScope;
 
 pub(crate) struct ChannelConfigWatcher {
     inner: agent_config::schema::channel_reload::ChannelConfigWatcher<SystemConfigStore>,
-    #[cfg(test)]
-    store: SystemConfigStore,
 }
 impl ChannelConfigWatcher {
     pub(crate) async fn new(config: &Config, include_project: bool) -> Result<Self> {
@@ -26,7 +23,7 @@ impl ChannelConfigWatcher {
         let inner = agent_config::schema::channel_reload::ChannelConfigWatcher::from_store(
             store.clone(), config, include_project, crate::session::ui_store::current_tenant_scope(),
             super::apply_env_overrides, super::validate_config, super::config_io::merge_config_payload)?;
-        Ok(Self { inner, #[cfg(test)] store })
+        Ok(Self { inner })
     }
     pub(crate) async fn poll(&mut self, current: &Config) -> Result<Option<ChannelsConfig>> {
         self.inner.poll(current).await

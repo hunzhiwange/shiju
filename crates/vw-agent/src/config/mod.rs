@@ -4,12 +4,9 @@ pub use agent_config::runtime::*;
 pub mod schema;
 pub mod traits;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod migration;
+pub use agent_config::runtime_migration as migration;
 #[cfg(not(target_arch = "wasm32"))]
 pub use agent_config::store;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "migration_tests.rs"]
-mod migration_tests;
 
 /// 读取当前请求租户与项目的配置，每次读取都包含已保存的覆盖。
 pub(crate) async fn get_current() -> Result<Config, Error> {

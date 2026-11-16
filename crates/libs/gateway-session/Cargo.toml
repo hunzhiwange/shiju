@@ -4,6 +4,9 @@ version = "0.6.0"
 edition = "2024"
 license = "MIT"
 
+[features]
+test-support = ["dep:tempfile", "dep:vw-api-todo"]
+
 [lib]
 doctest = false
 
@@ -22,6 +25,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tempfile = { version = "3", optional = true }
+vw-api-todo = { path = "../api-todo", version = "0.6.0", optional = true }
 tool-context = { path = "../tool-context", version = "0.6.0" }
 tool-assembly = { path = "../tool-assembly", version = "0.6.0" }
 ordered-id = { path = "../ordered-id", version = "0.6.0" }

@@ -138,3 +138,25 @@ message_ops 的原挂载仅承接签名契约；全部9条消息行为用例在�
 宿主未来对上列保留函数逐项使用原完整路径 `gateway::api::handlers::session::<原模块>::<函数>` 精确过滤；nested fork_acp 的原挂载是 session_ops::session_ops_tests::turn_fork_tests::fork_acp_tests（以未来 list 核实）。迁走用例的旧路径须用真实宿主 list 证明消失，零测试不算通过。
 
 静态检查：测试函数名逐项对应、原断言保留、无 path/include 装载宿主源码、无 vw-agent 依赖；git diff --check 仅检查本任务补丁。按 scope 文件所有权没有修改任务11的 stream/ui/turn_fork 源文件。
+
+## 收口恢复：生命周期完整断言继续下沉（覆盖前述保留说明）
+
+读取 final.md 和 remaining-host.json 任务10条目后，拆开原 session_ops_tests 的实际宿主装配和领域断言。新增 gateway-session::host_lifecycle_acceptance，使用已有 SessionHost 及 H::State；八个完整行为函数迁入领域库。原宿主同名测试仅构造实际 AppState，调用对应领域函数并注入实际 Host。没有复制 AppState、伪造存储、重写策略或删除失败断言。
+
+领域 test-support feature 只有实际 vw-agent dev-dependency 选择，沿用仓库其它领域库的已有模式；tempfile 和 vw-api-todo 是可选的具体夹具依赖，默认生产不启用。没有新增 Host 方法、没有反向依赖 vw-agent、没有 path/include 加载宿主源代码。领域函数调用生产 session_ops::<H>，原宿主函数调用本来就是相同入口的 typed forwarding。
+
+共享 Once 环境和 SESSION_OPS_TEST_LOCK 一并迁至领域测试支持模块，由原 turn_fork_tests/fork_acp_tests 通过父模块导入同一个对象；未创建第二把锁或改变锁顺序。宿主保留 query_for/create_session_in 是 task11 子模块和 task10 fork_acp 的真实夹具调用，不复制 AppState 到库。第一个用例的 global_async_env_lock 仍在宿主薄测试获取，其余夹具隔离行为保持原状。
+
+完整映射（原宿主 session_ops::session_ops_tests 下注册名不变；下列目标均为 gateway-session::host_lifecycle_acceptance 下同名函数，不声称是可独立运行的领域单测）：
+- `gateway_first_response_create_without_title_reserves_an_unpublished_session` → `gateway-session::host_lifecycle_acceptance::gateway_first_response_create_without_title_reserves_an_unpublished_session::<实际Host>(实际AppState)`。
+- `ui_session_list_respects_updated_boundary_and_zero_limit` → `gateway-session::host_lifecycle_acceptance::ui_session_list_respects_updated_boundary_and_zero_limit::<实际Host>(实际AppState)`。
+- `ui_session_status_preserves_existing_non_idle_state` → `gateway-session::host_lifecycle_acceptance::ui_session_status_preserves_existing_non_idle_state::<实际Host>(实际AppState)`。
+- `ui_session_patch_ignores_empty_fields_and_uses_header_scope` → `gateway-session::host_lifecycle_acceptance::ui_session_patch_ignores_empty_fields_and_uses_header_scope::<实际Host>(实际AppState)`。
+- `session_todo_put_replaces_and_clears_saved_items` → `gateway-session::host_lifecycle_acceptance::session_todo_put_replaces_and_clears_saved_items::<实际Host>(实际AppState)`。
+- `scoped_mutations_do_not_modify_sessions_from_another_instance` → `gateway-session::host_lifecycle_acceptance::scoped_mutations_do_not_modify_sessions_from_another_instance::<实际Host>(实际AppState)`。
+- `session_ops_cover_lifecycle_filters_and_instance_boundaries` → `gateway-session::host_lifecycle_acceptance::session_ops_cover_lifecycle_filters_and_instance_boundaries::<实际Host>(实际AppState)`。
+- `session_ops_cover_diff_summary_reset_and_title_errors` → `gateway-session::host_lifecycle_acceptance::session_ops_cover_diff_summary_reset_and_title_errors::<实际Host>(实际AppState)`。
+
+本轮该宿主文件 694→138 行，新增领域测试支持 611 行，额外净减 556 行；原14文件基线4200行，累计净减 1275 行。28条原纯领域单测注册不变，新增8条完整场景的断言/执行函数迁移，宿主38条注册数量不变（其中8条成为薄注入入口）。生产策略本轮迁移0行，新增feature支持不能算作生产策略收益。
+
+静态比对八个场景的断言宏数量及顺序一致（50处），类型路径改为真实所属库、函数调用显式传入 H；所有安全拒绝/跨项目/错误/消息边界断言保留。未执行任何 Cargo、构建或测试。未来通过原完整宿主名逐项精确运行这8条；未来check同时覆盖 gateway-session 的 test-support feature。旧的“整个生命周期用例必须保留宿主”说明由本节替代。其余文件逐符号与全测试映射仍见上文；当前累计减量仍不足70%，不能据此宣称整轮达标。

@@ -69,3 +69,6 @@ mod host_migration_10_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod host_migration_12_tests;
+
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod host_lifecycle_acceptance;

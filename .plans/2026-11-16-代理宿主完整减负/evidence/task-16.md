@@ -269,3 +269,21 @@ Future: `python3 scripts/cargo_slot.py cargo test -p gateway-model --lib host_mi
 - `shiju_skills.rs`: 2 lines.
 
 New test dependencies are declared in the receiving manifests. No reverse vw-agent dependency, host path/include, fake auth or duplicated AppState. Cargo.lock resolution remains future authorized Cargo work. All compilation, runtime behavior, build-time and performance claims remain unverified.
+
+## Task59 requested deletion/commit closure
+
+Read latest evidence/task-59-recovery-priorities.json, owner 16 priority 3. Scope is exclusively committing the three already-deleted source files; no restoration or additional migration. The current HEAD still tracks these files while the worktree deletes them. The domain replacements were already committed in 98aa2a2bd.
+
+Static full-file comparison against current HEAD, rewriting only the original host imports to existing domain crate imports:
+
+| Deleted source | Existing receiver under gateway-model/src/host_migration_16_tests | Lines | Tests | Comparison |
+|---|---|---:|---:|---|
+| model_catalog_tests.rs | model_catalog_tests.rs | 304 | 6 | Entire file identical after import rewrite |
+| model_catalog_edits_tests.rs | model_catalog_edits_tests.rs | 247 | 8 | Entire file identical, no rewrite needed |
+| model_discovery_tests.rs | model_discovery_tests.rs | 466 | 10 | Entire file identical after import rewrite |
+
+This includes every fixture, function, failure/cancellation assertion and test body, not merely matching names. Total 1017 stale host lines removed from Git ownership; these bodies were already absent from the working tree, so this closure does not claim 1017 new physical line savings.
+
+Registration checked: gateway-model/src/lib.rs gates host_migration_16_tests with test+macOS; that module registers model_catalog_tests and model_discovery_tests; catalog_tests registers edits via its local path attribute. Host handlers/mod.rs has no registration for these three modules. The receiving manifest declares SDK, transport, real tenant middleware, policy, temporary-directory and async dependencies. The existing actual catalog client/gateway authentication acceptance remains in the host.
+
+Future precise validation: `python3 scripts/cargo_slot.py cargo test -p gateway-model --lib host_migration_16_tests::model_catalog_tests -- --test-threads=1` expects 14 cases including edits; `python3 scripts/cargo_slot.py cargo test -p gateway-model --lib host_migration_16_tests::model_discovery_tests -- --test-threads=1` expects 10 cases on macOS. Neither was run. No Cargo, build or test execution performed. Only source comparison, registration/dependency inspection and diff whitespace checks were performed. Task16 numbered file remains deleted and is included in this closure where tracked; unrelated deletions and staged work are excluded.

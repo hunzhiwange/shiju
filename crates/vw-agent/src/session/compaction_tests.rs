@@ -6,7 +6,6 @@ use crate::app::agent::provider::provider;
 use crate::app::agent::session::message;
 use std::collections::HashMap;
 
-static COMPACTION_STORAGE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 fn capability_io(text: bool) -> provider::CapabilityIO {
     provider::CapabilityIO { text, audio: false, image: false, video: false, pdf: false }
@@ -210,95 +209,6 @@ async fn process_returns_stop_when_parent_user_message_is_missing() {
 }
 
 #[tokio::test]
-async fn internal_compaction_replaces_covered_history_with_a_model_summary() {
-    let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
-    let session_id = unique_session("internal-compaction-success");
-    let compact_request_id = "msg_compact".to_string();
-    let history = vec![
-        user_message(&session_id, "msg_old_user", "Investigate the failing build"),
-        assistant_message(
-            &session_id,
-            "msg_old_assistant",
-            "msg_old_user",
-            "The compiler reports an ownership error.",
-            None,
-        ),
-        user_message(&session_id, &compact_request_id, ""),
-    ];
-    for message in &history {
-        write_message_with_parts(message).await;
-    }
-
-    let result = process_with_summarizer(
-        ProcessInput {
-            parent_id: compact_request_id.clone(),
-            messages: history,
-            session_id: session_id.clone(),
-            auto: false,
-        },
-        &model_with_limits(100_000, None, 10_000),
-        |request| {
-            assert!(request.prompt.contains("Investigate the failing build"));
-            assert!(request.tools.is_empty());
-            Ok("Build investigation: ownership error remains.".to_string())
-        },
-    )
-    .await
-    .expect("successful summary should persist atomically");
-
-    let CompactionOutcome::Compacted { stats, .. } = result else {
-        panic!("expected a completed compaction");
-    };
-    assert_eq!(stats.covered_messages, 2);
-    assert_eq!(
-        stats.summary_chars,
-        "Build investigation: ownership error remains.".chars().count()
-    );
-
-    let stored = message::messages(&session_id, None).await.expect("stored history");
-    assert_eq!(stored.len(), 3);
-    assert!(stored.iter().any(|message| message.info.id() == "msg_old_user"));
-    assert!(stored.iter().all(|message| !matches!(&message.info, message::Info::Assistant(info) if info.summary == Some(true))));
-    cleanup_session(&session_id).await;
-}
-
-#[tokio::test]
-// 摘要失败或为空时保留原历史，避免压缩操作造成不可逆信息丢失。
-async fn internal_compaction_keeps_history_when_summary_is_blank_or_fails() {
-    let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
-    let session_id = unique_session("internal-compaction-atomic-failure");
-    let compact_request_id = "msg_compact".to_string();
-    let history = vec![
-        user_message(&session_id, "msg_old_user", "Keep this message"),
-        user_message(&session_id, &compact_request_id, ""),
-    ];
-    for message in &history {
-        write_message_with_parts(message).await;
-    }
-
-    for response in [Ok("   ".to_string()), Err("provider unavailable".to_string())] {
-        let result = process_with_summarizer(
-            ProcessInput {
-                parent_id: compact_request_id.clone(),
-                messages: history.clone(),
-                session_id: session_id.clone(),
-                auto: false,
-            },
-            &model_with_limits(100_000, None, 10_000),
-            |_| response.clone(),
-        )
-        .await
-        .expect("model failure is a recoverable compaction outcome");
-        assert!(matches!(result, CompactionOutcome::Failed { .. }));
-        let stored = message::messages(&session_id, None).await.expect("history remains readable");
-        assert_eq!(stored.len(), 2);
-        assert!(stored.iter().any(|message| message.info.id() == "msg_old_user"));
-    }
-
-    cleanup_session(&session_id).await;
-}
-
-#[tokio::test]
 async fn process_does_not_compact_when_the_boundary_has_no_prior_history() {
     let session_id = unique_session("compaction-process-auto");
     let parent_id = "msg_parent".to_string();
@@ -347,51 +257,6 @@ async fn process_does_not_synthesize_a_summary_for_blank_history() {
     let stored = message::messages(&session_id, None).await.expect("stored messages");
     assert!(stored.is_empty());
 
-    cleanup_session(&session_id).await;
-}
-
-#[tokio::test]
-async fn internal_compaction_single_summary_preserves_all_persisted_history() {
-    let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
-    let session_id = unique_session("compaction-checkpoint");
-    let history = vec![
-        user_message(&session_id, "msg_01", &"中文😀".repeat(50_000)),
-        user_message(&session_id, "msg_02", "FINAL_DECISION"),
-        user_message(&session_id, "msg_03", "continue"),
-    ];
-    for message in &history {
-        write_message_with_parts(message).await;
-    }
-    let before = serde_json::to_value(message::messages(&session_id, None).await.unwrap()).unwrap();
-    let mut calls = 0;
-    let outcome = process_with_summarizer(
-        ProcessInput {
-            parent_id: "msg_03".into(),
-            messages: history.clone(),
-            session_id: session_id.clone(),
-            auto: false,
-        },
-        &model_with_limits(128_000, None, 4096),
-        |request| {
-            calls += 1;
-            assert!(request.prompt.contains("FINAL_DECISION"));
-            Ok("checkpoint decisions".into())
-        },
-    )
-    .await
-    .unwrap();
-    assert!(matches!(outcome, CompactionOutcome::Compacted { .. }));
-    assert_eq!(calls, 1);
-    assert_eq!(
-        serde_json::to_value(message::messages(&session_id, None).await.unwrap()).unwrap(),
-        before
-    );
-    let model_context =
-        super::super::compaction_checkpoint::restore(&session_id, &model_history(&history))
-            .await
-            .unwrap();
-    assert!(model_context[0]["content"].as_str().unwrap().contains("checkpoint decisions"));
-    assert_eq!(model_context.last().unwrap()["content"], "continue");
     cleanup_session(&session_id).await;
 }
 

@@ -25,8 +25,3 @@ pub(crate) async fn remove_strict(session: &str, directory: &str) -> Result<(), 
 pub(crate) async fn remove(session: &str, directory: &str) -> Result<(), String> {
     session_engine::compaction_checkpoint::remove(&scope_for_directory(directory), session).await
 }
-#[cfg(test)]
-use serde_json::json;
-#[cfg(test)]
-#[path = "compaction_checkpoint_tests.rs"]
-mod tests;

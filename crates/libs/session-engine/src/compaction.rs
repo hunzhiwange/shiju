@@ -401,7 +401,7 @@ pub fn snapshot_checkpoint_source<H: CompactionHost>(
     )
 }
 
-async fn compact_with_summary<H: CompactionHost>(
+async fn compact_with_summary<H: CheckpointHost>(
     input: ProcessInput,
     model_result: Result<String, String>,
     source: &[serde_json::Value],
@@ -417,7 +417,7 @@ async fn compact_with_summary<H: CompactionHost>(
     super::compaction_checkpoint::save(&checkpoint_scope::<H>(), &input.session_id, source, &summary, None)
         .await
         .map_err(|error| session_info::Error::Runtime(anyhow::anyhow!(error)))?;
-    plugin_hooks::hook_compact::emit::<H>(
+    H::emit_compaction(
         &input.session_id,
         &input.parent_id,
         &format!("{}/{}", model.provider_id, model.id),
@@ -564,7 +564,7 @@ pub async fn process_session<H: CompactionHost>(
     .await
 }
 
-pub async fn process_with_summarizer<H: CompactionHost>(
+pub async fn process_with_summarizer<H: CheckpointHost>(
     input: ProcessInput,
     model: &provider::Model,
     mut summarize: impl FnMut(&InternalCompactionRequest) -> Result<String, String>,
@@ -572,7 +572,7 @@ pub async fn process_with_summarizer<H: CompactionHost>(
     let Some(boundary) = compaction_boundary(&input) else {
         return Ok(CompactionOutcome::NotNeeded { history: input.messages });
     };
-    plugin_hooks::hook_compact::emit::<H>(
+    H::emit_compaction(
         &input.session_id,
         &input.parent_id,
         &format!("{}/{}", model.provider_id, model.id),
@@ -690,10 +690,23 @@ pub trait CompactionHost: plugin_hooks::host::HookHost {
     fn summarize_async(session: String, history: Vec<serde_json::Value>, model: String,
         reliability: config::ReliabilityConfig, limit: provider::ModelLimit) -> impl Future<Output = Result<String, String>> + Send;
 }
-fn checkpoint_scope<H: CompactionHost>() -> String {
-    crate::compaction_checkpoint::scope_for_directory(&H::current_tenant_scope(), &instance::directory())
+fn checkpoint_scope<H: CheckpointHost>() -> String {
+    crate::compaction_checkpoint::scope_for_directory(&H::checkpoint_tenant(), &instance::directory())
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "host_migration_23_tests/compaction.rs"]
 mod host_migration_23_tests;
+
+/// The checkpoint transaction requires tenant identity and event delivery only.
+/// Full model execution still uses CompactionHost and its scoped hook context.
+pub trait CheckpointHost {
+    fn checkpoint_tenant() -> vw_api_transport::TenantScope;
+    fn emit_compaction(session: &str, parent: &str, model: &str, auto: bool, completed: bool) -> impl Future<Output=anyhow::Result<()>> + Send;
+}
+impl<H: plugin_hooks::host::HookHost> CheckpointHost for H {
+    fn checkpoint_tenant() -> vw_api_transport::TenantScope { H::current_tenant_scope() }
+    async fn emit_compaction(session: &str,parent: &str,model: &str,auto: bool,completed: bool)->anyhow::Result<()> {
+        plugin_hooks::hook_compact::emit::<H>(session,parent,model,auto,completed).await
+    }
+}

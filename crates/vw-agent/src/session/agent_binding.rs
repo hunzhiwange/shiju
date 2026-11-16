@@ -1,10 +1,6 @@
 //! Server-owned session binding persistence and admission.
 use anyhow::Result;
 use config_agent_profile::AgentRuntime;
-#[cfg(test)]
-use config_agent::AgentDefinitionConfig;
-#[cfg(test)]
-use config_agent_profile::AgentDefaults;
 pub(crate) use session_engine::agent_binding::AgentBinding;
 
 pub(super) use session_engine::binding_store::storage_key;

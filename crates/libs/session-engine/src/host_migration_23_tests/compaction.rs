@@ -516,3 +516,146 @@ async fn native_tool_search_history_compaction_keeps_call_output_pair() {
     assert_eq!(restored.len(), 1, "a checkpoint cutting a pair must remove the orphaned output");
     assert!(restored[0]["content"].as_str().unwrap().contains("summary"));
 }
+
+// External hook delivery is injected; checkpoint/history writes remain real.
+struct CheckpointFixture;
+impl CheckpointHost for CheckpointFixture {
+    fn checkpoint_tenant() -> vw_api_transport::TenantScope { session_store::ui_store::current_tenant_scope() }
+    async fn emit_compaction(_: &str,_: &str,_: &str,_: bool,_: bool)->anyhow::Result<()> { Ok(()) }
+}
+#[tokio::test]
+async fn internal_compaction_replaces_covered_history_with_a_model_summary() {
+    if run_in_temporary_storage("internal_compaction_replaces_covered_history_with_a_model_summary") { return; }
+    let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
+    let session_id = unique_session("internal-compaction-success");
+    let compact_request_id = "msg_compact".to_string();
+    let history = vec![
+        user_message(&session_id, "msg_old_user", "Investigate the failing build"),
+        assistant_message(
+            &session_id,
+            "msg_old_assistant",
+            "msg_old_user",
+            "The compiler reports an ownership error.",
+            None,
+        ),
+        user_message(&session_id, &compact_request_id, ""),
+    ];
+    for message in &history {
+        write_message_with_parts(message).await;
+    }
+
+    let result = process_with_summarizer::<CheckpointFixture>(
+        ProcessInput {
+            parent_id: compact_request_id.clone(),
+            messages: history,
+            session_id: session_id.clone(),
+            auto: false,
+        },
+        &model_with_limits(100_000, None, 10_000),
+        |request| {
+            assert!(request.prompt.contains("Investigate the failing build"));
+            assert!(request.tools.is_empty());
+            Ok("Build investigation: ownership error remains.".to_string())
+        },
+    )
+    .await
+    .expect("successful summary should persist atomically");
+
+    let CompactionOutcome::Compacted { stats, .. } = result else {
+        panic!("expected a completed compaction");
+    };
+    assert_eq!(stats.covered_messages, 2);
+    assert_eq!(
+        stats.summary_chars,
+        "Build investigation: ownership error remains.".chars().count()
+    );
+
+    let stored = message::messages(&session_id, None).await.expect("stored history");
+    assert_eq!(stored.len(), 3);
+    assert!(stored.iter().any(|message| message.info.id() == "msg_old_user"));
+    assert!(stored.iter().all(|message| !matches!(&message.info, message::Info::Assistant(info) if info.summary == Some(true))));
+    cleanup_session(&session_id).await;
+}
+
+#[tokio::test]
+// 摘要失败或为空时保留原历史，避免压缩操作造成不可逆信息丢失。
+async fn internal_compaction_keeps_history_when_summary_is_blank_or_fails() {
+    if run_in_temporary_storage("internal_compaction_keeps_history_when_summary_is_blank_or_fails") { return; }
+    let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
+    let session_id = unique_session("internal-compaction-atomic-failure");
+    let compact_request_id = "msg_compact".to_string();
+    let history = vec![
+        user_message(&session_id, "msg_old_user", "Keep this message"),
+        user_message(&session_id, &compact_request_id, ""),
+    ];
+    for message in &history {
+        write_message_with_parts(message).await;
+    }
+
+    for response in [Ok("   ".to_string()), Err("provider unavailable".to_string())] {
+        let result = process_with_summarizer::<CheckpointFixture>(
+            ProcessInput {
+                parent_id: compact_request_id.clone(),
+                messages: history.clone(),
+                session_id: session_id.clone(),
+                auto: false,
+            },
+            &model_with_limits(100_000, None, 10_000),
+            |_| response.clone(),
+        )
+        .await
+        .expect("model failure is a recoverable compaction outcome");
+        assert!(matches!(result, CompactionOutcome::Failed { .. }));
+        let stored = message::messages(&session_id, None).await.expect("history remains readable");
+        assert_eq!(stored.len(), 2);
+        assert!(stored.iter().any(|message| message.info.id() == "msg_old_user"));
+    }
+
+    cleanup_session(&session_id).await;
+}
+
+#[tokio::test]
+async fn internal_compaction_single_summary_preserves_all_persisted_history() {
+    if run_in_temporary_storage("internal_compaction_single_summary_preserves_all_persisted_history") { return; }
+    let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
+    let session_id = unique_session("compaction-checkpoint");
+    let history = vec![
+        user_message(&session_id, "msg_01", &"中文😀".repeat(50_000)),
+        user_message(&session_id, "msg_02", "FINAL_DECISION"),
+        user_message(&session_id, "msg_03", "continue"),
+    ];
+    for message in &history {
+        write_message_with_parts(message).await;
+    }
+    let before = serde_json::to_value(message::messages(&session_id, None).await.unwrap()).unwrap();
+    let mut calls = 0;
+    let outcome = process_with_summarizer::<CheckpointFixture>(
+        ProcessInput {
+            parent_id: "msg_03".into(),
+            messages: history.clone(),
+            session_id: session_id.clone(),
+            auto: false,
+        },
+        &model_with_limits(128_000, None, 4096),
+        |request| {
+            calls += 1;
+            assert!(request.prompt.contains("FINAL_DECISION"));
+            Ok("checkpoint decisions".into())
+        },
+    )
+    .await
+    .unwrap();
+    assert!(matches!(outcome, CompactionOutcome::Compacted { .. }));
+    assert_eq!(calls, 1);
+    assert_eq!(
+        serde_json::to_value(message::messages(&session_id, None).await.unwrap()).unwrap(),
+        before
+    );
+    let model_context =
+        crate::compaction_checkpoint::restore(&checkpoint_scope::<CheckpointFixture>(), &session_id, &model_history(&history))
+            .await
+            .unwrap();
+    assert!(model_context[0]["content"].as_str().unwrap().contains("checkpoint decisions"));
+    assert_eq!(model_context.last().unwrap()["content"], "continue");
+    cleanup_session(&session_id).await;
+}

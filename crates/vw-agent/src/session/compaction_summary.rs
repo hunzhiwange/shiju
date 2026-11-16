@@ -9,9 +9,6 @@ use serde_json::Value;
 use serde_json::json;
 use tokio_util::sync::CancellationToken;
 
-// Request fitting is owned by session-engine.
-#[cfg(test)]
-use session_engine::compaction_summary::{request_input, MAX_OVERFLOW_RECOVERIES};
 
 struct SummaryHost;
 impl session_engine::compaction_summary::SummaryHost for SummaryHost {

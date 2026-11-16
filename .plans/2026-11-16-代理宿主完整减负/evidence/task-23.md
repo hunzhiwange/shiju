@@ -89,3 +89,41 @@ agent_binding 保留 store（宿主数据库）、scope（当前 home/tenant）�
 `python3 scripts/cargo_slot.py cargo test -p session-engine --lib host_migration_23_tests -- --test-threads=1`：静态预期 20 条，必须确认 ran > 0 且 failed=0。llm-runtime/agent-acp 未新建模块，不运行零测试过滤。
 宿主未来按上述各保留名称使用 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib <完整名称> -- --exact --test-threads=1`（名称需加原模块路径），每条预期 1；迁出项未来用宿主 --list 核对消失。全部编译、行为、运行耗时检查均未运行。
 静态核对：20 个迁出函数不再挂在原宿主模块；原文件只保留真实集成用例及其夹具，没有通过 path 反向挂载领域测试。
+
+## 恢复深迁（以本节覆盖上轮保留结论）
+已读取 final.md 及 remaining-host.json 的 owner=23 残留。新增接收3个测试模块，由现有 host_migration_23_tests 自注册。
+- `compaction_empty_output_is_normalized_without_replaying_partial_streams` → `crates/libs/session-engine/src/host_migration_23_tests/compaction_summary.rs`；保留原断言及名称。
+- `compaction_unknown_window_recovers_from_provider_overflow_without_changing_history` → `crates/libs/session-engine/src/host_migration_23_tests/compaction_summary.rs`；保留原断言及名称。
+- `compaction_equal_context_and_output_uses_bounded_request_allocation` → `crates/libs/session-engine/src/host_migration_23_tests/compaction_summary.rs`；保留原断言及名称。
+- `compaction_impossible_budget_preserves_system_and_skips_model` → `crates/libs/session-engine/src/host_migration_23_tests/compaction_summary.rs`；保留原断言及名称。
+- `compaction_overflow_retries_are_bounded_and_preserve_source` → `crates/libs/session-engine/src/host_migration_23_tests/compaction_summary.rs`；保留原断言及名称。
+- `compaction_range_overflow_recovers_single_large_message` → `crates/libs/session-engine/src/host_migration_23_tests/compaction_summary.rs`；保留原断言及名称。
+- `compaction_preflight_bounds_large_tool_output_without_mutating_source` → `crates/libs/session-engine/src/host_migration_23_tests/compaction_summary.rs`；保留原断言及名称。
+- `compaction_reuses_cancellation_and_retry` → `crates/libs/session-engine/src/host_migration_23_tests/compaction_summary.rs`；保留原断言及名称。
+- `compaction_overflow_trims_request_copy_and_keeps_tool_pairs` → `crates/libs/session-engine/src/host_migration_23_tests/compaction_summary.rs`；保留原断言及名称。
+- `compaction_single_request_preserves_structured_history` → `crates/libs/session-engine/src/host_migration_23_tests/compaction_summary.rs`；保留原断言及名称。
+- `agent_config_cleanup_full_access_session_state_preserves_explicit_false` → `crates/libs/session-engine/src/host_migration_23_tests/agent_binding.rs`；保留原断言及名称。
+- `agent_session_identity_storage_round_trip_is_scoped_and_secret_free` → `crates/libs/session-engine/src/host_migration_23_tests/agent_binding.rs`；保留原断言及名称。
+- `fork_history_copies_only_matching_checkpoints_between_directories` → `crates/libs/session-engine/src/host_migration_23_tests/compaction_checkpoint.rs`；保留原断言及名称。
+- `checkpoint_isolated_by_tenant` → `crates/libs/session-engine/src/host_migration_23_tests/compaction_checkpoint.rs`；保留原断言及名称。
+- `internal_compaction_single_summary_preserves_all_persisted_history` → `crates/libs/session-engine/src/host_migration_23_tests/compaction.rs`；保留原断言及名称。
+- `internal_compaction_keeps_history_when_summary_is_blank_or_fails` → `crates/libs/session-engine/src/host_migration_23_tests/compaction.rs`；保留原断言及名称。
+- `internal_compaction_replaces_covered_history_with_a_model_summary` → `crates/libs/session-engine/src/host_migration_23_tests/compaction.rs`；保留原断言及名称。
+摘要测试注入的只有 LlmStreamHost 外部响应，真实调用 compaction_summary → recovery → llm_runner 流收集器，保留重试、空输出 replay_safe 元数据、预算、完整消息及请求数量断言。宿主只留异步工作线程取消及失败检查点的两条实际装配断言。
+绑定存储直接使用独立临时 home 与真实 GatewaySettingsStore，无恢复模型配置夹具；仍经 session_store 真实租户 task-local。检查点跨项目/租户断言改由 agent_project/session_store 及真实两个 checkpoint 模块持有，MountRevision 外部输入为无挂载版本。
+生产端口拆分：CheckpointHost 只提供 checkpoint_tenant 和 emit_compaction。compact_with_summary 与 process_with_summarizer 使用此端口；所有现有 HookHost 通过 blanket impl 调用原 hook_compact::emit，保持生产事件顺序。process/process_session 的完整 HookHost 上下文不变。无新增依赖、无反向挂载。
+- 恢复后宿主 `agent_binding_tests.rs`：63 行。
+- 恢复后宿主 `capability_policy_tests.rs`：239 行。
+- 恢复后宿主 `claude_protocol_parity_tests.rs`：109 行。
+- 恢复后宿主 `codex_alignment_tests.rs`：361 行。
+- 恢复后宿主 `compaction_tests.rs`：390 行。
+- 恢复后宿主 `compaction_checkpoint_tests.rs`：0 行。
+- 恢复后宿主 `compaction_summary_tests.rs`：75 行。
+- 恢复后宿主 `agent_binding.rs`：116 行。
+- 恢复后宿主 `capability_policy.rs`：10 行。
+- 恢复后宿主 `compaction.rs`：67 行。
+- 恢复后宿主 `compaction_checkpoint.rs`：27 行。
+- 恢复后宿主 `compaction_summary.rs`：76 行。
+- 恢复后宿主 `context_injection.rs`：2 行。
+恢复后来源宿主共 1535 行，对原2621行净减 1086 行（41.4%）。领域测试静态预期共 37 条，未来仍用 session-engine --lib host_migration_23_tests 过滤，当前未运行任何编译、构建或测试。领域新增生产端口约20行，不宣称既有压缩算法为新迁出。
+尚存 codex_alignment 全套真实工具/MCP/技能端到端装配、capability_policy 的真实能力发现和范围拒绝、agent_binding 的真实准入分叉边界，以及 compaction 的快照投影和真实会话分叉生命周期。未达到70%门槛，明确保留给收口核对；不以物理移动宿主装配冒充领域迁移。

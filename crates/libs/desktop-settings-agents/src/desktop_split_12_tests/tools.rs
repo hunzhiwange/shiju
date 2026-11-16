@@ -5,24 +5,24 @@ use iced::advanced::widget::Tree;
 
 #[test]
 fn tools_view_distinguishes_empty_and_all_grouped_tool_lists() {
-    let (mut app, _) = crate::app::App::new();
-    let mut entry = app.agents_settings.entries[0].clone();
-    app.agents_settings.available_tools.clear();
+    let mut app = crate::agents_state::AgentsSettingsState::default();
+    let mut entry = app.entries[0].clone();
+    app.available_tools.clear();
 
     let empty_tree = {
-        let empty = super::tools::view(&app, &entry);
+        let empty = super::tools_view(&app, &entry);
         Tree::new(empty.as_widget())
     };
     assert_eq!(empty_tree.children.len(), 2);
     assert!(empty_tree.children[1].children.is_empty());
 
-    app.agents_settings.available_tools =
+    app.available_tools =
         ["read", "grep", "bash", "web_search", "AgentTool", "memory_store", "custom_tool"]
             .map(str::to_string)
             .to_vec();
     entry.allowed_tools = vec!["read".to_string(), "custom_tool".to_string()];
 
-    let grouped = super::tools::view(&app, &entry);
+    let grouped = super::tools_view(&app, &entry);
     let grouped_tree = Tree::new(grouped.as_widget());
     let tools_list = &grouped_tree.children[1];
 
@@ -37,11 +37,11 @@ fn tools_view_distinguishes_empty_and_all_grouped_tool_lists() {
 
 #[test]
 fn tools_view_keeps_zero_match_presets_visible_without_grouping_them() {
-    let (mut app, _) = crate::app::App::new();
-    let entry = app.agents_settings.entries[0].clone();
-    app.agents_settings.available_tools = vec!["custom_tool".to_string()];
+    let mut app = crate::agents_state::AgentsSettingsState::default();
+    let entry = app.entries[0].clone();
+    app.available_tools = vec!["custom_tool".to_string()];
 
-    let view = super::tools::view(&app, &entry);
+    let view = super::tools_view(&app, &entry);
     let tree = Tree::new(view.as_widget());
     let tools_list = &tree.children[1];
 
@@ -53,13 +53,13 @@ fn tools_view_keeps_zero_match_presets_visible_without_grouping_them() {
 
 #[test]
 fn tools_view_preserves_duplicate_available_tools_and_selection_state() {
-    let (mut app, _) = crate::app::App::new();
-    let mut entry = app.agents_settings.entries[0].clone();
-    app.agents_settings.available_tools =
+    let mut app = crate::agents_state::AgentsSettingsState::default();
+    let mut entry = app.entries[0].clone();
+    app.available_tools =
         vec!["pdf_read".to_string(), "pdf_read".to_string(), "notebook_edit".to_string()];
     entry.allowed_tools = vec!["pdf_read".to_string(), "ghost_tool".to_string()];
 
-    let view = super::tools::view(&app, &entry);
+    let view = super::tools_view(&app, &entry);
     let tree = Tree::new(view.as_widget());
     let tools_list = &tree.children[1];
     let file_cards = &tools_list.children[4].children[0].children[2];
@@ -70,29 +70,27 @@ fn tools_view_preserves_duplicate_available_tools_and_selection_state() {
 
 #[test]
 fn tools_view_splits_optional_and_builtin_tabs() {
-    use crate::app::state::{AGENT_TOOLS_BUILTIN_TAB, AGENT_TOOLS_OPTIONAL_TAB};
+    use crate::state::{AGENT_TOOLS_BUILTIN_TAB, AGENT_TOOLS_OPTIONAL_TAB};
     use config_tools::is_builtin_required_tool_id;
 
-    let (mut app, _) = crate::app::App::new();
-    let entry = app.agents_settings.entries[0].clone();
-    app.agents_settings.available_tools = vec![
+    let mut app = crate::agents_state::AgentsSettingsState::default();
+    let entry = app.entries[0].clone();
+    app.available_tools = vec![
         "bash".to_string(),
         "custom_optional".to_string(),
         "AgentTool".to_string(),
         "create_thread".to_string(),
     ];
 
-    assert_eq!(app.agents_settings.active_tools_list_tab, AGENT_TOOLS_OPTIONAL_TAB);
+    assert_eq!(app.active_tools_list_tab, AGENT_TOOLS_OPTIONAL_TAB);
 
-    let optional_ids = super::tools::tools_for_list_tab(
-        &app.agents_settings.available_tools,
-        &app.agents_settings.active_tools_list_tab,
-    );
+    let optional_ids =
+        crate::tools::tools_for_list_tab(&app.available_tools, &app.active_tools_list_tab);
     assert_eq!(optional_ids, vec!["custom_optional", "AgentTool", "create_thread"]);
     assert!(optional_ids.iter().all(|id| !is_builtin_required_tool_id(id)));
 
     {
-        let optional_view = super::tools::view(&app, &entry);
+        let optional_view = super::tools_view(&app, &entry);
         let optional_tree = Tree::new(optional_view.as_widget());
         let optional_list = &optional_tree.children[1];
         // tabs + select-all row + preset section + preset buttons + grouped cards
@@ -100,15 +98,13 @@ fn tools_view_splits_optional_and_builtin_tabs() {
         assert_eq!(optional_list.children[0].children.len(), 2, "optional/builtin tab buttons");
     }
 
-    app.agents_settings.active_tools_list_tab = AGENT_TOOLS_BUILTIN_TAB.to_string();
-    let builtin_ids = super::tools::tools_for_list_tab(
-        &app.agents_settings.available_tools,
-        &app.agents_settings.active_tools_list_tab,
-    );
+    app.active_tools_list_tab = AGENT_TOOLS_BUILTIN_TAB.to_string();
+    let builtin_ids =
+        crate::tools::tools_for_list_tab(&app.available_tools, &app.active_tools_list_tab);
     assert_eq!(builtin_ids, vec!["bash"]);
     assert!(builtin_ids.iter().all(|id| is_builtin_required_tool_id(id)));
 
-    let builtin_view = super::tools::view(&app, &entry);
+    let builtin_view = super::tools_view(&app, &entry);
     let builtin_tree = Tree::new(builtin_view.as_widget());
     let builtin_list = &builtin_tree.children[1];
     assert_eq!(
@@ -120,26 +116,26 @@ fn tools_view_splits_optional_and_builtin_tabs() {
 
 #[test]
 fn builtin_tool_cards_are_locked_and_badged() {
-    use crate::app::Message;
-    use crate::app::message::settings::{AgentsMessage, SettingsMessage};
-    use crate::app::state::AGENT_TOOLS_BUILTIN_TAB;
+    use crate::message::AgentsMessage;
+    use crate::message::Event as Message;
+    use crate::state::AGENT_TOOLS_BUILTIN_TAB;
 
-    let (mut app, _) = crate::app::App::new();
-    let mut entry = app.agents_settings.entries[0].clone();
-    app.agents_settings.available_tools = vec!["bash".to_string(), "custom_optional".to_string()];
-    app.agents_settings.active_tools_list_tab = AGENT_TOOLS_BUILTIN_TAB.to_string();
+    let mut app = crate::agents_state::AgentsSettingsState::default();
+    let mut entry = app.entries[0].clone();
+    app.available_tools = vec!["bash".to_string(), "custom_optional".to_string()];
+    app.active_tools_list_tab = AGENT_TOOLS_BUILTIN_TAB.to_string();
     entry.allowed_tools = vec!["bash".to_string()];
 
-    assert!(super::tools::tool_card_is_locked("bash"));
-    assert!(!super::tools::tool_card_is_locked("custom_optional"));
-    assert_eq!(super::tools::builtin_tool_badge_label(), "内置");
+    assert!(crate::tools::tool_card_is_locked("bash"));
+    assert!(!crate::tools::tool_card_is_locked("custom_optional"));
+    assert_eq!(crate::tools::builtin_tool_badge_label(), "内置");
 
     assert!(
-        super::tools::tool_card_press_message("main".to_string(), "bash".to_string(), true, true)
+        crate::tools::tool_card_press_message("main".to_string(), "bash".to_string(), true, true)
             .is_none(),
         "locked builtin cards must not emit cancel toggle"
     );
-    let optional_press = super::tools::tool_card_press_message(
+    let optional_press = crate::tools::tool_card_press_message(
         "main".to_string(),
         "custom_optional".to_string(),
         false,
@@ -147,12 +143,12 @@ fn builtin_tool_cards_are_locked_and_badged() {
     );
     assert!(matches!(
         optional_press,
-        Some(Message::Settings(SettingsMessage::Agents(
+        Some(Message::Agents(
             AgentsMessage::AllowedToolToggled(ref agent, ref tool, true)
-        ))) if agent == "main" && tool == "custom_optional"
+        )) if agent == "main" && tool == "custom_optional"
     ));
 
-    let view = super::tools::view(&app, &entry);
+    let view = super::tools_view(&app, &entry);
     let tree = Tree::new(view.as_widget());
     let tools_list = &tree.children[1];
     // tabs + groups; first group card title row includes badge child
@@ -167,16 +163,16 @@ fn builtin_tool_cards_are_locked_and_badged() {
 #[test]
 fn shell_companions_are_builtin_and_optional_capabilities_can_be_cancelled() {
     for id in ["bash", "bash_wait", "bash_cancel", "file_edit", "edit"] {
-        assert!(super::tools::tool_card_is_locked(id));
+        assert!(crate::tools::tool_card_is_locked(id));
         assert!(matches!(
-            super::tools::tool_meta(id).group,
-            super::tools::ToolGroup::Execute | super::tools::ToolGroup::Files
+            crate::tools::tool_meta(id).group,
+            crate::tools::ToolGroup::Execute | crate::tools::ToolGroup::Files
         ));
     }
     for id in ["pdf_read", "AgentTool", "create_thread", "memory_store", "browser"] {
-        assert!(!super::tools::tool_card_is_locked(id));
+        assert!(!crate::tools::tool_card_is_locked(id));
         assert!(
-            super::tools::tool_card_press_message("main".into(), id.into(), true, false).is_some()
+            crate::tools::tool_card_press_message("main".into(), id.into(), true, false).is_some()
         );
     }
 }

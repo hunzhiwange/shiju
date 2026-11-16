@@ -1,3 +1,4 @@
+//! Host contracts: settings tab assembly, per-domain error banners and desktop message routing.
 //! 验证代理设置测试子模块已正确接入。
 //! 各标签页的行为由细分测试覆盖，此处仅防止测试模块装配回归。
 

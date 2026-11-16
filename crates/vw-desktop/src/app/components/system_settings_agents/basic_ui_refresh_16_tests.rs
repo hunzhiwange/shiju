@@ -1,3 +1,4 @@
+//! Host contracts: selectable chat help, runtime/model/MCP projection, modal focus and host event mapping.
 use super::super::{defaults, identity, mcp, profile_modal, skills, tools};
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentsMessage as A, SettingsMessage as S};

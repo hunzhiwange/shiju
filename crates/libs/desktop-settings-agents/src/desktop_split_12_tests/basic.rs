@@ -1,12 +1,12 @@
 //! 验证代理基础设置的注册、委派控件可见性与视图状态。
 //! 不同代理来源和能力组合用于确认仅在支持时暴露相应控制项。
 
-use super::basic::view;
-use crate::app::state::DelegateAgentSettingsEntry;
+use super::basic_view as view;
+use crate::state::DelegateAgentSettingsEntry;
 use iced::advanced::widget::Tree;
 
 fn view_tree(
-    app: &crate::app::App,
+    app: &crate::agents_state::AgentsSettingsState,
     entry: &DelegateAgentSettingsEntry,
     provider_options: Vec<String>,
 ) -> Tree {
@@ -26,9 +26,8 @@ fn assert_common_field_structure(tree: &Tree, has_registration: bool) {
 
 #[test]
 fn basic_view_main_hides_availability_and_shows_common_runtime_controls() {
-    let (app, _) = crate::app::App::new();
+    let app = crate::agents_state::AgentsSettingsState::default();
     let main = app
-        .agents_settings
         .entries
         .iter()
         .find(|entry| entry.key == "main")
@@ -41,9 +40,8 @@ fn basic_view_main_hides_availability_and_shows_common_runtime_controls() {
 
 #[test]
 fn basic_view_worker_shows_availability_and_common_runtime_controls() {
-    let (app, _) = crate::app::App::new();
+    let app = crate::agents_state::AgentsSettingsState::default();
     let worker = app
-        .agents_settings
         .entries
         .iter()
         .find(|entry| entry.key != "main")
@@ -58,8 +56,8 @@ fn basic_view_worker_shows_availability_and_common_runtime_controls() {
 
 #[test]
 fn basic_view_keeps_current_provider_and_model_even_when_missing_from_catalog() {
-    let (app, _) = crate::app::App::new();
-    let mut entry: DelegateAgentSettingsEntry = app.agents_settings.entries[0].clone();
+    let app = crate::agents_state::AgentsSettingsState::default();
+    let mut entry: DelegateAgentSettingsEntry = app.entries[0].clone();
     entry.provider = "custom-provider".to_string();
     entry.model = "custom-model".to_string();
 
@@ -70,9 +68,8 @@ fn basic_view_keeps_current_provider_and_model_even_when_missing_from_catalog() 
 
 #[test]
 fn basic_view_preserves_fields_for_blank_selections_and_numeric_boundaries() {
-    let (app, _) = crate::app::App::new();
+    let app = crate::agents_state::AgentsSettingsState::default();
     let mut entry = app
-        .agents_settings
         .entries
         .iter()
         .find(|entry| entry.key == "main")
@@ -97,9 +94,8 @@ fn basic_view_preserves_fields_for_blank_selections_and_numeric_boundaries() {
 
 #[test]
 fn basic_view_renders_runtime_boolean_and_text_variants() {
-    let (app, _) = crate::app::App::new();
+    let app = crate::agents_state::AgentsSettingsState::default();
     let mut entry = app
-        .agents_settings
         .entries
         .iter()
         .find(|entry| entry.key == "main")
@@ -117,9 +113,9 @@ fn basic_view_renders_runtime_boolean_and_text_variants() {
 
 #[test]
 fn agent_runtime_visibility_acp_preserves_profile_defaults_and_delegation_eligibility() {
-    use config_agent_profile::AgentRuntime;
     use config_agent::DelegateAgentConfig;
-    let app = crate::app::App::new().0;
+    use config_agent_profile::AgentRuntime;
+    let app = crate::agents_state::AgentsSettingsState::default();
     for backend in ["codex", "claude"] {
         let entry = DelegateAgentSettingsEntry::from_config(
             "custom-runtime",

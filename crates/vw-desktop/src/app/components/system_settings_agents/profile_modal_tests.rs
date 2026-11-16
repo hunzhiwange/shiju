@@ -1,3 +1,4 @@
+//! Host contracts: settings update dispatch, persisted/draft projection, ACP directory refresh and actual modal rendering.
 use crate::app::{
     App,
     message::settings::{AgentsMessage, SettingsMessage},

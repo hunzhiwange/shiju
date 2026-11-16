@@ -1,3 +1,4 @@
+//! Host contracts: catalog state projection, desktop engine icon assets and launch message mapping.
 //! 验证代理设置主视图的标签切换、状态组合与空态路径。
 //! 主入口测试组合基础、身份、技能和工具页，检查共享状态传递。
 

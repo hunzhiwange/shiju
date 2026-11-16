@@ -1,8 +1,8 @@
 //! 验证代理设置共享控件、标签与状态样式的构建契约。
 //! 帮助文本、禁用状态和明暗主题用例共同约束共享组件的一致性。
 
-use super::shared::selected_entry;
-use crate::app::state::{AgentSettingsEntryKind, DelegateAgentSettingsEntry};
+use super::selected_entry;
+use crate::state::{AgentSettingsEntryKind, DelegateAgentSettingsEntry};
 use iced::widget::text_editor;
 
 fn entry(key: &str, kind: AgentSettingsEntryKind) -> DelegateAgentSettingsEntry {
@@ -42,32 +42,32 @@ fn entry(key: &str, kind: AgentSettingsEntryKind) -> DelegateAgentSettingsEntry 
 
 #[test]
 fn selected_entry_returns_exact_selected_agent() {
-    let (mut app, _) = crate::app::App::new();
-    app.agents_settings.entries = vec![
+    let mut app = crate::agents_state::AgentsSettingsState::default();
+    app.entries = vec![
         entry("first", AgentSettingsEntryKind::Custom),
         entry("second", AgentSettingsEntryKind::BuiltinWorker),
     ];
-    app.agents_settings.selected_agent = "second".to_string();
+    app.selected_agent = "second".to_string();
 
     assert_eq!(selected_entry(&app).map(|entry| entry.key.as_str()), Some("second"));
 }
 
 #[test]
 fn selected_entry_falls_back_to_first_agent_when_selection_is_missing() {
-    let (mut app, _) = crate::app::App::new();
-    app.agents_settings.entries = vec![
+    let mut app = crate::agents_state::AgentsSettingsState::default();
+    app.entries = vec![
         entry("first", AgentSettingsEntryKind::Custom),
         entry("second", AgentSettingsEntryKind::BuiltinWorker),
     ];
-    app.agents_settings.selected_agent = "missing".to_string();
+    app.selected_agent = "missing".to_string();
 
     assert_eq!(selected_entry(&app).map(|entry| entry.key.as_str()), Some("first"));
 }
 
 #[test]
 fn selected_entry_returns_none_when_agent_list_is_empty() {
-    let (mut app, _) = crate::app::App::new();
-    app.agents_settings.entries.clear();
+    let mut app = crate::agents_state::AgentsSettingsState::default();
+    app.entries.clear();
 
     assert!(selected_entry(&app).is_none());
 }

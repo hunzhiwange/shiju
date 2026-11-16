@@ -1,3 +1,4 @@
+//! Host contracts: settings tab routing, ACP directory projection, profile overlay and host message dispatch.
 use super::super::{AGENT_CONFIG_TABS, catalog, profile_modal};
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{

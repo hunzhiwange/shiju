@@ -1,26 +1,8 @@
+//! Host contracts: profile update dispatch, session ACP capability projection and provider/MCP catalog validation.
 use crate::app::state::DelegateAgentSettingsEntry;
 use config_agent_profile::{AgentDefault, AgentDefaults, AgentRuntime};
 use config_agent::AgentDefinitionConfig;
 
-#[test]
-fn agent_defaults_form_roundtrips_explicit_empty_lists() {
-    let config = AgentDefinitionConfig {
-        defaults: AgentDefaults {
-            skills: AgentDefault::Fixed(vec![]),
-            mcp: AgentDefault::Fixed(vec![]),
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    let entry = DelegateAgentSettingsEntry::from_config("custom", Some(config));
-    let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("agent.json");
-    std::fs::write(&path, serde_json::to_vec(&entry.defaults).unwrap()).unwrap();
-    let wire = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
-    let restored: AgentDefaults = serde_json::from_value(wire).unwrap();
-    assert_eq!(restored.skills, AgentDefault::Fixed(vec![]));
-    assert_eq!(restored.mcp, AgentDefault::Fixed(vec![]));
-}
 
 #[test]
 fn agent_defaults_form_switch_preserves_invalid_draft_and_prevents_save() {

@@ -1,3 +1,4 @@
+//! Host contracts: settings update dispatch, session draft launch, engine icon assets and root page projection.
 use super::catalog;
 
 fn catalog_config() -> config_aggregate::Config {

@@ -21,25 +21,13 @@ mod skills;
 mod tools;
 
 #[cfg(test)]
-#[path = "basic_tests.rs"]
-mod basic_tests;
-#[cfg(test)]
-#[path = "identity_tests.rs"]
-mod identity_tests;
-#[cfg(test)]
 #[path = "mod_tests.rs"]
 mod mod_tests;
-#[cfg(test)]
-#[path = "shared_tests.rs"]
-mod shared_tests;
 #[cfg(test)]
 #[path = "skills_tests.rs"]
 mod skills_tests;
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
-#[path = "tools_tests.rs"]
-mod tools_tests;
 
 use crate::app::components::system_settings_common::{
     settings_error_banner, settings_tab_row,

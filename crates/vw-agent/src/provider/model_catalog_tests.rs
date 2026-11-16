@@ -7,15 +7,11 @@ use vw_api_app_identity::AppId;
 use vw_api_app_provider_base::AppProviderWrite;
 use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_transport::id::TenantScope;
-use vw_api_model_catalog::ModelCapabilityState;
 use vw_api_model_catalog::ModelCatalogDefaultChange;
 use vw_api_model_catalog::ModelCatalogEdit;
 use vw_api_model_catalog::ModelCatalogEditRequest;
 use vw_api_model_catalog::ModelCatalogIdentity;
 use vw_api_model_catalog::ModelMetadataDto;
-use vw_api_model_catalog::ModelMetadataField;
-use vw_api_model_catalog::ModelMetadataProvenance;
-use vw_api_model_catalog::ModelMetadataSource;
 
 const PROVIDER: &str = "projection-fixture";
 const APP_PROVIDER: &str = "saved-app-profile";

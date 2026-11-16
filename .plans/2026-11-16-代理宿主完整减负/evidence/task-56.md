@@ -17,12 +17,12 @@
 |auth.rs|1|1|认证公共兼容导出|
 |mod.rs|40|40|公共 provider/error/models/voice 命名空间及宿主测试注册|
 |model_catalog.rs|68|27|真实租户、数据库和隔离线程端口|
-|model_catalog_tests.rs|452|270|网关 picker 租户鉴权与执行前能力拒绝，两条完整真实端到端用例及其 SQLite 夹具|
+|model_catalog_tests.rs|452|266|网关 picker 租户鉴权与执行前能力拒绝，两条完整真实端到端用例及其 SQLite 夹具|
 |provider.rs|59|55|ensure_host 与需安装端口的公共操作包装；cfg(test) 入口供宿主薄用例|
 |provider_tests.rs|577|143|LLM 请求限制接线与工作线程租户恢复，两条完整用例及环境夹具|
 |transform.rs|1|1|transform 公共兼容导出|
 
-宿主本组 1198 → 537，净减 661（55.2%），未达到70%。未删除断言凑比例。剩余主体是四条真实宿主跨系统验收与所需夹具；不能用领域 mock 替代。可继续迁移项：EnvGuard 与 SQLite fixture 若以后存在第三个真实调用者可按三次原则提取独立 test-support；本次不为行数暴露领域测试私有模块。mod/auth/transform 保持公共消费者兼容；provider 包装负责安装端口，不能直接改成无初始化导出。减量门槛留收口验收，不宣称整轮达标。
+宿主本组 1198 → 533，净减 665（55.5%），未达到70%。未删除断言凑比例。剩余主体是四条真实宿主跨系统验收与所需夹具；不能用领域 mock 替代。可继续迁移项：EnvGuard 与 SQLite fixture 若以后存在第三个真实调用者可按三次原则提取独立 test-support；本次不为行数暴露领域测试私有模块。mod/auth/transform 保持公共消费者兼容；provider 包装负责安装端口，不能直接改成无初始化导出。减量门槛留收口验收，不宣称整轮达标。
 
 ## 全用例映射
 
@@ -59,7 +59,7 @@
 - `crates/vw-agent/src/provider/auth.rs`：生产/文档/注册（含原有 cfg(test) 入口） 1 → 1 行。
 - `crates/vw-agent/src/provider/mod.rs`：生产/文档/注册（含原有 cfg(test) 入口） 40 → 40 行。
 - `crates/vw-agent/src/provider/model_catalog.rs`：生产/文档/注册（含原有 cfg(test) 入口） 68 → 27 行。
-- `crates/vw-agent/src/provider/model_catalog_tests.rs`：测试 452 → 270 行。
+- `crates/vw-agent/src/provider/model_catalog_tests.rs`：测试 452 → 266 行。
 - `crates/vw-agent/src/provider/provider.rs`：生产/文档/注册（含原有 cfg(test) 入口） 59 → 55 行。
 - `crates/vw-agent/src/provider/provider_tests.rs`：测试 577 → 143 行。
 - `crates/vw-agent/src/provider/transform.rs`：生产/文档/注册（含原有 cfg(test) 入口） 1 → 1 行。

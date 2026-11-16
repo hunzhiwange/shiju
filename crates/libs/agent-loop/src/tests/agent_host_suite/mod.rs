@@ -19,17 +19,11 @@
 //! 消息序列化测试位于 model-types 的集成测试中。
 //! - `tool_dispatcher` — 工具分发与执行路由测试
 
-#[path = "../../../../libs/agent-loop/src/tests/agent_host_suite/helpers.rs"]
 mod helpers;
-#[path = "../../../../libs/agent-loop/src/tests/agent_host_suite/loop_history.rs"]
 mod loop_history;
-#[path = "../../../../libs/agent-loop/src/tests/agent_host_suite/loop_memory.rs"]
 mod loop_memory;
-#[path = "../../../../libs/agent-loop/src/tests/agent_host_suite/loop_text.rs"]
 mod loop_text;
-#[path = "../../../../libs/agent-loop/src/tests/agent_host_suite/loop_tools.rs"]
 mod loop_tools;
-#[path = "../../../../libs/agent-loop/src/tests/agent_host_suite/run_single.rs"]
 mod run_single;
 // 消息序列化断言由 model-types/tests/conversation_serialization.rs 注册。
 mod tool_dispatcher;

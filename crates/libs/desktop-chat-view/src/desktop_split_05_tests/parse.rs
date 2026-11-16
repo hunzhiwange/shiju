@@ -1,8 +1,8 @@
 //! 验证原始消息拆分为文本、思考和工具块时的标签及容错边界。
 //! 不闭合标签、名称前缀碰撞、多行 JSON 和行数上限用于约束解析器的保守回退。
 
-use super::parse::owned_blocks_from_raw;
-use crate::app::models::ParsedChatBlock;
+use crate::message_view::parse::owned_blocks_from_raw;
+use crate::message_view::ParsedChatBlock;
 
 #[test]
 fn acp_search_keeps_its_title_and_receives_sparse_completion() {
@@ -38,7 +38,7 @@ fn acp_search_keeps_its_title_and_receives_sparse_completion() {
     assert_eq!(payload["title"], "Search for 'code-surface|code-gutter' in style.css");
     assert_eq!(payload["status"], "completed");
     assert_eq!(payload["output"], r#"{"exit_code":0}"#);
-    let identity = crate::app::components::chat_panel::tools::tool_identity_from_raw;
+    let identity = desktop_chat_tools::tools::tool_parse::tool_identity_from_raw;
     assert_eq!(identity(search).as_deref(), Some("acp:call-search"));
     assert_eq!(identity(other).as_deref(), Some("acp:call-other"));
 }

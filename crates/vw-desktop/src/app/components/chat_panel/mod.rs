@@ -43,9 +43,6 @@ mod chunk_loader_tests;
 #[path = "global_status_tests.rs"]
 mod global_status_tests;
 #[cfg(test)]
-#[path = "height_index_tests.rs"]
-mod height_index_tests;
-#[cfg(test)]
 #[path = "message_measure_tests.rs"]
 mod message_measure_tests;
 #[cfg(test)]
@@ -61,14 +58,8 @@ mod performance_tests;
 #[path = "selectable_text_tests.rs"]
 mod selectable_text_tests;
 #[cfg(test)]
-#[path = "tool_renderer_tests.rs"]
-mod tool_renderer_tests;
-#[cfg(test)]
 #[path = "tool_selector_tests.rs"]
 mod tool_selector_tests;
-#[cfg(test)]
-#[path = "tool_text_support_tests.rs"]
-mod tool_text_support_tests;
 
 use iced::widget::{Space, column, scrollable, stack};
 use iced::{Element, Length, Padding, Point};

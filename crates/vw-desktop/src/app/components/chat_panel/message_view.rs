@@ -42,8 +42,6 @@ mod markdown_tests;
 #[cfg(test)]
 mod message_view_tests;
 #[cfg(test)]
-mod parse_tests;
-#[cfg(test)]
 mod think_block_tests;
 
 use iced::widget::{button, column, container, row, text as iced_text};

@@ -1,7 +1,7 @@
 //! 验证聊天工具渲染分派。
 //! 测试保护不同工具输出选择正确视图组件。
 
-use super::tools::{
+use crate::tools::explore_summary_view::{
     explore_summary_expanded, explore_summary_is_running,
 };
 use std::collections::HashSet;

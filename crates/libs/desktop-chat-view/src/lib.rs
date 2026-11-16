@@ -64,3 +64,6 @@ pub mod modals {
     pub mod permission_modal;
     pub mod question_modal;
 }
+
+#[cfg(test)]
+mod desktop_split_05_tests;

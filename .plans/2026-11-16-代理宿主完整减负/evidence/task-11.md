@@ -11,8 +11,8 @@ Production migration gain: 0. Production already lives in gateway_session::strea
 - Host stream.rs: 568 -> 566.
 - Host stream_tests.rs: 3250 -> 2222.
 - Domain test crates/libs/gateway-session/src/host_migration_11_tests.rs: 9 added lines; zero production lines.
-- Domain test crates/libs/gateway-session/src/host_migration_11_tests/group_1.rs: 451 added lines; zero production lines.
-- Domain test crates/libs/gateway-session/src/host_migration_11_tests/group_2.rs: 444 added lines; zero production lines.
+- Domain test crates/libs/gateway-session/src/host_migration_11_tests/group_1.rs: 450 added lines; zero production lines.
+- Domain test crates/libs/gateway-session/src/host_migration_11_tests/group_2.rs: 443 added lines; zero production lines.
 - Domain test crates/libs/gateway-session/src/host_migration_11_tests/group_3.rs: 138 added lines; zero production lines.
 
 Net host reduction approximately 27%, BELOW 70%; requires closing-task review, not a claim of overall success. stream.rs retains native ports and typed forwarding, no residual production algorithm identified. stream_tests retains real tool execution, filesystem/git changes, config/skill loading, tenant storage, workflow routing and disconnect replay integration. Each retained function and its exact native dependencies is listed below. Further candidates: four history conversion tests and three delegated model policy tests currently require generic StreamHost; decouple their real algorithm inputs before moving rather than cloning a no-op Host. Persistence/trajectory assertions can be split further when real store fixtures cover instance boundaries.

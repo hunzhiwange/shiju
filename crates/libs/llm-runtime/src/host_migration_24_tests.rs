@@ -18,3 +18,5 @@ mod lifecycle_tests;
 #[cfg(unix)]
 mod profile;
 mod driver;
+mod acceptance_model_source;
+mod acceptance_skill_mounts;

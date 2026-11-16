@@ -13381,6 +13381,7 @@ dependencies = [
  "permission-runtime",
  "plugin-hooks",
  "provider-protocol-routes",
+ "regex",
  "reqwest 0.13.4",
  "ring",
  "serde",

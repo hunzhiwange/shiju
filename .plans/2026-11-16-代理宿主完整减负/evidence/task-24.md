@@ -817,3 +817,69 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib fork_execution_uses_c
 macOS/Unix：llm-runtime 8，session-engine 1，宿主薄用例 1；非 Unix 少 profile 1。真实 CLI ignored 用例需要固定 CLI 和 fixture 后按原测试名显式 --ignored。其余保留测试按上表原名过滤，要求有效计数 > 0。未来用真实宿主 --list 确认上述迁出名称消失，不能把零匹配当通过。
 
 静态核对：检查旧 mod/path 挂载移除、目标 lib 自注册、类型入口、调用及依赖方向；git diff --check 只核对本任务差异。不宣称运行收益或编译耗时下降。
+
+
+## Deep recovery: supersedes the original acceptance retention decision
+
+Read final.md and remaining-host.json (owner 24: 2678 lines). Both real CLI harnesses now belong to llm-runtime::acp::acceptance_support. Original RuntimeHost executes the actual request, controls and selection store. AcceptanceHost adds only two real configuration write ports, implemented with host config APIs. Manifest validation precedes fixture environment writes and project creation; read the manifest once. No fake permission or runtime implementation.
+
+### `crates/vw-agent/src/session/llm/acp/model_source/acceptance_tests.rs`: 639 -> 47 lines
+
+- `accepted` -> llm-runtime/src/acp/acceptance_support/model_source.rs; original assertions and ignore conditions retained.
+- `acp_model_source_gemini_harness_requires_exact_model_and_generation_path` -> llm-runtime::host_migration_24_tests::acceptance_model_source::acp_model_source_gemini_harness_requires_exact_model_and_generation_path; original assertions and ignore conditions retained.
+- `acp_model_source_harness_contract_no_model_request_is_failure` -> llm-runtime::host_migration_24_tests::acceptance_model_source::acp_model_source_harness_contract_no_model_request_is_failure; original assertions and ignore conditions retained.
+- `acp_model_source_harness_contract_handshake_is_not_model_success` -> llm-runtime::host_migration_24_tests::acceptance_model_source::acp_model_source_harness_contract_handshake_is_not_model_success; original assertions and ignore conditions retained.
+- `acp_model_source_harness_contract_forged_model_is_failure` -> llm-runtime::host_migration_24_tests::acceptance_model_source::acp_model_source_harness_contract_forged_model_is_failure; original assertions and ignore conditions retained.
+- `acp_model_source_harness_contract_rejects_unauthenticated_or_wrong_model` -> llm-runtime::host_migration_24_tests::acceptance_model_source::acp_model_source_harness_contract_rejects_unauthenticated_or_wrong_model; original assertions and ignore conditions retained.
+- `evidence` -> llm-runtime/src/acp/acceptance_support/model_source.rs; original assertions and ignore conditions retained.
+- `request` -> llm-runtime/src/acp/acceptance_support/model_source.rs; original assertions and ignore conditions retained.
+- `request_in_session` -> llm-runtime/src/acp/acceptance_support/model_source.rs; original assertions and ignore conditions retained.
+- `checkpoint` -> llm-runtime/src/acp/acceptance_support/model_source.rs; original assertions and ignore conditions retained.
+- `run` -> llm-runtime/src/acp/acceptance_support/model_source.rs; original assertions and ignore conditions retained.
+- `effort_run` -> llm-runtime/src/acp/acceptance_support/model_source.rs; original assertions and ignore conditions retained.
+- `acp_model_source_opencode_effort_real_cli` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_model_source_claude_effort_real_cli` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_model_source_copilot_effort_real_cli` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_model_source_real_cli_session_model` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_model_source_real_cli_cli_local` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `observe_rpc` -> llm-runtime/src/acp/acceptance_support/model_source.rs; original assertions and ignore conditions retained.
+### `crates/vw-agent/src/session/llm/acp/skill_mounts/acceptance_tests.rs`: 471 -> 164 lines
+
+- `accepted` -> llm-runtime/src/acp/acceptance_support/skill_mounts.rs; original assertions and ignore conditions retained.
+- `acp_skill_mount_harness_zero_requests_never_pass` -> llm-runtime::host_migration_24_tests::acceptance_skill_mounts::acp_skill_mount_harness_zero_requests_never_pass; original assertions and ignore conditions retained.
+- `acp_skill_mount_harness_old_model_report_never_passes` -> llm-runtime::host_migration_24_tests::acceptance_skill_mounts::acp_skill_mount_harness_old_model_report_never_passes; original assertions and ignore conditions retained.
+- `acp_skill_mount_harness_requires_discovery_clean_prompt_and_real_results` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_harness_initial_prompt_contains_no_body` -> host initial prompt wiring assertion; original assertions and ignore conditions retained.
+- `fixture` -> llm-runtime/src/acp/acceptance_support/skill_mounts.rs; original assertions and ignore conditions retained.
+- `request` -> llm-runtime/src/acp/acceptance_support/skill_mounts.rs; original assertions and ignore conditions retained.
+- `checkpoint` -> llm-runtime/src/acp/acceptance_support/skill_mounts.rs; original assertions and ignore conditions retained.
+- `defaults` -> llm-runtime/src/acp/acceptance_support/skill_mounts.rs; original assertions and ignore conditions retained.
+- `run` -> llm-runtime/src/acp/acceptance_support/skill_mounts.rs; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_codex` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_claude` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_qwen` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_gemini` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_codebuddy` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_goose` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_vibe` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_hermes` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_snow` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_copilot` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_kilocode` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_kimi` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_kiro` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_opencode` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_openclaw` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_pi` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_auggie` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_cursor` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_droid` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_qoder` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_trae` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+- `acp_skill_mount_real_iflow` -> original host thin entry -> RuntimeHost -> domain run; original assertions and ignore conditions retained.
+
+Original 52 paths now 1779 lines, reduction 1181 from baseline 2960. Host run functions retain only global lock, ensure_host, fixture key, real project context. Eight evidence-validator tests moved whole to independent domain test files registered by host_migration_24_tests. Future llm-runtime filter expects 16 tests on Unix, 15 otherwise; session-engine still 1. Commands above remain future-only.
+
+Regex dependency preserves the existing diagnostic redaction exactly. Cargo.lock adds only llm-runtime -> regex. No reverse host dependency, host path/include, removed assertion, or real CLI replacement. External mounted suite mappings above remain applicable. Production host algorithms are unchanged: these are domain acceptance flows called by real host test adapters, not production migration gains.
+
+Dynamic tool Gateway acceptance (495 lines), actual host ToolContext and prompt registration remain as documented above. Net reduction is still below 70%; whole-plan gate remains open. No Cargo, compilation, build, test or device run was performed. Static diff checks are not behavior evidence.

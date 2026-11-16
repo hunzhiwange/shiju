@@ -81,6 +81,8 @@ tool-types = { path = "../tool-types", version = "0.6.0" }
 tool-catalog = { path = "../tool-catalog", version = "0.6.0" }
 agent-usage = { path = "../agent-usage", version = "0.6.0" }
 
+regex = "1"
+
 [dev-dependencies]
 async-trait = "0.1.89"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

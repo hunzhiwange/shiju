@@ -3,6 +3,7 @@ use desktop_workflow_state::state::*;
 use iced::{Point, Vector, widget::text_editor};
 #[derive(Debug, Clone)]
 pub enum WorkflowMessage {
+    HostEffect(Box<crate::controller::Effect>),
     OpenVideoTemplate,
     ReloadVideoTemplate,
     ScopedSavedAppsLoaded {

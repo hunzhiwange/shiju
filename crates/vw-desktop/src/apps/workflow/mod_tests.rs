@@ -99,3 +99,16 @@ fn update_forwards_messages_to_workflow_message_module() {
 
     assert!(app.workflow_state.zoom_menu_open);
 }
+
+#[test]
+fn loaded_workflow_navigates_to_workflow_tab() {
+    let mut app = App::new().0;
+    let loaded = desktop_workflow_model::load_document_from_text(
+        None,
+        "app:\n  name: Loaded\nworkflow:\n  graph:\n    nodes: []\n    edges: []\n".into(),
+    )
+    .unwrap();
+    let _ = update(&mut app, WorkflowMessage::OpenSavedAppFinished(Ok(loaded)));
+    assert_eq!(app.screen, Screen::WorkflowTool);
+    assert_eq!(app.active_tab_id.as_deref(), Some(WORKFLOW_TOOL_TAB_ID));
+}

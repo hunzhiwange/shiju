@@ -17,3 +17,6 @@ pub mod hook_subagent;
 pub mod hook_manifest;
 
 pub mod host;
+
+#[cfg(test)]
+mod compat_t34_tests;

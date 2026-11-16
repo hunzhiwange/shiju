@@ -1,0 +1,43 @@
+# 任务 9：现有Vim设置接通输入核心
+
+先阅读并遵守 [公共执行规则](plan.md)，再执行本任务。
+
+批次：【批次 7】；依赖：任务 8。推荐按编号阅读，批次相同且无依赖者可并行开发。
+
+状态：未开始
+
+目的：现有Vim设置接通输入核心，以实际用户行为和运行接线验收。
+
+来源任务：requirements.md 对应领域；用户要求逐项验证并对接有价值的终端能力。
+
+预计会话范围：一个明确行为域及其直接父模块/调用者接线；不扩展到其它候选能力。
+
+## 文件与上下文
+
+- 核查并按需修改：`crates/libs/cli-interaction/src/app/settings.rs`。
+- 核查并按需修改：`crates/libs/cli-interaction-model/src/settings_panel.rs`。
+- 核查并按需修改：`crates/libs/tui-input/src/textarea.rs`。
+- 核查并按需修改：`crates/libs/tui-composer/src/chat_composer.rs`。
+- 新建：`crates/libs/cli-interaction/src/terminal_req_09_tests.rs`，由所属包 lib.rs 或最近业务模块以 #[cfg(test)] 接线，单元测试保持独立文件。
+- 上游只读：`/Users/xiangmin/worker/code/codex-main/codex-rs/tui/src/keymap.rs`。
+- 上游只读：`/Users/xiangmin/worker/code/codex-main/codex-rs/tui/src/bottom_pane/textarea.rs`。
+
+## 实施步骤
+
+1. 核对现有 SettingKey::Vim 能力矩阵与保存路径。
+2. 使用户显式启用后真正改变 TextArea，不只是设置标签。
+3. 只为真实调用者开放必要窄接口，保留默认关闭。
+4. Normal Esc 不清空草稿或触发中断，Insert/Normal 的 Enter 与任务1粘贴策略一致。
+5. 设置取消回滚，不伪造 Gateway 持久化支持，不新增臆测配置。
+
+## 验证计划
+
+- 新测试统一前缀 `terminal_req_09_`，定义于上述新测试文件，覆盖步骤列出的正常、取消、错误及 Unicode 边界；至少 7 个实际有效用例。新增断言针对当前缺失行为，不针对模拟实现细节。
+- 失败验证：新增测试并接线后运行 `python3 scripts/cargo_slot.py cargo test -j 1 -p cli-interaction --lib terminal_req_09_`；实现尚缺目标行为时必须出现对应断言失败。已有能力已满足的审计项先运行现有对应测试，缺口未证实时不得捏造红灯。
+- 通过验证：实现后再次运行同一命令，有效测试数至少 7、failed=0、退出0；不以零测试或编译成功代替。
+- 接线若修改了其它包，则本任务同时在实际所有者添加直接行为测试并运行对应包/目标的具体过滤，不将必要验证积压到任务12。确切补充命令在执行时写入本任务证据。
+- 所需证据：失败原因、通过数量、调用链、修改文件与父模块接线、终端模式/环境限制；真实剪贴板与外部进程是允许替身的边界，组合器/附件校验/请求结构使用真实实现。
+
+## 专属约束
+
+只修改本任务真实所有者及直接接线；若跨包父模块/Cargo与同批次任务重叠，排队读取最新内容再写入。保留恢复源码、快照与许可。必要定向验证通过后按公共规则自行提交及清理。

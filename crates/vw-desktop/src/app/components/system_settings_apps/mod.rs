@@ -1,15 +1,7 @@
 pub(crate) mod catalog;
-#[cfg(test)]
-mod catalog_tests;
 mod details;
-#[cfg(test)]
-mod details_tests;
 pub(crate) mod drag;
-#[cfg(test)]
-mod drag_tests;
 pub(crate) mod lifecycle;
-#[cfg(test)]
-mod lifecycle_tests;
 mod list;
 pub(crate) mod local;
 mod presentation;
@@ -71,16 +63,10 @@ pub(crate) fn view_overlays<'a>(
     })
 }
 
-#[cfg(test)]
-mod uninstall_tests;
 
 pub(crate) mod preferences;
-#[cfg(test)]
-pub(crate) mod preferences_tests;
 
 pub(crate) mod launch;
-#[cfg(test)]
-mod launch_tests;
 
 pub(super) fn view_state(state: &AppsCatalogState) -> desktop_settings_apps::system_settings_apps::ViewState<'_> {
     desktop_settings_apps::system_settings_apps::ViewState {
@@ -110,7 +96,7 @@ pub(super) fn domain_event(action: desktop_settings_apps::system_settings_apps::
         Action::Drag(value) => AppsCatalogMessage::Drag(value),
         Action::Providers(id) => return crate::app::message::app_providers::list::message(crate::app::message::app_providers::list::ListMessage::Open(id)),
         Action::Prompts(id) => AppsCatalogMessage::Prompts(crate::app::message::settings::prompts::Event::Open(id)),
-        Action::Download => return Message::View(crate::app::message::ViewMessage::OpenUrlExternal("https://claude.com/download".into())),
+        Action::Download => return Message::View(crate::app::message::ViewMessage::OpenUrlExternal(desktop_settings_apps::system_settings_apps::uninstall::MANUAL_DOWNLOAD_URL.into())),
     };
     message(value)
 }

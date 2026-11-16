@@ -1,8 +1,6 @@
-use super::apps_usage_events::refresh_batch;
-use crate::app::components::apps_usage_cards::{
-    Failure,
-    tests::{gateway, request, respond},
-};
+use super::{gateway, request, respond};
+use crate::apps_usage_cards::Failure;
+use crate::refresh::refresh_batch;
 use vw_api_transport::id::ProjectId;
 
 const QUEUED: &str = r#"{"operationId":"op-1","status":"queued"}"#;

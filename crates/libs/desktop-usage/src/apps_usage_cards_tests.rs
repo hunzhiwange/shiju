@@ -275,3 +275,6 @@ fn usage_usage_events_updates_only_linked_card_snapshots() {
     );
     assert!(account_cards.batch_lines(&changed_scope).is_empty());
 }
+
+#[path = "apps_usage_cards/usage_events_25_tests.rs"]
+mod usage_events_25_tests;

@@ -7399,6 +7399,8 @@ dependencies = [
 name = "desktop-settings-apps"
 version = "0.6.0"
 dependencies = [
+ "web-time",
+ "config-ui",
  "desktop-apps-ui",
  "desktop-assets",
  "desktop-i18n",
@@ -7970,6 +7972,7 @@ dependencies = [
 name = "desktop-ui-controls"
 version = "0.6.0"
 dependencies = [
+ "url",
  "config-ui",
  "desktop-assets",
  "desktop-i18n",

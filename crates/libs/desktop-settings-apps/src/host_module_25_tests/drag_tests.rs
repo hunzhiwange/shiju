@@ -1,48 +1,39 @@
+use super::page_fixture::{AppsCatalogState, drag_update as update, preferences_route};
+use crate::system_settings_apps::drag::*;
 use vw_api_app_identity::{
-    AppCatalogEntry,
-    AppHostPreferences,
-    AppId,
-    AppInstallation,
-    AppInstallationEnvironment,
-    AppInstallationId,
-    AppInstallationRuntimeStatus,
-    AppInstallationSource,
-    AppPreferencesResult,
-    AppReadResponse,
-    AppRuntimeKind,
-    AppUserPreferences,
+    AppCatalogEntry, AppHostPreferences, AppId, AppInstallation, AppInstallationEnvironment,
+    AppInstallationId, AppInstallationRuntimeStatus, AppInstallationSource, AppPreferencesResult,
+    AppReadResponse, AppRuntimeKind, AppUserPreferences,
 };
-use super::drag::*;
 fn ids(values: &[&str]) -> Vec<String> {
     values.iter().map(|v| v.to_string()).collect()
 }
 
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn apps_drag_saves_only_after_drop_and_keeps_last_confirmed_order_on_rejection() {
-    use super::{catalog::CatalogRow, preferences, presentation};
-    use crate::app::{
-        App, config,
-        state::{AgentAppsContext, AppsCatalogState},
-    };
+    use super::page_fixture::preferences;
+    use crate::system_settings_apps::{catalog::CatalogRow, presentation};
+    use desktop_apps_ui::AgentAppsContext;
     use iced::futures::StreamExt;
-    use vw_api_types::agent_apps::*;
+
     if let Ok(port) = std::env::var("SHIJU_APPS_DRAG_FIXTURE_PORT") {
-        config::install_window_test_bootstrap(port.parse().unwrap());
-        let mut app = App::new().0;
-        let client = config::gateway_client().unwrap();
-        app.apps_catalog = AppsCatalogState {
+        let client = vw_gateway_client::GatewayClient::new(gateway_endpoint::GatewayEndpoint::new(
+            "127.0.0.1",
+            port.parse().unwrap(),
+        ))
+        .unwrap();
+        let mut app = AppsCatalogState {
             host: "fixture-host".into(),
             token: "isolated-fixture-application-token".into(),
             context: Some(AgentAppsContext {
                 gateway: client.endpoint().base_url(),
                 tenant: client.endpoint().tenant_scope().clone(),
-                project: app.project_path.clone(),
+                project: None,
             }),
             ..Default::default()
         };
         for id in [AppId::Claude, AppId::OpenCode, AppId::Codex, AppId::Gemini, AppId::Hermes] {
-            app.apps_catalog.rows.push(CatalogRow {
+            app.rows.push(CatalogRow {
                 entry: AppCatalogEntry {
                     id,
                     name: format!("{id:?}"),
@@ -79,46 +70,43 @@ async fn apps_drag_saves_only_after_drop_and_keeps_last_confirmed_order_on_rejec
             restart_required: false,
             capabilities: None,
         };
-        app.apps_catalog.preferences.saved = Some(preferences.clone());
-        app.apps_catalog.preferences.draft = Some(preferences.clone());
+        app.preferences.saved = Some(preferences.clone());
+        app.preferences.draft = Some(preferences.clone());
         let _ = update(&mut app, DragMessage::Start(AppId::OpenCode));
-        assert!(app.apps_catalog.drag.source.is_none());
+        assert!(app.drag.source.is_none());
         let _ = update(&mut app, DragMessage::Start(AppId::Claude));
         let _ = update(&mut app, DragMessage::Hover(AppId::Gemini));
         let _ = update(&mut app, DragMessage::Cancel);
-        assert_eq!(app.apps_catalog.preferences.saved, Some(preferences.clone()));
-        assert!(!app.apps_catalog.preferences.busy);
+        assert_eq!(app.preferences.saved, Some(preferences.clone()));
+        assert!(!app.preferences.busy);
         for (source, target, rejected) in
             [(AppId::Claude, AppId::Gemini, false), (AppId::Claude, AppId::Codex, true)]
         {
-            let previous = app.apps_catalog.preferences.saved.clone();
+            let previous = app.preferences.saved.clone();
             let _ = update(&mut app, DragMessage::Start(source));
             let _ = update(&mut app, DragMessage::Hover(target));
-            assert_eq!(app.apps_catalog.preferences.saved, previous);
+            assert_eq!(app.preferences.saved, previous);
             let task = update(&mut app, DragMessage::Drop);
-            assert!(app.apps_catalog.drag.source.is_none());
-            assert!(app.apps_catalog.preferences.busy);
-            assert_eq!(app.apps_catalog.preferences.saved, previous);
+            assert!(app.drag.source.is_none());
+            assert!(app.preferences.busy);
+            assert_eq!(app.preferences.saved, previous);
             let mut stream = iced_runtime::task::into_stream(task).expect("PATCH task");
             while let Some(action) = stream.next().await {
                 if let iced_runtime::Action::Output(message) = action {
-                    let _ = app.update(message);
+                    let _ = preferences_route(&mut app, message);
                 }
             }
-            assert!(!app.apps_catalog.preferences.busy);
+            assert!(!app.preferences.busy);
             if rejected {
-                assert_eq!(app.apps_catalog.preferences.saved, previous);
-                assert!(app.apps_catalog.preferences.error.is_some());
+                assert_eq!(app.preferences.saved, previous);
+                assert!(app.preferences.error.is_some());
             } else {
                 assert_eq!(
-                    app.apps_catalog.preferences.saved.as_ref().unwrap().user.app_order,
+                    app.preferences.saved.as_ref().unwrap().user.app_order,
                     ids(&["codex", "opencode", "gemini", "claude", "hermes"])
                 );
                 assert_eq!(
-                    preferences::visible_rows(&app.apps_catalog)
-                        .iter()
-                        .map(|a| a.entry.id)
-                        .collect::<Vec<_>>(),
+                    preferences::visible_rows(&app).iter().map(|a| a.entry.id).collect::<Vec<_>>(),
                     vec![AppId::Codex, AppId::OpenCode, AppId::Gemini, AppId::Claude]
                 );
             }
@@ -179,7 +167,7 @@ async fn apps_drag_saves_only_after_drop_and_keeps_last_confirmed_order_on_rejec
             index += 1;
         }
     });
-    let status=std::process::Command::new(std::env::current_exe().unwrap()).args(["--exact","app::components::system_settings_apps::drag_tests::apps_drag_saves_only_after_drop_and_keeps_last_confirmed_order_on_rejection","--nocapture"]).env("SHIJU_APPS_DRAG_FIXTURE_PORT",port.to_string()).status().unwrap();
+    let status=std::process::Command::new(std::env::current_exe().unwrap()).args(["--exact","host_module_25_tests::drag_tests::apps_drag_saves_only_after_drop_and_keeps_last_confirmed_order_on_rejection","--nocapture"]).env("SHIJU_APPS_DRAG_FIXTURE_PORT",port.to_string()).status().unwrap();
     assert!(status.success());
     server.join().unwrap();
 }

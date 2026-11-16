@@ -5,12 +5,10 @@ pub(in crate::app) mod agents;
 pub(crate) mod aggregation_list;
 pub(crate) mod aggregation_omo;
 pub(crate) mod aggregation_pi;
-mod apps_catalog;
+pub(crate) mod apps_catalog;
 pub(crate) mod apps_lifecycle;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod apps_usage_events;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod apps_usage_events_tests;
 pub(crate) mod archived_chats;
 mod autonomy;
 mod browser;

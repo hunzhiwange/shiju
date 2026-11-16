@@ -14,6 +14,3 @@ pub(crate) fn update(app: &mut crate::app::App, message: LaunchMessage) -> iced:
 #[path = "launch_view.rs"]
 mod view;
 pub(crate) use view::overlay;
-#[cfg(test)]
-#[path = "launch_ui_refresh_07_tests.rs"]
-mod launch_ui_refresh_07_tests;

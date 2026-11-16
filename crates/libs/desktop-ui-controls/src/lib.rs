@@ -29,3 +29,5 @@ mod desktop_split_02_tests;
 mod desktop_split_18_tests;
 
 pub mod icons;
+
+pub mod selectable_text;

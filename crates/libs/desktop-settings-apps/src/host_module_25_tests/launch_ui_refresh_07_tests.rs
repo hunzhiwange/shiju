@@ -1,35 +1,24 @@
-use vw_api_app_operations::{AppActionPreview, AppActionPreviewId, AppActionPreviewRequest, AppActionTarget, AppLifecycleAction};
-use vw_api_app_identity::{
-    AppCatalogEntry,
-    AppHostPreferences,
-    AppId,
-    AppInstallationEnvironment,
-    AppInstallationId,
-    AppInstallationSource,
-    AppPreferencesCapabilities,
-    AppPreferencesResult,
-    AppReadResponse,
-    AppRuntimeKind,
-    AppUserPreferences,
-    AppWslPreference,
-    LaunchIdentity,
-    LaunchIdentityKind,
-    LaunchRequest,
-};
-use super::super::{catalog::CatalogRow, preferences};
-use crate::app::i18n::I18n;
-use crate::app::{
-    Message,
-    message::settings::{AppsCatalogMessage, SettingsMessage, apps_lifecycle::LifecycleMessage},
-    state::AppsCatalogState,
-};
+use super::page_fixture::{self as system_settings_apps, *};
+use super::page_fixture::{drag, launch, lifecycle, preferences};
+use crate::system_settings_apps::catalog::CatalogRow;
+use desktop_i18n::I18n;
 use iced::advanced::renderer::{Headless, Style};
 use iced::advanced::widget::operation::{Operation, Scrollable};
 use iced::advanced::{Layout, Shell, clipboard, layout, widget::Tree};
 use iced::keyboard::{self, Key, key::Named};
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_api_types::agent_apps::*;
+use vw_api_app_identity::*;
+use vw_api_app_identity::{
+    AppCatalogEntry, AppHostPreferences, AppId, AppInstallationEnvironment, AppInstallationId,
+    AppInstallationSource, AppPreferencesCapabilities, AppPreferencesResult, AppReadResponse,
+    AppRuntimeKind, AppUserPreferences, AppWslPreference, LaunchIdentity, LaunchIdentityKind,
+    LaunchRequest,
+};
+use vw_api_app_operations::{
+    AppActionPreview, AppActionPreviewId, AppActionPreviewRequest, AppActionTarget,
+    AppLifecycleAction,
+};
 
 fn default_i18n() -> I18n {
     I18n::new(config_ui::DesktopLocale::SimplifiedChinese)
@@ -77,7 +66,7 @@ fn base() -> Element<'static, Message> {
     iced::widget::button(iced::widget::text("Underlying application catalog"))
         .width(Length::Fill)
         .height(Length::Fill)
-        .on_press(super::super::message(AppsCatalogMessage::Refresh))
+        .on_press(system_settings_apps::message(AppsCatalogMessage::Refresh))
         .into()
 }
 
@@ -85,7 +74,7 @@ async fn renderer() -> Renderer {
     static FONTS: std::sync::Once = std::sync::Once::new();
     FONTS.call_once(|| {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     });
@@ -190,7 +179,7 @@ fn launch_fixture() -> AppsCatalogState {
         args: vec![],
         skip_permissions: false,
     });
-    state.launch.selected = Some(super::LaunchChoice::Identity(identity.clone()));
+    state.launch.selected = Some(launch::LaunchChoice::Identity(identity.clone()));
     state.launch.identities = vec![
         identity,
         LaunchIdentity {
@@ -238,7 +227,7 @@ async fn ui_refresh_07_renders_modal_states() {
     let mut launch = launch_fixture();
     for (width, height) in [(420, 280), (640, 640), (960, 640)] {
         capture(
-            super::overlay(&launch, default_i18n(), &Theme::Light, base()),
+            launch::overlay(&launch, default_i18n(), &Theme::Light, base()),
             &mut renderer,
             Size::new(width, height),
             &format!("launch-{width}"),
@@ -249,7 +238,7 @@ async fn ui_refresh_07_renders_modal_states() {
     launch.launch.selected = None;
     launch.launch.identities.clear();
     capture(
-        super::overlay(&launch, default_i18n(), &Theme::Light, base()),
+        launch::overlay(&launch, default_i18n(), &Theme::Light, base()),
         &mut renderer,
         Size::new(420, 350),
         "launch-loading",
@@ -258,7 +247,7 @@ async fn ui_refresh_07_renders_modal_states() {
     launch.launch.identities_ready = true;
     launch.launch.error = Some("虚构错误：无法读取目录；請重新選擇。 Fixture failure. ".repeat(8));
     capture(
-        super::overlay(&launch, default_i18n(), &Theme::Light, base()),
+        launch::overlay(&launch, default_i18n(), &Theme::Light, base()),
         &mut renderer,
         Size::new(420, 350),
         "launch-error",
@@ -266,7 +255,7 @@ async fn ui_refresh_07_renders_modal_states() {
 
     let mut preferences = fixture();
     capture(
-        super::super::preferences::overlay(&preferences, default_i18n(), &Theme::Light, base()),
+        preferences::overlay(&preferences, default_i18n(), &Theme::Light, base()),
         &mut renderer,
         Size::new(420, 400),
         "preferences",
@@ -274,7 +263,7 @@ async fn ui_refresh_07_renders_modal_states() {
     preferences.rows.clear();
     preferences.preferences.draft.as_mut().unwrap().capabilities = None;
     capture(
-        super::super::preferences::overlay(&preferences, default_i18n(), &Theme::Light, base()),
+        preferences::overlay(&preferences, default_i18n(), &Theme::Light, base()),
         &mut renderer,
         Size::new(640, 400),
         "preferences-empty",
@@ -285,7 +274,7 @@ async fn ui_refresh_07_renders_modal_states() {
     {
         let state = lifecycle_fixture(action);
         capture(
-            super::super::lifecycle::overlay(&state.lifecycle, &state.host, base()),
+            lifecycle::overlay(&state.lifecycle, &state.host, base()),
             &mut renderer,
             Size::new(420, 280),
             &format!("{action:?}"),
@@ -433,7 +422,7 @@ impl Operation for BodyOffset {
 
 #[tokio::test]
 async fn ui_refresh_07_layout_and_interaction() {
-    use super::super::lifecycle;
+    use super::page_fixture::lifecycle;
     let mut renderer = renderer().await;
     let size = Size::new(420.0, 280.0);
     for action in
@@ -485,12 +474,12 @@ async fn ui_refresh_07_layout_and_interaction() {
 
 #[tokio::test]
 async fn ui_refresh_07_preserves_launch_identity_and_literal_parameters() {
-    use super::LaunchMessage as Launch;
+    use launch::LaunchMessage as Launch;
     let mut renderer = renderer().await;
     let mut state = launch_fixture();
     let size = Size::new(640.0, 640.0);
     let mut scene = Scene::new(
-        super::overlay(&state, default_i18n(), &Theme::Light, base()),
+        launch::overlay(&state, default_i18n(), &Theme::Light, base()),
         &mut renderer,
         size,
     );
@@ -516,7 +505,7 @@ async fn ui_refresh_07_preserves_launch_identity_and_literal_parameters() {
     assert!(scene.send(&mut renderer, &[key(Named::Enter)], center).is_empty());
     assert!(matches!(
         scene.send(&mut renderer, &[key(Named::End), key(Named::Enter)], center).as_slice(),
-        [AppsCatalogMessage::Launch(Launch::Select(super::LaunchChoice::Identity(identity)))]
+        [AppsCatalogMessage::Launch(Launch::Select(launch::LaunchChoice::Identity(identity)))]
             if identity.id == "account-fixture" && identity.kind == LaunchIdentityKind::OfficialAccount
     ));
 
@@ -546,7 +535,7 @@ async fn ui_refresh_07_preserves_launch_identity_and_literal_parameters() {
 
     state.launch.busy = true;
     let mut scene = Scene::new(
-        super::overlay(&state, default_i18n(), &Theme::Light, base()),
+        launch::overlay(&state, default_i18n(), &Theme::Light, base()),
         &mut renderer,
         size,
     );
@@ -633,7 +622,7 @@ async fn ui_refresh_07_preserves_preferences_and_disabled_states() {
     let mut state = lifecycle_fixture(AppLifecycleAction::Uninstall);
     state.lifecycle.busy = true;
     let mut scene = Scene::new(
-        super::super::view_overlays(&state, default_i18n(), &Theme::Light, base()),
+        view_overlays(&state, default_i18n(), &Theme::Light, base()),
         &mut renderer,
         size,
     );
@@ -642,7 +631,7 @@ async fn ui_refresh_07_preserves_preferences_and_disabled_states() {
     state.lifecycle.busy = false;
     state.lifecycle.preview.as_mut().unwrap().source = AppInstallationSource::Unknown;
     let mut scene = Scene::new(
-        super::super::view_overlays(&state, default_i18n(), &Theme::Light, base()),
+        view_overlays(&state, default_i18n(), &Theme::Light, base()),
         &mut renderer,
         size,
     );
@@ -651,13 +640,13 @@ async fn ui_refresh_07_preserves_preferences_and_disabled_states() {
 
 #[tokio::test]
 async fn help_rollout_04_launch_renders_contextual_help() {
-    use super::super::preferences_tests::{HELP_LOCALES, verify_help};
+    use super::preferences_tests::{HELP_LOCALES, verify_help};
 
     let mut state = launch_fixture();
     state.launch.error = Some("Fixture launch error".into());
     for mode in &HELP_LOCALES {
         let messages = verify_help(
-            super::super::view_overlays(&state, I18n::new(mode.0), &mode.1, base()),
+            view_overlays(&state, I18n::new(mode.0), &mode.1, base()),
             "launch-help",
             mode,
             &[("附加参数", "每项一个参数，原样传递；不解释 shell。")],
@@ -672,7 +661,7 @@ async fn help_rollout_04_launch_renders_contextual_help() {
         assert!(matches!(
             messages.as_slice(),
             [Message::Settings(SettingsMessage::AppsCatalog(AppsCatalogMessage::Launch(
-                super::LaunchMessage::Close
+                launch::LaunchMessage::Close
             )))]
         ));
     }

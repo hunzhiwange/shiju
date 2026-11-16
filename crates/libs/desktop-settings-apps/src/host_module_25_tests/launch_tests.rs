@@ -57,8 +57,7 @@ fn cc_apps_desktop_launch_state_message_scope_and_redacted_diagnostics() {
     assert!(!app.launch.accepted);
     let _ = route(&mut app, reply("中文主机", cg));
     assert!(app.launch.accepted);
-    app.host = "other".into();
-    app.launch.invalidate();
+    app.input().credentials(Some("other".into()), None);
     let _ = route(&mut app, reply("中文主机", cg));
     assert!(app.launch.request.is_none());
 }

@@ -74,13 +74,7 @@ pub fn content_safe_font(content: &str, preferred_font_name: &'static str) -> ic
 /// 执行 chat_text_selection_color 对应的模块功能。
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
-pub fn chat_text_selection_color(theme: &Theme) -> Color {
-    if is_dark_theme(theme) {
-        Color::from_rgba8(0x8B, 0x93, 0x9C, 0.34)
-    } else {
-        Color::from_rgba8(0xD9, 0xDE, 0xE5, 0.92)
-    }
-}
+pub use desktop_ui_controls::selectable_text::chat_text_selection_color;
 
 /// 执行 read_only_text_style 对应的模块功能。
 ///

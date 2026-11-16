@@ -19,3 +19,6 @@ pub fn guidance(app: AppId) -> &'static str {
 }
 
 pub const MANUAL_GUIDANCE: &str = "来源未知：请先向管理员核实真实路径和安装来源，再按原安装渠道人工卸载。本界面不执行命令或删除文件。";
+
+/// Fixed official client download destination.
+pub const MANUAL_DOWNLOAD_URL: &str = "https://claude.com/download";

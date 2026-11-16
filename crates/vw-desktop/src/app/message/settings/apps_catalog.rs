@@ -84,19 +84,12 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 tenant: client.endpoint().tenant_scope().clone(),
                 project: app.navigation_tabs.project_path.clone(),
             };
-            if app.apps_catalog.context.as_ref() != Some(&context)
-                || app.apps_catalog.host.is_empty() || app.apps_catalog.token.is_empty()
-            { return app.show_error_toast("请先连接应用服务"); }
-            if !app.apps_catalog.rows.iter().any(|row| row.entry.id == id) {
-                return Task::none();
-            }
-            // A retry is a new read: reject completions from every earlier request,
-            // including a catalog load that used the same host and credentials.
-            app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
-            app.apps_catalog.loading = true;
-            let generation = app.apps_catalog.generation;
-            let host = app.apps_catalog.host.clone();
-            let token = app.apps_catalog.token.clone();
+            let request = match catalog_input(&mut app.apps_catalog).begin_observation(&context, id) {
+                Ok(Some(request)) => request,
+                Ok(None) => return Task::none(),
+                Err(error) => return app.show_error_toast(error),
+            };
+            let desktop_settings_apps::system_settings_apps::catalog_update::ObservationRequest { generation, host, token } = request;
             return Task::perform(async move {
                 let client = gateway_app_read::GatewayAppReadClient::new(client.transport().clone());
                 let result = client.agent_apps_installations_authorized(&host, id, &token).await;
@@ -122,8 +115,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             return error.map(|error| app.show_error_toast(error)).unwrap_or_else(Task::none);
         }
         AppsCatalogMessage::QueryInput(query) => {
-            app.apps_catalog.query = query;
-            app.apps_catalog.drag = Default::default();
+            catalog_input(&mut app.apps_catalog).query(query);
         }
         AppsCatalogMessage::ToggleDetails(id) => {
             app.apps_catalog.openclaw_tools.invalidate();
@@ -134,7 +126,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             let application = app.apps_catalog.project_profiles.application.take().filter(|f| f.submitted);
             app.apps_catalog.project_profiles.invalidate();
             app.apps_catalog.project_profiles.application = application;
-            app.apps_catalog.expanded = (app.apps_catalog.expanded != Some(id)).then_some(id);
+            catalog_input(&mut app.apps_catalog).toggle_details(id);
             app.apps_catalog.prompts.invalidate();
             if app.apps_catalog.expanded.is_some() && !matches!(id, vw_api_app_identity::AppId::ClaudeDesktop | vw_api_app_identity::AppId::OpenClaw) {
                 let prompts = super::prompts::update(app, super::prompts::Event::Open(id));
@@ -201,26 +193,16 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                     tenant: client.endpoint().tenant_scope().clone(),
                     project: app.navigation_tabs.project_path.clone(),
                 });
-            if !desktop_settings_apps::system_settings_apps::catalog_update::accepts_local_credentials(
-                current.as_ref(), &context, app.apps_catalog.generation, generation,
-                app.apps_catalog.loading,
-            ) {
-                return Task::none();
-            }
-            app.apps_catalog.loading = false;
-            match result {
-                Ok(credentials) => {
+            match catalog_input(&mut app.apps_catalog).local_ready(current.as_ref(), &context, generation, result) {
+                Ok(true) => {
                     app.apps_catalog.model_diagnostics.invalidate_access();
-                    app.apps_catalog.token = credentials.token;
-                    app.apps_catalog.host = local_app_auth::HOST_ID.into();
                     return update(app, AppsCatalogMessage::Refresh);
                 }
-                Err(error) => {
-                    app.apps_catalog.error = Some(error.clone());
-                    return app.show_error_toast(error);
-                }
+                Ok(false) => return Task::none(),
+                Err(error) => return app.show_error_toast(error),
             }
         }
+
         AppsCatalogMessage::ConnectionOpen => {
             app.apps_catalog.connection_open = true;
             if let Some(scope) = app.apps_catalog.project_profiles.application.as_ref().map(|f| f.scope) {
@@ -233,11 +215,8 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.external_sessions.invalidate();
             app.apps_catalog.prompts.invalidate();
             app.app_providers.model_catalog = None;
-            app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.routing.invalidate();
             app.apps_catalog.high_availability.invalidate();
-            app.apps_catalog.preferences.invalidate();
-            app.apps_catalog.launch.invalidate();
             app.apps_catalog.hermes_dashboard.invalidate();
             app.apps_catalog.openclaw_catalog.invalidate();
             app.apps_catalog.openclaw_model.invalidate();
@@ -249,14 +228,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.project_profiles.invalidate();
             app.apps_catalog.model_diagnostics.invalidate_access();
-            app.apps_catalog.host = host;
-            app.apps_catalog.drag = Default::default();
-            app.apps_catalog.expanded = None;
-            app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
-            app.apps_catalog.loading = false;
-            app.apps_catalog.rows.clear();
-            app.apps_catalog.loaded_at = None;
-            app.apps_catalog.error = None;
+            catalog_input(&mut app.apps_catalog).credentials(Some(host), None);
         }
         AppsCatalogMessage::TokenInput(token) => {
             app.apps_catalog.external_sessions.invalidate();
@@ -268,11 +240,8 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                     tenant: client.endpoint().tenant_scope().clone(),
                     project: app.navigation_tabs.project_path.clone(),
                 });
-            app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.routing.invalidate();
             app.apps_catalog.high_availability.invalidate();
-            app.apps_catalog.preferences.invalidate();
-            app.apps_catalog.launch.invalidate();
             app.apps_catalog.hermes_dashboard.invalidate();
             app.apps_catalog.openclaw_catalog.invalidate();
             app.apps_catalog.openclaw_model.invalidate();
@@ -284,25 +253,15 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.project_profiles.invalidate();
             app.apps_catalog.model_diagnostics.invalidate_access();
-            app.apps_catalog.token = token;
-            app.apps_catalog.drag = Default::default();
-            app.apps_catalog.expanded = None;
-            app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
-            app.apps_catalog.loading = false;
-            app.apps_catalog.rows.clear();
-            app.apps_catalog.loaded_at = None;
-            app.apps_catalog.error = None;
+            catalog_input(&mut app.apps_catalog).credentials(None, Some(token));
         }
         AppsCatalogMessage::Refresh | AppsCatalogMessage::EnsureLoaded => {
             let use_cache = matches!(message, AppsCatalogMessage::EnsureLoaded);
             let client = match crate::app::config::gateway_client() {
                 Ok(client) => client,
                 Err(_) => {
-                    app.apps_catalog.loading = false;
-                    app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
-                    app.apps_catalog.rows.clear();
-                    app.apps_catalog.error = Some("网关不可用，请配置连接后重试".into());
-                    return app.show_error_toast("网关不可用，请配置连接后重试");
+                    let error = catalog_input(&mut app.apps_catalog).unavailable();
+                    return app.show_error_toast(error);
                 }
             };
             let context = AgentAppsContext {
@@ -311,18 +270,11 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 project: app.navigation_tabs.project_path.clone(),
             };
             crate::app::state::agent_apps::reset_if_context_changed(&mut app.apps_catalog, &context);
-            if use_cache && app.apps_catalog.cache_is_fresh() {
-                return Task::none();
-            }
-            if app.apps_catalog.host.trim().is_empty() || app.apps_catalog.token.is_empty() {
-                if client.endpoint().is_loopback() && cfg!(unix) {
-                    return update(app, AppsCatalogMessage::LocalConnect);
-                }
-                app.apps_catalog.connection_open = true;
-                return Task::none();
-            }
-            if app.apps_catalog.loading {
-                return Task::none();
+            use desktop_settings_apps::system_settings_apps::catalog_update::RefreshDecision;
+            match catalog_input(&mut app.apps_catalog).refresh_decision(use_cache, client.endpoint().is_loopback()) {
+                RefreshDecision::Skip | RefreshDecision::OpenConnection => return Task::none(),
+                RefreshDecision::ConnectLocal => return update(app, AppsCatalogMessage::LocalConnect),
+                RefreshDecision::Load => {}
             }
             let generation = crate::app::state::agent_apps::begin(&mut app.apps_catalog, context.clone());
             let host = app.apps_catalog.host.clone();
@@ -374,4 +326,15 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         }
     }
     Task::none()
+}
+
+pub(crate) fn catalog_input(state: &mut crate::app::state::AppsCatalogState) -> desktop_settings_apps::system_settings_apps::catalog_update::CatalogInput<'_> {
+    desktop_settings_apps::system_settings_apps::catalog_update::CatalogInput {
+        context: &mut state.context, connection_open: &mut state.connection_open,
+        host: &mut state.host, token: &mut state.token, query: &mut state.query,
+        generation: &mut state.generation, loading: &mut state.loading, rows: &mut state.rows,
+        loaded_at: &mut state.loaded_at, error: &mut state.error, expanded: &mut state.expanded,
+        hovered: &mut state.hovered, drag: &mut state.drag, lifecycle: &mut state.lifecycle,
+        preferences: &mut state.preferences, launch: &mut state.launch,
+    }
 }

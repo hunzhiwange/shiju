@@ -121,7 +121,7 @@ fn run_in_fixture(test_name: &str) -> bool {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn help_rollout_04_bookmarks_render_contextual_help() {
-    use crate::app::components::system_settings_apps::preferences_tests::{
+    use desktop_settings_apps::native_acceptance::help::{
         HELP_LOCALES, verify_help,
     };
 

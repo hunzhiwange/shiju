@@ -29,24 +29,11 @@ pub(crate) type AppsCatalogState = desktop_apps_ui::catalog_state::AppsCatalogSt
     CatalogRow
 >;
 pub fn reset_if_context_changed(state: &mut AppsCatalogState, context: &AgentAppsContext) -> bool {
-    if state.context.as_ref() == Some(context) {
-        return false;
-    }
-    state.generation = state.generation.wrapping_add(1);
-    state.loading = false;
-    state.rows.clear();
-    state.loaded_at = None;
-    state.drag = Default::default();
-    state.expanded = None;
-    state.hovered = None;
+    if !crate::app::message::settings::apps_catalog::catalog_input(state).reset_if_context_changed(context) { return false; }
     state.model_diagnostics.invalidate_access();
-    state.token.clear();
-    state.lifecycle.invalidate();
     state.external_sessions.invalidate();
     state.routing.invalidate();
     state.high_availability.invalidate();
-    state.preferences.invalidate();
-    state.launch.invalidate();
     state.hermes_dashboard.invalidate();
     state.openclaw_catalog.invalidate();
     state.openclaw_model.invalidate();
@@ -58,8 +45,6 @@ pub fn reset_if_context_changed(state: &mut AppsCatalogState, context: &AgentApp
     state.hermes_memory.invalidate();
     state.prompts.invalidate();
     state.project_profiles.invalidate();
-    state.connection_open = false;
-    state.error = Some("连接已更改，正在重新连接应用".into());
     true
 }
 
@@ -67,8 +52,6 @@ pub fn begin(state: &mut AppsCatalogState, context: AgentAppsContext) -> u64 {
     state.external_sessions.invalidate();
     state.routing.invalidate();
     state.high_availability.invalidate();
-    state.preferences.invalidate();
-    state.launch.invalidate();
     state.hermes_dashboard.invalidate();
     state.openclaw_catalog.invalidate();
     state.openclaw_model.invalidate();
@@ -80,9 +63,9 @@ pub fn begin(state: &mut AppsCatalogState, context: AgentAppsContext) -> u64 {
     state.hermes_memory.invalidate();
     state.prompts.invalidate();
     state.project_profiles.invalidate();
-    state.begin(context)
+    crate::app::message::settings::apps_catalog::catalog_input(state).begin(context)
 }
 
 pub fn finish(state: &mut AppsCatalogState, context: &AgentAppsContext, generation: u64, result: Result<Vec<CatalogRow>, String>) -> bool {
-    state.finish(context, generation, result, |row| row.observation.is_ok())
+    crate::app::message::settings::apps_catalog::catalog_input(state).finish(context, generation, result)
 }

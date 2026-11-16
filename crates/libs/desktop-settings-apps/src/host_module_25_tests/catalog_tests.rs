@@ -1,18 +1,12 @@
+use super::page_fixture::{AppsCatalogMessage, AppsCatalogState, catalog_route};
+use crate::system_settings_apps::catalog::*;
+use desktop_apps_ui::AgentAppsContext;
+use gateway_http::AgentAppsReadError;
 use vw_api_app_identity::{
-    AppCatalogEntry,
-    AppDesktopObservation,
-    AppId,
-    AppInstallation,
-    AppInstallationEnvironment,
-    AppInstallationId,
-    AppInstallationProbeFailure,
-    AppInstallationRuntimeStatus,
-    AppInstallationSource,
-    AppReadResponse,
-    AppRuntimeKind,
+    AppCatalogEntry, AppDesktopObservation, AppId, AppInstallation, AppInstallationEnvironment,
+    AppInstallationId, AppInstallationProbeFailure, AppInstallationRuntimeStatus,
+    AppInstallationSource, AppReadResponse, AppRuntimeKind,
 };
-use super::catalog::*;
-use {gateway_http::AgentAppsReadError, vw_api_types::agent_apps::*};
 
 fn row() -> CatalogRow {
     CatalogRow {
@@ -26,13 +20,8 @@ fn row() -> CatalogRow {
     }
 }
 
-
-
-
-
 #[test]
 fn cc_apps_desktop_catalog_state_retry_and_stale_response() {
-    use crate::app::state::{AgentAppsContext, AppsCatalogState};
     let context = AgentAppsContext {
         gateway: "http://gateway".into(),
         tenant: vw_api_transport::TenantScope::new("p", "c").unwrap(),
@@ -55,13 +44,8 @@ fn cc_apps_desktop_catalog_state_retry_and_stale_response() {
     );
 }
 
-
-
-
-
 #[test]
 fn cc_apps_desktop_catalog_state_context_switch_releases_pending_load() {
-    use crate::app::state::{AgentAppsContext, AppsCatalogState};
     let old = AgentAppsContext {
         gateway: "old".into(),
         tenant: vw_api_transport::TenantScope::new("p", "c").unwrap(),
@@ -81,53 +65,40 @@ fn cc_apps_desktop_catalog_state_context_switch_releases_pending_load() {
 
 #[test]
 fn local_apps_credentials_only_apply_to_current_connection_and_generation() {
-    use crate::app::{
-        App,
-        message::{SettingsMessage, settings::AppsCatalogMessage},
-        state::AgentAppsContext,
-    };
-    let mut app = App::new().0;
-    let client = crate::app::config::gateway_client().unwrap();
-    let context = AgentAppsContext {
-        gateway: client.endpoint().base_url(),
-        tenant: client.endpoint().tenant_scope().clone(),
-        project: app.project_path.clone(),
-    };
-    let generation = crate::app::state::agent_apps::begin(&mut app.apps_catalog, context.clone());
+    let (_, context) = super::lifecycle_app();
+    let mut app = AppsCatalogState::default();
+    let generation = app.begin(context.clone());
     let mut other = context.clone();
     other.gateway = "http://other-gateway".into();
     for (context, generation) in
         [(other, generation), (context.clone(), generation.wrapping_sub(1))]
     {
-        let _ = app.update(crate::app::Message::Settings(SettingsMessage::AppsCatalog(
+        let _ = catalog_route(
+            &mut app,
             AppsCatalogMessage::LocalReady {
                 context,
                 generation,
-                result: Ok(local_app_auth::Credentials {
-                    token: "stale-local-credential".into(),
-                }),
+                result: Ok(local_app_auth::Credentials { token: "stale-local-credential".into() }),
             },
-        )));
-        assert!(app.apps_catalog.token.is_empty());
+        );
+        assert!(app.token.is_empty());
     }
-    let _ = app.update(crate::app::Message::Settings(SettingsMessage::AppsCatalog(
+    let _ = catalog_route(
+        &mut app,
         AppsCatalogMessage::LocalReady {
             context,
             generation,
-            result: Ok(local_app_auth::Credentials {
-                token: "current-local-credential".into(),
-            }),
+            result: Ok(local_app_auth::Credentials { token: "current-local-credential".into() }),
         },
-    )));
-    assert_eq!(app.apps_catalog.host, local_app_auth::HOST_ID);
-    assert_eq!(app.apps_catalog.token, "current-local-credential");
-    assert!(app.apps_catalog.loading);
-    assert!(!app.apps_catalog.connection_open);
+    );
+    assert_eq!(app.host, local_app_auth::HOST_ID);
+    assert_eq!(app.token, "current-local-credential");
+    assert!(app.loading);
+    assert!(!app.connection_open);
 }
 
 #[test]
 fn catalog_cache_expires_and_invalidates_after_failure_or_context_change() {
-    use crate::app::state::{AgentAppsContext, AppsCatalogState};
     let context = AgentAppsContext {
         gateway: "http://gateway".into(),
         tenant: vw_api_transport::TenantScope::new("p", "c").unwrap(),
@@ -156,45 +127,27 @@ fn catalog_cache_expires_and_invalidates_after_failure_or_context_change() {
 
 #[test]
 fn catalog_reopening_reuses_cache_but_manual_refresh_and_credentials_invalidate_it() {
-    use crate::app::{
-        App,
-        message::{SettingsMessage, settings::AppsCatalogMessage},
-        state::AgentAppsContext,
-    };
-    let mut app = App::new().0;
-    let client = crate::app::config::gateway_client().unwrap();
-    let context = AgentAppsContext {
-        gateway: client.endpoint().base_url(),
-        tenant: client.endpoint().tenant_scope().clone(),
-        project: app.project_path.clone(),
-    };
-    app.apps_catalog.host = "remote".into();
-    app.apps_catalog.token = "fixture".into();
-    let generation = crate::app::state::agent_apps::begin(&mut app.apps_catalog, context.clone());
-    assert!(crate::app::state::agent_apps::finish(&mut app.apps_catalog, &context, generation, Ok(vec![row()])));
-    let _ = app.update(crate::app::Message::Settings(SettingsMessage::SystemTabSelected(
-        crate::app::components::system_settings::SystemTab::Apps,
-    )));
-    assert!(!app.apps_catalog.loading);
-    assert_eq!(app.apps_catalog.generation, generation);
-    assert_eq!(app.apps_catalog.rows.len(), 1);
-    let _ = app.update(crate::app::Message::Settings(SettingsMessage::AppsCatalog(
-        AppsCatalogMessage::Refresh,
-    )));
-    assert!(app.apps_catalog.loading);
-    assert!(!app.apps_catalog.cache_is_fresh());
-    let generation = app.apps_catalog.generation;
-    assert!(crate::app::state::agent_apps::finish(&mut app.apps_catalog, &context, generation, Ok(vec![row()])));
-    let _ = app.update(crate::app::Message::Settings(SettingsMessage::AppsCatalog(
-        AppsCatalogMessage::TokenInput("replacement".into()),
-    )));
-    assert!(!app.apps_catalog.cache_is_fresh());
-    assert!(app.apps_catalog.rows.is_empty());
-    let generation = crate::app::state::agent_apps::begin(&mut app.apps_catalog, context.clone());
-    assert!(crate::app::state::agent_apps::finish(&mut app.apps_catalog, &context, generation, Ok(vec![row()])));
-    let _ = app.update(crate::app::Message::Settings(SettingsMessage::AppsCatalog(
-        AppsCatalogMessage::HostInput("other".into()),
-    )));
-    assert!(!app.apps_catalog.cache_is_fresh());
-    assert!(app.apps_catalog.rows.is_empty());
+    let (_, context) = super::lifecycle_app();
+    let mut app = AppsCatalogState::default();
+    app.host = "remote".into();
+    app.token = "fixture".into();
+    let generation = app.begin(context.clone());
+    assert!(app.finish(&context, generation, Ok(vec![row()])));
+    let _ = catalog_route(&mut app, AppsCatalogMessage::EnsureLoaded);
+    assert!(!app.loading);
+    assert_eq!(app.generation, generation);
+    assert_eq!(app.rows.len(), 1);
+    let _ = catalog_route(&mut app, AppsCatalogMessage::Refresh);
+    assert!(app.loading);
+    assert!(!app.cache_is_fresh());
+    let generation = app.generation;
+    assert!(app.finish(&context, generation, Ok(vec![row()])));
+    let _ = catalog_route(&mut app, AppsCatalogMessage::TokenInput("replacement".into()));
+    assert!(!app.cache_is_fresh());
+    assert!(app.rows.is_empty());
+    let generation = app.begin(context.clone());
+    assert!(app.finish(&context, generation, Ok(vec![row()])));
+    let _ = catalog_route(&mut app, AppsCatalogMessage::HostInput("other".into()));
+    assert!(!app.cache_is_fresh());
+    assert!(app.rows.is_empty());
 }

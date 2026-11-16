@@ -1,16 +1,13 @@
-use vw_api_app_identity::{
-    AppCatalogEntry,
-    AppDesktopObservation,
-    AppId,
-    AppReadResponse,
-    AppRuntimeKind,
-};
-use super::{catalog::CatalogRow, details};
-use crate::app::{Message, message::ViewMessage, state::AppsCatalogState};
+use super::page_fixture::details;
+use super::page_fixture::{AppsCatalogState, Message, ViewMessage};
+use crate::system_settings_apps::catalog::CatalogRow;
 use iced::advanced::renderer::Headless;
 use iced::{Event, Font, Pixels, Point, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use {gateway_http::AgentAppsReadError, vw_api_types::agent_apps::*};
+use vw_api_app_identity::{
+    AppCatalogEntry, AppDesktopObservation, AppId, AppReadResponse, AppRuntimeKind,
+};
+use {gateway_http::AgentAppsReadError, vw_api_app_identity::*};
 
 #[tokio::test]
 async fn cc_apps_desktop_manual_guide_click_opens_only_official_client_url() {

@@ -1,26 +1,7 @@
-use vw_api_app_operations::{AppActionPreviewRequest, AppActionTarget, AppLifecycleAction};
-use vw_api_app_identity::{
-    AppCatalogEntry,
-    AppHostPreferences,
-    AppId,
-    AppInstallation,
-    AppInstallationEnvironment,
-    AppInstallationId,
-    AppInstallationRuntimeStatus,
-    AppInstallationSource,
-    AppPreferencesResult,
-    AppReadResponse,
-    AppRuntimeKind,
-    AppUserPreferences,
-};
-use super::super::{drag, launch, view as localized_view, view_overlays};
-use super::CatalogRow;
-use crate::app::i18n::I18n;
-use crate::app::{
-    Message,
-    message::settings::{AppsCatalogMessage, SettingsMessage, apps_lifecycle::LifecycleMessage},
-    state::AppsCatalogState,
-};
+use super::page_fixture::{self as system_settings_apps, *};
+use super::page_fixture::{drag, launch, lifecycle, preferences};
+use crate::system_settings_apps::catalog::CatalogRow;
+use desktop_i18n::I18n;
 use iced::advanced::renderer::{Headless, Style};
 use iced::advanced::{
     Layout, clipboard, layout,
@@ -32,7 +13,13 @@ use iced::advanced::{
 use iced::keyboard::{self, Key, key::Named};
 use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use {gateway_http::AgentAppsReadError, vw_api_types::agent_apps::*};
+use vw_api_app_identity::{
+    AppCatalogEntry, AppHostPreferences, AppId, AppInstallation, AppInstallationEnvironment,
+    AppInstallationId, AppInstallationRuntimeStatus, AppInstallationSource, AppPreferencesResult,
+    AppReadResponse, AppRuntimeKind, AppUserPreferences,
+};
+use vw_api_app_operations::{AppActionPreviewRequest, AppActionTarget, AppLifecycleAction};
+use {gateway_http::AgentAppsReadError, vw_api_app_identity::*};
 
 fn view(state: &AppsCatalogState) -> Element<'_, Message> {
     localized_view(state, I18n::new(Default::default()))
@@ -90,7 +77,7 @@ async fn renderer() -> Renderer {
     static FONTS: std::sync::Once = std::sync::Once::new();
     FONTS.call_once(|| {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     });

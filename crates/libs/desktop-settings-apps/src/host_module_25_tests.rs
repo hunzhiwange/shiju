@@ -53,13 +53,7 @@ fn route(
 }
 
 mod launch_tests;
-struct LaunchFixture {
-    context: Option<desktop_apps_ui::AgentAppsContext>,
-    host: String,
-    token: String,
-    generation: u64,
-    launch: crate::system_settings_apps::launch::LaunchState,
-}
+type LaunchFixture = crate::system_settings_apps::catalog_update::CatalogState;
 fn launch_fixture() -> (LaunchFixture, desktop_apps_ui::AgentAppsContext) {
     let (_, context) = lifecycle_app();
     (
@@ -69,6 +63,7 @@ fn launch_fixture() -> (LaunchFixture, desktop_apps_ui::AgentAppsContext) {
             token: String::new(),
             generation: 0,
             launch: Default::default(),
+            ..Default::default()
         },
         context,
     )
@@ -100,3 +95,14 @@ fn launch_route(
         message,
     )
 }
+
+mod catalog_ui_refresh_06_tests;
+mod launch_ui_refresh_07_tests;
+mod page_fixture;
+mod preferences_tests;
+
+mod details_tests;
+
+mod drag_tests;
+
+mod catalog_tests;

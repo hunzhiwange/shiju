@@ -15,20 +15,7 @@ use std::{
 pub(crate) struct AgentRunnerHost;
 #[path = "runner_admission.rs"]
 mod admission;
-impl session_engine::runner_host::RunnerPrompt for crate::session::prompt::SystemPrompt {
-    fn content(&self) -> &str {
-        &self.content
-    }
-    fn visible_instruction_paths(&self) -> &[String] {
-        &self.visible_instruction_paths
-    }
-    fn instruction_context(&self) -> &[session_instructions::Resolved] {
-        self.instruction_context()
-    }
-    fn runtime_parts(&self, primary: Option<&str>, last: bool) -> Vec<String> {
-        self.runtime_parts(primary, last)
-    }
-}
+// RunnerPrompt is implemented beside its SystemPrompt owner.
 impl session_engine::runner_host::RunnerHost for AgentRunnerHost {
     type CtxHost = crate::tools::context::AgentContextHost;
     type ImageExtractor = crate::multimodal::ocr::SessionImageTextExtractor;

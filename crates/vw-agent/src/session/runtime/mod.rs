@@ -19,11 +19,11 @@ pub use types::{
 };
 
 #[cfg(test)]
-#[path = "lifecycle_tests.rs"]
+#[path = "../../../../libs/session-engine/tests/host_suites/runtime/lifecycle_tests.rs"]
 mod lifecycle_tests;
 
 #[cfg(test)]
-#[path = "prompt_tests.rs"]
+#[path = "../../../../libs/session-engine/tests/host_suites/runtime/prompt_tests.rs"]
 mod prompt_tests;
 
 pub mod dynamic_calls;
@@ -33,21 +33,4 @@ pub mod dynamic_calls;
 pub(crate) mod dynamic_hosts;
 pub(crate) use wiring::validate_session_scope;
 
-pub(crate) fn is_successful_finish_reason(reason: Option<&str>) -> bool {
-    !matches!(
-        reason,
-        Some(
-            "tool_calls"
-                | "tool_use"
-                | "content_filter"
-                | "error"
-                | "cancelled"
-                | "waiting_for_input"
-                | "requires_action"
-                | "refusal"
-                | "max_turn_requests"
-                | "length"
-                | "max_tokens"
-        )
-    )
-}
+pub(crate) use session_engine::runtime::is_successful_finish_reason;

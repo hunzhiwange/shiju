@@ -37,7 +37,7 @@
 use crate::app::agent::bus;
 use crate::app::agent::id;
 use agent_installation as installation;
-use crate::app::agent::permission::next as permission_next;
+// CreateInput permission types are owned by session-engine::session_io.
 use crate::app::agent::project::instance;
 use crate::app::agent::storage;
 use crate::app::agent::util::log;
@@ -87,17 +87,7 @@ pub use session_text::{create_slug, is_default_title};
 /// 创建会话的输入参数
 ///
 /// 用于 `create_next` 函数的输入参数结构。
-#[derive(Debug, Clone, Default)]
-pub struct CreateInput {
-    /// 父会话 ID（用于创建子会话）
-    pub parent_id: Option<String>,
-    /// 会话标题（可选，未提供则使用默认标题）
-    pub title: Option<String>,
-    /// 工作目录路径
-    pub directory: String,
-    /// 权限规则集（可选）
-    pub permission: Option<permission_next::Ruleset>,
-}
+pub use session_engine::session_io::CreateInput;
 
 /// 获取当前时间的 Unix 毫秒时间戳
 ///
@@ -160,20 +150,7 @@ fn create_default_title(is_child: bool) -> String {
 /// # 返回
 ///
 /// 返回带分支编号的新标题
-fn forked_title(title: &str) -> String {
-    // 匹配已有的分支编号格式
-    static RE: LazyLock<regex::Regex> =
-        LazyLock::new(|| regex::Regex::new(r"^(.+) \(fork #(\d+)\)$").unwrap());
-    if let Some(caps) = RE.captures(title) {
-        // 提取基础标题和当前编号
-        let base = caps.get(1).map(|m| m.as_str()).unwrap_or(title);
-        let num = caps.get(2).and_then(|m| m.as_str().parse::<u64>().ok()).unwrap_or(0);
-        // 递增编号
-        return format!("{} (fork #{})", base, num + 1);
-    }
-    // 首次分支
-    format!("{} (fork #1)", title)
-}
+fn forked_title(title: &str) -> String { session_engine::session_fork::forked_title(title) }
 
 /// 获取当前项目 ID
 ///
@@ -906,92 +883,8 @@ pub async fn fork(session_id: &str, message_id: Option<&str>) -> Result<Info, Er
     fork_with_parent(session_id, message_id, None).await
 }
 
-pub(crate) async fn fork_with_parent(
-    session_id: &str,
-    message_id: Option<&str>,
-    parent_id: Option<String>,
-) -> Result<Info, Error> {
-    // 读取原始会话信息
-    let original = get(session_id).await?;
-    let binding =
-        crate::session::agent_binding::load_scoped(&original.project_id, session_id).await?;
-    // 生成分支标题
-    let title = forked_title(&original.title);
-    let directory = instance_directory_opt().unwrap_or_else(|| original.directory.clone());
-    // 在创建目标前确认截点确实属于源会话。
-    let mut msgs = super::message::messages(session_id, None).await?;
-    if let Some(until) = message_id {
-        if !msgs.iter().any(|msg| msg.info.id() == until) {
-            return Err(Error::Storage(storage::Error::NotFound(storage::NotFoundError {
-                message: format!("message {until} not found in source thread"),
-            })));
-        }
-    }
-    // 创建新会话
-    let created = create_next(CreateInput {
-        parent_id,
-        title: Some(title),
-        directory,
-        permission: original.permission.clone(),
-    })
-    .await?;
-    let _history = super::message::lock_history(&created.id).await;
-
-    if let Some(binding) = binding {
-        crate::session::agent_binding::save_scoped(&created.project_id, &created.id, &binding)
-            .await?;
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    super::dynamic_tool_store::copy_scoped(&original.project_id, session_id, &created)
-        .map_err(Error::Runtime)?;
-    // 获取原始会话的所有消息，按时间正序复制，保证父消息映射可用。
-    msgs.sort_by(|a, b| a.info.id().cmp(b.info.id()));
-    // 建立旧消息 ID 到新消息 ID 的映射
-    let mut id_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
-
-    // 复制消息和部分
-    for msg in msgs {
-        let reached_target = message_id.is_some_and(|until| msg.info.id() == until);
-
-        // 生成新的消息 ID
-        let new_id = id::ascending(id::Prefix::Message, None)?;
-        id_map.insert(msg.info.id().to_string(), new_id.clone());
-
-        // 对于助手消息，需要更新父消息 ID 的映射
-        let parent_id = match &msg.info {
-            super::message::Info::Assistant(a) => id_map.get(&a.parent_id).cloned(),
-            _ => None,
-        };
-
-        // 克隆并更新消息信息
-        let mut cloned_info = msg.info.clone();
-        cloned_info.set_session_id(&created.id);
-        cloned_info.set_id(&new_id);
-        if let Some(parent_id) = parent_id {
-            cloned_info.set_parent_id(&parent_id);
-        }
-        super::message::update_message(&cloned_info).await?;
-
-        // 复制消息的所有部分
-        for part in msg.parts {
-            let mut new_part = part.clone();
-            #[cfg(not(target_arch = "wasm32"))]
-            super::dynamic_tool_store::interrupt_part(&mut new_part);
-            new_part.set_session_id(&created.id);
-            new_part.set_message_id(&new_id);
-            new_part.set_id(&id::ascending(id::Prefix::Part, None)?);
-            super::message::update_part(&new_part).await?;
-        }
-
-        if reached_target {
-            break;
-        }
-    }
-
-    super::compaction_checkpoint::copy(session_id, &created.id)
-        .await
-        .map_err(|error| Error::Runtime(anyhow::anyhow!(error)))?;
-    Ok(created)
+pub(crate) async fn fork_with_parent(session_id: &str, message_id: Option<&str>, parent_id: Option<String>) -> Result<Info, Error> {
+    session_engine::session_fork::fork_with_parent::<super::session_io::NativeSessionIo>(session_id, message_id, parent_id).await
 }
 
 /// 构建日志额外字段映射

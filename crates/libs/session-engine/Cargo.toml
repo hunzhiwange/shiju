@@ -8,6 +8,10 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+agent-snapshot = { path = "../agent-snapshot", version = "0.6.0" }
+worktree-core = { path = "../worktree-core", version = "0.6.0" }
+tool-shell = { path = "../tool-shell", version = "0.6.0" }
+thiserror = "2"
 tool-services = { path = "../tool-services", version = "0.6.0" }
 uuid = { version = "1.11", features = ["v4", "js"] }
 tool-agents = { path = "../tool-agents", version = "0.6.0" }

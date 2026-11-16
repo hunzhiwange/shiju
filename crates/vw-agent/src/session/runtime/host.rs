@@ -1,27 +1,9 @@
-//! 尚未迁移的工具和进程宿主适配；随 session-engine 工厂迁移。
+//! 原生会话端口的具体处理器与元数据存储组合。
 
 
-#[derive(Debug, Default)]
-pub(super) struct ShellCleanup {
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(super) scope: Option<crate::tools::shell::processes::ShellProcessScope>,
-}
+// Shell cleanup is owned by session-engine::runtime::prompt.
 
-impl session_port::PromptCleanup for ShellCleanup {
-    fn reap(&self, cutoff: Option<std::time::Instant>) -> anyhow::Result<()> {
-        #[cfg(target_arch = "wasm32")]
-        let _ = cutoff;
-        #[cfg(not(target_arch = "wasm32"))]
-        if let Some(scope) = &self.scope
-            && let Some(host) = crate::tools::shell::processes::ShellProcesses::existing()
-        {
-            host.cancel_scope_before(scope, cutoff)?;
-        }
-        Ok(())
-    }
-}
-
-/// 过渡宿主组合；会话服务迁移时由 session-engine 接管实现。
+/// 会话服务已由 session-engine 持有，这里只绑定具体处理器。
 pub(super) struct NativeSessionEngine;
 
 impl session_port::SessionExecution for NativeSessionEngine {

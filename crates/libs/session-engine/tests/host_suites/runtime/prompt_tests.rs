@@ -203,7 +203,7 @@ fn shell_session_stop_cancels_owned_processes() {
         PromptEvent::Terminated(PromptTermination::Completed(_))
     ));
     turn.cancel.cancel();
-    let host = ShellProcesses::shared().unwrap();
+    let host = ShellProcesses::shared::<crate::tools::context::AgentContextHost>().unwrap();
     let state = host.snapshot(&scope, result.data["process_id"].as_str().unwrap()).unwrap().state;
     let foreign_state =
         host.snapshot(&foreign_scope, foreign.data["process_id"].as_str().unwrap()).unwrap().state;
@@ -237,7 +237,7 @@ fn shell_session_normal_return_preserves_process() {
         PromptEvent::Terminated(PromptTermination::Completed(_))
     ));
     drop(turn);
-    let host = ShellProcesses::shared().unwrap();
+    let host = ShellProcesses::shared::<crate::tools::context::AgentContextHost>().unwrap();
     let state = host.snapshot(&scope, result.data["process_id"].as_str().unwrap()).unwrap().state;
     let runtime = tokio::runtime::Runtime::new().unwrap();
     runtime.block_on(host.cancel(&scope, result.data["process_id"].as_str().unwrap())).unwrap();
@@ -274,7 +274,7 @@ fn shell_session_external_stop_reaps_returned_process() {
         PromptEvent::Terminated(PromptTermination::Cancelled)
     ));
     assert_eq!(
-        ShellProcesses::shared()
+        ShellProcesses::shared::<crate::tools::context::AgentContextHost>()
             .unwrap()
             .snapshot(&scope, result.data["process_id"].as_str().unwrap())
             .unwrap()
@@ -308,7 +308,7 @@ fn shell_session_transport_interrupt_preserves_process() {
     ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
     turn.cancel.interrupt();
     done_rx.recv_timeout(Duration::from_secs(5)).unwrap();
-    let host = ShellProcesses::shared().unwrap();
+    let host = ShellProcesses::shared::<crate::tools::context::AgentContextHost>().unwrap();
     let state = host.snapshot(&scope, result.data["process_id"].as_str().unwrap()).unwrap().state;
     turn.cancel.cancel();
     assert_eq!(state, ShellProcessState::Running);
@@ -336,7 +336,7 @@ fn shell_session_completed_handle_does_not_cancel_later_prompt_process() {
         turn.events.recv_timeout(Duration::from_secs(5)).unwrap(),
         PromptEvent::Terminated(PromptTermination::Completed(_))
     ));
-    let host = ShellProcesses::shared().unwrap();
+    let host = ShellProcesses::shared::<crate::tools::context::AgentContextHost>().unwrap();
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let later = runtime
         .block_on(host.start(scope.clone(), || {

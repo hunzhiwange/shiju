@@ -6,7 +6,7 @@ fn max_steps_text_matches_trimmed_embedded_constraint() {
     let text = super::max_steps_text();
 
     assert!(!text.is_empty());
-    assert_eq!(text, include_str!("prompt/max-steps.txt").trim());
+    assert_eq!(text, include_str!("../../src/prompt/max-steps.txt").trim());
     assert!(text.contains("工具已禁用"));
 }
 
@@ -144,20 +144,4 @@ fn agents_context_base_system_excludes_instruction_content() {
 
     assert!(!prompt.content.contains("agents instruction content"));
     assert!(!prompt.base_content.contains("agents instruction content"));
-}
-
-#[test]
-fn runtime_parts_exclude_agents_context_from_system_messages() {
-    let prompt = super::SystemPrompt {
-        content: "base".to_string(),
-        visible_instruction_paths: Vec::new(),
-        base_content: "base".to_string(),
-        instruction_context: Vec::new(),
-    };
-
-    assert_eq!(prompt.runtime_parts(Some("custom"), false), vec!["base", "custom"]);
-
-    let parts = prompt.runtime_parts(Some("custom"), true);
-    assert_eq!(&parts[..2], ["base", "custom"]);
-    assert_eq!(parts.last().map(String::as_str), Some(super::max_steps_text()));
 }

@@ -1,285 +1,34 @@
-//! 原生会话创建、加载和归属校验。
-
-use std::path::PathBuf;
-
-use crate::project;
-use crate::session::{message, session, ui_store};
-use crate::storage;
-
-use super::types::{CreateSessionInput, LifecycleError, SessionScope, SessionSnapshot};
-
-fn canonical_recorded_directory(directory: &str) -> PathBuf {
-    let path = PathBuf::from(directory);
-    if !path.is_absolute() {
-        return path;
-    }
-    std::fs::canonicalize(&path).unwrap_or(path)
-}
-
-fn session_not_found(error: session::Error, session_id: &str) -> LifecycleError {
-    match error {
-        session::Error::Storage(storage::Error::NotFound(_)) => {
-            LifecycleError::SessionNotFound { session_id: session_id.to_string() }
-        }
-        error => LifecycleError::Session(error),
-    }
-}
-
-async fn load_info_for_scope(
-    scope: &SessionScope,
-    expected_project_id: &str,
-    session_id: &str,
-) -> Result<session::Info, LifecycleError> {
-    let info =
-        session::get_any(session_id).await.map_err(|error| session_not_found(error, session_id))?;
-    let actual_directory = canonical_recorded_directory(&info.directory);
-    if actual_directory != scope.directory() || info.project_id != expected_project_id {
-        return Err(LifecycleError::SessionOwnershipMismatch {
-            session_id: session_id.to_string(),
-            expected_directory: scope.directory().to_path_buf(),
-            actual_directory,
-            expected_project_id: expected_project_id.to_string(),
-            actual_project_id: info.project_id.clone(),
-        });
-    }
-    Ok(info)
-}
-
-async fn resolve_project(scope: &SessionScope) -> Result<(project::Info, String), LifecycleError> {
-    project::from_directory(scope.tenant(), scope.directory()).await.map_err(Into::into)
-}
-
-/// 创建并持久化一个属于已验证作用域的原生会话。
-pub async fn create_session(input: CreateSessionInput) -> Result<SessionSnapshot, LifecycleError> {
-    create_session_with(input, session::create_next).await
-}
-
+//! Shared lifecycle services bound to metadata IO.
+use super::types::*;
+use crate::session::session_io::NativeSessionIo;
+pub async fn create_session(input: CreateSessionInput) -> Result<SessionSnapshot, LifecycleError> { session_engine::runtime::lifecycle::create_session::<NativeSessionIo>(input).await }
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) async fn reserve_session(
     input: CreateSessionInput,
-) -> Result<SessionSnapshot, LifecycleError> {
-    create_session_with(input, session::reserve_next).await
-}
-
-/// Reserve a task's identity and source without publishing it in session history.
+) -> Result<SessionSnapshot, LifecycleError> { session_engine::runtime::lifecycle::reserve_session::<NativeSessionIo>(input).await }
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) async fn reserve_visible_task_session(
     scope: SessionScope,
     parent_id: String,
-) -> Result<SessionSnapshot, LifecycleError> {
-    let input =
-        CreateSessionInput { scope, parent_id: Some(parent_id), title: None, permission: None };
-    create_session_with(input, session::reserve_visible_task).await
-}
-
-async fn create_session_with<Fut>(
-    input: CreateSessionInput,
-    create: impl FnOnce(session::CreateInput) -> Fut + Send + 'static,
-) -> Result<SessionSnapshot, LifecycleError>
-where
-    Fut: std::future::Future<Output = Result<session::Info, session::Error>> + Send + 'static,
-{
-    let CreateSessionInput { scope, parent_id, title, permission } = input;
-    let (project, _) = resolve_project(&scope).await?;
-    let expected_project_id = project.id;
-    let tenant = scope.tenant().clone();
-    let directory = scope.directory().to_path_buf();
-    let directory_string = directory.to_string_lossy().into_owned();
-    let scope_for_operation = scope.clone();
-
-    project::instance::provide(directory, None, move || {
-        Box::pin(async move {
-            ui_store::with_tenant_scope(tenant, async move {
-                if let Some(parent_id) = parent_id.as_deref() {
-                    load_info_for_scope(&scope_for_operation, &expected_project_id, parent_id)
-                        .await?;
-                }
-                let info = create(session::CreateInput {
-                    parent_id,
-                    title,
-                    directory: directory_string,
-                    permission,
-                })
-                .await
-                .map_err(LifecycleError::from)?;
-                Ok(SessionSnapshot {
-                    info,
-                    history: Vec::new(),
-                    #[cfg(not(target_arch = "wasm32"))]
-                    dynamic_tools: None,
-                })
-            })
-            .await
-        })
-    })
-    .await
-    .map_err(LifecycleError::Project)?
-}
-
-/// 创建并持久化一个带稳定 slug 标记的用户可见任务会话。
+) -> Result<SessionSnapshot, LifecycleError> { session_engine::runtime::lifecycle::reserve_visible_task_session::<NativeSessionIo>(scope, parent_id).await }
 pub async fn create_visible_task_session(
     input: CreateSessionInput,
-) -> Result<SessionSnapshot, LifecycleError> {
-    let scope = input.scope.clone();
-    let created = create_session(input).await?;
-    let session_id = created.info.id.clone();
-    let tenant = scope.tenant().clone();
-    let directory = scope.directory().to_path_buf();
-
-    let info = project::instance::provide(directory, None, move || {
-        Box::pin(async move {
-            ui_store::with_tenant_scope(tenant, async move {
-                session::update(&session_id, |info| {
-                    info.slug = session::Info::visible_task_slug(&info.slug);
-                })
-                .await
-                .map_err(LifecycleError::from)
-            })
-            .await
-        })
-    })
-    .await
-    .map_err(LifecycleError::Project)??;
-
-    Ok(SessionSnapshot {
-        info,
-        history: Vec::new(),
-        #[cfg(not(target_arch = "wasm32"))]
-        dynamic_tools: None,
-    })
-}
-
-/// 在已验证的项目与父任务内分叉一个可见任务。
+) -> Result<SessionSnapshot, LifecycleError> { session_engine::runtime::lifecycle::create_visible_task_session::<NativeSessionIo>(input).await }
 pub(crate) async fn fork_visible_task_session(
     scope: SessionScope,
     parent_id: &str,
     source_id: &str,
     message_id: Option<&str>,
-) -> Result<session::Info, LifecycleError> {
-    let (project, _) = resolve_project(&scope).await?;
-    let tenant = scope.tenant().clone();
-    let directory = scope.directory().to_path_buf();
-    let parent_id = parent_id.to_string();
-    let source_id = source_id.to_string();
-    let message_id = message_id.map(str::to_string);
-    project::instance::provide(directory, None, move || {
-        Box::pin(async move {
-            ui_store::with_tenant_scope(tenant, async move {
-                load_info_for_scope(&scope, &project.id, &parent_id).await?;
-                let source = load_info_for_scope(&scope, &project.id, &source_id).await?;
-                if source.parent_id.as_deref() != Some(&parent_id) || !source.is_visible_task() {
-                    return Err(LifecycleError::SessionNotFound { session_id: source_id });
-                }
-                let created =
-                    session::fork_with_parent(&source.id, message_id.as_deref(), Some(parent_id))
-                        .await?;
-                session::update(&created.id, |info| {
-                    info.slug = session::Info::visible_task_slug(&info.slug);
-                })
-                .await
-                .map_err(LifecycleError::from)
-            })
-            .await
-        })
-    })
-    .await
-    .map_err(LifecycleError::Project)?
-}
-
-/// 列出同一项目、目录及父会话下持久化的可见任务。
+) -> Result<session_info::Info, LifecycleError> { session_engine::runtime::lifecycle::fork_visible_task_session::<NativeSessionIo>(scope, parent_id, source_id, message_id).await }
 pub(crate) async fn visible_tasks_for_parent(
     scope: SessionScope,
     parent_id: &str,
-) -> Result<Vec<session::Info>, LifecycleError> {
-    let (project, _) = resolve_project(&scope).await?;
-    let expected_project_id = project.id;
-    let tenant = scope.tenant().clone();
-    let directory = scope.directory().to_path_buf();
-    let parent_id = parent_id.to_string();
-    project::instance::provide(directory, None, move || {
-        Box::pin(async move {
-            ui_store::with_tenant_scope(tenant, async move {
-                load_info_for_scope(&scope, &expected_project_id, &parent_id).await?;
-                let children = session::children_including_pending(&parent_id)
-                    .await
-                    .map_err(LifecycleError::from)?;
-                Ok(children
-                    .into_iter()
-                    .filter(|info| {
-                        info.is_visible_task()
-                            && info.project_id == expected_project_id
-                            && canonical_recorded_directory(&info.directory) == scope.directory()
-                    })
-                    .collect())
-            })
-            .await
-        })
-    })
-    .await
-    .map_err(LifecycleError::Project)?
-}
-
-/// 加载会话，在读取历史前校验租户、目录和项目归属。
+) -> Result<Vec<session_info::Info>, LifecycleError> { session_engine::runtime::lifecycle::visible_tasks_for_parent::<NativeSessionIo>(scope, parent_id).await }
 pub async fn load_session(
     scope: SessionScope,
     session_id: &str,
-) -> Result<SessionSnapshot, LifecycleError> {
-    let (project, _) = resolve_project(&scope).await?;
-    let expected_project_id = project.id;
-    let tenant = scope.tenant().clone();
-    let directory = scope.directory().to_path_buf();
-    let session_id = session_id.to_string();
-
-    project::instance::provide(directory, None, move || {
-        Box::pin(async move {
-            ui_store::with_tenant_scope(tenant, async move {
-                let _history = message::lock_history(&session_id).await;
-                let info = load_info_for_scope(&scope, &expected_project_id, &session_id).await?;
-                #[cfg(not(target_arch = "wasm32"))]
-                let dynamic_tools =
-                    crate::session::dynamic_tool_store::load_scoped(&info.project_id, &session_id)
-                        .map_err(|error| LifecycleError::Session(session::Error::Runtime(error)))?;
-                let mut history =
-                    message::messages(&session_id, None).await.map_err(LifecycleError::from)?;
-                #[cfg(not(target_arch = "wasm32"))]
-                for entry in &mut history {
-                    for part in &mut entry.parts {
-                        if crate::session::dynamic_tool_store::interrupt_part(part) {
-                            message::update_part(part).await.map_err(LifecycleError::from)?;
-                        }
-                    }
-                }
-                Ok(SessionSnapshot {
-                    info,
-                    history,
-                    #[cfg(not(target_arch = "wasm32"))]
-                    dynamic_tools,
-                })
-            })
-            .await
-        })
-    })
-    .await
-    .map_err(LifecycleError::Project)?
-}
-
-/// Check access without loading history, restoring tools or interrupting active calls.
+) -> Result<SessionSnapshot, LifecycleError> { session_engine::runtime::lifecycle::load_session::<NativeSessionIo>(scope, session_id).await }
 pub(crate) async fn validate_session_scope(
     scope: SessionScope,
     session_id: &str,
-) -> Result<session::Info, LifecycleError> {
-    let (project, _) = resolve_project(&scope).await?;
-    let tenant = scope.tenant().clone();
-    let directory = scope.directory().to_path_buf();
-    let session_id = session_id.to_string();
-    project::instance::provide(directory, None, move || {
-        Box::pin(async move {
-            ui_store::with_tenant_scope(tenant, async move {
-                load_info_for_scope(&scope, &project.id, &session_id).await
-            })
-            .await
-        })
-    })
-    .await
-    .map_err(LifecycleError::Project)?
-}
+) -> Result<session_info::Info, LifecycleError> { session_engine::runtime::lifecycle::validate_session_scope::<NativeSessionIo>(scope, session_id).await }

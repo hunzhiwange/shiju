@@ -45,6 +45,7 @@ pub mod revert;
 pub mod runtime;
 /// 声明 session 子模块，保持当前领域的职责拆分清晰。
 pub mod session;
+pub(crate) mod session_io;
 pub(crate) mod skill_checkpoint;
 /// 声明 status 子模块，保持当前领域的职责拆分清晰。
 pub mod status;

@@ -38,3 +38,7 @@ impl ChatTurnPolicy {
         Self { max_iterations, max_history_messages, parallel_tools }
     }
 }
+
+#[cfg(test)]
+#[path = "turn_policy_tests.rs"]
+mod tests;

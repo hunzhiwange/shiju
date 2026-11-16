@@ -4,10 +4,10 @@ use super::*;
 
 #[test]
 fn turn_policy_uses_selected_agent_and_positive_fallbacks() {
-    let mut config = crate::config::Config::default();
+    let mut config = agent_config::runtime_schema::Config::default();
     config.agents.insert(
         "main".to_string(),
-        crate::config::DelegateAgentConfig {
+        agent_config::runtime_schema::DelegateAgentConfig {
             max_iterations: 23,
             max_history_messages: 64,
             parallel_tools: true,
@@ -16,7 +16,7 @@ fn turn_policy_uses_selected_agent_and_positive_fallbacks() {
     );
     config.agents.insert(
         "reviewer".to_string(),
-        crate::config::DelegateAgentConfig {
+        agent_config::runtime_schema::DelegateAgentConfig {
             max_iterations: 7,
             max_history_messages: 31,
             ..Default::default()
@@ -49,10 +49,10 @@ fn turn_policy_uses_selected_agent_and_positive_fallbacks() {
 #[test]
 // 未知或空代理名回退主代理，避免使用未注册身份执行轮次。
 fn turn_policy_falls_back_to_main_for_unknown_or_blank_agent() {
-    let mut config = crate::config::Config::default();
+    let mut config = agent_config::runtime_schema::Config::default();
     config.agents.insert(
         "main".to_string(),
-        crate::config::DelegateAgentConfig { max_iterations: 19, ..Default::default() },
+        agent_config::runtime_schema::DelegateAgentConfig { max_iterations: 19, ..Default::default() },
     );
 
     assert_eq!(ChatTurnPolicy::from_config(&config, Some("missing")).max_iterations, 19);

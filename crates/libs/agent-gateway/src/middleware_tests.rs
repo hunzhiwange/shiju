@@ -1,22 +1,7 @@
-// 覆盖网关中间件的跨域、基础认证与租户请求头校验。
-
-// 认证与租户路由使用最小 Axum 应用，确保失败来自中间件而非业务处理器。
+// CORS 与显式凭据认证的库内边界测试。
 use super::*;
-
-use axum::Extension;
-use axum::Router;
-use axum::body::Body;
-use axum::http::StatusCode;
-use axum::http::header;
-use axum::middleware;
-use axum::routing::get;
-use base64::Engine;
+use axum::{Router, body::Body, http::StatusCode, middleware, routing::get};
 use tower::util::ServiceExt;
-use {
-    vw_api_transport::id::COMPANY_ID_HEADER,
-    vw_api_transport::id::PLATFORM_ID_HEADER,
-    vw_api_transport::id::TenantScope,
-};
 
 fn auth_value(username: &str, password: &str) -> String {
     let encoded =
@@ -34,18 +19,6 @@ fn auth_test_router(password: Option<&'static str>, username: &'static str) -> R
         .layer(middleware::from_fn(move |req, next| {
             basic_auth_middleware_with_credentials(req, next, password, username)
         }))
-}
-
-// 租户路由回显扩展中的作用域，用于证明请求头已完成解析和注入。
-fn tenant_test_router() -> Router {
-    Router::new()
-        .route(
-            "/scope",
-            get(|Extension(scope): Extension<TenantScope>| async move {
-                format!("{}/{}", scope.platform_id().as_ref(), scope.company_id().as_ref())
-            }),
-        )
-        .layer(middleware::from_fn(tenant_scope_middleware))
 }
 
 #[test]
@@ -221,117 +194,4 @@ async fn basic_auth_rejects_non_utf8_authorization_header() {
         response.headers().get(header::WWW_AUTHENTICATE),
         Some(&HeaderValue::from_static("Basic realm=\"vibewindow\""))
     );
-}
-
-#[tokio::test]
-async fn basic_auth_production_entry_allows_when_password_flag_is_absent() {
-    let app = Router::new()
-        .route("/protected", get(|| async { StatusCode::NO_CONTENT }))
-        .layer(middleware::from_fn(basic_auth_middleware));
-    let request =
-        Request::builder().uri("/protected").body(Body::empty()).expect("request should build");
-
-    let response = app.oneshot(request).await.expect("router should respond");
-
-    assert_eq!(response.status(), StatusCode::NO_CONTENT);
-}
-
-#[tokio::test]
-async fn tenant_scope_middleware_injects_single_non_empty_utf8_headers() {
-    let request = Request::get("/scope")
-        .header(PLATFORM_ID_HEADER, "platform-test")
-        .header(COMPANY_ID_HEADER, "company-test")
-        .body(Body::empty())
-        .expect("request should build");
-
-    let response = tenant_test_router().oneshot(request).await.expect("router should respond");
-    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .expect("response body should read");
-
-    assert_eq!(body.as_ref(), b"platform-test/company-test");
-}
-
-#[tokio::test]
-async fn tenant_scope_middleware_preserves_non_empty_header_whitespace() {
-    let request = Request::get("/scope")
-        .header(PLATFORM_ID_HEADER, " platform-test ")
-        .header(COMPANY_ID_HEADER, " company-test ")
-        .body(Body::empty())
-        .expect("request should build");
-
-    let response = tenant_test_router().oneshot(request).await.expect("router should respond");
-    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .expect("response body should read");
-
-    assert_eq!(body.as_ref(), b" platform-test / company-test ");
-}
-
-#[tokio::test]
-async fn tenant_scope_middleware_rejects_duplicate_and_non_utf8_headers() {
-    let duplicate_request = Request::get("/scope")
-        .header(PLATFORM_ID_HEADER, "platform-test")
-        .header(PLATFORM_ID_HEADER, "platform-duplicate")
-        .header(COMPANY_ID_HEADER, "company-test")
-        .body(Body::empty())
-        .expect("request should build");
-    let duplicate_response =
-        tenant_test_router().oneshot(duplicate_request).await.expect("router should respond");
-    assert_eq!(duplicate_response.status(), StatusCode::BAD_REQUEST);
-
-    let non_utf8_request = Request::get("/scope")
-        .header(
-            PLATFORM_ID_HEADER,
-            HeaderValue::from_bytes(b"\xff").expect("opaque header should build"),
-        )
-        .header(COMPANY_ID_HEADER, "company-test")
-        .body(Body::empty())
-        .expect("request should build");
-    let non_utf8_response =
-        tenant_test_router().oneshot(non_utf8_request).await.expect("router should respond");
-    assert_eq!(non_utf8_response.status(), StatusCode::BAD_REQUEST);
-}
-
-#[test]
-fn required_tenant_header_reports_specific_invalid_value_errors() {
-    let missing = HeaderMap::new();
-
-    let mut duplicate = HeaderMap::new();
-    duplicate.append(PLATFORM_ID_HEADER, HeaderValue::from_static("platform-test"));
-    duplicate.append(PLATFORM_ID_HEADER, HeaderValue::from_static("platform-duplicate"));
-
-    let mut non_utf8 = HeaderMap::new();
-    non_utf8.insert(
-        COMPANY_ID_HEADER,
-        HeaderValue::from_bytes(b"\xff").expect("opaque header bytes are accepted"),
-    );
-
-    let mut blank = HeaderMap::new();
-    blank.insert(PLATFORM_ID_HEADER, HeaderValue::from_static(" \t "));
-
-    for (headers, name, expected_message) in [
-        (&missing, COMPANY_ID_HEADER, "missing X-Company-ID header"),
-        (&duplicate, PLATFORM_ID_HEADER, "X-Platform-ID header must have a single value"),
-        (&non_utf8, COMPANY_ID_HEADER, "X-Company-ID header must be valid UTF-8"),
-        (&blank, PLATFORM_ID_HEADER, "X-Platform-ID header must not be empty"),
-    ] {
-        let error = required_tenant_header(headers, name).expect_err("header should be rejected");
-
-        assert_eq!(error.status, StatusCode::BAD_REQUEST);
-        assert_eq!(error.message, expected_message);
-    }
-}
-
-#[tokio::test]
-async fn tenant_scope_middleware_bypasses_headers_before_method_rejection() {
-    let request = Request::builder()
-        .method(Method::OPTIONS)
-        .uri("/scope")
-        .body(Body::empty())
-        .expect("request should build");
-
-    let response = tenant_test_router().oneshot(request).await.expect("router should respond");
-
-    assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
 }

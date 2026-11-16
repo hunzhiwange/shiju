@@ -31,3 +31,7 @@ vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[dev-dependencies.tower]
+version = "0.5"
+features = ["util"]

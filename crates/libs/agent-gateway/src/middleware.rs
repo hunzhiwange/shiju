@@ -212,3 +212,7 @@ pub async fn basic_auth_middleware_with_credentials(
 
     res
 }
+
+#[cfg(test)]
+#[path = "middleware_tests.rs"]
+mod middleware_tests;

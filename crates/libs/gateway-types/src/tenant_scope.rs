@@ -47,3 +47,7 @@ fn required_tenant_header<'a>(
     }
     Ok(value)
 }
+
+#[cfg(test)]
+#[path = "tenant_scope_tests.rs"]
+mod tests;

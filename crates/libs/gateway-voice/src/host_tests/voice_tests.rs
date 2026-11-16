@@ -1,3 +1,7 @@
+//! Host contracts compiled by vw-agent::gateway::api::handlers::voice::tests.
+//! Keep the real tenant middleware, project/session store and config assembly here:
+//! these HTTP assertions complement the library-local upload and request registry tests.
+
 use super::router;
 use vw_api_voice::TranscriptionResponse;
 use std::{sync::Arc, time::Duration};

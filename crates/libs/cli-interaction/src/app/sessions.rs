@@ -89,20 +89,7 @@ impl V3GatewayApp {
     }
 
     pub(super) fn open_session_message_picker(&mut self, surface: &str, title: &str) -> Result<(), String> {
-        let items = self
-            .state
-            .session
-            .persisted_messages
-            .iter()
-            .filter_map(|metadata| metadata.raw_message_id.as_deref())
-            .map(|message_id| V3SelectionItem {
-                id: message_id.to_string(),
-                label: message_id.to_string(),
-                description: Some("持久化 Gateway 消息".to_string()),
-                search_value: Some(message_id.to_string()),
-                ..V3SelectionItem::default()
-            })
-            .collect::<Vec<_>>();
+        let items = session_message_items(&self.state);
         if items.is_empty() {
             return Err("current session has no persisted message ids".to_string());
         }
@@ -394,3 +381,44 @@ impl V3GatewayApp {
         self.interaction_refresh_requested = true;
     }
 }
+
+/// 按当前快照的消息身份匹配正文，不使用渲染行位置推断对应关系。
+fn session_message_items(state: &TuiState) -> Vec<V3SelectionItem> {
+    use super::{UiMessage, UiMessageId};
+    let messages = state.messages.iter()
+        .filter(|message| message.base().session_id.as_deref() == state.session.session_id.as_deref())
+        .map(|message| (message.id(), message))
+        .collect::<std::collections::HashMap<_, _>>();
+    state.session.persisted_messages.iter().enumerate().filter_map(|(index, metadata)| {
+        let id = metadata.raw_message_id.as_deref()?;
+        let (role, body) = match messages.get(&UiMessageId::gateway(id)) {
+            Some(UiMessage::User(message)) => ("用户", message.text.as_str()),
+            Some(UiMessage::Assistant(message)) => ("助手", message.text.as_str()),
+            Some(UiMessage::ToolCall(message)) => ("工具调用", message.arguments.as_deref().or(message.summary.as_deref()).unwrap_or(&message.tool_name)),
+            Some(UiMessage::ToolResult(message)) => ("工具结果", message.content.as_str()),
+            Some(UiMessage::Thinking(message)) => ("思考", message.content.as_str()),
+            Some(UiMessage::System(message)) => ("系统", message.text.as_str()),
+            Some(UiMessage::Error(message)) => ("错误", message.message.as_str()),
+            Some(UiMessage::Attachment(message)) => ("附件", message.preview.as_deref().unwrap_or(&message.name)),
+            Some(UiMessage::Progress(message)) => ("进度", message.label.as_str()),
+            Some(UiMessage::CompactBoundary(message)) => ("压缩边界", message.summary.as_str()),
+            Some(UiMessage::Unknown(message)) => ("未知", message.summary.as_str()),
+            Some(UiMessage::Step(_)) | None => ("正文缺失", "当前 canonical snapshot 中没有可显示正文"),
+        };
+        let mut chars = body.chars().map(|ch| if ch.is_control() || ch.is_whitespace() { ' ' } else { ch });
+        let mut summary = chars.by_ref().take(100).collect::<String>();
+        if chars.next().is_some() { summary.push('…'); }
+        if summary.trim().is_empty() { summary = "（空正文）".to_string(); }
+        Some(V3SelectionItem {
+            id: id.to_string(),
+            label: format!("#{} · {role} · {summary}", index + 1),
+            description: Some(format!("消息 ID：{id} · 输入正文或 ID 搜索")),
+            search_value: Some(format!("{id} {role} {body}")),
+            ..V3SelectionItem::default()
+        })
+    }).collect()
+}
+
+#[cfg(test)]
+#[path = "../workflow_req_04_tests.rs"]
+mod workflow_req_04_tests;

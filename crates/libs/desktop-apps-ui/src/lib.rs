@@ -43,3 +43,6 @@ pub mod apps_ui;
 pub mod bookmark;
 
 pub mod web;
+
+#[cfg(test)]
+mod desktop_split_13_tests;

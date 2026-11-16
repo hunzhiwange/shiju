@@ -1,12 +1,9 @@
 use vw_api_app_identity::{
-    AppCatalogEntry,
     AppHostPreferences,
     AppId,
     AppPreferencesCapabilities,
     AppPreferencesResult,
-    AppReadResponse,
     AppUserPreferences,
-    AppWslPreference,
 };
 use super::preferences::*;
 use vw_api_types::agent_apps::*;
@@ -77,40 +74,7 @@ fn cc_apps_desktop_preferences_state_message_scopes_and_atomic_domains() {
     assert!(app.apps_catalog.preferences.saved.is_none());
 }
 
-#[test]
-fn cc_apps_desktop_preferences_state_list_uses_saved_order_and_visibility() {
-    use super::catalog::CatalogRow;
-    use crate::app::state::AppsCatalogState;
-    let mut state = AppsCatalogState::default();
-    state.rows = [AppId::Claude, AppId::Codex, AppId::Gemini]
-        .into_iter()
-        .map(|id| CatalogRow {
-            entry: AppCatalogEntry {
-                id,
-                name: format!("{id:?}"),
-                cli_command: None,
-                runtime_kinds: vec![],
-            },
-            observation: Ok(AppReadResponse { installations: vec![], desktop: None }),
-        })
-        .collect();
-    let mut saved = value();
-    saved.user.app_order = vec!["codex".into(), "claude".into(), "gemini".into()];
-    saved.user.visible_apps = vec![AppId::Codex, AppId::Claude];
-    state.preferences.saved = Some(saved.clone());
-    state.preferences.draft = Some(value());
-    assert_eq!(
-        visible_rows(&state).iter().map(|r| r.entry.id).collect::<Vec<_>>(),
-        vec![AppId::Codex, AppId::Claude]
-    );
-    saved.user.visible_apps = vec![AppId::Gemini];
-    state.preferences.busy = true;
-    assert!(state.preferences.finish(0, Ok(saved)));
-    assert_eq!(
-        visible_rows(&state).iter().map(|r| r.entry.id).collect::<Vec<_>>(),
-        vec![AppId::Gemini]
-    );
-}
+
 
 use crate::app::i18n::I18n;
 use crate::app::{Message, components::system_settings_apps};

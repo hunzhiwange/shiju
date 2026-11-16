@@ -1,4 +1,15 @@
-use super::*;
+#[test]
+fn cookie_config_example_documents_required_cookie_fields() {
+    let example = crate::bookmark_modals::WEB_BOOKMARK_COOKIE_CONFIG_EXAMPLE;
+
+    assert!(example.starts_with('['));
+    assert!(example.ends_with(']'));
+    for field in ["\"name\"", "\"domain\"", "\"days\"", "\"url_filter\""] {
+        assert!(example.contains(field));
+    }
+}
+
+use crate::aggregation::clients_view::overlay;
 #[tokio::test]
 async fn aggregation_t62_aggregation_clients_preserves_contract() {
     use iced::{Size, advanced::renderer::Headless};
@@ -21,21 +32,7 @@ async fn aggregation_t62_aggregation_clients_preserves_contract() {
             self.0.push(value.into());
         }
     }
-    let selection = crate::app::message::settings::aggregation_list::Selection {
-        scope: crate::app::state::app_providers::list::Scope {
-            context: crate::app::state::AgentAppsContext {
-                gateway: "http://fixture".into(),
-                tenant: Default::default(),
-                project: None,
-            },
-            host: "host".into(),
-            app: vw_api_app_identity::AppId::Codex,
-        },
-        project: "project".into(),
-        catalog_generation: 1,
-    };
-    let mut form = Form::new(selection, 1);
-    form.loading = false;
+    let form = crate::aggregation::clients::Session::default();
     let mut renderer =
         iced::Renderer::new(iced::Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
     let mut ui = UserInterface::build(

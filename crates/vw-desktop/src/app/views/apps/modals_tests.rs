@@ -86,16 +86,7 @@ fn edit_web_bookmark_modal_uses_safe_index_fallback_without_selection() {
     assert!(matches!(close, Message::View(ViewMessage::WebBookmarkEditCancel)));
 }
 
-#[test]
-fn cookie_config_example_documents_required_cookie_fields() {
-    let example = super::WEB_BOOKMARK_COOKIE_CONFIG_EXAMPLE;
 
-    assert!(example.starts_with('['));
-    assert!(example.ends_with(']'));
-    for field in ["\"name\"", "\"domain\"", "\"days\"", "\"url_filter\""] {
-        assert!(example.contains(field));
-    }
-}
 
 fn run_in_fixture(test_name: &str) -> bool {
     const CHILD: &str = "SHIJU_HELP_ROLLOUT_04_BOOKMARK_CHILD";

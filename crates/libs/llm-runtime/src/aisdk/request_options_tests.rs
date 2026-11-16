@@ -385,4 +385,3 @@ async fn api_and_oauth_auth_fallbacks_reach_dispatch_when_non_empty() {
     assert_invalid_base_url(call_request(&provider, Some(&api), &headers, &json!({})).await);
     assert_invalid_base_url(call_request(&provider, Some(&oauth), &headers, &json!({})).await);
 }
-

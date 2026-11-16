@@ -18,7 +18,7 @@
 //! - `<invoke>...</invoke>` 调用格式
 //! - `<minimax:tool_call>...</minimax:tool_call>` 带命名空间格式
 
-use crate::app::agent::agent::loop_::parsing::ParsedToolCall;
+use super::ParsedToolCall;
 use regex::Regex;
 use std::sync::LazyLock;
 

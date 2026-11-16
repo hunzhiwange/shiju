@@ -26,7 +26,7 @@ mod json;
 mod minimax_xml;
 mod tool_call_formats;
 mod tool_calls;
-mod xml_helpers;
+// XML 辅助解析由 agent-loop 内部持有。
 
 pub(crate) use deepseek_dsml::contains_deepseek_dsml_markup;
 
@@ -58,10 +58,4 @@ pub(crate) use tool_calls::{
 // XML 解析辅助函数的重导出
 // 仅对父模块（loop_）可见
 
-// 格式归一化测试随实现迁入 agent-loop。
-#[cfg(test)]
-#[path = "tool_calls_tests.rs"]
-mod tool_calls_tests;
-#[cfg(test)]
-#[path = "xml_helpers_tests.rs"]
-mod xml_helpers_tests;
+// 解析测试随实现迁入 agent-loop。

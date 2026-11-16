@@ -24,6 +24,8 @@ pub mod retry;
 pub mod prompt;
 pub mod system_prompt;
 pub mod session_io;
+pub mod session_lifecycle;
+pub mod status;
 pub mod session_fork;
 pub mod revert;
 pub mod runtime;

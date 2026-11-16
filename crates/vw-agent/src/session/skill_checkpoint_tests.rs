@@ -1,4 +1,5 @@
 use super::*;
+use agent_storage as storage;
 use serde_json::json;
 
 #[tokio::test]

@@ -2,7 +2,8 @@
 //! 被污染的互斥锁也要恢复可用状态，未知会话查询不能反向插入默认记录。
 
 use super::*;
-use crate::app::agent::{bus, project::instance};
+use agent_bus as bus;
+use agent_project::instance;
 use std::sync::{Arc, Mutex};
 use tempfile::TempDir;
 

@@ -8,6 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+agent-log = { path = "../agent-log", version = "0.6.0" }
+session-text = { path = "../session-text", version = "0.6.0" }
+time = "0.3"
 agent-snapshot = { path = "../agent-snapshot", version = "0.6.0" }
 worktree-core = { path = "../worktree-core", version = "0.6.0" }
 tool-shell = { path = "../tool-shell", version = "0.6.0" }

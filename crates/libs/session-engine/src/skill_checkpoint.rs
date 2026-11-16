@@ -56,3 +56,77 @@ pub async fn remove(scope: &str, session: &str) -> Result<(), String> {
     }
     Ok(())
 }
+
+use crate::compaction_checkpoint::message_hash;
+
+
+// Checkpoint serialization has a single owner in session-engine.
+use serde_json::Value;
+use sha2::{Digest, Sha256};
+
+
+
+fn agent_key(agent: &str) -> String {
+    hex::encode(Sha256::digest(agent.as_bytes()))
+}
+
+pub async fn save<H: MountRevision>(
+    session: &str,
+    agent: &str,
+    history: &[Value],
+    records: &[InvokedSkillRecord],
+) -> Result<(), String> {
+    validate_session(session)?;
+    if records.is_empty() {
+        return Ok(());
+    }
+    if history.is_empty() {
+        return Err("cannot persist skill invocations without a history anchor".into());
+    }
+    let scope = crate::compaction_checkpoint::scope_for_directory(&session_store::ui_store::current_tenant_scope(), &agent_project::instance::directory());
+    let agent = agent_key(agent);
+    let id = ordered_id::ascending(ordered_id::Prefix::Message, None).map_err(|e| e.to_string())?;
+    let checkpoint = Checkpoint {
+        mount_revision: H::checkpoint_revision(session).await?,
+        source_hashes: history.iter().map(message_hash).collect(),
+        records: records.to_vec(),
+    };
+    storage::write_atomic(&["skill_checkpoint", &scope, session, &agent, &id], &checkpoint)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Only replay snapshots whose complete original prefix still exists. Compaction
+/// passes the unmodified source history here, never the generated summary.
+pub async fn restore<H: MountRevision>(
+    session: &str,
+    agent: &str,
+    history: &[Value],
+) -> Result<Vec<InvokedSkillRecord>, String> {
+    validate_session(session)?;
+    let scope = crate::compaction_checkpoint::scope_for_directory(&session_store::ui_store::current_tenant_scope(), &agent_project::instance::directory());
+    let agent = agent_key(agent);
+    let mut keys = storage::list(&["skill_checkpoint", &scope, session, &agent])
+        .await
+        .map_err(|e| e.to_string())?;
+    keys.sort();
+    let hashes = history.iter().map(message_hash).collect::<Vec<_>>();
+    let mount_revision = H::checkpoint_revision(session).await?;
+    for key in keys.into_iter().rev() {
+        let checkpoint: Checkpoint =
+            storage::read(&key.iter().map(String::as_str).collect::<Vec<_>>())
+                .await
+                .map_err(|e| e.to_string())?;
+        if checkpoint.mount_revision == mount_revision
+            && matches_prefix(&hashes, &checkpoint.source_hashes)
+        {
+            return Ok(checkpoint.records);
+        }
+    }
+    Ok(Vec::new())
+}
+
+
+pub trait MountRevision {
+    fn checkpoint_revision(session: &str) -> impl std::future::Future<Output = Result<Option<u64>, String>> + Send;
+}

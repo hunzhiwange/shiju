@@ -2928,22 +2928,6 @@ fn dynamic_tools_processor_replacement_visible_next_step() {
 }
 
 #[test]
-fn dynamic_tools_processor_results_do_not_restore_authority() {
-    codex_discovery_processor_cancelled_turn_does_not_restore_loaded_tools_from_history();
-}
-
-#[test]
-fn dynamic_tools_processor_final_step_rejects_tools() {
-    codex_discovery_processor_final_step_omits_tools_even_after_loading();
-}
-
-#[test]
-fn dynamic_tools_processor_same_request_search_cannot_authorize_call() {
-    codex_discovery_processor_same_round_search_cannot_authorize_direct_call();
-    codex_discovery_processor_same_round_search_cannot_authorize_batch_inner_call();
-}
-
-#[test]
 fn dynamic_tools_processor_replacement_revokes_loaded_tool() {
     with_discovery_processor_test(|workspace, _| {
         let req = discovery_request(workspace.path());

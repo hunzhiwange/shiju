@@ -1,4 +1,16 @@
-//! 验证 AI SDK 错误链到结构化助手错误的分类与脱敏。
+//! 验证 AI SDK 错误链到结构化助手错误的分类、重试性与日志字段。
+//!
+//! 任务03归属审计（供任务133复核）：旧宿主前缀
+//! `vw_agent::session::llm::aisdk::error::error_tests` 对应当前
+//! `llm_runtime::aisdk::error::error_tests`，函数名保持不变。
+//! 当前共15个普通测试，无共享fixture、外部资源或环境锁；由父模块的
+//! `cfg(test)` 注册，并继承库根 `aisdk` 的非wasm条件。
+//! 宿主仅重导出生产模块，不重复注册此测试文件。
+//!
+//! TODO(任务133): 日志用例只断言字段保留、缺省与序列化；生产日志字段函数
+//! 原样复制消息、响应体和metadata，不能将这些断言当作脱敏覆盖证据。
+//! 本轮仅静态审计，未执行Cargo或测试；后续需运行整个
+//! `aisdk::error::error_tests` 测试族，静态15项不代表有效运行数。
 
 use aisdk::Error as AiError;
 use reqwest::StatusCode;

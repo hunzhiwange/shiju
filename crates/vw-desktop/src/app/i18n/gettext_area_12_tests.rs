@@ -9,7 +9,8 @@ async fn desktop_gettext_area_12_feedback_switches_language() {
         &mut app,
         TaskBoardMessage::DeleteAllWorktreesCompleted(Ok(3)),
     );
-    let message = app.toast_state.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
+    let message =
+        app.toast_state.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
     for (locale, expected) in [
         (DesktopLocale::SimplifiedChinese, "已删除 3 个 worktree"),
         (DesktopLocale::TraditionalChinese, "已刪除 3 個 worktree"),
@@ -17,22 +18,6 @@ async fn desktop_gettext_area_12_feedback_switches_language() {
     ] {
         assert_eq!(message.render(I18n::new(locale)).unwrap(), expected);
     }
-}
-
-#[test]
-fn desktop_gettext_area_12_status_log_keeps_semantics_and_raw_output() {
-    use crate::app::task::{TaskLogEntry, TaskStatus};
-    let entry = TaskLogEntry::new_status_change(TaskStatus::Pending, TaskStatus::Running);
-    assert_eq!(
-        super::tasks::log_message(I18n::new(DesktopLocale::English), &entry),
-        "Status changed: Pending → Running"
-    );
-    assert_eq!(
-        super::tasks::log_message(I18n::new(DesktopLocale::TraditionalChinese), &entry),
-        "狀態變更: 待執行 → 執行中"
-    );
-    let raw = TaskLogEntry::new_message("用户输出 %s %n 待执行".into());
-    assert_eq!(super::tasks::log_message(I18n::new(DesktopLocale::English), &raw), raw.message);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -58,20 +43,4 @@ async fn desktop_gettext_area_12_locale_selection_refreshes_cached_logs() {
         assert!(text.contains(expected), "{text}");
         assert!(text.contains("raw 中文 %s %n"));
     }
-}
-
-#[test]
-fn desktop_gettext_area_12_cached_message_preserves_arguments() {
-    use crate::app::task::Task;
-    let mut task = Task::default();
-    task.add_localized_log("审核结果: %s", vec!["用户/%s/%n".into()]);
-    let cached = task.logs.clone();
-    assert_eq!(
-        super::tasks::log_message(I18n::new(DesktopLocale::English), &cached[0]),
-        "Review result: 用户/%s/%n"
-    );
-    assert_eq!(
-        super::tasks::log_message(I18n::new(DesktopLocale::TraditionalChinese), &cached[0]),
-        "審查結果: 用户/%s/%n"
-    );
 }

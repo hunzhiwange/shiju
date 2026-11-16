@@ -456,3 +456,15 @@ pub fn task_pet_avatar_bounds(task_pet_avatar_kind: &TaskPetAvatarKind, task_pet
 #[cfg(test)]
 #[path = "pet_interaction_tests.rs"]
 mod tests;
+
+pub fn newest_open_thinking_text<'a>(
+    messages: impl DoubleEndedIterator<Item = (bool, &'a str)>,
+) -> Option<String> {
+    messages.rev().find_map(|(assistant, content)| {
+        if assistant {
+            current_open_think_body(content).map(|content| task_pet_detail(&content))
+        } else {
+            None
+        }
+    })
+}

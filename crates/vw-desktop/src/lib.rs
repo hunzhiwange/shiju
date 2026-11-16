@@ -48,3 +48,6 @@ mod tests;
 
 #[cfg(test)]
 include!("legacy_task_board_switches_exact_tests.rs");
+
+// Preserve the public macro path while sharing catalog hygiene.
+pub use desktop_i18n::__;

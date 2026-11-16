@@ -2,24 +2,6 @@ use super::I18n;
 use config_ui::DesktopLocale;
 
 #[tokio::test(flavor = "multi_thread")]
-async fn desktop_gettext_area_16_lsp_state_switches_without_translating_server_content() {
-    let (mut app, _) = crate::app::App::new();
-    let raw = "服务/%s/%n";
-    super::editor::set_lsp_status(&mut app, "LSP 失败: %s", vec![raw.into()]);
-    for (locale, prefix) in [
-        (DesktopLocale::SimplifiedChinese, "LSP 失败: "),
-        (DesktopLocale::TraditionalChinese, "LSP 失敗: "),
-        (DesktopLocale::English, "LSP failed: "),
-    ] {
-        app.general_settings.desktop_locale = locale;
-        super::editor::refresh(&mut app);
-        assert_eq!(super::editor::lsp_status(&app).unwrap(), format!("{prefix}{raw}"));
-    }
-    app.preview_state.lsp_status = Some(raw.into());
-    assert_eq!(super::editor::lsp_status(&app).as_deref(), Some(raw));
-}
-
-#[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_16_locale_event_updates_existing_and_new_editors() {
     use crate::app::message::{PreviewMessage, preview, settings};
     let (mut app, _) = crate::app::App::new();
@@ -39,7 +21,12 @@ async fn desktop_gettext_area_16_locale_event_updates_existing_and_new_editors()
         let expected = super::editor::language(locale);
         assert_eq!(app.preview_state.current_language, editor_setting);
         assert_eq!(app.git.git_copy_modal_code_editor.language(), expected);
-        assert!(app.navigation_tabs.preview_tabs.iter().all(|tab| tab.editor.inner.language() == expected));
+        assert!(
+            app.navigation_tabs
+                .preview_tabs
+                .iter()
+                .all(|tab| tab.editor.inner.language() == expected)
+        );
         let path = format!("/tmp/{locale:?}.zip");
         let _ = preview::update(&mut app, PreviewMessage::Open(path.clone()));
         let tab = app.navigation_tabs.preview_tabs.iter().find(|tab| tab.path == path).unwrap();

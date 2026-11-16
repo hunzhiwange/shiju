@@ -75,3 +75,6 @@ mod gettext_area_5_tests;
 
 #[cfg(test)]
 mod desktop_split_22_tests;
+
+#[cfg(test)]
+mod host_module_39_tests;

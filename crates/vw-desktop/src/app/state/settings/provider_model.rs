@@ -31,10 +31,6 @@ pub(crate) use desktop_settings_cron::state::{
 /// 管理任务调度器的配置，包括并发限制等。
 pub(crate) use desktop_settings_cron::app_init::state::SchedulerSettingsState;
 
-#[cfg(test)]
-#[path = "provider_model_tests.rs"]
-mod provider_model_tests;
-
 pub(crate) use desktop_settings_runtime::state::{
     QueryClassificationRuleInput, QueryClassificationSettingsState,
 };

@@ -6,14 +6,10 @@ pub(crate) fn tool_name(i18n: I18n, id: &str) -> String {
 }
 
 pub(crate) fn session_title(app: &crate::app::App, id: &str, raw: &str) -> String {
-    if raw.trim().is_empty() {
-        return app.session_state.session_previews
-            .get(id)
-            .cloned()
-            .unwrap_or_else(|| I18n::new(app.general_settings.desktop_locale).__("新会话").to_owned());
-    }
-    app.input_feedback.generated_session_titles
-        .get(id)
-        .map(|feedback| feedback.render(I18n::new(app.general_settings.desktop_locale), raw))
-        .unwrap_or_else(|| raw.to_owned())
+    desktop_i18n::other::session_title(
+        I18n::new(app.general_settings.desktop_locale),
+        raw,
+        app.session_state.session_previews.get(id).map(String::as_str),
+        app.input_feedback.generated_session_titles.get(id),
+    )
 }

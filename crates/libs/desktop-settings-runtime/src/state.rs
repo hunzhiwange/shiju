@@ -204,3 +204,39 @@ pub struct QueryClassificationSettingsState {
     pub save_error: Option<String>,
     pub save_error_translation: Option<desktop_i18n::format::Message>,
 }
+
+#[derive(Debug, Clone, Default)]
+#[allow(dead_code)]
+pub struct CostPriceInput {
+    pub model: String,
+    pub input_price: String,
+    pub output_price: String,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct CostSettingsState {
+    pub enabled: bool,
+    pub daily_limit_usd_input: String,
+    pub monthly_limit_usd_input: String,
+    pub warn_at_percent_input: String,
+    pub allow_override: bool,
+    pub prices: Vec<CostPriceInput>,
+    pub show_help_modal: bool,
+    pub save_error: Option<String>,
+}
+
+impl Default for CostSettingsState {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            daily_limit_usd_input: "10".to_string(),
+            monthly_limit_usd_input: "100".to_string(),
+            warn_at_percent_input: "80".to_string(),
+            allow_override: false,
+            prices: Vec::new(),
+            show_help_modal: false,
+            save_error: None,
+        }
+    }
+}

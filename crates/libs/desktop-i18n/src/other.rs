@@ -15,3 +15,16 @@ pub fn tab_label(i18n: I18n, id: &str, raw: &str) -> String {
     };
     i18n.__(source).to_owned()
 }
+
+/// Keep service and user titles raw unless they match retained generated feedback.
+pub fn session_title(
+    i18n: I18n,
+    raw: &str,
+    preview: Option<&str>,
+    feedback: Option<&super::input::Feedback>,
+) -> String {
+    if raw.trim().is_empty() {
+        return preview.map(str::to_owned).unwrap_or_else(|| i18n.__("新会话").to_owned());
+    }
+    feedback.map(|feedback| feedback.render(i18n, raw)).unwrap_or_else(|| raw.to_owned())
+}

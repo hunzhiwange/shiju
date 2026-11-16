@@ -16,3 +16,16 @@ pub fn matches_navigation(i18n: I18n, source: &str, query: &str) -> bool {
             .iter()
             .any(|value| value.to_lowercase().contains(&query))
 }
+
+/// Refresh known built-in labels using the identifiers supplied by their domains.
+pub fn refresh_hub_titles<'a>(
+    i18n: I18n,
+    tabs: impl IntoIterator<Item = (&'a str, &'a mut String)>,
+    sources: &[(&str, &str)],
+) {
+    for (id, title) in tabs {
+        if let Some((_, source)) = sources.iter().find(|(key, _)| *key == id) {
+            *title = i18n.__(source).to_owned();
+        }
+    }
+}

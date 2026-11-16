@@ -1,13 +1,14 @@
 //! 基础设施设置测试，验证安全默认值、MCP 传输、可观测性和主题编辑状态。
 //! 新建配置必须可直接编辑且默认权限收敛，未知已保存工具则需无损保留。
 
-use super::*;
+use crate::management_state::McpSettingsState;
+use crate::state::{McpNewServerTransport, McpSettingsTab};
 
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
 
-    assert!(module.ends_with("infrastructure_tests"));
+    assert!(module.ends_with("host_module_39_infrastructure_tests"));
 }
 
 #[test]

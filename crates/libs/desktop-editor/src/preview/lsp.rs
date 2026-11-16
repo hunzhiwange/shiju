@@ -9,17 +9,7 @@ use std::path::Path;
 use std::time::Instant;
 
 pub type Notifications = Vec<(&'static str, Vec<desktop_i18n::format::Argument>)>;
-fn set_lsp_status(
-    status: &mut Option<String>,
-    localized: &mut Option<(String, desktop_i18n::format::Message)>,
-    source: &str,
-    arguments: Vec<desktop_i18n::format::Argument>,
-) {
-    let message = desktop_i18n::format::Message::new(source, arguments);
-    let raw = message.render(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese)).expect("valid LSP template");
-    *status = Some(raw.clone());
-    *localized = Some((raw, message));
-}
+use desktop_i18n::editor::set_lsp_status;
 pub fn lsp_root_uri_for_preview_path(
     project_path: Option<&str>,
     file_path: &Path,

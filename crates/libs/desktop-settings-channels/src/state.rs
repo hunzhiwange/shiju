@@ -549,3 +549,39 @@ mod channel_projects;
 #[cfg(test)]
 #[path = "channels_tests.rs"]
 mod channels_tests;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChannelQrFlowSnapshot {
+    pub channel: Option<String>,
+    pub generation: u64,
+    pub poll_in_flight: bool,
+    pub credentials_ready: bool,
+    pub configured: bool,
+}
+
+impl ChannelQrFlowSnapshot {
+    pub fn accepts_result(&self, channel: &str, generation: u64) -> bool {
+        self.channel.as_deref() == Some(channel) && self.generation == generation
+    }
+}
+
+impl ChannelsSettingsState {
+    pub fn qr_flow_snapshot(&self) -> ChannelQrFlowSnapshot {
+        let flow = &self.qr_flow;
+        let configured = match flow.channel.as_deref() {
+            Some("dingtalk") => self.dingtalk.is_some(),
+            Some("feishu") => self.feishu.is_some(),
+            Some("qq") => self.qq.is_some(),
+            Some("wecom") => self.wecom.is_some(),
+            Some("wechat") => self.wechat.is_some(),
+            _ => false,
+        };
+        ChannelQrFlowSnapshot {
+            channel: flow.channel.clone(),
+            generation: flow.generation,
+            poll_in_flight: flow.poll_in_flight,
+            credentials_ready: flow.credentials_ready,
+            configured,
+        }
+    }
+}

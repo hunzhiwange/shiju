@@ -84,3 +84,6 @@ extern crate self as desktop_settings_providers;
 
 #[cfg(test)]
 mod model_test_fixture;
+
+#[cfg(test)]
+mod host_module_39_provider_model_tests;

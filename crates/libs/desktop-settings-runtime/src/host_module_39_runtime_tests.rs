@@ -1,13 +1,13 @@
 //! 运行时设置测试，覆盖钩子、技能、浏览器、网关、内存与可靠性配置。
 //! 配置往返需清除旧凭据并限制非法端口，同时保持各标签页克隆状态独立。
 
-use super::*;
+use crate::state::{CostPriceInput, CostSettingsState};
 
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
 
-    assert!(module.ends_with("runtime_tests"));
+    assert!(module.ends_with("host_module_39_runtime_tests"));
 }
 
 #[test]

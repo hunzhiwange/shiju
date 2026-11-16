@@ -10,3 +10,7 @@ mod desktop_split_01_tests;
 
 #[cfg(test)]
 mod desktop_split_20_tests;
+
+pub mod i18n;
+#[cfg(test)]
+mod host_module_39_tests;

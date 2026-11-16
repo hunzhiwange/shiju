@@ -1,40 +1,19 @@
-use std::{fs, path::Path};
+use std::fs;
 
 use serde_json::json;
-use acp_types::{McpCatalogMount, SessionMountRevision, SetSessionMountsRequest};
+use acp_types::McpCatalogMount;
 use acp_server::server::SessionBackend;
 use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
     vw_api_mcp_management::McpCatalogScope,
-    vw_api_mcp_management::McpConnectionDefinition,
     vw_api_mcp_management::McpRuntimeSelection,
 };
 
-use super::{McpCatalogStore, catalog_create_tests::http_draft};
-use crate::{acp::VibeWindowBackend, global_database::GlobalDatabase, tools::catalog::ToolCatalog};
+use super::McpCatalogStore;
+use crate::{acp::VibeWindowBackend, global_database::GlobalDatabase};
 
-fn add_server(
-    store: &McpCatalogStore,
-    scope: &McpCatalogScope,
-    root: &Path,
-    name: &str,
-) -> McpCatalogMount {
-    let script = root.join("server.py");
-    fs::write(
-        &script,
-        gateway_agent_apps::mcp_acceptance::servers::ACP_SERVER,
-    )
-    .unwrap();
-    let mut draft = http_draft(name, "unused");
-    draft.connection = McpConnectionDefinition::Stdio {
-        command: "python3".into(),
-        args: vec![script.display().to_string(), root.join(name).display().to_string()],
-        env: Default::default(),
-        cwd: None,
-    };
-    McpCatalogMount { scope: scope.clone(), record: store.create(scope, draft).unwrap().record }
-}
+use agent_app_services::mcp::acceptance::acp::add_server;
 
 #[tokio::test]
 async fn cc_mcp_t29_explicit_catalog_selection_mounts_only_the_selected_server() {
@@ -91,16 +70,6 @@ async fn cc_mcp_t29_explicit_catalog_selection_mounts_only_the_selected_server()
     let backend = VibeWindowBackend::new(tenant.clone());
     let session = backend.create_session(workspace.clone()).await.unwrap();
     let id = &session.id;
-    let update = |revision, mounts: Vec<McpCatalogMount>| {
-        serde_json::from_value::<SetSessionMountsRequest>(json!({
-            "sessionId": id,
-            "expectedRevision": revision,
-            "skills": [],
-            "mcpServers": [],
-            "mcpCatalog": mounts
-        }))
-        .unwrap()
-    };
 
     assert_eq!(backend.session_tool_count(id), Some(0));
     let context = crate::project::instance::Context {
@@ -137,25 +106,9 @@ async fn cc_mcp_t29_explicit_catalog_selection_mounts_only_the_selected_server()
             .iter()
             .any(|server| { crate::tools::mcp_common::server_name(server) == "native-runtime" })
     );
-    for rejected in [foreign, other_project] {
-        let error = backend
-            .set_session_mounts(update(0, vec![selected.clone(), rejected.clone()]))
-            .await
-            .unwrap_err();
-        assert!(error.to_string().contains("PermissionDenied"));
-        assert!(!root.join(rejected.record.id.0).exists());
-    }
-    assert!(!root.join("selected").exists(), "reject the whole invalid selection");
-
-    let response = backend.set_session_mounts(update(0, vec![selected.clone()])).await.unwrap();
-    assert_eq!(
-        response.mcp_servers,
-        ["selected"],
-        "the selected catalog revision must mount through the ACP backend"
-    );
-    assert_eq!(response.revision, SessionMountRevision(1));
-    assert!(root.join("selected").exists());
-    assert!(!root.join("native-runtime").exists());
+    agent_app_services::mcp::acceptance::acp::select_catalog(
+        &backend, id, &selected, [foreign, other_project], &root,
+    ).await;
 
     let (_, tools) = backend.mounted_runtime(id);
     assert_eq!(tools.len(), 1);
@@ -175,33 +128,20 @@ async fn cc_mcp_t29_explicit_catalog_selection_mounts_only_the_selected_server()
     restored_backend.load_session(id, workspace.clone()).await.unwrap();
     assert_eq!(restored_backend.session_tool_count(id), Some(1));
 
-    let live = ToolCatalog::default();
-    live.replace(vec![tool.clone()], [tool.name().to_owned()]).unwrap();
     let pool = tools.mcp_connections().unwrap();
-    let definition = catalog.connection_for_revision(&project_scope, &selected.record).unwrap();
-    let current = catalog.update_connection(&project_scope, &selected.record, definition).unwrap();
-    fs::remove_file(root.join("selected")).unwrap();
-    assert!(tool.call(json!({})).await.is_err(), "a cached executor must reject the old revision");
-    pool.refresh_tool_catalog(&live).await.unwrap();
-    assert!(live.snapshot().tools().is_empty());
-    pool.refresh_tool_catalog(&live).await.unwrap();
-    assert!(live.snapshot().tools().is_empty());
+    let current = agent_app_services::mcp::acceptance::acp::revoke_cached(
+        &catalog, &project_scope, &selected, &root, &tool, pool.as_ref(),
+    ).await;
 
     let restored_backend = VibeWindowBackend::new(tenant.clone());
     restored_backend.load_session(id, workspace.clone()).await.unwrap();
     assert_eq!(restored_backend.session_tool_count(id), Some(0));
     assert!(!root.join("selected").exists(), "recovery must not start a revoked revision");
 
-    let error = restored_backend.set_session_mounts(update(1, vec![selected])).await.unwrap_err();
-    assert!(error.to_string().contains("StaleRevision"));
-    let current = McpCatalogMount { scope: project_scope, record: current.record };
-    let response = restored_backend.set_session_mounts(update(1, vec![current])).await.unwrap();
-    assert_eq!(response.mcp_servers, ["selected"]);
-    let (_, replacement) = restored_backend.mounted_runtime(id);
-    assert!(replacement.tools()[0].call(json!({})).await.unwrap().is_success());
-    let cleared = restored_backend.set_session_mounts(update(2, vec![])).await.unwrap();
-    assert!(cleared.mcp_servers.is_empty());
-    assert!(replacement.tools()[0].call(json!({})).await.is_err());
+    agent_app_services::mcp::acceptance::acp::replace_and_clear(
+        &restored_backend, id, selected, McpCatalogMount { scope: project_scope, record: current.record },
+        || restored_backend.mounted_runtime(id).1.tools()[0].clone(),
+    ).await;
     let after_clear = VibeWindowBackend::new(tenant);
     after_clear.load_session(id, workspace).await.unwrap();
     assert_eq!(after_clear.session_tool_count(id), Some(0));

@@ -268,3 +268,25 @@ host_scope_tests: 31 个断言宏文本一致；函数执行顺序保持
 未来验证仍运行前文4个原宿主完整名称，每个预期1条；其中前三条实际执行本次新契约，不能对acceptance过滤取得零测试便记为通过。此前领域7条与网关14条独立用例数量不变。本轮未运行任何Cargo、构建、格式化、单元/实机测试；仅源码/静态差异核对，编译及行为未验证。
 
 当前原文件族宿主852行，原3627行，净减2775行；不代表整轮35000行目标通过。
+
+## 第五次恢复：ACP真实后端驱动的目录挂载契约
+
+本次读取 final.md（仍为43584旧快照）及 remaining-host.json（已更新39047、差4047行），不采用派发消息约38000行的旧差额。
+
+`acp_mount_tests::cc_mcp_t29_explicit_catalog_selection_mounts_only_the_selected_server` 原名称与子进程过滤保留，拆为以下真实服务契约：
+
+|原符号/断言|实际所有者及新调用|宿主具体边界|
+|---|---|---|
+|add_server/ACP_SERVER|agent-app-services::mcp::acceptance::acp::add_server；实际McpCatalogStore创建记录并写同一Python协议脚本|宿主传入真实目录/租户/项目scope；脚本仍由实际后端启动|
+|跨租户/跨项目拒绝、整组原子拒绝、选择响应及revision|acp::select_catalog，通过原SessionBackend::set_session_mounts执行全部请求|宿主创建真实VibeWindowBackend与真实会话；没有实现替代SessionBackend|
+|更新连接、缓存旧执行器拒绝、连续两次目录清空|acp::revoke_cached，通过原Tool::call与McpSessionConnections::refresh_tool_catalog|宿主从mounted_runtime取得原工具和池，继续承担真实执行保护|
+|陈旧选择失败、替换选择成功、清空后旧工具拒绝|acp::replace_and_clear，通过同一实际SessionBackend；replacement_tool回调在替换成功后读取真实mounted_runtime|宿主提供原恢复后端及真实替换工具读取回调；恢复前后session_tool_count与末次load_session仍在原宿主函数|
+|请求转换|acp模块私有request保留原JSON构造，不新增公开端口|无新配置和trait|
+
+此前 gateway-agent-apps::mcp_acceptance::servers 的ACP_SERVER已经迁到上述真实MCP目录服务，不留重复副本；runtime/revocation脚本保持原所有者与文本。test-support已有可选依赖足够，不新增依赖或Cargo.lock修改。实际领域调用者就是原宿主测试；这些计为领域断言+宿主边界，不是新增独立单测。本次生产算法迁移为0。
+
+静态核对原完整测试名及27个断言宏文本多重集合相等（忽略空白和替换工具句柄的局部表达式）；动作顺序及恢复/撤销时点照原代码。git diff --check无错误。未来仍执行前文原ACP完整过滤，预期1条，实际穿过全部新契约；不能运行acceptance过滤取得零用例便声称通过。
+
+本轮未运行任何Cargo、构建、格式化、单元或实机测试。代码完成，编译/行为未验证。编号任务已恢复并在提交成功后删除；plan.md/prompt.md保持只读。
+
+当前任务宿主792行，原3627行净减2835行（78.16%）。本次余留文件、符号及原因逐项见前文；acp_mount_tests仅保留真实后端创建、项目上下文、原生/ACP配置装配、跨会话ToolUseContext与恢复工具数断言，不对整个文件豁免。

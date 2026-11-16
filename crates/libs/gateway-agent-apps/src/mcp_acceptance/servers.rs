@@ -54,23 +54,3 @@ for line in sys.stdin:
         result = {}
     print(json.dumps({"jsonrpc": "2.0", "id": request["id"], "result": result}), flush=True)
 "#;
-pub const ACP_SERVER: &str = r#"
-import json, sys
-from pathlib import Path
-
-Path(sys.argv[1]).touch()
-for line in sys.stdin:
-    request = json.loads(line)
-    if 'id' not in request:
-        continue
-    method = request['method']
-    if method == 'initialize':
-        result = {'protocolVersion': request['params']['protocolVersion'], 'capabilities': {'tools': {}}, 'serverInfo': {'name': 'fixture', 'version': '1'}}
-    elif method == 'tools/list':
-        result = {'tools': [{'name': 'read', 'description': 'Read fixture', 'inputSchema': {'type': 'object'}}]}
-    elif method == 'tools/call':
-        result = {'content': [{'type': 'text', 'text': 'from managed session'}]}
-    else:
-        result = {}
-    print(json.dumps({'jsonrpc': '2.0', 'id': request['id'], 'result': result}), flush=True)
-"#;

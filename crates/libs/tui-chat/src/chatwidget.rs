@@ -249,6 +249,17 @@ impl ChatWidget {
     /// 将一个按键路由到可见覆盖层或复制的输入框。
     /// Routes one key through the visible overlay or copied composer.
     pub fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
+        self.handle_key_event_with_image_reader(
+            event,
+            tui_clipboard::clipboard_image::read_clipboard_image_attachment,
+        )
+    }
+
+    fn handle_key_event_with_image_reader(
+        &mut self,
+        event: KeyEvent,
+        read_image: impl FnOnce() -> Result<tui_contracts::event::V3Attachment, String>,
+    ) -> V3Action {
         if let Some(overlay) = self.overlay.as_mut() {
             let is_selection = matches!(overlay, ChatOverlay::Selection(_));
             let rejected_question_id = match overlay {
@@ -269,7 +280,7 @@ impl ChatWidget {
         }
 
         if tui_clipboard::clipboard_image::is_image_paste_key(event) {
-            return match tui_clipboard::clipboard_image::read_clipboard_image_attachment() {
+            return match read_image() {
                 Ok(attachment) => self.bottom_pane.add_attachment(attachment),
                 Err(message) => {
                     self.transcript.push_history(V3DisplayEvent::Error { message });
@@ -437,3 +448,7 @@ fn is_edit_queued_message_key(event: KeyEvent) -> bool {
             (KeyCode::Up, KeyModifiers::ALT) | (KeyCode::Left, KeyModifiers::SHIFT)
         )
 }
+
+#[cfg(test)]
+#[path = "terminal_req_03_tests.rs"]
+mod terminal_req_03_tests;

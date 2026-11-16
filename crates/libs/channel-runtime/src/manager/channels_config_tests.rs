@@ -1,12 +1,20 @@
-use super::manager::{append_nostr_channel_if_available, collect_configured_channels};
-use super::*;
-use crate::app::agent::config::schema::{
+use super::channels_config::collect_configured_channels;
+use crate::ConfiguredChannel;
+use agent_config::runtime_schema::Config;
+#[cfg(feature = "channel-lark")]
+use channel_types::{self as traits, Channel, SendMessage};
+#[cfg(feature = "channel-lark")]
+use std::sync::Arc;
+use vw_api_transport::id::TenantScope;
+use agent_config::runtime_schema::{
     DingTalkConfig, DingTalkInstanceConfig, DiscordConfig, EmailConfig, FeishuConfig,
-    FeishuInstanceConfig, GroupReplyConfig, GroupReplyMode, IMessageConfig, IrcConfig, LarkConfig,
-    LarkReceiveMode, LinqConfig, MattermostConfig, NextcloudTalkConfig, NostrConfig, QQConfig,
+    GroupReplyConfig, GroupReplyMode, IMessageConfig, IrcConfig, LarkConfig,
+    LarkReceiveMode, LinqConfig, MattermostConfig, NextcloudTalkConfig, QQConfig,
     QQReceiveMode, SignalConfig, SlackConfig, StreamMode, TelegramConfig, WatiConfig,
     WhatsAppConfig,
 };
+#[cfg(feature = "channel-lark")]
+use agent_config::runtime_schema::FeishuInstanceConfig;
 use config_channel_services::clawdtalk::ClawdTalkConfig;
 use config_channel_services::{DEFAULT_WECHAT_BASE_URL, WeChatConfig, WeComConfig};
 
@@ -76,7 +84,7 @@ fn dingtalk_config() -> DingTalkConfig {
 fn collect_configured_channels_returns_empty_for_default_config() {
     let config = Config::default();
 
-    assert!(collect_configured_channels(&config, "test").is_empty());
+    assert!(collect_configured_channels(&config, TenantScope::default(), "test").is_empty());
 }
 
 #[test]
@@ -84,10 +92,10 @@ fn collect_configured_channels_builds_wecom_only_with_complete_credentials() {
     let mut config = Config::default();
     config.channels_config.wecom =
         Some(WeComConfig { bot_id: "bot-id".to_string(), secret: "secret".to_string() });
-    assert_eq!(channel_names(&collect_configured_channels(&config, "test")), vec!["WeCom"]);
+    assert_eq!(channel_names(&collect_configured_channels(&config, TenantScope::default(), "test")), vec!["WeCom"]);
 
     config.channels_config.wecom.as_mut().unwrap().secret = " ".to_string();
-    assert!(collect_configured_channels(&config, "test").is_empty());
+    assert!(collect_configured_channels(&config, TenantScope::default(), "test").is_empty());
 }
 
 #[test]
@@ -97,11 +105,11 @@ fn collect_configured_channels_builds_wechat_only_with_trusted_complete_config()
         bot_token: "bot-token".to_string(),
         base_url: DEFAULT_WECHAT_BASE_URL.to_string(),
     });
-    assert_eq!(channel_names(&collect_configured_channels(&config, "test")), vec!["WeChat"]);
+    assert_eq!(channel_names(&collect_configured_channels(&config, TenantScope::default(), "test")), vec!["WeChat"]);
 
     config.channels_config.wechat.as_mut().unwrap().base_url =
         "https://attacker.example".to_string();
-    assert!(collect_configured_channels(&config, "test").is_empty());
+    assert!(collect_configured_channels(&config, TenantScope::default(), "test").is_empty());
 }
 
 #[test]
@@ -152,7 +160,7 @@ fn collect_configured_channels_builds_common_native_channels() {
         verify_tls: Some(true),
     });
 
-    let channels = collect_configured_channels(&config, "test");
+    let channels = collect_configured_channels(&config, TenantScope::default(), "test");
     let names = channel_names(&channels);
 
     assert!(names.contains(&"Telegram"));
@@ -236,7 +244,7 @@ fn collect_configured_channels_builds_remaining_native_channels() {
     });
 
     assert_eq!(
-        channel_names(&collect_configured_channels(&config, "test")),
+        channel_names(&collect_configured_channels(&config, TenantScope::default(), "test")),
         vec![
             "Slack",
             "Mattermost",
@@ -256,7 +264,7 @@ fn collect_configured_channels_skips_invalid_whatsapp_cloud_config() {
     let mut config = Config::default();
     config.channels_config.whatsapp = Some(whatsapp_config(None, Some("phone"), None, None));
 
-    assert!(collect_configured_channels(&config, "test").is_empty());
+    assert!(collect_configured_channels(&config, TenantScope::default(), "test").is_empty());
 }
 
 #[test]
@@ -264,7 +272,7 @@ fn collect_configured_channels_skips_whatsapp_without_backend_selector() {
     let mut config = Config::default();
     config.channels_config.whatsapp = Some(whatsapp_config(None, None, None, None));
 
-    assert!(collect_configured_channels(&config, "test").is_empty());
+    assert!(collect_configured_channels(&config, TenantScope::default(), "test").is_empty());
 }
 
 #[test]
@@ -273,7 +281,7 @@ fn collect_configured_channels_skips_incomplete_whatsapp_cloud_config() {
     let mut config = Config::default();
     config.channels_config.whatsapp = Some(whatsapp_config(None, Some("phone"), None, None));
 
-    assert!(collect_configured_channels(&config, "test").is_empty());
+    assert!(collect_configured_channels(&config, TenantScope::default(), "test").is_empty());
 }
 
 #[test]
@@ -283,7 +291,7 @@ fn collect_configured_channels_prefers_cloud_for_ambiguous_whatsapp_config() {
     config.channels_config.whatsapp =
         Some(whatsapp_config(Some("token"), Some("phone"), Some("verify"), Some("/tmp/session")));
 
-    assert_eq!(channel_names(&collect_configured_channels(&config, "test")), vec!["WhatsApp"]);
+    assert_eq!(channel_names(&collect_configured_channels(&config, TenantScope::default(), "test")), vec!["WhatsApp"]);
 }
 
 #[cfg(feature = "whatsapp-web")]
@@ -292,7 +300,7 @@ fn collect_configured_channels_builds_whatsapp_web_when_feature_enabled() {
     let mut config = Config::default();
     config.channels_config.whatsapp = Some(whatsapp_config(None, None, None, Some("/tmp/session")));
 
-    assert_eq!(channel_names(&collect_configured_channels(&config, "test")), vec!["WhatsApp"]);
+    assert_eq!(channel_names(&collect_configured_channels(&config, TenantScope::default(), "test")), vec!["WhatsApp"]);
 }
 
 #[cfg(not(feature = "whatsapp-web"))]
@@ -301,7 +309,7 @@ fn collect_configured_channels_skips_whatsapp_web_without_feature() {
     let mut config = Config::default();
     config.channels_config.whatsapp = Some(whatsapp_config(None, None, None, Some("/tmp/session")));
 
-    assert!(collect_configured_channels(&config, "test").is_empty());
+    assert!(collect_configured_channels(&config, TenantScope::default(), "test").is_empty());
 }
 
 #[cfg(feature = "channel-lark")]
@@ -309,13 +317,13 @@ fn collect_configured_channels_skips_whatsapp_web_without_feature() {
 fn collect_configured_channels_builds_lark_and_feishu_variants() {
     let mut config = Config::default();
     config.channels_config.lark = Some(lark_config(false));
-    assert_eq!(channel_names(&collect_configured_channels(&config, "test")), vec!["Lark"]);
+    assert_eq!(channel_names(&collect_configured_channels(&config, TenantScope::default(), "test")), vec!["Lark"]);
 
     config.channels_config.lark = Some(lark_config(true));
-    assert_eq!(channel_names(&collect_configured_channels(&config, "test")), vec!["Feishu"]);
+    assert_eq!(channel_names(&collect_configured_channels(&config, TenantScope::default(), "test")), vec!["Feishu"]);
 
     config.channels_config.feishu = Some(feishu_config());
-    assert_eq!(channel_names(&collect_configured_channels(&config, "test")), vec!["Feishu"]);
+    assert_eq!(channel_names(&collect_configured_channels(&config, TenantScope::default(), "test")), vec!["Feishu"]);
 }
 
 #[cfg(feature = "channel-lark")]
@@ -325,7 +333,7 @@ fn collect_configured_channels_skips_blank_and_partial_feishu_credentials() {
     let mut legacy_feishu = lark_config(true);
     legacy_feishu.app_secret = " ".to_string();
     legacy_config.channels_config.lark = Some(legacy_feishu);
-    assert!(collect_configured_channels(&legacy_config, "test").is_empty());
+    assert!(collect_configured_channels(&legacy_config, TenantScope::default(), "test").is_empty());
 
     let mut config = Config::default();
     let mut blank_feishu = feishu_config();
@@ -336,7 +344,7 @@ fn collect_configured_channels_skips_blank_and_partial_feishu_credentials() {
         config: FeishuConfig { app_secret: "\t".to_string(), ..feishu_config() },
     });
 
-    assert!(collect_configured_channels(&config, "test").is_empty());
+    assert!(collect_configured_channels(&config, TenantScope::default(), "test").is_empty());
 }
 
 #[cfg(not(feature = "channel-lark"))]
@@ -346,7 +354,7 @@ fn collect_configured_channels_skips_lark_and_feishu_without_feature() {
     config.channels_config.lark = Some(lark_config(false));
     config.channels_config.feishu = Some(feishu_config());
 
-    assert!(collect_configured_channels(&config, "test").is_empty());
+    assert!(collect_configured_channels(&config, TenantScope::default(), "test").is_empty());
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -364,7 +372,7 @@ fn collect_configured_channels_skips_instance_channels_when_profiles_invalid() {
     config.channels_config.imessage =
         Some(IMessageConfig { allowed_contacts: vec!["+15551234567".to_string()] });
 
-    assert_eq!(channel_names(&collect_configured_channels(&config, "test")), vec!["iMessage"]);
+    assert_eq!(channel_names(&collect_configured_channels(&config, TenantScope::default(), "test")), vec!["iMessage"]);
 }
 
 #[test]
@@ -376,7 +384,7 @@ fn collect_configured_channels_skips_qq_webhook_mode_and_keeps_websocket_mode() 
         allowed_users: vec!["user".to_string()],
         receive_mode: QQReceiveMode::Webhook,
     });
-    assert!(collect_configured_channels(&config, "test").is_empty());
+    assert!(collect_configured_channels(&config, TenantScope::default(), "test").is_empty());
 
     config.channels_config.qq = Some(QQConfig {
         app_id: "app".to_string(),
@@ -384,49 +392,10 @@ fn collect_configured_channels_skips_qq_webhook_mode_and_keeps_websocket_mode() 
         allowed_users: vec!["user".to_string()],
         receive_mode: QQReceiveMode::Websocket,
     });
-    let channels = collect_configured_channels(&config, "test");
+    let channels = collect_configured_channels(&config, TenantScope::default(), "test");
 
     assert_eq!(channels.len(), 1);
     assert_eq!(channels[0].display_name, "QQ");
-}
-
-#[tokio::test]
-async fn append_nostr_channel_if_available_is_noop_when_not_configured() {
-    let config = Config::default();
-    let mut channels = Vec::new();
-
-    assert_eq!(append_nostr_channel_if_available(&config, &mut channels, "test").await, None);
-    assert!(channels.is_empty());
-}
-
-#[tokio::test]
-async fn append_nostr_channel_if_available_adds_valid_configured_channel() {
-    let mut config = Config::default();
-    config.channels_config.nostr = Some(NostrConfig {
-        private_key: "0000000000000000000000000000000000000000000000000000000000000001".to_string(),
-        relays: Vec::new(),
-        allowed_pubkeys: vec!["*".to_string()],
-    });
-    let mut channels = Vec::new();
-
-    assert_eq!(append_nostr_channel_if_available(&config, &mut channels, "test").await, None);
-    assert_eq!(channel_names(&channels), vec!["Nostr"]);
-}
-
-#[tokio::test]
-async fn append_nostr_channel_if_available_reports_invalid_private_key() {
-    let mut config = Config::default();
-    config.channels_config.nostr = Some(NostrConfig {
-        private_key: "not-a-private-key".to_string(),
-        relays: Vec::new(),
-        allowed_pubkeys: Vec::new(),
-    });
-    let mut channels = Vec::new();
-
-    let reason = append_nostr_channel_if_available(&config, &mut channels, "startup").await;
-
-    assert!(channels.is_empty());
-    assert!(reason.is_some_and(|message| message.contains("Nostr init failed during startup")));
 }
 
 #[cfg(feature = "channel-lark")]
@@ -441,7 +410,7 @@ async fn channel_project_binding_factory_preserves_named_identity_in_inbound_mes
         .channels_config
         .dingtalk_instances
         .push(DingTalkInstanceConfig { id: "team".into(), config: dingtalk_config() });
-    let channels = collect_configured_channels(&config, "test");
+    let channels = collect_configured_channels(&config, TenantScope::default(), "test");
     assert_eq!(channels.len(), 2);
     for configured in &channels {
         assert_eq!(configured.instance_id, "team");
@@ -467,15 +436,6 @@ async fn channel_project_binding_factory_preserves_named_identity_in_inbound_mes
         assert_eq!(message.thread_ts.as_deref(), Some("thread"));
         assert_eq!(message.content, "hello");
     }
-}
-
-#[tokio::test]
-async fn channel_project_binding_qq_webhook_uses_default_instance() {
-    let channel = super::qq::QQChannel::new("app".into(), "secret".into(), vec!["*".into()]);
-    let messages = channel.parse_webhook_payload(&serde_json::json!({"op": 0, "t": "C2C_MESSAGE_CREATE", "d": {"id": "msg", "content": "hello", "author": {"user_openid": "user"}}})).await;
-    let message = &messages[0];
-    assert_eq!(message.instance_id, "default");
-    assert_eq!(message.channel, "qq");
 }
 
 #[cfg(feature = "channel-lark")]
@@ -509,7 +469,7 @@ fn unavailable_channel_credentials_are_not_instantiated() {
     }))
     .unwrap();
     config.channels_config.unavailable_channels.insert("slack:default".into());
-    let channels = collect_configured_channels(&config, "credential isolation test");
+    let channels = collect_configured_channels(&config, TenantScope::default(), "credential isolation test");
     let names = channel_names(&channels);
     assert!(names.contains(&"Discord"));
     assert!(!names.contains(&"Slack"));

@@ -138,3 +138,6 @@ pub async fn persist_current_route(
     }
     Ok(())
 }
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod channels_config_tests;

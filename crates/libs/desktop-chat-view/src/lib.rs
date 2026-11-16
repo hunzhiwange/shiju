@@ -82,3 +82,6 @@ mod desktop_split_04_tests;
 
 #[cfg(test)]
 mod host_module_5_tests;
+
+#[cfg(test)]
+mod host_module_6_tests;

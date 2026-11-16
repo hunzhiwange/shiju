@@ -460,3 +460,118 @@ pub fn todo_overlay<'a, Message: 'a>(panel: Element<'a, Message>) -> Element<'a,
         .width(Length::Fill).height(Length::Fill)
         .align_x(iced::alignment::Horizontal::Right).align_y(iced::alignment::Vertical::Top).into()
 }
+
+/// A borrowed conversation window; the host supplies only the message renderer.
+pub struct ConversationInput<'a> {
+    pub chat: &'a [ChatMessage],
+    pub cache: &'a std::collections::HashMap<usize, crate::render_cache::ChatRenderCacheEntry>,
+    pub metadata: &'a [Option<desktop_i18n::chat::MessageMeta>],
+    pub timeline: Option<&'a desktop_session::session::chat_timeline::PagedChatTimeline>,
+    pub window: crate::virtualizer::ChatVirtualWindow,
+    pub scroll_id: iced::widget::Id,
+    pub i18n: desktop_i18n::I18n,
+    pub requesting: bool,
+    pub model: &'a str,
+    pub width: f32,
+    pub dark: bool,
+    pub reasoning_summary: bool,
+}
+
+pub fn conversation_window<'a, M: Clone + 'a>(
+    input: ConversationInput<'a>,
+    mut render: impl FnMut(
+        usize,
+        &'a ChatMessage,
+        Option<std::borrow::Cow<'a, str>>,
+        &'a crate::render_cache::ChatRenderCacheEntry,
+        bool,
+        Option<&crate::render_cache::RevisionRenderKey>,
+    ) -> Element<'a, M>,
+    scroll: impl Fn(iced::widget::scrollable::Viewport) -> M + 'a,
+) -> Element<'a, M> {
+    static FALLBACK: once_cell::sync::Lazy<crate::render_cache::ChatRenderCacheEntry> =
+        once_cell::sync::Lazy::new(Default::default);
+    let window = input.window;
+    #[cfg(test)]
+    crate::performance::record_mounted_rows(
+        window.render_end_idx.saturating_sub(window.render_start_idx),
+    );
+    let mut messages = chat_message_column();
+    for (i, message) in
+        chat_render_window(input.chat, window.render_start_idx, window.render_end_idx)
+    {
+        let target = input.timeline.and_then(|timeline| timeline.target_at(i));
+        let revision = target.as_ref().map(|target| {
+            crate::render_cache::RevisionRenderKey::new(
+                target.key,
+                target.revision,
+                input.width,
+                input.dark,
+                input.reasoning_summary,
+            )
+        });
+        let meta = input
+            .metadata
+            .get(i)
+            .and_then(Option::as_ref)
+            .map(|meta| meta.render(input.i18n))
+            .or_else(|| {
+                live_message_meta_fallback(
+                    input.i18n,
+                    message.role,
+                    input.requesting,
+                    i + 1 == input.chat.len(),
+                    input.model,
+                )
+            })
+            .map(std::borrow::Cow::Owned);
+        let content = render(
+            i,
+            message,
+            meta,
+            input.cache.get(&i).unwrap_or(&FALLBACK),
+            i >= window.visible_start_idx && i < window.visible_end_idx,
+            revision.as_ref(),
+        );
+        messages = messages
+            .push(crate::message_measure::MeasuredChatMessage::new(i, content).with_target(target));
+    }
+    iced::widget::scrollable(conversation_reading_column(
+        chat_virtual_content(messages, window.top_spacer_h, window.bottom_spacer_h),
+        Padding { top: 0.0, right: 18.0, bottom: 0.0, left: 18.0 },
+    ))
+    .direction(crate::utils::theme::chat_scroll_direction())
+    .id(input.scroll_id)
+    .on_scroll(scroll)
+    .into()
+}
+
+pub fn conversation_body<'a, M: 'a>(
+    content: Element<'a, M>,
+    questions: Element<'a, M>,
+    jump: Element<'a, M>,
+    todo: Element<'a, M>,
+) -> Element<'a, M> {
+    iced::widget::stack![content, questions, jump, todo]
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
+}
+
+/// A single context overlay owns closing and anchoring for the conversation.
+pub fn context_menu_overlay<'a, M: Clone + 'a>(
+    content: impl Into<Element<'a, M>>,
+    menu: Element<'a, M>,
+    open: bool,
+    anchor: Option<(f32, f32)>,
+    close: M,
+) -> Element<'a, M> {
+    let anchor = anchor.unwrap_or((12.0, 26.0));
+    desktop_ui_controls::overlays::PointBelowOverlay::new(content, menu)
+        .show(open)
+        .global_anchor(iced::Point::new(anchor.0, anchor.1))
+        .gap(0.0)
+        .close_on_target_click(true)
+        .on_close(close)
+        .into()
+}

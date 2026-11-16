@@ -65,3 +65,22 @@ pub fn shared_tool_render_kind(raw: &str) -> Option<SharedToolRenderKind> {
         _ => SharedToolRenderKind::Text,
     })
 }
+
+/// Dispatch and fallback order are shared by all hosts.
+pub fn render_shared_tool_view<T>(
+    raw: &str,
+    mut render: impl FnMut(SharedToolRenderKind) -> Option<T>,
+) -> Option<T> {
+    let kind = shared_tool_render_kind(raw)?;
+    render(kind)
+        .or_else(|| {
+            (kind == SharedToolRenderKind::TodoCompact)
+                .then(|| render(SharedToolRenderKind::TodoRead))
+                .flatten()
+        })
+        .or_else(|| {
+            (kind != SharedToolRenderKind::Text)
+                .then(|| render(SharedToolRenderKind::Text))
+                .flatten()
+        })
+}

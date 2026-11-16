@@ -364,7 +364,7 @@ impl RenderFixture {
     pub fn sync_completed_stream_text(&mut self, idx: usize) {
         self.chat_ui().sync_completed_stream_text(idx)
     }
-    fn chat_ui(&mut self) -> crate::chat_ui::ChatUi<'_> {
+    pub(crate) fn chat_ui(&mut self) -> crate::chat_ui::ChatUi<'_> {
         crate::chat_ui::ChatUi {
             chat: &self.chat,
             chat_copy_hash_cache: &mut self.chat_copy_hash_cache,

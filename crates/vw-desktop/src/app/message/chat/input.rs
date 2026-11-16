@@ -773,30 +773,9 @@ pub(crate) fn apply_chat_message_measurements(
         app.sync_chat_message_estimated_heights_len();
     }
 
-    let mut projected_measurements = Vec::with_capacity(measurements.len());
-    for measurement in measurements {
-        if !measurement.height.is_finite() {
-            continue;
-        }
-        let idx = if let Some(target) = &measurement.target {
-            let Some(timeline) = app.paged_chat_timeline.as_ref() else { continue };
-            if !timeline.accepts_entry_result(
-                &target.session_id,
-                target.generation,
-                &target.key,
-                target.revision,
-            ) {
-                continue;
-            }
-            let Some(index) = timeline.index_of(&target.key) else { continue };
-            index
-        } else {
-            measurement.message_idx
-        };
-        projected_measurements.push((idx, measurement.height));
-    }
-    let changed = desktop_chat_view::scroll_update::apply_message_measurements(
-        &mut app.chat_virtualizer, &mut app.chat_message_measured_heights, app.chat.len(), projected_measurements,
+    let changed = desktop_chat_view::scroll_update::apply_targeted_message_measurements(
+        &mut app.chat_virtualizer, &mut app.chat_message_measured_heights, app.chat.len(),
+        app.paged_chat_timeline.as_ref(), measurements,
     );
 
     if changed {

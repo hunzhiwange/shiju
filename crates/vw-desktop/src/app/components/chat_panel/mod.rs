@@ -40,36 +40,19 @@ pub mod virtualizer;
 #[path = "chunk_loader_tests.rs"]
 mod chunk_loader_tests;
 #[cfg(test)]
-#[path = "global_status_tests.rs"]
-mod global_status_tests;
-#[cfg(test)]
-#[path = "message_measure_tests.rs"]
-mod message_measure_tests;
-#[cfg(test)]
-#[path = "message_view_tests.rs"]
-mod message_view_tests;
-#[cfg(test)]
 #[path = "mod_tests.rs"]
 mod mod_tests;
 #[cfg(test)]
 #[path = "performance_tests.rs"]
 mod performance_tests;
 #[cfg(test)]
-#[path = "selectable_text_tests.rs"]
-mod selectable_text_tests;
-#[cfg(test)]
 #[path = "tool_selector_tests.rs"]
 mod tool_selector_tests;
 
-use iced::widget::{Space, column, scrollable, stack};
-use iced::{Element, Length, Padding, Point};
-use once_cell::sync::Lazy;
-use std::borrow::Cow;
+use iced::widget::{Space, column};
+use iced::{Element, Length, Padding};
 
-use crate::app::assets::Icon;
 use crate::app::components::input_panel::todo_panel::{self, TodoPanelSurface};
-use crate::app::components::overlays::PointBelowOverlay;
-use crate::app::models::{ChatMessage, ChatRenderCacheEntry, ChatRole};
 use crate::app::state::{ChatPanelMode, UserQuestionMarker};
 use crate::app::theme_catalog::with_panel_background;
 use crate::app::{App, Message, TodoPanelPlacement, message};
@@ -78,13 +61,8 @@ use self::empty::{empty_session_placeholder, session_loading_placeholder};
 use self::global_status::chat_global_status_view;
 use self::header::chat_header_view;
 
-
-use self::utils::{chat_context_menu, chat_scroll_direction};
+use self::utils::chat_context_menu;
 use self::virtualizer::ChatVirtualWindow;
-
-
-static FALLBACK_RENDER_CACHE_ENTRY: Lazy<ChatRenderCacheEntry> =
-    Lazy::new(ChatRenderCacheEntry::default);
 
 fn chat_global_status_reading_column(app: &App) -> Element<'_, Message> {
     conversation_reading_column(
@@ -103,21 +81,23 @@ fn chat_panel_context_menu_overlay<'a>(
     content: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
     let is_open = app.chat_context_menu.target.is_some();
-    let anchor = app.chat_context_menu.position.unwrap_or((12.0, 26.0));
     let menu = chat_context_menu(crate::app::i18n::I18n::new(app.desktop_locale), is_open)
         .unwrap_or_else(|| Space::new().into());
-
-    PointBelowOverlay::new(content, menu)
-        .show(is_open)
-        .global_anchor(Point::new(anchor.0, anchor.1))
-        .gap(0.0)
-        .close_on_target_click(true)
-        .on_close(Message::Chat(message::ChatMessage::CloseMessageContextMenu))
-        .into()
+    desktop_chat_view::panel::context_menu_overlay(
+        content,
+        menu,
+        is_open,
+        app.chat_context_menu.position,
+        Message::Chat(message::ChatMessage::CloseMessageContextMenu),
+    )
 }
 
 fn session_loading_panel(app: &App) -> Element<'_, Message> {
-    desktop_chat_view::panel::placeholder_view(session_loading_placeholder(app), empty_fullscreen_controls(app), chat_global_status_reading_column(app))
+    desktop_chat_view::panel::placeholder_view(
+        session_loading_placeholder(app),
+        empty_fullscreen_controls(app),
+        chat_global_status_reading_column(app),
+    )
 }
 
 #[allow(dead_code)]
@@ -171,94 +151,48 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     let window = chat_panel_virtual_window(app);
-    let start_idx = window.render_start_idx;
-    let end_idx = window.render_end_idx;
-    let top_spacer_h = window.top_spacer_h;
-    let bottom_spacer_h = window.bottom_spacer_h;
-    let visible_start_idx = window.visible_start_idx;
-    let visible_end_idx = window.visible_end_idx;
-    let question_visible_start_idx = window.visible_start_idx;
-    let question_visible_end_idx = window.visible_end_idx;
-    let user_question_markers = &app.active_session_view_state.user_question_markers;
-
-    #[cfg(test)]
-    performance::record_mounted_rows(end_idx.saturating_sub(start_idx));
-
-    // 构建消息列，每条消息之间间隔 18px
-    let mut col = chat_message_column();
-
     let runtime = app.current_session_runtime_ref();
     #[cfg(test)]
     performance::record_runtime_borrow();
-    let runtime_is_requesting = runtime.is_some_and(|runtime| runtime.request_lifecycle.is_requesting);
-    let runtime_model = runtime.map_or(app.model.as_str(), |runtime| runtime.model.as_str());
-
-    // 遍历聊天消息并添加到列中
-    for (i, m) in chat_render_window(&app.chat, start_idx, end_idx) {
-        // 流式响应标志：当前消息是助手消息、正在请求中且是最后一条消息
-        let is_last = i + 1 == app.chat.len();
-        let _is_streaming = m.role == ChatRole::Assistant && runtime_is_requesting && is_last;
-        let render_cache = app.chat_render_cache.get(&i).unwrap_or(&FALLBACK_RENDER_CACHE_ENTRY);
-        let revision_key = app.paged_chat_timeline.as_ref().and_then(|timeline| {
-            let target = timeline.target_at(i)?;
-            Some(message_view::RevisionRenderKey::new(
-                target.key,
-                target.revision,
-                app.window_size.0,
-                self::utils::is_dark_theme(&app.theme()),
-                app.dialogue_flow_show_reasoning_summary,
-            ))
-        });
-        let enable_heavy_tool_content = i >= visible_start_idx && i < visible_end_idx;
-        let message_meta = app
-            .active_session_view_state
-            .message_meta_texts
-            .get(i)
-            .and_then(|meta| meta.as_ref())
-            .map(|meta| Cow::Owned(meta.render(crate::app::i18n::I18n::new(app.desktop_locale))))
-            .or_else(|| {
-                live_message_meta_fallback(
-                    crate::app::i18n::I18n::new(app.desktop_locale),
-                    m.role,
-                    runtime_is_requesting,
-                    is_last,
-                    runtime_model,
-                )
-                .map(Cow::Owned)
-            });
-
-        let message = message_view::message_view_with_runtime(
-            app,
-            i,
-            m.role,
-            &m.content,
-            &m.think_timing,
-            m.processing_timing.as_ref(),
-            message_meta,
-            render_cache,
-            enable_heavy_tool_content,
-            runtime_is_requesting,
-            revision_key.as_ref(),
-        );
-        let target = app.paged_chat_timeline.as_ref().and_then(|timeline| timeline.target_at(i));
-        col = col.push(message_measure::MeasuredChatMessage::new(i, message).with_target(target));
-    }
-
-    // 创建可滚动容器，包含消息列
-    let scroll_content = scrollable(conversation_reading_column(
-        chat_virtual_content(col, top_spacer_h, bottom_spacer_h),
-        Padding { top: 0.0, right: 18.0, bottom: 0.0, left: 18.0 },
-    ))
-    .direction(chat_scroll_direction())
-    .id(app.chat_scroll_id.clone())
-    // 监听滚动事件，更新滚动位置和视口高度
-    .on_scroll(|v| {
-        Message::Chat(message::ChatMessage::ScrollChanged {
-            offset_y: v.relative_offset().y,
-            absolute_offset_y: v.absolute_offset().y,
-            viewport_h: v.bounds().height,
-        })
-    });
+    let requesting = runtime.is_some_and(|r| r.request_lifecycle.is_requesting);
+    let scroll_content = desktop_chat_view::panel::conversation_window(
+        desktop_chat_view::panel::ConversationInput {
+            chat: &app.chat,
+            cache: &app.chat_render_cache,
+            metadata: &app.active_session_view_state.message_meta_texts,
+            timeline: app.paged_chat_timeline.as_ref(),
+            window,
+            scroll_id: app.chat_scroll_id.clone(),
+            i18n: crate::app::i18n::I18n::new(app.desktop_locale),
+            requesting,
+            model: runtime.map_or(app.model.as_str(), |r| r.model.as_str()),
+            width: app.window_size.0,
+            dark: self::utils::is_dark_theme(&app.theme()),
+            reasoning_summary: app.dialogue_flow_show_reasoning_summary,
+        },
+        |i, m, meta, cache, heavy, revision| {
+            message_view::message_view_with_runtime(
+                app,
+                i,
+                m.role,
+                &m.content,
+                &m.think_timing,
+                m.processing_timing.as_ref(),
+                meta,
+                cache,
+                heavy,
+                requesting,
+                revision,
+            )
+        },
+        |v| {
+            Message::Chat(message::ChatMessage::ScrollChanged {
+                offset_y: v.relative_offset().y,
+                absolute_offset_y: v.absolute_offset().y,
+                viewport_h: v.bounds().height,
+            })
+        },
+    );
 
     // 判断会话是否已开始：存在活跃会话且消息列表非空
     let has_started = if app.active_session_id.is_some() { !app.chat.is_empty() } else { false };
@@ -267,19 +201,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
         let header = chat_header_view(app);
         let question_jump_button = user_question_nav_overlay(
             app,
-            user_question_markers,
-            question_visible_start_idx,
-            question_visible_end_idx,
+            &app.active_session_view_state.user_question_markers,
+            window.visible_start_idx,
+            window.visible_end_idx,
         );
         let jump_button = jump_to_bottom_button(app);
         let todo_overlay = chat_todo_overlay(app);
         let body_base: Element<'_, Message> = match app.chat_panel_mode {
-            ChatPanelMode::Conversation => {
-                stack![scroll_content, question_jump_button, jump_button, todo_overlay]
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .into()
-            }
+            ChatPanelMode::Conversation => desktop_chat_view::panel::conversation_body(
+                scroll_content,
+                question_jump_button,
+                jump_button,
+                todo_overlay,
+            ),
             ChatPanelMode::Trajectory => trajectory::view(app),
         };
         let body_bg =
@@ -295,10 +229,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
             })
             .unwrap_or_default();
         let body = with_panel_background(body_base, body_bg, fit);
-        let panel_base = desktop_chat_view::panel::started_view(header, body, chat_global_status_reading_column(app));
+        let panel_base = desktop_chat_view::panel::started_view(
+            header,
+            body,
+            chat_global_status_reading_column(app),
+        );
         chat_panel_context_menu_overlay(app, panel_base)
     } else {
-        desktop_chat_view::panel::placeholder_view(empty_session_placeholder(app), empty_fullscreen_controls(app), chat_global_status_reading_column(app))
+        desktop_chat_view::panel::placeholder_view(
+            empty_session_placeholder(app),
+            empty_fullscreen_controls(app),
+            chat_global_status_reading_column(app),
+        )
     }
 }
 
@@ -310,8 +252,10 @@ fn chat_todo_overlay<'a>(app: &'a App) -> Element<'a, Message> {
         return Space::new().height(Length::Fixed(0.0)).into();
     }
 
-    let submit_anim =
-        app.current_session_runtime_ref().map(|runtime| runtime.request_lifecycle.submit_anim).unwrap_or(0);
+    let submit_anim = app
+        .current_session_runtime_ref()
+        .map(|runtime| runtime.request_lifecycle.submit_anim)
+        .unwrap_or(0);
     let panel = todo_panel::todo_panel(
         app,
         app.chat_todo_items.as_slice(),
@@ -333,9 +277,12 @@ pub(crate) fn refresh_virtualization_metrics(app: &mut App) {
 
 fn empty_fullscreen_controls(app: &App) -> Element<'_, Message> {
     desktop_chat_view::panel::empty_fullscreen_controls(
-        crate::app::i18n::I18n::new(app.desktop_locale), app.is_chat_fullscreen(), app.is_chat_half_fullscreen(),
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        app.is_chat_fullscreen(),
+        app.is_chat_half_fullscreen(),
         header::show_half_fullscreen_control(app.navigation_mode.workspace_mode),
-        Message::Chat(message::ChatMessage::ToggleFullscreen), Message::Chat(message::ChatMessage::ToggleHalfFullscreen),
+        Message::Chat(message::ChatMessage::ToggleFullscreen),
+        Message::Chat(message::ChatMessage::ToggleHalfFullscreen),
     )
 }
 
@@ -378,16 +325,37 @@ fn empty_fullscreen_controls(app: &App) -> Element<'_, Message> {
 fn panel_message(event: desktop_chat_view::panel::Message) -> Message {
     Message::Chat(match event {
         desktop_chat_view::panel::Message::ScrollToBottom => message::ChatMessage::ScrollToBottom,
-        desktop_chat_view::panel::Message::LocateChatMessageIndex(index) => message::ChatMessage::LocateChatMessageIndex(index),
+        desktop_chat_view::panel::Message::LocateChatMessageIndex(index) => {
+            message::ChatMessage::LocateChatMessageIndex(index)
+        }
     })
 }
 fn jump_to_bottom_button(app: &App) -> Element<'_, Message> {
-    desktop_chat_view::panel::jump_to_bottom_button(app.chat_auto_scroll, app.chat_scroll_viewport_h).map(panel_message)
+    desktop_chat_view::panel::jump_to_bottom_button(
+        app.chat_auto_scroll,
+        app.chat_scroll_viewport_h,
+    )
+    .map(panel_message)
 }
-fn user_question_nav_overlay<'a>(app: &'a App, markers: &[UserQuestionMarker], start: usize, end: usize) -> Element<'a, Message> {
-    desktop_chat_view::panel::user_question_nav_overlay(crate::app::i18n::I18n::new(app.desktop_locale), app.chat_scroll_viewport_h, markers, start, end).map(panel_message)
+fn user_question_nav_overlay<'a>(
+    app: &'a App,
+    markers: &[UserQuestionMarker],
+    start: usize,
+    end: usize,
+) -> Element<'a, Message> {
+    desktop_chat_view::panel::user_question_nav_overlay(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        app.chat_scroll_viewport_h,
+        markers,
+        start,
+        end,
+    )
+    .map(panel_message)
 }
 
-pub(crate) use desktop_chat_view::panel::{chat_message_column, chat_virtual_content, conversation_reading_column, chat_render_window, rough_message_heights, live_message_meta_fallback};
 #[cfg(test)]
 pub(crate) use desktop_chat_view::panel::user_question_indices;
+pub(crate) use desktop_chat_view::panel::{
+    chat_message_column, chat_render_window, chat_virtual_content, conversation_reading_column,
+    live_message_meta_fallback, rough_message_heights,
+};

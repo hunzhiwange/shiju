@@ -1,11 +1,11 @@
-use super::selectable_text::{
+use super::text_support::{selected_chat_text_for_message, tool_text_key};
+use crate::chat_ui::prepare_chat_ui_chunk_phase;
+use crate::host_module_5_tests::fixture::RenderFixture as App;
+use crate::selectable_text::{
     SelectableTextPolicy, read_only_editor_content, selectable_text_policy,
 };
-use super::tool_text_support::{selected_chat_text_for_message, tool_text_key};
-use crate::app::App;
-use crate::app::models::{ChatMessage, ChatRole};
-use crate::app::session::prepare_chat_ui_chunk_phase;
 use iced::widget::text_editor;
+use session_ui_types::{ChatMessage, ChatRole};
 
 #[test]
 fn selectable_text_policy_uses_preview_for_unsafe_text() {
@@ -26,7 +26,7 @@ fn selectable_text_policy_uses_preview_for_unsafe_text() {
         processing_timing: None,
     }];
     let phase = prepare_chat_ui_chunk_phase(&app.chat, 0, true, false);
-    app.apply_prepared_chat_ui_phase(phase);
+    app.chat_ui().apply_prepared_chat_ui_phase(phase);
 
     assert!(app.chat_message_editors[0].text().is_empty());
 }
@@ -66,7 +66,7 @@ fn selectable_text_reads_all_aux_editors() {
 
 #[test]
 fn selectable_text_reads_markdown_block_editor_selection() {
-    use crate::app::components::chat_panel::message_view::markdown_block_key;
+    use crate::message_view::markdown::markdown_block_key;
 
     let (mut app, _task) = App::new();
     let block_key = markdown_block_key(0, 0, 1);

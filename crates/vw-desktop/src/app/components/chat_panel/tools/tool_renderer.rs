@@ -10,12 +10,14 @@ use crate::app::{App, Message};
 /// 重新导出 use super::{，让上层模块通过稳定路径访问。
 use super::{
     tool_advanced_view, tool_apply_patch_view, tool_bash_view, tool_config_view, tool_files_view,
-    tool_git_diff_view, tool_lsp_view, tool_mcp_view, tool_question_view,
-    tool_read_view, tool_skill_view, tool_text_view, tool_todos_view, tool_todowrite_compact_view,
-    tool_web_view, tool_workflow_view,
+    tool_git_diff_view, tool_lsp_view, tool_mcp_view, tool_question_view, tool_read_view,
+    tool_skill_view, tool_text_view, tool_todos_view, tool_todowrite_compact_view, tool_web_view,
+    tool_workflow_view,
 };
 
-pub(crate) use desktop_chat_tools::tools::tool_renderer::{SharedToolRenderKind, shared_tool_render_kind};
+pub(crate) use desktop_chat_tools::tools::tool_renderer::{
+    SharedToolRenderKind, shared_tool_render_kind,
+};
 
 /// 渲染 shared tool view 对应的 diff 行、工具卡片或控件内容。
 ///
@@ -39,44 +41,24 @@ pub(crate) fn render_shared_tool_view<'a>(
     // visible 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     visible: &str,
 ) -> Option<Element<'a, Message>> {
-    match shared_tool_render_kind(visible)? {
-        // SharedToolRenderKind 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        SharedToolRenderKind::Bash => tool_bash_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
-        SharedToolRenderKind::Config => tool_config_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
+    desktop_chat_tools::tools::tool_renderer::render_shared_tool_view(visible, |kind| match kind {
+        SharedToolRenderKind::Bash => tool_bash_view(app, msg_idx, tool_idx, visible),
+        SharedToolRenderKind::Config => tool_config_view(app, msg_idx, tool_idx, visible),
         SharedToolRenderKind::TodoCompact => {
             tool_todowrite_compact_view(app, msg_idx, tool_idx, visible)
-                .or_else(|| tool_todos_view(app, msg_idx, tool_idx, visible))
-                .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible))
         }
-        SharedToolRenderKind::TodoRead => tool_todos_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
-        // SharedToolRenderKind 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        SharedToolRenderKind::ApplyPatch => tool_apply_patch_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
-        SharedToolRenderKind::Read => tool_read_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
-        SharedToolRenderKind::Files => tool_files_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
-        SharedToolRenderKind::Lsp => tool_lsp_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
-        SharedToolRenderKind::Mcp => tool_mcp_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
-        // SharedToolRenderKind 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        SharedToolRenderKind::GitDiff => tool_git_diff_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
-        SharedToolRenderKind::Question => tool_question_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
-        // SharedToolRenderKind 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        SharedToolRenderKind::Web => tool_web_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
-        SharedToolRenderKind::Advanced => tool_advanced_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
-        SharedToolRenderKind::Skill => tool_skill_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
-        SharedToolRenderKind::Workflow => tool_workflow_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
+        SharedToolRenderKind::TodoRead => tool_todos_view(app, msg_idx, tool_idx, visible),
+        SharedToolRenderKind::ApplyPatch => tool_apply_patch_view(app, msg_idx, tool_idx, visible),
+        SharedToolRenderKind::Read => tool_read_view(app, msg_idx, tool_idx, visible),
+        SharedToolRenderKind::Files => tool_files_view(app, msg_idx, tool_idx, visible),
+        SharedToolRenderKind::Lsp => tool_lsp_view(app, msg_idx, tool_idx, visible),
+        SharedToolRenderKind::Mcp => tool_mcp_view(app, msg_idx, tool_idx, visible),
+        SharedToolRenderKind::GitDiff => tool_git_diff_view(app, msg_idx, tool_idx, visible),
+        SharedToolRenderKind::Question => tool_question_view(app, msg_idx, tool_idx, visible),
+        SharedToolRenderKind::Web => tool_web_view(app, msg_idx, tool_idx, visible),
+        SharedToolRenderKind::Advanced => tool_advanced_view(app, msg_idx, tool_idx, visible),
+        SharedToolRenderKind::Skill => tool_skill_view(app, msg_idx, tool_idx, visible),
+        SharedToolRenderKind::Workflow => tool_workflow_view(app, msg_idx, tool_idx, visible),
         SharedToolRenderKind::Text => tool_text_view(app, msg_idx, tool_idx, visible),
-    }
+    })
 }

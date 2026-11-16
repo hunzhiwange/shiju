@@ -1,17 +1,21 @@
 //! 验证聊天消息视图构建。
 //! 测试聚焦消息类型与渲染输出的映射，防止 UI 回归影响可读性。
 
-use super::message_view::{message_surface_contract, message_surface_style, message_view, parse_markdown_blocks, should_use_user_message_editor};
-use crate::app::App;
-use crate::app::models::{ChatRenderCacheEntry, ChatRole, ThinkTiming};
+use super::should_use_user_message_editor;
+use crate::host_module_5_tests::fixture::RenderFixture as App;
+use crate::host_module_5_tests::message_view;
+use crate::message_view::markdown::parse_markdown_blocks;
+use crate::message_view::styles::{message_surface_contract, message_surface_style};
+use crate::render_cache::ChatRenderCacheEntry;
 use iced::advanced::renderer::Headless;
 use iced::advanced::widget::Tree;
 use iced::advanced::{Layout, layout, mouse, renderer};
 use iced::widget::{column, container};
 use iced::{Background, Color, Font, Length, Pixels, Rectangle, Size, Theme};
 use serde_json::Map;
-use std::borrow::Cow;
 use session_ui_types::ProcessingTiming;
+use session_ui_types::{ChatRole, ThinkTiming};
+use std::borrow::Cow;
 
 #[test]
 fn user_message_falls_back_to_source_text_while_selectable_editor_is_empty() {
@@ -179,14 +183,15 @@ async fn message_visual_contract_renders_complex_content_in_light_and_dark_theme
             ),
         ]
         .spacing(24);
-        let mut element: iced::Element<'_, crate::app::Message> = container(messages)
-            .padding(32)
-            .width(Length::Fill)
-            .style(|theme: &Theme| iced::widget::container::Style {
-                background: Some(Background::Color(theme.palette().background)),
-                ..Default::default()
-            })
-            .into();
+        let mut element: iced::Element<'_, crate::host_module_5_tests::fixture::Message> =
+            container(messages)
+                .padding(32)
+                .width(Length::Fill)
+                .style(|theme: &Theme| iced::widget::container::Style {
+                    background: Some(Background::Color(theme.palette().background)),
+                    ..Default::default()
+                })
+                .into();
         let mut renderer =
             <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
                 .await

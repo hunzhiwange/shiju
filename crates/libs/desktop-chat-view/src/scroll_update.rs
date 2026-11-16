@@ -71,3 +71,36 @@ pub fn apply_message_measurements(virtualizer: &mut ChatVirtualizer, measured_he
     }
     changed
 }
+
+/// Resolve generation/revision-qualified layout receipts before changing heights.
+pub fn apply_targeted_message_measurements(
+    virtualizer: &mut ChatVirtualizer,
+    measured: &mut HashMap<usize, f32>,
+    len: usize,
+    timeline: Option<&desktop_session::session::chat_timeline::PagedChatTimeline>,
+    measurements: Vec<crate::message_measure::ChatMessageMeasurement>,
+) -> bool {
+    let mut projected = Vec::with_capacity(measurements.len());
+    for measurement in measurements {
+        if !measurement.height.is_finite() {
+            continue;
+        }
+        let index = if let Some(target) = &measurement.target {
+            let Some(timeline) = timeline else { continue };
+            if !timeline.accepts_entry_result(
+                &target.session_id,
+                target.generation,
+                &target.key,
+                target.revision,
+            ) {
+                continue;
+            }
+            let Some(index) = timeline.index_of(&target.key) else { continue };
+            index
+        } else {
+            measurement.message_idx
+        };
+        projected.push((index, measurement.height));
+    }
+    apply_message_measurements(virtualizer, measured, len, projected)
+}

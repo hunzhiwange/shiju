@@ -1,9 +1,9 @@
-use super::global_status::chat_global_status_view;
-use crate::app::{App, models::{ChatMessage, ChatRole, TokenUsage}};
+use super::status_fixture::{StatusFixture as App, chat_global_status_view};
 #[cfg(not(target_arch = "wasm32"))]
 use iced::advanced::{Layout, layout, renderer::Headless, widget::Tree};
 #[cfg(not(target_arch = "wasm32"))]
 use iced::{Font, Pixels, Size};
+use session_ui_types::{ChatMessage, ChatRole, TokenUsage};
 fn assistant(content: &str) -> ChatMessage {
     ChatMessage {
         role: ChatRole::Assistant,
@@ -22,7 +22,7 @@ async fn thinking_pulse_shapes_all_animation_frames_with_fixed_layout() {
             .await
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
-    app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
+    app.requesting = true;
     app.chat.push(assistant("<think>正在分析界面渲染</think>"));
     let limits = layout::Limits::new(Size::ZERO, Size::new(800.0, 100.0));
     let mut expected = None;
@@ -47,8 +47,8 @@ async fn thinking_pulse_shapes_all_animation_frames_with_fixed_layout() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test(flavor = "multi_thread")]
 async fn global_status_spinner_rotates_at_text_height() {
-    use super::global_status::COMPACT_ACTIVITY_SLOT_SIZE;
-    use crate::app::components::status_animation::STATUS_SPINNER_FRAMES;
+    use crate::global_status::COMPACT_ACTIVITY_SLOT_SIZE;
+    use desktop_ui_controls::status_animation::STATUS_SPINNER_FRAMES;
     use iced::advanced::{mouse, renderer::Renderer as _, renderer::Style};
     use iced::{Rectangle, Theme};
 
@@ -56,7 +56,7 @@ async fn global_status_spinner_rotates_at_text_height() {
         .await
         .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
-    app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
+    app.requesting = true;
     app.chat.push(assistant(
         "tool read\n{\"status\":\"running\",\"input\":\"{\\\"filePath\\\":\\\"含中文/很长的工具摘要.rs\\\"}\"}",
     ));
@@ -118,8 +118,8 @@ fn global_status_view_builds_for_hidden_and_visible_states() {
     let _hidden = chat_global_status_view(&app);
     drop(_hidden);
 
-    app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
-    app.current_session_runtime_mut().request_lifecycle.request_started_ms = 1;
+    app.requesting = true;
+    app.started = 1;
     app.chat.push(assistant(
         "tool read\n{\"status\":\"running\",\"input\":\"{\\\"filePath\\\":\\\"src/app.rs\\\"}\"}",
     ));
@@ -138,7 +138,7 @@ async fn global_status_detail_fills_remaining_width() {
                 .await
                 .expect("tiny-skia headless renderer should be available");
         let mut app = App::new().0;
-        app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
+        app.requesting = true;
         app.chat.push(assistant(&format!("<think>{}</think>", "很长的思考内容".repeat(40))));
 
         let mut element = chat_global_status_view(&app);
@@ -164,7 +164,7 @@ async fn global_status_keeps_height_during_request_state_transitions() {
             .await
             .expect("headless renderer");
     let mut app = App::new().0;
-    app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
+    app.requesting = true;
     let limits = layout::Limits::new(Size::ZERO, Size::new(480.0, 100.0));
     let mut expected_height = None;
     for content in [
@@ -189,7 +189,7 @@ async fn global_status_keeps_height_during_request_state_transitions() {
             }
         }
     }
-    app.current_session_runtime_mut().request_lifecycle.is_requesting = false;
+    app.requesting = false;
     let mut element = chat_global_status_view(&app);
     let mut tree = Tree::new(element.as_widget());
     let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);

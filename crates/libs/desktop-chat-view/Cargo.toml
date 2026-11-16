@@ -43,4 +43,5 @@ git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh
 [dev-dependencies]
 iced_runtime = "0.14"
 tempfile = "3"
-tokio = { version = "1", features = ["macros", "rt"] }
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
+image = "0.25.9"

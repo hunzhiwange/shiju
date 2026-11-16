@@ -1,6 +1,6 @@
 //! Complete message rendering suite migrated from the desktop host.
 mod assistant_body;
-mod fixture;
+pub(crate) mod fixture;
 mod markdown;
 mod markdown_links;
 mod markdown_rich;
@@ -50,7 +50,7 @@ mod think_block {
 fn selected_chat_text_for_message(app: &RenderFixture, m: usize) -> Option<String> {
     desktop_chat_tools::tool_text_support::selected_chat_text_for_message(&app.text_state(), m)
 }
-fn message_view<'a>(
+pub(crate) fn message_view<'a>(
     app: &'a RenderFixture,
     m: usize,
     role: session_ui_types::ChatRole,

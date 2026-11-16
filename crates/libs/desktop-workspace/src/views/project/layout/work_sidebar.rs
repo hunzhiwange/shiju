@@ -88,13 +88,21 @@ fn task_button(task: &WorkTaskItem, render: &dyn Fn(&WorkTaskItem) -> TaskPresen
     });
     if task.details.pending { return content; }
     let id = task.id.clone();
-    let right_click: Element<'static, Message> = RightClickArea::new(content, Box::new(move |position| {
-        Message::Project(ProjectMessage::SessionRightClicked(id.clone(), position.x, position.y))
-    })).into();
-    if let Some((path, disabled, anchor)) = presentation.menu {
-        PointBelowOverlay::new(right_click, build_session_menu(desktop_i18n::I18n::new(presentation.row.desktop_locale), task.id.clone(), path, disabled).map(Message::Session))
-            .show(true).anchor(anchor).on_close(Message::Project(ProjectMessage::SessionMenuClose)).into()
-    } else { right_click }
+    let menu = presentation.menu.map(|(path, disabled, anchor)| (
+        build_session_menu(desktop_i18n::I18n::new(presentation.row.desktop_locale), task.id.clone(), path, disabled).map(Message::Session), anchor,
+    ));
+    session_context_menu(content, move |position| Message::Project(ProjectMessage::SessionRightClicked(id.clone(), position.x, position.y)), menu, Message::Project(ProjectMessage::SessionMenuClose))
+}
+
+/// Shared right-click and anchored-menu layout for a sidebar task.
+pub fn session_context_menu<'a, M: Clone + 'a>(
+    content: Element<'a, M>, right_click: impl Fn(Point) -> M + 'a,
+    menu: Option<(Element<'a, M>, Point)>, close: M,
+) -> Element<'a, M> {
+    let content: Element<'a, M> = RightClickArea::new(content, Box::new(right_click)).into();
+    if let Some((menu, anchor)) = menu {
+        PointBelowOverlay::new(content, menu).show(true).anchor(anchor).on_close(close).into()
+    } else { content }
 }
 
 mod lists;
@@ -236,3 +244,35 @@ pub struct ViewInput<'a> {
 #[cfg(test)]
 #[path = "work_sidebar/tests.rs"]
 mod tests;
+
+/// Current-project controls share the sidebar's project labels and local events.
+pub fn current_project_card(
+    input: &ViewInput<'_>,
+    path: Option<&str>,
+    labels: &[String],
+    menu: Option<&str>,
+) -> Option<Element<'static, Message>> {
+    let path = path?;
+    let owned_path = path.to_owned();
+    Some(
+        container(
+            sessions_panel::project_sessions_header_with_tools(
+                desktop_i18n::I18n::new(input.desktop_locale),
+                project_label(input.recent_projects, labels, path),
+                path.to_owned(),
+                false,
+                sessions_panel::Message::HeaderToolsToggle,
+                menu == Some(path),
+                input.project_sessions_loading.contains(path),
+            )
+            .map(move |event| match event {
+                sessions_panel::Message::HeaderToolsToggle => {
+                    Message::Project(ProjectMessage::CurrentProjectMenuToggled(owned_path.clone()))
+                }
+                event => Message::Session(event),
+            }),
+        )
+        .padding([6, 10])
+        .into(),
+    )
+}

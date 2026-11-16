@@ -8,7 +8,7 @@ use session_info::{Info, TimeInfo};
 
 use crate::app::message::{ProjectMessage, ShijuAppsMessage, SkillHubMessage, ViewMessage};
 use crate::app::state::{
-    WorkSidebarFilterScope, WorkSidebarFilterStatus, WorkSidebarFilterTime, WorkSidebarTab,
+    WorkSidebarFilterStatus, WorkSidebarTab,
 };
 use crate::app::{App, Message};
 
@@ -125,168 +125,8 @@ fn work_sidebar_shows_running_draft_until_history_is_available() {
     assert!(!published.tasks[0].details.pending);
 }
 
-#[test]
-fn work_sidebar_hides_archived_task_and_shows_restored_task() {
-    let mut app = App::new().0;
-    let path = "/workspace/archive";
-    app.recent_projects = vec![path.into()];
-    app.navigation_tabs.project_path = Some(path.into());
-    let mut task = child_session("task", "root", "Task", path, 20);
-    task.slug = Info::visible_task_slug(&task.slug);
-    task.time.archived = Some(30);
-    app.project_sessions.insert(path.into(), vec![session("root", "Root", path, 10), task]);
-    assert_eq!(
-        work_sidebar::model(&app).tasks.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(),
-        ["root"]
-    );
-    app.project_sessions.get_mut(path).expect("project")[1].time.archived = None;
-    assert_eq!(
-        work_sidebar::model(&app).tasks.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(),
-        ["task", "root"]
-    );
-}
 
-#[test]
-fn work_sidebar_shows_visible_task_in_own_project() {
-    let mut app = App::new().0;
-    let alpha = "/workspace/alpha";
-    let beta = "/workspace/beta";
-    app.recent_projects = vec![alpha.into(), beta.into()];
-    app.navigation_tabs.project_path = Some(alpha.into());
-    app.navigation_workspace.work_expanded_spaces.insert(alpha.into());
-    app.navigation_workspace.work_expanded_spaces.insert(beta.into());
 
-    let mut visible = child_session("visible", "alpha-root", "Visible", alpha, 20);
-    visible.slug = Info::visible_task_slug(&visible.slug);
-    let mut wrong_project = child_session("wrong-project", "alpha-root", "Wrong", beta, 30);
-    wrong_project.slug = Info::visible_task_slug(&wrong_project.slug);
-    let mut wrong_project_id =
-        child_session("wrong-project-id", "alpha-root", "Wrong ID", alpha, 35);
-    wrong_project_id.slug = Info::visible_task_slug(&wrong_project_id.slug);
-    wrong_project_id.project_id = "other-project".into();
-    let mut plan_run = child_session("plan-run", "alpha-root", "Plan", alpha, 40);
-    plan_run.slug = "plan-run-child".into();
-    app.project_sessions.insert(
-        alpha.into(),
-        vec![
-            session("alpha-root", "Root", alpha, 10),
-            visible.clone(),
-            child_session("subagent", "alpha-root", "Internal", alpha, 50),
-            plan_run,
-            wrong_project,
-            wrong_project_id,
-        ],
-    );
-    app.project_sessions.insert(beta.into(), vec![session("beta-root", "Beta", beta, 5)]);
-
-    for _ in 0..2 {
-        let model = work_sidebar::model(&app);
-        assert_eq!(
-            model.tasks.iter().map(|task| task.id.as_str()).collect::<Vec<_>>(),
-            ["visible", "alpha-root", "beta-root"]
-        );
-        assert_eq!(
-            model.spaces[0].sessions.iter().map(|task| task.id.as_str()).collect::<Vec<_>>(),
-            ["visible", "alpha-root"]
-        );
-        assert_eq!(
-            model.spaces[1].sessions.iter().map(|task| task.id.as_str()).collect::<Vec<_>>(),
-            ["beta-root"]
-        );
-        app.project_sessions.get_mut(alpha).unwrap().retain(|item| item.id != "visible");
-        app.project_sessions.get_mut(alpha).unwrap().push(visible.clone());
-    }
-}
-
-#[test]
-fn work_sidebar_builds_workbuddy_sections_from_real_projects() {
-    let mut app = App::new().0;
-    app.recent_projects = vec!["/workspace/alpha".into(), "/workspace/beta".into()];
-    app.recent_projects_edits = vec!["阿尔法空间".into(), "Beta".into()];
-    app.project_sessions.insert(
-        "/workspace/alpha".into(),
-        vec![
-            session("older", "较早任务", "/workspace/alpha", 10),
-            child_session("newest-child", "newest", "不应显示的子任务", "/workspace/alpha", 50),
-            session("newest", "最新任务", "/workspace/alpha", 40),
-        ],
-    );
-    app.project_sessions.insert(
-        "/workspace/beta".into(),
-        vec![session("middle", "Middle task", "/workspace/beta", 20)],
-    );
-    app.navigation_tabs.project_path = Some("/workspace/alpha".into());
-    app.navigation_workspace.work_expanded_spaces.insert("/workspace/alpha".into());
-    app.hovered_recent_project = Some("/workspace/alpha".into());
-    app.project_tools_menu_path = Some("/workspace/alpha".into());
-
-    let model = work_sidebar::model(&app);
-
-    assert_eq!(
-        model
-            .tasks
-            .iter()
-            .map(|task| match &task.message {
-                sidebar_events::Message::Project(sidebar_events::ProjectMessage::OpenProjectSessionPressed(_, id)) => id.as_str(),
-                _ => panic!("task should use the existing project session open message"),
-            })
-            .collect::<Vec<_>>(),
-        ["newest", "middle", "older"]
-    );
-    assert_eq!(
-        model.tasks.iter().map(|task| task.id.as_str()).collect::<Vec<_>>(),
-        ["newest", "middle", "older"],
-        "top-level tasks should retain their real session IDs"
-    );
-    assert_eq!(
-        model.spaces.iter().map(|space| space.label.as_str()).collect::<Vec<_>>(),
-        ["阿尔法空间", "Beta"]
-    );
-    assert!(model.spaces[0].selected);
-    assert!(!model.spaces[1].selected);
-    assert!(model.spaces[0].expanded);
-    assert_eq!(model.spaces[0].sessions.len(), 2);
-    assert_eq!(
-        model.spaces[0].sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(),
-        ["newest", "older"],
-        "expanded-space tasks should retain their real session IDs"
-    );
-    assert!(model.spaces[0].hovered);
-    assert!(model.spaces[0].tools_open);
-    assert!(!model.spaces[1].expanded);
-    assert!(model.spaces[1].sessions.is_empty());
-    assert!(!model.spaces[1].hovered);
-    assert!(!model.spaces[1].tools_open);
-    assert_eq!(model.tasks[0].details.updated, 40);
-
-    let sidebar_events::Message::Project(sidebar_events::ProjectMessage::SwitchWorkSpacePressed(path)) =
-        model.spaces[0].message.clone()
-    else {
-        panic!("space should use the work-mode project switch message");
-    };
-    assert_eq!(path, "/workspace/alpha");
-
-    let sidebar_events::Message::View(sidebar_events::ViewMessage::WorkSpaceToggled(path)) = model.spaces[0].toggle_message.clone()
-    else {
-        panic!("space disclosure should preserve the existing expansion message");
-    };
-    assert_eq!(path, "/workspace/alpha");
-
-    let sidebar_events::Message::Project(sidebar_events::ProjectMessage::OpenProjectSessionPressed(directory, id)) =
-        model.spaces[0].sessions[0].message.clone()
-    else {
-        panic!("expanded space task should use the existing project session open message");
-    };
-    assert_eq!(directory, "/workspace/alpha");
-    assert_eq!(id, "newest");
-
-    let Message::Project(ProjectMessage::ProjectToolsMenuToggled(path)) =
-        model.spaces[0].tools_message.clone()
-    else {
-        panic!("space tools action should toggle that space menu");
-    };
-    assert_eq!(path, "/workspace/alpha");
-}
 
 #[test]
 fn work_sidebar_projects_runtime_status_for_main_tasks_only() {
@@ -484,74 +324,7 @@ async fn shared_session_row_renders_pin_without_hover_in_both_themes() {
     }
 }
 
-#[test]
-fn work_sidebar_paginates_tasks_and_spaces_from_ten_in_steps_of_five() {
-    let mut app = App::new().0;
-    app.recent_projects.clear();
-    app.recent_projects_edits.clear();
-    app.project_sessions.clear();
-    for index in 0..13 {
-        let path = format!("/workspace/project-{index:02}");
-        app.recent_projects.push(path.clone());
-        app.project_sessions.insert(
-            path.clone(),
-            vec![session(
-                &format!("session-{index:02}"),
-                &format!("任务 {index:02}"),
-                &path,
-                index as u64,
-            )],
-        );
-    }
 
-    let initial = work_sidebar::model(&app);
-    assert_eq!(initial.tasks.len(), 10);
-    assert_eq!(initial.task_total, 13);
-    assert_eq!(initial.spaces.len(), 10);
-    assert_eq!(initial.space_total, 13);
-
-    app.navigation_sidebar.work_sidebar_visible_tasks += 5;
-    app.navigation_sidebar.work_sidebar_visible_spaces += 5;
-    let loaded = work_sidebar::model(&app);
-    assert_eq!(loaded.tasks.len(), 13);
-    assert_eq!(loaded.spaces.len(), 13);
-}
-
-#[test]
-fn work_sidebar_paginates_expanded_space_tasks_from_twenty() {
-    let mut app = App::new().0;
-    app.recent_projects.clear();
-    app.recent_projects_edits.clear();
-    app.project_sessions.clear();
-    let path = "/workspace/alpha".to_string();
-    app.recent_projects.push(path.clone());
-    app.navigation_workspace.work_expanded_spaces.insert(path.clone());
-    app.project_sessions.insert(
-        path.clone(),
-        (0..25)
-            .map(|index| {
-                session(
-                    &format!("session-{index:02}"),
-                    &format!("任务 {index:02}"),
-                    &path,
-                    (25 - index) as u64,
-                )
-            })
-            .collect(),
-    );
-
-    let initial = work_sidebar::model(&app);
-    assert_eq!(initial.spaces.len(), 1);
-    assert_eq!(initial.spaces[0].session_total, 25);
-    assert_eq!(initial.spaces[0].sessions.len(), 20);
-    assert_eq!(initial.spaces[0].sessions[0].id, "session-00");
-    assert_eq!(initial.spaces[0].sessions[19].id, "session-19");
-
-    app.navigation_sidebar.work_sidebar_space_task_visible.insert(path, 40);
-    let loaded = work_sidebar::model(&app);
-    assert_eq!(loaded.spaces[0].sessions.len(), 25);
-    assert_eq!(loaded.spaces[0].session_total, 25);
-}
 
 #[test]
 fn work_sidebar_navigation_routes_project_actions() {
@@ -567,40 +340,6 @@ fn work_sidebar_navigation_routes_project_actions() {
     ));
 }
 
-#[test]
-fn work_sidebar_filters_sessions_by_project_and_update_time() {
-    let mut app = App::new().0;
-    let now = runtime_time::now_ms();
-    app.recent_projects = vec!["/workspace/alpha".into(), "/workspace/beta".into()];
-    app.recent_projects_edits.clear();
-    app.navigation_tabs.project_path = Some("/workspace/alpha".into());
-    app.project_sessions.insert(
-        "/workspace/alpha".into(),
-        vec![session("current", "当前项目", "/workspace/alpha", now)],
-    );
-    app.project_sessions.insert(
-        "/workspace/beta".into(),
-        vec![session(
-            "old",
-            "旧项目",
-            "/workspace/beta",
-            now.saturating_sub(8 * 24 * 60 * 60 * 1_000),
-        )],
-    );
-
-    app.navigation_sidebar.work_sidebar_filter_scope = WorkSidebarFilterScope::CurrentProject;
-    let current_project = work_sidebar::model(&app);
-    assert_eq!(current_project.tasks.len(), 1);
-    assert_eq!(current_project.spaces.len(), 1);
-    assert_eq!(current_project.spaces[0].label, "alpha");
-
-    app.navigation_sidebar.work_sidebar_filter_scope = WorkSidebarFilterScope::All;
-    app.navigation_sidebar.work_sidebar_filter_time = WorkSidebarFilterTime::LastSevenDays;
-    let recent = work_sidebar::model(&app);
-    assert_eq!(recent.tasks.len(), 1);
-    assert_eq!(recent.spaces.len(), 1);
-    assert_eq!(recent.spaces[0].label, "alpha");
-}
 
 #[test]
 fn work_sidebar_filters_sessions_by_runtime_status() {
@@ -849,43 +588,7 @@ async fn work_sidebar_task_pool_control_reuses_code_mode_entry() {
     ));
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn work_sidebar_replaces_search_row_with_compact_header() {
-    let renderer =
-        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
-            .await
-            .expect("tiny-skia headless renderer should be available");
-    let app = App::new().0;
-    let mut sidebar = work_sidebar::view(&app);
-    let limits = layout::Limits::new(Size::ZERO, VIEWPORT);
-    let mut tree = Tree::new(sidebar.as_widget());
-    let node = sidebar.as_widget_mut().layout(&mut tree, &renderer, &limits);
-    let column = Layout::new(&node).child(1).child(0);
 
-    assert_eq!(app.navigation_sidebar.work_sidebar_tab, WorkSidebarTab::Tasks);
-    assert_eq!(
-        column.children().count(),
-        3,
-        "navigation and tabs should stay outside the scrolling list"
-    );
-    assert_eq!(column.child(0).children().count(), 2, "expanded navigation keeps its header");
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn work_sidebar_uses_resizable_width_from_app_state() {
-    let renderer =
-        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
-            .await
-            .expect("tiny-skia headless renderer should be available");
-    let mut app = App::new().0;
-    app.layout_drag.work_sidebar_width = 420.0;
-    let mut sidebar = work_sidebar::view(&app);
-    let limits = layout::Limits::new(Size::ZERO, Size::new(520.0, 800.0));
-    let mut tree = Tree::new(sidebar.as_widget());
-    let node = sidebar.as_widget_mut().layout(&mut tree, &renderer, &limits);
-
-    assert_eq!(node.bounds().width, 420.0);
-}
 
 #[tokio::test(flavor = "multi_thread")]
 async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {

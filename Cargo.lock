@@ -8305,6 +8305,7 @@ dependencies = [
  "gateway-session",
  "hex",
  "iced",
+ "iced_runtime",
  "image",
  "message-types",
  "project-types",

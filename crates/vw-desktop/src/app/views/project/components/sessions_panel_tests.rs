@@ -96,72 +96,9 @@ fn queue_item(query: &str) -> QueueItem {
     }
 }
 
-#[test]
-fn session_items_build_loading_empty_and_load_button_states() {
-    let app = test_app();
-    keep_element(session_items_list(&app, "/tmp/project", None, "Project", 10, false));
-    keep_element(session_items_list(&app, "/tmp/project", Some(&Vec::new()), "Project", 10, false));
-    keep_element(session_items_list(&app, "/tmp/project", None, "Project", 10, true));
-}
 
-#[test]
-fn session_tree_projects_only_main_tasks_regardless_of_expansion() {
-    let mut older_root = session("older-root", "Older root", "/tmp/project", false);
-    older_root.time.updated = 10;
-    let mut newer_root = session("newer-root", "Newer root", "/tmp/project", false);
-    newer_root.time.updated = 50;
-    let child = child_session("child", "newer-root", 40);
-    let sibling = child_session("sibling", "newer-root", 20);
-    let grandchild = child_session("grandchild", "child", 30);
-    let sessions = vec![older_root, sibling, grandchild, newer_root, child];
 
-    let collapsed = session_tree_projection(&sessions, 1, &HashSet::new());
-    assert_eq!(collapsed.total_roots, 2);
-    assert_eq!(
-        collapsed.rows.iter().map(|row| row.session.id.as_str()).collect::<Vec<_>>(),
-        vec!["newer-root"]
-    );
 
-    let parent_expanded = session_tree_projection(&sessions, 1, &HashSet::new());
-    assert_eq!(parent_expanded.total_roots, 2);
-    assert_eq!(
-        parent_expanded.rows.iter().map(|row| row.session.id.as_str()).collect::<Vec<_>>(),
-        vec!["newer-root"]
-    );
-
-    let recursively_expanded = session_tree_projection(&sessions, 1, &HashSet::new());
-    assert_eq!(
-        recursively_expanded.rows.iter().map(|row| row.session.id.as_str()).collect::<Vec<_>>(),
-        vec!["newer-root"]
-    );
-
-    let app = test_app();
-    keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), "Project", 1, false));
-}
-
-#[test]
-fn session_items_filters_archived_and_shows_load_more() {
-    let app = test_app();
-    let sessions = vec![
-        session("s1", "可见会话一", "/tmp/project", false),
-        session("s2", "已归档会话", "/tmp/project", true),
-        session("s3", "可见会话二", "/tmp/project/worktree-a", false),
-    ];
-
-    keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), "Project", 1, false));
-    keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), "Project", 0, false));
-}
-
-#[test]
-fn session_items_reports_empty_when_only_archived_sessions_exist() {
-    let app = test_app();
-    let sessions = vec![
-        session("s1", "归档一", "/tmp/project", true),
-        session("s2", "归档二", "/tmp/project/worktree-a", true),
-    ];
-
-    keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), "Project", 10, false));
-}
 
 #[test]
 fn session_items_builds_runtime_status_variants() {
@@ -192,56 +129,9 @@ fn session_items_builds_runtime_status_variants() {
     keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), "Project", 10, false));
 }
 
-#[test]
-fn session_items_builds_missing_summary_menu_default_anchor_and_no_load_more() {
-    let mut app = test_app();
-    app.session_menu_id = Some("summaryless".to_string());
-    app.session_menu_anchor = None;
 
-    let mut summaryless = session("summaryless", "没有摘要的会话", "/", false);
-    summaryless.summary = None;
-    let sessions =
-        vec![summaryless, session("normal", "普通会话", "/tmp/project/worktree-d", false)];
 
-    keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), "Project", 10, false));
-}
 
-#[test]
-fn project_panel_builds_empty_and_selected_project_states() {
-    let mut app = test_app();
-    keep_element(project_sessions_panel(&app, None));
-
-    app.recent_projects.push("/tmp/project".to_string());
-    keep_element(project_sessions_panel(&app, None));
-
-    app.recent_projects_edits.push("自定义项目名".to_string());
-    app.project_tools_menu_path = Some("/tmp/project".to_string());
-    app.project_session_has_vertical_scrollbar.insert("/tmp/project".to_string(), true);
-    app.project_session_load_counts.insert("/tmp/project".to_string(), 1);
-    app.project_sessions.insert(
-        "/tmp/project".to_string(),
-        vec![
-            session("s1", "第一条会话", "/tmp/project", false),
-            session("s2", "第二条会话", "/tmp/project/worktree-c", false),
-        ],
-    );
-
-    keep_element(project_sessions_panel(&app, Some("/tmp/project".to_string())));
-
-    app.project_sessions_loading.insert("/tmp/loading".to_string());
-    keep_element(project_sessions_panel(&app, Some("/tmp/loading".to_string())));
-}
-
-#[test]
-fn project_panel_uses_path_fallback_for_unknown_or_blank_recent_names() {
-    let mut app = test_app();
-    app.recent_projects = vec!["/tmp/project".to_string()];
-    app.recent_projects_edits = vec!["   ".to_string()];
-    app.navigation_tabs.project_path = Some("/tmp/project".to_string());
-
-    keep_element(project_sessions_panel(&app, Some("/tmp/project".to_string())));
-    keep_element(project_sessions_panel(&app, Some("/tmp/unknown-project".to_string())));
-}
 #[test]
 fn plan_run_live_children_integrate_with_session_visibility() {
     const REQUEST_ID: u64 = 42;

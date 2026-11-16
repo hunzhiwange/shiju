@@ -1,16 +1,11 @@
 //! 工作侧栏的桌面输入与跨域消息适配。
 use iced::{Element, Point};
-use iced::widget::container;
 use crate::app::{App, Message};
 #[cfg(test)]
 use crate::app::message::ProjectMessage;
 use super::super::components::running_draft_sessions;
 #[cfg(test)]
 use super::super::components::build_session_menu;
-#[cfg(test)]
-use crate::app::components::widgets::RightClickArea;
-#[cfg(test)]
-use crate::app::components::overlays::PointBelowOverlay;
 pub(crate) use desktop_workspace::views::project::layout::work_sidebar as domain;
 pub(crate) use domain::WorkSidebarModel;
 #[cfg(test)]
@@ -120,15 +115,7 @@ new_session_creating: app.new_session_creating,
 }}
 pub(super) fn view(app: &App) -> Element<'_, Message> {
  let model = cached_model(app);
- let card = app.navigation_tabs.project_path.as_deref().map(|path| container(
- desktop_workspace::views::project::components::sessions_panel::project_sessions_header_with_tools(
- crate::app::i18n::I18n::new(app.desktop_locale), domain::project_label(&app.recent_projects, &app.recent_projects_edits, path), path.to_owned(), false,
- desktop_workspace::views::project::components::sessions_panel::Message::HeaderToolsToggle,
- app.navigation_mode.work_current_project_menu.as_deref() == Some(path), app.project_sessions_loading.contains(path),
- ).map({let path = path.to_owned(); move |event| match event {
- desktop_workspace::views::project::components::sessions_panel::Message::HeaderToolsToggle => domain::events::Message::Project(domain::events::ProjectMessage::CurrentProjectMenuToggled(path.clone())),
- event => domain::events::Message::Session(event),
- }})).padding([6,10]).into());
+ let card = domain::current_project_card(&input(app), app.navigation_tabs.project_path.as_deref(), &app.recent_projects_edits, app.navigation_mode.work_current_project_menu.as_deref());
  let render = |task: &domain::WorkTaskItem| {
  let mut row = super::super::components::session_row::row_input(app, &task.id, task.details.title(), task.details.updated);
  row.pinned = app.session_ui_projection.pinned.contains(&(task.details.project_id().to_owned(), task.id.clone()));
@@ -166,43 +153,10 @@ pub(super) fn task_session_context_menu(
     id: String,
     content: Element<'static, Message>,
 ) -> Element<'static, Message> {
-    let id_for_right_click = std::rc::Rc::new(id.clone());
-    let right_click = Element::new(RightClickArea::new(
-        content,
-        Box::new(move |position| {
-            Message::Project(ProjectMessage::SessionRightClicked(
-                (*id_for_right_click).clone(),
-                position.x,
-                position.y,
-            ))
-        }),
-    ));
-
-    if app.session_menu_id.as_ref() == Some(&id) {
-        let project_path = app
-            .known_session_directory(&id)
-            .or_else(|| app.navigation_tabs.project_path.clone())
-            .unwrap_or_default();
-        let compacting = app
-            .sessions
-            .iter()
-            .chain(app.project_sessions.values().flatten())
-            .find(|session| session.id == id)
-            .is_some_and(|session| session.time.compacting.is_some());
-        PointBelowOverlay::new(
-            right_click,
-            build_session_menu(
-                crate::app::i18n::I18n::new(app.desktop_locale),
-                id.clone(),
-                project_path,
-                app.session_is_requesting(&id) || compacting,
-            ),
-        )
-        .show(true)
-        .anchor(app.session_menu_anchor.unwrap_or(Point::ORIGIN))
-        .on_close(Message::Project(ProjectMessage::SessionMenuClose))
-        .into()
-    } else {
-        right_click
-    }
+    let menu = (app.session_menu_id.as_ref() == Some(&id)).then(|| {
+        let path = app.known_session_directory(&id).or_else(|| app.navigation_tabs.project_path.clone()).unwrap_or_default();
+        let compacting = app.sessions.iter().chain(app.project_sessions.values().flatten()).find(|session| session.id == id).is_some_and(|session| session.time.compacting.is_some());
+        (build_session_menu(crate::app::i18n::I18n::new(app.desktop_locale), id.clone(), path, app.session_is_requesting(&id) || compacting), app.session_menu_anchor.unwrap_or(Point::ORIGIN))
+    });
+    domain::session_context_menu(content, move |position| Message::Project(ProjectMessage::SessionRightClicked(id.clone(), position.x, position.y)), menu, Message::Project(ProjectMessage::SessionMenuClose))
 }

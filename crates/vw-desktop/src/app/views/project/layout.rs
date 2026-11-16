@@ -2,11 +2,10 @@
 //!
 //! 本模块只负责视图组合与样式适配，不持有业务状态，也不扩大外部能力边界。
 
-use iced::widget::{Space, column, stack};
+use iced::widget::Space;
 use iced::{Element, Length};
 
 use crate::app::components::chat_panel;
-use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message};
 
 mod bottom;
@@ -31,9 +30,8 @@ mod work_sidebar_tests;
 mod work_tests;
 
 use bottom::bottom_panel;
-use chrome::right_column_chrome;
 use main::main_area;
-use sidebar::{hover_overlay_layout, sidebar_group};
+use sidebar::sidebar_group;
 pub use work::build_work_layout;
 
 #[cfg(test)]
@@ -78,42 +76,38 @@ pub fn build_base_layout(
         corner_radius,
     );
 
-    let main = iced::widget::container(main_area(
-        app,
-        spacing,
-        content_pad,
-        chat_content_pad,
-        corner_radius,
-    ))
-    .width(Length::Fill)
-    .height(Length::Fill);
-
-    let right_column_base: Element<'_, Message> = column![main].height(Length::Fill).into();
-    let right_overlay: Element<'_, Message> = chat_panel::tool_dialog_overlay(app)
-        .unwrap_or_else(|| Space::new().width(Length::Fill).height(Length::Fill).into());
-    let right_column: Element<'_, Message> =
-        stack![right_column_base, right_overlay].width(Length::Fill).height(Length::Fill).into();
-    let right_column = right_column_chrome(right_column, corner_radius, WorkspaceMode::Code);
-
-    let workspace: Element<'_, Message> = if let Some(handle) = left_resize_handle {
-        iced::widget::row![left_sidebar, handle, right_column].spacing(spacing).into()
+    let hover_panel = if left_resize_handle.is_none() {
+        app.hovered_recent_project.clone().map(|path| {
+            sessions_panel::project_sessions_panel_container(
+                app,
+                settings_panel_width,
+                left_rail_width,
+                session_panel_width_scale,
+                corner_radius,
+                Some(path),
+            )
+        })
     } else {
-        hover_overlay_layout(
-            app,
-            left_sidebar,
-            right_column,
-            settings_panel_width,
-            left_rail_width,
-            session_panel_width_scale,
-            corner_radius,
-            spacing,
-        )
+        None
     };
-
-    desktop_workspace::views::project::layout::build_base_layout(
-        workspace,
-        if app.chat_panel_fullscreen || app.git.git_diff_fullscreen || !app.terminal.is_visible { Space::new().into() } else { bottom_panel(app) },
-        app.chat_panel_fullscreen || app.git.git_diff_fullscreen || !app.terminal.is_visible,
+    desktop_workspace::views::project::layout::code_workspace(
+        left_sidebar,
+        left_resize_handle,
+        main_area(app, spacing, content_pad, chat_content_pad, corner_radius),
+        chat_panel::tool_dialog_overlay(app)
+            .unwrap_or_else(|| Space::new().width(Length::Fill).height(Length::Fill).into()),
+        hover_panel,
+        Message::Project(crate::app::message::ProjectMessage::RecentOverlayClosed),
+        if app.chat_panel_fullscreen || app.git.git_diff_fullscreen || !app.terminal.is_visible {
+            None
+        } else {
+            Some(bottom_panel(app))
+        },
+        settings_panel_width,
+        left_rail_width,
+        session_panel_width_scale,
+        corner_radius,
+        spacing,
     )
 }
 

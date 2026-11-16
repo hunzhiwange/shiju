@@ -1,59 +1,16 @@
 //! HTTP regression coverage using production authentication, tenant and connection middleware.
-use model_types::Provider;
-use crate::app::agent::gateway::{self, AppState, GatewayRateLimiter, IdempotencyStore};
-use crate::app::agent::{
-    config::Config, memory::NoneMemory, security::pairing::PairingGuard,
-};
-use parking_lot::Mutex;
-use std::{net::SocketAddr, sync::Arc, time::Duration};
-struct StaticProvider;
-
-#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
-impl Provider for StaticProvider {
-    async fn chat_with_system(
-        &self,
-        _system_prompt: Option<&str>,
-        _message: &str,
-        _model: &str,
-        _temperature: f64,
-    ) -> anyhow::Result<String> {
-        Ok("ok".to_string())
-    }
-}
-
-// 状态 fixture 关闭外部依赖，只保留路由装配所需的最小共享组件。
-fn state() -> AppState {
-    AppState {
-        config: Arc::new(Mutex::new(Config::default())),
-        provider: Arc::new(StaticProvider),
-        model: "test-model".to_string(),
-        temperature: 0.0,
-        mem: Arc::new(NoneMemory::new()),
-        auto_save: false,
-        pairing: Arc::new(PairingGuard::new(true, &["drag-test-key".into()])),
-        trust_forwarded_headers: false,
-        rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
-        idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
-        tools_registry: Arc::new(Vec::new()),
-        tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
-        max_iterations: 10,
-        event_tx: tokio::sync::broadcast::channel(16).0,
-        session_query_engines: Default::default(),
-        hook_runtime: None,
-        channels: Default::default(),
-    }
-}
-
+use crate::app::agent::gateway;
+use std::net::SocketAddr;
 use agent_gateway::file_drag_contract::{self as contract, Server};
 async fn server(bootstrap: bool) -> Server {
     server_on(bootstrap, "127.0.0.1").await
 }
 async fn server_on(bootstrap: bool, host: &str) -> Server {
     if bootstrap {
-        let state = state();
+        // 状态 fixture 关闭外部依赖，只保留路由装配所需的最小共享组件。
+        let state: gateway::AppState = agent_gateway::gateway_test_fixture::state(
+            crate::config::Config::default(), true, &["drag-test-key".into()],
+        );
         let router = gateway::bootstrap::client_router(
             state.clone(),
             axum::Router::new(),

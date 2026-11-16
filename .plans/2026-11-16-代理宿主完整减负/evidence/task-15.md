@@ -446,3 +446,24 @@ agent-gateway::host_migration_15_tests 在 lib.rs 自注册，子模块 global/i
 静态核对：八个宿主测试名及注册顺序一致；三个路由函数体逐字一致；旧misc_tests与新宿主+领域联合assert/assert_eq/assert_ne计数分别7/5/0，无断言删除。trait端口、feature/dev依赖及原调用者逐项读取；diff --check通过。Cargo.lock仅手工登记现存tempfile依赖，解析/编译仍需未来验证。全仓减量尚须任务59重新审计，不宣称整轮门槛闭合。
 
 未来限定命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib gateway::api::handlers::misc::misc_tests -- --test-threads=1`，预期8条（其中5条调用领域契约，3条真实router检查）。本轮未执行；领域test_contract不是#[test]模块，不以其零测试过滤作为通过证据。既有agent-gateway host_migration_15_tests的43条独立领域测试未变化。
+
+## 再次恢复：全局/拖拽状态与环境夹具归还
+
+重新读取最新final.md、remaining-host.json。本任务metadata五候选已由2755407bc闭合，本轮处理文件拖拽与global残留。真实宿主业务端口/权限/根Router不移入库；原样的共享测试状态构造与环境生命周期集中到agent_gateway::gateway_test_fixture，三处真实调用：宿主global_tests、宿主file_drag_integration_tests、领域host_migration_15_tests::global。
+
+符号映射：三个StaticProvider/chat_with_system合并为该模块的同一静态provider；原state函数使用既有gateway_types::AppState<S,C,H>构造函数，S/C沿调用者原Default类型构造，H保持None，宿主保持其真实AppState类型别名。没有复制或新增AppState定义、没有复制真实session/channel/hook实现，没有将状态图换成伪类型。字段参数逐项保留：model=test-model、temperature=0、NoneMemory、PairingGuard真实输入、100/100/100限流、300秒/1000幂等、NoopObserver、10迭代、16容量event channel及原默认缓存/通道/hook。
+
+EnvGuard/set/unset/Drop和use_temp_config_dir从宿主global及领域global各自重复定义归为同一模块；仍恢复HOME/VIBEWINDOW_CONFIG_DIR/VIBEWINDOW_WORKSPACE，调用者原环境异步锁不动，tuple绑定继续保活三个守卫至测试结束。函数仅在test或既有test-support下编译，NoopObserver通过test-support可选依赖启用，已有dev依赖为领域lib测试服务。无新增非测试生产路径。
+
+具体保留：file_drag的server/server_on仍调用真实start或client_router、真实TcpListener与connect-info，五个同名测试仍调用领域契约；global保留共享skey启动源码契约、实际配置持久化准备、真实AppState类型、租户/token、bootstrap client_router、请求读取屏障中间件、真实listener/server及取消断言。不是以“大文件宿主耦合”豁免；这些正是原真实宿主监听和并发屏障装配。global.rs只删除无调用的测试导入，真实stateful_router签名/调用不改。
+
+行数（splitlines）：
+- `crates/vw-agent/src/gateway/api/handlers/global.rs`：20→16，宿主装配/测试导入。
+- `crates/vw-agent/src/gateway/api/handlers/global_tests.rs`：153→65，测试/夹具。
+- `crates/vw-agent/src/gateway/api/handlers/file_drag_integration_tests.rs`：118→75，测试/夹具。
+- `crates/libs/agent-gateway/src/host_migration_15_tests/global.rs`：700→612，测试/夹具。
+本轮原宿主净减135行，领域共享夹具新增94行；原领域global重复夹具同步删除。生产算法迁移0行，独立领域用例增加0条。
+
+静态核对：三个原文件中所有测试名称、顺序和assert/assert_eq/assert_ne数量保持；迁移的共享状态字段与原默认值逐项读取核对；无断言删除、无path借宿主源码。diff --check通过。使用git-commit隔离提交，不混入其它任务暂存。未运行Cargo、构建、单元或实机测试，未取得编译、等价行为或提速证据。
+
+未来命令：`python3 scripts/cargo_slot.py cargo test -p agent-gateway --lib host_migration_15_tests -- --test-threads=1`预期43条（Unix）；宿主global_tests预期2条，file_drag_integration_tests预期5条（Unix），misc_tests仍8条。按原完整模块过滤，非零结果及真实监听/取消行为须未来授权验证。既有task59残留清单需重新审计，不据本轮局部减量宣称整轮通过。

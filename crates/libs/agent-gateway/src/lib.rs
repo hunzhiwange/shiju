@@ -86,3 +86,6 @@ mod host_migration_16_tests;
 
 #[cfg(all(not(target_arch = "wasm32"), any(test, feature = "test-support")))]
 pub mod channel_reply_fixture;
+
+#[cfg(all(any(test, feature = "test-support"), not(target_arch = "wasm32")))]
+pub mod gateway_test_fixture;

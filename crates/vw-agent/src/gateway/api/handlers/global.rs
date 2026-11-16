@@ -9,11 +9,7 @@ pub(crate) fn stateful_router() -> axum::Router<crate::gateway::AppState> {
 #[cfg(test)]
 use crate::config;
 #[cfg(test)]
-use crate::gateway::AppState;
-#[cfg(test)]
 use axum::Router;
-#[cfg(test)]
-use serde_json::Value;
 
 #[cfg(test)]
 #[path = "global_tests.rs"]

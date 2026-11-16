@@ -7,19 +7,13 @@ use axum::{Json, Router};
 use serde_json::Value;
 use std::collections::HashMap;
 type AppState = gateway_types::AppState<(), (), ()>;
-use gateway_types::{GatewayRateLimiter, IdempotencyStore};
-use memory_types::memory::NoneMemory;
-use model_types::Provider;
+use crate::gateway_test_fixture::{state, use_temp_config_dir, EnvGuard};
 use secret_store::gateway_skey_store::GatewaySkeyStore;
-use gateway_pairing::pairing::PairingGuard;
 use agent_database::GlobalDatabase;
 use axum::body::{Body, to_bytes};
 use axum::extract::State;
 use axum::http::{Request, StatusCode};
 use axum::response::IntoResponse;
-use parking_lot::Mutex;
-use std::ffi::{OsStr, OsString};
-use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
 use tokio_stream::StreamExt;
@@ -27,88 +21,6 @@ use tower::ServiceExt;
 use vw_api_transport::id::TenantScope;
 
 
-
-struct EnvGuard {
-    key: &'static str,
-    previous: Option<OsString>,
-}
-
-impl EnvGuard {
-    fn set(key: &'static str, value: &OsStr) -> Self {
-        let previous = std::env::var_os(key);
-        unsafe {
-            std::env::set_var(key, value);
-        }
-        Self { key, previous }
-    }
-
-    fn unset(key: &'static str) -> Self {
-        let previous = std::env::var_os(key);
-        unsafe {
-            std::env::remove_var(key);
-        }
-        Self { key, previous }
-    }
-}
-
-impl Drop for EnvGuard {
-    fn drop(&mut self) {
-        unsafe {
-            if let Some(previous) = &self.previous {
-                std::env::set_var(self.key, previous);
-            } else {
-                std::env::remove_var(self.key);
-            }
-        }
-    }
-}
-
-struct StaticProvider;
-
-#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
-impl Provider for StaticProvider {
-    async fn chat_with_system(
-        &self,
-        _system_prompt: Option<&str>,
-        _message: &str,
-        _model: &str,
-        _temperature: f64,
-    ) -> anyhow::Result<String> {
-        Ok("ok".to_string())
-    }
-}
-
-fn state(config: config::Config, require_pairing: bool, tokens: &[String]) -> AppState {
-    AppState {
-        config: Arc::new(Mutex::new(config)),
-        provider: Arc::new(StaticProvider),
-        model: "test-model".to_string(),
-        temperature: 0.0,
-        mem: Arc::new(NoneMemory::new()),
-        auto_save: false,
-        pairing: Arc::new(PairingGuard::new(require_pairing, tokens)),
-        trust_forwarded_headers: false,
-        rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
-        idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(observer_backends::NoopObserver),
-        tools_registry: Arc::new(Vec::new()),
-        tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: agent_config::runtime::MultimodalConfig::default(),
-        max_iterations: 10,
-        event_tx: tokio::sync::broadcast::channel(16).0,
-        session_query_engines: Default::default(),
-        hook_runtime: None,
-        channels: Default::default(),
-    }
-}
-
-fn use_temp_config_dir(temp: &TempDir) -> (EnvGuard, EnvGuard, EnvGuard) {
-    let home = EnvGuard::set("HOME", temp.path().as_os_str());
-    let config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", temp.path().as_os_str());
-    let workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
-    (home, config_dir, workspace)
-}
 
 async fn response_json(response: axum::response::Response) -> Value {
     let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("response body");
@@ -470,7 +382,7 @@ async fn global_config_patch_stateful_updates_cached_config_and_pairing() {
     let _env_lock = super::global_async_env_lock().lock().await;
     let temp = TempDir::new().expect("temp dir");
     let (_home, _config_dir, _workspace) = use_temp_config_dir(&temp);
-    let state = state(config::Config::default(), false, &[]);
+    let state: AppState = state(config::Config::default(), false, &[]);
 
     let Json(body) = global_config_patch_stateful(
         default_tenant_scope(),
@@ -504,7 +416,7 @@ async fn global_config_patch_stateful_rejects_invalid_patch_without_runtime_upda
     let _env_lock = super::global_async_env_lock().lock().await;
     let temp = TempDir::new().expect("temp dir");
     let (_home, _config_dir, _workspace) = use_temp_config_dir(&temp);
-    let state = state(config::Config::default(), false, &[]);
+    let state: AppState = state(config::Config::default(), false, &[]);
     let initial_default_provider = state.config.lock().default_provider.clone();
 
     let err = global_config_patch_stateful(

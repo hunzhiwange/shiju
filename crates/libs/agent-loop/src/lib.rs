@@ -30,3 +30,7 @@ pub mod query_engine_host;
 pub mod runner;
 
 extern crate self as agent_loop;
+
+#[cfg(test)]
+#[path = "tests/loop_suite/mod.rs"]
+mod loop_suite_tests;

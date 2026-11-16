@@ -4,7 +4,7 @@
 //! 阻止执行，并且拒绝原因需要反馈给模型历史。
 
 use super::*;
-use crate::agent::loop_::approval::{NonCliApprovalContext, NonCliApprovalPrompt};
+use agent_loop::approval::{NonCliApprovalContext, NonCliApprovalPrompt};
 
 #[tokio::test]
 async fn run_tool_call_loop_denies_supervised_tools_on_non_cli_channels() {
@@ -23,7 +23,7 @@ async fn run_tool_call_loop_denies_supervised_tools_on_non_cli_channels() {
         vec![Box::new(DelayTool::new("shell", 50, Arc::clone(&active), Arc::clone(&max_active)))];
 
     let approval_mgr = Arc::new(ApprovalManager::from_config(
-        &crate::app::agent::config::AutonomyConfig::default(),
+        &agent_config::runtime_schema::AutonomyConfig::default(),
     ));
 
     let mut history = vec![ChatMessage::system("test-system"), ChatMessage::user("run shell")];
@@ -40,7 +40,7 @@ async fn run_tool_call_loop_denies_supervised_tools_on_non_cli_channels() {
         true,
         Some(approval_mgr.clone()),
         "telegram",
-        &crate::app::agent::config::MultimodalConfig::default(),
+        &agent_config::runtime_schema::MultimodalConfig::default(),
         4,
         None,
         None,
@@ -75,7 +75,7 @@ async fn run_tool_call_loop_waits_for_non_cli_approval_resolution() {
         vec![Box::new(DelayTool::new("shell", 50, Arc::clone(&active), Arc::clone(&max_active)))];
 
     let approval_mgr = Arc::new(ApprovalManager::from_config(
-        &crate::app::agent::config::AutonomyConfig::default(),
+        &agent_config::runtime_schema::AutonomyConfig::default(),
     ));
     let (prompt_tx, mut prompt_rx) = tokio::sync::mpsc::unbounded_channel::<NonCliApprovalPrompt>();
     let approval_mgr_for_task = Arc::clone(&approval_mgr);
@@ -114,7 +114,7 @@ async fn run_tool_call_loop_waits_for_non_cli_approval_resolution() {
             reply_target: "chat-approval".to_string(),
             prompt_tx,
         }),
-        &crate::app::agent::config::MultimodalConfig::default(),
+        &agent_config::runtime_schema::MultimodalConfig::default(),
         4,
         None,
         None,
@@ -150,7 +150,7 @@ async fn run_tool_call_loop_consumes_one_time_non_cli_allow_all_token() {
         vec![Box::new(DelayTool::new("shell", 50, Arc::clone(&active), Arc::clone(&max_active)))];
 
     let approval_mgr = Arc::new(ApprovalManager::from_config(
-        &crate::app::agent::config::AutonomyConfig::default(),
+        &agent_config::runtime_schema::AutonomyConfig::default(),
     ));
     approval_mgr.grant_non_cli_allow_all_once();
     // 一次性 token 只允许当前待审批工具通过，防止“允许全部”静默扩大到后续轮次。
@@ -170,7 +170,7 @@ async fn run_tool_call_loop_consumes_one_time_non_cli_allow_all_token() {
         true,
         Some(approval_mgr.clone()),
         "telegram",
-        &crate::app::agent::config::MultimodalConfig::default(),
+        &agent_config::runtime_schema::MultimodalConfig::default(),
         4,
         None,
         None,
@@ -221,7 +221,7 @@ async fn run_tool_call_loop_blocks_tools_excluded_for_channel() {
         true,
         None,
         "telegram",
-        &crate::app::agent::config::MultimodalConfig::default(),
+        &agent_config::runtime_schema::MultimodalConfig::default(),
         4,
         None,
         None,

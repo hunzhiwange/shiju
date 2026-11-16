@@ -29,7 +29,7 @@ async fn run_tool_call_loop_returns_structured_error_for_non_vision_provider() {
         true,
         None,
         "cli",
-        &crate::app::agent::config::MultimodalConfig::default(),
+        &agent_config::runtime_schema::MultimodalConfig::default(),
         3,
         None,
         None,
@@ -57,7 +57,7 @@ async fn run_tool_call_loop_rejects_oversized_image_payload() {
     let tools_registry: Vec<Box<dyn Tool>> = Vec::new();
     let observer = NoopObserver;
 
-    let multimodal = crate::app::agent::config::MultimodalConfig {
+    let multimodal = agent_config::runtime_schema::MultimodalConfig {
         max_images: 4,
         max_image_size_mb: 1,
         allow_remote_fetch: false,
@@ -115,7 +115,7 @@ async fn run_tool_call_loop_accepts_valid_multimodal_request_flow() {
         true,
         None,
         "cli",
-        &crate::app::agent::config::MultimodalConfig::default(),
+        &agent_config::runtime_schema::MultimodalConfig::default(),
         3,
         None,
         None,

@@ -33,7 +33,7 @@ async fn run_tool_call_loop_native_mode_preserves_fallback_tool_call_ids() {
         true,
         None,
         "cli",
-        &crate::app::agent::config::MultimodalConfig::default(),
+        &agent_config::runtime_schema::MultimodalConfig::default(),
         4,
         None,
         None,
@@ -62,7 +62,7 @@ async fn run_tool_call_loop_native_mode_preserves_fallback_tool_call_ids() {
 
 #[test]
 fn native_tools_system_prompt_contains_zero_xml() {
-    use crate::app::agent::channels::build_system_prompt_with_mode;
+    use crate::channels::build_system_prompt_with_mode;
 
     // 原生工具调用由 provider API 承载，系统提示只保留任务与工具摘要，
     // 避免 XML 协议和 native schema 同时出现造成模型行为混乱。
@@ -77,7 +77,7 @@ fn native_tools_system_prompt_contains_zero_xml() {
         None,
         None,
         true,
-        crate::app::agent::config::SkillsPromptInjectionMode::Full,
+        agent_config::runtime_schema::SkillsPromptInjectionMode::Full,
         chrono_tz::Asia::Shanghai,
     );
 

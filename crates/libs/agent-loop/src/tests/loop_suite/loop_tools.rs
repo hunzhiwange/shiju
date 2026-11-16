@@ -3,6 +3,7 @@
 //! 本模块保留 `run_tool_call_loop` 相关测试辅助结构，并按职责将具体测试
 //! 拆分到多个独立子文件，降低单文件复杂度。
 
+// 由 vw-agent 的测试入口绑定真实宿主适配；不在领域库中注册此模块。
 use super::*;
 use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
@@ -11,8 +12,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::app::agent::approval::{ApprovalManager, ApprovalResponse};
-use crate::app::agent::observability::NoopObserver;
+use agent_approval::{ApprovalManager, ApprovalResponse};
+use agent_observability::NoopObserver;
 use model_types::ChatResponse;
 use model_types::ProviderCapabilities;
 
@@ -71,7 +72,7 @@ impl Provider for VisionProvider {
     ) -> anyhow::Result<ChatResponse> {
         self.calls.fetch_add(1, Ordering::SeqCst);
 
-        let marker_count = crate::app::agent::multimodal::count_image_markers(request.messages);
+        let marker_count = agent_multimodal::count_image_markers(request.messages);
         if marker_count == 0 {
             anyhow::bail!("expected image markers in request messages");
         }
@@ -181,11 +182,11 @@ impl Tool for CountingTool {
     async fn execute(
         &self,
         args: serde_json::Value,
-    ) -> anyhow::Result<crate::app::agent::tools::ToolResult> {
+    ) -> anyhow::Result<tool_types::ToolResult> {
         self.invocations.fetch_add(1, Ordering::SeqCst);
         let value = args.get("value").and_then(serde_json::Value::as_str).unwrap_or_default();
 
-        Ok(crate::app::agent::tools::ToolResult {
+        Ok(tool_types::ToolResult {
             success: true,
             output: format!("counted:{value}"),
             error: None,
@@ -235,7 +236,7 @@ impl Tool for DelayTool {
     async fn execute(
         &self,
         args: serde_json::Value,
-    ) -> anyhow::Result<crate::app::agent::tools::ToolResult> {
+    ) -> anyhow::Result<tool_types::ToolResult> {
         let now_active = self.active.fetch_add(1, Ordering::SeqCst) + 1;
         self.max_active.fetch_max(now_active, Ordering::SeqCst);
         tokio::time::sleep(Duration::from_millis(self.delay_ms)).await;
@@ -244,7 +245,7 @@ impl Tool for DelayTool {
         let value =
             args.get("value").and_then(serde_json::Value::as_str).unwrap_or_default().to_string();
 
-        Ok(crate::app::agent::tools::ToolResult {
+        Ok(tool_types::ToolResult {
             success: true,
             output: format!("ok:{value}"),
             error: None,

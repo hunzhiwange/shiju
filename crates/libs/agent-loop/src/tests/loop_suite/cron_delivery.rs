@@ -9,7 +9,7 @@
 //! - 不覆盖显式指定的投递目标
 //! - 跳过 shell 类型任务的投递注入
 
-use super::*;
+use crate::cron::maybe_inject_cron_add_delivery;
 
 /// 测试从通道上下文自动填充投递配置
 ///

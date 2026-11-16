@@ -57,12 +57,14 @@ pub(crate) use super::parsing::{
 // 测试子模块声明
 // ============================================================================
 
-mod constants;
-mod cron_delivery;
+// constants 测试已在 agent-loop 注册。
+// cron_delivery 测试已在 agent-loop 注册。
+#[path = "../../../../../libs/agent-loop/src/tests/loop_suite/loop_tools.rs"]
 mod loop_tools;
+#[path = "../../../../../libs/agent-loop/src/tests/loop_suite/memory_context.rs"]
 mod memory_context;
-mod parsing_edge_cases;
-mod parsing_extract_json;
+// parsing_edge_cases 测试已在 agent-loop 注册。
+// parsing_extract_json 测试已在 agent-loop 注册。
 mod parsing_glm;
 mod parsing_protocols;
 mod parsing_recovery;

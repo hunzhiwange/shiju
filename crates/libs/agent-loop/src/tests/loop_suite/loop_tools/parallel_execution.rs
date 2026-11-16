@@ -4,7 +4,7 @@
 //! 循环在 native 模式下保持工具结果顺序的行为。
 
 use super::*;
-use crate::app::agent::tools::{PendingToolCall, ScheduledToolBatchMode, schedule_tool_calls};
+use tool_services::scheduler::{PendingToolCall, ScheduledToolBatchMode, schedule_tool_calls};
 
 #[test]
 fn scheduler_groups_read_only_concurrency_safe_calls_into_parallel_batch() {
@@ -107,9 +107,9 @@ async fn run_tool_call_loop_executes_multiple_tools_with_ordered_results() {
         Box::new(DelayTool::new("delay_b", 200, Arc::clone(&active), Arc::clone(&max_active))),
     ];
 
-    let approval_cfg = crate::app::agent::config::AutonomyConfig {
-        level: crate::app::agent::security::AutonomyLevel::Full,
-        ..crate::app::agent::config::AutonomyConfig::default()
+    let approval_cfg = agent_config::runtime_schema::AutonomyConfig {
+        level: agent_security::AutonomyLevel::Full,
+        ..agent_config::runtime_schema::AutonomyConfig::default()
     };
     let approval_mgr = Arc::new(ApprovalManager::from_config(&approval_cfg));
 
@@ -129,7 +129,7 @@ async fn run_tool_call_loop_executes_multiple_tools_with_ordered_results() {
         true,
         Some(approval_mgr.clone()),
         "telegram",
-        &crate::app::agent::config::MultimodalConfig::default(),
+        &agent_config::runtime_schema::MultimodalConfig::default(),
         4,
         None,
         None,

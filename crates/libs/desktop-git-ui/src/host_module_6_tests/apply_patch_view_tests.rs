@@ -1,6 +1,5 @@
-use super::apply_patch_view::{tool_apply_patch_view, apply_patch_file_expand_key};
-use crate::app::App;
-use crate::app::components::chat_panel::utils::chat_context_target_key;
+use super::App;
+use super::apply_patch_view::{apply_patch_file_expand_key, tool_apply_patch_view};
 
 #[test]
 fn apply_patch_view_renders_unstructured_file_summary_and_diff_output() {

@@ -286,3 +286,26 @@ pub fn empty_session_placeholder<'a, Message: 'a>(input: EmptySessionInput) -> E
 #[cfg(test)]
 #[path = "empty_tests.rs"]
 mod empty_tests;
+
+impl EmptySessionInput {
+    pub fn from_context(
+        i18n: desktop_i18n::I18n,
+        name: Option<&str>,
+        hour: u32,
+        work_mode: bool,
+        path: String,
+        git: Option<(String, String)>,
+    ) -> Self {
+        Self {
+            greeting: name.map(|name| {
+                i18n.format(if hour < 12 { "上午好，%s" } else { "下午好，%s" }, &[name.into()])
+                    .expect("valid greeting template")
+            }),
+            title: i18n.__(empty_session_title(work_mode)).to_owned(),
+            path,
+            git: git.map(|(branch, modified)| {
+                (i18n.format("分支 %s", &[branch.into()]).expect("valid branch template"), modified)
+            }),
+        }
+    }
+}

@@ -1,10 +1,8 @@
 //! 验证聊天应用状态的标签回退、会话标题查找与近期复制判定。
 //! 活动会话可从近期列表或项目缓存解析，复制状态同时要求哈希匹配且时间仍有效。
 
-use super::app_state::{
-    current_branch_label, current_project_path_label, get_session_title,
-};
-use crate::app::App;
+use super::label_fixture::LabelFixture as App;
+use super::label_fixture::{current_branch_label, current_project_path_label, get_session_title};
 
 fn session_info(id: &str, title: &str) -> session_info::Info {
     session_info::Info {
@@ -17,12 +15,7 @@ fn session_info(id: &str, title: &str) -> session_info::Info {
         share: None,
         title: title.to_string(),
         version: "1".to_string(),
-        time: session_info::TimeInfo {
-            created: 1,
-            updated: 1,
-            compacting: None,
-            archived: None,
-        },
+        time: session_info::TimeInfo { created: 1, updated: 1, compacting: None, archived: None },
         permission: None,
         fork_execution_started: None,
         revert: None,
@@ -41,8 +34,8 @@ fn app_state_labels_fall_back_when_values_are_missing() {
 #[test]
 fn app_state_labels_return_current_values_when_present() {
     let mut app = App::new().0;
-    app.navigation_tabs.project_path = Some("/work/project".to_string());
-    app.git.selected_branch = Some("main".to_string());
+    app.project_path = Some("/work/project".to_string());
+    app.selected_branch = Some("main".to_string());
     app.sessions = vec![session_info("stale", "Stale"), session_info("active", "Active")];
     app.active_session_id = Some("active".to_string());
 

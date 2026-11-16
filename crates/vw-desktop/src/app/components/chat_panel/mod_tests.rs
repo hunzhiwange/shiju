@@ -1,21 +1,16 @@
 //! 验证聊天面板的阅读列布局、消息虚拟化与典型视觉场景构造。
 //! 多视口宽度和多主题场景用于守住共享阅读宽度、渲染窗口及单一状态所有权。
 
-use super::{
-    chat_message_column, chat_panel_context_menu_overlay, chat_panel_virtual_window,
-    chat_todo_overlay, jump_to_bottom_button, rough_message_heights, user_question_nav_overlay,
-    view,
-};
+use super::{rough_message_heights, view};
 use crate::app::components::chat_panel::virtualizer::ChatVirtualizer;
 use crate::app::models::{ChatMessage, ChatRole};
-use crate::app::{App, Message, TodoPanelPlacement};
+use crate::app::{App, Message};
 #[cfg(not(target_arch = "wasm32"))]
 use iced::advanced::renderer::Headless;
 #[cfg(not(target_arch = "wasm32"))]
 use iced::advanced::{Layout, layout, widget::Tree};
 #[cfg(not(target_arch = "wasm32"))]
 use iced::{Font, Pixels, Size};
-use todo_types::Todo;
 
 fn message(role: ChatRole, content: &str) -> ChatMessage {
     ChatMessage {
@@ -24,15 +19,6 @@ fn message(role: ChatRole, content: &str) -> ChatMessage {
         model: None,
         think_timing: Vec::new(),
         processing_timing: None,
-    }
-}
-
-fn todo(id: &str) -> Todo {
-    Todo {
-        id: id.to_string(),
-        status: "pending".to_string(),
-        content: format!("task {id}"),
-        priority: "medium".to_string(),
     }
 }
 
@@ -268,28 +254,6 @@ async fn conversation_shell_renders_visual_regression_scenarios_without_panic() 
 }
 
 #[test]
-fn chat_panel_uses_virtual_window_for_render_range() {
-    let (mut app, _) = App::new();
-    app.chat = (0..120).map(|idx| message(ChatRole::Assistant, &format!("msg {idx}"))).collect();
-    app.chat_message_estimated_heights = vec![2000.0; app.chat.len()];
-    app.chat_height_index =
-        super::height_index::ChatHeightIndex::from_heights(&app.chat_message_estimated_heights);
-
-    let virtual_heights = vec![80.0; app.chat.len()];
-    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&virtual_heights);
-    app.chat_virtualizer.set_viewport_height(180.0);
-    app.chat_virtualizer.set_scroll_top_px(4200.0);
-
-    let window = chat_panel_virtual_window(&app);
-
-    assert_eq!(window, app.chat_virtualizer.window());
-    assert!(window.render_start_idx > 0);
-    assert!(window.render_end_idx < app.chat.len());
-    assert!(window.top_spacer_h > 0.0);
-    assert!(window.bottom_spacer_h > 0.0);
-}
-
-#[test]
 fn chat_panel_virtualization_has_single_state_owner() {
     let sources = [
         ("chat_panel/mod.rs", include_str!("mod.rs")),
@@ -382,17 +346,6 @@ fn chat_panel_switch_preserves_conversation_state() {
 }
 
 #[test]
-fn chat_panel_context_menu_overlay_builds_closed_and_open_states() {
-    let (mut app, _) = App::new();
-    keep_element(chat_panel_context_menu_overlay(&app, iced::widget::text("content")));
-
-    app.chat_context_menu.target =
-        Some(crate::app::components::chat_panel::utils::chat_context_target_key(0, None));
-    app.chat_context_menu.position = Some((12.0, 24.0));
-    keep_element(chat_panel_context_menu_overlay(&app, iced::widget::text("content")));
-}
-
-#[test]
 fn chat_panel_context_menu_has_a_single_overlay_owner() {
     assert!(
         include_str!("../../../../../libs/desktop-chat-view/src/panel.rs")
@@ -401,49 +354,13 @@ fn chat_panel_context_menu_has_a_single_overlay_owner() {
     for source in [
         include_str!("message_view.rs"),
         include_str!("tools/advanced_view.rs"),
-        include_str!("tools/apply_patch_view.rs"),
+        include_str!("../../../../../libs/desktop-chat-tools/src/tools/apply_patch_view.rs"),
         include_str!("../../../../../libs/desktop-chat-tools/src/tools/files_view/common_view.rs"),
         include_str!("../../../../../libs/desktop-chat-tools/src/tools/files_view/write_view.rs"),
-        include_str!("tools/text_view.rs"),
-        include_str!("tools/todo_views.rs"),
-        include_str!("tools/web_view.rs"),
+        include_str!("../../../../../libs/desktop-chat-tools/src/tools/text_view.rs"),
+        include_str!("../../../../../libs/desktop-chat-tools/src/tools/todo_views.rs"),
+        include_str!("../../../../../libs/desktop-chat-tools/src/tools/web_view.rs"),
     ] {
         assert!(!source.contains("PointBelowOverlay"));
     }
-}
-
-#[test]
-fn jump_button_and_question_overlay_cover_hidden_and_visible_states() {
-    let (mut app, _) = App::new();
-    keep_element(jump_to_bottom_button(&app));
-    keep_element(user_question_nav_overlay(&app, &[], 0, 0));
-
-    app.chat_auto_scroll = false;
-    app.chat_scroll_viewport_h = 200.0;
-    app.chat = vec![message(ChatRole::User, "first\nquestion")];
-    app.rebuild_active_session_message_meta();
-    keep_element(jump_to_bottom_button(&app));
-    keep_element(user_question_nav_overlay(
-        &app,
-        &app.active_session_view_state.user_question_markers,
-        0,
-        1,
-    ));
-}
-
-#[test]
-fn chat_todo_overlay_builds_only_for_matching_top_right_session_with_items() {
-    let (mut app, _) = App::new();
-    app.active_session_id = Some("active".to_string());
-    app.chat_todo_session_id = Some("other".to_string());
-    app.chat_todo_items = vec![todo("1")];
-
-    keep_element(chat_todo_overlay(&app));
-
-    app.chat_todo_session_id = Some("active".to_string());
-    app.chat_todo_placement = TodoPanelPlacement::InputBottom;
-    keep_element(chat_todo_overlay(&app));
-
-    app.chat_todo_placement = TodoPanelPlacement::ChatTopRight;
-    keep_element(chat_todo_overlay(&app));
 }

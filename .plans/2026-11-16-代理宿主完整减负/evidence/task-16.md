@@ -212,3 +212,60 @@
 - gateway-pty 新增测试/夹具 43 行；生产算法新增0行，模块注册另计。
 - gateway-plugins 新增测试/夹具 6 行；生产算法新增0行，模块注册另计。
 - gateway-project 新增测试/夹具 306 行；生产算法新增0行，模块注册另计。
+
+## Second pass after final host audit (supersedes retained mappings above)
+
+Current original-source host lines: 727; baseline 2667; reduction 1940 (72.7%). The shiju_skills reduction belongs to another session. No Cargo, build, test or executable was run.
+
+OpenClaw: production authorization() moved to gateway-openclaw-settings/src/authorization.rs. Host calls authorized_router, retaining the same real app-access-service authorization and credential_root projection. Both original tests now self-register there; no mocked policy or filesystem.
+
+Permission: all six remaining tests moved to agent-gateway::host_migration_16_tests. Fixture binds real session-store tenant scope, agent-project instance context and approval_state cache. It intentionally omits application bootstrap (not covered by these assertions). Host retains the concrete trait implementation and new router_builds_with_host_ports boundary. Old permission_tests module and two test wrappers removed.
+
+Catalog acceptance: three whole tests moved to gateway-model::host_migration_16_tests::catalog_acceptance_tests, preserving original assertions for preset/price isolation, stale/unauthorized fill, cancellation and saved catalog. Fixture uses the real domain router, real authorization and tenant middleware, SQLite, loopback upstream and process-isolated models cache. Chat stream/config/resolver fixture code is excluded. Host retains only catalog_macos_acceptance_persists_and_enforces_identity and its necessary isolated/Loopback/Fixture/send lifecycle: this one case explicitly verifies SDK to resolver to actual chat execution and cannot be replaced with a simulated domain port.
+
+
+### agent-gateway
+
+- `router_builds_with_app_state` -> `crates/libs/agent-gateway/src/host_migration_16_tests.rs`
+- `permission_list_returns_empty_for_instance_without_pending_requests` -> `crates/libs/agent-gateway/src/host_migration_16_tests.rs`
+- `permission_list_returns_pending_requests_for_resolved_directory` -> `crates/libs/agent-gateway/src/host_migration_16_tests.rs`
+- `permission_reply_once_applies_pending_request` -> `crates/libs/agent-gateway/src/host_migration_16_tests.rs`
+- `permission_reply_missing_request_returns_not_found` -> `crates/libs/agent-gateway/src/host_migration_16_tests.rs`
+- `permission_router_lists_and_rejects_missing_request` -> `crates/libs/agent-gateway/src/host_migration_16_tests.rs`
+Future: `python3 scripts/cargo_slot.py cargo test -p agent-gateway --lib host_migration_16_tests -- --test-threads=1`; expected 6 cases for this filter (macOS). Not run.
+
+### gateway-openclaw-settings
+
+- `openclaw_api_roundtrips_defaults_denies_before_io` -> `crates/libs/gateway-openclaw-settings/src/host_migration_16_tests.rs`
+- `openclaw_api_protects_sensitive_env` -> `crates/libs/gateway-openclaw-settings/src/host_migration_16_tests.rs`
+Future: `python3 scripts/cargo_slot.py cargo test -p gateway-openclaw-settings --lib host_migration_16_tests -- --test-threads=1`; expected 2 cases for this filter (macOS). Not run.
+
+### gateway-model
+
+- `catalog_macos_acceptance_scopes_preset_selection_and_price` -> `crates/libs/gateway-model/src/host_migration_16_tests/catalog_acceptance_tests.rs`
+- `catalog_macos_acceptance_rejects_stale_or_unauthorized_fill` -> `crates/libs/gateway-model/src/host_migration_16_tests/catalog_acceptance_tests.rs`
+- `catalog_macos_acceptance_cancel_keeps_saved_catalog` -> `crates/libs/gateway-model/src/host_migration_16_tests/catalog_acceptance_tests.rs`
+Future: `python3 scripts/cargo_slot.py cargo test -p gateway-model --lib host_migration_16_tests::catalog_acceptance_tests -- --test-threads=1`; expected 3 cases for this filter (macOS). Not run.
+
+### Current retained original files (splitlines)
+
+- `model_catalog_acceptance_tests.rs`: 443 lines.
+- `model_catalog_tests.rs`: 0 lines.
+- `model_catalog_edits_tests.rs`: 0 lines.
+- `model_discovery_tests.rs`: 0 lines.
+- `openclaw_settings.rs`: 2 lines.
+- `openclaw_settings_tests.rs`: 0 lines.
+- `permission.rs`: 45 lines.
+- `permission_tests.rs`: 0 lines.
+- `plugins.rs`: 87 lines.
+- `project.rs`: 22 lines.
+- `project_profiles.rs`: 7 lines.
+- `provider.rs`: 61 lines.
+- `pty.rs`: 36 lines.
+- `question.rs`: 16 lines.
+- `resumable_stream.rs`: 2 lines.
+- `shiju_account.rs`: 2 lines.
+- `shiju_apps.rs`: 2 lines.
+- `shiju_skills.rs`: 2 lines.
+
+New test dependencies are declared in the receiving manifests. No reverse vw-agent dependency, host path/include, fake auth or duplicated AppState. Cargo.lock resolution remains future authorized Cargo work. All compilation, runtime behavior, build-time and performance claims remain unverified.

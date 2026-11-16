@@ -30,3 +30,10 @@ tokio = { version = "1", features = ["rt"] }
 vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
 app-openclaw-config-rules = { path = "../app-openclaw-config-rules", version = "0.6.0" }
 vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }
+
+app-access-service = { path = "../app-access-service", version = "0.6.0" }
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+sha2 = "0.11"
+hex = "0.4"
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }

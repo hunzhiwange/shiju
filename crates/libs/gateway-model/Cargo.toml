@@ -41,3 +41,4 @@ hex = "0.4"
 tempfile = "3"
 tokio = { version = "1", features = ["full"] }
 gateway-http = { path = "../gateway-http", version = "0.6.0" }
+provider-runtime-paths = { path = "../provider-runtime-paths", version = "0.6.0" }

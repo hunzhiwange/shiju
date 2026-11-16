@@ -360,3 +360,13 @@ optional = true
 [dev-dependencies.agent-commands]
 path = "../agent-commands"
 version = "0.6.0"
+
+[dev-dependencies.gateway-permission]
+path = "../gateway-permission"
+version = "0.6.0"
+[dev-dependencies.session-store]
+path = "../session-store"
+version = "0.6.0"
+[dev-dependencies.permission-runtime]
+path = "../permission-runtime"
+version = "0.6.0"

@@ -109,8 +109,6 @@ struct Fixture {
     server: Loopback,
     _upstream: Loopback,
     requests: Arc<Mutex<Vec<Value>>>,
-    hold_discovery: Arc<AtomicBool>,
-    discovery_started: Arc<tokio::sync::Notify>,
 }
 
 impl Fixture {
@@ -232,8 +230,6 @@ impl Fixture {
             server,
             _upstream: upstream,
             requests,
-            hold_discovery,
-            discovery_started,
         }
     }
 
@@ -444,110 +440,4 @@ async fn catalog_macos_acceptance_persists_and_enforces_identity() {
     let requests = f.requests.lock().unwrap();
     assert_eq!(requests.len(), 1);
     assert_eq!(requests[0]["model"], MODEL);
-}
-
-#[tokio::test]
-async fn catalog_macos_acceptance_scopes_preset_selection_and_price() {
-    if isolated("catalog_macos_acceptance_scopes_preset_selection_and_price").await {
-        return;
-    }
-    let f = Fixture::new().await;
-    let hits = f
-        .client()
-        .model_catalog_presets(&f.project, HOST, AppId::Codex, Some("月之暗面"), None, TOKEN)
-        .await
-        .unwrap();
-    let endpoint = |host: &str| {
-        hits.items.iter().find(|preset| preset.endpoint.as_deref() == Some(host)).unwrap()
-    };
-    let china = endpoint("https://api.moonshot.cn/v1");
-    let global = endpoint("https://api.moonshot.ai/v1");
-    let same = china.model_ids.iter().find(|id| global.model_ids.contains(id)).unwrap();
-    let deployment =
-        ModelCatalogIdentity { endpoint: china.endpoint.clone().unwrap(), ..f.deployment.clone() };
-    f.selected(&deployment, same.clone()).await;
-    let other = ModelCatalogIdentity { endpoint: global.endpoint.clone().unwrap(), ..deployment };
-    assert!(f.read(&other).await.items.is_empty());
-    assert!(f.read(&f.deployment).await.items.is_empty());
-
-    let saved = f.selected(&f.deployment, MODEL.into()).await;
-    let price = f
-        .client()
-        .preview_model_catalog_fill(
-            &f.project,
-            &ModelCatalogFillPreviewRequest { identity: saved.identity.clone() },
-            TOKEN,
-        )
-        .await
-        .unwrap();
-    assert_eq!(price.proposed.cost.as_ref().unwrap().input, 1.0);
-    let saved = f.selected(&other, MODEL.into()).await;
-    let foreign = f
-        .client()
-        .preview_model_catalog_fill(
-            &f.project,
-            &ModelCatalogFillPreviewRequest { identity: saved.identity },
-            TOKEN,
-        )
-        .await
-        .unwrap();
-    assert!(foreign.proposed.cost.is_none(), "price crossed deployment boundaries");
-}
-
-#[tokio::test]
-async fn catalog_macos_acceptance_rejects_stale_or_unauthorized_fill() {
-    if isolated("catalog_macos_acceptance_rejects_stale_or_unauthorized_fill").await {
-        return;
-    }
-    let f = Fixture::new().await;
-    let saved = f.selected(&f.deployment, MODEL.into()).await;
-    let request = ModelCatalogFillPreviewRequest { identity: saved.identity.clone() };
-    let preview = f.client().preview_model_catalog_fill(&f.project, &request, TOKEN).await.unwrap();
-    let changed = f
-        .client()
-        .set_model_catalog_default(
-            &f.project,
-            &ModelCatalogDefaultRequest {
-                deployment: f.deployment.clone(),
-                expected_revision: preview.revision.clone(),
-                change: ModelCatalogDefaultChange::Clear,
-            },
-            TOKEN,
-        )
-        .await
-        .unwrap();
-    let mut commit = ModelCatalogFillCommitRequest {
-        identity: preview.identity,
-        expected_revision: preview.revision,
-    };
-    let result = f.client().commit_model_catalog_fill(&f.project, &commit, TOKEN).await;
-    assert!(matches!(result, Err(AgentAppsReadError::Http { status: 409, .. })));
-    let before = f.read(&f.deployment).await;
-    commit.identity.deployment.target_host_id = "ungranted".into();
-    commit.expected_revision = changed.revision;
-    let result = f.client().commit_model_catalog_fill(&f.project, &commit, TOKEN).await;
-    assert!(matches!(result, Err(AgentAppsReadError::Http { status: 403, .. })));
-    assert_eq!(f.read(&f.deployment).await, before);
-    assert_eq!(before.items, [saved]);
-}
-
-#[tokio::test]
-async fn catalog_macos_acceptance_cancel_keeps_saved_catalog() {
-    if isolated("catalog_macos_acceptance_cancel_keeps_saved_catalog").await {
-        return;
-    }
-    let f = Fixture::new().await;
-    f.selected(&f.deployment, MODEL.into()).await;
-    let before = f.read(&f.deployment).await;
-    f.hold_discovery.store(true, Ordering::Relaxed);
-    let task = f.discovery().await;
-    tokio::time::timeout(WAIT, f.discovery_started.notified()).await.unwrap();
-    let cancelled =
-        f.client().cancel_model_discovery(&f.project, HOST, &task.task_id, TOKEN).await.unwrap();
-    assert_eq!(cancelled.state, ModelDiscoveryState::Cancelled);
-    let terminal =
-        f.client().model_discovery(&f.project, HOST, &task.task_id, TOKEN).await.unwrap();
-    assert_eq!(terminal.state, ModelDiscoveryState::Cancelled);
-    assert!(!serde_json::to_string(&terminal).unwrap().contains("private-fixture-credential"));
-    assert_eq!(f.read(&f.deployment).await, before);
 }

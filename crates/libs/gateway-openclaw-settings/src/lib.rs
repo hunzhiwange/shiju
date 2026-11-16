@@ -21,3 +21,8 @@ mod test_support;
 mod handlers;
 #[cfg(target_os = "macos")]
 pub use handlers::{Authorization, Host, router, router_with_policy};
+
+#[cfg(target_os = "macos")]
+mod authorization;
+#[cfg(target_os = "macos")]
+pub use authorization::authorized_router;

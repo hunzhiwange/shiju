@@ -11,3 +11,5 @@ mod model_catalog {
 }
 mod model_catalog_tests;
 mod model_discovery_tests;
+
+mod catalog_acceptance_tests;

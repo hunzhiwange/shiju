@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use tower::ServiceExt;
 
 async fn request(path: Option<PathBuf>, tenant: TenantScope, headers: HeaderMap, section: &str, host: &str, method: &str) -> axum::response::Response {
-    let router = gateway_openclaw_settings::router_with_policy(path, authorization())
+    let router = crate::router_with_policy(path, authorization())
         .layer(axum::Extension(tenant));
     let mut request = axum::http::Request::builder().method(method)
         .uri(format!("/agent-apps/openclaw/settings/{section}?projectId=project&targetHostId={host}"))

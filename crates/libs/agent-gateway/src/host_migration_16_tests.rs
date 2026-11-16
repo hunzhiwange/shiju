@@ -1,6 +1,13 @@
 // 覆盖待审批请求映射、回复处理及非 CLI 授权持久化。
 
-use super::*;
+use crate::approval_state;
+use agent_config::runtime as config;
+use agent_approval::ApprovalResponse;
+use permission_runtime::next as permission_next;
+use axum::{Json, extract::{Extension, Path, Query}};
+use gateway_permission::{PermissionReplyRequest, host::{InstanceQuery, PermissionHost, HostFuture}};
+use gateway_types::ApiError;
+use std::sync::Arc;
 use axum::body::{Body, to_bytes};
 use axum::http::{HeaderMap, Request, StatusCode};
 use std::ffi::{OsStr, OsString};
@@ -50,9 +57,9 @@ fn use_temp_config_dir(temp: &TempDir) -> (EnvGuard, EnvGuard) {
 
 async fn manager_for_directory(
     directory: &str,
-) -> std::sync::Arc<crate::app::agent::approval::ApprovalManager> {
+) -> std::sync::Arc<agent_approval::ApprovalManager> {
     with_instance(directory.to_string(), || {
-        Box::pin(async { Ok(approval_state::approval_manager_for_current_instance().await) })
+        Box::pin(async { Ok(approval_state::approval_manager_for_current_instance(session_store::ui_store::current_tenant_scope()).await) })
     })
     .await
     .expect("approval manager should load")
@@ -68,7 +75,7 @@ fn router_builds_with_app_state() {
 
 #[tokio::test]
 async fn permission_list_returns_empty_for_instance_without_pending_requests() {
-    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let _env_lock = global_async_env_lock().lock().await;
     let temp = TempDir::new().expect("temp dir");
     let (_config_dir, _workspace) = use_temp_config_dir(&temp);
     let directory = temp.path().to_string_lossy().to_string();
@@ -89,7 +96,7 @@ async fn permission_list_returns_empty_for_instance_without_pending_requests() {
 
 #[tokio::test]
 async fn permission_list_returns_pending_requests_for_resolved_directory() {
-    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let _env_lock = global_async_env_lock().lock().await;
     let temp = TempDir::new().expect("temp dir");
     let (_config_dir, _workspace) = use_temp_config_dir(&temp);
     let directory = temp.path().to_string_lossy().to_string();
@@ -124,7 +131,7 @@ async fn permission_list_returns_pending_requests_for_resolved_directory() {
 
 #[tokio::test]
 async fn permission_reply_once_applies_pending_request() {
-    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let _env_lock = global_async_env_lock().lock().await;
     let temp = TempDir::new().expect("temp dir");
     let (_config_dir, _workspace) = use_temp_config_dir(&temp);
     let directory = temp.path().to_string_lossy().to_string();
@@ -164,7 +171,7 @@ async fn permission_reply_once_applies_pending_request() {
 
 #[tokio::test]
 async fn permission_reply_missing_request_returns_not_found() {
-    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let _env_lock = global_async_env_lock().lock().await;
     let temp = TempDir::new().expect("temp dir");
     let (_config_dir, _workspace) = use_temp_config_dir(&temp);
     let directory = temp.path().to_string_lossy().to_string();
@@ -188,7 +195,7 @@ async fn permission_reply_missing_request_returns_not_found() {
 
 #[tokio::test]
 async fn permission_router_lists_and_rejects_missing_request() {
-    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let _env_lock = global_async_env_lock().lock().await;
     let temp = TempDir::new().expect("temp dir");
     let (_config_dir, _workspace) = use_temp_config_dir(&temp);
     let directory = temp.path().to_string_lossy().to_string();
@@ -225,4 +232,32 @@ async fn permission_router_lists_and_rejects_missing_request() {
     assert_eq!(reply_response.status(), StatusCode::NOT_FOUND);
 
     approval_state::clear_approval_manager_for_directory(&directory);
+}
+
+// Lifecycle bootstrap belongs to the host. These cases exercise the request/cache domain.
+struct Host;
+impl PermissionHost for Host {
+    fn resolve_directory(query: &InstanceQuery, headers: &HeaderMap) -> String {
+        crate::instance::resolve_directory(&crate::instance::InstanceQuery { directory: query.directory.clone() }, headers)
+    }
+    fn with_tenant_scope<T: Send + 'static>(tenant: vw_api_transport::TenantScope, future: HostFuture<T>) -> HostFuture<T> {
+        Box::pin(session_store::ui_store::with_tenant_scope(tenant, future))
+    }
+    fn with_instance<T: Send + 'static>(directory: String, action: impl FnOnce() -> HostFuture<Result<T, ApiError>> + Send + 'static) -> HostFuture<Result<T, ApiError>> {
+        Box::pin(with_instance(directory, action))
+    }
+    fn approval_manager_for_current_instance() -> HostFuture<Arc<agent_approval::ApprovalManager>> {
+        Box::pin(approval_state::approval_manager_for_current_instance(session_store::ui_store::current_tenant_scope()))
+    }
+}
+async fn with_instance<T: Send + 'static>(directory: String, action: impl FnOnce() -> HostFuture<Result<T, ApiError>> + Send + 'static) -> Result<T, ApiError> {
+    agent_project::instance::provide(std::path::PathBuf::from(directory), None, action).await.map_err(|e| ApiError::bad_request(e.to_string()))?
+}
+fn router<S: Clone + Send + Sync + 'static>() -> axum::Router<S> { gateway_permission::router::<S, Host>() }
+use gateway_permission::{permission_list as list, permission_reply as reply};
+async fn permission_list(tenant: Extension<vw_api_transport::TenantScope>, query: Query<InstanceQuery>, headers: HeaderMap) -> Result<Json<Vec<permission_next::Request>>, ApiError> { list::<Host>(tenant, query, headers).await }
+async fn permission_reply(tenant: Extension<vw_api_transport::TenantScope>, query: Query<InstanceQuery>, headers: HeaderMap, id: Path<String>, body: Json<PermissionReplyRequest>) -> Result<Json<bool>, ApiError> { reply::<Host>(tenant, query, headers, id, body).await }
+fn global_async_env_lock() -> &'static tokio::sync::Mutex<()> {
+    static LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    &LOCK
 }

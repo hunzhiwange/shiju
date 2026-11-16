@@ -1,13 +1,13 @@
 //! Authorization route behavior owned by this crate; real host assembly stays in vw-agent.
 use crate::agent_apps_auth_start;
 
-fn build_router_with_auth(cors: Vec<String>, auth: axum::Router) -> axum::Router {
+pub(crate) fn build_router_with_auth(cors: Vec<String>, auth: axum::Router) -> axum::Router {
     agent_gateway::router::build_router_with_auth(
         cors, auth, axum::Router::new(), axum::Router::new(), axum::Router::new(),
     )
 }
 
-mod auth_router {
+pub(crate) mod auth_router {
     use axum::{Router, extract::Request, middleware::Next, response::Response};
     use std::{path::PathBuf, sync::Arc};
     use crate::agent_apps_auth_start::Runtime;
@@ -18,11 +18,11 @@ mod auth_router {
         Box::pin(agent_gateway::middleware::basic_auth_middleware_with_credentials(request, next, password, username))
     }
 
-    pub(super) fn router(password: Option<&'static str>, username: &'static str, policy: Option<PathBuf>) -> Router {
+    pub(crate) fn router(password: Option<&'static str>, username: &'static str, policy: Option<PathBuf>) -> Router {
         crate::agent_apps_auth_read::router(password, username, policy, basic_auth)
     }
 
-    pub(super) fn router_with_runtime(password: Option<&'static str>, username: &'static str, policy: Option<PathBuf>, runtime: Arc<Runtime>) -> Router {
+    pub(crate) fn router_with_runtime(password: Option<&'static str>, username: &'static str, policy: Option<PathBuf>, runtime: Arc<Runtime>) -> Router {
         crate::agent_apps_auth_read::router_with_runtime(password, username, policy, basic_auth, runtime)
     }
 }

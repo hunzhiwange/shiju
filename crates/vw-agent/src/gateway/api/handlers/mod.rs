@@ -248,8 +248,6 @@ mod agent_apps_auth_read_tests;
 // agent_apps_auth_binding is owned by gateway-agent-apps.
 
 // agent_apps_auth_cancel is owned by gateway-agent-apps.
-#[cfg(all(test, target_os = "macos"))]
-mod agent_apps_auth_cancel_tests;
 
 // agent_apps_auth_default is owned by gateway-agent-apps.
 
@@ -257,11 +255,7 @@ mod agent_apps_auth_cancel_tests;
 // agent_apps_auth_logout is owned by gateway-agent-apps.
 
 // agent_apps_auth_poll is owned by gateway-agent-apps.
-#[cfg(all(test, target_os = "macos"))]
-mod agent_apps_auth_poll_tests;
 
-#[cfg(all(test, target_os = "macos"))]
-mod agent_apps_auth_redaction_tests;
 
 // agent_apps_auth_remove is owned by gateway-agent-apps.
 
@@ -270,8 +264,6 @@ mod agent_apps_auth_start;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_start_tests;
 
-#[cfg(test)]
-mod agent_apps_add_tests;
 
 
 
@@ -288,12 +280,10 @@ pub(crate) mod model_catalog;
 #[cfg(all(test, target_os = "macos"))]
 mod model_catalog_acceptance_tests;
 // Model catalog edits are composed inside gateway-model.
-#[cfg(all(test, target_os = "macos"))]
-mod model_catalog_tests;
+
 
 // Discovery routes live in gateway-model; host integration tests stay here.
-#[cfg(all(test, target_os = "macos"))]
-mod model_discovery_tests;
+
 
 #[cfg(all(test, target_os = "macos"))]
 #[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_create_tests.rs"]
@@ -413,20 +403,20 @@ mod mcp_management_tools_tests;
 
 pub(crate) use gateway_agent_apps::agent_apps_skills as agent_apps_skills;
 
-pub(crate) mod agent_app_prompt_files;
+pub(crate) use gateway_agent_app::agent_app_prompt_files as agent_app_prompt_files;
 
-pub(crate) mod agent_app_prompts_read;
+pub(crate) use gateway_agent_app::agent_app_prompts_read as agent_app_prompts_read;
 
-pub(crate) mod agent_app_prompts_write;
+pub(crate) use gateway_agent_app::agent_app_prompts_write as agent_app_prompts_write;
 
-pub(crate) mod agent_app_prompts_activation;
+pub(crate) use gateway_agent_app::agent_app_prompts_activation as agent_app_prompts_activation;
 
-pub(crate) mod agent_app_prompt_templates;
+pub(crate) use gateway_agent_app::agent_app_prompt_templates as agent_app_prompt_templates;
 
 #[cfg(target_os = "macos")]
-pub(crate) mod agent_app_prompt_sync;
+pub(crate) use gateway_agent_app::agent_app_prompt_sync as agent_app_prompt_sync;
 
-pub(crate) mod agent_app_prompt_shared_import;
+pub(crate) use gateway_agent_app::agent_app_prompt_shared_import as agent_app_prompt_shared_import;
 
 pub(crate) mod computer_control;
 // Computer-control policy tests are registered by gateway-computer-control.

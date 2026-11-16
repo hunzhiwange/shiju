@@ -27,3 +27,6 @@ pub use worktree::{registry, environment, recovery, cleanup, management, cleanup
 pub mod testing {
     pub use crate::worktree::{native, ops, creation_policy};
 }
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_50_tests;

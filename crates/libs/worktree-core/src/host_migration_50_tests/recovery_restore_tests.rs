@@ -54,7 +54,6 @@ async fn deleted(primary: &Path, record: &registry::Record) -> String {
 
 #[tokio::test]
 async fn worktree_recovery_restore_round_trips_staged_and_unstaged_changes() {
-    super::initialize_host();
     let _serial = GIT_PROCESS_TEST_LOCK.lock().await;
     let (_temp, primary, record) = fixture().await;
     std::fs::write(record.directory.join("tracked"), "staged").unwrap();
@@ -122,7 +121,6 @@ async fn worktree_recovery_restore_round_trips_staged_and_unstaged_changes() {
 
 #[tokio::test]
 async fn worktree_recovery_restore_rejects_other_tenant() {
-    super::initialize_host();
     let _serial = GIT_PROCESS_TEST_LOCK.lock().await;
     let (_temp, primary, record) = fixture().await;
     let id = deleted(&primary, &record).await;
@@ -137,7 +135,6 @@ async fn worktree_recovery_restore_rejects_other_tenant() {
 
 #[tokio::test]
 async fn worktree_recovery_restore_handles_path_conflict() {
-    super::initialize_host();
     let _serial = GIT_PROCESS_TEST_LOCK.lock().await;
     let (_temp, primary, record) = fixture().await;
     let id = deleted(&primary, &record).await;
@@ -155,7 +152,6 @@ async fn worktree_recovery_restore_handles_path_conflict() {
 
 #[tokio::test]
 async fn worktree_recovery_restore_failure_can_retry_and_preserves_snapshot() {
-    super::initialize_host();
     let _serial = GIT_PROCESS_TEST_LOCK.lock().await;
     let (temp, primary, record) = fixture().await;
     let id = deleted(&primary, &record).await;
@@ -173,7 +169,6 @@ async fn worktree_recovery_restore_failure_can_retry_and_preserves_snapshot() {
 
 #[tokio::test]
 async fn worktree_recovery_restore_survives_process_restart() {
-    super::initialize_host();
     if let Some(primary) = std::env::var_os("SHIJU_RESTORE_CHILD") {
         let scope: ProjectScope =
             serde_json::from_str(&std::env::var("SHIJU_RESTORE_SCOPE").unwrap()).unwrap();
@@ -186,7 +181,7 @@ async fn worktree_recovery_restore_survives_process_restart() {
     let (_temp, primary, record) = fixture().await;
     let id = deleted(&primary, &record).await;
     let child = Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", "worktree::worktree::recovery_restore_tests::worktree_recovery_restore_survives_process_restart", "--nocapture"])
+        .args(["--exact", "host_migration_50_tests::recovery_restore_tests::worktree_recovery_restore_survives_process_restart", "--nocapture"])
         .env("SHIJU_RESTORE_CHILD", &primary)
         .env("SHIJU_RESTORE_SCOPE", serde_json::to_string(&record.scope).unwrap())
         .env("SHIJU_RESTORE_ID", &id).output().unwrap();
@@ -203,7 +198,6 @@ async fn worktree_recovery_restore_survives_process_restart() {
 
 #[tokio::test]
 async fn worktree_recovery_restore_rejects_foreign_repository_and_busy_operation() {
-    super::initialize_host();
     let _serial = GIT_PROCESS_TEST_LOCK.lock().await;
     let (_temp, primary, record) = fixture().await;
     let id = deleted(&primary, &record).await;
@@ -232,7 +226,6 @@ async fn worktree_recovery_restore_rejects_foreign_repository_and_busy_operation
 
 #[tokio::test]
 async fn worktree_recovery_restore_rejects_unsafe_tree_before_writing() {
-    super::initialize_host();
     let _serial = GIT_PROCESS_TEST_LOCK.lock().await;
     let (_temp, primary, record) = fixture().await;
     let id = deleted(&primary, &record).await;
@@ -274,7 +267,6 @@ async fn worktree_recovery_restore_rejects_unsafe_tree_before_writing() {
 
 #[tokio::test]
 async fn worktree_recovery_restore_registration_failure_rolls_back_only_new_resources() {
-    super::initialize_host();
     let _serial = GIT_PROCESS_TEST_LOCK.lock().await;
     let (temp, primary, record) = fixture().await;
     let id = deleted(&primary, &record).await;
@@ -309,7 +301,6 @@ async fn worktree_recovery_restore_registration_failure_rolls_back_only_new_reso
 
 #[tokio::test]
 async fn worktree_recovery_restore_does_not_interpret_branch_names_as_options() {
-    super::initialize_host();
     let _serial = GIT_PROCESS_TEST_LOCK.lock().await;
     let (_temp, primary, record) = fixture().await;
     git(&primary, &["update-ref", "refs/heads/--force", "HEAD"]);

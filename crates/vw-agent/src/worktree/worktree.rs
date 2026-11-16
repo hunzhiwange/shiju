@@ -49,10 +49,6 @@ mod cleanup_tests;
 mod environment_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "recovery_restore_tests.rs"]
-mod recovery_restore_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "management_e2e_tests.rs"]
 mod management_e2e_tests;
 

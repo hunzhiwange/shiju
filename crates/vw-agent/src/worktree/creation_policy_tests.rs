@@ -1,4 +1,3 @@
-use super::creation_policy::prepare;
 use crate::project;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -41,90 +40,6 @@ fn commit(path: &Path) {
             "change",
         ],
     );
-}
-#[tokio::test]
-async fn worktree_creation_policy_uses_configured_root() {
-    super::initialize_host();
-    let (temp, primary, info) = fixture();
-    let root = temp.path().join("custom/nested");
-    let settings = WorktreeSettings { root: root.to_string_lossy().into(), ..Default::default() };
-    let actual = prepare(&info, primary.to_str().unwrap(), &settings).await.unwrap();
-    assert_eq!(actual, std::fs::canonicalize(root).unwrap());
-    assert!(actual.is_dir());
-}
-#[tokio::test]
-async fn worktree_creation_policy_fetches_only_when_enabled() {
-    super::initialize_host();
-    let (temp, primary, info) = fixture();
-    let remote = temp.path().join("remote.git");
-    git(temp.path(), &["init", "--bare", remote.to_str().unwrap()]);
-    git(&primary, &["remote", "add", "chosen", remote.to_str().unwrap()]);
-    git(&primary, &["push", "-u", "chosen", "main"]);
-    let head = git(&primary, &["rev-parse", "HEAD"]);
-    let writer = temp.path().join("writer");
-    git(temp.path(), &["clone", "-b", "main", remote.to_str().unwrap(), writer.to_str().unwrap()]);
-    commit(&writer);
-    git(&writer, &["push"]);
-    let advanced = git(&writer, &["rev-parse", "HEAD"]);
-    assert_ne!(head, advanced);
-    let mut settings = WorktreeSettings {
-        root: temp.path().join("trees").to_string_lossy().into(),
-        ..Default::default()
-    };
-    prepare(&info, primary.to_str().unwrap(), &settings).await.unwrap();
-    assert_eq!(git(&primary, &["rev-parse", "chosen/main"]), head);
-    settings.fetch_before_create = true;
-    let root = prepare(&info, primary.to_str().unwrap(), &settings).await.unwrap();
-    assert_eq!(git(&primary, &["rev-parse", "chosen/main"]), advanced);
-    assert_eq!(git(&primary, &["rev-parse", "HEAD"]), head);
-    let checkout = root.join("fork");
-    git(&primary, &["worktree", "add", "-b", "shiju/policy", checkout.to_str().unwrap()]);
-    assert_eq!(git(&checkout, &["rev-parse", "HEAD"]), head);
-}
-#[tokio::test]
-async fn worktree_creation_policy_fetch_failure_does_not_create_checkout() {
-    super::initialize_host();
-    let (temp, primary, info) = fixture();
-    let root = temp.path().join("trees");
-    let settings = WorktreeSettings {
-        root: root.to_string_lossy().into(),
-        fetch_before_create: true,
-        ..Default::default()
-    };
-    let before = git(&primary, &["branch", "--list"]);
-    let error = prepare(&info, primary.to_str().unwrap(), &settings).await.unwrap_err();
-    assert!(error.to_string().contains("upstream"));
-    git(&primary, &["remote", "add", "gone", temp.path().join("missing.git").to_str().unwrap()]);
-    git(&primary, &["config", "branch.main.remote", "gone"]);
-    git(&primary, &["config", "branch.main.merge", "refs/heads/main"]);
-    assert!(prepare(&info, primary.to_str().unwrap(), &settings).await.is_err());
-    assert_eq!(git(&primary, &["branch", "--list"]), before);
-    assert_eq!(git(&primary, &["worktree", "list", "--porcelain"]).matches("worktree ").count(), 1);
-    assert!(!root.exists());
-}
-
-#[cfg(unix)]
-#[tokio::test]
-async fn worktree_creation_policy_rejects_symlinks() {
-    super::initialize_host();
-    let (temp, primary, info) = fixture();
-    let outside = temp.path().join("outside");
-    std::fs::create_dir(&outside).unwrap();
-    let root = temp.path().join("trees");
-    std::os::unix::fs::symlink(&outside, &root).unwrap();
-    let settings = WorktreeSettings { root: root.to_string_lossy().into(), ..Default::default() };
-    assert!(prepare(&info, primary.to_str().unwrap(), &settings).await.is_err());
-    std::fs::remove_file(&root).unwrap();
-    let root = prepare(&info, primary.to_str().unwrap(), &settings).await.unwrap();
-    let checkout = root.join("checkout");
-    std::os::unix::fs::symlink(outside.join("missing"), &checkout).unwrap();
-    assert!(super::creation_policy::validate_parent(&root, &checkout).await.is_err());
-    std::fs::remove_file(&checkout).unwrap();
-    let moved = temp.path().join("moved");
-    std::fs::rename(&root, &moved).unwrap();
-    std::os::unix::fs::symlink(&outside, &root).unwrap();
-    assert!(super::creation_policy::validate_parent(&root, &checkout).await.is_err());
-    assert!(std::fs::read_dir(&outside).unwrap().next().is_none());
 }
 
 #[tokio::test]

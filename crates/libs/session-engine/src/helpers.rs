@@ -97,3 +97,7 @@ pub fn should_execute_structured_tool_calls_locally(options: &Value) -> bool {
 #[cfg(test)]
 #[path = "helpers_visibility_tests.rs"]
 mod visibility_tests;
+
+#[cfg(test)]
+#[path = "helpers_preview_tests.rs"]
+mod preview_tests;

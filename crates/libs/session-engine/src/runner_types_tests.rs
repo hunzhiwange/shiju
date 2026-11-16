@@ -18,7 +18,7 @@ fn tool_session_state_defaults_without_background_children() {
 fn resolved_request_model_keeps_full_reference_and_limit() {
     let resolved = super::ResolvedRequestModel::new(
         "provider/model".to_string(),
-        crate::app::agent::provider::provider::ModelLimit {
+        model_types::ModelLimit {
             context: 16_384,
             input: None,
             output: 4_096,
@@ -31,13 +31,13 @@ fn resolved_request_model_keeps_full_reference_and_limit() {
 
 #[test]
 fn request_keeps_strongly_typed_reliability_snapshot() {
-    let mut request = super::Request {
+    let mut request: super::Request<(), ()> = super::Request {
         stream: 1,
         session: "reliability-snapshot".to_string(),
         query: String::new(),
         root: None,
         model: None,
-        reliability: crate::app::agent::config::ReliabilityConfig::default(),
+        reliability: agent_config::runtime::ReliabilityConfig::default(),
         options: serde_json::json!({}),
         approval: None,
         channel_name: None,
@@ -47,7 +47,7 @@ fn request_keeps_strongly_typed_reliability_snapshot() {
         persist_app_session_artifacts: false,
         app_session_scope: None,
         abort_token: None,
-        session_tools: crate::session::runtime::SessionToolset::default(),
+        session_tools: tool_assembly::runtime::SessionToolset::default(),
         session_skills: Default::default(),
     };
     request.reliability.provider_retries = 9;

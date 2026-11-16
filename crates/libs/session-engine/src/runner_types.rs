@@ -119,3 +119,7 @@ impl<A, S: Clone> Clone for Request<A, S> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "runner_types_tests.rs"]
+mod runner_types_tests;

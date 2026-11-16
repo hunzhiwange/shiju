@@ -6,8 +6,3 @@ pub use session_port::{
 };
 
 pub use session_engine::processor_events::StreamEvent;
-
-// Turn state has a single owner in session-engine.
-#[cfg(test)]
-#[path = "../../../../libs/session-engine/tests/host_suites/types_tests.rs"]
-mod types_tests;

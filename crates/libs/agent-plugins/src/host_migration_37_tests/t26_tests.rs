@@ -16,7 +16,7 @@ async fn codex_plugin_compat_t26_host_entry_revalidates_package_identity() {
     super::merge_enabled_plugin_mcp_servers(&mut servers, &options).unwrap();
     let McpServer::Http(server) = &mut servers[0] else { panic!("HTTP fixture") };
     server.url = "https://other.example/mcp".into();
-    let error = plugin_mcp::mcp_auth::discover_oauth(&super::Source, server).await.unwrap_err();
+    let error = crate::mcp_auth::discover_oauth(server).await.unwrap_err();
     assert!(error.to_string().contains("endpoint or identity changed"));
     assert_eq!(std::fs::read(root.join(".codex-plugin/plugin.json")).unwrap(), original);
 }

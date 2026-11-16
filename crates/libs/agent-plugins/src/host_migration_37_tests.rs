@@ -11,16 +11,7 @@ mod t17_tests;
 mod t17_public_tests;
 mod t26_tests;
 
-struct Source;
-impl plugin_mcp::source_host::SourceHost for Source {
-    fn load_manifest(&self, root: &Path) -> Result<plugin_types::PluginManifest> {
-        crate::load_plugin_manifest(root)
-    }
-    fn load_declarations(&self, manifest: &plugin_types::PluginManifest)
-        -> Result<(plugin_mcp::mcp_legacy::PluginMcpParseOutcome, PathBuf)> {
-        crate::mcp::load_plugin_mcp_declarations(manifest)
-    }
-}
+use crate::mcp_auth::Source;
 
 fn merge_enabled_plugin_mcp_servers(servers: &mut Vec<McpServer>, options: &crate::PluginDiscoveryOptions) -> Result<()> {
     crate::mcp::merge_enabled_plugin_mcp_servers(servers, options, &|options| {

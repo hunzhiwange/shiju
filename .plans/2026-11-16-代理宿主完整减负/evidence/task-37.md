@@ -311,3 +311,29 @@ Retained: t18 actual ToolUseContext cancellation, SessionToolset lease, plugin-d
 Dependencies: use existing tool-mcp dev dependency, add dev acp-types and agent-bus plus tokio test-util/rt-multi-thread for paused-clock and native runtime fixtures; lockfile existing-package edges updated without invoking Cargo. Self-register t19/t21/t22/t24/tool_host in domain; remove old t21/t27_flow host mounts. Existing t20 service fixture reused for moved bindings tests.
 
 Future `python3 scripts/cargo_slot.py cargo test -p agent-plugins --lib host_migration_37_tests -- --test-threads=1`: statically 94 test attributes (Unix cfg affects cross-platform count), must run nonzero. All Cargo/build/test execution remains NOT RUN by instruction. Static mapping and diff review only, no runtime/compile gain claim.
+
+## Fourth pass: remove residual source composition
+
+Latest final.md is 43584 lines / 8584 excess; the delegated 38000-line gap was stale. This pass moves actual production composition (not existing plugin-mcp algorithms) to agent-plugins.
+
+|Original compat file|Disposition|Host lines removed|
+|---|---|---:|
+|dependencies.rs|agent-plugins::dependencies, same audited manifest/MCP/skill/agent readers; original root export now aliases it|23|
+|mcp_auth.rs|agent-plugins::mcp_auth, SourceHost reads same production manifest/declaration functions; original visibility preserved at host alias|29|
+|mcp_oauth_flow.rs|agent-plugins::mcp_oauth_flow::authorize; remove unused host authorize_with test adapter|12|
+|mcp_oauth_tokens.rs|agent-plugins::mcp_oauth_tokens, same explicit owner/source, host supplies current tenant at real callers|9|
+|mcp_environment.rs|delete unused resolve_servers wrapper; runtime_cwd callers use direct plugin-mcp module alias|20|
+|mcp_portable_overlay.rs|delete unused adapter; real loader already calls its domain OverlaySource|19|
+
+112 source lines leave host; necessary aliases remain in shared parent. No policy/algorithm copied from plugin-mcp is credited as new migration. Production inspect_plugin_dependencies/missing_mcp_executable and SourceHost composition now have actual callers through the preserved host exports. Request context, tenant selection, approval, lifecycle and app execution adapters stay in host.
+
+Domain Source test duplicate removed: existing t26 package identity revalidation now calls actual agent-plugins::mcp_auth::discover_oauth. Existing task39 dependency tests now reuse production inspect_plugin_dependencies, preserving original full test names/assertions instead of a test-only duplicate algorithm. McpTool fixture also uses production missing_mcp_executable. No new dependencies or host source inclusion.
+
+Future commands (NOT RUN):
+```sh
+python3 scripts/cargo_slot.py cargo test -p agent-plugins --lib codex_plugin_compat_t58_ -- --test-threads=1
+python3 scripts/cargo_slot.py cargo test -p agent-plugins --lib codex_plugin_compat_t26_host_entry_revalidates_package_identity -- --test-threads=1
+python3 scripts/cargo_slot.py cargo test -p agent-plugins --lib host_migration_37_tests -- --test-threads=1
+```
+
+Expected t58 = 5 on Unix (4 on other platforms); t26 = 1. Existing test37 mappings remain. All Cargo, builds and behavior tests remain unexecuted. Static caller/import/registration and diff checks only. No full-task completion claim about global line threshold.

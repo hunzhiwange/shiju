@@ -55,7 +55,7 @@ impl tool_mcp::McpToolHost for Host {
     async fn load_config(_: Option<&Path>) -> anyhow::Result<acp_config::ResolvedAcpxConfig> { anyhow::bail!("fixture requires explicit server configuration") }
     fn connection_required(server: &agent_client_protocol::McpServer) -> anyhow::Result<bool> { Ok(plugin_mcp::mcp_connection_settings::settings(server)?.required) }
     fn missing_executable(server: &agent_client_protocol::McpServer) -> anyhow::Result<Option<(String,String)>> {
-        Ok(plugin_install::dependencies::missing_mcp_executable(server, plugin_mcp::mcp_environment::runtime_cwd, plugin_mcp::mcp_portable::env_names_match)?.map(|item| (item.dependency, item.detail)))
+        Ok(crate::dependencies::missing_mcp_executable(server)?.map(|item| (item.dependency, item.detail)))
     }
     fn tool_allowed(server: &agent_client_protocol::McpServer, name: &str) -> anyhow::Result<bool> { plugin_mcp::mcp_connection_settings::tool_allowed(server, name) }
     fn tool_binding(pool: &Self::Connections, server: &agent_client_protocol::McpServer) -> Option<mcp_client::ToolCatalogBinding> { pool.tool_binding(server) }

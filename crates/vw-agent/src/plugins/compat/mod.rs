@@ -9,17 +9,17 @@ pub(super) mod commands;
 pub(super) mod discovery;
 pub(super) mod identity;
 pub(super) mod legacy_manifest;
-pub(super) mod mcp_auth;
+pub(super) use agent_plugins::mcp_auth;
 pub(super) mod mcp_capabilities;
 pub(crate) mod mcp_connection_sessions;
 pub(crate) mod mcp_connection_settings;
 pub(crate) mod mcp_connections;
 pub(super) mod mcp_content;
 pub(crate) mod mcp_elicitation;
-pub(super) mod mcp_environment;
+pub(super) use plugin_mcp::mcp_environment;
 pub(super) mod mcp_legacy;
 pub(super) mod mcp_portable;
-pub(super) mod mcp_portable_overlay;
+
 pub(super) mod mcp_public_auth;
 pub(super) mod onboarding;
 pub(super) mod path_audit;
@@ -95,10 +95,10 @@ mod t24_tests;
 
 pub mod mcp_oauth_discovery;
 
-pub mod mcp_oauth_flow;
+pub use agent_plugins::mcp_oauth_flow;
 
 
-pub mod mcp_oauth_tokens;
+pub use agent_plugins::mcp_oauth_tokens;
 #[cfg(test)]
 mod t28_tests;
 
@@ -167,7 +167,7 @@ pub(crate) mod installed_state;
 #[cfg(test)]
 mod t54_tests;
 
-pub(crate) mod dependencies;
+pub(crate) use agent_plugins::dependencies;
 
 
 #[cfg(test)]

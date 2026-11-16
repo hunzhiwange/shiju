@@ -120,3 +120,11 @@ mod host_migration_37_tests;
 
 #[cfg(test)]
 mod host_migration_38_tests;
+
+pub mod dependencies;
+
+pub mod mcp_auth;
+
+pub mod mcp_oauth_flow;
+
+pub mod mcp_oauth_tokens;

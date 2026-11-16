@@ -852,3 +852,8 @@ impl<H: AgentHost> Tool for AgentTool<H> {
     }
 }
 mod communication;
+
+#[cfg(test)]
+mod input_test_support;
+#[cfg(test)]
+mod spec_input_tests;

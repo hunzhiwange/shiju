@@ -11,7 +11,7 @@
 //! - 原始字符串参数的恢复
 //! - 工具调用 ID 别名的保留
 
-use super::*;
+use crate::parsing::json::parse_tool_call_value;
 
 /// 测试缺失 name 字段时的处理
 ///

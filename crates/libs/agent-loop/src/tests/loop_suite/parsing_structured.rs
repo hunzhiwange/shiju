@@ -7,7 +7,9 @@
 //!
 //! 这些测试确保解析逻辑在非标准输入下仍能优雅地恢复或正确处理。
 
-use super::*;
+use crate::parsing::parse_structured_tool_calls;
+use crate::parsing::json::parse_tool_calls_from_json_value;
+use model_types::ToolCall;
 
 /// 测试解析空工具调用数组
 ///

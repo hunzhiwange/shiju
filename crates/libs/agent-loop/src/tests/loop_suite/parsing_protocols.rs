@@ -6,7 +6,7 @@
 //! - 格式错误的工具调用载荷检测
 //! - 正常文本的解析行为
 
-use super::*;
+use crate::parsing::{detect_tool_call_parse_issue, parse_tool_calls};
 
 /// 测试空工具调用数组的处理行为
 ///

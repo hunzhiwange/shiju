@@ -12,10 +12,10 @@
 //! # 相关模块
 //!
 //! - [`super`] 父模块（agent 循环核心逻辑）
-//! - [`crate::app::agent::config::AutonomyConfig`] 自主性配置定义
-//! - [`crate::app::agent::security::AutonomyLevel`] 自主性级别枚举
+//! - [`config_security::AutonomyConfig`] 自主性配置定义
+//! - [`agent_security::AutonomyLevel`] 自主性级别枚举
 
-use super::*;
+use crate::instructions::build_shell_policy_instructions;
 
 /// 测试命令白名单的格式化输出
 ///
@@ -36,9 +36,9 @@ use super::*;
 #[test]
 fn build_shell_policy_instructions_lists_allowlist() {
     // 创建默认的自主性配置
-    let mut autonomy = crate::app::agent::config::AutonomyConfig::default();
+    let mut autonomy = config_security::AutonomyConfig::default();
     // 设置为监督级别，需要人工审批执行
-    autonomy.level = crate::app::agent::security::AutonomyLevel::Supervised;
+    autonomy.level = agent_security::AutonomyLevel::Supervised;
     // 配置允许的命令列表（包含重复的 grep 用于测试去重或显示逻辑）
     autonomy.allowed_commands = vec!["grep".into(), "cat".into(), "grep".into()];
 
@@ -69,9 +69,9 @@ fn build_shell_policy_instructions_lists_allowlist() {
 #[test]
 fn build_shell_policy_instructions_handles_wildcard() {
     // 创建默认的自主性配置
-    let mut autonomy = crate::app::agent::config::AutonomyConfig::default();
+    let mut autonomy = config_security::AutonomyConfig::default();
     // 设置为完全自主级别，代理可自主执行
-    autonomy.level = crate::app::agent::security::AutonomyLevel::Full;
+    autonomy.level = agent_security::AutonomyLevel::Full;
     // 使用通配符表示允许所有命令
     autonomy.allowed_commands = vec!["*".into()];
 
@@ -100,9 +100,9 @@ fn build_shell_policy_instructions_handles_wildcard() {
 #[test]
 fn build_shell_policy_instructions_read_only_disables_shell() {
     // 创建默认的自主性配置
-    let mut autonomy = crate::app::agent::config::AutonomyConfig::default();
+    let mut autonomy = config_security::AutonomyConfig::default();
     // 设置为只读级别，禁止所有修改性操作
-    autonomy.level = crate::app::agent::security::AutonomyLevel::ReadOnly;
+    autonomy.level = agent_security::AutonomyLevel::ReadOnly;
 
     // 构建完整的 Bash 策略指令字符串
     let instructions = build_shell_policy_instructions(&autonomy);

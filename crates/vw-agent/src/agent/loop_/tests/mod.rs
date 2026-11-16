@@ -45,13 +45,8 @@ use std::sync::Arc;
 
 pub(crate) use super::core::tools_to_openai_format;
 pub(crate) use super::cron::maybe_inject_cron_add_delivery;
-pub(crate) use super::instructions::{build_shell_policy_instructions, build_tool_instructions};
-pub(crate) use super::parsing::{
-    ParsedToolCall, default_param_for_tool, detect_tool_call_parse_issue, parse_arguments_value,
-    parse_glm_shortened_body, parse_glm_style_tool_calls, parse_perl_style_tool_calls,
-    parse_structured_tool_calls, parse_tool_call_value, parse_tool_calls,
-    parse_tool_calls_from_json_value,
-};
+pub(crate) use super::instructions::build_tool_instructions;
+pub(crate) use super::parsing::ParsedToolCall;
 
 // ============================================================================
 // 测试子模块声明
@@ -65,11 +60,6 @@ mod loop_tools;
 mod memory_context;
 // parsing_edge_cases 测试已在 agent-loop 注册。
 // parsing_extract_json 测试已在 agent-loop 注册。
-mod parsing_glm;
-mod parsing_protocols;
-mod parsing_recovery;
-mod parsing_structured;
-mod parsing_tool_calls;
-mod parsing_value;
-mod shell_policy;
+// Parsing and shell policy tests are registered in agent-loop.
+#[path = "../../../../../libs/agent-loop/src/tests/loop_suite/tool_instructions.rs"]
 mod tool_instructions;

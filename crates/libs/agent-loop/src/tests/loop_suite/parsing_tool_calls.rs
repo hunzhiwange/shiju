@@ -19,7 +19,8 @@
 //! 测试确保只有带有明确包装器的 JSON 才会被解析为工具调用，
 //! 防止提示注入攻击（恶意内容伪装成工具调用 JSON）。
 
-use super::*;
+use crate::parsing::parse_tool_calls;
+use crate::parsing::tool_call_formats::parse_perl_style_tool_calls;
 
 /// 测试从响应中提取单个工具调用
 ///

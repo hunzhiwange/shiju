@@ -19,7 +19,8 @@
 //! - 安全性验证（拒绝非 HTTP URL 参数）
 //! - 错误处理（无效工具名、空输入等）
 
-use super::*;
+use crate::parsing::parse_tool_calls;
+use crate::parsing::tool_call_formats::{parse_glm_shortened_body, parse_glm_style_tool_calls};
 
 // ═══════════════════════════════════════════════════════════════════════
 // GLM 风格工具调用解析测试

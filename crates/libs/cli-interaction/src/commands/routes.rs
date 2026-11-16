@@ -46,6 +46,19 @@ pub(super) fn route_slash_command(command_id: &str, arguments: &str) -> Result<C
         });
     }
     match command_id {
+        "copy" => {
+            if arguments.is_empty() {
+                return Ok(CommandRoute::CopyAnswer { code_block: None });
+            }
+            let mut parts = arguments.split_whitespace();
+            let kind = parts.next();
+            let index = parts.next().and_then(|value| value.parse::<usize>().ok());
+            match (kind, index, parts.next()) {
+                (Some("code"), Some(index), None) if index > 0 =>
+                    Ok(CommandRoute::CopyAnswer { code_block: Some(index) }),
+                _ => Err("/copy 或 /copy code <从1开始的代码块序号>".to_string()),
+            }
+        }
         "memory" => route_memory(arguments),
         "files" => Ok(CommandRoute::OpenWorkspaceFiles {
             path: normalize_workspace_relative_path(arguments)?,

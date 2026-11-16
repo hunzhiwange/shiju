@@ -319,6 +319,7 @@ mod integrations;
 mod orchestration;
 mod transcript;
 mod view;
+pub(crate) mod semantic_copy;
 mod startup;
 mod terminal;
 mod workers;

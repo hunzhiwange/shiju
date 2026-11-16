@@ -5290,6 +5290,7 @@ dependencies = [
  "dialoguer",
  "gateway-cron",
  "ordered-id",
+ "pulldown-cmark 0.13.4",
  "ratatui",
  "serde_json",
  "session-text",

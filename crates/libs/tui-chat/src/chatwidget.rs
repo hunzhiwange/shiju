@@ -326,14 +326,20 @@ impl ChatWidget {
     /// Scrolls the copied transcript with the terminal mouse wheel.
     pub fn handle_mouse_event(&mut self, event: MouseEvent) -> V3Action {
         if let TranscriptMouseAction::Copy(text) = self.transcript.handle_mouse_event(event) {
-            match tui_clipboard::clipboard_copy::copy_to_clipboard(text.as_str()) {
-                Ok(lease) => self.clipboard_lease = lease,
-                Err(error) => self.transcript.push_history(V3DisplayEvent::Error {
+            if let Err(error) = self.copy_text(text.as_str()) {
+                self.transcript.push_history(V3DisplayEvent::Error {
                     message: format!("复制失败：{error}"),
-                }),
+                });
             }
         }
         V3Action::None
+    }
+
+    /// 复制语义原文，并沿用鼠标复制的剪贴板所有权生命周期。
+    pub fn copy_text(&mut self, text: &str) -> Result<(), String> {
+        let lease = tui_clipboard::clipboard_copy::copy_to_clipboard(text)?;
+        self.clipboard_lease = lease;
+        Ok(())
     }
 
     /// 仅把粘贴内容应用到本地输入界面；选择覆盖层可将其作为搜索文本处理。

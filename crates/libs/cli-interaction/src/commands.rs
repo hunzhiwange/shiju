@@ -35,6 +35,7 @@ const LATER_BATCH_REASON: &str = "该能力将在后续桌面能力对齐批次�
 pub(crate) enum CommandRoute {
     Help,
     Status,
+    CopyAnswer { code_block: Option<usize> },
     RunDoctor,
     ShowDiff,
     OpenWorkspaceFiles { path: String },
@@ -146,6 +147,11 @@ impl CommandSpec {
 
 const COMMANDS: &[CommandSpec] = &[
     CommandSpec::local("help", "显示当前命令及可用状态", || CommandRoute::Help),
+    CommandSpec::local(
+        "copy",
+        "复制最近完成回答；/copy code <序号> 复制代码块（从1开始）",
+        || CommandRoute::CopyAnswer { code_block: None },
+    ),
     CommandSpec::local("status", "显示当前会话与 Gateway 状态", || CommandRoute::Status),
     CommandSpec::local("doctor", "运行 Gateway 诊断", || CommandRoute::RunDoctor),
     CommandSpec::local("exit", "退出 TUI", || CommandRoute::Exit),

@@ -68,3 +68,6 @@ pub(crate) fn build_surface() -> V3Surface {
 
 #[cfg(test)]
 mod gateway_composition_tests;
+
+#[cfg(test)]
+mod workflow_req_02_tests;

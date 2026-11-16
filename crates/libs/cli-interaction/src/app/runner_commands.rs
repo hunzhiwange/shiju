@@ -131,6 +131,23 @@ impl ActiveRunner {
                     app.widget_mut().push_history(V3DisplayEvent::System { text: help_text() });
                     RunnerControl::Continue
                 }
+                CommandRoute::CopyAnswer { code_block } => {
+                    let result = if self.active_stream.is_some()
+                        || self.session_bootstrap_in_flight
+                        || self.directory_switch_source.is_some()
+                    {
+                        Err("回答生成或会话切换尚未完成，请稍后复制".to_string())
+                    } else {
+                        super::semantic_copy::answer_text(app.state(), code_block)
+                    };
+                    match result.and_then(|text| app.widget_mut().copy_text(&text)) {
+                        Ok(()) => app.widget_mut().push_history(V3DisplayEvent::System {
+                            text: "已复制到剪贴板".to_string(),
+                        }),
+                        Err(error) => push_runner_error(app, error),
+                    }
+                    RunnerControl::Continue
+                }
                 CommandRoute::Status => {
                     let text = app.command_status_text();
                     app.widget_mut().push_history(V3DisplayEvent::System { text });

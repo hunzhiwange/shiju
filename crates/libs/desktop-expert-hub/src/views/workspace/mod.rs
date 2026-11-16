@@ -87,6 +87,8 @@ pub enum Message {
     Account(AccountMessage),
     View(ViewMessage),
     CopyCode(String),
+    AppendToInput(String),
+    Selection { session_id: String, message_idx: usize, text_idx: usize, text: Option<String> },
     None,
 }
 pub use desktop_apps_ui::shiju_apps::ShijuAppsMessage;
@@ -124,3 +126,28 @@ pub use crate::message::skill_hub;
 
 #[cfg(test)]
 mod public_project_tests;
+
+impl desktop_chat_view::message_view::markdown_selection::SelectionMessage for Message {
+    fn none() -> Self {
+        Self::None
+    }
+    fn copy(text: String) -> Self {
+        Self::CopyCode(text)
+    }
+    fn context(effect: desktop_ui_controls::text_editor_context_menu::TextContextEffect) -> Self {
+        use desktop_ui_controls::text_editor_context_menu::TextContextEffect;
+        match effect {
+            TextContextEffect::Copy(text) => Self::CopyCode(text),
+            TextContextEffect::Append(text) => Self::AppendToInput(text),
+            TextContextEffect::OpenUrl(url) => Self::View(ViewMessage::OpenUrlExternal(url)),
+        }
+    }
+    fn selection(
+        session_id: String,
+        message_idx: usize,
+        text_idx: usize,
+        text: Option<String>,
+    ) -> Self {
+        Self::Selection { session_id, message_idx, text_idx, text }
+    }
+}

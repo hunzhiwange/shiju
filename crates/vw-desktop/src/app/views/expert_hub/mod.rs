@@ -38,6 +38,14 @@ fn map(event: domain::Message) -> Message {
             Message::View(crate::app::message::ViewMessage::OpenUrlExternal(url))
         }
         domain::Message::CopyCode(text) => Message::CopyCode(text),
+        domain::Message::AppendToInput(text) => {
+            crate::app::components::text_editor_context_menu::text_context_message(
+                desktop_ui_controls::text_editor_context_menu::TextContextEffect::Append(text),
+            )
+        }
+        domain::Message::Selection { session_id, message_idx, text_idx, text } => {
+            Message::ChatMarkdownSelectionChanged { session_id, message_idx, text_idx, text }
+        }
         domain::Message::None => Message::None,
     }
 }

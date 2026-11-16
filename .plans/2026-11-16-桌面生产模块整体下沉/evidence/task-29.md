@@ -61,7 +61,7 @@
 | `crates/vw-desktop/src/app/views/expert_hub/styles.rs` | 2 | 0 | 专家库 workspace 同名模块/测试（旧入口删除） |
 | `crates/vw-desktop/src/app/views/expert_hub/upgrade_actions.rs` | 14 | 0 | 专家库 workspace 同名模块/测试（旧入口删除） |
 
-同 baseline splitlines 口径：来源 3763 → 1742，宿主净减少 2021 行；生产候选 908 → 626，减少 282 行。没有新建宿主替代文件。分类含空白/注释，生产候选不是运行代码测量。
+同 baseline splitlines 口径：来源 3763 → 1750，宿主净减少 2013 行；生产候选 908 → 634，减少 274 行。没有新建宿主替代文件。分类含空白/注释，生产候选不是运行代码测量。
 
 ## 静态检查与以后验证
 
@@ -74,3 +74,7 @@
 - `python3 scripts/cargo_slot.py cargo check -p vw-desktop --lib`
 
 风险：禁测期间仅源码核对，跨库类型、借用和平台条件尚无编译证据。其它并行任务正在迁移 navigation_tabs，本任务宿主装配读取当前真实字段；不提交其批量字段替换。
+
+## 交付复核补充
+
+复核提交 360f43e83 后发现并修正两处接线遗漏：workspace::Message 实现既有 SelectionMessage，复制、追加到输入、链接和选区事件映射到原宿主行为；已安装技能帮助标题改用共享控件真实二参数签名，保留可选择文本、主题文字色与原帮助文案，并让闭包只捕获领域主题引用。独立 rustfmt 与 git diff --check 检查完成，仍未编译或测试。

@@ -25,18 +25,21 @@ pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
     {
         let i18n = desktop_i18n::I18n::new(app.desktop_locale);
         let title = i18n.__("我安装的技能");
+        let theme = app.app_theme;
         let header = installed_skills::header(
             i18n,
             move || {
                 desktop_ui_controls::system_settings_common::settings_hover_help_label(
-                    i18n,
-                    &app.app_theme,
-                    title,
                     iced::widget::text(title).size(25).font(iced::Font {
                         weight: iced::font::Weight::Bold,
                         ..Default::default()
                     }),
-                    i18n.__("管理当前目录范围内可启用、关闭或卸载的本地技能"),
+                    desktop_chat_view::message_view::markdown_selection::selectable_titled_text(
+                        title,
+                        i18n.__("管理当前目录范围内可启用、关闭或卸载的本地技能"),
+                        Some(theme.palette().text),
+                        i18n,
+                    ),
                 )
             },
             Message::SkillHub(crate::views::workspace::SkillHubMessage::Public(

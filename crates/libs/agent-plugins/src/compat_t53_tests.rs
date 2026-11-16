@@ -1,6 +1,6 @@
-use crate::plugins::{handle_command, load_plugin_manifest};
+use crate::load_plugin_manifest;
 use agent_cli_types::PluginCommands;
-use crate::config::Config;
+use agent_config::runtime::Config;
 use clap::Parser;
 use std::{fs, path::Path};
 #[derive(Parser)]
@@ -10,7 +10,13 @@ struct Args {
 }
 fn run(args: &[&str], config: &Config) -> anyhow::Result<()> {
     let args = Args::try_parse_from(std::iter::once("plugin").chain(args.iter().copied()))?;
-    handle_command(args.command, config)
+    crate::cli::handle_command(
+        args.command,
+        config,
+        &plugin_mcp::mcp_connection_sessions::close_plugin,
+        // These marketplace fixtures have no onboarding skill. Fail if that changes.
+        &|_| panic!("marketplace fixtures must not request onboarding skills"),
+    )
 }
 fn config(root: &Path) -> Config {
     let mut c = Config::default();

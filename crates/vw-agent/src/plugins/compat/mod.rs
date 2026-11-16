@@ -203,9 +203,6 @@ pub(crate) mod upgrade;
 pub(crate) mod installed_state;
 
 #[cfg(test)]
-mod t53_tests;
-
-#[cfg(test)]
 mod t54_tests;
 
 pub(crate) mod dependencies;

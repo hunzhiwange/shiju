@@ -1,3 +1,4 @@
+// 宿主契约：App::update 驱动标签切换、禁用态与取消消息，验证草稿保持及弹窗关闭。
 use crate::app::{App, Message};
 use crate::app::state::ProviderHeaderDraft;
 fn test_app() -> App { App::new().0 }

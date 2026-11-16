@@ -7511,6 +7511,7 @@ dependencies = [
  "gateway-shiju-account",
  "iced",
  "iced_runtime",
+ "image",
  "model-catalog-types",
  "model-state",
  "model-types",

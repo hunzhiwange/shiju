@@ -47,3 +47,4 @@ iced_runtime = "0.14"
 tempfile = "3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 model-state = { path = "../model-state", version = "0.6.0" }
+image = "0.25"

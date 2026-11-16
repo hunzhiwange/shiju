@@ -1,3 +1,4 @@
+// 宿主契约：embedding/model_routes/classification/multimodal 跨域目录投影与消息映射；帮助操作依赖宿主 selectable_titled_text 的复制和外链实现。
 use super::embedded_view;
 use crate::app::components::{
     system_settings_model_routes, system_settings_multimodal, system_settings_query_classification,

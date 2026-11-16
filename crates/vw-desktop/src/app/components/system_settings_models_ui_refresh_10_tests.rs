@@ -1,3 +1,4 @@
+// 宿主契约：MODEL_TABS 路由、SettingsMessage 映射、目录消息更新与详情 overlay 装配；保留原绘制和状态断言。
 use super::{MODEL_TABS, view, view_overlays};
 use crate::app::message::settings::{self, ModelConfigTabMessage, SettingsMessage};
 use crate::app::state::{ModelConfigTab, ModelSummary, ProviderModelsSummary};

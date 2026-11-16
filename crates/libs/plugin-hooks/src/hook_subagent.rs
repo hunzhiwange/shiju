@@ -116,3 +116,7 @@ pub async fn emit_boundary<H: HookHost>(
     }
     Ok(Vec::new())
 }
+
+#[cfg(test)]
+#[path = "hook_subagent_tests.rs"]
+mod tests;

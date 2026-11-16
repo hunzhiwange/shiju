@@ -1,4 +1,4 @@
-use crate::app::message::settings::aggregation_pi::Form;
+use crate::aggregation::pi::Form;
 use iced::widget::text_editor::Content;
 use vw_api_app_aggregation::PiDirectoryState;
 
@@ -25,7 +25,7 @@ async fn aggregation_t65_renders_dynamic_chinese_in_light_and_dark() {
     };
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -60,7 +60,7 @@ async fn aggregation_t65_renders_dynamic_chinese_in_light_and_dark() {
     let mut images = Vec::new();
     for theme in [Theme::Light, Theme::Dark] {
         let mut ui = UserInterface::build(
-            crate::app::components::aggregation_pi::overlay(
+            desktop_apps_ui::aggregation::pi_view::overlay(
                 &form,
                 container(text("背景")).width(Length::Fill).height(Length::Fill).into(),
             ),

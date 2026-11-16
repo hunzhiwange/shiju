@@ -4,3 +4,6 @@ pub mod aggregation;
 
 #[cfg(test)]
 mod desktop_split_13_tests;
+
+#[cfg(test)]
+mod host_module_17_tests;

@@ -1,4 +1,4 @@
-use crate::app::state::aggregation_omo::*;
+use desktop_apps_ui::aggregation::omo_state::*;
 use vw_api_app_aggregation::*;
 fn standard(revision: &str, current: Option<&str>) -> Snapshot {
     Snapshot::Standard(OmoState {
@@ -22,7 +22,7 @@ async fn aggregation_t64_actual_text_rendering_in_both_themes() {
     static FONTS: std::sync::Once = std::sync::Once::new();
     FONTS.call_once(|| {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     });
@@ -47,7 +47,7 @@ async fn aggregation_t64_actual_text_rendering_in_both_themes() {
                     other_fields: None,
                 }),
             });
-            let element = crate::app::components::aggregation_omo::overlay(
+            let element = desktop_apps_ui::aggregation::omo_view::overlay(
                 &form,
                 Space::new().width(iced::Length::Fill).height(iced::Length::Fill).into(),
             );
@@ -64,7 +64,6 @@ async fn aggregation_t64_actual_text_rendering_in_both_themes() {
                 &mut iced::advanced::clipboard::Null,
                 &mut messages,
             );
-            messages.retain(|message| !matches!(message, crate::app::Message::None));
             assert!(messages.is_empty());
             ui.draw(
                 &mut renderer,

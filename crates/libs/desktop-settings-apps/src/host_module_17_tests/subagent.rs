@@ -1,6 +1,6 @@
-use super::aggregation_subagent::*;
-use vw_api_chat_identity::ReasoningEffortDto as Effort;
+use crate::aggregation::subagent::*;
 use vw_api_app_aggregation::*;
+use vw_api_chat_identity::ReasoningEffortDto as Effort;
 fn snapshot() -> CodexAggregationSettings {
     let requested = CodexSettingsValues {
         subagent_model_id: Some("published-a".into()),
@@ -62,7 +62,7 @@ async fn aggregation_t60_actual_text_rendering_in_both_themes() {
     static FONTS: std::sync::Once = std::sync::Once::new();
     FONTS.call_once(|| {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     });
@@ -81,7 +81,7 @@ async fn aggregation_t60_actual_text_rendering_in_both_themes() {
                 s.notices.push(AggregationNotice::MultiAgentV2Forced);
                 s.notices.push(AggregationNotice::EncryptedTaskCrossProvider);
             }
-            let element = crate::app::components::aggregation_subagent::overlay(
+            let element = desktop_apps_ui::aggregation::subagent_view::overlay(
                 &form,
                 Space::new().width(iced::Length::Fill).height(iced::Length::Fill).into(),
             );
@@ -113,7 +113,6 @@ async fn aggregation_t60_actual_text_rendering_in_both_themes() {
                 &mut iced::advanced::clipboard::Null,
                 &mut messages,
             );
-            messages.retain(|message| !matches!(message, crate::app::Message::None));
             assert!(messages.is_empty());
             ui.draw(
                 &mut renderer,
@@ -136,14 +135,7 @@ async fn aggregation_t60_actual_text_rendering_in_both_themes() {
                 &mut iced::advanced::clipboard::Null,
                 &mut clicked,
             );
-            assert!(clicked.iter().any(|m| matches!(
-                m,
-                crate::app::Message::Settings(crate::app::message::SettingsMessage::AppProviders(
-                    crate::app::message::app_providers::list::ListMessage::CodexSubagent(
-                        Event::Save
-                    )
-                ))
-            )));
+            assert!(clicked.iter().any(|m| matches!(m, Event::Save)));
             if let Some(directory) = std::env::var_os("SHIJU_T60_PREVIEW_DIR") {
                 image::save_buffer(
                     std::path::PathBuf::from(directory)

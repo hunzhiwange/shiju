@@ -39,6 +39,3 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     };
     Task::batch([task, feedback])
 }
-#[cfg(test)]
-#[path = "aggregation_omo_tests.rs"]
-mod tests;

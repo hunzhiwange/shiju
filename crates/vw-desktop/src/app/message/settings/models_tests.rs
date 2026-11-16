@@ -4,12 +4,12 @@
 use super::*;
 use crate::app::App;
 use crate::app::state::{ModelSummary, ProviderModelsSummary};
-use serde_json::{Value, json};
-use std::collections::HashMap;
 use model_types::{
     ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost,
     ModelCostCache, ModelLimit, ProviderSource,
 };
+use serde_json::{Value, json};
+use std::collections::HashMap;
 
 fn app() -> App {
     App::new().0
@@ -121,10 +121,6 @@ fn provider_summary() -> ProviderModelsSummary {
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
 // 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 
-
-
-
-
 #[test]
 fn model_toggle_updates_locally_and_starts_save_without_reloading() {
     let mut app = app();
@@ -169,8 +165,6 @@ fn disabling_selected_model_switches_back_to_auto_model() {
     assert!(app.model_settings.saving);
 }
 
-// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
-// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn enabling_model_updates_locally_and_schedules_save_without_forcing_auto_model() {
     let mut app = app();
@@ -193,128 +187,6 @@ fn enabling_model_updates_locally_and_schedules_save_without_forcing_auto_model(
     assert!(!app.auto_model);
     assert!(iced_runtime::task::into_stream(task.collect()).is_some());
 }
-
-
-
-#[test]
-fn provider_set_all_only_changes_models_in_selected_group() {
-    let mut app = app();
-    let mut anthropic = provider_summary();
-    anthropic.id = "anthropic".to_string();
-    anthropic.name = "Anthropic".to_string();
-    anthropic.models[0].id = "claude-sonnet".to_string();
-    anthropic.models[0].name = "Claude Sonnet".to_string();
-    app.model_settings.providers = vec![provider_summary(), anthropic];
-
-    let task = update(&mut app, SettingsMessage::ProviderModelsSetAll("openai".to_string(), false));
-
-    assert!(app.model_settings.saving);
-    assert!(!app.model_settings.providers[0].models[0].enabled);
-    assert!(app.model_settings.providers[1].models[0].enabled);
-    assert!(iced_runtime::task::into_stream(task.collect()).is_some());
-}
-
-#[test]
-fn provider_reset_optimistically_disables_only_selected_group() {
-    let mut app = app();
-    let mut anthropic = provider_summary();
-    anthropic.id = "anthropic".to_string();
-    anthropic.models[0].id = "claude-sonnet".to_string();
-    app.model_settings.providers = vec![provider_summary(), anthropic];
-
-    let task = update(&mut app, SettingsMessage::ProviderModelsReset("openai".to_string()));
-
-    assert!(app.model_settings.saving);
-    assert!(!app.model_settings.providers[0].models[0].enabled);
-    assert!(app.model_settings.providers[1].models[0].enabled);
-    assert!(iced_runtime::task::into_stream(task.collect()).is_some());
-}
-
-
-#[test]
-fn models_set_all_updates_every_connected_model_with_one_save() {
-    let mut app = app();
-    let mut provider = provider_summary();
-    provider.models.push(ModelSummary {
-        id: "gpt-4.1".to_string(),
-        name: "GPT-4.1".to_string(),
-        enabled: false,
-        toolcall: true,
-        attachment: false,
-        context_limit: 128_000,
-        detail: json!({ "id": "gpt-4.1", "status": "disabled" }),
-    });
-    app.model_settings.providers = vec![provider];
-
-    let task = update(&mut app, SettingsMessage::ModelsSetAll(false));
-
-    assert!(app.model_settings.saving);
-    assert!(app.model_settings.providers[0].models.iter().all(|model| !model.enabled));
-    assert!(iced_runtime::task::into_stream(task.collect()).is_some());
-}
-
-// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
-// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
-#[test]
-fn model_status_save_error_rolls_back_local_changes() {
-    let mut app = app();
-    app.model_settings.providers = vec![provider_summary()];
-    let change = ModelStatusChange {
-        provider_id: "openai".to_string(),
-        model_id: "gpt-5".to_string(),
-        previous_enabled: true,
-        enabled: false,
-    };
-
-    let _ = update(
-        &mut app,
-        SettingsMessage::ModelToggle(
-            change.provider_id.clone(),
-            change.model_id.clone(),
-            change.enabled,
-        ),
-    );
-    let _ = update(
-        &mut app,
-        SettingsMessage::ModelStatusesSaved(vec![change], Err("save failed".to_string().into())),
-    );
-
-    assert!(!app.model_settings.saving);
-    assert!(app.model_settings.providers[0].models[0].enabled);
-    assert_eq!(app.model_settings.providers[0].models[0].detail["status"], "active");
-    assert_eq!(app.model_settings.save_error.as_deref(), Some("save failed"));
-}
-
-#[test]
-fn model_status_save_success_keeps_optimistic_state() {
-    let mut app = app();
-    app.model_settings.providers = vec![provider_summary()];
-    let change = ModelStatusChange {
-        provider_id: "openai".to_string(),
-        model_id: "gpt-5".to_string(),
-        previous_enabled: true,
-        enabled: false,
-    };
-
-    let _ = update(
-        &mut app,
-        SettingsMessage::ModelToggle(
-            change.provider_id.clone(),
-            change.model_id.clone(),
-            change.enabled,
-        ),
-    );
-    let _ = update(&mut app, SettingsMessage::ModelStatusesSaved(vec![change], Ok(())));
-
-    assert!(!app.model_settings.saving);
-    assert!(!app.model_settings.providers[0].models[0].enabled);
-    assert!(app.model_settings.save_error.is_none());
-}
-
-
-
-
-
 
 #[test]
 fn provider_changes_update_available_models_without_opening_model_settings() {

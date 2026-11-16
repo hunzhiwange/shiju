@@ -177,3 +177,13 @@ pub struct CustomProviderModelModalState {
     /// 编辑时原始模型 ID
     pub original_model_id: Option<String>,
 }
+
+/// 模型路由设置面板状态。
+#[derive(Debug, Clone, Default)]
+pub struct ModelRoutesSettingsState {
+    pub persistence: crate::routing_persistence::RoutingPersistence,
+    /// 路由列表。
+    pub routes: Vec<ModelRoute>,
+    /// 保存错误信息。
+    pub save_error: Option<desktop_i18n::settings_models::messages::Feedback>,
+}

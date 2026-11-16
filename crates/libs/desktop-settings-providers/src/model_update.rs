@@ -1,4 +1,7 @@
-use crate::models::{ModelsLoaded, ModelStatusChange, collect_model_status_changes, collect_provider_model_status_changes, set_local_model_status, model_detail};
+use crate::models::{
+    ModelStatusChange, ModelsLoaded, collect_model_status_changes,
+    collect_provider_model_status_changes, model_detail, set_local_model_status,
+};
 use desktop_i18n::settings_models::messages::Feedback;
 #[derive(Debug, Clone)]
 pub enum ModelMessage {
@@ -82,12 +85,8 @@ pub fn update(state: &mut crate::state::ModelSettingsState, message: ModelMessag
             ModelEffect::Save(changes)
         }
         ModelMessage::ProviderModelsReset(provider_id) => {
-            let changes = collect_provider_model_status_changes(
-                &state.providers,
-                &provider_id,
-                false,
-                true,
-            );
+            let changes =
+                collect_provider_model_status_changes(&state.providers, &provider_id, false, true);
             ModelEffect::Reset(provider_id, changes)
         }
         ModelMessage::ProviderModelsResetCompleted(changes, result) => {
@@ -119,11 +118,7 @@ pub fn update(state: &mut crate::state::ModelSettingsState, message: ModelMessag
             state.saving = false;
             if let Err(error) = result {
                 for change in &changes {
-                    set_local_model_status(
-                        &mut state.providers,
-                        change,
-                        change.previous_enabled,
-                    );
+                    set_local_model_status(&mut state.providers, change, change.previous_enabled);
                 }
                 state.save_error = Some((error).into());
             }
@@ -141,9 +136,7 @@ pub fn update(state: &mut crate::state::ModelSettingsState, message: ModelMessag
                 return ModelEffect::None;
             };
 
-            state.detail_modal = Some(
-                model_detail(provider, model),
-            );
+            state.detail_modal = Some(model_detail(provider, model));
             ModelEffect::None
         }
         ModelMessage::ModelDetailClose => {
@@ -157,4 +150,49 @@ pub fn update(state: &mut crate::state::ModelSettingsState, message: ModelMessag
             ModelEffect::None
         }
     }
+}
+
+/// Prepare optimistic model persistence and report whether selection must return to automatic mode.
+/// The host owns persistence of the session selection preference.
+pub fn prepare_status_save(
+    state: &mut crate::state::ModelSettingsState,
+    changes: &[ModelStatusChange],
+    automatic: bool,
+    selected: &str,
+) -> Option<bool> {
+    if !crate::models::can_begin_status_save(state, changes) {
+        return None;
+    }
+    let select_automatic =
+        !automatic && crate::models::changes_disable_selected_model(selected, changes);
+    crate::models::begin_status_save(state, changes);
+    Some(select_automatic)
+}
+
+/// Apply a save effect through the existing gateway boundary.
+pub fn persist_status_effect(
+    state: &mut crate::state::ModelSettingsState,
+    effect: ModelEffect,
+    endpoint: gateway_endpoint::GatewayEndpoint,
+    automatic: bool,
+    selected: &str,
+) -> Option<(bool, iced::Task<ModelMessage>)> {
+    let (changes, reset) = match effect {
+        ModelEffect::Save(changes) => (changes, None),
+        ModelEffect::Reset(provider, changes) => (changes, Some(provider)),
+        _ => return None,
+    };
+    let select_automatic = prepare_status_save(state, &changes, automatic, selected)?;
+    let task = match reset {
+        Some(provider) => iced::Task::perform(
+            crate::model_tasks::reset_statuses(endpoint, provider, changes),
+            |message| message,
+        ),
+        None => {
+            iced::Task::perform(crate::model_tasks::save_statuses(endpoint, changes), |message| {
+                message
+            })
+        }
+    };
+    Some((select_automatic, task))
 }

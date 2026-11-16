@@ -5,8 +5,6 @@ pub(in crate::app) mod agents;
 pub(crate) mod aggregation_list;
 pub(crate) mod aggregation_omo;
 pub(crate) mod aggregation_pi;
-#[cfg(test)]
-mod aggregation_pi_tests;
 mod apps_catalog;
 pub(crate) mod apps_lifecycle;
 #[cfg(not(target_arch = "wasm32"))]
@@ -707,8 +705,6 @@ mod aggregation_desktop_tests;
 pub(crate) mod aggregation_desktop;
 
 pub(crate) mod aggregation_subagent;
-#[cfg(test)]
-mod aggregation_subagent_tests;
 
 #[cfg(test)]
 mod mcp_management_resync_tests;

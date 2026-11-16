@@ -1,28 +1,19 @@
 //! 模型路由草稿校验与共享异步保存。
 use super::messages::{ModelRoutesMessage, SettingsMessage};
 use super::routing_persistence;
-use crate::app::i18n::settings_models::messages::Feedback;
-use crate::app::{
-    App, Message,
-    state::QueryClassificationRuleInput,
-};
+use crate::app::{App, Message, state::QueryClassificationRuleInput};
 use iced::Task;
-use config_routing::ModelRouteConfig;
 
 #[cfg(test)]
 #[path = "model_routes_tests.rs"]
 mod model_routes_tests;
 
 fn queue_valid_routes(app: &mut App) -> Task<Message> {
-    if let Err(error) = validate_routes(app) {
-        app.model_routes_settings.persistence.route_invalid = true;
-        app.model_routes_settings.save_error = Some(error);
+    let Some(projection) =
+        desktop_settings_providers::model_routes::prepare_routes(&mut app.model_routes_settings)
+    else {
         return Task::none();
-    }
-    app.model_routes_settings.persistence.route_invalid = false;
-    app.model_routes_settings.persistence.classification_invalid = false;
-    app.model_routes_settings.save_error = None;
-    let projection = desktop_settings_providers::model_routes::project_routes(&app.model_routes_settings.routes);
+    };
     let rules = projection.rules;
     app.query_classification_settings.enabled = !rules.is_empty();
     app.query_classification_settings.rules = rules
@@ -44,10 +35,6 @@ fn queue_valid_routes(app: &mut App) -> Task<Message> {
     routing_persistence::enqueue(app, projection.patch)
 }
 
-fn validate_routes(app: &App) -> Result<Vec<ModelRouteConfig>, Feedback> {
-    desktop_settings_providers::model_routes::validate_routes(&app.model_routes_settings.routes)
-}
-
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     let SettingsMessage::ModelRoutes(message) = message else {
         return Task::none();
@@ -63,13 +50,19 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         ModelRoutesMessage::Loaded(revision, result) => {
             if app.model_routes_settings.persistence.revision != revision
                 || app.model_routes_settings.persistence.dirty
-                || !app.model_routes_settings.persistence.load_is_current(&crate::app::config::gateway_client_endpoint())
+                || !app
+                    .model_routes_settings
+                    .persistence
+                    .load_is_current(&crate::app::config::gateway_client_endpoint())
             {
                 return Task::none();
             }
             match result {
                 Ok((routes, classification)) => {
-                    let (routes, error) = desktop_settings_providers::model_routes::loaded_routes(routes, &classification);
+                    let (routes, error) = desktop_settings_providers::model_routes::loaded_routes(
+                        routes,
+                        &classification,
+                    );
                     app.model_routes_settings.routes = routes;
                     app.model_routes_settings.save_error = error;
                     app.query_classification_settings.enabled = classification.enabled;
@@ -95,13 +88,22 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let message = match message {
                 ModelRoutesMessage::AddRoute => Local::AddRoute,
                 ModelRoutesMessage::RemoveRoute(index) => Local::RemoveRoute(index),
-                ModelRoutesMessage::PatternChanged(index, value) => Local::PatternChanged(index, value),
-                ModelRoutesMessage::ProviderChanged(index, value) => Local::ProviderChanged(index, value),
+                ModelRoutesMessage::PatternChanged(index, value) => {
+                    Local::PatternChanged(index, value)
+                }
+                ModelRoutesMessage::ProviderChanged(index, value) => {
+                    Local::ProviderChanged(index, value)
+                }
                 ModelRoutesMessage::ModelChanged(index, value) => Local::ModelChanged(index, value),
-                ModelRoutesMessage::PriorityChanged(index, value) => Local::PriorityChanged(index, value),
+                ModelRoutesMessage::PriorityChanged(index, value) => {
+                    Local::PriorityChanged(index, value)
+                }
                 _ => unreachable!("persistence messages handled above"),
             };
-            desktop_settings_providers::model_routes::edit_routes(&mut app.model_routes_settings.routes, message);
+            desktop_settings_providers::model_routes::edit_routes(
+                &mut app.model_routes_settings.routes,
+                message,
+            );
         }
     }
     app.model_routes_settings.persistence.edited();

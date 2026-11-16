@@ -1,6 +1,6 @@
 use crate::state::ModelRoute;
-use desktop_i18n::settings_models::messages::Feedback;
 use config_routing::ModelRouteConfig;
+use desktop_i18n::settings_models::messages::Feedback;
 
 pub fn validate_routes(input: &[ModelRoute]) -> Result<Vec<ModelRouteConfig>, Feedback> {
     let mut routes = Vec::with_capacity(input.len());
@@ -40,13 +40,15 @@ pub fn validate_routes(input: &[ModelRoute]) -> Result<Vec<ModelRouteConfig>, Fe
     Ok(routes)
 }
 
-
 #[cfg(test)]
 #[path = "model_routes_tests.rs"]
 mod model_routes_tests;
 
 /// 保存所需的有效路由与跨页查询分类投影。
-pub struct RouteProjection { pub rules: Vec<config_routing::ClassificationRule>, pub patch: serde_json::Value }
+pub struct RouteProjection {
+    pub rules: Vec<config_routing::ClassificationRule>,
+    pub patch: serde_json::Value,
+}
 pub fn project_routes(routes: &[ModelRoute]) -> RouteProjection {
     use config_routing::ClassificationRule;
     let ui_routes = routes
@@ -95,18 +97,16 @@ pub fn project_routes(routes: &[ModelRoute]) -> RouteProjection {
         .collect::<Vec<_>>();
 
     let patch = serde_json::json!({
-            "app_ui": {"system_settings": {"model_routes": ui_routes}},
-            "model_routes": model_routes,
-            "query_classification": {"enabled": !rules.is_empty(), "rules": rules}
-        });
+        "app_ui": {"system_settings": {"model_routes": ui_routes}},
+        "model_routes": model_routes,
+        "query_classification": {"enabled": !rules.is_empty(), "rules": rules}
+    });
     RouteProjection { rules, patch }
 }
 
 pub fn edit_routes(routes: &mut Vec<ModelRoute>, message: crate::view_message::ModelRoutesMessage) {
     match message {
-        crate::view_message::ModelRoutesMessage::AddRoute => {
-            routes.push(ModelRoute::default())
-        }
+        crate::view_message::ModelRoutesMessage::AddRoute => routes.push(ModelRoute::default()),
         crate::view_message::ModelRoutesMessage::RemoveRoute(index) => {
             if index < routes.len() {
                 routes.remove(index);
@@ -139,19 +139,39 @@ pub fn loaded_routes(
     routes: Vec<ModelRouteConfig>,
     classification: &config_routing::QueryClassificationConfig,
 ) -> (Vec<ModelRoute>, Option<Feedback>) {
-    let routes = routes.into_iter().map(|route| ModelRoute {
-        priority_input: classification.rules.iter()
-            .find(|rule| rule.hint == route.hint)
-            .map(|rule| rule.priority.to_string())
-            .unwrap_or_else(|| "0".into()),
-        pattern: route.hint,
-        provider: route.provider,
-        model: route.model,
-    }).collect::<Vec<_>>();
+    let routes = routes
+        .into_iter()
+        .map(|route| ModelRoute {
+            priority_input: classification
+                .rules
+                .iter()
+                .find(|rule| rule.hint == route.hint)
+                .map(|rule| rule.priority.to_string())
+                .unwrap_or_else(|| "0".into()),
+            pattern: route.hint,
+            provider: route.provider,
+            model: route.model,
+        })
+        .collect::<Vec<_>>();
     let error = if routes.is_empty() && !classification.rules.is_empty() {
         Some(Feedback::owned("已检测到 query_classification 规则，但桌面模型路由列表为空", vec![]))
     } else {
         None
     };
     (routes, error)
+}
+
+/// Validate the current draft and prepare the shared persistence projection.
+pub fn prepare_routes(
+    state: &mut crate::state::ModelRoutesSettingsState,
+) -> Option<RouteProjection> {
+    if let Err(error) = validate_routes(&state.routes) {
+        state.persistence.route_invalid = true;
+        state.save_error = Some(error);
+        return None;
+    }
+    state.persistence.route_invalid = false;
+    state.persistence.classification_invalid = false;
+    state.save_error = None;
+    Some(project_routes(&state.routes))
 }

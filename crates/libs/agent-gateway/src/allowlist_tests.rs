@@ -5,8 +5,7 @@
 //! - 空允许列表时接受任何节点访问
 //! - 配置允许列表时按规则进行访问控制
 
-use super::*;
-use crate::app::agent::gateway::node_control::node_id_allowed;
+use super::node_id_allowed;
 
 /// 测试空允许列表时接受任何节点
 ///

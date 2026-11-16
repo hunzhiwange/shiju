@@ -111,3 +111,7 @@ pub struct AgentBody {
 #[cfg(test)]
 #[path = "types_tests.rs"]
 mod types_tests;
+
+#[cfg(test)]
+#[path = "request_body_tests.rs"]
+mod request_body_tests;

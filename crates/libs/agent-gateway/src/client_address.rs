@@ -161,3 +161,7 @@ pub fn client_key_from_request(
     // 回退到对等地址，如果不可用则返回 "unknown"
     peer_addr.map(|addr| addr.ip().to_string()).unwrap_or_else(|| "unknown".to_string())
 }
+
+#[cfg(test)]
+#[path = "client_key_tests.rs"]
+mod client_key_tests;

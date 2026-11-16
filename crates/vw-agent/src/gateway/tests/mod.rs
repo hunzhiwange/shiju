@@ -422,16 +422,25 @@ fn test_public_connect_info() -> ConnectInfo<SocketAddr> {
 // 测试子模块声明
 // ============================================================================
 
+#[path = "../../../../libs/agent-gateway/src/host_acceptance_tests/agent.rs"]
 mod agent;
-mod allowlist;
+#[path = "../../../../libs/agent-gateway/src/host_acceptance_tests/auth.rs"]
 mod auth;
+#[path = "../../../../libs/agent-gateway/src/host_acceptance_tests/basics.rs"]
 mod basics;
+#[path = "../../../../libs/agent-gateway/src/host_acceptance_tests/client_key.rs"]
 mod client_key;
+#[path = "../../../../libs/agent-gateway/src/host_acceptance_tests/memory_keys.rs"]
 mod memory_keys;
+#[path = "../../../../libs/agent-gateway/src/host_acceptance_tests/metrics.rs"]
 mod metrics;
+#[path = "../../../../libs/agent-gateway/src/host_acceptance_tests/nextcloud.rs"]
 mod nextcloud;
+#[path = "../../../../libs/agent-gateway/src/host_acceptance_tests/node_control.rs"]
 mod node_control;
+#[path = "../../../../libs/agent-gateway/src/host_acceptance_tests/pairing.rs"]
 mod pairing;
+#[path = "../../../../libs/agent-gateway/src/host_acceptance_tests/qq.rs"]
 mod qq;
 mod sanitize;
 mod state;

@@ -426,3 +426,7 @@ pub async fn handle_qq_webhook<E, H, W: WhatsAppWebhook + 'static>(
 
     (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
 }
+
+#[cfg(test)]
+#[path = "verify_query_tests.rs"]
+mod verify_query_tests;

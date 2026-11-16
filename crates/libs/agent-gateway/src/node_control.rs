@@ -184,3 +184,7 @@ pub async fn handle_node_control<E: Clone + Send + Sync + 'static, C: Clone + Se
     };
     response.into_response()
 }
+
+#[cfg(test)]
+#[path = "allowlist_tests.rs"]
+mod allowlist_tests;

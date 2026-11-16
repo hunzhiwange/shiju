@@ -121,7 +121,7 @@ pub fn maybe_update_todos_after_work<H: RunnerHost>(
     };
 
     apply_todo_update_step(llm_messages, total_usage, step_out, |call| {
-        H::run_tool_and_record(
+        crate::tools_exec::run_tool_and_record::<H::CtxHost>(
             session,
             &call.name,
             &call.arguments,

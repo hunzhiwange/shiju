@@ -8,7 +8,7 @@ use crate::{
 use serde_json::Value;
 use session_engine::session_memory::Session;
 use std::{
-    collections::{BTreeSet, HashSet},
+    collections::HashSet,
     path::Path,
     sync::Arc,
 };
@@ -28,7 +28,6 @@ impl session_engine::runner_host::RunnerHost for AgentRunnerHost {
     );
     type Prompt = crate::session::prompt::SystemPrompt;
     type Connections = Arc<crate::plugins::McpSessionConnections>;
-    type PlannedCall = super::tools_exec::AgentToolPlannedCall;
     type Stream = super::llm_runner::AgentLlmStreamHost;
     type Prefetch = super::prefetch::AgentPrefetchHost;
     fn config() -> anyhow::Result<Config> {
@@ -91,18 +90,7 @@ impl session_engine::runner_host::RunnerHost for AgentRunnerHost {
     ) -> Vec<crate::skills::Skill> {
         crate::tools::skill::accessible_skills(skills, context)
     }
-    fn referenced_skills<'a>(
-        skills: &[crate::skills::Skill],
-        texts: impl IntoIterator<Item = &'a str>,
-    ) -> BTreeSet<String> {
-        crate::tools::skill::explicitly_referenced_skill_names(skills, texts)
-    }
-    fn explicit_skill_request(query: &str) -> bool {
-        crate::tools::skill::user_explicitly_requests_skill_use(query)
-    }
-    fn invocable_skills(skills: &[crate::skills::Skill]) -> BTreeSet<String> {
-        crate::tools::skill::user_invocable_skill_names(skills)
-    }
+
     #[cfg(not(target_arch = "wasm32"))]
     fn run_video_command(
         req: &Request,
@@ -190,9 +178,7 @@ impl session_engine::runner_host::RunnerHost for AgentRunnerHost {
     fn team_instructions(session: &str, enabled: bool) -> String {
         prompt::block_on(crate::session::system::team_runtime_instructions(session, enabled))
     }
-    fn planned_call(name: &str, input: &str, ctx: ToolRuntimeContext) -> Self::PlannedCall {
-        super::tools_exec::AgentToolPlannedCall::new(name, input, ctx)
-    }
+
     fn parallel_limit(ctx: &ToolRuntimeContext, agent: &str) -> usize {
         crate::tools::agent_tool_parallel_limit_for_context(ctx, agent)
     }
@@ -207,82 +193,7 @@ impl session_engine::runner_host::RunnerHost for AgentRunnerHost {
     fn read_todos(ctx: &ToolRuntimeContext) -> anyhow::Result<String> {
         Ok(crate::tools::todo::read(ctx)?)
     }
-    fn with_request_tool_catalog(
-        ctx: &ToolRuntimeContext,
-        session_tools: &tool_assembly::runtime::SessionToolset,
-        snapshot: &Arc<crate::tools::catalog::ToolCatalogSnapshot>,
-    ) -> ToolRuntimeContext {
-        super::tools_exec::with_request_tool_catalog(ctx, session_tools, snapshot)
-    }
-    fn is_agent_tool(tool: &str) -> bool {
-        super::tools_exec::is_agent_tool(tool)
-    }
 
-    fn run_agent_tools_and_record(
-        session: &mut Session,
-        planned: &[Self::PlannedCall],
-        max_parallel: usize,
-        emit_ui: bool,
-        on_event: &mut impl FnMut(StreamEvent) -> bool,
-        tool_state: &mut ToolSessionState,
-    ) -> Vec<String> {
-        super::tools_exec::run_agent_tools_and_record(
-            session,
-            planned,
-            max_parallel,
-            emit_ui,
-            on_event,
-            tool_state,
-        )
-    }
-    fn run_tool_and_record_with_protocol(
-        session: &mut Session,
-        name: &str,
-        input: &str,
-        ctx: &ToolRuntimeContext,
-        emit_ui: bool,
-        on_event: &mut impl FnMut(StreamEvent) -> bool,
-        tool_state: &mut ToolSessionState,
-    ) -> Option<session_engine::runner_types::ToolProtocolOutput> {
-        super::tools_exec::run_tool_and_record_with_protocol(
-            session, name, input, ctx, emit_ui, on_event, tool_state,
-        )
-    }
-    fn run_tool_and_record(
-        session: &mut Session,
-        name: &str,
-        input: &str,
-        ctx: &ToolRuntimeContext,
-        emit_ui: bool,
-        on_event: &mut impl FnMut(StreamEvent) -> bool,
-        tool_state: &mut ToolSessionState,
-    ) -> Option<String> {
-        super::tools_exec::run_tool_and_record(
-            session, name, input, ctx, emit_ui, on_event, tool_state,
-        )
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    fn run_native_search_and_record(
-        session: &mut Session,
-        call: &crate::session::llm::ToolCall,
-        ctx: &ToolRuntimeContext,
-        on_event: &mut impl FnMut(StreamEvent) -> bool,
-        tool_state: &mut ToolSessionState,
-    ) -> anyhow::Result<crate::session::llm::native_tools::NativeHistoryItem> {
-        super::tools_exec::run_native_search_and_record(session, call, ctx, on_event, tool_state)
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    fn record_native_history_pair(
-        session: &mut Session,
-        call: crate::session::llm::native_tools::NativeHistoryItem,
-        output: crate::session::llm::native_tools::NativeHistoryItem,
-        on_event: &mut impl FnMut(StreamEvent) -> bool,
-    ) {
-        super::tools_exec::record_native_history_pair(session, call, output, on_event)
-    }
-    fn list_docs(root: Option<&String>) -> Result<Vec<String>, String> {
-        super::utils::list_docs(root)
-    }
 }
 
 impl session_engine::runner_protocol::RunnerCheckpointHost for AgentRunnerHost {

@@ -9,11 +9,11 @@ use agent_config::runtime_schema::Config;
 use agent_skills::Skill;
 use serde_json::Value;
 use std::{
-    collections::{BTreeSet, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     path::Path,
     sync::Arc,
 };
-use tool_assembly::runtime::{RuntimeHost, SessionToolset, ToolRuntimeContext};
+use tool_assembly::runtime::{RuntimeHost, ToolRuntimeContext};
 use tool_catalog::catalog::{ToolCatalog, ToolCatalogSnapshot};
 use tool_context::context::ToolUseContext;
 
@@ -36,13 +36,12 @@ pub trait RunnerHost:
             ToolCatalog = ToolCatalog,
             ToolCatalogSnapshot = ToolCatalogSnapshot,
             ImageAssetScope = agent_multimodal::assets::ImageAssetScope,
-        >;
+        > + crate::tools_exec::ToolExecutionHost;
     type Admission;
     type ImageExtractor: agent_multimodal::ocr::ImageTextExtractor;
     fn image_extractor() -> Self::ImageExtractor;
     type Prompt: RunnerPrompt;
     type Connections;
-    type PlannedCall;
     type Stream: crate::llm_runner::LlmStreamHost;
     type Prefetch: crate::prefetch::PrefetchHost<
             Context = ToolRuntimeContext<Self::CtxHost>,
@@ -83,12 +82,7 @@ pub trait RunnerHost:
         skills: Vec<Skill>,
         context: Option<&ToolUseContext<Self::CtxHost>>,
     ) -> Vec<Skill>;
-    fn referenced_skills<'a>(
-        skills: &[Skill],
-        texts: impl IntoIterator<Item = &'a str>,
-    ) -> BTreeSet<String>;
-    fn explicit_skill_request(query: &str) -> bool;
-    fn invocable_skills(skills: &[Skill]) -> BTreeSet<String>;
+
     #[cfg(not(target_arch = "wasm32"))]
     fn run_video_command(
         req: &Request<Self>,
@@ -142,11 +136,7 @@ pub trait RunnerHost:
         messages: &mut Vec<Value>,
     ) -> anyhow::Result<()>;
     fn team_instructions(session: &str, enabled: bool) -> String;
-    fn planned_call(
-        name: &str,
-        input: &str,
-        ctx: ToolRuntimeContext<Self::CtxHost>,
-    ) -> Self::PlannedCall;
+
     fn parallel_limit(ctx: &ToolRuntimeContext<Self::CtxHost>, agent: &str) -> usize;
     fn stop_hook(
         context: Arc<ToolUseContext<Self::CtxHost>>,
@@ -155,53 +145,5 @@ pub trait RunnerHost:
         message: Option<&str>,
     ) -> anyhow::Result<plugin_hooks::hook_stop::Outcome>;
     fn read_todos(ctx: &ToolRuntimeContext<Self::CtxHost>) -> anyhow::Result<String>;
-    fn with_request_tool_catalog(
-        ctx: &ToolRuntimeContext<Self::CtxHost>,
-        session_tools: &SessionToolset,
-        snapshot: &Arc<ToolCatalogSnapshot>,
-    ) -> ToolRuntimeContext<Self::CtxHost>;
-    fn is_agent_tool(tool: &str) -> bool;
 
-    fn run_agent_tools_and_record(
-        session: &mut Session,
-        planned: &[Self::PlannedCall],
-        max_parallel: usize,
-        emit_ui: bool,
-        on_event: &mut impl FnMut(StreamEvent) -> bool,
-        tool_state: &mut ToolSessionState,
-    ) -> Vec<String>;
-    fn run_tool_and_record_with_protocol(
-        session: &mut Session,
-        name: &str,
-        input: &str,
-        ctx: &ToolRuntimeContext<Self::CtxHost>,
-        emit_ui: bool,
-        on_event: &mut impl FnMut(StreamEvent) -> bool,
-        tool_state: &mut ToolSessionState,
-    ) -> Option<crate::runner_types::ToolProtocolOutput>;
-    fn run_tool_and_record(
-        session: &mut Session,
-        name: &str,
-        input: &str,
-        ctx: &ToolRuntimeContext<Self::CtxHost>,
-        emit_ui: bool,
-        on_event: &mut impl FnMut(StreamEvent) -> bool,
-        tool_state: &mut ToolSessionState,
-    ) -> Option<String>;
-    #[cfg(not(target_arch = "wasm32"))]
-    fn run_native_search_and_record(
-        session: &mut Session,
-        call: &model_types::ToolCall,
-        ctx: &ToolRuntimeContext<Self::CtxHost>,
-        on_event: &mut impl FnMut(StreamEvent) -> bool,
-        tool_state: &mut ToolSessionState,
-    ) -> anyhow::Result<crate::native_history::NativeHistoryItem>;
-    #[cfg(not(target_arch = "wasm32"))]
-    fn record_native_history_pair(
-        session: &mut Session,
-        call: crate::native_history::NativeHistoryItem,
-        output: crate::native_history::NativeHistoryItem,
-        on_event: &mut impl FnMut(StreamEvent) -> bool,
-    );
-    fn list_docs(root: Option<&String>) -> Result<Vec<String>, String>;
 }

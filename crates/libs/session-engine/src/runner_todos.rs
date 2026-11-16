@@ -186,7 +186,7 @@ pub fn maybe_mark_todo_in_progress<H: RunnerHost>(
     // 创建静默事件处理器（忽略所有事件）
     let mut noop = |_ev: StreamEvent| true;
     // 执行 todowrite 工具并记录结果，使用静默模式（false 表示不记录到历史）
-    let _ = H::run_tool_and_record(session, "todowrite", &input, ctx, false, &mut noop, tool_state);
+    let _ = crate::tools_exec::run_tool_and_record::<H::CtxHost>(session, "todowrite", &input, ctx, false, &mut noop, tool_state);
 }
 
 #[cfg(test)]

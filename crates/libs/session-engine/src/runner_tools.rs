@@ -83,7 +83,7 @@ pub fn handle_structured_tool_calls<H: RunnerHost>(
                 let result = if is_last_step || !allowed_tools.contains(&call.name) {
                     Err(anyhow::anyhow!("native search is not exposed for this request"))
                 } else {
-                    H::run_native_search_and_record(
+                    crate::tools_exec::run_native_search_and_record::<H::CtxHost>(
                         session,
                         call,
                         &tool_context(&call.id),
@@ -104,7 +104,7 @@ pub fn handle_structured_tool_calls<H: RunnerHost>(
                         })
                     }
                 };
-                H::record_native_history_pair(session, history_call, output.clone(), on_event);
+                crate::tools_exec::record_native_history_pair(session, history_call, output.clone(), on_event);
                 llm_messages.push(llm_messages::native_protocol_message(output));
             }
             #[cfg(target_arch = "wasm32")]
@@ -120,11 +120,11 @@ pub fn handle_structured_tool_calls<H: RunnerHost>(
             )
         } else if !allowed_tools.contains(call.name.as_str()) {
             format!("tool denied: {}", call.name)
-        } else if H::is_agent_tool(&call.name) {
+        } else if crate::tools_exec::is_agent_tool(&call.name) {
             let group_start = call_index;
             while call_index < step_out.tool_calls.len() {
                 let grouped_call = &step_out.tool_calls[call_index];
-                if !H::is_agent_tool(&grouped_call.name)
+                if !crate::tools_exec::is_agent_tool(&grouped_call.name)
                     || !allowed_tools.contains(grouped_call.name.as_str())
                 {
                     break;
@@ -135,7 +135,7 @@ pub fn handle_structured_tool_calls<H: RunnerHost>(
             let planned = grouped_calls
                 .iter()
                 .map(|grouped_call| {
-                    H::planned_call(
+                    crate::tools_exec::AgentToolPlannedCall::<H::CtxHost>::new(
                         &grouped_call.name,
                         &grouped_call.arguments,
                         tool_context(&grouped_call.id),
@@ -151,7 +151,7 @@ pub fn handle_structured_tool_calls<H: RunnerHost>(
                 .unwrap_or("main");
             let max_parallel =
                 if parallel_tools { H::parallel_limit(ctx, current_agent) } else { 1 };
-            let contents = H::run_agent_tools_and_record(
+            let contents = crate::tools_exec::run_agent_tools_and_record::<H::CtxHost>(
                 session,
                 &planned,
                 max_parallel,
@@ -167,7 +167,7 @@ pub fn handle_structured_tool_calls<H: RunnerHost>(
             }
             continue;
         } else {
-            let output = H::run_tool_and_record_with_protocol(
+            let output = crate::tools_exec::run_tool_and_record_with_protocol::<H::CtxHost>(
                 session,
                 &call.name,
                 &call.arguments,

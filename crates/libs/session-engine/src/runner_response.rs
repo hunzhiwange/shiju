@@ -18,7 +18,7 @@ pub fn handle_docs_request<H: RunnerHost>(
     ctx: &ToolRuntimeContext<H::CtxHost>,
     on_event: &mut impl FnMut(StreamEvent) -> bool,
 ) {
-    match H::list_docs(ctx.root.as_ref()) {
+    match crate::processor_docs::list_docs(ctx.root.as_ref()) {
         Ok(files) => {
             let mut out = String::new();
             out.push_str(

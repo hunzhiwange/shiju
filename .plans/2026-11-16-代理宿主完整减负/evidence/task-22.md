@@ -328,3 +328,28 @@ runner_tests 的 mcp_catalog_refresh_tests 子模块仍随原宿主挂载保留�
 - `turn_policy.rs`：2行；已有领域薄重导出，无策略分支；由直接调用者使用。所有者边界内无新算法可搬。
 - `types.rs`：8行；具体 ApprovalManager/SessionSkillSources Request 别名。
 - `utils.rs`：33行；由任务23拥有子文件的兼容注册与重导出，不能删除其直接调用入口。
+
+## 第三次恢复：领域编排不再往返宿主执行（替代前文899行快照）
+
+原19文件当前810行，1290基线累计净减480行；本次899→810。仍未达到70%，不声称关闭全局门槛。领域58条用例不变，保留全部断言。编译、构建、测试及实机均未运行。
+
+唯一 RunnerHost 实现的上下文已实现 ToolExecutionHost；RunnerHost::CtxHost 现在显式要求这项既有能力。删除 PlannedCall 关联类型，改用领域 AgentToolPlannedCall<CtxHost>，不再允许编排层通过不透明计划类型回到宿主。未改变上下文、取消、审批、事件或执行参数。
+
+- `RunnerHost::planned_call` / `AgentRunnerHost::planned_call` 已删除；真实领域调用直接接入 `tools_exec::AgentToolPlannedCall::<H::CtxHost>::new`。
+- `RunnerHost::with_request_tool_catalog` / `AgentRunnerHost::with_request_tool_catalog` 已删除；真实领域调用直接接入 `tools_exec::with_request_tool_catalog`。
+- `RunnerHost::is_agent_tool` / `AgentRunnerHost::is_agent_tool` 已删除；真实领域调用直接接入 `tools_exec::is_agent_tool`。
+- `RunnerHost::run_agent_tools_and_record` / `AgentRunnerHost::run_agent_tools_and_record` 已删除；真实领域调用直接接入 `tools_exec::run_agent_tools_and_record`。
+- `RunnerHost::run_tool_and_record_with_protocol` / `AgentRunnerHost::run_tool_and_record_with_protocol` 已删除；真实领域调用直接接入 `tools_exec::run_tool_and_record_with_protocol`。
+- `RunnerHost::run_tool_and_record` / `AgentRunnerHost::run_tool_and_record` 已删除；真实领域调用直接接入 `tools_exec::run_tool_and_record`。
+- `RunnerHost::run_native_search_and_record` / `AgentRunnerHost::run_native_search_and_record` 已删除；真实领域调用直接接入 `tools_exec::run_native_search_and_record`。
+- `RunnerHost::record_native_history_pair` / `AgentRunnerHost::record_native_history_pair` 已删除；真实领域调用直接接入 `tools_exec::record_native_history_pair`。
+- `RunnerHost::referenced_skills` / `AgentRunnerHost::referenced_skills` 已删除；真实领域调用直接接入 `tool_services::skill::explicitly_referenced_skill_names`。
+- `RunnerHost::explicit_skill_request` / `AgentRunnerHost::explicit_skill_request` 已删除；真实领域调用直接接入 `tool_services::skill::user_explicitly_requests_skill_use`。
+- `RunnerHost::invocable_skills` / `AgentRunnerHost::invocable_skills` 已删除；真实领域调用直接接入 `tool_services::skill::user_invocable_skill_names`。
+- `RunnerHost::list_docs` / `AgentRunnerHost::list_docs` 已删除；真实领域调用直接接入 `processor_docs::list_docs`。
+
+调用者同步修改：runner.rs、runner_tools.rs、runner_ingest.rs、runner_todos.rs、runner_todo_updates.rs、runner_response.rs。原 PlanningHost 的独立执行端口保留，不把其 Host 替换为 RunnerHost。native-search 仍经 ToolExecutionHost 具体实现 prepare_native_search/take_native_output，保留 request snapshot、hook 和审批边界。
+
+静态检查：rg 枚举 RunnerHost 仅一个具体实现；删除定义、旧 H::调用和 PlannedCall 关联类型引用零残留；git diff --check 在本任务修改路径通过。没有运行任何测试工具。未来原 host_migration_22_tests 预期58例；宿主 runner_tests、tools_exec_tests 保留精确名称按前文映射过滤验证，必须非零。
+
+runner_host.rs 当前286行，剩余仅具体配置/模型/插件/项目/审批/资源及外部生命周期端口；其它保留职责沿用上节逐文件映射。剩余可探索项是将已有公共端口组合提取为特定领域实现，禁止复制具体宿主形成新单体。

@@ -240,16 +240,16 @@ pub fn run<H: RunnerHost>(
         agent_key.as_deref(),
         &enabled_identity_files,
     );
-    let agents_referenced_skills = H::referenced_skills(
+    let agents_referenced_skills = tool_services::skill::explicitly_referenced_skill_names(
         &session_protocol.skills,
         base_system.instruction_context().iter().map(|instruction| instruction.content.as_str()),
     );
     let user_referenced_skills =
-        H::referenced_skills(&session_protocol.skills, std::iter::once(req.query.as_str()));
+        tool_services::skill::explicitly_referenced_skill_names(&session_protocol.skills, std::iter::once(req.query.as_str()));
     let mut explicitly_requested_skills = agents_referenced_skills.clone();
     explicitly_requested_skills.extend(user_referenced_skills.iter().cloned());
-    if H::explicit_skill_request(&req.query) {
-        explicitly_requested_skills.extend(H::invocable_skills(&session_protocol.skills));
+    if tool_services::skill::user_explicitly_requests_skill_use(&req.query) {
+        explicitly_requested_skills.extend(tool_services::skill::user_invocable_skill_names(&session_protocol.skills));
     }
     let tool_use_context = ctx
         .tool_use_context()
@@ -315,7 +315,7 @@ pub fn run<H: RunnerHost>(
         }
     }
     if let Some(snapshot) = &catalog_snapshot {
-        ctx = H::with_request_tool_catalog(&ctx, &req.session_tools, snapshot);
+        ctx = crate::tools_exec::with_request_tool_catalog::<H::CtxHost>(&ctx, &req.session_tools, snapshot);
     }
     let available_tool_specs = catalog_snapshot
         .as_ref()
@@ -534,7 +534,7 @@ pub fn run<H: RunnerHost>(
             );
         }
         let request_ctx = if let Some(snapshot) = &catalog_snapshot {
-            H::with_request_tool_catalog(&ctx, &req.session_tools, snapshot)
+            crate::tools_exec::with_request_tool_catalog::<H::CtxHost>(&ctx, &req.session_tools, snapshot)
         } else {
             ctx.clone()
         };

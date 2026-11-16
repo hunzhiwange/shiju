@@ -46,7 +46,7 @@ pub fn ingest_assistant_answer<H: RunnerHost>(
                 format!("/{} {}", name, input.trim())
             };
             session.push(Role::Assistant, call);
-            let _ = H::run_tool_and_record(session, &name, &input, ctx, true, on_event, tool_state);
+            let _ = crate::tools_exec::run_tool_and_record::<H::CtxHost>(session, &name, &input, ctx, true, on_event, tool_state);
             i += consumed;
             continue;
         }
@@ -82,7 +82,7 @@ pub fn ingest_user_query<H: RunnerHost>(
                 push_user_dedup(session, trimmed.to_string());
             }
             buf.clear();
-            let _ = H::run_tool_and_record(session, &name, &input, ctx, true, on_event, tool_state);
+            let _ = crate::tools_exec::run_tool_and_record::<H::CtxHost>(session, &name, &input, ctx, true, on_event, tool_state);
             i += consumed;
             continue;
         }

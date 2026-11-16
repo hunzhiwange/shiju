@@ -1751,3 +1751,7 @@ pub fn record_native_history_pair(
 #[cfg(test)]
 #[path = "tools_exec_output_tests.rs"]
 mod output_tests;
+
+#[cfg(test)]
+#[path = "tools_exec_batch_tests.rs"]
+mod batch_tests;

@@ -294,3 +294,7 @@ impl crate::runner_host::RunnerPrompt for SystemPrompt {
 #[cfg(test)]
 #[path = "prompt_tests.rs"]
 mod prompt_tests;
+
+#[cfg(test)]
+#[path = "host_split_2_tests.rs"]
+mod host_split_2_tests;

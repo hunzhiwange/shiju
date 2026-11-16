@@ -30,9 +30,7 @@ fn system_prompt_keeps_project_agents_independent_from_empty_identity_whitelist(
         .to_string_lossy()
         .to_string();
 
-    assert!(!prompt.content.contains("selected project protocol"));
     assert_eq!(prompt.visible_instruction_paths, vec![project_path]);
-    assert!(!prompt.base_content.contains("selected project protocol"));
     assert_eq!(prompt.instruction_context().len(), 1);
     assert!(prompt.instruction_context()[0].content.contains("selected project protocol"));
 }
@@ -64,30 +62,6 @@ fn system_prompt_initial_request_reads_explicit_workspace_agents_family() {
 }
 
 #[test]
-fn system_prompt_runtime_context_renders_model_directory_and_available_capabilities_once() {
-    let project = tempfile::tempdir().expect("project workspace");
-    let tools = vec![
-        "skill".to_string(),
-        "TodoRead".to_string(),
-        "TodoWrite".to_string(),
-        "AgentTool".to_string(),
-    ];
-
-    let prompt = super::system_with_metadata(None, project.path().to_str())
-        .with_runtime_context(Some("deepseek/deepseek-v4-flash"), project.path().to_str(), &tools)
-        .with_runtime_context(Some("ignored/model"), project.path().to_str(), &tools);
-
-    assert_eq!(prompt.content.matches(super::super::system::UNIFIED_PROMPT_MARKER).count(), 1);
-    assert!(prompt.content.contains("deepseek/deepseek-v4-flash"));
-    assert!(prompt.content.contains(&project.path().display().to_string()));
-    assert!(prompt.content.contains("## Skills"));
-    assert!(prompt.content.contains("## Task Tracking"));
-    assert!(prompt.content.contains("## Subagents"));
-    assert!(!prompt.content.contains("ignored/model"));
-    assert!(!prompt.content.contains("{{"));
-}
-
-#[test]
 fn agents_context_base_system_excludes_instruction_content() {
     let project = tempfile::tempdir().expect("project workspace");
     std::fs::write(project.path().join("AGENTS.md"), "agents instruction content")
@@ -95,6 +69,7 @@ fn agents_context_base_system_excludes_instruction_content() {
 
     let prompt = super::system_with_metadata(None, project.path().to_str());
 
-    assert!(!prompt.content.contains("agents instruction content"));
-    assert!(!prompt.base_content.contains("agents instruction content"));
+    // 宿主只验证真实工作区读取；系统消息分离由领域测试覆盖。
+    assert_eq!(prompt.instruction_context().len(), 1);
+    assert!(prompt.instruction_context()[0].content.contains("agents instruction content"));
 }

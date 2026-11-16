@@ -1,5 +1,11 @@
 //! Session message persistence, event publication and history serialization.
 pub mod agent_binding;
+pub mod instruction;
+pub mod instruction_discovery;
+pub mod runner_admission;
+pub mod child_agent_access;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod acp_defaults;
 pub mod capability_policy;
 pub mod session_memory;
 pub mod context_governance;

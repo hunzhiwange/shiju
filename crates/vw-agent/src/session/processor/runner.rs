@@ -14,6 +14,7 @@ use crate::session::session::{Role, Session};
 use crate::session::ui_types as models;
 #[cfg(test)]
 use crate::tools::ToolRuntimeContext;
+#[cfg(test)]
 use crate::tools::ToolUseContext;
 use serde_json::Value;
 #[cfg(test)]
@@ -128,9 +129,11 @@ fn run_in_project(
 fn request_provider_retry_policy(req: &Request) -> (u32, u64) {
     session_engine::runner::request_provider_retry_policy::<AgentRunnerHost>(req)
 }
+#[cfg(test)]
 fn request_full_access_enabled(options: &Value) -> bool {
     session_engine::runner::request_full_access_enabled(options)
 }
+#[cfg(test)]
 fn with_request_model_context(
     context: ToolUseContext,
     request_model: Option<&str>,

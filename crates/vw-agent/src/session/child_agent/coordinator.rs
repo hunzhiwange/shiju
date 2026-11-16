@@ -1,5 +1,5 @@
 //! Host authorization adapter for the single session-engine coordinator.
-use anyhow::{Result, bail};
+use anyhow::Result;
 use std::ops::Deref;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
@@ -28,12 +28,7 @@ impl ChildAgentCoordinator {
     }
 
     async fn authorize_mail(&self, context: &ToolUseContext, target: &str) -> Result<()> {
-        if context.tenant_scope() != crate::session::ui_store::current_tenant_scope() {
-            bail!("team mailbox tenant mismatch");
-        }
-        crate::session::session::get(context.session()).await?;
-        crate::session::session::get(target).await?;
-        Ok(())
+        session_engine::child_agent_access::authorize_mail::<crate::session::session_io::NativeSessionIo, _>(context, target).await
     }
 
     pub(crate) async fn team_snapshots(&self, context: &ToolUseContext) -> Result<Vec<ChildAgentTaskSnapshot>> {

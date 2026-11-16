@@ -1,16 +1,16 @@
 //! Scope project model reads to the current selection and serialize writes per project.
 
-use super::{gateway_client_endpoint, preferences_scope};
-use crate::app::{App, Message};
-use iced::Task;
-use serde_json::{Map, Value, json};
-use gateway_endpoint::GatewayEndpoint;
-use vw_gateway_client::GatewayClient;
+use super::gateway_client_endpoint;
 use super::{ChatModelPreferences, ProjectPreferencesScope};
+use crate::app::{App, Message};
+use gateway_endpoint::GatewayEndpoint;
+use iced::Task;
+use serde_json::Value;
 impl App {
     fn chat_model_defaults(&mut self, endpoint: &GatewayEndpoint) -> &mut ChatModelPreferences {
-        self.desktop_preferences_persistence.project_chat.defaults(endpoint,
-            (self.model.clone(), self.auto_model, self.acp_agent.clone()))
+        self.desktop_preferences_persistence
+            .project_chat
+            .defaults(endpoint, (self.model.clone(), self.auto_model, self.acp_agent.clone()))
     }
 
     pub(crate) fn invalidate_project_chat_preferences_read(&mut self) {
@@ -21,34 +21,16 @@ impl App {
         &mut self,
         project_changed: bool,
     ) -> Task<Message> {
-        let state = &mut self.desktop_preferences_persistence.project_chat;
-        state.revision = state.revision.wrapping_add(1);
-        if project_changed {
-            state.selection_override = false;
-        }
-        let endpoint = gateway_client_endpoint();
-        let defaults = self.chat_model_defaults(&endpoint).clone();
-        if project_changed {
-            self.apply_project_chat_preferences(defaults.0, defaults.1, defaults.2);
-        }
-
-        let Some(path) = self.project_path.clone() else {
-            return Task::none();
-        };
-        let scope = ProjectPreferencesScope::new(&endpoint, path.clone());
-        let state = &mut self.desktop_preferences_persistence.project_chat;
-        if let Some(write) = state.writes.get(&scope) {
-            // The server may still return the value preceding our latest PUT.
-            let (model, auto_model, acp_agent) = write.latest.clone();
-            state.selection_override = true;
+        let read = self.desktop_preferences_persistence.project_chat.reload(
+            gateway_client_endpoint(),
+            self.project_path.clone(),
+            project_changed,
+            (self.model.clone(), self.auto_model, self.acp_agent.clone()),
+        );
+        for (model, auto_model, acp_agent) in read.selections {
             self.apply_project_chat_preferences(model, auto_model, acp_agent);
-            return Task::none();
         }
-        let revision = state.revision;
-        Task::perform(
-            async move { gateway_desktop_settings::GatewayDesktopSettingsClient::new(GatewayClient::new(endpoint)?.transport().clone()).desktop_project_preferences_get(&path).await },
-            move |result| Message::ProjectChatPreferencesLoaded(scope, revision, result),
-        )
+        read.task.map(super::desktop::preferences_message)
     }
 
     pub(crate) fn project_chat_preferences_loaded(
@@ -57,24 +39,18 @@ impl App {
         revision: u64,
         result: Result<Option<ChatModelPreferences>, String>,
     ) -> Task<Message> {
-        if self.desktop_preferences_persistence.project_chat.revision != revision
-            || self.project_path.as_deref() != Some(scope.path.as_str())
-            || scope.gateway != preferences_scope(&gateway_client_endpoint())
+        if let Some((model, auto_model, acp_agent)) =
+            self.desktop_preferences_persistence.project_chat.loaded(
+                &gateway_client_endpoint(),
+                self.project_path.as_deref(),
+                scope,
+                revision,
+                result,
+            )
         {
-            return Task::none();
+            self.apply_project_chat_preferences(model, auto_model, acp_agent);
         }
-        match result {
-            Ok(Some((model, auto_model, acp_agent))) => {
-                self.desktop_preferences_persistence.project_chat.selection_override = true;
-                self.apply_project_chat_preferences(model, auto_model, acp_agent);
-                Task::none()
-            }
-            Ok(None) => Task::none(),
-            Err(error) => {
-                tracing::warn!(target: "vw_desktop", %error, project_path = %scope.path, "failed to load project chat preferences");
-                Task::none()
-            }
-        }
+        Task::none()
     }
 
     pub(crate) fn save_chat_model_preferences(
@@ -82,42 +58,33 @@ impl App {
         model: String,
         auto_model: bool,
     ) -> Task<Message> {
-        self.invalidate_project_chat_preferences_read();
-        let endpoint = gateway_client_endpoint();
-        let preferences = (model, auto_model, self.acp_agent.clone());
-        *self.chat_model_defaults(&endpoint) = preferences.clone();
-        let fields = Map::from_iter([
-            ("model".to_owned(), json!(preferences.0)),
-            ("auto_model".to_owned(), json!(preferences.1)),
-            ("acp_agent".to_owned(), json!(preferences.2)),
-        ]);
-        let persistence = &mut self.desktop_preferences_persistence;
-        persistence.project_chat.edited_global = true;
-        let global = persistence.enqueue(endpoint.clone(), fields).map(super::desktop::preferences_message);
-        let project = if let Some(path) = self.project_path.clone() {
-            let scope = ProjectPreferencesScope::new(&endpoint, path);
-            persistence.project_chat.enqueue(scope, endpoint, preferences).map(super::desktop::preferences_message)
-        } else {
-            Task::none()
-        };
-        Task::batch([global, project])
+        self.desktop_preferences_persistence
+            .save_chat_model_preferences(
+                gateway_client_endpoint(),
+                self.project_path.clone(),
+                (self.model.clone(), self.auto_model, self.acp_agent.clone()),
+                (model, auto_model, self.acp_agent.clone()),
+            )
+            .map(super::desktop::preferences_message)
     }
 
     pub(crate) fn save_automatic_model_preference(&mut self) -> Task<Message> {
-        self.invalidate_project_chat_preferences_read();
         self.auto_model = true;
         self.get_session_runtime_mut("__empty__").auto_model = true;
-        let endpoint = gateway_client_endpoint();
-        self.chat_model_defaults(&endpoint).1 = true;
-        self.desktop_preferences_persistence.project_chat.edited_global = true;
         self.desktop_preferences_persistence
-            .enqueue(endpoint, Map::from_iter([("auto_model".to_owned(), Value::Bool(true))])).map(super::desktop::preferences_message)
+            .save_automatic_model_preference(
+                gateway_client_endpoint(),
+                (self.model.clone(), self.auto_model, self.acp_agent.clone()),
+            )
+            .map(super::desktop::preferences_message)
     }
 
     pub(crate) fn apply_bootstrap_chat_preferences(&mut self, cfg: &Value) {
         let endpoint = gateway_client_endpoint();
         self.chat_model_defaults(&endpoint);
-        if let Some((model, auto_model, acp_agent)) = self.desktop_preferences_persistence.project_chat.apply_bootstrap(cfg) {
+        if let Some((model, auto_model, acp_agent)) =
+            self.desktop_preferences_persistence.project_chat.apply_bootstrap(cfg)
+        {
             self.apply_project_chat_preferences(model, auto_model, acp_agent);
         }
     }
@@ -128,7 +95,8 @@ impl App {
         result: Result<(), String>,
     ) -> Task<Message> {
         let persistence = &mut self.desktop_preferences_persistence;
-        let next = persistence.project_chat.finished(scope).map(super::desktop::preferences_message);
+        let next =
+            persistence.project_chat.finished(scope).map(super::desktop::preferences_message);
         persistence.notify_if_idle();
         match result {
             Ok(()) => next,

@@ -11,7 +11,7 @@ use gateway_endpoint::GatewayEndpoint;
 
 use super::desktop::{PreferencesScope, preferences_scope};
 use super::gateway::{
-    gateway_client_endpoint, gateway_client_endpoint_from_config,
+    gateway_client_endpoint,
     spawn_gateway_task,
 };
 
@@ -34,29 +34,15 @@ impl App {
         &mut self,
         config: GatewayClientSystemSettingsConfig,
     ) -> (GatewayEndpoint, Task<Message>) {
-        let endpoint = gateway_client_endpoint_from_config(&config);
+        let (endpoint, task) = self.desktop_preferences_persistence.enqueue_gateway_client_snapshot(config);
         #[cfg(not(target_arch = "wasm32"))]
         self.agent_apps_auth.select_endpoint(&endpoint);
-        let mut snapshot = serde_json::json!(config);
-        // The Gateway merges objects. Explicitly remove cleared or migrated credentials.
-        for key in ["skey", "bearer_token", "username", "password"] {
-            if snapshot.get(key).is_none() {
-                snapshot[key] = Value::Null;
-            }
-        }
-        let task = self.desktop_preferences_persistence.enqueue_system_settings(
-            endpoint.clone(),
-            SystemSettingsSection::GatewayClient,
-            Map::from_iter([("gateway_client".to_string(), snapshot)]),
-        ).map(super::desktop::preferences_message);
-        (endpoint, task)
+        (endpoint, task.map(super::desktop::preferences_message))
     }
 
     pub(in crate::app) fn system_settings_edited(&self, section: SystemSettingsSection) -> bool {
-        self.desktop_preferences_persistence
-            .edited_system_settings
-            .get(&preferences_scope(&gateway_client_endpoint()))
-            .is_some_and(|sections| sections.contains(&section))
+        self.desktop_preferences_persistence.system_settings_edited(
+            &preferences_scope(&gateway_client_endpoint()), section)
     }
 
     pub(in crate::app) fn system_settings_saved(
@@ -68,35 +54,25 @@ impl App {
         let next = self
             .desktop_preferences_persistence
             .finish_system_settings_save(scope.clone(), section).map(super::desktop::preferences_message);
-        if section == SystemSettingsSection::GatewayClient {
-            if result.is_err()
-                && scope == preferences_scope(&gateway_client_endpoint())
-                && !self.desktop_preferences_persistence.has_system_settings_write(&scope, section)
-                && self.gateway_client_settings.save_error.is_none()
-            {
+        use desktop_config::config_desktop::SystemSettingsSaveFeedback;
+        match self.desktop_preferences_persistence.system_settings_save_feedback(
+            &scope, &preferences_scope(&gateway_client_endpoint()), section,
+            result.is_err(), self.gateway_client_settings.save_error.is_some()) {
+            SystemSettingsSaveFeedback::GatewaySyncFailed => {
                 let error = Feedback::owned("网关连接已在本机保存，远端同步失败。", vec![]);
                 let toast = self.show_error_toast(error.display(self.desktop_locale));
                 self.gateway_client_settings.save_error = Some(error);
-                return Task::batch([next, toast]);
+                Task::batch([next, toast])
             }
-            return next;
-        }
-        if section == SystemSettingsSection::DialogueFlow
-            && scope == preferences_scope(&gateway_client_endpoint())
-        {
-            return Task::batch([
+            SystemSettingsSaveFeedback::DialogueFlow => Task::batch([
                 next,
-                crate::app::message::settings::update(
-                    self,
-                    SettingsMessage::DialogueFlowUiSettingsSaved(result),
-                ),
-            ]);
-        }
-        match result {
-            Ok(()) => next,
-            Err(error) => {
+                crate::app::message::settings::update(self, SettingsMessage::DialogueFlowUiSettingsSaved(result)),
+            ]),
+            SystemSettingsSaveFeedback::Failed => {
+                let error = result.expect_err("failed save feedback");
                 Task::batch([next, self.show_error_toast(format!("系统设置未保存：{error}"))])
             }
+            SystemSettingsSaveFeedback::None => next,
         }
     }
 }

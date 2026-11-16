@@ -42,3 +42,6 @@ pub mod config_gateway;
 
 #[cfg(test)]
 mod desktop_split_01_tests;
+
+#[cfg(test)]
+mod host_module_32_tests;

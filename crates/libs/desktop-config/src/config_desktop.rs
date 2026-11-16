@@ -10,6 +10,7 @@ use crate::config_project_chat as project_chat;
 use crate::config_system_settings::SystemSettingsSection;
 pub use project_chat::{ChatModelPreferences, ProjectPreferencesScope};
 pub enum PreferencesMessage {
+    ProjectChatPreferencesLoaded(ProjectPreferencesScope, u64, Result<Option<ChatModelPreferences>, String>),
     DesktopPreferencesSaved(PreferencesScope, Result<(), String>),
     TaskPetSizeSaved(PreferencesScope, Result<(), String>),
     SystemSettingsSaved(PreferencesScope, SystemSettingsSection, Result<(), String>),
@@ -163,6 +164,97 @@ impl DesktopPreferencesPersistence {
                 }
             },
         )
+    }
+
+    pub fn save_chat_model_preferences(
+        &mut self,
+        endpoint: GatewayEndpoint,
+        path: Option<String>,
+        initial: ChatModelPreferences,
+        preferences: ChatModelPreferences,
+    ) -> Task<Message> {
+        self.project_chat.invalidate_read();
+        *self.project_chat.defaults(&endpoint, initial) = preferences.clone();
+        self.project_chat.edited_global = true;
+        let fields = Map::from_iter([
+            ("model".into(), serde_json::json!(preferences.0)),
+            ("auto_model".into(), serde_json::json!(preferences.1)),
+            ("acp_agent".into(), serde_json::json!(preferences.2)),
+        ]);
+        let global = self.enqueue(endpoint.clone(), fields);
+        let project = if let Some(path) = path {
+            self.project_chat.enqueue(
+                ProjectPreferencesScope::new(&endpoint, path),
+                endpoint,
+                preferences,
+            )
+        } else {
+            Task::none()
+        };
+        Task::batch([global, project])
+    }
+
+    pub fn save_automatic_model_preference(
+        &mut self,
+        endpoint: GatewayEndpoint,
+        initial: ChatModelPreferences,
+    ) -> Task<Message> {
+        self.project_chat.invalidate_read();
+        self.project_chat.defaults(&endpoint, initial).1 = true;
+        self.project_chat.edited_global = true;
+        self.enqueue(endpoint, Map::from_iter([("auto_model".into(), Value::Bool(true))]))
+    }
+
+    pub fn system_settings_save_feedback(&self, scope: &PreferencesScope, current: &PreferencesScope, section: SystemSettingsSection, failed: bool, has_save_error: bool) -> SystemSettingsSaveFeedback {
+        if section == SystemSettingsSection::GatewayClient {
+            return if failed && scope == current && !self.has_system_settings_write(scope, section) && !has_save_error {
+                SystemSettingsSaveFeedback::GatewaySyncFailed
+            } else { SystemSettingsSaveFeedback::None };
+        }
+        if section == SystemSettingsSection::DialogueFlow && scope == current {
+            return SystemSettingsSaveFeedback::DialogueFlow;
+        }
+        if failed { SystemSettingsSaveFeedback::Failed } else { SystemSettingsSaveFeedback::None }
+    }
+
+    pub fn desktop_preference_edited(&self, scope: &PreferencesScope, key: &str) -> bool {
+        self.edited_desktop_fields.get(scope).is_some_and(|fields| fields.contains(key))
+    }
+
+    pub fn retain_unedited_desktop_preferences(&self, scope: &PreferencesScope, cfg: &mut Value) {
+        if let Some(fields) = cfg.as_object_mut()
+            && let Some(edited) = self.edited_desktop_fields.get(scope)
+        {
+            fields.retain(|key, _| !edited.contains(key));
+        }
+    }
+
+    pub fn system_settings_edited(
+        &self,
+        scope: &PreferencesScope,
+        section: SystemSettingsSection,
+    ) -> bool {
+        self.edited_system_settings.get(scope).is_some_and(|sections| sections.contains(&section))
+    }
+
+    pub fn enqueue_gateway_client_snapshot(
+        &mut self,
+        config: config_ui::GatewayClientSystemSettingsConfig,
+    ) -> (GatewayEndpoint, Task<Message>) {
+        let endpoint = crate::config_gateway::gateway_client_endpoint_from_config(&config);
+        let mut snapshot = serde_json::json!(config);
+        // Object merges must explicitly clear credentials omitted by serialization.
+        for key in ["skey", "bearer_token", "username", "password"] {
+            if snapshot.get(key).is_none() {
+                snapshot[key] = Value::Null;
+            }
+        }
+        let task = self.enqueue_system_settings(
+            endpoint.clone(),
+            SystemSettingsSection::GatewayClient,
+            Map::from_iter([("gateway_client".to_string(), snapshot)]),
+        );
+        (endpoint, task)
     }
 
     pub fn finished(&mut self, scope: PreferencesScope, target: PatchTarget) -> Task<Message> {
@@ -489,3 +581,6 @@ pub fn session_reasoning_efforts_from_config(
         })
         .collect()
 }
+
+/// Cross-domain feedback selected after the queued save has advanced.
+pub enum SystemSettingsSaveFeedback { None, GatewaySyncFailed, DialogueFlow, Failed }

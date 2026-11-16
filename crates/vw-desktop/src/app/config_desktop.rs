@@ -14,6 +14,7 @@ mod project_chat;
 pub(super) fn preferences_message(message: desktop_config::config_desktop::PreferencesMessage) -> Message {
     use desktop_config::config_desktop::PreferencesMessage as Local;
     match message {
+        Local::ProjectChatPreferencesLoaded(scope, revision, result) => Message::ProjectChatPreferencesLoaded(scope, revision, result),
         Local::DesktopPreferencesSaved(scope, result) => Message::DesktopPreferencesSaved(scope, result),
         Local::TaskPetSizeSaved(scope, result) => Message::View(crate::app::message::ViewMessage::TaskPetSizeSaved(scope, result)),
         Local::SystemSettingsSaved(scope, section, result) => Message::SystemSettingsSaved(scope, section, result),
@@ -74,21 +75,12 @@ impl App {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn desktop_preference_edited(&self, scope: &PreferencesScope, key: &str) -> bool {
-        self.desktop_preferences_persistence
-            .edited_desktop_fields
-            .get(scope)
-            .is_some_and(|fields| fields.contains(key))
+        self.desktop_preferences_persistence.desktop_preference_edited(scope, key)
     }
 
     pub(crate) fn retain_unedited_desktop_preferences(&self, cfg: &mut Value) {
-        if let Some(fields) = cfg.as_object_mut()
-            && let Some(edited) = self
-                .desktop_preferences_persistence
-                .edited_desktop_fields
-                .get(&preferences_scope(&gateway_client_endpoint()))
-        {
-            fields.retain(|key, _| !edited.contains(key));
-        }
+        self.desktop_preferences_persistence.retain_unedited_desktop_preferences(
+            &preferences_scope(&gateway_client_endpoint()), cfg);
     }
 
     pub(crate) fn desktop_preferences_saved(

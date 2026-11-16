@@ -21,13 +21,3 @@ pub mod state_machine;
 pub mod store;
 pub mod task_board;
 pub mod task_graph;
-
-// 看板与策略测试随实现迁入 task-scheduler。
-
-#[cfg(test)]
-#[path = "integration_tests.rs"]
-mod integration_tests;
-
-#[cfg(test)]
-#[path = "local_e2e_tests.rs"]
-mod local_e2e_tests;

@@ -6,15 +6,15 @@ use serde_json::json;
 use std::path::Path;
 use vw_api_transport::common::TimestampMs;
 
-use super::domain::{AgentRunStatus, AssigneeId, TaskId};
-use super::events::AgentEventKind;
-use super::runner::local::{
+use crate::domain::{AgentRunStatus, AssigneeId, TaskId};
+use crate::events::AgentEventKind;
+use crate::runner::local::{
     LocalAgentExecutionOutput, LocalAgentExecutionRequest, LocalAgentExecutor, LocalAgentRunner,
     LocalAgentRunnerRequest, LocalAgentWorkspace, LocalAgentWorkspaceRequest,
 };
-use super::state_machine::{AgentTaskKind, AgentTaskStatus};
-use super::store::AgentSchedulerStore;
-use super::store::tasks::NewAgentTask;
+use crate::state_machine::{AgentTaskKind, AgentTaskStatus};
+use crate::store::AgentSchedulerStore;
+use crate::store::tasks::NewAgentTask;
 
 struct RecordingExecutor {
     output: String,
@@ -54,7 +54,7 @@ fn prepare_git_workspace(path: &Path, branch: &str) -> Result<()> {
         vec!["commit", "--allow-empty", "-m", "initial"],
     ] {
         let output =
-            crate::app::agent::shell::git_std_command().current_dir(path).args(&args).output()?;
+            shell_command::git_std_command().current_dir(path).args(&args).output()?;
         anyhow::ensure!(
             output.status.success(),
             "git {} failed: {}",
@@ -109,7 +109,7 @@ impl LocalAgentExecutor for AcceptanceExecutor {
     }
 
     fn execute(&self, request: LocalAgentExecutionRequest) -> Result<LocalAgentExecutionOutput> {
-        use super::runner::workspace_claim::{WorkspaceClaim, lock_root};
+        use crate::runner::workspace_claim::{WorkspaceClaim, lock_root};
         assert!(
             WorkspaceClaim::acquire(
                 &lock_root()?,
@@ -169,7 +169,7 @@ fn task_pool_acceptance_explicit_actions_and_agent_identity_are_preserved() -> R
     let directory = tempfile::tempdir()?;
     let store = AgentSchedulerStore::new();
     store.initialize_project(directory.path())?;
-    let development = crate::task_lifecycle::built_in_workflow_by_id("dev_lifecycle").unwrap();
+    let development = task_lifecycle::built_in_workflow_by_id("dev_lifecycle").unwrap();
     store.save_task_board_workflow(
         directory.path(),
         &serde_json::from_value(serde_json::to_value(development)?)?,

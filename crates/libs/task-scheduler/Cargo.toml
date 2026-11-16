@@ -57,3 +57,6 @@ agent-database = { path = "../agent-database", version = "0.6.0", features = ["t
 agent-project = { path = "../agent-project", version = "0.6.0", features = ["test-support"] }
 tempfile = "3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+session-info = { path = "../session-info", version = "0.6.0" }
+session-ui-types = { path = "../session-ui-types", version = "0.6.0" }
+parking_lot = "0.12"

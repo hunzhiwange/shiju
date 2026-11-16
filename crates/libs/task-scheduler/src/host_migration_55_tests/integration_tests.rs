@@ -22,28 +22,28 @@ use session_ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionStep, SessionTodoItem, TokenUsage,
 };
 
-use super::artifacts::TaskArtifactWriter;
-use super::domain::{
+use task_scheduler_core::artifacts::TaskArtifactWriter;
+use crate::domain::{
     AgentRunStatus, AgentSchedulerContext, AssigneeId, HolderId, ResourceId, ResourceLeaseId,
     RunId, TaskId, TeamId,
 };
-use super::engine::dispatch::DispatchEngine;
-use super::events::AgentEventKind;
-use super::outbox_dispatcher::{OutboxDispatcher, OutboxDrainSummary};
-use super::state_machine::{AgentTaskKind, AgentTaskStatus};
-use super::store::AgentSchedulerStore;
-use super::store::events::AppendAgentEventRequest;
-use super::store::logs::{AgentSchedulerWorkspaceContext, AppendAgentTaskLogRequest};
-use super::store::outbox::EnqueueOutboxMessageRequest;
-use super::store::resources::{AcquireResourceLeaseRequest, ResourceKind};
-use super::store::runs::AgentRunFinishStatus;
-use super::store::runs::ClaimTaskRunRequest;
-use super::store::tasks::NewAgentTask;
-use super::task_graph::AgentTaskDependency;
-use crate::global_database::GlobalDatabase;
-use crate::global_database::test_support::PostgresTestDatabase;
-use crate::project::store::ProjectStore;
-use crate::session::store::SessionStore;
+use crate::engine::dispatch::DispatchEngine;
+use crate::events::AgentEventKind;
+use crate::outbox_dispatcher::{OutboxDispatcher, OutboxDrainSummary};
+use crate::state_machine::{AgentTaskKind, AgentTaskStatus};
+use crate::store::AgentSchedulerStore;
+use crate::store::events::AppendAgentEventRequest;
+use crate::store::logs::{AgentSchedulerWorkspaceContext, AppendAgentTaskLogRequest};
+use crate::store::outbox::EnqueueOutboxMessageRequest;
+use crate::store::resources::{AcquireResourceLeaseRequest, ResourceKind};
+use crate::store::runs::AgentRunFinishStatus;
+use crate::store::runs::ClaimTaskRunRequest;
+use crate::store::tasks::NewAgentTask;
+use crate::task_graph::AgentTaskDependency;
+use agent_database::global_database::GlobalDatabase;
+use agent_database::global_database::test_support::PostgresTestDatabase;
+use agent_project::store::ProjectStore;
+
 
 const GLOBAL_SCOPED_TABLES: [&str; 19] = [
     "projects",
@@ -98,7 +98,7 @@ fn agent_scheduler_requires_same_scope_parent_project() -> Result<()> {
     let sqlite_database = GlobalDatabase::for_home(sqlite_home.path())?;
     assert_scheduler_requires_same_scope_parent_project(sqlite_database)?;
 
-    let postgres_fixture = crate::global_database::test_support::postgres_test_database!();
+    let postgres_fixture = agent_database::global_database::test_support::postgres_test_database!();
     assert_scheduler_requires_same_scope_parent_project(postgres_fixture.database().clone())?;
     postgres_fixture.cleanup()?;
     Ok(())
@@ -371,8 +371,8 @@ impl TestClock {
 
 #[tokio::test]
 async fn task_pool_recovery_resources_wait_for_live_directory_owner() -> Result<()> {
-    use super::engine::recovery::RecoveryEngine;
-    use super::runner::workspace_claim::{WorkspaceClaim, lock_root};
+    use crate::engine::recovery::RecoveryEngine;
+    use crate::runner::workspace_claim::{WorkspaceClaim, lock_root};
     let project = tempfile::tempdir()?;
     let store = AgentSchedulerStore::new();
     store.initialize_project(project.path())?;

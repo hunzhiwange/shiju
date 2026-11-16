@@ -8,15 +8,13 @@ use vw_api_chat::chat::GatewayChatStreamRequest;
 use session_port::chat_stream::GatewayChatStreamCollected;
 use task_scheduler::runner::gateway_executor::{GatewayChatStreamClient, GatewayFuture, GatewayPayloadObserver};
 #[cfg(test)]
-use task_scheduler::runner::gateway_executor::{GatewayWorktreePoolClient, lease_gateway_local_agent_workspace_for_project, release_gateway_local_agent_workspace_for_project, recycle_gateway_local_agent_workspace_for_project, project_for_local_workspace, normalize_project_path, run_gateway_future};
+use task_scheduler::runner::gateway_executor::run_gateway_future;
 #[cfg(test)]
 use task_scheduler::runner::gateway_request::*;
 #[cfg(test)]
 use crate::agent_scheduler::store::AgentSchedulerStore;
 #[cfg(test)]
 use crate::agent_scheduler::runner::local::*;
-#[cfg(test)]
-use crate::project;
 #[derive(Debug, Clone)]
 pub(crate) struct SchedulerGatewayHost;
 impl task_scheduler::runner::gateway_executor::GatewayExecutorHost for SchedulerGatewayHost {

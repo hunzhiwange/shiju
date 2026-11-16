@@ -55,3 +55,6 @@ pub mod scheduler;
 #[cfg(test)]
 #[path = "runner/local_tests.rs"]
 mod local_runner_tests;
+
+#[cfg(test)]
+mod host_migration_55_tests;

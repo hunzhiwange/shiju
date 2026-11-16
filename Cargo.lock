@@ -1169,6 +1169,7 @@ dependencies = [
  "base64 0.23.1",
  "config-plugins",
  "flate2",
+ "git2",
  "hex",
  "libc",
  "plugin-hooks",

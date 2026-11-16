@@ -374,3 +374,7 @@ pub fn publish_materialized_install(
         Some(&metadata.source),
     )
 }
+
+#[cfg(test)]
+#[path = "compat_t48_tests.rs"]
+mod compat_t48_tests;

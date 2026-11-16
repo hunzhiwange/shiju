@@ -1,4 +1,4 @@
-use crate::plugins::install_plugin_from_source;
+use super::install_plugin_from_source;
 #[test]
 fn codex_plugin_compat_t48_rejects_invalid_input() {
     let out = tempfile::tempdir().unwrap();
@@ -46,11 +46,11 @@ fn codex_plugin_compat_t48_installs_pinned_git_revision() {
         std::fs::read(installed.installed_dir.join(".codex-plugin/plugin.json")).unwrap();
     assert_eq!(manifest, std::fs::read(source.path().join(".codex-plugin/plugin.json")).unwrap());
     let metadata =
-        super::identity::read_install_metadata(&installed.installed_dir, &installed.manifest)
+        plugin_install::identity::read_install_metadata(&installed.installed_dir, &installed.manifest)
             .unwrap()
             .unwrap();
     let selected_out = tempfile::tempdir().unwrap();
-    let selected = super::git_source::install(
+    let selected = super::install_git(
         source.path().to_str().unwrap(),
         Some("nested"),
         None,
@@ -78,7 +78,7 @@ fn codex_plugin_compat_t48_installs_pinned_git_revision() {
             .unwrap();
         let rejected = tempfile::tempdir().unwrap();
         assert!(
-            super::git_source::install(
+            super::install_git(
                 source.path().to_str().unwrap(),
                 Some("nested"),
                 None,
@@ -103,7 +103,7 @@ fn codex_plugin_compat_t48_installs_pinned_git_revision() {
 fn codex_plugin_compat_t48_preserves_isolation() {
     let out = tempfile::tempdir().unwrap();
     assert!(
-        super::git_source::install(
+        super::install_git(
             "/missing",
             Some("../escape"),
             Some("HEAD"),

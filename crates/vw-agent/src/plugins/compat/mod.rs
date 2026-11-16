@@ -190,15 +190,13 @@ pub(crate) mod marketplace;
 // Marketplace tests live in plugin-install.
 
 pub(crate) mod git_source;
-#[cfg(test)]
-mod t48_tests;
+// Fixed Git revision tests live in agent-plugins::install.
 
 pub(crate) mod npm_source;
 
 pub(crate) mod npm_archive;
 
-#[cfg(test)]
-mod t51_tests;
+// Installation identity recovery tests live in agent-plugins.
 
 pub(crate) mod upgrade;
 

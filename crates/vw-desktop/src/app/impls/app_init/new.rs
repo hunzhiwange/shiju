@@ -406,6 +406,7 @@ impl App {
             split_drag_anchor_x: None,
             split_drag_start_ratio: 0.0,
             window_size: (1200.0, 800.0),
+            mobile_layout: crate::app::state::MobileLayoutState::new(1200.0, 800.0),
             fullscreen_layout_settling: false,
             startup_resize_checked: false,
 

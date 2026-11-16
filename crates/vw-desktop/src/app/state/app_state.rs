@@ -305,6 +305,8 @@ pub struct App {
     pub(crate) split_drag_start_ratio: f32,
     /// 窗口尺寸（宽，高）
     pub(crate) window_size: (f32, f32),
+    /// 当前会话的布局选择，独立于工作区模式与桌面面板尺寸。
+    pub(crate) mobile_layout: MobileLayoutState,
     /// 全屏切换后的布局稳定期是否进行中
     pub(crate) fullscreen_layout_settling: bool,
     pub(crate) startup_resize_checked: bool,

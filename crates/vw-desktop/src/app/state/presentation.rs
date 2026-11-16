@@ -13,3 +13,7 @@ pub use desktop_git_ui::git_panel::types::ConventionalCommitType;
 #[cfg(test)]
 #[path = "presentation_tests.rs"]
 mod presentation_tests;
+
+#[path = "mobile_layout.rs"]
+mod mobile_layout;
+pub use mobile_layout::{LayoutMode, LayoutPreference, MobileLayoutState};

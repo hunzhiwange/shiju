@@ -149,6 +149,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             if app.main_window_id != Some(window_id) {
                 return Task::none();
             }
+            app.mobile_layout.update_size(w, h);
             let window_w = w.max(1.0);
             let window_h = h.max(1.0);
             app.window_size = (window_w, window_h);

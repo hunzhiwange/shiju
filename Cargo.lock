@@ -7452,6 +7452,7 @@ dependencies = [
  "config-aggregate",
  "config-ui",
  "desktop-assets",
+ "desktop-chat-view",
  "desktop-config",
  "desktop-i18n",
  "desktop-ui-controls",
@@ -7463,6 +7464,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
+ "urlencoding",
  "vw-gateway-client",
 ]
 

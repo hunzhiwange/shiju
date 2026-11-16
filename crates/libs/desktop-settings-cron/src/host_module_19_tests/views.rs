@@ -2,15 +2,15 @@
 //! 作业 fixture 组合代理与命令类型、无效日期和缺失输出以覆盖显示回退。
 
 use super::*;
-use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronSettingsTab};
-use crate::app::{App, Message};
+use crate::state::{CronAddJobType, CronAddScheduleKind, CronSettingsTab};
+
+use gateway_cron::CronRunDto;
 use iced::Element;
 use iced::widget::text;
-use gateway_cron::CronRunDto;
 
 // 设置页 fixture 从统一默认应用出发，各用例只覆写当前页面关心的字段。
-fn test_app() -> App {
-    App::new().0
+fn test_app() -> Fixture {
+    fixture()
 }
 
 // 保留元素即可完成无窗口构建检查，避免把布局细节误当成业务契约。
@@ -132,30 +132,7 @@ fn overlays_cover_no_modal_runs_modal_states_and_help() {
 #[test]
 fn add_tab_covers_shell_every_and_agent_delivery_with_provider_model_options() {
     let mut app = test_app();
-    app.agents_settings.provider_models = vec![crate::app::state::ProviderModelsSummary {
-        id: "openai".to_string(),
-        name: "OpenAI".to_string(),
-        models: vec![
-            crate::app::state::ModelSummary {
-                id: "gpt-5".to_string(),
-                name: "GPT-5".to_string(),
-                enabled: true,
-                toolcall: true,
-                attachment: true,
-                context_limit: 100000,
-                detail: serde_json::Value::Null,
-            },
-            crate::app::state::ModelSummary {
-                id: "gpt-4.1".to_string(),
-                name: "GPT-4.1".to_string(),
-                enabled: true,
-                toolcall: true,
-                attachment: false,
-                context_limit: 64000,
-                detail: serde_json::Value::Null,
-            },
-        ],
-    }];
+    app.providers = vec![("openai".into(), vec!["gpt-5".into(), "gpt-4.1".into()])];
     app.cron_settings.active_tab = CronSettingsTab::Add;
     app.cron_settings.add_draft.job_type = CronAddJobType::Shell;
     app.cron_settings.add_draft.schedule_kind = CronAddScheduleKind::Every;

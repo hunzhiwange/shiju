@@ -4,7 +4,7 @@ use std::{path::{Path, PathBuf}, sync::Arc};
 use tool_types::{Tool, ToolResult};
 use serde_json::Value;
 #[derive(Clone)]
-pub(super) struct Host;
+pub(crate) struct Host;
 tokio::task_local! { static CONTEXT: Arc<ToolUseContext<Host>>; }
 #[allow(unused_variables)]
 impl ContextHost for Host {

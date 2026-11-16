@@ -105,8 +105,7 @@ pub mod mcp_oauth_tokens;
 mod t28_tests;
 
 pub(crate) mod mcp_apps;
-#[cfg(test)]
-mod t29_tests;
+
 
 pub(crate) mod mcp_app_execution;
 #[cfg(test)]
@@ -191,8 +190,7 @@ pub(crate) mod host_files;
 #[cfg(test)]
 mod t61_tests;
 
-#[cfg(test)]
-mod t62_tests;
+
 
 #[cfg(test)]
 mod t64_tests;

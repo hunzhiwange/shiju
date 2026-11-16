@@ -64,7 +64,7 @@ mod t28_owner_tests;
 // Explicit no-turn transport owner. Session registry, app mounts and dynamic tool
 // discovery are deliberately unavailable; their acceptance stays in vw-agent.
 struct Connections;
-fn connection_host() -> Arc<dyn plugin_mcp::connection_host::ConnectionHost> { Arc::new(Connections) }
+pub(crate) fn connection_host() -> Arc<dyn plugin_mcp::connection_host::ConnectionHost> { Arc::new(Connections) }
 impl plugin_mcp::connection_host::ConnectionHost for Connections {
     fn request_abort(&self) -> Result<Option<CancellationToken>> { Ok(None) }
     fn runtime_stdio_cwd(&self, server: &McpServerStdio) -> Result<Option<PathBuf>> {

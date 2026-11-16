@@ -1,4 +1,4 @@
-use super::mcp_apps::association;
+use plugin_mcp::mcp_apps::association;
 use serde_json::json;
 
 #[tokio::test]
@@ -6,17 +6,17 @@ async fn codex_plugin_compat_t29_reads_resource_over_real_stdio() {
     use agent_client_protocol::{McpServer, McpServerStdio};
     let root = tempfile::tempdir().unwrap();
     let script = root.path().join("server.py");
-    std::fs::write(&script, include_bytes!("../../../testdata/plugin_compat/t29/server.py"))
+    std::fs::write(&script, include_bytes!("../../../../vw-agent/testdata/plugin_compat/t29/server.py"))
         .unwrap();
     std::fs::write(
         root.path().join("resource.json"),
-        include_bytes!("../../../testdata/plugin_compat/t29/resource.json"),
+        include_bytes!("../../../../vw-agent/testdata/plugin_compat/t29/resource.json"),
     )
     .unwrap();
     let server = McpServer::Stdio(
         McpServerStdio::new("weather", "python3").args(vec![script.display().to_string()]),
     );
-    let pool = super::mcp_connections::McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
+    let pool = plugin_mcp::mcp_connections::McpSessionConnections::new(crate::host_migration_37_tests::connection_host());
     let result = pool
         .with_client(&server, Some(std::time::Duration::from_secs(5)), |client| {
             Box::pin(async move {
@@ -24,7 +24,7 @@ async fn codex_plugin_compat_t29_reads_resource_over_real_stdio() {
                 assert_eq!(tools.len(), 1);
                 let meta = client.service().raw_responses.tool_metadata("forecast").unwrap();
                 let mut app = association("weather", "forecast", Some(&meta))?.unwrap();
-                super::mcp_apps::resource(client, &mut app).await?;
+                plugin_mcp::mcp_apps::resource(client, &mut app).await?;
                 Ok(app)
             })
         })
@@ -43,7 +43,7 @@ async fn codex_plugin_compat_t29_reads_resource_over_real_stdio() {
 async fn codex_plugin_compat_t29_public_chess_resource() {
     use agent_client_protocol::{McpServer, McpServerHttp};
     let server = McpServer::Http(McpServerHttp::new("chess", "https://mcp.chess.niklas.sh/mcp"));
-    let pool = super::mcp_connections::McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
+    let pool = plugin_mcp::mcp_connections::McpSessionConnections::new(crate::host_migration_37_tests::connection_host());
     let result = pool
         .with_client(&server, Some(std::time::Duration::from_secs(45)), |client| {
             Box::pin(async move {
@@ -61,14 +61,14 @@ async fn codex_plugin_compat_t29_public_chess_resource() {
                         arguments: Some(Default::default()),
                     })
                     .await?;
-                super::mcp_apps::resource(client, &mut app).await?;
+                plugin_mcp::mcp_apps::resource(client, &mut app).await?;
                 assert!(!app["resource"]["contents"][0]["text"].as_str().unwrap().is_empty());
                 result
                     .meta
                     .get_or_insert_with(Default::default)
                     .0
-                    .insert(super::mcp_apps::BINDING.to_owned(), app);
-                super::mcp_content::normalize_mcp_tool_result("chess", "get-daily-puzzle", result)
+                    .insert(plugin_mcp::mcp_apps::BINDING.to_owned(), app);
+                plugin_mcp::mcp_content::normalize_mcp_tool_result("chess", "get-daily-puzzle", result)
             })
         })
         .await

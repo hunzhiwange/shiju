@@ -1,5 +1,5 @@
 //! Trusted command hook acceptance, owned by the handler implementation.
-mod host;
+pub(crate) mod host;
 mod tools {
  pub type ToolUseContext = tool_context::context::ToolUseContext<super::host::Host>;
  pub use tool_context::context::scope_tool_use_context;

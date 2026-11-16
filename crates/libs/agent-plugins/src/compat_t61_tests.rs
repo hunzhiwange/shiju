@@ -8,7 +8,7 @@ fn fixture_root() -> std::path::PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../vw-agent")
 }
 
-fn digest(root: &Path) -> Vec<(String, String)> {
+pub(crate) fn digest(root: &Path) -> Vec<(String, String)> {
     fn collect(root: &Path, dir: &Path, files: &mut Vec<(String, String)>) {
         for entry in fs::read_dir(dir).unwrap() {
             let entry = entry.unwrap();
@@ -29,7 +29,7 @@ fn digest(root: &Path) -> Vec<(String, String)> {
     files
 }
 
-fn public_original(root: &Path, name: &str) -> std::path::PathBuf {
+pub(crate) fn public_original(root: &Path, name: &str) -> std::path::PathBuf {
     let fixture = fixture_root()
         .join("testdata/plugin_compat/t61/public")
         .join(format!("{name}.tar.gz"));

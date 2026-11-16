@@ -363,3 +363,23 @@ Future authorized check (NOT RUN), expected one actual host test:
 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib codex_plugin_compat_t20_inspection_refreshes_only_notified_resource_and_prompt_catalogs -- --test-threads=1`
 
 Existing domain tests continue under agent-plugins --lib host_migration_37_tests::t20_tests; expected 12 nonzero tests. Compile both feature consumers when validation is authorized; no zero-test or runtime-success claim. Static diff, literal resource paths, original assertion count and registration checks only.
+
+## Resource boundary fixture closure after notification recovery
+
+Re-read latest final.md (43584 lines, 8584 excess; delegated 38000 gap is stale) and current source. t20 already stands at 24 host lines after 76da5a64c; no repeated migration credit. Continued with remaining t22 package/resource fixture.
+
+- `t22::config` -> plugin-mcp::resource_test_support::config: same typed permissions, auth, timeouts and paths, no defaults changed.
+- `t22::fixture` -> shared fixture: creates actual package JSON, copies original Python bytes, invokes caller's actual plugin discovery callback and synchronizes actual McpSessionConnections with caller's ConnectionHost. Host passes its real host object/merge; domain passes its explicit fixture host. The domain does not synthesize successful host admission.
+- Two runtime result assertions -> `assert_runtime_prompt`, still called after real execute_tool_call registration in original host test.
+- Three inspection metadata assertions -> `assert_inspection_metadata`, still called after real mcp_inspect in original host test.
+- `t22/server.py` and `http_server.py` -> plugin-mcp/testdata/resources, bytes unchanged. Both move together because HTTP service invokes sibling server.py. All Rust source references now resolve through server_script/http_script in shared module.
+- Domain t22 imports same fixture/config instead of duplicate package and pool setup; every existing test name and assertion remains. Host wrapper still creates/drops the actual preliminary pool, edits required=true, executes the actual registered tool and closes actual session connections in original order.
+
+Host t22 105 -> 55 lines (50 fewer; comment cleanup included). These are **domain fixtures/assertions plus actual host boundary**, not independent new tests and not measured compilation savings. Five original host assertions now live in support; host test registration/count unchanged (2). All production algorithms stay in existing owners.
+
+`resource_test_support` is exposed only with test-support. The feature now enables optional acp-types solely to build the same typed config fixture; existing package was already in the lockfile, only plugin-mcp's dependency edge is added. Both actual consumers already enable test-support in dev dependencies. Default production activation unchanged. No reverse dependency or Rust source inclusion.
+
+Future verification NOT RUN:
+`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib codex_plugin_compat_t22_ -- --test-threads=1` (2 expected)
+`python3 scripts/cargo_slot.py cargo test -p agent-plugins --lib host_migration_37_tests::t22_tests -- --test-threads=1` (existing tests, nonzero)
+No Cargo/build/tests were run; static original names/5 assertions, script byte preservation, caller/feature/diff review only.

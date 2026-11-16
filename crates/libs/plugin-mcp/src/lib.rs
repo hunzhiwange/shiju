@@ -29,3 +29,6 @@ mod host_migration_37_tests;
 
 #[cfg(any(test, feature = "test-support"))]
 pub mod catalog_test_support;
+
+#[cfg(feature = "test-support")]
+pub mod resource_test_support;

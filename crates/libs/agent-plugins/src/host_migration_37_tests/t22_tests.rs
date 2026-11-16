@@ -4,61 +4,17 @@
 
 use plugin_mcp::mcp_connections::McpSessionConnections;
 use crate::PluginDiscoveryOptions;
-use super::merge_enabled_plugin_mcp_servers;
 use super::tools::{Tool, mcp_resource::McpResourceTool};
 use serde_json::json;
 use std::sync::Arc;
 
-fn config(servers: Vec<agent_client_protocol::McpServer>) -> acp_config::ResolvedAcpxConfig {
-    acp_config::ResolvedAcpxConfig {
-        default_agent: "main".into(),
-        default_permissions: acp_types::PermissionMode::ApproveAll,
-        non_interactive_permissions: acp_types::NonInteractivePermissionPolicy::Deny,
-        auth_policy: acp_types::AuthPolicy::Skip,
-        ttl_ms: 300_000,
-        timeout_ms: None,
-        queue_max_depth: 16,
-        format: acp_types::OutputFormat::Text,
-        agents: Default::default(),
-        auth: Default::default(),
-        disable_exec: false,
-        mcp_servers: servers,
-        mcp_server_management: vec![],
-        global_path: "global.json".into(),
-        project_path: ".vwacprc.json".into(),
-        has_global_config: false,
-        has_project_config: false,
-    }
-}
-fn fixture(
-    root: &std::path::Path,
-    names: &[&str],
-    mode: &str,
-) -> (McpResourceTool, Arc<McpSessionConnections>, Vec<String>) {
-    let workspace = root.join("workspace");
-    for name in names {
-        let package = workspace.join(".vibewindow/plugins").join(name);
-        std::fs::create_dir_all(package.join(".codex-plugin")).unwrap();
-        std::fs::copy(
-            format!("{}/../../vw-agent/testdata/plugin_compat/t22/server.py", env!("CARGO_MANIFEST_DIR")),
-            package.join("server.py"),
-        )
-        .unwrap();
-        std::fs::write(package.join(".codex-plugin/plugin.json"),serde_json::to_vec(&json!({
-            "name":name,"mcpServers":{"shared":{"command":"python3","args":[package.join("server.py"),name,root.join(format!("{name}.jsonl")),mode]}}
-        })).unwrap()).unwrap();
-    }
-    let mut servers = vec![];
-    merge_enabled_plugin_mcp_servers(
-        &mut servers,
-        &PluginDiscoveryOptions::new(workspace, root.join("config"), Default::default()),
-    )
-    .unwrap();
-    let names =
-        servers.iter().map(|s| mcp_client::server_name(s).to_owned()).collect();
-    let pool = Arc::new(McpSessionConnections::new(super::connection_host()));
-    pool.synchronize(&servers).unwrap();
-    (McpResourceTool::new(config(servers), pool.clone()), pool, names)
+use plugin_mcp::resource_test_support::config;
+fn fixture(root: &std::path::Path, names: &[&str], mode: &str) -> (McpResourceTool, Arc<McpSessionConnections>, Vec<String>) {
+    let (config, pool, names) = plugin_mcp::resource_test_support::fixture(root, names, mode,
+        super::connection_host(), |servers, workspace, config| {
+            super::merge_enabled_plugin_mcp_servers(servers, &PluginDiscoveryOptions::new(workspace, config, Default::default())).unwrap();
+        });
+    (McpResourceTool::new(config, pool.clone()), pool, names)
 }
 #[tokio::test]
 async fn codex_plugin_compat_t22_preserves_resource_origin_and_prompt_roles() {
@@ -223,8 +179,7 @@ async fn codex_plugin_compat_t22_reads_and_gets_over_http_json_and_sse() {
     };
     for mode in ["json", "http-sse"] {
         let root = tempfile::tempdir().unwrap();
-        let script = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../vw-agent/testdata/plugin_compat/t22/http_server.py");
+        let script = plugin_mcp::resource_test_support::http_script();
         let mut child = Command::new("python3")
             .arg(script)
             .arg(mode)
@@ -272,7 +227,7 @@ async fn codex_plugin_compat_t22_preserves_admission_timeouts_and_sanitizes_remo
         let root = tempfile::tempdir().unwrap();
         let journal = root.path().join("requests.jsonl");
         let server = McpServer::Stdio(McpServerStdio::new("local", "python3").args(vec![
-            format!("{}/../../vw-agent/testdata/plugin_compat/t22/server.py", env!("CARGO_MANIFEST_DIR")),
+            plugin_mcp::resource_test_support::server_script().display().to_string(),
             "local".into(),
             journal.to_string_lossy().into_owned(),
             mode.into(),

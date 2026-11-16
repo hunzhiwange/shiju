@@ -1,19 +1,21 @@
 //! 验证工具注册表的启用条件、稳定顺序及不同输出视图的契约。
 //! 重点约束客户端名称、模型标识和功能标志如何影响最终工具集合。
 
-use super::{
-    list_tool_specs_response, openai_tools_json, should_enable_question_tool, should_enable_search,
-    should_use_apply_patch, spec_dtos, specs, specs_json,
+use crate::registry::{
+    should_enable_question_tool,
+    should_use_apply_patch,
 };
-use crate::app::agent::flag;
+
 use serde_json::Value;
 
 #[test]
 fn search_is_enabled_for_vibewindow_prefix_or_exa_flag() {
-    assert!(should_enable_search("vibewindow"));
-    assert!(should_enable_search("vibewindow-custom"));
-    assert_eq!(should_enable_search("openai"), *flag::VIBEWINDOW_ENABLE_EXA);
-    assert_eq!(should_enable_search(""), *flag::VIBEWINDOW_ENABLE_EXA);
+    for enabled in [false, true] {
+        assert!(crate::registry::should_enable_search("vibewindow", enabled));
+        assert!(crate::registry::should_enable_search("vibewindow-custom", enabled));
+        assert_eq!(crate::registry::should_enable_search("openai", enabled), enabled);
+        assert_eq!(crate::registry::should_enable_search("", enabled), enabled);
+    }
 }
 
 #[test]
@@ -82,3 +84,13 @@ fn json_views_expose_expected_shapes_and_sorted_openai_names() {
         .collect::<Vec<_>>();
     assert!(names.windows(2).all(|pair| pair[0] <= pair[1]));
 }
+
+fn available() -> Vec<crate::ToolSpec> {
+    ["apply_patch", "bash", "question", "websearch"].into_iter()
+        .map(|id| crate::ToolSpec::new(id, "Registry fixture", serde_json::json!({"type":"object"}))).collect()
+}
+fn specs(model: Option<&str>) -> Vec<crate::ToolSpec> { crate::registry::specs(available(), model, "cli", false) }
+fn spec_dtos(model: Option<&str>) -> Vec<vw_api_tools::ToolSpecDto> { crate::registry::spec_dtos(available(), model, "cli", false) }
+fn list_tool_specs_response(model: Option<&str>) -> vw_api_tools::ListToolSpecsResponse { crate::registry::list_tool_specs_response(available(), model, "cli", false) }
+fn specs_json(model: Option<&str>) -> Value { crate::registry::specs_json(available(), model, "cli", false) }
+fn openai_tools_json(model: Option<&str>) -> Value { crate::registry::openai_tools_json(available(), model, "cli", false) }

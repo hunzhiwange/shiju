@@ -1,9 +1,8 @@
-use tool_types::*;
 use vw_api_tools::{ToolExposure, ToolSource, ToolSpecDto};
 
 #[test]
 fn dynamic_tools_contract_mcp_registration_preserves_identity_and_stable_id() {
-    use crate::tools::mcp_tool::mcp_tools_to_specs;
+    use crate::mcp_tool::mcp_tools_to_specs;
     let definition = rmcp::model::Tool::new("read", "Read data", serde_json::Map::new());
     let alpha = mcp_tools_to_specs("alpha", None, &[definition.clone()], &[]).unwrap();
     let beta = mcp_tools_to_specs("beta", None, &[definition], &[]).unwrap();

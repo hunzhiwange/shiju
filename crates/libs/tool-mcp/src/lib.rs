@@ -5,3 +5,6 @@ pub mod mcp_status;
 pub mod mcp_tool;
 mod host;
 pub use host::{McpToolHost, ClientFuture};
+
+#[cfg(test)]
+mod host_migration_35_tests;

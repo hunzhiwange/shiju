@@ -1,4 +1,5 @@
-use crate::app::agent::tools::{FileReadTool, Tool};
+use tool_types::Tool;
+type FileReadTool = super::FileReadTool;
 use agent_security::SecurityPolicy;
 use pdf_extract::{Document, Object, Stream, dictionary};
 use serde_json::json;

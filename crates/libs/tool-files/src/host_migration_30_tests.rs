@@ -647,3 +647,5 @@ async fn file_read_blocks_null_byte_in_path() {
 
     let _ = tokio::fs::remove_dir_all(&dir).await;
 }
+
+mod pdf_render;

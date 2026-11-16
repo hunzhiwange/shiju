@@ -15,9 +15,9 @@ fn to_session_history_preserves_tool_role() {
         content: "tool shell\npwd\n/Users/demo\n".to_string(),
     }];
 
-    let history = crate::app::agent::channels::session::to_session_history(&turns);
+    let history = channel_support::session_events::to_session_history(&turns);
 
     assert_eq!(history.len(), 1);
-    assert_eq!(history[0].role, crate::session::ui_types::ChatRole::Tool);
+    assert_eq!(history[0].role, session_port::ui_types::ChatRole::Tool);
     assert_eq!(history[0].content, turns[0].content);
 }

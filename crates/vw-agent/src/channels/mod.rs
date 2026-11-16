@@ -324,8 +324,7 @@ fn block_on_future<F: std::future::Future>(fut: F) -> F::Output {
         .block_on(fut)
 }
 
-#[cfg(test)]
-mod tests;
+
 
 #[cfg(test)]
 #[path = "channels_config_host_tests.rs"]

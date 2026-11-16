@@ -17,8 +17,8 @@
 //! - [`classify_health_ok_false`]：验证失败返回的不健康状态
 //! - [`classify_health_timeout`]：验证超时场景的状态分类
 //!
-//! [`classify_health_result`]: crate::app::agent::channels::manager::classify_health_result
-//! [`ChannelHealthState`]: crate::app::agent::channels::ChannelHealthState
+//! [`classify_health_result`]: crate::manager::health::classify_health_result
+//! [`ChannelHealthState`]: crate::ChannelHealthState
 
 use super::*;
 
@@ -40,7 +40,7 @@ use super::*;
 /// assert_eq!(state, ChannelHealthState::Healthy);
 /// ```
 ///
-/// [`ChannelHealthState::Healthy`]: crate::app::agent::channels::ChannelHealthState::Healthy
+/// [`ChannelHealthState::Healthy`]: crate::ChannelHealthState::Healthy
 #[test]
 fn classify_health_ok_true() {
     // 准备测试数据：模拟健康检查成功返回 true
@@ -67,7 +67,7 @@ fn classify_health_ok_true() {
 /// - 网络连接问题
 /// - 通道服务不可用
 ///
-/// [`ChannelHealthState::Unhealthy`]: crate::app::agent::channels::ChannelHealthState::Unhealthy
+/// [`ChannelHealthState::Unhealthy`]: crate::ChannelHealthState::Unhealthy
 #[test]
 fn classify_health_ok_false() {
     // 准备测试数据：模拟健康检查返回 false（检测到问题）
@@ -109,7 +109,7 @@ fn classify_health_ok_false() {
 /// assert_eq!(state, ChannelHealthState::Timeout);
 /// ```
 ///
-/// [`ChannelHealthState::Timeout`]: crate::app::agent::channels::ChannelHealthState::Timeout
+/// [`ChannelHealthState::Timeout`]: crate::ChannelHealthState::Timeout
 #[tokio::test]
 async fn classify_health_timeout() {
     // 模拟超时场景：

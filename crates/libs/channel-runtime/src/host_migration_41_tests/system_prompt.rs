@@ -17,11 +17,11 @@ fn build_system_prompt(
     workspace_dir: &std::path::Path,
     model_name: &str,
     tools: &[(&str, &str)],
-    skills: &[crate::app::agent::skills::Skill],
-    identity_config: Option<&crate::app::agent::config::IdentityConfig>,
+    skills: &[agent_skills::Skill],
+    identity_config: Option<&agent_config::runtime_schema::IdentityConfig>,
     bootstrap_max_chars: Option<usize>,
 ) -> String {
-    crate::app::agent::channels::build_system_prompt(
+    super::channel_system_prompt(
         workspace_dir,
         model_name,
         tools,
@@ -59,7 +59,7 @@ fn prompt_contains_all_sections() {
 #[test]
 fn channel_prompt_uses_configured_timezone() {
     let ws = make_workspace();
-    let prompt = crate::app::agent::channels::build_system_prompt(
+    let prompt = super::channel_system_prompt(
         ws.path(),
         "test-model",
         &[],

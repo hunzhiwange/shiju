@@ -4,12 +4,12 @@ use iced::{Background, Theme};
 
 #[tokio::test]
 async fn tree_gutter_draws_ancestor_lines_with_subtree_bounds() {
-    let mut renderer = crate::app::components::apps_usage_details_tests::renderer().await;
+    let mut renderer = super::renderer().await;
     for theme in [Theme::Light, Theme::Dark] {
         for changes in [false, true] {
             let app = alignment_app();
             let build = if changes { build_changes_list } else { build_file_tree_list };
-            let scene = RowScene::new(build(&app), &mut renderer, &theme);
+            let scene = RowScene::new(build(app.inputs()), &mut renderer, &theme);
             let lines =
                 scene.quads.iter().filter(|(quad, _)| quad.bounds.width == 1.0).collect::<Vec<_>>();
             assert_eq!(lines.len(), 4, "one line per ancestor of each visible row");
@@ -84,14 +84,14 @@ async fn tree_gutter_draws_ancestor_lines_with_subtree_bounds() {
 
 #[tokio::test]
 async fn tree_gutter_preserves_alignment_and_ignores_pointer_events() {
-    use crate::app::{Message, message::ProjectMessage};
+    use crate::{Message, ProjectMessage};
     use iced::{Event, mouse};
-    let mut renderer = crate::app::components::apps_usage_details_tests::renderer().await;
+    let mut renderer = super::renderer().await;
     for theme in [Theme::Light, Theme::Dark] {
         for changes in [false, true] {
             let app = alignment_app();
             let build = if changes { build_changes_list } else { build_file_tree_list };
-            let mut scene = RowScene::new(build(&app), &mut renderer, &theme);
+            let mut scene = RowScene::new(build(app.inputs()), &mut renderer, &theme);
             assert_eq!(scene.label("原始视频.mov").x - scene.label("sp6").x, 20.0);
             let point = iced::Point::new(
                 scene.icon("sp6").1.center_x(),
@@ -140,17 +140,17 @@ async fn tree_gutter_preserves_alignment_and_ignores_pointer_events() {
 async fn tree_gutter_clips_deep_rows_and_skips_empty_subtrees() {
     use super::model::{FileTreeNode, build_file_tree_model};
     use iced::widget::{container, scrollable};
-    let mut renderer = crate::app::components::apps_usage_details_tests::renderer().await;
+    let mut renderer = super::renderer().await;
     let mut app = alignment_app();
     let paths = vec!["/tree-fixture/a/b/c/d/原始视频.mov".to_string()];
     let mut model = build_file_tree_model("/tree-fixture", &paths);
     model.children.insert("empty".into(), FileTreeNode::default());
-    app.file_tree_model_cache.insert("/tree-fixture".into(), model);
+    app.file_tree_model = Some(model);
     for key in ["a", "a/b", "a/b/c", "a/b/c/d", "empty"] {
         app.file_tree_expanded_set.insert(key.into());
     }
     for theme in [Theme::Light, Theme::Dark] {
-        let scene = RowScene::new(build_file_tree_list(&app), &mut renderer, &theme);
+        let scene = RowScene::new(build_file_tree_list(app.inputs()), &mut renderer, &theme);
         let child = scene.label("原始视频.mov");
         let lines =
             scene.quads.iter().filter(|(quad, _)| quad.bounds.width == 1.0).collect::<Vec<_>>();
@@ -168,7 +168,7 @@ async fn tree_gutter_clips_deep_rows_and_skips_empty_subtrees() {
         ));
         drop(scene);
         let clipped = RowScene::new(
-            container(scrollable(build_file_tree_list(&app)).height(80)).height(80).into(),
+            container(scrollable(build_file_tree_list(app.inputs())).height(80)).height(80).into(),
             &mut renderer,
             &theme,
         );
@@ -188,13 +188,13 @@ async fn tree_gutter_clips_deep_rows_and_skips_empty_subtrees() {
 async fn tree_gutter_remains_visible_on_selected_and_hovered_rows() {
     use iced::advanced::{Renderer as _, renderer::Headless as _};
     use iced::{Event, Point, Size, mouse};
-    let mut renderer = crate::app::components::apps_usage_details_tests::renderer().await;
+    let mut renderer = super::renderer().await;
     for theme in [Theme::Light, Theme::Dark] {
         for changes in [false, true] {
             let mut app = alignment_app();
             app.git_focused_file = Some("sp6/原始视频.mov".into());
             let selected = "/tree-fixture/sp6/原始视频.mov".to_string();
-            app.file_tree_interaction.file_tree_selection.select(
+            app.file_tree_selection.select(
                 "/tree-fixture",
                 selected.clone(),
                 false,
@@ -202,7 +202,7 @@ async fn tree_gutter_remains_visible_on_selected_and_hovered_rows() {
                 &[selected],
             );
             let build = if changes { build_changes_list } else { build_file_tree_list };
-            let mut scene = RowScene::new(build(&app), &mut renderer, &theme);
+            let mut scene = RowScene::new(build(app.inputs()), &mut renderer, &theme);
             let child = scene.label("原始视频.mov");
             let guide = Point::new(scene.icon("sp6").1.center_x(), child.center_y());
             for hovered in [false, true] {

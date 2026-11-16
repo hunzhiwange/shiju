@@ -64,3 +64,6 @@ mod tree_list_tests;
 
 #[cfg(test)]
 mod desktop_split_02_tests;
+
+#[cfg(test)]
+mod desktop_split_09_tests;

@@ -1,135 +1,8 @@
-//! 验证文件树路径建模、展开键、选择优先级与变更列表视图。
-//! 重复分隔符、根文件、嵌套目录和不同菜单来源用于约束树模型的规范化与隔离。
-
+//! 宿主拖放清理、目录选择更新与消息映射契约。
+use super::model::build_file_tree_model;
 use super::tree_list::{build_changes_list, build_file_tree_list};
 use crate::app::App;
-use crate::app::components::file_tree::model::build_file_tree_model;
 use iced::{Background, Theme};
-
-#[test]
-fn tree_list_builds_empty_states_with_and_without_project() {
-    let app = App::new().0;
-    let _ = build_file_tree_list(&app);
-
-    let mut app = App::new().0;
-    app.project_path = Some("/tmp/demo".to_string());
-    app.file_tree_model_cache
-        .insert("/tmp/demo".to_string(), build_file_tree_model("/tmp/demo", &[]));
-    let _ = build_file_tree_list(&app);
-}
-
-#[test]
-fn tree_list_builds_fallback_model_with_expanded_selection_and_file_menu() {
-    let mut app = App::new().0;
-    app.project_path = Some("/tmp/demo".to_string());
-    app.file_tree_model_cache
-        .insert("/tmp/demo".to_string(), build_file_tree_model("/tmp/demo", &[]));
-    app.file_index_cache.insert(
-        "/tmp/demo".to_string(),
-        vec![
-            "/tmp/demo/README.md".to_string(),
-            "/tmp/demo/src/main.rs".to_string(),
-            "/tmp/demo/src/nested/lib.rs".to_string(),
-        ],
-    );
-    app.file_tree_expanded_set.insert("src".to_string());
-    app.file_tree_expanded_set.insert("src/nested".to_string());
-    app.active_preview_path = Some("/tmp/demo/src/main.rs".to_string());
-    app.file_tree_interaction.file_tree_menu_path = Some("/tmp/demo/src/main.rs".to_string());
-    app.file_tree_interaction.file_tree_menu_source = Some("tree-file".to_string());
-    app.file_tree_interaction.file_tree_menu_anchor = Some(iced::Point::new(12.0, 24.0));
-
-    let _ = build_file_tree_list(&app);
-}
-
-#[test]
-fn tree_list_builds_cached_model_with_directory_menu() {
-    let mut app = App::new().0;
-    app.project_path = Some("/tmp/demo".to_string());
-    let files = vec!["/tmp/demo/src/main.rs".to_string()];
-    app.file_tree_model_cache
-        .insert("/tmp/demo".to_string(), build_file_tree_model("/tmp/demo", &files));
-    app.file_tree_expanded_set.insert("src".to_string());
-    app.file_tree_interaction.file_tree_menu_path = Some("/tmp/demo/src".to_string());
-    app.file_tree_interaction.file_tree_menu_source = Some("tree-dir".to_string());
-
-    let _ = build_file_tree_list(&app);
-}
-
-#[test]
-fn changes_list_builds_loading_no_changes_and_empty_path_states() {
-    let mut app = App::new().0;
-    let _ = build_changes_list(&app);
-
-    app.git_changed_files_loading = true;
-    let _ = build_changes_list(&app);
-
-    app.git_changed_files_loading = false;
-    app.git_changed_files = vec![String::new(), "/".to_string()];
-    let _ = build_changes_list(&app);
-}
-
-#[test]
-fn changes_list_builds_root_and_nested_files_with_directory_menu() {
-    let mut app = App::new().0;
-    app.project_path = Some("/tmp/demo".to_string());
-    app.git_changed_files =
-        vec!["README.md".to_string(), "src/main.rs".to_string(), "src/nested/lib.rs".to_string()];
-    app.file_tree_expanded_set.insert("chg:src".to_string());
-    app.git_focused_file = Some("src/main.rs".to_string());
-    app.file_tree_interaction.file_tree_menu_path = Some("/tmp/demo/src/nested".to_string());
-    app.file_tree_interaction.file_tree_menu_source = Some("changes-dir".to_string());
-    app.file_tree_interaction.file_tree_menu_anchor = Some(iced::Point::new(8.0, 16.0));
-
-    let _ = build_changes_list(&app);
-}
-
-#[test]
-fn changes_list_builds_expanded_file_menu_for_selected_file() {
-    let mut app = App::new().0;
-    app.project_path = Some("/tmp/demo".to_string());
-    app.git_changed_files = vec!["src/main.rs".to_string()];
-    app.file_tree_expanded_set.insert("chg:src".to_string());
-    app.git_focused_file = Some("src/main.rs".to_string());
-    app.file_tree_interaction.file_tree_menu_path = Some("/tmp/demo/src/main.rs".to_string());
-    app.file_tree_interaction.file_tree_menu_source = Some("changes-file".to_string());
-
-    let _ = build_changes_list(&app);
-}
-
-#[test]
-fn changes_list_builds_root_file_menu_without_project_path() {
-    let mut app = App::new().0;
-    app.git_changed_files = vec!["README.md".to_string()];
-    app.git_focused_file = Some("README.md".to_string());
-    app.file_tree_interaction.file_tree_menu_path = Some("README.md".to_string());
-    app.file_tree_interaction.file_tree_menu_source = Some("changes-file".to_string());
-    app.file_tree_interaction.file_tree_menu_anchor = Some(iced::Point::new(4.0, 6.0));
-
-    let element = build_changes_list(&app);
-
-    assert_eq!(element.as_widget().size().width, iced::Length::Fill);
-}
-
-#[test]
-fn tree_lists_build_collapsed_directories_and_ignore_mismatched_menu_sources() {
-    let mut app = App::new().0;
-    app.project_path = Some("/tmp/demo".to_string());
-    let files = vec!["/tmp/demo/src/nested/lib.rs".to_string()];
-    app.file_tree_model_cache
-        .insert("/tmp/demo".to_string(), build_file_tree_model("/tmp/demo", &files));
-    app.file_tree_interaction.file_tree_menu_path = Some("/tmp/demo/src".to_string());
-    app.file_tree_interaction.file_tree_menu_source = Some("changes-dir".to_string());
-
-    let _collapsed_tree = build_file_tree_list(&app);
-    drop(_collapsed_tree);
-
-    app.git_changed_files = vec!["src/nested/lib.rs".to_string()];
-    app.file_tree_interaction.file_tree_menu_source = Some("tree-dir".to_string());
-
-    let _collapsed_changes = build_changes_list(&app);
-}
-
 #[test]
 fn file_tree_drop_release_and_cleanup_orders_leave_no_stale_state() {
     use crate::app::message::project::{self, ProjectMessage};
@@ -147,7 +20,10 @@ fn file_tree_drop_release_and_cleanup_orders_leave_no_stale_state() {
             &mut app,
             ProjectMessage::FileTreeDropTargetChanged(Some("/project/target".into())),
         );
-        assert_eq!(app.file_tree_interaction.file_tree_drop_target.as_deref(), Some("/project/target"));
+        assert_eq!(
+            app.file_tree_interaction.file_tree_drop_target.as_deref(),
+            Some("/project/target")
+        );
         let request = ProjectMessage::FileTreeDropRequested {
             project_path: "/project".into(),
             source_path: "/project/source".into(),
@@ -191,7 +67,6 @@ fn file_tree_drop_chat_sources_and_busy_operations_do_not_enable_move_state() {
     );
     assert!(app.file_tree_interaction.file_tree_drag_source.is_none());
 }
-
 pub(super) struct RowScene<'a> {
     pub(super) quads: Vec<(iced::advanced::renderer::Quad, Background)>,
     pub(super) ui:
@@ -344,53 +219,6 @@ pub(super) fn alignment_app() -> App {
 }
 
 #[tokio::test]
-async fn tree_rows_align_siblings_and_indent_children() {
-    let mut renderer = crate::app::components::apps_usage_details_tests::renderer().await;
-    let app = alignment_app();
-    for theme in [Theme::Light, Theme::Dark] {
-        for element in [build_file_tree_list(&app), build_changes_list(&app)] {
-            let scene = RowScene::new(element, &mut renderer, &theme);
-            let root = scene.label("root.md");
-            for name in ["sp6", "sp7", "closed"] {
-                assert_eq!(scene.label(name).x, root.x, "same-depth name: {name}");
-                assert_eq!(
-                    scene.icon(name).1.x,
-                    scene.icon("root.md").1.x,
-                    "same-depth icon: {name}"
-                );
-            }
-            assert_eq!(scene.label("原始视频.mov").x - root.x, 20.0);
-            assert_eq!(scene.label(".shiju").x - root.x, 20.0);
-            assert_eq!(scene.label("配置.json").x - root.x, 40.0);
-            for name in ["root.md", "sp6", "原始视频.mov", "配置.json"] {
-                let icon = scene.icon(name).1;
-                assert_eq!(scene.label(name).x - icon.x, 20.0);
-                assert!((scene.label(name).center_y() - icon.center_y()).abs() < 1.0);
-            }
-        }
-    }
-}
-
-#[tokio::test]
-async fn tree_rows_use_distinct_folder_states_without_chevrons() {
-    let mut renderer = crate::app::components::apps_usage_details_tests::renderer().await;
-    let app = alignment_app();
-    for element in [build_file_tree_list(&app), build_changes_list(&app)] {
-        let scene = RowScene::new(element, &mut renderer, &Theme::Dark);
-        assert_eq!(scene.icons.len(), 7, "exactly one icon per visible row");
-        assert_ne!(
-            scene.icon("closed").0,
-            scene.icon("sp6").0,
-            "closed and open folders must differ"
-        );
-        assert_eq!(
-            scene.icon("sp6").0,
-            crate::app::assets::get_icon(crate::app::assets::Icon::FolderOpen)
-        );
-    }
-}
-
-#[tokio::test]
 async fn tree_rows_preserve_selection_open_and_toggle_messages() {
     use crate::app::Message;
     use crate::app::message::ProjectMessage;
@@ -434,33 +262,5 @@ async fn tree_rows_preserve_selection_open_and_toggle_messages() {
             );
             assert!(app.is_file_tree_dir_expanded(key));
         }
-    }
-}
-
-#[tokio::test]
-async fn tree_gutter_tracks_expansion_in_both_lists() {
-    let mut renderer = crate::app::components::apps_usage_details_tests::renderer().await;
-    for changes in [false, true] {
-        let mut app = alignment_app();
-        let build = if changes { build_changes_list } else { build_file_tree_list };
-        let scene = RowScene::new(build(&app), &mut renderer, &Theme::Dark);
-        let child = scene.label("原始视频.mov");
-        let parent = scene.icon("sp6").1;
-        assert!(
-            scene.quads.iter().any(|(quad, _)| quad.bounds.width == 1.0
-                && (quad.bounds.center_x() - parent.center_x()).abs() < 0.01
-                && quad.bounds.y <= child.y
-                && quad.bounds.y + quad.bounds.height >= child.y + child.height),
-            "expanded sp6 must guide its visible child"
-        );
-        drop(scene);
-        app.file_tree_expanded_set.remove(if changes { "chg:sp6" } else { "sp6" });
-        let scene = RowScene::new(build(&app), &mut renderer, &Theme::Dark);
-        assert!(!scene.labels.iter().any(|(name, _)| name == "原始视频.mov"));
-        let parent = scene.label("sp6");
-        let next = scene.label("sp7");
-        assert!(!scene.quads.iter().any(|(quad, _)| quad.bounds.width == 1.0
-            && quad.bounds.y >= parent.y
-            && quad.bounds.y < next.y));
     }
 }

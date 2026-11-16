@@ -1,28 +1,27 @@
 //! 验证文件树菜单按查找与剪贴板状态组合条目并适配主题样式。
 //! 复制和剪切共享粘贴入口，但无剪贴板内容时不得出现不可执行菜单项。
 
+use super::ViewState;
 use super::menu::{
     build_file_tree_menu, file_tree_menu_button_style, file_tree_menu_container_style,
     file_tree_menu_separator_style, file_tree_menu_shortcut,
 };
-use crate::app::App;
-use crate::app::Message;
-use crate::app::message::project::{FileTreeAction, ProjectMessage};
-use crate::app::state::{FileTreeClipboard, FileTreeClipboardMode};
+use crate::Message;
+use crate::{FileTreeAction, ProjectMessage};
+
 use iced::advanced::renderer::{Headless, Style};
 use iced::advanced::{Layout, layout, mouse, widget::Tree};
 use iced::keyboard::{Key, Modifiers, key::Named};
 use iced::widget::button;
 use iced::{Background, Color, Element, Font, Pixels, Rectangle, Size, Theme, Vector};
 
-fn app_with_clipboard(mode: FileTreeClipboardMode) -> App {
-    let mut app = App::new().0;
-    app.file_tree_interaction.file_tree_clipboard =
-        Some(FileTreeClipboard { mode, src_paths: vec!["fixture/path".to_string()] });
+fn app_with_clipboard() -> ViewState {
+    let mut app = ViewState::default();
+    app.can_paste = true;
     app
 }
 
-fn menu_item_count(element: &Element<'_, crate::app::Message>) -> usize {
+fn menu_item_count(element: &Element<'_, crate::Message>) -> usize {
     let children = element.as_widget().children();
     children.len()
 }
@@ -76,8 +75,8 @@ async fn file_tree_menu_renders_shortcuts_in_light_and_dark_themes() {
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("tiny-skia headless renderer should be available");
-    let app = app_with_clipboard(FileTreeClipboardMode::Copy);
-    let mut menu = build_file_tree_menu(&app, true);
+    let app = app_with_clipboard();
+    let mut menu = build_file_tree_menu(app.inputs(), true);
     let size = Size::new(220.0, 600.0);
     let mut tree = Tree::new(menu.as_widget());
     let node =
@@ -113,19 +112,19 @@ async fn file_tree_menu_renders_shortcuts_in_light_and_dark_themes() {
 
 #[test]
 fn file_tree_menu_without_optional_items_has_base_structure() {
-    let app = App::new().0;
+    let app = ViewState::default();
 
-    let menu = build_file_tree_menu(&app, false);
+    let menu = build_file_tree_menu(app.inputs(), false);
 
     assert_eq!(menu_item_count(&menu), 16);
 }
 
 #[test]
 fn file_tree_menu_find_option_adds_one_item() {
-    let app = App::new().0;
+    let app = ViewState::default();
 
-    let without_find = build_file_tree_menu(&app, false);
-    let with_find = build_file_tree_menu(&app, true);
+    let without_find = build_file_tree_menu(app.inputs(), false);
+    let with_find = build_file_tree_menu(app.inputs(), true);
 
     assert_eq!(menu_item_count(&without_find), 16);
     assert_eq!(menu_item_count(&with_find), 17);
@@ -133,13 +132,13 @@ fn file_tree_menu_find_option_adds_one_item() {
 
 #[test]
 fn file_tree_menu_clipboard_adds_paste_for_copy_and_cut_modes() {
-    let empty_app = App::new().0;
-    let copy_app = app_with_clipboard(FileTreeClipboardMode::Copy);
-    let cut_app = app_with_clipboard(FileTreeClipboardMode::Cut);
+    let empty_app = ViewState::default();
+    let copy_app = app_with_clipboard();
+    let cut_app = app_with_clipboard();
 
-    let without_clipboard = build_file_tree_menu(&empty_app, false);
-    let with_copy = build_file_tree_menu(&copy_app, false);
-    let with_cut = build_file_tree_menu(&cut_app, false);
+    let without_clipboard = build_file_tree_menu(empty_app.inputs(), false);
+    let with_copy = build_file_tree_menu(copy_app.inputs(), false);
+    let with_cut = build_file_tree_menu(cut_app.inputs(), false);
 
     assert_eq!(menu_item_count(&without_clipboard), 16);
     assert_eq!(menu_item_count(&with_copy), 17);
@@ -148,9 +147,9 @@ fn file_tree_menu_clipboard_adds_paste_for_copy_and_cut_modes() {
 
 #[test]
 fn file_tree_menu_combines_find_and_paste_options() {
-    let app = app_with_clipboard(FileTreeClipboardMode::Copy);
+    let app = app_with_clipboard();
 
-    let menu = build_file_tree_menu(&app, true);
+    let menu = build_file_tree_menu(app.inputs(), true);
 
     assert_eq!(menu_item_count(&menu), 18);
 }

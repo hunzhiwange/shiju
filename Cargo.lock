@@ -6978,6 +6978,8 @@ dependencies = [
  "desktop-i18n",
  "desktop-ui-controls",
  "iced",
+ "iced_runtime",
+ "image",
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
  "tokio",

@@ -1,9 +1,12 @@
 //! 验证文件搜索标签、结果分页、路径预览、快捷键和窄面板布局。
 //! fixture 包含零长度、越界和 Unicode 命中，确保高亮失败时仍能构造稳定预览卡片。
 
-use super::find_results::{build_find_results_list, build_find_results_tabs, FIND_RESULTS_SCROLLBAR_GUTTER};
-use crate::app::state::{FindInFolderMatch, FindInFolderTab};
-use crate::app::{App, Message};
+use super::ViewState;
+use super::find_results::{
+    FIND_RESULTS_SCROLLBAR_GUTTER, build_find_results_list, build_find_results_tabs,
+};
+use crate::Message;
+use crate::state::{FindInFolderMatch, FindInFolderTab};
 use iced::Element;
 use iced::advanced::Layout;
 use iced::advanced::layout;
@@ -57,30 +60,30 @@ fn child_count(element: Element<'_, Message>) -> usize {
 
 #[test]
 fn find_results_tabs_build_empty_and_populated_tab_bar() {
-    let empty = App::new().0;
-    assert_eq!(child_count(build_find_results_tabs(&empty)), 1);
+    let empty = ViewState::default();
+    assert_eq!(child_count(build_find_results_tabs(empty.inputs())), 1);
 
-    let mut app = App::new().0;
+    let mut app = ViewState::default();
     app.find_results_tabs.push(find_tab("first"));
     app.find_results_tabs.push(find_tab("second"));
     app.active_find_results_tab_id = Some("second".to_string());
 
-    assert_eq!(child_count(build_find_results_tabs(&app)), 1);
+    assert_eq!(child_count(build_find_results_tabs(app.inputs())), 1);
 }
 
 #[test]
 fn find_results_list_builds_empty_states() {
-    let app = App::new().0;
-    assert_eq!(child_count(build_find_results_list(&app)), 1);
+    let app = ViewState::default();
+    assert_eq!(child_count(build_find_results_list(app.inputs())), 1);
 
-    let mut app = App::new().0;
+    let mut app = ViewState::default();
     app.active_find_results_tab_id = Some("missing".to_string());
-    assert_eq!(child_count(build_find_results_list(&app)), 1);
+    assert_eq!(child_count(build_find_results_list(app.inputs())), 1);
 }
 
 #[test]
 fn find_results_list_builds_controls_empty_results_and_limit_notice() {
-    let mut app = App::new().0;
+    let mut app = ViewState::default();
     app.project_path = Some("/tmp/project".to_string());
 
     let mut tab = find_tab("active");
@@ -96,8 +99,8 @@ fn find_results_list_builds_controls_empty_results_and_limit_notice() {
     app.active_find_results_tab_id = Some(tab.id.clone());
     app.find_results_tabs.push(tab);
 
-    let element = build_find_results_list(&app);
-    assert_eq!(child_count(build_find_results_list(&app)), 3);
+    let element = build_find_results_list(app.inputs());
+    assert_eq!(child_count(build_find_results_list(app.inputs())), 3);
     let tree = Tree::new(element.as_widget());
     assert_eq!(
         tree.children[0].children.len(),
@@ -113,12 +116,12 @@ fn find_results_list_builds_controls_empty_results_and_limit_notice() {
 
 #[test]
 fn find_results_list_builds_non_running_empty_match_state() {
-    let mut app = App::new().0;
+    let mut app = ViewState::default();
     let tab = find_tab("active");
     app.active_find_results_tab_id = Some(tab.id.clone());
     app.find_results_tabs.push(tab);
 
-    assert_eq!(child_count(build_find_results_list(&app)), 3);
+    assert_eq!(child_count(build_find_results_list(app.inputs())), 3);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -127,7 +130,7 @@ async fn find_results_keeps_header_above_scrollable_cards_in_narrow_panel() {
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("tiny-skia headless renderer should be available");
-    let mut app = App::new().0;
+    let mut app = ViewState::default();
     app.project_path = Some("/tmp/project".to_string());
     let mut tab = find_tab("active");
     tab.matches.push(find_match(
@@ -140,7 +143,7 @@ async fn find_results_keeps_header_above_scrollable_cards_in_narrow_panel() {
     app.active_find_results_tab_id = Some(tab.id.clone());
     app.find_results_tabs.push(tab);
 
-    let mut element = build_find_results_list(&app);
+    let mut element = build_find_results_list(app.inputs());
     let limits = layout::Limits::new(Size::ZERO, Size::new(260.0, 600.0));
     let mut tree = Tree::new(element.as_widget());
     let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
@@ -154,7 +157,7 @@ async fn find_results_keeps_header_above_scrollable_cards_in_narrow_panel() {
 
 #[test]
 fn find_results_list_builds_matches_highlight_fallback_and_menu_overlay() {
-    let mut app = App::new().0;
+    let mut app = ViewState::default();
     app.project_path = Some("/tmp/project".to_string());
 
     let mut tab = find_tab("active");
@@ -163,18 +166,18 @@ fn find_results_list_builds_matches_highlight_fallback_and_menu_overlay() {
         find_match("/tmp/project/src/lib.rs", 11, 2, "éclair", 2),
     ];
 
-    app.file_tree_interaction.file_tree_menu_path = Some("/tmp/project/src/main.rs".to_string());
-    app.file_tree_interaction.file_tree_menu_source = Some("find:/tmp/project/src/main.rs:8:4".to_string());
-    app.file_tree_interaction.file_tree_menu_anchor = Some(iced::Point::new(12.0, 24.0));
+    app.file_tree_menu_path = Some("/tmp/project/src/main.rs".to_string());
+    app.file_tree_menu_source = Some("find:/tmp/project/src/main.rs:8:4".to_string());
+    app.file_tree_menu_anchor = Some(iced::Point::new(12.0, 24.0));
     app.active_find_results_tab_id = Some(tab.id.clone());
     app.find_results_tabs.push(tab);
 
-    let _ = build_find_results_list(&app);
+    let _ = build_find_results_list(app.inputs());
 }
 
 #[test]
 fn find_results_list_builds_zero_length_and_out_of_range_previews_without_menu_anchor() {
-    let mut app = App::new().0;
+    let mut app = ViewState::default();
     app.project_path = Some("/tmp/project".to_string());
 
     let mut tab = find_tab("active");
@@ -184,11 +187,11 @@ fn find_results_list_builds_zero_length_and_out_of_range_previews_without_menu_a
         find_match("/tmp/project/src/unicode.rs", 3, 2, "éclair", 1),
     ];
 
-    app.file_tree_interaction.file_tree_menu_path = Some("/tmp/project/src/empty.rs".to_string());
-    app.file_tree_interaction.file_tree_menu_source = Some("find:/tmp/project/src/empty.rs:1:1".to_string());
-    app.file_tree_interaction.file_tree_menu_anchor = None;
+    app.file_tree_menu_path = Some("/tmp/project/src/empty.rs".to_string());
+    app.file_tree_menu_source = Some("find:/tmp/project/src/empty.rs:1:1".to_string());
+    app.file_tree_menu_anchor = None;
     app.active_find_results_tab_id = Some(tab.id.clone());
     app.find_results_tabs.push(tab);
 
-    std::hint::black_box(build_find_results_list(&app));
+    std::hint::black_box(build_find_results_list(app.inputs()));
 }

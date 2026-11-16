@@ -30,3 +30,15 @@ fn file_manager_view_construction_preserves_code_panel_preferences() {
         before
     );
 }
+
+#[test]
+fn clipboard_modes_project_paste_availability() {
+    use crate::app::state::{FileTreeClipboard, FileTreeClipboardMode};
+    let mut app = App::new().0;
+    assert!(!super::adapter::inputs(&app).can_paste);
+    for mode in [FileTreeClipboardMode::Copy, FileTreeClipboardMode::Cut] {
+        app.file_tree_interaction.file_tree_clipboard =
+            Some(FileTreeClipboard { mode, src_paths: vec!["fixture/path".into()] });
+        assert!(super::adapter::inputs(&app).can_paste);
+    }
+}

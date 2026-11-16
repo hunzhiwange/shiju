@@ -21,3 +21,5 @@ objc2-app-kit = { version = "0.3", default-features = false, features = ["std", 
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+iced_runtime = "0.14"
+image = "0.25.9"

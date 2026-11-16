@@ -5,3 +5,6 @@ pub mod components {
 }
 pub mod message;
 pub use message::{State, SearchMessage, Effect, update};
+
+#[cfg(test)]
+mod desktop_split_09_tests;

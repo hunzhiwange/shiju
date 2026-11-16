@@ -20,12 +20,6 @@ pub fn view_file_manager(app: &App) -> iced::Element<'_, Message> {
     desktop_file_tree::view_file_manager(adapter::inputs(app)).map(adapter::map)
 }
 #[cfg(test)]
-mod find_results_tests;
-#[cfg(test)]
-mod menu_tests;
-#[cfg(test)]
 mod mod_tests;
-#[cfg(test)]
-mod tree_gutter_tests;
 #[cfg(test)]
 mod tree_list_tests;

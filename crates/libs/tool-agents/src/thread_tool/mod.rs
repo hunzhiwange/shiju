@@ -528,3 +528,6 @@ query_tool!(
         Ok(ToolResult { success: true, output: output.to_string(), error: None })
     }
 );
+
+#[cfg(test)]
+mod value_tests;

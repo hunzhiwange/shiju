@@ -3,8 +3,6 @@ pub type SessionTool = tool_agents::session_tool::SessionTool<super::agent_hosts
 #[cfg(test)]
 use session_port::chat_stream::GatewayChatStreamCollected;
 #[cfg(test)]
-use tool_agents::session_tool::{bounded_read_output, MAX_SESSION_READ_CHARS};
-#[cfg(test)]
 fn persist_task_state(coordinator: &crate::session::task_session::TaskSessionCoordinator, tenant: &vw_api_transport::id::TenantScope, parent: &str, task: &str, project: &str) -> anyhow::Result<()> {
     tool_agents::session_tool::persist_task_state::<super::agent_hosts::ToolAgentHost>(&coordinator.clone().into(), tenant, parent, task, project)
 }

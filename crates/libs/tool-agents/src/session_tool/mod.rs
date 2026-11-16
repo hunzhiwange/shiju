@@ -497,3 +497,6 @@ impl<H: SessionHost> Tool for SessionTool<H> {
         true
     }
 }
+
+#[cfg(test)]
+mod value_tests;

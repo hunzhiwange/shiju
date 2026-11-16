@@ -9,11 +9,6 @@ use tempfile::TempDir;
 use tokio::sync::oneshot;
 use vw_api_transport::id::TenantScope;
 
-#[test]
-fn session_tool_read_bounds_output() {
-    assert_eq!(super::MAX_SESSION_READ_CHARS, 64 * 1024);
-}
-
 async fn create_parent(directory: &std::path::Path) -> crate::session::runtime::SessionSnapshot {
     let scope = crate::session::runtime::SessionScope::new(TenantScope::default(), directory)
         .expect("test scope");
@@ -550,18 +545,4 @@ async fn session_tool_wait_returns_first_changed_target() {
     assert_eq!(output["timed_out"], false);
     assert_eq!(output["tasks"][0]["state"], "succeeded");
     assert_eq!(output["tasks"][1]["state"], "running");
-}
-
-#[test]
-fn session_tool_read_bounds_serialized_output() {
-    let output = super::bounded_read_output(
-        "task",
-        vec![json!({"text": "x".repeat(super::MAX_SESSION_READ_CHARS)}), json!({"text":"recent"})],
-        512,
-    )
-    .expect("bounded output");
-    assert!(output.chars().count() <= 512);
-    let value: serde_json::Value = serde_json::from_str(&output).expect("valid bounded JSON");
-    assert_eq!(value["truncated"], true);
-    assert_eq!(value["messages"][0]["text"], "recent");
 }

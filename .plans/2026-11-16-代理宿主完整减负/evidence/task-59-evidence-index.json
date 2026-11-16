@@ -1,0 +1,443 @@
+[
+  {
+    "task": 1,
+    "exists": true,
+    "lines": 11,
+    "unresolved_markers": []
+  },
+  {
+    "task": 2,
+    "exists": true,
+    "lines": 180,
+    "unresolved_markers": []
+  },
+  {
+    "task": 3,
+    "exists": true,
+    "lines": 100,
+    "unresolved_markers": []
+  },
+  {
+    "task": 4,
+    "exists": true,
+    "lines": 37,
+    "unresolved_markers": []
+  },
+  {
+    "task": 5,
+    "exists": true,
+    "lines": 123,
+    "unresolved_markers": []
+  },
+  {
+    "task": 6,
+    "exists": true,
+    "lines": 208,
+    "unresolved_markers": []
+  },
+  {
+    "task": 7,
+    "exists": true,
+    "lines": 63,
+    "unresolved_markers": []
+  },
+  {
+    "task": 8,
+    "exists": true,
+    "lines": 74,
+    "unresolved_markers": []
+  },
+  {
+    "task": 9,
+    "exists": true,
+    "lines": 83,
+    "unresolved_markers": []
+  },
+  {
+    "task": 10,
+    "exists": true,
+    "lines": 140,
+    "unresolved_markers": []
+  },
+  {
+    "task": 11,
+    "exists": true,
+    "lines": 175,
+    "unresolved_markers": []
+  },
+  {
+    "task": 12,
+    "exists": true,
+    "lines": 84,
+    "unresolved_markers": []
+  },
+  {
+    "task": 13,
+    "exists": true,
+    "lines": 199,
+    "unresolved_markers": []
+  },
+  {
+    "task": 14,
+    "exists": true,
+    "lines": 276,
+    "unresolved_markers": []
+  },
+  {
+    "task": 15,
+    "exists": true,
+    "lines": 399,
+    "unresolved_markers": []
+  },
+  {
+    "task": 16,
+    "exists": true,
+    "lines": 214,
+    "unresolved_markers": [
+      {
+        "line": 30,
+        "text": "生产：本轮未迁生产算法；原生产实现已在各领域库，本轮主要转移测试编译归属。生产入口 Host 和兼容导出保留，permission/plugins/pty 仅清理不再使用的测试 import。"
+      }
+    ]
+  },
+  {
+    "task": 17,
+    "exists": true,
+    "lines": 313,
+    "unresolved_markers": []
+  },
+  {
+    "task": 18,
+    "exists": true,
+    "lines": 374,
+    "unresolved_markers": []
+  },
+  {
+    "task": 19,
+    "exists": true,
+    "lines": 89,
+    "unresolved_markers": []
+  },
+  {
+    "task": 20,
+    "exists": true,
+    "lines": 171,
+    "unresolved_markers": []
+  },
+  {
+    "task": 21,
+    "exists": true,
+    "lines": 172,
+    "unresolved_markers": []
+  },
+  {
+    "task": 22,
+    "exists": true,
+    "lines": 297,
+    "unresolved_markers": [
+      {
+        "line": 196,
+        "text": "- `sanitize_tool_input_for_ui_uses_remaining_items_marker` → `session_engine::host_migration_22_tests::processor_tests::sanitize_tool_input_for_ui_uses_remaining_items_marker`"
+      }
+    ]
+  },
+  {
+    "task": 23,
+    "exists": true,
+    "lines": 91,
+    "unresolved_markers": []
+  },
+  {
+    "task": 24,
+    "exists": true,
+    "lines": 819,
+    "unresolved_markers": []
+  },
+  {
+    "task": 25,
+    "exists": true,
+    "lines": 95,
+    "unresolved_markers": []
+  },
+  {
+    "task": 26,
+    "exists": true,
+    "lines": 115,
+    "unresolved_markers": []
+  },
+  {
+    "task": 27,
+    "exists": true,
+    "lines": 85,
+    "unresolved_markers": []
+  },
+  {
+    "task": 28,
+    "exists": true,
+    "lines": 105,
+    "unresolved_markers": [
+      {
+        "line": 3,
+        "text": "状态：代码完成，编译/行为未验证。前次部分实现提交 2c92f73d8 的缺口已在本轮闭合，不再将实施困难列作外部阻塞。遵守用户覆盖，本次未运行任何 Cargo、构建、单元测试、测试可执行文件或实机测试。"
+      },
+      {
+        "line": 85,
+        "text": "|tool_execution_tests.rs::excluded_tool_writes_blocked_result_without_execution|crates/libs/agent-loop/src/host_migration_28_tests/tool_execution/scenarios_1.rs::excluded_tool_writes_blocked_result_without_execution|vw-agent 原完整测试路径（真实端口薄入口）|"
+      },
+      {
+        "line": 86,
+        "text": "|tool_execution_tests.rs::mcp_toolset_excluded_tool_is_blocked_by_channel_policy|crates/libs/agent-loop/src/host_migration_28_tests/tool_execution/scenarios_1.rs::mcp_toolset_excluded_tool_is_blocked_by_channel_policy|vw-agent 原完整测试路径（真实端口薄入口）|"
+      }
+    ]
+  },
+  {
+    "task": 29,
+    "exists": true,
+    "lines": 149,
+    "unresolved_markers": [
+      {
+        "line": 121,
+        "text": "- `query_engine_tests.rs`: `codex_discovery_core_query_engine_loads_and_resets_tools_between_user_turns`, `agent_and_query_engine_use_ephemeral_query_engine_context_each_turn`, `agent_and_query_engine_preserve_history_with_ephemeral_context_each_turn`, `query_engine_usage_totals_billable_tokens`, `query_engine_usage_total_saturates_on_overflow`, `recording_observer_accumulates_successful_llm_usage_and_forwards_calls`, `recording_observer_records_success_with_missing_usage_as_zero`, `recording_observer_saturates_oversized_token_counts`, `session_state_counts_non_system_messages_and_remaining_budget`, `snapshot_replace_and_restore_round_trip_history_turns_and_usage`, `submit_message_success_enriches_history_and_records_usage`, `submit_message_without_memory_context_uses_timestamp_prefix`, `first_turn_compaction_allows_threshold_but_rejects_overflow`, `submit_message_timestamp_uses_configured_timezone`, `new_rejects_invalid_programmatic_timezone`, `submit_message_success_preserves_history_after_turn`, `submit_message_error_rolls_back_history_and_turn_count`, `govern_history_does_not_apply_message_count_trimming`, `govern_history_preserves_history_after_a_response`, `govern_history_never_uses_local_summary_fallback`, `build_tool_descriptions_tracks_optional_tools`, `build_tool_descriptions_includes_browser_open_when_enabled`, `agcollab_channel_request_contains_only_enabled_team_runtime`"
+      }
+    ]
+  },
+  {
+    "task": 30,
+    "exists": true,
+    "lines": 67,
+    "unresolved_markers": []
+  },
+  {
+    "task": 31,
+    "exists": true,
+    "lines": 132,
+    "unresolved_markers": []
+  },
+  {
+    "task": 32,
+    "exists": true,
+    "lines": 97,
+    "unresolved_markers": []
+  },
+  {
+    "task": 33,
+    "exists": true,
+    "lines": 167,
+    "unresolved_markers": [
+      {
+        "line": 82,
+        "text": "- `crates/vw-agent/src/tools/decision/tests.rs::security_decision_handles_readonly_rate_limit_and_blocked_paths` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::security_decision_handles_readonly_rate_limit_and_blocked_paths`"
+      },
+      {
+        "line": 83,
+        "text": "- `crates/vw-agent/src/tools/decision/tests.rs::blocked_path_checks_string_and_array_fields` → `crates/libs/tool-assembly/src/host_migration_33_tests/decision.rs::blocked_path_checks_string_and_array_fields`"
+      }
+    ]
+  },
+  {
+    "task": 34,
+    "exists": true,
+    "lines": 506,
+    "unresolved_markers": [
+      {
+        "line": 411,
+        "text": "- `ls_rejects_relative_path_blocked_by_security_policy` → `ls::host_migration_34_tests`"
+      },
+      {
+        "line": 504,
+        "text": "宿主生产端口/转发与cfg注册主要保留于 mcp_common（300行）及各类型特化；本轮未迁移生产算法。宿主测试文件中剩余 mcp_common 约313行、hooks 34行及目录fixture重导出2行。逐文件精确行数见上表，禁止将删除转发计作算法迁移。"
+      }
+    ]
+  },
+  {
+    "task": 35,
+    "exists": true,
+    "lines": 316,
+    "unresolved_markers": []
+  },
+  {
+    "task": 36,
+    "exists": true,
+    "lines": 216,
+    "unresolved_markers": []
+  },
+  {
+    "task": 37,
+    "exists": true,
+    "lines": 202,
+    "unresolved_markers": [
+      {
+        "line": 45,
+        "text": "|t17_tests.rs|400|25|Only write/options/plugin fixtures used by remaining host t28.|"
+      },
+      {
+        "line": 186,
+        "text": "- `crates/vw-agent/testdata/plugin_compat/t07/native.json`: retained resource, original bytes unchanged; referenced by moved domain tests or remaining host transport tests."
+      },
+      {
+        "line": 187,
+        "text": "- `crates/vw-agent/testdata/plugin_compat/t16/server.py`: retained resource, original bytes unchanged; referenced by moved domain tests or remaining host transport tests."
+      },
+      {
+        "line": 188,
+        "text": "- `crates/vw-agent/testdata/plugin_compat/t18/server.py`: retained resource, original bytes unchanged; referenced by moved domain tests or remaining host transport tests."
+      },
+      {
+        "line": 189,
+        "text": "- `crates/vw-agent/testdata/plugin_compat/t21/http_server.py`: retained resource, original bytes unchanged; referenced by moved domain tests or remaining host transport tests."
+      },
+      {
+        "line": 190,
+        "text": "- `crates/vw-agent/testdata/plugin_compat/t21/result.json`: retained resource, original bytes unchanged; referenced by moved domain tests or remaining host transport tests."
+      },
+      {
+        "line": 191,
+        "text": "- `crates/vw-agent/testdata/plugin_compat/t21/server.py`: retained resource, original bytes unchanged; referenced by moved domain tests or remaining host transport tests."
+      },
+      {
+        "line": 192,
+        "text": "- `crates/vw-agent/testdata/plugin_compat/t23/http_server.py`: retained resource, original bytes unchanged; referenced by moved domain tests or remaining host transport tests."
+      },
+      {
+        "line": 193,
+        "text": "- `crates/vw-agent/testdata/plugin_compat/t23/server.py`: retained resource, original bytes unchanged; referenced by moved domain tests or remaining host transport tests."
+      }
+    ]
+  },
+  {
+    "task": 38,
+    "exists": true,
+    "lines": 179,
+    "unresolved_markers": [
+      {
+        "line": 137,
+        "text": "- `codex_plugin_compat_t43_continues_only_the_blocked_child` → 宿主原完整模块同名（断言保留）"
+      }
+    ]
+  },
+  {
+    "task": 39,
+    "exists": true,
+    "lines": 147,
+    "unresolved_markers": []
+  },
+  {
+    "task": 40,
+    "exists": true,
+    "lines": 141,
+    "unresolved_markers": []
+  },
+  {
+    "task": 41,
+    "exists": true,
+    "lines": 46,
+    "unresolved_markers": []
+  },
+  {
+    "task": 42,
+    "exists": true,
+    "lines": 187,
+    "unresolved_markers": []
+  },
+  {
+    "task": 43,
+    "exists": true,
+    "lines": 349,
+    "unresolved_markers": [
+      {
+        "line": 19,
+        "text": "- `crates/vw-agent/src/channels/mod_tests.rs`：53 → 35 行。保留 root_module_reexports_core_channel_types 与 native_channel_reexports_are_constructible，证明宿主公开入口确实连到通道实现；阻塞桥两用例迁入 support。"
+      }
+    ]
+  },
+  {
+    "task": 44,
+    "exists": true,
+    "lines": 153,
+    "unresolved_markers": []
+  },
+  {
+    "task": 45,
+    "exists": true,
+    "lines": 60,
+    "unresolved_markers": []
+  },
+  {
+    "task": 46,
+    "exists": true,
+    "lines": 146,
+    "unresolved_markers": []
+  },
+  {
+    "task": 47,
+    "exists": true,
+    "lines": 39,
+    "unresolved_markers": []
+  },
+  {
+    "task": 48,
+    "exists": true,
+    "lines": 102,
+    "unresolved_markers": []
+  },
+  {
+    "task": 49,
+    "exists": true,
+    "lines": 56,
+    "unresolved_markers": []
+  },
+  {
+    "task": 50,
+    "exists": true,
+    "lines": 135,
+    "unresolved_markers": []
+  },
+  {
+    "task": 51,
+    "exists": true,
+    "lines": 85,
+    "unresolved_markers": []
+  },
+  {
+    "task": 52,
+    "exists": true,
+    "lines": 243,
+    "unresolved_markers": []
+  },
+  {
+    "task": 53,
+    "exists": true,
+    "lines": 121,
+    "unresolved_markers": []
+  },
+  {
+    "task": 54,
+    "exists": true,
+    "lines": 92,
+    "unresolved_markers": []
+  },
+  {
+    "task": 55,
+    "exists": true,
+    "lines": 152,
+    "unresolved_markers": []
+  },
+  {
+    "task": 56,
+    "exists": true,
+    "lines": 73,
+    "unresolved_markers": []
+  },
+  {
+    "task": 57,
+    "exists": true,
+    "lines": 78,
+    "unresolved_markers": []
+  },
+  {
+    "task": 58,
+    "exists": true,
+    "lines": 80,
+    "unresolved_markers": []
+  }
+]

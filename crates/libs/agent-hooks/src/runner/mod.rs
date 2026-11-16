@@ -598,3 +598,6 @@ impl HookRunner {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod permission_tests;

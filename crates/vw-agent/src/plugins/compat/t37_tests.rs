@@ -1,14 +1,5 @@
-use super::hook_permission::decision;
 use serde_json::json;
-#[test]
-fn codex_plugin_compat_t37_rejects_invalid_input() {
-    assert!(decision(&json!({"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow","updatedPermissions":[]}}})).is_err());
-}
-#[test]
-fn codex_plugin_compat_t37_preserves_isolation() {
-    assert!(decision(&json!({"hookSpecificOutput":{"hookEventName":"PreToolUse","decision":{"behavior":"allow"}}})).is_err());
-    assert_eq!(decision(&json!({})).unwrap(), None);
-}
+
 #[tokio::test]
 async fn codex_plugin_compat_t37_preserves_host_permission_denial() {
     use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
@@ -63,52 +54,6 @@ async fn codex_plugin_compat_t37_runs_real_command_in_own_turn() {
         assert!(runner.run_permission_request("marker", &json!({})).await.is_err());
     }
     assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
-}
-
-#[tokio::test]
-async fn codex_plugin_compat_t37_denial_wins_and_recursion_fails_closed() {
-    struct Verdict(bool);
-    #[async_trait::async_trait]
-    impl crate::hooks::HookHandler for Verdict {
-        fn name(&self) -> &str {
-            "fixture-verdict"
-        }
-        async fn permission_request(
-            &self,
-            _: &str,
-            _: &serde_json::Value,
-        ) -> anyhow::Result<Option<bool>> {
-            Ok(Some(self.0))
-        }
-    }
-    let mut runner = crate::hooks::new_hook_runner();
-    runner.register(Box::new(Verdict(true)));
-    runner.register(Box::new(Verdict(false)));
-    assert_eq!(runner.run_permission_request("marker", &json!({})).await.unwrap(), Some(false));
-    struct Recursive;
-    #[async_trait::async_trait]
-    impl crate::hooks::HookHandler for Recursive {
-        fn name(&self) -> &str {
-            "fixture-recursive"
-        }
-        async fn permission_request(
-            &self,
-            name: &str,
-            input: &serde_json::Value,
-        ) -> anyhow::Result<Option<bool>> {
-            crate::hooks::new_hook_runner().run_permission_request(name, input).await
-        }
-    }
-    let mut runner = crate::hooks::new_hook_runner();
-    runner.register(Box::new(Recursive));
-    assert!(
-        runner
-            .run_permission_request("marker", &json!({}))
-            .await
-            .unwrap_err()
-            .to_string()
-            .contains("recursive")
-    );
 }
 
 #[tokio::test]

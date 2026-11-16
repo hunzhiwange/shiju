@@ -19,3 +19,7 @@ pub fn decision(output: &Value) -> Result<Option<bool>> {
         _ => anyhow::bail!("invalid permission hook behavior"),
     }
 }
+
+#[cfg(test)]
+#[path = "hook_permission_tests.rs"]
+mod tests;

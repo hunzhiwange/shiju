@@ -3,7 +3,6 @@
 
 const SOURCE: &str = concat!(include_str!("system_settings_acp.rs"), include_str!("../../../../libs/desktop-settings-agents/src/acp.rs"), include_str!("../../../../libs/desktop-settings-agents/src/acp_view.rs"));
 
-use super::{acp_title, ordered_agents, view};
 use crate::app::state::AcpDiagnosticStatus;
 use config_aggregate::AcpAgentConfig;
 
@@ -121,94 +120,13 @@ fn system_settings_acp_page_keeps_core_actions() {
     }
 }
 
-#[test]
-fn ordered_agents_uses_known_rank_then_alphabetical_custom_names() {
-    let (mut app, _) = crate::app::App::new();
-    app.acp_settings.catalog.clear();
-    for name in ["zeta", "codex", "claude", "alpha", "qwen", "gemini"] {
-        app.acp_settings.catalog.insert(name.to_string(), AcpAgentConfig::default());
-    }
 
-    assert_eq!(
-        ordered_agents(&app),
-        vec![
-            "claude".to_string(),
-            "gemini".to_string(),
-            "codex".to_string(),
-            "qwen".to_string(),
-            "alpha".to_string(),
-            "zeta".to_string(),
-        ]
-    );
-}
 
-#[test]
-fn acp_view_builds_empty_and_populated_catalog_states() {
-    let (mut app, _) = crate::app::App::new();
-    let _: iced::Element<'_, crate::app::Message> = view(&app);
 
-    app.acp_settings.catalog.insert(
-        "codex".to_string(),
-        AcpAgentConfig {
-            command: "npx".to_string(),
-            args: vec!["@openai/codex".to_string(), "--acp".to_string()],
-            ..AcpAgentConfig::default()
-        },
-    );
-    app.acp_settings.enabled.insert("codex".to_string());
-    app.acp_settings.copied_agent = Some("codex".to_string());
-    app.acp_settings.status_message = Some("saved".to_string());
-    app.acp_settings.save_error = Some("failed".to_string());
 
-    let _: iced::Element<'_, crate::app::Message> = view(&app);
-}
 
-#[test]
-fn acp_view_builds_saving_agent_state() {
-    let (mut app, _) = crate::app::App::new();
-    app.acp_settings.catalog.insert(
-        "codex".to_string(),
-        AcpAgentConfig {
-            command: "npx".to_string(),
-            args: vec!["@openai/codex".to_string(), "--acp".to_string()],
-            ..AcpAgentConfig::default()
-        },
-    );
-    app.acp_settings.saving_agent = Some("codex".to_string());
 
-    let _: iced::Element<'_, crate::app::Message> = view(&app);
-}
 
-#[test]
-fn acp_catalog_displays_registered_agents() {
-    for (key, title) in [
-        ("auggie", "Auggie CLI"),
-        ("claude", "Claude Code"),
-        ("codex", "Codex CLI"),
-        ("copilot", "GitHub Copilot"),
-        ("droid", "Factory droid"),
-        ("gemini", "Gemini CLI"),
-        ("iflow", "iFlow"),
-        ("kilocode", "Kilocode"),
-        ("opencode", "OpenCode"),
-        ("openclaw", "OpenClaw"),
-        ("qwen", "Qwen Code"),
-        ("kimi", "Kimi Code CLI"),
-        ("kiro", "Kiro"),
-        ("qoder", "Qoder CLI"),
-        ("trae", "TRAE CLI"),
-        ("cursor", "Cursor"),
-        ("pi", "PI"),
-        ("codebuddy", "CodeBuddy"),
-        ("goose", "Goose"),
-        ("vibe", "Mistral Vibe"),
-        ("hermes", "Hermes Agent"),
-        ("snow", "Snow CLI"),
-    ] {
-        assert_eq!(acp_title(key), title, "{key}");
-    }
-    assert_eq!(acp_title("my-custom-agent"), "自定义 ACP");
-}
 
 #[tokio::test(flavor = "multi_thread")]
 async fn acp_catalog_displays_registered_agents_render_both_themes() {

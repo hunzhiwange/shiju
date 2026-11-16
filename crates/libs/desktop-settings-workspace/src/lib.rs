@@ -11,3 +11,6 @@ pub mod managed;
 pub mod recovery;
 pub mod lifecycle;
 #[cfg(test)] mod recovery_tests;
+
+#[cfg(test)]
+mod desktop_split_17_tests;

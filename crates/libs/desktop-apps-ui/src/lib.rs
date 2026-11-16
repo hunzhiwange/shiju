@@ -46,3 +46,6 @@ pub mod web;
 
 #[cfg(test)]
 mod desktop_split_13_tests;
+
+#[cfg(test)]
+mod desktop_split_17_tests;

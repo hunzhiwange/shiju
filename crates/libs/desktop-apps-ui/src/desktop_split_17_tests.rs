@@ -1,7 +1,12 @@
-use crate::app::{
-    message::agent_apps_auth::{SERVICES, load},
-    state::agent_apps_auth::{Connection, Scope, State},
-};
+#![cfg(not(target_arch = "wasm32"))]
+use crate::agent_apps_auth::state::{Connection, Scope, Usage};
+use crate::agent_apps_auth::{SERVICES, load};
+#[derive(Default)]
+struct NoUsage;
+impl Usage for NoUsage {
+    fn clear(&mut self) {}
+}
+type State = crate::agent_apps_auth::state::State<NoUsage>;
 use serde_json::json;
 use std::{
     io::{BufRead, BufReader, Write},
@@ -9,12 +14,9 @@ use std::{
     time::Duration,
 };
 use {
-    gateway_app_auth::AgentAppsAuthCredentials,
-    vw_gateway_client::GatewayClient,
-    gateway_endpoint::GatewayEndpoint,
-    vw_api_app_auth::AuthCredentialState,
-    vw_api_app_auth::AuthService,
-    vw_api_transport::id::TenantScope,
+    gateway_app_auth::AgentAppsAuthCredentials, gateway_endpoint::GatewayEndpoint,
+    vw_api_app_auth::AuthCredentialState, vw_api_app_auth::AuthService,
+    vw_api_transport::id::TenantScope, vw_gateway_client::GatewayClient,
 };
 
 const PRINCIPAL: &str = "fixture-agent-apps-auth-principal-token";

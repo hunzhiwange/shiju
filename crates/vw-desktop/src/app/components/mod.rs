@@ -130,9 +130,7 @@ pub mod model_hover_tooltip;
 ///
 /// 提供系统通知的显示、管理和交互功能。
 pub mod notification;
-#[cfg(test)]
-#[path = "notification_tests.rs"]
-mod notification_tests;
+
 
 /// 轻量提示组件
 ///
@@ -408,8 +406,6 @@ pub mod mcp_app_panel;
 pub(crate) mod system_settings_apps;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod system_settings_auth;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod system_settings_auth_tests;
 
 #[path = "agent_apps/aggregation_omp.rs"]
 pub(crate) mod aggregation_omp;

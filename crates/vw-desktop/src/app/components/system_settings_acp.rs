@@ -4,11 +4,7 @@ use config_aggregate::AcpAgentConfig;
 use iced::Element;
 use super::system_settings_agents::domain;
 #[cfg(test)]
-pub(super) use desktop_settings_agents::acp::{acp_title, acp_description, setup_hint};
-#[cfg(test)]
-pub(super) fn ordered_agents(app: &App) -> Vec<String> {
-    desktop_settings_agents::acp::ordered_agents(&app.acp_settings.catalog)
-}
+pub(super) use desktop_settings_agents::acp::{acp_description, setup_hint};
 #[cfg(test)]
 fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Element<'a, Message> {
     desktop_settings_agents::acp_view::acp_card(domain::acp_input(app), agent, config).map(domain::event)

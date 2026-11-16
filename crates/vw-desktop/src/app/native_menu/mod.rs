@@ -11,11 +11,7 @@ mod macos;
 #[cfg(target_os = "macos")]
 pub use crate::app::components::top_bar::menu_actions::NativeMenuAction;
 #[cfg(target_os = "macos")]
-pub(crate) use actions::{NativeMenuSnapshot, resolve_native_menu_action};
+pub(crate) use actions::{snapshot, resolve_native_menu_action};
 
 #[cfg(target_os = "macos")]
 pub(crate) use macos::{install_or_sync, subscription};
-
-#[cfg(test)]
-#[path = "actions_tests.rs"]
-mod actions_tests;

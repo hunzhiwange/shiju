@@ -1,18 +1,17 @@
 //! 原生菜单动作测试，覆盖稳定动作标识、菜单快照和窗口标签路由。
 //! 重点确认项目与非项目屏幕只暴露合法动作，动态标签标识可以无损往返。
 
-use super::actions::{
+use crate::components::top_bar::menus::MenuEntry;
+use crate::components::top_bar::menus::Message;
+use crate::components::top_bar::types::WorkspaceMode;
+use crate::native_menu::{
     NativeMenuSnapshot, WindowTabEntry, help_section, menu_sections, resolve_native_menu_action,
 };
-use crate::app::components::top_bar::menu_actions::NativeMenuAction;
-use crate::app::components::top_bar::menus::MenuEntry;
-use crate::app::state::WorkspaceMode;
-use crate::app::{App, Message, Screen, message};
+use crate::ui_types::Screen;
+use desktop_platform::menu_actions::NativeMenuAction;
 
-fn test_app(screen: Screen) -> App {
-    let (mut app, _task) = App::new();
-    app.navigation_tabs.screen = screen;
-    app
+fn test_app(screen: Screen) -> NativeMenuSnapshot {
+    NativeMenuSnapshot { is_project: screen == Screen::Project, ..snapshot_with(Vec::new()) }
 }
 
 fn snapshot_with(tabs: Vec<WindowTabEntry>) -> NativeMenuSnapshot {
@@ -26,17 +25,16 @@ fn snapshot_with(tabs: Vec<WindowTabEntry>) -> NativeMenuSnapshot {
     }
 }
 
-
 #[test]
 fn resolve_project_file_actions_match_topbar_messages() {
     let app = test_app(Screen::Project);
     assert!(matches!(
         resolve_native_menu_action(&app, NativeMenuAction::FileNewSession),
-        Some(Message::View(message::ViewMessage::ProjectFileNewSession))
+        Some(Message::ProjectFileNewSession)
     ));
     assert!(matches!(
         resolve_native_menu_action(&app, NativeMenuAction::FileSave),
-        Some(Message::Preview(message::PreviewMessage::SaveFile))
+        Some(Message::SaveFile)
     ));
 }
 
@@ -62,7 +60,7 @@ fn resolve_help_actions_remain_available() {
     let app = test_app(Screen::Home);
     assert!(matches!(
         resolve_native_menu_action(&app, NativeMenuAction::HelpAbout),
-        Some(Message::View(message::ViewMessage::ToggleAboutModal))
+        Some(Message::ToggleAboutModal)
     ));
     assert_eq!(help_section().0, "帮助");
 }
@@ -73,7 +71,7 @@ fn resolve_non_project_edit_actions_are_unavailable() {
     assert!(resolve_native_menu_action(&app, NativeMenuAction::EditCopy).is_none());
     assert!(matches!(
         resolve_native_menu_action(&app, NativeMenuAction::FileGoHome),
-        Some(Message::View(message::ViewMessage::GoHome))
+        Some(Message::GoHome)
     ));
 }
 
@@ -108,35 +106,23 @@ fn menu_sections_exclude_browser_and_follow_workspace_mode() {
     ));
 }
 
-
-
-
 #[test]
 fn snapshot_includes_open_window_tabs_for_project_switch() {
-    let mut app = test_app(Screen::Project);
-    app.navigation_tabs.open_tabs = vec![
-        crate::app::AppTab {
-            id: "home".into(),
-            title: "首页".into(),
-            screen: Screen::Home,
-            project_path: None,
-        },
-        crate::app::AppTab {
-            id: "project_a".into(),
-            title: "README.md".into(),
-            screen: Screen::Project,
-            project_path: Some("/workspace/alpha".into()),
-        },
-        crate::app::AppTab {
-            id: "find:hidden".into(),
-            title: "search".into(),
-            screen: Screen::Project,
-            project_path: Some("/workspace/alpha".into()),
-        },
-    ];
-    app.navigation_tabs.active_tab_id = Some("project_a".into());
-
-    let snapshot = NativeMenuSnapshot::from_app(&app);
+    use crate::native_menu::{TabInput, window_tab_entries};
+    let mut snapshot = test_app(Screen::Project);
+    snapshot.open_window_tabs = window_tab_entries(
+        snapshot.locale,
+        [
+            TabInput { id: "home", title: "首页", project_path: None },
+            TabInput {
+                id: "project_a",
+                title: "README.md",
+                project_path: Some("/workspace/alpha"),
+            },
+            TabInput { id: "find:hidden", title: "search", project_path: Some("/workspace/alpha") },
+        ],
+        Some("project_a"),
+    );
     assert_eq!(snapshot.open_window_tabs.len(), 2);
     assert_eq!(snapshot.open_window_tabs[0].id, "home");
     assert!(!snapshot.open_window_tabs[0].active);
@@ -145,14 +131,13 @@ fn snapshot_includes_open_window_tabs_for_project_switch() {
     assert_eq!(snapshot.open_window_tabs[1].title, "alpha — README.md");
 }
 
-
 #[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_17_native_snapshot_tracks_language_changes() {
     let mut app = test_app(Screen::Project);
-    app.general_settings.desktop_locale = config_ui::DesktopLocale::English;
-    let english = NativeMenuSnapshot::from_app(&app);
-    app.general_settings.desktop_locale = config_ui::DesktopLocale::TraditionalChinese;
-    let traditional = NativeMenuSnapshot::from_app(&app);
+    app.locale = config_ui::DesktopLocale::English;
+    let english = app.clone();
+    app.locale = config_ui::DesktopLocale::TraditionalChinese;
+    let traditional = app.clone();
     assert_ne!(english, traditional);
-    assert_eq!(traditional.locale, app.general_settings.desktop_locale);
+    assert_eq!(traditional.locale, app.locale);
 }

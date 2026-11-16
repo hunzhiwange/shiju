@@ -23,7 +23,7 @@ pub(super) fn file_menu(app: &App) -> iced::Element<'_, Message> { domain::file_
 pub(super) fn edit_menu(app: &App) -> iced::Element<'_, Message> { domain::edit_menu(&inputs(app)).map(map) }
 pub(super) fn view_menu(app: &App) -> iced::Element<'_, Message> { domain::view_menu(&inputs(app)).map(map) }
 pub(super) fn help_menu(app: &App) -> iced::Element<'_, Message> { domain::help_menu(&inputs(app)).map(map) }
-fn map(event: domain::Message) -> Message { match event {
+pub(crate) fn map(event: domain::Message) -> Message { match event {
 domain::Message::ProjectFileNewSession => Message::View(message::ViewMessage::ProjectFileNewSession),
 domain::Message::ProjectFileNewProject => Message::View(message::ViewMessage::ProjectFileNewProject),
 domain::Message::ProjectFileShowSessions => Message::View(message::ViewMessage::ProjectFileShowSessions),

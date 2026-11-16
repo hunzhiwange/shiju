@@ -64,3 +64,7 @@ mod host_module_38_tests;
 mod host_module_31_tests;
 
 pub mod clipboard;
+
+pub mod native_menu;
+#[cfg(test)]
+mod host_module_41_tests;

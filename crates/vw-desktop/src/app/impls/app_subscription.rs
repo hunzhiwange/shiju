@@ -23,18 +23,18 @@ fn cron_history_subscription(app: &App) -> Subscription<Message> {
 }
 
 fn needs_activity_animation_tick(app: &App, startup_transition_active: bool) -> bool {
-    startup_transition_active
-        || (app.update_panel.show_cli_install_modal
-            && app.update_panel.cli_install_modal_use_app_update_action
-            && app.desktop_update.busy)
-        || (app.navigation_tabs.screen == Screen::Project && app.any_session_requesting())
-        || app.has_active_explore_summary_animation()
-        || (app.companion_navigation.task_pet_visible
-            && app.task_pet_window_id.is_some()
-            && (app.pet_state.task_pet_avatar_kind != crate::app::state::TaskPetAvatarKind::None
-                || app.pet_state.task_pet_expand_target.is_some()))
-        || ((app.navigation_panels.show_settings || app.navigation_panels.show_system_settings)
-            && app.acp_settings.diagnostic_id.is_some())
+    desktop_platform::subscriptions::Activity {
+        startup_transition_active,
+        update_busy: app.update_panel.show_cli_install_modal
+            && app.update_panel.cli_install_modal_use_app_update_action && app.desktop_update.busy,
+        conversation_requesting: app.navigation_tabs.screen == Screen::Project && app.any_session_requesting(),
+        explore_animating: app.has_active_explore_summary_animation(),
+        companion_visible: app.companion_navigation.task_pet_visible && app.task_pet_window_id.is_some(),
+        companion_animating: app.pet_state.task_pet_avatar_kind != crate::app::state::TaskPetAvatarKind::None
+            || app.pet_state.task_pet_expand_target.is_some(),
+        diagnostic_active: (app.navigation_panels.show_settings || app.navigation_panels.show_system_settings)
+            && app.acp_settings.diagnostic_id.is_some(),
+    }.needs_tick()
 }
 
 #[cfg(not(target_arch = "wasm32"))]

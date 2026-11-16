@@ -401,7 +401,7 @@ impl App {
         #[cfg(target_os = "macos")]
         {
             crate::app::native_menu::install_or_sync(
-                crate::app::native_menu::NativeMenuSnapshot::from_app(self),
+                crate::app::native_menu::snapshot(self),
             );
         }
 

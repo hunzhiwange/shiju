@@ -92,4 +92,32 @@ pub fn resize_main_window(
 }
 
 /// Finish the native layout-settling interval.
-pub fn settle_fullscreen_layout(settling: &mut bool) { *settling = false; }
+pub fn settle_fullscreen_layout(settling: &mut bool) {
+    *settling = false;
+}
+
+/// Localized title shared by the native window adapters.
+pub fn title(screen: crate::ui_types::Screen, locale: config_ui::DesktopLocale) -> String {
+    use crate::ui_types::Screen;
+    match screen {
+        Screen::Home => desktop_i18n::I18n::new(locale).__("识矩 - 项目").to_string(),
+        Screen::Project => desktop_i18n::I18n::new(locale).__("识矩 - 项目").to_string(),
+        Screen::Preview => desktop_i18n::I18n::new(locale).__("识矩 - 预览").to_string(),
+        Screen::Apps => desktop_i18n::I18n::new(locale).__("识矩 - 应用").to_string(),
+        Screen::Usage => desktop_i18n::I18n::new(locale).__("识矩 - 用量").to_string(),
+        Screen::Knowledge => desktop_i18n::I18n::new(locale).__("识矩 - 知识库").to_string(),
+        Screen::WorkflowTool => desktop_i18n::I18n::new(locale).__("识矩 - 工作流").to_string(),
+        Screen::WorkflowManager => {
+            desktop_i18n::I18n::new(locale).__("识矩 - 任务编排").to_string()
+        }
+        Screen::TaskBoard => desktop_i18n::I18n::new(locale).__("识矩 - 任务看板").to_string(),
+        #[cfg(not(target_arch = "wasm32"))]
+        Screen::ShijuApps => desktop_i18n::I18n::new(locale).__("识矩 - 识矩应用").to_string(),
+        #[cfg(not(target_arch = "wasm32"))]
+        Screen::ShijuSkills => desktop_i18n::I18n::new(locale).__("识矩 - 识矩技能").to_string(),
+        #[cfg(not(target_arch = "wasm32"))]
+        Screen::ExpertHub => {
+            desktop_i18n::I18n::new(locale).__("识矩 - 专家·技能·连接器").to_string()
+        }
+    }
+}

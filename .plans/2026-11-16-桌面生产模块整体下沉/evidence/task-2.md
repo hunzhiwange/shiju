@@ -149,7 +149,7 @@
 
 | 来源 | 基线 | 当前 | 宿主净减少 | 分类 |
 | --- | ---: | ---: | ---: | --- |
-| `crates/vw-desktop/src/app/message/chat/session.rs` | 1896 | 1606 | 290 | 生产候选 |
+| `crates/vw-desktop/src/app/message/chat/session.rs` | 1896 | 1601 | 295 | 生产候选 |
 | `crates/vw-desktop/src/app/message/chat/session_tests.rs` | 2431 | 1956 | 475 | 测试 |
 
 无新增宿主替代文件；App 公共类型重导出还减少了宿主枚举定义（单列，不计进上述两个独占来源的净减量）。不将测试减少计作生产减少，不卡配额，不承诺编译提速。

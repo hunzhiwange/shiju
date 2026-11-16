@@ -1,50 +1,13 @@
 #[tokio::test]
 async fn channel_first_response_hides_ordinary_and_explicit_drafts() {
-    use runtime_command::session_commands_tests::{lifecycle_dispatch, lifecycle_fixture, lifecycle_id};
-
-    let (_temp, ctx, msg) = lifecycle_fixture().await;
-    let snapshot = ctx.message_snapshot.as_ref().unwrap();
-    let mut input = msg.clone();
-    input.content = "first input before success".into();
-    let ordinary = resolve_or_create_sender_session_id(snapshot, &input, None).await.unwrap();
-    let info = crate::session::session::get_any(&ordinary).await.unwrap();
-    assert_eq!(info.title, "", "initial input is not a formal title");
-    assert!(info.is_first_response_pending());
-    assert!(!lifecycle_dispatch(&ctx, &msg, "/sessions").await.contains(&ordinary));
-    assert!(lifecycle_dispatch(&ctx, &msg, "/continue").await.contains("暂无可继续"));
-    assert!(lifecycle_dispatch(&ctx, &msg, &format!("/resume {ordinary}")).await.contains("失败"));
-    assert_eq!(lifecycle_id(&ctx), ordinary);
-    assert!(lifecycle_dispatch(&ctx, &msg, "/new").await.contains("已创建"));
-    let draft = lifecycle_id(&ctx);
-    assert_ne!(draft, ordinary);
-    assert!(crate::session::session::get_any(&draft).await.unwrap().title.is_empty());
-    assert!(channel_session_ownership(snapshot, &draft).await.unwrap().route.is_some());
-    assert!(!lifecycle_dispatch(&ctx, &msg, "/sessions").await.contains(&draft));
+    let (_temp, ctx, mut msg) = runtime_command::session_commands_tests::lifecycle_fixture().await;
+    channel_runtime::first_response_contracts::channel_first_response_hides_ordinary_and_explicit_drafts(manager::contract_host(), &ctx, &mut msg).await;
 }
 
 #[tokio::test]
 async fn channel_first_response_reuses_failed_ingress_then_publishes_success() {
-    use runtime_command::session_commands_tests::{lifecycle_dispatch, lifecycle_fixture, lifecycle_id};
-
-    let (_temp, ctx, mut msg) = lifecycle_fixture().await;
-    let snapshot = ctx.message_snapshot.as_ref().unwrap();
-    msg.id = "failed".into();
-    let failure = lifecycle_dispatch(&ctx, &msg, "this requires the unavailable model").await;
-    assert!(failure.contains("Error:"), "{failure}");
-    let id = lifecycle_id(&ctx);
-    assert_eq!(crate::session::session::get_any(&id).await.unwrap().title, "");
-    assert!(!lifecycle_dispatch(&ctx, &msg, "/sessions").await.contains(&id));
-
-    std::fs::create_dir(snapshot.directory.join("docs")).unwrap();
-    std::fs::write(snapshot.directory.join("docs/guide.md"), "# Test guide").unwrap();
-    msg.id = "successful".into();
-    let prompt = "请读取 docs 文件列表";
-    let reply = lifecycle_dispatch(&ctx, &msg, prompt).await;
-    assert!(reply.contains("docs/guide.md"), "{reply}");
-    assert_eq!(lifecycle_id(&ctx), id);
-    let listed = lifecycle_dispatch(&ctx, &msg, "/sessions").await;
-    assert!(listed.contains(&format!("{id}  {prompt}")), "{listed}");
-    assert!(lifecycle_dispatch(&ctx, &msg, "/continue").await.contains(&id));
+    let (_temp, ctx, mut msg) = runtime_command::session_commands_tests::lifecycle_fixture().await;
+    let id = channel_runtime::first_response_contracts::channel_first_response_reuses_failed_ingress_then_publishes_success(manager::contract_host(), &ctx, &mut msg).await;
     let history = crate::session::message::messages(&id, None).await.unwrap();
     assert_eq!(history.len(), 2, "only the successful turn was committed");
 }
@@ -52,7 +15,7 @@ async fn channel_first_response_reuses_failed_ingress_then_publishes_success() {
 #[tokio::test]
 async fn channel_first_response_requests_title_once_after_commit() {
     use axum::{Json, Router, routing::{get, post}};
-    use runtime_command::session_commands_tests::{lifecycle_dispatch, lifecycle_fixture, lifecycle_id};
+    use runtime_command::session_commands_tests::lifecycle_fixture;
     use serde_json::{Value, json};
 
     let (_temp, ctx, mut msg) = lifecycle_fixture().await;
@@ -93,28 +56,6 @@ async fn channel_first_response_requests_title_once_after_commit() {
     )
     .await
     .unwrap();
-    let prompt = "请读取 docs 文件列表";
-    assert!(lifecycle_dispatch(&ctx, &msg, prompt).await.contains("Error:"));
-    assert!(requests.lock().unwrap().is_empty());
-    let id = lifecycle_id(&ctx);
-    std::fs::create_dir(snapshot.directory.join("docs")).unwrap();
-    std::fs::write(snapshot.directory.join("docs/guide.md"), "# Guide").unwrap();
-    assert!(lifecycle_dispatch(&ctx, &msg, prompt).await.contains("docs/guide.md"));
-    tokio::time::timeout(Duration::from_secs(10), async {
-        loop {
-            if crate::session::session::get_any(&id).await.unwrap().title == "Fixture title" {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(20)).await;
-        }
-    }).await.expect("isolated model title should be saved");
-    assert!(lifecycle_dispatch(&ctx, &msg, "/rename Explicit title").await.contains("已重命名"));
-    msg.id = "second-turn".into();
-    assert!(lifecycle_dispatch(&ctx, &msg, prompt).await.contains("docs/guide.md"));
-    assert!(lifecycle_dispatch(&ctx, &msg, "/sessions").await.contains("Explicit title"));
-    let captured = requests.lock().unwrap();
-    assert_eq!(captured.len(), 1);
-    assert!(captured[0]["messages"].to_string().contains(prompt));
-    assert!(captured[0].get("tools").is_none_or(|tools| tools.as_array().is_some_and(Vec::is_empty)));
+    channel_runtime::first_response_contracts::channel_first_response_requests_title_once_after_commit(manager::contract_host(), &ctx, &mut msg, &requests).await;
     server.abort();
 }

@@ -53,3 +53,6 @@ pub mod dispatch_contracts;
 
 #[cfg(feature = "test-support")]
 pub mod cancel_contracts;
+
+#[cfg(feature = "test-support")]
+pub mod first_response_contracts;

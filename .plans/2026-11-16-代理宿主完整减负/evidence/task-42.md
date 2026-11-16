@@ -239,3 +239,18 @@ channel_project_binding_qq_webhook_uses_default_instance 完整函数及两条�
 - 宿主首次响应三条、租户身份一条及 manager 的真实会话/取消/配置监听挂载继续保留，未通过mock替代。
 
 静态检查：audit_registrations.py 返回 edges=1105、unresolved=0、removed_targets_referenced=0；定向 git diff --check 无空白错误。上述为词法注册与差异核对，不是编译或运行测试。
+
+## 任务59指定恢复：首响应三场景
+
+已读取 task-59-recovery-priorities.json owner42 的三个具体符号，沿用 test-support 既有入口，不新建宿主状态或模拟提交。channel_session_lifecycle_tests.rs 本轮 120→61 行，净减59行；新 first_response_contracts.rs 98行均为验收契约与夹具，无新增生产算法。
+
+三个同名宿主测试继续独立注册，分别调用 channel-runtime::first_response_contracts 的同名函数：
+- channel_first_response_hides_ordinary_and_explicit_drafts：入口草稿、未提交不可列表/继续/恢复、新建独立草稿及路由归属断言迁入领域；创建使用真实 ChannelHost::session_id，读取使用真实 CommandHost::get_session。
+- channel_first_response_reuses_failed_ingress_then_publishes_success：失败后复用会话、成功后公开标题/列表/继续的断言迁入领域；宿主保留读取真实持久消息数量为2的断言。
+- channel_first_response_requests_title_once_after_commit：失败不请求标题、成功后超时等待真实标题、只请求一次、显式重命名不被后续生成覆盖及请求中禁用tools的断言迁入领域；真实本地Axum服务、环境密钥恢复、租户项目Provider配置及服务关闭仍由宿主掌握。
+
+领域 dispatch 直接调用 manager::execution_control::process_channel_message，注入 manager::contract_host() 返回的真实 RuntimeHost，复用 dispatch_test_support::RecordingChannel 记录发送。与旧 lifecycle_dispatch 一样检查恰好一次响应、recipient、thread_ts。直接复用 sender_session_store 查询绑定，不复制会话状态。ctx/msg 来自原 lifecycle_fixture，实例/项目/租户未替换。
+
+源码断言表达式逐条静态核对：原文件所有assert表达式在宿主或领域中均保留（仅替换真实端口调用）。没有把领域契约当成独立可运行测试；三个宿主注册仍承担真实执行入口。channel-runtime根模块以既有test-support特性公开领域契约，无反向路径挂载，无新增依赖。
+
+未来精确验证：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib channel_first_response_ -- --test-threads=1`，静态预期3条，必须非零且failed=0；当前全部未运行。原有两个库 host_migration_42_tests 预期数量不变。audit_registrations.py 返回 edges=1105、unresolved=0、removed_targets_referenced=0；本轮git diff --check无空白错误。仅静态核对，编译/行为未验证。未修改其它任务来源，原42号任务文件已删除且无需恢复。

@@ -7,3 +7,9 @@ mod goal_tests;
 mod prompts_tests;
 #[path = "host_migration_51_runner_tests.rs"]
 mod runner_tests;
+#[path = "host_migration_51_persistence_tests.rs"]
+mod persistence_tests;
+#[path = "host_migration_51_session_bind_tests.rs"]
+mod session_bind_tests;
+#[path = "host_migration_51_options_tests.rs"]
+mod options_tests;

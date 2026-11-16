@@ -34,3 +34,6 @@ mod host_split_6_tests;
 
 #[cfg(test)]
 mod host_migration_51_tests;
+
+mod session_options;
+pub use session_options::gateway_session_options;

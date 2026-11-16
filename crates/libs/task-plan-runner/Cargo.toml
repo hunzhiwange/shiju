@@ -30,3 +30,5 @@ agent-installation = { path = "../agent-installation" }
 
 [dev-dependencies]
 tempfile = "3"
+session-store = { path = "../session-store", features = ["test-support"] }
+agent-database = { path = "../agent-database", features = ["test-support"] }

@@ -18,8 +18,6 @@ pub use prompts::{
     build_goal_planning_prompt, build_planning_prompt, plan_dir_abs, plan_dir_name,
     sanitize_task_plan_id_part,
 };
-#[cfg(test)]
-pub(crate) use runner::gateway_session_options;
 pub use runner::{
     GatewaySessionRunner, SessionRunRequest, SessionRunner, run_task_plan,
     run_task_plan_with_cancellation,
@@ -36,9 +34,6 @@ mod runner_tests;
 #[path = "prompts_tests.rs"]
 mod prompts_tests;
 
-#[cfg(test)]
-#[path = "session_bind_tests.rs"]
-mod session_bind_tests;
 
 // model tests live in task-plan-runner.
 

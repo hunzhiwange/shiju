@@ -1,6 +1,6 @@
 //! plan-run 子会话 Info 绑定与可渲染历史落盘测试。
 
-use super::{
+use crate::{
     PlanTaskEntry, PlanTasksDocument, SessionRunRequest, SessionRunner,
     session_bind::{ensure_plan_run_session_info, persist_plan_run_session_history},
 };
@@ -100,6 +100,7 @@ fn entry(id: &str, title: &str, file: &str, batch: u32) -> PlanTaskEntry {
 
 #[tokio::test]
 async fn plan_run_binds_child_session_info_with_parent() {
+    crate::test_host::install();
     let temp = tempfile::tempdir().expect("tempdir");
     let root = temp.path().to_string_lossy().to_string();
     let session_id = "bind-demo-plan";
@@ -109,7 +110,7 @@ async fn plan_run_binds_child_session_info_with_parent() {
         .await
         .expect("ensure info should succeed");
 
-    let info = crate::session::ui_store::load_agent_session_any(session_id)
+    let info = session_store::ui_store::load_agent_session_any(session_id)
         .expect("Info should be readable from store");
     assert_eq!(info.id, session_id);
     assert_eq!(info.parent_id.as_deref(), Some(parent_id));
@@ -124,7 +125,7 @@ async fn plan_run_binds_child_session_info_with_parent() {
         .await
         .expect("repeated ensure info should succeed");
 
-    let rebound = crate::session::ui_store::load_agent_session_any(session_id)
+    let rebound = session_store::ui_store::load_agent_session_any(session_id)
         .expect("rebound Info should be readable from store");
     assert_eq!(rebound.time.created, created);
     assert_eq!(rebound.slug, slug);
@@ -142,7 +143,7 @@ async fn plan_run_binds_child_session_info_with_parent() {
     .await
     .expect("history persist should succeed");
 
-    let chat = crate::session::ui_store::load_session_any(session_id)
+    let chat = session_store::ui_store::load_session_any(session_id)
         .expect("ChatSession should be loadable");
     assert!(
         !chat.messages.is_empty() || !chat.calls.is_empty(),
@@ -156,13 +157,14 @@ async fn plan_run_binds_child_session_info_with_parent() {
     assert_eq!(chat.messages[0].content, "user prompt");
     assert_eq!(chat.messages[1].content, "assistant reply");
     assert_eq!(chat.title, "规划 · bind-demo");
-    let committed = crate::session::ui_store::load_agent_session_any(session_id).unwrap();
+    let committed = session_store::ui_store::load_agent_session_any(session_id).unwrap();
     assert_eq!(committed.title, chat.title);
     assert!(!committed.is_first_response_pending());
 }
 
 #[tokio::test]
 async fn plan_run_binds_session_info_without_parent() {
+    crate::test_host::install();
     let temp = tempfile::tempdir().expect("tempdir");
     let root = temp.path().to_string_lossy().to_string();
     let session_id = "bind-orphan-plan";
@@ -171,7 +173,7 @@ async fn plan_run_binds_session_info_without_parent() {
         .await
         .expect("ensure info without parent should still create Info");
 
-    let info = crate::session::ui_store::load_agent_session_any(session_id)
+    let info = session_store::ui_store::load_agent_session_any(session_id)
         .expect("Info should exist even without parent_session_id");
     assert_eq!(info.id, session_id);
     assert_eq!(info.parent_id, None);
@@ -181,10 +183,11 @@ async fn plan_run_binds_session_info_without_parent() {
 
 #[tokio::test]
 async fn plan_run_binds_and_persists_history_through_run_task_plan() {
+    crate::test_host::install();
     let temp = tempfile::tempdir().expect("tempdir");
     let root = temp.path().to_string_lossy().to_string();
     let task_id = "bind-flow";
-    let plan_dir = super::plan_dir_abs(temp.path(), task_id);
+    let plan_dir = crate::plan_dir_abs(temp.path(), task_id);
     let parent_id = "parent-main";
 
     let runner = ScriptedSessionRunner {
@@ -208,40 +211,41 @@ async fn plan_run_binds_and_persists_history_through_run_task_plan() {
         parent_session_id: Some(parent_id.to_string()),
     };
 
-    super::runner::run_task_plan_in_home(task_id, &request, &runner, temp.path(), |_| true)
+    crate::runner::run_task_plan_in_home(task_id, &request, &runner, temp.path(), |_| true)
         .await
         .expect("run_task_plan should succeed");
 
     let planning_id = format!("{task_id}-plan");
     let subtask_id = format!("{task_id}-1");
 
-    let planning_info = crate::session::ui_store::load_agent_session_any(&planning_id)
+    let planning_info = session_store::ui_store::load_agent_session_any(&planning_id)
         .expect("planning Info should exist");
     assert_eq!(planning_info.parent_id.as_deref(), Some(parent_id));
     assert!(planning_info.title.contains("规划"));
 
-    let subtask_info = crate::session::ui_store::load_agent_session_any(&subtask_id)
+    let subtask_info = session_store::ui_store::load_agent_session_any(&subtask_id)
         .expect("subtask Info should exist");
     assert_eq!(subtask_info.parent_id.as_deref(), Some(parent_id));
     assert!(subtask_info.title.contains("实现绑定"));
 
-    let planning_chat = crate::session::ui_store::load_session_any(&planning_id)
+    let planning_chat = session_store::ui_store::load_session_any(&planning_id)
         .expect("planning ChatSession should load");
     assert!(!planning_chat.messages.is_empty(), "planning messages must be non-empty for desktop");
 
-    let subtask_chat = crate::session::ui_store::load_session_any(&subtask_id)
+    let subtask_chat = session_store::ui_store::load_session_any(&subtask_id)
         .expect("subtask ChatSession should load");
     assert!(!subtask_chat.messages.is_empty(), "subtask messages must be non-empty for desktop");
 }
 
 #[tokio::test]
 async fn run_plan_persists_subtask_details_before_finished_event() {
+    crate::test_host::install();
     let temp = tempfile::tempdir().expect("tempdir");
     let root = temp.path().join("project");
     std::fs::create_dir_all(&root).expect("create project root");
     let root = root.to_string_lossy().to_string();
     let task_id = format!("clickable-{}", std::process::id());
-    let plan_dir = super::plan_dir_abs(temp.path(), &task_id);
+    let plan_dir = crate::plan_dir_abs(temp.path(), &task_id);
     let parent_id = "parent-clickable";
     let subtask_id = format!("{task_id}-1");
 
@@ -267,7 +271,7 @@ async fn run_plan_persists_subtask_details_before_finished_event() {
     let observed = Arc::new(Mutex::new(None));
     let captured = Arc::clone(&observed);
 
-    super::runner::run_task_plan_in_home(&task_id, &request, &runner, temp.path(), |event| {
+    crate::runner::run_task_plan_in_home(&task_id, &request, &runner, temp.path(), |event| {
         if let vw_api_task::TaskPlanRunStreamEventDto::SubtaskFinished {
             session_id,
             success,
@@ -275,9 +279,9 @@ async fn run_plan_persists_subtask_details_before_finished_event() {
         } = event
         {
             assert!(success, "persisted subtask should finish successfully");
-            let info = crate::session::ui_store::load_agent_session_any(&session_id)
+            let info = session_store::ui_store::load_agent_session_any(&session_id)
                 .expect("Info must be readable before SubtaskFinished");
-            let chat = crate::session::ui_store::load_session_any(&session_id)
+            let chat = session_store::ui_store::load_session_any(&session_id)
                 .expect("ChatSession must be readable before SubtaskFinished");
             *captured.lock().expect("observed lock") = Some((info, chat));
             return false;
@@ -296,6 +300,7 @@ async fn run_plan_persists_subtask_details_before_finished_event() {
 
 #[tokio::test]
 async fn run_plan_does_not_report_subtask_success_when_session_persistence_fails() {
+    crate::test_host::install();
     let temp = tempfile::tempdir().expect("tempdir");
     let missing_root = temp.path().join("missing-project");
     let task_id = format!("unpersisted-{}", std::process::id());
@@ -305,7 +310,7 @@ async fn run_plan_does_not_report_subtask_success_when_session_persistence_fails
             Ok("subtask output".to_string()),
         ]))),
         plan_fixture: Arc::new(Mutex::new(Some(PlanFixture {
-            plan_dir: super::plan_dir_abs(temp.path(), &task_id),
+            plan_dir: crate::plan_dir_abs(temp.path(), &task_id),
             tasks: vec![entry("1", "不可持久化子任务", "1-unpersisted.md", 1)],
         }))),
         task_files: Arc::new(Mutex::new(Vec::new())),
@@ -321,7 +326,7 @@ async fn run_plan_does_not_report_subtask_success_when_session_persistence_fails
     let finished = Arc::new(Mutex::new(None));
     let captured = Arc::clone(&finished);
 
-    super::runner::run_task_plan_in_home(&task_id, &request, &runner, temp.path(), |event| {
+    crate::runner::run_task_plan_in_home(&task_id, &request, &runner, temp.path(), |event| {
         if let vw_api_task::TaskPlanRunStreamEventDto::SubtaskFinished {
             success,
             error,
@@ -346,20 +351,19 @@ async fn run_plan_does_not_report_subtask_success_when_session_persistence_fails
 
 #[tokio::test]
 async fn plan_run_retry_replaces_legacy_failure_history_and_preserves_title() {
-    use crate::session::{
-        ui_store,
-        ui_types::{ChatMessage, ChatRole},
-    };
+    crate::test_host::install();
+    use session_store::ui_store;
+    use session_ui_types::{ChatMessage, ChatRole};
 
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().to_str().unwrap();
     let tenant = ui_store::current_tenant_scope();
-    let project_id = crate::project::from_directory(&tenant, temp.path()).await.unwrap().0.id;
+    let project_id = agent_project::from_directory(&tenant, temp.path()).await.unwrap().0.id;
     let scope = Some(project_id.as_str());
     let session_id = "legacy-subtask";
-    let info = crate::session::session::Info {
+    let info = session_info::Info {
         id: session_id.into(),
-        slug: crate::session::session::Info::plan_run_slug("legacy"),
+        slug: session_info::Info::plan_run_slug("legacy"),
         project_id: project_id.clone(),
         directory: root.into(),
         parent_id: Some("parent-chat".into()),
@@ -367,7 +371,7 @@ async fn plan_run_retry_replaces_legacy_failure_history_and_preserves_title() {
         share: None,
         title: "Renamed".into(),
         version: agent_installation::version(),
-        time: crate::session::session::TimeInfo {
+        time: session_info::TimeInfo {
             created: 1,
             updated: 1,
             compacting: None,
@@ -378,7 +382,7 @@ async fn plan_run_retry_replaces_legacy_failure_history_and_preserves_title() {
         revert: None,
     };
     ui_store::save_agent_session_scoped_for_tenant(&tenant, &info, scope).unwrap();
-    let mut legacy = crate::session::ui_types::ChatSession {
+    let mut legacy = session_ui_types::ChatSession {
         id: session_id.into(),
         title: info.title.clone(),
         messages: Vec::new(),

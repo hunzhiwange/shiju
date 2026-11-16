@@ -373,7 +373,6 @@ mod mcp_management_bindings_tests;
 
 
 #[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../libs/gateway-aggregation/tests/host/aggregation_resync_tests.rs"]
 mod aggregation_resync_tests;
 
 mod aggregation_desktop;

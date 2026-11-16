@@ -58,3 +58,15 @@
 `python3 scripts/cargo_slot.py cargo test -p gateway-workflow --lib host_migration_45_tests -- --test-threads=1`：静态预期 4 个非零用例（Postgres依赖测试环境，宏可能跳过）；未运行。
 
 宿主未来对上述6个保留用例逐条执行 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib workflow::native::tests::<完整用例名> -- --exact --test-threads=1`，每条预期1个；先用对应 `-- --list` 获取真实名称。迁出用例需宿主 list 确认旧挂载消失（首条真实接线用例有意保留），不能用零测试冒充通过。编译收益、运行数量与断言结果均未取得。
+
+## 任务59恢复轮补充
+
+按 recovery-priorities.json owner45 的 graph/step/no-side-effect 拆分执行。native_tests.rs 329→117，额外净减212行；本组累计1118→379（66.1%），仍不足70%，剩余native生产装配262行及117行真实宿主测试，不能宣称达到70%。
+
+- action_graph、action_repository及三条 task_pool_actions_* 的全部断言 → workflow-engine/src/test_support/actions.rs。原宿主同名3条测试仍注册，调用领域断言驱动，注入宿主 action_runtime。真实 NativeTools、full_access、approval上下文和外置审计临时目录仍由宿主创建；目录句柄返回驱动并活至整次run_workflow结束。Git仓库/提交/合并仍真实执行，不模拟权限。
+- 两条 native_workflow_provider_names_* 的矩阵和全部断言 → test_support/permissions.rs；宿主仍构造实际 NativeTools/NativeAgent。驱动直接调用真实 trait 对象，未重写许可检查、未伪造缺少消息错误。
+- binding_fixture → test_support/binding.rs，使用宿主注入的真实租户。原真实 bound_command 测试及断言仍在宿主。
+- CloudFixtureProvider → test_support/provider.rs。engine 的原8条自注册领域用例复用同一provider和binding源码（均为本库源码），消除重复夹具；生产Provider不会启用该测试模块。
+- test-support 为实际宿主dev依赖启用的显式特性，按职责拆分4个小文件；没有新增Host框架/反向依赖/新单体。git2沿用宿主0.21.0及既有features，仅测试特性启用；anyhow亦为可选依赖。Cargo.lock仅给workflow-engine补既有git2依赖边。
+
+静态核对：宿主同名6条测试注册保持，engine8条领域注册保持，gateway4条保持；断言驱动不是新增独立测试，不能增加通过数。真实生产算法迁移仍为0。未来仍按前文6条宿主精确名称过滤（每条预期1），领域两个过滤预期8/4；test-support由宿主dev依赖统一启用。所有Cargo、构建、测试、实机与fmt命令均未运行，编译和行为未验证。当前差异检查仅覆盖本任务。原任务文件已在首轮删除，无文件可再次清理。

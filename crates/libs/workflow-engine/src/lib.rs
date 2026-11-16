@@ -42,3 +42,6 @@ mod video_providers;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod host_migration_45_tests;
+
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod test_support;

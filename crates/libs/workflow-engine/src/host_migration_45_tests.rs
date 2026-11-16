@@ -1,3 +1,8 @@
+#[path = "test_support/provider.rs"]
+mod provider;
+#[path = "test_support/binding.rs"]
+mod binding;
+use provider::CloudFixtureProvider;
 use crate::*;
 use crate::native_command::{BoundCommandRequest, CommandEvent as StreamEvent, NativeCommandHost};
 use serde_json::json;
@@ -31,35 +36,7 @@ fn run_bound_command(request: &Request, emit: &mut (impl FnMut(StreamEvent) -> b
     ))
 }
 fn binding_fixture() -> tempfile::TempDir {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::create_dir(dir.path().join(".shiju")).unwrap();
-    let tenant = tenant();
-    std::fs::write(
-        dir.path().join(".shiju/workflow_commands.json"),
-        json!({
-            "platform_id":tenant.platform_id().as_ref(),
-            "company_id":tenant.company_id().as_ref(),
-            "commands":[{"command":"/shiju 剪辑","workflow_file":"preview.yaml","inputs":{}}]
-        })
-        .to_string(),
-    )
-    .unwrap();
-    std::fs::write(
-        dir.path().join("preview.yaml"),
-        r#"
-workflow:
-  graph:
-    nodes:
-      - id: start
-        data: {type: start}
-      - id: answer
-        data: {type: answer, answer: 'verified preview'}
-    edges:
-      - {source: start, target: answer}
-"#,
-    )
-    .unwrap();
-    dir
+    binding::binding_fixture(tenant())
 }
 
 #[test]
@@ -160,50 +137,6 @@ fn native_workflow_preserves_cancellation_and_tool_restrictions() {
     assert!(matches!(events.last(), Some(StreamEvent::Error(error)) if error == "cancelled"));
     assert!(crate::check_allowed("bash", Some(&json!(["file_read"]))).is_err());
     assert!(crate::check_allowed("file_read", Some(&json!(["file_read"]))).is_ok());
-}
-
-struct CloudFixtureProvider {
-    invalid_assets: bool,
-}
-
-#[async_trait::async_trait]
-impl model_types::Provider for CloudFixtureProvider {
-    async fn chat_with_system(
-        &self,
-        _: Option<&str>,
-        _: &str,
-        _: &str,
-        _: f64,
-    ) -> anyhow::Result<String> {
-        anyhow::bail!("unexpected transport")
-    }
-    async fn chat(
-        &self,
-        request: model_types::ChatRequest<'_>,
-        _: &str,
-        _: f64,
-    ) -> anyhow::Result<model_types::ChatResponse> {
-        let prompt = &request.messages[0].content;
-        let text = if prompt.contains("Return only a short brief") {
-            "brief".to_string()
-        } else if prompt.contains("keyword visual segments") {
-            json!([{"anchor":"A","start":0,"end":1,"visual_type":"keyword",
-                "assets":if self.invalid_assets {json!([])} else {json!(["title"])} }])
-            .to_string()
-        } else {
-            json!([
-                {"anchor":"B","start":1,"end":2,"visual_type":"b_roll","assets":["footage"]},
-                {"anchor":"C","start":2,"end":3,"visual_type":"motion_graphic","assets":["diagram"]}
-            ])
-            .to_string()
-        };
-        Ok(model_types::ChatResponse {
-            text: Some(text),
-            tool_calls: vec![],
-            usage: None,
-            reasoning_content: None,
-        })
-    }
 }
 
 // External tool port: the cloud fixture never executes native tools.

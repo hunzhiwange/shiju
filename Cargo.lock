@@ -25613,6 +25613,7 @@ dependencies = [
  "async-trait",
  "axum",
  "futures-util",
+ "git2",
  "hex",
  "model-protocol",
  "model-types",

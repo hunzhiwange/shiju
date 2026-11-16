@@ -127,6 +127,22 @@ impl ActiveRunner {
                 RunnerControl::Continue
             }
             TuiControllerCommand::Command(command) => match command {
+                CommandRoute::ExportSession { path } => {
+                    if path.is_empty() {
+                        return app.prime_session_command("/export ", "请输入工作区相对路径；Esc 取消，不覆盖已有文件。");
+                    }
+                    if self.session_bootstrap_in_flight || self.directory_switch_source.is_some() || self.active_stream.is_some() {
+                        push_runner_error(app, "生成或会话切换尚未完成，请稍后导出");
+                        return RunnerControl::Continue;
+                    }
+                    match super::markdown_export::export(app.state(), app.runtime().directory(), &path) {
+                        Ok(path) => app.widget_mut().push_history(V3DisplayEvent::System {
+                            text: format!("已导出已加载会话到 {}", path.display()),
+                        }),
+                        Err(error) => push_runner_error(app, error),
+                    }
+                    RunnerControl::Continue
+                }
                 CommandRoute::Help => {
                     app.widget_mut().push_history(V3DisplayEvent::System { text: help_text() });
                     RunnerControl::Continue

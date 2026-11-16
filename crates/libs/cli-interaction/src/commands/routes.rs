@@ -46,6 +46,7 @@ pub(super) fn route_slash_command(command_id: &str, arguments: &str) -> Result<C
         });
     }
     match command_id {
+        "export" => Ok(CommandRoute::ExportSession { path: if arguments.is_empty() { String::new() } else { normalize_workspace_relative_path(arguments)? } }),
         "copy" => {
             if arguments.is_empty() {
                 return Ok(CommandRoute::CopyAnswer { code_block: None });

@@ -373,3 +373,5 @@ mod session_title_tests;
 
 
 use cli_interaction_model::paste::PromptAttachmentKind;
+
+pub(crate) mod markdown_export;

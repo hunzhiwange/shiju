@@ -35,3 +35,6 @@ vw-tui = { path = "../../vw-tui", version = "0.6.0" }
 
 [dev-dependencies]
 tempfile = "3"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

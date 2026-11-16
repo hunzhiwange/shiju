@@ -35,6 +35,7 @@ const LATER_BATCH_REASON: &str = "该能力将在后续桌面能力对齐批次�
 pub(crate) enum CommandRoute {
     Help,
     Status,
+    ExportSession { path: String },
     CopyAnswer { code_block: Option<usize> },
     RunDoctor,
     ShowDiff,
@@ -152,6 +153,7 @@ const COMMANDS: &[CommandSpec] = &[
         "复制最近完成回答；/copy code <序号> 复制代码块（从1开始）",
         || CommandRoute::CopyAnswer { code_block: None },
     ),
+    CommandSpec::local("export", "导出已加载会话：/export <工作区相对路径>（不覆盖）", || CommandRoute::ExportSession { path: String::new() }),
     CommandSpec::local("status", "显示当前会话与 Gateway 状态", || CommandRoute::Status),
     CommandSpec::local("doctor", "运行 Gateway 诊断", || CommandRoute::RunDoctor),
     CommandSpec::local("exit", "退出 TUI", || CommandRoute::Exit),
@@ -251,6 +253,7 @@ pub(crate) fn command_palette_items_with_integrations(
 pub(crate) fn route_selection(surface: &str, item_id: &str) -> Result<CommandRoute, String> {
     match surface {
         COMMAND_PALETTE_SURFACE => route_command_id(item_id),
+        "session_resume_retry" if item_id == "retry" => Ok(CommandRoute::OpenSessionPicker),
         SESSION_RESUME_SURFACE => {
             let session_id = item_id.trim();
             if session_id.is_empty() {

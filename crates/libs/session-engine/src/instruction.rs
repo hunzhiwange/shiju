@@ -222,3 +222,7 @@ pub async fn resolve(
     let state = instance_state()().await;
     session_instructions::resolve(&state, &system, &already, filepath, message_id, root, &policy).await
 }
+
+#[cfg(test)]
+#[path = "instruction_tests.rs"]
+mod instruction_tests;

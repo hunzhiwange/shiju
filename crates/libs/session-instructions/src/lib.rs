@@ -259,3 +259,7 @@ impl State {
 #[cfg(test)]
 #[path = "instruction_include_tests.rs"]
 mod instruction_include_tests;
+
+#[cfg(test)]
+#[path = "path_tests.rs"]
+mod path_tests;

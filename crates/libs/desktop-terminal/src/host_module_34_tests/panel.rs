@@ -2,14 +2,15 @@
 //!
 //! 终端夹具构造不同可见性与标签数量，用于校验尺寸、选中项和关闭边界。
 
-use crate::app::terminal::{Shell, TerminalState, TerminalTheme};
-use crate::app::App;
+use super::support::{Routing, dispatch, view};
+use crate::{Shell, TerminalTheme};
+type TerminalState = crate::TerminalState<Shell>;
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, widget::Tree};
 use iced::{Font, Pixels, Size, Theme};
 
-fn test_app() -> App {
-    App::new().0
+fn test_app() -> Routing {
+    Routing::new()
 }
 
 fn blank_terminal(is_visible: bool) -> TerminalState {
@@ -27,7 +28,7 @@ fn blank_terminal(is_visible: bool) -> TerminalState {
 
 #[cfg(not(target_arch = "wasm32"))]
 struct DragPanel {
-    app: App,
+    app: Routing,
     renderer: iced::Renderer,
     cache: iced_runtime::user_interface::Cache,
 }
@@ -64,7 +65,7 @@ impl DragPanel {
 
     fn bounds(&mut self, pane: iced::widget::pane_grid::Pane) -> iced::Rectangle {
         let index = self.app.terminal.panes.grid.iter().position(|(id, _)| *id == pane).unwrap();
-        let mut view = super::terminal_panel::view(&self.app);
+        let mut view = view(&self.app);
         let mut tree = Tree::new(view.as_widget());
         let node = view.as_widget_mut().layout(
             &mut tree,
@@ -88,7 +89,7 @@ impl DragPanel {
         use iced_runtime::user_interface::UserInterface;
 
         let mut ui = UserInterface::build(
-            super::terminal_panel::view(&self.app),
+            view(&self.app),
             Self::SIZE,
             std::mem::take(&mut self.cache),
             &mut self.renderer,
@@ -111,7 +112,7 @@ impl DragPanel {
         }
         self.cache = ui.into_cache();
         for message in messages {
-            let _ = self.app.update(message);
+            dispatch(&mut self.app, message);
         }
     }
 

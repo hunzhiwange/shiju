@@ -382,9 +382,7 @@ pub mod tab_bar;
 ///
 /// 提供嵌入式终端功能，支持命令执行和输出显示。
 pub mod terminal_panel;
-#[cfg(test)]
-#[path = "terminal_panel_tests.rs"]
-mod terminal_panel_tests;
+
 
 /// 顶部工具栏组件
 ///

@@ -1,11 +1,11 @@
 // 验证终端顶层消息向标签、重命名和事件模块路由。
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
-use super::{TerminalMessage, update};
-use crate::app::{App, FocusArea};
+use super::support::{Routing, update};
+use crate::message::TerminalMessage;
 
-fn test_app() -> App {
-    App::new().0
+fn test_app() -> Routing {
+    Routing::new()
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
@@ -13,13 +13,13 @@ fn test_app() -> App {
 #[test]
 fn selecting_unknown_tab_closes_context_menu_without_taking_focus() {
     let mut app = test_app();
-    app.focus_area = FocusArea::Preview;
+    app.focused = false;
     app.terminal.tab_context_menu_id = Some(7);
     app.terminal.tab_context_menu_pos = Some((12.0, 24.0));
 
     let _task = update(&mut app, TerminalMessage::Select(u64::MAX));
 
-    assert_eq!(app.focus_area, FocusArea::Preview);
+    assert!(!app.focused);
     assert_eq!(app.terminal.tab_context_menu_id, None);
     assert_eq!(app.terminal.tab_context_menu_pos, None);
 }
@@ -43,7 +43,7 @@ fn rename_cancel_routes_to_rename_and_closes_context_menu_for_unknown_tab() {
 #[test]
 fn drag_started_routes_to_event_and_captures_drag_origin() {
     let mut app = test_app();
-    app.cursor_position.y = 48.5;
+    app.cursor_y = 48.5;
     app.terminal.height = 320.0;
     app.terminal.is_dragging = false;
     app.terminal.drag_anchor_y = None;

@@ -1,5 +1,7 @@
 # OpenAI Codex TUI 移植状态
 
+后续清理（2026-11-16）：维护者明确授权删除当前未进入编译图的旧源码，已删除 248 个文件。下表为早期移植历史，路径可能已迁移或删除；当前保留边界及恢复版本见 `UPSTREAM.md` 与 `docs/architecture/tui-crate-boundaries.md`。
+
 本表记录早期移植批次的历史处置，不再作为当前源码删除授权。批次 5 已激活 Markdown、代码高亮、表格识别与流式文本状态；批次 6 已激活复制的 history/exec/diff/goal 展示，并以纯 `V3DisplayEvent` 做数据映射；批次 7 已激活纯本地 textarea、Unicode wrapping、Vim、paste burst 与草稿历史核心；批次 8 已激活无边框 `›` composer、排队预览、动态 footer 与纯 `V3Action` 动作边界；批次 9 已激活复制的通用选择列表、过滤、命令补全、文件结果、会话/主题选择，并以 `V3SelectionItem`/`V3Action` 隔离 VibeWindow 数据与动作；批次 10 已激活审批与用户问答 overlay，所有决定和答案均只输出 `V3Action`；批次 11 已原地裁剪并激活复制的 ChatWidget，只保留 committed history、active cell、live tail、bottom pane、status、input queue、overlay 与布局缓存；批次 12 已用纯 UI `V3Event` 激活 thinking/text/tool/turn 的流式归约，保留 copied exec cell 分组、中间帧、终帧、状态隐藏和中断终态；批次 14 已激活复制的 welcome、session header、working indicator 和 status card，由 CLI bridge 提供只读 VibeWindow 会话数据；批次 15 已激活 copied custom terminal、history insertion 与 resize reflow 状态机，并以纯 v3 transcript pager、终端生命周期和 CLI bridge 接入 committed/active cells。后续批次修改文件时必须同步本表。
 
 ## 状态定义和删除门禁

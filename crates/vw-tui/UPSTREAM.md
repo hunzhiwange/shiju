@@ -1,6 +1,12 @@
 # OpenAI Codex TUI 来源记录
 
-`vw-tui` 是 OpenAI Codex TUI 的完整复制件，后续在副本内按批次裁剪和改写。
+`vw-tui` 最初完整复制自 OpenAI Codex TUI，后续按批次裁剪、改写并将实现迁移到 `crates/libs/tui-*`。当前包保留兼容重导出与集成测试。
+
+## 未激活源码清理与恢复
+
+2026-11-16 按维护者要求删除 248 个未进入编译图的旧 Rust 文件，保留快照、fixture、许可和来源记录。删除前版本为 `324e666a4e90fb562dadfa84d7a42dd53698fe38`，完整路径清单见 [边界与清理记录](../../docs/architecture/tui-crate-boundaries.md#已清理的未激活-rust-源码)。
+
+以后需要时，使用 `git show 324e666a4e90fb562dadfa84d7a42dd53698fe38:crates/vw-tui/src/<路径>` 查看旧实现，再按当前接口适配接入；恢复文件本身不会自动启用功能。
 
 ## 来源快照
 

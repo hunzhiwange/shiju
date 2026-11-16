@@ -22,13 +22,17 @@ contracts 拥有 action/event/diff/presentation 纯数据；text/input/theme/ren
 
 ## 测试与资源
 
-目标文案与 Git 解析原内联测试分别移至独立 goal_display_tests.rs、git_action_directives_tests.rs；Markdown 复制测试移至同包。Git 指令命名快照移至 tui-markdown/src/snapshots，矩阵已有 markdown 目录收集逻辑，无需改计数。原快照 source 元数据保持不变。历史插入保持 insert_history::tests 模块名与快照名，仅在 cfg(test) 接线；集成测试继续使用 vw-tui 测试后端，surface 测试直接导入 widgets；矩阵入口字符串按薄门面更新。其余既有快照、fixture 与未启用源码保留原路径，不激活复制模块。
+目标文案与 Git 解析原内联测试分别移至独立 goal_display_tests.rs、git_action_directives_tests.rs；Markdown 复制测试移至同包。Git 指令命名快照移至 tui-markdown/src/snapshots，矩阵已有 markdown 目录收集逻辑，无需改计数。原快照 source 元数据保持不变。历史插入保持 insert_history::tests 模块名与快照名，仅在 cfg(test) 接线；集成测试继续使用 vw-tui 测试后端，surface 测试直接导入 widgets；矩阵入口字符串按薄门面更新。其余既有快照与 fixture 保留原路径；未启用源码已在后续清理中删除，见下方历史清单。
 
 ## 静态证据
 
 已逐项审阅根模块声明、生产依赖、跨包导入、cfg(test) 和资源路径；执行指定的全 src 引用搜索（crate/super/include/path 等）。大量匹配属于下列未启用旧源码，不意味着生产模块遗漏。git diff --check 通过；静态结果不代表编译或行为验证。
 
-## 全部未激活 Rust 源码
+## 已清理的未激活 Rust 源码
+
+2026-11-16 按维护者要求删除以下 248 个未进入编译图的 Rust 文件（106287 行）。保留当前生产重导出、5 个已接线源码文件、全部快照和 fixture；不修改 tui-* 实现。下列清单作为历史删除记录保留，不再代表现存文件。
+
+删除前版本：`324e666a4e90fb562dadfa84d7a42dd53698fe38`。可用 `git show <版本>:<仓库相对路径>` 查看，或从该版本恢复所需文件并重新适配接线。
 
 以下路径相对 crates/vw-tui/src；仅列源码，快照等资源保留：
 
@@ -280,3 +284,9 @@ contracts 拥有 action/event/diff/presentation 纯数据；text/input/theme/ren
 - `workspace_command.rs`
 - `workspace_messages.rs`
 - `workspace_messages_tests.rs`
+
+## 清理验证（2026-11-16）
+
+- `git diff --check` 通过；仓库 Rust、Cargo、Python 与 shell 文件未发现跨目录引用被删源码的路径；保留入口的模块声明未指向被删文件。
+- 静态资源盘点通过：689 个上游命名快照、50 个适配快照、其中 20 个迁移快照保留，无 `.new` 文件。这不是行为测试通过证据。
+- 已通过槽位入口尝试 `cargo test -p vw-tui --lib upstream_snapshot_matrix`；编译被未修改的 `tui-input/src/textarea.rs:121` 既有 E0277 阻塞：`TextElement` 未实现 `Eq`。测试未运行，后续顺序命令 `cargo test -p vw-tui --lib insert_history::tests` 因前一步失败未执行。`tui-markdown` 同时报告既有 dead_code 警告。未扩大本次清理范围修复。

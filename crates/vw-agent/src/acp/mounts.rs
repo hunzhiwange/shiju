@@ -1,21 +1,12 @@
 //! Native session skill sources, retaining their private directory lease.
 use crate::agent_apps::mcp::acp_mount::ResolvedCatalogMounts;
 use crate::session::runtime::{SessionScope, SessionToolset};
-use crate::{
-    skills::session_mounts::{SessionSkillBinding, SessionSkillView},
-};
-use anyhow::Result;
 use acp_server::server::{BackendError, BackendMountRequest};
-use acp_types::{McpCatalogMount, SessionMountRevision, SessionSkillMount, SetSessionMountsResponse};
+use acp_types::{SessionMountRevision, SessionSkillMount, SetSessionMountsResponse};
 
 pub use agent_skills::session_sources::SessionSkillSources;
 
-pub(super) struct PreparedMounts {
-    pub skills: SessionSkillSources,
-    pub tools: SessionToolset,
-    pub response: SetSessionMountsResponse,
-    pub mcp_catalog: Vec<McpCatalogMount>,
-}
+pub(super) use agent_acp::mounts::PreparedMounts;
 pub(super) async fn prepare(
     scope: &SessionScope,
     session: &str,
@@ -34,42 +25,20 @@ pub(super) async fn prepare_revision(
     revision: SessionMountRevision,
     managed: ResolvedCatalogMounts,
 ) -> Result<PreparedMounts, BackendError> {
-    let prepare_error = |error: anyhow::Error| BackendError::InvalidRequest(error.to_string());
     if request.skills.as_ref().is_some_and(|selection| selection.version != 1) {
         return Err(BackendError::InvalidRequest("unsupported session mounts version".into()));
     }
-    let mounts = acp_types::SessionMountSelection::resolve(request.skills.as_ref(), Some(saved));
     let config = crate::config::get_project_for_tenant(scope.tenant(), scope.directory())
-        .await
-        .map_err(|error| BackendError::InvalidRequest(error.to_string()))?;
-    let skills = if mounts.is_empty() {
-        SessionSkillSources::default()
-    } else {
-        let view = SessionSkillView::prepare(
-            SessionSkillBinding {
-                tenant: serde_json::json!([
-                    scope.tenant().platform_id().as_ref(),
-                    scope.tenant().company_id().as_ref()
-                ])
-                .to_string(),
-                project: scope.directory().to_path_buf(),
-                session: session.into(),
-                revision: revision.0,
-            },
-            &mounts,
-            &config.skills.security,
-        )
-        .map_err(prepare_error)?;
-        SessionSkillSources::new(view, mounts.clone())
-    };
-    skills
-        .extend(crate::skills::load_skills_with_config(scope.directory(), &config), &config.skills.security, false)
-        .map_err(prepare_error)?;
+        .await.map_err(|error| BackendError::InvalidRequest(error.to_string()))?;
+    let (skills, mounts) = agent_acp::mounts::prepare_skills(
+        scope, session, &request, saved, revision, &config.skills.security,
+        || crate::skills::load_skills_with_config(scope.directory(), &config),
+    )?;
     let ResolvedCatalogMounts { leases, servers } = managed;
     request.mcp_servers.extend(servers);
     let mcp_catalog = leases.as_ref().map(|leases| leases.mounts.clone()).unwrap_or_default();
     let tools = super::mcp::prepare_session_tools(&request.mcp_servers, leases).await?;
-    skills.validate().map_err(prepare_error)?;
+    skills.validate().map_err(|error| BackendError::InvalidRequest(error.to_string()))?;
     let names = request
         .mcp_servers
         .iter()

@@ -18,3 +18,8 @@ pub mod persistence;
 mod host_migration_53_tests;
 
 pub mod mcp;
+
+pub mod mounts;
+
+#[cfg(feature = "test-support")]
+pub mod host_migration_53_mcp_contracts;

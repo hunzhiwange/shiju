@@ -119,3 +119,39 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp::backend_tests:: 
 静态预期领域过滤 1 个；宿主 backend_tests 过滤 4 个（包含真实持久化与取消）。全部剩余宿主用例按上表的原模块与名称执行；macOS catalog、Unix 权限测试遵循原 cfg，acceptance 需同槽位预先存在生产 shiju。未来宿主 --list 应不再含 acp::backend_tests::backend_maps_runtime_events_without_parsing_display_text；不能把零测试算通过。
 
 未取得编译、运行、退出码或构建性能证据。RustCodeGraph status/explore 用于导航；静态读取/差异检查不能代替行为验收。外部挂载清单未命中 acp/ 来源，未发现本族跨目录 path 挂载。
+
+## 深度恢复补充（覆盖上文相应旧归属）
+
+读取 final.md 与 remaining-host.json，原任务53保留2143行；本次继续拆分，不把早先保留说明当作验收结论。
+
+- mcp::prepare_session_tools 的同步、全量发现、去重标识、错误脱敏、SessionToolset 租约和目录组装整体归 agent-acp::mcp。宿主只创建携带真实 ConnectionHost/MountLease 的连接对象，调用领域入口。validate_server_names 仍在同步/发现之前。
+- mounts::prepare_skills 归 agent-acp::mounts，持有版本验证、selection 解析、scope binding、SessionSkillView 准备、SessionSkillSources 构造/扩展。宿主注入现有 config.skills.security 与延迟的原生技能发现闭包；先建立 overlay 租约再调用原生发现，保持既有顺序。PreparedMounts 类型归领域。宿主保留项目配置获取、managed leases 解包和真实 MCP 接线及最后租约校验。
+- mcp_conversion_preserves_supported_transport_without_logging_env / unsupported_or_failed_mcp_is_rejected_atomically：完整断言及 stdio fixture 迁入 agent-acp::host_migration_53_mcp_contracts（test-support）。原名宿主测试仅创建临时目录、注入真实 PluginConnectionHost 后调用；无 mock、无反向源码挂载，测试由宿主原注册驱动，不能声称这两项已经由 agent-acp --lib 自运行。
+- 其余原用例未修改，映射沿用前表。新增生产依赖 plugin-mcp/tool-types/tool-assembly/acp-config/agent-skills/config-skills/mcp-client，锁文件只更新 agent-acp 依赖块。config-security 原有 dev 依赖保留。
+
+当前物理宿主 2143 → 2063 行，本轮再减 80 行；初始2331行累计净减 268 行，仍低于70%。未将迁移的 test-support 断言算生产算法。
+
+| 本轮文件 | 前行 | 后行 |
+|---|---:|---:|
+| mcp_tests.rs | 152 | 136 |
+| mounts.rs | 103 | 72 |
+| mcp.rs | 76 | 43 |
+
+领域 mcp.rs 当前 78 行。
+
+领域 mounts.rs 当前 52 行。
+
+领域 host_migration_53_mcp_contracts.rs 当前 70 行。
+
+未运行任何 Cargo、构建、单元/实机测试；未取得通过数。未来原生精确过滤：
+
+```sh
+python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp::mcp_tests:: -- --test-threads=1
+python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp::mounts_tests:: -- --test-threads=1
+```
+
+静态预期分别5和7项（后者含Unix条件用例）。领域自注册事件映射仍预期1项。需要未来编译校验新增依赖与跨库类型一致性。
+
+剩余大头仍为真实 NativeAcpHost/SkillTool/FileReadTool/CLI 独立进程验收；继续可迁项是测试协议的纯修订/状态断言，而非把原生Host复制进领域。该恢复没有关闭整轮35000行门槛，交收口按本次实际数字验收。
+
+追加：mount_store::save 的完整真实租约校验与存储参数组装也归 agent-acp::mounts::save，宿主仅5行重导出。恢复当前总行数以宿主物理源码为准：2041行。

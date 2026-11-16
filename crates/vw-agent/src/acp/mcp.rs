@@ -1,57 +1,24 @@
 //! ACP 会话级 MCP 配置的验证、启动探测与动态工具发现。
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use agent_client_protocol::McpServer;
 
 use crate::agent_apps::mcp::acp_mount::AcpMountLeases;
-use crate::app::agent::tools::Tool;
 use crate::session::runtime::SessionToolset;
 use crate::tools::catalog::ToolCatalogSnapshot;
-use crate::tools::mcp_common::server_name;
 use acp_server::server::BackendError;
 
-use agent_acp::mcp::validate_server_names;
 
-/// 完整探测所有配置；任何一项失败都不返回部分工具。
+/// 宿主只注入真实连接权限和挂载租约。
 pub(crate) async fn prepare_session_tools(
     servers: &[McpServer],
     managed: Option<AcpMountLeases>,
 ) -> Result<SessionToolset, BackendError> {
-    validate_server_names(servers)?;
-    let connections =
-        Arc::new(crate::plugins::McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()).with_acp_mounts(crate::plugins::compat::mcp_connections::mount_leases(managed)));
-    let lease = SessionToolset::default().with_mcp_connections(connections.clone());
-    connections
-        .synchronize(servers)
-        .map_err(|error| BackendError::InvalidRequest(error.to_string()))?;
-    let mut tools: Vec<Arc<dyn Tool>> = Vec::new();
-    let mut existing_ids = HashSet::new();
-
-    for server in servers {
-        let reserved = existing_ids.iter().map(String::as_str).collect::<Vec<_>>();
-        let discovered = connections
-            .discover_catalog_tools(
-                server,
-                acp_config::McpServerManagement::default_for_server(server_name(server)),
-                &reserved,
-            )
-            .await
-            .map_err(|_| {
-                BackendError::InvalidRequest(format!(
-                    "MCP server '{}' failed to start",
-                    server_name(server)
-                ))
-            })?;
-
-        for tool in discovered {
-            existing_ids.insert(tool.name().to_string());
-            tools.push(tool);
-        }
-    }
-
-    Ok(lease.with_catalog(Arc::new(ToolCatalogSnapshot::from_runtime_tools(tools))))
+    agent_acp::mcp::prepare_session_tools(servers, Arc::new(
+        crate::plugins::McpSessionConnections::new(crate::plugins::compat::mcp_connections::host())
+            .with_acp_mounts(crate::plugins::compat::mcp_connections::mount_leases(managed)),
+    )).await
 }
 
 /// A new prompt starts from the bound mount snapshot, so prune even sources

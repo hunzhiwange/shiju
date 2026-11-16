@@ -26,20 +26,7 @@ mod timeouts;
 mod tool_loop;
 mod turn;
 
-// 工具循环回复目标地址的任务本地存储。
-//
-// 用于在异步任务树中传递回复目标地址（如 channel 消息的回复目标），
-// 避免在深层调用链中逐层传递参数。
-//
-// 使用场景：
-// - Channel 消息处理时，记录原始消息来源以便回复
-// - 工具执行需要向特定目标发送通知时
-//
-// 使用 `tokio::task_local!` 宏定义，确保在 Tokio 任务上下文中安全访问。
-// 值为 `Option<String>`，`None` 表示无特定回复目标。
-tokio::task_local! {
-    static TOOL_LOOP_REPLY_TARGET: Option<String>;
-}
+pub(crate) use agent_loop::core::turn::TOOL_LOOP_REPLY_TARGET;
 
 pub use errors::is_tool_iteration_limit_error;
 pub(crate) use errors::{ToolLoopCancelled, is_tool_loop_cancelled};

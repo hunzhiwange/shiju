@@ -4,8 +4,6 @@
 //! 工具执行和完成声明检测拆分到 `tool_loop/` 子模块，降低单文件职责密度。
 
 #[cfg(test)]
-mod collaboration;
-#[cfg(test)]
 mod detection;
 mod llm_round;
 mod tool_execution;
@@ -37,10 +35,6 @@ use tokio_util::sync::CancellationToken;
 use super::super::approval::TOOL_LOOP_NON_CLI_APPROVAL_CONTEXT;
 use super::super::utils::scrub_credentials;
 use super::TOOL_LOOP_REPLY_TARGET;
-#[cfg(test)]
-use super::constants::EMPTY_FINAL_RESPONSE_RETRY_PROMPT;
-#[cfg(test)]
-use super::errors::ToolLoopCancelled;
 
 /// 执行代理工具调用循环的核心函数。
 #[allow(clippy::too_many_arguments)]
@@ -110,7 +104,7 @@ pub(crate) async fn run_tool_call_loop_with_skills(
     agent_loop::core::tool_loop::run_tool_call_loop_with_skills::<super::skills::NativeCoreSkillHost, _, _>(&services(), provider, history, tools_registry, observer, provider_name, model, temperature, silent, approval, channel_name, multimodal_config, max_iterations, cancellation_token, on_delta, hooks, security, excluded_tools, skills).await
 }
 
-fn services() -> agent_loop::core::tool_loop::LoopServices<crate::tools::context::AgentContextHost, super::super::parsing::ParsedToolCall> {
+pub(super) fn services() -> agent_loop::core::tool_loop::LoopServices<crate::tools::context::AgentContextHost, super::super::parsing::ParsedToolCall> {
     use agent_loop::core::tool_loop::LoopServices;
     use super::super::progress::{DRAFT_CLEAR_SENTINEL, DRAFT_PROGRESS_SENTINEL};
     use crate::session::child_agent::coordinator::global_child_agent_coordinator;

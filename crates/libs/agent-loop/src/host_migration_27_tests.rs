@@ -184,3 +184,9 @@ fn build_native_assistant_history_from_parsed_calls(
         },
     )
 }
+
+mod host;
+mod services;
+mod tool_loop;
+mod turn;
+mod collaboration;

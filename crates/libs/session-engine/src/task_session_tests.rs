@@ -1,6 +1,6 @@
 //! 验证可见任务会话协调器的状态、归属和事件等待边界。
 
-use super::task_session::{TaskSessionCoordinator, TaskSessionState, TaskSessionWaitCondition};
+use super::{TaskSessionCoordinator, TaskSessionState, TaskSessionWaitCondition};
 use std::time::{Duration, Instant};
 
 #[tokio::test]

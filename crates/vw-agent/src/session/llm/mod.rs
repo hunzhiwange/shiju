@@ -34,7 +34,7 @@ mod model_selector;
 #[cfg(test)]
 mod model_selector_tests;
 mod options;
-mod prompt;
+pub(crate) mod prompt;
 mod stream;
 #[cfg(test)]
 #[path = "../../../../libs/llm-runtime/tests/host_suites/tests.rs"]

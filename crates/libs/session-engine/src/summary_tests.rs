@@ -2,8 +2,8 @@
 //! 摘要既可来自消息内差异，也可来自持久化补丁统计；不完整快照必须回退而非虚构数据。
 
 use super::*;
-use crate::project::instance;
-use crate::session::message;
+use agent_project::instance;
+use crate::message;
 use std::fs;
 
 // 消息夹具显式携带摘要与补丁部件，用于区分两条差异聚合来源。
@@ -116,12 +116,12 @@ fn inputs_deserialize_gateway_field_names_and_optional_message_id() {
 
 #[test]
 fn error_conversions_preserve_categories_and_display_messages() {
-    let session: Error = crate::session::session::Error::NoProjectContext.into();
+    let session: Error = crate::session_lifecycle::Error::NoProjectContext.into();
     let snapshot: Error = snapshot::Error::Git("invalid snapshot".to_string()).into();
     let llm: Error =
-        crate::session::llm::Error::ProviderNotFound("missing-provider".to_string()).into();
+        llm_runtime::Error::ProviderNotFound("missing-provider".to_string()).into();
     let storage: Error =
-        crate::app::agent::storage::Error::NotFound(crate::app::agent::storage::NotFoundError {
+        agent_storage::Error::NotFound(agent_storage::NotFoundError {
             message: "missing record".to_string(),
         })
         .into();
@@ -129,7 +129,7 @@ fn error_conversions_preserve_categories_and_display_messages() {
     assert!(matches!(&session, Error::Session(_)));
     assert!(matches!(&snapshot, Error::Snapshot(_)));
     assert!(matches!(&llm, Error::Llm(_)));
-    assert!(matches!(&storage, Error::Session(crate::session::session::Error::Storage(_))));
+    assert!(matches!(&storage, Error::Session(crate::session_lifecycle::Error::Storage(_))));
     assert_eq!(session.to_string(), "no active project context");
     assert_eq!(snapshot.to_string(), "invalid snapshot");
     assert_eq!(llm.to_string(), "provider not found: missing-provider");
@@ -547,13 +547,13 @@ async fn diff_reads_unquotes_and_rewrites_persisted_diff_paths() {
         deletions: 0,
         status: Some(snapshot::DiffStatus::Added),
     }];
-    crate::app::agent::storage::write(&["session_diff", &session_id], &stored).await.unwrap();
+    agent_storage::write(&["session_diff", &session_id], &stored).await.unwrap();
 
     let diffs = diff(DiffInput { session_id: session_id.clone(), message_id: None }).await;
 
     assert_eq!(diffs[0].file, "café.txt");
     let rewritten =
-        crate::app::agent::storage::read::<Vec<snapshot::FileDiff>>(&["session_diff", &session_id])
+        agent_storage::read::<Vec<snapshot::FileDiff>>(&["session_diff", &session_id])
             .await
             .unwrap();
     assert_eq!(rewritten[0].file, "café.txt");
@@ -603,7 +603,7 @@ async fn diff_recomputes_stale_empty_cache_from_session_messages() {
 // 端到端验证：工具创建未跟踪文件后，diff() 应回退到实时计算并返回 Added 状态。
 #[tokio::test]
 async fn diff_fallback_includes_untracked_file_as_added() {
-    use crate::snapshot;
+    use agent_snapshot as snapshot;
 
     // 临时 git 仓库需要系统 git 可用
     let _env_guard = {
@@ -627,28 +627,28 @@ async fn diff_fallback_includes_untracked_file_as_added() {
     let worktree = dir.path();
 
     // 初始化临时 git 仓库
-    crate::app::agent::shell::git_std_command()
+    shell_command::git_std_command()
         .current_dir(worktree)
         .args(["init"])
         .output()
         .expect("git init");
-    crate::app::agent::shell::git_std_command()
+    shell_command::git_std_command()
         .current_dir(worktree)
         .args(["config", "user.name", "Test"])
         .output()
         .expect("git config name");
-    crate::app::agent::shell::git_std_command()
+    shell_command::git_std_command()
         .current_dir(worktree)
         .args(["config", "user.email", "test@example.com"])
         .output()
         .expect("git config email");
     fs::write(worktree.join("initial.txt"), "initial\n").expect("write initial");
-    crate::app::agent::shell::git_std_command()
+    shell_command::git_std_command()
         .current_dir(worktree)
         .args(["add", "."])
         .output()
         .expect("git add");
-    crate::app::agent::shell::git_std_command()
+    shell_command::git_std_command()
         .current_dir(worktree)
         .args(["commit", "-m", "init"])
         .output()

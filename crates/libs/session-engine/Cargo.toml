@@ -9,6 +9,7 @@ doctest = false
 
 [dependencies]
 agent-log = { path = "../agent-log", version = "0.6.0" }
+agent-provider = { path = "../agent-provider", version = "0.6.0" }
 session-text = { path = "../session-text", version = "0.6.0" }
 time = "0.3"
 agent-snapshot = { path = "../agent-snapshot", version = "0.6.0" }
@@ -71,5 +72,6 @@ session-info = { path = "../session-info", version = "0.6.0" }
 aisdk = { git = "https://github.com/hunzhiwange/aisdk.git", rev = "3401d28a7353c6e90cf4372f52c682cb2d02986b", package = "vibewindow-aisdk", version = ">=0.7.1", features = ["full"] }
 
 [dev-dependencies]
+shell-command = { path = "../shell-command", version = "0.6.0" }
 tempfile = "3"
 uuid = { version = "1.11", features = ["v4", "js"] }

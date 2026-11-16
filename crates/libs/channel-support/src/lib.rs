@@ -19,3 +19,8 @@ mod root_contract_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod host_migration_42_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_43_tests;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod blocking;

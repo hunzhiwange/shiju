@@ -48,7 +48,7 @@ message-types = { path = "../message-types", version = "0.6.0" }
 agent-database = { path = "../agent-database", version = "0.6.0" }
 session-store = { path = "../session-store", version = "0.6.0" }
 hostname = "0.4"
-tokio = { version = "1", features = ["fs"] }
+tokio = { version = "1", features = ["fs", "rt-multi-thread", "time", "net"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

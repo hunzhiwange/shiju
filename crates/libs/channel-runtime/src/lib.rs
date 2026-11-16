@@ -22,3 +22,7 @@ mod host_migration_41_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod host_migration_42_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod host_migration_43_tests;
+pub mod prompt;

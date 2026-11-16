@@ -276,9 +276,6 @@ pub(crate) use channel_support::routing::load_cached_model_preview;
 /// 当用户执行 `/models` 命令或请求查看可用模型时调用。
 pub(crate) use channel_support::routing::build_models_help_response;
 
-#[cfg(test)]
-#[path = "routing_tests.rs"]
-mod routing_tests;
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn resolve_provider_alias(_name: &str) -> Result<Option<String>, provider::CatalogError> { Ok(None) }

@@ -1,16 +1,18 @@
 // 本文件验证消息提供者路由、模型分类、覆盖缓存与回退选择。
 
-use super::*;
-use crate::app::agent::approval::ApprovalManager;
-use crate::app::agent::config::{
+use crate::routing::*;
+use crate::runtime_state::ChannelRuntimeContext;
+use crate::config::runtime_defaults_snapshot;
+use agent_approval::ApprovalManager;
+use agent_config::runtime_schema::{
     AutonomyConfig, ClassificationRule, ModelRouteConfig, QueryClassificationConfig,
     ReliabilityConfig,
 };
-use crate::app::agent::memory::NoneMemory;
-use crate::app::agent::observability::NoopObserver;
+use agent_memory::NoneMemory;
+use agent_observability::NoopObserver;
 use model_types::{ChatMessage, Provider};
-use crate::app::agent::providers::ProviderRuntimeOptions;
-use crate::app::agent::tools::Tool;
+use agent_providers::ProviderRuntimeOptions;
+use tool_types::Tool;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -67,7 +69,7 @@ fn context(workspace_dir: &Path) -> ChannelRuntimeContext {
         workspace_dir: Arc::new(PathBuf::from(workspace_dir)),
         message_timeout_secs: 30,
         interrupt_on_new_message: false,
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime_schema::MultimodalConfig::default(),
         hooks: None,
         non_cli_excluded_tools: Arc::new(Mutex::new(Vec::new())),
         query_classification: QueryClassificationConfig::default(),
@@ -76,26 +78,26 @@ fn context(workspace_dir: &Path) -> ChannelRuntimeContext {
     }
 }
 
-#[test]
-fn resolve_provider_alias_normalizes_known_provider_id_case() {
-    let ids = available_provider_ids().unwrap();
+#[tokio::test]
+async fn resolve_provider_alias_normalizes_known_provider_id_case() {
+    let ids = available_provider_ids().await.unwrap();
     if let Some(first) = ids.first() {
         assert_eq!(
-            resolve_provider_alias(&first.to_ascii_uppercase()).unwrap(),
+            resolve_provider_alias(&first.to_ascii_uppercase()).await.unwrap(),
             Some(first.clone())
         );
     }
-    assert_eq!(resolve_provider_alias("unknown-provider").unwrap(), None);
+    assert_eq!(resolve_provider_alias("unknown-provider").await.unwrap(), None);
 }
 
-#[test]
-fn resolve_provider_alias_rejects_blank_input() {
-    assert_eq!(resolve_provider_alias("   ").unwrap(), None);
+#[tokio::test]
+async fn resolve_provider_alias_rejects_blank_input() {
+    assert_eq!(resolve_provider_alias("   ").await.unwrap(), None);
 }
 
-#[test]
-fn available_provider_ids_is_sorted() {
-    let ids = available_provider_ids().unwrap();
+#[tokio::test]
+async fn available_provider_ids_is_sorted() {
+    let ids = available_provider_ids().await.unwrap();
     let mut sorted = ids.clone();
     sorted.sort();
 
@@ -107,16 +109,16 @@ fn route_selection_defaults_to_runtime_defaults_and_removes_default_override() {
     let temp = tempfile::tempdir().unwrap();
     let ctx = context(temp.path());
 
-    assert_eq!(default_route_selection(&ctx), route("default-provider", "default-model", false));
+    assert_eq!(default_route_selection(runtime_defaults_snapshot(&ctx)), route("default-provider", "default-model", false));
     assert_eq!(
         get_route_selection(&ctx, "sender"),
         route("default-provider", "default-model", false)
     );
 
-    set_route_selection(&ctx, "sender", route("other-provider", "other-model", true));
+    set_route_selection(&ctx.route_overrides, default_route_selection(runtime_defaults_snapshot(&ctx)), "sender", route("other-provider", "other-model", true));
     assert_eq!(get_route_selection(&ctx, "sender"), route("other-provider", "other-model", true));
 
-    set_route_selection(&ctx, "sender", route("default-provider", "default-model", false));
+    set_route_selection(&ctx.route_overrides, default_route_selection(runtime_defaults_snapshot(&ctx)), "sender", route("default-provider", "default-model", false));
     assert_eq!(
         get_route_selection(&ctx, "sender"),
         route("default-provider", "default-model", false)
@@ -142,10 +144,10 @@ fn route_selection_recovers_from_poisoned_override_lock() {
     assert!(ctx.route_overrides.is_poisoned());
     assert_eq!(get_route_selection(&ctx, "sender"), default_route);
 
-    set_route_selection(&ctx, "sender", custom_route.clone());
+    set_route_selection(&ctx.route_overrides, default_route_selection(runtime_defaults_snapshot(&ctx)), "sender", custom_route.clone());
     assert_eq!(get_route_selection(&ctx, "sender"), custom_route);
 
-    set_route_selection(&ctx, "sender", default_route.clone());
+    set_route_selection(&ctx.route_overrides, default_route_selection(runtime_defaults_snapshot(&ctx)), "sender", default_route.clone());
     assert_eq!(get_route_selection(&ctx, "sender"), default_route);
     assert!(!ctx.route_overrides.lock().unwrap_or_else(|e| e.into_inner()).contains_key("sender"));
 }
@@ -172,10 +174,10 @@ fn classify_message_route_returns_matching_model_route() {
     }];
 
     assert_eq!(
-        classify_message_route(&ctx, "Please write Rust code"),
+        classify_message_route(&ctx.query_classification, &ctx.model_routes, "Please write Rust code"),
         Some(route("code-provider", "code-model", false))
     );
-    assert_eq!(classify_message_route(&ctx, "hello"), None);
+    assert_eq!(classify_message_route(&ctx.query_classification, &ctx.model_routes, "hello"), None);
 }
 
 #[test]
@@ -191,7 +193,7 @@ fn classify_message_route_returns_none_when_hint_has_no_model_route() {
         }],
     };
 
-    assert_eq!(classify_message_route(&ctx, "route-me"), None);
+    assert_eq!(classify_message_route(&ctx.query_classification, &ctx.model_routes, "route-me"), None);
 }
 
 #[test]
@@ -207,7 +209,7 @@ fn classify_message_route_returns_none_when_classification_is_disabled() {
     }];
 
     assert!(!ctx.query_classification.enabled);
-    assert_eq!(classify_message_route(&ctx, "Please write Rust code"), None);
+    assert_eq!(classify_message_route(&ctx.query_classification, &ctx.model_routes, "Please write Rust code"), None);
 }
 
 #[test]

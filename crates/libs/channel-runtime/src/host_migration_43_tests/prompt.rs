@@ -1,10 +1,12 @@
 // 本文件验证渠道提示词组装时的工具说明与记忆能力上下文。
 
-use super::*;
-use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry};
-use crate::app::agent::tools::{Tool, ToolResult};
-use crate::session::instruction::{InstructionSource, Resolved};
-use crate::session::llm::{
+use crate::prompt::*;
+use model_types::ChatMessage;
+use channel_support::prompt::{MEMORY_CONTEXT_MAX_CHARS, MEMORY_CONTEXT_ENTRY_MAX_CHARS};
+use agent_memory::{Memory, MemoryCategory, MemoryEntry};
+use tool_types::{Tool, ToolResult};
+use session_engine::instruction::{InstructionSource, Resolved};
+use model_selection::{
     ModelReference, ModelSelectionDecision, ModelSelectionSource, ModelTaskProfile,
 };
 use serde_json::{Value, json};
@@ -156,10 +158,10 @@ fn entrypoint_context_all_external_paths_share_agents_skill_contract() {
         }],
         diagnostics: Vec::new(),
     }];
-    let skills = vec![crate::app::agent::skills::Skill {
+    let skills = vec![agent_skills::Skill {
         name: "verify".to_string(),
         description: "Verify the completed work.".to_string(),
-        ..crate::app::agent::skills::Skill::default()
+        ..agent_skills::Skill::default()
     }];
 
     let expected = build_entrypoint_protocol_messages(&instructions, &skills, true, 8_192);
@@ -391,7 +393,7 @@ fn load_openclaw_bootstrap_files_does_not_include_bootstrap_file() {
 fn workspace_identity_context_accepts_identity_config_and_default_limit() {
     let temp = tempfile::tempdir().unwrap();
     std::fs::write(temp.path().join("AGENTS.md"), "agent notes").unwrap();
-    let identity_config = crate::app::agent::config::IdentityConfig {
+    let identity_config = agent_config::runtime_schema::IdentityConfig {
         format: "aieos".to_string(),
         aieos_path: Some("identity.json".to_string()),
         aieos_inline: None,
@@ -414,7 +416,7 @@ fn system_prompt_includes_tools_workspace_runtime_and_execution_style() {
         None,
         Some(20),
         true,
-        crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+        agent_config::runtime_schema::SkillsPromptInjectionMode::Compact,
         chrono_tz::Asia::Shanghai,
     );
 
@@ -443,7 +445,7 @@ fn system_prompt_adds_default_multi_agent_policy_only_when_agent_tool_available(
             None,
             None,
             native_tools,
-            crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+            agent_config::runtime_schema::SkillsPromptInjectionMode::Compact,
             chrono_tz::Asia::Shanghai,
         );
         for expected in [
@@ -471,7 +473,7 @@ fn system_prompt_adds_default_multi_agent_policy_only_when_agent_tool_available(
             None,
             None,
             native_tools,
-            crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+            agent_config::runtime_schema::SkillsPromptInjectionMode::Compact,
             chrono_tz::Asia::Shanghai,
         );
         assert!(!without_agent_tool.contains("not genuinely simple and single-step"));
@@ -491,7 +493,7 @@ fn system_prompt_teaches_event_driven_subagent_wait_and_synthesis() {
             None,
             None,
             native_tools,
-            crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+            agent_config::runtime_schema::SkillsPromptInjectionMode::Compact,
             chrono_tz::Asia::Shanghai,
         );
         for expected in [
@@ -522,7 +524,7 @@ fn system_prompt_teaches_event_driven_subagent_wait_and_synthesis() {
             None,
             None,
             native_tools,
-            crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+            agent_config::runtime_schema::SkillsPromptInjectionMode::Compact,
             chrono_tz::Asia::Shanghai,
         );
         assert!(!without_agent_tool.contains("Continue useful parent work"));
@@ -550,7 +552,7 @@ fn system_prompt_default_wrapper_uses_xml_task_text() {
 #[test]
 fn system_prompt_with_compact_skill_mode_excludes_static_skill_content() {
     let temp = tempfile::tempdir().unwrap();
-    let skill = crate::app::agent::skills::Skill {
+    let skill = agent_skills::Skill {
         name: "do-task-plans".to_string(),
         description: "executes task plans".to_string(),
         version: "1.0.0".to_string(),
@@ -559,7 +561,7 @@ fn system_prompt_with_compact_skill_mode_excludes_static_skill_content() {
         tools: Vec::new(),
         prompts: vec!["follow the written task plan".to_string()],
         location: Some(temp.path().join("skills/do-task-plans/SKILL.md")),
-        ..crate::app::agent::skills::Skill::default()
+        ..agent_skills::Skill::default()
     };
     let prompt = build_system_prompt_with_mode(
         temp.path(),
@@ -569,7 +571,7 @@ fn system_prompt_with_compact_skill_mode_excludes_static_skill_content() {
         None,
         Some(50),
         false,
-        crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+        agent_config::runtime_schema::SkillsPromptInjectionMode::Compact,
         chrono_tz::Asia::Shanghai,
     );
 

@@ -4653,6 +4653,7 @@ dependencies = [
  "config-channels",
  "hex",
  "model-reasoning",
+ "model-selection",
  "model-types",
  "runtime-types",
  "serde_json",

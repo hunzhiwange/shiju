@@ -1,0 +1,349 @@
+# 任务43迁移证据
+
+代码及接线完成；所有 Cargo、构建、编译、行为、单元和实机检查均未运行（用户明确禁止）。静态核对不等同测试通过。
+
+## 生产与依赖方向
+
+宿主 channels::prompt 重导出 channel_runtime::prompt；网关/通道的既有 build_entrypoint_protocol_messages、build_system_prompt[_with_mode]、build_runtime_tool_visibility_prompt 调用因此进入运行库。工作空间指令解析 build_workspace_protocol_messages 保留宿主 session::prompt 端口。运行库使用已有 session-engine、agent-loop、channel-support 依赖，不反向依赖 vw-agent。
+
+实际迁出生产函数：build_entrypoint_protocol_messages、build_runtime_tool_visibility_prompt、build_system_prompt、build_system_prompt_with_mode；block_on_future 迁入 channel-support::blocking，session processor 与同步路由目录调用通过宿主唯一重导出使用。其余原有 channel-support 函数仅迁测试，不计新生产收益。
+
+channel-runtime 新增生产 chrono-tz 声明（原 dev 已有，锁文件依赖条目已包含）；channel-support 原生 tokio 增加 rt-multi-thread/time/net，以保持 block_in_place 与 enable_all 行为。没有引入新包或改变权限。
+
+## 全来源映射与保留职责
+
+同路径 splitlines：2763 → 1467 行，净减 1296 行（46.9%）。未达70%，不得视为减量门槛通过。
+
+- `crates/vw-agent/src/channels/mod.rs`：369 → 334 行。保留实际宿主装配、功能/平台门控、公开兼容入口和其他任务拥有的模块挂载；仅迁本任务 blocking 定义。后续可由收口检查无调用兼容模块/常量，不能删除其他任务挂载。
+
+- `crates/vw-agent/src/channels/mod_tests.rs`：53 → 35 行。保留 root_module_reexports_core_channel_types 与 native_channel_reexports_are_constructible，证明宿主公开入口确实连到通道实现；阻塞桥两用例迁入 support。
+
+- `crates/vw-agent/src/channels/nextcloud_talk/mod.rs`：2 → 2 行。保留实际宿主装配、功能/平台门控、公开兼容入口和其他任务拥有的模块挂载；仅迁本任务 blocking 定义。后续可由收口检查无调用兼容模块/常量，不能删除其他任务挂载。
+
+- `crates/vw-agent/src/channels/nostr/mod.rs`：3 → 3 行。保留实际宿主装配、功能/平台门控、公开兼容入口和其他任务拥有的模块挂载；仅迁本任务 blocking 定义。后续可由收口检查无调用兼容模块/常量，不能删除其他任务挂载。
+
+- `crates/vw-agent/src/channels/outbound_delivery.rs`：2 → 2 行。稳定公开兼容 re-export（平台/特性门控由父模块负责），无新增生产算法；保留现有调用路径，后续仅在调用者统一改用领域 crate 后可删。
+
+- `crates/vw-agent/src/channels/outbound_format.rs`：2 → 2 行。稳定公开兼容 re-export（平台/特性门控由父模块负责），无新增生产算法；保留现有调用路径，后续仅在调用者统一改用领域 crate 后可删。
+
+- `crates/vw-agent/src/channels/prompt.rs`：349 → 20 行。仅保留 build_workspace_protocol_messages：宿主读取实际工作空间指令；其余组装及原文档归运行库。
+
+- `crates/vw-agent/src/channels/prompt_tests.rs`：580 → 0 行。整组迁入 channel-runtime::host_migration_43_tests::prompt。
+
+- `crates/vw-agent/src/channels/qq/mod.rs`：2 → 2 行。保留实际宿主装配、功能/平台门控、公开兼容入口和其他任务拥有的模块挂载；仅迁本任务 blocking 定义。后续可由收口检查无调用兼容模块/常量，不能删除其他任务挂载。
+
+- `crates/vw-agent/src/channels/routing.rs`：284 → 281 行。保留同步目录边界、上下文 defaults/classification/override 参数投影和公共路径；算法已在 support，不能重复计迁移。继续可迁：调用方异步化后消除同步桥和冗余投影。
+
+- `crates/vw-agent/src/channels/routing_tests.rs`：268 → 0 行。整组迁入 channel-support::host_migration_43_tests::routing；目录查询改为 await 真实领域入口，断言保留。
+
+- `crates/vw-agent/src/channels/scope.rs`：27 → 27 行。保留具体会话/租户/项目 task-local、事务存储、标题任务及运行入口适配；策略已归 support。继续可迁：session processor事件转换需 processor Request/StreamEvent 端口所有者统一抽取。
+
+- `crates/vw-agent/src/channels/scope_delivery_tests.rs`：44 → 44 行。真实 process_channel_message 宿主端口验收：命令目录、实例投递及路由归属，依赖宿主 catalog_context；不能用模拟执行器取代。
+
+- `crates/vw-agent/src/channels/session.rs`：213 → 213 行。保留具体会话/租户/项目 task-local、事务存储、标题任务及运行入口适配；策略已归 support。继续可迁：session processor事件转换需 processor Request/StreamEvent 端口所有者统一抽取。
+
+- `crates/vw-agent/src/channels/session_tests.rs`：473 → 410 行。角色转换及五个身份隔离测试归 support；保留真实 processor、租户 task-local、项目数据库注册、会话 reserve/discard 和隔离子进程验收，不能以模拟端口替代。registered_context/channel_message 被宿主命令测试直接调用。继续可迁：分离绑定优先级/无效绑定及项目路由隔离断言，需将真实数据库上下文夹具与会话宿主验收分别注册。
+
+- `crates/vw-agent/src/channels/session_turn.rs`：61 → 61 行。保留具体会话/租户/项目 task-local、事务存储、标题任务及运行入口适配；策略已归 support。继续可迁：session processor事件转换需 processor Request/StreamEvent 端口所有者统一抽取。
+
+- `crates/vw-agent/src/channels/signal/mod.rs`：3 → 3 行。保留实际宿主装配、功能/平台门控、公开兼容入口和其他任务拥有的模块挂载；仅迁本任务 blocking 定义。后续可由收口检查无调用兼容模块/常量，不能删除其他任务挂载。
+
+- `crates/vw-agent/src/channels/slack/mod.rs`：2 → 2 行。保留实际宿主装配、功能/平台门控、公开兼容入口和其他任务拥有的模块挂载；仅迁本任务 blocking 定义。后续可由收口检查无调用兼容模块/常量，不能删除其他任务挂载。
+
+- `crates/vw-agent/src/channels/telegram/mod.rs`：2 → 2 行。保留实际宿主装配、功能/平台门控、公开兼容入口和其他任务拥有的模块挂载；仅迁本任务 blocking 定义。后续可由收口检查无调用兼容模块/常量，不能删除其他任务挂载。
+
+- `crates/vw-agent/src/channels/traits/mod.rs`：3 → 3 行。保留实际宿主装配、功能/平台门控、公开兼容入口和其他任务拥有的模块挂载；仅迁本任务 blocking 定义。后续可由收口检查无调用兼容模块/常量，不能删除其他任务挂载。
+
+- `crates/vw-agent/src/channels/wati/mod.rs`：2 → 2 行。保留实际宿主装配、功能/平台门控、公开兼容入口和其他任务拥有的模块挂载；仅迁本任务 blocking 定义。后续可由收口检查无调用兼容模块/常量，不能删除其他任务挂载。
+
+- `crates/vw-agent/src/channels/wechat/mod.rs`：2 → 2 行。保留实际宿主装配、功能/平台门控、公开兼容入口和其他任务拥有的模块挂载；仅迁本任务 blocking 定义。后续可由收口检查无调用兼容模块/常量，不能删除其他任务挂载。
+
+- `crates/vw-agent/src/channels/wecom/mod.rs`：2 → 2 行。保留实际宿主装配、功能/平台门控、公开兼容入口和其他任务拥有的模块挂载；仅迁本任务 blocking 定义。后续可由收口检查无调用兼容模块/常量，不能删除其他任务挂载。
+
+- `crates/vw-agent/src/channels/whatsapp/mod.rs`：10 → 10 行。保留实际宿主装配、功能/平台门控、公开兼容入口和其他任务拥有的模块挂载；仅迁本任务 blocking 定义。后续可由收口检查无调用兼容模块/常量，不能删除其他任务挂载。
+
+- `crates/vw-agent/src/channels/whatsapp_storage/mod.rs`：3 → 3 行。保留实际宿主装配、功能/平台门控、公开兼容入口和其他任务拥有的模块挂载；仅迁本任务 blocking 定义。后续可由收口检查无调用兼容模块/常量，不能删除其他任务挂载。
+
+- `crates/vw-agent/src/channels/whatsapp_web/mod.rs`：2 → 2 行。保留实际宿主装配、功能/平台门控、公开兼容入口和其他任务拥有的模块挂载；仅迁本任务 blocking 定义。后续可由收口检查无调用兼容模块/常量，不能删除其他任务挂载。
+
+## 全函数与测试映射（原名保留）
+
+以下含非 #[test] 的夹具及异步行为函数；保留函数继续由原宿主注册/调用，不冒充新领域测试。
+
+- `crates/vw-agent/src/channels/mod.rs::block_on_future` → `crates/libs/channel-support/src/blocking.rs::block_on_future`
+
+- `crates/vw-agent/src/channels/mod_tests.rs::root_module_reexports_core_channel_types` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/mod_tests.rs::assert_channel` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/mod_tests.rs::native_channel_reexports_are_constructible` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/mod_tests.rs::block_on_future_runs_outside_runtime` → `crates/libs/channel-support/src/host_migration_43_tests/blocking.rs::block_on_future_runs_outside_runtime`
+
+- `crates/vw-agent/src/channels/mod_tests.rs::block_on_future_runs_inside_runtime` → `crates/libs/channel-support/src/host_migration_43_tests/blocking.rs::block_on_future_runs_inside_runtime`
+
+- `crates/vw-agent/src/channels/prompt.rs::build_entrypoint_protocol_messages` → `crates/libs/channel-runtime/src/prompt.rs::build_entrypoint_protocol_messages`
+
+- `crates/vw-agent/src/channels/prompt.rs::build_workspace_protocol_messages` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/prompt.rs::build_runtime_tool_visibility_prompt` → `crates/libs/channel-runtime/src/prompt.rs::build_runtime_tool_visibility_prompt`
+
+- `crates/vw-agent/src/channels/prompt.rs::build_system_prompt` → `crates/libs/channel-runtime/src/prompt.rs::build_system_prompt`
+
+- `crates/vw-agent/src/channels/prompt.rs::build_system_prompt_with_mode` → `crates/libs/channel-runtime/src/prompt.rs::build_system_prompt_with_mode`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::name` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::name`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::description` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::description`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::parameters_schema` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::parameters_schema`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::execute` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::execute`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::name` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::name`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::store` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::store`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::recall` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::recall`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::get` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::get`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::list` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::list`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::forget` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::forget`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::count` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::count`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::health_check` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::health_check`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::memory_entry` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::memory_entry`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::channel_system_prompt_keeps_cli_plain_when_no_context` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::channel_system_prompt_keeps_cli_plain_when_no_context`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::channel_system_prompt_adds_delivery_visibility_and_delivery_context` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::channel_system_prompt_adds_delivery_visibility_and_delivery_context`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::channel_system_prompt_can_allow_explicit_execution_details` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::channel_system_prompt_can_allow_explicit_execution_details`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::channel_system_prompt_uses_visibility_as_root_for_unknown_non_cli_channel` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::channel_system_prompt_uses_visibility_as_root_for_unknown_non_cli_channel`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::channel_system_prompt_uses_delivery_instructions_when_base_is_empty` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::channel_system_prompt_uses_delivery_instructions_when_base_is_empty`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::entrypoint_context_all_external_paths_share_agents_skill_contract` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::entrypoint_context_all_external_paths_share_agents_skill_contract`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::selection_trace_redacts_prompt` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::selection_trace_redacts_prompt`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::channel_auto_uses_selected_model` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::channel_auto_uses_selected_model`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::runtime_tool_visibility_sorts_filters_and_uses_native_protocol_text` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::runtime_tool_visibility_sorts_filters_and_uses_native_protocol_text`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::runtime_tool_visibility_reports_no_tools_and_xml_protocol` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::runtime_tool_visibility_reports_no_tools_and_xml_protocol`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::runtime_tool_visibility_xml_protocol_lists_sorted_tools_and_exclusions` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::runtime_tool_visibility_xml_protocol_lists_sorted_tools_and_exclusions`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::memory_context_skip_predicate_handles_special_keys_and_size` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::memory_context_skip_predicate_handles_special_keys_and_size`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::memory_context_filters_scores_special_keys_and_truncates_long_entries` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::memory_context_filters_scores_special_keys_and_truncates_long_entries`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::memory_context_is_empty_when_recall_fails_or_filters_everything` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::memory_context_is_empty_when_recall_fails_or_filters_everything`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::memory_context_limits_included_entries_to_maximum` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::memory_context_limits_included_entries_to_maximum`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::memory_context_stops_when_total_character_budget_would_be_exceeded` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::memory_context_stops_when_total_character_budget_would_be_exceeded`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::inject_workspace_file_handles_present_missing_empty_and_truncated_files` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::inject_workspace_file_handles_present_missing_empty_and_truncated_files`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::workspace_identity_context_loads_openclaw_bootstrap_files` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::workspace_identity_context_loads_openclaw_bootstrap_files`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::load_openclaw_bootstrap_files_does_not_include_bootstrap_file` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::load_openclaw_bootstrap_files_does_not_include_bootstrap_file`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::workspace_identity_context_accepts_identity_config_and_default_limit` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::workspace_identity_context_accepts_identity_config_and_default_limit`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::system_prompt_includes_tools_workspace_runtime_and_execution_style` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::system_prompt_includes_tools_workspace_runtime_and_execution_style`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::system_prompt_adds_default_multi_agent_policy_only_when_agent_tool_available` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::system_prompt_adds_default_multi_agent_policy_only_when_agent_tool_available`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::system_prompt_teaches_event_driven_subagent_wait_and_synthesis` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::system_prompt_teaches_event_driven_subagent_wait_and_synthesis`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::system_prompt_default_wrapper_uses_xml_task_text` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::system_prompt_default_wrapper_uses_xml_task_text`
+
+- `crates/vw-agent/src/channels/prompt_tests.rs::system_prompt_with_compact_skill_mode_excludes_static_skill_content` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::system_prompt_with_compact_skill_mode_excludes_static_skill_content`
+
+- `crates/vw-agent/src/channels/routing.rs::available_provider_ids` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/routing.rs::available_provider_ids` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/routing.rs::resolve_provider_alias` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/routing.rs::default_route_selection` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/routing.rs::classify_message_route` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/routing.rs::set_route_selection` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/routing.rs::resolve_provider_alias` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/routing_tests.rs::chat_with_system` → `crates/libs/channel-support/src/host_migration_43_tests/routing.rs::chat_with_system`
+
+- `crates/vw-agent/src/channels/routing_tests.rs::route` → `crates/libs/channel-support/src/host_migration_43_tests/routing.rs::route`
+
+- `crates/vw-agent/src/channels/routing_tests.rs::context` → `crates/libs/channel-support/src/host_migration_43_tests/routing.rs::context`
+
+- `crates/vw-agent/src/channels/routing_tests.rs::resolve_provider_alias_normalizes_known_provider_id_case` → `crates/libs/channel-support/src/host_migration_43_tests/routing.rs::resolve_provider_alias_normalizes_known_provider_id_case`
+
+- `crates/vw-agent/src/channels/routing_tests.rs::resolve_provider_alias_rejects_blank_input` → `crates/libs/channel-support/src/host_migration_43_tests/routing.rs::resolve_provider_alias_rejects_blank_input`
+
+- `crates/vw-agent/src/channels/routing_tests.rs::available_provider_ids_is_sorted` → `crates/libs/channel-support/src/host_migration_43_tests/routing.rs::available_provider_ids_is_sorted`
+
+- `crates/vw-agent/src/channels/routing_tests.rs::route_selection_defaults_to_runtime_defaults_and_removes_default_override` → `crates/libs/channel-support/src/host_migration_43_tests/routing.rs::route_selection_defaults_to_runtime_defaults_and_removes_default_override`
+
+- `crates/vw-agent/src/channels/routing_tests.rs::route_selection_recovers_from_poisoned_override_lock` → `crates/libs/channel-support/src/host_migration_43_tests/routing.rs::route_selection_recovers_from_poisoned_override_lock`
+
+- `crates/vw-agent/src/channels/routing_tests.rs::classify_message_route_returns_matching_model_route` → `crates/libs/channel-support/src/host_migration_43_tests/routing.rs::classify_message_route_returns_matching_model_route`
+
+- `crates/vw-agent/src/channels/routing_tests.rs::classify_message_route_returns_none_when_hint_has_no_model_route` → `crates/libs/channel-support/src/host_migration_43_tests/routing.rs::classify_message_route_returns_none_when_hint_has_no_model_route`
+
+- `crates/vw-agent/src/channels/routing_tests.rs::classify_message_route_returns_none_when_classification_is_disabled` → `crates/libs/channel-support/src/host_migration_43_tests/routing.rs::classify_message_route_returns_none_when_classification_is_disabled`
+
+- `crates/vw-agent/src/channels/routing_tests.rs::load_cached_model_preview_handles_missing_invalid_and_limited_cache` → `crates/libs/channel-support/src/host_migration_43_tests/routing.rs::load_cached_model_preview_handles_missing_invalid_and_limited_cache`
+
+- `crates/vw-agent/src/channels/routing_tests.rs::build_models_help_response_includes_cached_models_or_refresh_hint` → `crates/libs/channel-support/src/host_migration_43_tests/routing.rs::build_models_help_response_includes_cached_models_or_refresh_hint`
+
+- `crates/vw-agent/src/channels/scope.rs::resolve_channel_message_snapshot` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/scope.rs::scoped_history_key` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/scope.rs::channel_chat_gate` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/scope_delivery_tests.rs::name` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::name`
+
+- `crates/vw-agent/src/channels/scope_delivery_tests.rs::send` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/scope_delivery_tests.rs::listen` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/scope_delivery_tests.rs::channel_project_scope_instance_reply_and_route_stay_with_sender` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session.rs::clear_sender_session_id` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session.rs::resolve_or_create_sender_session_id` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session.rs::owned_channel_sessions` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session.rs::create_channel_session` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session.rs::run_session_processor_for_channel` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session.rs::collect_channel_response` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session.rs::get` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::get`
+
+- `crates/vw-agent/src/channels/session.rs::reserve` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session.rs::discard` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session.rs::channel_prompt_event` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_tests.rs::chat_with_system` → `crates/libs/channel-support/src/host_migration_43_tests/routing.rs::chat_with_system`
+
+- `crates/vw-agent/src/channels/session_tests.rs::channel_message` → `crates/libs/channel-support/src/host_migration_43_tests/session.rs::channel_message`
+
+- `crates/vw-agent/src/channels/session_tests.rs::test_context` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_tests.rs::processor_request` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_tests.rs::run_session_processor_for_channel_accumulates_and_forwards_docs_output` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_tests.rs::run_session_processor_for_channel_propagates_docs_error` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_tests.rs::to_session_history_maps_known_roles_and_skips_unknown_roles` → `crates/libs/channel-support/src/host_migration_43_tests/session.rs::to_session_history_maps_known_roles_and_skips_unknown_roles`
+
+- `crates/vw-agent/src/channels/session_tests.rs::channel_project_scope_rooms_have_independent_history` → `crates/libs/channel-support/src/host_migration_43_tests/session.rs::channel_project_scope_rooms_have_independent_history`
+
+- `crates/vw-agent/src/channels/session_tests.rs::channel_project_scope_instances_have_independent_history` → `crates/libs/channel-support/src/host_migration_43_tests/session.rs::channel_project_scope_instances_have_independent_history`
+
+- `crates/vw-agent/src/channels/session_tests.rs::channel_project_scope_threads_have_independent_history` → `crates/libs/channel-support/src/host_migration_43_tests/session.rs::channel_project_scope_threads_have_independent_history`
+
+- `crates/vw-agent/src/channels/session_tests.rs::channel_project_scope_senders_have_independent_history` → `crates/libs/channel-support/src/host_migration_43_tests/session.rs::channel_project_scope_senders_have_independent_history`
+
+- `crates/vw-agent/src/channels/session_tests.rs::channel_project_scope_identity_delimiters_do_not_collide` → `crates/libs/channel-support/src/host_migration_43_tests/session.rs::channel_project_scope_identity_delimiters_do_not_collide`
+
+- `crates/vw-agent/src/channels/session_tests.rs::registered_context` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_tests.rs::channel_project_scope_binding_priority_and_immutable_snapshot` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_tests.rs::channel_project_scope_invalid_binding_preserves_state` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_tests.rs::channel_project_scope_sessions_follow_snapshot_and_isolate_rooms` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_tests.rs::channel_project_scope_project_history_and_routes_are_independent` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_tests.rs::channel_project_scope_unavailable_directory_does_not_cache_fake_session` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_tests.rs::channel_project_scope_tenant_cannot_resolve_other_tenant_binding` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_tests.rs::channel_project_scope_processor_uses_captured_directory` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_tests.rs::channel_project_scope_memory_reads_only_matching_scope` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_tests.rs::channel_project_scope_snapshot_rejects_different_sender` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_tests.rs::isolated_processor_fixture` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_turn.rs::take_committed_channel_reply` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_turn.rs::persist_channel_turn` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_turn.rs::lock_history` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_turn.rs::get` → `crates/libs/channel-runtime/src/host_migration_43_tests/prompt.rs::get`
+
+- `crates/vw-agent/src/channels/session_turn.rs::now_ms` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_turn.rs::first_response_source` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_turn.rs::load` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_turn.rs::commit_first` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_turn.rs::commit_snapshot` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_turn.rs::refresh` → 原宿主文件保留；职责见上表
+
+- `crates/vw-agent/src/channels/session_turn.rs::spawn_title` → 原宿主文件保留；职责见上表
+
+## 注册及静态核对
+
+运行库与支撑库 lib.rs 均以原生 cfg(test) 自注册 host_migration_43_tests 子模块；没有 path/include 宿主源码或反向依赖。旧 prompt_tests/routing_tests 文件及挂载删除；mod_tests 仅保留公开入口契约；session_tests 仅移除六个纯领域用例及其旧定义。任务1额外归属 dispatch_tests.rs 和 dispatch_cancel_tests.rs 均为真实宿主调度/模型取消流验收，已物理归还宿主同名文件并删除跨目录 path。测试和夹具原样保留，原模块名不变，其他任务的 execution_control_tests 对 channels::dispatch_tests 的引用继续有效。其余跨目录挂载不属本任务。
+
+测试函数体和断言沿用；必要变化仅类型路径、纯领域 API 参数、异步目录调用；session 身份键使用固定默认租户，与原夹具默认租户相同。宿主真实租户/数据库和进程隔离用例保留。
+
+## 行数分项
+
+- 新增领域生产：365 行（含文档/导入/注册，不等同算法行数）。
+
+- 新增领域测试：957 行（含文档/导入/注册，不等同算法行数）。
+
+- 宿主原测试：1418 → 489 行。
+
+- 宿主原生产/转发/文档：1345 → 978 行。
+
+## 未来限定验证（本次未运行）
+
+- `python3 scripts/cargo_slot.py cargo test -p channel-runtime --lib host_migration_43_tests -- --test-threads=1`：静态预期 25 个，必须实际非零且 failed=0 才算通过。
+
+- `python3 scripts/cargo_slot.py cargo test -p channel-support --lib host_migration_43_tests -- --test-threads=1`：静态预期 18 个，必须实际非零且 failed=0 才算通过。
+
+- 宿主未来按上表保留的原完整测试名运行精确过滤；迁走的函数需用宿主 list 证明消失，不以零测试声称通过。处理器、租户及投递集成测试仍需原生验证。
+
+- 未取得编译耗时或行为结果，不能宣称编译提速或行为验收通过。
+
+附：上述两个外部测试文件物理归还宿主，分别包含并发许可/中断/反馈投递及真实 processor 取消与清理；原名、断言、子进程隔离不变。它们不计领域迁移收益；前述同路径行数口径未含新增归还宿主文件，最终全局宿主行数须包含二者。
+
+依赖补充：运行库测试直接使用 model-selection 公开决策类型，新增 dev 依赖并同步锁文件；未使用不存在的 session_engine::llm 路径。
+
+外部挂载 `dispatch_tests.rs`：356 行，生产0行，全部真实宿主验收/夹具，保留函数：chat_with_system, new, blocking, feedback_blocking, sent_contents, release, wait_for_active_sends, max_active_sends, name, send, stop_typing, listen, context, message, registered_context, compute_max_in_flight_messages_clamps_to_configured_bounds, log_worker_join_result_ignores_success_and_records_join_errors, run_message_dispatch_loop_processes_runtime_commands_until_input_closes, run_message_dispatch_loop_limits_in_flight_workers, run_message_dispatch_loop_skips_interrupt_for_non_telegram_channel, run_message_dispatch_loop_keeps_distinct_telegram_senders_independent, run_message_dispatch_loop_stops_when_semaphore_closed_before_receive, run_message_dispatch_loop_does_not_interrupt_model_queries。
+
+外部挂载 `dispatch_cancel_tests.rs`：358 行，生产0行，全部真实宿主验收/夹具，保留函数：cancel_idle, channel_command_cancel_qq_idle_is_idempotent, channel_command_cancel_lark_idle_is_idempotent, channel_command_cancel_telegram_does_not_require_auto_interrupt, channel_command_cancel_invalid_arguments_preserve_state, channel_command_cancel_help_describes_scope, isolated_cancel_test, cancel_fixture, wait_cancel_flag, channel_command_cancel_bypasses_full_slots_and_cleans_before_new_session, channel_command_cancel_isolates_instance_room_thread_sender_and_tenant, channel_command_cancel_unconfirmed_exit_keeps_mutations_busy, channel_command_cancel_busy_commands_preserve_state_and_status_responds, channel_command_cancel_natural_completion_then_stop_is_idempotent, channel_command_cancel_waits_for_feedback_before_releasing_scope, channel_command_cancel_dropped_caller_still_drains_processor。
+
+外部挂载 `dispatch_tests.rs`：356 行，生产0行，全部真实宿主验收/夹具，保留函数：chat_with_system, new, blocking, feedback_blocking, sent_contents, release, wait_for_active_sends, max_active_sends, name, send, stop_typing, listen, context, message, registered_context, compute_max_in_flight_messages_clamps_to_configured_bounds, log_worker_join_result_ignores_success_and_records_join_errors, run_message_dispatch_loop_processes_runtime_commands_until_input_closes, run_message_dispatch_loop_limits_in_flight_workers, run_message_dispatch_loop_skips_interrupt_for_non_telegram_channel, run_message_dispatch_loop_keeps_distinct_telegram_senders_independent, run_message_dispatch_loop_stops_when_semaphore_closed_before_receive, run_message_dispatch_loop_does_not_interrupt_model_queries。
+
+外部挂载 `dispatch_cancel_tests.rs`：358 行，生产0行，全部真实宿主验收/夹具，保留函数：cancel_idle, channel_command_cancel_qq_idle_is_idempotent, channel_command_cancel_lark_idle_is_idempotent, channel_command_cancel_telegram_does_not_require_auto_interrupt, channel_command_cancel_invalid_arguments_preserve_state, channel_command_cancel_help_describes_scope, isolated_cancel_test, cancel_fixture, wait_cancel_flag, channel_command_cancel_bypasses_full_slots_and_cleans_before_new_session, channel_command_cancel_isolates_instance_room_thread_sender_and_tenant, channel_command_cancel_unconfirmed_exit_keeps_mutations_busy, channel_command_cancel_busy_commands_preserve_state_and_status_responds, channel_command_cancel_natural_completion_then_stop_is_idempotent, channel_command_cancel_waits_for_feedback_before_releasing_scope, channel_command_cancel_dropped_caller_still_drains_processor。

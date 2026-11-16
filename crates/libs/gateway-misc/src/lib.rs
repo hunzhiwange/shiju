@@ -137,3 +137,6 @@ pub async fn skill_list<H: MiscHost>(
     .await?;
     Ok(Json(result))
 }
+
+#[cfg(feature = "test-support")]
+pub mod test_contract;

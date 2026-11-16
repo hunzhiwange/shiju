@@ -570,3 +570,8 @@ agent-database = { path = "../libs/agent-database", version = "0.6.0", features 
 path = "../libs/gateway-skill-market"
 version = "0.6.0"
 features = ["fixture-support"]
+
+[dev-dependencies.gateway-misc]
+path = "../libs/gateway-misc"
+version = "0.6.0"
+features = ["test-support"]

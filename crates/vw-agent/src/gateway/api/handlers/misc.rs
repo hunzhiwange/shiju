@@ -35,19 +35,7 @@ impl MiscHost for Host {
 pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> { gateway_misc::router::<S, Host>() }
 pub(crate) use gateway_misc::not_implemented;
 #[cfg(test)]
-use axum::{Json, extract::{Extension, Path, Query}};
-#[cfg(test)]
-use gateway_misc::{AgentListQuery, host::InstanceQuery};
-#[cfg(test)]
-use crate::{agent, gateway::instance::with_instance};
-#[cfg(test)]
-async fn command_list(query: Query<InstanceQuery>, headers: HeaderMap) -> Result<Json<Vec<agent_commands::Info>>, ApiError> { gateway_misc::command_list::<Host>(query, headers).await }
-#[cfg(test)]
-async fn agent_list(tenant: Extension<TenantScope>, query: Query<AgentListQuery>, headers: HeaderMap) -> Result<Json<Vec<AgentInfo>>, ApiError> { gateway_misc::agent_list::<Host>(tenant, query, headers).await }
-#[cfg(test)]
-async fn agent_copy(tenant: Extension<TenantScope>, key: Path<String>, query: Query<InstanceQuery>, headers: HeaderMap) -> Result<Json<AgentInfo>, ApiError> { gateway_misc::agent_copy::<Host>(tenant, key, query, headers).await }
-#[cfg(test)]
-async fn skill_list(query: Query<InstanceQuery>, headers: HeaderMap) -> Result<Json<Vec<SkillInfo>>, ApiError> { gateway_misc::skill_list::<Host>(query, headers).await }
+use axum::extract::Extension;
 #[cfg(test)]
 #[path = "misc_tests.rs"]
 mod misc_tests;

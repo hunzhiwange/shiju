@@ -10491,6 +10491,7 @@ dependencies = [
 name = "gateway-misc"
 version = "0.6.0"
 dependencies = [
+ "tempfile",
  "agent-commands",
  "agent-config",
  "anyhow",

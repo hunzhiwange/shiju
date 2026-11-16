@@ -416,3 +416,33 @@ agent-gateway::host_migration_15_tests 在 lib.rs 自注册，子模块 global/i
 未来：`python3 scripts/cargo_slot.py cargo test -p agent-gateway --lib host_migration_15_tests -- --test-threads=1`，Unix预期43条（新增copy两条）。宿主global_tests仍2条、file_drag_integration_tests仍5条（Unix）、misc_tests减少到8条；各原完整名称仍按上表逐项验收。领域test-support契约由这些真实宿主测试调用，不能用领域过滤零测试冒充通过。
 
 本任务仍留真实装配端口、misc真实目录与profile目录安全检查、跨领域mod组合根。没有削弱宿主网络或鉴权覆盖。源代码与依赖静态检查不能代替未来Cargo验证；整轮35000行门槛仍需调度者重新统计，本文不宣称已达标。
+
+## 任务59步骤4恢复：misc metadata/catalog/filter 全部候选
+
+依据 task-59-recovery-priorities.json owner=15（清单残留1286行），本轮完整处理其五个候选符号。沿用 do-task-plans、rustcodegraph、git-commit 工作约定；索引早于当前改动，直接读取当前源码验证真实调用。没有运行任何Cargo、构建、单元/实机测试。
+
+接线：gateway-misc::test_contract 由其 lib.rs 在既有库内以 test-support 特性注册；vw-agent dev-dependencies 启用此特性，仅测试使用。唯一新增可选依赖为现存 tempfile 包。没有新增生产Host方法、生产投影算法或复制AppState。Host依旧从真实实例、tenant scope、agent/skill/command服务和租户配置数据库返回数据。
+
+完整用例映射（宿主原完整前缀 `gateway::api::handlers::misc::misc_tests::` 保持）：
+
+| 原用例 | 新领域入口 | 真实保留边界 |
+|---|---|---|
+| command_list_returns_named_command_metadata | gateway_misc::test_contract::command_list_returns_named_command_metadata::<Host> | 同名宿主注册注入真实command目录及instance初始化 |
+| agent_list_returns_keyed_agent_metadata | gateway_misc::test_contract::agent_list_returns_keyed_agent_metadata::<Host> | 同名宿主注册传入current_tenant_scope，真实agent目录及instance |
+| skill_list_returns_named_and_located_skill_metadata | gateway_misc::test_contract::skill_list_returns_named_and_located_skill_metadata::<Host> | 同名宿主注册注入真实skill目录及instance |
+| list_handlers_ignore_legacy_invalid_project_json | gateway_misc::test_contract::list_handlers_ignore_legacy_invalid_project_json::<Host> | 宿主传入实际global data路径与current tenant；真实目录处理器仍经Host读取 |
+| agent_profile_api_catalog_includes_disabled_only_when_requested | gateway_misc::test_contract::agent_profile_api_catalog_includes_disabled_only_when_requested::<Host, _> | 宿主持有原全局环境异步锁，提供真实with_instance + agent::get("acp-snow")闭包；返回实际is_none而非模拟准入 |
+
+领域承接细节：query_for、StoredProjectCleanup/Drop、ProfileEnvGuard/set/Drop、真实临时HOME与VIBEWINDOW_CONFIG_DIR、真实旧项目坏JSON文件创建/清理、配置数据库写入、目录metadata与include_disabled两分支检查、API key/options脱敏断言均在test_contract.rs。坏JSON仍写到宿主原data/storage/project目录，唯一项目id与清理顺序保留；没有把磁盘检查换成内存伪存储。运行时disabled判断在宿主回调中使用真实实例，领域仅断言其结果。命令/代理/技能投影仍调用原gateway-misc公开处理器，没有重写生产逻辑。
+
+宿主逐段保留理由：
+- misc.rs生产段：Host::resolve_directory/with_instance负责实例初始化；with_tenant_scope负责真实任务作用域；commands/agents/skills绑定真实目录；get_current/get_global/update_global绑定真实租户持久化；router绑定Host。均未改行为。
+- misc.rs测试段：只保留Extension与misc_tests挂载；旧command_list/agent_list/agent_copy/skill_list专用测试转发和相关imports删除，不再层层转发。
+- misc_tests.rs路由段：route_status仍运行真实router::<()>；router_builds_with_unit_state、router_dispatches_all_get_routes、router_rejects_non_get_methods_and_unknown_paths保留原函数体，继续覆盖根router注册、GET分发、501、POST 405和未知路径404。
+- misc_tests.rs五个契约调用段：注入真实Host，供领域断言执行。catalog用例继续持有原环境锁并调用实际disabled运行时入口，不能用伪Host替换。完整根handlers/mod.rs不修改；其它真实权限/租户准入路径也不修改。
+
+行数（splitlines）：misc_tests.rs 193→81，misc.rs 53→41，宿主净减124行；领域新增test_contract.rs 134行，均为测试契约/真实存储夹具，生产迁移0行。未删注释凑量。五条仍分类为“领域断言＋真实宿主边界”，新增独立领域单测0条，不声称减少编译目标、运行覆盖已通过或提速。前文旧保留原因由本节具体映射覆盖。
+
+静态核对：八个宿主测试名及注册顺序一致；三个路由函数体逐字一致；旧misc_tests与新宿主+领域联合assert/assert_eq/assert_ne计数分别7/5/0，无断言删除。trait端口、feature/dev依赖及原调用者逐项读取；diff --check通过。Cargo.lock仅手工登记现存tempfile依赖，解析/编译仍需未来验证。全仓减量尚须任务59重新审计，不宣称整轮门槛闭合。
+
+未来限定命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib gateway::api::handlers::misc::misc_tests -- --test-threads=1`，预期8条（其中5条调用领域契约，3条真实router检查）。本轮未执行；领域test_contract不是#[test]模块，不以其零测试过滤作为通过证据。既有agent-gateway host_migration_15_tests的43条独立领域测试未变化。

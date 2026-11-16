@@ -2,8 +2,6 @@
 use super::types::StreamEvent;
 use crate::tools::ToolRuntimeContext;
 use std::collections::HashSet;
-#[cfg(test)]
-use session_engine::planning::build_todowrite_from_text;
 struct AgentPlanningHost;
 impl session_engine::planning::PlanningHost for AgentPlanningHost {
     type Context = ToolRuntimeContext;

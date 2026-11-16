@@ -329,3 +329,7 @@ pub fn build_todowrite_from_text(answer: &str) -> Option<String> {
     // merge: false 表示替换而非合并现有待办事项
     Some(serde_json::json!({ "todos": todos, "merge": false }).to_string())
 }
+
+#[cfg(test)]
+#[path = "planning_tests.rs"]
+mod planning_tests;

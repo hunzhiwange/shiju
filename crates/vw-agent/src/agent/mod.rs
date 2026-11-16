@@ -26,14 +26,14 @@
 
 #[allow(clippy::module_inception)]
 pub mod agent;
-pub mod catalog;
+pub use agent_config::catalog;
 #[cfg(test)]
-mod catalog_tests;
-pub mod classifier;
-pub mod defaults;
-pub mod dispatcher;
+use agent_config::catalog::load_agent_configs;
+pub use agent_loop::classifier;
+pub use agent_loop::defaults;
+pub use agent_loop::dispatcher;
 pub mod loop_;
-pub mod memory_loader;
+pub use agent_loop::memory_loader;
 pub mod prompt;
 
 #[cfg(test)]

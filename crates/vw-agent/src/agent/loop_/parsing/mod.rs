@@ -21,11 +21,10 @@
 //! - [`tool_calls`]：核心工具调用解析逻辑和结果类型
 //! - [`xml_helpers`]：XML 解析辅助函数
 
-mod deepseek_dsml;
-mod json;
-mod minimax_xml;
-mod tool_call_formats;
-mod tool_calls;
+use agent_loop::parsing::deepseek_dsml;
+use agent_loop::parsing::json;
+use agent_loop::parsing::tool_call_formats;
+
 // XML 辅助解析由 agent-loop 内部持有。
 
 pub(crate) use deepseek_dsml::contains_deepseek_dsml_markup;
@@ -51,7 +50,7 @@ pub(crate) use tool_call_formats::{
 
 // 核心工具调用解析类型和函数的重导出
 // ParsedToolCall 是解析结果的核心类型
-pub(crate) use tool_calls::{
+pub(crate) use agent_loop::parsing::{
     ParsedToolCall, detect_tool_call_parse_issue, parse_structured_tool_calls, parse_tool_calls,
 };
 

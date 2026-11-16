@@ -1,4 +1,4 @@
-use super::load_agent_configs;
+use crate::catalog::load_agent_configs;
 use serde_json::json;
 use std::collections::HashSet;
 use config_agent_profile::AgentRuntime;

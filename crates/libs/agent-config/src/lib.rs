@@ -17,3 +17,6 @@ pub mod catalog;
 pub mod runtime_migration;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod store;
+
+#[cfg(test)]
+mod host_migration_29_tests;

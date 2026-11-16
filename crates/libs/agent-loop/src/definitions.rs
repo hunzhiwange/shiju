@@ -274,16 +274,7 @@ pub async fn native_permission_ceiling<H: DefinitionHost>(name: &str) -> Result<
     ]))
 }
 
-fn load_agent_configs(cfg: &Value) -> HashMap<String, DelegateAgentConfig> {
-    let configured = cfg
-        .get("agents")
-        .cloned()
-        .and_then(|value| {
-            serde_json::from_value::<HashMap<String, DelegateAgentConfig>>(value).ok()
-        })
-        .unwrap_or_default();
-    agent_config::catalog::merged_agent_catalog(&configured)
-}
+use agent_config::catalog::load_agent_configs;
 
 pub fn resolve_model_ref(
     config: &DelegateAgentConfig,

@@ -10,7 +10,7 @@
 //! - **上下文构建**：测试从内存中构建查询上下文的逻辑
 //! - **原生助手历史**：测试包含推理内容的助手消息构建
 
-// 由 vw-agent 的测试入口绑定真实宿主适配；不在领域库中注册此模块。
+// 由 agent-loop 自身注册，使用真实 SqliteMemory。
 use super::*;
 use agent_memory::{Memory, MemoryCategory, SqliteMemory};
 use tempfile::TempDir;

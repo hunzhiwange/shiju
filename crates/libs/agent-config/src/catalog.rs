@@ -36,3 +36,15 @@ pub fn merged_agent_catalog(
     }
     catalog
 }
+
+/// Load configured agents and restore the official catalog, discarding malformed maps.
+pub fn load_agent_configs(cfg: &serde_json::Value) -> HashMap<String, config_agent::DelegateAgentConfig> {
+    let configured = cfg
+        .get("agents")
+        .cloned()
+        .and_then(|value| {
+            serde_json::from_value::<HashMap<String, config_agent::DelegateAgentConfig>>(value).ok()
+        })
+        .unwrap_or_default();
+    merged_agent_catalog(&configured)
+}

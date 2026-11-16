@@ -39,13 +39,13 @@
 pub mod approval;
 
 /// 消息上下文构建和管理
-pub mod context;
+pub use agent_loop::context;
 
 /// 核心工具循环逻辑、历史构建和迭代控制
 pub mod core;
 
 /// 定时任务注入和调度
-pub mod cron;
+pub use agent_loop::cron;
 
 /// 工具执行引擎（并行/顺序执行策略）
 pub mod execution;
@@ -54,13 +54,13 @@ pub mod execution;
 pub mod history;
 
 /// 工具和Shell策略指令构建
-pub mod instructions;
+pub use agent_loop::instructions;
 
 /// 工具调用解析（支持多种格式）
 pub mod parsing;
 
 /// 草稿进度跟踪和状态管理
-pub mod progress;
+pub use agent_loop::progress;
 
 /// 会话级查询引擎
 pub mod query_engine;

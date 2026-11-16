@@ -56,8 +56,6 @@ pub(crate) use super::parsing::ParsedToolCall;
 // cron_delivery 测试已在 agent-loop 注册。
 #[path = "../../../../../libs/agent-loop/src/tests/loop_suite/loop_tools.rs"]
 mod loop_tools;
-#[path = "../../../../../libs/agent-loop/src/tests/loop_suite/memory_context.rs"]
-mod memory_context;
 // parsing_edge_cases 测试已在 agent-loop 注册。
 // parsing_extract_json 测试已在 agent-loop 注册。
 // Parsing and shell policy tests are registered in agent-loop.

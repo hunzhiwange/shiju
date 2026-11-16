@@ -2,8 +2,8 @@
 //!
 //! 命令层只编排领域操作；计划校验、下次运行时间与数据库更新由下层模块负责。
 
-pub mod active_runs;
-pub mod consolidation;
+pub use agent_cron::active_runs;
+pub use agent_cron::consolidation;
 pub(crate) mod delivery;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
@@ -11,9 +11,9 @@ mod delivery_tests;
 
 #[cfg(test)]
 pub(crate) mod active_runs_tests;
-mod schedule;
-mod store;
-mod types;
+use agent_cron::schedule;
+use agent_cron::store;
+use agent_cron::types;
 
 pub mod scheduler;
 

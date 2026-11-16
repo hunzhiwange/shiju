@@ -276,15 +276,6 @@ pub async fn execute_job_now(config: &Config, job: &CronJob) -> (bool, String) {
 }
 
 #[cfg(test)]
-async fn execute_job_with_retry(
-    config: &Config,
-    security: &SecurityPolicy,
-    job: &CronJob,
-) -> (bool, String) {
-    agent_cron::scheduler::execute_job_with_retry(&Host, config, security, job).await
-}
-
-#[cfg(test)]
 async fn process_due_jobs(
     config: &Config,
     security: &Arc<SecurityPolicy>,

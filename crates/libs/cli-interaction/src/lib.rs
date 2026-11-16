@@ -80,3 +80,6 @@ mod workflow_req_03_tests;
 
 #[cfg(test)]
 mod workflow_req_06_tests;
+
+#[cfg(test)]
+mod workflow_req_07_tests;

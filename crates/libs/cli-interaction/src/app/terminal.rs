@@ -83,7 +83,11 @@ pub(crate) fn apply_ready_terminal_events(
             }
         }
 
-        if runner.native_copy_requested || outcome.processed == TERMINAL_EVENT_BUDGET {
+        // Once the editor owns terminal input, leave remaining events to it.
+        if runner.editor_in_flight()
+            || runner.native_copy_requested
+            || outcome.processed == TERMINAL_EVENT_BUDGET
+        {
             break;
         }
         next_event = read_ready()?;

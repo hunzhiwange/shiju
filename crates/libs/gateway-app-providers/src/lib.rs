@@ -8,6 +8,10 @@ use vw_api_app_provider_base::AppProviderWrite;
 use vw_api_transport::id::TenantScope;
 mod authorization;
 #[cfg(target_os = "macos")]
+mod saved_provider;
+#[cfg(target_os = "macos")]
+pub use saved_provider::sync_saved_provider;
+#[cfg(target_os = "macos")]
 pub mod paths;
 pub mod agy;
 pub mod basic;

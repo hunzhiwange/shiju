@@ -301,6 +301,7 @@ mod agent_apps_acceptance_tests;
 pub(crate) mod app_providers;
 
 #[cfg(test)]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/app_providers_tests.rs"]
 mod app_providers_tests;
 
 pub(crate) mod model_catalog;

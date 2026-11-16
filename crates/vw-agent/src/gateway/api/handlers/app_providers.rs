@@ -321,11 +321,9 @@ pub(super) async fn sync_saved_provider(database: GlobalDatabase, policy: Option
     headers: axum::http::HeaderMap, target: &vw_api_app_operations::DataManagementTarget,
     app: vw_api_app_identity::AppId, id: &str,
 ) -> Result<(), ()> {
-    match app {
-        vw_api_app_identity::AppId::Claude => claude::sync_saved(database, policy, headers, target, id).await,
-        vw_api_app_identity::AppId::Codex => codex_catalog::sync_saved(database, policy, headers, target, id).await,
-        _ => Err(()),
-    }
+    gateway_app_providers::sync_saved_provider(
+        database, policy, headers, target, app, id, publication_host::control(None),
+    ).await
 }
 
 #[cfg(target_os = "macos")]

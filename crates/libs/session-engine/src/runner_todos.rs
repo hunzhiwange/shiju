@@ -188,3 +188,7 @@ pub fn maybe_mark_todo_in_progress<H: RunnerHost>(
     // 执行 todowrite 工具并记录结果，使用静默模式（false 表示不记录到历史）
     let _ = H::run_tool_and_record(session, "todowrite", &input, ctx, false, &mut noop, tool_state);
 }
+
+#[cfg(test)]
+#[path = "runner_todos_tests.rs"]
+mod tests;

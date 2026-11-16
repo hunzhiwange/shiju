@@ -178,3 +178,7 @@ pub fn apply_todo_update_step(
     // 返回是否实际执行了 todowrite 工具
     ran
 }
+
+#[cfg(test)]
+#[path = "runner_todo_updates_tests.rs"]
+mod tests;

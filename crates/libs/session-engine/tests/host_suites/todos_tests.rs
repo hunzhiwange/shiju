@@ -73,61 +73,6 @@ fn read_todos_or_empty_returns_current_items_or_empty_list() {
 }
 
 #[test]
-fn build_todo_status_patches_updates_all_or_only_first_needed_item() {
-    let items = vec![
-        item("1", "completed", "completed"),
-        item("2", "active", "in_progress"),
-        item("3", "waiting", "pending"),
-    ];
-
-    let all = super::build_todo_status_patches(&items, "completed", false);
-    assert_eq!(all.len(), 2);
-    assert_eq!(all[0], serde_json::json!({ "id": "2", "status": "completed" }));
-    assert_eq!(all[1], serde_json::json!({ "id": "3", "status": "completed" }));
-
-    let first = super::build_todo_status_patches(&items, "in_progress", true);
-    assert!(first.is_empty());
-}
-
-#[test]
-fn build_todo_status_patches_skips_completed_and_target_status_items() {
-    let items = vec![
-        item("1", "done", "completed"),
-        item("2", "already", "pending"),
-        item("3", "later", "in_progress"),
-    ];
-
-    let patches = super::build_todo_status_patches(&items, "pending", false);
-    assert_eq!(patches, vec![serde_json::json!({ "id": "3", "status": "pending" })]);
-
-    let only_first_stops_when_first_incomplete_already_has_target_status =
-        super::build_todo_status_patches(&items, "pending", true);
-    assert!(only_first_stops_when_first_incomplete_already_has_target_status.is_empty());
-
-    let completed = vec![item("1", "done", "completed")];
-    assert!(super::build_todo_status_patches(&completed, "completed", false).is_empty());
-}
-
-#[test]
-fn build_todo_status_patches_returns_empty_for_empty_input() {
-    assert!(super::build_todo_status_patches(&[], "completed", false).is_empty());
-    assert!(super::build_todo_status_patches(&[], "in_progress", true).is_empty());
-}
-
-#[test]
-fn build_todo_status_patches_only_updates_first_eligible_item() {
-    let items = vec![
-        item("1", "done", "completed"),
-        item("2", "first", "pending"),
-        item("3", "second", "pending"),
-    ];
-
-    let patches = super::build_todo_status_patches(&items, "in_progress", true);
-
-    assert_eq!(patches, vec![serde_json::json!({ "id": "2", "status": "in_progress" })]);
-}
-
-#[test]
 // 只自动推进首个待处理项且不产生多余用户事件。
 fn maybe_mark_todo_in_progress_updates_first_pending_item_silently() {
     let session_id = unique_session("todos-progress");

@@ -65,15 +65,7 @@ pub use types::{
     ToolEventKind,
 };
 
-/// 测试模块
-///
-/// 包含会话处理器的单元测试用例。
+/// 宿主集成测试保持处理器模块绑定，纯待办测试位于 session-engine。
 #[cfg(test)]
-use crate::app::agent::tools::todo;
-
-/// 单元测试模块
-///
-/// 测试文件位于 `tests.rs`，包含针对会话处理逻辑的各类测试。
-#[cfg(test)]
-#[path = "tests.rs"]
+#[path = "../../../../libs/session-engine/tests/host_suites/processor_tests.rs"]
 mod tests;

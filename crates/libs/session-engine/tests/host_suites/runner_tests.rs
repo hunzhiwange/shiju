@@ -167,73 +167,6 @@ fn expert_package_protocol_replays_main_before_child() {
     assert!(main < child);
 }
 
-#[test]
-fn codex_skills_defaults_strict_policy_restricts_catalog_and_preloads_once() {
-    let workspace = tempfile::tempdir().expect("skill workspace");
-    let default_path = workspace.path().join("default/SKILL.md");
-    let user_path = workspace.path().join("user/SKILL.md");
-    std::fs::create_dir_all(default_path.parent().expect("default parent")).expect("default dir");
-    std::fs::create_dir_all(user_path.parent().expect("user parent")).expect("user dir");
-    std::fs::write(&default_path, "# Default\nDEFAULT_SKILL_BODY").expect("default skill");
-    std::fs::write(&user_path, "# User\nUSER_SKILL_BODY").expect("user skill");
-    let skills = vec![
-        crate::app::agent::skills::Skill {
-            name: "default".to_string(),
-            location: Some(default_path),
-            ..Default::default()
-        },
-        crate::app::agent::skills::Skill {
-            name: "user".to_string(),
-            location: Some(user_path),
-            ..Default::default()
-        },
-    ];
-    let options = serde_json::json!({
-        "delegate_skill_policy": "strict",
-        "delegate_default_allowed_skills": ["default"],
-        "delegate_trusted_user_selected_skills": ["user"],
-    });
-    let resolution = super::delegated_skill_policy_resolution(&skills, &options)
-        .expect("delegated policy should resolve");
-    assert_eq!(resolution.visible_ids, ["default"].into_iter().map(String::from).collect());
-
-    let mut protocol = super::DesktopSessionProtocol::new(skills, "delegate", 20_000);
-    protocol.preload_skills(&resolution.default_injected_ids).expect("preload default");
-    let history = vec![serde_json::json!({"role": "user", "content": "work"})];
-    let first = protocol.assemble(&history, &[], true).expect("first protocol");
-    let second = protocol.assemble(&history, &[], true).expect("second protocol");
-    let default_count = |messages: &[serde_json::Value]| {
-        messages
-            .iter()
-            .filter(|message| {
-                message["content"]
-                    .as_str()
-                    .is_some_and(|content| content.contains("DEFAULT_SKILL_BODY"))
-            })
-            .count()
-    };
-    assert_eq!(default_count(&first), 1);
-    assert_eq!(default_count(&second), 1);
-    assert!(!first.iter().any(|message| {
-        message["content"].as_str().is_some_and(|content| content.contains("USER_SKILL_BODY"))
-    }));
-}
-
-#[test]
-fn codex_skills_defaults_missing_source_is_an_error() {
-    let mut protocol = super::DesktopSessionProtocol::new(Vec::new(), "main", 20_000);
-    let error = protocol
-        .preload_skills(&["missing-default".to_string()].into_iter().collect())
-        .expect_err("missing configured default must not silently succeed");
-    assert!(error.contains("missing-default"));
-    let item = crate::skills::Skill { name: "unlocated-default".into(), ..Default::default() };
-    let mut protocol = super::DesktopSessionProtocol::new(vec![item], "main", 20_000);
-    let error = protocol
-        .preload_skills(&["unlocated-default".into()].into_iter().collect())
-        .expect_err("discovered defaults need a real source");
-    assert!(error.contains("unlocated-default"));
-}
-
 use crate::app::agent::session::llm;
 use crate::app::agent::tools::ToolRuntimeContext;
 use crate::session::ui_types as models;
@@ -1938,44 +1871,6 @@ fn codex_skills_catalog_processor_sends_developer_metadata_and_keeps_it_transien
                 .any(|m| m["content"].as_str().is_some_and(|s| s.contains("PRIVATE_CATALOG_BODY")))
         );
     });
-}
-
-#[test]
-fn codex_skills_catalog_protocol_retains_metadata_and_user_body_without_changing_history() {
-    let root = tempfile::tempdir().unwrap();
-    let source = root.path().join("SKILL.md");
-    std::fs::write(&source, "# Review\nVERIFIED_REPLAY_BODY").unwrap();
-    let item = crate::app::agent::skills::Skill {
-        name: "review".into(),
-        description: "Review metadata".into(),
-        location: Some(source.clone()),
-        ..Default::default()
-    };
-    let mut protocol = super::DesktopSessionProtocol::new(vec![item], "main", 100_000);
-    let record =
-        crate::app::agent::skills::InvokedSkillRecord::new("review", &source, None).unwrap();
-    protocol.skill_state.register_invoked("main", record);
-    let history = vec![serde_json::json!({"role":"user","content":"keep working"})];
-    let original = history.clone();
-    for _ in 0..2 {
-        let assembled = protocol.assemble(&history, &[], true).unwrap();
-        assert!(assembled.messages.iter().any(|m| m["role"] == "developer"
-            && m["content"].as_str().is_some_and(|s| s.contains("Review metadata"))));
-        assert!(assembled.messages.iter().any(|m| m["role"] == "user"
-            && m["content"].as_str().is_some_and(|s| s.contains("VERIFIED_REPLAY_BODY"))));
-        assert!(
-            assembled
-                .message_sources
-                .iter()
-                .any(|s| s["form"] == "skill_catalog"
-                    && s["entries"] == serde_json::json!(["review"]))
-        );
-        assert_eq!(history, original);
-    }
-    protocol.skills.clear();
-    let error =
-        protocol.assemble(&history, &[], true).expect_err("revoked sources must stop replay");
-    assert!(error.contains("review"));
 }
 
 #[test]

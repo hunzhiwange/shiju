@@ -556,6 +556,7 @@ members = [
   "crates/libs/gateway-worktree",
   "crates/libs/gateway-auth",
   "crates/libs/gateway-agent-apps",
+  "crates/libs/app-diagnostics-runtime",
   "crates/libs/gateway-agent-app",
   "crates/libs/gateway-external-sessions",
   "crates/libs/agent-gateway",

@@ -2,6 +2,7 @@
 #![cfg(not(target_arch = "wasm32"))]
 pub use app_access_service::{access, UsageSigningCredentialRefs, MAX_PROBES_PER_JOB};
 
+pub mod agent_apps_diagnostics;
 pub mod agent_apps_data;
 pub mod agent_apps_error;
 mod data_access;

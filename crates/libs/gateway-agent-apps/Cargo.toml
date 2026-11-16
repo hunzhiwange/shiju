@@ -11,6 +11,9 @@ doctest = false
 test-support = []
 
 [dependencies]
+app-diagnostics-runtime = { path = "../app-diagnostics-runtime", version = "0.6.0" }
+vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.6.0" }
+vw-api-mcp-management = { path = "../api-mcp-management", version = "0.6.0" }
 anyhow = "1"
 local-app-auth = { path = "../local-app-auth", version = "0.6.0" }
 app-access-service = { path = "../app-access-service", version = "0.6.0" }

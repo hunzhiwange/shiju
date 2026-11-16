@@ -1,5 +1,11 @@
 //! Controlled HTTP evidence: editor candidates are bound to the authorized diagnostic host.
 use super::*;
+use agent_database::GlobalDatabase;
+use app_provider_services::AppProviderStore;
+use agent_gateway::agent_apps_diagnostic_jobs::DiagnosticJobs;
+use axum::{Extension, http::StatusCode, response::Response};
+use sha2::{Digest, Sha256};
+use vw_api_transport::id::TenantScope;
 use axum::{body::Body, http::Request};
 use serde_json::{Value, json};
 use std::{

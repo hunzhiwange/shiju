@@ -630,7 +630,7 @@ pub async fn stored_snapshot(parent: &str) -> anyhow::Result<Vec<Value>> {
 }
 
 
-pub trait ChildHost: plugin_hooks::host::HookHost {
+pub trait ChildHost: tool_context::host::ContextHost<HookRunner = agent_hooks::HookRunner> {
     fn get_session(session: &str) -> impl Future<Output = Result<session_info::Info>> + Send;
     fn reserve_child_agent(parent: String, directory: String, permission: Option<permission_runtime::next::Ruleset>) -> impl Future<Output = Result<session_info::Info>> + Send;
     fn execution_hook_runner(config: &agent_config::runtime::Config) -> Result<Option<std::sync::Arc<agent_hooks::HookRunner>>>;

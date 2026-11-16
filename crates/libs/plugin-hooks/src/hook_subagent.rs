@@ -1,7 +1,6 @@
 //! Plugin hook protocol implementation.
 use anyhow::{Result, ensure};
 use serde_json::{Value, json};
-use crate::host::HookHost;
 use tool_context::context::{ToolUseContext, scope_tool_use_context};
 use std::sync::Arc;
 
@@ -85,7 +84,7 @@ pub fn parse(code: Option<i32>, stdout: &[u8], stderr: &[u8], stop: bool) -> Res
     Ok(value)
 }
 
-pub async fn emit_boundary<H: HookHost>(
+pub async fn emit_boundary<H: tool_context::host::ContextHost<HookRunner = agent_hooks::HookRunner>>(
     context: Option<Arc<ToolUseContext<H>>>,
     parent: &str,
     child: &str,

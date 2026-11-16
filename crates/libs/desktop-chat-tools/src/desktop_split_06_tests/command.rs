@@ -1,11 +1,11 @@
 //! 验证命令工具分组识别以及折叠和展开摘要的视图结构。
 //! 空分组返回无视图，非空分组则保持原工具索引以支持后续交互定位。
 
-use super::command_summary_view::{
-    COMMAND_LIST_TOP_SPACING, tool_command_summary_view,
-};
-use super::types::CommandItem;
-use crate::app::{App, Message};
+use super::card;
+use crate::card_input::Message;
+use crate::tools::command_summary_view::{COMMAND_LIST_TOP_SPACING, tool_command_summary_view};
+use crate::tools::types::CommandItem;
+use crate::tools::view_fixture::TestApp as App;
 use iced::Element;
 use iced::advanced::widget::Tree;
 
@@ -20,7 +20,7 @@ fn command(tool_idx: usize, name: &str, input: &str) -> CommandItem {
 fn command_summary_returns_none_for_empty_group() {
     let app = App::new().0;
 
-    assert!(tool_command_summary_view(&app, 0, &[]).is_none());
+    assert!(tool_command_summary_view(&card(&app), 0, &[]).is_none());
 }
 
 #[test]
@@ -35,20 +35,22 @@ fn command_summary_builds_collapsed_and_expanded_rows() {
 
     {
         let collapsed =
-            tool_command_summary_view(&app, 2, &items).expect("collapsed command summary");
+            tool_command_summary_view(&card(&app), 2, &items).expect("collapsed command summary");
         let collapsed_tree = Tree::new(collapsed.as_widget());
         assert_eq!(collapsed_tree.children.len(), 1);
     }
 
     app.chat_tool_hovered_idx = Some((2_u64 << 32) | 3);
     {
-        let hovered = tool_command_summary_view(&app, 2, &items).expect("hovered command summary");
+        let hovered =
+            tool_command_summary_view(&card(&app), 2, &items).expect("hovered command summary");
         let hovered_tree = Tree::new(hovered.as_widget());
         assert_eq!(hovered_tree.children.len(), 1);
     }
 
-    app.chat_tool_expanded.insert((2_u64 << 32) | 3);
-    let expanded = tool_command_summary_view(&app, 2, &items).expect("expanded command summary");
+    app.chat_explore_expanded.insert((2_u64 << 32) | 3);
+    let expanded =
+        tool_command_summary_view(&card(&app), 2, &items).expect("expanded command summary");
     let expanded_tree = Tree::new(expanded.as_widget());
     assert_eq!(expanded_tree.children.len(), 2);
 

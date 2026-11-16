@@ -79,10 +79,6 @@ mod advanced_view_tests;
 #[cfg(test)]
 mod apply_patch_view_tests;
 #[cfg(test)]
-mod bash_view_tests;
-#[cfg(test)]
-mod command_summary_view_tests;
-#[cfg(test)]
 mod text_view_tests;
 #[cfg(test)]
 mod tool_renderer_tests;

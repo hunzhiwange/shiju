@@ -25,3 +25,6 @@ mod state_tests;
 mod tool_presentation_tests;
 
 pub mod card_input;
+
+#[cfg(test)]
+mod desktop_split_06_tests;

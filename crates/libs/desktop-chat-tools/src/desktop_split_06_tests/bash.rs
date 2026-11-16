@@ -1,10 +1,11 @@
 //! 验证命令工具视图的载荷解析、别名支持、单行预览与异常回退。
 //! JSON、纯文本、空输入及缺失命令字段共同约束标题降级与截断行为。
 
-use super::bash_view::{tool_bash_view};
-use super::tool_meta::{tool_header_title, tool_status_badge, tool_visual_state};
-use crate::app::{App, Message};
-
+use super::card;
+use crate::card_input::Message;
+use crate::tools::bash_view::tool_bash_view;
+use crate::tools::tool_meta::{tool_header_title, tool_status_badge, tool_visual_state};
+use crate::tools::view_fixture::TestApp as App;
 
 fn keep_element(element: iced::Element<'_, Message>) {
     std::hint::black_box(element);
@@ -18,16 +19,16 @@ fn app() -> App {
 fn bash_view_rejects_malformed_or_non_bash_payloads() {
     let app = app();
 
-    assert!(tool_bash_view(&app, 0, 0, "tool read\n{}").is_none());
-    assert!(tool_bash_view(&app, 0, 0, "bash without prefix").is_none());
-    assert!(tool_bash_view(&app, 0, 0, "tool bash\nnot-json").is_none());
+    assert!(tool_bash_view(&card(&app), 0, 0, "tool read\n{}").is_none());
+    assert!(tool_bash_view(&card(&app), 0, 0, "bash without prefix").is_none());
+    assert!(tool_bash_view(&card(&app), 0, 0, "tool bash\nnot-json").is_none());
 }
 
 #[test]
 fn bash_view_rejects_unknown_tool_name_after_normalization() {
     let app = app();
     // "context" is not a recognized shell alias after normalization.
-    assert!(tool_bash_view(&app, 0, 0, "tool context\n{\"input\":\"ls\"}").is_none());
+    assert!(tool_bash_view(&card(&app), 0, 0, "tool context\n{\"input\":\"ls\"}").is_none());
 }
 
 #[test]
@@ -36,7 +37,7 @@ fn bash_view_accepts_plain_command_input() {
     let visible = r#"tool bash
 {"input":"cargo test -p vw-desktop","output":"ok"}"#;
 
-    assert!(tool_bash_view(&app, 1, 2, visible).is_some());
+    assert!(tool_bash_view(&card(&app), 1, 2, visible).is_some());
 }
 
 #[test]
@@ -45,7 +46,7 @@ fn bash_view_empty_input_uses_fallback_title() {
     let visible = r#"tool bash
 {"input":"","output":"ok"}"#;
 
-    assert!(tool_bash_view(&app, 0, 0, visible).is_some());
+    assert!(tool_bash_view(&card(&app), 0, 0, visible).is_some());
 }
 
 #[test]
@@ -54,7 +55,7 @@ fn bash_view_missing_input_field_falls_back() {
     let visible = r#"tool bash
 {"output":"ok"}"#;
 
-    assert!(tool_bash_view(&app, 0, 0, visible).is_some());
+    assert!(tool_bash_view(&card(&app), 0, 0, visible).is_some());
 }
 
 #[test]
@@ -63,7 +64,7 @@ fn bash_view_json_command_extraction() {
     let visible = r#"tool bash
 {"input":"{\"command\":\"cargo build\"}","output":"ok"}"#;
 
-    assert!(tool_bash_view(&app, 0, 0, visible).is_some());
+    assert!(tool_bash_view(&card(&app), 0, 0, visible).is_some());
 }
 
 #[test]
@@ -72,16 +73,16 @@ fn bash_view_json_command_missing_command_field() {
     let visible = r#"tool bash
 {"input":"{\"path\":\"/tmp\"}","output":"ok"}"#;
 
-    assert!(tool_bash_view(&app, 0, 0, visible).is_some());
+    assert!(tool_bash_view(&card(&app), 0, 0, visible).is_some());
 }
 
 #[test]
 fn bash_view_accepts_canonical_name_variants() {
     let app = app();
     // canonical_tool_name normalizes "shell" → "bash", "Shell" → "bash"
-    assert!(tool_bash_view(&app, 0, 0, "tool shell\n{\"input\":\"ls\"}").is_some());
-    assert!(tool_bash_view(&app, 0, 0, "tool execute\n{\"input\":\"ls\"}").is_some());
-    assert!(tool_bash_view(&app, 0, 0, "tool terminal\n{\"input\":\"ls\"}").is_some());
+    assert!(tool_bash_view(&card(&app), 0, 0, "tool shell\n{\"input\":\"ls\"}").is_some());
+    assert!(tool_bash_view(&card(&app), 0, 0, "tool execute\n{\"input\":\"ls\"}").is_some());
+    assert!(tool_bash_view(&card(&app), 0, 0, "tool terminal\n{\"input\":\"ls\"}").is_some());
 }
 
 #[test]
@@ -91,12 +92,12 @@ fn bash_view_accepts_json_command_input_and_hovered_detail_slot() {
     let visible = r#"tool bash
 {"input":"{\"command\":\"ls -la\"}","output":"ok"}"#;
 
-    assert!(tool_bash_view(&app, 3, 4, visible).is_some());
+    assert!(tool_bash_view(&card(&app), 3, 4, visible).is_some());
 }
 
 #[test]
 fn bash_view_ignores_cached_multiline_text_for_compact_summary() {
-    use super::tool_text_key;
+    use crate::tool_text_support::tool_text_key;
     use iced::widget::text_editor;
 
     let mut app = app();
@@ -105,7 +106,7 @@ fn bash_view_ignores_cached_multiline_text_for_compact_summary() {
         text_editor::Content::with_text("cached command\nsecond line"),
     );
 
-    assert!(tool_bash_view(&app, 8, 9, "tool bash\n{\"input\":\"echo ignored\"}").is_some());
+    assert!(tool_bash_view(&card(&app), 8, 9, "tool bash\n{\"input\":\"echo ignored\"}").is_some());
 }
 
 #[test]
@@ -124,7 +125,7 @@ fn bash_tool_header_uses_shared_type_and_status_slots() {
             })
         );
         keep_element(
-            tool_bash_view(&app, 12, idx, &visible)
+            tool_bash_view(&card(&app), 12, idx, &visible)
                 .unwrap_or_else(|| panic!("expected {status} bash view")),
         );
 

@@ -4,7 +4,6 @@ use super::session_io::NativeSessionIo;
 #[path = "turn_fork.rs"]
 mod turn_fork;
 pub(crate) use turn_fork::{TurnFork, forked_session, load_fork_history};
-fn forked_title(title: &str) -> String { session_engine::session_fork::forked_title(title) }
 pub async fn create_next(input: CreateInput) -> Result<Info, Error> {
     session_engine::session_lifecycle::create_next::<NativeSessionIo>(input).await
 }

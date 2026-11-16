@@ -806,3 +806,7 @@ pub fn view_overlays<'a, M: Clone + 'static>(app: &View<'_>, dialog: Element<'a,
 #[cfg(test)]
 #[path="system_settings_autonomy_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "host_split_3_tests.rs"]
+mod host_split_3_tests;

@@ -6,8 +6,8 @@
 
 use super::super::*;
 use super::helpers::{EnvVarGuard, env_var_lock};
-use crate::app::agent::config::Config;
-use crate::app::agent::config::SkillsPromptInjectionMode;
+use crate::host_migration_52_tests::Config;
+use config_skills::SkillsPromptInjectionMode;
 use std::fs;
 use std::path::PathBuf;
 use config_runtime_paths::home_config_dir;

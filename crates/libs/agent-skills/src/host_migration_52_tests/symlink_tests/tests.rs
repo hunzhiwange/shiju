@@ -27,7 +27,7 @@ use super::*;
 mod tests {
     use super::*;
 
-    use crate::app::agent::skills::skills_dir;
+    use crate::host_migration_52_tests::skills_dir;
     use std::path::Path;
     use tempfile::TempDir;
 

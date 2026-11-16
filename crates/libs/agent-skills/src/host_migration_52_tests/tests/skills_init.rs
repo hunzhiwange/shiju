@@ -136,10 +136,10 @@ prompts = ["Do not preload me"]
     .unwrap();
 
     // 配置运行时参数，设置为 Compact 模式
-    let mut config = crate::app::agent::config::Config::default();
+    let mut config = crate::host_migration_52_tests::Config::default();
     config.workspace_dir = dir.path().to_path_buf();
     config.skills.prompt_injection_mode =
-        crate::app::agent::config::SkillsPromptInjectionMode::Compact;
+        config_skills::SkillsPromptInjectionMode::Compact;
 
     // 加载技能（Compact 模式）
     let mut skills = load_skills_with_config(dir.path(), &config);

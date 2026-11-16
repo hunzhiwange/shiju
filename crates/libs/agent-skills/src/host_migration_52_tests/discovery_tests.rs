@@ -2,7 +2,7 @@
 //! 同名技能按来源优先级去重，动态路径只接受实际存在且可读取的技能目录。
 
 use super::*;
-use crate::app::agent::skills::tests::helpers::{EnvVarGuard, env_var_lock};
+use crate::host_migration_52_tests::tests::helpers::{EnvVarGuard, env_var_lock};
 use std::fs;
 use std::path::Path;
 

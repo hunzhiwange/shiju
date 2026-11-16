@@ -4,53 +4,14 @@
 use super::*;
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::skill::SkillCommands;
+use skill_core::types::SkillCommands;
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
-#[cfg(not(target_arch = "wasm32"))]
-use std::sync::{Mutex, OnceLock};
+use super::tests::helpers::{EnvVarGuard, env_var_lock as env_lock};
 
 #[cfg(not(target_arch = "wasm32"))]
-fn env_lock() -> &'static Mutex<()> {
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(()))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-struct EnvVarGuard {
-    key: &'static str,
-    original: Option<String>,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl EnvVarGuard {
-    fn set(key: &'static str, value: &str) -> Self {
-        let original = std::env::var(key).ok();
-        unsafe { std::env::set_var(key, value) };
-        Self { key, original }
-    }
-
-    fn unset(key: &'static str) -> Self {
-        let original = std::env::var(key).ok();
-        unsafe { std::env::remove_var(key) };
-        Self { key, original }
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl Drop for EnvVarGuard {
-    fn drop(&mut self) {
-        if let Some(value) = &self.original {
-            unsafe { std::env::set_var(self.key, value) };
-        } else {
-            unsafe { std::env::remove_var(self.key) };
-        }
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn isolated_config(workspace: &Path) -> crate::app::agent::config::Config {
-    let mut config = crate::app::agent::config::Config::default();
+fn isolated_config(workspace: &Path) -> crate::host_migration_52_tests::Config {
+    let mut config = crate::host_migration_52_tests::Config::default();
     config.workspace_dir = workspace.to_path_buf();
     config
 }
@@ -74,8 +35,8 @@ fn write_manifest_skill(workspace: &Path, name: &str, body: &str) -> std::path::
 #[cfg(target_arch = "wasm32")]
 #[test]
 fn wasm_cli_stub_is_explicitly_unsupported() {
-    let config = crate::app::agent::config::Config::default();
-    let err = handle_command(crate::app::agent::skill::SkillCommands::List, &config).unwrap_err();
+    let config = crate::host_migration_52_tests::Config::default();
+    let err = handle_command(skill_core::types::SkillCommands::List, &config).unwrap_err();
     assert!(err.to_string().contains("not supported"));
 }
 

@@ -10,7 +10,7 @@ fn init_creates_skills_directory_and_readme() {
 
     init_skills_dir(dir.path()).expect("skills dir should initialize");
 
-    let skills = crate::app::agent::skills::skills_dir(dir.path());
+    let skills = crate::host_migration_52_tests::skills_dir(dir.path());
     assert!(skills.is_dir());
     assert!(skills.join("README.md").is_file());
     assert!(skills.join("create-task-plans").join("SKILL.md").is_file());
@@ -28,7 +28,7 @@ fn init_creates_skills_directory_and_readme() {
 // 初始化只补缺失文件，用户维护的 README 内容和权限不应被模板覆盖。
 fn init_preserves_existing_readme() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let skills = crate::app::agent::skills::skills_dir(dir.path());
+    let skills = crate::host_migration_52_tests::skills_dir(dir.path());
     fs::create_dir_all(&skills).expect("skills dir");
     fs::write(skills.join("README.md"), "custom readme").expect("custom readme");
 
@@ -45,7 +45,7 @@ fn init_preserves_existing_readme() {
 #[test]
 fn init_returns_error_when_skills_path_is_file() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let skills = crate::app::agent::skills::skills_dir(dir.path());
+    let skills = crate::host_migration_52_tests::skills_dir(dir.path());
     fs::write(&skills, "not a directory").expect("skills file");
 
     let err = init_skills_dir(dir.path()).expect_err("skills path file should fail");
@@ -57,7 +57,7 @@ fn init_returns_error_when_skills_path_is_file() {
 #[test]
 fn init_returns_error_when_readme_write_fails() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let skills = crate::app::agent::skills::skills_dir(dir.path());
+    let skills = crate::host_migration_52_tests::skills_dir(dir.path());
     fs::create_dir_all(&skills).expect("skills dir");
     std::os::unix::fs::symlink(
         dir.path().join("missing").join("README.md"),
@@ -73,7 +73,7 @@ fn init_returns_error_when_readme_write_fails() {
 #[test]
 fn init_returns_error_when_policy_path_is_directory() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let skills = crate::app::agent::skills::skills_dir(dir.path());
+    let skills = crate::host_migration_52_tests::skills_dir(dir.path());
     fs::create_dir_all(skills.join("create-task-plans")).expect("create-task-plans dir");
     fs::create_dir_all(skills.join("do-task-plans")).expect("do-task-plans dir");
     fs::create_dir_all(skills.join("rustcodegraph")).expect("rustcodegraph dir");

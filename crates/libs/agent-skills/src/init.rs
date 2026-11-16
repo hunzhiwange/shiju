@@ -55,3 +55,17 @@ pub fn initialize_skills_dir(
     initialize_policy(dir)?;
     Ok(())
 }
+
+use crate::installer::ensure_builtin_preloaded_skills;
+use crate::policy::load_or_init_skill_download_policy;
+use crate::catalog::skills_dir;
+
+/// Initialize the workspace skill assets, bundled skills and download policy.
+pub fn init_skills_dir(workspace_dir: &Path) -> Result<()> {
+    let dir = skills_dir(workspace_dir);
+    initialize_skills_dir(
+        &dir,
+        ensure_builtin_preloaded_skills,
+        |path| load_or_init_skill_download_policy(path).map(|_| ()),
+    )
+}

@@ -168,3 +168,87 @@ pub fn print_install_success(message: &str, installed_dir: &Path, files_scanned:
         files_scanned
     );
 }
+
+/// Dispatch skill commands with an inventory supplied by the host.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn handle_command(
+    command: skill_core::types::SkillCommands,
+    workspace_dir: &std::path::Path,
+    config: &config_skills::SkillsConfig,
+    plugin_skills: impl FnOnce(crate::types::SkillLoadMode) -> Vec<crate::Skill>,
+) -> anyhow::Result<()> {
+    // 获取工作空间目录，作为所有技能操作的基准路径
+
+    match command {
+        // 处理 list 命令：列出所有已安装的技能
+        skill_core::types::SkillCommands::List => {
+            // 加载所有技能，包括开放技能（如果启用）
+            let skills = crate::catalog::load_skills_with_config(workspace_dir, config, true, plugin_skills);
+
+            let entries = skills.iter().map(|skill| SkillListEntry {
+                name: &skill.name,
+                version: &skill.version,
+                description: &skill.description,
+                tools: skill.tools.iter().map(|tool| tool.name.as_str()).collect(),
+                tags: &skill.tags,
+            }).collect::<Vec<_>>();
+            print_skill_list(workspace_dir, &entries)
+        }
+
+        // 处理 audit 命令：审计指定技能的安全性
+        skill_core::types::SkillCommands::Audit { source } => {
+            audit_skill(
+                source,
+                &crate::local_sources::workspace_skills_dir(workspace_dir, config.directory_provider),
+                &config.security,
+            )
+        }
+
+        // 处理 install 命令：从指定来源安装技能
+        skill_core::types::SkillCommands::Install { source } => {
+            let skills_path = crate::local_sources::workspace_skills_dir(workspace_dir, config.directory_provider);
+            install_skill(
+                &source,
+                &skills_path,
+                || crate::init::init_skills_dir(workspace_dir),
+                |source, path| {
+                    let result = crate::installer::install_skill_from_source(source, path, &config.security)?;
+                    print_install_result(result);
+                    Ok(())
+                },
+            )
+        }
+
+        // 处理 remove 命令：移除已安装的技能
+        skill_core::types::SkillCommands::Remove { name } => {
+            remove_skill(
+                name,
+                &crate::local_sources::workspace_skills_dir(workspace_dir, config.directory_provider),
+            )
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn print_install_result(install_result: crate::installer::InstallResult) {
+    let (message, installed_dir, files_scanned) = match install_result {
+        crate::installer::InstallResult::SkillsSh { installed_dir, files_scanned } =>
+            ("Skill installed from skills.sh", installed_dir, files_scanned),
+        crate::installer::InstallResult::Git { installed_dir, files_scanned } =>
+            ("Skill installed and audited", installed_dir, files_scanned),
+        crate::installer::InstallResult::Local { installed_dir, files_scanned } =>
+            ("Skill installed and audited", installed_dir, files_scanned),
+    };
+    print_install_success(message, &installed_dir, files_scanned);
+}
+
+
+#[cfg(target_arch = "wasm32")]
+pub fn handle_command(
+    _command: skill_core::types::SkillCommands,
+    _workspace: &std::path::Path,
+    _config: &config_skills::SkillsConfig,
+    _plugins: impl FnOnce(crate::types::SkillLoadMode) -> Vec<crate::Skill>,
+) -> anyhow::Result<()> {
+    anyhow::bail!("Skill commands are not supported on WASM")
+}

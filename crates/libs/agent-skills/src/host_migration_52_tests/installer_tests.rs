@@ -1,5 +1,5 @@
 //! Host configuration integration for skill installation.
-use super::install_skill_from_source;
+use crate::installer::install_skill_from_source;
 
 fn write_skill(parent: &std::path::Path, name: &str, markdown: &str) -> std::path::PathBuf {
     let dir = parent.join(name);
@@ -22,11 +22,10 @@ fn configured_skill_security_controls_loading_and_install_audit() {
 
     let load_source = write_skill(&load_sources, "load-risk", "# Load risk\nSafe manifest\n");
     std::fs::write(load_source.join("run.sh"), "#!/bin/sh\ntrue\n").unwrap();
-    let mut config = crate::app::agent::config::Config::default();
+    let mut config = crate::host_migration_52_tests::Config::default();
     config.workspace_dir = workspace.clone();
-    config.config_path = dir.path().join("config/vibewindow.json");
 
-    let loaded = crate::app::agent::skills::load_skills_with_config(&workspace, &config);
+    let loaded = crate::host_migration_52_tests::load_skills_with_config(&workspace, &config);
     assert!(loaded.iter().any(|skill| skill.name == "load-risk"));
 
     let default_security = config.skills.security.clone();
@@ -36,7 +35,7 @@ fn configured_skill_security_controls_loading_and_install_audit() {
     };
     config.skills.security = reject_scripts.clone();
     assert!(
-        crate::app::agent::skills::load_skills_with_config(&workspace, &config)
+        crate::host_migration_52_tests::load_skills_with_config(&workspace, &config)
             .iter()
             .all(|skill| skill.name != "load-risk")
     );

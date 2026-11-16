@@ -1445,6 +1445,7 @@ dependencies = [
  "serde_yaml",
  "sha2 0.11.0",
  "shell-command",
+ "skill-core",
  "skill-market-types",
  "tempfile",
  "thiserror 2.0.21",

@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+skill-core = { path = "../skill-core", version = "0.6.0" }
 acp-types = { path = "../acp-types", version = "0.6.0" }
 gateway-shiju-account = { path = "../gateway-shiju-account", version = "0.6.0" }
 gateway-shiju-skill = { path = "../gateway-shiju-skill", version = "0.6.0" }
@@ -45,4 +46,4 @@ reqwest = { version = "0.13", default-features = false, features = ["stream", "s
 reqwest = { version = "0.13", features = ["json", "stream", "query"] }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs"] }

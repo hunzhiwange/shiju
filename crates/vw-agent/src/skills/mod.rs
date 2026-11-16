@@ -29,8 +29,6 @@
 //! - `types`：技能类型定义
 
 use std::path::Path;
-#[cfg(test)]
-use config_skills::SkillsDirectoryProvider;
 
 mod agent_metadata;
 mod audit;
@@ -65,8 +63,6 @@ pub(crate) use agent_skills::local::{is_local_skill_disabled, local_skill_disabl
 pub(crate) use agent_skills::local_sources::{
     LocalSkillSourceKind, discover_local_skill_source_dirs_with_provider, workspace_skills_dir,
 };
-#[cfg(test)]
-use agent_skills::local_sources::discover_local_skill_source_dirs;
 
 pub use agent_skills::catalog::{load_skills, skills_dir};
 
@@ -174,34 +170,6 @@ pub fn handle_command(
     cli::handle_command(command, config)
 }
 
-// ============================================================================
-// 测试模块
-// ============================================================================
-
-/// 符号链接相关测试
-#[cfg(test)]
-mod symlink_tests;
-
-/// 技能模块集成测试
-#[cfg(test)]
-mod tests;
-
-#[cfg(test)]
-#[path = "mod_tests.rs"]
-mod mod_tests;
-
-#[cfg(test)]
-#[path = "discovery_tests.rs"]
-mod discovery_tests;
-
-#[cfg(test)]
-#[path = "listing_tests.rs"]
-mod listing_tests;
-
-#[cfg(test)]
-#[path = "invoked_tests.rs"]
-mod invoked_tests;
-
 /// Load the same inbound session sources for catalog refresh and native invocation.
 pub(crate) fn load_session_skills(
     workspace: &Path,
@@ -217,3 +185,6 @@ pub(crate) fn load_session_skills(
         |mode| crate::plugins::load_plugin_skills(workspace, config, mode),
     )
 }
+
+#[cfg(test)]
+mod mod_tests;

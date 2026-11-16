@@ -38,3 +38,6 @@ mod tests;
 mod session_state_tests;
 #[cfg(test)]
 mod session_mounts_tests;
+
+#[cfg(test)]
+mod host_migration_52_tests;

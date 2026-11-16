@@ -1,5 +1,7 @@
 # 任务46：模型中继协议与传输
 
+最新收口：宿主481行，累计净减3599行（88.2%）；本轮再减415行。以下前两轮统计保留作历史证据，以末尾最新记录为准。
+
 代码静态迁移完成；编译/行为未验证。未运行任何 Cargo、单元测试、构建、实机或格式化命令。静态脚本核对全部原测试名称多重集，迁移前后完全一致，无断言场景删除。
 
 ## 归属与调用方向
@@ -117,11 +119,11 @@
 |search_citations.rs|2→2|现有直接调用者兼容重导出 model_protocol::search_citations；无业务算法|
 |search_citations_markdown.rs|1→1|既有迁移说明，无代码或注册；不将删除注释计收益|
 |server.rs|89→89|RelayServer::{start,address,shutdown} 与 From：HTTP 监听器生命周期组合；RelayContext::{usage,error,control,execute}：真实数据库/目录模型/租户端口；RelayUsageObserver::{push,finish}：usage 端口适配|
-|server_tests.rs|490→490|保留真实 RelayContext 当前租户/项目、目录权限、撤销与监听器生命周期边界|
+|server_tests.rs|490→75|保留真实 RelayContext 当前租户/项目、目录权限、撤销与监听器生命周期边界|
 |↳ `kiro_protocol_flag_is_local_but_catalog_still_requires_selected_model`|测试名称不变|`crates/vw-agent/src/model_relay/server_tests.rs`|
 |↳ `acp_model_source_relay_binding_http_isolation_limits_and_lifecycle`|测试名称不变|`crates/vw-agent/src/model_relay/server_tests.rs`|
 |↳ `acp_model_source_relay_expiry_cancels_an_established_http_stream`|测试名称不变|`crates/vw-agent/src/model_relay/server_tests.rs`|
-|↳ `acp_model_source_relay_binding_upstream_redirect_is_not_followed`|测试名称不变|`crates/vw-agent/src/model_relay/server_tests.rs`|
+|↳ `acp_model_source_relay_binding_upstream_redirect_is_not_followed`|测试名称不变|`crates/libs/model-relay-http/src/relay_test_support.rs`|
 |signature_rectify.rs|2→2|现有直接调用者兼容重导出 model_protocol::signature_rectify；无业务算法|
 |sse_framing.rs|2→2|现有直接调用者兼容重导出 model_protocol::sse_framing；无业务算法|
 |sse_framing_tests.rs|105→0|完整迁至 crates/libs/model-relay-http/src/host_migration_46_tests/sse_framing_tests.rs|
@@ -156,3 +158,24 @@
 必要直接调用：测试 RelayServer::start→crate::RelayServer::start；Scoped RelayBackend→agent_project::instance::provide_context→agent_provider::provider::get_model→model_transport::ProviderTransport::execute；配置写入→agent_config::runtime::update_project_for_tenant；UsageStreamObserver→model_protocol::stream_observer。测试fixture无 vw-agent 依赖与宿主Rust源码加载。真实宿主生产调用方向保持本文开头所述。
 
 所有编译/行为验证继续禁止，静态名称集合与差异检查不能证明运行通过。未来先按本任务32条过滤获取非零注册，默认运行预期31条非忽略用例；真实CLI单独授权执行。
+
+## 第三轮：任务59 recovery priorities 精确拆分
+
+读取 task-59-recovery-priorities.json owner46 的4个原用例及 ExternalProvider。server_tests.rs 490→75，领域 relay_test_support.rs 新增415行（无生产算法）；所有78个来源现在合计481行，较原4080行净减3599（88.2%）。2行额外差异来自上一轮之后其它任务的 mod.rs 最小注册清理，不计为本轮415行收益。
+
+- kiro_protocol_flag_is_local_but_catalog_still_requires_selected_model：宿主原名注册→领域同名驱动；真实缺失模型校验、bearer和revoke断言仍通过实际宿主RelayServer请求。
+- acp_model_source_relay_binding_http_isolation_limits_and_lifecycle：宿主原名注册→领域同名驱动；真实选中模型禁用/恢复通过宿主configure写入，外部Python客户端、请求容量/速率限制、请求覆盖拒绝、断开取消均保留。
+- acp_model_source_relay_expiry_cancels_an_established_http_stream：宿主原名注册→领域同名驱动；注入真实服务器，保留原时钟暂停和过期取消检查。
+- acp_model_source_relay_binding_upstream_redirect_is_not_followed：完全移至relay_test_support，cfg(test)自注册。直接使用model_transport::upstream_http_client，不涉及宿主上下文。
+- ExternalProvider::{execute}及三个模式、calls/mode/cancellation夹具归领域；租户/项目两个assert_eq仍在宿主scope_assertion回调中，于实际生产RelayContext::execute调用后运行。
+- EnvGuard仍在宿主，负责原VIBEWINDOW_CONFIG_DIR恢复；HostHarness只持真实Context/root/id，不复制应用状态。HostHarness::{start,configure}使用宿主RelayServer::start与config::update_project_for_tenant；harness仅合并重复的真实临时目录项目与模型初始化。
+
+此处RelayHarness是已获本次具体恢复指令要求的窄测试端口：身份、实际server工厂、真实配置写入及scope断言。test-support仅在vw-agent dev依赖启用；默认生产构建不编译测试驱动，不增加运行时权限。reqwest/sha2/hex通过可选依赖在该feature下启用，tokio test-util/process/io-util支持原测试路径；直接依赖均复用锁文件既有版本。
+
+静态表达式多重集比对：server_tests原38个assert/assert_eq在宿主+领域完全保留，仅忽略表达式内空白；未删断言。4个原注册=3个保留宿主注册+1个领域新注册，前两轮领域32条不变。物理归属：领域共33条（默认32，真实CLI仍ignored1），宿主3条。跨库驱动不冒称为新增领域独立单元测试。
+
+未来新增精确命令：
+`python3 scripts/cargo_slot.py cargo test -p model-relay-http --lib relay_test_support::acp_model_source_relay_binding_upstream_redirect_is_not_followed -- --exact`（预期1条）；
+`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib model_relay::server_tests:: -- --test-threads=1`（预期3条，全部调用真实宿主）；原host_migration_46_tests命令仍预期32条注册/31条非ignored。
+
+未运行Cargo、构建及任何测试。静态注册、依赖方向、原断言集合与git diff --check完成，不代表编译或行为通过。下一步由收口重新采集物理源码，未来授权后执行上述验证。

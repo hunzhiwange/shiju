@@ -546,7 +546,7 @@ workflow-video-edit = { path = "../libs/workflow-video-edit", version = "0.6.0",
 gateway-agent-scheduler = { path = "../libs/gateway-agent-scheduler", version = "0.6.0", features = ["test-support"] }
 session-store = { path = "../libs/session-store", version = "0.6.0", features = ["test-support"] }
 channel-runtime = { path = "../libs/channel-runtime", version = "0.6.0", features = ["test-support"] }
-model-relay-http = { path = "../libs/model-relay-http", version = "0.6.0", features = ["acceptance-diagnostics"] }
+model-relay-http = { path = "../libs/model-relay-http", version = "0.6.0", features = ["acceptance-diagnostics", "test-support"] }
 tool-git = { path = "../libs/tool-git", version = "0.6.0", features = ["test-support"] }
 tool-assembly = { path = "../libs/tool-assembly", version = "0.6.0", features = ["test-support"] }
 channel-qq = { path = "../libs/channel-qq", version = "0.6.0", features = ["test-support"] }

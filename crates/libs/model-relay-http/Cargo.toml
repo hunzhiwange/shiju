@@ -9,8 +9,12 @@ doctest = false
 
 [features]
 acceptance-diagnostics = []
+test-support = ["dep:reqwest", "dep:sha2", "dep:hex", "tokio/test-util", "tokio/process", "tokio/io-util"]
 
 [dependencies]
+reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls"], optional = true }
+sha2 = { version = "0.10", optional = true }
+hex = { version = "0.4", optional = true }
 anyhow = "1"
 async-trait = "0.1.89"
 axum = { version = "0.8.8", features = ["json", "tokio", "http1"] }
@@ -25,11 +29,13 @@ model-protocol = { path = "../model-protocol", version = "0.6.0" }
 model-protocols = { path = "../model-protocols", version = "0.6.0" }
 
 [dev-dependencies]
+sha2 = "0.10"
+hex = "0.4"
 reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls"] }
 provider-protocol-routes = { path = "../provider-protocol-routes", version = "0.6.0" }
 model-relay-state = { path = "../model-relay-state", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-tokio = { version = "1", features = ["io-util", "process"] }
+tokio = { version = "1", features = ["io-util", "process", "test-util"] }
 agent-auth = { path = "../agent-auth", version = "0.6.0" }
 agent-provider = { path = "../agent-provider", version = "0.6.0" }
 model-reasoning = { path = "../model-reasoning", version = "0.6.0" }

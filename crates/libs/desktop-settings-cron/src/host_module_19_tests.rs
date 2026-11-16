@@ -383,3 +383,10 @@ mod rendering;
 mod views;
 
 mod controller;
+
+mod templates {
+    use super::*;
+    pub fn view() -> Element<'static, Message> {
+        domain::templates::view().map(map)
+    }
+}

@@ -42,3 +42,7 @@ pub fn parse(code: Option<i32>, stdout: &[u8], stderr: &[u8]) -> Result<Value> {
     }
     Ok(output)
 }
+
+#[cfg(test)]
+#[path = "hook_post_tool_tests.rs"]
+mod tests;

@@ -1,18 +1,6 @@
-use super::hook_post_tool::validate;
 use serde_json::json;
 #[test]
-fn codex_plugin_compat_t38_rejects_invalid_input() {
-    assert!(validate(&json!({"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"wrong turn"}})).is_err());
-    assert!(
-        validate(
-            &json!({"hookSpecificOutput":{"hookEventName":"PostToolUse","updatedMCPToolOutput":{}}})
-        )
-        .is_err()
-    );
-}
-#[test]
 fn codex_plugin_compat_t38_preserves_isolation() {
-    assert!(validate(&json!({})).is_ok());
     assert!(crate::tools::ToolUseContext::default().take_hook_contexts().is_empty());
 }
 struct Marker(std::path::PathBuf);
@@ -128,25 +116,4 @@ async fn codex_plugin_compat_t38_captures_failed_large_result() {
     assert_eq!(context.take_hook_contexts(), ["captured"]);
     assert!(context.take_hook_contexts().is_empty());
     assert_eq!(std::fs::read_dir(package.path()).unwrap().count(), 0);
-}
-
-#[test]
-fn codex_plugin_compat_t38_returns_block_and_stop_feedback() {
-    use super::hook_post_tool::parse;
-    for output in [
-        json!({"decision":"block","reason":"blocked"}),
-        json!({"continue":false,"reason":"blocked"}),
-    ] {
-        assert_eq!(
-            parse(Some(0), &serde_json::to_vec(&output).unwrap(), b"").unwrap()["hookSpecificOutput"]
-                ["additionalContext"],
-            "blocked"
-        );
-    }
-    assert!(
-        parse(Some(2), b"", b"fixture stderr").unwrap()["hookSpecificOutput"]["additionalContext"]
-            .as_str()
-            .unwrap()
-            .contains("fixture stderr")
-    );
 }

@@ -397,3 +397,22 @@ agent-gateway::host_migration_15_tests 在 lib.rs 自注册，子模块 global/i
 当前仅进行了源码、注册、依赖方向与 diff whitespace 静态检查；Cargo/list/fmt/check/test、构建、实机、行为检查全部未运行，遵循计划禁止执行约束。不声称编译收益。Cargo.lock 仅手工登记现存包的测试依赖，未来须由 Cargo 验证。
 
 静态名称集合核对：原58条 = 领域41条 + 宿主17条，未删除或重复场景。
+
+## 恢复轮：拆分真实监听边界与领域断言
+
+读取 final.md 与 remaining-host.json（任务15原始残留1723行）后继续实施。本节覆盖前文相应保留映射；未运行任何 Cargo、构建或测试。
+
+- file_drag_integration_tests 五个原名测试仍注册在宿主，各自只构造真实 start/client_router 监听器并调用 agent_gateway::file_drag_contract 中同名函数。每轮监听器仍顺序创建和释放，原bootstrap条件显式传入最后一个契约。Server/Drop、Fixture/new/in_tenant/client/import、非回环地址枚举及完整磁盘/拒绝/数据断言下沉领域test-support。真实listener未替换成模拟，宿主仍编译五个边界测试，不能宣称这五条转成独立领域单元测试。
+- global_config_patch_stateful_concurrent_fields_preserve_both_values 保留宿主临时环境、真实bootstrap与屏障中间件；原HTTP并发20轮、跨租户、缓存、skey与非法patch断言下沉 global_config_contract::concurrent_fields_preserve_both_values。取消server及取消结果断言仍在宿主。gateway_bootstrap_loads_default_tenant_skeys_from_shared_store_without_legacy_fallback 不变。
+- agent_profile_api_copy_has_unique_custom_identity_and_survives_reload、agent_config_cleanup_catalog_copy_is_global_and_tenant_isolated 整条迁入 host_migration_15_tests::agent_copy 自注册。CopyHost仅实现真实租户配置数据库读写；其余端口显式panic以确保copy不选项目存储、不列目录、不进入实例，不复制目录算法。原持久化、唯一身份、项目配置不受影响及跨租户断言保留。
+- 新增依赖为现有gateway客户端/DTO及tempfile，由既有test-support特性启用；agent-commands为测试端口签名依赖。生产路径未启用这些测试契约，无vw-agent反向依赖。
+
+恢复轮逐文件宿主测试/夹具行数（生产算法变动0行）：
+- `file_drag_integration_tests.rs`：405 → 118，减少287。
+- `global_tests.rs`：216 → 153，减少63。
+- `misc_tests.rs`：280 → 193，减少87。
+恢复轮三文件净减437行。新契约模块全部为测试断言/夹具，并非生产迁移收益。静态assert/assert_eq/assert_ne宏数量逐类一致（原与迁移后联合统计）；未宣称运行等价或编译耗时收益。
+
+未来：`python3 scripts/cargo_slot.py cargo test -p agent-gateway --lib host_migration_15_tests -- --test-threads=1`，Unix预期43条（新增copy两条）。宿主global_tests仍2条、file_drag_integration_tests仍5条（Unix）、misc_tests减少到8条；各原完整名称仍按上表逐项验收。领域test-support契约由这些真实宿主测试调用，不能用领域过滤零测试冒充通过。
+
+本任务仍留真实装配端口、misc真实目录与profile目录安全检查、跨领域mod组合根。没有削弱宿主网络或鉴权覆盖。源代码与依赖静态检查不能代替未来Cargo验证；整轮35000行门槛仍需调度者重新统计，本文不宣称已达标。

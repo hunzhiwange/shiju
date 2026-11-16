@@ -1,6 +1,7 @@
 //! Domain-owned global and integration handler regression coverage.
 mod global;
 mod misc;
+mod agent_copy;
 mod integrations;
 #[cfg(unix)]
 mod hermes_memory;

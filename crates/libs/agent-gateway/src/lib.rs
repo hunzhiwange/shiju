@@ -74,3 +74,9 @@ mod host_migration_17_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod host_migration_18_tests;
+
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod file_drag_contract;
+
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod global_config_contract;

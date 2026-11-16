@@ -785,6 +785,11 @@ dependencies = [
 name = "agent-gateway"
 version = "0.6.0"
 dependencies = [
+ "gateway-files",
+ "gateway-http",
+ "gateway-endpoint",
+ "vw-api-file",
+ "agent-commands",
  "gateway-tools",
  "gateway-status",
  "agent-memory",

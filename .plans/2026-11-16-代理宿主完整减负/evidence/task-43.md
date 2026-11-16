@@ -477,3 +477,41 @@ lib.rs：session_contracts/dispatch_contracts 只在现有 test-support feature 
 - 未来 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib channels::session::session_tests -- --test-threads=1`：静态预期7条；必须实际非零且 failed=0。
 - 未来 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib channels::dispatch_tests -- --test-threads=1`：静态预期6条；两条纯策略原完整名称应从宿主 list 消失。
 - domain contracts 不是独立 #[test] 注册，不伪称为库单测通过；它们由上述真实宿主测试驱动。compiled ownership 需未来编译验证，库普通默认功能不会编入契约。
+
+## 第四轮：取消流契约（覆盖此前整组保留结论）
+
+再次读取最新 final.md 与 remaining-host.json；只继续任务43的额外挂载 dispatch_cancel_tests。完整12场景的取消/作用域/命令状态/反馈退出时序断言归 channel-runtime::cancel_contracts，仍驱动原 RuntimeHost。测试专用 CancelSignals 仅借用实际已注册 ChannelCancelStream 的 started/exited/release 原子信号，没有复制状态或模拟处理器；CancelFixture 传递原 Arc ctx/channel、msg/session 和信号引用。TempDir 与 Arc 流由宿主包装函数持有至契约返回。
+
+宿主保留真实 config 子进程隔离、项目注册、/new 请求、register_channel_cancel_stream，以及 take_test_llm_messages 捕获记录的长度、目录 canonicalize 和租户检查。第一条领域契约返回不可变快照给宿主继续此检查。worker spawn 只持有原 Arc ctx/msg 及静态 RuntimeHost，借用信号未搬入 static task。全部原断言保留，五个 idle/help 场景同样注入真实 RuntimeHost。
+
+lib.rs 仅在现有 test-support feature 导出 cancel_contracts；vw-agent 原 dev-dependency 已启用该 feature；无新 Cargo 依赖或生产 Host trait。领域契约不自注册为独立库测试，原宿主完整名称和 tokio 注册保留。
+
+### 全用例映射
+
+- `channels::channel_command_cancel_dispatch_tests::channel_command_cancel_qq_idle_is_idempotent` → 同名薄宿主入口 → `channel_runtime::cancel_contracts::channel_command_cancel_qq_idle_is_idempotent`。
+
+- `channels::channel_command_cancel_dispatch_tests::channel_command_cancel_lark_idle_is_idempotent` → 同名薄宿主入口 → `channel_runtime::cancel_contracts::channel_command_cancel_lark_idle_is_idempotent`。
+
+- `channels::channel_command_cancel_dispatch_tests::channel_command_cancel_telegram_does_not_require_auto_interrupt` → 同名薄宿主入口 → `channel_runtime::cancel_contracts::channel_command_cancel_telegram_does_not_require_auto_interrupt`。
+
+- `channels::channel_command_cancel_dispatch_tests::channel_command_cancel_invalid_arguments_preserve_state` → 同名薄宿主入口 → `channel_runtime::cancel_contracts::channel_command_cancel_invalid_arguments_preserve_state`。
+
+- `channels::channel_command_cancel_dispatch_tests::channel_command_cancel_help_describes_scope` → 同名薄宿主入口 → `channel_runtime::cancel_contracts::channel_command_cancel_help_describes_scope`。
+
+- `channels::channel_command_cancel_dispatch_tests::channel_command_cancel_bypasses_full_slots_and_cleans_before_new_session` → 同名薄宿主入口 → `channel_runtime::cancel_contracts::channel_command_cancel_bypasses_full_slots_and_cleans_before_new_session`。
+
+- `channels::channel_command_cancel_dispatch_tests::channel_command_cancel_isolates_instance_room_thread_sender_and_tenant` → 同名薄宿主入口 → `channel_runtime::cancel_contracts::channel_command_cancel_isolates_instance_room_thread_sender_and_tenant`。
+
+- `channels::channel_command_cancel_dispatch_tests::channel_command_cancel_unconfirmed_exit_keeps_mutations_busy` → 同名薄宿主入口 → `channel_runtime::cancel_contracts::channel_command_cancel_unconfirmed_exit_keeps_mutations_busy`。
+
+- `channels::channel_command_cancel_dispatch_tests::channel_command_cancel_busy_commands_preserve_state_and_status_responds` → 同名薄宿主入口 → `channel_runtime::cancel_contracts::channel_command_cancel_busy_commands_preserve_state_and_status_responds`。
+
+- `channels::channel_command_cancel_dispatch_tests::channel_command_cancel_natural_completion_then_stop_is_idempotent` → 同名薄宿主入口 → `channel_runtime::cancel_contracts::channel_command_cancel_natural_completion_then_stop_is_idempotent`。
+
+- `channels::channel_command_cancel_dispatch_tests::channel_command_cancel_waits_for_feedback_before_releasing_scope` → 同名薄宿主入口 → `channel_runtime::cancel_contracts::channel_command_cancel_waits_for_feedback_before_releasing_scope`。
+
+- `channels::channel_command_cancel_dispatch_tests::channel_command_cancel_dropped_caller_still_drains_processor` → 同名薄宿主入口 → `channel_runtime::cancel_contracts::channel_command_cancel_dropped_caller_still_drains_processor`。
+
+物理宿主 358 → 137 行；领域契约 246 行。生产收益0；assert/assert_eq/assert_ne 静态数量 47 → 47，原 tokio 注册12个仍12个。静态差异核对不等于编译或行为通过。
+
+未来 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib channels::channel_command_cancel_dispatch_tests -- --test-threads=1` 静态预期12个，必须非零。未运行任何 Cargo、构建或测试；真实处理器、租户和子进程验证仍需未来原生执行，不以库过滤零用例宣称通过。git diff --check 已核对；编号任务文件维持删除状态。

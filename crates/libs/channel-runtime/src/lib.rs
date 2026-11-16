@@ -50,3 +50,6 @@ pub mod dispatch_test_support;
 
 #[cfg(feature = "test-support")]
 pub mod dispatch_contracts;
+
+#[cfg(feature = "test-support")]
+pub mod cancel_contracts;

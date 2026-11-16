@@ -20,3 +20,6 @@ pub mod host;
 
 #[cfg(test)]
 mod compat_t34_tests;
+
+#[cfg(test)]
+mod hook_mcp_tests;

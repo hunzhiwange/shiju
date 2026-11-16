@@ -1,4 +1,3 @@
-use super::hook_mcp;
 use serde_json::{Value, json};
 use std::{fs, sync::Arc};
 struct Fixture {
@@ -100,11 +99,6 @@ async fn codex_plugin_compat_t45_rejects_invalid_input() {
     let root = fixture.plugin("fixture");
     assert!(fixture.call(&root, json!({})).await.is_err());
     assert!(!fixture.temp.path().join("calls").exists());
-    assert!(hook_mcp::expand(&json!({"x":"${absent}"}), &json!({})).is_err());
-    assert_eq!(
-        hook_mcp::expand(&json!({"x":"${nested.count}"}), &json!({"nested":{"count":3}})).unwrap(),
-        json!({"x":3})
-    );
 }
 #[tokio::test]
 async fn codex_plugin_compat_t45_preserves_isolation() {

@@ -310,10 +310,10 @@ Partial mappings:
 
 Current physical host files:
 - stream.rs: 328 lines.
-- stream_tests.rs: 548 lines.
+- stream_tests.rs: 547 lines.
 - stream_acceptance_host.rs: 27 lines.
 - session.rs: 4 added test-only registration lines.
-- Original3818 -> 907 incl new native adapter and registration, cumulative reduction 2911 (76.2%), above70% task threshold. Whole-plan gate still owned by task59.
+- Original3818 -> 906 incl new native adapter and registration, cumulative reduction 2912 (76.3%), above70% task threshold. Whole-plan gate still owned by task59.
 
 Domain physical test-support files:
 - crates/libs/gateway-session/src/stream_runtime_acceptance.rs: 503 lines.

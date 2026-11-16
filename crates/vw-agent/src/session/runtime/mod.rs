@@ -18,6 +18,8 @@ pub use types::{
     PromptTurn, SessionScope, SessionSnapshot, SessionToolset,
 };
 
+// Real NativeSessionIo persistence, tenant isolation and visible-task wiring contracts.
+// Directory-only SessionScope validation lives in session-port::lifecycle tests.
 #[cfg(test)]
 #[path = "../../../../libs/session-engine/tests/host_suites/runtime/lifecycle_tests.rs"]
 mod lifecycle_tests;

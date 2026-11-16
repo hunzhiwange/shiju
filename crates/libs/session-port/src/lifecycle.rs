@@ -170,3 +170,7 @@ impl From<session::Error> for LifecycleError {
         Self::Session(value)
     }
 }
+
+#[cfg(test)]
+#[path = "lifecycle_tests.rs"]
+mod lifecycle_tests;

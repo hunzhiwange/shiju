@@ -18489,8 +18489,10 @@ dependencies = [
  "serde_json",
  "session-info",
  "session-ui-types",
+ "tempfile",
  "tokio-util",
  "tool-types",
+ "uuid",
  "vw-api-chat-identity",
  "vw-api-transport",
 ]

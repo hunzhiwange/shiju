@@ -21,3 +21,7 @@ serde_json = "1"
 session-ui-types = { path = "../session-ui-types", version = "0.6.0" }
 vw-api-chat-identity = { path = "../api-chat-identity", version = "0.6.0" }
 config-agent = { path = "../config-agent", version = "0.6.0" }
+
+[dev-dependencies]
+tempfile = "3"
+uuid = { version = "1.11", features = ["v4", "js"] }

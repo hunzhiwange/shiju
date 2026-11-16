@@ -2,38 +2,19 @@
 //!
 //! 网关夹具覆盖连接中、已连接、断开和错误状态，并检查对应操作是否可用。
 
-use super::{active_gateway_healthy, gateway_server_healthy, gateway_services_module, gateway_tab_content, lsp_tab_content, manage_plugins_message, mcp_tab_content, plugin_tab_content};
+use super::{lsp_tab_content, manage_plugins_message};
 use crate::app::components::editor::Editor;
 use crate::app::components::system_settings::SystemTab;
 use crate::app::message::settings::{AgentConfigTabMessage, SettingsMessage};
 use crate::app::message::view::MenuType;
 use crate::app::state::{
-    AgentConfigTab, GatewayClientServerDraft, PluginCatalogItem, TopBarGatewayTab,
+    AgentConfigTab,
 };
 use crate::app::{App, LspProgress, Message, PreviewTab, message};
-use iced::Element;
 use std::collections::HashMap;
 
 fn test_app() -> App {
     App::new().0
-}
-
-fn server(id: &str, name: &str, host: &str, port: u16) -> GatewayClientServerDraft {
-    GatewayClientServerDraft {
-        id: id.to_string(),
-        name: name.to_string(),
-        host: host.to_string(),
-        port,
-        platform_id: "10000".to_string(),
-        company_id: "100000000".to_string(),
-        skey: String::new(),
-    }
-}
-
-fn mark_server_health(app: &mut App, server: &GatewayClientServerDraft, healthy: bool) {
-    let key = crate::app::message::gateway_health::server_health_key(server)
-        .expect("test server should produce a health key");
-    app.gateway_client_settings.health.insert(key, healthy);
 }
 
 fn preview_tab_with_lsp(server_key: Option<&'static str>) -> PreviewTab {
@@ -54,117 +35,6 @@ fn preview_tab_with_lsp(server_key: Option<&'static str>) -> PreviewTab {
 }
 
 #[test]
-fn gateway_health_defaults_to_false_without_health_entry() {
-    let app = test_app();
-    let server = server("local", "Local", "127.0.0.1", 42617);
-
-    assert!(!gateway_server_healthy(&app, &server));
-    assert!(!active_gateway_healthy(&app));
-}
-
-#[test]
-fn gateway_health_uses_matching_server_health_key() {
-    let mut app = test_app();
-    let local = server("local", "Local", "127.0.0.1", 42617);
-    let remote = server("remote", "Remote", "https://gateway.example.test", 443);
-    app.gateway_client_settings.servers = vec![local.clone(), remote.clone()];
-    app.gateway_client_settings.selected_server_id = remote.id.clone();
-    mark_server_health(&mut app, &local, false);
-    mark_server_health(&mut app, &remote, true);
-
-    assert!(!gateway_server_healthy(&app, &local));
-    assert!(gateway_server_healthy(&app, &remote));
-    assert!(active_gateway_healthy(&app));
-}
-
-#[test]
-fn active_gateway_health_is_false_when_selected_server_is_missing() {
-    let mut app = test_app();
-    let local = server("local", "Local", "127.0.0.1", 42617);
-    app.gateway_client_settings.servers = vec![local.clone()];
-    app.gateway_client_settings.selected_server_id = "missing".to_string();
-    mark_server_health(&mut app, &local, true);
-
-    assert!(!active_gateway_healthy(&app));
-}
-
-#[test]
-fn gateway_tab_content_includes_servers_and_management_actions() {
-    let mut app = test_app();
-    let local = server("local", "Local", "127.0.0.1", 42617);
-    let remote = server("remote", "Remote", "10.0.0.2", 8080);
-    app.gateway_client_settings.servers = vec![local.clone(), remote.clone()];
-    app.gateway_client_settings.selected_server_id = local.id.clone();
-    mark_server_health(&mut app, &local, true);
-    mark_server_health(&mut app, &remote, false);
-
-    let rows = gateway_tab_content(&app);
-
-    assert_eq!(rows.len(), 4);
-}
-
-#[test]
-fn plugin_tab_content_includes_toggle_and_management_actions() {
-    let mut app = test_app();
-    app.skills_settings.plugin_catalog.push(PluginCatalogItem {
-        id: "demo-plugin".to_string(),
-        display_name: "Demo Plugin".to_string(),
-        version: "0.1.0".to_string(),
-        description: "Demo plugin".to_string(),
-        enabled: true,
-        component_count: 4,
-        source_path: Some("/tmp/demo-plugin".to_string()),
-        dependency_checks: Vec::new(),
-        origin: Default::default(),
-        hook_review: String::new(),
-    });
-
-    let rows = plugin_tab_content(&app);
-
-    assert_eq!(rows.len(), 3);
-}
-
-
-
-#[test]
-fn mcp_tab_content_includes_servers_and_management_actions() {
-    let mut app = test_app();
-    app.mcp_settings.editor = iced::widget::text_editor::Content::with_text(
-        r#"[
-          {"name":"docs", "type":"http", "url":"https://example.test/mcp"},
-          {"name":"local", "command":"node", "enabled":false}
-        ]"#,
-    );
-    app.mcp_settings.server_count = 2;
-
-    let rows = mcp_tab_content(&app);
-
-    assert_eq!(rows.len(), 4);
-}
-
-#[test]
-fn mcp_tab_content_handles_loading_saving_errors_status_and_parse_empty_states() {
-    let mut app = test_app();
-    app.mcp_settings.loading = true;
-    app.mcp_settings.saving = true;
-    app.mcp_settings.save_error = Some("very long gateway mcp error message".to_string());
-    app.mcp_settings.status_message = Some("MCP 已同步".to_string());
-    app.mcp_settings.editor = iced::widget::text_editor::Content::with_text("{not-json");
-
-    assert_eq!(mcp_tab_content(&app).len(), 6);
-
-    app.mcp_settings.loading = false;
-    app.mcp_settings.saving = false;
-    app.mcp_settings.save_error = None;
-    app.mcp_settings.status_message = None;
-    assert_eq!(mcp_tab_content(&app).len(), 3);
-
-    app.mcp_settings.editor = iced::widget::text_editor::Content::with_text(" ");
-    assert_eq!(mcp_tab_content(&app).len(), 3);
-}
-
-
-#[test]
 fn manage_plugins_opens_the_standalone_agent_plugin_tab() {
     let Message::Batch(messages) = manage_plugins_message() else {
         panic!("管理插件应批量打开设置与插件页签");
@@ -181,40 +51,6 @@ fn manage_plugins_opens_the_standalone_agent_plugin_tab() {
             )))
         ]
     ));
-}
-
-
-#[test]
-fn gateway_and_plugin_tabs_cover_empty_and_loading_states() {
-    let mut app = test_app();
-    app.gateway_client_settings.servers.clear();
-    assert_eq!(gateway_tab_content(&app).len(), 2);
-
-    app.skills_settings.plugin_loading = true;
-    assert_eq!(plugin_tab_content(&app).len(), 3);
-
-    app.skills_settings.plugin_loading = false;
-    assert_eq!(plugin_tab_content(&app).len(), 3);
-}
-
-
-#[test]
-fn gateway_services_module_builds_each_tab() {
-    let mut app = test_app();
-    app.active_menu = Some(MenuType::GatewayServices);
-
-    for tab in [
-        TopBarGatewayTab::Gateway,
-        TopBarGatewayTab::Mcp,
-        TopBarGatewayTab::Lsp,
-        TopBarGatewayTab::Plugins,
-    ] {
-        app.top_bar_gateway_tab = tab;
-        let _: Element<'_, Message> = gateway_services_module(&app);
-    }
-
-    app.active_menu = None;
-    let _: Element<'_, Message> = gateway_services_module(&app);
 }
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -16,28 +16,6 @@ fn keep_element(element: Element<'_, Message>) {
 }
 
 #[test]
-fn view_returns_empty_element_without_active_toast() {
-    let app = test_app();
-
-    keep_element(view(&app));
-}
-
-#[test]
-fn view_renders_active_toast_for_each_kind() {
-    for kind in [ToastKind::Success, ToastKind::Info, ToastKind::Warning, ToastKind::Error] {
-        let mut app = test_app();
-        app.active_toast = Some(Toast {
-            localized_message: None,
-            id: 7,
-            kind,
-            message: format!("toast {kind:?}"),
-        });
-
-        keep_element(view(&app));
-    }
-}
-
-#[test]
 fn cache_sync_pending_retry_exposes_retry_action_in_toast() {
     let mut app = test_app();
     app.expert_hub.cache_sync =

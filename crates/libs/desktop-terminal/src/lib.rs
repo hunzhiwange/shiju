@@ -49,3 +49,6 @@ pub mod updates;
 
 #[cfg(test)]
 mod shell_compat_tests;
+
+#[cfg(test)]
+mod desktop_split_18_tests;

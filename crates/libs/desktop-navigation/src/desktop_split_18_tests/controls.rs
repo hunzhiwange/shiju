@@ -2,7 +2,7 @@
 //!
 //! 平台与窗口状态分开构造，确保最小化、最大化和关闭动作保持稳定映射。
 
-use super::controls;
+use crate::components::top_bar::controls;
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, Shell, clipboard, layout, mouse, overlay, renderer, widget::Tree};
 use iced::{Color, Event, Font, Rectangle, Renderer, Size, Theme, Vector};
@@ -20,13 +20,13 @@ async fn settings_tooltip_draws_readable_chinese_text_on_dark_background() {
     iced::advanced::graphics::text::font_system()
         .write()
         .unwrap()
-        .load_font(std::borrow::Cow::Borrowed(crate::fonts::NOTO_SANS_CJK_SC_REGULAR));
+        .load_font(std::borrow::Cow::Borrowed(desktop_assets::fonts::NOTO_SANS_CJK_SC_REGULAR));
     let mut renderer =
         Renderer::new(Font::with_name("Noto Sans CJK SC"), 16.0.into(), Some("tiny-skia"))
             .await
             .unwrap();
     let viewport = Rectangle::with_size(Size::new(180.0, 90.0));
-    let mut button = controls::settings_button(crate::app::i18n::I18n::new(
+    let mut button = controls::settings_button(desktop_i18n::I18n::new(
         config_ui::DesktopLocale::SimplifiedChinese,
     ));
     let mut tree = Tree::new(button.as_widget());

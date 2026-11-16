@@ -7,14 +7,10 @@ mod external;
 mod gateway;
 pub(crate) mod menu_actions;
 pub(crate) mod menus;
-#[cfg(test)]
-mod widgets;
 mod workspace_mode;
 
 use crate::app::{App, Message};
 use iced::Element;
-#[cfg(test)]
-pub(super) use desktop_navigation::components::top_bar::top_bar_style;
 
 /// 顶部菜单栏的高度（像素）
 ///
@@ -36,13 +32,3 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     desktop_navigation::components::top_bar::view(vec![traffic_light_spacer, workspace_mode, file_menu, edit_menu, view_menu, help_menu, drag_spacer, open_external_module, gateway_services, project_view_tools, settings])
 }
-
-#[cfg(test)]
-mod controls_tests;
-#[cfg(test)]
-mod external_tests;
-#[cfg(test)]
-mod menus_tests;
-#[cfg(test)]
-#[path = "top_bar/widgets_tests.rs"]
-mod widgets_tests;

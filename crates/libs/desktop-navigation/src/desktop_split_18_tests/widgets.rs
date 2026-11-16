@@ -2,11 +2,31 @@
 //!
 //! 通用部件通过无头渲染与样式取样覆盖可用、悬停和禁用状态。
 
+use crate::components::top_bar::Menu as MenuType;
+use crate::components::top_bar::widgets::{
+    menu_btn_with_actions, menu_item_btn_with_action, menu_item_icon_btn_with_action,
+};
 use iced::widget::{button, text};
 use iced::{Element, Length};
-use super::widgets::{menu_btn, menu_item_btn, menu_item_icon_btn};
-use crate::app::Message;
-use crate::app::message::view::MenuType;
+type Message = ();
+fn menu_btn(label: &str, menu: MenuType, active: Option<MenuType>) -> Element<'_, Message> {
+    menu_btn_with_actions(label, active == Some(menu), (), ())
+}
+fn menu_item_btn<'a>(
+    label: &'a str,
+    shortcut: Option<&'a str>,
+    action: Option<Message>,
+) -> Element<'a, Message> {
+    menu_item_btn_with_action(label, shortcut, action, |m| m)
+}
+fn menu_item_icon_btn<'a>(
+    icon: Element<'a, Message>,
+    label: &'a str,
+    shortcut: Option<&'a str>,
+    action: Option<Message>,
+) -> Element<'a, Message> {
+    menu_item_icon_btn_with_action(icon, label, shortcut, action, |m| m)
+}
 
 fn assert_size(element: &Element<'_, Message>, width: Length, height: Length) {
     let size = element.as_widget().size();
@@ -31,7 +51,7 @@ fn menu_btn_fills_top_bar_height_for_active_menu() {
 
 #[test]
 fn menu_item_btn_with_message_fills_available_width() {
-    let element = menu_item_btn("New session", Some("Cmd+N"), Some(Message::None));
+    let element = menu_item_btn("New session", Some("Cmd+N"), Some(()));
 
     assert_size(&element, Length::Fill, Length::Shrink);
 }
@@ -46,7 +66,7 @@ fn menu_item_btn_without_message_fills_available_width() {
 #[test]
 fn menu_item_icon_btn_with_message_fills_available_width() {
     let icon: Element<'_, Message> = text("i").into();
-    let element = menu_item_icon_btn(icon, "Open", Some("Cmd+O"), Some(Message::None));
+    let element = menu_item_icon_btn(icon, "Open", Some("Cmd+O"), Some(()));
 
     assert_size(&element, Length::Fill, Length::Shrink);
 }

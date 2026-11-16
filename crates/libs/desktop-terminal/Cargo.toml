@@ -24,4 +24,4 @@ arboard = "3.4"
 [dev-dependencies]
 tempfile = "3"
 
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }

@@ -42,3 +42,6 @@ mod screen_context_macos;
 
 #[cfg(all(test, feature = "acceptance-fixture", not(target_arch = "wasm32")))]
 mod acceptance_tests;
+
+#[cfg(test)]
+mod desktop_split_18_tests;

@@ -1,4 +1,4 @@
-use std::{fs, net::TcpListener, path::Path};
+use std::{fs, net::TcpListener};
 
 use agent_client_protocol::McpServer;
 use serde_json::json;
@@ -10,13 +10,9 @@ use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
     vw_api_app_identity::AppId,
-    vw_api_app_auth::AuthService,
     vw_api_mcp_management::McpCatalogScope,
-    vw_api_mcp_management::McpConfigValue,
     vw_api_mcp_management::McpConnectionDefinition,
-    vw_api_mcp_management::McpCredentialRef,
     vw_api_mcp_management::McpDistributionOutcome,
-    vw_api_mcp_management::McpFailureCode,
     vw_api_mcp_management::McpRuntimeSelection,
 };
 
@@ -28,7 +24,7 @@ use super::{
 use crate::{
     agent_apps::auth_accounts::AuthAccountStore,
     global_database::GlobalDatabase,
-    project::{Info, TimeInfo, instance, store::ProjectStore},
+    project::instance,
     session::ui_store::with_tenant_scope_sync,
     tools::{
         ToolRuntimeContext, execute_tool_call,
@@ -37,25 +33,7 @@ use crate::{
     },
 };
 
-pub(super) fn register_project(
-    database: &GlobalDatabase,
-    project: &ProjectScope,
-    workspace: &Path,
-) -> anyhow::Result<instance::Context> {
-    let directory = workspace.display().to_string();
-    let info = Info {
-        id: project.project_id().as_ref().to_owned(),
-        worktree: directory.clone(),
-        vcs: None,
-        name: None,
-        icon: None,
-        commands: None,
-        time: TimeInfo { created: 0, updated: 0, initialized: None },
-        sandboxes: Vec::new(),
-    };
-    ProjectStore::new(database.clone())?.create(project.tenant_scope(), &info)?;
-    Ok(instance::Context { directory: directory.clone(), worktree: directory, project: info })
-}
+pub(super) use gateway_agent_apps::mcp_acceptance::project::register_project;
 
 #[test]
 fn cc_mcp_t27_selected_record_exposes_and_calls_the_real_tool() -> anyhow::Result<()> {
@@ -65,31 +43,7 @@ fn cc_mcp_t27_selected_record_exposes_and_calls_the_real_tool() -> anyhow::Resul
     let script = workspace.join("server.py");
     fs::write(
         &script,
-        r#"
-import json
-import os
-import sys
-
-for line in sys.stdin:
-    request = json.loads(line)
-    if "id" not in request:
-        continue
-    method = request["method"]
-    if method == "initialize":
-        result = {
-            "protocolVersion": request["params"]["protocolVersion"],
-            "capabilities": {"tools": {}},
-            "serverInfo": {"name": "fixture", "version": "1"},
-        }
-    elif method == "tools/list":
-        result = {"tools": [{"name": "echo", "inputSchema": {"type": "object"}, "annotations": {"readOnlyHint": True}}]}
-    elif method == "tools/call":
-        text = request["params"]["arguments"]["message"] + "|" + os.path.basename(os.getcwd())
-        result = {"content": [{"type": "text", "text": text}]}
-    else:
-        result = {}
-    print(json.dumps({"jsonrpc": "2.0", "id": request["id"], "result": result}), flush=True)
-"#,
+        gateway_agent_apps::mcp_acceptance::servers::RUNTIME_SERVER,
     )?;
     let database = GlobalDatabase::for_home(&crate::global::paths().home)?;
     let tenant = TenantScope::new("mcp-runtime-fixture", "company")?;
@@ -189,53 +143,8 @@ async fn cc_mcp_t27_runtime_selection_keeps_project_and_acp_boundaries() -> anyh
     let tenant_catalog = McpCatalogScope::Tenant { scope: tenant.clone() };
     let catalog = McpCatalogStore::new(database).unwrap();
 
-    let http = catalog.create(&scope, http_draft("remote", &url)).unwrap().record;
-    let mut sse = http_draft("events", &url);
-    sse.connection = McpConnectionDefinition::Sse { url: url.clone(), headers: Default::default() };
-    let sse = catalog.create(&scope, sse).unwrap().record;
-    assert_eq!(
-        catalog.select_for_runtime(
-            &other,
-            &scope,
-            &McpRuntimeSelection { project: other.clone(), record: http.clone() },
-        ),
-        Err(McpFailureCode::PermissionDenied),
-    );
-    for record in [http, sse] {
-        let selected = McpRuntimeSelection { project: project.clone(), record };
-        catalog.select_for_runtime(&project, &scope, &selected).unwrap();
-        catalog.select_for_runtime(&project, &scope, &selected).unwrap();
-    }
-
-    let mut private = http_draft("private", &url);
-    if let McpConnectionDefinition::StreamableHttp { headers, .. } = &mut private.connection {
-        headers.insert(
-            "Authorization".into(),
-            McpConfigValue::Credential {
-                reference: McpCredentialRef {
-                    service: AuthService::CodexOauth,
-                    account_id: "fixture".into(),
-                },
-            },
-        );
-    }
-    let private = catalog.create(&tenant_catalog, private).unwrap().record;
-    assert_eq!(
-        catalog.select_for_runtime(
-            &project,
-            &tenant_catalog,
-            &McpRuntimeSelection { project: project.clone(), record: private },
-        ),
-        Err(McpFailureCode::PermissionDenied),
-    );
-    let same_name = catalog.create(&tenant_catalog, http_draft("remote", &url)).unwrap().record;
-    assert_eq!(
-        catalog.select_for_runtime(
-            &project,
-            &tenant_catalog,
-            &McpRuntimeSelection { project: project.clone(), record: same_name },
-        ),
-        Err(McpFailureCode::Conflict),
+    gateway_agent_apps::mcp_acceptance::runtime_scope::prepare_and_assert(
+        &catalog, &scope, &tenant_catalog, &project, &other, &url,
     );
 
     crate::session::ui_store::with_tenant_scope(tenant, instance::provide_context(context, async {

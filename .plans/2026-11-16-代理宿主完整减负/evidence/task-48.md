@@ -216,3 +216,34 @@ host_scope_tests: 31 个断言宏文本一致；函数执行顺序保持
 本轮只运行源码/断言文本比较与 git diff --check；没有运行 Cargo、格式化、编译、单元/实机测试。代码完成，编译/行为未验证。
 
 最终本文件族宿主现存 1084 行（splitlines），原3627行，净减2543行（70.11%）。生产/夹具/断言分别按上述符号归属解释，未以转发或测试搬迁冒充算法迁移。此数字只代表本任务，不代表全局35000行目标通过。
+
+
+## 第三次恢复：运行时领域断言与持久化项目夹具
+
+读取最新 final.md 的43584行/差8584行快照和 remaining-host.json 任务48项，本次不沿用派发消息中约38000行的旧差额。
+
+- `runtime_tests::cc_mcp_t27_runtime_selection_keeps_project_and_acp_boundaries` 的整段目录创建/运行时选择策略迁入 `gateway_agent_apps::mcp_acceptance::runtime_scope::prepare_and_assert`。该真实调用保留项目越权、重复选择幂等、凭证记录拒绝和重名冲突的原断言。返回后原宿主函数继续断言原生/ACP配置加载、无网络连接与项目声明冲突，执行次序保持。
+- `runtime_tests::register_project` 迁入 `mcp_acceptance::project::register_project`，直接调用 agent-project 的真实 ProjectStore，构造真实 instance::Context。runtime_tests 用原名别名供两条运行时测试与两条 revocation 测试调用；不复制项目存储实现。
+- runtime/revocation/ACP 三组完整 Python 协议夹具移入 `mcp_acceptance::servers::{RUNTIME_SERVER,REVOCATION_SERVER,ACP_SERVER}`。原测试继续写入相同文件并启动真实 python3 进程。三个脚本文本逐字核对相同；测试名称和全部断言宏文本多重集合相同，没有减少失败、撤销或事件顺序覆盖。
+- 新模块仅由现有 test-support + macOS 入口注册，宿主已有启用 feature 的 dev-dependency。未新增依赖、配置或 Host trait；未迁出生产算法，本次生产迁移计数为0，领域策略生产入口仍是此前已实际接线的 runtime_servers_for_project_roots。
+
+本次静态核对5条原测试名、全部断言宏文本及3个完整协议夹具。未来仍以原5个宿主完整名称运行，每个预期1条，入口见前文；它们会实际调用本次领域场景。没有新增单独测试函数，不将过滤零测试当作通过。
+
+当前任务48宿主现存 945 行，原3627行净减 2682 行（73.95%）。所有具体保留文件职责如下，替代旧行数快照：
+
+|文件|行数|具体保留职责|
+|---|---:|---|
+|acp_mount.rs|28|保持原真实宿主上下文/数据库/权限或外部生命周期端口，具体符号见上方全量映射|
+|acp_mount_tests.rs|208|真实VibeWindowBackend恢复、session_tool_count、工具调用撤销和后端清空边界；协议夹具已迁出|
+|connectivity.rs|28|保持原真实宿主上下文/数据库/权限或外部生命周期端口，具体符号见上方全量映射|
+|host_scope_tests.rs|32|真实路由回调、HOME/策略隔离薄入口|
+|mod.rs|36|真实端口及薄边界用例注册；领域夹具别名|
+|network_probe.rs|100|保持原真实宿主上下文/数据库/权限或外部生命周期端口，具体符号见上方全量映射|
+|probe_jobs.rs|45|保持原真实宿主上下文/数据库/权限或外部生命周期端口，具体符号见上方全量映射|
+|revocation.rs|12|保持原真实宿主上下文/数据库/权限或外部生命周期端口，具体符号见上方全量映射|
+|revocation_tests.rs|222|两条真实缓存工具、活动调用与连接关闭边界；共享项目与协议夹具已迁出|
+|runtime.rs|26|保持原真实宿主上下文/数据库/权限或外部生命周期端口，具体符号见上方全量映射|
+|runtime_tests.rs|170|两条真实原生工具装配、执行和ACP加载边界；项目与选择策略已迁出|
+|security_tests.rs|38|真实路由回调、子进程和日志脱敏薄入口|
+
+未运行任何Cargo、构建、格式化、单元或实机测试。静态差异检查不代表编译和行为通过。

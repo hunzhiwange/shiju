@@ -10,13 +10,17 @@
 //! later CLI bridge, so this module stores drafts, deduplicates adjacent submissions, and performs
 //! reverse search without knowing about Gateway requests, permissions, or session identifiers.
 
+use std::path::PathBuf;
+use tui_contracts::event::V3Attachment;
 use tui_contracts::presentation::MentionBinding;
 use tui_input::input_types::TextElement;
-use std::path::PathBuf;
+use tui_input::textarea::TextAreaDraft;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HistoryEntry {
     pub text: String,
+    pub attachments: Vec<V3Attachment>,
+    pub draft: Option<TextAreaDraft>,
     pub text_elements: Vec<TextElement>,
     pub local_image_paths: Vec<PathBuf>,
     pub remote_image_urls: Vec<String>,
@@ -28,6 +32,8 @@ impl HistoryEntry {
     pub fn new(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
+            attachments: Vec::new(),
+            draft: None,
             text_elements: Vec::new(),
             local_image_paths: Vec::new(),
             remote_image_urls: Vec::new(),
@@ -43,6 +49,8 @@ impl HistoryEntry {
     ) -> Self {
         Self {
             text: text.into(),
+            attachments: Vec::new(),
+            draft: None,
             text_elements,
             local_image_paths: Vec::new(),
             remote_image_urls: Vec::new(),
@@ -71,7 +79,7 @@ pub enum HistorySearchResult {
 pub struct ChatComposerHistory {
     entries: Vec<HistoryEntry>,
     cursor: Option<usize>,
-    draft_before_navigation: Option<String>,
+    draft_before_navigation: Option<HistoryEntry>,
     search_query: Option<String>,
     search_index: Option<usize>,
 }
@@ -86,11 +94,13 @@ impl ChatComposerHistory {
     }
 
     pub fn record_local_submission(&mut self, entry: HistoryEntry) {
-        if entry.text.is_empty() || self.entries.last() == Some(&entry) {
+        self.reset_navigation();
+        if (entry.text.is_empty() && entry.attachments.is_empty())
+            || self.entries.last() == Some(&entry)
+        {
             return;
         }
         self.entries.push(entry);
-        self.reset_navigation();
     }
 
     pub fn should_handle_navigation(&self, text: &str, cursor: usize) -> bool {
@@ -98,11 +108,15 @@ impl ChatComposerHistory {
     }
 
     pub fn navigate_up(&mut self, current_text: &str) -> Option<HistoryEntry> {
+        self.navigate_up_with_draft(HistoryEntry::new(current_text))
+    }
+
+    pub fn navigate_up_with_draft(&mut self, draft: HistoryEntry) -> Option<HistoryEntry> {
         if self.entries.is_empty() {
             return None;
         }
         if self.cursor.is_none() {
-            self.draft_before_navigation = Some(current_text.to_string());
+            self.draft_before_navigation = Some(draft);
             self.cursor = Some(self.entries.len() - 1);
         } else if let Some(cursor) = self.cursor
             && cursor > 0
@@ -118,9 +132,9 @@ impl ChatComposerHistory {
             self.cursor = Some(cursor + 1);
             return self.entries.get(cursor + 1).cloned();
         }
-        let draft = self.draft_before_navigation.take().unwrap_or_default();
+        let draft = self.draft_before_navigation.take().unwrap_or_else(|| HistoryEntry::new(""));
         self.reset_navigation();
-        Some(HistoryEntry::new(draft))
+        Some(draft)
     }
 
     pub fn reset_navigation(&mut self) {

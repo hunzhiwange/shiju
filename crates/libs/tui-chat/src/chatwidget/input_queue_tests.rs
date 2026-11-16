@@ -37,3 +37,41 @@ fn shift_left_edits_the_last_queued_message_and_keeps_fifo_order() {
     assert_eq!(chat.queued_input_count(), 1);
     assert_eq!(chat.pop_queued_input(), Some(("first".to_string(), Vec::new())));
 }
+
+#[test]
+fn terminal_req_05_queue_edit_preserves_rich_input_once() {
+    use tui_contracts::event::{V3Attachment, V3AttachmentKind};
+    let mut config = ChatWidgetConfig::default();
+    config.footer_data.is_task_running = true;
+    let mut chat = ChatWidget::new(config);
+    let payload = "中😀".repeat(1001);
+    chat.handle_paste(payload.clone());
+    let image = V3Attachment {
+        kind: V3AttachmentKind::Image,
+        label: "clipboard".into(),
+        path: None,
+        media_type: Some("image/png".into()),
+        text: None,
+        bytes: Some(vec![1, 2, 3]),
+    };
+    chat.add_attachment(image.clone());
+    let V3Action::Queue { text, attachments } =
+        chat.handle_key_event(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE))
+    else {
+        panic!("expected queue");
+    };
+    chat.queue_input(text, attachments);
+    chat.handle_key_event(KeyEvent::new(KeyCode::Up, KeyModifiers::ALT));
+    assert_eq!(chat.queued_input_count(), 0);
+    assert_eq!(chat.draft(), "[Pasted text: 2002 chars]");
+    let V3Action::Queue { text, attachments } =
+        chat.handle_key_event(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE))
+    else {
+        panic!("expected requeue");
+    };
+    assert_eq!(text, payload);
+    assert_eq!(attachments, vec![image.clone()]);
+    chat.queue_input(text, attachments);
+    assert_eq!(chat.pop_queued_input(), Some((payload, vec![image])));
+    assert_eq!(chat.pop_queued_input(), None);
+}

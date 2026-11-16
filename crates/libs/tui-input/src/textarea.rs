@@ -112,6 +112,29 @@ pub(crate) struct TextElementSnapshot {
     pub(crate) text: String,
 }
 
+/// Owned visible draft state, including atomic payloads and the UTF-8 cursor.
+/// Editor configuration and the kill buffer remain local to the receiving editor.
+#[derive(Debug, Clone, Eq)]
+pub struct TextAreaDraft {
+    text: String,
+    cursor: usize,
+    elements: Vec<TextElement>,
+    next_element_id: u64,
+}
+
+impl PartialEq for TextAreaDraft {
+    fn eq(&self, other: &Self) -> bool {
+        self.text == other.text
+            && self.cursor == other.cursor
+            && self.elements.len() == other.elements.len()
+            && self
+                .elements
+                .iter()
+                .zip(&other.elements)
+                .all(|(left, right)| left.range == right.range && left.payload == right.payload)
+    }
+}
+
 /// TextArea 是 TUI 编辑器后方的可编辑缓冲区。 它负责管理原始 UTF-8 文本、占位符样式的文本元素（这些元素必须与编辑原子性移动）、渲染所需的光标/换行状态，以及用于 `Ctrl+K` / `Ctrl+Y` 风格编辑的单条目死缓冲。调用者可以通过 [`Self::set_text_clearing_elements`] 或 [`Self::set_text_with_elements`] 方法完全替换可见缓冲区而不影响死缓冲；如果它们错误地假设这些方法完全重置编辑状态，随后的回滚将显示用户视角中残留的文本。
 /// `TextArea` is the editable buffer behind the TUI composer.
 ///
@@ -208,6 +231,22 @@ impl TextArea {
     /// `Ctrl+Y` to recover the user's most recent kill.
     pub fn set_text_clearing_elements(&mut self, text: &str) {
         self.set_text_inner(text, /*elements*/ None);
+    }
+
+    pub fn draft(&self) -> TextAreaDraft {
+        TextAreaDraft {
+            text: self.text.clone(),
+            cursor: self.cursor_pos,
+            elements: self.elements.clone(),
+            next_element_id: self.next_element_id,
+        }
+    }
+
+    pub fn restore_draft(&mut self, draft: &TextAreaDraft) {
+        self.set_text_clearing_elements(&draft.text);
+        self.elements = draft.elements.clone();
+        self.next_element_id = self.next_element_id.max(draft.next_element_id);
+        self.set_cursor(draft.cursor);
     }
 
     /// 将可见的文本域内容替换并重建提供的文本元素。

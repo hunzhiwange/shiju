@@ -86,6 +86,7 @@ impl ChatComposer {
     }
 
     pub fn replace_text(&mut self, text: &str) {
+        self.history.reset_navigation();
         self.paste_burst.clear_after_explicit_paste();
         self.textarea.set_text_clearing_elements(text);
         self.textarea.set_cursor(text.len());
@@ -130,8 +131,22 @@ impl ChatComposer {
     }
 
     pub fn restore_submission(&mut self, text: &str, attachments: Vec<V3Attachment>) {
-        self.replace_text(text);
-        self.attachments = attachments;
+        // Queue edits and failed sends carry expanded wire text. Reuse the local
+        // snapshot only when both content and ordered attachments still match.
+        let entry = self
+            .history
+            .entries()
+            .iter()
+            .rev()
+            .find(|entry| entry.text == text && entry.attachments == attachments)
+            .cloned();
+        self.history.reset_navigation();
+        if let Some(entry) = entry {
+            self.restore_history_entry(entry);
+        } else {
+            self.replace_text(text);
+            self.attachments = attachments;
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -165,6 +180,7 @@ impl ChatComposer {
     }
 
     pub fn clear(&mut self) {
+        self.history.reset_navigation();
         self.paste_burst.clear_after_explicit_paste();
         self.textarea.set_text_clearing_elements("");
         self.attachments.clear();
@@ -185,10 +201,8 @@ impl ChatComposer {
         if !pasted.is_empty() {
             let chars = pasted.chars().count();
             if chars > LARGE_PASTE_CHAR_THRESHOLD {
-                self.textarea.insert_element_with_payload(
-                    &format!("[Pasted text: {chars} chars]"),
-                    pasted,
-                );
+                self.textarea
+                    .insert_element_with_payload(&format!("[Pasted text: {chars} chars]"), pasted);
             } else {
                 self.textarea.insert_str(pasted);
             }
@@ -230,7 +244,7 @@ impl ChatComposer {
         if text.trim().is_empty() && self.attachments.is_empty() {
             return V3Action::None;
         }
-        self.history.record_local_submission(HistoryEntry::new(text.clone()));
+        self.history.record_local_submission(self.history_entry());
         let attachments = std::mem::take(&mut self.attachments);
         self.textarea.set_text_clearing_elements("");
         self.footer.set_mode(FooterMode::ComposerEmpty);
@@ -241,12 +255,34 @@ impl ChatComposer {
         }
     }
 
+    fn history_entry(&self) -> HistoryEntry {
+        let mut entry = HistoryEntry::new(self.textarea.expanded_text());
+        entry.attachments = self.attachments.clone();
+        entry.draft = Some(self.textarea.draft());
+        entry
+    }
+
+    fn restore_history_entry(&mut self, entry: HistoryEntry) {
+        self.paste_burst.clear_after_explicit_paste();
+        if let Some(draft) = entry.draft {
+            self.textarea.restore_draft(&draft);
+        } else {
+            self.textarea.set_text_clearing_elements(&entry.text);
+            self.textarea.set_cursor(self.textarea.text().len());
+        }
+        self.attachments = entry.attachments;
+        self.footer.set_mode(if self.is_empty() && self.attachments.is_empty() {
+            FooterMode::ComposerEmpty
+        } else {
+            FooterMode::ComposerHasDraft
+        });
+    }
+
     fn restore_history_previous(&mut self) -> bool {
-        let Some(entry) = self.history.navigate_up(&self.textarea.expanded_text()) else {
+        let Some(entry) = self.history.navigate_up_with_draft(self.history_entry()) else {
             return false;
         };
-        self.textarea.set_text_clearing_elements(&entry.text);
-        self.textarea.set_cursor(self.textarea.text().len());
+        self.restore_history_entry(entry);
         true
     }
 
@@ -254,8 +290,7 @@ impl ChatComposer {
         let Some(entry) = self.history.navigate_down() else {
             return false;
         };
-        self.textarea.set_text_clearing_elements(&entry.text);
-        self.textarea.set_cursor(self.textarea.text().len());
+        self.restore_history_entry(entry);
         true
     }
 
@@ -503,3 +538,7 @@ mod terminal_req_01_tests;
 #[cfg(test)]
 #[path = "terminal_req_04_tests.rs"]
 mod terminal_req_04_tests;
+
+#[cfg(test)]
+#[path = "terminal_req_05_tests.rs"]
+mod terminal_req_05_tests;

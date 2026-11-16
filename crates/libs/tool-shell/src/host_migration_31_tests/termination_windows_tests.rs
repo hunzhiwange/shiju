@@ -1,4 +1,4 @@
-use super::tests::wait_for;
+use super::processes_tests::wait_for;
 use super::*;
 use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
 use windows_sys::Win32::Foundation::{WAIT_OBJECT_0, WAIT_TIMEOUT};
@@ -7,7 +7,7 @@ use windows_sys::Win32::System::Threading::{
 };
 
 const FIXTURE: &str =
-    "tools::shell::processes::termination_windows_tests::shell_process_windows_fixture";
+    "shell::host_migration_31_tests::termination_windows_tests::shell_process_windows_fixture";
 const ROLE: &str = "VW_SHELL_TREE_TEST_ROLE";
 
 #[test]
@@ -65,7 +65,7 @@ fn shell_process_windows_cleanup_stops_descendants() {
     for action in ["cancel", "timeout", "shutdown", "exit"] {
         let root = tempfile::tempdir().unwrap();
         let owner = ShellProcessScope::new("tenant".into(), root.path(), action.into()).unwrap();
-        let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
+        let host = ShellProcesses::new::<super::Host>().unwrap();
         let rt = tokio::runtime::Runtime::new().unwrap();
         let ready = root.path().join("ready");
         let limit = (action == "timeout").then_some(Duration::from_secs(3));
@@ -119,7 +119,7 @@ fn shell_process_windows_cleanup_stops_descendants() {
 fn shell_process_windows_rejects_remote_runtime_before_spawn() {
     let root = tempfile::tempdir().unwrap();
     let owner = ShellProcessScope::new("tenant".into(), root.path(), "remote".into()).unwrap();
-    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
+    let host = ShellProcesses::new::<super::Host>().unwrap();
     let rt = tokio::runtime::Runtime::new().unwrap();
     for program in ["docker.exe", "PODMAN.EXE", "ssh.exe"] {
         let error = rt

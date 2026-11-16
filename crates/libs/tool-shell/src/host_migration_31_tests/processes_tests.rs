@@ -21,7 +21,7 @@ pub(super) fn wait_for(mut check: impl FnMut() -> bool) {
 fn shell_process_survives_caller_runtime_drop() {
     let root = tempfile::tempdir().unwrap();
     let owner = ShellProcessScope::new("tenant".into(), root.path(), "session".into()).unwrap();
-    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
+    let host = ShellProcesses::new::<super::Host>().unwrap();
     let ready = root.path().join("ready");
     let release = root.path().join("release");
     let script = format!(
@@ -50,7 +50,7 @@ fn shell_process_scope_rejects_other_owner() {
     let root = tempfile::tempdir().unwrap();
     let other_root = tempfile::tempdir().unwrap();
     let owner = ShellProcessScope::new("tenant".into(), root.path(), "session".into()).unwrap();
-    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
+    let host = ShellProcesses::new::<super::Host>().unwrap();
     let caller = tokio::runtime::Runtime::new().unwrap();
     let snapshot =
         caller.block_on(host.start(owner.clone(), command("exec sleep 60".into()))).unwrap();
@@ -72,7 +72,7 @@ fn shell_process_scope_rejects_other_owner() {
 #[test]
 fn shell_process_capacity_rejects_without_eviction() {
     let root = tempfile::tempdir().unwrap();
-    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
+    let host = ShellProcesses::new::<super::Host>().unwrap();
     let caller = tokio::runtime::Runtime::new().unwrap();
     let mut processes = Vec::new();
     for session in 0..4 {
@@ -109,7 +109,7 @@ fn shell_process_capacity_rejects_without_eviction() {
 fn shell_process_spawn_failure_preserves_io_error_and_capacity() {
     let root = tempfile::tempdir().unwrap();
     let owner = ShellProcessScope::new("tenant".into(), root.path(), "session".into()).unwrap();
-    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
+    let host = ShellProcesses::new::<super::Host>().unwrap();
     let caller = tokio::runtime::Runtime::new().unwrap();
     let missing = root.path().join("missing-executable");
     let error = caller
@@ -140,7 +140,7 @@ fn shell_process_shutdown_reaps_real_child() {
     let owner = ShellProcessScope::new("tenant".into(), root.path(), "session".into()).unwrap();
     let pid_path = root.path().join("pid");
     let script = format!("echo $$ > '{}'; exec sleep 60", pid_path.display());
-    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
+    let host = ShellProcesses::new::<super::Host>().unwrap();
     let caller = tokio::runtime::Runtime::new().unwrap();
     caller.block_on(host.start(owner, command(script))).unwrap();
     wait_for(|| {
@@ -160,7 +160,7 @@ fn shell_process_shutdown_reaps_real_child() {
 fn shell_output_wait_expiry_keeps_process_alive() {
     let root = tempfile::tempdir().unwrap();
     let owner = ShellProcessScope::new("tenant".into(), root.path(), "session".into()).unwrap();
-    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
+    let host = ShellProcesses::new::<super::Host>().unwrap();
     let caller = tokio::runtime::Runtime::new().unwrap();
     let started =
         caller.block_on(host.start(owner.clone(), command("exec sleep 60".into()))).unwrap();
@@ -182,7 +182,7 @@ fn shell_output_wait_expiry_keeps_process_alive() {
 fn shell_output_exit_drains_tail() {
     let root = tempfile::tempdir().unwrap();
     let owner = ShellProcessScope::new("tenant".into(), root.path(), "session".into()).unwrap();
-    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
+    let host = ShellProcesses::new::<super::Host>().unwrap();
     let caller = tokio::runtime::Runtime::new().unwrap();
     let started = caller
         .block_on(
@@ -214,7 +214,7 @@ fn shell_output_exit_drains_tail() {
 fn shell_output_real_pipes_support_replay_overflow_and_utf8() {
     let root = tempfile::tempdir().unwrap();
     let owner = ShellProcessScope::new("tenant".into(), root.path(), "session".into()).unwrap();
-    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
+    let host = ShellProcesses::new::<super::Host>().unwrap();
     let caller = tokio::runtime::Runtime::new().unwrap();
     let release = root.path().join("release");
     let flood = root.path().join("flood");
@@ -271,7 +271,7 @@ fn shell_session_scope_cleanup_preserves_other_tenants_and_sessions() {
         ShellProcessScope::new("tenant".into(), root.path(), "other".into()).unwrap(),
         ShellProcessScope::new("tenant".into(), other_root.path(), "session".into()).unwrap(),
     ];
-    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
+    let host = ShellProcesses::new::<super::Host>().unwrap();
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let processes: Vec<_> = scopes
         .iter()

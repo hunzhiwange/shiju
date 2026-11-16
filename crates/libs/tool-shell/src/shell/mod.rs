@@ -889,3 +889,7 @@ pub fn append_note(mut output: String, note: &str) -> String {
         output
     }
 }
+
+#[cfg(test)]
+#[path = "../host_migration_31_tests.rs"]
+mod host_migration_31_tests;

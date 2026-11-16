@@ -20782,8 +20782,10 @@ dependencies = [
  "agent-security",
  "anyhow",
  "async-trait",
+ "config-security",
  "libc",
  "parking_lot",
+ "permission-types",
  "runtime-types",
  "serde",
  "serde_json",
@@ -20796,6 +20798,7 @@ dependencies = [
  "tool-types",
  "tracing",
  "uuid",
+ "vw-api-transport",
  "windows-sys 0.61.2",
 ]
 

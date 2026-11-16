@@ -99,10 +99,10 @@ pub struct ShellProcesses {
 }
 
 impl ShellProcesses {
-    #[cfg(feature = "test-support")]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn records_empty_for_test(&self) -> bool { self.records.lock().is_empty() }
 
-    #[cfg(feature = "test-support")]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn expire_for_test(&self, id: &str) {
         self.records.lock().get_mut(id).expect("known process").finished = Some(Instant::now() - RETENTION);
     }

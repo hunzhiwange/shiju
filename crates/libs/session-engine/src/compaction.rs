@@ -378,14 +378,15 @@ pub fn model_history(messages: &[message::WithParts]) -> Vec<serde_json::Value> 
 fn checkpoint_source<H: CompactionHost>(input: &ProcessInput, boundary: usize) -> Result<Vec<serde_json::Value>, session_info::Error> {
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(snapshot) = H::snapshot(&input.session_id).map_err(session_info::Error::Runtime)? {
-        if let Some(source) = snapshot_checkpoint_source::<H>(&snapshot, &input.parent_id) { return Ok(source); }
+        if let Some(source) = snapshot_checkpoint_source(&snapshot, &input.parent_id, H::project_message) { return Ok(source); }
     }
     Ok(model_history(&input.messages[..boundary]))
 }
 
-pub fn snapshot_checkpoint_source<H: CompactionHost>(
+pub fn snapshot_checkpoint_source(
     snapshot: &session_port::ui_types::ChatSession,
     boundary_id: &str,
+    project_message: impl Fn(&session_port::ui_types::ChatMessage) -> Vec<serde_json::Value>,
 ) -> Option<Vec<serde_json::Value>> {
     let boundary = snapshot.message_ids.iter().position(|id| id.as_deref() == Some(boundary_id))?;
     if boundary == 0 || snapshot.messages.get(boundary)?.role != session_port::ui_types::ChatRole::User {
@@ -395,7 +396,7 @@ pub fn snapshot_checkpoint_source<H: CompactionHost>(
         snapshot.messages[..boundary]
             .iter()
             .flat_map(|message| {
-                H::project_message(message)
+                project_message(message)
             })
             .collect(),
     )

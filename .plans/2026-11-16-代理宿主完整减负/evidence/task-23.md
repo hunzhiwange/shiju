@@ -127,3 +127,25 @@ agent_binding 保留 store（宿主数据库）、scope（当前 home/tenant）�
 - 恢复后宿主 `context_injection.rs`：2 行。
 恢复后来源宿主共 1535 行，对原2621行净减 1086 行（41.4%）。领域测试静态预期共 37 条，未来仍用 session-engine --lib host_migration_23_tests 过滤，当前未运行任何编译、构建或测试。领域新增生产端口约20行，不宣称既有压缩算法为新迁出。
 尚存 codex_alignment 全套真实工具/MCP/技能端到端装配、capability_policy 的真实能力发现和范围拒绝、agent_binding 的真实准入分叉边界，以及 compaction 的快照投影和真实会话分叉生命周期。未达到70%门槛，明确保留给收口核对；不以物理移动宿主装配冒充领域迁移。
+
+## 第三轮残留拆分
+再次读取 final.md 的 owner23 建议及 remaining-host.json 的13项原路径。
+- `manual_compaction_checkpoint_matches_expanded_tool_history` → session-engine/src/host_migration_23_tests/compaction.rs。全部断言保留；真实 llm_messages 投影与 compaction_checkpoint 存储，无宿主快照装配依赖。
+- `codex_skills_replay_real_session_fork_preserves_sources_and_respects_cutoff` → 同上。全部断言保留；真实 session_lifecycle/session_fork、message、skill_checkpoint 及动态工具复制仍执行。LifecycleFixture 只提供 home/version 以及空外部 Hook/MCP 清理（该夹具无外部资源），MountRevision 输入为无挂载版本；没有模拟会话或检查点算法。测试通过既有子进程隔离模式设置临时目录，当前未运行。
+- 生产接线：snapshot_checkpoint_source 改为接收投影函数；checkpoint_source 原真实生产调用传 H::project_message。删除宿主专供迁出测试使用的 snapshot_checkpoint_source 与 process_with_summarizer 转发，消除过量测试挂载依赖。
+- 剩余 compaction_tests.rs 三条实际 process 入口边界（缺失父用户、无此前历史、空历史），不再保留领域持久化矩阵。原模型/消息夹具仍用于这些真实入口；capability、codex、binding 准入等剩余用例归属见前轮逐项映射。
+- 当前 `agent_binding.rs`：116 行。
+- 当前 `agent_binding_tests.rs`：63 行。
+- 当前 `capability_policy.rs`：10 行。
+- 当前 `capability_policy_tests.rs`：239 行。
+- 当前 `claude_protocol_parity_tests.rs`：109 行。
+- 当前 `codex_alignment_tests.rs`：361 行。
+- 当前 `compaction.rs`：59 行。
+- 当前 `compaction_tests.rs`：244 行。
+- 当前 `compaction_checkpoint.rs`：27 行。
+- 当前 `compaction_checkpoint_tests.rs`：0 行。
+- 当前 `compaction_summary.rs`：76 行。
+- 当前 `compaction_summary_tests.rs`：75 行。
+- 当前 `context_injection.rs`：2 行。
+当前来源共 1381 行，相对2621行净减 1240 行（47.3%）。本轮额外减 154 行。累计领域测试静态预期39条；未来命令保持 `python3 scripts/cargo_slot.py cargo test -p session-engine --lib host_migration_23_tests -- --test-threads=1`。
+静态全仓引用搜索确认 snapshot_checkpoint_source 只有已更新的真实生产入口和迁入用例。diff --check 已执行。未执行 Cargo、构建、测试或实机验证。仍未达70%，不能据此宣称整轮门槛关闭。

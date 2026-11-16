@@ -659,3 +659,163 @@ async fn internal_compaction_single_summary_preserves_all_persisted_history() {
     assert_eq!(model_context.last().unwrap()["content"], "continue");
     cleanup_session(&session_id).await;
 }
+
+fn project_snapshot_message(message: &session_port::ui_types::ChatMessage) -> Vec<serde_json::Value> {
+    use crate::session_memory::{Message,Role};
+    use session_port::ui_types::ChatRole;
+    let role=match message.role { ChatRole::User=>Role::User,ChatRole::Assistant=>Role::Assistant,ChatRole::Tool=>Role::Tool,ChatRole::System=>Role::System,ChatRole::Developer=>Role::Developer };
+    crate::llm_messages::session_message_to_llm_messages(&Message { role,content:message.content.clone() })
+}
+struct LifecycleFixture;
+impl crate::session_lifecycle::LifecycleHost for LifecycleFixture {
+    fn home()->std::path::PathBuf { agent_paths::paths().home.clone() }
+    fn version()->String { "test".into() }
+    async fn close_hooks(_: &str,_: &std::path::Path) {}
+    fn close_mcp(_: &str,_: &std::path::Path) {}
+}
+impl crate::session_io::SessionIo for LifecycleFixture {
+    fn home()->std::path::PathBuf { agent_paths::paths().home.clone() }
+    async fn get(id:&str)->Result<session_info::Info,session_info::Error> { crate::session_lifecycle::get::<Self>(id).await }
+    async fn get_any(id:&str)->Result<session_info::Info,session_info::Error> { crate::session_lifecycle::get_any::<Self>(id).await }
+    async fn update(id:&str,f:impl FnOnce(&mut session_info::Info)+Send)->Result<session_info::Info,session_info::Error> { crate::session_lifecycle::update::<Self>(id,f).await }
+    async fn create_next(input:crate::session_io::CreateInput)->Result<session_info::Info,session_info::Error> { crate::session_lifecycle::create_next::<Self>(input).await }
+    async fn reserve_next(input:crate::session_io::CreateInput)->Result<session_info::Info,session_info::Error> { crate::session_lifecycle::reserve_next::<Self>(input).await }
+    async fn reserve_visible_task(input:crate::session_io::CreateInput)->Result<session_info::Info,session_info::Error> { crate::session_lifecycle::reserve_visible_task::<Self>(input).await }
+    async fn children_including_pending(id:&str)->Result<Vec<session_info::Info>,session_info::Error> { crate::session_lifecycle::children_including_pending(id).await }
+}
+mod lifecycle {
+    pub use crate::session_io::CreateInput;
+    pub async fn create_next(input:CreateInput)->Result<session_info::Info,session_info::Error> { crate::session_lifecycle::create_next::<super::LifecycleFixture>(input).await }
+    pub async fn fork(id:&str,cut:Option<&str>)->Result<session_info::Info,session_info::Error> { crate::session_fork::fork_with_parent::<super::LifecycleFixture>(id,cut,None).await }
+    pub async fn remove(id:&str)->Result<(),session_info::Error> { crate::session_lifecycle::remove::<super::LifecycleFixture>(id).await }
+}
+mod skills {
+    struct NoMount;
+    impl crate::skill_checkpoint::MountRevision for NoMount { async fn checkpoint_revision(_: &str)->Result<Option<u64>,String> { Ok(None) } }
+    pub async fn save(id:&str,agent:&str,history:&[serde_json::Value],records:&[agent_skills::invoked::InvokedSkillRecord])->Result<(),String> { crate::skill_checkpoint::save::<NoMount>(id,agent,history,records).await }
+    pub async fn restore(id:&str,agent:&str,history:&[serde_json::Value])->Result<Vec<agent_skills::invoked::InvokedSkillRecord>,String> { crate::skill_checkpoint::restore::<NoMount>(id,agent,history).await }
+}
+#[tokio::test]
+async fn manual_compaction_checkpoint_matches_expanded_tool_history() {
+    if run_in_temporary_storage("manual_compaction_checkpoint_matches_expanded_tool_history") { return; }
+    use session_port::ui_types::{ChatMessage, ChatRole, ChatSession};
+    let session_id = format!("manual-tools-{}", uuid::Uuid::new_v4());
+    let snapshot = ChatSession {
+        id: session_id.clone(),
+        title: "tool history".into(),
+        messages: [
+            (ChatRole::User, "old request"),
+            (ChatRole::Assistant, "analysis"),
+            (ChatRole::Tool, "tool read\n{\"output\":\"essential fact\"}\n"),
+            (ChatRole::Assistant, "answer"),
+            (ChatRole::User, "latest request"),
+        ]
+        .into_iter()
+        .map(|(role, content)| ChatMessage {
+            role,
+            content: content.into(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        })
+        .collect(),
+        message_ids: ["old-user", "assistant", "assistant", "assistant", "boundary"]
+            .into_iter()
+            .map(|id| Some(id.into()))
+            .collect(),
+        calls: Vec::new(),
+        steps: Vec::new(),
+        created_ms: 0,
+        updated_ms: 0,
+    };
+    let source = snapshot_checkpoint_source(&snapshot, "boundary", project_snapshot_message).unwrap();
+    assert_eq!(source.len(), 4);
+    assert_eq!(source[2]["role"], "assistant");
+    assert!(source[2]["content"].as_str().unwrap().contains("essential fact"));
+    crate::compaction_checkpoint::save("migration-23-snapshot", &session_id, &source, "checkpoint", None)
+        .await
+        .unwrap();
+    let mut history = source.clone();
+    history.push(json!({"role":"user","content":"latest request"}));
+    let context =
+        crate::compaction_checkpoint::restore("migration-23-snapshot", &session_id, &history).await.unwrap();
+    assert_eq!(context.len(), 2);
+    assert_eq!(context[0]["content"], "[Compaction summary]\ncheckpoint");
+    assert_eq!(context[1], history[4]);
+    assert_eq!(snapshot.messages.len(), 5);
+    assert!(snapshot_checkpoint_source(&snapshot, "missing", project_snapshot_message).is_none());
+    assert!(snapshot_checkpoint_source(&snapshot, "assistant", project_snapshot_message).is_none());
+}
+
+#[tokio::test]
+async fn codex_skills_replay_real_session_fork_preserves_sources_and_respects_cutoff() {
+    if run_in_temporary_storage("codex_skills_replay_real_session_fork_preserves_sources_and_respects_cutoff") { return; }
+    let workspace = tempfile::tempdir().unwrap();
+    let source = workspace.path().join("SKILL.md");
+    std::fs::write(&source, "FORK_BODY $ARGUMENTS").unwrap();
+    let record =
+        agent_skills::invoked::InvokedSkillRecord::new("fork-fixture", &source, Some("preserved".into()))
+            .unwrap();
+    agent_project::instance::provide(workspace.path(), None, move || {
+        Box::pin(async move {
+            let original =
+                lifecycle::create_next(lifecycle::CreateInput {
+                    directory: agent_project::instance::directory(),
+                    title: Some("skill replay fixture".into()),
+                    ..Default::default()
+                })
+                .await
+                .unwrap();
+            let first = user_message(&original.id, "msg_01", "start");
+            let second = assistant_message(&original.id, "msg_02", "msg_01", "skill loaded", None);
+            for message in [&first, &second] {
+                write_message_with_parts(message).await;
+            }
+            let history = model_history(&[first.clone(), second]);
+            skills::save(
+                &original.id,
+                "main",
+                &history,
+                &[record.clone()],
+            )
+            .await
+            .unwrap();
+            let full = lifecycle::fork(&original.id, None).await.unwrap();
+            let cut = lifecycle::fork(&original.id, Some("msg_01")).await.unwrap();
+            assert_eq!(
+                skills::restore(&full.id, "main", &history)
+                    .await
+                    .unwrap(),
+                vec![record]
+            );
+            assert!(
+                skills::restore(
+                    &cut.id,
+                    "main",
+                    &model_history(&[first])
+                )
+                .await
+                .unwrap()
+                .is_empty()
+            );
+            lifecycle::remove(&full.id).await.unwrap();
+            assert!(
+                skills::restore(&full.id, "main", &history)
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
+            assert_eq!(
+                skills::restore(&original.id, "main", &history)
+                    .await
+                    .unwrap()
+                    .len(),
+                1
+            );
+            lifecycle::remove(&cut.id).await.unwrap();
+            lifecycle::remove(&original.id).await.unwrap();
+        })
+    })
+    .await
+    .unwrap();
+}

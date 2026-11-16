@@ -53,15 +53,7 @@ pub async fn process_session(session: &str, parent: &str, auto: bool) -> Result<
     session_engine::compaction::process_session::<Host>(session, parent, auto).await
 }
 #[cfg(test)]
-use session_engine::compaction::{now_ms, extract_compaction_text, model_history, InternalCompactionRequest};
-#[cfg(test)]
-fn snapshot_checkpoint_source(snapshot: &super::ui_types::ChatSession, boundary: &str) -> Option<Vec<serde_json::Value>> {
-    session_engine::compaction::snapshot_checkpoint_source::<Host>(snapshot, boundary)
-}
-#[cfg(test)]
-pub(crate) async fn process_with_summarizer(input: ProcessInput, model: &crate::provider::provider::Model, summarize: impl FnMut(&InternalCompactionRequest) -> Result<String,String>) -> Result<CompactionOutcome, super::session::Error> {
-    session_engine::compaction::process_with_summarizer::<Host>(input, model, summarize).await
-}
+use session_engine::compaction::now_ms;
 #[cfg(test)]
 #[path = "compaction_tests.rs"]
 pub(crate) mod compaction_tests;

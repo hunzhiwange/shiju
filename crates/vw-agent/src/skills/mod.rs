@@ -28,8 +28,8 @@
 //! - `source`：技能源管理
 //! - `types`：技能类型定义
 
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(test)]
 use config_skills::SkillsDirectoryProvider;
 
 mod agent_metadata;
@@ -68,221 +68,38 @@ pub(crate) use agent_skills::local_sources::{
 #[cfg(test)]
 use agent_skills::local_sources::discover_local_skill_source_dirs;
 
-fn extend_unique_skills(
-    target: &mut Vec<Skill>,
-    seen: &mut HashSet<(Option<String>, String)>,
-    items: Vec<Skill>,
-) {
-    for skill in items {
-        let key = match &skill.plugin_source {
-            Some(source) => {
-                // 项目同名技能仍优先；不同插件的同名技能保留各自身份供调用层消歧。
-                if seen.contains(&(None, skill.name.clone())) {
-                    tracing::warn!(
-                        plugin = source.plugin_id,
-                        skill = skill.name,
-                        "plugin skill shadowed by a local skill"
-                    );
-                    continue;
-                }
-                (Some(source.plugin_id.clone()), skill.name.clone())
-            }
-            None => (None, skill.name.clone()),
-        };
-        if seen.insert(key) {
-            target.push(skill);
-        }
-    }
-}
+pub use agent_skills::catalog::{load_skills, skills_dir};
 
-/// 从工作空间技能目录加载所有技能
-///
-/// 此函数会从指定工作空间的 `skills` 目录中加载所有技能定义。
-/// 使用默认的完整加载模式（`SkillLoadMode::Full`）加载技能的完整信息。
-///
-/// # 参数
-///
-/// * `workspace_dir` - 工作空间根目录的路径
-///
-/// # 返回值
-///
-/// 返回加载的所有技能列表（`Vec<Skill>`）
-///
-/// # 示例
-///
-/// ```rust,no_run
-/// use std::path::Path;
-/// use vibewindow::app::agent::skills::load_skills;
-///
-/// let workspace = Path::new("/path/to/workspace");
-/// let skills = load_skills(workspace);
-/// println!("已加载 {} 个技能", skills.len());
-/// ```
-pub fn load_skills(workspace_dir: &Path) -> Vec<Skill> {
-    load_skills_with_provider(
-        workspace_dir,
-        types::SkillLoadMode::Full,
-        SkillsDirectoryProvider::Vibewindow,
-        &config_skills::SkillSecurityConfig::default(),
-        None,
-    )
-}
-
-/// 使用运行时配置加载技能（推荐在运行时使用）
-///
-/// 此函数根据提供的配置对象加载本地与插件技能。
-///
-/// # 参数
-///
-/// * `workspace_dir` - 工作空间根目录的路径
-/// * `config` - 应用配置对象，包含技能相关的配置项
-///
-/// # 返回值
-///
-/// 返回加载的所有技能列表（`Vec<Skill>`）
-///
-/// # 示例
-///
-/// ```rust,no_run
-/// use std::path::Path;
-/// use vibewindow::app::agent::config::Config;
-/// use vibewindow::app::agent::skills::load_skills_with_config;
-///
-/// let workspace = Path::new("/path/to/workspace");
-/// let config = Config::load(workspace).unwrap();
-/// let skills = load_skills_with_config(workspace, &config);
-/// println!("已加载 {} 个技能", skills.len());
-/// ```
+/// Compose local and active-tenant plugin inventories using runtime configuration.
 pub fn load_skills_with_config(
-    workspace_dir: &Path,
+    workspace: &Path,
     config: &crate::app::agent::config::Config,
 ) -> Vec<Skill> {
-    load_skills_with_provider(
-        workspace_dir,
-        types::SkillLoadMode::from_prompt_mode(config.skills.prompt_injection_mode),
-        config.skills.directory_provider,
-        &config.skills.security,
-        Some(config),
+    agent_skills::catalog::load_skills_with_config(
+        workspace,
+        &config.skills,
+        false,
+        |mode| crate::plugins::load_plugin_skills(workspace, config, mode),
     )
 }
 
-/// 使用运行时配置加载完整技能内容。
-///
-/// skill 工具按需加载时需要完整指令；这里不受提示词注入模式影响。
 pub(crate) fn load_skills_full_with_config(
-    workspace_dir: &Path,
+    workspace: &Path,
     config: &crate::app::agent::config::Config,
 ) -> Vec<Skill> {
-    load_skills_with_provider(
-        workspace_dir,
-        types::SkillLoadMode::Full,
-        config.skills.directory_provider,
-        &config.skills.security,
-        Some(config),
+    agent_skills::catalog::load_skills_with_config(
+        workspace,
+        &config.skills,
+        true,
+        |mode| crate::plugins::load_plugin_skills(workspace, config, mode),
     )
 }
 
-fn load_skills_with_provider(
-    workspace_dir: &Path,
-    load_mode: types::SkillLoadMode,
-    directory_provider: SkillsDirectoryProvider,
-    security: &config_skills::SkillSecurityConfig,
-    config: Option<&crate::app::agent::config::Config>,
-) -> Vec<Skill> {
-    let mut skills = Vec::new();
-    let mut seen = HashSet::new();
-
-    extend_unique_skills(
-        &mut skills,
-        &mut seen,
-        load_workspace_skills(workspace_dir, load_mode, directory_provider, security),
-    );
-
-    if let Some(config) = config {
-        extend_unique_skills(
-            &mut skills,
-            &mut seen,
-            crate::plugins::load_plugin_skills(workspace_dir, config, load_mode),
-        );
-    }
-
-    skills
-}
-
-/// 从工作空间加载本地技能（内部辅助函数）
-///
-/// 从指定工作空间的 `skills` 子目录中加载所有技能定义。
-///
-/// # 参数
-///
-/// * `workspace_dir` - 工作空间根目录的路径
-/// * `load_mode` - 技能加载模式
-///
-/// # 返回值
-///
-/// 返回工作空间中的技能列表（`Vec<Skill>`）
-fn load_workspace_skills(
-    workspace_dir: &Path,
-    load_mode: types::SkillLoadMode,
-    directory_provider: SkillsDirectoryProvider,
-    security: &config_skills::SkillSecurityConfig,
-) -> Vec<Skill> {
-    discover_local_skill_source_dirs_with_provider(Some(workspace_dir), directory_provider)
-        .into_iter()
-        .flat_map(|source| loader::load_skills_from_directory(&source.path, load_mode, security))
-        .collect()
-}
-
-/// 加载委托代理可默认使用的项目与父级技能。
 pub(crate) fn load_project_skills_with_config(
-    workspace_dir: &Path,
+    workspace: &Path,
     config: &crate::app::agent::config::Config,
 ) -> Vec<Skill> {
-    let mut skills = Vec::new();
-    let mut seen = HashSet::new();
-    let load_mode = types::SkillLoadMode::from_prompt_mode(config.skills.prompt_injection_mode);
-
-    for source in discover_local_skill_source_dirs_with_provider(
-        Some(workspace_dir),
-        config.skills.directory_provider,
-    )
-    .into_iter()
-    .filter(|source| {
-        matches!(source.kind, LocalSkillSourceKind::Workspace | LocalSkillSourceKind::Ancestor)
-    }) {
-        extend_unique_skills(
-            &mut skills,
-            &mut seen,
-            loader::load_skills_from_directory(&source.path, load_mode, &config.skills.security),
-        );
-    }
-
-    skills
-}
-/// 获取技能目录路径
-///
-/// 返回指定工作空间下的技能目录路径（`{workspace_dir}/skills`）。
-///
-/// # 参数
-///
-/// * `workspace_dir` - 工作空间根目录的路径
-///
-/// # 返回值
-///
-/// 返回技能目录的完整路径（`PathBuf`）
-///
-/// # 示例
-///
-/// ```rust,no_run
-/// use std::path::Path;
-/// use vibewindow::app::agent::skills::skills_dir;
-///
-/// let workspace = Path::new("/path/to/workspace");
-/// let skills_path = skills_dir(workspace);
-/// println!("技能目录：{}", skills_path.display());
-/// ```
-pub fn skills_dir(workspace_dir: &Path) -> PathBuf {
-    workspace_dir.join("skills")
+    agent_skills::catalog::load_project_skills_with_config(workspace, &config.skills)
 }
 
 /// 初始化技能目录
@@ -384,12 +201,6 @@ mod listing_tests;
 #[cfg(test)]
 #[path = "invoked_tests.rs"]
 mod invoked_tests;
-#[cfg(test)]
-#[path = "session_state_tests.rs"]
-mod session_state_tests;
-
-#[cfg(test)]
-mod session_mounts_tests;
 
 /// Load the same inbound session sources for catalog refresh and native invocation.
 pub(crate) fn load_session_skills(

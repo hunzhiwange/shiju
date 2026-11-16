@@ -3,6 +3,7 @@
 pub mod agent_metadata;
 pub mod audit;
 pub mod discovery;
+pub mod catalog;
 
 pub use agent_metadata::{
     SkillAgentDependency, SkillAgentInterface, SkillAgentMetadata, SkillAgentPolicy,

@@ -60,7 +60,7 @@ use crate::agent_scheduler::lifecycle_bridge::{
     LifecycleStatusProjection, status_role_key as lifecycle_status_role_key,
 };
 use crate::agent_scheduler::outbox_dispatcher::OutboxDispatcher;
-use crate::agent_scheduler::policy::{
+use task_scheduler::policy::{
     AgentSchedulerPolicyConfig, AgentSchedulerPolicyOutcome, AgentSchedulerPolicyService,
 };
 use crate::agent_scheduler::runner::gateway_executor::GatewayLocalAgentExecutor;

@@ -5,6 +5,9 @@ pub use task_scheduler_core::{domain, events, state_machine};
 pub mod adapters;
 pub mod engine;
 pub mod lifecycle_bridge;
+pub mod policy;
+#[cfg(test)]
+mod policy_tests;
 pub mod outbox_dispatcher;
 pub mod store;
 pub use task_scheduler_core::task_graph;

@@ -19,7 +19,7 @@ use super::store::AgentSchedulerStore;
 use super::store::logs::AgentSchedulerWorkspaceContext;
 use super::store::runs::{AgentRunFinishStatus, ClaimTaskRunRequest};
 use super::store::tasks::NewAgentTask;
-use crate::task_lifecycle::DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID;
+use task_lifecycle::DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID;
 
 #[test]
 fn agent_scheduler_policy_promotes_retries_times_out_and_plans_merge() -> Result<()> {

@@ -22,10 +22,7 @@ pub mod store;
 pub mod task_board;
 pub mod task_graph;
 
-// 看板测试随实现迁入 task-scheduler。
-#[cfg(test)]
-#[path = "policy_tests.rs"]
-mod policy_tests;
+// 看板与策略测试随实现迁入 task-scheduler。
 
 #[cfg(test)]
 #[path = "integration_tests.rs"]

@@ -1,6 +1,6 @@
-use super::manifest::*;
+use crate::manifest::*;
 
-pub(super) fn candidate() -> VideoEditRunManifest {
+pub fn candidate() -> VideoEditRunManifest {
     VideoEditRunManifest {
         tenant: vw_api_transport::TenantScope::default(),
         run_id: "run".into(),

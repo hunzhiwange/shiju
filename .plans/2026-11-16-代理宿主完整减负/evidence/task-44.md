@@ -151,3 +151,140 @@
 宿主：对上表仍在 vw-agent 的每个测试，以 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib workflow::video_edit::<模块>::<测试名> -- --exact --test-threads=1` 定向执行，逐条预期 1。迁出测试须通过未来真实宿主 --list 证明消失；不以零测试表示通过。
 
 编译、断言、运行耗时与构建收益全部未知。静态已核对原始测试名守恒、领域自注册、原 entry_tests 挂载删除、直接依赖方向和差异空白。
+
+## 深度收口追加（取代前述最终行数与保留结论）
+
+累计宿主 3818 → 1663 行，净减 2155 行（56.4%）。领域自注册45测，真实宿主37测；82个原始测试名称静态守恒。未运行 Cargo、构建、测试或任何测试程序。
+
+本轮新增真实消费者使用的 `test-support` feature，仅 vw-agent dev-dependencies 启用；默认生产构建不加载夹具。依赖方向仍为宿主→领域，不复制 App、工具权限或 session 全局状态。feature 不改变生产授权。没有新增生产算法迁出收益；本轮全部新增领域行均为受 feature/cfg(test) 控制的契约与夹具，不宣称编译提速。
+
+- e2e_test_cloud.rs 的 Scenario/Fault/FinishOrder/Cloud/Model 完整归还 test_support/scenario.rs；Cloud.context 接收已有 VideoContextHandle，宿主 e2e 仍注入真实 ToolRuntimeContext。三份 synthetic JSON 由领域库自身持有。
+- entry_test_transport 的 Cloud/Model/PROJECTS 移至 test_support/receipts.rs；宿主仅保留 SESSIONS/EXTERNALS、TransportGuard、install/install_external/get，用原 session 查找并注入真实上下文。原共享 PROJECTS 行为保持。
+- prepare_tests 的 Remote/Cloud 完整下沉 test_support/prepare_fixture.rs，Cloud<C: VideoContext> 同时服务领域和宿主三个边界测试，无算法重写或假授权。
+- cloud_assets、cloud_prepare、transcript 原生测试仅保留 fixture/discover 和端口注入；原响应、任务、票据、文件隐私断言与外部脚本移至 contracts.rs 的同名函数，每个函数有真实薄测试调用。
+- cloud_delivery 的 OCC、native_scenario 领域主体、finalize 回读断言归还 contracts::{delivery_scenario,finalize_receipt}；真实发现/路径与三个交付结果测试仍宿主注册。纯 probe 规范化测试迁入 host_migration_44_tests/probe_tests.rs。
+- manifest/assets 的无测试 fixture 完整迁至 test_support/{manifest_fixture,assets_fixture}，旧文件及旧 mod 挂载均已删除；contracts 直接调用领域 fixture。
+
+### 当前全文件职责与行数
+
+| 宿主文件 | 行数 | 当前职责 |
+|---|---:|---|
+| `apply.rs` | 2 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `apply_journal.rs` | 2 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `assets.rs` | 2 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `budget.rs` | 2 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `cloud.rs` | 26 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `cloud_assets_tests.rs` | 15 | 原生发现注入，调用领域素材契约。 |
+| `cloud_delivery_tests.rs` | 51 | 原生发现和交付结果边界，调用领域真实交付契约。 |
+| `cloud_failure.rs` | 1 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `cloud_prepare_tests.rs` | 27 | 原生发现与上下文注入，调用领域上传/身份契约。 |
+| `cloud_tests.rs` | 384 | 真实原生 CLI/工具审批/hook/路径与取消测试，原生工厂 fixture。 |
+| `command.rs` | 1 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `command_tests.rs` | 73 | 真实原生安全策略三个边界。 |
+| `e2e_tests.rs` | 479 | 真实网关流、会话租户持久化、事件顺序和取消验收，使用领域外部夹具。 |
+| `entry.rs` | 66 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `entry_contract.rs` | 2 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `entry_test_transport.rs` | 37 | 真实 session 注册、生命周期 guard、上下文工厂。 |
+| `manifest.rs` | 2 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `merge.rs` | 2 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `mod.rs` | 62 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `planning.rs` | 11 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `planning_tests.rs` | 219 | 真实 WorkflowRuntime 图调度和共享模型预算边界。 |
+| `prepare.rs` | 61 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `prepare_tests.rs` | 115 | 真实问答/取消、原生路径和租户隔离三个测试与薄实例化。 |
+| `preview.rs` | 2 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `segments.rs` | 2 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `transcript.rs` | 1 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+| `transcript_tests.rs` | 14 | 原生发现注入，调用领域转写任务/隐私契约。 |
+| `types.rs` | 2 | 既有宿主端口或兼容重导出，生产职责参见前表。 |
+
+### 更新后的全量测试挂载
+
+| 原测试名称 | 当前唯一挂载 |
+|---|---|
+| `video_edit_asset_jobs_native_adapter_reconciles_pages_and_reads_reference` | `crates/vw-agent/src/workflow/video_edit/cloud_assets_tests.rs` |
+| `video_edit_e2e_long_transcripts_reach_done_and_reload` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `video_edit_e2e_quota_invalid_segment_and_fake_preview_never_done` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `video_edit_e2e_accepted_timeout_reconciles_without_duplicate_post` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `video_edit_e2e_independent_requests_have_distinct_run_budgets` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `video_edit_e2e_native_permission_denial_prevents_external_io` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `video_edit_e2e_final_save_failure_never_done` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `video_edit_e2e_cancelled_restart_reconciles_and_never_resubmits` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `video_edit_e2e_template_edit_changes_next_native_model_request` | `crates/vw-agent/src/workflow/video_edit/e2e_tests.rs` |
+| `video_edit_delivery_normalizes_live_media_probe_projection_without_losing_audio` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/probe_tests.rs` |
+| `video_edit_delivery_native_adapter_applies_three_types_and_reads_real_contract_shapes` | `crates/vw-agent/src/workflow/video_edit/cloud_delivery_tests.rs` |
+| `video_edit_delivery_native_adapter_rejects_partial_caption_failure_and_pending_draft` | `crates/vw-agent/src/workflow/video_edit/cloud_delivery_tests.rs` |
+| `video_edit_delivery_native_adapter_records_verified_empty_cleanup_separately` | `crates/vw-agent/src/workflow/video_edit/cloud_delivery_tests.rs` |
+| `video_edit_delivery_native_finalize_accepts_observed_complete_import_receipt` | `crates/vw-agent/src/workflow/video_edit/cloud_delivery_tests.rs` |
+| `video_edit_transcript_preserves_facts_silence_and_fractional_fps` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/transcript_tests.rs` |
+| `video_edit_transcript_rejects_invalid_times_and_duplicate_indices` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/transcript_tests.rs` |
+| `video_edit_transcript_rejects_silent_failed_empty_and_unconfirmed_punctuation` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/transcript_tests.rs` |
+| `video_edit_transcript_concurrent_resume_reuses_one_job_and_persisted_result` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/transcript_tests.rs` |
+| `video_edit_transcript_errors_never_resubmit_or_produce_fake_speech` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/transcript_tests.rs` |
+| `video_edit_transcript_rejects_invalid_media_and_segment_order` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/transcript_tests.rs` |
+| `video_edit_transcript_native_adapter_keeps_audio_ticket_private_and_queries_exact_task` | `crates/vw-agent/src/workflow/video_edit/transcript_tests.rs` |
+| `video_edit_asset_jobs_unknown_is_not_ready` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/assets_tests.rs` |
+| `video_edit_asset_jobs_hold_five_until_reverse_completion` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/assets_tests.rs` |
+| `video_edit_asset_jobs_restart_reconciles_lost_receipt_without_post` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/assets_tests.rs` |
+| `video_edit_asset_jobs_refusal_retries_share_peak_and_bound_attempts` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/assets_tests.rs` |
+| `video_edit_asset_jobs_cancel_retains_remote_slots_and_stops_dispatch` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/assets_tests.rs` |
+| `video_edit_asset_jobs_failure_or_unreadable_result_blocks_registry` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/assets_tests.rs` |
+| `video_edit_asset_jobs_share_model_budget_and_resume_unknown` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/assets_tests.rs` |
+| `video_edit_asset_jobs_unknown_missing_from_remote_is_not_resubmitted` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/assets_tests.rs` |
+| `video_edit_asset_jobs_failed_attempt_retries_only_after_terminal_and_keeps_id` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/assets_tests.rs` |
+| `video_edit_asset_jobs_deduplicate_content_parameters_and_scope_without_guessing_recipe` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/assets_tests.rs` |
+| `video_edit_asset_jobs_restart_does_not_resume_cancelled_dispatch` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/assets_tests.rs` |
+| `video_edit_command_parses_quoted_chinese_and_windows_paths` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/command_tests.rs` |
+| `video_edit_command_validates_real_paths_without_binding` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/command_tests.rs` |
+| `video_edit_command_rejects_invalid_files_and_ambiguous_input` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/command_tests.rs` |
+| `video_edit_command_symlink_obeys_native_security_and_full_access` | `crates/vw-agent/src/workflow/video_edit/command_tests.rs` |
+| `video_edit_command_shell_characters_remain_literal` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/command_tests.rs` |
+| `video_edit_command_external_allowed_root_and_no_project` | `crates/vw-agent/src/workflow/video_edit/command_tests.rs` |
+| `video_edit_command_delegated_parent_remains_restricted_under_full_access` | `crates/vw-agent/src/workflow/video_edit/command_tests.rs` |
+| `video_edit_entry_rejects_uncontrolled_graph_before_storage` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/entry_tests.rs` |
+| `video_edit_entry_distributes_production_graph` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/entry_tests.rs` |
+| `video_edit_entry_preserves_menu_and_unrelated_commands` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/entry_tests.rs` |
+| `video_edit_entry_rejects_capability_order_and_fake_ready_edits` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/entry_tests.rs` |
+| `video_edit_entry_accepts_business_prompt_model_and_lower_budget` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/entry_tests.rs` |
+| `video_edit_cloud_transport_hidden_skill_is_rejected` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `video_edit_cloud_transport_discovers_current_instance_and_full_private_receipt` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `video_edit_cloud_transport_version_source_and_authorization_fail_closed` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `video_edit_cloud_transport_missing_credentials_never_logs_in_or_falls_back` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `video_edit_cloud_transport_native_tool_and_path_denials_prevent_process` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `video_edit_cloud_transport_cancel_before_discovery_starts_no_process` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `video_edit_cloud_transport_errors_and_unknown_states_are_not_success` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `video_edit_cloud_transport_duplicate_visible_instances_are_ambiguous` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `video_edit_cloud_transport_no_project_uses_native_workspace` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `video_edit_cloud_transport_inflight_cancel_stops_process_before_private_cleanup` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `video_edit_cloud_transport_native_approval_denial_prevents_process` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `video_edit_cloud_transport_native_hooks_never_receive_private_payloads` | `crates/vw-agent/src/workflow/video_edit/cloud_tests.rs` |
+| `video_edit_plan_json_rejects_boolean_time_and_unstructured_assets` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/planning_tests.rs` |
+| `video_edit_plan_real_iteration_six_segments_bounded_requests_and_shared_budget` | `crates/vw-agent/src/workflow/video_edit/planning_tests.rs` |
+| `video_edit_plan_failed_segment_never_returns_partial_plan` | `crates/vw-agent/src/workflow/video_edit/planning_tests.rs` |
+| `video_edit_plan_context_overflow_is_explicit_before_model_request` | `crates/vw-agent/src/workflow/video_edit/planning_tests.rs` |
+| `video_edit_prepare_native_receipts_keep_signed_tickets_in_memory` | `crates/vw-agent/src/workflow/video_edit/cloud_prepare_tests.rs` |
+| `video_edit_prepare_cloud_identity_is_independent_of_local_tenant_and_rejects_mismatch` | `crates/vw-agent/src/workflow/video_edit/cloud_prepare_tests.rs` |
+| `video_edit_prepare_ledger_claims_without_project_binding` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/manifest_tests.rs` |
+| `video_edit_prepare_ledger_fences_stale_writers_and_tenants` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/manifest_tests.rs` |
+| `video_edit_prepare_ledger_postgres_contract` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/manifest_tests.rs` |
+| `video_edit_prepare_ledger_competing_connections_claim_once_and_restart` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/manifest_tests.rs` |
+| `video_edit_e2e_cancel_stale_snapshot_preserves_latest_receipts_and_fences_owner` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/manifest_tests.rs` |
+| `video_edit_prepare_unbound_readonly_source_reuses_durable_run` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/prepare_tests.rs` |
+| `video_edit_prepare_unknown_writes_reconcile_without_duplicate_side_effects` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/prepare_tests.rs` |
+| `video_edit_prepare_lost_session_response_stays_pending_without_resubmission` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/prepare_tests.rs` |
+| `video_edit_prepare_source_content_and_snapshots_invalidate_cache` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/prepare_tests.rs` |
+| `video_edit_prepare_replacement_and_nonvideo_never_return_success` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/prepare_tests.rs` |
+| `video_edit_prepare_two_projects_need_no_binding_and_have_independent_sources` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/prepare_tests.rs` |
+| `video_edit_prepare_no_space_and_unapproved_choice_have_no_side_effects` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/prepare_tests.rs` |
+| `video_edit_prepare_multiple_spaces_use_real_question_and_cancel` | `crates/vw-agent/src/workflow/video_edit/prepare_tests.rs` |
+| `video_edit_prepare_streaming_hash_obeys_security_and_cancellation` | `crates/vw-agent/src/workflow/video_edit/prepare_tests.rs` |
+| `video_edit_prepare_cross_tenant_runs_and_native_mismatch_are_isolated` | `crates/vw-agent/src/workflow/video_edit/prepare_tests.rs` |
+| `video_edit_prepare_competing_requests_create_and_upload_only_once` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/prepare_tests.rs` |
+| `video_edit_prepare_incomplete_put_never_becomes_success_or_reuploads` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/prepare_tests.rs` |
+| `video_edit_prepare_source_replacement_with_same_bytes_changes_identity` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/prepare_tests.rs` |
+| `video_edit_prepare_proven_non_submission_retries_same_ledger_without_duplicate_project` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/prepare_tests.rs` |
+| `video_edit_prepare_unknown_without_matching_project_never_reposts` | `crates/libs/workflow-video-edit/src/host_migration_44_tests/prepare_tests.rs` |
+
+未来领域命令保持 `python3 scripts/cargo_slot.py cargo test -p workflow-video-edit --lib host_migration_44_tests -- --test-threads=1`，Unix 预期45测；宿主上表各37个完整名称按原精确命令逐条执行。37测包含调用领域契约函数的薄测试，契约函数不是独立测试，不能重复计数。
+
+静态已检查82测试名唯一挂载、旧fixture挂载移除、所有契约函数真实调用、领域资源相对路径及依赖 feature 接线。净减仍不足70%：主要残留 cloud_tests、真实网关 e2e、原生规划调度。继续减少需进一步从真实权限/事件断言中抽取领域规约；整轮是否达35000行由收口重新统计。本证据不宣称整轮门槛通过。

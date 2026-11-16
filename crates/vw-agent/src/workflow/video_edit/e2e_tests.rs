@@ -1,6 +1,6 @@
+use workflow_video_edit::test_support::scenario::{Cloud, Fault, Model, Scenario};
 //! Synthetic media receipts exercise the native gateway, never video performance.
 use super::{
-    e2e_test_cloud::{Cloud, Fault, Model, Scenario},
     entry_test_transport,
 };
 use crate::gateway::api::handlers::session::stream::{
@@ -22,7 +22,7 @@ fn external(session: &str, scenario: Arc<Scenario>) -> entry_test_transport::Tra
         Arc::new(move |context| {
             (
                 Arc::new(Cloud {
-                    context: context.clone(),
+                    context: Arc::new(context.clone()),
                     scenario: scenario.clone(),
                     writes: Default::default(),
                 }),

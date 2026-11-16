@@ -1,12 +1,10 @@
 //! Controlled external model/cloud receipts. No entry, scheduler or algorithm replacement.
-use super::{
+use crate::{
     apply::*, assets::*, entry::VideoEntryCloud, manifest::*, planning::*, prepare::*, preview::*,
     transcript::*,
 };
 use model_types::{ChatRequest, ChatResponse, Provider};
-use crate::{
-    tools::ToolRuntimeContext,
-};
+use crate::context::VideoContextHandle;
 use anyhow::Result;
 use serde_json::{Value, json};
 use std::{
@@ -18,14 +16,14 @@ use std::{
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Fault {
+pub enum Fault {
     None,
     Quota,
     InvalidChunk,
     AcceptedTimeout,
     FakePreview,
 }
-pub(super) struct Scenario {
+pub struct Scenario {
     fixture: Value,
     cloud_receipt: Value,
     pub fault: Fault,
@@ -40,8 +38,8 @@ pub(super) struct Scenario {
 impl Scenario {
     pub fn new(duration: u32, fault: Fault) -> Arc<Self> {
         let fixture = match duration {
-            300 => include_str!("../../../testdata/workflow/video_edit/synthetic_300.json"),
-            600 => include_str!("../../../testdata/workflow/video_edit/synthetic_600.json"),
+            300 => include_str!("../../testdata/synthetic_300.json"),
+            600 => include_str!("../../testdata/synthetic_600.json"),
             _ => panic!("unsupported test duration"),
         };
         Arc::new(Self {
@@ -49,7 +47,7 @@ impl Scenario {
             asset_gate: FinishOrder::new(),
             fixture: serde_json::from_str(fixture).unwrap(),
             cloud_receipt: serde_json::from_str(include_str!(
-                "../../../testdata/workflow/video_edit/synthetic_cloud_receipt.json"
+                "../../testdata/synthetic_cloud_receipt.json"
             ))
             .unwrap(),
             fault,
@@ -125,15 +123,15 @@ impl FinishOrder {
     }
 }
 
-pub(super) struct Cloud {
+pub struct Cloud {
     pub scenario: Arc<Scenario>,
-    pub context: ToolRuntimeContext,
+    pub context: VideoContextHandle,
     pub writes: Arc<Mutex<BTreeMap<String, Vec<VideoProjectWrite>>>>,
 }
 #[async_trait::async_trait]
 impl VideoPrepareCloud for Cloud {
-    fn context(&self) -> workflow_video_edit::context::VideoContextHandle {
-        std::sync::Arc::new(self.context.clone())
+    fn context(&self) -> crate::context::VideoContextHandle {
+        self.context.clone()
     }
     async fn authorized_scopes(&self) -> Result<Vec<CloudVideoScope>> {
         self.scenario.record("scope.list", "authorized fixture scope");
@@ -177,8 +175,8 @@ impl VideoPrepareCloud for Cloud {
 }
 #[async_trait::async_trait]
 impl VideoTranscriptCloud for Cloud {
-    fn context(&self) -> workflow_video_edit::context::VideoContextHandle {
-        std::sync::Arc::new(self.context.clone())
+    fn context(&self) -> crate::context::VideoContextHandle {
+        self.context.clone()
     }
     async fn probe_transcript_media(&self, _: &str, _: &str) -> Result<Value> {
         self.scenario.record("transcript.probe", "source");
@@ -330,7 +328,7 @@ impl VideoProjectCloud for RemoteProject<'_> {
     }
 }
 
-pub(super) struct Model(pub Arc<Scenario>);
+pub struct Model(pub Arc<Scenario>);
 #[async_trait::async_trait]
 impl Provider for Model {
     async fn chat_with_system(&self, _: Option<&str>, _: &str, _: &str, _: f64) -> Result<String> {
@@ -343,7 +341,7 @@ impl Provider for Model {
             anyhow::bail!("synthetic quota exhausted");
         }
         let text = if prompt.contains("VideoChunkPlan") {
-            let segment: super::segments::VideoSegment =
+            let segment: crate::segments::VideoSegment =
                 serde_json::from_str(prompt.split_once("片段：").unwrap().1)?;
             let order = self.0.record("model.start", &segment.chunk_id);
             self.0.leaf(order, true, &segment.chunk_id).await;

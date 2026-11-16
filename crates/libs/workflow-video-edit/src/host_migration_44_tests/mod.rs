@@ -43,3 +43,4 @@ impl VideoContext for TestContext {
         anyhow::bail!("domain fixture requires explicit scope")
     }
 }
+mod probe_tests;

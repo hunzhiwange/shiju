@@ -14,8 +14,6 @@ mod cloud_tests;
 #[cfg(test)]
 mod cloud_prepare_tests;
 pub mod manifest;
-#[cfg(test)]
-mod manifest_tests;
 pub mod prepare;
 #[cfg(test)]
 mod prepare_tests;
@@ -28,8 +26,6 @@ mod transcript_tests;
 pub use super::budget;
 
 pub mod assets;
-#[cfg(test)]
-mod assets_tests;
 #[cfg(test)]
 mod cloud_assets_tests;
 pub mod merge;
@@ -64,6 +60,3 @@ pub(crate) mod entry_test_transport;
 
 #[cfg(test)]
 mod e2e_tests;
-
-#[cfg(test)]
-mod e2e_test_cloud;

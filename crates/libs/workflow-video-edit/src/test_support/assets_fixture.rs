@@ -1,14 +1,14 @@
-use super::{assets::*, manifest::*, planning::*};
-use crate::global_database::GlobalDatabase;
+use crate::{assets::*, manifest::*, planning::*};
+use agent_database::GlobalDatabase;
 use std::collections::BTreeMap;
 
-pub(super) fn fixture(
+pub fn fixture(
     n: usize,
 ) -> (tempfile::TempDir, VideoEditManifestStore, VideoEditRunManifest, Vec<VideoAssetRequest>) {
     let dir = tempfile::tempdir().unwrap();
     let store =
         VideoEditManifestStore::new(GlobalDatabase::new(dir.path().join("db")).unwrap()).unwrap();
-    let mut run = super::manifest_tests::candidate();
+    let mut run = super::manifest_fixture::candidate();
     run.project_id = Some("project".into());
     let run = store.claim(run, "asset-test", chrono::Utc::now().timestamp_millis()).unwrap();
     let mut recipes = BTreeMap::new();

@@ -20,7 +20,3 @@ pub(super) async fn copy_scoped(source_scope: &str, target_scope: &str, source: 
 pub(crate) async fn remove(session: &str, directory: &str) -> Result<(), String> {
     session_engine::skill_checkpoint::remove(&scope_for_directory(directory), session).await
 }
-
-#[cfg(test)]
-#[path = "skill_checkpoint_tests.rs"]
-mod tests;

@@ -42,3 +42,7 @@ mod host_module_15_tests;
 
 #[cfg(test)]
 mod host_module_11_tests;
+
+pub mod agent_activity;
+#[cfg(test)]
+mod host_module_42_tests;

@@ -67,3 +67,17 @@ mod desktop_split_02_tests;
 
 #[cfg(test)]
 mod desktop_split_09_tests;
+
+impl FileTreeView<'_> {
+    pub fn visible_paths(&self, root: &str) -> Vec<String> {
+        let fallback;
+        let tree = match self.file_tree_model.filter(|tree| tree.has_entries()) {
+            Some(tree) => tree,
+            None => {
+                fallback = model::build_file_tree_model(root, self.file_index);
+                &fallback
+            }
+        };
+        selection::visible_paths(tree, root, self.file_tree_expanded_set)
+    }
+}

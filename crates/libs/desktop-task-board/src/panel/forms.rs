@@ -106,9 +106,9 @@ pub(super) fn build_agent_options(app: PanelView<'_>, selected_key: &str) -> Vec
         if is_retired_builtin_agent_key(&entry.key) {
             continue;
         }
-        if !desktop_task_model::agent_activity::agent_available(
+        if !crate::agent_activity::agent_available(
             &entry.key,
-            &app.agents_settings.entries.iter().map(|e| desktop_task_model::agent_activity::AgentEntry { key: &e.key, label: &e.label, enabled: e.enabled }).collect::<Vec<_>>(),
+            &app.agents_settings.entries,
         ) && selected_key != entry.key
         {
             continue;

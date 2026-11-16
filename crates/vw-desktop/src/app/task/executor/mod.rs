@@ -4,23 +4,24 @@
 //! 不改变任何运行时行为。
 
 use std::sync::mpsc::Sender;
-use std::time::Duration;
 
 use super::models::Task;
 
-mod backend_output;
-mod command_exec;
-mod gateway_output;
-mod git;
-mod process_utils;
-mod programs;
-mod runner;
-mod scheduling;
-mod worktree_admin;
+use desktop_task_executor::executor::command_exec;
 
+mod git;
+
+use desktop_task_executor::executor::programs;
+mod runner;
+use desktop_task_executor::executor::scheduling;
+mod worktree_admin;
 
 /// 对外暴露当前模块需要复用的能力。
 pub use command_exec::{execute_task_command, execute_task_command_with_streaming};
+/// 对外暴露当前模块需要复用的能力。
+pub use desktop_task_executor::executor::state::{
+    TaskExecutorState, TaskLogStream, WorktreePoolSnapshot, WorktreeSlotSnapshot, WorktreeState,
+};
 /// 对外暴露当前模块需要复用的能力。
 pub use git::build_review_diff_context;
 /// 对外暴露当前模块需要复用的能力。
@@ -35,10 +36,6 @@ pub use runner::{
 pub use scheduling::{
     ExecutorEvent, count_running_tasks, get_next_tasks_for_execution, get_pool_and_pending_count,
     get_total_task_count, simulate_task_execution_step,
-};
-/// 对外暴露当前模块需要复用的能力。
-pub use desktop_task_executor::executor::state::{
-    TaskExecutorState, TaskLogStream, WorktreePoolSnapshot, WorktreeSlotSnapshot, WorktreeState,
 };
 /// 对外暴露当前模块需要复用的能力。
 pub use worktree_admin::{

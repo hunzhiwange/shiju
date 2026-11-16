@@ -2,6 +2,23 @@ use super::*;
 use std::collections::HashMap;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+// This fixture exercises SDK serialization against a loopback server only.
+// It does not test application authorization or create a usage ledger.
+struct LoopbackHost;
+
+impl super::super::host::Host for LoopbackHost {
+    fn begin_usage(&self, _: &str, _: &str) -> Option<agent_usage::native::NativeRequest> {
+        None
+    }
+
+    fn authorize_model_request<'a>(
+        &'a self,
+        _: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<bool>> + Send + 'a>> {
+        Box::pin(async { Ok(false) })
+    }
+}
+
 fn model(provider: &str, id: &str, adapter: &str, url: &str) -> Model {
     let raw_provider =
         serde_json::from_value(json!({"id": provider, "api": url, "adapter": adapter})).unwrap();
@@ -133,6 +150,7 @@ async fn reasoning_selection_reaches_real_sdk_http_body_for_every_supported_leve
             .unwrap();
             // The local server deliberately rejects after recording the exact wire payload.
             let result = dispatch_stream_request(
+                &LoopbackHost,
                 provider,
                 &model,
                 "test-key",

@@ -1,3 +1,4 @@
+//! 宿主保留：项目轨道、项目会话内容与悬浮覆盖层的装配；纯宽度边界已迁 desktop-workspace。
 //! 项目侧栏组合布局的测试，覆盖展开、折叠与悬浮会话覆盖层。
 //! 边界用例验证面板宽度和缩放值异常时不会产生无效尺寸。
 use iced::Element;
@@ -35,16 +36,6 @@ fn sidebar_group_expanded_builds_resize_handle() {
     keep_element(resize_handle.expect("expanded settings sidebar exposes resize handle"));
 }
 
-#[test]
-fn sidebar_group_expanded_clamps_negative_panel_width() {
-    let mut app = test_app();
-    app.show_settings = true;
-
-    let (sidebar, resize_handle) = sidebar_group(&app, 40.0, 80.0, 1.0, 0.0);
-
-    keep_element(sidebar);
-    keep_element(resize_handle.expect("resize handle is still available when panel width clamps"));
-}
 
 #[test]
 fn sidebar_group_collapsed_hides_resize_handle() {
@@ -99,49 +90,9 @@ fn hover_overlay_layout_with_hover_clamps_negative_panel_width() {
     keep_element(layout);
 }
 
-#[test]
-fn sidebar_group_expanded_zero_scale_uses_left_rail_width_only() {
-    let mut app = test_app();
-    app.show_settings = true;
 
-    let (sidebar, resize_handle) = sidebar_group(&app, 400.0, 100.0, 0.0, 12.0);
 
-    keep_element(sidebar);
-    keep_element(resize_handle.expect("resize handle present when expanded"));
-}
 
-#[test]
-fn sidebar_group_expanded_full_scale_uses_max_width() {
-    let mut app = test_app();
-    app.show_settings = true;
-
-    let (sidebar, resize_handle) = sidebar_group(&app, 400.0, 100.0, 1.0, 12.0);
-
-    keep_element(sidebar);
-    keep_element(resize_handle.expect("resize handle present when expanded"));
-}
-
-#[test]
-fn sidebar_group_expanded_equal_panel_and_rail_widths() {
-    let mut app = test_app();
-    app.show_settings = true;
-
-    let (sidebar, resize_handle) = sidebar_group(&app, 100.0, 100.0, 0.75, 8.0);
-
-    keep_element(sidebar);
-    keep_element(resize_handle.expect("resize handle present when expanded"));
-}
-
-#[test]
-fn sidebar_group_expanded_large_left_rail() {
-    let mut app = test_app();
-    app.show_settings = true;
-
-    let (sidebar, resize_handle) = sidebar_group(&app, 120.0, 200.0, 0.5, 12.0);
-
-    keep_element(sidebar);
-    keep_element(resize_handle.expect("resize handle present when expanded"));
-}
 
 #[test]
 fn sidebar_group_collapsed_empty_projects() {

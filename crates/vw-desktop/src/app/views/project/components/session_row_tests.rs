@@ -1,3 +1,4 @@
+//! 宿主保留：SessionRuntimeState 的首轮请求和预览投影为 RowInput；中文绘制覆盖宿主标题与预览选择路径。
 use super::*;
 use iced::advanced::{Layout, layout, renderer::Headless, widget::Tree};
 use iced::{Font, Pixels, Size, Theme, mouse};

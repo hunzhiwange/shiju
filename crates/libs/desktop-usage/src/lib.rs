@@ -35,3 +35,6 @@ pub mod panel;
 
 #[cfg(test)]
 mod desktop_split_30_tests;
+
+#[cfg(test)]
+mod desktop_split_19_tests;

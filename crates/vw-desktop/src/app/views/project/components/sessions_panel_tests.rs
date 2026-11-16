@@ -1,3 +1,4 @@
+//! 宿主保留：运行草稿、项目会话和运行状态投影，以及右键菜单与宿主消息的组合。
 use super::*;
 use std::collections::HashSet;
 use iced::{Element, Point};

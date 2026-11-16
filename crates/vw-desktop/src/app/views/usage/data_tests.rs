@@ -1,7 +1,8 @@
+//! 宿主保留：加载会话优先于项目会话元数据的选择契约；纯令牌与角色聚合迁 desktop-usage。
 //! 用量数据快照的测试，覆盖活动会话元数据、令牌合计和消息角色计数。
 //! fixture 验证最新步骤优先，并在会话或元数据缺失时采用明确回退。
 use crate::app::App;
-use crate::app::models::{ChatMessage, ChatRole, ChatSessionStep, TokenUsage};
+use crate::app::models::{ChatSessionStep, TokenUsage};
 use serde_json::json;
 use session_info::{Info, TimeInfo};
 
@@ -39,16 +40,6 @@ fn step(index: u32, usage: TokenUsage) -> ChatSessionStep {
     }
 }
 
-fn message(role: ChatRole) -> ChatMessage {
-    ChatMessage {
-        role,
-        content: "content".to_string(),
-        model: None,
-        think_timing: Vec::new(),
-        processing_timing: None,
-    }
-}
-
 #[test]
 fn from_app_prefers_loaded_session_metadata_and_latest_step_usage() {
     let (mut app, _task) = App::new();
@@ -79,47 +70,7 @@ fn from_app_prefers_loaded_session_metadata_and_latest_step_usage() {
     assert_eq!(usage.last_step_total_tokens, 23);
 }
 
-#[test]
-fn from_app_sums_total_usage_and_counts_message_roles() {
-    let (mut app, _task) = App::new();
-    app.usage.input_tokens = 10;
-    app.usage.output_tokens = 20;
-    app.usage.cached_tokens = 3;
-    app.usage.reasoning_tokens = 7;
-    app.chat = vec![
-        message(ChatRole::User),
-        message(ChatRole::Assistant),
-        message(ChatRole::Assistant),
-        message(ChatRole::System),
-        message(ChatRole::Tool),
-    ];
 
-    let usage = super::from_app(&app);
-
-    assert_eq!(usage.total_tokens, 40);
-    assert_eq!(usage.message_count, 5);
-    assert_eq!(usage.user_msgs, 1);
-    assert_eq!(usage.assistant_msgs, 2);
-    assert_eq!(usage.system_msgs, 1);
-    assert_eq!(usage.tool_msgs, 1);
-}
-
-#[test]
-fn from_app_defaults_without_active_session() {
-    let (app, _task) = App::new();
-
-    let usage = super::from_app(&app);
-
-    assert!(usage.session.is_none());
-    assert_eq!(usage.session_id, "暂无");
-    assert_eq!(usage.session_title, "暂无");
-    assert_eq!(usage.call_count, 0);
-    assert_eq!(usage.last_step_input_tokens, 0);
-    assert_eq!(usage.last_step_output_tokens, 0);
-    assert_eq!(usage.last_step_cached_tokens, 0);
-    assert_eq!(usage.last_step_reasoning_tokens, 0);
-    assert_eq!(usage.last_step_total_tokens, 0);
-}
 
 #[test]
 fn from_app_falls_back_to_project_metadata_for_active_session() {
@@ -135,49 +86,4 @@ fn from_app_falls_back_to_project_metadata_for_active_session() {
 
     assert_eq!(usage.session_title, "Project Session");
     assert_eq!((session.created_ms, session.updated_ms), (500, 600));
-}
-
-#[test]
-fn from_app_uses_active_view_updated_time_when_metadata_is_missing() {
-    let (mut app, _task) = App::new();
-    app.active_session_id = Some("missing-metadata".to_string());
-    app.active_session_view_state.updated_ms = 9876;
-    app.active_session_view_state.steps = vec![step(
-        1,
-        TokenUsage { input_tokens: 4, output_tokens: 5, cached_tokens: 6, reasoning_tokens: 7 },
-    )];
-
-    let usage = super::from_app(&app);
-    let session = usage.session.as_ref().expect("active session should still be projected");
-
-    assert_eq!(usage.session_id, "missing-metadata");
-    assert_eq!(usage.session_title, "暂无");
-    assert_eq!((session.created_ms, session.updated_ms), (0, 9876));
-    assert_eq!(usage.last_step_input_tokens, 4);
-    assert_eq!(usage.last_step_output_tokens, 5);
-    assert_eq!(usage.last_step_cached_tokens, 6);
-    assert_eq!(usage.last_step_reasoning_tokens, 7);
-    assert_eq!(usage.last_step_total_tokens, 22);
-}
-
-#[test]
-fn from_app_preserves_reported_usage_while_next_step_is_pending() {
-    let (mut app, _task) = App::new();
-    app.active_session_id = Some("session".to_string());
-    app.active_session_view_state.steps = vec![
-        step(
-            1,
-            TokenUsage {
-                input_tokens: 300,
-                output_tokens: 20,
-                cached_tokens: 0,
-                reasoning_tokens: 0,
-            },
-        ),
-        step(2, TokenUsage::default()),
-    ];
-    app.active_session_view_state.steps[1].finished_ms = None;
-    let usage = super::from_app(&app);
-    assert_eq!(usage.last_step_input_tokens, 300);
-    assert_eq!(usage.last_step_total_tokens, 320);
 }

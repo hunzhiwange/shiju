@@ -13,6 +13,3 @@ pub fn main_area(app: &App, spacing: f32, content_pad: f32, chat_pad: f32, radiu
         show_file_manager: app.file_manager.show_file_manager,
     }, super::chat::chat_area(app, spacing, radius, chat_pad), preview_panel::view(app), || file_tree::view_file_manager(app), Message::View(ViewMessage::SplitDragStarted), Message::View(ViewMessage::FileManagerDragStarted), spacing, content_pad)
 }
-#[cfg(test)]
-#[path = "main_tests.rs"]
-mod main_tests;

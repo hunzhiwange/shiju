@@ -425,3 +425,37 @@ tool-assembly::host_migration_35_tests 注册 3 个序列化和 registry 子模�
 全部 Cargo/构建/单元/实机验证仍未执行，仅源码比对、注册/调用依赖核对和 git diff --check。
 
 累计同41文件基线口径：2397→1143，净减1254（52.3%）。70%门槛仍未满足；本轮未通过删除场景或业务来凑比例。剩余主要为真实工厂/MCP配置stdio边界与具体Host端口/兼容入口，收口仍须核验整体目标。
+
+## 第四轮：真实Host验收分层（不计为独立领域测试）
+
+读取最新 final.md 与 evidence/remaining-host.json 后，对本任务残留继续拆分。没有删除任何场景，也没有用 stub 工具、模拟鉴权或另一套算法替代原Host执行。
+
+`tools/tests/mcp_discovery_tests.rs` 的三条原测试名均保留注册，完整断言/协议fixture迁到 `tool-mcp::host_migration_35_acceptance`。泛型仅接受现有 McpToolHost；宿主明确以 AgentContextHost 调用，缺失配置、坏HTTP header错误链、真实stdio都依然走原宿主端口。原 with_server_peer(server, f) 源码确认等价于 with_server_client_timeout(server,None,|client| f(client.peer()))；接收代码沿同一个 H::with_client(...,None,...) 实际端口调用 client.peer()，不新增传输实现。临时目录由宿主薄用例创建并持有到 await 完成，协议Python脚本保持原样；接收库不自动执行它。
+
+逐条映射（全部仍为宿主集成测试）：
+- discover_and_call_configured_mcp_tool_through_stdio_fixture → 同名 tool-mcp 泛型 acceptance(directory)，真实客户端发现/调用断言未删除。
+- mcp_tool_from_spec_default_handler_reports_missing_configured_server → 同名 acceptance<H>，真实应用配置加载仍由 H 提供。
+- mcp_tool_from_configured_server_uses_server_bound_handler → 同名 acceptance<H>，实际HTTP客户端构造错误链保持。
+
+`tools/tests/mod_tests.rs` 的 write_mcp_toolset_server/write_mcp_toolset_workspace 迁到 tool-assembly::host_migration_35_mcp_fixture，参数从 &TempDir 改为 &Path，调用处传 tmp.path()；目录/进程生命周期仍由宿主测试持有。完整Python脚本及 .vwacprc.json 生成内容保持。
+
+九条真实工厂场景的断言和真实Memory/Config临时目录夹具归 tool-assembly::host_migration_35_factory_acceptance，宿主各保留一个明确 AgentContextHost 注入入口；泛型仅为现有 FactoryHost，不新增框架和 Host/AppState 克隆：
+- all_tools_excludes_browser_when_disabled
+- all_tools_includes_browser_when_enabled
+- default_tools_all_have_descriptions
+- default_tools_all_have_schemas
+- tool_spec_generation
+- all_tools_includes_agent_tool_when_agents_configured
+- all_tools_includes_default_agent_tool_when_no_agents
+- all_tools_includes_default_agent_tool_when_only_primary_agents
+- all_tools_registers_agent_tool_for_delegate_agents
+
+上述每条原名字/断言保留，域内代码调用 factory::default_tools::<H>/all_tools::<H>，即原宿主转发函数的真实目标。未拿 Host32 Selected receipt 替代它们。真实权限、浏览器、调度、AgentTool 构造仍由 AgentContextHost 持有。它们不算新增12条领域自注册用例，不宣称减少这12例的宿主测试执行/编译归属。
+
+依赖及挂载：两个接收库通过已有 test-support 特性导出各自验收模块，不反向依赖 vw-agent，不 path/include 宿主源码。tool-assembly 仅把既有 tempfile 增为 test-support 的可选依赖，生产默认特性不打开它。tool-mcp 无新增依赖。宿主相关 dev-dependency 在本轮前已启用相应 test-support，无额外Host依赖修改。
+
+未来验证仍用原宿主完整测试名：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib tools::mcp_discovery_tests -- --test-threads=1` 预期3例；`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib tools::tests -- --test-threads=1` 预期14例（原注册名均保持）。上轮领域独立用例命令及计数不变，不能将 acceptance 函数算作独立测试。
+
+本轮只做源码等价调用、assert数量与名称映射、依赖/注册核对和 git diff --check；所有Cargo、构建、单元及实机测试均未运行。
+
+累计41源文件 2397→780，净减1617（67.5%）。本轮宿主减少来自领域验收代码/fixture归属，生产迁移新增0，不当作生产算法或编译收益。70%减量门槛仍未通过；宿主保留项现为真实Factory/MCP/Word集成入口、原生搜索协议与回执及实际Host端口/兼容导出。

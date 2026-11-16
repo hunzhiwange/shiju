@@ -4,111 +4,14 @@
 //! 不同配置下被意外扩大或遗漏。
 
 use super::*;
-use crate::app::agent::config::{BrowserConfig, Config, MemoryConfig};
-use crate::app::agent::memory;
 use serde_json::json;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tempfile::TempDir;
 
 const MCP_TOOLSET_TOOL_ID: &str = "mcp__fixture_server__echo_tool_2fb49d0879816c90";
 
-fn test_config(tmp: &TempDir) -> Config {
-    Config {
-        workspace_dir: tmp.path().join("workspace"),
-        config_path: tmp.path().join("vibewindow.json"),
-        ..Config::default()
-    }
-}
 
-fn write_mcp_toolset_server(tmp: &TempDir) -> PathBuf {
-    let script = tmp.path().join("fixture_mcp_server.py");
-    std::fs::write(
-        &script,
-        r#"
-import json
-import sys
-
-TOOL = {
-    "name": "Echo Tool",
-    "description": "Echo a message from the MCP fixture.",
-    "inputSchema": {
-        "type": "object",
-        "additionalProperties": False,
-        "properties": {
-            "message": {"type": "string"}
-        },
-        "required": ["message"]
-    },
-    "annotations": {
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True
-    }
-}
-
-def send(payload):
-    sys.stdout.write(json.dumps(payload, separators=(",", ":")) + "\n")
-    sys.stdout.flush()
-
-for line in sys.stdin:
-    if not line.strip():
-        continue
-    message = json.loads(line)
-    method = message.get("method")
-    request_id = message.get("id")
-    if method == "initialize":
-        params = message.get("params") or {}
-        send({
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "result": {
-                "protocolVersion": params.get("protocolVersion", "2025-06-18"),
-                "capabilities": {"tools": {"listChanged": False}},
-                "serverInfo": {"name": "fixture-mcp", "version": "1.0.0"},
-                "instructions": "Fixture instructions for dynamic MCP tool tests."
-            }
-        })
-    elif method == "tools/list":
-        send({"jsonrpc": "2.0", "id": request_id, "result": {"tools": [TOOL]}})
-    elif method == "tools/call":
-        params = message.get("params") or {}
-        arguments = params.get("arguments") or {}
-        text = "echo:" + str(arguments.get("message", ""))
-        send({
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "result": {
-                "content": [{"type": "text", "text": text}],
-                "structuredContent": {"echoed": arguments.get("message", "")},
-                "isError": False
-            }
-        })
-    elif request_id is not None:
-        send({"jsonrpc": "2.0", "id": request_id, "result": {}})
-"#,
-    )
-    .expect("fixture MCP server script should be written");
-    script
-}
-
-fn write_mcp_toolset_workspace(tmp: &TempDir) -> PathBuf {
-    let workspace = tmp.path().join("workspace");
-    std::fs::create_dir_all(&workspace).expect("workspace should be created");
-    let script = write_mcp_toolset_server(tmp);
-    let config = json!({
-        "mcpServers": [{
-            "name": "Fixture Server",
-            "command": std::env::var("PYTHON").unwrap_or_else(|_| "python3".to_string()),
-            "args": [script.to_string_lossy()]
-        }]
-    });
-    std::fs::write(
-        workspace.join(".vwacprc.json"),
-        serde_json::to_vec_pretty(&config).expect("MCP config should serialize"),
-    )
-    .expect("MCP config should be written");
-    workspace
-}
+use tool_assembly::host_migration_35_mcp_fixture::write_mcp_toolset_workspace;
 
 fn mcp_toolset_context(workspace: &Path) -> ToolRuntimeContext {
     ToolRuntimeContext::new("mcp-toolset-test", Some(workspace.to_string_lossy().to_string()))
@@ -117,105 +20,23 @@ fn mcp_toolset_context(workspace: &Path) -> ToolRuntimeContext {
 
 #[test]
 fn all_tools_excludes_browser_when_disabled() {
-    let tmp = TempDir::new().unwrap();
-    let security = Arc::new(SecurityPolicy::default());
-    let mem_cfg = MemoryConfig { backend: "markdown".into(), ..MemoryConfig::default() };
-    let mem: Arc<dyn Memory> =
-        Arc::from(memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
-
-    let browser = BrowserConfig {
-        enabled: false,
-        allowed_domains: vec!["example.com".into()],
-        session_name: None,
-        ..BrowserConfig::default()
-    };
-    let http = crate::app::agent::config::HttpRequestConfig::default();
-    let cfg = test_config(&tmp);
-
-    let tools = all_tools(
-        Arc::new(Config::default()),
-        &security,
-        mem,
-        &browser,
-        &http,
-        &crate::app::agent::config::WebFetchConfig::default(),
-        tmp.path(),
-        &HashMap::new(),
-        None,
-        &cfg,
-        None,
-    );
-    let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
-    assert!(!names.contains(&"browser_open"));
-    assert!(names.contains(&"schedule"));
-    assert!(names.contains(&"Config"));
-    assert!(names.contains(&"Sleep"));
-    assert!(!names.contains(&"model_routing_config"));
-    assert!(!names.contains(&"proxy_config"));
+    tool_assembly::host_migration_35_factory_acceptance::all_tools_excludes_browser_when_disabled::<crate::tools::context::AgentContextHost>();
 }
 
 #[test]
 fn all_tools_includes_browser_when_enabled() {
-    let tmp = TempDir::new().unwrap();
-    let security = Arc::new(SecurityPolicy::default());
-    let mem_cfg = MemoryConfig { backend: "markdown".into(), ..MemoryConfig::default() };
-    let mem: Arc<dyn Memory> =
-        Arc::from(memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
-
-    let browser = BrowserConfig {
-        enabled: true,
-        allowed_domains: vec!["example.com".into()],
-        session_name: None,
-        ..BrowserConfig::default()
-    };
-    let http = crate::app::agent::config::HttpRequestConfig::default();
-    let cfg = test_config(&tmp);
-
-    let tools = all_tools(
-        Arc::new(Config::default()),
-        &security,
-        mem,
-        &browser,
-        &http,
-        &crate::app::agent::config::WebFetchConfig::default(),
-        tmp.path(),
-        &HashMap::new(),
-        None,
-        &cfg,
-        None,
-    );
-    let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
-    assert!(names.contains(&"browser_open"));
-    assert!(names.contains(&"glob"));
-    assert!(names.contains(&"grep"));
-    assert!(!names.contains(&"process"));
-    assert!(!names.contains(&"glob_search"));
-    assert!(!names.contains(&"content_search"));
-    assert!(!names.contains(&"model_routing_config"));
-    assert!(!names.contains(&"proxy_config"));
-    assert!(names.contains(&"Config"));
-    assert!(names.contains(&"Sleep"));
+    tool_assembly::host_migration_35_factory_acceptance::all_tools_includes_browser_when_enabled::<crate::tools::context::AgentContextHost>();
 }
 
 
 #[test]
 fn default_tools_all_have_descriptions() {
-    let security = Arc::new(SecurityPolicy::default());
-    let tools = default_tools(security);
-    for tool in &tools {
-        assert!(!tool.description().is_empty(), "Tool {} has empty description", tool.name());
-    }
+    tool_assembly::host_migration_35_factory_acceptance::default_tools_all_have_descriptions::<crate::tools::context::AgentContextHost>();
 }
 
 #[test]
 fn default_tools_all_have_schemas() {
-    let security = Arc::new(SecurityPolicy::default());
-    let tools = default_tools(security);
-    for tool in &tools {
-        let schema = tool.parameters_schema();
-        assert!(schema.is_object(), "Tool {} schema is not an object", tool.name());
-        assert!(schema["properties"].is_object(), "Tool {} schema has no properties", tool.name());
-    }
+    tool_assembly::host_migration_35_factory_acceptance::default_tools_all_have_schemas::<crate::tools::context::AgentContextHost>();
 }
 
 
@@ -234,15 +55,7 @@ fn registry_specs_include_apply_patch_for_explicit_models() {
 
 #[test]
 fn tool_spec_generation() {
-    let security = Arc::new(SecurityPolicy::default());
-    let tools = default_tools(security);
-    for tool in &tools {
-        let spec = tool.spec();
-        let expected_id = if tool.name() == "shell" { "bash" } else { tool.name() };
-        assert_eq!(spec.id, expected_id);
-        assert_eq!(spec.description, tool.description());
-        assert!(spec.input_schema.is_object());
-    }
+    tool_assembly::host_migration_35_factory_acceptance::tool_spec_generation::<crate::tools::context::AgentContextHost>();
 }
 
 
@@ -266,7 +79,7 @@ fn registry_specs_expose_bash_and_compact_search_surface() {
 #[test]
 fn mcp_toolset_tools_are_registered_from_config() {
     let tmp = TempDir::new().unwrap();
-    let workspace = write_mcp_toolset_workspace(&tmp);
+    let workspace = write_mcp_toolset_workspace(tmp.path());
     let specs = tool_specs_for_context(&mcp_toolset_context(&workspace));
 
     let spec = specs
@@ -284,7 +97,7 @@ fn mcp_toolset_tools_are_registered_from_config() {
 #[test]
 fn mcp_toolset_tools_can_be_executed_from_registry() {
     let tmp = TempDir::new().unwrap();
-    let workspace = write_mcp_toolset_workspace(&tmp);
+    let workspace = write_mcp_toolset_workspace(tmp.path());
     let result = execute_tool_call(
         MCP_TOOLSET_TOOL_ID,
         r#"{"message":"hello"}"#,
@@ -303,62 +116,20 @@ fn mcp_toolset_tools_can_be_executed_from_registry() {
 
 #[test]
 fn all_tools_includes_agent_tool_when_agents_configured() {
-
-    let mut agents = HashMap::new();
-    agents.insert(
-        "researcher".to_string(),
-        tool_assembly::host_migration_35_fixtures::agent("all", true),
-    );
-
-    let names = agent_factory_names(&agents, Some("delegate-test-credential"));
-    assert!(names.iter().any(|name| name == "AgentTool"));
-    assert!(!names.iter().any(|name| name == "delegate"));
+    tool_assembly::host_migration_35_factory_acceptance::all_tools_includes_agent_tool_when_agents_configured::<crate::tools::context::AgentContextHost>();
 }
 
 #[test]
 fn all_tools_includes_default_agent_tool_when_no_agents() {
-
-    let names = agent_factory_names(&HashMap::new(), None);
-    assert!(names.iter().any(|name| name == "AgentTool"));
-    assert!(!names.iter().any(|name| name == "delegate"));
+    tool_assembly::host_migration_35_factory_acceptance::all_tools_includes_default_agent_tool_when_no_agents::<crate::tools::context::AgentContextHost>();
 }
 
 #[test]
 fn all_tools_includes_default_agent_tool_when_only_primary_agents() {
-
-    let mut agents = HashMap::new();
-    agents.insert(
-        "main".to_string(),
-        tool_assembly::host_migration_35_fixtures::agent("primary", false),
-    );
-
-    let names = agent_factory_names(&agents, None);
-    assert!(names.iter().any(|name| name == "AgentTool"));
-    assert!(!names.iter().any(|name| name == "delegate"));
+    tool_assembly::host_migration_35_factory_acceptance::all_tools_includes_default_agent_tool_when_only_primary_agents::<crate::tools::context::AgentContextHost>();
 }
 
 #[test]
 fn all_tools_registers_agent_tool_for_delegate_agents() {
-
-    let mut agents = HashMap::new();
-    agents.insert(
-        "researcher".to_string(),
-        tool_assembly::host_migration_35_fixtures::agent("all", true),
-    );
-
-    let names = agent_factory_names(&agents, Some("delegate-test-credential"));
-    assert!(names.iter().any(|name| name == "AgentTool"));
-    assert!(!names.iter().any(|name| name == "delegate"));
-}
-
-fn agent_factory_names(agents: &HashMap<String, DelegateAgentConfig>, credential: Option<&str>) -> Vec<String> {
-    let tmp = TempDir::new().unwrap();
-    let security = Arc::new(SecurityPolicy::default());
-    let mem_cfg = MemoryConfig { backend: "markdown".into(), ..MemoryConfig::default() };
-    let mem: Arc<dyn Memory> = Arc::from(memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
-    let cfg = test_config(&tmp);
-    all_tools(Arc::new(Config::default()), &security, mem, &BrowserConfig::default(),
-        &crate::app::agent::config::HttpRequestConfig::default(),
-        &crate::app::agent::config::WebFetchConfig::default(), tmp.path(), agents, credential, &cfg, None)
-        .iter().map(|tool| tool.name().to_string()).collect()
+    tool_assembly::host_migration_35_factory_acceptance::all_tools_registers_agent_tool_for_delegate_agents::<crate::tools::context::AgentContextHost>();
 }

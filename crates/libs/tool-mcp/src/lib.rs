@@ -8,3 +8,7 @@ pub use host::{McpToolHost, ClientFuture};
 
 #[cfg(test)]
 mod host_migration_35_tests;
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub mod host_migration_35_acceptance;

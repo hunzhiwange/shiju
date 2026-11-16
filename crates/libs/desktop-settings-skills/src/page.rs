@@ -141,7 +141,7 @@ pub fn system_config_view(app: ConfigContext<'_>) -> Element<'static, Message> {
 }
 
 /// Compose the skill page around the selected domain content.
-pub fn view<'a, M: Clone + 'a>(
+pub fn view<'a, M: Clone + 'static>(
     app: ConfigContext<'_>,
     active_tab: SkillsSettingsTab,
     save_error: &'a Option<String>,

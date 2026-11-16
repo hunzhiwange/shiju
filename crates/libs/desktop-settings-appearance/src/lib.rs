@@ -12,3 +12,6 @@ pub mod quick_messages_update;
 pub mod general_update;
 
 pub mod general_message;
+
+#[cfg(test)]
+mod desktop_split_02_tests;

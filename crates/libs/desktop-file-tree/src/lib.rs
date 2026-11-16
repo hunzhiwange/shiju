@@ -61,3 +61,6 @@ use view::{scroll_tree, scroll_surface};
 
 #[cfg(test)]
 mod tree_list_tests;
+
+#[cfg(test)]
+mod desktop_split_02_tests;

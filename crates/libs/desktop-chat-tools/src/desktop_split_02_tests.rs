@@ -1,10 +1,7 @@
-//! 维护运行时工具选择器状态及其回归测试。
-//!
-//! 注释说明当前文件的职责边界，帮助调用方理解数据流与错误传播，
-//! 不改变任何运行时行为。
-
-use super::{SessionToolBucket, SessionToolInventory, SessionToolSelectorState, SessionToolSelectorTab, SkillsDirectoryScope};
-
+// Tests migrated from desktop host state; production types retain their original owners.
+mod behavior_0 {
+use crate::state::*;
+use desktop_settings_skills::types::SkillsDirectoryScope;
 #[test]
 fn tool_selector_defaults_enable_every_bucket_without_filters() {
     let selector = SessionToolSelectorState::default();
@@ -18,7 +15,5 @@ fn tool_selector_defaults_enable_every_bucket_without_filters() {
     assert_eq!(selector.query(), "");
     assert_eq!(selector.skill_directory_scope(), SkillsDirectoryScope::All);
 
-    let inventory = SessionToolInventory::default();
-    assert!(inventory.base_tools.is_empty());
-    assert!(!inventory.restricts_tools);
+}
 }

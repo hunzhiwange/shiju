@@ -21,3 +21,6 @@ pub mod toast;
 mod right_click_area_tests;
 
 pub mod tooltip;
+
+#[cfg(test)]
+mod desktop_split_02_tests;

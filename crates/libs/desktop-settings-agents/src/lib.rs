@@ -38,3 +38,6 @@ pub mod autonomy_update;
 
 pub mod dialogue_flow_update;
 pub mod agents_view;
+
+#[cfg(test)]
+mod desktop_split_02_tests;

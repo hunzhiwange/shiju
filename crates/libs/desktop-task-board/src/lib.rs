@@ -24,3 +24,6 @@ mod slice_view_fixture;
 pub mod page;
 
 pub mod pet_interaction;
+
+#[cfg(test)]
+mod desktop_split_02_tests;

@@ -9,3 +9,6 @@ mod code_review_tests;
 pub mod message_git;
 
 pub mod modal_overlays;
+
+#[cfg(test)]
+mod desktop_split_02_tests;

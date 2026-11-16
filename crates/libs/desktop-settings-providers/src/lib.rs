@@ -58,3 +58,6 @@ pub mod settings_message;
 pub mod settings_util;
 
 pub mod save_feedback;
+
+#[cfg(test)]
+mod desktop_split_02_tests;

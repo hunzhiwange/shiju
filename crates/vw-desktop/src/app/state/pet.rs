@@ -137,7 +137,7 @@ impl App {
 
     /// 根据拖动偏移移动窗口，并将位置限制在当前显示器工作区内。
     pub(crate) fn drag_task_pet_to(&mut self, x: f32, y: f32) {
-        self.task_pet_state().drag_task_pet_to()
+        self.task_pet_state().drag_task_pet_to(x, y)
     }
 
     pub(crate) fn finish_task_pet_drag(&mut self) {
@@ -149,11 +149,11 @@ impl App {
     }
 
     pub(crate) fn move_task_pet_window_to(&mut self, x: f32, y: f32) {
-        self.task_pet_state().move_task_pet_window_to()
+        self.task_pet_state().move_task_pet_window_to(x, y)
     }
 
     fn move_task_pet_to(&mut self, position: iced::Point) {
-        self.task_pet_state().move_task_pet_to(position, iced)
+        self.task_pet_state().move_task_pet_to(position)
     }
 
     pub(crate) fn task_pet_is_walking(&self) -> bool {
@@ -165,7 +165,7 @@ impl App {
     }
 
     pub(crate) fn set_task_pet_robot_hovered(&mut self, hovered: bool) {
-        self.task_pet_state().set_task_pet_robot_hovered()
+        self.task_pet_state().set_task_pet_robot_hovered(hovered)
     }
 
     pub(crate) fn cycle_task_pet_avatar(&mut self) {
@@ -173,23 +173,23 @@ impl App {
     }
 
     pub(crate) fn refresh_task_pet_session_title(&mut self, session_id: &str, title: &str) {
-        self.task_pet_state().refresh_task_pet_session_title()
+        self.task_pet_state().refresh_task_pet_session_title(session_id, title)
     }
 
     pub(crate) fn dismiss_task_pet_item(&mut self, request_id: u64) {
-        self.task_pet_state().dismiss_task_pet_item()
+        self.task_pet_state().dismiss_task_pet_item(request_id)
     }
 
     pub(crate) fn set_task_pet_hovered(&mut self, request_id: Option<u64>) {
-        self.task_pet_state().set_task_pet_hovered()
+        self.task_pet_state().set_task_pet_hovered(request_id)
     }
 
     pub(crate) fn open_task_pet_reply(&mut self, request_id: u64) {
-        self.task_pet_state().open_task_pet_reply()
+        self.task_pet_state().open_task_pet_reply(request_id)
     }
 
     pub(crate) fn update_task_pet_reply_input(&mut self, value: String) {
-        self.task_pet_state().update_task_pet_reply_input()
+        self.task_pet_state().update_task_pet_reply_input(value)
     }
 
     /// 取出非空回复及目标会话，并同时关闭回复编辑状态。
@@ -199,7 +199,7 @@ impl App {
 
     /// 将单击解释为选择、双击解释为打开会话，并返回可导航会话标识。
     pub(crate) fn task_pet_item_clicked(&mut self, request_id: u64) -> Option<String> {
-        self.task_pet_state().task_pet_item_clicked()
+        self.task_pet_state().task_pet_item_clicked(request_id)
     }
 
     fn task_pet_snapshot_for_request(&self, request: &AgentRequest) -> TaskPetSnapshot {

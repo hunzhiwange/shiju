@@ -31,3 +31,6 @@ pub mod projects;
 pub mod workspace_state;
 
 pub mod project_edit_view;
+
+#[cfg(test)]
+mod desktop_split_02_tests;

@@ -44,8 +44,6 @@ mod runtime_tools;
 mod settings;
 mod workspace;
 
-#[cfg(test)]
-mod runtime_tools_tests;
 
 pub(crate) use account::{
     AccountOperation, AccountPasswordEditorState, AccountProfileEditorState, AccountState,

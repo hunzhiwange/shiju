@@ -31,3 +31,6 @@ mod security_config;
 pub mod security_update;
 
 pub mod save_feedback;
+
+#[cfg(test)]
+mod desktop_split_02_tests;

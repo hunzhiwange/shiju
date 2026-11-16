@@ -11,3 +11,6 @@ pub mod system_settings_scheduler;
 pub mod update;
 
 pub mod save_feedback;
+
+#[cfg(test)]
+mod desktop_split_02_tests;

@@ -332,3 +332,6 @@ pub mod management_tools;
 pub mod management_effect;
 
 pub mod settings_message;
+
+#[cfg(test)]
+mod desktop_split_02_tests;

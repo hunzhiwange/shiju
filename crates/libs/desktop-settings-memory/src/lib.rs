@@ -30,3 +30,6 @@ pub mod storage_update;
 mod memory_update_tests;
 
 pub mod save_feedback;
+
+#[cfg(test)]
+mod desktop_split_02_tests;

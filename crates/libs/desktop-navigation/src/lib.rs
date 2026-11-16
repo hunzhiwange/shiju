@@ -31,3 +31,6 @@ pub mod panel;
 
 pub mod status_bar;
 pub mod external_apps_update;
+
+#[cfg(test)]
+mod desktop_split_02_tests;

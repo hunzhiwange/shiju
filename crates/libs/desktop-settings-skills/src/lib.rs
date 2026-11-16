@@ -129,3 +129,6 @@ mod plugin_compat_t55_tests;
 
 #[cfg(test)]
 mod plugin_compat_t56_tests;
+
+#[cfg(test)]
+mod desktop_split_02_tests;

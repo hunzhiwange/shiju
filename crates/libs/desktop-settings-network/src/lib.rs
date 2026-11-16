@@ -88,3 +88,6 @@ pub mod save_feedback;
 pub mod startup;
 
 pub mod bootstrap;
+
+#[cfg(test)]
+mod desktop_split_02_tests;

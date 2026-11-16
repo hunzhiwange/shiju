@@ -44,3 +44,6 @@ pub mod external_open;
 
 pub mod agent_stream;
 pub mod agent_stream_events;
+
+#[cfg(test)]
+mod desktop_split_02_tests;

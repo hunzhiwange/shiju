@@ -307,4 +307,3 @@ fn ensure_openai_tool_call_sequence_fills_each_assistant_sequence() {
     assert_eq!(messages[0]["content"], json!(" "));
     assert_eq!(messages[3]["content"], json!(" "));
 }
-

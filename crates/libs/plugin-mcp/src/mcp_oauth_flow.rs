@@ -389,3 +389,7 @@ pub async fn send_provider_request(
         serde_json::from_slice(&bytes).context("invalid MCP token response")?;
     Ok(value)
 }
+
+#[cfg(test)]
+#[path = "mcp_oauth_flow_tests.rs"]
+mod tests;

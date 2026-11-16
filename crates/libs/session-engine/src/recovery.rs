@@ -244,3 +244,7 @@ pub fn provider_retry_backoff_ms(initial_backoff_ms: u64, retry_index: u32) -> u
 #[cfg(test)]
 #[path = "recovery_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "recovery_classification_tests.rs"]
+mod classification_tests;

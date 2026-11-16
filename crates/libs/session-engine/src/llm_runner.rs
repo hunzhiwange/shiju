@@ -575,3 +575,7 @@ mod buffer_tests;
 #[cfg(test)]
 #[path = "llm_runner_consumer_tests.rs"]
 mod consumer_tests;
+
+#[cfg(test)]
+#[path = "llm_runner_retry_tests.rs"]
+mod retry_tests;

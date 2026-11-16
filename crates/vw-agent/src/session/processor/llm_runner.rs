@@ -6,7 +6,7 @@ use serde_json::Value;
 use session_engine::processor_events::StreamEvent;
 pub(crate) use session_engine::llm_runner::{LlmStep, is_prompt_too_long_error, input_length_range_max, is_request_too_long_error};
 #[cfg(test)]
-use session_engine::llm_runner::{collect_llm_step_from_stream, is_acp_request, llm_step_retry_allowed, llm_error_message, is_acp_retryable_error, provider_retry_backoff_ms};
+use session_engine::llm_runner::{collect_llm_step_from_stream, is_acp_request, llm_step_retry_allowed, llm_error_message};
 pub(crate) struct AgentLlmStreamHost;
 impl session_engine::llm_runner::LlmStreamHost for AgentLlmStreamHost {
     fn spawn(session_id: String, messages: Vec<Value>, system: Vec<String>, model: Option<String>, options: Value, tools: std::collections::HashMap<String, ToolSpec>, abort_rx: tokio::sync::watch::Receiver<bool>, tx: std::sync::mpsc::Sender<llm::StreamEvent>) -> std::thread::JoinHandle<()> {

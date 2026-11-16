@@ -6,6 +6,8 @@
 
 原14文件 4200 行，现 3481 行，宿主净减 719 行（17.12%）。按 splitlines；测试文件含夹具/注释；生产文件内 cfg(test) 注册单列，不能把 forwarding 算作真实生产策略。原测试函数 66，迁出 28，保留 38；没有删除场景。
 
+分项：宿主生产文件 328→325 行（含转发、文档和测试注册，非纯策略）；宿主测试/夹具文件 3872→3156 行。实际新迁生产策略为0行；领域原生产文件 session_ops.rs 725→732 行（含4行测试注册），新增测试/端口文件共779行。
+
 ## 逐文件职责及行数
 
 | 来源 | 修改前 | 修改后 | 保留原因/继续可迁项 |
@@ -25,7 +27,7 @@
 | `shared.rs` | 28 | 26 | with_tenant_instance 是真实租户/项目检查与宿主 bootstrap；resolve_scope_from_query 转发实际 Host。其余重导出用于既有调用。 |
 | `shared_tests.rs` | 273 | 69 | 只留两条实际 Host scope 解析和一条真实项目上下文回调；17条 DTO/错误/目录判断域用例全部迁移。 |
 
-领域新增测试（含局部夹具）：`host_migration_10_tests/messages.rs` 463行, `host_migration_10_tests/shared.rs` 207行, `host_migration_10_tests/summary.rs` 69行；根测试端口模块 42行。
+领域新增测试（含局部夹具）：`host_migration_10_tests/messages.rs` 463行, `host_migration_10_tests/shared.rs` 206行, `host_migration_10_tests/summary.rs` 68行；根测试端口模块 42行。
 
 领域生产改动只有私有 summary 刷新函数以 AsyncFn 接收当前真实 H::refresh_summary；原有过滤、错误忽略、更新条件及顺序不变。该函数保持私有，测试在 session_ops 内自注册，没有为测试暴露 API 或新增 Host trait。原宿主 refresh 测试调用已经不存在的同名 helper，迁入真实 helper 所属模块后移除失效调用；失败来源改为明确的刷新错误端口，原三个 summary 保持断言保留。
 

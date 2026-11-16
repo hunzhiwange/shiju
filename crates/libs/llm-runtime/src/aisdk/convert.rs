@@ -456,3 +456,7 @@ pub fn native_tool_id(
     }
     Ok(spec.id.clone())
 }
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "convert_endpoint_tests.rs"]
+mod endpoint_tests;

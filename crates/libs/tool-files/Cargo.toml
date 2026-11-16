@@ -38,3 +38,6 @@ tempfile = "3"
 
 [dev-dependencies]
 tempfile = "3"
+permission-types = { path = "../permission-types", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+tokio-util = "0.7"

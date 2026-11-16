@@ -16,3 +16,6 @@ pub trait FileToolHost: tool_context::host::ContextHost {
     fn session_skill_allows_read(path: &std::path::Path) -> bool;
     fn skill_directories() -> impl std::future::Future<Output = Vec<String>> + tool_context::host::HostFuture;
 }
+
+#[cfg(test)]
+mod host_migration_30_tests;

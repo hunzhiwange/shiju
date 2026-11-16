@@ -20640,6 +20640,7 @@ dependencies = [
  "glob",
  "image",
  "pdf-extract",
+ "permission-types",
  "regex",
  "serde",
  "serde_json",
@@ -20647,9 +20648,11 @@ dependencies = [
  "similar",
  "tempfile",
  "tokio",
+ "tokio-util",
  "tool-context",
  "tool-types",
  "vw-api-tools",
+ "vw-api-transport",
  "which",
 ]
 

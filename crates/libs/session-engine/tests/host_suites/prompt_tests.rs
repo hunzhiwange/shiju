@@ -1,32 +1,5 @@
-//! 验证系统提示组装、运行时上下文和异步执行辅助行为。
-//! 提示夹具分别覆盖无运行时和已有运行时，并检查项目指令与身份白名单互不串扰。
-
-#[test]
-fn max_steps_text_matches_trimmed_embedded_constraint() {
-    let text = super::max_steps_text();
-
-    assert!(!text.is_empty());
-    assert_eq!(text, include_str!("../../src/prompt/max-steps.txt").trim());
-    assert!(text.contains("工具已禁用"));
-}
-
-#[test]
-fn block_on_runs_future_without_existing_runtime() {
-    let value = super::block_on(async { 42 });
-
-    assert_eq!(value, 42);
-}
-
-#[test]
-fn block_on_uses_current_runtime_handle() {
-    let runtime =
-        tokio::runtime::Builder::new_current_thread().build().expect("test runtime should build");
-    let _guard = runtime.enter();
-
-    let value = super::block_on(async { 42 });
-
-    assert_eq!(value, 42);
-}
+//! 验证依赖宿主环境与项目指令读取的系统提示契约。
+//! 检查项目指令与身份白名单互不串扰，以及真实宿主环境的提示渲染。
 
 #[test]
 fn environment_wraps_missing_model_with_explicit_root() {
@@ -35,26 +8,6 @@ fn environment_wraps_missing_model_with_explicit_root() {
     assert_eq!(entries.len(), 1);
     assert!(entries[0].contains("unknown/unknown"));
     assert!(entries[0].contains("Working directory: prompt-test-root"));
-}
-
-#[test]
-fn join_non_empty_parts_omits_blank_entries_and_preserves_order() {
-    let prompt = super::join_non_empty_parts(vec![
-        "environment".to_string(),
-        String::new(),
-        " \t ".to_string(),
-        "instruction".to_string(),
-    ]);
-
-    assert_eq!(prompt, "environment\n\ninstruction");
-}
-
-#[test]
-fn join_non_empty_parts_keeps_non_blank_content_unchanged() {
-    let prompt =
-        super::join_non_empty_parts(vec![" environment ".to_string(), "instruction\n".to_string()]);
-
-    assert_eq!(prompt, " environment \n\ninstruction\n");
 }
 
 #[test]

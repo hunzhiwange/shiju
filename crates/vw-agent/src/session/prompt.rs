@@ -1,7 +1,5 @@
 //! Typed host reads and shared prompt composition.
 pub use session_engine::prompt::{SystemPrompt, block_on, max_steps_text};
-#[cfg(test)]
-use session_engine::prompt::join_non_empty_parts;
 struct Host;
 impl session_engine::prompt::PromptHost for Host {
     async fn environment_from_ref(model: Option<&str>, root: Option<&str>) -> String { super::system::environment_from_ref(model, root).await }

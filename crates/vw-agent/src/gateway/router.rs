@@ -222,6 +222,6 @@ pub(crate) fn handler_router() -> Router {
         .merge(handlers::desktop::router())
 }
 
+// These tests exercise the real host route registry and middleware composition.
 #[cfg(test)]
-#[path = "../../../libs/agent-gateway/src/router_tests.rs"]
 mod router_tests;

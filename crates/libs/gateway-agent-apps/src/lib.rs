@@ -58,3 +58,6 @@ mod host_migration_4_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod host_migration_3_tests;
+
+#[cfg(all(test, unix))]
+mod host_migration_2_tests;

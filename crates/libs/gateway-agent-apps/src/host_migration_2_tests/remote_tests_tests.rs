@@ -65,12 +65,12 @@ ln -sf '{prefix}/lib/node_modules/@openai/codex/cli' '{prefix}/bin/codex'
         "hosts":[{"id":"host","online":true,"binding":"local","home":root.path(),"search_paths":[prefix.join("bin")],"applications":root.path().join("Applications"),"lifecycle":{"prefix":prefix,"npm":prefix.join("bin/npm")}}]});
         std::fs::write(&policy, serde_json::to_vec(&p).unwrap()).unwrap();
         std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600)).unwrap();
-        let db = crate::global_database::GlobalDatabase::for_home(root.path()).unwrap();
+        let db = agent_database::GlobalDatabase::for_home(root.path()).unwrap();
         let app = super::lifecycle::router_with_policy(Some(policy.clone()))
             .merge(super::read::router_with_policy(Some(policy.clone())))
             .merge(super::launch::router_with_terminal(Some(policy.clone()), terminal))
             .layer(axum::Extension(db))
-            .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+            .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware));
         Self { root, app }
     }
 }

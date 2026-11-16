@@ -1,4 +1,11 @@
-use super::*;
+use crate::launch::router_with_terminal;
+use agent_database::GlobalDatabase;
+use app_settings_store::settings_store::GatewaySettingsStore;
+use axum::{Extension, Router, http::StatusCode};
+use std::path::Path;
+use vw_agent_apps::apps::launch::request::LaunchMaterial;
+#[cfg(target_os = "macos")]
+use vw_agent_apps::apps::launch::posix::launch_posix_terminal;
 use axum::{
     body::{Body, to_bytes},
     http::Request as HttpRequest,
@@ -59,7 +66,7 @@ async fn cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal() {
         .unwrap();
     let app = router_with_terminal(Some(policy.clone()), terminal)
         .layer(Extension(db.clone()))
-        .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+        .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware));
     let observed = vw_agent_apps::apps::discovery::read::read(
         vw_api_app_identity::AppId::Codex,
         &vw_agent_apps::apps::discovery::read::LocalReadEnvironment {
@@ -102,7 +109,7 @@ async fn cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal() {
     failed["args"] = json!(["fail-terminal"]);
     let failed_app = router_with_terminal(Some(policy.clone()), failing_terminal)
         .layer(Extension(db))
-        .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+        .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware));
     assert_eq!(
         call(&failed_app, TOKEN, failed).await,
         (StatusCode::SERVICE_UNAVAILABLE, Value::Null)
@@ -221,7 +228,7 @@ use vw_api_types::agent_apps::*;
     std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600)).unwrap();
     let db = GlobalDatabase::for_home(root.path()).unwrap();
     let tenant = TenantScope::new("p", "c").unwrap();
-    let providers = crate::app_providers::AppProviderStore::new(db.clone()).unwrap();
+    let providers = app_provider_services::AppProviderStore::new(db.clone()).unwrap();
     providers
         .save(
             &tenant,
@@ -238,12 +245,12 @@ use vw_api_types::agent_apps::*;
         )
         .unwrap();
     let accounts =
-        crate::agent_apps::auth_accounts::AuthAccountStore::new(db.clone(), &credentials).unwrap();
+        agent_app_services::auth_accounts::AuthAccountStore::new(db.clone(), &credentials).unwrap();
     accounts.save(&tenant, "h", AppId::Codex, "selected-account", &vw_agent_apps::auth::credential_file::AccountCredential::CodexAuth(json!({"auth_mode":"chatgpt","tokens":{"access_token":"fixture-old-access","refresh_token":"fixture-old-refresh","id_token":"fixture-id","account_id":"fixture-account"}}))).unwrap();
     let router = Router::new()
         .nest("/v1", router_with_terminal(Some(policy), terminal_boundary))
         .layer(Extension(db))
-        .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+        .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let server = tokio::spawn(async move {

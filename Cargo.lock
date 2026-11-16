@@ -9194,6 +9194,8 @@ dependencies = [
  "gateway-app-settings",
  "gateway-app-usage",
  "gateway-endpoint",
+ "gateway-http",
+ "gateway-app-lifecycle",
  "gateway-types",
  "hex",
  "libc",

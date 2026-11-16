@@ -1,5 +1,5 @@
 use super::preferences;
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 use axum::{
     Extension, Router,
     body::{Body, to_bytes},
@@ -24,7 +24,7 @@ fn fixture(root: &Path) -> (std::path::PathBuf, GlobalDatabase) {
 fn router(path: &Path, db: GlobalDatabase) -> Router {
     preferences::router_with_policy(Some(path.to_owned()))
         .layer(Extension(db))
-        .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware))
+        .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware))
 }
 async fn call(
     app: &Router,

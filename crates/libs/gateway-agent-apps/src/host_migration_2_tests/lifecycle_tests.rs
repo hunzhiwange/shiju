@@ -7,7 +7,7 @@ use tower::ServiceExt;
 #[tokio::test]
 async fn cc_apps_lifecycle_api_scope_missing_identity_rejected() {
     let app = super::lifecycle::router_with_policy(None)
-        .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+        .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware));
     let response = app.oneshot(Request::builder().method("POST")
         .uri("/agent-apps/actions/preview?targetHostId=host")
         .header("x-platform-id", "p").header("x-company-id", "a")
@@ -69,7 +69,7 @@ ln -sf '{prefix}/lib/node_modules/@openai/codex/cli' '{prefix}/bin/codex'
         std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600)).unwrap();
         let app = super::lifecycle::router_with_policy(Some(policy.clone()))
             .merge(super::read::router_with_policy(Some(policy.clone())))
-            .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+            .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware));
         Self { root, app, policy }
     }
     async fn call(

@@ -80,20 +80,14 @@ pub(crate) use access::{AuthorizedMcpProbe, McpProbeAccess};
 // Authorization handler host resolution lives in gateway-agent-apps.
 
 pub(super) mod lifecycle;
-#[cfg(all(test, unix))]
-mod lifecycle_tests;
 
 mod preferences;
-#[cfg(all(test, unix))]
-mod preferences_tests;
 
 mod launch;
 
 
 
 
-#[cfg(all(test, unix))]
-mod remote_tests_tests;
 
 #[cfg(all(test, unix))]
 mod local_access_tests;
@@ -101,10 +95,6 @@ mod local_access_tests;
 pub(super) use gateway_agent_apps::host_context::{provider_config_home, provider_preview_context, provider_editor_context, provider_editor_authorization, authorize_provider_config_access, authorize_provider_login};
 #[cfg(target_os = "macos")]
 pub(crate) use gateway_agent_apps::host_context::{provider_discovery_host, recover_providers_on_startup, claude_editor_authorization};
-#[cfg(all(test, target_os = "macos"))]
-mod recovery_tests;
-#[cfg(all(test, target_os = "macos"))]
-mod import_tests;
 
 #[cfg(target_os = "macos")]
 mod usage_refresh;

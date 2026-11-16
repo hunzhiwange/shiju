@@ -56,6 +56,10 @@ config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
 rusqlite = "0.37.0"
 
 [dev-dependencies]
+gateway-http = { path = "../gateway-http", version = "0.6.0" }
+gateway-app-lifecycle = { path = "../gateway-app-lifecycle", version = "0.6.0" }
+gateway-app-settings = { path = "../gateway-app-settings", version = "0.6.0" }
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 gateway-app-providers = { path = "../gateway-app-providers", version = "0.6.0" }
 agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
 base64 = "0.23"
@@ -70,7 +74,6 @@ agent-gateway = { path = "../agent-gateway", version = "0.6.0" }
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
 app-routing-services = { path = "../app-routing-services", version = "0.6.0" }
 gateway-app-diagnostics = { path = "../gateway-app-diagnostics", version = "0.6.0" }
-gateway-app-settings = { path = "../gateway-app-settings", version = "0.6.0" }
 libc = "0.2"
 mcp-client = { path = "../mcp-client", version = "0.6.0" }
 plugin-mcp = { path = "../plugin-mcp", version = "0.6.0" }
@@ -81,7 +84,6 @@ vw-api-tools = { path = "../api-tools", version = "0.6.0" }
 
 zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 gateway-app-usage = { path = "../gateway-app-usage", version = "0.6.0" }
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
 rustls = { version = "0.23.37", default-features = false, features = ["ring", "logging", "std", "tls12"] }
 rustls-pki-types = "1.14.0"

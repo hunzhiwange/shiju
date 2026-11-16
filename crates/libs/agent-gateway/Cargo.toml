@@ -177,6 +177,7 @@ tokio = { version = "1", features = ["full", "test-util"] }
 
 [dependencies.axum]
 version = "0.8"
+features = ["ws"]
 
 [dependencies.gateway-types]
 path = "../gateway-types"
@@ -264,6 +265,12 @@ path = "../app-access-service"
 version = "0.6.0"
 [dependencies.vw-api-app-failover]
 path = "../api-app-failover"
+version = "0.6.0"
+[dependencies.agent-security]
+path = "../agent-security"
+version = "0.6.0"
+[dependencies.vw-api-tools]
+path = "../api-tools"
 version = "0.6.0"
 [dependencies.thiserror]
 version = "2"

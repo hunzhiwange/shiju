@@ -14,7 +14,7 @@ use super::*;
 mod tests {
     use super::*;
 
-    use crate::app::agent::tools::{Tool, ToolResult};
+    use tool_types::{Tool, ToolResult};
     use async_trait::async_trait;
     use axum::http::HeaderValue;
     use vw_api_tools::ToolResultContentDto;

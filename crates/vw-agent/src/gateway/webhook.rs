@@ -23,7 +23,7 @@ use axum::{
     Json,
     extract::{ConnectInfo, State},
     http::HeaderMap,
-    response::{IntoResponse, Response},
+    response::Response,
 };
 use std::net::SocketAddr;
 
@@ -68,14 +68,9 @@ pub async fn handle_webhook(
     headers: HeaderMap,
     body: Result<Json<WebhookBody>, axum::extract::rejection::JsonRejection>,
 ) -> Response {
-    // 委托给内部处理逻辑，传入所有提取的请求信息
-    // 内部逻辑负责验证、处理和生成响应
-    super::webhook_ingress::handle_webhook_inner(state, peer_addr, headers, body)
-        .await
-        // 将内部处理结果转换为 HTTP 响应
-        .into_response()
+    agent_gateway::webhook::handle_webhook(State(state), ConnectInfo(peer_addr), headers, body, |state, message| Box::pin(super::chat::run_gateway_chat_simple(state, message))).await
 }
 
 #[cfg(test)]
-#[path = "webhook_tests.rs"]
+#[path = "../../../libs/agent-gateway/src/webhook_tests.rs"]
 mod webhook_tests;

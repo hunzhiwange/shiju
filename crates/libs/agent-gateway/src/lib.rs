@@ -1,4 +1,12 @@
 //! Gateway application services.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod util;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod webhook;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod webhook_ingress;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod ws;
 #[cfg(all(not(target_arch = "wasm32"), any(test, feature = "test-support")))]
 pub mod pairing;
 #[cfg(not(target_arch = "wasm32"))]

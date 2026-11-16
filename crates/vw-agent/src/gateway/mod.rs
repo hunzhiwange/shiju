@@ -58,6 +58,7 @@ mod tests;
 mod types;
 mod util;
 mod webhook;
+#[cfg(test)]
 mod webhook_ingress;
 pub mod ws;
 

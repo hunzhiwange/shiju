@@ -8,8 +8,6 @@ mod collaboration;
 #[cfg(test)]
 mod detection;
 mod llm_round;
-#[cfg(test)]
-mod output;
 mod tool_execution;
 
 #[cfg(test)]

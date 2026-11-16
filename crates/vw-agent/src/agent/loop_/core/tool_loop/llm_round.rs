@@ -7,7 +7,7 @@ use crate::app::agent::multimodal::ocr::{ImageTextExtractor, SessionImageTextExt
 use crate::app::agent::observability::Observer;
 #[cfg(test)]
 use crate::app::agent::observability::ObserverEvent;
-use model_types::{ChatMessage, Provider, ToolCall};
+use model_types::{ChatMessage, Provider};
 #[cfg(test)]
 use model_types::ChatRequest;
 use crate::app::agent::tools::ToolSpec;
@@ -96,23 +96,6 @@ async fn run_llm_round_with_extractor(
     extractor: &dyn ImageTextExtractor,
 ) -> Result<LlmRoundResult> {
     agent_loop::core::llm_round::run_llm_round_with_extractor(&services(), provider, history, observer, provider_name, model, temperature, channel_name, multimodal_config, cancellation_token, hooks, tool_specs, use_native_tools, turn_id, iteration, extractor).await
-}
-
-/// 为文本回退解析出的工具调用补齐稳定 id。
-///
-/// 参数 `iteration` 用于保证同一轮内 id 可读且跨轮不冲突。
-#[cfg(test)]
-fn assign_fallback_tool_call_ids(calls: &mut [ParsedToolCall], iteration: usize) {
-    agent_loop::core::llm_round::assign_fallback_tool_call_ids(calls, iteration, |call| &mut call.tool_call_id);
-}
-
-/// 构造写入会话历史的助手消息内容。
-///
-/// 返回值会保留 provider 原生工具调用或从文本解析出的工具调用信息，确保后续
-/// tool result 能与模型上下文正确配对。
-#[cfg(test)]
-fn build_assistant_history(text: &str, parsed: &[ParsedToolCall], native: &[ToolCall], reasoning: Option<&str>, use_native: bool) -> String {
-    agent_loop::core::llm_round::build_assistant_history(&services(), text, parsed, native, reasoning, use_native)
 }
 
 fn services() -> agent_loop::core::llm_round::LlmServices<ParsedToolCall> {

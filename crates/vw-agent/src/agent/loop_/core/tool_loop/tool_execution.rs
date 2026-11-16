@@ -114,10 +114,6 @@ fn immediate_failure(name: String, id: Option<String>, output: String) -> (Strin
     agent_loop::core::tool_execution::immediate_failure(&services(), name, id, output)
 }
 #[cfg(test)]
-fn history_tool_call_id(id: Option<&str>, native: bool, iteration: usize, idx: usize) -> Option<String> {
-    agent_loop::core::tool_execution::history_tool_call_id(id, native, iteration, idx)
-}
-#[cfg(test)]
 async fn send_structured_tool_result_progress(tx: &Sender<String>, outcome: &ToolExecutionOutcome, secs: u64) {
     let services = services();
     let view = (services.outcome_view)(outcome);

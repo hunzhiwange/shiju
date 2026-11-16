@@ -45,3 +45,6 @@ mod host_migration_27_tests;
 
 #[cfg(test)]
 mod host_migration_26_tests;
+
+#[cfg(test)]
+mod host_migration_28_tests;

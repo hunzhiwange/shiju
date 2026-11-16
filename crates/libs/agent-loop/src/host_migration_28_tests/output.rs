@@ -2,6 +2,8 @@
 //! 接收端主动关闭和取消令牌用于确认输出辅助逻辑能安静停止而不掩盖取消。
 
 use super::*;
+use tokio::sync::mpsc::Sender;
+use crate::progress::{DRAFT_CLEAR_SENTINEL, DRAFT_PROGRESS_SENTINEL};
 
 fn drain_available(rx: &mut tokio::sync::mpsc::Receiver<String>) -> Vec<String> {
     let mut messages = Vec::new();
@@ -129,4 +131,19 @@ async fn final_response_stops_when_receiver_closes_after_clear() {
     drop(rx);
 
     task.await.unwrap();
+}
+fn wire() -> agent_loop::core::output::ProgressWire {
+    agent_loop::core::output::ProgressWire { clear: DRAFT_CLEAR_SENTINEL, progress: DRAFT_PROGRESS_SENTINEL }
+}
+async fn update_thinking_progress(tx: Option<&Sender<String>>, iteration: usize) {
+    agent_loop::core::output::update_thinking_progress(&wire(), tx, iteration).await
+}
+async fn update_tool_call_progress(tx: Option<&Sender<String>>, count: usize, secs: u64) {
+    agent_loop::core::output::update_tool_call_progress(&wire(), tx, count, secs).await
+}
+async fn send_retry_progress(tx: Option<&Sender<String>>) {
+    agent_loop::core::output::send_retry_progress(&wire(), tx).await
+}
+async fn stream_final_response(text: &str, tx: Option<&Sender<String>>, token: Option<&CancellationToken>) -> Result<()> {
+    agent_loop::core::output::stream_final_response(&wire(), text, tx, token).await
 }

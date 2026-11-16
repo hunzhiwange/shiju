@@ -1,82 +1,60 @@
-//! 组合专家、连接器、技能与资料知识库的专家中心桌面视图。
-
-use crate::app::message::{ShijuAppsMessage, SkillHubMessage};
-use crate::app::skill_hub::ExpertHubSection;
+//! 桌面注入页面上下文并映射跨域事件。
 use crate::app::{App, Message, Screen};
+use desktop_expert_hub::views::workspace as domain;
 use iced::Element;
-
-mod connectors;
-mod detail;
-mod experts;
-mod install_guide;
-mod installed_skills;
-mod knowledge;
-mod list;
-mod public_skill_detail;
-mod public_skills;
-pub(crate) mod shiju_apps;
-mod styles;
-mod upgrade_actions;
-
-fn section_tabs(app: &App) -> Element<'static, Message> {
-    use desktop_expert_hub::views::shell::{self, Navigation};
-    let screen = match app.screen {
-        Screen::ExpertHub => shell::Screen::ExpertHub,
-        Screen::ShijuSkills => shell::Screen::ShijuSkills,
-        Screen::ShijuApps => shell::Screen::ShijuApps,
-        _ => shell::Screen::Other,
-    };
-    shell::section_tabs(app.desktop_locale, app.expert_hub.section, screen, |message| match message {
-        Navigation::SelectSection(section) => Message::SkillHub(SkillHubMessage::SelectSection(section)),
-        Navigation::OpenShijuSkills => Message::SkillHub(SkillHubMessage::OpenShijuSkills),
-        Navigation::OpenShijuApps => Message::ShijuApps(ShijuAppsMessage::Open),
-    })
+fn input(app: &App) -> domain::ViewInput<'_> {
+    domain::ViewInput {
+        expert_hub: &app.expert_hub,
+        shiju_apps: &app.shiju_apps,
+        desktop_locale: app.desktop_locale,
+        app_theme: &app.app_theme,
+        project_path: &app.navigation_tabs.project_path,
+        recent_projects: &app.recent_projects,
+        has_project_chat: app.navigation_tabs.open_tabs.iter().any(|tab| {
+            tab.project_path.as_deref() == app.navigation_tabs.project_path.as_deref()
+                && tab.screen == Screen::Project
+        }),
+        screen: match app.navigation_tabs.screen {
+            Screen::ExpertHub => domain::Screen::ExpertHub,
+            Screen::ShijuSkills => domain::Screen::ShijuSkills,
+            Screen::ShijuApps => domain::Screen::ShijuApps,
+            _ => domain::Screen::Other,
+        },
+    }
 }
-
-/// 构建专家中心一级分区，并为技能分区选择公共或识矩子页面。
+fn map(event: domain::Message) -> Message {
+    match event {
+        domain::Message::SkillHub(m) => {
+            Message::SkillHub(crate::app::message::skill_hub::map_domain(m))
+        }
+        domain::Message::Connectors(m) => {
+            Message::SkillHub(crate::app::message::SkillHubMessage::Connectors(m))
+        }
+        domain::Message::ShijuApps(m) => Message::ShijuApps(m),
+        domain::Message::Account(domain::AccountMessage::StartBrowserLogin) => {
+            Message::Account(crate::app::message::AccountMessage::StartBrowserLogin)
+        }
+        domain::Message::View(domain::ViewMessage::OpenUrlExternal(url)) => {
+            Message::View(crate::app::message::ViewMessage::OpenUrlExternal(url))
+        }
+        domain::Message::CopyCode(text) => Message::CopyCode(text),
+        domain::Message::None => Message::None,
+    }
+}
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
-    let body: Element<'_, Message> = match app.expert_hub.section {
-        ExpertHubSection::Experts => experts::view(app),
-        ExpertHubSection::Connectors => connectors::view(app),
-        ExpertHubSection::Knowledge => knowledge::view(app),
-        ExpertHubSection::Skills if app.expert_hub.public_market.installed_open => {
-            installed_skills::view(app)
-        }
-        ExpertHubSection::Skills if app.expert_hub.public_market.detail.is_some() => {
-            public_skill_detail::view(app)
-        }
-        ExpertHubSection::Skills => public_skills::view(app),
-    };
-
-    let base = desktop_expert_hub::views::shell::view(section_tabs(app), body);
-
-    let base = installed_skills::with_delete_confirmation(app, base);
-    connectors::with_binding_modal(app, base)
+    domain::view(&input(app)).map(map)
 }
-
-/// 构建兼容的识矩技能入口，复用专家中心技能列表与详情。
 pub(crate) fn shiju_skills_view(app: &App) -> Element<'_, Message> {
-    let body = if app.expert_hub.detail.is_some() { detail::view(app) } else { list::view(app) };
-    let base = desktop_expert_hub::views::shell::view(section_tabs(app), body);
-    install_guide::with_uninstall_confirmation(app, base)
+    domain::shiju_skills_view(&input(app)).map(map)
 }
-
-#[cfg(test)]
-mod connectors_tests;
-#[cfg(test)]
-mod detail_tests;
-#[cfg(test)]
-mod experts_tests;
-#[cfg(test)]
-mod list_tests;
-#[cfg(test)]
-mod mod_tests;
-#[cfg(test)]
-mod public_skill_detail_tests;
-#[cfg(test)]
-mod public_skills_tests;
-#[cfg(test)]
-mod shiju_knowledge_view_tests;
+pub(crate) mod shiju_apps {
+    use super::*;
+    pub(crate) fn view(app: &App) -> Element<'_, Message> {
+        domain::shiju_apps::view(&input(app)).map(map)
+    }
+}
 
 #[cfg(test)]
 mod shiju_knowledge_reader_tests;
+#[cfg(test)]
+mod shiju_knowledge_view_tests;

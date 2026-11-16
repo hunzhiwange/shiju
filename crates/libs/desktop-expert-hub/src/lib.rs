@@ -9,7 +9,6 @@ pub mod message {
     mod public_gateway;
     #[cfg(test)]
     mod connectors_tests;
-    mod skill_gateway;
     mod skill_boundary;
     pub use skill_boundary::*;
 }

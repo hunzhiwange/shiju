@@ -7755,6 +7755,9 @@ dependencies = [
 name = "desktop-skill-hub"
 version = "0.6.0"
 dependencies = [
+ "open",
+ "gateway-shiju-account",
+ "gateway-http",
  "anyhow",
  "config-runtime-paths",
  "config-ui",

@@ -8,6 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+gateway-http = { path = "../gateway-http", version = "0.6.0" }
+open = "5"
+gateway-shiju-account = { path = "../gateway-shiju-account", version = "0.6.0" }
 gateway-skill-market = { path = "../gateway-skill-market", version = "0.6.0" }
 gateway-shiju-skill = { path = "../gateway-shiju-skill", version = "0.6.0" }
 gateway-shiju-knowledge = { path = "../gateway-shiju-knowledge", version = "0.6.0" }
@@ -24,13 +27,13 @@ vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"
-tokio = { version = "1", default-features = false, features = ["rt"] }
+tokio = { version = "1", default-features = false, features = ["rt", "sync", "time", "fs"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-reqwest = { version = "0.13", features = ["json"] }
+reqwest = { version = "0.13", features = ["json", "stream"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

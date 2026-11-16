@@ -14,6 +14,8 @@ use crate::app::{
 #[cfg(test)]
 use crate::app::skill_hub::ShijuDirectInstallState;
 use iced::Task;
+use desktop_expert_hub::message::skill_hub::{self as domain, SkillHubMessage as D};
+use desktop_expert_hub::message::Message as DomainEvent;
 
 use std::path::{
     PathBuf,

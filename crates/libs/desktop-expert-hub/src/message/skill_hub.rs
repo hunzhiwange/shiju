@@ -1,162 +1,64 @@
-//! 协调识矩技能列表、详情、安装、版本操作与本地缓存同步消息。
-
-use super::skill_gateway::*;
-use desktop_skill_hub::skill_hub::{
-    CursorPage, ExpertHubSection, InstalledSkill, LoadState, MarketplaceSkill, MineFilterMenu,
-    MineSkillStatus, PackageVersionCacheEntry, Page, PublicDetailMode,
-    ShijuDirectInstallState, ShijuInstallationsReport, ShijuKeySyncOutcome,
-    ShijuKeySyncReport, ShijuMultiInstallReport, ShijuPackageId, ShijuPackageRelease,
-    ShijuUninstallReport, SkillActionKind, SkillCacheSyncReport, SkillDetail,
-    SkillDetailState, SkillHubClient, SkillHubError, SkillInstallScope, SkillInstallSelection,
-    SkillInstallTarget, SkillTab, SkillTag, SkillVersion, SkillVersionAction,
-    SkillVersionDirection, SystemSkill, TenantSkill, install_shiju_archive_for_targets,
-    package_version_cache_path, parse_public_markdown, resolve_skill_destinations,
-    shiju_installation, shiju_installations_for_targets, sync_business_skill_cache,
-    sync_shiju_key_for_targets, uninstall_shiju_for_targets, write_package_version_cache,
-};
-use super::{
-    SkillUpdate, Effect, Message, HubPage, ToastKind,
-};
+//! 专家消息与技能领域之间的显式桥接。
+use super::{Message, SkillUpdate, ToastKind};
+pub use desktop_skill_hub::message::skill_hub::*;
+use desktop_skill_hub::skill_hub::*;
 use iced::Task;
-use reqwest::redirect::Policy;
-use std::path::{
-    PathBuf,
-};
-use std::time::Duration;
-use tempfile::NamedTempFile;
-use gateway_shiju_skill::{
-    ShijuMaintainedSkillQuery, ShijuSkillSearchQuery, ShijuSystemSkillQuery,
-};
-
-#[path = "skill_installation.rs"]
-mod installation;
-#[path = "skill_business.rs"]
-mod business;
-#[path = "skill_lists.rs"]
-mod lists;
-#[path = "skill_guide.rs"]
-mod guide;
-use guide::*;
-use installation::*;
-use business::*;
-use lists::*;
-pub use installation::{
-    install_shiju_package_for_targets,
-};
-pub use guide::{active_shiju_account, selected_project_root};
-pub use business::dispatch_download_with;
-pub use lists::{
-    account_changed, load_installed_skills, reload_local_shiju_package_version, mine_query,
-    marketplace_query,
-};
-
-/// 专家中心在主标签栏中的稳定标识。
-pub const EXPERT_HUB_TAB_ID: &str = "expert_hub";
-/// 专家中心标签的用户可见标题。
-pub const EXPERT_HUB_TITLE: &str = "专家·技能·连接器";
-/// 识矩技能兼容入口的稳定标签标识。
-pub const SHIJU_SKILLS_TAB_ID: &str = "shiju_skills";
-/// 识矩技能兼容入口的用户可见标题。
-pub const SHIJU_SKILLS_TITLE: &str = "识矩技能";
-const SHIJU_PAGE_SIZE: u32 = 20;
-pub use crate::skill_operations::*;
-
+use std::path::PathBuf;
 #[path = "skill_message.rs"]
 mod skill_message;
+use desktop_skill_hub::message::skill_hub::SkillHubMessage as D;
 pub use skill_message::SkillHubMessage;
-
-
-/// 归约技能中心消息，并用请求代次与账号 ID 屏蔽迟到的异步响应。
 pub fn update(app: &mut SkillUpdate<'_>, message: SkillHubMessage) -> Task<Message> {
-    if (app.expert_hub.function_upgrade.is_some() || app.expert_hub.main_upgrade.is_some())
-        && matches!(
-            &message,
-            SkillHubMessage::DirectInstallShiju
-                | SkillHubMessage::SyncShijuKey
-                | SkillHubMessage::ConfirmShijuUninstall
-                | SkillHubMessage::RetrySkillCacheSync
-        )
-    {
-        return Task::none();
-    }
-    match message {
-        SkillHubMessage::UpgradeAllFunctions => upgrades::start_functions(app),
-        SkillHubMessage::UpgradeMainSkill => upgrades::start_main(app),
-        SkillHubMessage::AllFunctionsUpgraded { generation, account_id, result } => upgrades::finish_functions(app, generation, &account_id, result),
-        SkillHubMessage::MainUpgradePackageLoaded { generation, account_id, selections, project_root, result } => upgrades::finish_main_package(app, generation, &account_id, selections, project_root, result),
-        SkillHubMessage::MainUpgradeKeySynced { generation, account_id, result } => upgrades::finish_main_key_sync(app, generation, &account_id, result),
-        SkillHubMessage::MainSkillUpgraded { generation, account_id, project_root, result } => upgrades::finish_main(app, generation, &account_id, project_root, result),
-        SkillHubMessage::Connectors(message) => super::connectors::update(app, message),
-        SkillHubMessage::Knowledge(message) => super::knowledge::update(app, message),
-        SkillHubMessage::Public(message) => super::public::update(app, message),
-        SkillHubMessage::Open => {
-            app.expert_hub.reset_navigation();
-            open_expert_hub_tab(app);
-            app.effect(Effect::EnsurePublic)
+    let message = match message {
+        SkillHubMessage::Connectors(message) => return super::connectors::update(app, message),
+        SkillHubMessage::Knowledge(message) => return super::knowledge::update(app, message),
+        SkillHubMessage::Public(message) => return super::public::update(app, message),
+
+        SkillHubMessage::UpgradeAllFunctions => D::UpgradeAllFunctions,
+        SkillHubMessage::UpgradeMainSkill => D::UpgradeMainSkill,
+        SkillHubMessage::AllFunctionsUpgraded { generation, account_id, result } => {
+            D::AllFunctionsUpgraded { generation, account_id, result }
         }
-        SkillHubMessage::OpenShijuSkills => {
-            app.expert_hub.install_guide.close();
-            app.expert_hub.skill_tab = SkillTab::Marketplace;
-            app.expert_hub.detail = None;
-            open_shiju_skills_tab(app);
-            load_current_tab(app)
+        SkillHubMessage::MainUpgradePackageLoaded {
+            generation,
+            account_id,
+            selections,
+            project_root,
+            result,
+        } => {
+            D::MainUpgradePackageLoaded { generation, account_id, selections, project_root, result }
         }
-        SkillHubMessage::OpenInstalledShijuSkills => {
-            app.expert_hub.install_guide.close();
-            app.expert_hub.skill_tab = SkillTab::Installed;
-            app.expert_hub.detail = None;
-            open_shiju_skills_tab(app);
-            Task::batch([load_current_tab(app), refresh_shiju_package_version(app)])
+        SkillHubMessage::MainUpgradeKeySynced { generation, account_id, result } => {
+            D::MainUpgradeKeySynced { generation, account_id, result }
         }
-        SkillHubMessage::OpenInstallGuide => open_install_guide(app),
-        SkillHubMessage::CloseInstallGuide => {
-            app.expert_hub.install_guide.close();
-            app.expert_hub.skill_tab = SkillTab::Marketplace;
-            load_current_tab(app)
+        SkillHubMessage::MainSkillUpgraded { generation, account_id, project_root, result } => {
+            D::MainSkillUpgraded { generation, account_id, project_root, result }
         }
-        SkillHubMessage::CopyAgentInstall => load_agent_package(app, true),
+        SkillHubMessage::Open => D::Open,
+        SkillHubMessage::OpenShijuSkills => D::OpenShijuSkills,
+        SkillHubMessage::OpenInstalledShijuSkills => D::OpenInstalledShijuSkills,
+        SkillHubMessage::OpenInstallGuide => D::OpenInstallGuide,
+        SkillHubMessage::CloseInstallGuide => D::CloseInstallGuide,
+        SkillHubMessage::CopyAgentInstall => D::CopyAgentInstall,
         SkillHubMessage::AgentPackageLoaded { generation, account_id, copy_after_load, result } => {
-            finish_agent_package_load(app, generation, &account_id, copy_after_load, result)
+            D::AgentPackageLoaded { generation, account_id, copy_after_load, result }
         }
-        SkillHubMessage::DownloadShijuPackage(package_id) => start_manual_download(app, package_id),
+        SkillHubMessage::DownloadShijuPackage(value) => D::DownloadShijuPackage(value),
         SkillHubMessage::ManualPackageLoaded { generation, account_id, package_id, result } => {
-            finish_manual_download(app, generation, &account_id, package_id, result)
+            D::ManualPackageLoaded { generation, account_id, package_id, result }
         }
-        SkillHubMessage::DirectInstallShiju => start_direct_install(app),
-        SkillHubMessage::SelectShijuInstallScope(scope) => select_shiju_install_scope(app, scope),
-        SkillHubMessage::SelectShijuInstallProject(project_path) => {
-            select_shiju_install_project(app, project_path)
-        }
-        SkillHubMessage::ToggleShijuInstallTarget(target) => {
-            toggle_shiju_install_target(app, target)
-        }
-        SkillHubMessage::SyncShijuKey => start_manual_shiju_key_sync(app),
-        SkillHubMessage::UninstallShiju => {
-            if app.expert_hub.install_guide.is_installed
-                && matches!(
-                    app.expert_hub.install_guide.direct_install,
-                    ShijuDirectInstallState::Idle | ShijuDirectInstallState::Installed
-                )
-            {
-                app.expert_hub.install_guide.uninstall_confirmation_open = true;
-            }
-            Task::none()
-        }
-        SkillHubMessage::CancelShijuUninstall => {
-            app.expert_hub.install_guide.uninstall_confirmation_open = false;
-            Task::none()
-        }
-        SkillHubMessage::ConfirmShijuUninstall => {
-            if !app.expert_hub.install_guide.uninstall_confirmation_open {
-                return Task::none();
-            }
-            app.expert_hub.install_guide.uninstall_confirmation_open = false;
-            start_shiju_uninstall(app)
-        }
-        SkillHubMessage::OpenShijuInstallDir => open_selected_shiju_install_dir(app),
-        SkillHubMessage::OpenShijuInstallDirFor(target) => open_shiju_install_dir_for(app, target),
+        SkillHubMessage::DirectInstallShiju => D::DirectInstallShiju,
+        SkillHubMessage::SelectShijuInstallScope(value) => D::SelectShijuInstallScope(value),
+        SkillHubMessage::SelectShijuInstallProject(value) => D::SelectShijuInstallProject(value),
+        SkillHubMessage::ToggleShijuInstallTarget(value) => D::ToggleShijuInstallTarget(value),
+        SkillHubMessage::SyncShijuKey => D::SyncShijuKey,
+        SkillHubMessage::UninstallShiju => D::UninstallShiju,
+        SkillHubMessage::CancelShijuUninstall => D::CancelShijuUninstall,
+        SkillHubMessage::ConfirmShijuUninstall => D::ConfirmShijuUninstall,
+        SkillHubMessage::OpenShijuInstallDir => D::OpenShijuInstallDir,
+        SkillHubMessage::OpenShijuInstallDirFor(value) => D::OpenShijuInstallDirFor(value),
         SkillHubMessage::ShijuInstallationsLoaded { generation, selections, result } => {
-            finish_installation_load(app, generation, &selections, result)
+            D::ShijuInstallationsLoaded { generation, selections, result }
         }
         SkillHubMessage::DirectPackageLoaded {
             generation,
@@ -165,344 +67,83 @@ pub fn update(app: &mut SkillUpdate<'_>, message: SkillHubMessage) -> Task<Messa
             selections,
             project_root,
             result,
-        } => finish_direct_package_load(
-            app,
+        } => D::DirectPackageLoaded {
             generation,
-            &account_id,
+            account_id,
             package_id,
             selections,
             project_root,
             result,
-        ),
+        },
         SkillHubMessage::ShijuInstallFinished {
             generation,
             account_id,
             package_id,
             selections,
             result,
-        } => finish_direct_install(app, generation, &account_id, package_id, &selections, result),
+        } => D::ShijuInstallFinished { generation, account_id, package_id, selections, result },
         SkillHubMessage::ShijuKeySyncFinished {
             generation,
             account_id,
             selections,
             requested_by_user,
             result,
-        } => finish_shiju_key_sync(
-            app,
+        } => D::ShijuKeySyncFinished {
             generation,
-            &account_id,
-            &selections,
+            account_id,
+            selections,
             requested_by_user,
             result,
-        ),
+        },
         SkillHubMessage::ShijuUninstallFinished { generation, selections, result } => {
-            finish_shiju_uninstall(app, generation, &selections, result)
+            D::ShijuUninstallFinished { generation, selections, result }
         }
         SkillHubMessage::ShijuPackageVersionRefreshed { generation, result } => {
-            finish_shiju_package_version_refresh(app, generation, result)
+            D::ShijuPackageVersionRefreshed { generation, result }
         }
-        SkillHubMessage::SelectSection(section) => {
-            open_expert_hub_tab(app);
-            if app.expert_hub.section != section {
-                app.expert_hub.public_market.close_detail();
-            }
-            app.expert_hub.install_guide.close();
-            app.expert_hub.close_mine_filter_menu();
-            if app.expert_hub.skill_tab == SkillTab::Install {
-                app.expert_hub.skill_tab = SkillTab::Marketplace;
-            }
-            app.expert_hub.section = section;
-            if section == ExpertHubSection::Experts {
-                let suites = app.effect(Effect::SelectPublicSuites);
-                Task::batch([suites, app.effect(Effect::EnsurePublic)])
-            } else if section == ExpertHubSection::Connectors {
-                app.effect(Effect::EnsureConnectors)
-            } else if section == ExpertHubSection::Knowledge {
-                app.effect(Effect::EnsureKnowledge)
-            } else if section == ExpertHubSection::Skills {
-                app.effect(Effect::EnsurePublic)
-            } else {
-                Task::none()
-            }
-        }
-        SkillHubMessage::SelectSkillTab(tab) => {
-            if tab == SkillTab::Install {
-                return open_install_guide(app);
-            }
-            app.expert_hub.install_guide.close();
-            app.expert_hub.close_mine_filter_menu();
-            app.expert_hub.skill_tab = tab;
-            load_current_tab(app)
-        }
-        SkillHubMessage::SearchDraftChanged(query) => {
-            app.expert_hub.search_draft = query;
-            Task::none()
-        }
-        SkillHubMessage::SearchSubmitted => {
-            app.expert_hub.install_guide.close();
-            app.expert_hub.close_mine_filter_menu();
-            app.expert_hub.skill_tab = SkillTab::Marketplace;
-            app.expert_hub.submitted_search = app.expert_hub.search_draft.trim().to_string();
-            load_current_tab(app)
-        }
-        SkillHubMessage::MarketTagSelected(tag_id) => {
-            if app.expert_hub.skill_tab != SkillTab::Marketplace {
-                return Task::none();
-            }
-            app.expert_hub.select_market_tag(tag_id);
-            load_current_tab(app)
-        }
-        SkillHubMessage::MarketCompanyTagSelected(tag_id) => {
-            if app.expert_hub.skill_tab != SkillTab::Marketplace {
-                return Task::none();
-            }
-            app.expert_hub.select_market_company_tag(tag_id);
-            load_current_tab(app)
-        }
-        SkillHubMessage::FilterKeywordChanged(keyword) => {
-            match app.expert_hub.skill_tab {
-                SkillTab::System => app.expert_hub.system_filter.keyword_draft = keyword,
-                SkillTab::Mine => app.expert_hub.mine_filter.keyword_draft = keyword,
-                SkillTab::Marketplace | SkillTab::Installed | SkillTab::Install => {}
-            }
-            Task::none()
-        }
-        SkillHubMessage::FilterTagChanged(tag_id) => {
-            match app.expert_hub.skill_tab {
-                SkillTab::System => app.expert_hub.system_filter.tag_id_draft = tag_id,
-                SkillTab::Mine => {}
-                SkillTab::Marketplace | SkillTab::Installed | SkillTab::Install => {}
-            }
-            Task::none()
-        }
-        SkillHubMessage::ToggleMineTagFilterMenu => {
-            if app.expert_hub.skill_tab == SkillTab::Mine {
-                app.expert_hub.toggle_mine_filter_menu(MineFilterMenu::Tags);
-            }
-            Task::none()
-        }
-        SkillHubMessage::ToggleMineCompanyTagFilterMenu => {
-            if app.expert_hub.skill_tab == SkillTab::Mine {
-                app.expert_hub.toggle_mine_filter_menu(MineFilterMenu::CompanyTags);
-            }
-            Task::none()
-        }
-        SkillHubMessage::ToggleMineStatusFilterMenu => {
-            if app.expert_hub.skill_tab == SkillTab::Mine {
-                app.expert_hub.toggle_mine_filter_menu(MineFilterMenu::Statuses);
-            }
-            Task::none()
-        }
-        SkillHubMessage::CloseMineFilterMenu => {
-            app.expert_hub.close_mine_filter_menu();
-            Task::none()
-        }
-        SkillHubMessage::MineTagToggled(tag_id) => {
-            if app.expert_hub.skill_tab == SkillTab::Mine {
-                let option_order = mine_tag_option_order(app);
-                app.expert_hub.toggle_mine_tag(tag_id, &option_order);
-            }
-            Task::none()
-        }
-        SkillHubMessage::MineCompanyTagToggled(tag_id) => {
-            if app.expert_hub.skill_tab == SkillTab::Mine {
-                let option_order = mine_company_tag_option_order(app);
-                app.expert_hub.toggle_mine_company_tag(tag_id, &option_order);
-            }
-            Task::none()
-        }
-        SkillHubMessage::MineStatusToggled(status) => {
-            if app.expert_hub.skill_tab == SkillTab::Mine {
-                app.expert_hub.toggle_mine_status(status);
-            }
-            Task::none()
-        }
-        SkillHubMessage::FiltersSubmitted => {
-            match app.expert_hub.skill_tab {
-                SkillTab::System => {
-                    app.expert_hub.system_filter.submit();
-                    app.expert_hub.system_page = 1;
-                }
-                SkillTab::Mine => {
-                    app.expert_hub.submit_mine_filters();
-                    app.expert_hub.mine_page = 1;
-                }
-                SkillTab::Marketplace | SkillTab::Installed | SkillTab::Install => {
-                    return Task::none();
-                }
-            }
-            load_current_tab(app)
-        }
-        SkillHubMessage::FiltersReset => {
-            match app.expert_hub.skill_tab {
-                SkillTab::Marketplace => {
-                    app.expert_hub.search_draft.clear();
-                    app.expert_hub.submitted_search.clear();
-                    app.expert_hub.select_market_tag(None);
-                    app.expert_hub.select_market_company_tag(None);
-                }
-                SkillTab::System => {
-                    app.expert_hub.system_filter.reset();
-                    app.expert_hub.system_page = 1;
-                }
-                SkillTab::Mine => {
-                    app.expert_hub.reset_mine_filters();
-                    app.expert_hub.mine_page = 1;
-                }
-                SkillTab::Installed | SkillTab::Install => return Task::none(),
-            }
-            load_current_tab(app)
-        }
-        SkillHubMessage::PreviousPage => {
-            let changed = match app.expert_hub.skill_tab {
-                SkillTab::System if app.expert_hub.system_page > 1 => {
-                    app.expert_hub.system_page -= 1;
-                    true
-                }
-                SkillTab::Mine if app.expert_hub.mine_page > 1 => {
-                    app.expert_hub.mine_page -= 1;
-                    true
-                }
-                _ => false,
-            };
-            if changed {
-                app.expert_hub.close_mine_filter_menu();
-                load_current_tab(app)
-            } else {
-                Task::none()
-            }
-        }
-        SkillHubMessage::NextPage => {
-            let changed = match app.expert_hub.skill_tab {
-                SkillTab::System if page_has_next(&app.expert_hub.system) => {
-                    app.expert_hub.system_page = app.expert_hub.system_page.saturating_add(1);
-                    true
-                }
-                SkillTab::Mine if page_has_next(&app.expert_hub.mine) => {
-                    app.expert_hub.mine_page = app.expert_hub.mine_page.saturating_add(1);
-                    true
-                }
-                _ => false,
-            };
-            if changed {
-                app.expert_hub.close_mine_filter_menu();
-                load_current_tab(app)
-            } else {
-                Task::none()
-            }
-        }
-        SkillHubMessage::Retry | SkillHubMessage::ReloadAfterAccountChange => {
-            if app.screen == HubPage::ExpertHub
-                && app.expert_hub.section == ExpertHubSection::Connectors
-            {
-                app.effect(Effect::ReloadConnectors)
-            } else if app.screen == HubPage::ExpertHub
-                && app.expert_hub.section == ExpertHubSection::Knowledge
-            {
-                app.effect(Effect::ReloadKnowledge)
-            } else if app.expert_hub.install_guide.open {
-                load_agent_package(app, false)
-            } else {
-                load_current_tab(app)
-            }
-        }
-        SkillHubMessage::EnsureInstalledSkillsLoaded => load_installed_skills(app, false),
-        SkillHubMessage::RefreshInstalledSkills => {
-            reload_local_shiju_package_version(app);
-            Task::batch([load_installed_skills(app, true), refresh_shiju_package_version(app)])
-        }
-        SkillHubMessage::OpenSkillDetail(skill_id) => open_skill_detail(app, skill_id),
-        SkillHubMessage::CloseSkillDetail => {
-            app.expert_hub.detail = None;
-            app.expert_hub.cancel_version_action();
-            Task::none()
-        }
-        SkillHubMessage::SetSkillReadmeMode(mode) => {
-            if let Some(detail) = app.expert_hub.detail.as_mut() {
-                detail.readme_mode = mode;
-            }
-            Task::none()
-        }
+        SkillHubMessage::SelectSection(value) => D::SelectSection(value),
+        SkillHubMessage::SelectSkillTab(value) => D::SelectSkillTab(value),
+        SkillHubMessage::SearchDraftChanged(value) => D::SearchDraftChanged(value),
+        SkillHubMessage::SearchSubmitted => D::SearchSubmitted,
+        SkillHubMessage::MarketTagSelected(value) => D::MarketTagSelected(value),
+        SkillHubMessage::MarketCompanyTagSelected(value) => D::MarketCompanyTagSelected(value),
+        SkillHubMessage::FilterKeywordChanged(value) => D::FilterKeywordChanged(value),
+        SkillHubMessage::FilterTagChanged(value) => D::FilterTagChanged(value),
+        SkillHubMessage::ToggleMineTagFilterMenu => D::ToggleMineTagFilterMenu,
+        SkillHubMessage::ToggleMineCompanyTagFilterMenu => D::ToggleMineCompanyTagFilterMenu,
+        SkillHubMessage::ToggleMineStatusFilterMenu => D::ToggleMineStatusFilterMenu,
+        SkillHubMessage::CloseMineFilterMenu => D::CloseMineFilterMenu,
+        SkillHubMessage::MineTagToggled(value) => D::MineTagToggled(value),
+        SkillHubMessage::MineCompanyTagToggled(value) => D::MineCompanyTagToggled(value),
+        SkillHubMessage::MineStatusToggled(value) => D::MineStatusToggled(value),
+        SkillHubMessage::FiltersSubmitted => D::FiltersSubmitted,
+        SkillHubMessage::FiltersReset => D::FiltersReset,
+        SkillHubMessage::PreviousPage => D::PreviousPage,
+        SkillHubMessage::NextPage => D::NextPage,
+        SkillHubMessage::Retry => D::Retry,
+        SkillHubMessage::ReloadAfterAccountChange => D::ReloadAfterAccountChange,
+        SkillHubMessage::EnsureInstalledSkillsLoaded => D::EnsureInstalledSkillsLoaded,
+        SkillHubMessage::RefreshInstalledSkills => D::RefreshInstalledSkills,
+        SkillHubMessage::OpenSkillDetail(value) => D::OpenSkillDetail(value),
+        SkillHubMessage::CloseSkillDetail => D::CloseSkillDetail,
+        SkillHubMessage::SetSkillReadmeMode(value) => D::SetSkillReadmeMode(value),
         SkillHubMessage::SkillDetailLoaded { generation, account_id, skill_id, result } => {
-            if !detail_response_is_current(app, generation, &account_id, skill_id) {
-                return Task::none();
-            }
-            match result {
-                Ok(skill_detail) => {
-                    let canonical_skill_id = skill_detail.id;
-                    if let Some(detail) = app.expert_hub.detail.as_mut() {
-                        detail.detail = LoadState::Loaded(skill_detail);
-                    }
-                    let Some(account) = app.active_account else {
-                        return Task::none();
-                    };
-                    let credential = account.skill_hub_credential();
-                    Task::batch([
-                        load_skill_versions(app.gateway,
-                            credential.clone(),
-                            generation,
-                            account_id.clone(),
-                            skill_id,
-                            canonical_skill_id,
-                        ),
-                        load_skill_readme(app.gateway,
-                            credential,
-                            generation,
-                            account_id,
-                            skill_id,
-                            canonical_skill_id,
-                        ),
-                    ])
-                }
-                Err(error) => {
-                    if let Some(detail) = app.expert_hub.detail.as_mut() {
-                        detail.detail = LoadState::Error(error);
-                    }
-                    Task::none()
-                }
-            }
+            D::SkillDetailLoaded { generation, account_id, skill_id, result }
         }
         SkillHubMessage::SkillReadmeLoaded { generation, account_id, skill_id, result } => {
-            if detail_response_is_current(app, generation, &account_id, skill_id)
-                && let Some(detail) = app.expert_hub.detail.as_mut()
-            {
-                match result {
-                    Ok(content) => {
-                        detail.readme_items = parse_public_markdown(&content);
-                        detail.readme = LoadState::Loaded(content);
-                    }
-                    Err(error) => {
-                        detail.readme_items.clear();
-                        detail.readme = LoadState::Error(error);
-                    }
-                }
-            }
-            Task::none()
+            D::SkillReadmeLoaded { generation, account_id, skill_id, result }
         }
         SkillHubMessage::SkillVersionsLoaded { generation, account_id, skill_id, result } => {
-            if detail_response_is_current(app, generation, &account_id, skill_id)
-                && let Some(detail) = app.expert_hub.detail.as_mut()
-            {
-                detail.versions =
-                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
-            }
-            Task::none()
+            D::SkillVersionsLoaded { generation, account_id, skill_id, result }
         }
-        SkillHubMessage::InstallSkill(skill_id) => {
-            start_skill_action(app, skill_id, SkillActionKind::Install)
-        }
-        SkillHubMessage::UninstallSkill(skill_id) => {
-            start_skill_action(app, skill_id, SkillActionKind::Uninstall)
-        }
-        SkillHubMessage::UpgradeSkill(skill_id) => start_quick_upgrade(app, skill_id),
-        SkillHubMessage::ChangeSkillVersion(action) => start_version_action(app, action),
-        SkillHubMessage::CancelSkillVersionChange => {
-            app.expert_hub.cancel_version_action();
-            Task::none()
-        }
-        SkillHubMessage::ConfirmSkillVersionChange => confirm_version_action(app),
+        SkillHubMessage::InstallSkill(value) => D::InstallSkill(value),
+        SkillHubMessage::UninstallSkill(value) => D::UninstallSkill(value),
+        SkillHubMessage::UpgradeSkill(value) => D::UpgradeSkill(value),
+        SkillHubMessage::ChangeSkillVersion(value) => D::ChangeSkillVersion(value),
+        SkillHubMessage::CancelSkillVersionChange => D::CancelSkillVersionChange,
+        SkillHubMessage::ConfirmSkillVersionChange => D::ConfirmSkillVersionChange,
         SkillHubMessage::SkillUpgradeResolved { generation, account_id, skill_id, result } => {
-            finish_quick_upgrade_resolution(app, generation, &account_id, skill_id, result)
+            D::SkillUpgradeResolved { generation, account_id, skill_id, result }
         }
         SkillHubMessage::SkillActionFinished {
             generation,
@@ -510,94 +151,225 @@ pub fn update(app: &mut SkillUpdate<'_>, message: SkillHubMessage) -> Task<Messa
             skill_id,
             action,
             result,
-        } => finish_skill_action(app, generation, &account_id, skill_id, action, result),
+        } => D::SkillActionFinished { generation, account_id, skill_id, action, result },
         SkillHubMessage::SkillCacheSyncFinished { generation, account_id, skill_id, result } => {
-            finish_skill_cache_sync(app, generation, &account_id, skill_id, result)
+            D::SkillCacheSyncFinished { generation, account_id, skill_id, result }
         }
-        SkillHubMessage::RetrySkillCacheSync => retry_skill_cache_sync(app),
-        SkillHubMessage::DownloadVersion(version_id) => {
-            match dispatch_download_with(app.expert_hub, version_id, |url| {
-                open::that(url)
-                    .map_err(|_| SkillHubError::localized("无法打开技能下载地址", vec![]))
-            }) {
-                Ok(()) => app.show_localized_toast(
-                    ToastKind::Info,
-                    "已在系统浏览器中打开技能下载",
-                    vec![],
-                ),
-                Err(error) => {
-                    show_skill_error(app, ToastKind::Error, None, error.into())
-                }
-            }
-        }
+        SkillHubMessage::RetrySkillCacheSync => D::RetrySkillCacheSync,
+        SkillHubMessage::DownloadVersion(value) => D::DownloadVersion(value),
         SkillHubMessage::MarketplaceLoaded { generation, account_id, result } => {
-            if response_is_current(app, generation, &account_id) {
-                app.expert_hub.marketplace =
-                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
-            }
-            Task::none()
+            D::MarketplaceLoaded { generation, account_id, result }
         }
         SkillHubMessage::InstalledLoaded { generation, account_id, result } => {
-            if installed_response_is_current(app, generation, &account_id) {
-                app.expert_hub.installed =
-                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
-            }
-            Task::none()
+            D::InstalledLoaded { generation, account_id, result }
         }
         SkillHubMessage::SystemLoaded { generation, account_id, result } => {
-            if response_is_current(app, generation, &account_id) {
-                app.expert_hub.system =
-                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
-            }
-            Task::none()
+            D::SystemLoaded { generation, account_id, result }
         }
         SkillHubMessage::MineLoaded { generation, account_id, result } => {
-            if response_is_current(app, generation, &account_id) {
-                app.expert_hub.mine =
-                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
-            }
-            Task::none()
+            D::MineLoaded { generation, account_id, result }
         }
         SkillHubMessage::PlatformTagCatalogLoaded { generation, account_id, result } => {
-            if tag_catalog_response_is_current(app, generation, &account_id) {
-                app.expert_hub.platform_tag_catalog =
-                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
-            }
-            Task::none()
+            D::PlatformTagCatalogLoaded { generation, account_id, result }
         }
         SkillHubMessage::CompanyTagCatalogLoaded { generation, account_id, result } => {
-            if tag_catalog_response_is_current(app, generation, &account_id) {
-                app.expert_hub.company_tag_catalog =
-                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
+            D::CompanyTagCatalogLoaded { generation, account_id, result }
+        }
+    };
+    desktop_skill_hub::message::skill_hub::update(app, message).map(map_event)
+}
+pub fn map_event(event: desktop_skill_hub::message::Message) -> Message {
+    match event {
+        desktop_skill_hub::message::Message::SkillHub(message) => {
+            Message::SkillHub(map_message(message))
+        }
+        desktop_skill_hub::message::Message::CopyCode(text) => Message::CopyCode(text),
+        desktop_skill_hub::message::Message::ReloadApps => Message::ReloadApps,
+    }
+}
+fn map_message(message: D) -> SkillHubMessage {
+    match message {
+        D::UpgradeAllFunctions => SkillHubMessage::UpgradeAllFunctions,
+        D::UpgradeMainSkill => SkillHubMessage::UpgradeMainSkill,
+        D::AllFunctionsUpgraded { generation, account_id, result } => {
+            SkillHubMessage::AllFunctionsUpgraded { generation, account_id, result }
+        }
+        D::MainUpgradePackageLoaded {
+            generation,
+            account_id,
+            selections,
+            project_root,
+            result,
+        } => SkillHubMessage::MainUpgradePackageLoaded {
+            generation,
+            account_id,
+            selections,
+            project_root,
+            result,
+        },
+        D::MainUpgradeKeySynced { generation, account_id, result } => {
+            SkillHubMessage::MainUpgradeKeySynced { generation, account_id, result }
+        }
+        D::MainSkillUpgraded { generation, account_id, project_root, result } => {
+            SkillHubMessage::MainSkillUpgraded { generation, account_id, project_root, result }
+        }
+        D::Open => SkillHubMessage::Open,
+        D::OpenShijuSkills => SkillHubMessage::OpenShijuSkills,
+        D::OpenInstalledShijuSkills => SkillHubMessage::OpenInstalledShijuSkills,
+        D::OpenInstallGuide => SkillHubMessage::OpenInstallGuide,
+        D::CloseInstallGuide => SkillHubMessage::CloseInstallGuide,
+        D::CopyAgentInstall => SkillHubMessage::CopyAgentInstall,
+        D::AgentPackageLoaded { generation, account_id, copy_after_load, result } => {
+            SkillHubMessage::AgentPackageLoaded { generation, account_id, copy_after_load, result }
+        }
+        D::DownloadShijuPackage(value) => SkillHubMessage::DownloadShijuPackage(value),
+        D::ManualPackageLoaded { generation, account_id, package_id, result } => {
+            SkillHubMessage::ManualPackageLoaded { generation, account_id, package_id, result }
+        }
+        D::DirectInstallShiju => SkillHubMessage::DirectInstallShiju,
+        D::SelectShijuInstallScope(value) => SkillHubMessage::SelectShijuInstallScope(value),
+        D::SelectShijuInstallProject(value) => SkillHubMessage::SelectShijuInstallProject(value),
+        D::ToggleShijuInstallTarget(value) => SkillHubMessage::ToggleShijuInstallTarget(value),
+        D::SyncShijuKey => SkillHubMessage::SyncShijuKey,
+        D::UninstallShiju => SkillHubMessage::UninstallShiju,
+        D::CancelShijuUninstall => SkillHubMessage::CancelShijuUninstall,
+        D::ConfirmShijuUninstall => SkillHubMessage::ConfirmShijuUninstall,
+        D::OpenShijuInstallDir => SkillHubMessage::OpenShijuInstallDir,
+        D::OpenShijuInstallDirFor(value) => SkillHubMessage::OpenShijuInstallDirFor(value),
+        D::ShijuInstallationsLoaded { generation, selections, result } => {
+            SkillHubMessage::ShijuInstallationsLoaded { generation, selections, result }
+        }
+        D::DirectPackageLoaded {
+            generation,
+            account_id,
+            package_id,
+            selections,
+            project_root,
+            result,
+        } => SkillHubMessage::DirectPackageLoaded {
+            generation,
+            account_id,
+            package_id,
+            selections,
+            project_root,
+            result,
+        },
+        D::ShijuInstallFinished { generation, account_id, package_id, selections, result } => {
+            SkillHubMessage::ShijuInstallFinished {
+                generation,
+                account_id,
+                package_id,
+                selections,
+                result,
             }
-            Task::none()
+        }
+        D::ShijuKeySyncFinished {
+            generation,
+            account_id,
+            selections,
+            requested_by_user,
+            result,
+        } => SkillHubMessage::ShijuKeySyncFinished {
+            generation,
+            account_id,
+            selections,
+            requested_by_user,
+            result,
+        },
+        D::ShijuUninstallFinished { generation, selections, result } => {
+            SkillHubMessage::ShijuUninstallFinished { generation, selections, result }
+        }
+        D::ShijuPackageVersionRefreshed { generation, result } => {
+            SkillHubMessage::ShijuPackageVersionRefreshed { generation, result }
+        }
+        D::SelectSection(value) => SkillHubMessage::SelectSection(value),
+        D::SelectSkillTab(value) => SkillHubMessage::SelectSkillTab(value),
+        D::SearchDraftChanged(value) => SkillHubMessage::SearchDraftChanged(value),
+        D::SearchSubmitted => SkillHubMessage::SearchSubmitted,
+        D::MarketTagSelected(value) => SkillHubMessage::MarketTagSelected(value),
+        D::MarketCompanyTagSelected(value) => SkillHubMessage::MarketCompanyTagSelected(value),
+        D::FilterKeywordChanged(value) => SkillHubMessage::FilterKeywordChanged(value),
+        D::FilterTagChanged(value) => SkillHubMessage::FilterTagChanged(value),
+        D::ToggleMineTagFilterMenu => SkillHubMessage::ToggleMineTagFilterMenu,
+        D::ToggleMineCompanyTagFilterMenu => SkillHubMessage::ToggleMineCompanyTagFilterMenu,
+        D::ToggleMineStatusFilterMenu => SkillHubMessage::ToggleMineStatusFilterMenu,
+        D::CloseMineFilterMenu => SkillHubMessage::CloseMineFilterMenu,
+        D::MineTagToggled(value) => SkillHubMessage::MineTagToggled(value),
+        D::MineCompanyTagToggled(value) => SkillHubMessage::MineCompanyTagToggled(value),
+        D::MineStatusToggled(value) => SkillHubMessage::MineStatusToggled(value),
+        D::FiltersSubmitted => SkillHubMessage::FiltersSubmitted,
+        D::FiltersReset => SkillHubMessage::FiltersReset,
+        D::PreviousPage => SkillHubMessage::PreviousPage,
+        D::NextPage => SkillHubMessage::NextPage,
+        D::Retry => SkillHubMessage::Retry,
+        D::ReloadAfterAccountChange => SkillHubMessage::ReloadAfterAccountChange,
+        D::EnsureInstalledSkillsLoaded => SkillHubMessage::EnsureInstalledSkillsLoaded,
+        D::RefreshInstalledSkills => SkillHubMessage::RefreshInstalledSkills,
+        D::OpenSkillDetail(value) => SkillHubMessage::OpenSkillDetail(value),
+        D::CloseSkillDetail => SkillHubMessage::CloseSkillDetail,
+        D::SetSkillReadmeMode(value) => SkillHubMessage::SetSkillReadmeMode(value),
+        D::SkillDetailLoaded { generation, account_id, skill_id, result } => {
+            SkillHubMessage::SkillDetailLoaded { generation, account_id, skill_id, result }
+        }
+        D::SkillReadmeLoaded { generation, account_id, skill_id, result } => {
+            SkillHubMessage::SkillReadmeLoaded { generation, account_id, skill_id, result }
+        }
+        D::SkillVersionsLoaded { generation, account_id, skill_id, result } => {
+            SkillHubMessage::SkillVersionsLoaded { generation, account_id, skill_id, result }
+        }
+        D::InstallSkill(value) => SkillHubMessage::InstallSkill(value),
+        D::UninstallSkill(value) => SkillHubMessage::UninstallSkill(value),
+        D::UpgradeSkill(value) => SkillHubMessage::UpgradeSkill(value),
+        D::ChangeSkillVersion(value) => SkillHubMessage::ChangeSkillVersion(value),
+        D::CancelSkillVersionChange => SkillHubMessage::CancelSkillVersionChange,
+        D::ConfirmSkillVersionChange => SkillHubMessage::ConfirmSkillVersionChange,
+        D::SkillUpgradeResolved { generation, account_id, skill_id, result } => {
+            SkillHubMessage::SkillUpgradeResolved { generation, account_id, skill_id, result }
+        }
+        D::SkillActionFinished { generation, account_id, skill_id, action, result } => {
+            SkillHubMessage::SkillActionFinished {
+                generation,
+                account_id,
+                skill_id,
+                action,
+                result,
+            }
+        }
+        D::SkillCacheSyncFinished { generation, account_id, skill_id, result } => {
+            SkillHubMessage::SkillCacheSyncFinished { generation, account_id, skill_id, result }
+        }
+        D::RetrySkillCacheSync => SkillHubMessage::RetrySkillCacheSync,
+        D::DownloadVersion(value) => SkillHubMessage::DownloadVersion(value),
+        D::MarketplaceLoaded { generation, account_id, result } => {
+            SkillHubMessage::MarketplaceLoaded { generation, account_id, result }
+        }
+        D::InstalledLoaded { generation, account_id, result } => {
+            SkillHubMessage::InstalledLoaded { generation, account_id, result }
+        }
+        D::SystemLoaded { generation, account_id, result } => {
+            SkillHubMessage::SystemLoaded { generation, account_id, result }
+        }
+        D::MineLoaded { generation, account_id, result } => {
+            SkillHubMessage::MineLoaded { generation, account_id, result }
+        }
+        D::PlatformTagCatalogLoaded { generation, account_id, result } => {
+            SkillHubMessage::PlatformTagCatalogLoaded { generation, account_id, result }
+        }
+        D::CompanyTagCatalogLoaded { generation, account_id, result } => {
+            SkillHubMessage::CompanyTagCatalogLoaded { generation, account_id, result }
         }
     }
 }
-
-/// 打开或激活专家中心标签，并保留当前分区选择。
 pub fn show_skill_error(
     app: &mut SkillUpdate<'_>,
     kind: ToastKind,
     source: Option<&str>,
     error: SkillHubError,
 ) -> Task<Message> {
-    let message = match source {
-        Some(source) => {
-            desktop_i18n::format::Message::nested(source.to_string(), vec![error.message()])
-        }
-        None => error.message(),
-    };
-    app.feedback(kind, message)
+    desktop_skill_hub::message::skill_hub::show_skill_error(app, kind, source, error).map(map_event)
+}
+pub fn account_changed(app: &mut SkillUpdate<'_>) -> Task<Message> {
+    desktop_skill_hub::message::skill_hub::account_changed(app).map(map_event)
 }
 
-#[cfg(test)]
-#[path = "skill_hub_tests.rs"]
-mod tests;
-
-#[path = "skill_upgrades.rs"]
-pub mod upgrades;
-
-#[cfg(test)]
-#[path = "skill_upgrades_tests.rs"]
-mod upgrades_tests;
+pub use super::public::PublicSkillMessage;

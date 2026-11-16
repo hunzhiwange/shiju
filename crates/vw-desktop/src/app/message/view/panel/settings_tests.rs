@@ -190,9 +190,9 @@ fn panel_visibility_and_menu_actions_update_only_local_state() {
     let _ = super::update(&mut app, ViewMessage::ToggleDiffPanel);
     assert_eq!(app.show_diff, !initial_diff);
 
-    let initial_summary = app.show_git_diff_summary;
+    let initial_summary = app.git.show_git_diff_summary;
     let _ = super::update(&mut app, ViewMessage::ToggleGitDiffSummary);
-    assert_eq!(app.show_git_diff_summary, !initial_summary);
+    assert_eq!(app.git.show_git_diff_summary, !initial_summary);
 
     app.dragging_file_manager = true;
     app.file_manager_drag_anchor_x = Some(42.0);

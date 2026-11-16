@@ -306,7 +306,7 @@ fn git_commit_quick_action_asks_ai_for_title_and_summary_before_commit() {
     app.project_path = Some(directory.to_string());
     app.active_session_id = Some(session_id.clone());
     app.sessions = vec![session_info(&session_id, "Current", directory)];
-    app.staged_files_selected = vec!["src/lib.rs".to_string()];
+    app.git.staged_files_selected = vec!["src/lib.rs".to_string()];
 
     let _task = super::update(
         &mut app,
@@ -333,7 +333,7 @@ fn git_commit_quick_action_asks_ai_for_title_and_summary_before_commit() {
             && source_session_id == &session_id
             && project_path == directory
     ));
-    assert!(app.git_commit_in_progress);
+    assert!(app.git.git_commit_in_progress);
 }
 
 #[test]
@@ -350,7 +350,7 @@ fn selected_git_commit_quick_action_requires_a_selection_before_ai_request() {
     );
 
     assert!(app.quick_message_handoff.is_none());
-    assert!(!app.git_commit_in_progress);
+    assert!(!app.git.git_commit_in_progress);
     assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("先选择")));
 }
 

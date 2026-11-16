@@ -81,8 +81,8 @@ fn font_size_changed_updates_auto_line_height() {
     assert_eq!(app.current_line_height, 28.0);
     assert_eq!(app.preview_tabs[0].editor.inner.font_size(), 20.0);
     assert_eq!(app.preview_tabs[0].editor.inner.line_height(), 28.0);
-    assert_eq!(app.git_copy_modal_code_editor.font_size(), 20.0);
-    assert_eq!(app.git_copy_modal_code_editor.line_height(), 28.0);
+    assert_eq!(app.git.git_copy_modal_code_editor.font_size(), 20.0);
+    assert_eq!(app.git.git_copy_modal_code_editor.line_height(), 28.0);
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn font_size_changed_without_auto_line_height_preserves_height_and_clamps_modal_
     app.current_line_height = 24.0;
     app.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
     let preview_line_height = app.preview_tabs[0].editor.inner.line_height();
-    let modal_line_height = app.git_copy_modal_code_editor.line_height();
+    let modal_line_height = app.git.git_copy_modal_code_editor.line_height();
 
     let _ = commit_metrics_input(&mut app, EditorMessage::FontSizePreview(42.0));
 
@@ -100,8 +100,8 @@ fn font_size_changed_without_auto_line_height_preserves_height_and_clamps_modal_
     assert_eq!(app.current_line_height, 24.0);
     assert_eq!(app.preview_tabs[0].editor.inner.font_size(), 42.0);
     assert_eq!(app.preview_tabs[0].editor.inner.line_height(), preview_line_height);
-    assert_eq!(app.git_copy_modal_code_editor.font_size(), 30.0);
-    assert_eq!(app.git_copy_modal_code_editor.line_height(), modal_line_height);
+    assert_eq!(app.git.git_copy_modal_code_editor.font_size(), 30.0);
+    assert_eq!(app.git.git_copy_modal_code_editor.line_height(), modal_line_height);
 }
 
 #[test]
@@ -115,7 +115,7 @@ fn line_height_changed_disables_auto_adjustment() {
     assert_eq!(app.current_line_height, 5.0);
     assert!(!app.auto_adjust_line_height);
     assert_eq!(app.preview_tabs[0].editor.inner.line_height(), 10.0);
-    assert_eq!(app.git_copy_modal_code_editor.line_height(), 10.0);
+    assert_eq!(app.git.git_copy_modal_code_editor.line_height(), 10.0);
 }
 
 #[test]
@@ -131,7 +131,7 @@ fn toggle_auto_line_height_recomputes_when_enabled() {
     assert!(app.auto_adjust_line_height);
     assert_eq!(app.current_line_height, 21.0);
     assert_eq!(app.preview_tabs[0].editor.inner.line_height(), 21.0);
-    assert_eq!(app.git_copy_modal_code_editor.line_height(), 21.0);
+    assert_eq!(app.git.git_copy_modal_code_editor.line_height(), 21.0);
 }
 
 // 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
@@ -143,14 +143,14 @@ fn toggle_auto_line_height_off_keeps_current_height() {
     app.current_line_height = 25.0;
     app.preview_tabs = vec![preview_tab("/tmp/a.txt", "a")];
     let preview_line_height = app.preview_tabs[0].editor.inner.line_height();
-    let modal_line_height = app.git_copy_modal_code_editor.line_height();
+    let modal_line_height = app.git.git_copy_modal_code_editor.line_height();
 
     let _ = update(&mut app, EditorMessage::ToggleAutoLineHeight(false));
 
     assert!(!app.auto_adjust_line_height);
     assert_eq!(app.current_line_height, 25.0);
     assert_eq!(app.preview_tabs[0].editor.inner.line_height(), preview_line_height);
-    assert_eq!(app.git_copy_modal_code_editor.line_height(), modal_line_height);
+    assert_eq!(app.git.git_copy_modal_code_editor.line_height(), modal_line_height);
 }
 
 #[test]
@@ -170,7 +170,7 @@ fn language_changed_propagates_to_every_preview_editor() {
     let _ = update(&mut app, EditorMessage::LanguageChanged(Language::English));
 
     assert!(app.preview_tabs.iter().all(|tab| tab.editor.inner.language() == Language::English));
-    assert_eq!(app.git_copy_modal_code_editor.language(), Language::English);
+    assert_eq!(app.git.git_copy_modal_code_editor.language(), Language::English);
 }
 
 #[test]
@@ -360,7 +360,7 @@ fn editor_metrics_preview_commits_latest_once() {
                 app.preview_tabs
                     .iter()
                     .map(|tab| &tab.editor.inner)
-                    .chain(std::iter::once(&app.git_copy_modal_code_editor))
+                    .chain(std::iter::once(&app.git.git_copy_modal_code_editor))
                     .map(|editor| (editor.font_size(), editor.line_height()))
                     .collect::<Vec<_>>()
             };

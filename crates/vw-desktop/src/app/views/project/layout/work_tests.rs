@@ -25,7 +25,7 @@ async fn work_layout_keeps_single_chat_surface_when_code_panels_are_enabled() {
     app.file_manager.show_file_manager = false;
     app.terminal.is_visible = false;
     app.chat_panel_fullscreen = false;
-    app.git_diff_fullscreen = false;
+    app.git.git_diff_fullscreen = false;
 
     let without_code_panels = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
@@ -35,7 +35,7 @@ async fn work_layout_keeps_single_chat_surface_when_code_panels_are_enabled() {
     app.show_diff = true;
     app.file_manager.show_file_manager = true;
     app.chat_panel_fullscreen = true;
-    app.git_diff_fullscreen = true;
+    app.git.git_diff_fullscreen = true;
 
     let with_code_panels = {
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);

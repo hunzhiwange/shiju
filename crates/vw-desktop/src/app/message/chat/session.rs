@@ -45,7 +45,7 @@ fn clear_quick_message_handoff_for_request(app: &mut App, request_id: u64) {
     ) {
         app.quick_message_handoff = None;
         if generating_git_commit {
-            app.git_commit_in_progress = false;
+            app.git.git_commit_in_progress = false;
         }
     }
 }
@@ -506,8 +506,8 @@ fn finish_session_compaction(
 
 fn git_commit_selection_context(app: &App) -> String {
     desktop_session::message::chat::session::git_commit_selection_context(
-        &app.staged_files_selected, &app.staged_hunks_selected,
-        &app.staged_lines_selected, &app.staged_old_lines_selected,
+        &app.git.staged_files_selected, &app.git.staged_hunks_selected,
+        &app.git.staged_lines_selected, &app.git.staged_old_lines_selected,
     )
 }
 
@@ -534,7 +534,7 @@ fn generate_git_commit_message(
     project_path: String,
     action: QuickMessageGitCommitAction,
 ) -> Task<Message> {
-    if app.git_commit_in_progress {
+    if app.git.git_commit_in_progress {
         return app.show_localized_toast(
             crate::app::state::ToastKind::Warning,
             "Git 提交正在进行中",
@@ -563,10 +563,10 @@ fn generate_git_commit_message(
         );
     }
     if matches!(action, QuickMessageGitCommitAction::CommitSelected)
-        && app.staged_files_selected.is_empty()
-        && app.staged_hunks_selected.is_empty()
-        && app.staged_lines_selected.is_empty()
-        && app.staged_old_lines_selected.is_empty()
+        && app.git.staged_files_selected.is_empty()
+        && app.git.staged_hunks_selected.is_empty()
+        && app.git.staged_lines_selected.is_empty()
+        && app.git.staged_old_lines_selected.is_empty()
     {
         return app.show_localized_toast(
             crate::app::state::ToastKind::Warning,
@@ -597,7 +597,7 @@ fn generate_git_commit_message(
         project_path,
         action,
     });
-    app.git_commit_in_progress = true;
+    app.git.git_commit_in_progress = true;
     task
 }
 

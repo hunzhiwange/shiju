@@ -8,13 +8,13 @@ fn file_manager_view_construction_preserves_code_panel_preferences() {
     app.show_diff = false;
     app.split_ratio = 0.37;
     app.chat_panel_fullscreen = true;
-    app.git_diff_fullscreen = true;
+    app.git.git_diff_fullscreen = true;
     let before = (
         app.file_manager.show_file_manager,
         app.show_diff,
         app.split_ratio,
         app.chat_panel_fullscreen,
-        app.git_diff_fullscreen,
+        app.git.git_diff_fullscreen,
     );
 
     let _ = view_file_manager(&app);
@@ -25,7 +25,7 @@ fn file_manager_view_construction_preserves_code_panel_preferences() {
             app.show_diff,
             app.split_ratio,
             app.chat_panel_fullscreen,
-            app.git_diff_fullscreen,
+            app.git.git_diff_fullscreen,
         ),
         before
     );

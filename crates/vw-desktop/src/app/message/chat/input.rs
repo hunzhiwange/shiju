@@ -150,7 +150,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     Task::done(Message::Project(message::ProjectMessage::FileManagerRefreshChanges))
                 }
                 config_ui::QuickMessageKind::SelectAllGitChanges => {
-                    if app.git_changed_files.is_empty() {
+                    if app.git.git_changed_files.is_empty() {
                         return app.show_localized_toast(
                             crate::app::state::ToastKind::Warning,
                             "当前没有可选择的 Git 变更",
@@ -158,11 +158,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         );
                     }
                     Task::done(Message::Git(message::GitMessage::SelectAllVisibleFileLines(
-                        app.git_changed_files.clone(),
+                        app.git.git_changed_files.clone(),
                     )))
                 }
                 config_ui::QuickMessageKind::InvertGitSelection => {
-                    if app.git_changed_files.is_empty() {
+                    if app.git.git_changed_files.is_empty() {
                         return app.show_localized_toast(
                             crate::app::state::ToastKind::Warning,
                             "当前没有可反选的 Git 变更",
@@ -170,7 +170,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         );
                     }
                     Task::done(Message::Git(message::GitMessage::InvertVisibleFileLines(
-                        app.git_changed_files.clone(),
+                        app.git.git_changed_files.clone(),
                     )))
                 }
                 config_ui::QuickMessageKind::StageAllGitChanges => {
@@ -405,8 +405,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     app.chat_panel_fullscreen = !app.chat_panel_fullscreen;
                     app.chat_panel_half_fullscreen = false;
                     if app.chat_panel_fullscreen {
-                        app.git_diff_fullscreen = false;
-                        app.git_diff_half_fullscreen = false;
+                        app.git.git_diff_fullscreen = false;
+                        app.git.git_diff_half_fullscreen = false;
                     }
                 }
                 WorkspaceMode::Work => {
@@ -430,8 +430,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     app.chat_panel_half_fullscreen = !app.chat_panel_half_fullscreen;
                     app.chat_panel_fullscreen = false;
                     if app.chat_panel_half_fullscreen {
-                        app.git_diff_fullscreen = false;
-                        app.git_diff_half_fullscreen = false;
+                        app.git.git_diff_fullscreen = false;
+                        app.git.git_diff_half_fullscreen = false;
                     }
                 }
                 WorkspaceMode::Work => {

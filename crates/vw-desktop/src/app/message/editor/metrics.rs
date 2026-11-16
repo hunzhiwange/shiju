@@ -49,7 +49,7 @@ fn apply_to_open_editors(app: &mut App, font_size: Option<f32>, line_height: Opt
         apply(&mut tab.editor.inner, font_size, line_height);
     }
     apply(
-        &mut app.git_copy_modal_code_editor,
+        &mut app.git.git_copy_modal_code_editor,
         font_size.map(|size| size.clamp(10.0, 30.0)),
         line_height,
     );

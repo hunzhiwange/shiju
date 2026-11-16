@@ -201,7 +201,7 @@ impl<'a> RowScene<'a> {
 pub(super) fn alignment_app() -> App {
     let mut app = App::new().0;
     app.project_path = Some("/tree-fixture".into());
-    app.git_changed_files =
+    app.git.git_changed_files =
         ["root.md", "sp6/原始视频.mov", "sp7/.shiju/配置.json", "closed/child.txt"]
             .map(str::to_owned)
             .to_vec();

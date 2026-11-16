@@ -1,7 +1,7 @@
 //! 使用实际字体整形和绘制路径验证中文历史与明暗主题。
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn repository_history_renders_chinese_in_both_themes() {
+async fn repository_snapshot_preview_renders_chinese_in_both_themes() {
     use super::repository_ops::*;
     use iced::advanced::renderer::Headless;
     use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
@@ -13,12 +13,6 @@ async fn repository_history_renders_chinese_in_both_themes() {
     let _repo = git2::Repository::init(project.path()).expect("init repository");
     let remote_path = project.path().to_str().expect("utf8 path");
     for (theme, name, width) in [
-        (Theme::Light, "light", 520),
-        (Theme::Dark, "dark", 520),
-        (Theme::Light, "light", 760),
-        (Theme::Dark, "dark", 760),
-        (Theme::Light, "working-light", 760),
-        (Theme::Dark, "working-dark", 760),
         (Theme::Light, "preview-light", 760),
         (Theme::Dark, "preview-dark", 760),
     ] {
@@ -26,11 +20,11 @@ async fn repository_history_renders_chinese_in_both_themes() {
         let path = remote_path.to_owned();
         app.project_path = Some(path.clone());
         app.app_theme = theme.clone();
-        app.show_git_diff_highlight = true;
-        app.merge_view = width == 520;
-        app.git_repository.history = !name.starts_with("working-");
-        app.git_repository.repo_path = Some(path);
-        app.git_repository.snapshot = RepositorySnapshot {
+        app.git.show_git_diff_highlight = true;
+        app.git.merge_view = width == 520;
+        app.git.git_repository.history = !name.starts_with("working-");
+        app.git.git_repository.repo_path = Some(path);
+        app.git.git_repository.snapshot = RepositorySnapshot {
             branch: Some("feature/中文历史".into()),
             remote: Some("origin".into()),
             remote_branch: Some("feature/中文历史".into()),
@@ -45,9 +39,9 @@ async fn repository_history_renders_chinese_in_both_themes() {
             }],
             has_more: false,
         };
-        app.selected_branch = Some("feature/中文历史".into());
-        app.git_repository.selected = Some("a".repeat(40));
-        app.git_repository.detail = Some(HistoryDetail {
+        app.git.selected_branch = Some("feature/中文历史".into());
+        app.git.git_repository.selected = Some("a".repeat(40));
+        app.git.git_repository.detail = Some(HistoryDetail {
             message: "修复：中文显示与提交历史\n\n支持作者、文件和历史差异。".into(),
             files: vec![
                 HistoryFile {
@@ -79,16 +73,16 @@ async fn repository_history_renders_chinese_in_both_themes() {
                 },
             ],
         });
-        app.git_repository.selected_file = Some(0);
-        app.git_repository.remote_busy = true;
-        app.git_repository.remote_action = Some(RemoteAction::Fetch);
-        app.git_repository.remote_animation_frame = 8;
-        if !app.git_repository.history {
-            let file = app.git_repository.detail.as_ref().unwrap().files[0].clone();
+        app.git.git_repository.selected_file = Some(0);
+        app.git.git_repository.remote_busy = true;
+        app.git.git_repository.remote_action = Some(RemoteAction::Fetch);
+        app.git.git_repository.remote_animation_frame = 8;
+        if !app.git.git_repository.history {
+            let file = app.git.git_repository.detail.as_ref().unwrap().files[0].clone();
             let old = file.old_content.unwrap();
             let new = file.new_content.unwrap();
-            app.show_git_diff_summary = false;
-            app.git_diff_file_metas = vec![super::DiffFileMeta {
+            app.git.show_git_diff_summary = false;
+            app.git.git_diff_file_metas = vec![super::DiffFileMeta {
                 path: file.path.clone(),
                 status: super::utils::FileStatus::Modified,
                 old_oid: None,
@@ -98,8 +92,8 @@ async fn repository_history_renders_chinese_in_both_themes() {
                 insertions: 1,
                 deletions: 1,
             }];
-            app.git_diff_contents.insert(file.path.clone(), (old, new));
-            app.git_diff_file_metas_repo_path = app.project_path.clone();
+            app.git.git_diff_contents.insert(file.path.clone(), (old, new));
+            app.git.git_diff_file_metas_repo_path = app.project_path.clone();
             app.set_single_expanded_file(file.path);
         }
         if name.starts_with("preview-") {
@@ -115,15 +109,15 @@ async fn repository_history_renders_chinese_in_both_themes() {
                     let _ = crate::app::message::preview::update(&mut app, message);
                 }
             }
-            assert!(!app.show_git_copy_modal);
+            assert!(!app.git.show_git_copy_modal);
             assert!(app.preview_tabs[0].read_only);
-        } else if app.git_repository.history {
-            app.git_repository.file_menu = Some(1);
+        } else if app.git.git_repository.history {
+            app.git.git_repository.file_menu = Some(1);
         }
         let mut element = if name.starts_with("preview-") {
             crate::app::components::preview_panel::view(&app)
         } else {
-            super::view(&app)
+            unreachable!("this host contract only renders snapshot previews")
         };
         let mut renderer =
             <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
@@ -145,7 +139,7 @@ async fn repository_history_renders_chinese_in_both_themes() {
             mouse::Cursor::Unavailable,
             &Rectangle::with_size(bounds),
         );
-        if app.git_repository.history && !name.starts_with("preview-") {
+        if app.git.git_repository.history && !name.starts_with("preview-") {
             let mut overlay = element
                 .as_widget_mut()
                 .overlay(

@@ -295,13 +295,13 @@ async fn quick_message_git_actions_reuse_panel_workflows_and_validate_empty_stat
         [Message::Project(message::ProjectMessage::FileManagerRefreshChanges)]
     ));
 
-    app.git_changed_files = vec!["src/lib.rs".to_string(), "src/main.rs".to_string()];
+    app.git.git_changed_files = vec!["src/lib.rs".to_string(), "src/main.rs".to_string()];
     let select_all =
         collect_task_messages(super::update(&mut app, ChatMessage::QuickMessageSelected(1))).await;
     assert!(matches!(
         select_all.as_slice(),
         [Message::Git(message::GitMessage::SelectAllVisibleFileLines(files))]
-            if files == &app.git_changed_files
+            if files == &app.git.git_changed_files
     ));
 
     let invert =
@@ -309,7 +309,7 @@ async fn quick_message_git_actions_reuse_panel_workflows_and_validate_empty_stat
     assert!(matches!(
         invert.as_slice(),
         [Message::Git(message::GitMessage::InvertVisibleFileLines(files))]
-            if files == &app.git_changed_files
+            if files == &app.git.git_changed_files
     ));
 
     let commit =
@@ -336,7 +336,7 @@ async fn quick_message_git_actions_reuse_panel_workflows_and_validate_empty_stat
         })] if project_path == "/workspace/project"
     ));
 
-    app.git_changed_files.clear();
+    app.git.git_changed_files.clear();
     let empty_selection =
         collect_task_messages(super::update(&mut app, ChatMessage::QuickMessageSelected(1))).await;
     assert!(empty_selection.iter().all(|message| !matches!(message, Message::Git(_))));
@@ -485,15 +485,15 @@ fn chat_scroll_semantics_toggle_think_preserves_manual_anchor() {
 fn fullscreen_toggles_clear_competing_git_fullscreen_modes() {
     let (mut app, _) = crate::app::App::new();
     app.workspace_mode = crate::app::state::WorkspaceMode::Code;
-    app.git_diff_fullscreen = true;
-    app.git_diff_half_fullscreen = true;
+    app.git.git_diff_fullscreen = true;
+    app.git.git_diff_half_fullscreen = true;
 
     let _ = super::update(&mut app, ChatMessage::ToggleFullscreen);
 
     assert!(app.chat_panel_fullscreen);
     assert!(!app.chat_panel_half_fullscreen);
-    assert!(!app.git_diff_fullscreen);
-    assert!(!app.git_diff_half_fullscreen);
+    assert!(!app.git.git_diff_fullscreen);
+    assert!(!app.git.git_diff_half_fullscreen);
     assert!(app.fullscreen_layout_settling);
 }
 

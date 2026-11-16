@@ -48,10 +48,10 @@ pub(crate) use desktop_navigation::components::startup_transition::NativeStartup
 
 #[allow(dead_code)]
 pub struct App {
+    pub(crate) git: desktop_git_ui::state::State,
     pub(crate) usage_center: crate::app::views::usage::center::state::State,
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) voice: crate::app::message::voice::State,
-    pub(crate) git_repository: crate::app::components::git_panel::repository_ops::RepositoryState,
     pub(crate) session_ui_projection: crate::app::session::ui_projection::SessionUiProjection,
     /// 当前显示的屏幕
     pub(crate) screen: Screen,
@@ -261,26 +261,6 @@ pub struct App {
     pub(crate) usage_step_raw_loading: HashSet<UsageStepRawKey>,
     /// 使用量步骤原始记录弹窗
     pub(crate) usage_step_raw_modal: Option<UsageStepRawModal>,
-    /// 是否显示合并视图
-    pub(crate) merge_view: bool,
-    /// 展开的文件路径列表
-    pub(crate) expanded_files: Vec<String>,
-    /// 展开的文件路径集合（用于快速查询）
-    pub(crate) expanded_files_set: HashSet<String>,
-    /// Git 分支列表
-    pub(crate) branches: Vec<String>,
-    /// 当前选中的分支
-    pub(crate) selected_branch: Option<String>,
-    /// Git 面板可切换的工作树选项
-    pub(crate) git_worktree_options: Vec<GitWorktreeOption>,
-    /// Git 面板当前选中的工作树目录
-    pub(crate) selected_git_worktree_directory: Option<String>,
-    /// Git 面板工作树选项是否正在加载
-    pub(crate) git_worktree_options_loading: bool,
-    /// Git 面板工作树选项当前对应的项目路径
-    pub(crate) git_worktree_options_project_path: Option<String>,
-    /// Git 面板工作树菜单是否打开
-    pub(crate) git_worktree_menu_open: bool,
     /// 当前项目最近更新时间（毫秒时间戳）
     pub(crate) project_updated_at_ms: Option<u64>,
     /// 最近打开的项目路径列表
@@ -529,10 +509,6 @@ pub struct App {
     pub(crate) project_editor: desktop_workspace::project_message::edit::Editor,
     /// 是否显示差异视图
     pub(crate) show_diff: bool,
-    /// 是否显示 Git 差异摘要
-    pub(crate) show_git_diff_summary: bool,
-    /// 是否显示 Git 差异高亮
-    pub(crate) show_git_diff_highlight: bool,
     /// 终端状态（主终端）
     pub terminal: TerminalState,
     /// 终端偏好设置写入队列；切换项目时仍持续保存。
@@ -540,8 +516,6 @@ pub struct App {
         crate::app::message::terminal::config::ConfigPersistence,
     /// 按项目分组的终端状态映射
     pub(crate) terminals_by_project: HashMap<String, TerminalState>,
-    /// 差异视图主题
-    pub(crate) diff_theme: DiffTheme,
     /// 应用主题
     pub(crate) app_theme: Theme,
     /// 用于模型聊天时间上下文的 IANA 时区
@@ -567,110 +541,6 @@ pub struct App {
     pub(crate) editor_metrics_preview: crate::app::message::editor::metrics::MetricsPreview,
     pub(crate) editor_config_persistence:
         crate::app::message::editor::persistence::ConfigPersistence,
-    /// 展开的差异块列表（文件路径，块索引）
-    pub(crate) expanded_hunks: Vec<(String, usize)>,
-    /// 上下文扩展映射（文件路径，块索引） -> （前扩展行数，后扩展行数）
-    pub(crate) context_expansions: HashMap<(String, usize), (usize, usize)>,
-    /// Git 提交消息输入
-    pub(crate) git_commit_message: String,
-    /// Git 提交类型（约定式提交）
-    pub(crate) git_commit_type: Option<ConventionalCommitType>,
-    /// Git 提交作用域输入
-    pub(crate) git_commit_scope: String,
-    /// Git 提交描述输入
-    pub(crate) git_commit_description: String,
-    /// Git 提交描述编辑器内容
-    pub(crate) git_commit_description_editor: text_editor::Content,
-    /// Git 提交是否进行中
-    pub(crate) git_commit_in_progress: bool,
-    /// 是否显示约定式提交帮助弹窗
-    pub(crate) show_git_commit_help_modal: bool,
-    /// 是否显示 Git 过滤帮助弹窗
-    pub(crate) show_git_filter_help_modal: bool,
-    /// 已暂存的文件列表
-    pub(crate) staged_files_selected: Vec<String>,
-    /// 已暂存的差异块列表（文件路径，块索引）
-    pub(crate) staged_hunks_selected: Vec<(String, usize)>,
-    /// 已暂存的行列表（文件路径，行号）
-    pub(crate) staged_lines_selected: Vec<(String, usize)>,
-    /// 已暂存的旧行列表（文件路径，行号）
-    pub(crate) staged_old_lines_selected: Vec<(String, usize)>,
-    /// Git 差异中选中的行列表
-    pub(crate) git_diff_selected_lines: Vec<GitDiffSelectedLine>,
-    /// Git 差异拖动选择的行范围
-    pub(crate) git_diff_drag_range: Option<GitDiffLineRange>,
-    /// Git 差异已选中的连续行范围
-    pub(crate) git_diff_selected_range: Option<GitDiffLineRange>,
-    /// 是否正在拖动选择 Git 差异行
-    pub(crate) git_diff_dragging: bool,
-    /// Git 差异拖动起始文本
-    pub(crate) git_diff_drag_start_text: Option<String>,
-    /// Git 差异上次点击信息（文件，行号，是否旧版本，时间）
-    pub(crate) git_diff_last_click: Option<(String, usize, bool, web_time::Instant)>,
-    /// Git 差异悬停行信息（文件，行号，是否旧版本）
-    pub(crate) git_diff_hovered_line: Option<(String, usize, bool)>,
-    /// Git 差异评论草稿
-    pub(crate) git_diff_comment_draft: Option<GitDiffCommentDraft>,
-    /// Git 差异右键菜单状态
-    pub(crate) git_diff_context_menu: Option<GitDiffContextMenuState>,
-    /// Git 差异文件操作菜单状态
-    pub(crate) git_diff_file_menu: Option<GitDiffFileMenuState>,
-    /// 是否显示 Git 复制对话框
-    pub(crate) show_git_copy_modal: bool,
-    /// Git 复制对话框编辑器内容
-    pub(crate) git_copy_modal_editor: text_editor::Content,
-    /// Git 复制对话框是否使用颜色
-    pub(crate) git_copy_modal_use_color: bool,
-    /// Git 复制对话框代码编辑器
-    pub(crate) git_copy_modal_code_editor: iced_code_editor::CodeEditor,
-    /// 是否显示自定义差异对话框
-    pub(crate) show_git_custom_diff_modal: bool,
-    /// 自定义差异对话框是否隐藏输入框
-    pub(crate) git_custom_diff_hide_inputs: bool,
-    /// 自定义差异标题
-    pub(crate) git_custom_diff_title: String,
-    /// 自定义差异前内容编辑器
-    pub(crate) git_custom_diff_before_editor: text_editor::Content,
-    /// 自定义差异后内容编辑器
-    pub(crate) git_custom_diff_after_editor: text_editor::Content,
-    /// 聊天中显示的文本差异
-    pub(crate) chat_text_diff: Option<ChatTextDiff>,
-    /// 是否显示 Git 过滤选项
-    pub(crate) show_git_filter_options: bool,
-    /// Git 过滤查询输入
-    pub(crate) git_filter_query: String,
-    /// Git 过滤是否包含指定路径
-    pub(crate) git_filter_included: bool,
-    /// Git 过滤是否排除指定路径
-    pub(crate) git_filter_excluded: bool,
-    /// Git 过滤是否包含新文件
-    pub(crate) git_filter_new: bool,
-    /// Git 过滤是否包含修改文件
-    pub(crate) git_filter_modified: bool,
-    /// Git 过滤是否包含删除文件
-    pub(crate) git_filter_deleted: bool,
-    /// Git 聚焦的文件路径
-    pub(crate) git_focused_file: Option<String>,
-    /// Git 悬停的文件头部路径
-    pub(crate) git_hovered_file_header: Option<String>,
-    /// Git 面板头部是否被悬停
-    pub(crate) git_panel_header_hovered: bool,
-    /// Git 变更文件列表
-    pub(crate) git_changed_files: Vec<String>,
-    /// Git 变更文件是否正在加载
-    pub(crate) git_changed_files_loading: bool,
-    /// Git 变更文件列表当前对应的仓库路径
-    pub(crate) git_changed_files_repo_path: Option<String>,
-    /// Git diff 文件元数据缓存
-    pub(crate) git_diff_file_metas: Vec<desktop_git_ui::git_panel::ops::DiffFileMeta>,
-    /// Git diff 文件元数据是否正在加载
-    pub(crate) git_diff_file_metas_loading: bool,
-    /// Git diff 文件元数据当前对应的仓库路径
-    pub(crate) git_diff_file_metas_repo_path: Option<String>,
-    pub(crate) git_diff_contents: HashMap<String, (String, String)>,
-    pub(crate) git_diff_contents_loading: HashSet<String>,
-    pub(crate) git_diff_scroll_offset_y: f32,
-    pub(crate) git_diff_scroll_viewport_h: f32,
     /// 最近复制的代码哈希
     pub(crate) last_copied_code_hash: Option<u64>,
     /// 最近复制时间
@@ -747,12 +617,6 @@ pub struct App {
     pub(crate) preview_scroll_id: Id,
     /// 预览标签页滚动容器 ID
     pub(crate) preview_tabs_scroll_id: Id,
-    /// Git 差异滚动容器 ID
-    pub(crate) git_diff_scroll_id: Id,
-    /// Git Diff 是否全屏占据右侧区域
-    pub(crate) git_diff_fullscreen: bool,
-    /// Git Diff 是否半全屏占据主内容区域但保留文件树和终端
-    pub(crate) git_diff_half_fullscreen: bool,
     /// 主页应用栏滚动 X 偏移
     pub(crate) home_apps_bar_scroll_x: f32,
     /// 主页应用栏滚动容器 ID
@@ -991,8 +855,6 @@ pub struct App {
     pub(crate) preview_auto_save_mode: crate::app::PreviewAutoSaveMode,
     /// 当前语言设置
     pub(crate) current_language: iced_code_editor::i18n::Language,
-    /// 待丢弃的文件路径
-    pub(crate) file_to_discard: Option<String>,
     /// 当前活跃的标签页 ID
     pub(crate) active_tab_id: Option<String>,
     /// 悬停的标签页 ID

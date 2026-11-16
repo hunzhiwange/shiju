@@ -1100,7 +1100,7 @@ fn project_info_loaded_ignores_error_and_stale_project_result() {
     let mut app = app();
     app.project_path = Some("/tmp/current".to_string());
     app.project_id = Some("original-id".to_string());
-    app.selected_branch = Some("original-branch".to_string());
+    app.git.selected_branch = Some("original-branch".to_string());
     app.project_updated_at_ms = Some(7);
 
     let _ = super::handle(
@@ -1118,7 +1118,7 @@ fn project_info_loaded_ignores_error_and_stale_project_result() {
         );
 
     assert_eq!(app.project_id.as_deref(), Some("original-id"));
-    assert_eq!(app.selected_branch.as_deref(), Some("original-branch"));
+    assert_eq!(app.git.selected_branch.as_deref(), Some("original-branch"));
     assert_eq!(app.project_updated_at_ms, Some(7));
 }
 
@@ -1137,7 +1137,7 @@ fn project_info_loaded_applies_current_project_identity_timestamp_and_branch() {
 
     assert_eq!(app.project_id.as_deref(), Some("project-id"));
     assert_eq!(app.project_updated_at_ms, Some(42));
-    assert_eq!(app.selected_branch.as_deref(), Some("main"));
+    assert_eq!(app.git.selected_branch.as_deref(), Some("main"));
     assert!(app.project_is_git_repo);
 }
 
@@ -1178,7 +1178,7 @@ fn project_info_loaded_sets_non_git_capability_when_vcs_absent() {
 fn project_info_loaded_maps_zero_timestamp_to_none_and_keeps_branch_when_missing() {
     let mut app = app();
     app.project_path = Some("/tmp/current".to_string());
-    app.selected_branch = Some("existing".to_string());
+    app.git.selected_branch = Some("existing".to_string());
     app.project_updated_at_ms = Some(42);
 
     let _ =
@@ -1190,7 +1190,7 @@ fn project_info_loaded_maps_zero_timestamp_to_none_and_keeps_branch_when_missing
         );
 
     assert_eq!(app.project_updated_at_ms, None);
-    assert_eq!(app.selected_branch.as_deref(), Some("existing"));
+    assert_eq!(app.git.selected_branch.as_deref(), Some("existing"));
 }
 
 #[test]
@@ -1223,7 +1223,7 @@ fn project_info_loaded_updates_recent_project_icon_color_and_start_command() {
 fn project_branches_loaded_ignores_stale_project_and_applies_current_project() {
     let mut app = app();
     app.project_path = Some("/tmp/current".to_string());
-    app.selected_branch = Some("main".to_string());
+    app.git.selected_branch = Some("main".to_string());
 
     let _ = super::handle(
         &mut app,
@@ -1233,7 +1233,7 @@ fn project_branches_loaded_ignores_stale_project_and_applies_current_project() {
             branches: vec!["feature".to_string()],
         },
     );
-    assert_eq!(app.selected_branch.as_deref(), Some("main"));
+    assert_eq!(app.git.selected_branch.as_deref(), Some("main"));
 
     let _ = super::handle(
         &mut app,
@@ -1244,8 +1244,8 @@ fn project_branches_loaded_ignores_stale_project_and_applies_current_project() {
         },
     );
 
-    assert_eq!(app.selected_branch.as_deref(), Some("develop"));
-    assert_eq!(app.branches, vec!["main".to_string(), "develop".to_string()]);
+    assert_eq!(app.git.selected_branch.as_deref(), Some("develop"));
+    assert_eq!(app.git.branches, vec!["main".to_string(), "develop".to_string()]);
 }
 
 #[test]

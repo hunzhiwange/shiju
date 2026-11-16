@@ -31,7 +31,7 @@ fn with_git_diff_comment_returns_root_when_comment_modal_is_absent() {
 #[test]
 fn with_git_diff_comment_layers_modal_when_comment_draft_exists() {
     let mut app = test_app();
-    app.git_diff_comment_draft = Some(comment_draft());
+    app.git.git_diff_comment_draft = Some(comment_draft());
 
     let _element: iced::Element<'_, Message> = with_git_diff_comment(&app, root());
 }
@@ -46,7 +46,7 @@ fn with_git_diff_overlays_builds_empty_overlay_layer_when_modals_are_absent() {
 #[test]
 fn with_git_diff_overlays_builds_comment_overlay_without_discard_modal() {
     let mut app = test_app();
-    app.git_diff_comment_draft = Some(comment_draft());
+    app.git.git_diff_comment_draft = Some(comment_draft());
 
     let _element: iced::Element<'_, Message> = with_git_diff_overlays(&app, root());
 }
@@ -54,7 +54,7 @@ fn with_git_diff_overlays_builds_comment_overlay_without_discard_modal() {
 #[test]
 fn with_git_diff_overlays_builds_discard_overlay_without_comment_modal() {
     let mut app = test_app();
-    app.file_to_discard = Some("src/lib.rs".to_string());
+    app.git.file_to_discard = Some("src/lib.rs".to_string());
 
     let _element: iced::Element<'_, Message> = with_git_diff_overlays(&app, root());
 }
@@ -62,8 +62,8 @@ fn with_git_diff_overlays_builds_discard_overlay_without_comment_modal() {
 #[test]
 fn with_git_diff_overlays_layers_comment_and_discard_modals_together() {
     let mut app = test_app();
-    app.git_diff_comment_draft = Some(comment_draft());
-    app.file_to_discard = Some("src/lib.rs".to_string());
+    app.git.git_diff_comment_draft = Some(comment_draft());
+    app.git.file_to_discard = Some("src/lib.rs".to_string());
 
     let _element: iced::Element<'_, Message> = with_git_diff_overlays(&app, root());
 }

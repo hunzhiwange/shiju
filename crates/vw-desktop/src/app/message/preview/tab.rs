@@ -50,7 +50,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
         #[cfg(not(target_arch = "wasm32"))] app.note_startup_setting_edit("preview_auto_save");
         Some(*mode)
     } else { None };
-    if matches!(message, PreviewMessage::PathSegmentClicked(..) | PreviewMessage::TabRightClicked(..)) { app.git_diff_context_menu = None; }
+    if matches!(message, PreviewMessage::PathSegmentClicked(..) | PreviewMessage::TabRightClicked(..)) { app.git.git_diff_context_menu = None; }
     #[cfg(not(target_arch = "wasm32"))]
     if matches!(message, PreviewMessage::PathSegmentClicked(..) | PreviewMessage::TabRightClicked(..) | PreviewMessage::CloseNavPopup) {
         super::lsp::clear_lsp_hover(app);

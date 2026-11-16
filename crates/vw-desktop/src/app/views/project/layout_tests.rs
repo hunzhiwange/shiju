@@ -134,7 +134,7 @@ fn base_layout_builds_chat_fullscreen_without_bottom_panel() {
 #[test]
 fn base_layout_builds_git_fullscreen_without_bottom_panel() {
     let mut app = test_app();
-    app.git_diff_fullscreen = true;
+    app.git.git_diff_fullscreen = true;
     app.terminal.is_visible = true;
 
     let element = super::build_base_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 6.0, 0.0);

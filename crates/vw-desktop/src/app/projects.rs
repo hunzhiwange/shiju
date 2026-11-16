@@ -406,14 +406,14 @@ impl App {
         let reload_task = self.reload_sessions_for_project(Some(path.clone()));
 
         // 重置 Git 相关状态
-        self.git_changed_files.clear();
-        self.git_changed_files_loading = false;
-        self.git_changed_files_repo_path = None;
-        self.git_worktree_options.clear();
-        self.selected_git_worktree_directory = None;
-        self.git_worktree_options_loading = false;
-        self.git_worktree_options_project_path = None;
-        self.git_worktree_menu_open = false;
+        self.git.git_changed_files.clear();
+        self.git.git_changed_files_loading = false;
+        self.git.git_changed_files_repo_path = None;
+        self.git.git_worktree_options.clear();
+        self.git.selected_git_worktree_directory = None;
+        self.git.git_worktree_options_loading = false;
+        self.git.git_worktree_options_project_path = None;
+        self.git.git_worktree_menu_open = false;
 
         // 将路径加入最近项目列表；已存在项目保持原位，避免点击切换时侧栏跳动。
         ensure_recent_project(&mut self.recent_projects, path.clone());
@@ -460,7 +460,7 @@ impl App {
     /// - `branches`: 分支列表（清空后由后续逻辑填充）
     pub fn refresh_branches(&mut self) {
         desktop_workspace::projects::refresh_branches(self.project_path.as_deref(),
-            &mut self.selected_branch, &mut self.branches, &mut self.project_updated_at_ms);
+            &mut self.git.selected_branch, &mut self.git.branches, &mut self.project_updated_at_ms);
     }
 }
 

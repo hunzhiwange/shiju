@@ -249,8 +249,8 @@ fn native_startup_backfills_once_and_retries_only_failed_reads() {
         assert_eq!(runtime_state.acp_history_mode, AcpHistoryReplayMode::Recent);
         assert_eq!(runtime_state.acp_recent_count, 9);
         assert_eq!(app.chat_send_behavior, ChatSendBehavior::Guide);
-        assert!(app.show_git_diff_summary);
-        assert!(app.show_git_diff_highlight);
+        assert!(app.git.show_git_diff_summary);
+        assert!(app.git.show_git_diff_highlight);
         assert_eq!(app.web_bookmarks[0].title, "Remote");
         assert!(app.task_board_worktree_pixel_office);
         assert!(!app.task_board_clear_prompt_after_create);

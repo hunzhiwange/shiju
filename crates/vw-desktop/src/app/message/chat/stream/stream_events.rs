@@ -95,7 +95,7 @@ fn complete_quick_message_handoff(
                 .and_then(parse_generated_git_commit_message);
             let Some(generated) = generated else {
                 app.quick_message_handoff = None;
-                app.git_commit_in_progress = false;
+                app.git.git_commit_in_progress = false;
                 return Some(app.show_localized_toast(
                     crate::app::state::ToastKind::Warning,
                     "AI 未生成有效的提交标题和摘要，未执行提交",
@@ -107,7 +107,7 @@ fn complete_quick_message_handoff(
                     .or_else(|| app.project_path.clone());
             if current_project_path.as_deref() != Some(project_path.as_str()) {
                 app.quick_message_handoff = None;
-                app.git_commit_in_progress = false;
+                app.git.git_commit_in_progress = false;
                 return Some(app.show_localized_toast(
                     crate::app::state::ToastKind::Warning,
                     "Git 工作树已切换，未执行提交",
@@ -115,14 +115,14 @@ fn complete_quick_message_handoff(
                 ));
             }
 
-            app.git_commit_type = None;
-            app.git_commit_scope.clear();
-            app.git_commit_message = generated.title.trim().to_string();
-            app.git_commit_description = generated.summary.trim().to_string();
-            app.git_commit_description_editor =
-                iced::widget::text_editor::Content::with_text(&app.git_commit_description);
+            app.git.git_commit_type = None;
+            app.git.git_commit_scope.clear();
+            app.git.git_commit_message = generated.title.trim().to_string();
+            app.git.git_commit_description = generated.summary.trim().to_string();
+            app.git.git_commit_description_editor =
+                iced::widget::text_editor::Content::with_text(&app.git.git_commit_description);
             app.quick_message_handoff = None;
-            app.git_commit_in_progress = false;
+            app.git.git_commit_in_progress = false;
             let message = match action {
                 QuickMessageGitCommitAction::StageAllAndCommit => {
                     crate::app::message::GitMessage::CommitAll
@@ -1243,7 +1243,7 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
             app.quick_message_handoff,
             Some(QuickMessageHandoffState::WaitingForGitCommitMessage { .. })
         ) {
-            app.git_commit_in_progress = false;
+            app.git.git_commit_in_progress = false;
         }
         app.quick_message_handoff = None;
     }

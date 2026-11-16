@@ -293,7 +293,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     save_recent_projects_meta_background(app.recent_projects_meta.clone());
                 }
                 app.project_updated_at_ms = completed.updated_at;
-                if completed.selected_branch.is_some() { app.selected_branch = completed.selected_branch; }
+                if completed.selected_branch.is_some() { app.git.selected_branch = completed.selected_branch; }
                 app.project_is_git_repo = completed.is_git_repo;
                 if !app.project_is_git_repo {
                     app.task_board_worktree_snapshot = None;
@@ -355,7 +355,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::ProjectBranchesLoaded { project_path, selected_branch, branches } => {
             desktop_workspace::projects::apply_branch_snapshot(app.project_path.as_deref(),
                 desktop_workspace::projects::ProjectBranchSnapshot { project_path, selected_branch, branches },
-                &mut app.selected_branch, &mut app.branches);
+                &mut app.git.selected_branch, &mut app.git.branches);
             Some(iced::Task::none())
         }
         ProjectMessage::ProjectLoadSessions(path) => Some(update_lists(app, ListEvent::Load(path))),

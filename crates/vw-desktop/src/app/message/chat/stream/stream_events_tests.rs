@@ -301,14 +301,14 @@ async fn generated_git_commit_message_fills_form_then_dispatches_commit_action()
         .expect("git commit handoff should complete");
 
     assert!(app.quick_message_handoff.is_none());
-    assert_eq!(app.git_commit_type, None);
-    assert_eq!(app.git_commit_scope, "");
-    assert_eq!(app.git_commit_message, "feat(chat): add quick actions");
+    assert_eq!(app.git.git_commit_type, None);
+    assert_eq!(app.git.git_commit_scope, "");
+    assert_eq!(app.git.git_commit_message, "feat(chat): add quick actions");
     assert_eq!(
-        app.git_commit_description,
+        app.git.git_commit_description,
         "Generate commit metadata with AI before submitting changes."
     );
-    assert_eq!(app.git_commit_description_editor.text(), app.git_commit_description);
+    assert_eq!(app.git.git_commit_description_editor.text(), app.git.git_commit_description);
     assert!(matches!(
         collect_task_messages(task).await.as_slice(),
         [Message::Git(crate::app::message::GitMessage::CommitAll)]
@@ -344,7 +344,7 @@ async fn invalid_generated_git_commit_message_does_not_dispatch_commit() {
     let messages = collect_task_messages(task).await;
 
     assert!(app.quick_message_handoff.is_none());
-    assert!(!app.git_commit_in_progress);
+    assert!(!app.git.git_commit_in_progress);
     assert!(messages.iter().all(|message| !matches!(message, Message::Git(_))));
     assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("未执行提交")));
 }
@@ -369,7 +369,7 @@ async fn generated_git_commit_message_rejects_a_switched_worktree() {
     let messages = collect_task_messages(task).await;
 
     assert!(app.quick_message_handoff.is_none());
-    assert!(!app.git_commit_in_progress);
+    assert!(!app.git.git_commit_in_progress);
     assert!(messages.iter().all(|message| !matches!(message, Message::Git(_))));
     assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("工作树已切换")));
 }

@@ -26,7 +26,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 for tab in app.preview_tabs.iter_mut() {
                     tab.editor.set_theme(editor_theme.clone());
                 }
-                app.git_copy_modal_code_editor.set_theme(theme::from_iced_theme(&editor_theme));
+                app.git.git_copy_modal_code_editor.set_theme(theme::from_iced_theme(&editor_theme));
             }
 
             if app.terminal.theme == TerminalTheme::System {

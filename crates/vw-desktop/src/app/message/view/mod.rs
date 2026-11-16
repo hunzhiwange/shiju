@@ -735,12 +735,12 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             } else if app.show_system_settings {
                 crate::app::components::system_settings::traverse_select_focus(reverse)
             } else if app.file_manager.file_manager_show_changes
-                && app.show_git_diff_summary
-                && !app.show_git_commit_help_modal
-                && !app.show_git_filter_help_modal
-                && !app.show_git_custom_diff_modal
-                && !app.show_git_copy_modal
-                && app.file_to_discard.is_none()
+                && app.git.show_git_diff_summary
+                && !app.git.show_git_commit_help_modal
+                && !app.git.show_git_filter_help_modal
+                && !app.git.show_git_custom_diff_modal
+                && !app.git.show_git_copy_modal
+                && app.git.file_to_discard.is_none()
             {
                 crate::app::components::git_panel::traverse_commit_focus(reverse)
             } else {

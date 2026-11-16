@@ -1,31 +1,20 @@
 //! 原局部状态断言，使用仅含被测领域字段的中性夹具。
-use crate::git_panel::diff_view::{GitDiffLineRange, GitDiffCommentDraft, GitDiffContextMenuState};
+use crate::git_panel::diff_view::GitDiffCommentDraft;
+use crate::git_panel::diff_view::GitDiffContextMenuState;
+use crate::git_panel::diff_view::GitDiffLineRange;
+use crate::message_git::messages::GitMessage;
+use crate::state::State as Fixture;
 use desktop_workspace::workspace_state::GitDiffSelectedLine;
-#[derive(Default)]
-struct Fixture {
-    git_diff_selected_lines: Vec<GitDiffSelectedLine>,
-    git_diff_selected_range: Option<GitDiffLineRange>,
-    git_diff_comment_draft: Option<GitDiffCommentDraft>,
-    git_diff_context_menu: Option<GitDiffContextMenuState>,
-    git_diff_dragging: bool,
-    git_diff_drag_start_text: Option<String>,
-    git_diff_drag_range: Option<GitDiffLineRange>,
-    git_diff_last_click: Option<(String, usize, bool, web_time::Instant)>,
-}
-fn test_app() -> Fixture { Fixture::default() }
-enum GitMessage {
-    ToggleDiffLineSelection(String, usize, bool, String),
-    DiffDragSelectStart(String, usize, bool, String),
-    DiffDragSelectHover(String, usize, bool),
-    DiffDragSelectEnd,
+fn test_app() -> Fixture {
+    Fixture::default()
 }
 fn update(app: &mut Fixture, message: GitMessage) {
-    match message {
-        GitMessage::ToggleDiffLineSelection(v0, v1, v2, v3) => { let _ = super::toggle_diff_line_selection(&mut app.git_diff_selected_range, &mut app.git_diff_selected_lines, v0, v1, v2, v3); },
-        GitMessage::DiffDragSelectStart(v0, v1, v2, v3) => { let _ = super::diff_drag_select_start(&mut app.git_diff_comment_draft, &mut app.git_diff_context_menu, &mut app.git_diff_selected_range, &mut app.git_diff_dragging, &mut app.git_diff_drag_start_text, &mut app.git_diff_drag_range, v0, v1, v2, v3); },
-        GitMessage::DiffDragSelectHover(v0, v1, v2) => { let _ = super::diff_drag_select_hover(&mut app.git_diff_dragging, &mut app.git_diff_drag_range, v0, v1, v2); },
-        GitMessage::DiffDragSelectEnd => { let _ = super::diff_drag_select_end(&mut app.git_diff_dragging, &mut app.git_diff_drag_start_text, &mut app.git_diff_drag_range, &mut app.git_diff_last_click, &mut app.git_diff_selected_range, &mut app.git_diff_comment_draft, &mut app.git_diff_selected_lines, None); },
-    }
+    let _ = crate::message_git::controller::diff::update(
+        app,
+        &Default::default(),
+        &mut Vec::new(),
+        message,
+    );
 }
 fn selected(file: &str, line: usize, is_old: bool, text: &str) -> GitDiffSelectedLine {
     GitDiffSelectedLine { file: file.to_string(), line, is_old, text: text.to_string() }

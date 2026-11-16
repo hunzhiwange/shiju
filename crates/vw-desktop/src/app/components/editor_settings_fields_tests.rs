@@ -220,6 +220,6 @@ async fn ecp03_closing_modal_commits_pending_metrics() {
     assert!(!app.show_preview_settings);
     assert_eq!(app.current_font_size, 22.0);
     assert_eq!(app.current_line_height, 60.0);
-    assert_eq!(app.git_copy_modal_code_editor.font_size(), 22.0);
-    assert_eq!(app.git_copy_modal_code_editor.line_height(), 60.0);
+    assert_eq!(app.git.git_copy_modal_code_editor.font_size(), 22.0);
+    assert_eq!(app.git.git_copy_modal_code_editor.line_height(), 60.0);
 }

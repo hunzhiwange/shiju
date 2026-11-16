@@ -1,31 +1,17 @@
 //! 原局部状态断言，使用仅含被测领域字段的中性夹具。
+use crate::message_git::messages::GitMessage;
+use crate::state::State as Fixture;
 use iced::widget::text_editor;
-#[derive(Default)]
-struct Fixture {
-    git_custom_diff_title: String,
-    show_git_custom_diff_modal: bool,
-    git_custom_diff_hide_inputs: bool,
-    git_custom_diff_before_editor: text_editor::Content,
-    git_custom_diff_after_editor: text_editor::Content,
-}
-fn test_app() -> Fixture { Fixture::default() }
-enum GitMessage {
-    OpenCustomDiffModal,
-    CloseCustomDiffModal,
-    CustomDiffTitleChanged(String),
-    CustomDiffBeforeEditorAction(text_editor::Action),
-    CustomDiffAfterEditorAction(text_editor::Action),
-    CustomDiffSwap,
+fn test_app() -> Fixture {
+    Fixture::default()
 }
 fn update(app: &mut Fixture, message: GitMessage) {
-    match message {
-        GitMessage::OpenCustomDiffModal => { let _ = super::open_custom_diff_modal(&mut app.show_git_custom_diff_modal, &mut app.git_custom_diff_hide_inputs, &mut app.git_custom_diff_title); },
-        GitMessage::CloseCustomDiffModal => { let _ = super::close_custom_diff_modal(&mut app.show_git_custom_diff_modal, &mut app.git_custom_diff_hide_inputs); },
-        GitMessage::CustomDiffTitleChanged(v0) => { let _ = super::custom_diff_title_changed(&mut app.git_custom_diff_title, v0); },
-        GitMessage::CustomDiffBeforeEditorAction(v0) => { let _ = super::custom_diff_before_editor_action(&mut app.git_custom_diff_before_editor, v0); },
-        GitMessage::CustomDiffAfterEditorAction(v0) => { let _ = super::custom_diff_after_editor_action(&mut app.git_custom_diff_after_editor, v0); },
-        GitMessage::CustomDiffSwap => { let _ = super::custom_diff_swap(&mut app.git_custom_diff_before_editor, &mut app.git_custom_diff_after_editor); },
-    }
+    let _ = crate::message_git::controller::modal::update(
+        app,
+        &Default::default(),
+        &mut Vec::new(),
+        message,
+    );
 }
 #[test]
 fn custom_diff_modal_open_close_and_title_change_update_state() {

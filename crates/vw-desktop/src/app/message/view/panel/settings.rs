@@ -268,8 +268,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::ToggleGitDiffSummary => {
-            app.show_git_diff_summary = !app.show_git_diff_summary;
-            app.save_desktop_preference("show_git_diff_summary", app.show_git_diff_summary.into())
+            app.git.show_git_diff_summary = !app.git.show_git_diff_summary;
+            app.save_desktop_preference("show_git_diff_summary", app.git.show_git_diff_summary.into())
         }
         ViewMessage::ToggleTerminalPanel => {
             #[cfg(not(target_arch = "wasm32"))]

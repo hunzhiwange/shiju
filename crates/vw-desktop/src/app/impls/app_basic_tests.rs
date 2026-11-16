@@ -61,26 +61,26 @@ fn diff_file_expansion_helpers_keep_order_and_set_in_sync() {
 
     app.ensure_diff_file_expanded("src/lib.rs".to_string());
     app.ensure_diff_file_expanded("src/lib.rs".to_string());
-    assert_eq!(app.expanded_files, ["src/lib.rs"]);
+    assert_eq!(app.git.expanded_files, ["src/lib.rs"]);
     assert!(app.is_diff_file_expanded("src/lib.rs"));
 
     app.toggle_diff_file_expanded("src/lib.rs".to_string());
-    assert!(app.expanded_files.is_empty());
+    assert!(app.git.expanded_files.is_empty());
     assert!(!app.is_diff_file_expanded("src/lib.rs"));
 
     app.toggle_diff_file_expanded("src/main.rs".to_string());
     app.replace_expanded_files(vec!["README.md".to_string(), "src/main.rs".to_string()]);
-    assert_eq!(app.expanded_files, ["README.md", "src/main.rs"]);
+    assert_eq!(app.git.expanded_files, ["README.md", "src/main.rs"]);
     assert!(app.is_diff_file_expanded("README.md"));
 
     app.set_single_expanded_file("Cargo.toml".to_string());
-    assert_eq!(app.expanded_files, ["Cargo.toml"]);
+    assert_eq!(app.git.expanded_files, ["Cargo.toml"]);
     assert!(app.is_diff_file_expanded("Cargo.toml"));
     assert!(!app.is_diff_file_expanded("README.md"));
 
     app.clear_expanded_files();
-    assert!(app.expanded_files.is_empty());
-    assert!(app.expanded_files_set.is_empty());
+    assert!(app.git.expanded_files.is_empty());
+    assert!(app.git.expanded_files_set.is_empty());
 }
 
 #[test]
@@ -108,19 +108,19 @@ fn file_tree_expansion_helpers_toggle_and_deduplicate() {
 #[test]
 fn expansion_toggles_clear_membership_when_ordered_entries_are_absent() {
     let mut app = new_app();
-    app.expanded_files.clear();
-    app.expanded_files_set.clear();
+    app.git.expanded_files.clear();
+    app.git.expanded_files_set.clear();
     app.file_tree_expanded.clear();
     app.file_tree_expanded_set.clear();
 
-    app.expanded_files_set.insert("src/lib.rs".to_string());
+    app.git.expanded_files_set.insert("src/lib.rs".to_string());
     app.file_tree_expanded_set.insert("src".to_string());
 
     app.toggle_diff_file_expanded("src/lib.rs".to_string());
     app.toggle_file_tree_dir_expanded("src".to_string());
 
     assert!(!app.is_diff_file_expanded("src/lib.rs"));
-    assert!(app.expanded_files.is_empty());
+    assert!(app.git.expanded_files.is_empty());
     assert!(!app.is_file_tree_dir_expanded("src"));
     assert!(app.file_tree_expanded.is_empty());
 }

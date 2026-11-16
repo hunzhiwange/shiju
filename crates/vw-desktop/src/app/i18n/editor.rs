@@ -7,7 +7,7 @@ pub fn refresh(app: &mut crate::app::App) {
         tab.editor.set_ui_language(language);
         tab.editor.configure_preview_context_menu(app.desktop_locale, true);
     }
-    app.git_copy_modal_code_editor.set_language(language);
+    app.git.git_copy_modal_code_editor.set_language(language);
 }
 
 #[cfg(not(target_arch = "wasm32"))]

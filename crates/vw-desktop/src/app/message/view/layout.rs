@@ -156,8 +156,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             if app.fullscreen_layout_settling
                 || app.is_chat_fullscreen()
                 || app.is_chat_half_fullscreen()
-                || app.git_diff_fullscreen
-                || app.git_diff_half_fullscreen
+                || app.git.git_diff_fullscreen
+                || app.git.git_diff_half_fullscreen
             {
                 return Task::none();
             }
@@ -245,7 +245,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.terminal.is_dragging = false;
                 app.terminal.drag_anchor_y = None;
             }
-            if app.git_diff_dragging {
+            if app.git.git_diff_dragging {
                 return Task::batch([
                     save,
                     Task::done(Message::Git(

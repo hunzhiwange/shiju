@@ -5,7 +5,7 @@ fn input(app: &App) -> domain::Input<'_> {
  domain::Input { i18n: crate::app::i18n::I18n::new(app.desktop_locale),
  active_query: app.current_session_runtime_ref().and_then(|r| r.request_lifecycle.active_agent_request.as_ref().map(|request| request.query.as_str())),
  expanded: app.chat_todo_expanded, top_right: app.chat_todo_placement == TodoPanelPlacement::ChatTopRight,
- changed_files: app.git_changed_files.len() }
+ changed_files: app.git.git_changed_files.len() }
 }
 #[cfg(test)]
 pub fn compute_todo_data(app: &App, items: &[todo_types::Todo]) -> TodoPanelData { domain::compute_todo_data(input(app), items) }

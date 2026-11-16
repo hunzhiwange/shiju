@@ -1,18 +1,15 @@
-use std::collections::{HashMap, HashSet};
-use crate::git_panel::ops::DiffFileMeta;
-#[derive(Default)]
-struct Fixture {
-    git_diff_file_metas_repo_path: Option<String>,
-    git_diff_file_metas: Vec<DiffFileMeta>,
-    git_diff_file_metas_loading: bool,
-    git_diff_contents: HashMap<String, (String, String)>,
-    git_diff_contents_loading: HashSet<String>,
+use crate::message_git::messages::GitMessage;
+use crate::state::State as Fixture;
+fn test_app() -> Fixture {
+    Fixture::default()
 }
-enum GitMessage { DiffFileMetasReady { repo_path: Option<String>, metas: Vec<DiffFileMeta> } }
 fn update(app: &mut Fixture, message: GitMessage) {
-    let GitMessage::DiffFileMetasReady { repo_path, metas } = message;
-    let _ = super::apply_diff_metas(&mut app.git_diff_file_metas_repo_path, &mut app.git_diff_file_metas,
-        &mut app.git_diff_file_metas_loading, &mut app.git_diff_contents, &mut app.git_diff_contents_loading, repo_path, metas);
+    let _ = crate::message_git::controller::refresh::update(
+        app,
+        &Default::default(),
+        &mut Vec::new(),
+        message,
+    );
 }
 #[test]
 fn diff_file_metas_ready_ignores_stale_repo_path() {

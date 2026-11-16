@@ -99,7 +99,7 @@ fn view_builds_context_menu_with_and_without_anchor() {
 fn view_builds_fullscreen_exit_controls() {
     let mut app = app();
     app.screen = Screen::Project;
-    app.git_diff_fullscreen = true;
+    app.git.git_diff_fullscreen = true;
 
     keep(view(&app));
 }

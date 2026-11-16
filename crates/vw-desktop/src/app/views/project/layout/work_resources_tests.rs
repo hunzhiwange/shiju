@@ -18,7 +18,7 @@ fn code_panel_snapshot(app: &App) -> (bool, bool, f32, bool, bool, bool) {
         app.file_manager.show_file_manager,
         app.split_ratio,
         app.chat_panel_fullscreen,
-        app.git_diff_fullscreen,
+        app.git.git_diff_fullscreen,
         app.show_preview_fullscreen_overlay,
     )
 }
@@ -31,7 +31,7 @@ fn work_resource_panel_routes_overview_workspace_files_and_browser() {
     let mut app = App::new().0;
     app.screen = Screen::Project;
     app.project_path = Some(project.path().to_string_lossy().into_owned());
-    app.git_changed_files = vec!["src/lib.rs".into(), "README.md".into()];
+    app.git.git_changed_files = vec!["src/lib.rs".into(), "README.md".into()];
 
     for (mode, expected) in [
         (WorkResourceMode::Overview, ResourceBodyKind::Overview),
@@ -65,7 +65,7 @@ fn work_resource_files_reuse_existing_file_manager_without_mutating_code_flags()
     app.file_manager.show_file_manager = false;
     app.split_ratio = 0.37;
     app.chat_panel_fullscreen = true;
-    app.git_diff_fullscreen = true;
+    app.git.git_diff_fullscreen = true;
     app.show_preview_fullscreen_overlay = true;
     let before = code_panel_snapshot(&app);
 

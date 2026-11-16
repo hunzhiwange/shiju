@@ -5,8 +5,8 @@ pub fn main_area(app: &App, spacing: f32, content_pad: f32, chat_pad: f32, radiu
     main::main_area(MainLayout {
         chat_panel_fullscreen: app.chat_panel_fullscreen,
         chat_panel_half_fullscreen: app.chat_panel_half_fullscreen,
-        git_diff_fullscreen: app.git_diff_fullscreen,
-        git_diff_half_fullscreen: app.git_diff_half_fullscreen,
+        git_diff_fullscreen: app.git.git_diff_fullscreen,
+        git_diff_half_fullscreen: app.git.git_diff_half_fullscreen,
         file_manager_width: app.file_manager_width,
         split_ratio: app.split_ratio,
         show_diff: app.show_diff,

@@ -26,7 +26,7 @@ fn code_layout_snapshot(app: &App) -> CodeLayoutSnapshot {
         split_ratio: app.split_ratio,
         chat_panel_fullscreen: app.chat_panel_fullscreen,
         chat_panel_half_fullscreen: app.chat_panel_half_fullscreen,
-        git_diff_fullscreen: app.git_diff_fullscreen,
+        git_diff_fullscreen: app.git.git_diff_fullscreen,
         show_preview_fullscreen_overlay: app.show_preview_fullscreen_overlay,
         terminal_visible: app.terminal.is_visible,
         terminal_height: app.terminal.height,
@@ -43,7 +43,7 @@ fn work_workspace_messages_preserve_code_layout_preferences() {
     app.split_ratio = 0.37;
     app.chat_panel_fullscreen = true;
     app.chat_panel_half_fullscreen = true;
-    app.git_diff_fullscreen = true;
+    app.git.git_diff_fullscreen = true;
     app.show_preview_fullscreen_overlay = true;
     app.terminal.is_visible = true;
     app.terminal.height = 333.0;

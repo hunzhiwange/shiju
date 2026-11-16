@@ -42,20 +42,20 @@ fn route_clipboard_shortcut(app: &App, kind: ClipboardShortcutKind) -> Task<Mess
 }
 
 fn copy_shortcut_without_input(app: &mut App) -> Task<Message> {
-    if app.screen == Screen::Project && app.show_git_copy_modal {
-        if app.git_copy_modal_use_color {
+    if app.screen == Screen::Project && app.git.show_git_copy_modal {
+        if app.git.git_copy_modal_use_color {
             message::git::update(
                 app,
                 message::GitMessage::CopyModalCodeEditorEvent(iced_code_editor::Message::Copy),
             )
         } else {
-            Task::done(Message::CopyCode(app.git_copy_modal_editor.text()))
+            Task::done(Message::CopyCode(app.git.git_copy_modal_editor.text()))
         }
     } else if app.screen == Screen::Preview {
         message::editor::update(app, message::EditorMessage::Copy)
     } else if app.screen == Screen::Project
         && app.show_diff
-        && !app.git_diff_selected_lines.is_empty()
+        && !app.git.git_diff_selected_lines.is_empty()
     {
         message::git::update(app, message::GitMessage::CopyDiffSelection)
     } else if app.screen == Screen::Project
@@ -384,8 +384,8 @@ impl App {
             self.web_bookmarks = super::app_init::load_web_bookmarks(&cfg);
         }
         for (key, setting) in [
-            ("show_git_diff_summary", &mut self.show_git_diff_summary),
-            ("show_git_diff_highlight", &mut self.show_git_diff_highlight),
+            ("show_git_diff_summary", &mut self.git.show_git_diff_summary),
+            ("show_git_diff_highlight", &mut self.git.show_git_diff_highlight),
             ("task_board_worktree_pixel_office", &mut self.task_board_worktree_pixel_office),
             (
                 "task_board_clear_prompt_after_create",
@@ -552,7 +552,7 @@ impl App {
         for tab in self.preview_tabs.iter_mut() {
             tab.editor.set_theme(editor_theme.clone());
         }
-        self.git_copy_modal_code_editor.set_theme(theme::from_iced_theme(&editor_theme));
+        self.git.git_copy_modal_code_editor.set_theme(theme::from_iced_theme(&editor_theme));
         if apply_gateway_client
             && !self.system_settings_edited(SystemSettingsSection::GatewayClient)
             && self.gateway_client_settings.save_error.is_none()

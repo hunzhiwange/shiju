@@ -58,7 +58,7 @@ fn ensure_file_manager_changes_expanded(
         app.file_manager.file_manager_show_changes = true;
         fields.insert("file_manager_show_changes".into(), Value::Bool(true));
     }
-    let mut paths = app.git_changed_files.clone();
+    let mut paths = app.git.git_changed_files.clone();
     paths.extend(extra_paths);
     let keys: Vec<String> = crate::app::components::file_tree::change_list_expand_keys(
         paths.iter().map(String::as_str),
@@ -266,7 +266,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 let reveal = reveal_work_workspace_files(app);
                 // 自动展开包含变更文件的目录（键需带 chg: 前缀，并覆盖每一层祖先）
                 for key in crate::app::components::file_tree::change_list_expand_keys(
-                    app.git_changed_files.iter().map(String::as_str),
+                    app.git.git_changed_files.iter().map(String::as_str),
                 ) {
                     app.ensure_file_tree_dir_expanded(key);
                 }
@@ -282,7 +282,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             })
         }
         ProjectMessage::FileManagerRefreshChanges => {
-            let Some(refresh) = app.file_manager.begin_changes_refresh(app.git_changed_files_loading) else {
+            let Some(refresh) = app.file_manager.begin_changes_refresh(app.git.git_changed_files_loading) else {
                 return Some(iced::Task::none());
             };
             let mut tasks = vec![iced::Task::done(Message::Git(
@@ -304,7 +304,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::batch(tasks))
         }
         ProjectMessage::FileManagerRefreshAnimationTick => {
-            if !app.file_manager.tick(app.git_commit_in_progress) {
+            if !app.file_manager.tick(app.git.git_commit_in_progress) {
                 return Some(iced::Task::none());
             }
             Some(schedule_file_manager_refresh_tick())

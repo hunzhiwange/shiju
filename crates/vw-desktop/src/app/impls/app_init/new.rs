@@ -246,12 +246,9 @@ impl App {
             crate::app::components::chat_panel::height_index::ChatHeightIndex::from_heights(
                 &chat_message_estimated_heights,
             );
-        let editor_language = iced_code_editor::i18n::Language::ChineseSimplified;
-        let mut git_copy_modal_code_editor = iced_code_editor::CodeEditor::new("", "diff");
-        git_copy_modal_code_editor.set_language(editor_language);
-
         // 创建应用程序实例并初始化所有状态字段
         let mut app = Self {
+            git: desktop_git_ui::state::State::new(cfg_show_git_diff_summary, cfg_show_git_diff_highlight),
             // ========== 基础状态 ==========
             screen: Screen::Home,
             #[cfg(not(target_arch = "wasm32"))]
@@ -377,19 +374,8 @@ impl App {
             usage_step_raw_payloads: std::collections::HashMap::new(),
             usage_step_raw_loading: std::collections::HashSet::new(),
             usage_step_raw_modal: None,
-            merge_view: true,
 
             // ========== 文件和分支管理 ==========
-            expanded_files: vec![],
-            expanded_files_set: HashSet::new(),
-            context_expansions: HashMap::new(),
-            branches: vec![],
-            selected_branch: None,
-            git_worktree_options: vec![],
-            selected_git_worktree_directory: None,
-            git_worktree_options_loading: false,
-            git_worktree_options_project_path: None,
-            git_worktree_menu_open: false,
             project_updated_at_ms: None,
             recent_projects: load_recent_projects(),
 
@@ -531,9 +517,6 @@ impl App {
             slash_palette_scroll_id: iced::widget::Id::new("slash_palette"),
             preview_scroll_id: iced::widget::Id::new("preview"),
             preview_tabs_scroll_id: iced::widget::Id::new("preview_tabs"),
-            git_diff_scroll_id: iced::widget::Id::new("git_diff"),
-            git_diff_fullscreen: false,
-            git_diff_half_fullscreen: false,
             home_apps_bar_scroll_x: 0.0,
             home_apps_bar_scroll_id: iced::widget::Id::new("home_apps_bar"),
 
@@ -571,7 +554,6 @@ impl App {
             dialogue_flow_settings_translation: None,
             recent_projects_meta: recent_meta,
             spinner_frame: 0,
-            file_to_discard: None,
 
             // ========== 会话管理 ==========
             sessions,
@@ -622,8 +604,6 @@ impl App {
 
             // ========== Diff和终端 ==========
             show_diff: true,
-            show_git_diff_summary: cfg_show_git_diff_summary,
-            show_git_diff_highlight: cfg_show_git_diff_highlight,
             terminal_config_persistence: Default::default(),
             terminal: TerminalState::new(
                 cfg_show_terminal,
@@ -634,7 +614,6 @@ impl App {
                 None,
             ),
             terminals_by_project: HashMap::new(),
-            diff_theme: DiffTheme::GitHub,
             app_theme: effective_app_theme,
             generated_session_titles: std::collections::HashMap::new(),
             desktop_locale: system_settings_cfg.desktop_locale,
@@ -654,60 +633,6 @@ impl App {
             editor_config_persistence: Default::default(),
 
             // ========== Git状态 ==========
-            expanded_hunks: vec![],
-            git_commit_message: String::new(),
-            git_commit_type: Some(ConventionalCommitType::Feat),
-            git_commit_scope: String::new(),
-            git_commit_description: String::new(),
-            git_commit_in_progress: false,
-            show_git_commit_help_modal: false,
-            show_git_filter_help_modal: false,
-            staged_files_selected: vec![],
-            staged_hunks_selected: vec![],
-            staged_lines_selected: vec![],
-            staged_old_lines_selected: vec![],
-            git_diff_selected_lines: vec![],
-            git_diff_drag_range: None,
-            git_diff_selected_range: None,
-            git_diff_dragging: false,
-            git_diff_drag_start_text: None,
-            git_diff_last_click: None,
-            git_diff_hovered_line: None,
-            git_diff_comment_draft: None,
-            git_diff_context_menu: None,
-            git_diff_file_menu: None,
-            show_git_copy_modal: false,
-            git_copy_modal_editor: iced::widget::text_editor::Content::new(),
-            git_copy_modal_use_color: true,
-            git_copy_modal_code_editor,
-            show_git_custom_diff_modal: false,
-            git_custom_diff_hide_inputs: false,
-            git_custom_diff_title: String::new(),
-            git_custom_diff_before_editor: iced::widget::text_editor::Content::new(),
-            git_custom_diff_after_editor: iced::widget::text_editor::Content::new(),
-            chat_text_diff: None,
-            git_commit_description_editor: iced::widget::text_editor::Content::new(),
-            show_git_filter_options: false,
-            git_filter_query: String::new(),
-            git_filter_included: false,
-            git_filter_excluded: false,
-            git_filter_new: false,
-            git_filter_modified: false,
-            git_filter_deleted: false,
-            git_focused_file: None,
-            git_hovered_file_header: None,
-            git_panel_header_hovered: false,
-            git_repository: Default::default(),
-            git_changed_files: vec![],
-            git_changed_files_loading: false,
-            git_changed_files_repo_path: None,
-            git_diff_file_metas: vec![],
-            git_diff_file_metas_loading: false,
-            git_diff_file_metas_repo_path: None,
-            git_diff_contents: HashMap::new(),
-            git_diff_contents_loading: HashSet::new(),
-            git_diff_scroll_offset_y: 0.0,
-            git_diff_scroll_viewport_h: 0.0,
 
             // ========== 设置标签页 ==========
             settings_tab: SettingsTab::Sessions,

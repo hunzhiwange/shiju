@@ -369,6 +369,6 @@ fn open_project_removes_apps_tab_creates_project_tab_and_recent_edit_name() {
     }));
     assert_eq!(app.recent_projects.first().map(String::as_str), Some("/repo/alpha"));
     assert_eq!(app.recent_projects_edits.first().map(String::as_str), Some("Alpha Project"));
-    assert!(app.selected_branch.is_none());
-    assert!(app.branches.is_empty());
+    assert!(app.git.selected_branch.is_none());
+    assert!(app.git.branches.is_empty());
 }

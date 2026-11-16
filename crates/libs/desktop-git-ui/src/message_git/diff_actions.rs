@@ -1,6 +1,7 @@
 //! Git 展开、布局状态与单项丢弃操作。
 #[derive(Debug, Clone, Copy)]
 pub enum ExpandDirection { Up, Down, All }
+#[derive(Debug, Clone)]
 pub enum DiscardAction { File(String), Hunk(String, usize), DeleteLine(String, usize), RestoreLine(String, usize, usize) }
 
 pub fn is_diff_file_expanded(expanded_files_set: &std::collections::HashSet<String>, path: &str) -> bool {

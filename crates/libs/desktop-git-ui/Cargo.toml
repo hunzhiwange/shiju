@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+desktop-chat-view = { path = "../desktop-chat-view", version = "0.6.0" }
 iced = { version = "0.14", features = ["advanced", "svg"] }
 similar = "2"
 desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
@@ -31,4 +32,8 @@ vw-api-project = { path = "../api-project", version = "0.6.0" }
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 
 [dev-dependencies]
+session-info = { path = "../session-info", version = "0.6.0" }
+iced_runtime = "0.14"
+image = "0.25.9"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tempfile = "3"

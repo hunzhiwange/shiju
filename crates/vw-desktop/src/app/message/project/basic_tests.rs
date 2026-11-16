@@ -320,7 +320,7 @@ fn file_manager_show_changes_true_clears_active_preview_and_expands_changed_dirs
     let mut app = app();
     app.active_preview_path = Some("/tmp/project/src/main.rs".to_string());
     app.file_manager.show_file_manager = false;
-    app.git_changed_files =
+    app.git.git_changed_files =
         vec!["src/main.rs".to_string(), "src/nested/lib.rs".to_string(), "README.md".to_string()];
 
     let _ = super::handle(
@@ -344,7 +344,7 @@ async fn file_manager_show_changes_true_in_work_mode_reveals_workspace_files() {
     app.work_resources_visible = false;
     app.work_resource_mode = crate::app::state::WorkResourceMode::Browser;
     app.work_chat_fullscreen = true;
-    app.git_changed_files = vec!["src/main.rs".to_string()];
+    app.git.git_changed_files = vec!["src/main.rs".to_string()];
 
     let task = super::handle(
         &mut app,
@@ -388,7 +388,7 @@ fn file_manager_show_changes_false_preserves_preview_and_resets_find_selection()
 #[test]
 fn file_manager_refresh_changes_ignores_refresh_while_git_files_are_loading() {
     let mut app = app();
-    app.git_changed_files_loading = true;
+    app.git.git_changed_files_loading = true;
     app.file_manager.file_manager_changes_refreshing = false;
 
     let task = super::handle(
@@ -403,7 +403,7 @@ fn file_manager_refresh_changes_ignores_refresh_while_git_files_are_loading() {
 #[test]
 fn file_manager_refresh_changes_ignores_duplicate_refresh() {
     let mut app = app();
-    app.git_changed_files_loading = false;
+    app.git.git_changed_files_loading = false;
     app.file_manager.file_manager_changes_refreshing = true;
 
     let task = super::handle(
@@ -419,7 +419,7 @@ fn file_manager_refresh_changes_ignores_duplicate_refresh() {
 #[test]
 fn file_manager_refresh_changes_marks_refreshing_when_idle() {
     let mut app = app();
-    app.git_changed_files_loading = false;
+    app.git.git_changed_files_loading = false;
     app.file_manager.file_manager_changes_refreshing = false;
 
     let task = super::handle(
@@ -468,7 +468,7 @@ fn file_manager_refresh_animation_tick_stops_when_all_work_is_idle() {
     app.file_manager.file_manager_refresh_frame = 7;
     app.file_manager.file_manager_changes_refreshing = false;
     app.file_manager.file_manager_file_tree_refreshing = false;
-    app.git_commit_in_progress = false;
+    app.git.git_commit_in_progress = false;
 
     let task = super::handle(
         &mut app,
@@ -520,7 +520,7 @@ async fn open_changed_file_in_work_mode_reveals_workspace_changes_and_focuses_fi
     app.work_chat_fullscreen = true;
     app.file_manager.file_manager_show_changes = false;
     app.file_manager.show_file_manager = false;
-    app.git_changed_files = vec!["src/nested/lib.rs".to_string(), "README.md".to_string()];
+    app.git.git_changed_files = vec!["src/nested/lib.rs".to_string(), "README.md".to_string()];
 
     let task = super::handle(
         &mut app,
@@ -566,7 +566,7 @@ fn open_changed_file_expands_collapsed_change_dirs_when_already_in_changes_view(
     app.work_resource_mode = crate::app::state::WorkResourceMode::WorkspaceFiles;
     app.file_manager.file_manager_show_changes = true;
     app.file_manager.show_file_manager = true;
-    app.git_changed_files = vec!["src/nested/lib.rs".to_string()];
+    app.git.git_changed_files = vec!["src/nested/lib.rs".to_string()];
     app.file_tree_expanded.clear();
     app.file_tree_expanded_set.clear();
 

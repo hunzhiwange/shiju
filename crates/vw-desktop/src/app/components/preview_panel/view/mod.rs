@@ -68,7 +68,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     layout::view(ViewInput {
         active_path: app.active_preview_path.as_deref(), project_path: app.project_path.as_deref(),
         read_only_title: tab.filter(|tab| tab.read_only).map(|tab| tab.title.as_str()),
-        show_fullscreen_controls: show_fullscreen_controls(app), fullscreen: app.git_diff_fullscreen,
+        show_fullscreen_controls: show_fullscreen_controls(app), fullscreen: app.git.git_diff_fullscreen,
         show_changes: app.file_manager.file_manager_show_changes, show_context_menu: app.show_preview_context_menu,
         context_menu_pos: app.preview_context_menu_pos, i18n: desktop_i18n::I18n::new(app.desktop_locale),
     }, ViewParts {

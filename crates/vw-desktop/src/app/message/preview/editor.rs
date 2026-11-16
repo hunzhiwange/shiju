@@ -26,7 +26,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
  }
  if matches!(message, PreviewMessage::ContextMenuOpenForActiveEditor(..)) && app.active_preview_path.is_some() {
    super::dismiss_preview_popup_menus(app);
-   app.git_diff_context_menu = None;
+   app.git.git_diff_context_menu = None;
  }
  #[cfg(not(target_arch = "wasm32"))]
  if matches!(message, PreviewMessage::LspToggleDisabled(_)) { app.note_startup_setting_edit("lsp_enabled"); }

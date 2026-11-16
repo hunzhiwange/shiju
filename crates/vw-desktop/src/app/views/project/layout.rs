@@ -112,8 +112,8 @@ pub fn build_base_layout(
 
     desktop_workspace::views::project::layout::build_base_layout(
         workspace,
-        if app.chat_panel_fullscreen || app.git_diff_fullscreen || !app.terminal.is_visible { Space::new().into() } else { bottom_panel(app) },
-        app.chat_panel_fullscreen || app.git_diff_fullscreen || !app.terminal.is_visible,
+        if app.chat_panel_fullscreen || app.git.git_diff_fullscreen || !app.terminal.is_visible { Space::new().into() } else { bottom_panel(app) },
+        app.chat_panel_fullscreen || app.git.git_diff_fullscreen || !app.terminal.is_visible,
     )
 }
 

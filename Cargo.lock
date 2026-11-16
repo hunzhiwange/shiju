@@ -7483,6 +7483,7 @@ version = "0.6.0"
 dependencies = [
  "config-ui",
  "desktop-apps-ui",
+ "desktop-assets",
  "desktop-i18n",
  "desktop-provider-apps",
  "desktop-settings-apps",
@@ -7495,6 +7496,7 @@ dependencies = [
  "gateway-mcp-read",
  "gateway-mcp-write",
  "iced",
+ "iced_runtime",
  "js-sys",
  "serde",
  "serde_json",

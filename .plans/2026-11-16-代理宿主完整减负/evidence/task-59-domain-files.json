@@ -3629,8 +3629,8 @@
     {
       "path": "crates/libs/agent-loop/src/execution.rs",
       "before": 373,
-      "after": 373,
-      "added": 0,
+      "after": 384,
+      "added": 11,
       "deleted": 0
     },
     {
@@ -3670,23 +3670,23 @@
     },
     {
       "path": "crates/libs/agent-loop/src/host_contract_29/history.rs",
-      "before": 89,
-      "after": 89,
-      "added": 0,
+      "before": 0,
+      "after": 88,
+      "added": 88,
       "deleted": 0
     },
     {
       "path": "crates/libs/agent-loop/src/host_contract_29/mod.rs",
-      "before": 3,
+      "before": 0,
       "after": 3,
-      "added": 0,
+      "added": 3,
       "deleted": 0
     },
     {
       "path": "crates/libs/agent-loop/src/host_contract_29/runner.rs",
-      "before": 114,
+      "before": 0,
       "after": 114,
-      "added": 0,
+      "added": 114,
       "deleted": 0
     },
     {
@@ -3945,8 +3945,8 @@
       "path": "crates/libs/agent-loop/src/parsing/mod.rs",
       "before": 24,
       "after": 24,
-      "added": 0,
-      "deleted": 0
+      "added": 6,
+      "deleted": 6
     },
     {
       "path": "crates/libs/agent-loop/src/parsing/tests.rs",
@@ -8423,16 +8423,16 @@
     },
     {
       "path": "crates/libs/channel-runtime/src/command_catalog_contracts.rs",
-      "before": 80,
+      "before": 0,
       "after": 80,
-      "added": 0,
+      "added": 80,
       "deleted": 0
     },
     {
       "path": "crates/libs/channel-runtime/src/command_history_contracts.rs",
-      "before": 130,
-      "after": 130,
-      "added": 0,
+      "before": 0,
+      "after": 171,
+      "added": 171,
       "deleted": 0
     },
     {
@@ -8444,9 +8444,9 @@
     },
     {
       "path": "crates/libs/channel-runtime/src/command_test_support.rs",
-      "before": 194,
-      "after": 194,
-      "added": 0,
+      "before": 0,
+      "after": 213,
+      "added": 213,
       "deleted": 0
     },
     {
@@ -13148,9 +13148,9 @@
     },
     {
       "path": "crates/libs/gateway-session/src/child_acceptance.rs",
-      "before": 487,
+      "before": 0,
       "after": 487,
-      "added": 0,
+      "added": 487,
       "deleted": 0
     },
     {
@@ -17285,9 +17285,9 @@
     },
     {
       "path": "crates/libs/session-engine/src/host_migration_19_tests/access.rs",
-      "before": 77,
-      "after": 77,
-      "added": 0,
+      "before": 0,
+      "after": 76,
+      "added": 76,
       "deleted": 0
     },
     {

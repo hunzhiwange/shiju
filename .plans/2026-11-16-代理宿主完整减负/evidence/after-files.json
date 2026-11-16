@@ -58570,7 +58570,7 @@
     },
     {
       "path": "crates/libs/session-engine/src/host_migration_19_tests/access.rs",
-      "lines": 77,
+      "lines": 76,
       "symbols": [
         {
           "line": 5,

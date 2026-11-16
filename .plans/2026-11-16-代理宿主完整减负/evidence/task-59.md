@@ -1,3 +1,3 @@
-# Task59
+# 任务59最新静态交接
 
-Forwarding cleanup and 27 test registrations implemented; static checks completed, compilation/behavior unverified. Whole-plan gate remains open; see final.md and remaining-host.json. No Cargo/build/tests run.
+宿主51915行，仍差16915行；静态命令已完成，未执行Cargo/构建/测试。恢复顺序及每项真实边界见final.md与task-59-recovery-priorities.json。任务文件保留以遵守硬门槛，不以未来编译验证作为阻塞。

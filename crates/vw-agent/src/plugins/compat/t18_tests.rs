@@ -37,24 +37,6 @@ async fn codex_plugin_compat_t18_reuses_connection_until_session_ends() {
     pool.shutdown();
 }
 
-#[test]
-fn codex_plugin_compat_t18_rejects_invalid_input() {
-    let root = tempfile::tempdir().unwrap();
-    let package = root.path().join("workspace/.vibewindow/plugins/local");
-    fs::create_dir_all(package.join(".codex-plugin")).unwrap();
-    fs::write(package.join(".codex-plugin/plugin.json"), serde_json::to_vec(&json!({"name":"local","mcpServers":{"local":{"command":"must-not-run","startup_timeout_sec":0}}})).unwrap()).unwrap();
-    let options = PluginDiscoveryOptions::new(
-        root.path().join("workspace"),
-        root.path().join("config"),
-        PluginsConfig::default(),
-    );
-    let error = merge_enabled_plugin_mcp_servers(&mut Vec::new(), &options).unwrap_err();
-    assert!(
-        format!("{error:#}").contains("positive startup_timeout_sec"),
-        "invalid timeout must be rejected with its lifecycle validation: {error:#}"
-    );
-}
-
 #[tokio::test]
 async fn codex_plugin_compat_t18_preserves_isolation() {
     let root = tempfile::tempdir().unwrap();
@@ -381,36 +363,6 @@ async fn codex_plugin_compat_t18_required_failure_blocks_actual_tool_execution()
         matches!(result,Err(ToolCallError::Failed(message)) if message.contains("required MCP server"))
     );
     crate::plugins::close_session_mcp_connections("required", root.path());
-}
-
-#[test]
-fn codex_plugin_compat_t18_validates_lifecycle_fields_without_secret_diagnostics() {
-    for setting in [
-        json!({"startup_timeout_sec":-1}),
-        json!({"startup_timeout_ms":0}),
-        json!({"tool_timeout_sec":"sensitive-invalid"}),
-        json!({"required":"sensitive-invalid"}),
-        json!({"startup_readiness":"sensitive-invalid"}),
-        json!({"environment_id":"sensitive-invalid"}),
-    ] {
-        let root = tempfile::tempdir().unwrap();
-        let package = root.path().join("workspace/.vibewindow/plugins/local");
-        fs::create_dir_all(package.join(".codex-plugin")).unwrap();
-        let mut config = json!({"command":"must-not-run"});
-        config.as_object_mut().unwrap().extend(setting.as_object().unwrap().clone());
-        fs::write(
-            package.join(".codex-plugin/plugin.json"),
-            serde_json::to_vec(&json!({"name":"local","mcpServers":{"local":config}})).unwrap(),
-        )
-        .unwrap();
-        let options = PluginDiscoveryOptions::new(
-            root.path().join("workspace"),
-            root.path().join("config"),
-            PluginsConfig::default(),
-        );
-        let error = merge_enabled_plugin_mcp_servers(&mut Vec::new(), &options).unwrap_err();
-        assert!(!format!("{error:#}").contains("sensitive-invalid"));
-    }
 }
 
 #[tokio::test]

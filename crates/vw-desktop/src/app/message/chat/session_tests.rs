@@ -356,23 +356,6 @@ fn selected_git_commit_quick_action_requires_a_selection_before_ai_request() {
 
 
 #[test]
-fn apply_inline_mode_command_toggles_task_mode_and_clears_runtime_editor() {
-    let (mut app, _task) = crate::app::App::new();
-    app.current_session_runtime_mut().input_editor =
-        iced::widget::text_editor::Content::with_text("draft");
-
-    super::apply_inline_mode_command(&mut app, super::InlineModeCommand::TaskMode);
-
-    assert!(app.current_session_runtime().task_mode_enabled);
-    assert_eq!(app.current_session_runtime().input_editor.text(), "");
-
-    super::apply_inline_mode_command(&mut app, super::InlineModeCommand::ChatMode);
-
-    assert!(!app.current_session_runtime().task_mode_enabled);
-}
-
-
-#[test]
 fn session_agent_selection_normalizes_value_and_resets_tool_context() {
     let (mut app, _task) = crate::app::App::new();
     {

@@ -9,6 +9,7 @@ pub mod message {
         pub mod context;
         pub mod fork;
         pub mod session;
+        pub mod send_input;
         pub mod request;
         pub mod processing_timing;
         pub mod stream;
@@ -71,3 +72,6 @@ mod host_split_7_tests;
 
 #[cfg(test)]
 mod host_module_1_tests;
+
+#[cfg(test)]
+mod host_module_2_tests;

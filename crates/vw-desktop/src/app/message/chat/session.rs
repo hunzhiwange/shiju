@@ -2,9 +2,8 @@
 //! 本模块协调用户输入、会话缓存和网关持久化。
 
 use desktop_session::message::chat::session::{
-    InlineModeCommand, compose_query_with_attachments, compose_query_with_session_context,
-    message_id_for_index_in_ids, normalize_delegate_agent, parse_inline_mode_command,
-    request_delegate_agent,
+    compose_query_with_attachments,
+    message_id_for_index_in_ids, normalize_delegate_agent,
 };
 
 use super::ChatMessage;
@@ -50,18 +49,6 @@ fn clear_quick_message_handoff_for_request(app: &mut App, request_id: u64) {
     }
 }
 
-fn apply_inline_mode_command(app: &mut App, command: InlineModeCommand) -> Task<Message> {
-    let runtime_editor = {
-        let runtime = app.current_session_runtime_mut();
-        runtime.task_mode_enabled = command == InlineModeCommand::TaskMode;
-        runtime.input_editor = iced::widget::text_editor::Content::new();
-        runtime.input_editor.clone()
-    };
-    if app.active_session_id.is_none() {
-        app.input_editor = runtime_editor;
-    }
-    Task::none()
-}
 
 fn gateway_endpoint(app: &App) -> (String, u16) {
     desktop_session::message::chat::session::gateway_endpoint(
@@ -655,115 +642,34 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
     {
         return app.show_error_toast("会话历史正在加载，请稍后发送");
     }
-    let runtime = app.current_session_runtime();
-    let query = runtime.input_editor.text().to_string();
-    let selected_tools = runtime.tool_selector.selected_manual_tools();
-    let selected_skills = runtime.tool_selector.selected_manual_skills();
-    let selected_shiju_skills = runtime.tool_selector.selected_shiju_skills();
-    if query.trim().is_empty()
-        && app.files.is_empty()
-        && selected_tools.is_empty()
-        && selected_skills.is_empty()
-        && selected_shiju_skills.is_empty()
-    {
-        return Task::none();
-    }
-    let task_mode_enabled = runtime.task_mode_enabled;
-    let task_mode_priority = runtime.task_mode_priority.clone();
-    let task_mode_model = runtime.task_mode_model.clone();
-    let task_mode_reasoning_effort = runtime.task_mode_reasoning_effort;
-    let task_mode_task_split_mode = runtime.task_mode_task_split_mode;
-    let task_mode_subtasks = runtime.task_mode_subtasks.clone();
-    // plan-run 子会话（有 parent_id）续聊必须走普通 agent stream，避免误开 plan-run。
-    // 工作流开关开启时始终进入 plan-run；目标模式底层固定开启，不可关闭。
-    let workflow_mode_enabled =
-        runtime.workflow_mode_enabled && !active_session_is_plan_run_child(app);
-    let goal_mode_enabled = !active_session_is_plan_run_child(app);
-    if let Some(command) = parse_inline_mode_command(&query) {
-        return apply_inline_mode_command(app, command);
-    }
-    let attachments = std::mem::take(&mut app.files);
-    let query = compose_query_with_session_context(
-        &query,
-        &selected_tools,
-        &selected_skills,
-        &selected_shiju_skills,
-    );
-    app.current_session_runtime_mut().tool_selector.clear_manual_context_selection();
-    if task_mode_enabled {
-        return Task::done(Message::TaskBoard(TaskBoardMessage::AddTaskFromInputWithOptions {
-            content: compose_query_with_attachments(&query, &attachments),
-            priority: task_mode_priority,
-            model: task_mode_model,
-            reasoning_effort: task_mode_reasoning_effort,
-            task_split_mode: task_mode_task_split_mode,
-            subtasks: task_mode_subtasks,
-        }));
-    }
-    let runtime = app.current_session_runtime();
+    use desktop_session::message::chat::send_input::{prepare_send_input, SendInputEffect};
     let root = current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
-    let acp_model_source = runtime.acp_model_source;
-    let model = if runtime.auto_model
-        || (runtime.acp_agent.is_some() && acp_model_source == AcpModelSource::CliLocal)
-    {
-        None
-    } else {
-        Some(runtime.model.clone())
-    };
-    let reasoning_effort = runtime.reasoning_effort;
-    let acp_agent = runtime.acp_agent.clone();
-    let allowed_tools = app.session_allowed_tools_for_request(&runtime);
-    let agent = request_delegate_agent(runtime.agent.clone());
-    let acp_test = acp_agent.is_some();
-    let acp_allowed_tools = acp_test.then(|| allowed_tools.clone()).flatten();
-    let acp_history_mode = runtime.acp_history_mode;
-    let acp_recent_count = runtime.acp_recent_count.clamp(1, 20);
-    let full_access_enabled = runtime.full_access_enabled;
-    let acp_force_new_session = acp_agent.is_some()
-        && (runtime.acp_rebuild_required
-            || runtime.last_effective_acp_agent.as_ref() != acp_agent.as_ref());
-    let created_ms = crate::app::time::now_ms();
-    debug!(
-        target: "vw_desktop",
-        active_session_id = ?app.active_session_id,
-        acp_test,
-        acp_agent = ?acp_agent,
-        acp_force_new_session,
-        acp_history_mode = %acp_history_mode.as_str(),
-        acp_recent_count,
-        model = ?model,
-        agent = ?agent,
-        allowed_tools = ?allowed_tools,
-        has_root = root.is_some(),
-        query_len = query.len(),
-        "desktop chat request prepared"
+    let mut request_runtime = app.current_session_runtime();
+    request_runtime.tool_selector.clear_manual_context_selection();
+    let allowed_tools = app.session_allowed_tools_for_request(&request_runtime);
+    let plan_run_child = active_session_is_plan_run_child(app);
+    let behavior = app.chat_send_behavior;
+    let mut files = std::mem::take(&mut app.files);
+    let effect = prepare_send_input(
+        app.current_session_runtime_mut(), &mut files, root, allowed_tools,
+        plan_run_child, behavior, crate::app::time::now_ms(),
     );
-    let item = QueueItem {
-        created_ms,
-        query,
-        attachments,
-        root,
-        model,
-        reasoning_effort,
-        acp_test,
-        acp_model_source,
-        acp_agent,
-        acp_allowed_tools,
-        agent,
-        allowed_tools,
-        require_agent_tool: false,
-        acp_force_new_session,
-        acp_history_mode,
-        acp_recent_count,
-        full_access_enabled,
-        send_behavior: app.chat_send_behavior,
-        request_history_override: None,
-        resume_history_only: false,
-        workflow_mode_enabled,
-        goal_mode_enabled,
-    };
-
-    dispatch_queue_item(app, item)
+    app.files = files;
+    match effect {
+        SendInputEffect::None => Task::none(),
+        SendInputEffect::InlineMode => {
+            if app.active_session_id.is_none() {
+                app.input_editor = app.current_session_runtime().input_editor;
+            }
+            Task::none()
+        }
+        SendInputEffect::AddTask { content, priority, model, reasoning_effort, task_split_mode, subtasks } => {
+            Task::done(Message::TaskBoard(TaskBoardMessage::AddTaskFromInputWithOptions {
+                content, priority, model, reasoning_effort, task_split_mode, subtasks,
+            }))
+        }
+        SendInputEffect::Send(item) => dispatch_queue_item(app, item),
+    }
 }
 
 /// 公开函数，执行 update 对应的应用流程。

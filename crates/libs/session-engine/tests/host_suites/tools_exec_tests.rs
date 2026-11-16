@@ -1095,58 +1095,8 @@ fn agent_tool_finalization_keeps_background_child_running_when_event_sink_closes
     );
 }
 
-#[test]
-fn completed_shell_payload_preserves_exit_code_and_failed_status() {
-    let mut result = ToolCallResult::from_legacy_result(crate::tools::traits::ToolResult {
-        success: false,
-        output: "exit_code=0".into(),
-        error: Some("process failed".into()),
-    });
-    result.render_hint =
-        Some(ToolRenderHint { metadata: json!({ "exit_code": 2 }), ..Default::default() });
-    let payload = super::completed_tool_payload_for_ui("bash", "{}", &result, "exit_code=0");
-    assert_eq!(payload["status"], "failed");
-    assert_eq!(payload["metadata"]["exit_code"], 2);
-}
 
-#[test]
-fn shell_session_running_state_survives_history() {
-    let output =
-        json!({"state":"running", "process_id":"owned-process", "next_cursor":3, "output":"ready"})
-            .to_string();
-    let result = ToolCallResult {
-        data: serde_json::from_str(&output).unwrap(),
-        model_result: serde_json::from_str(&output).unwrap(),
-        render_hint: Some(ToolRenderHint {
-            metadata: serde_json::from_str(&output).unwrap(),
-            ..Default::default()
-        }),
-        ..Default::default()
-    };
-    let ui = super::completed_tool_payload_for_ui("bash", "{}", &result, &output);
-    assert_eq!(ui["status"], "running");
-    let event = super::tool_update_event("call".into(), "bash", ui);
-    let StreamEvent::Tool(event) = event else { panic!("tool event") };
-    assert_eq!(event.kind, ToolEventKind::Update);
-    let history = super::completed_session_payload("{}", &output);
-    assert_eq!(history["status"], "running");
-}
 
-#[test]
-fn shell_session_metadata_survives_compaction() {
-    for tool in ["bash", "bash_wait", "bash_cancel"] {
-        let body = json!({"state":"exited", "process_id":"owned-process", "next_cursor":42, "exit_code":7, "output":format!("stderr: {}", "x".repeat(80_000))}).to_string();
-        let compact = super::compact_tool_output(tool, &body);
-        let value: Value =
-            serde_json::from_str(&compact).expect("structured shell output survives cropping");
-        assert_eq!(value["process_id"], "owned-process");
-        assert_eq!(value["next_cursor"], 42);
-        assert_eq!(value["exit_code"], 7);
-        assert_eq!(value["state"], "exited");
-        assert!(value["output"].as_str().unwrap().contains("stderr:"));
-        assert!(compact.len() < body.len());
-    }
-}
 
 #[cfg(unix)]
 #[test]

@@ -2,8 +2,6 @@
 use crate::tools as tools;
 #[cfg(test)]
 use super::ToolSessionState;
-#[cfg(test)]
-use session_engine::tool_output::compact_tool_output;
 pub(crate) use session_engine::tools_exec::*;
 pub(crate) type AgentToolPlannedCall = session_engine::tools_exec::AgentToolPlannedCall<crate::tools::context::AgentContextHost>;
 #[cfg(test)]

@@ -316,3 +316,40 @@ fn run_batch_error_and_record_without_ui_still_deduplicates_session_message() {
     assert_eq!(session.messages[0].role, Role::Tool);
     assert!(session.messages[0].content.contains("invalid input"));
 }
+
+#[test]
+fn completed_shell_payload_preserves_exit_code_and_failed_status() {
+    let mut result = ToolCallResult::from_legacy_result(tool_types::ToolResult {
+        success: false,
+        output: "exit_code=0".into(),
+        error: Some("process failed".into()),
+    });
+    result.render_hint =
+        Some(ToolRenderHint { metadata: json!({ "exit_code": 2 }), ..Default::default() });
+    let payload = super::completed_tool_payload_for_ui("bash", "{}", &result, "exit_code=0");
+    assert_eq!(payload["status"], "failed");
+    assert_eq!(payload["metadata"]["exit_code"], 2);
+}
+
+#[test]
+fn shell_session_running_state_survives_history() {
+    let output =
+        json!({"state":"running", "process_id":"owned-process", "next_cursor":3, "output":"ready"})
+            .to_string();
+    let result = ToolCallResult {
+        data: serde_json::from_str(&output).unwrap(),
+        model_result: serde_json::from_str(&output).unwrap(),
+        render_hint: Some(ToolRenderHint {
+            metadata: serde_json::from_str(&output).unwrap(),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let ui = super::completed_tool_payload_for_ui("bash", "{}", &result, &output);
+    assert_eq!(ui["status"], "running");
+    let event = super::tool_update_event("call".into(), "bash", ui);
+    let StreamEvent::Tool(event) = event else { panic!("tool event") };
+    assert_eq!(event.kind, ToolEventKind::Update);
+    let history = super::completed_session_payload("{}", &output);
+    assert_eq!(history["status"], "running");
+}

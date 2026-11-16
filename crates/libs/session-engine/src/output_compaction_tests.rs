@@ -1,7 +1,7 @@
 //! 验证工具输入脱敏、输出压缩、预算裁剪与界面摘要规则。
 //! 脱敏与裁剪用 UTF-8、敏感字段和长输出夹具共同约束，防止日志泄密或截断乱码。
 
-use serde_json::json;
+use serde_json::{Value, json};
 
 #[test]
 fn tool_fingerprint_depends_on_name_input_length_and_head() {
@@ -240,4 +240,20 @@ fn rewrite_todowrite_completed_when_no_work_handles_noops_and_rewrites() {
     );
     let in_progress: serde_json::Value = serde_json::from_str(&in_progress).expect("progress json");
     assert_eq!(in_progress["todos"][0]["status"], "in_progress");
+}
+
+#[test]
+fn shell_session_metadata_survives_compaction() {
+    for tool in ["bash", "bash_wait", "bash_cancel"] {
+        let body = json!({"state":"exited", "process_id":"owned-process", "next_cursor":42, "exit_code":7, "output":format!("stderr: {}", "x".repeat(80_000))}).to_string();
+        let compact = super::compact_tool_output(tool, &body);
+        let value: Value =
+            serde_json::from_str(&compact).expect("structured shell output survives cropping");
+        assert_eq!(value["process_id"], "owned-process");
+        assert_eq!(value["next_cursor"], 42);
+        assert_eq!(value["exit_code"], 7);
+        assert_eq!(value["state"], "exited");
+        assert!(value["output"].as_str().unwrap().contains("stderr:"));
+        assert!(compact.len() < body.len());
+    }
 }

@@ -15,7 +15,6 @@ pub fn update(app: &mut App, event: SettingsMessage) -> Task<Message> {
 }
 #[cfg(test)]
 #[path = "cron_tests.rs"] mod cron_tests;
-#[cfg(test)] use domain::schedule_request;
 pub(crate) fn refresh_run_history_locale(app: &mut App) {
  domain::refresh_run_history_locale(&mut app.cron_settings, app.desktop_locale);
 }

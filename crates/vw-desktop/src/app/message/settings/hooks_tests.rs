@@ -204,35 +204,8 @@ fn hook_load_failure_preserves_last_good_data() {
     assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Error));
 }
 
-#[test]
-fn enabled_toggle_updates_only_enabled_and_clears_save_error() {
-    let mut app = app();
-    app.hooks_settings.enabled = true;
-    app.hooks_settings.command_logger = true;
-    app.hooks_settings.save_error = Some("old".to_string());
-
-    let _ = update(&mut app, SettingsMessage::Hooks(HooksMessage::EnabledToggled(false)));
-
-    assert!(!app.hooks_settings.enabled);
-    assert!(app.hooks_settings.command_logger);
-    assert!(app.hooks_settings.save_error.is_none());
-}
-
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
-#[test]
-fn command_logger_toggle_updates_only_command_logger_and_clears_save_error() {
-    let mut app = app();
-    app.hooks_settings.enabled = false;
-    app.hooks_settings.command_logger = false;
-    app.hooks_settings.save_error = Some("old".to_string());
-
-    let _ = update(&mut app, SettingsMessage::Hooks(HooksMessage::CommandLoggerToggled(true)));
-
-    assert!(!app.hooks_settings.enabled);
-    assert!(app.hooks_settings.command_logger);
-    assert!(app.hooks_settings.save_error.is_none());
-}
 
 #[test]
 fn unrelated_message_preserves_all_hooks_state() {

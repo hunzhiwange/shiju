@@ -3,12 +3,8 @@
 use crate::app::config::{
     load_global_config_value_async, load_mcp_inspect_async, patch_full_agent_config_async,
 };
-#[cfg(test)]
-use crate::app::state::{McpNewServerState, McpNewServerTransport};
 use crate::app::{App, Message};
 use iced::Task;
-#[cfg(test)]
-use iced::widget::text_editor;
 use serde_json::{Value, json};
 
 use super::messages::{McpMessage, SettingsMessage};

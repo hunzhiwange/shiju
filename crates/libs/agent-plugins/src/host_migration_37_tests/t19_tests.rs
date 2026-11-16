@@ -1,4 +1,3 @@
-use tool_mcp::mcp_tool::mcp_tool_id;
 
 use plugin_mcp::{mcp_catalog, mcp_connections::McpSessionConnections};
 use super::tools::{

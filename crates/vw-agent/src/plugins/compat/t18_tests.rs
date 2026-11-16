@@ -25,18 +25,6 @@ async fn pid(pool: &McpSessionConnections, server: &McpServer) -> anyhow::Result
     .await
 }
 
-fn settings(server: &mut McpServer, startup: u64, call: u64) {
-    super::mcp_connection_settings::bind(
-        server,
-        super::mcp_connection_settings::ConnectionSettings {
-            startup_timeout_ms: Some(startup),
-            tool_timeout_ms: Some(call),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-}
-
 #[cfg(unix)]
 async fn exited(pid: &str) {
     let id: i32 = pid.parse().unwrap();

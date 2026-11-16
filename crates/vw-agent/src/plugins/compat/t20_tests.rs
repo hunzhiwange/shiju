@@ -1,4 +1,3 @@
-use super::mcp_connections::McpSessionConnections;
 use agent_client_protocol::{McpServer, McpServerStdio};
 use rmcp::{
     ServerHandler, ServiceExt,
@@ -196,9 +195,6 @@ impl Drop for Fixture {
     fn drop(&mut self) {
         self.task.abort();
     }
-}
-async fn tools(pool: &McpSessionConnections, server: &McpServer) -> Vec<rmcp::model::Tool> {
-    pool.list_tools(server, None).await.unwrap()
 }
 #[tokio::test]
 async fn codex_plugin_compat_t20_inspection_refreshes_only_notified_resource_and_prompt_catalogs() {

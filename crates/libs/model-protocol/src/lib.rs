@@ -76,6 +76,8 @@ pub mod tool_media;
 pub mod tool_media_request;
 pub mod tool_namespace;
 pub mod xai_responses;
+#[cfg(test)]
+mod xai_responses_tests;
 
 pub mod messages_thinking;
 pub mod messages_thinking_config;

@@ -130,8 +130,7 @@ mod inline_think;
 pub(crate) mod late_arguments;
 
 pub(crate) mod xai_responses;
-#[cfg(test)]
-mod xai_responses_tests;
+// xAI Responses tests live in model-protocol.
 
 pub(crate) mod signature_rectify;
 // Signature repair tests live in model-protocol.

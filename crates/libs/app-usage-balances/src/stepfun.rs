@@ -65,8 +65,9 @@ async fn query_at(
     }
     let response: BalanceResponse = serde_json::from_slice(&body).map_err(|_| InvalidResponse)?;
     let balance = match response.balance {
-        BalanceAmount::Number(value) => value,
-        BalanceAmount::Text(value) => value.parse().map_err(|_| InvalidResponse)?,
+        serde_json::Value::Number(value) => value.as_f64().ok_or(InvalidResponse)?,
+        serde_json::Value::String(value) => value.parse().map_err(|_| InvalidResponse)?,
+        _ => return Err(InvalidResponse),
     };
     let remaining = UsageNumber::try_from(balance).map_err(|_| InvalidResponse)?;
     Ok(UsageWallet {
@@ -86,14 +87,7 @@ fn transport_error(error: reqwest::Error) -> UsageQueryErrorCode {
 
 #[derive(Deserialize)]
 struct BalanceResponse {
-    balance: BalanceAmount,
-}
-
-#[derive(Deserialize)]
-#[serde(untagged)]
-enum BalanceAmount {
-    Number(f64),
-    Text(String),
+    balance: serde_json::Value,
 }
 
 #[cfg(test)]

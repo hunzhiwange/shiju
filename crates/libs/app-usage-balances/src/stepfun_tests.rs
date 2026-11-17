@@ -86,6 +86,8 @@ async fn usage_balances_stepfun_rejects_missing_or_invalid_balance() {
         r#"{"balance":null}"#,
         r#"{"balance":true}"#,
         r#"{"balance":"NaN"}"#,
+        r#"{"balance":{"amount":42.75}}"#,
+        r#"{"balance":1e400}"#,
     ] {
         let (origin, server) = serve("200 OK", "", body).await;
         let result = query_at(client_builder().no_proxy(), &origin, KEY).await;

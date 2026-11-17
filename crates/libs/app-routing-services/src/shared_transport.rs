@@ -62,6 +62,8 @@ enum Egress {
 
 /// HTTP transport for the application router, independent of session relay bindings.
 pub struct SharedTransport {
+    #[cfg(test)]
+    fixture_client: Option<reqwest::Client>,
     client: reqwest::Client,
     encoded_client: reqwest::Client,
     egress: Egress,
@@ -86,6 +88,14 @@ impl DirectClients {
 }
 
 impl SharedTransport {
+    /// Pin a trusted TLS fixture without altering production DNS or TLS policy.
+    #[cfg(test)]
+    pub(crate) fn with_fixture_client(client: reqwest::Client) -> Self {
+        let mut transport = Self::new().unwrap();
+        transport.fixture_client = Some(client);
+        transport
+    }
+
     /// Build an explicit egress for publication with an authorized route.
     pub fn with_custom_proxy(proxy_url: &str) -> anyhow::Result<Self> {
         let (proxy, intercept) = outbound_custom::parse(proxy_url)?;
@@ -98,6 +108,8 @@ impl SharedTransport {
         intercept: Intercept,
     ) -> Result<Self, reqwest::Error> {
         Ok(Self {
+            #[cfg(test)]
+            fixture_client: None,
             client: upstream::upstream_http_client_builder()
                 .retry(reqwest::retry::never())
                 .no_proxy()
@@ -122,6 +134,8 @@ impl SharedTransport {
 
         #[cfg(not(target_os = "macos"))]
         Ok(Self {
+            #[cfg(test)]
+            fixture_client: None,
             client: upstream::upstream_http_client()?,
             encoded_client: encoded_client_builder().build()?,
             egress: Egress::System(Matcher::from_system()),
@@ -136,6 +150,8 @@ impl SharedTransport {
             move |target| system.url(target).cloned()
         });
         Ok(Self {
+            #[cfg(test)]
+            fixture_client: None,
             client: upstream::upstream_http_client_builder().proxy(proxy.clone()).build()?,
             encoded_client: encoded_client_builder().proxy(proxy).build()?,
             egress: Egress::System(system),
@@ -219,6 +235,10 @@ impl SharedTransport {
         listener: SocketAddr,
     ) -> Result<Response, AttemptFailure> {
         upstream::validate_target(authorized_target, &request)?;
+        #[cfg(test)]
+        if let Some(client) = &self.fixture_client {
+            return forward_with_evidence(client, authorized_target, request, cancel).await;
+        }
         let uri: Uri = authorized_target.as_str().parse().map_err(|_| StatusCode::BAD_GATEWAY)?;
         // Leave decoding to the JSON handler so it can enforce the wire and
         // decoded budgets before sending a success status.

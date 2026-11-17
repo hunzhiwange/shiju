@@ -397,6 +397,7 @@ pub mod widgets;
 pub mod mcp_app_panel;
 
 pub(crate) mod system_settings_apps;
+pub(crate) mod third_party_resources;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod system_settings_auth;
 

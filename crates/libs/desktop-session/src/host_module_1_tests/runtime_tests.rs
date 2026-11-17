@@ -9,7 +9,6 @@ struct Fixture {
     active_session_id: Option<String>,
     model: String,
     auto_model: bool,
-    acp_agent: Option<String>,
     acp_history_mode: AcpHistoryReplayMode,
     acp_recent_count: usize,
     chat: Vec<session_ui_types::ChatMessage>,
@@ -22,7 +21,6 @@ impl Default for Fixture {
             active_session_id: None,
             model: String::new(),
             auto_model: false,
-            acp_agent: None,
             acp_history_mode: AcpHistoryReplayMode::Discard,
             acp_recent_count: 3,
             chat: Vec::new(),
@@ -206,10 +204,15 @@ fn session_tool_inventory_handles_unrestricted_intersection_and_static_fallbacks
         .find(|entry| entry.key == MAIN_AGENT_KEY)
         .expect("main agent should exist");
     main.allowed_tools.clear();
-    app.agents_settings.available_tools =
-        vec![" write ".to_string(), "read".to_string(), "read".to_string(), String::new()];
+    app.agents_settings.available_tools = vec![
+        " custom_write ".to_string(),
+        "custom_read".to_string(),
+        "custom_read".to_string(),
+        String::new(),
+    ];
     app.agents_settings.registered_tools = None;
 
+    // Custom tools are optional; read/write aliases are required tools.
     let restricted_empty = app.session_tool_inventory(&runtime);
     assert!(restricted_empty.base_tools.is_empty());
     assert!(restricted_empty.restricts_tools);
@@ -219,9 +222,9 @@ fn session_tool_inventory_handles_unrestricted_intersection_and_static_fallbacks
         .iter_mut()
         .find(|entry| entry.key == MAIN_AGENT_KEY)
         .expect("main agent should exist")
-        .allowed_tools = vec!["shell".to_string(), " read ".to_string()];
+        .allowed_tools = vec!["custom_shell".to_string(), " custom_read ".to_string()];
     let intersected = app.session_tool_inventory(&runtime);
-    assert_eq!(intersected.base_tools, vec!["read"]);
+    assert_eq!(intersected.base_tools, vec!["custom_read"]);
     assert!(intersected.restricts_tools);
 
     app.agents_settings
@@ -229,13 +232,16 @@ fn session_tool_inventory_handles_unrestricted_intersection_and_static_fallbacks
         .iter_mut()
         .find(|entry| entry.key == MAIN_AGENT_KEY)
         .expect("main agent should exist")
-        .allowed_tools = vec!["shell".to_string()];
+        .allowed_tools = vec!["custom_shell".to_string()];
     let disjoint = app.session_tool_inventory(&runtime);
     assert!(disjoint.base_tools.is_empty());
     assert!(disjoint.restricts_tools);
 
     app.agents_settings.available_tools.clear();
-    assert_eq!(app.session_allowed_tools_for_request(&runtime), Some(vec!["shell".to_string()]));
+    assert_eq!(
+        app.session_allowed_tools_for_request(&runtime),
+        Some(vec!["custom_shell".to_string()])
+    );
 }
 
 #[test]
@@ -259,16 +265,12 @@ fn session_tool_inventory_includes_registered_builtin_tools_locked_by_settings()
 
     let inventory = app.session_tool_inventory(&runtime);
 
-    assert_eq!(inventory.base_tools, ["bash", "custom_tool", "file_read", "schedule"]);
+    // schedule stays excluded unless explicitly selected.
+    assert_eq!(inventory.base_tools, ["bash", "custom_tool", "file_read"]);
     assert!(inventory.restricts_tools);
     assert_eq!(
         app.session_allowed_tools_for_request(&runtime),
-        Some(vec![
-            "bash".to_string(),
-            "custom_tool".to_string(),
-            "file_read".to_string(),
-            "schedule".to_string(),
-        ])
+        Some(vec!["bash".to_string(), "custom_tool".to_string(), "file_read".to_string(),])
     );
 }
 
@@ -358,14 +360,14 @@ fn get_session_runtime_prefers_existing_state_and_uses_global_defaults_for_missi
     app.session_runtime_states.clear();
     app.model = "app-model".to_string();
     app.auto_model = true;
-    app.acp_agent = Some("app-acp".to_string());
     app.acp_history_mode = AcpHistoryReplayMode::Summary;
     app.acp_recent_count = 7;
 
     let app_default = app.get_session_runtime("missing");
     assert_eq!(app_default.model, "app-model");
     assert!(app_default.auto_model);
-    assert_eq!(app_default.acp_agent.as_deref(), Some("app-acp"));
+    // ACP identity is restored per session, not inherited from global model defaults.
+    assert_eq!(app_default.acp_agent, None);
     assert_eq!(app_default.acp_history_mode, AcpHistoryReplayMode::Summary);
     assert_eq!(app_default.acp_recent_count, 7);
 
@@ -387,19 +389,17 @@ fn get_session_runtime_mut_initializes_and_refreshes_acp_preferences_without_ove
     app.session_runtime_states.clear();
     app.model = "model-a".to_string();
     app.auto_model = true;
-    app.acp_agent = Some("default-acp".to_string());
     app.acp_history_mode = AcpHistoryReplayMode::Summary;
     app.acp_recent_count = 4;
 
     let created = app.get_session_runtime_mut("session");
     assert_eq!(created.model, "model-a");
     assert!(created.auto_model);
-    assert_eq!(created.acp_agent.as_deref(), Some("default-acp"));
+    assert_eq!(created.acp_agent, None);
     assert_eq!(created.acp_history_mode, AcpHistoryReplayMode::Summary);
     assert_eq!(created.acp_recent_count, 4);
     created.acp_agent = Some("session-acp".to_string());
 
-    app.acp_agent = Some("new-default".to_string());
     app.acp_history_mode = AcpHistoryReplayMode::Full;
     app.acp_recent_count = 9;
     let refreshed = app.get_session_runtime_mut("session");

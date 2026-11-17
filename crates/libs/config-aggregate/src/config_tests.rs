@@ -368,8 +368,13 @@ fn config_debug_impl_shows_api_key_and_url_configured_flags() {
 
 #[test]
 fn config_debug_impl_shows_providers_count() {
-    let mut config = super::Config::default();
-    config.providers.insert("openai".to_string(), serde_json::json!({"key": "value"}));
+    let config = super::Config {
+        providers: std::collections::HashMap::from([(
+            "openai".to_string(),
+            serde_json::json!({"key": "value"}),
+        )]),
+        ..Default::default()
+    };
     let debug_str = format!("{:?}", config);
     assert!(debug_str.contains("providers_count: 1"));
 }

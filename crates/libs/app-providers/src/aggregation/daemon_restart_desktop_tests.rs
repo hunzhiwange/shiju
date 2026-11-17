@@ -52,10 +52,21 @@ fn now() -> u64 {
 }
 #[tokio::test]
 async fn aggregation_t62_real_manager_stale_ack_restart_and_not_running() {
-    let executable =
-        PathBuf::from(std::env::var_os("T62_CODEX_BINARY").expect("installed real Codex required"))
-            .canonicalize()
-            .unwrap();
+    let executable = std::env::var_os("T62_CODEX_BINARY")
+        .map(PathBuf::from)
+        .or_else(|| {
+            // Match the adjacent real-client fixture: use the installed CLI on PATH.
+            std::env::split_paths(&std::env::var_os("PATH")?).find_map(|dir| {
+                let candidate = dir.join("codex");
+                let metadata = fs::metadata(&candidate).ok()?;
+                (metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+                    .then(|| fs::canonicalize(candidate).ok())
+                    .flatten()
+            })
+        })
+        .expect("install Codex CLI on PATH or set T62_CODEX_BINARY to the real CLI")
+        .canonicalize()
+        .unwrap();
     let home = tempfile::tempdir().unwrap();
     let daemon = IsolatedDaemon { executable, home };
     let package = daemon.home.path().join(".codex/packages/app-server-daemon/current/bin");

@@ -116,6 +116,11 @@ pub fn with_search(
                     if !text.is_empty() {
                         layout.push(Some(json!({"type":"text","text":text})));
                     }
+                    // Citations are already rendered in the resident layout. The shared
+                    // bridge only accepts text without annotations.
+                    if part["type"] == "output_text" && part["annotations"].is_array() {
+                        part["annotations"] = json!([]);
+                    }
                 }
             }
             Some("web_search_call") => {

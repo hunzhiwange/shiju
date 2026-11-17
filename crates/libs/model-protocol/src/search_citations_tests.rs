@@ -26,7 +26,7 @@ fn cc_route_045_existing_links_and_code_are_preserved() {
 
 #[test]
 fn cc_route_045_search_metadata_is_enriched() {
-    let body = json!({"id":"resp","status":"completed","output":[
+    let body = json!({"id":"resp","model":"upstream","status":"completed","output":[
         {"id":"search","type":"web_search_call","status":"completed","action":{"sources":[{"url":"https://example.com","page_age":"today"}]}},
         {"id":"msg","type":"message","role":"assistant","status":"completed","content":[{"type":"output_text","text":"你好","annotations":[{"type":"url_citation","url":"https://example.com","title":"Example","start_index":0,"end_index":2}]}]}
     ],"usage":{"input_tokens":1,"output_tokens":1}});
@@ -59,7 +59,7 @@ fn cc_route_045_stream_waits_for_annotation_snapshot() {
     let terminal = decoder
         .frame(
             &json!({"type":"response.completed","response":{
-        "id":"r","status":"completed","output":[{"id":"m","type":"message","role":"assistant",
+        "id":"r","model":"upstream","status":"completed","output":[{"id":"m","type":"message","role":"assistant",
         "status":"completed","content":[{"type":"output_text","text":"你好","annotations":[
         {"type":"url_citation","url":"https://example.com","start_index":0,"end_index":2}]}]}],
         "usage":{"input_tokens":1,"output_tokens":1}}})

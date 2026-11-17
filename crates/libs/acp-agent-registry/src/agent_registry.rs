@@ -247,6 +247,17 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 }
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
+    // JetBrains ACP CLI: https://junie.jetbrains.com/docs/junie-cli-acp.html
+    // Preserve the boolean option as one argv, including for host-local discovery.
+    BuiltInAgentDefinition {
+        name: "junie",
+        display_name: "Junie",
+        command: "junie",
+        args: &["--acp=true"],
+        env: &[],
+        local_command_candidates: &["junie"],
+        local_args: &["--acp=true"],
+    },
     BuiltInAgentDefinition {
         name: "devin",
         display_name: "Devin",

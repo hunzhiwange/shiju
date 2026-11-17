@@ -177,3 +177,12 @@ fn acp_onboarding_devin_installer_contract() {
     }
     assert!(acp_install_command("devin; echo unsafe").is_none());
 }
+
+#[test]
+fn acp_onboarding_junie_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+        assert!(acp_install_command_for_platform("junie", platform).is_none());
+    }
+    assert!(acp_install_command("junie; echo unsafe").is_none());
+}

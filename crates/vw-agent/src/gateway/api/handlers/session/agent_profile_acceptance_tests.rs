@@ -72,3 +72,8 @@ async fn agent_config_cleanup_global_profile_roundtrips_to_new_session() { suite
 fn acp_onboarding_devin_builtin_profile_persists_and_runs() {
     suite::acp_onboarding_devin_builtin_profile_persists_and_runs::<Host>();
 }
+
+#[test]
+fn acp_onboarding_junie_builtin_profile_persists_and_runs() {
+    suite::acp_onboarding_junie_builtin_profile_persists_and_runs::<Host>();
+}

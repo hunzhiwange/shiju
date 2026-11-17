@@ -65,3 +65,19 @@ fn value_to_text_covers_json_value_kinds() {
     assert_eq!(value_to_text(&json!(["x", 1])), r#"["x",1]"#);
     assert_eq!(value_to_text(&json!({"a": true})), r#"{"a":true}"#);
 }
+
+#[test]
+fn render_jinja_value_template_preserves_nested_numeric_types() {
+    let values = BTreeMap::from([
+        ("count".to_string(), json!(3)),
+        ("nested".to_string(), json!({"items": [-2, 1.5, 18446744073709551615u64]})),
+    ]);
+    assert_eq!(
+        render_jinja_value_template(
+            "{{ count + 1 }}:{% for item in nested.items %}{{ item }};{% endfor %}",
+            &values,
+        )
+        .expect("render numbers"),
+        "4:-2;1.5;18446744073709551615;"
+    );
+}

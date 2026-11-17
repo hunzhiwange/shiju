@@ -117,12 +117,17 @@ fn kanban_columns_follow_selected_workflow() {
 
 #[test]
 fn kanban_falls_back_to_default_on_unknown_workflow() {
+    let _cache_lock = desktop_task_model::runtime_task_lifecycle_cache_test_lock();
     let mut app = app();
     app.task_board_settings.workflow_id = "missing_workflow".to_string();
 
     let columns = super::kanban_columns(&app.view());
-    let default_statuses =
-        TaskStatus::all().into_iter().filter(|status| *status != TaskStatus::Archived);
+    // 默认通用工作流不包含完整内置状态目录中的开发专属阶段。
+    let default_statuses = desktop_task_model::default_task_workflow()
+        .statuses
+        .iter()
+        .map(|definition| definition.status)
+        .filter(|status| *status != TaskStatus::Archived);
 
     assert_eq!(
         columns.iter().map(|column| column.status).collect::<Vec<_>>(),

@@ -8,6 +8,34 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, SystemTime};
 
+// Isolate proxy settings without mutating the environment of parallel tests.
+fn run_without_proxy(test: &str) -> bool {
+    const CHILD: &str = "SHIJU_MODEL_CACHE_OFFLINE_TEST";
+    if std::env::var(CHILD).as_deref() == Ok(test) {
+        return false;
+    }
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", test, "--nocapture"])
+        .env(CHILD, test)
+        .env_remove("HTTP_PROXY")
+        .env_remove("http_proxy")
+        .env_remove("HTTPS_PROXY")
+        .env_remove("https_proxy")
+        .env_remove("ALL_PROXY")
+        .env_remove("all_proxy")
+        .env("NO_PROXY", "127.0.0.1,localhost")
+        .env("no_proxy", "127.0.0.1,localhost")
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    println!("{stdout}");
+    eprintln!("{stderr}");
+    assert!(output.status.success(), "isolated test failed: {}", output.status);
+    assert!(stdout.contains("1 passed; 0 failed"), "child must execute one test");
+    true
+}
+
 fn spawn_http(
     handler: impl FnOnce(TcpStream, String) + Send + 'static,
 ) -> (String, thread::JoinHandle<()>) {
@@ -107,6 +135,9 @@ async fn catalog_modelsdev_cache_preserves_snapshot_on_http_error() {
 
 #[tokio::test]
 async fn catalog_modelsdev_cache_preserves_snapshot_when_offline() {
+    if run_without_proxy("models_tests::cache::catalog_modelsdev_cache_preserves_snapshot_when_offline") {
+        return;
+    }
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let url = format!("http://{}/api.json", listener.local_addr().unwrap());
     drop(listener);
@@ -229,6 +260,9 @@ async fn catalog_modelsdev_cache_atomically_replaces_snapshot_and_coalesces_refr
 
 #[tokio::test]
 async fn catalog_modelsdev_cache_coalesces_failed_refreshes_but_allows_retry() {
+    if run_without_proxy("models_tests::cache::catalog_modelsdev_cache_coalesces_failed_refreshes_but_allows_retry") {
+        return;
+    }
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("models.json");
     let (_, old_time) = write_old_snapshot(&path);

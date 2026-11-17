@@ -18,7 +18,7 @@ const GUARD: Duration = Duration::from_secs(4);
 const QUIET: Duration = Duration::from_millis(100);
 const JSON: &str = r#"{"model":"fixture"}"#;
 const STREAM: &str = r#"{"model":"fixture","stream":true}"#;
-const OUTPUT: &str = "data: {\"choices\":[{\"delta\":{\"content\":\"first\"}}]}\n\n";
+const OUTPUT: &str = "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"first\"}}]}\n\n";
 
 struct Fixture {
     listener: RoutingListener,
@@ -229,7 +229,7 @@ async fn cc_route_023_slow_stream_client_backpressures_both_transports() {
     let token = fixture.issue("slow-client");
     let capacity = fixture.listener.available_body_permits();
     let payload = "x".repeat(16 * 1024);
-    let frame = format!("data: {{\"choices\":[{{\"delta\":{{\"content\":\"{payload}\"}}}}]}}\n\n");
+    let frame = format!("data: {{\"choices\":[{{\"index\":0,\"delta\":{{\"content\":\"{payload}\"}}}}]}}\n\n");
     let chunk = format!("{:x}\r\n{frame}\r\n", frame.len());
     const FRAMES: usize = 1024;
 
@@ -243,6 +243,10 @@ async fn cc_route_023_slow_stream_client_backpressures_both_transports() {
             for _ in 0..FRAMES {
                 upstream.write_all(chunk.as_bytes()).await?;
             }
+            let finished = "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n";
+            upstream
+                .write_all(format!("{:x}\r\n{finished}\r\n", finished.len()).as_bytes())
+                .await?;
             upstream.write_all(b"e\r\ndata: [DONE]\n\n\r\n0\r\n\r\n").await
         };
         tokio::pin!(send);

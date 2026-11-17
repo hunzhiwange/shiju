@@ -4,11 +4,28 @@ use desktop_i18n::I18n;
 use iced::advanced::widget::{Id, Operation, operation};
 use iced::advanced::{clipboard, renderer::Headless};
 use iced::keyboard::{self, Key, key::Named};
-use iced::{Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
+use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
 #[derive(Debug, Clone)]
 enum Message {
     View(ViewMessage),
+    None,
+    Copy(String),
+    Context(desktop_ui_controls::text_editor_context_menu::TextContextEffect),
+}
+impl desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage for Message {
+    fn none() -> Self {
+        Self::None
+    }
+    fn copy(text: String) -> Self {
+        Self::Copy(text)
+    }
+    fn context(effect: desktop_ui_controls::text_editor_context_menu::TextContextEffect) -> Self {
+        Self::Context(effect)
+    }
+    fn selection(_: String, _: usize, _: usize, _: Option<String>) -> Self {
+        Self::None
+    }
 }
 type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
 struct Fixture {
@@ -25,7 +42,7 @@ mod apps {
         let i18n = I18n::new(app.desktop_locale);
         let editing = web.editing_web_bookmark.is_some();
         use desktop_ui_controls::system_settings_common::{
-            settings_field_label, settings_group_heading_with_help, settings_field_label,
+            settings_field_label, settings_group_heading_with_help, settings_selectable_help_label,
         };
         let title = if editing { "书签信息" } else { "新增网址书签" };
         let description = if editing {
@@ -45,7 +62,7 @@ mod apps {
                 i18n.__(description),
             )
             .into(),
-            cookie_help: settings_hover_help_label(
+            cookie_help: settings_selectable_help_label(
                 i18n,
                 &Theme::Dark,
                 label,
@@ -310,6 +327,13 @@ fn assert_input_center(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_41_preserves_values_and_disabled_states() {
+    use desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage;
+    use desktop_ui_controls::text_editor_context_menu::TextContextEffect;
+    assert!(matches!(Message::copy("cookie".into()), Message::Copy(value) if value == "cookie"));
+    assert!(matches!(
+        Message::context(TextContextEffect::Copy("help".into())),
+        Message::Context(TextContextEffect::Copy(value)) if value == "help"
+    ));
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::TraditionalChinese;
     let i18n = I18n::new(app.desktop_locale);
@@ -403,6 +427,19 @@ async fn ui_refresh_41_preserves_values_and_disabled_states() {
     let example = position(&scrolled.labels, i18n.__("插入例子")).center() - offset;
     assert!(body.contains(example));
     capture(&mut ui, &mut renderer, &Theme::Light, size, "bookmark-edit-scrolled", example);
+    let cookie_label = position(&scrolled.labels, i18n.__("Cookie配置(JSON)"));
+    let help =
+        Point::new(cookie_label.x + cookie_label.width + 15.0, cookie_label.center_y()) - offset;
+    assert!(body.contains(help));
+    let without_help =
+        capture(&mut ui, &mut renderer, &Theme::Light, size, "cookie-no-help", Point::ORIGIN);
+    assert!(hover(&mut ui, &mut renderer, help).is_empty());
+    let with_help = capture(&mut ui, &mut renderer, &Theme::Light, size, "cookie-help", help);
+    assert_ne!(
+        without_help, with_help,
+        "Cookie help must render its selectable explanation and JSON example"
+    );
+    assert!(hover(&mut ui, &mut renderer, example).is_empty());
     assert!(matches!(
         click(&mut ui, &mut renderer, example).as_slice(),
         [Message::View(ViewMessage::WebBookmarkEditCookieConfigsInsertExample)]

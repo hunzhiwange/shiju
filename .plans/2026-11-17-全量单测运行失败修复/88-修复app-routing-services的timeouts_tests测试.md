@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号171, 172。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -52,3 +52,12 @@ python3 scripts/cargo_slot.py cargo test -p app-routing-services --lib 'timeouts
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 执行记录
+
+- 根因：dispatch.rs 的 validated_body 使用 StreamObserver::chat 严格要求 choices[].index；三个输出夹具缺失此字段，在输出开始前被拒绝为 502。只补 index:0，保留分片、心跳、空闲禁用、超时错误帧及关闭断言；无共享业务文件改动。
+- 原生红灯和修改后均逐条执行上列两个精确命令，均退出101，实际测试数0（编译阶段受阻），不宣称验收通过。
+- 两阶段均由 scripts/cargo_slot.py 持有槽位4；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-4。句柄60737、53724已退出，槽位锁已释放。
+- 红灯日志：/tmp/task88-red-heartbeats.log、/tmp/task88-red-zero.log；修改后日志：/tmp/task88-fixed-heartbeats.log、/tmp/task88-fixed-zero.log。
+- 外部阻塞：rmcp 0.8.5 client 特性组合编译失败（base64/schemars/paste 未解析、server 模块被 cfg 禁用，13项错误），与本次测试夹具改动无关。未扩大到共享依赖清单修复；依赖恢复后重跑本任务原生精确命令。
+- 已审查diff：仅三个夹具字段；git diff --check 通过。未运行全量测试或桌面构建。保留任务文件供回归。

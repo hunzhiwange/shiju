@@ -250,7 +250,7 @@ async fn cc_route_021_stream_heartbeats_do_not_extend_idle_after_output() {
     let mut upstream = fixture.upstream_request(true).await;
     upstream.write_all(STREAM_HEAD).await.unwrap();
     chunk(&mut upstream, HEARTBEAT).await.unwrap();
-    chunk(&mut upstream, b"data: {\"choices\":[{\"delta\":{\"content\":\"model").await.unwrap();
+    chunk(&mut upstream, b"data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"model").await.unwrap();
     chunk(&mut upstream, b" output\"}}]}\r\n\r\n").await.unwrap();
 
     let response = timeout(GUARD, client).await.unwrap().unwrap();
@@ -263,7 +263,7 @@ async fn cc_route_021_stream_heartbeats_do_not_extend_idle_after_output() {
     pause();
     advance(Duration::from_millis(650)).await;
     resume();
-    let next_output = b"data: {\"choices\":[{\"delta\":{\"content\":\"more\"}}]}\n\n";
+    let next_output = b"data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"more\"}}]}\n\n";
     chunk(&mut upstream, next_output).await.unwrap();
     assert_eq!(timeout(GUARD, stream.next()).await.unwrap().unwrap().unwrap(), &next_output[..]);
     pause();
@@ -295,7 +295,7 @@ async fn cc_route_021_stream_idle_zero_disables_idle_without_a_total_timeout() {
     let client = fixture.request(true, false);
     let mut upstream = fixture.upstream_request(true).await;
     upstream.write_all(STREAM_HEAD).await.unwrap();
-    let output = b"data: {\"choices\":[{\"delta\":{\"content\":\"model output\"}}]}\n\n";
+    let output = b"data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"model output\"}}]}\n\n";
     chunk(&mut upstream, output).await.unwrap();
     let response = timeout(GUARD, client).await.unwrap().unwrap();
     assert_eq!(response.status(), StatusCode::OK);

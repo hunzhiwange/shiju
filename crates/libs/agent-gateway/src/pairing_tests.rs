@@ -243,7 +243,7 @@ async fn handle_pair_code_omits_code_when_pairing_not_required() {
 async fn persist_pairing_tokens_updates_in_memory_config_and_returns_errors() {
     let _env_guard = env_lock();
     let home = tempfile::tempdir().unwrap();
-    let home_guard = HomeEnvGuard::set(home.path());
+    let _home_guard = HomeEnvGuard::set(home.path());
     let config = test_config();
     config.save().await.unwrap();
     let shared = Arc::new(Mutex::new(config));
@@ -260,14 +260,13 @@ async fn persist_pairing_tokens_updates_in_memory_config_and_returns_errors() {
     assert!(tokens[0].chars().all(|value| value.is_ascii_hexdigit()));
     assert!(guard.is_authenticated(&token));
 
-    let temp = tempfile::tempdir().unwrap();
-    drop(home_guard);
-    let invalid_home = temp.path().join("not-a-directory");
-    std::fs::write(&invalid_home, "fixture").unwrap();
-    let _home_guard = HomeEnvGuard::set(&invalid_home);
-    let mut bad_config = Config::default();
-    bad_config.config_path = temp.path().to_path_buf();
-    bad_config.workspace_dir = temp.path().join("workspace");
-    let error = persist_pairing_tokens(Arc::new(Mutex::new(bad_config)), &guard).await.unwrap_err();
+    // 保存入口使用运行时主目录和数据库，不再使用 config_path 或即时 HOME。
+    // 无效配置触发真实保存错误，且不能提前更新共享内存中的令牌。
+    let mut bad_config = test_config();
+    bad_config.gateway.host.clear();
+    let bad_shared = Arc::new(Mutex::new(bad_config));
+    let error = persist_pairing_tokens(bad_shared.clone(), &guard).await.unwrap_err();
     assert!(error.to_string().contains("Failed to persist paired tokens"));
+    assert_eq!(error.root_cause().to_string(), "gateway.host must not be empty");
+    assert!(bad_shared.lock().gateway.paired_tokens.is_empty());
 }

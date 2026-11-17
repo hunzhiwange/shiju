@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号162, 167。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -60,3 +60,12 @@ python3 scripts/cargo_slot.py cargo test -p app-routing-services --lib 'host_mig
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 本次执行证据
+
+- 根因：夹具先保存显式 HA policy（默认首字节/idle 超时），后仅修改普通 AppTimeouts。`failover_runtime::policy` 优先返回显式保存策略，因此预期的 1 秒超时未生效。将同一个 AppTimeouts 写入 HA retry_timeout 和普通配置；保留全部真实 HTTP、无重放、队列、熔断和关闭断言，业务实现未修改。
+- 修改前两条原生精确命令均因 rmcp 0.8.5 编译失败，退出 101，实际测试数 0；日志 `/tmp/task83-first-red.log`、`/tmp/task83-idle-red.log`。未取得当前运行红灯，不将历史失败冒充本次执行。
+- 修改后按原命令复验，日志 `/tmp/task83-first-after.log`、`/tmp/task83-idle-after.log`；相同 rmcp 缺失 base64/schemars/paste 和 capabilities builder 类型错误阻断，未能验收。此共享依赖问题超出本测试文件归属，未修改包清单、Cargo.lock 或 registry。
+- 两阶段均使用 cargo_slot.py，实际槽位 3；CARGO_TARGET_DIR 和 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。日志在 /tmp 保存，缓存保留。
+- 已审查本文件 diff；git diff --check 通过。共享工作区存在其他任务改动，本任务只提交自身测试夹具与本编号记录。
+- 下一步：共享 rmcp 编译问题修复后，重新执行本文件两条精确命令，要求每条 1 passed、0 failed 后才能完成删除编号文件。

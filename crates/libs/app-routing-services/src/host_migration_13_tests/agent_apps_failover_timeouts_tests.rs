@@ -71,7 +71,20 @@ async fn exercise_timeouts(modes: &[&str]) -> anyhow::Result<()> {
             &json!({"reliability":{"provider_retries":retries,"provider_backoff_ms":0}})
                 .to_string(),
         )?;
+        let timeouts = crate::config_apply::AppTimeouts {
+            first_byte_timeout_secs: if mode == "retry_total" { 30 } else { 1 },
+            idle_timeout_secs: match mode {
+                "idle_zero_total" | "retry_total" => 0,
+                "active_total" => 600,
+                _ => 1,
+            },
+            non_streaming_timeout_secs: 60,
+        };
         let mut policy = crate::failover_runtime::policy(database.clone(), &scope)?;
+        // Explicit HA policies own their timeouts independently of app routing settings.
+        policy.retry_timeout.first_byte_timeout_secs = timeouts.first_byte_timeout_secs;
+        policy.retry_timeout.idle_timeout_secs = timeouts.idle_timeout_secs;
+        policy.retry_timeout.non_streaming_timeout_secs = timeouts.non_streaming_timeout_secs;
         policy.retry_timeout.max_retries = retries as u8;
         policy.circuit_breaker.failure_threshold = 1;
         app_settings_store::settings_store::GatewaySettingsStore::new(database.clone())?.upsert(
@@ -159,15 +172,7 @@ async fn exercise_timeouts(modes: &[&str]) -> anyhow::Result<()> {
         .save_app_timeouts(
             &scope.project,
             AppId::Claude,
-            crate::config_apply::AppTimeouts {
-                first_byte_timeout_secs: if mode == "retry_total" { 30 } else { 1 },
-                idle_timeout_secs: match mode {
-                    "idle_zero_total" | "retry_total" => 0,
-                    "active_total" => 600,
-                    _ => 1,
-                },
-                non_streaming_timeout_secs: 60,
-            },
+            timeouts,
         )?;
         let config: Value = serde_json::from_slice(&fs::read(native.join("settings.json"))?)?;
         let token = config["env"]["ANTHROPIC_AUTH_TOKEN"].as_str().unwrap();

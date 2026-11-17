@@ -864,3 +864,51 @@ Rust重型命令经scripts/cargo_slot.py的slot(number=6)串行执行，CARGO_TA
 - 目标acpdemo/amp-acp初始及结束均不存在，无页面或README。排除.git/node_modules/target的普通文件SHA-256快照6290→6290，0差异；保存初始Git状态，未提交Rue.js工作区。未运行浏览器、页面构建或页面测试。
 - 恢复PATCH HTTP200，GET确认全部agents与基线相等、Amp disabled。完整config仅agents.acp-amp-acp增加等效disabled覆盖，不宣称存储字节一致。保留系统安装。自有网关PID77770退出0、回环端口51791关闭；槽位入口退出并释放自有锁、保留缓存，未重启用户服务。
 - 原始配置、请求、SSE、日志、构建/入口摘要及快照仅存0700本机目录 `/tmp/shiju-amp-accept-20261118/`。本次无产品代码修复，复用已验证构建，未运行新Rust单测、Cargo检查、Clippy、桌面编译、全仓测试/构建、wasm或Makefile；历史单测不计新证据。旧.plans/references/rust.md不存在，实际使用现有槽位入口。任务文件保留已阻塞；重跑条件为真实指定模型成功终态、connected绑定及完整文件落盘均取得新证据。
+
+
+# Amp 修复后复验（2026-11-18）
+
+结论：**指定模型完整文件创建验收通过**。保留前述阻塞记录；本节为完成两项底层修复后的最终新证据。客户端首次300秒超时后续传原请求取得chat.done，不把HTTP200或诊断结果当成通过。
+
+## 根因与修复
+
+- 原始失败由临时诊断构建取得引擎原始错误：模型中继拒绝422。真实请求含旧Opus默认thinking.display=summarized，中继只接受type/budget_tokens。Amp控制桥仅剔除这一旧模型默认值，保留所选模型思考配置，未知display仍拒绝；同步更新受审模块摘要。提交 `5ef9d07f8`。
+- 去除display后，中间轮曾写出7个文件但未完成README；另有正式轮在首次工具后失败。诊断捕获adaptive模式下assistant仅有tool_use、下一轮422的请求。中继原先把没有思考块的合法自适应工具轮一律视为删除思考，导致结果取决于该轮是否返回思考。
+- 修复为仅回放服务端已记录的无思考消息：完整消息和部署摘要、租户/项目/会话/供应商/模型/generation作用域及900秒有效期均校验。带签名工具ID仍强制保留思考块；较早的无思考记录不能绕过后续签名要求。没有伪造思考、关闭思考、接受任意历史或放宽权限。提交 `6a33d6415`。
+- 当前宿主首次构建另遇gateway-computer-control状态接口跨await持有读锁的E0277。权限查询移到取读锁之前后恢复编译，未改变权限判断，仅提交对应一行移动，未包含共享文件其他工作。提交 `0f45452ba`。
+
+## 最终正式构建、安装与会话
+
+- 正式shiju 0.6.0构建退出0，367.550228秒；SHA-256 `c01a466afc21a06e643db6341457e404981f06833833c6c327e7a02774758b78`。构建起点HEAD `df9f114345adf4f843a0929e88750cb48122ba22` 加上述工作区修复；源码摘要前后无差异，见final-fixed-source-before.json和final-fixed-source-changes.json。不宣称clean HEAD构建。最终构建未使用诊断源码包装器。
+- 全部网关API使用X-Platform-ID=10001、X-Company-ID=100010005、X-Directory=/Users/xiangmin/worker/code/ruejs，保留config、installed、agents和acp基线。读取gateway帮助后使用既有开发配置、自有回环端口及Node v24.14.0；未重启用户服务。
+- 最终系统安装POST HTTP200、curl退出0、3.008644秒，installed false→true；本任务最初亦从false安装为true。更新契约后，旧自建产物校验曾正确返回HTTP400 checksum mismatch；逐项校验后将本任务自己安装的旧版本/临时诊断版本完整移到0700私有目录，再由系统接口重新安装，未绕过校验、就地修改安装文件或覆盖用户全局CLI。
+- 受管目录acp-runtime/amp-acp-0.12.0-model-source-v1，入口node_modules/.bin/amp-acp解析到amp-acp/dist/index.js；桥接0.12.0、历史本地ThreadWorker引擎0.0.1778732631-gc5875c。最终四个产物摘要全部匹配契约：index.js `fc3b527cad139098f2f120992e91414e4e0b45af6a71fc479d5e4b79c1122934`，shiju-local.mjs `141b55200e4d9239a467d5c8f84fb5a5b2ca91523eb22f361d6367028a76fed9`，amp-cli `f3076f4f083423e1215e366e18ec7808a4405e973cfe66d0135b1bd10592a1d5`，引擎main.js `2cca8fdfbad3fdc9cec0d4de31946279c51a47adb9e6dd0242131f3cac7a5a1d`。已确认诊断写入代码不在正式安装中，不冒充当前原生Amp或跨平台认证。
+- 普通诊断HTTP200、退出0、0.016814秒，startup_failed，独立记录；模型来源接口确认session_model supported、cli_local unsupported及Darwin arm64。内置acp-amp-acp的builtin=true、runtime.kind=acp、backend=amp-acp，基线disabled；启用PATCH及GET重读均成功。
+- 最终请求严格沿用任务JSON，指定alibaba-token-plan-cn/deepseek-v4.1-flash-1017、session_model、full_access=true。首次chat/stream HTTP200、curl退出28、300.011149秒，尚无终态；先查询原会话状态，核对现有transport续传协议，再用响应x-vw-stream-request-id和Last-Event-ID续传同一请求，HTTP200、退出0、0.012599秒。没有重复提交最终创建任务。
+- 合并原流和续传：chat.context_loaded=1、chat.step_start=1、chat.delta=12、chat.tool=34（状态事件）、chat.session_updated=2、chat.step_finish=1、chat.done=1、chat.error=0。请求标识168373f5-0326-4927-9bba-602822a40e72，会话ses_1ead3a641001txKdyfPum0PcTN。
+- 运行中summary确认acp-amp-acp/amp-acp、full_access=true；运行中options connected=true，selected_model.source=session_model、provider_id=alibaba-token-plan-cn、完整模型ID=alibaba-token-plan-cn/deepseek-v4.1-flash-1017。结束connected=false，所选模型保持匹配。依据实际接口和终态判断绑定，不依赖助手自述。
+
+## 文件、恢复与清理
+
+- 最终acpdemo/amp-acp/共7文件：README.md、index.html、vite.config.mjs、src/App.tsx、src/main.tsx、src/env.d.ts、src/style.css。已逐项检查：useApp挂载、textarea输入、ref/computed实时非空白字数及字符数、400ms防抖localStorage写入、初始化恢复、pagehide/beforeunload补写；README提供运行说明。Vite复用examples/shared/rue-vite.mjs，别名实际指向本仓库packages/rue/src，使用本仓库@rue-js/rue。未运行浏览器、页面构建或额外页面测试，不宣称渲染、刷新交互已经实测。
+- 最终目标初始不存在，文件SHA-256快照（排除.git/node_modules/target）6290→6297，仅新增上述7文件，无符号链接、目录外0差异。保留初始Git状态，未提交Rue.js工作区。中间失败轮7文件和诊断成功轮8文件均在逐项确认属于本次新产物、快照无目录外变化后完整移入私有目录；未覆盖用户文件，也未将诊断轮当作最终通过证据。
+- 最终恢复PATCH HTTP408、curl退出0、48.275102秒；随后GET确认所有agents和完整config均与最终轮基线相等，Amp disabled。任务最初无显式覆盖，早期恢复保留等效disabled覆盖，不宣称自最初基线起存储字节完全相同。正式系统安装保留。
+- 九个自有网关PID77770/32095/95306/19491/22893/36324/41754/46406/69149均退出；最终核对对应PID不存在、回环端口均关闭，见cleanup.json。自有Cargo入口均已退出并释放自己的槽位锁，缓存保留；未清理他人锁或结束他人进程。
+- 主证据目录 `/tmp/shiju-amp-complete-20261118/`；修复、红绿灯、构建、原生探针和临时诊断源码在 `/tmp/shiju-amp-debug-20261118/`。前序accept/retry/retry2/final/diagnostic/fixed-accept/diagnostic2/final-pass/diagnostic3各轮证据保留在对应 `/tmp/shiju-amp-*-20261118/` 目录，全部根目录0700。原始请求、配置、SSE、敏感载荷及供应商/宿主二进制仅留本机，未提交。临时诊断源码最终通过私有副本构建，仓库中的临时诊断改动已还原，未保留诊断写入逻辑。
+
+## 定向验证
+
+| 检查 | 本次结果 |
+| --- | --- |
+| node --test patches/acp-model-source/amp-acp/local.test.mjs | 修复前2通过/1失败（422≠200）；最终3通过，未知display仍422 |
+| cargo test -p vw-acp --test onboarding_amp_acp -- --test-threads=1 | 槽位6，4通过、0 ignored |
+| cargo test -p model-protocol --lib model_protocol_015_unreasoned_ -- --test-threads=1 | 槽位1红灯，0通过/2失败、152过滤 |
+| cargo test -p model-protocol --lib messages_thinking_ -- --test-threads=1 | 槽位1最终13通过、142过滤，含既有签名删除/篡改拒绝及新增无思考消息身份、内容、部署和期限检查 |
+| cargo test -p gateway-computer-control --lib cc_control_18_ -- --test-threads=1 | 槽位6，11通过、2过滤 |
+| 原生Amp受控探针 | 真实安装入口，4个完成回合、13次模型边界请求，验证写入、MCP/选项显式拒绝、重启load、取消后继续、401/404失败；受控模型结果不替代真实云模型验收 |
+| cargo clippy -p acp-agent-registry --lib --no-deps -- -D warnings | 槽位6，退出0 |
+| cargo clippy -p gateway-computer-control --lib --no-deps -- -D warnings | 槽位6，退出0 |
+| cargo clippy -p model-protocol --lib --no-deps -- -D warnings | 槽位6，退出101，27项既有诊断位于本次未修改的messages_gemini_stream、responses、search_citations、signature_rectify、tool_media、tool_namespace、xai等文件；无本次messages_thinking文件诊断，不计通过 |
+| cargo build -p vw-cli --bin shiju | 槽位6最终退出0，6m07s，正式二进制和源码摘要已核对 |
+
+Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_TARGET_DIR和CARGO_BUILD_BUILD_DIR均为target/rust-slot-N绝对路径。共31项定向单测通过；仅格式化修改的两个思考协议Rust文件，保留其他文件格式。执行相关差异git diff --check；未运行桌面编译、全仓构建/测试、全特性Clippy、全仓格式检查、wasm或Makefile。旧.plans/references/rust.md缺失，沿用现有槽位入口，不修改plan.md或prompt.md。

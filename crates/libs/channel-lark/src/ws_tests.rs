@@ -544,14 +544,20 @@ async fn listen_ws_breaks_when_downstream_channel_is_closed() {
     ws_handle.abort();
 }
 
-#[tokio::test(start_paused = true)]
+#[tokio::test]
 async fn listen_ws_sends_interval_ping_after_server_configured_floor() {
     let (ws_url, ws_handle) = spawn_ws_server(|mut ws| async move {
         let initial = ws.next().await.unwrap().unwrap();
         assert_ping_message(&initial, 0);
 
-        tokio::time::advance(Duration::from_secs(10)).await;
-        let interval = ws.next().await.unwrap().unwrap();
+        // 真实套接字需要运行中的时钟，避免自动推进时间抢先触发连接超时。
+        // 服务端给出的 1 秒间隔必须被提升到 10 秒，不能提前发送。
+        assert!(tokio::time::timeout(Duration::from_secs(9), ws.next()).await.is_err());
+        let interval = tokio::time::timeout(Duration::from_secs(6), ws.next())
+            .await
+            .expect("interval ping should arrive after the configured floor")
+            .unwrap()
+            .unwrap();
         assert_ping_message(&interval, 0);
         let _ = ws.close(None).await;
     })

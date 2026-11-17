@@ -16,9 +16,6 @@ pub mod controller;
 
 pub mod page;
 
-#[cfg(test)]
-mod host_module_12_tests;
-
 pub mod canvas_message;
 
 #[cfg(test)]

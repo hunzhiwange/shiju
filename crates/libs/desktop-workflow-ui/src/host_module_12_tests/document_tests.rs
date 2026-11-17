@@ -157,6 +157,6 @@ fn save_reload_export_and_floating_panel_messages_update_state() {
     assert_eq!(app.workflow_state.error_message.as_deref(), Some("export failed"));
 
     let ignored =
-        super::document::handle(&mut app, WorkflowMessage::SelectNode("start".to_string()));
+        super::document::handle(&mut app.context(), WorkflowMessage::SelectNode("start".to_string()));
     assert!(ignored.is_none());
 }

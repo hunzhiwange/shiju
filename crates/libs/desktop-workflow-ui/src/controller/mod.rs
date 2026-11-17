@@ -137,3 +137,7 @@ pub(crate) fn export_finished(
 
 #[cfg(test)]
 pub(crate) use crate::message::effects::suggested_export_file_name;
+
+#[cfg(test)]
+#[path = "../host_module_12_tests.rs"]
+mod host_module_12_tests;

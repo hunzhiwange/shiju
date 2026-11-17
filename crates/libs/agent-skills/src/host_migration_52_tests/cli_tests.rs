@@ -290,7 +290,9 @@ fn handle_install_applies_configured_security_policy() {
         &config,
     )
     .unwrap_err();
-    assert!(error.to_string().contains("Skill security audit failed"));
+    assert!(error.to_string().contains("failed to install local skill source"));
+    let error_chain = format!("{error:#}");
+    assert!(error_chain.contains("Skill security audit failed"), "{error_chain}");
     assert!(!workspace.path().join(".shiju/skills/rejected-skill").exists());
 }
 

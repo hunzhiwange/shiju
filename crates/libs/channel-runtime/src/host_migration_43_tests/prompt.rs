@@ -158,16 +158,20 @@ fn entrypoint_context_all_external_paths_share_agents_skill_contract() {
         }],
         diagnostics: Vec::new(),
     }];
+    let temp = tempfile::tempdir().unwrap();
+    let skill_path = temp.path().join("SKILL.md");
+    std::fs::write(&skill_path, "SKILL.md full body").unwrap();
     let skills = vec![agent_skills::Skill {
+        location: Some(skill_path),
         name: "verify".to_string(),
         description: "Verify the completed work.".to_string(),
         ..agent_skills::Skill::default()
     }];
 
-    let expected = build_entrypoint_protocol_messages(&instructions, &skills, true, 8_192);
-    let channel = build_entrypoint_protocol_messages(&instructions, &skills, true, 8_192);
-    let gateway = build_entrypoint_protocol_messages(&instructions, &skills, true, 8_192);
-    let websocket = build_entrypoint_protocol_messages(&instructions, &skills, true, 8_192);
+    let expected = build_entrypoint_protocol_messages(&instructions, &skills, true, 100_000);
+    let channel = build_entrypoint_protocol_messages(&instructions, &skills, true, 100_000);
+    let gateway = build_entrypoint_protocol_messages(&instructions, &skills, true, 100_000);
+    let websocket = build_entrypoint_protocol_messages(&instructions, &skills, true, 100_000);
     let snapshot = |messages: &[ChatMessage]| {
         messages
             .iter()
@@ -178,12 +182,15 @@ fn entrypoint_context_all_external_paths_share_agents_skill_contract() {
     assert_eq!(snapshot(&channel), snapshot(&expected));
     assert_eq!(snapshot(&gateway), snapshot(&expected));
     assert_eq!(snapshot(&websocket), snapshot(&expected));
+    assert_eq!(expected.len(), 2);
+    assert_eq!(expected[0].role, "user");
     assert!(expected[0].content.contains("<available_skills>"));
+    assert!(expected[0].content.contains("<name>verify</name>"));
     assert!(expected[1].content.contains("Follow the project protocol."));
     assert_eq!(expected[1].role, "system");
     assert!(!expected.iter().any(|message| message.content.contains("SKILL.md full body")));
 
-    let simple_gateway = build_entrypoint_protocol_messages(&instructions, &skills, false, 8_192);
+    let simple_gateway = build_entrypoint_protocol_messages(&instructions, &skills, false, 100_000);
     assert_eq!(simple_gateway.len(), 1);
     assert_eq!(simple_gateway[0].role, "system");
     assert!(!simple_gateway[0].content.contains("<available_skills>"));
@@ -199,7 +206,7 @@ fn selection_trace_redacts_prompt() {
     });
 
     assert!(trace.contains("provider/fast"));
-    assert!(trace.contains("lightweight"));
+    assert_eq!(trace, "model=provider/fast; source=Auto; profile=Lightweight");
     assert!(!trace.contains("private prompt text"));
 }
 
@@ -545,7 +552,7 @@ fn system_prompt_default_wrapper_uses_xml_task_text() {
         chrono_tz::Asia::Shanghai,
     );
 
-    assert!(prompt.contains("Instead: emit actual <tool_call> tags"));
+    assert!(prompt.contains("emit the actual <tool_call> before any explanation"));
     assert!(prompt.contains("Model: model-y"));
 }
 

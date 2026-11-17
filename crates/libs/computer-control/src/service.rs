@@ -61,7 +61,8 @@ impl ControlService {
     }
 
     /// Serve connections until shutdown; all host futures are dropped on shutdown,
-    /// causing their SessionGuard to cancel in-flight effects. No detached tasks.
+    /// causing their SessionGuard to cancel in-flight effects. Native drag guards
+    /// synchronously release held buttons when these futures drop. No detached tasks.
     pub async fn run<F, Fut>(
         self,
         host: Arc<ControlHost>,

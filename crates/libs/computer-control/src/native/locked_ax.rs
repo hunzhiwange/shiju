@@ -88,6 +88,7 @@ impl Owned {
 /// Called while the observer gate is held; every effect has a fresh live guard.
 /// AX timeout is an ambiguous outcome: never retry automatically.
 pub(super) fn execute(observer: &NativeObserver, input: &NativeInput) -> Result<(), NativeObservationError> {
+    if matches!(input, NativeInput::Drag { .. }) { return Err(unsupported()); }
     observer.check(false)?;
     let state = locked_session::lock_state();
     let check = || -> Result<(), NativeObservationError> {

@@ -13,6 +13,10 @@ struct State {
     missing_ax: bool,
     cancel_after: Option<CancellationToken>,
     focus_after: bool,
+    move_after: bool,
+    permission_after: bool,
+    restart_after: bool,
+    lock_after: Option<Arc<AtomicBool>>,
     revoke_after: Option<Arc<RwLock<ComputerControlPolicy>>>,
 }
 #[derive(Clone)]
@@ -80,6 +84,10 @@ impl InputPlatform for Os {
     ) -> Result<(), NativeObservationError> {
         let mut s = self.0.lock();
         s.events.push(event.clone());
+        if s.move_after { s.moved = true; }
+        if s.permission_after { s.missing_ax = true; }
+        if s.restart_after { s.restarted = true; }
+        if let Some(locked) = &s.lock_after { locked.store(true, Ordering::SeqCst); }
         if let Some(t) = &s.cancel_after {
             t.cancel();
         }
@@ -325,5 +333,89 @@ async fn cc_control_06_invalid_payloads_are_rejected_without_input() {
             Err(err(ControlErrorCode::InvalidRequest))
         );
     }
+    assert!(os.0.lock().events.is_empty());
+}
+
+fn drag_fixture() -> (NativeObserver, Os) {
+    let (o, os) = fixture();
+    *o.media.lock() = Some(StoredScreenshot {
+        reference: ScreenshotReference::new("drag".into(), ScreenshotMimeType::Png, 1, 1600, 1200).unwrap(),
+        png: vec![1], window: window(),
+        geometry: ScreenshotGeometry::new(window(), 1600, 1200).unwrap(),
+    });
+    (o, os)
+}
+fn drag() -> NativeInput {
+    NativeInput::Drag { path: vec![(0, 0), (800, 600), (1000, 800)], button: MouseButton::Left, duration_ms: 10 }
+}
+#[tokio::test]
+async fn cc_runtime_04_drag_emits_down_moves_and_up() {
+    let (o, os) = drag_fixture();
+    o.execute_input_with(&drag(), &os).await.unwrap();
+    assert_eq!(os.0.lock().events, vec![
+        InputEvent::MouseDown { window: window(), x: -400.0, y: 20.0, button: MouseButton::Left },
+        InputEvent::MouseDragged { window: window(), x: 0.0, y: 320.0, button: MouseButton::Left },
+        InputEvent::MouseDragged { window: window(), x: 100.0, y: 420.0, button: MouseButton::Left },
+        InputEvent::MouseUp { window: window(), x: 100.0, y: 420.0, button: MouseButton::Left },
+    ]);
+}
+#[tokio::test]
+async fn cc_runtime_04_interruptions_release_without_remaining_moves() {
+    for mode in 0..7 {
+        let (o, os) = drag_fixture();
+        {
+            let mut s = os.0.lock();
+            match mode {
+                0 => s.cancel_after = Some(o.cancelled.clone()),
+                1 => s.focus_after = true,
+                2 => s.revoke_after = Some(o.policy.clone()),
+                3 => s.move_after = true,
+                4 => s.permission_after = true,
+                5 => s.lock_after = Some(o.locked.clone()),
+                _ => s.restart_after = true,
+            }
+        }
+        assert!(o.execute_input_with(&drag(), &os).await.is_err());
+        let s = os.0.lock();
+        assert!(matches!(s.events[0], InputEvent::MouseDown { .. }));
+        if mode == 6 {
+            // Never inject cleanup into a different instance reusing the PID.
+            assert_eq!(s.events.len(), 1);
+        } else {
+            assert_eq!(s.events.len(), 2);
+            assert!(matches!(s.events[1], InputEvent::MouseUp { x: -400.0, y: 20.0, .. }));
+        }
+    }
+}
+#[tokio::test]
+async fn cc_runtime_04_dropped_future_releases_held_button() {
+    let (o, os) = drag_fixture();
+    let input = drag();
+    {
+        let pending = o.execute_input_with(&input, &os);
+        tokio::pin!(pending);
+        tokio::select! {
+            biased;
+            _ = &mut pending => panic!("drag should be waiting after down"),
+            _ = tokio::task::yield_now() => {},
+        }
+        assert_eq!(os.0.lock().events.len(), 1);
+    }
+    assert_eq!(os.0.lock().events.len(), 2);
+    assert!(matches!(os.0.lock().events[1], InputEvent::MouseUp { .. }));
+}
+#[tokio::test]
+async fn cc_runtime_04_invalid_paths_and_locked_drag_emit_nothing() {
+    let (o, os) = drag_fixture();
+    for (path, duration_ms) in [
+        (vec![(0, 0)], 10), (vec![(0, 0); 129], 10),
+        (vec![(0, 0), (1600, 0)], 10), (vec![(0, 0), (-1, 0)], 10),
+        (vec![(0, 0), (1, 1)], 0), (vec![(0, 0), (1, 1)], 5001),
+    ] {
+        assert_eq!(o.execute_input_with(&NativeInput::Drag { path, button: MouseButton::Left, duration_ms }, &os).await,
+            Err(err(ControlErrorCode::InvalidRequest)));
+    }
+    o.locked.store(true, Ordering::SeqCst);
+    assert_eq!(o.execute_input_with(&drag(), &os).await, Err(err(ControlErrorCode::Unsupported)));
     assert!(os.0.lock().events.is_empty());
 }

@@ -145,6 +145,8 @@ pub enum ComputerControlAction {
 pub enum NativeInput {
     Activate,
     Click { x: i32, y: i32, button: MouseButton },
+    /// Screenshot-pixel path, 2..=128 points; duration is bounded to 1..=5000 ms.
+    Drag { path: Vec<(i32, i32)>, button: MouseButton, duration_ms: u32 },
     Scroll { delta_x: i32, delta_y: i32 },
     Press { key: String, modifiers: Vec<KeyModifier> },
     TypeText { text: String },

@@ -4,6 +4,9 @@ use super::*;
 #[derive(Debug, Clone, PartialEq)]
 pub(super) enum InputEvent {
     Click { window: WindowGeometry, x: f64, y: f64, button: MouseButton },
+    MouseDown { window: WindowGeometry, x: f64, y: f64, button: MouseButton },
+    MouseDragged { window: WindowGeometry, x: f64, y: f64, button: MouseButton },
+    MouseUp { window: WindowGeometry, x: f64, y: f64, button: MouseButton },
     Scroll { window: WindowGeometry, x: f64, y: f64, delta_x: i32, delta_y: i32 },
     Key { code: u16, flags: u64 },
     Unicode(Vec<u16>),
@@ -18,6 +21,26 @@ pub(super) trait InputPlatform: Send + Sync {
         app: &ApplicationInstance,
         event: &InputEvent,
     ) -> Result<(), NativeObservationError>;
+}
+/// Drop runs when a service aborts the input future as well as on guard errors.
+/// Cleanup never follows the remaining path or posts to a recycled process ID.
+struct HeldButton<'a> {
+    observer: &'a NativeObserver,
+    backend: &'a dyn InputPlatform,
+    release: InputEvent,
+    held: bool,
+}
+impl Drop for HeldButton<'_> {
+    fn drop(&mut self) {
+        if self.held
+            && self.observer.backend.identity(self.observer.app.process_id).ok().as_ref()
+                == Some(&self.observer.app)
+        {
+            // Revocation/cancellation prohibit new input, but must not strand a
+            // button already held by this operation. Best effort at the OS edge.
+            let _ = self.backend.emit(&self.observer.app, &self.release);
+        }
+    }
 }
 fn input_platform() -> Result<Box<dyn InputPlatform>, NativeObservationError> {
     #[cfg(target_os = "macos")]
@@ -41,6 +64,9 @@ impl NativeObserver {
         backend: &dyn InputPlatform,
     ) -> Result<(), NativeObservationError> {
         let _gate = self.observe_gate.lock().await;
+        if matches!(input, NativeInput::Drag { .. }) && self.locked.load(Ordering::SeqCst) {
+            return Err(ControlErrorCode::Unsupported.into());
+        }
         self.check(false)?;
         if self.locked.load(Ordering::SeqCst) {
             #[cfg(target_os = "macos")]
@@ -65,6 +91,9 @@ impl NativeObserver {
                 }
             }
             return Err(ControlErrorCode::TargetChanged.into());
+        }
+        if let NativeInput::Drag { path, button, duration_ms } = input {
+            return self.drag_with(path, *button, *duration_ms, backend).await;
         }
         let events = match input {
             NativeInput::TypeText { text } => {
@@ -135,7 +164,7 @@ impl NativeObserver {
                     delta_y: *delta_y,
                 }]
             }
-            NativeInput::Activate => unreachable!(),
+            NativeInput::Activate | NativeInput::Drag { .. } => unreachable!(),
         };
         for event in events {
             // A fresh guard for every scalar/pair: stop, revocation, lock, OS
@@ -154,6 +183,58 @@ impl NativeObserver {
         }
         Ok(())
     }
+    async fn drag_with(
+        &self,
+        path: &[(i32, i32)],
+        button: MouseButton,
+        duration_ms: u32,
+        backend: &dyn InputPlatform,
+    ) -> Result<(), NativeObservationError> {
+        if !(2..=128).contains(&path.len()) || !(1..=5000).contains(&duration_ms) {
+            return Err(ControlErrorCode::InvalidRequest.into());
+        }
+        let (window, geometry) = self.media.lock().as_ref()
+            .map(|s| (s.window, s.geometry))
+            .ok_or(NativeObservationError::Control(ControlErrorCode::InvalidRequest))?;
+        // Validate the entire path before any button is pressed.
+        let points = path.iter().map(|&(x, y)| {
+            let x = u32::try_from(x).map_err(|_| NativeObservationError::Control(ControlErrorCode::InvalidRequest))?;
+            let y = u32::try_from(y).map_err(|_| NativeObservationError::Control(ControlErrorCode::InvalidRequest))?;
+            geometry.screen_point(x, y)
+        }).collect::<Result<Vec<_>, NativeObservationError>>()?;
+        let check = || -> Result<(), NativeObservationError> {
+            if self.locked.load(Ordering::SeqCst) { return Err(ControlErrorCode::Unsupported.into()); }
+            self.check(true)?;
+            if backend.focused_pid()? != self.app.process_id
+                || self.backend.read(&self.app)?.window != Some(window)
+            { return Err(ControlErrorCode::TargetChanged.into()); }
+            self.check(true)
+        };
+        check()?;
+        let (x, y) = points[0];
+        let mut held = HeldButton {
+            observer: self, backend,
+            release: InputEvent::MouseUp { window, x, y, button }, held: false,
+        };
+        backend.emit(&self.app, &InputEvent::MouseDown { window, x, y, button })?;
+        held.held = true;
+        let interval = std::time::Duration::from_micros(u64::from(duration_ms) * 1000 / (points.len() - 1) as u64);
+        for &(x, y) in &points[1..] {
+            tokio::select! {
+                biased;
+                _ = self.cancelled.cancelled() => return Err(ControlErrorCode::Cancelled.into()),
+                _ = tokio::time::sleep(interval) => {},
+            }
+            check()?;
+            backend.emit(&self.app, &InputEvent::MouseDragged { window, x, y, button })?;
+            held.release = InputEvent::MouseUp { window, x, y, button };
+        }
+        check()?;
+        backend.emit(&self.app, &held.release)?;
+        held.held = false;
+        Ok(())
+    }
+
 }
 fn key_code(key: &str) -> Option<u16> {
     Some(match key {
@@ -406,6 +487,23 @@ mod os {
                             CGEventSetIntegerValueField(event.0, 3, button);
                         }
                         (down, Some(up), 0)
+                    }
+                    InputEvent::MouseDown { window, x, y, button }
+                    | InputEvent::MouseDragged { window, x, y, button }
+                    | InputEvent::MouseUp { window, x, y, button } => {
+                        let (down, dragged, up, number) = match button {
+                            MouseButton::Left => (1, 6, 2, 0),
+                            MouseButton::Right => (3, 7, 4, 1),
+                            MouseButton::Middle => (25, 27, 26, 2),
+                        };
+                        let kind = match input {
+                            InputEvent::MouseDown { .. } => down,
+                            InputEvent::MouseDragged { .. } => dragged,
+                            _ => up,
+                        };
+                        let event = window_event(kind, *window, *x, *y)?;
+                        CGEventSetIntegerValueField(event.0, 3, number);
+                        (event, None, 0)
                     }
                     InputEvent::Scroll { window, x, y, delta_x, delta_y } => {
                         let scroll = Event::new(CGEventCreateScrollWheelEvent(

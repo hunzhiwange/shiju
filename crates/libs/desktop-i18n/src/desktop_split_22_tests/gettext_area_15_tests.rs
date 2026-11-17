@@ -16,6 +16,17 @@ fn desktop_gettext_area_15_display_literals_have_both_catalog_entries() {
         include_str!("../../../../vw-desktop/src/app/impls/app_view_modals/rename.rs"),
         include_str!("../../../../vw-desktop/src/app/views/apps/modals.rs"),
         include_str!("../../../../vw-desktop/src/app/views/usage/raw_modal.rs"),
+        // The host adapters delegate rendering to these extracted implementations.
+        include_str!("../../../desktop-navigation/src/components/about_modal.rs"),
+        include_str!("../../../desktop-navigation/src/components/install_cli_modal.rs"),
+        include_str!("../../../desktop-navigation/src/components/notification.rs"),
+        include_str!("../../../desktop-ui-controls/src/toast.rs"),
+        include_str!("../../../desktop-account-ui/src/account_details.rs"),
+        include_str!("../../../desktop-chat-view/src/modals/permission_modal.rs"),
+        include_str!("../../../desktop-chat-view/src/modals/question_modal.rs"),
+        include_str!("../../../desktop-workspace/src/views/modals/rename.rs"),
+        include_str!("../../../desktop-apps-ui/src/bookmark_modals.rs"),
+        include_str!("../../../desktop-usage/src/raw_modal.rs"),
     ] {
         for capture in calls.captures_iter(source) {
             let key: String = serde_json::from_str(&capture[1]).unwrap();

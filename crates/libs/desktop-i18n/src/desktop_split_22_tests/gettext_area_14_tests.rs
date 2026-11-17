@@ -4,7 +4,7 @@ fn desktop_gettext_area_14_feedback_catalog_covers_message_paths() {
     let en = crate::catalog::parse_catalog(include_str!("../locales/en.json")).unwrap();
     let tw = crate::catalog::parse_catalog(include_str!("../locales/zh-TW.json")).unwrap();
     let calls = regex::Regex::new(
-        r#"show_localized_toast\(\s*crate::app::state::ToastKind::\w+,\s*("(?:[^"\\]|\\.)*")"#,
+        r#"show_localized_toast\(\s*(?:(?:crate::app::state::)?ToastKind::\w+|\(\)),\s*("(?:[^"\\]|\\.)*")"#,
     )
     .unwrap();
     let mut count = 0;
@@ -13,6 +13,16 @@ fn desktop_gettext_area_14_feedback_catalog_covers_message_paths() {
         include_str!("../../../../vw-desktop/src/app/message/skill_hub.rs"),
         include_str!("../../../../vw-desktop/src/app/message/skill_hub/connectors.rs"),
         include_str!("../../../../vw-desktop/src/app/message/skill_hub/public.rs"),
+        // Feedback now originates in the extracted domain modules as well as the desktop bridge.
+        include_str!("../../../desktop-apps-ui/src/shiju_apps.rs"),
+        include_str!("../../../desktop-expert-hub/src/message/connectors.rs"),
+        include_str!("../../../desktop-expert-hub/src/message/public.rs"),
+        include_str!("../../../desktop-skill-hub/src/message/skill_hub.rs"),
+        include_str!("../../../desktop-skill-hub/src/message/skill_business.rs"),
+        include_str!("../../../desktop-skill-hub/src/message/skill_guide.rs"),
+        include_str!("../../../desktop-skill-hub/src/message/skill_installation.rs"),
+        include_str!("../../../desktop-skill-hub/src/message/skill_lists.rs"),
+        include_str!("../../../desktop-skill-hub/src/message/skill_upgrades.rs"),
     ] {
         for captures in calls.captures_iter(source) {
             let key: String = serde_json::from_str(&captures[1]).unwrap();
@@ -21,7 +31,7 @@ fn desktop_gettext_area_14_feedback_catalog_covers_message_paths() {
             count += 1;
         }
     }
-    assert!(count > 60);
+    assert!(count > 60, "expected feedback message coverage, found {count}");
 }
 
 #[test]

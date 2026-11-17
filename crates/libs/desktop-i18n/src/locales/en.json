@@ -1,4 +1,6 @@
 {
+  "查看此版本发行说明": "View release notes for this version",
+  "取消下载": "Cancel download",
   "用量与额度": "Usage and quotas",
   "管理工具": "Management tools",
   "智能体管理": "Agent management",
@@ -5670,5 +5672,7 @@
   "返回 Normal": "Return to Normal mode",
   "编辑器使用帮助": "Editor help",
   "多光标": "Multiple cursors",
-  "当前任务数": "Current task count"
+  "当前任务数": "Current task count",
+  "主技能已升级到 %s 个目录": "Main skill upgraded in %s directories",
+  "主技能已升级，登录信息同步失败，请在安装识矩技能页重试同步": "Main skill upgraded, but sign-in information could not be synced. Retry syncing on the Install ShiJu Skills page."
 }

@@ -435,7 +435,8 @@ async fn ui_refresh_07_layout_and_interaction() {
             size,
         );
         let card = scene.bounds(&[]);
-        assert_eq!(card.width, size.width - 24.0);
+        // Both the shared overlay and the lifecycle wrapper reserve 12px per side.
+        assert_eq!(card.width, size.width - 2.0 * (12.0 + 12.0));
         assert!((card.center_x() - size.width / 2.0).abs() < 0.5);
         assert!((card.center_y() - size.height / 2.0).abs() < 0.5);
         let header = scene.bounds(&[0, 0]);

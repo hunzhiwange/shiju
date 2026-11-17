@@ -229,7 +229,7 @@ fn menu_item_button_style_pressed_enabled_item_uses_idle_colors() {
 fn menu_separator_fills_width_and_shrinks_height() {
     let element = menu_separator();
 
-    assert_size(&element, Length::Shrink, Length::Shrink);
+    assert_size(&element, Length::Fill, Length::Shrink);
 }
 
 #[test]

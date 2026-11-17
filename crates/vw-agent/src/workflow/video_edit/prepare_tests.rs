@@ -2,15 +2,15 @@ use super::{manifest::*, prepare::*, *};
 use crate::{global_database::GlobalDatabase, tools::ToolRuntimeContext};
 use anyhow::Result;
 
-type Cloud = workflow_video_edit::test_support::prepare_fixture::Cloud<ToolRuntimeContext>;
+type Cloud = workflow_video_edit::test_support::prepare_fixture::Cloud<NativeVideoContext>;
 fn fixture() -> (tempfile::TempDir, GlobalDatabase, Cloud, VideoEditRequest) {
     let root = tempfile::tempdir().unwrap();
     let path = root.path().join("原片.mp4");
     std::fs::write(&path, b"external cloud fixture probes this").unwrap();
-    let ctx = ToolRuntimeContext::new(
+    let ctx = NativeVideoContext(ToolRuntimeContext::new(
         uuid::Uuid::new_v4().to_string(),
         Some(root.path().to_string_lossy().into()),
-    );
+    ));
     let request =
         prepare_video_edit_request(&format!("/shiju 剪辑 \"{}\" 保留重点", path.display()), &ctx)
             .unwrap()
@@ -77,9 +77,9 @@ fn video_edit_prepare_streaming_hash_obeys_security_and_cancellation() {
     assert_eq!(identity.sha256.len(), 64);
     let token = tokio_util::sync::CancellationToken::new();
     token.cancel();
-    let ctx = cloud.ctx.clone().with_tool_use_context(
+    let ctx = NativeVideoContext(cloud.ctx.0.clone().with_tool_use_context(
         cloud.ctx.tool_use_context().as_ref().clone().with_abort_token(token),
-    );
+    ));
     assert!(identify_video_source(&req.video_path, &ctx).is_err());
     let outside = tempfile::tempdir().unwrap();
     let path = outside.path().join("source.mp4");
@@ -87,7 +87,10 @@ fn video_edit_prepare_streaming_hash_obeys_security_and_cancellation() {
     let mut config = crate::app::agent::config::Config::default();
     config.autonomy.workspace_only = true;
     config.workspace_dir = root.path().into();
-    assert!(identify_video_source(&path, &cloud.ctx.clone().with_test_config(config)).is_err());
+    assert!(
+        identify_video_source(&path, &NativeVideoContext(cloud.ctx.0.clone().with_test_config(config)))
+            .is_err()
+    );
 }
 
 #[tokio::test]
@@ -97,10 +100,10 @@ async fn video_edit_prepare_cross_tenant_runs_and_native_mismatch_are_isolated()
     let tenant = vw_api_transport::TenantScope::new("other-platform", "other-company").unwrap();
     crate::session::ui_store::with_tenant_scope(tenant.clone(), async {
         let mut other = cloud.clone();
-        other.ctx = ToolRuntimeContext::new(
+        other.ctx = NativeVideoContext(ToolRuntimeContext::new(
             uuid::Uuid::new_v4().to_string(),
             Some(root.path().to_string_lossy().into()),
-        );
+        ));
         let mut request = req.clone();
         request.tenant_scope = tenant;
         assert!(

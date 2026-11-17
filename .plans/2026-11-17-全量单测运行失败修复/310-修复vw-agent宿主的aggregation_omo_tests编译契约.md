@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号27（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -63,3 +63,11 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib router -- --nocapture
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本次执行记录（2026-11-18）
+
+- 根因：宿主 `aggregation_omo_tests.rs` 通过 `mod host_tests` 再嵌套一层，夹具原先的 `super` 指向包装测试模块，并非 handlers。仅将调用修正为 `super::super::aggregation_omo::router_with_policy`，仍使用真实宿主路由及原有策略、安全断言。
+- `router` 是 fixture 方法而非测试入口；源码核对共有 11 个 `#[tokio::test]`，共享真实前缀 `aggregation_t47_`。精确验证命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib aggregation_t47_ -- --nocapture`。
+- 修改前命令退出101，复现本任务E0433，证据 `/tmp/shiju-task310-before.log`。修改后相同命令退出101，本文件E0433消失，但宿主尚有61条其它编译错误（例如历史转换导入、runner_todos、VideoContext约束），证据 `/tmp/shiju-task310-after.log`。实际执行0项，不能记为行为通过；其余任务解除阻塞后仍需运行上述11项。
+- 两次使用槽位1，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；入口已退出并释放自有锁，未运行额外check或扩大验证范围。
+- 实现已完成；因同宿主其它任务的编译阻塞保留编号文件，不能删除或标记已完成。

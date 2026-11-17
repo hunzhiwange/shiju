@@ -83,7 +83,7 @@ impl Fixture {
         std::fs::set_permissions(&self.policy, std::fs::Permissions::from_mode(0o600)).unwrap();
     }
     fn router(&self) -> Router {
-        super::aggregation_omo::router_with_policy(Some(self.policy.clone()))
+        super::super::aggregation_omo::router_with_policy(Some(self.policy.clone()))
             .layer(Extension(self.db.clone()))
             .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware))
     }

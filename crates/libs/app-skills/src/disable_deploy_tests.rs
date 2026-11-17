@@ -6,8 +6,10 @@ use vw_api_app_identity::{AppId};
 
 fn fixture(app_id: AppId) -> (tempfile::TempDir, std::path::PathBuf, AppSkillsPath) {
     let temp = tempfile::tempdir().unwrap();
-    let ssot = temp.path().join("ssot");
-    let app = temp.path().join("app");
+    // Use the physical root: macOS temporary directories may contain symlink aliases.
+    let root = temp.path().canonicalize().unwrap();
+    let ssot = root.join("ssot");
+    let app = root.join("app");
     fs::create_dir_all(ssot.join("example")).unwrap();
     fs::create_dir(&app).unwrap();
     fs::write(ssot.join("example/SKILL.md"), "# Example").unwrap();

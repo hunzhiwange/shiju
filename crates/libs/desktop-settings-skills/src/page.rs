@@ -211,7 +211,8 @@ pub fn view<'a, M: Clone + 'static>(
                 .on_press(map(Message::BackupOpen)),
             help_btn,
         ]
-        .align_y(Alignment::Start),
+        .align_y(Alignment::Start)
+        .wrap(),
         settings_tab_row(skills_tab_labels().iter().map(|(label, tab)| {
             skills_tab_button(tr(app.desktop_locale, label), *tab, active_tab).map(map)
         }))

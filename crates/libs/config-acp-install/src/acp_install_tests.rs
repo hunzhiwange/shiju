@@ -237,3 +237,12 @@ fn acp_onboarding_omp_installer_contract() {
     }
     assert!(acp_install_command("omp; echo unsafe").is_none());
 }
+
+#[test]
+fn acp_onboarding_vtcode_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+        assert!(acp_install_command_for_platform("vtcode", platform).is_none());
+    }
+    assert!(acp_install_command("vtcode; echo unsafe").is_none());
+}

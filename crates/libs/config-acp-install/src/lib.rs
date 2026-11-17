@@ -70,6 +70,9 @@ pub fn acp_install_command_for_platform(
         // currently have no published checksums; do not execute a download script.
         "cortex-code" => return None,
         "mimo-code" => &["install", "-g", "@mimo-ai/cli@0.1.17"],
+        // Discover the official native VT Code CLI. Automatic installation needs
+        // a reviewed, pinned platform/checksum mapping, never a same-name npm package.
+        "vtcode" => return None,
         "amp-acp" => &["install", "-g", "amp-acp@0.12.0"],
         "sigit" => &["install", "-g", "@smbcloud/sigit@1.7.10"],
         "nova" => &["install", "-g", "@compass-ai/nova@1.1.65"],

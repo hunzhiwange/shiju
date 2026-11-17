@@ -247,6 +247,17 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 }
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
+    // Official native ACP bridge: https://github.com/vinhnx/VTCode
+    // Keep bridge switches scoped to the child; preserve the CLI's local configuration.
+    BuiltInAgentDefinition {
+        name: "vtcode",
+        display_name: "VT Code",
+        command: "vtcode",
+        args: &["acp"],
+        env: &[("VT_ACP_ENABLED", "1"), ("VT_ACP_ZED_ENABLED", "1")],
+        local_command_candidates: &["vtcode"],
+        local_args: &["acp"],
+    },
     // Official Bun CLI: https://github.com/can1357/oh-my-pi
     BuiltInAgentDefinition {
         name: "aionrs",

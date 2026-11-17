@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号50（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -57,3 +57,12 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc04_hermes_permissio
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本轮执行证据
+
+- 按现有 Fixture 的构造方式，将跨租户客户端迁移为 `GatewayAppProviderClient::new(GatewayTransport::new(endpoint).unwrap())`；保留租户 p/b 与全部拒绝、无副作用断言。
+- 原诊断50作为编译红灯；确认当前代码仍存在旧 GatewayClient 引用后修复。真实入口为 `#[tokio::test] cc04_hermes_permission_tenant_and_host_denials_leave_no_changes`。
+- 等待已有宿主编译退出后执行指定命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc04_hermes_permission_tenant_and_host_denials_leave_no_changes -- --nocapture`。
+- 槽位1；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。日志 `/tmp/shiju-task312.log`。
+- Cargo 编译失败（101）：宿主仍有53条其他错误，包括 core 导出、runner_todos、ui_store 和 VideoContext 契约；本文件无诊断。有效运行测试数0，不能视为行为通过。子进程已退出，入口已释放槽位。
+- `git diff --check` 本文件通过。保留本编号文件，待兄弟编译阻塞解除后使用上述精确命令补验；不扩大修复归属。

@@ -159,11 +159,11 @@ async fn cc04_hermes_permission_tenant_and_host_denials_leave_no_changes() {
     let mut bad = f.request(HermesActivation::Add);
     bad.target_host_id = "foreign".into();
     assert!(f.client.hermes_provider_save("one", &bad, TOKEN).await.is_err());
-    let foreign = GatewayClient::new(
+    let foreign = GatewayAppProviderClient::new(gateway_http::GatewayTransport::new(
         GatewayEndpoint::new("127.0.0.1", f.port)
             .with_tenant_scope(TenantScope::new("p", "b").unwrap()),
     )
-    .unwrap();
+    .unwrap());
     assert!(
         foreign
             .hermes_provider_save("one", &f.request(HermesActivation::Add), TOKEN)

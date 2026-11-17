@@ -185,10 +185,16 @@ mod tests {
         let messages =
             vec![ChatMessage::user("Look [IMAGE:https://example.com/img.png]".to_string())];
 
-        let error = prepare_messages_for_provider(&messages, &MultimodalConfig::default())
+        let config = MultimodalConfig { allow_remote_fetch: false, ..Default::default() };
+        let error = prepare_messages_for_provider(&messages, &config)
             .await
             .expect_err("should reject remote image URL when fetch is disabled");
 
+        assert!(matches!(
+            error.downcast_ref::<MultimodalError>(),
+            Some(MultimodalError::RemoteFetchDisabled { input })
+                if input == "https://example.com/img.png"
+        ));
         assert!(error.to_string().contains("multimodal remote image fetch is disabled"));
     }
 

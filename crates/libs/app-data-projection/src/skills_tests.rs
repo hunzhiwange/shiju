@@ -30,6 +30,12 @@ fn fixture(directory: &str) -> (SourceScope, SourceSnapshot, tempfile::TempDir) 
         "name = 'fixture'\ndescription = 'anonymous'\n",
     )
     .unwrap();
+    // The copier validates SKILL.md; keep both documents consistent with the source row.
+    fs::write(
+        root.path().join("fixture/SKILL.md"),
+        "---\nname: fixture\ndescription: anonymous\n---\nFixture skill.\n",
+    )
+    .unwrap();
     let source = SourceSnapshot::from_staged_parts(scope.clone(),
         SourceSummary {
             format: SourceFormat::Sqlite,
@@ -163,6 +169,7 @@ fn cc_data_11_skills_batch_publication_rolls_back() {
     .unwrap();
     batch.publish().unwrap();
     assert!(root.path().join("fixture/SKILL.toml").is_file());
+    assert!(root.path().join("fixture/SKILL.md").is_file());
     batch.rollback().unwrap();
     assert!(!root.path().join("fixture").exists());
 }

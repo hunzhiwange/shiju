@@ -75,7 +75,8 @@ impl SkillsPreview {
         existing: &BTreeMap<String, MigratedSkill>,
     ) -> Result<Self> {
         checked(app_providers::providers::paths::open_beneath(resource_root, resource_root, true))?;
-        let resources = tempfile::tempdir()?;
+        // Copy publication compares paths beneath this private physical root.
+        let resources = tempfile::tempdir_in(std::fs::canonicalize(std::env::temp_dir())?)?;
         let mut records = Vec::new();
         let mut names = BTreeSet::new();
         let mut ids = BTreeSet::new();

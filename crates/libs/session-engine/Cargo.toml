@@ -85,6 +85,7 @@ mcp-client = { path = "../mcp-client", version = "0.6.0" }
 aisdk = { git = "https://github.com/hunzhiwange/aisdk.git", rev = "3401d28a7353c6e90cf4372f52c682cb2d02986b", package = "vibewindow-aisdk", version = ">=0.7.1", features = ["full"] }
 
 [dev-dependencies]
+session-store = { path = "../session-store", version = "0.6.0", features = ["test-support"] }
 futures-util = "0.3"
 acp-client = { path = "../acp-client", version = "0.6.0" }
 agent-project = { path = "../agent-project", version = "0.6.0", features = ["test-support"] }

@@ -19,7 +19,7 @@ fn server_info_exposes_stable_identity() {
 
 #[test]
 fn unknown_tool_call_is_rejected_without_execution() {
-    let ctx = ToolRuntimeContext::for_specs();
+    let ctx = NativeRuntime(ToolRuntimeContext::for_specs());
 
     let result = McpToolRuntime::execute_tool_call(&ctx, "definitely_missing_tool", "{}");
 
@@ -29,7 +29,7 @@ fn unknown_tool_call_is_rejected_without_execution() {
 
 #[test]
 fn registered_tool_call_with_missing_arguments_is_rejected_before_execution() {
-    let ctx = ToolRuntimeContext::for_specs();
+    let ctx = NativeRuntime(ToolRuntimeContext::for_specs());
 
     let result = McpToolRuntime::execute_tool_call(&ctx, "file_read", "{}");
 

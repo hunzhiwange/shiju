@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号53, 54（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -100,3 +100,12 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib unknown_tool_call_is_
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 执行记录（2026-11-18）
+
+- 两处真实 `#[test]` 入口已核实。仅将夹具迁移为父模块 `NativeRuntime(ToolRuntimeContext::for_specs())`，沿用真实宿主工具执行路径；未更改安全断言或生产接口。
+- 修复前：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib unknown_tool_call_is_rejected_without_execution -- --nocapture`，退出101，复现本文件两条 E0277，日志 `/tmp/shiju-329-before.log`。
+- 修复后：`python3 scripts/cargo_slot.py sh -c 'cargo test -p vw-agent --lib registered_tool_call_with_missing_arguments_is_rejected_before_execution -- --nocapture && cargo test -p vw-agent --lib unknown_tool_call_is_rejected_without_execution -- --nocapture'`，退出101；第一条被宿主其他16条编译错误阻塞，第二条按条件未执行。日志 `/tmp/shiju-329-after.log` 已无 mcp/tests.rs 诊断。实际执行测试0项，不能宣称行为通过。
+- 两轮均槽位1，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`；入口结束后已核实自有 Cargo/rustc 退出。
+- 剩余错误包含 workflow/video_edit 多文件的 VideoContext 夹具契约，属于兄弟任务；保留本卡，待宿主其余编译阻塞解除后重跑上述两项真实测试。
+- `git diff --check -- crates/vw-agent/src/mcp/tests.rs` 通过；未重复 check 或扩大测试范围。

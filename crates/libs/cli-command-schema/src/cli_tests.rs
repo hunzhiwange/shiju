@@ -33,6 +33,27 @@ fn cli_definition_builds_without_panicking() {
 }
 
 #[test]
+fn local_operations_commands_keep_parsing() {
+    // 本地命令兼容性必须由完整 CLI 验证，远程 API 测试夹具不注册这些命令。
+    for args in [
+        vec!["shiju", "cron", "list"],
+        vec!["shiju", "integrations", "list"],
+        vec!["shiju", "memory", "list"],
+        vec!["shiju", "doctor"],
+    ] {
+        let cli = crate::cli::Cli::try_parse_from(args)
+            .expect("existing local command must keep parsing");
+        assert!(matches!(
+            cli.command,
+            crate::cli::Commands::Cron { .. }
+                | crate::cli::Commands::Integrations { .. }
+                | crate::cli::Commands::Memory { .. }
+                | crate::cli::Commands::Doctor { .. }
+        ));
+    }
+}
+
+#[test]
 fn cli_help_rejects_removed_query_command() {
     let removed_command = ["api", "ql"].concat();
     let error = crate::cli::Cli::command()

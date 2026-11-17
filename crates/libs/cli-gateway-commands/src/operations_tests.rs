@@ -19,15 +19,6 @@ const CREDENTIAL_SENTINEL: &str = "operations-credential-sentinel-74bd";
 
 #[tokio::test(flavor = "current_thread")]
 async fn api_operations_commands_cover_cron_integrations_memory_and_doctor() {
-    for args in [
-        vec!["shiju", "cron", "list"],
-        vec!["shiju", "integrations", "list"],
-        vec!["shiju", "memory", "list"],
-        vec!["shiju", "doctor"],
-    ] {
-        Cli::try_parse_from(args).expect("existing local command must keep parsing");
-    }
-
     let responses = vec![
         (200, json!({"jobs": []})),
         (200, json!({"runs": []})),

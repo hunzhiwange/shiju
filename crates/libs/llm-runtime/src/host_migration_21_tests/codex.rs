@@ -146,21 +146,17 @@ fn acp_model_source_codex_rejects_non_acp_arguments_and_non_loopback_relay() {
 
 #[test]
 fn acp_model_source_codex_rejects_unsupported_transport_before_launch() {
-    for (adapter, url) in [
-        ("openai-compatible", "https://example.invalid/v1/messages"),
-        ("anthropic", "https://example.invalid/v1/messages"),
-        ("google", "https://example.invalid/v1beta"),
+    for (adapter, url, rejection) in [
+        ("openai-compatible", "https://example.invalid/v1/messages", "InvalidEndpoint"),
+        ("unsupported", "https://example.invalid/v1/messages", "UnknownProtocols"),
+        ("google", "file:///tmp/v1beta", "InvalidEndpoint"),
     ] {
         let mut profile = profile(&Default::default());
         let api = profile.model_api.as_mut().unwrap();
         api.adapter = adapter.into();
         api.url = url.into();
         let error = configure(&mut profile, "http://127.0.0.1:12345").unwrap_err().to_string();
-        assert!(error.contains(if adapter == "openai-compatible" {
-            "InvalidEndpoint"
-        } else {
-            "ConversionUnavailable"
-        }));
+        assert!(error.contains(rejection), "{adapter}: {error}");
         assert!(!profile.directory().join("config.toml").exists());
         assert!(!profile.config().env.contains_key("CODEX_HOME"));
     }
@@ -168,6 +164,27 @@ fn acp_model_source_codex_rejects_unsupported_transport_before_launch() {
     profile.model_api = None;
     assert!(configure(&mut profile, "http://127.0.0.1:12345").is_err());
     assert!(!profile.directory().join("config.toml").exists());
+}
+
+#[test]
+fn acp_model_source_codex_accepts_supported_protocol_conversions() {
+    for (adapter, url) in [
+        ("anthropic", "https://example.invalid/v1/messages"),
+        ("google", "https://example.invalid/v1beta"),
+    ] {
+        let mut profile = profile(&Default::default());
+        let api = profile.model_api.as_mut().unwrap();
+        api.adapter = adapter.into();
+        api.url = url.into();
+        configure(&mut profile, "http://127.0.0.1:12345").unwrap();
+        let config: serde_json::Value =
+            serde_json::from_str(&profile.config().env["CODEX_CONFIG"]).unwrap();
+        assert_eq!(config["web_search"], "disabled");
+        let provider = &config["model_providers"][config["model_provider"].as_str().unwrap()];
+        assert_eq!(provider["wire_api"], "responses");
+        assert_eq!(provider["base_url"], "http://127.0.0.1:12345/v1");
+        assert!(profile.directory().join("config.toml").is_file());
+    }
 }
 
 #[test]

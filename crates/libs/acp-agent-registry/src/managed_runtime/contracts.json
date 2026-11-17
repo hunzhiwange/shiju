@@ -636,7 +636,7 @@
     "engine_version": "0.0.1778732631-gc5875c",
     "files": {
       "dist/index.js": "fc3b527cad139098f2f120992e91414e4e0b45af6a71fc479d5e4b79c1122934",
-      "dist/shiju-local.mjs": "9a23eb5c39cc5128ce523436a983f99c4acef2cdaad949927580564a9cd10b08",
+      "dist/shiju-local.mjs": "141b55200e4d9239a467d5c8f84fb5a5b2ca91523eb22f361d6367028a76fed9",
       "dist/amp-cli": "f3076f4f083423e1215e366e18ec7808a4405e973cfe66d0135b1bd10592a1d5",
       "../@sourcegraph/amp/dist/main.js": "2cca8fdfbad3fdc9cec0d4de31946279c51a47adb9e6dd0242131f3cac7a5a1d"
     }

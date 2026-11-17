@@ -139,6 +139,8 @@ export class LocalAmp {
     if (Number.isSafeInteger(outputLimit) && outputLimit > 0) body.max_tokens = Math.min(body.max_tokens, outputLimit);
     if (process.env.SHIJU_AMP_TEMPERATURE !== 'true') delete body.temperature;
     if (process.env.SHIJU_AMP_REASONING !== 'true') delete body.thinking;
+    // This legacy Opus display default is not a selected-model preference.
+    if (body.thinking?.display === 'summarized') delete body.thinking.display;
     // The legacy Opus tier's effort default is not a selected-model preference.
     if (body.output_config?.effort !== undefined) {
       delete body.output_config.effort;

@@ -1,4 +1,4 @@
-use vw_api_app_operations::ProviderOperationProgress;
+use vw_api_app_aggregation::operations::ProviderOperationProgress;
 use super::*;
 fn state() -> CodexClientsState {
     CodexClientsState {

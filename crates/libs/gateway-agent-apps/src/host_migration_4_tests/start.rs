@@ -58,7 +58,7 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
                         return ([("content-type", "text/event-stream")], sample).into_response();
                     }
                     if payload["model"].is_string() {
-                        return axum::Json(json!({"type":"message","role":"assistant", "model":"fixture-model", "content":[{"type":"text","text":"OK"}]})).into_response();
+                        return axum::Json(json!({"type":"message","role":"assistant", "model":"fixture-model", "stop_reason":"end_turn", "content":[{"type":"text","text":"OK"}]})).into_response();
                     }
                     StatusCode::OK.into_response()
                 }
@@ -143,7 +143,7 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
     let request = |body: Value, project: &str, host: &str, app_id: &str, token: &str| {
         Request::builder().method("POST")
             .uri(format!("/agent-apps/diagnostics/jobs?projectId={project}&targetHostId={host}&appId={app_id}"))
-            .header("content-type", "application/json").header("x-agent-apps-token", token)
+            .header("content-type", "application/json")
             .body(Body::from(body.to_string())).unwrap()
     };
     for body in [

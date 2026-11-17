@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号430。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -38,3 +38,11 @@ python3 scripts/cargo_slot.py cargo test -p gateway-agent-apps --lib 'host_migra
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 本轮执行证据
+
+- 仅补全 start.rs 的 Anthropic 成功响应夹具 `stop_reason: end_turn`；底层 model_check/response.rs 明确要求该完成状态，相邻 model_check_tests.rs 已采用相同字段。授权断言原样保留。
+- 原命令修改前后均执行1项，0 passed、1 failed、退出101。日志 `/tmp/shiju-225-red.log`、`/tmp/shiju-225-green.log`。
+- 两轮均槽位3，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；入口和子进程已退出，缓存保留。
+- 当前失败早于原证据：start.rs:158 未授权请求返回202，预期403。现有 app-access-service/src/access.rs 的 authorize_scoped 委托 execution_context，明确忽略旧 token/grants 并将认证交给外围 Gateway 配对中间件。直接路由测试的原安全契约已受底层迁移影响；不在本任务中恢复旧授权或削弱安全断言。
+- 需授权迁移所有者提供等效受保护路由测试接线后，再运行本任务原精确命令，当前不能宣称原响应修复已获得行为绿灯。未运行全量测试或桌面构建。

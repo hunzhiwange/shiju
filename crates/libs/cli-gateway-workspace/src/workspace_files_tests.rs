@@ -39,8 +39,10 @@ fn workspace_file_browser_rejects_escape_and_reads_selected_text() {
     assert_eq!(requests.len(), 2, "escape rejection must not make a request");
     assert_eq!(requests[0].path, "/v1/file?directory=%2Fworkspace&path=.");
     assert_eq!(requests[1].path, "/v1/file/read");
-    assert!(requests[1].body.contains(r#"\"directory\":\"/workspace\""#));
-    assert!(requests[1].body.contains(r#"\"path\":\"README.md\""#));
+    let body: serde_json::Value =
+        serde_json::from_str(&requests[1].body).expect("workspace file read request is valid JSON");
+    assert_eq!(body["directory"], "/workspace");
+    assert_eq!(body["path"], "README.md");
     server.join().expect("workspace files fixture");
 }
 

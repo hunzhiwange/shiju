@@ -125,12 +125,11 @@ async fn doctor_model_targets_with_override_returns_only_trimmed_provider() {
 #[tokio::test]
 async fn doctor_model_targets_without_override_returns_sorted_provider_keys() {
     let targets = doctor_model_targets(None, provider_keys()).await.unwrap();
-    let mut sorted = targets.clone();
-    sorted.sort();
 
-    assert_eq!(targets, sorted);
+    assert_eq!(targets, vec!["anthropic", "openai", "zai"]);
 }
 
 async fn provider_keys() -> anyhow::Result<Vec<String>> {
-    Ok(agent_provider::provider::list().await?.into_keys().collect())
+    // 目录查询由宿主注入；目标解析测试不依赖进程级宿主或租户配置。
+    Ok(vec!["zai".to_string(), "openai".to_string(), "anthropic".to_string()])
 }

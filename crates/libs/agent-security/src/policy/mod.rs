@@ -600,24 +600,29 @@ impl SecurityPolicy {
     pub fn is_resolved_path_allowed(&self, resolved: &Path) -> bool {
         let normalized_resolved = normalize_path(resolved);
         let normalized_workspace = normalize_path(&self.workspace_dir);
-        if normalized_resolved.starts_with(&normalized_workspace) {
+        // `.` 等路径规范化后为空，空前缀不能授予任意路径访问权限。
+        if !normalized_workspace.as_os_str().is_empty()
+            && normalized_resolved.starts_with(&normalized_workspace)
+        {
             return true;
         }
 
         let workspace_root =
             self.workspace_dir.canonicalize().unwrap_or_else(|_| self.workspace_dir.clone());
-        if resolved.starts_with(&workspace_root) {
+        if !workspace_root.as_os_str().is_empty() && resolved.starts_with(&workspace_root) {
             return true;
         }
 
         for root in &self.allowed_roots {
             let normalized_root = normalize_path(root);
-            if normalized_resolved.starts_with(&normalized_root) {
+            if !normalized_root.as_os_str().is_empty()
+                && normalized_resolved.starts_with(&normalized_root)
+            {
                 return true;
             }
 
             let canonical = root.canonicalize().unwrap_or_else(|_| root.clone());
-            if resolved.starts_with(&canonical) {
+            if !canonical.as_os_str().is_empty() && resolved.starts_with(&canonical) {
                 return true;
             }
         }

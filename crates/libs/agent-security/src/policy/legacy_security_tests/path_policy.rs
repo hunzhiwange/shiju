@@ -469,3 +469,20 @@ fn is_path_allowed_blocks_url_encoded_traversal() {
         "URL-encoded parent dir traversal must be blocked"
     );
 }
+
+// 空的规范化允许根不能匹配所有路径；`.` 仍应允许当前目录。
+#[test]
+fn empty_normalized_allowed_roots_do_not_allow_external_paths() {
+    for root in [".", "", "src/.."] {
+        let policy = SecurityPolicy {
+            workspace_dir: PathBuf::from("/workspace/project"),
+            allowed_roots: vec![PathBuf::from(root)],
+            ..SecurityPolicy::default()
+        };
+        assert!(!policy.is_path_allowed("/etc/passwd"), "allowed root: {root:?}");
+        assert!(!policy.is_path_allowed("/any/absolute/path"), "allowed root: {root:?}");
+    }
+    let policy = SecurityPolicy::default();
+    let current_file = std::env::current_dir().unwrap().join("Cargo.toml");
+    assert!(policy.is_path_allowed(current_file.to_str().unwrap()));
+}

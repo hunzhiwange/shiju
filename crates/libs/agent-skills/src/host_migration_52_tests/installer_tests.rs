@@ -58,6 +58,10 @@ fn configured_skill_security_controls_loading_and_install_audit() {
         Ok(_) => panic!("script-rejecting policy must fail installation"),
         Err(error) => error,
     };
-    assert!(error.to_string().contains("Skill security audit failed"));
+    assert!(error.to_string().contains("failed to install local skill source"));
+    assert!(
+        error.root_cause().to_string().contains("Skill security audit failed"),
+        "expected a security audit failure in the error chain: {error:#}"
+    );
     assert!(!installs.join("install-rejected").exists());
 }

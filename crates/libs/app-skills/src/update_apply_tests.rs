@@ -4,8 +4,10 @@ use std::{collections::BTreeMap, fs};
 #[test]
 fn cp12_update_apply_success() {
     let temp = tempfile::tempdir().unwrap();
-    let root = temp.path().join("ssot");
-    let source = temp.path().join("remote");
+    // Deployment requires resolved host paths (macOS temp paths may use /var).
+    let base = fs::canonicalize(temp.path()).unwrap();
+    let root = base.join("ssot");
+    let source = base.join("remote");
     fs::create_dir_all(root.join("example")).unwrap();
     fs::create_dir(&source).unwrap();
     fs::write(root.join("example/SKILL.md"), "# Old").unwrap();
@@ -28,8 +30,10 @@ fn cp12_update_apply_success() {
 #[test]
 fn cp12_update_apply_rejects_without_side_effects() {
     let temp = tempfile::tempdir().unwrap();
-    let root = temp.path().join("ssot");
-    let source = temp.path().join("remote");
+    // Deployment requires resolved host paths (macOS temp paths may use /var).
+    let base = fs::canonicalize(temp.path()).unwrap();
+    let root = base.join("ssot");
+    let source = base.join("remote");
     fs::create_dir_all(root.join("example")).unwrap();
     fs::create_dir(&source).unwrap();
     fs::write(root.join("example/SKILL.md"), "# Local edit").unwrap();
@@ -45,15 +49,17 @@ fn cp12_update_apply_projection_failure_restores_ssot_and_prior_copy() {
 use vw_api_app_provider_environment::paths::ConfigPathState;
     use vw_api_app_identity::{AppId};
     let temp = tempfile::tempdir().unwrap();
-    let root = temp.path().join("ssot");
-    let source = temp.path().join("remote");
+    // Deployment requires resolved host paths (macOS temp paths may use /var).
+    let base = fs::canonicalize(temp.path()).unwrap();
+    let root = base.join("ssot");
+    let source = base.join("remote");
     fs::create_dir_all(root.join("example")).unwrap();
     fs::create_dir(&source).unwrap();
     fs::write(root.join("example/SKILL.md"), "# Old").unwrap();
     fs::write(source.join("SKILL.md"), "# New").unwrap();
     let mut bindings = BTreeMap::new();
     for name in ["app-a", "app-b"] {
-        let directory = temp.path().join(name);
+        let directory = base.join(name);
         fs::create_dir(&directory).unwrap();
         let target = AppSkillsPath { app_id: AppId::Codex, directory,
             state: ConfigPathState::Present, distribution: distribution(AppId::Codex) };
@@ -65,11 +71,11 @@ use vw_api_app_provider_environment::paths::ConfigPathState;
     let hash = compute_dir_hash(&root.join("example")).unwrap();
     let mut update = SkillUpdate::prepare(&root, &source, &saved, &hash, &bindings).unwrap();
     // An outside writer ignores our advisory lock after staging.
-    fs::write(temp.path().join("app-b/example/SKILL.md"), "# Outside edit").unwrap();
+    fs::write(base.join("app-b/example/SKILL.md"), "# Outside edit").unwrap();
     assert!(update.publish().is_err());
     update.rollback().unwrap();
     drop(update);
     assert_eq!(compute_dir_hash(&root.join("example")).unwrap(), hash);
-    assert_eq!(fs::read_to_string(temp.path().join("app-a/example/SKILL.md")).unwrap(), "# Old");
-    assert_eq!(fs::read_to_string(temp.path().join("app-b/example/SKILL.md")).unwrap(), "# Outside edit");
+    assert_eq!(fs::read_to_string(base.join("app-a/example/SKILL.md")).unwrap(), "# Old");
+    assert_eq!(fs::read_to_string(base.join("app-b/example/SKILL.md")).unwrap(), "# Outside edit");
 }

@@ -32,11 +32,13 @@ impl SkillUpdate {
         let old = CopyBinding { directory: saved.directory.clone(), destination: current.clone(),
             fingerprint: binding_fingerprint(&current, None)?, link_target: None };
         let stage = tempfile::tempdir()?;
-        copy_skill_tree(source, &stage.path().join(&saved.directory))?;
-        let ssot = CopyDeploy::prepare_tree(stage.path(), root, &saved.directory, Some(&old), SyncMethod::Copy)?;
+        // Resolve our own temporary root before passing it to the secure copier.
+        let stage_root = std::fs::canonicalize(stage.path())?;
+        copy_skill_tree(source, &stage_root.join(&saved.directory))?;
+        let ssot = CopyDeploy::prepare_tree(&stage_root, root, &saved.directory, Some(&old), SyncMethod::Copy)?;
         // Checked under the SSOT lock, after publication staging.
         if compute_dir_hash(&current)? != expected_hash { return Err(LocalInstallError::Conflict); }
-        let detail = get_all_installed(stage.path(), std::slice::from_ref(saved))?
+        let detail = get_all_installed(&stage_root, std::slice::from_ref(saved))?
             .pop().ok_or(LocalInstallError::InvalidSkill)?;
         let mut skill = detail.skill;
         skill.source = saved.source.clone();
@@ -55,7 +57,7 @@ impl SkillUpdate {
             roots.push(parent.clone());
             // Links retain their stable SSOT target and ownership fingerprint.
             // Stage them from the live root, copies from the new source.
-            let source_root = if binding.link_target.is_some() { root } else { stage.path() };
+            let source_root = if binding.link_target.is_some() { root } else { stage_root.as_path() };
             let projection = CopyDeploy::prepare_tree(source_root, &parent, &saved.directory,
                 Some(binding), SyncMethod::Auto)?;
             projections.push((key.clone(), projection));

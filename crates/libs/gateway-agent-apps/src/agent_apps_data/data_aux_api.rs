@@ -1,6 +1,7 @@
 //! Authorized portable downloads and host-local backup policy. No client paths.
 use axum::{Extension, Json, Router, http::{HeaderMap, StatusCode, header}, routing::post, response::{IntoResponse, Response}};
 use serde::{Deserialize, Serialize};
+use std::os::unix::fs::PermissionsExt;
 use serde_json::{Value, json};
 use std::{collections::HashMap, path::PathBuf, sync::{Arc, Mutex}, time::{Instant, Duration}};
 use {agent_database::GlobalDatabase, app_settings_store::settings_store::GatewaySettingsStore};
@@ -58,7 +59,9 @@ async fn create(Extension(state): Extension<State>, Extension(tenant): Extension
         let user: AppUserPreferences=value.map(|v| serde_json::from_str(&v)).transpose().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?.unwrap_or_else(vw_agent_apps::apps::preferences::default_user_preferences);
         // Only normalized portable preference fields; host settings are never read.
         let record=json!({"appOrder":user.app_order,"visibleApps":user.visible_apps});
-        let dir=tempfile::tempdir().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        let dir=tempfile::Builder::new()
+            .permissions(std::fs::Permissions::from_mode(0o700))
+            .tempdir().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
         let path=dir.path().canonicalize().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
         let receipt=export::export_portable_package(&path, &scope(&input.target), &[DataCategory::Preferences], |_, _| Ok(vec![record.clone()])).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
         let bytes=std::fs::read(path.join(format!("{}.shiju-package",receipt.id))).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;

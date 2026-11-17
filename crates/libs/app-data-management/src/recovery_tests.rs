@@ -10,6 +10,21 @@ use {
     vw_api_transport::id::TenantScope,
 };
 
+// A local backup requires at least one present owner bundle.
+fn capture_preference(scope: &SafetySnapshotScope, target: SnapshotTarget) -> Vec<OwnerPreimage> {
+    use app_usage_store::source_settings::{initialize_source_settings, load_source_settings};
+    let database = rusqlite::Connection::open_in_memory().unwrap();
+    initialize_source_settings(&database).unwrap();
+    let state = load_source_settings(&database, &scope.project, &scope.host_id, "claude").unwrap();
+    vec![OwnerPreimage {
+        target,
+        state: Some(PresentPreimage {
+            revision: state.settings_revision.to_string(),
+            bytes: serde_json::to_vec(&state.settings).unwrap(),
+        }),
+    }]
+}
+
 #[test]
 fn cc_data_27_recovery_lists_backups_with_corrupt_target() {
     let root = tempfile::tempdir().unwrap();
@@ -25,10 +40,10 @@ fn cc_data_27_recovery_lists_backups_with_corrupt_target() {
     };
     let target = SnapshotTarget {
         category: SnapshotCategory::Preference,
-        object_id: "fixture-preference".into(),
+        object_id: "usage-source/claude".into(),
     };
     let receipt = create_local_backup(&root, &scope, &[target.clone()], "fixture", || {
-        Ok(vec![OwnerPreimage { target, state: None }])
+        Ok(capture_preference(&scope, target))
     }).unwrap().unwrap();
     let damaged = tempfile::tempdir().unwrap();
     let database = damaged.path().join("target.db");
@@ -61,9 +76,9 @@ fn cc_data_27_recovery_failure_preserves_original_evidence() {
         ).unwrap(),
         principal_id: "fixture-user".into(), host_id: "fixture-host".into(),
     };
-    let target = SnapshotTarget { category: SnapshotCategory::Preference, object_id: "fixture".into() };
+    let target = SnapshotTarget { category: SnapshotCategory::Preference, object_id: "usage-source/claude".into() };
     let receipt = create_local_backup(&root, &scope, &[target.clone()], "fixture", || {
-        Ok(vec![OwnerPreimage { target, state: None }])
+        Ok(capture_preference(&scope, target))
     }).unwrap().unwrap();
     let evidence = tempfile::tempdir().unwrap();
     let database = evidence.path().join("target.db");

@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：已完成
 
 来源：原任务19全量实际执行；证据编号379。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -36,3 +36,13 @@ python3 scripts/cargo_slot.py cargo test -p desktop-workflow-canvas --lib 'canva
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 执行证据
+
+- 根因：220px 宽节点的描述按 20 字符换行，导出结果为 `tall description vis` 与 `ible` 两个 SVG text 元素；原断言错误要求整句连续出现。已检查导出、共享换行函数、画布渲染逻辑、父模块注册和直接调用者，无需业务实现改动。
+- 修复：逐行检查完整描述、x=310、y=121/136 和 12px 字号；保留默认中文标题、13px 标题字号检查，加强矮节点描述不出现的断言。
+- 原生精确命令：`python3 scripts/cargo_slot.py cargo test -p desktop-workflow-canvas --lib 'canvas::utils_tests::export_svg_uses_default_title_and_respects_description_height' -- --exact --nocapture`。
+- 红灯：运行 1 项，0 passed、1 failed，Cargo 退出 101；`/tmp/shiju-task197/red.log`，与证据379相同断言失败。
+- 绿灯：运行 1 项，1 passed、0 failed、62 filtered out，Cargo 退出 0；`/tmp/shiju-task197/green.log`。
+- 两轮动态领取槽位均为 3；`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。运行句柄均已退出，入口负责确认子进程收尾并释放自身锁；缓存保留。
+- 代码状态：仅本任务测试文件及本编号文件变更；审查 diff、定向 `git diff --check` 通过。无共享业务文件写入，不运行全量测试或额外 check；建议后续统一验收。

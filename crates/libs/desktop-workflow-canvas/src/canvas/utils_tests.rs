@@ -442,13 +442,17 @@ fn export_svg_uses_default_title_and_respects_description_height() {
     let svg = export_svg(&document);
 
     assert!(svg.contains(">回复<"));
-    assert!(!svg.contains("short description hidden"));
-    assert!(svg.contains("tall description visible"));
-    let description_line = svg
-        .lines()
-        .find(|line| line.contains("tall description visible"))
-        .expect("tall description should render");
-    assert!(description_line.contains("x=\"310.00\""));
+    assert!(!svg.contains("short description"));
+    assert!(!svg.contains("> hidden<"));
+    for (text, y) in [("tall description vis", "121.00"), ("ible", "136.00")] {
+        let description_line = svg
+            .lines()
+            .find(|line| line.contains(&format!(">{text}</text>")))
+            .expect("each wrapped description line should render");
+        assert!(description_line.contains("x=\"310.00\""));
+        assert!(description_line.contains(&format!("y=\"{y}\"")));
+        assert!(description_line.contains("font-size=\"12.00\""));
+    }
     assert!(svg.contains("font-size=\"13.00\""));
     assert!(svg.contains("font-size=\"12.00\""));
 }

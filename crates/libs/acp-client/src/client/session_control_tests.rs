@@ -560,3 +560,6 @@ mod gemini_tests;
 
 #[path = "qwen_tests.rs"]
 mod qwen_tests;
+
+#[path = "dimcode_tests.rs"]
+mod dimcode_tests;

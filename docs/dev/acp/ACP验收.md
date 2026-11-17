@@ -623,3 +623,53 @@ Rust 重型命令全部经 scripts/cargo_slot.py，串行复用槽位 3；CARGO_
 - 本次源码副本、摘要、初始快照及工作区状态仅存本机 0700 目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-dimcode-20261117-wzy8qvop`，未提交原始配置、敏感请求或供应商二进制。任务引用的 .plans/references/rust.md 不存在，本轮未调用 Cargo。
 
 重跑条件：交付并验证 DimCode session_model 私有中继驱动，使用包含该实现的已验证构建，从任务 24 步骤 1 重跑。任务文件保持已阻塞并保留。
+
+
+# DimCode 验收（2026-11-17 扩围恢复）
+
+结论：**指定模型文件创建验收通过**。用户追加扩围授权后，本任务补齐宿主 session_model 驱动与 DimCode 只读初始化的底层适配；此结论替代此前能力缺失阻塞。严格 Clippy 的既有失败单独保留。
+
+## 实现与权限边界
+
+- `crates/libs/llm-runtime/src/acp/model_source/drivers/dimcode.rs` 使用现有 RelayBinding 的租户、项目、会话、provider/model 身份与短期中继令牌，明确 OpenAI Chat 协议；仅写请求私有 DIMCODE_HOME/v2 的 0600 config/providers 文件，目录 0700。设置主模型、辅助/子代理模型及原生 session-selected/<选定模型>，不借用 CLI 默认模型。拒绝自定义参数/环境、非回环中继和 .dimcode/providers.json 项目覆盖。受管子进程沿用 OS 环境白名单，保留 HOME，隔离模型凭据、代理及注入变量。
+- 固定发行物的 ACP session/new 硬编码 read-only；首轮正确绑定模型但写入被 capability_rule 拒绝。新增 `acp-client/src/client/dimcode_access.rs`：仅当前 full_access + ApproveAll 授权时同步 workspace-write，否则同步 read-only；拒绝原生 full-access。回读不确认则阻止 prompt，权限控制不得改变模型，保存权限不能恢复撤销授权。文件读写继续通过宿主 RPC 与原有校验；仍报告 client_only，未发布 Native 免审批能力。
+- 原生私有配置探针确认 Chat 请求确实使用 selected-model，两轮 end_turn；宿主拒绝写入后仍可继续，允许写入后私有夹具实际落盘。只用于配置/宿主边界验证，不替代真实模型验收。
+
+## 系统安装与构建
+
+- 固定 DimCode 0.5.28。系统 POST 安装两轮均 HTTP 200、客户端退出 0；实际入口 `/opt/homebrew/Cellar/node/26.13.0_2/bin/dim`，解析到同目录 lib/node_modules/dimcode/bin/dim.mjs，--version 退出 0。入口 SHA-256 `ba7e8e41d23b53ca01c984336e54bfb2813601cf9e6f80748f98804d0443407f`，Darwin arm64 原生文件 SHA-256 `0d6298cc8881b15ae8cdf1901b6f39674b74dbf5c14caedadfe509ab5ae114b0`。
+- 首轮安装基线 false，安装后发现仍 false：npm 使用实际 Homebrew Node 的 Cellar 全局前缀，入口未在网关 PATH。已定位文件而非误报安装成功；结束首轮后，仅为第二轮自有网关 PATH 补入该已安装 Node bin 目录。未改主机 npm 配置、用户服务或绕开系统安装。第二轮安装前后均 true，重读确认。原正常启动环境若未包含该目录，仍可能无法发现 dim，只能使用固定 npx 回退；未声称这一通用发现问题已修复。
+- 普通诊断均 HTTP 200、connected；模型来源接口明确 session_model supported，审核平台 Darwin arm64 / 0.5.28。普通诊断没有计为真实模型成功。
+- 使用槽位 4 新构建 shiju 0.6.0，最终 `cargo build -p vw-cli --bin shiju` 退出 0，2m16s；二进制 SHA-256 `fd909abe08985bac9cd36f2fbafc465cecaa213f330e367efd29f5b68c1d152c`。源码摘要与构建时 HEAD 存在 source-hashes-final.json，共享工作区其他差异未纳入本任务提交。
+
+## 真实会话与文件
+
+- 所有请求使用 X-Platform-ID=10001、X-Company-ID=100010005、X-Directory=/Users/xiangmin/worker/code/ruejs。读取 installed、完整 agent 目录及 acp 配置基线；确认 acp-dimcode 的 builtin=true、backend=dimcode，临时 enabled=true 后 GET 重读成功。请求 JSON 沿用任务指定模型、预设、后端、session_model、cwd 和 full_access=true。
+- 首轮会话 `ses_1e9713408001WlO2ME4hafpWWK`：初始 HTTP 200、curl 退出 28、300.011222 秒；查询状态并核对续传实现后，使用原请求标识与 Last-Event-ID=296 续传，HTTP 200、curl 0、176.801317 秒。原流合并取得 chat.done，无 chat.error，但只读权限拒绝全部写入，目标不存在，**明确不计通过**。没有因超时重新提交创建任务。该轮结束普通文件快照 0 差异，配置恢复，网关退出 0。
+- 修复后另行重跑，原目标仍不存在，没有覆盖用户产物。HTTP 200、curl 0、134.517361 秒；chat.context_loaded×1、chat.step_start×1、chat.delta×84、chat.tool×66（状态事件，非 66 个独立调用）、chat.session_updated×2、chat.step_finish×1、chat.done×1，chat.error=0。
+- 实际会话 `ses_1e9822d26001wN9tt0onLDZeLM` 的运行中及结束 summary/options 均 HTTP 200。绑定 acp-dimcode/dimcode、full_access=true，运行中 connected=true，selected_model.source=session_model、provider_id=alibaba-token-plan-cn、完整模型 ID=alibaba-token-plan-cn/deepseek-v4.1-flash-1017；结束 connected=false，选定模型仍匹配。access_status 为 client_only，未把完全访问请求当成 Native 权限认证。
+- 产物 `/Users/xiangmin/worker/code/ruejs/acpdemo/dimcode/` 共 7 文件：README.md、index.html、vite.config.mjs、src/main.tsx、src/App.tsx、src/env.d.ts、src/style.css。已阅读实际源码：Vite 复用仓库 examples/shared/rue-vite.mjs，其 Rue 别名指向 packages/rue/src；useApp 挂载、ref/computed 状态、textarea onInput 实时统计、localStorage 初始化恢复和 400ms 防抖保存均在文件内，README 提供根目录运行命令。没有运行页面、浏览器、页面构建或额外页面回归，不声称已实际渲染。
+
+## 环境恢复与证据
+
+- 成功重跑前 6,245 个普通文件，结束 6,252 个，快照排除 .git/node_modules/target；仅上述目标目录新增 7 文件，目录外 0 差异，见 before.json、after.json、boundary.json。首轮快照另存 first-run/before.json、first-after.json。
+- 两轮临时 enabled 均在 finally 恢复并 GET 重读。最终第二轮整份 config 与其基线相等，agent 有效配置相等、enabled=false。最初首轮无显式预设覆盖项，首次保存后保留等效 enabled=false 覆盖，因此不声称恢复首轮存储字节；未改其他预设、默认模型或权限策略。
+- 两轮自有网关分别监听 60110、53600，均退出 0；最终自有进程已结束、端口关闭、槽位控制进程退出，锁释放，缓存保留。没有重启用户服务，系统安装结果保留。
+- 原始请求、响应、SSE、配置、原生探针、快照及源码摘要仅存本机 `/tmp/shiju-dimcode-20261117-retry`（0700），首轮证据在 first-run/；此前静态核对证据目录也保留。未提交凭据、敏感原始载荷、供应商二进制或 Rue.js 工作区。
+
+## 定向验证
+
+Rust 重型命令均经 scripts/cargo_slot.py 的 slot(number=4)，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-4`，串行执行。首次选择被占槽位 3 时仅中断尚未取得锁的自有排队进程；没有操作他人锁或缓存。任务旧引用 .plans/references/rust.md 不存在，使用现有槽位入口。
+
+| 原生子命令（槽位内） | 结果 |
+| --- | --- |
+| cargo test -p llm-runtime --lib dimcode_selected_model_ -- --test-threads=1 | 1 失败，重现无驱动协议路由 |
+| cargo test -p llm-runtime --lib dimcode_ -- --test-threads=1 | 初始 3 通过；项目覆盖红灯修复后 4 通过 |
+| cargo test -p llm-runtime --lib dimcode_rejects_project_ -- --test-threads=1 | 1 失败，重现项目 provider 覆盖 |
+| cargo test -p acp-client --lib dimcode_ -- --test-threads=1 | 先 3 项业务失败，再 3 通过，补充控制失败/只读同步后最终 5 通过；早期夹具 collect 类型编译错误已修正，不作为业务红灯 |
+| cargo clippy -p llm-runtime -p acp-client -p acp-agent-registry --lib --no-deps -- -D warnings | 两轮均退出 101，llm-runtime 101 项既有诊断，无本次 DimCode/权限/环境隔离修改文件诊断 |
+| cargo build -p vw-cli --bin shiju | 两轮均退出 0，最终含权限同步修复 |
+
+只格式化新增 Rust 文件，未运行桌面编译、整仓构建/测试、全特性 Clippy、全仓格式检查、wasm 或 Makefile。上述既有严格 lint 失败不影响本次实机文件创建结论，但不被描述为通过。
+
+成功重跑 API 耗时补充：new-install：HTTP 200，客户端退出 0，1.341 秒；new-diagnostic：HTTP 200，客户端退出 0，0.780 秒；capability：HTTP 200，客户端退出 0，0.001 秒；enable：HTTP 200，客户端退出 0，8.208 秒；restore：HTTP 200，客户端退出 0，6.489 秒。

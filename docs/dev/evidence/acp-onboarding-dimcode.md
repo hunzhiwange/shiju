@@ -67,3 +67,12 @@ vw-agent lib-test 沿用前一批已验证的命令行 `--config profile.test.pa
 用户明确取消独立窗口验证及额外验证后，已停止本会话创建的独立窗口和临时网关，删除新增窗口夹具、模块连线和窗口回环脚本；同步移除计划中的人工桌面、明暗主题验收门槛。窗口尝试只观察到目录启用与配置保存重开，未完成真实桌面两轮，不能宣称已通过。没有修改用户正常应用或其他任务的窗口夹具。
 
 按用户最新要求不再追加窗口或其他验证。stdio 修复后的 ACP 4 项已经通过；HTTP MCP 生产流夹具调整后未重跑 vw-agent 和 Clippy，以上历史通过结果不冒称为这次调整后的新结果。SSE、技能隔离、跨进程恢复和其他 OS 的边界保留为未实测，不制造支持或失败结论。
+
+
+## 2026-11-17 指定模型扩围交付
+
+历史“session_model 未开放”由本次交付替代。固定 Darwin arm64 0.5.28 新增 `llm-runtime/src/acp/model_source/drivers/dimcode.rs`：使用 RelayBinding 的短期凭据与选定模型、私有 DIMCODE_HOME/v2、0600 provider/config 文件，明确 Chat 协议与原生 session-selected/<选定模型>，profile 销毁撤销令牌并删除私有目录。主模型、辅助模型和子代理模型均使用本次绑定；拒绝自定义参数/环境、非私有回环地址、项目 provider 覆盖。受管子进程复用 OS 环境白名单，保留 HOME、不继承账号模型凭据、代理和注入变量。
+
+固定 CLI 在 session/new 硬编码 read-only，单纯配置模型不能创建文件。新增 acp-client DimCode 控制同步：仅当前 full_access + ApproveAll 授权时选择 workspace-write，无授权同步 read-only；永不接受原生 full-access。配置 RPC 必须确认回读，模型配置不得随权限变化，失败保留 prompt 屏障，保存的权限不能恢复已撤销授权。仍报告 ClientOnly，不声称 Native 免审批支持。供应商 write/edit 在声明文件能力后通过宿主 RPC，宿主文件校验和权限回调没有删除或绕过。
+
+本轮 driver 聚焦测试 4 通过；权限聚焦测试先 3 失败，再最终 5 通过。原生私有配置探针两轮 Chat/end_turn，宿主写入拒绝后继续、允许后实际写入均观察到。真实系统安装、预设保存、指定 alibaba-token-plan-cn/deepseek-v4.1-flash-1017 会话与 7 文件创建验收通过，详见 ACP验收.md 本日扩围章节。严格组合 Clippy 被 llm-runtime 101 项既有诊断阻断；CLI 最终构建通过。没有新增技能隔离、stdio MCP、Native 权限或跨进程恢复支持承诺。

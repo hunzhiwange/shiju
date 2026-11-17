@@ -16,6 +16,9 @@ impl AcpClient {
         use crate::access_policy::{
             claude, codebuddy, codex, goose, hermes, iflow, kimi, qoder, qwen,
         };
+        if self.agent_name == "dimcode" && option == "permission" {
+            return "read-only";
+        }
         if self.agent_name == "hermes" && option == "edit_approval_policy" && value != "ask" {
             return "ask";
         }

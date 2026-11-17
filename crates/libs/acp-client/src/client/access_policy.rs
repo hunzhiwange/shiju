@@ -29,6 +29,9 @@ impl AcpClient {
         option_name: &str,
         value_id: &str,
     ) -> Result<acp::SetSessionConfigOptionResponse, AcpError> {
+        if option_name == "permission" {
+            self.guard_dimcode_permission(session_id, value_id).await?;
+        }
         if self.agent_name == "hermes" && option_name == "edit_approval_policy" {
             let mode = if value_id == "ask" { "default" } else { "dont_ask" };
             self.guard_hermes_mode(session_id, mode).await?;
@@ -215,6 +218,7 @@ impl AcpClient {
         conn: &acp::ClientSideConnection,
         session_id: &str,
     ) -> Result<(), AcpError> {
+        self.sync_dimcode_access(conn, session_id).await?;
         self.sync_codex_access(conn, session_id).await?;
         self.sync_claude_access(conn, session_id).await?;
         self.sync_qwen_access(conn, session_id).await?;

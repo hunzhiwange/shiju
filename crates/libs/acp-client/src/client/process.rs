@@ -111,8 +111,9 @@ impl AcpClient {
                 .to_string(),
             );
         }
-        let managed_deepagents =
-            self.agent_name == "deepagents" && env.contains_key("VW_ACP_LAUNCH_REFERENCE");
+        let managed_private_provider =
+            matches!(self.agent_name.as_str(), "deepagents" | "dimcode")
+                && env.contains_key("VW_ACP_LAUNCH_REFERENCE");
         let managed_claude = managed_claude_settings(&self.config).is_some();
         let managed_auggie =
             self.agent_name == "auggie" && env.contains_key("VW_ACP_LAUNCH_REFERENCE");
@@ -151,7 +152,7 @@ impl AcpClient {
                 ));
             }
         }
-        if !managed_claude && !managed_auggie && !managed_cursor && !managed_droid && !managed_deepagents {
+        if !managed_claude && !managed_auggie && !managed_cursor && !managed_droid && !managed_private_provider {
             for (key, value) in build_agent_environment(&self.auth_credentials) {
                 insert_auth_env_if_missing(&mut env, key, value);
             }
@@ -161,7 +162,7 @@ impl AcpClient {
         if self.agent_name == "copilot" {
             cmd.env_remove("COPILOT_ALLOW_ALL");
         }
-        if managed_claude || managed_auggie || managed_cursor || managed_droid || managed_deepagents {
+        if managed_claude || managed_auggie || managed_cursor || managed_droid || managed_private_provider {
             // Do not inherit OAuth, cloud backends, Node injection or proxy credentials.
             // Keep the OS runtime paths; HOME is preserved, never substituted.
             let runtime = [

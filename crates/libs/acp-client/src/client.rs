@@ -94,6 +94,8 @@ mod prompt_loop;
 mod prompt_mapping;
 #[path = "client/protocol.rs"]
 mod protocol;
+#[path = "client/dimcode_access.rs"]
+mod dimcode_access;
 #[path = "client/qoder_access.rs"]
 mod qoder_access;
 #[path = "client/runtime.rs"]

@@ -419,6 +419,7 @@ async fn medium_risk_create_requires_approval() {
     };
     config.autonomy.level = AutonomyLevel::Supervised;
     config.autonomy.allowed_commands = vec!["touch".into()];
+    config.autonomy.require_approval_for_medium_risk = true;
     std::fs::create_dir_all(&config.workspace_dir).unwrap();
     let security = Arc::new(SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir));
     let tool = ScheduleTool::new(security, config);

@@ -61,7 +61,9 @@ pub enum UsageQueryKind {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct UsageSnapshotQuery {
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: vw_api_transport::ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
     pub app_id: vw_api_app_identity::AppId,
     pub provider_id: String,

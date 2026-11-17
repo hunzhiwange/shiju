@@ -10,12 +10,12 @@ pub fn current(
     applications: impl IntoIterator<Item = vw_api_app_identity::AppId>,
     catalog: Option<&Result<vw_api_mcp_management::McpCatalogResponse, String>>,
 ) -> Option<Context> {
+    let _ = (token, endpoint);
     let scope = scope?;
-    let project = project.filter(|p| !p.is_empty())?;
+    let project = vw_api_transport::local_settings_project(project);
     let choice = selected?;
     if scope.host.is_empty()
 
-        || endpoint != Some(&scope.endpoint)
         || !applications.into_iter().any(|id| id == choice.0)
     {
         return None;

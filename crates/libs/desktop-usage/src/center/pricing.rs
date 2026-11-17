@@ -125,7 +125,7 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
             let load_models = matches!(event, Event::Open);
             let load_billing = !matches!(event, Event::RefreshPrices);
             state.open = true;
-            let Some(scope) = current else { state.error = Some("请选择项目与执行主机".into()); return Task::none(); };
+            let Some(scope) = current else { state.error = Some("网关不可用，请检查连接".into()); return Task::none(); };
             if state.scope.as_ref() != Some(&scope) {
                 state.editor = None;
                 state.pending_delete = None;

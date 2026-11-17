@@ -74,7 +74,7 @@ pub fn content(
                 text(if loading {
                     "正在加载目录"
                 } else {
-                    "尚未加载，请先在应用管理连接目标主机后刷新目录"
+                    "尚未加载，请刷新目录"
                 })
                 .size(12)
                 .style(settings_muted_text_style),

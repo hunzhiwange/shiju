@@ -34,7 +34,7 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
         return Task::none();
     }
     if app.context.as_ref() != Some(&context) { return crate::prompts::update::Input::show_error_toast("请先连接应用管理"); }
-    let Some(project) = app.project_id.as_deref().filter(|p| !p.is_empty()) else { return crate::prompts::update::Input::show_error_toast("请先选择项目"); };
+    let project = vw_api_transport::local_settings_project(app.project_id.as_deref());
     let scope = PiPromptResourcesScope { project_id: project.into(), target_host_id: app.host.clone() };
     let same = state.context.as_ref() == Some(&context) && state.scope.as_ref().is_some_and(|s| s.project_id == scope.project_id && s.target_host_id == scope.target_host_id);
     if matches!(event, Event::Open) {

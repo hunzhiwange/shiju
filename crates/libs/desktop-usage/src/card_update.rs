@@ -107,23 +107,8 @@ pub fn resolve_scope(
     account: bool,
 ) -> Option<Scope> {
     let endpoint = AuthScope::from(endpoint);
-    let project = app.project_id.as_deref().filter(|id| !id.trim().is_empty())?.into();
-    let host = if account {
-        if app.agent_apps_auth.scope.as_ref() != Some(&endpoint) {
-            return None;
-        }
-        app.agent_apps_auth.connection.as_ref()?.host.trim().to_owned()
-    } else {
-        let origin = app.app_providers.scope.as_ref()?;
-        if origin.context.gateway != endpoint.gateway
-            || origin.context.tenant != endpoint.tenant
-            || &origin.context.project != app.project_path
-            || origin.host != app.apps_catalog.host
-        {
-            return None;
-        }
-        origin.host.clone()
-    };
+    let project = vw_api_transport::local_settings_project(app.project_id.as_deref()).into();
+    let host = "desktop-local".to_owned();
     Some(Scope {
         endpoint,
         project,
@@ -206,7 +191,7 @@ fn update_at(app: &mut Input<'_>, event: Event, endpoint: GatewayEndpoint) -> Ta
     }
     let Some(scope) = scope(app, &endpoint, is_account) else {
         return if matches!(event, Event::Read(_) | Event::Refresh(..)) {
-            app.show_error_toast("请先选择项目并连接执行主机")
+            app.show_error_toast("网关不可用，请刷新后重试")
         } else {
             Task::none()
         };

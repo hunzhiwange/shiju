@@ -52,9 +52,8 @@ fn error(_: impl std::fmt::Debug) -> String {
 fn current(app: &Host<'_>, context: &ModelContext, generation: u64) -> bool {
     *app.generation == generation
         && app.scope == Some(&context.scope)
-        && app.catalog_context == Some(&context.scope.context)
         && app.credentials_generation == context.credentials_generation
-        && app.project == Some(context.project.as_ref())
+        && vw_api_transport::local_settings_project(app.project) == context.project.as_ref()
 
         && app.current_scope.as_ref() == Some(&context.scope)
         && app.form
@@ -112,9 +111,7 @@ pub fn update(app: &mut Host<'_>, event: Event) -> Task<Message> {
                 return Task::none();
             };
             let Some(scope) = app.scope.cloned() else { return Task::none() };
-            let Some(project) = app.project.filter(|p| !p.is_empty()).map(str::to_owned) else {
-                return notify_error(app.notice, "请先打开已注册项目");
-            };
+            let project = vw_api_transport::local_settings_project(app.project).to_owned();
             let context = ModelContext {
                 scope,
                 project: project.into(),

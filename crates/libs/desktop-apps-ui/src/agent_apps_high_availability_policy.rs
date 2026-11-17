@@ -73,7 +73,7 @@ pub fn update(input: Input<'_>, event: Event, notice: &mut Option<crate::Notice>
     if let Event::Reply(request, catalog, generation, scope, saving, result) = event {
         let state = &mut *input.state;
         if request != context || catalog != catalog_generation || state.generation != generation
-            || state.scope.as_ref() != Some(&scope) || input.project != Some(scope.project_id.as_ref())
+            || state.scope.as_ref() != Some(&scope) || vw_api_transport::local_settings_project(input.project) != scope.project_id.as_ref()
             || !state.open || !state.busy { return Task::none(); }
         state.busy = false;
         match result {
@@ -95,13 +95,10 @@ pub fn update(input: Input<'_>, event: Event, notice: &mut Option<crate::Notice>
             return Task::none();
         }
         Event::Open(id) => {
-            if input.catalog_context != Some(&context)
-                || !input.requested_app_exists {
+            if !input.requested_app_exists {
                 return crate::error(notice, "请先连接应用管理");
             }
-            let Some(project) = input.project.filter(|id| !id.is_empty()) else {
-                return crate::error(notice, "请先选择项目");
-            };
+            let project = vw_api_transport::local_settings_project(input.project);
             state.invalidate();
             state.open = true;
             state.scope = Some(FailoverQueueQuery { project_id: project.into(), target_host_id: input.host.to_string(), app_id: id });
@@ -121,7 +118,7 @@ pub fn update(input: Input<'_>, event: Event, notice: &mut Option<crate::Notice>
     let Some(scope) = state.scope.clone() else { return Task::none(); };
     if input.catalog_context != Some(&context)
         || scope.target_host_id != input.host
-        || input.project != Some(scope.project_id.as_ref())
+        || vw_api_transport::local_settings_project(input.project) != scope.project_id.as_ref()
     {
         state.invalidate();
         return crate::error(notice, "连接或项目已更改，请重新打开策略");

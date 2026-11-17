@@ -46,8 +46,11 @@ enum View {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Params {
+    #[serde(default = "vw_api_transport::local_project_id")]
     project_id: ProjectId,
+    #[serde(default)]
     directory: String,
+    #[serde(default = "vw_api_transport::local_host_id")]
     target_host_id: String,
     app_id: AppId,
     provider_id: Option<String>,
@@ -109,16 +112,19 @@ pub(super) fn registered_instance(
     project_id: &ProjectId,
     directory: &str,
 ) -> Result<instance::Context, StatusCode> {
-    let directory = Path::new(directory);
+    let scope = ProjectScope::new(tenant.clone(), project_id.clone())
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+    let project = projects.get(&scope)
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+        .ok_or(StatusCode::FORBIDDEN)?;
+    let directory = if project_id.as_ref() == vw_api_transport::LOCAL_PROJECT_ID && directory.is_empty() {
+        Path::new(&project.worktree)
+    } else {
+        Path::new(directory)
+    };
     if !directory.is_absolute() || directory == Path::new("/") {
         return Err(StatusCode::BAD_REQUEST);
     }
-    let scope = ProjectScope::new(tenant.clone(), project_id.clone())
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
-    let project = projects
-        .get(&scope)
-        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
-        .ok_or(StatusCode::FORBIDDEN)?;
     let registered = std::iter::once(&project.worktree)
         .chain(&project.sandboxes)
         .find(|path| Path::new(path) == directory)

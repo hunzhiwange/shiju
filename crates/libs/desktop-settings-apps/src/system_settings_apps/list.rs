@@ -42,7 +42,7 @@ pub(super) fn action<'a, M: Clone + 'static>(
     .into()
 }
 
-pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn(&'static str, &'static str) -> Element<'a, M>, local_available: bool, domains: Element<'a, M>, routing: Element<'a, M>, details: Option<Element<'a, M>>, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
+pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn(&'static str, &'static str) -> Element<'a, M>, _local_available: bool, domains: Element<'a, M>, routing: Element<'a, M>, details: Option<Element<'a, M>>, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
     let visible = preferences::visible_rows(state);
     let installed =
         visible.iter().filter(|a| presentation::presence(a) == Presence::Installed).count();
@@ -81,7 +81,6 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
     let search_row = row![
         icon(Icon::Search, 16.),
         search,
-        icon_btn(Icon::Link, "高级连接", Some(message(Action::ConnectionOpen))),
     ]
     .spacing(10)
     .align_y(Alignment::Center);
@@ -118,14 +117,6 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
         )]
         .spacing(12)
         .align_x(Alignment::Center);
-        if local_available {
-            panel = panel.push(
-                button(text("重新连接本机").size(12))
-                    .padding([8, 14])
-                    .style(primary_action_btn_style)
-                    .on_press(message(Action::LocalConnect)),
-            );
-        }
         content = content.push(panel);
     } else {
         let mut found = 0;

@@ -20,7 +20,9 @@ struct Policy(Option<PathBuf>);
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ReadQuery {
+    #[serde(default = "vw_api_transport::local_project_id")]
     project_id: ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     target_host_id: String,
     app_id: AppId,
     #[serde(default)]

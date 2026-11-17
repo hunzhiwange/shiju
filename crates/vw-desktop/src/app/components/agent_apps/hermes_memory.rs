@@ -21,13 +21,11 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         tenant: client.endpoint().tenant_scope().clone(),
         project: app.navigation_tabs.project_path.clone(),
     };
-    let Some(project) = app.workspace_state.project_id.clone().filter(|id| !id.is_empty()) else {
-        return Task::none();
-    };
+    let project = vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref()).to_owned();
     let connection = Connection {
         client,
-        context,
-        catalog_context: app.apps_catalog.context.clone(),
+        context: context.clone(),
+        catalog_context: Some(context.clone()),
         project,
         host: app.apps_catalog.host.clone(),
         generation: app.apps_catalog.generation,

@@ -41,7 +41,7 @@ impl<U: Usage> State<U> {
             self.usage.clear();
             self.pending = None;
             self.form = None;
-            self.connection = None;
+            self.connection = Some(Connection::local(local_app_auth::Credentials { token: String::new() }));
             self.connection_error = None;
             self.login = None;
             self.binding = None;

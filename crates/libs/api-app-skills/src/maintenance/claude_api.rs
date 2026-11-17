@@ -8,7 +8,9 @@ pub enum ClaudeConfigPermission { Read, Marker, Onboarding }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ClaudeConfigQuery {
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
 }
 

@@ -16,7 +16,7 @@ pub(super) fn update(app: &mut App, message: LifecycleMessage) -> Task<Message> 
     if crate::app::state::agent_apps::reset_if_context_changed(&mut app.apps_catalog, &current) { return Task::none(); }
     let host = app.apps_catalog.host.clone();
     let token = app.apps_catalog.token.clone();
-    if host.is_empty() || token.is_empty() { return Task::none(); }
+    if host.is_empty() { return Task::none(); }
     let mut notice = None;
     let mut invalidate = false;
     let task = desktop_settings_apps::system_settings_apps::lifecycle_update::update(

@@ -73,7 +73,7 @@ pub fn update(app: &mut Update<'_>, value: BindingsMessage) -> Task<BindingsMess
             }
             let records = app.state.bindings.selected.clone();
             let valid_catalog = matches!(scope::visible(app), Some(Ok(c)) if records.iter().all(|r| c.records.contains(r)) && supported(c, &records, target.app_id));
-            let valid_installation = app.authorized && app.targets.contains(&target);
+            let valid_installation = app.targets.contains(&target);
             if !valid_catalog || !valid_installation || project(&records).is_err() {
                 return app.error("选择无效、修订已变更或目标不支持；请刷新并选择同一作用域目录项");
             }

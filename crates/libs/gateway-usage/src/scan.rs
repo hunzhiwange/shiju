@@ -68,7 +68,15 @@ async fn lookup(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,id: String,cance
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct SettingsUpdate { project_id: vw_api_transport::ProjectId, target_host: String, app: String, expected_revision: u64, settings: u::source_settings::UsageSourceSettings }
+struct SettingsUpdate {
+    #[serde(default = "vw_api_transport::local_project_id")]
+    project_id: vw_api_transport::ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
+    target_host: String,
+    app: String,
+    expected_revision: u64,
+    settings: u::source_settings::UsageSourceSettings
+}
 async fn settings(Extension(p): Extension<Policy>, Extension(t): Extension<TenantScope>, h: HeaderMap, Query(i): Query<Intent>) -> Response {
     tokio::task::spawn_blocking(move || {
         let o = owner(&p,t,&h,&i)?;

@@ -127,7 +127,7 @@ pub fn update(
     }
     let Some((client, selection)) = current else {
         (*form) = None;
-        return super::error(notice, "请先选择项目并连接执行主机");
+        return super::error(notice, "网关不可用，请刷新后重试");
     };
     if let Event::Act(action) = event {
         let Some(form) = &mut (*form) else {
@@ -208,10 +208,7 @@ pub async fn load(
     token: String,
 ) -> Result<Snapshot, AggregationApiError> {
     // Aggregation SDK consumes endpoint bearer; catalog SDK consumes the same explicit grant.
-    let endpoint = client
-        .endpoint()
-        .clone()
-        .with_auth(gateway_endpoint::GatewayAuth { skey: Some(token.clone()) });
+    let endpoint = client.endpoint().clone();
     let aggregation_client =
         GatewayAggregationClient::new(gateway_http::GatewayTransport::new(endpoint).map_err(AggregationApiError::Transport)?);
     let state = aggregation_client
@@ -309,10 +306,7 @@ pub async fn mutate(
     action: Action,
     revision: String,
 ) -> MutationOutcome {
-    let endpoint = client
-        .endpoint()
-        .clone()
-        .with_auth(gateway_endpoint::GatewayAuth { skey: Some(token.clone()) });
+    let endpoint = client.endpoint().clone();
     let writer = match gateway_http::GatewayTransport::new(endpoint) {
         Ok(transport) => GatewayAggregationClient::new(transport),
         Err(error) => {

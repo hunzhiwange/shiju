@@ -19,7 +19,9 @@ struct Policy(Option<PathBuf>, crate::Host);
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ReadQuery {
+    #[serde(default = "vw_api_transport::local_project_id")]
     project_id: ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     target_host: String,
     /// JSON keeps the shared tagged range and provider DTO intact in GET URLs.
     query: Option<String>,

@@ -986,21 +986,8 @@ fn execution_context(
     _: Option<vw_api_app_operations::AppLifecycleAction>,
     capability: Capability<'_>,
 ) -> Result<Authorization, StatusCode> {
-    vw_agent_apps::providers::validate_identity(target).map_err(|_| StatusCode::BAD_REQUEST)?;
-    // Existing files remain usable as execution configuration, never as a second
-    // authentication database. A fresh installation needs no grant provisioning.
-    let policy = path.and_then(|path| load(path).ok());
-    let host = policy.as_ref().and_then(|p| p.hosts.iter().find(|h| h.id == target)).cloned();
-    let mut host = match host {
-        Some(host) => host,
-        None if target == local_app_auth::HOST_ID => gateway_host(tenant)?,
-        None => return Err(StatusCode::NOT_FOUND),
-    };
-    if !host.online { return Err(StatusCode::SERVICE_UNAVAILABLE); }
-    if matches!(host.binding, Binding::Remote) { return Err(StatusCode::NOT_IMPLEMENTED); }
-    if host.credential_root.is_none() {
-        host.credential_root = gateway_host(tenant)?.credential_root;
-    }
+    let _ = (path, target);
+    let host = gateway_host(tenant)?;
     let external_history = host.external_session_instances.iter().map(|i| ExternalHistoryPermit {
         project_id: match capability {
             Capability::ExternalHistory(p) | Capability::ExternalHistoryResume(p)
@@ -2150,30 +2137,11 @@ pub fn authorize_device_sync_download(
     Ok((credentials, skills, recovery))
 }
 
-/// Background usage only consumes administrator-bound read grants on local hosts.
-/// Project registration is rechecked by the worker before opening any source.
-pub fn usage_scan_targets(path: &Path) -> Result<Vec<(vw_api_transport::ProjectScope, String, PathBuf, ExternalHistoryInstance)>, StatusCode> {
-    let policy = load(path).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    let mut targets = Vec::new();
-    for principal in &policy.principals {
-        for grant in &principal.grants {
-            let Some(host) = policy.hosts.iter().find(|host| host.id == grant.host_id && host.id == local_app_auth::HOST_ID
-                && host.online && matches!(host.binding, Binding::Local)) else { continue };
-            let tenant = TenantScope::new(&grant.platform_id, &grant.company_id)
-                .map_err(|_| StatusCode::FORBIDDEN)?;
-            for permit in &grant.external_sessions_read {
-                let project = vw_api_transport::ProjectScope::new(tenant.clone(), permit.project_id.clone())
-                    .map_err(|_| StatusCode::FORBIDDEN)?;
-                for instance in host.external_session_instances.iter().filter(|instance|
-                    instance.provider == permit.provider && instance.instance_id == permit.instance_id) {
-                    if instance.root.is_absolute() && instance.root.starts_with(&host.home) {
-                        targets.push((project.clone(), principal.id.clone(), host.home.clone(), instance.clone()));
-                    }
-                }
-            }
-        }
-    }
-    Ok(targets)
+/// Enumerate native sources on the gateway's local machine, without an access file.
+pub fn usage_scan_targets(scope: &vw_api_transport::ProjectScope) -> Result<Vec<(vw_api_transport::ProjectScope, String, PathBuf, ExternalHistoryInstance)>, StatusCode> {
+    let host = gateway_host(scope.tenant_scope())?;
+    Ok(host.external_session_instances.into_iter().map(|instance|
+        (scope.clone(), "desktop-local-user".into(), host.home.clone(), instance)).collect())
 }
 
 /// Ledger records combine native and relay sources, so a native instance grant

@@ -15,11 +15,8 @@ use iced::{Element, Task};
 pub use desktop_usage::Identity;
 
 fn identity(app: &App) -> Option<Identity> {
-    let project = app.workspace_state.project_id.as_ref().filter(|p| !p.trim().is_empty())?.clone();
-    let host = app.apps_catalog.host.trim().to_owned();
-    if host.is_empty() {
-        return None;
-    }
+    let project = vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref()).to_owned();
+    let host = local_app_auth::HOST_ID.to_owned();
     Some(Identity {
         endpoint: Scope::from(&crate::app::config::gateway_client_endpoint()),
         project,

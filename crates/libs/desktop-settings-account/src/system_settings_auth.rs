@@ -28,7 +28,7 @@ pub fn view<'a, U: Clone + 'static>(state: &State<'a>, usage: Usage<'a, U>) -> E
         .height(Length::Fill)
         .into();
     }
-    let heading = settings_page_heading("授权中心", "查看当前公司在授权执行主机上的账号状态。");
+    let heading = settings_page_heading("授权中心", "查看当前公司的本机账号状态。");
     let content = column![
         heading,
         toolbar(state, &usage),
@@ -51,9 +51,6 @@ fn toolbar<U: Clone + 'static>(state: &State, usage: &Usage<'_, U>) -> Element<'
     let failed = state.connection_error.is_some()
         || state.rows.as_ref().is_some_and(|rows| rows.iter().all(|row| row.accounts.is_err()));
     let refresh_label = if failed { "重试" } else { "刷新" };
-    let show_management = !cfg!(unix)
-        || failed
-        || state.connection.as_ref().is_some_and(|connection| connection.valid_management());
     let batch_pending = usage.batch_pending;
     let actions = row![
         button(text(refresh_label).size(14))
@@ -75,16 +72,6 @@ fn toolbar<U: Clone + 'static>(state: &State, usage: &Usage<'_, U>) -> Element<'
                     .then(|| Event::RefreshUsage)
             ),
     ];
-    let actions = if show_management {
-        actions.push(
-            button(text("管理连接").size(14))
-                .style(rounded_action_btn_style)
-                .padding([8, 14])
-                .on_press_maybe(idle.then(|| message(Event::Open))),
-        )
-    } else {
-        actions
-    };
     actions.spacing(8).align_y(Alignment::Center).wrap().into()
 }
 
@@ -145,7 +132,7 @@ fn services<'a, U: Clone + 'static>(state: &State<'a>, mut usage: Usage<'a, U>) 
         return if cfg!(unix) {
             list_placeholder(Icon::Clock, "正在准备本机授权…")
         } else {
-            list_placeholder(Icon::ShieldLock, "请打开管理连接读取授权账号。")
+            list_placeholder(Icon::ShieldLock, "请刷新以读取本机账号。")
         };
     };
 
@@ -408,49 +395,9 @@ pub fn overlay<'a, U: Clone + 'static>(state: &State<'a>, base: Element<'a, Even
     if let Some(login) = state.login {
         return login_modal::overlay(login, base);
     }
-    let Some(form) = state.form else {
-        return if let Some(binding) = state.binding {
-            binding_modal::overlay(binding, base)
-        } else {
-            base
-        };
-    };
-    let pinned = state.binding.is_some();
-    let host = settings_text_input("网关登记的主机标识", &form.host)
-        .on_input_maybe((!pinned).then_some(|value| message(Event::Host(value))));
-    let close = message(Event::Close);
-    let Some(scope) = state.scope else { return base };
-    let body = column![
-        text(format!("{} · 公司 {}", scope.gateway, scope.tenant.company_id().as_ref()))
-            .size(13)
-            .style(settings_muted_text_style),
-        text("使用当前网关连接的认证与租户配置。")
-            .size(13)
-            .style(settings_muted_text_style),
-        settings_field_label("执行主机"),
-        host,
-    ]
-    .spacing(8);
-    let footer = row![
-        button(text("取消"))
-            .padding([8, 14])
-            .style(rounded_action_btn_style)
-            .on_press(close.clone()),
-        button(text("读取账号"))
-            .padding([8, 14])
-            .style(primary_action_btn_style)
-            .on_press_maybe(form.valid_management().then(|| message(Event::Connect))),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
-    let card = settings_modal_layout(
-        settings_modal_header(text("管理连接").size(18), settings_close_button(close.clone())),
-        body,
-        Some(container(footer).align_right(Length::Fill).into()),
-    )
-    .max_width(500)
-    .max_height(450)
-    .width(Length::Fill)
-    .height(Length::Fill);
-    settings_modal_overlay_with_escape(base, close, card)
+    if let Some(binding) = state.binding {
+        binding_modal::overlay(binding, base)
+    } else {
+        base
+    }
 }

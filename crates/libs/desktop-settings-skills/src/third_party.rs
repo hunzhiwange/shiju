@@ -113,7 +113,7 @@ pub fn view<'a>(
     applications: &[crate::bindings_view::BindingApplication<'_>],
 ) -> Element<'a, Message> {
     let Some(scope) = state.scope.as_ref() else {
-        return settings_error_banner("请先选择已连接主机上的应用".to_owned()).into();
+        return settings_error_banner("请选择应用".to_owned()).into();
     };
     let message = |action| Message { scope: scope.clone(), catalog: state.catalog, action };
     let mut body = column![

@@ -49,11 +49,11 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         project: app.navigation_tabs.project_path.clone(),
     };
     // A loaded response must still be checked when the current project is absent.
-    let project = app.workspace_state.project_id.clone().unwrap_or_default();
+    let project = vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref()).to_owned();
     let connection = desktop_apps_ui::Connection {
         client,
-        context,
-        catalog_context: app.apps_catalog.context.clone(),
+        context: context.clone(),
+        catalog_context: Some(context.clone()),
         project,
         host: app.apps_catalog.host.clone(),
         generation: app.apps_catalog.generation,
@@ -110,9 +110,7 @@ fn update_compression(
     let Ok(client) = crate::app::config::gateway_client() else {
         return Task::none();
     };
-    let Some(project) = app.workspace_state.project_id.clone() else {
-        return Task::none();
-    };
+    let project = vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref()).to_owned();
     let context = AgentAppsContext {
         gateway: client.endpoint().base_url(),
         tenant: client.endpoint().tenant_scope().clone(),
@@ -120,8 +118,8 @@ fn update_compression(
     };
     let connection = desktop_apps_ui::Connection {
         client,
-        context,
-        catalog_context: app.apps_catalog.context.clone(),
+        context: context.clone(),
+        catalog_context: Some(context.clone()),
         project,
         host: app.apps_catalog.host.clone(),
         generation: app.apps_catalog.generation,

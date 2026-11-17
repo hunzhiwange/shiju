@@ -3,7 +3,6 @@ use crate::management_update::{self as scope, Update};
 use iced::Task;
 fn authorized(app: &Update<'_>, context: &crate::management_context::Context) -> bool {
     app.context.as_ref() == Some(context)
-        && app.authorized
         && !context.host.is_empty()
 
 }
@@ -15,7 +14,7 @@ pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
             }
             let Some(context) = scope::context(app).filter(|context| authorized(app, context))
             else {
-                return app.error("请先在应用管理中连接目标主机");
+                return app.error("网关不可用，请刷新后重试");
             };
             if let Some(record) = &record {
                 let current = scope::visible(app).and_then(|r| r.as_ref().ok());

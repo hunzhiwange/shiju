@@ -14,7 +14,7 @@ pub(crate) fn handoff(app: &mut App, id: u64) -> Task<Message> {
         Err(error) => return app.show_error_toast(error),
     };
     if !mcp_management_import::open_link(app, drafts) {
-        return app.show_error_toast("请先连接目标主机并关闭已有 MCP 导入弹窗");
+        return app.show_error_toast("请检查网关连接并关闭已有 MCP 导入弹窗");
     }
     app.navigation_panels.system_settings_tab =
         crate::app::components::system_settings::SystemTab::Agents;

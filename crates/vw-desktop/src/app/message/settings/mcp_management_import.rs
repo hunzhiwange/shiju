@@ -28,8 +28,8 @@ pub(crate) fn targets(app: &App) -> Vec<McpAppTarget> {
 fn authorized(app: &App, context: &catalog::Context) -> bool {
     catalog::context(app).as_ref() == Some(context)
         && !context.host.is_empty()
-        && !app.apps_catalog.token.is_empty()
-        && app.apps_catalog.context.as_ref() == Some(&context.endpoint)
+
+
 }
 #[cfg(test)]
 pub(crate) fn visible(app: &App) -> Option<&ImportState> {

@@ -153,10 +153,6 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press(message(AppsCatalogMessage::Refresh)),
-        button(text("连接设置"))
-            .padding([8, 12])
-            .style(rounded_action_btn_style)
-            .on_press(message(AppsCatalogMessage::ConnectionOpen)),
     ]
     .spacing(12)
     .padding(16)
@@ -225,8 +221,7 @@ fn mcp_view<'a>(
         scope: current,
         state: &app.mcp_settings,
         installations,
-        authorized: app.apps_catalog.context.as_ref() == Some(&current.context.endpoint)
-            && !app.apps_catalog.token.is_empty(),
+        authorized: true,
     })
     .map(|event| message(AppsCatalogMessage::ThirdPartyMcp(event)))
 }

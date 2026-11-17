@@ -34,7 +34,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<Gatew
     let Some(current) = current else {
         *state = State::default();
         return if matches!(event, Event::Refresh) {
-            Task::done(Event::NotifyError("请先连接网关并选择项目与执行主机"))
+            Task::done(Event::NotifyError("网关不可用，请检查连接"))
         } else { Task::none() };
     };
     match event {
@@ -103,7 +103,7 @@ pub fn view<'a>(state: &'a State, current: Option<Identity>) -> Element<'a, Even
             }
         }
     } else if current.is_none() {
-        content = content.push(text("请先连接网关并选择项目与执行主机").size(13).style(settings_muted_text_style));
+        content = content.push(text("网关不可用，请检查连接").size(13).style(settings_muted_text_style));
     }
     content.into()
 }

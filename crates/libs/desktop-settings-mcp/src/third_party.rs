@@ -109,7 +109,7 @@ pub fn view(input: View<'_>) -> Element<'_, Message> {
                     text(if loading {
                         "正在加载共享 MCP 目录"
                     } else {
-                        "请先连接目标主机并刷新共享 MCP 目录"
+                        "请刷新共享 MCP 目录"
                     })
                     .style(settings_muted_text_style),
                 ),
@@ -141,15 +141,11 @@ pub fn view(input: View<'_>) -> Element<'_, Message> {
         return settings_panel(body.push(text(reason).style(settings_muted_text_style))).into();
     }
     let supported = crate::distribution::supported(catalog, selected, scope.app_id);
-    let enabled = input.authorized
-        && !running
+    let enabled = !running
         && !loading
         && supported
         && selected.iter().all(|record| catalog.records.contains(record))
         && crate::distribution::project(selected).is_ok();
-    if !input.authorized {
-        body = body.push(text("请先授权连接目标主机").style(settings_muted_text_style));
-    }
     if !selected.is_empty() && !supported {
         body = body.push(
             text("所选连接的传输不受目标应用支持或能力尚未验证").style(settings_muted_text_style),

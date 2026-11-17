@@ -89,6 +89,7 @@ impl State {
     }
 }
 pub fn update(state: &mut State, context: Option<Context>, project: Option<String>, token: &str, client: Option<vw_gateway_client::GatewayClient>, notice: &mut Option<crate::Notice>, event: Event) -> Task<Message> {
+    let project = Some(vw_api_transport::local_settings_project(project.as_deref()).to_owned());
     let Some(context) = context else {
         return Task::none();
     };
@@ -103,9 +104,6 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
         Event::Open(target) => {
             if state.busy {
                 return Task::none();
-            }
-            if target.is_some() && project.as_deref().is_none_or(str::is_empty) {
-                return crate::error(notice, "请先选择项目");
             }
             *state = State {
                 open: true,

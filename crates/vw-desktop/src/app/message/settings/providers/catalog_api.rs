@@ -6,14 +6,12 @@ pub use desktop_settings_providers::catalog_api::Event;
 pub(crate) fn message(event: Event) -> Message { list::message(ListMessage::ModelCatalog(event)) }
 fn current(app: &App, scope: &Scope) -> Result<(GatewayModelCatalogClient, CatalogContext), String> {
     let (client, actual_scope) = list::current(app, scope.app)?;
-    if &actual_scope != scope || app.apps_catalog.token.is_empty() {
+    if &actual_scope != scope {
         return Err("应用执行主机已切换，请重新打开模型目录".into());
     }
-    let project = match (&app.workspace_state.project_id, &scope.context.project) {
-        (Some(id), Some(directory)) if !id.is_empty() => {
-            ModelCatalogProject { project_id: id.as_str().into(), directory: directory.clone() }
-        }
-        _ => return Err("请先打开已注册的项目，再使用模型目录".into()),
+    let project = ModelCatalogProject {
+        project_id: vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref()).into(),
+        directory: scope.context.project.clone().unwrap_or_default(),
     };
     Ok((
         GatewayModelCatalogClient::new(client.transport().clone()),

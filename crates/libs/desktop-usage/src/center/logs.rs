@@ -224,7 +224,7 @@ pub fn update(
             state.result = None;
             let Some(scope) = scope else {
                 state.loading = false;
-                state.result = Some(Err("请选择项目与执行主机".into()));
+                state.result = Some(Err("网关不可用，请检查连接".into()));
                 return Task::none();
             };
             let Some(query) = state.query.clone() else {

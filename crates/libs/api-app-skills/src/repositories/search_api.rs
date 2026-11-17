@@ -5,7 +5,9 @@ use vw_api_transport::id::ProjectId;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct MarketSearchQuery {
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
     pub query: String,
     pub limit: usize,

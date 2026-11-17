@@ -32,8 +32,7 @@ fn error(_: impl std::fmt::Debug) -> String {
 fn current(state: &ModelState, access: &Access<'_>, context: &ModelContext) -> bool {
     state.access_generation == context.credentials_generation
 
-        && access.context.as_ref() == Some(&context.scope.context)
-        && access.project.as_deref() == Some(context.project.as_ref())
+        && vw_api_transport::local_settings_project(access.project.as_deref()) == context.project.as_ref()
         && access.actual.as_ref() == Some(&context.scope)
         && access.scope == Some(&context.scope)
 }
@@ -126,9 +125,7 @@ pub fn update(state: &mut ModelState, access: &Access<'_>, notice: &mut Option<N
             {
                 return Task::none();
             }
-            let Some(project) = access.project.as_deref().filter(|p| !p.is_empty()) else {
-                return notify_error(notice, "请先打开已注册的项目");
-            };
+            let project = vw_api_transport::local_settings_project(access.project.as_deref());
             let context = ModelContext {
                 scope,
                 project: project.into(),

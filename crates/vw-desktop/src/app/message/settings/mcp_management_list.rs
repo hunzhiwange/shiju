@@ -14,7 +14,7 @@ pub(crate) fn context(app: &App) -> Option<Context> {
             tenant: client.endpoint().tenant_scope().clone(),
             project: app.navigation_tabs.project_path.clone(),
         },
-        host: app.apps_catalog.host.clone(),
+        host: local_app_auth::HOST_ID.into(),
         credentials_generation: app.apps_catalog.generation,
     })
 }
@@ -34,7 +34,7 @@ pub(crate) fn visible(app: &App) -> Option<&Result<McpCatalogResponse, String>> 
 pub(crate) fn update(app: &mut App, message: CatalogMessage) -> Task<Message> {
     let context = context(app);
     let authorized =
-        context.as_ref().is_some_and(|c| app.apps_catalog.context.as_ref() == Some(&c.endpoint));
+        context.is_some();
     let mut input = desktop_settings_mcp::configuration_update::catalog::Update {
         state: &mut app.mcp_settings.catalog,
         context,
@@ -52,7 +52,7 @@ pub(crate) fn update(app: &mut App, message: CatalogMessage) -> Task<Message> {
 pub(crate) fn input(app: &mut App) -> desktop_settings_mcp::management_update::Update<'_> {
     let context = context(app);
     let authorized =
-        context.as_ref().is_some_and(|c| app.apps_catalog.context.as_ref() == Some(&c.endpoint));
+        context.is_some();
     let targets = super::mcp_management_import::targets(app);
     desktop_settings_mcp::management_update::Update {
         context,

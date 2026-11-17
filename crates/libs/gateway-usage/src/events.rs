@@ -11,7 +11,12 @@ use agent_usage::events as bridge;
 
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Selector { project_id: ProjectId, target_host: String }
+struct Selector {
+    #[serde(default = "vw_api_transport::local_project_id")]
+    project_id: ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
+    target_host: String
+}
 
 pub(super) fn router(host: crate::Host) -> Router {
     Router::new().route("/usage/events", get(subscribe)).layer(Extension(host))

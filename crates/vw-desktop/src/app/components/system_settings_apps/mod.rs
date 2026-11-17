@@ -43,28 +43,11 @@ pub(crate) fn view_overlays<'a>(
     let base = crate::app::components::system_settings_prompts::templates::overlay(&state.prompts.templates, base);
     let base = crate::app::components::system_settings_prompts::pi_files::overlay(&state.prompts.pi_files, base);
     let base = crate::app::components::agent_apps_high_availability_policy::overlay(&state.high_availability, base);
-    if !state.connection_open {
-        return launch::overlay(
-            state,
-            i18n,
-            theme,
-            preferences::overlay(
-                state,
-                i18n,
-                theme,
-                lifecycle::overlay(&state.lifecycle, &state.host, base),
-            ),
-        );
-    }
-    desktop_settings_apps::system_settings_apps::connection::overlay(&state.host, &state.token, base, |event| {
-        use desktop_settings_apps::system_settings_apps::connection::ConnectionMessage;
-        message(match event {
-            ConnectionMessage::Close => AppsCatalogMessage::ConnectionClose,
-            ConnectionMessage::HostInput(value) => AppsCatalogMessage::HostInput(value),
-            ConnectionMessage::TokenInput(value) => AppsCatalogMessage::TokenInput(value),
-            ConnectionMessage::Refresh => AppsCatalogMessage::Refresh,
-        })
-    })
+    launch::overlay(
+        state, i18n, theme,
+        preferences::overlay(state, i18n, theme,
+            lifecycle::overlay(&state.lifecycle, &state.host, base)),
+    )
 }
 
 

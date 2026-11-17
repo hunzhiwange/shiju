@@ -37,7 +37,7 @@ pub fn update(state: &mut State, event: Event, current: Option<DataManagementTar
     }
     if let Event::Preview = event {
         let Some(target) = current.clone().filter(|t| !t.principal_id.is_empty()) else {
-            return Task::done(Event::NotifyError("请连接网关、选择项目与主机并填写用户身份"));
+            return Task::done(Event::NotifyError("网关不可用，请检查连接"));
         };
         let Some(client) = client.clone() else { return Task::none(); };
         let gateway = client.endpoint().base_url();

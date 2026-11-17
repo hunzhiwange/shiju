@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AggregationQuery {
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: ProjectId,
 }
 
@@ -20,7 +22,9 @@ pub enum CatalogPolicy {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AggregationPreviewRequest {
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: ProjectId,
     pub default_provider_id: Option<String>,
     #[serde(default)]
@@ -116,7 +120,9 @@ pub struct AggregationPreview {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AggregationMemberRequest {
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: ProjectId,
     pub expected_revision: String,
     pub enabled: bool,
@@ -124,7 +130,9 @@ pub struct AggregationMemberRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AggregationDefaultRequest {
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: ProjectId,
     pub expected_revision: String,
     pub provider_id: String,

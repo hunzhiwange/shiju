@@ -43,7 +43,6 @@ mod presentation_tests;
 pub mod uninstall;
 
 pub mod lifecycle_update;
-pub mod connection;
 pub mod catalog_requests;
 
 #[cfg(test)]

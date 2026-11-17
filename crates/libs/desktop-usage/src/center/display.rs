@@ -105,7 +105,7 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
                     Err(error) => state.preferences_error = Some(error),
                 }
             }
-            let Some(scope) = current else { state.result = None; state.error = Some("请选择项目与执行主机".into()); return Task::none(); };
+            let Some(scope) = current else { state.result = None; state.error = Some("网关不可用，请检查连接".into()); return Task::none(); };
             if saving && state.scope.as_ref() != Some(&scope) { state.error = Some("项目或主机已切换，请重新加载".into()); return Task::none(); }
             let mut patch = UsageDisplayPatch { currency: Some(state.currency), mode: Some(state.mode), ..Default::default() };
             if saving && state.mode == RateMode::Manual && state.currency != Currency::USD {

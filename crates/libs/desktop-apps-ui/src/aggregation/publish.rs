@@ -1,7 +1,6 @@
 // Confirmation and progress for server-owned aggregation publication.
 use super::Selection;
 use iced::Task;
-use gateway_endpoint::GatewayAuth;
 use gateway_aggregation::{AggregationApiError, GatewayAggregationClient};
 use vw_gateway_client::GatewayClient;
 use vw_api_app_aggregation::*;
@@ -162,7 +161,7 @@ pub async fn execute(
     action: Action,
     default: Option<String>,
 ) -> Result<Reply, AggregationApiError> {
-    let endpoint = client.endpoint().clone().with_auth(GatewayAuth { skey: Some(token) });
+    let endpoint = client.endpoint().clone();
     let transport = gateway_http::GatewayTransport::new(endpoint).map_err(AggregationApiError::Transport)?;
     let client = GatewayAggregationClient::new(transport.clone());
     let query =

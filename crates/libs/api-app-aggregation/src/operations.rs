@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProviderOperationRequest {
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
     pub request_id: String,
     pub action: ProviderOperationAction,

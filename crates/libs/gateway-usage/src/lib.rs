@@ -10,3 +10,6 @@ pub use host::Host;
 pub fn router(host: Host) -> axum::Router {
     read::router(host).merge(scan::router(host)).merge(events::router(host)).merge(prices::router(host))
 }
+
+#[cfg(test)]
+mod local_scope_tests;

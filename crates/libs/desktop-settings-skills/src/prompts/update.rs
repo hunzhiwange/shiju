@@ -167,7 +167,7 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
             app.prompts.invalidate();
             if matches!(id, AppId::ClaudeDesktop | AppId::OpenClaw) { return crate::prompts::update::Input::show_error_toast("请使用该应用的专属入口"); }
             if app.context.as_ref() != Some(&context) { return crate::prompts::update::Input::show_error_toast("请先连接应用管理"); }
-            let Some(project) = app.project_id.as_deref().filter(|p| !p.is_empty()) else { return crate::prompts::update::Input::show_error_toast("请先选择项目"); };
+            let project = vw_api_transport::local_settings_project(app.project_id.as_deref());
             let scope = AgentAppPromptsScope { project_id: project.into(), target_host_id: app.host.clone(), app_id: id };
             let state = &mut app.prompts;
             state.scope = Some(scope.clone());

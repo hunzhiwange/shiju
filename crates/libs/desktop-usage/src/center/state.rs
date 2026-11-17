@@ -77,11 +77,11 @@ impl State {
     }
     pub fn missing_scope(&mut self) {
         self.charts.loading = false;
-        self.charts.result = Some(Err("请选择项目与执行主机".into()));
+        self.charts.result = Some(Err("网关不可用，请检查连接".into()));
         self.groups.loading = false;
-        self.groups.result = Some(Err("请选择项目与执行主机".into()));
+        self.groups.result = Some(Err("网关不可用，请检查连接".into()));
         self.loading = false;
-        self.result = Some(Err("请选择项目与执行主机".into()));
+        self.result = Some(Err("网关不可用，请检查连接".into()));
     }
 }
 

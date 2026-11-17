@@ -234,10 +234,7 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
     }
     #[cfg(not(target_arch = "wasm32"))]
     if let Event::Start(scan) = event {
-        let Some(project) = project.filter(|p| !p.is_empty()) else {
-            state.busy = false;
-            return crate::error(notice, "请先选择项目");
-        };
+        let project = vw_api_transport::local_settings_project(project.as_deref()).to_owned();
         let Some(id) = state.app else {
             state.busy = false;
             return Task::none();

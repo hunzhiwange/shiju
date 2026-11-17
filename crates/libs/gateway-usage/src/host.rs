@@ -8,7 +8,9 @@ use vw_api_external_session::{ExternalSessionIdentity, SessionProvider};
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Intent {
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: vw_api_transport::ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host: String,
     pub active: Option<bool>,
     pub paused: Option<bool>,

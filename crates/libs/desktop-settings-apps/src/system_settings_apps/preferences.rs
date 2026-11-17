@@ -213,7 +213,7 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
     let host = catalog.host.to_owned();
     let token = catalog.token.to_owned();
     if host.is_empty() {
-        return iced::Task::done(PreferencesMessage::Error(("请先选择已授权执行主机").into()));
+        return iced::Task::done(PreferencesMessage::Error(("网关不可用，请检查连接").into()));
     }
     state.busy = true;
     state.error = None;

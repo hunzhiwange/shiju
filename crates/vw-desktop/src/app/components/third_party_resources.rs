@@ -105,7 +105,7 @@ pub(crate) fn usage(app: &App, selected: AppId) -> Element<'_, Message> {
         }
         if count == 0 { content = content.push(text("暂无已加载的授权账号用量。")); }
     } else {
-        content = content.push(text("请先在授权页面连接当前执行主机并读取账号。"));
+        content = content.push(text("请在授权页面刷新账号。"));
     }
     scrollable(container(content).padding([0, 7]).width(Length::Fill))
         .direction(scrollable::Direction::Vertical(

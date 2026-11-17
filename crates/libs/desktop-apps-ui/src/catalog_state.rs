@@ -225,7 +225,7 @@ impl<
         pending_tray_app: Default::default(),
         expanded: Default::default(),
         drag: Default::default(),
-        host: Default::default(),
+        host: "desktop-local".into(),
         token: Default::default(),
         connection_open: Default::default(),
         loading: Default::default(),

@@ -221,11 +221,9 @@ pub(crate) fn update_input(app: &App) -> desktop_settings_skills::update::Input 
     });
     desktop_settings_skills::update::Input {
         connection_error: client.as_ref().err().map(ToString::to_string).unwrap_or_default(),
-        authorized: context.is_some() && context.as_ref() == app.apps_catalog.context.as_ref()
-            && !app.apps_catalog.token.is_empty(),
         loopback: client.as_ref().is_ok_and(|client| client.endpoint().is_loopback()),
         context,
-        project: app.workspace_state.project_id.clone(),
+        project: Some(vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref()).to_owned()),
         directory: app.navigation_tabs.project_path.clone(),
         host: app.apps_catalog.host.clone(),
         catalog: app.apps_catalog.generation,
@@ -236,7 +234,7 @@ pub(crate) fn update_input(app: &App) -> desktop_settings_skills::update::Input 
                 installation_id: installation.id.0.clone(), app_id: installation.app_id,
             }).collect(),
         repository_version: app.skills_settings.repositories.snapshot.as_ref()
-            .filter(|snapshot| Some(snapshot.scope.project_id.as_ref()) == app.workspace_state.project_id.as_deref()
+            .filter(|snapshot| snapshot.scope.project_id.as_ref() == vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref())
                 && snapshot.scope.target_host_id == app.apps_catalog.host)
             .map_or(0, |snapshot| snapshot.version),
         job_active: app.skills_settings.jobs.task_id.is_some()

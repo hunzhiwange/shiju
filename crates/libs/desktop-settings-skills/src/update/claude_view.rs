@@ -77,12 +77,7 @@ pub fn update(state: &mut State, input: &Input, event: Event) -> Effect {
     if matches!(event, Event::Marker(_)) && !matches!(state.status,
         Some(ClaudeConfigStatus::Missing) | Some(ClaudeConfigStatus::Valid { primary_api_key_present: false, .. })
         | Some(ClaudeConfigStatus::Valid { managed: true, .. })) { return Effect::None; }
-    let Some(project) = state.project.clone() else {
-        state.error = Some("请先打开已登记的项目".into()); return Effect::None;
-    };
-    if !input.authorized {
-        state.error = Some("请先在应用设置中连接并授权目标主机".into()); return Effect::None;
-    }
+    let project = vw_api_transport::local_settings_project(state.project.as_deref()).to_owned();
     let scope = ClaudeConfigQuery { project_id: project.into(), target_host_id: state.host.clone() };
     state.busy = true;
     state.error = None;

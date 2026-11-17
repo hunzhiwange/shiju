@@ -112,7 +112,7 @@ pub fn update_with_client(state: &mut State, current: Option<Identity>, client: 
         Event::Open | Event::Reload | Event::Save | Event::Sync | Event::AutoSync | Event::Poll => {
             if state.busy { return Task::none(); }
             if matches!(event, Event::Open | Event::Reload) { state.open = true; }
-            let Some(id) = current else { state.error = Some("请选择项目与执行主机".into()); return Task::none(); };
+            let Some(id) = current else { state.error = Some("网关不可用，请检查连接".into()); return Task::none(); };
             if matches!(event, Event::AutoSync) && !state.result.as_ref().is_some_and(|s| s.config.auto_sync_enabled) { return Task::none(); }
             if matches!(event, Event::Sync) && state.draft.as_ref().zip(state.result.as_ref()).is_some_and(|(draft, saved)| draft != &saved.config) {
                 state.error = Some("请先保存模型选择，再立即同步".into());

@@ -115,7 +115,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Result<vw_ga
             }
         }
         Event::Run(action) => {
-            let Some(scope) = current.clone() else { return Task::done(Outcome::Error("请选择项目与执行主机".into())); };
+            let Some(scope) = current.clone() else { return Task::done(Outcome::Error("网关不可用，请检查连接".into())); };
 
             if state.scope.as_ref() != Some(&scope) || state.pending { return Task::none(); }
             let active = state.job.as_ref().is_some_and(|job| !terminal(job));

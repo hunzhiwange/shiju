@@ -10,9 +10,9 @@ fn current(app: &App, c: &Context) -> bool {
         && app.app_providers.generation == c.generation
         && app.apps_catalog.context.as_ref() == Some(&c.scope.context)
         && app.apps_catalog.connection_open
-        && !app.apps_catalog.token.is_empty()
+
         && app.apps_catalog.model_diagnostics.access_generation == c.access
-        && app.workspace_state.project_id.as_deref() == Some(c.query.project_id.as_ref())
+        && vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref()) == c.query.project_id.as_ref()
         && list::current(app, c.scope.app).is_ok_and(|(_, s)| s == c.scope)
 }
 pub fn visible(app: &App) -> bool {
@@ -22,7 +22,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
     let context = if let Event::Open(provider) = &event {
         let Some(scope) = app.app_providers.scope.clone() else { return Task::none(); };
         if !app.app_providers.snapshot.as_ref().is_some_and(|s| s.catalog.rows.iter().any(|r| &r.provider.id == provider)) { return Task::none(); }
-        let Some(project) = app.workspace_state.project_id.as_deref().filter(|p| !p.is_empty()) else { return app.show_error_toast("请先打开项目"); };
+        let project = vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref());
         let context = Context {
             query: FailoverQueueQuery { project_id: project.into(), target_host_id: scope.host.clone(), app_id: scope.app },
             scope, generation: app.app_providers.generation,

@@ -81,31 +81,7 @@ pub fn update<U: Usage>(
         | Event::BindingSaved(..)
         | Event::CloseBinding(_) => unreachable!("binding events handled above"),
         Event::Open => {
-            if visible
-                && (state.pending.is_none() || state.binding.is_some())
-                && state.form.is_none()
-                && state.login.is_none()
-                && state.account_action.is_none()
-            {
-                let mut form = state.connection.clone().unwrap_or_else(|| Connection {
-                    username: "vibewindow".into(),
-                    ..Connection::default()
-                });
-
-                if state.connection.is_none()
-                    && catalog_context.as_ref().is_some_and(|context| {
-                        context.gateway == scope.gateway && context.tenant == scope.tenant
-                    })
-                {
-                    form.host = origin.host.to_owned();
-                    form.token = origin.token.to_owned();
-                }
-                if let Some(binding) = &state.binding {
-                    form.host.clone_from(&binding.host);
-                    form.token = origin.token.to_owned();
-                }
-                state.form = Some(form);
-            }
+            return update(state, notice, effects, origin, catalog_context, ports, Event::Refresh, endpoint);
         }
         Event::Close => state.form = None,
         Event::LocalReady { scope: ready_scope, generation, result } => {
@@ -193,21 +169,12 @@ pub fn update<U: Usage>(
             if state.pending.is_some() {
                 return Task::none();
             }
-            if matches!(event, Event::Connect) {
-                if !state.form.as_ref().is_some_and(Connection::valid_management) {
-                    return Task::none();
-                }
-                state.connection = state.form.take();
-            }
+            state.form = None;
             let Ok(client) = GatewayClient::new(endpoint) else {
-                return crate::error(notice, "无法建立管理连接，请重试");
+                return crate::error(notice, "无法连接网关，请重试");
             };
-            let Some(connection) = state.connection.clone() else {
-                let generation = state.begin();
-                return Task::perform(ports.connect_auth(client), move |result| {
-                    message(Event::LocalReady { scope, generation, result })
-                });
-            };
+            let connection = Connection::local(local_app_auth::Credentials { token: String::new() });
+            state.connection = Some(connection.clone());
             let retry = if let Event::RetryService(service) = event {
                 let Some(rows) = state.rows.clone().filter(|rows| {
                     rows.iter().any(|row| row.service == service && row.accounts.is_err())

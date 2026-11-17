@@ -228,7 +228,7 @@ pub fn update(app: &mut Update<'_>, event: ToolsMessage) -> Task<ToolsMessage> {
         }
         ToolsMessage::Open(record) => {
             let Some(diagnostics) = app.current.clone() else {
-                return app.show_error_toast("请先选择项目、连接目标主机并选择检测应用");
+                return app.show_error_toast("请选择检测应用并刷新目录");
             };
             if !diagnostics.connections.contains(&record) {
                 return app.show_error_toast("目录已变化，请刷新后重试");

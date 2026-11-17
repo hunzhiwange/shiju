@@ -242,12 +242,7 @@ async fn serve_gateway(
         }
         std::future::pending::<()>().await;
     };
-    let usage_scans = async {
-        if let Some(policy) = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE") {
-            gateway_external_sessions::usage_scan::run(policy.into()).await;
-        }
-        std::future::pending::<()>().await;
-    };
+    let usage_scans = gateway_external_sessions::usage_scan::run();
     tokio::select! {
         () = usage_scans => {}
         result = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()) => result?,

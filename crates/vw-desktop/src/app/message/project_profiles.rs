@@ -11,12 +11,11 @@ pub(crate) fn message(event: Event) -> Message {
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let Ok(client) = crate::app::config::gateway_client() else { return Task::none(); };
     let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.navigation_tabs.project_path.clone() };
-    let Some(project) = app.workspace_state.project_id.clone().filter(|p| !p.trim().is_empty()) else { return Task::none(); };
-    if app.apps_catalog.context.as_ref() != Some(&context) || app.apps_catalog.token.is_empty() { return Task::none(); }
+    let project = vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref()).to_owned();
     let catalog = desktop_workspace::profile_update::Catalog {
         tenant: context.tenant.clone(), context, project,
         host: &app.apps_catalog.host, generation: app.apps_catalog.generation,
-        connected: app.apps_catalog.connection_open, expanded: app.apps_catalog.expanded,
+        connected: true, expanded: app.apps_catalog.expanded,
     };
     let update = desktop_workspace::profile_update::update(&mut app.apps_catalog.project_profiles, &catalog,
         gateway_project_profile::GatewayProjectProfileClient::new(client.transport().clone()), event);

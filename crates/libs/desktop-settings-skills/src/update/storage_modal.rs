@@ -16,14 +16,14 @@ pub fn update(state: &mut State, input: &Input, event: Event) -> Effect {
     let Some(context) = input.context.clone() else { return Effect::Error(("无法连接存储服务").into()); };
     if matches!(event, Event::Open) {
         if s.open { return Effect::None; }
-        let Some(project) = input.project.clone() else { return Effect::Error(("请先打开已登记的项目").into()); };
+        let project = vw_api_transport::local_settings_project(input.project.as_deref()).to_owned();
         *s = State { open: true, context: Some(context.clone()), catalog: input.catalog,
             scope: Some(SkillReposQuery { project_id: project.into(), target_host_id: input.host.clone() }),
             generation: s.generation.wrapping_add(1), ..Default::default() };
     }
     if !s.open { return Effect::None; }
     if s.context.as_ref() != Some(&context) || s.catalog != input.catalog || s.scope.as_ref().is_none_or(|scope|
-        Some(scope.project_id.as_ref()) != input.project.as_deref() || scope.target_host_id != input.host) {
+        scope.project_id.as_ref() != vw_api_transport::local_settings_project(input.project.as_deref()) || scope.target_host_id != input.host) {
         *s = State { generation: s.generation.wrapping_add(1), ..Default::default() };
         return Effect::None;
     }
@@ -37,9 +37,6 @@ pub fn update(state: &mut State, input: &Input, event: Event) -> Effect {
     }
     if s.busy { return Effect::None; }
     if let Event::Select(location) = event { s.pending = Some(location); return Effect::None; }
-    if !input.authorized {
-        s.error = Some("请先在应用设置中连接并授权目标主机".into()); return Effect::None;
-    }
     let scope = s.scope.clone().expect("open scope");
     let change = match event {
         Event::Open | Event::Refresh => Change::Read,

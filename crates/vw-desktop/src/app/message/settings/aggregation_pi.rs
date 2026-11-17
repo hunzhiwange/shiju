@@ -24,11 +24,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         app.app_providers.pi_directory = None;
         return Task::none();
     }
-    let Some(project) = app.workspace_state.project_id.as_deref().filter(|id| !id.is_empty()).map(ProjectId::from)
-    else {
-        app.app_providers.pi_directory = None;
-        return app.show_error_toast("请先打开已注册的项目");
-    };
+    let project = ProjectId::from(vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref()));
     let access = app.apps_catalog.generation;
     let mut notice = None;
     let task = desktop_settings_apps::aggregation::pi::update(&mut app.app_providers.pi_directory, &mut app.app_providers.generation, app.app_providers.loading, app.app_providers.form.is_some(), app.app_providers.editor.is_some(), client, scope, project, access, &mut notice, event).map(message);

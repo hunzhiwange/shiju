@@ -39,11 +39,11 @@ pub(crate) fn overlay<'a, U: Clone + 'static>(
         body = body.push(settings_error_banner(error));
     }
     if !binding.connected {
-        body = body.push(text("请使用当前供应商所属主机和主体建立管理连接。")).push(
-            button(text("管理连接"))
+        body = body.push(text("账号尚未加载，请重试。")).push(
+            button(text("读取账号"))
                 .style(rounded_action_btn_style)
                 .padding([8, 14])
-                .on_press(message(Event::Open)),
+                .on_press(message(Event::LoadBinding(generation))),
         );
     } else if binding.loading {
         body = body.push(text("正在读取授权账号…").style(settings_muted_text_style));

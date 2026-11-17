@@ -6,22 +6,17 @@ fn current(app: &App) -> Result<(GatewayTransport, Binding), String> {
     let (client, scope) = list::current(app, AppId::ClaudeDesktop)?;
     if app.app_providers.scope.as_ref() != Some(&scope)
         || scope.host.is_empty()
-        || app.apps_catalog.token.is_empty()
     {
-        return Err("请先连接已授权执行主机".into());
+        return Err("应用列表已变化，请刷新后重试".into());
     }
-    let project = app.workspace_state.project_id.as_ref().filter(|p| !p.is_empty()).ok_or("请先打开已注册项目")?;
-    let endpoint = client
-        .endpoint()
-        .clone()
-        .with_auth(GatewayAuth { skey: Some(app.apps_catalog.token.clone()) });
+    let project = vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref());
+    let endpoint = client.endpoint().clone();
     Ok((
         GatewayTransport::new(endpoint)?,
-        Binding { scope, project: project.as_str().into(), access: app.apps_catalog.generation },
+        Binding { scope, project: project.into(), access: app.apps_catalog.generation },
     ))
 }
 use gateway_http::GatewayTransport;
-use gateway_endpoint::GatewayAuth;
 use vw_api_app_identity::AppId;
 pub(crate) fn message(event: Event) -> Message { list::message(ListMessage::DesktopAggregation(event)) }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {

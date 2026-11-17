@@ -18,7 +18,9 @@ struct Policy(Option<PathBuf>);
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ReadRequest {
+    #[serde(default = "vw_api_transport::local_project_id")]
     project_id: ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     target_host_id: String,
     #[serde(default = "pi_app")]
     app: String,
@@ -27,7 +29,9 @@ fn pi_app() -> String { "pi".into() }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ReplaceRequest {
+    #[serde(default = "vw_api_transport::local_project_id")]
     project_id: ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     target_host_id: String,
     #[serde(default = "pi_app")]
     app: String,
@@ -40,7 +44,9 @@ struct ReplaceRequest {
 #[serde(deny_unknown_fields)]
 struct DeleteRequest {
     slug: String,
+    #[serde(default = "vw_api_transport::local_project_id")]
     project_id: ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     target_host_id: String,
     #[serde(default = "pi_app")]
     app: String,

@@ -25,7 +25,9 @@ pub struct Job {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Request {
+    #[serde(default = "vw_api_transport::local_project_id")]
     project_id: ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     target_host_id: String,
     apps: Vec<AppId>,
 }

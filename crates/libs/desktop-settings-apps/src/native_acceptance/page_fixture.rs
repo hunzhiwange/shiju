@@ -155,17 +155,6 @@ pub fn view_overlays<'a>(
     theme: &Theme,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    if state.connection_open {
-        return domain::connection::overlay(&state.host, &state.token, base, |event| {
-            use domain::connection::ConnectionMessage as E;
-            message(match event {
-                E::Close => AppsCatalogMessage::ConnectionClose,
-                E::HostInput(v) => AppsCatalogMessage::HostInput(v),
-                E::TokenInput(v) => AppsCatalogMessage::TokenInput(v),
-                E::Refresh => AppsCatalogMessage::Refresh,
-            })
-        });
-    }
     launch::overlay(
         state,
         i18n,

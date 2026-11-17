@@ -8,9 +8,7 @@ fn identity(app: &App) -> Option<Identity> {
     let client = crate::app::config::gateway_client().ok()?;
     let context = AgentAppsContext { gateway: client.endpoint().base_url(),
         tenant: client.endpoint().tenant_scope().clone(), project: app.navigation_tabs.project_path.clone() };
-    if app.apps_catalog.context.as_ref() != Some(&context) || !app.apps_catalog.connection_open
-        || app.apps_catalog.host.trim().is_empty() || app.apps_catalog.token.is_empty() { return None; }
-    Some(Identity { gateway: context.gateway, tenant: context.tenant, project_path: context.project, project: app.workspace_state.project_id.clone().filter(|p| !p.trim().is_empty())?,
+    Some(Identity { gateway: context.gateway, tenant: context.tenant, project_path: context.project, project: vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref()).to_owned(),
         host: app.apps_catalog.host.clone(), catalog: app.apps_catalog.generation })
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {

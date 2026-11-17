@@ -170,36 +170,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         AppsCatalogMessage::Lifecycle(message) => {
             return super::apps_lifecycle::update(app, message);
         }
-        AppsCatalogMessage::LocalConnect => {
-            if app.apps_catalog.loading {
-                return Task::none();
-            }
-            let client = match crate::app::config::gateway_client() {
-                Ok(client) if client.endpoint().is_loopback() => client,
-                _ => return app.show_error_toast("请先切换到本机网关"),
-            };
-            let context = AgentAppsContext {
-                gateway: client.endpoint().base_url(),
-                tenant: client.endpoint().tenant_scope().clone(),
-                project: app.navigation_tabs.project_path.clone(),
-            };
-            let generation = crate::app::state::agent_apps::begin(&mut app.apps_catalog, context.clone());
-            app.app_providers.model_catalog = None;
-            app.apps_catalog.token.clear();
-            app.apps_catalog.host.clear();
-            return Task::perform(
-                crate::app::components::system_settings_apps::local::connect(client),
-                move |result| {
-                    Message::Settings(SettingsMessage::AppsCatalog(
-                        AppsCatalogMessage::LocalReady {
-                            context: context.clone(),
-                            generation,
-                            result,
-                        },
-                    ))
-                },
-            );
-        }
+        AppsCatalogMessage::LocalConnect => return update(app, AppsCatalogMessage::Refresh),
         AppsCatalogMessage::LocalReady { context, generation, result } => {
             let current =
                 crate::app::config::gateway_client().ok().map(|client| AgentAppsContext {

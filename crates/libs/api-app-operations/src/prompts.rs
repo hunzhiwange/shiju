@@ -161,7 +161,9 @@ impl ImportPromptShareRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ImportPromptShareApiRequest {
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
     pub revision: u64,
     pub import: ImportPromptShareRequest,

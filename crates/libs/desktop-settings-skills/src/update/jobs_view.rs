@@ -14,7 +14,7 @@ pub fn update(state: &mut State, input: &Input, event: Event) -> Effect {
     if matches!(event, Event::Close) { s.open = false; return Effect::None; }
     let Some(context) = input.context.clone() else { return Effect::None; };
     if s.context.as_ref() != Some(&context) || s.scope.as_ref().is_none_or(|scope|
-        Some(scope.project_id.as_ref()) != input.project.as_deref() || scope.target_host_id != input.host) {
+        scope.project_id.as_ref() != vw_api_transport::local_settings_project(input.project.as_deref()) || scope.target_host_id != input.host) {
         *s = State { generation: s.generation.wrapping_add(1), ..Default::default() };
         return Effect::None;
     }
@@ -48,9 +48,6 @@ pub fn update(state: &mut State, input: &Input, event: Event) -> Effect {
     let cancel = matches!(event, Event::Cancel);
     if cancel && s.snapshot.as_ref().is_none_or(|job| terminal(job.phase) || job.phase == SkillJobPhase::Committing) {
         return Effect::None;
-    }
-    if !input.authorized {
-        s.error = Some("请重新连接并授权目标主机后刷新".into()); return Effect::None;
     }
     let (Some(scope), Some(id)) = (s.scope.clone(), s.task_id.clone()) else { return Effect::None; };
     s.busy = true; s.generation = s.generation.wrapping_add(1);

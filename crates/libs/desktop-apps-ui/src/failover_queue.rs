@@ -83,7 +83,7 @@ pub fn update(state: &mut State, current: Option<Context>, client: Result<vw_gat
             state.open = false; state.serial = state.serial.wrapping_add(1); state.busy = false;
         }
         Event::Open => {
-            let Some(context) = current.clone() else { return crate::error(notice, "请先选择项目并连接应用执行主机"); };
+            let Some(context) = current.clone() else { return crate::error(notice, "网关不可用，请刷新后重试"); };
             let serial = state.serial.wrapping_add(1);
             *state = State { open: true, context: Some(context), serial, ..Default::default() };
             return update(state, current, client, token, Event::Run(Operation::Refresh), notice);

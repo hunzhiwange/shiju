@@ -9,11 +9,11 @@ fn current(app: &App) -> Option<Context> {
     let scope = app.app_providers.scope.as_ref()?;
     if list::current(app, scope.app).ok()?.1 != *scope
         || app.apps_catalog.context.as_ref() != Some(&scope.context)
-        || app.apps_catalog.token.is_empty() || scope.host.is_empty() { return None; }
+        || scope.host.is_empty() { return None; }
     Some(Context {
         scope: scope.clone(),
         query: FailoverQueueQuery {
-            project_id: app.workspace_state.project_id.as_deref().filter(|s| !s.is_empty())?.into(),
+            project_id: vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref()).into(),
             target_host_id: scope.host.clone(), app_id: scope.app,
         },
         list_generation: app.app_providers.generation,

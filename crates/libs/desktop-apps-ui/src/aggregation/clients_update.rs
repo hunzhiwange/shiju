@@ -1,7 +1,6 @@
 // Scoped Codex observations; acknowledgement never implies a process refresh.
 use super::Selection;
 use iced::Task;
-use gateway_endpoint::GatewayAuth;
 use gateway_app_settings::AgentAppsSettingsError;
 use vw_gateway_client::GatewayClient;
 use vw_api_app_identity::AppId;
@@ -25,7 +24,7 @@ pub async fn execute(
         return Err(AgentAppsSettingsError::Transport("invalid intent".into()));
     }
     let client =
-        GatewayClient::new(client.endpoint().clone().with_auth(GatewayAuth { skey: Some(token) }))
+        GatewayClient::new(client.endpoint().clone())
             .map_err(AgentAppsSettingsError::Transport)?;
     let query =
         AggregationQuery { target_host_id: selection.scope.host, project_id: selection.project };
@@ -82,7 +81,7 @@ pub fn update(
         return if matches!(event, Event::Finished { .. }) {
             Task::none()
         } else {
-            super::error(notice, "请先选择项目并连接已授权执行主机")
+            super::error(notice, "网关不可用，请刷新后重试")
         };
     };
     let Some(form) = &mut (*form) else { return Task::none() };

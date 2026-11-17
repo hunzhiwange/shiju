@@ -6,7 +6,9 @@ use crate::*;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AggregationPublishRequest {
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: ProjectId,
     pub expected_revision: String,
     pub request_id: String,
@@ -61,7 +63,9 @@ pub struct CodexClientsState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CodexClientsAckRequest {
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: ProjectId,
     pub expected_revision: String,
 }
@@ -75,7 +79,9 @@ pub enum CodexRestartResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CodexRestartRequest {
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: ProjectId,
     pub expected_revision: String,
     pub request_id: String,
@@ -86,7 +92,9 @@ pub struct CodexRestartRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AggregationExitRequest {
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: ProjectId,
     pub expected_revision: String,
     pub request_id: String,

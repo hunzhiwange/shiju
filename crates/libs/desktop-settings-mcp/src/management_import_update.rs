@@ -6,14 +6,13 @@ use vw_api_app_identity::AppId;
 use vw_api_mcp_management::*;
 fn authorized(app: &Update<'_>, context: &crate::management_context::Context) -> bool {
     app.context.as_ref() == Some(context)
-        && app.authorized
         && !context.host.is_empty()
 
 }
 /// Decoded clipboard drafts share confirmation; system URI routing has a separate owner.
 pub(crate) fn open_draft(app: &mut Update<'_>, request: McpCreateRequest) -> Task<ImportMessage> {
     let Some(context) = scope::context(app).filter(|c| authorized(app, c)) else {
-        return app.error("请先连接目标主机");
+        return app.error("网关不可用，请检查连接");
     };
     if request.target_host_id != context.host {
         return app.error("草稿目标主机与当前主机不匹配");
@@ -43,7 +42,7 @@ pub fn update(app: &mut Update<'_>, event: ImportMessage) -> Task<ImportMessage>
             return Task::none();
         }
         let Some(context) = scope::context(app).filter(|c| authorized(app, c)) else {
-            return app.error("请先在应用管理中连接目标主机");
+            return app.error("网关不可用，请刷新后重试");
         };
         app.state.import = Some(ImportState::new(context));
         return Task::none();
@@ -263,7 +262,7 @@ pub fn trusted_targets<'a>(
     loading: bool,
     installations: impl IntoIterator<Item = (AppId, &'a vw_api_app_identity::AppInstallation)>,
 ) -> Vec<McpAppTarget> {
-    let Some(context) = context.filter(|c| authorized && !loading && !c.host.is_empty()) else {
+    let Some(context) = context.filter(|c| !loading && !c.host.is_empty()) else {
         return vec![];
     };
     installations

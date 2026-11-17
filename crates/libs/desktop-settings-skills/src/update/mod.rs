@@ -10,7 +10,6 @@ pub struct Input {
     pub directory: Option<String>,
     pub host: String,
     pub catalog: u64,
-    pub authorized: bool,
     pub loopback: bool,
     pub targets: Vec<SkillBindingTarget>,
     pub repository_version: u64,

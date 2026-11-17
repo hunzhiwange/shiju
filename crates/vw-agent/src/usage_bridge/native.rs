@@ -20,16 +20,10 @@ impl NativeRequest {
     fn try_begin(provider: &str, model: &str, session: Option<&str>) -> anyhow::Result<agent_usage::native::NativeRequest> {
         let tenant = crate::session::ui_store::explicit_tenant_scope()
             .ok_or_else(|| anyhow::anyhow!("usage requires explicit tenant"))?;
-        let project = crate::project::instance::project()
-            .ok_or_else(|| anyhow::anyhow!("usage requires registered project"))?;
-        let scope = vw_api_transport::ProjectScope::new(tenant, project.id.into())?;
-        let database = super::context::database()?;
-        anyhow::ensure!(crate::project::store::ProjectStore::new(database)?.get(&scope)?.is_some(),
-            "usage project outside tenant");
-        // Only existing private desktop authorization may establish this local host.
-        anyhow::ensure!(local_app_auth::restore(&crate::global::paths().home,
-            scope.platform_id().as_ref(), scope.company_id().as_ref())?.is_some(),
-            "local usage host is not provisioned");
+        let project = crate::project::instance::project();
+        let project_id = project.as_ref().map(|project| project.id.as_str());
+        let scope = vw_api_transport::ProjectScope::new(tenant,
+            vw_api_transport::local_settings_project(project_id).into())?;
         Ok(agent_usage::native::NativeRequest::begin(scope, super::context::local_host()?,
             super::context::database, provider, model, session))
     }

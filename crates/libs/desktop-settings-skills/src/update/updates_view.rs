@@ -14,7 +14,7 @@ pub fn update(state: &mut State, input: &Input, event: Event) -> Effect {
         return Effect::None;
     }
     if matches!(event, Event::Open) && !s.open {
-        let Some(project) = input.project.clone() else { return Effect::Error(("请先打开已登记的项目").into()); };
+        let project = vw_api_transport::local_settings_project(input.project.as_deref()).to_owned();
         *s = State { open: true, context: Some(context.clone()), catalog: input.catalog,
             scope: Some(SkillReposQuery { project_id: project.into(), target_host_id: input.host.clone() }),
             generation: s.generation.wrapping_add(1), ..Default::default() };
@@ -37,9 +37,6 @@ pub fn update(state: &mut State, input: &Input, event: Event) -> Effect {
         Event::Loaded(..) | Event::Finished(..) => return Effect::None,
         _ if s.busy => return Effect::None,
         _ => {}
-    }
-    if !input.authorized {
-        return Effect::Error(("请先在应用设置中连接并授权目标主机").into());
     }
     let scope = s.scope.clone().expect("open scope");
     let operation = if let Event::Run(operation) = event {

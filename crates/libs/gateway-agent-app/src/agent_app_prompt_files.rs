@@ -18,7 +18,9 @@ struct Policy(Option<PathBuf>);
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ReadRequest {
+    #[serde(default = "vw_api_transport::local_project_id")]
     project_id: ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     target_host_id: String,
     kind: Kind,
 }
@@ -28,7 +30,9 @@ enum Kind { SystemOverride, SystemAppend }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ReplaceRequest {
+    #[serde(default = "vw_api_transport::local_project_id")]
     project_id: ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     target_host_id: String,
     kind: Kind,
     expected_revision: String,
@@ -37,7 +41,9 @@ struct ReplaceRequest {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct DeleteRequest {
+    #[serde(default = "vw_api_transport::local_project_id")]
     project_id: ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     target_host_id: String,
     kind: Kind,
     expected_revision: String,

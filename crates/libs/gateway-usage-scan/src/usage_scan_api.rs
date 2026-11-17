@@ -7,7 +7,9 @@ use vw_api_transport::id::ProjectId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageScanScope {
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,7 +60,6 @@ pub struct UsageRevisionEvent {
 }
 #[derive(Debug, Clone, PartialEq)]
 pub enum UsageScanError {
-    Unauthenticated,
     InvalidInput(String),
     Transport(String),
     Http { status: u16, body: Value },
@@ -67,7 +68,6 @@ pub enum UsageScanError {
 impl std::fmt::Display for UsageScanError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Unauthenticated => f.write_str("usage scans require gateway credentials"),
             Self::InvalidInput(s) | Self::Transport(s) | Self::Decode(s) => f.write_str(s),
             Self::Http { status, .. } => write!(f, "usage HTTP {status}"),
         }
@@ -135,9 +135,6 @@ impl GatewayUsageScanClient {
         }).await.map_err(UsageScanError::Transport)
     }
     fn validate_usage_scan_scope(&self, scope: &UsageScanScope) -> Result<(), UsageScanError> {
-        if !self.transport.endpoint().auth.as_ref().and_then(|a| a.skey.as_deref()).is_some_and(|s| !s.trim().is_empty()) {
-            return Err(UsageScanError::Unauthenticated);
-        }
         if scope.project_id.as_ref().trim().is_empty() || scope.target_host.trim().is_empty() {
             return Err(UsageScanError::InvalidInput("usage project and host are required".into()));
         }

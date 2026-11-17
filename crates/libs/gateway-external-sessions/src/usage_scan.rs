@@ -11,25 +11,30 @@ pub fn schedules() -> &'static Mutex<HashMap<ScanOwner, usage::scan_schedule::Sc
     SCHEDULES.get_or_init(Default::default)
 }
 
-pub async fn run(policy: PathBuf) {
+pub async fn run() {
     let mut timer = tokio::time::interval(std::time::Duration::from_secs(1));
     timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     loop {
         timer.tick().await;
-        let policy = policy.clone();
-        if tokio::task::spawn_blocking(move || cycle(&policy)).await.is_err() {
+        if tokio::task::spawn_blocking(move || cycle()).await.is_err() {
             tracing::warn!("usage scan worker failed");
         }
     }
 }
 
-fn cycle(policy: &Path) {
-    if cycle_inner(policy).is_err() { tracing::debug!("usage scan unavailable or unauthorized"); }
+fn cycle() {
+    if cycle_inner().is_err() { tracing::debug!("usage scan unavailable or unauthorized"); }
 }
 
-fn cycle_inner(policy: &Path) -> anyhow::Result<()> {
-    let targets = app_access_service::access::usage_scan_targets(policy)
-        .map_err(|_| anyhow::anyhow!("usage scan policy unavailable"))?;
+fn cycle_inner() -> anyhow::Result<()> {
+    let scopes: HashSet<_> = schedules().lock()
+        .map_err(|_| anyhow::anyhow!("usage schedule unavailable"))?
+        .keys().map(|owner| owner.scope.clone()).collect();
+    let mut targets = Vec::new();
+    for scope in scopes {
+        targets.extend(app_access_service::access::usage_scan_targets(&scope)
+            .map_err(|_| anyhow::anyhow!("local usage sources unavailable"))?);
+    }
     let database = agent_usage::context::database(&agent_paths::paths().home)?;
     let projects = agent_project::store::ProjectStore::new(database.clone())?;
     let mut connection = database.connect_sqlite()?;
@@ -110,6 +115,7 @@ pub struct Work {
 pub fn discover(scope: &ProjectScope, host: &str, provider: SessionProvider,
     instances: &[(PathBuf, app_access_service::access::ExternalHistoryInstance)],
     worktree: &str) -> anyhow::Result<Vec<Work>> {
+    let local = scope.project_id().as_ref() == vw_api_transport::LOCAL_PROJECT_ID;
     let mut files = Vec::new();
     for (home, instance) in instances.iter().filter(|(_, i)| i.provider == provider) {
         let template = ExternalSessionIdentity { scope: scope.clone(), target_host: host.into(),
@@ -120,7 +126,7 @@ pub fn discover(scope: &ProjectScope, host: &str, provider: SessionProvider,
         anyhow::ensure!(!truncated, "source discovery incomplete");
         // Database scanners consume a whole native database. Refuse mixed or
         // unknown project ownership instead of assigning another project's rows.
-        if matches!(provider, SessionProvider::Mcode | SessionProvider::Opencode) {
+        if !local && matches!(provider, SessionProvider::Mcode | SessionProvider::Opencode) {
             anyhow::ensure!(sessions.iter().all(|s| s.project_dir.as_deref() == Some(worktree)),
                 "database has unbound project sessions");
         }
@@ -136,7 +142,7 @@ pub fn discover(scope: &ProjectScope, host: &str, provider: SessionProvider,
             _ => instance.root.clone(),
         };
         let mut seen = HashSet::new();
-        for session in sessions.into_iter().filter(|s| s.project_dir.as_deref() == Some(worktree)) {
+        for session in sessions.into_iter().filter(|s| local || s.project_dir.as_deref() == Some(worktree)) {
             let relative = match &session.identity.source {
                 SessionSource::File { relative_path } => relative_path,
                 SessionSource::Sqlite { database, .. } => database,
@@ -185,7 +191,9 @@ fn dispatch(connection: &mut rusqlite::Connection, scope: &ProjectScope,
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Intent {
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: vw_api_transport::ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host: String,
     pub active: Option<bool>,
     pub paused: Option<bool>,
@@ -201,7 +209,11 @@ pub fn authorized_owner(policy: Option<&Path>, tenant: vw_api_transport::TenantS
     let (principal, _, _) = app_access_service::access::authorize_external_history(
         policy, headers, &scope, &intent.target_host)?;
     if intent.target_host != agent_usage::context::local_host().map_err(|_| axum::http::StatusCode::SERVICE_UNAVAILABLE)? { return Err(axum::http::StatusCode::FORBIDDEN); }
-    Ok(ScanOwner { scope, principal, target_host: intent.target_host.clone() })
+    let owner = ScanOwner { scope, principal, target_host: intent.target_host.clone() };
+    schedules().lock().map_err(|_| axum::http::StatusCode::SERVICE_UNAVAILABLE)?
+        .entry(owner.clone()).or_insert_with(||
+            usage::scan_schedule::ScanSchedule::new(ScanJobs::default(), owner.clone()));
+    Ok(owner)
 }
 async fn page_activity(
     axum::Extension(policy): axum::Extension<super::catalog::Policy>,

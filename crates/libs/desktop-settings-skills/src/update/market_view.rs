@@ -56,12 +56,7 @@ pub fn update(state: &mut State, input: &Input, event: Event) -> Effect {
         return Effect::None;
     }
     if state.busy { return Effect::None; }
-    let Some(project) = state.project.clone() else {
-        state.error = Some("请先打开已登记的项目".into()); return Effect::None;
-    };
-    if !input.authorized {
-        state.error = Some("请先在应用设置中连接并授权目标主机".into()); return Effect::None;
-    }
+    let project = vw_api_transport::local_settings_project(state.project.as_deref()).to_owned();
     state.busy = true;
     state.results = None;
     state.error = None;

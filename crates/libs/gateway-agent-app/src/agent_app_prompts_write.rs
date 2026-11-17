@@ -16,7 +16,9 @@ struct Policy(Option<PathBuf>);
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Request {
+    #[serde(default = "vw_api_transport::local_project_id")]
     project_id: ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     target_host_id: String,
     app_id: AppId,
     operation: Operation,

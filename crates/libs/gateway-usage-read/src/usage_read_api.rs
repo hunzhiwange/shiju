@@ -19,7 +19,6 @@ pub struct UsageReadScope {
 #[derive(Debug, Clone, PartialEq)]
 pub enum UsageReadError {
     InvalidInput(String),
-    Unauthenticated,
     Transport(String),
     Http { status: u16, body: serde_json::Value },
     Decode(String),
@@ -28,7 +27,6 @@ impl std::fmt::Display for UsageReadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::InvalidInput(s) | Self::Transport(s) | Self::Decode(s) => f.write_str(s),
-            Self::Unauthenticated => f.write_str("usage read requires gateway credentials"),
             Self::Http { status, .. } => write!(f, "usage HTTP {status}"),
         }
     }
@@ -73,9 +71,6 @@ impl GatewayUsageReadClient {
         self.usage_read(&["trends"], scope, query, interval).await
     }
     async fn usage_read<T: DeserializeOwned>(&self, resource: &[&str], scope: &UsageReadScope, query: &UsageQuery, interval: Option<UsageSeriesInterval>) -> Result<T, UsageReadError> {
-        if !self.transport.endpoint().auth.as_ref().and_then(|a| a.skey.as_deref()).is_some_and(|key| !key.trim().is_empty()) {
-            return Err(UsageReadError::Unauthenticated);
-        }
         if scope.project_id.as_ref().trim().is_empty() || scope.target_host.trim().is_empty() || scope.time_zone.trim().is_empty() {
             return Err(UsageReadError::InvalidInput("usage project, host and timezone are required".into()));
         }

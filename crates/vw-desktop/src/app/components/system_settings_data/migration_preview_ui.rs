@@ -8,12 +8,10 @@ pub(super) fn target(app: &App) -> Option<DataManagementTarget> {
     let client = crate::app::config::gateway_client().ok()?;
     let context = crate::app::state::AgentAppsContext { gateway: client.endpoint().base_url(),
         tenant: client.endpoint().tenant_scope().clone(), project: app.navigation_tabs.project_path.clone() };
-    if !app.apps_catalog.connection_open || app.apps_catalog.context.as_ref() != Some(&context)
-        || app.apps_catalog.host.is_empty() || app.apps_catalog.token.is_empty() { return None; }
     Some(DataManagementTarget {
-        scope: ProjectScope::new(context.tenant, app.workspace_state.project_id.clone()?.into()).ok()?,
+        scope: ProjectScope::new(context.tenant, vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref()).to_owned().into()).ok()?,
         target_host_id: app.apps_catalog.host.clone(),
-        principal_id: app.apps_catalog.migration_preview.principal.trim().to_owned(),
+        principal_id: "desktop-local-user".into(),
     })
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {

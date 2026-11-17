@@ -68,6 +68,7 @@ pub enum McpCatalogScope {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct McpCreateRequest {
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_id: Option<ProjectId>,
@@ -90,6 +91,7 @@ pub struct McpCreateRequest {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct McpUpdateRequest {
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_id: Option<ProjectId>,
@@ -101,6 +103,7 @@ pub struct McpUpdateRequest {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct McpDeleteRequest {
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_id: Option<ProjectId>,
@@ -412,7 +415,9 @@ pub struct McpToolDetails {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct McpAcpUsageQuery {
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: ProjectId,
     pub session_id: SessionId,
 }

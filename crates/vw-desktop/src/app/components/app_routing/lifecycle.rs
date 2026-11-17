@@ -16,7 +16,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> iced::Task<Message> {
     let context = current(app);
     let client = crate::app::config::gateway_client().ok();
     let mut notice = None;
-    let task = desktop_apps_ui::app_routing::lifecycle::update(&mut app.apps_catalog.routing, context, app.workspace_state.project_id.clone(), &app.apps_catalog.token, client, &mut notice, event).map(message);
+    let task = desktop_apps_ui::app_routing::lifecycle::update(&mut app.apps_catalog.routing, context, Some(vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref()).to_owned()), &app.apps_catalog.token, client, &mut notice, event).map(message);
     let feedback = match notice {
         Some(desktop_apps_ui::Notice::Error(error)) => app.show_error_toast(error),
         Some(desktop_apps_ui::Notice::Success(text)) => app.show_success_toast(text),

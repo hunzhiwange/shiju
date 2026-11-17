@@ -158,6 +158,15 @@ impl ProjectStore {
 
     /// 按完整作用域读取单个项目。
     pub fn get(&self, scope: &ProjectScope) -> Result<Option<Info>> {
+        if scope.project_id().as_ref() == vw_api_transport::LOCAL_PROJECT_ID {
+            return Ok(Some(Info {
+                id: vw_api_transport::LOCAL_PROJECT_ID.into(),
+                worktree: agent_paths::paths().home.to_string_lossy().into_owned(),
+                vcs: None, name: Some("本机应用".into()), icon: None, commands: None,
+                time: project_types::TimeInfo { created: 0, updated: 0, initialized: None },
+                sandboxes: Vec::new(),
+            }));
+        }
         match &self.provider {
             ProjectStoreProvider::Sqlite(database) => {
                 let connection = database.connect_sqlite()?;

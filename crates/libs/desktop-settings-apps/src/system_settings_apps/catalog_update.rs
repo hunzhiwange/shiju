@@ -234,13 +234,9 @@ impl CatalogInput<'_> {
         {
             return RefreshDecision::Skip;
         }
-        if self.host.trim().is_empty() {
-            if local && cfg!(unix) {
-                return RefreshDecision::ConnectLocal;
-            }
-            *self.connection_open = true;
-            return RefreshDecision::OpenConnection;
-        }
+        let _ = local;
+        *self.host = local_app_auth::HOST_ID.into();
+        self.token.clear();
         if *self.loading {
             return RefreshDecision::Skip;
         }

@@ -81,7 +81,7 @@ pub fn update(
         }
         McpDiagnosticMessage::Start(ids) => {
             let Some(context) = current.clone() else {
-                return notify_error(notice, "请先选择项目、连接目标主机并选择检测应用");
+                return notify_error(notice, "请选择检测应用并刷新目录");
             };
             if state.active() && state.context.as_ref() == Some(&context) {
                 return Task::none();

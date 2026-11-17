@@ -62,11 +62,9 @@ pub fn update(state: &mut State, input: &Input, event: Event) -> Effect {
         Event::Scan | Event::Import => {}
         _ => return Effect::None,
     }
-    let Some(project) = state.project.clone() else {
-        state.error = Some("请先打开已登记的项目".into()); return Effect::None;
-    };
-    if state.apps.is_empty() || !input.authorized {
-        state.error = Some("请选择应用并在应用设置中授权目标主机".into()); return Effect::None;
+    let project = vw_api_transport::local_settings_project(state.project.as_deref()).to_owned();
+    if state.apps.is_empty() {
+        state.error = Some("请选择应用".into()); return Effect::None;
     }
     let selected: Vec<_> = if matches!(event, Event::Import) {
         state.report.as_ref().map(|r| r.skills.iter().filter(|s| eligible(s)

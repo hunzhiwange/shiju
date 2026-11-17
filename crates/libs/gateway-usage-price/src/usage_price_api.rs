@@ -6,7 +6,6 @@ use serde_json::{Value, json};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UsagePriceError {
-    Unauthenticated,
     InvalidInput(String),
     Transport(String),
     Http { status: u16, body: Value },
@@ -15,7 +14,6 @@ pub enum UsagePriceError {
 impl std::fmt::Display for UsagePriceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Unauthenticated => f.write_str("usage pricing requires gateway credentials"),
             Self::InvalidInput(s) | Self::Transport(s) | Self::Decode(s) => f.write_str(s),
             Self::Http { status, .. } => write!(f, "usage pricing HTTP {status}"),
         }
@@ -90,9 +88,6 @@ impl GatewayUsagePriceClient {
         self.usage_price_request(reqwest::Method::PUT, &["display"], scope, Some(body)).await
     }
     async fn usage_price_request<T: DeserializeOwned>(&self, method: reqwest::Method, path: &[&str], scope: &UsageScanScope, body: Option<Value>) -> Result<T, UsagePriceError> {
-        if !self.transport.endpoint().auth.as_ref().and_then(|a| a.skey.as_deref()).is_some_and(|s| !s.trim().is_empty()) {
-            return Err(UsagePriceError::Unauthenticated);
-        }
         if scope.project_id.as_ref().trim().is_empty() || scope.target_host.trim().is_empty() {
             return Err(UsagePriceError::InvalidInput("usage project and host required".into()));
         }

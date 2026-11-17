@@ -8,7 +8,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct FailoverQueueQuery {
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
     pub app_id: AppId,
 }

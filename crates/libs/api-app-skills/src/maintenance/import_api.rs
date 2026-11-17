@@ -6,7 +6,9 @@ use super::repos_api::SkillReposQuery;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct UnmanagedSkillsQuery {
+    #[serde(default = "vw_api_transport::local_project_id")]
     pub project_id: vw_api_transport::id::ProjectId,
+    #[serde(default = "vw_api_transport::local_host_id")]
     pub target_host_id: String,
     /// Comma-separated application IDs; each source requires explicit selection.
     pub apps: String,

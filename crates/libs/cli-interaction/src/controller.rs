@@ -107,7 +107,7 @@ pub(crate) fn build_prompt_submission(state: &TuiState, text: &str) -> Option<Pr
 
 /// 允许纯附件输入的提交快照构造器。
 pub(crate) fn build_attachment_submission(state: &TuiState, text: &str) -> PromptSubmission {
-    let mut submission = PromptSubmission::new(text.trim())
+    let mut submission = PromptSubmission::new(text)
         .with_stream_id(now_ms())
         .with_history_len(state.prompt.history.entries.len());
     submission.execution = Box::new(state.session_options.execution_snapshot());

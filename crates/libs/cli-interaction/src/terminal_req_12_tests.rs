@@ -1,5 +1,5 @@
 //! 跨终端事件、真实组合器、附件校验和 Gateway 请求的验收资产。
-//! 平台剪贴板与网络不在本组测试内；本轮按用户要求未执行。
+//! 平台剪贴板与网络不在本组测试内。
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -107,6 +107,9 @@ fn terminal_req_12_attachment_error_restores_rich_draft() {
 fn terminal_req_12_rich_queue_is_fifo_and_drained_once() {
     let root = tempfile::tempdir().unwrap();
     let mut app = app(root.path().into());
+    app.widget_mut().handle_v3_event(vw_tui::V3Event::TurnStarted {
+        turn_id: "queue-turn".into(),
+    });
     app.widget_mut().queue_input("first".into(), Vec::new());
     let payload = "中🙂".repeat(1001);
     paste(&mut app, &payload);

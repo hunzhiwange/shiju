@@ -16,7 +16,7 @@ use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, gateway_inference::Gatewa
 
 const GUARD: Duration = Duration::from_secs(3);
 const REQUEST: &str = r#"{"model":"fixture","stream":true}"#;
-const OUTPUT: &str = "data: {\"choices\":[{\"delta\":{\"content\":\"output\"}}]}\n\n";
+const OUTPUT: &str = "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"output\"}}]}\n\n";
 
 struct Fixture {
     listener: RoutingListener,

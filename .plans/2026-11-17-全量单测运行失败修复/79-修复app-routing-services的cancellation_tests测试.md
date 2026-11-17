@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号157, 160。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -52,3 +52,13 @@ python3 scripts/cargo_slot.py cargo test -p app-routing-services --lib 'cancella
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 本次执行记录
+
+- 根因：测试 OUTPUT 的 Chat SSE choices 缺少 index；共享 stream_observer::chat 强制要求非负 index，因而在断连测试观察输出前拒绝事件。仅补齐 index:0，保留所有撤权、取消、许可计数与防重放断言，不修改业务校验。
+- 原生命令修复前执行均被 rmcp 0.8.5 编译错误阻断（base64/schemars/paste 未解析、handler::server 被特性裁剪，13 个错误），实际测试数 0，不能认定运行红灯或通过。
+- 槽位 10；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-10；原始日志 /tmp/shiju-task79/red-sdk.log、red-behavior.log。
+- 无共享业务文件写入；保留现有工作区其他任务修改。后续需解决独立依赖编译问题后重跑两项精确命令，达到各 1 passed、0 failed 后再删除任务文件。
+- 修复后仍使用同样两条精确过滤命令，槽位 6；双缓存路径均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-6；日志 /tmp/shiju-task79/post-sdk.log、post-behavior.log。依赖错误未消除，未取得测试通过证据。
+- 轻量检查：git diff --check 通过；审查仅修改 OUTPUT 一行。未运行整包、全量、桌面编译或重复 check。
+- 修复后两条命令退出码均 101，实际执行测试数 0；槽位 6、10 的自有锁均已释放。

@@ -131,3 +131,4 @@ async fn acp_onboarding_harn_session_lifecycle() {
 async fn acp_onboarding_harn_permission_denial() {
     run_peer(true).await;
 }
+

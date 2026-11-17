@@ -21,6 +21,7 @@ desktop-config = { path = "../desktop-config", version = "0.6.0" }
 rfd = { version = "0.17", features = ["file-handle-inner"] }
 
 [dev-dependencies]
+urlencoding = "2"
 serde_json = "1"
 desktop-terminal = { path = "../desktop-terminal", version = "0.6.0" }
 iced_runtime = "0.14"

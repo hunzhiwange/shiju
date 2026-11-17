@@ -11,6 +11,7 @@ doctest = false
 directories = "6"
 
 [dev-dependencies]
+config-security = { path = "../config-security", version = "0.6.0" }
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 agent-config = { path = "../agent-config", version = "0.6.0", features = ["test-support"] }

@@ -59,22 +59,22 @@ pub struct SessionOpenTraceSummary {
 }
 
 impl SessionOpenTraceSummary {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn source(&self) -> &'static str {
         self.source
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn cache_hit(&self) -> bool {
         self.cache_hit
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn ui_commit_count(&self) -> u32 {
         self.hot_restore_commits + self.cold_commits + self.changed_content_refreshes
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn eviction_reason(&self) -> SessionViewCacheEvictionReason {
         self.eviction_reason
     }
@@ -288,7 +288,7 @@ impl<S: ViewSnapshot> SessionViewCache<S> {
         SessionViewCacheInsertResult::Inserted { evicted_session_ids }
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn get(&mut self, session_id: &str) -> Option<&S> {
         if !self.entries.contains_key(session_id) {
             return None;
@@ -325,12 +325,12 @@ impl<S: ViewSnapshot> SessionViewCache<S> {
         self.take(session_id)
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn contains(&self, session_id: &str) -> bool {
         self.entries.contains_key(session_id)
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn len(&self) -> usize {
         self.entries.len()
     }

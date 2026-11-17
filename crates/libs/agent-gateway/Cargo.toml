@@ -169,6 +169,7 @@ version = "0.1"
 version = "0.2"
 
 [dev-dependencies]
+acp-agent-registry = { path = "../acp-agent-registry", version = "0.6.0" }
 rand = "0.10.3"
 agent-config = { path = "../agent-config", version = "0.6.0", features = ["test-support"] }
 axum = "0.8"

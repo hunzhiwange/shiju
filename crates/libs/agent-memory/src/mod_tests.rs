@@ -3,7 +3,8 @@
 // 环境配置中的密钥只通过脱敏调试输出观察，空覆盖不会抹掉有效基础配置。
 use super::*;
 use crate::{NoneMemory, create_memory_for_migration};
-use agent_config::schema::{EmbeddingRouteConfig, MemoryConfig, StorageProviderConfig};
+use config_routing::EmbeddingRouteConfig;
+use config_memory::{MemoryConfig, StorageProviderConfig};
 use std::sync::{Mutex, MutexGuard};
 use tempfile::TempDir;
 
@@ -421,7 +422,7 @@ fn create_memory_runs_snapshot_export_and_auto_hydrate_paths() {
     assert_eq!(exported.name(), "sqlite");
 
     let hydrate_tmp = TempDir::new().unwrap();
-    let storage_dir = paths::project_data_dir(hydrate_tmp.path()).unwrap();
+    let storage_dir = crate::paths::project_data_dir(hydrate_tmp.path()).unwrap();
     std::fs::create_dir_all(&storage_dir).unwrap();
     std::fs::write(storage_dir.join(snapshot::SNAPSHOT_FILENAME), "# empty snapshot\n").unwrap();
     let hydrate_cfg = MemoryConfig {
@@ -442,7 +443,7 @@ fn create_memory_runs_snapshot_export_and_auto_hydrate_paths() {
 #[cfg(not(target_arch = "wasm32"))]
 fn create_memory_continues_when_hygiene_snapshot_or_hydration_fails() {
     let hygiene_tmp = TempDir::new().unwrap();
-    let hygiene_state_dir = paths::workspace_data_dir(hygiene_tmp.path()).unwrap().join("state");
+    let hygiene_state_dir = crate::paths::workspace_data_dir(hygiene_tmp.path()).unwrap().join("state");
     std::fs::create_dir_all(hygiene_state_dir.parent().unwrap()).unwrap();
     std::fs::write(&hygiene_state_dir, "not a directory").unwrap();
     let hygiene_cfg = MemoryConfig {
@@ -454,7 +455,7 @@ fn create_memory_continues_when_hygiene_snapshot_or_hydration_fails() {
     assert_eq!(hygiene_memory.name(), "none");
 
     let snapshot_tmp = TempDir::new().unwrap();
-    let snapshot_storage = paths::project_data_dir(snapshot_tmp.path()).unwrap();
+    let snapshot_storage = crate::paths::project_data_dir(snapshot_tmp.path()).unwrap();
     let snapshot_memory_dir = snapshot_storage.join("memory");
     std::fs::create_dir_all(&snapshot_memory_dir).unwrap();
     let conn = rusqlite::Connection::open(snapshot_memory_dir.join("brain.db")).unwrap();
@@ -472,7 +473,7 @@ fn create_memory_continues_when_hygiene_snapshot_or_hydration_fails() {
     assert_eq!(snapshot_memory.name(), "sqlite");
 
     let hydrate_tmp = TempDir::new().unwrap();
-    let hydrate_storage = paths::project_data_dir(hydrate_tmp.path()).unwrap();
+    let hydrate_storage = crate::paths::project_data_dir(hydrate_tmp.path()).unwrap();
     std::fs::create_dir_all(hydrate_storage.join(snapshot::SNAPSHOT_FILENAME)).unwrap();
     let hydrate_cfg = MemoryConfig {
         backend: "sqlite".to_string(),
@@ -484,7 +485,7 @@ fn create_memory_continues_when_hygiene_snapshot_or_hydration_fails() {
     let hydrate_memory = create_memory(&hydrate_cfg, hydrate_tmp.path(), None).unwrap();
     assert_eq!(hydrate_memory.name(), "sqlite");
 
-    let _ = std::fs::remove_dir_all(paths::workspace_data_dir(hygiene_tmp.path()).unwrap());
+    let _ = std::fs::remove_dir_all(crate::paths::workspace_data_dir(hygiene_tmp.path()).unwrap());
     let _ = std::fs::remove_dir_all(snapshot_storage);
     let _ = std::fs::remove_dir_all(hydrate_storage);
 }
@@ -507,7 +508,7 @@ fn create_response_cache_respects_enabled_flag() {
 #[test]
 fn create_response_cache_returns_none_when_storage_path_is_blocked() {
     let tmp = TempDir::new().unwrap();
-    let storage_dir = paths::workspace_data_dir(tmp.path()).unwrap();
+    let storage_dir = crate::paths::workspace_data_dir(tmp.path()).unwrap();
     std::fs::create_dir_all(&storage_dir).unwrap();
     std::fs::write(storage_dir.join("memory"), "not a directory").unwrap();
     let cfg = MemoryConfig { response_cache_enabled: true, ..MemoryConfig::default() };

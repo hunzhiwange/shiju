@@ -1,4 +1,6 @@
 //! Channel state and QR updates use the real domain update entry.
+use iced::widget::text_editor;
+use config_channels::ChannelExecutionConfig;
 use crate::messages::ChannelsMessage;
 use crate::update::{Effect, Services};
 use config_channel_services::LarkReceiveMode;

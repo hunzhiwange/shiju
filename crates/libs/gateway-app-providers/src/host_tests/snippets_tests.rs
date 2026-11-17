@@ -75,8 +75,7 @@ async fn cc04_snippets_sdk_api_sqlite_sanitizes_and_preserves_live() {
             .is_none()
     );
     let settings = json!({"env":{"ANTHROPIC_API_KEY":"fixture-key","AWS_REGION":"fixture-region","DISABLE_TELEMETRY":"1"},"model":"old","hooks":{"keep":false}});
-    let extracted = f
-        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_extract(
+    let extracted = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_snippet_extract(
             AppId::Claude,
             &SnippetExtract {
                 target_host_id: "host".into(),
@@ -88,8 +87,7 @@ async fn cc04_snippets_sdk_api_sqlite_sanitizes_and_preserves_live() {
         .unwrap();
     let expected = json!({"env":{"DISABLE_TELEMETRY":"1"},"hooks":{"keep":false}});
     assert_eq!(serde_json::from_str::<Value>(&extracted.content.unwrap()).unwrap(), expected);
-    let saved = f
-        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_save(
+    let saved = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_snippet_save(
             AppId::Claude,
             &SnippetWrite { target_host_id: "host".into(), content: settings.to_string() },
             TOKEN,
@@ -140,8 +138,7 @@ async fn cc04_snippets_sdk_api_sqlite_sanitizes_and_preserves_live() {
             &json!({"settingsConfig":settings}).to_string(),
         )
         .unwrap();
-    let from_saved = f
-        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_extract(
+    let from_saved = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_snippet_extract(
             AppId::Claude,
             &SnippetExtract {
                 target_host_id: "host".into(),
@@ -164,8 +161,7 @@ async fn cc04_snippets_sdk_api_sqlite_sanitizes_and_preserves_live() {
             .await
             .is_err()
     );
-    let cleared = f
-        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_save(
+    let cleared = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_snippet_save(
             AppId::Claude,
             &SnippetWrite { target_host_id: "host".into(), content: "  ".into() },
             TOKEN,
@@ -255,8 +251,7 @@ async fn cc04_snippets_denial_invalid_input_and_corruption_have_no_side_effects(
             "fixture-key-broken",
         )
         .unwrap();
-    let err = f
-        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_get(AppId::Claude, &read, TOKEN)
+    let err = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_snippet_get(AppId::Claude, &read, TOKEN)
         .await
         .unwrap_err()
         .to_string();

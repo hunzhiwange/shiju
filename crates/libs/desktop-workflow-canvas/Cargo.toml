@@ -15,3 +15,6 @@ desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 iced = { version = "0.14", features = ["image", "advanced"] }
 serde_yaml = "0.9"
 unicode-width = "0.2"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

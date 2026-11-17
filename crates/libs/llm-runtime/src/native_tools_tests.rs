@@ -1,5 +1,5 @@
 use super::native_tools::{NativeCallCollector, native_search_output};
-use super::types::ToolCallKind;
+use model_types::ToolCallKind;
 use aisdk::core::{ToolSearchCall, ToolSearchExecution};
 use serde_json::json;
 

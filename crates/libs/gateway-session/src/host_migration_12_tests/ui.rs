@@ -1612,7 +1612,7 @@ async fn ui_snapshot_handlers_round_trip_scoped_sessions_and_metadata() {
             .expect("raw payload should load");
     let steps = with_raw.expect("session with raw").steps;
     assert_eq!(
-        steps[0].llm_raw.as_ref().expect("step raw payload")["messages"][0]["content"],
+        serde_json::to_value(&steps[0]).unwrap()["llm_raw"]["messages"][0]["content"],
         "hello"
     );
     ui_store::set_session_scope(Some(&scope_b));

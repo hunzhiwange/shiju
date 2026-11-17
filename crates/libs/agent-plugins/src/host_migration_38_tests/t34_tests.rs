@@ -251,7 +251,7 @@ fn codex_plugin_compat_t34_rejects_data_symlink_escape() {
     let host = host.path().canonicalize().unwrap();
     std::os::unix::fs::symlink(outside.path(), host.join("escape")).unwrap();
     assert!(
-        super::hook_command::prepare_data_directory(&host.join("escape/child"), package.path())
+        plugin_hooks::hook_command::prepare_data_directory(&host.join("escape/child"), package.path())
             .is_err()
     );
     assert!(!outside.path().join("child").exists());

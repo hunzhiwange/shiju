@@ -65,6 +65,9 @@ system-configuration = "0.7"
 glob = "0.3"
 
 [dev-dependencies]
+gateway-http = { path = "../gateway-http", version = "0.6.0" }
+rusqlite = "0.37"
+postgres = "0.19"
 tokio = { version = "1", features = ["macros", "test-util", "rt-multi-thread", "process"] }
 tempfile = "3"
 flate2 = "1"

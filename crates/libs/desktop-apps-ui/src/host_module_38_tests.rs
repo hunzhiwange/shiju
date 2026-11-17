@@ -25,7 +25,7 @@ mod apps {
         let i18n = I18n::new(app.desktop_locale);
         let editing = web.editing_web_bookmark.is_some();
         use desktop_ui_controls::system_settings_common::{
-            settings_field_label, settings_group_heading_with_help, settings_hover_help_label,
+            settings_field_label, settings_group_heading_with_help, settings_field_label,
         };
         let title = if editing { "书签信息" } else { "新增网址书签" };
         let description = if editing {

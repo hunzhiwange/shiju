@@ -48,8 +48,7 @@ pub fn update_delete(
         let (finished, second) = tokio::try_join!(call, revoke)?;
         assert!(finished.model_text().contains("first"));
         Ok::<_, anyhow::Error>(second)
-    Ok(())
-})?;
+    })?;
 assert!(discover().is_none());
 
 select(second.clone());

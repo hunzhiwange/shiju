@@ -1,7 +1,7 @@
 pub(super) use crate::message::AcpMessage;
 pub(super) use desktop_settings_mcp::page::McpMessage;
 use iced::Element;
-#[derive(Default)]
+
 pub(super) struct AcpPageFixture {
     pub acp_settings: crate::acp_state::AcpSettingsState,
     pub mcp_settings: desktop_settings_mcp::state::State,
@@ -166,3 +166,5 @@ fn update_message(event: McpMessage) -> desktop_settings_mcp::configuration_upda
         McpMessage::Save => U::Save,
     }
 }
+
+impl Default for AcpPageFixture { fn default() -> Self { Self { acp_settings: Default::default(), mcp_settings: Default::default(), desktop_locale: Default::default(), app_theme: iced::Theme::Light } } }

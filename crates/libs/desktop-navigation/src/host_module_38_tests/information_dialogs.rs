@@ -409,3 +409,5 @@ async fn ui_refresh_41_cli_preserves_values_and_disabled_states() {
     assert!(description.height > 40.0 && description.width < body.width);
     capture(&mut ui, &mut renderer, &Theme::Light, size, "cli-failure", Point::ORIGIN);
 }
+
+use iced::Element;

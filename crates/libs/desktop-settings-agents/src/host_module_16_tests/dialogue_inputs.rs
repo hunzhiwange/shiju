@@ -1,6 +1,6 @@
 pub(super) use crate::dialogue_flow_message::Message as Local;
 use iced::Element;
-#[derive(Default)]
+
 pub(super) struct DialogueFixture {
     pub dialogue_flow_show_reasoning_summary: bool,
     pub dialogue_flow_expand_shell_tool_section: bool,
@@ -87,3 +87,5 @@ pub(super) mod quick {
         );
     }
 }
+
+impl Default for DialogueFixture { fn default() -> Self { Self { dialogue_flow_show_reasoning_summary: Default::default(), dialogue_flow_expand_shell_tool_section: Default::default(), dialogue_flow_expand_edit_tool_section: Default::default(), dialogue_flow_settings_save_message: Default::default(), dialogue_flow_settings_translation: Default::default(), quick_messages: Default::default(), desktop_locale: Default::default(), app_theme: iced::Theme::Light } } }

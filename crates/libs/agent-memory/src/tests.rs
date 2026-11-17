@@ -10,7 +10,8 @@ use crate::create_memory_for_migration;
 mod tests {
     use super::*;
 
-    use agent_config::schema::{EmbeddingRouteConfig, StorageProviderConfig};
+    use config_routing::EmbeddingRouteConfig;
+use config_memory::StorageProviderConfig;
     use tempfile::TempDir;
 
     #[test]

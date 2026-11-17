@@ -1,4 +1,5 @@
 use super::*;
+type ListState = crate::state::list::ListState<(), (), (), (), (), (), (), (), ()>;
 use crate::AgentAppsContext;
 use {gateway_endpoint::{GatewayEndpoint}, {vw_api_app_identity::AppId}};
 fn scope() -> Scope {

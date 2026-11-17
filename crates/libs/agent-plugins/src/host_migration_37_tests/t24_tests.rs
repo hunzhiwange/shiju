@@ -33,7 +33,7 @@ async fn roundtrip(session: &str, answer: Option<Vec<Vec<String>>>) -> Value {
             if task.is_finished() {
                 break None;
             }
-            if let Some(request) = question::list().into_iter().find(|r| r.session_id == session) {
+            if let Some(request) = question::list(Default::default()).into_iter().find(|r| r.session_id == session) {
                 break Some(request);
             }
             tokio::time::sleep(std::time::Duration::from_millis(5)).await;
@@ -57,9 +57,9 @@ async fn roundtrip(session: &str, answer: Option<Vec<Vec<String>>>) -> Value {
             if answers.len() == 2 {
                 answers.insert(1, vec!["a".into()]);
             }
-            question::reply(question::ReplyInput { request_id: request.id, answers });
+            question::reply(question::ReplyInput { request_id: request.id, answers }, Default::default());
         }
-        None => question::reject(request.id),
+        None => question::reject(request.id, Default::default()),
     }
     let result =
         tokio::time::timeout(std::time::Duration::from_secs(20), task).await.unwrap().unwrap();
@@ -131,8 +131,8 @@ async fn codex_plugin_compat_t24_timeout_removes_pending_form() {
         None,
     ));
     tokio::task::yield_now().await;
-    assert!(question::list().iter().any(|q| q.session_id == "t24-timeout"));
+    assert!(question::list(Default::default()).iter().any(|q| q.session_id == "t24-timeout"));
     tokio::time::advance(std::time::Duration::from_secs(121)).await;
     assert_eq!(task.await.unwrap().unwrap().action, rmcp::model::ElicitationAction::Cancel);
-    assert!(!question::list().iter().any(|q| q.session_id == "t24-timeout"));
+    assert!(!question::list(Default::default()).iter().any(|q| q.session_id == "t24-timeout"));
 }

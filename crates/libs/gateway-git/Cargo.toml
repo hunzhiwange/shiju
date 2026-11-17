@@ -27,3 +27,6 @@ git-discovery = { path = "../git-discovery", version = "0.6.0" }
 tempfile = "3"
 uuid = { version = "1.11", features = ["v4", "js"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[dev-dependencies]
+agent-files = { path = "../agent-files", version = "0.6.0" }

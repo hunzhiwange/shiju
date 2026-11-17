@@ -290,4 +290,4 @@ fn summary_from_input_edge_cases() {
     );
 }
 
-/// tool_config_view renders denied status correctly.
+// tool_config_view renders denied status correctly.

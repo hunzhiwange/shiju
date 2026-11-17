@@ -63,8 +63,6 @@ impl Drop for RuntimeProxyPoisonReset {
 
 fn lock_global_proxy_state() -> MutexGuard<'static, ()> {
     crate::schema::proxy::global_runtime_proxy_lock()
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 fn enabled_proxy(url: &str) -> ProxyConfig {

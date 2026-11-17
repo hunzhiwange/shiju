@@ -61,6 +61,8 @@ config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
 rusqlite = "0.37.0"
 
 [dev-dependencies]
+gateway-app-skills = { path = "../gateway-app-skills", version = "0.6.0" }
+serde_yaml = "0.9"
 gateway-http = { path = "../gateway-http", version = "0.6.0" }
 gateway-app-lifecycle = { path = "../gateway-app-lifecycle", version = "0.6.0" }
 gateway-app-settings = { path = "../gateway-app-settings", version = "0.6.0" }

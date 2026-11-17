@@ -341,3 +341,13 @@ fn refresh_with_nonempty_query_marks_active_tab_running() {
     assert!(tab.error.is_none());
     assert!(!tab.limit_reached);
 }
+
+fn find_match(preview: &str) -> desktop_file_tree::state::FindInFolderMatch {
+    desktop_file_tree::state::FindInFolderMatch {
+        path: "/tmp/project/a.rs".to_string(),
+        line: 1,
+        column: 2,
+        preview: preview.to_string(),
+        match_len: preview.len(),
+    }
+}

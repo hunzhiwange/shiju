@@ -86,12 +86,12 @@ fn run_preview_layers_actions_and_copy_controls_build_all_header_branches() {
     let _ = run_preview_copy_button(
         desktop_i18n::I18n::new(Default::default()),
         false,
-        Message::None,
+        Message::none(),
     );
     let _ = run_preview_copy_button(
         desktop_i18n::I18n::new(Default::default()),
         true,
-        Message::None,
+        Message::none(),
     );
 }
 
@@ -438,3 +438,5 @@ fn run_node(id: &str, title: &str, status: Option<&str>) -> WorkflowRunNodePrevi
         }),
     }
 }
+
+use desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage;

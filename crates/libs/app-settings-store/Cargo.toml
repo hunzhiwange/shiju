@@ -37,6 +37,7 @@ rusqlite = { version = "0.37.0", features = ["bundled"] }
 rusqlite = "0.37.0"
 
 [dev-dependencies]
+zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 app-providers = { path = "../app-providers", version = "0.6.0" }
 agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
 tempfile = "3"

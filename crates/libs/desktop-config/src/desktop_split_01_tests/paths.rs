@@ -136,3 +136,5 @@ fn load_config_value_at_path_deserializes_existing_value() {
             .is_none()
     );
 }
+
+use config_ui::GatewayClientSystemSettingsConfig;

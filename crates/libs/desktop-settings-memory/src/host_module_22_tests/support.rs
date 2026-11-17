@@ -22,7 +22,6 @@ pub enum Message {
     None,
 }
 
-#[derive(Default)]
 pub struct Fixture {
     pub memory_settings: crate::state::MemorySettingsState,
     pub storage_settings: crate::state::StorageSettingsState,
@@ -107,7 +106,7 @@ pub fn view(app: &Fixture) -> Element<'_, Message> {
         &app.storage_settings,
         app.desktop_locale,
         &app.app_theme,
-        embedded,
+        embedded.map(PageMessage::External),
     )
     .map(|message| match message {
         PageMessage::Memory(message) => Message::Settings(SettingsMessage::Memory(message)),
@@ -116,3 +115,5 @@ pub fn view(app: &Fixture) -> Element<'_, Message> {
         PageMessage::None => Message::None,
     })
 }
+
+impl Default for Fixture { fn default() -> Self { Self { memory_settings: Default::default(), storage_settings: Default::default(), embedding_routes_settings: Default::default(), desktop_locale: Default::default(), app_theme: iced::Theme::Dark } } }

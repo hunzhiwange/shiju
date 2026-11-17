@@ -57,7 +57,7 @@ fn assert_scoped_account_removal(open: impl Fn() -> GlobalDatabase) {
         insert_default_fixture(&accounts, scope, id, root);
     }
     for scope in [scope, neighbor] {
-        accounts.set_managed_default_account(scope, "selected").unwrap();
+        tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(accounts.set_default_account(scope, "selected", None)).unwrap();
     }
 
     assert_eq!(providers.remove_auth_account(scope, root, "spare", None), Ok(()));
@@ -102,7 +102,7 @@ fn auth6_remove_store_rolls_back_on_sqlite_and_file_errors() {
     let providers = AppProviderStore::new(database.clone()).unwrap();
     let id = "selected";
     insert_default_fixture(&accounts, scope, id, root);
-    accounts.set_managed_default_account(scope, id).unwrap();
+    tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(accounts.set_default_account(scope, id, None)).unwrap();
     let connection = database.connect_sqlite().unwrap();
     connection
         .execute_batch(

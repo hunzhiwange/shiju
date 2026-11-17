@@ -3,6 +3,7 @@
 //! 原生平台用例还覆盖异步与阻塞传输、空闲超时、租户请求头及回调主动停止。
 
 use serde_json::json;
+use super::sse::{event_name, parse_stream_event};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::{Read, Write};
@@ -1149,4 +1150,47 @@ async fn gateway_first_response_reports_unavailable_replay_with_zero_cursor() {
     let sent = server.join();
     assert_eq!(raw_header(&sent, "x-vw-stream-request-id").as_deref(), Some("original-request"));
     assert_eq!(raw_header(&sent, "last-event-id").as_deref(), Some("0"));
+}
+
+#[test]
+fn event_name_matches_gateway_event_types() {
+    assert_eq!(event_name(&GatewayChatStreamEvent::Delta("hi".to_string())), "chat.delta");
+    assert_eq!(
+        event_name(&GatewayChatStreamEvent::Done {
+            finish_reason: Some("stop".to_string()),
+            usage: None,
+            message_id: Some("msg_assistant".to_string()),
+            parent_message_id: Some("msg_user".to_string()),
+        }),
+        "chat.done"
+    );
+    assert_eq!(event_name(&GatewayChatStreamEvent::Error("boom".to_string())), "chat.error");
+    assert_eq!(event_name(&GatewayChatStreamEvent::Other(json!({"type": "unknown"}))), "other");
+}
+
+#[test]
+fn parse_stream_event_reads_message_ids_from_done_payload() {
+    let event = parse_stream_event(json!({
+        "type": "chat.done",
+        "finish_reason": "stop",
+        "message_id": "msg_assistant",
+        "parent_message_id": "msg_user",
+        "usage": {
+            "input_tokens": 1,
+            "output_tokens": 2
+        }
+    }));
+
+    assert_eq!(
+        event,
+        GatewayChatStreamEvent::Done {
+            finish_reason: Some("stop".to_string()),
+            usage: Some(json!({
+                "input_tokens": 1,
+                "output_tokens": 2
+            })),
+            message_id: Some("msg_assistant".to_string()),
+            parent_message_id: Some("msg_user".to_string()),
+        }
+    );
 }

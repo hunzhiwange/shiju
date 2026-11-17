@@ -59,7 +59,7 @@ fn header_icon_tip_helpers_reflect_summary_and_fullscreen_state() {
 fn view_builds_with_default_branch_and_no_worktree_picker() {
     let app = app();
 
-    let _element = header::view(&app, vec!["src/lib.rs".to_string()]);
+    let _element = header::view::<()>(&app, vec!["src/lib.rs".to_string()]);
 }
 
 #[test]
@@ -83,7 +83,7 @@ fn view_builds_with_long_branch_fullscreen_and_open_worktree_menu() {
     ];
     app.git_worktree_options = &options;
 
-    let _element = header::view(&app, vec!["src/lib.rs".to_string(), "src/main.rs".to_string()]);
+    let _element = header::view::<()>(&app, vec!["src/lib.rs".to_string(), "src/main.rs".to_string()]);
 }
 
 #[test]
@@ -97,5 +97,5 @@ fn view_builds_worktree_picker_without_matching_selected_directory_or_branch() {
     ];
     app.git_worktree_options = &options;
 
-    let _element = header::view(&app, Vec::new());
+    let _element = header::view::<()>(&app, Vec::new());
 }

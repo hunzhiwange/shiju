@@ -409,3 +409,5 @@ use vw_api_types::agent_apps::*;
     server.abort();
     let _ = server.await;
 }
+
+use vw_api_transport::TenantScope;

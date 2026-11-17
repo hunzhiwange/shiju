@@ -138,7 +138,7 @@ async fn run(scenario: &'static str) {
             message.contains(if cimd { "advertise CIMD" } else { "without a secret" }),
             "{message}"
         );
-        assert!(!question::list().iter().any(|q| q.session_id == session));
+        assert!(!question::list(Default::default()).iter().any(|q| q.session_id == session));
         if dcr {
             let (headers, _) = rx.recv().await.unwrap();
             assert!(headers.starts_with("POST /register "));
@@ -151,7 +151,7 @@ async fn run(scenario: &'static str) {
     }
     let pending = tokio::time::timeout(Duration::from_secs(3), async {
         loop {
-            if let Some(pending) = question::list().into_iter().find(|q| q.session_id == session) {
+            if let Some(pending) = question::list(Default::default()).into_iter().find(|q| q.session_id == session) {
                 break pending;
             }
             assert!(!task.is_finished(), "authorization must reach its real user question");
@@ -180,7 +180,7 @@ async fn run(scenario: &'static str) {
             question::reply(question::ReplyInput {
                 request_id: pending.id,
                 answers: vec![vec!["decline".into()]],
-            });
+            }, Default::default());
         }
         "cancel" => cancelled.cancel(),
         "timeout" => {}
@@ -201,7 +201,7 @@ async fn run(scenario: &'static str) {
             question::reply(question::ReplyInput {
                 request_id: pending.id,
                 answers: vec![vec!["accept".into()]],
-            });
+            }, Default::default());
             browser = Some(tokio::spawn(async move {
                 reqwest_012::Client::builder()
                     .no_proxy()
@@ -260,7 +260,7 @@ async fn run(scenario: &'static str) {
         provider.abort();
         let _ = provider.await;
     }
-    assert!(!question::list().iter().any(|q| q.session_id == session));
+    assert!(!question::list(Default::default()).iter().any(|q| q.session_id == session));
     let callback_address = url::Url::parse(&query["redirect_uri"]).unwrap();
     assert!(
         tokio::net::TcpStream::connect(("127.0.0.1", callback_address.port().unwrap()))
@@ -356,7 +356,7 @@ async fn codex_plugin_compat_t27_url_stdio_completes_exact_request() {
     let pending = tokio::time::timeout(Duration::from_secs(10), async {
         loop {
             if let Some(pending) =
-                question::list().into_iter().find(|q| q.session_id == "t27-stdio-url")
+                question::list(Default::default()).into_iter().find(|q| q.session_id == "t27-stdio-url")
             {
                 break pending;
             }
@@ -370,7 +370,7 @@ async fn codex_plugin_compat_t27_url_stdio_completes_exact_request() {
     question::reply(question::ReplyInput {
         request_id: pending.id,
         answers: vec![vec!["accept".into()]],
-    });
+    }, Default::default());
     let result = tokio::time::timeout(Duration::from_secs(10), task).await.unwrap().unwrap();
     pool.shutdown();
     let response: Value =

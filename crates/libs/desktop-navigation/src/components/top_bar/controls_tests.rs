@@ -174,3 +174,5 @@ async fn terminal_modes_toolbar_click_emits_toggle_in_both_modes() {
         );
     }
 }
+
+use iced::advanced::renderer::Headless;

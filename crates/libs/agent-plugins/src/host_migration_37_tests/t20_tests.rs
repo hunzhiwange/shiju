@@ -93,13 +93,13 @@ async fn codex_plugin_compat_t20_rejects_resource_template_and_prompt_cursor_cyc
                     let catalog = &client.service().catalogs;
                     match mode {
                         2 => {
-                            catalog.resources(client).await?;
+                            catalog.resources(true, || plugin_mcp::mcp_resources::list_entries(client, "resources/list", "resources")).await?;
                         }
                         3 => {
-                            catalog.templates(client).await?;
+                            catalog.templates(true, || plugin_mcp::mcp_resources::list_entries(client, "resources/templates/list", "resourceTemplates")).await?;
                         }
                         4 => {
-                            catalog.prompts(client).await?;
+                            catalog.prompts(true, || plugin_mcp::mcp_resources::list_entries(client, "prompts/list", "prompts")).await?;
                         }
                         _ => unreachable!(),
                     }
@@ -124,7 +124,7 @@ async fn codex_plugin_compat_t20_shutdown_cancels_inflight_resource_refresh() {
     let refresh = tokio::spawn(async move {
         active
             .with_client(&server, None, |client| {
-                Box::pin(async move { client.service().catalogs.resources(client).await })
+                Box::pin(async move { client.service().catalogs.resources(true, || plugin_mcp::mcp_resources::list_entries(client, "resources/list", "resources")).await })
             })
             .await
     });

@@ -35,6 +35,7 @@ vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }
 
 [dev-dependencies]
+rusqlite = "0.37"
 gateway-aggregation = { path = "../gateway-aggregation", version = "0.6.0" }
 gateway-types = { path = "../gateway-types", version = "0.6.0" }
 hex = "0.4"

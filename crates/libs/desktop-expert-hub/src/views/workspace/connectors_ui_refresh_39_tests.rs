@@ -865,3 +865,7 @@ async fn help_rollout_23_installed_skills_renders_contextual_help() {
         ));
     }
 }
+
+use desktop_skill_hub::skill_hub::{connectors::{ConnectorForm, ConnectorWork}, load_state::LoadState};
+use crate::message::connectors::ConnectorMessage;
+use iced::{Length, widget::Space};

@@ -43,7 +43,7 @@ async fn diagnostic_endpoint_draft_reference_executes_without_save() -> anyhow::
         .await
         .unwrap()
     });
-    let store = app_settings_store::GatewaySettingsStore::new(database.clone())?;
+    let store = app_settings_store::settings_store::GatewaySettingsStore::new(database.clone())?;
     let stored = json!({"settingsConfig":{"env":{"ANTHROPIC_BASE_URL":"https://saved.example.test"}},"customEndpoints":[]});
     store.upsert(&tenant, "app_providers.records", "\"claude\":provider", &stored.to_string())?;
     let before = AppProviderStore::preview_record(&database, &tenant, AppId::Claude, "provider")

@@ -3,7 +3,7 @@
 // 文件归档只处理达到期限的候选项，状态写入用于避免过于频繁地重复清理。
 mod additional_hygiene_tests {
     use super::super::*;
-    use agent_config::schema::MemoryConfig;
+    use config_memory::MemoryConfig;
     use chrono::{NaiveDate, Utc};
     use std::time::{Duration as StdDuration, SystemTime};
     use tempfile::TempDir;

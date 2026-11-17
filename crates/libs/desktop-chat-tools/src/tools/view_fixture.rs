@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use iced::widget::text_editor::Content;
 #[derive(Default)]
 pub struct TestApp {
+ pub tool_files_filter: String,
  pub chat_tool_hovered_idx: Option<u64>,
  pub project_path: Option<String>, pub desktop_locale: config_ui::DesktopLocale,
  pub chat_tool_text_editors: HashMap<u128, Content>,
@@ -24,7 +25,7 @@ impl TestApp {
   super::files_input::FilesInput {card: crate::card_input::CardInput {
    i18n: desktop_i18n::I18n::new(self.desktop_locale),hovered: self.chat_tool_hovered_idx,expanded: &self.chat_explore_expanded,
    file_expanded: &self.chat_tool_file_expanded,project_path: self.project_path.as_deref(),text: self.text()
-  },filter: "",file_hovered: self.chat_tool_file_hovered.as_deref()}
+  },filter: &self.tool_files_filter,file_hovered: self.chat_tool_file_hovered.as_deref()}
  }
  pub fn explore(&self) -> super::explore_input::ExploreInput<'_> {
   super::explore_input::ExploreInput {i18n: desktop_i18n::I18n::new(self.desktop_locale),hovered: self.chat_tool_hovered_idx,

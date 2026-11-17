@@ -372,7 +372,7 @@ impl<Message: AppearanceMessage + 'static> TabAppearance<'_, Message> {
     ) -> Vec<Message> {
         let mut messages = Vec::new();
         ui.update(&[event], cursor, self.renderer, &mut clipboard::Null, &mut messages);
-        messages.retain(|message| !matches!(message, Message::none()));
+        messages.retain(|message| std::mem::discriminant(message) != std::mem::discriminant(&Message::none()));
         messages
     }
 

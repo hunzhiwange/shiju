@@ -2,7 +2,7 @@
 //!
 //! 通用部件通过无头渲染与样式取样覆盖可用、悬停和禁用状态。
 
-use crate::components::top_bar::Menu as MenuType;
+use crate::components::top_bar::menus::MenuType;
 use crate::components::top_bar::widgets::{
     menu_btn_with_actions, menu_item_btn_with_action, menu_item_icon_btn_with_action,
 };

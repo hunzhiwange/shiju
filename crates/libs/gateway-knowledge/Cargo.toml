@@ -13,6 +13,8 @@ vw-api-knowledge = { path = "../api-knowledge", version = "0.6.0" }
 serde_json = "1"
 
 [dev-dependencies]
+base64 = "0.22"
+uuid = { version = "1", features = ["v4"] }
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

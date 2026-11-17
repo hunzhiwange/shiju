@@ -11,7 +11,7 @@ fn authorized(app: &Update<'_>, context: &crate::management_context::Context) ->
         && !app.token.is_empty()
 }
 /// Decoded clipboard drafts share confirmation; system URI routing has a separate owner.
-fn open_draft(app: &mut Update<'_>, request: McpCreateRequest) -> Task<ImportMessage> {
+pub(crate) fn open_draft(app: &mut Update<'_>, request: McpCreateRequest) -> Task<ImportMessage> {
     let Some(context) = scope::context(app).filter(|c| authorized(app, c)) else {
         return app.error("请先连接目标主机");
     };

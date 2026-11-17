@@ -37,5 +37,6 @@ objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }
 
 [dev-dependencies]
+anyhow = "1"
 parking_lot = "0.12"
 tokio = { version = "1", features = ["rt-multi-thread"] }

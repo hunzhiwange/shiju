@@ -3,8 +3,8 @@
 async fn terminal_subscription_project_switch_distinguishes_reused_tab_ids() {
     use iced::advanced::subscription::{Hasher, into_recipes};
     use std::hash::Hasher as _;
-    let mut first = crate::TerminalState::default();
-    let mut second = crate::TerminalState::default();
+    let mut first = crate::TerminalState::<crate::Shell>::default();
+    let mut second = crate::TerminalState::<crate::Shell>::default();
     first.tabs.clear();
     second.tabs.clear();
     let first_id = first

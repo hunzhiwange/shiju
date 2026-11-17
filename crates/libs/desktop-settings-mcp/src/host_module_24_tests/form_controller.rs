@@ -5,8 +5,8 @@ use desktop_provider_apps::AgentAppsContext;
 use std::collections::BTreeMap;
 use vw_api_mcp_management::*;
 use {vw_api_app_auth::AuthService, vw_api_transport::TenantScope};
-fn context() -> catalog::Context {
-    catalog::Context {
+fn context() -> crate::management_context::Context {
+    crate::management_context::Context {
         endpoint: AgentAppsContext {
             gateway: "http://localhost:1".into(),
             tenant: TenantScope::new("10000", "100000001").unwrap(),

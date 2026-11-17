@@ -17,4 +17,5 @@ toml_edit = "0.22"
 json-five = "0.3.1"
 
 [dev-dependencies]
+toml = "0.9"
 tempfile = "3"

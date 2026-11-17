@@ -165,7 +165,7 @@ async fn cc_apps_remote_host_isolation_sdk_install_launch_uninstall_and_cancel()
         assert!(!untouched.fixture.root.path().join("prefix/bin/codex").exists());
         let c = selected.client("a");
         let installations =
-            c.agent_apps_installations_authorized("host", AppId::Codex, TOKEN).await.unwrap();
+            gateway_app_read::GatewayAppReadClient::new(gateway_http::GatewayTransport::new(GatewayEndpoint::new("127.0.0.1", selected.port).with_tenant_scope(TenantScope::new("p", "a").unwrap())).unwrap()).agent_apps_installations_authorized("host", AppId::Codex, TOKEN).await.unwrap();
         let installation_id = installations.installations[0].id.clone();
         let request = LaunchRequest {
             app_id: AppId::Codex,

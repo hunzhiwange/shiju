@@ -37,9 +37,6 @@ pub use agent_loop::memory_loader;
 pub mod prompt;
 
 #[cfg(test)]
-#[path = "../../../libs/agent-loop/src/tests/agent_facade_host.rs"]
-mod mod_tests;
-#[cfg(test)]
 #[path = "../../../libs/agent-loop/src/tests/agent_host_suite/mod.rs"]
 mod tests;
 

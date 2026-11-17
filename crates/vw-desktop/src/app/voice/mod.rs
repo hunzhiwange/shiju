@@ -18,7 +18,10 @@ pub(crate) mod conversation;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod preferences;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(test), not(target_arch = "wasm32")))]
+pub(crate) mod preview;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "../../../../libs/desktop-voice/src/preview.rs"]
 pub(crate) mod preview;
 
 

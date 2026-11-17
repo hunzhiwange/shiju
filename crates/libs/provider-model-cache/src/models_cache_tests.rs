@@ -344,3 +344,5 @@ async fn model_protocol_010_refresh_and_reopen_restore_protocol_overlay() {
     }
     assert_eq!(fs::read_to_string(path).unwrap(), raw);
 }
+
+use model_state::from_models_dev_model;

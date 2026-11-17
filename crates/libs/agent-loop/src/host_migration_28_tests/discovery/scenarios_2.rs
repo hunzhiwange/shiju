@@ -3,12 +3,12 @@ use super::*;
 pub async fn codex_discovery_core_batch_rejects_same_round_and_excluded_inner_calls<H>()
 where
     H: AgentHost,
-    H::Context: tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot, ToolDiscoverySession = ToolDiscoverySession>,
+    H::Context: tool_assembly::tool_search::SearchHost + tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot>,
 {
     let workspace = tempfile::tempdir().unwrap();
     std::fs::write(workspace.path().join("ledger"), "batch-ledger-content").unwrap();
     for excluded in [Vec::new(), vec![DISCOVERY_LEDGER.to_string()]] {
-        let mut tools = discovery_tools(workspace.path());
+        let mut tools = discovery_tools::<H::Context>(workspace.path());
         let inner: Vec<Arc<dyn Tool>> = vec![Arc::new(DiscoveryFileTool {
             id: DISCOVERY_LEDGER,
             path: workspace.path().join("ledger"),
@@ -40,7 +40,7 @@ where
 pub async fn codex_discovery_core_empty_registry_provides_no_tool_protocol<H>()
 where
     H: AgentHost,
-    H::Context: tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot, ToolDiscoverySession = ToolDiscoverySession>,
+    H::Context: tool_assembly::tool_search::SearchHost + tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot>,
 {
     let provider = DiscoveryProvider::new(false, Vec::new());
     run_discovery_loop::<H>(&provider, Vec::new(), &[]).await;
@@ -52,11 +52,11 @@ where
 pub async fn codex_discovery_core_loaded_batch_calls_preserve_inner_permission_checks<H>()
 where
     H: AgentHost,
-    H::Context: tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot, ToolDiscoverySession = ToolDiscoverySession>,
+    H::Context: tool_assembly::tool_search::SearchHost + tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot>,
 {
     let workspace = tempfile::tempdir().unwrap();
     std::fs::write(workspace.path().join("ledger"), "permitted-batch-content").unwrap();
-    let mut tools = discovery_tools(workspace.path());
+    let mut tools = discovery_tools::<H::Context>(workspace.path());
     let inner: Vec<Arc<dyn Tool>> = vec![Arc::new(DiscoveryFileTool {
         id: DISCOVERY_LEDGER,
         path: workspace.path().join("ledger"),
@@ -92,7 +92,7 @@ where
 pub async fn dynamic_tools_core_replacement_visible_next_request<H>()
 where
     H: AgentHost,
-    H::Context: tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot, ToolDiscoverySession = ToolDiscoverySession>,
+    H::Context: tool_assembly::tool_search::SearchHost + tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot>,
 {
     let workspace = tempfile::tempdir().unwrap();
     std::fs::write(workspace.path().join("ledger"), "new executor completed").unwrap();
@@ -168,12 +168,12 @@ where
 pub async fn dynamic_tools_core_replacement_preserves_same_batch_rejection<H>()
 where
     H: AgentHost,
-    H::Context: tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot, ToolDiscoverySession = ToolDiscoverySession>,
+    H::Context: tool_assembly::tool_search::SearchHost + tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot>,
 {
     let workspace = tempfile::tempdir().unwrap();
     std::fs::write(workspace.path().join("ledger"), "private ledger").unwrap();
     let catalog = Arc::new(tool_assembly::catalog::ToolCatalog::default());
-    let tools = discovery_tools(workspace.path());
+    let tools = discovery_tools::<H::Context>(workspace.path());
     let specs = tools.iter().map(|tool| tool.spec().id).collect::<Vec<_>>();
     catalog.replace(tools.into_iter().map(Arc::from).collect(), specs).unwrap();
     let provider = DiscoveryProvider::new(
@@ -199,12 +199,12 @@ where
 pub async fn dynamic_tools_core_replacement_intersects_loaded_authorization<H>()
 where
     H: AgentHost,
-    H::Context: tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot, ToolDiscoverySession = ToolDiscoverySession>,
+    H::Context: tool_assembly::tool_search::SearchHost + tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot>,
 {
     let workspace = tempfile::tempdir().unwrap();
     std::fs::write(workspace.path().join("ledger"), "authorized old ledger").unwrap();
     let catalog = Arc::new(tool_assembly::catalog::ToolCatalog::default());
-    let tools = discovery_tools(workspace.path());
+    let tools = discovery_tools::<H::Context>(workspace.path());
     let ids = tools.iter().map(|tool| tool.spec().id).collect::<Vec<_>>();
     catalog.replace(tools.into_iter().map(Arc::from).collect(), ids).unwrap();
     let mut provider = DiscoveryProvider::new(

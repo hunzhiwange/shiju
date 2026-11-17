@@ -193,7 +193,7 @@ fn builder_methods_expose_injected_runtime_capabilities() {
     let mut security = SecurityPolicy::default();
     security.workspace_dir = PathBuf::from("/secure-workspace");
     let approval = Arc::new(ApprovalManager::from_config(&AutonomyConfig::default()));
-    let hook_runner = Arc::new(agent_hooks::new_hook_runner());
+    let hook_runner = Arc::new(agent_hooks::HookRunner::new());
     let messages = vec![ChatMessage::user("hello"), ChatMessage::assistant("hi")];
 
     let context = ToolUseContext::new("session-b", None)

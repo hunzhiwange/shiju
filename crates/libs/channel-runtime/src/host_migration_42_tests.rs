@@ -1,7 +1,7 @@
 use agent_config::schema::Config;
 use crate::ConfiguredChannel;
 use crate::manager::channels_config::append_nostr_channel_if_available;
-use config_channels::NostrConfig;
+use config_channel_services::NostrConfig;
 
 fn channel_names(channels: &[ConfiguredChannel]) -> Vec<&str> {
     channels.iter().map(|channel| channel.display_name.as_ref()).collect()

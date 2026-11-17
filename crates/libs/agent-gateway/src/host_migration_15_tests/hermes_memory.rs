@@ -8,7 +8,7 @@ fn authorize(policy: &Policy, tenant: TenantScope, headers: &HeaderMap, scope: &
     -> Result<app_access_service::access::Host, StatusCode>
 {
     app_access_service::access::authorize_hermes_memory(policy.0.as_deref(), headers,
-        &ProjectScope::new(tenant, scope.project_id.clone()), &scope.target_host_id, write)
+        &ProjectScope::new(tenant, scope.project_id.clone()).unwrap(), &scope.target_host_id, write)
 }
 
 #[test]

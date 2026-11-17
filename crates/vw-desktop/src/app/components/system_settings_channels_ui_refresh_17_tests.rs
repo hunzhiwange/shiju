@@ -219,7 +219,7 @@ fn enter_text(
 #[tokio::test(flavor = "multi_thread")]
 async fn ui_refresh_17_gateway_client_edits_host_and_masked_key() {
     use crate::app::components::system_settings_gateway_client;
-    use settings::GatewayClientMessage;
+    use crate::app::message::settings::GatewayClientMessage;
 
     if !isolated("ui_refresh_17_gateway_client_edits_host_and_masked_key") {
         return;

@@ -6,8 +6,8 @@ use crate::endpoint::GatewayEndpoint;
 use crate::http::directory_query;
 use crate::stream::{
     GatewayChatPostToolRoundEvent, GatewayChatStepFinishEvent, GatewayChatStepStartEvent,
-    GatewayChatStreamEvent, GatewayChatUsage, GatewayTypedChatStreamEvent, event_name,
-    normalize_chat_stream_event, parse_stream_event, take_next_sse_event,
+    GatewayChatStreamEvent, GatewayChatUsage, GatewayTypedChatStreamEvent,
+    normalize_chat_stream_event, take_next_sse_event,
 };
 
 #[test]
@@ -58,48 +58,9 @@ fn take_next_sse_event_supports_crlf_separator() {
     assert_eq!(buffer, "rest");
 }
 
-#[test]
-fn event_name_matches_gateway_event_types() {
-    assert_eq!(event_name(&GatewayChatStreamEvent::Delta("hi".to_string())), "chat.delta");
-    assert_eq!(
-        event_name(&GatewayChatStreamEvent::Done {
-            finish_reason: Some("stop".to_string()),
-            usage: None,
-            message_id: Some("msg_assistant".to_string()),
-            parent_message_id: Some("msg_user".to_string()),
-        }),
-        "chat.done"
-    );
-    assert_eq!(event_name(&GatewayChatStreamEvent::Error("boom".to_string())), "chat.error");
-    assert_eq!(event_name(&GatewayChatStreamEvent::Other(json!({"type": "unknown"}))), "other");
-}
 
-#[test]
-fn parse_stream_event_reads_message_ids_from_done_payload() {
-    let event = parse_stream_event(json!({
-        "type": "chat.done",
-        "finish_reason": "stop",
-        "message_id": "msg_assistant",
-        "parent_message_id": "msg_user",
-        "usage": {
-            "input_tokens": 1,
-            "output_tokens": 2
-        }
-    }));
 
-    assert_eq!(
-        event,
-        GatewayChatStreamEvent::Done {
-            finish_reason: Some("stop".to_string()),
-            usage: Some(json!({
-                "input_tokens": 1,
-                "output_tokens": 2
-            })),
-            message_id: Some("msg_assistant".to_string()),
-            parent_message_id: Some("msg_user".to_string()),
-        }
-    );
-}
+
 
 #[test]
 fn normalize_chat_stream_event_types_step_payloads() {

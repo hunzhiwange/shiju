@@ -209,7 +209,7 @@ pub mod list {
     use super::*;
     pub fn overlay<'a>(
         state: &'a ListState,
-        help: Help<'_>,
+        help: ui_support::Help<'a>,
         base: Element<'a, Message>,
     ) -> Element<'a, Message> {
         let Some(scope) = &state.scope else { return base };

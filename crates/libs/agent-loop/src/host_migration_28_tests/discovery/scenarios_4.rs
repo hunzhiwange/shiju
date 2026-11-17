@@ -3,7 +3,7 @@ use super::*;
 pub async fn native_tool_search_core_loop_replayed_search_is_not_completed_again<H>()
 where
     H: AgentHost,
-    H::Context: tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot, ToolDiscoverySession = ToolDiscoverySession>,
+    H::Context: tool_assembly::tool_search::SearchHost + tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot>,
 {
     let workspace = tempfile::tempdir().unwrap();
     let provider = native_search_provider(vec![
@@ -11,7 +11,7 @@ where
         vec![("search", "tool_search", serde_json::json!({"query":"ledger"}))],
     ]);
     let mut history = vec![ChatMessage::user("inspect ledger")];
-    let tools = discovery_tools(workspace.path());
+    let tools = discovery_tools::<H::Context>(workspace.path());
     let result = run_tool_call_loop::<H>(
         &provider,
         &mut history,

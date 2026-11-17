@@ -92,7 +92,7 @@ pub async fn select_catalog(backend: &impl SessionBackend, id: &str, selected: &
 
 }
 pub async fn revoke_cached(catalog: &McpCatalogStore, project_scope: &McpCatalogScope,
-    selected: &McpCatalogMount, root: &Path, tool: &Arc<dyn Tool>, pool: &McpSessionConnections) -> McpCatalogRecord {
+    selected: &McpCatalogMount, root: &Path, tool: &Arc<dyn Tool>, pool: &Arc<McpSessionConnections>) -> McpCatalogRecord {
     let live = ToolCatalog::default();
     live.replace(vec![tool.clone()], [tool.name().to_owned()]).unwrap();
     let definition = catalog.connection_for_revision(&project_scope, &selected.record).unwrap();

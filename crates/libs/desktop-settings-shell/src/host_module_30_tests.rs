@@ -99,7 +99,7 @@ impl tab_appearance::AppearanceMessage for support::Message {
     fn none() -> Self {
         Self::None
     }
-    fn settings(self) -> Self::Settings {
+    fn settings(self) -> <Self as tab_appearance::AppearanceMessage>::Settings {
         match self {
             Self::Settings(message) => message,
             other => panic!("expected settings message, got {other:?}"),

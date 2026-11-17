@@ -4,7 +4,10 @@ use anyhow::Result;
 use std::{future::Future, path::PathBuf, sync::{Arc, Mutex}, time::Duration};
 use tokio::sync::{mpsc, OwnedSemaphorePermit, Semaphore};
 use tokio_util::sync::CancellationToken;
-use tool_context::context::ToolUseContext;
+type ToolUseContext = tool_context::context::ToolUseContext<InputContext>;
+#[path = "input_context.rs"]
+mod input_context;
+use input_context::InputContext;
 use session_port::child_agent::*;
 use vw_api_transport::id::TenantScope;
 use config_agent::DelegateAgentConfig;
@@ -18,6 +21,7 @@ pub(super) struct InputRun;
 #[allow(unused_variables)]
 #[async_trait::async_trait]
 impl ChildCoordinator for InputCoordinator {
+    type Context = InputContext;
     fn team_capacity(&self, session_id: &str) -> Arc<Semaphore> {
         panic!("input/specification test reached host service: team_capacity")
     }
@@ -167,6 +171,7 @@ impl ChildRun for InputRun {
 #[allow(unused_variables)]
 #[async_trait::async_trait]
 impl AgentHost for InputHost {
+    type Context = InputContext;
     type Coordinator = InputCoordinator;
     type Run = InputRun;
     type Error = String;

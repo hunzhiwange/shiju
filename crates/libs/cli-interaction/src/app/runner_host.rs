@@ -57,7 +57,7 @@ impl ActiveRunner {
         spawn_interaction_refresh(app.runtime().clone(), session_id, self.host_sender.clone());
     }
 
-    fn drain_host_messages(&mut self, app: &mut V3GatewayApp) -> bool {
+    pub(crate) fn drain_host_messages(&mut self, app: &mut V3GatewayApp) -> bool {
         for _ in 0..HOST_MESSAGE_BUDGET {
             match self.host_receiver.try_recv() {
                 Ok(HostMessage::SessionTitleLoaded {

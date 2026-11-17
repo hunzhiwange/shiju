@@ -3,7 +3,7 @@
 
 use super::*;
 use agent_hooks::HookHandler;
-use agent_multimodal::ocr::{ImageTextExtractor, SessionImageTextExtractor};
+use agent_multimodal::ocr::{ImageTextExtractor};
 use agent_observability::{Observer, ObserverEvent};
 use model_types::{ChatMessage, ChatRequest, Provider, ToolCall};
 use tool_types::ToolSpec;
@@ -222,7 +222,7 @@ async fn run_llm_round(
     turn_id: &str,
     iteration: usize,
 ) -> Result<LlmRoundResult> {
-    let extractor = SessionImageTextExtractor::new();
+    let extractor = crate::host_migration_27_tests::services::NoImageExtractor;
     run_llm_round_with_extractor(
         provider,
         history,

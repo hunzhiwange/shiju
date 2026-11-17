@@ -1,3 +1,4 @@
+use vw_api_app_aggregation::*;
 use crate::aggregation::subagent::*;
 #[tokio::test]
 async fn aggregation_t61_aggregation_review_preserves_contract() {

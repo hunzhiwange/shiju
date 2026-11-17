@@ -71,7 +71,7 @@ async fn child_session_navigation_chinese_cards_render_and_only_open_details() {
     app.project_path = Some("/work/project".into());
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }

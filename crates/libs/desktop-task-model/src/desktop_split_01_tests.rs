@@ -1,6 +1,6 @@
 #[test]
 fn legacy_task_board_settings_ignore_removed_switches() {
-    let legacy: desktop_task_model::models::TaskBoardSettings =
+    let legacy: crate::models::TaskBoardSettings =
         serde_json::from_value(serde_json::json!({
             "task_board_auto_promote_pool_tasks": true,
             "task_board_code_review_enabled": true,

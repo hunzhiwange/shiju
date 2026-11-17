@@ -1,5 +1,6 @@
-//! 验证提交侧栏的选择来源、校验状态、帮助内容与按钮样式。
-//! 通过文件、区块和新旧行选择验证提交就绪状态的优先级。
+use iced::advanced::renderer::Headless;
+// 验证提交侧栏的选择来源、校验状态、帮助内容与按钮样式。
+/// 通过文件、区块和新旧行选择验证提交就绪状态的优先级。
 
 use crate::git_panel::types::ConventionalCommitType;
 use crate::message_git::messages::GitMessage;

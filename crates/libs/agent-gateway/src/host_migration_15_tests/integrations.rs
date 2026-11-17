@@ -33,10 +33,10 @@ pub async fn handle_api_integrations_settings(State(state): State<AppState>, hea
     gateway_integrations::handlers::handle_api_integrations_settings::<IntegrationsHost>(State(state), headers).await
 }
 pub async fn handle_api_integration_credentials_put(State(state): State<AppState>, headers: HeaderMap,
-    Path(id): Path<String>, JsonResponse(body): JsonResponse<IntegrationCredentialsUpdateBody>)
+    AxumPath(id): AxumPath<String>, JsonResponse(body): JsonResponse<IntegrationCredentialsUpdateBody>)
     -> impl IntoResponse {
     gateway_integrations::handlers::handle_api_integration_credentials_put::<IntegrationsHost>(
-        State(state), headers, Path(id), JsonResponse(body)).await
+        State(state), headers, AxumPath(id), JsonResponse(body)).await
 }
 
 

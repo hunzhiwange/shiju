@@ -1,4 +1,5 @@
-use crate::{Shell, TerminalState, TerminalTheme, ViewInput, message::Message};
+use crate::{Shell, TerminalTheme, ViewInput, message::Message};
+type TerminalState = crate::TerminalState<Shell>;
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, widget::Tree};
 use iced::{Font, Pixels, Size};

@@ -70,7 +70,7 @@ fn codex_plugin_compat_t52_recovers_journaled_interruption() {
     .unwrap();
     fs::rename(&installed.installed_dir, transaction.join("old/fixture@alpha")).unwrap();
     // Restart path: taking the store lock performs recovery before discovery can read.
-    let _guard = plugin_install::installed_state::lock(&plugins).unwrap();
+    let _guard = plugin_install::installed_state::lock(&plugins, crate::manifest::load_plugin_manifest).unwrap();
     assert_eq!(
         load_plugin_manifest(&installed.installed_dir).unwrap().version.as_deref(),
         Some("1")

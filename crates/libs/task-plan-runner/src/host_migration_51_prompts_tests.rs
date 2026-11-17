@@ -5,7 +5,7 @@ fn build_planning_prompt_requires_fixed_plan_dir_and_tool_writes() {
     crate::test_host::install();
     let plan_dir = std::path::Path::new("/tmp/user/.shiju-harness-dev/storage/plan/task-abc-123");
     let prompt =
-        super::prompts::build_planning_prompt_for_dir("abc-123", "实现工作流执行", plan_dir);
+        crate::prompts::build_planning_prompt_for_dir("abc-123", "实现工作流执行", plan_dir);
     assert!(prompt.contains("`/tmp/user/.shiju-harness-dev/storage/plan/task-abc-123/`"));
     assert!(!prompt.contains("仓库相对路径"));
     assert!(!prompt.contains(".plans/task-abc-123"));
@@ -22,7 +22,7 @@ fn plan_dir_abs_uses_user_storage_and_sanitizes_task_id() {
     let home = std::path::Path::new("/tmp/user");
 
     assert_eq!(
-        super::plan_dir_abs(home, "unsafe/id.part"),
+        crate::prompts::plan_dir_abs(home, "unsafe/id.part"),
         config_runtime_paths::task_plan_storage_dir(home).join("task-unsafeid-part")
     );
 }
@@ -31,7 +31,7 @@ fn plan_dir_abs_uses_user_storage_and_sanitizes_task_id() {
 #[test]
 fn goal_mode_planning_prompt_requires_final_validation_task() {
     crate::test_host::install();
-    let prompt = super::prompts::build_goal_planning_prompt_for_dir(
+    let prompt = crate::prompts::build_goal_planning_prompt_for_dir(
         "goal-1",
         "实现目标模式",
         std::path::Path::new("/tmp/user/.shiju-harness-dev/storage/plan/task-goal-1"),
@@ -48,7 +48,7 @@ fn execution_prompt_names_canonical_plan_and_task_paths() {
     crate::test_host::install();
     let plan_abs = std::path::Path::new("/tmp/runtime-home/plan/task-dynamic");
     let task_file_abs = plan_abs.join("1-dynamic.md");
-    let prompt = super::build_execution_prompt(
+    let prompt = crate::prompts::build_execution_prompt(
         "执行动态任务",
         1,
         &[],

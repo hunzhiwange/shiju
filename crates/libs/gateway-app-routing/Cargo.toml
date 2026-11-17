@@ -24,6 +24,8 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "rus
 reqwest = { version = "0.13", features = ["json"] }
 
 [dev-dependencies]
+gateway-app-failover = { path = "../gateway-app-failover", version = "0.6.0" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
 tempfile = "3"
 hex = "0.4"
 model-http-client = { path = "../model-http-client", version = "0.6.0" }

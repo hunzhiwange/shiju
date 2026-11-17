@@ -354,7 +354,7 @@ async fn ha_switch_commits_once_without_client_config_write() -> anyhow::Result<
     assert_eq!(connections.load(Ordering::SeqCst), 2, "new requests must use the committed target");
     assert!(matches!(receiver.try_recv(), Err(tokio::sync::broadcast::error::TryRecvError::Empty)));
     assert_eq!(fs::read(native.join("settings.json"))?, bytes);
-    assert_eq!(tx.state(AppId::Claude).unwrap(), state);
+    assert!(tx.state(AppId::Claude).unwrap() == state);
     assert!(tx.pending(AppId::Claude).unwrap().is_none());
     assert_eq!(queues.get(&scope)?, saved);
     routing.stop().await?;

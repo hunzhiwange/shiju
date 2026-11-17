@@ -1,8 +1,8 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 use super::{
-    catalog_api::Event,
-    discovery::Event as Discovery,
+
+
     model_edits_api_tests::{Fixture, load, row},
 };
 use desktop_provider_apps::state::model_catalog::DiscoveryPhase;
@@ -215,3 +215,6 @@ fn catalog_desktop_discovery_unconfirmed_cancel_releases_poll_and_preserves_save
         assert_eq!(fixture.form().catalog.as_ref().unwrap().revision, "previous");
     });
 }
+
+use crate::catalog_api::Event;
+use crate::discovery::Event as Discovery;

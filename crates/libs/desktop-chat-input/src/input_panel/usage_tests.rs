@@ -188,8 +188,7 @@ async fn usage_ring_draws_empty_bounds_and_all_percent_color_ranges() {
             .await
             .expect("tiny-skia headless renderer should be available");
 
-    let empty = UsageRing { percent: 50.0 }.draw(
-        &(),
+    let empty = <UsageRing as iced::widget::canvas::Program<()>>::draw(&UsageRing { percent: 50.0 }, &(),
         &renderer,
         &Theme::Dark,
         Rectangle::with_size(Size::new(0.0, 24.0)),
@@ -198,8 +197,7 @@ async fn usage_ring_draws_empty_bounds_and_all_percent_color_ranges() {
     assert_eq!(empty.len(), 1);
 
     for percent in [-10.0, 0.0, 50.0, 70.0, 89.9, 90.0, 120.0] {
-        let geometries = UsageRing { percent }.draw(
-            &(),
+        let geometries = <UsageRing as iced::widget::canvas::Program<()>>::draw(&UsageRing { percent }, &(),
             &renderer,
             &Theme::Light,
             Rectangle::with_size(Size::new(40.0, 32.0)),

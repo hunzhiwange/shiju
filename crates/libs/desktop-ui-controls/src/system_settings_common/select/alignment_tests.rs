@@ -21,7 +21,7 @@ async fn select_text_and_icons_are_centered_in_trigger_and_menu_rows() {
     let limits = layout::Limits::new(Size::ZERO, Size::new(280.0, 420.0));
     let labels = ["简体中文", "繁體中文", "English"].map(str::to_owned);
     for label in &labels {
-        let mut select = settings_select(labels.clone(), Some(label.clone()), |_| unreachable!());
+        let mut select = settings_select(labels.clone(), Some(label.clone()), |_| -> () { unreachable!() });
         let mut tree = widget::Tree::new(&select as &dyn Widget<(), Theme, Renderer>);
         let node = select.layout(&mut tree, &renderer, &limits);
         assert_row_centered(Layout::new(&node));

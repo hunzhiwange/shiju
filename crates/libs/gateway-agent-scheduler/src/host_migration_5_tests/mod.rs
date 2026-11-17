@@ -36,7 +36,7 @@ use gateway_types::ApiError;
 use agent_project as project;
 
 use task_scheduler::store::AgentSchedulerStorageContext;
-use crate::store_gateway::{start_command_is_idempotent_for_status, normalize_project_wake_max_concurrent, execution_slot_status, task_board_write_command, owned_scheduler_context, add_ms_or_saturate, command_event_kind, task_board_status_role_from_metadata, task_board_status_key, legacy_task_board_status_key, valid_merge_branch, workspace_context_from_value, event_error_message, command_kind_key, string_field, string_array_field, bool_field, u32_field, i64_field, non_empty_str, optional_text, parse_project_path, map_bad_request, map_scheduler_command_error, map_task_board_error};
+use crate::store_gateway::{DEFAULT_PROJECT_WAKE_MAX_CONCURRENT, MAX_PROJECT_WAKE_MAX_CONCURRENT, start_command_is_idempotent_for_status, normalize_project_wake_max_concurrent, execution_slot_status, task_board_write_command, owned_scheduler_context, add_ms_or_saturate, command_event_kind, task_board_status_role_from_metadata, task_board_status_key, legacy_task_board_status_key, valid_merge_branch, workspace_context_from_value, event_error_message, command_kind_key, string_field, string_array_field, bool_field, u32_field, i64_field, non_empty_str, optional_text, parse_project_path, map_bad_request, map_scheduler_command_error, map_task_board_error};
 const DEFAULT_EVENT_LIMIT: usize = 100;
 const DEFAULT_OUTBOX_DRAIN_LIMIT: usize = 50;
 

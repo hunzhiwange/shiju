@@ -3,7 +3,7 @@ use super::*;
 pub async fn dynamic_tools_core_replacement_cannot_expand_child_authority<H>()
 where
     H: AgentHost,
-    H::Context: tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot, ToolDiscoverySession = ToolDiscoverySession>,
+    H::Context: tool_assembly::tool_search::SearchHost + tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot>,
 {
     let workspace = tempfile::tempdir().unwrap();
     std::fs::write(workspace.path().join("ledger"), "child forbidden ledger").unwrap();
@@ -37,7 +37,7 @@ where
 pub async fn native_tool_search_core_loop_core_calls_discovered_tool_next_request<H>()
 where
     H: AgentHost,
-    H::Context: tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot, ToolDiscoverySession = ToolDiscoverySession>,
+    H::Context: tool_assembly::tool_search::SearchHost + tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot>,
 {
     let workspace = tempfile::tempdir().unwrap();
     std::fs::write(workspace.path().join("ledger"), "native-ledger-content").unwrap();
@@ -47,7 +47,7 @@ where
     ]);
     let mut agent = Agent::<H>::builder()
         .provider(Box::new(provider.clone()))
-        .tools(discovery_tools(workspace.path()))
+        .tools(discovery_tools::<H::Context>(workspace.path()))
         .memory(Arc::new(agent_memory::NoneMemory))
         .observer(Arc::new(agent_observability::NoopObserver))
         .workspace_dir(workspace.path().to_path_buf())
@@ -75,7 +75,7 @@ where
 pub async fn native_tool_search_core_loop_same_batch_remains_denied<H>()
 where
     H: AgentHost,
-    H::Context: tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot, ToolDiscoverySession = ToolDiscoverySession>,
+    H::Context: tool_assembly::tool_search::SearchHost + tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot>,
 {
     let workspace = tempfile::tempdir().unwrap();
     std::fs::write(workspace.path().join("ledger"), "private-ledger").unwrap();
@@ -83,7 +83,7 @@ where
         ("search", "tool_search", serde_json::json!({"query":"ledger"})),
         ("read", DISCOVERY_LEDGER, serde_json::json!({})),
     ]]);
-    let history = run_discovery_loop::<H>(&provider, discovery_tools(workspace.path()), &[]).await;
+    let history = run_discovery_loop::<H>(&provider, discovery_tools::<H::Context>(workspace.path()), &[]).await;
     assert!(
         history.iter().any(|message| message.content.contains("not exposed in this model request"))
     );
@@ -94,7 +94,7 @@ where
 pub async fn native_tool_search_core_loop_empty_and_excluded_results_do_not_load_tools<H>()
 where
     H: AgentHost,
-    H::Context: tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot, ToolDiscoverySession = ToolDiscoverySession>,
+    H::Context: tool_assembly::tool_search::SearchHost + tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot>,
 {
     let workspace = tempfile::tempdir().unwrap();
     let provider = native_search_provider(vec![vec![(
@@ -104,7 +104,7 @@ where
     )]]);
     let history = run_discovery_loop::<H>(
         &provider,
-        discovery_tools(workspace.path()),
+        discovery_tools::<H::Context>(workspace.path()),
         &[DISCOVERY_LEDGER.into()],
     )
     .await;
@@ -121,7 +121,7 @@ where
 pub async fn native_tool_search_core_loop_rejects_unadvertised_and_invalid_search<H>()
 where
     H: AgentHost,
-    H::Context: tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot, ToolDiscoverySession = ToolDiscoverySession>,
+    H::Context: tool_assembly::tool_search::SearchHost + tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot>,
 {
     for (enabled, args) in [
         (false, serde_json::json!({"query":"ledger"})),
@@ -133,7 +133,7 @@ where
         provider.search = enabled;
         let mut agent = Agent::<H>::builder()
             .provider(Box::new(provider.clone()))
-            .tools(discovery_tools(workspace.path()))
+            .tools(discovery_tools::<H::Context>(workspace.path()))
             .memory(Arc::new(agent_memory::NoneMemory))
             .observer(Arc::new(agent_observability::NoopObserver))
             .workspace_dir(workspace.path().to_path_buf())
@@ -148,7 +148,7 @@ where
 pub async fn native_tool_search_core_loop_ordinary_discovery_still_executes<H>()
 where
     H: AgentHost,
-    H::Context: tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot, ToolDiscoverySession = ToolDiscoverySession>,
+    H::Context: tool_assembly::tool_search::SearchHost + tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot>,
 {
     let workspace = tempfile::tempdir().unwrap();
     std::fs::write(workspace.path().join("ledger"), "ordinary-ledger").unwrap();
@@ -159,7 +159,7 @@ where
             vec![("read", DISCOVERY_LEDGER, serde_json::json!({}))],
         ],
     );
-    let history = run_discovery_loop::<H>(&provider, discovery_tools(workspace.path()), &[]).await;
+    let history = run_discovery_loop::<H>(&provider, discovery_tools::<H::Context>(workspace.path()), &[]).await;
     assert!(history.iter().any(|message| message.content.contains("ordinary-ledger")));
     assert!(history.iter().all(|message| message.role != "native"));
     assert_eq!(provider.requests()[1].1, [DISCOVERY_LEDGER, "tool_search"]);

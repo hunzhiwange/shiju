@@ -61,7 +61,7 @@ where
                         )
                         .await?;
                         assert_eq!(saved["agents"]["main"]["model"], model);
-                        let runtime = config::get_current().await.unwrap();
+                        let runtime = config::get_project_for_tenant(&scoped_tenant, std::path::Path::new(&scoped_directory)).await.unwrap();
                         assert_eq!(runtime.agents["main"].provider, provider);
                         assert_eq!(runtime.agents["main"].model, model);
                         first_live(provider.into(), model.into(), false).await?;
@@ -77,9 +77,10 @@ where
         H::with_instance(directory.clone(), {
                 let assert_live = assert_live.clone();
                 let dispose = dispose.clone();
+                let tenant = tenant.clone();
                 move || {
                 Box::pin(async move {
-                    let runtime = config::get_current().await.unwrap();
+                    let runtime = config::get_project_for_tenant(&tenant, &project).await.unwrap();
                     assert_eq!(runtime.default_model.as_deref(), Some("after/saved-model"));
                     assert_live("after".into(), "saved-model".into(), true).await?;
                     dispose().await;

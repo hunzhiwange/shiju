@@ -1,5 +1,6 @@
 #![cfg(unix)]
-use crate::{Shell, TerminalState, TerminalTheme};
+use crate::{Shell, TerminalTheme};
+type TerminalState = crate::TerminalState<Shell>;
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, widget::Tree};
 use iced::{Font, Pixels, Size, Theme};

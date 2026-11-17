@@ -90,7 +90,7 @@ fn goal_task_files_accept_expected_failure_only_with_successful_completion_check
 fn execution_prompt_separates_expected_failure_from_completion_evidence() {
     crate::test_host::install();
     let plan_abs = std::path::Path::new("/tmp/runtime-home/plan/task-contract");
-    let prompt = super::prompts::build_execution_prompt(
+    let prompt = crate::prompts::build_execution_prompt(
         "验证预期失败证据",
         1,
         &[],

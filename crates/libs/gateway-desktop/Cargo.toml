@@ -37,6 +37,7 @@ tokio = { version = "1", features = ["rt", "sync"] }
 tokio-util = "0.7.18"
 
 [dev-dependencies]
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
 agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

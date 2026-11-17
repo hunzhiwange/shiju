@@ -10,7 +10,7 @@ pub(crate) struct BrowserEvents {
     pub(crate) window: tao::window::Window,
     pub(crate) webview: wry::WebView,
     pub(crate) toolbar_webview: Option<wry::WebView>,
-    pub(crate) popups: webview_popup::PopupWindows,
+    pub(crate) popups: std::rc::Rc<webview_popup::PopupWindows>,
     pub(crate) external: webview_external_protocol::ExternalProtocols,
     pub(crate) proxy: tao::event_loop::EventLoopProxy<UserEvent>,
     pub(crate) embedded_mode: bool,

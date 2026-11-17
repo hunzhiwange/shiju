@@ -160,7 +160,7 @@ fn history(query: &str, events: &[StreamEvent]) -> Vec<ChatMessage> {
     history
 }
 
-pub fn codex_alignment_skill_search_mcp_compaction_and_new_turn_preserve_boundaries<H: AcceptanceHost>(workspace: &Path, root: &Path, _runtime: &tokio::_runtime::Runtime) {
+pub fn codex_alignment_skill_search_mcp_compaction_and_new_turn_preserve_boundaries<H: AcceptanceHost>(workspace: &Path, root: &Path, _runtime: &tokio::runtime::Runtime) {
         let mut request = request::<H>(workspace);
         let session = request.session.clone();
         stream::<H>(&[("activate", "skill", json!({"skill":"workflow"}))]);
@@ -225,7 +225,7 @@ pub fn codex_alignment_skill_search_mcp_compaction_and_new_turn_preserve_boundar
         assert!(!ids[0].contains(&ECHO.into()), "new turn must rediscover tools");
 }
 
-pub fn codex_alignment_explicit_tools_search_disabled_and_disable_tools_keep_authorization<H: AcceptanceHost>(workspace: &Path, root: &Path, _runtime: &tokio::_runtime::Runtime) {
+pub fn codex_alignment_explicit_tools_search_disabled_and_disable_tools_keep_authorization<H: AcceptanceHost>(workspace: &Path, root: &Path, _runtime: &tokio::runtime::Runtime) {
         for (allowed, disabled, visible) in [
             (json!([ECHO]), false, true),
             (json!(["tool_search", ECHO]), false, false),
@@ -280,7 +280,7 @@ pub fn codex_alignment_strict_skills_and_last_round_do_not_expand_capabilities<H
         assert!(!root.join("mcp_calls").exists());
 }
 
-pub fn codex_alignment_same_name_replacement_and_disabled_sources_cannot_replay_old_body<H: AcceptanceHost>(workspace: &Path, _root: &Path, _runtime: &tokio::_runtime::Runtime) {
+pub fn codex_alignment_same_name_replacement_and_disabled_sources_cannot_replay_old_body<H: AcceptanceHost>(workspace: &Path, _root: &Path, _runtime: &tokio::runtime::Runtime) {
         let mut request = request::<H>(workspace);
         let session = request.session.clone();
         stream::<H>(&[("activate", "skill", json!({"skill":"workflow"}))]);
@@ -320,7 +320,7 @@ pub fn codex_alignment_same_name_replacement_and_disabled_sources_cannot_replay_
         assert_eq!(body_count(&requests[0].messages, BODY), 0);
 }
 
-pub fn codex_alignment_new_session_does_not_inherit_skill_or_tool_exposure<H: AcceptanceHost>(workspace: &Path, _root: &Path, _runtime: &tokio::_runtime::Runtime) {
+pub fn codex_alignment_new_session_does_not_inherit_skill_or_tool_exposure<H: AcceptanceHost>(workspace: &Path, _root: &Path, _runtime: &tokio::runtime::Runtime) {
         let first = request::<H>(workspace);
         stream::<H>(&[("activate", "skill", json!({"skill":"workflow"}))]);
         stream::<H>(&[("discover", "tool_search", json!({"query":"echo"}))]);

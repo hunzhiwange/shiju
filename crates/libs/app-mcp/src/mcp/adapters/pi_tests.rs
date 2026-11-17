@@ -4,7 +4,7 @@ use crate::providers::{
         commit::{ExecutionHostId, ProviderTransactions},
         write_guard::WriteError,
     },
-    pi::PiFiles,
+
 };
 use serde_json::{Value, json};
 use std::{
@@ -251,3 +251,5 @@ fn cc_mcp_t17_rejected_writes_leave_native_file_unchanged() {
     assert_eq!(fixture.bytes(), before);
     assert_eq!(listener.accept().unwrap_err().kind(), ErrorKind::WouldBlock);
 }
+
+use app_provider_native::providers::pi::PiFiles;

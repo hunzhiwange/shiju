@@ -8,8 +8,8 @@ use crate::domain::{RunId, TaskId};
 use crate::runner::local::LocalAgentExecutionRequest;
 use crate::store::AgentSchedulerStore;
 use crate::store::logs::AppendAgentTaskLogRequest;
-const GATEWAY_STREAM_DELTA_LOG_LIMIT: usize = 280;
-const GATEWAY_STREAM_FIELD_LOG_LIMIT: usize = 160;
+pub(crate) const GATEWAY_STREAM_DELTA_LOG_LIMIT: usize = 280;
+pub(crate) const GATEWAY_STREAM_FIELD_LOG_LIMIT: usize = 160;
 /// 将网关流式载荷裁剪为安全长度后追加到任务日志。
 pub fn append_gateway_stream_payload_task_log(
     store: &AgentSchedulerStore,

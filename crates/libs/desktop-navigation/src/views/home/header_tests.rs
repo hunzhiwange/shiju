@@ -46,7 +46,7 @@ fn render_keeps_three_header_sections_and_two_project_actions() {
 #[test]
 fn app_chip_builds_tooltip_with_supplied_action() {
     keep_element(super::app_chip(
-        desktop_assets::Icon::Grid1x2,
+        desktop_assets::assets::Icon::Grid1x2,
         "应用中心",
         Color::from_rgb8(0x35, 0x85, 0xD6),
         Message::OpenApps,

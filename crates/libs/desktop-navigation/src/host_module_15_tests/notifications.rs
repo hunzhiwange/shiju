@@ -78,7 +78,6 @@ fn automatic_update_does_not_interrupt_manual_update_or_installation() {
     assert!(app.desktop_update.background_request.is_none());
 }
 
-#[derive(Default)]
 struct NotificationFixture {
     desktop_update: DesktopUpdate,
     update_panel: desktop_update::panel::PanelState,
@@ -94,3 +93,5 @@ fn update(
         message,
     )
 }
+
+impl Default for NotificationFixture { fn default() -> Self { Self { update_panel: Default::default(), desktop_update: DesktopUpdate::from_config(&serde_json::json!({})) } } }

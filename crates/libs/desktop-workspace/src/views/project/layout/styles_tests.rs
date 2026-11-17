@@ -203,7 +203,7 @@ fn right_column_inner_style_uses_themed_background_without_border() {
 
 #[test]
 fn tooltip_bubble_style_sets_dark_popover_surface() {
-    let style = tooltip_bubble_style(&Theme::Light);
+    let style = crate::views::project::row_styles::tooltip_bubble_style(&Theme::Light);
 
     assert_color_close(style.text_color.unwrap(), Color::WHITE);
     assert_color_close(background_color(style), Color::from_rgb8(28, 28, 30));
@@ -219,7 +219,7 @@ fn tooltip_bubble_style_sets_dark_popover_surface() {
 
 #[test]
 fn tooltip_bubble_can_be_constructed() {
-    let bubble = tooltip_bubble("hover details".to_owned());
+    let bubble = tooltip_bubble::<()>("hover details".to_owned());
 
     let _bubble = std::hint::black_box(bubble);
 }

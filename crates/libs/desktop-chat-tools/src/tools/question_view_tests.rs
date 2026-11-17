@@ -38,6 +38,7 @@ fn request_with_tool(message_id: &str) -> Request {
     Request {
         id: "req".to_string(),
         session_id: "s".to_string(),
+        mcp_form: None,
         questions: Vec::new(),
         tool: Some(ToolMeta { message_id: message_id.to_string(), call_id: "c1".to_string() }),
     }
@@ -113,6 +114,7 @@ fn question_request_targets_message_requires_matching_message_id() {
     let request_without_tool = Request {
         id: "req".to_string(),
         session_id: "s".to_string(),
+        mcp_form: None,
         questions: Vec::new(),
         tool: None,
     };
@@ -258,6 +260,7 @@ fn tool_question_view_accepts_alias_for_active_request_without_tool_metadata() {
     app.question_modal_request = Some(Request {
         id: "req".to_string(),
         session_id: "s".to_string(),
+        mcp_form: None,
         questions: Vec::new(),
         tool: None,
     });

@@ -2,7 +2,7 @@ use super::{
     fixture::{
         HOST, MANAGER, READER, assert_error, client, spawn_gateway, write_policy,
     },
-    crate::server::outbound_scan::{CANDIDATES, scan_connection},
+
 };
 use agent_gateway::agent_apps_diagnostic_jobs::DiagnosticProbeError;
 use serde_json::{Value, json};
@@ -237,3 +237,5 @@ async fn cc_route_030_cancel_drops_inflight_connection_before_return() {
     assert!(matches!(result, Err(DiagnosticProbeError::Cancelled)));
     assert!(dropped.load(Ordering::SeqCst));
 }
+
+use crate::server::outbound_scan::{CANDIDATES, scan_connection};

@@ -437,7 +437,7 @@ fn prepared_stream_message_updates_only_target_cache() {
     assert_eq!(app.chat_render_cache[&2].content_hash, neighbor_hash);
     assert_eq!(
         app.chat_render_cache[&1].content_hash,
-        crate::message_view::hash_chat_content("new streamed tail")
+        crate::message_view::parse::hash_chat_content("new streamed tail")
     );
     assert_eq!(app.chat_visible_text_cache[1].as_deref(), Some("new streamed tail"));
     assert!(app.chat_tool_expanded.contains(&target_interaction_key));
@@ -473,7 +473,7 @@ fn markdown_cache_reuses_unchanged_message() {
     let first = prepare_chat_ui_message_phase(&app.chat[0], 0, false);
     app.ui().apply_prepared_chat_ui_phase(first);
 
-    let first_key = crate::message_view::markdown_block_key(0, 0, 0);
+    let first_key = crate::message_view::markdown::markdown_block_key(0, 0, 0);
     app.chat_markdown_block_editors
         .get_mut(&first_key)
         .expect("first markdown editor")
@@ -501,10 +501,10 @@ fn markdown_cache_prunes_offscreen_blocks() {
     for idx in 0..app.chat.len() {
         app.chat_markdown_blocks.insert(
             (idx as u64) << 32,
-            crate::message_view::parse_markdown_blocks(&format!("# 消息 {idx}")),
+            crate::message_view::markdown::parse_markdown_blocks(&format!("# 消息 {idx}")),
         );
         app.chat_markdown_block_editors.insert(
-            crate::message_view::markdown_block_key(idx, 0, 0),
+            crate::message_view::markdown::markdown_block_key(idx, 0, 0),
             iced::widget::text_editor::Content::with_text(&format!("消息 {idx}")),
         );
     }
@@ -622,7 +622,7 @@ fn markdown_cache_reuse_performance_probe() {
 fn seed_markdown_cache(app: &mut Fixture) {
     for idx in 0..app.chat.len() {
         app.chat_markdown_blocks
-            .insert((idx as u64) << 32, crate::message_view::parse_markdown_blocks("cached"));
+            .insert((idx as u64) << 32, crate::message_view::markdown::parse_markdown_blocks("cached"));
     }
 }
 #[test]

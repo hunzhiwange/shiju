@@ -88,8 +88,8 @@ const WORKER_OUTCOME_FAILURE: &str = "failure";
 
 type ProjectDispatchLock = Arc<AsyncMutex<()>>;
 
-const DEFAULT_PROJECT_WAKE_MAX_CONCURRENT: usize = 3;
-const MAX_PROJECT_WAKE_MAX_CONCURRENT: usize = 10;
+pub(crate) const DEFAULT_PROJECT_WAKE_MAX_CONCURRENT: usize = 3;
+pub(crate) const MAX_PROJECT_WAKE_MAX_CONCURRENT: usize = 10;
 
 #[derive(Clone, Default)]
 struct ProjectDispatchLocks {
@@ -308,7 +308,7 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
         }
     }
 
-    async fn apply_task_board_command(
+    pub(crate) async fn apply_task_board_command(
         &self,
         project_id: &str,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),

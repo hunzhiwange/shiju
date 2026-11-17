@@ -206,7 +206,7 @@ async fn catalog_resolver_projection_respects_native_default() {
     );
     let mut current = config::get_global_for_tenant(&fixture.tenant).await.unwrap();
     current.default_model = None;
-    config::schema::save_config_for_tenant(&current, &fixture.tenant).await.unwrap();
+    agent_config::runtime_schema::save_config_for_tenant(&current, &fixture.tenant).await.unwrap();
     with_tenant_scope(fixture.tenant, async {
         let selected = default_model().await.unwrap();
         assert_eq!(selected.provider_id, PROVIDER);

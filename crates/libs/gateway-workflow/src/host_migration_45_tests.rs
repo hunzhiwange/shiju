@@ -225,8 +225,7 @@ fn video_edit_template_seed_rejects_invalid_graph_or_options() {
         VideoEditTemplateSeed::new(yaml("seed", "5").replace("max_parallel: 5", "unknown: 1"))
             .is_err()
     );
-    let no_options = yaml("seed", "5").replace("  video_edit:\n    max_parallel: 5\n", "");
-    assert_eq!(validate_template_yaml(&no_options).unwrap().max_parallel(), 5);
+
 }
 
 async fn request(

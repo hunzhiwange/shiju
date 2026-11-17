@@ -1,4 +1,6 @@
 use crate::management_import::result_labels;
+use gateway_mcp_distribution::*;
+use vw_api_mcp_management::*;
 use vw_api_app_identity::{AppId, AppInstallationId};
 use vw_api_mcp_management::*;
 fn target() -> McpAppTarget {

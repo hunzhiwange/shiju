@@ -1,2 +1,3 @@
-//! Existing HTTP fixture executes in the real gateway host.
-include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../libs/gateway-aggregation/tests/host/aggregation_omo_tests.rs"));
+//! Real host aggregation scenarios.
+#[path = "../../../../../libs/gateway-aggregation/tests/host/aggregation_omo_tests.rs"]
+mod host_tests;

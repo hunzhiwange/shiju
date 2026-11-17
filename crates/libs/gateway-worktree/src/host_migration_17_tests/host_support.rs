@@ -8,6 +8,7 @@ pub struct WorktreeHost;
 struct Guard { _tree: tool_shell::shell::processes::termination::ProcessTree }
 impl ProcessGuard for Guard {}
 impl Host for WorktreeHost {
+    fn bootstrap(&self, _directory: std::path::PathBuf) -> worktree_core::host::ScopedFuture<'static> { Box::pin(async { Err(Error::Invalid("gateway worktree fixture does not bootstrap native instances".into())) }) }
     fn with_tenant_scope<'a>(&self, tenant: TenantScope, future: worktree_core::host::ScopedFuture<'a>) -> worktree_core::host::ScopedFuture<'a> {
         Box::pin(session_store::ui_store::with_tenant_scope(tenant, future))
     }

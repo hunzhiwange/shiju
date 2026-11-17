@@ -247,27 +247,7 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 }
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
-    // Official v0.6.0 extension launches the host-local ACP binary without arguments.
-    BuiltInAgentDefinition {
-        name: "corust-agent",
-        display_name: "Corust Agent",
-        command: "corust-agent-acp",
-        args: &[],
-        env: &[],
-        local_command_candidates: &["corust-agent-acp"],
-        local_args: &[],
-    },
-    // Official Poolside ACP server: https://github.com/poolsideai/pool
-    // Discover the operator-installed native CLI; do not substitute an npm package.
-    BuiltInAgentDefinition {
-        name: "poolside",
-        display_name: "Poolside",
-        command: "pool",
-        args: &["acp"],
-        env: &[],
-        local_command_candidates: &["pool"],
-        local_args: &["acp"],
-    },
+    // Official Bun CLI: https://github.com/can1357/oh-my-pi
     BuiltInAgentDefinition {
         name: "aionrs",
         display_name: "aionrs",
@@ -286,6 +266,16 @@ const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
         local_command_candidates: &["omp"],
         local_args: &["acp"],
     },
+    // Official npm launcher: https://github.com/XiaomiMiMo/MiMo-Code
+    BuiltInAgentDefinition {
+        name: "mimo-code",
+        display_name: "MiMo Code",
+        command: "npx",
+        args: &["-y", "@mimo-ai/cli@0.1.17", "acp"],
+        env: &[],
+        local_command_candidates: &["mimo"],
+        local_args: &["acp"],
+    },
     // Official native ACP bridge: https://github.com/vinhnx/VTCode
     // Keep bridge switches scoped to the child; preserve the CLI's local configuration.
     BuiltInAgentDefinition {
@@ -297,25 +287,38 @@ const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
         local_command_candidates: &["vtcode"],
         local_args: &["acp"],
     },
-    // Official Bun CLI: https://github.com/can1357/oh-my-pi
+    // Official native ACP CLI: https://github.com/stakpak/agent
+    // Discover the host installation; do not substitute a same-name npm package.
     BuiltInAgentDefinition {
-        name: "aionrs",
-        display_name: "aionrs",
-        command: "aionrs-acp",
-        args: &[],
+        name: "stakpak",
+        display_name: "Stakpak",
+        command: "stakpak",
+        args: &["acp"],
         env: &[],
-        local_command_candidates: &["aionrs-acp"],
-        local_args: &[],
-    },
-    // Official npm launcher: https://github.com/XiaomiMiMo/MiMo-Code
-    BuiltInAgentDefinition {
-        name: "mimo-code",
-        display_name: "MiMo Code",
-        command: "npx",
-        args: &["-y", "@mimo-ai/cli@0.1.17", "acp"],
-        env: &[],
-        local_command_candidates: &["mimo"],
+        local_command_candidates: &["stakpak"],
         local_args: &["acp"],
+    },
+    // Official Poolside ACP server: https://github.com/poolsideai/pool
+    // Discover the operator-installed native CLI; do not substitute an npm package.
+    BuiltInAgentDefinition {
+        name: "poolside",
+        display_name: "Poolside",
+        command: "pool",
+        args: &["acp"],
+        env: &[],
+        local_command_candidates: &["pool"],
+        local_args: &["acp"],
+    },
+    // JetBrains ACP CLI: https://junie.jetbrains.com/docs/junie-cli-acp.html
+    // Preserve the boolean option as one argv, including for host-local discovery.
+    BuiltInAgentDefinition {
+        name: "junie",
+        display_name: "Junie",
+        command: "junie",
+        args: &["--acp=true"],
+        env: &[],
+        local_command_candidates: &["junie"],
+        local_args: &["--acp=true"],
     },
     // Official registry: burin-labs/harn spec/acp-registry/harn/agent.json.
     // Standard ACP clients omit Harn's environmentPolicy extension. Explicitly
@@ -329,16 +332,24 @@ const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
         local_command_candidates: &["harn"],
         local_args: &["serve", "acp", "--session-environment", "isolated"],
     },
-    // Official native ACP CLI: https://github.com/stakpak/agent
-    // Discover the host installation; do not substitute a same-name npm package.
+    // Official v0.6.0 extension launches the host-local ACP binary without arguments.
     BuiltInAgentDefinition {
-        name: "stakpak",
-        display_name: "Stakpak",
-        command: "stakpak",
+        name: "devin",
+        display_name: "Devin",
+        command: "devin",
         args: &["acp"],
         env: &[],
-        local_command_candidates: &["stakpak"],
+        local_command_candidates: &["devin"],
         local_args: &["acp"],
+    },
+    BuiltInAgentDefinition {
+        name: "corust-agent",
+        display_name: "Corust Agent",
+        command: "corust-agent-acp",
+        args: &[],
+        env: &[],
+        local_command_candidates: &["corust-agent-acp"],
+        local_args: &[],
     },
     BuiltInAgentDefinition {
         name: "cortex-code",
@@ -348,26 +359,6 @@ const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
         env: &[],
         local_command_candidates: &["cortex"],
         local_args: &["acp", "serve"],
-    },
-    // JetBrains ACP CLI: https://junie.jetbrains.com/docs/junie-cli-acp.html
-    // Preserve the boolean option as one argv, including for host-local discovery.
-    BuiltInAgentDefinition {
-        name: "junie",
-        display_name: "Junie",
-        command: "junie",
-        args: &["--acp=true"],
-        env: &[],
-        local_command_candidates: &["junie"],
-        local_args: &["--acp=true"],
-    },
-    BuiltInAgentDefinition {
-        name: "devin",
-        display_name: "Devin",
-        command: "devin",
-        args: &["acp"],
-        env: &[],
-        local_command_candidates: &["devin"],
-        local_args: &["acp"],
     },
     BuiltInAgentDefinition {
         name: "amp-acp",

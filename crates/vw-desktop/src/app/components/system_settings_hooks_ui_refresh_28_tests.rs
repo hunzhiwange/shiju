@@ -1,6 +1,7 @@
 //! Headless layout, screenshots and message regressions for observability and hooks.
 #![cfg(not(target_arch = "wasm32"))]
 
+use iced::{Length, widget::{container, text}};
 use super::super::{system_settings, system_settings_observability as observability};
 use super::*;
 use crate::app::i18n::{I18n, settings_extensions::text as tr};

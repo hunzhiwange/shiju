@@ -5,6 +5,7 @@ use tool_types::Tool;
 use serde_json::json;
 use std::{sync::Arc, path::{Path, PathBuf}, time::Duration};
 use crate::shell::compound::semantics::ExitInterpretation;
+#[path = "host_migration_31_tests/host.rs"]
 mod host;
 use host::Host;
 type ShellTool = crate::ShellTool<Host>;
@@ -14,16 +15,22 @@ fn global_env_lock() -> &'static std::sync::Mutex<()> {
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
     &LOCK
 }
+#[path = "host_migration_31_tests/tests.rs"]
 mod tests;
+#[path = "host_migration_31_tests/environment_tests.rs"]
 mod environment_tests;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::shell::processes::*;
 #[cfg(not(target_arch = "wasm32"))]
+#[path = "host_migration_31_tests/processes_tests.rs"]
 mod processes_tests;
 #[cfg(unix)]
+#[path = "host_migration_31_tests/termination_tests.rs"]
 mod termination_tests;
 #[cfg(windows)]
+#[path = "host_migration_31_tests/termination_windows_tests.rs"]
 mod termination_windows_tests;
 
 #[cfg(target_os = "windows")]
+#[path = "host_migration_31_tests/powershell_35_tests.rs"]
 mod powershell_35_tests;

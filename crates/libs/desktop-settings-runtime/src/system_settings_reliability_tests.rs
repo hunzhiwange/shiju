@@ -139,10 +139,12 @@ fn slider_callbacks_round_into_reliability_messages() {
     }
 }
 
-#[derive(Default)]
+
 struct Fixture { pub reliability_settings: ReliabilitySettingsState, app_theme: iced::Theme }
 fn inputs(app: &Fixture) -> View<'_> {
  View { reliability_settings: &app.reliability_settings, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
  app_theme: &app.app_theme, last_copied_code_hash: None,
  render_help: |_, description, _, _| iced::widget::text(description).into(), }
 }
+
+impl Default for Fixture { fn default() -> Self { Self { reliability_settings: Default::default(), app_theme: iced::Theme::Light } } }

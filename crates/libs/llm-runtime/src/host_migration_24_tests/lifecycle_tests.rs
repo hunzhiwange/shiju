@@ -32,11 +32,11 @@ async fn acp_skill_mount_lifecycle_scanner_change_retires_only_own_cached_client
 fn acp_skill_mount_lifecycle_busy_rejects_same_session_but_allows_other_session() {
     let cwd = tempfile::tempdir().unwrap();
     let directory = cwd.path().to_str().unwrap();
-    let lease = super::lifecycle::try_lock("lifecycle-busy", directory).unwrap();
-    assert!(super::lifecycle::try_lock("lifecycle-busy", directory).is_err());
-    assert!(super::lifecycle::try_lock("lifecycle-independent", directory).is_ok());
+    let lease = super::lifecycle::try_lock(&Default::default(), "lifecycle-busy", directory).unwrap();
+    assert!(super::lifecycle::try_lock(&Default::default(), "lifecycle-busy", directory).is_err());
+    assert!(super::lifecycle::try_lock(&Default::default(), "lifecycle-independent", directory).is_ok());
     drop(lease);
-    assert!(super::lifecycle::try_lock("lifecycle-busy", directory).is_ok());
+    assert!(super::lifecycle::try_lock(&Default::default(), "lifecycle-busy", directory).is_ok());
 }
 
 #[tokio::test]

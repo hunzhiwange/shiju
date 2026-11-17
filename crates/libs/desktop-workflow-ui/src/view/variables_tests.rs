@@ -301,7 +301,7 @@ fn variable_card_and_validation_helpers_expose_expected_child_counts() {
     );
     std::hint::black_box(action_card);
 
-    let field = build_editor_field("变量名称", text("内容").into());
+    let field = build_editor_field::<()>("变量名称", text("内容").into());
     assert_eq!(field.as_widget().children().len(), 2);
 
     let validated_error = build_editor_field_validated(
@@ -374,7 +374,7 @@ fn helper_builders_cover_optional_actions_and_validation_summary_branches() {
         Some(WorkflowMessage::CloseVariableEditor),
         Some(WorkflowMessage::CloseVariablePanel),
     );
-    let _field = build_editor_field("变量名称", text("内容").into());
+    let _field = build_editor_field::<()>("变量名称", text("内容").into());
     let _validated_ok = build_editor_field_validated("变量类型", text("string").into(), None);
     let _validated_error = build_editor_field_validated(
         "变量值",

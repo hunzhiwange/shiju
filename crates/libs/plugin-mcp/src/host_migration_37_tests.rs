@@ -9,7 +9,7 @@ async fn url_interaction(session: &str, answer: Option<&str>) -> rmcp::model::El
     let task = tokio::spawn(request(owner, "fixture".into(), serde_json::from_value(serde_json::json!({"message":"Authorize public fixture","requestedSchema":{"type":"object","properties":{}}})).unwrap(), tokio_util::sync::CancellationToken::new(), tokio_util::sync::CancellationToken::new(), Some(params)));
     let pending = tokio::time::timeout(std::time::Duration::from_secs(5), async {
         loop {
-            if let Some(pending) = question::list().into_iter().find(|q| q.session_id == session) {
+            if let Some(pending) = question::list(Default::default()).into_iter().find(|q| q.session_id == session) {
                 break pending;
             }
             tokio::time::sleep(std::time::Duration::from_millis(5)).await;
@@ -23,12 +23,12 @@ async fn url_interaction(session: &str, answer: Option<&str>) -> rmcp::model::El
         Some(action) => question::reply(question::ReplyInput {
             request_id: pending.id,
             answers: vec![vec![action.into()]],
-        }),
-        None => question::reject(pending.id),
+        }, Default::default()),
+        None => question::reject(pending.id, Default::default()),
     }
     let result = task.await.unwrap().unwrap();
     assert!(result.content.is_none());
-    assert!(!question::list().iter().any(|q| q.session_id == session));
+    assert!(!question::list(Default::default()).iter().any(|q| q.session_id == session));
     result.action
 }
 #[tokio::test]
@@ -64,7 +64,7 @@ async fn codex_plugin_compat_t27_url_cancels_closed_session() {
         Some(serde_json::json!({"mode":"url","message":"authorize","url":"https://auth.example/a","elicitationId":"closed"})),
     ).await.unwrap();
     assert_eq!(result.action, rmcp::model::ElicitationAction::Cancel);
-    assert!(!agent_question::list().iter().any(|q| q.session_id == "t27-closed"));
+    assert!(!agent_question::list(Default::default()).iter().any(|q| q.session_id == "t27-closed"));
 }
 #[test]
 fn codex_plugin_compat_t27_url_wire_preserves_request_identity() {

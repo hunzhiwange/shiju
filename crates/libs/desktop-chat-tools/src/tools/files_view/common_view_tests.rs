@@ -284,7 +284,7 @@ fn build_common_tool_view_handles_permission_state() {
     let visible = r#"tool read
 {"status":"error","error":"permission denied","output":""}"#;
     let view_ctx = FilesViewContext {
-        app: &app,
+        app: app.files(),
         msg_idx: 0,
         tool_idx: 1,
         visible: visible.to_string(),
@@ -309,7 +309,7 @@ fn build_common_tool_view_handles_summary_from_json() {
     let visible = r#"tool bash
 {"status":"completed","output":"result","summary":"search results"}"#;
     let view_ctx = FilesViewContext {
-        app: &app,
+        app: app.files(),
         msg_idx: 0,
         tool_idx: 1,
         visible: visible.to_string(),

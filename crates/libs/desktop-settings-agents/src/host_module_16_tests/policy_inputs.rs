@@ -14,7 +14,7 @@ pub(super) enum Message {
     OpenUrlExternal(String),
     AppendText(String),
 }
-#[derive(Default)]
+
 pub(super) struct PolicyFixture {
     pub autonomy_settings: AutonomySettingsState,
     pub agents_settings: crate::agents_state::AgentsSettingsState,
@@ -128,3 +128,5 @@ pub(super) mod security {
         )
     }
 }
+
+impl Default for PolicyFixture { fn default() -> Self { Self { autonomy_settings: Default::default(), agents_settings: Default::default(), security_settings: Default::default(), desktop_locale: Default::default(), app_theme: iced::Theme::Light } } }

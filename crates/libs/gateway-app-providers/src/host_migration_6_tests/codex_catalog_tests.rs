@@ -35,7 +35,7 @@ impl Fixture {
         let policy = root.path().join("access.json");
         std::fs::write(&policy,json!({"principals":[{"id":"codex","token_sha256":hex::encode(Sha256::digest(TOKEN)),"grants":[{"platform_id":"p","company_id":"a","host_id":"host","provider_config_read":true,"provider_config_write":true}]}],"hosts":[{"id":"host","online":true,"binding":"local","home":root.path(),"credential_root":private,"search_paths":[],"applications":root.path().join("Applications")}]}).to_string()).unwrap();
         std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600)).unwrap();
-        let router = super::codex_catalog::router_with_policy(Some(policy.clone()), gateway_app_routing::server::provider_publication_host::control(None))
+        let router = super::codex_catalog::router_with_policy(Some(policy.clone()), super::publication_control())
             .layer(Extension(db.clone()))
             .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();

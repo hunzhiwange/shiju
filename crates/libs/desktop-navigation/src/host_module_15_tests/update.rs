@@ -1,5 +1,4 @@
 //! Actual update controller with only its external menu port observed locally.
-#[derive(Default)]
 struct UpdateFixture {
     update_panel: desktop_update::panel::PanelState,
     desktop_update: desktop_update::app::desktop_update::DesktopUpdate,
@@ -230,3 +229,5 @@ async fn app_update_download_consumes_checked_snapshot_without_refetching_latest
         _ => panic!("expected snapshot validation failure"),
     }
 }
+
+impl Default for UpdateFixture { fn default() -> Self { Self { update_panel: Default::default(), desktop_update: desktop_update::app::desktop_update::DesktopUpdate::from_config(&serde_json::json!({})), navigation_panels: Default::default() } } }

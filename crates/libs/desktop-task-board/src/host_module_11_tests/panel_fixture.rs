@@ -1,5 +1,5 @@
 use desktop_task_model::{Task, TaskStatus};
-//! Owned panel data only; no desktop lifecycle, gateway, or App clone.
+// Owned panel data only; no desktop lifecycle, gateway, or App clone.
 pub(super) struct PanelFixture {
     pub(super) app_theme: iced::Theme,
     pub(super) desktop_locale: config_ui::DesktopLocale,

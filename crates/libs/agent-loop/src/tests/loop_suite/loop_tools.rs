@@ -17,10 +17,15 @@ use agent_observability::NoopObserver;
 use model_types::ChatResponse;
 use model_types::ProviderCapabilities;
 
+#[path = "loop_tools/approvals.rs"]
 mod approvals;
+#[path = "loop_tools/multimodal.rs"]
 mod multimodal;
+#[path = "loop_tools/native_mode.rs"]
 mod native_mode;
+#[path = "loop_tools/parallel_execution.rs"]
 mod parallel_execution;
+#[path = "loop_tools/recovery.rs"]
 mod recovery;
 
 struct NonVisionProvider {

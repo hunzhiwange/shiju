@@ -69,8 +69,23 @@ async fn agent_profile_acceptance_catalog_uses_request_tenant() { suite::agent_p
 async fn agent_config_cleanup_global_profile_roundtrips_to_new_session() { suite::agent_config_cleanup_global_profile_roundtrips_to_new_session::<Host>().await; }
 
 #[test]
+fn acp_onboarding_cortex_code_builtin_profile_persists_and_runs() {
+    suite::acp_onboarding_cortex_code_builtin_profile_persists_and_runs::<Host>();
+}
+
+#[test]
+fn acp_onboarding_corust_agent_builtin_profile_persists_and_runs() {
+    suite::acp_onboarding_corust_agent_builtin_profile_persists_and_runs::<Host>();
+}
+
+#[test]
 fn acp_onboarding_devin_builtin_profile_persists_and_runs() {
     suite::acp_onboarding_devin_builtin_profile_persists_and_runs::<Host>();
+}
+
+#[test]
+fn acp_onboarding_harn_builtin_profile_persists_and_runs() {
+    suite::acp_onboarding_harn_builtin_profile_persists_and_runs::<Host>();
 }
 
 #[test]
@@ -79,8 +94,8 @@ fn acp_onboarding_junie_builtin_profile_persists_and_runs() {
 }
 
 #[test]
-fn acp_onboarding_cortex_code_builtin_profile_persists_and_runs() {
-    suite::acp_onboarding_cortex_code_builtin_profile_persists_and_runs::<Host>();
+fn acp_onboarding_poolside_builtin_profile_persists_and_runs() {
+    suite::acp_onboarding_poolside_builtin_profile_persists_and_runs::<Host>();
 }
 
 #[test]
@@ -89,8 +104,8 @@ fn acp_onboarding_stakpak_builtin_profile_persists_and_runs() {
 }
 
 #[test]
-fn acp_onboarding_harn_builtin_profile_persists_and_runs() {
-    suite::acp_onboarding_harn_builtin_profile_persists_and_runs::<Host>();
+fn acp_onboarding_vtcode_builtin_profile_persists_and_runs() {
+    suite::acp_onboarding_vtcode_builtin_profile_persists_and_runs::<Host>();
 }
 
 #[test]
@@ -104,21 +119,6 @@ fn acp_onboarding_omp_builtin_profile_persists_and_runs() {
 }
 
 #[test]
-fn acp_onboarding_vtcode_builtin_profile_persists_and_runs() {
-    suite::acp_onboarding_vtcode_builtin_profile_persists_and_runs::<Host>();
-}
-
-#[test]
 fn acp_onboarding_aionrs_builtin_profile_persists_and_runs() {
     suite::acp_onboarding_aionrs_builtin_profile_persists_and_runs::<Host>();
-}
-
-#[test]
-fn acp_onboarding_poolside_builtin_profile_persists_and_runs() {
-    suite::acp_onboarding_poolside_builtin_profile_persists_and_runs::<Host>();
-}
-
-#[test]
-fn acp_onboarding_corust_agent_builtin_profile_persists_and_runs() {
-    suite::acp_onboarding_corust_agent_builtin_profile_persists_and_runs::<Host>();
 }

@@ -214,7 +214,7 @@ fn settings_section_card_with_empty_strings_does_not_panic() {
 
 #[test]
 fn settings_page_intro_with_empty_strings_does_not_panic() {
-    let element = settings_page_intro("", "");
+    let element = settings_page_intro::<()>("", "");
     assert_eq!(element.as_widget().children().len(), 2);
 }
 

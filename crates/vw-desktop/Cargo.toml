@@ -342,6 +342,7 @@ winreg = "0.55"
 default = []
 
 [dev-dependencies]
+desktop-session = { path = "../libs/desktop-session", version = "0.6.0", features = ["test-support"] }
 desktop-settings-sessions = { path = "../libs/desktop-settings-sessions", version = "0.6.0", features = ["acceptance-fixture"] }
 desktop-account = { path = "../libs/desktop-account", version = "0.6.0", features = ["test-support"] }
 tokio-tungstenite = "0.29"

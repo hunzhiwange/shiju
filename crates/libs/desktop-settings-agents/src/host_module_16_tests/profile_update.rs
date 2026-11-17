@@ -3,7 +3,7 @@ use crate::{
     agents_update,
     agents_update_message::{AgentsMessage, SettingsMessage},
 };
-#[derive(Default)]
+
 pub(super) struct ProfileFixture {
     pub app_theme: iced::Theme,
     pub capabilities:
@@ -385,3 +385,5 @@ fn agent_runtime_empty_directory_keeps_native() {
         config_agent_profile::AgentRuntime::Native
     );
 }
+
+impl Default for ProfileFixture { fn default() -> Self { Self { app_theme: iced::Theme::Light, capabilities: Default::default(), agents_settings: Default::default(), acp_agents: Default::default(), mcp_settings: Default::default(), acp_settings: Default::default(), desktop_locale: Default::default(), project_path: Default::default(), recent_projects: Default::default() } } }

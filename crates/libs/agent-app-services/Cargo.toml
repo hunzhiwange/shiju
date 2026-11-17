@@ -52,6 +52,8 @@ libc = "0.2"
 uuid = { version = "1.11", features = ["v4", "js"] }
 
 [dev-dependencies]
+base64 = "0.22"
+vw-api-task = { path = "../api-task", version = "0.6.0" }
 futures-util = "0.3"
 rmcp = { version = "0.8.0", default-features = false, features = ["client"] }
 axum = { version = "0.8.8", features = ["json", "http1", "tokio"] }

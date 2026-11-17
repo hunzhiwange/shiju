@@ -149,8 +149,8 @@ fn helper_functions_cover_save_export_and_record_mapping() {
     let _ = save_active_app(&mut empty_app.context(), false);
 
     let mut app = app_with_workflow();
-    assert_eq!(suggested_export_file_name(" Sales/Bot ", "svg"), "Sales_Bot.svg");
-    assert_eq!(suggested_export_file_name("!!!", "png"), "workflow_app.png");
+    assert_eq!(suggested_workflow_file_name(" Sales/Bot ", "svg"), "Sales_Bot.svg");
+    assert_eq!(suggested_workflow_file_name("!!!", "png"), "workflow_app.png");
 
     let entry = app.workflow_state.active_entry_snapshot().expect("active entry");
     let _ = save_entry(&app.context(), entry.clone(), false);

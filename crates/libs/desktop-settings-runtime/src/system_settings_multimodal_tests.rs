@@ -179,10 +179,12 @@ async fn multimodal_view_draws_non_ascii_dynamic_model_in_dark_theme() {
     assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
 }
 
-#[derive(Default)]
+
 struct Fixture { pub multimodal_settings: MultimodalSettingsState,model_settings: desktop_settings_providers::state::ModelSettingsState, app_theme: iced::Theme }
 fn inputs(app: &Fixture) -> View<'_> {
  View { multimodal_settings: &app.multimodal_settings,model_settings: &app.model_settings, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
  app_theme: &app.app_theme,
  render_help: |_, description, _, _| iced::widget::text(description).into(), }
 }
+
+impl Default for Fixture { fn default() -> Self { Self { multimodal_settings: Default::default(), model_settings: Default::default(), app_theme: iced::Theme::Light } } }

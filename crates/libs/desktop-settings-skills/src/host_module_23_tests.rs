@@ -3,7 +3,7 @@ use crate::types::*;
 use crate::update::state::State;
 use desktop_i18n::settings_extensions::text as tr;
 use iced::Element;
-#[derive(Default)]
+
 struct Fixture {
     project_path: Option<String>,
     recent_projects: Vec<String>,
@@ -77,20 +77,7 @@ impl desktop_chat_view::message_view::markdown_selection::SelectionMessage
         Self::None
     }
 }
-impl desktop_chat_view::message_view::markdown_selection::SelectionMessage for crate::Event {
-    fn none() -> Self {
-        Self::None
-    }
-    fn copy(text: String) -> Self {
-        Self::CopyText(text)
-    }
-    fn context(_: desktop_ui_controls::text_editor_context_menu::TextContextEffect) -> Self {
-        Self::None
-    }
-    fn selection(_: String, _: usize, _: usize, _: Option<String>) -> Self {
-        Self::None
-    }
-}
+
 fn context(app: &Fixture) -> crate::BrowserContext<'_> {
     let s = &app.skills_settings;
     crate::BrowserContext {
@@ -250,3 +237,5 @@ fn copy_install_command_emits_the_documented_template() {
 
 #[cfg(test)]
 mod host_module_39_render;
+
+impl Default for Fixture { fn default() -> Self { Self { project_path: Default::default(), recent_projects: Default::default(), skills_settings: Default::default(), desktop_locale: Default::default(), app_theme: iced::Theme::Light } } }

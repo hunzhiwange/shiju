@@ -131,3 +131,4 @@ async fn acp_onboarding_stakpak_session_lifecycle() {
 async fn acp_onboarding_stakpak_permission_denial() {
     run_peer(true).await;
 }
+

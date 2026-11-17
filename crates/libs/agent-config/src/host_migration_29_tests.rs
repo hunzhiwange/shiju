@@ -326,6 +326,74 @@ fn acp_onboarding_amp_acp_catalog_binding() {
 }
 
 #[test]
+fn acp_onboarding_cortex_code_builtin_preset_metadata() {
+    let catalog = load_agent_configs(&json!({}));
+    let entry = catalog.get("acp-cortex-code").expect("official Cortex Code preset");
+    assert!(entry.builtin);
+    assert!(!entry.enabled);
+    assert!(!entry.allow_as_subagent);
+    assert_eq!(entry.label.as_deref(), Some("Cortex Code"));
+    assert!(!entry.description.as_ref().unwrap().is_empty());
+    assert!(!entry.recommended_prompts.is_empty());
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "cortex-code".into() });
+    assert_eq!(
+        serde_json::to_value(&entry.defaults).unwrap(),
+        serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
+            .unwrap()
+    );
+}
+
+#[test]
+fn acp_onboarding_cortex_code_catalog_binding() {
+    let catalog = load_agent_configs(&json!({"agents":{"acp-cortex-code":{
+        "provider":"","model":"","enabled":true,"label":"Selected Cortex Code","runtime":{"kind":"native"},"builtin":false
+    }}}));
+    let entry = &catalog["acp-cortex-code"];
+    assert!(entry.enabled && entry.builtin);
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "cortex-code".into() });
+    let saved = serde_json::to_value(&catalog).unwrap();
+    let reloaded = load_agent_configs(&json!({"agents": saved}));
+    assert_eq!(
+        serde_json::to_value(&reloaded["acp-cortex-code"]).unwrap(),
+        serde_json::to_value(entry).unwrap()
+    );
+}
+
+#[test]
+fn acp_onboarding_corust_agent_builtin_preset_metadata() {
+    let catalog = load_agent_configs(&json!({}));
+    let entry = catalog.get("acp-corust-agent").expect("official Corust Agent preset");
+    assert!(entry.builtin);
+    assert!(!entry.enabled);
+    assert!(!entry.allow_as_subagent);
+    assert_eq!(entry.label.as_deref(), Some("Corust Agent"));
+    assert!(!entry.description.as_ref().unwrap().is_empty());
+    assert!(!entry.recommended_prompts.is_empty());
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "corust-agent".into() });
+    assert_eq!(
+        serde_json::to_value(&entry.defaults).unwrap(),
+        serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
+            .unwrap()
+    );
+}
+
+#[test]
+fn acp_onboarding_corust_agent_catalog_binding() {
+    let catalog = load_agent_configs(&json!({"agents":{"acp-corust-agent":{
+        "provider":"","model":"","enabled":true,"label":"Selected Corust Agent","runtime":{"kind":"native"},"builtin":false
+    }}}));
+    let entry = &catalog["acp-corust-agent"];
+    assert!(entry.enabled && entry.builtin);
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "corust-agent".into() });
+    let saved = serde_json::to_value(&catalog).unwrap();
+    let reloaded = load_agent_configs(&json!({"agents": saved}));
+    assert_eq!(
+        serde_json::to_value(&reloaded["acp-corust-agent"]).unwrap(),
+        serde_json::to_value(entry).unwrap()
+    );
+}
+
+#[test]
 fn acp_onboarding_devin_builtin_preset_metadata() {
     let catalog = load_agent_configs(&json!({}));
     let entry = catalog.get("acp-devin").expect("official Devin preset");
@@ -355,6 +423,40 @@ fn acp_onboarding_devin_catalog_binding() {
     let reloaded = load_agent_configs(&json!({"agents": saved}));
     assert_eq!(
         serde_json::to_value(&reloaded["acp-devin"]).unwrap(),
+        serde_json::to_value(entry).unwrap()
+    );
+}
+
+#[test]
+fn acp_onboarding_harn_builtin_preset_metadata() {
+    let catalog = load_agent_configs(&json!({}));
+    let entry = catalog.get("acp-harn").expect("official Harn preset");
+    assert!(entry.builtin);
+    assert!(!entry.enabled);
+    assert!(!entry.allow_as_subagent);
+    assert_eq!(entry.label.as_deref(), Some("Harn"));
+    assert!(!entry.description.as_ref().unwrap().is_empty());
+    assert!(!entry.recommended_prompts.is_empty());
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "harn".into() });
+    assert_eq!(
+        serde_json::to_value(&entry.defaults).unwrap(),
+        serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
+            .unwrap()
+    );
+}
+
+#[test]
+fn acp_onboarding_harn_catalog_binding() {
+    let catalog = load_agent_configs(&json!({"agents":{"acp-harn":{
+        "provider":"","model":"","enabled":true,"label":"Selected Harn","runtime":{"kind":"native"},"builtin":false
+    }}}));
+    let entry = &catalog["acp-harn"];
+    assert!(entry.enabled && entry.builtin);
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "harn".into() });
+    let saved = serde_json::to_value(&catalog).unwrap();
+    let reloaded = load_agent_configs(&json!({"agents": saved}));
+    assert_eq!(
+        serde_json::to_value(&reloaded["acp-harn"]).unwrap(),
         serde_json::to_value(entry).unwrap()
     );
 }
@@ -394,16 +496,16 @@ fn acp_onboarding_junie_catalog_binding() {
 }
 
 #[test]
-fn acp_onboarding_cortex_code_builtin_preset_metadata() {
+fn acp_onboarding_poolside_builtin_preset_metadata() {
     let catalog = load_agent_configs(&json!({}));
-    let entry = catalog.get("acp-cortex-code").expect("official Cortex Code preset");
+    let entry = catalog.get("acp-poolside").expect("official Poolside preset");
     assert!(entry.builtin);
     assert!(!entry.enabled);
     assert!(!entry.allow_as_subagent);
-    assert_eq!(entry.label.as_deref(), Some("Cortex Code"));
+    assert_eq!(entry.label.as_deref(), Some("Poolside"));
     assert!(!entry.description.as_ref().unwrap().is_empty());
     assert!(!entry.recommended_prompts.is_empty());
-    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "cortex-code".into() });
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "poolside".into() });
     assert_eq!(
         serde_json::to_value(&entry.defaults).unwrap(),
         serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
@@ -412,17 +514,17 @@ fn acp_onboarding_cortex_code_builtin_preset_metadata() {
 }
 
 #[test]
-fn acp_onboarding_cortex_code_catalog_binding() {
-    let catalog = load_agent_configs(&json!({"agents":{"acp-cortex-code":{
-        "provider":"","model":"","enabled":true,"label":"Selected Cortex Code","runtime":{"kind":"native"},"builtin":false
+fn acp_onboarding_poolside_catalog_binding() {
+    let catalog = load_agent_configs(&json!({"agents":{"acp-poolside":{
+        "provider":"","model":"","enabled":true,"label":"Selected Poolside","runtime":{"kind":"native"},"builtin":false
     }}}));
-    let entry = &catalog["acp-cortex-code"];
+    let entry = &catalog["acp-poolside"];
     assert!(entry.enabled && entry.builtin);
-    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "cortex-code".into() });
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "poolside".into() });
     let saved = serde_json::to_value(&catalog).unwrap();
     let reloaded = load_agent_configs(&json!({"agents": saved}));
     assert_eq!(
-        serde_json::to_value(&reloaded["acp-cortex-code"]).unwrap(),
+        serde_json::to_value(&reloaded["acp-poolside"]).unwrap(),
         serde_json::to_value(entry).unwrap()
     );
 }
@@ -462,16 +564,16 @@ fn acp_onboarding_stakpak_catalog_binding() {
 }
 
 #[test]
-fn acp_onboarding_harn_builtin_preset_metadata() {
+fn acp_onboarding_vtcode_builtin_preset_metadata() {
     let catalog = load_agent_configs(&json!({}));
-    let entry = catalog.get("acp-harn").expect("official Harn preset");
+    let entry = catalog.get("acp-vtcode").expect("official VT Code preset");
     assert!(entry.builtin);
     assert!(!entry.enabled);
     assert!(!entry.allow_as_subagent);
-    assert_eq!(entry.label.as_deref(), Some("Harn"));
+    assert_eq!(entry.label.as_deref(), Some("VT Code"));
     assert!(!entry.description.as_ref().unwrap().is_empty());
     assert!(!entry.recommended_prompts.is_empty());
-    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "harn".into() });
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "vtcode".into() });
     assert_eq!(
         serde_json::to_value(&entry.defaults).unwrap(),
         serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
@@ -480,17 +582,17 @@ fn acp_onboarding_harn_builtin_preset_metadata() {
 }
 
 #[test]
-fn acp_onboarding_harn_catalog_binding() {
-    let catalog = load_agent_configs(&json!({"agents":{"acp-harn":{
-        "provider":"","model":"","enabled":true,"label":"Selected Harn","runtime":{"kind":"native"},"builtin":false
+fn acp_onboarding_vtcode_catalog_binding() {
+    let catalog = load_agent_configs(&json!({"agents":{"acp-vtcode":{
+        "provider":"","model":"","enabled":true,"label":"Selected VT Code","runtime":{"kind":"native"},"builtin":false
     }}}));
-    let entry = &catalog["acp-harn"];
+    let entry = &catalog["acp-vtcode"];
     assert!(entry.enabled && entry.builtin);
-    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "harn".into() });
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "vtcode".into() });
     let saved = serde_json::to_value(&catalog).unwrap();
     let reloaded = load_agent_configs(&json!({"agents": saved}));
     assert_eq!(
-        serde_json::to_value(&reloaded["acp-harn"]).unwrap(),
+        serde_json::to_value(&reloaded["acp-vtcode"]).unwrap(),
         serde_json::to_value(entry).unwrap()
     );
 }
@@ -564,40 +666,6 @@ fn acp_onboarding_omp_catalog_binding() {
 }
 
 #[test]
-fn acp_onboarding_vtcode_builtin_preset_metadata() {
-    let catalog = load_agent_configs(&json!({}));
-    let entry = catalog.get("acp-vtcode").expect("official VT Code preset");
-    assert!(entry.builtin);
-    assert!(!entry.enabled);
-    assert!(!entry.allow_as_subagent);
-    assert_eq!(entry.label.as_deref(), Some("VT Code"));
-    assert!(!entry.description.as_ref().unwrap().is_empty());
-    assert!(!entry.recommended_prompts.is_empty());
-    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "vtcode".into() });
-    assert_eq!(
-        serde_json::to_value(&entry.defaults).unwrap(),
-        serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
-            .unwrap()
-    );
-}
-
-#[test]
-fn acp_onboarding_vtcode_catalog_binding() {
-    let catalog = load_agent_configs(&json!({"agents":{"acp-vtcode":{
-        "provider":"","model":"","enabled":true,"label":"Selected VT Code","runtime":{"kind":"native"},"builtin":false
-    }}}));
-    let entry = &catalog["acp-vtcode"];
-    assert!(entry.enabled && entry.builtin);
-    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "vtcode".into() });
-    let saved = serde_json::to_value(&catalog).unwrap();
-    let reloaded = load_agent_configs(&json!({"agents": saved}));
-    assert_eq!(
-        serde_json::to_value(&reloaded["acp-vtcode"]).unwrap(),
-        serde_json::to_value(entry).unwrap()
-    );
-}
-
-#[test]
 fn acp_onboarding_aionrs_builtin_preset_metadata() {
     let catalog = load_agent_configs(&json!({}));
     let entry = catalog.get("acp-aionrs").expect("official aionrs preset");
@@ -627,74 +695,6 @@ fn acp_onboarding_aionrs_catalog_binding() {
     let reloaded = load_agent_configs(&json!({"agents": saved}));
     assert_eq!(
         serde_json::to_value(&reloaded["acp-aionrs"]).unwrap(),
-        serde_json::to_value(entry).unwrap()
-    );
-}
-
-#[test]
-fn acp_onboarding_poolside_builtin_preset_metadata() {
-    let catalog = load_agent_configs(&json!({}));
-    let entry = catalog.get("acp-poolside").expect("official Poolside preset");
-    assert!(entry.builtin);
-    assert!(!entry.enabled);
-    assert!(!entry.allow_as_subagent);
-    assert_eq!(entry.label.as_deref(), Some("Poolside"));
-    assert!(!entry.description.as_ref().unwrap().is_empty());
-    assert!(!entry.recommended_prompts.is_empty());
-    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "poolside".into() });
-    assert_eq!(
-        serde_json::to_value(&entry.defaults).unwrap(),
-        serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
-            .unwrap()
-    );
-}
-
-#[test]
-fn acp_onboarding_poolside_catalog_binding() {
-    let catalog = load_agent_configs(&json!({"agents":{"acp-poolside":{
-        "provider":"","model":"","enabled":true,"label":"Selected Poolside","runtime":{"kind":"native"},"builtin":false
-    }}}));
-    let entry = &catalog["acp-poolside"];
-    assert!(entry.enabled && entry.builtin);
-    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "poolside".into() });
-    let saved = serde_json::to_value(&catalog).unwrap();
-    let reloaded = load_agent_configs(&json!({"agents": saved}));
-    assert_eq!(
-        serde_json::to_value(&reloaded["acp-poolside"]).unwrap(),
-        serde_json::to_value(entry).unwrap()
-    );
-}
-
-#[test]
-fn acp_onboarding_corust_agent_builtin_preset_metadata() {
-    let catalog = load_agent_configs(&json!({}));
-    let entry = catalog.get("acp-corust-agent").expect("official Corust Agent preset");
-    assert!(entry.builtin);
-    assert!(!entry.enabled);
-    assert!(!entry.allow_as_subagent);
-    assert_eq!(entry.label.as_deref(), Some("Corust Agent"));
-    assert!(!entry.description.as_ref().unwrap().is_empty());
-    assert!(!entry.recommended_prompts.is_empty());
-    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "corust-agent".into() });
-    assert_eq!(
-        serde_json::to_value(&entry.defaults).unwrap(),
-        serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
-            .unwrap()
-    );
-}
-
-#[test]
-fn acp_onboarding_corust_agent_catalog_binding() {
-    let catalog = load_agent_configs(&json!({"agents":{"acp-corust-agent":{
-        "provider":"","model":"","enabled":true,"label":"Selected Corust Agent","runtime":{"kind":"native"},"builtin":false
-    }}}));
-    let entry = &catalog["acp-corust-agent"];
-    assert!(entry.enabled && entry.builtin);
-    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "corust-agent".into() });
-    let saved = serde_json::to_value(&catalog).unwrap();
-    let reloaded = load_agent_configs(&json!({"agents": saved}));
-    assert_eq!(
-        serde_json::to_value(&reloaded["acp-corust-agent"]).unwrap(),
         serde_json::to_value(entry).unwrap()
     );
 }

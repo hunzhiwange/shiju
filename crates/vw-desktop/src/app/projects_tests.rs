@@ -372,3 +372,19 @@ fn open_project_removes_apps_tab_creates_project_tab_and_recent_edit_name() {
     assert!(app.git.selected_branch.is_none());
     assert!(app.git.branches.is_empty());
 }
+
+
+fn recent_meta(path: &str) -> desktop_workspace::project_message::edit_meta::RecentProjectMeta {
+    desktop_workspace::project_message::edit_meta::RecentProjectMeta {
+        path: path.to_string(),
+        name: "Project".to_string(),
+        task_board_settings: None,
+        session_auto_refresh: desktop_workspace::project_message::edit_meta::default_recent_project_session_auto_refresh(),
+        session_refresh_interval_seconds:
+            desktop_workspace::project_message::edit_meta::default_recent_project_session_refresh_interval_seconds(),
+        icon: None,
+        icon_color: None,
+        worktree_start_command: None,
+    }
+}
+

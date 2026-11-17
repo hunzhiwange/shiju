@@ -21,7 +21,7 @@ pub trait RuntimeAcceptanceHost: crate::stream_host::StreamHost + Send + Sync + 
     fn enqueue(events: Vec<llm_runtime::StreamEvent>);
     fn captured(session: &str) -> Vec<CapturedRequest>;
     fn tool_ids() -> Vec<Vec<String>>;
-    fn update_config(value: Value) -> impl Future<Output = anyhow::Result<()>>;
+    fn update_config(value: Value) -> impl Future<Output = anyhow::Result<()>> + Send;
     fn update_project(path: &Path, value: Value) -> impl Future<Output = anyhow::Result<()>>;
     fn register_boundary(session: &str) -> Self::Boundary;
     fn boundary_started(boundary: &Self::Boundary) -> bool;

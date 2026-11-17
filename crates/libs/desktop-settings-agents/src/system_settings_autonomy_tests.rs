@@ -136,7 +136,7 @@ fn view_builds_budget_input_boundaries() {
 #[test]
 fn view_builds_empty_and_unicode_list_items() {
     let mut app = test_app();
-    for kind in desktop_settings_security::app_init::state::AUTONOMY_LIST_KINDS {
+    for kind in [AutonomyListKind::AllowedCommands, AutonomyListKind::ForbiddenPaths, AutonomyListKind::ShellEnvPassthrough, AutonomyListKind::AutoApprove, AutonomyListKind::AlwaysAsk, AutonomyListKind::AllowedRoots, AutonomyListKind::NonCliExcludedTools] {
         app.autonomy_settings.list_mut(kind).clear();
     }
     app.autonomy_settings.allowed_commands = vec!["cargo test".to_string()];

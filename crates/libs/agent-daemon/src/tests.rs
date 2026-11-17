@@ -286,10 +286,10 @@ mod tests {
     fn detects_telegram_as_supervised_channel() {
         let mut config = Config::default();
         // 配置 Telegram 通道（仅需必填字段）
-        config.channels_config.telegram = Some(agent_config::TelegramConfig {
+        config.channels_config.telegram = Some(config_channel_types::TelegramConfig {
             bot_token: "token".into(),
             allowed_users: vec![],
-            stream_mode: agent_config::StreamMode::default(),
+            stream_mode: Default::default(),
             draft_update_interval_ms: 1000,
             interrupt_on_new_message: false,
             mention_only: false,
@@ -547,10 +547,10 @@ mod tests {
         // 完整配置：target、to 和 telegram 通道配置
         config.heartbeat.target = Some("telegram".into());
         config.heartbeat.to = Some("123456".into());
-        config.channels_config.telegram = Some(agent_config::TelegramConfig {
+        config.channels_config.telegram = Some(config_channel_types::TelegramConfig {
             bot_token: "bot-token".into(),
             allowed_users: vec![],
-            stream_mode: agent_config::StreamMode::default(),
+            stream_mode: Default::default(),
             draft_update_interval_ms: 1000,
             interrupt_on_new_message: false,
             mention_only: false,
@@ -707,10 +707,10 @@ mod tests {
         let mut config = Config::default();
         config.heartbeat.target = Some(" telegram ".into());
         config.heartbeat.to = Some(" 123456 ".into());
-        config.channels_config.telegram = Some(agent_config::TelegramConfig {
+        config.channels_config.telegram = Some(config_channel_types::TelegramConfig {
             bot_token: "bot-token".into(),
             allowed_users: vec![],
-            stream_mode: agent_config::StreamMode::default(),
+            stream_mode: Default::default(),
             draft_update_interval_ms: 1000,
             interrupt_on_new_message: false,
             mention_only: false,

@@ -157,8 +157,7 @@ async fn cc04_import_incremental_pi_preserves_saved_row_and_rejects_generic_desk
     assert!(f.record(AppId::Pi, "two").to_string().contains("fake-two"));
     assert_eq!(std::fs::read(f.root.path().join(path)).unwrap(), native);
     for app in [AppId::ClaudeDesktop, AppId::Dsh] {
-        let e = f
-            .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_import(app, &f.request(ImportTrigger::Manual), TOKEN)
+        let e = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(app, &f.request(ImportTrigger::Manual), TOKEN)
             .await
             .unwrap_err();
         assert!(!format!("{e:?}").contains("fake-"));
@@ -237,8 +236,7 @@ async fn cc04_import_omp_uses_native_yaml_without_changing_defaults() {
     let bytes = b"providers:\n  relay:\n    apiKey: fake-key\n    models: []\ndefaults:\n  model: fixture\n";
     // OMP's read owner resolves its own default directory, rather than a generic live snapshot.
     write(f.root.path(), ".omp/agent/models.yml", bytes);
-    let result = f
-        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_import(AppId::Omp, &f.request(ImportTrigger::Manual), TOKEN)
+    let result = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(AppId::Omp, &f.request(ImportTrigger::Manual), TOKEN)
         .await
         .unwrap();
     assert_eq!(result.imported, 1);

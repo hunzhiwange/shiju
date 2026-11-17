@@ -19,7 +19,7 @@ use super::{
 };
 
 impl ActiveRunner {
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self::new_with_editor(Arc::new(|draft| {
             Editor::new().edit(draft).map_err(|error| error.to_string())
         }))

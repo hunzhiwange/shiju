@@ -3,7 +3,7 @@ use iced::widget::text_editor;
 #[test]
 fn markdown_block_editor_ignores_edit_actions_and_applies_navigation_actions() {
     let mut editors = std::collections::HashMap::new();
-    let block_key = desktop_chat_view::message_view::markdown_block_key(3, 4, 5);
+    let block_key = desktop_chat_view::message_view::markdown::markdown_block_key(3, 4, 5);
     editors.insert(block_key, text_editor::Content::with_text("markdown block"));
 
     // Edit 动作被忽略。
@@ -26,7 +26,7 @@ fn markdown_block_editor_ignores_edit_actions_and_applies_navigation_actions() {
     // 缺失键返回 None 分支。
     handle_markdown_block_editor_action(
         &mut editors,
-        desktop_chat_view::message_view::markdown_block_key(9, 9, 9),
+        desktop_chat_view::message_view::markdown::markdown_block_key(9, 9, 9),
         text_editor::Action::SelectAll,
     );
 }

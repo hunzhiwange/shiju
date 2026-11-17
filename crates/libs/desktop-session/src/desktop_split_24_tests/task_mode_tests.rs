@@ -34,7 +34,7 @@ fn task_mode_subtask_text_and_editor_stay_in_sync() {
 #[test]
 fn task_mode_subtask_add_remove_and_move_preserve_editor_order() {
     let mut tasks: Vec<String>;
-    let mut editors: Vec<text_editor::Content>;
+    let mut editors: Vec<text_editor::Content> = Vec::new();
     {
         tasks = vec!["one".into(), "two".into(), "three".into()];
         editors = tasks.iter().map(|value| text_editor::Content::with_text(value)).collect();
@@ -67,7 +67,7 @@ fn task_mode_subtask_add_remove_and_move_preserve_editor_order() {
 #[test]
 fn task_mode_subtask_change_updates_available_storage_independently() {
     let mut tasks: Vec<String>;
-    let mut editors: Vec<text_editor::Content>;
+    let mut editors: Vec<text_editor::Content> = Vec::new();
     {
         tasks = vec!["old task".into()];
         editors.clear();
@@ -127,7 +127,7 @@ fn task_mode_remove_subtask_tolerates_missing_editor() {
 #[test]
 fn task_mode_move_subtask_respects_boundaries_with_missing_editors() {
     let mut tasks: Vec<String>;
-    let mut editors: Vec<text_editor::Content>;
+    let mut editors: Vec<text_editor::Content> = Vec::new();
     {
         tasks = vec!["one".into(), "two".into(), "three".into()];
         editors = vec![text_editor::Content::with_text("one")];

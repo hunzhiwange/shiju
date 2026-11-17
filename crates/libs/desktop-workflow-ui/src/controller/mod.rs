@@ -91,8 +91,7 @@ pub(crate) fn save_active_app(app: &mut Context<'_>, force_picker: bool) -> Task
     save_entry(app, entry, force_picker)
 }
 
-#[cfg(test)]
-pub(crate) fn suggested_new_node_position(app: &Context<'_>) -> Point {
+fn suggested_new_node_position(app: &Context<'_>) -> Point {
     let zoom = app.workflow_state.zoom.max(0.0001);
     let center_screen = Point::new(app.window_size.0 * 0.52, app.window_size.1 * 0.5);
     let offset = (app.workflow_state.document.nodes.len() % 6) as f32 * 28.0;
@@ -115,7 +114,6 @@ pub(crate) fn open_file() -> Task<Output> {
 }
 
 #[cfg(test)]
-use crate::message::effects::suggested_export_file_name;
 
 pub(crate) fn export_svg(app: &mut Context<'_>) -> Task<Output> {
     crate::message::effects::export_svg(&mut app.workflow_state).map(Output::Workflow)
@@ -135,6 +133,7 @@ pub(crate) fn export_finished(
 ) {
     crate::message::effects::export_finished(&mut app.workflow_state, result)
 }
+
 
 #[cfg(test)]
 pub(crate) use crate::message::effects::suggested_export_file_name;

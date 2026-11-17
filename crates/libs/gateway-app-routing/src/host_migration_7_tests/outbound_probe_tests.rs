@@ -2,7 +2,7 @@ use super::{
     fixture::{
         HOST, MANAGER, READER, assert_error, client, spawn_gateway, write_policy,
     },
-    crate::server::outbound_probe::probe,
+
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -261,3 +261,5 @@ async fn cc_route_029_probe_reports_headers_without_following_redirects() {
     ));
     assert_eq!(report.timings.len(), 1);
 }
+
+use crate::server::outbound_probe::probe;

@@ -1,4 +1,6 @@
 use super::fixture::*;
+use gateway_mcp_distribution::*;
+use vw_api_mcp_management::*;
 use iced::{
     Font, Rectangle, Renderer, Size, Theme,
     advanced::{
@@ -344,3 +346,5 @@ fn cc_mcp_t47_draft_confirmation_creates_definition_only_through_gateway() {
         assert!(requests.try_recv().is_err(), "no binding, connection, or native write request");
     });
 }
+
+use iced::Task;

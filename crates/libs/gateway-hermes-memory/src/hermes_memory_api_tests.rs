@@ -7,7 +7,7 @@ use {
 };
 
 fn scope() -> HermesMemoryScope {
-    HermesMemoryScope { project_id: ProjectId::new("project").unwrap(), target_host_id: "主机 /?".into() }
+    HermesMemoryScope { project_id: ProjectId("project".into()), target_host_id: "主机 /?".into() }
 }
 
 #[tokio::test]

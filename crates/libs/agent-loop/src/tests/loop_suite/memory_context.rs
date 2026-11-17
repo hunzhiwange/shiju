@@ -12,6 +12,7 @@
 
 // 由 agent-loop 自身注册，使用真实 SqliteMemory。
 use super::*;
+use model_types::ToolCall;
 use agent_memory::{Memory, MemoryCategory, SqliteMemory};
 use tempfile::TempDir;
 
@@ -410,7 +411,7 @@ fn build_native_assistant_history_from_parsed_calls_includes_reasoning_content()
 
     // 构建助手历史
     let result =
-        build_native_assistant_history_from_parsed_calls("answer", &calls, Some("deep thought"));
+        build_native_assistant_history_from_parsed_calls("answer", &calls, Some("deep thought"), parsed_view);
 
     // 验证返回值存在
     assert!(result.is_some());
@@ -435,7 +436,7 @@ fn build_native_assistant_history_from_parsed_calls_omits_reasoning_content_when
         tool_call_id: Some("call_2".into()),
     }];
 
-    let result = build_native_assistant_history_from_parsed_calls("answer", &calls, None);
+    let result = build_native_assistant_history_from_parsed_calls("answer", &calls, None, parsed_view);
 
     // 验证返回值存在
     assert!(result.is_some());
@@ -445,3 +446,5 @@ fn build_native_assistant_history_from_parsed_calls_omits_reasoning_content_when
     assert_eq!(parsed["content"].as_str(), Some("answer"));
     assert!(parsed.get("reasoning_content").is_none());
 }
+
+fn parsed_view(call: &ParsedToolCall) -> crate::core::tool_execution::CallView<'_> { crate::core::tool_execution::CallView { name: &call.name, arguments: &call.arguments, tool_call_id: call.tool_call_id.as_deref() } }

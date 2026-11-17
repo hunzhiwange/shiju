@@ -8,7 +8,7 @@ use {
 };
 fn target() -> DataManagementTarget {
     DataManagementTarget {
-        scope: ProjectScope::new(TenantScope::default(), "isolated-project").unwrap(),
+        scope: ProjectScope::new(TenantScope::default(), "isolated-project".into()).unwrap(),
         target_host_id: "remote-executor".into(),
         principal_id: "anonymous".into(),
     }

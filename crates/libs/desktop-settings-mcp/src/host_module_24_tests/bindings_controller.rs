@@ -1,5 +1,5 @@
 use super::fixture::bindings::*;
-use super::fixture::catalog;
+use super::fixture::catalog as fixture_catalog;
 use super::fixture::*;
 use vw_api_app_identity::AppId;
 use vw_api_mcp_management::*;
@@ -49,7 +49,7 @@ fn result() -> McpDistributionResult {
 }
 #[test]
 fn cc_mcp_t46_matrix_draws_chinese_results_and_preserves_runtime_and_acp_selections() {
-    use desktop_settings_apps::system_settings_apps::catalog::CatalogRow;
+    use desktop_settings_apps::system_settings_apps::fixture_catalog::CatalogRow;
     use iced::{
         Font, Renderer, Size, Theme,
         advanced::renderer::{Headless, Style},
@@ -61,7 +61,7 @@ fn cc_mcp_t46_matrix_draws_chinese_results_and_preserves_runtime_and_acp_selecti
         let mut app = Fixture::default();
         app.authority.host = "host".into();
         app.authority.token = "fixture".into();
-        let context = catalog::context(&app).unwrap();
+        let context = fixture_catalog::context(&app).unwrap();
         app.authority.context = Some(context.endpoint.clone());
         let before_runtime = app.state.runtime_overrides.clone();
         let record = record("a");
@@ -75,10 +75,10 @@ fn cc_mcp_t46_matrix_draws_chinese_results_and_preserves_runtime_and_acp_selecti
                 sse: McpSupport::Supported,
             }],
         };
-        drop(catalog::update(&mut app, catalog::CatalogMessage::Refresh));
-        drop(catalog::update(
+        drop(fixture_catalog::update(&mut app, fixture_catalog::CatalogMessage::Refresh));
+        drop(fixture_catalog::update(
             &mut app,
-            catalog::CatalogMessage::Loaded {
+            fixture_catalog::CatalogMessage::Loaded {
                 context: context.clone(),
                 generation: 1,
                 result: Ok(catalog_response),

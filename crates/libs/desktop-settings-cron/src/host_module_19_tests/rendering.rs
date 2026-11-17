@@ -1293,7 +1293,7 @@ async fn cron_modal_renders_add_and_edit() {
             );
             assert!(messages.iter().any(|m| matches!(
                 m,
-                Message::Settings(message::SettingsMessage::CronJobEditCanceled)
+                Message::Settings(SettingsMessage::CronJobEditCanceled)
             )));
         }
     }

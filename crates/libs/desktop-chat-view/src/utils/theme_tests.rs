@@ -9,7 +9,7 @@ use super::theme::{
     simplified_code_block_style, weak_file_button_style,
 };
 type Message = ();
-use desktop_assets::Icon;
+use desktop_assets::assets::Icon;
 use iced::widget::{button, scrollable, svg};
 use iced::{Background, Color, Element, Theme, theme::Palette};
 

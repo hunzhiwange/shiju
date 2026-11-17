@@ -23,7 +23,7 @@ pub(super) fn services() -> LoopServices<DomainHost, ParsedToolCall> {
         rebase_discovery: |_, specs| specs,
         exposed_specs: Clone::clone,
         refresh_catalog: |_, _, _| Box::pin(async { anyhow::bail!("catalog refresh is outside scripted loop tests") }),
-        new_extractor: || Box::new(agent_multimodal::ocr::SessionImageTextExtractor::new()),
+        new_extractor: || Box::new(NoImageExtractor),
         exposed_instructions: crate::instructions::build_exposed_tool_instructions,
         scrub_credentials: agent_util::credentials::scrub_credentials,
         llm_round: |r| Box::pin(async move {
@@ -31,7 +31,7 @@ pub(super) fn services() -> LoopServices<DomainHost, ParsedToolCall> {
                 &llm_services(), r.provider, r.history, r.observer, r.provider_name,
                 r.model, r.temperature, r.channel_name, r.multimodal_config,
                 r.cancellation_token, r.hooks, r.tool_specs, r.use_native_tools,
-                r.turn_id, r.iteration, &agent_multimodal::ocr::SessionImageTextExtractor::new(),
+                r.turn_id, r.iteration, &NoImageExtractor,
             ).await
         }),
         execute_tools: |r| Box::pin(async move {
@@ -186,4 +186,11 @@ pub(super) async fn run_tool_call_loop_with_non_cli_approval_context(
         multimodal_config, max_iterations, cancellation_token, on_delta, hooks, security,
         excluded_tools,
     ).await
+}
+
+pub(crate) struct NoImageExtractor;
+#[async_trait::async_trait]
+impl agent_multimodal::ocr::ImageTextExtractor for NoImageExtractor {
+ async fn supports_image_input(&self, _: &str) -> anyhow::Result<bool> { anyhow::bail!("scripted loop has no image model catalog") }
+ async fn extract_text(&self, _: &str, _: &str) -> anyhow::Result<String> { anyhow::bail!("scripted loop has no OCR service") }
 }

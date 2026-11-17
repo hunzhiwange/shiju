@@ -176,10 +176,12 @@ fn system_settings_observability_tests_keeps_planned_coverage_targets() {
     }
 }
 
-#[derive(Default)]
+
 struct Fixture { pub observability_settings: ObservabilitySettingsState, app_theme: iced::Theme }
 fn inputs(app: &Fixture) -> View<'_> {
  View { observability_settings: &app.observability_settings, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
  app_theme: &app.app_theme, last_copied_code_hash: None,
  render_help: |_, description, _, _| iced::widget::text(description).into(), }
 }
+
+impl Default for Fixture { fn default() -> Self { Self { observability_settings: Default::default(), app_theme: iced::Theme::Light } } }

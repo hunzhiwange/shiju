@@ -35,7 +35,7 @@ fn drag_start_and_end_transfer_pending_drop_state() {
 #[test]
 fn selected_drag_freezes_all_items_and_unselected_drag_replaces_selection() {
     let mut app = InteractionState::default();
-    let visible = vec!["/project/a.txt".into(), "/project/b.txt".into(), "/project/c.txt".into()];
+    let visible: Vec<String> = vec!["/project/a.txt".into(), "/project/b.txt".into(), "/project/c.txt".into()];
     for path in &visible[..2] {
         app.select("/project", path, true, false, &visible);
     }

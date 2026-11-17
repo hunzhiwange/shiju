@@ -1,7 +1,7 @@
 use super::*;
 use crate::state::*;
 use iced::widget::text;
-#[derive(Default)]
+
 pub(super) struct TestApp {
     pub(super) cron_settings: CronSettingsState,
     pub(super) app_theme: Theme,
@@ -199,3 +199,5 @@ fn cron_save_error_banner_follows_tabs() {
     assert_eq!(active_save_error(&data(&app)), Some("scheduler save failed"));
     assert_eq!(view(&data(&app), text("").into(), std::convert::identity).as_widget().children().len(), 4);
 }
+
+impl Default for TestApp { fn default() -> Self { Self { cron_settings: Default::default(), app_theme: iced::Theme::Light, project_path: Default::default(), recent_projects: Default::default(), acp_agents: Default::default(), agents_settings: Default::default(), scheduler_settings: Default::default() } } }

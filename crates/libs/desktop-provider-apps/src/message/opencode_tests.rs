@@ -4,7 +4,7 @@ use crate::{
     AgentAppsContext,
     state::{
         edit::{EditForm, Mode},
-        list::Scope,
+        Scope,
         opencode::Draft,
     },
 };

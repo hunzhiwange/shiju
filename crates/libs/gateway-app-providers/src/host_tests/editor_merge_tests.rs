@@ -369,8 +369,7 @@ async fn cc04_ui_preview_editor_operation_keeps_file_when_cancelled_and_saves_af
     let mut input = f.request(&view);
     input.choice = EditorChoice::KeepMine;
     input.resolution = Some(resolution);
-    let accepted = f
-        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_operation_start(&operation("choose-fixture", input.clone()), TOKEN)
+    let accepted = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_start(&operation("choose-fixture", input.clone()), TOKEN)
         .await
         .unwrap();
     let terminal = wait_for_progress(&f, accepted.operation_id.as_ref(), |p| {
@@ -407,8 +406,7 @@ async fn cc04_ui_preview_saved_fallback_is_redacted_authorized_and_read_only() {
         gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_saved_preview(AppId::Claude, &request, TOKEN).await.unwrap();
     assert_eq!(fallback.settings["catalog"], true);
     assert!(!fallback.settings.to_string().contains("fixture-key"));
-    let denied = f
-        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_saved_preview(AppId::Claude, &request, "bad-token")
+    let denied = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_saved_preview(AppId::Claude, &request, "bad-token")
         .await
         .unwrap_err();
     assert!(matches!(

@@ -116,3 +116,6 @@ async fn remote_models_reports_timeout_without_returning_models() {
 
     assert_eq!(error.category(), "timeout");
 }
+
+use serde_json::json;
+use std::collections::HashMap;

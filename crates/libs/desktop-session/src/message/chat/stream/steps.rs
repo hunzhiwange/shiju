@@ -288,4 +288,5 @@ pub fn apply_step_cost(
 }
 
 #[cfg(test)]
+#[path = "step_cost_tests.rs"]
 mod step_cost_tests;

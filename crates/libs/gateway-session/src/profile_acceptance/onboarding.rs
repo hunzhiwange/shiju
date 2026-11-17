@@ -446,6 +446,88 @@ pub fn acp_onboarding_amp_acp_builtin_profile_persists_and_runs<H: ProfileAccept
     assert!(disabled.is_err(), "disabled preset must reject before execution");
 }
 
+pub fn acp_onboarding_cortex_code_builtin_profile_persists_and_runs<H: ProfileAcceptanceHost>() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(H::env_lock().lock());
+    let _fixture =
+        runtime.block_on(H::recovery(
+            "https://example.test/v1",
+            None,
+        ));
+    struct RealTransport(Option<std::ffi::OsString>);
+    impl Drop for RealTransport {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.0 {
+                    Some(value) => std::env::set_var("VW_RECOVERY_WINDOW_HTTP", value),
+                    None => std::env::remove_var("VW_RECOVERY_WINDOW_HTTP"),
+                }
+            }
+        }
+    }
+    let _transport = RealTransport(std::env::var_os("VW_RECOVERY_WINDOW_HTTP"));
+    unsafe {
+        std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
+    }
+    let workspace = tempfile::tempdir().unwrap();
+    assert_acp_profile::<H>(&runtime, workspace.path(), "cortex-code");
+    runtime
+        .block_on(agent_config::runtime::update(json!({"agents":{"acp-cortex-code":{"enabled":false}}})))
+        .unwrap();
+    let disabled = runtime.block_on(H::chat(
+        Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
+        HeaderMap::new(),
+        Json(GatewayChatStreamRequest {
+            session_id: Some(format!("ses_disabled_{}", uuid::Uuid::new_v4()).into()),
+            agent: Some("acp-cortex-code".into()),
+            messages: vec![json!({"role":"user","content":"must reject"})],
+            ..Default::default()
+        }),
+    ));
+    assert!(disabled.is_err(), "disabled preset must reject before execution");
+}
+
+pub fn acp_onboarding_corust_agent_builtin_profile_persists_and_runs<H: ProfileAcceptanceHost>() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(H::env_lock().lock());
+    let _fixture =
+        runtime.block_on(H::recovery(
+            "https://example.test/v1",
+            None,
+        ));
+    struct RealTransport(Option<std::ffi::OsString>);
+    impl Drop for RealTransport {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.0 {
+                    Some(value) => std::env::set_var("VW_RECOVERY_WINDOW_HTTP", value),
+                    None => std::env::remove_var("VW_RECOVERY_WINDOW_HTTP"),
+                }
+            }
+        }
+    }
+    let _transport = RealTransport(std::env::var_os("VW_RECOVERY_WINDOW_HTTP"));
+    unsafe {
+        std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
+    }
+    let workspace = tempfile::tempdir().unwrap();
+    assert_acp_profile::<H>(&runtime, workspace.path(), "corust-agent");
+    runtime
+        .block_on(agent_config::runtime::update(json!({"agents":{"acp-corust-agent":{"enabled":false}}})))
+        .unwrap();
+    let disabled = runtime.block_on(H::chat(
+        Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
+        HeaderMap::new(),
+        Json(GatewayChatStreamRequest {
+            session_id: Some(format!("ses_disabled_{}", uuid::Uuid::new_v4()).into()),
+            agent: Some("acp-corust-agent".into()),
+            messages: vec![json!({"role":"user","content":"must reject"})],
+            ..Default::default()
+        }),
+    ));
+    assert!(disabled.is_err(), "disabled preset must reject before execution");
+}
+
 pub fn acp_onboarding_devin_builtin_profile_persists_and_runs<H: ProfileAcceptanceHost>() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let _env = runtime.block_on(H::env_lock().lock());
@@ -480,6 +562,47 @@ pub fn acp_onboarding_devin_builtin_profile_persists_and_runs<H: ProfileAcceptan
         Json(GatewayChatStreamRequest {
             session_id: Some(format!("ses_disabled_{}", uuid::Uuid::new_v4()).into()),
             agent: Some("acp-devin".into()),
+            messages: vec![json!({"role":"user","content":"must reject"})],
+            ..Default::default()
+        }),
+    ));
+    assert!(disabled.is_err(), "disabled preset must reject before execution");
+}
+
+pub fn acp_onboarding_harn_builtin_profile_persists_and_runs<H: ProfileAcceptanceHost>() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(H::env_lock().lock());
+    let _fixture =
+        runtime.block_on(H::recovery(
+            "https://example.test/v1",
+            None,
+        ));
+    struct RealTransport(Option<std::ffi::OsString>);
+    impl Drop for RealTransport {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.0 {
+                    Some(value) => std::env::set_var("VW_RECOVERY_WINDOW_HTTP", value),
+                    None => std::env::remove_var("VW_RECOVERY_WINDOW_HTTP"),
+                }
+            }
+        }
+    }
+    let _transport = RealTransport(std::env::var_os("VW_RECOVERY_WINDOW_HTTP"));
+    unsafe {
+        std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
+    }
+    let workspace = tempfile::tempdir().unwrap();
+    assert_acp_profile::<H>(&runtime, workspace.path(), "harn");
+    runtime
+        .block_on(agent_config::runtime::update(json!({"agents":{"acp-harn":{"enabled":false}}})))
+        .unwrap();
+    let disabled = runtime.block_on(H::chat(
+        Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
+        HeaderMap::new(),
+        Json(GatewayChatStreamRequest {
+            session_id: Some(format!("ses_disabled_{}", uuid::Uuid::new_v4()).into()),
+            agent: Some("acp-harn".into()),
             messages: vec![json!({"role":"user","content":"must reject"})],
             ..Default::default()
         }),
@@ -528,7 +651,7 @@ pub fn acp_onboarding_junie_builtin_profile_persists_and_runs<H: ProfileAcceptan
     assert!(disabled.is_err(), "disabled preset must reject before execution");
 }
 
-pub fn acp_onboarding_cortex_code_builtin_profile_persists_and_runs<H: ProfileAcceptanceHost>() {
+pub fn acp_onboarding_poolside_builtin_profile_persists_and_runs<H: ProfileAcceptanceHost>() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let _env = runtime.block_on(H::env_lock().lock());
     let _fixture =
@@ -552,16 +675,16 @@ pub fn acp_onboarding_cortex_code_builtin_profile_persists_and_runs<H: ProfileAc
         std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
     }
     let workspace = tempfile::tempdir().unwrap();
-    assert_acp_profile::<H>(&runtime, workspace.path(), "cortex-code");
+    assert_acp_profile::<H>(&runtime, workspace.path(), "poolside");
     runtime
-        .block_on(agent_config::runtime::update(json!({"agents":{"acp-cortex-code":{"enabled":false}}})))
+        .block_on(agent_config::runtime::update(json!({"agents":{"acp-poolside":{"enabled":false}}})))
         .unwrap();
     let disabled = runtime.block_on(H::chat(
         Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
         HeaderMap::new(),
         Json(GatewayChatStreamRequest {
             session_id: Some(format!("ses_disabled_{}", uuid::Uuid::new_v4()).into()),
-            agent: Some("acp-cortex-code".into()),
+            agent: Some("acp-poolside".into()),
             messages: vec![json!({"role":"user","content":"must reject"})],
             ..Default::default()
         }),
@@ -610,7 +733,7 @@ pub fn acp_onboarding_stakpak_builtin_profile_persists_and_runs<H: ProfileAccept
     assert!(disabled.is_err(), "disabled preset must reject before execution");
 }
 
-pub fn acp_onboarding_harn_builtin_profile_persists_and_runs<H: ProfileAcceptanceHost>() {
+pub fn acp_onboarding_vtcode_builtin_profile_persists_and_runs<H: ProfileAcceptanceHost>() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let _env = runtime.block_on(H::env_lock().lock());
     let _fixture =
@@ -634,16 +757,16 @@ pub fn acp_onboarding_harn_builtin_profile_persists_and_runs<H: ProfileAcceptanc
         std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
     }
     let workspace = tempfile::tempdir().unwrap();
-    assert_acp_profile::<H>(&runtime, workspace.path(), "harn");
+    assert_acp_profile::<H>(&runtime, workspace.path(), "vtcode");
     runtime
-        .block_on(agent_config::runtime::update(json!({"agents":{"acp-harn":{"enabled":false}}})))
+        .block_on(agent_config::runtime::update(json!({"agents":{"acp-vtcode":{"enabled":false}}})))
         .unwrap();
     let disabled = runtime.block_on(H::chat(
         Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
         HeaderMap::new(),
         Json(GatewayChatStreamRequest {
             session_id: Some(format!("ses_disabled_{}", uuid::Uuid::new_v4()).into()),
-            agent: Some("acp-harn".into()),
+            agent: Some("acp-vtcode".into()),
             messages: vec![json!({"role":"user","content":"must reject"})],
             ..Default::default()
         }),
@@ -733,47 +856,6 @@ pub fn acp_onboarding_omp_builtin_profile_persists_and_runs<H: ProfileAcceptance
     assert!(disabled.is_err(), "disabled preset must reject before execution");
 }
 
-pub fn acp_onboarding_vtcode_builtin_profile_persists_and_runs<H: ProfileAcceptanceHost>() {
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    let _env = runtime.block_on(H::env_lock().lock());
-    let _fixture =
-        runtime.block_on(H::recovery(
-            "https://example.test/v1",
-            None,
-        ));
-    struct RealTransport(Option<std::ffi::OsString>);
-    impl Drop for RealTransport {
-        fn drop(&mut self) {
-            unsafe {
-                match &self.0 {
-                    Some(value) => std::env::set_var("VW_RECOVERY_WINDOW_HTTP", value),
-                    None => std::env::remove_var("VW_RECOVERY_WINDOW_HTTP"),
-                }
-            }
-        }
-    }
-    let _transport = RealTransport(std::env::var_os("VW_RECOVERY_WINDOW_HTTP"));
-    unsafe {
-        std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
-    }
-    let workspace = tempfile::tempdir().unwrap();
-    assert_acp_profile::<H>(&runtime, workspace.path(), "vtcode");
-    runtime
-        .block_on(agent_config::runtime::update(json!({"agents":{"acp-vtcode":{"enabled":false}}})))
-        .unwrap();
-    let disabled = runtime.block_on(H::chat(
-        Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
-        HeaderMap::new(),
-        Json(GatewayChatStreamRequest {
-            session_id: Some(format!("ses_disabled_{}", uuid::Uuid::new_v4()).into()),
-            agent: Some("acp-vtcode".into()),
-            messages: vec![json!({"role":"user","content":"must reject"})],
-            ..Default::default()
-        }),
-    ));
-    assert!(disabled.is_err(), "disabled preset must reject before execution");
-}
-
 pub fn acp_onboarding_aionrs_builtin_profile_persists_and_runs<H: ProfileAcceptanceHost>() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let _env = runtime.block_on(H::env_lock().lock());
@@ -808,88 +890,6 @@ pub fn acp_onboarding_aionrs_builtin_profile_persists_and_runs<H: ProfileAccepta
         Json(GatewayChatStreamRequest {
             session_id: Some(format!("ses_disabled_{}", uuid::Uuid::new_v4()).into()),
             agent: Some("acp-aionrs".into()),
-            messages: vec![json!({"role":"user","content":"must reject"})],
-            ..Default::default()
-        }),
-    ));
-    assert!(disabled.is_err(), "disabled preset must reject before execution");
-}
-
-pub fn acp_onboarding_poolside_builtin_profile_persists_and_runs<H: ProfileAcceptanceHost>() {
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    let _env = runtime.block_on(H::env_lock().lock());
-    let _fixture =
-        runtime.block_on(H::recovery(
-            "https://example.test/v1",
-            None,
-        ));
-    struct RealTransport(Option<std::ffi::OsString>);
-    impl Drop for RealTransport {
-        fn drop(&mut self) {
-            unsafe {
-                match &self.0 {
-                    Some(value) => std::env::set_var("VW_RECOVERY_WINDOW_HTTP", value),
-                    None => std::env::remove_var("VW_RECOVERY_WINDOW_HTTP"),
-                }
-            }
-        }
-    }
-    let _transport = RealTransport(std::env::var_os("VW_RECOVERY_WINDOW_HTTP"));
-    unsafe {
-        std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
-    }
-    let workspace = tempfile::tempdir().unwrap();
-    assert_acp_profile::<H>(&runtime, workspace.path(), "poolside");
-    runtime
-        .block_on(agent_config::runtime::update(json!({"agents":{"acp-poolside":{"enabled":false}}})))
-        .unwrap();
-    let disabled = runtime.block_on(H::chat(
-        Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
-        HeaderMap::new(),
-        Json(GatewayChatStreamRequest {
-            session_id: Some(format!("ses_disabled_{}", uuid::Uuid::new_v4()).into()),
-            agent: Some("acp-poolside".into()),
-            messages: vec![json!({"role":"user","content":"must reject"})],
-            ..Default::default()
-        }),
-    ));
-    assert!(disabled.is_err(), "disabled preset must reject before execution");
-}
-
-pub fn acp_onboarding_corust_agent_builtin_profile_persists_and_runs<H: ProfileAcceptanceHost>() {
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    let _env = runtime.block_on(H::env_lock().lock());
-    let _fixture =
-        runtime.block_on(H::recovery(
-            "https://example.test/v1",
-            None,
-        ));
-    struct RealTransport(Option<std::ffi::OsString>);
-    impl Drop for RealTransport {
-        fn drop(&mut self) {
-            unsafe {
-                match &self.0 {
-                    Some(value) => std::env::set_var("VW_RECOVERY_WINDOW_HTTP", value),
-                    None => std::env::remove_var("VW_RECOVERY_WINDOW_HTTP"),
-                }
-            }
-        }
-    }
-    let _transport = RealTransport(std::env::var_os("VW_RECOVERY_WINDOW_HTTP"));
-    unsafe {
-        std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
-    }
-    let workspace = tempfile::tempdir().unwrap();
-    assert_acp_profile::<H>(&runtime, workspace.path(), "corust-agent");
-    runtime
-        .block_on(agent_config::runtime::update(json!({"agents":{"acp-corust-agent":{"enabled":false}}})))
-        .unwrap();
-    let disabled = runtime.block_on(H::chat(
-        Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
-        HeaderMap::new(),
-        Json(GatewayChatStreamRequest {
-            session_id: Some(format!("ses_disabled_{}", uuid::Uuid::new_v4()).into()),
-            agent: Some("acp-corust-agent".into()),
             messages: vec![json!({"role":"user","content":"must reject"})],
             ..Default::default()
         }),

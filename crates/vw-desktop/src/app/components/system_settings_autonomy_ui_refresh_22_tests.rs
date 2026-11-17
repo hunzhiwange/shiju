@@ -1,5 +1,7 @@
 #![cfg(not(target_arch = "wasm32"))]
 
+use crate::app::message;
+use config_security::autonomy::{AutonomyLevel, ShellRedirectPolicy, NonCliNaturalLanguageApprovalMode};
 use super::*;
 use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use iced::advanced::{

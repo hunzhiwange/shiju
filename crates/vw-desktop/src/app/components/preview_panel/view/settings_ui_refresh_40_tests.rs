@@ -1,6 +1,7 @@
 // 保留宿主集成：真实字体/渲染、编辑器字段投影和终端重命名消息及状态隔离；unix cfg 与配置子进程隔离保持。
 //! Exercise the rendered preview settings and terminal rename controls.
 
+use iced::{Length, widget::{container, text}};
 use super::*;
 #[cfg(unix)]
 use crate::app::components::terminal_panel;

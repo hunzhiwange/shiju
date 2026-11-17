@@ -1,4 +1,6 @@
 //! List acceptance uses the shared isolated tiny-skia harness and real mouse events.
+use config_ui::DesktopLocale;
+use iced::Theme;
 use super::*;
 use crate::app::components::system_settings::SystemTab;
 use crate::app::state::CronListFilter;

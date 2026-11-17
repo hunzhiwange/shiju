@@ -69,6 +69,7 @@ gateway-shiju-app = { path = "../gateway-shiju-app", version = "0.6.0" }
 gateway-shiju-account = { path = "../gateway-shiju-account", version = "0.6.0" }
 web-time = "1"
 [dev-dependencies]
+urlencoding = "2"
 vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.6.0" }
 vw-api-app-provider-extended = { path = "../api-app-provider-extended", version = "0.6.0" }
 vw-api-model-catalog = { path = "../api-model-catalog", version = "0.6.0" }

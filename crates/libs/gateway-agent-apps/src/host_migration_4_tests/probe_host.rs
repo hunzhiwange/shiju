@@ -43,7 +43,7 @@ impl ProbeHost for NativeProbeHost {
      jobs.start(DiagnosticJobOwner { scope, principal }, kind, probes)
  }
  async fn open(server: agent_client_protocol::McpServer, timeout: std::time::Duration, http_io: CancellationToken, child: Option<&mut Option<mcp_client::ProbeChild>>, cleanup: Option<mcp_client::ConnectionCheckCleanup>) -> anyhow::Result<mcp_client::RunningMcpPeer> {
-     mcp_client::open_connection_check_peer(server, timeout, http_io, child, cleanup).await
+     mcp_client::open_connection_check_peer(std::sync::Arc::new(FixtureClientHost), server, timeout, http_io, child, cleanup).await
  }
  async fn tool_specs(peer: &mcp_client::RunningMcpPeer, id: &str) -> anyhow::Result<Vec<vw_api_tools::ToolSpecDto>> {
      let tools = plugin_mcp::mcp_catalog::list_tools(peer.peer()).await?;
@@ -74,6 +74,23 @@ impl ConnectionCheckRuntime for NativeConnectionCheckRuntime {
         http_io: tokio_util::sync::CancellationToken,
         child: Option<&mut Option<ProbeChild>>,
     ) -> anyhow::Result<NativeCheckPeer> {
-        open_connection_check_peer(server, timeout, http_io, child, None).await.map(NativeCheckPeer)
+        open_connection_check_peer(std::sync::Arc::new(FixtureClientHost), server, timeout, http_io, child, None).await.map(NativeCheckPeer)
+    }
+}
+
+struct FixtureClientHost;
+impl mcp_client::ClientHost for FixtureClientHost {
+    fn runtime_stdio_cwd(&self, server: &agent_client_protocol::McpServerStdio) -> anyhow::Result<Option<std::path::PathBuf>> {
+        agent_app_services::mcp::runtime::managed_stdio_cwd(server)
+    }
+    fn http_headers<'a>(&'a self, _: &'a agent_client_protocol::McpServerHttp, _: Option<&'a mcp_client::FormOwner>)
+        -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<Option<reqwest_012::header::HeaderMap>>> + Send + 'a>> {
+        Box::pin(async { Ok(None) })
+    }
+    fn request_elicitation(&self, _: mcp_client::FormOwner, _: String,
+        _: rmcp::model::CreateElicitationRequestParam, _: tokio_util::sync::CancellationToken,
+        _: tokio_util::sync::CancellationToken, _: Option<serde_json::Value>)
+        -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<rmcp::model::CreateElicitationResult, rmcp::model::ErrorData>> + Send + '_>> {
+        Box::pin(async { Err(rmcp::model::ErrorData::internal_error("fixture has no interaction owner", None)) })
     }
 }

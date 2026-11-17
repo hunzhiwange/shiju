@@ -7,13 +7,13 @@ fn desktop_gettext_area_10_catalog_covers_display_paths() {
         regex::Regex::new(r#"(?:\.__|\.format|ProjectFeedback::new)\(\s*("(?:\\.|[^"\\])*")"#)
             .unwrap();
     for source in [
-        include_str!("../../../../vw-desktop/src/app/components/file_tree/find_results.rs"),
+        include_str!("../../../desktop-file-tree/src/find_results.rs"),
         include_str!("../../../../vw-desktop/src/app/components/file_tree/mod.rs"),
         include_str!("../../../../vw-desktop/src/app/components/file_tree/tree_list.rs"),
         include_str!("../../../../vw-desktop/src/app/components/search_panel.rs"),
         include_str!("../project.rs"),
         include_str!("../../../../vw-desktop/src/app/message/project/helpers.rs"),
-        include_str!("../../../../vw-desktop/src/app/impls/app_view_modals/project_edit/general_tab.rs"),
+        include_str!("../../../desktop-workspace/src/project_edit_view/general_tab.rs"),
         include_str!("../../../desktop-workspace/src/project_edit_view/launch_tab.rs"),
         include_str!("../../../desktop-workspace/src/project_edit_view/refresh_tab.rs"),
         include_str!("../../../desktop-workspace/src/project_edit_view/scheduling_tab.rs"),

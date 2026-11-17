@@ -4,6 +4,7 @@
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::*;
+use super::super::changes::{apply_bool_change, apply_number_change, apply_receive_mode_change};
 use crate::state::ChannelsSettingsState as App;
 use super::super::toggles;
 use config_channel_types::GroupReplyMode;

@@ -1,4 +1,5 @@
-//! Git message domain tests; host routing and cross-domain effects stay in vw-desktop.
+use iced::widget::text_editor;
+/// Git message domain tests; host routing and cross-domain effects stay in vw-desktop.
 use crate::git_panel::diff_view::{GitDiffContextMenuState, GitDiffLineRange};
 use crate::git_panel::types::ConventionalCommitType;
 use crate::message_git::shared as domain;
@@ -13,8 +14,8 @@ fn build_selected_commit_request_formats_conventional_subject_and_body() {
     let git_commit_description: String = " body line ".to_string();
     let staged_files_selected: Vec<String> = vec!["src/main.rs".to_string()];
     let staged_hunks_selected: Vec<(String, usize)> = vec![("src/lib.rs".to_string(), 2)];
-    let staged_lines_selected: Vec<(String, usize)> = vec![("src/lib.rs".to_string(), 4)];
-    let staged_old_lines_selected: Vec<(String, usize)> = vec![("src/lib.rs".to_string(), 3)];
+    let mut staged_lines_selected: Vec<(String, usize)> = vec![("src/lib.rs".to_string(), 4)];
+    let mut staged_old_lines_selected: Vec<(String, usize)> = vec![("src/lib.rs".to_string(), 3)];
 
     let request = domain::build_commit_request(
         &git_commit_message,
@@ -44,8 +45,8 @@ fn build_all_commit_request_enables_atomic_stage_all() {
     let git_commit_type: Option<ConventionalCommitType> = Some(ConventionalCommitType::Feat);
     let staged_files_selected: Vec<String> = Default::default();
     let staged_hunks_selected: Vec<(String, usize)> = Default::default();
-    let staged_lines_selected: Vec<(String, usize)> = Default::default();
-    let staged_old_lines_selected: Vec<(String, usize)> = Default::default();
+    let mut staged_lines_selected: Vec<(String, usize)> = Default::default();
+    let mut staged_old_lines_selected: Vec<(String, usize)> = Default::default();
     let git_commit_message: String = "ship everything".to_string();
 
     let request = domain::build_commit_request(
@@ -70,8 +71,8 @@ fn build_selected_commit_request_rejects_blank_message() {
     let git_commit_scope: String = Default::default();
     let staged_files_selected: Vec<String> = Default::default();
     let staged_hunks_selected: Vec<(String, usize)> = Default::default();
-    let staged_lines_selected: Vec<(String, usize)> = Default::default();
-    let staged_old_lines_selected: Vec<(String, usize)> = Default::default();
+    let mut staged_lines_selected: Vec<(String, usize)> = Default::default();
+    let mut staged_old_lines_selected: Vec<(String, usize)> = Default::default();
     let git_commit_type: Option<ConventionalCommitType> = None;
     let git_commit_message: String = "   ".to_string();
     let git_commit_description: String = "\n\t".to_string();
@@ -97,8 +98,8 @@ fn build_selected_commit_request_formats_subject_without_scope_or_type() {
     let mut git_commit_description: String = Default::default();
     let staged_files_selected: Vec<String> = Default::default();
     let staged_hunks_selected: Vec<(String, usize)> = Default::default();
-    let staged_lines_selected: Vec<(String, usize)> = Default::default();
-    let staged_old_lines_selected: Vec<(String, usize)> = Default::default();
+    let mut staged_lines_selected: Vec<(String, usize)> = Default::default();
+    let mut staged_old_lines_selected: Vec<(String, usize)> = Default::default();
     let mut git_commit_type: Option<ConventionalCommitType> = Some(ConventionalCommitType::Feat);
     let git_commit_scope: String = "  ".to_string();
     let git_commit_message: String = " add tests ".to_string();
@@ -240,6 +241,7 @@ fn diff_context_target_range_falls_back_to_menu_line() {
 
 #[test]
 fn diff_context_target_range_uses_selection_then_selected_line_then_none() {
+    let git_diff_selected_lines = Default::default();
     let git_diff_context_menu: Option<GitDiffContextMenuState> = Default::default();
     let mut git_diff_selected_range: Option<GitDiffLineRange> =
         Some(GitDiffLineRange { file: "range.rs".to_string(), start: 7, end: 3, is_old: false });
@@ -404,8 +406,8 @@ fn diff_context_target_stage_lines_filters_menu_side_or_uses_menu_only() {
 
 #[test]
 fn extend_and_clear_stage_selection_for_lines_are_idempotent() {
-    let staged_lines_selected: Vec<(String, usize)> = Default::default();
-    let staged_old_lines_selected: Vec<(String, usize)> = Default::default();
+    let mut staged_lines_selected: Vec<(String, usize)> = Default::default();
+    let mut staged_old_lines_selected: Vec<(String, usize)> = Default::default();
     let lines = vec![
         ("src/lib.rs".to_string(), 2, false),
         ("src/lib.rs".to_string(), 2, false),

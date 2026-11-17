@@ -1,7 +1,7 @@
 
 #[test]
 fn desktop_gettext_area_8_display_uses_explicit_locale() {
-    let source = include_str!("../../../../vw-desktop/src/app/components/chat_panel/message_view/assistant_error.rs");
+    let source = include_str!("../../../desktop-chat-view/src/message_view/assistant_error.rs");
     assert!(
         source.contains(".__(\"请求失败\")"),
         "API error display must translate its own label while preserving service content"
@@ -17,26 +17,26 @@ fn desktop_gettext_area_8_migrated_display_keys_have_both_translations() {
         include_str!("../../../../vw-desktop/src/app/components/chat_panel/global_status.rs"),
         include_str!("../../../../vw-desktop/src/app/components/chat_panel/header.rs"),
         include_str!("../../../../vw-desktop/src/app/components/chat_panel/message_view.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/chat_panel/message_view/assistant_error.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/chat_panel/message_view/think_block.rs"),
+        include_str!("../../../desktop-chat-view/src/message_view/assistant_error.rs"),
+        include_str!("../../../desktop-chat-view/src/message_view/think_block.rs"),
         include_str!("../../../../vw-desktop/src/app/components/chat_panel/mod.rs"),
         include_str!("../../../../vw-desktop/src/app/components/chat_panel/tool_selector.rs"),
         include_str!("../../../../vw-desktop/src/app/components/chat_panel/tools/advanced_view.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/chat_panel/tools/apply_patch_view.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/chat_panel/tools/bash_view.rs"),
+        include_str!("../../../desktop-chat-tools/src/tools/apply_patch_view.rs"),
+        include_str!("../../../desktop-chat-tools/src/tools/bash_view.rs"),
         include_str!("../../../../vw-desktop/src/app/components/chat_panel/tools/command_summary_view.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/chat_panel/tools/config_view.rs"),
+        include_str!("../../../desktop-chat-tools/src/tools/config_view.rs"),
         include_str!("../../../../vw-desktop/src/app/components/chat_panel/tools/explore_summary_view.rs"),
         include_str!("../../../desktop-chat-tools/src/tools/files_view/list_ui.rs"),
         include_str!("../../../../vw-desktop/src/app/components/chat_panel/tools/git_diff_view.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/chat_panel/tools/lsp_view.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/chat_panel/tools/mcp_view.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/chat_panel/tools/question_view.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/chat_panel/tools/read_view.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/chat_panel/tools/skill_view.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/chat_panel/tools/todo_views.rs"),
+        include_str!("../../../desktop-chat-tools/src/tools/lsp_view.rs"),
+        include_str!("../../../desktop-chat-tools/src/tools/mcp_view.rs"),
+        include_str!("../../../desktop-chat-tools/src/tools/question_view.rs"),
+        include_str!("../../../desktop-chat-tools/src/tools/read_view.rs"),
+        include_str!("../../../desktop-chat-tools/src/tools/skill_view.rs"),
+        include_str!("../../../desktop-chat-tools/src/tools/todo_views.rs"),
         include_str!("../../../../vw-desktop/src/app/components/chat_panel/tools/tool_detail_dialog.rs"),
-        include_str!("../../../../vw-desktop/src/app/components/chat_panel/tools/web_view.rs"),
+        include_str!("../../../desktop-chat-tools/src/tools/web_view.rs"),
         include_str!("../../../../vw-desktop/src/app/components/chat_panel/tools/workflow_view.rs"),
         include_str!("../../../../vw-desktop/src/app/components/chat_panel/trajectory/mod.rs"),
         include_str!("../../../../vw-desktop/src/app/components/chat_panel/utils/app_state.rs"),

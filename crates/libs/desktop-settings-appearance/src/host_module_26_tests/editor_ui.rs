@@ -778,7 +778,7 @@ async fn settings_help_gap_02_gallery_opens_builtin_and_preset_editors() {
 
                 let gallery = system_settings_themes::view(&app);
                 let mut scene =
-                    Scene::new(system_settings_themes::editor_overlay(&app, gallery), width, 800)
+                    Scene::new(crate::system_settings_themes::editor_overlay(&inputs(&app), gallery), width, 800)
                         .await;
                 scene.assert_hidden(i18n.__(rule));
                 scene.text_bounds(i18n.__("标识只读"));

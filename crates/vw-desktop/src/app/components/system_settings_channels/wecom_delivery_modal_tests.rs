@@ -1,4 +1,5 @@
 //! Host contract: each desktop entry reaches the domain modal update.
+use crate::app::message::settings::{SettingsMessage, ChannelsMessage};
 use super::*;
 use crate::app::message::settings;
 #[test]

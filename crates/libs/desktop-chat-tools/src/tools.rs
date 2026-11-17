@@ -37,7 +37,7 @@ mod explore_summary_view_tests;
 #[cfg(test)]
 mod files_view_tests;
 #[cfg(test)]
-mod view_fixture;
+pub(crate) mod view_fixture;
 
 #[cfg(test)]
 mod file_link_tests;

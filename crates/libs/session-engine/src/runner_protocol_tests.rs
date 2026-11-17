@@ -21,7 +21,7 @@ fn context_preflight_runs_before_next_llm_step_after_real_input_usage() {
         &mut messages,
         &["system".to_string()],
         &[],
-        &provider::ModelLimit {
+        &model_types::ModelLimit {
             context: 500,
             input: Some(500),
             output: 0,

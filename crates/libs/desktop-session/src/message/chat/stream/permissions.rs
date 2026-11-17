@@ -169,4 +169,5 @@ pub fn take_selected_request(state: &mut PermissionState<'_>) -> Option<String> 
     Some(id)
 }
 #[cfg(test)]
+#[path = "permission_reply_tests.rs"]
 mod permission_reply_tests;

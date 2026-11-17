@@ -82,7 +82,7 @@ fn command_logger_toggle_maps_both_values_to_hooks_messages() {
 #[test]
 fn hooks_view_renders_plugin_review_and_audit_sections() {
     let empty_app = test_app();
-    let empty_tree = Tree::new(view(&empty_app).as_widget());
+    let empty_tree = Tree::new(view(inputs(&empty_app)).as_widget());
 
     let mut app = test_app();
     app.app_theme = iced::Theme::Dark;
@@ -135,10 +135,12 @@ fn view_builds_all_hook_toggle_combinations() {
     }
 }
 
-#[derive(Default)]
+
 struct Fixture { pub hooks_settings: HooksSettingsState, app_theme: iced::Theme }
 fn inputs(app: &Fixture) -> View<'_> {
  View { hooks_settings: &app.hooks_settings, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
  app_theme: &app.app_theme,
  render_help: |_, description, _, _| iced::widget::text(description).into(), }
 }
+
+impl Default for Fixture { fn default() -> Self { Self { hooks_settings: Default::default(), app_theme: iced::Theme::Light } } }

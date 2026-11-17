@@ -444,7 +444,7 @@ fn cc_mcp_t49_cancelling_snapshot_preserves_completed_rows_until_cleanup_termina
     second.record.id = McpRecordId("second".into());
     context.records.push(second.record.clone());
     context.connections.push(second);
-    let mut state = probe::McpState::default();
+    let mut state = desktop_apps_ui::agent_apps_diagnostics::mcp_state::McpState::default();
     state.begin(context.clone(), context.records.clone());
     state.job = Some(job(&context));
     let mut snap = snapshot(

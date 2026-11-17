@@ -93,7 +93,7 @@ impl RuntimeAdapter for CapabilityRuntime {
 
 fn test_memory(workspace: &Path) -> Arc<dyn Memory> {
     let mem_cfg = MemoryConfig { backend: "markdown".into(), ..MemoryConfig::default() };
-    Arc::from(memory::create_memory(&mem_cfg, workspace, None).unwrap())
+    Arc::from(agent_memory::create_memory_for_migration(&mem_cfg.backend, workspace).unwrap())
 }
 
 // 所有工具集用例从同一最小配置出发，只显式开启当前场景所需能力。

@@ -151,7 +151,7 @@ impl ServerHandler for Service {
 }
 
 pub struct Fixture {
-    service: Service,
+    pub service: Service,
     pub server: McpServer,
     pub peer: Arc<tokio::sync::Mutex<Option<Peer<RoleServer>>>>,
     task: tokio::task::JoinHandle<()>,

@@ -15,10 +15,10 @@ use super::types::WorkspaceMode;
 fn workspace_mode_selector_copy_covers_both_modes() {
     assert_eq!(workspace_mode::copy(WorkspaceMode::Code), ("代码", "构建、调试与审查"));
     assert_eq!(workspace_mode::copy(WorkspaceMode::Work), ("工作", "对话、整理与协作"));
-    assert_eq!(workspace_mode::mode_icon(WorkspaceMode::Code), desktop_assets::Icon::Code);
+    assert_eq!(workspace_mode::mode_icon(WorkspaceMode::Code), desktop_assets::assets::Icon::Code);
     assert_eq!(
         workspace_mode::mode_icon(WorkspaceMode::Work),
-        desktop_assets::Icon::ChatTextFill
+        desktop_assets::assets::Icon::ChatTextFill
     );
     assert_eq!(workspace_mode::mode_label_font().weight, iced::font::Weight::Semibold);
 }

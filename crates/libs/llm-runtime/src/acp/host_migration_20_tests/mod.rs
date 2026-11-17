@@ -1,10 +1,10 @@
-use super::super::{host::*, options, skill_mounts::MountedSkills};
-use super::super as runtime;
+use crate::acp::{host::*, options, skill_mounts::MountedSkills};
+use crate::acp as runtime;
 use agent_config::schema::{Config, AcpAgentConfig};
 use model_types as provider;
 use crate::Error;
 use std::{path::Path, sync::Arc};
-use super::super::model_source::profile::AcpLaunchProfile;
+use crate::acp::model_source::profile::AcpLaunchProfile;
 pub type ParsedAcpOptions = options::ParsedAcpOptions<MountedSkills>;
 pub(crate) struct CacheHost;
 tokio::task_local! { static REQUEST_CONFIG: Config; }

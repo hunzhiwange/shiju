@@ -170,12 +170,39 @@ fn acp_onboarding_amp_acp_installer_contract() {
 }
 
 #[test]
+fn acp_onboarding_cortex_code_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+        assert!(acp_install_command_for_platform("cortex-code", platform).is_none());
+    }
+    assert!(acp_install_command("cortex-code; echo unsafe").is_none());
+}
+
+#[test]
+fn acp_onboarding_corust_agent_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+        assert!(acp_install_command_for_platform("corust-agent", platform).is_none());
+    }
+    assert!(acp_install_command("corust-agent; echo unsafe").is_none());
+}
+
+#[test]
 fn acp_onboarding_devin_installer_contract() {
     use super::{AcpInstallPlatform, acp_install_command_for_platform};
     for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
         assert!(acp_install_command_for_platform("devin", platform).is_none());
     }
     assert!(acp_install_command("devin; echo unsafe").is_none());
+}
+
+#[test]
+fn acp_onboarding_harn_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+        assert!(acp_install_command_for_platform("harn", platform).is_none());
+    }
+    assert!(acp_install_command("harn; echo unsafe").is_none());
 }
 
 #[test]
@@ -188,12 +215,12 @@ fn acp_onboarding_junie_installer_contract() {
 }
 
 #[test]
-fn acp_onboarding_cortex_code_installer_contract() {
+fn acp_onboarding_poolside_installer_contract() {
     use super::{AcpInstallPlatform, acp_install_command_for_platform};
     for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
-        assert!(acp_install_command_for_platform("cortex-code", platform).is_none());
+        assert!(acp_install_command_for_platform("poolside", platform).is_none());
     }
-    assert!(acp_install_command("cortex-code; echo unsafe").is_none());
+    assert!(acp_install_command("poolside; echo unsafe").is_none());
 }
 
 #[test]
@@ -206,12 +233,12 @@ fn acp_onboarding_stakpak_installer_contract() {
 }
 
 #[test]
-fn acp_onboarding_harn_installer_contract() {
+fn acp_onboarding_vtcode_installer_contract() {
     use super::{AcpInstallPlatform, acp_install_command_for_platform};
     for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
-        assert!(acp_install_command_for_platform("harn", platform).is_none());
+        assert!(acp_install_command_for_platform("vtcode", platform).is_none());
     }
-    assert!(acp_install_command("harn; echo unsafe").is_none());
+    assert!(acp_install_command("vtcode; echo unsafe").is_none());
 }
 
 #[test]
@@ -236,31 +263,4 @@ fn acp_onboarding_omp_installer_contract() {
         );
     }
     assert!(acp_install_command("omp; echo unsafe").is_none());
-}
-
-#[test]
-fn acp_onboarding_vtcode_installer_contract() {
-    use super::{AcpInstallPlatform, acp_install_command_for_platform};
-    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
-        assert!(acp_install_command_for_platform("vtcode", platform).is_none());
-    }
-    assert!(acp_install_command("vtcode; echo unsafe").is_none());
-}
-
-#[test]
-fn acp_onboarding_poolside_installer_contract() {
-    use super::{AcpInstallPlatform, acp_install_command_for_platform};
-    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
-        assert!(acp_install_command_for_platform("poolside", platform).is_none());
-    }
-    assert!(acp_install_command("poolside; echo unsafe").is_none());
-}
-
-#[test]
-fn acp_onboarding_corust_agent_installer_contract() {
-    use super::{AcpInstallPlatform, acp_install_command_for_platform};
-    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
-        assert!(acp_install_command_for_platform("corust-agent", platform).is_none());
-    }
-    assert!(acp_install_command("corust-agent; echo unsafe").is_none());
 }

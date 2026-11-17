@@ -2,6 +2,7 @@ use crate::tool_search::*;
 use crate::{Tool, ToolResult, ToolSpec};
 use async_trait::async_trait;
 use serde_json::{Value, json};
+#[path = "host_migration_35_search/host.rs"]
 mod host;
 use host::Host;
 type ToolUseContext = tool_context::context::ToolUseContext<Host>;

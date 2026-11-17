@@ -52,10 +52,12 @@ fn view_builds_docker_runtime_settings() {
 }
 
 
-#[derive(Default)]
+
 struct Fixture { pub runtime_settings: RuntimeSettingsState, app_theme: iced::Theme }
 fn inputs(app: &Fixture) -> View<'_> {
  View { runtime_settings: &app.runtime_settings,select_focus_scope: "system-settings-select-focus", desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
  app_theme: &app.app_theme,
  render_help: |_, description, _, _| iced::widget::text(description).into(), }
 }
+
+impl Default for Fixture { fn default() -> Self { Self { runtime_settings: Default::default(), app_theme: iced::Theme::Light } } }

@@ -354,7 +354,7 @@ async fn ha_api_queue_write_rejects_conflicts() -> anyhow::Result<()> {
 async fn ha_api_queue_write_rejects_conflicts_enabled() -> anyhow::Result<()> {
     use {
         app_routing_services::failover_store::{FailoverQueueState, NAMESPACE, config_key},
-        app_settings_store::GatewaySettingsStore,
+        app_settings_store::settings_store::GatewaySettingsStore,
     };
     use std::os::unix::fs::PermissionsExt;
 use vw_api_app_provider_base::claude::ClaudeConfig;

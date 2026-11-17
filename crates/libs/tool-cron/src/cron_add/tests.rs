@@ -536,3 +536,5 @@ async fn wb_schedule_tool_rejects_calendar_creation_in_read_only_mode() {
     assert!(result.error.unwrap().contains("read-only"));
     assert!(list_jobs(&cfg).unwrap().is_empty());
 }
+
+use tool_types::ToolResult;

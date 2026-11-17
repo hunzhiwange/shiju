@@ -48,7 +48,7 @@ impl iced::advanced::widget::operation::Operation for Geometry {
 async fn aggregation_t66_iced_draws_dynamic_chinese_in_both_themes() {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }

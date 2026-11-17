@@ -2,7 +2,7 @@
 pub use crate::Message;
 use crate::state::{HooksSettingsState, ReliabilitySettingsState, RuntimeSettingsState};
 pub use iced::{Element, Length, widget::container};
-#[derive(Default)]
+
 pub struct Fixture {
     pub hooks_settings: HooksSettingsState,
     pub runtime_settings: RuntimeSettingsState,
@@ -80,3 +80,5 @@ pub mod reliability {
         crate::system_settings_reliability::view_overlays(inputs(app), base)
     }
 }
+
+impl Default for Fixture { fn default() -> Self { Self { hooks_settings: Default::default(), runtime_settings: Default::default(), reliability_settings: Default::default(), desktop_locale: Default::default(), app_theme: iced::Theme::Light } } }

@@ -258,7 +258,7 @@ async fn settings_help_gap_06_ordinary_and_wildcard_lists_and_disabled_form() {
         let mut ui = scene(view(&app), &mut renderer, size);
         snapshot_panel(&mut ui, &mut renderer, &theme, size);
         let positions = geometry(&mut ui, &renderer);
-        assert_channel_text_absent(&positions, locale, &[HELP_GAP_06_DISABLED, "允许发送者"]);
+        assert_channel_text_absent(&positions, locale, &["启用后显示该通道的详细配置表单。", "允许发送者"]);
         drop(ui);
         let mut ui = scene(extended_channels::email_panel(app.view()), &mut renderer, size);
         snapshot_panel(&mut ui, &mut renderer, &theme, size);

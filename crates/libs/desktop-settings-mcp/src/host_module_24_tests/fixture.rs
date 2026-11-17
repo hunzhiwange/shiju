@@ -209,6 +209,7 @@ use iced::widget::column;
     }
 }
 pub mod imports {
+    pub fn open_draft(f: &mut super::Fixture, request: vw_api_mcp_management::McpCreateRequest) -> iced::Task<super::McpMessage> { crate::management_import_update::open_draft(&mut f.input(), request).map(super::McpMessage::Import) }
     use super::*;
 use iced::widget::column;
     pub use crate::management_import::*;

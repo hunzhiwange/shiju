@@ -30,7 +30,7 @@ use super::*;
 mod tests {
     use super::*;
 
-    use tool_types::traits::Tool;
+    use tool_types::Tool;
     use async_trait::async_trait;
 
     /// 测试用工具结构体

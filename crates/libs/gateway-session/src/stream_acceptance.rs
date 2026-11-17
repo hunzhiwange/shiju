@@ -453,7 +453,7 @@ pub async fn background_approval_options<H: crate::stream_host::StreamHost>() ->
             assert_eq!(options["full_access"], true);
             assert_eq!(options["acp_permission_mode"], "deny-all");
             assert_eq!(options["acp_non_interactive_permissions"], "fail");
-            let session = request.session_id.as_ref().unwrap().to_string();
+            let session = request.session_id.as_ref().unwrap().0.clone();
             let project = agent_project::instance::project().unwrap();
     (project.id, session)
 }

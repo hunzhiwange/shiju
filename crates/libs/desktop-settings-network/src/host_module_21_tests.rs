@@ -175,7 +175,7 @@ fn settings_content(app: &NetworkFixture, tab: SystemTab) -> Element<'_, Message
     }
 }
 mod system_settings {
-    pub use super::SystemTab;
+    pub use desktop_ui_controls::settings_navigation::SystemTab;
     pub fn view(app: &super::NetworkFixture) -> iced::Element<'_, super::Message> {
         super::settings_content(app, app.system_settings_tab)
     }

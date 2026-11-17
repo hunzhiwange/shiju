@@ -485,7 +485,7 @@ fn model_recovery_backoff_cancellation_and_closed_consumer_stop_requests() {
 fn model_recovery_tool_calls_and_remote_side_effects_are_not_replayed() {
     let _guard = test_llm_stream_guard();
     for tool_event in [
-        llm::StreamEvent::ToolCalls(vec![llm::ToolCall {
+        llm::StreamEvent::ToolCalls(vec![model_types::ToolCall {
             kind: Default::default(),
             namespace: None,
             id: "call-1".into(),

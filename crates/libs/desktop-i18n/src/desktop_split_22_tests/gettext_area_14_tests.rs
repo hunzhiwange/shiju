@@ -30,10 +30,10 @@ fn desktop_gettext_area_14_public_helpers_have_catalog_entries() {
     let tw = crate::catalog::parse_catalog(include_str!("../locales/zh-TW.json")).unwrap();
     let calls = regex::Regex::new(r#"\.__\(\s*("(?:[^"\\]|\\.)*")"#).unwrap();
     for source in [
-        include_str!("../../../../vw-desktop/src/app/views/expert_hub/public_skills.rs"),
-        include_str!("../../../../vw-desktop/src/app/views/expert_hub/list.rs"),
+        include_str!("../../../desktop-expert-hub/src/views/public_skills.rs"),
+        include_str!("../../../desktop-expert-hub/src/views/list.rs"),
         include_str!("../../../desktop-expert-hub/src/views/shiju_apps/store.rs"),
-        include_str!("../../../../vw-desktop/src/app/views/expert_hub/shiju_apps/mine.rs"),
+        include_str!("../../../desktop-expert-hub/src/views/shiju_apps/mine.rs"),
     ] {
         for captures in calls.captures_iter(source) {
             let key: String = serde_json::from_str(&captures[1]).unwrap();

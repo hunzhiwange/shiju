@@ -4,7 +4,7 @@
 use iced::Color;
 
 use crate::git_panel::utils::Lang;
-use crate::git_panel::diff_view::{GitDiffLineRange, GitDiffSelectedLine};
+use crate::git_panel::diff_view::{GitDiffLineRange, test_support::GitDiffSelectedLine};
 use crate::DiffTheme;
 use crate::git_panel::diff_view::test_support::Fixture;
 

@@ -102,7 +102,7 @@ fn update_tracks_risk_and_legacy_text_field_changes() {
 }
 
 fn list_snapshots(app: &AutonomySettingsState) -> [Vec<String>; 7] {
-    desktop_settings_security::app_init::state::AUTONOMY_LIST_KINDS.map(|kind| app.list(kind).to_vec())
+    [AutonomyListKind::AllowedCommands, AutonomyListKind::ForbiddenPaths, AutonomyListKind::ShellEnvPassthrough, AutonomyListKind::AutoApprove, AutonomyListKind::AlwaysAsk, AutonomyListKind::AllowedRoots, AutonomyListKind::NonCliExcludedTools].map(|kind| app.list(kind).to_vec())
 }
 
 #[test]
@@ -119,7 +119,7 @@ fn each_autonomy_list_adds_trimmed_values_and_removes_by_index_in_isolation() {
 
     for (kind, input) in cases {
         let mut app = app();
-        for list_kind in desktop_settings_security::app_init::state::AUTONOMY_LIST_KINDS {
+        for list_kind in [AutonomyListKind::AllowedCommands, AutonomyListKind::ForbiddenPaths, AutonomyListKind::ShellEnvPassthrough, AutonomyListKind::AutoApprove, AutonomyListKind::AlwaysAsk, AutonomyListKind::AllowedRoots, AutonomyListKind::NonCliExcludedTools] {
             app.list_mut(list_kind).clear();
         }
         let before = list_snapshots(&app);
@@ -129,7 +129,7 @@ fn each_autonomy_list_adds_trimmed_values_and_removes_by_index_in_isolation() {
 
         let after_add = list_snapshots(&app);
         assert_eq!(app.list(kind), &[input.trim().to_string()]);
-        for other in desktop_settings_security::app_init::state::AUTONOMY_LIST_KINDS {
+        for other in [AutonomyListKind::AllowedCommands, AutonomyListKind::ForbiddenPaths, AutonomyListKind::ShellEnvPassthrough, AutonomyListKind::AutoApprove, AutonomyListKind::AlwaysAsk, AutonomyListKind::AllowedRoots, AutonomyListKind::NonCliExcludedTools] {
             if other != kind {
                 assert_eq!(after_add[other.index()], before[other.index()]);
             }
@@ -199,7 +199,7 @@ fn structured_lists_are_cloned_directly_into_persisted_autonomy_config() {
 
     apply_autonomy_settings_to_config(&app, &mut config);
 
-    for kind in desktop_settings_security::app_init::state::AUTONOMY_LIST_KINDS {
+    for kind in [AutonomyListKind::AllowedCommands, AutonomyListKind::ForbiddenPaths, AutonomyListKind::ShellEnvPassthrough, AutonomyListKind::AutoApprove, AutonomyListKind::AlwaysAsk, AutonomyListKind::AllowedRoots, AutonomyListKind::NonCliExcludedTools] {
         assert_eq!(config_list(&config, kind), app.list(kind));
     }
 }

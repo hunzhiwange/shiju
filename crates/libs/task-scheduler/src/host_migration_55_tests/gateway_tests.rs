@@ -1,6 +1,7 @@
 //! 测试网关执行器的请求转换、流事件处理、取消与结果归档。
 //! 脚本化事件流覆盖完成、失败与取消，确保最终归档不依赖用户可见文本解析。
 
+use crate::runner::gateway_request::{GATEWAY_STREAM_DELTA_LOG_LIMIT, GATEWAY_STREAM_FIELD_LOG_LIMIT};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};

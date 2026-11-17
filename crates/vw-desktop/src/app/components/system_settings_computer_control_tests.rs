@@ -1,4 +1,5 @@
 //! Deferred focused coverage for task 19; no backend execution is inferred from a toggle.
+use desktop_settings_security::computer_control_state::ComputerControlSettingsState;
 use super::*;
 use crate::app::message::settings::computer_control::update;
 use crate::app::App;

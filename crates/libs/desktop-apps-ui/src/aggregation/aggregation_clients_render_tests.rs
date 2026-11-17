@@ -29,7 +29,7 @@ async fn aggregation_t62_real_draw_and_click_in_both_themes() {
     use iced_runtime::user_interface::{Cache, UserInterface};
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for f in crate::fonts::load_all() {
+        for f in desktop_assets::fonts::load_all() {
             fonts.load_font(f);
         }
     }

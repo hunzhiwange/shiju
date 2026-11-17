@@ -21,7 +21,7 @@ fn attachment_button_and_strip_reflect_empty_and_populated_app_files() {
         &files,
         max_images,
         max_size,
-        crate::input_panel::styles::round_icon_button_style,
+        crate::input_panel::styles::square_icon_button_style,
     );
     assert_size(&button, Length::Shrink, Length::Shrink);
     drop(button);
@@ -47,7 +47,7 @@ fn attachment_button_clamps_multimodal_limits_while_counting_images() {
         &files,
         max_images,
         max_size,
-        crate::input_panel::styles::round_icon_button_style,
+        crate::input_panel::styles::square_icon_button_style,
     );
     assert_size(&lower_clamped, Length::Shrink, Length::Shrink);
     drop(lower_clamped);
@@ -59,7 +59,7 @@ fn attachment_button_clamps_multimodal_limits_while_counting_images() {
         &files,
         max_images,
         max_size,
-        crate::input_panel::styles::round_icon_button_style,
+        crate::input_panel::styles::square_icon_button_style,
     );
     assert_size(&upper_clamped, Length::Shrink, Length::Shrink);
 }

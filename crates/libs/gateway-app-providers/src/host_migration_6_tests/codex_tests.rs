@@ -37,7 +37,7 @@ async fn cc04_codex_sdk_api_profile_refusal_is_redacted_and_readonly() {
         meta: None,
         request_options: None,
     };
-    const TOKEN: &str = "fixture-config-reader-token-over-32-chars";
+
     for live in [
         "# user comment\n[projects.fixture]\ntrust_level='trusted'\n",
         "profile='active'\n[profiles.active]\nmodel_provider='other'\n",
@@ -94,3 +94,5 @@ pub(super) fn policy(root: &Path) -> std::path::PathBuf {
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
     path
 }
+
+const TOKEN: &str = "fixture-config-reader-token-over-32-chars";

@@ -3,32 +3,7 @@ mod acp_fixture;
 mod acp_view;
 mod catalog_fixture;
 mod catalog_view;
-impl desktop_chat_view::message_view::markdown_selection::SelectionMessage
-    for crate::message::Event
-{
-    fn none() -> Self {
-        Self::None
-    }
-    fn copy(text: String) -> Self {
-        Self::CopyText(text)
-    }
-    fn context(effect: desktop_ui_controls::text_editor_context_menu::TextContextEffect) -> Self {
-        match effect {
-            desktop_ui_controls::text_editor_context_menu::TextContextEffect::Copy(text) => {
-                Self::CopyText(text)
-            }
-            desktop_ui_controls::text_editor_context_menu::TextContextEffect::OpenUrl(url) => {
-                Self::OpenUrlExternal(url)
-            }
-            desktop_ui_controls::text_editor_context_menu::TextContextEffect::Append(text) => {
-                Self::AppendText(text)
-            }
-        }
-    }
-    fn selection(_: String, _: usize, _: usize, _: Option<String>) -> Self {
-        unreachable!("plain help has no chat selection")
-    }
-}
+
 fn selectable_help<'a>(
     i18n: desktop_i18n::I18n,
     theme: Option<&iced::Theme>,

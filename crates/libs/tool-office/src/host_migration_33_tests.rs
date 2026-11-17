@@ -372,7 +372,7 @@ async fn cc_control_14_document_approval_is_scoped_and_explicit_deny_is_preserve
         .set_grant(&local_user(), GrantScope::ExcelDocument("book".into()), None)
         .unwrap();
     let seen = Arc::new(parking_lot::Mutex::new(Vec::new()));
-    let mut hooks = agent_hooks::new_hook_runner();
+    let mut hooks = agent_hooks::HookRunner::new();
     hooks.register(Box::new(DocumentApproval(seen.clone())));
     let context = Arc::new(f.context.as_ref().clone().with_hook_runner(Arc::new(hooks)));
     tool_context::context::scope_tool_use_context(context.clone(), f.tools[0].check_permissions(&request))

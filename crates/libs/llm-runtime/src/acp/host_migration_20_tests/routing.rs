@@ -199,7 +199,7 @@ for line in sys.stdin:
     )
     .unwrap();
     let agent = "local-fixture";
-    let mut config = serde_json::to_value(agent_config::Config::default()).unwrap();
+    let mut config = serde_json::to_value(agent_config::runtime::Config::default()).unwrap();
     config["acp"] = json!({agent: {"command":"python3", "args":[&script, &calls, &reject]}});
     let config = serde_json::from_value(config).unwrap();
     super::REQUEST_CONFIG.scope(config, async {

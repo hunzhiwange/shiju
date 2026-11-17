@@ -32,7 +32,7 @@ async fn cron_wecom_form_renders_add_edit_and_configuration() {
         for channel in ["wecom", "wecom_webhook"] {
             let draft = if editing { &mut state.edit_draft } else { &mut state.add_draft };
             draft.delivery_enabled = true;
-            draft.select_delivery_channel(channel.into());
+            draft.delivery_channel = channel.into();
             state.save_error = Some("配置失败，请检查连接后重试。".repeat(20));
             for theme in [Theme::Dark, Theme::Light] {
                 for (width, height) in [(800, 720), (480, 600)] {

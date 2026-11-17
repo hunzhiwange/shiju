@@ -323,19 +323,19 @@ fn session_tool_create_event_requests_visible_session_refresh() {
     };
 
     assert_eq!(
-        crate::message::chat::stream::session_tool_created_session(&event),
+        crate::message::chat::stream::tool_session::session_tool_created_session(&event),
         Some(("task-visible-1".to_string(), Some("/project".to_string())))
     );
 
     let mut failed = event.clone();
     failed.status = gateway_chat_stream::GatewayChatToolStatus::Failed;
-    assert!(crate::message::chat::stream::session_tool_created_session(&failed).is_none());
+    assert!(crate::message::chat::stream::tool_session::session_tool_created_session(&failed).is_none());
     let mut other_action = event;
     other_action.payload["output"] = serde_json::Value::String(
         "{\"action\":\"send\",\"session_id\":\"task-visible-1\"}".to_string(),
     );
     assert!(
-        crate::message::chat::stream::session_tool_created_session(&other_action).is_none()
+        crate::message::chat::stream::tool_session::session_tool_created_session(&other_action).is_none()
     );
 }
 

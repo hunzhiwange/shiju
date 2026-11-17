@@ -49,6 +49,7 @@ agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usag
 libc = "0.2"
 
 [dev-dependencies]
+vw-api-tools = { path = "../api-tools", version = "0.6.0" }
 plugin-mcp = { path = "../plugin-mcp", version = "0.6.0", features = ["test-support"] }
 clap = { version = "4.5", features = ["derive"] }
 acp-config = { path = "../acp-config", version = "0.6.0" }

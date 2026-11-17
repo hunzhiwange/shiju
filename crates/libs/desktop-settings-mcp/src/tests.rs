@@ -172,7 +172,7 @@ fn status_and_toolbar_elements_build_for_enabled_disabled_and_active_tabs() {
         status_badge(config_ui::DesktopLocale::SimplifiedChinese, Some(&connected), true);
     let _: iced::Element<'static, Message> =
         status_badge(config_ui::DesktopLocale::SimplifiedChinese, None, false);
-    let _ = toolbar_button("disabled", None);
+    let _ = toolbar_button::<Message>("disabled", None);
     let _ = toolbar_button(
         "refresh",
         Some(McpMessage::Refresh),

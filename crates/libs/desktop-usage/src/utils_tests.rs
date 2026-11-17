@@ -82,7 +82,7 @@ fn icon_and_tooltip_style_helpers_cover_theme_and_status_branches() {
 #[test]
 fn section_title_kv_icon_svg_and_icon_button_build_expected_structure() {
     let title = super::section_title("用量");
-    let kv = super::kv("总 token", "42".to_string());
+    let kv = super::kv::<()>("总 token", "42".to_string());
     let icon: Element<'_, Message> = super::icon_svg(Icon::Copy).into();
     let button = super::icon_btn(Icon::FolderOpen, "打开", ());
 

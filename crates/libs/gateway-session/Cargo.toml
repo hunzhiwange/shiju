@@ -5,12 +5,13 @@ edition = "2024"
 license = "MIT"
 
 [features]
-test-support = ["tokio/process", "tokio/rt-multi-thread", "tokio/net", "tokio/time", "dep:url", "dep:rusqlite", "dep:reqwest", "dep:parking_lot", "dep:llm-runtime", "dep:tower", "dep:futures-util", "dep:hex", "dep:sha2", "dep:uuid", "dep:agent-storage", "dep:tempfile", "dep:vw-api-todo", "dep:agent-env", "dep:agent-config", "dep:model-types", "dep:async-trait"]
+test-support = ["dep:acp-agent-registry", "tokio/process", "tokio/rt-multi-thread", "tokio/net", "tokio/time", "dep:url", "dep:rusqlite", "dep:reqwest", "dep:parking_lot", "dep:llm-runtime", "dep:tower", "dep:futures-util", "dep:hex", "dep:sha2", "dep:uuid", "dep:agent-storage", "dep:tempfile", "dep:vw-api-todo", "dep:agent-env", "dep:agent-config", "dep:model-types", "dep:async-trait"]
 
 [lib]
 doctest = false
 
 [dependencies]
+acp-agent-registry = { path = "../acp-agent-registry", version = "0.6.0", optional = true }
 anyhow = "1"
 session-info = { path = "../session-info", version = "0.6.0" }
 session-ui-types = { path = "../session-ui-types", version = "0.6.0" }

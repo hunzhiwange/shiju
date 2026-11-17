@@ -42,6 +42,7 @@ libc = "0.2"
 tokio = { version = "1", features = ["io-util", "process", "time"] }
 
 [dev-dependencies]
+serde_yaml = "0.9"
 tempfile = "3"
 app-auth = { path = "../app-auth", features = ["test-support"] }
 app-launch = { path = "../app-launch" }

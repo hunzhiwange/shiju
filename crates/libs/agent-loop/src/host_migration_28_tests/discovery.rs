@@ -71,15 +71,15 @@ impl Tool for DiscoveryFileTool {
     }
 }
 
-fn discovery_tools(workspace: &std::path::Path) -> Vec<Box<dyn Tool>> {
+fn discovery_tools<H: tool_assembly::tool_search::SearchHost>(workspace: &std::path::Path) -> Vec<Box<dyn Tool>> {
     use tool_assembly::discovery::ToolDiscoveryCatalog;
-    use tool_assembly::tool_search::ToolSearchTool;
+    use tool_assembly::tool_search::ContextToolSearchTool;
     let mut tools: Vec<Box<dyn Tool>> = vec![
         Box::new(DiscoveryFileTool { id: DISCOVERY_LEDGER, path: workspace.join("ledger") }),
         Box::new(DiscoveryFileTool { id: DISCOVERY_QUEUE, path: workspace.join("queue") }),
     ];
     let catalog = ToolDiscoveryCatalog::new(tools.iter().map(|tool| tool.spec()).collect());
-    tools.push(Box::new(ToolSearchTool::new(&catalog)));
+    tools.push(Box::new(ContextToolSearchTool::<H>::new(&catalog)));
     tools
 }
 
@@ -194,7 +194,7 @@ async fn run_discovery_loop<H>(
 ) -> Vec<ChatMessage>
 where
     H: AgentHost,
-    H::Context: tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot, ToolDiscoverySession = ToolDiscoverySession>,
+    H::Context: tool_assembly::tool_search::SearchHost + tool_services::BatchHost + ContextHost<ToolCatalog = ToolCatalog, ToolCatalogSnapshot = ToolCatalogSnapshot>,
 {
     let mut history = vec![ChatMessage::user("inspect ledger")];
     assert_eq!(

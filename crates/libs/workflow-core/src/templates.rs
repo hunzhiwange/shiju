@@ -105,3 +105,7 @@ pub(super) fn validate_template_yaml(
         None => Ok(VideoEditTemplateOptions::default()),
     }
 }
+
+#[cfg(test)]
+#[path = "templates_tests.rs"]
+mod tests;

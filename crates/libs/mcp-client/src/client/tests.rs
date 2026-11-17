@@ -135,7 +135,7 @@ fn mcp_unsupported_client_capability_error_identifies_rejected_capability() {
 async fn noop_client_rejects_unsupported_server_requests_through_rmcp_transport() {
     let sampling_error = run_noop_client_request(
         ServerRequest::CreateMessageRequest(CreateMessageRequest::new(CreateMessageRequestParam {
-            messages: vec![SamplingMessage { role: Role::User, content: Content::text("hello") }],
+            messages: vec![SamplingMessage { role: Role::User, content: rmcp::model::Content::text("hello") }],
             model_preferences: None,
             system_prompt: None,
             include_context: None,

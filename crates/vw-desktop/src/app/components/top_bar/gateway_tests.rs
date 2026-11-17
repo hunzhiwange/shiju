@@ -2,7 +2,7 @@
 //!
 //! 网关夹具覆盖连接中、已连接、断开和错误状态，并检查对应操作是否可用。
 
-use super::manage_plugins_message;
+fn manage_plugins_message() -> crate::app::Message { super::super::mapping::map_message(desktop_navigation::components::top_bar::gateway::manage_plugins_message()) }
 use crate::app::components::system_settings::SystemTab;
 use crate::app::message::settings::{AgentConfigTabMessage, SettingsMessage};
 use crate::app::message::view::MenuType;

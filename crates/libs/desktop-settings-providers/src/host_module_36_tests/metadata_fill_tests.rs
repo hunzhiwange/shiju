@@ -1,8 +1,8 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 use super::{
-    catalog_api::Event,
-    metadata_fill::Event as Fill,
+
+
     model_edits_api_tests::{Fixture, load, row},
 };
 use desktop_provider_apps::state::model_catalog::FillState;
@@ -215,3 +215,6 @@ fn catalog_desktop_fill_commits_exact_revision_and_reports_only_real_changes() {
         });
     }
 }
+
+use crate::catalog_api::Event;
+use crate::metadata_fill::Event as Fill;

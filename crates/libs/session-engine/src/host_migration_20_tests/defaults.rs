@@ -6,7 +6,7 @@ async fn agent_config_cleanup_full_access_acp_preserves_false_and_deny() {
     isolated(async {
     use config_agent_profile::AgentDefault;
     let workspace = tempfile::tempdir().unwrap();
-    let mut cfg = config::schema::Config::default();
+    let mut cfg = config::Config::default();
     let mut agent =
         agent_config::catalog::merged_agent_catalog(&cfg.agents).remove("acp-codex").unwrap();
     agent.defaults.full_access = true;

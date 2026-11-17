@@ -11,7 +11,7 @@ pub fn session_row_highlight_color(theme: &Theme) -> Color {
     }
 }
 
-fn tooltip_bubble_style(_theme: &Theme) -> ContainerStyle {
+pub(crate) fn tooltip_bubble_style(_theme: &Theme) -> ContainerStyle {
     iced::widget::container::Style {
         text_color: Some(Color::WHITE),
         background: Some(Background::Color(Color::from_rgb8(28, 28, 30))),

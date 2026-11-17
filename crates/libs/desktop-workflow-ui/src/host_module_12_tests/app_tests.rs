@@ -426,3 +426,5 @@ fn app_handle_returns_none_for_non_app_messages() {
 
     assert!(app::handle(&mut app.context(), WorkflowMessage::ToggleZoomMenu).is_none());
 }
+
+use iced::Vector;

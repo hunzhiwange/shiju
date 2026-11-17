@@ -117,7 +117,7 @@ fn context(vibewindow_dir: Option<PathBuf>, excluded_tools: Vec<String>) -> Chan
         route_overrides: Arc::new(Mutex::new(HashMap::new())),
         api_key: Some("ctx-key".to_string()),
         api_url: Some("https://ctx.example.test".to_string()),
-        reliability: Arc::new(agent_config::schema::ReliabilityConfig::default()),
+        reliability: Arc::new(Default::default()),
         provider_runtime_options: ProviderRuntimeOptions {
             vibewindow_dir,
             ..ProviderRuntimeOptions::default()
@@ -125,10 +125,10 @@ fn context(vibewindow_dir: Option<PathBuf>, excluded_tools: Vec<String>) -> Chan
         workspace_dir: Arc::new(PathBuf::from(".")),
         message_timeout_secs: 30,
         interrupt_on_new_message: false,
-        multimodal: agent_config::schema::MultimodalConfig::default(),
+        multimodal: Default::default(),
         hooks: None,
         non_cli_excluded_tools: Arc::new(Mutex::new(excluded_tools)),
-        query_classification: agent_config::schema::QueryClassificationConfig::default(),
+        query_classification: Default::default(),
         model_routes: Vec::new(),
         approval_manager: Arc::new(ApprovalManager::from_config(&AutonomyConfig::default())),
     }
@@ -141,7 +141,7 @@ fn defaults(provider: &str, model: &str) -> ChannelRuntimeDefaults {
         temperature: 0.4,
         api_key: Some("cached-key".to_string()),
         api_url: Some("https://cached.example.test".to_string()),
-        reliability: agent_config::schema::ReliabilityConfig::default(),
+        reliability: Default::default(),
     }
 }
 

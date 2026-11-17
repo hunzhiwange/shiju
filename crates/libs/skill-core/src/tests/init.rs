@@ -70,3 +70,5 @@ fn skills_dir_path() {
     // 验证返回路径是否正确
     assert_eq!(dir, PathBuf::from("/home/user/.shiju-harness/skills"));
 }
+
+use std::path::PathBuf;

@@ -302,8 +302,8 @@ async fn ui_refresh_11_preserves_values_and_disabled_states() {
 async fn ui_refresh_11_draft_messages_keep_route_indices_and_values() {
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::English;
-    app.embedding_routes_settings.routes[0].dimensions.clear();
-    app.embedding_routes_settings.routes[0].api_key_input.clear();
+    app.model_routes_settings.routes[0].dimensions.clear();
+    app.model_routes_settings.routes[0].api_key_input.clear();
     app.model_routes_settings.routes[1].priority_input.clear();
     app.query_classification_settings.rules[0].priority_input.clear();
     let mut renderer = renderer().await;

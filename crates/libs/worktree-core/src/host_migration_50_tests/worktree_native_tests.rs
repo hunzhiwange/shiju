@@ -5,7 +5,7 @@
 
 use super::native::{
     CmdResult, candidate, canonical, find_entry, parse_worktree_list, path_exists,
-    resolve_reset_target, run_git, worktree_root,
+    resolve_reset_target, run_git, worktree_root, run_start_scripts,
 };
 use super::{Error, Info};
 use crate::project;

@@ -1,4 +1,6 @@
-use serde_json::json;
+use serde_json::{json, Value};
+use std::path::Path;
+use std::os::unix::fs::PermissionsExt;
 use std::{fs, net::Ipv4Addr};
 use tempfile::TempDir;
 fn host(home: &Path, port: u16) -> Value {

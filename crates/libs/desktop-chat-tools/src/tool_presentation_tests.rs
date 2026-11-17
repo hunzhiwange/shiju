@@ -28,7 +28,7 @@ fn unknown_tool_visual_state_is_neutral() {
     for theme in [Theme::Dark, Theme::Light] {
         assert_eq!(
             tool_visual_state("unknown").color(&theme),
-            crate::presentation::chat_secondary_text_color(&theme)
+            crate::card_style::chat_secondary_text_color(&theme)
         );
     }
 }

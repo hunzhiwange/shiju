@@ -27,21 +27,8 @@ pub fn acp_install_command_for_platform(
     platform: AcpInstallPlatform,
 ) -> Option<(&'static str, &'static [&'static str])> {
     let args: &[&str] = match agent {
-        // Corust uses the operator-installed native ACP binary.
-        "corust-agent" => return None,
         // Native CLI and ShiJu bridge are separate artifacts; no guessed npm installer.
         "aionrs" => return None,
-        // The official omp executable requires Bun >=1.4.4 on the gateway host.
-        "omp" => &["install", "-g", "@oh-my-pi/pi-coding-agent@18.22.0"],
-        // Native Stakpak releases require a pinned, checksum-reviewed platform
-        // mapping before automatic installation. Discover the host CLI instead.
-        "stakpak" => return None,
-        // JetBrains documents native installers, but no pinned/checksum-reviewed
-        // distribution is registered. Discover the operator-installed Junie CLI.
-        "junie" => return None,
-        // Poolside publishes native installers. Until a pinned distribution and
-        // checksums are reviewed, discover an operator-installed pool CLI only.
-        "poolside" => return None,
         "autohand" => {
             return Some(match platform {
                 AcpInstallPlatform::Unix => (
@@ -66,6 +53,12 @@ pub fn acp_install_command_for_platform(
                 ),
             });
         }
+        // Native Snowflake CLI: discover the host installation. Registry archives
+        // currently have no published checksums; do not execute a download script.
+        "cortex-code" => return None,
+        // Corust ships platform archives, not an npm package or reviewed installer.
+        // Discover the host-local corust-agent-acp; never guess a download script.
+        "corust-agent" => return None,
         // Discover the official host CLI. No pinned, checksum-reviewed distribution
         // is registered here; never install a guessed npm package or moving script.
         "devin" => return None,
@@ -73,13 +66,21 @@ pub fn acp_install_command_for_platform(
         // archive checksums in its manifest. Discover an operator-installed harn;
         // never substitute a same-name npm package or an unreviewed installer.
         "harn" => return None,
-        // Native Snowflake CLI: discover the host installation. Registry archives
-        // currently have no published checksums; do not execute a download script.
-        "cortex-code" => return None,
-        "mimo-code" => &["install", "-g", "@mimo-ai/cli@0.1.17"],
+        // JetBrains documents native installers, but no pinned/checksum-reviewed
+        // distribution is registered. Discover the operator-installed Junie CLI.
+        "junie" => return None,
+        // Poolside publishes native installers. Until a pinned distribution and
+        // checksums are reviewed, discover an operator-installed pool CLI only.
+        "poolside" => return None,
+        // Native Stakpak releases require a pinned, checksum-reviewed platform
+        // mapping before automatic installation. Discover the host CLI instead.
+        "stakpak" => return None,
         // Discover the official native VT Code CLI. Automatic installation needs
         // a reviewed, pinned platform/checksum mapping, never a same-name npm package.
         "vtcode" => return None,
+        // The official omp executable requires Bun >=1.4.4 on the gateway host.
+        "omp" => &["install", "-g", "@oh-my-pi/pi-coding-agent@18.22.0"],
+        "mimo-code" => &["install", "-g", "@mimo-ai/cli@0.1.17"],
         "amp-acp" => &["install", "-g", "amp-acp@0.12.0"],
         "sigit" => &["install", "-g", "@smbcloud/sigit@1.7.10"],
         "nova" => &["install", "-g", "@compass-ai/nova@1.1.65"],

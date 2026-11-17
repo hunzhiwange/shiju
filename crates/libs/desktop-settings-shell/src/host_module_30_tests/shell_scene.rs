@@ -181,6 +181,7 @@ pub struct FieldContents {
     pub target: Option<Id>,
     pub bounds: Option<Rectangle>,
     pub scroll_translation: Vector,
+    pub scroll_bounds: Option<Rectangle>,
     pub text: Vec<String>,
 }
 
@@ -198,13 +199,14 @@ impl Operation for FieldContents {
     fn scrollable(
         &mut self,
         id: Option<&Id>,
-        _: Rectangle,
+        bounds: Rectangle,
         _: Rectangle,
         translation: Vector,
         _: &mut dyn iced::advanced::widget::operation::Scrollable,
     ) {
         if id == Some(&Id::from(SETTINGS_CONTENT_SCROLL)) {
             self.scroll_translation = translation;
+            self.scroll_bounds = Some(bounds);
         }
     }
 
@@ -260,13 +262,14 @@ impl<Message: SceneMessage + 'static> Scene<'_, Message> {
     }
 
     pub fn help_trigger(&mut self, field: general_fields::GeneralSettingField) -> Point {
-        let translation = self.field_contents(field).scroll_translation;
+        let contents = self.field_contents(field);
+        let translation = contents.scroll_translation;
         let label = self.field_row(field).children().next().unwrap();
         let icon = label.children().nth(1).expect("field question mark").bounds();
         assert_eq!(icon.size(), Size::new(22.0, 22.0));
         let point = icon.center() - translation;
         assert!(
-            self.bounds(PANEL, &[0]).contains(point),
+            contents.scroll_bounds.expect("settings scroll viewport").contains(point),
             "question mark for {} lies outside the scroll viewport: {point:?}",
             field.id
         );

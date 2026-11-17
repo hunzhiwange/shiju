@@ -124,10 +124,12 @@ fn source_wires_each_editor_action_to_query_classification_message() {
     assert!(source.contains("SettingsMessage::NavigateModelRoutes"));
 }
 
-#[derive(Default)]
+
 struct Fixture { pub query_classification_settings: QueryClassificationSettingsState,model_routes: Vec<ModelRoute>, app_theme: iced::Theme }
 fn inputs(app: &Fixture) -> View<'_> {
  View { query_classification_settings: &app.query_classification_settings,model_routes: &app.model_routes, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
  app_theme: &app.app_theme,
  render_help: |_, description, _, _| iced::widget::text(description).into(), }
 }
+
+impl Default for Fixture { fn default() -> Self { Self { query_classification_settings: Default::default(), model_routes: Default::default(), app_theme: iced::Theme::Light } } }

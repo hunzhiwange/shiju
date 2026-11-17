@@ -1,6 +1,14 @@
 use std::collections::HashMap;
 struct LocalSkillsHost;
-impl crate::capability_policy::NativeDefaultsHost for LocalSkillsHost {
+impl crate::admission_host::AdmissionHost for LocalSkillsHost {
+    async fn config() -> anyhow::Result<agent_config::runtime::Config> { anyhow::bail!("local skills fixture has no request config") }
+    fn project() -> Option<String> { None }
+    async fn fork_selectable(_: &str, _: &str) -> anyhow::Result<bool> { anyhow::bail!("local skills fixture has no sessions") }
+    async fn load_binding(_: &str) -> anyhow::Result<Option<crate::agent_binding::AgentBinding>> { anyhow::bail!("local skills fixture has no sessions") }
+    async fn save_binding(_: &str, _: &str, _: &crate::agent_binding::AgentBinding) -> anyhow::Result<()> { anyhow::bail!("local skills fixture has no sessions") }
+    async fn history_agents(_: &str) -> anyhow::Result<Vec<String>> { anyhow::bail!("local skills fixture has no sessions") }
+    async fn agent(_: &str) -> Option<config_agent::AgentDefinitionConfig> { None }
+    async fn default_model() -> anyhow::Result<config_agent_profile::AgentModelReference> { anyhow::bail!("local skills fixture has no default model") }
     fn skills(workspace:&std::path::Path, config:&agent_config::runtime::Config)->HashMap<String,bool> {
         agent_skills::catalog::load_skills_with_config(workspace,&config.skills,false, |_| Vec::new()).iter().map(|skill|(skill.invocation_name().to_string(),true)).collect()
     }

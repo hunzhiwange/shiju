@@ -1,6 +1,6 @@
 use crate::{state::*, messages::PageMessage};
 use iced::Element;
-pub type Message = PageMessage<()>;
+pub type Message = PageMessage<crate::messages::StorageMessage>;
 pub struct Fixture {
     pub memory_settings: MemorySettingsState,
     pub storage_settings: StorageSettingsState,

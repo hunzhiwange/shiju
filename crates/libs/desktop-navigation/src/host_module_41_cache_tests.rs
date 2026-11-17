@@ -1,5 +1,5 @@
 use desktop_chat_input::input_panel::suggestions::State as Suggestions;
-use desktop_session::message::chat::input::FileSearchResult;
+use desktop_session::message::chat::input::file_search::FileSearchResult;
 struct Fixture {
     workspace_state: desktop_workspace::project_state::State<()>,
     input_suggestions: Suggestions,
@@ -51,7 +51,7 @@ impl Fixture {
     }
     fn cached_file_search_entries(
         &self,
-    ) -> &[desktop_session::message::chat::input::FileSearchResult] {
+    ) -> &[desktop_session::message::chat::input::file_search::FileSearchResult] {
         &self.input_suggestions.file_search_cache_entries
     }
 }

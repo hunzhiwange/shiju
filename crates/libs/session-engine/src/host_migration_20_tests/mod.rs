@@ -1,4 +1,4 @@
-use agent_config as config;
+use agent_config::runtime as config;
 use serde_json::{json, Value};
 use acp_types::PermissionMode;
 type ParsedAcpOptions = llm_runtime::acp::options::ParsedAcpOptions<llm_runtime::acp::skill_mounts::MountedSkills>;

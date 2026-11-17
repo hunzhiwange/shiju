@@ -219,6 +219,9 @@ fn masked(source: &[u8]) -> Result<Vec<u8>, PatchError> {
     for (start, kind, end) in tokens.tok_spans {
         use json_five::tokenize::TokType::*;
         if matches!(kind, Whitespace | BlockComment | LineComment) {
+            // json-five 0.3.1 reports a block comment's closing slash as its
+            // end offset, unlike the exclusive offsets of other tokens.
+            let end = if kind == BlockComment { end + 1 } else { end };
             bytes[start..end].fill(b' ');
         }
     }

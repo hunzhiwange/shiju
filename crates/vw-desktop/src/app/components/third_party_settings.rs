@@ -203,3 +203,7 @@ pub(crate) fn overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<
 #[cfg(test)]
 #[path = "third_party_settings_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "third_party_settings_integration_tests.rs"]
+mod integration_tests;

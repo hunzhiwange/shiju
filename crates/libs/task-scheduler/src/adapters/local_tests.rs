@@ -1,4 +1,4 @@
-//! 测试本地分派请求完整保留任务、运行、工作代理与作用域字段。
+//! 测试本地分派请求完整保留任务、运行标识与请求时间字段。
 //! 克隆、相等比较和字段提取共同锁定该纯数据适配层的值语义。
 
 use crate::adapters::local::LocalDispatchRequest;
@@ -8,7 +8,6 @@ use vw_api_transport::common::TimestampMs;
 fn local_dispatch_request(
     task_id: &str,
     run_id: &str,
-    _worker_id: &str,
     requested_at_ms: i64,
 ) -> LocalDispatchRequest {
     LocalDispatchRequest {
@@ -20,7 +19,7 @@ fn local_dispatch_request(
 
 #[test]
 fn local_dispatch_request_preserves_fields() {
-    let request = local_dispatch_request("task-1", "run-1", "worker-1", 123);
+    let request = local_dispatch_request("task-1", "run-1", 123);
 
     assert_eq!(request.task_id.as_str(), "task-1");
     assert_eq!(request.run_id.as_str(), "run-1");
@@ -30,7 +29,7 @@ fn local_dispatch_request_preserves_fields() {
 #[test]
 fn local_dispatch_request_supports_owned_field_extraction() {
     let LocalDispatchRequest { task_id, run_id, requested_at_ms } =
-        local_dispatch_request("task-1", "run-1", "worker-1", 123);
+        local_dispatch_request("task-1", "run-1", 123);
 
     assert_eq!(task_id.as_str(), "task-1");
     assert_eq!(run_id.as_str(), "run-1");
@@ -43,7 +42,7 @@ fn local_dispatch_request_supports_clone_and_equality() {
 
     assert_eq_trait::<LocalDispatchRequest>();
 
-    let request = local_dispatch_request("task-1", "run-1", "worker-1", 123);
+    let request = local_dispatch_request("task-1", "run-1", 123);
     let same = request.clone();
 
     assert_eq!(same, request);
@@ -51,26 +50,23 @@ fn local_dispatch_request_supports_clone_and_equality() {
 
 #[test]
 fn local_dispatch_request_equality_includes_every_field() {
-    let request = local_dispatch_request("task-1", "run-1", "worker-1", 123);
+    let request = local_dispatch_request("task-1", "run-1", 123);
 
-    assert_ne!(local_dispatch_request("task-2", "run-1", "worker-1", 123), request);
-    assert_ne!(local_dispatch_request("task-1", "run-2", "worker-1", 123), request);
-    assert_ne!(local_dispatch_request("task-1", "run-1", "worker-2", 123), request);
-    assert_ne!(local_dispatch_request("task-1", "run-1", "worker-1", 124), request);
+    assert_ne!(local_dispatch_request("task-2", "run-1", 123), request);
+    assert_ne!(local_dispatch_request("task-1", "run-2", 123), request);
+    assert_ne!(local_dispatch_request("task-1", "run-1", 124), request);
 }
 
 #[test]
 fn local_dispatch_request_debug_includes_type_and_fields() {
-    let request = local_dispatch_request("task-1", "run-1", "worker-1", 123);
+    let request = local_dispatch_request("task-1", "run-1", 123);
     let debug = format!("{request:?}");
 
     assert!(debug.contains("LocalDispatchRequest"));
     assert!(debug.contains("task_id"));
     assert!(debug.contains("run_id"));
-    assert!(debug.contains("worker_id"));
     assert!(debug.contains("requested_at_ms"));
     assert!(debug.contains("task-1"));
     assert!(debug.contains("run-1"));
-    assert!(debug.contains("worker-1"));
     assert!(debug.contains("123"));
 }

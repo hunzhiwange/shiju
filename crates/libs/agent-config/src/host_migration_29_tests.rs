@@ -426,3 +426,37 @@ fn acp_onboarding_cortex_code_catalog_binding() {
         serde_json::to_value(entry).unwrap()
     );
 }
+
+#[test]
+fn acp_onboarding_stakpak_builtin_preset_metadata() {
+    let catalog = load_agent_configs(&json!({}));
+    let entry = catalog.get("acp-stakpak").expect("official Stakpak preset");
+    assert!(entry.builtin);
+    assert!(!entry.enabled);
+    assert!(!entry.allow_as_subagent);
+    assert_eq!(entry.label.as_deref(), Some("Stakpak"));
+    assert!(!entry.description.as_ref().unwrap().is_empty());
+    assert!(!entry.recommended_prompts.is_empty());
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "stakpak".into() });
+    assert_eq!(
+        serde_json::to_value(&entry.defaults).unwrap(),
+        serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
+            .unwrap()
+    );
+}
+
+#[test]
+fn acp_onboarding_stakpak_catalog_binding() {
+    let catalog = load_agent_configs(&json!({"agents":{"acp-stakpak":{
+        "provider":"","model":"","enabled":true,"label":"Selected Stakpak","runtime":{"kind":"native"},"builtin":false
+    }}}));
+    let entry = &catalog["acp-stakpak"];
+    assert!(entry.enabled && entry.builtin);
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "stakpak".into() });
+    let saved = serde_json::to_value(&catalog).unwrap();
+    let reloaded = load_agent_configs(&json!({"agents": saved}));
+    assert_eq!(
+        serde_json::to_value(&reloaded["acp-stakpak"]).unwrap(),
+        serde_json::to_value(entry).unwrap()
+    );
+}

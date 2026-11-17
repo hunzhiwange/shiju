@@ -247,6 +247,17 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 }
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
+    // Official native ACP CLI: https://github.com/stakpak/agent
+    // Discover the host installation; do not substitute a same-name npm package.
+    BuiltInAgentDefinition {
+        name: "stakpak",
+        display_name: "Stakpak",
+        command: "stakpak",
+        args: &["acp"],
+        env: &[],
+        local_command_candidates: &["stakpak"],
+        local_args: &["acp"],
+    },
     BuiltInAgentDefinition {
         name: "cortex-code",
         display_name: "Cortex Code",

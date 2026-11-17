@@ -27,6 +27,9 @@ pub fn acp_install_command_for_platform(
     platform: AcpInstallPlatform,
 ) -> Option<(&'static str, &'static [&'static str])> {
     let args: &[&str] = match agent {
+        // Native Stakpak releases require a pinned, checksum-reviewed platform
+        // mapping before automatic installation. Discover the host CLI instead.
+        "stakpak" => return None,
         // JetBrains documents native installers, but no pinned/checksum-reviewed
         // distribution is registered. Discover the operator-installed Junie CLI.
         "junie" => return None,

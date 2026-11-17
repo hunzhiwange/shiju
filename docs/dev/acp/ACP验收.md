@@ -707,3 +707,20 @@ Rust 重型命令均经 scripts/cargo_slot.py 的 slot(number=4)，CARGO_TARGET_
 - 恢复与清理：启动早期首次配置GET超时60秒、curl探测超时15秒，网关就绪后重试成功。首次恢复urllib超时，curl恢复返回HTTP408，均未计成功；重启自有网关后curl PATCH返回HTTP200、退出0、20.886秒，GET重读enabled=false，与基线完整有效智能体配置相等。基线无显式覆盖项，最终保留等效disabled覆盖，不宣称存储字节一致。未改其他预设或默认模型，系统安装保留。自有网关均正常退出0，未重启用户服务、未持有槽位锁。
 - 本次无产品代码修复，复用已验证构建，只运行本次系统API、真实会话、源码/目录快照及文档轻量检查；未运行新单测、Cargo检查、Clippy、桌面编译、整仓构建或额外页面回归，不将历史单测描述为本次证据。
 - 全部原始请求、配置、响应、SSE、快照、源码摘要与本机进程采样仅存 /tmp/shiju-glm-accept-20261117（0700）。没有提交凭据、原始敏感载荷、供应商或宿主二进制。配置接口早期超时/408根因尚未确定，已保留失败证据与成功恢复回读。
+
+
+# Grok Build 验收（2026-11-17）
+
+结论：**已阻塞，未通过**。本次卡在临时网关启动阶段，没有完成系统安装、指定模型会话或文件创建；不将来源接入证据或前序验收当作本次成功。
+
+- 前置：任务26已有 GLM 通过及环境清理记录，来源任务6已不存在；已读 Grok 接入证据、差异清单、只读 plan.md。通过 RustCodeGraph 核对当前 acp-agent-registry 注册、config-acp-install 白名单、agent-config 派生预设及 llm-runtime 驱动。grok 的固定备用/系统安装版本为 @xai-official/grok@1.0.77，本地入口优先 grok agent stdio；acp-grok 派生 builtin=true、backend=grok、默认停用。源码声明 session_model、Responses 中继及 Darwin arm64 审核边界，以上未冒称本次 API 或真实模型通过。
+- 构建：复用任务24/25/26已验证的 shiju 0.6.0，SHA-256 `fd909abe08985bac9cd36f2fbafc465cecaa213f330e367efd29f5b68c1d152c`，复制到本次0700私有目录后复核摘要。构建来源 HEAD f72f5c2e8f00ad7a0927eb8b2cb740e102ba893b，日志在 /tmp/shiju-dimcode-20261117-retry/build.log。Grok 驱动、注册、白名单与派生目录逐文件核对与该来源相同，drivers/mod.rs 摘要与构建时 source-hashes-final.json 相同；未用旧实现推断新实现结果，未占用槽位或重复编译。
+- 两轮自有临时网关使用现有开发配置与回环空闲端口51639、52783，启动参数先由当前 gateway --help 核实。配置基线请求携带 X-Platform-ID=10001、X-Company-ID=100010005、X-Directory=/Users/xiangmin/worker/code/ruejs。两轮 GET /v1/global/config 均客户端退出28、HTTP000，60秒无响应；首轮另一次重试也超时，/health探测15秒超时。重启交接时一次过早连接退出7，未计作有效接口结果。没有取得配置基线，没有提交任何安装、诊断、PATCH 或创建请求。
+- 两次原生进程采样均显示 serve_gateway → all_tools_with_runtime → SkillTool::new_with_runtime_config → accessible_skills → block_on(SkillHost::permission_rules) → scoped thread join 等待；子线程等待 Runtime::block_on 的权限规则 future。当前对应位置为 crates/libs/tool-services/src/skill/mod.rs:684，启动调用在 crates/vw-agent/src/gateway/bootstrap.rs。此为复现等待路径的采样证据，尚未证明完整死锁根因；未关闭技能、降低权限或替换租户/模型来绕过。通用网关启动问题超出本接入验收小修范围，未修改产品代码。
+- Rue.js packages/rue/package.json 存在，acpdemo/grok/ 起初不存在且结束仍不存在。初始 Git 状态已保存；普通文件 SHA-256 快照排除 .git、node_modules、target，前后均6267文件、0差异，未覆盖或创建用户产物。
+- 未执行 installed/agent/acp API 基线、系统安装与真实入口版本核验、普通诊断、模型来源 API、预设启用保存重读、SSE/续传、会话身份/模型绑定及产物源码检查；不能报告供应商安装版本或实际会话终态。未改 enabled 或其他配置，无临时配置需恢复，也没有成功 GET 的恢复证明。没有运行单测、Cargo、Clippy、桌面构建、浏览器、页面构建或额外页面测试；本次仅复用已验证构建并执行API探测、进程采样和文件快照。任务旧引用 .plans/references/rust.md 不存在，本轮未调用 Cargo。
+- 原始请求、响应指标、两次采样、源码/二进制摘要、工作区状态及前后快照仅存本机 /tmp/shiju-grok-accept-20261117（0700），首轮失败文件在 startup-failed/。未提交凭据、完整配置、原始敏感载荷、供应商二进制或 Rue.js 工作区。
+
+清理：首轮自有网关收到SIGTERM后15秒未退出，脚本对自有进程组升级SIGKILL，退出-9；第二轮收到SIGTERM退出0。两个自有PID均已不存在、端口均关闭，没有重启用户服务，没有领取或遗留槽位锁。未修改临时enabled配置，无待恢复配置。
+
+重跑条件：先解决并验证现有开发配置下网关启动的权限规则等待，再使用来源可核验构建从任务27步骤1重跑；保留任务文件为已阻塞，不以静态能力声明或历史测试替代本次端到端证据。

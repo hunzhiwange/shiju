@@ -74,7 +74,8 @@ fn overlays_return_base_dialog_or_help_modal() {
 
 #[test]
 fn view_groups_proxy_fields_into_expected_sections() {
-    let tree = element_tree(content(test_app.into()()));
+    let app = test_app();
+    let tree = element_tree(content(app.inputs()));
 
     assert_eq!(tree.children.len(), 7);
     assert_eq!(tree.children[2].children.len(), 3);

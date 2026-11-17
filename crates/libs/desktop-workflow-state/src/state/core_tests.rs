@@ -488,9 +488,12 @@ fn apply_loaded_replace_loaded_and_select_app_manage_active_entries() {
     let first = loaded_workflow("First", Some(WorkflowViewport { x: 10.0, y: 20.0, zoom: 9.0 }));
     state.apply_loaded(first, (800.0, 600.0));
 
+    // 本例验证应用切换，固定夹具标识以免依赖毫秒时间戳是否碰撞。
+    state.apps[0].id = "first-app".to_string();
+    state.active_app_id = Some("first-app".to_string());
     let first_id = state.active_app_id.clone().expect("first app id");
     assert_eq!(state.apps.len(), 1);
-    assert!(matches!(state.source_name.as_str(), "First" | "Second Dirty"));
+    assert_eq!(state.source_name, "First");
     assert_eq!(state.local_uuid.as_deref(), Some("First-uuid"));
     assert_eq!(state.source_path.as_deref(), Some("/tmp/First.yml"));
     assert_eq!(state.pan, Vector::new(10.0, 20.0));
@@ -504,19 +507,21 @@ fn apply_loaded_replace_loaded_and_select_app_manage_active_entries() {
     let second = loaded_workflow("Second", None);
     state.apply_loaded(second, (800.0, 600.0));
     let second_id = state.active_app_id.clone().expect("second app id");
-    assert_eq!(first_id, second_id);
+    assert_ne!(first_id, second_id);
     assert_eq!(state.apps.len(), 2);
 
     state.source_name = "Second Dirty".to_string();
-    assert!(!state.select_app(&first_id));
-    assert!(matches!(
-        state.apps.iter().find(|app| app.id == second_id).unwrap().meta.name.as_str(),
-        "First" | "Second Dirty"
-    ));
-    assert!(matches!(state.source_name.as_str(), "First" | "Second Dirty"));
+    assert!(state.select_app(&first_id));
+    assert_eq!(
+        state.apps.iter().find(|app| app.id == second_id).unwrap().meta.name,
+        "Second Dirty"
+    );
+    assert_eq!(state.active_app_id.as_deref(), Some(first_id.as_str()));
+    assert_eq!(state.source_name, "First");
     assert!(!state.select_app(&first_id));
     assert!(!state.select_app("missing"));
-    assert!(!state.select_app_by_local_uuid("Second-uuid"));
+    assert!(state.select_app_by_local_uuid("Second-uuid"));
+    assert_eq!(state.active_app_id.as_deref(), Some(second_id.as_str()));
     assert_eq!(state.source_name, "Second Dirty");
 
     let replacement =

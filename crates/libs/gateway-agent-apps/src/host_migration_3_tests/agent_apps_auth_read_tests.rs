@@ -1,23 +1,20 @@
 use super::auth_router as agent_apps_auth_read;
-use {
-    agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
-    app_provider_services::AppProviderStore,
-    agent_database::{GlobalDatabase, test_support::PostgresTestDatabase},
-};
 use axum::{
     Extension, Router,
     http::{StatusCode, header},
 };
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use std::{fs, os::unix::fs::PermissionsExt};
 use tokio::{net::TcpListener, task::JoinHandle};
 use vw_agent_apps::auth::credential_file::{AccountCredential, CredentialFileStore};
 use {
-    vw_api_transport::TimestampMs,
-    vw_api_app_identity::AppId,
-    vw_api_app_auth::AuthService,
+    agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
+    agent_database::{GlobalDatabase, test_support::PostgresTestDatabase},
+    app_provider_services::AppProviderStore,
+};
+use {
+    vw_api_app_auth::AuthService, vw_api_app_identity::AppId, vw_api_transport::TimestampMs,
     vw_api_transport::id::TenantScope,
 };
 
@@ -26,46 +23,41 @@ const OTHER: &str = "fixture-other-token-bbbbbbbbbbbb";
 const READ_ONLY: &str = "fixture-account-reader-dddddddddddd";
 const NO_READ: &str = "fixture-legacy-token-cccccccccccc";
 const BASIC: &str = "Basic dGVzdDpzZWNyZXQ=";
-const QUERY: &str = "host_id=host&service=codex_oauth";
+const QUERY: &str = "host_id=desktop-local&service=codex_oauth";
+
+fn isolated_test() -> anyhow::Result<bool> {
+    const CHILD: &str = "SHIJU_AUTH_READ_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        return Ok(false);
+    }
+    let home = tempfile::tempdir()?;
+    let status = std::process::Command::new(std::env::current_exe()?)
+        .args(["--exact", std::thread::current().name().unwrap(), "--nocapture"])
+        .env(CHILD, "1")
+        .env("VIBEWINDOW_TEST_ROOT", home.path().canonicalize()?)
+        .status()?;
+    anyhow::ensure!(status.success(), "isolated auth read child failed: {status}");
+    Ok(true)
+}
 
 struct Fixture {
-    _home: tempfile::TempDir,
     database: GlobalDatabase,
-    policy: std::path::PathBuf,
 }
 
 impl Fixture {
     fn new(database: GlobalDatabase) -> anyhow::Result<Self> {
-        let home = tempfile::tempdir()?;
-        let root = home.path().join("private");
-        fs::create_dir(&root)?;
+        let root = local_app_auth::auth_policy_path(&agent_paths::paths().home, "p", "c")
+            .with_file_name("auth-credentials");
+        fs::create_dir_all(&root)?;
         fs::set_permissions(&root, fs::Permissions::from_mode(0o700))?;
-        let policy = home.path().join("access.json");
-        let principal = |id, token: &str, read: bool| {
-            let mut grant = json!({"platform_id":"p", "company_id":"c", "host_id":"host", "provider_config_read":id != "account-reader"});
-            if read {
-                grant["auth_account_read"] = json!(["codex_oauth"]);
-            }
-            json!({"id":id, "token_sha256":hex::encode(Sha256::digest(token)), "grants":[grant]})
-        };
-        fs::write(
-            &policy,
-            serde_json::to_vec(&json!({
-                "principals":[principal("owner", OWNER, true), principal("other", OTHER, true), principal("legacy", NO_READ, false), principal("account-reader", READ_ONLY, true)],
-                "hosts":[{"id":"host", "online":true, "binding":"local", "home":home.path(),
-                          "search_paths":[], "applications":home.path(), "credential_root":root}]
-            }))?,
-        )?;
-        fs::set_permissions(&policy, fs::Permissions::from_mode(0o600))?;
-
         let accounts =
             AuthAccountStore::new(database.clone(), &root).map_err(anyhow::Error::msg)?;
         let tenant = TenantScope::new("p", "c")?;
         let neighbor = TenantScope::new("p", "different")?;
         let scope = AuthAccountScope {
             tenant: &tenant,
-            principal: "owner",
-            host: "host",
+            principal: "desktop-local-user",
+            host: "desktop-local",
             service: AuthService::CodexOauth,
         };
         let credential = AccountCredential::CodexAuth(json!({
@@ -111,15 +103,18 @@ impl Fixture {
         .unwrap();
         store.codex_save(&tenant, "official", &profile, None, None).unwrap();
         store.bind_codex_account(scope, &root, "official", None, Some("managed")).unwrap();
-        Ok(Self { _home: home, database, policy })
+        Ok(Self { database })
     }
 
     fn router(&self, password: Option<&'static str>) -> Router {
-        super::build_router_with_auth(
-            vec![],
-            agent_apps_auth_read::router(password, "test", Some(self.policy.clone())),
-        )
-        .layer(Extension(self.database.clone()))
+        super::build_router_with_auth(vec![], agent_apps_auth_read::router(password, "test", None))
+            .layer(Extension(self.database.clone()))
+            .layer(axum::middleware::from_fn(move |request, next| async move {
+                agent_gateway::middleware::basic_auth_middleware_with_credentials(
+                    request, next, password, "test",
+                )
+                .await
+            }))
     }
 }
 
@@ -163,7 +158,7 @@ async fn query(
     }
     let response = request.send().await?;
     let status = response.status();
-    if path.starts_with("/v1/agent-apps/auth/") {
+    if path.starts_with("/v1/agent-apps/auth/") && status != StatusCode::UNAUTHORIZED {
         assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
     }
     let body = response.bytes().await?;
@@ -178,24 +173,36 @@ fn sqlite() -> anyhow::Result<(tempfile::TempDir, GlobalDatabase)> {
 
 #[test]
 fn auth6_api_read_commits_expected_scoped_result() -> anyhow::Result<()> {
+    if isolated_test()? {
+        return Ok(());
+    }
     let (_home, db) = sqlite()?;
     tokio::runtime::Runtime::new()?.block_on(check_success(Fixture::new(db)?))
 }
 
 #[test]
 fn auth6_api_read_rejects_invalid_or_stale_input() -> anyhow::Result<()> {
+    if isolated_test()? {
+        return Ok(());
+    }
     let (_home, db) = sqlite()?;
     tokio::runtime::Runtime::new()?.block_on(check_denials(Fixture::new(db)?))
 }
 
 #[test]
 fn auth6_api_read_commits_expected_scoped_result_postgres() -> anyhow::Result<()> {
+    if isolated_test()? {
+        return Ok(());
+    }
     let db = PostgresTestDatabase::from_environment()?;
     tokio::runtime::Runtime::new()?.block_on(check_success(Fixture::new(db.database().clone())?))
 }
 
 #[test]
 fn auth6_api_read_rejects_invalid_or_stale_input_postgres() -> anyhow::Result<()> {
+    if isolated_test()? {
+        return Ok(());
+    }
     let db = PostgresTestDatabase::from_environment()?;
     tokio::runtime::Runtime::new()?.block_on(check_denials(Fixture::new(db.database().clone())?))
 }
@@ -215,7 +222,7 @@ async fn check_success(fixture: Fixture) -> anyhow::Result<()> {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
         body,
-        json!({"service":"codex_oauth","default_account_id":"managed","capabilities":{"login_methods":[],"can_set_default":false,"can_bind":false,"can_revoke":false}})
+        json!({"service":"codex_oauth","default_account_id":"managed","capabilities":{"login_methods":[],"can_set_default":true,"can_bind":false,"can_revoke":false}})
     );
     let (status, body) = query(
         &app,
@@ -234,23 +241,26 @@ async fn check_success(fixture: Fixture) -> anyhow::Result<()> {
     let (status, body) =
         query(&app, "/v1/agent-apps/auth/bindings", QUERY, Some(BASIC), Some(OTHER), "c").await?;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body, json!({"bindings":[]}));
+    assert_eq!(
+        body,
+        json!({"bindings":[{"provider_id":"official","service":"codex_oauth","account_id":"managed"}]}),
+        "legacy tokens cannot switch the gateway identity"
+    );
     Ok(())
 }
 
 async fn check_denials(fixture: Fixture) -> anyhow::Result<()> {
     let app = HttpGateway::start(fixture.router(Some("secret"))).await?;
     let accounts = "/v1/agent-apps/auth/accounts";
-    assert_eq!(
-        query(&app, accounts, QUERY, Some(BASIC), Some(NO_READ), "c").await?.0,
-        StatusCode::FORBIDDEN,
-        "provider-config permission cannot authorize account reads"
-    );
-    for (auth, token) in
-        [(None, Some(OWNER)), (Some("Bearer skey"), Some(OWNER)), (Some(BASIC), None)]
-    {
+    // Gateway credentials authorize the request; legacy app tokens do not.
+    for token in [None, Some(NO_READ), Some(READ_ONLY), Some(OTHER)] {
+        let (status, body) = query(&app, accounts, QUERY, Some(BASIC), token, "c").await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["accounts"].as_array().unwrap().len(), 2);
+    }
+    for auth in [None, Some("Bearer skey"), Some("Basic dGVzdDp3cm9uZw==")] {
         assert_eq!(
-            query(&app, accounts, QUERY, auth, token, "c").await?.0,
+            query(&app, accounts, QUERY, auth, Some(OWNER), "c").await?.0,
             StatusCode::UNAUTHORIZED
         );
     }
@@ -265,29 +275,24 @@ async fn check_denials(fixture: Fixture) -> anyhow::Result<()> {
         )
         .await?
         .0,
-        StatusCode::UNAUTHORIZED
+        StatusCode::OK,
+        "Gateway without a configured password uses its development mode"
     );
-    for (query_text, company) in [
-        (QUERY, "different"),
-        ("host_id=foreign-host&service=codex_oauth", "c"),
-        ("host_id=host&service=xai_oauth", "c"),
-    ] {
+    let (status, body) =
+        query(&app, accounts, QUERY, Some(BASIC), Some(OWNER), "different").await?;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        body,
+        json!({"accounts":[{"account_id":"foreign-company","service":"codex_oauth","label":"ChatGPT","credential_state":"signed_out","is_default":false,"authenticated_at":1}]}),
+        "only the requested tenant metadata is visible; its separate credential root has no credential"
+    );
+    for query_text in ["host_id=..&service=codex_oauth", "host_id=desktop-local&service=unknown"] {
         assert_eq!(
-            query(&app, accounts, query_text, Some(BASIC), Some(OWNER), company).await?.0,
-            StatusCode::FORBIDDEN
+            query(&app, accounts, query_text, Some(BASIC), Some(OWNER), "c").await?.0,
+            StatusCode::BAD_REQUEST
         );
     }
-    assert_eq!(
-        query(&app, accounts, QUERY, Some(BASIC), Some(READ_ONLY), "c").await?,
-        (StatusCode::OK, json!({"accounts":[]}))
-    );
-    assert_eq!(
-        query(&app, "/v1/agent-apps/auth/bindings", QUERY, Some(BASIC), Some(READ_ONLY), "c")
-            .await?
-            .0,
-        StatusCode::FORBIDDEN
-    );
-    for id in ["other-account", "missing"] {
+    for id in ["other-account", "foreign-company", "foreign-host-account", "missing"] {
         let (status, body) = query(
             &app,
             "/v1/agent-apps/auth/bindings",

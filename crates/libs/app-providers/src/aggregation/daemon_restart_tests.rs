@@ -61,7 +61,16 @@ impl Drop for Child {
 fn real_codex() -> PathBuf {
     std::env::var_os("T29_CODEX_BINARY")
         .map(PathBuf::from)
-        .expect("T29_CODEX_BINARY must point to the installed real Codex CLI")
+        .or_else(|| {
+            std::env::split_paths(&std::env::var_os("PATH")?).find_map(|dir| {
+                let candidate = dir.join("codex");
+                let metadata = fs::metadata(&candidate).ok()?;
+                (metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+                    .then(|| fs::canonicalize(candidate).ok())
+                    .flatten()
+            })
+        })
+        .expect("install Codex CLI on PATH or set T29_CODEX_BINARY to the real CLI")
         .canonicalize()
         .unwrap()
 }

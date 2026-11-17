@@ -21,6 +21,9 @@ async fn mcp_inspect_gets_gateway_inspection_response() {
                 "resource_count": 1,
                 "prompt_count": 1,
                 "tools": [{
+                    "identity": {"namespace": "docs", "name": "search"},
+                    "source": "mcp",
+                    "exposure": "deferred",
                     "id": "mcp__docs__search",
                     "display_name": "docs: search",
                     "description": "Search docs",
@@ -36,6 +39,10 @@ async fn mcp_inspect_gets_gateway_inspection_response() {
 
     assert_eq!(response.servers[0].name, "docs");
     assert_eq!(response.servers[0].tools[0].id.0, "mcp__docs__search");
+    let tool = serde_json::to_value(&response.servers[0].tools[0]).expect("serialize tool");
+    assert_eq!(tool["identity"], json!({"namespace": "docs", "name": "search"}));
+    assert_eq!(tool["source"], "mcp");
+    assert_eq!(tool["exposure"], "deferred");
     assert_eq!(response.servers[0].resources[0]["uri"], "file:///docs/readme.md");
     assert_eq!(response.servers[0].prompts[0]["name"], "review");
     let request = server.take_request();

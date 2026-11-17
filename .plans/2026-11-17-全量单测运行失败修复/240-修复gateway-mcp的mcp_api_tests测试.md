@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号469。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -36,3 +36,11 @@ python3 scripts/cargo_slot.py cargo test -p gateway-mcp --lib 'mcp_api_tests::mc
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 本次执行证据
+
+- 修复测试 JSON 缺少 ToolSpecDto 必填 identity/source/exposure；按真实 mcp_tools_to_specs 输出补齐 docs/search、mcp、deferred 并增加透传断言。未修改共享业务或清单。
+- 修改前、后均执行上述原生精确命令，退出 101，实际运行 0 项；均被既有 rmcp 0.8.5 编译错误（缺 base64/schemars/paste、server 模块被 feature 禁用，共 13 错误）阻断，未取得当前红灯或通过证据。
+- 日志：/tmp/shiju-task240-red.log、/tmp/shiju-task240-after.log。
+- 修改前槽位 3：CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-3；修改后槽位 1：两者均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-1。入口均已退出，保留缓存。
+- git diff --check 定向通过；已审查本任务 diff。既有依赖编译失败不扩展为本任务共享依赖修改。待依赖修复后重跑精确命令，须实际 1 passed 后收尾。

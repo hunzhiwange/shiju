@@ -8,7 +8,7 @@ use agent_app_services::auth_accounts::AuthAccountScope;
 use agent_database::{GlobalDatabase, test_support::PostgresTestDatabase};
 use axum::http::{Method, StatusCode, header};
 use serde_json::{Value, json};
-use std::{fs, path::Path, sync::Arc, time::Instant};
+use std::{fs, os::unix::fs::PermissionsExt, path::Path, sync::Arc, time::Instant};
 use vw_agent_apps::auth::claude_keychain::{ClaudeKeychain, MacOsKeychain};
 use {
     vw_api_app_auth::AuthAccount,
@@ -55,8 +55,41 @@ async fn request(
     Ok((status, serde_json::from_str(&raw).unwrap_or(Value::Null)))
 }
 
+// Gateway execution uses process-local paths, rather than legacy policy roots.
+fn isolated_cancel_test() -> anyhow::Result<bool> {
+    const CHILD: &str = "SHIJU_AUTH_CANCEL_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        return Ok(false);
+    }
+    let root = tempfile::tempdir()?;
+    let home = root.path().canonicalize()?;
+    fs::create_dir(home.join("bin"))?;
+    // Preserve the real OS keychain boundary while isolating application files.
+    let keychain = std::process::Command::new("/usr/bin/security")
+        .arg("default-keychain")
+        .output()?;
+    anyhow::ensure!(keychain.status.success(), "resolve default test keychain");
+    let keychain = String::from_utf8(keychain.stdout)?;
+    let keychain = Path::new(keychain.trim().trim_matches('"'));
+    fs::create_dir_all(home.join("Library/Keychains"))?;
+    std::os::unix::fs::symlink(keychain, home.join("Library/Keychains/login.keychain-db"))?;
+    let status = std::process::Command::new(std::env::current_exe()?)
+        .args(["--exact", std::thread::current().name().unwrap(), "--nocapture"])
+        .env(CHILD, "1")
+        .env("HOME", &home)
+        .env("VIBEWINDOW_TEST_ROOT", &home)
+        .env("PATH", std::env::join_paths([home.join("bin"), "/usr/bin".into(), "/bin".into()])?)
+        .env_remove("CLAUDE_CONFIG_DIR")
+        .status()?;
+    anyhow::ensure!(status.success(), "isolated cancellation child failed: {status}");
+    Ok(true)
+}
+
 #[test]
 fn auth6_api_cancel_commits_expected_scoped_result() -> anyhow::Result<()> {
+    if isolated_cancel_test()? {
+        return Ok(());
+    }
     let home = tempfile::tempdir()?;
     let database = GlobalDatabase::for_home(home.path())?;
     tokio::runtime::Runtime::new()?.block_on(check_cancel(home.path(), database))
@@ -64,6 +97,9 @@ fn auth6_api_cancel_commits_expected_scoped_result() -> anyhow::Result<()> {
 
 #[test]
 fn auth6_api_cancel_commits_expected_scoped_result_postgres() -> anyhow::Result<()> {
+    if isolated_cancel_test()? {
+        return Ok(());
+    }
     let home = tempfile::tempdir()?;
     let database = PostgresTestDatabase::from_environment()?;
     tokio::runtime::Runtime::new()?.block_on(check_cancel(home.path(), database.database().clone()))
@@ -72,8 +108,9 @@ fn auth6_api_cancel_commits_expected_scoped_result_postgres() -> anyhow::Result<
 async fn check_cancel(home: &Path, database: GlobalDatabase) -> anyhow::Result<()> {
     let runtime = Arc::new(Runtime::default());
     let gateway = Gateway::start_with_runtime(home, database, Arc::clone(&runtime)).await?;
+    let program = agent_paths::paths().home.join("bin/claude");
     fs::write(
-        home.join("claude"),
+        &program,
         format!(
             r#"#!/bin/sh
 set -eu
@@ -89,9 +126,12 @@ printf delivered > '{}'
             home.join("delivered").display(),
         ),
     )?;
+    fs::set_permissions(&program, fs::Permissions::from_mode(0o700))?;
+    let claude = "host_id=desktop-local&service=claude_official";
     let (status, started) =
-        gateway.post(FLOWS, CLAUDE, OWNER, json!({"method":"copy_link"})).await?;
+        gateway.post(FLOWS, claude, OWNER, json!({"method":"copy_link"})).await?;
     assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(started["verification_url"], "https://claude.com/cai/oauth/authorize?code=true&state=fixture");
     let flow = started["flow_id"].as_str().unwrap();
     let path = format!("{FLOWS}/{flow}");
     let process = fs::read_to_string(home.join("login-process"))?;
@@ -114,7 +154,7 @@ printf delivered > '{}'
 
     for _ in 0..2 {
         let (status, body) =
-            request(&gateway, Method::DELETE, &path, CLAUDE, OWNER, "c", true).await?;
+            request(&gateway, Method::DELETE, &path, claude, OWNER, "c", true).await?;
         assert_eq!(status, StatusCode::NO_CONTENT, "owner confirms local cancellation: {body}");
         assert_eq!(unsafe { libc::kill(pid, 0) }, -1);
         assert_eq!(std::io::Error::last_os_error().raw_os_error(), Some(libc::ESRCH));
@@ -122,7 +162,7 @@ printf delivered > '{}'
         assert!(MacOsKeychain.read(Some(directory)).unwrap().is_none());
     }
     let (status, snapshot) =
-        request(&gateway, Method::GET, &path, CLAUDE, OWNER, "c", true).await?;
+        request(&gateway, Method::GET, &path, claude, OWNER, "c", true).await?;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
         snapshot,
@@ -132,8 +172,8 @@ printf delivered > '{}'
     let tenant = TenantScope::new("p", "c")?;
     let scope = AuthAccountScope {
         tenant: &tenant,
-        principal: "owner",
-        host: "host",
+        principal: "desktop-local-user",
+        host: "desktop-local",
         service: AuthService::ClaudeOfficial,
     };
     let late_account = AuthAccount {
@@ -158,12 +198,12 @@ printf delivered > '{}'
         Err(AuthErrorCode::Conflict)
     );
     assert_eq!(
-        gateway.post(&format!("{path}/paste"), CLAUDE, OWNER, json!({"pasted":PASTE})).await?.0,
+        gateway.post(&format!("{path}/paste"), claude, OWNER, json!({"pasted":PASTE})).await?.0,
         StatusCode::CONFLICT
     );
     assert!(!home.join("delivered").exists());
     let (status, accounts) =
-        request(&gateway, Method::GET, "/v1/agent-apps/auth/accounts", CLAUDE, OWNER, "c", true)
+        request(&gateway, Method::GET, "/v1/agent-apps/auth/accounts", claude, OWNER, "c", true)
             .await?;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(accounts["accounts"], json!([]));

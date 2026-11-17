@@ -42,13 +42,22 @@ fn slash_input_opens_and_filters_command_palette() {
     ]);
 
     assert_eq!(widget.handle_key_event(key(KeyCode::Char('/'))), V3Action::None);
+    let deadline = widget.next_paste_flush_deadline().expect("slash input flush deadline");
+    assert!(widget.flush_paste_burst_if_due(deadline));
     assert!(widget.command_palette_visible());
     let opened = render(&widget, 80);
     assert!(opened.contains("/help"));
-    assert!(opened.contains("available after session routing is connected"));
+    assert!(
+        opened.split_whitespace().collect::<Vec<_>>().join(" ")
+            .contains("available after session routing is connected"),
+        "{opened}"
+    );
 
     assert_eq!(widget.handle_key_event(key(KeyCode::Char('s'))), V3Action::None);
     assert_eq!(widget.handle_key_event(key(KeyCode::Char('t'))), V3Action::None);
+    if let Some(deadline) = widget.next_paste_flush_deadline() {
+        assert!(widget.flush_paste_burst_if_due(deadline));
+    }
     let filtered = render(&widget, 80);
     assert!(filtered.contains("/status"));
     assert!(!filtered.contains("/help"));
@@ -73,7 +82,11 @@ fn generic_selection_routes_the_stable_item_id() {
     );
 
     let visible = render(&widget, 80);
-    assert!(visible.contains("archived sessions cannot be resumed"));
+    assert!(
+        visible.split_whitespace().collect::<Vec<_>>().join(" ")
+            .contains("archived sessions cannot be resumed"),
+        "{visible}"
+    );
     assert_eq!(
         widget.handle_key_event(key(KeyCode::Enter)),
         V3Action::Select {

@@ -92,6 +92,15 @@ impl BottomPane {
         if matches!(action, V3Action::None) { query_action.unwrap_or(action) } else { action }
     }
 
+    /// Refresh popups after idle input becomes visible in the composer.
+    pub fn flush_paste_burst_if_due(&mut self, now: std::time::Instant) -> bool {
+        let changed = self.composer.flush_paste_burst_if_due(now);
+        if changed {
+            self.sync_popups();
+        }
+        changed
+    }
+
     pub fn handle_paste(&mut self, text: String) -> V3Action {
         let action = self.composer.handle_paste(text);
         self.sync_popups().unwrap_or(action)

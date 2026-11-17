@@ -379,7 +379,7 @@ impl ChatWidget {
         if self.overlay.is_some() {
             return false;
         }
-        self.bottom_pane.composer_mut().flush_paste_burst_if_due(now)
+        self.bottom_pane.flush_paste_burst_if_due(now)
     }
 
     /// 返回本地排队的后续消息数量。

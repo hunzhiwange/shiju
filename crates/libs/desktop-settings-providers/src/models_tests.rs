@@ -117,7 +117,7 @@ fn summarize_models_maps_status_capabilities_limits_and_serialized_detail() {
             "provider",
             "Provider",
             ProviderSource::Config,
-            None,
+            Some("configured"),
             vec![model("provider", "model", "Model", "active")],
         ),
     )]);

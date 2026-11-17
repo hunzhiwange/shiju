@@ -672,10 +672,6 @@ fn assert_channel_help_menu(
     let body = iced::Point::new(icon.x + 29.0, icon.y + 5.0);
     let item_height =
         f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into())) + 10.0;
-    let search = format!(
-        "https://www.google.com/search?q={}",
-        url::form_urlencoded::byte_serialize(description.as_bytes()).collect::<String>()
-    );
     for index in [0.0, 3.0] {
         assert!(
             send(
@@ -691,7 +687,14 @@ fn assert_channel_help_menu(
         assert!(
             match messages.as_slice() {
                 [Message::CopyCode(text)] if index == 0.0 => text == description,
-                [Message::OpenUrlExternal(url)] if index == 3.0 => url == &search,
+                [Message::OpenUrlExternal(url)] if index == 3.0 => {
+                    let url = url::Url::parse(url).expect("search URL");
+                    url.scheme() == "https"
+                        && url.host_str() == Some("www.google.com")
+                        && url.path() == "/search"
+                        && url.fragment().is_none()
+                        && url.query_pairs().collect::<Vec<_>>() == [("q".into(), description.into())]
+                },
                 _ => false,
             },
             "{messages:?}"

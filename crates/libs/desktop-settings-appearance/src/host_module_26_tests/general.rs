@@ -573,11 +573,6 @@ mod tab_appearance {
             Cache::new(),
             &mut renderer,
         );
-        let mut labels = TextBounds::default();
-        ui.operate(&renderer, &mut labels);
-        let title_bounds = labels.0.iter().rfind(|(label, _)| label == i18n.__(title)).unwrap().1;
-        let point = Point::new(title_bounds.x + title_bounds.width + 15.0, title_bounds.center_y());
-        let cursor = mouse::Cursor::Available(point);
         let idle = capture_at_size(
             &mut ui,
             &mut renderer,
@@ -585,6 +580,12 @@ mod tab_appearance {
             mouse::Cursor::Unavailable,
             size,
         );
+        // Redraw resolves responsive modal layout before locating the help icon.
+        let mut labels = TextBounds::default();
+        ui.operate(&renderer, &mut labels);
+        let title_bounds = labels.0.iter().rfind(|(label, _)| label == i18n.__(title)).unwrap().1;
+        let point = Point::new(title_bounds.x + title_bounds.width + 15.0, title_bounds.center_y());
+        let cursor = mouse::Cursor::Available(point);
         assert!(
             send(
                 &mut ui,
@@ -783,7 +784,12 @@ mod tab_appearance {
                 || {
                     crate::system_settings_themes::editor_overlay(
                         &inputs(&app),
-                        gallery::view(&app),
+                        // The host settings page fills the window. A standalone gallery
+                        // shrinks the modal stack and clips the form's help targets.
+                        iced::widget::container(gallery::view(&app))
+                            .width(Length::Fill)
+                            .height(Length::Fill)
+                            .into(),
                     )
                 },
                 name,

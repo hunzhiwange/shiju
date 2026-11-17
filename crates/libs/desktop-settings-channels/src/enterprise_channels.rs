@@ -664,6 +664,12 @@ pub fn qq_panel(app: ViewState<'_>) -> Element<'_, Message> {
 pub fn wecom_panel(app: ViewState<'_>) -> Element<'_, Message> {
     use crate::state::WeComDeliveryMode;
     let mut body = column![
+        settings_group_heading_with_help(
+            I18n::new(app.desktop_locale),
+            app.app_theme,
+            tr(app.desktop_locale, "企业微信"),
+            tr(app.desktop_locale, "企业微信 AI 机器人长连接凭据。"),
+        ),
         text(if app.channels_settings.wecom.is_some() {
             "智能机器人：已配置"
         } else {

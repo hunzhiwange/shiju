@@ -198,6 +198,24 @@ pub fn general_view(app: &Fixture) -> Element<'_, Message> {
         desktop_ui_controls::settings_navigation::GeneralSettingsTab::Themes => {
             crate::system_settings_themes::gallery::view(&self::inputs(app))
         }
+        desktop_ui_controls::settings_navigation::GeneralSettingsTab::Companion => {
+            crate::companion::content(
+                &crate::companion::View {
+                    desktop_locale: app.desktop_locale,
+                    task_pet_visible: false,
+                    task_pet_avatar_kind: 0u8,
+                    preview_scale: 1.0,
+                },
+                [0, 1, 2, 3],
+                |_| Message::None,
+                |_, size| {
+                    desktop_ui_controls::system_settings_common::icon_svg(
+                        desktop_assets::assets::Icon::Robot,
+                        size,
+                    ).into()
+                },
+            )
+        }
         _ => iced::widget::Space::new().into(),
     };
     crate::general::view(&inputs, Message::General, help, page)

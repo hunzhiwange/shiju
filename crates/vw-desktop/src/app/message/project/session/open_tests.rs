@@ -1292,3 +1292,35 @@ fn fork_selection_reopen_hot_cache_uses_fresh_authority() {
     assert_eq!(app.chat_view.chat[0].content, "继承历史");
     assert!(app.current_session_has_started());
 }
+
+#[test]
+fn mobile_session_selection_restores_cached_history_through_desktop_entry() {
+    use crate::app::message::ViewMessage;
+    let mut app = app();
+    let mut target = session_info("mobile-history", 1, 1);
+    target.directory = "/tmp/known-project".into();
+    app.navigation_tabs.project_path = Some(target.directory.clone());
+    app.workspace_state.project_sessions.insert(target.directory.clone(), vec![target.clone()]);
+    app.session_state.sessions = vec![target.clone()];
+    app.session_state.active_session_id = Some("previous".into());
+    app.chat_view.chat = vec![chat_message("previous chat")];
+    app.mobile_layout.drawer_open = true;
+    app.mobile_layout.mine_open = true;
+    app.navigation_tabs.screen = crate::app::Screen::Preview;
+    app.navigation_panels.show_system_settings = true;
+    app.get_session_runtime_mut(&target.id).request_lifecycle.is_requesting = true;
+    app.store_session_chat_snapshot(
+        target.id.clone(),
+        crate::app::session::shared_chat_messages(vec![chat_message("历史会话正文")]),
+        vec![Some("history-message".into())],
+    );
+    let _ = app.update(crate::app::Message::View(ViewMessage::MobileSessionSelected(target.directory, target.id.clone())));
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some(target.id.as_str()));
+    assert_eq!(app.chat_view.chat.len(), 1);
+    assert_eq!(app.chat_view.chat[0].content, "历史会话正文");
+    assert_eq!(app.chat_view.chat_message_ids, vec![Some("history-message".into())]);
+    assert_eq!(app.navigation_tabs.screen, crate::app::Screen::Project);
+    assert!(!app.mobile_layout.mine_open);
+    assert!(!app.mobile_layout.drawer_open);
+    assert!(!app.navigation_panels.show_system_settings);
+}

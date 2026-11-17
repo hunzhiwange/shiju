@@ -732,6 +732,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::MobileBack
         | ViewMessage::MobileChat
         | ViewMessage::MobileSettings
+        | ViewMessage::MobileMine
         | ViewMessage::MobileSettingsTab(_)
         | ViewMessage::MobileProjectSelected(_)
         | ViewMessage::MobileSessionSelected(_, _)
@@ -1115,6 +1116,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::MobileBack
         | ViewMessage::MobileChat
         | ViewMessage::MobileSettings
+        | ViewMessage::MobileMine
         | ViewMessage::MobileSettingsTab(_)
         | ViewMessage::MobileProjectSelected(_)
         | ViewMessage::MobileSessionSelected(_, _)

@@ -239,7 +239,7 @@ fn update_mobile(app: &mut App, message: desktop_navigation::mobile_layout::Mess
  crate::app::message::project::update(app, crate::app::message::ProjectMessage::OpenRecentPressed(path.clone())),
  Task::done(Message::Project(crate::app::message::ProjectMessage::ProjectLoadSessions(path))),
  ]),
- Some(domain::Effect::OpenSession(path, id)) => Task::done(Message::Project(crate::app::message::ProjectMessage::OpenProjectSessionPressed(path, id))),
+ Some(domain::Effect::OpenSession(path, id)) => crate::app::message::project::update(app, crate::app::message::ProjectMessage::OpenProjectSessionPressed(path, id)),
  Some(domain::Effect::CreateSession(path)) => crate::app::message::project::update(app, crate::app::message::ProjectMessage::ProjectCreateSession(path)),
  }
 }

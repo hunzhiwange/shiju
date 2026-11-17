@@ -146,11 +146,15 @@ pub fn update(app: Context<'_>, blocked: bool, message: Message) -> Option<Effec
         }
         Message::ProjectSelected(path) => return Some(Effect::OpenProject(path)),
         Message::SessionSelected(path, id) => {
+            app.mobile.mine_open = false;
+            app.tabs.show_project();
             app.mobile.drawer_open = false;
             app.panels.show_system_settings = false;
             return Some(Effect::OpenSession(path, id));
         }
         Message::NewSession(path) => {
+            app.mobile.mine_open = false;
+            app.tabs.show_project();
             app.mobile.drawer_open = false;
             app.panels.show_system_settings = false;
             return Some(Effect::CreateSession(path));

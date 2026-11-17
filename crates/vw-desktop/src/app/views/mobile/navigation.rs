@@ -119,7 +119,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             let visible = app.navigation_sidebar.work_sidebar_space_task_visible.get(path)
                 .copied().unwrap_or(desktop_workspace::views::project::layout::work_sidebar::presentation::WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE);
             if let Some(sessions) = app.workspace_state.project_sessions.get(path) {
-                for session in sessions.iter().take(visible) {
+                for session in
+                    sessions.iter().filter(|session| session.is_user_navigable()).take(visible)
+                {
                     let selected = app.navigation_tabs.project_path.as_deref()
                         == Some(path.as_str())
                         && app.session_state.active_session_id.as_deref()
@@ -135,9 +137,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 }
             }
             if let Some(sessions) = app.workspace_state.project_sessions.get(path) {
-                if sessions.len() > visible {
+                let total = sessions.iter().filter(|session| session.is_user_navigable()).count();
+                if total > visible {
                     items = items.push(session_row(
-                        &format!("加载更多 · 还有 {} 条", sessions.len() - visible),
+                        &format!("加载更多 · 还有 {} 条", total - visible),
                         ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(path.clone()),
                         false,
                     ));

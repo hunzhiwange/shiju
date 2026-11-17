@@ -135,22 +135,16 @@ fn apply(
             "owner.config",
         )?;
         for key in fields::CODEX_EXCLUSIVE_TOP {
-            if let Some(value) = doc.get(key).and_then(Item::as_value) {
-                outgoing.push(((*key).to_string(), value.clone()));
+            if let Some(value) = doc.get(key).and_then(Item::as_value).and_then(value_from) {
+                outgoing.push(((*key).to_string(), value));
             }
         }
     }
     if let Some(exclusive) = exclusive {
-        outgoing = exclusive
-            .iter()
-            .filter_map(|(key, v)| {
-                let encoded = ::toml::to_string(&serde_json::json!({"v":v})).ok()?;
-                Some((key.clone(), toml(&encoded, "owner").ok()?.get("v")?.as_value()?.clone()))
-            })
-            .collect();
+        outgoing = exclusive.iter().map(|(key, value)| (key.clone(), value.clone())).collect();
     }
     for (key, v) in outgoing {
-        if before.get(&key) == value_from(&v).as_ref() {
+        if before.get(&key) == Some(&v) {
             edits.remove.push(path(&[&key]));
         }
     }

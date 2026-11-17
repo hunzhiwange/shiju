@@ -951,3 +951,10 @@ Rust重型命令经scripts/cargo_slot.py槽位入口串行执行，对应CARGO_T
 - Rue.js源码 `packages/rue/src` 存在；目标 `acpdemo/corust-agent/` 初始不存在且结束未创建。排除.git、node_modules、target的普通文件SHA-256快照6297项、零差异。全局配置结束GET200，完整内容与基线相等；无需恢复写入。仅停止自有网关，退出0、端口关闭。
 - 未运行Cargo、单测、Clippy、页面构建、浏览器或创建后的额外回归；本轮无代码修改与行为修复，前置阻塞，仅文档轻量检查。旧 `.plans/references/rust.md` 不存在，本轮无需编译槽位。任务32保留已阻塞，待系统安装、真实session_model驱动和脱敏接入证据交付后完整重跑。
 - 本次私有证据 `/tmp/shiju-corust-accept-20261118/`，根目录0700，包含原始响应、指标、配置基线及重读、网关日志、构建与当前源码摘要、快照和清理记录；原始配置与敏感载荷不提交。首次基线连接早于网关就绪失败，网关就绪后重新读取成功，未重复提交创建任务。
+
+### Corust 扩大范围重试（2026-11-18）
+
+- 当前共享源码仍无Corust系统安装命令或session_model驱动，未改变模型、租户、引擎或权限策略。本轮进一步查询官方发行源：原Corust-ai仓库重定向到rustingai，官方extension.toml和GitHub最新发行均为v0.6.0。下载Darwin arm64包，按GitHub release asset digest核验SHA-256 `6a74d46f645774f0a7e2a95371bad39d63927e231a34d52d2800c79f508f025f` 一致，仅解出普通文件至0700私有目录，未安装到宿主PATH。官方来源：[发行页](https://github.com/rustingai/corust-agent-release/releases/tag/v0.6.0)、[扩展清单](https://github.com/rustingai/corust-agent-release/blob/main/extension.toml)。
+- 原生--help/--version均退出0但无输出，不能据此推断参数支持。ACP initialize实际成功，protocolVersion=1，agentInfo版本0.1.0（与发行v0.6.0分别记录），唯一认证方法oauth_browser。隔离HOME、本仓库Rue.js cwd下，session/new携带原完整指定模型，返回JSON-RPC -32000 Authentication required。此处model字段不构成选模被支持的证据，未发送prompt或创建任务。
+- 仅检查宿主存在性与环境变量名：无~/.corust目录，CORUST_环境变量数量0；二进制显示CORUST_API_KEY/CORUST_HOME及OAuth入口，但这些静态字符串不能证明外部Alibaba模型可配置。未伪造认证、重定向身份服务、注册账号、自动开启浏览器登录或替换默认模型。当前真正外部前置为获授权的有效Corust认证；即使补齐，仍须证明原指定模型真实请求、系统安装及完整会话产物。
+- 自有原生探针已退出，未启动新网关、未PATCH配置、未系统安装；旧自有网关端口仍关闭。Rue.js与前轮结束快照比较6297项零差异，未创建目标目录。仅文档轻量检查，无代码变更，不运行Cargo、单测、Clippy或页面验证。私有证据 `/tmp/shiju-corust-retry-20261118/`（0700）保存官方manifest、release API、校验包、原生协议请求/响应、退出指标、边界及清理记录；供应商二进制与原始载荷不提交。任务仍已阻塞，待有效认证与模型入口证据后继续。

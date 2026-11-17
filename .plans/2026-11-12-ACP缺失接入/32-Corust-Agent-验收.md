@@ -93,3 +93,7 @@ Rust 编译资源和会话调度按 `.plans/references/rust.md` 的项目覆盖�
 - 私有证据：/tmp/shiju-corust-accept-20261118/（0700）。Rue.js普通文件6297项SHA-256快照零差异，目标目录不存在，自有网关退出0且端口关闭。
 - 未运行Cargo、单测、Clippy、模型会话、页面或浏览器验收；无行为修复，复用已验证产物，仅文档轻量检查。.plans/references/rust.md缺失，本次无需编译槽位。
 - 重跑条件：交付系统安装链路、session_model真实模型驱动与脱敏接入证据后重跑；保留本任务文件，不修改plan.md/prompt.md。
+
+### 扩大范围重试（2026-11-18）
+
+已校验官方v0.6.0 Darwin arm64包SHA-256，原生ACP initialize成功，session/new携带原完整指定模型返回-32000 Authentication required。宿主无~/.corust或CORUST_环境变量，需要有效Corust认证；认证后仍须验证原模型绑定，不能以cli_local替代。未系统安装、未启动新网关、未修改配置，探针已退出，旧网关端口关闭，Rue.js6297项快照零差异。新增证据 /tmp/shiju-corust-retry-20261118/，详见验收文档追加小节。无代码变更，仅文档轻量检查，未运行Cargo或页面验证；保留已阻塞。

@@ -6,10 +6,7 @@ use std::{collections::BTreeMap, str::FromStr};
 use rusqlite::Connection;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use {
-    vw_api_transport::id::ProjectScope,
-    vw_api_usage::*,
-};
+use {vw_api_transport::id::ProjectScope, vw_api_usage::*};
 
 use super::{retention::load_daily_rollups, store::StoredUsageRecord};
 
@@ -107,6 +104,7 @@ impl Default for GroupStats {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderStats {
+    pub app: Option<String>,
     pub provider: UsageProvider,
     pub stats: GroupStats,
 }
@@ -128,10 +126,9 @@ pub fn get_provider_stats(
     let rows = grouped(connection, scope, host, range, filter, false)?;
     rows.into_iter()
         .map(|(key, stats)| {
-            Ok(ProviderStats {
-                provider: serde_json::from_str(&key).map_err(|_| "invalid provider group")?,
-                stats,
-            })
+            let (app, provider) =
+                serde_json::from_str(&key).map_err(|_| "invalid provider group")?;
+            Ok(ProviderStats { app, provider, stats })
         })
         .collect()
 }
@@ -253,9 +250,13 @@ fn grouped(
             let values = &mut performance.first_token_values;
             values.sort_by(f64::total_cmp);
             let n = values.len();
-            performance.first_token_median_ms = if n == 0 { None } else if n % 2 == 0 {
+            performance.first_token_median_ms = if n == 0 {
+                None
+            } else if n % 2 == 0 {
                 Some(values[n / 2 - 1] / 2.0 + values[n / 2] / 2.0)
-            } else { Some(values[n / 2]) };
+            } else {
+                Some(values[n / 2])
+            };
             values.clear();
         }
     }
@@ -275,15 +276,37 @@ fn accumulate(
     if !matches(r, range, filter) {
         return Ok(());
     }
-    let key = if models {
+    let keys = if models {
         let model = [&r.models.pricing_model, &r.models.response_model, &r.models.request_model]
             .into_iter()
             .find_map(|v| v.as_ref().filter(|s| !s.is_empty()));
-        serde_json::to_string(&model)
+        vec![serde_json::to_string(&model).map_err(|_| "invalid usage group")?]
     } else {
-        serde_json::to_string(&r.provider)
+        let apps: std::collections::BTreeSet<_> = r
+            .sources
+            .iter()
+            .filter(|s| filter.app.as_ref().is_none_or(|app| app == &s.app))
+            .map(|s| Some(&s.app))
+            .collect();
+        let apps = if apps.is_empty() { std::collections::BTreeSet::from([None]) } else { apps };
+        apps.into_iter()
+            .map(|app| {
+                serde_json::to_string(&(app, &r.provider)).map_err(|_| "invalid usage group")
+            })
+            .collect::<Result<Vec<_>, _>>()?
+    };
+    for key in keys {
+        accumulate_group(groups, key, r, count, unknown_costs)?;
     }
-    .map_err(|_| "invalid usage group")?;
+    Ok(())
+}
+fn accumulate_group(
+    groups: &mut BTreeMap<String, GroupStats>,
+    key: String,
+    r: &UsageRecord,
+    count: u64,
+    unknown_costs: Option<u64>,
+) -> Result<(), String> {
     let stats = groups.entry(key).or_default();
     stats.counts.total_requests = add(stats.counts.total_requests, count)?;
     if r.billable {
@@ -374,10 +397,13 @@ fn accumulate(
     }
     // Archives intentionally carry no performance samples.
     let relay = r.sources.iter().any(|s| s.kind == UsageSourceKind::Relay);
-    let expected = if relay { UsageMeasurementKind::Measured } else { UsageMeasurementKind::Estimated };
-    let valid = |m: &Option<UsageMeasurement>| m.as_ref()
-        .filter(|m| m.kind == expected && m.value.is_finite() && m.value >= 0.0)
-        .map(|m| m.value);
+    let expected =
+        if relay { UsageMeasurementKind::Measured } else { UsageMeasurementKind::Estimated };
+    let valid = |m: &Option<UsageMeasurement>| {
+        m.as_ref()
+            .filter(|m| m.kind == expected && m.value.is_finite() && m.value >= 0.0)
+            .map(|m| m.value)
+    };
     let first = valid(&r.performance.first_token_ms);
     let latency = valid(&r.performance.latency_ms);
     let performance = if relay { &mut stats.measured } else { &mut stats.estimated };
@@ -395,7 +421,9 @@ fn accumulate(
             if output >= minimum_output {
                 performance.speed_output_tokens = add(performance.speed_output_tokens, output)?;
                 performance.speed_duration_ms += duration;
-                if !performance.speed_duration_ms.is_finite() { return Err("usage duration overflow".into()); }
+                if !performance.speed_duration_ms.is_finite() {
+                    return Err("usage duration overflow".into());
+                }
                 performance.speed_samples = add(performance.speed_samples, 1)?;
             }
         }
@@ -423,3 +451,7 @@ fn accumulate(
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "usage_replica_05_tests.rs"]
+mod usage_replica_05_tests;

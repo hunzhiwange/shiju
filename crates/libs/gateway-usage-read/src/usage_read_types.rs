@@ -100,6 +100,8 @@ pub struct GroupStats {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderStats {
+    #[serde(default)]
+    pub app: Option<String>,
     pub provider: UsageProvider,
     pub stats: GroupStats,
 }

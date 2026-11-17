@@ -31,6 +31,8 @@ vw-api-mcp-network = { path = "../api-mcp-network", version = "0.6.0" }
 vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+sha2 = "0.11"
+hex = "0.4"
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 tokio = { version = "1", features = ["rt-multi-thread", "io-util"] }
 

@@ -13,14 +13,13 @@ use {
 };
 use {gateway_endpoint::{GatewayEndpoint}, gateway_app_lifecycle::{AgentAppsLifecycleError, GatewayAppLifecycleClient}};
 fn terminal(_: Option<&str>, _: &Path, material: &LaunchMaterial) -> Result<(), String> {
-    let result = std::process::Command::new(&material.program)
-        .args(&material.args)
-        .current_dir(&material.cwd)
-        .status()
-        .map_err(|e| e.to_string())?;
-    if !result.success() {
-        return Err("fixture process failed".into());
-    }
+    use std::io::Read;
+    let mut stream = std::os::unix::net::UnixStream::connect(material.cwd.join("io"))
+        .map_err(|_| "fixture attach failed")?;
+    std::thread::spawn(move || {
+        let mut output = Vec::new();
+        let _ = stream.read_to_end(&mut output);
+    });
     Ok(())
 }
 const TOKEN: &str = "lifecycle-fixture-token-with-explicit-write-grants";
@@ -163,7 +162,6 @@ async fn cc_apps_remote_host_isolation_sdk_install_launch_uninstall_and_cancel()
         assert_eq!(selected.wait(&id).await, TaskStatus::Completed);
         assert!(selected.fixture.root.path().join("prefix/bin/codex").exists());
         assert!(!untouched.fixture.root.path().join("prefix/bin/codex").exists());
-        let c = selected.client("a");
         let installations =
             gateway_app_read::GatewayAppReadClient::new(gateway_http::GatewayTransport::new(GatewayEndpoint::new("127.0.0.1", selected.port).with_tenant_scope(TenantScope::new("p", "a").unwrap())).unwrap()).agent_apps_installations_authorized("host", AppId::Codex, TOKEN).await.unwrap();
         let installation_id = installations.installations[0].id.clone();
@@ -186,6 +184,13 @@ async fn cc_apps_remote_host_isolation_sdk_install_launch_uninstall_and_cancel()
                 .is_err()
         );
         settings.agent_apps_launch_authorized("host", &request, TOKEN).await.unwrap();
+        for _ in 0..100 {
+            if std::fs::read_to_string(selected.fixture.root.path().join("launched"))
+                .is_ok_and(|value| value == "launched") {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
         assert_eq!(
             std::fs::read_to_string(selected.fixture.root.path().join("launched")).unwrap(),
             "launched"

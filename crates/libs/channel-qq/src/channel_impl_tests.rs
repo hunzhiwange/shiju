@@ -2,7 +2,7 @@
 
 use super::*;
 use channel_types::{Channel, SendMessage};
-use agent_config::{
+use agent_config::schema::proxy::{
     ProxyConfig, ProxyScope, runtime_proxy_config, set_runtime_proxy_config,
 };
 

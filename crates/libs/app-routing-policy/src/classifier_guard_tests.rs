@@ -1,5 +1,5 @@
 use super::classifier_guard::classifier_retry_loop;
-use serde_json::json;
+use serde_json::{json, Value};
 
 fn failed_turn() -> Value {
     json!({"role":"user", "content":[{

@@ -29,5 +29,6 @@ tracing = "0.1"
 uuid = { version = "1.11", features = ["v4", "js"] }
 
 [dev-dependencies]
+pulldown-cmark = "0.13"
 axum = { version = "0.8.8", features = ["json"] }
 tokio = { version = "1", features = ["net", "io-util", "rt-multi-thread", "test-util"] }

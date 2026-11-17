@@ -49,7 +49,7 @@ fn result() -> McpDistributionResult {
 }
 #[test]
 fn cc_mcp_t46_matrix_draws_chinese_results_and_preserves_runtime_and_acp_selections() {
-    use desktop_settings_apps::system_settings_apps::fixture_catalog::CatalogRow;
+    use desktop_settings_apps::system_settings_apps::catalog::CatalogRow;
     use iced::{
         Font, Renderer, Size, Theme,
         advanced::renderer::{Headless, Style},

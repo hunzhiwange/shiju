@@ -41,7 +41,7 @@ async fn metrics_slider_previews_touch_and_wheel_and_commits_on_touch_release() 
                 Action::CommitMetrics => Action::CommitMetrics,
                 other => panic!("unexpected slider message: {other:?}"),
             })
-            .collect::<Vec<_>>()
+            .collect::<Vec<Action<()>>>()
     };
 
     let pressed =

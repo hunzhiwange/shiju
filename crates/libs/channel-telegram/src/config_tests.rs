@@ -59,7 +59,7 @@ fn telegram_config(allowed_users: Vec<String>) -> TelegramConfig {
 
 async fn seed_system_config(home: &Path, mut config: Config) -> std::path::PathBuf {
     let config_dir = config_runtime_paths::home_config_dir(home);
-    let config_path = config_dir.join("vibewindow.json");
+    let config_path = config_dir.join(config_runtime_paths::CONFIG_JSON_FILENAME);
     config.config_path = config_path.clone();
     config.workspace_dir = config_dir.join("workspace");
     agent_config::runtime_schema::save_config(&config)

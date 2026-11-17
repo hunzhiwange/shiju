@@ -589,12 +589,12 @@ fn ui_refresh_03_renders_model_draft_and_error_with_original_actions() {
                 460.0,
             )
             .await;
-            let inset = modal_card(&scene.node);
-            let card = inset.children().next().expect("inset model card");
+            let card = modal_card(&scene.node);
             let contents = card.children().next().expect("model card contents");
             let footer = contents.children().last().expect("model card actions");
-            let cancel_point = footer.children().nth(1).unwrap().bounds().center();
-            let save_point = footer.children().nth(2).unwrap().bounds().center();
+            assert_eq!(footer.children().count(), 2, "cancel and save actions");
+            let cancel_point = footer.children().next().unwrap().bounds().center();
+            let save_point = footer.children().nth(1).unwrap().bounds().center();
             scene.snapshot(
                 &Theme::Dark,
                 mouse::Cursor::Unavailable,

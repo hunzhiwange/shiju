@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号360。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -36,3 +36,13 @@ python3 scripts/cargo_slot.py cargo test -p desktop-settings-shell --lib 'host_m
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 本次执行证据
+
+- 根因：`modal_card` 已返回卡片，旧测试额外向下一层导致把标题中的错误提示当成 footer；当前 footer 是取消、保存两个按钮，无旧占位节点。
+- 最小修改：移除多余层级，显式断言两个操作，按顺序定位取消和保存；保留 tiny-skia 真实绘制、繁体中文、暗色、遮罩与原消息点击断言。业务实现无需修改。
+- 红灯：原精确命令退出101，执行1项，0 passed / 1 failed，596行 unwrap；日志 `/tmp/shiju-task186-red.log`。槽位6，双缓存路径均 `/Users/xiangmin/worker/code/shiju/target/rust-slot-6`。
+- 复验：同一精确命令退出101，尚未执行测试；日志 `/tmp/shiju-task186-green.log`。槽位4，双缓存路径均 `/Users/xiangmin/worker/code/shiju/target/rust-slot-4`。
+- 外部阻断：`crates/libs/desktop-settings-apps/src/system_settings_apps/list.rs:185` E0425：形参为 `_local_available`，调用使用 `local_available`；该文件存在其他任务未提交改动，等待后重读仍未修复，本任务不覆盖其所有权。
+- 两次入口均已退出并释放自己的槽位；保留缓存。仅目标测试文件变更4增4删，`git diff --check` 通过；未做全量测试、桌面构建。
+- 下一步：共享依赖修复后运行上述原生精确命令，确认1 passed，再删除本编号文件。

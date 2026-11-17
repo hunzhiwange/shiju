@@ -109,7 +109,13 @@ fn spec_and_schema_describe_configured_agents() {
 
     assert_eq!(tool.name(), "AgentTool");
     let description = tool.description();
-    for expected in ["complex", "simple", "parallel", "synthesize"] {
+    for expected in [
+        "distinct, bounded subtask",
+        "independent work has clear net benefit",
+        "handle tightly coupled work directly",
+        "parallel",
+        "synthesize",
+    ] {
         assert!(
             description.contains(expected),
             "AgentTool description should explain {expected}: {description}"

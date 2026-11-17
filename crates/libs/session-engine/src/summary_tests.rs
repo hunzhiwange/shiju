@@ -663,7 +663,9 @@ async fn diff_fallback_includes_untracked_file_as_added() {
     // 创建结束快照（包含未跟踪文件）
     let after = snapshot::track(worktree).expect("track").expect("after hash");
 
-    let session_id = format!("diff-fallback-{}", std::process::id());
+    // part 存储按 message ID 索引，不能与其他测试或历史运行共享固定 ID。
+    let session_id = format!("diff-fallback-{}", uuid::Uuid::new_v4());
+    let message_id = format!("msg_{}", uuid::Uuid::new_v4());
 
     // 在 instance 上下文中执行，确保 worktree_path() 返回正确路径
     instance::provide(worktree, None, move || {
@@ -671,7 +673,7 @@ async fn diff_fallback_includes_untracked_file_as_added() {
             // 构造包含快照对的消息
             let user_msg = message::WithParts {
                 info: message::Info::User(Box::new(message::UserInfo {
-                    id: "msg_1".to_string(),
+                    id: message_id.clone(),
                     session_id: session_id.clone(),
                     time: message::UserTime { created: 1 },
                     summary: None,
@@ -689,7 +691,7 @@ async fn diff_fallback_includes_untracked_file_as_added() {
                         base: message::PartBase {
                             id: "part_start".to_string(),
                             session_id: session_id.clone(),
-                            message_id: "msg_1".to_string(),
+                            message_id: message_id.clone(),
                         },
                         snapshot: Some(baseline),
                     }),
@@ -697,7 +699,7 @@ async fn diff_fallback_includes_untracked_file_as_added() {
                         base: message::PartBase {
                             id: "part_finish".to_string(),
                             session_id: session_id.clone(),
-                            message_id: "msg_1".to_string(),
+                            message_id: message_id.clone(),
                         },
                         reason: "stop".to_string(),
                         snapshot: Some(after),
@@ -731,6 +733,13 @@ async fn diff_fallback_includes_untracked_file_as_added() {
             assert_eq!(untracked_diff.status, Some(snapshot::DiffStatus::Added));
             assert_eq!(untracked_diff.after, "new content\n");
             assert!(untracked_diff.additions > 0);
+
+            for part in &user_msg.parts {
+                message::remove_part(&session_id, &message_id, part.id())
+                    .await
+                    .expect("remove test part");
+            }
+            message::remove_message(&session_id, &message_id).await.expect("remove test message");
         })
     })
     .await

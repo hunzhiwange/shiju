@@ -6,7 +6,7 @@ use super::{
 };
 use agent_gateway::agent_apps_diagnostic_jobs::DiagnosticProbeError;
 use serde_json::{Value, json};
-use std::{fs, future::pending, time::Duration};
+use std::{fs, future::pending, os::unix::fs::PermissionsExt, time::Duration};
 use tokio::{
     io::AsyncReadExt,
     net::{TcpListener, TcpStream},
@@ -27,6 +27,9 @@ async fn cc_route_030_outbound_scan_expected_behavior() {
         [7890, 7891, 1080, 8080, 8888, 3128, 10808, 10809]
     );
     let home = tempfile::tempdir().unwrap();
+    fs::set_permissions(home.path(), fs::Permissions::from_mode(0o700)).unwrap();
+    // Production startup creates the state root before opening diagnostic storage.
+    fs::create_dir_all(home.path().join(".local/state/shiju")).unwrap();
     let policy = home.path().join("access.json");
     write_policy(&policy, home.path(), 0);
     let (_gateway, port) = spawn_gateway(home.path(), &policy).await;

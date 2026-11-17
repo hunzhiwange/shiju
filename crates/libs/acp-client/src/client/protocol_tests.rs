@@ -291,6 +291,19 @@ async fn with_connection<R>(
 
 // 下列行为用例覆盖有效响应、无效状态以及协议或通道失败路径。
 #[tokio::test]
+async fn autohand_initialize_delegates_workspace_setup_to_host() {
+    with_connection(TestAgent::new(), async |conn, agent| {
+        AcpClient::new("autohand", AcpAgentConfig {
+            command: "autohand".into(), args: vec!["--acp".into()], env: HashMap::new(),
+        })
+            .initialize_connection(&conn).await.unwrap();
+        let state = agent.state.lock();
+        let request = state.initialize_requests.first().unwrap();
+        assert_eq!(serde_json::to_value(&request.client_capabilities).unwrap()["_meta"]["autohandWorkspaceSetup"], "agent-managed");
+    }).await;
+}
+
+#[tokio::test]
 async fn initialize_connection_sends_client_capabilities_and_info() {
     with_connection(TestAgent::new(), async |conn, agent| {
         client("agent", &[])

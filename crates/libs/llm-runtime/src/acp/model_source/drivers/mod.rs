@@ -1,6 +1,10 @@
 use super::profile::AcpLaunchProfile;
 pub mod amp_acp;
 pub mod auggie;
+pub mod autohand;
+#[cfg(test)]
+#[path = "autohand_tests.rs"]
+mod autohand_tests;
 pub mod claude;
 pub mod codebuddy;
 pub mod codex;
@@ -59,7 +63,8 @@ pub fn capabilities(
     let verified = cfg!(all(target_os = "macos", target_arch = "aarch64"))
         && verified_release(agent).is_some()
         && (!patched
-            || acp_agent_registry::reviewed_agent_command(agent).is_ok_and(|command| command.is_some()));
+            || acp_agent_registry::reviewed_agent_command(agent)
+                .is_ok_and(|command| command.is_some()));
     vec![
         if verified {
             Capability::Supported { source: Source::SessionModel }
@@ -81,6 +86,7 @@ pub fn verified_release(agent: &str) -> Option<&'static str> {
             "0.26.0 (SDK 0.2.96 / Claude Code 2.1.96); 0.31.0 (SDK 0.2.119 / Claude Code 2.1.119)"
         }
         "auggie" => "0.37.1",
+        "autohand" => "0.9.11 (46a28b16)",
         "qoder" => "1.1.88",
         "trae" => "0.121.3",
         "cursor" => "2026.11.11-b912975",
@@ -120,9 +126,9 @@ pub fn source_protocol(
         "amp-acp" | "claude" => P::Messages,
         "codex" | "kiro" | "grok" => P::Responses,
         "gemini" => P::Gemini,
-        "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid" | "codebuddy"
-        | "goose" | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi" | "qoder" | "qwen"
-        | "trae" => P::Chat,
+        "autohand" | "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid"
+        | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi" | "qoder"
+        | "qwen" | "trae" => P::Chat,
         "opencode" => model_transport::routing_selection::client_protocol(api)
             .map_err(|_| anyhow::anyhow!("ACP selected model has no executable HTTP contract"))?,
         "snow" | "kimi" => model_transport::routing_selection::configured_api_protocol(api)
@@ -187,6 +193,7 @@ pub fn configure(
     match agent {
         "amp-acp" => amp_acp::configure(profile, endpoint),
         "auggie" => auggie::configure(profile, endpoint),
+        "autohand" => autohand::configure(profile, endpoint),
         "claude" => claude::configure(profile, endpoint),
         "codex" => codex::configure(profile, endpoint),
         "codebuddy" => codebuddy::configure(profile, endpoint),

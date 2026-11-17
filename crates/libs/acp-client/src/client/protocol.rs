@@ -17,6 +17,12 @@ impl AcpClient {
             capabilities = capabilities
                 .meta(Map::from_iter([("compass.owner-approval.v1".into(), json!(true))]));
         }
+        if self.agent_name == "autohand" {
+            // The host owns workspace preparation and verification. Native ACP
+            // permission callbacks remain active; this does not select yolo mode.
+            capabilities = capabilities
+                .meta(Map::from_iter([("autohandWorkspaceSetup".into(), json!("agent-managed"))]));
+        }
         let response = conn.initialize(
             acp::InitializeRequest::new(acp::ProtocolVersion::V1)
                 .client_info(

@@ -1,8 +1,18 @@
 //! 消息与消息片段的共享类型定义。
 
-use snapshot_types as snapshot;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use snapshot_types as snapshot;
+
+// Tagged enums buffer JSON numbers through deserialize_any. Preserve numeric
+// costs when arbitrary_precision represents them as a private number map.
+fn deserialize_cost<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<f64, D::Error> {
+    let value = Value::deserialize(deserializer)?;
+    value
+        .as_f64()
+        .filter(|value| value.is_finite())
+        .ok_or_else(|| serde::de::Error::custom("expected finite numeric cost"))
+}
 
 /// 用户消息摘要中可附带的文件差异信息。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -122,6 +132,7 @@ pub struct AssistantInfo {
     pub path: PathInfo,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub summary: Option<bool>,
+    #[serde(deserialize_with = "deserialize_cost")]
     pub cost: f64,
     pub tokens: TokenInfo,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -409,6 +420,7 @@ pub struct StepFinishPart {
     pub reason: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snapshot: Option<String>,
+    #[serde(deserialize_with = "deserialize_cost")]
     pub cost: f64,
     pub tokens: TokenInfo,
 }

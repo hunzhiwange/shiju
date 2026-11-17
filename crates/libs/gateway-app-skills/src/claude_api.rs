@@ -28,9 +28,6 @@ impl GatewayAppSkillsClient {
         claude_response(gateway_http::apply_request_context(request, self.transport.endpoint())).await
     }
 }
-fn claude_token(token: &str) -> Result<reqwest::header::HeaderValue, String> {
-    Ok(value)
-}
 async fn claude_response<T: serde::de::DeserializeOwned>(request: reqwest::RequestBuilder)
     -> Result<T, String> {
     let response = request.send().await.map_err(|_| "Claude control transport failed")?;

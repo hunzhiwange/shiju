@@ -7,6 +7,30 @@ use serde_json::{Map, Value, json};
 use super::*;
 use snapshot_types::{DiffStatus, FileDiff};
 
+#[test]
+fn assistant_cost_roundtrips_through_tagged_info() {
+    let info = Info::Assistant(Box::new(assistant_info()));
+    let value = serde_json::to_value(&info).unwrap();
+    let decoded: Info = serde_json::from_value(value).unwrap();
+    assert!(matches!(decoded, Info::Assistant(value) if value.cost == 0.25));
+    let decoded: Info = serde_json::from_str(&serde_json::to_string(&info).unwrap()).unwrap();
+    assert!(matches!(decoded, Info::Assistant(value) if value.cost == 0.25));
+    for invalid in [json!("0.25"), json!({"amount": 0.25})] {
+        let mut value = serde_json::to_value(&info).unwrap();
+        value["cost"] = invalid;
+        assert!(serde_json::from_str::<Info>(&value.to_string()).is_err());
+    }
+}
+
+#[test]
+fn step_cost_roundtrips_through_tagged_part() {
+    let part = Part::StepFinish(StepFinishPart {
+        base: base("step"), reason: "stop".into(), snapshot: None, cost: 1.5, tokens: tokens(),
+    });
+    let decoded: Part = serde_json::from_str(&serde_json::to_string(&part).unwrap()).unwrap();
+    assert!(matches!(decoded, Part::StepFinish(value) if value.cost == 1.5));
+}
+
 fn base(id: &str) -> PartBase {
     PartBase {
         id: id.to_string(),

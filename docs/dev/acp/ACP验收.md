@@ -499,3 +499,52 @@ pnpm exec vite --config acpdemo/qoder/vite.config.mjs
 - 本次源码副本、SHA-256 与工作区初始状态仅存本机 0700 私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-deepagents-blocked-a3la5u4n`；没有保存凭据、配置环境值或供应商二进制。
 
 重跑条件：先交付并验证 DeepAgents 的 session_model 私有中继驱动与真实模型请求证据；使用包含该实现的已验证构建，从任务 23 步骤 1 重新执行。任务文件保留为已阻塞。
+
+
+# Autohand Code 验收（2026-11-17 扩围恢复）
+
+**重跑通过**：保持租户 `10001 / 100010005`、模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`、原生 `autohand` 引擎与宿主权限策略。真实请求取得 `chat.done`，无 `chat.error`，完整文件实际落盘。首轮失败及目录外变化保留在下文，不将首轮记为通过，也不声称最初工作区没有目录外变化。
+
+## 实现与版本
+
+- 用户授权扩围后补齐 `llm-runtime` 的 Autohand Chat 模型驱动、协议路由及固定版本能力条目。私有 0700 启动目录、0600 配置只含短期中继令牌；显式 OpenAI provider/model、环回地址校验、启动参数白名单、环境冲突拒绝和撤销沿用宿主边界。不借用 CLI 默认模型，不传入供应商长期密钥。
+- 固定 CLI `0.9.11 (46a28b16)`，真实入口 `/opt/homebrew/bin/autohand --acp`；入口 JS SHA-256 `339bdb0c8f4f8b7f9076108434d910b2cd5e14f2593b48c0e5858e04e91950eb`。安装后的 OpenAI 提供商源码与本机固定 npm 版本探测源码一致。
+- 补充 Autohand 官方 ACP 扩展 `clientCapabilities._meta.autohandWorkspaceSetup=agent-managed`，将工作区准备及质量检查交由宿主管理，避免完成文件后擅自执行 CLI 默认质量流程；不选择 yolo/automode，不改变权限回调。修复共享消息的带标签 JSON 费用字段在 `serde_json/arbitrary_precision` 下出现 `invalid type: map, expected f64` 的反序列化问题，仍拒绝字符串、普通对象及非有限数值。
+- CLI 构建另遇既有 `gateway-app-skills/src/claude_api.rs` 中无调用者的 `claude_token` 残留函数引用不存在变量 `value`；仅删除该死函数，调用者继续使用已有统一请求上下文。
+- 本轮使用共享工作区的新调试构建，不使用旧二进制判断驱动。最终 `shiju` SHA-256：`180df604cc793f5265bca057861ca01e45e3b29b40c0f4399331833e37f2741b`。构建包含本任务源码；其他并发任务差异未纳入本任务提交，源码摘要另存私有证据。
+
+## 安装、预设及真实会话
+
+- 首次系统安装 API HTTP 200、curl 0、11.580975 秒，安装基线为 false，之后为 true；真实入口版本命令退出 0。新构建重读 installed、agent、acp 配置及模型来源接口均 HTTP 200；重复系统安装 HTTP 200。普通诊断 HTTP 200、`authentication_required`；与私有会话实际连接分开记录。
+- 能力接口确认 Darwin arm64 / `0.9.11 (46a28b16)` 的 session_model supported。内置预设 `acp-autohand`、builtin=true、backend=autohand，原有效 enabled=false；临时 PATCH 为 true 并 GET 确认，结束恢复 false。重跑结束整份配置与本轮基线相等，agent 有效配置也相等。首轮启用前没有该显式覆盖项，保存后留下等效的停用内置配置，不声称首轮配置字节完全一致。
+- 使用任务原请求体及三个指定租户/目录头，不替换模型。成功重跑 HTTP 200、curl 0、149.211335 秒；事件为 context_loaded×1、step_start×1、chat.tool×70（状态事件，非 70 次独立工具调用）、delta×1、session_updated×2、step_finish×1、chat.done×1，chat.error 为 0。
+- 实际响应头会话 `ses_1e8ff4fb2001ecTOwXzRMGyFMW`：运行中及结束后的 summary/options 均 HTTP 200，绑定 `acp-autohand / autohand`、full_access=true；selected_model.source=session_model、provider_id=alibaba-token-plan-cn、完整 model ID 与请求一致。运行中 connected=true，结束 connected=false。未把完全访问请求误称为已审核的供应商 Native 权限支持。
+- 重跑采集器早期误读首轮遗留响应头；已从本轮实际响应头重新提取 ID，绑定结论只采用 `running-*` 和 `actual-final-*` 新查询，不引用旧会话响应；未因此重发聊天请求。
+
+## 产物、边界与清理
+
+- 目标目录 `/Users/xiangmin/worker/code/ruejs/acpdemo/autohand/` 共 8 文件：`README.md`、`index.html`、`vite.config.mjs`、`tsconfig.json`、`src/main.tsx`、`src/Editor.tsx`、`src/env.d.ts`、`src/style.css`。已读取实际源码：本仓库 Rue Vite 别名及编译插件、`@rue-js/rue` 的 useApp/ref/computed/lifecycle、textarea 输入、实时字数及 localStorage 防抖保存和启动恢复均在文件中。说明给出运行入口；没有运行浏览器、页面启动、页面构建或额外页面测试，不将静态检查冒充实际渲染。
+- 初始 SHA-256 快照含 4,378 普通文件，排除 .git/node_modules/target。首轮真实创建文件后收到原生 `session/prompt` internal error，SSE 为 chat.error，没有 chat.done；结束 options 又因费用类型错误返回 HTTP 400。首轮 8 文件与原始证据已归档；确认这些任务自建文件未被外部修改后，移出目标目录再按修复后的实现重跑，未覆盖用户文件。
+- 首轮期间观察到目标外 1,855 文件变化：1,854 新文件、1 个既有文件修改，涉及根 `dist/`、`packages/**/dist/` 等生成输出、`.autohand/memory/index.json`，修改项为 `packages/runtime/__tests__/node-plan-test-utils.d.ts`。固定 CLI 源码确认有默认自动质量流程及项目记忆初始化，但未取得完整原生 stderr，无法排除并发变化，不把全部生成文件强行归因给本会话。完整具体路径与前后摘要在 `first-boundary.json`、`first-after.json`、`first-run/before.json`；未擅自删除这些目录外文件，也不宣称恢复了最初全工作区字节状态。
+- 成功重跑前基线为 6,232 文件，结束 SHA-256 对比仅目标目录 8 文件新增，目录外 0 差异，详见 `before.json`、`after.json`、`boundary.json`。这是本次成功重跑的边界证据，不能替代首轮变化记录。
+- 两次临时网关分别使用独立端口 64991、50326，均已退出 0；结束自有进程存活数 0，自有槽位锁随控制进程退出释放，缓存保留。临时 enabled 配置已恢复并 GET 重读确认。没有主动停止或重启原服务；结束检查原 `127.0.0.1:42617` 连接被拒绝，原 PID 已不存在，其消失原因不在本次已掌握证据内，不能声称原服务健康。
+- 全部原始请求、响应、SSE、配置、快照、首轮产物与探测脚本仅保存在本机 `/tmp/shiju-autohand-20261117-retry`（0700），未提交凭据、完整配置、敏感原始载荷、供应商二进制或 Rue.js 工作区文件。
+
+## Rust 验证
+
+通过 `scripts/cargo_slot.py` 的原子槽位入口执行，未裸运行 Cargo。首个驱动红灯使用槽位 3，之后串行复用槽位 4；两个构建环境变量均为对应绝对路径 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3` 或 `rust-slot-4`。恢复批次实际入口为私有证据中的 `recover.py`（内部持有 `slot(number=4)`），未争用他人锁或清理缓存。下列为槽位内原生子命令；后续复跑应加 `python3 scripts/cargo_slot.py` 入口。
+
+|子命令|退出码|有效结果|
+|---|---:|---|
+|`cargo test -p llm-runtime --lib autohand_selected_model_uses_chat_protocol -- --test-threads=1`|101|1 失败，缺失模型驱动路由|
+|`cargo test -p llm-runtime --lib autohand_ -- --test-threads=1`|0|3 通过：协议、私有配置撤销、覆盖/非环回拒绝|
+|`cargo test -p message-types --features serde_json/arbitrary_precision --lib assistant_cost_roundtrips_ -- --test-threads=1`|101|1 失败，重现 map/expected f64；早期夹具编译错误已修正，不作为业务红灯|
+|`cargo test -p message-types --features serde_json/arbitrary_precision --lib cost_roundtrip -- --test-threads=1`|0|2 通过：助手及步骤费用数值回读，错误类型拒绝|
+|`cargo test -p acp-client --lib autohand_initialize_ -- --test-threads=1`|101 → 0|先以正确 agent 身份重现缺失 metadata 的 1 失败，再 1 通过；早期错误夹具不作为业务证据|
+|`cargo clippy -p message-types -p acp-client --lib --no-deps -- -D warnings`|0|受影响库严格检查通过|
+|`cargo clippy -p llm-runtime --lib --no-deps -- -D warnings`|101|101 项既有诊断（如 result_large_err/collapsible_if），无本次 Autohand 文件诊断；未扩大修复这些无关 lint|
+|`cargo build -p vw-cli --bin shiju`|101 → 0 → 0|首次被既有死函数阻断；删除后通过；消息/握手修复后的最终构建再次通过|
+
+仅格式化修改文件；未运行桌面编译、整仓构建、全量测试、全仓格式检查、全特性 Clippy、wasm 或 Makefile。功能重跑通过不代表上述严格 llm-runtime lint 已通过。
+
+补充检查：删除死函数所涉 `gateway-app-skills` 的定向严格 Clippy 通过 `python3 scripts/cargo_slot.py cargo clippy -p gateway-app-skills --lib --no-deps -- -D warnings` 在槽位 9 执行（两个构建目录变量均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-9`），退出 101，15 项既有 unused token 等诊断；没有修改这些无关调用。此前等待槽位 4 的同一检查尚未取得锁，已仅中断持有本任务私有日志文件的自有排队进程，再经标准入口取得槽位 9；未操作其他任务进程或锁。最后检查结束后自有编译控制进程均已退出，槽位缓存保留。普通诊断首次 curl 退出 0、HTTP 200、2.263259 秒；首轮失败流 curl 退出 0、HTTP 200、155.432666 秒，明确不计为成功。

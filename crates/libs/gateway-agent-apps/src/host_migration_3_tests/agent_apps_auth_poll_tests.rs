@@ -15,12 +15,8 @@ use std::{
 };
 use vw_agent_apps::auth::flow::AuthFlowTiming;
 use {
-    vw_api_transport::TimestampMs,
-    vw_api_app_auth::AuthErrorCode,
-    vw_api_app_auth::AuthFlow,
-    vw_api_app_auth::AuthFlowId,
-    vw_api_app_auth::AuthService,
-    vw_api_app_auth::AuthStartRequest,
+    vw_api_app_auth::AuthErrorCode, vw_api_app_auth::AuthFlow, vw_api_app_auth::AuthFlowId,
+    vw_api_app_auth::AuthService, vw_api_app_auth::AuthStartRequest, vw_api_transport::TimestampMs,
     vw_api_transport::id::TenantScope,
 };
 
@@ -55,18 +51,53 @@ async fn get(
     Ok((status, serde_json::from_str(&raw).unwrap_or(Value::Null)))
 }
 
+fn check_isolated_poll(postgres: bool) -> anyhow::Result<()> {
+    const CHILD_ROOT: &str = "SHIJU_AUTH_POLL_TEST_ROOT";
+    if let Some(root) = std::env::var_os(CHILD_ROOT) {
+        let home = std::path::PathBuf::from(root);
+        let postgres = postgres.then(PostgresTestDatabase::from_environment).transpose()?;
+        let database = match &postgres {
+            Some(fixture) => fixture.database().clone(),
+            None => GlobalDatabase::for_home(&home)?,
+        };
+        return tokio::runtime::Runtime::new()?.block_on(check_poll(&home, database));
+    }
+    // Gateway execution uses runtime paths and PATH, rather than legacy policy hosts.
+    // Set these before process initialization without mutating parallel tests' environment.
+    let home = tempfile::tempdir()?;
+    let path = std::env::join_paths(
+        std::iter::once(home.path().to_path_buf())
+            .chain([std::path::PathBuf::from("/usr/bin"), std::path::PathBuf::from("/bin")]),
+    )?;
+    let name = if postgres {
+        "auth6_api_poll_commits_expected_scoped_result_postgres"
+    } else {
+        "auth6_api_poll_commits_expected_scoped_result"
+    };
+    let status = std::process::Command::new(std::env::current_exe()?)
+        .args([
+            "--exact",
+            &format!("host_migration_3_tests::agent_apps_auth_poll_tests::{name}"),
+            "--nocapture",
+        ])
+        .env(CHILD_ROOT, home.path())
+        .env("VIBEWINDOW_TEST_ROOT", home.path())
+        .env("HOME", home.path())
+        .env("PATH", path)
+        .env_remove("CLAUDE_CONFIG_DIR")
+        .status()?;
+    anyhow::ensure!(status.success(), "isolated poll test failed: {status}");
+    Ok(())
+}
+
 #[test]
 fn auth6_api_poll_commits_expected_scoped_result() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let database = GlobalDatabase::for_home(home.path())?;
-    tokio::runtime::Runtime::new()?.block_on(check_poll(home.path(), database))
+    check_isolated_poll(false)
 }
 
 #[test]
 fn auth6_api_poll_commits_expected_scoped_result_postgres() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let database = PostgresTestDatabase::from_environment()?;
-    tokio::runtime::Runtime::new()?.block_on(check_poll(home.path(), database.database().clone()))
+    check_isolated_poll(true)
 }
 
 async fn check_poll(home: &Path, database: GlobalDatabase) -> anyhow::Result<()> {
@@ -74,6 +105,10 @@ async fn check_poll(home: &Path, database: GlobalDatabase) -> anyhow::Result<()>
     let (status, started) =
         gateway.post(FLOWS, CLAUDE, OWNER, json!({"method":"copy_link"})).await?;
     assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(
+        started["verification_url"],
+        "https://claude.com/cai/oauth/authorize?code=true&state=fixture"
+    );
     let flow = started["flow_id"].as_str().unwrap();
     let path = format!("{FLOWS}/{flow}");
     for _ in 0..2 {
@@ -88,10 +123,9 @@ async fn check_poll(home: &Path, database: GlobalDatabase) -> anyhow::Result<()>
         );
     }
     assert!(!home.join("delivered").exists());
-    assert_eq!(
-        gateway.post(&format!("{path}/paste"), CLAUDE, OWNER, json!({"pasted":PASTE})).await?.0,
-        StatusCode::ACCEPTED
-    );
+    let (status, body) =
+        gateway.post(&format!("{path}/paste"), CLAUDE, OWNER, json!({"pasted":PASTE})).await?;
+    assert_eq!(status, StatusCode::ACCEPTED, "paste response: {body}");
     let approved = tokio::time::timeout(Duration::from_secs(5), async {
         loop {
             let (status, body) = get(&gateway, &path, CLAUDE, OWNER, "c", true).await?;

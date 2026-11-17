@@ -44,6 +44,7 @@ impl HostCleanup {
             let _owner = lock;
             let mut interval = tokio::time::interval(Duration::from_secs(60 * 60));
             interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            let mut next_pass = tokio::time::Instant::now();
             loop {
                 tokio::select! {
                     biased;
@@ -51,9 +52,16 @@ impl HostCleanup {
                     _ = interval.tick() => {},
                     _ = CREATED.notified() => {},
                 }
+                // Coalesce creation bursts, including notifications received during a pass.
+                tokio::select! {
+                    biased;
+                    _ = stopped.cancelled() => break,
+                    _ = tokio::time::sleep_until(next_pass) => {},
+                }
                 if maintain(&stopped).await.is_err() {
                     tracing::warn!("Managed worktree maintenance pass failed");
                 }
+                next_pass = tokio::time::Instant::now() + Duration::from_secs(60);
             }
         });
         Ok(Self { stop })
@@ -64,6 +72,8 @@ async fn maintain(stop: &CancellationToken) -> Result<(), Error> {
         .await
         .map_err(|e| Error::Invalid(e.to_string()))?;
     let mut visited = HashSet::new();
+    let mut registry_failures = 0usize;
+    let mut project_failures = 0usize;
     for key in keys {
         if stop.is_cancelled() {
             break;
@@ -72,7 +82,7 @@ async fn maintain(stop: &CancellationToken) -> Result<(), Error> {
         let records: Vec<registry::Record> = match crate::storage::read(&parts).await {
             Ok(records) => records,
             Err(_) => {
-                tracing::warn!("Managed worktree registry unavailable for cleanup");
+                registry_failures += 1;
                 continue;
             }
         };
@@ -86,22 +96,32 @@ async fn maintain(stop: &CancellationToken) -> Result<(), Error> {
             // Registry metadata never grants access to a project absent from its tenant.
             let scope = record.scope;
             let result = async {
-                let project = crate::project::get(&scope)
-                    .await
-                    .map_err(|e| Error::Invalid(e.to_string()))?
-                    .ok_or_else(|| Error::Invalid("Cleanup project unavailable".into()))?;
+                let Some(project) =
+                    crate::project::get(&scope).await.map_err(|e| Error::Invalid(e.to_string()))?
+                else {
+                    // Removed projects can leave registry receipts; never act on them.
+                    return Ok(());
+                };
                 let settings = crate::config::get_global_for_tenant(scope.tenant_scope())
                     .await
                     .map_err(|e| Error::Invalid(e.to_string()))?
                     .worktree_settings;
                 cleanup::refresh(&scope, std::path::Path::new(&project.worktree), &settings, stop)
-                    .await
+                    .await?;
+                Ok::<(), Error>(())
             }
             .await;
             if result.is_err() {
-                tracing::warn!("Managed worktree project maintenance failed");
+                project_failures += 1;
             }
         }
+    }
+    if registry_failures > 0 || project_failures > 0 {
+        tracing::warn!(
+            registry_failures,
+            project_failures,
+            "Managed worktree maintenance completed with failures"
+        );
     }
     Ok(())
 }

@@ -166,7 +166,8 @@ async fn auth6_logout_rejects_invalid_or_stale_input() {
     let mut rotated = initial.clone();
     rotated["records"][GRANT] = grant("fixture-rotated-grant", ISSUER);
     let path = fixture.credentials.clone();
-    let yaml = serde_yaml::to_string(&rotated).unwrap();
+    // JSON text preserves numeric scalars with arbitrary_precision enabled.
+    let yaml = serde_json::to_string(&rotated).unwrap();
     let attempt = flows
         .start_with_cleanup(
             scope,

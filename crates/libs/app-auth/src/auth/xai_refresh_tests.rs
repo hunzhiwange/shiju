@@ -117,8 +117,9 @@ async fn exchange(
     let request = timeout(Duration::from_secs(5), posted).await.unwrap().unwrap();
     let (headers, body) = request.split_once("\r\n\r\n").unwrap();
     assert!(headers.starts_with("POST /oauth2/token HTTP/1.1\r\n"));
-    assert!(headers.contains("\r\nuser-agent: cc-switch-xai-oauth\r\n"));
-    assert!(headers.contains("\r\ncontent-type: application/x-www-form-urlencoded"));
+    // The final header has no trailing CRLF after splitting off the body.
+    assert!(headers.lines().any(|line| line == "user-agent: cc-switch-xai-oauth"));
+    assert!(headers.lines().any(|line| line == "content-type: application/x-www-form-urlencoded"));
     assert_eq!(
         body,
         "grant_type=refresh_token&client_id=b1a00492-073a-47ea-816f-4c329264a828&refresh_token=refresh-fixture-account&scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess"

@@ -9,9 +9,21 @@ pub mod presentation;
 pub mod settings;
 
 /// 查询值允许负数和零；缺失值由外层 Option 表达。
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[serde(try_from = "f64", into = "f64")]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[serde(into = "f64")]
 pub struct UsageNumber(f64);
+
+impl<'de> Deserialize<'de> for UsageNumber {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        // Internally tagged enums buffer JSON numbers as maps when
+        // serde_json's arbitrary_precision feature is enabled by another crate.
+        let number = serde_json::Number::deserialize(deserializer)?;
+        let value = number
+            .as_f64()
+            .ok_or_else(|| serde::de::Error::custom(NonFiniteUsageNumber))?;
+        Self::try_from(value).map_err(serde::de::Error::custom)
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NonFiniteUsageNumber;

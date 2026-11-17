@@ -35,7 +35,7 @@ async fn cc_route_049_messages_gemini_stream_expected_behavior() {
     let input = wire(&[
         json!({"responseId":"reply","modelVersion":"gemini","candidates":[{"index":0,"content":{"parts":[
             {"text":"private thought","thought":true},{"text":"你"},
-            {"functionCall":{"name":"lookup","args":{"city":"杭州"}},"thoughtSignature":"opaque"},
+            {"functionCall":{"name":"lookup","args":{"city":"杭州"}}},
             {"functionCall":{"id":"","name":"lookup","args":{"city":"上海"}}}]}}]}),
         json!({"candidates":[{"index":0,"content":{"parts":[{"text":"你好"},
             {"functionCall":{"id":"real-id","name":"lookup","args":{"city":"杭州","units":"c"}}},
@@ -104,6 +104,42 @@ async fn cc_route_049_messages_gemini_stream_expected_behavior() {
         json!({"input_tokens":12,"output_tokens":5,"cache_read_input_tokens":8})
     );
     assert_eq!(events.iter().filter(|v| v["type"] == "message_stop").count(), 1);
+}
+
+#[tokio::test]
+async fn signed_tools_require_session_shadow_and_preserve_replay() {
+    use model_relay_state::{ReferenceScope, RelayIdentity};
+    let input = wire(&[
+        json!({"candidates":[{"content":{"parts":[{"functionCall":{"name":"lookup","args":{"city":"杭州"}},"thoughtSignature":"opaque"}]},"finishReason":"STOP"}]}),
+    ]);
+    let rejected = convert(input.clone()).await;
+    assert_eq!(rejected.iter().filter(|v| v["type"] == "error").count(), 1);
+    assert!(!rejected.iter().any(|v| v["type"] == "message_stop"));
+    let context = super::gemini_shadow::Context {
+        store: Default::default(),
+        scope: ReferenceScope::Session(RelayIdentity {
+            tenant: Default::default(), project: "project".into(), session: "session".into(),
+            provider: "provider".into(), model: "client".into(), generation: 1,
+        }),
+        session: "conversation".into(), cancelled: Default::default(),
+    };
+    let body = super::messages_gemini_stream::response_body_with_shadow(
+        Body::from(input), "client".into(), CancellationToken::new(), Some(context.clone()),
+    );
+    let output = to_bytes(body, 65536).await.unwrap();
+    let output = std::str::from_utf8(&output).unwrap();
+    assert!(!output.contains("opaque"));
+    let events = events(output);
+    assert!(!events.iter().any(|v| v["type"] == "error"));
+    assert_eq!(events.iter().filter(|v| v["type"] == "message_stop").count(), 1);
+    let tools: Vec<_> = events.iter().filter(|v| v["content_block"]["type"] == "tool_use").collect();
+    assert_eq!(tools.len(), 1);
+    let mut replay = json!({"contents":[{"role":"model","parts":[{"functionCall":{
+        "id":tools[0]["content_block"]["id"],"name":"lookup","args":{"city":"杭州"}
+    }}]}]});
+    context.replay(&mut replay).unwrap();
+    assert_eq!(replay["contents"][0]["parts"][0]["thoughtSignature"], "opaque");
+    assert!(replay["contents"][0]["parts"][0]["functionCall"].get("id").is_none());
 }
 
 #[tokio::test]

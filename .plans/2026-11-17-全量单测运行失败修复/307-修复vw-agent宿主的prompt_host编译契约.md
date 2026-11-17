@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号6, 7（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -94,3 +94,12 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib base_and_task_plan_pr
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 执行记录
+
+- 2026-11-18：核对真实宿主注册及 tools/toolset：ToolRuntimeContext 是绑定 AgentContextHost 的别名，tool_specs_for_context 由宿主公开导出。仅将测试中两处 tool_types 路径迁移为 crate::tools，保留全部编排与动作枚举断言。
+- 原始诊断6/7为修改前编译红灯；当前其他 Cargo 正在运行，先等待重型编译资源，再执行本任务定向测试。
+- 验证命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib base_and_task_plan_prompts_share_recursive_orchestration_policy -- --nocapture`；已由源码第64行确认是 `#[test]` 入口。
+- 实际使用槽位1，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。日志 `/tmp/shiju-307-before.log`（名称虽为 before，因排队期间先完成最小修复，实际记录修改后编译）。原诊断6/7作为修改前红灯；不声称取得新的修改前测试结果。
+- Cargo 编译失败（退出101；外层等待脚本未透传退出码而返回0），68条其余宿主错误，实际执行测试数0，不能认定行为通过。未再出现 prompt_host.rs 诊断。首项阻塞为 core::build_native_assistant_history_from_parsed_calls 导入不存在，另有 runner_todos、ChannelTaskGuard 等其他编号归属错误。
+- `git diff --check -- crates/libs/agent-loop/src/tests/prompt_host.rs` 通过。槽位入口与自有子进程已退出，未清除其他任务缓存或锁。待其余宿主编译任务修复后，必须重跑以上命令并取得有效数>0、failed=0、退出0，再清理本任务文件。

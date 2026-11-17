@@ -130,11 +130,11 @@ fn base_and_task_plan_prompts_share_recursive_orchestration_policy() {
         );
     }
 
-    let workflow_context = tool_types::ToolRuntimeContext::new(
+    let workflow_context = crate::tools::ToolRuntimeContext::new(
         "workflow-subtask-session",
         Some(temp.path().to_string_lossy().to_string()),
     );
-    let agent_tool = tool_types::tool_specs_for_context(&workflow_context)
+    let agent_tool = crate::tools::tool_specs_for_context(&workflow_context)
         .into_iter()
         .find(|spec| spec.id == "AgentTool")
         .expect("default workflow/goal session toolset should include AgentTool");

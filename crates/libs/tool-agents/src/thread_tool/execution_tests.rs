@@ -105,7 +105,9 @@ async fn wait_threads_registry_reports_child_failure_while_other_target_runs() {
         ids.push(task.info.id);
     }
     let error = json!({"name":"APIError","message":"error decoding response body"}).to_string();
-    coordinator.mark_failed(&context.session, &ids[0], &error).expect("failure");
+    coordinator
+        .finish_turn(&context.session, &ids[0], Some(error.clone()), |_| Ok(()))
+        .expect("failure");
 
     let result = execute_tool_call(
         "wait_threads",

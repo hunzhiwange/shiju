@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：继续执行宿主单测；诊断编号64（宿主编译错误证据.json）。
 预计会话范围：修复一个源码文件中的宿主接口或测试夹具编译契约；不接管整包。
@@ -57,3 +57,12 @@ python3 scripts/cargo_slot.py cargo test -p vw-agent --lib wait_threads_registry
 编译取证命令（不是测试通过证据）：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --no-run`。同阶段顺序命令合并一次入口复用缓存，不默认逐任务全量测试。
 
 最终需由原任务303执行两阶段全量验收；这组修复仅覆盖已发现编译阻塞，尚不能保证宿主全部运行失败已发现。
+
+## 本次实施与验证
+
+- 根因：`session-engine::TaskSessionCoordinator::mark_failed` 带 `#[cfg(test)]`，宿主链接依赖时不可用。测试改用等价公开接口 `finish_turn(..., Some(error.clone()), |_| Ok(()))`，不修改生产接口及原有断言。
+- 已核实过滤名称对应 `#[tokio::test]`（第89行），父模块在 vw-agent 注册该文件。
+- 命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib wait_threads_registry_reports_child_failure_while_other_target_runs -- --nocapture`。
+- 等待已有 Cargo 退出后执行；槽位1，`CARGO_TARGET_DIR`、`CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+- 退出101：vw-agent lib test 仍有44条兄弟编译错误（E0277/E0308/E0425/E0432/E0433/E0599/E0624），包括 `workflow/video_edit/e2e_tests.rs:26` 的 `VideoContext` 契约；有效测试数0，不能算行为通过。未接管其他编号文件。
+- `git diff --check` 对本次修改通过；验证进程及槽位已正常释放。保留任务卡，宿主其余编译阻塞解除后须运行上述真实测试且有效数>0再完成。

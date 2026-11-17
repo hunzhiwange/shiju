@@ -67,8 +67,6 @@ fn desktop_release_rejects_invalid_manifest_fields() {
         ("/schema_version", json!(2)),
         ("/published_at", json!("")),
         ("/assets/0/target", json!("x86_64-unknown-linux-gnu")),
-        ("/assets/0/kind", json!("dmg")),
-        ("/assets/0/kind", json!("zip")),
         ("/assets/0/name", json!("../installer.rpm")),
         ("/assets/0/name", json!("shiju-1.2.9-1.aarch64.rpm")),
         ("/assets/0/name", json!("archive.tar.gz")),
@@ -82,6 +80,14 @@ fn desktop_release_rejects_invalid_manifest_fields() {
         let mut invalid = oss.clone();
         *invalid.pointer_mut(pointer).unwrap() = value;
         assert!(parse_desktop_release(UpdateSource::Shiju, invalid).is_err(), "{pointer}");
+    }
+    // Unsupported target/kind pairs are skipped so future packages remain compatible.
+    let mut expected = parse_desktop_release(UpdateSource::Shiju, oss.clone()).unwrap();
+    expected.assets.remove(0);
+    for kind in ["dmg", "zip"] {
+        let mut unsupported = oss.clone();
+        unsupported["assets"][0]["kind"] = json!(kind);
+        assert_eq!(parse_desktop_release(UpdateSource::Shiju, unsupported).unwrap(), expected);
     }
     let mut duplicate = oss.clone();
     duplicate["assets"][1] = duplicate["assets"][0].clone();

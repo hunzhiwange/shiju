@@ -398,7 +398,7 @@ async fn config_rejects_invalid_setting_values_without_persisting_changes() {
         .expect("wrong type should produce a structured response");
     let wrong_type_output = parse_output(&wrong_type);
     assert!(!wrong_type.success);
-    assert_eq!(wrong_type_output["previousValue"], json!(false));
+    assert_eq!(wrong_type_output["previousValue"], original["browser"]["enabled"]);
     assert_eq!(wrong_type_output["error"], json!("browser.enabled requires true or false"));
 
     let invalid_option = tool
@@ -474,20 +474,20 @@ async fn config_resets_optional_setting_and_coerces_integer_string() {
         .expect("default provider reset should succeed");
     let reset_output = parse_output(&reset);
     assert!(reset.success);
-    assert_eq!(reset_output["newValue"], json!("openrouter"));
+    assert_eq!(reset_output["newValue"], json!(Config::default().default_provider));
 
     let integer = tool
-        .execute(json!({ "setting": "agents.main.max_iterations", "value": " 7 " }))
+        .execute(json!({ "setting": "http_request.timeout_secs", "value": " 7 " }))
         .await
         .expect("integer string should succeed");
     let integer_output = parse_output(&integer);
-    assert!(integer.success);
-    assert_eq!(integer_output["setting"], json!("agents.main.maxIterations"));
+    assert!(integer.success, "{integer_output}");
+    assert_eq!(integer_output["setting"], json!("httpRequest.timeoutSecs"));
     assert_eq!(integer_output["newValue"], json!(7));
 
     let saved = persisted_config(&config).await;
-    assert_eq!(saved.default_provider.as_deref(), Some("openrouter"));
-    assert_eq!(saved.agents["main"].max_iterations, 7);
+    assert_eq!(saved.default_provider, Config::default().default_provider);
+    assert_eq!(saved.http_request.timeout_secs, 7);
 }
 
 #[tokio::test]

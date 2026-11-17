@@ -38,7 +38,7 @@ fn query() -> UsageQuery {
         provider:Some(UsageProvider::Unknown), request_model:Some("request".into()),
         response_model:Some("response".into()), pricing_model:Some("price".into()),
         native_session_id:Some("session".into()), status:Some(UsageRequestStatus::Failed),
-        billable:Some(false),
+        status_code:None, billable:Some(false),
     }, cursor:None, limit:Some(1) }
 }
 #[test]

@@ -170,7 +170,8 @@ pub fn query_usage_logs(
     for row in rows {
         let value: StoredUsageRecord = serde_json::from_str(&row.map_err(storage)?)
             .map_err(|_| UsageLogsError::StorageUnavailable)?;
-        if effective_usage_log_filter(&value.record, &query.filter, &range) {
+        if effective_usage_log_filter(&value.record, &query.filter, &range)
+            && query.filter.status_code.is_none_or(|code| value.status_code == Some(code)) {
             records.push(detail(value));
         }
     }

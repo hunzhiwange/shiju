@@ -8170,6 +8170,7 @@ name = "desktop-usage"
 version = "0.6.0"
 dependencies = [
  "chrono",
+ "config-runtime-paths",
  "config-ui",
  "desktop-assets",
  "desktop-i18n",

@@ -197,6 +197,9 @@ pub struct UsageFilter {
     pub pricing_model: Option<String>,
     pub native_session_id: Option<String>,
     pub status: Option<UsageRequestStatus>,
+    /// HTTP status filter for request log queries; absent means all codes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status_code: Option<u16>,
     pub billable: Option<bool>,
 }
 

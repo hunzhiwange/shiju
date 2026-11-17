@@ -115,10 +115,18 @@ pub fn prepare(connection: &Connection, scope: &SourceScope, source: &SourceSnap
     let current = current_values(connection, scope, &rows)?;
     let preview = preview::build_preview(scope, source, &[SourceCategory::Usage], revision(&current)?, |_,_| {
         rows.iter().zip(&current).map(|((_,v), before)| Ok(PreviewCandidate {
-            incoming: serde_json::to_value(v).map_err(|_| PreviewError::InvalidCandidate)?, existing: before.clone(), references_valid: true,
+            incoming: fingerprint(&serde_json::to_value(v).map_err(|_| PreviewError::InvalidCandidate)?)?,
+            existing: before.as_ref().map(fingerprint).transpose()?, references_valid: true,
         })).collect()
     })?;
     Ok(UsagePreview { preview, rows })
+}
+// Compare the domain-validated ledger payload without exposing it to the generic
+// portable-field filter, which does not recognize usage fields.
+fn fingerprint(value: &Value) -> Result<Value, PreviewError> {
+    Ok(json!({ "content_hash": hex::encode(Sha256::digest(
+        serde_json::to_vec(value).map_err(|_| PreviewError::InvalidCandidate)?
+    )) }))
 }
 fn current_values(connection: &Connection, scope: &SourceScope, rows: &[(UsageSourceIdentity,StoredUsageRecord)])
     -> Result<Vec<Option<Value>>, PreviewError> {

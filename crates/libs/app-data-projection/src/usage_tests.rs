@@ -35,6 +35,7 @@ fn cc_data_15_usage_reimport_does_not_duplicate_cost() {
     });
     let p = prepare(&db,&scope,&source,"fixture-registry",|_,_|Some("owned-account".into())).unwrap();
     let id = p.entries()[0].id;
+    assert_eq!(p.entries()[0].difference, super::preview::Difference::Different);
     assert_eq!(p.execute(&mut db,&scope,&source,&[(id,Decision::Skip)],|_,_|true).unwrap(),0);
     assert_eq!(p.execute(&mut db,&scope,&source,&[(id,Decision::Replace)],|_,_|true).unwrap(),1);
     let (count,payload):(i64,String) = db.query_row("SELECT count(*),payload_json FROM usage_records",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();

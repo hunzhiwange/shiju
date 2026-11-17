@@ -48,7 +48,10 @@ fn tools_view_keeps_zero_match_presets_visible_without_grouping_them() {
     assert_eq!(tools_list.children.len(), 5);
     assert_eq!(tools_list.children[3].children.len(), 5);
     assert_eq!(tools_list.children[4].children.len(), 1);
-    assert_eq!(tools_list.children[4].children[0].children[2].children.len(), 1);
+    let group = &tools_list.children[4].children[0];
+    // 标题与计数共用一行，卡片列表紧随其后。
+    assert_eq!(group.children.len(), 2);
+    assert_eq!(group.children[1].children.len(), 1);
 }
 
 #[test]
@@ -62,7 +65,9 @@ fn tools_view_preserves_duplicate_available_tools_and_selection_state() {
     let view = super::tools_view(&app, &entry);
     let tree = Tree::new(view.as_widget());
     let tools_list = &tree.children[1];
-    let file_cards = &tools_list.children[4].children[0].children[2];
+    let file_group = &tools_list.children[4].children[0];
+    assert_eq!(file_group.children.len(), 2);
+    let file_cards = &file_group.children[1];
 
     assert_eq!(tools_list.children[1].children.len(), 3);
     assert_eq!(file_cards.children.len(), 3);
@@ -153,7 +158,9 @@ fn builtin_tool_cards_are_locked_and_badged() {
     let tools_list = &tree.children[1];
     // tabs + groups; first group card title row includes badge child
     let groups = &tools_list.children[1];
-    let first_group_cards = &groups.children[0].children[2];
+    let first_group = &groups.children[0];
+    assert_eq!(first_group.children.len(), 2);
+    let first_group_cards = &first_group.children[1];
     assert_eq!(first_group_cards.children.len(), 1);
     let card_content = &first_group_cards.children[0].children[0];
     let title_row = &card_content.children[0];

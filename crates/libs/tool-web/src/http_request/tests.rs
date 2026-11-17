@@ -473,7 +473,10 @@ fn description_advertises_supported_methods_and_safety_constraints() {
     let tool = test_tool(vec!["example.com"]);
     let description = tool.description();
 
-    assert!(description.contains("GET、POST、PUT、DELETE、PATCH、HEAD、OPTIONS"));
+    let words = description.split(|ch: char| !ch.is_ascii_alphabetic()).collect::<Vec<_>>();
+    for method in ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"] {
+        assert!(words.contains(&method), "description must advertise {method}");
+    }
     assert!(description.contains("allowlisted domains"));
     assert!(description.contains("no local/private hosts"));
 }
@@ -693,8 +696,14 @@ async fn execute_request_sends_headers_body_and_formats_success_response() {
     assert!(result.output.contains("x-trace: \"x-trace\""));
     assert!(result.output.contains("Response Body:\nok-body"));
     assert!(captured_request.contains("POST /submit HTTP/1.1"));
-    assert!(captured_request.contains("x-request: value"));
-    assert!(captured_request.contains("user-agent: unit-agent"));
+    let (headers, _) = captured_request.split_once("\r\n\r\n").unwrap();
+    for (name, expected) in [("x-request", "value"), ("user-agent", "unit-agent")] {
+        let value = headers.lines().skip(1).find_map(|line| {
+            let (key, value) = line.split_once(':')?;
+            key.eq_ignore_ascii_case(name).then(|| value.trim())
+        });
+        assert_eq!(value, Some(expected), "request header {name}");
+    }
     assert!(captured_request.ends_with("\r\n\r\npayload"));
 }
 

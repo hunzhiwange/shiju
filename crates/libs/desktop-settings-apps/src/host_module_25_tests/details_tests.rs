@@ -1,13 +1,13 @@
 use super::page_fixture::details;
 use super::page_fixture::{AppsCatalogState, Message, ViewMessage};
 use crate::system_settings_apps::catalog::CatalogRow;
+use gateway_http::AgentAppsReadError;
 use iced::advanced::renderer::Headless;
-use iced::{Event, Font, Pixels, Point, Size, Theme, mouse};
+use iced::{Event, Font, Pixels, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
 use vw_api_app_identity::{
     AppCatalogEntry, AppDesktopObservation, AppId, AppReadResponse, AppRuntimeKind,
 };
-use {gateway_http::AgentAppsReadError, vw_api_app_identity::*};
 
 #[tokio::test]
 async fn cc_apps_desktop_manual_guide_click_opens_only_official_client_url() {
@@ -37,33 +37,42 @@ async fn cc_apps_desktop_manual_guide_click_opens_only_official_client_url() {
                     None => Err(AgentAppsReadError::Transport("offline".into())),
                 },
             };
-            let mut ui = UserInterface::build(
-                details::view(&state, &app),
-                Size::new(620.0, 400.0),
-                Cache::new(),
-                &mut renderer,
+            let size = Size::new(620.0, 600.0);
+            let mut element = details::view(&state, &app);
+            let mut tree = iced::advanced::widget::Tree::new(element.as_widget());
+            let node = element.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &iced::advanced::layout::Limits::new(Size::ZERO, size),
             );
+            // The manual download button is the final child of the details column.
+            // Target it directly: the page also offers a separate discovery refresh.
+            let button = iced::advanced::Layout::new(&node)
+                .children()
+                .next()
+                .expect("details container must contain a column")
+                .children()
+                .last()
+                .expect("details must offer a manual download button")
+                .bounds();
+            assert!(button.y + button.height <= size.height);
+            let mut ui = UserInterface::build(element, size, Cache::new(), &mut renderer);
             let mut messages = vec![];
-            for y in (10..390).step_by(20) {
-                for x in (10..610).step_by(20) {
-                    let position = Point::new(x as f32, y as f32);
-                    let cursor = mouse::Cursor::Available(position);
-                    ui.update(
-                        &[
-                            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
-                            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
-                        ],
-                        cursor,
-                        &mut renderer,
-                        &mut iced::advanced::clipboard::Null,
-                        &mut messages,
-                    );
-                }
-            }
+            ui.update(
+                &[
+                    Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+                    Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+                ],
+                mouse::Cursor::Available(button.center()),
+                &mut renderer,
+                &mut iced::advanced::clipboard::Null,
+                &mut messages,
+            );
             assert!(
                 !messages.is_empty(),
                 "Desktop details must offer manual installation even when discovery is unavailable"
             );
+            assert_eq!(messages.len(), 1, "one guide click must emit exactly one action");
             for message in messages {
                 assert!(
                     matches!(message, Message::View(ViewMessage::OpenUrlExternal(ref url)) if url == "https://claude.com/download"),

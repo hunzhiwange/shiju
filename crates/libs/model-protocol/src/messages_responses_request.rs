@@ -78,6 +78,10 @@ fn convert(body: &Value) -> Result<Value, StatusCode> {
         output["instructions"] = instructions;
     }
     if let Some(hosted) = hosted {
+        // The text bridge omits tools when no function definitions remain.
+        if output.get("tools").is_none() {
+            output["tools"] = serde_json::json!([]);
+        }
         output["tools"].as_array_mut().ok_or(StatusCode::BAD_REQUEST)?.push(hosted);
         output["include"] = serde_json::json!(["web_search_call.action.sources"]);
         if let Some(max) = search.max {

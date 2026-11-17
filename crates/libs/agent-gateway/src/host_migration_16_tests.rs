@@ -200,7 +200,8 @@ async fn permission_router_lists_and_rejects_missing_request() {
     let (_config_dir, _workspace) = use_temp_config_dir(&temp);
     let directory = temp.path().to_string_lossy().to_string();
     approval_state::clear_approval_manager_for_directory(&directory);
-    let app = router::<()>();
+    // Production middleware supplies the tenant before permission handlers run.
+    let app = router::<()>().layer(Extension(vw_api_transport::TenantScope::default()));
 
     let list_response = app
         .clone()

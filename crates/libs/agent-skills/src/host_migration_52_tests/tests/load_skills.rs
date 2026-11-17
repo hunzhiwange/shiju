@@ -15,6 +15,8 @@ use config_skills::SkillsDirectoryProvider;
 
 fn load_workspace_only(workspace_dir: &std::path::Path) -> Vec<Skill> {
     let _lock = env_var_lock().lock().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let _guard = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
     load_skills(workspace_dir)
 }
 
@@ -430,6 +432,8 @@ fn workspace_skill_roots_follow_directory_provider_contract() {
 #[test]
 fn configured_prompt_mode_controls_loaded_skill_detail() {
     let _lock = env_var_lock().lock().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let _guard = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
 
     let dir = tempfile::tempdir().unwrap();
     let skill_dir = dir.path().join(".shiju").join("skills").join("detailed");

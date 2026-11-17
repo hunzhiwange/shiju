@@ -5,7 +5,7 @@ fn desktop_i18n_settings_models_switches_visible_text() {
     for (locale, title, count) in [
         (DesktopLocale::SimplifiedChinese, "模型", "2 / 5 已启用"),
         (DesktopLocale::TraditionalChinese, "模型", "2 / 5 已啟用"),
-        (DesktopLocale::English, "Models", "2 / 5 enabled"),
+        (DesktopLocale::English, "Model", "2 / 5 enabled"),
     ] {
         assert_eq!(text(locale, "模型"), title);
         assert_eq!(enabled_count(locale, 2, 5), count);

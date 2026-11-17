@@ -178,10 +178,14 @@ async fn natural_language_approval_commands_follow_runtime_policy_modes() {
             .contains("Natural-language approval commands are disabled")
     );
 
+    // Pending requests require supervised autonomy, independently of the default policy.
+    let mut request_policy =
+        autonomy_config(&[], &[], NonCliNaturalLanguageApprovalMode::RequestConfirm);
+    request_policy.level = agent_config::runtime_schema::AutonomyLevel::Supervised;
     let request_confirm = context(
         tmp.path(),
         &["shell"],
-        autonomy_config(&[], &[], NonCliNaturalLanguageApprovalMode::RequestConfirm),
+        request_policy,
     );
     let request_channel = Arc::new(RecordingChannel::new());
     let request_dyn: Arc<dyn Channel> = request_channel.clone();
@@ -254,11 +258,12 @@ async fn task_mode_plain_message_is_consumed_without_reply_channel() {
         &[],
         autonomy_config(&[], &[], NonCliNaturalLanguageApprovalMode::Direct),
     );
-    let channel = Arc::new(RecordingChannel::new());
-    let channel_dyn: Arc<dyn Channel> = channel.clone();
+    let msg = message("create a task");
+    let sender_key = channel_support::scope::scoped_history_key(&ctx, &msg, Default::default());
+    // Exercise dispatch in an already enabled mode without resolving a project or storage.
+    crate::runtime_command::task_mode::set_sender_task_mode(&ctx, &sender_key, true);
 
-    assert!(dispatch(&ctx, &channel_dyn, "/task").await);
-    assert!(handle_runtime_command_if_needed(&ctx, &message("create a task"), None).await);
+    assert!(handle_runtime_command_if_needed(&ctx, &msg, None).await);
 }
 
 #[tokio::test]

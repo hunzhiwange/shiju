@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号470。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -38,3 +38,11 @@ python3 scripts/cargo_slot.py cargo test -p gateway-openclaw-settings --lib 'aut
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 本次执行证据（2026-11-18）
+
+- 当前源码已将应用认证归属 Gateway；`execution_context` 忽略旧应用令牌及 grants。旧 policy.json 不能再控制临时 home 和敏感权限。
+- 仅修改本任务测试定义文件：通过现有 Authorization 注入边界验证真实路由、文件读取及投影；保留 403、拒绝前无 IO、健康信息脱敏、原文件不变和获准读取 secret 断言，增加租户/项目/主机参数断言。未修改业务安全策略。
+- 修前与修后均运行本文件指定精确命令；均退出 101，实际执行 0 项。阻塞为第三方 rmcp 0.8.5 编译缺少 base64、schemars、paste，以及 server/Builder 类型解析错误（13 errors），未得到测试红绿结果。
+- 两次均使用槽位 1；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。日志：`/tmp/shiju-task241-red.log`、`/tmp/shiju-task241-green.log`。入口及子进程已正常结束，锁由入口释放，缓存保留。
+- 本任务代码 diff 已审查，限定单一测试文件，`git diff --check` 通过。依赖错误不在本任务写入范围；待依赖恢复后重跑指定精确命令，须确认执行 1 项并通过才能删除本任务卡。

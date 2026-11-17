@@ -5,7 +5,11 @@ use std::path::PathBuf;
 use tower::ServiceExt;
 
 async fn request(path: Option<PathBuf>, tenant: TenantScope, headers: HeaderMap, section: &str, host: &str, method: &str) -> axum::response::Response {
-    let router = crate::router_with_policy(path, authorization())
+    request_using(path, tenant, headers, section, host, method, authorization()).await
+}
+
+async fn request_using(path: Option<PathBuf>, tenant: TenantScope, headers: HeaderMap, section: &str, host: &str, method: &str, authorization: crate::Authorization) -> axum::response::Response {
+    let router = crate::router_with_policy(path, authorization)
         .layer(axum::Extension(tenant));
     let mut request = axum::http::Request::builder().method(method)
         .uri(format!("/agent-apps/openclaw/settings/{section}?projectId=project&targetHostId={host}"))
@@ -30,35 +34,42 @@ async fn openclaw_api_roundtrips_defaults_denies_before_io() {
 
 #[tokio::test]
 async fn openclaw_api_protects_sensitive_env() {
-    use sha2::{Digest, Sha256};
     let root = tempfile::tempdir().unwrap();
     let home = root.path().join("home");
     std::fs::create_dir(&home).unwrap();
-    let path = root.path().join("policy.json");
-    let policy = |sensitive: bool| serde_json::json!({
-        "principals":[{"id":"member", "token_sha256":hex::encode(Sha256::digest("fixture-token")),
-            "grants":[{"platform_id":"platform","company_id":"company","host_id":"host",
-                "openclaw_settings_read":["project"],
-                "openclaw_env_sensitive_read":if sensitive { vec!["project"] } else { vec![] }}]}],
-        "hosts":[{"id":"host","binding":"local","online":true,"home":home,
-            "applications":home,"search_paths":[]}]
-    });
-    std::fs::write(&path, policy(false).to_string()).unwrap();
+    // Gateway owns authentication now. Inject the route's authorization boundary
+    // to verify sensitive reads independently of the retired app-token policy.
+    let authorization = crate::Authorization {
+        settings: |path, _, project, target, write| {
+            assert_eq!(project.tenant_scope(), &TenantScope::new("platform", "company").unwrap());
+            assert_eq!(project.project_id().as_ref(), "project");
+            assert_eq!(target, "host");
+            assert!(!write);
+            Ok(crate::Host {
+                id: target.into(), home: path.unwrap().to_path_buf(), credential_root: None,
+            })
+        },
+        sensitive_env: |_, headers, project, target| {
+            assert_eq!(project.project_id().as_ref(), "project");
+            assert_eq!(target, "host");
+            if headers.contains_key("x-test-sensitive-read") { Ok(()) }
+            else { Err(StatusCode::FORBIDDEN) }
+        },
+    };
     let mut headers = HeaderMap::new();
-    headers.insert("x-agent-apps-token", "fixture-token".parse().unwrap());
     let tenant = TenantScope::new("platform", "company").unwrap();
-    let result = request(Some(path.clone()), tenant.clone(), headers.clone(), "env", "host", "GET").await;
+    let result = request_using(Some(home.clone()), tenant.clone(), headers.clone(), "env", "host", "GET", authorization).await;
     assert_eq!(result.status(), StatusCode::FORBIDDEN);
     assert_eq!(std::fs::read_dir(&home).unwrap().count(), 0);
     std::fs::create_dir(home.join(".openclaw")).unwrap();
     let config = home.join(".openclaw/openclaw.json");
     let original = br#"{env:{vars:{TOKEN:'secret'}},tools:{profile:'private-profile'}}"#;
     std::fs::write(&config, original).unwrap();
-    let health = body(request(Some(path.clone()), tenant.clone(), headers.clone(), "health", "host", "GET").await).await;
+    let health = body(request_using(Some(home.clone()), tenant.clone(), headers.clone(), "health", "host", "GET", authorization).await).await;
     assert!(!health.to_string().contains("secret"));
     assert!(!health.to_string().contains("private-profile"));
     assert_eq!(std::fs::read(&config).unwrap(), original);
-    std::fs::write(&path, policy(true).to_string()).unwrap();
-    let env = body(request(Some(path), tenant, headers, "env", "host", "GET").await).await;
+    headers.insert("x-test-sensitive-read", "true".parse().unwrap());
+    let env = body(request_using(Some(home), tenant, headers, "env", "host", "GET", authorization).await).await;
     assert_eq!(env["vars"]["TOKEN"], "secret");
 }

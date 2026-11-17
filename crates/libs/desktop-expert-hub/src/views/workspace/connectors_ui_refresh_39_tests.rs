@@ -1,6 +1,6 @@
 //! Render the expert hub forms and drive their existing messages.
 
-use super::connectors::*;
+use super::connectors::{self, with_binding_modal};
 use super::fixture::Fixture;
 use super::*;
 use super::{install_guide, installed_skills, public_skill_detail, shiju_apps};
@@ -8,7 +8,10 @@ use crate::views::workspace::{ShijuAppsMessage, SkillHubMessage, skill_hub::Publ
 use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use desktop_app_launch::ShijuAppLaunchState;
 use desktop_i18n::I18n;
-use desktop_skill_hub::skill_hub::SkillInstallScope;
+use desktop_skill_hub::skill_hub::{
+    ExpertHubSection, LoadState, SkillInstallScope,
+    connectors::{ConnectorForm, ConnectorWork},
+};
 use gateway_shiju_app::ShijuIamApiKeyDto;
 use gateway_shiju_connector::ShijuConnector;
 use iced::advanced::widget::{Id, Operation, operation};
@@ -312,7 +315,7 @@ async fn ui_refresh_39_layout_and_interaction() {
 
     let size = Size::new(640, 600);
     let i18n = I18n::new(app.desktop_locale);
-    let mut page = scene(super::view(&app.input()), &mut renderer, size);
+    let mut page = scene(connectors::view(&app.input()), &mut renderer, size);
     let edit = position(&bounds(&mut page, &renderer).labels, i18n.__("手动绑定"));
     assert!(matches!(
         click(&mut page, &mut renderer, edit.center()).as_slice(),
@@ -331,8 +334,11 @@ async fn ui_refresh_39_layout_and_interaction() {
     ] {
         app.desktop_locale = locale;
         let i18n = I18n::new(locale);
-        let mut ui =
-            scene(with_binding_modal(&app.input(), super::view(&app.input())), &mut renderer, size);
+        let mut ui = scene(
+            with_binding_modal(&app.input(), connectors::view(&app.input())),
+            &mut renderer,
+            size,
+        );
         let original = capture(&mut ui, &mut renderer, &theme, size, name, Point::ORIGIN);
         let geometry = bounds(&mut ui, &renderer);
         let account = position(&geometry.inputs, "fixture-account");
@@ -366,7 +372,7 @@ async fn ui_refresh_39_layout_and_interaction() {
             let form = app.expert_hub.connectors.form.as_mut().unwrap();
             form.values.insert("token".into(), "sample-secret-Z".into());
             let mut ui = scene(
-                with_binding_modal(&app.input(), super::view(&app.input())),
+                with_binding_modal(&app.input(), connectors::view(&app.input())),
                 &mut renderer,
                 size,
             );
@@ -379,8 +385,11 @@ async fn ui_refresh_39_layout_and_interaction() {
     app.expert_hub.connectors.begin(73, ConnectorWork::Saving);
     let i18n = I18n::new(app.desktop_locale);
     let size = Size::new(420, 480);
-    let mut ui =
-        scene(with_binding_modal(&app.input(), super::view(&app.input())), &mut renderer, size);
+    let mut ui = scene(
+        with_binding_modal(&app.input(), connectors::view(&app.input())),
+        &mut renderer,
+        size,
+    );
     capture(&mut ui, &mut renderer, &Theme::Dark, size, "connector-saving", Point::ORIGIN);
     let geometry = bounds(&mut ui, &renderer);
     for label in [i18n.__("保存中…"), i18n.__("取消")] {
@@ -866,6 +875,5 @@ async fn help_rollout_23_installed_skills_renders_contextual_help() {
     }
 }
 
-use desktop_skill_hub::skill_hub::{connectors::{ConnectorForm, ConnectorWork}, load_state::LoadState};
 use crate::message::connectors::ConnectorMessage;
 use iced::{Length, widget::Space};

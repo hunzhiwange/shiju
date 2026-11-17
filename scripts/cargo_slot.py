@@ -15,7 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 @contextmanager
-def slot(root=ROOT):
+def slot(root=ROOT, number=None):
+    if number is not None and number not in range(1, 21):
+        raise RuntimeError('Cargo slot number must be between 1 and 20')
     root = root.resolve()
     locks = root / 'target/rust-slot-locks'
     if (root / 'target').is_symlink() or locks.is_symlink():
@@ -57,8 +59,9 @@ def slot(root=ROOT):
         env['SHIJU_CARGO_SLOT_ACTIVE'] = '1'
         yield env
         return
+    candidates = (number,) if number is not None else range(1, 21)
     while True:
-        for number in range(1, 21):
+        for number in candidates:
             lock = locks / f'slot-{number}.lock'
             try:
                 lock.mkdir()
@@ -109,7 +112,7 @@ def signal_group(pid, signum):
         raise
 
 
-def run(command, root=ROOT):
+def run(command, root=ROOT, number=None):
     if not command:
         raise RuntimeError('Usage: python3 scripts/cargo_slot.py COMMAND [ARGS...]')
     if os.name != 'posix':
@@ -123,7 +126,7 @@ def run(command, root=ROOT):
     try:
         for signum in (signal.SIGINT, signal.SIGTERM):
             previous[signum] = signal.signal(signum, stop)
-        with slot(root) as env:
+        with slot(root, number=number) as env:
             child = subprocess.Popen(command, cwd=root, env=env, start_new_session=True)
             try:
                 return child.wait()

@@ -73,8 +73,12 @@ cache. Locks are released after the foreground process group stops, including
 failure or interruption; do not launch detached/background work from this wrapper.
 Existing locks are never reclaimed automatically.
 
-`cargo dev-setup`, `cargo dev-desktop`, `cargo dev-gateway`, and `cargo dev-test` claim a slot for
-the Python preparation and Relax process lifetime. When run inside the wrapper,
+`cargo dev-desktop` always claims `target/rust-slot-19` and `cargo dev-gateway`
+always claims `target/rust-slot-20`, retaining each application's build cache
+between launches. If that slot is occupied, the entry waits rather than selecting
+another directory. Existing caches are not cleared or migrated.
+`cargo dev-setup` and `cargo dev-test` claim the first free slot.
+All entries hold their slot for the Python preparation and Relax process lifetime. When run inside the wrapper,
 they inherit its slot. The small Rust launcher is built by the initial Cargo alias
 before Python can claim a slot; wrap the alias itself when every Cargo invocation
 must be inside the slot. Aliases no longer override the caller's target directory.

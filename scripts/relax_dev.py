@@ -242,7 +242,10 @@ if __name__ == '__main__':
     try:
         import cargo_slot
         if not os.environ.get('SHIJU_CARGO_SLOT_ACTIVE'):
-            sys.exit(cargo_slot.run([sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]]))
+            # Keep each application on one cache even when other slots are busy.
+            number = {'desktop': 19, 'gateway': 20}.get(sys.argv[1] if len(sys.argv) > 1 else '')
+            sys.exit(cargo_slot.run(
+                [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]], number=number))
         with cargo_slot.slot() as env:
             os.environ.update(env)
             sys.exit(main(sys.argv[1:]))

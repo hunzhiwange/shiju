@@ -68,14 +68,16 @@ mod tests {
         assert_eq!(NativeRuntime::new().memory_budget(), 0);
     }
 
-    /// 测试存储路径包含 Agent 标识
+    /// 测试存储路径使用当前构建对应的专用配置目录
     ///
-    /// 验证运行时的存储路径中包含 `"shiju-agent"` 字符串，
-    /// 确保应用数据存储在专用的目录下，避免与其他应用冲突。
+    /// 验证完整路径遵循共享目录约定，保持开发与生产数据隔离。
     #[test]
     fn native_storage_path_contains_shiju_agent() {
         let path = NativeRuntime::new().storage_path();
-        assert!(path.to_string_lossy().contains("shiju-agent"));
+        let expected = directories::UserDirs::new()
+            .map(|dirs| dirs.home_dir().join(config_runtime_paths::HOME_CONFIG_DIR_NAME))
+            .unwrap_or_else(|| PathBuf::from(config_runtime_paths::HOME_CONFIG_DIR_NAME));
+        assert_eq!(path, expected);
     }
 
     #[test]

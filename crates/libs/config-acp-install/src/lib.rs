@@ -37,6 +37,9 @@ pub fn acp_install_command_for_platform(
         // JetBrains documents native installers, but no pinned/checksum-reviewed
         // distribution is registered. Discover the operator-installed Junie CLI.
         "junie" => return None,
+        // Poolside publishes native installers. Until a pinned distribution and
+        // checksums are reviewed, discover an operator-installed pool CLI only.
+        "poolside" => return None,
         "autohand" => {
             return Some(match platform {
                 AcpInstallPlatform::Unix => (

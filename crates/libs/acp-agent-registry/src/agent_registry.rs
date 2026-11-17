@@ -247,6 +247,17 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 }
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
+    // Official Poolside ACP server: https://github.com/poolsideai/pool
+    // Discover the operator-installed native CLI; do not substitute an npm package.
+    BuiltInAgentDefinition {
+        name: "poolside",
+        display_name: "Poolside",
+        command: "pool",
+        args: &["acp"],
+        env: &[],
+        local_command_candidates: &["pool"],
+        local_args: &["acp"],
+    },
     BuiltInAgentDefinition {
         name: "aionrs",
         display_name: "aionrs",

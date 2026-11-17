@@ -15,9 +15,11 @@ struct Fixture {
 
 fn fixture(method: SyncMethod) -> Fixture {
     let temp = tempfile::tempdir().unwrap();
-    let root = temp.path().join("ssot");
-    let backups = temp.path().join("backups");
-    let app = temp.path().join("app");
+    // macOS temporary paths may use /var, while deployment validates physical paths.
+    let physical = temp.path().canonicalize().unwrap();
+    let root = physical.join("ssot");
+    let backups = physical.join("backups");
+    let app = physical.join("app");
     fs::create_dir_all(root.join("example")).unwrap();
     fs::create_dir(&backups).unwrap();
     fs::create_dir(&app).unwrap();

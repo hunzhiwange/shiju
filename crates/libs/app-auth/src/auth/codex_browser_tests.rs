@@ -174,7 +174,13 @@ async fn auth6_codex_browser_commits_expected_scoped_result() {
     let sent = received.await.unwrap();
     let (headers, body) = sent.split_once("\r\n\r\n").unwrap();
     assert!(headers.starts_with("POST /oauth/token HTTP/1.1"));
-    assert!(headers.contains("\r\ncontent-type: application/x-www-form-urlencoded\r\n"));
+    // The final header has no trailing CRLF after splitting off the body.
+    let content_type = headers
+        .lines()
+        .filter_map(|line| line.split_once(':'))
+        .find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+        .map(|(_, value)| value.trim());
+    assert_eq!(content_type, Some("application/x-www-form-urlencoded"));
     let form: HashMap<_, _> = Url::parse(&format!("https://fixture.invalid/?{body}"))
         .unwrap()
         .query_pairs()

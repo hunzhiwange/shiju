@@ -324,3 +324,37 @@ fn acp_onboarding_amp_acp_catalog_binding() {
     assert!(entry.enabled && entry.builtin);
     assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "amp-acp".into() });
 }
+
+#[test]
+fn acp_onboarding_devin_builtin_preset_metadata() {
+    let catalog = load_agent_configs(&json!({}));
+    let entry = catalog.get("acp-devin").expect("official Devin preset");
+    assert!(entry.builtin);
+    assert!(!entry.enabled);
+    assert!(!entry.allow_as_subagent);
+    assert_eq!(entry.label.as_deref(), Some("Devin"));
+    assert!(!entry.description.as_ref().unwrap().is_empty());
+    assert!(!entry.recommended_prompts.is_empty());
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "devin".into() });
+    assert_eq!(
+        serde_json::to_value(&entry.defaults).unwrap(),
+        serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
+            .unwrap()
+    );
+}
+
+#[test]
+fn acp_onboarding_devin_catalog_binding() {
+    let catalog = load_agent_configs(&json!({"agents":{"acp-devin":{
+        "provider":"","model":"","enabled":true,"label":"Selected Devin","runtime":{"kind":"native"},"builtin":false
+    }}}));
+    let entry = &catalog["acp-devin"];
+    assert!(entry.enabled && entry.builtin);
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "devin".into() });
+    let saved = serde_json::to_value(&catalog).unwrap();
+    let reloaded = load_agent_configs(&json!({"agents": saved}));
+    assert_eq!(
+        serde_json::to_value(&reloaded["acp-devin"]).unwrap(),
+        serde_json::to_value(entry).unwrap()
+    );
+}

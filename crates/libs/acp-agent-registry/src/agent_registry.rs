@@ -248,6 +248,15 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
     BuiltInAgentDefinition {
+        name: "devin",
+        display_name: "Devin",
+        command: "devin",
+        args: &["acp"],
+        env: &[],
+        local_command_candidates: &["devin"],
+        local_args: &["acp"],
+    },
+    BuiltInAgentDefinition {
         name: "amp-acp",
         display_name: "Amp",
         command: "amp-acp",

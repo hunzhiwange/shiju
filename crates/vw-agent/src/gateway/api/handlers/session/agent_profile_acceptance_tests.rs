@@ -67,3 +67,8 @@ async fn agent_profile_acceptance_catalog_uses_request_tenant() { suite::agent_p
 
 #[tokio::test]
 async fn agent_config_cleanup_global_profile_roundtrips_to_new_session() { suite::agent_config_cleanup_global_profile_roundtrips_to_new_session::<Host>().await; }
+
+#[test]
+fn acp_onboarding_devin_builtin_profile_persists_and_runs() {
+    suite::acp_onboarding_devin_builtin_profile_persists_and_runs::<Host>();
+}

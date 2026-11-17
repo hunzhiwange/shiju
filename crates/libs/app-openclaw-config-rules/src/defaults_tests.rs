@@ -45,9 +45,14 @@ fn openclaw_defaults_projects_fields_legacy_clear_and_finite_validation() {
 #[test]
 fn openclaw_defaults_projects_fields_missing_and_malformed_remain_distinct() {
     assert!(get_agents_defaults(None).unwrap().is_none());
-    for pre in [b"".as_slice(), b"[]", br#"{"agents":null}"#, br#"{"agents":{"defaults":[]}}"#, b"{bare:'unsupported'}"] {
+    for pre in [b"".as_slice(), b"[]", br#"{"agents":null}"#, br#"{"agents":{"defaults":[]}}"#, b"{bare:}"] {
         assert!(get_agents_defaults(Some(pre)).is_err());
     }
+    let json5 = b"{agents:{defaults:{workspace:'~/work', extension:null,},},}";
+    let defaults = get_agents_defaults(Some(json5)).unwrap().unwrap();
+    assert_eq!(defaults.0["workspace"], "~/work");
+    assert_eq!(defaults.0["extension"], json!(null));
+    assert_eq!(prepare_agents_defaults(Some(json5), &defaults).unwrap(), json5);
     let pre = br#"{"agents":{"defaults":{"timeout":"unknown","extension":null}}}"#;
     let defaults = get_agents_defaults(Some(pre)).unwrap().unwrap();
     let next = prepare_agents_defaults(Some(pre), &defaults).unwrap();

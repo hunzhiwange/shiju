@@ -38,7 +38,7 @@ def package(source, destination):
             raise ValueError("symlink package resource")
         if path.is_file() and not path.name.endswith((".test.mjs",)):
             files["plugin/" + path.relative_to(plugin).as_posix()] = path.read_bytes()
-    for name in ("chrome_native_host.py", "install_local.py"):
+    for name in ("chrome_native_host.py", "install_local.py", "bundle_helper.py"):
         files[name] = (source / "scripts/computer_control" / name).read_bytes()
     for relative, data in files.items():
         target = checked(destination, relative)
@@ -124,9 +124,22 @@ def status(home):
         checked(root, name).is_file() for name in owned)}
 
 
+def helper_path(payload):
+    """Return the shipped app executable, without copying or changing its signature.
+
+    Launchers inherit their private bootstrap fd when spawning this executable;
+    neither this installer nor Chrome performs native control on its behalf.
+    """
+    from bundle_helper import RELATIVE_APP, executable
+    payload = Path(payload).absolute()
+    if payload.name != "computer-control" or payload.parent.name != "Resources":
+        raise ValueError("helper discovery requires the product bundle resource directory")
+    return executable(payload.parent.parent.parent / RELATIVE_APP)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("stage", "install", "uninstall", "status"))
+    parser.add_argument("action", choices=("stage", "install", "helper-path", "uninstall", "status"))
     parser.add_argument("--home", type=Path, default=Path.home())
     parser.add_argument("--payload", type=Path, default=Path(__file__).resolve().parent)
     parser.add_argument("--source", type=Path)
@@ -136,6 +149,8 @@ def main():
         if args.source is None or args.destination is None:
             parser.error("stage requires --source and --destination")
         package(args.source, args.destination)
+    elif args.action == "helper-path":
+        print(helper_path(args.payload))
     elif args.action == "install":
         if sys.platform != "darwin":
             parser.error("local installation currently supports macOS only")

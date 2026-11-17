@@ -327,7 +327,7 @@ APP_BUNDLE="$BUNDLE_DIR/ShiJu.app"
 need_cargo_bundle
 
 if [ "$SKIP_BUILD" = "1" ]; then
-  required_binaries=("$DESKTOP_BIN_NAME" vw-webview)
+  required_binaries=("$DESKTOP_BIN_NAME" vw-webview shiju-computer-use)
   if [ "$INCLUDE_CLI_IN_APP" = "1" ]; then
     required_binaries+=("$CLI_SOURCE_BIN_NAME")
     if [ "$INCLUDE_CLI_COMPAT_IN_APP" = "1" ]; then
@@ -348,6 +348,9 @@ if [ "$SKIP_BUILD" = "1" ]; then
 else
   echo "Bundling main application..."
   cargo_bundle -p vw-desktop --bin shi-ju
+
+  echo "Building native control executable..."
+  cargo_build -p computer-control --bin shiju-computer-use
 
   echo "Building helper binary..."
   cargo_build -p vw-webview --bin vw-webview
@@ -403,8 +406,14 @@ if [ "$INCLUDE_ACP_IN_APP" = "1" ]; then
   cp "$TARGET_DIR/${ACP_BIN_NAME}" "$DEST_DIR/${ACP_BIN_NAME}"
 fi
 
-# Native control is linked into the desktop binary. Ship only our public bridge
-# resources; do not bundle a private runtime or invent an MCP server.
+# Stage our controller as a separate app with its own stable TCC identity.
+CONTROL_APP="$APP_BUNDLE/Contents/Helpers/ShiJu Computer Use.app"
+CONTROL_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_BUNDLE/Contents/Info.plist")"
+python3 "$(dirname "$0")/computer_control/bundle_helper.py" \
+  --binary "$TARGET_DIR/shiju-computer-use" --icon "$MACOS_ICON_SOURCE" \
+  --destination "$CONTROL_APP" --version "$CONTROL_VERSION"
+
+# Public bridge resources are staged independently from native code.
 COMPUTER_CONTROL_RESOURCES="$APP_BUNDLE/Contents/Resources/computer-control"
 rm -rf "$COMPUTER_CONTROL_RESOURCES"
 python3 "$(dirname "$0")/computer_control/install_local.py" stage \
@@ -433,6 +442,10 @@ if [ "$MACOS_SIGN_MODE" = "developer-id" ]; then
     fi
   done
 
+  codesign_with_identity --force --timestamp --options runtime \
+    "$CONTROL_APP/Contents/MacOS/shiju-computer-use"
+  codesign_with_identity --force --timestamp --options runtime "$CONTROL_APP"
+
   echo "Signing app bundle with Developer ID..."
   codesign_with_identity \
     --force \
@@ -452,12 +465,15 @@ else
       codesign --force --sign - "$binary_path"
     fi
   done
+  codesign --force --sign - "$CONTROL_APP/Contents/MacOS/shiju-computer-use"
+  codesign --force --sign - "$CONTROL_APP"
   codesign --force --sign - \
     --entitlements "$(dirname "$0")/macos_voice_entitlements.plist" \
     "$APP_BUNDLE"
 fi
 
 echo "Verifying code signature..."
+codesign --verify --deep --strict --verbose=2 "$CONTROL_APP"
 codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 
 echo "Done! App bundle is ready at: $APP_BUNDLE"

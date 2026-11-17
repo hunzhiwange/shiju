@@ -3,11 +3,19 @@ use crate::message::knowledge::KnowledgeMessage;
 use super::{Message, ViewInput};
 use desktop_account::SecretSkey;
 use desktop_skill_hub::skill_hub::{ExpertHubSection, LoadState};
-#[derive(Default)]
 pub(super) struct App {
     pub expert_hub: desktop_skill_hub::skill_hub::ExpertHubState,
     pub app_theme: iced::Theme,
     pub desktop_locale: config_ui::DesktopLocale,
+}
+impl Default for App {
+    fn default() -> Self {
+        Self {
+            expert_hub: Default::default(),
+            app_theme: iced::Theme::Light,
+            desktop_locale: Default::default(),
+        }
+    }
 }
 impl App { pub fn new() -> (Self, ()) { (Self::default(), ()) } }
 pub(super) fn view(app: &App) -> iced::Element<'_, Message> {

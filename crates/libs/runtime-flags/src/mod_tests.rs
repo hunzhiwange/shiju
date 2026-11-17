@@ -125,7 +125,7 @@ fn static_bool_flags_are_readable() {
         *super::VIBEWINDOW_EXPERIMENTAL_MARKDOWN,
     ];
 
-    assert_eq!(flags.len(), 23);
+    assert_eq!(flags.len(), 22);
 }
 
 #[test]

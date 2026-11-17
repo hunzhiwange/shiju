@@ -35,24 +35,22 @@ fn cc_control_18_settings_reject_unknown_authority_fields() {
     assert!(serde_json::from_value::<ControlSettingsUpdate>(serde_json::json!({"permission_version":0,"feature":"chrome","enabled":true,"local_user":"uid:0"})).is_err());
 }
 
-macro_rules! unauthenticated_route {
-    ($name:ident, $method:literal, $path:literal, $body:expr) => {
-        #[tokio::test]
-        async fn $name() {
-            use axum::{body::Body, http::{Request, StatusCode}, Extension};
-            use tower::ServiceExt;
-            let response = super::router()
-                .layer(Extension(vw_api_transport::TenantScope::default()))
-                .oneshot(Request::builder().method($method).uri($path)
-                    .header("content-type", "application/json")
-                    .body(Body::from($body)).unwrap()).await.unwrap();
-            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        }
-    };
+#[test]
+fn cc_control_18_auth_disabled_allows_desktop_without_skey() {
+    let guard = gateway_pairing::pairing::PairingGuard::new(false, &[]);
+    assert_eq!(super::authorize(&guard, &axum::http::HeaderMap::new()), Ok(()));
 }
-unauthenticated_route!(cc_control_18_status_requires_auth, "GET", "/computer-control/status", "");
-unauthenticated_route!(cc_control_18_approvals_require_auth, "GET", "/computer-control/approvals", "");
-unauthenticated_route!(cc_control_18_stop_requires_auth, "POST", "/computer-control/stop", "");
-unauthenticated_route!(cc_control_18_save_requires_auth, "PUT", "/computer-control/settings", r#"{"permission_version":0,"feature":"chrome","enabled":true}"#);
-unauthenticated_route!(cc_control_18_revoke_requires_auth, "DELETE", "/computer-control/approvals", r#"{"permission_version":0,"scope":{"kind":"application","identity":"com.example.App"}}"#);
-unauthenticated_route!(cc_control_18_pair_requires_auth, "POST", "/computer-control/pairing", r#"{"permission_version":0,"feature":"word","session_id":"session","workspace_root":null,"document_id":"doc"}"#);
+
+#[test]
+fn cc_control_18_auth_enabled_requires_valid_skey() {
+    use axum::http::{HeaderMap, HeaderValue, StatusCode};
+    let guard = gateway_pairing::pairing::PairingGuard::new(true, &["test-control-key".into()]);
+    let mut headers = HeaderMap::new();
+    assert_eq!(super::authorize(&guard, &headers), Err(StatusCode::UNAUTHORIZED));
+    headers.insert("authorization", HeaderValue::from_static("Bearer wrong-key"));
+    assert_eq!(super::authorize(&guard, &headers), Err(StatusCode::UNAUTHORIZED));
+    headers.insert("authorization", HeaderValue::from_static("Bearer test-control-key"));
+    assert_eq!(super::authorize(&guard, &headers), Ok(()));
+    headers.append("authorization", HeaderValue::from_static("Bearer test-control-key"));
+    assert_eq!(super::authorize(&guard, &headers), Err(StatusCode::UNAUTHORIZED));
+}

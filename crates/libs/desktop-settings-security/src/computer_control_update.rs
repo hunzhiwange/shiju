@@ -22,7 +22,10 @@ pub enum Event {
 }
 pub fn message(event: Event) -> Event { event }
 
-fn safe_error(error: impl std::fmt::Display) -> String {
+fn safe_error(error: gateway_computer_control::ComputerControlApiError) -> String {
+    if error == gateway_computer_control::ComputerControlApiError::Http(401) {
+        return "电脑操控鉴权失败（HTTP 401）：当前网关已启用鉴权，请检查网关连接设置中的 skey，然后刷新状态。".into();
+    }
     // The client only exposes status/transport/decode errors, never response bodies.
     format!("电脑操控请求失败：{error}。请刷新后重试。")
 }
@@ -186,3 +189,7 @@ fn update_inner(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndp
         }
     }
 }
+
+#[cfg(test)]
+#[path = "computer_control_update_tests.rs"]
+mod tests;

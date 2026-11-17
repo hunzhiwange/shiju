@@ -30,14 +30,20 @@ pub fn router() -> Router {
         }))
 }
 async fn runtime(tenant: &TenantScope, headers: &HeaderMap) -> Result<std::sync::Arc<NativeControlRuntime>, Failure> {
-    if headers.get_all("authorization").iter().count() != 1 { return Err(StatusCode::UNAUTHORIZED); }
-    let token = gateway_types::auth::extract_auth_skey(headers).ok_or(StatusCode::UNAUTHORIZED)?;
     let config = agent_config::runtime::get_global_for_tenant(tenant).await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     let guard = gateway_pairing::pairing::PairingGuard::from_skeys(config.gateway.auth_enabled, &config.gateway.skeys);
-    if !guard.auth_enabled() || !guard.is_authenticated(token) { return Err(StatusCode::UNAUTHORIZED); }
+    authorize(&guard, headers)?;
     // Bootstrap owns a default-tenant host; another tenant's credential cannot manage it.
     if tenant != &TenantScope::default() { return Err(StatusCode::FORBIDDEN); }
     NativeControlRuntime::shared().ok_or(StatusCode::SERVICE_UNAVAILABLE)
+}
+// Match the gateway REST policy: credentials are required only when enabled.
+fn authorize(guard: &gateway_pairing::pairing::PairingGuard, headers: &HeaderMap) -> Result<(), Failure> {
+    if !guard.auth_enabled() { return Ok(()); }
+    if headers.get_all("authorization").iter().count() != 1 { return Err(StatusCode::UNAUTHORIZED); }
+    let token = gateway_types::auth::extract_auth_skey(headers).ok_or(StatusCode::UNAUTHORIZED)?;
+    if !guard.is_authenticated(token) { return Err(StatusCode::UNAUTHORIZED); }
+    Ok(())
 }
 fn feature(enabled: bool, readiness: ControlReadiness, authorization: SystemAuthorization, backend: ControlBackend, capabilities: Vec<ControlCapability>) -> ControlFeatureStatus {
     ControlFeatureStatus { enabled, readiness: if enabled { readiness } else { ControlReadiness::Disabled }, system_authorization: authorization, connection: ControlConnection::Disconnected, backend, capabilities }

@@ -83,11 +83,24 @@ fn cc_route_057_rejects_unsupported_media_and_preserves_session_policy() {
     let body = json!({"model":"fixture","input":[{"role":"assistant","content":"history"}]});
     let (chat, _) = super::responses::to_chat(&body, false).unwrap();
     assert_eq!(chat["messages"][0]["role"], "assistant");
+    // The resident bridge accepts ordinary streaming requests as well as compaction.
+    let request = super::responses_compaction::Request::from_responses_anthropic(
+        json!({"model":"fixture","stream":true,"input":"hello"}),
+    )
+    .unwrap();
+    assert_eq!(request.chat["model"], "fixture");
+    assert_eq!(request.chat["stream"], true);
     assert_eq!(
-        super::responses_compaction::Request::from_responses_anthropic(
-            json!({"model":"fixture","stream":true,"input":"hello"})
-        )
-        .err(),
-        Some(StatusCode::UNPROCESSABLE_ENTITY)
+        request.chat["messages"],
+        json!([{"role":"user","content":[{"type":"text","text":"hello"}]}])
     );
+    for body in [
+        json!({"model":"fixture","stream":"true","input":"hello"}),
+        json!({"model":"fixture","stream":false,"input":[{"type":"compaction_trigger"}]}),
+    ] {
+        assert_eq!(
+            super::responses_compaction::Request::from_responses_anthropic(body).err(),
+            Some(StatusCode::UNPROCESSABLE_ENTITY)
+        );
+    }
 }

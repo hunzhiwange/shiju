@@ -428,11 +428,17 @@ async fn new_initializes_collection_immediately() {
 
 #[tokio::test]
 async fn ensure_collection_reports_connection_errors() {
-    let memory = qdrant(&unused_local_url(), Arc::new(StaticEmbedding::new(vec![0.1])));
+    let mut memory = qdrant(&unused_local_url(), Arc::new(StaticEmbedding::new(vec![0.1])));
+    // 此用例验证本地连接错误，不应受运行时或系统代理的响应影响。
+    memory.client = reqwest::Client::builder()
+        .no_proxy()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .unwrap();
 
     let err = memory.ensure_collection().await.unwrap_err().to_string();
 
-    assert!(err.contains("Qdrant connection failed"));
+    assert!(err.contains("Qdrant connection failed"), "{err}");
 }
 
 #[tokio::test]

@@ -224,7 +224,7 @@ async fn app_update_download_consumes_checked_snapshot_without_refetching_latest
         .unwrap();
     match action {
         iced_runtime::Action::Output(ViewMessage::AppUpdateDownloadPrepared(_, Err(error))) => {
-            assert!(error.contains("exactly six"), "{error}");
+            assert!(error.contains("No desktop installers available"), "{error}");
         }
         _ => panic!("expected snapshot validation failure"),
     }

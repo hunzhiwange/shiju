@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::{Arc, Mutex, OnceLock}, path::{Path, PathB
 use anyhow::{Context, Result};
 use channel_types::{self as traits, Channel, SendMessage};
 use channel_support::{runtime_state::ChannelRuntimeContext, config::*, routing::*, scope::*, session::{sender_session_store, channel_session_ownership, ChannelSessionOwnership}};
-use agent_config::runtime_schema::{Config, save_config, NonCliNaturalLanguageApprovalMode};
+use agent_config::runtime_schema::{Config, NonCliNaturalLanguageApprovalMode};
 use agent_approval::{ApprovalResponse, PendingApprovalError};
 use agent_observability::runtime_trace;
 use model_types::ChatMessage;

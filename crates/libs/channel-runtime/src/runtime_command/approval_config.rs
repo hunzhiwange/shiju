@@ -28,6 +28,23 @@ fn parse_runtime_config(contents: &str, config_path: &Path) -> Result<Config> {
     Ok(parsed)
 }
 
+/// 只更新读取来源中的审批列表，不能把项目配置写入默认租户数据库。
+#[cfg(not(target_arch = "wasm32"))]
+async fn save_approval_lists(contents: &str, path: &Path, config: &Config) -> Result<()> {
+    // 保留未识别字段和已有密文，避免序列化整个 Config 时加入默认值。
+    let mut payload: serde_json::Value = if contents.trim_start().starts_with('{') {
+        serde_json::from_str(contents)?
+    } else {
+        serde_json::to_value(toml::from_str::<toml::Value>(contents)?)?
+    };
+    payload["autonomy"]["auto_approve"] = serde_json::to_value(&config.autonomy.auto_approve)?;
+    payload["autonomy"]["always_ask"] = serde_json::to_value(&config.autonomy.always_ask)?;
+    let encoded = serde_json::to_string_pretty(&payload)?;
+    tokio::fs::write(path, encoded)
+        .await
+        .with_context(|| format!("Failed to save {}", path.display()))
+}
+
 /// 在 WASM 目标上跳过非 CLI 授权持久化。
 ///
 /// 参数被保留以保持跨目标签名一致。
@@ -51,7 +68,7 @@ pub async fn persist_non_cli_approval_to_config(
 ///
 /// 返回值：写入或确认的配置路径；无配置路径时返回 `Ok(None)`。
 ///
-/// 错误处理：读取、解析或保存 TOML 失败时返回错误；未发生变更时不写文件。
+/// 错误处理：读取、解析或保存配置失败时返回错误；未发生变更时不写文件。
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn persist_non_cli_approval_to_config(
     ctx: &ChannelRuntimeContext,
@@ -80,7 +97,7 @@ pub async fn persist_non_cli_approval_to_config(
     }
 
     if changed {
-        save_config(&parsed).await?;
+        save_approval_lists(&contents, &config_path, &parsed).await?;
     }
 
     Ok(Some(config_path))
@@ -109,7 +126,7 @@ pub async fn remove_non_cli_approval_from_config(
 ///
 /// 返回值：存在配置路径时返回路径和是否实际移除。
 ///
-/// 错误处理：读取、解析或保存 TOML 失败时返回错误；未找到条目时不写文件。
+/// 错误处理：读取、解析或保存配置失败时返回错误；未找到条目时不写文件。
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn remove_non_cli_approval_from_config(
     ctx: &ChannelRuntimeContext,
@@ -129,7 +146,7 @@ pub async fn remove_non_cli_approval_from_config(
     let removed = parsed.autonomy.auto_approve.len() != before_auto_approve;
 
     if removed {
-        save_config(&parsed).await?;
+        save_approval_lists(&contents, &config_path, &parsed).await?;
     }
 
     Ok(Some((config_path, removed)))

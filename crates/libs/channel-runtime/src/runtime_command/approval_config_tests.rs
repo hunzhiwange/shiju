@@ -157,10 +157,15 @@ async fn persist_adds_auto_approve_and_removes_always_ask_entries() {
         &[],
     );
 
+    let mut original = read_json_value(&config_path).await;
+    original["custom_extension"] = serde_json::json!({"enabled": true});
+    fs::write(&config_path, serde_json::to_string(&original).unwrap()).await.unwrap();
+
     let persisted_path = persist_non_cli_approval_to_config(&ctx, "shell").await.unwrap();
     assert_eq!(persisted_path, Some(config_path.clone()));
 
     let persisted = read_json_value(&config_path).await;
+    assert_eq!(persisted["custom_extension"], original["custom_extension"]);
     let auto_approve = persisted["autonomy"]["auto_approve"].as_array().unwrap();
     let always_ask = persisted["autonomy"]["always_ask"].as_array().unwrap();
     assert!(auto_approve.iter().any(|entry| entry == "existing"));

@@ -60,6 +60,10 @@ pub fn acp_install_command_for_platform(
         // Discover the official host CLI. No pinned, checksum-reviewed distribution
         // is registered here; never install a guessed npm package or moving script.
         "devin" => return None,
+        // Harn publishes native archives (official registry v0.10.201), without
+        // archive checksums in its manifest. Discover an operator-installed harn;
+        // never substitute a same-name npm package or an unreviewed installer.
+        "harn" => return None,
         // Native Snowflake CLI: discover the host installation. Registry archives
         // currently have no published checksums; do not execute a download script.
         "cortex-code" => return None,

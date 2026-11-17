@@ -247,6 +247,18 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 }
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
+    // Official registry: burin-labs/harn spec/acp-registry/harn/agent.json.
+    // Standard ACP clients omit Harn's environmentPolicy extension. Explicitly
+    // isolate session environments rather than inherit the gateway's secrets.
+    BuiltInAgentDefinition {
+        name: "harn",
+        display_name: "Harn",
+        command: "harn",
+        args: &["serve", "acp", "--session-environment", "isolated"],
+        env: &[],
+        local_command_candidates: &["harn"],
+        local_args: &["serve", "acp", "--session-environment", "isolated"],
+    },
     // Official native ACP CLI: https://github.com/stakpak/agent
     // Discover the host installation; do not substitute a same-name npm package.
     BuiltInAgentDefinition {

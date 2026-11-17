@@ -204,3 +204,12 @@ fn acp_onboarding_stakpak_installer_contract() {
     }
     assert!(acp_install_command("stakpak; echo unsafe").is_none());
 }
+
+#[test]
+fn acp_onboarding_harn_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+        assert!(acp_install_command_for_platform("harn", platform).is_none());
+    }
+    assert!(acp_install_command("harn; echo unsafe").is_none());
+}

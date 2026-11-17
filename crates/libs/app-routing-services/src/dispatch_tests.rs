@@ -578,7 +578,7 @@ async fn cc_route_037_authorized_native_gemini_json_and_sse() {
                 #[cfg(target_os = "macos")]
                 managed: None,
                 url: target,
-                authorization: "Bearer fixture-upstream".parse().unwrap(),
+                authorization: "fixture-upstream".parse().unwrap(),
                 transport: SharedTransport::new().unwrap(),
                 request_options: Default::default(),
             }),
@@ -613,7 +613,8 @@ async fn cc_route_037_authorized_native_gemini_json_and_sse() {
             }
             let (uri, headers, outgoing) =
                 timeout(Duration::from_secs(10), received.recv()).await.unwrap().unwrap();
-            assert_eq!(headers[header::AUTHORIZATION], "Bearer fixture-upstream");
+            assert_eq!(headers["x-goog-api-key"], "fixture-upstream");
+            assert!(!headers.contains_key(header::AUTHORIZATION));
             assert_eq!(outgoing, body);
             assert_eq!(
                 uri.path(),

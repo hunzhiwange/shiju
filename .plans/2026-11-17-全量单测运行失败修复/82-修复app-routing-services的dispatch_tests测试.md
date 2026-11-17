@@ -4,7 +4,7 @@
 
 批次：【批次1】 依赖：无
 
-状态：未开始
+状态：待回归
 
 来源：原任务19全量实际执行；证据编号170。
 预计会话范围：仅本测试定义文件中以下失败族及证据证明必要的底层修复，不接管整包。
@@ -38,3 +38,11 @@ python3 scripts/cargo_slot.py cargo test -p app-routing-services --lib 'route_au
 ```
 
 完成证据：各条精确过滤执行1项且passed=1、failed=0、退出0；参数化子进程用例同时记录子进程证据。记录槽位、双缓存路径、日志、代码状态和审查diff。不运行全量测试；最后统一验收任务负责跨任务复验。
+
+## 本次执行证据
+
+- 已核实底层 `dispatch.rs` 调用 `gemini_oauth_transport::apply_api_key`：静态 key 要求全为 ASCII graphic；原 Bearer 夹具包含空格，返回 401。仅将本用例的发布凭据改为原生 key，并校验 x-goog-api-key 与 Authorization 缺席，保留 JSON/SSE、路径与未授权断言。
+- 修改前后均执行上述精确原生命令，退出 101、实际测试 0 项。rmcp 0.8.5 依赖编译失败（13 项 E0425/E0432/E0433，缺失 base64/schemars/paste 及生成类型），未取得运行红灯或绿灯；未扩大到依赖修复。
+- 修改前槽位 3：CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；日志 `/tmp/shiju-task82-red.log`。
+- 修改后槽位 4：双缓存均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-4`；日志 `/tmp/shiju-task82-green.log`。两次前台入口已退出 101，自有锁已释放。
+- 审查 diff 仅修改本测试凭据与对应上游断言；git diff --check 通过。共享工作区其他差异不属于本任务。依赖恢复后须重跑上述精确用例，要求 1 passed、0 failed 才能完成。

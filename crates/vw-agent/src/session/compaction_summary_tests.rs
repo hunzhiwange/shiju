@@ -1,5 +1,5 @@
 use super::*;
-use crate::session::processor;
+use crate::session::{llm, processor};
 
 fn reliability() -> ReliabilityConfig {
     ReliabilityConfig { provider_retries: 0, provider_backoff_ms: 0, ..Default::default() }
@@ -52,7 +52,16 @@ async fn compaction_failed_attempt_leaves_previous_checkpoint_restorable() {
         .await
         .unwrap();
     let restored = crate::session::compaction_checkpoint::restore(&session, &source).await.unwrap();
-    processor::enqueue_test_llm_stream(vec![overflow_error("invalid API key")]);
+    processor::enqueue_test_llm_stream(vec![llm::StreamEvent::Error(
+        message_types::AssistantError::APIError {
+            message: "invalid API key".into(),
+            status_code: Some(400),
+            is_retryable: false,
+            response_headers: None,
+            response_body: None,
+            metadata: None,
+        },
+    )]);
     assert!(
         summarize_async(
             session.clone(),

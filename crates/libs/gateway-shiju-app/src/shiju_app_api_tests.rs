@@ -332,7 +332,7 @@ async fn shiju_app_sensitive_values_remain_redacted() {
         "installationId": "01K1APP0000000000000000001",
         "name": "知识助手",
         "runtimeUrl": runtime_url,
-        "runtimeSessionToken": "runtime-session-private"
+        "runtimeSetCookie": "app_runtime_session=runtime-session-private; Path=/; HttpOnly; Secure; SameSite=None"
     }))
     .expect("launch contract");
     let launch_debug = format!("{launch:?}");

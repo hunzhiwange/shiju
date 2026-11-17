@@ -11,7 +11,8 @@ doctest = false
 acp-config = { path = "../acp-config", version = "0.6.0" }
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
 anyhow = "1"
-rmcp = { version = "0.8.0", default-features = false, features = ["client", "transport-io", "transport-child-process", "transport-sse-client-reqwest", "transport-streamable-http-client-reqwest"] }
+# rmcp 0.8.x model types require its default base64/macros/server features.
+rmcp = { version = "0.8.0", features = ["client", "transport-io", "transport-child-process", "transport-sse-client-reqwest", "transport-streamable-http-client-reqwest"] }
 serde_json = "1"
 tracing = "0.1"
 tokio = { version = "1", features = ["sync", "time", "macros", "rt", "process", "io-util"] }

@@ -444,14 +444,27 @@ fn discard_selection_without_repo_clears_context_menu_only() {
 #[test]
 fn discard_selection_with_repo_context_clears_selection_even_when_lines_are_not_changed() {
     let mut app = test_app();
-    app.project_path = Some("/missing/repo".to_string());
-    app.git.git_diff_selected_range = Some(range("a.rs", 1, 2, false));
-    app.git.git_diff_selected_lines = vec![selected("a.rs", 1, false, "+line")];
+    let temp = tempfile::tempdir().expect("temp repo");
+    let repo = git2::Repository::init(temp.path()).expect("init repo");
+    std::fs::write(temp.path().join("a.rs"), "line\n").expect("write unchanged file");
+    let mut index = repo.index().expect("repo index");
+    index.add_path(std::path::Path::new("a.rs")).expect("stage file");
+    index.write().expect("write index");
+    let tree_id = index.write_tree().expect("write tree");
+    let tree = repo.find_tree(tree_id).expect("find tree");
+    let signature = git2::Signature::now("Test", "test@example.com").expect("signature");
+    repo.commit(Some("HEAD"), &signature, &signature, "initial", &tree, &[])
+        .expect("commit unchanged file");
+    app.project_path = Some(temp.path().to_string_lossy().into_owned());
+    assert!(app.view().repo_path.is_some());
+    app.git.git_diff_selected_range = Some(range("a.rs", 1, 1, false));
+    app.git.git_diff_selected_lines = vec![selected("a.rs", 1, false, "line")];
 
     let _ = update(&mut app, GitMessage::DiscardDiffSelection);
 
     assert!(app.git.git_diff_selected_lines.is_empty());
     assert!(app.git.git_diff_selected_range.is_none());
+    assert_eq!(std::fs::read_to_string(temp.path().join("a.rs")).expect("read file"), "line\n");
 }
 
 #[test]

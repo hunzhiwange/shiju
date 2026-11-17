@@ -1,4 +1,6 @@
 use desktop_task_model::{Task, TaskSplitMode, TaskStatus};
+use vw_api_agent_scheduler::AgentTaskStatusDto;
+use vw_api_task::TaskPoolWorkflowStatusRoleDto;
 fn task(id: &str, status: TaskStatus) -> Task {
     let mut task = Task::new(1);
     task.id = id.into();
@@ -19,7 +21,13 @@ fn task_metadata_patch_trims_workflow_and_copies_task_fields() {
     task.task_split_mode = TaskSplitMode::Enabled;
     task.auto_promote_delay_ms = Some(5_000);
 
-    let patch = crate::bulk::task_metadata_patch_for_gateway(&task, "  dev_lifecycle  ");
+    let patch = crate::bulk::task_metadata_patch_for_gateway(
+        &task,
+        "  dev_lifecycle  ",
+        "pending".to_string(),
+        AgentTaskStatusDto::Queued,
+        Some(TaskPoolWorkflowStatusRoleDto::Queued),
+    );
 
     assert_eq!(patch.title.as_deref(), Some("First line"));
     assert_eq!(patch.priority, Some(42));
@@ -29,9 +37,9 @@ fn task_metadata_patch_trims_workflow_and_copies_task_fields() {
     assert_eq!(patch.acp_agent.as_deref(), Some("codex"));
     assert_eq!(patch.prompt.as_deref(), Some(task.prompt.as_str()));
     assert_eq!(patch.workflow_id.as_deref(), Some("dev_lifecycle"));
-    assert!(patch.status_key.is_some());
-    assert!(patch.status.is_some());
-    assert!(patch.status_role.is_some());
+    assert_eq!(patch.status_key.as_deref(), Some("pending"));
+    assert_eq!(patch.status, Some(AgentTaskStatusDto::Queued));
+    assert_eq!(patch.status_role, Some(TaskPoolWorkflowStatusRoleDto::Queued));
     assert_eq!(
         patch.metadata_merge,
         Some(serde_json::json!({
@@ -56,8 +64,17 @@ fn task_metadata_patch_copies_error_pause_and_worktree_fields() {
     task.selected_worktree_slot_id = Some("slot-1".to_string());
     task.selected_worktree_branch = Some("feature/a".to_string());
 
-    let patch = crate::bulk::task_metadata_patch_for_gateway(&task, "workflow");
+    let patch = crate::bulk::task_metadata_patch_for_gateway(
+        &task,
+        "workflow",
+        "pr_submitted".to_string(),
+        AgentTaskStatusDto::Submitted,
+        None,
+    );
 
+    assert_eq!(patch.status_key.as_deref(), Some("pr_submitted"));
+    assert_eq!(patch.status, Some(AgentTaskStatusDto::Submitted));
+    assert_eq!(patch.status_role, None);
     assert_eq!(patch.last_error.as_deref(), Some("merge conflict"));
     assert_eq!(patch.pause_reason.as_deref(), Some("manual review"));
     assert_eq!(patch.merge_source_branch.as_deref(), Some("feature/a"));
@@ -351,8 +368,17 @@ mod logs {
 fn task_metadata_patch_uses_id_and_default_workflow_for_empty_inputs() {
     let task = task("T-fallback-title", TaskStatus::Pool);
 
-    let patch = crate::bulk::task_metadata_patch_for_gateway(&task, "   ");
+    let patch = crate::bulk::task_metadata_patch_for_gateway(
+        &task,
+        "   ",
+        "pool".to_string(),
+        AgentTaskStatusDto::Draft,
+        Some(TaskPoolWorkflowStatusRoleDto::Backlog),
+    );
 
+    assert_eq!(patch.status_key.as_deref(), Some("pool"));
+    assert_eq!(patch.status, Some(AgentTaskStatusDto::Draft));
+    assert_eq!(patch.status_role, Some(TaskPoolWorkflowStatusRoleDto::Backlog));
     assert_eq!(patch.title.as_deref(), Some("T-fallback-title"));
     assert_eq!(patch.workflow_id.as_deref(), Some(desktop_task_model::DEFAULT_TASK_WORKFLOW_ID));
 }

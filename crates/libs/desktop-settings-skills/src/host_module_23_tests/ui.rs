@@ -227,6 +227,7 @@ async fn ui_refresh_19_renders_catalogs_and_modals() {
         for theme in [Theme::Light, Theme::Dark] {
             let mut app = fixture();
             app.desktop_locale = locale;
+            app.app_theme = theme.clone();
             app.recent_projects.push(format!("{PATH}/{}", "長目錄/long-segment/".repeat(20)));
             let size = Size::new(width, 820);
             let narrow = Size::new(420, 660);

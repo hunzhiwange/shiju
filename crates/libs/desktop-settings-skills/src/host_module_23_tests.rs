@@ -24,7 +24,7 @@ enum Message {
 enum ViewMessage {
     OpenUrlExternal(String),
 }
-impl desktop_chat_view::message_view::markdown_selection::SelectionMessage for Message {
+impl desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage for Message {
     fn none() -> Self {
         Self::None
     }
@@ -43,39 +43,20 @@ impl desktop_chat_view::message_view::markdown_selection::SelectionMessage for M
         Self::None
     }
 }
-fn help<'a, E: Clone + 'a>(
+fn help<'a, 'theme, E: Clone + 'static>(
     i18n: desktop_i18n::I18n,
-    theme: Option<&iced::Theme>,
+    theme: Option<&'theme iced::Theme>,
     title: &'a str,
     label: iced::widget::Text<'a>,
     description: std::borrow::Cow<'a, str>,
 ) -> iced::widget::Row<'a, E>
 where
-    E: desktop_chat_view::message_view::markdown_selection::SelectionMessage,
+    E: desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage,
 {
-    let content = desktop_chat_view::message_view::markdown_selection::selectable_titled_text::<E>(
-        title,
-        description,
-        theme.map(|t| t.palette().text),
-        i18n,
-    );
+    let content = desktop_ui_controls::selectable_text::markdown_selection::selectable_titled_text::<
+        E,
+    >(title, description, theme.map(|t| t.palette().text), i18n);
     desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label, content)
-}
-impl desktop_chat_view::message_view::markdown_selection::SelectionMessage
-    for crate::page::Message
-{
-    fn none() -> Self {
-        Self::None
-    }
-    fn copy(text: String) -> Self {
-        Self::CopyText(text)
-    }
-    fn context(_: desktop_ui_controls::text_editor_context_menu::TextContextEffect) -> Self {
-        Self::None
-    }
-    fn selection(_: String, _: usize, _: usize, _: Option<String>) -> Self {
-        Self::None
-    }
 }
 
 fn context(app: &Fixture) -> crate::BrowserContext<'_> {
@@ -83,7 +64,7 @@ fn context(app: &Fixture) -> crate::BrowserContext<'_> {
     crate::BrowserContext {
         help,
         desktop_locale: app.desktop_locale,
-        app_theme: app.app_theme,
+        app_theme: &app.app_theme,
         project_path: &app.project_path,
         recent_projects: &app.recent_projects,
         skills_settings: crate::BrowserState {
@@ -107,7 +88,7 @@ fn config_context(app: &Fixture) -> crate::page::ConfigContext<'_> {
     crate::page::ConfigContext {
         help,
         desktop_locale: app.desktop_locale,
-        app_theme: app.app_theme,
+        app_theme: &app.app_theme,
         directory_provider: s.directory_provider,
         auto_load_project_skills: s.auto_load_project_skills,
         prompt_injection_mode: s.prompt_injection_mode,
@@ -165,7 +146,7 @@ fn with_plugin_install<'a>(app: &'a Fixture, base: Element<'a, Message>) -> Elem
     match &app.skills_settings.plugin_install {
         Some(form) => crate::plugin_install_modal::view(
             app.desktop_locale,
-            app.app_theme,
+            &app.app_theme,
             base,
             form,
             Message::Plugin,
@@ -179,7 +160,7 @@ mod plugins {
         let s = &app.skills_settings;
         crate::plugins::view(crate::plugins::ViewState {
             desktop_locale: app.desktop_locale,
-            app_theme: app.app_theme,
+            app_theme: &app.app_theme,
             query: &s.query,
             plugin_catalog: &s.plugin_catalog,
             selected_plugin_id: &s.selected_plugin_id,
@@ -238,4 +219,14 @@ fn copy_install_command_emits_the_documented_template() {
 #[cfg(test)]
 mod host_module_39_render;
 
-impl Default for Fixture { fn default() -> Self { Self { project_path: Default::default(), recent_projects: Default::default(), skills_settings: Default::default(), desktop_locale: Default::default(), app_theme: iced::Theme::Light } } }
+impl Default for Fixture {
+    fn default() -> Self {
+        Self {
+            project_path: Default::default(),
+            recent_projects: Default::default(),
+            skills_settings: Default::default(),
+            desktop_locale: Default::default(),
+            app_theme: iced::Theme::Light,
+        }
+    }
+}

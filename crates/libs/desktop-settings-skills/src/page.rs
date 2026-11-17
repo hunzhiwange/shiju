@@ -225,3 +225,18 @@ pub fn view<'a, M: Clone + 'static>(
     }
     page.push(content).into()
 }
+
+impl desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage for Message {
+    fn none() -> Self {
+        Self::None
+    }
+    fn copy(text: String) -> Self {
+        Self::CopyText(text)
+    }
+    fn context(_: desktop_ui_controls::text_editor_context_menu::TextContextEffect) -> Self {
+        Self::None
+    }
+    fn selection(_: String, _: usize, _: usize, _: Option<String>) -> Self {
+        Self::None
+    }
+}

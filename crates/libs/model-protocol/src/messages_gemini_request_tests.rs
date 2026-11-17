@@ -30,6 +30,7 @@ fn cc_route_047_preserves_tool_correlation_and_followup_media() {
         {"role":"user","content":[{"type":"tool_result","tool_use_id":"call1","content":"result"}]},
         {"role":"user","content":[{"type":"image","source":{"type":"base64","media_type":"image/png","data":"aGk="}}]}
     ]})).unwrap();
+    assert!(out.get("tools").is_none());
     assert_eq!(out["contents"][0]["role"], "model");
     assert_eq!(out["contents"][1]["parts"][0]["functionResponse"]["name"], "lookup");
     assert_eq!(out["contents"][2]["parts"][0]["inlineData"]["data"], "aGk=");

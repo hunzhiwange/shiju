@@ -41,7 +41,7 @@ pub fn convert(body: &Value) -> Result<Value, StatusCode> {
             .iter().filter(|m| m["role"] != "system").count();
         output["contents"][count - 1]["parts"] = parts.into();
     }
-    if let Some(tools) = output["tools"].as_array_mut() {
+    if let Some(tools) = output.get_mut("tools").and_then(Value::as_array_mut) {
         for tool in tools {
             if let Some(functions) = tool["functionDeclarations"].as_array_mut() {
                 for function in functions {

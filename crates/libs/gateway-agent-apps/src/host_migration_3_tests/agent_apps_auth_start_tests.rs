@@ -1,8 +1,4 @@
-use super::{auth_router as agent_apps_auth_read, agent_apps_auth_start::Runtime};
-use {
-    agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
-    agent_database::{GlobalDatabase, run_sync_database, test_support::PostgresTestDatabase},
-};
+use super::{agent_apps_auth_start::Runtime, auth_router as agent_apps_auth_read};
 use axum::{
     Extension,
     http::{StatusCode, header},
@@ -12,9 +8,11 @@ use sha2::{Digest, Sha256};
 use std::{fs, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path, sync::Arc};
 use tokio::{net::TcpListener, task::JoinHandle};
 use {
-    vw_api_transport::TimestampMs,
-    vw_api_app_auth::AuthService,
-    vw_api_transport::id::TenantScope,
+    agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
+    agent_database::{GlobalDatabase, run_sync_database, test_support::PostgresTestDatabase},
+};
+use {
+    vw_api_app_auth::AuthService, vw_api_transport::TimestampMs, vw_api_transport::id::TenantScope,
 };
 
 pub(super) const OWNER: &str = "fixture-owner-token-aaaaaaaaaaaa";
@@ -192,18 +190,60 @@ impl Drop for Gateway {
     }
 }
 
+fn check_isolated_start(postgres: bool, rejects: bool) -> anyhow::Result<()> {
+    const CHILD_ROOT: &str = "SHIJU_AUTH_START_TEST_ROOT";
+    if let Some(root) = std::env::var_os(CHILD_ROOT) {
+        let home = std::path::PathBuf::from(root);
+        let fixture = postgres.then(PostgresTestDatabase::from_environment).transpose()?;
+        let database = match &fixture {
+            Some(fixture) => fixture.database().clone(),
+            None => GlobalDatabase::for_home(&home)?,
+        };
+        return tokio::runtime::Runtime::new()?.block_on(async {
+            if rejects {
+                check_rejections(&home, database).await
+            } else {
+                check_start(&home, database).await
+            }
+        });
+    }
+    // Runtime paths are initialized once: isolate HOME and PATH before the child starts.
+    let home = tempfile::tempdir()?;
+    let path = std::env::join_paths([
+        home.path().to_path_buf(),
+        std::path::PathBuf::from("/usr/bin"),
+        std::path::PathBuf::from("/bin"),
+    ])?;
+    let name = match (postgres, rejects) {
+        (false, false) => "auth6_api_start_commits_expected_scoped_result",
+        (true, false) => "auth6_api_start_commits_expected_scoped_result_postgres",
+        (false, true) => "auth6_api_start_rejects_invalid_or_stale_input",
+        (true, true) => "auth6_api_start_rejects_invalid_or_stale_input_postgres",
+    };
+    let status = std::process::Command::new(std::env::current_exe()?)
+        .args([
+            "--exact",
+            &format!("host_migration_3_tests::agent_apps_auth_start_tests::{name}"),
+            "--nocapture",
+        ])
+        .env(CHILD_ROOT, home.path())
+        .env("VIBEWINDOW_TEST_ROOT", home.path())
+        .env("HOME", home.path())
+        .env("PATH", path)
+        .env_remove("CLAUDE_CONFIG_DIR")
+        .status()?;
+    anyhow::ensure!(status.success(), "isolated start test failed: {status}");
+    Ok(())
+}
+
 #[test]
 fn auth6_api_start_commits_expected_scoped_result() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let database = GlobalDatabase::for_home(home.path())?;
-    tokio::runtime::Runtime::new()?.block_on(check_start(home.path(), database))
+    check_isolated_start(false, false)
 }
 
 #[test]
 fn auth6_api_start_commits_expected_scoped_result_postgres() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let database = PostgresTestDatabase::from_environment()?;
-    tokio::runtime::Runtime::new()?.block_on(check_start(home.path(), database.database().clone()))
+    check_isolated_start(true, false)
 }
 
 async fn check_start(home: &Path, database: GlobalDatabase) -> anyhow::Result<()> {
@@ -266,17 +306,12 @@ async fn check_start(home: &Path, database: GlobalDatabase) -> anyhow::Result<()
 
 #[test]
 fn auth6_api_start_rejects_invalid_or_stale_input() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let database = GlobalDatabase::for_home(home.path())?;
-    tokio::runtime::Runtime::new()?.block_on(check_rejections(home.path(), database))
+    check_isolated_start(false, true)
 }
 
 #[test]
 fn auth6_api_start_rejects_invalid_or_stale_input_postgres() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let database = PostgresTestDatabase::from_environment()?;
-    tokio::runtime::Runtime::new()?
-        .block_on(check_rejections(home.path(), database.database().clone()))
+    check_isolated_start(true, true)
 }
 
 async fn check_rejections(home: &Path, database: GlobalDatabase) -> anyhow::Result<()> {

@@ -191,40 +191,65 @@ async fn work_browser_controller_toolbar_uses_compact_height() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn work_browser_toolbar_close_action_is_reachable() {
-    let renderer =
+    let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("tiny-skia headless renderer should be available");
-    let app = BrowserFixture::default();
-    let mut element = view(&app);
-    let limits = layout::Limits::new(Size::ZERO, VIEWPORT);
-    let mut tree = Tree::new(element.as_widget());
-    let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
-    let toolbar = Layout::new(&node).children().next().expect("browser toolbar");
-    let controls = toolbar.children().next().expect("browser toolbar controls");
-    let close_bounds = controls.children().last().expect("browser close control").bounds();
-    let cursor = mouse::Cursor::Available(close_bounds.center());
-    let mut clipboard = clipboard::Null;
-    let mut messages = Vec::new();
 
-    for event in [
-        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
-        Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
-    ] {
-        let mut shell = Shell::new(&mut messages);
-        element.as_widget_mut().update(
-            &mut tree,
-            &event,
-            Layout::new(&node),
-            cursor,
-            &renderer,
-            &mut clipboard,
-            &mut shell,
-            &Rectangle::with_size(VIEWPORT),
-        );
+    for theme in [Theme::Light, Theme::Dark] {
+        for closed in [false, true] {
+            let mut app = BrowserFixture::default();
+            app.work_browser.closed = closed;
+            if !closed {
+                app.work_browser.address = "https://example.com/文档".to_string();
+            }
+            let mut element = view(&app);
+            let limits = layout::Limits::new(Size::ZERO, VIEWPORT);
+            let mut tree = Tree::new(element.as_widget());
+            let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+            let toolbar = Layout::new(&node).children().next().expect("browser toolbar");
+            let controls = toolbar.children().next().expect("browser toolbar controls");
+            let close_bounds = controls.children().last().expect("browser close control").bounds();
+            let cursor = mouse::Cursor::Available(close_bounds.center());
+            let viewport = Rectangle::with_size(VIEWPORT);
+            element.as_widget().draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &renderer::Style::default(),
+                Layout::new(&node),
+                cursor,
+                &viewport,
+            );
+            let mut clipboard = clipboard::Null;
+            let mut messages = Vec::new();
+
+            for event in [
+                Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+                Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+            ] {
+                let mut shell = Shell::new(&mut messages);
+                element.as_widget_mut().update(
+                    &mut tree,
+                    &event,
+                    Layout::new(&node),
+                    cursor,
+                    &renderer,
+                    &mut clipboard,
+                    &mut shell,
+                    &viewport,
+                );
+            }
+
+            assert_eq!(
+                messages
+                    .into_iter()
+                    .any(|message| matches!(message, ViewMessage::WorkBrowserClose)),
+                !closed,
+                "close action availability should match browser state (closed={closed}, theme={theme:?})"
+            );
+        }
     }
-
-    assert!(messages.into_iter().any(|message| matches!(message, ViewMessage::WorkBrowserClose)));
 }
 
 #[test]

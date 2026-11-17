@@ -1,79 +1,66 @@
 use crate::host_migration_3_tests::auth_router as agent_apps_auth_read;
-use {
-    agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
-    app_provider_services::AppProviderStore,
-    agent_database::{GlobalDatabase, test_support::PostgresTestDatabase},
-};
 use axum::{Extension, http::StatusCode};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use reqwest::{Method, Response};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 use tokio::{net::TcpListener, task::JoinHandle};
 use vw_agent_apps::auth::credential_file::{AccountCredential, CredentialFileStore};
 use {
-    vw_api_transport::TimestampMs,
-    vw_api_app_identity::AppId,
-    vw_api_app_auth::AuthService,
+    agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
+    agent_database::{GlobalDatabase, test_support::PostgresTestDatabase},
+    app_provider_services::AppProviderStore,
+};
+use {
+    vw_api_app_auth::AuthService, vw_api_app_identity::AppId, vw_api_transport::TimestampMs,
     vw_api_transport::id::TenantScope,
 };
 
 const OWNER: &str = "fixture-remove-owner-token-aaaaaaaa";
 const READER: &str = "fixture-remove-reader-token-bbbbbbb";
 const ROOT: &str = "/v1/agent-apps/auth";
-const SCOPE: &str = "host_id=host&service=codex_oauth";
+const SCOPE: &str = "host_id=desktop-local&service=codex_oauth";
+
+fn isolated_test() -> anyhow::Result<bool> {
+    const CHILD: &str = "SHIJU_AUTH_REMOVE_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        return Ok(false);
+    }
+    let home = tempfile::tempdir()?;
+    let status = std::process::Command::new(std::env::current_exe()?)
+        .args(["--exact", std::thread::current().name().unwrap(), "--nocapture"])
+        .env(CHILD, "1")
+        .env("VIBEWINDOW_TEST_ROOT", home.path().canonicalize()?)
+        .status()?;
+    anyhow::ensure!(status.success(), "isolated auth removal child failed: {status}");
+    Ok(true)
+}
+
+fn credential_root(company: &str) -> anyhow::Result<PathBuf> {
+    let root = local_app_auth::auth_policy_path(&agent_paths::paths().home, "p", company)
+        .with_file_name("auth-credentials");
+    fs::create_dir_all(&root)?;
+    fs::set_permissions(&root, fs::Permissions::from_mode(0o700))?;
+    Ok(root)
+}
 
 struct Fixture {
-    home: tempfile::TempDir,
     db: GlobalDatabase,
     root: PathBuf,
 }
 
 impl Fixture {
     fn new(db: GlobalDatabase) -> anyhow::Result<Self> {
-        let home = tempfile::tempdir()?;
-        let root = home.path().join("private");
-        fs::create_dir(&root)?;
-        fs::set_permissions(&root, fs::Permissions::from_mode(0o700))?;
-        let grant = |company, host, write| {
-            json!({
-                "platform_id":"p", "company_id":company, "host_id":host,
-                "auth_account_read":["codex_oauth"],
-                "provider_config_write":write,
-                "auth_binding_write":if write { json!(["codex_oauth"]) } else { json!([]) },
-                "auth_default_write":if write { json!(["codex_oauth"]) } else { json!([]) },
-                "auth_account_delete":if write { json!(["codex_oauth","agy_oauth","dsh_account"]) } else { json!([]) }
-            })
-        };
-        let principal = |id, token: &str, grants| json!({"id":id, "token_sha256":hex::encode(Sha256::digest(token)), "grants":grants});
-        let host = |id, online, binding| {
-            json!({"id":id, "online":online, "binding":binding, "home":home.path(),
-                "search_paths":[], "applications":home.path(), "credential_root":root})
-        };
-        let policy = home.path().join("access.json");
-        fs::write(
-            &policy,
-            serde_json::to_vec(&json!({
-                "principals":[
-                    principal("owner", OWNER, vec![grant("c","host",true), grant("neighbor","host",true),
-                        grant("c","remote",true), grant("c","offline",true)]),
-                    principal("reader", READER, vec![grant("c","host",false)])
-                ],
-                "hosts":[host("host",true,"local"), host("remote",true,"remote"), host("offline",false,"local")]
-            }))?,
-        )?;
-        fs::set_permissions(&policy, fs::Permissions::from_mode(0o600))?;
+        let root = credential_root("c")?;
         let tenant = TenantScope::new("p", "c")?;
         let neighbor = TenantScope::new("p", "neighbor")?;
         let scope = AuthAccountScope {
             tenant: &tenant,
-            principal: "owner",
-            host: "host",
+            principal: "desktop-local-user",
+            host: "desktop-local",
             service: AuthService::CodexOauth,
         };
         let accounts = AuthAccountStore::new(db.clone(), &root).map_err(anyhow::Error::msg)?;
-        let credentials = CredentialFileStore::new(&root).map_err(anyhow::Error::msg)?;
         let credential = AccountCredential::CodexAuth(json!({
             "auth_mode":"chatgpt",
             "tokens":{
@@ -91,6 +78,9 @@ impl Fixture {
             (AuthAccountScope { principal: "reader", ..scope }, "foreign-owner"),
             (AuthAccountScope { host: "foreign-host", ..scope }, "foreign-host"),
         ] {
+            let credentials =
+                CredentialFileStore::new(&credential_root(scope.tenant.company_id().as_ref())?)
+                    .map_err(anyhow::Error::msg)?;
             credentials
                 .for_owner(scope.principal)
                 .and_then(|owner| owner.lease(scope.tenant, scope.host, AppId::Codex, id, true))
@@ -117,19 +107,24 @@ impl Fixture {
         providers
             .bind_codex_account(scope, &root, "official", None, Some("managed"))
             .map_err(|code| anyhow::anyhow!("{code:?}"))?;
-        Ok(Self { home, db, root })
+        Ok(Self { db, root })
     }
 
     async fn serve(&self) -> anyhow::Result<Gateway> {
         let router = crate::host_migration_3_tests::build_router_with_auth(
             vec![],
-            agent_apps_auth_read::router(
+            agent_apps_auth_read::router(Some("secret"), "test", None),
+        )
+        .layer(Extension(self.db.clone()))
+        .layer(axum::middleware::from_fn(|request, next| async move {
+            agent_gateway::middleware::basic_auth_middleware_with_credentials(
+                request,
+                next,
                 Some("secret"),
                 "test",
-                Some(self.home.path().join("access.json")),
-            ),
-        )
-        .layer(Extension(self.db.clone()));
+            )
+            .await
+        }));
         let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
         let url = format!("http://{}", listener.local_addr()?);
         let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
@@ -144,8 +139,8 @@ impl Fixture {
             store
                 .managed_default_account(AuthAccountScope {
                     tenant: &tenant,
-                    principal: "owner",
-                    host: "host",
+                    principal: "desktop-local-user",
+                    host: "desktop-local",
                     service: AuthService::CodexOauth,
                 })
                 .map_err(|error| anyhow::anyhow!("{error:?}"))
@@ -154,9 +149,9 @@ impl Fixture {
 
     fn has_credential(&self, company: &str) -> anyhow::Result<bool> {
         let tenant = TenantScope::new("p", company)?;
-        let lease = CredentialFileStore::new(&self.root)
-            .and_then(|store| store.for_owner("owner"))
-            .and_then(|owner| owner.lease(&tenant, "host", AppId::Codex, "managed", false))
+        let lease = CredentialFileStore::new(&credential_root(company)?)
+            .and_then(|store| store.for_owner("desktop-local-user"))
+            .and_then(|owner| owner.lease(&tenant, "desktop-local", AppId::Codex, "managed", false))
             .map_err(anyhow::Error::msg)?;
         Ok(lease.read().is_ok())
     }
@@ -191,10 +186,12 @@ impl Gateway {
     ) -> anyhow::Result<Response> {
         let response = self
             .request(Method::DELETE, &format!("{ROOT}/accounts/{id}?{scope}"), company)
-            .basic_auth("test", Some("secret"))
+            .basic_auth("test", Some(if token == READER { "invalid" } else { "secret" }))
             .send()
             .await?;
-        assert_eq!(response.headers()["cache-control"], "no-store");
+        if response.status() != StatusCode::UNAUTHORIZED {
+            assert_eq!(response.headers()["cache-control"], "no-store");
+        }
         Ok(response)
     }
 
@@ -271,22 +268,28 @@ async fn rejects(fixture: Fixture) -> anyhow::Result<()> {
         let response = gateway.delete(id, SCOPE, "c", OWNER).await?;
         assert_eq!(assert_error(response, 404, "not_found").await?, absent);
     }
-    for (scope, token, status, code) in [
-        (SCOPE, READER, 403, "forbidden"),
-        ("host_id=host&service=agy_oauth", OWNER, 403, "forbidden"),
-        ("host_id=host&service=dsh_account", OWNER, 403, "forbidden"),
-        ("host_id=host&service=xai_oauth", OWNER, 403, "forbidden"),
-        ("host_id=remote&service=codex_oauth", OWNER, 501, "execution_channel_unavailable"),
-        ("host_id=offline&service=codex_oauth", OWNER, 503, "execution_host_unavailable"),
-    ] {
-        assert_error(gateway.delete("managed", scope, "c", token).await?, status, code).await?;
+    // Gateway credentials enforce access; removed application grants are not authority.
+    assert_eq!(
+        gateway.delete("managed", SCOPE, "c", READER).await?.status(),
+        StatusCode::UNAUTHORIZED
+    );
+    // A caller-selected host must never expose a foreign host's account.
+    for host in ["remote", "offline"] {
+        assert_error(
+            gateway
+                .delete("foreign-host", &format!("host_id={host}&service=codex_oauth"), "c", OWNER)
+                .await?,
+            404,
+            "not_found",
+        )
+        .await?;
     }
     let response = gateway
         .request(Method::DELETE, &format!("{ROOT}/accounts/managed?{SCOPE}"), "c")
         .header("x-agent-apps-token", OWNER)
         .send()
         .await?;
-    assert_error(response, 401, "unauthenticated").await?;
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     for prefix in ["/agent-apps/auth", "/api/agent-apps/auth"] {
         let response = gateway
             .request(Method::DELETE, &format!("{prefix}/accounts/managed?{SCOPE}"), "c")
@@ -303,6 +306,9 @@ async fn rejects(fixture: Fixture) -> anyhow::Result<()> {
 
 #[test]
 fn auth6_api_remove_commits_expected_scoped_result() -> anyhow::Result<()> {
+    if isolated_test()? {
+        return Ok(());
+    }
     let home = tempfile::tempdir()?;
     let fixture = Fixture::new(GlobalDatabase::for_home(home.path())?)?;
     tokio::runtime::Runtime::new()?.block_on(commits(fixture))
@@ -310,6 +316,9 @@ fn auth6_api_remove_commits_expected_scoped_result() -> anyhow::Result<()> {
 
 #[test]
 fn auth6_api_remove_rejects_invalid_or_stale_input() -> anyhow::Result<()> {
+    if isolated_test()? {
+        return Ok(());
+    }
     let home = tempfile::tempdir()?;
     let fixture = Fixture::new(GlobalDatabase::for_home(home.path())?)?;
     tokio::runtime::Runtime::new()?.block_on(rejects(fixture))
@@ -317,6 +326,9 @@ fn auth6_api_remove_rejects_invalid_or_stale_input() -> anyhow::Result<()> {
 
 #[test]
 fn auth6_api_remove_commits_expected_scoped_result_postgres() -> anyhow::Result<()> {
+    if isolated_test()? {
+        return Ok(());
+    }
     let db = PostgresTestDatabase::from_environment()?;
     let fixture = Fixture::new(db.database().clone())?;
     let result = tokio::runtime::Runtime::new()?.block_on(commits(fixture));
@@ -326,6 +338,9 @@ fn auth6_api_remove_commits_expected_scoped_result_postgres() -> anyhow::Result<
 
 #[test]
 fn auth6_api_remove_rejects_invalid_or_stale_input_postgres() -> anyhow::Result<()> {
+    if isolated_test()? {
+        return Ok(());
+    }
     let db = PostgresTestDatabase::from_environment()?;
     let fixture = Fixture::new(db.database().clone())?;
     let result = tokio::runtime::Runtime::new()?.block_on(rejects(fixture));

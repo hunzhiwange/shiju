@@ -20,7 +20,7 @@ use super::*;
 ///
 /// # 功能说明
 ///
-/// 验证 `parse_runtime_command` 函数在非模型通道（如 Slack）上能够正确解析
+/// 验证 `parse_runtime_command` 函数在文本通道（如 Slack）上能够正确解析
 /// 各种工具授权相关的斜杠命令，包括：
 ///
 /// - 请求授权：`/approve-request`
@@ -46,11 +46,11 @@ use super::*;
 /// | `/approve shell` | 批准工具 "shell" |
 /// | `/unapprove shell` | 撤销工具 "shell" 的授权 |
 /// | `/approvals` | 列出所有授权 |
-/// | `/models` | 无效命令，返回 None |
+/// | `/models` | 展示可用 provider |
 ///
 /// # 边界条件
 ///
-/// - 测试验证 `/models` 命令在非模型通道上应返回 `None`，表明该命令不适用于此通道类型
+/// - 审批命令与模型命令都可在 Slack 文本通道上解析，不按渠道限制模型命令
 #[test]
 fn parse_runtime_command_allows_approval_commands_on_non_model_channels() {
     assert_eq!(
@@ -89,7 +89,10 @@ fn parse_runtime_command_allows_approval_commands_on_non_model_channels() {
         parse_runtime_command("slack", "/approvals"),
         Some(ChannelRuntimeCommand::ListApprovals)
     );
-    assert_eq!(parse_runtime_command("slack", "/models"), None);
+    assert_eq!(
+        parse_runtime_command("slack", "/models"),
+        Some(ChannelRuntimeCommand::ShowProviders)
+    );
 }
 
 /// 测试自然语言形式的授权意图识别

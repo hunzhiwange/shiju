@@ -170,9 +170,9 @@ pub fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
     match tab {
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Voice => &["voice", "microphone", "dictation", "语音", "听写", "音色"],
-        SystemTab::Apps => &["apps", "应用", "安装", "catalog"],
+        SystemTab::Apps => &["apps", "应用", "安装", "catalog", "第三方智能体", "third-party agents", "cc-switch"],
         #[cfg(not(target_arch = "wasm32"))]
-        SystemTab::Auth => &["auth", "accounts", "账号", "授权", "凭据"],
+        SystemTab::Auth => &["auth", "accounts", "账号", "授权", "凭据", "第三方智能体", "third-party agents", "cc-switch"],
         SystemTab::General => &["general", "app", "basic", "基础", "themes", "主题"],
         SystemTab::Themes => {
             &["themes", "gallery", "palette", "custom", "builtin", "画廊", "配色", "色板"]
@@ -182,7 +182,7 @@ pub fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
         SystemTab::Worktrees => &["worktree", "工作树", "清理", "环境"],
         SystemTab::ArchivedChats => &["archived", "chats", "归档", "聊天", "历史项目"],
         SystemTab::Providers => {
-            &["providers", "api key", "model", "模型", "密钥", "base url", "catalog"]
+            &["providers", "api key", "model", "模型", "密钥", "base url", "catalog", "第三方智能体", "third-party agents", "cc-switch"]
         }
         SystemTab::Models => &["models", "llm", "ai", "provider"],
         SystemTab::Cron => &["cron", "schedule", "task", "自动化"],
@@ -215,11 +215,8 @@ pub const GROUPS: &[(&str, &[SystemTab])] = {
             "应用与项目",
             &[
                 General,
-                Apps,
                 #[cfg(not(target_arch = "wasm32"))]
                 ComputerControl,
-                #[cfg(not(target_arch = "wasm32"))]
-                Auth,
                 #[cfg(not(target_arch = "wasm32"))]
                 Voice,
                 Projects,
@@ -227,7 +224,16 @@ pub const GROUPS: &[(&str, &[SystemTab])] = {
                 ArchivedChats,
             ],
         ),
-        ("模型与智能体", &[Providers, Models, Agents, Memory]),
+        ("模型与智能体", &[Models, Agents, Memory]),
+        (
+            "第三方智能体",
+            &[
+                Apps,
+                Providers,
+                #[cfg(not(target_arch = "wasm32"))]
+                Auth,
+            ],
+        ),
         ("网络与集成", &[GatewayClient, Gateway, WebSearch]),
         ("运行与安全", &[Cron, Security, Autonomy, Hooks, Observability]),
     ]
@@ -241,3 +247,7 @@ pub enum GeneralSettingsTab {
     Themes,
     Companion,
 }
+
+#[cfg(test)]
+#[path = "settings_navigation_tests.rs"]
+mod tests;

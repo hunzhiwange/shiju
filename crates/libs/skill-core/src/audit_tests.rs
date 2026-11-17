@@ -452,7 +452,10 @@ fn audit_markdown_links_cover_allowed_and_rejected_targets() {
     let summary = report.summary();
     assert!(summary.contains("unsupported URL scheme"));
     assert!(summary.contains("absolute markdown link paths are not allowed"));
-    assert!(!summary.contains("scripts/run.sh"));
+    assert!(report.findings.iter().any(|finding| {
+        finding
+            == "SKILL.md: markdown links to script files are blocked (scripts/run.sh?download=1)."
+    }));
     assert!(summary.contains("markdown link points to a missing file"));
     assert!(summary.contains("markdown link must point to a file"));
     assert!(summary.contains("markdown link escapes skill root"));

@@ -1,10 +1,11 @@
 use vw_api_app_operations::{AppActionPreviewRequest, AppActionTarget, AppLifecycleAction};
-use vw_api_app_identity::{ AppInstallationEnvironment, AppInstallationSource, AppRuntimeKind};
-// Expanded installation details keep diagnostics and destructive actions out of the overview.
-use super::{catalog, presentation, Action, ViewState};
+use vw_api_app_identity::{ AppId, AppInstallationEnvironment, AppInstallationRuntimeStatus, AppInstallationSource, AppRuntimeKind};
+// Only the selected application receives configuration and lifecycle controls.
+use super::{catalog, catalog::CatalogRow, list::action, presentation::{self, Presence}, Action, ViewState};
+use desktop_assets::assets::Icon;
 use desktop_ui_controls::system_settings_common::*;
 use iced::{
-    Element, Length,
+    Alignment, Element, Length,
     widget::{button, column, container, row, text, text::Wrapping},
 };
 
@@ -16,6 +17,7 @@ pub fn view<'a, M: Clone + 'static>(
     message: impl Fn(Action) -> M + Copy + 'static,
 ) -> Element<'a, M> {
     let mut details = column![
+        settings_group_heading(&app.entry.name, "配置和操作仅作用于此智能体"),
         text("运行状态").size(15),
         button(text("重新探测此应用").size(SETTINGS_CONTROL_TEXT_SIZE))
             .padding([8, 12])
@@ -167,4 +169,84 @@ fn path_field<'a, M: 'a>(label: &'a str, path: &'a str) -> Element<'a, M> {
     ]
     .spacing(4)
     .into()
+}
+
+pub(super) fn actions<'a, M: Clone + 'static>(
+    state: &ViewState<'a>,
+    app: &'a CatalogRow,
+    local_available: bool,
+    message: impl Fn(Action) -> M + Copy + 'static,
+) -> Element<'a, M> {
+    let installed = presentation::presence(app) == Presence::Installed;
+    let ready = presentation::preferred(app).is_some_and(|installation|
+        matches!(installation.runtime_status, AppInstallationRuntimeStatus::Runnable));
+    let busy = state.loading || state.lifecycle.active()
+        || state.lifecycle.preview.is_some() || state.drag.source.is_some();
+    let primary: Element<'_, M> = if ready {
+        let installation = presentation::preferred(app).unwrap();
+        button(
+            text("启动")
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .width(Length::Fill)
+                .align_x(iced::alignment::Horizontal::Center),
+        )
+        .width(68.)
+        .padding([8, 12])
+        .style(|theme, status| {
+            if status == iced::widget::button::Status::Disabled {
+                rounded_action_btn_style(theme, status)
+            } else {
+                primary_action_btn_style(theme, status)
+            }
+        })
+        .on_press_maybe((!busy).then(move || {
+            message(Action::LaunchOpen(app.entry.id, installation.id.clone()))
+        }))
+        .into()
+    } else if presentation::presence(app) == Presence::Missing
+        && app.entry.runtime_kinds.contains(&AppRuntimeKind::NativeCli)
+        && state.host == local_app_auth::HOST_ID
+        && local_available
+    {
+        let environment = if cfg!(target_os = "macos") {
+            AppInstallationEnvironment::Macos
+        } else {
+            AppInstallationEnvironment::Linux
+        };
+        action(
+            "安装",
+            Icon::CloudDownload,
+            Action::Preview(
+                    AppActionPreviewRequest {
+                        app_id: app.entry.id,
+                        action: AppLifecycleAction::Install,
+                        target: AppActionTarget::Environment { environment },
+                    },
+            ),
+            !busy, message,
+        )
+    } else {
+        action(
+            if installed { "检查" } else { "详情" },
+            Icon::Sliders,
+            Action::RefreshObservation(app.entry.id),
+            !busy, message,
+        )
+    };
+    let providers = button(text("供应商").size(SETTINGS_CONTROL_TEXT_SIZE))
+        .padding([8, 11])
+        .style(rounded_action_btn_style)
+        .on_press_maybe((!busy).then_some(message(Action::Providers(app.entry.id))));
+    let mut actions = row![providers].spacing(8).align_y(Alignment::Center);
+    // Dedicated applications retain their workspace / explicit Claude Code entry.
+    if !matches!(app.entry.id, AppId::ClaudeDesktop | AppId::OpenClaw) {
+        let event = Action::Prompts(app.entry.id);
+        actions = actions.push(
+            button(text("提示词").size(SETTINGS_CONTROL_TEXT_SIZE))
+                .padding([8, 11])
+                .style(rounded_action_btn_style)
+                .on_press_maybe((!busy).then_some(message(event))),
+        );
+    }
+    actions.push(primary).wrap().into()
 }

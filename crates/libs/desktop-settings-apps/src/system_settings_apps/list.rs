@@ -1,11 +1,8 @@
-use vw_api_app_operations::{AppActionPreviewRequest, AppActionTarget, AppLifecycleAction};
 use vw_api_app_identity::{
     AppId,
-    AppInstallationEnvironment,
     AppInstallationRuntimeStatus,
-    AppRuntimeKind,
 };
-// Compact application overview. Installation paths and diagnostics live in expanded details.
+// Application selection stays separate from the selected application configuration.
 
 
 use super::{catalog::CatalogRow, drag, preferences, presentation::{self, Presence}, styles::{self, Tone}, Action, ViewState};
@@ -27,7 +24,7 @@ fn pill<'a, M: 'a>(label: impl Into<String>, tone: Tone) -> Element<'a, M> {
 fn icon(icon: Icon, size: f32) -> svg::Svg<'static> {
     icon_svg(icon, size).style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
 }
-fn action<'a, M: Clone + 'static>(
+pub(super) fn action<'a, M: Clone + 'static>(
     label: &'a str,
     glyph: Icon,
     event: Action,
@@ -45,7 +42,7 @@ fn action<'a, M: Clone + 'static>(
     .into()
 }
 
-pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn(&'static str, &'static str) -> Element<'a, M>, local_available: bool, domains: Element<'a, M>, routing: Element<'a, M>, mut details: Option<Element<'a, M>>, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
+pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn(&'static str, &'static str) -> Element<'a, M>, local_available: bool, domains: Element<'a, M>, routing: Element<'a, M>, details: Option<Element<'a, M>>, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
     let visible = preferences::visible_rows(state);
     let installed =
         visible.iter().filter(|a| presentation::presence(a) == Presence::Installed).count();
@@ -58,7 +55,7 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
         state.host
     };
     let heading = row![
-        container(settings_page_heading("应用", "发现你的 AI 工具，随时开始工作。"))
+        container(settings_page_heading("第三方智能体", "选择智能体，管理它的配置与运行环境。"))
             .width(Length::Fill),
         action(
             if state.error.is_some() { "重试" } else { "刷新" },
@@ -172,7 +169,7 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
                     .align_y(Alignment::Center);
             let mut cards = column![].spacing(8);
             for app in apps {
-                cards = cards.push(card(state, app, local_available, if state.expanded == Some(app.entry.id) { details.take() } else { None }, message));
+                cards = cards.push(card(state, app, message));
             }
             let section = column![section_title, cards].spacing(10);
             let section: Element<'_, M> =
@@ -188,6 +185,23 @@ pub fn view<'a, M: Clone + 'static>(state: &ViewState<'a>, help_heading: impl Fn
                 "没有找到匹配的应用",
                 "试试其他名称，或清空搜索内容。",
                 Icon::Search,
+            ));
+        }
+    }
+    if !state.loading {
+        if let Some(app) = selected_app(state) {
+            let mut panel = column![
+                container(super::details::actions(state, app, local_available, message)).padding([16, 18]),
+            ].spacing(10);
+            if let Some(details) = details {
+                panel = panel.push(details);
+            }
+            content = content.push(settings_group_card(panel));
+        } else if !state.rows.is_empty() {
+            content = content.push(empty(
+                "选择一个智能体",
+                "从上方列表选择，查看此智能体的配置与操作。",
+                Icon::Sliders,
             ));
         }
     }
@@ -267,15 +281,11 @@ fn brand<M: 'static>(app: AppId) -> Element<'static, M> {
         .into()
 }
 
-fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, app: &'a CatalogRow, local_available: bool, details: Option<Element<'a, M>>, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
+fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, app: &'a CatalogRow, message: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
     let installed = presentation::presence(app) == Presence::Installed;
     let expanded = state.expanded == Some(app.entry.id);
-    let busy = state.loading
-        || state.lifecycle.active()
-        || state.lifecycle.preview.is_some()
-        || state.drag.source.is_some();
     let selected =
-        state.drag.source == Some(app.entry.id) || state.drag.target == Some(app.entry.id);
+        expanded || state.drag.source == Some(app.entry.id) || state.drag.target == Some(app.entry.id);
     let handle: Element<'_, M> = if installed {
         static GRIP: std::sync::LazyLock<svg::Handle> = std::sync::LazyLock::new(|| {
             svg::Handle::from_memory(br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 18" fill="currentColor"><circle cx="3" cy="3" r="1.5"/><circle cx="9" cy="3" r="1.5"/><circle cx="3" cy="9" r="1.5"/><circle cx="9" cy="9" r="1.5"/><circle cx="3" cy="15" r="1.5"/><circle cx="9" cy="15" r="1.5"/></svg>"#.as_slice())
@@ -329,9 +339,8 @@ fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, app: &'a CatalogRow, loca
         container(text("")).width(14.).into()
     };
     let mut meta = row![].spacing(6).align_y(Alignment::Center);
-    let mut ready = false;
     if let Some(installation) = presentation::preferred(app) {
-        ready = matches!(installation.runtime_status, AppInstallationRuntimeStatus::Runnable);
+        let ready = matches!(installation.runtime_status, AppInstallationRuntimeStatus::Runnable);
         meta = meta
             .push(pill(presentation::source_label(installation.source), Tone::Neutral))
             .push(
@@ -357,91 +366,15 @@ fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, app: &'a CatalogRow, loca
         column![text(&app.entry.name).size(16).wrapping(Wrapping::Glyph), meta.wrap(),]
             .spacing(8)
             .width(Length::Fill);
-    let primary: Element<'_, M> = if ready {
-        let installation = presentation::preferred(app).unwrap();
-        button(
-            text("启动")
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .width(Length::Fill)
-                .align_x(iced::alignment::Horizontal::Center),
-        )
-        .width(68.)
+    let select = button(text(if expanded { "已选择" } else { "选择" }).size(SETTINGS_CONTROL_TEXT_SIZE))
         .padding([8, 12])
-        .style(|theme, status| {
-            if status == iced::widget::button::Status::Disabled {
-                rounded_action_btn_style(theme, status)
-            } else {
-                primary_action_btn_style(theme, status)
-            }
-        })
-        .on_press_maybe((!busy).then(move || {
-            message(Action::LaunchOpen(app.entry.id, installation.id.clone()))
-        }))
-        .into()
-    } else if presentation::presence(app) == Presence::Missing
-        && app.entry.runtime_kinds.contains(&AppRuntimeKind::NativeCli)
-        && state.host == local_app_auth::HOST_ID
-        && local_available
-    {
-        let environment = if cfg!(target_os = "macos") {
-            AppInstallationEnvironment::Macos
-        } else {
-            AppInstallationEnvironment::Linux
-        };
-        action(
-            "安装",
-            Icon::CloudDownload,
-            Action::Preview(
-                    AppActionPreviewRequest {
-                        app_id: app.entry.id,
-                        action: AppLifecycleAction::Install,
-                        target: AppActionTarget::Environment { environment },
-                    },
-            ),
-            !busy, message,
-        )
-    } else {
-        action(
-            if installed { "检查" } else { "详情" },
-            Icon::Sliders,
-            Action::ToggleDetails(app.entry.id),
-            !busy, message,
-        )
-    };
-    let toggle = button(icon(if expanded { Icon::ChevronUp } else { Icon::ChevronDown }, 14.))
-        .padding([8, 6])
         .style(rounded_action_btn_style)
-        .on_press_maybe(
-            (state.drag.source.is_none())
-                .then_some(message(Action::ToggleDetails(app.entry.id))),
-        );
-    let providers = button(text("供应商").size(SETTINGS_CONTROL_TEXT_SIZE))
-        .padding([8, 11])
-        .style(rounded_action_btn_style)
-        .on_press(message(Action::Providers(app.entry.id)));
-    let mut actions = row![providers].spacing(8).align_y(Alignment::Center);
-    // Dedicated applications retain their workspace / explicit Claude Code entry.
-    if !matches!(app.entry.id, AppId::ClaudeDesktop | AppId::OpenClaw) {
-        let event = if expanded {
-            Action::Prompts(app.entry.id)
-        } else {
-            Action::ToggleDetails(app.entry.id)
-        };
-        actions = actions.push(
-            button(text("提示词").size(SETTINGS_CONTROL_TEXT_SIZE))
-                .padding([8, 11])
-                .style(rounded_action_btn_style)
-                .on_press_maybe((!busy).then_some(message(event))),
-        );
-    }
-    let actions = actions.push(primary).push(toggle);
-    let summary = row![handle, brand(app.entry.id), description, actions]
+        .on_press_maybe((!expanded && state.drag.source.is_none())
+            .then_some(message(Action::ToggleDetails(app.entry.id))));
+    let summary = row![handle, brand(app.entry.id), description, select]
         .spacing(12)
         .align_y(Alignment::Center);
-    let mut body = column![container(summary).padding([16, 18])];
-    if expanded {
-        body = body.push(settings_divider()).push(details.unwrap_or_else(|| iced::widget::Space::new().into()));
-    }
+    let body = container(summary).padding([12, 14]);
     let card =
         container(body).width(Length::Fill).style(move |theme| styles::card(theme, selected));
     if installed {
@@ -452,4 +385,11 @@ fn card<'a, M: Clone + 'static>(state: &ViewState<'a>, app: &'a CatalogRow, loca
     } else {
         card.into()
     }
+}
+
+/// Returns the selected application within the current visibility and search scope.
+pub fn selected_app<'a>(state: &ViewState<'a>) -> Option<&'a CatalogRow> {
+    preferences::visible_rows(state).into_iter().find(|app| {
+        Some(app.entry.id) == state.expanded && presentation::matches_query(app, state.query)
+    })
 }

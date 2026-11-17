@@ -13,7 +13,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 STATE = ROOT / '.cache' / 'relax-dev'
-MANIFEST = ROOT / 'patches' / 'relax' / 'manifest.json'
+RELAX_REPOSITORY = 'https://github.com/makepad/relax'
+RELAX_COMMIT = '0e2a536309c5ee7c7a47d8806d603a9c12b9a586'
 
 
 def run(args, cwd=ROOT, env=None, capture=False):
@@ -31,6 +32,36 @@ def environment():
         env['CARGO_BUILD_BUILD_DIR'] = env['CARGO_TARGET_DIR']
     env.setdefault('CARGO_BUILD_JOBS', '4')
     return env
+
+
+def relax_environment_prefix(tool):
+    # The pinned runner predates the RELAX_* rename; local builds may use it.
+    source = (tool / 'libs/relax/compiler/src/run.rs').read_text()
+    if '"RELAX_STD"' in source:
+        return 'RELAX_'
+    if '"MAKEPAD_RUN_STD"' in source:
+        return 'MAKEPAD_RUN_'
+    raise RuntimeError(f'无法识别 Relax 环境变量接口：{tool}')
+
+
+def relax_environment(tool):
+    env = environment()
+    prefix = relax_environment_prefix(tool)
+    # Accept old shell settings, with the current RELAX_* spelling taking priority.
+    for key in list(env):
+        if key.startswith('MAKEPAD_RUN_'):
+            env.setdefault('RELAX_' + key[len('MAKEPAD_RUN_'):], env[key])
+    for key in list(env):
+        if key.startswith('RELAX_'):
+            value = env[key]
+            legacy = 'MAKEPAD_RUN_' + key[len('RELAX_'):]
+            if prefix == 'MAKEPAD_RUN_':
+                env[legacy] = value
+                del env[key]
+            else:
+                env.pop(legacy, None)
+    env[prefix + 'STD'] = str(tool / 'libs/relax/compiler/std')
+    return env, prefix
 
 
 def prepare():
@@ -66,14 +97,7 @@ def prepare_locked():
 
 
 def prepare_pinned():
-    spec = json.loads(MANIFEST.read_text())
-    patch = ROOT / 'patches' / 'relax' / 'compatibility.patch'
-    if digest(patch) != spec['patch_sha256']:
-        raise RuntimeError('Relax 补丁校验失败；停止安装。')
-    vendor_patch = ROOT / 'patches' / 'relax' / 'vendor-resolution.patch'
-    if digest(vendor_patch) != spec['dev_vendor_patch_sha256']:
-        raise RuntimeError('Relax vendor 补丁校验失败。')
-    key = hashlib.sha256((spec['base_commit'] + digest(patch) + digest(vendor_patch) +
+    key = hashlib.sha256(('unpatched-v1:' + RELAX_COMMIT +
                           run(['rustc', '-Vv'], capture=True).stdout).encode()).hexdigest()[:20]
     install = STATE / 'tools' / key
     tool = install / 'source'
@@ -88,23 +112,19 @@ def prepare_pinned():
             shutil.rmtree(install)
         install.mkdir(parents=True)
         run(['git', 'init', tool])
-        run(['git', 'remote', 'add', 'origin', spec['base_repository']], cwd=tool)
-        # Reuse a previously downloaded base commit when only our patch changes.
+        run(['git', 'remote', 'add', 'origin', RELAX_REPOSITORY], cwd=tool)
+        # Reuse a previously downloaded base commit without copying working-tree changes.
         origin = 'origin'
         for candidate in sorted((STATE / 'tools').glob('*/source')):
             if candidate == tool:
                 continue
             head = subprocess.run(['git', '-C', str(candidate), 'rev-parse', 'HEAD'],
                                   capture_output=True, text=True)
-            if head.returncode == 0 and head.stdout.strip() == spec['base_commit']:
+            if head.returncode == 0 and head.stdout.strip() == RELAX_COMMIT:
                 origin = str(candidate)
                 break
-        run(['git', 'fetch', '--depth=1', origin, spec['base_commit']], cwd=tool)
+        run(['git', 'fetch', '--depth=1', origin, RELAX_COMMIT], cwd=tool)
         run(['git', 'checkout', '--detach', 'FETCH_HEAD'], cwd=tool)
-        run(['git', 'apply', '--check', patch], cwd=tool)
-        run(['git', 'apply', patch], cwd=tool)
-        run(['git', 'apply', '--check', vendor_patch], cwd=tool)
-        run(['git', 'apply', vendor_patch], cwd=tool)
         env = environment()
         run(['cargo', 'build', '--release', '-p', 'relax-runner', '--bin', 'relax'],
             cwd=tool, env=env)
@@ -119,8 +139,7 @@ def prepare_launch_dir():
     # A nearby directory-source config overrides unsupported ancestor registry mirrors.
     # It changes neither tracked .cargo/config.toml nor the user's Cargo configuration.
     lock_key = digest(ROOT / 'Cargo.lock')
-    font_patch = ROOT / 'patches' / 'relax' / 'iced-fonts-path.patch'
-    vendor_key = lock_key + ':all-features-v2:' + digest(font_patch)
+    vendor_key = lock_key + ':all-features-unpatched-v1'
     vendor = STATE / 'vendor'
     launch_dir = STATE / 'run'
     config_dir = launch_dir / '.cargo'
@@ -160,8 +179,6 @@ def prepare_vendor(vendor):
         if dest.exists():
             shutil.rmtree(dest)
         shutil.copytree(source, dest)
-        if (package['name'], package['version']) == ('iced_fonts_macros', '0.3.0'):
-            run(['git', 'apply', ROOT / 'patches' / 'relax' / 'iced-fonts-path.patch'], cwd=dest)
         files = {str(p.relative_to(dest)): digest(p) for p in dest.rglob('*')
                  if p.is_file() and p.name != '.cargo-checksum.json'}
         (dest / '.cargo-checksum.json').write_text(json.dumps({
@@ -219,19 +236,18 @@ def main(argv):
                 package, '--bin', name]
         if argv[0] == 'gateway' or len(argv) > 1:
             args += ['--'] + (['gateway'] if argv[0] == 'gateway' else []) + argv[1:]
-    env = environment()
+    env, prefix = relax_environment(tool)
     if argv[0] == 'desktop':
         # SIGILL was reported in an O3 local_time closure. Keep desktop iteration
         # below that tier until the full-app compiler failure has a regression.
-        env.setdefault('MAKEPAD_RUN_O3', '0')
-        print(f'Relax 桌面 O3={env["MAKEPAD_RUN_O3"]}（默认临时停用 SIGILL 所在优化层；底层原因待定位）', flush=True)
+        env.setdefault(prefix + 'O3', '0')
+        print(f'Relax 桌面 O3={env[prefix + "O3"]}（默认临时停用 SIGILL 所在优化层；底层原因待定位）', flush=True)
     if argv[0] == 'test':
         # Focused assertions need reached code first, not speculative callees.
-        env.setdefault('MAKEPAD_RUN_AHEAD', 'minimal')
-    env['MAKEPAD_RUN_STD'] = str(tool / 'libs/relax/compiler/std')
+        env.setdefault(prefix + 'AHEAD', 'minimal')
     # Each package uses its own default Relax cache, not one shared override.
     if argv[0] == 'test':
-        print(f'Relax 常驻测试：{package} filter={argv[2]} ahead={env["MAKEPAD_RUN_AHEAD"]}；源码 {ROOT}', flush=True)
+        print(f'Relax 常驻测试：{package} filter={argv[2]} ahead={env[prefix + "AHEAD"]}；源码 {ROOT}', flush=True)
     else:
         print(f'Relax 常驻开发：{package}；源码 {ROOT}', flush=True)
     os.chdir(cwd)

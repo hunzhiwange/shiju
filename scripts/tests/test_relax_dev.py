@@ -9,9 +9,35 @@ from unittest.mock import patch
 SPEC = importlib.util.spec_from_file_location('relax_dev', Path(__file__).parents[1] / 'relax_dev.py')
 dev = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(dev)
+ORIGINAL_PREFIX = dev.relax_environment_prefix
 
 
 class RelaxDevTests(unittest.TestCase):
+    def setUp(self):
+        prefix = patch.object(dev, 'relax_environment_prefix', return_value='RELAX_')
+        prefix.start()
+        self.addCleanup(prefix.stop)
+
+    def test_environment_supports_new_and_pinned_runner_interfaces(self):
+        for prefix in ('RELAX_', 'MAKEPAD_RUN_'):
+            with self.subTest(prefix=prefix), tempfile.TemporaryDirectory() as folder:
+                tool = Path(folder)
+                source = tool / 'libs/relax/compiler/src/run.rs'
+                source.parent.mkdir(parents=True)
+                source.write_text('std::env::var_os("' + prefix + 'STD")')
+                # Exercise the source detection rather than the launch fixture.
+                self.assertEqual(ORIGINAL_PREFIX(tool), prefix)
+                with patch.object(dev, 'relax_environment_prefix', return_value=prefix), \
+                        patch.dict(dev.os.environ, {'MAKEPAD_RUN_O3': '1', 'RELAX_O3': '0',
+                                                    'MAKEPAD_RUN_AHEAD': 'balanced'}, clear=True):
+                    env, actual = dev.relax_environment(tool)
+                    self.assertEqual(actual, prefix)
+                    self.assertEqual(env[prefix + 'O3'], '0')
+                    self.assertEqual(env[prefix + 'AHEAD'], 'balanced')
+                    self.assertEqual(env[prefix + 'STD'], str(tool / 'libs/relax/compiler/std'))
+                    other = 'MAKEPAD_RUN_' if prefix == 'RELAX_' else 'RELAX_'
+                    self.assertFalse(any(key.startswith(other) for key in env))
+
     def test_local_build_bypasses_installer_and_uses_matching_std(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -49,15 +75,8 @@ class RelaxDevTests(unittest.TestCase):
             self.assertEqual(env['CARGO_TARGET_DIR'], '/repo/target/rust-slot-3')
             self.assertEqual(env['CARGO_BUILD_BUILD_DIR'], env['CARGO_TARGET_DIR'])
 
-    def test_bad_patch_stops_before_network_or_build(self):
-        with patch.object(dev, 'digest', return_value='invalid'), patch.object(dev, 'run') as run:
-            with self.assertRaisesRegex(RuntimeError, '补丁校验失败'):
-                dev.prepare_pinned()
-            run.assert_not_called()
-
     def test_corrupt_cached_binary_is_rejected(self):
-        spec = json.loads(dev.MANIFEST.read_text())
-        key = dev.hashlib.sha256((spec['base_commit'] + spec['patch_sha256'] + spec['dev_vendor_patch_sha256'] + 'rustc').encode()).hexdigest()[:20]
+        key = dev.hashlib.sha256(('unpatched-v1:' + dev.RELAX_COMMIT + 'rustc').encode()).hexdigest()[:20]
         with tempfile.TemporaryDirectory() as folder:
             state = Path(folder)
             install = state / 'tools' / key
@@ -86,7 +105,7 @@ class RelaxDevTests(unittest.TestCase):
             self.assertEqual(checksum['package'], 'package-digest')
             self.assertEqual(checksum['files']['Cargo.toml'], dev.digest(source / 'Cargo.toml'))
 
-    def test_font_macro_patch_is_applied_before_vendor_checksums(self):
+    def test_font_macro_vendor_preserves_original_source(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             source = root / 'registry' / 'iced_fonts_macros-0.3.0'
@@ -98,7 +117,6 @@ class RelaxDevTests(unittest.TestCase):
                         '    let face = Face::parse(&font_data, 0).expect("Failed to parse font");\n\n'
                         '    let mut all_codepoints: Vec<char> = Vec::new();\n')
             (source / 'src/lib.rs').write_text(original)
-            (root / 'patches').symlink_to(dev.ROOT / 'patches', target_is_directory=True)
             (root / 'Cargo.lock').write_text('[[package]]\nname = "iced_fonts_macros"\nversion = "0.3.0"\nsource = "registry+https://example.test/index"\nchecksum = "package-digest"\n')
             metadata = {'packages': [{'name': 'iced_fonts_macros', 'version': '0.3.0',
                         'source': 'registry+https://example.test/index',
@@ -114,7 +132,7 @@ class RelaxDevTests(unittest.TestCase):
             with patch.object(dev, 'ROOT', root), patch.object(dev, 'run', side_effect=run):
                 dev.prepare_vendor(root / 'vendor')
             dest = root / 'vendor/iced_fonts_macros-0.3.0'
-            self.assertIn('CARGO_MANIFEST_DIR', (dest / 'src/lib.rs').read_text())
+            self.assertEqual((dest / 'src/lib.rs').read_text(), original)
             checksum = json.loads((dest / '.cargo-checksum.json').read_text())
             self.assertEqual(checksum['files']['src/lib.rs'], dev.digest(dest / 'src/lib.rs'))
             self.assertEqual((source / 'src/lib.rs').read_text(), original)
@@ -127,7 +145,7 @@ class RelaxDevTests(unittest.TestCase):
             self.assertEqual(binary, Path('/tool/relax'))
             self.assertEqual(args[-4:], ['--', 'gateway', '--port', '54771'])
             self.assertNotIn('--unattended', args)
-            self.assertEqual(env['MAKEPAD_RUN_STD'], '/tool/source/libs/relax/compiler/std')
+            self.assertEqual(env['RELAX_STD'], '/tool/source/libs/relax/compiler/std')
             chdir.assert_called_once_with(Path('/run'))
 
     def test_macos_bundle_has_independent_identity_and_updates_runner(self):
@@ -153,7 +171,7 @@ class RelaxDevTests(unittest.TestCase):
                 patch.object(dev.os, 'chdir'), patch.object(dev.os, 'execve') as execute:
             self.assertIsNone(dev.main(['test', 'vw-desktop', 'voice_task_11_']))
             _, args, env = execute.call_args.args
-            self.assertEqual(env['MAKEPAD_RUN_AHEAD'], 'minimal')
+            self.assertEqual(env['RELAX_AHEAD'], 'minimal')
             self.assertEqual(args, ['/tool/relax', 'test', '--live', '--allow-c', '--cfg',
                                     'debug_assertions', 'vw-desktop', '--lib', '--',
                                     'voice_task_11_', '--nocapture', '--test-threads=1'])
@@ -164,7 +182,7 @@ class RelaxDevTests(unittest.TestCase):
                 patch.object(dev, 'prepare', return_value=(Path('/tool/relax'), Path('/tool/source'), Path('/run'))), \
                 patch.object(dev.os, 'chdir'), patch.object(dev.os, 'execve') as execute:
             dev.main(['test', 'vw-desktop', 'voice_task_11_'])
-            self.assertEqual(execute.call_args.args[2]['MAKEPAD_RUN_AHEAD'], 'balanced')
+            self.assertEqual(execute.call_args.args[2]['RELAX_AHEAD'], 'balanced')
 
     def test_live_test_rejects_missing_or_ambiguous_selection_before_setup(self):
         for args in [['test'], ['test', 'vw-desktop'], ['test', 'vw-desktop', ''],
@@ -182,16 +200,16 @@ class RelaxDevTests(unittest.TestCase):
                 patch.object(dev.os, 'chdir'), patch.object(dev.os, 'execve') as execute:
             dev.main(['desktop'])
             self.assertEqual(execute.call_args.args[1][-3:], ['vw-desktop', '--bin', 'shi-ju'])
-            self.assertEqual(execute.call_args.args[2]['MAKEPAD_RUN_O3'], '0')
+            self.assertEqual(execute.call_args.args[2]['RELAX_O3'], '0')
             self.assertNotIn('--unattended', execute.call_args.args[1])
 
     def test_desktop_honors_explicit_o3_for_compiler_reproduction(self):
-        with patch.dict(dev.os.environ, {'MAKEPAD_RUN_O3': '1'}, clear=True), \
+        with patch.dict(dev.os.environ, {'RELAX_O3': '1'}, clear=True), \
                 patch.object(dev, 'prepare', return_value=(Path('/tool/relax'), Path('/tool/source'), Path('/run'))), \
                 patch.object(dev, 'desktop_bundle', return_value=Path('/tool/relax')), \
                 patch.object(dev.os, 'chdir'), patch.object(dev.os, 'execve') as execute:
             dev.main(['desktop'])
-            self.assertEqual(execute.call_args.args[2]['MAKEPAD_RUN_O3'], '1')
+            self.assertEqual(execute.call_args.args[2]['RELAX_O3'], '1')
 
 
 if __name__ == '__main__':

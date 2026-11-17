@@ -5,17 +5,22 @@ This document is located under `scripts/` for daily development and release.
 ## Relax live development
 
 From the repository root, use `cargo dev-gateway` and `cargo dev-desktop` in separate
-terminals. First use installs the pinned patched Relax automatically; `cargo dev-setup`
+terminals. First use installs the pinned unpatched Relax automatically; `cargo dev-setup`
 prepares it ahead of time. Requires Python 3.9+ and the existing Rust/native build toolchain.
 See [team setup and validation](../docs/dev/Relax开发验证.md#团队一键入口当前仓库).
 
-The desktop entry temporarily defaults `MAKEPAD_RUN_O3=0` after a reported
+The entry detects the environment interface from the selected Relax source tree.
+Use `RELAX_*` settings; the pinned older runner receives the corresponding
+`MAKEPAD_RUN_*` names. Legacy shell settings remain accepted; `RELAX_*` takes
+priority when both spellings are set.
+
+The desktop entry temporarily defaults `RELAX_O3=0` after a reported
 `SIGILL` in the O3 closure used by `session_row::local_time`. Hot reload remains
 enabled. This disables the faulting optimization tier, but the compiler root cause
 is still unconfirmed; it is not a guarantee against other JIT failures. Restart
 `cargo dev-desktop` to apply it to an existing session. Gateway and live test
 entries keep their existing optimization policy. For compiler reproduction only,
-use `MAKEPAD_RUN_O3=1 cargo dev-desktop`; the entry prints the selected value.
+use `RELAX_O3=1 cargo dev-desktop`; the entry prints the selected value.
 An isolated chrono formatting loop passed even after reaching O3, so it does not
 yet reproduce the full application failure. See the
 [investigation evidence](../docs/dev/evidence/relax-jit-sigill-2026-11-13/report.md).
@@ -30,7 +35,7 @@ python3 scripts/cargo_slot.py cargo dev-test vw-desktop app::components::voice_c
 python3 scripts/cargo_slot.py cargo dev-test vw-config-types config_defaults_promote_shiju_as_primary_provider
 ```
 
-`cargo dev-test <workspace-package> <test-filter>` uses the same pinned patched
+`cargo dev-test <workspace-package> <test-filter>` uses the same pinned unpatched
 Relax as the application entries, with `test --live`, default features, `--lib`,
 `--nocapture`, and one test thread. Both arguments are required; empty filters and
 extra flags are rejected before preparing the tool. This is a foreground process:
@@ -46,8 +51,8 @@ The final native focused tests and required full Clippy still apply. This entry
 does not implement the Clippy, release, physical audio or permission checks.
 Compiler diagnostics remain visible. Focused tests default to the runtime's
 `minimal` ahead policy: compile reached code on demand and avoid speculative
-callees competing with the next assertion. An explicitly set `MAKEPAD_RUN_AHEAD`
-is preserved, for example `MAKEPAD_RUN_AHEAD=balanced cargo dev-test ...`.
+callees competing with the next assertion. An explicitly set `RELAX_AHEAD`
+is preserved, for example `RELAX_AHEAD=balanced cargo dev-test ...`.
 Application entries retain their previous policy. This test default is validated
 on the focused rendering/event path; it does not promise faster startup for every
 test family.

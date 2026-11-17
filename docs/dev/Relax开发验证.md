@@ -1,5 +1,7 @@
 # ShiJu 使用 Relax 的开发验证
 
+> 2026-11-17：已移除全部 Relax 补丁及自动应用逻辑。入口使用本地配置的 Relax 或固定上游原版；旧补丁缓存不会复用。下文历史验证不代表无补丁版本已通过，历史补丁文件已删除。
+
 ## 默认开发命令重新验收与 macOS 桌面包装
 
 重新直接运行 `cargo dev-gateway` 与 `cargo dev-desktop`，没有指定测试端口或覆盖日常桌面配置。gateway 在默认 `127.0.0.1:42617` 返回 HTTP 200、`status: ok`，响应 PID 与本次运行器一致。原先未包装的桌面已进入 macOS 事件循环，`relax inspect ... panics` 没有挂起 panic；这不能单凭进程存在就认定窗口可用。
@@ -42,11 +44,11 @@ cargo run -p vw-desktop --bin shi-ju
 
 Cargo 别名先编译仓库内无第三方依赖的小型启动器 `tools/relax-dev`，再调用 Python 脚本；这是 Cargo 支持的 `run` 别名，不依赖全局插件。Cargo 配置机制见[官方文档](https://doc.rust-lang.org/cargo/reference/config.html#alias)。
 
-安装由 `scripts/relax_dev.py` 完成：校验仓库两份补丁，下载固定提交，应用兼容修复及 vendored 版本筛选修复并 release 构建；按工具链、提交与补丁哈希缓存。安装锁防止两个终端重复安装；不完整安装会重试，损坏的已安装二进制会明确拒绝。首次需联网，耗时与占用明显高于后续启动。
+安装由 `scripts/relax_dev.py` 完成：下载固定上游提交，不应用补丁并 release 构建；按工具链、提交与无补丁缓存版本缓存。安装锁防止两个终端重复安装；不完整安装会重试，损坏的已安装二进制会明确拒绝。首次需联网，耗时与占用明显高于后续启动。
 
 为兼容本机 rsproxy 等祖先目录 registry 配置，脚本通过 `cargo metadata --locked --all-features` 获取 Cargo 已校验下载的依赖，按 `Cargo.lock` 复制 registry 包并生成 directory-source 校验清单；Git 依赖仍使用 Cargo 缓存。收集全部 features 的依赖只是为委托 Cargo 准备完整源，不改变两端运行的默认 features。这样避开整个 workspace 的 `cargo vendor` 对 registry/Git 同名同版本 `crossterm` 的冲突。按锁文件更新依赖副本，在忽略目录 `.cache/relax-dev/run/.cargo/config.toml` 生成局部 directory-source 配置。Relax 从此目录启动，解析的仍是当前完整工作区，**直接编辑当前 Git 工作区即可热更新**，无需同步冻结快照。运行时工作目录为该子目录，应用若使用相对路径，需留意这一点。脚本不覆盖已有 Cargo 配置，也不改依赖 features、用户身份或认证设置。
 
-工具副本、vendor 和 Relax 自身缓存保留在 `.cache/relax-dev`；Cargo 编译输出改为 `target/rust-slot-1` 至 `rust-slot-20`，最终及中间产物使用同一槽位。入口持有槽位直到准备脚本和常驻运行器退出；已有任务手工领取的槽位会核对持有者 PID 后继承。小型 Rust 启动器在 Python 领槽前由 Cargo 编译；需要连启动器也纳入槽位时使用 `python3 scripts/cargo_slot.py cargo dev-desktop`。检查与聚焦测试的同阶段复用方式见 [构建说明](../../scripts/BUILDING.md#reusing-a-cargo-slot-during-development)。这些目录均已被仓库忽略，旧缓存不自动迁移或清理。更新锁文件后入口会重新准备依赖；工具版本/补丁变更后自动使用新工具目录。退出所有相关进程后可删除该目录完整重装。不要删除后仍期待当前进程继续热更新。
+工具副本、vendor 和 Relax 自身缓存保留在 `.cache/relax-dev`；Cargo 编译输出改为 `target/rust-slot-1` 至 `rust-slot-20`，最终及中间产物使用同一槽位。入口持有槽位直到准备脚本和常驻运行器退出；已有任务手工领取的槽位会核对持有者 PID 后继承。小型 Rust 启动器在 Python 领槽前由 Cargo 编译；需要连启动器也纳入槽位时使用 `python3 scripts/cargo_slot.py cargo dev-desktop`。检查与聚焦测试的同阶段复用方式见 [构建说明](../../scripts/BUILDING.md#reusing-a-cargo-slot-during-development)。这些目录均已被仓库忽略，旧缓存不自动迁移或清理。更新锁文件后入口会重新准备依赖；工具版本变更后自动使用新工具目录。退出所有相关进程后可删除该目录完整重装。不要删除后仍期待当前进程继续热更新。
 
 要求开发机已有 Python 3.9+、Git、Rust/Cargo 和项目原有的 C/C++ 及平台 GUI 构建依赖；本入口自动安装 Relax，不接管系统包管理器。支持入口平台为 macOS/Linux，定量实测仅 macOS arm64；Windows 明确拒绝并保留原生 Cargo 路径，不能把尚未验证的平台说成已支持。当前后续工作区业务修改仍需实际启动验证；完整生态兼容性限制见下文。
 
@@ -98,7 +100,7 @@ Relax 桌面先开启 CUA 标题观察，再按定时任务保存源码，保证
 
 | 要做的事 | 状态 / 操作 |
 | --- | --- |
-| 修复 reqwest、Rhai、Tower 等兼容问题 | 已完成，补丁在 `patches/relax/compatibility.patch`；普通未打补丁的基线版本不能替代 |
+| 修复 reqwest、Rhai、Tower 等兼容问题 | 已完成，历史补丁已删除；无补丁版本需重新验证 |
 | 准备运行器、Relax 标准库、完整 ShiJu 源码和依赖缓存 | 本机临时环境已有；先按下面快速体验，长期使用再迁出 `/tmp` |
 | 用 Relax 启动 gateway 和桌面并保持运行 | 需要执行下面两条启动命令；不要加 `--unattended` |
 | 修改正确的源码目录并触发相关行为 | 快速体验编辑的是 `/tmp/.../source`，不是当前 Git 工作区 |
@@ -201,21 +203,19 @@ cp /tmp/shiju-relax-edit-bench-20261113-restart/desktop-config/gateway-client-bo
 chmod 600 "$SHIJU_RELAX_ROOT/desktop-config/gateway-client-bootstrap.json"
 ```
 
-随后下载固定工具版本、应用仓库内补丁并重建；这些操作只修改独立工具目录：
+随后下载固定上游原版工具并重建；这些操作只修改独立工具目录：
 
 ```bash
 git clone https://github.com/makepad/relax.git "$SHIJU_RELAX_ROOT/tool"
 git -C "$SHIJU_RELAX_ROOT/tool" checkout 0e2a536309c5ee7c7a47d8806d603a9c12b9a586
 cd "$SHIJU_RELAX_ROOT/tool"
-git apply --check /Users/xiangmin/worker/code/shiju/patches/relax/compatibility.patch
-git apply /Users/xiangmin/worker/code/shiju/patches/relax/compatibility.patch
 CARGO_HOME="$SHIJU_RELAX_ROOT/cargo-home" \
 CARGO_TARGET_DIR="$SHIJU_RELAX_ROOT/tool-target" \
 CARGO_BUILD_BUILD_DIR="$SHIJU_RELAX_ROOT/tool-build" \
   cargo build --release -p relax-runner --bin relax -j 4
 ```
 
-若依赖未备齐，先在这个隔离目录解决 Cargo 下载/registry 配置，不要关闭下载校验或修改 ShiJu features 来绕过。构建输出的二进制哈希可能受路径/工具链影响，不要求与原二进制逐字节相同；应用补丁的基线和内容应固定。工具 checkout 与标准库目录需保留。[补丁说明](../../patches/relax/README.md)记录了补丁校验值与回滚方法。
+若依赖未备齐，先在这个隔离目录解决 Cargo 下载/registry 配置，不要关闭下载校验或修改 ShiJu features 来绕过。构建输出的二进制哈希可能受路径/工具链影响，不要求与原二进制逐字节相同；上游提交应固定。工具 checkout 与标准库目录需保留。
 
 长期使用时，两个终端改用以下环境，再执行 A 中相同的 gateway / 桌面启动命令：
 
@@ -270,7 +270,7 @@ mkdir -p "$MAKEPAD_RUN_CACHE_DIR" "$CARGO_TARGET_DIR" "$CARGO_BUILD_BUILD_DIR"
 
 成功边界是本机这条实际运行链路。全依赖后台检查仍有 520 项兼容诊断；跨 crate 上游泛型共享、未执行路径、Linux/Windows、通用工具执行尚未完整验证。界面显示对话处理 46 秒包含网络、模型和首次 JIT，不能据此计算编译提速。本次测试进程和占用锁已清理，临时测试项目/会话证据保留；没有修改全局 Cargo 配置或对外推送。
 
-最终补丁、哈希、完整命令和检查数据见 [补丁说明](../../patches/relax/README.md) 与 [Tower 验证数据](evidence/relax-tower-2026-11-13.json)。构建验证后期同时设置 `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 到领取的隔离槽；前期仅设置 target-dir 仍沿用了仓库 build-dir，证据中已区分。后续编辑循环计时已完成，结果与适用范围见上方重新实测章节。
+最终补丁、哈希、完整命令和检查数据见 历史补丁说明（已删除） 与 [Tower 验证数据](evidence/relax-tower-2026-11-13.json)。构建验证后期同时设置 `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 到领取的隔离槽；前期仅设置 target-dir 仍沿用了仓库 build-dir，证据中已区分。后续编辑循环计时已完成，结果与适用范围见上方重新实测章节。
 
 ## 2026-11-12 历史记录
 
@@ -279,7 +279,7 @@ mkdir -p "$MAKEPAD_RUN_CACHE_DIR" "$CARGO_TARGET_DIR" "$CARGO_BUILD_BUILD_DIR"
 
 ## 修复后的验证
 
-可应用、可回滚的源码补丁保存在 [patches/relax](../../patches/relax/README.md)，基线仍为 Relax `0e2a536309c5ee7c7a47d8806d603a9c12b9a586`。先在 Makepad `work` 源码中修复或核对已合入的修复，再同步至本地 Relax；没有修改 ShiJu 业务源码、依赖 features 或全局 Cargo 配置，也没有对外提交代码。
+可应用、可回滚的源码补丁保存在 原 patches/relax（已删除），基线仍为 Relax `0e2a536309c5ee7c7a47d8806d603a9c12b9a586`。先在 Makepad `work` 源码中修复或核对已合入的修复，再同步至本地 Relax；没有修改 ShiJu 业务源码、依赖 features 或全局 Cargo 配置，也没有对外提交代码。
 
 原始阻塞的修复方式：
 
@@ -308,7 +308,7 @@ mkdir -p "$MAKEPAD_RUN_CACHE_DIR" "$CARGO_TARGET_DIR" "$CARGO_BUILD_BUILD_DIR"
 - 修复版 release 构建成功。Relax workspace 的 `cargo clippy --all-targets --all-features -- -D warnings` 被未改动的 `objc-sys` exception 模块和既有 lint 错误阻塞；ShiJu 同命令被其他并行开发内容中的未使用导入/字段/方法阻塞，没有修改无关问题。
 - 补丁在基线 index 上 `git apply --cached --check` 通过，在已修复源码上反向应用检查通过。
 
-最终源码构建、逐项 fixture 结果、入口运行结果和清理状态见 [修复验证数据](evidence/relax-fix-2026-11-12.json)。原始日志和本地运行器保留在 `/tmp/shiju-relax-fix-evidence`，源码在 `/tmp/shiju-relax-eval-tool` 与 `/tmp/shiju-relax-fix-makepad`；系统清理临时目录后，可用仓库补丁重建。
+最终源码构建、逐项 fixture 结果、入口运行结果和清理状态见 [修复验证数据](evidence/relax-fix-2026-11-12.json)。原始日志和本地运行器保留在 `/tmp/shiju-relax-fix-evidence`，源码在 `/tmp/shiju-relax-eval-tool` 与 `/tmp/shiju-relax-fix-makepad`；系统清理临时目录后，历史仓库补丁现已删除。
 
 ### 当时的 gateway 阻塞
 

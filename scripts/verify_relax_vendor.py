@@ -1,5 +1,4 @@
-"""Check patched Relax against two vendored versions and a missing-version case."""
-import os
+"""Check Relax against two vendored versions and a missing-version case."""
 from pathlib import Path
 import subprocess
 import tempfile
@@ -46,9 +45,8 @@ def main():
             path = root / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(contents)
-        env = os.environ.copy()
+        env, _ = relax_dev.relax_environment(tool)
         env.update(
-            MAKEPAD_RUN_STD=str(tool / 'libs/relax/compiler/std'),
             CARGO_TARGET_DIR=str(root / 'target'),
             CARGO_BUILD_BUILD_DIR=str(root / 'build'),
         )

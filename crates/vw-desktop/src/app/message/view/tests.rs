@@ -413,3 +413,21 @@ fn mini_companion_size_none_ignores_slider() {
     let _ = update(&mut app, ViewMessage::TaskPetSizePreview(2.0));
     assert_eq!(app.task_pet_preview_scale(), 1.0);
 }
+
+#[test]
+fn mobile_mine_routes_to_account_navigation_and_back() {
+    use super::ViewMessage;
+
+    let mut app = crate::app::App::new().0;
+    app.mobile_layout.drawer_open = true;
+    app.navigation_panels.show_system_settings = true;
+
+    let _ = super::update(&mut app, ViewMessage::MobileMine);
+    assert!(app.mobile_layout.mine_open);
+    assert!(!app.mobile_layout.drawer_open);
+    assert!(!app.navigation_panels.show_system_settings);
+
+    let _ = super::update(&mut app, ViewMessage::MobileBack);
+    assert!(!app.mobile_layout.mine_open);
+    assert!(!app.mobile_layout.drawer_open);
+}

@@ -52,16 +52,17 @@ pub async fn resolve_gateway_file_context(client: &vw_gateway_client::GatewayCli
 }
 
 pub async fn resolve_gateway_project(client: &vw_gateway_client::GatewayClient, tenant_scope: &vw_api_project::TenantScopeDto, project_path: &str) -> Result<ProjectDto, String> {
-    resolve_gateway_project_with_client(client, project_path, true).await
+    resolve_gateway_project_with_client(client, tenant_scope, project_path, true).await
 }
 
 async fn resolve_gateway_project_with_client(
     client: &vw_gateway_client::GatewayClient,
+    tenant_scope: &vw_api_project::TenantScopeDto,
     project_path: &str,
     create_if_missing: bool,
 ) -> Result<ProjectDto, String> {
     gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(
-            client.endpoint().tenant_scope(),
+            tenant_scope,
             &ResolveProjectRequest { directory: project_path.to_string(), create_if_missing },
         )
         .await
@@ -72,7 +73,7 @@ pub async fn list_gateway_project_sessions(
     client: &vw_gateway_client::GatewayClient,
     project_path: &str,
 ) -> Result<Vec<session_info::Info>, String> {
-    let Ok(project) = resolve_gateway_project_with_client(client, project_path, false).await else {
+    let Ok(project) = resolve_gateway_project_with_client(client, client.endpoint().tenant_scope(), project_path, false).await else {
         return gateway_session::GatewaySessionClient::new(client.transport().clone()).session_list(Some(project_path)).await;
     };
     let mut sessions: Vec<session_info::Info> =
